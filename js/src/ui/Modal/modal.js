@@ -44,7 +44,7 @@ class Modal extends Component {
     current: PropTypes.number,
     waiting: PropTypes.array,
     steps: PropTypes.array,
-    title: nodeOrStringProptype,
+    title: nodeOrStringProptype(),
     visible: PropTypes.bool.isRequired,
     settings: PropTypes.object.isRequired
   }

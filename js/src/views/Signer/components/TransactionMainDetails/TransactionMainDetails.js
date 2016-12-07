@@ -18,7 +18,7 @@ import React, { Component, PropTypes } from 'react';
 
 import ReactTooltip from 'react-tooltip';
 
-import { MethodDecoding } from '../../../../ui';
+import { MethodDecoding } from '~/ui';
 
 import * as tUtil from '../util/transaction';
 import Account from '../Account';

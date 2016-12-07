@@ -16,41 +16,43 @@
 
 import React, { Component, PropTypes } from 'react';
 
-import { nodeOrStringProptype } from '~/util/proptypes';
+import { RadioButtons } from '~/ui';
 
-import styles from './title.css';
+// import styles from '../createWallet.css';
 
-export default class Title extends Component {
+export default class WalletType extends Component {
   static propTypes = {
-    className: PropTypes.string,
-    title: nodeOrStringProptype(),
-    byline: nodeOrStringProptype()
-  }
-
-  state = {
-    name: 'Unnamed'
-  }
+    onChange: PropTypes.func.isRequired,
+    type: PropTypes.string.isRequired
+  };
 
   render () {
-    const { className, title, byline } = this.props;
-
-    const byLine = typeof byline === 'string'
-      ? (
-        <span title={ byline }>
-          { byline }
-        </span>
-      )
-      : byline;
+    const { type } = this.props;
 
     return (
-      <div className={ className }>
-        <h3 className={ styles.title }>
-          { title }
-        </h3>
-        <div className={ styles.byline }>
-          { byLine }
-        </div>
-      </div>
+      <RadioButtons
+        name='contractType'
+        value={ type }
+        values={ this.getTypes() }
+        onChange={ this.onTypeChange }
+      />
     );
+  }
+
+  getTypes () {
+    return [
+      {
+        label: 'Multi-Sig wallet', key: 'MULTISIG',
+        description: 'A standard multi-signature Wallet'
+      },
+      {
+        label: 'Watch a wallet', key: 'WATCH',
+        description: 'Add an existing wallet to your accounts'
+      }
+    ];
+  }
+
+  onTypeChange = (type) => {
+    this.props.onChange(type.key);
   }
 }

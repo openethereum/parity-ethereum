@@ -25,16 +25,23 @@ import styles from './header.css';
 export default class Header extends Component {
   static contextTypes = {
     api: PropTypes.object
-  }
+  };
 
   static propTypes = {
     account: PropTypes.object,
-    balance: PropTypes.object
-  }
+    balance: PropTypes.object,
+    className: PropTypes.string,
+    children: PropTypes.node
+  };
+
+  static defaultProps = {
+    className: '',
+    children: null
+  };
 
   render () {
     const { api } = this.context;
-    const { account, balance } = this.props;
+    const { account, balance, className, children } = this.props;
     const { address, meta, uuid } = account;
 
     if (!account) {
@@ -46,7 +53,7 @@ export default class Header extends Component {
       : <div className={ styles.uuidline }>uuid: { uuid }</div>;
 
     return (
-      <div>
+      <div className={ className }>
         <Container>
           <IdentityIcon
             address={ address } />
@@ -74,6 +81,7 @@ export default class Header extends Component {
               dappsUrl={ api.dappsUrl }
             />
           </div>
+          { children }
         </Container>
       </div>
     );

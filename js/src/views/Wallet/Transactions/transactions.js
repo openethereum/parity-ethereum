@@ -16,11 +16,11 @@
 
 import React, { Component, PropTypes } from 'react';
 
-import { bytesToHex } from '../../../api/util/format';
-import { Container } from '../../../ui';
-import { TxRow } from '../../../ui/TxList/txList';
+import { bytesToHex } from '~/api/util/format';
+import { Container } from '~/ui';
+import { TxRow } from '~/ui/TxList/txList';
 
-import txListStyles from '../../../ui/TxList/txList.css';
+import txListStyles from '~/ui/TxList/txList.css';
 
 export default class WalletTransactions extends Component {
   static propTypes = {

@@ -33,7 +33,7 @@ export default class ConfirmDialog extends Component {
     iconDeny: PropTypes.node,
     labelConfirm: PropTypes.string,
     labelDeny: PropTypes.string,
-    title: nodeOrStringProptype.isRequired,
+    title: nodeOrStringProptype().isRequired,
     visible: PropTypes.bool.isRequired,
     onConfirm: PropTypes.func.isRequired,
     onDeny: PropTypes.func.isRequired

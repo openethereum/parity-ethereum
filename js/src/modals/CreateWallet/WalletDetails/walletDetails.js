@@ -16,18 +16,62 @@
 
 import React, { Component, PropTypes } from 'react';
 
-import { Form, TypedInput, Input, AddressSelect } from '../../../ui';
-import { parseAbiType } from '../../../util/abi';
+import { Form, TypedInput, Input, AddressSelect, InputAddress } from '~/ui';
+import { parseAbiType } from '~/util/abi';
+
+import styles from '../createWallet.css';
 
 export default class WalletDetails extends Component {
   static propTypes = {
     accounts: PropTypes.object.isRequired,
     wallet: PropTypes.object.isRequired,
     errors: PropTypes.object.isRequired,
-    onChange: PropTypes.func.isRequired
+    onChange: PropTypes.func.isRequired,
+    walletType: PropTypes.string.isRequired
   };
 
   render () {
+    const { walletType } = this.props;
+
+    if (walletType === 'WATCH') {
+      return this.renderWatchDetails();
+    }
+
+    return this.renderMultisigDetails();
+  }
+
+  renderWatchDetails () {
+    const { wallet, errors } = this.props;
+
+    return (
+      <Form>
+        <InputAddress
+          label='wallet address'
+          hint='the wallet contract address'
+          value={ wallet.address }
+          error={ errors.address }
+          onChange={ this.onAddressChange }
+        />
+
+        <Input
+          label='wallet name'
+          hint='the local name for this wallet'
+          value={ wallet.name }
+          error={ errors.name }
+          onChange={ this.onNameChange }
+        />
+
+        <Input
+          label='wallet description (optional)'
+          hint='the local description for this wallet'
+          value={ wallet.description }
+          onChange={ this.onDescriptionChange }
+        />
+      </Form>
+    );
+  }
+
+  renderMultisigDetails () {
     const { accounts, wallet, errors } = this.props;
 
     return (
@@ -64,25 +108,32 @@ export default class WalletDetails extends Component {
           param={ parseAbiType('address[]') }
         />
 
-        <TypedInput
-          label='required owners'
-          hint='number of required owners to accept a transaction'
-          value={ wallet.required }
-          error={ errors.required }
-          onChange={ this.onRequiredChange }
-          param={ parseAbiType('uint') }
-        />
+        <div className={ styles.splitInput }>
+          <TypedInput
+            label='required owners'
+            hint='number of required owners to accept a transaction'
+            value={ wallet.required }
+            error={ errors.required }
+            onChange={ this.onRequiredChange }
+            param={ parseAbiType('uint') }
+            min={ 1 }
+          />
 
-        <TypedInput
-          label='wallet day limit'
-          hint='number of days to wait for other owners confirmation'
-          value={ wallet.daylimit }
-          error={ errors.daylimit }
-          onChange={ this.onDaylimitChange }
-          param={ parseAbiType('uint') }
-        />
+          <TypedInput
+            label='wallet day limit'
+            hint='number of days to wait for other owners confirmation'
+            value={ wallet.daylimit }
+            error={ errors.daylimit }
+            onChange={ this.onDaylimitChange }
+            param={ parseAbiType('uint') }
+          />
+        </div>
       </Form>
     );
+  }
+
+  onAddressChange = (_, address) => {
+    this.props.onChange({ address });
   }
 
   onAccoutChange = (_, account) => {

@@ -120,7 +120,7 @@ export default class AutoComplete extends Component {
     switch (keycode(event)) {
       case 'down':
         const { menu } = muiAutocomplete.refs;
-        menu.handleKeyDown(event);
+        menu && menu.handleKeyDown(event);
         this.setState({ fakeBlur: true });
         break;
 
@@ -133,7 +133,7 @@ export default class AutoComplete extends Component {
         const e = new CustomEvent('down');
         e.which = 40;
 
-        muiAutocomplete.handleKeyDown(e);
+        muiAutocomplete && muiAutocomplete.handleKeyDown(e);
         break;
     }
   }

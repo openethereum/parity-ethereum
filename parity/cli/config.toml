@@ -58,6 +58,7 @@ cache_size_queue = 100
 cache_size_state = 25
 db_compaction = "ssd"
 fat_db = "off"
+scale_verifiers = false
 
 [snapshots]
 disable_periodic = true

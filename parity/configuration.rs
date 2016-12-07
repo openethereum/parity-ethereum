@@ -25,6 +25,7 @@ use util::log::Colour;
 use ethsync::{NetworkConfiguration, is_valid_node_url, AllowIP};
 use ethcore::client::VMType;
 use ethcore::miner::{MinerOptions, Banning};
+use ethcore::verification::queue::VerifierSettings;
 
 use rpc::{IpcConfiguration, HttpConfiguration};
 use ethcore_rpc::NetworkSettings;
@@ -158,6 +159,7 @@ impl Configuration {
 				vm_type: vm_type,
 				check_seal: !self.args.flag_no_seal_check,
 				with_color: logger_config.color,
+				verifier_settings: self.verifier_settings(),
 			};
 			Cmd::Blockchain(BlockchainCmd::Import(import_cmd))
 		} else if self.args.cmd_export {
@@ -241,6 +243,8 @@ impl Configuration {
 				None
 			};
 
+			let verifier_settings = self.verifier_settings();
+
 			let run_cmd = RunCmd {
 				cache_config: cache_config,
 				dirs: dirs,
@@ -275,6 +279,7 @@ impl Configuration {
 				no_periodic_snapshot: self.args.flag_no_periodic_snapshot,
 				check_seal: !self.args.flag_no_seal_check,
 				download_old_blocks: !self.args.flag_no_ancient_blocks,
+				verifier_settings: verifier_settings,
 			};
 			Cmd::Run(run_cmd)
 		};
@@ -707,6 +712,16 @@ impl Configuration {
 
 		!ui_disabled
 	}
+
+	fn verifier_settings(&self) -> VerifierSettings {
+		let mut settings = VerifierSettings::default();
+		settings.scale_verifiers = self.args.flag_scale_verifiers;
+		if let Some(num_verifiers) = self.args.flag_num_verifiers {
+			settings.num_verifiers = num_verifiers;
+		}
+
+		settings
+	}
 }
 
 #[cfg(test)]
@@ -803,6 +818,7 @@ mod tests {
 			vm_type: VMType::Interpreter,
 			check_seal: true,
 			with_color: !cfg!(windows),
+			verifier_settings: Default::default(),
 		})));
 	}
 
@@ -926,6 +942,7 @@ mod tests {
 			no_periodic_snapshot: false,
 			check_seal: true,
 			download_old_blocks: true,
+			verifier_settings: Default::default(),
 		}));
 	}
 

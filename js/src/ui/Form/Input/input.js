@@ -66,7 +66,8 @@ export default class Input extends Component {
       PropTypes.number, PropTypes.string
     ]),
     min: PropTypes.any,
-    max: PropTypes.any
+    max: PropTypes.any,
+    style: PropTypes.object
   };
 
   static defaultProps = {
@@ -74,7 +75,8 @@ export default class Input extends Component {
     readOnly: false,
     allowCopy: false,
     hideUnderline: false,
-    floatCopy: false
+    floatCopy: false,
+    style: {}
   }
 
   state = {
@@ -89,7 +91,8 @@ export default class Input extends Component {
 
   render () {
     const { value } = this.state;
-    const { children, className, hideUnderline, disabled, error, label, hint, multiLine, rows, type, min, max } = this.props;
+    const { children, className, hideUnderline, disabled, error, label } = this.props;
+    const { hint, multiLine, rows, type, min, max, style } = this.props;
 
     const readOnly = this.props.readOnly || disabled;
 
@@ -105,7 +108,7 @@ export default class Input extends Component {
     }
 
     return (
-      <div className={ styles.container }>
+      <div className={ styles.container } style={ style }>
         { this.renderCopyButton() }
         <TextField
           autoComplete='off'

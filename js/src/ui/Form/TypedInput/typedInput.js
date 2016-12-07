@@ -40,7 +40,14 @@ export default class TypedInput extends Component {
     error: PropTypes.any,
     value: PropTypes.any,
     label: PropTypes.string,
-    hint: PropTypes.string
+    hint: PropTypes.string,
+    min: PropTypes.number,
+    max: PropTypes.number
+  };
+
+  static defaultProps = {
+    min: null,
+    max: null
   };
 
   render () {
@@ -90,16 +97,22 @@ export default class TypedInput extends Component {
     };
 
     const style = {
-      width: 32,
-      height: 32,
+      width: 24,
+      height: 24,
       padding: 0
     };
 
+    const plusStyle = {
+      ...style,
+      backgroundColor: 'rgba(255, 255, 255, 0.25)',
+      borderRadius: '50%'
+    };
+
     return (
-      <div>
+      <div style={ { marginTop: '0.75em' } }>
         <IconButton
           iconStyle={ iconStyle }
-          style={ style }
+          style={ plusStyle }
           onTouchTap={ this.onAddField }
         >
           <AddIcon />
@@ -145,7 +158,7 @@ export default class TypedInput extends Component {
   }
 
   renderNumber () {
-    const { label, value, error, param, hint } = this.props;
+    const { label, value, error, param, hint, min, max } = this.props;
 
     return (
       <Input
@@ -153,9 +166,10 @@ export default class TypedInput extends Component {
         hint={ hint }
         value={ value }
         error={ error }
-        onSubmit={ this.onSubmit }
+        onChange={ this.onChange }
         type='number'
-        min={ param.signed ? null : 0 }
+        min={ min !== null ? min : (param.signed ? null : 0) }
+        max={ max !== null ? max : null }
       />
     );
   }
