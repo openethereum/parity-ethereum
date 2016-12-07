@@ -32,7 +32,6 @@ use engines::Engine;
 use error::Error;
 use ids::BlockID;
 use service::ClientIoMessage;
-use spec::Spec;
 
 use io::IoChannel;
 

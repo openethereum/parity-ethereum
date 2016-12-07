@@ -363,6 +363,9 @@ impl Engine for Tendermint {
 	fn params(&self) -> &CommonParams { &self.params }
 	fn builtins(&self) -> &BTreeMap<Address, Builtin> { &self.builtins }
 
+	fn maximum_uncle_count(&self) -> usize { 0 }
+	fn maximum_uncle_age(&self) -> usize { 0 }
+
 	/// Additional engine-specific information for the user/developer concerning `header`.
 	fn extra_info(&self, header: &Header) -> BTreeMap<String, String> {
 		let message = ConsensusMessage::new_proposal(header).expect("Invalid header.");
