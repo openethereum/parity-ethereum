@@ -86,7 +86,19 @@ class WalletSettings extends Component {
             title='The modifications are currently being sent'
             state={ this.store.deployState }
           >
-            { this.store.txhash ? (<TxHash hash={ this.store.txhash } />) : null }
+            {
+              this.store.requests.map((req) => {
+                const key = req.id;
+
+                if (req.txhash) {
+                  return (<TxHash key={ key } hash={ req.txhash } />);
+                }
+
+                if (req.rejected) {
+                  return (<p key={ key }>The transaction #{parseInt(key, 16)} has been rejected</p>);
+                }
+              })
+            }
           </BusyStep>
         );
 
@@ -225,7 +237,7 @@ class WalletSettings extends Component {
 
   renderDialogActions () {
     const { onClose } = this.props;
-    const { step, hasErrors, rejected, onNext, send } = this.store;
+    const { step, hasErrors, rejected, onNext, send, done } = this.store;
 
     const cancelBtn = (
       <Button
@@ -275,7 +287,7 @@ class WalletSettings extends Component {
 
     switch (step) {
       case 'SENDING':
-        return [ closeBtn, sendingBtn ];
+        return done ? [ closeBtn ] : [ closeBtn, sendingBtn ];
 
       case 'CONFIRMATION':
         return [ cancelBtn, sendBtn ];

@@ -29,9 +29,9 @@ const STEPS = {
 
 export default class WalletSettingsStore {
   @observable step = null;
-  @observable rejected = false;
-
-  @observable txhash = null;
+  @observable requests = [];
+  @observable deployState = '';
+  @observable done = false;
 
   @observable wallet = {
     owners: null,
@@ -178,28 +178,39 @@ export default class WalletSettingsStore {
     const walletInstance = this.walletInstance;
     this.step = 'SENDING';
 
+    this.onTransactionsState('postTransaction');
     Promise
       .all(changes.map((change) => this.sendChange(change, walletInstance)))
       .then((requestIds) => {
-        this.busyState = 'Waiting for authorization in the Parity Signer';
+        this.onTransactionsState('checkRequest');
+        this.requests = requestIds.map((id) => ({ id, rejected: false, txhash: null }));
 
         return Promise
-          .all(requestIds.map((id) => this.api.pollMethod('parity_checkRequest', id)))
-          .catch((e) => {
-            if (e.code === ERROR_CODES.REQUEST_REJECTED) {
-              this.rejected = true;
-              return false;
-            }
+          .all(requestIds.map((id) => {
+            return this.api
+              .pollMethod('parity_checkRequest', id)
+              .then((txhash) => {
+                const index = this.requests.findIndex((r) => r.id === id);
+                this.requests[index].txhash = txhash;
+              })
+              .catch((e) => {
+                if (e.code === ERROR_CODES.REQUEST_REJECTED) {
+                  const index = this.requests.findIndex((r) => r.id === id);
+                  this.requests[index].rejected = true;
+                  return false;
+                }
 
-            throw e;
-          });
+                throw e;
+              });
+          }));
       })
-      .then((txHashes) => {
-        this.txhash = txHashes[0];
+      .then(() => {
+        this.done = true;
+        this.onTransactionsState('completed');
       });
   }
 
-  sendChange = (change, walletInstance) => {
+  @action sendChange = (change, walletInstance) => {
     const { method, values } = this.getChangeMethod(change, walletInstance);
 
     const options = {
@@ -252,12 +263,8 @@ export default class WalletSettingsStore {
     }
   }
 
-  onDeploymentState = (error, data) => {
-    if (error) {
-      return console.error('walletSettings::onDeploymentState', error);
-    }
-
-    switch (data.state) {
+  @action onTransactionsState = (state) => {
+    switch (state) {
       case 'estimateGas':
       case 'postTransaction':
         this.deployState = 'Preparing transaction for network transmission';
@@ -267,17 +274,8 @@ export default class WalletSettingsStore {
         this.deployState = 'Waiting for confirmation of the transaction in the Parity Secure Signer';
         return;
 
-      case 'getTransactionReceipt':
-        this.deployState = 'Waiting for the transaction receipt';
-        this.txhash = data.txhash;
-        return;
-
       case 'completed':
-        this.deployState = 'The modification of the wallet settings have been sent';
-        return;
-
-      default:
-        console.error('walletSettings::onDeploymentState', 'unknow transaction state', data);
+        this.deployState = '';
         return;
     }
   }

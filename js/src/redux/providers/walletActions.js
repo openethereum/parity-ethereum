@@ -228,7 +228,7 @@ function fetchWalletInfo (contract, update, getState) {
         const owners = ownersUpdate && ownersUpdate.value || null;
         const transactions = transactionsUpdate && transactionsUpdate.value || null;
 
-        return fetchWalletConfirmations(contract, owners, transactions, getState)
+        return fetchWalletConfirmations(contract, update[UPDATE_CONFIRMATIONS], owners, transactions, getState)
           .then((update) => {
             updates.push(update);
             return updates;
@@ -292,7 +292,7 @@ function fetchWalletDailylimit (contract) {
     });
 }
 
-function fetchWalletConfirmations (contract, _owners = null, _transactions = null, getState) {
+function fetchWalletConfirmations (contract, _operations, _owners = null, _transactions = null, getState) {
   const walletInstance = contract.instance;
 
   const wallet = getState().wallet.wallets[contract.address];
@@ -331,6 +331,8 @@ function fetchWalletConfirmations (contract, _owners = null, _transactions = nul
         return confirmations;
       }
 
+      // Only fetch confirmations for operations not
+      // yet confirmed (ie. not yet a transaction)
       if (transactions) {
         const operations = transactions
           .filter((t) => t.operation)
@@ -348,7 +350,12 @@ function fetchWalletConfirmations (contract, _owners = null, _transactions = nul
         return confirmations;
       }
 
+      // const operations = uniq([].concat(
+      //   confirmations.map((conf) => conf.operation),
+      //   Array.isArray(operations) ? operations : []
+      // ));
       const operations = confirmations.map((conf) => conf.operation);
+
       return Promise
         .all(operations.map((op) => fetchOperationConfirmations(contract, op, owners)))
         .then((confirmedBys) => {
@@ -439,16 +446,18 @@ function parseLogs (logs) {
           };
           return;
 
+        case signatures.ConfirmationNeeded:
         case signatures.Confirmation:
         case signatures.Revoke:
-          const operation = log.params.operation.value;
+          const operation = bytesToHex(log.params.operation.value);
 
           updates[address] = {
             ...prev,
             [ UPDATE_CONFIRMATIONS ]: uniq(
-              (prev.operations || []).concat(operation)
+              (prev[UPDATE_CONFIRMATIONS] || []).concat(operation)
             )
           };
+
           return;
 
         case signatures.Deposit:
@@ -457,17 +466,6 @@ function parseLogs (logs) {
           updates[address] = {
             ...prev,
             [ UPDATE_TRANSACTIONS ]: true
-          };
-          return;
-
-        case signatures.ConfirmationNeeded:
-          const op = log.params.operation.value;
-
-          updates[address] = {
-            ...prev,
-            [ UPDATE_CONFIRMATIONS ]: uniq(
-              (prev.operations || []).concat(op)
-            )
           };
           return;
       }
