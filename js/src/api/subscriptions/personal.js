@@ -68,6 +68,7 @@ export default class Personal {
           this._accountsInfo();
           return;
 
+        case 'parity_removeAddress':
         case 'parity_setAccountName':
         case 'parity_setAccountMeta':
           this._accountsInfo();

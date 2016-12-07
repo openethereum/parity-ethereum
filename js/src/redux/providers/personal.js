@@ -23,6 +23,7 @@ export default class Personal {
   }
 
   start () {
+    this._removeDeleted();
     this._subscribeAccountsInfo();
   }
 
@@ -38,6 +39,32 @@ export default class Personal {
       })
       .then((subscriptionId) => {
         console.log('personal._subscribeAccountsInfo', 'subscriptionId', subscriptionId);
+      });
+  }
+
+  _removeDeleted () {
+    this._api.parity
+      .accountsInfo()
+      .then((accountsInfo) => {
+        return Promise.all(
+          Object
+            .keys(accountsInfo)
+            .filter((address) => {
+              const account = accountsInfo[address];
+
+              return !account.uuid && account.meta.deleted;
+            })
+            .map((address) => this._api.parity.removeAddress(address))
+        );
+      })
+      .then((results) => {
+        if (results.length) {
+          console.log(`Removed ${results.length} previously marked addresses`);
+        }
+      })
+      .catch((error) => {
+        console.warn('removeDeleted', error);
+        return [];
       });
   }
 }
