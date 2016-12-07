@@ -117,6 +117,7 @@ export default class WalletDetails extends Component {
             onChange={ this.onRequiredChange }
             param={ parseAbiType('uint') }
             min={ 1 }
+            max={ wallet.owners.length }
           />
 
           <TypedInput

@@ -22,9 +22,10 @@ import moment from 'moment';
 import ContentCreate from 'material-ui/svg-icons/content/create';
 import ActionDelete from 'material-ui/svg-icons/action/delete';
 import ContentSend from 'material-ui/svg-icons/content/send';
+import SettingsIcon from 'material-ui/svg-icons/action/settings';
 
 import { nullableProptype } from '~/util/proptypes';
-import { EditMeta, Transfer } from '~/modals';
+import { EditMeta, Transfer, WalletSettings } from '~/modals';
 import { Actionbar, Button, Page, Loading } from '~/ui';
 
 import Delete from '../Address/Delete';
@@ -74,6 +75,7 @@ class Wallet extends Component {
 
   state = {
     showEditDialog: false,
+    showSettingsDialog: false,
     showTransferDialog: false,
     showDeleteDialog: false
   };
@@ -115,6 +117,7 @@ class Wallet extends Component {
     return (
       <div className={ styles.wallet }>
         { this.renderEditDialog(wallet) }
+        { this.renderSettingsDialog() }
         { this.renderTransferDialog() }
         { this.renderDeleteDialog(wallet) }
         { this.renderActionbar() }
@@ -212,13 +215,18 @@ class Wallet extends Component {
       <Button
         key='delete'
         icon={ <ActionDelete /> }
-        label='delete wallet'
+        label='delete'
         onClick={ this.showDeleteDialog } />,
       <Button
         key='editmeta'
         icon={ <ContentCreate /> }
         label='edit'
-        onClick={ this.onEditClick } />
+        onClick={ this.onEditClick } />,
+      <Button
+        key='settings'
+        icon={ <SettingsIcon /> }
+        label='settings'
+        onClick={ this.onSettingsClick } />
     ];
 
     return (
@@ -255,6 +263,22 @@ class Wallet extends Component {
     );
   }
 
+  renderSettingsDialog () {
+    const { wallet } = this.props;
+    const { showSettingsDialog } = this.state;
+
+    if (!showSettingsDialog) {
+      return null;
+    }
+
+    return (
+      <WalletSettings
+        wallet={ wallet }
+        onClose={ this.onSettingsClick }
+      />
+    );
+  }
+
   renderTransferDialog () {
     const { showTransferDialog } = this.state;
 
@@ -278,6 +302,12 @@ class Wallet extends Component {
   onEditClick = () => {
     this.setState({
       showEditDialog: !this.state.showEditDialog
+    });
+  }
+
+  onSettingsClick = () => {
+    this.setState({
+      showSettingsDialog: !this.state.showSettingsDialog
     });
   }
 

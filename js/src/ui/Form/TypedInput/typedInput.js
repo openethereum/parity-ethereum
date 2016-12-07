@@ -201,12 +201,15 @@ export default class TypedInput extends Component {
 
   renderNumber (value = this.props.value, onChange = this.onChange) {
     const { label, error, param, hint, min, max } = this.props;
+    const realValue = value && typeof value.toNumber === 'function'
+      ? value.toNumber()
+      : value;
 
     return (
       <Input
         label={ label }
         hint={ hint }
-        value={ value }
+        value={ realValue }
         error={ error }
         onChange={ onChange }
         type='number'
@@ -286,13 +289,14 @@ export default class TypedInput extends Component {
     }
 
     const value = isEth ? toWei(ethValue) : fromWei(ethValue);
-    this.setState({ isEth: !isEth, ethValue: value });
-    this.onEthValueChange(null, value);
+    this.setState({ isEth: !isEth, ethValue: value }, () => {
+      this.onEthValueChange(null, value);
+    });
   }
 
   onEthValueChange = (event, value) => {
     const realValue = this.state.isEth && value !== '' && value !== undefined
-      ? toWei(value).toNumber()
+      ? toWei(value)
       : value;
 
     this.setState({ ethValue: value });

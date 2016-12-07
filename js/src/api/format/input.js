@@ -113,7 +113,7 @@ export function inNumber10 (number) {
 
 export function inNumber16 (number) {
   if (isInstanceOf(number, BigNumber)) {
-    return inHex(number.toString(16));
+    return inHex(number.round().toString(16));
   }
 
   return inHex((new BigNumber(number || 0)).toString(16));

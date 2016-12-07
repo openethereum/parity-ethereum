@@ -23,7 +23,7 @@ import { bytesToHex } from '~/api/util/format';
 import Contract from '~/api/contract';
 import ERRORS from './errors';
 import { ERROR_CODES } from '~/api/transport/error';
-import { DEFAULT_GAS, DEFAULT_GASPRICE, MAX_GAS_ESTIMATION } from '../../util/constants';
+import { DEFAULT_GAS, DEFAULT_GASPRICE, MAX_GAS_ESTIMATION } from '~/util/constants';
 
 const TITLES = {
   transfer: 'transfer details',
@@ -116,7 +116,6 @@ export default class TransferStore {
     this.api = api;
 
     const { account, balance, gasLimit, senders, onClose, newError, sendersBalances } = props;
-
     this.account = account;
     this.balance = balance;
     this.gasLimit = gasLimit;
