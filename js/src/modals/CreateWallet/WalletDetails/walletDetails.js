@@ -126,6 +126,7 @@ export default class WalletDetails extends Component {
             error={ errors.daylimit }
             onChange={ this.onDaylimitChange }
             param={ parseAbiType('uint') }
+            isEth
           />
         </div>
       </Form>

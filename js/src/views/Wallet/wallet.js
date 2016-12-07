@@ -250,7 +250,7 @@ class Wallet extends Component {
     return (
       <EditMeta
         account={ wallet }
-        keys={ ['description', 'passwordHint'] }
+        keys={ ['description'] }
         onClose={ this.onEditClick } />
     );
   }
