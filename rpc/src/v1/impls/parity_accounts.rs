@@ -126,6 +126,16 @@ impl<C: 'static> ParityAccounts for ParityAccountsClient<C> where C: MiningBlock
 			.map_err(|e| errors::account("Could not delete account.", e))
 	}
 
+	fn remove_address(&self, addr: RpcH160) -> Result<bool, Error> {
+		try!(self.active());
+		let store = take_weak!(self.accounts);
+		let addr: Address = addr.into();
+
+		store.remove_address(addr, name))
+			.expect("remove_address always returns Ok; qed");
+		Ok(true)
+	}
+
 	fn set_account_name(&self, addr: RpcH160, name: String) -> Result<bool, Error> {
 		try!(self.active());
 		let store = take_weak!(self.accounts);
