@@ -18,6 +18,7 @@ import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 import { observer } from 'mobx-react';
+import { pick } from 'lodash';
 
 import ActionDoneAll from 'material-ui/svg-icons/action/done-all';
 import ContentClear from 'material-ui/svg-icons/content/clear';
@@ -25,7 +26,7 @@ import NavigationArrowBack from 'material-ui/svg-icons/navigation/arrow-back';
 import NavigationArrowForward from 'material-ui/svg-icons/navigation/arrow-forward';
 
 import { newError } from '~/ui/Errors/actions';
-import { BusyStep, CompletedStep, Button, IdentityIcon, Modal, TxHash } from '~/ui';
+import { BusyStep, CompletedStep, Button, IdentityIcon, Modal, TxHash, Input } from '~/ui';
 import { nullableProptype } from '~/util/proptypes';
 
 import Details from './Details';
@@ -45,10 +46,10 @@ class Transfer extends Component {
     gasLimit: PropTypes.object.isRequired,
     images: PropTypes.object.isRequired,
 
-    account: PropTypes.object,
     senders: nullableProptype(PropTypes.object),
+    sendersBalances: nullableProptype(PropTypes.object),
+    account: PropTypes.object,
     balance: PropTypes.object,
-    balances: PropTypes.object,
     wallet: PropTypes.object,
     onClose: PropTypes.func
   }
@@ -133,6 +134,25 @@ class Transfer extends Component {
     return (
       <CompletedStep>
         <TxHash hash={ txhash } />
+        {
+          this.store.operation
+          ? (
+            <div>
+              <br />
+              <p>
+                This transaction needs confirmation from other owners.
+                <Input
+                  style={ { width: '50%', margin: '0 auto' } }
+                  value={ this.store.operation }
+                  label='operation hash'
+                  readOnly
+                  allowCopy
+                />
+              </p>
+            </div>
+          )
+          : null
+        }
       </CompletedStep>
     );
   }
@@ -277,7 +297,9 @@ function mapStateToProps (initState, initProps) {
 
   return (state) => {
     const { gasLimit } = state.nodeStatus;
-    return { gasLimit, wallet, senders };
+    const sendersBalances = senders ? pick(state.balances.balances, Object.keys(senders)) : null;
+
+    return { gasLimit, wallet, senders, sendersBalances };
   };
 }
 

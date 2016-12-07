@@ -17,7 +17,7 @@
 import { createAction } from 'redux-actions';
 
 import { identity } from '../util';
-import { withError } from '../../../redux/util';
+import { withError } from '~/redux/util';
 
 export const error = createAction('error rpc', identity,
   withError(() => 'error processing rpc call. check console for details', 'error')

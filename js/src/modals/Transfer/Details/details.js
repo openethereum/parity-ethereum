@@ -239,11 +239,7 @@ export default class Details extends Component {
   }
 
   renderTokenSelect () {
-    const { balance, images, tag, wallet } = this.props;
-
-    if (wallet) {
-      return null;
-    }
+    const { balance, images, tag } = this.props;
 
     return (
       <TokenSelect

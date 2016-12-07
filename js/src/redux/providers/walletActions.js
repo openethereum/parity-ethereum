@@ -14,16 +14,18 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { isEqual, uniq, range } from 'lodash';
+import { isEqual, uniq } from 'lodash';
 
-import Contract from '../../api/contract';
-import { wallet as WALLET_ABI } from '../../contracts/abi';
-import { bytesToHex, toHex } from '../../api/util/format';
+import Contract from '~/api/contract';
+import { wallet as WALLET_ABI } from '~/contracts/abi';
+import { bytesToHex, toHex } from '~/api/util/format';
 
-import { ERROR_CODES } from '../../api/transport/error';
+import { ERROR_CODES } from '~/api/transport/error';
 import { MAX_GAS_ESTIMATION } from '../../util/constants';
 
-import { newError } from '../../ui/Errors/actions';
+import WalletsUtils from '~/util/wallets';
+
+import { newError } from '~/ui/Errors/actions';
 
 const UPDATE_OWNERS = 'owners';
 const UPDATE_REQUIRE = 'require';
@@ -247,58 +249,9 @@ function fetchWalletInfo (contract, update, getState) {
 }
 
 function fetchWalletTransactions (contract) {
-  const walletInstance = contract.instance;
-  const signatures = {
-    single: toHex(walletInstance.SingleTransact.signature),
-    multi: toHex(walletInstance.MultiTransact.signature),
-    deposit: toHex(walletInstance.Deposit.signature)
-  };
-
-  return contract
-    .getAllLogs({
-      topics: [ [ signatures.single, signatures.multi, signatures.deposit ] ]
-    })
-    .then((logs) => {
-      return logs.sort((logA, logB) => {
-        const comp = logB.blockNumber.comparedTo(logA.blockNumber);
-
-        if (comp !== 0) {
-          return comp;
-        }
-
-        return logB.transactionIndex.comparedTo(logA.transactionIndex);
-      });
-    })
-    .then((logs) => {
-      const transactions = logs.map((log) => {
-        const signature = toHex(log.topics[0]);
-
-        const value = log.params.value.value;
-        const from = signature === signatures.deposit
-          ? log.params['_from'].value
-          : contract.address;
-
-        const to = signature === signatures.deposit
-          ? contract.address
-          : log.params.to.value;
-
-        const transaction = {
-          transactionHash: log.transactionHash,
-          blockNumber: log.blockNumber,
-          from, to, value
-        };
-
-        if (log.params.operation) {
-          transaction.operation = bytesToHex(log.params.operation.value);
-        }
-
-        if (log.params.data) {
-          transaction.data = log.params.data.value;
-        }
-
-        return transaction;
-      });
-
+  return WalletsUtils
+    .fetchTransactions(contract)
+    .then((transactions) => {
       return {
         key: UPDATE_TRANSACTIONS,
         value: transactions
@@ -307,13 +260,8 @@ function fetchWalletTransactions (contract) {
 }
 
 function fetchWalletOwners (contract) {
-  const walletInstance = contract.instance;
-
-  return walletInstance
-    .m_numOwners.call()
-    .then((mNumOwners) => {
-      return Promise.all(range(mNumOwners.toNumber()).map((idx) => walletInstance.getOwner.call({}, [ idx ])));
-    })
+  return WalletsUtils
+    .fetchOwners(contract)
     .then((value) => {
       return {
         key: UPDATE_OWNERS,
@@ -323,10 +271,8 @@ function fetchWalletOwners (contract) {
 }
 
 function fetchWalletRequire (contract) {
-  const walletInstance = contract.instance;
-
-  return walletInstance
-    .m_required.call()
+  return WalletsUtils
+    .fetchRequire(contract)
     .then((value) => {
       return {
         key: UPDATE_REQUIRE,
@@ -336,22 +282,12 @@ function fetchWalletRequire (contract) {
 }
 
 function fetchWalletDailylimit (contract) {
-  const walletInstance = contract.instance;
-
-  return Promise
-    .all([
-      walletInstance.m_dailyLimit.call(),
-      walletInstance.m_spentToday.call(),
-      walletInstance.m_lastDay.call()
-    ])
-    .then((values) => {
+  return WalletsUtils
+    .fetchDailylimit(contract)
+    .then((value) => {
       return {
         key: UPDATE_DAILYLIMIT,
-        value: {
-          limit: values[0],
-          spent: values[1],
-          last: values[2]
-        }
+        value
       };
     });
 }

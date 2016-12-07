@@ -23,7 +23,6 @@
 
   > * {
     flex: 1;
-    margin: 0.125em;
     height: auto;
 
     &:first-child {
@@ -33,6 +32,38 @@
     &:last-child {
       margin-right: 0;
     }
+  }
+}
+
+.owners {
+  margin-top: 0.75em;
+
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  padding: 1em 0.5em 0.5em;
+
+  > * {
+    margin-bottom: 0.5em;
+  }
+}
+
+.info {
+  display: flex;
+  flex-direction: row;
+
+  .header {
+    flex: 1;
+    margin-right: 0.25em;
+  }
+
+  .details {
+    flex: 1;
+    margin-left: 0.25em;
+  }
+
+  > * {
+    height: auto;
   }
 }
 

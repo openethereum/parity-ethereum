@@ -14,11 +14,4 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { createAction } from 'redux-actions';
-
-import { identity } from '../util';
-import { withError } from '~/redux/util';
-
-export const updateLogging = createAction(
-  'update logging', identity, withError(flag => `logging updated to ${flag}`)
-);
+export default from './walletType.js';
