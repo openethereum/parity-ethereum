@@ -35,7 +35,6 @@ pub struct Record {
 /// These are used to record which nodes are visited during a trie query.
 /// Inline nodes are not to be recorded, as they are contained within their parent.
 pub trait Recorder {
-
 	/// Record that the given node has been visited.
 	///
 	/// The depth parameter is the depth of the visited node, with the root node having depth 0.
@@ -58,6 +57,7 @@ impl Recorder for NoOp {
 
 /// A simple recorder. Does nothing fancy but fulfills the `Recorder` interface
 /// properly.
+#[derive(Debug)]
 pub struct BasicRecorder {
 	nodes: Vec<Record>,
 	min_depth: u32,

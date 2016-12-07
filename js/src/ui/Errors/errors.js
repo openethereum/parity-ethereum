@@ -60,7 +60,8 @@ class Errors extends Component {
           flexDirection: 'row',
           lineHeight: '1.5em',
           padding: '0.75em 0',
-          alignItems: 'center'
+          alignItems: 'center',
+          justifyContent: 'space-between'
         } }
       />
     );

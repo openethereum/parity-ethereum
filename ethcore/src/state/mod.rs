@@ -16,7 +16,7 @@
 
 use std::cell::{RefCell, RefMut};
 use std::collections::hash_map::Entry;
-use util::*;
+
 use receipt::Receipt;
 use engines::Engine;
 use env_info::EnvInfo;
@@ -29,6 +29,9 @@ use pod_state::{self, PodState};
 use types::state_diff::StateDiff;
 use transaction::SignedTransaction;
 use state_db::StateDB;
+
+use util::*;
+use util::trie::recorder::{Recorder, BasicRecorder as TrieRecorder};
 
 mod account;
 mod substate;
@@ -755,6 +758,53 @@ impl State {
 				_ => panic!("Required account must always exist; qed"),
 			}
 		})
+	}
+}
+
+// LES state proof implementations.
+impl State {
+	/// Prove an account's existence or nonexistence in the state trie.
+	/// Returns a merkle proof of the account's trie node with all nodes before `from_level`
+	/// omitted or an encountered trie error.
+	/// Requires a secure trie to be used for accurate results.
+	/// `account_key` == sha3(address)
+	pub fn prove_account(&self, account_key: H256, from_level: u32) -> Result<Vec<Bytes>, Box<TrieError>> {
+		let mut recorder = TrieRecorder::with_depth(from_level);
+		let trie = try!(TrieDB::new(self.db.as_hashdb(), &self.root));
+		let _  = try!(trie.get_recorded(&account_key, &mut recorder));
+
+		Ok(recorder.drain().into_iter().map(|r| r.data).collect())
+	}
+
+	/// Prove an account's storage key's existence or nonexistence in the state.
+	/// Returns a merkle proof of the account's storage trie with all nodes before
+	/// `from_level` omitted. Requires a secure trie to be used for correctness.
+	/// `account_key` == sha3(address)
+	/// `storage_key` == sha3(key)
+	pub fn prove_storage(&self, account_key: H256, storage_key: H256, from_level: u32) -> Result<Vec<Bytes>, Box<TrieError>> {
+		// TODO: probably could look into cache somehow but it's keyed by
+		// address, not sha3(address).
+		let trie = try!(TrieDB::new(self.db.as_hashdb(), &self.root));
+		let acc = match try!(trie.get(&account_key)) {
+			Some(rlp) => Account::from_rlp(&rlp),
+			None => return Ok(Vec::new()),
+		};
+
+		let account_db = self.factories.accountdb.readonly(self.db.as_hashdb(), account_key);
+		acc.prove_storage(account_db.as_hashdb(), storage_key, from_level)
+	}
+
+	/// Get code by address hash.
+	/// Only works when backed by a secure trie.
+	pub fn code_by_address_hash(&self, account_key: H256) -> Result<Option<Bytes>, Box<TrieError>> {
+		let trie = try!(TrieDB::new(self.db.as_hashdb(), &self.root));
+		let mut acc = match try!(trie.get(&account_key)) {
+			Some(rlp) => Account::from_rlp(&rlp),
+			None => return Ok(None),
+		};
+
+		let account_db = self.factories.accountdb.readonly(self.db.as_hashdb(), account_key);
+		Ok(acc.cache_code(account_db.as_hashdb()).map(|c| (&*c).clone()))
 	}
 }
 

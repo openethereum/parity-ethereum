@@ -39,6 +39,7 @@ use types::call_analytics::CallAnalytics;
 use types::blockchain_info::BlockChainInfo;
 use types::block_status::BlockStatus;
 use types::mode::Mode;
+use types::pruning_info::PruningInfo;
 
 #[ipc(client_ident="RemoteClient")]
 /// Blockchain database client. Owns and manages a blockchain and a block queue.
@@ -253,10 +254,15 @@ pub trait BlockChainClient : Sync + Send {
 
 	/// Returns engine-related extra info for `UncleID`.
 	fn uncle_extra_info(&self, id: UncleID) -> Option<BTreeMap<String, String>>;
+
+	/// Returns information about pruning/data availability.
+	fn pruning_info(&self) -> PruningInfo;
 }
 
+impl IpcConfig for BlockChainClient { }
+
 /// Extended client interface used for mining
-pub trait MiningBlockChainClient : BlockChainClient {
+pub trait MiningBlockChainClient: BlockChainClient {
 	/// Returns OpenBlock prepared for closing.
 	fn prepare_open_block(&self,
 		author: Address,
@@ -274,4 +280,23 @@ pub trait MiningBlockChainClient : BlockChainClient {
 	fn latest_schedule(&self) -> Schedule;
 }
 
-impl IpcConfig for BlockChainClient { }
+/// Extended client interface for providing proofs of the state.
+pub trait ProvingBlockChainClient: BlockChainClient {
+	/// Prove account storage at a specific block id.
+	///
+	/// Both provided keys assume a secure trie.
+	/// Returns a vector of raw trie nodes (in order from the root) proving the storage query.
+	/// Nodes after `from_level` may be omitted.
+	/// An empty vector indicates unservable query.
+	fn prove_storage(&self, key1: H256, key2: H256, from_level: u32, id: BlockID) -> Vec<Bytes>;
+
+	/// Prove account existence at a specific block id.
+	/// The key is the keccak hash of the account's address.
+	/// Returns a vector of raw trie nodes (in order from the root) proving the query.
+	/// Nodes after `from_level` may be omitted.
+	/// An empty vector indicates unservable query.	
+	fn prove_account(&self, key1: H256, from_level: u32, id: BlockID) -> Vec<Bytes>;
+
+	/// Get code by address hash.
+	fn code_by_hash(&self, account_key: H256, id: BlockID) -> Bytes;
+}
