@@ -94,6 +94,8 @@ cache_size = 128 # Overrides above caches with total size
 fast_and_loose = false
 db_compaction = "ssd"
 fat_db = "auto"
+scale_verifiers = true
+num_verifiers = 6
 
 [snapshots]
 disable_periodic = false

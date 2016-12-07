@@ -242,6 +242,10 @@ usage! {
 			or |c: &Config| otry!(c.footprint).db_compaction.clone(),
 		flag_fat_db: String = "auto",
 			or |c: &Config| otry!(c.footprint).fat_db.clone(),
+		flag_scale_verifiers: bool = false,
+			or |c: &Config| otry!(c.footprint).scale_verifiers.clone(),
+		flag_num_verifiers: Option<usize> = None, 
+			or |c: &Config| otry!(c.footprint).num_verifiers.clone().map(Some),
 
 		// -- Import/Export Options
 		flag_from: String = "1", or |_| None,
@@ -402,6 +406,8 @@ struct Footprint {
 	cache_size_state: Option<u32>,
 	db_compaction: Option<String>,
 	fat_db: Option<String>,
+	scale_verifiers: Option<bool>,
+	num_verifiers: Option<usize>,
 }
 
 #[derive(Default, Debug, PartialEq, RustcDecodable)]
@@ -602,6 +608,8 @@ mod tests {
 			flag_fast_and_loose: false,
 			flag_db_compaction: "ssd".into(),
 			flag_fat_db: "auto".into(),
+			flag_scale_verifiers: true,
+			flag_num_verifiers: Some(6),
 
 			// -- Import/Export Options
 			flag_from: "1".into(),
@@ -771,6 +779,8 @@ mod tests {
 				cache_size_state: Some(25),
 				db_compaction: Some("ssd".into()),
 				fat_db: Some("off".into()),
+				scale_verifiers: Some(false),
+				num_verifiers: None,
 			}),
 			snapshots: Some(Snapshots {
 				disable_periodic: Some(true),
