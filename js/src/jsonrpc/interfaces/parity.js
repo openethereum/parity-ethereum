@@ -256,6 +256,20 @@ export default {
     }
   },
 
+  removeAddress: {
+    desc: 'Removes an address from the addressbook',
+    params: [
+      {
+        type: Address,
+        desc: 'The address to remove'
+      }
+    ],
+    returns: {
+      type: Boolean,
+      desc: 'true on success'
+    }
+  },
+
   listGethAccounts: {
     desc: 'Returns a list of the accounts available from Geth',
     params: [],
