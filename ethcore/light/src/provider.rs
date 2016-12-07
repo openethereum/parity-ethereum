@@ -71,7 +71,10 @@ pub trait Provider: Send + Sync {
 	/// Each item in the resulting vector is either the raw bytecode or empty.
 	fn contract_code(&self, req: request::ContractCodes) -> Vec<Bytes>;
 
-	/// Provide header proofs from the Canonical Hash Tries.
+	/// Provide header proofs from the Canonical Hash Tries as well as the headers 
+	/// they correspond to -- each element in the returned vector is a 2-tuple.
+	/// The first element is a block header and the second a merkle proof of 
+	/// the header in a requested CHT.
 	fn header_proofs(&self, req: request::HeaderProofs) -> Vec<Bytes>;
 
 	/// Provide pending transactions.

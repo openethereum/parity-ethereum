@@ -54,6 +54,8 @@ pub enum Error {
 	WrongNetwork,
 	/// Unknown peer.
 	UnknownPeer,
+	/// Unsolicited response.
+	UnsolicitedResponse,
 }
 
 impl Error {
@@ -67,6 +69,7 @@ impl Error {
 			Error::UnexpectedHandshake => Punishment::Disconnect,
 			Error::WrongNetwork => Punishment::Disable,
 			Error::UnknownPeer => Punishment::Disconnect,
+			Error::UnsolicitedResponse => Punishment::Disable,
 		}
 	}
 }
@@ -92,7 +95,8 @@ impl fmt::Display for Error {
 			Error::UnrecognizedPacket(code) => write!(f, "Unrecognized packet: 0x{:x}", code),
 			Error::UnexpectedHandshake => write!(f, "Unexpected handshake"),
 			Error::WrongNetwork => write!(f, "Wrong network"),
-			Error::UnknownPeer => write!(f, "unknown peer"),
+			Error::UnknownPeer => write!(f, "Unknown peer"),
+			Error::UnsolicitedResponse => write!(f, "Peer provided unsolicited data"),
 		}
 	}
 }
