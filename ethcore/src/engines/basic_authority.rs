@@ -257,10 +257,10 @@ mod tests {
 	fn can_generate_seal() {
 		let tap = AccountProvider::transient_provider();
 		let addr = tap.insert_account("".sha3(), "").unwrap();
-		tap.unlock_account_permanently(addr, "".into()).unwrap();
 
 		let spec = new_test_authority();
 		let engine = &*spec.engine;
+		engine.set_signer(addr, "".into());
 		engine.register_account_provider(Arc::new(tap));
 		let genesis_header = spec.genesis_header();
 		let mut db_result = get_temp_state_db();

@@ -391,9 +391,7 @@ mod tests {
 	fn generates_seal_and_does_not_double_propose() {
 		let tap = AccountProvider::transient_provider();
 		let addr1 = tap.insert_account("1".sha3(), "1").unwrap();
-		tap.unlock_account_permanently(addr1, "1".into()).unwrap();
 		let addr2 = tap.insert_account("2".sha3(), "2").unwrap();
-		tap.unlock_account_permanently(addr2, "2".into()).unwrap();
 
 		let spec = Spec::new_test_round();
 		let engine = &*spec.engine;
@@ -409,12 +407,14 @@ mod tests {
 		let b2 = OpenBlock::new(engine, Default::default(), false, db2, &genesis_header, last_hashes, addr2, (3141562.into(), 31415620.into()), vec![]).unwrap();
 		let b2 = b2.close_and_lock();
 
+		engine.set_signer(addr1, "1".into());
 		if let Some(seal) = engine.generate_seal(b1.block()) {
 			assert!(b1.clone().try_seal(engine, seal).is_ok());
 			// Second proposal is forbidden.
 			assert!(engine.generate_seal(b1.block()).is_none());
 		}
 
+		engine.set_signer(addr2, "2".into());
 		if let Some(seal) = engine.generate_seal(b2.block()) {
 			assert!(b2.clone().try_seal(engine, seal).is_ok());
 			// Second proposal is forbidden.
