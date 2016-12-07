@@ -156,7 +156,7 @@ impl TestBlockChainClient {
 		client.genesis_hash = client.last_hash.read().clone();
 		client
 	}
-	
+
 	/// Set the transaction receipt result
 	pub fn set_transaction_receipt(&self, id: TransactionID, receipt: LocalizedReceipt) {
 		self.receipts.write().insert(id, receipt);
@@ -659,8 +659,8 @@ impl BlockChainClient for TestBlockChainClient {
 		self.miner.import_external_transactions(self, txs);
 	}
 
-	fn queue_consensus_message(&self, _packet: Bytes) {
-		unimplemented!();
+	fn queue_consensus_message(&self, message: Bytes) {
+		self.spec.engine.handle_message(UntrustedRlp::new(&message)).unwrap();
 	}
 
 	fn pending_transactions(&self) -> Vec<SignedTransaction> {
