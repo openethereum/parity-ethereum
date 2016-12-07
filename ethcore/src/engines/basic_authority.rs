@@ -59,6 +59,7 @@ pub struct BasicAuthority {
 	our_params: BasicAuthorityParams,
 	builtins: BTreeMap<Address, Builtin>,
 	account_provider: Mutex<Option<Arc<AccountProvider>>>,
+	password: RwLock<Option<String>>,
 }
 
 impl BasicAuthority {
@@ -68,7 +69,8 @@ impl BasicAuthority {
 			params: params,
 			our_params: our_params,
 			builtins: builtins,
-			account_provider: Mutex::new(None)
+			account_provider: Mutex::new(None),
+			password: RwLock::new(None),
 		}
 	}
 }
@@ -115,7 +117,7 @@ impl Engine for BasicAuthority {
 			let header = block.header();
 			let message = header.bare_hash();
 			// account should be pernamently unlocked, otherwise sealing will fail
-			if let Ok(signature) = ap.sign(*block.header().author(), None, message) {
+			if let Ok(signature) = ap.sign(*block.header().author(), self.password.read().clone(), message) {
 				return Some(vec![::rlp::encode(&(&*signature as &[u8])).to_vec()]);
 			} else {
 				trace!(target: "basicauthority", "generate_seal: FAIL: accounts secret key unavailable");
@@ -175,6 +177,10 @@ impl Engine for BasicAuthority {
 
 	fn verify_transaction(&self, t: &SignedTransaction, _header: &Header) -> Result<(), Error> {
 		t.sender().map(|_|()) // Perform EC recovery and cache sender
+	}
+
+	fn set_signer(&self, _address: Address, password: String) {
+		*self.password.write() = Some(password);
 	}
 
 	fn register_account_provider(&self, ap: Arc<AccountProvider>) {
