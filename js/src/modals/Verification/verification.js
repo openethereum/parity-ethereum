@@ -46,7 +46,7 @@ import Done from './Done';
 @observer
 export default class Verification extends Component {
   static propTypes = {
-    store: nullableProptype(PropTypes.object).isRequired,
+    store: nullableProptype(PropTypes.object.isRequired),
     account: PropTypes.string.isRequired,
     onSelectMethod: PropTypes.func.isRequired,
     onClose: PropTypes.func.isRequired
@@ -209,9 +209,9 @@ export default class Verification extends Component {
 
         return (
           <GatherData
-            fee={ fee } isNumberValid={ isNumberValid }
-            isVerified={ isVerified } hasRequested={ hasRequested }
-            setNumber={ setNumber } setConsentGiven={ setConsentGiven }
+            method={ method } fields={ fields }
+            fee={ fee } isVerified={ isVerified } hasRequested={ hasRequested }
+            setConsentGiven={ setConsentGiven }
           />
         );
 
