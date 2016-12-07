@@ -16,6 +16,8 @@
 
 import React, { Component, PropTypes } from 'react';
 
+import { nodeOrStringProptype } from '~/util/proptypes';
+
 import Input from '../Input';
 
 import styles from './inputInline.css';
@@ -33,9 +35,7 @@ export default class InputInline extends Component {
     value: PropTypes.oneOfType([
       PropTypes.number, PropTypes.string
     ]),
-    static: PropTypes.oneOfType([
-      PropTypes.node, PropTypes.string
-    ])
+    static: nodeOrStringProptype()
   }
 
   state = {

@@ -14,24 +14,18 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-pub mod transaction;
-pub mod ids;
-pub mod receipt;
-pub mod tree_route;
-pub mod blockchain_info;
-pub mod log_entry;
-pub mod trace_types;
-pub mod executed;
-pub mod block_status;
-pub mod account_diff;
-pub mod state_diff;
-pub mod verification_queue_info;
-pub mod filter;
-pub mod trace_filter;
-pub mod call_analytics;
-pub mod transaction_import;
-pub mod block_import_error;
-pub mod restoration_status;
-pub mod snapshot_manifest;
-pub mod mode;
-pub mod pruning_info;
+import { PropTypes } from 'react';
+
+export function nullableProptype (type) {
+  return PropTypes.oneOfType([
+    PropTypes.oneOf([ null ]),
+    type
+  ]);
+}
+
+export function nodeOrStringProptype () {
+  return PropTypes.oneOfType([
+    PropTypes.node,
+    PropTypes.string
+  ]);
+}

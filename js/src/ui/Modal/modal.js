@@ -19,6 +19,8 @@ import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 import { Dialog } from 'material-ui';
 
+import { nodeOrStringProptype } from '~/util/proptypes';
+
 import Container from '../Container';
 import Title from './Title';
 
@@ -42,9 +44,7 @@ class Modal extends Component {
     current: PropTypes.number,
     waiting: PropTypes.array,
     steps: PropTypes.array,
-    title: PropTypes.oneOfType([
-      PropTypes.node, PropTypes.string
-    ]),
+    title: nodeOrStringProptype(),
     visible: PropTypes.bool.isRequired,
     settings: PropTypes.object.isRequired
   }

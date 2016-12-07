@@ -27,7 +27,7 @@ import NavigationArrowForward from 'material-ui/svg-icons/navigation/arrow-forwa
 
 import { newError } from '~/ui/Errors/actions';
 import { BusyStep, CompletedStep, Button, IdentityIcon, Modal, TxHash, Input } from '~/ui';
-import nullableProptype from '~/util/nullable-proptype';
+import { nullableProptype } from '~/util/proptypes';
 
 import Details from './Details';
 import Extras from './Extras';

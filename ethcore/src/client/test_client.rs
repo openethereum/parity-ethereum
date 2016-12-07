@@ -38,6 +38,7 @@ use evm::{Factory as EvmFactory, VMType, Schedule};
 use miner::{Miner, MinerService, TransactionImportResult};
 use spec::Spec;
 use types::mode::Mode;
+use types::pruning_info::PruningInfo;
 use views::BlockView;
 
 use verification::queue::QueueInfo;
@@ -667,4 +668,11 @@ impl BlockChainClient for TestBlockChainClient {
 	fn mode(&self) -> Mode { Mode::Active }
 
 	fn set_mode(&self, _: Mode) { unimplemented!(); }
+
+	fn pruning_info(&self) -> PruningInfo {
+		PruningInfo {
+			earliest_chain: 1,
+			earliest_state: 1,
+		}
+	}
 }

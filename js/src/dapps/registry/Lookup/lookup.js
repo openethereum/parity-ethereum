@@ -19,13 +19,14 @@ import { Card, CardHeader, CardText } from 'material-ui/Card';
 import TextField from 'material-ui/TextField';
 import RaisedButton from 'material-ui/RaisedButton';
 import SearchIcon from 'material-ui/svg-icons/action/search';
+
+import { nullableProptype } from '~/util/proptypes';
+
 import renderAddress from '../ui/address.js';
 import renderImage from '../ui/image.js';
 
 import recordTypeSelect from '../ui/record-type-select.js';
 import styles from './lookup.css';
-
-const nullable = (type) => React.PropTypes.oneOfType([ React.PropTypes.oneOf([ null ]), type ]);
 
 export default class Lookup extends Component {
 
@@ -33,7 +34,7 @@ export default class Lookup extends Component {
     actions: PropTypes.object.isRequired,
     name: PropTypes.string.isRequired,
     type: PropTypes.string.isRequired,
-    result: nullable(PropTypes.string.isRequired),
+    result: nullableProptype(PropTypes.string.isRequired),
     accounts: PropTypes.object.isRequired,
     contacts: PropTypes.object.isRequired
   }

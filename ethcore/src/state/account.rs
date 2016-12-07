@@ -436,6 +436,27 @@ impl Account {
 	}
 }
 
+// light client storage proof.
+impl Account {
+	/// Prove a storage key's existence or nonexistence in the account's storage
+	/// trie.
+	/// `storage_key` is the hash of the desired storage key, meaning
+	/// this will only work correctly under a secure trie.
+	/// Returns a merkle proof of the storage trie node with all nodes before `from_level`
+	/// omitted.
+	pub fn prove_storage(&self, db: &HashDB, storage_key: H256, from_level: u32) -> Result<Vec<Bytes>, Box<TrieError>> {
+		use util::trie::{Trie, TrieDB};
+		use util::trie::recorder::{Recorder, BasicRecorder as TrieRecorder};
+
+		let mut recorder = TrieRecorder::with_depth(from_level);
+
+		let trie = try!(TrieDB::new(db, &self.storage_root));
+		let _ = try!(trie.get_recorded(&storage_key, &mut recorder));
+
+		Ok(recorder.drain().into_iter().map(|r| r.data).collect())
+	}
+}
+
 impl fmt::Debug for Account {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		write!(f, "{:?}", PodAccount::from_account(self))

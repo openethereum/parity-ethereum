@@ -23,7 +23,7 @@ import ContentCreate from 'material-ui/svg-icons/content/create';
 import ActionDelete from 'material-ui/svg-icons/action/delete';
 import ContentSend from 'material-ui/svg-icons/content/send';
 
-import nullableProptype from '~/util/nullable-proptype';
+import { nullableProptype } from '~/util/proptypes';
 import { EditMeta, Transfer } from '~/modals';
 import { Actionbar, Button, Page, Loading } from '~/ui';
 

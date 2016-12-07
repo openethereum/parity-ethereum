@@ -52,7 +52,7 @@ use blockchain::{BlockChain, BlockProvider, TreeRoute, ImportRoute};
 use client::{
 	BlockID, TransactionID, UncleID, TraceId, ClientConfig, BlockChainClient,
 	MiningBlockChainClient, TraceFilter, CallAnalytics, BlockImportError, Mode,
-	ChainNotify,
+	ChainNotify, PruningInfo, ProvingBlockChainClient,
 };
 use client::Error as ClientError;
 use env_info::EnvInfo;
@@ -1286,6 +1286,13 @@ impl BlockChainClient for Client {
 		self.uncle(id)
 			.map(|header| self.engine.extra_info(&decode(&header)))
 	}
+
+	fn pruning_info(&self) -> PruningInfo {
+		PruningInfo {
+			earliest_chain: self.chain.read().first_block_number().unwrap_or(1),
+			earliest_state: self.state_db.lock().journal_db().earliest_era().unwrap_or(0),
+		}
+	}
 }
 
 impl MiningBlockChainClient for Client {
@@ -1370,32 +1377,60 @@ impl MayPanic for Client {
 	}
 }
 
+impl ProvingBlockChainClient for Client {
+	fn prove_storage(&self, key1: H256, key2: H256, from_level: u32, id: BlockID) -> Vec<Bytes> {
+		self.state_at(id)
+			.and_then(move |state| state.prove_storage(key1, key2, from_level).ok())
+			.unwrap_or_else(Vec::new)
+	}
 
-#[test]
-fn should_not_cache_details_before_commit() {
-	use tests::helpers::*;
-	use std::thread;
-	use std::time::Duration;
-	use std::sync::atomic::{AtomicBool, Ordering};
+	fn prove_account(&self, key1: H256, from_level: u32, id: BlockID) -> Vec<Bytes> {
+		self.state_at(id)
+			.and_then(move |state| state.prove_account(key1, from_level).ok())
+			.unwrap_or_else(Vec::new)
+	}
 
-	let client = generate_dummy_client(0);
-	let genesis = client.chain_info().best_block_hash;
-	let (new_hash, new_block) = get_good_dummy_block_hash();
+	fn code_by_hash(&self, account_key: H256, id: BlockID) -> Bytes {
+		self.state_at(id)
+			.and_then(move |state| state.code_by_address_hash(account_key).ok())
+			.and_then(|x| x)
+			.unwrap_or_else(Vec::new)
+	}
+}
 
-	let go = {
-		// Separate thread uncommited transaction
-		let go = Arc::new(AtomicBool::new(false));
-		let go_thread = go.clone();
-		let another_client = client.reference().clone();
-		thread::spawn(move || {
-			let mut batch = DBTransaction::new(&*another_client.chain.read().db().clone());
-			another_client.chain.read().insert_block(&mut batch, &new_block, Vec::new());
-			go_thread.store(true, Ordering::SeqCst);
-		});
-		go
-	};
+#[cfg(test)]
+mod tests {
 
-	while !go.load(Ordering::SeqCst) { thread::park_timeout(Duration::from_millis(5)); }
+	#[test]
+	fn should_not_cache_details_before_commit() {
+		use client::BlockChainClient;
+		use tests::helpers::*;
 
-	assert!(client.tree_route(&genesis, &new_hash).is_none());
+		use std::thread;
+		use std::time::Duration;
+		use std::sync::Arc;
+		use std::sync::atomic::{AtomicBool, Ordering};
+		use util::kvdb::DBTransaction;
+
+		let client = generate_dummy_client(0);
+		let genesis = client.chain_info().best_block_hash;
+		let (new_hash, new_block) = get_good_dummy_block_hash();
+
+		let go = {
+			// Separate thread uncommited transaction
+			let go = Arc::new(AtomicBool::new(false));
+			let go_thread = go.clone();
+			let another_client = client.reference().clone();
+			thread::spawn(move || {
+				let mut batch = DBTransaction::new(&*another_client.chain.read().db().clone());
+				another_client.chain.read().insert_block(&mut batch, &new_block, Vec::new());
+				go_thread.store(true, Ordering::SeqCst);
+			});
+			go
+		};
+
+		while !go.load(Ordering::SeqCst) { thread::park_timeout(Duration::from_millis(5)); }
+
+		assert!(client.tree_route(&genesis, &new_hash).is_none());
+	}
 }

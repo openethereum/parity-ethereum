@@ -206,6 +206,39 @@ impl FlowParams {
 		cost.0 + (amount * cost.1)
 	}
 
+	/// Compute the maximum number of costs of a specific kind which can be made 
+	/// with the given buffer.
+	/// Saturates at `usize::max()`. This is not a problem in practice because
+	/// this amount of requests is already prohibitively large.
+	pub fn max_amount(&self, buffer: &Buffer, kind: request::Kind) -> usize {
+		use util::Uint;
+		use std::usize;
+
+		let cost = match kind {
+			request::Kind::Headers => &self.costs.headers,
+			request::Kind::Bodies => &self.costs.bodies,
+			request::Kind::Receipts => &self.costs.receipts,
+			request::Kind::StateProofs => &self.costs.state_proofs,
+			request::Kind::Codes => &self.costs.contract_codes,
+			request::Kind::HeaderProofs => &self.costs.header_proofs,
+		};
+
+		let start = buffer.current();
+
+		if start <= cost.0 {
+			return 0;
+		} else if cost.1 == U256::zero() {
+			return usize::MAX;
+		}
+
+		let max = (start - cost.0) / cost.1;
+		if max >= usize::MAX.into() {
+			usize::MAX
+		} else {
+			max.as_u64() as usize
+		}
+	}
+
 	/// Create initial buffer parameter.
 	pub fn create_buffer(&self) -> Buffer {
 		Buffer {
@@ -227,6 +260,16 @@ impl FlowParams {
 		let elapsed: U256 = elapsed.into();
 
 		buf.estimate = ::std::cmp::min(self.limit, buf.estimate + (elapsed * self.recharge));
+	}
+
+	/// Refund some buffer which was previously deducted.
+	/// Does not update the recharge timestamp.
+	pub fn refund(&self, buf: &mut Buffer, refund_amount: U256) {
+		buf.estimate = buf.estimate + refund_amount;
+
+		if buf.estimate > self.limit {
+			buf.estimate = self.limit
+		}
 	}
 }
 
