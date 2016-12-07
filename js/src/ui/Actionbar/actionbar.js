@@ -17,13 +17,13 @@
 import React, { Component, PropTypes } from 'react';
 import { Toolbar, ToolbarGroup } from 'material-ui/Toolbar';
 
-import { nodeOrString } from '../../util/proptypes';
+import { nodeOrStringProptype } from '~/util/proptypes';
 
 import styles from './actionbar.css';
 
 export default class Actionbar extends Component {
   static propTypes = {
-    title: nodeOrString(),
+    title: nodeOrStringProptype(),
     buttons: PropTypes.array,
     children: PropTypes.node,
     className: PropTypes.string

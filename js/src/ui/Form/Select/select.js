@@ -17,7 +17,7 @@
 import React, { Component, PropTypes } from 'react';
 import { SelectField } from 'material-ui';
 
-import { nodeOrString } from '../../../util/proptypes';
+import { nodeOrStringProptype } from '~/util/proptypes';
 
 // TODO: duplicated in Input
 const UNDERLINE_DISABLED = {
@@ -35,9 +35,9 @@ export default class Select extends Component {
     children: PropTypes.node,
     className: PropTypes.string,
     disabled: PropTypes.bool,
-    error: nodeOrString(),
-    hint: nodeOrString(),
-    label: nodeOrString(),
+    error: nodeOrStringProptype(),
+    hint: nodeOrStringProptype(),
+    label: nodeOrStringProptype(),
     onBlur: PropTypes.func,
     onChange: PropTypes.func,
     onKeyDown: PropTypes.func,
