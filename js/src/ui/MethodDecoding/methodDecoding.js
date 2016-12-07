@@ -20,7 +20,7 @@ import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 import CircularProgress from 'material-ui/CircularProgress';
 
-import Contracts from '../../contracts';
+import Contracts from '~/contracts';
 import { Input, InputAddress } from '../Form';
 
 import styles from './methodDecoding.css';
@@ -54,7 +54,9 @@ class MethodDecoding extends Component {
     isContract: false,
     isDeploy: false,
     isReceived: false,
-    isLoading: true
+    isLoading: true,
+    expandInput: false,
+    inputType: 'auto'
   }
 
   componentWillMount () {
@@ -94,6 +96,11 @@ class MethodDecoding extends Component {
   renderGas () {
     const { historic, transaction } = this.props;
     const { gas, gasPrice } = transaction;
+
+    if (!gas || !gasPrice) {
+      return null;
+    }
+
     const gasValue = gas.mul(gasPrice);
 
     return (
@@ -132,24 +139,55 @@ class MethodDecoding extends Component {
       : this.renderValueTransfer();
   }
 
-  renderInputValue () {
+  getAscii () {
     const { api } = this.context;
     const { transaction } = this.props;
+    const ascii = api.util.hex2Ascii(transaction.input || transaction.data);
 
-    if (!/^(0x)?([0]*[1-9a-f]+[0]*)+$/.test(transaction.input)) {
+    return { value: ascii, valid: ASCII_INPUT.test(ascii) };
+  }
+
+  renderInputValue () {
+    const { transaction } = this.props;
+    const { expandInput, inputType } = this.state;
+    const input = transaction.input || transaction.data;
+
+    if (!/^(0x)?([0]*[1-9a-f]+[0]*)+$/.test(input)) {
       return null;
     }
 
-    const ascii = api.util.hex2Ascii(transaction.input);
+    const ascii = this.getAscii();
+    const type = inputType === 'auto'
+      ? (ascii.valid ? 'ascii' : 'raw')
+      : inputType;
 
-    const text = ASCII_INPUT.test(ascii)
-      ? ascii
-      : transaction.input;
+    const text = type === 'ascii'
+      ? ascii.value
+      : input;
+
+    const expandable = text.length > 50;
+    const textToShow = expandInput || !expandable
+      ? text
+      : text.slice(0, 50) + '...';
 
     return (
       <div>
-        <span>with the input &nbsp;</span>
-        <code className={ styles.inputData }>{ text }</code>
+        <span>with the </span>
+        <span
+          onClick={ this.toggleInputType }
+          className={ [ styles.clickable, styles.noSelect ].join(' ') }
+        >
+          { type === 'ascii' ? 'input' : 'data' }
+        </span>
+        <span> &nbsp; </span>
+        <span
+          onClick={ this.toggleInputExpand }
+          className={ expandable ? styles.clickable : '' }
+        >
+          <code className={ styles.inputData }>
+            { textToShow }
+          </code>
+        </span>
       </div>
     );
   }
@@ -373,6 +411,31 @@ class MethodDecoding extends Component {
     );
   }
 
+  toggleInputExpand = () => {
+    if (window.getSelection && window.getSelection().type === 'Range') {
+      return;
+    }
+
+    this.setState({
+      expandInput: !this.state.expandInput
+    });
+  }
+
+  toggleInputType = () => {
+    const { inputType } = this.state;
+
+    if (inputType !== 'auto') {
+      return this.setState({
+        inputType: this.state.inputType === 'raw' ? 'ascii' : 'raw'
+      });
+    }
+
+    const ascii = this.getAscii();
+    return this.setState({
+      inputType: ascii.valid ? 'raw' : 'ascii'
+    });
+  }
+
   lookup () {
     const { transaction } = this.props;
 
@@ -385,11 +448,20 @@ class MethodDecoding extends Component {
 
     const isReceived = transaction.to === address;
     const contractAddress = isReceived ? transaction.from : transaction.to;
+    const input = transaction.input || transaction.data;
 
     const token = (tokens || {})[contractAddress];
     this.setState({ token, isReceived, contractAddress });
 
-    if (!transaction.input || transaction.input === '0x') {
+    if (!input || input === '0x') {
+      return;
+    }
+
+    const { signature, paramdata } = api.util.decodeCallData(input);
+    this.setState({ methodSignature: signature, methodParams: paramdata });
+
+    if (!signature || signature === CONTRACT_CREATE || transaction.creates) {
+      this.setState({ isDeploy: true });
       return;
     }
 
@@ -405,14 +477,6 @@ class MethodDecoding extends Component {
         this.setState({ isContract });
 
         if (!isContract) {
-          return;
-        }
-
-        const { signature, paramdata } = api.util.decodeCallData(transaction.input);
-        this.setState({ methodSignature: signature, methodParams: paramdata });
-
-        if (!signature || signature === CONTRACT_CREATE || transaction.creates) {
-          this.setState({ isDeploy: true });
           return;
         }
 

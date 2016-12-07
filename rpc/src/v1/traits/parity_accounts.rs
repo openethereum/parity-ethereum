@@ -19,7 +19,7 @@ use std::collections::BTreeMap;
 use jsonrpc_core::{Value, Error};
 
 use v1::helpers::auto_args::Wrap;
-use v1::types::{H160, H256};
+use v1::types::{H160, H256, DappId};
 
 build_rpc_trait! {
 	/// Personal Parity rpc interface.
@@ -66,9 +66,13 @@ build_rpc_trait! {
 		#[rpc(name = "parity_setAccountMeta")]
 		fn set_account_meta(&self, H160, String) -> Result<bool, Error>;
 
-		/// Returns accounts information.
+		/// Sets account visibility
 		#[rpc(name = "parity_setAccountVisiblity")]
 		fn set_account_visibility(&self, H160, H256, bool) -> Result<bool, Error>;
+
+		/// Sets accounts exposed for particular dapp.
+		#[rpc(name = "parity_setDappsAddresses")]
+		fn set_dapps_addresses(&self, DappId, Vec<H160>) -> Result<bool, Error>;
 
 		/// Imports a number of Geth accounts, with the list provided as the argument.
 		#[rpc(name = "parity_importGethAccounts")]

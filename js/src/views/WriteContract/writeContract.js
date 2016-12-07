@@ -28,10 +28,10 @@ import ListIcon from 'material-ui/svg-icons/action/view-list';
 import SettingsIcon from 'material-ui/svg-icons/action/settings';
 import SendIcon from 'material-ui/svg-icons/content/send';
 
-import { Actionbar, ActionbarExport, ActionbarImport, Button, Editor, Page, Select, Input } from '../../ui';
-import { DeployContract, SaveContract, LoadContract } from '../../modals';
+import { Actionbar, ActionbarExport, ActionbarImport, Button, Editor, Page, Select, Input } from '~/ui';
+import { DeployContract, SaveContract, LoadContract } from '~/modals';
 
-import { setupWorker } from '../../redux/providers/compilerActions';
+import { setupWorker } from '~/redux/providers/compilerActions';
 
 import WriteContractStore from './writeContractStore';
 import styles from './writeContract.css';

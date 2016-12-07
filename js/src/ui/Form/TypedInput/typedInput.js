@@ -22,9 +22,9 @@ import IconButton from 'material-ui/IconButton';
 import AddIcon from 'material-ui/svg-icons/content/add';
 import RemoveIcon from 'material-ui/svg-icons/content/remove';
 
-import Input from '../../../ui/Form/Input';
-import InputAddressSelect from '../../../ui/Form/InputAddressSelect';
-import Select from '../../../ui/Form/Select';
+import Input from '~/ui/Form/Input';
+import InputAddressSelect from '~/ui/Form/InputAddressSelect';
+import Select from '~/ui/Form/Select';
 
 import { ABI_TYPES } from '../../../util/abi';
 
@@ -34,12 +34,20 @@ export default class TypedInput extends Component {
 
   static propTypes = {
     onChange: PropTypes.func.isRequired,
-    accounts: PropTypes.object.isRequired,
     param: PropTypes.object.isRequired,
 
+    accounts: PropTypes.object,
     error: PropTypes.any,
     value: PropTypes.any,
-    label: PropTypes.string
+    label: PropTypes.string,
+    hint: PropTypes.string,
+    min: PropTypes.number,
+    max: PropTypes.number
+  };
+
+  static defaultProps = {
+    min: null,
+    max: null
   };
 
   render () {
@@ -89,16 +97,22 @@ export default class TypedInput extends Component {
     };
 
     const style = {
-      width: 32,
-      height: 32,
+      width: 24,
+      height: 24,
       padding: 0
     };
 
+    const plusStyle = {
+      ...style,
+      backgroundColor: 'rgba(255, 255, 255, 0.25)',
+      borderRadius: '50%'
+    };
+
     return (
-      <div>
+      <div style={ { marginTop: '0.75em' } }>
         <IconButton
           iconStyle={ iconStyle }
-          style={ style }
+          style={ plusStyle }
           onTouchTap={ this.onAddField }
         >
           <AddIcon />
@@ -144,26 +158,29 @@ export default class TypedInput extends Component {
   }
 
   renderNumber () {
-    const { label, value, error, param } = this.props;
+    const { label, value, error, param, hint, min, max } = this.props;
 
     return (
       <Input
         label={ label }
+        hint={ hint }
         value={ value }
         error={ error }
-        onSubmit={ this.onSubmit }
+        onChange={ this.onChange }
         type='number'
-        min={ param.signed ? null : 0 }
+        min={ min !== null ? min : (param.signed ? null : 0) }
+        max={ max !== null ? max : null }
       />
     );
   }
 
   renderDefault () {
-    const { label, value, error } = this.props;
+    const { label, value, error, hint } = this.props;
 
     return (
       <Input
         label={ label }
+        hint={ hint }
         value={ value }
         error={ error }
         onSubmit={ this.onSubmit }
@@ -172,12 +189,13 @@ export default class TypedInput extends Component {
   }
 
   renderAddress () {
-    const { accounts, label, value, error } = this.props;
+    const { accounts, label, value, error, hint } = this.props;
 
     return (
       <InputAddressSelect
         accounts={ accounts }
         label={ label }
+        hint={ hint }
         value={ value }
         error={ error }
         onChange={ this.onChange }
@@ -187,7 +205,7 @@ export default class TypedInput extends Component {
   }
 
   renderBoolean () {
-    const { label, value, error } = this.props;
+    const { label, value, error, hint } = this.props;
 
     const boolitems = ['false', 'true'].map((bool) => {
       return (
@@ -204,6 +222,7 @@ export default class TypedInput extends Component {
     return (
       <Select
         label={ label }
+        hint={ hint }
         value={ value ? 'true' : 'false' }
         error={ error }
         onChange={ this.onChangeBool }

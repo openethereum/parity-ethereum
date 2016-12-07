@@ -18,6 +18,8 @@ import React, { Component, PropTypes } from 'react';
 import { LinearProgress } from 'material-ui';
 import { Step, Stepper, StepLabel } from 'material-ui/Stepper';
 
+import { nodeOrStringProptype } from '~/util/proptypes';
+
 import styles from '../modal.css';
 
 export default class Title extends Component {
@@ -26,9 +28,7 @@ export default class Title extends Component {
     current: PropTypes.number,
     steps: PropTypes.array,
     waiting: PropTypes.array,
-    title: React.PropTypes.oneOfType([
-      PropTypes.node, PropTypes.string
-    ])
+    title: nodeOrStringProptype()
   }
 
   render () {

@@ -15,40 +15,44 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-@import '../../_layout.css';
+.address {
+  vertical-align: top;
+  display: inline-block;
+}
 
-.container {
+.identityicon {
+  margin: -8px 0.5em;
+}
+
+.owner {
+  height: 40px;
+  color: lightgrey;
+
   display: flex;
-  padding: 1.5em 0 1em;
+  align-items: center;
+  justify-content: center;
 
-  & > * {
-    vertical-align: middle;
-    min-height: $finishedHeight;
+  .identityicon {
+    width: 24px;
+    height: 24px;
   }
 }
 
-.statusContainer {
-  box-sizing: border-box;
-  float: right;
-  padding: 0 1em;
-  flex: 0 0 $statusWidth;
-}
+.splitInput {
+  display: flex;
+  flex-direction: row;
 
-.transactionDetails {
-  width: 100%;
-  box-sizing: border-box;
-}
+  > * {
+    flex: 1;
 
-.isConfirmed {
-  color: green;
-}
+    margin: 0 0.25em;
 
-.isRejected {
-  opacity: 0.5;
-  padding-top: 2em;
-}
+    &:first-child {
+      margin-left: 0;
+    }
 
-.txHash {
-  display: block;
-  word-break: break-all;
+    &:last-child {
+      margin-right: 0;
+    }
+  }
 }

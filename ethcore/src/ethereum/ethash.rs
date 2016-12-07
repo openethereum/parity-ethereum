@@ -21,6 +21,7 @@ use builtin::Builtin;
 use env_info::EnvInfo;
 use error::{BlockError, TransactionError, Error};
 use header::Header;
+use views::HeaderView;
 use state::CleanupMode;
 use spec::CommonParams;
 use transaction::SignedTransaction;
@@ -28,6 +29,7 @@ use engines::Engine;
 use evm::Schedule;
 use ethjson;
 use rlp::{self, UntrustedRlp, View};
+use blockchain::extras::BlockDetails;
 
 /// Ethash params.
 #[derive(Debug, PartialEq)]
@@ -163,9 +165,9 @@ impl Engine for Ethash {
 		}
 	}
 
-	fn signing_network_id(&self, env_info: &EnvInfo) -> Option<u8> {
-		if env_info.number >= self.ethash_params.eip155_transition && self.params().network_id < 127 {
-			Some(self.params().network_id as u8)
+	fn signing_network_id(&self, env_info: &EnvInfo) -> Option<u64> {
+		if env_info.number >= self.ethash_params.eip155_transition {
+			Some(self.params().network_id)
 		} else {
 			None
 		}
@@ -314,7 +316,7 @@ impl Engine for Ethash {
 		}
 
 		if let Some(n) = t.network_id() {
-			if header.number() < self.ethash_params.eip155_transition || n as usize != self.params().network_id {
+			if header.number() < self.ethash_params.eip155_transition || n != self.params().network_id {
 				return Err(TransactionError::InvalidNetworkId.into())
 			}
 		}
@@ -325,6 +327,15 @@ impl Engine for Ethash {
 	fn verify_transaction(&self, t: &SignedTransaction, _header: &Header) -> Result<(), Error> {
 		t.sender().map(|_|()) // Perform EC recovery and cache sender
 	}
+
+	fn is_new_best_block(&self, best_total_difficulty: U256, _best_header: HeaderView, parent_details: &BlockDetails, new_header: &HeaderView) -> bool {
+		is_new_best_block(best_total_difficulty, parent_details, new_header)
+	}
+}
+
+/// Check if a new block should replace the best blockchain block.
+pub fn is_new_best_block(best_total_difficulty: U256, parent_details: &BlockDetails, new_header: &HeaderView) -> bool {
+	parent_details.total_difficulty + new_header.difficulty() > best_total_difficulty
 }
 
 #[cfg_attr(feature="dev", allow(wrong_self_convention))]

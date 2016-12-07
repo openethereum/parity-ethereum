@@ -28,7 +28,6 @@ let modules = [
   'blockies',
   'brace',
   'browserify-aes',
-  'chart.js',
   'ethereumjs-tx',
   'lodash',
   'material-ui',

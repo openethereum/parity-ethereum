@@ -17,7 +17,7 @@
 import React, { Component, PropTypes } from 'react';
 import { Link } from 'react-router';
 
-import { Container, ContainerTitle, IdentityIcon, IdentityName } from '../../../ui';
+import { Container, ContainerTitle, IdentityIcon, IdentityName } from '~/ui';
 
 export default class Summary extends Component {
   static contextTypes = {

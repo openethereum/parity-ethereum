@@ -17,8 +17,8 @@
 import BigNumber from 'bignumber.js';
 import { action, computed, observable, transaction } from 'mobx';
 
-import * as abis from '../../contracts/abi';
-import builtins from '../../views/Dapps/builtin.json';
+import * as abis from '~/contracts/abi';
+import builtins from '~/views/Dapps/builtin.json';
 
 import { api } from './parity';
 

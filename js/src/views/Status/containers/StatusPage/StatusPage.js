@@ -18,7 +18,7 @@ import React, { Component, PropTypes } from 'react';
 import { bindActionCreators } from 'redux';
 import { connect } from 'react-redux';
 
-import { clearStatusLogs, toggleStatusLogs, toggleStatusRefresh } from '../../../../redux/actions';
+import { clearStatusLogs, toggleStatusLogs, toggleStatusRefresh } from '~/redux/actions';
 
 import Debug from '../../components/Debug';
 import Status from '../../components/Status';

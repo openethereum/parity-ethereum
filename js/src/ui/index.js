@@ -34,6 +34,7 @@ import Form, { AddressSelect, FormWrap, TypedInput, Input, InputAddress, InputAd
 import IdentityIcon from './IdentityIcon';
 import IdentityName from './IdentityName';
 import LanguageSelector from './LanguageSelector';
+import Loading from './Loading';
 import MethodDecoding from './MethodDecoding';
 import Modal, { Busy as BusyStep, Completed as CompletedStep } from './Modal';
 import muiTheme from './Theme';
@@ -73,10 +74,10 @@ export {
   InputAddressSelect,
   InputChip,
   InputInline,
-  Select,
   IdentityIcon,
   IdentityName,
   LanguageSelector,
+  Loading,
   MethodDecoding,
   Modal,
   BusyStep,
@@ -86,6 +87,7 @@ export {
   ParityBackground,
   RadioButtons,
   ShortenedHash,
+  Select,
   SignerIcon,
   Tags,
   Tooltip,

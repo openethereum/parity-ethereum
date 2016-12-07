@@ -189,15 +189,21 @@ export default class Contract {
     });
   }
 
-  _encodeOptions (func, options, values) {
+  getCallData = (func, options, values) => {
+    let data = options.data;
+
     const tokens = func ? this._abi.encodeTokens(func.inputParamTypes(), values) : null;
     const call = tokens ? func.encodeCall(tokens) : null;
 
-    if (options.data && options.data.substr(0, 2) === '0x') {
-      options.data = options.data.substr(2);
+    if (data && data.substr(0, 2) === '0x') {
+      data = data.substr(2);
     }
-    options.data = `0x${options.data || ''}${call || ''}`;
 
+    return `0x${data || ''}${call || ''}`;
+  }
+
+  _encodeOptions (func, options, values) {
+    options.data = this.getCallData(func, options, values);
     return options;
   }
 
@@ -209,8 +215,10 @@ export default class Contract {
 
   _bindFunction = (func) => {
     func.call = (options, values = []) => {
+      const callParams = this._encodeOptions(func, this._addOptionsTo(options), values);
+
       return this._api.eth
-        .call(this._encodeOptions(func, this._addOptionsTo(options), values))
+        .call(callParams)
         .then((encoded) => func.decodeOutput(encoded))
         .then((tokens) => tokens.map((token) => token.value))
         .then((returns) => returns.length === 1 ? returns[0] : returns);
@@ -240,7 +248,27 @@ export default class Contract {
       return this.unsubscribe(subscriptionId);
     };
 
+    event.getAllLogs = (options = {}) => {
+      return this.getAllLogs(event);
+    };
+
     return event;
+  }
+
+  getAllLogs (event, _options) {
+    // Options as first parameter
+    if (!_options && event && event.topics) {
+      return this.getAllLogs(null, event);
+    }
+
+    const options = this._getFilterOptions(event, _options);
+    return this._api.eth
+      .getLogs({
+        fromBlock: 0,
+        toBlock: 'latest',
+        ...options
+      })
+      .then((logs) => this.parseEventLogs(logs));
   }
 
   _findEvent (eventName = null) {
@@ -256,7 +284,7 @@ export default class Contract {
     return event;
   }
 
-  _createEthFilter (event = null, _options) {
+  _getFilterOptions (event = null, _options = {}) {
     const optionTopics = _options.topics || [];
     const signature = event && event.signature || null;
 
@@ -271,6 +299,11 @@ export default class Contract {
       topics
     });
 
+    return options;
+  }
+
+  _createEthFilter (event = null, _options) {
+    const options = this._getFilterOptions(event, _options);
     return this._api.eth.newFilter(options);
   }
 

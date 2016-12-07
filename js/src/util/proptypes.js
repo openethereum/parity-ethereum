@@ -16,14 +16,14 @@
 
 import { PropTypes } from 'react';
 
-export function nullable (type) {
+export function nullableProptype (type) {
   return PropTypes.oneOfType([
     PropTypes.oneOf([ null ]),
     type
   ]);
 }
 
-export function nodeOrString () {
+export function nodeOrStringProptype () {
   return PropTypes.oneOfType([
     PropTypes.node,
     PropTypes.string

@@ -18,8 +18,8 @@ import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
-import { ConfirmDialog, IdentityIcon, IdentityName } from '../../../ui';
-import { newError } from '../../../redux/actions';
+import { ConfirmDialog, IdentityIcon, IdentityName } from '~/ui';
+import { newError } from '~/redux/actions';
 
 import styles from '../address.css';
 
@@ -27,16 +27,17 @@ class Delete extends Component {
   static contextTypes = {
     api: PropTypes.object.isRequired,
     router: PropTypes.object
-  }
+  };
 
   static propTypes = {
+    route: PropTypes.string.isRequired,
+
     address: PropTypes.string,
     account: PropTypes.object,
-    route: PropTypes.string.isRequired,
     visible: PropTypes.bool,
     onClose: PropTypes.func,
     newError: PropTypes.func
-  }
+  };
 
   render () {
     const { account, visible } = this.props;

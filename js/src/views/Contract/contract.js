@@ -23,11 +23,11 @@ import ContentCreate from 'material-ui/svg-icons/content/create';
 import EyeIcon from 'material-ui/svg-icons/image/remove-red-eye';
 import ContentClear from 'material-ui/svg-icons/content/clear';
 
-import { newError } from '../../redux/actions';
-import { setVisibleAccounts } from '../../redux/providers/personalActions';
+import { newError } from '~/redux/actions';
+import { setVisibleAccounts } from '~/redux/providers/personalActions';
 
-import { EditMeta, ExecuteContract } from '../../modals';
-import { Actionbar, Button, Page, Modal, Editor } from '../../ui';
+import { EditMeta, ExecuteContract } from '~/modals';
+import { Actionbar, Button, Page, Modal, Editor } from '~/ui';
 
 import Header from '../Account/Header';
 import Delete from '../Address/Delete';

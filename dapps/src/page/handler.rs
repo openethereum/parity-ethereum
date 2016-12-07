@@ -14,7 +14,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::io::Write;
 use time::{self, Duration};
 
 use hyper::header;
@@ -126,7 +125,7 @@ impl<T: Dapp> PageHandler<T> {
 impl<T: Dapp> server::Handler<HttpStream> for PageHandler<T> {
 	fn on_request(&mut self, req: server::Request<HttpStream>) -> Next {
 		self.file = match *req.uri() {
-			RequestUri::AbsolutePath(ref path) => {
+			RequestUri::AbsolutePath { ref path, .. } => {
 				self.app.file(&self.extract_path(path))
 			},
 			RequestUri::AbsoluteUri(ref url) => {

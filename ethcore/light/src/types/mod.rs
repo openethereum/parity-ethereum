@@ -14,4 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-export default from './requestFinished';
+//! Types used in the public (IPC) api which require custom code generation.
+
+#![allow(dead_code, unused_assignments, unused_variables)] // codegen issues
+include!(concat!(env!("OUT_DIR"), "/mod.rs.in"));

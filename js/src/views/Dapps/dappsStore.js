@@ -18,8 +18,8 @@ import BigNumber from 'bignumber.js';
 import { action, computed, observable, transaction } from 'mobx';
 import store from 'store';
 
-import Contracts from '../../contracts';
-import { hashToImageUrl } from '../../redux/util';
+import Contracts from '~/contracts';
+import { hashToImageUrl } from '~/redux/util';
 
 import builtinApps from './builtin.json';
 

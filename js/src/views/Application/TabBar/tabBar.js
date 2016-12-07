@@ -22,13 +22,14 @@ import { Toolbar, ToolbarGroup } from 'material-ui/Toolbar';
 import { Tab as MUITab } from 'material-ui/Tabs';
 import { isEqual } from 'lodash';
 
-import { Badge, Tooltip } from '../../../ui';
+import { Badge, Tooltip } from '~/ui';
 
 import styles from './tabBar.css';
 import imagesEthcoreBlock from '../../../../assets/images/parity-logo-white-no-text.svg';
 
 const TABMAP = {
   accounts: 'account',
+  wallet: 'account',
   addresses: 'address',
   apps: 'app',
   contracts: 'contract',
