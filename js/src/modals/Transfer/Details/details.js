@@ -17,11 +17,10 @@
 import BigNumber from 'bignumber.js';
 import React, { Component, PropTypes } from 'react';
 import { Checkbox, MenuItem } from 'material-ui';
-
 import { isEqual } from 'lodash';
 
 import Form, { Input, InputAddressSelect, AddressSelect, Select } from '~/ui/Form';
-import nullableProptype from '~/util/nullable-proptype';
+import { nullableProptype } from '~/util/proptypes';
 
 import imageUnknown from '../../../../assets/images/contracts/unknown-64x64.png';
 import styles from '../transfer.css';

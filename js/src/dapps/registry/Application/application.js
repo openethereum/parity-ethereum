@@ -21,14 +21,15 @@ const muiTheme = getMuiTheme(lightBaseTheme);
 
 import CircularProgress from 'material-ui/CircularProgress';
 import { Card, CardText } from 'material-ui/Card';
+
+import { nullableProptype } from '~/util/proptypes';
+
 import styles from './application.css';
 import Accounts from '../Accounts';
 import Events from '../Events';
 import Lookup from '../Lookup';
 import Names from '../Names';
 import Records from '../Records';
-
-const nullable = (type) => React.PropTypes.oneOfType([ React.PropTypes.oneOf([ null ]), type ]);
 
 export default class Application extends Component {
   static childContextTypes = {
@@ -44,8 +45,8 @@ export default class Application extends Component {
     actions: PropTypes.object.isRequired,
     accounts: PropTypes.object.isRequired,
     contacts: PropTypes.object.isRequired,
-    contract: nullable(PropTypes.object.isRequired),
-    fee: nullable(PropTypes.object.isRequired),
+    contract: nullableProptype(PropTypes.object.isRequired),
+    fee: nullableProptype(PropTypes.object.isRequired),
     lookup: PropTypes.object.isRequired,
     events: PropTypes.object.isRequired,
     names: PropTypes.object.isRequired,

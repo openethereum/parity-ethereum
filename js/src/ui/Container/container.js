@@ -17,6 +17,8 @@
 import React, { Component, PropTypes } from 'react';
 import { Card } from 'material-ui/Card';
 
+import { nodeOrStringProptype } from '~/util/proptypes';
+
 import Title from './Title';
 
 import styles from './container.css';
@@ -28,9 +30,7 @@ export default class Container extends Component {
     compact: PropTypes.bool,
     light: PropTypes.bool,
     style: PropTypes.object,
-    title: PropTypes.oneOfType([
-      PropTypes.string, PropTypes.node
-    ])
+    title: nodeOrStringProptype
   }
 
   render () {

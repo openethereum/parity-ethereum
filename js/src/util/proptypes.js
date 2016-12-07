@@ -16,6 +16,16 @@
 
 import { PropTypes } from 'react';
 
-export default function nullableProptype (type) {
-  return PropTypes.oneOfType([ PropTypes.oneOf([ null ]), type ]);
+export function nullableProptype (type) {
+  return PropTypes.oneOfType([
+    PropTypes.oneOf([ null ]),
+    type
+  ]);
+}
+
+export function nodeOrStringProptype () {
+  return PropTypes.oneOfType([
+    PropTypes.node,
+    PropTypes.string
+  ]);
 }
