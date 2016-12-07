@@ -139,8 +139,8 @@ class Transfer extends Component {
           ? (
             <div>
               <br />
-              <p>
-                This transaction needs confirmation from other owners.
+              <div>
+                <p>This transaction needs confirmation from other owners.</p>
                 <Input
                   style={ { width: '50%', margin: '0 auto' } }
                   value={ this.store.operation }
@@ -148,7 +148,7 @@ class Transfer extends Component {
                   readOnly
                   allowCopy
                 />
-              </p>
+              </div>
             </div>
           )
           : null

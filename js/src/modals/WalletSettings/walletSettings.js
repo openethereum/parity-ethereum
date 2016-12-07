@@ -121,6 +121,13 @@ class WalletSettings extends Component {
 
         return (
           <Form>
+            <p>
+              In order to edit this contract's settings, at
+              least { this.store.initialWallet.require.toNumber() } owners have to
+              send the very same modifications.
+              Otherwise, no modification will be taken into account...
+            </p>
+
             <AddressSelect
               label='from account (wallet owner)'
               hint='send modifications as this owner'

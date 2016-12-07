@@ -299,77 +299,106 @@ function fetchWalletConfirmations (contract, _operations, _owners = null, _trans
 
   const owners = _owners || (wallet && wallet.owners) || null;
   const transactions = _transactions || (wallet && wallet.transactions) || null;
+  // Full load if no operations given, or if the one given aren't loaded yet
+  const fullLoad = !Array.isArray(_operations) || _operations
+    .filter((op) => !wallet.confirmations.find((conf) => conf.operation === op))
+    .length > 0;
 
-  return walletInstance
-    .ConfirmationNeeded
-    .getAllLogs()
-    .then((logs) => {
-      return logs.sort((logA, logB) => {
-        const comp = logA.blockNumber.comparedTo(logB.blockNumber);
+  let promise;
 
-        if (comp !== 0) {
-          return comp;
+  if (fullLoad) {
+    promise = walletInstance
+      .ConfirmationNeeded
+      .getAllLogs()
+      .then((logs) => {
+        return logs.map((log) => ({
+          initiator: log.params.initiator.value,
+          to: log.params.to.value,
+          data: log.params.data.value,
+          value: log.params.value.value,
+          operation: bytesToHex(log.params.operation.value),
+          transactionIndex: log.transactionIndex,
+          transactionHash: log.transactionHash,
+          blockNumber: log.blockNumber,
+          confirmedBy: []
+        }));
+      })
+      .then((logs) => {
+        return logs.sort((logA, logB) => {
+          const comp = logA.blockNumber.comparedTo(logB.blockNumber);
+
+          if (comp !== 0) {
+            return comp;
+          }
+
+          return logA.transactionIndex.comparedTo(logB.transactionIndex);
+        });
+      })
+      .then((confirmations) => {
+        if (confirmations.length === 0) {
+          return confirmations;
         }
 
-        return logA.transactionIndex.comparedTo(logB.transactionIndex);
+        // Only fetch confirmations for operations not
+        // yet confirmed (ie. not yet a transaction)
+        if (transactions) {
+          const operations = transactions
+            .filter((t) => t.operation)
+            .map((t) => t.operation);
+
+          return confirmations.filter((confirmation) => {
+            return !operations.includes(confirmation.operation);
+          });
+        }
+
+        return confirmations;
       });
-    })
-    .then((logs) => {
-      return logs.map((log) => ({
-        initiator: log.params.initiator.value,
-        to: log.params.to.value,
-        data: log.params.data.value,
-        value: log.params.value.value,
-        operation: bytesToHex(log.params.operation.value),
-        transactionHash: log.transactionHash,
-        blockNumber: log.blockNumber,
-        confirmedBy: []
-      }));
-    })
+  } else {
+    const { confirmations } = wallet;
+    const nextConfirmations = confirmations
+      .filter((conf) => _operations.includes(conf.operation));
+
+    promise = Promise.resolve(nextConfirmations);
+  }
+
+  return promise
     .then((confirmations) => {
       if (confirmations.length === 0) {
         return confirmations;
       }
 
-      // Only fetch confirmations for operations not
-      // yet confirmed (ie. not yet a transaction)
-      if (transactions) {
-        const operations = transactions
-          .filter((t) => t.operation)
-          .map((t) => t.operation);
+      const uniqConfirmations = Object.values(
+        confirmations.reduce((confirmations, confirmation) => {
+          confirmations[confirmation.operation] = confirmation;
+          return confirmations;
+        }, {})
+      );
 
-        return confirmations.filter((confirmation) => {
-          return !operations.includes(confirmation.operation);
-        });
-      }
-
-      return confirmations;
-    })
-    .then((confirmations) => {
-      if (confirmations.length === 0) {
-        return confirmations;
-      }
-
-      // const operations = uniq([].concat(
-      //   confirmations.map((conf) => conf.operation),
-      //   Array.isArray(operations) ? operations : []
-      // ));
-      const operations = confirmations.map((conf) => conf.operation);
+      const operations = uniqConfirmations.map((conf) => conf.operation);
 
       return Promise
         .all(operations.map((op) => fetchOperationConfirmations(contract, op, owners)))
         .then((confirmedBys) => {
-          confirmations.forEach((_, index) => {
-            confirmations[index].confirmedBy = confirmedBys[index];
+          uniqConfirmations.forEach((_, index) => {
+            uniqConfirmations[index].confirmedBy = confirmedBys[index];
           });
 
-          return confirmations;
+          return uniqConfirmations;
         });
     })
     .then((confirmations) => {
+      const prevConfirmations = wallet.confirmations || [];
+      const nextConfirmations = prevConfirmations
+        .filter((conA) => !confirmations.find((conB) => conB.operation === conA.operation))
+        .concat(confirmations)
+        .map((conf) => ({
+          ...conf,
+          pending: false
+        }));
+
       return {
         key: UPDATE_CONFIRMATIONS,
-        value: confirmations
+        value: nextConfirmations
       };
     });
 }
