@@ -23,8 +23,8 @@ import styles from './title.css';
 export default class Title extends Component {
   static propTypes = {
     className: PropTypes.string,
-    title: nodeOrStringProptype,
-    byline: nodeOrStringProptype
+    title: nodeOrStringProptype(),
+    byline: nodeOrStringProptype()
   }
 
   state = {

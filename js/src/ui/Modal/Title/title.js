@@ -28,7 +28,7 @@ export default class Title extends Component {
     current: PropTypes.number,
     steps: PropTypes.array,
     waiting: PropTypes.array,
-    title: nodeOrStringProptype
+    title: nodeOrStringProptype()
   }
 
   render () {

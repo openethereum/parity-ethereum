@@ -35,7 +35,7 @@ export default class InputInline extends Component {
     value: PropTypes.oneOfType([
       PropTypes.number, PropTypes.string
     ]),
-    static: nodeOrStringProptype
+    static: nodeOrStringProptype()
   }
 
   state = {

@@ -30,7 +30,7 @@ export default class Container extends Component {
     compact: PropTypes.bool,
     light: PropTypes.bool,
     style: PropTypes.object,
-    title: nodeOrStringProptype
+    title: nodeOrStringProptype()
   }
 
   render () {
