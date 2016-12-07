@@ -131,7 +131,7 @@ impl<C: 'static> ParityAccounts for ParityAccountsClient<C> where C: MiningBlock
 		let store = take_weak!(self.accounts);
 		let addr: Address = addr.into();
 
-		store.remove_address(addr, name))
+		store.remove_address(addr)
 			.expect("remove_address always returns Ok; qed");
 		Ok(true)
 	}
