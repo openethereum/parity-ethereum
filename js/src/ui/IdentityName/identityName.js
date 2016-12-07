@@ -37,17 +37,16 @@ class IdentityName extends Component {
   render () {
     const { address, accountsInfo, tokens, empty, name, shorten, unknown, className } = this.props;
     const account = accountsInfo[address] || tokens[address];
-    const hasAccount = account && (!account.meta || !account.meta.deleted);
 
-    if (!hasAccount && empty) {
+    if (!account && empty) {
       return null;
     }
 
     const addressFallback = shorten ? (<ShortenedHash data={ address } />) : address;
     const fallback = unknown ? defaultName : addressFallback;
-    const isUuid = hasAccount && account.name === account.uuid;
+    const isUuid = account && account.name === account.uuid;
     const displayName = (name && name.toUpperCase().trim()) ||
-      (hasAccount && !isUuid
+      (account && !isUuid
       ? account.name.toUpperCase().trim()
       : fallback);
 

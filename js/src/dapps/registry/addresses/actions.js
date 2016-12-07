@@ -24,7 +24,6 @@ export const fetch = () => (dispatch) => {
     .then((accountsInfo) => {
       const addresses = Object
         .keys(accountsInfo)
-        .filter((address) => accountsInfo[address] && !accountsInfo[address].meta.deleted)
         .map((address) => ({
           ...accountsInfo[address],
           address,
