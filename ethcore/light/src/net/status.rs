@@ -98,6 +98,7 @@ impl<'a> Parser<'a> {
 	// expect a specific next key, and get the value's RLP.
 	// if the key isn't found, the position isn't advanced.
 	fn expect_raw(&mut self, key: Key) -> Result<UntrustedRlp<'a>, DecoderError> {
+		trace!(target: "les", "Expecting key {}", key.as_str());
 		let pre_pos = self.pos;
 		if let Some((k, val)) = try!(self.get_next()) {
 			if k == key { return Ok(val) }

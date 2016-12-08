@@ -230,6 +230,8 @@ pub struct LightProtocol {
 impl LightProtocol {
 	/// Create a new instance of the protocol manager.
 	pub fn new(provider: Arc<Provider>, params: Params) -> Self {
+		debug!(target: "les", "Initializing LES handler");
+
 		let genesis_hash = provider.chain_info().genesis_hash;
 		LightProtocol {
 			provider: provider,
@@ -400,6 +402,8 @@ impl LightProtocol {
 	fn handle_packet(&self, io: &IoContext, peer: &PeerId, packet_id: u8, data: &[u8]) {
 		let rlp = UntrustedRlp::new(data);
 
+		trace!(target: "les", "Incoming packet {} from peer {}", packet_id, peer);
+
 		// handle the packet
 		let res = match packet_id {
 			packet::STATUS => self.status(peer, io, rlp),
@@ -452,6 +456,8 @@ impl LightProtocol {
 	fn on_connect(&self, peer: &PeerId, io: &IoContext) {
 		let peer = *peer;
 
+		trace!(target: "les", "Peer {} connecting", peer);
+
 		match self.send_status(peer, io) {
 			Ok(pending_peer) => {
 				self.pending_peers.write().insert(peer, pending_peer);
@@ -465,6 +471,9 @@ impl LightProtocol {
 
 	// called when a peer disconnects.
 	fn on_disconnect(&self, peer: PeerId, io: &IoContext) {
+		trace!(target: "les", "Peer {} disconnecting", peer);
+
+
 		self.pending_peers.write().remove(&peer);
 		if self.peers.write().remove(&peer).is_some() {
 			let unfulfilled: Vec<_> = self.pending_requests.read()
