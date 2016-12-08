@@ -52,7 +52,7 @@ export default class VerificationStore {
     this.isTestnet = isTestnet;
 
     this.step = LOADING;
-    Contracts.create(api).registry.getContract(name)
+    Contracts.get().registry.getContract(name)
       .then((contract) => {
         this.contract = contract;
         this.load();

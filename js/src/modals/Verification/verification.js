@@ -173,7 +173,7 @@ export default class Verification extends Component {
 
     const {
       step,
-      fee, number, isNumberValid, isVerified, hasRequested,
+      fee, isVerified, hasRequested,
       requestTx, isCodeValid, confirmationTx,
       setCode
     } = this.props.store;
@@ -187,7 +187,7 @@ export default class Verification extends Component {
       case 2:
         const { setConsentGiven } = this.props.store;
 
-        const fields = []
+        const fields = [];
         if (method === 'sms') {
           fields.push({
             key: 'number',

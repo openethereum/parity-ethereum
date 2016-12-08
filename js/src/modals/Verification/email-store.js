@@ -53,7 +53,7 @@ export default class EmailVerificationStore extends VerificationStore {
   }
 
   constructor (api, account, isTestnet) {
-    return super(api, account, isTestnet, 'emailverification');
+    super(api, account, isTestnet, 'emailverification3');
   }
 
   requestValues = () => [ sha3(this.email) ]
@@ -61,8 +61,6 @@ export default class EmailVerificationStore extends VerificationStore {
   @action setEmail = (email) => {
     this.email = email;
   }
-
-  requestValues = () => [ sha3(this.email) ]
 
   requestCode = () => {
     const { email, account, isTestnet } = this;
