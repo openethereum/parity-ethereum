@@ -23,10 +23,6 @@ import Certifications from '~/ui/Certifications';
 import styles from './header.css';
 
 export default class Header extends Component {
-  static contextTypes = {
-    api: PropTypes.object
-  };
-
   static propTypes = {
     account: PropTypes.object,
     balance: PropTypes.object,
@@ -40,7 +36,6 @@ export default class Header extends Component {
   };
 
   render () {
-    const { api } = this.context;
     const { account, balance, className, children } = this.props;
     const { address, meta, uuid } = account;
 
