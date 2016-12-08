@@ -37,9 +37,7 @@ extern crate semver;
 extern crate parking_lot;
 extern crate rlp;
 
-#[cfg(feature = "light")]
 extern crate ethcore_light as light;
-
 
 #[macro_use]
 extern crate log;
@@ -60,12 +58,16 @@ mod transactions_stats;
 #[cfg(test)]
 mod tests;
 
+#[cfg(feature = "ipc")]
 mod api {
 	#![allow(dead_code, unused_assignments, unused_variables, missing_docs)] // codegen issues
 	include!(concat!(env!("OUT_DIR"), "/api.rs"));
 }
 
-pub use api::{EthSync, SyncProvider, SyncClient, NetworkManagerClient, ManageNetwork, SyncConfig,
+#[cfg(not(feature = "ipc"))]
+mod api;
+
+pub use api::{EthSync, SyncProvider, ManageNetwork, SyncConfig,
 	ServiceConfiguration, NetworkConfiguration, PeerInfo, AllowIP, TransactionStats};
 pub use chain::{SyncStatus, SyncState};
 pub use network::{is_valid_node_url, NonReservedPeerMode, NetworkError};

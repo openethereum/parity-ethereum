@@ -1377,7 +1377,6 @@ impl MayPanic for Client {
 	}
 }
 
-#[cfg(feature = "light")]
 impl ::client::ProvingBlockChainClient for Client {
 	fn prove_storage(&self, key1: H256, key2: H256, from_level: u32, id: BlockID) -> Vec<Bytes> {
 		self.state_at(id)

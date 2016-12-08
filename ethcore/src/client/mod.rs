@@ -29,7 +29,6 @@ pub use self::test_client::{TestBlockChainClient, EachBlockWith};
 pub use self::chain_notify::ChainNotify;
 pub use self::traits::{BlockChainClient, MiningBlockChainClient};
 
-#[cfg(feature = "light")]
 pub use self::traits::ProvingBlockChainClient;
 
 pub use types::ids::*;

@@ -17,4 +17,6 @@
 pub mod helpers;
 pub mod snapshot;
 mod chain;
+
+#[cfg(feature = "ipc")]
 mod rpc;

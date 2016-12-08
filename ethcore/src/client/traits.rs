@@ -278,7 +278,6 @@ pub trait MiningBlockChainClient: BlockChainClient {
 }
 
 /// Extended client interface for providing proofs of the state.
-#[cfg(feature = "light")]
 pub trait ProvingBlockChainClient: BlockChainClient {
 	/// Prove account storage at a specific block id.
 	///

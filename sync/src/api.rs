@@ -85,14 +85,18 @@ pub trait SyncProvider: Send + Sync {
 }
 
 /// Transaction stats
-#[derive(Debug, Binary)]
+#[derive(Debug)]
+#[cfg_attr(feature = "ipc", derive(Binary))]
 pub struct TransactionStats {
+	/// Block number where this TX was first seen.
 	pub first_seen: u64,
+	/// Peers it was propagated to.
 	pub propagated_to: BTreeMap<H512, usize>,
 }
 
 /// Peer connection information
-#[derive(Debug, Binary)]
+#[derive(Debug)]
+#[cfg_attr(feature = "ipc", derive(Binary))]
 pub struct PeerInfo {
 	/// Public node id
 	pub id: Option<String>,
@@ -120,8 +124,6 @@ pub struct EthSync {
 	handler: Arc<SyncProtocolHandler>,
 	/// The main subprotocol name
 	subprotocol_name: [u8; 3],
-	/// Configuration
-	config: NetworkConfiguration,
 }
 
 impl EthSync {
@@ -138,14 +140,13 @@ impl EthSync {
 				overlay: RwLock::new(HashMap::new()),
 			}),
 			subprotocol_name: config.subprotocol_name,
-			config: network_config,
 		});
 
 		Ok(sync)
 	}
 }
 
-#[ipc(client_ident="SyncClient")]
+#[cfg_attr(feature = "ipc", ipc(client_ident="SyncClient"))]
 impl SyncProvider for EthSync {
 	/// Get sync status
 	fn status(&self) -> SyncStatus {
@@ -279,7 +280,7 @@ pub trait ManageNetwork : Send + Sync {
 }
 
 
-#[ipc(client_ident="NetworkManagerClient")]
+#[cfg_attr(feature = "ipc", ipc(client_ident="NetworkManagerClient"))]
 impl ManageNetwork for EthSync {
 	fn accept_unreserved_peers(&self) {
 		self.network.set_non_reserved_mode(NonReservedPeerMode::Accept);
@@ -315,7 +316,8 @@ impl ManageNetwork for EthSync {
 }
 
 /// IP fiter
-#[derive(Binary, Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "ipc", derive(Binary))]
 pub enum AllowIP {
 	/// Connect to any address
 	All,
@@ -337,7 +339,8 @@ impl AllowIP {
 	}
 }
 
-#[derive(Binary, Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "ipc", derive(Binary))]
 /// Network service configuration
 pub struct NetworkConfiguration {
 	/// Directory path to store general network configuration. None means nothing will be saved
@@ -375,26 +378,18 @@ pub struct NetworkConfiguration {
 }
 
 impl NetworkConfiguration {
+	/// Create a new default config.
 	pub fn new() -> Self {
 		From::from(BasicNetworkConfiguration::new())
 	}
 
+	/// Create a new local config.
 	pub fn new_local() -> Self {
 		From::from(BasicNetworkConfiguration::new_local())
 	}
 
-	fn validate(&self) -> Result<(), AddrParseError> {
-		if let Some(ref addr) = self.listen_address {
-			try!(SocketAddr::from_str(&addr));
-		}
-		if let Some(ref addr) = self.public_address {
-			try!(SocketAddr::from_str(&addr));
-		}
-		Ok(())
-	}
-
+	/// Attempt to convert this config into a BasicNetworkConfiguration.
 	pub fn into_basic(self) -> Result<BasicNetworkConfiguration, AddrParseError> {
-
 		Ok(BasicNetworkConfiguration {
 			config_path: self.config_path,
 			net_config_path: self.net_config_path,
@@ -447,9 +442,14 @@ impl From<BasicNetworkConfiguration> for NetworkConfiguration {
 	}
 }
 
-#[derive(Debug, Binary, Clone)]
+/// Configuration for IPC service.
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "ipc", derive(Binary))]
 pub struct ServiceConfiguration {
+	/// Sync config.
 	pub sync: SyncConfig,
+	/// Network configuration.
 	pub net: NetworkConfiguration,
+	/// IPC path.
 	pub io_path: String,
 }
