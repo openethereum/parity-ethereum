@@ -38,10 +38,10 @@ mv build ../build.new
 git add .
 git commit -m "$UTCDATE [update]"
 git merge origin/$BRANCH -X ours --commit -m "$UTCDATE [merge]"
-git rm build/*
+git rm -r build
+rm -rf build
 git commit -m "$UTCDATE [cleanup]"
-mv -f ../build.new/* build/
-rm -rf ../build.new
+mv ../build.new build
 git add .
 git commit -m "$UTCDATE [release]"
 
