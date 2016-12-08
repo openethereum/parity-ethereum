@@ -78,7 +78,6 @@ export default class Header extends Component {
               balance={ balance } />
             <Certifications
               account={ account.address }
-              dappsUrl={ api.dappsUrl }
             />
           </div>
           { children }
