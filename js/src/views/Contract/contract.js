@@ -124,7 +124,7 @@ class Contract extends Component {
     }
 
     return (
-      <div className={ styles.contract }>
+      <div>
         { this.renderActionbar(account) }
         { this.renderDeleteDialog(account) }
         { this.renderEditDialog(account) }

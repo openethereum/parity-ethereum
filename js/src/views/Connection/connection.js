@@ -19,7 +19,6 @@ import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 import ActionCompareArrows from 'material-ui/svg-icons/action/compare-arrows';
 import ActionDashboard from 'material-ui/svg-icons/action/dashboard';
-// import CommunicationVpnKey from 'material-ui/svg-icons/communication/vpn-key';
 import HardwareDesktopMac from 'material-ui/svg-icons/hardware/desktop-mac';
 import NotificationVpnLock from 'material-ui/svg-icons/notification/vpn-lock';
 
