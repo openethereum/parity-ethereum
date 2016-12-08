@@ -27,7 +27,7 @@ use network::{NetworkProtocolHandler, NetworkContext, NetworkError, PeerId};
 use rlp::{RlpStream, Stream, UntrustedRlp, View};
 use util::hash::H256;
 use util::{Bytes, Mutex, RwLock, U256};
-use time::SteadyTime;
+use time::{Duration, SteadyTime};
 
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -53,6 +53,9 @@ pub use self::status::{Status, Capabilities, Announcement};
 
 const TIMEOUT: TimerToken = 0;
 const TIMEOUT_INTERVAL_MS: u64 = 1000;
+
+// minimum interval between updates.
+const UPDATE_INTERVAL_MS: i64 = 5000;
 
 // Supported protocol versions.
 pub const PROTOCOL_VERSIONS: &'static [u8] = &[1];
@@ -107,6 +110,7 @@ pub struct ReqId(usize);
 // may not have received one for.
 struct PendingPeer {
 	sent_head: H256,
+	last_update: SteadyTime,
 }
 
 // data about each peer.
@@ -117,6 +121,7 @@ struct Peer {
 	capabilities: Capabilities,
 	remote_flow: FlowParams,
 	sent_head: H256, // last head we've given them.
+	last_update: SteadyTime,
 }
 
 impl Peer {
@@ -293,6 +298,7 @@ impl LightProtocol {
 	/// The announcement is expected to be valid.
 	pub fn make_announcement(&self, io: &IoContext, mut announcement: Announcement) {
 		let mut reorgs_map = HashMap::new();
+		let now = SteadyTime::now();
 
 		// update stored capabilities
 		self.capabilities.write().update_from(&announcement);
@@ -300,6 +306,17 @@ impl LightProtocol {
 		// calculate reorg info and send packets
 		for (peer_id, peer_info) in self.peers.read().iter() {
 			let mut peer_info = peer_info.lock();
+
+			// TODO: "urgent" announcements like new blocks?
+			// the timer approach will skip 1 (possibly 2) in rare occasions.
+			if peer_info.sent_head == announcement.head_hash || 
+				peer_info.status.head_num >= announcement.head_num  ||
+				now - peer_info.last_update < Duration::milliseconds(UPDATE_INTERVAL_MS) {
+				continue 
+			}
+
+			peer_info.last_update = now;
+
 			let reorg_depth = reorgs_map.entry(peer_info.sent_head)
 				.or_insert_with(|| {
 					match self.provider.reorg_depth(&announcement.head_hash, &peer_info.sent_head) {
@@ -496,6 +513,7 @@ impl LightProtocol {
 
 		Ok(PendingPeer {
 			sent_head: chain_info.best_block_hash,
+			last_update: SteadyTime::now(),
 		})
 	}
 
@@ -523,6 +541,7 @@ impl LightProtocol {
 			capabilities: capabilities.clone(),
 			remote_flow: flow_params,
 			sent_head: pending.sent_head,
+			last_update: pending.last_update,
 		}));
 
 		for handler in &self.handlers {

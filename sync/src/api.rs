@@ -279,6 +279,8 @@ impl ChainNotify for EthSync {
 		sealed: Vec<H256>,
 		_duration: u64)
 	{
+		use light::net::Announcement;
+
 		self.network.with_context(self.subprotocol_name, |context| {
 			let mut sync_io = NetSyncIo::new(context, &*self.sync_handler.chain, &*self.sync_handler.snapshot_service, &self.sync_handler.overlay);
 			self.sync_handler.sync.write().chain_new_blocks(
@@ -289,6 +291,25 @@ impl ChainNotify for EthSync {
 				&retracted,
 				&sealed);
 		});
+
+		self.network.with_context(self.light_subprotocol_name, |context| {
+			let light_proto = match self.light_proto.as_ref() {
+				Some(lp) => lp,
+				None => return,
+			};
+			
+			let chain_info = self.sync_handler.chain.chain_info();
+			light_proto.make_announcement(context, Announcement {
+				head_hash: chain_info.best_block_hash,
+				head_num: chain_info.best_block_number,
+				head_td: chain_info.total_difficulty,
+				reorg_depth: 0, // recalculated on a per-peer basis.
+				serve_headers: false, // these fields consist of _changes_ in capability.
+				serve_state_since: None,
+				serve_chain_since: None,
+				tx_relay: false,
+			})
+		})
 	}
 
 	fn start(&self) {
