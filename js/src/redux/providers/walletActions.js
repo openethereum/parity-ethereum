@@ -17,12 +17,10 @@
 import { isEqual, uniq } from 'lodash';
 
 import Contract from '~/api/contract';
-import { wallet as WALLET_ABI } from '~/contracts/abi';
 import { bytesToHex, toHex } from '~/api/util/format';
-
 import { ERROR_CODES } from '~/api/transport/error';
-import { MAX_GAS_ESTIMATION } from '../../util/constants';
-
+import { wallet as WALLET_ABI } from '~/contracts/abi';
+import { MAX_GAS_ESTIMATION } from '~/util/constants';
 import WalletsUtils from '~/util/wallets';
 
 import { newError } from '~/ui/Errors/actions';

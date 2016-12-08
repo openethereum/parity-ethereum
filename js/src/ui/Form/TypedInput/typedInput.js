@@ -26,7 +26,7 @@ import Input from '~/ui/Form/Input';
 import InputAddressSelect from '~/ui/Form/InputAddressSelect';
 import Select from '~/ui/Form/Select';
 
-import { ABI_TYPES } from '../../../util/abi';
+import { ABI_TYPES } from '~/util/abi';
 
 import styles from './typedInput.css';
 
