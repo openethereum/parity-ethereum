@@ -109,7 +109,7 @@ export default class Manager {
     let result = false;
 
     try {
-      result = this.subscriptions[subscriptionId](error, data);
+      result = this.subscriptions[subscriptionId].callback(error, data);
     } catch (error) {
       console.error(`Unable to update callback for subscriptionId ${subscriptionId}`, error);
     }
