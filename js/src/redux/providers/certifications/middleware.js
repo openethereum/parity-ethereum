@@ -14,57 +14,73 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import { uniq } from 'lodash';
+
+import ABI from '~/contracts/abi/certifier.json';
+import Contract from '~/api/contract';
 import Contracts from '~/contracts';
 import { addCertification } from './actions';
 
-const knownCertifiers = [
-  0 // sms verification
-];
-
 export default class CertificationsMiddleware {
   toMiddleware () {
+    const api = Contracts.get()._api;
+    const badgeReg = Contracts.get().badgeReg;
+    const contract = new Contract(api, ABI);
+    const Confirmed = contract.events.find((e) => e.name === 'Confirmed');
+
+    let certifiers = [];
+    let accounts = []; // these are addresses
+
+    const fetchConfirmedEvents = (dispatch) => {
+      if (certifiers.length === 0 || accounts.length === 0) return;
+      api.eth.getLogs({
+        fromBlock: 0,
+        toBlock: 'latest',
+        address: certifiers.map((c) => c.address),
+        topics: [ Confirmed.signature, accounts ]
+      })
+        .then((logs) => contract.parseEventLogs(logs))
+        .then((logs) => {
+          logs.forEach((log) => {
+            const certifier = certifiers.find((c) => c.address === log.address);
+            if (!certifier) throw new Error(`Could not find certifier at ${log.address}.`);
+            const { name, title, icon } = certifier;
+            dispatch(addCertification(log.params.who.value, name, title, icon));
+          });
+        })
+        .catch((err) => {
+          console.error('Failed to fetch Confirmed events:', err);
+        });
+    };
+
     return (store) => (next) => (action) => {
       if (action.type === 'fetchCertifiers') {
         badgeReg.nrOfCertifiers().then((count) => {
           new Array(+count).fill(null).forEach((_, id) => {
             badgeReg.fetchCertifier(id)
               .then((cert) => {
-                const { address, name, title, icon } = cert;
-                store.dispatch(addCertifier(address, name, title, icon));
+                if (!certifiers.some((c) => c.address === cert.address)) {
+                  certifiers = certifiers.concat(cert);
+                  fetchConfirmedEvents(store.dispatch);
+                }
               })
               .catch((err) => {
-                if (err) {
-                  console.error(`Failed to fetch certifier ${id}:`, err);
-                }
+                console.warn(`Could not fetch certifier ${id}:`, err);
               });
           });
         });
-      }
+      } else if (action.type === 'fetchCertifications') {
+        const { address } = action;
 
-      else if (action.type !== 'fetchCertifications') {
-        return next(action);
-      }
-
-      const { address } = action;
-      const badgeReg = Contracts.get().badgeReg;
-
-      knownCertifiers.forEach((id) => {
-        badgeReg.fetchCertifier(id)
-          .then((cert) => {
-            return badgeReg.checkIfCertified(cert.address, address)
-              .then((isCertified) => {
-                if (isCertified) {
-                  const { name, title, icon } = cert;
-                  store.dispatch(addCertification(address, name, title, icon));
-                }
-              });
-          })
-          .catch((err) => {
-            if (err) {
-              console.error(`Failed to check if ${address} certified by ${id}:`, err);
-            }
-          });
-      });
+        if (!accounts.includes(address)) {
+          accounts = accounts.concat(address);
+          fetchConfirmedEvents(store.dispatch);
+        }
+      } else if (action.type === 'setVisibleAccounts') {
+        const { addresses } = action;
+        accounts = uniq(accounts.concat(addresses));
+        fetchConfirmedEvents(store.dispatch);
+      } else return next(action);
     };
   }
 }
