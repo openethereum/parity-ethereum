@@ -229,7 +229,7 @@ class Contract extends Component {
     return (
       <Actionbar
         title='Contract Information'
-        buttons={ !account || account.meta.deleted ? [] : buttons } />
+        buttons={ !account ? [] : buttons } />
     );
   }
 

@@ -27,7 +27,7 @@ export function personalAccountsInfo (accountsInfo) {
 
   Object.keys(accountsInfo || {})
     .map((address) => Object.assign({}, accountsInfo[address], { address }))
-    .filter((account) => !account.meta.deleted)
+    .filter((account) => account.uuid || !account.meta.deleted)
     .forEach((account) => {
       if (account.uuid) {
         accounts[account.address] = account;

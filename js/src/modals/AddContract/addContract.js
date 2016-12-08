@@ -231,7 +231,7 @@ export default class AddContract extends Component {
     if (!addressError) {
       const contract = contracts[address];
 
-      if (contract && !contract.meta.deleted) {
+      if (contract) {
         addressError = ERRORS.duplicateAddress;
       }
     }

@@ -35,13 +35,15 @@ git checkout -b $BRANCH
 
 echo "*** Committing compiled files for $UTCDATE"
 mv build ../build.new
-git pull origin/$BRANCH -X ours --commit -m "$UTCDATE [merge]"
-git rm build/*
-git commit -m "$UTCDATE [rm]"
-mv -f ../build.new/* build/
-rm -rf ../build.new
 git add .
-git commit -m "$UTCDATE"
+git commit -m "$UTCDATE [update]"
+git merge origin/$BRANCH -X ours --commit -m "$UTCDATE [merge]"
+git rm -r build
+rm -rf build
+git commit -m "$UTCDATE [cleanup]"
+mv ../build.new build
+git add .
+git commit -m "$UTCDATE [release]"
 
 echo "*** Merging remote"
 git push origin HEAD:refs/heads/$BRANCH 2>$GITLOG

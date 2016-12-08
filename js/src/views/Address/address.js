@@ -121,7 +121,7 @@ class Address extends Component {
     return (
       <Actionbar
         title='Address Information'
-        buttons={ !contact || contact.meta.deleted ? [] : buttons } />
+        buttons={ !contact ? [] : buttons } />
     );
   }
 

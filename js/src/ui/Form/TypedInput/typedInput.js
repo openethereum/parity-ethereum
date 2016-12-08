@@ -15,17 +15,17 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
-import { MenuItem } from 'material-ui';
+import { MenuItem, Toggle } from 'material-ui';
 import { range } from 'lodash';
 
 import IconButton from 'material-ui/IconButton';
 import AddIcon from 'material-ui/svg-icons/content/add';
 import RemoveIcon from 'material-ui/svg-icons/content/remove';
 
+import { fromWei, toWei } from '~/api/util/wei';
 import Input from '~/ui/Form/Input';
 import InputAddressSelect from '~/ui/Form/InputAddressSelect';
 import Select from '~/ui/Form/Select';
-
 import { ABI_TYPES } from '~/util/abi';
 
 import styles from './typedInput.css';
@@ -42,16 +42,29 @@ export default class TypedInput extends Component {
     label: PropTypes.string,
     hint: PropTypes.string,
     min: PropTypes.number,
-    max: PropTypes.number
+    max: PropTypes.number,
+    isEth: PropTypes.bool
   };
 
   static defaultProps = {
     min: null,
-    max: null
+    max: null,
+    isEth: false
   };
 
+  state = {
+    isEth: true,
+    ethValue: 0
+  };
+
+  componentDidMount () {
+    if (this.props.isEth && this.props.value) {
+      this.setState({ ethValue: fromWei(this.props.value) });
+    }
+  }
+
   render () {
-    const { param } = this.props;
+    const { param, isEth } = this.props;
     const { type } = param;
 
     if (type === ABI_TYPES.ARRAY) {
@@ -85,6 +98,10 @@ export default class TypedInput extends Component {
           { inputs }
         </div>
       );
+    }
+
+    if (isEth) {
+      return this.renderEth();
     }
 
     return this.renderType(type);
@@ -157,16 +174,43 @@ export default class TypedInput extends Component {
     return this.renderDefault();
   }
 
-  renderNumber () {
-    const { label, value, error, param, hint, min, max } = this.props;
+  renderEth () {
+    const { ethValue } = this.state;
+
+    const value = ethValue && typeof ethValue.toNumber === 'function'
+      ? ethValue.toNumber()
+      : ethValue;
+
+    return (
+      <div className={ styles.ethInput }>
+        <div className={ styles.input }>
+          { this.renderNumber(value, this.onEthValueChange) }
+          { this.state.isEth ? (<div className={ styles.label }>ETH</div>) : null }
+        </div>
+        <div className={ styles.toggle }>
+          <Toggle
+            toggled={ this.state.isEth }
+            onToggle={ this.onEthTypeChange }
+            style={ { width: 46 } }
+          />
+        </div>
+      </div>
+    );
+  }
+
+  renderNumber (value = this.props.value, onChange = this.onChange) {
+    const { label, error, param, hint, min, max } = this.props;
+    const realValue = value && typeof value.toNumber === 'function'
+      ? value.toNumber()
+      : value;
 
     return (
       <Input
         label={ label }
         hint={ hint }
-        value={ value }
+        value={ realValue }
         error={ error }
-        onChange={ this.onChange }
+        onChange={ onChange }
         type='number'
         min={ min !== null ? min : (param.signed ? null : 0) }
         max={ max !== null ? max : null }
@@ -234,6 +278,28 @@ export default class TypedInput extends Component {
 
   onChangeBool = (event, _index, value) => {
     this.props.onChange(value === 'true');
+  }
+
+  onEthTypeChange = () => {
+    const { isEth, ethValue } = this.state;
+
+    if (ethValue === '' || ethValue === undefined) {
+      return this.setState({ isEth: !isEth });
+    }
+
+    const value = isEth ? toWei(ethValue) : fromWei(ethValue);
+    this.setState({ isEth: !isEth, ethValue: value }, () => {
+      this.onEthValueChange(null, value);
+    });
+  }
+
+  onEthValueChange = (event, value) => {
+    const realValue = this.state.isEth && value !== '' && value !== undefined
+      ? toWei(value)
+      : value;
+
+    this.setState({ ethValue: value });
+    this.props.onChange(realValue);
   }
 
   onChange = (event, value) => {

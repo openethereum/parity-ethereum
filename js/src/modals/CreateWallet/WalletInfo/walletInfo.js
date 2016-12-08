@@ -17,6 +17,7 @@
 import React, { Component, PropTypes } from 'react';
 
 import { CompletedStep, IdentityIcon, CopyToClipboard } from '~/ui';
+import { fromWei } from '~/api/util/wei';
 
 import styles from '../createWallet.css';
 
@@ -62,7 +63,7 @@ export default class WalletInfo extends Component {
           <code>{ required }</code> owners are required to confirm a transaction.
         </p>
         <p>
-          The daily limit is set to <code>{ daylimit }</code>.
+          The daily limit is set to <code>{ fromWei(daylimit).toFormat() }</code> ETH.
         </p>
       </CompletedStep>
     );

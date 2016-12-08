@@ -16,9 +16,8 @@
 
 import { observable, computed, action, transaction } from 'mobx';
 
-import { ERROR_CODES } from '~/api/transport/error';
-
 import Contract from '~/api/contract';
+import { ERROR_CODES } from '~/api/transport/error';
 import { wallet as walletAbi } from '~/contracts/abi';
 import { wallet as walletCode } from '~/contracts/code';
 
