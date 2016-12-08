@@ -25,7 +25,7 @@ use network::PeerId;
 
 use net::buffer_flow::FlowParams;
 use net::context::IoContext;
-use net::status::{Capabilities, Status, NetworkId, write_handshake};
+use net::status::{Capabilities, Status, write_handshake};
 use net::{encode_request, LightProtocol, Params, packet};
 use provider::Provider;
 use request::{self, Request, Headers};
@@ -174,8 +174,8 @@ fn setup(flow_params: FlowParams, capabilities: Capabilities) -> (Arc<TestProvid
 		client: TestBlockChainClient::new(),
 	});
 
-	let proto = LightProtocol::new(Box::new(TestProvider(provider.clone())), Params {
-		network_id: NetworkId::Testnet,
+	let proto = LightProtocol::new(Arc::new(TestProvider(provider.clone())), Params {
+		network_id: 2,
 		flow_params: flow_params,
 		capabilities: capabilities,
 	});
@@ -185,8 +185,8 @@ fn setup(flow_params: FlowParams, capabilities: Capabilities) -> (Arc<TestProvid
 
 fn status(chain_info: BlockChainInfo) -> Status {
 	Status {
-		protocol_version: ::net::PROTOCOL_VERSION,
-		network_id: NetworkId::Testnet,
+		protocol_version: 1,
+		network_id: 2,
 		head_td: chain_info.total_difficulty,
 		head_hash: chain_info.best_block_hash,
 		head_num: chain_info.best_block_number,

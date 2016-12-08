@@ -33,6 +33,7 @@ use ipc::{BinaryConvertable, BinaryConvertError, IpcConfig};
 use std::str::FromStr;
 use parking_lot::RwLock;
 use chain::{ETH_PACKET_COUNT, SNAPSHOT_SYNC_PACKET_COUNT};
+use light::net::{LightProtocol, Params as LightParams, Capabilities, Handler as LightHandler, EventContext};
 
 pub const WARP_SYNC_PROTOCOL_ID: ProtocolId = *b"par";
 
@@ -47,10 +48,14 @@ pub struct SyncConfig {
 	pub network_id: u64,
 	/// Main "eth" subprotocol name.
 	pub subprotocol_name: [u8; 3],
+	/// Light "les" subprotocol name.
+	pub light_subprotocol_name: [u8; 3],
 	/// Fork block to check
 	pub fork_block: Option<(BlockNumber, H256)>,
 	/// Enable snapshot sync
 	pub warp_sync: bool,
+	/// Enable light client server.
+	pub serve_light: bool,
 }
 
 impl Default for SyncConfig {
@@ -60,8 +65,10 @@ impl Default for SyncConfig {
 			download_old_blocks: true,
 			network_id: 1,
 			subprotocol_name: *b"eth",
+			light_subprotocol_name: *b"les",
 			fork_block: None,
 			warp_sync: false,
+			serve_light: false,
 		}
 	}
 }
@@ -116,30 +123,74 @@ pub struct PeerInfo {
 	pub eth_difficulty: Option<U256>,
 }
 
+/// EthSync initialization parameters.
+#[cfg_attr(feature = "ipc", derive(Binary))]
+pub struct Params {
+	/// Configuration.
+	pub config: SyncConfig,
+	/// Blockchain client.
+	pub chain: Arc<BlockChainClient>,
+	/// Snapshot service.
+	pub snapshot_service: Arc<SnapshotService>,
+	/// Light data provider.
+	pub provider: Arc<::light::Provider>,
+	/// Network layer configuration.
+	pub network_config: NetworkConfiguration,
+}
+
 /// Ethereum network protocol handler
 pub struct EthSync {
 	/// Network service
 	network: NetworkService,
-	/// Protocol handler
-	handler: Arc<SyncProtocolHandler>,
+	/// Main (eth/par) protocol handler
+	sync_handler: Arc<SyncProtocolHandler>,
+	/// Light (les) protocol handler 
+	light_proto: Option<Arc<LightProtocol>>,
 	/// The main subprotocol name
 	subprotocol_name: [u8; 3],
+	/// Light subprotocol name.
+	light_subprotocol_name: [u8; 3],
 }
 
 impl EthSync {
 	/// Creates and register protocol with the network service
-	pub fn new(config: SyncConfig, chain: Arc<BlockChainClient>, snapshot_service: Arc<SnapshotService>, network_config: NetworkConfiguration) -> Result<Arc<EthSync>, NetworkError> {
-		let chain_sync = ChainSync::new(config, &*chain);
-		let service = try!(NetworkService::new(try!(network_config.clone().into_basic())));
-		let sync = Arc::new(EthSync{
+	pub fn new(params: Params) -> Result<Arc<EthSync>, NetworkError> {
+		let pruning_info = params.chain.pruning_info();		
+		let light_proto = match params.config.serve_light {
+			false => None,
+			true => Some({
+				let light_params = LightParams {
+					network_id: params.config.network_id,
+					flow_params: Default::default(),
+					capabilities: Capabilities {
+						serve_headers: true,
+						serve_chain_since: Some(pruning_info.earliest_chain),
+						serve_state_since: Some(pruning_info.earliest_state),
+						tx_relay: true,
+					},
+				};
+
+				let mut light_proto = LightProtocol::new(params.provider, light_params);
+				light_proto.add_handler(Box::new(TxRelay(params.chain.clone())));
+
+				Arc::new(light_proto)
+			})
+		};
+
+		let chain_sync = ChainSync::new(params.config, &*params.chain);
+		let service = try!(NetworkService::new(try!(params.network_config.clone().into_basic())));
+
+		let sync = Arc::new(EthSync {
 			network: service,
-			handler: Arc::new(SyncProtocolHandler {
+			sync_handler: Arc::new(SyncProtocolHandler {
 				sync: RwLock::new(chain_sync),
-				chain: chain,
-				snapshot_service: snapshot_service,
+				chain: params.chain,
+				snapshot_service: params.snapshot_service,
 				overlay: RwLock::new(HashMap::new()),
 			}),
-			subprotocol_name: config.subprotocol_name,
+			light_proto: light_proto,
+			subprotocol_name: params.config.subprotocol_name,
+			light_subprotocol_name: params.config.light_subprotocol_name,
 		});
 
 		Ok(sync)
@@ -150,14 +201,15 @@ impl EthSync {
 impl SyncProvider for EthSync {
 	/// Get sync status
 	fn status(&self) -> SyncStatus {
-		self.handler.sync.write().status()
+		self.sync_handler.sync.write().status()
 	}
 
 	/// Get sync peers
 	fn peers(&self) -> Vec<PeerInfo> {
+		// TODO: [rob] LES peers/peer info
 		self.network.with_context_eval(self.subprotocol_name, |context| {
-			let sync_io = NetSyncIo::new(context, &*self.handler.chain, &*self.handler.snapshot_service, &self.handler.overlay);
-			self.handler.sync.write().peers(&sync_io)
+			let sync_io = NetSyncIo::new(context, &*self.sync_handler.chain, &*self.sync_handler.snapshot_service, &self.sync_handler.overlay);
+			self.sync_handler.sync.write().peers(&sync_io)
 		}).unwrap_or(Vec::new())
 	}
 
@@ -166,7 +218,7 @@ impl SyncProvider for EthSync {
 	}
 
 	fn transactions_stats(&self) -> BTreeMap<H256, TransactionStats> {
-		let sync = self.handler.sync.read();
+		let sync = self.sync_handler.sync.read();
 		sync.transactions_stats()
 			.iter()
 			.map(|(hash, stats)| (*hash, stats.into()))
@@ -228,8 +280,8 @@ impl ChainNotify for EthSync {
 		_duration: u64)
 	{
 		self.network.with_context(self.subprotocol_name, |context| {
-			let mut sync_io = NetSyncIo::new(context, &*self.handler.chain, &*self.handler.snapshot_service, &self.handler.overlay);
-			self.handler.sync.write().chain_new_blocks(
+			let mut sync_io = NetSyncIo::new(context, &*self.sync_handler.chain, &*self.sync_handler.snapshot_service, &self.sync_handler.overlay);
+			self.sync_handler.sync.write().chain_new_blocks(
 				&mut sync_io,
 				&imported,
 				&invalid,
@@ -245,16 +297,33 @@ impl ChainNotify for EthSync {
 			Err(err) => warn!("Error starting network: {}", err),
 			_ => {},
 		}
-		self.network.register_protocol(self.handler.clone(), self.subprotocol_name, ETH_PACKET_COUNT, &[62u8, 63u8])
+		self.network.register_protocol(self.sync_handler.clone(), self.subprotocol_name, ETH_PACKET_COUNT, &[62u8, 63u8])
 			.unwrap_or_else(|e| warn!("Error registering ethereum protocol: {:?}", e));
 		// register the warp sync subprotocol
-		self.network.register_protocol(self.handler.clone(), WARP_SYNC_PROTOCOL_ID, SNAPSHOT_SYNC_PACKET_COUNT, &[1u8])
+		self.network.register_protocol(self.sync_handler.clone(), WARP_SYNC_PROTOCOL_ID, SNAPSHOT_SYNC_PACKET_COUNT, &[1u8])
 			.unwrap_or_else(|e| warn!("Error registering snapshot sync protocol: {:?}", e));
+		
+		// register the light protocol.
+		if let Some(light_proto) = self.light_proto.as_ref().map(|x| x.clone()) {
+			self.network.register_protocol(light_proto, self.light_subprotocol_name, ::light::net::PACKET_COUNT, ::light::net::PROTOCOL_VERSIONS)
+				.unwrap_or_else(|e| warn!("Error registering light client protocol: {:?}", e));
+		}
 	}
 
 	fn stop(&self) {
-		self.handler.snapshot_service.abort_restore();
+		self.sync_handler.snapshot_service.abort_restore();
 		self.network.stop().unwrap_or_else(|e| warn!("Error stopping network: {:?}", e));
+	}
+}
+
+/// LES event handler.
+/// Simply queues transactions from light client peers.
+struct TxRelay(Arc<BlockChainClient>);
+
+impl LightHandler for TxRelay {
+	fn on_transactions(&self, ctx: &EventContext, relay: &[::ethcore::transaction::SignedTransaction]) {
+		trace!(target: "les", "Relaying {} transactions from peer {}", relay.len(), ctx.peer());
+		self.0.queue_transactions(relay.iter().map(|tx| ::rlp::encode(tx).to_vec()).collect())
 	}
 }
 
@@ -304,9 +373,14 @@ impl ManageNetwork for EthSync {
 
 	fn stop_network(&self) {
 		self.network.with_context(self.subprotocol_name, |context| {
-			let mut sync_io = NetSyncIo::new(context, &*self.handler.chain, &*self.handler.snapshot_service, &self.handler.overlay);
-			self.handler.sync.write().abort(&mut sync_io);
+			let mut sync_io = NetSyncIo::new(context, &*self.sync_handler.chain, &*self.sync_handler.snapshot_service, &self.sync_handler.overlay);
+			self.sync_handler.sync.write().abort(&mut sync_io);
 		});
+
+		if let Some(light_proto) = self.light_proto.as_ref() {
+			light_proto.abort();
+		}
+
 		self.stop();
 	}
 

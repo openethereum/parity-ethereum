@@ -20,6 +20,7 @@ extern crate ethcore_ipc_codegen;
 #[cfg(feature = "ipc")]
 fn main() {
 	ethcore_ipc_codegen::derive_binary("src/types/mod.rs.in").unwrap();
+	ethcore_ipc_codegen::derive_ipc_cond("src/provider.rs", true).unwrap();
 }
 
 #[cfg(not(feature = "ipc"))]

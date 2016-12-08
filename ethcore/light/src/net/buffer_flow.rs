@@ -22,6 +22,9 @@
 //!
 //! This module provides an interface for configuration of buffer
 //! flow costs and recharge rates.
+//!
+//! Current default costs are picked completely arbitrarily, not based 
+//! on any empirical timings or mathematical models.
 
 use request;
 use super::packet;
@@ -269,6 +272,16 @@ impl FlowParams {
 
 		if buf.estimate > self.limit {
 			buf.estimate = self.limit
+		}
+	}
+}
+
+impl Default for FlowParams {
+	fn default() -> Self {
+		FlowParams {
+			limit: 50_000_000.into(),
+			costs: CostTable::default(),
+			recharge: 100_000.into(),
 		}
 	}
 }

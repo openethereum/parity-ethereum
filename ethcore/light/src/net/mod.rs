@@ -30,13 +30,14 @@ use util::{Bytes, Mutex, RwLock, U256};
 use time::SteadyTime;
 
 use std::collections::HashMap;
+use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use provider::Provider;
 use request::{self, Request};
 
 use self::buffer_flow::{Buffer, FlowParams};
-use self::context::{IoContext, EventContext, Ctx};
+use self::context::Ctx;
 use self::error::{Error, Punishment};
 
 mod buffer_flow;
@@ -47,16 +48,20 @@ mod status;
 #[cfg(test)]
 mod tests;
 
-pub use self::status::{Status, Capabilities, Announcement, NetworkId};
+pub use self::context::{EventContext, IoContext};
+pub use self::status::{Status, Capabilities, Announcement};
 
 const TIMEOUT: TimerToken = 0;
 const TIMEOUT_INTERVAL_MS: u64 = 1000;
 
-// LPV1
-const PROTOCOL_VERSION: u32 = 1;
+// Supported protocol versions.
+pub const PROTOCOL_VERSIONS: &'static [u8] = &[1];
 
-// TODO [rob] make configurable.
-const PROTOCOL_ID: [u8; 3] = *b"les";
+// Max protocol version.
+pub const MAX_PROTOCOL_VERSION: u8 = 1;
+
+// Packet count for LES.
+pub const PACKET_COUNT: u8 = 15;
 
 // packet ID definitions.
 mod packet {
@@ -173,6 +178,8 @@ pub trait Handler: Send + Sync {
 	/// Called when a peer responds with header proofs. Each proof is a block header coupled 
 	/// with a series of trie nodes is ascending order by distance from the root.
 	fn on_header_proofs(&self, _ctx: &EventContext, _req_id: ReqId, _proofs: &[(Bytes, Vec<Bytes>)]) { }
+	/// Called on abort.
+	fn on_abort(&self) { }
 }
 
 // a request, the peer who it was made to, and the time it was made.
@@ -185,7 +192,7 @@ struct Requested {
 /// Protocol parameters.
 pub struct Params {
 	/// Network id.
-	pub network_id: NetworkId,
+	pub network_id: u64,
 	/// Buffer flow parameters.
 	pub flow_params: FlowParams,
 	/// Initial capabilities.
@@ -203,9 +210,9 @@ pub struct Params {
 //   Locks must be acquired in the order declared, and when holding a read lock 
 //   on the peers, only one peer may be held at a time.
 pub struct LightProtocol {
-	provider: Box<Provider>,
+	provider: Arc<Provider>,
 	genesis_hash: H256,
-	network_id: NetworkId,
+	network_id: u64,
 	pending_peers: RwLock<HashMap<PeerId, PendingPeer>>,
 	peers: RwLock<HashMap<PeerId, Mutex<Peer>>>,
 	pending_requests: RwLock<HashMap<usize, Requested>>,
@@ -217,7 +224,7 @@ pub struct LightProtocol {
 
 impl LightProtocol {
 	/// Create a new instance of the protocol manager.
-	pub fn new(provider: Box<Provider>, params: Params) -> Self {
+	pub fn new(provider: Arc<Provider>, params: Params) -> Self {
 		let genesis_hash = provider.chain_info().genesis_hash;
 		LightProtocol {
 			provider: provider,
@@ -321,6 +328,23 @@ impl LightProtocol {
 	/// is initialized as a means of customizing its behavior.
 	pub fn add_handler(&mut self, handler: Box<Handler>) {
 		self.handlers.push(handler);
+	}
+
+	/// Signal to handlers that network activity is being aborted
+	/// and clear peer data.
+	pub fn abort(&self) {
+		for handler in &self.handlers {
+			handler.on_abort();
+		}
+
+		// acquire in order and hold.
+		let mut pending_peers = self.pending_peers.write();
+		let mut peers = self.peers.write();
+		let mut pending_requests = self.pending_requests.write();
+
+		pending_peers.clear();
+		peers.clear();
+		pending_requests.clear();
 	}
 
 	// Does the common pre-verification of responses before the response itself 
@@ -460,7 +484,7 @@ impl LightProtocol {
 			head_hash: chain_info.best_block_hash,
 			head_num: chain_info.best_block_number,
 			genesis_hash: chain_info.genesis_hash,
-			protocol_version: PROTOCOL_VERSION,
+			protocol_version: MAX_PROTOCOL_VERSION as u32,
 			network_id: self.network_id,
 			last_head: None,
 		};

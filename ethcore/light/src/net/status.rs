@@ -82,26 +82,6 @@ impl Key {
 	}
 }
 
-/// Network ID structure.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[repr(u32)]
-pub enum NetworkId {
-	/// ID for the mainnet
-	Mainnet = 1,
-	/// ID for the testnet
-	Testnet = 0,
-}
-
-impl NetworkId {
-	fn from_raw(raw: u32) -> Option<Self> {
-		match raw {
-			0 => Some(NetworkId::Testnet),
-			1 => Some(NetworkId::Mainnet),
-			_ => None,
-		}
-	}
-}
-
 // helper for decoding key-value pairs in the handshake or an announcement.
 struct Parser<'a> {
 	pos: usize,
@@ -164,7 +144,7 @@ pub struct Status {
 	/// Protocol version.
 	pub protocol_version: u32,
 	/// Network id of this peer.
-	pub network_id: NetworkId,
+	pub network_id: u64,
 	/// Total difficulty of the head of the chain.
 	pub head_td: U256,
 	/// Hash of the best block.
@@ -225,8 +205,7 @@ pub fn parse_handshake(rlp: UntrustedRlp) -> Result<(Status, Capabilities, FlowP
 
 	let status = Status {
 		protocol_version: try!(parser.expect(Key::ProtocolVersion)),
-		network_id: try!(parser.expect(Key::NetworkId)
-			.and_then(|id: u32| NetworkId::from_raw(id).ok_or(DecoderError::Custom("Invalid network ID")))),
+		network_id: try!(parser.expect(Key::NetworkId)),
 		head_td: try!(parser.expect(Key::HeadTD)),
 		head_hash: try!(parser.expect(Key::HeadHash)),
 		head_num: try!(parser.expect(Key::HeadNum)),
@@ -254,7 +233,7 @@ pub fn parse_handshake(rlp: UntrustedRlp) -> Result<(Status, Capabilities, FlowP
 pub fn write_handshake(status: &Status, capabilities: &Capabilities, flow_params: &FlowParams) -> Vec<u8> {
 	let mut pairs = Vec::new();
 	pairs.push(encode_pair(Key::ProtocolVersion, &status.protocol_version));
-	pairs.push(encode_pair(Key::NetworkId, &(status.network_id as u32)));
+	pairs.push(encode_pair(Key::NetworkId, &(status.network_id as u64)));
 	pairs.push(encode_pair(Key::HeadTD, &status.head_td));
 	pairs.push(encode_pair(Key::HeadHash, &status.head_hash));
 	pairs.push(encode_pair(Key::HeadNum, &status.head_num));
@@ -385,7 +364,7 @@ mod tests {
 	fn full_handshake() {
 		let status = Status {
 			protocol_version: 1,
-			network_id: NetworkId::Mainnet,
+			network_id: 1,
 			head_td: U256::default(),
 			head_hash: H256::default(),
 			head_num: 10,
@@ -420,7 +399,7 @@ mod tests {
 	fn partial_handshake() {
 		let status = Status {
 			protocol_version: 1,
-			network_id: NetworkId::Mainnet,
+			network_id: 1,
 			head_td: U256::default(),
 			head_hash: H256::default(),
 			head_num: 10,
@@ -455,7 +434,7 @@ mod tests {
 	fn skip_unknown_keys() {
 		let status = Status {
 			protocol_version: 1,
-			network_id: NetworkId::Mainnet,
+			network_id: 1,
 			head_td: U256::default(),
 			head_hash: H256::default(),
 			head_num: 10,

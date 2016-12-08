@@ -32,6 +32,7 @@ warp = true
 allow_ips = "all"
 snapshot_peers = 0
 max_pending_peers = 64
+serve_light = true
 
 reserved_only = false
 reserved_peers = "./path_to_file"
