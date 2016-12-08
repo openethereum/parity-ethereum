@@ -35,9 +35,9 @@ git checkout -b $BRANCH
 
 echo "*** Committing compiled files for $UTCDATE"
 mv build ../build.new
-git pull origin/$BRANCH -X ours --commit -m "$UTCDATE [merge]"
+git pull origin/$BRANCH --commit --no-edit -X ours
 git rm build/*
-git commit -m "$UTCDATE [rm]"
+git commit -m "$UTCDATE [rm old]"
 mv -f ../build.new/* build/
 rm -rf ../build.new
 git add .
