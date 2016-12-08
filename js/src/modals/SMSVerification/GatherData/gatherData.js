@@ -25,7 +25,7 @@ import { fromWei } from '~/api/util/wei';
 import { Form, Input } from '~/ui';
 import { nullableProptype } from '~/util/proptypes';
 
-import { termsOfService } from '../../../3rdparty/sms-verification';
+import termsOfService from './tos';
 import styles from './gatherData.css';
 
 export default class GatherData extends Component {
