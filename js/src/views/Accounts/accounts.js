@@ -82,7 +82,7 @@ class Accounts extends Component {
 
   render () {
     return (
-      <div className={ styles.accounts }>
+      <div>
         { this.renderNewDialog() }
         { this.renderNewWalletDialog() }
         { this.renderActionbar() }

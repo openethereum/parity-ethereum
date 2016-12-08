@@ -71,7 +71,7 @@ class Embedded extends Component {
     const items = pending.sort(this._sortRequests).map(this.renderPending);
 
     return (
-      <div className={ styles.pending }>
+      <div>
         { items }
       </div>
     );
