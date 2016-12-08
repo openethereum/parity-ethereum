@@ -240,7 +240,7 @@ export default class Contract {
   }
 
   _bindEvent = (event) => {
-    event.subscribe = (options = {}, callback, autoRemove = false) => {
+    event.subscribe = (options = {}, callback, autoRemove) => {
       return this._subscribe(event, options, callback, autoRemove);
     };
 
@@ -307,7 +307,7 @@ export default class Contract {
     return this._api.eth.newFilter(options);
   }
 
-  subscribe (eventName = null, options = {}, callback, autoRemove = false) {
+  subscribe (eventName = null, options = {}, callback, autoRemove) {
     try {
       const event = this._findEvent(eventName);
       return this._subscribe(event, options, callback, autoRemove);
