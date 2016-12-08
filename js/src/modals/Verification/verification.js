@@ -53,12 +53,11 @@ export default class Verification extends Component {
   }
 
   static phases = { // mapping (store steps -> steps)
-    [LOADING]: 1,
-    [QUERY_DATA]: 2,
-    [POSTING_REQUEST]: 3, [POSTED_REQUEST]: 3, [REQUESTING_CODE]: 3,
-    [QUERY_CODE]: 4,
-    [POSTING_CONFIRMATION]: 5, [POSTED_CONFIRMATION]: 5,
-    [DONE]: 6
+    [LOADING]: 1, [QUERY_DATA]: 1,
+    [POSTING_REQUEST]: 2, [POSTED_REQUEST]: 2, [REQUESTING_CODE]: 2,
+    [QUERY_CODE]: 3,
+    [POSTING_CONFIRMATION]: 4, [POSTED_CONFIRMATION]: 4,
+    [DONE]: 5
   }
 
   state = {
@@ -81,8 +80,8 @@ export default class Verification extends Component {
         title='verify your account'
         visible
         current={ phase }
-        steps={ ['Method', 'Prepare', 'Enter Data', 'Request', 'Enter Code', 'Confirm', 'Done!'] }
-        waiting={ error ? [] : [ 1, 3, 5 ] }
+        steps={ ['Method', 'Enter Data', 'Request', 'Enter Code', 'Confirm', 'Done!'] }
+        waiting={ error ? [] : [ 2, 4 ] }
       >
         { this.renderStep(phase, error) }
       </Modal>
@@ -103,7 +102,7 @@ export default class Verification extends Component {
       return (<div>{ cancel }</div>);
     }
 
-    if (phase === 6) {
+    if (phase === 5) {
       return (
         <div>
           { cancel }
@@ -126,16 +125,16 @@ export default class Verification extends Component {
           onSelectMethod(method);
         };
         break;
-      case 2:
+      case 1:
         action = store.sendRequest;
         break;
-      case 3:
+      case 2:
         action = store.queryCode;
         break;
-      case 4:
+      case 3:
         action = store.sendConfirmation;
         break;
-      case 5:
+      case 4:
         action = store.done;
         break;
     }
@@ -180,11 +179,10 @@ export default class Verification extends Component {
 
     switch (phase) {
       case 1:
-        return (
-          <p>Loading Verification.</p>
-        );
+        if (step === LOADING) {
+          return (<p>Loading verification data.</p>);
+        }
 
-      case 2:
         const { setConsentGiven } = this.props.store;
 
         const fields = [];
@@ -214,12 +212,12 @@ export default class Verification extends Component {
           />
         );
 
-      case 3:
+      case 2:
         return (
           <SendRequest step={ step } tx={ requestTx } />
         );
 
-      case 4:
+      case 3:
         let receiver, hint;
         if (method === 'sms') {
           receiver = this.props.store.number;
@@ -237,12 +235,12 @@ export default class Verification extends Component {
           />
         );
 
-      case 5:
+      case 4:
         return (
           <SendConfirmation step={ step } tx={ confirmationTx } />
         );
 
-      case 6:
+      case 5:
         return (
           <Done />
         );
