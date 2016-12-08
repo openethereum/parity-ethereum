@@ -20,6 +20,7 @@ import { isEqual } from 'lodash';
 import ReactTooltip from 'react-tooltip';
 
 import { Balance, Container, ContainerTitle, IdentityIcon, IdentityName, Tags, Input } from '~/ui';
+import Certifications from '~/ui/Certifications';
 import { nullableProptype } from '~/util/proptypes';
 
 import styles from '../accounts.css';
@@ -35,12 +36,14 @@ export default class Summary extends Component {
     link: PropTypes.string,
     name: PropTypes.string,
     noLink: PropTypes.bool,
+    showCertifications: PropTypes.bool,
     handleAddSearchToken: PropTypes.func,
     owners: nullableProptype(PropTypes.array)
   };
 
   static defaultProps = {
-    noLink: false
+    noLink: false,
+    showCertifications: false
   };
 
   shouldComponentUpdate (nextProps) {
@@ -107,6 +110,7 @@ export default class Summary extends Component {
 
         { this.renderOwners() }
         { this.renderBalance() }
+        { this.renderCertifications() }
       </Container>
     );
   }
@@ -170,6 +174,17 @@ export default class Summary extends Component {
 
     return (
       <Balance balance={ balance } />
+    );
+  }
+
+  renderCertifications () {
+    const { showCertifications, account } = this.props;
+    if (!showCertifications) {
+      return null;
+    }
+
+    return (
+      <Certifications account={ account.address } />
     );
   }
 }

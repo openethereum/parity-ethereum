@@ -15,13 +15,16 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import { connect } from 'react-redux';
+import { bindActionCreators } from 'redux';
 
 import { Container } from '~/ui';
+import { fetchCertifiers, fetchCertifications } from '~/redux/providers/certifications/actions';
 
 import Summary from '../Summary';
 import styles from './list.css';
 
-export default class List extends Component {
+class List extends Component {
   static propTypes = {
     accounts: PropTypes.object,
     walletsOwners: PropTypes.object,
@@ -31,7 +34,11 @@ export default class List extends Component {
     empty: PropTypes.bool,
     order: PropTypes.string,
     orderFallback: PropTypes.string,
-    handleAddSearchToken: PropTypes.func
+    certifications: PropTypes.object.isRequired,
+
+    handleAddSearchToken: PropTypes.func,
+    fetchCertifiers: PropTypes.func.isRequired,
+    fetchCertifications: PropTypes.func.isRequired
   };
 
   render () {
@@ -40,6 +47,14 @@ export default class List extends Component {
         { this.renderAccounts() }
       </div>
     );
+  }
+
+  componentWillMount () {
+    const { fetchCertifiers, accounts, fetchCertifications } = this.props;
+    fetchCertifiers();
+    for (let address in accounts) {
+      fetchCertifications(address);
+    }
   }
 
   renderAccounts () {
@@ -72,7 +87,9 @@ export default class List extends Component {
             account={ account }
             balance={ balance }
             owners={ owners }
-            handleAddSearchToken={ handleAddSearchToken } />
+            handleAddSearchToken={ handleAddSearchToken }
+            showCertifications
+          />
         </div>
       );
     });
@@ -207,3 +224,20 @@ export default class List extends Component {
       });
   }
 }
+
+function mapStateToProps (state) {
+  const { certifications } = state;
+  return { certifications };
+}
+
+function mapDispatchToProps (dispatch) {
+  return bindActionCreators({
+    fetchCertifiers,
+    fetchCertifications
+  }, dispatch);
+}
+
+export default connect(
+  mapStateToProps,
+  mapDispatchToProps
+)(List);
