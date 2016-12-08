@@ -240,8 +240,8 @@ export default class Contract {
   }
 
   _bindEvent = (event) => {
-    event.subscribe = (options = {}, callback) => {
-      return this._subscribe(event, options, callback);
+    event.subscribe = (options = {}, callback, autoRemove = false) => {
+      return this._subscribe(event, options, callback, autoRemove);
     };
 
     event.unsubscribe = (subscriptionId) => {
@@ -307,16 +307,16 @@ export default class Contract {
     return this._api.eth.newFilter(options);
   }
 
-  subscribe (eventName = null, options = {}, callback) {
+  subscribe (eventName = null, options = {}, callback, autoRemove = false) {
     try {
       const event = this._findEvent(eventName);
-      return this._subscribe(event, options, callback);
+      return this._subscribe(event, options, callback, autoRemove);
     } catch (e) {
       return Promise.reject(e);
     }
   }
 
-  _subscribe (event = null, _options, callback) {
+  _subscribe (event = null, _options, callback, autoRemove = false) {
     const subscriptionId = nextSubscriptionId++;
     const { skipInitFetch } = _options;
     delete _options['skipInitFetch'];
@@ -326,6 +326,7 @@ export default class Contract {
       .then((filterId) => {
         this._subscriptions[subscriptionId] = {
           options: _options,
+          autoRemove,
           callback,
           filterId
         };
@@ -338,7 +339,11 @@ export default class Contract {
         return this._api.eth
           .getFilterLogs(filterId)
           .then((logs) => {
-            callback(null, this.parseEventLogs(logs));
+            const result = callback(null, this.parseEventLogs(logs));
+
+            if (autoRemove && !result) {
+              this.unsubscribe(subscriptionId);
+            }
 
             this._subscribeToChanges();
             return subscriptionId;
@@ -438,15 +443,21 @@ export default class Contract {
         })
       )
       .then((logsArray) => {
-        logsArray.forEach((logs, idx) => {
+        logsArray.forEach((logs, subscriptionId) => {
           if (!logs || !logs.length) {
             return;
           }
 
+          let result = false;
+
           try {
-            subscriptions[idx].callback(null, this.parseEventLogs(logs));
+            result = subscriptions[subscriptionId].callback(null, this.parseEventLogs(logs));
           } catch (error) {
             console.error('_sendSubscriptionChanges', error);
+          }
+
+          if (subscriptions[subscriptionId].autoRemove && !result) {
+            this.unsubscribe(subscriptionId);
           }
         });
       })
