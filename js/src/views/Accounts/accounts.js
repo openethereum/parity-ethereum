@@ -140,6 +140,10 @@ class Accounts extends Component {
     const { wallets, hasWallets, balances } = this.props;
     const { searchValues, sortOrder } = this.state;
 
+    if (!wallets || Object.keys(wallets).length === 0) {
+      return null;
+    }
+
     return (
       <List
         link='wallet'

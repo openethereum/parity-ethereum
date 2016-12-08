@@ -139,8 +139,8 @@ class Transfer extends Component {
           ? (
             <div>
               <br />
-              <p>
-                This transaction needs confirmation from other owners.
+              <div>
+                <p>This transaction needs confirmation from other owners.</p>
                 <Input
                   style={ { width: '50%', margin: '0 auto' } }
                   value={ this.store.operation }
@@ -148,7 +148,7 @@ class Transfer extends Component {
                   readOnly
                   allowCopy
                 />
-              </p>
+              </div>
             </div>
           )
           : null
@@ -298,7 +298,6 @@ function mapStateToProps (initState, initProps) {
   return (state) => {
     const { gasLimit } = state.nodeStatus;
     const sendersBalances = senders ? pick(state.balances.balances, Object.keys(senders)) : null;
-
     return { gasLimit, wallet, senders, sendersBalances };
   };
 }
