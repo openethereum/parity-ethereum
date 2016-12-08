@@ -24,6 +24,7 @@ import Contract from '~/api/contract';
 import ERRORS from './errors';
 import { ERROR_CODES } from '~/api/transport/error';
 import { DEFAULT_GAS, DEFAULT_GASPRICE, MAX_GAS_ESTIMATION } from '~/util/constants';
+import GasPriceStore from '~/ui/GasPriceEditor/store';
 
 const TITLES = {
   transfer: 'transfer details',
@@ -72,7 +73,6 @@ export default class TransferStore {
 
   account = null;
   balance = null;
-  gasLimit = null;
   onClose = null;
 
   senders = null;
@@ -80,6 +80,8 @@ export default class TransferStore {
 
   isWallet = false;
   wallet = null;
+
+  gasStore = null;
 
   @computed get steps () {
     const steps = [].concat(this.extras ? STAGES_EXTRA : STAGES_BASIC);
@@ -118,10 +120,11 @@ export default class TransferStore {
     const { account, balance, gasLimit, senders, onClose, newError, sendersBalances } = props;
     this.account = account;
     this.balance = balance;
-    this.gasLimit = gasLimit;
     this.onClose = onClose;
     this.isWallet = account && account.wallet;
     this.newError = newError;
+
+    this.gasStore = new GasPriceStore(api, gasLimit);
 
     if (this.isWallet) {
       this.wallet = props.wallet;
