@@ -14,7 +14,12 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Tendermint BFT consensus engine with round robin proof-of-authority.
+/// Tendermint BFT consensus engine with round robin proof-of-authority.
+/// At each blockchain `Height` there can be multiple `Round`s of voting.
+/// Block is issued when there is enough `Precommit` votes collected on a particular block at the end of a `Round`.
+/// Signatures always sign `Height`, `Round`, `Step` and `BlockHash` which is a block hash without seal.
+/// First a block with `Seal::Proposal` is issued by the designated proposer.
+/// Once enough votes have been gathered the proposer issues that block in the `Commit` step.
 
 mod message;
 mod transition;
@@ -191,10 +196,11 @@ impl Tendermint {
 		}
 	}
 
-	fn to_height(&self, height: Height) {
-		debug!(target: "poa", "Transitioning to height {}.", height);
+	fn to_next_height(&self, height: Height) {
+		let new_height = height + 1;
+		debug!(target: "poa", "Received a Commit, transitioning to height {}.", new_height);
 		self.last_lock.store(0, AtomicOrdering::SeqCst);
-		self.height.store(height, AtomicOrdering::SeqCst);
+		self.height.store(new_height, AtomicOrdering::SeqCst);
 		self.round.store(0, AtomicOrdering::SeqCst);
 		*self.lock_change.write() = None;
 	}
@@ -232,18 +238,19 @@ impl Tendermint {
 				let height = self.height.load(AtomicOrdering::SeqCst);
 				if let Some(block_hash) = *self.proposal.read() {
 					// Generate seal and remove old votes.
-					if let Some(seal) = self.votes.seal_signatures(height, round, block_hash) {
-						trace!(target: "poa", "to_step: Collected seal: {:?}", seal);
-						if self.is_proposer(&*self.authority.read()).is_ok() {
+					if self.is_proposer(&*self.authority.read()).is_ok() {
+						if let Some(seal) = self.votes.seal_signatures(height, round, block_hash) {
+							trace!(target: "poa", "to_step: Collected seal: {:?}", seal);
 							let seal = vec![
 								::rlp::encode(&round).to_vec(),
 								::rlp::encode(&seal.proposal).to_vec(),
 								::rlp::encode(&seal.votes).to_vec()
 							];
 							self.submit_seal(block_hash, seal);
+							self.to_next_height(height);
+						} else {
+							warn!(target: "poa", "Proposal was not found!");
 						}
-					} else {
-						warn!(target: "poa", "Proposal was not found!");
 					}
 				}
 			},
@@ -287,10 +294,6 @@ impl Tendermint {
 	fn increment_round(&self, n: Round) {
 		trace!(target: "poa", "increment_round: New round.");
 		self.round.fetch_add(n, AtomicOrdering::SeqCst);
-	}
-
-	fn new_height(&self) {
-		self.to_height(self.height.load(AtomicOrdering::SeqCst) + 1);
 	}
 
 	fn should_unlock(&self, lock_change_round: Round) -> bool { 
@@ -414,7 +417,7 @@ impl Engine for Tendermint {
 			let header = block.header();
 			let author = header.author();
 			// Only proposer can generate seal if None was generated.
-			if self.is_proposer(author).is_err() && self.proposal.read().is_none() {
+			if self.is_proposer(author).is_err() || self.proposal.read().is_some() {
 				return Seal::None;
 			}
 
@@ -428,6 +431,7 @@ impl Engine for Tendermint {
 				self.votes.vote(ConsensusMessage::new(signature, height, round, Step::Propose, bh), *author);
 				// Remember proposal for later seal submission.
 				*self.proposal.write() = bh;
+				assert!(self.is_round_proposer(height, round, author).is_ok());
 				Seal::Proposal(vec![
 					::rlp::encode(&round).to_vec(),
 					::rlp::encode(&signature).to_vec(),
@@ -509,13 +513,8 @@ impl Engine for Tendermint {
 			}
 		}
 
-		if self.is_above_threshold(signature_count) {
-			// Skip ahead if block is from the future.
-			if proposal.height > self.height.load(AtomicOrdering::SeqCst) {
-				self.to_height(proposal.height);
-			}
 		// Check if its a proposal if there is not enough precommits.
-		} else {
+		if !self.is_above_threshold(signature_count) {
 			let signatures_len = signatures_field.len();
 			// Proposal has to have an empty signature list.
 			if signatures_len != 1 {
@@ -563,9 +562,9 @@ impl Engine for Tendermint {
 	}
 
 	fn is_new_best_block(&self, _best_total_difficulty: U256, best_header: HeaderView, _parent_details: &BlockDetails, new_header: &HeaderView) -> bool {
-		trace!(target: "poa", "new_header: {}, best_header: {}", new_header.number(), best_header.number());
 		let new_number = new_header.number();
 		let best_number = best_header.number();
+		trace!(target: "poa", "new_header: {}, best_header: {}", new_number, best_number);
 		if new_number != best_number {
 			new_number > best_number
 		} else {
@@ -586,10 +585,12 @@ impl Engine for Tendermint {
 	fn is_proposal(&self, header: &Header) -> bool {
 		let signatures_len = header.seal()[2].len();
 		// Signatures have to be an empty list rlp.
+		let proposal = ConsensusMessage::new_proposal(header).expect("block went through full verification; this Engine verifies new_proposal creation; qed");
 		if signatures_len != 1 {
+			// New Commit received, skip to next height.
+			self.to_next_height(proposal.height);
 			return false;
 		}
-		let proposal = ConsensusMessage::new_proposal(header).expect("block went through full verification; this Engine verifies new_proposal creation; qed");
 		let proposer = proposal.verify().expect("block went through full verification; this Engine tries verify; qed");
 		debug!(target: "poa", "Received a new proposal for height {}, round {} from {}.", proposal.height, proposal.round, proposer);
 		if self.is_round(&proposal) {

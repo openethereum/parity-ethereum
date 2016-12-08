@@ -469,9 +469,11 @@ impl Miner {
 				// Save proposal for later seal submission and broadcast it.
 				Seal::Proposal(seal) => {
 					trace!(target: "miner", "Received a Proposal seal.");
-					let mut sealing_work = self.sealing_work.lock();
-					sealing_work.queue.push(block.clone());
-					sealing_work.queue.use_last_ref();
+					{
+						let mut sealing_work = self.sealing_work.lock();
+						sealing_work.queue.push(block.clone());
+						sealing_work.queue.use_last_ref();
+					}
 					block
 						.lock()
 						.seal(&*self.engine, seal)

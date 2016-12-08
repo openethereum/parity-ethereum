@@ -106,7 +106,6 @@ impl IoHandler<Step> for TransitionHandler {
 					Step::Commit => {
 						trace!(target: "poa", "timeout: Commit timeout.");
 						set_timeout(io, engine.our_params.timeouts.propose);
-						engine.new_height();
 						Some(Step::Propose)
 					},
 				};
