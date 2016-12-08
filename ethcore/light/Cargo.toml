@@ -21,4 +21,5 @@ rlp = { path = "../../util/rlp" }
 time = "0.1"
 
 [features]
+default = []
 ipc = ["ethcore/ipc", "ethcore-ipc", "ethcore-ipc-codegen"]
