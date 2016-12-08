@@ -82,7 +82,11 @@ export default class Manager {
       if (!engine.isStarted) {
         engine.start();
       } else {
-        this._sendData(subscriptionId, error, data);
+        const result = this._sendData(subscriptionId, error, data);
+
+        if (autoRemove && !result) {
+          this.unsubscribe(subscriptionId);
+        }
       }
 
       resolve(subscriptionId);
@@ -102,19 +106,18 @@ export default class Manager {
   }
 
   _sendData (subscriptionId, error, data) {
-    const { callback } = this.subscriptions[subscriptionId];
+    let result = false;
 
     try {
-      return callback(error, data);
+      result = this.subscriptions[subscriptionId](error, data);
     } catch (error) {
       console.error(`Unable to update callback for subscriptionId ${subscriptionId}`, error);
     }
 
-    return true;
+    return result;
   }
 
   _updateSubscriptions = (subscriptionName, error, data) => {
-    const cleanup = [];
     const subscriptions = this.subscriptions
       .filter(subscription => subscription.name === subscriptionName);
 
@@ -125,13 +128,9 @@ export default class Manager {
         const result = this._sendData(subscription.id, error, data);
 
         if (subscription.autoRemove && !result) {
-          cleanup.push(subscription.id);
+          this.unsubscribe(subscription.id);
         }
       });
-
-    cleanup.forEach((subscriptionId) => {
-      delete this.subscriptions[subscriptionId];
-    });
   }
 }
 
