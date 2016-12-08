@@ -1040,16 +1040,6 @@ impl TransactionQueue {
 		let nonce = tx.nonce();
 		let hash = tx.hash();
 
-		{
-			// Rough size sanity check
-			let gas = &tx.transaction.gas;
-			if U256::from(tx.transaction.data.len()) > *gas {
-				// Droping transaction
-				trace!(target: "txqueue", "Dropping oversized transaction: {:?} (gas: {} < size {})", hash, gas, tx.transaction.data.len());
-				return Err(TransactionError::LimitReached);
-			}
-		}
-
 		// The transaction might be old, let's check that.
 		// This has to be the first test, otherwise calculating
 		// nonce height would result in overflow.
