@@ -431,7 +431,6 @@ impl Engine for Tendermint {
 				self.votes.vote(ConsensusMessage::new(signature, height, round, Step::Propose, bh), *author);
 				// Remember proposal for later seal submission.
 				*self.proposal.write() = bh;
-				assert!(self.is_round_proposer(height, round, author).is_ok());
 				Seal::Proposal(vec![
 					::rlp::encode(&round).to_vec(),
 					::rlp::encode(&signature).to_vec(),
