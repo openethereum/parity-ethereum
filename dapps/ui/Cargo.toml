@@ -3,7 +3,7 @@ description = "Ethcore Parity UI"
 homepage = "http://ethcore.io"
 license = "GPL-3.0"
 name = "parity-ui"
-version = "1.4.0"
+version = "1.5.0"
 authors = ["Ethcore <admin@ethcore.io>"]
 
 [build-dependencies]
