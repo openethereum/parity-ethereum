@@ -102,7 +102,7 @@ export default class AddAddress extends Component {
     if (!addressError) {
       const contact = contacts[address];
 
-      if (contact && !contact.meta.deleted) {
+      if (contact) {
         addressError = ERRORS.duplicateAddress;
       }
     }

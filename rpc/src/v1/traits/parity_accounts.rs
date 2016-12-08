@@ -58,6 +58,11 @@ build_rpc_trait! {
 		#[rpc(name = "parity_killAccount")]
 		fn kill_account(&self, H160, String) -> Result<bool, Error>;
 
+		/// Permanently deletes an address from the addressbook
+		/// Arguments: `address`
+		#[rpc(name = "parity_removeAddress")]
+		fn remove_address(&self, H160) -> Result<bool, Error>;
+
 		/// Set an account's name.
 		#[rpc(name = "parity_setAccountName")]
 		fn set_account_name(&self, H160, String) -> Result<bool, Error>;
@@ -83,4 +88,3 @@ build_rpc_trait! {
 		fn geth_accounts(&self) -> Result<Vec<H160>, Error>;
 	}
 }
-

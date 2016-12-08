@@ -170,7 +170,7 @@ export default class AddressSelect extends Component {
   handleFilter = (searchText, name, item) => {
     const { address } = item;
     const entry = this.state.entries[address];
-    const lowCaseSearch = searchText.toLowerCase();
+    const lowCaseSearch = (searchText || '').toLowerCase();
 
     return [entry.name, entry.address]
       .some(text => text.toLowerCase().indexOf(lowCaseSearch) !== -1);
