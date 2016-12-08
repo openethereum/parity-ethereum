@@ -64,7 +64,6 @@ export default class Personal {
       })
       .catch((error) => {
         console.warn('removeDeleted', error);
-        return [];
       });
   }
 }
