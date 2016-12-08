@@ -111,7 +111,7 @@ class ExecuteContract extends Component {
         <Button
           key='postTransaction'
           label='post transaction'
-          disabled={ sending || hasError }
+          disabled={ !!(sending || hasError) }
           icon={ <IdentityIcon address={ fromAddress } button /> }
           onClick={ this.postTransaction } />
       ];

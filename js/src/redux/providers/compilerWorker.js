@@ -92,7 +92,7 @@ function findImports (path) {
   return { error: 'File not found' };
 }
 
-function compile (data) {
+function compile (data, optimized = 0) {
   const { sourcecode, build } = data;
   const { longVersion } = build;
 
