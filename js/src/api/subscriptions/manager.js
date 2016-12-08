@@ -59,7 +59,7 @@ export default class Manager {
     return subscription;
   }
 
-  subscribe (subscriptionName, callback) {
+  subscribe (subscriptionName, callback, autoRemove = false) {
     return new Promise((resolve, reject) => {
       const subscription = this._validateType(subscriptionName);
 
@@ -75,6 +75,7 @@ export default class Manager {
       this.subscriptions[subscriptionId] = {
         name: subscriptionName,
         id: subscriptionId,
+        autoRemove,
         callback
       };
 
@@ -104,13 +105,16 @@ export default class Manager {
     const { callback } = this.subscriptions[subscriptionId];
 
     try {
-      callback(error, data);
+      return callback(error, data);
     } catch (error) {
       console.error(`Unable to update callback for subscriptionId ${subscriptionId}`, error);
     }
+
+    return true;
   }
 
   _updateSubscriptions = (subscriptionName, error, data) => {
+    const cleanup = [];
     const subscriptions = this.subscriptions
       .filter(subscription => subscription.name === subscriptionName);
 
@@ -118,8 +122,16 @@ export default class Manager {
 
     subscriptions
       .forEach((subscription) => {
-        this._sendData(subscription.id, error, data);
+        const result = this._sendData(subscription.id, error, data);
+
+        if (subscription.autoRemove && !result) {
+          cleanup.push(subscription.id);
+        }
       });
+
+    cleanup.forEach((subscriptionId) => {
+      delete this.subscriptions[subscriptionId];
+    });
   }
 }
 
