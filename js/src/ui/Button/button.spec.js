@@ -25,7 +25,7 @@ function renderShallow (props) {
   );
 }
 
-describe.only('ui/Button', () => {
+describe('ui/Button', () => {
   describe('rendering', () => {
     it('renders defaults', () => {
       expect(renderShallow()).to.be.ok;
