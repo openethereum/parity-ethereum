@@ -14,7 +14,11 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-const checkIfTxFailed = (api, tx, gasSent) => {
+const isValidReceipt = (receipt) => {
+  return receipt && receipt.blockNumber && receipt.blockNumber.gt(0);
+};
+
+export function checkIfTxFailed (api, tx, gasSent) {
   return api.pollMethod('eth_getTransactionReceipt', tx)
   .then((receipt) => {
     // TODO: Right now, there's no way to tell wether the EVM code crashed.
@@ -23,6 +27,27 @@ const checkIfTxFailed = (api, tx, gasSent) => {
     // has been used up.
     return receipt.gasUsed.eq(gasSent);
   });
-};
+}
 
-export default checkIfTxFailed;
+export function waitForConfirmations (api, tx, confirmations) {
+  return new Promise((resolve, reject) => {
+    api.pollMethod('eth_getTransactionReceipt', tx, isValidReceipt)
+    .then((receipt) => {
+      let subscription;
+      api.subscribe('eth_blockNumber', (err, block) => {
+        if (err) {
+          reject(err);
+        } else if (block.minus(confirmations - 1).gte(receipt.blockNumber)) {
+          if (subscription) {
+            api.unsubscribe(subscription);
+          }
+          resolve();
+        }
+      })
+      .then((_subscription) => {
+        subscription = _subscription;
+      })
+      .catch(reject);
+    });
+  });
+}
