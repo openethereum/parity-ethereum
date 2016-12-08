@@ -863,7 +863,7 @@ impl LightProtocol {
 			stream.append(&req_id).append(&cur_buffer);
 
 			for code in response {
-				stream.append_raw(&code, 1);
+				stream.append(&code);
 			}
 
 			stream.out()
