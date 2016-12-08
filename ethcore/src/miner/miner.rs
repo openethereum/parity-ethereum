@@ -483,7 +483,7 @@ impl Miner {
 							false
 						})
 				},
-				// Directly import a regular seal.
+				// Directly import a regular sealed block.
 				Seal::Regular(seal) =>
 					block
 						.lock()
