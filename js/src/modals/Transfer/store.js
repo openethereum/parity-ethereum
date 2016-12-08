@@ -23,7 +23,7 @@ import { bytesToHex } from '~/api/util/format';
 import Contract from '~/api/contract';
 import ERRORS from './errors';
 import { ERROR_CODES } from '~/api/transport/error';
-import { DEFAULT_GAS, DEFAULT_GASPRICE, MAX_GAS_ESTIMATION } from '~/util/constants';
+import { DEFAULT_GAS, MAX_GAS_ESTIMATION } from '~/util/constants';
 import GasPriceStore from '~/ui/GasPriceEditor/store';
 
 const TITLES = {
