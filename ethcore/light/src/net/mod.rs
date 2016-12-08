@@ -44,6 +44,9 @@ mod context;
 mod error;
 mod status;
 
+#[cfg(test)]
+mod tests;
+
 pub use self::status::{Status, Capabilities, Announcement, NetworkId};
 
 const TIMEOUT: TimerToken = 0;
@@ -181,8 +184,6 @@ struct Requested {
 
 /// Protocol parameters.
 pub struct Params {
-	/// Genesis hash.
-	pub genesis_hash: H256,
 	/// Network id.
 	pub network_id: NetworkId,
 	/// Buffer flow parameters.
@@ -217,9 +218,10 @@ pub struct LightProtocol {
 impl LightProtocol {
 	/// Create a new instance of the protocol manager.
 	pub fn new(provider: Box<Provider>, params: Params) -> Self {
+		let genesis_hash = provider.chain_info().genesis_hash;
 		LightProtocol {
 			provider: provider,
-			genesis_hash: params.genesis_hash,
+			genesis_hash: genesis_hash,
 			network_id: params.network_id,
 			pending_peers: RwLock::new(HashMap::new()),
 			peers: RwLock::new(HashMap::new()),
