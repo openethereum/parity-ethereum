@@ -41,8 +41,8 @@
     "lint": "eslint --ignore-path .gitignore ./src/",
     "lint:cached": "eslint --cache --ignore-path .gitignore ./src/",
     "test": "NODE_ENV=test mocha 'src/**/*.spec.js'",
-    "test:coverage": "istanbul cover _mocha -- 'src/**/*.spec.js'",
-    "test:e2e": "mocha 'src/**/*.e2e.js'",
+    "test:coverage": "NODE_ENV=test istanbul cover _mocha -- 'src/**/*.spec.js'",
+    "test:e2e": "NODE_ENV=test mocha 'src/**/*.e2e.js'",
     "test:npm": "(cd .npmjs && npm i) && node test/npmLibrary && (rm -rf .npmjs/node_modules)",
     "prepush": "npm run lint:cached"
   },
