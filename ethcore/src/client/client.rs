@@ -414,8 +414,8 @@ impl Client {
 				}
 				if let Ok(closed_block) = self.check_and_close_block(&block) {
 					if self.engine.is_proposal(&block.header) {
+						self.block_queue.mark_as_good(&[header.hash()]);
 						proposed_blocks.push(block.bytes);
-						invalid_blocks.insert(header.hash());
 					} else {
 						imported_blocks.push(header.hash());
 
