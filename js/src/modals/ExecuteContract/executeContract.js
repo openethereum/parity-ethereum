@@ -66,7 +66,7 @@ class ExecuteContract extends Component {
     const { contract } = this.props;
     const functions = contract.functions
       .filter((func) => !func.constant)
-      .sort((a, b) => a.name.localeCompare(b.name));
+      .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
 
     this.onFuncChange(null, functions[0]);
   }

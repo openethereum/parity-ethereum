@@ -74,7 +74,7 @@ export default class DetailsStep extends Component {
 
     const functions = contract.functions
       .filter((func) => !func.constant)
-      .sort((a, b) => a.name.localeCompare(b.name))
+      .sort((a, b) => (a.name || '').localeCompare(b.name || ''))
       .map((func) => {
         const params = (func.abi.inputs || [])
           .map((input, index) => {
