@@ -17,15 +17,15 @@
 import React from 'react';
 import { shallow } from 'enzyme';
 
-import Container from './container';
+import Button from './button';
 
 function renderShallow (props) {
   return shallow(
-    <Container { ...props } />
+    <Button { ...props } />
   );
 }
 
-describe('ui/Container', () => {
+describe.only('ui/Button', () => {
   describe('rendering', () => {
     it('renders defaults', () => {
       expect(renderShallow()).to.be.ok;

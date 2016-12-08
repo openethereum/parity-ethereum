@@ -33,8 +33,8 @@ function renderMount (props) {
 
 describe('ui/Container/Title', () => {
   describe('rendering', () => {
-    it('renders without crashing', () => {
-      expect(renderShallow()).to.be.defined;
+    it('renders defaults', () => {
+      expect(renderShallow()).to.be.ok;
     });
 
     it('renders with the specified className', () => {

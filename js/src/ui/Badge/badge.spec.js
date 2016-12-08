@@ -17,15 +17,15 @@
 import React from 'react';
 import { shallow } from 'enzyme';
 
-import Container from './container';
+import Badge from './badge';
 
 function renderShallow (props) {
   return shallow(
-    <Container { ...props } />
+    <Badge { ...props } />
   );
 }
 
-describe('ui/Container', () => {
+describe('ui/Badge', () => {
   describe('rendering', () => {
     it('renders defaults', () => {
       expect(renderShallow()).to.be.ok;
