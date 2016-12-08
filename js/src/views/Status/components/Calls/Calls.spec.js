@@ -21,7 +21,7 @@ import '../../../../environment/tests';
 
 import Calls from './Calls';
 
-describe('components/Calls', () => {
+describe('views/Status/components/Calls', () => {
   describe('rendering (no calls)', () => {
     let rendered;
 

@@ -23,7 +23,7 @@ import { bytesToHex } from '~/api/util/format';
 import Contract from '~/api/contract';
 import ERRORS from './errors';
 import { ERROR_CODES } from '~/api/transport/error';
-import { DEFAULT_GAS, DEFAULT_GASPRICE, MAX_GAS_ESTIMATION } from '../../util/constants';
+import { DEFAULT_GAS, DEFAULT_GASPRICE, MAX_GAS_ESTIMATION } from '~/util/constants';
 
 const TITLES = {
   transfer: 'transfer details',
@@ -116,7 +116,6 @@ export default class TransferStore {
     this.api = api;
 
     const { account, balance, gasLimit, senders, onClose, newError, sendersBalances } = props;
-
     this.account = account;
     this.balance = balance;
     this.gasLimit = gasLimit;
@@ -412,34 +411,38 @@ export default class TransferStore {
       return;
     }
 
-    const { gas, gasPrice, tag, valueAll, isEth } = this;
+    const { gas, gasPrice, tag, valueAll, isEth, isWallet } = this;
 
     const gasTotal = new BigNumber(gasPrice || 0).mul(new BigNumber(gas || 0));
 
     const availableEth = new BigNumber(balance.tokens[0].value);
 
     const senderBalance = this.balance.tokens.find((b) => tag === b.token.tag);
-    const available = new BigNumber(senderBalance.value);
     const format = new BigNumber(senderBalance.token.format || 1);
+    const available = isWallet
+      ? this.api.util.fromWei(new BigNumber(senderBalance.value))
+      : (new BigNumber(senderBalance.value)).div(format);
 
     let { value, valueError } = this;
     let totalEth = gasTotal;
     let totalError = null;
 
     if (valueAll) {
-      if (isEth) {
+      if (isEth && !isWallet) {
         const bn = this.api.util.fromWei(availableEth.minus(gasTotal));
         value = (bn.lt(0) ? new BigNumber(0.0) : bn).toString();
+      } else if (isEth) {
+        value = (available.lt(0) ? new BigNumber(0.0) : available).toString();
       } else {
-        value = available.div(format).toString();
+        value = available.toString();
       }
     }
 
-    if (isEth) {
+    if (isEth && !isWallet) {
       totalEth = totalEth.plus(this.api.util.toWei(value || 0));
     }
 
-    if (new BigNumber(value || 0).gt(available.div(format))) {
+    if (new BigNumber(value || 0).gt(available)) {
       valueError = ERRORS.largeAmount;
     } else if (valueError === ERRORS.largeAmount) {
       valueError = null;

@@ -80,10 +80,8 @@ class Delete extends Component {
     const { api, router } = this.context;
     const { account, route, newError } = this.props;
 
-    account.meta.deleted = true;
-
     api.parity
-      .setAccountMeta(account.address, account.meta)
+      .removeAddress(account.address)
       .then(() => {
         router.push(route);
         this.closeDeleteDialog();

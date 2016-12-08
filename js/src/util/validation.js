@@ -140,7 +140,7 @@ export function validateUint (value) {
     const bn = new BigNumber(value);
     if (bn.lt(0)) {
       valueError = ERRORS.negativeNumber;
-    } else if (bn.toString().indexOf('.') !== -1) {
+    } else if (!bn.isInteger()) {
       valueError = ERRORS.decimalNumber;
     }
   } catch (e) {
