@@ -462,8 +462,6 @@ version = "1.5.0"
 dependencies = [
  "ethcore 1.5.0",
  "ethcore-io 1.5.0",
- "ethcore-ipc 1.4.0",
- "ethcore-ipc-codegen 1.4.0",
  "ethcore-network 1.5.0",
  "ethcore-util 1.5.0",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",

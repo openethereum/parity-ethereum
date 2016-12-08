@@ -14,8 +14,13 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+#[cfg(feature = "ipc")]
 extern crate ethcore_ipc_codegen;
 
+#[cfg(feature = "ipc")]
 fn main() {
 	ethcore_ipc_codegen::derive_binary("src/types/mod.rs.in").unwrap();
 }
+
+#[cfg(not(feature = "ipc"))]
+fn main() { }

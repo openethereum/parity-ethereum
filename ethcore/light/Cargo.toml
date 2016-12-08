@@ -8,7 +8,7 @@ authors = ["Ethcore <admin@ethcore.io>"]
 build = "build.rs"
 
 [build-dependencies]
-"ethcore-ipc-codegen" = { path = "../../ipc/codegen" }
+"ethcore-ipc-codegen" = { path = "../../ipc/codegen", optional = true }
 
 [dependencies]
 log = "0.3"
@@ -16,6 +16,9 @@ ethcore = { path = "..", features = ["light"] }
 ethcore-util = { path = "../../util" }
 ethcore-network = { path = "../../util/network" }
 ethcore-io = { path = "../../util/io" }
-ethcore-ipc = { path = "../../ipc/rpc" }
+ethcore-ipc = { path = "../../ipc/rpc", optional = true }
 rlp = { path = "../../util/rlp" }
 time = "0.1"
+
+[features]
+ipc = ["ethcore/ipc", "ethcore-ipc", "ethcore-ipc-codegen"]

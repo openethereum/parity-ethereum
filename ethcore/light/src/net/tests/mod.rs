@@ -123,7 +123,19 @@ impl Provider for TestProvider {
 	}
 
 	fn proofs(&self, req: request::StateProofs) -> Vec<Bytes> {
-		req.requests.into_iter().map(|_| ::rlp::EMPTY_LIST_RLP.to_vec()).collect()		
+		req.requests.into_iter()
+            .map(|req| {
+                match req.key2 {
+                    Some(key2) => ::util::sha3::SHA3_NULL_RLP.to_owned(),
+                    None => {
+                        // sort of a leaf node
+                        let mut stream = RlpStream::new_list(2);
+                        stream.append(&req.key1).append_empty_data();
+                        stream.out()
+                    }
+                }
+            })
+            .collect()		
 	}
 
 	fn contract_code(&self, req: request::ContractCodes) -> Vec<Bytes> {
@@ -240,6 +252,9 @@ fn buffer_overflow() {
     proto.handle_packet(&Expect::Punish(1), &1, packet::GET_BLOCK_HEADERS, &request);
 }
 
+// test the basic request types -- these just make sure that requests are parsed
+// and sent to the provider correctly as well as testing response formatting.
+
 #[test]
 fn get_block_headers() {
     let flow_params = FlowParams::new(5_000_000.into(), Default::default(), 0.into());
@@ -288,4 +303,151 @@ fn get_block_headers() {
 
     let expected = Expect::Respond(packet::BLOCK_HEADERS, response);
     proto.handle_packet(&expected, &1, packet::GET_BLOCK_HEADERS, &request_body);
+}
+
+#[test]
+fn get_block_bodies() {
+    let flow_params = FlowParams::new(5_000_000.into(), Default::default(), 0.into());
+    let capabilities = capabilities();    
+
+    let (provider, proto) = setup(flow_params.clone(), capabilities.clone());    
+
+    let cur_status = status(provider.client.chain_info());
+    let my_status = write_handshake(&cur_status, &capabilities, &flow_params);
+
+    provider.client.add_blocks(100, EachBlockWith::Nothing);
+
+    let cur_status = status(provider.client.chain_info());
+
+    {
+        let packet_body = write_handshake(&cur_status, &capabilities, &flow_params);    
+        proto.on_connect(&1, &Expect::Send(1, packet::STATUS, packet_body));    
+        proto.handle_packet(&Expect::Nothing, &1, packet::STATUS, &my_status);
+    }
+
+    let request = request::Bodies {
+        block_hashes: (0..10).map(|i| provider.client.block_hash(BlockID::Number(i)).unwrap()).collect(),
+    };
+
+    let req_id = 111;
+
+    let request_body = encode_request(&Request::Bodies(request.clone()), req_id);
+    let response = {
+        let bodies: Vec<_> = (0..10).map(|i| provider.client.block_body(BlockID::Number(i + 1)).unwrap()).collect();
+        assert_eq!(bodies.len(), 10);
+
+        let new_buf = *flow_params.limit() - flow_params.compute_cost(request::Kind::Bodies, 10);
+
+        let mut response_stream = RlpStream::new_list(12);
+        
+        response_stream.append(&req_id).append(&new_buf);
+        for body in bodies {
+            response_stream.append_raw(&body, 1);
+        }
+
+        response_stream.out()
+    };
+
+    let expected = Expect::Respond(packet::BLOCK_BODIES, response);
+    proto.handle_packet(&expected, &1, packet::GET_BLOCK_BODIES, &request_body);
+}
+
+#[test]
+fn get_block_receipts() {
+    let flow_params = FlowParams::new(5_000_000.into(), Default::default(), 0.into());
+    let capabilities = capabilities();    
+
+    let (provider, proto) = setup(flow_params.clone(), capabilities.clone());    
+
+    let cur_status = status(provider.client.chain_info());
+    let my_status = write_handshake(&cur_status, &capabilities, &flow_params);
+
+    provider.client.add_blocks(1000, EachBlockWith::Nothing);
+
+    let cur_status = status(provider.client.chain_info());
+
+    {
+        let packet_body = write_handshake(&cur_status, &capabilities, &flow_params);    
+        proto.on_connect(&1, &Expect::Send(1, packet::STATUS, packet_body));    
+        proto.handle_packet(&Expect::Nothing, &1, packet::STATUS, &my_status);
+    }
+
+    // find the first 10 block hashes starting with `f` because receipts are only provided
+    // by the test client in that case.
+    let block_hashes: Vec<_> = (0..1000).map(|i| provider.client.block_hash(BlockID::Number(i)).unwrap())
+        .filter(|hash| format!("{}", hash).starts_with("f")).take(10).collect();
+
+    let request = request::Receipts {
+        block_hashes: block_hashes.clone(),
+    };
+
+    let req_id = 111;
+
+    let request_body = encode_request(&Request::Receipts(request.clone()), req_id);
+    let response = {
+        let receipts: Vec<_> = block_hashes.iter()
+            .map(|hash| provider.client.block_receipts(hash).unwrap())
+            .collect();
+
+        let new_buf = *flow_params.limit() - flow_params.compute_cost(request::Kind::Receipts, receipts.len());
+
+        let mut response_stream = RlpStream::new_list(2 + receipts.len());
+        
+        response_stream.append(&req_id).append(&new_buf);
+        for block_receipts in receipts {
+            response_stream.append_raw(&block_receipts, 1);
+        }
+
+        response_stream.out()
+    };
+
+    let expected = Expect::Respond(packet::RECEIPTS, response);
+    proto.handle_packet(&expected, &1, packet::GET_RECEIPTS, &request_body);
+}
+
+#[test]
+fn get_block_bodies() {
+    let flow_params = FlowParams::new(5_000_000.into(), Default::default(), 0.into());
+    let capabilities = capabilities();    
+
+    let (provider, proto) = setup(flow_params.clone(), capabilities.clone());    
+
+    let cur_status = status(provider.client.chain_info());
+    let my_status = write_handshake(&cur_status, &capabilities, &flow_params);
+
+    provider.client.add_blocks(100, EachBlockWith::Nothing);
+
+    let cur_status = status(provider.client.chain_info());
+
+    {
+        let packet_body = write_handshake(&cur_status, &capabilities, &flow_params);    
+        proto.on_connect(&1, &Expect::Send(1, packet::STATUS, packet_body));    
+        proto.handle_packet(&Expect::Nothing, &1, packet::STATUS, &my_status);
+    }
+
+    let request = request::Bodies {
+        block_hashes: (0..10).map(|i| provider.client.block_hash(BlockID::Number(i)).unwrap()).collect(),
+    };
+
+    let req_id = 111;
+
+    let request_body = encode_request(&Request::Bodies(request.clone()), req_id);
+    let response = {
+        let bodies: Vec<_> = (0..10).map(|i| provider.client.block_body(BlockID::Number(i + 1)).unwrap()).collect();
+        assert_eq!(bodies.len(), 10);
+
+        let new_buf = *flow_params.limit() - flow_params.compute_cost(request::Kind::Bodies, 10);
+
+        let mut response_stream = RlpStream::new_list(12);
+        
+        response_stream.append(&req_id).append(&new_buf);
+        for body in bodies {
+            response_stream.append_raw(&body, 1);
+        }
+
+        response_stream.out()
+    };
+
+    let expected = Expect::Respond(packet::BLOCK_BODIES, response);
+    proto.handle_packet(&expected, &1, packet::GET_BLOCK_BODIES, &request_body);
 }
