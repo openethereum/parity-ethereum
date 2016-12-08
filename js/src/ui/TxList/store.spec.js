@@ -31,7 +31,7 @@ const TRANSACTIONS = {
   '0x456': { blockNumber: new BigNumber(0) }
 };
 
-describe.only('ui/TxList/store', () => {
+describe('ui/TxList/store', () => {
   let api;
   let store;
 
