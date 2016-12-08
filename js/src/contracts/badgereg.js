@@ -38,20 +38,29 @@ export default class BadgeReg {
       .then((badgeReg) => {
         return badgeReg.instance.fromName.call({}, [name])
         .then(([ id, address ]) => {
-          return Promise.all([
-            badgeReg.instance.meta.call({}, [id, 'TITLE']),
-            badgeReg.instance.meta.call({}, [id, 'IMG'])
-          ])
-            .then(([ title, img ]) => {
-              title = bytesToHex(title);
-              title = title === ZERO ? null : hex2Ascii(title);
-              if (bytesToHex(img) === ZERO) img = null;
-
-              const data = { address, name, title, icon: img };
+          return this.fetchMeta(id)
+            .then(({ title, icon }) => {
+              const data = { address, name, title, icon };
               this.certifiers[name] = data;
               return data;
             });
         });
+      });
+  }
+
+  fetchMeta (id) {
+    return this._registry.getContract('badgereg')
+      .then((badgeReg) => {
+        return Promise.all([
+          badgeReg.instance.meta.call({}, [id, 'TITLE']),
+          badgeReg.instance.meta.call({}, [id, 'IMG'])
+        ]);
+      })
+      .then(([ title, icon ]) => {
+        title = bytesToHex(title);
+        title = title === ZERO ? null : hex2Ascii(title);
+        if (bytesToHex(icon) === ZERO) icon = null;
+        return { title, icon };
       });
   }
 
