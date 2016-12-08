@@ -191,10 +191,7 @@ class CustomizedShape extends Component {
 
 class CustomTooltip extends Component {
   static propTypes = {
-    gasPriceHistogram: PropTypes.shape({
-      bucketBounds: PropTypes.array.isRequired,
-      counts: PropTypes.array.isRequired
-    }).isRequired,
+    gasPriceHistogram: PropTypes.object.isRequired,
     type: PropTypes.string,
     payload: PropTypes.array,
     label: PropTypes.number,
@@ -228,12 +225,16 @@ class CustomTooltip extends Component {
   }
 }
 
+const TOOL_STYLE = {
+  color: 'rgba(255,255,255,0.5)',
+  backgroundColor: 'rgba(0, 0, 0, 0.75)',
+  padding: '0 0.5em',
+  fontSize: '0.75em'
+};
+
 export default class GasPriceSelector extends Component {
   static propTypes = {
-    gasPriceHistogram: PropTypes.shape({
-      bucketBounds: PropTypes.array.isRequired,
-      counts: PropTypes.array.isRequired
-    }).isRequired,
+    gasPriceHistogram: PropTypes.object.isRequired,
     onChange: PropTypes.func.isRequired,
 
     gasPrice: PropTypes.oneOfType([
@@ -370,11 +371,7 @@ export default class GasPriceSelector extends Component {
                 />
 
                 <Tooltip
-                  wrapperStyle={ {
-                    backgroundColor: 'rgba(0, 0, 0, 0.75)',
-                    padding: '0 0.5em',
-                    fontSize: '0.9em'
-                  } }
+                  wrapperStyle={ TOOL_STYLE }
                   cursor={ this.renderCustomCursor() }
                   content={ <CustomTooltip gasPriceHistogram={ gasPriceHistogram } /> }
                 />

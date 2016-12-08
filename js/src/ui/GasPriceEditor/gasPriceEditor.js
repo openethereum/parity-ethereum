@@ -16,6 +16,7 @@
 
 import BigNumber from 'bignumber.js';
 import React, { Component, PropTypes } from 'react';
+import { observer } from 'mobx-react';
 
 import Input from '../Form/Input';
 import GasPriceSelector from './GasPriceSelector';
@@ -23,40 +24,36 @@ import Store from './store';
 
 import styles from './gasPriceEditor.css';
 
+@observer
 export default class GasPriceEditor extends Component {
-  static contextTypes = {
-    api: PropTypes.object.isRequired
-  };
-
   static propTypes = {
-    store: PropTypes.object.isRequired
+    children: PropTypes.node,
+    store: PropTypes.object.isRequired,
+    onChange: PropTypes.func
   }
 
   static Store = Store;
 
   render () {
-    const { api } = this.context;
-    const { store } = this.props;
+    const { children, store } = this.props;
+    const { estimated, priceDefault, price, gas, histogram, errorGas, errorPrice } = store;
 
-    const eth = api.util.fromWei(store.ethTotal).toFormat(6);
-    const gasLabel = `gas amount (estimated: ${new BigNumber(store.estimated).toFormat()})`;
-    const priceLabel = `gas price (current: ${new BigNumber(store.priceDefault).toFormat()})`;
+    const gasLabel = `gas (estimated: ${new BigNumber(estimated).toFormat()})`;
+    const priceLabel = `price (current: ${new BigNumber(priceDefault).toFormat()})`;
 
     return (
       <div className={ styles.columns }>
         <div className={ styles.graphColumn }>
           <GasPriceSelector
-            gasPriceHistogram={ store.histogram }
-            gasPrice={ store.price }
+            gasPriceHistogram={ histogram }
+            gasPrice={ price }
             onChange={ this.onEditGasPrice } />
-          <div>
-            <p className={ styles.gasPriceDesc }>
-              You can choose the gas price based on the
-              distribution of recent included transaction gas prices.
-              The lower the gas price is, the cheaper the transaction will
-              be. The higher the gas price is, the faster it should
-              get mined by the network.
-            </p>
+          <div className={ styles.gasPriceDesc }>
+            You can choose the gas price based on the
+            distribution of recent included transaction gas prices.
+            The lower the gas price is, the cheaper the transaction will
+            be. The higher the gas price is, the faster it should
+            get mined by the network.
           </div>
         </div>
 
@@ -65,36 +62,37 @@ export default class GasPriceEditor extends Component {
             <Input
               label={ gasLabel }
               hint='the amount of gas to use for the transaction'
-              error={ store.errorGas }
-              value={ store.gas }
+              error={ errorGas }
+              value={ gas }
               onChange={ this.onEditGas } />
 
             <Input
               label={ priceLabel }
               hint='the price of gas to use for the transaction'
-              error={ store.errorPrice }
-              value={ store.price }
+              error={ errorPrice }
+              value={ price }
               onChange={ this.onEditGasPrice } />
           </div>
 
           <div className={ styles.row }>
-            <Input
-              disabled
-              label='total transaction amount'
-              hint='the total amount of the transaction'
-              error={ totalError }
-              value={ `${eth} ETH` } />
+            { children }
           </div>
         </div>
       </div>
     );
   }
 
-  onEditGas = (event) => {
-    this.props.onChange('gas', event.target.value);
+  onEditGas = (event, gas) => {
+    const { store, onChange } = this.props;
+
+    store.setGas(gas);
+    onChange && onChange('gas', gas);
   }
 
-  onEditGasPrice = (event, value) => {
-    this.props.onChange('gasPrice', value);
+  onEditGasPrice = (event, price) => {
+    const { store, onChange } = this.props;
+
+    store.setPrice(price);
+    onChange && onChange('gasPrice', price);
   }
 }

@@ -56,10 +56,6 @@ class Transfer extends Component {
 
   store = new TransferStore(this.context.api, this.props);
 
-  componentDidMount () {
-    this.store.getDefaults();
-  }
-
   render () {
     const { stage, extras, steps } = this.store;
 
@@ -190,13 +186,14 @@ class Transfer extends Component {
       return null;
     }
 
-    const { isEth, data, dataError, totalError } = this.store;
+    const { isEth, data, dataError, total, totalError } = this.store;
 
     return (
       <Extras
         isEth={ isEth }
         data={ data }
         dataError={ dataError }
+        total={ total }
         totalError={ totalError }
         gasStore={ this.store.gasStore }
         onChange={ this.store.onUpdateDetails } />

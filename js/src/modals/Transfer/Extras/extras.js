@@ -23,19 +23,28 @@ export default class Extras extends Component {
     isEth: PropTypes.bool,
     data: PropTypes.string,
     dataError: PropTypes.string,
+    total: PropTypes.string,
+    totalError: PropTypes.string,
     onChange: PropTypes.func.isRequired,
     gasStore: PropTypes.object.isRequired
   }
 
   render () {
-    const { gasStore, onChange } = this.props;
+    const { gasStore, onChange, total, totalError } = this.props;
 
     return (
       <Form>
         { this.renderData() }
         <GasPriceEditor
           store={ gasStore }
-          onChange={ onChange } />
+          onChange={ onChange }>
+          <Input
+            disabled
+            label='total transaction amount'
+            hint='the total amount of the transaction'
+            error={ totalError }
+            value={ `${total} ETH` } />
+        </GasPriceEditor>
       </Form>
     );
   }

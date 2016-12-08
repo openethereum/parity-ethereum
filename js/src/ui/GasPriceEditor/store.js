@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import BigNumber from 'bignumber.js';
-import { action, computed, observable, transaction } from 'mobx';
+import { action, observable, transaction } from 'mobx';
 
 import { ERRORS, validatePositiveNumber } from '~/util/validation';
 import { DEFAULT_GAS, DEFAULT_GASPRICE, MAX_GAS_ESTIMATION } from '~/util/constants';
@@ -31,24 +31,24 @@ export default class GasPriceEditor {
   @observable gas = DEFAULT_GAS;
   @observable gasLimit = 0;
 
-  constructor (api, gasLimit) {
+  constructor (api, gasLimit, loadDefaults = true) {
     this._api = api;
     this.gasLimit = gasLimit;
 
-    this.loadDefaults();
-  }
-
-  @action setEthValue = (ethValue) => {
-    this.ethValue = ethValue;
+    if (loadDefaults) {
+      this.loadDefaults();
+    }
   }
 
   @action setEstimated = (estimated) => {
     transaction(() => {
-      this.estimated = estimated.toFixed(0);
+      const bn = new BigNumber(estimated);
 
-      if (estimated.gte(MAX_GAS_ESTIMATION)) {
+      this.estimated = estimated;
+
+      if (bn.gte(MAX_GAS_ESTIMATION)) {
         this.errorEstimated = ERRORS.gasException;
-      } else if (estimated.gte(this.gasLimit)) {
+      } else if (bn.gte(this.gasLimit)) {
         this.errorEstimated = ERRORS.gasBlockLimit;
       } else {
         this.errorEstimated = null;
@@ -70,12 +70,13 @@ export default class GasPriceEditor {
   @action setGas = (gas) => {
     transaction(() => {
       const { numberError } = validatePositiveNumber(gas);
+      const bn = new BigNumber(gas);
 
       this.gas = gas;
 
       if (numberError) {
         this.errorGas = numberError;
-      } else if (new BigNumber(gas).gte(this.lgasLimit)) {
+      } else if (bn.gte(this.gasLimit)) {
         this.errorGas = ERRORS.gasBlockLimit;
       } else {
         this.errorGas = null;
@@ -83,19 +84,11 @@ export default class GasPriceEditor {
     });
   }
 
-  @computed get ethTotal () {
-    try {
-      return this.ethValue.add(new BigNumber(this.price).mul(this.gas));
-    } catch (e) {
-      return this.ethValue;
-    }
-  }
-
   @action loadDefaults () {
     Promise
       .all([
-        this.api.parity.gasPriceHistogram(),
-        this.api.eth.gasPrice()
+        this._api.parity.gasPriceHistogram(),
+        this._api.eth.gasPrice()
       ])
       .then(([gasPriceHistogram, gasPrice]) => {
         transaction(() => {
