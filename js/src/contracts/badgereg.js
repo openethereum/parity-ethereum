@@ -18,7 +18,8 @@ import { bytesToHex, hex2Ascii } from '~/api/util/format';
 
 import ABI from './abi/certifier.json';
 
-const ZERO = '0x0000000000000000000000000000000000000000000000000000000000000000';
+const ZERO20 = '0x0000000000000000000000000000000000000000';
+const ZERO32 = '0x0000000000000000000000000000000000000000000000000000000000000000';
 
 export default class BadgeReg {
   constructor (api, registry) {
@@ -26,25 +27,36 @@ export default class BadgeReg {
     this._registry = registry;
 
     registry.getContract('badgereg');
-    this.certifiers = {}; // by name
+    this.certifiers = []; // by id
     this.contracts = {}; // by name
   }
 
-  fetchCertifier (name) {
-    if (this.certifiers[name]) {
-      return Promise.resolve(this.certifiers[name]);
+  nrOfCertifiers () {
+    return this._registry.getContract('badgereg')
+      .then((badgeReg) => {
+        return badgeReg.instance.badgeCount.call({}, [])
+          .then((count) => count.valueOf());
+      });
+  }
+
+  fetchCertifier (id) {
+    if (this.certifiers[id]) {
+      return Promise.resolve(this.certifiers[id]);
     }
     return this._registry.getContract('badgereg')
       .then((badgeReg) => {
-        return badgeReg.instance.fromName.call({}, [name])
-        .then(([ id, address ]) => {
-          return this.fetchMeta(id)
-            .then(({ title, icon }) => {
-              const data = { address, name, title, icon };
-              this.certifiers[name] = data;
-              return data;
-            });
-        });
+        return badgeReg.instance.badge.call({}, [ id ]);
+      })
+      .then(([ address, name ]) => {
+        if (address === ZERO20) throw new Error(`Certifier ${id} does not exist.`);
+        name = bytesToHex(name);
+        name = name === ZERO32 ? null : hex2Ascii(name);
+        return this.fetchMeta(id)
+          .then(({ title, icon }) => {
+            const data = { address, name, title, icon };
+            this.certifiers[id] = data;
+            return data;
+          });
       });
   }
 
@@ -58,8 +70,8 @@ export default class BadgeReg {
       })
       .then(([ title, icon ]) => {
         title = bytesToHex(title);
-        title = title === ZERO ? null : hex2Ascii(title);
-        if (bytesToHex(icon) === ZERO) icon = null;
+        title = title === ZERO32 ? null : hex2Ascii(title);
+        if (bytesToHex(icon) === ZERO32) icon = null;
         return { title, icon };
       });
   }

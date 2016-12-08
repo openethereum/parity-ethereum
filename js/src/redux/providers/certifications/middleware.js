@@ -17,20 +17,39 @@
 import Contracts from '~/contracts';
 import { addCertification } from './actions';
 
-const knownCertifiers = [ 'smsverification' ];
+const knownCertifiers = [
+  0 // sms verification
+];
 
 export default class CertificationsMiddleware {
   toMiddleware () {
     return (store) => (next) => (action) => {
-      if (action.type !== 'fetchCertifications') {
+      if (action.type === 'fetchCertifiers') {
+        badgeReg.nrOfCertifiers().then((count) => {
+          new Array(+count).fill(null).forEach((_, id) => {
+            badgeReg.fetchCertifier(id)
+              .then((cert) => {
+                const { address, name, title, icon } = cert;
+                store.dispatch(addCertifier(address, name, title, icon));
+              })
+              .catch((err) => {
+                if (err) {
+                  console.error(`Failed to fetch certifier ${id}:`, err);
+                }
+              });
+          });
+        });
+      }
+
+      else if (action.type !== 'fetchCertifications') {
         return next(action);
       }
 
       const { address } = action;
       const badgeReg = Contracts.get().badgeReg;
 
-      knownCertifiers.forEach((name) => {
-        badgeReg.fetchCertifier(name)
+      knownCertifiers.forEach((id) => {
+        badgeReg.fetchCertifier(id)
           .then((cert) => {
             return badgeReg.checkIfCertified(cert.address, address)
               .then((isCertified) => {
@@ -42,7 +61,7 @@ export default class CertificationsMiddleware {
           })
           .catch((err) => {
             if (err) {
-              console.error(`Failed to check if ${address} certified by ${name}:`, err);
+              console.error(`Failed to check if ${address} certified by ${id}:`, err);
             }
           });
       });
