@@ -273,6 +273,9 @@ pub trait MiningBlockChainClient: BlockChainClient {
 	/// Returns EvmFactory.
 	fn vm_factory(&self) -> &EvmFactory;
 
+	/// Broadcast a block proposal.
+	fn broadcast_proposal_block(&self, block: SealedBlock);
+
 	/// Import sealed block. Skips all verifications.
 	fn import_sealed_block(&self, block: SealedBlock) -> ImportResult;
 

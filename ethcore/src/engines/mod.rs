@@ -49,11 +49,11 @@ use views::HeaderView;
 #[derive(Debug)]
 pub enum EngineError {
 	/// Signature does not belong to an authority.
-	NotAuthorized(H160),
+	NotAuthorized(Address),
 	/// The same author issued different votes at the same step.
-	DoubleVote(H160),
+	DoubleVote(Address),
 	/// The received block is from an incorrect proposer.
-	NotProposer(Mismatch<H160>),
+	NotProposer(Mismatch<Address>),
 	/// Message was not expected.
 	UnexpectedMessage,
 	/// Seal field has an unexpected size.
@@ -73,6 +73,17 @@ impl fmt::Display for EngineError {
 
 		f.write_fmt(format_args!("Engine error ({})", msg))
 	}
+}
+
+/// Seal type.
+#[derive(Debug, PartialEq, Eq)]
+pub enum Seal {
+	/// Proposal seal; should be broadcasted, but not inserted into blockchain.
+	Proposal(Vec<Bytes>),
+	/// Regular block seal; should be part of the blockchain.
+	Regular(Vec<Bytes>),
+	/// Engine does generate seal for this block right now.
+	None,
 }
 
 /// A consensus mechanism for the chain. Generally either proof-of-work or proof-of-stake-based.
@@ -127,7 +138,7 @@ pub trait Engine : Sync + Send {
 	///
 	/// This operation is synchronous and may (quite reasonably) not be available, in which None will
 	/// be returned.
-	fn generate_seal(&self, _block: &ExecutedBlock) -> Option<Vec<Bytes>> { None }
+	fn generate_seal(&self, _block: &ExecutedBlock) -> Seal { Seal::None }
 
 	/// Phase 1 quick block verification. Only does checks that are cheap. `block` (the header's full block)
 	/// may be provided for additional checks. Returns either a null `Ok` or a general error detailing the problem with import.
@@ -188,6 +199,10 @@ pub trait Engine : Sync + Send {
 	fn is_new_best_block(&self, best_total_difficulty: U256, _best_header: HeaderView, parent_details: &BlockDetails, new_header: &HeaderView) -> bool {
 		ethash::is_new_best_block(best_total_difficulty, parent_details, new_header)
 	}
+
+	/// Find out if the block is a proposal block and should not be inserted into the DB.
+	/// Takes a header of a fully verified block.
+	fn is_proposal(&self, _verified_header: &Header) -> bool { false }
 
 	/// Register an account which signs consensus messages.
 	fn set_signer(&self, _address: Address, _password: String) {}

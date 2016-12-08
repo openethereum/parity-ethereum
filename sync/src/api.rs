@@ -227,6 +227,7 @@ impl ChainNotify for EthSync {
 		enacted: Vec<H256>,
 		retracted: Vec<H256>,
 		sealed: Vec<H256>,
+		proposed: Vec<Bytes>,
 		_duration: u64)
 	{
 		self.network.with_context(self.subprotocol_name, |context| {
@@ -237,7 +238,8 @@ impl ChainNotify for EthSync {
 				&invalid,
 				&enacted,
 				&retracted,
-				&sealed);
+				&sealed,
+				&proposed);
 		});
 	}
 

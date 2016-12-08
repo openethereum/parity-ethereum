@@ -360,6 +360,8 @@ impl MiningBlockChainClient for TestBlockChainClient {
 	fn import_sealed_block(&self, _block: SealedBlock) -> ImportResult {
 		Ok(H256::default())
 	}
+
+	fn broadcast_proposal_block(&self, _block: SealedBlock) {}
 }
 
 impl BlockChainClient for TestBlockChainClient {

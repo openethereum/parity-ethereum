@@ -249,6 +249,15 @@ enum PeerAsking {
 	SnapshotData,
 }
 
+/// Peer type semantic boolean.
+#[derive(Clone)]
+enum PeerStatus {
+	/// Have the same latest_hash as we.
+	Current,
+	/// Is lagging in blocks.
+	Lagging
+}
+
 #[derive(PartialEq, Eq, Debug, Clone, Copy)]
 /// Block downloader channel.
 enum BlockSet {
@@ -1797,32 +1806,42 @@ impl ChainSync {
 		}
 	}
 
+	/// creates rlp from block bytes and total difficulty
+	fn create_block_rlp(bytes: &Bytes, total_difficulty: U256) -> Bytes {
+		let mut rlp_stream = RlpStream::new_list(2);
+		rlp_stream.append_raw(bytes, 1);
+		rlp_stream.append(&total_difficulty);
+		rlp_stream.out()
+	}
+
 	/// creates latest block rlp for the given client
 	fn create_latest_block_rlp(chain: &BlockChainClient) -> Bytes {
-		let mut rlp_stream = RlpStream::new_list(2);
-		rlp_stream.append_raw(&chain.block(BlockID::Hash(chain.chain_info().best_block_hash)).expect("Best block always exists"), 1);
-		rlp_stream.append(&chain.chain_info().total_difficulty);
-		rlp_stream.out()
+		ChainSync::create_block_rlp(
+			&chain.block(BlockID::Hash(chain.chain_info().best_block_hash)).expect("Best block always exists"),
+			chain.chain_info().total_difficulty
+		)
 	}
 
 	/// creates latest block rlp for the given client
 	fn create_new_block_rlp(chain: &BlockChainClient, hash: &H256) -> Bytes {
-		let mut rlp_stream = RlpStream::new_list(2);
-		rlp_stream.append_raw(&chain.block(BlockID::Hash(hash.clone())).expect("Block has just been sealed; qed"), 1);
-		rlp_stream.append(&chain.block_total_difficulty(BlockID::Hash(hash.clone())).expect("Block has just been sealed; qed."));
-		rlp_stream.out()
+		ChainSync::create_block_rlp(
+			&chain.block(BlockID::Hash(hash.clone())).expect("Block has just been sealed; qed"),
+			chain.block_total_difficulty(BlockID::Hash(hash.clone())).expect("Block has just been sealed; qed.")
+		)
 	}
 
-	/// returns peer ids that have less blocks than our chain
-	fn get_lagging_peers(&mut self, chain_info: &BlockChainInfo, io: &SyncIo) -> Vec<PeerId> {
+
+	/// Returns peer ids that either have less blocks than our (Lagging) chain or are Current.
+	fn get_peers(&mut self, chain_info: &BlockChainInfo, io: &SyncIo, peer_status: PeerStatus) -> Vec<PeerId> {
 		let latest_hash = chain_info.best_block_hash;
 		self.peers.iter_mut().filter_map(|(&id, ref mut peer_info)|
 			match io.chain().block_status(BlockID::Hash(peer_info.latest_hash.clone())) {
 				BlockStatus::InChain => {
-					if peer_info.latest_hash != latest_hash {
-						Some(id)
-					} else {
-						None
+					match (peer_info.latest_hash == latest_hash, peer_status.clone()) {
+						(false, PeerStatus::Lagging) => Some(id),
+						(true, PeerStatus::Lagging) => None,
+						(false, PeerStatus::Current) => None,
+						(true, PeerStatus::Current) => Some(id),
 					}
 				},
 				_ => None
@@ -1830,7 +1849,7 @@ impl ChainSync {
 			.collect::<Vec<_>>()
 	}
 
-	fn select_random_lagging_peers(&mut self, peers: &[PeerId]) -> Vec<PeerId> {
+	fn select_random_peers(&mut self, peers: &[PeerId]) -> Vec<PeerId> {
 		use rand::Rng;
 		// take sqrt(x) peers
 		let mut peers = peers.to_vec();
@@ -1842,16 +1861,16 @@ impl ChainSync {
 		peers
 	}
 
-	/// propagates latest block to lagging peers
-	fn propagate_blocks(&mut self, chain_info: &BlockChainInfo, io: &mut SyncIo, sealed: &[H256], peers: &[PeerId]) -> usize {
+	/// propagates latest block to a set of peers
+	fn propagate_blocks(&mut self, chain_info: &BlockChainInfo, io: &mut SyncIo, blocks: &[H256], peers: &[PeerId]) -> usize {
 		trace!(target: "sync", "Sending NewBlocks to {:?}", peers);
 		let mut sent = 0;
 		for peer_id in peers {
-			if sealed.is_empty() {
+			if blocks.is_empty() {
 				let rlp =  ChainSync::create_latest_block_rlp(io.chain());
 				self.send_packet(io, *peer_id, NEW_BLOCK_PACKET, rlp);
 			} else {
-				for h in sealed {
+				for h in blocks {
 					let rlp =  ChainSync::create_new_block_rlp(io.chain(), h);
 					self.send_packet(io, *peer_id, NEW_BLOCK_PACKET, rlp);
 				}
@@ -1969,10 +1988,10 @@ impl ChainSync {
 	fn propagate_latest_blocks(&mut self, io: &mut SyncIo, sealed: &[H256]) {
 		let chain_info = io.chain().chain_info();
 		if (((chain_info.best_block_number as i64) - (self.last_sent_block_number as i64)).abs() as BlockNumber) < MAX_PEER_LAG_PROPAGATION {
-			let mut peers = self.get_lagging_peers(&chain_info, io);
+			let mut peers = self.get_peers(&chain_info, io, PeerStatus::Lagging);
 			if sealed.is_empty() {
 				let hashes = self.propagate_new_hashes(&chain_info, io, &peers);
-				peers = self.select_random_lagging_peers(&peers);
+				peers = self.select_random_peers(&peers);
 				let blocks = self.propagate_blocks(&chain_info, io, sealed, &peers);
 				if blocks != 0 || hashes != 0 {
 					trace!(target: "sync", "Sent latest {} blocks and {} hashes to peers.", blocks, hashes);
@@ -1987,6 +2006,22 @@ impl ChainSync {
 		self.last_sent_block_number = chain_info.best_block_number;
 	}
 
+	/// Distribute valid proposed blocks to subset of current peers.
+	fn propagate_proposed_blocks(&mut self, io: &mut SyncIo, proposed: &[Bytes]) {
+		let chain_info = io.chain().chain_info();
+		let mut peers = self.get_peers(&chain_info, io, PeerStatus::Current);
+		peers = self.select_random_peers(&peers);
+		for block in proposed {
+			let rlp = ChainSync::create_block_rlp(
+				block,
+				chain_info.total_difficulty
+			);
+			for peer_id in &peers {
+				self.send_packet(io, *peer_id, NEW_BLOCK_PACKET, rlp.clone());
+			}
+		}
+	}
+
 	/// Maintain other peers. Send out any new blocks and transactions
 	pub fn maintain_sync(&mut self, io: &mut SyncIo) {
 		self.maybe_start_snapshot_sync(io);
@@ -1994,9 +2029,10 @@ impl ChainSync {
 	}
 
 	/// called when block is imported to chain - propagates the blocks and updates transactions sent to peers
-	pub fn chain_new_blocks(&mut self, io: &mut SyncIo, _imported: &[H256], invalid: &[H256], _enacted: &[H256], _retracted: &[H256], sealed: &[H256]) {
+	pub fn chain_new_blocks(&mut self, io: &mut SyncIo, _imported: &[H256], invalid: &[H256], _enacted: &[H256], _retracted: &[H256], sealed: &[H256], proposed: &[Bytes]) {
 		if io.is_chain_queue_empty() {
 			self.propagate_latest_blocks(io, sealed);
+			self.propagate_proposed_blocks(io, proposed);
 		}
 		if !invalid.is_empty() {
 			trace!(target: "sync", "Bad blocks in the queue, restarting");
@@ -2032,7 +2068,7 @@ mod tests {
 	use rlp::{Rlp, RlpStream, UntrustedRlp, View, Stream};
 	use super::*;
 	use ::SyncConfig;
-	use super::{PeerInfo, PeerAsking};
+	use super::{PeerInfo, PeerAsking, PeerStatus};
 	use ethcore::views::BlockView;
 	use ethcore::header::*;
 	use ethcore::client::*;
@@ -2250,7 +2286,7 @@ mod tests {
 		let ss = TestSnapshotService::new();
 		let io = TestIo::new(&mut client, &ss, &mut queue, None);
 
-		let lagging_peers = sync.get_lagging_peers(&chain_info, &io);
+		let lagging_peers = sync.get_peers(&chain_info, &io, PeerStatus::Lagging);
 
 		assert_eq!(1, lagging_peers.len())
 	}
@@ -2282,7 +2318,7 @@ mod tests {
 		let ss = TestSnapshotService::new();
 		let mut io = TestIo::new(&mut client, &ss, &mut queue, None);
 
-		let peers = sync.get_lagging_peers(&chain_info, &io);
+		let peers = sync.get_peers(&chain_info, &io, PeerStatus::Lagging);
 		let peer_count = sync.propagate_new_hashes(&chain_info, &mut io, &peers);
 
 		// 1 message should be send
@@ -2302,7 +2338,7 @@ mod tests {
 		let chain_info = client.chain_info();
 		let ss = TestSnapshotService::new();
 		let mut io = TestIo::new(&mut client, &ss, &mut queue, None);
-		let peers = sync.get_lagging_peers(&chain_info, &io);
+		let peers = sync.get_peers(&chain_info, &io, PeerStatus::Lagging);
 		let peer_count = sync.propagate_blocks(&chain_info, &mut io, &[], &peers);
 
 		// 1 message should be send
@@ -2323,7 +2359,7 @@ mod tests {
 		let chain_info = client.chain_info();
 		let ss = TestSnapshotService::new();
 		let mut io = TestIo::new(&mut client, &ss, &mut queue, None);
-		let peers = sync.get_lagging_peers(&chain_info, &io);
+		let peers = sync.get_peers(&chain_info, &io, PeerStatus::Lagging);
 		let peer_count = sync.propagate_blocks(&chain_info, &mut io, &[hash.clone()], &peers);
 
 		// 1 message should be send
@@ -2347,7 +2383,7 @@ mod tests {
 		// Try to propagate same transactions for the second time
 		let peer_count2 = sync.propagate_new_transactions(&mut io);
 		// Even after new block transactions should not be propagated twice
-		sync.chain_new_blocks(&mut io, &[], &[], &[], &[], &[]);
+		sync.chain_new_blocks(&mut io, &[], &[], &[], &[], &[], &[]);
 		// Try to propagate same transactions for the third time
 		let peer_count3 = sync.propagate_new_transactions(&mut io);
 
@@ -2373,7 +2409,7 @@ mod tests {
 		let peer_count = sync.propagate_new_transactions(&mut io);
 		io.chain.insert_transaction_to_queue();
 		// New block import should trigger propagation.
-		sync.chain_new_blocks(&mut io, &[], &[], &[], &[], &[]);
+		sync.chain_new_blocks(&mut io, &[], &[], &[], &[], &[], &[]);
 
 		// 2 message should be send
 		assert_eq!(2, io.queue.len());
@@ -2534,7 +2570,7 @@ mod tests {
 		let ss = TestSnapshotService::new();
 		let mut io = TestIo::new(&mut client, &ss, &mut queue, None);
 
-		let peers = sync.get_lagging_peers(&chain_info, &io);
+		let peers = sync.get_peers(&chain_info, &io, PeerStatus::Lagging);
 		sync.propagate_new_hashes(&chain_info, &mut io, &peers);
 
 		let data = &io.queue[0].data.clone();
@@ -2554,7 +2590,7 @@ mod tests {
 		let ss = TestSnapshotService::new();
 		let mut io = TestIo::new(&mut client, &ss, &mut queue, None);
 
-		let peers = sync.get_lagging_peers(&chain_info, &io);
+		let peers = sync.get_peers(&chain_info, &io, PeerStatus::Lagging);
 		sync.propagate_blocks(&chain_info, &mut io, &[], &peers);
 
 		let data = &io.queue[0].data.clone();
@@ -2589,7 +2625,7 @@ mod tests {
 			let ss = TestSnapshotService::new();
 			let mut io = TestIo::new(&mut client, &ss, &mut queue, None);
 			io.chain.miner.chain_new_blocks(io.chain, &[], &[], &[], &good_blocks);
-			sync.chain_new_blocks(&mut io, &[], &[], &[], &good_blocks, &[]);
+			sync.chain_new_blocks(&mut io, &[], &[], &[], &good_blocks, &[], &[]);
 			assert_eq!(io.chain.miner.status().transactions_in_future_queue, 0);
 			assert_eq!(io.chain.miner.status().transactions_in_pending_queue, 1);
 		}
@@ -2604,7 +2640,7 @@ mod tests {
 			let ss = TestSnapshotService::new();
 			let mut io = TestIo::new(&mut client, &ss, &mut queue, None);
 			io.chain.miner.chain_new_blocks(io.chain, &[], &[], &good_blocks, &retracted_blocks);
-			sync.chain_new_blocks(&mut io, &[], &[], &good_blocks, &retracted_blocks, &[]);
+			sync.chain_new_blocks(&mut io, &[], &[], &good_blocks, &retracted_blocks, &[], &[]);
 		}
 
 		// then
@@ -2630,10 +2666,10 @@ mod tests {
 		let mut io = TestIo::new(&mut client, &ss, &mut queue, None);
 
 		// when
-		sync.chain_new_blocks(&mut io, &[], &[], &[], &good_blocks, &[]);
+		sync.chain_new_blocks(&mut io, &[], &[], &[], &good_blocks, &[], &[]);
 		assert_eq!(io.chain.miner.status().transactions_in_future_queue, 0);
 		assert_eq!(io.chain.miner.status().transactions_in_pending_queue, 0);
-		sync.chain_new_blocks(&mut io, &[], &[], &good_blocks, &retracted_blocks, &[]);
+		sync.chain_new_blocks(&mut io, &[], &[], &good_blocks, &retracted_blocks, &[], &[]);
 
 		// then
 		let status = io.chain.miner.status();

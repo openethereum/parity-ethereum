@@ -391,9 +391,10 @@ impl Client {
 	/// This is triggered by a message coming from a block queue when the block is ready for insertion
 	pub fn import_verified_blocks(&self) -> usize {
 		let max_blocks_to_import = 4;
-		let (imported_blocks, import_results, invalid_blocks, imported, duration, is_empty) = {
+		let (imported_blocks, import_results, invalid_blocks, imported, proposed_blocks, duration, is_empty) = {
 			let mut imported_blocks = Vec::with_capacity(max_blocks_to_import);
 			let mut invalid_blocks = HashSet::new();
+			let mut proposed_blocks = Vec::with_capacity(max_blocks_to_import);
 			let mut import_results = Vec::with_capacity(max_blocks_to_import);
 
 			let _import_lock = self.import_lock.lock();
@@ -412,12 +413,17 @@ impl Client {
 					continue;
 				}
 				if let Ok(closed_block) = self.check_and_close_block(&block) {
-					imported_blocks.push(header.hash());
+					if self.engine.is_proposal(&block.header) {
+						proposed_blocks.push(block.bytes);
+						invalid_blocks.insert(header.hash());
+					} else {
+						imported_blocks.push(header.hash());
 
-					let route = self.commit_block(closed_block, &header.hash(), &block.bytes);
-					import_results.push(route);
+						let route = self.commit_block(closed_block, &header.hash(), &block.bytes);
+						import_results.push(route);
 
-					self.report.write().accrue_block(&block);
+						self.report.write().accrue_block(&block);
+					}
 				} else {
 					invalid_blocks.insert(header.hash());
 				}
@@ -431,7 +437,7 @@ impl Client {
 			}
 			let is_empty = self.block_queue.mark_as_good(&imported_blocks);
 			let duration_ns = precise_time_ns() - start;
-			(imported_blocks, import_results, invalid_blocks, imported, duration_ns, is_empty)
+			(imported_blocks, import_results, invalid_blocks, imported, proposed_blocks, duration_ns, is_empty)
 		};
 
 		{
@@ -449,6 +455,7 @@ impl Client {
 						enacted.clone(),
 						retracted.clone(),
 						Vec::new(),
+						proposed_blocks.clone(),
 						duration,
 					);
 				});
@@ -1364,6 +1371,20 @@ impl MiningBlockChainClient for Client {
 		&self.factories.vm
 	}
 
+	fn broadcast_proposal_block(&self, block: SealedBlock) {
+		self.notify(|notify| {
+			notify.new_blocks(
+				vec![],
+				vec![],
+				vec![],
+				vec![],
+				vec![],
+				vec![block.rlp_bytes()],
+				0,
+			);
+		});
+	}
+
 	fn import_sealed_block(&self, block: SealedBlock) -> ImportResult {
 		let h = block.header().hash();
 		let start = precise_time_ns();
@@ -1388,6 +1409,7 @@ impl MiningBlockChainClient for Client {
 				enacted.clone(),
 				retracted.clone(),
 				vec![h.clone()],
+				vec![],
 				precise_time_ns() - start,
 			);
 		});
