@@ -37,6 +37,7 @@ class Accounts extends Component {
     accounts: PropTypes.object.isRequired,
     hasAccounts: PropTypes.bool.isRequired,
     wallets: PropTypes.object.isRequired,
+    walletsOwners: PropTypes.object.isRequired,
     hasWallets: PropTypes.bool.isRequired,
 
     balances: PropTypes.object
@@ -137,8 +138,12 @@ class Accounts extends Component {
       return this.renderLoading(this.props.wallets);
     }
 
-    const { wallets, hasWallets, balances } = this.props;
+    const { wallets, hasWallets, balances, walletsOwners } = this.props;
     const { searchValues, sortOrder } = this.state;
+
+    if (!wallets || Object.keys(wallets).length === 0) {
+      return null;
+    }
 
     return (
       <List
@@ -149,6 +154,7 @@ class Accounts extends Component {
         empty={ !hasWallets }
         order={ sortOrder }
         handleAddSearchToken={ this.onAddSearchToken }
+        walletsOwners={ walletsOwners }
       />
     );
   }
@@ -281,13 +287,29 @@ class Accounts extends Component {
 }
 
 function mapStateToProps (state) {
-  const { accounts, hasAccounts, wallets, hasWallets } = state.personal;
+  const { accounts, hasAccounts, wallets, hasWallets, accountsInfo } = state.personal;
   const { balances } = state.balances;
+  const walletsInfo = state.wallet.wallets;
+
+  const walletsOwners = Object
+    .keys(walletsInfo)
+    .map((wallet) => ({
+      owners: walletsInfo[wallet].owners.map((owner) => ({
+        address: owner,
+        name: accountsInfo[owner] && accountsInfo[owner].name || owner
+      })),
+      address: wallet
+    }))
+    .reduce((walletsOwners, wallet) => {
+      walletsOwners[wallet.address] = wallet.owners;
+      return walletsOwners;
+    }, {});
 
   return {
     accounts,
     hasAccounts,
     wallets,
+    walletsOwners,
     hasWallets,
     balances
   };

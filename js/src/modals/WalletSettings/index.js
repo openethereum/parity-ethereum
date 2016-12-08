@@ -14,24 +14,4 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { api } from '../parity';
-
-export const set = (addresses) => ({ type: 'addresses set', addresses });
-
-export const fetch = () => (dispatch) => {
-  return api.parity
-    .accounts()
-    .then((accountsInfo) => {
-      const addresses = Object
-        .keys(accountsInfo)
-        .map((address) => ({
-          ...accountsInfo[address],
-          address,
-          isAccount: !!accountsInfo[address].uuid
-        }));
-      dispatch(set(addresses));
-    })
-    .catch((error) => {
-      console.error('could not fetch addresses', error);
-    });
-};
+export default from './walletSettings';

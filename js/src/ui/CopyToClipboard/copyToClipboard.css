@@ -20,5 +20,14 @@
 }
 
 .data {
+  flex: 1;
   font-family: monospace;
+  padding: 0 0.5em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.container {
+  display: flex;
 }

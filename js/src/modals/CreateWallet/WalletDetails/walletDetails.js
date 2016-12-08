@@ -117,15 +117,17 @@ export default class WalletDetails extends Component {
             onChange={ this.onRequiredChange }
             param={ parseAbiType('uint') }
             min={ 1 }
+            max={ wallet.owners.length + 1 }
           />
 
           <TypedInput
             label='wallet day limit'
-            hint='number of days to wait for other owners confirmation'
+            hint='amount of ETH spendable without confirmations'
             value={ wallet.daylimit }
             error={ errors.daylimit }
             onChange={ this.onDaylimitChange }
             param={ parseAbiType('uint') }
+            isEth
           />
         </div>
       </Form>

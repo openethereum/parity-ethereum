@@ -94,7 +94,6 @@ export default class Application extends Component {
           tokenregInstance,
           accounts: Object
             .keys(accountsInfo)
-            .filter((address) => !accountsInfo[address].meta.deleted)
             .sort((a, b) => {
               return (accountsInfo[b].uuid || '').localeCompare(accountsInfo[a].uuid || '');
             })

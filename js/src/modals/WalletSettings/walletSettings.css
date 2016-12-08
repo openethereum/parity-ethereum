@@ -14,47 +14,50 @@
 /* You should have received a copy of the GNU General Public License
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
-.accounts {
-}
 
-.accountTooltip {
-  top: 13.3em;
-  left: 7em;
-}
-
-.owners {
-  margin-top: 1em;
+.splitInput {
   display: flex;
-  margin-bottom: -0.5em;
-}
+  flex-direction: row;
 
-.toolbar {
-  position: relative;
-}
+  > * {
+    flex: 1;
 
-.toolbarTooltip {
-  right: 1em;
-  top: 4em;
-}
+    margin: 0 0.25em;
 
-.loadings {
-  display: flex;
-  flex-wrap: wrap;
+    &:first-child {
+      margin-left: 0;
+    }
 
-  .loading {
-    flex: 0 1 50%;
-    width: 50%;
-    height: 150px;
-    display: flex;
-    padding: 0.25em;
-    box-sizing: border-box;
-
-    > div {
-      display: flex;
-      flex: 1;
-      align-items: center;
-      justify-content: center;
-      background-color: rgba(0, 0, 0, 0.8);
+    &:last-child {
+      margin-right: 0;
     }
   }
 }
+
+.change {
+  background-color: rgba(255, 255, 255, 0.1);
+  padding: 0.75em 1.75em;
+  margin-bottom: 1em;
+
+  &.add {
+    background-color: rgba(139, 195, 74, 0.5);
+  }
+
+  &.remove {
+    background-color: rgba(244, 67, 54, 0.5);
+  }
+
+  .label {
+    text-transform: uppercase;
+    margin-bottom: 0.5em;
+    margin-left: -1em;
+    font-size: 0.8em;
+  }
+}
+
+.eth:after {
+  content: 'ETH';
+  font-size: 0.75em;
+  margin-left: 0.125em;
+}
+

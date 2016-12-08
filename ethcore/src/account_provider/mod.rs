@@ -194,6 +194,11 @@ impl AccountProvider {
 		Ok(self.address_book.write().set_meta(account, meta))
 	}
 
+	/// Removes and address from the addressbook
+	pub fn remove_address(&self, addr: Address) -> Result<(), Error> {
+		Ok(self.address_book.write().remove(addr))
+	}
+
 	/// Returns each account along with name and meta.
 	pub fn accounts_info(&self) -> Result<HashMap<Address, AccountMeta>, Error> {
 		let r: HashMap<Address, AccountMeta> = try!(self.sstore.accounts())
