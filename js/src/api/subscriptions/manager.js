@@ -82,11 +82,7 @@ export default class Manager {
       if (!engine.isStarted) {
         engine.start();
       } else {
-        const result = this._sendData(subscriptionId, error, data);
-
-        if (autoRemove && !result) {
-          this.unsubscribe(subscriptionId);
-        }
+        this._sendData(subscriptionId, error, data);
       }
 
       resolve(subscriptionId);
@@ -106,15 +102,18 @@ export default class Manager {
   }
 
   _sendData (subscriptionId, error, data) {
+    const { autoRemove, callback } = this.subscriptions[subscriptionId];
     let result = false;
 
     try {
-      result = this.subscriptions[subscriptionId].callback(error, data);
+      result = callback(error, data);
     } catch (error) {
       console.error(`Unable to update callback for subscriptionId ${subscriptionId}`, error);
     }
 
-    return result;
+    if (autoRemove && !result) {
+      this.unsubscribe(subscriptionId);
+    }
   }
 
   _updateSubscriptions = (subscriptionName, error, data) => {
@@ -125,11 +124,7 @@ export default class Manager {
 
     subscriptions
       .forEach((subscription) => {
-        const result = this._sendData(subscription.id, error, data);
-
-        if (subscription.autoRemove && !result) {
-          this.unsubscribe(subscription.id);
-        }
+        this._sendData(subscription.id, error, data);
       });
   }
 }

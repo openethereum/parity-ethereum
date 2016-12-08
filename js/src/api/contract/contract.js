@@ -316,6 +316,21 @@ export default class Contract {
     }
   }
 
+  _sendData (subscriptionId, error, logs) {
+    const { autoRemove, callback } = this._subscriptions[subscriptionId];
+    let result = false;
+
+    try {
+      result = callback(error, logs);
+    } catch (error) {
+      console.warn('_sendData', subscriptionId, error);
+    }
+
+    if (autoRemove && !result) {
+      this.unsubscribe(subscriptionId);
+    }
+  }
+
   _subscribe (event = null, _options, callback, autoRemove = false) {
     const subscriptionId = nextSubscriptionId++;
     const { skipInitFetch } = _options;
@@ -339,12 +354,7 @@ export default class Contract {
         return this._api.eth
           .getFilterLogs(filterId)
           .then((logs) => {
-            const result = callback(null, this.parseEventLogs(logs));
-
-            if (autoRemove && !result) {
-              this.unsubscribe(subscriptionId);
-            }
-
+            this._sendData(subscriptionId, null, this.parseEventLogs(logs));
             this._subscribeToChanges();
             return subscriptionId;
           });
@@ -448,16 +458,10 @@ export default class Contract {
             return;
           }
 
-          let result = false;
-
           try {
-            result = subscriptions[subscriptionId].callback(null, this.parseEventLogs(logs));
+            this.sendData(subscriptionId, null, this.parseEventLogs(logs));
           } catch (error) {
             console.error('_sendSubscriptionChanges', error);
-          }
-
-          if (subscriptions[subscriptionId].autoRemove && !result) {
-            this.unsubscribe(subscriptionId);
           }
         });
       })
