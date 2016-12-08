@@ -57,7 +57,7 @@ impl<C: 'static> ParityAccounts for ParityAccountsClient<C> where C: MiningBlock
 		let info = try!(store.accounts_info().map_err(|e| errors::account("Could not fetch account info.", e)));
 		let other = store.addresses_info().expect("addresses_info always returns Ok; qed");
 
-		Ok(info.into_iter().chain(other.into_iter()).map(|(a, v)| {
+		Ok(other.into_iter().chain(info.into_iter()).map(|(a, v)| {
 			let m = map![
 				"name".to_owned() => to_value(&v.name),
 				"meta".to_owned() => to_value(&v.meta),

@@ -37,7 +37,7 @@ class IdentityName extends Component {
   render () {
     const { address, accountsInfo, tokens, empty, name, shorten, unknown, className } = this.props;
     const account = accountsInfo[address] || tokens[address];
-    const hasAccount = account && (!account.meta || !account.meta.deleted);
+    const hasAccount = account && (account.uuid || !account.meta || !account.meta.deleted);
 
     if (!hasAccount && empty) {
       return null;
