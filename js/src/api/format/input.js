@@ -112,11 +112,15 @@ export function inNumber10 (number) {
 }
 
 export function inNumber16 (number) {
-  if (isInstanceOf(number, BigNumber)) {
-    return inHex(number.round().toString(16));
+  const bn = isInstanceOf(number, BigNumber)
+    ? number
+    : (new BigNumber(number || 0));
+
+  if (!bn.isInteger()) {
+    throw new Error(`[format/input::inNumber16] the given number is not an integer: ${bn.toFormat()}`);
   }
 
-  return inHex((new BigNumber(number || 0)).toString(16));
+  return inHex(bn.toString(16));
 }
 
 export function inOptions (options) {
@@ -130,6 +134,9 @@ export function inOptions (options) {
 
         case 'gas':
         case 'gasPrice':
+          options[key] = inNumber16((new BigNumber(options[key])).round());
+          break;
+
         case 'value':
         case 'nonce':
           options[key] = inNumber16(options[key]);
