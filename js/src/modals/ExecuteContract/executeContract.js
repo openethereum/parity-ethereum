@@ -23,6 +23,7 @@ import ContentClear from 'material-ui/svg-icons/content/clear';
 import { BusyStep, CompletedStep, Button, IdentityIcon, Modal, TxHash } from '~/ui';
 import { MAX_GAS_ESTIMATION } from '../../util/constants';
 import { validateAddress, validateUint } from '../../util/validation';
+import { parseAbiType } from '~/util/abi';
 
 import DetailsStep from './DetailsStep';
 
@@ -174,23 +175,9 @@ class ExecuteContract extends Component {
   }
 
   onFuncChange = (event, func) => {
-    const values = func.inputs.map((input) => {
-      switch (input.kind.type) {
-        case 'address':
-          return '0x';
-
-        case 'bool':
-          return false;
-
-        case 'bytes':
-          return '0x';
-
-        case 'uint':
-          return '0';
-
-        default:
-          return '';
-      }
+    const values = (func.abi.inputs || []).map((input) => {
+      const parsedType = parseAbiType(input.type);
+      return parsedType.default;
     });
 
     this.setState({

@@ -92,7 +92,7 @@ function findImports (path) {
   return { error: 'File not found' };
 }
 
-function compile (data, optimized = 0) {
+function compile (data, optimized = 1) {
   const { sourcecode, build } = data;
   const { longVersion } = build;
 
@@ -109,7 +109,7 @@ function compile (data, optimized = 0) {
         '': sourcecode
       };
 
-      const compiled = compiler.compile({ sources: input }, 0, findImports);
+      const compiled = compiler.compile({ sources: input }, optimized, findImports);
 
       self.lastCompile = {
         version: longVersion, result: compiled,
