@@ -16,15 +16,14 @@
 
 import { observable, computed, action, transaction } from 'mobx';
 
-import { validateUint, validateAddress, validateName } from '~/util/validation';
-import { ERROR_CODES } from '~/api/transport/error';
-
 import Contract from '~/api/contract';
 import Contracts from '~/contracts';
+import { ERROR_CODES } from '~/api/transport/error';
 import { wallet as walletAbi } from '~/contracts/abi';
 import { wallet as walletCode } from '~/contracts/code';
 import { walletLibraryRegKey, fullWalletCode } from '~/contracts/code/wallet';
 
+import { validateUint, validateAddress, validateName } from '~/util/validation';
 import WalletsUtils from '~/util/wallets';
 
 const STEPS = {

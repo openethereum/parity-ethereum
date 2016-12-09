@@ -144,15 +144,6 @@
   font-size: 1.2rem;
 }
 
-.chart {
-  position: absolute;
-  width: 100%;
-}
-
-.gasPriceDesc {
-  font-size: 0.9em;
-}
-
 .warning {
   border-radius: 0.5em;
   background: #f80;
