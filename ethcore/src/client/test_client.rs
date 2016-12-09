@@ -432,6 +432,10 @@ impl BlockChainClient for TestBlockChainClient {
 		None	// Simple default.
 	}
 
+	fn transaction_block(&self, _id: TransactionID) -> Option<H256> {
+		None	// Simple default.
+	}
+
 	fn uncle(&self, _id: UncleID) -> Option<Bytes> {
 		None	// Simple default.
 	}
