@@ -283,6 +283,11 @@ impl Client {
 		self.notify.write().push(Arc::downgrade(&target));
 	}
 
+	/// Returns engine reference.
+	pub fn engine(&self) -> &Engine {
+		&*self.engine
+	}
+
 	fn notify<F>(&self, f: F) where F: Fn(&ChainNotify) {
 		for np in self.notify.read().iter() {
 			if let Some(n) = np.upgrade() {
@@ -596,6 +601,11 @@ impl Client {
 		results.len()
 	}
 
+	/// Get shared miner reference.
+	pub fn miner(&self) -> Arc<Miner> {
+		self.miner.clone()
+	}
+
 	/// Used by PoA to try sealing on period change.
 	pub fn update_sealing(&self) {
 		self.miner.update_sealing(self)
@@ -748,7 +758,7 @@ impl Client {
 		self.updater.lock()
 	}
 
-	/// Look up the block number for the given block Id.
+	/// Look up the block number for the given block ID.
 	pub fn block_number(&self, id: BlockId) -> Option<BlockNumber> {
 		match id {
 			BlockId::Number(number) => Some(number),
@@ -759,7 +769,7 @@ impl Client {
 	}
 
 	/// Take a snapshot at the given block.
-	/// If the Id given is "latest", this will default to 1000 blocks behind.
+	/// If the ID given is "latest", this will default to 1000 blocks behind.
 	pub fn take_snapshot<W: snapshot_io::SnapshotWriter + Send>(&self, writer: W, at: BlockId, p: &snapshot::Progress) -> Result<(), EthcoreError> {
 		let db = self.state_db.lock().journal_db().boxed_clone();
 		let best_block_number = self.chain_info().best_block_number;

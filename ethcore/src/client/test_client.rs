@@ -255,7 +255,7 @@ impl TestBlockChainClient {
 	}
 
 	/// Make a bad block by setting invalid extra data.
-	pub fn corrupt_block(&mut self, n: BlockNumber) {
+	pub fn corrupt_block(&self, n: BlockNumber) {
 		let hash = self.block_hash(BlockId::Number(n)).unwrap();
 		let mut header: BlockHeader = decode(&self.block_header(BlockId::Number(n)).unwrap());
 		header.set_extra_data(b"This extra data is way too long to be considered valid".to_vec());
@@ -267,7 +267,7 @@ impl TestBlockChainClient {
 	}
 
 	/// Make a bad block by setting invalid parent hash.
-	pub fn corrupt_block_parent(&mut self, n: BlockNumber) {
+	pub fn corrupt_block_parent(&self, n: BlockNumber) {
 		let hash = self.block_hash(BlockId::Number(n)).unwrap();
 		let mut header: BlockHeader = decode(&self.block_header(BlockId::Number(n)).unwrap());
 		header.set_parent_hash(H256::from(42));
