@@ -17,6 +17,7 @@
 import React, { Component, PropTypes } from 'react';
 
 import { RadioButtons } from '~/ui';
+import { walletSourceURL } from '~/contracts/code/wallet';
 
 // import styles from '../createWallet.css';
 
@@ -43,7 +44,15 @@ export default class WalletType extends Component {
     return [
       {
         label: 'Multi-Sig wallet', key: 'MULTISIG',
-        description: 'A standard multi-signature Wallet'
+        description: (
+          <span>
+            <span>Create/Deploy a </span>
+            <a href={ walletSourceURL } target='_blank'>
+              standard multi-signature
+            </a>
+            <span> Wallet</span>
+          </span>
+        )
       },
       {
         label: 'Watch a wallet', key: 'WATCH',

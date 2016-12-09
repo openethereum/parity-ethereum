@@ -15,26 +15,26 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-.contract {
-}
-
 .events {
   width: 100%;
   border: none;
   border-spacing: 0;
-}
 
-.events tr {
-  line-height: 32px;
-  vertical-align: top;
+  tr {
+    line-height: 32px;
+    vertical-align: top;
+  }
 }
 
 .event {
-}
+  td {
+    vertical-align: top;
+    padding: 1em 0.5em;
 
-.event td {
-  vertical-align: top;
-  padding: 1em 0.5em;
+    div {
+      white-space: nowrap;
+    }
+  }
 }
 
 .txhash {
@@ -45,10 +45,6 @@
 .key {
   text-align: right;
   color: #aaa;
-}
-
-.event td div {
-  white-space: nowrap;
 }
 
 .mined {

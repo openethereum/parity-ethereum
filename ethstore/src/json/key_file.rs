@@ -31,7 +31,7 @@ pub struct KeyFile {
 }
 
 enum KeyFileField {
-	ID,
+	Id,
 	Version,
 	Crypto,
 	Address,
@@ -56,7 +56,7 @@ impl Visitor for KeyFileFieldVisitor {
 		where E: Error
 	{
 		match value {
-			"id" => Ok(KeyFileField::ID),
+			"id" => Ok(KeyFileField::Id),
 			"version" => Ok(KeyFileField::Version),
 			"crypto" => Ok(KeyFileField::Crypto),
 			"Crypto" => Ok(KeyFileField::Crypto),
@@ -94,7 +94,7 @@ impl Visitor for KeyFileVisitor {
 
 		loop {
 			match try!(visitor.visit_key()) {
-				Some(KeyFileField::ID) => { id = Some(try!(visitor.visit_value())); }
+				Some(KeyFileField::Id) => { id = Some(try!(visitor.visit_value())); }
 				Some(KeyFileField::Version) => { version = Some(try!(visitor.visit_value())); }
 				Some(KeyFileField::Crypto) => { crypto = Some(try!(visitor.visit_value())); }
 				Some(KeyFileField::Address) => { address = Some(try!(visitor.visit_value())); }

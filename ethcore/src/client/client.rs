@@ -1130,6 +1130,10 @@ impl BlockChainClient for Client {
 		self.transaction_address(id).and_then(|address| self.chain.read().transaction(&address))
 	}
 
+	fn transaction_block(&self, id: TransactionId) -> Option<H256> {
+		self.transaction_address(id).map(|addr| addr.block_hash)
+	}
+
 	fn uncle(&self, id: UncleId) -> Option<Bytes> {
 		let index = id.position;
 		self.block_body(id.block).and_then(|body| BodyView::new(&body).uncle_rlp_at(index))

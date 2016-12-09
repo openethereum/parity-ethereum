@@ -28,8 +28,6 @@ import Transactions from '../Account/Transactions';
 import Delete from './Delete';
 import { setVisibleAccounts } from '~/redux/providers/personalActions';
 
-import styles from './address.css';
-
 class Address extends Component {
   static contextTypes = {
     api: PropTypes.object.isRequired,
@@ -85,7 +83,7 @@ class Address extends Component {
     }
 
     return (
-      <div className={ styles.address }>
+      <div>
         { this.renderEditDialog(contact) }
         { this.renderActionbar(contact) }
         <Delete
@@ -121,7 +119,7 @@ class Address extends Component {
     return (
       <Actionbar
         title='Address Information'
-        buttons={ !contact || contact.meta.deleted ? [] : buttons } />
+        buttons={ !contact ? [] : buttons } />
     );
   }
 

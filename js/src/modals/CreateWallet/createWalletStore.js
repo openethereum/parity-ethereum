@@ -16,13 +16,13 @@
 
 import { observable, computed, action, transaction } from 'mobx';
 
-import { validateUint, validateAddress, validateName } from '../../util/validation';
-import { ERROR_CODES } from '~/api/transport/error';
-
 import Contract from '~/api/contract';
+import Contracts from '~/contracts';
+import { ERROR_CODES } from '~/api/transport/error';
 import { wallet as walletAbi } from '~/contracts/abi';
-import { wallet as walletCode } from '~/contracts/code';
+import { wallet as walletCode, walletLibraryRegKey, fullWalletCode } from '~/contracts/code/wallet';
 
+import { validateUint, validateAddress, validateName } from '~/util/validation';
 import WalletsUtils from '~/util/wallets';
 
 const STEPS = {
@@ -160,14 +160,25 @@ export default class CreateWalletStore {
 
     const { account, owners, required, daylimit } = this.wallet;
 
-    const options = {
-      data: walletCode,
-      from: account
-    };
+    Contracts
+      .get()
+      .registry
+      .lookupAddress(walletLibraryRegKey)
+      .then((address) => {
+        const walletLibraryAddress = (address || '').replace(/^0x/, '').toLowerCase();
+        const code = walletLibraryAddress.length && !/^0+$/.test(walletLibraryAddress)
+          ? walletCode.replace(/(_)+WalletLibrary(_)+/g, walletLibraryAddress)
+          : fullWalletCode;
 
-    this.api
-      .newContract(walletAbi)
-      .deploy(options, [ owners, required, daylimit ], this.onDeploymentState)
+        const options = {
+          data: code,
+          from: account
+        };
+
+        return this.api
+          .newContract(walletAbi)
+          .deploy(options, [ owners, required, daylimit ], this.onDeploymentState);
+      })
       .then((address) => {
         this.deployed = true;
         this.wallet.address = address;

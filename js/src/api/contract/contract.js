@@ -240,8 +240,8 @@ export default class Contract {
   }
 
   _bindEvent = (event) => {
-    event.subscribe = (options = {}, callback) => {
-      return this._subscribe(event, options, callback);
+    event.subscribe = (options = {}, callback, autoRemove) => {
+      return this._subscribe(event, options, callback, autoRemove);
     };
 
     event.unsubscribe = (subscriptionId) => {
@@ -262,12 +262,11 @@ export default class Contract {
     }
 
     const options = this._getFilterOptions(event, _options);
+    options.fromBlock = 0;
+    options.toBlock = 'latest';
+
     return this._api.eth
-      .getLogs({
-        fromBlock: 0,
-        toBlock: 'latest',
-        ...options
-      })
+      .getLogs(options)
       .then((logs) => this.parseEventLogs(logs));
   }
 
@@ -307,16 +306,31 @@ export default class Contract {
     return this._api.eth.newFilter(options);
   }
 
-  subscribe (eventName = null, options = {}, callback) {
+  subscribe (eventName = null, options = {}, callback, autoRemove) {
     try {
       const event = this._findEvent(eventName);
-      return this._subscribe(event, options, callback);
+      return this._subscribe(event, options, callback, autoRemove);
     } catch (e) {
       return Promise.reject(e);
     }
   }
 
-  _subscribe (event = null, _options, callback) {
+  _sendData (subscriptionId, error, logs) {
+    const { autoRemove, callback } = this._subscriptions[subscriptionId];
+    let result = true;
+
+    try {
+      result = callback(error, logs);
+    } catch (error) {
+      console.warn('_sendData', subscriptionId, error);
+    }
+
+    if (autoRemove && result && typeof result === 'boolean') {
+      this.unsubscribe(subscriptionId);
+    }
+  }
+
+  _subscribe (event = null, _options, callback, autoRemove = false) {
     const subscriptionId = nextSubscriptionId++;
     const { skipInitFetch } = _options;
     delete _options['skipInitFetch'];
@@ -326,6 +340,7 @@ export default class Contract {
       .then((filterId) => {
         this._subscriptions[subscriptionId] = {
           options: _options,
+          autoRemove,
           callback,
           filterId
         };
@@ -338,8 +353,7 @@ export default class Contract {
         return this._api.eth
           .getFilterLogs(filterId)
           .then((logs) => {
-            callback(null, this.parseEventLogs(logs));
-
+            this._sendData(subscriptionId, null, this.parseEventLogs(logs));
             this._subscribeToChanges();
             return subscriptionId;
           });
@@ -438,13 +452,13 @@ export default class Contract {
         })
       )
       .then((logsArray) => {
-        logsArray.forEach((logs, idx) => {
+        logsArray.forEach((logs, subscriptionId) => {
           if (!logs || !logs.length) {
             return;
           }
 
           try {
-            subscriptions[idx].callback(null, this.parseEventLogs(logs));
+            this.sendData(subscriptionId, null, this.parseEventLogs(logs));
           } catch (error) {
             console.error('_sendSubscriptionChanges', error);
           }

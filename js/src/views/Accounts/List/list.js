@@ -24,6 +24,7 @@ import styles from './list.css';
 export default class List extends Component {
   static propTypes = {
     accounts: PropTypes.object,
+    walletsOwners: PropTypes.object,
     balances: PropTypes.object,
     link: PropTypes.string,
     search: PropTypes.array,
@@ -42,7 +43,7 @@ export default class List extends Component {
   }
 
   renderAccounts () {
-    const { accounts, balances, link, empty, handleAddSearchToken } = this.props;
+    const { accounts, balances, link, empty, handleAddSearchToken, walletsOwners } = this.props;
 
     if (empty) {
       return (
@@ -60,6 +61,8 @@ export default class List extends Component {
       const account = accounts[address] || {};
       const balance = balances[address] || {};
 
+      const owners = walletsOwners && walletsOwners[address] || null;
+
       return (
         <div
           className={ styles.item }
@@ -68,6 +71,7 @@ export default class List extends Component {
             link={ link }
             account={ account }
             balance={ balance }
+            owners={ owners }
             handleAddSearchToken={ handleAddSearchToken } />
         </div>
       );

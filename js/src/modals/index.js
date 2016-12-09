@@ -29,6 +29,7 @@ import Transfer from './Transfer';
 import PasswordManager from './PasswordManager';
 import SaveContract from './SaveContract';
 import LoadContract from './LoadContract';
+import WalletSettings from './WalletSettings';
 
 export {
   AddAddress,
@@ -45,5 +46,6 @@ export {
   Transfer,
   PasswordManager,
   LoadContract,
-  SaveContract
+  SaveContract,
+  WalletSettings
 };

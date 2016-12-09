@@ -21,7 +21,7 @@ import NavigationArrowForward from 'material-ui/svg-icons/navigation/arrow-forwa
 import NavigationArrowBack from 'material-ui/svg-icons/navigation/arrow-back';
 
 import { Button, Modal, Form, Input, InputAddress, RadioButtons } from '~/ui';
-import { ERRORS, validateAbi, validateAddress, validateName } from '../../util/validation';
+import { ERRORS, validateAbi, validateAddress, validateName } from '~/util/validation';
 
 import { eip20, wallet } from '~/contracts/abi';
 
@@ -231,7 +231,7 @@ export default class AddContract extends Component {
     if (!addressError) {
       const contract = contracts[address];
 
-      if (contract && !contract.meta.deleted) {
+      if (contract) {
         addressError = ERRORS.duplicateAddress;
       }
     }
