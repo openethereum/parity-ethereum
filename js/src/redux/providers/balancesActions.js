@@ -15,11 +15,13 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import { range, uniq, isEqual } from 'lodash';
+import BigNumber from 'bignumber.js';
 
 import { hashToImageUrl } from './imagesReducer';
 import { setAddressImage } from './imagesActions';
 
 import * as ABIS from '~/contracts/abi';
+import { notifyTransaction } from '~/util/notifications';
 import imagesEthereum from '../../../assets/images/contracts/ethereum-black-64x64.png';
 
 const ETH = {
@@ -28,7 +30,59 @@ const ETH = {
   image: imagesEthereum
 };
 
-export function setBalances (balances) {
+function setBalances (_balances) {
+  return (dispatch, getState) => {
+    const state = getState();
+
+    const accounts = state.personal.accounts;
+    const nextBalances = _balances;
+    const prevBalances = state.balances.balances;
+    const balances = { ...prevBalances };
+
+    Object.keys(nextBalances).forEach((address) => {
+      if (!balances[address]) {
+        balances[address] = Object.assign({}, nextBalances[address]);
+        return;
+      }
+
+      const balance = Object.assign({}, balances[address]);
+      const { tokens, txCount = balance.txCount } = nextBalances[address];
+      const nextTokens = [].concat(balance.tokens);
+
+      tokens.forEach((t) => {
+        const { token, value } = t;
+        const { tag } = token;
+
+        const tokenIndex = nextTokens.findIndex((tok) => tok.token.tag === tag);
+
+        if (tokenIndex === -1) {
+          nextTokens.push({
+            token,
+            value
+          });
+        } else {
+          const oldValue = nextTokens[tokenIndex].value;
+
+          // If received a token/eth (old value < new value), notify
+          if (oldValue.lt(value) && accounts[address]) {
+            const account = accounts[address];
+            const txValue = value.minus(oldValue);
+
+            notifyTransaction(account, token, txValue);
+          }
+
+          nextTokens[tokenIndex] = { token, value };
+        }
+      });
+
+      balances[address] = { txCount: txCount || new BigNumber(0), tokens: nextTokens };
+    });
+
+    dispatch(_setBalances(balances));
+  };
+}
+
+function _setBalances (balances) {
   return {
     type: 'setBalances',
     balances
