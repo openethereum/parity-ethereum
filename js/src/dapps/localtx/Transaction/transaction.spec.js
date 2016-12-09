@@ -29,7 +29,7 @@ Api.api = {
 import BigNumber from 'bignumber.js';
 import { Transaction, LocalTransaction } from './transaction';
 
-describe('localtx/Transaction', () => {
+describe('dapps/localtx/Transaction', () => {
   describe('rendering', () => {
     it('renders without crashing', () => {
       const transaction = {
@@ -51,7 +51,7 @@ describe('localtx/Transaction', () => {
   });
 });
 
-describe('localtx/LocalTransaction', () => {
+describe('dapps/localtx/LocalTransaction', () => {
   describe('rendering', () => {
     it('renders without crashing', () => {
       const rendered = shallow(

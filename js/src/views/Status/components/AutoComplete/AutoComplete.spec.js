@@ -21,7 +21,7 @@ import getMuiTheme from 'material-ui/styles/getMuiTheme';
 
 import WrappedAutoComplete from './AutoComplete';
 
-describe('components/AutoComplete', () => {
+describe('views/Status/components/AutoComplete', () => {
   describe('rendering', () => {
     let rendered;
 

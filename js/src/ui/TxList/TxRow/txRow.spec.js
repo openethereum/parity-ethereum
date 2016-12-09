@@ -14,19 +14,38 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import BigNumber from 'bignumber.js';
 import React from 'react';
 import { shallow } from 'enzyme';
+import sinon from 'sinon';
 
-import '../../../environment/tests';
+import Api from '~/api';
 
-import Application from './application';
+import TxRow from './txRow';
 
-describe('dapps/localtx/Application', () => {
+const api = new Api({ execute: sinon.stub() });
+
+function renderShallow (props) {
+  return shallow(
+    <TxRow
+      { ...props } />,
+    { context: { api } }
+  );
+}
+
+describe('ui/TxRow', () => {
   describe('rendering', () => {
-    it('renders without crashing', () => {
-      const rendered = shallow(<Application />);
+    it('renders defaults', () => {
+      const block = {
+        timestamp: new Date()
+      };
+      const tx = {
+        blockNumber: new BigNumber(123),
+        hash: '0x123456789abcdef0123456789abcdef0123456789abcdef',
+        value: new BigNumber(1)
+      };
 
-      expect(rendered).to.be.defined;
+      expect(renderShallow({ block, tx })).to.be.ok;
     });
   });
 });

@@ -17,16 +17,15 @@
 import React, { Component, PropTypes } from 'react';
 import { FlatButton } from 'material-ui';
 
+import { nodeOrStringProptype } from '~/util/proptypes';
+
 export default class Button extends Component {
   static propTypes = {
     backgroundColor: PropTypes.string,
     className: PropTypes.string,
     disabled: PropTypes.bool,
     icon: PropTypes.node,
-    label: PropTypes.oneOfType([
-      React.PropTypes.string,
-      React.PropTypes.object
-    ]),
+    label: nodeOrStringProptype(),
     onClick: PropTypes.func,
     primary: PropTypes.bool
   }
