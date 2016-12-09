@@ -20,6 +20,7 @@ import util from '~/api/util';
 
 export const ERRORS = {
   invalidAddress: 'address is an invalid network address',
+  invalidAmount: 'the supplied amount should be a valid positive number',
   duplicateAddress: 'the address is already in your address book',
   invalidChecksum: 'address has failed the checksum formatting',
   invalidName: 'name should not be blank and longer than 2',
@@ -27,7 +28,9 @@ export const ERRORS = {
   invalidCode: 'code should be the compiled hex string',
   invalidNumber: 'invalid number format',
   negativeNumber: 'input number should be positive',
-  decimalNumber: 'input number should not contain decimals'
+  decimalNumber: 'input number should not contain decimals',
+  gasException: 'the transaction will throw an exception with the current values',
+  gasBlockLimit: 'the transaction execution will exceed the block gas limit'
 };
 
 export function validateAbi (abi, api) {
@@ -130,6 +133,25 @@ export function validateName (name) {
   return {
     name,
     nameError
+  };
+}
+
+export function validatePositiveNumber (number) {
+  let numberError = null;
+
+  try {
+    const v = new BigNumber(number);
+
+    if (v.lt(0)) {
+      numberError = ERRORS.invalidAmount;
+    }
+  } catch (e) {
+    numberError = ERRORS.invalidAmount;
+  }
+
+  return {
+    number,
+    numberError
   };
 }
 
