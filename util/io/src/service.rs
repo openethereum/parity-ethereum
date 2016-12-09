@@ -394,7 +394,7 @@ impl<Message> IoChannel<Message> where Message: Send + Clone + Sync + 'static {
 /// 'Message' is a notification message type
 pub struct IoService<Message> where Message: Send + Sync + Clone + 'static {
 	panic_handler: Arc<PanicHandler>,
-	thread: Option<JoinHandle<()>>,
+	thread: Mutex<Option<JoinHandle<()>>>,
 	host_channel: Mutex<Sender<IoMessage<Message>>>,
 	handlers: Arc<RwLock<Slab<Arc<IoHandler<Message>>, HandlerId>>>,
 }
@@ -424,10 +424,24 @@ impl<Message> IoService<Message> where Message: Send + Sync + Clone + 'static {
 		});
 		Ok(IoService {
 			panic_handler: panic_handler,
-			thread: Some(thread),
+			thread: Mutex::new(Some(thread)),
 			host_channel: Mutex::new(channel),
 			handlers: handlers,
 		})
+	}
+
+	pub fn stop(&self) {
+		trace!(target: "shutdown", "[IoService] Closing...");
+		// Clear handlers so that shared pointers are not stuck on stack
+		// in Channel::send_sync
+		self.handlers.write().clear();
+		self.host_channel.lock().send(IoMessage::Shutdown).unwrap_or_else(|e| warn!("Error on IO service shutdown: {:?}", e));
+		if let Some(thread) = self.thread.lock().take() {
+			thread.join().unwrap_or_else(|e| {
+				debug!(target: "shutdown", "Error joining IO service event loop thread: {:?}", e);
+			});
+		}
+		trace!(target: "shutdown", "[IoService] Closed.");
 	}
 
 	/// Regiter an IO handler with the event loop.
@@ -452,17 +466,7 @@ impl<Message> IoService<Message> where Message: Send + Sync + Clone + 'static {
 
 impl<Message> Drop for IoService<Message> where Message: Send + Sync + Clone {
 	fn drop(&mut self) {
-		trace!(target: "shutdown", "[IoService] Closing...");
-		// Clear handlers so that shared pointers are not stuck on stack
-		// in Channel::send_sync
-		self.handlers.write().clear();
-		self.host_channel.lock().send(IoMessage::Shutdown).unwrap_or_else(|e| warn!("Error on IO service shutdown: {:?}", e));
-		if let Some(thread) = self.thread.take() {
-			thread.join().unwrap_or_else(|e| {
-				debug!(target: "shutdown", "Error joining IO service event loop thread: {:?}", e);
-			});
-		}
-		trace!(target: "shutdown", "[IoService] Closed.");
+		self.stop()
 	}
 }
 

@@ -42,3 +42,15 @@
   padding: 0.75em;
   text-align: center;
 }
+
+.columns {
+  display: flex;
+  flex-wrap: wrap;
+  position: relative;
+
+  &>div {
+    flex: 0 1 50%;
+    width: 50%;
+    position: relative;
+  }
+}

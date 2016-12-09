@@ -26,6 +26,10 @@ import styles from './gasPriceEditor.css';
 
 @observer
 export default class GasPriceEditor extends Component {
+  static contextTypes = {
+    api: PropTypes.object.isRequired
+  };
+
   static propTypes = {
     children: PropTypes.node,
     onChange: PropTypes.func,
@@ -35,9 +39,11 @@ export default class GasPriceEditor extends Component {
   static Store = Store;
 
   render () {
-    const { children, store } = this.props;
-    const { errorGas, errorPrice, estimated, gas, histogram, price, priceDefault } = store;
+    const { api } = this.context;
+    const { store } = this.props;
+    const { errorGas, errorPrice, errorTotal, estimated, gas, histogram, price, priceDefault, totalValue } = store;
 
+    const eth = api.util.fromWei(totalValue).toFormat();
     const gasLabel = `gas (estimated: ${new BigNumber(estimated).toFormat()})`;
     const priceLabel = `price (current: ${new BigNumber(priceDefault).toFormat()})`;
 
@@ -75,7 +81,12 @@ export default class GasPriceEditor extends Component {
           </div>
 
           <div className={ styles.row }>
-            { children }
+            <Input
+              disabled
+              label='total transaction amount'
+              hint='the total amount of the transaction'
+              error={ errorTotal }
+              value={ `${eth} ETH` } />
           </div>
         </div>
       </div>
