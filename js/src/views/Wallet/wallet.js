@@ -153,7 +153,13 @@ class Wallet extends Component {
       return null;
     }
 
-    const limit = api.util.fromWei(dailylimit.limit).toFormat(3);
+    const _limit = api.util.fromWei(dailylimit.limit);
+
+    if (_limit.equals(0)) {
+      return null;
+    }
+
+    const limit = _limit.toFormat(3);
     const spent = api.util.fromWei(dailylimit.spent).toFormat(3);
     const date = moment(dailylimit.last.toNumber() * 24 * 3600 * 1000);
 
