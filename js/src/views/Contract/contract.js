@@ -133,6 +133,7 @@ class Contract extends Component {
           <Header
             account={ account }
             balance={ balance }
+            isContract
           />
           <Queries
             contract={ contract }

@@ -127,6 +127,7 @@ class Wallet extends Component {
               className={ styles.header }
               account={ wallet }
               balance={ balance }
+              isContract
             >
               { this.renderInfos() }
             </Header>

@@ -31,12 +31,14 @@ export default class Header extends Component {
     account: PropTypes.object,
     balance: PropTypes.object,
     className: PropTypes.string,
-    children: PropTypes.node
+    children: PropTypes.node,
+    isContract: PropTypes.bool
   };
 
   static defaultProps = {
     className: '',
-    children: null
+    children: null,
+    isContract: false
   };
 
   render () {
@@ -88,7 +90,7 @@ export default class Header extends Component {
   }
 
   renderTxCount () {
-    const { balance } = this.props;
+    const { balance, isContract } = this.props;
 
     if (!balance) {
       return null;
@@ -100,9 +102,12 @@ export default class Header extends Component {
       return null;
     }
 
+    // Contracts always have one transaction, contract creation
+    const count = isContract && txCount.gt(0) ? txCount.minus(1) : txCount;
+
     return (
       <div className={ styles.infoline }>
-        { txCount.toFormat() } outgoing transactions
+        { count.toFormat() } outgoing transactions
       </div>
     );
   }
