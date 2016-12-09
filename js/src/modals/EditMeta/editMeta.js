@@ -19,7 +19,7 @@ import ContentClear from 'material-ui/svg-icons/content/clear';
 import ContentSave from 'material-ui/svg-icons/content/save';
 
 import { Button, Form, Input, InputChip, Modal } from '~/ui';
-import { validateName } from '../../util/validation';
+import { validateName } from '~/util/validation';
 
 export default class EditMeta extends Component {
   static contextTypes = {

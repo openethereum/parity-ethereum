@@ -160,4 +160,6 @@ pub trait Engine : Sync + Send {
 
 	/// Add an account provider useful for Engines that sign stuff.
 	fn register_account_provider(&self, _account_provider: Arc<AccountProvider>) {}
+	/// Trigger next step of the consensus engine.
+	fn step(&self) {}
 }

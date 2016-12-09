@@ -30,6 +30,10 @@ pub struct AuthorityRoundParams {
 	pub step_duration: Uint,
 	/// Valid authorities
 	pub authorities: Vec<Address>,
+	/// Starting step. Determined automatically if not specified.
+	/// To be used for testing only.
+	#[serde(rename="startStep")]
+	pub start_step: Option<Uint>,
 }
 
 /// Authority engine deserialization.
@@ -50,7 +54,8 @@ mod tests {
 			"params": {
 				"gasLimitBoundDivisor": "0x0400",
 				"stepDuration": "0x02",
-				"authorities" : ["0xc6d9d2cd449a754c494264e1809c50e34d64562b"]
+				"authorities" : ["0xc6d9d2cd449a754c494264e1809c50e34d64562b"],
+				"startStep" : 24
 			}
 		}"#;
 

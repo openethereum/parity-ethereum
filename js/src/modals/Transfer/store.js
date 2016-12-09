@@ -23,7 +23,8 @@ import { bytesToHex } from '~/api/util/format';
 import Contract from '~/api/contract';
 import ERRORS from './errors';
 import { ERROR_CODES } from '~/api/transport/error';
-import { DEFAULT_GAS, DEFAULT_GASPRICE, MAX_GAS_ESTIMATION } from '~/util/constants';
+import { DEFAULT_GAS, MAX_GAS_ESTIMATION } from '~/util/constants';
+import GasPriceStore from '~/ui/GasPriceEditor/store';
 
 const TITLES = {
   transfer: 'transfer details',
@@ -48,14 +49,6 @@ export default class TransferStore {
   @observable data = '';
   @observable dataError = null;
 
-  @observable gas = DEFAULT_GAS;
-  @observable gasError = null;
-
-  @observable gasEst = '0';
-  @observable gasLimitError = null;
-  @observable gasPrice = DEFAULT_GASPRICE;
-  @observable gasPriceError = null;
-
   @observable recipient = '';
   @observable recipientError = ERRORS.requireRecipient;
 
@@ -68,11 +61,8 @@ export default class TransferStore {
   @observable value = '0.0';
   @observable valueError = null;
 
-  gasPriceHistogram = {};
-
   account = null;
   balance = null;
-  gasLimit = null;
   onClose = null;
 
   senders = null;
@@ -80,6 +70,8 @@ export default class TransferStore {
 
   isWallet = false;
   wallet = null;
+
+  gasStore = null;
 
   @computed get steps () {
     const steps = [].concat(this.extras ? STAGES_EXTRA : STAGES_BASIC);
@@ -93,7 +85,7 @@ export default class TransferStore {
 
   @computed get isValid () {
     const detailsValid = !this.recipientError && !this.valueError && !this.totalError && !this.senderError;
-    const extrasValid = !this.gasError && !this.gasPriceError && !this.totalError;
+    const extrasValid = !this.gasStore.errorGas && !this.gasStore.errorPrice && !this.totalError;
     const verifyValid = !this.passwordError;
 
     switch (this.stage) {
@@ -118,10 +110,11 @@ export default class TransferStore {
     const { account, balance, gasLimit, senders, onClose, newError, sendersBalances } = props;
     this.account = account;
     this.balance = balance;
-    this.gasLimit = gasLimit;
     this.onClose = onClose;
     this.isWallet = account && account.wallet;
     this.newError = newError;
+
+    this.gasStore = new GasPriceStore(api, gasLimit);
 
     if (this.isWallet) {
       this.wallet = props.wallet;
@@ -177,26 +170,6 @@ export default class TransferStore {
       case 'value':
         return this._onUpdateValue(value);
     }
-  }
-
-  @action getDefaults = () => {
-    Promise
-      .all([
-        this.api.parity.gasPriceHistogram(),
-        this.api.eth.gasPrice()
-      ])
-      .then(([gasPriceHistogram, gasPrice]) => {
-        transaction(() => {
-          this.gasPrice = gasPrice.toString();
-          this.gasPriceDefault = gasPrice.toFormat();
-          this.gasPriceHistogram = gasPriceHistogram;
-
-          this.recalculate();
-        });
-      })
-      .catch((error) => {
-        console.warn('getDefaults', error);
-      });
   }
 
   @action onSend = () => {
@@ -281,25 +254,11 @@ export default class TransferStore {
   }
 
   @action _onUpdateGas = (gas) => {
-    const gasError = this._validatePositiveNumber(gas);
-
-    transaction(() => {
-      this.gas = gas;
-      this.gasError = gasError;
-
-      this.recalculate();
-    });
+    this.recalculate();
   }
 
   @action _onUpdateGasPrice = (gasPrice) => {
-    const gasPriceError = this._validatePositiveNumber(gasPrice);
-
-    transaction(() => {
-      this.gasPrice = gasPrice;
-      this.gasPriceError = gasPriceError;
-
-      this.recalculate();
-    });
+    this.recalculate();
   }
 
   @action _onUpdateRecipient = (recipient) => {
@@ -362,7 +321,7 @@ export default class TransferStore {
 
   @action recalculateGas = () => {
     if (!this.isValid) {
-      this.gas = 0;
+      this.gasStore.setGas('0');
       return this.recalculate();
     }
 
@@ -370,28 +329,20 @@ export default class TransferStore {
       .estimateGas()
       .then((gasEst) => {
         let gas = gasEst;
-        let gasLimitError = null;
 
         if (gas.gt(DEFAULT_GAS)) {
           gas = gas.mul(1.2);
         }
 
-        if (gas.gte(MAX_GAS_ESTIMATION)) {
-          gasLimitError = ERRORS.gasException;
-        } else if (gas.gt(this.gasLimit)) {
-          gasLimitError = ERRORS.gasBlockLimit;
-        }
-
         transaction(() => {
-          this.gas = gas.toFixed(0);
-          this.gasEst = gasEst.toFormat();
-          this.gasLimitError = gasLimitError;
+          this.gasStore.setEstimated(gasEst.toFixed(0));
+          this.gasStore.setGas(gas.toFixed(0));
 
           this.recalculate();
         });
       })
       .catch((error) => {
-        console.error('etimateGas', error);
+        console.warn('etimateGas', error);
         this.recalculate();
       });
   }
@@ -411,9 +362,9 @@ export default class TransferStore {
       return;
     }
 
-    const { gas, gasPrice, tag, valueAll, isEth, isWallet } = this;
+    const { tag, valueAll, isEth, isWallet } = this;
 
-    const gasTotal = new BigNumber(gasPrice || 0).mul(new BigNumber(gas || 0));
+    const gasTotal = new BigNumber(this.gasStore.price || 0).mul(new BigNumber(this.gasStore.gas || 0));
 
     const availableEth = new BigNumber(balance.tokens[0].value);
 
@@ -453,10 +404,12 @@ export default class TransferStore {
     }
 
     transaction(() => {
-      this.total = this.api.util.fromWei(totalEth).toString();
+      this.total = this.api.util.fromWei(totalEth).toFixed();
       this.totalError = totalError;
       this.value = value;
       this.valueError = valueError;
+      this.gasStore.setErrorTotal(totalError);
+      this.gasStore.setEthValue(totalEth);
     });
   }
 
@@ -522,8 +475,8 @@ export default class TransferStore {
     };
 
     if (!gas) {
-      options.gas = this.gas;
-      options.gasPrice = this.gasPrice;
+      options.gas = this.gasStore.gas;
+      options.gasPrice = this.gasStore.price;
     } else {
       options.gas = MAX_GAS_ESTIMATION;
     }

@@ -27,6 +27,8 @@ heapsize = "0.3"
 ethcore-ipc = { path = "../ipc/rpc" }
 semver = "0.2"
 ethcore-ipc-nano = { path = "../ipc/nano" }
+ethcore-devtools = { path = "../devtools" }
+ethkey = { path = "../ethkey" }
 parking_lot = "0.3"
 
 [features]

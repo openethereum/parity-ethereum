@@ -20,7 +20,7 @@ import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 import { observer } from 'mobx-react';
 
-import { txLink, addressLink } from '../../3rdparty/etherscan/links';
+import { txLink, addressLink } from '~/3rdparty/etherscan/links';
 
 import IdentityIcon from '../IdentityIcon';
 import IdentityName from '../IdentityName';

@@ -45,7 +45,7 @@ export default class Settings extends Component {
     }
 
     return (
-      <div className={ styles.layout }>
+      <div>
         <Actionbar title='settings' className={ styles.bar }>
           <Tabs className={ styles.tabs } value={ hash }>
             { this.renderTab(hash, 'views', <ImageRemoveRedEye />) }
