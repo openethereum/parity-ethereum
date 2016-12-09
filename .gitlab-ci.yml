@@ -422,13 +422,14 @@ test-rust-stable:
   image: ethcore/rust:stable
   before_script:
     - git submodule update --init --recursive
+    - export RUST_FILES_MODIFIED=$(git --no-pager diff --name-only $CI_BUILD_REF^ $CI_BUILD_REF | grep \.rs | wc -l)
     - export JS_FILES_MODIFIED=$(git --no-pager diff --name-only $CI_BUILD_REF^ $CI_BUILD_REF | grep \.js | wc -l)
-    - echo $JS_FILES_MODIFIED
-    - if [ "$JS_FILES_MODIFIED" = 0  ]; then echo "skip js test"; else ./js/scripts/install-deps.sh;fi
+    - echo "rust/js modified: $RUST_FILES_MODIFIED / $JS_FILES_MODIFIED"
+    - if [ "$JS_FILES_MODIFIED" = 0 ]; then echo "Skipping JS deps install since no JS files modified."; else ./js/scripts/install-deps.sh;fi
   script:
     - export RUST_BACKTRACE=1
-    - echo $JS_FILES_MODIFIED
-    - if [ "$JS_FILES_MODIFIED" = 0 ]; then echo "skip js test" && ./test.sh $CARGOFLAGS; else echo "skip rust test" && ./js/scripts/lint.sh && ./js/scripts/test.sh && ./js/scripts/build.sh; fi
+    - if [ "$JS_FILES_MODIFIED" = 0 ]; then echo "Skipping JS lint since no JS files modified."; else ./js/scripts/lint.sh && ./js/scripts/test.sh && ./js/scripts/build.sh; fi
+    - if [ "$RUST_FILES_MODIFIED" = 0 ]; then echo "Skipping Rust tests since no Rust files modified."; else ./test.sh $CARGOFLAGS; fi
   tags:
     - rust
     - rust-stable
@@ -439,11 +440,11 @@ js-test:
     - git submodule update --init --recursive
     - export JS_FILES_MODIFIED=$(git --no-pager diff --name-only $CI_BUILD_REF^ $CI_BUILD_REF | grep \.js | wc -l)
     - echo $JS_FILES_MODIFIED
-    - if [ "$JS_FILES_MODIFIED" = 0 ]; then echo "skip js test"; else ./js/scripts/install-deps.sh;fi
+    - if [ "$JS_FILES_MODIFIED" = 0 ]; then echo "Skipping JS deps install since no JS files modified."; else ./js/scripts/install-deps.sh;fi
   script:
     - export RUST_BACKTRACE=1
     - echo $JS_FILES_MODIFIED
-    - if [ "$JS_FILES_MODIFIED" = 0 ]; then echo "skip js test"; else echo "skip rust test" && ./js/scripts/lint.sh && ./js/scripts/test.sh && ./js/scripts/build.sh; fi
+    - if [ "$JS_FILES_MODIFIED" = 0 ]; then echo "Skipping JS lint since no JS files modified."; else ./js/scripts/lint.sh && ./js/scripts/test.sh && ./js/scripts/build.sh; fi
   tags:
     - rust
     - rust-stable
@@ -486,9 +487,9 @@ js-release:
   before_script:
     - export JS_FILES_MODIFIED=$(git --no-pager diff --name-only $CI_BUILD_REF^ $CI_BUILD_REF | grep \.js | wc -l)
     - echo $JS_FILES_MODIFIED
-    - if [ "$JS_FILES_MODIFIED" = 0  ]; then echo "skip js build"; else ./js/scripts/install-deps.sh;fi
+    - if [ "$JS_FILES_MODIFIED" = 0  ]; then echo "Skipping JS deps install since no JS files modified."; else ./js/scripts/install-deps.sh;fi
   script:
     - echo $JS_FILES_MODIFIED
-    - if [ "$JS_FILES_MODIFIED" = 0 ]; then echo "skip js build"; else ./js/scripts/build.sh && ./js/scripts/release.sh; fi
+    - if [ "$JS_FILES_MODIFIED" = 0 ]; then echo "Skipping JS rebuild since no JS files modified."; else ./js/scripts/build.sh && ./js/scripts/release.sh; fi
   tags:
     - javascript
