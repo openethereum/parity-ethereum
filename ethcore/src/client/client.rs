@@ -255,6 +255,11 @@ impl Client {
 		self.notify.write().push(Arc::downgrade(&target));
 	}
 
+	/// Returns engine reference.
+	pub fn engine(&self) -> &Engine {
+		&*self.engine
+	}
+
 	fn notify<F>(&self, f: F) where F: Fn(&ChainNotify) {
 		for np in self.notify.read().iter() {
 			if let Some(n) = np.upgrade() {
@@ -568,6 +573,11 @@ impl Client {
 		let txs = transactions.iter().filter_map(|bytes| UntrustedRlp::new(bytes).as_val().ok()).collect();
 		let results = self.miner.import_external_transactions(self, txs);
 		results.len()
+	}
+
+	/// Get shared miner reference.
+	pub fn miner(&self) -> Arc<Miner> {
+		self.miner.clone()
 	}
 
 	/// Handle messages from the IO queue

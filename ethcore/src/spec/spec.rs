@@ -274,7 +274,7 @@ impl Spec {
 	pub fn new_instant() -> Spec { load_bundled!("instant_seal") }
 
 	/// Create a new Spec with AuthorityRound consensus which does internal sealing (not requiring work).
-	/// Accounts with secrets "1".sha3() and "2".sha3() are the authorities.
+	/// Accounts with secrets "0".sha3() and "1".sha3() are the authorities.
 	pub fn new_test_round() -> Self { load_bundled!("authority_round") }
 
 	/// Create a new Spec with Tendermint consensus which does internal sealing (not requiring work).

@@ -17,4 +17,5 @@
 pub mod helpers;
 pub mod snapshot;
 mod chain;
+mod consensus;
 mod rpc;
