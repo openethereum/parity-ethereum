@@ -23,7 +23,7 @@ use ethcore::transaction::SignedTransaction;
 use ethcore::receipt::Receipt;
 
 use io::TimerToken;
-use network::{NetworkProtocolHandler, NetworkContext, NetworkError, PeerId};
+use network::{NetworkProtocolHandler, NetworkContext, PeerId};
 use rlp::{RlpStream, Stream, UntrustedRlp, View};
 use util::hash::H256;
 use util::{Bytes, Mutex, RwLock, U256};
@@ -111,6 +111,7 @@ pub struct ReqId(usize);
 struct PendingPeer {
 	sent_head: H256,
 	last_update: SteadyTime,
+	proto_version: u8,
 }
 
 // data about each peer.
@@ -121,6 +122,7 @@ struct Peer {
 	remote_flow: Option<(Buffer, FlowParams)>,
 	sent_head: H256, // last head we've given them.
 	last_update: SteadyTime,
+	proto_version: u8,
 }
 
 impl Peer {
@@ -507,17 +509,21 @@ impl LightProtocol {
 	}
 
 	// send status to a peer.
-	fn send_status(&self, peer: PeerId, io: &IoContext) -> Result<PendingPeer, NetworkError> {
-		let chain_info = self.provider.chain_info();
+	fn send_status(&self, peer: PeerId, io: &IoContext) -> Result<PendingPeer, Error> {
+		let proto_version = try!(io.protocol_version(peer).ok_or(Error::WrongNetwork));
 
-		// TODO: could update capabilities here.
+		if PROTOCOL_VERSIONS.iter().find(|x| **x == proto_version).is_none() {
+			return Err(Error::UnsupportedProtocolVersion(proto_version));
+		}
+		
+		let chain_info = self.provider.chain_info();
 
 		let status = Status {
 			head_td: chain_info.total_difficulty,
 			head_hash: chain_info.best_block_hash,
 			head_num: chain_info.best_block_number,
 			genesis_hash: chain_info.genesis_hash,
-			protocol_version: MAX_PROTOCOL_VERSION as u32,
+			protocol_version: proto_version as u32, // match peer proto version
 			network_id: self.network_id,
 			last_head: None,
 		};
@@ -530,6 +536,7 @@ impl LightProtocol {
 		Ok(PendingPeer {
 			sent_head: chain_info.best_block_hash,
 			last_update: SteadyTime::now(),
+			proto_version: proto_version,			
 		})
 	}
 
@@ -550,6 +557,10 @@ impl LightProtocol {
 			return Err(Error::WrongNetwork);
 		}
 
+		if Some(status.protocol_version as u8) != io.protocol_version(*peer) {
+			return Err(Error::BadProtocolVersion);
+		}
+
 		let remote_flow = flow_params.map(|params| (params.create_buffer(), params));
 
 		self.peers.write().insert(*peer, Mutex::new(Peer {
@@ -559,6 +570,7 @@ impl LightProtocol {
 			remote_flow: remote_flow,
 			sent_head: pending.sent_head,
 			last_update: pending.last_update,
+			proto_version: pending.proto_version,
 		}));
 
 		for handler in &self.handlers {

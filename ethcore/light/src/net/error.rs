@@ -58,6 +58,10 @@ pub enum Error {
 	UnsolicitedResponse,
 	/// Not a server.
 	NotServer,
+	/// Unsupported protocol version.
+	UnsupportedProtocolVersion(u8),
+	/// Bad protocol version.
+	BadProtocolVersion,
 }
 
 impl Error {
@@ -73,6 +77,8 @@ impl Error {
 			Error::UnknownPeer => Punishment::Disconnect,
 			Error::UnsolicitedResponse => Punishment::Disable,
 			Error::NotServer => Punishment::Disable,
+			Error::UnsupportedProtocolVersion(_) => Punishment::Disable,
+			Error::BadProtocolVersion => Punishment::Disable,
 		}
 	}
 }
@@ -101,6 +107,8 @@ impl fmt::Display for Error {
 			Error::UnknownPeer => write!(f, "Unknown peer"),
 			Error::UnsolicitedResponse => write!(f, "Peer provided unsolicited data"),
 			Error::NotServer => write!(f, "Peer not a server."),
+			Error::UnsupportedProtocolVersion(pv) => write!(f, "Unsupported protocol version: {}", pv),	
+			Error::BadProtocolVersion => write!(f, "Bad protocol version in handshake"),
 		}
 	}
 }

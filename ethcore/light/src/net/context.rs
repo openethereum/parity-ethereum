@@ -38,6 +38,9 @@ pub trait IoContext {
 
     /// Disable a peer -- this is a disconnect + a time-out.
     fn disable_peer(&self, peer: PeerId);
+
+    /// Get a peer's protocol version.
+    fn protocol_version(&self, peer: PeerId) -> Option<u8>;
 }
 
 impl<'a> IoContext for NetworkContext<'a> {
@@ -59,6 +62,10 @@ impl<'a> IoContext for NetworkContext<'a> {
 
     fn disable_peer(&self, peer: PeerId) {
         NetworkContext::disable_peer(self, peer);
+    }
+
+    fn protocol_version(&self, peer: PeerId) -> Option<u8> {
+        self.protocol_version(self.subprotocol_name(), peer)
     }
 }
 
