@@ -15,22 +15,25 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 import thunk from 'redux-thunk';
 
-import ErrorsMiddleware from '../ui/Errors/middleware';
-import SettingsMiddleware from '../views/Settings/middleware';
+import ErrorsMiddleware from '~/ui/Errors/middleware';
+import SettingsMiddleware from '~/views/Settings/middleware';
 import SignerMiddleware from './providers/signerMiddleware';
 
-import statusMiddleware from '../views/Status/middleware';
+import statusMiddleware from '~/views/Status/middleware';
+import CertificationsMiddleware from './providers/certifications/middleware';
 
 export default function (api) {
   const errors = new ErrorsMiddleware();
   const signer = new SignerMiddleware(api);
   const settings = new SettingsMiddleware();
   const status = statusMiddleware();
+  const certifications = new CertificationsMiddleware();
 
   const middleware = [
     settings.toMiddleware(),
     signer.toMiddleware(),
-    errors.toMiddleware()
+    errors.toMiddleware(),
+    certifications.toMiddleware()
   ];
 
   return middleware.concat(status, thunk);

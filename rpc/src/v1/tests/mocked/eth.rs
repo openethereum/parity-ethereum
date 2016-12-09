@@ -31,7 +31,7 @@ use ethcore::transaction::{Transaction, Action};
 use ethcore::miner::{ExternalMiner, MinerService};
 use ethsync::SyncState;
 
-use jsonrpc_core::IoHandler;
+use jsonrpc_core::{IoHandler, GenericIoHandler};
 use v1::{Eth, EthClient, EthClientOptions, EthFilter, EthFilterClient, EthSigning, SigningUnsafeClient};
 use v1::tests::helpers::{TestSyncProvider, Config, TestMinerService, TestSnapshotService};
 
@@ -354,18 +354,17 @@ fn rpc_eth_gas_price() {
 #[test]
 fn rpc_eth_accounts() {
 	let tester = EthTester::default();
-	let address = tester.accounts_provider.new_account("").unwrap();
-	let address2 = Address::default();
+	let _address = tester.accounts_provider.new_account("").unwrap();
 
-	tester.accounts_provider.set_address_name(address2, "Test Account".into()).unwrap();
-
+	// even with some account it should return empty list (no dapp detected)
 	let request = r#"{"jsonrpc": "2.0", "method": "eth_accounts", "params": [], "id": 1}"#;
-	let response = r#"{"jsonrpc":"2.0","result":[""#.to_owned()
-		+ &format!("0x{:?}", address2)
-		+ r#"",""#
-		+ &format!("0x{:?}", address)
-		+ r#""],"id":1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":[],"id":1}"#;
+	assert_eq!(tester.io.handle_request_sync(request), Some(response.to_owned()));
 
+	// when we add visible address it should return that.
+	tester.accounts_provider.set_dapps_addresses("app1".into(), vec![10.into()]).unwrap();
+	let request = r#"{"jsonrpc": "2.0", "method": "eth_accounts", "params": ["app1"], "id": 1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":["0x000000000000000000000000000000000000000a"],"id":1}"#;
 	assert_eq!(tester.io.handle_request_sync(request), Some(response.to_owned()));
 }
 
@@ -495,7 +494,7 @@ fn rpc_eth_pending_transaction_by_hash() {
 		tester.miner.pending_transactions.lock().insert(H256::zero(), tx);
 	}
 
-	let response = r#"{"jsonrpc":"2.0","result":{"blockHash":null,"blockNumber":null,"creates":null,"from":"0x0f65fe9276bc9a24ae7083ae28e2660ef72df99e","gas":"0x5208","gasPrice":"0x1","hash":"0x41df922fd0d4766fcc02e161f8295ec28522f329ae487f14d811e4b64c8d6e31","input":"0x","nonce":"0x0","publicKey":"0x7ae46da747962c2ee46825839c1ef9298e3bd2e70ca2938495c3693a485ec3eaa8f196327881090ff64cf4fbb0a48485d4f83098e189ed3b7a87d5941b59f789","r":"0x48b55bfa915ac795c431978d8a6a992b628d557da5ff759b307d495a36649353","raw":"0xf85f800182520894095e7baea6a6c7c4c2dfeb977efac326af552d870a801ba048b55bfa915ac795c431978d8a6a992b628d557da5ff759b307d495a36649353a0efffd310ac743f371de3b9f7f9cb56c0b28ad43601b4ab949f53faa07bd2c804","s":"0xefffd310ac743f371de3b9f7f9cb56c0b28ad43601b4ab949f53faa07bd2c804","to":"0x095e7baea6a6c7c4c2dfeb977efac326af552d87","transactionIndex":null,"v":0,"value":"0xa"},"id":1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":{"blockHash":null,"blockNumber":null,"creates":null,"from":"0x0f65fe9276bc9a24ae7083ae28e2660ef72df99e","gas":"0x5208","gasPrice":"0x1","hash":"0x41df922fd0d4766fcc02e161f8295ec28522f329ae487f14d811e4b64c8d6e31","input":"0x","networkId":null,"nonce":"0x0","publicKey":"0x7ae46da747962c2ee46825839c1ef9298e3bd2e70ca2938495c3693a485ec3eaa8f196327881090ff64cf4fbb0a48485d4f83098e189ed3b7a87d5941b59f789","r":"0x48b55bfa915ac795c431978d8a6a992b628d557da5ff759b307d495a36649353","raw":"0xf85f800182520894095e7baea6a6c7c4c2dfeb977efac326af552d870a801ba048b55bfa915ac795c431978d8a6a992b628d557da5ff759b307d495a36649353a0efffd310ac743f371de3b9f7f9cb56c0b28ad43601b4ab949f53faa07bd2c804","s":"0xefffd310ac743f371de3b9f7f9cb56c0b28ad43601b4ab949f53faa07bd2c804","standardV":"0x0","to":"0x095e7baea6a6c7c4c2dfeb977efac326af552d87","transactionIndex":null,"v":"0x1b","value":"0xa"},"id":1}"#;
 	let request = r#"{
 		"jsonrpc": "2.0",
 		"method": "eth_getTransactionByHash",
@@ -810,13 +809,16 @@ fn rpc_eth_sign_transaction() {
 		&format!("\"from\":\"0x{:?}\",", &address) +
 		r#""gas":"0x76c0","gasPrice":"0x9184e72a000","# +
 		&format!("\"hash\":\"0x{:?}\",", t.hash()) +
-		r#""input":"0x","nonce":"0x1","# +
+		r#""input":"0x","# +
+		&format!("\"networkId\":{},", t.network_id().map_or("null".to_owned(), |n| format!("{}", n))) +
+		r#""nonce":"0x1","# +
 		&format!("\"publicKey\":\"0x{:?}\",", t.public_key().unwrap()) +
-		&format!("\"r\":\"0x{}\",", signature.r().to_hex()) +
+		&format!("\"r\":\"0x{}\",", U256::from(signature.r()).to_hex()) +
 		&format!("\"raw\":\"0x{}\",", rlp.to_hex()) +
-		&format!("\"s\":\"0x{}\",", signature.s().to_hex()) +
+		&format!("\"s\":\"0x{}\",", U256::from(signature.s()).to_hex()) +
+		&format!("\"standardV\":\"0x{}\",", U256::from(t.standard_v()).to_hex()) +
 		r#""to":"0xd46e8dd67c5d32be8058bb8eb970870f07244567","transactionIndex":null,"# +
-		&format!("\"v\":{},", signature.v()) +
+		&format!("\"v\":\"0x{}\",", U256::from(t.original_v()).to_hex()) +
 		r#""value":"0x9184e72a""# +
 		r#"}},"id":1}"#;
 

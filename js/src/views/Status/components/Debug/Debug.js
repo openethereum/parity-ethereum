@@ -20,7 +20,7 @@ import AvPlay from 'material-ui/svg-icons/av/play-arrow';
 import AvReplay from 'material-ui/svg-icons/av/replay';
 import ReorderIcon from 'material-ui/svg-icons/action/reorder';
 
-import { Container, ContainerTitle } from '../../../../ui';
+import { Container } from '~/ui';
 
 import styles from './Debug.css';
 
@@ -42,9 +42,7 @@ export default class Debug extends Component {
     const { devLogsLevels } = nodeStatus;
 
     return (
-      <Container>
-        <ContainerTitle
-          title='Node Logs' />
+      <Container title='Node Logs'>
         { this.renderActions() }
         <h2 className={ styles.subheader }>
           { devLogsLevels || '-' }

@@ -21,13 +21,15 @@ use std::sync::Weak;
 use std::time::{UNIX_EPOCH, Duration};
 use util::*;
 use ethkey::{verify_address, Signature};
-use rlp::{UntrustedRlp, View, encode};
+use rlp::{UntrustedRlp, Rlp, View, encode};
 use account_provider::AccountProvider;
 use block::*;
 use spec::CommonParams;
 use engines::Engine;
 use header::Header;
 use error::{Error, BlockError};
+use blockchain::extras::BlockDetails;
+use views::HeaderView;
 use evm::Schedule;
 use ethjson;
 use io::{IoContext, IoHandler, TimerToken, IoService, IoChannel};
@@ -66,18 +68,20 @@ pub struct AuthorityRound {
 	params: CommonParams,
 	our_params: AuthorityRoundParams,
 	builtins: BTreeMap<Address, Builtin>,
-	transition_service: IoService<BlockArrived>,
+	transition_service: IoService<()>,
 	message_channel: Mutex<Option<IoChannel<ClientIoMessage>>>,
 	step: AtomicUsize,
 	proposed: AtomicBool,
+	account_provider: Mutex<Option<Arc<AccountProvider>>>,
+	password: RwLock<Option<String>>,
 }
 
 fn header_step(header: &Header) -> Result<usize, ::rlp::DecoderError> {
-	UntrustedRlp::new(&header.seal()[0]).as_val()
+	UntrustedRlp::new(&header.seal().get(0).expect("was either checked with verify_block_basic or is genesis; has 2 fields; qed (Make sure the spec file has a correct genesis seal)")).as_val()
 }
 
 fn header_signature(header: &Header) -> Result<Signature, ::rlp::DecoderError> {
-	UntrustedRlp::new(&header.seal()[1]).as_val::<H520>().map(Into::into)
+	UntrustedRlp::new(&header.seal().get(1).expect("was checked with verify_block_basic; has 2 fields; qed")).as_val::<H520>().map(Into::into)
 }
 
 trait AsMillis {
@@ -99,10 +103,12 @@ impl AuthorityRound {
 				params: params,
 				our_params: our_params,
 				builtins: builtins,
-				transition_service: try!(IoService::<BlockArrived>::start()),
+				transition_service: try!(IoService::<()>::start()),
 				message_channel: Mutex::new(None),
 				step: AtomicUsize::new(initial_step),
-				proposed: AtomicBool::new(false)
+				proposed: AtomicBool::new(false),
+				account_provider: Mutex::new(None),
+				password: RwLock::new(None),
 			});
 		let handler = TransitionHandler { engine: Arc::downgrade(&engine) };
 		try!(engine.transition_service.register_handler(Arc::new(handler)));
@@ -141,20 +147,17 @@ struct TransitionHandler {
 	engine: Weak<AuthorityRound>,
 }
 
-#[derive(Clone)]
-struct BlockArrived;
-
 const ENGINE_TIMEOUT_TOKEN: TimerToken = 23;
 
-impl IoHandler<BlockArrived> for TransitionHandler {
-	fn initialize(&self, io: &IoContext<BlockArrived>) {
+impl IoHandler<()> for TransitionHandler {
+	fn initialize(&self, io: &IoContext<()>) {
 		if let Some(engine) = self.engine.upgrade() {
 			io.register_timer_once(ENGINE_TIMEOUT_TOKEN, engine.remaining_step_duration().as_millis())
 				.unwrap_or_else(|e| warn!(target: "poa", "Failed to start consensus step timer: {}.", e))
 		}
 	}
 
-	fn timeout(&self, io: &IoContext<BlockArrived>, timer: TimerToken) {
+	fn timeout(&self, io: &IoContext<()>, timer: TimerToken) {
 		if timer == ENGINE_TIMEOUT_TOKEN {
 			if let Some(engine) = self.engine.upgrade() {
 				engine.step.fetch_add(1, AtomicOrdering::SeqCst);
@@ -206,10 +209,6 @@ impl Engine for AuthorityRound {
 		});
 	}
 
-	/// Apply the block reward on finalisation of the block.
-	/// This assumes that all uncles are valid uncles (i.e. of at least one generation before the current).
-	fn on_close_block(&self, _block: &mut ExecutedBlock) {}
-
 	fn is_sealer(&self, author: &Address) -> Option<bool> {
 		let p = &self.our_params;
 		Some(p.authorities.contains(author))
@@ -219,14 +218,14 @@ impl Engine for AuthorityRound {
 	///
 	/// This operation is synchronous and may (quite reasonably) not be available, in which `false` will
 	/// be returned.
-	fn generate_seal(&self, block: &ExecutedBlock, accounts: Option<&AccountProvider>) -> Option<Vec<Bytes>> {
+	fn generate_seal(&self, block: &ExecutedBlock) -> Option<Vec<Bytes>> {
 		if self.proposed.load(AtomicOrdering::SeqCst) { return None; }
 		let header = block.header();
 		let step = self.step();
 		if self.is_step_proposer(step, header.author()) {
-			if let Some(ap) = accounts {
+			if let Some(ref ap) = *self.account_provider.lock() {
 				// Account should be permanently unlocked, otherwise sealing will fail.
-				if let Ok(signature) = ap.sign(*header.author(), None, header.bare_hash()) {
+				if let Ok(signature) = ap.sign(*header.author(), self.password.read().clone(), header.bare_hash()) {
 					trace!(target: "poa", "generate_seal: Issuing a block for step {}.", step);
 					self.proposed.store(true, AtomicOrdering::SeqCst);
 					return Some(vec![encode(&step).to_vec(), encode(&(&*signature as &[u8])).to_vec()]);
@@ -272,7 +271,6 @@ impl Engine for AuthorityRound {
 	}
 
 	fn verify_block_family(&self, header: &Header, parent: &Header, _block: Option<&[u8]>) -> Result<(), Error> {
-		// Don't calculate difficulty for genesis blocks.
 		if header.number() == 0 {
 			return Err(From::from(BlockError::RidiculousNumber(OutOfBounds { min: Some(1), max: None, found: header.number() })));
 		}
@@ -284,10 +282,6 @@ impl Engine for AuthorityRound {
 			try!(Err(BlockError::DoubleVote(header.author().clone())));
 		}
 
-		// Check difficulty is correct given the two timestamps.
-		if header.difficulty() != parent.difficulty() {
-			return Err(From::from(BlockError::InvalidDifficulty(Mismatch { expected: *parent.difficulty(), found: *header.difficulty() })))
-		}
 		let gas_limit_divisor = self.our_params.gas_limit_bound_divisor;
 		let min_gas = parent.gas_limit().clone() - parent.gas_limit().clone() / gas_limit_divisor;
 		let max_gas = parent.gas_limit().clone() + parent.gas_limit().clone() / gas_limit_divisor;
@@ -306,9 +300,29 @@ impl Engine for AuthorityRound {
 		t.sender().map(|_|()) // Perform EC recovery and cache sender
 	}
 
+	fn is_new_best_block(&self, _best_total_difficulty: U256, best_header: HeaderView, _parent_details: &BlockDetails, new_header: &HeaderView) -> bool {
+		let new_number = new_header.number();
+		let best_number = best_header.number();
+		if new_number != best_number {
+			new_number > best_number
+		} else {
+ 			// Take the oldest step at given height.
+ 			let new_step: usize = Rlp::new(&new_header.seal()[0]).as_val();
+			let best_step: usize = Rlp::new(&best_header.seal()[0]).as_val();
+			new_step < best_step
+		}
+	}
+
 	fn register_message_channel(&self, message_channel: IoChannel<ClientIoMessage>) {
-		let mut guard = self.message_channel.lock();
-		*guard = Some(message_channel);
+		*self.message_channel.lock() = Some(message_channel);
+	}
+
+	fn set_signer(&self, _address: Address, password: String) {
+		*self.password.write() = Some(password);
+	}
+
+	fn register_account_provider(&self, account_provider: Arc<AccountProvider>) {
+		*self.account_provider.lock() = Some(account_provider);
 	}
 }
 
@@ -377,12 +391,11 @@ mod tests {
 	fn generates_seal_and_does_not_double_propose() {
 		let tap = AccountProvider::transient_provider();
 		let addr1 = tap.insert_account("1".sha3(), "1").unwrap();
-		tap.unlock_account_permanently(addr1, "1".into()).unwrap();
 		let addr2 = tap.insert_account("2".sha3(), "2").unwrap();
-		tap.unlock_account_permanently(addr2, "2".into()).unwrap();
 
 		let spec = Spec::new_test_round();
 		let engine = &*spec.engine;
+		engine.register_account_provider(Arc::new(tap));
 		let genesis_header = spec.genesis_header();
 		let mut db1 = get_temp_state_db().take();
 		spec.ensure_db_good(&mut db1, &TrieFactory::new(TrieSpec::Secure)).unwrap();
@@ -394,16 +407,18 @@ mod tests {
 		let b2 = OpenBlock::new(engine, Default::default(), false, db2, &genesis_header, last_hashes, addr2, (3141562.into(), 31415620.into()), vec![]).unwrap();
 		let b2 = b2.close_and_lock();
 
-		if let Some(seal) = engine.generate_seal(b1.block(), Some(&tap)) {
+		engine.set_signer(addr1, "1".into());
+		if let Some(seal) = engine.generate_seal(b1.block()) {
 			assert!(b1.clone().try_seal(engine, seal).is_ok());
 			// Second proposal is forbidden.
-			assert!(engine.generate_seal(b1.block(), Some(&tap)).is_none());
+			assert!(engine.generate_seal(b1.block()).is_none());
 		}
 
-		if let Some(seal) = engine.generate_seal(b2.block(), Some(&tap)) {
+		engine.set_signer(addr2, "2".into());
+		if let Some(seal) = engine.generate_seal(b2.block()) {
 			assert!(b2.clone().try_seal(engine, seal).is_ok());
 			// Second proposal is forbidden.
-			assert!(engine.generate_seal(b2.block(), Some(&tap)).is_none());
+			assert!(engine.generate_seal(b2.block()).is_none());
 		}
 	}
 

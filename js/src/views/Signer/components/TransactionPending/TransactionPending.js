@@ -19,7 +19,6 @@ import { observer } from 'mobx-react';
 
 import TransactionMainDetails from '../TransactionMainDetails';
 import TransactionPendingForm from '../TransactionPendingForm';
-import TransactionSecondaryDetails from '../TransactionSecondaryDetails';
 
 import styles from './TransactionPending.css';
 
@@ -29,13 +28,15 @@ import * as tUtil from '../util/transaction';
 export default class TransactionPending extends Component {
   static propTypes = {
     id: PropTypes.object.isRequired,
-    from: PropTypes.string.isRequired,
-    value: PropTypes.object.isRequired, // wei hex
-    gasPrice: PropTypes.object.isRequired, // wei hex
-    gas: PropTypes.object.isRequired, // hex
+    transaction: PropTypes.shape({
+      from: PropTypes.string.isRequired,
+      value: PropTypes.object.isRequired, // wei hex
+      gasPrice: PropTypes.object.isRequired, // wei hex
+      gas: PropTypes.object.isRequired, // hex
+      data: PropTypes.string, // hex
+      to: PropTypes.string // undefined if it's a contract
+    }).isRequired,
     date: PropTypes.instanceOf(Date).isRequired,
-    to: PropTypes.string, // undefined if it's a contract
-    data: PropTypes.string, // hex
     nonce: PropTypes.number,
     onConfirm: PropTypes.func.isRequired,
     onReject: PropTypes.func.isRequired,
@@ -50,7 +51,8 @@ export default class TransactionPending extends Component {
   };
 
   componentWillMount () {
-    const { gas, gasPrice, value, from, to, store } = this.props;
+    const { transaction, store } = this.props;
+    const { gas, gasPrice, value, from, to } = transaction;
 
     const fee = tUtil.getFee(gas, gasPrice); // BigNumber object
     const totalValue = tUtil.getTotalValue(fee, value);
@@ -62,29 +64,23 @@ export default class TransactionPending extends Component {
   }
 
   render () {
-    const { className, id, date, data, from, to, store } = this.props;
-    const { totalValue, gasPriceEthmDisplay, gasToDisplay } = this.state;
+    const { className, id, transaction, store, isTest } = this.props;
+    const { from, value } = transaction;
+    const { totalValue } = this.state;
 
     const fromBalance = store.balances[from];
-    const toBalance = store.balances[to];
 
     return (
       <div className={ `${styles.container} ${className || ''}` }>
         <TransactionMainDetails
-          { ...this.props }
-          { ...this.state }
+          id={ id }
+          value={ value }
+          from={ from }
+          isTest={ isTest }
           fromBalance={ fromBalance }
-          toBalance={ toBalance }
           className={ styles.transactionDetails }
-          totalValue={ totalValue }>
-          <TransactionSecondaryDetails
-            id={ id }
-            date={ date }
-            data={ data }
-            gasPriceEthmDisplay={ gasPriceEthmDisplay }
-            gasToDisplay={ gasToDisplay }
-          />
-        </TransactionMainDetails>
+          transaction={ transaction }
+          totalValue={ totalValue } />
         <TransactionPendingForm
           address={ from }
           isSending={ this.props.isSending }
@@ -96,7 +92,8 @@ export default class TransactionPending extends Component {
   }
 
   onConfirm = data => {
-    const { id, gasPrice } = this.props;
+    const { id, transaction } = this.props;
+    const { gasPrice } = transaction;
     const { password, wallet } = data;
 
     this.props.onConfirm({ id, password, wallet, gasPrice });

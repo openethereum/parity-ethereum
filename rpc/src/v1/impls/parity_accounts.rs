@@ -25,7 +25,7 @@ use ethcore::client::MiningBlockChainClient;
 
 use jsonrpc_core::{Value, Error, to_value};
 use v1::traits::ParityAccounts;
-use v1::types::{H160 as RpcH160, H256 as RpcH256};
+use v1::types::{H160 as RpcH160, H256 as RpcH256, DappId};
 use v1::helpers::errors;
 
 /// Account management (personal) rpc implementation.
@@ -57,7 +57,7 @@ impl<C: 'static> ParityAccounts for ParityAccountsClient<C> where C: MiningBlock
 		let info = try!(store.accounts_info().map_err(|e| errors::account("Could not fetch account info.", e)));
 		let other = store.addresses_info().expect("addresses_info always returns Ok; qed");
 
-		Ok(info.into_iter().chain(other.into_iter()).map(|(a, v)| {
+		Ok(other.into_iter().chain(info.into_iter()).map(|(a, v)| {
 			let m = map![
 				"name".to_owned() => to_value(&v.name),
 				"meta".to_owned() => to_value(&v.meta),
@@ -126,6 +126,16 @@ impl<C: 'static> ParityAccounts for ParityAccountsClient<C> where C: MiningBlock
 			.map_err(|e| errors::account("Could not delete account.", e))
 	}
 
+	fn remove_address(&self, addr: RpcH160) -> Result<bool, Error> {
+		try!(self.active());
+		let store = take_weak!(self.accounts);
+		let addr: Address = addr.into();
+
+		store.remove_address(addr)
+			.expect("remove_address always returns Ok; qed");
+		Ok(true)
+	}
+
 	fn set_account_name(&self, addr: RpcH160, name: String) -> Result<bool, Error> {
 		try!(self.active());
 		let store = take_weak!(self.accounts);
@@ -150,6 +160,15 @@ impl<C: 'static> ParityAccounts for ParityAccountsClient<C> where C: MiningBlock
 
 	fn set_account_visibility(&self, _address: RpcH160, _dapp: RpcH256, _visible: bool) -> Result<bool, Error> {
 		Ok(false)
+	}
+
+	fn set_dapps_addresses(&self, dapp: DappId, addresses: Vec<RpcH160>) -> Result<bool, Error> {
+		let store = take_weak!(self.accounts);
+		let addresses = addresses.into_iter().map(Into::into).collect();
+
+		store.set_dapps_addresses(dapp.into(), addresses)
+			.map_err(|e| errors::account("Couldn't set dapps addresses.", e))
+			.map(|_| true)
 	}
 
 	fn import_geth_accounts(&self, addresses: Vec<RpcH160>) -> Result<Vec<RpcH160>, Error> {

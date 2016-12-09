@@ -92,7 +92,9 @@ export default class Store {
 
     Promise
       .all(txhashes.map((txhash) => this._api.eth.getTransactionByHash(txhash)))
-      .then((transactions) => {
+      .then((_transactions) => {
+        const transactions = _transactions.filter((tx) => tx);
+
         this.addTransactions(
           transactions.reduce((transactions, tx, index) => {
             transactions[txhashes[index]] = tx;

@@ -27,7 +27,8 @@ export default class RequestPending extends Component {
     isSending: PropTypes.bool.isRequired,
     date: PropTypes.instanceOf(Date).isRequired,
     payload: PropTypes.oneOfType([
-      PropTypes.shape({ transaction: PropTypes.object.isRequired }),
+      PropTypes.shape({ signTransaction: PropTypes.object.isRequired }),
+      PropTypes.shape({ sendTransaction: PropTypes.object.isRequired }),
       PropTypes.shape({ sign: PropTypes.object.isRequired })
     ]).isRequired,
     className: PropTypes.string,
@@ -64,9 +65,8 @@ export default class RequestPending extends Component {
       );
     }
 
-    if (payload.transaction) {
-      const { transaction } = payload;
-
+    const transaction = payload.sendTransaction || payload.signTransaction;
+    if (transaction) {
       return (
         <TransactionPending
           className={ className }
@@ -74,12 +74,7 @@ export default class RequestPending extends Component {
           onReject={ onReject }
           isSending={ isSending }
           id={ id }
-          gasPrice={ transaction.gasPrice }
-          gas={ transaction.gas }
-          data={ transaction.data }
-          from={ transaction.from }
-          to={ transaction.to }
-          value={ transaction.value }
+          transaction={ transaction }
           date={ date }
           isTest={ isTest }
           store={ store }

@@ -149,6 +149,10 @@ Sealing/Mining Options:
                            for sending block rewards from sealed blocks.
                            NOTE: MINING WILL NOT WORK WITHOUT THIS OPTION.
                            (default: {flag_author:?})
+  --engine-signer ADDRESS  Specify the address which should be used to
+                           sign consensus messages and issue blocks.
+                           Relevant only to non-PoW chains.
+                           (default: {flag_engine_signer:?})
   --force-sealing          Force the node to author new blocks as if it were
                            always sealing/mining.
                            (default: {flag_force_sealing})
@@ -250,7 +254,7 @@ Footprint Options:
                            the state cache (default: {flag_cache_size_state}).
   --cache-size MB          Set total amount of discretionary memory to use for
                            the entire system, overrides other cache and queue
-                           options.a (default: {flag_cache_size:?})
+                           options. (default: {flag_cache_size:?})
   --fast-and-loose         Disables DB WAL, which gives a significant speed up
                            but means an unclean exit is unrecoverable. (default: {flag_fast_and_loose})
   --db-compaction TYPE     Database compaction type. TYPE may be one of:
@@ -261,6 +265,11 @@ Footprint Options:
                            of all accounts and storage keys. Doubles the size
                            of the state database. BOOL may be one of on, off
                            or auto. (default: {flag_fat_db})
+  --scale-verifiers        Automatically scale amount of verifier threads based on 
+                           workload. Not guaranteed to be faster.
+                           (default: {flag_scale_verifiers})
+  --num-verifiers INT      Amount of verifier threads to use or to begin with, if verifier
+                           auto-scaling is enabled. (default: {flag_num_verifiers:?})
 
 Import/Export Options:
   --from BLOCK             Export from block BLOCK, which may be an index or

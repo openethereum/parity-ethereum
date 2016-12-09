@@ -192,7 +192,7 @@ pub struct SyncStatus {
 	/// Syncing protocol version. That's the maximum protocol version we connect to.
 	pub protocol_version: u8,
 	/// The underlying p2p network version.
-	pub network_id: usize,
+	pub network_id: u64,
 	/// `BlockChain` height for the moment the sync started.
 	pub start_block_number: BlockNumber,
 	/// Last fully downloaded and imported block number (if any).
@@ -273,7 +273,7 @@ struct PeerInfo {
 	/// Peer chain genesis hash
 	genesis: H256,
 	/// Peer network id
-	network_id: usize,
+	network_id: u64,
 	/// Peer best block hash
 	latest_hash: H256,
 	/// Peer total difficulty if known
@@ -341,7 +341,7 @@ pub struct ChainSync {
 	/// Last propagated block number
 	last_sent_block_number: BlockNumber,
 	/// Network ID
-	network_id: usize,
+	network_id: u64,
 	/// Optional fork block to check
 	fork_block: Option<(BlockNumber, H256)>,
 	/// Snapshot downloader.
@@ -1426,7 +1426,10 @@ impl ChainSync {
 		packet.append(&chain.best_block_hash);
 		packet.append(&chain.genesis_hash);
 		if warp_protocol {
-			let manifest = io.snapshot_service().manifest();
+			let manifest = match self.old_blocks.is_some() {
+				true => None,
+				false => io.snapshot_service().manifest(),
+			};
 			let block_number = manifest.as_ref().map_or(0, |m| m.block_number);
 			let manifest_hash = manifest.map_or(H256::new(), |m| m.into_rlp().sha3());
 			packet.append(&manifest_hash);

@@ -20,6 +20,7 @@ import SignatureReg from './signaturereg';
 import TokenReg from './tokenreg';
 import GithubHint from './githubhint';
 import * as smsVerification from './sms-verification';
+import BadgeReg from './badgereg';
 
 let instance = null;
 
@@ -33,6 +34,7 @@ export default class Contracts {
     this._signaturereg = new SignatureReg(api, this._registry);
     this._tokenreg = new TokenReg(api, this._registry);
     this._githubhint = new GithubHint(api, this._registry);
+    this.badgeReg = new BadgeReg(api, this._registry);
   }
 
   get registry () {

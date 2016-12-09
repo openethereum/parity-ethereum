@@ -17,7 +17,7 @@
 import React, { Component, PropTypes } from 'react';
 import { MenuItem } from 'material-ui';
 
-import { Select, Container, ContainerTitle } from '../../../ui';
+import { Select, Container } from '~/ui';
 
 import layout from '../layout.css';
 
@@ -43,8 +43,7 @@ export default class Parity extends Component {
 
   render () {
     return (
-      <Container>
-        <ContainerTitle title='Parity' />
+      <Container title='Parity'>
         <div className={ layout.layout }>
           <div className={ layout.overview }>
             <div>Control the Parity node settings and mode of operation via this interface.</div>

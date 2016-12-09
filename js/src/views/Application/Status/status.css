@@ -15,45 +15,46 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 .status {
-  padding: 0.5em;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  padding: .4em .5em;
   font-size: x-small;
   color: #ccc;
-  background-color: rgba(0, 0, 0, 0.2)
-}
-
-.title {
-  margin: 0 0.5em 0 2em;
+  background-color: rgba(0, 0, 0, 0.8);
 }
 
 .enode {
   word-wrap: break-word;
-  float: right;
 }
 
 .enode > * {
   display: inline-block;
-  margin: 0.25em 0.5em;
-  vertical-align: top;
+  margin: 0 .25em;
+  vertical-align: middle;
 }
-
-.block {
+.enode > :last-child {
+  margin-right: 0;
 }
 
 .netinfo {
   display: flex;
+  flex-grow: 1;
   align-items: center;
-  color: #ddd;  
+  color: #ddd;
 }
 
 .netinfo > * {
-  display: inline-block;
   margin-left: 1em;
 }
 
 .network {
   padding: 0.25em 0.5em;
-  display: inline-block;
-  border-radius: 4px;
+  border-radius: .4em;
   line-height: 1.2;
   text-transform: uppercase;
 }
@@ -64,15 +65,4 @@
 
 .networktest {
   background: rgb(136, 0, 0);
-}
-
-.peers {
-}
-
-.version {
-  padding: 0.25em 0.5em;
-  float: left;
-}
-
-.syncing {
 }

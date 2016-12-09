@@ -20,13 +20,13 @@ import { bindActionCreators } from 'redux';
 import ActionDelete from 'material-ui/svg-icons/action/delete';
 import ContentCreate from 'material-ui/svg-icons/content/create';
 
-import { EditMeta } from '../../modals';
-import { Actionbar, Button, Page } from '../../ui';
+import { EditMeta } from '~/modals';
+import { Actionbar, Button, Page } from '~/ui';
 
 import Header from '../Account/Header';
 import Transactions from '../Account/Transactions';
 import Delete from './Delete';
-import { setVisibleAccounts } from '../../redux/providers/personalActions';
+import { setVisibleAccounts } from '~/redux/providers/personalActions';
 
 import styles from './address.css';
 
@@ -121,7 +121,7 @@ class Address extends Component {
     return (
       <Actionbar
         title='Address Information'
-        buttons={ !contact || contact.meta.deleted ? [] : buttons } />
+        buttons={ !contact ? [] : buttons } />
     );
   }
 

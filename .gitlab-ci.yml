@@ -20,7 +20,7 @@ linux-stable:
     - stable
     - triggers
   script:
-    - cargo build --release $CARGOFLAGS
+    - cargo build -j $(nproc) --release $CARGOFLAGS
     - strip target/release/parity
     - md5sum target/release/parity > parity.md5
     - sh scripts/deb-build.sh amd64
@@ -52,7 +52,7 @@ linux-beta:
     - stable
     - triggers
   script:
-    - cargo build --release $CARGOFLAGS
+    - cargo build -j $(nproc) --release $CARGOFLAGS
     - strip target/release/parity
   tags:
     - rust
@@ -71,7 +71,7 @@ linux-nightly:
     - stable
     - triggers
   script:
-    - cargo build --release $CARGOFLAGS
+    - cargo build -j $(nproc) --release $CARGOFLAGS
     - strip target/release/parity
   tags:
     - rust
@@ -92,7 +92,7 @@ linux-centos:
   script:
     - export CXX="g++"
     - export CC="gcc"
-    - cargo build --release $CARGOFLAGS
+    - cargo build -j $(nproc) --release $CARGOFLAGS
     - strip target/release/parity
     - md5sum target/release/parity > parity.md5
     - aws configure set aws_access_key_id $s3_key
@@ -119,7 +119,7 @@ linux-i686:
   script:
     - export HOST_CC=gcc
     - export HOST_CXX=g++
-    - cargo build --target i686-unknown-linux-gnu --release $CARGOFLAGS
+    - cargo build -j $(nproc) --target i686-unknown-linux-gnu --release $CARGOFLAGS
     - strip target/i686-unknown-linux-gnu/release/parity
     - md5sum target/i686-unknown-linux-gnu/release/parity > parity.md5
     - sh scripts/deb-build.sh i386
@@ -161,7 +161,7 @@ linux-armv7:
     - echo "[target.armv7-unknown-linux-gnueabihf]" >> .cargo/config
     - echo "linker= \"arm-linux-gnueabihf-gcc\"" >> .cargo/config
     - cat .cargo/config
-    - cargo build --target armv7-unknown-linux-gnueabihf --release $CARGOFLAGS
+    - cargo build -j $(nproc) --target armv7-unknown-linux-gnueabihf --release $CARGOFLAGS
     - arm-linux-gnueabihf-strip target/armv7-unknown-linux-gnueabihf/release/parity
     - md5sum target/armv7-unknown-linux-gnueabihf/release/parity > parity.md5
     - sh scripts/deb-build.sh armhf
@@ -203,7 +203,7 @@ linux-arm:
     - echo "[target.arm-unknown-linux-gnueabihf]" >> .cargo/config
     - echo "linker= \"arm-linux-gnueabihf-gcc\"" >> .cargo/config
     - cat .cargo/config
-    - cargo build --target arm-unknown-linux-gnueabihf --release $CARGOFLAGS
+    - cargo build -j $(nproc) --target arm-unknown-linux-gnueabihf --release $CARGOFLAGS
     - arm-linux-gnueabihf-strip target/arm-unknown-linux-gnueabihf/release/parity
     - md5sum target/arm-unknown-linux-gnueabihf/release/parity > parity.md5
     - sh scripts/deb-build.sh armhf
@@ -245,7 +245,7 @@ linux-armv6:
     - echo "[target.arm-unknown-linux-gnueabi]" >> .cargo/config
     - echo "linker= \"arm-linux-gnueabi-gcc\"" >> .cargo/config
     - cat .cargo/config
-    - cargo build --target arm-unknown-linux-gnueabi --release $CARGOFLAGS
+    - cargo build -j $(nproc) --target arm-unknown-linux-gnueabi --release $CARGOFLAGS
     - arm-linux-gnueabi-strip target/arm-unknown-linux-gnueabi/release/parity
     - md5sum target/arm-unknown-linux-gnueabi/release/parity > parity.md5
     - aws configure set aws_access_key_id $s3_key
@@ -280,7 +280,7 @@ linux-aarch64:
     - echo "[target.aarch64-unknown-linux-gnu]" >> .cargo/config
     - echo "linker= \"aarch64-linux-gnu-gcc\"" >> .cargo/config
     - cat .cargo/config
-    - cargo build --target aarch64-unknown-linux-gnu --release $CARGOFLAGS
+    - cargo build -j $(nproc) --target aarch64-unknown-linux-gnu --release $CARGOFLAGS
     - aarch64-linux-gnu-strip target/aarch64-unknown-linux-gnu/release/parity
     - md5sum target/aarch64-unknown-linux-gnu/release/parity > parity.md5
     - sh scripts/deb-build.sh arm64
@@ -312,8 +312,8 @@ darwin:
     - stable
     - triggers
   script:
-    - cargo build --release -p ethstore $CARGOFLAGS
-    - cargo build --release $CARGOFLAGS
+    - cargo build -j 8 --release -p ethstore #$CARGOFLAGS
+    - cargo build -j 8 --release #$CARGOFLAGS
     - rm -rf parity.md5
     - md5sum target/release/parity > parity.md5
     - packagesbuild -v mac/Parity.pkgproj
@@ -350,7 +350,7 @@ windows:
     - set RUST_BACKTRACE=1
     - set RUSTFLAGS=%RUSTFLAGS% 
     - rustup default stable-x86_64-pc-windows-msvc
-    - cargo build --release %CARGOFLAGS%
+    - cargo build -j 8 --release #%CARGOFLAGS%
     - curl -sL --url "https://github.com/ethcore/win-build/raw/master/SimpleFC.dll" -o nsis\SimpleFC.dll
     - curl -sL --url "https://github.com/ethcore/win-build/raw/master/vc_redist.x64.exe" -o nsis\vc_redist.x64.exe
     - signtool sign /f %keyfile% /p %certpass% target\release\parity.exe
@@ -401,7 +401,7 @@ test-darwin:
     - git submodule update --init --recursive
   script:
     - export RUST_BACKTRACE=1
-    - ./test.sh $CARGOFLAGS --no-release
+    - ./test.sh $CARGOFLAGS
   tags:
     - osx
   allow_failure: true
@@ -413,7 +413,7 @@ test-windows:
     - git submodule update --init --recursive
   script:
     - set RUST_BACKTRACE=1
-    - cargo test --features json-tests -p rlp -p ethash -p ethcore -p ethcore-bigint -p ethcore-dapps -p ethcore-rpc -p ethcore-signer -p ethcore-util -p ethcore-network -p ethcore-io -p ethkey -p ethstore -p ethsync -p ethcore-ipc -p ethcore-ipc-tests -p ethcore-ipc-nano -p parity %CARGOFLAGS% --verbose --release
+    - cargo -j 8 test --features json-tests -p rlp -p ethash -p ethcore -p ethcore-bigint -p ethcore-dapps -p ethcore-rpc -p ethcore-signer -p ethcore-util -p ethcore-network -p ethcore-io -p ethkey -p ethstore -p ethsync -p ethcore-ipc -p ethcore-ipc-tests -p ethcore-ipc-nano -p parity %CARGOFLAGS% --verbose --release
   tags:
     - rust-windows
   allow_failure: true
@@ -428,7 +428,7 @@ test-rust-stable:
   script:
     - export RUST_BACKTRACE=1
     - echo $JS_FILES_MODIFIED
-    - if [ "$JS_FILES_MODIFIED" = 0 ]; then echo "skip js test"&./test.sh $CARGOFLAGS --no-release; else echo "skip rust test"&./js/scripts/lint.sh&./js/scripts/test.sh&./js/scripts/build.sh; fi
+    - if [ "$JS_FILES_MODIFIED" = 0 ]; then echo "skip js test"&./test.sh $CARGOFLAGS; else echo "skip rust test"&./js/scripts/lint.sh&./js/scripts/test.sh&./js/scripts/build.sh; fi
   tags:
     - rust
     - rust-stable
@@ -457,7 +457,7 @@ test-rust-beta:
   script:
     - export RUST_BACKTRACE=1
     - echo $JS_FILES_MODIFIED
-    - ./test.sh $CARGOFLAGS --no-release
+    - ./test.sh $CARGOFLAGS
   tags:
     - rust
     - rust-beta
@@ -471,7 +471,7 @@ test-rust-nightly:
     - git submodule update --init --recursive
   script:
     - export RUST_BACKTRACE=1
-    - ./test.sh $CARGOFLAGS --no-release
+    - ./test.sh $CARGOFLAGS
   tags:
     - rust
     - rust-nightly

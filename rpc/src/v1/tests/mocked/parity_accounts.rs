@@ -19,7 +19,7 @@ use std::sync::Arc;
 use ethcore::account_provider::AccountProvider;
 use ethcore::client::TestBlockChainClient;
 
-use jsonrpc_core::IoHandler;
+use jsonrpc_core::{IoHandler, GenericIoHandler};
 use v1::{ParityAccounts, ParityAccountsClient};
 
 struct ParityAccountsTester {
@@ -117,6 +117,21 @@ fn should_be_able_to_set_meta() {
 }
 
 #[test]
+fn rpc_parity_set_dapps_accounts() {
+	// given
+	let tester = setup();
+	assert_eq!(tester.accounts.dapps_addresses("app1".into()).unwrap(), vec![]);
+
+	// when
+	let request = r#"{"jsonrpc": "2.0", "method": "parity_setDappsAddresses","params":["app1",["0x000000000000000000000000000000000000000a"]], "id": 1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":true,"id":1}"#;
+	assert_eq!(tester.io.handle_request_sync(request), Some(response.to_owned()));
+
+	// then
+	assert_eq!(tester.accounts.dapps_addresses("app1".into()).unwrap(), vec![10.into()]);
+}
+
+#[test]
 fn should_be_able_to_kill_account() {
 	let tester = setup();
 	tester.accounts.new_account("password").unwrap();
@@ -138,3 +153,31 @@ fn should_be_able_to_kill_account() {
 	assert_eq!(accounts.len(), 0);
 }
 
+#[test]
+fn should_be_able_to_remove_address() {
+	let tester = setup();
+
+	// add an address
+	let request = r#"{"jsonrpc": "2.0", "method": "parity_setAccountName", "params": ["0x000baba1000baba2000baba3000baba4000baba5", "Test"], "id": 1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":true,"id":1}"#;
+	let res = tester.io.handle_request_sync(&request);
+	assert_eq!(res, Some(response.into()));
+
+	// verify it exists
+	let request = r#"{"jsonrpc": "2.0", "method": "parity_accountsInfo", "params": [], "id": 2}"#;
+	let res = tester.io.handle_request_sync(request);
+	let response = r#"{"jsonrpc":"2.0","result":{"0x000baba1000baba2000baba3000baba4000baba5":{"meta":"{}","name":"Test","uuid":null}},"id":2}"#;
+	assert_eq!(res, Some(response.into()));
+
+	// remove the address
+	let request = r#"{"jsonrpc": "2.0", "method": "parity_removeAddress", "params": ["0x000baba1000baba2000baba3000baba4000baba5"], "id": 3}"#;
+	let response = r#"{"jsonrpc":"2.0","result":true,"id":3}"#;
+	let res = tester.io.handle_request_sync(&request);
+	assert_eq!(res, Some(response.into()));
+
+	// verify empty
+	let request = r#"{"jsonrpc": "2.0", "method": "parity_accountsInfo", "params": [], "id": 4}"#;
+	let res = tester.io.handle_request_sync(request);
+	let response = r#"{"jsonrpc":"2.0","result":{},"id":4}"#;
+	assert_eq!(res, Some(response.into()));
+}

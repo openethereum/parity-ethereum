@@ -19,7 +19,7 @@ import ReactDOM from 'react-dom';
 import { FloatingActionButton } from 'material-ui';
 import EditorAttachFile from 'material-ui/svg-icons/editor/attach-file';
 
-import { Form, Input } from '../../../ui';
+import { Form, Input } from '~/ui';
 
 import styles from '../createAccount.css';
 

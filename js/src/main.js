@@ -17,7 +17,7 @@
 import React, { Component, PropTypes } from 'react';
 import { Redirect, Router, Route } from 'react-router';
 
-import { Accounts, Account, Addresses, Address, Application, Contract, Contracts, WriteContract, Dapp, Dapps, Settings, SettingsBackground, SettingsParity, SettingsProxy, SettingsViews, Signer, Status } from './views';
+import { Accounts, Account, Addresses, Address, Application, Contract, Contracts, WriteContract, Wallet, Dapp, Dapps, Settings, SettingsBackground, SettingsParity, SettingsProxy, SettingsViews, Signer, Status } from '~/views';
 
 import styles from './reset.css';
 
@@ -37,6 +37,7 @@ export default class MainApplication extends Component {
         <Route path='/' component={ Application }>
           <Route path='accounts' component={ Accounts } />
           <Route path='account/:address' component={ Account } />
+          <Route path='wallet/:address' component={ Wallet } />
           <Route path='addresses' component={ Addresses } />
           <Route path='address/:address' component={ Address } />
           <Route path='apps' component={ Dapps } />

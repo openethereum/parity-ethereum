@@ -12,7 +12,6 @@
 	"genesis": {
 		"seal": {
 			"generic": {
-				"fields": 0,
 				"rlp": "0x0"
 			}
 		},

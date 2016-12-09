@@ -30,7 +30,7 @@ use devtools::RandomTempPath;
 use util::Hashable;
 use io::IoChannel;
 use util::{U256, H256, Uint, Address};
-use jsonrpc_core::IoHandler;
+use jsonrpc_core::{IoHandler, GenericIoHandler};
 use ethjson::blockchain::BlockChain;
 
 use v1::impls::{EthClient, SigningUnsafeClient};
@@ -116,6 +116,7 @@ impl EthTester {
 	fn from_spec(spec: Spec) -> Self {
 		let dir = RandomTempPath::new();
 		let account_provider = account_provider();
+		spec.engine.register_account_provider(account_provider.clone());
 		let miner_service = miner_service(&spec, account_provider.clone());
 		let snapshot_service = snapshot_service();
 

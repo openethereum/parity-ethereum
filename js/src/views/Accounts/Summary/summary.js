@@ -17,8 +17,12 @@
 import React, { Component, PropTypes } from 'react';
 import { Link } from 'react-router';
 import { isEqual } from 'lodash';
+import ReactTooltip from 'react-tooltip';
 
-import { Balance, Container, ContainerTitle, IdentityIcon, IdentityName, Tags, Input } from '../../../ui';
+import { Balance, Container, ContainerTitle, IdentityIcon, IdentityName, Tags, Input } from '~/ui';
+import { nullableProptype } from '~/util/proptypes';
+
+import styles from '../accounts.css';
 
 export default class Summary extends Component {
   static contextTypes = {
@@ -31,7 +35,8 @@ export default class Summary extends Component {
     link: PropTypes.string,
     name: PropTypes.string,
     noLink: PropTypes.bool,
-    handleAddSearchToken: PropTypes.func
+    handleAddSearchToken: PropTypes.func,
+    owners: nullableProptype(PropTypes.array)
   };
 
   static defaultProps = {
@@ -100,8 +105,38 @@ export default class Summary extends Component {
           title={ this.renderLink() }
           byline={ addressComponent } />
 
+        { this.renderOwners() }
         { this.renderBalance() }
       </Container>
+    );
+  }
+
+  renderOwners () {
+    const { owners } = this.props;
+
+    if (!owners || owners.length === 0) {
+      return null;
+    }
+
+    return (
+      <div className={ styles.owners }>
+        {
+          owners.map((owner) => (
+            <div key={ owner.address }>
+              <div
+                data-tip
+                data-for={ `owner_${owner.address}` }
+                data-effect='solid'
+              >
+                <IdentityIcon address={ owner.address } button />
+              </div>
+              <ReactTooltip id={ `owner_${owner.address}` }>
+                <strong>{ owner.name } </strong><small> (owner)</small>
+              </ReactTooltip>
+            </div>
+          ))
+        }
+      </div>
     );
   }
 

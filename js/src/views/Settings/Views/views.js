@@ -19,7 +19,7 @@ import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 import { Checkbox } from 'material-ui';
 
-import { Container, ContainerTitle } from '../../../ui';
+import { Container } from '~/ui';
 
 import { toggleView } from '../actions';
 
@@ -34,8 +34,7 @@ class Views extends Component {
 
   render () {
     return (
-      <Container>
-        <ContainerTitle title='Views' />
+      <Container title='Views'>
         <div className={ layout.layout }>
           <div className={ layout.overview }>
             <div>Manage the available application views, using only the parts of the application that is applicable to you.</div>

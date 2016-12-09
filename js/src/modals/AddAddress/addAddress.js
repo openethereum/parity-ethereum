@@ -18,7 +18,7 @@ import React, { Component, PropTypes } from 'react';
 import ContentAdd from 'material-ui/svg-icons/content/add';
 import ContentClear from 'material-ui/svg-icons/content/clear';
 
-import { Button, Modal, Form, Input, InputAddress } from '../../ui';
+import { Button, Modal, Form, Input, InputAddress } from '~/ui';
 import { ERRORS, validateAddress, validateName } from '../../util/validation';
 
 export default class AddAddress extends Component {
@@ -102,7 +102,7 @@ export default class AddAddress extends Component {
     if (!addressError) {
       const contact = contacts[address];
 
-      if (contact && !contact.meta.deleted) {
+      if (contact) {
         addressError = ERRORS.duplicateAddress;
       }
     }

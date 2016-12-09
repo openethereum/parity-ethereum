@@ -18,8 +18,8 @@ import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
-import { ConfirmDialog, IdentityIcon, IdentityName, Input } from '../../ui';
-import { newError } from '../../redux/actions';
+import { ConfirmDialog, IdentityIcon, IdentityName, Input } from '~/ui';
+import { newError } from '~/redux/actions';
 
 import styles from './deleteAccount.css';
 

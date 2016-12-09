@@ -23,11 +23,11 @@ import ContentCreate from 'material-ui/svg-icons/content/create';
 import EyeIcon from 'material-ui/svg-icons/image/remove-red-eye';
 import ContentClear from 'material-ui/svg-icons/content/clear';
 
-import { newError } from '../../redux/actions';
-import { setVisibleAccounts } from '../../redux/providers/personalActions';
+import { newError } from '~/redux/actions';
+import { setVisibleAccounts } from '~/redux/providers/personalActions';
 
-import { EditMeta, ExecuteContract } from '../../modals';
-import { Actionbar, Button, Page, Modal, Editor } from '../../ui';
+import { EditMeta, ExecuteContract } from '~/modals';
+import { Actionbar, Button, Page, Modal, Editor } from '~/ui';
 
 import Header from '../Account/Header';
 import Delete from '../Address/Delete';
@@ -132,7 +132,8 @@ class Contract extends Component {
         <Page>
           <Header
             account={ account }
-            balance={ balance } />
+            balance={ balance }
+          />
           <Queries
             contract={ contract }
             values={ queryValues } />
@@ -228,7 +229,7 @@ class Contract extends Component {
     return (
       <Actionbar
         title='Contract Information'
-        buttons={ !account || account.meta.deleted ? [] : buttons } />
+        buttons={ !account ? [] : buttons } />
     );
   }
 
@@ -447,7 +448,10 @@ function mapStateToProps (state) {
 }
 
 function mapDispatchToProps (dispatch) {
-  return bindActionCreators({ newError, setVisibleAccounts }, dispatch);
+  return bindActionCreators({
+    newError,
+    setVisibleAccounts
+  }, dispatch);
 }
 
 export default connect(

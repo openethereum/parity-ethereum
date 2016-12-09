@@ -20,10 +20,10 @@ import ContentClear from 'material-ui/svg-icons/content/clear';
 import NavigationArrowForward from 'material-ui/svg-icons/navigation/arrow-forward';
 import NavigationArrowBack from 'material-ui/svg-icons/navigation/arrow-back';
 
-import { Button, Modal, Form, Input, InputAddress, RadioButtons } from '../../ui';
+import { Button, Modal, Form, Input, InputAddress, RadioButtons } from '~/ui';
 import { ERRORS, validateAbi, validateAddress, validateName } from '../../util/validation';
 
-import { eip20, wallet } from '../../contracts/abi';
+import { eip20, wallet } from '~/contracts/abi';
 
 const ABI_TYPES = [
   {
@@ -231,7 +231,7 @@ export default class AddContract extends Component {
     if (!addressError) {
       const contract = contracts[address];
 
-      if (contract && !contract.meta.deleted) {
+      if (contract) {
         addressError = ERRORS.duplicateAddress;
       }
     }

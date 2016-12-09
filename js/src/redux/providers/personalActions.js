@@ -17,11 +17,45 @@
 import { isEqual } from 'lodash';
 
 import { fetchBalances } from './balancesActions';
+import { attachWallets } from './walletActions';
 
 export function personalAccountsInfo (accountsInfo) {
+  const accounts = {};
+  const contacts = {};
+  const contracts = {};
+  const wallets = {};
+
+  Object.keys(accountsInfo || {})
+    .map((address) => Object.assign({}, accountsInfo[address], { address }))
+    .filter((account) => account.uuid || !account.meta.deleted)
+    .forEach((account) => {
+      if (account.uuid) {
+        accounts[account.address] = account;
+      } else if (account.meta.wallet) {
+        account.wallet = true;
+        wallets[account.address] = account;
+      } else if (account.meta.contract) {
+        contracts[account.address] = account;
+      } else {
+        contacts[account.address] = account;
+      }
+    });
+
+  return (dispatch) => {
+    const data = {
+      accountsInfo,
+      accounts, contacts, contracts, wallets
+    };
+
+    dispatch(_personalAccountsInfo(data));
+    dispatch(attachWallets(wallets));
+  };
+}
+
+function _personalAccountsInfo (data) {
   return {
     type: 'personalAccountsInfo',
-    accountsInfo
+    ...data
   };
 }
 

@@ -128,6 +128,11 @@ export default class Parity {
       .execute('parity_killAccount', inAddress(account), password);
   }
 
+  removeAddress (address) {
+    return this._transport
+      .execute('parity_removeAddress', inAddress(address));
+  }
+
   listGethAccounts () {
     return this._transport
       .execute('parity_listGethAccounts')

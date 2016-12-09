@@ -15,15 +15,15 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
-import nullable from '../../../util/nullable-proptype';
 import BigNumber from 'bignumber.js';
 import { Checkbox } from 'material-ui';
 import InfoIcon from 'material-ui/svg-icons/action/info-outline';
 import SuccessIcon from 'material-ui/svg-icons/navigation/check';
 import ErrorIcon from 'material-ui/svg-icons/navigation/close';
 
-import { fromWei } from '../../../api/util/wei';
-import { Form, Input } from '../../../ui';
+import { fromWei } from '~/api/util/wei';
+import { Form, Input } from '~/ui';
+import { nullableProptype } from '~/util/proptypes';
 
 import { termsOfService } from '../../../3rdparty/sms-verification';
 import styles from './gatherData.css';
@@ -32,8 +32,8 @@ export default class GatherData extends Component {
   static propTypes = {
     fee: React.PropTypes.instanceOf(BigNumber),
     isNumberValid: PropTypes.bool.isRequired,
-    isVerified: nullable(PropTypes.bool.isRequired),
-    hasRequested: nullable(PropTypes.bool.isRequired),
+    isVerified: nullableProptype(PropTypes.bool.isRequired),
+    hasRequested: nullableProptype(PropTypes.bool.isRequired),
     setNumber: PropTypes.func.isRequired,
     setConsentGiven: PropTypes.func.isRequired
   }

@@ -16,7 +16,6 @@
 
 import React, { Component, PropTypes } from 'react';
 import { MenuItem } from 'material-ui';
-import { isEqual } from 'lodash';
 
 import AutoComplete from '../AutoComplete';
 import IdentityIcon from '../../IdentityIcon';
@@ -34,6 +33,7 @@ export default class AddressSelect extends Component {
     accounts: PropTypes.object,
     contacts: PropTypes.object,
     contracts: PropTypes.object,
+    wallets: PropTypes.object,
     label: PropTypes.string,
     hint: PropTypes.string,
     error: PropTypes.string,
@@ -50,8 +50,8 @@ export default class AddressSelect extends Component {
   }
 
   entriesFromProps (props = this.props) {
-    const { accounts, contacts, contracts } = props;
-    const entries = Object.assign({}, accounts || {}, contacts || {}, contracts || {});
+    const { accounts, contacts, contracts, wallets } = props;
+    const entries = Object.assign({}, accounts || {}, wallets || {}, contacts || {}, contracts || {});
     return entries;
   }
 
@@ -64,13 +64,6 @@ export default class AddressSelect extends Component {
   }
 
   componentWillReceiveProps (newProps) {
-    const entries = this.entriesFromProps();
-    const addresses = Object.keys(entries).sort();
-
-    if (!isEqual(addresses, this.state.addresses)) {
-      this.setState({ entries, addresses });
-    }
-
     if (newProps.value !== this.props.value) {
       this.setState({ value: newProps.value });
     }
@@ -127,31 +120,33 @@ export default class AddressSelect extends Component {
   }
 
   renderItem = (entry) => {
+    const { address, name } = entry;
+
     return {
-      text: entry.name && entry.name.toUpperCase() || entry.address,
-      value: this.renderSelectEntry(entry),
-      address: entry.address
+      text: name && name.toUpperCase() || address,
+      value: this.renderMenuItem(address),
+      address
     };
   }
 
-  renderSelectEntry = (entry) => {
+  renderMenuItem (address) {
     const item = (
       <div className={ styles.account }>
         <IdentityIcon
           className={ styles.image }
           inline center
-          address={ entry.address } />
+          address={ address } />
         <IdentityName
           className={ styles.name }
-          address={ entry.address } />
+          address={ address } />
       </div>
     );
 
     return (
       <MenuItem
         className={ styles.menuItem }
-        key={ entry.address }
-        value={ entry.address }
+        key={ address }
+        value={ address }
         label={ item }>
         { item }
       </MenuItem>
@@ -175,7 +170,7 @@ export default class AddressSelect extends Component {
   handleFilter = (searchText, name, item) => {
     const { address } = item;
     const entry = this.state.entries[address];
-    const lowCaseSearch = searchText.toLowerCase();
+    const lowCaseSearch = (searchText || '').toLowerCase();
 
     return [entry.name, entry.address]
       .some(text => text.toLowerCase().indexOf(lowCaseSearch) !== -1);

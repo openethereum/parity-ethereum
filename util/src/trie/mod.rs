@@ -97,11 +97,11 @@ pub trait Trie {
 	}
 
 	/// Query the value of the given key in this trie while recording visited nodes
-	/// to the given recorder. If the query fails, the nodes passed to the recorder are unspecified.
+	/// to the given recorder. If the query encounters an error, the nodes passed to the recorder are unspecified.
 	fn get_recorded<'a, 'b, R: 'b>(&'a self, key: &'b [u8], rec: &'b mut R) -> Result<Option<DBValue>>
 		where 'a: 'b, R: Recorder;
 
-	/// Returns an iterator over elements of trie.
+	/// Returns a depth-first iterator over the elements of trie.
 	fn iter<'a>(&'a self) -> Result<Box<TrieIterator<Item = TrieItem> + 'a>>;
 }
 
@@ -241,5 +241,5 @@ impl TrieFactory {
 	}
 
 	/// Returns true iff the trie DB is a fat DB (allows enumeration of keys).
-	pub fn is_fat(&self) -> bool { self.spec == TrieSpec::Fat } 
+	pub fn is_fat(&self) -> bool { self.spec == TrieSpec::Fat }
 }
