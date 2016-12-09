@@ -43,9 +43,11 @@ export default class Page extends Component {
     }
 
     return (
-      <div className={ classes }>
+      <div>
         { actionbar }
-        { children }
+        <div className={ classes }>
+          { children }
+        </div>
       </div>
     );
   }

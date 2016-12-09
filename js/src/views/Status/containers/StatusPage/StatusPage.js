@@ -20,8 +20,10 @@ import { connect } from 'react-redux';
 
 import { clearStatusLogs, toggleStatusLogs, toggleStatusRefresh } from '~/redux/actions';
 
-import Debug from '../../components/Debug';
-import Status from '../../components/Status';
+import Debug from '../../components/debug';
+import Status from '../../components/status';
+
+import styles from './statusPage.css';
 
 class StatusPage extends Component {
   static propTypes = {
@@ -39,7 +41,7 @@ class StatusPage extends Component {
 
   render () {
     return (
-      <div>
+      <div className={ styles.body }>
         <Status { ...this.props } />
         <Debug { ...this.props } />
       </div>

@@ -54,7 +54,11 @@ export default class Status {
         this._api.eth
           .getBlockByNumber(blockNumber)
           .then((block) => {
-            this._store.dispatch(statusCollection({ gasLimit: block.gasLimit }));
+            console.log(block);
+            this._store.dispatch(statusCollection({
+              blockTimestamp: block.timestamp,
+              gasLimit: block.gasLimit
+            }));
           })
           .catch((error) => {
             console.warn('status._subscribeBlockNumber', 'getBlockByNumber', error);
