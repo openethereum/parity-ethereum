@@ -300,14 +300,14 @@ pub fn password_prompt() -> Result<String, String> {
 
 /// Read a password from password file.
 pub fn password_from_file(path: String) -> Result<String, String> {
-	let passwords = try!(passwords_from_files(vec![path]));
+	let passwords = try!(passwords_from_files(&[path]));
 	// use only first password from the file
 	passwords.get(0).map(String::to_owned)
 		.ok_or_else(|| "Password file seems to be empty.".to_owned())
 }
 
 /// Reads passwords from files. Treats each line as a separate password.
-pub fn passwords_from_files(files: Vec<String>) -> Result<Vec<String>, String> {
+pub fn passwords_from_files(files: &[String]) -> Result<Vec<String>, String> {
 	let passwords = files.iter().map(|filename| {
 		let file = try!(File::open(filename).map_err(|_| format!("{} Unable to read password file. Ensure it exists and permissions are correct.", filename)));
 		let reader = BufReader::new(&file);

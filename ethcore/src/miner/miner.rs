@@ -19,7 +19,7 @@ use std::time::{Instant, Duration};
 
 use util::*;
 use util::using_queue::{UsingQueue, GetAction};
-use account_provider::AccountProvider;
+use account_provider::{AccountProvider, Error as AccountError};
 use views::{BlockView, HeaderView};
 use header::Header;
 use state::{State, CleanupMode};
@@ -464,15 +464,12 @@ impl Miner {
 	/// Attempts to perform internal sealing (one that does not require work) to return Ok(sealed),
 	/// Err(Some(block)) returns for unsuccesful sealing while Err(None) indicates misspecified engine.
 	fn seal_block_internally(&self, block: ClosedBlock) -> Result<SealedBlock, Option<ClosedBlock>> {
-		trace!(target: "miner", "seal_block_internally: block has transaction - attempting internal seal.");
-		let s = self.engine.generate_seal(block.block(), match self.accounts {
-			Some(ref x) => Some(&**x),
-			None => None,
-		});
+		trace!(target: "miner", "seal_block_internally: attempting internal seal.");
+		let s = self.engine.generate_seal(block.block());
 		if let Some(seal) = s {
 			trace!(target: "miner", "seal_block_internally: managed internal seal. importing...");
-			block.lock().try_seal(&*self.engine, seal).or_else(|_| {
-				warn!("prepare_sealing: ERROR: try_seal failed when given internally generated seal. WTF?");
+			block.lock().try_seal(&*self.engine, seal).or_else(|(e, _)| {
+				warn!("prepare_sealing: ERROR: try_seal failed when given internally generated seal: {}", e);
 				Err(None)
 			})
 		} else {
@@ -485,7 +482,7 @@ impl Miner {
 	fn seal_and_import_block_internally(&self, chain: &MiningBlockChainClient, block: ClosedBlock) -> bool {
 		if !block.transactions().is_empty() || self.forced_sealing() {
 			if let Ok(sealed) = self.seal_block_internally(block) {
-				if chain.import_block(sealed.rlp_bytes()).is_ok() {
+				if chain.import_sealed_block(sealed).is_ok() {
 					trace!(target: "miner", "import_block_internally: imported internally sealed block");
 					return true
 				}
@@ -738,6 +735,19 @@ impl MinerService for Miner {
 			sealing_work.enabled = self.engine.is_sealer(&author).unwrap_or(false);
 		}
 		*self.author.write() = author;
+	}
+
+	fn set_engine_signer(&self, address: Address, password: String) -> Result<(), AccountError> {
+		if self.seals_internally {
+			if let Some(ref ap) = self.accounts {
+				try!(ap.sign(address.clone(), Some(password.clone()), Default::default()));
+			}
+			let mut sealing_work = self.sealing_work.lock();
+			sealing_work.enabled = self.engine.is_sealer(&address).unwrap_or(false);
+			*self.author.write() = address;
+			self.engine.set_signer(address, password);
+		}
+		Ok(())
 	}
 
 	fn set_extra_data(&self, extra_data: Bytes) {
@@ -1042,7 +1052,7 @@ impl MinerService for Miner {
 		ret.map(f)
 	}
 
-	fn submit_seal(&self, chain: &MiningBlockChainClient, pow_hash: H256, seal: Vec<Bytes>) -> Result<(), Error> {
+	fn submit_seal(&self, chain: &MiningBlockChainClient, block_hash: H256, seal: Vec<Bytes>) -> Result<(), Error> {
 		let result =
 			if let Some(b) = self.sealing_work.lock().queue.get_used_if(
 				if self.options.enable_resubmission {
@@ -1050,22 +1060,22 @@ impl MinerService for Miner {
 				} else {
 					GetAction::Take
 				},
-				|b| &b.hash() == &pow_hash
+				|b| &b.hash() == &block_hash
 			) {
-				trace!(target: "miner", "Sealing block {}={}={} with seal {:?}", pow_hash, b.hash(), b.header().bare_hash(), seal);
+				trace!(target: "miner", "Submitted block {}={}={} with seal {:?}", block_hash, b.hash(), b.header().bare_hash(), seal);
 				b.lock().try_seal(&*self.engine, seal).or_else(|(e, _)| {
 					warn!(target: "miner", "Mined solution rejected: {}", e);
 					Err(Error::PowInvalid)
 				})
 			} else {
-				warn!(target: "miner", "Mined solution rejected: Block unknown or out of date.");
+				warn!(target: "miner", "Submitted solution rejected: Block unknown or out of date.");
 				Err(Error::PowHashInvalid)
 			};
 		result.and_then(|sealed| {
 			let n = sealed.header().number();
 			let h = sealed.header().hash();
 			try!(chain.import_sealed_block(sealed));
-			info!(target: "miner", "Mined block imported OK. #{}: {}", Colour::White.bold().paint(format!("{}", n)), Colour::White.bold().paint(h.hex()));
+			info!(target: "miner", "Submitted block imported OK. #{}: {}", Colour::White.bold().paint(format!("{}", n)), Colour::White.bold().paint(h.hex()));
 			Ok(())
 		})
 	}

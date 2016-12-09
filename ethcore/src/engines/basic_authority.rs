@@ -58,6 +58,8 @@ pub struct BasicAuthority {
 	params: CommonParams,
 	our_params: BasicAuthorityParams,
 	builtins: BTreeMap<Address, Builtin>,
+	account_provider: Mutex<Option<Arc<AccountProvider>>>,
+	password: RwLock<Option<String>>,
 }
 
 impl BasicAuthority {
@@ -67,6 +69,8 @@ impl BasicAuthority {
 			params: params,
 			our_params: our_params,
 			builtins: builtins,
+			account_provider: Mutex::new(None),
+			password: RwLock::new(None),
 		}
 	}
 }
@@ -98,12 +102,7 @@ impl Engine for BasicAuthority {
 				max(gas_floor_target, gas_limit - gas_limit / bound_divisor + 1.into())
 			}
 		});
-//		info!("ethash: populate_from_parent #{}: difficulty={} and gas_limit={}", header.number, header.difficulty, header.gas_limit);
 	}
-
-	/// Apply the block reward on finalisation of the block.
-	/// This assumes that all uncles are valid uncles (i.e. of at least one generation before the current).
-	fn on_close_block(&self, _block: &mut ExecutedBlock) {}
 
 	fn is_sealer(&self, author: &Address) -> Option<bool> {
 		Some(self.our_params.authorities.contains(author))
@@ -113,12 +112,12 @@ impl Engine for BasicAuthority {
 	///
 	/// This operation is synchronous and may (quite reasonably) not be available, in which `false` will
 	/// be returned.
-	fn generate_seal(&self, block: &ExecutedBlock, accounts: Option<&AccountProvider>) -> Option<Vec<Bytes>> {
-		if let Some(ap) = accounts {
+	fn generate_seal(&self, block: &ExecutedBlock) -> Option<Vec<Bytes>> {
+		if let Some(ref ap) = *self.account_provider.lock() {
 			let header = block.header();
 			let message = header.bare_hash();
 			// account should be pernamently unlocked, otherwise sealing will fail
-			if let Ok(signature) = ap.sign(*block.header().author(), None, message) {
+			if let Ok(signature) = ap.sign(*block.header().author(), self.password.read().clone(), message) {
 				return Some(vec![::rlp::encode(&(&*signature as &[u8])).to_vec()]);
 			} else {
 				trace!(target: "basicauthority", "generate_seal: FAIL: accounts secret key unavailable");
@@ -178,6 +177,14 @@ impl Engine for BasicAuthority {
 
 	fn verify_transaction(&self, t: &SignedTransaction, _header: &Header) -> Result<(), Error> {
 		t.sender().map(|_|()) // Perform EC recovery and cache sender
+	}
+
+	fn set_signer(&self, _address: Address, password: String) {
+		*self.password.write() = Some(password);
+	}
+
+	fn register_account_provider(&self, ap: Arc<AccountProvider>) {
+		*self.account_provider.lock() = Some(ap);
 	}
 }
 
@@ -250,10 +257,11 @@ mod tests {
 	fn can_generate_seal() {
 		let tap = AccountProvider::transient_provider();
 		let addr = tap.insert_account("".sha3(), "").unwrap();
-		tap.unlock_account_permanently(addr, "".into()).unwrap();
 
 		let spec = new_test_authority();
 		let engine = &*spec.engine;
+		engine.set_signer(addr, "".into());
+		engine.register_account_provider(Arc::new(tap));
 		let genesis_header = spec.genesis_header();
 		let mut db_result = get_temp_state_db();
 		let mut db = db_result.take();
@@ -261,7 +269,7 @@ mod tests {
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
 		let b = OpenBlock::new(engine, Default::default(), false, db, &genesis_header, last_hashes, addr, (3141562.into(), 31415620.into()), vec![]).unwrap();
 		let b = b.close_and_lock();
-		let seal = engine.generate_seal(b.block(), Some(&tap)).unwrap();
+		let seal = engine.generate_seal(b.block()).unwrap();
 		assert!(b.try_seal(engine, seal).is_ok());
 	}
 
