@@ -74,8 +74,8 @@ export default class TransactionPending extends Component {
 
   render () {
     const { className, id, isTest, store, transaction } = this.props;
-    const { from, value } = transaction;
     const { totalValue } = this.state;
+    const { from, value } = transaction;
 
     const fromBalance = store.balances[from];
 
