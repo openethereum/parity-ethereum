@@ -15,6 +15,7 @@ ethcore-ipc-codegen = { path = "../ipc/codegen" }
 ethcore-util = { path = "../util" }
 ethcore-network = { path = "../util/network" }
 ethcore-io = { path = "../util/io" }
+ethcore-light = { path = "../ethcore/light"}
 ethcore = { path = "../ethcore" }
 rlp = { path = "../util/rlp" }
 clippy = { version = "0.0.103", optional = true}
@@ -31,6 +32,6 @@ ethkey = { path = "../ethkey" }
 parking_lot = "0.3"
 
 [features]
-default = ["ipc"]
+default = []
 dev = ["clippy", "ethcore/dev", "ethcore-util/dev"]
-ipc = []
+ipc = ["ethcore-light/ipc"]

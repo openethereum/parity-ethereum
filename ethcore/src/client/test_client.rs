@@ -92,8 +92,8 @@ pub struct TestBlockChainClient {
 	pub first_block: RwLock<Option<(H256, u64)>>,
 }
 
-#[derive(Clone)]
 /// Used for generating test client blocks.
+#[derive(Clone)]
 pub enum EachBlockWith {
 	/// Plain block.
 	Nothing,
