@@ -408,6 +408,8 @@ export default class TransferStore {
       this.totalError = totalError;
       this.value = value;
       this.valueError = valueError;
+      this.gasStore.setErrorTotal(totalError);
+      this.gasStore.setEthValue(totalEth);
     });
   }
 
