@@ -14,15 +14,4 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-const checkIfTxFailed = (api, tx, gasSent) => {
-  return api.pollMethod('eth_getTransactionReceipt', tx)
-  .then((receipt) => {
-    // TODO: Right now, there's no way to tell wether the EVM code crashed.
-    // Because you usually send a bit more gas than estimated (to make sure
-    // it gets mined quickly), we transaction probably failed if all the gas
-    // has been used up.
-    return receipt.gasUsed.eq(gasSent);
-  });
-};
-
-export default checkIfTxFailed;
+export default from './gasPriceEditor';
