@@ -56,6 +56,8 @@ pub enum Error {
 	UnknownPeer,
 	/// Unsolicited response.
 	UnsolicitedResponse,
+	/// Not a server.
+	NotServer,
 }
 
 impl Error {
@@ -70,6 +72,7 @@ impl Error {
 			Error::WrongNetwork => Punishment::Disable,
 			Error::UnknownPeer => Punishment::Disconnect,
 			Error::UnsolicitedResponse => Punishment::Disable,
+			Error::NotServer => Punishment::Disable,
 		}
 	}
 }
@@ -97,6 +100,7 @@ impl fmt::Display for Error {
 			Error::WrongNetwork => write!(f, "Wrong network"),
 			Error::UnknownPeer => write!(f, "Unknown peer"),
 			Error::UnsolicitedResponse => write!(f, "Peer provided unsolicited data"),
+			Error::NotServer => write!(f, "Peer not a server."),
 		}
 	}
 }

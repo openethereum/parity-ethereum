@@ -198,7 +198,7 @@ impl Capabilities {
 ///   - chain status
 ///   - serving capabilities
 ///   - buffer flow parameters
-pub fn parse_handshake(rlp: UntrustedRlp) -> Result<(Status, Capabilities, FlowParams), DecoderError> {
+pub fn parse_handshake(rlp: UntrustedRlp) -> Result<(Status, Capabilities, Option<FlowParams>), DecoderError> {
 	let mut parser = Parser {
 		pos: 0,
 		rlp: rlp,
@@ -221,17 +221,20 @@ pub fn parse_handshake(rlp: UntrustedRlp) -> Result<(Status, Capabilities, FlowP
 		tx_relay: parser.expect_raw(Key::TxRelay).is_ok(),
 	};
 
-	let flow_params = FlowParams::new(
-		try!(parser.expect(Key::BufferLimit)),
-		try!(parser.expect(Key::BufferCostTable)),
-		try!(parser.expect(Key::BufferRechargeRate)),
-	);
+	let flow_params = match (
+		parser.expect(Key::BufferLimit),
+		parser.expect(Key::BufferCostTable),
+		parser.expect(Key::BufferRechargeRate)
+	) {
+		(Ok(bl), Ok(bct), Ok(brr)) => Some(FlowParams::new(bl, bct, brr)),
+		_ => None,
+	};
 
 	Ok((status, capabilities, flow_params))
 }
 
 /// Write a handshake, given status, capabilities, and flow parameters.
-pub fn write_handshake(status: &Status, capabilities: &Capabilities, flow_params: &FlowParams) -> Vec<u8> {
+pub fn write_handshake(status: &Status, capabilities: &Capabilities, flow_params: Option<&FlowParams>) -> Vec<u8> {
 	let mut pairs = Vec::new();
 	pairs.push(encode_pair(Key::ProtocolVersion, &status.protocol_version));
 	pairs.push(encode_pair(Key::NetworkId, &(status.network_id as u64)));
@@ -253,9 +256,11 @@ pub fn write_handshake(status: &Status, capabilities: &Capabilities, flow_params
 		pairs.push(encode_flag(Key::TxRelay));
 	}
 
-	pairs.push(encode_pair(Key::BufferLimit, flow_params.limit()));
-	pairs.push(encode_pair(Key::BufferCostTable, flow_params.cost_table()));
-	pairs.push(encode_pair(Key::BufferRechargeRate, flow_params.recharge_rate()));
+	if let Some(flow_params) = flow_params {
+		pairs.push(encode_pair(Key::BufferLimit, flow_params.limit()));
+		pairs.push(encode_pair(Key::BufferCostTable, flow_params.cost_table()));
+		pairs.push(encode_pair(Key::BufferRechargeRate, flow_params.recharge_rate()));
+	}
 
 	let mut stream = RlpStream::new_list(pairs.len());
 
@@ -386,14 +391,14 @@ mod tests {
 			1000.into(),
 		);
 
-		let handshake = write_handshake(&status, &capabilities, &flow_params);
+		let handshake = write_handshake(&status, &capabilities, Some(&flow_params));
 
 		let (read_status, read_capabilities, read_flow)
 			= parse_handshake(UntrustedRlp::new(&handshake)).unwrap();
 
 		assert_eq!(read_status, status);
 		assert_eq!(read_capabilities, capabilities);
-		assert_eq!(read_flow, flow_params);
+		assert_eq!(read_flow.unwrap(), flow_params);
 	}
 
 	#[test]
@@ -421,14 +426,14 @@ mod tests {
 			1000.into(),
 		);
 
-		let handshake = write_handshake(&status, &capabilities, &flow_params);
+		let handshake = write_handshake(&status, &capabilities, Some(&flow_params));
 
 		let (read_status, read_capabilities, read_flow)
 			= parse_handshake(UntrustedRlp::new(&handshake)).unwrap();
 
 		assert_eq!(read_status, status);
 		assert_eq!(read_capabilities, capabilities);
-		assert_eq!(read_flow, flow_params);
+		assert_eq!(read_flow.unwrap(), flow_params);
 	}
 
 	#[test]
@@ -456,7 +461,7 @@ mod tests {
 			1000.into(),
 		);
 
-		let handshake = write_handshake(&status, &capabilities, &flow_params);
+		let handshake = write_handshake(&status, &capabilities, Some(&flow_params));
 		let interleaved = {
 			let handshake = UntrustedRlp::new(&handshake);
 			let mut stream = RlpStream::new_list(handshake.item_count() * 3);
@@ -478,7 +483,7 @@ mod tests {
 
 		assert_eq!(read_status, status);
 		assert_eq!(read_capabilities, capabilities);
-		assert_eq!(read_flow, flow_params);
+		assert_eq!(read_flow.unwrap(), flow_params);
 	}
 
 	#[test]
@@ -527,5 +532,34 @@ mod tests {
 
 		let out = stream.drain();
 		assert!(parse_announcement(UntrustedRlp::new(&out)).is_ok());
+	}
+
+	#[test]
+	fn optional_flow() {
+		let status = Status {
+			protocol_version: 1,
+			network_id: 1,
+			head_td: U256::default(),
+			head_hash: H256::default(),
+			head_num: 10,
+			genesis_hash: H256::zero(),
+			last_head: None,
+		};
+
+		let capabilities = Capabilities {
+			serve_headers: true,
+			serve_chain_since: Some(5),
+			serve_state_since: Some(8),
+			tx_relay: true,
+		};
+
+		let handshake = write_handshake(&status, &capabilities, None);
+
+		let (read_status, read_capabilities, read_flow)
+			= parse_handshake(UntrustedRlp::new(&handshake)).unwrap();
+
+		assert_eq!(read_status, status);
+		assert_eq!(read_capabilities, capabilities);
+		assert!(read_flow.is_none());
 	}
 }

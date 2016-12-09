@@ -116,10 +116,9 @@ struct PendingPeer {
 // data about each peer.
 struct Peer {
 	local_buffer: Buffer, // their buffer relative to us
-	remote_buffer: Buffer, // our buffer relative to them
 	status: Status,
 	capabilities: Capabilities,
-	remote_flow: FlowParams,
+	remote_flow: Option<(Buffer, FlowParams)>,
 	sent_head: H256, // last head we've given them.
 	last_update: SteadyTime,
 }
@@ -141,12 +140,6 @@ impl Peer {
 		flow_params.refund(&mut self.local_buffer, amount);
 
 		self.local_buffer.current()
-	}
-
-	// recharge remote buffer with remote flow params.
-	fn recharge_remote(&mut self) {
-		let flow = &mut self.remote_flow;
-		flow.recharge(&mut self.remote_buffer);
 	}
 }
 
@@ -250,16 +243,21 @@ impl LightProtocol {
 	/// Check the maximum amount of requests of a specific type 
 	/// which a peer would be able to serve.
 	pub fn max_requests(&self, peer: PeerId, kind: request::Kind) -> Option<usize> {
-		self.peers.read().get(&peer).map(|peer| {
+		self.peers.read().get(&peer).and_then(|peer| {
 			let mut peer = peer.lock();
-			peer.recharge_remote();
-			peer.remote_flow.max_amount(&peer.remote_buffer, kind)
+			match peer.remote_flow.as_mut() {
+				Some(&mut (ref mut buf, ref flow)) => {
+					flow.recharge(buf);
+					Some(flow.max_amount(&*buf, kind))
+				}
+				None => None,
+			}
 		})
 	}
 
 	/// Make a request to a peer. 
 	///
-	/// Fails on: nonexistent peer, network error,
+	/// Fails on: nonexistent peer, network error, peer not server,
 	/// insufficient buffer. Does not check capabilities before sending.
 	/// On success, returns a request id which can later be coordinated 
 	/// with an event.
@@ -268,10 +266,14 @@ impl LightProtocol {
 		let peer = try!(peers.get(peer_id).ok_or_else(|| Error::UnknownPeer));
 		let mut peer = peer.lock();
 
-		peer.recharge_remote();
-
-		let max = peer.remote_flow.compute_cost(request.kind(), request.amount());
-		try!(peer.remote_buffer.deduct_cost(max));
+		match peer.remote_flow.as_mut() {
+			Some(&mut (ref mut buf, ref flow)) => {
+				flow.recharge(buf);
+				let max = flow.compute_cost(request.kind(), request.amount());
+				try!(buf.deduct_cost(max));
+			}
+			None => return Err(Error::NotServer),
+		}
 
 		let req_id = self.req_id.fetch_add(1, Ordering::SeqCst);
 		let packet_data = encode_request(&request, req_id);
@@ -390,8 +392,13 @@ impl LightProtocol {
 		match peers.get(peer) {
 			Some(peer_info) => {
 				let mut peer_info = peer_info.lock();
-				let actual_buffer = ::std::cmp::min(cur_buffer, *peer_info.remote_flow.limit());
-				peer_info.remote_buffer.update_to(actual_buffer);
+				match peer_info.remote_flow.as_mut() {
+					Some(&mut (ref mut buf, ref mut flow)) => {
+						let actual_buffer = ::std::cmp::min(cur_buffer, *flow.limit());				
+						buf.update_to(actual_buffer)
+					}
+					None => return Err(Error::NotServer), // this really should be impossible.
+				}
 				Ok(ReqId(req_id))
 			}
 			None => Err(Error::UnknownPeer), // probably only occurs in a race of some kind.
@@ -516,7 +523,7 @@ impl LightProtocol {
 		};
 
 		let capabilities = self.capabilities.read().clone();
-		let status_packet = status::write_handshake(&status, &capabilities, &self.flow_params);
+		let status_packet = status::write_handshake(&status, &capabilities, Some(&self.flow_params));
 
 		io.send(peer, packet::STATUS, status_packet);
 
@@ -543,12 +550,13 @@ impl LightProtocol {
 			return Err(Error::WrongNetwork);
 		}
 
+		let remote_flow = flow_params.map(|params| (params.create_buffer(), params));
+
 		self.peers.write().insert(*peer, Mutex::new(Peer {
 			local_buffer: self.flow_params.create_buffer(),
-			remote_buffer: flow_params.create_buffer(),
 			status: status.clone(),
 			capabilities: capabilities.clone(),
-			remote_flow: flow_params,
+			remote_flow: remote_flow,
 			sent_head: pending.sent_head,
 			last_update: pending.last_update,
 		}));

@@ -204,7 +204,7 @@ fn handshake_expected() {
 
 	let status = status(provider.client.chain_info());
 
-	let packet_body = write_handshake(&status, &capabilities, &flow_params);
+	let packet_body = write_handshake(&status, &capabilities, Some(&flow_params));
 
 	proto.on_connect(&1, &Expect::Send(1, packet::STATUS, packet_body));
 }
@@ -220,7 +220,7 @@ fn genesis_mismatch() {
 	let mut status = status(provider.client.chain_info());
 	status.genesis_hash = H256::default();
 
-	let packet_body = write_handshake(&status, &capabilities, &flow_params);
+	let packet_body = write_handshake(&status, &capabilities, Some(&flow_params));
 
 	proto.on_connect(&1, &Expect::Send(1, packet::STATUS, packet_body));
 }
@@ -235,12 +235,12 @@ fn buffer_overflow() {
 	let status = status(provider.client.chain_info());
 
 	{
-		let packet_body = write_handshake(&status, &capabilities, &flow_params);	
+		let packet_body = write_handshake(&status, &capabilities, Some(&flow_params));	
 		proto.on_connect(&1, &Expect::Send(1, packet::STATUS, packet_body));	
 	}
 
 	{
-		let my_status = write_handshake(&status, &capabilities, &flow_params);
+		let my_status = write_handshake(&status, &capabilities, Some(&flow_params));
 		proto.handle_packet(&Expect::Nothing, &1, packet::STATUS, &my_status);
 	}
 
@@ -267,14 +267,14 @@ fn get_block_headers() {
 	let (provider, proto) = setup(flow_params.clone(), capabilities.clone());	
 
 	let cur_status = status(provider.client.chain_info());
-	let my_status = write_handshake(&cur_status, &capabilities, &flow_params);
+	let my_status = write_handshake(&cur_status, &capabilities, Some(&flow_params));
 
 	provider.client.add_blocks(100, EachBlockWith::Nothing);
 
 	let cur_status = status(provider.client.chain_info());
 
 	{
-		let packet_body = write_handshake(&cur_status, &capabilities, &flow_params);	
+		let packet_body = write_handshake(&cur_status, &capabilities, Some(&flow_params));	
 		proto.on_connect(&1, &Expect::Send(1, packet::STATUS, packet_body));	
 		proto.handle_packet(&Expect::Nothing, &1, packet::STATUS, &my_status);
 	}
@@ -317,14 +317,14 @@ fn get_block_bodies() {
 	let (provider, proto) = setup(flow_params.clone(), capabilities.clone());	
 
 	let cur_status = status(provider.client.chain_info());
-	let my_status = write_handshake(&cur_status, &capabilities, &flow_params);
+	let my_status = write_handshake(&cur_status, &capabilities, Some(&flow_params));
 
 	provider.client.add_blocks(100, EachBlockWith::Nothing);
 
 	let cur_status = status(provider.client.chain_info());
 
 	{
-		let packet_body = write_handshake(&cur_status, &capabilities, &flow_params);	
+		let packet_body = write_handshake(&cur_status, &capabilities, Some(&flow_params));	
 		proto.on_connect(&1, &Expect::Send(1, packet::STATUS, packet_body));	
 		proto.handle_packet(&Expect::Nothing, &1, packet::STATUS, &my_status);
 	}
@@ -364,14 +364,14 @@ fn get_block_receipts() {
 	let (provider, proto) = setup(flow_params.clone(), capabilities.clone());	
 
 	let cur_status = status(provider.client.chain_info());
-	let my_status = write_handshake(&cur_status, &capabilities, &flow_params);
+	let my_status = write_handshake(&cur_status, &capabilities, Some(&flow_params));
 
 	provider.client.add_blocks(1000, EachBlockWith::Nothing);
 
 	let cur_status = status(provider.client.chain_info());
 
 	{
-		let packet_body = write_handshake(&cur_status, &capabilities, &flow_params);	
+		let packet_body = write_handshake(&cur_status, &capabilities, Some(&flow_params));	
 		proto.on_connect(&1, &Expect::Send(1, packet::STATUS, packet_body));	
 		proto.handle_packet(&Expect::Nothing, &1, packet::STATUS, &my_status);
 	}
@@ -419,7 +419,7 @@ fn get_state_proofs() {
 	let cur_status = status(provider.client.chain_info());
 
 	{
-		let packet_body = write_handshake(&cur_status, &capabilities, &flow_params);	
+		let packet_body = write_handshake(&cur_status, &capabilities, Some(&flow_params));	
 		proto.on_connect(&1, &Expect::Send(1, packet::STATUS, packet_body.clone()));	
 		proto.handle_packet(&Expect::Nothing, &1, packet::STATUS, &packet_body);
 	}
@@ -468,7 +468,7 @@ fn get_contract_code() {
 	let cur_status = status(provider.client.chain_info());
 
 	{
-		let packet_body = write_handshake(&cur_status, &capabilities, &flow_params);	
+		let packet_body = write_handshake(&cur_status, &capabilities, Some(&flow_params));	
 		proto.on_connect(&1, &Expect::Send(1, packet::STATUS, packet_body.clone()));	
 		proto.handle_packet(&Expect::Nothing, &1, packet::STATUS, &packet_body);
 	}
