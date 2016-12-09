@@ -769,6 +769,11 @@ impl TransactionQueue {
 			return;
 		}
 
+		self.remove_all_internal(sender, client_nonce);
+	}
+
+	/// Always updates future and moves transactions from current to future.
+	fn remove_all_internal(&mut self, sender: Address, client_nonce: U256) {
 		// We will either move transaction to future or remove it completely
 		// so there will be no transactions from this sender in current
 		self.last_nonces.remove(&sender);
@@ -878,7 +883,7 @@ impl TransactionQueue {
 		if order.is_some() {
 			// This will keep consistency in queue
 			// Moves all to future and then promotes a batch from current:
-			self.remove_all(sender, current_nonce);
+			self.remove_all_internal(sender, current_nonce);
 			assert_eq!(self.future.by_priority.len() + self.current.by_priority.len(), self.by_hash.len());
 			return;
 		}
