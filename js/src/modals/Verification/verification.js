@@ -23,9 +23,17 @@ import { Button, IdentityIcon, Modal } from '~/ui';
 import RadioButtons from '~/ui/Form/RadioButtons';
 import { nullableProptype } from '~/util/proptypes';
 
+import styles from './verification.css';
+
 const methods = {
-  sms: { label: 'SMS Verification', key: 0, value: 'sms' },
-  email: { label: 'E-mail Verification', key: 1, value: 'email' }
+  sms: {
+    label: 'SMS Verification', key: 0, value: 'sms',
+    description: (<p className={ styles.noSpacing }>It will be stored on the blockchain that you control a phone number (not <em>which</em>).</p>)
+  },
+  email: {
+    label: 'E-mail Verification', key: 1, value: 'email',
+    description: (<p className={ styles.noSpacing }>The hash of the e-mail address you prove control over will be stored on the blockchain.</p>)
+  }
 };
 
 import {
