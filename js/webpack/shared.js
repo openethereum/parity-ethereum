@@ -23,6 +23,7 @@ const postcssImport = require('postcss-import');
 const postcssNested = require('postcss-nested');
 const postcssVars = require('postcss-simple-vars');
 const rucksack = require('rucksack-css');
+const CircularDependencyPlugin = require('circular-dependency-plugin');
 
 const ENV = process.env.NODE_ENV || 'development';
 const isProd = ENV === 'production';
@@ -102,7 +103,12 @@ function getPlugins (_isProd = isProd) {
       }
     }),
 
-    new webpack.optimize.OccurrenceOrderPlugin(!_isProd)
+    new webpack.optimize.OccurrenceOrderPlugin(!_isProd),
+
+    new CircularDependencyPlugin({
+      exclude: /node_modules/,
+      failOnError: true
+    })
   ];
 
   if (_isProd) {

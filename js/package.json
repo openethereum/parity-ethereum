@@ -66,6 +66,7 @@
     "babel-runtime": "6.20.0",
     "chai": "3.5.0",
     "chai-enzyme": "0.6.1",
+    "circular-dependency-plugin": "2.0.0",
     "copy-webpack-plugin": "4.0.1",
     "core-js": "2.4.1",
     "coveralls": "2.11.15",
