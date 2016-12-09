@@ -17,6 +17,7 @@
 import { observable, computed, action } from 'mobx';
 import { sha3 } from '~/api/util/sha3';
 
+import EmailVerificationABI from '~/contracts/abi/email-verification.json';
 import VerificationStore, {
   LOADING, QUERY_DATA, QUERY_CODE, POSTED_CONFIRMATION, DONE
 } from './store';
@@ -53,7 +54,7 @@ export default class EmailVerificationStore extends VerificationStore {
   }
 
   constructor (api, account, isTestnet) {
-    super(api, account, isTestnet, 'emailverification3');
+    super(api, EmailVerificationABI, 'emailverification3', account, isTestnet);
   }
 
   requestValues = () => [ sha3(this.email) ]

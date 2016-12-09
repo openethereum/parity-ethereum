@@ -16,6 +16,7 @@
 
 import { observable, autorun, action } from 'mobx';
 import { sha3 } from '~/api/util/sha3';
+import Contract from '~/api/contract';
 import Contracts from '~/contracts';
 
 import { checkIfVerified, checkIfRequested, awaitPuzzle } from '~/contracts/verification';
@@ -46,18 +47,19 @@ export default class VerificationStore {
   @observable isCodeValid = null;
   @observable confirmationTx = null;
 
-  constructor (api, account, isTestnet, name) {
+  constructor (api, abi, name, account, isTestnet) {
     this.api = api;
     this.account = account;
     this.isTestnet = isTestnet;
 
     this.step = LOADING;
-    Contracts.get().registry.getContract(name)
-      .then((contract) => {
-        this.contract = contract;
+    Contracts.get().badgeReg.fetchCertifier(name)
+      .then(({ address }) => {
+        this.contract = new Contract(api, abi).at(address);
         this.load();
       })
       .catch((err) => {
+        console.error('error', err);
         this.error = 'Failed to fetch the contract: ' + err.message;
       });
 

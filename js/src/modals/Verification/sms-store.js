@@ -17,6 +17,7 @@
 import { observable, computed, action } from 'mobx';
 import phone from 'phoneformat.js';
 
+import SMSVerificationABI from '~/contracts/abi/sms-verification.json';
 import VerificationStore, {
   LOADING, QUERY_DATA, QUERY_CODE, POSTED_CONFIRMATION, DONE
 } from './store';
@@ -52,7 +53,7 @@ export default class SMSVerificationStore extends VerificationStore {
   }
 
   constructor (api, account, isTestnet) {
-    super(api, account, isTestnet, 'smsverification');
+    super(api, SMSVerificationABI, 'smsverification', account, isTestnet);
   }
 
   @action setNumber = (number) => {
