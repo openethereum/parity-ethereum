@@ -16,18 +16,16 @@
 
 use std::collections::BTreeMap;
 use std::mem;
-use ethkey::KeyPair;
+use parking_lot::RwLock;
+
 use crypto::KEY_ITERATIONS;
 use random::Random;
-use ethkey::{Signature, Address, Message, Secret, Public};
+use ethkey::{Signature, Address, Message, Secret, Public, KeyPair};
 use dir::KeyDirectory;
 use account::SafeAccount;
-use {Error, SimpleSecretStore, SecretStore};
-use json;
-use json::UUID;
-use parking_lot::RwLock;
+use json::{self, UUID};
 use presale::PresaleWallet;
-use import;
+use {import, Error, SimpleSecretStore, SecretStore};
 
 pub struct EthStore {
 	store: EthMultiStore,
@@ -323,8 +321,120 @@ impl SimpleSecretStore for EthMultiStore {
 
 #[cfg(test)]
 mod tests {
-	#[test]
-	fn should_have_some_tests() {
-		assert_eq!(true, false)
+
+	use dir::MemoryDirectory;
+	use ethkey::{Random, Generator, KeyPair};
+	use secret_store::{SimpleSecretStore, SecretStore};
+	use super::{EthStore, EthMultiStore};
+
+	fn keypair() -> KeyPair {
+		Random.generate().unwrap()
 	}
+
+	fn store() -> EthStore {
+		EthStore::open(Box::new(MemoryDirectory::default())).expect("MemoryDirectory always load successfuly; qed")
+	}
+
+	fn multi_store() -> EthMultiStore {
+		EthMultiStore::open(Box::new(MemoryDirectory::default())).expect("MemoryDirectory always load successfuly; qed")
+	}
+
+	#[test]
+	fn should_insert_account_successfully() {
+		// given
+		let store = store();
+		let keypair = keypair();
+
+		// when
+		let address = store.insert_account(keypair.secret().clone(), "test").unwrap();
+
+		// then
+		assert_eq!(address, keypair.address());
+		assert!(store.get(&address).is_ok(), "Should contain account.");
+		assert_eq!(store.accounts().unwrap().len(), 1, "Should have one account.");
+	}
+
+	#[test]
+	fn should_update_meta_and_name() {
+		// given
+		let store = store();
+		let keypair = keypair();
+		let address = store.insert_account(keypair.secret().clone(), "test").unwrap();
+		assert_eq!(&store.meta(&address).unwrap(), "{}");
+		assert_eq!(&store.name(&address).unwrap(), "");
+
+		// when
+		store.set_meta(&address, "meta".into()).unwrap();
+		store.set_name(&address, "name".into()).unwrap();
+
+		// then
+		assert_eq!(&store.meta(&address).unwrap(), "meta");
+		assert_eq!(&store.name(&address).unwrap(), "name");
+		assert_eq!(store.accounts().unwrap().len(), 1);
+	}
+
+	#[test]
+	fn should_remove_account() {
+		// given
+		let store = store();
+		let keypair = keypair();
+		let address = store.insert_account(keypair.secret().clone(), "test").unwrap();
+
+		// when
+		store.remove_account(&address, "test").unwrap();
+
+		// then
+		assert_eq!(store.accounts().unwrap().len(), 0, "Should remove account.");
+	}
+
+	#[test]
+	fn should_return_true_if_password_is_correct() {
+		// given
+		let store = store();
+		let keypair = keypair();
+		let address = store.insert_account(keypair.secret().clone(), "test").unwrap();
+
+		// when
+		let res1 = store.test_password(&address, "x").unwrap();
+		let res2 = store.test_password(&address, "test").unwrap();
+
+		assert!(!res1, "First password should be invalid.");
+		assert!(res2, "Second password should be correct.");
+	}
+
+	#[test]
+	fn multistore_should_be_able_to_have_the_same_account_twice() {
+		// given
+		let store = multi_store();
+		let keypair = keypair();
+		let address = store.insert_account(keypair.secret().clone(), "test").unwrap();
+		let address2 = store.insert_account(keypair.secret().clone(), "xyz").unwrap();
+		assert_eq!(address, address2);
+
+		// when
+		assert!(store.remove_account(&address, "test").is_ok(), "First password should work.");
+		assert_eq!(store.accounts().unwrap().len(), 1);
+
+		assert!(store.remove_account(&address, "xyz").is_ok(), "Second password should work too.");
+		assert_eq!(store.accounts().unwrap().len(), 0);
+	}
+
+	#[test]
+	fn should_copy_account() {
+		// given
+		let store = store();
+		let multi_store = multi_store();
+		let keypair = keypair();
+		let address = store.insert_account(keypair.secret().clone(), "test").unwrap();
+		assert_eq!(multi_store.accounts().unwrap().len(), 0);
+
+		// when
+		store.copy_account(&multi_store, &address, "test", "xyz").unwrap();
+
+		// then
+		assert!(store.test_password(&address, "test").unwrap(), "First password should work for store.");
+		assert!(multi_store.sign(&address, "xyz", &Default::default()).is_ok(), "Second password should work for second store.");
+		assert_eq!(multi_store.accounts().unwrap().len(), 1);
+	}
+
 }

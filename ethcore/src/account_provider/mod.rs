@@ -25,7 +25,7 @@ use std::collections::HashMap;
 use std::time::{Instant, Duration};
 use util::{RwLock, Itertools};
 use ethstore::{SimpleSecretStore, SecretStore, Error as SSError, SafeAccount, EthStore, EthMultiStore, random_string};
-use ethstore::dir::{KeyDirectory};
+use ethstore::dir::{KeyDirectory, MemoryDirectory};
 use ethstore::ethkey::{Address, Message, Public, Secret, Random, Generator};
 use ethjson::misc::AccountMeta;
 pub use ethstore::ethkey::Signature;
@@ -73,54 +73,11 @@ impl From<SSError> for Error {
 	}
 }
 
-#[derive(Default)]
-struct NullDir {
-	accounts: RwLock<HashMap<Address, Vec<SafeAccount>>>,
-}
-
-impl KeyDirectory for NullDir {
-	fn load(&self) -> Result<Vec<SafeAccount>, SSError> {
-		Ok(self.accounts.read().values().cloned().flatten().collect())
-	}
-
-	fn update(&self, account: SafeAccount) -> Result<SafeAccount, SSError> {
-		let mut lock = self.accounts.write();
-		let mut accounts = lock.entry(account.address.clone()).or_insert_with(Vec::new);
-		// If the filename is the same we just need to replace the entry
-		accounts.retain(|acc| acc.filename != account.filename);
-		accounts.push(account.clone());
-		Ok(account)
-	}
-
-	fn insert(&self, account: SafeAccount) -> Result<SafeAccount, SSError> {
-		let mut lock = self.accounts.write();
-		let mut accounts = lock.entry(account.address.clone()).or_insert_with(Vec::new);
-		accounts.push(account.clone());
-		Ok(account)
-	}
-
-	fn remove(&self, account: &SafeAccount) -> Result<(), SSError> {
-		let mut accounts = self.accounts.write();
-		let is_empty = if let Some(mut accounts) = accounts.get_mut(&account.address) {
-			if let Some(position) = accounts.iter().position(|acc| acc == account) {
-				accounts.remove(position);
-			}
-			accounts.is_empty()
-		} else {
-			false
-		};
-		if is_empty {
-			accounts.remove(&account.address);
-		}
-		Ok(())
-	}
-}
-
 /// Dapp identifier
 pub type DappId = String;
 
 fn transient_sstore() -> EthMultiStore {
-	EthMultiStore::open(Box::new(NullDir::default())).expect("NullDir load always succeeds; qed")
+	EthMultiStore::open(Box::new(MemoryDirectory::default())).expect("MemoryDirectory load always succeeds; qed")
 }
 
 type AccountToken = String;
@@ -155,7 +112,7 @@ impl AccountProvider {
 			unlocked: RwLock::new(HashMap::new()),
 			address_book: RwLock::new(AddressBook::transient()),
 			dapps_settings: RwLock::new(DappsSettingsStore::transient()),
-			sstore: Box::new(EthStore::open(Box::new(NullDir::default())).expect("NullDir load always succeeds; qed")),
+			sstore: Box::new(EthStore::open(Box::new(MemoryDirectory::default())).expect("MemoryDirectory load always succeeds; qed")),
 			transient_sstore: transient_sstore(),
 		}
 	}

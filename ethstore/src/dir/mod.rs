@@ -19,6 +19,7 @@ use {SafeAccount, Error};
 
 mod disk;
 mod geth;
+mod memory;
 mod parity;
 
 pub enum DirectoryType {
@@ -36,4 +37,5 @@ pub trait KeyDirectory: Send + Sync {
 
 pub use self::disk::DiskDirectory;
 pub use self::geth::GethDirectory;
+pub use self::memory::MemoryDirectory;
 pub use self::parity::ParityDirectory;
