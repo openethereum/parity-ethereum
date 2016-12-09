@@ -112,31 +112,36 @@ export default class Input extends Component {
         { this.renderCopyButton() }
         <TextField
           autoComplete='off'
-          className={ className }
-          style={ textFieldStyle }
-
-          readOnly={ readOnly }
-
-          errorText={ error }
-          floatingLabelFixed
-          floatingLabelText={ label }
-          fullWidth
-          hintText={ hint }
-          multiLine={ multiLine }
           name={ NAME_ID }
           id={ NAME_ID }
+
+          className={ className }
+          style={ textFieldStyle }
+          inputStyle={ inputStyle }
+          fullWidth
+
+          readOnly={ readOnly }
+          value={ value }
+
+          multiLine={ multiLine }
           rows={ rows }
           type={ type || 'text' }
+
+          errorText={ error }
+          hintText={ hint }
+          floatingLabelFixed
+          floatingLabelText={ label }
+
           underlineDisabledStyle={ UNDERLINE_DISABLED }
           underlineStyle={ readOnly ? UNDERLINE_READONLY : UNDERLINE_NORMAL }
           underlineFocusStyle={ readOnly ? { display: 'none' } : null }
           underlineShow={ !hideUnderline }
-          value={ value }
+
           onBlur={ this.onBlur }
           onChange={ this.onChange }
           onKeyDown={ this.onKeyDown }
           onPaste={ this.onPaste }
-          inputStyle={ inputStyle }
+
           min={ min }
           max={ max }
         >

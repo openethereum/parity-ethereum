@@ -22,6 +22,7 @@ import { wallet as walletAbi } from '~/contracts/abi';
 import { wallet as walletCode } from '~/contracts/code';
 
 import { validateUint, validateAddress, validateName } from '~/util/validation';
+import { toWei } from '~/api/util/wei';
 import WalletsUtils from '~/util/wallets';
 
 const STEPS = {
@@ -46,7 +47,7 @@ export default class CreateWalletStore {
     address: '',
     owners: [],
     required: 1,
-    daylimit: 0,
+    daylimit: toWei(1),
 
     name: '',
     description: ''
