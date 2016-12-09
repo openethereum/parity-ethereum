@@ -81,6 +81,8 @@
 //!	3. `remove_all` is used to inform the queue about client (state) nonce changes.
 //!      - It removes all transactions (either from `current` or `future`) with nonce < client nonce
 //!      - It moves matching `future` transactions to `current`
+//! 4. `remove_old` is used periodically to clear the transactions if node goes out of sync
+//!		(in such case `remove_all` is not invoked because we are syncing the chain)
 
 use std::ops::Deref;
 use std::cmp::Ordering;
@@ -763,6 +765,20 @@ impl TransactionQueue {
 		// that should be placed in current. It should also update last_nonces.
 		self.move_matching_future_to_current(sender, client_nonce, client_nonce);
 		assert_eq!(self.future.by_priority.len() + self.current.by_priority.len(), self.by_hash.len());
+	}
+
+	/// Checks the current nonce for all transactions' senders in the queue and removes the old transactions.
+	pub fn remove_old<F>(&mut self, fetch_account: &F) where
+		F: Fn(&Address) -> AccountDetails,
+	{
+		let senders = self.current.by_address
+			.keys()
+			.map(|key| (*key, fetch_account(key).nonce))
+			.collect::<Vec<_>>();
+
+		for (sender, nonce) in senders {
+			self.remove_all(sender, nonce);
+		}
 	}
 
 	/// Penalize transactions from sender of transaction with given hash.
@@ -2438,7 +2454,7 @@ mod test {
 	}
 
 	#[test]
-	fn should_reject_transactions_below_bas_gas() {
+	fn should_reject_transactions_below_base_gas() {
 		// given
 		let mut txq = TransactionQueue::default();
 		let (tx1, tx2) = new_tx_pair_default(1.into(), 0.into());
@@ -2455,6 +2471,29 @@ mod test {
 			got: 100_000.into(),
 		});
 
+	}
+
+	#[test]
+	fn should_clear_all_old_transactions() {
+		// given
+		let mut txq = TransactionQueue::default();
+		let (tx1, tx2) = new_tx_pair_default(1.into(), 0.into());
+		let (tx3, tx4) = new_tx_pair_default(1.into(), 0.into());
+		let nonce1 = tx1.nonce;
+		let new_details = |_a: &Address| AccountDetails { nonce: nonce1 + U256::one(), balance: !U256::zero() };
+
+		// Insert all transactions
+		txq.add(tx1, TransactionOrigin::External, &default_account_details, &gas_estimator).unwrap();
+		txq.add(tx2, TransactionOrigin::External, &default_account_details, &gas_estimator).unwrap();
+		txq.add(tx3, TransactionOrigin::External, &default_account_details, &gas_estimator).unwrap();
+		txq.add(tx4, TransactionOrigin::External, &default_account_details, &gas_estimator).unwrap();
+		assert_eq!(txq.top_transactions().len(), 4);
+
+		// when
+		txq.remove_old(&new_details);
+
+		// then
+		assert_eq!(txq.top_transactions().len(), 2);
 	}
 
 }

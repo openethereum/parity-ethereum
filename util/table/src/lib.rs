@@ -18,6 +18,7 @@
 
 use std::hash::Hash;
 use std::collections::HashMap;
+use std::collections::hash_map::Keys;
 
 /// Structure to hold double-indexed values
 ///
@@ -39,6 +40,11 @@ impl<Row, Col, Val> Table<Row, Col, Val>
 		Table {
 			map: HashMap::new(),
 		}
+	}
+
+	/// Returns keys iterator for this Table.
+	pub fn keys(&self) -> Keys<Row, HashMap<Col, Val>> {
+		self.map.keys()
 	}
 
 	/// Removes all elements from this Table
