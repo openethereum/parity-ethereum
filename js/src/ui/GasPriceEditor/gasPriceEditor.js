@@ -19,7 +19,7 @@ import React, { Component, PropTypes } from 'react';
 import { observer } from 'mobx-react';
 
 import Input from '../Form/Input';
-import GasPriceSelector from './GasPriceSelector';
+import GasPriceSelector from '../GasPriceSelector';
 import Store from './store';
 
 import styles from './gasPriceEditor.css';

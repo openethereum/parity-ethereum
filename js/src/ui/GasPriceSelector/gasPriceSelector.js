@@ -26,7 +26,7 @@ import CustomTooltip from './CustomTooltip';
 
 import { COLORS, countModifier } from './util';
 
-import styles from './priceSelector.css';
+import styles from './gasPriceSelector.css';
 
 const TOOL_STYLE = {
   color: 'rgba(255,255,255,0.5)',
