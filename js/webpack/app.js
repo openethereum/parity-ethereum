@@ -20,6 +20,7 @@ const path = require('path');
 const WebpackErrorNotificationPlugin = require('webpack-error-notification');
 const CopyWebpackPlugin = require('copy-webpack-plugin');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
+const ExtractTextPlugin = require('extract-text-webpack-plugin');
 
 const Shared = require('./shared');
 const DAPPS = require('../src/dapps');
@@ -85,8 +86,13 @@ module.exports = {
       {
         test: /\.css$/,
         include: [ /src/ ],
+        loader: isProd ? ExtractTextPlugin.extract([
+          // 'style-loader',
+          'css-loader?modules&sourceMap&importLoaders=1&localIdentName=[name]__[local]___[hash:base64:5]',
+          'postcss-loader'
+        ]) : undefined,
         // use: [ 'happypack/loader?id=css' ]
-        use: [
+        use: isProd ? undefined : [
           'style-loader',
           'css-loader?modules&sourceMap&importLoaders=1&localIdentName=[name]__[local]___[hash:base64:5]',
           'postcss-loader'
@@ -158,6 +164,13 @@ module.exports = {
           minChunks: Infinity
         })
       );
+    }
+
+    if (isProd) {
+      plugins.push(new ExtractTextPlugin({
+        filename: 'styles.[hash].css',
+        allChunks: true
+      }));
     }
 
     return plugins;
