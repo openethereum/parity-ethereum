@@ -23,9 +23,9 @@ use self::stores::{AddressBook, DappsSettingsStore};
 use std::fmt;
 use std::collections::HashMap;
 use std::time::{Instant, Duration};
-use util::{RwLock, Itertools};
-use ethstore::{SimpleSecretStore, SecretStore, Error as SSError, SafeAccount, EthStore, EthMultiStore, random_string};
-use ethstore::dir::{KeyDirectory, MemoryDirectory};
+use util::RwLock;
+use ethstore::{SimpleSecretStore, SecretStore, Error as SSError, EthStore, EthMultiStore, random_string};
+use ethstore::dir::MemoryDirectory;
 use ethstore::ethkey::{Address, Message, Public, Secret, Random, Generator};
 use ethjson::misc::AccountMeta;
 pub use ethstore::ethkey::Signature;
@@ -418,6 +418,7 @@ mod tests {
 		assert!(ap.sign_with_token(kp.address(), token, Default::default()).is_err(), "Second usage of the same token should fail.");
 	}
 
+	#[test]
 	fn should_set_dapps_addresses() {
 		// given
 		let ap = AccountProvider::transient_provider();

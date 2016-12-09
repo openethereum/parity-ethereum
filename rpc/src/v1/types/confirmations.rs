@@ -192,7 +192,7 @@ impl<A, B> Serialize for Either<A, B>  where
 mod tests {
 	use std::str::FromStr;
 	use serde_json;
-	use v1::types::U256;
+	use v1::types::{U256, H256};
 	use v1::helpers;
 	use super::*;
 
