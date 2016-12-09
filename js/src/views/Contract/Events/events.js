@@ -45,9 +45,7 @@ export default class Events extends Component {
       return (
         <Container title='events'>
           <div>
-            <Loading
-              size={ 2 }
-            />
+            <Loading size={ 2 } />
           </div>
         </Container>
       );

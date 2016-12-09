@@ -136,20 +136,16 @@ class Contract extends Component {
             balance={ balance }
           />
 
-          <div>
-            <Queries
-              contract={ contract }
-              values={ queryValues }
-            />
-          </div>
+          <Queries
+            contract={ contract }
+            values={ queryValues }
+          />
 
-          <div>
-            <Events
-              isTest={ isTest }
-              isLoading={ loadingEvents }
-              events={ allEvents }
-            />
-          </div>
+          <Events
+            isTest={ isTest }
+            isLoading={ loadingEvents }
+            events={ allEvents }
+          />
 
           { this.renderDetails(account) }
         </Page>

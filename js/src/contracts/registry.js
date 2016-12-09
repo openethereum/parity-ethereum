@@ -97,7 +97,7 @@ export default class Registry {
       return instance.getAddress.call({}, [sha3, 'A']);
     })
     .then((address) => {
-      console.log('[lookupAddress]', `(${sha3.slice(0, 5)}...${sha3.slice(-3)}) ${name}: ${address}`);
+      console.log('[lookupAddress]', `(${sha3}) ${name}: ${address}`);
       return address;
     });
   }
