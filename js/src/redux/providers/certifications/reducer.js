@@ -21,13 +21,13 @@ export default (state = initialState, action) => {
     return state;
   }
 
-  const { address, name, icon, title } = action;
+  const { address, id, name, icon, title } = action;
   const certifications = state[address] || [];
 
-  if (certifications.some((c) => c.name === name)) {
+  if (certifications.some((c) => c.id === id)) {
     return state;
   }
-  const newCertifications = certifications.concat({ name, icon, title });
+  const newCertifications = certifications.concat({ id, name, icon, title });
 
   return { ...state, [address]: newCertifications };
 };

@@ -44,8 +44,8 @@ export default class CertificationsMiddleware {
           logs.forEach((log) => {
             const certifier = certifiers.find((c) => c.address === log.address);
             if (!certifier) throw new Error(`Could not find certifier at ${log.address}.`);
-            const { name, title, icon } = certifier;
-            dispatch(addCertification(log.params.who.value, name, title, icon));
+            const { id, name, title, icon } = certifier;
+            dispatch(addCertification(log.params.who.value, id, name, title, icon));
           });
         })
         .catch((err) => {
@@ -59,7 +59,7 @@ export default class CertificationsMiddleware {
           new Array(+count).fill(null).forEach((_, id) => {
             badgeReg.fetchCertifier(id)
               .then((cert) => {
-                if (!certifiers.some((c) => c.address === cert.address)) {
+                if (!certifiers.some((c) => c.id === cert.id)) {
                   certifiers = certifiers.concat(cert);
                   fetchConfirmedEvents(store.dispatch);
                 }

@@ -53,7 +53,7 @@ export default class BadgeReg {
         name = name === ZERO32 ? null : hex2Ascii(name);
         return this.fetchMeta(id)
           .then(({ title, icon }) => {
-            const data = { address, name, title, icon };
+            const data = { address, id, name, title, icon };
             this.certifiers[id] = data;
             return data;
           });
