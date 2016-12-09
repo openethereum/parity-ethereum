@@ -25,11 +25,12 @@ export default class GasPriceEditor {
   @observable errorGas = null;
   @observable errorPrice = null;
   @observable estimated = DEFAULT_GAS;
-  @observable histogram = null;
-  @observable price = DEFAULT_GASPRICE;
-  @observable priceDefault = DEFAULT_GASPRICE;
   @observable gas = DEFAULT_GAS;
   @observable gasLimit = 0;
+  @observable histogram = null;
+  @observable isEditing = false;
+  @observable price = DEFAULT_GASPRICE;
+  @observable priceDefault = DEFAULT_GASPRICE;
 
   constructor (api, gasLimit, loadDefaults = true) {
     this._api = api;
@@ -38,6 +39,10 @@ export default class GasPriceEditor {
     if (loadDefaults) {
       this.loadDefaults();
     }
+  }
+
+  @action setEditing = (isEditing) => {
+    this.isEditing = isEditing;
   }
 
   @action setEstimated = (estimated) => {

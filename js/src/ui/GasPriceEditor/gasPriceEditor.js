@@ -28,15 +28,15 @@ import styles from './gasPriceEditor.css';
 export default class GasPriceEditor extends Component {
   static propTypes = {
     children: PropTypes.node,
-    store: PropTypes.object.isRequired,
-    onChange: PropTypes.func
+    onChange: PropTypes.func,
+    store: PropTypes.object.isRequired
   }
 
   static Store = Store;
 
   render () {
     const { children, store } = this.props;
-    const { estimated, priceDefault, price, gas, histogram, errorGas, errorPrice } = store;
+    const { errorGas, errorPrice, estimated, gas, histogram, price, priceDefault } = store;
 
     const gasLabel = `gas (estimated: ${new BigNumber(estimated).toFormat()})`;
     const priceLabel = `price (current: ${new BigNumber(priceDefault).toFormat()})`;
@@ -45,8 +45,8 @@ export default class GasPriceEditor extends Component {
       <div className={ styles.columns }>
         <div className={ styles.graphColumn }>
           <GasPriceSelector
-            gasPriceHistogram={ histogram }
-            gasPrice={ price }
+            histogram={ histogram }
+            price={ price }
             onChange={ this.onEditGasPrice } />
           <div className={ styles.gasPriceDesc }>
             You can choose the gas price based on the
