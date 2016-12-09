@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import { uniq } from 'lodash';
 
 import { Container } from '~/ui';
 
@@ -38,7 +39,10 @@ export default class Events extends Component {
       return null;
     }
 
-    const list = events.map((event) => {
+    const eventsKey = uniq(events.map((e) => e.key));
+    const list = eventsKey.map((eventKey) => {
+      const event = events.find((e) => e.key === eventKey);
+
       return (
         <Event
           key={ event.key }

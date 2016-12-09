@@ -97,7 +97,7 @@ class Account extends Component {
     }
 
     return (
-      <div className={ styles.account }>
+      <div>
         { this.renderDeleteDialog(account) }
         { this.renderEditDialog(account) }
         { this.renderFundDialog() }

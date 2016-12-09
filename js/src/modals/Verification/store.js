@@ -19,9 +19,8 @@ import { sha3 } from '~/api/util/sha3';
 import Contract from '~/api/contract';
 import Contracts from '~/contracts';
 
-import { checkIfVerified, checkIfRequested, awaitPuzzle } from '~/contracts/verification';
-import checkIfTxFailed from '../../util/check-if-tx-failed';
-import waitForConfirmations from '../../util/wait-for-block-confirmations';
+import { checkIfVerified, checkIfRequested, awaitPuzzle } from '~/contracts/sms-verification';
+import { checkIfTxFailed, waitForConfirmations } from '~/util/tx';
 
 export const LOADING = 'fetching-contract';
 export const QUERY_DATA = 'query-data';

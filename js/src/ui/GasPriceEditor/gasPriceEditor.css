@@ -14,42 +14,36 @@
 /* You should have received a copy of the GNU General Public License
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
-/* todo [adgo] - make local */
-:global .transition-appear {
-  opacity: 0.01;
-}
 
-:global .transition-appear.transition-appear-active {
-  opacity: 1;
-  transition: opacity .3s ease-in-out;
-}
-
-:global .transition-enter {
-  opacity: 0.01;
-}
-
-:global .transition-enter.transition-enter-active {
-  opacity: 1;
-  transition: opacity .3s ease-in-out;
-}
-
-:global .transition-leave {
-  opacity: 1;
-}
-
-:global .transition-leave.transition-leave-active {
-  opacity: 0.01;
-  transition: opacity .3s ease-in-out;
-}
-
-:global .absoluteAnimationContainer {
+.columns {
+  display: flex;
+  flex-wrap: wrap;
   position: relative;
 }
 
-:global .absoluteAnimationContainer > .transition-leave {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  width: 100%;
+.graphColumn {
+  flex: 65;
+}
+
+.editColumn {
+  flex: 35;
+  padding-left: 1em;
+  justify-ontent: space-around;
+  padding-bottom: 12;
+  display: flex;
+  flex-wrap: wrap;
+  position: relative;
+  flex-direction: column;
+}
+
+.gasPriceDesc {
+  font-size: 0.75em;
+  opacity: 0.5;
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  position: relative;
+  flex-direction: column;
 }
