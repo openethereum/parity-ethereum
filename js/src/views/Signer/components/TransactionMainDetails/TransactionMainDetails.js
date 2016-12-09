@@ -91,44 +91,46 @@ export default class TransactionMainDetails extends Component {
     );
   }
 
-  renderValue () {
-    const { id } = this.props;
-    const { valueDisplay, valueDisplayWei } = this.state;
-
-    return (
-      <div>
-        <div
-          data-tip
-          data-for={ 'value' + id }
-          data-effect='solid'>
-          <strong>{ valueDisplay } </strong>
-          <small>ETH</small>
-        </div>
-        <ReactTooltip id={ 'value' + id }>
-          The value of the transaction.<br />
-          <strong>{ valueDisplayWei }</strong> <small>WEI</small>
-        </ReactTooltip>
-      </div>
-    );
-  }
-
   renderTotalValue () {
     const { id } = this.props;
     const { totalValueDisplay, totalValueDisplayWei, feeEth } = this.state;
+    const labelId = `totalValue${id}`;
 
     return (
       <div>
         <div
           data-tip
-          data-for={ 'totalValue' + id }
+          data-for={ labelId }
           data-effect='solid'
           data-place='bottom'
           className={ styles.total }>
           { totalValueDisplay } <small>ETH</small>
         </div>
-        <ReactTooltip id={ 'totalValue' + id }>
+        <ReactTooltip id={ labelId }>
           The value of the transaction including the mining fee is <strong>{ totalValueDisplayWei }</strong> <small>WEI</small>. <br />
           (This includes a mining fee of <strong>{ feeEth }</strong> <small>ETH</small>)
+        </ReactTooltip>
+      </div>
+    );
+  }
+
+  renderValue () {
+    const { id } = this.props;
+    const { valueDisplay, valueDisplayWei } = this.state;
+    const labelId = `value${id}`;
+
+    return (
+      <div>
+        <div
+          data-tip
+          data-for={ labelId }
+          data-effect='solid'>
+          <strong>{ valueDisplay } </strong>
+          <small>ETH</small>
+        </div>
+        <ReactTooltip id={ labelId }>
+          The value of the transaction.<br />
+          <strong>{ valueDisplayWei }</strong> <small>WEI</small>
         </ReactTooltip>
       </div>
     );
@@ -137,10 +139,10 @@ export default class TransactionMainDetails extends Component {
   updateDisplayValues (value, totalValue) {
     this.setState({
       feeEth: tUtil.calcFeeInEth(totalValue, value),
-      valueDisplay: tUtil.getValueDisplay(value),
-      valueDisplayWei: tUtil.getValueDisplayWei(value),
       totalValueDisplay: tUtil.getTotalValueDisplay(totalValue),
-      totalValueDisplayWei: tUtil.getTotalValueDisplayWei(totalValue)
+      totalValueDisplayWei: tUtil.getTotalValueDisplayWei(totalValue),
+      valueDisplay: tUtil.getValueDisplay(value),
+      valueDisplayWei: tUtil.getValueDisplayWei(value)
     });
   }
 

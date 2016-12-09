@@ -44,12 +44,12 @@ export default class TransactionPending extends Component {
     onReject: PropTypes.func.isRequired,
     store: PropTypes.object.isRequired,
     transaction: PropTypes.shape({
+      data: PropTypes.string,
       from: PropTypes.string.isRequired,
-      value: PropTypes.object.isRequired, // wei hex
-      gasPrice: PropTypes.object.isRequired, // wei hex
-      gas: PropTypes.object.isRequired, // hex
-      data: PropTypes.string, // hex
-      to: PropTypes.string // undefined if it's a contract
+      gasPrice: PropTypes.object.isRequired,
+      gas: PropTypes.object.isRequired,
+      to: PropTypes.string,
+      value: PropTypes.object.isRequired
     }).isRequired
   };
 
@@ -109,10 +109,6 @@ export default class TransactionPending extends Component {
   }
 
   renderGasEditor () {
-    // const { gasLimit } = this.props;
-    //
-    // this.gasStore.setGasLimit(gasLimit);
-
     return (
       <GasPriceEditor
         store={ this.gasStore }>
