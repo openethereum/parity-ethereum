@@ -19,7 +19,7 @@ import { uniq } from 'lodash';
 import ABI from '~/contracts/abi/certifier.json';
 import Contract from '~/api/contract';
 import Contracts from '~/contracts';
-import { addCertification } from './actions';
+import { addCertification, removeCertification } from './actions';
 
 export default class CertificationsMiddleware {
   toMiddleware () {
@@ -27,6 +27,7 @@ export default class CertificationsMiddleware {
     const badgeReg = Contracts.get().badgeReg;
     const contract = new Contract(api, ABI);
     const Confirmed = contract.events.find((e) => e.name === 'Confirmed');
+    const Revoked = contract.events.find((e) => e.name === 'Revoked');
 
     let certifiers = [];
     let accounts = []; // these are addresses
@@ -37,7 +38,7 @@ export default class CertificationsMiddleware {
         fromBlock: 0,
         toBlock: 'latest',
         address: certifiers.map((c) => c.address),
-        topics: [ Confirmed.signature, accounts ]
+        topics: [ [ Confirmed.signature, Revoked.signature ], accounts ]
       })
         .then((logs) => contract.parseEventLogs(logs))
         .then((logs) => {
@@ -45,7 +46,11 @@ export default class CertificationsMiddleware {
             const certifier = certifiers.find((c) => c.address === log.address);
             if (!certifier) throw new Error(`Could not find certifier at ${log.address}.`);
             const { id, name, title, icon } = certifier;
-            dispatch(addCertification(log.params.who.value, id, name, title, icon));
+            if (log.event === 'Revoked') {
+              dispatch(removeCertification(log.params.who.value, id));
+            } else {
+              dispatch(addCertification(log.params.who.value, id, name, title, icon));
+            }
           });
         })
         .catch((err) => {

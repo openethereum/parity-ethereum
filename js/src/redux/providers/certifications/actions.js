@@ -26,6 +26,6 @@ export const addCertification = (address, id, name, title, icon) => ({
   type: 'addCertification', address, id, name, title, icon
 });
 
-export const removeCertification = (address, id, name, title, icon) => ({
-  type: 'removeCertification', address, id, name, title, icon
+export const removeCertification = (address, id) => ({
+  type: 'removeCertification', address, id
 });
