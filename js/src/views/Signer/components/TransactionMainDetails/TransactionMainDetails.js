@@ -14,11 +14,11 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import MapsLocalGasStation from 'material-ui/svg-icons/maps/local-gas-station';
 import React, { Component, PropTypes } from 'react';
-
 import ReactTooltip from 'react-tooltip';
 
-import { MethodDecoding } from '~/ui';
+import { Button, MethodDecoding } from '~/ui';
 
 import * as tUtil from '../util/transaction';
 import Account from '../Account';
@@ -49,16 +49,6 @@ export default class TransactionMainDetails extends Component {
     this.updateDisplayValues(value, totalValue);
   }
 
-  updateDisplayValues (value, totalValue) {
-    this.setState({
-      feeEth: tUtil.calcFeeInEth(totalValue, value),
-      valueDisplay: tUtil.getValueDisplay(value),
-      valueDisplayWei: tUtil.getValueDisplayWei(value),
-      totalValueDisplay: tUtil.getTotalValueDisplay(totalValue),
-      totalValueDisplayWei: tUtil.getTotalValueDisplayWei(totalValue)
-    });
-  }
-
   render () {
     const { children, from, fromBalance, transaction, isTest } = this.props;
 
@@ -87,14 +77,17 @@ export default class TransactionMainDetails extends Component {
   renderEditGas () {
     const { gasStore } = this.props;
 
-    if (!gasStore || gasStore.isEditing) {
-      return false;
+    if (!gasStore) {
+      return null;
     }
 
-    const onClick = () => gasStore.setEditing(true);
-
     return (
-      <a href='#' onClick={ onClick }>Edit Gas & Price</a>
+      <div className={ styles.editButtonRow }>
+        <Button
+          icon={ <MapsLocalGasStation /> }
+          label='Edit gas/gasPrice'
+          onClick={ this.toggleGasEditor } />
+      </div>
     );
   }
 
@@ -139,5 +132,19 @@ export default class TransactionMainDetails extends Component {
         </ReactTooltip>
       </div>
     );
+  }
+
+  updateDisplayValues (value, totalValue) {
+    this.setState({
+      feeEth: tUtil.calcFeeInEth(totalValue, value),
+      valueDisplay: tUtil.getValueDisplay(value),
+      valueDisplayWei: tUtil.getValueDisplayWei(value),
+      totalValueDisplay: tUtil.getTotalValueDisplay(totalValue),
+      totalValueDisplayWei: tUtil.getTotalValueDisplayWei(totalValue)
+    });
+  }
+
+  toggleGasEditor = () => {
+    this.props.gasStore.setEditing(true);
   }
 }

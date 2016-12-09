@@ -17,7 +17,7 @@
 import React, { Component, PropTypes } from 'react';
 import { observer } from 'mobx-react';
 
-import { GasPriceEditor } from '~/ui';
+import { Button, GasPriceEditor } from '~/ui';
 
 import TransactionMainDetails from '../TransactionMainDetails';
 import TransactionPendingForm from '../TransactionPendingForm';
@@ -35,7 +35,7 @@ export default class TransactionPending extends Component {
   static propTypes = {
     className: PropTypes.string,
     date: PropTypes.instanceOf(Date).isRequired,
-    gasLimit: PropTypes.object.isRequired,
+    gasLimit: PropTypes.object,
     id: PropTypes.object.isRequired,
     isSending: PropTypes.bool.isRequired,
     isTest: PropTypes.bool.isRequired,
@@ -60,19 +60,27 @@ export default class TransactionPending extends Component {
   gasStore = new GasPriceEditor.Store(this.context.api, this.props.gasLimit);
 
   componentWillMount () {
-    const { transaction, store } = this.props;
-    const { gas, gasPrice, value, from, to } = transaction;
+    const { store, transaction } = this.props;
+    const { from, gas, gasPrice, to, value } = transaction;
 
     const fee = tUtil.getFee(gas, gasPrice); // BigNumber object
-    const totalValue = tUtil.getTotalValue(fee, value);
     const gasPriceEthmDisplay = tUtil.getEthmFromWeiDisplay(gasPrice);
     const gasToDisplay = tUtil.getGasDisplay(gas);
+    const totalValue = tUtil.getTotalValue(fee, value);
 
     this.setState({ gasPriceEthmDisplay, totalValue, gasToDisplay });
+    this.gasStore.setEthValue(value);
+
     store.fetchBalances([from, to]);
   }
 
   render () {
+    return this.gasStore.isEditing
+      ? this.renderGasEditor()
+      : this.renderTransaction();
+  }
+
+  renderTransaction () {
     const { className, id, isTest, store, transaction } = this.props;
     const { totalValue } = this.state;
     const { from, value } = transaction;
@@ -90,9 +98,7 @@ export default class TransactionPending extends Component {
           isTest={ isTest }
           totalValue={ totalValue }
           transaction={ transaction }
-          value={ value }>
-          { this.renderEditor() }
-        </TransactionMainDetails>
+          value={ value } />
         <TransactionPendingForm
           address={ from }
           isSending={ this.props.isSending }
@@ -102,14 +108,18 @@ export default class TransactionPending extends Component {
     );
   }
 
-  renderEditor () {
-    if (!this.gasStore.isEditing) {
-      return null;
-    }
+  renderGasEditor () {
+    // const { gasLimit } = this.props;
+    //
+    // this.gasStore.setGasLimit(gasLimit);
 
     return (
       <GasPriceEditor
-        store={ this.gasStore } />
+        store={ this.gasStore }>
+        <Button
+          label='view transaction'
+          onClick={ this.toggleGasEditor } />
+      </GasPriceEditor>
     );
   }
 
@@ -123,5 +133,9 @@ export default class TransactionPending extends Component {
 
   onReject = () => {
     this.props.onReject(this.props.id);
+  }
+
+  toggleGasEditor = () => {
+    this.gasStore.setEditing(false);
   }
 }

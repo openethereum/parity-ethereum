@@ -17,20 +17,25 @@
 
 @import '../../_layout.css';
 
-.transaction {
-  flex: 1;
-  overflow: auto;
-}
-
-.transaction > * {
-  display: inline-block;
-}
-
 .account {
   text-align: center;
 }
 
+.contractIcon {
+  background: #eee;
+  width: 50px !important;
+  height: 50px !important;
+  box-sizing: border-box;
+  border-radius: 50%;
+  padding: 13px;
+}
+
+.editButtonRow {
+  text-align: right;
+}
+
 .from {
+  display: inline-block;
   width: 40%;
   vertical-align: top;
 
@@ -47,6 +52,7 @@
 }
 
 .method {
+  display: inline-block;
   width: 60%;
   vertical-align: top;
   line-height: 1em;
@@ -66,11 +72,7 @@
   opacity: .5;
 }
 
-.contractIcon {
-  background: #eee;
-  width: 50px !important;
-  height: 50px !important;
-  box-sizing: border-box;
-  border-radius: 50%;
-  padding: 13px;
+.transaction {
+  flex: 1;
+  overflow: auto;
 }
