@@ -1445,6 +1445,12 @@ impl ProvingBlockChainClient for Client {
 	}
 }
 
+impl Drop for Client {
+	fn drop(&mut self) {
+		self.engine.stop();
+	}
+}
+
 #[cfg(test)]
 mod tests {
 

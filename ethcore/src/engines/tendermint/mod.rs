@@ -191,6 +191,7 @@ impl Tendermint {
 		}
 	}
 
+	/// Broadcast all messages since last issued block to get the peers up to speed.
 	fn broadcast_old_messages(&self) {
 		for m in self.votes.get_up_to(self.height.load(AtomicOrdering::SeqCst)).into_iter() {
 			self.broadcast_message(m);
@@ -561,6 +562,10 @@ impl Engine for Tendermint {
 		}
 	}
 
+	fn stop(&self) {
+		self.step_service.stop()
+	}
+
 	fn is_new_best_block(&self, _best_total_difficulty: U256, best_header: HeaderView, _parent_details: &BlockDetails, new_header: &HeaderView) -> bool {
 		let new_number = new_header.number();
 		let best_number = best_header.number();
@@ -741,7 +746,6 @@ mod tests {
 	}
 
 	#[test]
-	#[ignore]
 	fn allows_correct_proposer() {
 		let (spec, tap) = setup();
 		let engine = spec.engine;
@@ -772,7 +776,8 @@ mod tests {
 		match engine.verify_block_unordered(&header, None) {
 			Err(Error::Engine(EngineError::NotAuthorized(_))) => {},
 			_ => panic!(),
-		}
+		};
+		engine.stop();
 	}
 
 	#[test]
@@ -815,7 +820,8 @@ mod tests {
 		match engine.verify_block_unordered(&header, None) {
 			Err(Error::Engine(EngineError::NotAuthorized(_))) => {},
 			_ => panic!(),
-		}
+		};
+		engine.stop();
 	}
 
 	#[test]
@@ -826,6 +832,7 @@ mod tests {
 
 		let (b, seal) = propose_default(&spec, proposer);
 		assert!(b.try_seal(spec.engine.as_ref(), seal).is_ok());
+		spec.engine.stop();
 	}
 
 	#[test]
@@ -860,6 +867,7 @@ mod tests {
 		vote(&engine, |mh| tap.sign(v1, None, mh).map(H520::from), h, r, Step::Precommit, proposal);
 		vote(&engine, |mh| tap.sign(v0, None, mh).map(H520::from), h, r, Step::Precommit, proposal);
 
+		engine.stop();
 		// Wait a bit for async stuff.
 		::std::thread::sleep(::std::time::Duration::from_millis(100));
 		seal[2] = precommit_signatures(&tap, h, r, Some(b.header().bare_hash()), v0, v1);
