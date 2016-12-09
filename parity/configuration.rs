@@ -729,7 +729,7 @@ mod tests {
 	use super::*;
 	use cli::Args;
 	use ethcore_rpc::NetworkSettings;
-	use ethcore::client::{VMType, BlockID};
+	use ethcore::client::{VMType, BlockId};
 	use ethcore::miner::{MinerOptions, PrioritizationStrategy};
 	use helpers::{replace_home, default_network_config};
 	use run::RunCmd;
@@ -838,8 +838,8 @@ mod tests {
 			wal: true,
 			tracing: Default::default(),
 			fat_db: Default::default(),
-			from_block: BlockID::Number(1),
-			to_block: BlockID::Latest,
+			from_block: BlockId::Number(1),
+			to_block: BlockId::Latest,
 			check_seal: true,
 		})));
 	}
@@ -860,7 +860,7 @@ mod tests {
 			wal: true,
 			tracing: Default::default(),
 			fat_db: Default::default(),
-			at: BlockID::Latest,
+			at: BlockId::Latest,
 			storage: true,
 			code: true,
 			min_balance: None,
@@ -884,8 +884,8 @@ mod tests {
 			wal: true,
 			tracing: Default::default(),
 			fat_db: Default::default(),
-			from_block: BlockID::Number(1),
-			to_block: BlockID::Latest,
+			from_block: BlockId::Number(1),
+			to_block: BlockId::Latest,
 			check_seal: true,
 		})));
 	}

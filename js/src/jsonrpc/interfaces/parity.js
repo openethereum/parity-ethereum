@@ -43,7 +43,7 @@ export default {
         },
         uuid: {
           type: String,
-          desc: 'The account UUID, or null if not available/unknown/not applicable.'
+          desc: 'The account Uuid, or null if not available/unknown/not applicable.'
         }
       }
     }
@@ -66,7 +66,7 @@ export default {
         },
         uuid: {
           type: String,
-          desc: 'The account UUID, or null if not available/unknown/not applicable.'
+          desc: 'The account Uuid, or null if not available/unknown/not applicable.'
         }
       }
     }

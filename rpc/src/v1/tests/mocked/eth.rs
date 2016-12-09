@@ -24,7 +24,7 @@ use rlp;
 
 use util::{Uint, U256, Address, H256, FixedHash, Mutex};
 use ethcore::account_provider::AccountProvider;
-use ethcore::client::{TestBlockChainClient, EachBlockWith, Executed, TransactionID};
+use ethcore::client::{TestBlockChainClient, EachBlockWith, Executed, TransactionId};
 use ethcore::log_entry::{LocalizedLogEntry, LogEntry};
 use ethcore::receipt::LocalizedReceipt;
 use ethcore::transaction::{Transaction, Action};
@@ -952,7 +952,7 @@ fn rpc_eth_transaction_receipt() {
 
 	let hash = H256::from_str("b903239f8543d04b5dc1ba6579132b143087c68db1b2168786408fcbce568238").unwrap();
 	let tester = EthTester::default();
-	tester.client.set_transaction_receipt(TransactionID::Hash(hash), receipt);
+	tester.client.set_transaction_receipt(TransactionId::Hash(hash), receipt);
 
 	let request = r#"{
 		"jsonrpc": "2.0",

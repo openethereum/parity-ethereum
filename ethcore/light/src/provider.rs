@@ -20,7 +20,7 @@
 use ethcore::blockchain_info::BlockChainInfo;
 use ethcore::client::{BlockChainClient, ProvingBlockChainClient};
 use ethcore::transaction::SignedTransaction;
-use ethcore::ids::BlockID;
+use ethcore::ids::BlockId;
 
 use util::{Bytes, H256};
 
@@ -96,7 +96,7 @@ impl<T: ProvingBlockChainClient + ?Sized> Provider for T {
 		let best_num = self.chain_info().best_block_number;
 		let start_num = req.block_num;
 
-		match self.block_hash(BlockID::Number(req.block_num)) {
+		match self.block_hash(BlockId::Number(req.block_num)) {
 			Some(hash) if hash == req.block_hash => {}
 			_=> {
 				trace!(target: "les_provider", "unknown/non-canonical start block in header request: {:?}", (req.block_num, req.block_hash));
@@ -108,7 +108,7 @@ impl<T: ProvingBlockChainClient + ?Sized> Provider for T {
 			.map(|x: u64| x.saturating_mul(req.skip))
 			.take_while(|x| if req.reverse { x < &start_num } else { best_num - start_num < *x })
 			.map(|x| if req.reverse { start_num - x } else { start_num + x })
-			.map(|x| self.block_header(BlockID::Number(x)))
+			.map(|x| self.block_header(BlockId::Number(x)))
 			.take_while(|x| x.is_some())
 			.flat_map(|x| x)
 			.collect()
@@ -116,7 +116,7 @@ impl<T: ProvingBlockChainClient + ?Sized> Provider for T {
 
 	fn block_bodies(&self, req: request::Bodies) -> Vec<Bytes> {
 		req.block_hashes.into_iter()
-			.map(|hash| self.block_body(BlockID::Hash(hash)))
+			.map(|hash| self.block_body(BlockId::Hash(hash)))
 			.map(|body| body.unwrap_or_else(|| ::rlp::EMPTY_LIST_RLP.to_vec()))
 			.collect()
 	}
@@ -135,8 +135,8 @@ impl<T: ProvingBlockChainClient + ?Sized> Provider for T {
 
 		for request in req.requests {
 			let proof = match request.key2 {
-				Some(key2) => self.prove_storage(request.key1, key2, request.from_level, BlockID::Hash(request.block)),
-				None => self.prove_account(request.key1, request.from_level, BlockID::Hash(request.block)),
+				Some(key2) => self.prove_storage(request.key1, key2, request.from_level, BlockId::Hash(request.block)),
+				None => self.prove_account(request.key1, request.from_level, BlockId::Hash(request.block)),
 			};
 
 			let mut stream = RlpStream::new_list(proof.len());
@@ -153,7 +153,7 @@ impl<T: ProvingBlockChainClient + ?Sized> Provider for T {
 	fn contract_code(&self, req: request::ContractCodes) -> Vec<Bytes> {
 		req.code_requests.into_iter()
 			.map(|req| {
-				self.code_by_hash(req.account_key, BlockID::Hash(req.block_hash))
+				self.code_by_hash(req.account_key, BlockId::Hash(req.block_hash))
 			})
 			.collect()
 	}
