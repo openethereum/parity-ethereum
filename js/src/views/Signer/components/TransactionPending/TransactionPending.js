@@ -17,6 +17,8 @@
 import React, { Component, PropTypes } from 'react';
 import { observer } from 'mobx-react';
 
+import { GasPriceEditor } from '~/ui';
+
 import TransactionMainDetails from '../TransactionMainDetails';
 import TransactionPendingForm from '../TransactionPendingForm';
 
@@ -26,8 +28,21 @@ import * as tUtil from '../util/transaction';
 
 @observer
 export default class TransactionPending extends Component {
+  static contextTypes = {
+    api: PropTypes.object.isRequired
+  };
+
   static propTypes = {
+    className: PropTypes.string,
+    date: PropTypes.instanceOf(Date).isRequired,
+    gasLimit: PropTypes.object.isRequired,
     id: PropTypes.object.isRequired,
+    isSending: PropTypes.bool.isRequired,
+    isTest: PropTypes.bool.isRequired,
+    nonce: PropTypes.number,
+    onConfirm: PropTypes.func.isRequired,
+    onReject: PropTypes.func.isRequired,
+    store: PropTypes.object.isRequired,
     transaction: PropTypes.shape({
       from: PropTypes.string.isRequired,
       value: PropTypes.object.isRequired, // wei hex
@@ -35,20 +50,14 @@ export default class TransactionPending extends Component {
       gas: PropTypes.object.isRequired, // hex
       data: PropTypes.string, // hex
       to: PropTypes.string // undefined if it's a contract
-    }).isRequired,
-    date: PropTypes.instanceOf(Date).isRequired,
-    nonce: PropTypes.number,
-    onConfirm: PropTypes.func.isRequired,
-    onReject: PropTypes.func.isRequired,
-    isSending: PropTypes.bool.isRequired,
-    className: PropTypes.string,
-    isTest: PropTypes.bool.isRequired,
-    store: PropTypes.object.isRequired
+    }).isRequired
   };
 
   static defaultProps = {
     isSending: false
   };
+
+  gasStore = new GasPriceEditor.Store(this.context.api, this.props.gasLimit);
 
   componentWillMount () {
     const { transaction, store } = this.props;
@@ -64,7 +73,7 @@ export default class TransactionPending extends Component {
   }
 
   render () {
-    const { className, id, transaction, store, isTest } = this.props;
+    const { className, id, isTest, store, transaction } = this.props;
     const { from, value } = transaction;
     const { totalValue } = this.state;
 
@@ -73,21 +82,34 @@ export default class TransactionPending extends Component {
     return (
       <div className={ `${styles.container} ${className || ''}` }>
         <TransactionMainDetails
-          id={ id }
-          value={ value }
-          from={ from }
-          isTest={ isTest }
-          fromBalance={ fromBalance }
           className={ styles.transactionDetails }
+          from={ from }
+          fromBalance={ fromBalance }
+          gasStore={ this.gasStore }
+          id={ id }
+          isTest={ isTest }
+          totalValue={ totalValue }
           transaction={ transaction }
-          totalValue={ totalValue } />
+          value={ value }>
+          { this.renderEditor() }
+        </TransactionMainDetails>
         <TransactionPendingForm
           address={ from }
           isSending={ this.props.isSending }
           onConfirm={ this.onConfirm }
-          onReject={ this.onReject }
-        />
+          onReject={ this.onReject } />
       </div>
+    );
+  }
+
+  renderEditor () {
+    if (!this.gasStore.isEditing) {
+      return null;
+    }
+
+    return (
+      <GasPriceEditor
+        store={ this.gasStore } />
     );
   }
 

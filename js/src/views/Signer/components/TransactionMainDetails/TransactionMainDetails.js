@@ -26,14 +26,15 @@ import styles from './TransactionMainDetails.css';
 
 export default class TransactionMainDetails extends Component {
   static propTypes = {
-    id: PropTypes.object.isRequired,
+    children: PropTypes.node,
     from: PropTypes.string.isRequired,
-    fromBalance: PropTypes.object, // eth BigNumber, not required since it might take time to fetch
-    value: PropTypes.object.isRequired, // wei hex
-    totalValue: PropTypes.object.isRequired, // wei BigNumber
+    fromBalance: PropTypes.object,
+    gasStore: PropTypes.object,
+    id: PropTypes.object.isRequired,
     isTest: PropTypes.bool.isRequired,
+    totalValue: PropTypes.object.isRequired,
     transaction: PropTypes.object.isRequired,
-    children: PropTypes.node
+    value: PropTypes.object.isRequired
   };
 
   componentWillMount () {
@@ -74,11 +75,26 @@ export default class TransactionMainDetails extends Component {
         <div className={ styles.method }>
           <MethodDecoding
             address={ from }
-            transaction={ transaction }
-            historic={ false } />
+            historic={ false }
+            transaction={ transaction } />
+          { this.renderEditGas() }
         </div>
         { children }
       </div>
+    );
+  }
+
+  renderEditGas () {
+    const { gasStore } = this.props;
+
+    if (!gasStore || gasStore.isEditing) {
+      return false;
+    }
+
+    const onClick = () => gasStore.setEditing(true);
+
+    return (
+      <a href='#' onClick={ onClick }>Edit Gas & Price</a>
     );
   }
 
@@ -91,8 +107,7 @@ export default class TransactionMainDetails extends Component {
         <div
           data-tip
           data-for={ 'value' + id }
-          data-effect='solid'
-          >
+          data-effect='solid'>
           <strong>{ valueDisplay } </strong>
           <small>ETH</small>
         </div>

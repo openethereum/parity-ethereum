@@ -35,15 +35,16 @@ class RequestsPage extends Component {
   };
 
   static propTypes = {
-    signer: PropTypes.shape({
-      pending: PropTypes.array.isRequired,
-      finished: PropTypes.array.isRequired
-    }).isRequired,
     actions: PropTypes.shape({
       startConfirmRequest: PropTypes.func.isRequired,
       startRejectRequest: PropTypes.func.isRequired
     }).isRequired,
-    isTest: PropTypes.bool.isRequired
+    gasLimit: PropTypes.object.isRequired,
+    isTest: PropTypes.bool.isRequired,
+    signer: PropTypes.shape({
+      pending: PropTypes.array.isRequired,
+      finished: PropTypes.array.isRequired
+    }).isRequired
   };
 
   store = new Store(this.context.api, true);
@@ -104,19 +105,20 @@ class RequestsPage extends Component {
   }
 
   renderPending = (data) => {
-    const { actions, isTest } = this.props;
+    const { actions, gasLimit, isTest } = this.props;
     const { payload, id, isSending, date } = data;
 
     return (
       <RequestPending
+        date={ date }
+        gasLimit={ gasLimit }
+        id={ id }
+        isSending={ isSending || false }
+        isTest={ isTest }
+        key={ id }
         onConfirm={ actions.startConfirmRequest }
         onReject={ actions.startRejectRequest }
-        isSending={ isSending || false }
-        key={ id }
-        id={ id }
         payload={ payload }
-        date={ date }
-        isTest={ isTest }
         store={ this.store }
       />
     );
@@ -124,13 +126,14 @@ class RequestsPage extends Component {
 }
 
 function mapStateToProps (state) {
-  const { isTest } = state.nodeStatus;
+  const { gasLimit, isTest } = state.nodeStatus;
   const { actions, signer } = state;
 
   return {
     actions,
-    signer,
-    isTest
+    gasLimit,
+    isTest,
+    signer
   };
 }
 
