@@ -16,9 +16,10 @@
 
 /// Tendermint BFT consensus engine with round robin proof-of-authority.
 /// At each blockchain `Height` there can be multiple `Round`s of voting.
-/// Block is issued when there is enough `Precommit` votes collected on a particular block at the end of a `Round`.
 /// Signatures always sign `Height`, `Round`, `Step` and `BlockHash` which is a block hash without seal.
 /// First a block with `Seal::Proposal` is issued by the designated proposer.
+/// Next the `Round` proceeds through `Prevote` and `Precommit` `Step`s.
+/// Block is issued when there is enough `Precommit` votes collected on a particular block at the end of a `Round`.
 /// Once enough votes have been gathered the proposer issues that block in the `Commit` step.
 
 mod message;
@@ -97,7 +98,7 @@ pub struct Tendermint {
 	/// Last lock round.
 	last_lock: AtomicUsize,
 	/// Bare hash of the proposed block, used for seal submission.
-	proposal: RwLock<Option<H256>>
+	proposal: RwLock<Option<H256>>,
 }
 
 impl Tendermint {
@@ -119,7 +120,7 @@ impl Tendermint {
 				account_provider: Mutex::new(None),
 				lock_change: RwLock::new(None),
 				last_lock: AtomicUsize::new(0),
-				proposal: RwLock::new(None)
+				proposal: RwLock::new(None),
 			});
 		let handler = TransitionHandler { engine: Arc::downgrade(&engine) };
 		try!(engine.step_service.register_handler(Arc::new(handler)));
@@ -390,7 +391,7 @@ impl Engine for Tendermint {
 	}
 
 	fn schedule(&self, _env_info: &EnvInfo) -> Schedule {
-		Schedule::new_homestead()
+		Schedule::new_post_eip150(usize::max_value(), true, true, true)
 	}
 
 	fn populate_from_parent(&self, header: &mut Header, parent: &Header, gas_floor_target: U256, _gas_ceil_target: U256) {
@@ -828,8 +829,8 @@ mod tests {
 	}
 
 	#[test]
+	#[ignore]
 	fn step_transitioning() {
-		//::env_logger::init().unwrap();
 		let (spec, tap) = setup();
 		let engine = spec.engine.clone();
 		let mut db_result = get_temp_state_db();

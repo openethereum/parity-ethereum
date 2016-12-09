@@ -29,7 +29,7 @@ pub struct ConsensusMessage {
 	pub height: Height,
 	pub round: Round,
 	pub step: Step,
-	pub block_hash: Option<BlockHash>
+	pub block_hash: Option<BlockHash>,
 }
 
 
@@ -45,7 +45,7 @@ impl ConsensusMessage {
 			height: height,
 			round: round,
 			step: step,
-			block_hash: block_hash
+			block_hash: block_hash,
 		}
 	}
 
@@ -55,7 +55,7 @@ impl ConsensusMessage {
 			height: header.number() as Height,
 			round: try!(consensus_round(header)),
 			step: Step::Propose,
-			block_hash: Some(header.bare_hash())
+			block_hash: Some(header.bare_hash()),
 		})
 	}
 

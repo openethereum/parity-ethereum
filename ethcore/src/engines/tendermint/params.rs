@@ -42,7 +42,7 @@ impl Default for TendermintParams {
 			gas_limit_bound_divisor: 0x0400.into(),
 			authorities: authorities,
 			authority_n: val_n,
-			timeouts: TendermintTimeouts::default()
+			timeouts: TendermintTimeouts::default(),
 		}
 	}
 }
@@ -65,8 +65,8 @@ impl From<ethjson::spec::TendermintParams> for TendermintParams {
 				propose: p.timeout_propose.map_or(dt.propose, to_duration),
 				prevote: p.timeout_prevote.map_or(dt.prevote, to_duration),
 				precommit: p.timeout_precommit.map_or(dt.precommit, to_duration),
-				commit: p.timeout_commit.map_or(dt.commit, to_duration)
-			}
+				commit: p.timeout_commit.map_or(dt.commit, to_duration),
+			},
 		}
 	}
 }

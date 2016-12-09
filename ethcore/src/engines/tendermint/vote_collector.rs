@@ -23,13 +23,13 @@ use super::{Height, Round, Step};
 #[derive(Debug)]
 pub struct VoteCollector {
 	/// Storing all Proposals, Prevotes and Precommits.
-	votes: RwLock<BTreeMap<ConsensusMessage, Address>>
+	votes: RwLock<BTreeMap<ConsensusMessage, Address>>,
 }
 
 #[derive(Debug)]
 pub struct SealSignatures {
 	pub proposal: H520,
-	pub votes: Vec<H520>
+	pub votes: Vec<H520>,
 }
 
 impl PartialEq for SealSignatures {
