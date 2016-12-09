@@ -16,13 +16,14 @@
 
 import Push from 'push.js';
 import BigNumber from 'bignumber.js';
+import { noop } from 'lodash';
 
 import { fromWei } from '~/api/util/wei';
 
 import ethereumIcon from '~/../assets/images/contracts/ethereum-black-64x64.png';
 import unkownIcon from '~/../assets/images/contracts/unknown-64x64.png';
 
-export function notifyTransaction (account, token, _value) {
+export function notifyTransaction (account, token, _value, onClick) {
   const name = account.name || account.address;
   const value = token.tag.toLowerCase() === 'eth'
     ? fromWei(_value)
@@ -38,6 +39,7 @@ export function notifyTransaction (account, token, _value) {
       x16: icon,
       x32: icon
     },
-    timeout: 5000
+    timeout: 5000,
+    onClick: onClick || noop
   });
 }

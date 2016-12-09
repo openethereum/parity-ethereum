@@ -16,6 +16,7 @@
 
 import { range, uniq, isEqual } from 'lodash';
 import BigNumber from 'bignumber.js';
+import { push } from 'react-router-redux';
 
 import { hashToImageUrl } from './imagesReducer';
 import { setAddressImage } from './imagesActions';
@@ -68,7 +69,12 @@ function setBalances (_balances) {
             const account = accounts[address];
             const txValue = value.minus(oldValue);
 
-            notifyTransaction(account, token, txValue);
+            const redirectToAccount = () => {
+              const route = `/account/${account.address}`;
+              dispatch(push(route));
+            };
+
+            notifyTransaction(account, token, txValue, redirectToAccount);
           }
 
           nextTokens[tokenIndex] = { token, value };
@@ -177,14 +183,14 @@ export function fetchBalances (_addresses) {
 
     const fullFetch = addresses.length === 1;
 
-    const fetchedAddresses = uniq(addresses.concat(Object.keys(accounts)));
+    const addressesToFetch = uniq(addresses.concat(Object.keys(accounts)));
 
     return Promise
-      .all(fetchedAddresses.map((addr) => fetchAccount(addr, api, fullFetch)))
+      .all(addressesToFetch.map((addr) => fetchAccount(addr, api, fullFetch)))
       .then((accountsBalances) => {
         const balances = {};
 
-        fetchedAddresses.forEach((addr, idx) => {
+        addressesToFetch.forEach((addr, idx) => {
           balances[addr] = accountsBalances[idx];
         });
 
@@ -200,10 +206,12 @@ export function fetchBalances (_addresses) {
 export function updateTokensFilter (_addresses, _tokens) {
   return (dispatch, getState) => {
     const { api, balances, personal } = getState();
-    const { visibleAccounts } = personal;
+    const { visibleAccounts, accounts } = personal;
     const { tokensFilter } = balances;
 
-    const addresses = uniq(_addresses || visibleAccounts || []).sort();
+    const addressesToFetch = uniq(visibleAccounts.concat(Object.keys(accounts)));
+    const addresses = uniq(_addresses || addressesToFetch || []).sort();
+
     const tokens = _tokens || Object.values(balances.tokens) || [];
     const tokenAddresses = tokens.map((t) => t.address).sort();
 
@@ -275,8 +283,10 @@ export function updateTokensFilter (_addresses, _tokens) {
 export function queryTokensFilter (tokensFilter) {
   return (dispatch, getState) => {
     const { api, personal, balances } = getState();
-    const { visibleAccounts } = personal;
+    const { visibleAccounts, accounts } = personal;
+
     const visibleAddresses = visibleAccounts.map((a) => a.toLowerCase());
+    const addressesToFetch = uniq(visibleAddresses.concat(Object.keys(accounts)));
 
     Promise
       .all([
@@ -291,18 +301,16 @@ export function queryTokensFilter (tokensFilter) {
           .concat(logsTo)
           .forEach((log) => {
             const tokenAddress = log.address;
+
             const fromAddress = '0x' + log.topics[1].slice(-40);
             const toAddress = '0x' + log.topics[2].slice(-40);
 
-            const fromIdx = visibleAddresses.indexOf(fromAddress);
-            const toIdx = visibleAddresses.indexOf(toAddress);
-
-            if (fromIdx > -1) {
-              addresses.push(visibleAccounts[fromIdx]);
+            if (addressesToFetch.includes(fromAddress)) {
+              addresses.push(fromAddress);
             }
 
-            if (toIdx > -1) {
-              addresses.push(visibleAccounts[toIdx]);
+            if (addressesToFetch.includes(toAddress)) {
+              addresses.push(toAddress);
             }
 
             tokenAddresses.push(tokenAddress);
@@ -323,9 +331,10 @@ export function queryTokensFilter (tokensFilter) {
 export function fetchTokensBalances (_addresses = null, _tokens = null) {
   return (dispatch, getState) => {
     const { api, personal, balances } = getState();
-    const { visibleAccounts } = personal;
+    const { visibleAccounts, accounts } = personal;
 
-    const addresses = _addresses || visibleAccounts;
+    const addressesToFetch = uniq(visibleAccounts.concat(Object.keys(accounts)));
+    const addresses = _addresses || addressesToFetch;
     const tokens = _tokens || Object.values(balances.tokens);
 
     if (addresses.length === 0) {
