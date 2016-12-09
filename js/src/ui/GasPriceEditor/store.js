@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import BigNumber from 'bignumber.js';
-import { action, observable, transaction } from 'mobx';
+import { action, computed, observable, transaction } from 'mobx';
 
 import { ERRORS, validatePositiveNumber } from '~/util/validation';
 import { DEFAULT_GAS, DEFAULT_GASPRICE, MAX_GAS_ESTIMATION } from '~/util/constants';
@@ -24,12 +24,14 @@ export default class GasPriceEditor {
   @observable errorEstimated = null;
   @observable errorGas = null;
   @observable errorPrice = null;
+  @observable errorTotal = null;
   @observable estimated = DEFAULT_GAS;
   @observable histogram = null;
   @observable price = DEFAULT_GASPRICE;
   @observable priceDefault = DEFAULT_GASPRICE;
   @observable gas = DEFAULT_GAS;
   @observable gasLimit = 0;
+  @observable weiValue = '0';
 
   constructor (api, gasLimit, loadDefaults = true) {
     this._api = api;
@@ -38,6 +40,18 @@ export default class GasPriceEditor {
     if (loadDefaults) {
       this.loadDefaults();
     }
+  }
+
+  @computed get totalValue () {
+    try {
+      return new BigNumber(this.gas).mul(this.price).add(this.weiValue);
+    } catch (error) {
+      return new BigNumber(0);
+    }
+  }
+
+  @action setErrorTotal = (errorTotal) => {
+    this.errorTotal = errorTotal;
   }
 
   @action setEstimated = (estimated) => {
@@ -54,6 +68,10 @@ export default class GasPriceEditor {
         this.errorEstimated = null;
       }
     });
+  }
+
+  @action setEthValue = (weiValue) => {
+    this.weiValue = weiValue;
   }
 
   @action setHistogram = (gasHistogram) => {
