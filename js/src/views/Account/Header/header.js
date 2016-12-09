@@ -92,7 +92,7 @@ export default class Header extends Component {
   renderTxCount () {
     const { balance, isContract } = this.props;
 
-    if (!balance) {
+    if (!balance || isContract) {
       return null;
     }
 
@@ -102,12 +102,9 @@ export default class Header extends Component {
       return null;
     }
 
-    // Contracts always have one transaction, contract creation
-    const count = isContract && txCount.gt(0) ? txCount.minus(1) : txCount;
-
     return (
       <div className={ styles.infoline }>
-        { count.toFormat() } outgoing transactions
+        { txCount.toFormat() } outgoing transactions
       </div>
     );
   }
