@@ -585,7 +585,7 @@ impl Miner {
 		let best_block_header: Header = ::rlp::decode(&chain.best_block_header());
 		transactions.into_iter()
 			.map(|tx| {
-				if chain.transaction_block(TransactionID::Hash(tx.hash())).is_some() {
+				if chain.transaction_block(TransactionId::Hash(tx.hash())).is_some() {
 					debug!(target: "miner", "Rejected tx {:?}: already in the blockchain", tx.hash());
 					return Err(Error::Transaction(TransactionError::AlreadyImported));
 				}
