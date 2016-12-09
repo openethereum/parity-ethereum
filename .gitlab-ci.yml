@@ -423,7 +423,6 @@ test-rust-stable:
   before_script:
     - git submodule update --init --recursive
     - export RUST_FILES_MODIFIED=$(git --no-pager diff --name-only $CI_BUILD_REF^ $CI_BUILD_REF | grep -v ^js/ | wc -l)
-    - echo "rust files modified: $RUST_FILES_MODIFIED"
   script:
     - export RUST_BACKTRACE=1
     - if [ "$RUST_FILES_MODIFIED" = 0 ]; then echo "Skipping Rust tests since no Rust files modified."; else ./test.sh $CARGOFLAGS; fi
@@ -436,7 +435,6 @@ js-test:
   before_script:
     - git submodule update --init --recursive
     - export JS_FILES_MODIFIED=$(git --no-pager diff --name-only $CI_BUILD_REF^ $CI_BUILD_REF | grep ^js/ | wc -l)
-    - echo "js files modified: $JS_FILES_MODIFIED"
     - if [ "$JS_FILES_MODIFIED" = 0 ]; then echo "Skipping JS deps install since no JS files modified."; else ./js/scripts/install-deps.sh;fi
   script:
     - if [ "$JS_FILES_MODIFIED" = 0 ]; then echo "Skipping JS lint since no JS files modified."; else ./js/scripts/lint.sh && ./js/scripts/test.sh && ./js/scripts/build.sh; fi
