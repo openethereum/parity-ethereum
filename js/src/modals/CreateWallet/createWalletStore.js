@@ -23,7 +23,7 @@ import Contract from '~/api/contract';
 import Contracts from '~/contracts';
 import { wallet as walletAbi } from '~/contracts/abi';
 import { wallet as walletCode } from '~/contracts/code';
-import { walletLibraryRegKey } from '~/contracts/code/wallet';
+import { walletLibraryRegKey, fullWalletCode } from '~/contracts/code/wallet';
 
 import WalletsUtils from '~/util/wallets';
 
@@ -167,8 +167,10 @@ export default class CreateWalletStore {
       .registry
       .lookupAddress(walletLibraryRegKey)
       .then((address) => {
-        const walletLibraryAddress = address.replace(/^0x/, '').toLowerCase();
-        const code = walletCode.replace(/(_)+WalletLibrary(_)+/g, walletLibraryAddress);
+        const walletLibraryAddress = (address || '').replace(/^0x/, '').toLowerCase();
+        const code = walletLibraryAddress.length && !/^0+$/.test(walletLibraryAddress)
+          ? walletCode.replace(/(_)+WalletLibrary(_)+/g, walletLibraryAddress)
+          : fullWalletCode;
 
         const options = {
           data: code,
