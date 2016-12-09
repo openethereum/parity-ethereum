@@ -89,11 +89,16 @@ impl VoteCollector {
 					.collect::<Vec<_>>();
 			(proposal, votes)
 		};
+		if votes.is_empty() {
+			return None;
+		}
 		// Remove messages that are no longer relevant.
 		votes.last().map(|m| self.throw_out_old(m));
+		let mut votes_vec: Vec<_> = votes.into_iter().map(|m| m.signature).collect();
+		votes_vec.sort();
 		proposal.map(|p| SealSignatures {
 			proposal: p.signature,
-			votes: votes.into_iter().map(|m| m.signature).collect()
+			votes: votes_vec,
 		})
 	}
 

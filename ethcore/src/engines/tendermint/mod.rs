@@ -251,7 +251,7 @@ impl Tendermint {
 							self.submit_seal(block_hash, seal);
 							self.to_next_height(height);
 						} else {
-							warn!(target: "poa", "Proposal was not found!");
+							warn!(target: "poa", "Not enough votes found!");
 						}
 					}
 				}
@@ -657,10 +657,11 @@ mod tests {
 		}
 	}
 
-	fn vote<F>(engine: &Arc<Engine>, signer: F, height: usize, round: usize, step: Step, block_hash: Option<H256>) where F: FnOnce(H256) -> Result<H520, ::account_provider::Error> {
+	fn vote<F>(engine: &Arc<Engine>, signer: F, height: usize, round: usize, step: Step, block_hash: Option<H256>) -> Bytes where F: FnOnce(H256) -> Result<H520, ::account_provider::Error> {
 		let mi = message_info_rlp(height, round, step, block_hash);
 		let m = message_full_rlp(&signer(mi.sha3()).unwrap().into(), &mi);
 		engine.handle_message(UntrustedRlp::new(&m)).unwrap();
+		m
 	}
 
 	fn proposal_seal(tap: &Arc<AccountProvider>, header: &Header, round: Round) -> Vec<Bytes> {
@@ -836,8 +837,57 @@ mod tests {
 	}
 
 	#[test]
+	fn can_recognize_proposal() {
+		let (spec, tap) = setup();
+
+		let proposer = insert_and_register(&tap, &spec.engine, "1");
+
+		let (b, seal) = propose_default(&spec, proposer);
+		let sealed = b.seal(spec.engine.as_ref(), seal).unwrap();
+		assert!(spec.engine.is_proposal(sealed.header()));
+		spec.engine.stop();
+	}
+
+	#[test]
+	fn relays_messages() {
+		let (spec, tap) = setup();
+		let engine = spec.engine.clone();
+		let mut db_result = get_temp_state_db();
+		let mut db = db_result.take();
+		spec.ensure_db_good(&mut db, &TrieFactory::new(TrieSpec::Secure)).unwrap();
+		
+		let v0 = insert_and_register(&tap, &engine, "0");
+		let v1 = insert_and_register(&tap, &engine, "1");
+
+		let h = 0;
+		let r = 0;
+
+		// Propose
+		let (b, _) = propose_default(&spec, v1.clone());
+		let proposal = Some(b.header().bare_hash());
+
+		// Register IoHandler remembers messages.
+		let io_service = IoService::<ClientIoMessage>::start().unwrap();
+		let test_io = TestIo::new();
+		io_service.register_handler(test_io.clone()).unwrap();
+		engine.register_message_channel(io_service.channel());
+
+		let prevote_current = vote(&engine, |mh| tap.sign(v0, None, mh).map(H520::from), h, r, Step::Prevote, proposal);
+
+		let precommit_current = vote(&engine, |mh| tap.sign(v0, None, mh).map(H520::from), h, r, Step::Precommit, proposal);
+
+		let prevote_future = vote(&engine, |mh| tap.sign(v0, None, mh).map(H520::from), h + 1, r, Step::Prevote, proposal);
+
+		engine.stop();
+		// Relays all valid present and future messages.
+		assert!(test_io.received.read().contains(&ClientIoMessage::BroadcastMessage(prevote_current)));
+		assert!(test_io.received.read().contains(&ClientIoMessage::BroadcastMessage(precommit_current)));
+		assert!(test_io.received.read().contains(&ClientIoMessage::BroadcastMessage(prevote_future)));
+	}
+
+	#[test]
 	#[ignore]
-	fn step_transitioning() {
+	fn seal_submission() {
 		let (spec, tap) = setup();
 		let engine = spec.engine.clone();
 		let mut db_result = get_temp_state_db();
@@ -867,13 +917,56 @@ mod tests {
 		vote(&engine, |mh| tap.sign(v1, None, mh).map(H520::from), h, r, Step::Precommit, proposal);
 		vote(&engine, |mh| tap.sign(v0, None, mh).map(H520::from), h, r, Step::Precommit, proposal);
 
+		// Wait a bit for async stuff.
 		engine.stop();
+		io_service.stop();
+		seal[2] = precommit_signatures(&tap, h, r, Some(b.header().bare_hash()), v0, v1);
+		println!("should {:?}, {:?}", proposal.unwrap(), seal);
+		println!("{:?}", *test_io.received.read());
+		assert!(test_io.received.read().contains(&ClientIoMessage::SubmitSeal(proposal.unwrap(), seal)));
+	}
+
+	#[test]
+	#[ignore]
+	fn skips_to_future_round() {
+		let (spec, tap) = setup();
+		let engine = spec.engine.clone();
+		let mut db_result = get_temp_state_db();
+		let mut db = db_result.take();
+		spec.ensure_db_good(&mut db, &TrieFactory::new(TrieSpec::Secure)).unwrap();
+		
+		let v0 = insert_and_register(&tap, &engine, "0");
+		let v1 = insert_and_register(&tap, &engine, "1");
+
+		let h = 1;
+		let r = 2;
+
+		// Propose
+		let (b, mut seal) = propose_default(&spec, v1.clone());
+		let proposal = Some(b.header().bare_hash());
+
+		// Register IoHandler remembers messages.
+		let io_service = IoService::<ClientIoMessage>::start().unwrap();
+		let test_io = TestIo::new();
+		io_service.register_handler(test_io.clone()).unwrap();
+		engine.register_message_channel(io_service.channel());
+
+		// Prevote.
+		vote(&engine, |mh| tap.sign(v1, None, mh).map(H520::from), h, r, Step::Prevote, proposal);
+
+		vote(&engine, |mh| tap.sign(v0, None, mh).map(H520::from), h, r, Step::Prevote, proposal);
+		vote(&engine, |mh| tap.sign(v1, None, mh).map(H520::from), h, r, Step::Precommit, proposal);
+		vote(&engine, |mh| tap.sign(v0, None, mh).map(H520::from), h, r, Step::Precommit, proposal);
+
 		// Wait a bit for async stuff.
 		::std::thread::sleep(::std::time::Duration::from_millis(100));
+		engine.stop();
+		io_service.stop();
 		seal[2] = precommit_signatures(&tap, h, r, Some(b.header().bare_hash()), v0, v1);
-		let first = test_io.received.read().contains(&ClientIoMessage::SubmitSeal(proposal.unwrap(), seal.clone()));
-		seal[2] = precommit_signatures(&tap, h, r, Some(b.header().bare_hash()), v1, v0);
-		let second = test_io.received.read().contains(&ClientIoMessage::SubmitSeal(proposal.unwrap(), seal));
-		assert!(first ^ second);
+		//assert!(test_io.received.read().contains(&ClientIoMessage::SubmitSeal(proposal.unwrap(), seal.clone())));
+		//seal[2] = precommit_signatures(&tap, h, r, Some(b.header().bare_hash()), v1, v0);
+		println!("have {:?}", *test_io.received.read());
+		println!("should {:?}, {:?}", proposal.unwrap(), seal);
+		assert!(test_io.received.read().contains(&ClientIoMessage::SubmitSeal(proposal.unwrap(), seal)));
 	}
 }
