@@ -307,6 +307,8 @@ class ExecuteContract extends Component {
     const { api, store } = this.context;
     const { fromAddress } = this.props;
     const { amount, func, gasEdit, values } = this.state;
+    const steps = gasEdit ? STAGES_GAS : STAGES_BASIC;
+    const finalstep = steps.length - 1;
     const options = {
       gas: this.gasStore.gas,
       gasPrice: this.gasStore.price,
@@ -325,7 +327,7 @@ class ExecuteContract extends Component {
           .pollMethod('parity_checkRequest', requestId)
           .catch((error) => {
             if (error.code === ERROR_CODES.REQUEST_REJECTED) {
-              this.setState({ rejected: true });
+              this.setState({ rejected: true, step: finalstep });
               return false;
             }
 
@@ -333,7 +335,7 @@ class ExecuteContract extends Component {
           });
       })
       .then((txhash) => {
-        this.setState({ sending: false, step: 2, txhash, busyState: 'Your transaction has been posted to the network' });
+        this.setState({ sending: false, step: finalstep, txhash, busyState: 'Your transaction has been posted to the network' });
       })
       .catch((error) => {
         console.error('postTransaction', error);
