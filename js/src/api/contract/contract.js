@@ -262,12 +262,11 @@ export default class Contract {
     }
 
     const options = this._getFilterOptions(event, _options);
+    options.fromBlock = 0;
+    options.toBlock = 'latest';
+
     return this._api.eth
-      .getLogs({
-        fromBlock: 0,
-        toBlock: 'latest',
-        ...options
-      })
+      .getLogs(options)
       .then((logs) => this.parseEventLogs(logs));
   }
 
