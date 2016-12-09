@@ -49,6 +49,8 @@ pub struct AuthorityRoundParams {
 	pub authorities: Vec<Address>,
 	/// Number of authorities.
 	pub authority_n: usize,
+	/// Starting step,
+	pub start_step: Option<u64>,
 }
 
 impl From<ethjson::spec::AuthorityRoundParams> for AuthorityRoundParams {
@@ -58,6 +60,7 @@ impl From<ethjson::spec::AuthorityRoundParams> for AuthorityRoundParams {
 			step_duration: Duration::from_secs(p.step_duration.into()),
 			authority_n: p.authorities.len(),
 			authorities: p.authorities.into_iter().map(Into::into).collect::<Vec<_>>(),
+			start_step: p.start_step.map(Into::into),
 		}
 	}
 }
@@ -97,7 +100,7 @@ impl AsMillis for Duration {
 impl AuthorityRound {
 	/// Create a new instance of AuthorityRound engine.
 	pub fn new(params: CommonParams, our_params: AuthorityRoundParams, builtins: BTreeMap<Address, Builtin>) -> Result<Arc<Self>, Error> {
-		let initial_step = (unix_now().as_secs() / our_params.step_duration.as_secs()) as usize;
+		let initial_step = our_params.start_step.unwrap_or_else(|| (unix_now().as_secs() / our_params.step_duration.as_secs())) as usize;
 		let engine = Arc::new(
 			AuthorityRound {
 				params: params,
@@ -160,14 +163,7 @@ impl IoHandler<()> for TransitionHandler {
 	fn timeout(&self, io: &IoContext<()>, timer: TimerToken) {
 		if timer == ENGINE_TIMEOUT_TOKEN {
 			if let Some(engine) = self.engine.upgrade() {
-				engine.step.fetch_add(1, AtomicOrdering::SeqCst);
-				engine.proposed.store(false, AtomicOrdering::SeqCst);
-				if let Some(ref channel) = *engine.message_channel.lock() {
-					match channel.send(ClientIoMessage::UpdateSealing) {
-						Ok(_) => trace!(target: "poa", "timeout: UpdateSealing message sent for step {}.", engine.step.load(AtomicOrdering::Relaxed)),
-						Err(err) => trace!(target: "poa", "timeout: Could not send a sealing message {} for step {}.", err, engine.step.load(AtomicOrdering::Relaxed)),
-					}
-				}
+				engine.step();
 				io.register_timer_once(ENGINE_TIMEOUT_TOKEN, engine.remaining_step_duration().as_millis())
 					.unwrap_or_else(|e| warn!(target: "poa", "Failed to restart consensus step timer: {}.", e))
 			}
@@ -183,6 +179,17 @@ impl Engine for AuthorityRound {
 
 	fn params(&self) -> &CommonParams { &self.params }
 	fn builtins(&self) -> &BTreeMap<Address, Builtin> { &self.builtins }
+
+	fn step(&self) {
+		self.step.fetch_add(1, AtomicOrdering::SeqCst);
+		self.proposed.store(false, AtomicOrdering::SeqCst);
+		if let Some(ref channel) = *self.message_channel.lock() {
+			match channel.send(ClientIoMessage::UpdateSealing) {
+				Ok(_) => trace!(target: "poa", "timeout: UpdateSealing message sent for step {}.", self.step.load(AtomicOrdering::Relaxed)),
+				Err(err) => trace!(target: "poa", "timeout: Could not send a sealing message {} for step {}.", err, self.step.load(AtomicOrdering::Relaxed)),
+			}
+		}
+	}
 
 	/// Additional engine-specific information for the user/developer concerning `header`.
 	fn extra_info(&self, header: &Header) -> BTreeMap<String, String> {
@@ -236,6 +243,8 @@ impl Engine for AuthorityRound {
 			} else {
 				warn!(target: "poa", "generate_seal: FAIL: Accounts not provided.");
 			}
+		} else {
+			trace!(target: "poa", "generate_seal: Not a proposer for step {}.", step);
 		}
 		Seal::None
 	}
