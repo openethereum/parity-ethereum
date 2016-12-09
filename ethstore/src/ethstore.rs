@@ -92,7 +92,7 @@ impl SecretStore for EthStore {
 		let secret = try!(safe_account.crypto.secret(password).map_err(|_| Error::InvalidPassword));
 		safe_account.address = try!(KeyPair::from_secret(secret)).address();
 		let address = safe_account.address.clone();
-		try!(self.store.save(safe_account));
+		try!(self.store.import(safe_account));
 		Ok(address)
 	}
 
@@ -129,19 +129,21 @@ impl SecretStore for EthStore {
 	}
 
 	fn set_name(&self, address: &Address, name: String) -> Result<(), Error> {
-		let mut account = try!(self.get(address));
+		let old = try!(self.get(address));
+		let mut account = old.clone();
 		account.name = name;
 
 		// save to file
-		self.store.save(account)
+		self.store.update(old, account)
 	}
 
 	fn set_meta(&self, address: &Address, meta: String) -> Result<(), Error> {
-		let mut account = try!(self.get(address));
+		let old = try!(self.get(address));
+		let mut account = old.clone();
 		account.meta = meta;
 
 		// save to file
-		self.store.save(account)
+		self.store.update(old, account)
 	}
 
 	fn local_path(&self) -> String {
@@ -213,18 +215,30 @@ impl EthMultiStore {
 		}
 	}
 
-	fn save(&self, account: SafeAccount) -> Result<(), Error> {
-		//save to file
+	fn import(&self, account: SafeAccount) -> Result<(), Error> {
+		// save to file
 		let account = try!(self.dir.insert(account));
 
 		// update cache
 		let mut cache = self.cache.write();
 		let mut accounts = cache.entry(account.address.clone()).or_insert_with(Vec::new);
-		// TODO [ToDr] That is crappy way of overcoming set_name, set_meta, etc.
-		// Avoid cloning instead!
-		accounts.retain(|acc| acc.filename != account.filename);
 		accounts.push(account);
 		Ok(())
+	}
+
+	fn update(&self, old: SafeAccount, new: SafeAccount) -> Result<(), Error> {
+		// save to file
+		let account = try!(self.dir.update(new));
+
+		// update cache
+		let mut cache = self.cache.write();
+		let mut accounts = cache.entry(account.address.clone()).or_insert_with(Vec::new);
+		// Remove old account
+		accounts.retain(|acc| acc != &old);
+		// And push updated to the end
+		accounts.push(account);
+		Ok(())
+
 	}
 
 }
@@ -235,7 +249,7 @@ impl SimpleSecretStore for EthMultiStore {
 		let id: [u8; 16] = Random::random();
 		let account = SafeAccount::create(&keypair, id, password, self.iterations, "".to_owned(), "{}".to_owned());
 		let address = account.address.clone();
-		try!(self.save(account));
+		try!(self.import(account));
 		Ok(address)
 	}
 
@@ -278,11 +292,9 @@ impl SimpleSecretStore for EthMultiStore {
 	fn change_password(&self, address: &Address, old_password: &str, new_password: &str) -> Result<(), Error> {
 		let accounts = try!(self.get(address));
 		for account in accounts {
-			// First remove
-			try!(self.remove_account(&address, old_password));
-			// Then insert back with new password
+			// Change password
 			let new_account = try!(account.change_password(old_password, new_password, self.iterations));
-			try!(self.save(new_account));
+			try!(self.update(account, new_account));
 		}
 		Ok(())
 	}

@@ -23,7 +23,7 @@ use self::stores::{AddressBook, DappsSettingsStore};
 use std::fmt;
 use std::collections::HashMap;
 use std::time::{Instant, Duration};
-use util::{Mutex, RwLock, Itertools};
+use util::{RwLock, Itertools};
 use ethstore::{SimpleSecretStore, SecretStore, Error as SSError, SafeAccount, EthStore, EthMultiStore, random_string};
 use ethstore::dir::{KeyDirectory};
 use ethstore::ethkey::{Address, Message, Public, Secret, Random, Generator};
@@ -83,11 +83,18 @@ impl KeyDirectory for NullDir {
 		Ok(self.accounts.read().values().cloned().flatten().collect())
 	}
 
-	fn insert(&self, account: SafeAccount) -> Result<SafeAccount, SSError> {
+	fn update(&self, account: SafeAccount) -> Result<SafeAccount, SSError> {
 		let mut lock = self.accounts.write();
 		let mut accounts = lock.entry(account.address.clone()).or_insert_with(Vec::new);
 		// If the filename is the same we just need to replace the entry
 		accounts.retain(|acc| acc.filename != account.filename);
+		accounts.push(account.clone());
+		Ok(account)
+	}
+
+	fn insert(&self, account: SafeAccount) -> Result<SafeAccount, SSError> {
+		let mut lock = self.accounts.write();
+		let mut accounts = lock.entry(account.address.clone()).or_insert_with(Vec::new);
 		accounts.push(account.clone());
 		Ok(account)
 	}
@@ -121,8 +128,8 @@ type AccountToken = String;
 /// Account management.
 /// Responsible for unlocking accounts.
 pub struct AccountProvider {
-	address_book: Mutex<AddressBook>,
-	unlocked: Mutex<HashMap<Address, AccountData>>,
+	unlocked: RwLock<HashMap<Address, AccountData>>,
+	address_book: RwLock<AddressBook>,
 	dapps_settings: RwLock<DappsSettingsStore>,
 	/// Accounts on disk
 	sstore: Box<SecretStore>,
@@ -134,7 +141,7 @@ impl AccountProvider {
 	/// Creates new account provider.
 	pub fn new(sstore: Box<SecretStore>) -> Self {
 		AccountProvider {
-			unlocked: Mutex::new(HashMap::new()),
+			unlocked: RwLock::new(HashMap::new()),
 			address_book: RwLock::new(AddressBook::new(sstore.local_path().into())),
 			dapps_settings: RwLock::new(DappsSettingsStore::new(sstore.local_path().into())),
 			sstore: sstore,
@@ -145,8 +152,8 @@ impl AccountProvider {
 	/// Creates not disk backed provider.
 	pub fn transient_provider() -> Self {
 		AccountProvider {
-			address_book: Mutex::new(AddressBook::transient()),
-			unlocked: Mutex::new(HashMap::new()),
+			unlocked: RwLock::new(HashMap::new()),
+			address_book: RwLock::new(AddressBook::transient()),
 			dapps_settings: RwLock::new(DappsSettingsStore::transient()),
 			sstore: Box::new(EthStore::open(Box::new(NullDir::default())).expect("NullDir load always succeeds; qed")),
 			transient_sstore: transient_sstore(),
@@ -278,7 +285,7 @@ impl AccountProvider {
 		let _ = try!(self.sstore.sign(&account, &password, &Default::default()));
 
 		// check if account is already unlocked pernamently, if it is, do nothing
-		let mut unlocked = self.unlocked.lock();
+		let mut unlocked = self.unlocked.write();
 		if let Some(data) = unlocked.get(&account) {
 			if let Unlock::Perm = data.unlock {
 				return Ok(())
@@ -295,7 +302,7 @@ impl AccountProvider {
 	}
 
 	fn password(&self, account: &Address) -> Result<String, Error> {
-		let mut unlocked = self.unlocked.lock();
+		let mut unlocked = self.unlocked.write();
 		let data = try!(unlocked.get(account).ok_or(Error::NotUnlocked)).clone();
 		if let Unlock::Temp = data.unlock {
 			unlocked.remove(account).expect("data exists: so key must exist: qed");
@@ -326,7 +333,7 @@ impl AccountProvider {
 
 	/// Checks if given account is unlocked
 	pub fn is_unlocked(&self, account: Address) -> bool {
-		let unlocked = self.unlocked.lock();
+		let unlocked = self.unlocked.read();
 		unlocked.get(&account).is_some()
 	}
 
@@ -434,7 +441,7 @@ mod tests {
 		assert!(ap.unlock_account_timed(kp.address(), "test1".into(), 60000).is_err());
 		assert!(ap.unlock_account_timed(kp.address(), "test".into(), 60000).is_ok());
 		assert!(ap.sign(kp.address(), None, Default::default()).is_ok());
-		ap.unlocked.lock().get_mut(&kp.address()).unwrap().unlock = Unlock::Timed(Instant::now());
+		ap.unlocked.write().get_mut(&kp.address()).unwrap().unlock = Unlock::Timed(Instant::now());
 		assert!(ap.sign(kp.address(), None, Default::default()).is_err());
 	}
 

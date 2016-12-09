@@ -105,6 +105,11 @@ impl KeyDirectory for DiskDirectory {
 		Ok(accounts)
 	}
 
+	fn update(&self, account: SafeAccount) -> Result<SafeAccount, Error> {
+		// Disk store handles updates correctly iff filename is the same
+		self.insert(account)
+	}
+
 	fn insert(&self, account: SafeAccount) -> Result<SafeAccount, Error> {
 		// transform account into key file
 		let keyfile: json::KeyFile = account.clone().into();

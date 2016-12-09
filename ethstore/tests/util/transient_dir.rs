@@ -63,6 +63,10 @@ impl KeyDirectory for TransientDir {
 		self.dir.load()
 	}
 
+	fn update(&self, account: SafeAccount) -> Result<SafeAccount, Error> {
+		self.dir.update(account)
+	}
+
 	fn insert(&self, account: SafeAccount) -> Result<SafeAccount, Error> {
 		self.dir.insert(account)
 	}
