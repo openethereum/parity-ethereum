@@ -28,8 +28,6 @@ import { setVisibleAccounts } from '~/redux/providers/personalActions';
 
 import List from '../Accounts/List';
 
-import styles from './contracts.css';
-
 class Contracts extends Component {
   static contextTypes = {
     api: PropTypes.object.isRequired
@@ -80,7 +78,7 @@ class Contracts extends Component {
     const { searchValues, sortOrder } = this.state;
 
     return (
-      <div className={ styles.contracts }>
+      <div>
         { this.renderActionbar() }
         { this.renderAddContract() }
         { this.renderAddContract() }
@@ -159,7 +157,6 @@ class Contracts extends Component {
 
     return (
       <Actionbar
-        className={ styles.toolbar }
         title='Contracts'
         buttons={ buttons } />
     );

@@ -18,7 +18,18 @@ const isValidReceipt = (receipt) => {
   return receipt && receipt.blockNumber && receipt.blockNumber.gt(0);
 };
 
-const waitForConfirmations = (api, tx, confirmations) => {
+export function checkIfTxFailed (api, tx, gasSent) {
+  return api.pollMethod('eth_getTransactionReceipt', tx)
+  .then((receipt) => {
+    // TODO: Right now, there's no way to tell wether the EVM code crashed.
+    // Because you usually send a bit more gas than estimated (to make sure
+    // it gets mined quickly), we transaction probably failed if all the gas
+    // has been used up.
+    return receipt.gasUsed.eq(gasSent);
+  });
+}
+
+export function waitForConfirmations (api, tx, confirmations) {
   return new Promise((resolve, reject) => {
     api.pollMethod('eth_getTransactionReceipt', tx, isValidReceipt)
     .then((receipt) => {
@@ -39,6 +50,4 @@ const waitForConfirmations = (api, tx, confirmations) => {
       .catch(reject);
     });
   });
-};
-
-export default waitForConfirmations;
+}

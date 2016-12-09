@@ -76,7 +76,7 @@ class Addresses extends Component {
     const { searchValues, sortOrder } = this.state;
 
     return (
-      <div className={ styles.addresses }>
+      <div>
         { this.renderActionbar() }
         { this.renderAddAddress() }
         <Page>

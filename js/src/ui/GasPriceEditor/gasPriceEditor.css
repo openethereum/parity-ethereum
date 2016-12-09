@@ -14,11 +14,36 @@
 /* You should have received a copy of the GNU General Public License
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
-.signer {
+
+.columns {
+  display: flex;
+  flex-wrap: wrap;
+  position: relative;
 }
 
-.container {
+.graphColumn {
+  flex: 65;
 }
 
-.mainContainer {
+.editColumn {
+  flex: 35;
+  padding-left: 1em;
+  justify-ontent: space-around;
+  padding-bottom: 12;
+  display: flex;
+  flex-wrap: wrap;
+  position: relative;
+  flex-direction: column;
+}
+
+.gasPriceDesc {
+  font-size: 0.75em;
+  opacity: 0.5;
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  position: relative;
+  flex-direction: column;
 }
