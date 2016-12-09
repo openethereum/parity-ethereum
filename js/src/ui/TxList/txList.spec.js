@@ -25,6 +25,8 @@ import TxList from './txList';
 const api = new Api({ execute: sinon.stub() });
 
 const STORE = {
+  dispatch: sinon.stub(),
+  subscribe: sinon.stub(),
   getState: () => {
     return {
       nodeStatus: {
