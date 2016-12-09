@@ -98,9 +98,7 @@ class RequestsPage extends Component {
 
     return (
       <Container title='Pending Requests'>
-        <div className={ styles.items }>
-          { items }
-        </div>
+        { items }
       </Container>
     );
   }
@@ -111,7 +109,6 @@ class RequestsPage extends Component {
 
     return (
       <RequestPending
-        className={ styles.request }
         onConfirm={ actions.startConfirmRequest }
         onReject={ actions.startRejectRequest }
         isSending={ isSending || false }
