@@ -33,7 +33,6 @@ Operating Options:
   --auto-update TRACK      Set a release track to automatically update and
                            install.
                            all - All updates in the current release track. 
-                           patch - All updates of the current minor version.
                            critical - Only consensus/security updates.
                            none - No updates will be auto-installed. 
                            (default: {flag_auto_update}).

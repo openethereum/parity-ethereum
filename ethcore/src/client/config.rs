@@ -71,8 +71,6 @@ impl FromStr for DatabaseCompactionProfile {
 pub enum UpdateFilter {
 	/// All releases following the same track.
 	All,
-	/// Only those of the same minor version potentially changing tracks.
-	Patch,
 	/// As with `All`, but only those which are known to be critical. 
 	Critical,
 	/// None.

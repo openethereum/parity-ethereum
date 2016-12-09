@@ -624,7 +624,6 @@ impl Configuration {
 			filter: match self.args.flag_auto_update.as_ref() {
 				"none" => UpdateFilter::None,
 				"critical" => UpdateFilter::Critical,
-				"patch" => UpdateFilter::Patch,
 				"all" => UpdateFilter::All,
 				_ => return Err("Invalid value for `--auto-update`. See `--help` for more information.".into()), 
 			},
@@ -985,13 +984,13 @@ mod tests {
 		// when
 		let conf0 = parse(&["parity"]);
 		let conf1 = parse(&["parity", "--auto-update", "all"]);
-		let conf2 = parse(&["parity", "--no-download", "--auto-update=patch"]);
+		let conf2 = parse(&["parity", "--no-download", "--auto-update=all"]);
 		let conf3 = parse(&["parity", "--auto-update=xxx"]);
 
 		// then
 		assert_eq!(conf0.update_policy().unwrap(), UpdatePolicy{enable_downloading: true, filter: UpdateFilter::Critical});
 		assert_eq!(conf1.update_policy().unwrap(), UpdatePolicy{enable_downloading: true, filter: UpdateFilter::All});
-		assert_eq!(conf2.update_policy().unwrap(), UpdatePolicy{enable_downloading: false, filter: UpdateFilter::Patch});
+		assert_eq!(conf2.update_policy().unwrap(), UpdatePolicy{enable_downloading: false, filter: UpdateFilter::All});
 		assert!(conf3.update_policy().is_err());
 	}
 

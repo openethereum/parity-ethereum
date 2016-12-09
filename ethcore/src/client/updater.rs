@@ -15,11 +15,12 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::sync::{Weak};
+use std::{fs, env};
 use std::path::PathBuf;
-use util::misc::{VersionInfo, ReleaseTrack, platform};
+use util::misc::{VersionInfo, ReleaseTrack/*, platform*/};
 use util::{Address, H160, H256, FixedHash, Mutex};
 use client::operations::Operations;
-use client::{Client, UpdatePolicy, BlockId};
+use client::{Client, UpdatePolicy, UpdateFilter, BlockId};
 use fetch::HashFetch;
 use fetch;
 
@@ -44,7 +45,7 @@ pub struct Updater {
 	fetch: Weak<HashFetch>,
 	operations: Operations,
 	update_policy: UpdatePolicy,
-	fetching: Mutex<bool>,
+	fetching: Mutex<Option<ReleaseInfo>>,
 
 	// These don't change
 	pub this: VersionInfo,
@@ -52,9 +53,15 @@ pub struct Updater {
 
 	// This does change
 	pub latest: Option<OperationsInfo>,
+	pub ready: Option<ReleaseInfo>,
+
 }
 
 const CLIENT_ID: &'static str = "parity";
+
+fn platform() -> String {
+	"test".to_owned()
+}
 
 impl Updater {
 	pub fn new(client: Weak<Client>, fetch: Weak<fetch::Client>, operations: Address, update_policy: UpdatePolicy) -> Self {
@@ -63,10 +70,11 @@ impl Updater {
 			fetch: fetch.clone(),
 			operations: Operations::new(operations, move |a, d| client.upgrade().ok_or("No client!".into()).and_then(|c| c.call_contract(a, d))),
 			update_policy: update_policy,
-			fetching: Mutex::new(false),
+			fetching: Mutex::new(None),
 			this: VersionInfo::this(),
 			this_fork: None,
 			latest: None,
+			ready: None,
 		};
 
 		u.this_fork = u.operations.release(CLIENT_ID, &u.this.hash.into()).ok()
@@ -95,14 +103,24 @@ impl Updater {
 
 	/// The release which is ready to be upgraded to, if any. If this returns `Some`, then
 	/// `execute_upgrade` may be called.
-	pub fn upgrade_ready(&self) -> Option<VersionInfo> {
-		unimplemented!()
+	pub fn upgrade_ready(&self) -> Option<ReleaseInfo> {
+		self.ready.clone()
 	}
 
 	/// Actually upgrades the client. Assumes that the binary has been downloaded.
 	/// @returns `true` on success.
 	pub fn execute_upgrade(&mut self) -> bool {
+		// TODO: link ~/.parity-updates/parity to self.ready 
+		// TODO: restart parity.
 		unimplemented!()
+	}
+
+	/// Returns true iff the current version is capable of forming consensus.
+	pub fn consensus_capable(&self) -> bool {
+/*		if let Some(ref latest) = self.latest {
+			
+
+*/		unimplemented!()
 	}
 
 	/// Our version info.
@@ -147,12 +165,37 @@ impl Updater {
 		})
 	}
 
-	fn fetch_done(&self, _r: Result<PathBuf, fetch::Error>) {
+	fn fetch_done(&mut self, _r: Result<PathBuf, fetch::Error>) {
+		let fetched = self.fetching.lock().take().unwrap();
 		match _r {
-			Ok(b) => info!("Fetched latest version OK: {}", b.display()),
-			Err(e) => warn!("Unable to fetch latest version: {:?}", e),
+			Ok(b) => {
+				info!("Fetched latest version ({}) OK to {}", fetched.version, b.display());
+				let mut dest = PathBuf::from(env::home_dir().unwrap().to_str().expect("env filesystem paths really should be valid; qed"));
+				dest.push(".parity-updates");
+				match fs::create_dir_all(&dest) {
+					Ok(_) => {
+						dest.push(format!("parity-{}-{:?}", fetched.version, fetched.version.hash));
+						match fs::copy(&b, &dest) {
+							Ok(_) => {
+								info!("Copied file to {}", dest.display());
+								let auto = match self.update_policy.filter {
+									UpdateFilter::All => true,
+									UpdateFilter::Critical if fetched.is_critical /* TODO: or is on a bad fork */ => true,
+									_ => false,
+								};
+								self.ready = Some(fetched);
+								if auto {
+									self.execute_upgrade();
+								}
+							},
+							Err(e) => warn!("Unable to copy update: {:?}", e),
+						}
+					},
+					Err(e) => warn!("Unable to create updates path: {:?}", e),
+				}
+			},
+			Err(e) => warn!("Unable to fetch update ({}): {:?}", fetched.version, e),
 		}
-		*self.fetching.lock() = false;
 	}
 
 	pub fn tick(&mut self) {
@@ -168,19 +211,21 @@ impl Updater {
 				platform(),
 				if let Some(ref b) = latest.track.binary {
 					format!("{}", b)
-				 } else {
-					 "unreleased".into()
-				 }
+				} else {
+					"unreleased".into()
+				}
 			);
-			if let Some(b) = latest.track.binary {
-				let mut fetching = self.fetching.lock();
-				if !*fetching {
-					info!("Attempting to get parity binary {}", b);
-					let c = self.client.clone();
-					let f = move |r: Result<PathBuf, fetch::Error>| if let Some(c) = c.upgrade() { c.updater().as_ref().expect("updater exists; updater only owned by client; qed").fetch_done(r); };
-					if let Some(fetch) = self.fetch.clone().upgrade() {
-						fetch.fetch(b, Box::new(f)).ok();
-						*fetching = true;
+			if self.update_policy.enable_downloading && latest.track.version.hash != self.version_info().hash && self.ready.as_ref().map_or(true, |t| *t != latest.track) {
+				if let Some(b) = latest.track.binary {
+					let mut fetching = self.fetching.lock();
+					if fetching.is_none() {
+						info!("Attempting to get parity binary {}", b);
+						let c = self.client.clone();
+						let f = move |r: Result<PathBuf, fetch::Error>| if let Some(c) = c.upgrade() { c.updater().as_mut().expect("updater exists; updater only owned by client; qed").fetch_done(r); };
+						if let Some(fetch) = self.fetch.clone().upgrade() {
+							fetch.fetch(b, Box::new(f)).ok();
+							*fetching = Some(latest.track.clone());
+						}
 					}
 				}
 			}
