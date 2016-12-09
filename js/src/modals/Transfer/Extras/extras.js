@@ -30,21 +30,14 @@ export default class Extras extends Component {
   }
 
   render () {
-    const { gasStore, onChange, total, totalError } = this.props;
+    const { gasStore, onChange } = this.props;
 
     return (
       <Form>
         { this.renderData() }
         <GasPriceEditor
           store={ gasStore }
-          onChange={ onChange }>
-          <Input
-            disabled
-            label='total transaction amount'
-            hint='the total amount of the transaction'
-            error={ totalError }
-            value={ `${total} ETH` } />
-        </GasPriceEditor>
+          onChange={ onChange } />
       </Form>
     );
   }

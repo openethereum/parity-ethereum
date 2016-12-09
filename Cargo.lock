@@ -660,12 +660,14 @@ dependencies = [
  "clippy 0.0.103 (registry+https://github.com/rust-lang/crates.io-index)",
  "env_logger 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethcore 1.5.0",
+ "ethcore-devtools 1.5.0",
  "ethcore-io 1.5.0",
  "ethcore-ipc 1.5.0",
  "ethcore-ipc-codegen 1.5.0",
  "ethcore-ipc-nano 1.5.0",
  "ethcore-network 1.5.0",
  "ethcore-util 1.5.0",
+ "ethkey 0.2.0",
  "heapsize 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "parking_lot 0.3.5 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1271,7 +1273,7 @@ dependencies = [
 [[package]]
 name = "parity-ui-precompiled"
 version = "1.4.0"
-source = "git+https://github.com/ethcore/js-precompiled.git#8e8e515f958d2d4a5abec07253a51a052f2b744d"
+source = "git+https://github.com/ethcore/js-precompiled.git#3d3b2f9e8e8b0fd62c172240bfd001a317cf2979"
 dependencies = [
  "parity-dapps-glue 1.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
