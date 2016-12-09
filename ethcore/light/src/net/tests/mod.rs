@@ -64,6 +64,10 @@ impl IoContext for Expect {
 	fn disable_peer(&self, peer: PeerId) {
 		assert_eq!(self, &Expect::Punish(peer));
 	}
+
+	fn protocol_version(&self, _peer: PeerId) -> Option<u8> {
+		Some(super::MAX_PROTOCOL_VERSION)
+	}
 }
 
 // can't implement directly for Arc due to cross-crate orphan rules.
