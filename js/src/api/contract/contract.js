@@ -317,7 +317,7 @@ export default class Contract {
 
   _sendData (subscriptionId, error, logs) {
     const { autoRemove, callback } = this._subscriptions[subscriptionId];
-    let result = false;
+    let result = true;
 
     try {
       result = callback(error, logs);
@@ -325,7 +325,7 @@ export default class Contract {
       console.warn('_sendData', subscriptionId, error);
     }
 
-    if (autoRemove && !result && typeof result === 'boolean') {
+    if (autoRemove && result && typeof result === 'boolean') {
       this.unsubscribe(subscriptionId);
     }
   }

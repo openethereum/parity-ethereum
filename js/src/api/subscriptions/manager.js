@@ -103,7 +103,7 @@ export default class Manager {
 
   _sendData (subscriptionId, error, data) {
     const { autoRemove, callback } = this.subscriptions[subscriptionId];
-    let result = false;
+    let result = true;
 
     try {
       result = callback(error, data);
@@ -111,7 +111,7 @@ export default class Manager {
       console.error(`Unable to update callback for subscriptionId ${subscriptionId}`, error);
     }
 
-    if (autoRemove && !result && typeof result === 'boolean') {
+    if (autoRemove && result && typeof result === 'boolean') {
       this.unsubscribe(subscriptionId);
     }
   }
