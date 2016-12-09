@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::cell::RefCell;
-use std::{fs, str, thread};
+use std::{fs, str, thread, time};
 use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
 use std::path::PathBuf;
@@ -92,7 +92,16 @@ impl Client {
 				sessions: HashMap::new(),
 				size_limit: size_limit,
 			};
-			event_loop.run(&mut client).unwrap();
+
+			loop {
+				match event_loop.run(&mut client) {
+					Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {
+						warn!("Error spinning event loop: {:?}. Retrying...", e);
+						thread::sleep(time::Duration::from_millis(100));
+					},
+					e => e.expect("Event loop shutdowns cleanly."),
+				}
+			}
 		});
 
 		Ok(Client {
