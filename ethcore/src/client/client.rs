@@ -678,6 +678,9 @@ impl Client {
 		self.check_snooze();
 		if let Some(ref mut updater) = *self.updater.lock() {
 			updater.tick();
+			if updater.installed.is_some() {
+				info!("Client should restart now.");
+			}
 		}
 	}
 

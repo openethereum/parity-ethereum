@@ -15,8 +15,8 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::sync::{Weak};
-use std::{fs, env};
-use std::path::PathBuf;
+use std::{io, os, fs, env};
+use std::path::{Path, PathBuf};
 use util::misc::{VersionInfo, ReleaseTrack/*, platform*/};
 use util::{Address, H160, H256, FixedHash, Mutex};
 use client::operations::Operations;
@@ -54,7 +54,8 @@ pub struct Updater {
 	// This does change
 	pub latest: Option<OperationsInfo>,
 	pub ready: Option<ReleaseInfo>,
-
+	// If Some, client should restart itself.
+	pub installed: Option<ReleaseInfo>,
 }
 
 const CLIENT_ID: &'static str = "parity";
@@ -75,6 +76,7 @@ impl Updater {
 			this_fork: None,
 			latest: None,
 			ready: None,
+			installed: None,
 		};
 
 		u.this_fork = u.operations.release(CLIENT_ID, &u.this.hash.into()).ok()
@@ -107,12 +109,40 @@ impl Updater {
 		self.ready.clone()
 	}
 
+	#[cfg(windows)]
+	fn symlink<P: AsRef<Path>, Q: AsRef<Path>>(src: P, dst: Q) -> io::Result<()> {
+		os::windows::fs::symlink_file(src, dst)
+	}
+
+	#[cfg(not(windows))]
+	fn symlink<P: AsRef<Path>, Q: AsRef<Path>>(src: P, dst: Q) -> io::Result<()> {
+		os::unix::fs::symlink(src, dst)
+	}
+
 	/// Actually upgrades the client. Assumes that the binary has been downloaded.
 	/// @returns `true` on success.
 	pub fn execute_upgrade(&mut self) -> bool {
-		// TODO: link ~/.parity-updates/parity to self.ready 
-		// TODO: restart parity.
-		unimplemented!()
+		(|| -> Result<bool, String> {
+			if let Some(r) = self.ready.take() {
+				let p = Self::update_file_path(&r.version);
+				let n = Self::updates_latest();
+				let _ = fs::remove_file(&n);
+				match Self::symlink(p, n) {
+					Ok(_) => {
+						info!("Completed upgrade to {}", &r.version);
+						self.installed = Some(r);
+						Ok(true)
+					}
+					Err(e) => {
+						self.ready = Some(r);
+						Err(format!("Unable to create soft-link for update {:?}", e))
+					}
+				}
+			} else {
+				warn!("Execute upgrade called when no upgrade ready.");
+				Ok(false)
+			}
+		})().unwrap_or_else(|e| { warn!("{}", e); false })
 	}
 
 	/// Returns true iff the current version is capable of forming consensus.
@@ -165,37 +195,40 @@ impl Updater {
 		})
 	}
 
-	fn fetch_done(&mut self, _r: Result<PathBuf, fetch::Error>) {
-		let fetched = self.fetching.lock().take().unwrap();
-		match _r {
-			Ok(b) => {
-				info!("Fetched latest version ({}) OK to {}", fetched.version, b.display());
-				let mut dest = PathBuf::from(env::home_dir().unwrap().to_str().expect("env filesystem paths really should be valid; qed"));
-				dest.push(".parity-updates");
-				match fs::create_dir_all(&dest) {
-					Ok(_) => {
-						dest.push(format!("parity-{}-{:?}", fetched.version, fetched.version.hash));
-						match fs::copy(&b, &dest) {
-							Ok(_) => {
-								info!("Copied file to {}", dest.display());
-								let auto = match self.update_policy.filter {
-									UpdateFilter::All => true,
-									UpdateFilter::Critical if fetched.is_critical /* TODO: or is on a bad fork */ => true,
-									_ => false,
-								};
-								self.ready = Some(fetched);
-								if auto {
-									self.execute_upgrade();
-								}
-							},
-							Err(e) => warn!("Unable to copy update: {:?}", e),
-						}
-					},
-					Err(e) => warn!("Unable to create updates path: {:?}", e),
-				}
-			},
-			Err(e) => warn!("Unable to fetch update ({}): {:?}", fetched.version, e),
-		}
+	fn update_file_path(v: &VersionInfo) -> PathBuf {
+		let mut dest = PathBuf::from(env::home_dir().unwrap().to_str().expect("env filesystem paths really should be valid; qed"));
+		dest.push(".parity-updates");
+		dest.push(format!("parity-{}.{}.{}-{:?}", v.version.major, v.version.minor, v.version.patch, v.hash));
+		dest
+	}
+
+	fn updates_latest() -> PathBuf {
+		let mut dest = PathBuf::from(env::home_dir().unwrap().to_str().expect("env filesystem paths really should be valid; qed"));
+		dest.push(".parity-updates");
+		dest.push("parity");
+		dest
+	}
+
+	fn fetch_done(&mut self, result: Result<PathBuf, fetch::Error>) {
+		(|| -> Result<(), String> {
+			let fetched = self.fetching.lock().take().unwrap();
+			let b = result.map_err(|e| format!("Unable to fetch update ({}): {:?}", fetched.version, e))?;
+			info!("Fetched latest version ({}) OK to {}", fetched.version, b.display());
+			let dest = Self::update_file_path(&fetched.version);
+			fs::create_dir_all(dest.parent().expect("at least one thing pushed; qed")).map_err(|e| format!("Unable to create updates path: {:?}", e))?;
+			fs::copy(&b, &dest).map_err(|e| format!("Unable to copy update: {:?}", e))?;
+			info!("Copied file to {}", dest.display());
+			let auto = match self.update_policy.filter {
+				UpdateFilter::All => true,
+				UpdateFilter::Critical if fetched.is_critical /* TODO: or is on a bad fork */ => true,
+				_ => false,
+			};
+			self.ready = Some(fetched);
+			if auto {
+				self.execute_upgrade();
+			}
+			Ok(())
+		})().unwrap_or_else(|e| warn!("{}", e));
 	}
 
 	pub fn tick(&mut self) {
@@ -215,13 +248,19 @@ impl Updater {
 					"unreleased".into()
 				}
 			);
-			if self.update_policy.enable_downloading && latest.track.version.hash != self.version_info().hash && self.ready.as_ref().map_or(true, |t| *t != latest.track) {
+			if self.update_policy.enable_downloading && latest.track.version.hash != self.version_info().hash && self.installed.as_ref().or(self.ready.as_ref()).map_or(true, |t| *t != latest.track) {
 				if let Some(b) = latest.track.binary {
 					let mut fetching = self.fetching.lock();
 					if fetching.is_none() {
 						info!("Attempting to get parity binary {}", b);
 						let c = self.client.clone();
-						let f = move |r: Result<PathBuf, fetch::Error>| if let Some(c) = c.upgrade() { c.updater().as_mut().expect("updater exists; updater only owned by client; qed").fetch_done(r); };
+						let f = move |r: Result<PathBuf, fetch::Error>| {
+							if let Some(client) = c.upgrade() {
+								if let Some(updater) = client.updater().as_mut() {
+									updater.fetch_done(r);
+								}
+							}
+						};
 						if let Some(fetch) = self.fetch.clone().upgrade() {
 							fetch.fetch(b, Box::new(f)).ok();
 							*fetching = Some(latest.track.clone());
