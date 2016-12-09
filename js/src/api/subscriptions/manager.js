@@ -111,7 +111,7 @@ export default class Manager {
       console.error(`Unable to update callback for subscriptionId ${subscriptionId}`, error);
     }
 
-    if (autoRemove && !result) {
+    if (autoRemove && !result && typeof result === 'boolean') {
       this.unsubscribe(subscriptionId);
     }
   }

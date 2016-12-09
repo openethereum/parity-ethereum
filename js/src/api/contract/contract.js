@@ -325,7 +325,7 @@ export default class Contract {
       console.warn('_sendData', subscriptionId, error);
     }
 
-    if (autoRemove && !result) {
+    if (autoRemove && !result && typeof result === 'boolean') {
       this.unsubscribe(subscriptionId);
     }
   }
