@@ -2287,8 +2287,27 @@ mod tests {
 		let io = TestIo::new(&mut client, &ss, &mut queue, None);
 
 		let lagging_peers = sync.get_peers(&chain_info, &io, PeerStatus::Lagging);
+		let current_peers = sync.get_peers(&chain_info, &io, PeerStatus::Current);
 
-		assert_eq!(1, lagging_peers.len())
+		assert_eq!(1, lagging_peers.len());
+		assert!(current_peers.is_empty());
+	}
+
+	#[test]
+	fn finds_current_peers() {
+		let mut client = TestBlockChainClient::new();
+		client.add_blocks(100, EachBlockWith::Uncle);
+		let mut queue = VecDeque::new();
+		let mut sync = dummy_sync_with_peer(client.block_hash(BlockID::Latest).unwrap(), &client);
+		let chain_info = client.chain_info();
+		let ss = TestSnapshotService::new();
+		let io = TestIo::new(&mut client, &ss, &mut queue, None);
+
+		let current_peers = sync.get_peers(&chain_info, &io, PeerStatus::Current);
+		let lagging_peers = sync.get_peers(&chain_info, &io, PeerStatus::Lagging);
+
+		assert_eq!(1, current_peers.len());
+		assert!(lagging_peers.is_empty());
 	}
 
 	#[test]
@@ -2366,6 +2385,23 @@ mod tests {
 		assert_eq!(1, io.queue.len());
 		// 1 peer should be updated
 		assert_eq!(1, peer_count);
+		// NEW_BLOCK_PACKET
+		assert_eq!(0x07, io.queue[0].packet_id);
+	}
+
+	#[test]
+	fn sends_proposed_block() {
+		let mut client = TestBlockChainClient::new();
+		client.add_blocks(100, EachBlockWith::Uncle);
+		let mut queue = VecDeque::new();
+		let block = client.block(BlockID::Latest).unwrap();
+		let mut sync = dummy_sync_with_peer(client.block_hash(BlockID::Latest).unwrap(), &client);
+		let ss = TestSnapshotService::new();
+		let mut io = TestIo::new(&mut client, &ss, &mut queue, None);
+		sync.propagate_proposed_blocks(&mut io, &[block]);
+
+		// 1 message should be send
+		assert_eq!(1, io.queue.len());
 		// NEW_BLOCK_PACKET
 		assert_eq!(0x07, io.queue[0].packet_id);
 	}
