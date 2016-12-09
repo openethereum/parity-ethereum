@@ -178,6 +178,8 @@ usage! {
 		// -- Sealing/Mining Options
 		flag_author: Option<String> = None,
 			or |c: &Config| otry!(c.mining).author.clone().map(Some),
+		flag_engine_signer: Option<String> = None,
+			or |c: &Config| otry!(c.mining).engine_signer.clone().map(Some),
 		flag_force_sealing: bool = false,
 			or |c: &Config| otry!(c.mining).force_sealing.clone(),
 		flag_reseal_on_txs: String = "own",
@@ -371,6 +373,7 @@ struct Dapps {
 #[derive(Default, Debug, PartialEq, RustcDecodable)]
 struct Mining {
 	author: Option<String>,
+	engine_signer: Option<String>,
 	force_sealing: Option<bool>,
 	reseal_on_txs: Option<String>,
 	reseal_min_period: Option<u64>,
@@ -575,6 +578,7 @@ mod tests {
 
 			// -- Sealing/Mining Options
 			flag_author: Some("0xdeadbeefcafe0000000000000000000000000001".into()),
+			flag_engine_signer: Some("0xdeadbeefcafe0000000000000000000000000001".into()),
 			flag_force_sealing: true,
 			flag_reseal_on_txs: "all".into(),
 			flag_reseal_min_period: 4000u64,
@@ -746,6 +750,7 @@ mod tests {
 			}),
 			mining: Some(Mining {
 				author: Some("0xdeadbeefcafe0000000000000000000000000001".into()),
+				engine_signer: Some("0xdeadbeefcafe0000000000000000000000000001".into()),
 				force_sealing: Some(true),
 				reseal_on_txs: Some("all".into()),
 				reseal_min_period: Some(4000),
