@@ -37,6 +37,9 @@ extern crate semver;
 extern crate parking_lot;
 extern crate rlp;
 
+#[cfg(test)] extern crate ethcore_devtools as devtools;
+#[cfg(test)] extern crate ethkey;
+
 #[macro_use]
 extern crate log;
 #[macro_use]
