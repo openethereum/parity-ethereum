@@ -17,7 +17,7 @@
 import React, { Component, PropTypes } from 'react';
 
 import Actionbar from '../Actionbar';
-import { nodeOrStringProptype } from '~/util/protypes';
+import { nodeOrStringProptype } from '~/util/proptypes';
 
 import styles from './page.css';
 

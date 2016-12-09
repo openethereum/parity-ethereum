@@ -17,7 +17,7 @@
 import React, { Component, PropTypes } from 'react';
 import { Toolbar, ToolbarGroup } from 'material-ui/Toolbar';
 
-import { nodeOrStringProptype } from '~/util/protypes';
+import { nodeOrStringProptype } from '~/util/proptypes';
 
 import styles from './actionbar.css';
 
