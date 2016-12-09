@@ -60,6 +60,7 @@ export default class Contracts {
   get smsVerification () {
     return verification;
   }
+
   get emailVerification () {
     return verification;
   }

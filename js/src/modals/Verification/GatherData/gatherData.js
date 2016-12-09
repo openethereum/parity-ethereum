@@ -25,8 +25,9 @@ import { fromWei } from '~/api/util/wei';
 import { Form, Input } from '~/ui';
 import { nullableProptype } from '~/util/proptypes';
 
-import * as sms from '../../../3rdparty/sms-verification';
-import * as email from '../../../3rdparty/email-verification';
+import smsTermsOfService from '~/3rdparty/sms-verification/terms-of-service';
+import emailTermsOfService from '~/3rdparty/email-verification/terms-of-service';
+import { howSMSVerificationWorks, howEmailVerificationWorks } from '../how-it-works';
 import styles from './gatherData.css';
 
 export default class GatherData extends Component {
@@ -41,7 +42,8 @@ export default class GatherData extends Component {
 
   render () {
     const { method, isVerified } = this.props;
-    const { howItWorks, termsOfService } = method === 'email' ? email : sms;
+    const termsOfService = method === 'email' ? emailTermsOfService : smsTermsOfService;
+    const howItWorks = method === 'email' ? howEmailVerificationWorks : howSMSVerificationWorks;
 
     return (
       <Form>

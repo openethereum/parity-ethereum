@@ -14,20 +14,10 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { stringify } from 'querystring';
+import React from 'react';
 
-export const postToServer = (query, isTestnet = false) => {
-  const port = isTestnet ? 28443 : 18443;
-  query = stringify(query);
-  return fetch(`https://email-verification.parity.io:${port}/?` + query, {
-    method: 'POST', mode: 'cors', cache: 'no-store'
-  })
-  .then((res) => {
-    return res.json().then((data) => {
-      if (res.ok) {
-        return data.message;
-      }
-      throw new Error(data.message || 'unknown error');
-    });
-  });
-};
+export default (
+  <ul>
+    <li>todo</li>
+  </ul>
+);
