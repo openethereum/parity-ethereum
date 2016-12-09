@@ -79,6 +79,10 @@ export default class GasPriceEditor {
     this.weiValue = weiValue;
   }
 
+  @action setGasLimit = (gasLimit) => {
+    this.gasLimit = gasLimit;
+  }
+
   @action setHistogram = (gasHistogram) => {
     this.histogram = gasHistogram;
   }

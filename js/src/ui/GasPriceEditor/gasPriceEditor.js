@@ -15,8 +15,8 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import BigNumber from 'bignumber.js';
-import React, { Component, PropTypes } from 'react';
 import { observer } from 'mobx-react';
+import React, { Component, PropTypes } from 'react';
 
 import Input from '../Form/Input';
 import GasPriceSelector from '../GasPriceSelector';
@@ -40,7 +40,7 @@ export default class GasPriceEditor extends Component {
 
   render () {
     const { api } = this.context;
-    const { store } = this.props;
+    const { children, store } = this.props;
     const { errorGas, errorPrice, errorTotal, estimated, gas, histogram, price, priceDefault, totalValue } = store;
 
     const eth = api.util.fromWei(totalValue).toFormat();
@@ -87,6 +87,10 @@ export default class GasPriceEditor extends Component {
               hint='the total amount of the transaction'
               error={ errorTotal }
               value={ `${eth} ETH` } />
+          </div>
+
+          <div className={ styles.row }>
+            { children }
           </div>
         </div>
       </div>

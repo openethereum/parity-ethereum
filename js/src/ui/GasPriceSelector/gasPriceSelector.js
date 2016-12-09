@@ -84,28 +84,6 @@ export default class GasPriceSelector extends Component {
     );
   }
 
-  renderSlider () {
-    const { sliderValue } = this.state;
-
-    return (
-      <div className={ styles.columns }>
-        <Slider
-          min={ 0 }
-          max={ 1 }
-          value={ sliderValue }
-          onChange={ this.onEditpriceSlider }
-          style={ {
-            flex: 1,
-            padding: '0 0.3em'
-          } }
-          sliderStyle={ {
-            marginBottom: 12
-          } }
-        />
-      </div>
-    );
-  }
-
   renderChart () {
     const { histogram } = this.props;
     const { chartData, sliderValue, selectedIndex } = this.state;
@@ -114,7 +92,7 @@ export default class GasPriceSelector extends Component {
       return null;
     }
 
-    const height = 300;
+    const height = 3 * 72;
     const countIndex = Math.max(0, Math.min(selectedIndex, histogram.counts.length - 1));
     const selectedCount = countModifier(histogram.counts[countIndex]);
 
@@ -176,6 +154,28 @@ export default class GasPriceSelector extends Component {
             </ResponsiveContainer>
           </div>
         </div>
+      </div>
+    );
+  }
+
+  renderSlider () {
+    const { sliderValue } = this.state;
+
+    return (
+      <div className={ styles.columns }>
+        <Slider
+          min={ 0 }
+          max={ 1 }
+          value={ sliderValue }
+          onChange={ this.onEditpriceSlider }
+          style={ {
+            flex: 1,
+            padding: '0 0.3em'
+          } }
+          sliderStyle={ {
+            marginBottom: 12
+          } }
+        />
       </div>
     );
   }
