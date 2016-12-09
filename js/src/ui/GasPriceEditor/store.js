@@ -113,12 +113,12 @@ export default class GasPriceEditor {
         this._api.parity.gasPriceHistogram(),
         this._api.eth.gasPrice()
       ])
-      .then(([gasPriceHistogram, gasPrice]) => {
+      .then(([histogram, price]) => {
         transaction(() => {
-          this.setPrice(gasPrice.toFixed(0));
-          this.setHistogram(gasPriceHistogram);
+          this.setPrice(price.toFixed(0));
+          this.setHistogram(histogram);
 
-          this.priceDefault = gasPrice.toFixed();
+          this.priceDefault = price.toFixed();
         });
       })
       .catch((error) => {
