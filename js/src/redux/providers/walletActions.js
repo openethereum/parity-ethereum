@@ -58,7 +58,7 @@ function modifyOperation (method, address, owner, operation) {
     contract.instance[method]
       .estimateGas(options, values)
       .then((gas) => {
-        options.gas = gas;
+        options.gas = gas.mul(1.2);
         return contract.instance[method].postTransaction(options, values);
       })
       .then((requestId) => {
