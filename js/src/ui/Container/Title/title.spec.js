@@ -15,18 +15,38 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React from 'react';
-import { shallow } from 'enzyme';
+import { mount, shallow } from 'enzyme';
 
-import '../../../environment/tests';
+import Title from './title';
 
-import Application from './application';
+function renderShallow (props) {
+  return shallow(
+    <Title { ...props } />
+  );
+}
 
-describe('dapps/localtx/Application', () => {
+function renderMount (props) {
+  return mount(
+    <Title { ...props } />
+  );
+}
+
+describe('ui/Container/Title', () => {
   describe('rendering', () => {
-    it('renders without crashing', () => {
-      const rendered = shallow(<Application />);
+    it('renders defaults', () => {
+      expect(renderShallow()).to.be.ok;
+    });
 
-      expect(rendered).to.be.defined;
+    it('renders with the specified className', () => {
+      expect(renderShallow({ className: 'testClass' })).to.have.className('testClass');
+    });
+
+    it('renders the specified title', () => {
+      expect(renderMount({ title: 'titleText' })).to.contain.text('titleText');
+    });
+
+    it('renders the specified byline', () => {
+      expect(renderMount({ byline: 'bylineText' })).to.contain.text('bylineText');
     });
   });
 });

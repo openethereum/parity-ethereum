@@ -16,17 +16,39 @@
 
 import React from 'react';
 import { shallow } from 'enzyme';
+import sinon from 'sinon';
 
-import '../../../environment/tests';
+import Api from '~/api';
 
-import Application from './application';
+import TxList from './txList';
 
-describe('dapps/localtx/Application', () => {
+const api = new Api({ execute: sinon.stub() });
+
+const STORE = {
+  dispatch: sinon.stub(),
+  subscribe: sinon.stub(),
+  getState: () => {
+    return {
+      nodeStatus: {
+        isTest: true
+      }
+    };
+  }
+};
+
+function renderShallow (props) {
+  return shallow(
+    <TxList
+      store={ STORE }
+      { ...props } />,
+    { context: { api } }
+  );
+}
+
+describe('ui/TxList', () => {
   describe('rendering', () => {
-    it('renders without crashing', () => {
-      const rendered = shallow(<Application />);
-
-      expect(rendered).to.be.defined;
+    it('renders defaults', () => {
+      expect(renderShallow()).to.be.ok;
     });
   });
 });

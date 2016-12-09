@@ -14,19 +14,13 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import React from 'react';
-import { shallow } from 'enzyme';
+const path = require('path');
 
-import '../../../environment/tests';
-
-import Application from './application';
-
-describe('dapps/localtx/Application', () => {
-  describe('rendering', () => {
-    it('renders without crashing', () => {
-      const rendered = shallow(<Application />);
-
-      expect(rendered).to.be.defined;
-    });
-  });
-});
+module.exports = {
+  context: path.join(__dirname, '../src'),
+  resolve: {
+    alias: {
+      '~': path.resolve(__dirname, '../src')
+    }
+  }
+};

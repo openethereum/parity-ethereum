@@ -17,16 +17,22 @@
 import React from 'react';
 import { shallow } from 'enzyme';
 
-import '../../../environment/tests';
+import Button from './button';
 
-import Application from './application';
+function renderShallow (props) {
+  return shallow(
+    <Button { ...props } />
+  );
+}
 
-describe('dapps/localtx/Application', () => {
+describe('ui/Button', () => {
   describe('rendering', () => {
-    it('renders without crashing', () => {
-      const rendered = shallow(<Application />);
+    it('renders defaults', () => {
+      expect(renderShallow()).to.be.ok;
+    });
 
-      expect(rendered).to.be.defined;
+    it('renders with the specified className', () => {
+      expect(renderShallow({ className: 'testClass' })).to.have.className('testClass');
     });
   });
 });

@@ -27,10 +27,6 @@ export default class Title extends Component {
     byline: nodeOrStringProptype()
   }
 
-  state = {
-    name: 'Unnamed'
-  }
-
   render () {
     const { className, title, byline } = this.props;
 
