@@ -25,6 +25,7 @@ use util::log::Colour;
 use ethsync::{NetworkConfiguration, is_valid_node_url, AllowIP};
 use ethcore::client::VMType;
 use ethcore::miner::{MinerOptions, Banning};
+use ethcore::verification::queue::VerifierSettings;
 
 use rpc::{IpcConfiguration, HttpConfiguration};
 use ethcore_rpc::NetworkSettings;
@@ -158,6 +159,7 @@ impl Configuration {
 				vm_type: vm_type,
 				check_seal: !self.args.flag_no_seal_check,
 				with_color: logger_config.color,
+				verifier_settings: self.verifier_settings(),
 			};
 			Cmd::Blockchain(BlockchainCmd::Import(import_cmd))
 		} else if self.args.cmd_export {
@@ -241,6 +243,8 @@ impl Configuration {
 				None
 			};
 
+			let verifier_settings = self.verifier_settings();
+
 			let run_cmd = RunCmd {
 				cache_config: cache_config,
 				dirs: dirs,
@@ -276,6 +280,7 @@ impl Configuration {
 				check_seal: !self.args.flag_no_seal_check,
 				download_old_blocks: !self.args.flag_no_ancient_blocks,
 				serve_light: self.args.flag_serve_light,
+				verifier_settings: verifier_settings,
 			};
 			Cmd::Run(run_cmd)
 		};
@@ -301,6 +306,7 @@ impl Configuration {
 			gas_floor_target: try!(to_u256(&self.args.flag_gas_floor_target)),
 			gas_ceil_target: try!(to_u256(&self.args.flag_gas_cap)),
 			transactions_limit: self.args.flag_tx_queue_size,
+			engine_signer: try!(self.engine_signer()),
 		};
 
 		Ok(extras)
@@ -308,6 +314,10 @@ impl Configuration {
 
 	fn author(&self) -> Result<Address, String> {
 		to_address(self.args.flag_etherbase.clone().or(self.args.flag_author.clone()))
+	}
+
+	fn engine_signer(&self) -> Result<Address, String> {
+		to_address(self.args.flag_engine_signer.clone())
 	}
 
 	fn format(&self) -> Result<Option<DataFormat>, String> {
@@ -703,6 +713,16 @@ impl Configuration {
 
 		!ui_disabled
 	}
+
+	fn verifier_settings(&self) -> VerifierSettings {
+		let mut settings = VerifierSettings::default();
+		settings.scale_verifiers = self.args.flag_scale_verifiers;
+		if let Some(num_verifiers) = self.args.flag_num_verifiers {
+			settings.num_verifiers = num_verifiers;
+		}
+
+		settings
+	}
 }
 
 #[cfg(test)]
@@ -799,6 +819,7 @@ mod tests {
 			vm_type: VMType::Interpreter,
 			check_seal: true,
 			with_color: !cfg!(windows),
+			verifier_settings: Default::default(),
 		})));
 	}
 
@@ -923,6 +944,7 @@ mod tests {
 			check_seal: true,
 			download_old_blocks: true,
 			serve_light: false,
+			verifier_settings: Default::default(),
 		}));
 	}
 

@@ -20,13 +20,13 @@ import ReactTooltip from 'react-tooltip';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
-import { confirmOperation, revokeOperation } from '../../../redux/providers/walletActions';
-import { bytesToHex } from '../../../api/util/format';
-import { Container, InputAddress, Button, IdentityIcon } from '../../../ui';
-import { TxRow } from '../../../ui/TxList/txList';
+import { confirmOperation, revokeOperation } from '~/redux/providers/walletActions';
+import { bytesToHex } from '~/api/util/format';
+import { Container, InputAddress, Button, IdentityIcon } from '~/ui';
+import { TxRow } from '~/ui/TxList/txList';
 
 import styles from '../wallet.css';
-import txListStyles from '../../../ui/TxList/txList.css';
+import txListStyles from '~/ui/TxList/txList.css';
 
 class WalletConfirmations extends Component {
   static contextTypes = {
@@ -60,12 +60,14 @@ class WalletConfirmations extends Component {
   }
   renderConfirmations () {
     const { confirmations, ...others } = this.props;
+    const realConfirmations = confirmations && confirmations
+      .filter((conf) => conf.confirmedBy.length > 0);
 
-    if (!confirmations) {
+    if (!realConfirmations) {
       return null;
     }
 
-    if (confirmations.length === 0) {
+    if (realConfirmations.length === 0) {
       return (
         <div>
           <p>No transactions needs confirmation right now.</p>
@@ -73,13 +75,14 @@ class WalletConfirmations extends Component {
       );
     }
 
-    return confirmations.map((confirmation) => (
-      <WalletConfirmation
-        key={ confirmation.operation }
-        confirmation={ confirmation }
-        { ...others }
-      />
-    ));
+    return realConfirmations
+      .map((confirmation) => (
+        <WalletConfirmation
+          key={ confirmation.operation }
+          confirmation={ confirmation }
+          { ...others }
+        />
+      ));
   }
 }
 
@@ -320,22 +323,35 @@ class WalletConfirmation extends Component {
     const { address, isTest } = this.props;
     const { operation, transactionHash, blockNumber, value, to, data } = confirmation;
 
+    if (value && to && data) {
+      return (
+        <TxRow
+          className={ className }
+          key={ operation }
+          tx={ {
+            hash: transactionHash,
+            blockNumber: blockNumber,
+            from: address,
+            to: to,
+            value: value,
+            input: bytesToHex(data)
+          } }
+          address={ address }
+          isTest={ isTest }
+          historic={ false }
+        />
+      );
+    }
+
     return (
-      <TxRow
-        className={ className }
+      <tr
         key={ operation }
-        tx={ {
-          hash: transactionHash,
-          blockNumber: blockNumber,
-          from: address,
-          to: to,
-          value: value,
-          input: bytesToHex(data)
-        } }
-        address={ address }
-        isTest={ isTest }
-        historic={ false }
-      />
+        className={ className }
+      >
+        <td colSpan={ 5 }>
+          <code>{ operation }</code>
+        </td>
+      </tr>
     );
   }
 

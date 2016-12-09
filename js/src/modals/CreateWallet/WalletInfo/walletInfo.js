@@ -16,7 +16,8 @@
 
 import React, { Component, PropTypes } from 'react';
 
-import { CompletedStep, IdentityIcon, CopyToClipboard } from '../../../ui';
+import { CompletedStep, IdentityIcon, CopyToClipboard } from '~/ui';
+import { fromWei } from '~/api/util/wei';
 
 import styles from '../createWallet.css';
 
@@ -34,15 +35,21 @@ export default class WalletInfo extends Component {
     daylimit: PropTypes.oneOfType([
       PropTypes.string,
       PropTypes.number
-    ]).isRequired
+    ]).isRequired,
+
+    deployed: PropTypes.bool
   };
 
   render () {
-    const { address, required, daylimit, name } = this.props;
+    const { address, required, daylimit, name, deployed } = this.props;
 
     return (
       <CompletedStep>
-        <div><code>{ name }</code> has been deployed at</div>
+        <div>
+          <code>{ name }</code>
+          <span> has been </span>
+          <span> { deployed ? 'deployed' : 'added' } at </span>
+        </div>
         <div>
           <CopyToClipboard data={ address } label='copy address to clipboard' />
           <IdentityIcon address={ address } inline center className={ styles.identityicon } />
@@ -56,16 +63,16 @@ export default class WalletInfo extends Component {
           <code>{ required }</code> owners are required to confirm a transaction.
         </p>
         <p>
-          The daily limit is set to <code>{ daylimit }</code>.
+          The daily limit is set to <code>{ fromWei(daylimit).toFormat() }</code> ETH.
         </p>
       </CompletedStep>
     );
   }
 
   renderOwners () {
-    const { account, owners } = this.props;
+    const { account, owners, deployed } = this.props;
 
-    return [].concat(account, owners).map((address, id) => (
+    return [].concat(deployed ? account : null, owners).filter((a) => a).map((address, id) => (
       <div key={ id } className={ styles.owner }>
         <IdentityIcon address={ address } inline center className={ styles.identityicon } />
         <div className={ styles.address }>{ this.addressToString(address) }</div>

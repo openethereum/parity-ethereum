@@ -180,6 +180,8 @@ usage! {
 		// -- Sealing/Mining Options
 		flag_author: Option<String> = None,
 			or |c: &Config| otry!(c.mining).author.clone().map(Some),
+		flag_engine_signer: Option<String> = None,
+			or |c: &Config| otry!(c.mining).engine_signer.clone().map(Some),
 		flag_force_sealing: bool = false,
 			or |c: &Config| otry!(c.mining).force_sealing.clone(),
 		flag_reseal_on_txs: String = "own",
@@ -244,6 +246,10 @@ usage! {
 			or |c: &Config| otry!(c.footprint).db_compaction.clone(),
 		flag_fat_db: String = "auto",
 			or |c: &Config| otry!(c.footprint).fat_db.clone(),
+		flag_scale_verifiers: bool = false,
+			or |c: &Config| otry!(c.footprint).scale_verifiers.clone(),
+		flag_num_verifiers: Option<usize> = None, 
+			or |c: &Config| otry!(c.footprint).num_verifiers.clone().map(Some),
 
 		// -- Import/Export Options
 		flag_from: String = "1", or |_| None,
@@ -370,6 +376,7 @@ struct Dapps {
 #[derive(Default, Debug, PartialEq, RustcDecodable)]
 struct Mining {
 	author: Option<String>,
+	engine_signer: Option<String>,
 	force_sealing: Option<bool>,
 	reseal_on_txs: Option<String>,
 	reseal_min_period: Option<u64>,
@@ -405,6 +412,8 @@ struct Footprint {
 	cache_size_state: Option<u32>,
 	db_compaction: Option<String>,
 	fat_db: Option<String>,
+	scale_verifiers: Option<bool>,
+	num_verifiers: Option<usize>,
 }
 
 #[derive(Default, Debug, PartialEq, RustcDecodable)]
@@ -573,6 +582,7 @@ mod tests {
 
 			// -- Sealing/Mining Options
 			flag_author: Some("0xdeadbeefcafe0000000000000000000000000001".into()),
+			flag_engine_signer: Some("0xdeadbeefcafe0000000000000000000000000001".into()),
 			flag_force_sealing: true,
 			flag_reseal_on_txs: "all".into(),
 			flag_reseal_min_period: 4000u64,
@@ -606,6 +616,8 @@ mod tests {
 			flag_fast_and_loose: false,
 			flag_db_compaction: "ssd".into(),
 			flag_fat_db: "auto".into(),
+			flag_scale_verifiers: true,
+			flag_num_verifiers: Some(6),
 
 			// -- Import/Export Options
 			flag_from: "1".into(),
@@ -743,6 +755,7 @@ mod tests {
 			}),
 			mining: Some(Mining {
 				author: Some("0xdeadbeefcafe0000000000000000000000000001".into()),
+				engine_signer: Some("0xdeadbeefcafe0000000000000000000000000001".into()),
 				force_sealing: Some(true),
 				reseal_on_txs: Some("all".into()),
 				reseal_min_period: Some(4000),
@@ -776,6 +789,8 @@ mod tests {
 				cache_size_state: Some(25),
 				db_compaction: Some("ssd".into()),
 				fat_db: Some("off".into()),
+				scale_verifiers: Some(false),
+				num_verifiers: None,
 			}),
 			snapshots: Some(Snapshots {
 				disable_periodic: Some(true),

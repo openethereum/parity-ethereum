@@ -37,3 +37,22 @@
     height: 24px;
   }
 }
+
+.splitInput {
+  display: flex;
+  flex-direction: row;
+
+  > * {
+    flex: 1;
+
+    margin: 0 0.25em;
+
+    &:first-child {
+      margin-left: 0;
+    }
+
+    &:last-child {
+      margin-right: 0;
+    }
+  }
+}

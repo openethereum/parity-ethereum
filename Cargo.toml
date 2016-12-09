@@ -89,4 +89,4 @@ name = "parity"
 [profile.release]
 debug = false
 lto = false
-
+panic = "abort"

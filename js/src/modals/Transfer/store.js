@@ -16,10 +16,14 @@
 
 import { observable, computed, action, transaction } from 'mobx';
 import BigNumber from 'bignumber.js';
+import { uniq } from 'lodash';
 
+import { wallet as walletAbi } from '~/contracts/abi';
+import { bytesToHex } from '~/api/util/format';
+import Contract from '~/api/contract';
 import ERRORS from './errors';
 import { ERROR_CODES } from '~/api/transport/error';
-import { DEFAULT_GAS, DEFAULT_GASPRICE, MAX_GAS_ESTIMATION } from '../../util/constants';
+import { DEFAULT_GAS, DEFAULT_GASPRICE, MAX_GAS_ESTIMATION } from '~/util/constants';
 
 const TITLES = {
   transfer: 'transfer details',
@@ -71,6 +75,9 @@ export default class TransferStore {
   gasLimit = null;
   onClose = null;
 
+  senders = null;
+  sendersBalances = null;
+
   isWallet = false;
   wallet = null;
 
@@ -108,19 +115,22 @@ export default class TransferStore {
   constructor (api, props) {
     this.api = api;
 
-    const { account, balance, gasLimit, senders, onClose } = props;
-
+    const { account, balance, gasLimit, senders, onClose, newError, sendersBalances } = props;
     this.account = account;
     this.balance = balance;
     this.gasLimit = gasLimit;
     this.onClose = onClose;
     this.isWallet = account && account.wallet;
+    this.newError = newError;
 
     if (this.isWallet) {
       this.wallet = props.wallet;
+      this.walletContract = new Contract(this.api, walletAbi);
     }
 
     if (senders) {
+      this.senders = senders;
+      this.sendersBalances = sendersBalances;
       this.senderError = ERRORS.requireSender;
     }
   }
@@ -217,11 +227,43 @@ export default class TransferStore {
           this.txhash = txhash;
           this.busyState = 'Your transaction has been posted to the network';
         });
+
+        if (this.isWallet) {
+          return this._attachWalletOperation(txhash);
+        }
       })
       .catch((error) => {
         this.sending = false;
         this.newError(error);
       });
+  }
+
+  @action _attachWalletOperation = (txhash) => {
+    let ethSubscriptionId = null;
+
+    return this.api.subscribe('eth_blockNumber', () => {
+      this.api.eth
+        .getTransactionReceipt(txhash)
+        .then((tx) => {
+          if (!tx) {
+            return;
+          }
+
+          const logs = this.walletContract.parseEventLogs(tx.logs);
+          const operations = uniq(logs
+            .filter((log) => log && log.params && log.params.operation)
+            .map((log) => bytesToHex(log.params.operation.value)));
+
+          if (operations.length > 0) {
+            this.operation = operations[0];
+          }
+
+          this.api.unsubscribe(ethSubscriptionId);
+          ethSubscriptionId = null;
+        });
+    }).then((subId) => {
+      ethSubscriptionId = subId;
+    });
   }
 
   @action _onUpdateAll = (valueAll) => {
@@ -355,38 +397,52 @@ export default class TransferStore {
   }
 
   @action recalculate = () => {
-    const { account, balance } = this;
+    const { account } = this;
 
-    if (!account || !balance) {
+    if (!account || !this.balance) {
       return;
     }
 
-    const { gas, gasPrice, tag, valueAll, isEth } = this;
+    const balance = this.senders
+      ? this.sendersBalances[this.sender]
+      : this.balance;
+
+    if (!balance) {
+      return;
+    }
+
+    const { gas, gasPrice, tag, valueAll, isEth, isWallet } = this;
 
     const gasTotal = new BigNumber(gasPrice || 0).mul(new BigNumber(gas || 0));
-    const balance_ = balance.tokens.find((b) => tag === b.token.tag);
+
     const availableEth = new BigNumber(balance.tokens[0].value);
-    const available = new BigNumber(balance_.value);
-    const format = new BigNumber(balance_.token.format || 1);
+
+    const senderBalance = this.balance.tokens.find((b) => tag === b.token.tag);
+    const format = new BigNumber(senderBalance.token.format || 1);
+    const available = isWallet
+      ? this.api.util.fromWei(new BigNumber(senderBalance.value))
+      : (new BigNumber(senderBalance.value)).div(format);
 
     let { value, valueError } = this;
     let totalEth = gasTotal;
     let totalError = null;
 
     if (valueAll) {
-      if (isEth) {
+      if (isEth && !isWallet) {
         const bn = this.api.util.fromWei(availableEth.minus(gasTotal));
         value = (bn.lt(0) ? new BigNumber(0.0) : bn).toString();
+      } else if (isEth) {
+        value = (available.lt(0) ? new BigNumber(0.0) : available).toString();
       } else {
-        value = available.div(format).toString();
+        value = available.toString();
       }
     }
 
-    if (isEth) {
+    if (isEth && !isWallet) {
       totalEth = totalEth.plus(this.api.util.toWei(value || 0));
     }
 
-    if (new BigNumber(value || 0).gt(available.div(format))) {
+    if (new BigNumber(value || 0).gt(available)) {
       valueError = ERRORS.largeAmount;
     } else if (valueError === ERRORS.largeAmount) {
       valueError = null;
@@ -409,26 +465,52 @@ export default class TransferStore {
     return this._getTransferMethod().postTransaction(options, values);
   }
 
-  estimateGas () {
-    const { options, values } = this._getTransferParams(true);
-    return this._getTransferMethod(true).estimateGas(options, values);
+  _estimateGas (forceToken = false) {
+    const { options, values } = this._getTransferParams(true, forceToken);
+    return this._getTransferMethod(true, forceToken).estimateGas(options, values);
   }
 
-  _getTransferMethod (gas = false) {
+  estimateGas () {
+    if (this.isEth || !this.isWallet) {
+      return this._estimateGas();
+    }
+
+    return Promise
+      .all([
+        this._estimateGas(true),
+        this._estimateGas()
+      ])
+      .then((results) => results[0].plus(results[1]));
+  }
+
+  _getTransferMethod (gas = false, forceToken = false) {
     const { isEth, isWallet } = this;
 
-    if (isEth && !isWallet) {
+    if (isEth && !isWallet && !forceToken) {
       return gas ? this.api.eth : this.api.parity;
     }
 
-    if (isWallet) {
+    if (isWallet && !forceToken) {
       return this.wallet.instance.execute;
     }
 
     return this.token.contract.instance.transfer;
   }
 
-  _getTransferParams (gas = false) {
+  _getData (gas = false) {
+    const { isEth, isWallet } = this;
+
+    if (!isWallet || isEth) {
+      return this.data && this.data.length ? this.data : '';
+    }
+
+    const func = this._getTransferMethod(gas, true);
+    const { options, values } = this._getTransferParams(gas, true);
+
+    return this.token.contract.getCallData(func, options, values);
+  }
+
+  _getTransferParams (gas = false, forceToken = false) {
     const { isEth, isWallet } = this;
 
     const to = (isEth && !isWallet) ? this.recipient
@@ -446,26 +528,29 @@ export default class TransferStore {
       options.gas = MAX_GAS_ESTIMATION;
     }
 
-    if (isEth && !isWallet) {
+    if (isEth && !isWallet && !forceToken) {
       options.value = this.api.util.toWei(this.value || 0);
-
-      if (this.data && this.data.length) {
-        options.data = this.data;
-      }
+      options.data = this._getData(gas);
 
       return { options, values: [] };
     }
 
-    const values = isWallet
-      ? [
-        this.recipient,
-        this.api.util.toWei(this.value || 0),
-        this.data || ''
-      ]
-      : [
-        this.recipient,
-        new BigNumber(this.value || 0).mul(this.token.format).toFixed(0)
+    if (isWallet && !forceToken) {
+      const to = isEth ? this.recipient : this.token.contract.address;
+      const value = isEth ? this.api.util.toWei(this.value || 0) : new BigNumber(0);
+
+      const values = [
+        to, value,
+        this._getData(gas)
       ];
+
+      return { options, values };
+    }
+
+    const values = [
+      this.recipient,
+      new BigNumber(this.value || 0).mul(this.token.format).toFixed(0)
+    ];
 
     return { options, values };
   }

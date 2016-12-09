@@ -28,6 +28,7 @@ use ethcore::service::ClientService;
 use ethcore::client::{Mode, DatabaseCompactionProfile, VMType, BlockImportError, BlockChainClient, BlockID};
 use ethcore::error::ImportError;
 use ethcore::miner::Miner;
+use ethcore::verification::queue::VerifierSettings;
 use cache::CacheConfig;
 use informant::{Informant, MillisecondDuration};
 use params::{SpecType, Pruning, Switch, tracing_switch_to_bool, fatdb_switch_to_bool};
@@ -84,6 +85,7 @@ pub struct ImportBlockchain {
 	pub vm_type: VMType,
 	pub check_seal: bool,
 	pub with_color: bool,
+	pub verifier_settings: VerifierSettings,
 }
 
 #[derive(Debug, PartialEq)]
@@ -175,7 +177,21 @@ fn execute_import(cmd: ImportBlockchain) -> Result<String, String> {
 	try!(execute_upgrades(&db_dirs, algorithm, cmd.compaction.compaction_profile(db_dirs.fork_path().as_path())));
 
 	// prepare client config
-	let client_config = to_client_config(&cmd.cache_config, Mode::Active, tracing, fat_db, cmd.compaction, cmd.wal, cmd.vm_type,  "".into(), algorithm, cmd.pruning_history, cmd.check_seal);
+	let mut client_config = to_client_config(
+		&cmd.cache_config, 
+		Mode::Active, 
+		tracing, 
+		fat_db, 
+		cmd.compaction, 
+		cmd.wal, 
+		cmd.vm_type, 
+		"".into(), 
+		algorithm, 
+		cmd.pruning_history, 
+		cmd.check_seal
+	);
+
+	client_config.queue.verifier_settings = cmd.verifier_settings;
 
 	// build client
 	let service = try!(ClientService::start(

@@ -37,6 +37,7 @@ class Accounts extends Component {
     accounts: PropTypes.object.isRequired,
     hasAccounts: PropTypes.bool.isRequired,
     wallets: PropTypes.object.isRequired,
+    walletsOwners: PropTypes.object.isRequired,
     hasWallets: PropTypes.bool.isRequired,
 
     balances: PropTypes.object
@@ -86,8 +87,15 @@ class Accounts extends Component {
         { this.renderNewWalletDialog() }
         { this.renderActionbar() }
 
-        { this.renderAccounts() }
-        { this.renderWallets() }
+        <Page>
+          <Tooltip
+            className={ styles.accountTooltip }
+            text='your accounts are visible for easy access, allowing you to edit the meta information, make transfers, view transactions and fund the account'
+          />
+
+          { this.renderWallets() }
+          { this.renderAccounts() }
+        </Page>
       </div>
     );
   }
@@ -115,18 +123,13 @@ class Accounts extends Component {
     const { searchValues, sortOrder } = this.state;
 
     return (
-      <Page>
-        <List
-          search={ searchValues }
-          accounts={ accounts }
-          balances={ balances }
-          empty={ !hasAccounts }
-          order={ sortOrder }
-          handleAddSearchToken={ this.onAddSearchToken } />
-        <Tooltip
-          className={ styles.accountTooltip }
-          text='your accounts are visible for easy access, allowing you to edit the meta information, make transfers, view transactions and fund the account' />
-      </Page>
+      <List
+        search={ searchValues }
+        accounts={ accounts }
+        balances={ balances }
+        empty={ !hasAccounts }
+        order={ sortOrder }
+        handleAddSearchToken={ this.onAddSearchToken } />
     );
   }
 
@@ -135,21 +138,24 @@ class Accounts extends Component {
       return this.renderLoading(this.props.wallets);
     }
 
-    const { wallets, hasWallets, balances } = this.props;
+    const { wallets, hasWallets, balances, walletsOwners } = this.props;
     const { searchValues, sortOrder } = this.state;
 
+    if (!wallets || Object.keys(wallets).length === 0) {
+      return null;
+    }
+
     return (
-      <Page>
-        <List
-          link='wallet'
-          search={ searchValues }
-          accounts={ wallets }
-          balances={ balances }
-          empty={ !hasWallets }
-          order={ sortOrder }
-          handleAddSearchToken={ this.onAddSearchToken }
-        />
-      </Page>
+      <List
+        link='wallet'
+        search={ searchValues }
+        accounts={ wallets }
+        balances={ balances }
+        empty={ !hasWallets }
+        order={ sortOrder }
+        handleAddSearchToken={ this.onAddSearchToken }
+        walletsOwners={ walletsOwners }
+      />
     );
   }
 
@@ -281,13 +287,29 @@ class Accounts extends Component {
 }
 
 function mapStateToProps (state) {
-  const { accounts, hasAccounts, wallets, hasWallets } = state.personal;
+  const { accounts, hasAccounts, wallets, hasWallets, accountsInfo } = state.personal;
   const { balances } = state.balances;
+  const walletsInfo = state.wallet.wallets;
+
+  const walletsOwners = Object
+    .keys(walletsInfo)
+    .map((wallet) => ({
+      owners: walletsInfo[wallet].owners.map((owner) => ({
+        address: owner,
+        name: accountsInfo[owner] && accountsInfo[owner].name || owner
+      })),
+      address: wallet
+    }))
+    .reduce((walletsOwners, wallet) => {
+      walletsOwners[wallet.address] = wallet.owners;
+      return walletsOwners;
+    }, {});
 
   return {
     accounts,
     hasAccounts,
     wallets,
+    walletsOwners,
     hasWallets,
     balances
   };

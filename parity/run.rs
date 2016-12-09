@@ -28,6 +28,7 @@ use ethcore::service::ClientService;
 use ethcore::account_provider::AccountProvider;
 use ethcore::miner::{Miner, MinerService, ExternalMiner, MinerOptions};
 use ethcore::snapshot;
+use ethcore::verification::queue::VerifierSettings;
 use ethsync::SyncConfig;
 use informant::Informant;
 
@@ -93,6 +94,7 @@ pub struct RunCmd {
 	pub check_seal: bool,
 	pub download_old_blocks: bool,
 	pub serve_light: bool,
+	pub verifier_settings: VerifierSettings,
 }
 
 pub fn open_ui(dapps_conf: &dapps::Configuration, signer_conf: &signer::Configuration) -> Result<(), String> {
@@ -212,8 +214,13 @@ pub fn execute(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<(), String> {
 	sync_config.download_old_blocks = cmd.download_old_blocks;
 	sync_config.serve_light = cmd.serve_light;
 
+	let passwords = try!(passwords_from_files(&cmd.acc_conf.password_files));
+
 	// prepare account provider
-	let account_provider = Arc::new(try!(prepare_account_provider(&cmd.dirs, cmd.acc_conf)));
+	let account_provider = Arc::new(try!(prepare_account_provider(&cmd.dirs, cmd.acc_conf, &passwords)));
+
+	// let the Engine access the accounts
+	spec.engine.register_account_provider(account_provider.clone());
 
 	// create miner
 	let miner = Miner::new(cmd.miner_options, cmd.gas_pricer.into(), &spec, Some(account_provider.clone()));
@@ -222,9 +229,15 @@ pub fn execute(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<(), String> {
 	miner.set_gas_ceil_target(cmd.miner_extras.gas_ceil_target);
 	miner.set_extra_data(cmd.miner_extras.extra_data);
 	miner.set_transactions_limit(cmd.miner_extras.transactions_limit);
+	let engine_signer = cmd.miner_extras.engine_signer;
+	if engine_signer != Default::default() {
+		if !passwords.into_iter().any(|p| miner.set_engine_signer(engine_signer, p).is_ok()) {
+			return Err(format!("No password found for the consensus signer {}. Make sure valid password is present in files passed using `--password`.", engine_signer));
+		}
+	}
 
 	// create client config
-	let client_config = to_client_config(
+	let mut client_config = to_client_config(
 		&cmd.cache_config,
 		mode.clone(),
 		tracing,
@@ -237,6 +250,8 @@ pub fn execute(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<(), String> {
 		cmd.pruning_history,
 		cmd.check_seal,
 	);
+
+	client_config.queue.verifier_settings = cmd.verifier_settings;
 
 	// set up bootnodes
 	let mut net_conf = cmd.net_conf;
@@ -434,11 +449,9 @@ fn daemonize(_pid_file: String) -> Result<(), String> {
 	Err("daemon is no supported on windows".into())
 }
 
-fn prepare_account_provider(dirs: &Directories, cfg: AccountsConfig) -> Result<AccountProvider, String> {
+fn prepare_account_provider(dirs: &Directories, cfg: AccountsConfig, passwords: &[String]) -> Result<AccountProvider, String> {
 	use ethcore::ethstore::EthStore;
 	use ethcore::ethstore::dir::DiskDirectory;
-
-	let passwords = try!(passwords_from_files(cfg.password_files));
 
 	let dir = Box::new(try!(DiskDirectory::create(dirs.keys.clone()).map_err(|e| format!("Could not open keys directory: {}", e))));
 	let account_service = AccountProvider::new(Box::new(
@@ -446,7 +459,7 @@ fn prepare_account_provider(dirs: &Directories, cfg: AccountsConfig) -> Result<A
 	));
 
 	for a in cfg.unlocked_accounts {
-		if passwords.iter().find(|p| account_service.unlock_account_permanently(a, (*p).clone()).is_ok()).is_none() {
+		if !passwords.iter().any(|p| account_service.unlock_account_permanently(a, (*p).clone()).is_ok()) {
 			return Err(format!("No password found to unlock account {}. Make sure valid password is present in files passed using `--password`.", a));
 		}
 	}

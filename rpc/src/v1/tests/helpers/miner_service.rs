@@ -25,6 +25,7 @@ use ethcore::header::BlockNumber;
 use ethcore::transaction::SignedTransaction;
 use ethcore::receipt::{Receipt, RichReceipt};
 use ethcore::miner::{MinerService, MinerStatus, TransactionImportResult, LocalTransactionStatus};
+use ethcore::account_provider::Error as AccountError;
 
 /// Test miner service.
 pub struct TestMinerService {
@@ -40,6 +41,8 @@ pub struct TestMinerService {
 	pub pending_receipts: Mutex<BTreeMap<H256, Receipt>>,
 	/// Last nonces.
 	pub last_nonces: RwLock<HashMap<Address, U256>>,
+	/// Password held by Engine.
+	pub password: RwLock<String>,
 
 	min_gas_price: RwLock<U256>,
 	gas_range_target: RwLock<(U256, U256)>,
@@ -61,6 +64,7 @@ impl Default for TestMinerService {
 			min_gas_price: RwLock::new(U256::from(20_000_000)),
 			gas_range_target: RwLock::new((U256::from(12345), U256::from(54321))),
 			author: RwLock::new(Address::zero()),
+			password: RwLock::new(String::new()),
 			extra_data: RwLock::new(vec![1, 2, 3, 4]),
 			limit: RwLock::new(1024),
 			tx_gas_limit: RwLock::new(!U256::zero()),
@@ -81,6 +85,12 @@ impl MinerService for TestMinerService {
 
 	fn set_author(&self, author: Address) {
 		*self.author.write() = author;
+	}
+
+	fn set_engine_signer(&self, address: Address, password: String) -> Result<(), AccountError> {
+		*self.author.write() = address;
+		*self.password.write() = password;
+		Ok(())
 	}
 
 	fn set_extra_data(&self, extra_data: Bytes) {

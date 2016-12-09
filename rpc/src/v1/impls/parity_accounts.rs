@@ -57,7 +57,7 @@ impl<C: 'static> ParityAccounts for ParityAccountsClient<C> where C: MiningBlock
 		let info = try!(store.accounts_info().map_err(|e| errors::account("Could not fetch account info.", e)));
 		let other = store.addresses_info().expect("addresses_info always returns Ok; qed");
 
-		Ok(info.into_iter().chain(other.into_iter()).map(|(a, v)| {
+		Ok(other.into_iter().chain(info.into_iter()).map(|(a, v)| {
 			let m = map![
 				"name".to_owned() => to_value(&v.name),
 				"meta".to_owned() => to_value(&v.meta),
@@ -124,6 +124,16 @@ impl<C: 'static> ParityAccounts for ParityAccountsClient<C> where C: MiningBlock
 			.kill_account(&account, &password)
 			.map(|_| true)
 			.map_err(|e| errors::account("Could not delete account.", e))
+	}
+
+	fn remove_address(&self, addr: RpcH160) -> Result<bool, Error> {
+		try!(self.active());
+		let store = take_weak!(self.accounts);
+		let addr: Address = addr.into();
+
+		store.remove_address(addr)
+			.expect("remove_address always returns Ok; qed");
+		Ok(true)
 	}
 
 	fn set_account_name(&self, addr: RpcH160, name: String) -> Result<bool, Error> {

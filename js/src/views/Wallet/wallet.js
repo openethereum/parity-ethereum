@@ -17,18 +17,24 @@
 import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
+import moment from 'moment';
+
 import ContentCreate from 'material-ui/svg-icons/content/create';
+import ActionDelete from 'material-ui/svg-icons/action/delete';
 import ContentSend from 'material-ui/svg-icons/content/send';
+import SettingsIcon from 'material-ui/svg-icons/action/settings';
 
-import { EditMeta, Transfer } from '../../modals';
-import { Actionbar, Button, Page, Loading } from '../../ui';
+import { nullableProptype } from '~/util/proptypes';
+import { EditMeta, Transfer, WalletSettings } from '~/modals';
+import { Actionbar, Button, Page, Loading } from '~/ui';
 
+import Delete from '../Address/Delete';
 import Header from '../Account/Header';
 import WalletDetails from './Details';
 import WalletConfirmations from './Confirmations';
 import WalletTransactions from './Transactions';
 
-import { setVisibleAccounts } from '../../redux/providers/personalActions';
+import { setVisibleAccounts } from '~/redux/providers/personalActions';
 
 import styles from './wallet.css';
 
@@ -59,17 +65,19 @@ class Wallet extends Component {
 
   static propTypes = {
     setVisibleAccounts: PropTypes.func.isRequired,
+    balance: nullableProptype(PropTypes.object.isRequired),
     images: PropTypes.object.isRequired,
     address: PropTypes.string.isRequired,
     wallets: PropTypes.object.isRequired,
     wallet: PropTypes.object.isRequired,
-    balances: PropTypes.object.isRequired,
     isTest: PropTypes.bool.isRequired
   };
 
   state = {
     showEditDialog: false,
-    showTransferDialog: false
+    showSettingsDialog: false,
+    showTransferDialog: false,
+    showDeleteDialog: false
   };
 
   componentDidMount () {
@@ -96,34 +104,75 @@ class Wallet extends Component {
   }
 
   render () {
-    const { wallets, balances, address } = this.props;
+    const { wallets, balance, address } = this.props;
 
     const wallet = (wallets || {})[address];
-    const balance = (balances || {})[address];
 
     if (!wallet) {
       return null;
     }
 
+    const { owners, require, dailylimit } = this.props.wallet;
+
     return (
       <div className={ styles.wallet }>
         { this.renderEditDialog(wallet) }
+        { this.renderSettingsDialog() }
         { this.renderTransferDialog() }
+        { this.renderDeleteDialog(wallet) }
         { this.renderActionbar() }
         <Page>
-          <Header
-            account={ wallet }
-            balance={ balance }
-          />
+          <div className={ styles.info }>
+            <Header
+              className={ styles.header }
+              account={ wallet }
+              balance={ balance }
+            >
+              { this.renderInfos() }
+            </Header>
+
+            <WalletDetails
+              className={ styles.details }
+              owners={ owners }
+              require={ require }
+              dailylimit={ dailylimit }
+            />
+          </div>
           { this.renderDetails() }
         </Page>
       </div>
     );
   }
 
+  renderInfos () {
+    const { dailylimit } = this.props.wallet;
+    const { api } = this.context;
+
+    if (!dailylimit || !dailylimit.limit) {
+      return null;
+    }
+
+    const limit = api.util.fromWei(dailylimit.limit).toFormat(3);
+    const spent = api.util.fromWei(dailylimit.spent).toFormat(3);
+    const date = moment(dailylimit.last.toNumber() * 24 * 3600 * 1000);
+
+    return (
+      <div>
+        <br />
+        <p>
+          <span className={ styles.detail }>{ spent }<span className={ styles.eth } /></span>
+          <span>has been spent today, out of</span>
+          <span className={ styles.detail }>{ limit }<span className={ styles.eth } /></span>
+          <span>set as the daily limit, which has been reset on</span>
+          <span className={ styles.detail }>{ date.format('LL') }</span>
+        </p>
+      </div>
+    );
+  }
+
   renderDetails () {
     const { address, isTest, wallet } = this.props;
-    const { owners, require, dailylimit, confirmations, transactions } = wallet;
+    const { owners, require, confirmations, transactions } = wallet;
 
     if (!isTest || !owners || !require) {
       return (
@@ -134,13 +183,6 @@ class Wallet extends Component {
     }
 
     return [
-      <WalletDetails
-        key='details'
-        owners={ owners }
-        require={ require }
-        dailylimit={ dailylimit }
-      />,
-
       <WalletConfirmations
         key='confirmations'
         owners={ owners }
@@ -160,9 +202,7 @@ class Wallet extends Component {
   }
 
   renderActionbar () {
-    const { address, balances } = this.props;
-
-    const balance = balances[address];
+    const { balance } = this.props;
     const showTransferButton = !!(balance && balance.tokens);
 
     const buttons = [
@@ -173,16 +213,38 @@ class Wallet extends Component {
         disabled={ !showTransferButton }
         onClick={ this.onTransferClick } />,
       <Button
+        key='delete'
+        icon={ <ActionDelete /> }
+        label='delete'
+        onClick={ this.showDeleteDialog } />,
+      <Button
         key='editmeta'
         icon={ <ContentCreate /> }
         label='edit'
-        onClick={ this.onEditClick } />
+        onClick={ this.onEditClick } />,
+      <Button
+        key='settings'
+        icon={ <SettingsIcon /> }
+        label='settings'
+        onClick={ this.onSettingsClick } />
     ];
 
     return (
       <Actionbar
         title='Wallet Management'
         buttons={ buttons } />
+    );
+  }
+
+  renderDeleteDialog (account) {
+    const { showDeleteDialog } = this.state;
+
+    return (
+      <Delete
+        account={ account }
+        visible={ showDeleteDialog }
+        route='/accounts'
+        onClose={ this.closeDeleteDialog } />
     );
   }
 
@@ -196,8 +258,24 @@ class Wallet extends Component {
     return (
       <EditMeta
         account={ wallet }
-        keys={ ['description', 'passwordHint'] }
+        keys={ ['description'] }
         onClose={ this.onEditClick } />
+    );
+  }
+
+  renderSettingsDialog () {
+    const { wallet } = this.props;
+    const { showSettingsDialog } = this.state;
+
+    if (!showSettingsDialog) {
+      return null;
+    }
+
+    return (
+      <WalletSettings
+        wallet={ wallet }
+        onClose={ this.onSettingsClick }
+      />
     );
   }
 
@@ -208,15 +286,13 @@ class Wallet extends Component {
       return null;
     }
 
-    const { wallets, balances, images, address } = this.props;
+    const { wallets, balance, images, address } = this.props;
     const wallet = wallets[address];
-    const balance = balances[address];
 
     return (
       <Transfer
         account={ wallet }
         balance={ balance }
-        balances={ balances }
         images={ images }
         onClose={ this.onTransferClose }
       />
@@ -229,6 +305,12 @@ class Wallet extends Component {
     });
   }
 
+  onSettingsClick = () => {
+    this.setState({
+      showSettingsDialog: !this.state.showSettingsDialog
+    });
+  }
+
   onTransferClick = () => {
     this.setState({
       showTransferDialog: !this.state.showTransferDialog
@@ -237,6 +319,14 @@ class Wallet extends Component {
 
   onTransferClose = () => {
     this.onTransferClick();
+  }
+
+  closeDeleteDialog = () => {
+    this.setState({ showDeleteDialog: false });
+  }
+
+  showDeleteDialog = () => {
+    this.setState({ showDeleteDialog: true });
   }
 }
 
@@ -248,12 +338,14 @@ function mapStateToProps (_, initProps) {
     const { wallets } = state.personal;
     const { balances } = state.balances;
     const { images } = state;
+
     const wallet = state.wallet.wallets[address] || {};
+    const balance = balances[address] || null;
 
     return {
       isTest,
       wallets,
-      balances,
+      balance,
       images,
       address,
       wallet

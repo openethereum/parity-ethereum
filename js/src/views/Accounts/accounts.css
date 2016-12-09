@@ -22,6 +22,12 @@
   left: 7em;
 }
 
+.owners {
+  margin-top: 1em;
+  display: flex;
+  margin-bottom: -0.5em;
+}
+
 .toolbar {
   position: relative;
 }

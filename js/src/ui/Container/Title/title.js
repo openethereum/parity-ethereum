@@ -16,17 +16,15 @@
 
 import React, { Component, PropTypes } from 'react';
 
+import { nodeOrStringProptype } from '~/util/proptypes';
+
 import styles from './title.css';
 
 export default class Title extends Component {
   static propTypes = {
     className: PropTypes.string,
-    title: PropTypes.oneOfType([
-      PropTypes.string, PropTypes.node
-    ]),
-    byline: PropTypes.oneOfType([
-      PropTypes.string, PropTypes.node
-    ])
+    title: nodeOrStringProptype(),
+    byline: nodeOrStringProptype()
   }
 
   state = {
