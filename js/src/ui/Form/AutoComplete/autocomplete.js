@@ -16,11 +16,23 @@
 
 import React, { Component, PropTypes } from 'react';
 import keycode from 'keycode';
-import { MenuItem, AutoComplete as MUIAutoComplete } from 'material-ui';
-import Divider from 'material-ui/Divider';
+import { MenuItem, AutoComplete as MUIAutoComplete, Divider as MUIDivider } from 'material-ui';
 import { PopoverAnimationVertical } from 'material-ui/Popover';
 
-import { isEqual, range } from 'lodash';
+import { isEqual } from 'lodash';
+
+// Hack to prevent "Unknown prop `disableFocusRipple` on <hr> tag" error
+class Divider extends Component {
+  static muiName = MUIDivider.muiName;
+
+  render () {
+    return (
+      <div style={ { margin: '0.25em 0' } }>
+        <MUIDivider style={ { height: 2 } }/>
+      </div>
+    );
+  }
+}
 
 export default class AutoComplete extends Component {
   static propTypes = {
