@@ -49,3 +49,32 @@ impl DappsSettings {
 		serde_json::to_writer(writer, &m.iter().map(|(a, m)| (a.clone().into(), m.clone().into())).collect::<HashMap<DappId, DappsSettings>>())
 	}
 }
+
+/// Accounts policy for new dapps.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub enum NewDappsPolicy {
+	/// All accounts are exposed by default.
+	AllAccounts,
+	/// Only accounts listed here are exposed by default for new dapps.
+	Whitelist(Vec<hash::Address>),
+}
+
+impl NewDappsPolicy {
+	/// Read a hash map of `String -> NewDappsPolicy`
+	pub fn read_new_dapps_policy<R, S>(reader: R) -> Result<HashMap<String, S>, serde_json::Error> where
+		R: io::Read,
+		S: From<NewDappsPolicy> + Clone,
+	{
+		serde_json::from_reader(reader).map(|ok: HashMap<String, NewDappsPolicy>|
+			ok.into_iter().map(|(a, m)| (a.into(), m.into())).collect()
+		)
+	}
+
+	/// Write a hash map of `String -> NewDappsPolicy`
+	pub fn write_new_dapps_policy<W, S>(m: &HashMap<String, S>, writer: &mut W) -> Result<(), serde_json::Error> where
+		W: io::Write,
+		S: Into<NewDappsPolicy> + Clone,
+	{
+		serde_json::to_writer(writer, &m.iter().map(|(a, m)| (a.clone().into(), m.clone().into())).collect::<HashMap<String, NewDappsPolicy>>())
+	}
+}

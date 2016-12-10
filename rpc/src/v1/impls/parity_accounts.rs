@@ -164,19 +164,51 @@ impl<C: 'static> ParityAccounts for ParityAccountsClient<C> where C: MiningBlock
 
 	fn set_dapps_addresses(&self, dapp: DappId, addresses: Vec<RpcH160>) -> Result<bool, Error> {
 		let store = take_weak!(self.accounts);
-		let addresses = addresses.into_iter().map(Into::into).collect();
 
-		store.set_dapps_addresses(dapp.into(), addresses)
+		store.set_dapps_addresses(dapp.into(), into_vec(addresses))
 			.map_err(|e| errors::account("Couldn't set dapps addresses.", e))
 			.map(|_| true)
+	}
+
+	fn dapps_addresses(&self, dapp: DappId) -> Result<Vec<RpcH160>, Error> {
+		let store = take_weak!(self.accounts);
+
+		store.dapps_addresses(dapp.into())
+			.map_err(|e| errors::account("Couldn't get dapps addresses.", e))
+			.map(into_vec)
+	}
+
+	fn set_new_dapps_whitelist(&self, whitelist: Option<Vec<RpcH160>>) -> Result<bool, Error> {
+		let store = take_weak!(self.accounts);
+
+		store
+			.set_new_dapps_whitelist(whitelist.map(into_vec))
+			.map_err(|e| errors::account("Couldn't set dapps whitelist.", e))
+			.map(|_| true)
+	}
+
+	fn new_dapps_whitelist(&self) -> Result<Option<Vec<RpcH160>>, Error> {
+		let store = take_weak!(self.accounts);
+
+		store.new_dapps_whitelist()
+			.map_err(|e| errors::account("Couldn't get dapps whitelist.", e))
+			.map(|accounts| accounts.map(into_vec))
+	}
+
+	fn recent_dapps(&self) -> Result<Vec<DappId>, Error> {
+		let store = take_weak!(self.accounts);
+
+		store.recent_dapps()
+			.map_err(|e| errors::account("Couldn't get recent dapps.", e))
+			.map(into_vec)
 	}
 
 	fn import_geth_accounts(&self, addresses: Vec<RpcH160>) -> Result<Vec<RpcH160>, Error> {
 		let store = take_weak!(self.accounts);
 
 		store
-			.import_geth_accounts(addresses.into_iter().map(Into::into).collect(), false)
-			.map(|imported| imported.into_iter().map(Into::into).collect())
+			.import_geth_accounts(into_vec(addresses), false)
+			.map(into_vec)
 			.map_err(|e| errors::account("Couldn't import Geth accounts", e))
 	}
 
@@ -184,10 +216,12 @@ impl<C: 'static> ParityAccounts for ParityAccountsClient<C> where C: MiningBlock
 		try!(self.active());
 		let store = take_weak!(self.accounts);
 
-		Ok(store.list_geth_accounts(false)
-			.into_iter()
-			.map(Into::into)
-			.collect()
-		)
+		Ok(into_vec(store.list_geth_accounts(false)))
 	}
+}
+
+fn into_vec<A, B>(a: Vec<A>) -> Vec<B> where
+	A: Into<B>
+{
+	a.into_iter().map(Into::into).collect()
 }

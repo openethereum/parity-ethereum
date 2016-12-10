@@ -354,11 +354,17 @@ fn rpc_eth_gas_price() {
 #[test]
 fn rpc_eth_accounts() {
 	let tester = EthTester::default();
-	let _address = tester.accounts_provider.new_account("").unwrap();
+	let address = tester.accounts_provider.new_account("").unwrap();
 
+	// with default policy it should return the account
+	let request = r#"{"jsonrpc": "2.0", "method": "eth_accounts", "params": [], "id": 1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":[""#.to_owned() + &format!("0x{:?}", address) + r#""],"id":1}"#;
+	assert_eq!(tester.io.handle_request_sync(request), Some(response.to_owned()));
+
+	tester.accounts_provider.set_new_dapps_whitelist(Some(vec![1.into()])).unwrap();
 	// even with some account it should return empty list (no dapp detected)
 	let request = r#"{"jsonrpc": "2.0", "method": "eth_accounts", "params": [], "id": 1}"#;
-	let response = r#"{"jsonrpc":"2.0","result":[],"id":1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":["0x0000000000000000000000000000000000000001"],"id":1}"#;
 	assert_eq!(tester.io.handle_request_sync(request), Some(response.to_owned()));
 
 	// when we add visible address it should return that.

@@ -117,7 +117,7 @@ fn should_be_able_to_set_meta() {
 }
 
 #[test]
-fn rpc_parity_set_dapps_accounts() {
+fn rpc_parity_set_and_get_dapps_accounts() {
 	// given
 	let tester = setup();
 	assert_eq!(tester.accounts.dapps_addresses("app1".into()).unwrap(), vec![]);
@@ -129,6 +129,52 @@ fn rpc_parity_set_dapps_accounts() {
 
 	// then
 	assert_eq!(tester.accounts.dapps_addresses("app1".into()).unwrap(), vec![10.into()]);
+	let request = r#"{"jsonrpc": "2.0", "method": "parity_getDappsAddresses","params":["app1"], "id": 1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":["0x000000000000000000000000000000000000000a"],"id":1}"#;
+	assert_eq!(tester.io.handle_request_sync(request), Some(response.to_owned()));
+}
+
+#[test]
+fn rpc_parity_set_and_get_new_dapps_whitelist() {
+	// given
+	let tester = setup();
+
+	// when set to whitelist
+	let request = r#"{"jsonrpc": "2.0", "method": "parity_setNewDappsWhitelist","params":[["0x000000000000000000000000000000000000000a"]], "id": 1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":true,"id":1}"#;
+	assert_eq!(tester.io.handle_request_sync(request), Some(response.to_owned()));
+
+	// then
+	assert_eq!(tester.accounts.new_dapps_whitelist().unwrap(), Some(vec![10.into()]));
+	let request = r#"{"jsonrpc": "2.0", "method": "parity_getNewDappsWhitelist","params":[], "id": 1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":["0x000000000000000000000000000000000000000a"],"id":1}"#;
+	assert_eq!(tester.io.handle_request_sync(request), Some(response.to_owned()));
+
+	// when set to empty
+	let request = r#"{"jsonrpc": "2.0", "method": "parity_setNewDappsWhitelist","params":[null], "id": 1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":true,"id":1}"#;
+	assert_eq!(tester.io.handle_request_sync(request), Some(response.to_owned()));
+
+	// then
+	assert_eq!(tester.accounts.new_dapps_whitelist().unwrap(), None);
+	let request = r#"{"jsonrpc": "2.0", "method": "parity_getNewDappsWhitelist","params":[], "id": 1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":null,"id":1}"#;
+	assert_eq!(tester.io.handle_request_sync(request), Some(response.to_owned()));
+}
+
+#[test]
+fn rpc_parity_recent_dapps() {
+	// given
+	let tester = setup();
+
+	// when
+	// trigger dapp usage
+	tester.accounts.note_dapp_used("dapp1".into()).unwrap();
+
+	// then
+	let request = r#"{"jsonrpc": "2.0", "method": "parity_listRecentDapps","params":[], "id": 1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":["dapp1"],"id":1}"#;
+	assert_eq!(tester.io.handle_request_sync(request), Some(response.to_owned()));
 }
 
 #[test]
