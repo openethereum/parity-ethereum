@@ -19,7 +19,7 @@ import { shallow } from 'enzyme';
 
 import Box from './Box';
 
-describe('components/Box', () => {
+describe('views/Status/components/Box', () => {
   describe('rendering', () => {
     const title = 'test title';
     let rendered;
