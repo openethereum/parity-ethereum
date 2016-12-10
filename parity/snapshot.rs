@@ -26,7 +26,7 @@ use ethcore::snapshot::service::Service as SnapshotService;
 use ethcore::service::ClientService;
 use ethcore::client::{Mode, DatabaseCompactionProfile, VMType};
 use ethcore::miner::Miner;
-use ethcore::ids::BlockID;
+use ethcore::ids::BlockId;
 
 use cache::CacheConfig;
 use params::{SpecType, Pruning, Switch, tracing_switch_to_bool, fatdb_switch_to_bool};
@@ -60,7 +60,7 @@ pub struct SnapshotCommand {
 	pub file_path: Option<String>,
 	pub wal: bool,
 	pub kind: Kind,
-	pub block_at: BlockID,
+	pub block_at: BlockId,
 }
 
 // helper for reading chunks from arbitrary reader and feeding them into the

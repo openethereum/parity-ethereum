@@ -29,7 +29,7 @@ pub struct AccountMeta {
 	pub name: String,
 	/// The rest of the metadata of the account.
 	pub meta: String,
-	/// The 128-bit UUID of the account, if it has one (brain-wallets don't).
+	/// The 128-bit Uuid of the account, if it has one (brain-wallets don't).
 	pub uuid: Option<String>,
 }
 
