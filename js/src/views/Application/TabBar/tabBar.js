@@ -16,6 +16,7 @@
 
 import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
+import { Link } from 'react-router';
 import { bindActionCreators } from 'redux';
 import { Toolbar, ToolbarGroup } from 'material-ui/Toolbar';
 import { Tab as MUITab } from 'material-ui/Tabs';
@@ -40,8 +41,7 @@ class Tab extends Component {
     active: PropTypes.bool,
     view: PropTypes.object,
     children: PropTypes.node,
-    pendings: PropTypes.number,
-    onChange: PropTypes.func
+    pendings: PropTypes.number
   };
 
   shouldComponentUpdate (nextProps) {
@@ -60,7 +60,6 @@ class Tab extends Component {
         selected={ active }
         icon={ view.icon }
         label={ label }
-        onTouchTap={ this.handleClick }
       >
         { children }
       </MUITab>
@@ -118,11 +117,6 @@ class Tab extends Component {
 
     return this.renderLabel(label, null);
   }
-
-  handleClick = () => {
-    const { onChange, view } = this.props;
-    onChange(view);
-  }
 }
 
 class TabBar extends Component {
@@ -142,34 +136,12 @@ class TabBar extends Component {
     pending: []
   };
 
-  state = {
-    activeViewId: ''
-  };
-
-  setActiveView (props = this.props) {
-    const { hash, views } = props;
-    const view = views.find((view) => view.value === hash);
-
-    this.setState({ activeViewId: view.id });
-  }
-
-  componentWillMount () {
-    this.setActiveView();
-  }
-
-  componentWillReceiveProps (nextProps) {
-    if (nextProps.hash !== this.props.hash) {
-      this.setActiveView(nextProps);
-    }
-  }
-
   shouldComponentUpdate (nextProps, nextState) {
     const prevViews = this.props.views.map((v) => v.id).sort();
     const nextViews = nextProps.views.map((v) => v.id).sort();
 
     return (nextProps.hash !== this.props.hash) ||
       (nextProps.pending.length !== this.props.pending.length) ||
-      (nextState.activeViewId !== this.state.activeViewId) ||
       (!isEqual(prevViews, nextViews));
   }
 
@@ -206,7 +178,6 @@ class TabBar extends Component {
 
   renderTabs () {
     const { views, pending } = this.props;
-    const { activeViewId } = this.state;
 
     const items = views
       .map((view, index) => {
@@ -216,35 +187,28 @@ class TabBar extends Component {
           )
           : null;
 
-        const active = activeViewId === view.id;
-
         return (
-          <Tab
-            active={ active }
-            view={ view }
-            onChange={ this.onChange }
+          <Link
             key={ view.id }
-            pendings={ pending.length }
+            to={ view.route }
+            activeClassName={ styles.tabactive }
+            className={ styles.tabLink }
           >
-            { body }
-          </Tab>
+            <Tab
+              view={ view }
+              pendings={ pending.length }
+            >
+              { body }
+            </Tab>
+          </Link>
         );
       });
 
     return (
-      <div
-        className={ styles.tabs }
-        onChange={ this.onChange }>
+      <div className={ styles.tabs }>
         { items }
       </div>
     );
-  }
-
-  onChange = (view) => {
-    const { router } = this.context;
-
-    router.push(view.route);
-    this.setState({ activeViewId: view.id });
   }
 }
 
