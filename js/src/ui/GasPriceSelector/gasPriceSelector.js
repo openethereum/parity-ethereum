@@ -92,12 +92,12 @@ export default class GasPriceSelector extends Component {
       return null;
     }
 
-    const height = 3 * 72;
+    const height = 196;
     const countIndex = Math.max(0, Math.min(selectedIndex, histogram.counts.length - 1));
     const selectedCount = countModifier(histogram.counts[countIndex]);
 
     return (
-      <div className={ styles.columns }>
+      <div className={ styles.chartRow }>
         <div style={ { flex: 1, height } }>
 
           <div className={ styles.chart }>
@@ -162,7 +162,7 @@ export default class GasPriceSelector extends Component {
     const { sliderValue } = this.state;
 
     return (
-      <div className={ styles.columns }>
+      <div className={ styles.sliderRow }>
         <Slider
           min={ 0 }
           max={ 1 }
