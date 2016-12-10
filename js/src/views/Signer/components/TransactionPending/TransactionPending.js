@@ -117,12 +117,12 @@ export default class TransactionPending extends Component {
     );
   }
 
-  onConfirm = data => {
+  onConfirm = (data) => {
     const { id, transaction } = this.props;
-    const { gasPrice } = transaction;
     const { password, wallet } = data;
+    const { gasPrice } = transaction;
 
-    this.props.onConfirm({ id, password, wallet, gasPrice });
+    this.props.onConfirm({ gasPrice, id, password, wallet });
   }
 
   onReject = () => {

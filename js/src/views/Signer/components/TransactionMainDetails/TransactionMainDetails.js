@@ -38,19 +38,19 @@ export default class TransactionMainDetails extends Component {
   };
 
   componentWillMount () {
-    const { value, totalValue } = this.props;
+    const { totalValue, value } = this.props;
 
     this.updateDisplayValues(value, totalValue);
   }
 
   componentWillReceiveProps (nextProps) {
-    const { value, totalValue } = nextProps;
+    const { totalValue, value } = nextProps;
 
     this.updateDisplayValues(value, totalValue);
   }
 
   render () {
-    const { children, from, fromBalance, transaction, isTest } = this.props;
+    const { children, from, fromBalance, isTest, transaction } = this.props;
 
     return (
       <div className={ styles.transaction }>
@@ -93,17 +93,17 @@ export default class TransactionMainDetails extends Component {
 
   renderTotalValue () {
     const { id } = this.props;
-    const { totalValueDisplay, totalValueDisplayWei, feeEth } = this.state;
+    const { feeEth, totalValueDisplay, totalValueDisplayWei } = this.state;
     const labelId = `totalValue${id}`;
 
     return (
       <div>
         <div
-          data-tip
-          data-for={ labelId }
+          className={ styles.total }
           data-effect='solid'
+          data-for={ labelId }
           data-place='bottom'
-          className={ styles.total }>
+          data-tip>
           { totalValueDisplay } <small>ETH</small>
         </div>
         <ReactTooltip id={ labelId }>
@@ -122,9 +122,9 @@ export default class TransactionMainDetails extends Component {
     return (
       <div>
         <div
-          data-tip
+          data-effect='solid'
           data-for={ labelId }
-          data-effect='solid'>
+          data-tip>
           <strong>{ valueDisplay } </strong>
           <small>ETH</small>
         </div>
