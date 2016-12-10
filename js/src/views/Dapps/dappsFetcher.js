@@ -15,7 +15,8 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import BigNumber from 'bignumber.js';
-import { pick, range } from 'lodash';
+import { pick, range, uniq } from 'lodash';
+import EventEmitter from 'eventemitter3';
 
 import Contracts from '~/contracts';
 import { hashToImageUrl } from '~/redux/util';
@@ -26,21 +27,75 @@ import builtinApps from './builtin.json';
 const BUILTIN_APPS_KEY = 'BUILTIN_APPS_KEY';
 let dappsFetcherInstance = null;
 
-export default class DappsFetcher {
+export default class DappsFetcher extends EventEmitter {
 
   _manifests = {};
   _dappsUrl = '';
+  _filterId = -1;
 
   _registryAppsIds = null;
   _cachedApps = {};
 
-  constructor (api) {
+  constructor (api, dappReg) {
+    super();
     this._dappsUrl = api.dappsUrl;
+
+    dappReg
+      .getContract()
+      .then((dappRegContract) => {
+        const dappRegInstance = dappRegContract.instance;
+
+        const signatures = ['MetaChanged', 'OwnerChanged', 'Registered']
+          .map((event) => dappRegInstance[event].signature);
+
+        if (this._filterId > -1) {
+          api.eth.uninstallFilter(this._filterId);
+        }
+
+        api.eth
+          .newFilter({
+            fromBlock: '0',
+            toBlock: 'latest',
+            address: dappRegInstance.address,
+            topics: [ signatures ]
+          })
+          .then((filterId) => {
+            this._filterId = filterId;
+          });
+
+        api.subscribe('eth_blockNumber', () => {
+          if (this._filterId > -1) {
+            api.eth
+              .getFilterChanges(this._filterId)
+              .then((logs) => {
+                return dappRegContract.parseEventLogs(logs);
+              })
+              .then((events) => {
+                if (events.length === 0) {
+                  return [];
+                }
+
+                // Fetch all uniq IDs which changed meta-data
+                const ids = uniq(events.map((event) => bytesToHex(event.params.id.value)));
+                const updates = ids.map((appId) => {
+                  return this.fetchRegistryApp(dappReg, appId, true);
+                });
+
+                return Promise.all(updates);
+              })
+              .then((apps) => {
+                this.emit('appsUpdate', apps);
+              });
+          }
+        });
+      });
+
+    return this;
   }
 
-  static get (api) {
+  static get (api, dappReg) {
     if (!dappsFetcherInstance) {
-      dappsFetcherInstance = new DappsFetcher(api);
+      dappsFetcherInstance = new DappsFetcher(api, dappReg);
     }
 
     return dappsFetcherInstance;

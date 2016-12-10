@@ -32,16 +32,21 @@ export default class DappsStore {
   dappsFetcher = null;
 
   constructor (api) {
+    const { dappReg } = Contracts.get();
+
     this.loadExternalOverlay();
     this.readDisplayApps();
 
-    this.dappsFetcher = DappsFetcher.get(api);
+    this.dappsFetcher = DappsFetcher.get(api, dappReg);
+    this.dappsFetcher.on('appsUpdate', (apps) => {
+      this.addApps(apps);
+    });
 
     Promise
       .all([
         this._fetchBuiltinApps(),
         this._fetchLocalApps(),
-        this._fetchRegistryApps()
+        this._fetchRegistryApps(dappReg)
       ])
       .then(this.writeDisplayApps);
   }
@@ -58,9 +63,7 @@ export default class DappsStore {
       .then((apps) => this.addApps(apps));
   }
 
-  _fetchRegistryApps () {
-    const { dappReg } = Contracts.get();
-
+  _fetchRegistryApps (dappReg) {
     this.dappsFetcher
       .fetchRegistryAppIds()
       .then((appIds) => {

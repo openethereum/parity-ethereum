@@ -62,7 +62,7 @@ export default handleActions({
   signerSuccessConfirmRequest (state, action) {
     const { id, txHash } = action.payload;
     const confirmed = Object.assign(
-      state.pending.find(p => p.id === id),
+      state.pending.find(p => p.id === id) || { id },
       { result: txHash, status: 'confirmed' }
     );
 
