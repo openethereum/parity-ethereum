@@ -34,7 +34,7 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use provider::Provider;
-use request::{self, Request};
+use request::{self, HashOrNumber, Request};
 
 use self::buffer_flow::{Buffer, FlowParams};
 use self::context::Ctx;
@@ -453,19 +453,8 @@ impl LightProtocol {
 			}
 		};
 
-		// if something went wrong, figure out how much to punish the peer.
 		if let Err(e) = res {
-			match e.punishment() {
-				Punishment::None => {}
-				Punishment::Disconnect => {
-					debug!(target: "les", "Disconnecting peer {}: {}", peer, e);
-					io.disconnect_peer(*peer)
-				}
-				Punishment::Disable => {
-					debug!(target: "les", "Disabling peer {}: {}", peer, e);
-					io.disable_peer(*peer)
-				}
-			}
+			punish(*peer, io, e);
 		}
 	}
 
@@ -521,19 +510,37 @@ impl LightProtocol {
 impl LightProtocol {
 	// called when a peer connects.
 	fn on_connect(&self, peer: &PeerId, io: &IoContext) {
-		let peer = *peer;
+		let proto_version = match io.protocol_version(*peer).ok_or(Error::WrongNetwork) {
+			Ok(pv) => pv,
+			Err(e) => { punish(*peer, io, e); return }
+		};
 
-		trace!(target: "les", "Peer {} connecting", peer);
-
-		match self.send_status(peer, io) {
-			Ok(pending_peer) => {
-				self.pending_peers.write().insert(peer, pending_peer);
-			}
-			Err(e) => {
-				trace!(target: "les", "Error while sending status: {}", e);
-				io.disconnect_peer(peer);
-			}
+		if PROTOCOL_VERSIONS.iter().find(|x| **x == proto_version).is_none() {
+			punish(*peer, io, Error::UnsupportedProtocolVersion(proto_version));
+			return;
 		}
+		
+		let chain_info = self.provider.chain_info();
+
+		let status = Status {
+			head_td: chain_info.total_difficulty,
+			head_hash: chain_info.best_block_hash,
+			head_num: chain_info.best_block_number,
+			genesis_hash: chain_info.genesis_hash,
+			protocol_version: proto_version as u32, // match peer proto version
+			network_id: self.network_id,
+			last_head: None,
+		};
+
+		let capabilities = self.capabilities.read().clone();
+		let status_packet = status::write_handshake(&status, &capabilities, Some(&self.flow_params));
+
+		self.pending_peers.write().insert(*peer, PendingPeer {
+			sent_head: chain_info.best_block_hash,
+			last_update: SteadyTime::now(),
+		});
+
+		io.send(*peer, packet::STATUS, status_packet);		
 	}
 
 	// called when a peer disconnects.
@@ -564,37 +571,6 @@ impl LightProtocol {
 				}, &unfulfilled)
 			}	
 		}
-	}
-
-	// send status to a peer.
-	fn send_status(&self, peer: PeerId, io: &IoContext) -> Result<PendingPeer, Error> {
-		let proto_version = try!(io.protocol_version(peer).ok_or(Error::WrongNetwork));
-
-		if PROTOCOL_VERSIONS.iter().find(|x| **x == proto_version).is_none() {
-			return Err(Error::UnsupportedProtocolVersion(proto_version));
-		}
-		
-		let chain_info = self.provider.chain_info();
-
-		let status = Status {
-			head_td: chain_info.total_difficulty,
-			head_hash: chain_info.best_block_hash,
-			head_num: chain_info.best_block_number,
-			genesis_hash: chain_info.genesis_hash,
-			protocol_version: proto_version as u32, // match peer proto version
-			network_id: self.network_id,
-			last_head: None,
-		};
-
-		let capabilities = self.capabilities.read().clone();
-		let status_packet = status::write_handshake(&status, &capabilities, Some(&self.flow_params));
-
-		io.send(peer, packet::STATUS, status_packet);
-
-		Ok(PendingPeer {
-			sent_head: chain_info.best_block_hash,
-			last_update: SteadyTime::now(),
-		})
 	}
 
 	// Handle status message from peer.
@@ -686,7 +662,7 @@ impl LightProtocol {
 	}
 
 	// Handle a request for block headers.
-	fn get_block_headers(&self, peer: &PeerId, io: &IoContext, data: UntrustedRlp) -> Result<(), Error> {
+	fn get_block_headers(&self, peer: &PeerId, io: &IoContext, data: UntrustedRlp) -> Result<(), Error> {		
 		const MAX_HEADERS: usize = 512;
 
 		let peers = self.peers.read();
@@ -701,18 +677,21 @@ impl LightProtocol {
 		let mut peer = peer.lock();
 
 		let req_id: u64 = try!(data.val_at(0));
+		let data = try!(data.at(1));
 
-		let block = {
-			let rlp = try!(data.at(1));
-			(try!(rlp.val_at(0)), try!(rlp.val_at(1)))
+		let start_block = {
+			if try!(data.at(0)).size() == 32 {
+				HashOrNumber::Hash(try!(data.val_at(0)))
+			} else {
+				HashOrNumber::Number(try!(data.val_at(0)))
+			}
 		};
 
 		let req = request::Headers {
-			block_num: block.0,
-			block_hash: block.1,
-			max: ::std::cmp::min(MAX_HEADERS, try!(data.val_at(2))),
-			skip: try!(data.val_at(3)),
-			reverse: try!(data.val_at(4)),
+			start: start_block,
+			max: ::std::cmp::min(MAX_HEADERS, try!(data.val_at(1))),
+			skip: try!(data.val_at(2)),
+			reverse: try!(data.val_at(3)),
 		};
 
 		let max_cost = try!(peer.deduct_max(&self.flow_params, request::Kind::Headers, req.max));
@@ -1111,6 +1090,21 @@ impl LightProtocol {
 	}
 }
 
+// if something went wrong, figure out how much to punish the peer.
+fn punish(peer: PeerId, io: &IoContext, e: Error) {
+	match e.punishment() {
+		Punishment::None => {}
+		Punishment::Disconnect => {
+			debug!(target: "les", "Disconnecting peer {}: {}", peer, e);
+			io.disconnect_peer(peer)
+		}
+		Punishment::Disable => {
+			debug!(target: "les", "Disabling peer {}: {}", peer, e);
+			io.disable_peer(peer)
+		}
+	}
+}
+
 impl NetworkProtocolHandler for LightProtocol {
 	fn initialize(&self, io: &NetworkContext) {
 		io.register_timer(TIMEOUT, TIMEOUT_INTERVAL_MS).expect("Error registering sync timer.");
@@ -1140,15 +1134,19 @@ impl NetworkProtocolHandler for LightProtocol {
 fn encode_request(req: &Request, req_id: usize) -> Vec<u8> {
 	match *req {
 		Request::Headers(ref headers) => {
-			let mut stream = RlpStream::new_list(5);
+			let mut stream = RlpStream::new_list(2);
+			stream.append(&req_id).begin_list(4);
+				
+			match headers.start {
+				HashOrNumber::Hash(ref hash) => stream.append(hash),
+				HashOrNumber::Number(ref num) => stream.append(num),
+			};
+			
 			stream
-				.append(&req_id)
-				.begin_list(2)
-					.append(&headers.block_num)
-					.append(&headers.block_hash)
 				.append(&headers.max)
 				.append(&headers.skip)
 				.append(&headers.reverse);
+
 			stream.out()
 		}
 		Request::Bodies(ref request) => {

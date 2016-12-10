@@ -91,16 +91,27 @@ impl Provider for TestProvider {
 	}
 
 	fn block_headers(&self, req: request::Headers) -> Vec<Bytes> {
-		let best_num = self.0.client.chain_info().best_block_number;
-		let start_num = req.block_num;
+		use request::HashOrNumber;
+		use ethcore::views::HeaderView;
 
-		match self.0.client.block_hash(BlockId::Number(req.block_num)) {
-			Some(hash) if hash == req.block_hash => {}
-			_=> {
-				trace!(target: "les_provider", "unknown/non-canonical start block in header request: {:?}", (req.block_num, req.block_hash));
-				return vec![]
+		let best_num = self.chain_info().best_block_number;
+		let start_num = match req.start {
+			HashOrNumber::Number(start_num) => start_num,
+			HashOrNumber::Hash(hash) => match self.0.client.block_header(BlockId::Hash(hash)) {
+				None => {
+					return Vec::new();
+				}
+				Some(header) => {
+					let num = HeaderView::new(&header).number();
+					if req.max == 1 || self.0.client.block_hash(BlockId::Number(num)) != Some(hash) {
+						// Non-canonical header or single header requested.
+						return vec![header];
+					}
+
+					num
+				}
 			}
-		}
+		};
 
 		(0u64..req.max as u64)
 			.map(|x: u64| x.saturating_mul(req.skip + 1))
@@ -250,8 +261,7 @@ fn buffer_overflow() {
 
 	// 1000 requests is far too many for the default flow params.
 	let request = encode_request(&Request::Headers(Headers {
-		block_num: 1,
-		block_hash: provider.client.chain_info().genesis_hash,
+		start: 1.into(),
 		max: 1000,
 		skip: 0,
 		reverse: false,
@@ -284,8 +294,7 @@ fn get_block_headers() {
 	}
 
 	let request = Headers {
-		block_num: 1,
-		block_hash: provider.client.block_hash(BlockId::Number(1)).unwrap(),
+		start: 1.into(),
 		max: 10,
 		skip: 0,
 		reverse: false,
