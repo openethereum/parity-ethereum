@@ -43,16 +43,16 @@ export default class GasPriceEditor {
     }
   }
 
-  @action setEditing = (isEditing) => {
-    this.isEditing = isEditing;
-  }
-
   @computed get totalValue () {
     try {
       return new BigNumber(this.gas).mul(this.price).add(this.weiValue);
     } catch (error) {
       return new BigNumber(0);
     }
+  }
+
+  @action setEditing = (isEditing) => {
+    this.isEditing = isEditing;
   }
 
   @action setErrorTotal = (errorTotal) => {
@@ -79,6 +79,26 @@ export default class GasPriceEditor {
     this.weiValue = weiValue;
   }
 
+  @action setGas = (gas) => {
+    transaction(() => {
+      const { numberError } = validatePositiveNumber(gas);
+
+      this.gas = gas;
+
+      if (numberError) {
+        this.errorGas = numberError;
+      } else {
+        const bn = new BigNumber(gas);
+
+        if (bn.gte(this.gasLimit)) {
+          this.errorGas = ERRORS.gasBlockLimit;
+        } else {
+          this.errorGas = null;
+        }
+      }
+    });
+  }
+
   @action setGasLimit = (gasLimit) => {
     this.gasLimit = gasLimit;
   }
@@ -94,35 +114,20 @@ export default class GasPriceEditor {
     });
   }
 
-  @action setGas = (gas) => {
-    transaction(() => {
-      const { numberError } = validatePositiveNumber(gas);
-      const bn = new BigNumber(gas);
-
-      this.gas = gas;
-
-      if (numberError) {
-        this.errorGas = numberError;
-      } else if (bn.gte(this.gasLimit)) {
-        this.errorGas = ERRORS.gasBlockLimit;
-      } else {
-        this.errorGas = null;
-      }
-    });
-  }
-
   @action loadDefaults () {
     Promise
       .all([
         this._api.parity.gasPriceHistogram(),
         this._api.eth.gasPrice()
       ])
-      .then(([histogram, price]) => {
+      .then(([histogram, _price]) => {
         transaction(() => {
-          this.setPrice(price.toFixed(0));
+          const price = _price.toFixed(0);
+
+          this.setPrice(price);
           this.setHistogram(histogram);
 
-          this.priceDefault = price.toFixed();
+          this.priceDefault = price;
         });
       })
       .catch((error) => {
