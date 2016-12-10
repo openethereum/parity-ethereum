@@ -59,8 +59,8 @@ export default class TransactionPendingForm extends Component {
     return (
       <TransactionPendingFormConfirm
         address={ address }
-        onConfirm={ onConfirm }
-        isSending={ isSending } />
+        isSending={ isSending }
+        onConfirm={ onConfirm } />
     );
   }
 
