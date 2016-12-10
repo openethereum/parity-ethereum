@@ -276,6 +276,15 @@ pub trait MiningBlockChainClient: BlockChainClient {
 	/// Returns EvmFactory.
 	fn vm_factory(&self) -> &EvmFactory;
 
+	/// Used by PoA to try sealing on period change.
+	fn update_sealing(&self);
+
+	/// Used by PoA to submit gathered signatures.
+	fn submit_seal(&self, block_hash: H256, seal: Vec<Bytes>);
+
+	/// Used by PoA to communicate with peers.
+	fn broadcast_message(&self, message: Bytes);
+
 	/// Broadcast a block proposal.
 	fn broadcast_proposal_block(&self, block: SealedBlock);
 

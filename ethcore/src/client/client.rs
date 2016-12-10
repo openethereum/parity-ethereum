@@ -580,23 +580,6 @@ impl Client {
 		self.miner.clone()
 	}
 
-	/// Used by PoA to try sealing on period change.
-	pub fn update_sealing(&self) {
-		self.miner.update_sealing(self)
-	}
-
-	/// Used by PoA to submit gathered signatures.
-	pub fn submit_seal(&self, block_hash: H256, seal: Vec<Bytes>) {
-		if self.miner.submit_seal(self, block_hash, seal).is_err() {
-			warn!(target: "poa", "Wrong internal seal submission!")
-		}
-	}
-
-	/// Used by PoA to communicate with peers.
-	pub fn broadcast_message(&self, message: Bytes) {
-		self.notify(|notify| notify.broadcast(message.clone()));
-	}
-
 	/// Attempt to get a copy of a specific block's final state.
 	///
 	/// This will not fail if given BlockID::Latest.
@@ -1335,7 +1318,6 @@ impl BlockChainClient for Client {
 }
 
 impl MiningBlockChainClient for Client {
-
 	fn latest_schedule(&self) -> Schedule {
 		self.engine.schedule(&self.latest_env_info())
 	}
@@ -1376,6 +1358,20 @@ impl MiningBlockChainClient for Client {
 
 	fn vm_factory(&self) -> &EvmFactory {
 		&self.factories.vm
+	}
+
+	fn broadcast_message(&self, message: Bytes) {
+		self.notify(|notify| notify.broadcast(message.clone()));
+	}
+
+	fn update_sealing(&self) {
+		self.miner.update_sealing(self)
+	}
+
+	fn submit_seal(&self, block_hash: H256, seal: Vec<Bytes>) {
+		if self.miner.submit_seal(self, block_hash, seal).is_err() {
+			warn!(target: "poa", "Wrong internal seal submission!")
+		}
 	}
 
 	fn broadcast_proposal_block(&self, block: SealedBlock) {

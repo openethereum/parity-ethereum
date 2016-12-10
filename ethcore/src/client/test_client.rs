@@ -362,6 +362,18 @@ impl MiningBlockChainClient for TestBlockChainClient {
 	}
 
 	fn broadcast_proposal_block(&self, _block: SealedBlock) {}
+
+	fn broadcast_message(&self, _message: Bytes) {}
+
+	fn update_sealing(&self) {
+		self.miner.update_sealing(self)
+	}
+
+	fn submit_seal(&self, block_hash: H256, seal: Vec<Bytes>) {
+		if self.miner.submit_seal(self, block_hash, seal).is_err() {
+			warn!(target: "poa", "Wrong internal seal submission!")
+		}
+	}
 }
 
 impl BlockChainClient for TestBlockChainClient {

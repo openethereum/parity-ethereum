@@ -667,7 +667,7 @@ mod tests {
 	use super::*;
 	use super::message::*;
 
-	/// Accounts inserted with "1" and "2" are authorities. First proposer is "0".
+	/// Accounts inserted with "0" and "1" are authorities. First proposer is "0".
 	fn setup() -> (Spec, Arc<AccountProvider>) {
 		let tap = Arc::new(AccountProvider::transient_provider());
 		let spec = Spec::new_test_tendermint();
