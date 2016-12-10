@@ -679,4 +679,10 @@ impl BlockChainClient for TestBlockChainClient {
 			earliest_state: 1,
 		}
 	}
+
+	fn call_contract(&self, _address: Address, _data: Bytes) -> Result<Bytes, String> { Ok(vec![]) }
+
+	fn registrar_address(&self) -> Option<Address> { None }
+
+	fn registry_address(&self, _name: String) -> Option<Address> { None }
 }

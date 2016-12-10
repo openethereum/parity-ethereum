@@ -23,7 +23,7 @@ use ethsync::NetworkConfiguration;
 use util::{Colour, version, RotatingLogger};
 use io::{MayPanic, ForwardPanic, PanicHandler};
 use ethcore_logger::{Config as LogConfig};
-use ethcore::client::{Mode, UpdatePolicy, DatabaseCompactionProfile, VMType, ChainNotify, BlockChainClient};
+use ethcore::client::{Mode, UpdatePolicy, Updater, DatabaseCompactionProfile, VMType, ChainNotify, BlockChainClient};
 use ethcore::service::ClientService;
 use ethcore::account_provider::AccountProvider;
 use ethcore::miner::{Miner, MinerService, ExternalMiner, MinerOptions};
@@ -31,11 +31,11 @@ use ethcore::snapshot;
 use ethcore::verification::queue::VerifierSettings;
 use ethsync::SyncConfig;
 use informant::Informant;
+use updater::Updater;
 
 use rpc::{HttpServer, IpcServer, HttpConfiguration, IpcConfiguration};
 use signer::SignerServer;
 use dapps::WebappServer;
-use io_handler::ClientIoHandler;
 use params::{
 	SpecType, Pruning, AccountsConfig, GasPricerConfig, MinerExtras, Switch,
 	tracing_switch_to_bool, fatdb_switch_to_bool, mode_switch_to_bool
@@ -116,12 +116,12 @@ pub fn open_ui(dapps_conf: &dapps::Configuration, signer_conf: &signer::Configur
 	Ok(())
 }
 
-pub fn execute(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<(), String> {
+pub fn execute(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<bool, String> {
 	if cmd.ui && cmd.dapps_conf.enabled {
 		// Check if Parity is already running
 		let addr = format!("{}:{}", cmd.dapps_conf.interface, cmd.dapps_conf.port);
 		if !TcpListener::bind(&addr as &str).is_ok() {
-			return open_ui(&cmd.dapps_conf, &cmd.signer_conf);
+			return open_ui(&cmd.dapps_conf, &cmd.signer_conf).map(|_| false);
 		}
 	}
 
@@ -244,7 +244,6 @@ pub fn execute(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<(), String> {
 	// create client config
 	let mut client_config = to_client_config(
 		&cmd.cache_config,
-		update_policy, 
 		mode.clone(),
 		tracing,
 		fat_db,
@@ -312,6 +311,12 @@ pub fn execute(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<(), String> {
 		chain_notify.start();
 	}
 
+	// the updater service
+	let updater = Updater::new(service.client(), update_policy);
+	if let Some(ref u) = updater {
+		service.add_notify(u.clone());
+	}
+
 	// set up dependencies for rpc servers
 	let signer_path = cmd.signer_conf.signer_path.clone();
 	let deps_for_rpc_apis = Arc::new(rpc_apis::Dependencies {
@@ -348,24 +353,23 @@ pub fn execute(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<(), String> {
 	let http_server = try!(rpc::new_http(cmd.http_conf, &dependencies));
 	let ipc_server = try!(rpc::new_ipc(cmd.ipc_conf, &dependencies));
 
+	// the dapps server
 	let dapps_deps = dapps::Dependencies {
 		panic_handler: panic_handler.clone(),
 		apis: deps_for_rpc_apis.clone(),
 		client: client.clone(),
 		sync: sync_provider.clone(),
 	};
-
-	// start dapps server
 	let dapps_server = try!(dapps::new(cmd.dapps_conf.clone(), dapps_deps));
 
+	// the signer server
 	let signer_deps = signer::Dependencies {
 		panic_handler: panic_handler.clone(),
 		apis: deps_for_rpc_apis.clone(),
 	};
-
-	// start signer server
 	let signer_server = try!(signer::start(cmd.signer_conf.clone(), signer_deps));
 
+	// the informant
 	let informant = Arc::new(Informant::new(
 		service.client(),
 		Some(sync_provider.clone()),
@@ -373,17 +377,8 @@ pub fn execute(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<(), String> {
 		Some(snapshot_service.clone()),
 		cmd.logger_config.color
 	));
-	let info_notify: Arc<ChainNotify> = informant.clone();
-	service.add_notify(info_notify);
-	let io_handler = Arc::new(ClientIoHandler {
-		client: service.client(),
-		info: informant,
-		sync: sync_provider.clone(),
-		net: manage_network.clone(),
-		accounts: account_provider.clone(),
-		shutdown: Default::default(),
-	});
-	service.register_io_handler(io_handler.clone()).expect("Error registering IO handler");
+	service.add_notify(informant.clone());
+	service.register_io_handler(informant.clone()).map_err(|_| "Unable to register informant handler".to_owned())?;
 
 	// save user defaults
 	user_defaults.pruning = algorithm;
@@ -392,13 +387,11 @@ pub fn execute(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<(), String> {
 	user_defaults.mode = mode;
 	try!(user_defaults.save(&user_defaults_path));
 
-	let on_mode_change = move |mode: &Mode| {
+	// tell client how to save the default mode if it gets changed.
+	client.on_mode_change(move |mode: &Mode| {
 		user_defaults.mode = mode.clone();
 		let _ = user_defaults.save(&user_defaults_path);	// discard failures - there's nothing we can do
-	};
-
-	// tell client how to save the default mode if it gets changed.
-	client.on_mode_change(on_mode_change);
+	});
 
 	// the watcher must be kept alive.
 	let _watcher = match cmd.no_periodic_snapshot {
@@ -424,7 +417,9 @@ pub fn execute(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<(), String> {
 	}
 
 	// Handle exit
-	wait_for_exit(panic_handler, http_server, ipc_server, dapps_server, signer_server);
+	wait_for_exit(panic_handler, http_server, ipc_server, dapps_server, signer_server, updater);
+
+	info!("Finishing work, please wait...");
 
 	// to make sure timer does not spawn requests while shutdown is in progress
 	io_handler.shutdown.store(true, ::std::sync::atomic::Ordering::SeqCst);
@@ -435,7 +430,7 @@ pub fn execute(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<(), String> {
 	// terminated gracefully
 	drop(hypervisor);
 
-	Ok(())
+	Ok(false)
 }
 
 #[cfg(not(windows))]
@@ -443,11 +438,11 @@ fn daemonize(pid_file: String) -> Result<(), String> {
 	extern crate daemonize;
 
 	daemonize::Daemonize::new()
-			.pid_file(pid_file)
-			.chown_pid_file(true)
-			.start()
-			.map(|_| ())
-			.map_err(|e| format!("Couldn't daemonize; {}", e))
+		.pid_file(pid_file)
+		.chown_pid_file(true)
+		.start()
+		.map(|_| ())
+		.map_err(|e| format!("Couldn't daemonize; {}", e))
 }
 
 #[cfg(windows)]
@@ -478,20 +473,26 @@ fn wait_for_exit(
 	_http_server: Option<HttpServer>,
 	_ipc_server: Option<IpcServer>,
 	_dapps_server: Option<WebappServer>,
-	_signer_server: Option<SignerServer>
-	) {
-	let exit = Arc::new(Condvar::new());
+	_signer_server: Option<SignerServer>,
+	updater: Option<Arc<Updater>>
+) -> bool {
+	let exit = Arc::new((Mutex::new(false), Condvar::new()));
 
 	// Handle possible exits
 	let e = exit.clone();
-	CtrlC::set_handler(move || { e.notify_all(); });
+	CtrlC::set_handler(move || { e.1.notify_all(); });
 
 	// Handle panics
 	let e = exit.clone();
-	panic_handler.on_panic(move |_reason| { e.notify_all(); });
+	panic_handler.on_panic(move |_reason| { e.1.notify_all(); });
+
+	// Handle updater wanting to restart us
+	if let Some(ref u) = updater {
+		let e = exit.clone();
+		u.set_exit_handler(move || { e.0.lock() = true; e.1.notify_all(); });
+	}
 
 	// Wait for signal
-	let mutex = Mutex::new(());
-	let _ = exit.wait(mutex.lock().unwrap());
-	info!("Finishing work, please wait...");
+	let _ = exit.1.wait(exit.0.lock().unwrap());
+	*exit.0.lock()
 }

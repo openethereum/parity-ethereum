@@ -9,7 +9,7 @@ use util::Uint;
 
 pub struct Registry {
 	contract: ethabi::Contract,
-	address: util::Address,
+	pub address: util::Address,
 	do_call: Box<Fn(util::Address, Vec<u8>) -> Result<Vec<u8>, String> + Send + 'static>,
 }
 impl Registry {

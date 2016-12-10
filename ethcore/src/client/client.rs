@@ -70,10 +70,7 @@ use factory::Factories;
 use rlp::{decode, View, UntrustedRlp};
 use state_db::StateDB;
 use rand::OsRng;
-use client::updater::Updater;
 use client::registry::Registry;
-use client::fetch::FetchHandler;
-use fetch::{self, HashFetch};
 
 // re-export
 pub use types::blockchain_info::BlockChainInfo;
@@ -144,7 +141,6 @@ pub struct Client {
 	panic_handler: Arc<PanicHandler>,
 	verifier: Box<Verifier>,
 	miner: Arc<Miner>,
-	updater: Mutex<Option<Updater>>,
 	sleep_state: Mutex<SleepState>,
 	liveness: AtomicBool,
 	io_channel: Mutex<IoChannel<ClientIoMessage>>,
@@ -156,7 +152,6 @@ pub struct Client {
 	rng: Mutex<OsRng>,
 	on_mode_change: Mutex<Option<Box<FnMut(&Mode) + 'static + Send>>>,
 	registrar: Mutex<Option<Registry>>,
-	fetch_service: Mutex<Option<Arc<HashFetch>>>,
 }
 
 impl Client {
@@ -247,7 +242,6 @@ impl Client {
 			import_lock: Mutex::new(()),
 			panic_handler: panic_handler,
 			miner: miner,
-			updater: Mutex::new(None),
 			io_channel: Mutex::new(message_channel),
 			notify: RwLock::new(Vec::new()),
 			queue_transactions: AtomicUsize::new(0),
@@ -257,23 +251,12 @@ impl Client {
 			rng: Mutex::new(try!(OsRng::new().map_err(::util::UtilError::StdIo))),
 			on_mode_change: Mutex::new(None),
 			registrar: Mutex::new(None),
-			fetch_service: Mutex::new(None),
 		});
 		if let Some(reg_addr) = client.additional_params().get("registrar").and_then(|s| Address::from_str(s).ok()) {
 			trace!(target: "client", "Found registrar at {}", reg_addr);
 			let weak = Arc::downgrade(&client);
-			let fetch = Arc::new(fetch::Client::new(Arc::new(FetchHandler::new(weak.clone()))));
 			let registrar = Registry::new(reg_addr, move |a, d| weak.upgrade().ok_or("No client!".into()).and_then(|c| c.call_contract(a, d)));
-			// TODO [ToDr] The address might not be available when client is starting (but may be available later).
-			// Shouldn't this be moved inside the `Updater`?
-			if let Ok(ops_addr) = registrar.get_address(&(&b"operations"[..]).sha3(), "A") {
-				if !ops_addr.is_zero() {
-					trace!(target: "client", "Found operations at {}", ops_addr);
-					*client.updater.lock() = Some(Updater::new(Arc::downgrade(&client), Arc::downgrade(&fetch), ops_addr, client.config.update_policy.clone()));
-				}
-			}
 			*client.registrar.lock() = Some(registrar);
-			*client.fetch_service.lock() = Some(fetch);
 		}
 		Ok(client)
 	}
@@ -686,12 +669,6 @@ impl Client {
 	pub fn tick(&self) {
 		self.check_garbage();
 		self.check_snooze();
-		if let Some(ref mut updater) = *self.updater.lock() {
-			updater.tick();
-			if updater.installed.is_some() {
-				info!("Client should restart now.");
-			}
-		}
 	}
 
 	fn check_garbage(&self) {
@@ -732,30 +709,6 @@ impl Client {
 			}
 			_ => {}
 		}
-	}
-
-	/// Like `call`, but with various defaults. Designed to be used for calling contracts.
-	pub fn call_contract(&self, address: Address, data: Bytes) -> Result<Bytes, String> {
-		let from = Address::default();
-		let transaction = Transaction {
-			nonce: self.latest_nonce(&from),
-			action: Action::Call(address),
-			gas: U256::from(50_000_000),
-			gas_price: U256::default(),
-			value: U256::default(),
-			data: data,
-		}.fake_sign(from);
-
-		self.call(&transaction, BlockId::Latest, Default::default())
-			.map_err(|e| format!("{:?}", e))
-			.map(|executed| {
-				executed.output
-			})
-	}
-
-	/// Get the updater object.
-	pub fn updater(&self) -> MutexGuard<Option<Updater>> {
-		self.updater.lock()
 	}
 
 	/// Look up the block number for the given block ID.
@@ -1377,6 +1330,34 @@ impl BlockChainClient for Client {
 			earliest_state: self.state_db.lock().journal_db().earliest_era().unwrap_or(0),
 		}
 	}
+
+	fn call_contract(&self, address: Address, data: Bytes) -> Result<Bytes, String> {
+		let from = Address::default();
+		let transaction = Transaction {
+			nonce: self.latest_nonce(&from),
+			action: Action::Call(address),
+			gas: U256::from(50_000_000),
+			gas_price: U256::default(),
+			value: U256::default(),
+			data: data,
+		}.fake_sign(from);
+
+		self.call(&transaction, BlockId::Latest, Default::default())
+			.map_err(|e| format!("{:?}", e))
+			.map(|executed| {
+				executed.output
+			})
+	}
+
+	fn registrar_address(&self) -> Option<Address> {
+		self.registrar.lock().as_ref().map(|r| r.address.clone())
+	}
+
+	fn registry_address(&self, name: String) -> Option<Address> {
+		self.registrar.lock().as_ref()
+			.and_then(|r| r.get_address(&(name.as_bytes().sha3()), "A").ok())
+			.and_then(|a| if a.is_zero() { None } else { Some(a) })
+	} 
 }
 
 impl MiningBlockChainClient for Client {

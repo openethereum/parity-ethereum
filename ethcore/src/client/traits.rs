@@ -257,6 +257,15 @@ pub trait BlockChainClient : Sync + Send {
 
 	/// Returns information about pruning/data availability.
 	fn pruning_info(&self) -> PruningInfo;
+
+	/// Like `call`, but with various defaults. Designed to be used for calling contracts.
+	fn call_contract(&self, address: Address, data: Bytes) -> Result<Bytes, String>;
+
+	/// Get the address of the registry itself.
+	fn registrar_address(&self) -> Option<Address>;
+
+	/// Get the address of a particular blockchain service, if available. 
+	fn registry_address(&self, name: String) -> Option<Address>;
 }
 
 impl IpcConfig for BlockChainClient { }

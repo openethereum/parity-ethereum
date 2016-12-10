@@ -16,18 +16,15 @@
 
 //! Blockchain database client.
 
-mod operations;
 mod registry;
 mod config;
 mod error;
 mod test_client;
 mod trace;
 mod client;
-mod updater;
-mod fetch;
 
 pub use self::client::*;
-pub use self::config::{Mode, ClientConfig, UpdatePolicy, UpdateFilter, DatabaseCompactionProfile, BlockChainConfig, VMType};
+pub use self::config::{Mode, ClientConfig, DatabaseCompactionProfile, BlockChainConfig, VMType};
 pub use self::error::Error;
 pub use self::test_client::{TestBlockChainClient, EachBlockWith};
 pub use self::chain_notify::ChainNotify;

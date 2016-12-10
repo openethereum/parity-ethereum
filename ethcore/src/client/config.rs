@@ -66,35 +66,6 @@ impl FromStr for DatabaseCompactionProfile {
 	}
 }
 
-/// Filter for releases.
-#[derive(Debug, Eq, PartialEq, Clone)]
-pub enum UpdateFilter {
-	/// All releases following the same track.
-	All,
-	/// As with `All`, but only those which are known to be critical. 
-	Critical,
-	/// None.
-	None,
-}
-
-/// The policy for auto-updating.
-#[derive(Debug, Eq, PartialEq, Clone)]
-pub struct UpdatePolicy {
-	/// Download potential updates.
-	pub enable_downloading: bool,
-	/// Which of those downloaded should be automatically installed.
-	pub filter: UpdateFilter,
-}
-
-impl Default for UpdatePolicy {
-	fn default() -> Self {
-		UpdatePolicy {
-			enable_downloading: false,
-			filter: UpdateFilter::None,
-		}
-	}
-}
-
 /// Operating mode for the client.
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub enum Mode {
@@ -130,8 +101,6 @@ impl Display for Mode {
 /// Client configuration. Includes configs for all sub-systems.
 #[derive(Debug, PartialEq, Default)]
 pub struct ClientConfig {
-	/// Updater policy.
-	pub update_policy: UpdatePolicy,
 	/// Block queue configuration.
 	pub queue: QueueConfig,
 	/// Blockchain configuration.

@@ -209,7 +209,6 @@ pub fn default_network_config() -> ::ethsync::NetworkConfiguration {
 #[cfg_attr(feature = "dev", allow(too_many_arguments))]
 pub fn to_client_config(
 		cache_config: &CacheConfig,
-		update_policy: UpdatePolicy,
 		mode: Mode,
 		tracing: bool,
 		fat_db: bool,
@@ -243,7 +242,6 @@ pub fn to_client_config(
 	// in bytes
 	client_config.jump_table_size = cache_config.jump_tables() as usize * mb;
 
-	client_config.update_policy = update_policy;
 	client_config.mode = mode;
 	client_config.tracing.enabled = tracing;
 	client_config.fat_db = fat_db;

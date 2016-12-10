@@ -222,3 +222,14 @@ impl ChainNotify for Informant {
 	}
 }
 
+impl IoHandler<ClientIoMessage> for Informant {
+	fn initialize(&self, io: &IoContext<ClientIoMessage>) {
+		io.register_timer(INFO_TIMER, 5000).expect("Error registering timer");
+	}
+
+	fn timeout(&self, _io: &IoContext<ClientIoMessage>, timer: TimerToken) {
+		if timer == INFO_TIMER && !self.shutdown.load(Ordering::SeqCst) {
+			self.info.tick();
+		}
+	}
+}
