@@ -32,7 +32,7 @@
 import React, { Component, PropTypes } from 'react';
 
 import { Form, TypedInput } from '~/ui';
-import { parseAbiType } from '../../../util/abi';
+import { parseAbiType } from '~/util/abi';
 
 import styles from '../deployContract.css';
 

@@ -16,7 +16,7 @@
 
 import React, { Component, PropTypes } from 'react';
 
-import { txLink } from '../../../../3rdparty/etherscan/links';
+import { txLink } from '~/3rdparty/etherscan/links';
 
 export default class TxHashLink extends Component {
 

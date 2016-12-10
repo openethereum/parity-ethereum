@@ -16,7 +16,7 @@
 
 use ethkey::{Address, Message, Signature, Secret, Public};
 use Error;
-use json::UUID;
+use json::Uuid;
 
 pub trait SimpleSecretStore: Send + Sync {
 	fn insert_account(&self, secret: Secret, password: &str) -> Result<Address, Error>;
@@ -37,7 +37,7 @@ pub trait SecretStore: SimpleSecretStore {
 
 	fn public(&self, account: &Address, password: &str) -> Result<Public, Error>;
 
-	fn uuid(&self, account: &Address) -> Result<UUID, Error>;
+	fn uuid(&self, account: &Address) -> Result<Uuid, Error>;
 	fn name(&self, account: &Address) -> Result<String, Error>;
 	fn meta(&self, account: &Address) -> Result<String, Error>;
 

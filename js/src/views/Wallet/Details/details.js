@@ -55,9 +55,9 @@ export default class WalletDetails extends Component {
       return null;
     }
 
-    const ownersList = owners.map((address) => (
+    const ownersList = owners.map((address, idx) => (
       <InputAddress
-        key={ address }
+        key={ `${idx}_${address}` }
         value={ address }
         disabled
         text

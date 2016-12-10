@@ -19,7 +19,7 @@ import ActionDoneAll from 'material-ui/svg-icons/action/done-all';
 import ContentClear from 'material-ui/svg-icons/content/clear';
 
 import { Button, IdentityIcon, Modal } from '~/ui';
-import initShapeshift from '../../3rdparty/shapeshift';
+import initShapeshift from '~/3rdparty/shapeshift';
 import shapeshiftLogo from '../../../assets/images/shapeshift-logo.png';
 
 import AwaitingDepositStep from './AwaitingDepositStep';

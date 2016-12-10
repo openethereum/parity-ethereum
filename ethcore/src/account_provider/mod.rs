@@ -202,7 +202,7 @@ impl AccountProvider {
 		Ok(AccountMeta {
 			name: try!(self.sstore.name(&account)),
 			meta: try!(self.sstore.meta(&account)),
-			uuid: self.sstore.uuid(&account).ok().map(Into::into),	// allowed to not have a UUID
+			uuid: self.sstore.uuid(&account).ok().map(Into::into),	// allowed to not have a Uuid
 		})
 	}
 

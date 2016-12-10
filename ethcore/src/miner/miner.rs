@@ -23,7 +23,7 @@ use account_provider::{AccountProvider, Error as AccountError};
 use views::{BlockView, HeaderView};
 use header::Header;
 use state::{State, CleanupMode};
-use client::{MiningBlockChainClient, Executive, Executed, EnvInfo, TransactOptions, BlockID, CallAnalytics};
+use client::{MiningBlockChainClient, Executive, Executed, EnvInfo, TransactOptions, BlockId, CallAnalytics, TransactionId};
 use client::TransactionImportResult;
 use executive::contract_address;
 use block::{ClosedBlock, SealedBlock, IsBlock, Block};
@@ -357,6 +357,8 @@ impl Miner {
 		let block_number = open_block.block().fields().header.number();
 
 		// TODO Push new uncles too.
+		let mut tx_count: usize = 0;
+		let tx_total = transactions.len();
 		for tx in transactions {
 			let hash = tx.hash();
 			let start = Instant::now();
@@ -378,7 +380,7 @@ impl Miner {
 				},
 				_ => {},
 			}
-
+			trace!(target: "miner", "Adding tx {:?} took {:?}", hash, took);
 			match result {
 				Err(Error::Execution(ExecutionError::BlockGasLimitReached { gas_limit, gas_used, gas })) => {
 					debug!(target: "miner", "Skipping adding transaction to block because of gas limit: {:?} (limit: {:?}, used: {:?}, gas: {:?})", hash, gas_limit, gas_used, gas);
@@ -407,9 +409,12 @@ impl Miner {
 						   "Error adding transaction to block: number={}. transaction_hash={:?}, Error: {:?}",
 						   block_number, hash, e);
 				},
-				_ => {}	// imported ok
+				_ => {
+					tx_count += 1;
+				}	// imported ok
 			}
 		}
+		trace!(target: "miner", "Pushed {}/{} transactions", tx_count, tx_total);
 
 		let block = open_block.close();
 
@@ -580,6 +585,10 @@ impl Miner {
 		let best_block_header: Header = ::rlp::decode(&chain.best_block_header());
 		transactions.into_iter()
 			.map(|tx| {
+				if chain.transaction_block(TransactionId::Hash(tx.hash())).is_some() {
+					debug!(target: "miner", "Rejected tx {:?}: already in the blockchain", tx.hash());
+					return Err(Error::Transaction(TransactionError::AlreadyImported));
+				}
 				match self.engine.verify_transaction_basic(&tx, &best_block_header) {
 					Err(e) => {
 						debug!(target: "miner", "Rejected tx {:?} with invalid signature: {:?}", tx.hash(), e);
@@ -692,7 +701,7 @@ impl MinerService for Miner {
 				Ok(ret)
 			},
 			None => {
-				chain.call(t, BlockID::Latest, analytics)
+				chain.call(t, BlockId::Latest, analytics)
 			}
 		}
 	}
@@ -1085,7 +1094,7 @@ impl MinerService for Miner {
 
 		fn fetch_transactions(chain: &MiningBlockChainClient, hash: &H256) -> Vec<SignedTransaction> {
 			let block = chain
-				.block(BlockID::Hash(*hash))
+				.block(BlockId::Hash(*hash))
 				// Client should send message after commit to db and inserting to chain.
 				.expect("Expected in-chain blocks.");
 			let block = BlockView::new(&block);

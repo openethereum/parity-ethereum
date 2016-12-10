@@ -20,7 +20,7 @@
 use std::sync::Arc;
 
 use ethcore::engines::Engine;
-use ethcore::ids::BlockID;
+use ethcore::ids::BlockId;
 use ethcore::service::ClientIoMessage;
 use ethcore::block_import_error::BlockImportError;
 use ethcore::block_status::BlockStatus;
@@ -51,7 +51,7 @@ impl Client {
 	}
 
 	/// Whether the block is already known (but not necessarily part of the canonical chain)
-	pub fn is_known(&self, _id: BlockID) -> bool {
+	pub fn is_known(&self, _id: BlockId) -> bool {
 		false
 	}
 
@@ -61,7 +61,7 @@ impl Client {
 	}
 
 	/// Inquire about the status of a given block.
-	pub fn status(&self, _id: BlockID) -> BlockStatus {
+	pub fn status(&self, _id: BlockId) -> BlockStatus {
 		BlockStatus::Unknown
 	}
 

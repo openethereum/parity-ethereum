@@ -113,32 +113,38 @@ export default class Input extends Component {
         <TextField
           autoComplete='off'
           className={ className }
-          style={ textFieldStyle }
-
-          readOnly={ readOnly }
-
           errorText={ error }
+
           floatingLabelFixed
           floatingLabelText={ label }
-          fullWidth
+
           hintText={ hint }
+          id={ NAME_ID }
+          inputStyle={ inputStyle }
+          fullWidth
+
+          max={ max }
+          min={ min }
+
           multiLine={ multiLine }
           name={ NAME_ID }
-          id={ NAME_ID }
-          rows={ rows }
-          type={ type || 'text' }
-          underlineDisabledStyle={ UNDERLINE_DISABLED }
-          underlineStyle={ readOnly ? UNDERLINE_READONLY : UNDERLINE_NORMAL }
-          underlineFocusStyle={ readOnly ? { display: 'none' } : null }
-          underlineShow={ !hideUnderline }
-          value={ value }
+
           onBlur={ this.onBlur }
           onChange={ this.onChange }
           onKeyDown={ this.onKeyDown }
           onPaste={ this.onPaste }
-          inputStyle={ inputStyle }
-          min={ min }
-          max={ max }
+
+          readOnly={ readOnly }
+          rows={ rows }
+          style={ textFieldStyle }
+          type={ type || 'text' }
+
+          underlineDisabledStyle={ UNDERLINE_DISABLED }
+          underlineStyle={ readOnly ? UNDERLINE_READONLY : UNDERLINE_NORMAL }
+          underlineFocusStyle={ readOnly ? { display: 'none' } : null }
+          underlineShow={ !hideUnderline }
+
+          value={ value }
         >
           { children }
         </TextField>

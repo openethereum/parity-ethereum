@@ -23,8 +23,8 @@ use random::Random;
 use ethkey::{Signature, Address, Message, Secret, Public, KeyPair};
 use dir::KeyDirectory;
 use account::SafeAccount;
-use json::{self, UUID};
 use presale::PresaleWallet;
+use json::{self, Uuid};
 use {import, Error, SimpleSecretStore, SecretStore};
 
 pub struct EthStore {
@@ -111,7 +111,7 @@ impl SecretStore for EthStore {
 		account.public(password)
 	}
 
-	fn uuid(&self, address: &Address) -> Result<UUID, Error> {
+	fn uuid(&self, address: &Address) -> Result<Uuid, Error> {
 		let account = try!(self.get(address));
 		Ok(account.id.into())
 	}

@@ -23,8 +23,6 @@ import { clearStatusLogs, toggleStatusLogs, toggleStatusRefresh } from '~/redux/
 import Debug from '../../components/Debug';
 import Status from '../../components/Status';
 
-import styles from './statusPage.css';
-
 class StatusPage extends Component {
   static propTypes = {
     nodeStatus: PropTypes.object.isRequired,
@@ -41,7 +39,7 @@ class StatusPage extends Component {
 
   render () {
     return (
-      <div className={ styles.body }>
+      <div>
         <Status { ...this.props } />
         <Debug { ...this.props } />
       </div>
