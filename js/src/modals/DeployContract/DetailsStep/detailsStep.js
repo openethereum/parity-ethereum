@@ -37,6 +37,7 @@ export default class DetailsStep extends Component {
     onParamsChange: PropTypes.func.isRequired,
     onInputsChange: PropTypes.func.isRequired,
 
+    balances: PropTypes.object,
     fromAddress: PropTypes.string,
     fromAddressError: PropTypes.string,
     name: PropTypes.string,
@@ -77,6 +78,7 @@ export default class DetailsStep extends Component {
   render () {
     const {
       accounts,
+      balances,
       readOnly,
 
       fromAddress, fromAddressError,
@@ -97,6 +99,7 @@ export default class DetailsStep extends Component {
           value={ fromAddress }
           error={ fromAddressError }
           accounts={ accounts }
+          balances={ balances }
           onChange={ this.onFromAddressChange } />
 
         <Input

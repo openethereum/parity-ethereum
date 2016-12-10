@@ -35,22 +35,24 @@ export default class DetailsStep extends Component {
     amount: PropTypes.string,
     amountError: PropTypes.string,
     onAmountChange: PropTypes.func.isRequired,
+    onFromAddressChange: PropTypes.func.isRequired,
+    onValueChange: PropTypes.func.isRequired,
+    values: PropTypes.array.isRequired,
+    valuesError: PropTypes.array.isRequired,
+
+    balances: PropTypes.object,
     fromAddress: PropTypes.string,
     fromAddressError: PropTypes.string,
     gasEdit: PropTypes.bool,
-    onFromAddressChange: PropTypes.func.isRequired,
     func: PropTypes.object,
     funcError: PropTypes.string,
     onFuncChange: PropTypes.func,
     onGasEditClick: PropTypes.func,
-    values: PropTypes.array.isRequired,
-    valuesError: PropTypes.array.isRequired,
-    warning: PropTypes.string,
-    onValueChange: PropTypes.func.isRequired
+    warning: PropTypes.string
   }
 
   render () {
-    const { accounts, amount, amountError, fromAddress, fromAddressError, gasEdit, onGasEditClick, onFromAddressChange, onAmountChange } = this.props;
+    const { accounts, amount, amountError, balances, fromAddress, fromAddressError, gasEdit, onGasEditClick, onFromAddressChange, onAmountChange } = this.props;
 
     return (
       <Form>
@@ -61,6 +63,7 @@ export default class DetailsStep extends Component {
           value={ fromAddress }
           error={ fromAddressError }
           accounts={ accounts }
+          balances={ balances }
           onChange={ onFromAddressChange } />
         { this.renderFunctionSelect() }
         { this.renderParameters() }
