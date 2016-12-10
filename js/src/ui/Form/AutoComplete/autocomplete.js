@@ -28,7 +28,7 @@ class Divider extends Component {
   render () {
     return (
       <div style={ { margin: '0.25em 0' } }>
-        <MUIDivider style={ { height: 2 } }/>
+        <MUIDivider style={ { height: 2 } } />
       </div>
     );
   }
