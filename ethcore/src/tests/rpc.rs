@@ -19,7 +19,7 @@
 use nanoipc;
 use std::sync::Arc;
 use std::sync::atomic::{Ordering, AtomicBool};
-use client::{Client, BlockChainClient, ClientConfig, BlockID};
+use client::{Client, BlockChainClient, ClientConfig, BlockId};
 use client::remote::RemoteClient;
 use tests::helpers::*;
 use devtools::*;
@@ -71,7 +71,7 @@ fn can_query_block() {
 		run_test_worker(scope, stop_guard.share(), socket_path);
 		let remote_client = nanoipc::generic_client::<RemoteClient<_>>(socket_path).unwrap();
 
-		let non_existant_block = remote_client.block_header(BlockID::Number(999));
+		let non_existant_block = remote_client.block_header(BlockId::Number(999));
 
 		assert!(non_existant_block.is_none());
 	})

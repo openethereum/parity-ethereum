@@ -106,7 +106,7 @@ mod server {
 	use util::{Bytes, Address, U256};
 
 	use ethcore::transaction::{Transaction, Action};
-	use ethcore::client::{Client, BlockChainClient, BlockID};
+	use ethcore::client::{Client, BlockChainClient, BlockId};
 
 	use rpc_apis;
 	use ethcore_rpc::is_major_importing;
@@ -182,7 +182,7 @@ mod server {
 				data: data,
 			}.fake_sign(from);
 
-			self.client.call(&transaction, BlockID::Latest, Default::default())
+			self.client.call(&transaction, BlockId::Latest, Default::default())
 				.map_err(|e| format!("{:?}", e))
 				.map(|executed| {
 					executed.output

@@ -17,7 +17,7 @@
 import sinon from 'sinon';
 import * as ErrorUtil from './error';
 
-describe('util/error', () => {
+describe('views/Status/util/error', () => {
   beforeEach('spy on isError', () => {
     sinon.spy(ErrorUtil, 'isError');
   });

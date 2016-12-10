@@ -146,7 +146,7 @@ pub trait BlockProvider {
 }
 
 #[derive(Debug, Hash, Eq, PartialEq, Clone)]
-enum CacheID {
+enum CacheId {
 	BlockHeader(H256),
 	BlockBody(H256),
 	BlockDetails(H256),
@@ -160,7 +160,7 @@ impl bc::group::BloomGroupDatabase for BlockChain {
 	fn blooms_at(&self, position: &bc::group::GroupPosition) -> Option<bc::group::BloomGroup> {
 		let position = LogGroupPosition::from(position.clone());
 		let result = self.db.read_with_cache(db::COL_EXTRA, &self.blocks_blooms, &position).map(Into::into);
-		self.cache_man.lock().note_used(CacheID::BlocksBlooms(position));
+		self.cache_man.lock().note_used(CacheId::BlocksBlooms(position));
 		result
 	}
 }
@@ -193,7 +193,7 @@ pub struct BlockChain {
 
 	db: Arc<Database>,
 
-	cache_man: Mutex<CacheManager<CacheID>>,
+	cache_man: Mutex<CacheManager<CacheId>>,
 
 	pending_best_block: RwLock<Option<BestBlock>>,
 	pending_block_hashes: RwLock<HashMap<BlockNumber, H256>>,
@@ -270,7 +270,7 @@ impl BlockProvider for BlockChain {
 			None => None
 		};
 
-		self.cache_man.lock().note_used(CacheID::BlockHeader(hash.clone()));
+		self.cache_man.lock().note_used(CacheId::BlockHeader(hash.clone()));
 		result
 	}
 
@@ -306,7 +306,7 @@ impl BlockProvider for BlockChain {
 			None => None
 		};
 
-		self.cache_man.lock().note_used(CacheID::BlockBody(hash.clone()));
+		self.cache_man.lock().note_used(CacheId::BlockBody(hash.clone()));
 
 		result
 	}
@@ -314,28 +314,28 @@ impl BlockProvider for BlockChain {
 	/// Get the familial details concerning a block.
 	fn block_details(&self, hash: &H256) -> Option<BlockDetails> {
 		let result = self.db.read_with_cache(db::COL_EXTRA, &self.block_details, hash);
-		self.cache_man.lock().note_used(CacheID::BlockDetails(hash.clone()));
+		self.cache_man.lock().note_used(CacheId::BlockDetails(hash.clone()));
 		result
 	}
 
 	/// Get the hash of given block's number.
 	fn block_hash(&self, index: BlockNumber) -> Option<H256> {
 		let result = self.db.read_with_cache(db::COL_EXTRA, &self.block_hashes, &index);
-		self.cache_man.lock().note_used(CacheID::BlockHashes(index));
+		self.cache_man.lock().note_used(CacheId::BlockHashes(index));
 		result
 	}
 
 	/// Get the address of transaction with given hash.
 	fn transaction_address(&self, hash: &H256) -> Option<TransactionAddress> {
 		let result = self.db.read_with_cache(db::COL_EXTRA, &self.transaction_addresses, hash);
-		self.cache_man.lock().note_used(CacheID::TransactionAddresses(hash.clone()));
+		self.cache_man.lock().note_used(CacheId::TransactionAddresses(hash.clone()));
 		result
 	}
 
 	/// Get receipts of block with given hash.
 	fn block_receipts(&self, hash: &H256) -> Option<BlockReceipts> {
 		let result = self.db.read_with_cache(db::COL_EXTRA, &self.block_receipts, hash);
-		self.cache_man.lock().note_used(CacheID::BlockReceipts(hash.clone()));
+		self.cache_man.lock().note_used(CacheId::BlockReceipts(hash.clone()));
 		result
 	}
 
@@ -809,7 +809,7 @@ impl BlockChain {
 		let mut write_details = self.block_details.write();
 		batch.extend_with_cache(db::COL_EXTRA, &mut *write_details, update, CacheUpdatePolicy::Overwrite);
 
-		self.cache_man.lock().note_used(CacheID::BlockDetails(block_hash));
+		self.cache_man.lock().note_used(CacheId::BlockDetails(block_hash));
 	}
 
 	#[cfg_attr(feature="dev", allow(similar_names))]
@@ -968,15 +968,15 @@ impl BlockChain {
 
 		let mut cache_man = self.cache_man.lock();
 		for n in pending_hashes_keys {
-			cache_man.note_used(CacheID::BlockHashes(n));
+			cache_man.note_used(CacheId::BlockHashes(n));
 		}
 
 		for hash in enacted_txs_keys {
-			cache_man.note_used(CacheID::TransactionAddresses(hash));
+			cache_man.note_used(CacheId::TransactionAddresses(hash));
 		}
 
 		for hash in pending_block_hashes {
-			cache_man.note_used(CacheID::BlockDetails(hash));
+			cache_man.note_used(CacheId::BlockDetails(hash));
 		}
 	}
 
@@ -1244,13 +1244,13 @@ impl BlockChain {
 		cache_man.collect_garbage(current_size, | ids | {
 			for id in &ids {
 				match *id {
-					CacheID::BlockHeader(ref h) => { block_headers.remove(h); },
-					CacheID::BlockBody(ref h) => { block_bodies.remove(h); },
-					CacheID::BlockDetails(ref h) => { block_details.remove(h); }
-					CacheID::BlockHashes(ref h) => { block_hashes.remove(h); }
-					CacheID::TransactionAddresses(ref h) => { transaction_addresses.remove(h); }
-					CacheID::BlocksBlooms(ref h) => { blocks_blooms.remove(h); }
-					CacheID::BlockReceipts(ref h) => { block_receipts.remove(h); }
+					CacheId::BlockHeader(ref h) => { block_headers.remove(h); },
+					CacheId::BlockBody(ref h) => { block_bodies.remove(h); },
+					CacheId::BlockDetails(ref h) => { block_details.remove(h); }
+					CacheId::BlockHashes(ref h) => { block_hashes.remove(h); }
+					CacheId::TransactionAddresses(ref h) => { transaction_addresses.remove(h); }
+					CacheId::BlocksBlooms(ref h) => { blocks_blooms.remove(h); }
+					CacheId::BlockReceipts(ref h) => { block_receipts.remove(h); }
 				}
 			}
 

@@ -20,7 +20,7 @@ use std::time::Duration;
 use std::fs::File;
 use util::{clean_0x, U256, Uint, Address, path, CompactionProfile};
 use util::journaldb::Algorithm;
-use ethcore::client::{Mode, BlockID, VMType, DatabaseCompactionProfile, ClientConfig, VerifierType};
+use ethcore::client::{Mode, BlockId, VMType, DatabaseCompactionProfile, ClientConfig, VerifierType};
 use ethcore::miner::{PendingSet, GasLimit, PrioritizationStrategy};
 use cache::CacheConfig;
 use dir::DatabaseDirectories;
@@ -62,13 +62,13 @@ pub fn to_mode(s: &str, timeout: u64, alarm: u64) -> Result<Mode, String> {
 	}
 }
 
-pub fn to_block_id(s: &str) -> Result<BlockID, String> {
+pub fn to_block_id(s: &str) -> Result<BlockId, String> {
 	if s == "latest" {
-		Ok(BlockID::Latest)
+		Ok(BlockId::Latest)
 	} else if let Ok(num) = s.parse() {
-		Ok(BlockID::Number(num))
+		Ok(BlockId::Number(num))
 	} else if let Ok(hash) = s.parse() {
-		Ok(BlockID::Hash(hash))
+		Ok(BlockId::Hash(hash))
 	} else {
 		Err("Invalid block.".into())
 	}
@@ -327,7 +327,7 @@ mod tests {
 	use std::io::Write;
 	use devtools::RandomTempPath;
 	use util::{U256};
-	use ethcore::client::{Mode, BlockID};
+	use ethcore::client::{Mode, BlockId};
 	use ethcore::miner::PendingSet;
 	use super::{to_duration, to_mode, to_block_id, to_u256, to_pending_set, to_address, to_addresses, to_price, geth_ipc_path, to_bootnodes, password_from_file};
 
@@ -361,13 +361,13 @@ mod tests {
 
 	#[test]
 	fn test_to_block_id() {
-		assert_eq!(to_block_id("latest").unwrap(), BlockID::Latest);
-		assert_eq!(to_block_id("0").unwrap(), BlockID::Number(0));
-		assert_eq!(to_block_id("2").unwrap(), BlockID::Number(2));
-		assert_eq!(to_block_id("15").unwrap(), BlockID::Number(15));
+		assert_eq!(to_block_id("latest").unwrap(), BlockId::Latest);
+		assert_eq!(to_block_id("0").unwrap(), BlockId::Number(0));
+		assert_eq!(to_block_id("2").unwrap(), BlockId::Number(2));
+		assert_eq!(to_block_id("15").unwrap(), BlockId::Number(15));
 		assert_eq!(
 			to_block_id("9fc84d84f6a785dc1bd5abacfcf9cbdd3b6afb80c0f799bfb2fd42c44a0c224e").unwrap(),
-			BlockID::Hash("9fc84d84f6a785dc1bd5abacfcf9cbdd3b6afb80c0f799bfb2fd42c44a0c224e".parse().unwrap())
+			BlockId::Hash("9fc84d84f6a785dc1bd5abacfcf9cbdd3b6afb80c0f799bfb2fd42c44a0c224e".parse().unwrap())
 		);
 	}
 
