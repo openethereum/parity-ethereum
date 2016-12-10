@@ -18,7 +18,7 @@
 
 use util::Mutex;
 use client::{BlockChainClient, Client, ChainNotify};
-use ids::BlockID;
+use ids::BlockId;
 use service::ClientIoMessage;
 use views::HeaderView;
 
@@ -43,7 +43,7 @@ impl<F> Oracle for StandardOracle<F>
 	where F: Send + Sync + Fn() -> bool
 {
 	fn to_number(&self, hash: H256) -> Option<u64> {
-		self.client.block_header(BlockID::Hash(hash)).map(|h| HeaderView::new(&h).number())
+		self.client.block_header(BlockId::Hash(hash)).map(|h| HeaderView::new(&h).number())
 	}
 
 	fn is_major_importing(&self) -> bool {

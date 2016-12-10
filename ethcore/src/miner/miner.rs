@@ -23,7 +23,7 @@ use account_provider::{AccountProvider, Error as AccountError};
 use views::{BlockView, HeaderView};
 use header::Header;
 use state::{State, CleanupMode};
-use client::{MiningBlockChainClient, Executive, Executed, EnvInfo, TransactOptions, BlockID, CallAnalytics, TransactionID};
+use client::{MiningBlockChainClient, Executive, Executed, EnvInfo, TransactOptions, BlockId, CallAnalytics, TransactionId};
 use client::TransactionImportResult;
 use executive::contract_address;
 use block::{ClosedBlock, SealedBlock, IsBlock, Block};
@@ -585,7 +585,7 @@ impl Miner {
 		let best_block_header: Header = ::rlp::decode(&chain.best_block_header());
 		transactions.into_iter()
 			.map(|tx| {
-				if chain.transaction_block(TransactionID::Hash(tx.hash())).is_some() {
+				if chain.transaction_block(TransactionId::Hash(tx.hash())).is_some() {
 					debug!(target: "miner", "Rejected tx {:?}: already in the blockchain", tx.hash());
 					return Err(Error::Transaction(TransactionError::AlreadyImported));
 				}
@@ -701,7 +701,7 @@ impl MinerService for Miner {
 				Ok(ret)
 			},
 			None => {
-				chain.call(t, BlockID::Latest, analytics)
+				chain.call(t, BlockId::Latest, analytics)
 			}
 		}
 	}
@@ -1094,7 +1094,7 @@ impl MinerService for Miner {
 
 		fn fetch_transactions(chain: &MiningBlockChainClient, hash: &H256) -> Vec<SignedTransaction> {
 			let block = chain
-				.block(BlockID::Hash(*hash))
+				.block(BlockId::Hash(*hash))
 				// Client should send message after commit to db and inserting to chain.
 				.expect("Expected in-chain blocks.");
 			let block = BlockView::new(&block);
