@@ -43,7 +43,7 @@ pub trait IoContext {
     fn protocol_version(&self, peer: PeerId) -> Option<u8>;
 
 	/// Persistent peer id
-	fn persistent_peer_id(&self, peer: PeerId) -> Option<NodeId>;
+	fn persistent_peer_id(&self, peer: &PeerId) -> Option<NodeId>;
 }
 
 impl<'a> IoContext for NetworkContext<'a> {
@@ -71,8 +71,8 @@ impl<'a> IoContext for NetworkContext<'a> {
         self.protocol_version(self.subprotocol_name(), peer)
     }
 
-	fn persistent_peer_id(&self, peer: PeerId) -> Option<NodeId> {
-		self.session_info(peer).and_then(|info| info.id)
+	fn persistent_peer_id(&self, peer: &PeerId) -> Option<NodeId> {
+		self.session_info(*peer).and_then(|info| info.id)
 	}
 }
 
@@ -83,7 +83,7 @@ pub trait EventContext {
     fn peer(&self) -> PeerId;
 
 	/// Returns the relevant's peer persistent Id (aka NodeId).
-	fn persistent_peer_id(&self) -> Option<NodeId>;
+	fn persistent_peer_id(&self, id: &PeerId) -> Option<NodeId>;
 
     /// Make a request from a peer.
     fn request_from(&self, peer: PeerId, request: Request) -> Result<ReqId, Error>;
@@ -116,8 +116,8 @@ impl<'a> EventContext for Ctx<'a> {
 		self.peer
 	}
 
-	fn persistent_peer_id(&self) -> Option<NodeId> {
-		self.io.persistent_peer_id(self.peer)
+	fn persistent_peer_id(&self, id: &PeerId) -> Option<NodeId> {
+		self.io.persistent_peer_id(id)
 	}
     fn request_from(&self, peer: PeerId, request: Request) -> Result<ReqId, Error> {
         self.proto.request_from(self.io, &peer, request)
