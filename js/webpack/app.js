@@ -83,18 +83,6 @@ module.exports = {
         ]
       },
 
-      // // Don't extract CSS for Dapps
-      // {
-      //   test: /\.css$/,
-      //   include: [ /src\/dapps/ ],
-      //   use: [
-      //     'style-loader',
-      //     'css-loader?modules&sourceMap&importLoaders=1&localIdentName=[name]__[local]___[hash:base64:5]',
-      //     'postcss-loader'
-      //   ]
-      // },
-
-      // Extract CSS for UI
       {
         test: /\.css$/,
         include: [ /src/ ],
