@@ -40,8 +40,8 @@ class Embedded extends Component {
     gasLimit: PropTypes.object.isRequired,
     isTest: PropTypes.bool.isRequired,
     signer: PropTypes.shape({
-      pending: PropTypes.array.isRequired,
-      finished: PropTypes.array.isRequired
+      finished: PropTypes.array.isRequired,
+      pending: PropTypes.array.isRequired
     }).isRequired
   };
 

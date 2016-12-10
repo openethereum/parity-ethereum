@@ -71,14 +71,13 @@ export default class TransactionPendingForm extends Component {
     if (!isRejectOpen) {
       html = <span>reject transaction</span>;
     } else {
-      html = <span><BackIcon />I've changed my mind</span>;
+      html = <span><BackIcon />{ "I've changed my mind" }</span>;
     }
 
     return (
       <a
-        onClick={ this.onToggleReject }
         className={ styles.rejectToggle }
-      >
+        onClick={ this.onToggleReject }>
         { html }
       </a>
     );
@@ -86,7 +85,9 @@ export default class TransactionPendingForm extends Component {
 
   onToggleReject = () => {
     const { isRejectOpen } = this.state;
-    this.setState({ isRejectOpen: !isRejectOpen });
-  }
 
+    this.setState({
+      isRejectOpen: !isRejectOpen
+    });
+  }
 }

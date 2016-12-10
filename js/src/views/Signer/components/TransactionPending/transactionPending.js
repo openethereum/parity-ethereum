@@ -46,8 +46,8 @@ export default class TransactionPending extends Component {
     transaction: PropTypes.shape({
       data: PropTypes.string,
       from: PropTypes.string.isRequired,
-      gasPrice: PropTypes.object.isRequired,
       gas: PropTypes.object.isRequired,
+      gasPrice: PropTypes.object.isRequired,
       to: PropTypes.string,
       value: PropTypes.object.isRequired
     }).isRequired
@@ -122,9 +122,15 @@ export default class TransactionPending extends Component {
   onConfirm = (data) => {
     const { id, transaction } = this.props;
     const { password, wallet } = data;
-    const { gasPrice } = transaction;
+    const { gas, gasPrice } = this.gasStore.overrideTransaction(transaction);
 
-    this.props.onConfirm({ gasPrice, id, password, wallet });
+    this.props.onConfirm({
+      gas,
+      gasPrice,
+      id,
+      password,
+      wallet
+    });
   }
 
   onReject = () => {
