@@ -147,7 +147,7 @@ class Contracts extends Component {
       >
         <Button
           icon={ <FileIcon /> }
-          label='write contract'
+          label='develop contract'
         />
       </Link>,
 

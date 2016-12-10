@@ -94,25 +94,28 @@ export default class DetailsStep extends Component {
         <AddressSelect
           label='from account (contract owner)'
           hint='the owner account for this contract'
-          value={ fromAddress }
-          error={ fromAddressError }
           accounts={ accounts }
           balances={ balances }
-          onChange={ this.onFromAddressChange } />
+          error={ fromAddressError }
+          onChange={ this.onFromAddressChange }
+          value={ fromAddress }
+        />
 
         <Input
           label='contract name'
           hint='a name for the deployed contract'
           error={ nameError }
+          onChange={ this.onNameChange }
           value={ name || '' }
-          onChange={ this.onNameChange } />
+        />
 
         <Input
           label='contract description (optional)'
           hint='a description for the contract'
           error={ descriptionError }
+          onChange={ this.onDescriptionChange }
           value={ description }
-          onChange={ this.onDescriptionChange } />
+        />
 
         { this.renderContractSelect() }
 
@@ -120,17 +123,19 @@ export default class DetailsStep extends Component {
           label='abi / solc combined-output'
           hint='the abi of the contract to deploy or solc combined-output'
           error={ abiError }
-          value={ solcOutput }
           onChange={ this.onSolcChange }
           onSubmit={ this.onSolcSubmit }
-          readOnly={ readOnly } />
+          readOnly={ readOnly }
+          value={ solcOutput }
+        />
         <Input
           label='code'
           hint='the compiled code of the contract to deploy'
           error={ codeError }
-          value={ code }
           onSubmit={ this.onCodeChange }
-          readOnly={ readOnly || solc } />
+          readOnly={ readOnly || solc }
+          value={ code }
+        />
 
       </Form>
     );
