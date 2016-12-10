@@ -17,4 +17,5 @@ export TARGETS="
 	-p ethcore-ipc \
 	-p ethcore-ipc-tests \
 	-p ethcore-ipc-nano \
+	-p ethcore-light \
 	-p parity"

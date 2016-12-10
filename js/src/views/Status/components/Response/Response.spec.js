@@ -21,7 +21,7 @@ import '../../../../environment/tests';
 
 import Response from './Response';
 
-describe('components/Response', () => {
+describe('views/Status/components/Response', () => {
   describe('rendering', () => {
     it('renders non-arrays/non-objects exactly as received', () => {
       const TEST = '1234567890';

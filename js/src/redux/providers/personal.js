@@ -36,9 +36,6 @@ export default class Personal {
         }
 
         this._store.dispatch(personalAccountsInfo(accountsInfo));
-      })
-      .then((subscriptionId) => {
-        console.log('personal._subscribeAccountsInfo', 'subscriptionId', subscriptionId);
       });
   }
 
