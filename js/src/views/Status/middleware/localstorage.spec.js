@@ -21,7 +21,7 @@ import { syncRpcStateFromLocalStorage } from '../actions/localstorage';
 import rpcData from '../data/rpc.json';
 import LocalStorageMiddleware from './localstorage';
 
-describe('MIDDLEWARE: LOCAL STORAGE', () => {
+describe('views/Status/middleware/localstorage', () => {
   let cut, state;
 
   beforeEach('mock cut', () => {

@@ -23,7 +23,7 @@ import { bindActionCreators } from 'redux';
 import { confirmOperation, revokeOperation } from '~/redux/providers/walletActions';
 import { bytesToHex } from '~/api/util/format';
 import { Container, InputAddress, Button, IdentityIcon } from '~/ui';
-import { TxRow } from '~/ui/TxList/txList';
+import TxRow from '~/ui/TxList/TxRow';
 
 import styles from '../wallet.css';
 import txListStyles from '~/ui/TxList/txList.css';

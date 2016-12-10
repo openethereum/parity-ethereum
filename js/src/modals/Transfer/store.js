@@ -107,10 +107,9 @@ export default class TransferStore {
   constructor (api, props) {
     this.api = api;
 
-    const { account, balance, gasLimit, senders, onClose, newError, sendersBalances } = props;
+    const { account, balance, gasLimit, senders, newError, sendersBalances } = props;
     this.account = account;
     this.balance = balance;
-    this.onClose = onClose;
     this.isWallet = account && account.wallet;
     this.newError = newError;
 
@@ -136,8 +135,7 @@ export default class TransferStore {
     this.stage -= 1;
   }
 
-  @action onClose = () => {
-    this.onClose && this.onClose();
+  @action handleClose = () => {
     this.stage = 0;
   }
 

@@ -14,9 +14,10 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { range } from 'lodash';
+import { range, uniq } from 'lodash';
 
 import { bytesToHex, toHex } from '~/api/util/format';
+import { validateAddress } from '~/util/validation';
 
 export default class WalletsUtils {
 
@@ -26,10 +27,82 @@ export default class WalletsUtils {
 
   static fetchOwners (walletContract) {
     const walletInstance = walletContract.instance;
+
     return walletInstance
       .m_numOwners.call()
       .then((mNumOwners) => {
-        return Promise.all(range(mNumOwners.toNumber()).map((idx) => walletInstance.getOwner.call({}, [ idx ])));
+        const promises = range(mNumOwners.toNumber())
+          .map((idx) => walletInstance.getOwner.call({}, [ idx ]));
+
+        return Promise
+          .all(promises)
+          .then((owners) => {
+            const uniqOwners = uniq(owners);
+
+            // If all owners are the zero account : must be Mist wallet contract
+            if (uniqOwners.length === 1 && /^(0x)?0*$/.test(owners[0])) {
+              return WalletsUtils.fetchMistOwners(walletContract, mNumOwners.toNumber());
+            }
+
+            return owners;
+          });
+      });
+  }
+
+  static fetchMistOwners (walletContract, mNumOwners) {
+    const walletAddress = walletContract.address;
+
+    return WalletsUtils
+      .getMistOwnersOffset(walletContract)
+      .then((result) => {
+        if (!result || result.offset === -1) {
+          return [];
+        }
+
+        const owners = [ result.address ];
+
+        if (mNumOwners === 1) {
+          return owners;
+        }
+
+        const initOffset = result.offset + 1;
+        let promise = Promise.resolve();
+
+        range(initOffset, initOffset + mNumOwners - 1).forEach((offset) => {
+          promise = promise
+            .then(() => {
+              return walletContract.api.eth.getStorageAt(walletAddress, offset);
+            })
+            .then((result) => {
+              const resultAddress = '0x' + (result || '').slice(-40);
+              const { address } = validateAddress(resultAddress);
+
+              owners.push(address);
+            });
+        });
+
+        return promise.then(() => owners);
+      });
+  }
+
+  static getMistOwnersOffset (walletContract, offset = 3) {
+    return walletContract.api.eth
+      .getStorageAt(walletContract.address, offset)
+      .then((result) => {
+        if (result && !/^(0x)?0*$/.test(result)) {
+          const resultAddress = '0x' + result.slice(-40);
+          const { address, addressError } = validateAddress(resultAddress);
+
+          if (!addressError) {
+            return { offset, address };
+          }
+        }
+
+        if (offset >= 100) {
+          return { offset: -1 };
+        }
+
+        return WalletsUtils.getMistOwnersOffset(walletContract, offset + 1);
       });
   }
 
