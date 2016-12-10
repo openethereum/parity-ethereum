@@ -57,13 +57,13 @@ const TIMEOUT_INTERVAL_MS: u64 = 1000;
 // minimum interval between updates.
 const UPDATE_INTERVAL_MS: i64 = 5000;
 
-// Supported protocol versions.
+/// Supported protocol versions.
 pub const PROTOCOL_VERSIONS: &'static [u8] = &[1];
 
-// Max protocol version.
+/// Max protocol version.
 pub const MAX_PROTOCOL_VERSION: u8 = 1;
 
-// Packet count for LES.
+/// Packet count for LES.
 pub const PACKET_COUNT: u8 = 15;
 
 // packet ID definitions.
@@ -100,6 +100,18 @@ mod packet {
 	// request and response for header proofs in a CHT.
 	pub const GET_HEADER_PROOFS: u8 = 0x0d;
 	pub const HEADER_PROOFS: u8 = 0x0e;
+}
+
+// timeouts for different kinds of requests. all values are in milliseconds.
+// TODO: variable timeouts based on request count.
+mod timeout {
+	pub const HANDSHAKE: i64 = 2500;
+	pub const HEADERS: i64 = 5000;
+	pub const BODIES: i64 = 5000;
+	pub const RECEIPTS: i64 = 3500;
+	pub const PROOFS: i64 = 4000;
+	pub const CONTRACT_CODES: i64 = 5000;
+	pub const HEADER_PROOFS: i64 = 3500;
 }
 
 /// A request id.
@@ -454,6 +466,54 @@ impl LightProtocol {
 				Punishment::Disable => {
 					debug!(target: "les", "Disabling peer {}: {}", peer, e);
 					io.disable_peer(*peer)
+				}
+			}
+		}
+	}
+
+	// check timeouts and punish peers.
+	fn timeout_check(&self, io: &IoContext) {
+		let now = SteadyTime::now();
+
+		// handshake timeout
+		{
+			let mut pending = self.pending_peers.write();
+			let slowpokes: Vec<_> = pending.iter()
+				.filter(|&(_, ref peer)| {
+					peer.last_update + Duration::milliseconds(timeout::HANDSHAKE) <= now
+				})
+				.map(|(&p, _)| p)
+				.collect();
+
+			for slowpoke in slowpokes {
+				debug!(target: "les", "Peer {} handshake timed out", slowpoke);
+				pending.remove(&slowpoke);
+				io.disconnect_peer(slowpoke);
+			}
+		}
+
+		// request timeouts
+		{
+			for r in self.pending_requests.read().values() {
+				let kind_timeout = match r.request.kind() {
+					request::Kind::Headers => timeout::HEADERS,
+					request::Kind::Bodies => timeout::BODIES,
+					request::Kind::Receipts => timeout::RECEIPTS,
+					request::Kind::StateProofs => timeout::PROOFS,
+					request::Kind::Codes => timeout::CONTRACT_CODES,
+					request::Kind::HeaderProofs => timeout::HEADER_PROOFS,					
+				};
+
+				if r.timestamp + Duration::milliseconds(kind_timeout) <= now {
+					debug!(target: "les", "Request for {:?} from peer {} timed out", 
+						r.request.kind(), r.peer_id);
+					
+					// keep the request in the `pending` set for now so
+					// on_disconnect will pass unfulfilled ReqIds to handlers.
+					// in the case that a response is received after this, the
+					// disconnect won't be cancelled but the ReqId won't be 
+					// marked as abandoned.
+					io.disconnect_peer(r.peer_id);
 				}
 			}
 		}
@@ -1023,7 +1083,6 @@ impl LightProtocol {
 			))
 		}
 		
-		
 		let req_id = try!(self.pre_verify_response(peer, request::Kind::HeaderProofs, &raw));
 		let raw_proofs: Vec<_> = try!(raw.iter().skip(2).map(decode_res).collect());
 
@@ -1075,11 +1134,9 @@ impl NetworkProtocolHandler for LightProtocol {
 		self.on_disconnect(*peer, io);
 	}
 
-	fn timeout(&self, _io: &NetworkContext, timer: TimerToken) {
+	fn timeout(&self, io: &NetworkContext, timer: TimerToken) {
 		match timer {
-			TIMEOUT => {
-				// broadcast transactions to peers.
-			}
+			TIMEOUT => self.timeout_check(io),
 			_ => warn!(target: "les", "received timeout on unknown token {}", timer),
 		}
 	}
