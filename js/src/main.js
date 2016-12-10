@@ -74,7 +74,7 @@ export default class MainApplication extends Component {
 
           <Route path='contracts'>
             <IndexRoute component={ Contracts } />
-            <Route path='write' component={ WriteContract } />
+            <Route path='develop' component={ WriteContract } />
             <Route path=':address' component={ Contract } />
           </Route>
 

@@ -142,7 +142,7 @@ class Contracts extends Component {
         label='deploy contract'
         onClick={ this.onDeployContract } />,
       <Link
-        to='/contracts/write'
+        to='/contracts/develop'
         key='writeContract'
       >
         <Button
