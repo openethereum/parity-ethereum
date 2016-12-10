@@ -95,7 +95,7 @@ class Addresses extends Component {
 
     return (
       <List
-        link='address'
+        link='addresses'
         search={ searchValues }
         accounts={ contacts }
         balances={ balances }
