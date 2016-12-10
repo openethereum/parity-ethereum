@@ -48,7 +48,7 @@ export default class GasPriceEditor extends Component {
     const priceLabel = `price (current: ${new BigNumber(priceDefault).toFormat()})`;
 
     return (
-      <div className={ styles.columns }>
+      <div className={ styles.container }>
         <div className={ styles.graphColumn }>
           <GasPriceSelector
             histogram={ histogram }
