@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use ipc::IpcConfig;
-use util::{H256, H512};
+use util::H256;
 
 /// Represents what has to be handled by actor listening to chain events
 #[ipc]
