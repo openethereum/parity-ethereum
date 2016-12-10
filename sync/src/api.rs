@@ -351,8 +351,7 @@ struct TxRelay(Arc<BlockChainClient>);
 impl LightHandler for TxRelay {
 	fn on_transactions(&self, ctx: &EventContext, relay: &[::ethcore::transaction::SignedTransaction]) {
 		trace!(target: "les", "Relaying {} transactions from peer {}", relay.len(), ctx.peer());
-		// TODO [ToDr] Can we get a peer enode somehow?
-		self.0.queue_transactions(relay.iter().map(|tx| ::rlp::encode(tx).to_vec()).collect(), None)
+		self.0.queue_transactions(relay.iter().map(|tx| ::rlp::encode(tx).to_vec()).collect(), ctx.persistent_peer_id())
 	}
 }
 
