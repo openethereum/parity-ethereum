@@ -17,9 +17,10 @@
 //! Tendermint timeout handling.
 
 use std::sync::Weak;
+use time::Duration;
 use io::{IoContext, IoHandler, TimerToken};
 use super::{Tendermint, Step};
-use time::Duration;
+use engines::Engine;
 
 pub struct TransitionHandler {
 	pub engine: Weak<Tendermint>,
@@ -71,48 +72,10 @@ impl IoHandler<Step> for TransitionHandler {
 		}
 	}
 
-	fn timeout(&self, io: &IoContext<Step>, timer: TimerToken) {
+	fn timeout(&self, _io: &IoContext<Step>, timer: TimerToken) {
 		if timer == ENGINE_TIMEOUT_TOKEN {
 			if let Some(engine) = self.engine.upgrade() {
-				let next_step = match *engine.step.read() {
-					Step::Propose => {
-						trace!(target: "poa", "timeout: Propose timeout.");
-						set_timeout(io, engine.our_params.timeouts.prevote);
-						Some(Step::Prevote)
-					},
-					Step::Prevote if engine.has_enough_any_votes() => {
-						trace!(target: "poa", "timeout: Prevote timeout.");
-						set_timeout(io, engine.our_params.timeouts.precommit);
-						Some(Step::Precommit)
-					},
-					Step::Prevote => {
-						trace!(target: "poa", "timeout: Prevote timeout without enough votes.");
-						set_timeout(io, engine.our_params.timeouts.prevote);
-						engine.broadcast_old_messages();
-						None
-					},
-					Step::Precommit if engine.has_enough_any_votes() => {
-						trace!(target: "poa", "timeout: Precommit timeout.");
-						set_timeout(io, engine.our_params.timeouts.propose);
-						engine.increment_round(1);
-						Some(Step::Propose)
-					},
-					Step::Precommit => {
-						trace!(target: "poa", "timeout: Precommit timeout without enough votes.");
-						set_timeout(io, engine.our_params.timeouts.precommit);
-						engine.broadcast_old_messages();
-						None
-					},
-					Step::Commit => {
-						trace!(target: "poa", "timeout: Commit timeout.");
-						set_timeout(io, engine.our_params.timeouts.propose);
-						Some(Step::Propose)
-					},
-				};
-
-				if let Some(s) = next_step {
-					engine.to_step(s)
-				}
+				engine.step();
 			}
 		}
 	}
@@ -128,7 +91,6 @@ impl IoHandler<Step> for TransitionHandler {
 				Step::Precommit => set_timeout(io, engine.our_params.timeouts.precommit),
 				Step::Commit => set_timeout(io, engine.our_params.timeouts.commit),
 			};
-			engine.to_step(*next_step);
 		}
 	}
 }
