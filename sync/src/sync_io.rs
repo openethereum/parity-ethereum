@@ -131,6 +131,10 @@ impl<'s, 'h> SyncIo for NetSyncIo<'s, 'h> {
 	fn protocol_version(&self, protocol: &ProtocolId, peer_id: PeerId) -> u8 {
 		self.network.protocol_version(*protocol, peer_id).unwrap_or(0)
 	}
+
+	fn peer_info(&self, peer_id: PeerId) -> String {
+		self.network.peer_client_version(peer_id)
+	}
 }
 
 

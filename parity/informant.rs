@@ -188,7 +188,7 @@ impl ChainNotify for Informant {
 			.sum();
 
 		if ripe {
-			if let Some(block) = imported.last().and_then(|h| self.client.block(BlockID::Hash(*h))) {
+			if let Some(block) = imported.last().and_then(|h| self.client.block(BlockId::Hash(*h))) {
 				let view = BlockView::new(&block);
 				let header = view.header();
 				let tx_count = view.transactions_count();
