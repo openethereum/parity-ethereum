@@ -21,6 +21,8 @@ import AutoComplete from '../AutoComplete';
 import IdentityIcon from '../../IdentityIcon';
 import IdentityName from '../../IdentityName';
 
+import { fromWei } from '~/api/util/wei';
+
 import styles from './addressSelect.css';
 
 export default class AddressSelect extends Component {
@@ -40,7 +42,8 @@ export default class AddressSelect extends Component {
     value: PropTypes.string,
     tokens: PropTypes.object,
     onChange: PropTypes.func.isRequired,
-    allowInput: PropTypes.bool
+    allowInput: PropTypes.bool,
+    balances: PropTypes.object
   }
 
   state = {
@@ -129,7 +132,34 @@ export default class AddressSelect extends Component {
     };
   }
 
+  renderBalance (address) {
+    const { balances = {} } = this.props;
+    const balance = balances[address];
+
+    if (!balance) {
+      return null;
+    }
+
+    const ethToken = balance.tokens.find((t) => t.token.tag.toLowerCase() === 'eth');
+
+    if (!ethToken) {
+      return null;
+    }
+
+    const value = fromWei(ethToken.value);
+
+    return (
+      <div className={ styles.balance }>
+        { value.toFormat(3) }<small> { 'ETH' }</small>
+      </div>
+    );
+  }
+
   renderMenuItem (address) {
+    const balance = this.props.balances
+      ? this.renderBalance(address)
+      : null;
+
     const item = (
       <div className={ styles.account }>
         <IdentityIcon
@@ -139,6 +169,8 @@ export default class AddressSelect extends Component {
         <IdentityName
           className={ styles.name }
           address={ address } />
+
+        { balance }
       </div>
     );
 
@@ -155,11 +187,10 @@ export default class AddressSelect extends Component {
 
   getSearchText () {
     const entry = this.getEntry();
-    const { value } = this.state;
 
     return entry && entry.name
       ? entry.name.toUpperCase()
-      : value;
+      : this.state.value;
   }
 
   getEntry () {

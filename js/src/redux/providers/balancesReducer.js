@@ -44,7 +44,7 @@ export default handleActions({
         const { token, value } = t;
         const { tag } = token;
 
-        const tokenIndex = nextTokens.findIndex((tok) => tok.token.tag === tag);
+        const tokenIndex = nextTokens.findIndex((tok) => tok.token && tok.token.tag === tag);
 
         if (tokenIndex === -1) {
           nextTokens.push({
