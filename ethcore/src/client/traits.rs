@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::collections::BTreeMap;
-use util::{U256, Address, H256, H2048, Bytes, Itertools};
+use util::{U256, Address, H256, H512, H2048, Bytes, Itertools};
 use util::stats::Histogram;
 use blockchain::TreeRoute;
 use verification::queue::QueueInfo as BlockQueueInfo;
@@ -188,7 +188,7 @@ pub trait BlockChainClient : Sync + Send {
 	fn last_hashes(&self) -> LastHashes;
 
 	/// Queue transactions for importing.
-	fn queue_transactions(&self, transactions: Vec<Bytes>);
+	fn queue_transactions(&self, transactions: Vec<Bytes>, peer_id: Option<H512>);
 
 	/// list all transactions
 	fn pending_transactions(&self) -> Vec<SignedTransaction>;
@@ -267,3 +267,4 @@ pub trait MiningBlockChainClient : BlockChainClient {
 }
 
 impl IpcConfig for BlockChainClient { }
+

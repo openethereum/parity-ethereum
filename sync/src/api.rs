@@ -21,7 +21,7 @@ use util::Bytes;
 use network::{NetworkProtocolHandler, NetworkService, NetworkContext, PeerId, ProtocolId,
 	NetworkConfiguration as BasicNetworkConfiguration, NonReservedPeerMode, NetworkError,
 	AllowIP as NetworkAllowIP};
-use util::{U256, H256};
+use util::{U256, H256, H512};
 use io::{TimerToken};
 use ethcore::client::{BlockChainClient, ChainNotify};
 use ethcore::snapshot::SnapshotService;
@@ -73,7 +73,7 @@ pub trait SyncProvider: Send + Sync {
 
 	/// Get peers information
 	fn peers(&self) -> Vec<PeerInfo>;
-    
+
 	/// Get the enode if available.
 	fn enode(&self) -> Option<String>;
 }
@@ -232,6 +232,10 @@ impl ChainNotify for EthSync {
 
 	fn stop(&self) {
 		self.network.stop().unwrap_or_else(|e| warn!("Error stopping network: {:?}", e));
+	}
+
+	fn transactions_imported(&self, hashes: Vec<H256>, peer_id: Option<H512>, block_number: u64) {
+		self.handler.write().transactions_imported(hashes, peer_id, block_number);
 	}
 }
 

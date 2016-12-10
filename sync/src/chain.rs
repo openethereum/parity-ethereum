@@ -1434,7 +1434,8 @@ impl ChainSync {
 			let tx = rlp.as_raw().to_vec();
 			transactions.push(tx);
 		}
-		io.chain().queue_transactions(transactions);
+		let id = io.peer_session_info(peer_id).and_then(|info| info.id);
+		io.chain().queue_transactions(transactions, id);
 		Ok(())
 	}
 
