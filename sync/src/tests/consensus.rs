@@ -26,8 +26,6 @@ use SyncConfig;
 
 #[test]
 fn test_authority_round() {
-	::env_logger::init().ok();
-
 	let s1 = KeyPair::from_secret("1".sha3()).unwrap();
 	let s2 = KeyPair::from_secret("0".sha3()).unwrap();
 	let spec_factory = || {
@@ -41,10 +39,8 @@ fn test_authority_round() {
 	let mut net = TestNet::new_with_spec(2, SyncConfig::default(), spec_factory);
 	let mut net = &mut *net;
 	// Push transaction to both clients. Only one of them gets lucky to mine a block.
-	net.peer(0).chain.miner().set_author(s1.address());
-	net.peer(0).chain.engine().set_signer(s1.address(), "".to_owned());
-	net.peer(1).chain.miner().set_author(s2.address());
-	net.peer(1).chain.engine().set_signer(s2.address(), "".to_owned());
+	net.peer(0).chain.miner().set_engine_signer(s1.address(), "".to_owned()).unwrap();
+	net.peer(1).chain.miner().set_engine_signer(s2.address(), "".to_owned()).unwrap();
 	let tx1 = Transaction {
 		nonce: 0.into(),
 		gas_price: 0.into(),
@@ -76,3 +72,62 @@ fn test_authority_round() {
 	assert_eq!(net.peer(1).chain.chain_info().best_block_number, 2);
 }
 
+#[test]
+fn test_tendermint() {
+	::env_logger::init().ok();
+
+	let s1 = KeyPair::from_secret("1".sha3()).unwrap();
+	let s2 = KeyPair::from_secret("0".sha3()).unwrap();
+	let spec_factory = || {
+		let spec = Spec::new_test_tendermint();
+		let account_provider = AccountProvider::transient_provider();
+		account_provider.insert_account(s1.secret().clone(), "").unwrap();
+		account_provider.insert_account(s2.secret().clone(), "").unwrap();
+		spec.engine.register_account_provider(Arc::new(account_provider));
+		spec
+	};
+	let mut net = TestNet::new_with_spec(2, SyncConfig::default(), spec_factory);
+	let mut net = &mut *net;
+	// Push transaction to both clients. Only one of them issues a proposal.
+	net.peer(0).chain.miner().set_engine_signer(s1.address(), "".to_owned()).unwrap();
+	net.peer(1).chain.miner().set_engine_signer(s2.address(), "".to_owned()).unwrap();
+	let tx1 = Transaction {
+		nonce: 0.into(),
+		gas_price: 0.into(),
+		gas: 21000.into(),
+		action: Action::Call(Address::default()),
+		value: 0.into(),
+		data: Vec::new(),
+	}.sign(s1.secret(), None);
+	// exhange statuses
+	net.sync_steps(5);
+	net.peer(0).chain.miner().import_own_transaction(&net.peer(0).chain, tx1).unwrap();
+	// Propose
+	net.sync();
+	// Propose timeout
+	net.peer(1).chain.engine().step();
+	net.peer(0).chain.engine().step();
+	// Precommit
+	net.sync();
+
+	net.sync_steps(5);
+	net.sync();
+	::std::thread::sleep(::std::time::Duration::from_millis(100));
+	assert_eq!(net.peer(0).chain.chain_info().best_block_number, 1);
+	assert_eq!(net.peer(1).chain.chain_info().best_block_number, 1);
+
+	let tx2 = Transaction {
+		nonce: 0.into(),
+		gas_price: 0.into(),
+		gas: 21000.into(),
+		action: Action::Call(Address::default()),
+		value: 0.into(),
+		data: Vec::new(),
+	}.sign(s2.secret(), None);
+	net.peer(1).chain.miner().import_own_transaction(&net.peer(1).chain, tx2).unwrap();
+	net.peer(1).chain.engine().step();
+	net.peer(1).chain.miner().update_sealing(&net.peer(1).chain);
+	net.sync();
+	assert_eq!(net.peer(0).chain.chain_info().best_block_number, 2);
+	assert_eq!(net.peer(1).chain.chain_info().best_block_number, 2);
+}
