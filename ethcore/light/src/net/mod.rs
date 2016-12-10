@@ -723,8 +723,8 @@ impl LightProtocol {
 
 		let cur_buffer = peer.refund(&self.flow_params, max_cost - actual_cost);
 		io.respond(packet::BLOCK_HEADERS, {
-			let mut stream = RlpStream::new_list(response.len() + 2);
-			stream.append(&req_id).append(&cur_buffer);
+			let mut stream = RlpStream::new_list(3);
+			stream.append(&req_id).append(&cur_buffer).begin_list(response.len());
 
 			for header in response {
 				stream.append_raw(&header, 1);
@@ -739,7 +739,7 @@ impl LightProtocol {
 	// Receive a response for block headers.
 	fn block_headers(&self, peer: &PeerId, io: &IoContext, raw: UntrustedRlp) -> Result<(), Error> {
 		let req_id = try!(self.pre_verify_response(peer, request::Kind::Headers, &raw));
-		let raw_headers: Vec<_> = raw.iter().skip(2).map(|x| x.as_raw().to_owned()).collect();
+		let raw_headers: Vec<_> = try!(raw.at(2)).iter().map(|x| x.as_raw().to_owned()).collect();
 
 		for handler in &self.handlers {
 			handler.on_block_headers(&Ctx {
@@ -769,7 +769,7 @@ impl LightProtocol {
 		let req_id: u64 = try!(data.val_at(0));
 
 		let req = request::Bodies {
-			block_hashes: try!(data.iter().skip(1).take(MAX_BODIES).map(|x| x.as_val()).collect())
+			block_hashes: try!(try!(data.at(1)).iter().take(MAX_BODIES).map(|x| x.as_val()).collect())
 		};
 
 		let max_cost = try!(peer.deduct_max(&self.flow_params, request::Kind::Bodies, req.block_hashes.len()));
@@ -782,8 +782,8 @@ impl LightProtocol {
 		let cur_buffer = peer.refund(&self.flow_params, max_cost - actual_cost);
 
 		io.respond(packet::BLOCK_BODIES, {
-			let mut stream = RlpStream::new_list(response.len() + 2);
-			stream.append(&req_id).append(&cur_buffer);
+			let mut stream = RlpStream::new_list(3);
+			stream.append(&req_id).append(&cur_buffer).begin_list(response.len());
 
 			for body in response {
 				stream.append_raw(&body, 1);
@@ -798,7 +798,7 @@ impl LightProtocol {
 	// Receive a response for block bodies.
 	fn block_bodies(&self, peer: &PeerId, io: &IoContext, raw: UntrustedRlp) -> Result<(), Error> {
 		let req_id = try!(self.pre_verify_response(peer, request::Kind::Bodies, &raw));
-		let raw_bodies: Vec<Bytes> = raw.iter().skip(2).map(|x| x.as_raw().to_owned()).collect();
+		let raw_bodies: Vec<Bytes> = try!(raw.at(2)).iter().map(|x| x.as_raw().to_owned()).collect();
 
 		for handler in &self.handlers {
 			handler.on_block_bodies(&Ctx {
@@ -828,7 +828,7 @@ impl LightProtocol {
 		let req_id: u64 = try!(data.val_at(0));
 
 		let req = request::Receipts {
-			block_hashes: try!(data.iter().skip(1).take(MAX_RECEIPTS).map(|x| x.as_val()).collect())
+			block_hashes: try!(try!(data.at(1)).iter().take(MAX_RECEIPTS).map(|x| x.as_val()).collect())
 		};
 
 		let max_cost = try!(peer.deduct_max(&self.flow_params, request::Kind::Receipts, req.block_hashes.len()));
@@ -841,8 +841,8 @@ impl LightProtocol {
 		let cur_buffer = peer.refund(&self.flow_params, max_cost - actual_cost);
 
 		io.respond(packet::RECEIPTS, {
-			let mut stream = RlpStream::new_list(response.len() + 2);
-			stream.append(&req_id).append(&cur_buffer);
+			let mut stream = RlpStream::new_list(3);
+			stream.append(&req_id).append(&cur_buffer).begin_list(response.len());
 
 			for receipts in response {
 				stream.append_raw(&receipts, 1);
@@ -857,9 +857,8 @@ impl LightProtocol {
 	// Receive a response for receipts.
 	fn receipts(&self, peer: &PeerId, io: &IoContext, raw: UntrustedRlp) -> Result<(), Error> {
 		let req_id = try!(self.pre_verify_response(peer, request::Kind::Receipts, &raw));
-		let raw_receipts: Vec<Vec<Receipt>> = try!(raw
+		let raw_receipts: Vec<Vec<Receipt>> = try!(try!(raw.at(2))
 			.iter()
-			.skip(2)
 			.map(|x| x.as_val())
 			.collect());
 
@@ -891,7 +890,7 @@ impl LightProtocol {
 		let req_id: u64 = try!(data.val_at(0));
 
 		let req = {
-			let requests: Result<Vec<_>, Error> = data.iter().skip(1).take(MAX_PROOFS).map(|x| {
+			let requests: Result<Vec<_>, Error> = try!(data.at(1)).iter().take(MAX_PROOFS).map(|x| {
 				Ok(request::StateProof {
 					block: try!(x.val_at(0)),
 					key1: try!(x.val_at(1)),
@@ -915,8 +914,8 @@ impl LightProtocol {
 		let cur_buffer = peer.refund(&self.flow_params, max_cost - actual_cost);
 
 		io.respond(packet::PROOFS, {
-			let mut stream = RlpStream::new_list(response.len() + 2);
-			stream.append(&req_id).append(&cur_buffer);
+			let mut stream = RlpStream::new_list(3);
+			stream.append(&req_id).append(&cur_buffer).begin_list(response.len());
 
 			for proof in response {
 				stream.append_raw(&proof, 1);
@@ -932,8 +931,7 @@ impl LightProtocol {
 	fn proofs(&self, peer: &PeerId, io: &IoContext, raw: UntrustedRlp) -> Result<(), Error> {
 		let req_id = try!(self.pre_verify_response(peer, request::Kind::StateProofs, &raw));
 
-		let raw_proofs: Vec<Vec<Bytes>> = raw.iter()
-			.skip(2)
+		let raw_proofs: Vec<Vec<Bytes>> = try!(raw.at(2)).iter()
 			.map(|x| x.iter().map(|node| node.as_raw().to_owned()).collect())
 			.collect();
 
@@ -965,7 +963,7 @@ impl LightProtocol {
 		let req_id: u64 = try!(data.val_at(0));
 
 		let req = {
-			let requests: Result<Vec<_>, Error> = data.iter().skip(1).take(MAX_CODES).map(|x| {
+			let requests: Result<Vec<_>, Error> = try!(data.at(1)).iter().take(MAX_CODES).map(|x| {
 				Ok(request::ContractCode {
 					block_hash: try!(x.val_at(0)),
 					account_key: try!(x.val_at(1)),
@@ -987,8 +985,8 @@ impl LightProtocol {
 		let cur_buffer = peer.refund(&self.flow_params, max_cost - actual_cost);
 
 		io.respond(packet::CONTRACT_CODES, {
-			let mut stream = RlpStream::new_list(response.len() + 2);
-			stream.append(&req_id).append(&cur_buffer);
+			let mut stream = RlpStream::new_list(3);
+			stream.append(&req_id).append(&cur_buffer).begin_list(response.len());
 
 			for code in response {
 				stream.append(&code);
@@ -1004,7 +1002,7 @@ impl LightProtocol {
 	fn contract_code(&self, peer: &PeerId, io: &IoContext, raw: UntrustedRlp) -> Result<(), Error> {
 		let req_id = try!(self.pre_verify_response(peer, request::Kind::Codes, &raw));
 
-		let raw_code: Vec<Bytes> = try!(raw.iter().skip(2).map(|x| x.as_val()).collect());
+		let raw_code: Vec<Bytes> = try!(try!(raw.at(2)).iter().map(|x| x.as_val()).collect());
 
 		for handler in &self.handlers { 
 			handler.on_code(&Ctx {
@@ -1034,7 +1032,7 @@ impl LightProtocol {
 		let req_id: u64 = try!(data.val_at(0));
 
 		let req = {
-			let requests: Result<Vec<_>, Error> = data.iter().skip(1).take(MAX_PROOFS).map(|x| {
+			let requests: Result<Vec<_>, Error> = try!(data.at(1)).iter().take(MAX_PROOFS).map(|x| {
 				Ok(request::HeaderProof {
 					cht_number: try!(x.val_at(0)),
 					block_number: try!(x.val_at(1)),
@@ -1057,8 +1055,8 @@ impl LightProtocol {
 		let cur_buffer = peer.refund(&self.flow_params, max_cost - actual_cost);
 
 		io.respond(packet::HEADER_PROOFS, {
-			let mut stream = RlpStream::new_list(response.len() + 2);
-			stream.append(&req_id).append(&cur_buffer);
+			let mut stream = RlpStream::new_list(3);
+			stream.append(&req_id).append(&cur_buffer).begin_list(response.len());
 
 			for proof in response {
 				stream.append_raw(&proof, 1);
@@ -1080,7 +1078,7 @@ impl LightProtocol {
 		}
 		
 		let req_id = try!(self.pre_verify_response(peer, request::Kind::HeaderProofs, &raw));
-		let raw_proofs: Vec<_> = try!(raw.iter().skip(2).map(decode_res).collect());
+		let raw_proofs: Vec<_> = try!(try!(raw.at(2)).iter().map(decode_res).collect());
 
 		for handler in &self.handlers { 
 			handler.on_header_proofs(&Ctx {
@@ -1154,8 +1152,8 @@ fn encode_request(req: &Request, req_id: usize) -> Vec<u8> {
 			stream.out()
 		}
 		Request::Bodies(ref request) => {
-			let mut stream = RlpStream::new_list(request.block_hashes.len() + 1);
-			stream.append(&req_id);
+			let mut stream = RlpStream::new_list(2);
+			stream.append(&req_id).begin_list(request.block_hashes.len());
 
 			for hash in &request.block_hashes {
 				stream.append(hash);
@@ -1164,8 +1162,8 @@ fn encode_request(req: &Request, req_id: usize) -> Vec<u8> {
 			stream.out()
 		}
 		Request::Receipts(ref request) => {
-			let mut stream = RlpStream::new_list(request.block_hashes.len() + 1);
-			stream.append(&req_id);
+			let mut stream = RlpStream::new_list(2);
+			stream.append(&req_id).begin_list(request.block_hashes.len());
 
 			for hash in &request.block_hashes {
 				stream.append(hash);
@@ -1174,8 +1172,8 @@ fn encode_request(req: &Request, req_id: usize) -> Vec<u8> {
 			stream.out()
 		}
 		Request::StateProofs(ref request) => {
-			let mut stream = RlpStream::new_list(request.requests.len() + 1);
-			stream.append(&req_id);
+			let mut stream = RlpStream::new_list(2);
+			stream.append(&req_id).begin_list(request.requests.len());
 
 			for proof_req in &request.requests {
 				stream.begin_list(4)
@@ -1193,8 +1191,8 @@ fn encode_request(req: &Request, req_id: usize) -> Vec<u8> {
 			stream.out()
 		}
 		Request::Codes(ref request) => {
-			let mut stream = RlpStream::new_list(request.code_requests.len() + 1);
-			stream.append(&req_id);
+			let mut stream = RlpStream::new_list(2);
+			stream.append(&req_id).begin_list(request.code_requests.len());
 
 			for code_req in &request.code_requests {
 				stream.begin_list(2)
@@ -1205,8 +1203,8 @@ fn encode_request(req: &Request, req_id: usize) -> Vec<u8> {
 			stream.out()
 		}
 		Request::HeaderProofs(ref request) => {
-			let mut stream = RlpStream::new_list(request.requests.len() + 1);
-			stream.append(&req_id);
+			let mut stream = RlpStream::new_list(2);
+			stream.append(&req_id).begin_list(request.requests.len());
 
 			for proof_req in &request.requests {
 				stream.begin_list(3)
