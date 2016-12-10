@@ -32,20 +32,20 @@ export default class DetailsStep extends Component {
   static propTypes = {
     accounts: PropTypes.object.isRequired,
     contract: PropTypes.object.isRequired,
-    amount: PropTypes.string,
-    amountError: PropTypes.string,
     onAmountChange: PropTypes.func.isRequired,
     onFromAddressChange: PropTypes.func.isRequired,
     onValueChange: PropTypes.func.isRequired,
     values: PropTypes.array.isRequired,
     valuesError: PropTypes.array.isRequired,
 
+    amount: PropTypes.string,
+    amountError: PropTypes.string,
     balances: PropTypes.object,
     fromAddress: PropTypes.string,
     fromAddressError: PropTypes.string,
-    gasEdit: PropTypes.bool,
     func: PropTypes.object,
     funcError: PropTypes.string,
+    gasEdit: PropTypes.bool,
     onFuncChange: PropTypes.func,
     onGasEditClick: PropTypes.func,
     warning: PropTypes.string

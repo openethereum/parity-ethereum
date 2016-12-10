@@ -89,7 +89,7 @@ class Addresses extends Component {
 
     if (hasContacts && Object.keys(balances).length === 0) {
       return (
-        <Loading size={ 3 } />
+        <Loading />
       );
     }
 

@@ -158,7 +158,7 @@ export default class AddressSelect extends Component {
       return null;
     }
 
-    const ethToken = balance.tokens.find((t) => t.token.tag.toLowerCase() === 'eth');
+    const ethToken = balance.tokens.find((tok) => tok.token && tok.token.tag && tok.token.tag.toLowerCase() === 'eth');
 
     if (!ethToken) {
       return null;
@@ -187,7 +187,6 @@ export default class AddressSelect extends Component {
         <IdentityName
           className={ styles.name }
           address={ address } />
-
         { balance }
       </div>
     );
