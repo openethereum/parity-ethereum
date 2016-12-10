@@ -93,6 +93,7 @@ pub struct RunCmd {
 	pub no_periodic_snapshot: bool,
 	pub check_seal: bool,
 	pub download_old_blocks: bool,
+	pub serve_light: bool,
 	pub verifier_settings: VerifierSettings,
 }
 
@@ -187,6 +188,11 @@ pub fn execute(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<(), String> {
 	);
 	info!("Operating mode: {}", Colour::White.bold().paint(format!("{}", mode)));
 
+	if cmd.serve_light {
+		info!("Configured to serve light client peers. Please note this feature is {}.",
+			Colour::White.bold().paint("experimental".to_string()));
+	}
+
 	// display warning about using experimental journaldb alorithm
 	if !algorithm.is_stable() {
 		warn!("Your chosen strategy is {}! You can re-run with --pruning to change.", Colour::Red.bold().paint("unstable"));
@@ -206,6 +212,7 @@ pub fn execute(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<(), String> {
 	sync_config.fork_block = spec.fork_block();
 	sync_config.warp_sync = cmd.warp_sync;
 	sync_config.download_old_blocks = cmd.download_old_blocks;
+	sync_config.serve_light = cmd.serve_light;
 
 	let passwords = try!(passwords_from_files(&cmd.acc_conf.password_files));
 
@@ -283,7 +290,13 @@ pub fn execute(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<(), String> {
 
 	// create sync object
 	let (sync_provider, manage_network, chain_notify) = try!(modules::sync(
-		&mut hypervisor, sync_config, net_conf.into(), client.clone(), snapshot_service.clone(), &cmd.logger_config,
+		&mut hypervisor, 
+		sync_config, 
+		net_conf.into(), 
+		client.clone(), 
+		snapshot_service.clone(), 
+		client.clone(), 
+		&cmd.logger_config,
 	).map_err(|e| format!("Sync error: {}", e)));
 
 	service.add_notify(chain_notify.clone());
