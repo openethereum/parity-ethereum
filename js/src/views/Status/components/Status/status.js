@@ -20,7 +20,7 @@ import React, { Component, PropTypes } from 'react';
 
 import { Container, ContainerTitle, Input } from '~/ui';
 
-import MiningSettings from '../miningSettings';
+import MiningSettings from '../MiningSettings';
 
 import styles from './status.css';
 
