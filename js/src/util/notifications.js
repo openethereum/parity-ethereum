@@ -39,7 +39,7 @@ export function notifyTransaction (account, token, _value, onClick) {
       x16: icon,
       x32: icon
     },
-    timeout: 5000,
+    timeout: 20000,
     onClick: onClick || noop
   });
 }
