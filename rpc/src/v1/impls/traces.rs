@@ -19,7 +19,7 @@
 use std::sync::{Weak, Arc};
 use jsonrpc_core::*;
 use rlp::{UntrustedRlp, View};
-use ethcore::client::{BlockChainClient, CallAnalytics, TransactionID, TraceId};
+use ethcore::client::{BlockChainClient, CallAnalytics, TransactionId, TraceId};
 use ethcore::miner::MinerService;
 use ethcore::transaction::{Transaction as EthTransaction, SignedTransaction, Action};
 use v1::traits::Traces;
@@ -100,7 +100,7 @@ impl<C, M> Traces for TracesClient<C, M> where C: BlockChainClient + 'static, M:
 		from_params::<(H256,)>(params)
 			.and_then(|(transaction_hash,)| {
 				let client = take_weak!(self.client);
-				let traces = client.transaction_traces(TransactionID::Hash(transaction_hash.into()));
+				let traces = client.transaction_traces(TransactionId::Hash(transaction_hash.into()));
 				let traces = traces.map_or_else(Vec::new, |traces| traces.into_iter().map(LocalizedTrace::from).collect());
 				Ok(to_value(&traces))
 			})
@@ -112,7 +112,7 @@ impl<C, M> Traces for TracesClient<C, M> where C: BlockChainClient + 'static, M:
 			.and_then(|(transaction_hash, address)| {
 				let client = take_weak!(self.client);
 				let id = TraceId {
-					transaction: TransactionID::Hash(transaction_hash.into()),
+					transaction: TransactionId::Hash(transaction_hash.into()),
 					address: address.into_iter().map(|i| i.value()).collect()
 				};
 				let trace = client.trace(id);
@@ -153,7 +153,7 @@ impl<C, M> Traces for TracesClient<C, M> where C: BlockChainClient + 'static, M:
 		try!(self.active());
 		from_params::<(H256, _)>(params)
 			.and_then(|(transaction_hash, flags)| {
-				match take_weak!(self.client).replay(TransactionID::Hash(transaction_hash.into()), to_call_analytics(flags)) {
+				match take_weak!(self.client).replay(TransactionId::Hash(transaction_hash.into()), to_call_analytics(flags)) {
 					Ok(e) => Ok(to_value(&TraceResults::from(e))),
 					_ => Ok(Value::Null),
 				}

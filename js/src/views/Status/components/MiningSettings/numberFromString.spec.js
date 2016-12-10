@@ -16,7 +16,7 @@
 
 import { numberFromString } from './numberFromString';
 
-describe('NUMBER FROM STRING', () => {
+describe('views/Status/components/MiningSettings/numberFromString', () => {
   it('should convert string to number', () => {
     expect(numberFromString('12345'), 12345);
   });

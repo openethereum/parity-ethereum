@@ -22,7 +22,7 @@ import '../../../../environment/tests';
 
 import CallsToolbar from './CallsToolbar';
 
-describe('components/CallsToolbar', () => {
+describe('views/Status/components/CallsToolbar', () => {
   const callEl = { offsetTop: 0 };
   const containerEl = { scrollTop: 0, clientHeight: 0, scrollHeight: 999 };
 

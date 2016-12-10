@@ -20,6 +20,7 @@ const path = require('path');
 const WebpackErrorNotificationPlugin = require('webpack-error-notification');
 const CopyWebpackPlugin = require('copy-webpack-plugin');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
+const ExtractTextPlugin = require('extract-text-webpack-plugin');
 
 const Shared = require('./shared');
 const DAPPS = require('../src/dapps');
@@ -41,7 +42,7 @@ module.exports = {
   output: {
     publicPath: '/',
     path: path.join(__dirname, '../', DEST),
-    filename: '[name].[hash].js'
+    filename: '[name].[hash:10].js'
   },
 
   module: {
@@ -85,13 +86,20 @@ module.exports = {
       {
         test: /\.css$/,
         include: [ /src/ ],
+        // exclude: [ /src\/dapps/ ],
+        loader: isProd ? ExtractTextPlugin.extract([
+          // 'style-loader',
+          'css-loader?modules&sourceMap&importLoaders=1&localIdentName=[name]__[local]___[hash:base64:5]',
+          'postcss-loader'
+        ]) : undefined,
         // use: [ 'happypack/loader?id=css' ]
-        use: [
+        use: isProd ? undefined : [
           'style-loader',
           'css-loader?modules&sourceMap&importLoaders=1&localIdentName=[name]__[local]___[hash:base64:5]',
           'postcss-loader'
         ]
       },
+
       {
         test: /\.css$/,
         exclude: [ /src/ ],
@@ -99,11 +107,15 @@ module.exports = {
       },
       {
         test: /\.(png|jpg)$/,
-        use: [ 'file-loader?name=[name].[hash].[ext]' ]
+        use: [ 'file-loader?&name=assets/[name].[hash:10].[ext]' ]
       },
       {
-        test: /\.(woff(2)|ttf|eot|svg|otf)(\?v=[0-9]\.[0-9]\.[0-9])?$/,
-        use: [ 'file-loader' ]
+        test: /\.(woff(2)|ttf|eot|otf)(\?v=[0-9]\.[0-9]\.[0-9])?$/,
+        use: [ 'file-loader?name=fonts/[name][hash:10].[ext]' ]
+      },
+      {
+        test: /\.svg(\?v=[0-9]\.[0-9]\.[0-9])?$/,
+        use: [ 'file-loader?name=assets/[name].[hash:10].[ext]' ]
       }
     ],
     noParse: [
@@ -153,11 +165,18 @@ module.exports = {
     if (!isProd) {
       plugins.push(
         new webpack.optimize.CommonsChunkPlugin({
-          filename: 'commons.[hash].js',
+          filename: 'commons.[hash:10].js',
           name: 'commons',
           minChunks: Infinity
         })
       );
+    }
+
+    if (isProd) {
+      plugins.push(new ExtractTextPlugin({
+        filename: 'styles/[name].[hash:10].css',
+        allChunks: true
+      }));
     }
 
     return plugins;
