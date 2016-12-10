@@ -23,7 +23,6 @@ import TransactionPendingFormReject from './TransactionPendingFormReject';
 import styles from './TransactionPendingForm.css';
 
 export default class TransactionPendingForm extends Component {
-
   static propTypes = {
     address: PropTypes.string.isRequired,
     isSending: PropTypes.bool.isRequired,

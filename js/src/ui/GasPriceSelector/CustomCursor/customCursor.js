@@ -27,7 +27,7 @@ export default class CustomCursor extends Component {
     height: PropTypes.number,
     onClick: PropTypes.func,
     getIndex: PropTypes.func,
-    counts: PropTypes.array,
+    counts: PropTypes.object,
     yDomain: PropTypes.array
   }
 

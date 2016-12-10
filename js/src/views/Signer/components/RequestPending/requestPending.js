@@ -37,6 +37,10 @@ export default class RequestPending extends Component {
     store: PropTypes.object.isRequired
   };
 
+  static defaultProps = {
+    isSending: false
+  };
+
   onConfirm = data => {
     const { onConfirm, payload } = this.props;
 

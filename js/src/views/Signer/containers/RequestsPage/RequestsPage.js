@@ -106,14 +106,14 @@ class RequestsPage extends Component {
 
   renderPending = (data) => {
     const { actions, gasLimit, isTest } = this.props;
-    const { payload, id, isSending, date } = data;
+    const { date, id, isSending, payload } = data;
 
     return (
       <RequestPending
         date={ date }
         gasLimit={ gasLimit }
         id={ id }
-        isSending={ isSending || false }
+        isSending={ isSending }
         isTest={ isTest }
         key={ id }
         onConfirm={ actions.startConfirmRequest }

@@ -77,7 +77,7 @@ export default class TransactionPending extends Component {
   }
 
   renderTransaction () {
-    const { className, id, isTest, store, transaction } = this.props;
+    const { className, id, isSending, isTest, store, transaction } = this.props;
     const { totalValue } = this.state;
     const { from, value } = transaction;
 
@@ -97,6 +97,7 @@ export default class TransactionPending extends Component {
           value={ value } />
         <TransactionPendingForm
           address={ from }
+          isSending={ isSending }
           onConfirm={ this.onConfirm }
           onReject={ this.onReject } />
       </div>
