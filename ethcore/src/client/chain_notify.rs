@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use ipc::IpcConfig;
-use util::{H256, H512};
+use util::H256;
 
 /// Represents what has to be handled by actor listening to chain events
 #[ipc]
@@ -41,11 +41,10 @@ pub trait ChainNotify : Send + Sync {
 		// does nothing by default
 	}
 
-	/// fires when new transactions are imported
-	fn transactions_imported(&self,
+	/// fires when new transactions are received from a peer
+	fn transactions_received(&self,
 		_hashes: Vec<H256>,
-		_peer_id: Option<H512>,
-		_block_num: u64,
+		_peer_id: usize,
 	) {
 		// does nothing by default
 	}

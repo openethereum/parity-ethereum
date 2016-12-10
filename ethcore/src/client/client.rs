@@ -25,7 +25,7 @@ use time::precise_time_ns;
 use util::{Bytes, PerfTimer, Itertools, Mutex, RwLock};
 use util::{journaldb, TrieFactory, Trie};
 use util::trie::TrieSpec;
-use util::{U256, H256, H512, Address, H2048, Uint, FixedHash};
+use util::{U256, H256, Address, H2048, Uint, FixedHash};
 use util::kvdb::*;
 
 // other
@@ -554,15 +554,14 @@ impl Client {
 	}
 
 	/// Import transactions from the IO queue
-	pub fn import_queued_transactions(&self, transactions: &[Bytes], peer_id: Option<H512>) -> usize {
+	pub fn import_queued_transactions(&self, transactions: &[Bytes], peer_id: usize) -> usize {
 		trace!(target: "external_tx", "Importing queued");
 		let _timer = PerfTimer::new("import_queued_transactions");
 		self.queue_transactions.fetch_sub(transactions.len(), AtomicOrdering::SeqCst);
 		let txs: Vec<SignedTransaction> = transactions.iter().filter_map(|bytes| UntrustedRlp::new(bytes).as_val().ok()).collect();
 		let hashes: Vec<_> = txs.iter().map(|tx| tx.hash()).collect();
-		let block_number = self.chain_info().best_block_number;
 		self.notify(|notify| {
-			notify.transactions_imported(hashes.clone(), peer_id.clone(), block_number);
+			notify.transactions_received(hashes.clone(), peer_id);
 		});
 		let results = self.miner.import_external_transactions(self, txs);
 		results.len()
@@ -1170,14 +1169,14 @@ impl BlockChainClient for Client {
 		(*self.build_last_hashes(self.chain.read().best_block_hash())).clone()
 	}
 
-	fn queue_transactions(&self, transactions: Vec<Bytes>, node_id: Option<H512>) {
+	fn queue_transactions(&self, transactions: Vec<Bytes>, peer_id: usize) {
 		let queue_size = self.queue_transactions.load(AtomicOrdering::Relaxed);
 		trace!(target: "external_tx", "Queue size: {}", queue_size);
 		if queue_size > MAX_TX_QUEUE_SIZE {
 			debug!("Ignoring {} transactions: queue is full", transactions.len());
 		} else {
 			let len = transactions.len();
-			match self.io_channel.lock().send(ClientIoMessage::NewTransactions(transactions, node_id)) {
+			match self.io_channel.lock().send(ClientIoMessage::NewTransactions(transactions, peer_id)) {
 				Ok(_) => {
 					self.queue_transactions.fetch_add(len, AtomicOrdering::SeqCst);
 				}

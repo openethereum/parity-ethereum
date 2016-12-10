@@ -21,7 +21,7 @@ use util::Bytes;
 use network::{NetworkProtocolHandler, NetworkService, NetworkContext, PeerId, ProtocolId,
 	NetworkConfiguration as BasicNetworkConfiguration, NonReservedPeerMode, NetworkError,
 	AllowIP as NetworkAllowIP};
-use util::{U256, H256, H512};
+use util::{U256, H256};
 use io::{TimerToken};
 use ethcore::client::{BlockChainClient, ChainNotify};
 use ethcore::snapshot::SnapshotService;
@@ -234,9 +234,8 @@ impl ChainNotify for EthSync {
 		self.network.stop().unwrap_or_else(|e| warn!("Error stopping network: {:?}", e));
 	}
 
-	fn transactions_imported(&self, hashes: Vec<H256>, peer_id: Option<H512>, block_number: u64) {
-		let mut sync = self.handler.sync.write();
-		sync.transactions_imported(hashes, peer_id, block_number);
+	fn transactions_received(&self, hashes: Vec<H256>, peer_id: PeerId) {
+		self.handler.sync.write().transactions_received(hashes, peer_id);
 	}
 }
 
