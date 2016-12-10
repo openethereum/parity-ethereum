@@ -347,7 +347,6 @@ mod tests {
 	use tests::helpers::*;
 	use account_provider::AccountProvider;
 	use spec::Spec;
-	use std::time::UNIX_EPOCH;
 
 	#[test]
 	fn has_valid_metadata() {
@@ -442,13 +441,30 @@ mod tests {
 		let engine = Spec::new_test_round().engine;
 
 		let signature = tap.sign(addr, Some("0".into()), header.bare_hash()).unwrap();
-		let time = UNIX_EPOCH.elapsed().unwrap().as_secs();
 		// Two authorities.
-		let mut step =  time - time % 2;
-		header.set_seal(vec![encode(&step).to_vec(), encode(&(&*signature as &[u8])).to_vec()]);
+		// Spec starts with step 2.
+		header.set_seal(vec![encode(&2usize).to_vec(), encode(&(&*signature as &[u8])).to_vec()]);
 		assert!(engine.verify_block_seal(&header).is_err());
-		step = step + 1;
-		header.set_seal(vec![encode(&step).to_vec(), encode(&(&*signature as &[u8])).to_vec()]);
+		header.set_seal(vec![encode(&1usize).to_vec(), encode(&(&*signature as &[u8])).to_vec()]);
 		assert!(engine.verify_block_seal(&header).is_ok());
+	}
+
+	#[test]
+	fn rejects_future_block() {
+		let mut header: Header = Header::default();
+		let tap = AccountProvider::transient_provider();
+		let addr = tap.insert_account("0".sha3(), "0").unwrap();
+
+		header.set_author(addr);
+
+		let engine = Spec::new_test_round().engine;
+
+		let signature = tap.sign(addr, Some("0".into()), header.bare_hash()).unwrap();
+		// Two authorities.
+		// Spec starts with step 2.
+		header.set_seal(vec![encode(&1usize).to_vec(), encode(&(&*signature as &[u8])).to_vec()]);
+		assert!(engine.verify_block_seal(&header).is_ok());
+		header.set_seal(vec![encode(&5usize).to_vec(), encode(&(&*signature as &[u8])).to_vec()]);
+		assert!(engine.verify_block_seal(&header).is_err());
 	}
 }

@@ -21,7 +21,7 @@ use std::collections::HashSet;
 use jsonrpc_core::*;
 use ethcore::miner::MinerService;
 use ethcore::filter::Filter as EthcoreFilter;
-use ethcore::client::{BlockChainClient, BlockID};
+use ethcore::client::{BlockChainClient, BlockId};
 use util::Mutex;
 use v1::traits::EthFilter;
 use v1::types::{BlockNumber, Index, Filter, FilterChanges, Log, H256 as RpcH256, U256 as RpcU256};
@@ -98,7 +98,7 @@ impl<C, M> EthFilter for EthFilterClient<C, M>
 					// + 1, cause we want to return hashes including current block hash.
 					let current_number = client.chain_info().best_block_number + 1;
 					let hashes = (*block_number..current_number).into_iter()
-						.map(BlockID::Number)
+						.map(BlockId::Number)
 						.filter_map(|id| client.block_hash(id))
 						.map(Into::into)
 						.collect::<Vec<RpcH256>>();
@@ -140,10 +140,10 @@ impl<C, M> EthFilter for EthFilterClient<C, M>
 
 					// build appropriate filter
 					let mut filter: EthcoreFilter = filter.clone().into();
-					filter.from_block = BlockID::Number(*block_number);
-					filter.to_block = BlockID::Latest;
+					filter.from_block = BlockId::Number(*block_number);
+					filter.to_block = BlockId::Latest;
 
-					// retrieve logs in range from_block..min(BlockID::Latest..to_block)
+					// retrieve logs in range from_block..min(BlockId::Latest..to_block)
 					let mut logs = client.logs(filter.clone())
 						.into_iter()
 						.map(From::from)
