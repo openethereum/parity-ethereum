@@ -19,7 +19,7 @@
 
 use ethcore::blockchain_info::BlockChainInfo;
 use ethcore::client::{BlockChainClient, EachBlockWith, TestBlockChainClient};
-use ethcore::ids::BlockID;
+use ethcore::ids::BlockId;
 use ethcore::transaction::SignedTransaction;
 use network::PeerId;
 
