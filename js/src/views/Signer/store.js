@@ -30,12 +30,6 @@ export default class Store {
     }
   }
 
-  @action unsubscribe () {
-    if (this._timeoutId) {
-      clearTimeout(this._timeoutId);
-    }
-  }
-
   @action setBalance = (address, balance) => {
     this.setBalances({ [address]: balance });
   }
@@ -47,6 +41,12 @@ export default class Store {
   @action setLocalHashes = (localHashes) => {
     if (!isEqual(localHashes, this.localHashes)) {
       this.localHashes = localHashes;
+    }
+  }
+
+  @action unsubscribe () {
+    if (this._timeoutId) {
+      clearTimeout(this._timeoutId);
     }
   }
 

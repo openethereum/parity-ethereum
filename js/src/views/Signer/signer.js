@@ -23,8 +23,7 @@ export default class Signer extends Component {
   render () {
     return (
       <div>
-        <Actionbar
-          title='Trusted Signer' />
+        <Actionbar title='Trusted Signer' />
         <RequestsPage />
       </div>
     );
