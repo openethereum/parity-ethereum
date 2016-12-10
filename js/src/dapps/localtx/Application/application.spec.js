@@ -21,7 +21,7 @@ import '../../../environment/tests';
 
 import Application from './application';
 
-describe('localtx/Application', () => {
+describe('dapps/localtx/Application', () => {
   describe('rendering', () => {
     it('renders without crashing', () => {
       const rendered = shallow(<Application />);

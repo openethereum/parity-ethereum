@@ -17,7 +17,7 @@
 import BigNumber from 'bignumber.js';
 import { getShortData, getFee, getTotalValue } from './transaction';
 
-describe('util/transaction', () => {
+describe('views/Signer/components/util/transaction', () => {
   describe('getEstimatedMiningTime', () => {
     it('should return estimated mining time', () => {
     });

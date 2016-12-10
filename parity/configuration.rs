@@ -282,6 +282,7 @@ impl Configuration {
 				check_seal: !self.args.flag_no_seal_check,
 				download_old_blocks: !self.args.flag_no_ancient_blocks,
 				require_consensus: !self.args.flag_no_consensus,
+				serve_light: self.args.flag_serve_light,
 				verifier_settings: verifier_settings,
 			};
 			Cmd::Run(run_cmd)
@@ -959,6 +960,7 @@ mod tests {
 			check_seal: true,
 			download_old_blocks: true,
 			require_consensus: true,
+			serve_light: false,
 			verifier_settings: Default::default(),
 		}));
 	}

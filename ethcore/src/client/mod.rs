@@ -31,7 +31,9 @@ pub use self::config::{Mode, ClientConfig, UpdatePolicy, UpdateFilter, DatabaseC
 pub use self::error::Error;
 pub use self::test_client::{TestBlockChainClient, EachBlockWith};
 pub use self::chain_notify::ChainNotify;
-pub use self::traits::{BlockChainClient, MiningBlockChainClient, ProvingBlockChainClient};
+pub use self::traits::{BlockChainClient, MiningBlockChainClient};
+
+pub use self::traits::ProvingBlockChainClient;
 
 pub use types::ids::*;
 pub use types::trace_filter::Filter as TraceFilter;

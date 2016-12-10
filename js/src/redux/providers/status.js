@@ -59,9 +59,6 @@ export default class Status {
           .catch((error) => {
             console.warn('status._subscribeBlockNumber', 'getBlockByNumber', error);
           });
-      })
-      .then((subscriptionId) => {
-        console.log('status._subscribeBlockNumber', 'subscriptionId', subscriptionId);
       });
   }
 
