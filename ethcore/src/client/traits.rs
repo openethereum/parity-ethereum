@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::collections::BTreeMap;
-use util::{U256, Address, H256, H2048, Bytes, Itertools};
+use util::{U256, Address, H256, H512, H2048, Bytes, Itertools};
 use util::stats::Histogram;
 use blockchain::TreeRoute;
 use verification::queue::QueueInfo as BlockQueueInfo;
@@ -200,7 +200,7 @@ pub trait BlockChainClient : Sync + Send {
 	fn last_hashes(&self) -> LastHashes;
 
 	/// Queue transactions for importing.
-	fn queue_transactions(&self, transactions: Vec<Bytes>);
+	fn queue_transactions(&self, transactions: Vec<Bytes>, peer_id: Option<H512>);
 
 	/// list all transactions
 	fn pending_transactions(&self) -> Vec<SignedTransaction>;
@@ -294,7 +294,7 @@ pub trait ProvingBlockChainClient: BlockChainClient {
 	/// The key is the keccak hash of the account's address.
 	/// Returns a vector of raw trie nodes (in order from the root) proving the query.
 	/// Nodes after `from_level` may be omitted.
-	/// An empty vector indicates unservable query.	
+	/// An empty vector indicates unservable query.
 	fn prove_account(&self, key1: H256, from_level: u32, id: BlockID) -> Vec<Bytes>;
 
 	/// Get code by address hash.

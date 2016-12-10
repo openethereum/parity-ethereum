@@ -34,7 +34,7 @@ describe('dapps/localtx/Transaction', () => {
     it('renders without crashing', () => {
       const transaction = {
         hash: '0x1234567890',
-        nonce: 15,
+        nonce: new BigNumber(15),
         gasPrice: new BigNumber(10),
         gas: new BigNumber(10)
       };

@@ -432,6 +432,13 @@ impl ChainSync {
 		self.transactions_stats.stats()
 	}
 
+	/// Updates statistics for imported transactions.
+	pub fn transactions_imported(&mut self, hashes: Vec<H256>, peer_id: Option<H512>, block_number: u64) {
+		for hash in hashes {
+			self.transactions_stats.received(hash, peer_id, block_number);
+		}
+	}
+
 	/// Abort all sync activity
 	pub fn abort(&mut self, io: &mut SyncIo) {
 		self.reset_and_continue(io);
@@ -1409,7 +1416,8 @@ impl ChainSync {
 			let tx = rlp.as_raw().to_vec();
 			transactions.push(tx);
 		}
-		io.chain().queue_transactions(transactions);
+		let id = io.peer_session_info(peer_id).and_then(|info| info.id);
+		io.chain().queue_transactions(transactions, id);
 		Ok(())
 	}
 

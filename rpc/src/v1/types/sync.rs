@@ -127,6 +127,9 @@ pub struct TransactionStats {
 	/// Peers this transaction was propagated to with count.
 	#[serde(rename="propagatedTo")]
 	pub propagated_to: BTreeMap<H512, usize>,
+	/// Peers that propagated this transaction back.
+	#[serde(rename="receivedFrom")]
+	pub received_from: BTreeMap<H512, usize>,
 }
 
 impl From<SyncPeerInfo> for PeerInfo {
@@ -157,7 +160,11 @@ impl From<SyncTransactionStats> for TransactionStats {
 			propagated_to: s.propagated_to
 				.into_iter()
 				.map(|(id, count)| (id.into(), count))
-				.collect()
+				.collect(),
+			received_from: s.received_from
+				.into_iter()
+				.map(|(id, count)| (id.into(), count))
+				.collect(),
 		}
 	}
 }
@@ -208,10 +215,13 @@ mod tests {
 			first_seen: 100,
 			propagated_to: map![
 				10.into() => 50
-			]
+			],
+			received_from: map![
+				1.into() => 1000
+			],
 		};
 
 		let serialized = serde_json::to_string(&stats).unwrap();
-		assert_eq!(serialized, r#"{"firstSeen":100,"propagatedTo":{"0x0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000a":50}}"#)
+		assert_eq!(serialized, r#"{"firstSeen":100,"propagatedTo":{"0x0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000a":50},"receivedFrom":{"0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001":1000}}"#)
 	}
 }
