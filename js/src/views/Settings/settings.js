@@ -46,7 +46,7 @@ export default class Settings extends Component {
     }
 
     return (
-      <div className={ styles.layout }>
+      <div>
         <Actionbar
           className={ styles.bar }
           title={
@@ -69,16 +69,20 @@ export default class Settings extends Component {
   renderTab (hash, section, icon) {
     return (
       <Tab
-        className={ hash === section ? styles.tabactive : styles.tab }
-        value={ section }
-        key={ section }
+        className={
+          hash === section
+            ? styles.tabactive
+            : styles.tab
+        }
         icon={ icon }
+        key={ section }
         label={
           <div className={ styles.menu }>
             <FormattedMessage id={ `settings.${section}.label` } />
           </div>
         }
-        onActive={ this.onActivate(section) } />
+        onActive={ this.onActivate(section) }
+        value={ section } />
     );
   }
 

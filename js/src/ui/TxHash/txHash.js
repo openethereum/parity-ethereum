@@ -20,7 +20,7 @@ import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 import { LinearProgress } from 'material-ui';
 
-import { txLink } from '../../3rdparty/etherscan/links';
+import { txLink } from '~/3rdparty/etherscan/links';
 import ShortenedHash from '../ShortenedHash';
 
 import styles from './txHash.css';

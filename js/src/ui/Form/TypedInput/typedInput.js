@@ -22,12 +22,11 @@ import IconButton from 'material-ui/IconButton';
 import AddIcon from 'material-ui/svg-icons/content/add';
 import RemoveIcon from 'material-ui/svg-icons/content/remove';
 
+import { fromWei, toWei } from '~/api/util/wei';
 import Input from '~/ui/Form/Input';
 import InputAddressSelect from '~/ui/Form/InputAddressSelect';
 import Select from '~/ui/Form/Select';
-
 import { ABI_TYPES } from '~/util/abi';
-import { fromWei, toWei } from '~/api/util/wei';
 
 import styles from './typedInput.css';
 
@@ -54,13 +53,13 @@ export default class TypedInput extends Component {
   };
 
   state = {
-    isEth: true,
+    isEth: false,
     ethValue: 0
   };
 
-  componentDidMount () {
+  componentWillMount () {
     if (this.props.isEth && this.props.value) {
-      this.setState({ ethValue: fromWei(this.props.value) });
+      this.setState({ isEth: true, ethValue: fromWei(this.props.value) });
     }
   }
 
@@ -165,28 +164,32 @@ export default class TypedInput extends Component {
     }
 
     if (type === ABI_TYPES.INT) {
-      return this.renderNumber();
+      return this.renderEth();
     }
 
     if (type === ABI_TYPES.FIXED) {
-      return this.renderNumber();
+      return this.renderFloat();
     }
 
     return this.renderDefault();
   }
 
   renderEth () {
-    const { ethValue } = this.state;
+    const { ethValue, isEth } = this.state;
 
     const value = ethValue && typeof ethValue.toNumber === 'function'
       ? ethValue.toNumber()
       : ethValue;
 
+    const input = isEth
+      ? this.renderFloat(value, this.onEthValueChange)
+      : this.renderInteger(value, this.onEthValueChange);
+
     return (
       <div className={ styles.ethInput }>
         <div className={ styles.input }>
-          { this.renderNumber(value, this.onEthValueChange) }
-          { this.state.isEth ? (<div className={ styles.label }>ETH</div>) : null }
+          { input }
+          { isEth ? (<div className={ styles.label }>ETH</div>) : null }
         </div>
         <div className={ styles.toggle }>
           <Toggle
@@ -199,8 +202,9 @@ export default class TypedInput extends Component {
     );
   }
 
-  renderNumber (value = this.props.value, onChange = this.onChange) {
+  renderInteger (value = this.props.value, onChange = this.onChange) {
     const { label, error, param, hint, min, max } = this.props;
+
     const realValue = value && typeof value.toNumber === 'function'
       ? value.toNumber()
       : value;
@@ -213,6 +217,35 @@ export default class TypedInput extends Component {
         error={ error }
         onChange={ onChange }
         type='number'
+        step={ 1 }
+        min={ min !== null ? min : (param.signed ? null : 0) }
+        max={ max !== null ? max : null }
+      />
+    );
+  }
+
+  /**
+   * Decimal numbers have to be input via text field
+   * because of some react issues with input number fields.
+   * Once the issue is fixed, this could be a number again.
+   *
+   * @see https://github.com/facebook/react/issues/1549
+   */
+  renderFloat (value = this.props.value, onChange = this.onChange) {
+    const { label, error, param, hint, min, max } = this.props;
+
+    const realValue = value && typeof value.toNumber === 'function'
+      ? value.toNumber()
+      : value;
+
+    return (
+      <Input
+        label={ label }
+        hint={ hint }
+        value={ realValue }
+        error={ error }
+        onChange={ onChange }
+        type='text'
         min={ min !== null ? min : (param.signed ? null : 0) }
         max={ max !== null ? max : null }
       />

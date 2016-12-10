@@ -89,11 +89,13 @@ impl<C: 'static, M: 'static> Signer for SignerClient<C, M> where C: MiningBlockC
 		signer.peek(&id).map(|confirmation| {
 			let mut payload = confirmation.payload.clone();
 			// Modify payload
-			match (&mut payload, modification.gas_price) {
-				(&mut ConfirmationPayload::SendTransaction(ref mut request), Some(gas_price)) => {
+			if let ConfirmationPayload::SendTransaction(ref mut request) = payload {
+				if let Some(gas_price) = modification.gas_price {
 					request.gas_price = gas_price.into();
-				},
-				_ => {},
+				}
+				if let Some(gas) = modification.gas {
+					request.gas = gas.into();
+				}
 			}
 			// Execute
 			let result = dispatch::execute(&*client, &*miner, &*accounts, payload, Some(pass));

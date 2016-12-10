@@ -19,6 +19,7 @@ import { handleActions } from 'redux-actions';
 
 const initialState = {
   blockNumber: new BigNumber(0),
+  blockTimestamp: new Date(),
   devLogs: [],
   devLogsLevels: null,
   devLogsEnabled: false,

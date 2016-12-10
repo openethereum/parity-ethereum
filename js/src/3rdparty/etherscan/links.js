@@ -14,10 +14,14 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+export const url = (isTestnet = false) => {
+  return `https://${isTestnet ? 'testnet.' : ''}etherscan.io`;
+};
+
 export const txLink = (hash, isTestnet = false) => {
-  return `https://${isTestnet ? 'testnet.' : ''}etherscan.io/tx/${hash}`;
+  return `${url(isTestnet)}/tx/${hash}`;
 };
 
 export const addressLink = (address, isTestnet = false) => {
-  return `https://${isTestnet ? 'testnet.' : ''}etherscan.io/address/${address}`;
+  return `${url(isTestnet)}/address/${address}`;
 };

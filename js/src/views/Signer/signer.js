@@ -19,14 +19,11 @@ import React, { Component } from 'react';
 import { Actionbar } from '~/ui';
 import RequestsPage from './containers/RequestsPage';
 
-import styles from './signer.css';
-
 export default class Signer extends Component {
   render () {
     return (
-      <div className={ styles.signer }>
-        <Actionbar
-          title='Trusted Signer' />
+      <div>
+        <Actionbar title='Trusted Signer' />
         <RequestsPage />
       </div>
     );

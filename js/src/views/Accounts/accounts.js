@@ -82,7 +82,7 @@ class Accounts extends Component {
 
   render () {
     return (
-      <div className={ styles.accounts }>
+      <div>
         { this.renderNewDialog() }
         { this.renderNewWalletDialog() }
         { this.renderActionbar() }
@@ -293,13 +293,17 @@ function mapStateToProps (state) {
 
   const walletsOwners = Object
     .keys(walletsInfo)
-    .map((wallet) => ({
-      owners: walletsInfo[wallet].owners.map((owner) => ({
-        address: owner,
-        name: accountsInfo[owner] && accountsInfo[owner].name || owner
-      })),
-      address: wallet
-    }))
+    .map((wallet) => {
+      const owners = walletsInfo[wallet].owners || [];
+
+      return {
+        owners: owners.map((owner) => ({
+          address: owner,
+          name: accountsInfo[owner] && accountsInfo[owner].name || owner
+        })),
+        address: wallet
+      };
+    })
     .reduce((walletsOwners, wallet) => {
       walletsOwners[wallet.address] = wallet.owners;
       return walletsOwners;

@@ -173,7 +173,7 @@ class TabBar extends Component {
     return (
       <ToolbarGroup>
         <div className={ styles.logo }>
-          <img src={ imagesEthcoreBlock } />
+          <img src={ imagesEthcoreBlock } height={ 28 } />
         </div>
       </ToolbarGroup>
     );
