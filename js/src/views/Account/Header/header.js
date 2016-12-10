@@ -31,12 +31,14 @@ export default class Header extends Component {
     account: PropTypes.object,
     balance: PropTypes.object,
     className: PropTypes.string,
-    children: PropTypes.node
+    children: PropTypes.node,
+    isContract: PropTypes.bool
   };
 
   static defaultProps = {
     className: '',
-    children: null
+    children: null,
+    isContract: false
   };
 
   render () {
@@ -88,9 +90,9 @@ export default class Header extends Component {
   }
 
   renderTxCount () {
-    const { balance } = this.props;
+    const { balance, isContract } = this.props;
 
-    if (!balance) {
+    if (!balance || isContract) {
       return null;
     }
 
