@@ -29,10 +29,7 @@ import {
 import Slider from 'material-ui/Slider';
 import BigNumber from 'bignumber.js';
 
-import componentStyles from './gasPriceSelector.css';
-import mainStyles from '../transfer.css';
-
-const styles = Object.assign({}, mainStyles, componentStyles);
+import styles from './gasPriceSelector.css';
 
 const COLORS = {
   default: 'rgba(255, 99, 132, 0.2)',
@@ -194,10 +191,7 @@ class CustomizedShape extends Component {
 
 class CustomTooltip extends Component {
   static propTypes = {
-    gasPriceHistogram: PropTypes.shape({
-      bucketBounds: PropTypes.array.isRequired,
-      counts: PropTypes.array.isRequired
-    }).isRequired,
+    gasPriceHistogram: PropTypes.object.isRequired,
     type: PropTypes.string,
     payload: PropTypes.array,
     label: PropTypes.number,
@@ -231,12 +225,16 @@ class CustomTooltip extends Component {
   }
 }
 
+const TOOL_STYLE = {
+  color: 'rgba(255,255,255,0.5)',
+  backgroundColor: 'rgba(0, 0, 0, 0.75)',
+  padding: '0 0.5em',
+  fontSize: '0.75em'
+};
+
 export default class GasPriceSelector extends Component {
   static propTypes = {
-    gasPriceHistogram: PropTypes.shape({
-      bucketBounds: PropTypes.array.isRequired,
-      counts: PropTypes.array.isRequired
-    }).isRequired,
+    gasPriceHistogram: PropTypes.object.isRequired,
     onChange: PropTypes.func.isRequired,
 
     gasPrice: PropTypes.oneOfType([
@@ -287,21 +285,23 @@ export default class GasPriceSelector extends Component {
   renderSlider () {
     const { sliderValue } = this.state;
 
-    return (<div className={ styles.columns }>
-      <Slider
-        min={ 0 }
-        max={ 1 }
-        value={ sliderValue }
-        onChange={ this.onEditGasPriceSlider }
-        style={ {
-          flex: 1,
-          padding: '0 0.3em'
-        } }
-        sliderStyle={ {
-          marginBottom: 12
-        } }
-      />
-    </div>);
+    return (
+      <div className={ styles.columns }>
+        <Slider
+          min={ 0 }
+          max={ 1 }
+          value={ sliderValue }
+          onChange={ this.onEditGasPriceSlider }
+          style={ {
+            flex: 1,
+            padding: '0 0.3em'
+          } }
+          sliderStyle={ {
+            marginBottom: 12
+          } }
+        />
+      </div>
+    );
   }
 
   renderChart () {
@@ -316,85 +316,83 @@ export default class GasPriceSelector extends Component {
     const countIndex = Math.max(0, Math.min(selectedIndex, gasPriceHistogram.counts.length - 1));
     const selectedCount = countModifier(gasPriceHistogram.counts[countIndex]);
 
-    return (<div className={ styles.columns }>
-      <div style={ { flex: 1, height } }>
-        <div className={ styles.chart }>
-          <ResponsiveContainer
-            height={ height }
-          >
-            <ScatterChart
-              margin={ { top: 0, right: 0, left: 0, bottom: 0 } }
+    return (
+      <div className={ styles.columns }>
+        <div style={ { flex: 1, height } }>
+          <div className={ styles.chart }>
+            <ResponsiveContainer
+              height={ height }
             >
-              <Scatter
-                data={ [
-                  { x: sliderValue, y: 0 },
-                  { x: sliderValue, y: selectedCount },
-                  { x: sliderValue, y: chartData.yDomain[1] }
-                ] }
-                shape={ <CustomizedShape showValue={ selectedCount } /> }
-                line
-                isAnimationActive={ false }
-              />
+              <ScatterChart
+                margin={ { top: 0, right: 0, left: 0, bottom: 0 } }
+              >
+                <Scatter
+                  data={ [
+                    { x: sliderValue, y: 0 },
+                    { x: sliderValue, y: selectedCount },
+                    { x: sliderValue, y: chartData.yDomain[1] }
+                  ] }
+                  shape={ <CustomizedShape showValue={ selectedCount } /> }
+                  line
+                  isAnimationActive={ false }
+                />
 
-              <XAxis
-                hide
-                height={ 0 }
-                dataKey='x'
-                domain={ [0, 1] }
-              />
-              <YAxis
-                hide
-                width={ 0 }
-                dataKey='y'
-                domain={ chartData.yDomain }
-              />
-            </ScatterChart>
-          </ResponsiveContainer>
-        </div>
+                <XAxis
+                  hide
+                  height={ 0 }
+                  dataKey='x'
+                  domain={ [0, 1] }
+                />
+                <YAxis
+                  hide
+                  width={ 0 }
+                  dataKey='y'
+                  domain={ chartData.yDomain }
+                />
+              </ScatterChart>
+            </ResponsiveContainer>
+          </div>
 
-        <div className={ styles.chart }>
-          <ResponsiveContainer
-            height={ height }
-          >
-            <BarChart
-              data={ chartData.values }
-              margin={ { top: 0, right: 0, left: 0, bottom: 0 } }
-              barCategoryGap={ 1 }
-              ref='barChart'
+          <div className={ styles.chart }>
+            <ResponsiveContainer
+              height={ height }
             >
-              <Bar
-                dataKey='value'
-                stroke={ COLORS.line }
-                onClick={ this.onClickGasPrice }
-                shape={ <CustomBar selected={ selectedIndex } onClick={ this.onClickGasPrice } /> }
-              />
+              <BarChart
+                data={ chartData.values }
+                margin={ { top: 0, right: 0, left: 0, bottom: 0 } }
+                barCategoryGap={ 1 }
+                ref='barChart'
+              >
+                <Bar
+                  dataKey='value'
+                  stroke={ COLORS.line }
+                  onClick={ this.onClickGasPrice }
+                  shape={ <CustomBar selected={ selectedIndex } onClick={ this.onClickGasPrice } /> }
+                />
 
-              <Tooltip
-                wrapperStyle={ {
-                  backgroundColor: 'rgba(0, 0, 0, 0.75)',
-                  padding: '0 0.5em',
-                  fontSize: '0.9em'
-                } }
-                cursor={ this.renderCustomCursor() }
-                content={ <CustomTooltip gasPriceHistogram={ gasPriceHistogram } /> }
-              />
+                <Tooltip
+                  wrapperStyle={ TOOL_STYLE }
+                  cursor={ this.renderCustomCursor() }
+                  content={ <CustomTooltip gasPriceHistogram={ gasPriceHistogram } /> }
+                />
 
-              <XAxis
-                hide
-                dataKey='index'
-                type='category'
-                domain={ chartData.xDomain }
-              />
-              <YAxis
-                hide
-                type='number'
-                domain={ chartData.yDomain }
-              />
-            </BarChart>
-          </ResponsiveContainer>
+                <XAxis
+                  hide
+                  dataKey='index'
+                  type='category'
+                  domain={ chartData.xDomain }
+                />
+                <YAxis
+                  hide
+                  type='number'
+                  domain={ chartData.yDomain }
+                />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
         </div>
       </div>
-    </div>);
+    );
   }
 
   renderCustomCursor = () => {

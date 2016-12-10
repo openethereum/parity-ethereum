@@ -15,11 +15,18 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
-import { MenuItem } from 'material-ui';
+import { Checkbox, MenuItem } from 'material-ui';
 
-import { AddressSelect, Form, Input, InputAddressSelect, Select } from '~/ui';
+import { AddressSelect, Form, Input, Select, TypedInput } from '~/ui';
+import { parseAbiType } from '~/util/abi';
 
 import styles from '../executeContract.css';
+
+const CHECK_STYLE = {
+  position: 'absolute',
+  top: '38px',
+  left: '1em'
+};
 
 export default class DetailsStep extends Component {
   static propTypes = {
@@ -30,10 +37,12 @@ export default class DetailsStep extends Component {
     onAmountChange: PropTypes.func.isRequired,
     fromAddress: PropTypes.string,
     fromAddressError: PropTypes.string,
+    gasEdit: PropTypes.bool,
     onFromAddressChange: PropTypes.func.isRequired,
     func: PropTypes.object,
     funcError: PropTypes.string,
     onFuncChange: PropTypes.func,
+    onGasEditClick: PropTypes.func,
     values: PropTypes.array.isRequired,
     valuesError: PropTypes.array.isRequired,
     warning: PropTypes.string,
@@ -41,7 +50,7 @@ export default class DetailsStep extends Component {
   }
 
   render () {
-    const { accounts, amount, amountError, fromAddress, fromAddressError, onFromAddressChange, onAmountChange } = this.props;
+    const { accounts, amount, amountError, fromAddress, fromAddressError, gasEdit, onGasEditClick, onFromAddressChange, onAmountChange } = this.props;
 
     return (
       <Form>
@@ -55,12 +64,23 @@ export default class DetailsStep extends Component {
           onChange={ onFromAddressChange } />
         { this.renderFunctionSelect() }
         { this.renderParameters() }
-        <Input
-          label='transaction value (in ETH)'
-          hint='the amount to send to with the transaction'
-          value={ amount }
-          error={ amountError }
-          onSubmit={ onAmountChange } />
+        <div className={ styles.columns }>
+          <div>
+            <Input
+              label='transaction value (in ETH)'
+              hint='the amount to send to with the transaction'
+              value={ amount }
+              error={ amountError }
+              onSubmit={ onAmountChange } />
+          </div>
+          <div>
+            <Checkbox
+              checked={ gasEdit }
+              label='edit gas price or value'
+              onCheck={ onGasEditClick }
+              style={ CHECK_STYLE } />
+          </div>
+        </div>
       </Form>
     );
   }
@@ -74,7 +94,7 @@ export default class DetailsStep extends Component {
 
     const functions = contract.functions
       .filter((func) => !func.constant)
-      .sort((a, b) => a.name.localeCompare(b.name))
+      .sort((a, b) => (a.name || '').localeCompare(b.name || ''))
       .map((func) => {
         const params = (func.abi.inputs || [])
           .map((input, index) => {
@@ -125,56 +145,22 @@ export default class DetailsStep extends Component {
     }
 
     return (func.abi.inputs || []).map((input, index) => {
-      const onChange = (event, value) => onValueChange(event, index, value);
-      const onSelect = (event, _index, value) => onValueChange(event, index, value);
-      const onSubmit = (value) => onValueChange(null, index, value);
+      const onChange = (value) => onValueChange(null, index, value);
       const label = `${input.name}: ${input.type}`;
-      let inputbox;
-
-      switch (input.type) {
-        case 'address':
-          inputbox = (
-            <InputAddressSelect
-              accounts={ accounts }
-              editing
-              label={ label }
-              value={ values[index] }
-              error={ valuesError[index] }
-              onChange={ onChange } />
-          );
-          break;
-
-        case 'bool':
-          const boolitems = ['false', 'true'].map((bool) => {
-            return (
-              <MenuItem
-                key={ bool }
-                value={ bool }
-                label={ bool }>{ bool }</MenuItem>
-            );
-          });
-          inputbox = (
-            <Select
-              label={ label }
-              value={ values[index] ? 'true' : 'false' }
-              error={ valuesError[index] }
-              onChange={ onSelect }>{ boolitems }</Select>
-          );
-          break;
-
-        default:
-          inputbox = (
-            <Input
-              label={ label }
-              value={ values[index] }
-              error={ valuesError[index] }
-              onSubmit={ onSubmit } />
-          );
-      }
 
       return (
-        <div className={ styles.funcparams } key={ index }>
-          { inputbox }
+        <div
+          key={ `${index}_${input.name || ''}` }
+          className={ styles.funcparams }
+        >
+          <TypedInput
+            label={ label }
+            value={ values[index] }
+            error={ valuesError[index] }
+            onChange={ onChange }
+            accounts={ accounts }
+            param={ parseAbiType(input.type) }
+          />
         </div>
       );
     });

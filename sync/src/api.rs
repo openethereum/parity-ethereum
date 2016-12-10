@@ -33,11 +33,14 @@ use ipc::{BinaryConvertable, BinaryConvertError, IpcConfig};
 use std::str::FromStr;
 use parking_lot::RwLock;
 use chain::{ETH_PACKET_COUNT, SNAPSHOT_SYNC_PACKET_COUNT};
+use light::net::{LightProtocol, Params as LightParams, Capabilities, Handler as LightHandler, EventContext};
 
 /// Parity sync protocol
 pub const WARP_SYNC_PROTOCOL_ID: ProtocolId = *b"par";
 /// Ethereum sync protocol
 pub const ETH_PROTOCOL: ProtocolId = *b"eth";
+/// Ethereum light protocol
+pub const LES_PROTOCOL: ProtocolId = *b"les";
 
 /// Sync configuration
 #[derive(Debug, Clone, Copy)]
@@ -50,10 +53,14 @@ pub struct SyncConfig {
 	pub network_id: u64,
 	/// Main "eth" subprotocol name.
 	pub subprotocol_name: [u8; 3],
+	/// Light "les" subprotocol name.
+	pub light_subprotocol_name: [u8; 3],
 	/// Fork block to check
 	pub fork_block: Option<(BlockNumber, H256)>,
 	/// Enable snapshot sync
 	pub warp_sync: bool,
+	/// Enable light client server.
+	pub serve_light: bool,
 }
 
 impl Default for SyncConfig {
@@ -63,8 +70,10 @@ impl Default for SyncConfig {
 			download_old_blocks: true,
 			network_id: 1,
 			subprotocol_name: ETH_PROTOCOL,
+			light_subprotocol_name: LES_PROTOCOL,
 			fork_block: None,
 			warp_sync: false,
+			serve_light: false,
 		}
 	}
 }
@@ -88,14 +97,18 @@ pub trait SyncProvider: Send + Sync {
 }
 
 /// Transaction stats
-#[derive(Debug, Binary)]
+#[derive(Debug)]
+#[cfg_attr(feature = "ipc", derive(Binary))]
 pub struct TransactionStats {
+	/// Block number where this TX was first seen.
 	pub first_seen: u64,
+	/// Peers it was propagated to.
 	pub propagated_to: BTreeMap<H512, usize>,
 }
 
 /// Peer connection information
-#[derive(Debug, Binary)]
+#[derive(Debug)]
+#[cfg_attr(feature = "ipc", derive(Binary))]
 pub struct PeerInfo {
 	/// Public node id
 	pub id: Option<String>,
@@ -115,40 +128,81 @@ pub struct PeerInfo {
 	pub eth_difficulty: Option<U256>,
 }
 
+/// EthSync initialization parameters.
+#[cfg_attr(feature = "ipc", derive(Binary))]
+pub struct Params {
+	/// Configuration.
+	pub config: SyncConfig,
+	/// Blockchain client.
+	pub chain: Arc<BlockChainClient>,
+	/// Snapshot service.
+	pub snapshot_service: Arc<SnapshotService>,
+	/// Light data provider.
+	pub provider: Arc<::light::Provider>,
+	/// Network layer configuration.
+	pub network_config: NetworkConfiguration,
+}
+
 /// Ethereum network protocol handler
 pub struct EthSync {
 	/// Network service
 	network: NetworkService,
-	/// Ethereum Protocol handler
+	/// Main (eth/par) protocol handler
 	eth_handler: Arc<SyncProtocolHandler>,
+	/// Light (les) protocol handler 
+	light_proto: Option<Arc<LightProtocol>>,
 	/// The main subprotocol name
 	subprotocol_name: [u8; 3],
-	/// Configuration
-	config: NetworkConfiguration,
+	/// Light subprotocol name.
+	light_subprotocol_name: [u8; 3],
 }
 
 impl EthSync {
 	/// Creates and register protocol with the network service
-	pub fn new(config: SyncConfig, chain: Arc<BlockChainClient>, snapshot_service: Arc<SnapshotService>, network_config: NetworkConfiguration) -> Result<Arc<EthSync>, NetworkError> {
-		let chain_sync = ChainSync::new(config, &*chain);
-		let service = try!(NetworkService::new(try!(network_config.clone().into_basic())));
-		let sync = Arc::new(EthSync{
+	pub fn new(params: Params) -> Result<Arc<EthSync>, NetworkError> {
+		let pruning_info = params.chain.pruning_info();		
+		let light_proto = match params.config.serve_light {
+			false => None,
+			true => Some({
+				let light_params = LightParams {
+					network_id: params.config.network_id,
+					flow_params: Default::default(),
+					capabilities: Capabilities {
+						serve_headers: true,
+						serve_chain_since: Some(pruning_info.earliest_chain),
+						serve_state_since: Some(pruning_info.earliest_state),
+						tx_relay: true,
+					},
+				};
+
+				let mut light_proto = LightProtocol::new(params.provider, light_params);
+				light_proto.add_handler(Box::new(TxRelay(params.chain.clone())));
+
+				Arc::new(light_proto)
+			})
+		};
+
+		let chain_sync = ChainSync::new(params.config, &*params.chain);
+		let service = try!(NetworkService::new(try!(params.network_config.clone().into_basic())));
+
+		let sync = Arc::new(EthSync {
 			network: service,
 			eth_handler: Arc::new(SyncProtocolHandler {
 				sync: RwLock::new(chain_sync),
-				chain: chain.clone(),
-				snapshot_service: snapshot_service.clone(),
+				chain: params.chain,
+				snapshot_service: params.snapshot_service,
 				overlay: RwLock::new(HashMap::new()),
 			}),
-			subprotocol_name: config.subprotocol_name,
-			config: network_config,
+			light_proto: light_proto,
+			subprotocol_name: params.config.subprotocol_name,
+			light_subprotocol_name: params.config.light_subprotocol_name,
 		});
 
 		Ok(sync)
 	}
 }
 
-#[ipc(client_ident="SyncClient")]
+#[cfg_attr(feature = "ipc", ipc(client_ident="SyncClient"))]
 impl SyncProvider for EthSync {
 	/// Get sync status
 	fn status(&self) -> SyncStatus {
@@ -157,6 +211,7 @@ impl SyncProvider for EthSync {
 
 	/// Get sync peers
 	fn peers(&self) -> Vec<PeerInfo> {
+		// TODO: [rob] LES peers/peer info
 		self.network.with_context_eval(self.subprotocol_name, |context| {
 			let sync_io = NetSyncIo::new(context, &*self.eth_handler.chain, &*self.eth_handler.snapshot_service, &self.eth_handler.overlay);
 			self.eth_handler.sync.write().peers(&sync_io)
@@ -230,6 +285,8 @@ impl ChainNotify for EthSync {
 		proposed: Vec<Bytes>,
 		_duration: u64)
 	{
+		use light::net::Announcement;
+
 		self.network.with_context(self.subprotocol_name, |context| {
 			let mut sync_io = NetSyncIo::new(context, &*self.eth_handler.chain, &*self.eth_handler.snapshot_service, &self.eth_handler.overlay);
 			self.eth_handler.sync.write().chain_new_blocks(
@@ -241,6 +298,25 @@ impl ChainNotify for EthSync {
 				&sealed,
 				&proposed);
 		});
+
+		self.network.with_context(self.light_subprotocol_name, |context| {
+			let light_proto = match self.light_proto.as_ref() {
+				Some(lp) => lp,
+				None => return,
+			};
+			
+			let chain_info = self.eth_handler.chain.chain_info();
+			light_proto.make_announcement(context, Announcement {
+				head_hash: chain_info.best_block_hash,
+				head_num: chain_info.best_block_number,
+				head_td: chain_info.total_difficulty,
+				reorg_depth: 0, // recalculated on a per-peer basis.
+				serve_headers: false, // these fields consist of _changes_ in capability.
+				serve_state_since: None,
+				serve_chain_since: None,
+				tx_relay: false,
+			})
+		})
 	}
 
 	fn start(&self) {
@@ -254,6 +330,12 @@ impl ChainNotify for EthSync {
 		// register the warp sync subprotocol
 		self.network.register_protocol(self.eth_handler.clone(), WARP_SYNC_PROTOCOL_ID, SNAPSHOT_SYNC_PACKET_COUNT, &[1u8, 2u8])
 			.unwrap_or_else(|e| warn!("Error registering snapshot sync protocol: {:?}", e));
+		
+		// register the light protocol.
+		if let Some(light_proto) = self.light_proto.as_ref().map(|x| x.clone()) {
+			self.network.register_protocol(light_proto, self.light_subprotocol_name, ::light::net::PACKET_COUNT, ::light::net::PROTOCOL_VERSIONS)
+				.unwrap_or_else(|e| warn!("Error registering light client protocol: {:?}", e));
+		}
 	}
 
 	fn stop(&self) {
@@ -266,6 +348,17 @@ impl ChainNotify for EthSync {
 			let mut sync_io = NetSyncIo::new(context, &*self.eth_handler.chain, &*self.eth_handler.snapshot_service, &self.eth_handler.overlay);
 			self.eth_handler.sync.write().propagate_consensus_packet(&mut sync_io, message.clone());
 		});
+	}
+}
+
+/// LES event handler.
+/// Simply queues transactions from light client peers.
+struct TxRelay(Arc<BlockChainClient>);
+
+impl LightHandler for TxRelay {
+	fn on_transactions(&self, ctx: &EventContext, relay: &[::ethcore::transaction::SignedTransaction]) {
+		trace!(target: "les", "Relaying {} transactions from peer {}", relay.len(), ctx.peer());
+		self.0.queue_transactions(relay.iter().map(|tx| ::rlp::encode(tx).to_vec()).collect())
 	}
 }
 
@@ -291,7 +384,7 @@ pub trait ManageNetwork : Send + Sync {
 }
 
 
-#[ipc(client_ident="NetworkManagerClient")]
+#[cfg_attr(feature = "ipc", ipc(client_ident="NetworkManagerClient"))]
 impl ManageNetwork for EthSync {
 	fn accept_unreserved_peers(&self) {
 		self.network.set_non_reserved_mode(NonReservedPeerMode::Accept);
@@ -318,6 +411,11 @@ impl ManageNetwork for EthSync {
 			let mut sync_io = NetSyncIo::new(context, &*self.eth_handler.chain, &*self.eth_handler.snapshot_service, &self.eth_handler.overlay);
 			self.eth_handler.sync.write().abort(&mut sync_io);
 		});
+
+		if let Some(light_proto) = self.light_proto.as_ref() {
+			light_proto.abort();
+		}
+
 		self.stop();
 	}
 
@@ -327,7 +425,8 @@ impl ManageNetwork for EthSync {
 }
 
 /// IP fiter
-#[derive(Binary, Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "ipc", derive(Binary))]
 pub enum AllowIP {
 	/// Connect to any address
 	All,
@@ -349,7 +448,8 @@ impl AllowIP {
 	}
 }
 
-#[derive(Binary, Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "ipc", derive(Binary))]
 /// Network service configuration
 pub struct NetworkConfiguration {
 	/// Directory path to store general network configuration. None means nothing will be saved
@@ -387,26 +487,18 @@ pub struct NetworkConfiguration {
 }
 
 impl NetworkConfiguration {
+	/// Create a new default config.
 	pub fn new() -> Self {
 		From::from(BasicNetworkConfiguration::new())
 	}
 
+	/// Create a new local config.
 	pub fn new_local() -> Self {
 		From::from(BasicNetworkConfiguration::new_local())
 	}
 
-	fn validate(&self) -> Result<(), AddrParseError> {
-		if let Some(ref addr) = self.listen_address {
-			try!(SocketAddr::from_str(&addr));
-		}
-		if let Some(ref addr) = self.public_address {
-			try!(SocketAddr::from_str(&addr));
-		}
-		Ok(())
-	}
-
+	/// Attempt to convert this config into a BasicNetworkConfiguration.
 	pub fn into_basic(self) -> Result<BasicNetworkConfiguration, AddrParseError> {
-
 		Ok(BasicNetworkConfiguration {
 			config_path: self.config_path,
 			net_config_path: self.net_config_path,
@@ -459,9 +551,14 @@ impl From<BasicNetworkConfiguration> for NetworkConfiguration {
 	}
 }
 
-#[derive(Debug, Binary, Clone)]
+/// Configuration for IPC service.
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "ipc", derive(Binary))]
 pub struct ServiceConfiguration {
+	/// Sync config.
 	pub sync: SyncConfig,
+	/// Network configuration.
 	pub net: NetworkConfiguration,
+	/// IPC path.
 	pub io_path: String,
 }

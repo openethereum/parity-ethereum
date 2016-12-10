@@ -17,18 +17,36 @@
 import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
+import { observer } from 'mobx-react';
 import ActionDoneAll from 'material-ui/svg-icons/action/done-all';
 import ContentClear from 'material-ui/svg-icons/content/clear';
+import NavigationArrowBack from 'material-ui/svg-icons/navigation/arrow-back';
+import NavigationArrowForward from 'material-ui/svg-icons/navigation/arrow-forward';
 
-import { BusyStep, CompletedStep, Button, IdentityIcon, Modal, TxHash } from '~/ui';
-import { MAX_GAS_ESTIMATION } from '../../util/constants';
-import { validateAddress, validateUint } from '../../util/validation';
+import { BusyStep, Button, CompletedStep, GasPriceEditor, IdentityIcon, Modal, TxHash } from '~/ui';
+import { MAX_GAS_ESTIMATION } from '~/util/constants';
+import { validateAddress, validateUint } from '~/util/validation';
+import { parseAbiType } from '~/util/abi';
 
 import DetailsStep from './DetailsStep';
 
-import ERRORS from '../Transfer/errors';
 import { ERROR_CODES } from '~/api/transport/error';
 
+const STEP_DETAILS = 0;
+const STEP_BUSY_OR_GAS = 1;
+const STEP_BUSY = 2;
+
+const TITLES = {
+  transfer: 'function details',
+  sending: 'sending',
+  complete: 'complete',
+  gas: 'gas selection',
+  rejected: 'rejected'
+};
+const STAGES_BASIC = [TITLES.transfer, TITLES.sending, TITLES.complete];
+const STAGES_GAS = [TITLES.transfer, TITLES.gas, TITLES.sending, TITLES.complete];
+
+@observer
 class ExecuteContract extends Component {
   static contextTypes = {
     api: PropTypes.object.isRequired,
@@ -45,28 +63,29 @@ class ExecuteContract extends Component {
     onFromAddressChange: PropTypes.func.isRequired
   }
 
+  gasStore = new GasPriceEditor.Store(this.context.api, this.props.gasLimit);
+
   state = {
     amount: '0',
     amountError: null,
+    busyState: null,
     fromAddressError: null,
     func: null,
     funcError: null,
-    gas: null,
-    gasLimitError: null,
+    gasEdit: false,
+    rejected: false,
+    step: STEP_DETAILS,
+    sending: false,
     values: [],
     valuesError: [],
-    step: 0,
-    sending: false,
-    busyState: null,
-    txhash: null,
-    rejected: false
+    txhash: null
   }
 
   componentDidMount () {
     const { contract } = this.props;
     const functions = contract.functions
       .filter((func) => !func.constant)
-      .sort((a, b) => a.name.localeCompare(b.name));
+      .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
 
     this.onFuncChange(null, functions[0]);
   }
@@ -78,15 +97,21 @@ class ExecuteContract extends Component {
   }
 
   render () {
-    const { sending } = this.state;
+    const { sending, step, gasEdit, rejected } = this.state;
+    const steps = gasEdit ? STAGES_GAS : STAGES_BASIC;
+
+    if (rejected) {
+      steps[steps.length - 1] = TITLES.rejected;
+    }
 
     return (
       <Modal
         actions={ this.renderDialogActions() }
-        title='execute function'
         busy={ sending }
-        waiting={ [1] }
-        visible>
+        current={ step }
+        steps={ steps }
+        visible
+        waiting={ gasEdit ? [STEP_BUSY] : [STEP_BUSY_OR_GAS] }>
         { this.renderStep() }
       </Modal>
     );
@@ -94,7 +119,7 @@ class ExecuteContract extends Component {
 
   renderDialogActions () {
     const { onClose, fromAddress } = this.props;
-    const { sending, step, fromAddressError, valuesError } = this.state;
+    const { gasEdit, sending, step, fromAddressError, valuesError } = this.state;
     const hasError = fromAddressError || valuesError.find((error) => error);
 
     const cancelBtn = (
@@ -104,20 +129,43 @@ class ExecuteContract extends Component {
         icon={ <ContentClear /> }
         onClick={ onClose } />
     );
+    const postBtn = (
+      <Button
+        key='postTransaction'
+        label='post transaction'
+        disabled={ !!(sending || hasError) }
+        icon={ <IdentityIcon address={ fromAddress } button /> }
+        onClick={ this.postTransaction } />
+    );
+    const nextBtn = (
+      <Button
+        key='nextStep'
+        label='next'
+        icon={ <NavigationArrowForward /> }
+        onClick={ this.onNextClick } />
+    );
+    const prevBtn = (
+      <Button
+        key='prevStep'
+        label='prev'
+        icon={ <NavigationArrowBack /> }
+        onClick={ this.onPrevClick } />
+    );
 
-    if (step === 0) {
+    if (step === STEP_DETAILS) {
       return [
         cancelBtn,
-        <Button
-          key='postTransaction'
-          label='post transaction'
-          disabled={ sending || hasError }
-          icon={ <IdentityIcon address={ fromAddress } button /> }
-          onClick={ this.postTransaction } />
+        gasEdit ? nextBtn : postBtn
       ];
-    } else if (step === 1) {
+    } else if (step === (gasEdit ? STEP_BUSY : STEP_BUSY_OR_GAS)) {
       return [
         cancelBtn
+      ];
+    } else if (gasEdit && (step === STEP_BUSY_OR_GAS)) {
+      return [
+        cancelBtn,
+        prevBtn,
+        postBtn
       ];
     }
 
@@ -132,7 +180,8 @@ class ExecuteContract extends Component {
 
   renderStep () {
     const { onFromAddressChange } = this.props;
-    const { step, busyState, gasLimitError, txhash, rejected } = this.state;
+    const { gasEdit, step, busyState, txhash, rejected } = this.state;
+    const { errorEstimated } = this.gasStore;
 
     if (rejected) {
       return (
@@ -143,22 +192,28 @@ class ExecuteContract extends Component {
       );
     }
 
-    if (step === 0) {
+    if (step === STEP_DETAILS) {
       return (
         <DetailsStep
           { ...this.props }
           { ...this.state }
-          warning={ gasLimitError }
+          warning={ errorEstimated }
           onAmountChange={ this.onAmountChange }
           onFromAddressChange={ onFromAddressChange }
           onFuncChange={ this.onFuncChange }
+          onGasEditClick={ this.onGasEditClick }
           onValueChange={ this.onValueChange } />
       );
-    } else if (step === 1) {
+    } else if (step === (gasEdit ? STEP_BUSY : STEP_BUSY_OR_GAS)) {
       return (
         <BusyStep
           title='The function execution is in progress'
           state={ busyState } />
+      );
+    } else if (gasEdit && (step === STEP_BUSY_OR_GAS)) {
+      return (
+        <GasPriceEditor
+          store={ this.gasStore } />
       );
     }
 
@@ -170,27 +225,14 @@ class ExecuteContract extends Component {
   }
 
   onAmountChange = (amount) => {
+    this.gasStore.setEthValue(amount);
     this.setState({ amount }, this.estimateGas);
   }
 
   onFuncChange = (event, func) => {
-    const values = func.inputs.map((input) => {
-      switch (input.kind.type) {
-        case 'address':
-          return '0x';
-
-        case 'bool':
-          return false;
-
-        case 'bytes':
-          return '0x';
-
-        case 'uint':
-          return '0';
-
-        default:
-          return '';
-      }
+    const values = (func.abi.inputs || []).map((input) => {
+      const parsedType = parseAbiType(input.type);
+      return parsedType.default;
     });
 
     this.setState({
@@ -234,7 +276,7 @@ class ExecuteContract extends Component {
 
   estimateGas = (_fromAddress) => {
     const { api } = this.context;
-    const { fromAddress, gasLimit } = this.props;
+    const { fromAddress } = this.props;
     const { amount, func, values } = this.state;
     const options = {
       gas: MAX_GAS_ESTIMATION,
@@ -250,18 +292,11 @@ class ExecuteContract extends Component {
       .estimateGas(options, values)
       .then((gasEst) => {
         const gas = gasEst.mul(1.2);
-        let gasLimitError = null;
 
-        if (gas.gte(MAX_GAS_ESTIMATION)) {
-          gasLimitError = ERRORS.gasException;
-        } else if (gas.gt(gasLimit)) {
-          gasLimitError = ERRORS.gasBlockLimit;
-        }
+        console.log(`estimateGas: received ${gasEst.toFormat(0)}, adjusted to ${gas.toFormat(0)}`);
 
-        this.setState({
-          gas,
-          gasLimitError
-        });
+        this.gasStore.setEstimated(gasEst.toFixed(0));
+        this.gasStore.setGas(gas.toFixed(0));
       })
       .catch((error) => {
         console.warn('estimateGas', error);
@@ -271,22 +306,20 @@ class ExecuteContract extends Component {
   postTransaction = () => {
     const { api, store } = this.context;
     const { fromAddress } = this.props;
-    const { amount, func, values } = this.state;
+    const { amount, func, gasEdit, values } = this.state;
+    const steps = gasEdit ? STAGES_GAS : STAGES_BASIC;
+    const finalstep = steps.length - 1;
     const options = {
-      gas: MAX_GAS_ESTIMATION,
+      gas: this.gasStore.gas,
+      gasPrice: this.gasStore.price,
       from: fromAddress,
       value: api.util.toWei(amount || 0)
     };
 
-    this.setState({ sending: true, step: 1 });
+    this.setState({ sending: true, step: gasEdit ? STEP_BUSY : STEP_BUSY_OR_GAS });
 
     func
-      .estimateGas(options, values)
-      .then((gas) => {
-        options.gas = gas.mul(1.2).toFixed(0);
-        console.log(`estimateGas: received ${gas.toFormat(0)}, adjusted to ${gas.mul(1.2).toFormat(0)}`);
-        return func.postTransaction(options, values);
-      })
+      .postTransaction(options, values)
       .then((requestId) => {
         this.setState({ busyState: 'Waiting for authorization in the Parity Signer' });
 
@@ -294,7 +327,7 @@ class ExecuteContract extends Component {
           .pollMethod('parity_checkRequest', requestId)
           .catch((error) => {
             if (error.code === ERROR_CODES.REQUEST_REJECTED) {
-              this.setState({ rejected: true });
+              this.setState({ rejected: true, step: finalstep });
               return false;
             }
 
@@ -302,12 +335,30 @@ class ExecuteContract extends Component {
           });
       })
       .then((txhash) => {
-        this.setState({ sending: false, step: 2, txhash, busyState: 'Your transaction has been posted to the network' });
+        this.setState({ sending: false, step: finalstep, txhash, busyState: 'Your transaction has been posted to the network' });
       })
       .catch((error) => {
         console.error('postTransaction', error);
         store.dispatch({ type: 'newError', error });
       });
+  }
+
+  onGasEditClick = () => {
+    this.setState({
+      gasEdit: !this.state.gasEdit
+    });
+  }
+
+  onNextClick = () => {
+    this.setState({
+      step: this.state.step + 1
+    });
+  }
+
+  onPrevClick = () => {
+    this.setState({
+      step: this.state.step - 1
+    });
   }
 }
 

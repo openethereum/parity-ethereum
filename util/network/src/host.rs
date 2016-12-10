@@ -868,6 +868,12 @@ impl Host {
 			let reserved = self.reserved_nodes.read();
 			if let Some(h) = handlers.get(&p).clone() {
 				h.connected(&NetworkContext::new(io, p, session.clone(), self.sessions.clone(), &reserved), &token);
+
+				// accumulate pending packets.
+				if let Some(session) = session.as_ref() {
+					let mut session = session.lock();
+					packet_data.extend(session.mark_connected(p));
+				}
 			}
 		}
 		for (p, packet_id, data) in packet_data {

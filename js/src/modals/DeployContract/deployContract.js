@@ -19,7 +19,7 @@ import ActionDoneAll from 'material-ui/svg-icons/action/done-all';
 import ContentClear from 'material-ui/svg-icons/content/clear';
 
 import { BusyStep, CompletedStep, CopyToClipboard, Button, IdentityIcon, Modal, TxHash } from '~/ui';
-import { ERRORS, validateAbi, validateCode, validateName } from '../../util/validation';
+import { ERRORS, validateAbi, validateCode, validateName } from '~/util/validation';
 
 import DetailsStep from './DetailsStep';
 import ParametersStep from './ParametersStep';

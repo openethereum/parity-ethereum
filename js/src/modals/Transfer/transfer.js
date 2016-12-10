@@ -56,10 +56,6 @@ class Transfer extends Component {
 
   store = new TransferStore(this.context.api, this.props);
 
-  componentDidMount () {
-    this.store.getDefaults();
-  }
-
   render () {
     const { stage, extras, steps } = this.store;
 
@@ -186,27 +182,20 @@ class Transfer extends Component {
   }
 
   renderExtrasPage () {
-    if (!this.store.gasPriceHistogram) {
+    if (!this.store.gasStore.histogram) {
       return null;
     }
 
-    const { isEth, data, dataError, gas, gasEst, gasError, gasPrice } = this.store;
-    const { gasPriceDefault, gasPriceError, gasPriceHistogram, total, totalError } = this.store;
+    const { isEth, data, dataError, total, totalError } = this.store;
 
     return (
       <Extras
         isEth={ isEth }
         data={ data }
         dataError={ dataError }
-        gas={ gas }
-        gasEst={ gasEst }
-        gasError={ gasError }
-        gasPrice={ gasPrice }
-        gasPriceDefault={ gasPriceDefault }
-        gasPriceError={ gasPriceError }
-        gasPriceHistogram={ gasPriceHistogram }
         total={ total }
         totalError={ totalError }
+        gasStore={ this.store.gasStore }
         onChange={ this.store.onUpdateDetails } />
     );
   }
@@ -219,7 +208,7 @@ class Transfer extends Component {
       <Button
         icon={ <ContentClear /> }
         label='Cancel'
-        onClick={ this.store.onClose } />
+        onClick={ this.handleClose } />
     );
     const nextBtn = (
       <Button
@@ -245,7 +234,7 @@ class Transfer extends Component {
       <Button
         icon={ <ActionDoneAll /> }
         label='Close'
-        onClick={ this.store.onClose } />
+        onClick={ this.handleClose } />
     );
 
     switch (stage) {
@@ -263,17 +252,24 @@ class Transfer extends Component {
   }
 
   renderWarning () {
-    const { gasLimitError } = this.store;
+    const { errorEstimated } = this.store.gasStore;
 
-    if (!gasLimitError) {
+    if (!errorEstimated) {
       return null;
     }
 
     return (
       <div className={ styles.warning }>
-        { gasLimitError }
+        { errorEstimated }
       </div>
     );
+  }
+
+  handleClose = () => {
+    const { onClose } = this.props;
+
+    this.store.handleClose();
+    typeof onClose === 'function' && onClose();
   }
 }
 

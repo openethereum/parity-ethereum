@@ -33,6 +33,7 @@ use request;
 /// or empty vector where appropriate.
 ///
 /// [1]: https://github.com/ethcore/parity/wiki/Light-Ethereum-Subprotocol-(LES)
+#[cfg_attr(feature = "ipc", ipc(client_ident="LightProviderClient"))]
 pub trait Provider: Send + Sync {
 	/// Provide current blockchain info.
 	fn chain_info(&self) -> BlockChainInfo;
@@ -71,7 +72,10 @@ pub trait Provider: Send + Sync {
 	/// Each item in the resulting vector is either the raw bytecode or empty.
 	fn contract_code(&self, req: request::ContractCodes) -> Vec<Bytes>;
 
-	/// Provide header proofs from the Canonical Hash Tries.
+	/// Provide header proofs from the Canonical Hash Tries as well as the headers 
+	/// they correspond to -- each element in the returned vector is a 2-tuple.
+	/// The first element is a block header and the second a merkle proof of 
+	/// the header in a requested CHT.
 	fn header_proofs(&self, req: request::HeaderProofs) -> Vec<Bytes>;
 
 	/// Provide pending transactions.
@@ -105,8 +109,8 @@ impl<T: ProvingBlockChainClient + ?Sized> Provider for T {
 		}
 
 		(0u64..req.max as u64)
-			.map(|x: u64| x.saturating_mul(req.skip))
-			.take_while(|x| if req.reverse { x < &start_num } else { best_num - start_num < *x })
+			.map(|x: u64| x.saturating_mul(req.skip + 1))
+			.take_while(|x| if req.reverse { x < &start_num } else { best_num - start_num >= *x })
 			.map(|x| if req.reverse { start_num - x } else { start_num + x })
 			.map(|x| self.block_header(BlockID::Number(x)))
 			.take_while(|x| x.is_some())

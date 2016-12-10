@@ -52,7 +52,7 @@ use blockchain::{BlockChain, BlockProvider, TreeRoute, ImportRoute};
 use client::{
 	BlockID, TransactionID, UncleID, TraceId, ClientConfig, BlockChainClient,
 	MiningBlockChainClient, TraceFilter, CallAnalytics, BlockImportError, Mode,
-	ChainNotify, PruningInfo, ProvingBlockChainClient,
+	ChainNotify, PruningInfo,
 };
 use client::Error as ClientError;
 use env_info::EnvInfo;
@@ -580,13 +580,6 @@ impl Client {
 		self.miner.clone()
 	}
 
-	/// Handle messages from the IO queue
-	pub fn handle_queued_message(&self, message: &Bytes) {
-		if let Err(e) = self.engine.handle_message(UntrustedRlp::new(message)) {
-			trace!(target: "poa", "Invalid message received: {}", e);
-		}
-	}
-
 	/// Used by PoA to try sealing on period change.
 	pub fn update_sealing(&self) {
 		self.miner.update_sealing(self)
@@ -1096,6 +1089,10 @@ impl BlockChainClient for Client {
 		self.transaction_address(id).and_then(|address| self.chain.read().transaction(&address))
 	}
 
+	fn transaction_block(&self, id: TransactionID) -> Option<H256> {
+		self.transaction_address(id).map(|addr| addr.block_hash)
+	}
+
 	fn uncle(&self, id: UncleID) -> Option<Bytes> {
 		let index = id.position;
 		self.block_body(id.block).and_then(|body| BodyView::new(&body).uncle_rlp_at(index))
@@ -1434,7 +1431,7 @@ impl MayPanic for Client {
 	}
 }
 
-impl ProvingBlockChainClient for Client {
+impl ::client::ProvingBlockChainClient for Client {
 	fn prove_storage(&self, key1: H256, key2: H256, from_level: u32, id: BlockID) -> Vec<Bytes> {
 		self.state_at(id)
 			.and_then(move |state| state.prove_storage(key1, key2, from_level).ok())

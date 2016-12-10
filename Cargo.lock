@@ -18,6 +18,7 @@ dependencies = [
  "ethcore-ipc-hypervisor 1.2.0",
  "ethcore-ipc-nano 1.5.0",
  "ethcore-ipc-tests 0.1.0",
+ "ethcore-light 1.5.0",
  "ethcore-logger 1.5.0",
  "ethcore-rpc 1.5.0",
  "ethcore-signer 1.5.0",
@@ -457,6 +458,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "ethcore-light"
+version = "1.5.0"
+dependencies = [
+ "ethcore 1.5.0",
+ "ethcore-io 1.5.0",
+ "ethcore-ipc 1.5.0",
+ "ethcore-ipc-codegen 1.5.0",
+ "ethcore-network 1.5.0",
+ "ethcore-util 1.5.0",
+ "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rlp 0.1.0",
+ "time 0.1.35 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
 name = "ethcore-logger"
 version = "1.5.0"
 dependencies = [
@@ -665,6 +681,7 @@ dependencies = [
  "ethcore-ipc 1.5.0",
  "ethcore-ipc-codegen 1.5.0",
  "ethcore-ipc-nano 1.5.0",
+ "ethcore-light 1.5.0",
  "ethcore-network 1.5.0",
  "ethcore-util 1.5.0",
  "ethkey 0.2.0",
@@ -1273,7 +1290,7 @@ dependencies = [
 [[package]]
 name = "parity-ui-precompiled"
 version = "1.4.0"
-source = "git+https://github.com/ethcore/js-precompiled.git#a59b62ecec8773715d1db7e070bbbe5443eb7378"
+source = "git+https://github.com/ethcore/js-precompiled.git#3d3b2f9e8e8b0fd62c172240bfd001a317cf2979"
 dependencies = [
  "parity-dapps-glue 1.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]

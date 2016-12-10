@@ -317,6 +317,10 @@ impl<C> TestNet<C> where C: FlushingBlockChainClient {
 		let mut queue = peer.queue.write();
 		peer.sync.write().chain_new_blocks(&mut TestIo::new(&peer.chain, &peer.snapshot_service, &mut queue, None), &[], &[], &[], &[], &[], &[]);
 	}
+
+	fn start(&self) {}
+
+	fn stop(&self) {}
 }
 
 impl ChainNotify for TestPeer<EthcoreClient> {
@@ -351,4 +355,3 @@ impl ChainNotify for TestPeer<EthcoreClient> {
 		self.sync.write().propagate_consensus_packet(&mut io, message.clone());
 	}
 }
-

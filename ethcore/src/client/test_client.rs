@@ -92,8 +92,8 @@ pub struct TestBlockChainClient {
 	pub first_block: RwLock<Option<(H256, u64)>>,
 }
 
-#[derive(Clone)]
 /// Used for generating test client blocks.
+#[derive(Clone)]
 pub enum EachBlockWith {
 	/// Plain block.
 	Nothing,
@@ -431,6 +431,10 @@ impl BlockChainClient for TestBlockChainClient {
 		None
 	}
 	fn transaction(&self, _id: TransactionID) -> Option<LocalizedTransaction> {
+		None	// Simple default.
+	}
+
+	fn transaction_block(&self, _id: TransactionID) -> Option<H256> {
 		None	// Simple default.
 	}
 

@@ -18,7 +18,7 @@ import React, { Component, PropTypes } from 'react';
 
 import { bytesToHex } from '~/api/util/format';
 import { Container } from '~/ui';
-import { TxRow } from '~/ui/TxList/txList';
+import TxRow from '~/ui/TxList/TxRow';
 
 import txListStyles from '~/ui/TxList/txList.css';
 
