@@ -22,7 +22,7 @@ import ReactTooltip from 'react-tooltip';
 
 import { Form, Input, IdentityIcon } from '~/ui';
 
-import styles from './TransactionPendingFormConfirm.css';
+import styles from './transactionPendingFormConfirm.css';
 
 class TransactionPendingFormConfirm extends Component {
   static propTypes = {

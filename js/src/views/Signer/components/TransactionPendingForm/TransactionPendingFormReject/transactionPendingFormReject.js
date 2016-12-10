@@ -18,7 +18,7 @@ import React, { Component, PropTypes } from 'react';
 
 import RaisedButton from 'material-ui/RaisedButton';
 
-import styles from './TransactionPendingFormReject.css';
+import styles from './transactionPendingFormReject.css';
 
 export default class TransactionPendingFormReject extends Component {
 

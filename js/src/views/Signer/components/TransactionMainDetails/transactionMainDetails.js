@@ -22,7 +22,7 @@ import { Button, MethodDecoding } from '~/ui';
 
 import * as tUtil from '../util/transaction';
 import Account from '../Account';
-import styles from './TransactionMainDetails.css';
+import styles from './transactionMainDetails.css';
 
 export default class TransactionMainDetails extends Component {
   static propTypes = {

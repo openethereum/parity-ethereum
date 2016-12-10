@@ -22,7 +22,7 @@ import { Button, GasPriceEditor } from '~/ui';
 import TransactionMainDetails from '../TransactionMainDetails';
 import TransactionPendingForm from '../TransactionPendingForm';
 
-import styles from './TransactionPending.css';
+import styles from './transactionPending.css';
 
 import * as tUtil from '../util/transaction';
 
