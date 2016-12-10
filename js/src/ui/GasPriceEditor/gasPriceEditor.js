@@ -52,43 +52,36 @@ export default class GasPriceEditor extends Component {
         <div className={ styles.graphColumn }>
           <GasPriceSelector
             histogram={ histogram }
-            price={ price }
-            onChange={ this.onEditGasPrice } />
+            onChange={ this.onEditGasPrice }
+            price={ price } />
           <div className={ styles.gasPriceDesc }>
-            You can choose the gas price based on the
-            distribution of recent included transaction gas prices.
-            The lower the gas price is, the cheaper the transaction will
-            be. The higher the gas price is, the faster it should
-            get mined by the network.
+            You can choose the gas price based on the distribution of recent included transaction gas prices. The lower the gas price is, the cheaper the transaction will be. The higher the gas price is, the faster it should get mined by the network.
           </div>
         </div>
 
         <div className={ styles.editColumn }>
           <div className={ styles.row }>
             <Input
-              label={ gasLabel }
-              hint='the amount of gas to use for the transaction'
               error={ errorGas }
-              value={ gas }
-              onChange={ this.onEditGas } />
-
+              hint='the amount of gas to use for the transaction'
+              label={ gasLabel }
+              onChange={ this.onEditGas }
+              value={ gas } />
             <Input
-              label={ priceLabel }
-              hint='the price of gas to use for the transaction'
               error={ errorPrice }
-              value={ price }
-              onChange={ this.onEditGasPrice } />
+              hint='the price of gas to use for the transaction'
+              label={ priceLabel }
+              onChange={ this.onEditGasPrice }
+              value={ price } />
           </div>
-
           <div className={ styles.row }>
             <Input
               disabled
-              label='total transaction amount'
-              hint='the total amount of the transaction'
               error={ errorTotal }
+              hint='the total amount of the transaction'
+              label='total transaction amount'
               value={ `${eth} ETH` } />
           </div>
-
           <div className={ styles.row }>
             { children }
           </div>
