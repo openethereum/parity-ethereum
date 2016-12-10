@@ -44,7 +44,6 @@ export default class AutoComplete extends Component {
     lastChangedValue: undefined,
     entry: null,
     open: false,
-    fakeBlur: false,
     dataSource: []
   }
 
@@ -78,7 +77,7 @@ export default class AutoComplete extends Component {
         onUpdateInput={ onUpdateInput }
         searchText={ value }
         onFocus={ this.onFocus }
-        onBlur={ this.onBlur }
+        onClose={ this.onClose }
         animation={ PopoverAnimationVertical }
         filter={ filter }
         popoverProps={ { open } }
@@ -121,7 +120,6 @@ export default class AutoComplete extends Component {
       case 'down':
         const { menu } = muiAutocomplete.refs;
         menu && menu.handleKeyDown(event);
-        this.setState({ fakeBlur: true });
         break;
 
       case 'enter':
@@ -155,22 +153,12 @@ export default class AutoComplete extends Component {
     this.setState({ entry, open: false });
   }
 
-  onBlur = (event) => {
+  onClose = (event) => {
     const { onUpdateInput } = this.props;
 
-    // TODO: Handle blur gracefully where we use onUpdateInput (currently replaces
-    // input where text is allowed with the last selected value from the dropdown)
     if (!onUpdateInput) {
-      window.setTimeout(() => {
-        const { entry, fakeBlur } = this.state;
-
-        if (fakeBlur) {
-          this.setState({ fakeBlur: false });
-          return;
-        }
-
-        this.handleOnChange(entry);
-      }, 200);
+      const { entry } = this.state;
+      this.handleOnChange(entry);
     }
   }
 
