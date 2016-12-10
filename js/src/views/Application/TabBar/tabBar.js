@@ -17,7 +17,6 @@
 import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { Link } from 'react-router';
-import { bindActionCreators } from 'redux';
 import { Toolbar, ToolbarGroup } from 'material-ui/Toolbar';
 import { Tab as MUITab } from 'material-ui/Tabs';
 import { isEqual } from 'lodash';
@@ -27,37 +26,24 @@ import { Badge, Tooltip } from '~/ui';
 import styles from './tabBar.css';
 import imagesEthcoreBlock from '../../../../assets/images/parity-logo-white-no-text.svg';
 
-const TABMAP = {
-  accounts: 'account',
-  wallet: 'account',
-  addresses: 'address',
-  apps: 'app',
-  contracts: 'contract',
-  deploy: 'contract'
-};
-
 class Tab extends Component {
   static propTypes = {
-    active: PropTypes.bool,
     view: PropTypes.object,
     children: PropTypes.node,
     pendings: PropTypes.number
   };
 
   shouldComponentUpdate (nextProps) {
-    return nextProps.active !== this.props.active ||
-      (nextProps.view.id === 'signer' && nextProps.pendings !== this.props.pendings);
+    return (nextProps.view.id === 'signer' && nextProps.pendings !== this.props.pendings);
   }
 
   render () {
-    const { active, view, children } = this.props;
+    const { view, children } = this.props;
 
     const label = this.getLabel(view);
 
     return (
       <MUITab
-        className={ active ? styles.tabactive : '' }
-        selected={ active }
         icon={ view.icon }
         label={ label }
       >
@@ -126,7 +112,6 @@ class TabBar extends Component {
 
   static propTypes = {
     views: PropTypes.array.isRequired,
-    hash: PropTypes.string.isRequired,
     pending: PropTypes.array,
     isTest: PropTypes.bool,
     netChain: PropTypes.string
@@ -140,8 +125,7 @@ class TabBar extends Component {
     const prevViews = this.props.views.map((v) => v.id).sort();
     const nextViews = nextProps.views.map((v) => v.id).sort();
 
-    return (nextProps.hash !== this.props.hash) ||
-      (nextProps.pending.length !== this.props.pending.length) ||
+    return (nextProps.pending.length !== this.props.pending.length) ||
       (!isEqual(prevViews, nextViews));
   }
 
@@ -212,28 +196,41 @@ class TabBar extends Component {
   }
 }
 
-function mapStateToProps (state) {
-  const { views } = state.settings;
+function mapStateToProps (initState) {
+  const { views } = initState.settings;
 
-  const filteredViews = Object
+  let filteredViewIds = Object
     .keys(views)
-    .filter((id) => views[id].fixed || views[id].active)
+    .filter((id) => views[id].fixed || views[id].active);
+
+  let filteredViews = filteredViewIds
     .map((id) => ({
       ...views[id],
       id
     }));
 
-  const windowHash = (window.location.hash || '').split('?')[0].split('/')[1];
-  const hash = TABMAP[windowHash] || windowHash;
+  return (state) => {
+    const { views } = state.settings;
 
-  return { views: filteredViews, hash };
-}
+    const viewIds = Object
+      .keys(views)
+      .filter((id) => views[id].fixed || views[id].active);
 
-function mapDispatchToProps (dispatch) {
-  return bindActionCreators({}, dispatch);
+    if (isEqual(viewIds, filteredViewIds)) {
+      return { views: filteredViews };
+    }
+
+    filteredViewIds = viewIds;
+    filteredViews = viewIds
+      .map((id) => ({
+        ...views[id],
+        id
+      }));
+
+    return { views: filteredViews };
+  };
 }
 
 export default connect(
-  mapStateToProps,
-  mapDispatchToProps
+  mapStateToProps
 )(TabBar);
