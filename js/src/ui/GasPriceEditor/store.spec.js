@@ -17,14 +17,14 @@
 import BigNumber from 'bignumber.js';
 import sinon from 'sinon';
 
-import { MAX_GAS_ESTIMATION } from '~/util/constants';
+import { DEFAULT_GAS, DEFAULT_GASPRICE, MAX_GAS_ESTIMATION } from '~/util/constants';
 import { ERRORS } from '~/util/validation';
 
 import GasPriceEditor from './gasPriceEditor';
 
 const { Store } = GasPriceEditor;
 
-const GASPRICE = new BigNumber(123);
+const GASPRICE = new BigNumber(123456);
 const GASLIMIT = 100000;
 const HISTOGRAM = {
   bucketBounds: [1, 2],
@@ -163,6 +163,33 @@ describe('ui/GasPriceEditor/store', () => {
         store.setGas('123');
         store.setEthValue('123');
         expect(store.totalValue).to.deep.equal(new BigNumber(123 + 123 * 123));
+      });
+    });
+  });
+
+  describe('methods', () => {
+    beforeEach(() => {
+      store = new Store(null, GASLIMIT, false);
+    });
+
+    describe('overrideTransaction', () => {
+      const TRANSACTION = { gas: '123', gasPrice: '456' };
+
+      it('overrides gas & gasPrice with values', () => {
+        const transaction = store.overrideTransaction(TRANSACTION);
+
+        expect(transaction.gas).to.deep.equal(new BigNumber(DEFAULT_GAS));
+        expect(transaction.gasPrice).to.deep.equal(new BigNumber(DEFAULT_GASPRICE));
+      });
+
+      it('does not override with invalid gas', () => {
+        store.setGas(-123);
+        expect(store.overrideTransaction(TRANSACTION)).to.deep.equal(TRANSACTION);
+      });
+
+      it('does not override with invalid price', () => {
+        store.setPrice(-123);
+        expect(store.overrideTransaction(TRANSACTION)).to.deep.equal(TRANSACTION);
       });
     });
   });

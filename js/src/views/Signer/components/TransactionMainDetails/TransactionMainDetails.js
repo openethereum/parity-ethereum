@@ -50,7 +50,7 @@ export default class TransactionMainDetails extends Component {
   }
 
   render () {
-    const { children, from, fromBalance, isTest, transaction } = this.props;
+    const { children, from, fromBalance, gasStore, isTest, transaction } = this.props;
 
     return (
       <div className={ styles.transaction }>
@@ -66,7 +66,11 @@ export default class TransactionMainDetails extends Component {
           <MethodDecoding
             address={ from }
             historic={ false }
-            transaction={ transaction } />
+            transaction={
+              gasStore
+                ? gasStore.overrideTransaction(transaction)
+                : transaction
+            } />
           { this.renderEditGas() }
         </div>
         { children }

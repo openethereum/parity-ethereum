@@ -134,4 +134,15 @@ export default class GasPriceEditor {
         console.warn('getDefaults', error);
       });
   }
+
+  overrideTransaction = (transaction) => {
+    if (this.errorGas || this.errorPrice) {
+      return transaction;
+    }
+
+    return Object.assign({}, transaction, {
+      gas: new BigNumber(this.gas),
+      gasPrice: new BigNumber(this.price)
+    });
+  }
 }
