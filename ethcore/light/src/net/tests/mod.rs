@@ -19,7 +19,7 @@
 
 use ethcore::blockchain_info::BlockChainInfo;
 use ethcore::client::{BlockChainClient, EachBlockWith, TestBlockChainClient};
-use ethcore::ids::BlockID;
+use ethcore::ids::BlockId;
 use ethcore::transaction::SignedTransaction;
 use network::PeerId;
 
@@ -94,7 +94,7 @@ impl Provider for TestProvider {
 		let best_num = self.0.client.chain_info().best_block_number;
 		let start_num = req.block_num;
 
-		match self.0.client.block_hash(BlockID::Number(req.block_num)) {
+		match self.0.client.block_hash(BlockId::Number(req.block_num)) {
 			Some(hash) if hash == req.block_hash => {}
 			_=> {
 				trace!(target: "les_provider", "unknown/non-canonical start block in header request: {:?}", (req.block_num, req.block_hash));
@@ -106,7 +106,7 @@ impl Provider for TestProvider {
 			.map(|x: u64| x.saturating_mul(req.skip + 1))
 			.take_while(|x| if req.reverse { x < &start_num } else { best_num - start_num >= *x })
 			.map(|x| if req.reverse { start_num - x } else { start_num + x })
-			.map(|x| self.0.client.block_header(BlockID::Number(x))) 
+			.map(|x| self.0.client.block_header(BlockId::Number(x))) 
 			.take_while(|x| x.is_some())
 			.flat_map(|x| x)
 			.collect()
@@ -114,7 +114,7 @@ impl Provider for TestProvider {
 
 	fn block_bodies(&self, req: request::Bodies) -> Vec<Bytes> {
 		req.block_hashes.into_iter()
-			.map(|hash| self.0.client.block_body(BlockID::Hash(hash)))
+			.map(|hash| self.0.client.block_body(BlockId::Hash(hash)))
 			.map(|body| body.unwrap_or_else(|| ::rlp::EMPTY_LIST_RLP.to_vec()))
 			.collect()
 	}
@@ -285,7 +285,7 @@ fn get_block_headers() {
 
 	let request = Headers {
 		block_num: 1,
-		block_hash: provider.client.block_hash(BlockID::Number(1)).unwrap(),
+		block_hash: provider.client.block_hash(BlockId::Number(1)).unwrap(),
 		max: 10,
 		skip: 0,
 		reverse: false,
@@ -294,7 +294,7 @@ fn get_block_headers() {
 
 	let request_body = encode_request(&Request::Headers(request.clone()), req_id);
 	let response = {
-		let headers: Vec<_> = (0..10).map(|i| provider.client.block_header(BlockID::Number(i + 1)).unwrap()).collect();
+		let headers: Vec<_> = (0..10).map(|i| provider.client.block_header(BlockId::Number(i + 1)).unwrap()).collect();
 		assert_eq!(headers.len(), 10);
 
 		let new_buf = *flow_params.limit() - flow_params.compute_cost(request::Kind::Headers, 10);
@@ -334,14 +334,14 @@ fn get_block_bodies() {
 	}
 
 	let request = request::Bodies {
-		block_hashes: (0..10).map(|i| provider.client.block_hash(BlockID::Number(i)).unwrap()).collect(),
+		block_hashes: (0..10).map(|i| provider.client.block_hash(BlockId::Number(i)).unwrap()).collect(),
 	};
 
 	let req_id = 111;
 
 	let request_body = encode_request(&Request::Bodies(request.clone()), req_id);
 	let response = {
-		let bodies: Vec<_> = (0..10).map(|i| provider.client.block_body(BlockID::Number(i + 1)).unwrap()).collect();
+		let bodies: Vec<_> = (0..10).map(|i| provider.client.block_body(BlockId::Number(i + 1)).unwrap()).collect();
 		assert_eq!(bodies.len(), 10);
 
 		let new_buf = *flow_params.limit() - flow_params.compute_cost(request::Kind::Bodies, 10);
@@ -382,7 +382,7 @@ fn get_block_receipts() {
 
 	// find the first 10 block hashes starting with `f` because receipts are only provided
 	// by the test client in that case.
-	let block_hashes: Vec<_> = (0..1000).map(|i| provider.client.block_hash(BlockID::Number(i)).unwrap())
+	let block_hashes: Vec<_> = (0..1000).map(|i| provider.client.block_hash(BlockId::Number(i)).unwrap())
 		.filter(|hash| format!("{}", hash).starts_with("f")).take(10).collect();
 
 	let request = request::Receipts {

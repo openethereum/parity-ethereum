@@ -18,13 +18,13 @@
 
 use std::ops::Range;
 use util::{Address};
-use types::ids::BlockID;
+use types::ids::BlockId;
 
 /// Easy to use trace filter.
 #[derive(Binary)]
 pub struct Filter {
 	/// Range of filtering.
-	pub range: Range<BlockID>,
+	pub range: Range<BlockId>,
 	/// From address.
 	pub from_address: Vec<Address>,
 	/// To address.
