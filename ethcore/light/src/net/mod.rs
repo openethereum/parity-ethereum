@@ -123,7 +123,6 @@ pub struct ReqId(usize);
 struct PendingPeer {
 	sent_head: H256,
 	last_update: SteadyTime,
-	proto_version: u8,
 }
 
 // data about each peer.
@@ -134,7 +133,6 @@ struct Peer {
 	remote_flow: Option<(Buffer, FlowParams)>,
 	sent_head: H256, // last head we've given them.
 	last_update: SteadyTime,
-	proto_version: u8,
 }
 
 impl Peer {
@@ -596,7 +594,6 @@ impl LightProtocol {
 		Ok(PendingPeer {
 			sent_head: chain_info.best_block_hash,
 			last_update: SteadyTime::now(),
-			proto_version: proto_version,			
 		})
 	}
 
@@ -630,7 +627,6 @@ impl LightProtocol {
 			remote_flow: remote_flow,
 			sent_head: pending.sent_head,
 			last_update: pending.last_update,
-			proto_version: pending.proto_version,
 		}));
 
 		for handler in &self.handlers {

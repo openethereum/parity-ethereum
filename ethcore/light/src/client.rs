@@ -36,9 +36,9 @@ use request;
 
 /// Light client implementation.
 pub struct Client {
-	engine: Arc<Engine>,
+	_engine: Arc<Engine>,
 	header_queue: HeaderQueue,
-	message_channel: Mutex<IoChannel<ClientIoMessage>>,
+	_message_channel: Mutex<IoChannel<ClientIoMessage>>,
 	tx_pool: Mutex<H256FastMap<SignedTransaction>>,
 }
 
