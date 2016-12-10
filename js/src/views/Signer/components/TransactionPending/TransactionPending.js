@@ -84,7 +84,7 @@ export default class TransactionPending extends Component {
     const fromBalance = store.balances[from];
 
     return (
-      <div className={ `${styles.container} ${className || ''}` }>
+      <div className={ `${styles.container} ${className}` }>
         <TransactionMainDetails
           className={ styles.transactionDetails }
           from={ from }
@@ -105,13 +105,17 @@ export default class TransactionPending extends Component {
   }
 
   renderGasEditor () {
+    const { className } = this.props;
+
     return (
-      <GasPriceEditor
-        store={ this.gasStore }>
-        <Button
-          label='view transaction'
-          onClick={ this.toggleGasEditor } />
-      </GasPriceEditor>
+      <div className={ `${styles.container} ${className}` }>
+        <GasPriceEditor
+          store={ this.gasStore }>
+          <Button
+            label='view transaction'
+            onClick={ this.toggleGasEditor } />
+        </GasPriceEditor>
+      </div>
     );
   }
 

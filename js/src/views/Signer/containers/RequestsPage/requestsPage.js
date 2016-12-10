@@ -26,7 +26,7 @@ import { Container, Page, TxList } from '~/ui';
 
 import RequestPending from '../../components/RequestPending';
 
-import styles from './RequestsPage.css';
+import styles from './requestsPage.css';
 
 @observer
 class RequestsPage extends Component {
@@ -110,6 +110,7 @@ class RequestsPage extends Component {
 
     return (
       <RequestPending
+        className={ styles.request }
         date={ date }
         gasLimit={ gasLimit }
         id={ id }
