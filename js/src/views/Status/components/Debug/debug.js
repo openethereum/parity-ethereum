@@ -22,7 +22,7 @@ import ReorderIcon from 'material-ui/svg-icons/action/reorder';
 
 import { Container } from '~/ui';
 
-import styles from './Debug.css';
+import styles from './debug.css';
 
 export default class Debug extends Component {
   static propTypes = {

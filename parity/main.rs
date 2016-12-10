@@ -43,6 +43,7 @@ extern crate serde;
 extern crate serde_json;
 extern crate rlp;
 extern crate ethcore_hash_fetch as hash_fetch;
+extern crate ethcore_light as light;
 
 extern crate ethcore_ipc_hypervisor as hypervisor;
 extern crate ethcore_rpc;

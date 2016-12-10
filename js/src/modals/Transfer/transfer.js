@@ -208,7 +208,7 @@ class Transfer extends Component {
       <Button
         icon={ <ContentClear /> }
         label='Cancel'
-        onClick={ this.store.onClose } />
+        onClick={ this.handleClose } />
     );
     const nextBtn = (
       <Button
@@ -234,7 +234,7 @@ class Transfer extends Component {
       <Button
         icon={ <ActionDoneAll /> }
         label='Close'
-        onClick={ this.store.onClose } />
+        onClick={ this.handleClose } />
     );
 
     switch (stage) {
@@ -263,6 +263,13 @@ class Transfer extends Component {
         { errorEstimated }
       </div>
     );
+  }
+
+  handleClose = () => {
+    const { onClose } = this.props;
+
+    this.store.handleClose();
+    typeof onClose === 'function' && onClose();
   }
 }
 
