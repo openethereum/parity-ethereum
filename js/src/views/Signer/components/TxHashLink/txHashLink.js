@@ -19,22 +19,21 @@ import React, { Component, PropTypes } from 'react';
 import { txLink } from '~/3rdparty/etherscan/links';
 
 export default class TxHashLink extends Component {
-
   static propTypes = {
-    txHash: PropTypes.string.isRequired,
-    isTest: PropTypes.bool.isRequired,
     children: PropTypes.node,
-    className: PropTypes.string
+    className: PropTypes.string,
+    isTest: PropTypes.bool.isRequired,
+    txHash: PropTypes.string.isRequired
   }
 
   render () {
-    const { children, txHash, className, isTest } = this.props;
+    const { children, className, isTest, txHash } = this.props;
 
     return (
       <a
+        className={ className }
         href={ txLink(txHash, isTest) }
-        target='_blank'
-        className={ className }>
+        target='_blank'>
         { children || txHash }
       </a>
     );
