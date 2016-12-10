@@ -32,7 +32,7 @@ use util::sha3::*;
 use util::{FromHex, Mutex};
 use rlp::{self, UntrustedRlp, View};
 use ethcore::account_provider::AccountProvider;
-use ethcore::client::{MiningBlockChainClient, BlockID, TransactionID, UncleID};
+use ethcore::client::{MiningBlockChainClient, BlockId, TransactionId, UncleId};
 use ethcore::header::{Header as BlockHeader, BlockNumber as EthBlockNumber};
 use ethcore::block::IsBlock;
 use ethcore::views::*;
@@ -119,7 +119,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> EthClient<C, SN, S, M, EM> where
 		}
 	}
 
-	fn block(&self, id: BlockID, include_txs: bool) -> Result<Option<RichBlock>, Error> {
+	fn block(&self, id: BlockId, include_txs: bool) -> Result<Option<RichBlock>, Error> {
 		let client = take_weak!(self.client);
 		match (client.block(id.clone()), client.block_total_difficulty(id)) {
 			(Some(bytes), Some(total_difficulty)) => {
@@ -159,20 +159,20 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> EthClient<C, SN, S, M, EM> where
 		}
 	}
 
-	fn transaction(&self, id: TransactionID) -> Result<Option<Transaction>, Error> {
+	fn transaction(&self, id: TransactionId) -> Result<Option<Transaction>, Error> {
 		match take_weak!(self.client).transaction(id) {
 			Some(t) => Ok(Some(Transaction::from(t))),
 			None => Ok(None),
 		}
 	}
 
-	fn uncle(&self, id: UncleID) -> Result<Option<RichBlock>, Error> {
+	fn uncle(&self, id: UncleId) -> Result<Option<RichBlock>, Error> {
 		let client = take_weak!(self.client);
 		let uncle: BlockHeader = match client.uncle(id) {
 			Some(rlp) => rlp::decode(&rlp),
 			None => { return Ok(None); }
 		};
-		let parent_difficulty = match client.block_total_difficulty(BlockID::Hash(uncle.parent_hash().clone())) {
+		let parent_difficulty = match client.block_total_difficulty(BlockId::Hash(uncle.parent_hash().clone())) {
 			Some(difficulty) => difficulty,
 			None => { return Ok(None); }
 		};
@@ -393,7 +393,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 	fn block_transaction_count_by_hash(&self, hash: RpcH256) -> Result<Option<RpcU256>, Error> {
 		try!(self.active());
 		Ok(
-			take_weak!(self.client).block(BlockID::Hash(hash.into()))
+			take_weak!(self.client).block(BlockId::Hash(hash.into()))
 				.map(|bytes| BlockView::new(&bytes).transactions_count().into())
 		)
 	}
@@ -416,7 +416,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 		try!(self.active());
 
 		Ok(
-			take_weak!(self.client).block(BlockID::Hash(hash.into()))
+			take_weak!(self.client).block(BlockId::Hash(hash.into()))
 				.map(|bytes| BlockView::new(&bytes).uncles_count().into())
 		)
 	}
@@ -449,7 +449,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 	fn block_by_hash(&self, hash: RpcH256, include_txs: bool) -> Result<Option<RichBlock>, Error> {
 		try!(self.active());
 
-		self.block(BlockID::Hash(hash.into()), include_txs)
+		self.block(BlockId::Hash(hash.into()), include_txs)
 	}
 
 	fn block_by_number(&self, num: BlockNumber, include_txs: bool) -> Result<Option<RichBlock>, Error> {
@@ -463,19 +463,19 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 		let hash: H256 = hash.into();
 		let miner = take_weak!(self.miner);
 		let client = take_weak!(self.client);
-		Ok(try!(self.transaction(TransactionID::Hash(hash))).or_else(|| miner.transaction(client.chain_info().best_block_number, &hash).map(Into::into)))
+		Ok(try!(self.transaction(TransactionId::Hash(hash))).or_else(|| miner.transaction(client.chain_info().best_block_number, &hash).map(Into::into)))
 	}
 
 	fn transaction_by_block_hash_and_index(&self, hash: RpcH256, index: Index) -> Result<Option<Transaction>, Error> {
 		try!(self.active());
 
-		self.transaction(TransactionID::Location(BlockID::Hash(hash.into()), index.value()))
+		self.transaction(TransactionId::Location(BlockId::Hash(hash.into()), index.value()))
 	}
 
 	fn transaction_by_block_number_and_index(&self, num: BlockNumber, index: Index) -> Result<Option<Transaction>, Error> {
 		try!(self.active());
 
-		self.transaction(TransactionID::Location(num.into(), index.value()))
+		self.transaction(TransactionId::Location(num.into(), index.value()))
 	}
 
 	fn transaction_receipt(&self, hash: RpcH256) -> Result<Option<Receipt>, Error> {
@@ -488,7 +488,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 			(Some(receipt), true) => Ok(Some(receipt.into())),
 			_ => {
 				let client = take_weak!(self.client);
-				let receipt = client.transaction_receipt(TransactionID::Hash(hash));
+				let receipt = client.transaction_receipt(TransactionId::Hash(hash));
 				Ok(receipt.map(Into::into))
 			}
 		}
@@ -497,13 +497,13 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 	fn uncle_by_block_hash_and_index(&self, hash: RpcH256, index: Index) -> Result<Option<RichBlock>, Error> {
 		try!(self.active());
 
-		self.uncle(UncleID { block: BlockID::Hash(hash.into()), position: index.value() })
+		self.uncle(UncleId { block: BlockId::Hash(hash.into()), position: index.value() })
 	}
 
 	fn uncle_by_block_number_and_index(&self, num: BlockNumber, index: Index) -> Result<Option<RichBlock>, Error> {
 		try!(self.active());
 
-		self.uncle(UncleID { block: num.into(), position: index.value() })
+		self.uncle(UncleId { block: num.into(), position: index.value() })
 	}
 
 	fn compilers(&self) -> Result<Vec<String>, Error> {

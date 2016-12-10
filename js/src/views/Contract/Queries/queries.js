@@ -54,6 +54,10 @@ export default class Queries extends Component {
       .filter((fn) => fn.inputs.length > 0)
       .map((fn) => this.renderInputQuery(fn));
 
+    if (queries.length + noInputQueries.length + withInputQueries.length === 0) {
+      return null;
+    }
+
     return (
       <Container title='queries'>
         <div className={ styles.methods }>

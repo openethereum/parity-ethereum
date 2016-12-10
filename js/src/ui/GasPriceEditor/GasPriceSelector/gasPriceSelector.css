@@ -15,3 +15,13 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+.chart {
+  position: absolute;
+  width: 100%;
+}
+
+.columns {
+  display: flex;
+  flex-wrap: wrap;
+  position: relative;
+}

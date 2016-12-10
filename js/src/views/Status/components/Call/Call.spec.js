@@ -22,7 +22,7 @@ import '../../../../environment/tests';
 
 import Call from './Call';
 
-describe('components/Call', () => {
+describe('views/Status/components/Call', () => {
   const call = { callIdx: 123, callNo: 456, name: 'eth_call', params: [{ name: '123' }], response: '' };
   const element = 'dummyElement';
 

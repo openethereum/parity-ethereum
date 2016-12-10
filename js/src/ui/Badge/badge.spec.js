@@ -14,6 +14,25 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-export default (chain) => {
-  return chain === 'morden' || chain === 'ropsten' || chain === 'testnet';
-};
+import React from 'react';
+import { shallow } from 'enzyme';
+
+import Badge from './badge';
+
+function renderShallow (props) {
+  return shallow(
+    <Badge { ...props } />
+  );
+}
+
+describe('ui/Badge', () => {
+  describe('rendering', () => {
+    it('renders defaults', () => {
+      expect(renderShallow()).to.be.ok;
+    });
+
+    it('renders with the specified className', () => {
+      expect(renderShallow({ className: 'testClass' })).to.have.className('testClass');
+    });
+  });
+});

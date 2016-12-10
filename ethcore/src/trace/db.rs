@@ -94,7 +94,7 @@ impl Key<blooms::BloomGroup> for TraceGroupPosition {
 }
 
 #[derive(Debug, Hash, Eq, PartialEq)]
-enum CacheID {
+enum CacheId {
 	Trace(H256),
 	Bloom(TraceGroupPosition),
 }
@@ -104,7 +104,7 @@ pub struct TraceDB<T> where T: DatabaseExtras {
 	// cache
 	traces: RwLock<HashMap<H256, FlatBlockTraces>>,
 	blooms: RwLock<HashMap<TraceGroupPosition, blooms::BloomGroup>>,
-	cache_manager: RwLock<CacheManager<CacheID>>,
+	cache_manager: RwLock<CacheManager<CacheId>>,
 	// db
 	tracesdb: Arc<Database>,
 	// config,
@@ -119,7 +119,7 @@ impl<T> BloomGroupDatabase for TraceDB<T> where T: DatabaseExtras {
 	fn blooms_at(&self, position: &GroupPosition) -> Option<BloomGroup> {
 		let position = TraceGroupPosition::from(position.clone());
 		let result = self.tracesdb.read_with_cache(db::COL_TRACE, &self.blooms, &position).map(Into::into);
-		self.note_used(CacheID::Bloom(position));
+		self.note_used(CacheId::Bloom(position));
 		result
 	}
 }
@@ -152,7 +152,7 @@ impl<T> TraceDB<T> where T: DatabaseExtras {
 	}
 
 	/// Let the cache system know that a cacheable item has been used.
-	fn note_used(&self, id: CacheID) {
+	fn note_used(&self, id: CacheId) {
 		let mut cache_manager = self.cache_manager.write();
 		cache_manager.note_used(id);
 	}
@@ -168,8 +168,8 @@ impl<T> TraceDB<T> where T: DatabaseExtras {
 		cache_manager.collect_garbage(current_size, | ids | {
 			for id in &ids {
 				match *id {
-					CacheID::Trace(ref h) => { traces.remove(h); },
-					CacheID::Bloom(ref h) => { blooms.remove(h); },
+					CacheId::Trace(ref h) => { traces.remove(h); },
+					CacheId::Bloom(ref h) => { blooms.remove(h); },
 				}
 			}
 			traces.shrink_to_fit();
@@ -182,7 +182,7 @@ impl<T> TraceDB<T> where T: DatabaseExtras {
 	/// Returns traces for block with hash.
 	fn traces(&self, block_hash: &H256) -> Option<FlatBlockTraces> {
 		let result = self.tracesdb.read_with_cache(db::COL_TRACE, &self.traces, block_hash);
-		self.note_used(CacheID::Trace(block_hash.clone()));
+		self.note_used(CacheId::Trace(block_hash.clone()));
 		result
 	}
 
@@ -289,7 +289,7 @@ impl<T> TraceDatabase for TraceDB<T> where T: DatabaseExtras {
 			batch.extend_with_cache(db::COL_TRACE, &mut *blooms, blooms_to_insert, CacheUpdatePolicy::Remove);
 			// note_used must be called after locking blooms to avoid cache/traces deadlock on garbage collection
 			for key in blooms_keys {
-				self.note_used(CacheID::Bloom(key));
+				self.note_used(CacheId::Bloom(key));
 			}
 		}
 
@@ -300,7 +300,7 @@ impl<T> TraceDatabase for TraceDB<T> where T: DatabaseExtras {
 			// cause this value might be queried by hash later
 			batch.write_with_cache(db::COL_TRACE, &mut *traces, request.block_hash, request.traces, CacheUpdatePolicy::Overwrite);
 			// note_used must be called after locking traces to avoid cache/traces deadlock on garbage collection
-			self.note_used(CacheID::Trace(request.block_hash.clone()));
+			self.note_used(CacheId::Trace(request.block_hash.clone()));
 		}
 	}
 
