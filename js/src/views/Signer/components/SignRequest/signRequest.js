@@ -49,7 +49,7 @@ export default class SignRequest extends Component {
     const { className } = this.props;
 
     return (
-      <div className={ `${styles.container} ${className || ''}` }>
+      <div className={ `${styles.container} ${className}` }>
         { this.renderDetails() }
         { this.renderActions() }
       </div>
