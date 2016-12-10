@@ -78,14 +78,14 @@ fn empty_blocks() {
 fn forked() {
 	::env_logger::init().ok();
 	let mut net = TestNet::new(3);
-	net.peer_mut(0).chain.add_blocks(300, EachBlockWith::Uncle);
-	net.peer_mut(1).chain.add_blocks(300, EachBlockWith::Uncle);
-	net.peer_mut(2).chain.add_blocks(300, EachBlockWith::Uncle);
-	net.peer_mut(0).chain.add_blocks(100, EachBlockWith::Nothing); //fork
-	net.peer_mut(1).chain.add_blocks(200, EachBlockWith::Uncle);
-	net.peer_mut(2).chain.add_blocks(200, EachBlockWith::Uncle);
-	net.peer_mut(1).chain.add_blocks(100, EachBlockWith::Uncle); //fork between 1 and 2
-	net.peer_mut(2).chain.add_blocks(10, EachBlockWith::Nothing);
+	net.peer_mut(0).chain.add_blocks(30, EachBlockWith::Uncle);
+	net.peer_mut(1).chain.add_blocks(30, EachBlockWith::Uncle);
+	net.peer_mut(2).chain.add_blocks(30, EachBlockWith::Uncle);
+	net.peer_mut(0).chain.add_blocks(10, EachBlockWith::Nothing); //fork
+	net.peer_mut(1).chain.add_blocks(20, EachBlockWith::Uncle);
+	net.peer_mut(2).chain.add_blocks(20, EachBlockWith::Uncle);
+	net.peer_mut(1).chain.add_blocks(10, EachBlockWith::Uncle); //fork between 1 and 2
+	net.peer_mut(2).chain.add_blocks(1, EachBlockWith::Nothing);
 	// peer 1 has the best chain of 601 blocks
 	let peer1_chain = net.peer(1).chain.numbers.read().clone();
 	net.sync();
