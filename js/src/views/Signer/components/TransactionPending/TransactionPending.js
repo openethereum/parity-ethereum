@@ -22,6 +22,7 @@ import { Button, GasPriceEditor } from '~/ui';
 import TransactionMainDetails from '../TransactionMainDetails';
 import TransactionPendingForm from '../TransactionPendingForm';
 
+import RequestStore from '../../requestStore';
 import styles from './TransactionPending.css';
 
 import * as tUtil from '../util/transaction';
@@ -53,9 +54,7 @@ export default class TransactionPending extends Component {
     }).isRequired
   };
 
-  static defaultProps = {
-    isSending: false
-  };
+  store = new RequestStore(this.props.id, this.props.transaction);
 
   gasStore = new GasPriceEditor.Store(this.context.api, this.props.gasLimit);
 
@@ -101,7 +100,6 @@ export default class TransactionPending extends Component {
           value={ value } />
         <TransactionPendingForm
           address={ from }
-          isSending={ this.props.isSending }
           onConfirm={ this.onConfirm }
           onReject={ this.onReject } />
       </div>
