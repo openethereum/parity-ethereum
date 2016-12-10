@@ -235,7 +235,8 @@ impl ChainNotify for EthSync {
 	}
 
 	fn transactions_imported(&self, hashes: Vec<H256>, peer_id: Option<H512>, block_number: u64) {
-		self.handler.write().transactions_imported(hashes, peer_id, block_number);
+		let mut sync = self.handler.sync.write();
+		sync.transactions_imported(hashes, peer_id, block_number);
 	}
 }
 
