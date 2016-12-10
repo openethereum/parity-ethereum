@@ -26,7 +26,6 @@ type BlockNumber = u64;
 pub struct Stats {
 	first_seen: BlockNumber,
 	propagated_to: HashMap<NodeId, usize>,
-	received_from: HashMap<NodeId, usize>,
 }
 
 impl Stats {
@@ -34,7 +33,6 @@ impl Stats {
 		Stats {
 			first_seen: number,
 			propagated_to: Default::default(),
-			received_from: Default::default(),
 		}
 	}
 }
@@ -44,10 +42,6 @@ impl<'a> From<&'a Stats> for TransactionStats {
 		TransactionStats {
 			first_seen: other.first_seen,
 			propagated_to: other.propagated_to
-				.iter()
-				.map(|(hash, size)| (*hash, *size))
-				.collect(),
-			received_from: other.received_from
 				.iter()
 				.map(|(hash, size)| (*hash, *size))
 				.collect(),
@@ -66,14 +60,6 @@ impl TransactionsStats {
 		let enode_id = enode_id.unwrap_or_default();
 		let mut stats = self.pending_transactions.entry(hash).or_insert_with(|| Stats::new(current_block_num));
 		let mut count = stats.propagated_to.entry(enode_id).or_insert(0);
-		*count = count.saturating_add(1);
-	}
-
-	/// Increase number of back-propagations from given `enodeid`.
-	pub fn received(&mut self, hash: H256, enode_id: Option<NodeId>, current_block_num: BlockNumber) {
-		let enode_id = enode_id.unwrap_or_default();
-		let mut stats = self.pending_transactions.entry(hash).or_insert_with(|| Stats::new(current_block_num));
-		let mut count = stats.received_from.entry(enode_id).or_insert(0);
 		*count = count.saturating_add(1);
 	}
 
@@ -127,32 +113,6 @@ mod tests {
 				enodeid1 => 2,
 				enodeid2 => 1
 			],
-			received_from: Default::default(),
-		}));
-	}
-
-	#[test]
-	fn should_keep_track_of_back_propagations() {
-		// given
-		let mut stats = TransactionsStats::default();
-		let hash = 5.into();
-		let enodeid1 = 2.into();
-		let enodeid2 = 5.into();
-
-		// when
-		stats.received(hash, Some(enodeid1), 5);
-		stats.received(hash, Some(enodeid1), 10);
-		stats.received(hash, Some(enodeid2), 15);
-
-		// then
-		let stats = stats.get(&hash);
-		assert_eq!(stats, Some(&Stats {
-			first_seen: 5,
-			propagated_to: Default::default(),
-			received_from: hash_map![
-				enodeid1 => 2,
-				enodeid2 => 1
-			]
 		}));
 	}
 

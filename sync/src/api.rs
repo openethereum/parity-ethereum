@@ -99,8 +99,6 @@ pub struct TransactionStats {
 	pub first_seen: u64,
 	/// Peers it was propagated to.
 	pub propagated_to: BTreeMap<H512, usize>,
-	/// Peers that propagated the transaction back.
-	pub received_from: BTreeMap<H512, usize>,
 }
 
 /// Peer connection information
@@ -338,9 +336,9 @@ impl ChainNotify for EthSync {
 		self.network.stop().unwrap_or_else(|e| warn!("Error stopping network: {:?}", e));
 	}
 
-	fn transactions_imported(&self, hashes: Vec<H256>, peer_id: Option<H512>, block_number: u64) {
+	fn transactions_received(&self, hashes: Vec<H256>, peer_id: PeerId) {
 		let mut sync = self.sync_handler.sync.write();
-		sync.transactions_imported(hashes, peer_id, block_number);
+		sync.transactions_received(hashes, peer_id);
 	}
 }
 
@@ -351,7 +349,7 @@ struct TxRelay(Arc<BlockChainClient>);
 impl LightHandler for TxRelay {
 	fn on_transactions(&self, ctx: &EventContext, relay: &[::ethcore::transaction::SignedTransaction]) {
 		trace!(target: "les", "Relaying {} transactions from peer {}", relay.len(), ctx.peer());
-		self.0.queue_transactions(relay.iter().map(|tx| ::rlp::encode(tx).to_vec()).collect(), ctx.persistent_peer_id())
+		self.0.queue_transactions(relay.iter().map(|tx| ::rlp::encode(tx).to_vec()).collect(), ctx.peer())
 	}
 }
 

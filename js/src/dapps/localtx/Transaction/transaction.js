@@ -86,17 +86,6 @@ class BaseTransaction extends Component {
       </span>
     );
   }
-
-  renderReceived (stats) {
-    const noOfPeers = Object.keys(stats.receivedFrom).length;
-    const noOfPropagations = Object.values(stats.receivedFrom).reduce((sum, val) => sum + val, 0);
-
-    return (
-      <span className={ styles.nowrap }>
-        { noOfPropagations } ({ noOfPeers } peers)
-      </span>
-    );
-  }
 }
 
 export class Transaction extends BaseTransaction {
@@ -113,8 +102,7 @@ export class Transaction extends BaseTransaction {
     isLocal: false,
     stats: {
       firstSeen: 0,
-      propagatedTo: {},
-      receivedFrom: {}
+      propagatedTo: {}
     }
   };
 
@@ -139,9 +127,6 @@ export class Transaction extends BaseTransaction {
         </th>
         <th>
           # Propagated
-        </th>
-        <th>
-          # Received
         </th>
         <th />
       </tr>
@@ -179,9 +164,6 @@ export class Transaction extends BaseTransaction {
         <td>
           { this.renderPropagation(stats) }
         </td>
-        <td>
-          { this.renderReceived(stats) }
-        </td>
       </tr>
     );
   }
@@ -210,8 +192,7 @@ export class LocalTransaction extends BaseTransaction {
 
   static defaultProps = {
     stats: {
-      propagatedTo: {},
-      receivedFrom: {}
+      propagatedTo: {}
     }
   };
 
@@ -335,8 +316,6 @@ export class LocalTransaction extends BaseTransaction {
           { this.renderStatus() }
           <br />
           { status === 'pending' ? this.renderPropagation(stats) : null }
-          <br />
-          { status === 'pending' ? this.renderReceived(stats) : null }
         </td>
       </tr>
     );
