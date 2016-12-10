@@ -42,7 +42,7 @@ module.exports = {
   output: {
     publicPath: '/',
     path: path.join(__dirname, '../', DEST),
-    filename: '[name].[hash].js'
+    filename: '[name].[hash:10].js'
   },
 
   module: {
@@ -83,9 +83,22 @@ module.exports = {
         ]
       },
 
+      // // Don't extract CSS for Dapps
+      // {
+      //   test: /\.css$/,
+      //   include: [ /src\/dapps/ ],
+      //   use: [
+      //     'style-loader',
+      //     'css-loader?modules&sourceMap&importLoaders=1&localIdentName=[name]__[local]___[hash:base64:5]',
+      //     'postcss-loader'
+      //   ]
+      // },
+
+      // Extract CSS for UI
       {
         test: /\.css$/,
         include: [ /src/ ],
+        // exclude: [ /src\/dapps/ ],
         loader: isProd ? ExtractTextPlugin.extract([
           // 'style-loader',
           'css-loader?modules&sourceMap&importLoaders=1&localIdentName=[name]__[local]___[hash:base64:5]',
@@ -98,6 +111,7 @@ module.exports = {
           'postcss-loader'
         ]
       },
+
       {
         test: /\.css$/,
         exclude: [ /src/ ],
@@ -105,11 +119,15 @@ module.exports = {
       },
       {
         test: /\.(png|jpg)$/,
-        use: [ 'file-loader?name=[name].[hash].[ext]' ]
+        use: [ 'file-loader?&name=assets/[name].[hash:10].[ext]' ]
       },
       {
-        test: /\.(woff(2)|ttf|eot|svg|otf)(\?v=[0-9]\.[0-9]\.[0-9])?$/,
-        use: [ 'file-loader' ]
+        test: /\.(woff(2)|ttf|eot|otf)(\?v=[0-9]\.[0-9]\.[0-9])?$/,
+        use: [ 'file-loader?name=fonts/[name][hash:10].[ext]' ]
+      },
+      {
+        test: /\.svg(\?v=[0-9]\.[0-9]\.[0-9])?$/,
+        use: [ 'file-loader?name=assets/[name].[hash:10].[ext]' ]
       }
     ],
     noParse: [
@@ -159,7 +177,7 @@ module.exports = {
     if (!isProd) {
       plugins.push(
         new webpack.optimize.CommonsChunkPlugin({
-          filename: 'commons.[hash].js',
+          filename: 'commons.[hash:10].js',
           name: 'commons',
           minChunks: Infinity
         })
@@ -168,7 +186,7 @@ module.exports = {
 
     if (isProd) {
       plugins.push(new ExtractTextPlugin({
-        filename: 'styles.[hash].css',
+        filename: 'styles/[name].[hash:10].css',
         allChunks: true
       }));
     }
