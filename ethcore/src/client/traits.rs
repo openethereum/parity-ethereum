@@ -205,6 +205,9 @@ pub trait BlockChainClient : Sync + Send {
 	/// Queue conensus engine message.
 	fn queue_consensus_message(&self, message: Bytes);
 
+	/// Used by PoA to communicate with peers.
+	fn broadcast_consensus_message(&self, message: Bytes);
+
 	/// list all transactions
 	fn pending_transactions(&self) -> Vec<SignedTransaction>;
 
@@ -281,9 +284,6 @@ pub trait MiningBlockChainClient: BlockChainClient {
 
 	/// Used by PoA to submit gathered signatures.
 	fn submit_seal(&self, block_hash: H256, seal: Vec<Bytes>);
-
-	/// Used by PoA to communicate with peers.
-	fn broadcast_message(&self, message: Bytes);
 
 	/// Broadcast a block proposal.
 	fn broadcast_proposal_block(&self, block: SealedBlock);

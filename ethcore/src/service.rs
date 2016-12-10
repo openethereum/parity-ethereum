@@ -21,7 +21,7 @@ use rlp::{UntrustedRlp, View};
 use io::*;
 use spec::Spec;
 use error::*;
-use client::{Client, MiningBlockChainClient, ClientConfig, ChainNotify};
+use client::{Client, BlockChainClient, MiningBlockChainClient, ClientConfig, ChainNotify};
 use miner::Miner;
 use snapshot::ManifestData;
 use snapshot::service::{Service as SnapshotService, ServiceParams as SnapServiceParams};
@@ -29,8 +29,6 @@ use std::sync::atomic::AtomicBool;
 
 #[cfg(feature="ipc")]
 use nanoipc;
-#[cfg(feature="ipc")]
-use client::BlockChainClient;
 
 /// Message type for external and internal events
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -227,7 +225,7 @@ impl IoHandler<ClientIoMessage> for ClientIoHandler {
 			},
 			ClientIoMessage::UpdateSealing => self.client.update_sealing(),
 			ClientIoMessage::SubmitSeal(ref hash, ref seal) => self.client.submit_seal(*hash, seal.clone()),
-			ClientIoMessage::BroadcastMessage(ref message) => self.client.broadcast_message(message.clone()),
+			ClientIoMessage::BroadcastMessage(ref message) => self.client.broadcast_consensus_message(message.clone()),
 			ClientIoMessage::NewMessage(ref message) => if let Err(e) = self.client.engine().handle_message(UntrustedRlp::new(message)) {
 				trace!(target: "poa", "Invalid message received: {}", e);
 			},

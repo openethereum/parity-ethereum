@@ -1294,6 +1294,11 @@ impl BlockChainClient for Client {
 		}
 	}
 
+	fn broadcast_consensus_message(&self, message: Bytes) {
+		self.notify(|notify| notify.broadcast(message.clone()));
+	}
+
+
 	fn signing_network_id(&self) -> Option<u64> {
 		self.engine.signing_network_id(&self.latest_env_info())
 	}
@@ -1358,10 +1363,6 @@ impl MiningBlockChainClient for Client {
 
 	fn vm_factory(&self) -> &EvmFactory {
 		&self.factories.vm
-	}
-
-	fn broadcast_message(&self, message: Bytes) {
-		self.notify(|notify| notify.broadcast(message.clone()));
 	}
 
 	fn update_sealing(&self) {
