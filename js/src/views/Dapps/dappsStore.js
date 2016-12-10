@@ -14,14 +14,11 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import BigNumber from 'bignumber.js';
 import { action, computed, observable, transaction } from 'mobx';
 import store from 'store';
 
 import Contracts from '~/contracts';
-import { hashToImageUrl } from '~/redux/util';
-
-import builtinApps from './builtin.json';
+import DappsFetcher from './dappsFetcher';
 
 const LS_KEY_DISPLAY = 'displayApps';
 const LS_KEY_EXTERNAL_ACCEPT = 'acceptExternal';
@@ -32,13 +29,13 @@ export default class DappsStore {
   @observable modalOpen = false;
   @observable externalOverlayVisible = true;
 
-  _manifests = {};
+  dappsFetcher = null;
 
   constructor (api) {
-    this._api = api;
-
     this.loadExternalOverlay();
     this.readDisplayApps();
+
+    this.dappsFetcher = DappsFetcher.get(api);
 
     Promise
       .all([
@@ -47,6 +44,37 @@ export default class DappsStore {
         this._fetchRegistryApps()
       ])
       .then(this.writeDisplayApps);
+  }
+
+  _fetchBuiltinApps () {
+    this.dappsFetcher
+      .fetchBuiltinApps()
+      .then((apps) => this.addApps(apps));
+  }
+
+  _fetchLocalApps () {
+    this.dappsFetcher
+      .fetchLocalApps()
+      .then((apps) => this.addApps(apps));
+  }
+
+  _fetchRegistryApps () {
+    const { dappReg } = Contracts.get();
+
+    this.dappsFetcher
+      .fetchRegistryAppIds()
+      .then((appIds) => {
+        appIds.forEach((appId) => {
+          // Fetch the Dapp and display it ASAP
+          this.dappsFetcher
+            .fetchRegistryApp(dappReg, appId)
+            .then((app) => {
+              if (app) {
+                this.addApps([ app ]);
+              }
+            });
+        });
+      });
   }
 
   @computed get sortedBuiltin () {
@@ -114,7 +142,11 @@ export default class DappsStore {
 
   @action addApps = (apps) => {
     transaction(() => {
+      // Get new apps IDs if available
+      const newAppsIds = apps.map((app) => app.id).filter((id) => id);
+
       this.apps = this.apps
+        .filter((app) => !app.id || !newAppsIds.includes(app.id))
         .concat(apps || [])
         .sort((a, b) => a.name.localeCompare(b.name));
 
@@ -127,160 +159,5 @@ export default class DappsStore {
 
       this.displayApps = Object.assign({}, this.displayApps, visibility);
     });
-  }
-
-  _getHost (api) {
-    const host = process.env.DAPPS_URL || (process.env.NODE_ENV === 'production'
-      ? this._api.dappsUrl
-      : '');
-
-    if (host === '/') {
-      return '';
-    }
-
-    return host;
-  }
-
-  _fetchBuiltinApps () {
-    const { dappReg } = Contracts.get();
-
-    return Promise
-      .all(builtinApps.map((app) => dappReg.getImage(app.id)))
-      .then((imageIds) => {
-        this.addApps(
-          builtinApps.map((app, index) => {
-            app.type = 'builtin';
-            app.image = hashToImageUrl(imageIds[index]);
-            return app;
-          })
-        );
-      })
-      .catch((error) => {
-        console.warn('DappsStore:fetchBuiltinApps', error);
-      });
-  }
-
-  _fetchLocalApps () {
-    return fetch(`${this._getHost()}/api/apps`)
-      .then((response) => {
-        return response.ok
-          ? response.json()
-          : [];
-      })
-      .then((apps) => {
-        return apps
-          .map((app) => {
-            app.type = 'local';
-            app.visible = true;
-            return app;
-          })
-          .filter((app) => app.id && !['ui'].includes(app.id));
-      })
-      .then(this.addApps)
-      .catch((error) => {
-        console.warn('DappsStore:fetchLocal', error);
-      });
-  }
-
-  _fetchRegistryApps () {
-    const { dappReg } = Contracts.get();
-
-    return dappReg
-      .count()
-      .then((_count) => {
-        const count = _count.toNumber();
-        const promises = [];
-
-        for (let index = 0; index < count; index++) {
-          promises.push(dappReg.at(index));
-        }
-
-        return Promise.all(promises);
-      })
-      .then((appsInfo) => {
-        const appIds = appsInfo
-          .map(([appId, owner]) => this._api.util.bytesToHex(appId))
-          .filter((appId) => {
-            return (new BigNumber(appId)).gt(0) && !builtinApps.find((app) => app.id === appId);
-          });
-
-        return Promise
-          .all([
-            Promise.all(appIds.map((appId) => dappReg.getImage(appId))),
-            Promise.all(appIds.map((appId) => dappReg.getContent(appId))),
-            Promise.all(appIds.map((appId) => dappReg.getManifest(appId)))
-          ])
-          .then(([imageIds, contentIds, manifestIds]) => {
-            return appIds.map((appId, index) => {
-              const app = {
-                id: appId,
-                image: hashToImageUrl(imageIds[index]),
-                contentHash: this._api.util.bytesToHex(contentIds[index]).substr(2),
-                manifestHash: this._api.util.bytesToHex(manifestIds[index]).substr(2),
-                type: 'network',
-                visible: true
-              };
-
-              return app;
-            });
-          });
-      })
-      .then((apps) => {
-        return Promise
-          .all(apps.map((app) => this._fetchManifest(app.manifestHash)))
-          .then((manifests) => {
-            return apps.map((app, index) => {
-              const manifest = manifests[index];
-
-              if (manifest) {
-                app.manifestHash = null;
-                Object.keys(manifest)
-                  .filter((key) => ['author', 'description', 'name', 'version'].includes(key))
-                  .forEach((key) => {
-                    app[key] = manifest[key];
-                  });
-              }
-
-              return app;
-            });
-          })
-          .then((apps) => {
-            return apps.filter((app) => {
-              return !app.manifestHash && app.id;
-            });
-          });
-      })
-      .then(this.addApps)
-      .catch((error) => {
-        console.warn('DappsStore:fetchRegistry', error);
-      });
-  }
-
-  _fetchManifest (manifestHash) {
-    if (/^(0x)?0+/.test(manifestHash)) {
-      return Promise.resolve(null);
-    }
-
-    if (this._manifests[manifestHash]) {
-      return Promise.resolve(this._manifests[manifestHash]);
-    }
-
-    return fetch(`${this._getHost()}/api/content/${manifestHash}/`, { redirect: 'follow', mode: 'cors' })
-      .then((response) => {
-        return response.ok
-          ? response.json()
-          : null;
-      })
-      .then((manifest) => {
-        if (manifest) {
-          this._manifests[manifestHash] = manifest;
-        }
-
-        return manifest;
-      })
-      .catch((error) => {
-        console.warn('DappsStore:fetchManifest', error);
-        return null;
-      });
   }
 }
