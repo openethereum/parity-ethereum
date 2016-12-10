@@ -20,8 +20,8 @@ import { connect } from 'react-redux';
 
 import { clearStatusLogs, toggleStatusLogs, toggleStatusRefresh } from '~/redux/actions';
 
-import Debug from '../../components/debug';
-import Status from '../../components/status';
+import Debug from '../../components/Debug';
+import Status from '../../components/Status';
 
 import styles from './statusPage.css';
 
