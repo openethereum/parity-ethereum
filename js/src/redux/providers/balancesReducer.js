@@ -15,7 +15,6 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import { handleActions } from 'redux-actions';
-import BigNumber from 'bignumber.js';
 
 const initialState = {
   balances: {},
@@ -26,39 +25,7 @@ const initialState = {
 
 export default handleActions({
   setBalances (state, action) {
-    const nextBalances = action.balances;
-    const prevBalances = state.balances;
-    const balances = { ...prevBalances };
-
-    Object.keys(nextBalances).forEach((address) => {
-      if (!balances[address]) {
-        balances[address] = Object.assign({}, nextBalances[address]);
-        return;
-      }
-
-      const balance = Object.assign({}, balances[address]);
-      const { tokens, txCount = balance.txCount } = nextBalances[address];
-      const nextTokens = [].concat(balance.tokens);
-
-      tokens.forEach((t) => {
-        const { token, value } = t;
-        const { tag } = token;
-
-        const tokenIndex = nextTokens.findIndex((tok) => tok.token.tag === tag);
-
-        if (tokenIndex === -1) {
-          nextTokens.push({
-            token,
-            value
-          });
-        } else {
-          nextTokens[tokenIndex] = { token, value };
-        }
-      });
-
-      balances[address] = Object.assign({}, { txCount: txCount || new BigNumber(0), tokens: nextTokens });
-    });
-
+    const { balances } = action;
     return Object.assign({}, state, { balances });
   },
 

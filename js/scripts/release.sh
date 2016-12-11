@@ -3,7 +3,7 @@ set -e
 
 # variables
 UTCDATE=`date -u "+%Y%m%d-%H%M%S"`
-PACKAGES=( "parity.js" )
+PACKAGES=( "parity" "etherscan" "shapeshift" )
 BRANCH=$CI_BUILD_REF_NAME
 GIT_JS_PRECOMPILED="https://${GITHUB_JS_PRECOMPILED}:@github.com/ethcore/js-precompiled.git"
 GIT_PARITY="https://${GITHUB_JS_PRECOMPILED}:@github.com/ethcore/parity.git"
@@ -59,19 +59,27 @@ git reset --hard origin/$BRANCH 2>$GITLOG
 
 if [ "$BRANCH" == "master" ]; then
   cd js
+
   echo "*** Bumping package.json patch version"
   npm --no-git-tag-version version
   npm version patch
 
   echo "*** Building packages for npmjs"
-  # echo -e "$NPM_USERNAME\n$NPM_PASSWORD\n$NPM_EMAIL" | npm login
   echo "$NPM_TOKEN" >> ~/.npmrc
-  npm run ci:build:npm
 
-  echo "*** Publishing $PACKAGE to npmjs"
-  cd .npmjs
-  npm publish --access public || true
-  cd ../..
+  for PACKAGE in ${PACKAGES[@]}
+  do
+    echo "*** Building $PACKAGE"
+    LIBRARY=$PACKAGE npm run ci:build:npm
+    DIRECTORY=.npmjs/$PACKAGE
+
+    echo "*** Publishing $PACKAGE from $DIRECTORY"
+    cd $DIRECTORY
+    npm publish --access public || true
+    cd ../..
+  done
+
+  cd ..
 fi
 
 echo "*** Updating cargo parity-ui-precompiled#$PRECOMPILED_HASH"

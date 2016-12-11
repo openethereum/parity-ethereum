@@ -31,11 +31,18 @@ export default class AddAddress extends Component {
   }
 
   static propTypes = {
+    address: PropTypes.string,
     contacts: PropTypes.object.isRequired,
     onClose: PropTypes.func.isRequired
   };
 
   store = new Store(this.context.api, this.props.contacts);
+
+  componentWillMount () {
+    if (this.props.address) {
+      this.onEditAddress(null, this.props.address);
+    }
+  }
 
   render () {
     return (
@@ -84,6 +91,8 @@ export default class AddAddress extends Component {
     return (
       <Form>
         <InputAddress
+          allowCopy={ false }
+          disabled={ !!this.props.address }
           error={ addressError }
           hint={
             <FormattedMessage
