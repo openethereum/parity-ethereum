@@ -169,7 +169,7 @@ impl Tendermint {
 					let message_rlp = message_full_rlp(&signature, &vote_info);
 					let message = ConsensusMessage::new(signature, h, r, *s, block_hash);
 					self.votes.vote(message.clone(), *authority);
-					debug!(target: "poa", "Generated a message: {:?}.", message);
+					debug!(target: "poa", "Generated {:?} as {}.", message, *authority);
 					self.handle_valid_message(&message);
 
 					Some(message_rlp)
@@ -362,7 +362,7 @@ impl Tendermint {
 			};
 
 			if let Some(step) = next_step {
-				trace!(target: "poa", "handle_valid_message: Transition triggered.");
+				trace!(target: "poa", "handle_valid_message: Transition to {:?} triggered.", step);
 				self.to_step(step);
 			}
 		}
@@ -457,13 +457,10 @@ impl Engine for Tendermint {
 			if !self.is_authority(&sender) {
 				try!(Err(EngineError::NotAuthorized(sender)));
 			}
-
-			self.votes.vote(message.clone(), sender);
 			self.broadcast_message(rlp.as_raw().to_vec());
-			trace!(target: "poa", "Handling a valid message: {:?}", message);
+			trace!(target: "poa", "Handling a valid {:?} from {}.", message, sender);
+			self.votes.vote(message.clone(), sender);
 			self.handle_valid_message(&message);
-		} else {
-			trace!(target: "poa", "handle_message: Old or known message ignored: {:?}.", message);
 		}
 		Ok(())
 	}

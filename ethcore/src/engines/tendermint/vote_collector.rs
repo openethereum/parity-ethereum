@@ -62,11 +62,15 @@ impl VoteCollector {
 	}
 
 	pub fn is_old_or_known(&self, message: &ConsensusMessage) -> bool {
-		self.votes.read().contains_key(message)
-			|| {
-				let guard = self.votes.read();
-				guard.keys().next().map_or(true, |oldest| message <= oldest)
-			}
+		self.votes.read().get(message).map_or(false, |a| {
+			trace!(target: "poa", "Known message from {}: {:?}.", a, message);
+			true
+		}) || {
+			let guard = self.votes.read();
+			let is_old = guard.keys().next().map_or(true, |oldest| message <= oldest);
+			if is_old { trace!(target: "poa", "Old message {:?}.", message); }
+			is_old
+		}
 	}
 
 	/// Throws out messages older than message, leaves message as marker for the oldest.

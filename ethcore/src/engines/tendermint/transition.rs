@@ -49,10 +49,10 @@ impl TendermintTimeouts {
 impl Default for TendermintTimeouts {
 	fn default() -> Self {
 		TendermintTimeouts {
-			propose: Duration::milliseconds(2000),
-			prevote: Duration::milliseconds(2000),
-			precommit: Duration::milliseconds(2000),
-			commit: Duration::milliseconds(2000),
+			propose: Duration::milliseconds(10000),
+			prevote: Duration::milliseconds(10000),
+			precommit: Duration::milliseconds(10000),
+			commit: Duration::milliseconds(10000),
 		}
 	}
 }
