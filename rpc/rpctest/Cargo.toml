@@ -3,7 +3,7 @@ description = "Rpc test client."
 name = "rpctest"
 version = "1.5.0"
 license = "GPL-3.0"
-authors = ["Ethcore <admin@ethcore.io>"]
+authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
 ctrlc = { git = "https://github.com/ethcore/rust-ctrlc.git" }
