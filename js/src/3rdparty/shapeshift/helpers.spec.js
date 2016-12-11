@@ -14,22 +14,14 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import chai from 'chai';
-import nock from 'nock';
+const nock = require('nock');
 
-global.expect = chai.expect; // eslint-disable-line no-undef
-
-import 'isomorphic-fetch';
-import es6Promise from 'es6-promise';
-es6Promise.polyfill();
-
-import initShapeshift from './';
-import initRpc from './rpc';
+const initShapeshift = require('./');
 
 const APIKEY = '0x123454321';
 
 const shapeshift = initShapeshift(APIKEY);
-const rpc = initRpc(APIKEY);
+const rpc = shapeshift.getRpc();
 
 function mockget (requests) {
   let scope = nock(rpc.ENDPOINT);
@@ -62,7 +54,7 @@ function mockpost (requests) {
   return scope;
 }
 
-export {
+module.exports = {
   APIKEY,
   mockget,
   mockpost,

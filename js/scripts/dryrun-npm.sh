@@ -18,8 +18,11 @@ do
   LIBRARY=$PACKAGE npm run ci:build:npm
   DIRECTORY=.npmjs/$(echo $PACKAGE | tr '[:upper:]' '[:lower:]')
 
-  echo "*** Publishing $PACKAGE from $DIRECTORY"
   cd $DIRECTORY
+  echo "*** Executing $PACKAGE tests from $DIRECTORY"
+  npm test
+
+  echo "*** Publishing $PACKAGE from $DIRECTORY"
   echo "npm publish --access public || true"
   cd ../..
 

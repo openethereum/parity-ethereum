@@ -26,6 +26,10 @@ export default function (rpc) {
     return rpc.get(`marketinfo/${pair}`);
   }
 
+  function getRpc () {
+    return rpc;
+  }
+
   function getStatus (depositAddress) {
     return rpc.get(`txStat/${depositAddress}`);
   }
@@ -103,6 +107,7 @@ export default function (rpc) {
   return {
     getCoins,
     getMarketInfo,
+    getRpc,
     getStatus,
     shift,
     subscribe,
