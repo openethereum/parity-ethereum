@@ -1,5 +1,5 @@
 {
-  "name": "@parity/ShapeShift",
+  "name": "@parity/shapeshift",
   "description": "The Parity Promise-based library for interfacing with ShapeShift over HTTP",
   "version": "0.0.0",
   "main": "library.js",

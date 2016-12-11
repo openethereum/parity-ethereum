@@ -1,4 +1,4 @@
-# @parity/ShapeShift
+# @parity/shapeshift
 
 A thin ES6 promise wrapper around the shapeshift.io APIs as documented at https://shapeshift.io/api
 
@@ -9,14 +9,14 @@ A thin ES6 promise wrapper around the shapeshift.io APIs as documented at https:
 installation -
 
 ```
-npm install --save @parity/ShapeShift
+npm install --save @parity/shapeshift
 ```
 
 Usage -
 
 ```
 const APIKEY = 'private affiliate key or undefined';
-const shapeshift = require('@parity/ShapeShift')(APIKEY);
+const shapeshift = require('@parity/shapeshift')(APIKEY);
 
 // api calls goes here
 ```

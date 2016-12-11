@@ -1,5 +1,5 @@
 {
-  "name": "@parity/Etherscan",
+  "name": "@parity/etherscan",
   "description": "The Parity Promise-based library for interfacing with Etherscan over HTTP",
   "version": "0.0.0",
   "main": "library.js",
