@@ -31,7 +31,7 @@ export default class Dapp extends Component {
     params: PropTypes.object
   };
 
-  store = new DappsStore(this.context.api);
+  store = DappsStore.get(this.context.api);
 
   render () {
     const { dappsUrl } = this.context.api;
