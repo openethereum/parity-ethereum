@@ -1,0 +1,58 @@
+{
+	"name": "Ethereum Classic Morden Testnet",
+	"forkName": "classic",
+	"engine": {
+		"Ethash": {
+			"params": {
+				"gasLimitBoundDivisor": "0x0400",
+				"minimumDifficulty": "0x020000",
+				"difficultyBoundDivisor": "0x0800",
+				"durationLimit": "0x0d",
+				"blockReward": "0x4563918244F40000",
+				"registrar": "0x52dff57a8a1532e6afb3dc07e2af58bb9eb05b3d",
+				"homesteadTransition": 494000,
+				"eip150Transition": 1783000,
+				"eip155Transition": 1915000,
+				"eip160Transition": 1915000,
+				"ecip1010PauseTransition": 1915000,
+				"ecip1010ContinueTransition": 3415000,
+
+				"eip161abcTransition": "0x7fffffffffffffff",
+				"eip161dTransition": "0x7fffffffffffffff"
+			}
+		}
+	},
+	"params": {
+		"accountStartNonce": "0x0100000",
+		"maximumExtraDataSize": "0x20",
+		"minGasLimit": "0x1388",
+		"networkID" : "0x3e",
+		"forkBlock": "0x1b34d8",
+		"forkCanonHash": "0xf376243aeff1f256d970714c3de9fd78fa4e63cf63e32a51fe1169e375d98145"
+	},
+	"genesis": {
+		"seal": {
+			"ethereum": {
+				"nonce": "0x00006d6f7264656e",
+				"mixHash": "0x00000000000000000000000000000000000000647572616c65787365646c6578"
+			}
+		},
+		"difficulty": "0x20000",
+		"author": "0x0000000000000000000000000000000000000000",
+		"timestamp": "0x00",
+		"parentHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+		"extraData": "0x",
+		"gasLimit": "0x2fefd8"
+	},
+	"nodes": [
+		"enode://e731347db0521f3476e6bbbb83375dcd7133a1601425ebd15fd10f3835fd4c304fba6282087ca5a0deeafadf0aa0d4fd56c3323331901c1f38bd181c283e3e35@128.199.55.137:30303",
+		"enode://ceb5c0f85eb994dbe9693bf46d99b03f6b838d17cc74e68d5eb003171ff39e5f120b17f965b267c319303f94d80b9d994b77062fb1486d76ce95d9f3d8fe1cb4@46.101.122.141:30303"
+	],
+	"accounts": {
+		"0000000000000000000000000000000000000001": { "balance": "1", "nonce": "1048576", "builtin": { "name": "ecrecover", "pricing": { "linear": { "base": 3000, "word": 0 } } } },
+		"0000000000000000000000000000000000000002": { "balance": "1", "nonce": "1048576", "builtin": { "name": "sha256", "pricing": { "linear": { "base": 60, "word": 12 } } } },
+		"0000000000000000000000000000000000000003": { "balance": "1", "nonce": "1048576", "builtin": { "name": "ripemd160", "pricing": { "linear": { "base": 600, "word": 120 } } } },
+		"0000000000000000000000000000000000000004": { "balance": "1", "nonce": "1048576", "builtin": { "name": "identity", "pricing": { "linear": { "base": 15, "word": 3 } } } },
+		"102e61f5d8f9bc71d0ad4a084df4e65e05ce0e1c": { "balance": "1606938044258990275541962092341162602522202993782792835301376", "nonce": "1048576" }
+	}
+}

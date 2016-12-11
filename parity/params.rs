@@ -31,6 +31,7 @@ pub enum SpecType {
 	Ropsten,
 	Olympic,
 	Classic,
+	ClassicTestnet,
 	Expanse,
 	Dev,
 	Custom(String),
@@ -49,6 +50,7 @@ impl str::FromStr for SpecType {
 		let spec = match s {
 			"frontier" | "homestead" | "mainnet" => SpecType::Mainnet,
 			"frontier-dogmatic" | "homestead-dogmatic" | "classic" => SpecType::Classic,
+			"classic-testnet" | "classic-morden" => SpecType::ClassicTestnet,
 			"morden" | "testnet" => SpecType::Testnet,
 			"ropsten" => SpecType::Ropsten,
 			"olympic" => SpecType::Olympic,
@@ -68,6 +70,7 @@ impl SpecType {
 			SpecType::Ropsten => Ok(ethereum::new_ropsten()),
 			SpecType::Olympic => Ok(ethereum::new_olympic()),
 			SpecType::Classic => Ok(ethereum::new_classic()),
+			SpecType::ClassicTestnet => Ok(ethereum::new_classic_morden()),
 			SpecType::Expanse => Ok(ethereum::new_expanse()),
 			SpecType::Dev => Ok(Spec::new_instant()),
 			SpecType::Custom(ref filename) => {
@@ -288,6 +291,9 @@ mod tests {
 		assert_eq!(SpecType::Testnet, "morden".parse().unwrap());
 		assert_eq!(SpecType::Ropsten, "ropsten".parse().unwrap());
 		assert_eq!(SpecType::Olympic, "olympic".parse().unwrap());
+		assert_eq!(SpecType::Classic, "classic".parse().unwrap());
+		assert_eq!(SpecType::ClassicTestnet, "classic-testnet".parse().unwrap());
+		assert_eq!(SpecType::ClassicTestnet, "classic-morden".parse().unwrap());
 	}
 
 	#[test]

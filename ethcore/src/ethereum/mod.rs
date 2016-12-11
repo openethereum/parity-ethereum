@@ -42,6 +42,9 @@ pub fn new_frontier() -> Spec { load(include_bytes!("../../res/ethereum/frontier
 /// Create a new Frontier mainnet chain spec without the DAO hardfork.
 pub fn new_classic() -> Spec { load(include_bytes!("../../res/ethereum/classic.json")) }
 
+/// Create a new Morden chain spec configured for Thereum Classic
+pub fn new_classic_morden() -> Spec { load(include_bytes!("../../res/ethereum/classic-morden.json")) }
+
 /// Create a new Frontier mainnet chain spec without the DAO hardfork.
 pub fn new_expanse() -> Spec { load(include_bytes!("../../res/ethereum/expanse.json")) }
 
