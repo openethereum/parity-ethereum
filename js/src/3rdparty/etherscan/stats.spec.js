@@ -14,9 +14,11 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import etherscan from './';
+const etherscan = require('./');
 
-describe.skip('etherscan/stats', () => {
+describe.skip('etherscan/stats', function () {
+  this.timeout(60 * 1000);
+
   it('retrieves the latest price', () => {
     return etherscan.stats
       .price()

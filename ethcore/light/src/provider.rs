@@ -97,17 +97,29 @@ impl<T: ProvingBlockChainClient + ?Sized> Provider for T {
 	}
 
 	fn block_headers(&self, req: request::Headers) -> Vec<Bytes> {
+		use request::HashOrNumber;
+		use ethcore::views::HeaderView;
+
 		let best_num = self.chain_info().best_block_number;
-		let start_num = req.block_num;
+		let start_num = match req.start {
+			HashOrNumber::Number(start_num) => start_num,
+			HashOrNumber::Hash(hash) => match self.block_header(BlockId::Hash(hash)) {
+				None => {
+					trace!(target: "les_provider", "Unknown block hash {} requested", hash);
+					return Vec::new();
+				}
+				Some(header) => {
+					let num = HeaderView::new(&header).number();
+					if req.max == 1 || self.block_hash(BlockId::Number(num)) != Some(hash) {
+						// Non-canonical header or single header requested.
+						return vec![header];
+					}
 
-		match self.block_hash(BlockId::Number(req.block_num)) {
-			Some(hash) if hash == req.block_hash => {}
-			_=> {
-				trace!(target: "les_provider", "unknown/non-canonical start block in header request: {:?}", (req.block_num, req.block_hash));
-				return vec![]
+					num
+				}
 			}
-		}
-
+		};
+		
 		(0u64..req.max as u64)
 			.map(|x: u64| x.saturating_mul(req.skip + 1))
 			.take_while(|x| if req.reverse { x < &start_num } else { best_num - start_num >= *x })

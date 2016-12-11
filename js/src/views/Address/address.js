@@ -19,8 +19,9 @@ import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 import ActionDelete from 'material-ui/svg-icons/action/delete';
 import ContentCreate from 'material-ui/svg-icons/content/create';
+import ContentAdd from 'material-ui/svg-icons/content/add';
 
-import { EditMeta } from '~/modals';
+import { EditMeta, AddAddress } from '~/modals';
 import { Actionbar, Button, Page } from '~/ui';
 
 import Header from '../Account/Header';
@@ -32,7 +33,7 @@ class Address extends Component {
   static contextTypes = {
     api: PropTypes.object.isRequired,
     router: PropTypes.object.isRequired
-  }
+  };
 
   static propTypes = {
     setVisibleAccounts: PropTypes.func.isRequired,
@@ -40,12 +41,13 @@ class Address extends Component {
     contacts: PropTypes.object,
     balances: PropTypes.object,
     params: PropTypes.object
-  }
+  };
 
   state = {
     showDeleteDialog: false,
-    showEditDialog: false
-  }
+    showEditDialog: false,
+    showAdd: false
+  };
 
   componentDidMount () {
     this.setVisibleAccounts();
@@ -73,32 +75,69 @@ class Address extends Component {
   render () {
     const { contacts, balances } = this.props;
     const { address } = this.props.params;
-    const { showDeleteDialog } = this.state;
+
+    if (Object.keys(contacts).length === 0) {
+      return null;
+    }
 
     const contact = (contacts || {})[address];
     const balance = (balances || {})[address];
 
-    if (!contact) {
+    return (
+      <div>
+        { this.renderAddAddress(contact, address) }
+        { this.renderEditDialog(contact) }
+        { this.renderActionbar(contact) }
+        { this.renderDelete(contact) }
+        <Page>
+          <Header
+            account={ contact || { address, meta: {} } }
+            balance={ balance }
+            hideName={ !contact }
+          />
+          <Transactions
+            address={ address }
+          />
+        </Page>
+      </div>
+    );
+  }
+
+  renderAddAddress (contact, address) {
+    if (contact) {
+      return null;
+    }
+
+    const { contacts } = this.props;
+    const { showAdd } = this.state;
+
+    if (!showAdd) {
       return null;
     }
 
     return (
-      <div>
-        { this.renderEditDialog(contact) }
-        { this.renderActionbar(contact) }
-        <Delete
-          account={ contact }
-          visible={ showDeleteDialog }
-          route='/addresses'
-          onClose={ this.closeDeleteDialog } />
-        <Page>
-          <Header
-            account={ contact }
-            balance={ balance } />
-          <Transactions
-            address={ address } />
-        </Page>
-      </div>
+      <AddAddress
+        contacts={ contacts }
+        onClose={ this.onCloseAdd }
+        address={ address }
+      />
+    );
+  }
+
+  renderDelete (contact) {
+    if (!contact) {
+      return null;
+    }
+
+    const { showDeleteDialog } = this.state;
+
+    return (
+      <Delete
+        account={ contact }
+        visible={ showDeleteDialog }
+        route='/addresses'
+        onClose={ this.closeDeleteDialog }
+      />
     );
   }
 
@@ -116,17 +155,27 @@ class Address extends Component {
         onClick={ this.showDeleteDialog } />
     ];
 
+    const addToBook = (
+      <Button
+        key='newAddress'
+        icon={ <ContentAdd /> }
+        label='save address'
+        onClick={ this.onOpenAdd }
+      />
+    );
+
     return (
       <Actionbar
         title='Address Information'
-        buttons={ !contact ? [] : buttons } />
+        buttons={ !contact ? [ addToBook ] : buttons }
+      />
     );
   }
 
   renderEditDialog (contact) {
     const { showEditDialog } = this.state;
 
-    if (!showEditDialog) {
+    if (!contact || !showEditDialog) {
       return null;
     }
 
@@ -150,6 +199,16 @@ class Address extends Component {
 
   showDeleteDialog = () => {
     this.setState({ showDeleteDialog: true });
+  }
+
+  onOpenAdd = () => {
+    this.setState({
+      showAdd: true
+    });
+  }
+
+  onCloseAdd = () => {
+    this.setState({ showAdd: false });
   }
 }
 
