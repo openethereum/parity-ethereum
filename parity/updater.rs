@@ -95,7 +95,7 @@ pub struct Updater {
 	update_policy: UpdatePolicy,
 	weak_self: Mutex<Weak<Updater>>,
 	client: Weak<BlockChainClient>,
-	fetcher: Option<fetch::Client>,
+	fetcher: Mutex<Option<fetch::Client>>,
 	operations: Mutex<Option<Operations>>,
 	exit_handler: Mutex<Option<Box<Fn() + 'static + Send>>>,
 
@@ -129,7 +129,7 @@ impl Updater {
 			update_policy: update_policy,
 			weak_self: Mutex::new(Default::default()),
 			client: client.clone(),
-			fetcher: None,
+			fetcher: Mutex::new(None),
 			operations: Mutex::new(None),
 			exit_handler: Mutex::new(None),
 			this: VersionInfo::this(),
@@ -141,8 +141,8 @@ impl Updater {
 			u.this.track = ReleaseTrack::Nightly;
 		}
 
-		let mut r = Arc::new(u);
-		Arc::get_mut(&mut r).expect("arc created on previous line; qed").fetcher = Some(fetch::Client::new(r.clone()));
+		let r = Arc::new(u);
+		*r.fetcher.lock() = Some(fetch::Client::new(r.clone()));
 		*r.weak_self.lock() = Arc::downgrade(&r);
 		r
 	}
@@ -328,7 +328,7 @@ impl Updater {
 						s.fetching = Some(latest.track.clone());
 						let weak_self = self.weak_self.lock().clone();
 						let f = move |r: Result<PathBuf, fetch::Error>| if let Some(this) = weak_self.upgrade() { this.fetch_done(r) };
-						self.fetcher.as_ref().expect("Created on `new`; qed").fetch(b, Box::new(f)).ok();
+						self.fetcher.lock().as_ref().expect("Created on `new`; qed").fetch(b, Box::new(f)).ok();
 					}
 				}
 			}
