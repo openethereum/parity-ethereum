@@ -2,6 +2,10 @@
 mode = "last"
 mode_timeout = 300
 mode_alarm = 3600
+auto_update = "critical"
+no_download = false
+no_consensus = false
+
 chain = "homestead"
 db_path = "$HOME/.parity"
 keys_path = "$HOME/.parity/keys"

@@ -746,7 +746,7 @@ mod tests {
 	use super::*;
 	use cli::Args;
 	use ethcore_rpc::NetworkSettings;
-	use ethcore::client::{VMType, BlockId, UpdatePolicy, UpdateFilter};
+	use ethcore::client::{VMType, BlockId};
 	use ethcore::miner::{MinerOptions, PrioritizationStrategy};
 	use helpers::{replace_home, default_network_config};
 	use run::RunCmd;
@@ -755,6 +755,7 @@ mod tests {
 	use presale::ImportWallet;
 	use account::{AccountCmd, NewAccount, ImportAccounts};
 	use devtools::{RandomTempPath};
+	use updater::{UpdatePolicy, UpdateFilter};
 	use std::io::Write;
 	use std::fs::{File, create_dir};
 
@@ -942,7 +943,7 @@ mod tests {
 			acc_conf: Default::default(),
 			gas_pricer: Default::default(),
 			miner_extras: Default::default(),
-			update_policy: Default::default(),
+			update_policy: UpdatePolicy { enable_downloading: true, filter: UpdateFilter::Critical },
 			mode: Default::default(),
 			tracing: Default::default(),
 			compaction: Default::default(),
