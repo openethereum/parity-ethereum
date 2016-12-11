@@ -22,13 +22,14 @@ impl SignerRpc {
 	pub fn confirm_request(
 		&mut self,
 		id: U256,
+		new_gas: Option<U256>,
 		new_gas_price: Option<U256>,
 		pwd: &str
 	) -> BoxFuture<Result<U256, RpcError>, Canceled>
 	{
 		self.rpc.request("personal_confirmRequest", vec![
 			to_value(&format!("{:#x}", id)),
-			to_value(&TransactionModification { gas_price: new_gas_price }),
+			to_value(&TransactionModification { gas_price: new_gas_price, gas: new_gas }),
 			to_value(&pwd),
 		])
 	}
