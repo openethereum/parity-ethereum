@@ -125,8 +125,9 @@ pub trait Engine : Sync + Send {
 		self.verify_block_basic(header, None).and_then(|_| self.verify_block_unordered(header, None))
 	}
 
-	/// Don't forget to call Super::populate_from_parent when subclassing & overriding.
-	// TODO: consider including State in the params.
+	/// Populate a header's fields based on its parent's header.
+	/// Takes gas floor and ceiling targets.
+	/// The gas floor target must not be lower than the engine's minimum gas limit.
 	fn populate_from_parent(&self, header: &mut Header, parent: &Header, _gas_floor_target: U256, _gas_ceil_target: U256) {
 		header.set_difficulty(parent.difficulty().clone());
 		header.set_gas_limit(parent.gas_limit().clone());

@@ -15,14 +15,10 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-.columns {
+.container {
   display: flex;
   flex-wrap: wrap;
   position: relative;
-}
-
-.graphColumn {
-  flex: 65;
 }
 
 .editColumn {
@@ -39,6 +35,10 @@
 .gasPriceDesc {
   font-size: 0.75em;
   opacity: 0.5;
+}
+
+.graphColumn {
+  flex: 65;
 }
 
 .row {

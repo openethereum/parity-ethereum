@@ -52,9 +52,9 @@ export default class SignerMiddleware {
   }
 
   onConfirmStart = (store, action) => {
-    const { id, password, wallet, payload } = action.payload;
+    const { gas, gasPrice, id, password, payload, wallet } = action.payload;
 
-    const handlePromise = promise => {
+    const handlePromise = (promise) => {
       promise
         .then((txHash) => {
           console.log('confirmRequest', id, txHash);
@@ -102,7 +102,7 @@ export default class SignerMiddleware {
       return;
     }
 
-    handlePromise(this._api.signer.confirmRequest(id, {}, password));
+    handlePromise(this._api.signer.confirmRequest(id, { gas, gasPrice }, password));
   }
 
   onRejectStart = (store, action) => {

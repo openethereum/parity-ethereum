@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import { FormattedMessage } from 'react-intl';
 import { Tab, Tabs } from 'material-ui';
 import ActionSettingsEthernet from 'material-ui/svg-icons/action/settings-ethernet';
 import ImageBlurOn from 'material-ui/svg-icons/image/blur-on';
@@ -46,7 +47,11 @@ export default class Settings extends Component {
 
     return (
       <div>
-        <Actionbar title='settings' className={ styles.bar }>
+        <Actionbar
+          className={ styles.bar }
+          title={
+            <FormattedMessage id='settings.label' />
+          }>
           <Tabs className={ styles.tabs } value={ hash }>
             { this.renderTab(hash, 'views', <ImageRemoveRedEye />) }
             { this.renderTab(hash, 'background', <ImageBlurOn />) }
@@ -64,12 +69,20 @@ export default class Settings extends Component {
   renderTab (hash, section, icon) {
     return (
       <Tab
-        className={ hash === section ? styles.tabactive : styles.tab }
-        value={ section }
-        key={ section }
+        className={
+          hash === section
+            ? styles.tabactive
+            : styles.tab
+        }
         icon={ icon }
-        label={ <div className={ styles.menu }>{ section }</div> }
-        onActive={ this.onActivate(section) } />
+        key={ section }
+        label={
+          <div className={ styles.menu }>
+            <FormattedMessage id={ `settings.${section}.label` } />
+          </div>
+        }
+        onActive={ this.onActivate(section) }
+        value={ section } />
     );
   }
 
