@@ -1,6 +1,6 @@
 [package]
 description = "Parity LES primitives"
-homepage = "https://ethcore.io"
+homepage = "http://parity.io"
 license = "GPL-3.0"
 name = "ethcore-light"
 version = "1.5.0"
