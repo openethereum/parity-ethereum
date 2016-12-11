@@ -183,7 +183,7 @@ impl ChainNotify for Informant {
 		let ripe = Instant::now() > *last_import + Duration::from_secs(1) && !importing;
 		let txs_imported = imported.iter()
 			.take(imported.len().saturating_sub(if ripe { 1 } else { 0 }))
-			.filter_map(|h| self.client.block(BlockID::Hash(*h)))
+			.filter_map(|h| self.client.block(BlockId::Hash(*h)))
 			.map(|b| BlockView::new(&b).transactions_count())
 			.sum();
 

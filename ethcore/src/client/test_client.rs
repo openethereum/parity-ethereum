@@ -676,7 +676,7 @@ impl BlockChainClient for TestBlockChainClient {
 	}
 
 	fn queue_consensus_message(&self, message: Bytes) {
-		self.spec.engine.handle_message(UntrustedRlp::new(&message)).unwrap();
+		self.spec.engine.handle_message(&message).unwrap();
 	}
 
 	fn broadcast_consensus_message(&self, _message: Bytes) {}

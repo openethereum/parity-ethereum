@@ -580,6 +580,12 @@ impl Client {
 		self.miner.clone()
 	}
 
+
+	/// Replace io channel. Useful for testing.
+	pub fn set_io_channel(&self, io_channel: IoChannel<ClientIoMessage>) {
+		*self.io_channel.lock() = io_channel;
+	}
+
 	/// Attempt to get a copy of a specific block's final state.
 	///
 	/// This will not fail if given BlockId::Latest.
@@ -1289,7 +1295,8 @@ impl BlockChainClient for Client {
 	}
 
 	fn queue_consensus_message(&self, message: Bytes) {
-		if let Err(e) = self.io_channel.lock().send(ClientIoMessage::NewMessage(message)) {
+		let channel = self.io_channel.lock().clone();
+		if let Err(e) = channel.send(ClientIoMessage::NewMessage(message)) {
 			debug!("Ignoring the message, error queueing: {}", e);
 		}
 	}

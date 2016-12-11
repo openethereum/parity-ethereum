@@ -146,7 +146,8 @@ impl Tendermint {
 	}
 
 	fn broadcast_message(&self, message: Bytes) {
-		if let Some(ref channel) = *self.message_channel.lock() {
+		let channel = self.message_channel.lock().clone();
+		if let Some(ref channel) = channel {
 			match channel.send(ClientIoMessage::BroadcastMessage(message)) {
 				Ok(_) => trace!(target: "poa", "broadcast_message: BroadcastMessage message sent."),
 				Err(err) => warn!(target: "poa", "broadcast_message: Could not send a sealing message {}.", err),
@@ -448,7 +449,8 @@ impl Engine for Tendermint {
 		}
 	}
 
-	fn handle_message(&self, rlp: UntrustedRlp) -> Result<(), Error> {
+	fn handle_message(&self, rlp: &[u8]) -> Result<(), Error> {
+		let rlp = UntrustedRlp::new(rlp);
 		let message: ConsensusMessage = try!(rlp.as_val());
 		if !self.votes.is_old_or_known(&message) {
 			let sender = public_to_address(&try!(recover(&message.signature.into(), &try!(rlp.at(1)).as_raw().sha3())));
@@ -653,7 +655,6 @@ impl Engine for Tendermint {
 mod tests {
 	use util::*;
 	use util::trie::TrieSpec;
-	use rlp::{UntrustedRlp, View};
 	use io::{IoContext, IoHandler};
 	use block::*;
 	use error::{Error, BlockError};
@@ -694,7 +695,7 @@ mod tests {
 	fn vote<F>(engine: &Arc<Engine>, signer: F, height: usize, round: usize, step: Step, block_hash: Option<H256>) -> Bytes where F: FnOnce(H256) -> Result<H520, ::account_provider::Error> {
 		let mi = message_info_rlp(height, round, step, block_hash);
 		let m = message_full_rlp(&signer(mi.sha3()).unwrap().into(), &mi);
-		engine.handle_message(UntrustedRlp::new(&m)).unwrap();
+		engine.handle_message(&m).unwrap();
 		m
 	}
 
