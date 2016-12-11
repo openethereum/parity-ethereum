@@ -18,7 +18,7 @@ import BigNumber from 'bignumber.js';
 import { action, computed, observable, transaction } from 'mobx';
 
 import { ERRORS, validatePositiveNumber } from '~/util/validation';
-import { DEFAULT_GAS, DEFAULT_GASPRICE, MAX_GAS_ESTIMATION } from '~/util/constants';
+import { DEFAULT_GAS, MAX_GAS_ESTIMATION } from '~/util/constants';
 
 export default class GasPriceEditor {
   @observable errorEstimated = null;
@@ -26,21 +26,22 @@ export default class GasPriceEditor {
   @observable errorPrice = null;
   @observable errorTotal = null;
   @observable estimated = DEFAULT_GAS;
-  @observable gas = DEFAULT_GAS;
-  @observable gasLimit = 0;
+  @observable gas;
+  @observable gasLimit;
   @observable histogram = null;
   @observable isEditing = false;
-  @observable price = DEFAULT_GASPRICE;
-  @observable priceDefault = DEFAULT_GASPRICE;
+  @observable price;
+  @observable priceDefault;
   @observable weiValue = '0';
 
-  constructor (api, gasLimit, loadDefaults = true) {
+  constructor (api, { gas, gasLimit, gasPrice }) {
     this._api = api;
-    this.gasLimit = gasLimit;
 
-    if (loadDefaults) {
-      this.loadDefaults();
-    }
+    this.gas = gas;
+    this.gasLimit = gasLimit;
+    this.price = gasPrice;
+
+    this.loadDefaults();
   }
 
   @computed get totalValue () {
@@ -124,7 +125,9 @@ export default class GasPriceEditor {
         transaction(() => {
           const price = _price.toFixed(0);
 
-          this.setPrice(price);
+          if (!this.price) {
+            this.setPrice(price);
+          }
           this.setHistogram(histogram);
 
           this.priceDefault = price;

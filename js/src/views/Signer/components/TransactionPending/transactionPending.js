@@ -53,7 +53,11 @@ export default class TransactionPending extends Component {
     }).isRequired
   };
 
-  gasStore = new GasPriceEditor.Store(this.context.api, this.props.gasLimit);
+  gasStore = new GasPriceEditor.Store(this.context.api, {
+    gas: this.props.transaction.gas.toFixed(),
+    gasLimit: this.props.gasLimit,
+    gasPrice: this.props.transaction.gasPrice.toFixed()
+  });
 
   componentWillMount () {
     const { store, transaction } = this.props;
@@ -66,7 +70,6 @@ export default class TransactionPending extends Component {
 
     this.setState({ gasPriceEthmDisplay, totalValue, gasToDisplay });
     this.gasStore.setEthValue(value);
-
     store.fetchBalances([from, to]);
   }
 

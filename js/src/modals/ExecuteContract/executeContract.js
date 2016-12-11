@@ -63,7 +63,7 @@ class ExecuteContract extends Component {
     onFromAddressChange: PropTypes.func.isRequired
   }
 
-  gasStore = new GasPriceEditor.Store(this.context.api, this.props.gasLimit);
+  gasStore = new GasPriceEditor.Store(this.context.api, { gasLimit: this.props.gasLimit });
 
   state = {
     amount: '0',

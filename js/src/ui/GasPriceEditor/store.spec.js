@@ -44,17 +44,17 @@ describe('ui/GasPriceEditor/store', () => {
   let store = null;
 
   it('is available via GasPriceEditor.Store', () => {
-    expect(new Store(null, null, false)).to.be.ok;
+    expect(new Store(null, {})).to.be.ok;
   });
 
   describe('constructor (defaults)', () => {
     beforeEach(() => {
-      store = new Store(api, GASLIMIT);
+      store = new Store(api, { gasLimit: GASLIMIT });
     });
 
     it('retrieves the histogram and gasPrice', () => {
-      expect(api.eth.gasPrice).to.have.been.calledOnce;
-      expect(api.parity.gasPriceHistogram).to.have.been.calledOnce;
+      expect(api.eth.gasPrice).to.have.been.called;
+      expect(api.parity.gasPriceHistogram).to.have.been.called;
     });
 
     it('sets the gasLimit as passed', () => {
@@ -64,7 +64,7 @@ describe('ui/GasPriceEditor/store', () => {
 
   describe('setters', () => {
     beforeEach(() => {
-      store = new Store(null, GASLIMIT, false);
+      store = new Store(null, { gasLimit: GASLIMIT });
     });
 
     describe('setEditing', () => {
@@ -154,7 +154,7 @@ describe('ui/GasPriceEditor/store', () => {
 
   describe('computed', () => {
     beforeEach(() => {
-      store = new Store(null, GASLIMIT, false);
+      store = new Store(null, { gasLimit: GASLIMIT });
     });
 
     describe('totalValue', () => {
@@ -169,7 +169,7 @@ describe('ui/GasPriceEditor/store', () => {
 
   describe('methods', () => {
     beforeEach(() => {
-      store = new Store(null, GASLIMIT, false);
+      store = new Store(null, { gasLimit: GASLIMIT });
     });
 
     describe('overrideTransaction', () => {
