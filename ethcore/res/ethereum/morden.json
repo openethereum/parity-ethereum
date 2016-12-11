@@ -9,12 +9,15 @@
 				"durationLimit": "0x0d",
 				"blockReward": "0x4563918244F40000",
 				"registrar": "0x52dff57a8a1532e6afb3dc07e2af58bb9eb05b3d",
-				"homesteadTransition": "0x789b0",
-				"eip150Transition": "0x1b34d8",
-				"eip155Transition": 1885000,
-				"eip160Transition": 1885000,
-				"eip161abcTransition": 1885000,
-				"eip161dTransition": 1885000
+				"homesteadTransition": 494000,
+				"eip150Transition": 1783000,
+				"eip155Transition": 1915000,
+				"eip160Transition": 1915000,
+				"ecip1010PauseTransition": 1915000,
+				"ecip1010ContinueTransition": 3415000,
+
+				"eip161abcTransition": "0x7fffffffffffffff",
+				"eip161dTransition": "0x7fffffffffffffff"
 			}
 		}
 	},
