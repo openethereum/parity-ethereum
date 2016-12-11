@@ -17,6 +17,14 @@
 import { inAddress, inData, inHex, inNumber16, inOptions } from '../../format/input';
 import { outAccountInfo, outAddress, outHistogram, outNumber, outPeers, outTransaction } from '../../format/output';
 
+function inAddresses (addresses) {
+  return (addresses || []).map(inAddress);
+}
+
+function outAddresses (addresses) {
+  return (addresses || []).map(outAddress);
+}
+
 export default class Parity {
   constructor (transport) {
     this._transport = transport;
@@ -112,6 +120,18 @@ export default class Parity {
       .execute('parity_generateSecretPhrase');
   }
 
+  getDappsAddresses (dappId) {
+    return this._transport
+      .execute('parity_getDappsAddresses', dappId)
+      .then(outAddresses);
+  }
+
+  getNewDappsWhitelist () {
+    return this._transport
+      .execute('parity_getNewDappsWhitelist')
+      .then(outAddresses);
+  }
+
   hashContent (url) {
     return this._transport
       .execute('parity_hashContent', url);
@@ -119,13 +139,18 @@ export default class Parity {
 
   importGethAccounts (accounts) {
     return this._transport
-      .execute('parity_importGethAccounts', (accounts || []).map(inAddress))
-      .then((accounts) => (accounts || []).map(outAddress));
+      .execute('parity_importGethAccounts', inAddresses)
+      .then(outAddresses);
   }
 
   killAccount (account, password) {
     return this._transport
       .execute('parity_killAccount', inAddress(account), password);
+  }
+
+  listRecentDapps () {
+    return this._transport
+      .execute('parity_listRecentDapps');
   }
 
   removeAddress (address) {
@@ -136,7 +161,7 @@ export default class Parity {
   listGethAccounts () {
     return this._transport
       .execute('parity_listGethAccounts')
-      .then((accounts) => (accounts || []).map(outAddress));
+      .then(outAddresses);
   }
 
   localTransactions () {
@@ -268,6 +293,11 @@ export default class Parity {
       .execute('parity_setAuthor', inAddress(address));
   }
 
+  setDappsAddresses (dappId, addresses) {
+    return this._transport
+      .execute('parity_setDappsAddresses', dappId, inAddresses(addresses));
+  }
+
   setExtraData (data) {
     return this._transport
       .execute('parity_setExtraData', inData(data));
@@ -286,6 +316,11 @@ export default class Parity {
   setMode (mode) {
     return this._transport
       .execute('parity_setMode', mode);
+  }
+
+  setNewDappsWhitelist (addresses) {
+    return this._transport
+      .execute('parity_setNewDappsWhitelist', inAddresses(addresses));
   }
 
   setTransactionsLimit (quantity) {
