@@ -31,17 +31,21 @@ export default class Header extends Component {
     account: PropTypes.object,
     balance: PropTypes.object,
     className: PropTypes.string,
-    children: PropTypes.node
+    children: PropTypes.node,
+    isContract: PropTypes.bool,
+    hideName: PropTypes.bool
   };
 
   static defaultProps = {
     className: '',
-    children: null
+    children: null,
+    isContract: false,
+    hideName: false
   };
 
   render () {
     const { api } = this.context;
-    const { account, balance, className, children } = this.props;
+    const { account, balance, className, children, hideName } = this.props;
     const { address, meta, uuid } = account;
 
     if (!account) {
@@ -58,17 +62,20 @@ export default class Header extends Component {
           <IdentityIcon
             address={ address } />
           <div className={ styles.floatleft }>
-            <ContainerTitle title={ <IdentityName address={ address } unknown /> } />
-            <div className={ styles.addressline }>
+            { this.renderName(address) }
+
+            <div className={ [ hideName ? styles.bigaddress : '', styles.addressline ].join(' ') }>
               <CopyToClipboard data={ address } />
               <div className={ styles.address }>{ address }</div>
             </div>
+
             { uuidText }
             <div className={ styles.infoline }>
               { meta.description }
             </div>
             { this.renderTxCount() }
           </div>
+
           <div className={ styles.tags }>
             <Tags tags={ meta.tags } />
           </div>
@@ -87,10 +94,22 @@ export default class Header extends Component {
     );
   }
 
-  renderTxCount () {
-    const { balance } = this.props;
+  renderName (address) {
+    const { hideName } = this.props;
 
-    if (!balance) {
+    if (hideName) {
+      return null;
+    }
+
+    return (
+      <ContainerTitle title={ <IdentityName address={ address } unknown /> } />
+    );
+  }
+
+  renderTxCount () {
+    const { balance, isContract } = this.props;
+
+    if (!balance || isContract) {
       return null;
     }
 

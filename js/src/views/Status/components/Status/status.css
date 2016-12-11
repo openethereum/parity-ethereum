@@ -28,10 +28,19 @@
   content: '';
 }
 
-.blockinfo {
-  font-size: 24px;
+.blockInfo {
   color: #aaa;
-  line-height: 24px;
+  font-size: 1.5em;
+  line-height: 1.5em;
+}
+
+.blockByline {
+  color: #aaa;
+  font-size: 0.75em;
+}
+
+.padBottom {
+  padding-bottom: 1.25em !important;
 }
 
 .col,

@@ -51,9 +51,16 @@ export default class Dapp extends Component {
         src = `${dappsUrl}/${app.contentHash}/`;
         break;
       default:
-        const dapphost = process.env.NODE_ENV === 'production' && !app.secure
-          ? `${dappsUrl}/ui`
-          : '';
+        let dapphost = process.env.DAPPS_URL || (
+          process.env.NODE_ENV === 'production' && !app.secure
+            ? `${dappsUrl}/ui`
+            : ''
+        );
+
+        if (dapphost === '/') {
+          dapphost = '';
+        }
+
         src = `${dapphost}/${app.url}.html`;
         break;
     }

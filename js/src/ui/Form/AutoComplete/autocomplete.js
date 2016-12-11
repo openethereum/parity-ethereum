@@ -16,10 +16,23 @@
 
 import React, { Component, PropTypes } from 'react';
 import keycode from 'keycode';
-import { MenuItem, AutoComplete as MUIAutoComplete } from 'material-ui';
+import { MenuItem, AutoComplete as MUIAutoComplete, Divider as MUIDivider } from 'material-ui';
 import { PopoverAnimationVertical } from 'material-ui/Popover';
 
 import { isEqual } from 'lodash';
+
+// Hack to prevent "Unknown prop `disableFocusRipple` on <hr> tag" error
+class Divider extends Component {
+  static muiName = MUIDivider.muiName;
+
+  render () {
+    return (
+      <div style={ { margin: '0.25em 0' } }>
+        <MUIDivider style={ { height: 2 } } />
+      </div>
+    );
+  }
+}
 
 export default class AutoComplete extends Component {
   static propTypes = {
@@ -38,15 +51,17 @@ export default class AutoComplete extends Component {
       PropTypes.array,
       PropTypes.object
     ])
-  }
+  };
 
   state = {
     lastChangedValue: undefined,
     entry: null,
     open: false,
-    fakeBlur: false,
-    dataSource: []
-  }
+    dataSource: [],
+    dividerBreaks: []
+  };
+
+  dividersVisibility = {};
 
   componentWillMount () {
     const dataSource = this.getDataSource();
@@ -64,7 +79,7 @@ export default class AutoComplete extends Component {
   }
 
   render () {
-    const { disabled, error, hint, label, value, className, filter, onUpdateInput } = this.props;
+    const { disabled, error, hint, label, value, className, onUpdateInput } = this.props;
     const { open, dataSource } = this.state;
 
     return (
@@ -78,9 +93,9 @@ export default class AutoComplete extends Component {
         onUpdateInput={ onUpdateInput }
         searchText={ value }
         onFocus={ this.onFocus }
-        onBlur={ this.onBlur }
+        onClose={ this.onClose }
         animation={ PopoverAnimationVertical }
-        filter={ filter }
+        filter={ this.handleFilter }
         popoverProps={ { open } }
         openOnFocus
         menuCloseDelay={ 0 }
@@ -100,18 +115,76 @@ export default class AutoComplete extends Component {
       ? entries
       : Object.values(entries);
 
-    if (renderItem && typeof renderItem === 'function') {
-      return entriesArray.map(entry => renderItem(entry));
+    let currentDivider = 0;
+    let firstSet = false;
+
+    const dataSource = entriesArray.map((entry, index) => {
+      // Render divider
+      if (typeof entry === 'string' && entry.toLowerCase() === 'divider') {
+        // Don't add divider if nothing before
+        if (!firstSet) {
+          return undefined;
+        }
+
+        const item = {
+          text: '',
+          divider: currentDivider,
+          isDivider: true,
+          value: (
+            <Divider />
+          )
+        };
+
+        currentDivider++;
+        return item;
+      }
+
+      let item;
+
+      if (renderItem && typeof renderItem === 'function') {
+        item = renderItem(entry);
+      } else {
+        item = {
+          text: entry,
+          value: (
+            <MenuItem
+              primaryText={ entry }
+            />
+          )
+        };
+      }
+
+      if (!firstSet) {
+        item.first = true;
+        firstSet = true;
+      }
+
+      item.divider = currentDivider;
+
+      return item;
+    }).filter((item) => item !== undefined);
+
+    return dataSource;
+  }
+
+  handleFilter = (searchText, name, item) => {
+    if (item.isDivider) {
+      return this.dividersVisibility[item.divider];
     }
 
-    return entriesArray.map(entry => ({
-      text: entry,
-      value: (
-        <MenuItem
-          primaryText={ entry }
-        />
-      )
-    }));
+    if (item.first) {
+      this.dividersVisibility = {};
+    }
+
+    const { filter } = this.props;
+    const show = filter(searchText, name, item);
+
+    // Show the related divider
+    if (show) {
+      this.dividersVisibility[item.divider] = true;
+    }
+
+    return show;
   }
 
   onKeyDown = (event) => {
@@ -121,7 +194,6 @@ export default class AutoComplete extends Component {
       case 'down':
         const { menu } = muiAutocomplete.refs;
         menu && menu.handleKeyDown(event);
-        this.setState({ fakeBlur: true });
         break;
 
       case 'enter':
@@ -155,22 +227,12 @@ export default class AutoComplete extends Component {
     this.setState({ entry, open: false });
   }
 
-  onBlur = (event) => {
+  onClose = (event) => {
     const { onUpdateInput } = this.props;
 
-    // TODO: Handle blur gracefully where we use onUpdateInput (currently replaces
-    // input where text is allowed with the last selected value from the dropdown)
     if (!onUpdateInput) {
-      window.setTimeout(() => {
-        const { entry, fakeBlur } = this.state;
-
-        if (fakeBlur) {
-          this.setState({ fakeBlur: false });
-          return;
-        }
-
-        this.handleOnChange(entry);
-      }, 200);
+      const { entry } = this.state;
+      this.handleOnChange(entry);
     }
   }
 

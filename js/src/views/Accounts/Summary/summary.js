@@ -75,6 +75,13 @@ export default class Summary extends Component {
       return true;
     }
 
+    const prevOwners = this.props.owners;
+    const nextOwners = nextProps.owners;
+
+    if (!isEqual(prevOwners, nextOwners)) {
+      return true;
+    }
+
     return false;
   }
 
@@ -123,8 +130,8 @@ export default class Summary extends Component {
     return (
       <div className={ styles.owners }>
         {
-          ownersValid.map((owner) => (
-            <div key={ owner.address }>
+          ownersValid.map((owner, index) => (
+            <div key={ `${index}_${owner.address}` }>
               <div
                 data-tip
                 data-for={ `owner_${owner.address}` }
@@ -146,7 +153,7 @@ export default class Summary extends Component {
     const { link, noLink, account, name } = this.props;
 
     const { address } = account;
-    const viewLink = `/${link || 'account'}/${address}`;
+    const viewLink = `/${link || 'accounts'}/${address}`;
 
     const content = (
       <IdentityName address={ address } name={ name } unknown />

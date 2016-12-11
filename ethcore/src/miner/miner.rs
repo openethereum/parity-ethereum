@@ -23,7 +23,7 @@ use account_provider::{AccountProvider, Error as AccountError};
 use views::{BlockView, HeaderView};
 use header::Header;
 use state::{State, CleanupMode};
-use client::{MiningBlockChainClient, Executive, Executed, EnvInfo, TransactOptions, BlockID, CallAnalytics, TransactionID};
+use client::{MiningBlockChainClient, Executive, Executed, EnvInfo, TransactOptions, BlockId, CallAnalytics, TransactionId};
 use client::TransactionImportResult;
 use executive::contract_address;
 use block::{ClosedBlock, SealedBlock, IsBlock, Block};
@@ -585,7 +585,7 @@ impl Miner {
 		let best_block_header: Header = ::rlp::decode(&chain.best_block_header());
 		transactions.into_iter()
 			.map(|tx| {
-				if chain.transaction_block(TransactionID::Hash(tx.hash())).is_some() {
+				if chain.transaction_block(TransactionId::Hash(tx.hash())).is_some() {
 					debug!(target: "miner", "Rejected tx {:?}: already in the blockchain", tx.hash());
 					return Err(Error::Transaction(TransactionError::AlreadyImported));
 				}
@@ -701,7 +701,7 @@ impl MinerService for Miner {
 				Ok(ret)
 			},
 			None => {
-				chain.call(t, BlockID::Latest, analytics)
+				chain.call(t, BlockId::Latest, analytics)
 			}
 		}
 	}
@@ -1092,20 +1092,6 @@ impl MinerService for Miner {
 	fn chain_new_blocks(&self, chain: &MiningBlockChainClient, _imported: &[H256], _invalid: &[H256], enacted: &[H256], retracted: &[H256]) {
 		trace!(target: "miner", "chain_new_blocks");
 
-		fn fetch_transactions(chain: &MiningBlockChainClient, hash: &H256) -> Vec<SignedTransaction> {
-			let block = chain
-				.block(BlockID::Hash(*hash))
-				// Client should send message after commit to db and inserting to chain.
-				.expect("Expected in-chain blocks.");
-			let block = BlockView::new(&block);
-			let txs = block.transactions();
-			// populate sender
-			for tx in &txs {
-				let _sender = tx.sender();
-			}
-			txs
-		}
-
 		// 1. We ignore blocks that were `imported` (because it means that they are not in canon-chain, and transactions
 		//	  should be still available in the queue.
 		// 2. We ignore blocks that are `invalid` because it doesn't have any meaning in terms of the transactions that
@@ -1116,35 +1102,29 @@ impl MinerService for Miner {
 
 		// Then import all transactions...
 		{
-			let out_of_chain = retracted
-				.par_iter()
-				.map(|h| fetch_transactions(chain, h));
-			out_of_chain.for_each(|txs| {
-				let mut transaction_queue = self.transaction_queue.lock();
-				let _ = self.add_transactions_to_queue(
-					chain, txs, TransactionOrigin::RetractedBlock, &mut transaction_queue
-				);
-			});
+			retracted.par_iter()
+				.map(|hash| {
+					let block = chain.block(BlockId::Hash(*hash))
+						.expect("Client is sending message after commit to db and inserting to chain; the block is available; qed");
+					let block = BlockView::new(&block);
+					let txs = block.transactions();
+					// populate sender
+					for tx in &txs {
+						let _sender = tx.sender();
+					}
+					txs
+				}).for_each(|txs| {
+					let mut transaction_queue = self.transaction_queue.lock();
+					let _ = self.add_transactions_to_queue(
+						chain, txs, TransactionOrigin::RetractedBlock, &mut transaction_queue
+					);
+				});
 		}
 
-		// ...and at the end remove old ones
+		// ...and at the end remove the old ones
 		{
-			let in_chain = enacted
-				.par_iter()
-				.map(|h: &H256| fetch_transactions(chain, h));
-
-			in_chain.for_each(|mut txs| {
-				let mut transaction_queue = self.transaction_queue.lock();
-
-				let to_remove = txs.drain(..)
-						.map(|tx| {
-							tx.sender().expect("Transaction is in block, so sender has to be defined.")
-						})
-						.collect::<HashSet<Address>>();
-				for sender in to_remove {
-					transaction_queue.remove_all(sender, chain.latest_nonce(&sender));
-				}
-			});
+			let mut transaction_queue = self.transaction_queue.lock();
+			transaction_queue.remove_old(|sender| chain.latest_nonce(sender));
 		}
 
 		if enacted.len() > 0 {

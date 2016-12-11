@@ -22,7 +22,7 @@ use std::sync::atomic::{AtomicUsize, AtomicBool, Ordering as AtomicOrdering};
 use std::ops::*;
 use std::cmp::min;
 use std::path::{Path, PathBuf};
-use std::io::{Read, Write};
+use std::io::{Read, Write, ErrorKind};
 use std::fs;
 use ethkey::{KeyPair, Secret, Random, Generator};
 use mio::*;
@@ -381,8 +381,6 @@ pub struct Host {
 impl Host {
 	/// Create a new instance
 	pub fn new(mut config: NetworkConfiguration, stats: Arc<NetworkStats>) -> Result<Host, NetworkError> {
-		trace!(target: "host", "Creating new Host object");
-
 		let mut listen_address = match config.listen_address {
 			None => SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::new(0, 0, 0, 0), DEFAULT_PORT)),
 			Some(addr) => addr,
@@ -405,6 +403,7 @@ impl Host {
 		// Setup the server socket
 		let tcp_listener = try!(TcpListener::bind(&listen_address));
 		listen_address = SocketAddr::new(listen_address.ip(), try!(tcp_listener.local_addr()).port());
+		debug!(target: "network", "Listening at {:?}", listen_address);
 		let udp_port = config.udp_port.unwrap_or(listen_address.port());
 		let local_endpoint = NodeEndpoint { address: listen_address, udp_port: udp_port };
 
@@ -707,7 +706,10 @@ impl Host {
 				}
 			};
 			match TcpStream::connect(&address) {
-				Ok(socket) => socket,
+				Ok(socket) => {
+					trace!(target: "network", "Connecting to {:?}", address);
+					socket
+				},
 				Err(e) => {
 					debug!(target: "network", "Can't connect to address {:?}: {:?}", address, e);
 					return;
@@ -749,7 +751,9 @@ impl Host {
 			let socket = match self.tcp_listener.lock().accept() {
 				Ok((sock, _addr)) => sock,
 				Err(e) => {
-					debug!(target: "network", "Error accepting connection: {:?}", e);
+					if e.kind() != ErrorKind::WouldBlock {
+						debug!(target: "network", "Error accepting connection: {:?}", e);
+					}
 					break
 				},
 			};
@@ -868,6 +872,12 @@ impl Host {
 			let reserved = self.reserved_nodes.read();
 			if let Some(h) = handlers.get(&p).clone() {
 				h.connected(&NetworkContext::new(io, p, session.clone(), self.sessions.clone(), &reserved), &token);
+
+				// accumulate pending packets.
+				if let Some(session) = session.as_ref() {
+					let mut session = session.lock();
+					packet_data.extend(session.mark_connected(p));
+				}
 			}
 		}
 		for (p, packet_id, data) in packet_data {
