@@ -24,8 +24,9 @@ import { isEqual } from 'lodash';
 
 import { Badge, Tooltip } from '~/ui';
 
+import imagesEthcoreBlock from '~/../assets/images/parity-logo-white-no-text.svg';
+
 import styles from './tabBar.css';
-import imagesEthcoreBlock from '../../../../assets/images/parity-logo-white-no-text.svg';
 
 class Tab extends Component {
   static propTypes = {
@@ -34,33 +35,20 @@ class Tab extends Component {
     pendings: PropTypes.number
   };
 
-  shouldComponentUpdate (nextProps) {
-    return (nextProps.view.id === 'signer' && nextProps.pendings !== this.props.pendings);
-  }
-
   render () {
     const { view, children } = this.props;
-
-    const label = this.getLabel(view);
 
     return (
       <MUITab
         icon={ view.icon }
-        label={ label }
-      >
+        label={
+          view.id === 'signer'
+            ? this.renderSignerLabel(view.id)
+            : this.renderLabel(view.id)
+        }>
         { children }
       </MUITab>
     );
-  }
-
-  getLabel (view) {
-    const { id } = view;
-
-    if (id === 'signer') {
-      return this.renderSignerLabel(id);
-    }
-
-    return this.renderLabel(id);
   }
 
   renderLabel (id, bubble) {
@@ -74,19 +62,18 @@ class Tab extends Component {
 
   renderSignerLabel (id) {
     const { pendings } = this.props;
+    let bubble;
 
     if (pendings) {
-      const bubble = (
+      bubble = (
         <Badge
           color='red'
           className={ styles.labelBubble }
           value={ pendings } />
       );
-
-      return this.renderLabel(id, bubble);
     }
 
-    return this.renderLabel(id);
+    return this.renderLabel(id, bubble);
   }
 }
 
@@ -105,14 +92,6 @@ class TabBar extends Component {
   static defaultProps = {
     pending: []
   };
-
-  shouldComponentUpdate (nextProps, nextState) {
-    const prevViews = this.props.views.map((v) => v.id).sort();
-    const nextViews = nextProps.views.map((v) => v.id).sort();
-
-    return (nextProps.pending.length !== this.props.pending.length) ||
-      (!isEqual(prevViews, nextViews));
-  }
 
   render () {
     return (
