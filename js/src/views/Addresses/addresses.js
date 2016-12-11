@@ -23,7 +23,7 @@ import { uniq, isEqual } from 'lodash';
 import List from '../Accounts/List';
 import Summary from '../Accounts/Summary';
 import { AddAddress } from '~/modals';
-import { Actionbar, ActionbarExport, ActionbarImport, ActionbarSearch, ActionbarSort, Button, Page } from '~/ui';
+import { Actionbar, ActionbarExport, ActionbarImport, ActionbarSearch, ActionbarSort, Button, Page, Loading } from '~/ui';
 import { setVisibleAccounts } from '~/redux/providers/personalActions';
 
 import styles from './addresses.css';
@@ -72,24 +72,37 @@ class Addresses extends Component {
   }
 
   render () {
-    const { balances, contacts, hasContacts } = this.props;
-    const { searchValues, sortOrder } = this.state;
-
     return (
       <div>
         { this.renderActionbar() }
         { this.renderAddAddress() }
         <Page>
-          <List
-            link='address'
-            search={ searchValues }
-            accounts={ contacts }
-            balances={ balances }
-            empty={ !hasContacts }
-            order={ sortOrder }
-            handleAddSearchToken={ this.onAddSearchToken } />
+          { this.renderAccountsList() }
         </Page>
       </div>
+    );
+  }
+
+  renderAccountsList () {
+    const { balances, contacts, hasContacts } = this.props;
+    const { searchValues, sortOrder } = this.state;
+
+    if (hasContacts && Object.keys(balances).length === 0) {
+      return (
+        <Loading />
+      );
+    }
+
+    return (
+      <List
+        link='addresses'
+        search={ searchValues }
+        accounts={ contacts }
+        balances={ balances }
+        empty={ !hasContacts }
+        order={ sortOrder }
+        handleAddSearchToken={ this.onAddSearchToken }
+      />
     );
   }
 

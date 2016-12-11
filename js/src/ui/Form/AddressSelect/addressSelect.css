@@ -15,7 +15,9 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 .account {
-  padding: 4px 0 0 0;
+  padding: 0.25em 0;
+  display: flex;
+  align-items: center;
 }
 
 .name {
@@ -25,6 +27,11 @@
   vertical-align: top;
   text-transform: uppercase;
   padding: 0 0 0 1em;
+}
+
+.balance {
+  color: #aaa;
+  padding-left: 1em;
 }
 
 .image {
