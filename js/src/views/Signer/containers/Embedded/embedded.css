@@ -17,16 +17,22 @@
 
 @import '../../_layout.css';
 
-.signer {
-  box-sizing: border-box;
-  padding: 0;
-  width: $embedWidth;
+.info {
+  padding: 1em 0;
 }
 
 .none {
   color: #aaa;
 }
 
-.info {
-  padding: 1em 0;
+.request {
+  &:nth-child(even) {
+    background: rgba(255, 255, 255, 0.04);
+  }
+}
+
+.signer {
+  box-sizing: border-box;
+  padding: 0;
+  width: $embedWidth;
 }

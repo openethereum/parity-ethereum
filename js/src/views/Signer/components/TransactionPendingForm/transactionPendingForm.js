@@ -20,10 +20,9 @@ import BackIcon from 'material-ui/svg-icons/navigation/arrow-back';
 
 import TransactionPendingFormConfirm from './TransactionPendingFormConfirm';
 import TransactionPendingFormReject from './TransactionPendingFormReject';
-import styles from './TransactionPendingForm.css';
+import styles from './transactionPendingForm.css';
 
 export default class TransactionPendingForm extends Component {
-
   static propTypes = {
     address: PropTypes.string.isRequired,
     isSending: PropTypes.bool.isRequired,
@@ -60,8 +59,8 @@ export default class TransactionPendingForm extends Component {
     return (
       <TransactionPendingFormConfirm
         address={ address }
-        onConfirm={ onConfirm }
-        isSending={ isSending } />
+        isSending={ isSending }
+        onConfirm={ onConfirm } />
     );
   }
 
@@ -72,14 +71,13 @@ export default class TransactionPendingForm extends Component {
     if (!isRejectOpen) {
       html = <span>reject transaction</span>;
     } else {
-      html = <span><BackIcon />I've changed my mind</span>;
+      html = <span><BackIcon />{ "I've changed my mind" }</span>;
     }
 
     return (
       <a
-        onClick={ this.onToggleReject }
         className={ styles.rejectToggle }
-      >
+        onClick={ this.onToggleReject }>
         { html }
       </a>
     );
@@ -87,7 +85,9 @@ export default class TransactionPendingForm extends Component {
 
   onToggleReject = () => {
     const { isRejectOpen } = this.state;
-    this.setState({ isRejectOpen: !isRejectOpen });
-  }
 
+    this.setState({
+      isRejectOpen: !isRejectOpen
+    });
+  }
 }
