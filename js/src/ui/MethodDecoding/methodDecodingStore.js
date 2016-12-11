@@ -29,7 +29,7 @@ export default class MethodDecodingStore {
   _isContract = {};
   _methods = {};
 
-  constructor (api) {
+  constructor (api, contracts = {}) {
     this.api = api;
 
     // Load the signatures from the local ABIs
@@ -44,14 +44,41 @@ export default class MethodDecodingStore {
         this._methods[sign] = mapping.id;
       });
     });
+
+    // Load the User defined contracts
+    Object.values(contracts).forEach((contract) => {
+      if (!contract || !contract.meta || !contract.meta.abi) {
+        return;
+      }
+
+      const abi = new Abi(contract.meta.abi);
+
+      [].concat(
+        abi.functions.map((f) => ({ sign: f.signature, id: f.id })),
+        abi.events.map((e) => ({ sign: e.signature, id: e.id }))
+      ).forEach((mapping) => {
+        const sign = (/^0x/.test(mapping.sign) ? '' : '0x') + mapping.sign;
+        this._methods[sign] = mapping.id;
+      });
+    });
   }
 
-  static get (api) {
+  static get (api, contracts = {}) {
     if (!instance) {
-      instance = new MethodDecodingStore(api);
+      instance = new MethodDecodingStore(api, contracts);
+    }
+
+    // Set API if not set yet
+    if (!instance.api) {
+      instance.api = api;
     }
 
     return instance;
+  }
+
+  static loadContracts (contracts = {}) {
+    // Just create the instance with null API
+    MethodDecodingStore.get(null, contracts);
   }
 
   /**

@@ -19,6 +19,8 @@ import { isEqual } from 'lodash';
 import { fetchBalances } from './balancesActions';
 import { attachWallets } from './walletActions';
 
+import MethodDecodingStore from '~/ui/MethodDecoding/methodDecodingStore';
+
 export function personalAccountsInfo (accountsInfo) {
   const accounts = {};
   const contacts = {};
@@ -40,6 +42,9 @@ export function personalAccountsInfo (accountsInfo) {
         contacts[account.address] = account;
       }
     });
+
+  // Load user contracts for Method Decoding
+  MethodDecodingStore.loadContracts(contracts);
 
   return (dispatch) => {
     const data = {
