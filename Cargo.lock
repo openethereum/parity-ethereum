@@ -852,6 +852,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "jsonrpc-core"
+version = "3.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
+ "parking_lot 0.2.8 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde 0.8.4 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde_codegen 0.8.4 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde_json 0.8.1 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "jsonrpc-core"
 version = "4.0.0"
 source = "git+https://github.com/ethcore/jsonrpc.git#1500da1b9613a0a17fc0109d825f3ccc60199a53"
 dependencies = [
@@ -1281,7 +1293,7 @@ dependencies = [
  "serde_json 0.8.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "tempdir 0.3.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "url 1.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "ws 0.5.3 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ws 0.5.3 (git+https://github.com/ethcore/ws-rs.git?branch=mio-upstream-stable)",
 ]
 
 [[package]]
@@ -2025,19 +2037,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "ws"
-version = "0.5.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-dependencies = [
- "httparse 1.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
- "mio 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "rand 0.3.14 (registry+https://github.com/rust-lang/crates.io-index)",
- "sha1 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "url 1.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
 name = "ws2_32-sys"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2120,6 +2119,7 @@ dependencies = [
 "checksum isatty 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)" = "7408a548dc0e406b7912d9f84c261cc533c1866e047644a811c133c56041ac0c"
 "checksum itertools 0.4.13 (registry+https://github.com/rust-lang/crates.io-index)" = "086e1fa5fe48840b1cfdef3a20c7e3115599f8d5c4c87ef32a794a7cdd184d76"
 "checksum itoa 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)" = "ae3088ea4baeceb0284ee9eea42f591226e6beaecf65373e41b38d95a1b8e7a1"
+"checksum jsonrpc-core 3.0.2 (registry+https://github.com/rust-lang/crates.io-index)" = "3c5094610b07f28f3edaf3947b732dadb31dbba4941d4d0c1c7a8350208f4414"
 "checksum jsonrpc-core 4.0.0 (git+https://github.com/ethcore/jsonrpc.git)" = "<none>"
 "checksum jsonrpc-http-server 6.1.1 (git+https://github.com/ethcore/jsonrpc.git)" = "<none>"
 "checksum jsonrpc-ipc-server 0.2.4 (git+https://github.com/ethcore/jsonrpc.git)" = "<none>"
@@ -2249,7 +2249,6 @@ dependencies = [
 "checksum winapi 0.2.6 (registry+https://github.com/rust-lang/crates.io-index)" = "4dfaaa8fbdaa618fa6914b59b2769d690dd7521920a18d84b42d254678dd5fd4"
 "checksum winapi-build 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)" = "2d315eee3b34aca4797b2da6b13ed88266e6d612562a0c46390af8299fc699bc"
 "checksum ws 0.5.3 (git+https://github.com/ethcore/ws-rs.git?branch=mio-upstream-stable)" = "<none>"
-"checksum ws 0.5.3 (registry+https://github.com/rust-lang/crates.io-index)" = "7c47e9ca2f5c47d27f731b1bb9bb50cc05f9886bb84fbd52afa0ff97f4f61b06"
 "checksum ws2_32-sys 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)" = "d59cefebd0c892fa2dd6de581e937301d8552cb44489cdff035c6187cb63fa5e"
 "checksum xml-rs 0.3.4 (registry+https://github.com/rust-lang/crates.io-index)" = "65e74b96bd3179209dc70a980da6df843dff09e46eee103a0376c0949257e3ef"
 "checksum xmltree 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)" = "472a9d37c7c53ab2391161df5b89b1f3bf76dab6ab150d7941ecbdd832282082"

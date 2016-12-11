@@ -16,7 +16,6 @@
 
 use std::str::FromStr;
 use std::fmt;
-use rustc_serialize::hex::ToHex;
 use serde;
 use util::{U256 as EthU256, U128 as EthU128, Uint};
 

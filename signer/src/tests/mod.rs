@@ -15,8 +15,6 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::ops::{Deref, DerefMut};
-use std::thread;
-use std::time::{self, Duration};
 use std::sync::Arc;
 
 #[cfg(test)]

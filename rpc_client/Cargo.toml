@@ -17,7 +17,7 @@ serde = "0.8"
 serde_json = "0.8"
 tempdir = "0.3.5"
 url = "1.2.0"
-ws = "0.5.3"
+ws = { git = "https://github.com/ethcore/ws-rs.git", branch = "mio-upstream-stable" }
 ethcore-rpc = { path = "../rpc" }
 ethcore-signer = { path = "../signer" }
 ethcore-util = { path = "../util" }
