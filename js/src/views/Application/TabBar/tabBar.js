@@ -30,9 +30,9 @@ import styles from './tabBar.css';
 
 class Tab extends Component {
   static propTypes = {
-    view: PropTypes.object,
     children: PropTypes.node,
-    pendings: PropTypes.number
+    pendings: PropTypes.number,
+    view: PropTypes.object
   };
 
   render () {
@@ -54,7 +54,8 @@ class Tab extends Component {
   renderLabel (id, bubble) {
     return (
       <div className={ styles.label }>
-        <FormattedMessage id={ `settings.views.${id}.label` } />
+        <FormattedMessage
+          id={ `settings.views.${id}.label` } />
         { bubble }
       </div>
     );
@@ -83,10 +84,10 @@ class TabBar extends Component {
   };
 
   static propTypes = {
-    views: PropTypes.array.isRequired,
-    pending: PropTypes.array,
     isTest: PropTypes.bool,
-    netChain: PropTypes.string
+    netChain: PropTypes.string,
+    pending: PropTypes.array,
+    views: PropTypes.array.isRequired
   };
 
   static defaultProps = {
@@ -95,8 +96,7 @@ class TabBar extends Component {
 
   render () {
     return (
-      <Toolbar
-        className={ styles.toolbar }>
+      <Toolbar className={ styles.toolbar }>
         { this.renderLogo() }
         { this.renderTabs() }
         { this.renderLast() }
@@ -131,21 +131,20 @@ class TabBar extends Component {
       .map((view, index) => {
         const body = (view.id === 'accounts')
           ? (
-            <Tooltip className={ styles.tabbarTooltip } text='navigate between the different parts and views of the application, switching between an account view, token view and distributed application view' />
+            <Tooltip
+              className={ styles.tabbarTooltip }
+              text='navigate between the different parts and views of the application, switching between an account view, token view and distributed application view' />
           )
           : null;
 
         return (
           <Link
-            key={ view.id }
-            to={ view.route }
             activeClassName={ styles.tabactive }
-            className={ styles.tabLink }
-          >
+            className={ styles.tabLink }key={ view.id }
+            to={ view.route }>
             <Tab
-              view={ view }
               pendings={ pending.length }
-            >
+              view={ view }>
               { body }
             </Tab>
           </Link>
@@ -167,11 +166,10 @@ function mapStateToProps (initState) {
     .keys(views)
     .filter((id) => views[id].fixed || views[id].active);
 
-  let filteredViews = filteredViewIds
-    .map((id) => ({
-      ...views[id],
-      id
-    }));
+  let filteredViews = filteredViewIds.map((id) => ({
+    ...views[id],
+    id
+  }));
 
   return (state) => {
     const { views } = state.settings;
@@ -185,11 +183,10 @@ function mapStateToProps (initState) {
     }
 
     filteredViewIds = viewIds;
-    filteredViews = viewIds
-      .map((id) => ({
-        ...views[id],
-        id
-      }));
+    filteredViews = viewIds.map((id) => ({
+      ...views[id],
+      id
+    }));
 
     return { views: filteredViews };
   };
