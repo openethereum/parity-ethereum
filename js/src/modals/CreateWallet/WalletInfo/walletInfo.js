@@ -30,10 +30,12 @@ export default class WalletInfo extends Component {
     owners: PropTypes.array.isRequired,
     required: PropTypes.oneOfType([
       PropTypes.string,
+      PropTypes.object,
       PropTypes.number
     ]).isRequired,
     daylimit: PropTypes.oneOfType([
       PropTypes.string,
+      PropTypes.object,
       PropTypes.number
     ]).isRequired,
 

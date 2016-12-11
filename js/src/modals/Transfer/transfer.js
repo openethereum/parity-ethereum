@@ -156,8 +156,8 @@ class Transfer extends Component {
 
   renderDetailsPage () {
     const { account, balance, images, senders } = this.props;
-    const { valueAll, extras, recipient, recipientError, sender, senderError } = this.store;
-    const { tag, total, totalError, value, valueError } = this.store;
+    const { recipient, recipientError, sender, senderError, sendersBalances } = this.store;
+    const { valueAll, extras, tag, total, totalError, value, valueError } = this.store;
 
     return (
       <Details
@@ -172,6 +172,7 @@ class Transfer extends Component {
         sender={ sender }
         senderError={ senderError }
         senders={ senders }
+        sendersBalances={ sendersBalances }
         tag={ tag }
         total={ total }
         totalError={ totalError }

@@ -54,6 +54,7 @@ export default class TransferStore {
 
   @observable sender = '';
   @observable senderError = null;
+  @observable sendersBalances = {};
 
   @observable total = '0.0';
   @observable totalError = null;
@@ -66,8 +67,6 @@ export default class TransferStore {
   onClose = null;
 
   senders = null;
-  sendersBalances = null;
-
   isWallet = false;
   wallet = null;
 
