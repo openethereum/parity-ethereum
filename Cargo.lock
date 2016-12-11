@@ -297,7 +297,6 @@ dependencies = [
  "ethash 1.5.0",
  "ethcore-bloom-journal 0.1.0",
  "ethcore-devtools 1.5.0",
- "ethcore-hash-fetch 1.5.0",
  "ethcore-io 1.5.0",
  "ethcore-ipc 1.5.0",
  "ethcore-ipc-codegen 1.5.0",

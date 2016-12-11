@@ -34,7 +34,6 @@ ethash = { path = "../ethash" }
 ethcore-util = { path = "../util" }
 ethcore-io = { path = "../util/io" }
 ethcore-devtools = { path = "../devtools" }
-ethcore-hash-fetch = { path = "./hash-fetch" }
 ethjson = { path = "../json" }
 ethcore-ipc = { path = "../ipc/rpc" }
 ethstore = { path = "../ethstore" }
