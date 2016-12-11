@@ -3,7 +3,7 @@ set -e
 
 # variables
 UTCDATE=`date -u "+%Y%m%d-%H%M%S"`
-PACKAGES=(  "Parity" "Etherscan" "ShapeShift" )
+PACKAGES=( "parity" "etherscan" "shapeshift" )
 BRANCH=$CI_BUILD_REF_NAME
 GIT_JS_PRECOMPILED="https://${GITHUB_JS_PRECOMPILED}:@github.com/ethcore/js-precompiled.git"
 GIT_PARITY="https://${GITHUB_JS_PRECOMPILED}:@github.com/ethcore/parity.git"
@@ -71,7 +71,7 @@ if [ "$BRANCH" == "master" ]; then
   do
     echo "*** Building $PACKAGE"
     LIBRARY=$PACKAGE npm run ci:build:npm
-    DIRECTORY=.npmjs/$(echo $PACKAGE | tr '[:upper:]' '[:lower:]')
+    DIRECTORY=.npmjs/$PACKAGE
 
     echo "*** Publishing $PACKAGE from $DIRECTORY"
     cd $DIRECTORY

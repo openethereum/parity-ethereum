@@ -1,4 +1,4 @@
-# @parity/Etherscan
+# @parity/etherscan
 
 A thin, lightweight promise wrapper for the api.etherscan.io/apis service, exposing a common endpoint for use in JavaScript applications.
 
@@ -9,13 +9,13 @@ A thin, lightweight promise wrapper for the api.etherscan.io/apis service, expos
 installation -
 
 ```
-npm install --save @parity/Etherscan
+npm install --save @parity/etherscan
 ```
 
 Usage -
 
 ```
-const etherscan = require('@parity/Etherscan');
+const etherscan = require('@parity/etherscan');
 
 // api calls goes here
 ```

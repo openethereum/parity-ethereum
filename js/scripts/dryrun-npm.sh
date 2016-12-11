@@ -2,7 +2,7 @@
 set -e
 
 # variables
-PACKAGES=( "Parity" "Etherscan" "ShapeShift" )
+PACKAGES=( "parity" "etherscan" "shapeshift" )
 
 # change into the build directory
 BASEDIR=`dirname $0`
@@ -16,7 +16,7 @@ for PACKAGE in ${PACKAGES[@]}
 do
   echo "*** Building $PACKAGE"
   LIBRARY=$PACKAGE npm run ci:build:npm
-  DIRECTORY=.npmjs/$(echo $PACKAGE | tr '[:upper:]' '[:lower:]')
+  DIRECTORY=.npmjs/$PACKAGE
 
   cd $DIRECTORY
   echo "*** Executing $PACKAGE tests from $DIRECTORY"
