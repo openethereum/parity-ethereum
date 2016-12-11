@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -27,7 +27,7 @@ use ethcore::snapshot::SnapshotService;
 use ethsync::{ManageNetwork, SyncProvider};
 use ethcore_rpc::{Extendable, NetworkSettings};
 pub use ethcore_rpc::SignerService;
-
+use updater::Updater;
 
 #[derive(Debug, PartialEq, Clone, Eq, Hash)]
 pub enum Api {
@@ -118,6 +118,7 @@ pub struct Dependencies {
 	pub logger: Arc<RotatingLogger>,
 	pub settings: Arc<NetworkSettings>,
 	pub net_service: Arc<ManageNetwork>,
+	pub updater: Arc<Updater>,
 	pub geth_compatibility: bool,
 	pub dapps_interface: Option<String>,
 	pub dapps_port: Option<u16>,

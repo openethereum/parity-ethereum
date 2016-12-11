@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -25,7 +25,6 @@
 extern crate docopt;
 extern crate num_cpus;
 extern crate rustc_serialize;
-extern crate ethabi;
 extern crate ethcore_devtools as devtools;
 extern crate ethcore;
 extern crate ethsync;
@@ -43,13 +42,14 @@ extern crate ethcore_ipc_nano as nanoipc;
 extern crate serde;
 extern crate serde_json;
 extern crate rlp;
-extern crate ethcore_hash_fetch as hash_fetch;
 extern crate ethcore_light as light;
+extern crate parity_hash_fetch as hash_fetch;
 
 extern crate ethcore_ipc_hypervisor as hypervisor;
 extern crate ethcore_rpc;
 
 extern crate ethcore_signer;
+extern crate parity_updater as updater;
 extern crate ansi_term;
 
 extern crate regex;
@@ -109,8 +109,6 @@ mod sync;
 #[cfg(feature="ipc")]
 mod boot;
 mod user_defaults;
-mod updater;
-mod operations;
 
 #[cfg(feature="stratum")]
 mod stratum;

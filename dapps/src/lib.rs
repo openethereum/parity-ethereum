@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -57,7 +57,7 @@ extern crate mime_guess;
 extern crate rustc_serialize;
 extern crate ethcore_rpc;
 extern crate ethcore_util as util;
-extern crate ethcore_hash_fetch as hash_fetch;
+extern crate parity_hash_fetch as hash_fetch;
 extern crate linked_hash_map;
 extern crate fetch;
 extern crate parity_dapps_glue as parity_dapps;

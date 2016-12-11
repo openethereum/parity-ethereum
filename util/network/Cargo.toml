@@ -1,10 +1,10 @@
 [package]
 description = "Ethcore network library"
-homepage = "http://ethcore.io"
+homepage = "http://parity.io"
 license = "GPL-3.0"
 name = "ethcore-network"
 version = "1.5.0"
-authors = ["Ethcore <admin@ethcore.io>"]
+authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
 log = "0.3"
