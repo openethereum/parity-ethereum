@@ -20,7 +20,8 @@ import sinon from 'sinon';
 
 import AddAddress from './';
 
-const ADDR_A = '0x123456789abcdefA';
+import { TEST_CONTACTS } from './store.test.js';
+
 const api = {
   parity: {
     setAccountMeta: sinon.stub().resolves(true),
@@ -28,14 +29,10 @@ const api = {
   }
 };
 
-const contacts = {
-  [ADDR_A]: { name: 'test', meta: {} }
-};
-
 function render (props) {
   return mount(
     <AddAddress
-      contacts={ contacts }
+      contacts={ TEST_CONTACTS }
       { ...props } />,
     { context: { api } }
   );

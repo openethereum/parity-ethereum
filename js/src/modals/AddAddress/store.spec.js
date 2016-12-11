@@ -16,6 +16,49 @@
 
 import Store from './store';
 
-describe('modals/AddAddress/store', () => {
+import { TEST_ADDR_A, TEST_CONTACTS } from './store.test.js';
 
+describe('modals/AddAddress/store', () => {
+  let store;
+
+  describe('@action', () => {
+    beforeEach(() => {
+      store = new Store(null, TEST_CONTACTS);
+    });
+
+    describe('setAddress', () => {
+
+    });
+  });
+
+  describe('@computed', () => {
+    beforeEach(() => {
+      store = new Store(null, TEST_CONTACTS);
+    });
+
+    describe('hasError', () => {
+      beforeEach(() => {
+        store.setAddress(TEST_ADDR_A);
+        store.setName('Test Name');
+      });
+
+      it('returns false proper inputs', () => {
+        expect(store.hasError).to.be.false;
+      });
+
+      it('returns true with addressError', () => {
+        store.setAddress(null);
+
+        expect(store.addressError).not.to.be.null;
+        expect(store.hasError).to.be.true;
+      });
+
+      it('returns true with nameError', () => {
+        store.setName(null);
+
+        expect(store.nameError).not.to.be.null;
+        expect(store.hasError).to.be.true;
+      });
+    });
+  });
 });
