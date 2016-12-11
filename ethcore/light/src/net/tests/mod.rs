@@ -69,7 +69,7 @@ impl IoContext for Expect {
 		Some(super::MAX_PROTOCOL_VERSION)
 	}
 
-	fn persistent_peer_id(&self, _peer: &PeerId) -> Option<NodeId> {
+	fn persistent_peer_id(&self, _peer: PeerId) -> Option<NodeId> {
 		None
 	}
 }
