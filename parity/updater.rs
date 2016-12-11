@@ -14,15 +14,14 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::sync::{Weak};
+use std::sync::{Arc, Weak};
 use std::{io, os, fs, env};
 use std::path::{Path, PathBuf};
 use util::misc::{VersionInfo, ReleaseTrack/*, platform*/};
-use util::{Address, H160, H256, FixedHash, Mutex};
+use util::{Address, H160, H256, FixedHash, Mutex, Bytes};
 use super::operations::Operations;
-use ethcore::client::{Client, BlockId};
-use fetch::HashFetch;
-use fetch;
+use ethcore::client::{BlockId, BlockChainClient, ChainNotify};
+use hash_fetch::{self as fetch, HashFetch};
 
 /// Filter for releases.
 #[derive(Debug, Eq, PartialEq, Clone)]
@@ -94,11 +93,11 @@ struct UpdaterState {
 pub struct Updater {
 	// Useful environmental stuff.
 	update_policy: UpdatePolicy,
-	weak_self: Weak<Updater>,
-	client: Weak<Client>,
+	weak_self: Mutex<Weak<Updater>>,
+	client: Weak<BlockChainClient>,
 	fetcher: Option<fetch::Client>,
 	operations: Mutex<Option<Operations>>,
-	exit_handler: Mutex<Option<Fn()>>,
+	exit_handler: Mutex<Option<Box<Fn() + 'static + Send>>>,
 
 	// Our version info (static)
 	this: VersionInfo,
@@ -128,7 +127,7 @@ impl Updater {
 	pub fn new(client: Weak<BlockChainClient>, update_policy: UpdatePolicy) -> Arc<Self> {
 		let mut u = Updater {
 			update_policy: update_policy,
-			weak_self: Default::default(),
+			weak_self: Mutex::new(Default::default()),
 			client: client.clone(),
 			fetcher: None,
 			operations: Mutex::new(None),
@@ -142,9 +141,9 @@ impl Updater {
 			u.this.track = ReleaseTrack::Nightly;
 		}
 
-		let r = Arc::new(u);
-		r.as_mut().weak_self = Arc::downgrade(&r);
-		r.as_mut().fetcher = Some(fetch::Client::new(r));
+		let mut r = Arc::new(u);
+		Arc::get_mut(&mut r).expect("arc created on previous line; qed").fetcher = Some(fetch::Client::new(r.clone()));
+		*r.weak_self.lock() = Arc::downgrade(&r);
 		r
 	}
 
@@ -167,9 +166,9 @@ impl Updater {
 
 	/// Actually upgrades the client. Assumes that the binary has been downloaded.
 	/// @returns `true` on success.
-	pub fn execute_upgrade(&mut self) -> bool {
+	pub fn execute_upgrade(&self) -> bool {
 		(|| -> Result<bool, String> {
-			let s = state.lock();
+			let mut s = self.state.lock();
 			if let Some(r) = s.ready.take() {
 				let p = Self::update_file_path(&r.version);
 				let n = Self::updates_latest();
@@ -178,7 +177,7 @@ impl Updater {
 					Ok(_) => {
 						info!("Completed upgrade to {}", &r.version);
 						s.installed = Some(r);
-						if let Some(ref h) = self.exit_handler().lock() {
+						if let Some(ref h) = *self.exit_handler.lock() {
 							(*h)();
 						}
 						Ok(true)
@@ -195,14 +194,6 @@ impl Updater {
 		})().unwrap_or_else(|e| { warn!("{}", e); false })
 	}
 
-	/// Returns true iff the current version is capable of forming consensus.
-	pub fn is_consensus_capable(&self) -> bool {
-/*		if let Some(ref latest) = self.latest {
-			
-
-*/		unimplemented!()
-	}
-
 	/// Our version info.
 	pub fn version_info(&self) -> &VersionInfo { &self.this }
 
@@ -210,13 +201,13 @@ impl Updater {
 	pub fn info(&self) -> Option<OperationsInfo> { self.state.lock().latest.clone() }
 
 	/// Set a closure to call when we want to restart the client
-	pub fn set_exit_handler(&self, f: Fn()) {
-		*self.exit_handler.lock() = f; 
+	pub fn set_exit_handler<F>(&self, f: F) where F: Fn() + 'static + Send {
+		*self.exit_handler.lock() = Some(Box::new(f)); 
 	}
 
-	fn collect_release_info(&self, release_id: &H256) -> Result<ReleaseInfo, String> {
-		let (fork, track, semver, is_critical) = self.operations.release(CLIENT_ID, release_id)?;
-		let latest_binary = self.operations.checksum(CLIENT_ID, release_id, &platform())?;
+	fn collect_release_info(operations: &Operations, release_id: &H256) -> Result<ReleaseInfo, String> {
+		let (fork, track, semver, is_critical) = operations.release(CLIENT_ID, release_id)?;
+		let latest_binary = operations.checksum(CLIENT_ID, release_id, &platform())?;
 		Ok(ReleaseInfo {
 			version: VersionInfo::from_raw(semver, track, release_id.clone().into()),
 			is_critical: is_critical,
@@ -226,32 +217,36 @@ impl Updater {
 	}
 
 	fn collect_latest(&self) -> Result<OperationsInfo, String> {
-		let this_fork = u.operations.release(CLIENT_ID, &u.this.hash.into()).ok()
-			.and_then(|(fork, track, _, _)| if track > 0 {Some(fork as u64)} else {None});
+		if let Some(ref operations) = *self.operations.lock() {
+			let this_fork = operations.release(CLIENT_ID, &self.this.hash.into()).ok()
+				.and_then(|(fork, track, _, _)| if track > 0 {Some(fork as u64)} else {None});
 
-		if self.this.track == ReleaseTrack::Unknown {
-			return Err(format!("Current executable ({}) is unreleased.", H160::from(self.this.hash)));
+			if self.this.track == ReleaseTrack::Unknown {
+				return Err(format!("Current executable ({}) is unreleased.", H160::from(self.this.hash)));
+			}
+
+			let latest_in_track = operations.latest_in_track(CLIENT_ID, self.this.track.into())?;
+			let in_track = Self::collect_release_info(operations, &latest_in_track)?;
+			let mut in_minor = Some(in_track.clone());
+			const PROOF: &'static str = "in_minor initialised and assigned with Some; loop breaks if None assigned; qed";
+			while in_minor.as_ref().expect(PROOF).version.track != self.this.track {
+				let track = match in_minor.as_ref().expect(PROOF).version.track {
+					ReleaseTrack::Beta => ReleaseTrack::Stable,
+					ReleaseTrack::Nightly => ReleaseTrack::Beta,
+					_ => { in_minor = None; break; }
+				};
+				in_minor = Some(Self::collect_release_info(operations, &operations.latest_in_track(CLIENT_ID, track.into())?)?);
+			}
+
+			Ok(OperationsInfo {
+				fork: operations.latest_fork()? as u64,
+				this_fork: this_fork,
+				track: in_track,
+				minor: in_minor,
+			})
+		} else {
+			Err("Operations not available".into())
 		}
-
-		let latest_in_track = self.operations.latest_in_track(CLIENT_ID, self.this.track.into())?;
-		let in_track = self.collect_release_info(&latest_in_track)?;
-		let mut in_minor = Some(in_track.clone());
-		const PROOF: &'static str = "in_minor initialised and assigned with Some; loop breaks if None assigned; qed";
-		while in_minor.as_ref().expect(PROOF).version.track != self.this.track {
-			let track = match in_minor.as_ref().expect(PROOF).version.track {
-				ReleaseTrack::Beta => ReleaseTrack::Stable,
-				ReleaseTrack::Nightly => ReleaseTrack::Beta,
-				_ => { in_minor = None; break; }
-			};
-			in_minor = Some(self.collect_release_info(&self.operations.latest_in_track(CLIENT_ID, track.into())?)?);
-		}
-
-		Ok(OperationsInfo {
-			fork: self.operations.latest_fork()? as u64,
-			this_fork: this_fork,
-			track: in_track,
-			minor: in_minor,
-		})
 	}
 
 	fn update_file_path(v: &VersionInfo) -> PathBuf {
@@ -268,10 +263,10 @@ impl Updater {
 		dest
 	}
 
-	fn fetch_done(&mut self, result: Result<PathBuf, fetch::Error>) {
+	fn fetch_done(&self, result: Result<PathBuf, fetch::Error>) {
 		(|| -> Result<(), String> {
 			let auto = {
-				let mut s = state.lock();
+				let mut s = self.state.lock();
 				let fetched = s.fetching.take().unwrap();
 				let b = result.map_err(|e| format!("Unable to fetch update ({}): {:?}", fetched.version, e))?;
 				info!("Fetched latest version ({}) OK to {}", fetched.version, b.display());
@@ -288,17 +283,18 @@ impl Updater {
 				auto
 			};
 			if auto {
+				// will lock self.state, so ensure it's outside of previous block.
 				self.execute_upgrade();
 			}
 			Ok(())
 		})().unwrap_or_else(|e| warn!("{}", e));
 	}
 
-	fn poll(&mut self) {
+	fn poll(&self) {
 		info!(target: "updater", "Current release is {}", self.this);
 
-		if *self.operations.lock().is_none() {
-			if let Some(ops_addr) = client.upgrade().registry_address("operations") {
+		if self.operations.lock().is_none() {
+			if let Some(ops_addr) = self.client.upgrade().and_then(|c| c.registry_address("operations".into())) {
 				trace!(target: "client", "Found operations at {}", ops_addr);
 				let client = self.client.clone();
 				*self.operations.lock() = Some(Operations::new(ops_addr, move |a, d| client.upgrade().ok_or("No client!".into()).and_then(|c| c.call_contract(a, d))));
@@ -307,8 +303,6 @@ impl Updater {
 				return;
 			}
 		}
-
-		u.latest = u.collect_latest().ok();
 
 		let current_number = self.client.upgrade().map_or(0, |c| c.block_number(BlockId::Latest).unwrap_or(0));
 
@@ -329,23 +323,23 @@ impl Updater {
 			let already_have_latest = s.installed.as_ref().or(s.ready.as_ref()).map_or(false, |t| *t == latest.track);
 			if self.update_policy.enable_downloading && !running_latest && !already_have_latest {
 				if let Some(b) = latest.track.binary {
-					if fetching.is_none() {
+					if s.fetching.is_none() {
 						info!("Attempting to get parity binary {}", b);
 						s.fetching = Some(latest.track.clone());
-						let weak_self = self.weak_self.clone();
-						let f = move |r: Result<PathBuf, fetch::Error>| if let Some(this) = weak_self.upgrade().as_mut() { this.fetch_done(r) }};
-						fetcher.fetch(b, Box::new(f)).ok();
+						let weak_self = self.weak_self.lock().clone();
+						let f = move |r: Result<PathBuf, fetch::Error>| if let Some(this) = weak_self.upgrade() { this.fetch_done(r) };
+						self.fetcher.as_ref().expect("Created on `new`; qed").fetch(b, Box::new(f)).ok();
 					}
 				}
 			}
-			info!(target: "updater", "Fork: this/current/latest/latest-known: {}/#{}/#{}/#{}", match s.latest.this_fork { Some(f) => format!("#{}", f), None => "unknown".into(), }, current_number, s.latest.track.fork, s.latest.fork);
+			info!(target: "updater", "Fork: this/current/latest/latest-known: {}/#{}/#{}/#{}", match latest.this_fork { Some(f) => format!("#{}", f), None => "unknown".into(), }, current_number, latest.track.fork, latest.fork);
 		}
 		(*self.state.lock()).latest = latest;
 	}
 }
 
 impl ChainNotify for Updater {
-	fn new_blocks(&self, _imported: Vec<H256>, _invalid: Vec<H256>, _enacted: Vec<H256>, _retracted: Vec<H256>, _sealed: Vec<H256>, duration: u64) {
+	fn new_blocks(&self, _imported: Vec<H256>, _invalid: Vec<H256>, _enacted: Vec<H256>, _retracted: Vec<H256>, _sealed: Vec<H256>, _duration: u64) {
 		// TODO: something like this
 //		if !self.client.upgrade().map_or(true, |c| c.is_major_syncing()) {
 			self.poll();

@@ -52,6 +52,9 @@ pub trait BlockChainClient : Sync + Send {
 	/// Get raw block header data by block id.
 	fn block_header(&self, id: BlockId) -> Option<Bytes>;
 
+	/// Look up the block number for the given block ID.
+	fn block_number(&self, id: BlockId) -> Option<BlockNumber>;
+	
 	/// Get raw block body data by block id.
 	/// Block body is an RLP list of two items: uncles and transactions.
 	fn block_body(&self, id: BlockId) -> Option<Bytes>;

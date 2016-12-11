@@ -14,16 +14,16 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::sync::{Arc, Mutex, Condvar};
+use std::sync::Arc;
 use std::net::{TcpListener};
 use ctrlc::CtrlC;
 use fdlimit::raise_fd_limit;
 use ethcore_rpc::{NetworkSettings, is_major_importing};
 use ethsync::NetworkConfiguration;
-use util::{Colour, version, RotatingLogger};
+use util::{Colour, version, RotatingLogger, Mutex, Condvar};
 use io::{MayPanic, ForwardPanic, PanicHandler};
 use ethcore_logger::{Config as LogConfig};
-use ethcore::client::{Mode, UpdatePolicy, Updater, DatabaseCompactionProfile, VMType, ChainNotify, BlockChainClient};
+use ethcore::client::{Mode, DatabaseCompactionProfile, VMType, BlockChainClient};
 use ethcore::service::ClientService;
 use ethcore::account_provider::AccountProvider;
 use ethcore::miner::{Miner, MinerService, ExternalMiner, MinerOptions};
@@ -31,7 +31,7 @@ use ethcore::snapshot;
 use ethcore::verification::queue::VerifierSettings;
 use ethsync::SyncConfig;
 use informant::Informant;
-use updater::Updater;
+use updater::{UpdatePolicy, Updater};
 
 use rpc::{HttpServer, IpcServer, HttpConfiguration, IpcConfiguration};
 use signer::SignerServer;
@@ -312,10 +312,8 @@ pub fn execute(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<bool, String>
 	}
 
 	// the updater service
-	let updater = Updater::new(service.client(), update_policy);
-	if let Some(ref u) = updater {
-		service.add_notify(u.clone());
-	}
+	let updater = Updater::new(Arc::downgrade(&(service.client() as Arc<BlockChainClient>)), update_policy);
+	service.add_notify(updater.clone());
 
 	// set up dependencies for rpc servers
 	let signer_path = cmd.signer_conf.signer_path.clone();
@@ -422,9 +420,9 @@ pub fn execute(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<bool, String>
 	info!("Finishing work, please wait...");
 
 	// to make sure timer does not spawn requests while shutdown is in progress
-	io_handler.shutdown.store(true, ::std::sync::atomic::Ordering::SeqCst);
+	informant.shutdown();
 	// just Arc is dropping here, to allow other reference release in its default time
-	drop(io_handler);
+	drop(informant);
 
 	// hypervisor should be shutdown first while everything still works and can be
 	// terminated gracefully
@@ -474,7 +472,7 @@ fn wait_for_exit(
 	_ipc_server: Option<IpcServer>,
 	_dapps_server: Option<WebappServer>,
 	_signer_server: Option<SignerServer>,
-	updater: Option<Arc<Updater>>
+	updater: Arc<Updater>
 ) -> bool {
 	let exit = Arc::new((Mutex::new(false), Condvar::new()));
 
@@ -487,12 +485,11 @@ fn wait_for_exit(
 	panic_handler.on_panic(move |_reason| { e.1.notify_all(); });
 
 	// Handle updater wanting to restart us
-	if let Some(ref u) = updater {
-		let e = exit.clone();
-		u.set_exit_handler(move || { e.0.lock() = true; e.1.notify_all(); });
-	}
+	let e = exit.clone();
+	updater.set_exit_handler(move || { *e.0.lock() = true; e.1.notify_all(); });
 
 	// Wait for signal
-	let _ = exit.1.wait(exit.0.lock().unwrap());
-	*exit.0.lock()
+	let mut l = exit.0.lock();
+	let _ = exit.1.wait(&mut l);
+	*l
 }

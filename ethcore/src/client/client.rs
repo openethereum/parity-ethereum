@@ -711,16 +711,6 @@ impl Client {
 		}
 	}
 
-	/// Look up the block number for the given block ID.
-	pub fn block_number(&self, id: BlockId) -> Option<BlockNumber> {
-		match id {
-			BlockId::Number(number) => Some(number),
-			BlockId::Hash(ref hash) => self.chain.read().block_number(hash),
-			BlockId::Earliest => Some(0),
-			BlockId::Latest | BlockId::Pending => Some(self.chain.read().best_block_number()),
-		}
-	}
-
 	/// Take a snapshot at the given block.
 	/// If the ID given is "latest", this will default to 1000 blocks behind.
 	pub fn take_snapshot<W: snapshot_io::SnapshotWriter + Send>(&self, writer: W, at: BlockId, p: &snapshot::Progress) -> Result<(), EthcoreError> {
@@ -944,6 +934,15 @@ impl BlockChainClient for Client {
 	fn block_header(&self, id: BlockId) -> Option<Bytes> {
 		let chain = self.chain.read();
 		Self::block_hash(&chain, id).and_then(|hash| chain.block_header_data(&hash))
+	}
+
+	fn block_number(&self, id: BlockId) -> Option<BlockNumber> {
+		match id {
+			BlockId::Number(number) => Some(number),
+			BlockId::Hash(ref hash) => self.chain.read().block_number(hash),
+			BlockId::Earliest => Some(0),
+			BlockId::Latest | BlockId::Pending => Some(self.chain.read().best_block_number()),
+		}
 	}
 
 	fn block_body(&self, id: BlockId) -> Option<Bytes> {

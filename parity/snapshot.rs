@@ -170,7 +170,7 @@ impl SnapshotCommand {
 		try!(execute_upgrades(&db_dirs, algorithm, self.compaction.compaction_profile(db_dirs.fork_path().as_path())));
 
 		// prepare client config
-		let client_config = to_client_config(&self.cache_config, Default::default(), Mode::Active, tracing, fat_db, self.compaction, self.wal, VMType::default(), "".into(), algorithm, self.pruning_history, true);
+		let client_config = to_client_config(&self.cache_config, Mode::Active, tracing, fat_db, self.compaction, self.wal, VMType::default(), "".into(), algorithm, self.pruning_history, true);
 
 		let service = try!(ClientService::start(
 			client_config,

@@ -178,7 +178,6 @@ fn execute_import(cmd: ImportBlockchain) -> Result<String, String> {
 	// prepare client config
 	let mut client_config = to_client_config(
 		&cmd.cache_config, 
-		Default::default(),
 		Mode::Active, 
 		tracing, 
 		fat_db, 
@@ -345,7 +344,7 @@ fn start_client(
 	try!(execute_upgrades(&db_dirs, algorithm, compaction.compaction_profile(db_dirs.fork_path().as_path())));
 
 	// prepare client config
-	let client_config = to_client_config(&cache_config, Default::default(), Mode::Active, tracing, fat_db, compaction, wal, VMType::default(), "".into(), algorithm, pruning_history, true);
+	let client_config = to_client_config(&cache_config, Mode::Active, tracing, fat_db, compaction, wal, VMType::default(), "".into(), algorithm, pruning_history, true);
 
 	let service = try!(ClientService::start(
 		client_config,

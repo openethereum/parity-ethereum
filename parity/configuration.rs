@@ -23,7 +23,7 @@ use cli::{Args, ArgsError};
 use util::{Hashable, U256, Uint, Bytes, version_data, Secret, Address};
 use util::log::Colour;
 use ethsync::{NetworkConfiguration, is_valid_node_url, AllowIP};
-use ethcore::client::{VMType, UpdatePolicy, UpdateFilter};
+use ethcore::client::{VMType};
 use ethcore::miner::{MinerOptions, Banning};
 use ethcore::verification::queue::VerifierSettings;
 
@@ -37,6 +37,7 @@ use ethcore_logger::Config as LogConfig;
 use dir::Directories;
 use dapps::Configuration as DappsConfiguration;
 use signer::{Configuration as SignerConfiguration};
+use updater::{UpdatePolicy, UpdateFilter};
 use run::RunCmd;
 use blockchain::{BlockchainCmd, ImportBlockchain, ExportBlockchain, ExportState, DataFormat};
 use presale::ImportWallet;

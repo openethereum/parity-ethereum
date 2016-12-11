@@ -8,6 +8,7 @@ dependencies = [
  "daemonize 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "docopt 0.6.80 (registry+https://github.com/rust-lang/crates.io-index)",
  "env_logger 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethabi 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethcore 1.5.0",
  "ethcore-dapps 1.5.0",
  "ethcore-devtools 1.5.0",

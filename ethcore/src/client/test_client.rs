@@ -473,6 +473,10 @@ impl BlockChainClient for TestBlockChainClient {
 		self.block_hash(id).and_then(|hash| self.blocks.read().get(&hash).map(|r| Rlp::new(r).at(0).as_raw().to_vec()))
 	}
 
+	fn block_number(&self, _id: BlockId) -> Option<BlockNumber> {
+		unimplemented!()
+	}
+
 	fn block_body(&self, id: BlockId) -> Option<Bytes> {
 		self.block_hash(id).and_then(|hash| self.blocks.read().get(&hash).map(|r| {
 			let mut stream = RlpStream::new_list(2);

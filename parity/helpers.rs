@@ -20,7 +20,7 @@ use std::time::Duration;
 use std::fs::File;
 use util::{clean_0x, U256, Uint, Address, path, CompactionProfile};
 use util::journaldb::Algorithm;
-use ethcore::client::{UpdatePolicy, Mode, BlockId, VMType, DatabaseCompactionProfile, ClientConfig, VerifierType};
+use ethcore::client::{Mode, BlockId, VMType, DatabaseCompactionProfile, ClientConfig, VerifierType};
 use ethcore::miner::{PendingSet, GasLimit, PrioritizationStrategy};
 use cache::CacheConfig;
 use dir::DatabaseDirectories;

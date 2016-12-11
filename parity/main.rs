@@ -25,6 +25,7 @@
 extern crate docopt;
 extern crate num_cpus;
 extern crate rustc_serialize;
+extern crate ethabi;
 extern crate ethcore_devtools as devtools;
 extern crate ethcore;
 extern crate ethsync;
@@ -87,7 +88,6 @@ mod upgrade;
 mod rpc;
 mod dapps;
 mod informant;
-mod io_handler;
 mod cli;
 mod configuration;
 mod migration;
@@ -111,7 +111,6 @@ mod boot;
 mod user_defaults;
 mod updater;
 mod operations;
-mod fetch;
 
 #[cfg(feature="stratum")]
 mod stratum;
@@ -254,12 +253,12 @@ fn main() {
 	// if argv[0] == "parity" and this executable != ~/.parity-updates/parity, run that instead.
 	let force_direct = std::env::args().any(|arg| arg == "--force-direct");
 	let exe = std::env::current_exe().ok();
-	let development = exe.and_then(|p| p.parent().and_then(|p| p.parent()).and_then(|p| p.file_name()).map(|n| n == "target")).unwrap_or(false);
-	let same_name = exe.and_then(|p| p.file_stem().map_or(false, |s| s == "parity"));
+	let development = exe.as_ref().and_then(|p| p.parent().and_then(|p| p.parent()).and_then(|p| p.file_name()).map(|n| n == "target")).unwrap_or(false);
+	let same_name = exe.as_ref().and_then(|p| p.file_stem().map(|s| s == "parity")).unwrap_or(false);
 	let have_update = updates_latest().exists();
-	let is_non_updated_current = exe.map_or(false, p.canonicalize() != updates_latest().canonicalize());
-	trace_main!("Starting up {} (force-direct: {}, development: {}, have-update: {}, non-updated-current: {})", std::env::current_exe().map(|x| format!("{}", x.display())).unwrap_or("<unknown>".to_owned()), force_direct, development, have_update, is_non_updated_current);
-	if !force_direct && ! development && have_update && is_non_updated_current {
+	let is_non_updated_current = exe.map_or(false, |p| p.canonicalize().ok() != updates_latest().canonicalize().ok());
+	trace_main!("Starting up {} (force-direct: {}, development: {}, same-name: {}, have-update: {}, non-updated-current: {})", std::env::current_exe().map(|x| format!("{}", x.display())).unwrap_or("<unknown>".to_owned()), force_direct, development, same_name, have_update, is_non_updated_current);
+	if !force_direct && !development && same_name && have_update && is_non_updated_current {
 		// looks like we're not running ~/.parity-updates/parity when the user is expecting otherwise.
 		// Everything run inside a loop, so we'll be able to restart from the child into a new version seamlessly. 
 		loop {
