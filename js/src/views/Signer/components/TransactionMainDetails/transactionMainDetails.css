@@ -17,15 +17,62 @@
 
 @import '../../_layout.css';
 
-.container {
-  display: flex;
-  padding: 1em 0 1em;
+.account {
+  text-align: center;
+}
 
-  & > * {
-    vertical-align: middle;
+.contractIcon {
+  background: #eee;
+  width: 50px !important;
+  height: 50px !important;
+  box-sizing: border-box;
+  border-radius: 50%;
+  padding: 13px;
+}
+
+.editButtonRow {
+  text-align: right;
+}
+
+.from {
+  display: inline-block;
+  width: 40%;
+  vertical-align: top;
+
+  img {
+    display: inline-block;
+    width: 50px;
+    height: 50px;
+    margin: 5px;
+  }
+
+  span {
+    display: block;
   }
 }
 
-.container+.container {
-  padding-top: 2em;
+.method {
+  display: inline-block;
+  width: 60%;
+  vertical-align: top;
+  line-height: 1em;
+}
+
+.tx {
+  position: relative;
+  text-align: center;
+  margin: 0 -75px;
+  width: 150px;
+  top: -20px;
+  white-space: nowrap;
+}
+
+.total {
+  font-size: 0.6em;
+  opacity: .5;
+}
+
+.transaction {
+  flex: 1;
+  overflow: auto;
 }

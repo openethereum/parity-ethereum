@@ -20,8 +20,12 @@
   width: 100%;
 }
 
-.columns {
+.chartRow, .sliderRow {
   display: flex;
   flex-wrap: wrap;
   position: relative;
+}
+
+.chartRow {
+  margin-bottom: -24px;
 }

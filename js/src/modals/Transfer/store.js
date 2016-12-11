@@ -112,7 +112,7 @@ export default class TransferStore {
     this.isWallet = account && account.wallet;
     this.newError = newError;
 
-    this.gasStore = new GasPriceStore(api, gasLimit);
+    this.gasStore = new GasPriceStore(api, { gasLimit });
 
     if (this.isWallet) {
       this.wallet = props.wallet;

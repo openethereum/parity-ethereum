@@ -80,8 +80,9 @@ class Transfer extends Component {
       <div className={ styles.hdraccount }>
         <div className={ styles.hdrimage }>
           <IdentityIcon
-            inline center
-            address={ account.address } />
+            address={ account.address }
+            center
+            inline />
         </div>
         <div className={ styles.hdrdetails }>
           <div className={ styles.hdrname }>
@@ -165,18 +166,18 @@ class Transfer extends Component {
         balance={ balance }
         extras={ extras }
         images={ images }
-        senders={ senders }
+        onChange={ this.store.onUpdateDetails }
         recipient={ recipient }
         recipientError={ recipientError }
         sender={ sender }
         senderError={ senderError }
+        senders={ senders }
         sendersBalances={ sendersBalances }
         tag={ tag }
         total={ total }
         totalError={ totalError }
         value={ value }
         valueError={ valueError }
-        onChange={ this.store.onUpdateDetails }
         wallet={ account.wallet && this.props.wallet }
       />
     );

@@ -15,6 +15,13 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-.noRequestsMsg {
-  color: #aaa;
+@import '../../_layout.css';
+
+.container {
+  display: flex;
+  padding: 1.5em 1em 1.5em 0;
+
+  & > * {
+    vertical-align: middle;
+  }
 }

@@ -19,7 +19,7 @@ import React, { Component, PropTypes } from 'react';
 import { IdentityIcon, IdentityName } from '~/ui';
 import AccountLink from './AccountLink';
 
-import styles from './Account.css';
+import styles from './account.css';
 
 export default class Account extends Component {
   static propTypes = {

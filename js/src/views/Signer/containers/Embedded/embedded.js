@@ -33,15 +33,16 @@ class Embedded extends Component {
   };
 
   static propTypes = {
-    signer: PropTypes.shape({
-      pending: PropTypes.array.isRequired,
-      finished: PropTypes.array.isRequired
-    }).isRequired,
     actions: PropTypes.shape({
       startConfirmRequest: PropTypes.func.isRequired,
       startRejectRequest: PropTypes.func.isRequired
     }).isRequired,
-    isTest: PropTypes.bool.isRequired
+    gasLimit: PropTypes.object.isRequired,
+    isTest: PropTypes.bool.isRequired,
+    signer: PropTypes.shape({
+      finished: PropTypes.array.isRequired,
+      pending: PropTypes.array.isRequired
+    }).isRequired
   };
 
   store = new Store(this.context.api);
@@ -78,20 +79,21 @@ class Embedded extends Component {
   }
 
   renderPending = (data) => {
-    const { actions, isTest } = this.props;
-    const { payload, id, isSending, date } = data;
+    const { actions, gasLimit, isTest } = this.props;
+    const { date, id, isSending, payload } = data;
 
     return (
       <RequestPending
         className={ styles.request }
+        date={ date }
+        gasLimit={ gasLimit }
+        id={ id }
+        isSending={ isSending }
+        isTest={ isTest }
+        key={ id }
         onConfirm={ actions.startConfirmRequest }
         onReject={ actions.startRejectRequest }
-        isSending={ isSending || false }
-        key={ id }
-        id={ id }
         payload={ payload }
-        date={ date }
-        isTest={ isTest }
         store={ this.store }
       />
     );
@@ -103,13 +105,14 @@ class Embedded extends Component {
 }
 
 function mapStateToProps (state) {
-  const { isTest } = state.nodeStatus;
+  const { gasLimit, isTest } = state.nodeStatus;
   const { actions, signer } = state;
 
   return {
     actions,
-    signer,
-    isTest
+    gasLimit,
+    isTest,
+    signer
   };
 }
 

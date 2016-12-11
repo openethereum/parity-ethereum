@@ -26,18 +26,22 @@ export default class GasPriceEditor {
   @observable errorPrice = null;
   @observable errorTotal = null;
   @observable estimated = DEFAULT_GAS;
+  @observable gas;
+  @observable gasLimit;
   @observable histogram = null;
-  @observable price = DEFAULT_GASPRICE;
-  @observable priceDefault = DEFAULT_GASPRICE;
-  @observable gas = DEFAULT_GAS;
-  @observable gasLimit = 0;
+  @observable isEditing = false;
+  @observable price;
+  @observable priceDefault;
   @observable weiValue = '0';
 
-  constructor (api, gasLimit, loadDefaults = true) {
+  constructor (api, { gas, gasLimit, gasPrice }) {
     this._api = api;
-    this.gasLimit = gasLimit;
 
-    if (loadDefaults) {
+    this.gas = gas;
+    this.gasLimit = gasLimit;
+    this.price = gasPrice;
+
+    if (api) {
       this.loadDefaults();
     }
   }
@@ -48,6 +52,10 @@ export default class GasPriceEditor {
     } catch (error) {
       return new BigNumber(0);
     }
+  }
+
+  @action setEditing = (isEditing) => {
+    this.isEditing = isEditing;
   }
 
   @action setErrorTotal = (errorTotal) => {
@@ -74,6 +82,30 @@ export default class GasPriceEditor {
     this.weiValue = weiValue;
   }
 
+  @action setGas = (gas) => {
+    transaction(() => {
+      const { numberError } = validatePositiveNumber(gas);
+
+      this.gas = gas;
+
+      if (numberError) {
+        this.errorGas = numberError;
+      } else {
+        const bn = new BigNumber(gas);
+
+        if (bn.gte(this.gasLimit)) {
+          this.errorGas = ERRORS.gasBlockLimit;
+        } else {
+          this.errorGas = null;
+        }
+      }
+    });
+  }
+
+  @action setGasLimit = (gasLimit) => {
+    this.gasLimit = gasLimit;
+  }
+
   @action setHistogram = (gasHistogram) => {
     this.histogram = gasHistogram;
   }
@@ -85,39 +117,37 @@ export default class GasPriceEditor {
     });
   }
 
-  @action setGas = (gas) => {
-    transaction(() => {
-      const { numberError } = validatePositiveNumber(gas);
-      const bn = new BigNumber(gas);
-
-      this.gas = gas;
-
-      if (numberError) {
-        this.errorGas = numberError;
-      } else if (bn.gte(this.gasLimit)) {
-        this.errorGas = ERRORS.gasBlockLimit;
-      } else {
-        this.errorGas = null;
-      }
-    });
-  }
-
   @action loadDefaults () {
     Promise
       .all([
         this._api.parity.gasPriceHistogram(),
         this._api.eth.gasPrice()
       ])
-      .then(([gasPriceHistogram, gasPrice]) => {
+      .then(([histogram, _price]) => {
         transaction(() => {
-          this.setPrice(gasPrice.toFixed(0));
-          this.setHistogram(gasPriceHistogram);
+          const price = _price.toFixed(0);
 
-          this.priceDefault = gasPrice.toFixed();
+          if (!this.price) {
+            this.setPrice(price);
+          }
+          this.setHistogram(histogram);
+
+          this.priceDefault = price;
         });
       })
       .catch((error) => {
         console.warn('getDefaults', error);
       });
+  }
+
+  overrideTransaction = (transaction) => {
+    if (this.errorGas || this.errorPrice) {
+      return transaction;
+    }
+
+    return Object.assign({}, transaction, {
+      gas: new BigNumber(this.gas || DEFAULT_GAS),
+      gasPrice: new BigNumber(this.price || DEFAULT_GASPRICE)
+    });
   }
 }

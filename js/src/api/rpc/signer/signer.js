@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { inNumber16, inData } from '../../format/input';
+import { inData, inNumber16, inOptions } from '../../format/input';
 import { outSignerRequest } from '../../format/output';
 
 export default class Signer {
@@ -24,7 +24,7 @@ export default class Signer {
 
   confirmRequest (requestId, options, password) {
     return this._transport
-      .execute('signer_confirmRequest', inNumber16(requestId), options, password);
+      .execute('signer_confirmRequest', inNumber16(requestId), inOptions(options), password);
   }
 
   confirmRequestRaw (requestId, data) {

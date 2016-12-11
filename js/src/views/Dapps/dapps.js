@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import { FormattedMessage } from 'react-intl';
 import { Checkbox } from 'material-ui';
 import { observer } from 'mobx-react';
 
@@ -43,11 +44,19 @@ export default class Dapps extends Component {
       externalOverlay = (
         <div className={ styles.overlay }>
           <div className={ styles.body }>
-            <div>Applications made available on the network by 3rd-party authors are not affiliated with Parity nor are they published by Parity. Each remain under the control of their respective authors. Please ensure that you understand the goals for each before interacting.</div>
+            <div>
+              <FormattedMessage
+                id='dapps.external.warning'
+                defaultMessage='Applications made available on the network by 3rd-party authors are not affiliated with Parity nor are they published by Parity. Each remain under the control of their respective authors. Please ensure that you understand the goals for each before interacting.' />
+            </div>
             <div>
               <Checkbox
                 className={ styles.accept }
-                label='I understand that these applications are not affiliated with Parity'
+                label={
+                  <FormattedMessage
+                    id='dapps.external.accept'
+                    defaultMessage='I understand that these applications are not affiliated with Parity' />
+                }
                 checked={ false }
                 onCheck={ this.onClickAcceptExternal } />
             </div>
@@ -61,10 +70,18 @@ export default class Dapps extends Component {
         <AddDapps store={ this.store } />
         <Actionbar
           className={ styles.toolbar }
-          title='Decentralized Applications'
+          title={
+            <FormattedMessage
+              id='dapps.label'
+              defaultMessage='Decentralized Applications' />
+          }
           buttons={ [
             <FlatButton
-              label='edit'
+              label={
+                <FormattedMessage
+                  id='dapps.button.edit'
+                  defaultMessage='edit' />
+              }
               key='edit'
               icon={ <EyeIcon /> }
               onTouchTap={ this.store.openModal }

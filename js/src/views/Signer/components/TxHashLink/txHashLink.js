@@ -16,33 +16,27 @@
 
 import React, { Component, PropTypes } from 'react';
 
-import RaisedButton from 'material-ui/RaisedButton';
+import { txLink } from '~/3rdparty/etherscan/links';
 
-import styles from './TransactionPendingFormReject.css';
-
-export default class TransactionPendingFormReject extends Component {
-
+export default class TxHashLink extends Component {
   static propTypes = {
-    onReject: PropTypes.func.isRequired,
-    className: PropTypes.string
-  };
+    children: PropTypes.node,
+    className: PropTypes.string,
+    isTest: PropTypes.bool.isRequired,
+    txHash: PropTypes.string.isRequired
+  }
 
   render () {
-    const { onReject } = this.props;
+    const { children, className, isTest, txHash } = this.props;
 
     return (
-      <div>
-        <div className={ styles.rejectText }>
-          Are you sure you want to reject transaction? <br />
-          <strong>This cannot be undone</strong>
-        </div>
-        <RaisedButton
-          onTouchTap={ onReject }
-          className={ styles.rejectButton }
-          fullWidth
-          label={ 'Reject Transaction' }
-        />
-      </div>
+      <a
+        className={ className }
+        href={ txLink(txHash, isTest) }
+        target='_blank'>
+        { children || txHash }
+      </a>
     );
   }
+
 }

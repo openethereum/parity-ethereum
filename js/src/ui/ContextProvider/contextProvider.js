@@ -14,8 +14,13 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { Component, PropTypes } from 'react';
+import React, { Component, PropTypes } from 'react';
+import { IntlProvider } from 'react-intl';
+import { observer } from 'mobx-react';
 
+import { LocaleStore } from '../../i18n';
+
+@observer
 export default class ContextProvider extends Component {
   static propTypes = {
     api: PropTypes.object.isRequired,
@@ -30,10 +35,17 @@ export default class ContextProvider extends Component {
     store: PropTypes.object
   }
 
+  localeStore = LocaleStore.get();
+
   render () {
     const { children } = this.props;
+    const { locale, messages } = this.localeStore;
 
-    return children;
+    return (
+      <IntlProvider locale={ locale } messages={ messages }>
+        { children }
+      </IntlProvider>
+    );
   }
 
   getChildContext () {

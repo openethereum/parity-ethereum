@@ -21,7 +21,7 @@ import Account from '../Account';
 import TransactionPendingForm from '../TransactionPendingForm';
 import TxHashLink from '../TxHashLink';
 
-import styles from './SignRequest.css';
+import styles from './signRequest.css';
 
 @observer
 export default class SignRequest extends Component {
@@ -49,7 +49,7 @@ export default class SignRequest extends Component {
     const { className } = this.props;
 
     return (
-      <div className={ `${styles.container} ${className || ''}` }>
+      <div className={ `${styles.container} ${className}` }>
         { this.renderDetails() }
         { this.renderActions() }
       </div>
