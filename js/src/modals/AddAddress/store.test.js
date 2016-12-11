@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 const TEST_ADDR_A = '0x63Cf90D3f0410092FC0fca41846f596223979195';
+const TEST_ADDR_B = '0x00A40dEfa9933e82244bE542Fa7F8748eCCdd457';
 
 const TEST_CONTACTS = {
   [TEST_ADDR_A]: { name: 'test', meta: {} }
@@ -22,5 +23,6 @@ const TEST_CONTACTS = {
 
 export {
   TEST_ADDR_A,
+  TEST_ADDR_B,
   TEST_CONTACTS
 };

@@ -15,11 +15,13 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import 'isomorphic-fetch';
+import 'mock-local-storage';
 
 import es6Promise from 'es6-promise';
 es6Promise.polyfill();
 
-import 'mock-local-storage';
+import injectTapEventPlugin from 'react-tap-event-plugin';
+injectTapEventPlugin();
 
 import chai from 'chai';
 import chaiAsPromised from 'chai-as-promised';

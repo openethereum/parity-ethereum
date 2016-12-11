@@ -14,9 +14,11 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import sinon from 'sinon';
+
 import Store from './store';
 
-import { TEST_ADDR_A, TEST_CONTACTS } from './store.test.js';
+import { TEST_ADDR_A, TEST_ADDR_B, TEST_CONTACTS } from './store.test.js';
 
 describe('modals/AddAddress/store', () => {
   let store;
@@ -27,7 +29,41 @@ describe('modals/AddAddress/store', () => {
     });
 
     describe('setAddress', () => {
+      it('successfully sets non-existent addresses', () => {
+        store.setAddress(TEST_ADDR_B);
 
+        expect(store.addressError).to.be.null;
+        expect(store.address).to.equal(TEST_ADDR_B);
+      });
+
+      it('fails on invalid addresses', () => {
+        store.setAddress('0xinvalid');
+
+        expect(store.addressError).not.to.be.null;
+      });
+
+      it('fails when an address is already added', () => {
+        store.setAddress(TEST_ADDR_A);
+
+        expect(store.addressError).not.to.be.null;
+      });
+    });
+
+    describe('setName', () => {
+      it('sucessfully sets valid names', () => {
+        const name = 'Test Name';
+
+        store.setName(name);
+
+        expect(store.nameError).to.be.null;
+        expect(store.name).to.equal(name);
+      });
+
+      it('fails when name is invalid', () => {
+        store.setName(null);
+
+        expect(store.nameError).not.to.be.null;
+      });
     });
   });
 
@@ -38,7 +74,7 @@ describe('modals/AddAddress/store', () => {
 
     describe('hasError', () => {
       beforeEach(() => {
-        store.setAddress(TEST_ADDR_A);
+        store.setAddress(TEST_ADDR_B);
         store.setName('Test Name');
       });
 
@@ -47,7 +83,7 @@ describe('modals/AddAddress/store', () => {
       });
 
       it('returns true with addressError', () => {
-        store.setAddress(null);
+        store.setAddress(TEST_ADDR_A);
 
         expect(store.addressError).not.to.be.null;
         expect(store.hasError).to.be.true;
@@ -58,6 +94,34 @@ describe('modals/AddAddress/store', () => {
 
         expect(store.nameError).not.to.be.null;
         expect(store.hasError).to.be.true;
+      });
+    });
+  });
+
+  describe('methods', () => {
+    let api;
+
+    beforeEach(() => {
+      api = {
+        parity: {
+          setAccountMeta: sinon.stub().resolves(true),
+          setAccountName: sinon.stub().resolves(true)
+        }
+      };
+      store = new Store(api, {});
+    });
+
+    describe('add', () => {
+      it('calls setAccountMeta', () => {
+        store.add();
+
+        expect(api.parity.setAccountMeta).to.have.been.called;
+      });
+
+      it('calls setAccountName', () => {
+        store.add();
+
+        expect(api.parity.setAccountName).to.have.been.called;
       });
     });
   });

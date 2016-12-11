@@ -14,60 +14,19 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { mount } from 'enzyme';
+import { shallow } from 'enzyme';
 import React from 'react';
-import sinon from 'sinon';
 
 import AddAddress from './';
 
-import { TEST_CONTACTS } from './store.test.js';
-
-const api = {
-  parity: {
-    setAccountMeta: sinon.stub().resolves(true),
-    setAccountName: sinon.stub().resolves(true)
-  }
-};
-
-function render (props) {
-  return mount(
-    <AddAddress
-      contacts={ TEST_CONTACTS }
-      { ...props } />,
-    { context: { api } }
-  );
-}
-
 describe('modals/AddAddress', () => {
-  it('renders', () => {
-    expect(render()).to.be.ok;
-  });
-
-  describe('actions', () => {
-    let onClose;
-    let component;
-
-    beforeEach(() => {
-      onClose = sinon.stub();
-      component = render({ onClose });
-    });
-
-    describe('close', () => {
-      it('calls the props.onClose', () => {
-        component.ref('closeButton').click();
-
-        expect(onClose).to.have.been.called;
-      });
-    });
-
-    describe('add', () => {
-      it('adds the name & meta and calls the props.onClose', () => {
-        component.ref('addButton').click();
-
-        expect(onClose).to.have.been.called;
-        expect(api.parity.setAccountMeta).to.have.been.called;
-        expect(api.parity.setAccountName).to.have.been.called;
-      });
+  describe('rendering', () => {
+    it('renders defaults', () => {
+      expect(
+        shallow(
+          <AddAddress />
+        )
+      ).to.be.ok;
     });
   });
 });

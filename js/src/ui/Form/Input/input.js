@@ -18,6 +18,8 @@ import React, { Component, PropTypes } from 'react';
 import { TextField } from 'material-ui';
 import { noop } from 'lodash';
 
+import { nodeOrStringProptype } from '~/util/proptypes';
+
 import CopyToClipboard from '../../CopyToClipboard';
 
 import styles from './input.css';
@@ -41,18 +43,21 @@ const NAME_ID = ' ';
 
 export default class Input extends Component {
   static propTypes = {
-    children: PropTypes.node,
-    className: PropTypes.string,
-    disabled: PropTypes.bool,
-    readOnly: PropTypes.bool,
     allowCopy: PropTypes.oneOfType([
       PropTypes.string,
       PropTypes.bool
     ]),
-    floatCopy: PropTypes.bool,
+    children: PropTypes.node,
+    className: PropTypes.string,
+    disabled: PropTypes.bool,
     error: PropTypes.string,
-    hint: PropTypes.string,
-    label: PropTypes.string,
+    readOnly: PropTypes.bool,
+    floatCopy: PropTypes.bool,
+    hint: nodeOrStringProptype(),
+    hideUnderline: PropTypes.bool,
+    label: nodeOrStringProptype(),
+    max: PropTypes.any,
+    min: PropTypes.any,
     multiLine: PropTypes.bool,
     onBlur: PropTypes.func,
     onChange: PropTypes.func,
@@ -61,26 +66,26 @@ export default class Input extends Component {
     rows: PropTypes.number,
     type: PropTypes.string,
     submitOnBlur: PropTypes.bool,
-    hideUnderline: PropTypes.bool,
+    style: PropTypes.object,
     value: PropTypes.oneOfType([
-      PropTypes.number, PropTypes.string
-    ]),
-    min: PropTypes.any,
-    max: PropTypes.any,
-    style: PropTypes.object
+      PropTypes.number,
+      PropTypes.string
+    ])
   };
 
   static defaultProps = {
-    submitOnBlur: true,
-    readOnly: false,
     allowCopy: false,
     hideUnderline: false,
     floatCopy: false,
+    readOnly: false,
+    submitOnBlur: true,
     style: {}
   }
 
   state = {
-    value: typeof this.props.value === 'undefined' ? '' : this.props.value
+    value: typeof this.props.value === 'undefined'
+      ? ''
+      : this.props.value
   }
 
   componentWillReceiveProps (newProps) {
@@ -114,38 +119,29 @@ export default class Input extends Component {
           autoComplete='off'
           className={ className }
           errorText={ error }
-
           floatingLabelFixed
           floatingLabelText={ label }
-
+          fullWidth
           hintText={ hint }
           id={ NAME_ID }
           inputStyle={ inputStyle }
-          fullWidth
-
           max={ max }
           min={ min }
-
           multiLine={ multiLine }
           name={ NAME_ID }
-
           onBlur={ this.onBlur }
           onChange={ this.onChange }
           onKeyDown={ this.onKeyDown }
           onPaste={ this.onPaste }
-
           readOnly={ readOnly }
           rows={ rows }
           style={ textFieldStyle }
           type={ type || 'text' }
-
           underlineDisabledStyle={ UNDERLINE_DISABLED }
           underlineStyle={ readOnly ? UNDERLINE_READONLY : UNDERLINE_NORMAL }
           underlineFocusStyle={ readOnly ? { display: 'none' } : null }
           underlineShow={ !hideUnderline }
-
-          value={ value }
-        >
+          value={ value }>
           { children }
         </TextField>
       </div>
@@ -159,11 +155,14 @@ export default class Input extends Component {
     if (!allowCopy) {
       return null;
     }
+
     const text = typeof allowCopy === 'string'
       ? allowCopy
       : value;
 
-    const style = hideUnderline ? {} : { position: 'relative', top: '2px' };
+    const style = hideUnderline
+      ? {}
+      : { position: 'relative', top: '2px' };
 
     return (
       <div className={ styles.copy } style={ style }>

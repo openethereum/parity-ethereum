@@ -97,7 +97,7 @@ export default class AddAddress extends Component {
           hint={
             <FormattedMessage
               id='addAddress.input.address.hint'
-              defaultMesage='the network address for the entry' />
+              defaultMessage='the network address for the entry' />
           }
           label={
             <FormattedMessage
