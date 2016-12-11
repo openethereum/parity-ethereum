@@ -336,6 +336,6 @@ export default class GasPriceSelector extends Component {
       .round();
 
     this.setSliderValue(sliderValue, price);
-    this.props.onChange(event, price);
+    this.props.onChange(event, price.toFixed());
   }
 }
