@@ -41,7 +41,7 @@ function getBabelrc () {
   const npmStart = process.env.npm_lifecycle_event === 'start';
   const npmStartApp = process.env.npm_lifecycle_event === 'start:app';
 
-  if (BABEL_PRESET_ENV || npmStart || npmStartApp) {
+  if (BABEL_PRESET_ENV && (npmStart || npmStartApp)) {
     console.log('using babel-preset-env');
 
     babelrc.presets = [
