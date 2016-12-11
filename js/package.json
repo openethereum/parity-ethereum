@@ -1,6 +1,6 @@
 {
   "name": "parity.js",
-  "version": "0.2.105",
+  "version": "0.2.107",
   "main": "release/index.js",
   "jsnext:main": "src/index.js",
   "author": "Parity Team <admin@parity.io>",
@@ -146,6 +146,7 @@
     "mobx-react-devtools": "4.2.10",
     "moment": "2.17.0",
     "phoneformat.js": "1.0.3",
+    "push.js": "0.0.11",
     "qs": "6.3.0",
     "react": "15.4.1",
     "react-ace": "4.1.0",

@@ -67,7 +67,7 @@ if (window.location.hash && window.location.hash.indexOf(AUTH_HASH) === 0) {
 const api = new SecureApi(`ws://${parityUrl}`, token);
 ContractInstances.create(api);
 
-const store = initStore(api);
+const store = initStore(api, hashHistory);
 store.dispatch({ type: 'initAll', api });
 store.dispatch(setApi(api));
 

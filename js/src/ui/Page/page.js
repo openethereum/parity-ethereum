@@ -16,21 +16,38 @@
 
 import React, { Component, PropTypes } from 'react';
 
+import Actionbar from '../Actionbar';
+import { nodeOrStringProptype } from '~/util/proptypes';
+
 import styles from './page.css';
 
 export default class Page extends Component {
   static propTypes = {
+    buttons: PropTypes.array,
     className: PropTypes.string,
-    children: PropTypes.node
+    children: PropTypes.node,
+    title: nodeOrStringProptype()
   };
 
   render () {
-    const { className, children } = this.props;
+    const { buttons, className, children, title } = this.props;
     const classes = `${styles.layout} ${className}`;
+    let actionbar = null;
+
+    if (title || buttons) {
+      actionbar = (
+        <Actionbar
+          buttons={ buttons }
+          title={ title } />
+      );
+    }
 
     return (
-      <div className={ classes }>
-        { children }
+      <div>
+        { actionbar }
+        <div className={ classes }>
+          { children }
+        </div>
       </div>
     );
   }
