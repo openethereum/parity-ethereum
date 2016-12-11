@@ -16,7 +16,8 @@
 
 const nock = require('nock');
 
-const initShapeshift = require('./');
+const ShapeShift = require('./');
+const initShapeshift = (ShapeShift.default || ShapeShift);
 
 const APIKEY = '0x123454321';
 
