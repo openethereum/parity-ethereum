@@ -19,7 +19,7 @@ ethcore-devtools = { path = "../devtools" }
 lazy_static = "0.2"
 env_logger = "0.3"
 ethcore-ipc = { path = "../ipc/rpc" }
-semver = "0.2"
+semver = "0.5"
 ethcore-ipc-nano = { path = "../ipc/nano" }
 
 [profile.release]

@@ -15,7 +15,7 @@ clippy = { version = "0.0.103", optional = true}
 ethcore-devtools = { path = "../devtools" }
 ethcore-ipc = { path = "../ipc/rpc" }
 rocksdb = { git = "https://github.com/ethcore/rust-rocksdb" }
-semver = "0.2"
+semver = "0.5"
 ethcore-ipc-nano = { path = "../ipc/nano" }
 nanomsg = { git = "https://github.com/ethcore/nanomsg.rs.git" }
 crossbeam = "0.2"

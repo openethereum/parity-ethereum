@@ -11,7 +11,7 @@ build = "build.rs"
 ethcore-ipc = { path = "../rpc" }
 nanomsg = { git = "https://github.com/ethcore/nanomsg.rs.git" }
 ethcore-ipc-nano = { path = "../nano" }
-semver = "0.2"
+semver = "0.5"
 log = "0.3"
 time = "0.1"
 
