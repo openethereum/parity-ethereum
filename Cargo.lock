@@ -594,7 +594,6 @@ dependencies = [
  "rust-crypto 0.2.36 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc-serialize 0.3.19 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc_version 0.1.7 (registry+https://github.com/rust-lang/crates.io-index)",
- "semver 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "sha3 0.1.0",
  "table 0.1.0",
  "target_info 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -827,6 +826,17 @@ dependencies = [
  "regex 0.1.68 (registry+https://github.com/rust-lang/crates.io-index)",
  "xml-rs 0.3.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "xmltree 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "ipc-common-types"
+version = "1.5.0"
+dependencies = [
+ "ethcore-ipc 1.5.0",
+ "ethcore-ipc-codegen 1.5.0",
+ "ethcore-util 1.5.0",
+ "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
+ "semver 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -1305,7 +1315,10 @@ version = "1.5.0"
 dependencies = [
  "ethabi 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethcore 1.5.0",
+ "ethcore-ipc 1.5.0",
+ "ethcore-ipc-codegen 1.5.0",
  "ethcore-util 1.5.0",
+ "ipc-common-types 1.5.0",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "parity-hash-fetch 1.5.0",
 ]

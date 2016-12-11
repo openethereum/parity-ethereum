@@ -1,6 +1,6 @@
 [package]
-description = "Parity Updater Service."
-name = "parity-updater"
+description = "Types that implement IPC and are common to multiple modules."
+name = "ipc-common-types"
 version = "1.5.0"
 license = "GPL-3.0"
 authors = ["Parity Technologies <admin@parity.io>"]
@@ -11,12 +11,9 @@ ethcore-ipc-codegen = { path = "../ipc/codegen" }
 
 [dependencies]
 log = "0.3"
-ethabi = "0.2.2"
-ethcore = { path = "../ethcore" }
-ethcore-util = { path = "../util" }
-parity-hash-fetch = { path = "../hash-fetch" }
-ipc-common-types = { path = "../ipc-common-types" }
+semver = "0.5"
 ethcore-ipc = { path = "../ipc/rpc" }
+ethcore-util = { path = "../util" }
 
 [profile.release]
 debug = true

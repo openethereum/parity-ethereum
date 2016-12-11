@@ -286,7 +286,6 @@ fn binary_expr_struct(
 				post_write_stmts.push(quote_stmt!(cx,
 						if $range_ident.end - $range_ident.start > 0 {
 							if let Err(e) = $member_expr .to_bytes(&mut buffer[$range_ident], length_stack) {
-								warn!(target: "ipc", $error_message_literal);
 								return Err(e)
 							};
 						}

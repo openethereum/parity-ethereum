@@ -24,4 +24,4 @@ extern crate ethcore_util as util;
 pub mod interface;
 pub mod binary;
 pub use interface::{IpcInterface, IpcSocket, invoke, IpcConfig, Handshake, Error, WithSocket};
-pub use binary::{BinaryConvertable, BinaryConvertError, BinHandshake};
+pub use binary::{BinaryConvertable, BinaryConvertError, BinVersion, BinHandshake};

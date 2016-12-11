@@ -17,7 +17,6 @@
 //! Diff misc.
 
 use common::*;
-use semver::{Identifier, Version};
 use rlp::{Stream, RlpStream};
 use target_info::Target;
 
@@ -31,107 +30,6 @@ pub enum Filth {
 	Clean,
 	/// Data has been changed.
 	Dirty,
-}
-
-/// A release's track.
-#[derive(PartialEq, Eq, Clone, Copy, Debug)]
-pub enum ReleaseTrack {
-	/// Stable track.
-	Stable,
-	/// Beta track.
-	Beta,
-	/// Nightly track.
-	Nightly,
-	/// No known track.
-	Unknown,
-}
-
-impl fmt::Display for ReleaseTrack {
-	fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-		write!(f, "{}", match *self {
-			ReleaseTrack::Stable => "stable", 
-			ReleaseTrack::Beta => "beta", 
-			ReleaseTrack::Nightly => "nightly", 
-			ReleaseTrack::Unknown => "unknown", 
-		})
-	}
-}
-
-impl<'a> From<&'a str> for ReleaseTrack {
-	fn from(s: &'a str) -> Self {
-		match s {
-			"stable" => ReleaseTrack::Stable, 
-			"beta" => ReleaseTrack::Beta, 
-			"nightly" => ReleaseTrack::Nightly, 
-			_ => ReleaseTrack::Unknown, 
-		}		
-	}
-}
-
-impl From<u8> for ReleaseTrack {
-	fn from(i: u8) -> Self {
-		match i {
-			1 => ReleaseTrack::Stable, 
-			2 => ReleaseTrack::Beta, 
-			3 => ReleaseTrack::Nightly, 
-			_ => ReleaseTrack::Unknown, 
-		}		
-	}
-}
-
-impl Into<u8> for ReleaseTrack {
-	fn into(self) -> u8 {
-		match self {
-			ReleaseTrack::Stable => 1, 
-			ReleaseTrack::Beta => 2, 
-			ReleaseTrack::Nightly => 3, 
-			ReleaseTrack::Unknown => 0, 
-		}		
-	}
-}
-
-/// Version information of a particular release. 
-#[derive(Debug, Clone, PartialEq)]
-pub struct VersionInfo {
-	/// The track on which it was released.
-	pub track: ReleaseTrack,
-	/// The version.
-	pub version: Version,
-	/// The (SHA1?) 160-bit hash of this build's code base.
-	pub hash: H160,
-}
-
-impl fmt::Display for VersionInfo {
-	fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-		write!(f, "{}-{}", self.version, self.hash)
-	}
-}
-
-impl VersionInfo {
-	/// Get information for this (currently running) binary.
-	pub fn this() -> Self {
-		VersionInfo {
-			track: env!["CARGO_PKG_VERSION_PRE"].into(),
-			version: Version::parse(env!["CARGO_PKG_VERSION"]).expect("Environment variables are known to be valid; qed"),
-			hash: sha().into(),
-		}
-	}
-
-	/// Compose the information from the provided raw fields.
-	pub fn from_raw(semver: u32, track: u8, hash: H160) -> Self {
-		let t = track.into();
-		VersionInfo {
-			version: Version {
-				major: (semver >> 16) as u64,
-				minor: ((semver >> 8) & 0xff) as u64,
-				patch: (semver & 0xff) as u64,
-				build: vec![],
-				pre: vec![Identifier::AlphaNumeric(format!("{}", t))]
-			},
-			track: t,
-			hash: hash,
-		}
-	}
 }
 
 /// Get the platform identifier.
@@ -162,4 +60,9 @@ pub fn version_data() -> Bytes {
 	s.append(&rustc_version());
 	s.append(&&Target::os()[0..2]);
 	s.out()
+}
+
+/// Provide raw information on the package.
+pub fn raw_package_info() -> (&'static str, &'static str, &'static str) {
+	(env!["CARGO_PKG_VERSION_PRE"], env!["CARGO_PKG_VERSION"], sha())
 }

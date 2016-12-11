@@ -106,7 +106,6 @@ extern crate tiny_keccak;
 extern crate rlp;
 extern crate regex;
 extern crate lru_cache;
-extern crate semver;
 
 #[macro_use]
 extern crate heapsize;

@@ -18,12 +18,14 @@ use std::sync::{Arc, Weak};
 use std::{fs, env};
 use std::io::Write;
 use std::path::{PathBuf};
-use util::misc::{VersionInfo, ReleaseTrack/*, platform*/};
+//use util::misc::platform;
+use ipc_common_types::{VersionInfo, ReleaseTrack};
 use util::{Address, H160, H256, FixedHash, Mutex, Bytes};
 use ethcore::client::{BlockId, BlockChainClient, ChainNotify};
 use hash_fetch::{self as fetch, HashFetch};
 use operations::Operations;
-use service::{Service, ReleaseInfo, OperationsInfo, CapState};
+use service::{Service};
+use types::all::{ReleaseInfo, OperationsInfo, CapState};
 
 /// Filter for releases.
 #[derive(Debug, Eq, PartialEq, Clone)]
