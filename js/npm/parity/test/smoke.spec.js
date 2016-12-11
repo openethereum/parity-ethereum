@@ -14,24 +14,13 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-const etherscan = require('./');
+const parity = require('../');
 
-describe.skip('etherscan/stats', function () {
-  this.timeout(60 * 1000);
+describe('load the Parity library', function () {
+  it('should no throw any error', () => {
+    expect(parity).to.be.ok;
 
-  it('retrieves the latest price', () => {
-    return etherscan.stats
-      .price()
-      .then((price) => {
-        expect(price).to.be.ok;
-      });
-  });
-
-  it('retrieves the ether total', () => {
-    return etherscan.stats
-      .supply()
-      .then((supply) => {
-        expect(supply).to.be.ok;
-      });
+    expect(parity.Api).to.be.ok;
+    expect(parity.Abi).to.be.ok;
   });
 });
