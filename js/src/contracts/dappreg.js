@@ -22,8 +22,12 @@ export default class DappReg {
     this.getInstance();
   }
 
+  getContract () {
+    return this._registry.getContract('dappreg');
+  }
+
   getInstance () {
-    return this._registry.getContractInstance('dappreg');
+    return this.getContract().then((contract) => contract.instance);
   }
 
   count () {
