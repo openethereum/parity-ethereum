@@ -418,6 +418,8 @@ mod tests {
 		// given
 		let ap = AccountProvider::transient_provider();
 		let app = "app1".to_owned();
+		// set `AllAccounts` policy
+		ap.set_new_dapps_whitelist(None).unwrap();
 
 		// when
 		ap.set_dapps_addresses(app.clone(), vec![1.into(), 2.into()]).unwrap();
@@ -431,10 +433,15 @@ mod tests {
 		// given
 		let ap = AccountProvider::transient_provider();
 		let address = ap.new_account("test").unwrap();
-		// Default policy should be to return all
+
+		// Default policy should be to return nothing
+		assert_eq!(ap.dapps_addresses("app1".into()).unwrap(), vec![]);
+
+		// change to all
+		ap.set_new_dapps_whitelist(None).unwrap();
 		assert_eq!(ap.dapps_addresses("app1".into()).unwrap(), vec![address]);
 
-		// change policy
+		// change to a whitelist
 		ap.set_new_dapps_whitelist(Some(vec![1.into()])).unwrap();
 		assert_eq!(ap.dapps_addresses("app1".into()).unwrap(), vec![1.into()]);
 	}
