@@ -677,6 +677,8 @@ impl BlockChainClient for TestBlockChainClient {
 
 	fn set_mode(&self, _: Mode) { unimplemented!(); }
 
+	fn disable(&self) { unimplemented!(); }
+
 	fn pruning_info(&self) -> PruningInfo {
 		PruningInfo {
 			earliest_chain: 1,

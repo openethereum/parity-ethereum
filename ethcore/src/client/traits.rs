@@ -54,7 +54,7 @@ pub trait BlockChainClient : Sync + Send {
 
 	/// Look up the block number for the given block ID.
 	fn block_number(&self, id: BlockId) -> Option<BlockNumber>;
-	
+
 	/// Get raw block body data by block id.
 	/// Block body is an RLP list of two items: uncles and transactions.
 	fn block_body(&self, id: BlockId) -> Option<Bytes>;
@@ -251,6 +251,10 @@ pub trait BlockChainClient : Sync + Send {
 
 	/// Set the mode.
 	fn set_mode(&self, mode: Mode);
+
+	/// Disable the client from importing blocks. This cannot be undone in this session and indicates
+	/// that a subsystem has reason to believe this executable incapable of syncing the chain.
+	fn disable(&self);
 
 	/// Returns engine-related extra info for `BlockId`.
 	fn block_extra_info(&self, id: BlockId) -> Option<BTreeMap<String, String>>;

@@ -127,6 +127,7 @@ impl SleepState {
 /// Blockchain database client backed by a persistent database. Owns and manages a blockchain and a block queue.
 /// Call `import_block()` to import a block asynchronously; `flush_queue()` flushes the queue.
 pub struct Client {
+	enabled: AtomicBool,
 	mode: Mutex<Mode>,
 	chain: RwLock<Arc<BlockChain>>,
 	tracedb: RwLock<TraceDB<BlockChain>>,
@@ -164,6 +165,7 @@ impl Client {
 		message_channel: IoChannel<ClientIoMessage>,
 		db_config: &DatabaseConfig,
 	) -> Result<Arc<Client>, ClientError> {
+
 		let path = path.to_path_buf();
 		let gb = spec.genesis_block();
 
@@ -226,6 +228,7 @@ impl Client {
 		};
 
 		let client = Arc::new(Client {
+			enabled: AtomicBool::new(true),
 			sleep_state: Mutex::new(SleepState::new(awake)),
 			liveness: AtomicBool::new(awake),
 			mode: Mutex::new(config.mode.clone()),
@@ -411,6 +414,12 @@ impl Client {
 
 	/// This is triggered by a message coming from a block queue when the block is ready for insertion
 	pub fn import_verified_blocks(&self) -> usize {
+
+		// Shortcut out if we know we're incapable of syncing the chain.
+		if !self.enabled.load(AtomicOrdering::Relaxed) {
+			return 0;
+		}
+
 		let max_blocks_to_import = 4;
 		let (imported_blocks, import_results, invalid_blocks, imported, duration, is_empty) = {
 			let mut imported_blocks = Vec::with_capacity(max_blocks_to_import);
@@ -909,8 +918,16 @@ impl BlockChainClient for Client {
 		r
 	}
 
+	fn disable(&self) {
+		self.set_mode(IpcMode::Off);
+		self.enabled.store(false, AtomicOrdering::Relaxed);
+	}
+
 	fn set_mode(&self, new_mode: IpcMode) {
 		trace!(target: "mode", "Client::set_mode({:?})", new_mode);
+		if !self.enabled.load(AtomicOrdering::Relaxed) {
+			return;
+		}
 		{
 			let mut mode = self.mode.lock();
 			*mode = new_mode.clone().into();

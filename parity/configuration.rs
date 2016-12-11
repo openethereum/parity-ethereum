@@ -282,7 +282,6 @@ impl Configuration {
 				no_periodic_snapshot: self.args.flag_no_periodic_snapshot,
 				check_seal: !self.args.flag_no_seal_check,
 				download_old_blocks: !self.args.flag_no_ancient_blocks,
-				require_consensus: !self.args.flag_no_consensus,
 				serve_light: self.args.flag_serve_light,
 				verifier_settings: verifier_settings,
 			};
@@ -628,6 +627,7 @@ impl Configuration {
 	fn update_policy(&self) -> Result<UpdatePolicy, String> {
 		Ok(UpdatePolicy {
 			enable_downloading: !self.args.flag_no_download,
+			require_consensus: !self.args.flag_no_consensus,
 			filter: match self.args.flag_auto_update.as_ref() {
 				"none" => UpdateFilter::None,
 				"critical" => UpdateFilter::Critical,
@@ -943,7 +943,7 @@ mod tests {
 			acc_conf: Default::default(),
 			gas_pricer: Default::default(),
 			miner_extras: Default::default(),
-			update_policy: UpdatePolicy { enable_downloading: true, filter: UpdateFilter::Critical },
+			update_policy: UpdatePolicy { enable_downloading: true, require_consensus: true, filter: UpdateFilter::Critical },
 			mode: Default::default(),
 			tracing: Default::default(),
 			compaction: Default::default(),
@@ -961,7 +961,6 @@ mod tests {
 			no_periodic_snapshot: false,
 			check_seal: true,
 			download_old_blocks: true,
-			require_consensus: true,
 			serve_light: false,
 			verifier_settings: Default::default(),
 		}));
@@ -992,14 +991,14 @@ mod tests {
 	fn should_parse_updater_options() {
 		// when
 		let conf0 = parse(&["parity"]);
-		let conf1 = parse(&["parity", "--auto-update", "all"]);
+		let conf1 = parse(&["parity", "--auto-update", "all", "--no-consensus"]);
 		let conf2 = parse(&["parity", "--no-download", "--auto-update=all"]);
 		let conf3 = parse(&["parity", "--auto-update=xxx"]);
 
 		// then
-		assert_eq!(conf0.update_policy().unwrap(), UpdatePolicy{enable_downloading: true, filter: UpdateFilter::Critical});
-		assert_eq!(conf1.update_policy().unwrap(), UpdatePolicy{enable_downloading: true, filter: UpdateFilter::All});
-		assert_eq!(conf2.update_policy().unwrap(), UpdatePolicy{enable_downloading: false, filter: UpdateFilter::All});
+		assert_eq!(conf0.update_policy().unwrap(), UpdatePolicy{enable_downloading: true, require_consensus: true, filter: UpdateFilter::Critical});
+		assert_eq!(conf1.update_policy().unwrap(), UpdatePolicy{enable_downloading: true, require_consensus: false, filter: UpdateFilter::All});
+		assert_eq!(conf2.update_policy().unwrap(), UpdatePolicy{enable_downloading: false, require_consensus: true, filter: UpdateFilter::All});
 		assert!(conf3.update_policy().is_err());
 	}
 

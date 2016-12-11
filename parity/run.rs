@@ -94,7 +94,6 @@ pub struct RunCmd {
 	pub no_periodic_snapshot: bool,
 	pub check_seal: bool,
 	pub download_old_blocks: bool,
-	pub require_consensus: bool,
 	pub serve_light: bool,
 	pub verifier_settings: VerifierSettings,
 }

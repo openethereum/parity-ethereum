@@ -40,6 +40,8 @@ pub enum UpdateFilter {
 pub struct UpdatePolicy {
 	/// Download potential updates.
 	pub enable_downloading: bool,
+	/// Disable client if we know we're incapable of syncing.
+	pub require_consensus: bool,
 	/// Which of those downloaded should be automatically installed.
 	pub filter: UpdateFilter,
 }
@@ -48,6 +50,7 @@ impl Default for UpdatePolicy {
 	fn default() -> Self {
 		UpdatePolicy {
 			enable_downloading: false,
+			require_consensus: true,
 			filter: UpdateFilter::None,
 		}
 	}
@@ -81,6 +84,23 @@ pub struct OperationsInfo {
 	pub minor: Option<ReleaseInfo>,
 }
 
+/// Information on the current version's consensus capabililty.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum CapState {
+	/// Unknown.
+	Unknown,
+	/// Capable of consensus indefinitely.
+	Capable,
+	/// Capable of consensus up until a definite block. 
+	CapableUntil(u64),
+	/// Incapable of consensus since a particular block. 
+	IncapableSince(u64),
+}
+
+impl Default for CapState {
+	fn default() -> Self { CapState::Unknown }
+}
+
 #[derive(Debug, Default)]
 struct UpdaterState {
 	latest: Option<OperationsInfo>,
@@ -88,6 +108,8 @@ struct UpdaterState {
 	fetching: Option<ReleaseInfo>,
 	ready: Option<ReleaseInfo>,
 	installed: Option<ReleaseInfo>,
+
+	capability: CapState,
 }
 
 /// Service for checking for updates and determining whether we can achieve consensus.
@@ -135,18 +157,16 @@ impl Updater {
 		let r = Arc::new(u);
 		*r.fetcher.lock() = Some(fetch::Client::new(r.clone()));
 		*r.weak_self.lock() = Arc::downgrade(&r);
+
+		r.poll();
+
 		r
 	}
 
 	/// Is the currently running client capable of supporting the current chain?
-	/// `Some` answer or `None` if information on the running client is not available.
-	pub fn is_capable(&self) -> Option<bool> {
-		self.state.lock().latest.as_ref().and_then(|latest| {
-			latest.this_fork.map(|this_fork| {
-				let current_number = self.client.upgrade().map_or(0, |c| c.block_number(BlockId::Latest).unwrap_or(0));
-				this_fork >= latest.fork || current_number < latest.fork
-			})
-		})
+	/// We default to true if there's no clear information.
+	pub fn capability(&self) -> CapState {
+		self.state.lock().capability
 	}
 
 	/// The release which is ready to be upgraded to, if any. If this returns `Some`, then
@@ -294,6 +314,7 @@ impl Updater {
 
 		let current_number = self.client.upgrade().map_or(0, |c| c.block_number(BlockId::Latest).unwrap_or(0));
 
+		let mut capability = CapState::Unknown; 
 		let latest = self.collect_latest().ok();
 		if let Some(ref latest) = latest {
 			info!(target: "updater", "Latest release in our track is v{} it is {}critical ({} binary is {})",
@@ -321,8 +342,31 @@ impl Updater {
 				}
 			}
 			info!(target: "updater", "Fork: this/current/latest/latest-known: {}/#{}/#{}/#{}", match latest.this_fork { Some(f) => format!("#{}", f), None => "unknown".into(), }, current_number, latest.track.fork, latest.fork);
+
+			if let Some(this_fork) = latest.this_fork {
+				if this_fork < latest.fork {
+					// We're behind the latest fork. Now is the time to be upgrading; perhaps we're too late... 
+					if let Some(c) = self.client.upgrade() {
+						let current_number = c.block_number(BlockId::Latest).unwrap_or(0);
+						if current_number >= latest.fork - 1 {
+							// We're at (or past) the last block we can import. Disable the client.
+							if self.update_policy.require_consensus {
+								c.disable();
+							}
+							capability = CapState::IncapableSince(latest.fork);
+						} else {
+							capability = CapState::CapableUntil(latest.fork);
+						}
+					}
+				} else {
+					capability = CapState::Capable;
+				}
+			}
 		}
-		(*self.state.lock()).latest = latest;
+
+		let mut s = self.state.lock();
+		s.latest = latest;
+		s.capability = capability;
 	}
 }
 
