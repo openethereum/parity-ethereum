@@ -18,7 +18,7 @@ import BigNumber from 'bignumber.js';
 import { action, computed, observable, transaction } from 'mobx';
 
 import { ERRORS, validatePositiveNumber } from '~/util/validation';
-import { DEFAULT_GAS, MAX_GAS_ESTIMATION } from '~/util/constants';
+import { DEFAULT_GAS, DEFAULT_GASPRICE, MAX_GAS_ESTIMATION } from '~/util/constants';
 
 export default class GasPriceEditor {
   @observable errorEstimated = null;
@@ -41,7 +41,9 @@ export default class GasPriceEditor {
     this.gasLimit = gasLimit;
     this.price = gasPrice;
 
-    this.loadDefaults();
+    if (api) {
+      this.loadDefaults();
+    }
   }
 
   @computed get totalValue () {
@@ -144,8 +146,8 @@ export default class GasPriceEditor {
     }
 
     return Object.assign({}, transaction, {
-      gas: new BigNumber(this.gas),
-      gasPrice: new BigNumber(this.price)
+      gas: new BigNumber(this.gas || DEFAULT_GAS),
+      gasPrice: new BigNumber(this.price || DEFAULT_GASPRICE)
     });
   }
 }

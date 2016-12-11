@@ -176,6 +176,7 @@ describe('ui/GasPriceEditor/store', () => {
       const TRANSACTION = { gas: '123', gasPrice: '456' };
 
       it('overrides gas & gasPrice with values', () => {
+        store.setGas(DEFAULT_GAS);
         const transaction = store.overrideTransaction(TRANSACTION);
 
         expect(transaction.gas).to.deep.equal(new BigNumber(DEFAULT_GAS));
