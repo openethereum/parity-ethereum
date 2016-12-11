@@ -348,6 +348,7 @@ mod tests {
 	use tests::helpers::*;
 	use account_provider::AccountProvider;
 	use spec::Spec;
+	use engines::Seal;
 
 	#[test]
 	fn has_valid_metadata() {

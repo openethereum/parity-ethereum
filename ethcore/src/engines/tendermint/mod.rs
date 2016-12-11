@@ -166,10 +166,9 @@ impl Tendermint {
 			match ap.sign(*authority, self.password.read().clone(), vote_info.sha3()).map(Into::into) {
 				Ok(signature) => {
 					let message_rlp = message_full_rlp(&signature, &vote_info);
-					// TODO: memoize the rlp for consecutive broadcasts
 					let message = ConsensusMessage::new(signature, h, r, *s, block_hash);
 					self.votes.vote(message.clone(), *authority);
-					debug!(target: "poa", "Generated a message for height {:?}.", message);
+					debug!(target: "poa", "Generated a message: {:?}.", message);
 					self.handle_valid_message(&message);
 
 					Some(message_rlp)
@@ -462,7 +461,7 @@ impl Engine for Tendermint {
 			trace!(target: "poa", "Handling a valid message: {:?}", message);
 			self.handle_valid_message(&message);
 		} else {
-			trace!(target: "poa", "handle_message: Old or known message ignored {:?}.", message);
+			trace!(target: "poa", "handle_message: Old or known message ignored: {:?}.", message);
 		}
 		Ok(())
 	}
@@ -496,15 +495,17 @@ impl Engine for Tendermint {
 		}
 
 		let precommit_hash = proposal.precommit_hash();
-		// TODO: use addresses recovered during precommit vote
 		let ref signatures_field = header.seal()[2];
 		let mut signature_count = 0;
 		let mut origins = HashSet::new();
 		for rlp in UntrustedRlp::new(signatures_field).iter() {
-			let signature: H520 = try!(rlp.as_val());
-			let address = public_to_address(&try!(recover(&signature.into(), &precommit_hash)));
+			let precommit: ConsensusMessage = ConsensusMessage::new_commit(&proposal, try!(rlp.as_val()));
+			let address = match self.votes.get(&precommit) {
+				Some(a) => a,
+				None => public_to_address(&try!(recover(&precommit.signature.into(), &precommit_hash))),
+			};
 			if !self.our_params.authorities.contains(&address) {
-				try!(Err(EngineError::NotAuthorized(address)))
+				try!(Err(EngineError::NotAuthorized(address.to_owned())))
 			}
 
 			if origins.insert(address) {
@@ -946,9 +947,11 @@ mod tests {
 
 		// Prevote.
 		vote(&engine, |mh| tap.sign(v1, None, mh).map(H520::from), h, r, Step::Prevote, proposal);
-
+		println!("sending second prevote");
 		vote(&engine, |mh| tap.sign(v0, None, mh).map(H520::from), h, r, Step::Prevote, proposal);
+		println!("sending first precommit");
 		vote(&engine, |mh| tap.sign(v1, None, mh).map(H520::from), h, r, Step::Precommit, proposal);
+		println!("sending last precommit");
 		vote(&engine, |mh| tap.sign(v0, None, mh).map(H520::from), h, r, Step::Precommit, proposal);
 
 		// Wait a bit for async stuff.

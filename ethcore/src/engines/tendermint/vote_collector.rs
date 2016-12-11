@@ -137,6 +137,11 @@ impl VoteCollector {
 			.map(|m| ::rlp::encode(m).to_vec())
 			.collect()
 	}
+
+	pub fn get(&self, message: &ConsensusMessage) -> Option<Address> {
+		let guard = self.votes.read();
+		guard.get(message).cloned()
+	}
 }
 
 #[cfg(test)]
@@ -166,7 +171,7 @@ mod tests {
 		}
 		// Wrong height proposal.
 		random_vote(&collector, signatures[4].clone(), h - 1, r, Step::Propose, bh.clone());
-		// Good proposal.
+		// Good proposal
 		random_vote(&collector, signatures[0].clone(), h, r, Step::Propose, bh.clone());
 		// Wrong block proposal.
 		random_vote(&collector, signatures[0].clone(), h, r, Step::Propose, Some("0".sha3()));

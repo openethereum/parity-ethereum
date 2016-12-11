@@ -59,6 +59,16 @@ impl ConsensusMessage {
 		})
 	}
 
+	pub fn new_commit(proposal: &ConsensusMessage, signature: H520) -> Self {
+		ConsensusMessage {
+			signature: signature,
+			height: proposal.height,
+			round: proposal.round,
+			step: Step::Precommit,
+			block_hash: proposal.block_hash,
+		}
+	}
+
 	pub fn is_height(&self, height: Height) -> bool {
 		self.height == height
 	}
