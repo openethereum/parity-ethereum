@@ -23,7 +23,7 @@ use v1::types::{
 	H160, H256, H512, U256, Bytes,
 	Peers, Transaction, RpcSettings, Histogram,
 	TransactionStats, LocalTransactionStatus,
-	BlockNumber
+	BlockNumber, ConsensusCapability
 };
 
 build_rpc_trait! {
@@ -155,5 +155,9 @@ build_rpc_trait! {
 		/// Returns accounts information.
 		#[rpc(name = "parity_accounts")]
 		fn accounts(&self) -> Result<BTreeMap<String, BTreeMap<String, String>>, Error>;
+
+		/// Returns information on current consensus capability.
+		#[rpc(name = "parity_consensusCapability")]
+		fn consensus_capability(&self) -> Result<ConsensusCapability, Error>;
 	}
 }

@@ -38,7 +38,7 @@ use v1::types::{
 	Bytes, U256, H160, H256, H512,
 	Peers, Transaction, RpcSettings, Histogram,
 	TransactionStats, LocalTransactionStatus,
-	BlockNumber,
+	BlockNumber, ConsensusCapability
 };
 use v1::helpers::{errors, SigningQueue, SignerService, NetworkSettings};
 use v1::helpers::dispatch::DEFAULT_MAC;
@@ -359,5 +359,11 @@ impl<C, M, S: ?Sized, U> Parity for ParityClient<C, M, S, U> where
 			}
 			(format!("0x{}", a.hex()), m)
 		}).collect())
+	}
+
+	fn consensus_capability(&self) -> Result<ConsensusCapability, Error> {
+		try!(self.active());
+		let updater = take_weak!(self.updater);
+		Ok(updater.capability().into())
 	}
 }
