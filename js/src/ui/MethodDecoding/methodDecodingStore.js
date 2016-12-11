@@ -15,6 +15,8 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import Contracts from '~/contracts';
+import Abi from '~/abi';
+import * as abis from '~/contracts/abi';
 
 const CONTRACT_CREATE = '0x60606040';
 
@@ -29,6 +31,19 @@ export default class MethodDecodingStore {
 
   constructor (api) {
     this.api = api;
+
+    // Load the signatures from the local ABIs
+    Object.keys(abis).forEach((abiKey) => {
+      const abi = new Abi(abis[abiKey]);
+
+      [].concat(
+        abi.functions.map((f) => ({ sign: f.signature, id: f.id })),
+        abi.events.map((e) => ({ sign: e.signature, id: e.id }))
+      ).forEach((mapping) => {
+        const sign = (/^0x/.test(mapping.sign) ? '' : '0x') + mapping.sign;
+        this._methods[sign] = mapping.id;
+      });
+    });
   }
 
   static get (api) {
