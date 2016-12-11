@@ -19,7 +19,7 @@ import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
 import etherscan from '~/3rdparty/etherscan';
-import { Container, TxList } from '~/ui';
+import { Container, TxList, Loading } from '~/ui';
 
 import styles from './transactions.css';
 
@@ -60,16 +60,29 @@ class Transactions extends Component {
   }
 
   render () {
-    const { address } = this.props;
-    const { hashes } = this.state;
-
     return (
       <Container title='transactions'>
-        <TxList
-          address={ address }
-          hashes={ hashes } />
+        { this.renderTransactionList() }
         { this.renderEtherscanFooter() }
       </Container>
+    );
+  }
+
+  renderTransactionList () {
+    const { address } = this.props;
+    const { hashes, loading } = this.state;
+
+    if (loading) {
+      return (
+        <Loading />
+      );
+    }
+
+    return (
+      <TxList
+        address={ address }
+        hashes={ hashes }
+      />
     );
   }
 
