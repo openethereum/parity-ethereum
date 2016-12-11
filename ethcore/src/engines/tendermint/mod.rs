@@ -146,7 +146,8 @@ impl Tendermint {
 	}
 
 	fn broadcast_message(&self, message: Bytes) {
-		if let Some(ref channel) = *self.message_channel.lock() {
+		let channel = self.message_channel.lock().clone();
+		if let Some(ref channel) = channel {
 			match channel.send(ClientIoMessage::BroadcastMessage(message)) {
 				Ok(_) => trace!(target: "poa", "broadcast_message: BroadcastMessage message sent."),
 				Err(err) => warn!(target: "poa", "broadcast_message: Could not send a sealing message {}.", err),
@@ -449,7 +450,8 @@ impl Engine for Tendermint {
 		}
 	}
 
-	fn handle_message(&self, rlp: UntrustedRlp) -> Result<(), Error> {
+	fn handle_message(&self, rlp: &[u8]) -> Result<(), Error> {
+		let rlp = UntrustedRlp::new(rlp);
 		let message: ConsensusMessage = try!(rlp.as_val());
 		if !self.votes.is_old_or_known(&message) {
 			let sender = public_to_address(&try!(recover(&message.signature.into(), &try!(rlp.at(1)).as_raw().sha3())));

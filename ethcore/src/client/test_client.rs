@@ -678,7 +678,7 @@ impl BlockChainClient for TestBlockChainClient {
 	}
 
 	fn queue_consensus_message(&self, message: Bytes) {
-		self.spec.engine.handle_message(UntrustedRlp::new(&message)).unwrap();
+		self.spec.engine.handle_message(&message).unwrap();
 	}
 
 	fn pending_transactions(&self) -> Vec<SignedTransaction> {

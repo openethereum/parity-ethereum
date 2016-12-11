@@ -28,7 +28,6 @@ pub use self::basic_authority::BasicAuthority;
 pub use self::authority_round::AuthorityRound;
 pub use self::tendermint::Tendermint;
 
-use rlp::UntrustedRlp;
 use util::*;
 use account_provider::AccountProvider;
 use block::ExecutedBlock;
@@ -178,7 +177,7 @@ pub trait Engine : Sync + Send {
 
 	/// Handle any potential consensus messages;
 	/// updating consensus state and potentially issuing a new one.
-	fn handle_message(&self, _message: UntrustedRlp) -> Result<(), Error> { Err(EngineError::UnexpectedMessage.into()) }
+	fn handle_message(&self, _message: &[u8]) -> Result<(), Error> { Err(EngineError::UnexpectedMessage.into()) }
 
 	// TODO: builtin contract routing - to do this properly, it will require removing the built-in configuration-reading logic
 	// from Spec into here and removing the Spec::builtins field.

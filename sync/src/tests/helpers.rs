@@ -45,14 +45,15 @@ impl FlushingBlockChainClient for TestBlockChainClient {}
 pub struct TestIo<'p, C> where C: FlushingBlockChainClient, C: 'p {
 	pub chain: &'p C,
 	pub snapshot_service: &'p TestSnapshotService,
-	pub queue: &'p mut VecDeque<TestPacket>,
+	pub queue: &'p RwLock<VecDeque<TestPacket>>,
 	pub sender: Option<PeerId>,
 	pub to_disconnect: HashSet<PeerId>,
+	pub packets: Vec<TestPacket>,
 	overlay: RwLock<HashMap<BlockNumber, Bytes>>,
 }
 
 impl<'p, C> TestIo<'p, C> where C: FlushingBlockChainClient, C: 'p {
-	pub fn new(chain: &'p C, ss: &'p TestSnapshotService, queue: &'p mut VecDeque<TestPacket>, sender: Option<PeerId>) -> TestIo<'p, C> {
+	pub fn new(chain: &'p C, ss: &'p TestSnapshotService, queue: &'p RwLock<VecDeque<TestPacket>>, sender: Option<PeerId>) -> TestIo<'p, C> {
 		TestIo {
 			chain: chain,
 			snapshot_service: ss,
@@ -60,7 +61,14 @@ impl<'p, C> TestIo<'p, C> where C: FlushingBlockChainClient, C: 'p {
 			sender: sender,
 			to_disconnect: HashSet::new(),
 			overlay: RwLock::new(HashMap::new()),
+			packets: Vec::new(),
 		}
+	}
+}
+
+impl<'p, C> Drop for TestIo<'p, C> where C: FlushingBlockChainClient, C: 'p {
+	fn drop(&mut self) {
+		self.queue.write().extend(self.packets.drain(..));
 	}
 }
 
@@ -78,7 +86,7 @@ impl<'p, C> SyncIo for TestIo<'p, C> where C: FlushingBlockChainClient, C: 'p {
 	}
 
 	fn respond(&mut self, packet_id: PacketId, data: Vec<u8>) -> Result<(), NetworkError> {
-		self.queue.push_back(TestPacket {
+		self.packets.push(TestPacket {
 			data: data,
 			packet_id: packet_id,
 			recipient: self.sender.unwrap()
@@ -87,7 +95,7 @@ impl<'p, C> SyncIo for TestIo<'p, C> where C: FlushingBlockChainClient, C: 'p {
 	}
 
 	fn send(&mut self, peer_id: PeerId, packet_id: PacketId, data: Vec<u8>) -> Result<(), NetworkError> {
-		self.queue.push_back(TestPacket {
+		self.packets.push(TestPacket {
 			data: data,
 			packet_id: packet_id,
 			recipient: peer_id,
@@ -100,7 +108,7 @@ impl<'p, C> SyncIo for TestIo<'p, C> where C: FlushingBlockChainClient, C: 'p {
 	}
 
 	fn chain(&self) -> &BlockChainClient {
-		self.chain
+		&*self.chain
 	}
 
 	fn snapshot_service(&self) -> &SnapshotService {
@@ -131,7 +139,7 @@ pub struct TestPacket {
 }
 
 pub struct TestPeer<C> where C: FlushingBlockChainClient {
-	pub chain: C,
+	pub chain: Arc<C>,
 	pub snapshot_service: Arc<TestSnapshotService>,
 	pub sync: RwLock<ChainSync>,
 	pub queue: RwLock<VecDeque<TestPacket>>,
@@ -167,7 +175,7 @@ impl TestNet<TestBlockChainClient> {
 			net.peers.push(Arc::new(TestPeer {
 				sync: RwLock::new(sync),
 				snapshot_service: ss,
-				chain: chain,
+				chain: Arc::new(chain),
 				queue: RwLock::new(VecDeque::new()),
 			}));
 		}
@@ -176,7 +184,7 @@ impl TestNet<TestBlockChainClient> {
 }
 
 impl TestNet<EthcoreClient> {
-	pub fn new_with_spec<F>(n: usize, config: SyncConfig, spec_factory: F) -> GuardedTempResult<TestNet<EthcoreClient>>
+	pub fn with_spec<F>(n: usize, config: SyncConfig, spec_factory: F) -> GuardedTempResult<TestNet<EthcoreClient>>
 		where F: Fn() -> Spec
 	{
 		let mut net = TestNet {
@@ -192,17 +200,17 @@ impl TestNet<EthcoreClient> {
 			let db_config = DatabaseConfig::with_columns(NUM_COLUMNS);
 
 			let spec = spec_factory();
-			let client = Arc::try_unwrap(EthcoreClient::new(
+			let client = EthcoreClient::new(
 				ClientConfig::default(),
 				&spec,
 				client_dir.as_path(),
 				Arc::new(Miner::with_spec(&spec)),
 				IoChannel::disconnected(),
 				&db_config
-			).unwrap()).ok().unwrap();
+			).unwrap();
 
 			let ss = Arc::new(TestSnapshotService::new());
-			let sync = ChainSync::new(config.clone(), &client);
+			let sync = ChainSync::new(config.clone(), &*client);
 			let peer = Arc::new(TestPeer {
 				sync: RwLock::new(sync),
 				snapshot_service: ss,
@@ -233,8 +241,8 @@ impl<C> TestNet<C> where C: FlushingBlockChainClient {
 			for client in 0..self.peers.len() {
 				if peer != client {
 					let p = &self.peers[peer];
-					p.sync.write().update_targets(&p.chain);
-					p.sync.write().on_peer_connected(&mut TestIo::new(&p.chain, &p.snapshot_service, &mut p.queue.write(), Some(client as PeerId)), client as PeerId);
+					p.sync.write().update_targets(&*p.chain);
+					p.sync.write().on_peer_connected(&mut TestIo::new(&*p.chain, &p.snapshot_service, &p.queue, Some(client as PeerId)), client as PeerId);
 				}
 			}
 		}
@@ -246,16 +254,15 @@ impl<C> TestNet<C> where C: FlushingBlockChainClient {
 			if let Some(packet) = packet {
 				let disconnecting = {
 					let p = &self.peers[packet.recipient];
-					let mut queue = p.queue.write();
 					trace!("--- {} -> {} ---", peer, packet.recipient);
 					let to_disconnect = {
-						let mut io = TestIo::new(&p.chain, &p.snapshot_service, &mut queue, Some(peer as PeerId));
+						let mut io = TestIo::new(&*p.chain, &p.snapshot_service, &p.queue, Some(peer as PeerId));
 						ChainSync::dispatch_packet(&p.sync, &mut io, peer as PeerId, packet.packet_id, &packet.data);
-						io.to_disconnect
+						io.to_disconnect.clone()
 					};
 					for d in &to_disconnect {
 						// notify this that disconnecting peers are disconnecting
-						let mut io = TestIo::new(&p.chain, &p.snapshot_service, &mut queue, Some(*d));
+						let mut io = TestIo::new(&*p.chain, &p.snapshot_service, &p.queue, Some(*d));
 						p.sync.write().on_peer_aborting(&mut io, *d);
 						self.disconnect_events.push((peer, *d));
 					}
@@ -264,8 +271,7 @@ impl<C> TestNet<C> where C: FlushingBlockChainClient {
 				for d in &disconnecting {
 					// notify other peers that this peer is disconnecting
 					let p = &self.peers[*d];
-					let mut queue = p.queue.write();
-					let mut io = TestIo::new(&p.chain, &p.snapshot_service, &mut queue, Some(peer as PeerId));
+					let mut io = TestIo::new(&*p.chain, &p.snapshot_service, &p.queue, Some(peer as PeerId));
 					p.sync.write().on_peer_aborting(&mut io, peer as PeerId);
 				}
 			}
@@ -277,15 +283,14 @@ impl<C> TestNet<C> where C: FlushingBlockChainClient {
 	pub fn sync_step_peer(&mut self, peer_num: usize) {
 		let peer = self.peer(peer_num);
 		peer.chain.flush();
-		let mut queue = peer.queue.write();
-		peer.sync.write().maintain_peers(&mut TestIo::new(&peer.chain, &peer.snapshot_service, &mut queue, None));
-		peer.sync.write().maintain_sync(&mut TestIo::new(&peer.chain, &peer.snapshot_service, &mut queue, None));
-		peer.sync.write().propagate_new_transactions(&mut TestIo::new(&peer.chain, &peer.snapshot_service, &mut queue, None));
+		peer.sync.write().maintain_peers(&mut TestIo::new(&*peer.chain, &peer.snapshot_service, &peer.queue, None));
+		peer.sync.write().maintain_sync(&mut TestIo::new(&*peer.chain, &peer.snapshot_service, &peer.queue, None));
+		peer.sync.write().propagate_new_transactions(&mut TestIo::new(&*peer.chain, &peer.snapshot_service, &peer.queue, None));
 	}
 
 	pub fn restart_peer(&mut self, i: usize) {
 		let peer = self.peer(i);
-		peer.sync.write().restart(&mut TestIo::new(&peer.chain, &peer.snapshot_service, &mut peer.queue.write(), None));
+		peer.sync.write().restart(&mut TestIo::new(&*peer.chain, &peer.snapshot_service, &peer.queue, None));
 	}
 
 	pub fn sync(&mut self) -> u32 {
@@ -314,8 +319,7 @@ impl<C> TestNet<C> where C: FlushingBlockChainClient {
 
 	pub fn trigger_chain_new_blocks(&mut self, peer_id: usize) {
 		let peer = self.peer(peer_id);
-		let mut queue = peer.queue.write();
-		peer.sync.write().chain_new_blocks(&mut TestIo::new(&peer.chain, &peer.snapshot_service, &mut queue, None), &[], &[], &[], &[], &[], &[]);
+		peer.sync.write().chain_new_blocks(&mut TestIo::new(&*peer.chain, &peer.snapshot_service, &peer.queue, None), &[], &[], &[], &[], &[], &[]);
 	}
 }
 
@@ -329,8 +333,7 @@ impl ChainNotify for TestPeer<EthcoreClient> {
 		proposed: Vec<Bytes>,
 		_duration: u64)
 	{
-		let mut queue = self.queue.write();
-		let mut io = TestIo::new(&self.chain, &self.snapshot_service, &mut queue, None);
+		let mut io = TestIo::new(&*self.chain, &self.snapshot_service, &self.queue, None);
 		self.sync.write().chain_new_blocks(
 			&mut io,
 			&imported,
@@ -346,8 +349,7 @@ impl ChainNotify for TestPeer<EthcoreClient> {
 	fn stop(&self) {}
 
 	fn broadcast(&self, message: Vec<u8>) {
-		let mut queue = self.queue.write();
-		let mut io = TestIo::new(&self.chain, &self.snapshot_service, &mut queue, None);
+		let mut io = TestIo::new(&*self.chain, &self.snapshot_service, &self.queue, None);
 		self.sync.write().propagate_consensus_packet(&mut io, message.clone());
 	}
 }

@@ -17,7 +17,6 @@
 //! Creates and registers client and network services.
 
 use util::*;
-use rlp::{UntrustedRlp, View};
 use io::*;
 use spec::Spec;
 use error::*;
@@ -228,7 +227,7 @@ impl IoHandler<ClientIoMessage> for ClientIoHandler {
 			ClientIoMessage::UpdateSealing => self.client.update_sealing(),
 			ClientIoMessage::SubmitSeal(ref hash, ref seal) => self.client.submit_seal(*hash, seal.clone()),
 			ClientIoMessage::BroadcastMessage(ref message) => self.client.broadcast_message(message.clone()),
-			ClientIoMessage::NewMessage(ref message) => if let Err(e) = self.client.engine().handle_message(UntrustedRlp::new(message)) {
+			ClientIoMessage::NewMessage(ref message) => if let Err(e) = self.client.engine().handle_message(message) {
 				trace!(target: "poa", "Invalid message received: {}", e);
 			},
 			_ => {} // ignore other messages
