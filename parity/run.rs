@@ -415,7 +415,7 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 	}
 
 	// Handle exit
-	wait_for_exit(panic_handler, http_server, ipc_server, dapps_server, signer_server, updater, can_restart);
+	let restart = wait_for_exit(panic_handler, http_server, ipc_server, dapps_server, signer_server, updater, can_restart);
 
 	info!("Finishing work, please wait...");
 
@@ -428,7 +428,7 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 	// terminated gracefully
 	drop(hypervisor);
 
-	Ok(false)
+	Ok(restart)
 }
 
 #[cfg(not(windows))]
