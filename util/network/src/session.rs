@@ -435,16 +435,16 @@ impl Session {
 
 				// map to protocol
 				let protocol = self.info.capabilities[i].protocol;
-				let pid = packet_id - self.info.capabilities[i].id_offset;
+				let protocol_packet_id = packet_id - self.info.capabilities[i].id_offset;
 
 				match *self.protocol_states.entry(protocol).or_insert_with(|| ProtocolState::Pending(Vec::new())) {
 					ProtocolState::Connected => {
-						trace!(target: "network", "Packet {} mapped to {:?}:{}, i={}, capabilities={:?}", packet_id, protocol, pid, i, self.info.capabilities);
-						Ok(SessionData::Packet { data: packet.data, protocol: protocol, packet_id: pid } )
+						trace!(target: "network", "Packet {} mapped to {:?}:{}, i={}, capabilities={:?}", packet_id, protocol, protocol_packet_id, i, self.info.capabilities);
+						Ok(SessionData::Packet { data: packet.data, protocol: protocol, packet_id: protocol_packet_id } )
 					}
 					ProtocolState::Pending(ref mut pending) => {
 						trace!(target: "network", "Packet {} deferred until protocol connection event completion", packet_id);
-						pending.push((packet.data, packet_id));
+						pending.push((packet.data, protocol_packet_id));
 
 						Ok(SessionData::Continue)
 					}
