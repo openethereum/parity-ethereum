@@ -24,5 +24,7 @@ extern crate ethabi;
 
 mod updater;
 mod operations;
+mod service;
 
-pub use updater::{Updater, UpdateFilter, UpdatePolicy, ReleaseInfo, OperationsInfo, CapState};
+pub use service::{Service, ReleaseInfo, OperationsInfo, CapState};
+pub use updater::{Updater, UpdateFilter, UpdatePolicy};

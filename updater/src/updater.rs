@@ -23,6 +23,7 @@ use util::{Address, H160, H256, FixedHash, Mutex, Bytes};
 use ethcore::client::{BlockId, BlockChainClient, ChainNotify};
 use hash_fetch::{self as fetch, HashFetch};
 use operations::Operations;
+use service::{Service, ReleaseInfo, OperationsInfo, CapState};
 
 /// Filter for releases.
 #[derive(Debug, Eq, PartialEq, Clone)]
@@ -54,51 +55,6 @@ impl Default for UpdatePolicy {
 			filter: UpdateFilter::None,
 		}
 	}
-}
-
-/// Information regarding a particular release of Parity
-#[derive(Debug, Clone, PartialEq)]
-pub struct ReleaseInfo {
-	/// Information on the version.
-	pub version: VersionInfo,
-	/// Does this release contain critical security updates? 
-	pub is_critical: bool,
-	/// The latest fork that this release can handle.
-	pub fork: u64,
-	/// Our platform's binary, if known. 
-	pub binary: Option<H256>,
-}
-
-/// Information on our operations environment.
-#[derive(Debug, Clone, PartialEq)]
-pub struct OperationsInfo {
-	/// Our blockchain's latest fork.
-	pub fork: u64,
-
-	/// Last fork our client supports, if known. 
-	pub this_fork: Option<u64>,
-
-	/// Information on our track's latest release. 
-	pub track: ReleaseInfo,
-	/// Information on our minor version's latest release.
-	pub minor: Option<ReleaseInfo>,
-}
-
-/// Information on the current version's consensus capabililty.
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub enum CapState {
-	/// Unknown.
-	Unknown,
-	/// Capable of consensus indefinitely.
-	Capable,
-	/// Capable of consensus up until a definite block. 
-	CapableUntil(u64),
-	/// Incapable of consensus since a particular block. 
-	IncapableSince(u64),
-}
-
-impl Default for CapState {
-	fn default() -> Self { CapState::Unknown }
 }
 
 #[derive(Debug, Default)]
@@ -157,59 +113,9 @@ impl Updater {
 		let r = Arc::new(u);
 		*r.fetcher.lock() = Some(fetch::Client::new(r.clone()));
 		*r.weak_self.lock() = Arc::downgrade(&r);
-
 		r.poll();
-
 		r
 	}
-
-	/// Is the currently running client capable of supporting the current chain?
-	/// We default to true if there's no clear information.
-	pub fn capability(&self) -> CapState {
-		self.state.lock().capability
-	}
-
-	/// The release which is ready to be upgraded to, if any. If this returns `Some`, then
-	/// `execute_upgrade` may be called.
-	pub fn upgrade_ready(&self) -> Option<ReleaseInfo> {
-		self.state.lock().ready.clone()
-	}
-
-	/// Actually upgrades the client. Assumes that the binary has been downloaded.
-	/// @returns `true` on success.
-	pub fn execute_upgrade(&self) -> bool {
-		(|| -> Result<bool, String> {
-			let mut s = self.state.lock();
-			if let Some(r) = s.ready.take() {
-				let p = Self::update_file_name(&r.version);
-				let n = Self::updates_path("latest");
-				// TODO: creating then writing is a bit fragile. would be nice to make it atomic.
-				match fs::File::create(&n).and_then(|mut f| f.write_all(p.as_bytes())) {
-					Ok(_) => {
-						info!("Completed upgrade to {}", &r.version);
-						s.installed = Some(r);
-						if let Some(ref h) = *self.exit_handler.lock() {
-							(*h)();
-						}
-						Ok(true)
-					}
-					Err(e) => {
-						s.ready = Some(r);
-						Err(format!("Unable to create soft-link for update {:?}", e))
-					}
-				}
-			} else {
-				warn!("Execute upgrade called when no upgrade ready.");
-				Ok(false)
-			}
-		})().unwrap_or_else(|e| { warn!("{}", e); false })
-	}
-
-	/// Our version info.
-	pub fn version_info(&self) -> &VersionInfo { &self.this }
-
-	/// Information gathered concerning the release.
-	pub fn info(&self) -> Option<OperationsInfo> { self.state.lock().latest.clone() }
 
 	/// Set a closure to call when we want to restart the client
 	pub fn set_exit_handler<F>(&self, f: F) where F: Fn() + 'static + Send {
@@ -390,4 +296,46 @@ impl fetch::urlhint::ContractClient for Updater {
 		self.client.upgrade().ok_or_else(|| "Client not available".to_owned())?
 			.call_contract(address, data)
 	}
+}
+
+impl Service for Updater {
+	fn capability(&self) -> CapState {
+		self.state.lock().capability
+	}
+
+	fn upgrade_ready(&self) -> Option<ReleaseInfo> {
+		self.state.lock().ready.clone()
+	}
+
+	fn execute_upgrade(&self) -> bool {
+		(|| -> Result<bool, String> {
+			let mut s = self.state.lock();
+			if let Some(r) = s.ready.take() {
+				let p = Self::update_file_name(&r.version);
+				let n = Self::updates_path("latest");
+				// TODO: creating then writing is a bit fragile. would be nice to make it atomic.
+				match fs::File::create(&n).and_then(|mut f| f.write_all(p.as_bytes())) {
+					Ok(_) => {
+						info!("Completed upgrade to {}", &r.version);
+						s.installed = Some(r);
+						if let Some(ref h) = *self.exit_handler.lock() {
+							(*h)();
+						}
+						Ok(true)
+					}
+					Err(e) => {
+						s.ready = Some(r);
+						Err(format!("Unable to create soft-link for update {:?}", e))
+					}
+				}
+			} else {
+				warn!("Execute upgrade called when no upgrade ready.");
+				Ok(false)
+			}
+		})().unwrap_or_else(|e| { warn!("{}", e); false })
+	}
+
+	fn version_info(&self) -> VersionInfo { self.this.clone() }
+
+	fn info(&self) -> Option<OperationsInfo> { self.state.lock().latest.clone() }
 }
