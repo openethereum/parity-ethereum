@@ -116,7 +116,7 @@ pub fn open_ui(dapps_conf: &dapps::Configuration, signer_conf: &signer::Configur
 	Ok(())
 }
 
-pub fn execute(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<bool, String> {
+pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> Result<bool, String> {
 	if cmd.ui && cmd.dapps_conf.enabled {
 		// Check if Parity is already running
 		let addr = format!("{}:{}", cmd.dapps_conf.interface, cmd.dapps_conf.port);
@@ -415,7 +415,7 @@ pub fn execute(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<bool, String>
 	}
 
 	// Handle exit
-	wait_for_exit(panic_handler, http_server, ipc_server, dapps_server, signer_server, updater);
+	wait_for_exit(panic_handler, http_server, ipc_server, dapps_server, signer_server, updater, can_restart);
 
 	info!("Finishing work, please wait...");
 
@@ -472,7 +472,8 @@ fn wait_for_exit(
 	_ipc_server: Option<IpcServer>,
 	_dapps_server: Option<WebappServer>,
 	_signer_server: Option<SignerServer>,
-	updater: Arc<Updater>
+	updater: Arc<Updater>,
+	can_restart: bool
 ) -> bool {
 	let exit = Arc::new((Mutex::new(false), Condvar::new()));
 
@@ -485,8 +486,12 @@ fn wait_for_exit(
 	panic_handler.on_panic(move |_reason| { e.1.notify_all(); });
 
 	// Handle updater wanting to restart us
-	let e = exit.clone();
-	updater.set_exit_handler(move || { *e.0.lock() = true; e.1.notify_all(); });
+	if can_restart {
+		let e = exit.clone();
+		updater.set_exit_handler(move || { *e.0.lock() = true; e.1.notify_all(); });
+	} else {
+		updater.set_exit_handler(|| info!("Update installed; ready for restart."));
+	}
 
 	// Wait for signal
 	let mut l = exit.0.lock();

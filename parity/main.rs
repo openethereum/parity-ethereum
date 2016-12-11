@@ -142,12 +142,12 @@ enum PostExecutionAction {
 	Quit,
 }
 
-fn execute(command: Execute) -> Result<PostExecutionAction, String> {
+fn execute(command: Execute, can_restart: bool) -> Result<PostExecutionAction, String> {
 	let logger = setup_log(&command.logger).expect("Logger is initialized only once; qed");
 
 	match command.cmd {
 		Cmd::Run(run_cmd) => {
-			let restart = run::execute(run_cmd, logger)?;
+			let restart = run::execute(run_cmd, can_restart, logger)?;
 			Ok(if restart { PostExecutionAction::Restart } else { PostExecutionAction::Quit })
 		},
 		Cmd::Version => Ok(PostExecutionAction::Print(Args::print_version())),
@@ -160,7 +160,7 @@ fn execute(command: Execute) -> Result<PostExecutionAction, String> {
 	}
 }
 
-fn start() -> Result<PostExecutionAction, String> {
+fn start(can_restart: bool) -> Result<PostExecutionAction, String> {
 	let args: Vec<String> = env::args().collect();
 	let conf = Configuration::parse(&args).unwrap_or_else(|e| e.exit());
 
@@ -170,7 +170,7 @@ fn start() -> Result<PostExecutionAction, String> {
 	}
 
 	let cmd = try!(conf.into_command());
-	execute(cmd)
+	execute(cmd, can_restart)
 }
 
 #[cfg(not(feature="stratum"))]
@@ -204,19 +204,21 @@ fn latest_exe_path() -> Option<PathBuf> {
 
 // Starts ~/.parity-updates/parity and returns the code it exits with.
 fn run_parity() -> Option<i32> {
+	use ::std::ffi::OsString;
+	let prefix = vec![OsString::from("--can-restart"), OsString::from("--force-direct")];
 	latest_exe_path().and_then(|exe| process::Command::new(exe)
-			.args(&env::args_os().collect::<Vec<_>>())
-			.status()
-			.map(|es| es.code().unwrap_or(128))
-			.ok()
-		)
+		.args(&(env::args_os().chain(prefix.into_iter()).collect::<Vec<_>>()))
+		.status()
+		.map(|es| es.code().unwrap_or(128))
+		.ok()
+	)
 }
 
 const PLEASE_RESTART_EXIT_CODE: i32 = 69;
 
 // Run our version of parity.
 // Returns the exit error code. 
-fn main_direct() -> i32 {
+fn main_direct(can_restart: bool) -> i32 {
 	let mut alt_mains = HashMap::new();
 	sync_main(&mut alt_mains);
 	stratum_main(&mut alt_mains);
@@ -224,7 +226,7 @@ fn main_direct() -> i32 {
 		f();
 		0
 	} else {
-		match start() {
+		match start(can_restart) {
 			Ok(result) => match result {
 				PostExecutionAction::Print(s) => { info!("{}", s); 0 },
 				PostExecutionAction::Restart => PLEASE_RESTART_EXIT_CODE,
@@ -270,7 +272,7 @@ fn main() {
 		loop {
 			// If we fail to run the updated parity then fallback to local version. 
 			trace_main!("Attempting to run latest update ({})...", latest_exe.as_ref().expect("guarded by have_update; latest_exe must exist for have_update; qed").display());
-			let exit_code = run_parity().unwrap_or_else(|| { trace_main!("Falling back to local..."); main_direct() });
+			let exit_code = run_parity().unwrap_or_else(|| { trace_main!("Falling back to local..."); main_direct(true) });
 			trace_main!("Latest exited with {}", exit_code);
 			if exit_code != PLEASE_RESTART_EXIT_CODE {
 				trace_main!("Quitting...");
@@ -281,6 +283,7 @@ fn main() {
 	} else {
 		trace_main!("Running direct");
 		// Otherwise, we're presumably running the version we want. Just run and fall-through.
-		process::exit(main_direct());
+		let can_restart = std::env::args().any(|arg| arg == "--can-restart");
+		process::exit(main_direct(can_restart));
 	}
 }
