@@ -169,8 +169,6 @@ export default class AddressSelect extends Component {
     }
 
     return this.items[address];
-
-    return
   }
 
   getBalance (address) {
