@@ -62,6 +62,10 @@ export default class Contracts {
   }
 
   static create (api) {
+    if (instance) {
+      return instance;
+    }
+
     return new Contracts(api);
   }
 

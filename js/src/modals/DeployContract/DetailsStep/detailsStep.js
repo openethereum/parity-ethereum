@@ -28,26 +28,25 @@ export default class DetailsStep extends Component {
 
   static propTypes = {
     accounts: PropTypes.object.isRequired,
-
-    onFromAddressChange: PropTypes.func.isRequired,
-    onNameChange: PropTypes.func.isRequired,
-    onDescriptionChange: PropTypes.func.isRequired,
     onAbiChange: PropTypes.func.isRequired,
     onCodeChange: PropTypes.func.isRequired,
-    onParamsChange: PropTypes.func.isRequired,
+    onDescriptionChange: PropTypes.func.isRequired,
+    onFromAddressChange: PropTypes.func.isRequired,
     onInputsChange: PropTypes.func.isRequired,
+    onNameChange: PropTypes.func.isRequired,
+    onParamsChange: PropTypes.func.isRequired,
 
+    abi: PropTypes.string,
+    abiError: PropTypes.string,
+    balances: PropTypes.object,
+    code: PropTypes.string,
+    codeError: PropTypes.string,
+    description: PropTypes.string,
+    descriptionError: PropTypes.string,
     fromAddress: PropTypes.string,
     fromAddressError: PropTypes.string,
     name: PropTypes.string,
     nameError: PropTypes.string,
-    description: PropTypes.string,
-    descriptionError: PropTypes.string,
-    abi: PropTypes.string,
-    abiError: PropTypes.string,
-    code: PropTypes.string,
-    codeError: PropTypes.string,
-
     readOnly: PropTypes.bool
   };
 
@@ -77,6 +76,7 @@ export default class DetailsStep extends Component {
   render () {
     const {
       accounts,
+      balances,
       readOnly,
 
       fromAddress, fromAddressError,
@@ -94,24 +94,28 @@ export default class DetailsStep extends Component {
         <AddressSelect
           label='from account (contract owner)'
           hint='the owner account for this contract'
-          value={ fromAddress }
-          error={ fromAddressError }
           accounts={ accounts }
-          onChange={ this.onFromAddressChange } />
+          balances={ balances }
+          error={ fromAddressError }
+          onChange={ this.onFromAddressChange }
+          value={ fromAddress }
+        />
 
         <Input
           label='contract name'
           hint='a name for the deployed contract'
           error={ nameError }
+          onChange={ this.onNameChange }
           value={ name || '' }
-          onChange={ this.onNameChange } />
+        />
 
         <Input
           label='contract description (optional)'
           hint='a description for the contract'
           error={ descriptionError }
+          onChange={ this.onDescriptionChange }
           value={ description }
-          onChange={ this.onDescriptionChange } />
+        />
 
         { this.renderContractSelect() }
 
@@ -119,17 +123,19 @@ export default class DetailsStep extends Component {
           label='abi / solc combined-output'
           hint='the abi of the contract to deploy or solc combined-output'
           error={ abiError }
-          value={ solcOutput }
           onChange={ this.onSolcChange }
           onSubmit={ this.onSolcSubmit }
-          readOnly={ readOnly } />
+          readOnly={ readOnly }
+          value={ solcOutput }
+        />
         <Input
           label='code'
           hint='the compiled code of the contract to deploy'
           error={ codeError }
-          value={ code }
           onSubmit={ this.onCodeChange }
-          readOnly={ readOnly || solc } />
+          readOnly={ readOnly || solc }
+          value={ code }
+        />
 
       </Form>
     );
