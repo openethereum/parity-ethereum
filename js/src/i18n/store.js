@@ -19,10 +19,13 @@ import { action, observable, transaction } from 'mobx';
 import { addLocaleData } from 'react-intl';
 import de from 'react-intl/locale-data/de';
 import en from 'react-intl/locale-data/en';
+import store from 'store';
 
 import languages from './languages';
 import deMessages from './de';
 import enMessages from './en';
+
+const LS_STORE_KEY = '_parity::locale';
 
 let instance = null;
 const isProduction = process.env.NODE_ENV === 'production';
@@ -45,10 +48,21 @@ export default class Store {
   @observable messages = MESSAGES[DEFAULT];
   @observable isDevelopment = !isProduction;
 
+  constructor () {
+    const savedLocale = store.get(LS_STORE_KEY);
+
+    this.locale = (savedLocale && LOCALES.includes(savedLocale))
+      ? savedLocale
+      : DEFAULT;
+    this.messages = MESSAGES[this.locale];
+  }
+
   @action setLocale (locale) {
     transaction(() => {
       this.locale = locale;
       this.messages = MESSAGES[locale];
+
+      store.set(LS_STORE_KEY, locale);
     });
   }
 
