@@ -14,13 +14,15 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import React, { Component, PropTypes } from 'react';
 import bytes from 'bytes';
+import moment from 'moment';
+import React, { Component, PropTypes } from 'react';
 
 import { Container, ContainerTitle, Input } from '~/ui';
 
-import styles from './Status.css';
 import MiningSettings from '../MiningSettings';
+
+import styles from './status.css';
 
 export default class Status extends Component {
   static propTypes = {
@@ -44,23 +46,26 @@ export default class Status extends Component {
         <div className={ styles.container }>
           <div className={ styles.row }>
             <div className={ styles.col3 }>
-              <div className={ styles.col12 }>
+              <div className={ `${styles.col12} ${styles.padBottom}` }>
                 <ContainerTitle title='best block' />
-                <h2 { ...this._test('best-block') } className={ styles.blockinfo }>
+                <div { ...this._test('best-block') } className={ styles.blockInfo }>
                   #{ nodeStatus.blockNumber.toFormat() }
-                </h2>
+                </div>
+                <div className={ styles.blockByline }>
+                  { moment().calendar(nodeStatus.blockTimestamp) }
+                </div>
               </div>
-              <div className={ styles.col12 }>
+              <div className={ `${styles.col12} ${styles.padBottom}` }>
                 <ContainerTitle title='peers' />
-                <h2 { ...this._test('peers') } className={ styles.blockinfo }>
+                <div { ...this._test('peers') } className={ styles.blockInfo }>
                   { peers }
-                </h2>
+                </div>
               </div>
-              <div className={ styles.col12 }>
+              <div className={ `${styles.col12} ${styles.padBottom}` }>
                 <ContainerTitle title='hash rate' />
-                <h2 { ...this._test('hashrate') } className={ styles.blockinfo }>
+                <div { ...this._test('hashrate') } className={ styles.blockInfo }>
                   { `${hashrate} H/s` }
-                </h2>
+                </div>
               </div>
             </div>
             <div className={ styles.col5 }>

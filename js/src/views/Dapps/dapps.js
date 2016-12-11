@@ -72,9 +72,17 @@ export default class Dapps extends Component {
           ] }
         />
         <Page>
-          { this.renderList(this.store.visibleLocal) }
-          { this.renderList(this.store.visibleBuiltin) }
-          { this.renderList(this.store.visibleNetwork, externalOverlay) }
+          <div>
+            { this.renderList(this.store.visibleLocal) }
+          </div>
+
+          <div>
+            { this.renderList(this.store.visibleBuiltin) }
+          </div>
+
+          <div>
+            { this.renderList(this.store.visibleNetwork, externalOverlay) }
+          </div>
         </Page>
       </div>
     );

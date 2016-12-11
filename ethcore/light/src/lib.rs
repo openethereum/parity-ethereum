@@ -28,8 +28,7 @@
 //! It starts by performing a header-only sync, verifying random samples
 //! of members of the chain to varying degrees.
 
-// TODO: remove when integrating with the rest of parity.
-#![allow(dead_code)]
+#![deny(missing_docs)]
 
 pub mod client;
 pub mod net;

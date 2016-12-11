@@ -1685,7 +1685,7 @@ impl ChainSync {
 
 	pub fn on_packet(&mut self, io: &mut SyncIo, peer: PeerId, packet_id: u8, data: &[u8]) {
 		if packet_id != STATUS_PACKET && !self.peers.contains_key(&peer) {
-			debug!(target:"sync", "Unexpected packet from unregistered peer: {}:{}", peer, io.peer_info(peer));
+			debug!(target:"sync", "Unexpected packet {} from unregistered peer: {}:{}", packet_id, peer, io.peer_info(peer));
 			return;
 		}
 		let rlp = UntrustedRlp::new(data);

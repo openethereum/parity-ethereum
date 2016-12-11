@@ -14,7 +14,12 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { APIKEY, mockget, mockpost, rpc } from './helpers.spec.js';
+const helpers = require('./helpers.spec.js');
+
+const APIKEY = helpers.APIKEY;
+const mockget = helpers.mockget;
+const mockpost = helpers.mockpost;
+const rpc = helpers.rpc;
 
 describe('shapeshift/rpc', () => {
   describe('GET', () => {

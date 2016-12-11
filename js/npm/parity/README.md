@@ -1,6 +1,8 @@
-# parity.js
+# @parity/parity.js
 
 Parity.js is a thin, fast, Promise-based wrapper around the Ethereum APIs.
+
+[https://github.com/ethcore/parity/tree/master/js/src/api](https://github.com/ethcore/parity/tree/master/js/src/api)
 
 ## installation
 

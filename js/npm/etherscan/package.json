@@ -1,6 +1,6 @@
 {
-  "name": "@parity/parity.js",
-  "description": "The Parity Promise-base API & ABI library for interfacing with Ethereum over RPC",
+  "name": "@parity/etherscan",
+  "description": "The Parity Promise-based library for interfacing with Etherscan over HTTP",
   "version": "0.0.0",
   "main": "library.js",
   "author": "Parity Team <admin@parity.io>",
@@ -24,10 +24,10 @@
   "scripts": {
   },
   "devDependencies": {
+    "chai": "3.5.0",
+    "mocha": "3.2.0"
   },
   "dependencies": {
-    "bignumber.js": "^2.3.0",
-    "js-sha3": "^0.5.2",
-    "node-fetch": "^1.6.3"
+    "node-fetch": "~1.6.3"
   }
 }
