@@ -34,33 +34,31 @@ export default class MethodDecodingStore {
 
     // Load the signatures from the local ABIs
     Object.keys(abis).forEach((abiKey) => {
-      const abi = new Abi(abis[abiKey]);
-
-      [].concat(
-        abi.functions.map((f) => ({ sign: f.signature, id: f.id })),
-        abi.events.map((e) => ({ sign: e.signature, id: e.id }))
-      ).forEach((mapping) => {
-        const sign = (/^0x/.test(mapping.sign) ? '' : '0x') + mapping.sign;
-        this._methods[sign] = mapping.id;
-      });
+      this.loadFromAbi(abis[abiKey]);
     });
 
+    this.addContracts(contracts);
+  }
+
+  addContracts (contracts = {}) {
     // Load the User defined contracts
     Object.values(contracts).forEach((contract) => {
       if (!contract || !contract.meta || !contract.meta.abi) {
         return;
       }
-
-      const abi = new Abi(contract.meta.abi);
-
-      [].concat(
-        abi.functions.map((f) => ({ sign: f.signature, id: f.id })),
-        abi.events.map((e) => ({ sign: e.signature, id: e.id }))
-      ).forEach((mapping) => {
-        const sign = (/^0x/.test(mapping.sign) ? '' : '0x') + mapping.sign;
-        this._methods[sign] = mapping.id;
-      });
+      this.loadFromAbi(contract.meta.abi);
     });
+  }
+
+  loadFromAbi (_abi) {
+    const abi = new Abi(_abi);
+    abi
+      .functions
+      .map((f) => ({ sign: f.signature, abi: f.abi }))
+      .forEach((mapping) => {
+        const sign = (/^0x/.test(mapping.sign) ? '' : '0x') + mapping.sign;
+        this._methods[sign] = mapping.abi;
+      });
   }
 
   static get (api, contracts = {}) {
@@ -77,8 +75,12 @@ export default class MethodDecodingStore {
   }
 
   static loadContracts (contracts = {}) {
-    // Just create the instance with null API
-    MethodDecodingStore.get(null, contracts);
+    if (!instance) {
+      // Just create the instance with null API
+      MethodDecodingStore.get(null, contracts);
+    } else {
+      instance.addContracts(contracts);
+    }
   }
 
   /**
