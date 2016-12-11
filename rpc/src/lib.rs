@@ -37,6 +37,7 @@ extern crate ethcore_ipc;
 extern crate time;
 extern crate rlp;
 extern crate fetch;
+extern crate parity_updater as updater;
 
 #[macro_use]
 extern crate log;
