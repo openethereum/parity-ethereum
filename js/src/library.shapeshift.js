@@ -14,24 +14,21 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-const etherscan = require('./');
+import 'babel-polyfill/dist/polyfill.js';
+import es6Promise from 'es6-promise';
+es6Promise.polyfill();
 
-describe.skip('etherscan/stats', function () {
-  this.timeout(60 * 1000);
+const isNode = typeof global !== 'undefined' && typeof global !== 'undefined';
+const isBrowser = typeof self !== 'undefined' && typeof self.window !== 'undefined';
 
-  it('retrieves the latest price', () => {
-    return etherscan.stats
-      .price()
-      .then((price) => {
-        expect(price).to.be.ok;
-      });
-  });
+if (isBrowser) {
+  require('whatwg-fetch');
+}
 
-  it('retrieves the ether total', () => {
-    return etherscan.stats
-      .supply()
-      .then((supply) => {
-        expect(supply).to.be.ok;
-      });
-  });
-});
+if (isNode) {
+  global.fetch = require('node-fetch');
+}
+
+import ShapeShift from './3rdparty/shapeshift';
+
+module.exports = ShapeShift;

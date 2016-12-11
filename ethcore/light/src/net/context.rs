@@ -26,95 +26,95 @@ use request::Request;
 /// disconnecting peers. This is used as a generalization of the portions
 /// of a p2p network which the light protocol structure makes use of.
 pub trait IoContext {
-    /// Send a packet to a specific peer.
-    fn send(&self, peer: PeerId, packet_id: u8, packet_body: Vec<u8>);
+	/// Send a packet to a specific peer.
+	fn send(&self, peer: PeerId, packet_id: u8, packet_body: Vec<u8>);
 
-    /// Respond to a peer's message. Only works if this context is a byproduct
-    /// of a packet handler.
-    fn respond(&self, packet_id: u8, packet_body: Vec<u8>);
+	/// Respond to a peer's message. Only works if this context is a byproduct
+	/// of a packet handler.
+	fn respond(&self, packet_id: u8, packet_body: Vec<u8>);
 
-    /// Disconnect a peer.
-    fn disconnect_peer(&self, peer: PeerId);
+	/// Disconnect a peer.
+	fn disconnect_peer(&self, peer: PeerId);
 
-    /// Disable a peer -- this is a disconnect + a time-out.
-    fn disable_peer(&self, peer: PeerId);
+	/// Disable a peer -- this is a disconnect + a time-out.
+	fn disable_peer(&self, peer: PeerId);
 
-    /// Get a peer's protocol version.
-    fn protocol_version(&self, peer: PeerId) -> Option<u8>;
+	/// Get a peer's protocol version.
+	fn protocol_version(&self, peer: PeerId) -> Option<u8>;
 }
 
 impl<'a> IoContext for NetworkContext<'a> {
-    fn send(&self, peer: PeerId, packet_id: u8, packet_body: Vec<u8>) {
-        if let Err(e) = self.send(peer, packet_id, packet_body) {
-            debug!(target: "les", "Error sending packet to peer {}: {}", peer, e);
-        }
-    }
+	fn send(&self, peer: PeerId, packet_id: u8, packet_body: Vec<u8>) {
+		if let Err(e) = self.send(peer, packet_id, packet_body) {
+			debug!(target: "les", "Error sending packet to peer {}: {}", peer, e);
+		}
+	}
 
-    fn respond(&self, packet_id: u8, packet_body: Vec<u8>) {
-        if let Err(e) = self.respond(packet_id, packet_body) {
-            debug!(target: "les", "Error responding to peer message: {}", e);
-        }
-    }
+	fn respond(&self, packet_id: u8, packet_body: Vec<u8>) {
+		if let Err(e) = self.respond(packet_id, packet_body) {
+			debug!(target: "les", "Error responding to peer message: {}", e);
+		}
+	}
 
-    fn disconnect_peer(&self, peer: PeerId) {
-        NetworkContext::disconnect_peer(self, peer);
-    }
+	fn disconnect_peer(&self, peer: PeerId) {
+		NetworkContext::disconnect_peer(self, peer);
+	}
 
-    fn disable_peer(&self, peer: PeerId) {
-        NetworkContext::disable_peer(self, peer);
-    }
+	fn disable_peer(&self, peer: PeerId) {
+		NetworkContext::disable_peer(self, peer);
+	}
 
-    fn protocol_version(&self, peer: PeerId) -> Option<u8> {
-        self.protocol_version(self.subprotocol_name(), peer)
-    }
+	fn protocol_version(&self, peer: PeerId) -> Option<u8> {
+		self.protocol_version(self.subprotocol_name(), peer)
+	}
 }
 
 /// Context for a protocol event.
 pub trait EventContext {
-    /// Get the peer relevant to the event e.g. message sender,
-    /// disconnected/connected peer.
-    fn peer(&self) -> PeerId;
+	/// Get the peer relevant to the event e.g. message sender,
+	/// disconnected/connected peer.
+	fn peer(&self) -> PeerId;
 
-    /// Make a request from a peer.
-    fn request_from(&self, peer: PeerId, request: Request) -> Result<ReqId, Error>;
+	/// Make a request from a peer.
+	fn request_from(&self, peer: PeerId, request: Request) -> Result<ReqId, Error>;
 
-    /// Make an announcement of new capabilities to the rest of the peers.
-    // TODO: maybe just put this on a timer in LightProtocol?
-    fn make_announcement(&self, announcement: Announcement);
+	/// Make an announcement of new capabilities to the rest of the peers.
+	// TODO: maybe just put this on a timer in LightProtocol?
+	fn make_announcement(&self, announcement: Announcement);
 
-    /// Disconnect a peer.
-    fn disconnect_peer(&self, peer: PeerId);
+	/// Disconnect a peer.
+	fn disconnect_peer(&self, peer: PeerId);
 
-    /// Disable a peer.
-    fn disable_peer(&self, peer: PeerId);
+	/// Disable a peer.
+	fn disable_peer(&self, peer: PeerId);
 }
 
 /// Concrete implementation of `EventContext` over the light protocol struct and 
 /// an io context.
 pub struct Ctx<'a> {
-    /// Io context to enable immediate response to events.
-    pub io: &'a IoContext,
-    /// Protocol implementation.
-    pub proto: &'a LightProtocol,
-    /// Relevant peer for event.
-    pub peer: PeerId, 
+	/// Io context to enable immediate response to events.
+	pub io: &'a IoContext,
+	/// Protocol implementation.
+	pub proto: &'a LightProtocol,
+	/// Relevant peer for event.
+	pub peer: PeerId, 
 }
 
 impl<'a> EventContext for Ctx<'a> {
-    fn peer(&self) -> PeerId { self.peer }
-    fn request_from(&self, peer: PeerId, request: Request) -> Result<ReqId, Error> {
-        self.proto.request_from(self.io, &peer, request)
-    }
+	fn peer(&self) -> PeerId { self.peer }
+	fn request_from(&self, peer: PeerId, request: Request) -> Result<ReqId, Error> {
+		self.proto.request_from(self.io, &peer, request)
+	}
 
-    fn make_announcement(&self, announcement: Announcement) {
-        self.proto.make_announcement(self.io, announcement);
-    }
+	fn make_announcement(&self, announcement: Announcement) {
+		self.proto.make_announcement(self.io, announcement);
+	}
 
-    fn disconnect_peer(&self, peer: PeerId) {
-        self.io.disconnect_peer(peer);
-    }
+	fn disconnect_peer(&self, peer: PeerId) {
+		self.io.disconnect_peer(peer);
+	}
 
-    fn disable_peer(&self, peer: PeerId) {
-        self.io.disable_peer(peer);
-    }
+	fn disable_peer(&self, peer: PeerId) {
+		self.io.disable_peer(peer);
+	}
 }

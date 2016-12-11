@@ -14,11 +14,13 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import etherscan from './';
+const etherscan = require('./');
 
 const TESTADDR = '0xbf885e2b55c6bcc84556a3c5f07d3040833c8d00';
 
-describe.skip('etherscan/account', () => {
+describe.skip('etherscan/account', function () {
+  this.timeout(60 * 1000);
+
   const checkBalance = function (balance, addr) {
     expect(balance).to.be.ok;
     expect(balance.account).to.equal(addr);

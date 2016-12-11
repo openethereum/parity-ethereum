@@ -14,24 +14,16 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-const etherscan = require('./');
+const chai = require('chai');
+// const chaiAsPromised from 'chai-as-promised';
+// const chaiEnzyme from 'chai-enzyme';
+// const sinonChai from 'sinon-chai';
 
-describe.skip('etherscan/stats', function () {
-  this.timeout(60 * 1000);
+// chai.use(chaiAsPromised);
+// chai.use(chaiEnzyme());
+// chai.use(sinonChai);
 
-  it('retrieves the latest price', () => {
-    return etherscan.stats
-      .price()
-      .then((price) => {
-        expect(price).to.be.ok;
-      });
-  });
+// expose expect to global so we won't have to manually import & define it in every test
+global.expect = chai.expect;
 
-  it('retrieves the ether total', () => {
-    return etherscan.stats
-      .supply()
-      .then((supply) => {
-        expect(supply).to.be.ok;
-      });
-  });
-});
+module.exports = {};

@@ -18,6 +18,8 @@ import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 import { observer } from 'mobx-react';
+import { pick } from 'lodash';
+
 import ActionDoneAll from 'material-ui/svg-icons/action/done-all';
 import ContentClear from 'material-ui/svg-icons/content/clear';
 import NavigationArrowBack from 'material-ui/svg-icons/navigation/arrow-back';
@@ -57,6 +59,7 @@ class ExecuteContract extends Component {
     isTest: PropTypes.bool,
     fromAddress: PropTypes.string,
     accounts: PropTypes.object,
+    balances: PropTypes.object,
     contract: PropTypes.object,
     gasLimit: PropTypes.object.isRequired,
     onClose: PropTypes.func.isRequired,
@@ -362,10 +365,15 @@ class ExecuteContract extends Component {
   }
 }
 
-function mapStateToProps (state) {
-  const { gasLimit } = state.nodeStatus;
+function mapStateToProps (initState, initProps) {
+  const fromAddresses = Object.keys(initProps.accounts);
 
-  return { gasLimit };
+  return (state) => {
+    const balances = pick(state.balances.balances, fromAddresses);
+    const { gasLimit } = state.nodeStatus;
+
+    return { gasLimit, balances };
+  };
 }
 
 function mapDispatchToProps (dispatch) {

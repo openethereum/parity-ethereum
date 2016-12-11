@@ -28,6 +28,7 @@ export default class AddAddress extends Component {
 
   static propTypes = {
     contacts: PropTypes.object.isRequired,
+    address: PropTypes.string,
     onClose: PropTypes.func
   };
 
@@ -38,6 +39,12 @@ export default class AddAddress extends Component {
     nameError: ERRORS.invalidName,
     description: ''
   };
+
+  componentWillMount () {
+    if (this.props.address) {
+      this.onEditAddress(null, this.props.address);
+    }
+  }
 
   render () {
     return (
@@ -77,6 +84,8 @@ export default class AddAddress extends Component {
           hint='the network address for the entry'
           error={ addressError }
           value={ address }
+          disabled={ !!this.props.address }
+          allowCopy={ false }
           onChange={ this.onEditAddress } />
         <Input
           label='address name'

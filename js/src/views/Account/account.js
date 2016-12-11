@@ -26,7 +26,7 @@ import VerifyIcon from 'material-ui/svg-icons/action/verified-user';
 import { EditMeta, DeleteAccount, Shapeshift, SMSVerification, Transfer, PasswordManager } from '~/modals';
 import { Actionbar, Button, Page } from '~/ui';
 
-import shapeshiftBtn from '../../../assets/images/shapeshift-btn.png';
+import shapeshiftBtn from '~/../assets/images/shapeshift-btn.png';
 
 import Header from './Header';
 import Transactions from './Transactions';
