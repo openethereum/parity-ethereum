@@ -14,4 +14,29 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-export default from './signRequest';
+import React, { Component, PropTypes } from 'react';
+
+import { txLink } from '~/3rdparty/etherscan/links';
+
+export default class TxHashLink extends Component {
+  static propTypes = {
+    children: PropTypes.node,
+    className: PropTypes.string,
+    isTest: PropTypes.bool.isRequired,
+    txHash: PropTypes.string.isRequired
+  }
+
+  render () {
+    const { children, className, isTest, txHash } = this.props;
+
+    return (
+      <a
+        className={ className }
+        href={ txLink(txHash, isTest) }
+        target='_blank'>
+        { children || txHash }
+      </a>
+    );
+  }
+
+}

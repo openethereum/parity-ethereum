@@ -22,6 +22,12 @@
 /* eslint-disable */
 var ace = window.ace;
 
+if (process.env.NODE_ENV === 'test') {
+  if (!ace.define) {
+    ace.define = () => {};
+  }
+}
+
 ace.define("ace/mode/doc_comment_highlight_rules",["require","exports","module","ace/lib/oop","ace/mode/text_highlight_rules"], function(acequire, exports, module) {
 "use strict";
 

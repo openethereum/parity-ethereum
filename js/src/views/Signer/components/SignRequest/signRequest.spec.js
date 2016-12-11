@@ -14,4 +14,21 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-export default from './signRequest';
+import { shallow } from 'enzyme';
+import React from 'react';
+import sinon from 'sinon';
+
+import SignRequest from './';
+
+const store = {
+  balances: {},
+  fetchBalance: sinon.stub()
+};
+
+describe('views/Signer/components/SignRequest', () => {
+  it('renders', () => {
+    expect(shallow(
+      <SignRequest store={ store } />,
+    )).to.be.ok;
+  });
+});

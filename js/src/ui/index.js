@@ -32,6 +32,7 @@ import Editor from './Editor';
 import Errors from './Errors';
 import Form, { AddressSelect, FormWrap, TypedInput, Input, InputAddress, InputAddressSelect, InputChip, InputInline, Select, RadioButtons } from './Form';
 import GasPriceEditor from './GasPriceEditor';
+import GasPriceSelector from './GasPriceSelector';
 import IdentityIcon from './IdentityIcon';
 import IdentityName from './IdentityName';
 import LanguageSelector from './LanguageSelector';
@@ -70,6 +71,7 @@ export {
   Form,
   FormWrap,
   GasPriceEditor,
+  GasPriceSelector,
   Input,
   InputAddress,
   InputAddressSelect,

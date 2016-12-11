@@ -14,4 +14,21 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-export default from './signRequest';
+const COLORS = {
+  default: 'rgba(255, 99, 132, 0.2)',
+  selected: 'rgba(255, 99, 132, 0.5)',
+  hover: 'rgba(255, 99, 132, 0.15)',
+  grid: 'rgba(255, 99, 132, 0.5)',
+  line: 'rgb(255, 99, 132)',
+  intersection: '#fff'
+};
+
+const countModifier = (count) => {
+  const val = count.toNumber ? count.toNumber() : count;
+  return Math.log10(val + 1) + 0.1;
+};
+
+export {
+  COLORS,
+  countModifier
+};

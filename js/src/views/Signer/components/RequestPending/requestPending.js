@@ -21,19 +21,24 @@ import SignRequest from '../SignRequest';
 
 export default class RequestPending extends Component {
   static propTypes = {
+    className: PropTypes.string,
+    date: PropTypes.instanceOf(Date).isRequired,
+    gasLimit: PropTypes.object.isRequired,
     id: PropTypes.object.isRequired,
+    isSending: PropTypes.bool.isRequired,
+    isTest: PropTypes.bool.isRequired,
     onConfirm: PropTypes.func.isRequired,
     onReject: PropTypes.func.isRequired,
-    isSending: PropTypes.bool.isRequired,
-    date: PropTypes.instanceOf(Date).isRequired,
     payload: PropTypes.oneOfType([
-      PropTypes.shape({ signTransaction: PropTypes.object.isRequired }),
       PropTypes.shape({ sendTransaction: PropTypes.object.isRequired }),
-      PropTypes.shape({ sign: PropTypes.object.isRequired })
+      PropTypes.shape({ sign: PropTypes.object.isRequired }),
+      PropTypes.shape({ signTransaction: PropTypes.object.isRequired })
     ]).isRequired,
-    className: PropTypes.string,
-    isTest: PropTypes.bool.isRequired,
     store: PropTypes.object.isRequired
+  };
+
+  static defaultProps = {
+    isSending: false
   };
 
   onConfirm = data => {
@@ -44,24 +49,23 @@ export default class RequestPending extends Component {
   };
 
   render () {
-    const { payload, id, className, isSending, date, onReject, isTest, store } = this.props;
+    const { className, date, gasLimit, id, isSending, isTest, onReject, payload, store } = this.props;
 
     if (payload.sign) {
       const { sign } = payload;
 
       return (
         <SignRequest
+          address={ sign.address }
           className={ className }
+          hash={ sign.hash }
+          id={ id }
+          isFinished={ false }
+          isSending={ isSending }
+          isTest={ isTest }
           onConfirm={ this.onConfirm }
           onReject={ onReject }
-          isSending={ isSending }
-          isFinished={ false }
-          id={ id }
-          address={ sign.address }
-          hash={ sign.hash }
-          isTest={ isTest }
-          store={ store }
-          />
+          store={ store } />
       );
     }
 
@@ -70,19 +74,19 @@ export default class RequestPending extends Component {
       return (
         <TransactionPending
           className={ className }
+          date={ date }
+          gasLimit={ gasLimit }
+          id={ id }
+          isSending={ isSending }
+          isTest={ isTest }
           onConfirm={ this.onConfirm }
           onReject={ onReject }
-          isSending={ isSending }
-          id={ id }
-          transaction={ transaction }
-          date={ date }
-          isTest={ isTest }
           store={ store }
-          />
+          transaction={ transaction } />
       );
     }
 
-    // Unknown payload
+    console.error('RequestPending: Unknown payload', payload);
     return null;
   }
 }
