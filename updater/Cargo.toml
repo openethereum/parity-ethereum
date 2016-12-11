@@ -1,0 +1,17 @@
+[package]
+description = "Parity Updater Service."
+name = "parity-updater"
+version = "1.5.0"
+license = "GPL-3.0"
+authors = ["Parity Technologies <admin@parity.io>"]
+
+[dependencies]
+log = "0.3"
+ethabi = "0.2.2"
+ethcore = { path = "../ethcore" }
+ethcore-util = { path = "../util" }
+parity-hash-fetch = { path = "../hash-fetch" }
+
+[profile.release]
+debug = true
+lto = false
