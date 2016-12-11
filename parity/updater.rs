@@ -15,8 +15,9 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::sync::{Arc, Weak};
-use std::{io, os, fs, env};
-use std::path::{Path, PathBuf};
+use std::{fs, env};
+use std::io::Write;
+use std::path::{PathBuf};
 use util::misc::{VersionInfo, ReleaseTrack/*, platform*/};
 use util::{Address, H160, H256, FixedHash, Mutex, Bytes};
 use super::operations::Operations;
@@ -113,16 +114,6 @@ fn platform() -> String {
 	"test".to_owned()
 }
 
-#[cfg(windows)]
-fn symlink<P: AsRef<Path>, Q: AsRef<Path>>(src: P, dst: Q) -> io::Result<()> {
-	os::windows::fs::symlink_file(src, dst)
-}
-
-#[cfg(not(windows))]
-fn symlink<P: AsRef<Path>, Q: AsRef<Path>>(src: P, dst: Q) -> io::Result<()> {
-	os::unix::fs::symlink(src, dst)
-}
-
 impl Updater {
 	pub fn new(client: Weak<BlockChainClient>, update_policy: UpdatePolicy) -> Arc<Self> {
 		let mut u = Updater {
@@ -170,10 +161,10 @@ impl Updater {
 		(|| -> Result<bool, String> {
 			let mut s = self.state.lock();
 			if let Some(r) = s.ready.take() {
-				let p = Self::update_file_path(&r.version);
-				let n = Self::updates_latest();
-				let _ = fs::remove_file(&n);
-				match symlink(p, n) {
+				let p = Self::update_file_name(&r.version);
+				let n = Self::updates_path("latest");
+				// TODO: creating then writing is a bit fragile. would be nice to make it atomic.
+				match fs::File::create(&n).and_then(|mut f| f.write_all(p.as_bytes())) {
 					Ok(_) => {
 						info!("Completed upgrade to {}", &r.version);
 						s.installed = Some(r);
@@ -249,17 +240,14 @@ impl Updater {
 		}
 	}
 
-	fn update_file_path(v: &VersionInfo) -> PathBuf {
-		let mut dest = PathBuf::from(env::home_dir().unwrap().to_str().expect("env filesystem paths really should be valid; qed"));
-		dest.push(".parity-updates");
-		dest.push(format!("parity-{}.{}.{}-{:?}", v.version.major, v.version.minor, v.version.patch, v.hash));
-		dest
+	fn update_file_name(v: &VersionInfo) -> String {
+		format!("parity-{}.{}.{}-{:?}", v.version.major, v.version.minor, v.version.patch, v.hash)
 	}
 
-	fn updates_latest() -> PathBuf {
+	fn updates_path(name: &str) -> PathBuf {
 		let mut dest = PathBuf::from(env::home_dir().unwrap().to_str().expect("env filesystem paths really should be valid; qed"));
 		dest.push(".parity-updates");
-		dest.push("parity");
+		dest.push(name);
 		dest
 	}
 
@@ -270,7 +258,7 @@ impl Updater {
 				let fetched = s.fetching.take().unwrap();
 				let b = result.map_err(|e| format!("Unable to fetch update ({}): {:?}", fetched.version, e))?;
 				info!("Fetched latest version ({}) OK to {}", fetched.version, b.display());
-				let dest = Self::update_file_path(&fetched.version);
+				let dest = Self::updates_path(&Self::update_file_name(&fetched.version));
 				fs::create_dir_all(dest.parent().expect("at least one thing pushed; qed")).map_err(|e| format!("Unable to create updates path: {:?}", e))?;
 				fs::copy(&b, &dest).map_err(|e| format!("Unable to copy update: {:?}", e))?;
 				info!("Copied file to {}", dest.display());

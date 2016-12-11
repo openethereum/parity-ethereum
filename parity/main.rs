@@ -117,7 +117,7 @@ mod stratum;
 
 use std::{process, env};
 use std::collections::HashMap;
-use std::io::{self as stdio, BufReader, Write};
+use std::io::{self as stdio, BufReader, Read, Write};
 use std::fs::File;
 use std::path::PathBuf;
 use util::sha3::sha3;
@@ -190,21 +190,26 @@ fn sync_main(alt_mains: &mut HashMap<String, fn()>) {
 }
 
 // TODO: merge with version in Updater.
-fn updates_latest() -> PathBuf {
+fn updates_path(name: &str) -> PathBuf {
 	let mut dest = PathBuf::from(env::home_dir().unwrap().to_str().expect("env filesystem paths really should be valid; qed"));
 	dest.push(".parity-updates");
-	dest.push("parity");
+	dest.push(name);
 	dest
 }
 
+fn latest_exe_path() -> Option<PathBuf> {
+	File::open(updates_path("latest")).ok()
+		.and_then(|mut f| { let mut exe = String::new(); f.read_to_string(&mut exe).ok().map(|_| updates_path(&exe)) })
+} 
+
 // Starts ~/.parity-updates/parity and returns the code it exits with.
 fn run_parity() -> Option<i32> {
-	let exe = updates_latest();
-	process::Command::new(exe)
-		.args(&env::args_os().collect::<Vec<_>>())
-		.status()
-		.map(|es| es.code().unwrap_or(128))
-		.ok()
+	latest_exe_path().and_then(|exe| process::Command::new(exe)
+			.args(&env::args_os().collect::<Vec<_>>())
+			.status()
+			.map(|es| es.code().unwrap_or(128))
+			.ok()
+		)
 }
 
 const PLEASE_RESTART_EXIT_CODE: i32 = 69;
@@ -254,16 +259,17 @@ fn main() {
 	let force_direct = std::env::args().any(|arg| arg == "--force-direct");
 	let exe = std::env::current_exe().ok();
 	let development = exe.as_ref().and_then(|p| p.parent().and_then(|p| p.parent()).and_then(|p| p.file_name()).map(|n| n == "target")).unwrap_or(false);
-	let same_name = exe.as_ref().and_then(|p| p.file_stem().map(|s| s == "parity")).unwrap_or(false);
-	let have_update = updates_latest().exists();
-	let is_non_updated_current = exe.map_or(false, |p| p.canonicalize().ok() != updates_latest().canonicalize().ok());
+	let same_name = exe.as_ref().map(|p| p.file_stem().map_or(false, |s| s == "parity") && p.extension().map_or(true, |x| x == "exe")).unwrap_or(false);
+	let latest_exe = latest_exe_path();
+	let have_update = latest_exe.as_ref().map_or(false, |p| p.exists());
+	let is_non_updated_current = exe.map_or(false, |exe| latest_exe.as_ref().map_or(false, |lexe| exe.canonicalize().ok() != lexe.canonicalize().ok()));
 	trace_main!("Starting up {} (force-direct: {}, development: {}, same-name: {}, have-update: {}, non-updated-current: {})", std::env::current_exe().map(|x| format!("{}", x.display())).unwrap_or("<unknown>".to_owned()), force_direct, development, same_name, have_update, is_non_updated_current);
 	if !force_direct && !development && same_name && have_update && is_non_updated_current {
 		// looks like we're not running ~/.parity-updates/parity when the user is expecting otherwise.
 		// Everything run inside a loop, so we'll be able to restart from the child into a new version seamlessly. 
 		loop {
 			// If we fail to run the updated parity then fallback to local version. 
-			trace_main!("Attempting to run latest update...");
+			trace_main!("Attempting to run latest update ({})...", latest_exe.as_ref().expect("guarded by have_update; latest_exe must exist for have_update; qed").display());
 			let exit_code = run_parity().unwrap_or_else(|| { trace_main!("Falling back to local..."); main_direct() });
 			trace_main!("Latest exited with {}", exit_code);
 			if exit_code != PLEASE_RESTART_EXIT_CODE {
