@@ -17,6 +17,7 @@
 import React, { Component, PropTypes } from 'react';
 import ReactDOM from 'react-dom';
 import { connect } from 'react-redux';
+import Portal from 'react-portal';
 
 import IdentityIcon from '~/ui/IdentityIcon';
 import InputAddress from '~/ui/Form/InputAddress';
@@ -30,6 +31,7 @@ class AddressSelector extends Component {
     onChange: PropTypes.func.isRequired,
 
     // Redux props
+    accountsInfo: PropTypes.object,
     accounts: PropTypes.object,
     balances: PropTypes.object,
     contacts: PropTypes.object,
@@ -53,7 +55,8 @@ class AddressSelector extends Component {
   state = {
     values: [],
     expanded: false,
-    top: 0
+    top: 0,
+    left: 0
   };
 
   componentDidMount () {
@@ -85,56 +88,64 @@ class AddressSelector extends Component {
   }
 
   render () {
-    const { expanded, top } = this.state;
-
-    const content = this.renderInput();
-    const containerClasses = [ styles.container ];
-    const mainClasses = [ styles.main ];
-
-    if (expanded) {
-      containerClasses.push(styles.expanded);
-    }
+    const input = this.renderInput();
+    const content = this.renderContent();
 
     return (
-      <div className={ mainClasses.join(' ') } ref='main'>
-        <div
-          style={ { top } }
-          className={ containerClasses.join(' ') }
-        >
-          { content }
-        </div>
+      <div className={ styles.main } ref='main'>
+        { input }
+        { content }
       </div>
     );
   }
 
   renderInput () {
-    const { disabled, error, hint, label, value } = this.props;
+    const { accountsInfo, disabled, error, hint, label, value } = this.props;
 
     return (
-      <div className={ styles.inputContainer }>
-        <input
-          className={ styles.input }
-          placeholder={ hint }
-
-          onBlur={ this.handleBlur }
-          onChange={ this.handleChange }
-
-          ref={ this.setInputRef }
+      <div className={ styles.inputAddress }>
+        <InputAddress
+          accountsInfo={ accountsInfo }
+          disabled={ disabled }
+          error={ error }
+          label={ label }
+          hint={ hint }
+          onClick={ this.handleFocus }
+          value={ value }
+          text
         />
-
-        <div className={ styles.inputAddress }>
-          <InputAddress
-            disabled={ disabled }
-            error={ error }
-            label={ label }
-            hint={ hint }
-            onClick={ this.handleFocus }
-            value={ value }
-          />
-        </div>
-
-        { this.renderAccounts() }
       </div>
+    );
+  }
+
+  renderContent () {
+    const { hint } = this.props;
+    const { expanded, top, left } = this.state;
+
+    const classes = [ styles.overlay ];
+
+    if (expanded) {
+      classes.push(styles.expanded);
+    }
+
+    return (
+      <Portal isOpened>
+        <div className={ classes.join(' ') } style={ { top, left } }>
+          <div className={ styles.inputContainer }>
+            <input
+              className={ styles.input }
+              placeholder={ hint }
+
+              onBlur={ this.handleBlur }
+              onChange={ this.handleChange }
+
+              ref={ this.setInputRef }
+            />
+
+            { this.renderAccounts() }
+          </div>
+        </div>
+      </Portal>
     );
   }
 
@@ -142,7 +153,7 @@ class AddressSelector extends Component {
     const { expanded, values } = this.state;
 
     if (!expanded) {
-      return null;
+      // return null;
     }
 
     if (values.length === 0) {
@@ -244,17 +255,20 @@ class AddressSelector extends Component {
   }
 
   handleClick = (address) => {
+    const { top, left } = this.refs.main.getBoundingClientRect();
     this.props.onChange(null, address);
-    this.setState({ expanded: false, top: 0 });
+
+    this.setState({ top, left, expanded: false });
   }
 
   handleFocus = () => {
-    setTimeout(() => {
-      ReactDOM.findDOMNode(this.inputRef).focus();
-    }, 500);
+    const { top, left } = this.refs.main.getBoundingClientRect();
 
-    const { top } = this.refs.main.getBoundingClientRect();
-    this.setState({ expanded: true, top: -1 * top });
+    this.setState({ top, left }, () => {
+      this.setState({ expanded: true, top: 0, left: 0 }, () => {
+        ReactDOM.findDOMNode(this.inputRef).focus();
+      });
+    });
   }
 
   handleBlur = () => {
@@ -277,12 +291,14 @@ class AddressSelector extends Component {
 
 function mapStateToProps (state) {
   // const { accounts, contacts, contracts } = state.personal;
+  const { accountsInfo } = state.personal;
   const { balances } = state.balances;
 
   return {
     // accounts,
     // contacts,
     // contracts,
+    accountsInfo,
     balances
   };
 }
