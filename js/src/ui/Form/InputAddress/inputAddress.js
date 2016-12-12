@@ -18,29 +18,31 @@ import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
-import Input from '../Input';
-import IdentityIcon from '../../IdentityIcon';
 import util from '~/api/util';
+import { nodeOrStringProptype } from '~/util/proptypes';
+
+import IdentityIcon from '../../IdentityIcon';
+import Input from '../Input';
 
 import styles from './inputAddress.css';
 
 class InputAddress extends Component {
   static propTypes = {
+    accountsInfo: PropTypes.object,
+    allowCopy: PropTypes.bool,
     className: PropTypes.string,
     disabled: PropTypes.bool,
     error: PropTypes.string,
-    label: PropTypes.string,
-    hint: PropTypes.string,
-    value: PropTypes.string,
-    accountsInfo: PropTypes.object,
-    tokens: PropTypes.object,
-    text: PropTypes.bool,
+    hideUnderline: PropTypes.bool,
+    hint: nodeOrStringProptype(),
+    label: nodeOrStringProptype(),
     onChange: PropTypes.func,
     onClick: PropTypes.func,
     onSubmit: PropTypes.func,
-    hideUnderline: PropTypes.bool,
-    allowCopy: PropTypes.bool,
-    small: PropTypes.bool
+    small: PropTypes.bool,
+    text: PropTypes.bool,
+    tokens: PropTypes.object,
+    value: PropTypes.string
   };
 
   static defaultProps = {
@@ -69,18 +71,21 @@ class InputAddress extends Component {
     return (
       <div className={ containerClasses.join(' ') }>
         <Input
+          allowCopy={ allowCopy && (disabled ? value : false) }
           className={ classes.join(' ') }
           disabled={ disabled }
-          label={ label }
-          hint={ hint }
           error={ error }
-          value={ text && account ? account.name : value }
+          hideUnderline={ hideUnderline }
+          hint={ hint }
+          label={ label }
           onChange={ this.handleInputChange }
           onClick={ onClick }
           onSubmit={ onSubmit }
-          allowCopy={ allowCopy && (disabled ? value : false) }
-          hideUnderline={ hideUnderline }
-        />
+          value={
+            text && account
+              ? account.name
+              : value
+          } />
         { icon }
       </div>
     );
@@ -130,8 +135,8 @@ class InputAddress extends Component {
 }
 
 function mapStateToProps (state) {
-  const { accountsInfo } = state.personal;
   const { tokens } = state.balances;
+  const { accountsInfo } = state.personal;
 
   return {
     accountsInfo,

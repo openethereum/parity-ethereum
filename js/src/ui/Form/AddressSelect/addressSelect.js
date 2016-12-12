@@ -16,6 +16,7 @@
 
 import React, { Component, PropTypes } from 'react';
 import { MenuItem } from 'material-ui';
+import { isEqual, pick } from 'lodash';
 
 import AutoComplete from '../AutoComplete';
 import IdentityIcon from '../../IdentityIcon';
@@ -42,19 +43,20 @@ class OldAddressSelect extends Component {
   }
 
   static propTypes = {
-    disabled: PropTypes.bool,
+    onChange: PropTypes.func.isRequired,
+
     accounts: PropTypes.object,
+    allowInput: PropTypes.bool,
+    balances: PropTypes.object,
     contacts: PropTypes.object,
     contracts: PropTypes.object,
-    wallets: PropTypes.object,
-    label: PropTypes.string,
-    hint: PropTypes.string,
+    disabled: PropTypes.bool,
     error: PropTypes.string,
-    value: PropTypes.string,
+    hint: PropTypes.string,
+    label: PropTypes.string,
     tokens: PropTypes.object,
-    onChange: PropTypes.func.isRequired,
-    allowInput: PropTypes.bool,
-    balances: PropTypes.object
+    value: PropTypes.string,
+    wallets: PropTypes.object
   }
 
   state = {
@@ -63,6 +65,9 @@ class OldAddressSelect extends Component {
     addresses: [],
     value: ''
   }
+
+  // Cache autocomplete items
+  items = {}
 
   entriesFromProps (props = this.props) {
     const { accounts = {}, contacts = {}, contracts = {}, wallets = {} } = props;
@@ -85,6 +90,15 @@ class OldAddressSelect extends Component {
     };
 
     return { autocompleteEntries, entries };
+  }
+
+  shouldComponentUpdate (nextProps, nextState) {
+    const keys = [ 'error', 'value' ];
+
+    const prevValues = pick(this.props, keys);
+    const nextValues = pick(nextProps, keys);
+
+    return !isEqual(prevValues, nextValues);
   }
 
   componentWillMount () {
@@ -154,14 +168,21 @@ class OldAddressSelect extends Component {
   renderItem = (entry) => {
     const { address, name } = entry;
 
-    return {
-      text: name && name.toUpperCase() || address,
-      value: this.renderMenuItem(address),
-      address
-    };
+    const _balance = this.getBalance(address);
+    const balance = _balance ? _balance.toNumber() : _balance;
+
+    if (!this.items[address] || this.items[address].balance !== balance) {
+      this.items[address] = {
+        text: name && name.toUpperCase() || address,
+        value: this.renderMenuItem(address),
+        address, balance
+      };
+    }
+
+    return this.items[address];
   }
 
-  renderBalance (address) {
+  getBalance (address) {
     const { balances = {} } = this.props;
     const balance = balances[address];
 
@@ -175,7 +196,12 @@ class OldAddressSelect extends Component {
       return null;
     }
 
-    const value = fromWei(ethToken.value);
+    return ethToken.value;
+  }
+
+  renderBalance (address) {
+    const balance = this.getBalance(address);
+    const value = fromWei(balance);
 
     return (
       <div className={ styles.balance }>
