@@ -14,38 +14,34 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
 
-import { FirstRun, UpgradeParity } from '~/modals';
-import { Errors, ParityBackground, Tooltips } from '~/ui';
+import { Button, Modal } from '~/ui';
 
-import styles from '../application.css';
+import Store from './store';
 
-export default class Container extends Component {
+@observer
+export default class UpgradeParity extends Component {
   static contextTypes = {
-    muiTheme: PropTypes.object.isRequired
+    api: PropTypes.object.isRequired
   };
 
-  static propTypes = {
-    children: PropTypes.node.isRequired,
-    onCloseFirstRun: PropTypes.func,
-    showFirstRun: PropTypes.bool
-  };
+  store = new Store(this.context.api);
 
   render () {
-    const { muiTheme } = this.context;
-    const { children, onCloseFirstRun, showFirstRun } = this.props;
+    if (!this.store.showUpgrade) {
+      return null;
+    }
 
     return (
-      <ParityBackground className={ styles.container } muiTheme={ muiTheme }>
-        <FirstRun
-          onClose={ onCloseFirstRun }
-          visible={ showFirstRun } />
-        <Tooltips />
-        <UpgradeParity />
-        <Errors />
-        { children }
-      </ParityBackground>
+      <Modal
+        buttons={ [
+          <Button />
+        ] }
+        visible>
+        <div />
+      </Modal>
     );
   }
 }
