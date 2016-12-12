@@ -136,11 +136,11 @@ class AddressSelector extends Component {
       return input;
     }
 
+    // Could add `onFocus={ this.handleFocus }` if wanted
     return (
       <div
         className={ styles.inputAddress }
         onClick={ this.handleFocus }
-        onFocus={ this.handleFocus }
         onKeyDown={ this.handleInputAddresKeydown }
         ref='inputAddress'
         tabIndex={ 0 }
@@ -491,15 +491,21 @@ class AddressSelector extends Component {
   }
 
   handleClick = (address) => {
+    // Don't do anything if it's only text-selection
+    if (window.getSelection && window.getSelection().type === 'Range') {
+      return;
+    }
+
     this.props.onChange(null, address);
     this.handleClose();
   }
 
   handleFocus = () => {
-    if (this.closing) {
-      this.closing = false;
-      return;
-    }
+    // Uncomment if open OnFocus wanted
+    // if (this.closing) {
+    //   this.closing = false;
+    //   return;
+    // }
 
     const { top, left } = this.refs.main.getBoundingClientRect();
 
