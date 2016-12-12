@@ -36,12 +36,35 @@ function render (props) {
     </ContextProvider>
   );
 
-  console.log(component.debug());
   return component;
 }
 
 describe.only('ui/Form/TypedInput', () => {
-  it('renders defaults', () => {
-    expect(render({ param: { type: ABI_TYPES.BOOL } })).to.be.ok;
+  describe('bool selection', () => {
+    beforeEach(() => {
+      render({ param: { type: ABI_TYPES.BOOL } });
+    });
+
+    it('renders', () => {
+      expect(component).to.be.ok;
+    });
+
+    it('calls onChange when value changes', () => {
+      component.find('DropDownMenu').simulate('change', { target: { value: 'true' } });
+
+      expect(onChange).to.have.been.called;
+    });
+
+    it("calls onChange(true) when value changes to 'true'", () => {
+      component.find('DropDownMenu').simulate('change', { target: { value: 'true' } });
+
+      expect(onChange).to.have.been.calledWith(true);
+    });
+
+    it("calls onChange(false) when value changes to 'false'", () => {
+      component.find('DropDownMenu').simulate('change', { target: { value: 'false' } });
+
+      expect(onChange).to.have.been.calledWith(false);
+    });
   });
 });
