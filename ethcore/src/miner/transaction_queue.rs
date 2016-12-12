@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -79,8 +79,10 @@
 //!		  we check if the transactions should go to `current` (comparing state nonce)
 //!		- When it's removed from `current` - all transactions from this sender (`current` & `future`) are recalculated.
 //!	3. `remove_all` is used to inform the queue about client (state) nonce changes.
-//!      - It removes all transactions (either from `current` or `future`) with nonce < client nonce
-//!      - It moves matching `future` transactions to `current`
+//!     - It removes all transactions (either from `current` or `future`) with nonce < client nonce
+//!     - It moves matching `future` transactions to `current`
+//! 4. `remove_old` is used as convenient method to update the state nonce for all senders in the queue.
+//!		- Invokes `remove_all` with latest state nonce for all senders.
 
 use std::ops::Deref;
 use std::cmp::Ordering;
@@ -752,6 +754,26 @@ impl TransactionQueue {
 	/// Removes all transactions from particular sender up to (excluding) given client (state) nonce.
 	/// Client (State) Nonce = next valid nonce for this sender.
 	pub fn remove_all(&mut self, sender: Address, client_nonce: U256) {
+		// Check if there is anything in current...
+		let should_check_in_current = self.current.by_address.row(&sender)
+			// If nonce == client_nonce nothing is changed
+			.and_then(|by_nonce| by_nonce.keys().find(|nonce| *nonce < &client_nonce))
+			.map(|_| ());
+		// ... or future
+		let should_check_in_future = self.future.by_address.row(&sender)
+			// if nonce == client_nonce we need to promote to current
+			.and_then(|by_nonce| by_nonce.keys().find(|nonce| *nonce <= &client_nonce))
+			.map(|_| ());
+
+		if should_check_in_current.or(should_check_in_future).is_none() {
+			return;
+		}
+
+		self.remove_all_internal(sender, client_nonce);
+	}
+
+	/// Always updates future and moves transactions from current to future.
+	fn remove_all_internal(&mut self, sender: Address, client_nonce: U256) {
 		// We will either move transaction to future or remove it completely
 		// so there will be no transactions from this sender in current
 		self.last_nonces.remove(&sender);
@@ -763,6 +785,20 @@ impl TransactionQueue {
 		// that should be placed in current. It should also update last_nonces.
 		self.move_matching_future_to_current(sender, client_nonce, client_nonce);
 		assert_eq!(self.future.by_priority.len() + self.current.by_priority.len(), self.by_hash.len());
+	}
+
+	/// Checks the current nonce for all transactions' senders in the queue and removes the old transactions.
+	pub fn remove_old<F>(&mut self, fetch_nonce: F) where
+		F: Fn(&Address) -> U256,
+	{
+		let senders = self.current.by_address.keys()
+			.chain(self.future.by_address.keys())
+			.cloned()
+			.collect::<HashSet<_>>();
+
+		for sender in senders {
+			self.remove_all(sender, fetch_nonce(&sender));
+		}
 	}
 
 	/// Penalize transactions from sender of transaction with given hash.
@@ -847,7 +883,7 @@ impl TransactionQueue {
 		if order.is_some() {
 			// This will keep consistency in queue
 			// Moves all to future and then promotes a batch from current:
-			self.remove_all(sender, current_nonce);
+			self.remove_all_internal(sender, current_nonce);
 			assert_eq!(self.future.by_priority.len() + self.current.by_priority.len(), self.by_hash.len());
 			return;
 		}
@@ -2438,7 +2474,7 @@ mod test {
 	}
 
 	#[test]
-	fn should_reject_transactions_below_bas_gas() {
+	fn should_reject_transactions_below_base_gas() {
 		// given
 		let mut txq = TransactionQueue::default();
 		let (tx1, tx2) = new_tx_pair_default(1.into(), 0.into());
@@ -2455,6 +2491,28 @@ mod test {
 			got: 100_000.into(),
 		});
 
+	}
+
+	#[test]
+	fn should_clear_all_old_transactions() {
+		// given
+		let mut txq = TransactionQueue::default();
+		let (tx1, tx2) = new_tx_pair_default(1.into(), 0.into());
+		let (tx3, tx4) = new_tx_pair_default(1.into(), 0.into());
+		let nonce1 = tx1.nonce;
+
+		// Insert all transactions
+		txq.add(tx1, TransactionOrigin::External, &default_account_details, &gas_estimator).unwrap();
+		txq.add(tx2, TransactionOrigin::External, &default_account_details, &gas_estimator).unwrap();
+		txq.add(tx3, TransactionOrigin::External, &default_account_details, &gas_estimator).unwrap();
+		txq.add(tx4, TransactionOrigin::External, &default_account_details, &gas_estimator).unwrap();
+		assert_eq!(txq.top_transactions().len(), 4);
+
+		// when
+		txq.remove_old(|_| nonce1 + U256::one());
+
+		// then
+		assert_eq!(txq.top_transactions().len(), 2);
 	}
 
 }

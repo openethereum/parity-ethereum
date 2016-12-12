@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -29,6 +29,8 @@ import FrameError from './FrameError';
 import Status from './Status';
 import Store from './store';
 import TabBar from './TabBar';
+
+import styles from './application.css';
 
 const inFrame = window.parent !== window && window.parent.frames.length !== 0;
 
@@ -79,7 +81,9 @@ class Application extends Component {
           netChain={ netChain }
           isTest={ isTest }
           pending={ pending } />
-        { children }
+        <div className={ styles.content }>
+          { children }
+        </div>
         { blockNumber ? (<Status />) : null }
         <Snackbar />
       </Container>

@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -21,6 +21,12 @@
  */
 /* eslint-disable */
 var ace = window.ace;
+
+if (process.env.NODE_ENV === 'test') {
+  if (!ace.define) {
+    ace.define = () => {};
+  }
+}
 
 ace.define("ace/mode/doc_comment_highlight_rules",["require","exports","module","ace/lib/oop","ace/mode/text_highlight_rules"], function(acequire, exports, module) {
 "use strict";

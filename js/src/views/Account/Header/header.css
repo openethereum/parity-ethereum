@@ -31,6 +31,10 @@
 .infoline,
 .uuidline {
   line-height: 1.618em;
+
+  &.bigaddress {
+    font-size: 1.25em;
+  }
 }
 
 .infoline,

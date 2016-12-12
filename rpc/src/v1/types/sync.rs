@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -157,7 +157,7 @@ impl From<SyncTransactionStats> for TransactionStats {
 			propagated_to: s.propagated_to
 				.into_iter()
 				.map(|(id, count)| (id.into(), count))
-				.collect()
+				.collect(),
 		}
 	}
 }
@@ -208,7 +208,7 @@ mod tests {
 			first_seen: 100,
 			propagated_to: map![
 				10.into() => 50
-			]
+			],
 		};
 
 		let serialized = serde_json::to_string(&stats).unwrap();

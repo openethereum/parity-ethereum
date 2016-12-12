@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -17,14 +17,14 @@
 //! Eth rpc interface.
 
 use v1::helpers::auto_args::{WrapAsync, Ready};
-use v1::types::{H160, H256, H520, TransactionRequest, RichRawTransaction};
+use v1::types::{Bytes, H160, H256, H520, TransactionRequest, RichRawTransaction};
 
 build_rpc_trait! {
 	/// Signing methods implementation relying on unlocked accounts.
 	pub trait EthSigning {
-		/// Signs the data with given address signature.
+		/// Signs the hash of data with given address signature.
 		#[rpc(async, name = "eth_sign")]
-		fn sign(&self, Ready<H520>, H160, H256);
+		fn sign(&self, Ready<H520>, H160, Bytes);
 
 		/// Sends transaction; will block waiting for signer to return the
 		/// transaction hash.

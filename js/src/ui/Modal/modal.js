@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -42,11 +42,11 @@ class Modal extends Component {
     className: PropTypes.string,
     compact: PropTypes.bool,
     current: PropTypes.number,
-    waiting: PropTypes.array,
+    settings: PropTypes.object.isRequired,
     steps: PropTypes.array,
     title: nodeOrStringProptype(),
     visible: PropTypes.bool.isRequired,
-    settings: PropTypes.object.isRequired
+    waiting: PropTypes.array
   }
 
   render () {
@@ -55,23 +55,23 @@ class Modal extends Component {
     const contentStyle = muiTheme.parity.getBackgroundStyle(null, settings.backgroundSeed);
     const header = (
       <Title
-        current={ current }
         busy={ busy }
-        waiting={ waiting }
+        current={ current }
         steps={ steps }
-        title={ title } />
+        title={ title }
+        waiting={ waiting } />
     );
     const classes = `${styles.dialog} ${className}`;
 
     return (
       <Dialog
-        className={ classes }
         actions={ actions }
+        actionsContainerClassName={ styles.actions }
         actionsContainerStyle={ ACTIONS_STYLE }
         autoDetectWindowHeight={ false }
         autoScrollBodyContent
-        actionsContainerClassName={ styles.actions }
         bodyClassName={ styles.body }
+        className={ classes }
         contentClassName={ styles.content }
         contentStyle={ contentStyle }
         modal
@@ -82,7 +82,12 @@ class Modal extends Component {
         style={ DIALOG_STYLE }
         title={ header }
         titleStyle={ TITLE_STYLE }>
-        <Container light compact={ compact } style={ { transition: 'none' } }>
+        <Container
+          compact={ compact }
+          light
+          style={
+            { transition: 'none' }
+          }>
           { children }
         </Container>
       </Dialog>

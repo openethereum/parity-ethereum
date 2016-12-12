@@ -1,7 +1,7 @@
 [project]
 name = "ethcore-bloom-journal"
 version = "0.1.0"
-authors = ["Ethcore<admin@ethcore.io>"]
+authors = ["Parity Technologies <admin@parity.io>"]
 description = "Journaling bloom filter"
 license = "GPL3"
 

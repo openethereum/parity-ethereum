@@ -3,7 +3,7 @@ description = "Recursive-length prefix encoding, decoding, and compression"
 license = "GPL-3.0"
 name = "rlp"
 version = "0.1.0"
-authors = ["Ethcore <admin@ethcore.io>"]
+authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
 elastic-array = { git = "https://github.com/ethcore/elastic-array" }

@@ -1,10 +1,10 @@
 [package]
 description = "Rust bindings for tinykeccak C library"
-homepage = "http://ethcore.io"
+homepage = "http://parity.io"
 license = "GPL-3.0"
 name = "sha3"
 version = "0.1.0"
-authors = ["Ethcore <admin@ethcore.io>"]
+authors = ["Parity Technologies <admin@parity.io>"]
 build = "build.rs"
 
 [build-dependencies]

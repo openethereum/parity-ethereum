@@ -14,7 +14,11 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { mockget, mockpost, shapeshift } from './helpers.spec.js';
+const helpers = require('./helpers.spec.js');
+
+const mockget = helpers.mockget;
+const mockpost = helpers.mockpost;
+const shapeshift = helpers.shapeshift;
 
 describe('shapeshift/calls', () => {
   describe('getCoins', () => {
