@@ -57,22 +57,17 @@ class AddressSelector extends Component {
 
   state = {
     inputValue: '',
+    indexes: [],
     values: [],
     expanded: false,
     top: 0,
-    left: 0
+    left: 0,
+    focusedItem: null,
+    focusedCat: null
   };
 
   componentWillMount () {
-    const { accounts = {}, contracts = {}, contacts = {} } = this.props;
-
-    this.values = [].concat(
-      Object.values(accounts).map((a) => { a.type = 'account'; return a; }),
-      Object.values(contracts).map((a) => { a.type = 'contract'; return a; }),
-      Object.values(contacts).map((a) => { a.type = 'contact'; return a; })
-    ).filter((a) => a);
-
-    this.setState({ values: this.values });
+    this.setValues();
   }
 
   componentWillReceiveProps (nextProps) {
@@ -80,15 +75,24 @@ class AddressSelector extends Component {
       return;
     }
 
-    const { accounts = {}, contracts = {}, contacts = {} } = nextProps;
+    this.setValues(nextProps);
+  }
+
+  setValues (props = this.props) {
+    const { accounts = {}, contracts = {}, contacts = {} } = props;
 
     this.values = [].concat(
-      Object.values(accounts).map((a) => { a.type = 'account'; return a; }),
-      Object.values(contracts).map((a) => { a.type = 'contract'; return a; }),
-      Object.values(contacts).map((a) => { a.type = 'contact'; return a; })
+      Object.values(accounts)
+        .map((a, idx) => { a.type = 'account'; a.cat = 0; a.index = idx; return a; }),
+      Object.values(contacts)
+        .map((a, idx) => { a.type = 'contact'; a.cat = 1; a.index = idx; return a; }),
+      Object.values(contracts)
+        .map((a, idx) => { a.type = 'contract'; a.cat = 2; a.index = idx; return a; })
     );
 
-    this.setState({ values: this.values });
+    this.setState({ values: this.values }, () => {
+      this.handleChange(null);
+    });
   }
 
   render () {
@@ -172,7 +176,7 @@ class AddressSelector extends Component {
 
     return (
       <div>
-        { this.renderAccountCard(inputValue) }
+        { this.renderAccountCard({ address: inputValue }) }
       </div>
     );
   }
@@ -231,7 +235,7 @@ class AddressSelector extends Component {
     }
 
     const cards = values
-      .map((account) => this.renderAccountCard(account.address));
+      .map((account) => this.renderAccountCard(account));
 
     return (
       <div className={ styles.category } key={ name }>
@@ -243,7 +247,9 @@ class AddressSelector extends Component {
     );
   }
 
-  renderAccountCard (address) {
+  renderAccountCard (_account) {
+    const { address, index = null, cat = null } = _account;
+
     const account = this.props.accountsInfo[address];
     const name = (account && account.name && account.name.toUpperCase()) || address;
     const balance = this.renderBalance(address);
@@ -252,6 +258,8 @@ class AddressSelector extends Component {
       this.handleClick(address);
     };
 
+    const classes = [ styles.account ];
+
     const addressElements = name !== address
       ? (
         <div className={ styles.address }>{ address }</div>
@@ -259,7 +267,13 @@ class AddressSelector extends Component {
       : null;
 
     return (
-      <div key={ address } className={ styles.account } onClick={ onClick }>
+      <div
+        key={ address }
+        ref={ `account_${cat}_${index}` }
+        tabIndex={ index }
+        className={ classes.join(' ') }
+        onClick={ onClick }
+      >
         <IdentityIcon address={ address } />
         <div className={ styles.accountInfo }>
           <div className={ styles.accountName }>{ name }</div>
@@ -301,9 +315,80 @@ class AddressSelector extends Component {
   }
 
   handleKeyDown = (event) => {
-    switch (keycode(event)) {
+    const code = keycode(event);
+    const { focusedItem, indexes } = this.state;
+
+    const firstCat = indexes.findIndex((a) => a && a.length > 0);
+    let focusedCat = this.state.focusedCat === null ? firstCat : this.state.focusedCat;
+    if (!indexes[focusedCat].find((a) => a)) {
+      focusedCat = firstCat;
+    }
+
+    const catIndexes = indexes[focusedCat];
+
+    let nextIndex;
+    let nextCat;
+
+    switch (code) {
       case 'esc':
         return this.handleClose();
+
+      case 'right':
+        if (focusedCat >= indexes.length - 1) {
+          return;
+        }
+
+        nextCat = focusedCat + 1;
+        nextIndex = Math.min(indexes[nextCat].length - 1, focusedItem);
+        return this.setState({ focusedItem: nextIndex, focusedCat: nextCat }, () => {
+          ReactDOM.findDOMNode(this.refs[`account_${nextCat}_${nextIndex}`]).focus();
+        });
+
+      case 'left':
+        if (focusedCat <= 0) {
+          return;
+        }
+
+        nextCat = focusedCat - 1;
+        nextIndex = Math.min(indexes[nextCat].length - 1, focusedItem);
+        return this.setState({ focusedItem: nextIndex, focusedCat: nextCat }, () => {
+          ReactDOM.findDOMNode(this.refs[`account_${nextCat}_${nextIndex}`]).focus();
+        });
+
+      case 'down':
+        if (focusedItem === null) {
+          nextIndex = catIndexes[focusedCat];
+        } else {
+          const lastIndex = catIndexes.indexOf(focusedItem);
+          nextIndex = lastIndex >= catIndexes.length - 1 ? focusedItem : catIndexes[lastIndex + 1];
+        }
+
+        return this.setState({ focusedItem: nextIndex }, () => {
+          ReactDOM.findDOMNode(this.refs[`account_${focusedCat}_${nextIndex}`]).focus();
+        });
+
+      case 'up':
+        if (focusedItem === null && focusedCat === null) {
+          return;
+        }
+
+        const lastIndex = catIndexes.indexOf(focusedItem);
+
+        if (lastIndex <= 0) {
+          return this.setState({ focusedItem: null, focusedCat: null }, () => {
+            return ReactDOM.findDOMNode(this.inputRef).focus();
+          });
+        }
+
+        nextIndex = catIndexes[lastIndex - 1];
+
+        return this.setState({ focusedItem: nextIndex }, () => {
+          ReactDOM.findDOMNode(this.refs[`account_${focusedCat}_${nextIndex}`]).focus();
+        });
+
+      case 'enter':
+        const account = this.values.find((a) => a.index === focusedItem && a.cat === focusedCat);
+        return this.handleClick(account && account.address);
     }
   }
 
@@ -315,7 +400,7 @@ class AddressSelector extends Component {
   handleFocus = () => {
     const { top, left } = this.refs.main.getBoundingClientRect();
 
-    this.setState({ top, left, expanded: true }, () => {
+    this.setState({ top, left, expanded: true, focusedItem: null, focusedCat: null }, () => {
       this.setState({ top: 0, left: 0 }, () => {
         window.setTimeout(() => {
           ReactDOM.findDOMNode(this.inputRef).focus();
@@ -334,16 +419,26 @@ class AddressSelector extends Component {
   }
 
   handleChange = (event) => {
-    const { value } = event.target;
+    const { value = '' } = event && event.target || {};
+    const indexes = [];
 
-    const values = this.values.filter((account) => {
-      const address = account.address.toLowerCase();
-      const name = (account.name || address).toLowerCase();
+    const values = this.values
+      .filter((account) => {
+        const address = account.address.toLowerCase();
+        const name = (account.name || address).toLowerCase();
 
-      return address.includes(value) || name.includes(value);
-    });
+        return address.includes(value) || name.includes(value);
+      })
+      .map((a, idx) => {
+        if (!indexes[a.cat]) {
+          indexes[a.cat] = [];
+        }
 
-    this.setState({ values, inputValue: value });
+        indexes[a.cat].push(a.index);
+        return a;
+      });
+
+    this.setState({ values, inputValue: value, indexes, focusedItem: null, focusedCat: null });
   }
 }
 
