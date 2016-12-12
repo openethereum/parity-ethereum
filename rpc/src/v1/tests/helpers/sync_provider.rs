@@ -105,13 +105,13 @@ impl SyncProvider for TestSyncProvider {
 				first_seen: 10,
 				propagated_to: map![
 					128.into() => 16
-				]
+				],
 			},
 			5.into() => TransactionStats {
 				first_seen: 16,
 				propagated_to: map![
 					16.into() => 1
-				]
+				],
 			}
 		]
 	}

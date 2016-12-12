@@ -200,7 +200,7 @@ pub trait BlockChainClient : Sync + Send {
 	fn last_hashes(&self) -> LastHashes;
 
 	/// Queue transactions for importing.
-	fn queue_transactions(&self, transactions: Vec<Bytes>);
+	fn queue_transactions(&self, transactions: Vec<Bytes>, peer_id: usize);
 
 	/// list all transactions
 	fn pending_transactions(&self) -> Vec<SignedTransaction>;
@@ -294,7 +294,7 @@ pub trait ProvingBlockChainClient: BlockChainClient {
 	/// The key is the keccak hash of the account's address.
 	/// Returns a vector of raw trie nodes (in order from the root) proving the query.
 	/// Nodes after `from_level` may be omitted.
-	/// An empty vector indicates unservable query.	
+	/// An empty vector indicates unservable query.
 	fn prove_account(&self, key1: H256, from_level: u32, id: BlockId) -> Vec<Bytes>;
 
 	/// Get code by address hash.
