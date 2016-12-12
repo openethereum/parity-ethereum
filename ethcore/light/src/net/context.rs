@@ -16,13 +16,13 @@
 
 //! I/O and event context generalizations.
 
-use network::{NetworkContext, PeerId};
+use network::{NetworkContext, PeerId, NodeId};
 
 use super::{Announcement, LightProtocol, ReqId};
 use super::error::Error;
 use request::Request;
 
-/// An I/O context which allows sending and receiving packets as well as 
+/// An I/O context which allows sending and receiving packets as well as
 /// disconnecting peers. This is used as a generalization of the portions
 /// of a p2p network which the light protocol structure makes use of.
 pub trait IoContext {
@@ -41,7 +41,11 @@ pub trait IoContext {
 
 	/// Get a peer's protocol version.
 	fn protocol_version(&self, peer: PeerId) -> Option<u8>;
+
+	/// Persistent peer id
+	fn persistent_peer_id(&self, peer: PeerId) -> Option<NodeId>;
 }
+
 
 impl<'a> IoContext for NetworkContext<'a> {
 	fn send(&self, peer: PeerId, packet_id: u8, packet_body: Vec<u8>) {
@@ -67,6 +71,10 @@ impl<'a> IoContext for NetworkContext<'a> {
 	fn protocol_version(&self, peer: PeerId) -> Option<u8> {
 		self.protocol_version(self.subprotocol_name(), peer)
 	}
+
+	fn persistent_peer_id(&self, peer: PeerId) -> Option<NodeId> {
+		self.session_info(peer).and_then(|info| info.id)
+	}
 }
 
 /// Context for a protocol event.
@@ -74,6 +82,9 @@ pub trait EventContext {
 	/// Get the peer relevant to the event e.g. message sender,
 	/// disconnected/connected peer.
 	fn peer(&self) -> PeerId;
+
+	/// Returns the relevant's peer persistent Id (aka NodeId).
+	fn persistent_peer_id(&self, peer: PeerId) -> Option<NodeId>;
 
 	/// Make a request from a peer.
 	fn request_from(&self, peer: PeerId, request: Request) -> Result<ReqId, Error>;
@@ -89,7 +100,7 @@ pub trait EventContext {
 	fn disable_peer(&self, peer: PeerId);
 }
 
-/// Concrete implementation of `EventContext` over the light protocol struct and 
+/// Concrete implementation of `EventContext` over the light protocol struct and
 /// an io context.
 pub struct Ctx<'a> {
 	/// Io context to enable immediate response to events.
@@ -97,11 +108,18 @@ pub struct Ctx<'a> {
 	/// Protocol implementation.
 	pub proto: &'a LightProtocol,
 	/// Relevant peer for event.
-	pub peer: PeerId, 
+	pub peer: PeerId,
 }
 
 impl<'a> EventContext for Ctx<'a> {
-	fn peer(&self) -> PeerId { self.peer }
+	fn peer(&self) -> PeerId {
+		self.peer
+	}
+
+	fn persistent_peer_id(&self, id: PeerId) -> Option<NodeId> {
+		self.io.persistent_peer_id(id)
+	}
+
 	fn request_from(&self, peer: PeerId, request: Request) -> Result<ReqId, Error> {
 		self.proto.request_from(self.io, &peer, request)
 	}
