@@ -14,22 +14,15 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import React, { Component, PropTypes } from 'react';
-import { Router } from 'react-router';
+const TEST_ADDR_A = '0x63Cf90D3f0410092FC0fca41846f596223979195';
+const TEST_ADDR_B = '0x00A40dEfa9933e82244bE542Fa7F8748eCCdd457';
 
-import routes from './routes';
-import styles from './reset.css';
+const TEST_CONTACTS = {
+  [TEST_ADDR_A]: { name: 'test', meta: {} }
+};
 
-export default class MainApplication extends Component {
-  static propTypes = {
-    routerHistory: PropTypes.any.isRequired
-  };
-
-  render () {
-    const { routerHistory } = this.props;
-
-    return (
-      <Router className={ styles.reset } history={ routerHistory } routes={ routes } />
-    );
-  }
-}
+export {
+  TEST_ADDR_A,
+  TEST_ADDR_B,
+  TEST_CONTACTS
+};
