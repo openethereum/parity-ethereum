@@ -48,7 +48,6 @@ class BaseTransaction extends Component {
         <IdentityIcon
           address={ transaction.from }
           />
-        0x{ transaction.nonce.toString(16) }
       </div>
     );
   }

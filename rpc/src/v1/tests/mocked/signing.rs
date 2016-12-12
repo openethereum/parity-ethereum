@@ -26,7 +26,7 @@ use v1::types::ConfirmationResponse;
 use v1::tests::helpers::TestMinerService;
 use v1::tests::mocked::parity;
 
-use util::{Address, FixedHash, Uint, U256, H256, ToPretty};
+use util::{Address, FixedHash, Uint, U256, ToPretty, Hashable};
 use ethcore::account_provider::AccountProvider;
 use ethcore::client::TestBlockChainClient;
 use ethcore::transaction::{Transaction, Action};
@@ -186,11 +186,11 @@ fn should_check_status_of_request_when_its_resolved() {
 fn should_sign_if_account_is_unlocked() {
 	// given
 	let tester = eth_signing();
-	let hash: H256 = 5.into();
+	let data = vec![5u8];
 	let acc = tester.accounts.new_account("test").unwrap();
 	tester.accounts.unlock_account_permanently(acc, "test".into()).unwrap();
 
-	let signature = tester.accounts.sign(acc, None, hash).unwrap();
+	let signature = tester.accounts.sign(acc, None, data.sha3()).unwrap();
 
 	// when
 	let request = r#"{
@@ -198,7 +198,7 @@ fn should_sign_if_account_is_unlocked() {
 		"method": "eth_sign",
 		"params": [
 			""#.to_owned() + format!("0x{:?}", acc).as_ref() + r#"",
-			""# + format!("0x{:?}", hash).as_ref() + r#""
+			""# + format!("0x{}", data.to_hex()).as_ref() + r#""
 		],
 		"id": 1
 	}"#;

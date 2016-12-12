@@ -112,7 +112,7 @@ mod tests {
 			propagated_to: hash_map![
 				enodeid1 => 2,
 				enodeid2 => 1
-			]
+			],
 		}));
 	}
 

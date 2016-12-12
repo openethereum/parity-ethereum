@@ -36,7 +36,7 @@ export default class Dapps extends Component {
     api: PropTypes.object.isRequired
   }
 
-  store = new DappsStore(this.context.api);
+  store = DappsStore.get(this.context.api);
 
   render () {
     let externalOverlay = null;

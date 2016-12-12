@@ -55,21 +55,21 @@ class Modal extends Component {
     const contentStyle = muiTheme.parity.getBackgroundStyle(null, settings.backgroundSeed);
     const header = (
       <Title
-        current={ current }
         busy={ busy }
-        waiting={ waiting }
+        current={ current }
         steps={ steps }
-        title={ title } />
+        title={ title }
+        waiting={ waiting } />
     );
     const classes = `${styles.dialog} ${className}`;
 
     return (
       <Dialog
         actions={ actions }
+        actionsContainerClassName={ styles.actions }
         actionsContainerStyle={ ACTIONS_STYLE }
         autoDetectWindowHeight={ false }
         autoScrollBodyContent
-        actionsContainerClassName={ styles.actions }
         bodyClassName={ styles.body }
         className={ classes }
         contentClassName={ styles.content }
@@ -82,7 +82,12 @@ class Modal extends Component {
         style={ DIALOG_STYLE }
         title={ header }
         titleStyle={ TITLE_STYLE }>
-        <Container light compact={ compact } style={ { transition: 'none' } }>
+        <Container
+          compact={ compact }
+          light
+          style={
+            { transition: 'none' }
+          }>
           { children }
         </Container>
       </Dialog>

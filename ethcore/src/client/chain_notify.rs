@@ -40,6 +40,14 @@ pub trait ChainNotify : Send + Sync {
 	fn stop(&self) {
 		// does nothing by default
 	}
+
+	/// fires when new transactions are received from a peer
+	fn transactions_received(&self,
+		_hashes: Vec<H256>,
+		_peer_id: usize,
+	) {
+		// does nothing by default
+	}
 }
 
 impl IpcConfig for ChainNotify { }
