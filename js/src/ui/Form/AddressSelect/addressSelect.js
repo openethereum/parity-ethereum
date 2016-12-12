@@ -20,12 +20,23 @@ import { MenuItem } from 'material-ui';
 import AutoComplete from '../AutoComplete';
 import IdentityIcon from '../../IdentityIcon';
 import IdentityName from '../../IdentityName';
+import AddressSelector from '~/ui/NewAddressSelector';
 
 import { fromWei } from '~/api/util/wei';
 
 import styles from './addressSelect.css';
 
 export default class AddressSelect extends Component {
+  render() {
+    return (
+      <AddressSelector
+        { ...this.props }
+      />
+    );
+  }
+}
+
+class OldAddressSelect extends Component {
   static contextTypes = {
     api: PropTypes.object.isRequired
   }

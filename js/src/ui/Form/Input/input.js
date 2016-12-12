@@ -56,6 +56,7 @@ export default class Input extends Component {
     multiLine: PropTypes.bool,
     onBlur: PropTypes.func,
     onChange: PropTypes.func,
+    onClick: PropTypes.func,
     onKeyDown: PropTypes.func,
     onSubmit: PropTypes.func,
     rows: PropTypes.number,
@@ -92,7 +93,7 @@ export default class Input extends Component {
   render () {
     const { value } = this.state;
     const { children, className, hideUnderline, disabled, error, label } = this.props;
-    const { hint, multiLine, rows, type, min, max, style } = this.props;
+    const { hint, onClick, multiLine, rows, type, min, max, style } = this.props;
 
     const readOnly = this.props.readOnly || disabled;
 
@@ -131,6 +132,7 @@ export default class Input extends Component {
 
           onBlur={ this.onBlur }
           onChange={ this.onChange }
+          onClick={ onClick }
           onKeyDown={ this.onKeyDown }
           onPaste={ this.onPaste }
 

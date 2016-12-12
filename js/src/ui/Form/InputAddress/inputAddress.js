@@ -36,6 +36,7 @@ class InputAddress extends Component {
     tokens: PropTypes.object,
     text: PropTypes.bool,
     onChange: PropTypes.func,
+    onClick: PropTypes.func,
     onSubmit: PropTypes.func,
     hideUnderline: PropTypes.bool,
     allowCopy: PropTypes.bool,
@@ -49,10 +50,10 @@ class InputAddress extends Component {
   };
 
   render () {
-    const { className, disabled, error, label, hint, value, text } = this.props;
-    const { small, allowCopy, hideUnderline, onSubmit, accountsInfo, tokens } = this.props;
+    const { accountsInfo, allowCopy, className, disabled, error, hint } = this.props;
+    const { hideUnderline, label, onClick, onSubmit, small, text, tokens, value } = this.props;
 
-    const account = accountsInfo[value] || tokens[value];
+    const account = value && (accountsInfo[value] || tokens[value]);
 
     const icon = this.renderIcon();
 
@@ -75,6 +76,7 @@ class InputAddress extends Component {
           error={ error }
           value={ text && account ? account.name : value }
           onChange={ this.handleInputChange }
+          onClick={ onClick }
           onSubmit={ onSubmit }
           allowCopy={ allowCopy && (disabled ? value : false) }
           hideUnderline={ hideUnderline }

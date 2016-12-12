@@ -40,6 +40,7 @@ import Loading from './Loading';
 import MethodDecoding from './MethodDecoding';
 import Modal, { Busy as BusyStep, Completed as CompletedStep } from './Modal';
 import muiTheme from './Theme';
+import NewAddressSelector from './NewAddressSelector';
 import Page from './Page';
 import ParityBackground from './ParityBackground';
 import ShortenedHash from './ShortenedHash';
@@ -86,6 +87,7 @@ export {
   BusyStep,
   CompletedStep,
   muiTheme,
+  NewAddressSelector,
   Page,
   ParityBackground,
   RadioButtons,
