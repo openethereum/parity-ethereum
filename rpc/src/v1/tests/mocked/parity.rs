@@ -106,7 +106,38 @@ fn rpc_parity_consensus_capability() {
 
 	let request = r#"{"jsonrpc": "2.0", "method": "parity_consensusCapability", "params": [], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":{"capableUntil":15100},"id":1}"#;
+	assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
 
+	deps.updater.set_current_block(15101);
+
+	let request = r#"{"jsonrpc": "2.0", "method": "parity_consensusCapability", "params": [], "id": 1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":{"incapableSince":15100},"id":1}"#;
+	assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
+
+	deps.updater.set_updated(true);
+
+	let request = r#"{"jsonrpc": "2.0", "method": "parity_consensusCapability", "params": [], "id": 1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":"capable","id":1}"#;
+	assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
+}
+
+#[test]
+fn rpc_parity_version_info() {
+	let deps = Dependencies::new();
+	let io = deps.default_client();
+
+	let request = r#"{"jsonrpc": "2.0", "method": "parity_versionInfo", "params": [], "id": 1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":{"hash":"0x0000000000000000000000000000000000000096","track":"beta","version":{"major":1,"minor":5,"patch":0}},"id":1}"#;
+	assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
+}
+
+#[test]
+fn rpc_parity_releases_info() {
+	let deps = Dependencies::new();
+	let io = deps.default_client();
+
+	let request = r#"{"jsonrpc": "2.0", "method": "parity_releasesInfo", "params": [], "id": 1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":{"fork":15100,"minor":null,"this_fork":15000,"track":{"binary":"0x00000000000000000000000000000000000000000000000000000000000005e6","fork":15100,"is_critical":true,"version":{"hash":"0x0000000000000000000000000000000000000097","track":"beta","version":{"major":1,"minor":5,"patch":1}}}},"id":1}"#;
 	assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
 }
 
@@ -210,12 +241,7 @@ fn rpc_parity_net_peers() {
 	let io = deps.default_client();
 
 	let request = r#"{"jsonrpc": "2.0", "method": "parity_netPeers", "params":[], "id": 1}"#;
-	let response = "{\"jsonrpc\":\"2.0\",\"result\":{\"active\":0,\"connected\":120,\"max\":50,\"peers\":[{\"caps\":[\"eth/62\",\"eth/63\"],\
-\"id\":\"node1\",\"name\":\"Parity/1\",\"network\":{\"localAddress\":\"127.0.0.1:8888\",\"remoteAddress\":\"127.0.0.1:7777\"}\
-,\"protocols\":{\"eth\":{\"difficulty\":\"0x28\",\"head\":\"0000000000000000000000000000000000000000000000000000000000000032\"\
-,\"version\":62}}},{\"caps\":[\"eth/63\",\"eth/64\"],\"id\":null,\"name\":\"Parity/2\",\"network\":{\"localAddress\":\
-\"127.0.0.1:3333\",\"remoteAddress\":\"Handshake\"},\"protocols\":{\"eth\":{\"difficulty\":null,\"head\":\
-\"000000000000000000000000000000000000000000000000000000000000003c\",\"version\":64}}}]},\"id\":1}";
+	let response = r#"{"jsonrpc":"2.0","result":{"active":0,"connected":120,"max":50,"peers":[{"caps":["eth/62","eth/63"],"id":"node1","name":"Parity/1","network":{"localAddress":"127.0.0.1:8888","remoteAddress":"127.0.0.1:7777"},"protocols":{"eth":{"difficulty":"0x28","head":"0000000000000000000000000000000000000000000000000000000000000032","version":62}}},{"caps":["eth/63","eth/64"],"id":null,"name":"Parity/2","network":{"localAddress":"127.0.0.1:3333","remoteAddress":"Handshake"},"protocols":{"eth":{"difficulty":null,"head":"000000000000000000000000000000000000000000000000000000000000003c","version":64}}}]},"id":1}"#;
 
 	assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
 }

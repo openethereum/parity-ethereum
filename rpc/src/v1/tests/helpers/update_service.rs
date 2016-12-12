@@ -32,6 +32,11 @@ impl TestUpdater {
 	pub fn set_current_block(&self, n: usize) {
 		self.current_block.store(n, Ordering::Relaxed);
 	}
+
+	/// Update the (faked) current block.
+	pub fn set_updated(&self, v: bool) {
+		self.updated.store(v, Ordering::Relaxed);
+	}
 }
 
 impl UpdateService for TestUpdater {

@@ -51,6 +51,44 @@ fn parity_set_client(client: &Arc<TestBlockChainClient>, miner: &Arc<TestMinerSe
 }
 
 #[test]
+fn rpc_parity_execute_upgrade() {
+	let miner = miner_service();
+	let client = client_service();
+	let network = network_service();
+	let updater = updater_service();
+	let io = IoHandler::new();
+	io.add_delegate(parity_set_client(&client, &miner, &updater, &network).to_delegate());
+
+	let request = r#"{"jsonrpc": "2.0", "method": "parity_executeUpgrade", "params": [], "id": 1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":true,"id":1}"#;
+	assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
+
+	let request = r#"{"jsonrpc": "2.0", "method": "parity_executeUpgrade", "params": [], "id": 1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":false,"id":1}"#;
+	assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
+}
+
+#[test]
+fn rpc_parity_upgrade_ready() {
+	let miner = miner_service();
+	let client = client_service();
+	let network = network_service();
+	let updater = updater_service();
+	let io = IoHandler::new();
+	io.add_delegate(parity_set_client(&client, &miner, &updater, &network).to_delegate());
+
+	let request = r#"{"jsonrpc": "2.0", "method": "parity_upgradeReady", "params": [], "id": 1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":{"binary":"0x00000000000000000000000000000000000000000000000000000000000005e6","fork":15100,"is_critical":true,"version":{"hash":"0x0000000000000000000000000000000000000097","track":"beta","version":{"major":1,"minor":5,"patch":1}}},"id":1}"#;
+	assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
+
+	updater.set_updated(true);
+
+	let request = r#"{"jsonrpc": "2.0", "method": "parity_upgradeReady", "params": [], "id": 1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":null,"id":1}"#;
+	assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
+}
+
+#[test]
 fn rpc_parity_set_min_gas_price() {
 	let miner = miner_service();
 	let client = client_service();

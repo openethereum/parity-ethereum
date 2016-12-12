@@ -50,12 +50,16 @@ impl Into<ConsensusCapability> for CapState {
 #[derive(Debug, PartialEq, Serialize)]
 pub enum ReleaseTrack {
 	/// Stable track.
+	#[serde(rename="stable")]
 	Stable,
 	/// Beta track.
+	#[serde(rename="beta")]
 	Beta,
 	/// Nightly track.
+	#[serde(rename="nightly")]
 	Nightly,
 	/// No known track.
+	#[serde(rename="null")]
 	Unknown,
 }
 
