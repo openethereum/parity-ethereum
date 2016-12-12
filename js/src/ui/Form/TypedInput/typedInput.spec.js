@@ -39,7 +39,7 @@ function render (props) {
   return component;
 }
 
-describe.only('ui/Form/TypedInput', () => {
+describe('ui/Form/TypedInput', () => {
   describe('bool selection', () => {
     beforeEach(() => {
       render({ param: { type: ABI_TYPES.BOOL } });
