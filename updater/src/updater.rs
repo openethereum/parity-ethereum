@@ -138,10 +138,10 @@ impl Updater {
 	fn collect_latest(&self) -> Result<OperationsInfo, String> {
 		if let Some(ref operations) = *self.operations.lock() {
 			let hh: H256 = self.this.hash.into();
-			info!("Looking up this_fork for our release: {}/{:?}", CLIENT_ID, hh);
+			info!(target: "updater", "Looking up this_fork for our release: {}/{:?}", CLIENT_ID, hh);
 			let this_fork = operations.release(CLIENT_ID, &self.this.hash.into()).ok()
 				.and_then(|(fork, track, _, _)| {
-					info!("Operations returned fork={}, track={}", fork as u64, track);				 
+					info!(target: "updater", "Operations returned fork={}, track={}", fork as u64, track);				 
 					if track > 0 {Some(fork as u64)} else {None}
 				});
 
@@ -190,11 +190,11 @@ impl Updater {
 				let mut s = self.state.lock();
 				let fetched = s.fetching.take().unwrap();
 				let b = result.map_err(|e| format!("Unable to fetch update ({}): {:?}", fetched.version, e))?;
-				info!("Fetched latest version ({}) OK to {}", fetched.version, b.display());
+				info!(target: "updater", "Fetched latest version ({}) OK to {}", fetched.version, b.display());
 				let dest = Self::updates_path(&Self::update_file_name(&fetched.version));
 				fs::create_dir_all(dest.parent().expect("at least one thing pushed; qed")).map_err(|e| format!("Unable to create updates path: {:?}", e))?;
 				fs::copy(&b, &dest).map_err(|e| format!("Unable to copy update: {:?}", e))?;
-				info!("Copied file to {}", dest.display());
+				info!(target: "updater", "Copied file to {}", dest.display());
 				let auto = match self.update_policy.filter {
 					UpdateFilter::All => true,
 					UpdateFilter::Critical if fetched.is_critical /* TODO: or is on a bad fork */ => true,
@@ -216,7 +216,7 @@ impl Updater {
 
 		if self.operations.lock().is_none() {
 			if let Some(ops_addr) = self.client.upgrade().and_then(|c| c.registry_address("operations".into())) {
-				trace!(target: "client", "Found operations at {}", ops_addr);
+				trace!(target: "updater", "Found operations at {}", ops_addr);
 				let client = self.client.clone();
 				*self.operations.lock() = Some(Operations::new(ops_addr, move |a, d| client.upgrade().ok_or("No client!".into()).and_then(|c| c.call_contract(a, d))));
 			} else {
@@ -246,7 +246,7 @@ impl Updater {
 			if self.update_policy.enable_downloading && !running_latest && !already_have_latest {
 				if let Some(b) = latest.track.binary {
 					if s.fetching.is_none() {
-						info!("Attempting to get parity binary {}", b);
+						info!(target: "updater", "Attempting to get parity binary {}", b);
 						s.fetching = Some(latest.track.clone());
 						let weak_self = self.weak_self.lock().clone();
 						let f = move |r: Result<PathBuf, fetch::Error>| if let Some(this) = weak_self.upgrade() { this.fetch_done(r) };
@@ -323,7 +323,7 @@ impl Service for Updater {
 				// TODO: creating then writing is a bit fragile. would be nice to make it atomic.
 				match fs::File::create(&n).and_then(|mut f| f.write_all(p.as_bytes())) {
 					Ok(_) => {
-						info!("Completed upgrade to {}", &r.version);
+						info!(target: "updater", "Completed upgrade to {}", &r.version);
 						s.installed = Some(r);
 						if let Some(ref h) = *self.exit_handler.lock() {
 							(*h)();
@@ -336,7 +336,7 @@ impl Service for Updater {
 					}
 				}
 			} else {
-				warn!("Execute upgrade called when no upgrade ready.");
+				warn!(target: "updater", "Execute upgrade called when no upgrade ready.");
 				Ok(false)
 			}
 		})().unwrap_or_else(|e| { warn!("{}", e); false })
