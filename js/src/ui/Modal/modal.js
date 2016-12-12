@@ -42,11 +42,11 @@ class Modal extends Component {
     className: PropTypes.string,
     compact: PropTypes.bool,
     current: PropTypes.number,
-    waiting: PropTypes.array,
+    settings: PropTypes.object.isRequired,
     steps: PropTypes.array,
     title: nodeOrStringProptype(),
     visible: PropTypes.bool.isRequired,
-    settings: PropTypes.object.isRequired
+    waiting: PropTypes.array
   }
 
   render () {
@@ -65,13 +65,13 @@ class Modal extends Component {
 
     return (
       <Dialog
-        className={ classes }
         actions={ actions }
         actionsContainerStyle={ ACTIONS_STYLE }
         autoDetectWindowHeight={ false }
         autoScrollBodyContent
         actionsContainerClassName={ styles.actions }
         bodyClassName={ styles.body }
+        className={ classes }
         contentClassName={ styles.content }
         contentStyle={ contentStyle }
         modal

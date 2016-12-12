@@ -16,10 +16,16 @@
 
 import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
+import { FormattedMessage } from 'react-intl';
 
 import { Button, Modal } from '~/ui';
+import { CancelIcon, DoneIcon, NextIcon, SnoozeIcon } from '~/ui/Icons';
 
-import Store from './store';
+import Info from './Info';
+import Updating from './Updating';
+
+import ModalStore, { STEP_COMPLETED, STEP_ERROR, STEP_INFO, STEP_UPDATING } from './modalStore';
+import UpgradeStore from './upgradeStore';
 
 @observer
 export default class UpgradeParity extends Component {
@@ -27,21 +33,84 @@ export default class UpgradeParity extends Component {
     api: PropTypes.object.isRequired
   };
 
-  store = new Store(this.context.api);
+  store = new ModalStore(new UpgradeStore(this.context.api));
 
   render () {
-    if (!this.store.showUpgrade) {
+    if (!this.store.upgrade.available || !this.store.showUpgrade) {
       return null;
     }
 
     return (
       <Modal
-        buttons={ [
-          <Button />
-        ] }
+        actions={ this.renderActions() }
         visible>
-        <div />
+        { this.renderStep() }
       </Modal>
     );
+  }
+
+  renderActions () {
+    const closeButton =
+      <Button
+        icon={ <CancelIcon /> }
+        label={
+          <FormattedMessage
+            id='upgradeParity.button.close'
+            defaultMessage='close' />
+        }
+        onClick={ this.store.closeModal } />;
+    const doneButton =
+      <Button
+        icon={ <DoneIcon /> }
+        label={
+          <FormattedMessage
+            id='upgradeParity.button.done'
+            defaultMessage='done' />
+        }
+        onClick={ this.store.closeModal } />;
+
+    switch (this.store.step) {
+      case STEP_INFO:
+        return [
+          <Button
+            icon={ <SnoozeIcon /> }
+            label={
+              <FormattedMessage
+                id='upgradeParity.button.snooze'
+                defaultMessage='ask me tomorrow' />
+            }
+            onClick={ this.store.snoozeTillTomorrow } />,
+          <Button
+            icon={ <NextIcon /> }
+            label={
+              <FormattedMessage
+                id='upgradeParity.button.upgrade'
+                defaultMessage='upgrade now' />
+            }
+            onClick={ this.store.upgradeNow } />,
+          closeButton
+        ];
+
+      case STEP_UPDATING:
+        return [
+          closeButton
+        ];
+
+      case STEP_COMPLETED:
+      case STEP_ERROR:
+        return [
+          doneButton
+        ];
+    }
+  }
+
+  renderStep () {
+    switch (this.store.step) {
+      case STEP_INFO:
+        return <Info store={ this.store } />;
+
+      case STEP_UPDATING:
+        return <Updating store={ this.store } />;
+    }
   }
 }
