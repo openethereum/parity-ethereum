@@ -250,6 +250,7 @@ impl<C> TestNet<C> where C: FlushingBlockChainClient {
 
 	pub fn sync_step(&mut self) {
 		for peer in 0..self.peers.len() {
+			self.peers[peer].chain.flush();
 			let packet = self.peers[peer].queue.write().pop_front();
 			if let Some(packet) = packet {
 				let disconnecting = {
@@ -258,6 +259,7 @@ impl<C> TestNet<C> where C: FlushingBlockChainClient {
 					let to_disconnect = {
 						let mut io = TestIo::new(&*p.chain, &p.snapshot_service, &p.queue, Some(peer as PeerId));
 						ChainSync::dispatch_packet(&p.sync, &mut io, peer as PeerId, packet.packet_id, &packet.data);
+						p.chain.flush();
 						io.to_disconnect.clone()
 					};
 					for d in &to_disconnect {

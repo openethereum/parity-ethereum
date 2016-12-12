@@ -1822,18 +1822,18 @@ impl ChainSync {
 	}
 
 	/// returns peer ids that have different blocks than our chain
-	fn get_lagging_peers(&mut self, chain_info: &BlockChainInfo, io: &SyncIo) -> Vec<PeerId> {
+	fn get_lagging_peers(&mut self, chain_info: &BlockChainInfo) -> Vec<PeerId> {
 		let latest_hash = chain_info.best_block_hash;
-		self.peers.iter_mut().filter_map(|(&id, ref mut peer_info)|
-			match io.chain().block_status(BlockId::Hash(peer_info.latest_hash.clone())) {
-				BlockStatus::InChain => {
-					if peer_info.latest_hash != latest_hash {
-						Some(id)
-					} else {
-						None
-					}
-				},
-				_ => None
+		self
+			.peers
+			.iter_mut()
+			.filter_map(|(&id, ref mut peer_info)| {
+				trace!(target: "sync", "Checking peer our best {} their best {}", latest_hash, peer_info.latest_hash);
+				if peer_info.latest_hash != latest_hash {
+					Some(id)
+				} else {
+					None
+				}
 			})
 			.collect::<Vec<_>>()
 	}
@@ -1980,7 +1980,7 @@ impl ChainSync {
 	fn propagate_latest_blocks(&mut self, io: &mut SyncIo, sealed: &[H256]) {
 		let chain_info = io.chain().chain_info();
 		if (((chain_info.best_block_number as i64) - (self.last_sent_block_number as i64)).abs() as BlockNumber) < MAX_PEER_LAG_PROPAGATION {
-			let mut peers = self.get_lagging_peers(&chain_info, io);
+			let mut peers = self.get_lagging_peers(&chain_info);
 			if sealed.is_empty() {
 				let hashes = self.propagate_new_hashes(&chain_info, io, &peers);
 				peers = ChainSync::select_random_peers(&peers);
@@ -2272,13 +2272,10 @@ mod tests {
 	fn finds_lagging_peers() {
 		let mut client = TestBlockChainClient::new();
 		client.add_blocks(100, EachBlockWith::Uncle);
-		let queue = RwLock::new(VecDeque::new());
 		let mut sync = dummy_sync_with_peer(client.block_hash_delta_minus(10), &client);
 		let chain_info = client.chain_info();
-		let ss = TestSnapshotService::new();
-		let io = TestIo::new(&mut client, &ss, &queue, None);
 
-		let lagging_peers = sync.get_lagging_peers(&chain_info, &io);
+		let lagging_peers = sync.get_lagging_peers(&chain_info);
 
 		assert_eq!(1, lagging_peers.len());
 	}
@@ -2310,7 +2307,7 @@ mod tests {
 		let ss = TestSnapshotService::new();
 		let mut io = TestIo::new(&mut client, &ss, &queue, None);
 
-		let peers = sync.get_lagging_peers(&chain_info, &io);
+		let peers = sync.get_lagging_peers(&chain_info);
 		let peer_count = sync.propagate_new_hashes(&chain_info, &mut io, &peers);
 
 		// 1 message should be send
@@ -2330,7 +2327,7 @@ mod tests {
 		let chain_info = client.chain_info();
 		let ss = TestSnapshotService::new();
 		let mut io = TestIo::new(&mut client, &ss, &queue, None);
-		let peers = sync.get_lagging_peers(&chain_info, &io);
+		let peers = sync.get_lagging_peers(&chain_info);
 		let peer_count = sync.propagate_blocks(&chain_info, &mut io, &[], &peers);
 
 		// 1 message should be send
@@ -2351,7 +2348,7 @@ mod tests {
 		let chain_info = client.chain_info();
 		let ss = TestSnapshotService::new();
 		let mut io = TestIo::new(&mut client, &ss, &queue, None);
-		let peers = sync.get_lagging_peers(&chain_info, &io);
+		let peers = sync.get_lagging_peers(&chain_info);
 		let peer_count = sync.propagate_blocks(&chain_info, &mut io, &[hash.clone()], &peers);
 
 		// 1 message should be send
@@ -2365,15 +2362,35 @@ mod tests {
 	#[test]
 	fn sends_proposed_block() {
 		let mut client = TestBlockChainClient::new();
-		client.add_blocks(100, EachBlockWith::Uncle);
+		client.add_blocks(2, EachBlockWith::Uncle);
 		let queue = RwLock::new(VecDeque::new());
 		let block = client.block(BlockId::Latest).unwrap();
-		let mut sync = dummy_sync_with_peer(client.block_hash(BlockId::Latest).unwrap(), &client);
+		let mut sync = ChainSync::new(SyncConfig::default(), &client);
+		sync.peers.insert(0,
+			PeerInfo {
+				// Messaging protocol
+				protocol_version: 2,
+				genesis: H256::zero(),
+				network_id: 0,
+				latest_hash: client.block_hash_delta_minus(1),
+				difficulty: None,
+				asking: PeerAsking::Nothing,
+				asking_blocks: Vec::new(),
+				asking_hash: None,
+				ask_time: 0,
+				last_sent_transactions: HashSet::new(),
+				expired: false,
+				confirmation: super::ForkConfirmation::Confirmed,
+				snapshot_number: None,
+				snapshot_hash: None,
+				asking_snapshot_data: None,
+				block_set: None,
+			});
 		let ss = TestSnapshotService::new();
 		let mut io = TestIo::new(&mut client, &ss, &queue, None);
 		sync.propagate_proposed_blocks(&mut io, &[block]);
 
-		// 1 message should be send
+		// 1 message should be sent
 		assert_eq!(1, io.packets.len());
 		// NEW_BLOCK_PACKET
 		assert_eq!(0x07, io.packets[0].packet_id);
@@ -2582,7 +2599,7 @@ mod tests {
 		let ss = TestSnapshotService::new();
 		let mut io = TestIo::new(&mut client, &ss, &queue, None);
 
-		let peers = sync.get_lagging_peers(&chain_info, &io);
+		let peers = sync.get_lagging_peers(&chain_info);
 		sync.propagate_new_hashes(&chain_info, &mut io, &peers);
 
 		let data = &io.packets[0].data.clone();
@@ -2602,7 +2619,7 @@ mod tests {
 		let ss = TestSnapshotService::new();
 		let mut io = TestIo::new(&mut client, &ss, &queue, None);
 
-		let peers = sync.get_lagging_peers(&chain_info, &io);
+		let peers = sync.get_lagging_peers(&chain_info);
 		sync.propagate_blocks(&chain_info, &mut io, &[], &peers);
 
 		let data = &io.packets[0].data.clone();

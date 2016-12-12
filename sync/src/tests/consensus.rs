@@ -115,8 +115,6 @@ fn authority_round() {
 
 #[test]
 fn tendermint() {
-	::env_logger::init().ok();
-
 	let s0 = KeyPair::from_secret("1".sha3()).unwrap();
 	let s1 = KeyPair::from_secret("0".sha3()).unwrap();
 	let spec_factory = || {
@@ -167,7 +165,6 @@ fn tendermint() {
 	net.sync();
 	assert_eq!(net.peer(0).chain.chain_info().best_block_number, 2);
 	assert_eq!(net.peer(1).chain.chain_info().best_block_number, 2);
-	println!("HEIGHT 2");
 
 	net.peer(0).chain.miner().import_own_transaction(&*net.peer(0).chain, new_tx(s0.secret(), 1.into())).unwrap();
 	net.peer(1).chain.miner().import_own_transaction(&*net.peer(1).chain, new_tx(s1.secret(), 1.into())).unwrap();
@@ -175,29 +172,21 @@ fn tendermint() {
 	// Commit
 	net.peer(0).chain.engine().step();
 	net.peer(1).chain.engine().step();
-	// Propose and Prevote
+	// Propose
 	net.peer(0).chain.engine().step();
 	net.peer(1).chain.engine().step();
-	// Negotiate through a None round.
-	println!("RECONNECT");
 net.peer(0).chain.miner().import_own_transaction(&*net.peer(0).chain, new_tx(s0.secret(), 2.into())).unwrap();
 		net.peer(1).chain.miner().import_own_transaction(&*net.peer(1).chain, new_tx(s1.secret(), 2.into())).unwrap();
-
-
+	// Send different prevotes
 	net.sync();
+	// Prevote timeout
 	net.peer(0).chain.engine().step();
 	net.peer(1).chain.engine().step();
+	// Precommit and commit
 	net.sync();
-	net.sync();
-	// Propose timeout.
-	println!("PROPOSE");
+	// Propose timeout
 	net.peer(0).chain.engine().step();
 	net.peer(1).chain.engine().step();
-	// Prevote, precommit and commit
-	net.sync();
-	net.peer(0).chain.engine().step();
-	net.peer(1).chain.engine().step();
-	::std::thread::sleep(::std::time::Duration::from_millis(1000));
 	net.sync();
 	let ci0 = net.peer(0).chain.chain_info();
 	let ci1 = net.peer(1).chain.chain_info();

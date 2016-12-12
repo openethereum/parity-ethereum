@@ -596,6 +596,7 @@ impl Engine for Tendermint {
 		let proposal = ConsensusMessage::new_proposal(header).expect("block went through full verification; this Engine verifies new_proposal creation; qed");
 		if signatures_len != 1 {
 			// New Commit received, skip to next height.
+			trace!(target: "poa", "Received a commit for height {}, round {}.", proposal.height, proposal.round);
 			self.to_next_height(proposal.height);
 			return false;
 		}
