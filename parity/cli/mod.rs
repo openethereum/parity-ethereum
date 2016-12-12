@@ -36,6 +36,8 @@ usage! {
 		cmd_ui: bool,
 		cmd_tools: bool,
 		cmd_hash: bool,
+		cmd_kill: bool,
+		cmd_db: bool,
 
 		// Arguments
 		arg_pid_file: String,
@@ -512,6 +514,8 @@ mod tests {
 			cmd_ui: false,
 			cmd_tools: false,
 			cmd_hash: false,
+			cmd_db: false,
+			cmd_kill: false,
 
 			// Arguments
 			arg_pid_file: "".into(),

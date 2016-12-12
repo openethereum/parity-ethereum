@@ -38,7 +38,7 @@ use dir::Directories;
 use dapps::Configuration as DappsConfiguration;
 use signer::{Configuration as SignerConfiguration};
 use run::RunCmd;
-use blockchain::{BlockchainCmd, ImportBlockchain, ExportBlockchain, ExportState, DataFormat};
+use blockchain::{BlockchainCmd, ImportBlockchain, ExportBlockchain, KillBlockchain, ExportState, DataFormat};
 use presale::ImportWallet;
 use account::{AccountCmd, NewAccount, ListAccounts, ImportAccounts, ImportFromGethAccounts};
 use snapshot::{self, SnapshotCommand};
@@ -107,6 +107,12 @@ impl Configuration {
 			Cmd::SignerToken(signer_conf)
 		} else if self.args.cmd_tools && self.args.cmd_hash {
 			Cmd::Hash(self.args.arg_file)
+		} else if self.args.cmd_db && self.args.cmd_kill {
+			Cmd::Blockchain(BlockchainCmd::Kill(KillBlockchain {
+				spec: spec,
+				dirs: dirs,
+				pruning: pruning,
+			}))
 		} else if self.args.cmd_account {
 			let account_cmd = if self.args.cmd_new {
 				let new_acc = NewAccount {
