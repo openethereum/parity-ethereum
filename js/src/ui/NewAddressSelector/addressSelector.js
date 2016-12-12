@@ -79,16 +79,24 @@ class AddressSelector extends Component {
   }
 
   setValues (props = this.props) {
-    const { accounts = {}, contracts = {}, contacts = {} } = props;
+    const { accounts = {}, contracts = {}, contacts = {}, wallets = {} } = props;
 
-    if (Object.keys(accounts).length + Object.keys(contracts).length + Object.keys(contacts).length === 0) {
+    const accountsN = Object.keys(accounts).length;
+    const contractsN = Object.keys(contracts).length;
+    const contactsN = Object.keys(contacts).length;
+    const walletsN = Object.keys(wallets).length;
+
+    if (accountsN + contractsN + contactsN + walletsN === 0) {
       return;
     }
 
     this.values = [
       {
         label: 'accounts',
-        values: Object.values(accounts)
+        values: [].concat(
+          Object.values(wallets),
+          Object.values(accounts)
+        )
       },
       {
         label: 'contacts',
@@ -603,7 +611,15 @@ class AddressSelector extends Component {
         }
 
         const name = account.name.toLowerCase();
-        return name.includes(filter);
+        const inName = name.includes(filter);
+        const { meta = {} } = account;
+
+        if (!meta.tags || inName) {
+          return inName;
+        }
+
+        const tags = (meta.tags || []).join('');
+        return tags.includes(filter);
       })
       .sort((accA, accB) => {
         const nameA = accA.name || accA.address;
