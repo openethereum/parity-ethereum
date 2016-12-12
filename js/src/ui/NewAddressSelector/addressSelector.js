@@ -108,7 +108,13 @@ class AddressSelector extends Component {
     const content = this.renderContent();
 
     return (
-      <div className={ styles.main } ref='main'>
+      <div
+        className={ styles.main }
+        onClick={ this.handleFocus }
+        onKeyDown={ this.handleInputAddresKeydown }
+        ref='inputAddress'
+        tabIndex={ 0 }
+      >
         { input }
         { content }
       </div>
@@ -141,10 +147,6 @@ class AddressSelector extends Component {
     return (
       <div
         className={ styles.inputAddress }
-        onClick={ this.handleFocus }
-        onKeyDown={ this.handleInputAddresKeydown }
-        ref='inputAddress'
-        tabIndex={ 0 }
       >
         { input }
       </div>
@@ -559,7 +561,7 @@ class AddressSelector extends Component {
     //   return;
     // }
 
-    const { top, left } = this.refs.main.getBoundingClientRect();
+    const { top, left } = this.refs.inputAddress.getBoundingClientRect();
 
     this.setState({ top, left, expanded: true, focusedItem: null, focusedCat: null }, () => {
       this.setState({ top: 0, left: 0 }, () => {
@@ -571,11 +573,11 @@ class AddressSelector extends Component {
   }
 
   handleClose = () => {
-    if (!this.refs.main) {
+    if (!this.refs.inputAddress) {
       return null;
     }
 
-    const { top, left } = this.refs.main.getBoundingClientRect();
+    const { top, left } = this.refs.inputAddress.getBoundingClientRect();
     this.setState({ top, left, expanded: false });
     this.closing = true;
 
