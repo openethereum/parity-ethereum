@@ -318,26 +318,26 @@ export default class Parity {
 
   consensusCapability () {
     return this._transport
-      .execute('parity_consensusCapability')
+      .execute('parity_consensusCapability');
   }
 
   versionInfo () {
     return this._transport
-      .execute('parity_versionInfo')
+      .execute('parity_versionInfo');
   }
 
   releasesInfo () {
     return this._transport
-      .execute('parity_releasesInfo')
+      .execute('parity_releasesInfo');
   }
 
   upgradeReady () {
     return this._transport
-      .execute('parity_upgradeReady')
+      .execute('parity_upgradeReady');
   }
 
   executeUpgrade () {
     return this._transport
-      .execute('parity_executeUpgrade')
+      .execute('parity_executeUpgrade');
   }
 }
