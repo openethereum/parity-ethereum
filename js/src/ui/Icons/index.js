@@ -14,4 +14,18 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-export * from './icons';
+import AddIcon from 'material-ui/svg-icons/content/add';
+import CancelIcon from 'material-ui/svg-icons/content/clear';
+import DoneIcon from 'material-ui/svg-icons/action/done-all';
+import PrevIcon from 'material-ui/svg-icons/navigation/arrow-back';
+import NextIcon from 'material-ui/svg-icons/navigation/arrow-forward';
+import SnoozeIcon from 'material-ui/svg-icons/av/snooze';
+
+export {
+  AddIcon,
+  CancelIcon,
+  DoneIcon,
+  PrevIcon,
+  NextIcon,
+  SnoozeIcon
+};
