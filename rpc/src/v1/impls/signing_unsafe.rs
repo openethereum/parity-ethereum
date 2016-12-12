@@ -17,6 +17,7 @@
 //! Unsafe Signing RPC implementation.
 
 use std::sync::{Arc, Weak};
+use util::Hashable;
 
 use ethcore::account_provider::AccountProvider;
 use ethcore::miner::MinerService;
@@ -83,7 +84,8 @@ impl<C: 'static, M: 'static> EthSigning for SigningUnsafeClient<C, M> where
 	C: MiningBlockChainClient,
 	M: MinerService,
 {
-	fn sign(&self, ready: Ready<RpcH520>, address: RpcH160, hash: RpcH256) {
+	fn sign(&self, ready: Ready<RpcH520>, address: RpcH160, data: RpcBytes) {
+		let hash = data.0.sha3().into();
 		let result = match self.handle(RpcConfirmationPayload::Signature((address, hash).into())) {
 			Ok(RpcConfirmationResponse::Signature(signature)) => Ok(signature),
 			Err(e) => Err(e),
