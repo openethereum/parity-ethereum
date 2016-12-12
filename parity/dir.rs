@@ -196,10 +196,10 @@ mod tests {
 	#[test]
 	fn test_default_directories() {
 		let expected = Directories {
-			db: replace_home("$HOME/.parity"),
-			keys: replace_home("$HOME/.parity/keys"),
-			signer: replace_home("$HOME/.parity/signer"),
-			dapps: replace_home("$HOME/.parity/dapps"),
+			data: replace_home("", "$HOME/.parity"),
+			keys: replace_home("", "$HOME/.parity/keys"),
+			signer: replace_home("", "$HOME/.parity/signer"),
+			dapps: replace_home("", "$HOME/.parity/dapps"),
 		};
 		assert_eq!(expected, Directories::default());
 	}

@@ -669,7 +669,7 @@ mod tests {
 
 			// -- Miscellaneous Options
 			flag_version: false,
-			flag_config: "$HOME/.parity/config.toml".into(),
+			flag_config: "$DATA/config.toml".into(),
 			flag_logging: Some("own_tx=trace".into()),
 			flag_log_file: Some("/var/log/parity.log".into()),
 			flag_no_color: false,

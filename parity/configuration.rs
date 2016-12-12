@@ -744,7 +744,8 @@ mod tests {
 	use signer::{Configuration as SignerConfiguration};
 	use blockchain::{BlockchainCmd, ImportBlockchain, ExportBlockchain, DataFormat, ExportState};
 	use presale::ImportWallet;
-	use account::{AccountCmd, NewAccount, ImportAccounts};
+	use params::SpecType;
+	use account::{AccountCmd, NewAccount, ImportAccounts, ListAccounts};
 	use devtools::{RandomTempPath};
 	use std::io::Write;
 	use std::fs::{File, create_dir};
@@ -773,6 +774,7 @@ mod tests {
 			iterations: 10240,
 			path: replace_home("", "$HOME/.parity/keys"),
 			password_file: None,
+			spec: SpecType::default(),
 		})));
 	}
 
@@ -781,7 +783,10 @@ mod tests {
 		let args = vec!["parity", "account", "list"];
 		let conf = parse(&args);
 		assert_eq!(conf.into_command().unwrap().cmd, Cmd::Account(
-			AccountCmd::List(replace_home("", "$HOME/.parity/keys")),
+			AccountCmd::List(ListAccounts {
+				path: replace_home("", "$HOME/.parity/keys"),
+				spec: SpecType::default(),
+			})
 		));
 	}
 
@@ -792,6 +797,7 @@ mod tests {
 		assert_eq!(conf.into_command().unwrap().cmd, Cmd::Account(AccountCmd::Import(ImportAccounts {
 			from: vec!["my_dir".into(), "another_dir".into()],
 			to: replace_home("", "$HOME/.parity/keys"),
+			spec: SpecType::default(),
 		})));
 	}
 
@@ -804,6 +810,7 @@ mod tests {
 			path: replace_home("", "$HOME/.parity/keys"),
 			wallet_path: "my_wallet.json".into(),
 			password_file: Some("pwd".into()),
+			spec: SpecType::default(),
 		}));
 	}
 
