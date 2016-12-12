@@ -315,4 +315,29 @@ export default class Parity {
       .execute('parity_unsignedTransactionsCount')
       .then(outNumber);
   }
+
+  consensusCapability () {
+    return this._transport
+      .execute('parity_consensusCapability')
+  }
+
+  versionInfo () {
+    return this._transport
+      .execute('parity_versionInfo')
+  }
+
+  releasesInfo () {
+    return this._transport
+      .execute('parity_releasesInfo')
+  }
+
+  upgradeReady () {
+    return this._transport
+      .execute('parity_upgradeReady')
+  }
+
+  executeUpgrade () {
+    return this._transport
+      .execute('parity_executeUpgrade')
+  }
 }

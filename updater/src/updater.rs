@@ -137,8 +137,13 @@ impl Updater {
 
 	fn collect_latest(&self) -> Result<OperationsInfo, String> {
 		if let Some(ref operations) = *self.operations.lock() {
+			let hh: H256 = self.this.hash.into();
+			info!("Looking up this_fork for our release: {}/{:?}", CLIENT_ID, hh);
 			let this_fork = operations.release(CLIENT_ID, &self.this.hash.into()).ok()
-				.and_then(|(fork, track, _, _)| if track > 0 {Some(fork as u64)} else {None});
+				.and_then(|(fork, track, _, _)| {
+					info!("Operations returned fork={}, track={}", fork as u64, track);				 
+					if track > 0 {Some(fork as u64)} else {None}
+				});
 
 			if self.this.track == ReleaseTrack::Unknown {
 				return Err(format!("Current executable ({}) is unreleased.", H160::from(self.this.hash)));
@@ -207,7 +212,7 @@ impl Updater {
 	}
 
 	fn poll(&self) {
-		info!(target: "updater", "Current release is {}", self.this);
+		info!(target: "updater", "Current release is {} ({:?})", self.this, self.this.hash);
 
 		if self.operations.lock().is_none() {
 			if let Some(ops_addr) = self.client.upgrade().and_then(|c| c.registry_address("operations".into())) {

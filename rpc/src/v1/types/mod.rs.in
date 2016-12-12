@@ -56,4 +56,4 @@ pub use self::trace_filter::TraceFilter;
 pub use self::uint::{U128, U256};
 pub use self::work::Work;
 pub use self::histogram::Histogram;
-pub use self::consensus_status::ConsensusCapability;
+pub use self::consensus_status::*;

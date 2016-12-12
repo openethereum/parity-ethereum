@@ -242,7 +242,7 @@ pub fn setup_rpc<T: Extendable>(server: T, deps: Arc<Dependencies>, apis: ApiSet
 				server.add_delegate(ParityAccountsClient::new(&deps.secret_store, &deps.client).to_delegate());
 			},
 			Api::ParitySet => {
-				server.add_delegate(ParitySetClient::new(&deps.client, &deps.miner, &deps.net_service).to_delegate())
+				server.add_delegate(ParitySetClient::new(&deps.client, &deps.miner, &deps.updater, &deps.net_service).to_delegate())
 			},
 			Api::Traces => {
 				server.add_delegate(TracesClient::new(&deps.client, &deps.miner).to_delegate())

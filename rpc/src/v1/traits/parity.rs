@@ -23,7 +23,8 @@ use v1::types::{
 	H160, H256, H512, U256, Bytes,
 	Peers, Transaction, RpcSettings, Histogram,
 	TransactionStats, LocalTransactionStatus,
-	BlockNumber, ConsensusCapability
+	BlockNumber, ConsensusCapability, VersionInfo,
+	OperationsInfo
 };
 
 build_rpc_trait! {
@@ -159,5 +160,13 @@ build_rpc_trait! {
 		/// Returns information on current consensus capability.
 		#[rpc(name = "parity_consensusCapability")]
 		fn consensus_capability(&self) -> Result<ConsensusCapability, Error>;
+
+		/// Get our version information in a nice object.
+		#[rpc(name = "parity_versionInfo")]
+		fn version_info(&self) -> Result<VersionInfo, Error>;
+
+		/// Get information concerning the latest releases if available.
+		#[rpc(name = "parity_releasesInfo")]
+		fn releases_info(&self) -> Result<Option<OperationsInfo>, Error>;
 	}
 }
