@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -293,13 +293,17 @@ function mapStateToProps (state) {
 
   const walletsOwners = Object
     .keys(walletsInfo)
-    .map((wallet) => ({
-      owners: walletsInfo[wallet].owners.map((owner) => ({
-        address: owner,
-        name: accountsInfo[owner] && accountsInfo[owner].name || owner
-      })),
-      address: wallet
-    }))
+    .map((wallet) => {
+      const owners = walletsInfo[wallet].owners || [];
+
+      return {
+        owners: owners.map((owner) => ({
+          address: owner,
+          name: accountsInfo[owner] && accountsInfo[owner].name || owner
+        })),
+        address: wallet
+      };
+    })
     .reduce((walletsOwners, wallet) => {
       walletsOwners[wallet.address] = wallet.owners;
       return walletsOwners;

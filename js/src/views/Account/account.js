@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -26,7 +26,7 @@ import VerifyIcon from 'material-ui/svg-icons/action/verified-user';
 import { EditMeta, DeleteAccount, Shapeshift, Verification, Transfer, PasswordManager } from '~/modals';
 import { Actionbar, Button, Page } from '~/ui';
 
-import shapeshiftBtn from '../../../assets/images/shapeshift-btn.png';
+import shapeshiftBtn from '~/../assets/images/shapeshift-btn.png';
 
 import Header from './Header';
 import Transactions from './Transactions';

@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -17,6 +17,8 @@
 import React, { Component, PropTypes } from 'react';
 import { SelectField } from 'material-ui';
 
+import { nodeOrStringProptype } from '~/util/proptypes';
+
 // TODO: duplicated in Input
 const UNDERLINE_DISABLED = {
   borderColor: 'rgba(255, 255, 255, 0.298039)' // 'transparent' // 'rgba(255, 255, 255, 0.298039)'
@@ -33,9 +35,9 @@ export default class Select extends Component {
     children: PropTypes.node,
     className: PropTypes.string,
     disabled: PropTypes.bool,
-    error: PropTypes.string,
-    hint: PropTypes.string,
-    label: PropTypes.string,
+    error: nodeOrStringProptype(),
+    hint: nodeOrStringProptype(),
+    label: nodeOrStringProptype(),
     onBlur: PropTypes.func,
     onChange: PropTypes.func,
     onKeyDown: PropTypes.func,

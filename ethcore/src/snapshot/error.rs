@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -18,7 +18,7 @@
 
 use std::fmt;
 
-use ids::BlockID;
+use ids::BlockId;
 
 use util::H256;
 use util::trie::TrieError;
@@ -28,7 +28,7 @@ use rlp::DecoderError;
 #[derive(Debug)]
 pub enum Error {
 	/// Invalid starting block for snapshot.
-	InvalidStartingBlock(BlockID),
+	InvalidStartingBlock(BlockId),
 	/// Block not found.
 	BlockNotFound(H256),
 	/// Incomplete chain.

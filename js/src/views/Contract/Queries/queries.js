@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -53,6 +53,10 @@ export default class Queries extends Component {
       .slice()
       .filter((fn) => fn.inputs.length > 0)
       .map((fn) => this.renderInputQuery(fn));
+
+    if (queries.length + noInputQueries.length + withInputQueries.length === 0) {
+      return null;
+    }
 
     return (
       <Container title='queries'>

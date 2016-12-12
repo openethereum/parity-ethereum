@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -54,6 +54,7 @@ export default class TransferStore {
 
   @observable sender = '';
   @observable senderError = null;
+  @observable sendersBalances = {};
 
   @observable total = '0.0';
   @observable totalError = null;
@@ -66,8 +67,6 @@ export default class TransferStore {
   onClose = null;
 
   senders = null;
-  sendersBalances = null;
-
   isWallet = false;
   wallet = null;
 
@@ -107,14 +106,13 @@ export default class TransferStore {
   constructor (api, props) {
     this.api = api;
 
-    const { account, balance, gasLimit, senders, onClose, newError, sendersBalances } = props;
+    const { account, balance, gasLimit, senders, newError, sendersBalances } = props;
     this.account = account;
     this.balance = balance;
-    this.onClose = onClose;
     this.isWallet = account && account.wallet;
     this.newError = newError;
 
-    this.gasStore = new GasPriceStore(api, gasLimit);
+    this.gasStore = new GasPriceStore(api, { gasLimit });
 
     if (this.isWallet) {
       this.wallet = props.wallet;
@@ -136,8 +134,7 @@ export default class TransferStore {
     this.stage -= 1;
   }
 
-  @action onClose = () => {
-    this.onClose && this.onClose();
+  @action handleClose = () => {
     this.stage = 0;
   }
 
@@ -408,6 +405,8 @@ export default class TransferStore {
       this.totalError = totalError;
       this.value = value;
       this.valueError = valueError;
+      this.gasStore.setErrorTotal(totalError);
+      this.gasStore.setEthValue(totalEth);
     });
   }
 

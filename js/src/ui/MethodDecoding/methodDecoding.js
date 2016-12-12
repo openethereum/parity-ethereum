@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -17,16 +17,14 @@
 import BigNumber from 'bignumber.js';
 import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
-import { bindActionCreators } from 'redux';
 import CircularProgress from 'material-ui/CircularProgress';
 
-import Contracts from '~/contracts';
 import { Input, InputAddress } from '../Form';
+import MethodDecodingStore from './methodDecodingStore';
 
 import styles from './methodDecoding.css';
 
 const ASCII_INPUT = /^[a-z0-9\s,?;.:/!()-_@'"#]+$/i;
-const CONTRACT_CREATE = '0x60606040';
 const TOKEN_METHODS = {
   '0xa9059cbb': 'transfer(to,value)'
 };
@@ -38,19 +36,17 @@ class MethodDecoding extends Component {
 
   static propTypes = {
     address: PropTypes.string.isRequired,
-    tokens: PropTypes.object,
+    token: PropTypes.object,
     transaction: PropTypes.object,
     historic: PropTypes.bool
   }
 
   state = {
     contractAddress: null,
-    method: null,
     methodName: null,
     methodInputs: null,
     methodParams: null,
     methodSignature: null,
-    token: null,
     isContract: false,
     isDeploy: false,
     isReceived: false,
@@ -59,14 +55,29 @@ class MethodDecoding extends Component {
     inputType: 'auto'
   }
 
-  componentWillMount () {
-    const lookupResult = this.lookup();
+  methodDecodingStore = MethodDecodingStore.get(this.context.api);
 
-    if (typeof lookupResult === 'object' && typeof lookupResult.then === 'function') {
-      lookupResult.then(() => this.setState({ isLoading: false }));
-    } else {
-      this.setState({ isLoading: false });
-    }
+  componentWillMount () {
+    const { address, transaction } = this.props;
+
+    this
+      .methodDecodingStore
+      .lookup(address, transaction)
+      .then((lookup) => {
+        const newState = {
+          methodName: lookup.name,
+          methodInputs: lookup.inputs,
+          methodParams: lookup.params,
+          methodSignature: lookup.signature,
+
+          isContract: lookup.contract,
+          isDeploy: lookup.deploy,
+          isLoading: false,
+          isReceived: lookup.received
+        };
+
+        this.setState(newState);
+      });
   }
 
   render () {
@@ -116,7 +127,8 @@ class MethodDecoding extends Component {
   }
 
   renderAction () {
-    const { methodName, methodInputs, methodSignature, token, isDeploy, isReceived, isContract } = this.state;
+    const { token } = this.props;
+    const { methodName, methodInputs, methodSignature, isDeploy, isReceived, isContract } = this.state;
 
     if (isDeploy) {
       return this.renderDeploy();
@@ -378,7 +390,7 @@ class MethodDecoding extends Component {
   }
 
   renderTokenValue (value) {
-    const { token } = this.state;
+    const { token } = this.props;
 
     return (
       <span className={ styles.tokenValue }>
@@ -436,96 +448,18 @@ class MethodDecoding extends Component {
     });
   }
 
-  lookup () {
-    const { transaction } = this.props;
-
-    if (!transaction) {
-      return;
-    }
-
-    const { api } = this.context;
-    const { address, tokens } = this.props;
-
-    const isReceived = transaction.to === address;
-    const contractAddress = isReceived ? transaction.from : transaction.to;
-    const input = transaction.input || transaction.data;
-
-    const token = (tokens || {})[contractAddress];
-    this.setState({ token, isReceived, contractAddress });
-
-    if (!input || input === '0x') {
-      return;
-    }
-
-    const { signature, paramdata } = api.util.decodeCallData(input);
-    this.setState({ methodSignature: signature, methodParams: paramdata });
-
-    if (!signature || signature === CONTRACT_CREATE || transaction.creates) {
-      this.setState({ isDeploy: true });
-      return;
-    }
-
-    if (contractAddress === '0x') {
-      return;
-    }
-
-    return api.eth
-      .getCode(contractAddress || transaction.creates)
-      .then((bytecode) => {
-        const isContract = bytecode && /^(0x)?([0]*[1-9a-f]+[0]*)+$/.test(bytecode);
-
-        this.setState({ isContract });
-
-        if (!isContract) {
-          return;
-        }
-
-        return Contracts.get()
-          .signatureReg
-          .lookup(signature)
-          .then((method) => {
-            let methodInputs = null;
-            let methodName = null;
-
-            if (method && method.length) {
-              const { methodParams } = this.state;
-              const abi = api.util.methodToAbi(method);
-
-              methodName = abi.name;
-              methodInputs = api.util
-                .decodeMethodInput(abi, methodParams)
-                .map((value, index) => {
-                  const type = abi.inputs[index].type;
-
-                  return { type, value };
-                });
-            }
-
-            this.setState({
-              method,
-              methodName,
-              methodInputs,
-              bytecode
-            });
-          });
-      })
-      .catch((error) => {
-        console.warn('lookup', error);
-      });
-  }
 }
 
-function mapStateToProps (state) {
-  const { tokens } = state.balances;
+function mapStateToProps (initState, initProps) {
+  const { tokens } = initState.balances;
+  const { address } = initProps;
 
-  return { tokens };
+  const token = (tokens || {})[address];
+
+  return () => {
+    return { token };
+  };
 }
-
-function mapDispatchToProps (dispatch) {
-  return bindActionCreators({}, dispatch);
-}
-
 export default connect(
-  mapStateToProps,
-  mapDispatchToProps
+  mapStateToProps
 )(MethodDecoding);

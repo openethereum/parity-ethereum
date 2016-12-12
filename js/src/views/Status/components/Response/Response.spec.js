@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -21,7 +21,7 @@ import '../../../../environment/tests';
 
 import Response from './Response';
 
-describe('components/Response', () => {
+describe('views/Status/components/Response', () => {
   describe('rendering', () => {
     it('renders non-arrays/non-objects exactly as received', () => {
       const TEST = '1234567890';

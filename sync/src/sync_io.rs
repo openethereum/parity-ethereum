@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -130,6 +130,10 @@ impl<'s, 'h> SyncIo for NetSyncIo<'s, 'h> {
 
 	fn protocol_version(&self, protocol: &ProtocolId, peer_id: PeerId) -> u8 {
 		self.network.protocol_version(*protocol, peer_id).unwrap_or(0)
+	}
+
+	fn peer_info(&self, peer_id: PeerId) -> String {
+		self.network.peer_client_version(peer_id)
 	}
 }
 

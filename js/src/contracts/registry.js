@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -19,7 +19,10 @@ import * as abis from './abi';
 export default class Registry {
   constructor (api) {
     this._api = api;
-    this._contracts = [];
+
+    this._contracts = {};
+    this._pendingContracts = {};
+
     this._instance = null;
     this._fetching = false;
     this._queue = [];
@@ -59,20 +62,25 @@ export default class Registry {
   getContract (_name) {
     const name = _name.toLowerCase();
 
-    return new Promise((resolve, reject) => {
-      if (this._contracts[name]) {
-        resolve(this._contracts[name]);
-        return;
-      }
+    if (this._contracts[name]) {
+      return Promise.resolve(this._contracts[name]);
+    }
 
-      this
-        .lookupAddress(name)
-        .then((address) => {
-          this._contracts[name] = this._api.newContract(abis[name], address);
-          resolve(this._contracts[name]);
-        })
-        .catch(reject);
-    });
+    if (this._pendingContracts[name]) {
+      return this._pendingContracts[name];
+    }
+
+    const promise = this
+      .lookupAddress(name)
+      .then((address) => {
+        this._contracts[name] = this._api.newContract(abis[name], address);
+        delete this._pendingContracts[name];
+        return this._contracts[name];
+      });
+
+    this._pendingContracts[name] = promise;
+
+    return promise;
   }
 
   getContractInstance (_name) {
@@ -89,7 +97,7 @@ export default class Registry {
       return instance.getAddress.call({}, [sha3, 'A']);
     })
     .then((address) => {
-      console.log('lookupAddress', name, sha3, address);
+      console.log('[lookupAddress]', `(${sha3}) ${name}: ${address}`);
       return address;
     });
   }

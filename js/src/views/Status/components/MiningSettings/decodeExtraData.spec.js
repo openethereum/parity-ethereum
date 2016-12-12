@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -16,7 +16,7 @@
 
 import { decodeExtraData } from './decodeExtraData';
 
-describe('MINING SETTINGS', () => {
+describe('views/Status/components/MiningSettings/decodeExtraData', () => {
   describe('EXTRA DATA', () => {
     const str = 'parity/1.0.0/1.0.0-beta2';
     const encoded = '0xd783010000867061726974798b312e302e302d6265746132';

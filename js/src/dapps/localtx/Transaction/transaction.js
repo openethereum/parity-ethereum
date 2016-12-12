@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -48,7 +48,6 @@ class BaseTransaction extends Component {
         <IdentityIcon
           address={ transaction.from }
           />
-        0x{ transaction.nonce.toString(16) }
       </div>
     );
   }

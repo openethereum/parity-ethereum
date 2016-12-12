@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -17,7 +17,12 @@
 import { combineReducers } from 'redux';
 import { routerReducer } from 'react-router-redux';
 
-import { apiReducer, balancesReducer, blockchainReducer, compilerReducer, imagesReducer, personalReducer, signerReducer, statusReducer as nodeStatusReducer, snackbarReducer, walletReducer } from './providers';
+import {
+  apiReducer, balancesReducer, blockchainReducer,
+  compilerReducer, imagesReducer, personalReducer,
+  signerReducer, statusReducer as nodeStatusReducer,
+  snackbarReducer, walletReducer
+} from './providers';
 import certificationsReducer from './providers/certifications/reducer';
 
 import errorReducer from '~/ui/Errors/reducers';

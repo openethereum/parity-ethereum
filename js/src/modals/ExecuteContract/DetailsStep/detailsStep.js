@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -15,34 +15,44 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
-import { MenuItem } from 'material-ui';
+import { Checkbox, MenuItem } from 'material-ui';
 
 import { AddressSelect, Form, Input, Select, TypedInput } from '~/ui';
 import { parseAbiType } from '~/util/abi';
 
 import styles from '../executeContract.css';
 
+const CHECK_STYLE = {
+  position: 'absolute',
+  top: '38px',
+  left: '1em'
+};
+
 export default class DetailsStep extends Component {
   static propTypes = {
     accounts: PropTypes.object.isRequired,
     contract: PropTypes.object.isRequired,
-    amount: PropTypes.string,
-    amountError: PropTypes.string,
     onAmountChange: PropTypes.func.isRequired,
-    fromAddress: PropTypes.string,
-    fromAddressError: PropTypes.string,
     onFromAddressChange: PropTypes.func.isRequired,
-    func: PropTypes.object,
-    funcError: PropTypes.string,
-    onFuncChange: PropTypes.func,
+    onValueChange: PropTypes.func.isRequired,
     values: PropTypes.array.isRequired,
     valuesError: PropTypes.array.isRequired,
-    warning: PropTypes.string,
-    onValueChange: PropTypes.func.isRequired
+
+    amount: PropTypes.string,
+    amountError: PropTypes.string,
+    balances: PropTypes.object,
+    fromAddress: PropTypes.string,
+    fromAddressError: PropTypes.string,
+    func: PropTypes.object,
+    funcError: PropTypes.string,
+    gasEdit: PropTypes.bool,
+    onFuncChange: PropTypes.func,
+    onGasEditClick: PropTypes.func,
+    warning: PropTypes.string
   }
 
   render () {
-    const { accounts, amount, amountError, fromAddress, fromAddressError, onFromAddressChange, onAmountChange } = this.props;
+    const { accounts, amount, amountError, balances, fromAddress, fromAddressError, gasEdit, onGasEditClick, onFromAddressChange, onAmountChange } = this.props;
 
     return (
       <Form>
@@ -53,15 +63,27 @@ export default class DetailsStep extends Component {
           value={ fromAddress }
           error={ fromAddressError }
           accounts={ accounts }
+          balances={ balances }
           onChange={ onFromAddressChange } />
         { this.renderFunctionSelect() }
         { this.renderParameters() }
-        <Input
-          label='transaction value (in ETH)'
-          hint='the amount to send to with the transaction'
-          value={ amount }
-          error={ amountError }
-          onSubmit={ onAmountChange } />
+        <div className={ styles.columns }>
+          <div>
+            <Input
+              label='transaction value (in ETH)'
+              hint='the amount to send to with the transaction'
+              value={ amount }
+              error={ amountError }
+              onSubmit={ onAmountChange } />
+          </div>
+          <div>
+            <Checkbox
+              checked={ gasEdit }
+              label='edit gas price or value'
+              onCheck={ onGasEditClick }
+              style={ CHECK_STYLE } />
+          </div>
+        </div>
       </Form>
     );
   }

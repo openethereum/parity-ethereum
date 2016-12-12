@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -24,7 +24,7 @@ use dir::KeyDirectory;
 use account::SafeAccount;
 use {Error, SecretStore};
 use json;
-use json::UUID;
+use json::Uuid;
 use parking_lot::RwLock;
 use presale::PresaleWallet;
 use import;
@@ -154,7 +154,7 @@ impl SecretStore for EthStore {
 		account.public(password)
 	}
 
-	fn uuid(&self, address: &Address) -> Result<UUID, Error> {
+	fn uuid(&self, address: &Address) -> Result<Uuid, Error> {
 		let account = try!(self.get(address));
 		Ok(account.id.into())
 	}

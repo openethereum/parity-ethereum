@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -80,8 +80,9 @@ class Transfer extends Component {
       <div className={ styles.hdraccount }>
         <div className={ styles.hdrimage }>
           <IdentityIcon
-            inline center
-            address={ account.address } />
+            address={ account.address }
+            center
+            inline />
         </div>
         <div className={ styles.hdrdetails }>
           <div className={ styles.hdrname }>
@@ -155,8 +156,8 @@ class Transfer extends Component {
 
   renderDetailsPage () {
     const { account, balance, images, senders } = this.props;
-    const { valueAll, extras, recipient, recipientError, sender, senderError } = this.store;
-    const { tag, total, totalError, value, valueError } = this.store;
+    const { recipient, recipientError, sender, senderError, sendersBalances } = this.store;
+    const { valueAll, extras, tag, total, totalError, value, valueError } = this.store;
 
     return (
       <Details
@@ -165,17 +166,18 @@ class Transfer extends Component {
         balance={ balance }
         extras={ extras }
         images={ images }
-        senders={ senders }
+        onChange={ this.store.onUpdateDetails }
         recipient={ recipient }
         recipientError={ recipientError }
         sender={ sender }
         senderError={ senderError }
+        senders={ senders }
+        sendersBalances={ sendersBalances }
         tag={ tag }
         total={ total }
         totalError={ totalError }
         value={ value }
         valueError={ valueError }
-        onChange={ this.store.onUpdateDetails }
         wallet={ account.wallet && this.props.wallet }
       />
     );
@@ -208,7 +210,7 @@ class Transfer extends Component {
       <Button
         icon={ <ContentClear /> }
         label='Cancel'
-        onClick={ this.store.onClose } />
+        onClick={ this.handleClose } />
     );
     const nextBtn = (
       <Button
@@ -234,7 +236,7 @@ class Transfer extends Component {
       <Button
         icon={ <ActionDoneAll /> }
         label='Close'
-        onClick={ this.store.onClose } />
+        onClick={ this.handleClose } />
     );
 
     switch (stage) {
@@ -263,6 +265,13 @@ class Transfer extends Component {
         { errorEstimated }
       </div>
     );
+  }
+
+  handleClose = () => {
+    const { onClose } = this.props;
+
+    this.store.handleClose();
+    typeof onClose === 'function' && onClose();
   }
 }
 

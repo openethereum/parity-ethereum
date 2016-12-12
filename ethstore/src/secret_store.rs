@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -16,7 +16,7 @@
 
 use ethkey::{Address, Message, Signature, Secret, Public};
 use Error;
-use json::UUID;
+use json::Uuid;
 
 pub trait SecretStore: Send + Sync {
 	fn insert_account(&self, secret: Secret, password: &str) -> Result<Address, Error>;
@@ -30,7 +30,7 @@ pub trait SecretStore: Send + Sync {
 	fn public(&self, account: &Address, password: &str) -> Result<Public, Error>;
 
 	fn accounts(&self) -> Result<Vec<Address>, Error>;
-	fn uuid(&self, account: &Address) -> Result<UUID, Error>;
+	fn uuid(&self, account: &Address) -> Result<Uuid, Error>;
 	fn name(&self, account: &Address) -> Result<String, Error>;
 	fn meta(&self, account: &Address) -> Result<String, Error>;
 

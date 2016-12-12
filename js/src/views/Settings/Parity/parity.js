@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -15,18 +15,12 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import { FormattedMessage } from 'react-intl';
 import { MenuItem } from 'material-ui';
 
-import { Select, Container } from '~/ui';
+import { Select, Container, LanguageSelector } from '~/ui';
 
 import layout from '../layout.css';
-
-const MODES = {
-  'active': 'Parity continuously syncs the chain',
-  'passive': 'Parity syncs initially, then sleeps and wakes regularly to resync',
-  'dark': 'Parity syncs only when the RPC is active',
-  'offline': 'Parity doesn\'t sync'
-};
 
 export default class Parity extends Component {
   static contextTypes = {
@@ -43,12 +37,19 @@ export default class Parity extends Component {
 
   render () {
     return (
-      <Container title='Parity'>
+      <Container title={
+        <FormattedMessage id='settings.parity.label' />
+      }>
         <div className={ layout.layout }>
           <div className={ layout.overview }>
-            <div>Control the Parity node settings and mode of operation via this interface.</div>
+            <div>
+              <FormattedMessage
+                id='settings.parity.overview_0'
+                defaultMessage='Control the Parity node settings and mode of operation via this interface.' />
+            </div>
           </div>
           <div className={ layout.details }>
+            <LanguageSelector />
             { this.renderModes() }
           </div>
         </div>
@@ -57,30 +58,53 @@ export default class Parity extends Component {
   }
 
   renderModes () {
-    const modes = Object
-      .keys(MODES)
-      .map((mode) => {
-        const description = MODES[mode];
-
-        return (
-          <MenuItem
-            key={ mode }
-            value={ mode }
-            label={ description }>
-            { description }
-          </MenuItem>
-        );
-      });
-
     const { mode } = this.state;
+
+    const renderItem = (mode, label) => {
+      return (
+        <MenuItem
+          key={ mode }
+          value={ mode }
+          label={ label }>
+          { label }
+        </MenuItem>
+      );
+    };
 
     return (
       <Select
-        label='mode of operation'
-        hint='the syning mode for the Parity node'
+        label={
+          <FormattedMessage
+            id='settings.parity.modes.label'
+            defaultMessage='mode of operation' />
+        }
+        hint={
+          <FormattedMessage
+            id='settings.parity.modes.hint'
+            defaultMessage='the syning mode for the Parity node' />
+        }
         value={ mode }
         onChange={ this.onChangeMode }>
-        { modes }
+        {
+          renderItem('active', <FormattedMessage
+            id='settings.parity.modes.mode_active'
+            defaultMessage='Parity continuously syncs the chain' />)
+        }
+        {
+          renderItem('passive', <FormattedMessage
+            id='settings.parity.modes.mode_passive'
+            defaultMessage='Parity syncs initially, then sleeps and wakes regularly to resync' />)
+        }
+        {
+          renderItem('dark', <FormattedMessage
+            id='settings.parity.modes.mode_dark'
+            defaultMessage='Parity syncs only when the RPC is active' />)
+        }
+        {
+          renderItem('offline', <FormattedMessage
+            id='settings.parity.modes.mode_offline'
+            defaultMessage="Parity doesn't sync" />)
+        }
       </Select>
     );
   }

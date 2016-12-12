@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -59,7 +59,7 @@ export default class Manager {
     return subscription;
   }
 
-  subscribe (subscriptionName, callback) {
+  subscribe (subscriptionName, callback, autoRemove = false) {
     return new Promise((resolve, reject) => {
       const subscription = this._validateType(subscriptionName);
 
@@ -75,6 +75,7 @@ export default class Manager {
       this.subscriptions[subscriptionId] = {
         name: subscriptionName,
         id: subscriptionId,
+        autoRemove,
         callback
       };
 
@@ -101,12 +102,17 @@ export default class Manager {
   }
 
   _sendData (subscriptionId, error, data) {
-    const { callback } = this.subscriptions[subscriptionId];
+    const { autoRemove, callback } = this.subscriptions[subscriptionId];
+    let result = true;
 
     try {
-      callback(error, data);
+      result = callback(error, data);
     } catch (error) {
       console.error(`Unable to update callback for subscriptionId ${subscriptionId}`, error);
+    }
+
+    if (autoRemove && result && typeof result === 'boolean') {
+      this.unsubscribe(subscriptionId);
     }
   }
 

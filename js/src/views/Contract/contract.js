@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -40,7 +40,7 @@ import styles from './contract.css';
 class Contract extends Component {
   static contextTypes = {
     api: React.PropTypes.object.isRequired
-  }
+  };
 
   static propTypes = {
     setVisibleAccounts: PropTypes.func.isRequired,
@@ -50,7 +50,7 @@ class Contract extends Component {
     contracts: PropTypes.object,
     isTest: PropTypes.bool,
     params: PropTypes.object
-  }
+  };
 
   state = {
     contract: null,
@@ -64,8 +64,9 @@ class Contract extends Component {
     allEvents: [],
     minedEvents: [],
     pendingEvents: [],
-    queryValues: {}
-  }
+    queryValues: {},
+    loadingEvents: true
+  };
 
   componentDidMount () {
     const { api } = this.context;
@@ -115,7 +116,7 @@ class Contract extends Component {
 
   render () {
     const { balances, contracts, params, isTest } = this.props;
-    const { allEvents, contract, queryValues } = this.state;
+    const { allEvents, contract, queryValues, loadingEvents } = this.state;
     const account = contracts[params.address];
     const balance = balances[params.address];
 
@@ -133,13 +134,19 @@ class Contract extends Component {
           <Header
             account={ account }
             balance={ balance }
+            isContract
           />
+
           <Queries
             contract={ contract }
-            values={ queryValues } />
+            values={ queryValues }
+          />
+
           <Events
             isTest={ isTest }
-            events={ allEvents } />
+            isLoading={ loadingEvents }
+            events={ allEvents }
+          />
 
           { this.renderDetails(account) }
         </Page>
@@ -358,6 +365,10 @@ class Contract extends Component {
   }
 
   _receiveEvents = (error, logs) => {
+    if (this.state.loadingEvents) {
+      this.setState({ loadingEvents: false });
+    }
+
     if (error) {
       console.error('_receiveEvents', error);
       return;

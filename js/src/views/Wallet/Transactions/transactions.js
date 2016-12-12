@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -18,7 +18,7 @@ import React, { Component, PropTypes } from 'react';
 
 import { bytesToHex } from '~/api/util/format';
 import { Container } from '~/ui';
-import { TxRow } from '~/ui/TxList/txList';
+import TxRow from '~/ui/TxList/TxRow';
 
 import txListStyles from '~/ui/TxList/txList.css';
 

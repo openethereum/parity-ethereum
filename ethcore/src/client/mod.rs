@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -27,7 +27,9 @@ pub use self::config::{Mode, ClientConfig, DatabaseCompactionProfile, BlockChain
 pub use self::error::Error;
 pub use self::test_client::{TestBlockChainClient, EachBlockWith};
 pub use self::chain_notify::ChainNotify;
-pub use self::traits::{BlockChainClient, MiningBlockChainClient, ProvingBlockChainClient};
+pub use self::traits::{BlockChainClient, MiningBlockChainClient};
+
+pub use self::traits::ProvingBlockChainClient;
 
 pub use types::ids::*;
 pub use types::trace_filter::Filter as TraceFilter;

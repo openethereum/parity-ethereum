@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -20,36 +20,51 @@
 //! See https://github.com/ethcore/parity/wiki/Light-Ethereum-Subprotocol-(LES)
 
 use ethcore::transaction::SignedTransaction;
+use ethcore::receipt::Receipt;
+
 use io::TimerToken;
-use network::{NetworkProtocolHandler, NetworkContext, NetworkError, PeerId};
+use network::{NetworkProtocolHandler, NetworkContext, PeerId};
 use rlp::{RlpStream, Stream, UntrustedRlp, View};
 use util::hash::H256;
-use util::{Mutex, RwLock, U256};
-use time::SteadyTime;
+use util::{Bytes, Mutex, RwLock, U256};
+use time::{Duration, SteadyTime};
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
+use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use provider::Provider;
-use request::{self, Request};
+use request::{self, HashOrNumber, Request};
 
 use self::buffer_flow::{Buffer, FlowParams};
+use self::context::Ctx;
 use self::error::{Error, Punishment};
 
 mod buffer_flow;
+mod context;
 mod error;
 mod status;
 
-pub use self::status::{Status, Capabilities, Announcement, NetworkId};
+#[cfg(test)]
+mod tests;
+
+pub use self::context::{EventContext, IoContext};
+pub use self::status::{Status, Capabilities, Announcement};
 
 const TIMEOUT: TimerToken = 0;
 const TIMEOUT_INTERVAL_MS: u64 = 1000;
 
-// LPV1
-const PROTOCOL_VERSION: u32 = 1;
+// minimum interval between updates.
+const UPDATE_INTERVAL_MS: i64 = 5000;
 
-// TODO [rob] make configurable.
-const PROTOCOL_ID: [u8; 3] = *b"les";
+/// Supported protocol versions.
+pub const PROTOCOL_VERSIONS: &'static [u8] = &[1];
+
+/// Max protocol version.
+pub const MAX_PROTOCOL_VERSION: u8 = 1;
+
+/// Packet count for LES.
+pub const PACKET_COUNT: u8 = 15;
 
 // packet ID definitions.
 mod packet {
@@ -87,6 +102,18 @@ mod packet {
 	pub const HEADER_PROOFS: u8 = 0x0e;
 }
 
+// timeouts for different kinds of requests. all values are in milliseconds.
+// TODO: variable timeouts based on request count.
+mod timeout {
+	pub const HANDSHAKE: i64 = 2500;
+	pub const HEADERS: i64 = 5000;
+	pub const BODIES: i64 = 5000;
+	pub const RECEIPTS: i64 = 3500;
+	pub const PROOFS: i64 = 4000;
+	pub const CONTRACT_CODES: i64 = 5000;
+	pub const HEADER_PROOFS: i64 = 3500;
+}
+
 /// A request id.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct ReqId(usize);
@@ -95,17 +122,17 @@ pub struct ReqId(usize);
 // may not have received one for.
 struct PendingPeer {
 	sent_head: H256,
+	last_update: SteadyTime,
 }
 
 // data about each peer.
 struct Peer {
 	local_buffer: Buffer, // their buffer relative to us
-	remote_buffer: Buffer, // our buffer relative to them
-	current_asking: HashSet<usize>, // pending request ids.
 	status: Status,
 	capabilities: Capabilities,
-	remote_flow: FlowParams,
+	remote_flow: Option<(Buffer, FlowParams)>,
 	sent_head: H256, // last head we've given them.
+	last_update: SteadyTime,
 }
 
 impl Peer {
@@ -126,38 +153,56 @@ impl Peer {
 
 		self.local_buffer.current()
 	}
-
-	// recharge remote buffer with remote flow params.
-	fn recharge_remote(&mut self) {
-		let flow = &mut self.remote_flow;
-		flow.recharge(&mut self.remote_buffer);
-	}
 }
 
 /// An LES event handler.
+///
+/// Each handler function takes a context which describes the relevant peer 
+/// and gives references to the IO layer and protocol structure so new messages
+/// can be dispatched immediately.
+///
+/// Request responses are not guaranteed to be complete or valid, but passed IDs will be correct.
+/// Response handlers are not given a copy of the original request; it is assumed
+/// that relevant data will be stored by interested handlers.
 pub trait Handler: Send + Sync {
 	/// Called when a peer connects.
-	fn on_connect(&self, _id: PeerId, _status: &Status, _capabilities: &Capabilities) { }
-	/// Called when a peer disconnects
-	fn on_disconnect(&self, _id: PeerId) { }
+	fn on_connect(&self, _ctx: &EventContext, _status: &Status, _capabilities: &Capabilities) { }
+	/// Called when a peer disconnects, with a list of unfulfilled request IDs as
+	/// of yet.
+	fn on_disconnect(&self, _ctx: &EventContext, _unfulfilled: &[ReqId]) { }
 	/// Called when a peer makes an announcement.
-	fn on_announcement(&self, _id: PeerId, _announcement: &Announcement) { }
+	fn on_announcement(&self, _ctx: &EventContext, _announcement: &Announcement) { }
 	/// Called when a peer requests relay of some transactions.
-	fn on_transactions(&self, _id: PeerId, _relay: &[SignedTransaction]) { }
+	fn on_transactions(&self, _ctx: &EventContext, _relay: &[SignedTransaction]) { }
+	/// Called when a peer responds with block bodies.
+	fn on_block_bodies(&self, _ctx: &EventContext, _req_id: ReqId, _bodies: &[Bytes]) { }
+	/// Called when a peer responds with block headers.
+	fn on_block_headers(&self, _ctx: &EventContext, _req_id: ReqId, _headers: &[Bytes]) { }
+	/// Called when a peer responds with block receipts.
+	fn on_receipts(&self, _ctx: &EventContext, _req_id: ReqId, _receipts: &[Vec<Receipt>]) { }
+	/// Called when a peer responds with state proofs. Each proof is a series of trie
+	/// nodes in ascending order by distance from the root.
+	fn on_state_proofs(&self, _ctx: &EventContext, _req_id: ReqId, _proofs: &[Vec<Bytes>]) { }
+	/// Called when a peer responds with contract code.
+	fn on_code(&self, _ctx: &EventContext, _req_id: ReqId, _codes: &[Bytes]) { }
+	/// Called when a peer responds with header proofs. Each proof is a block header coupled 
+	/// with a series of trie nodes is ascending order by distance from the root.
+	fn on_header_proofs(&self, _ctx: &EventContext, _req_id: ReqId, _proofs: &[(Bytes, Vec<Bytes>)]) { }
+	/// Called on abort.
+	fn on_abort(&self) { }
 }
 
-// a request and the time it was made.
+// a request, the peer who it was made to, and the time it was made.
 struct Requested {
 	request: Request,
 	timestamp: SteadyTime,
+	peer_id: PeerId,
 }
 
 /// Protocol parameters.
 pub struct Params {
-	/// Genesis hash.
-	pub genesis_hash: H256,
 	/// Network id.
-	pub network_id: NetworkId,
+	pub network_id: u64,
 	/// Buffer flow parameters.
 	pub flow_params: FlowParams,
 	/// Initial capabilities.
@@ -175,9 +220,9 @@ pub struct Params {
 //   Locks must be acquired in the order declared, and when holding a read lock 
 //   on the peers, only one peer may be held at a time.
 pub struct LightProtocol {
-	provider: Box<Provider>,
+	provider: Arc<Provider>,
 	genesis_hash: H256,
-	network_id: NetworkId,
+	network_id: u64,
 	pending_peers: RwLock<HashMap<PeerId, PendingPeer>>,
 	peers: RwLock<HashMap<PeerId, Mutex<Peer>>>,
 	pending_requests: RwLock<HashMap<usize, Requested>>,
@@ -189,10 +234,13 @@ pub struct LightProtocol {
 
 impl LightProtocol {
 	/// Create a new instance of the protocol manager.
-	pub fn new(provider: Box<Provider>, params: Params) -> Self {
+	pub fn new(provider: Arc<Provider>, params: Params) -> Self {
+		debug!(target: "les", "Initializing LES handler");
+
+		let genesis_hash = provider.chain_info().genesis_hash;
 		LightProtocol {
 			provider: provider,
-			genesis_hash: params.genesis_hash,
+			genesis_hash: genesis_hash,
 			network_id: params.network_id,
 			pending_peers: RwLock::new(HashMap::new()),
 			peers: RwLock::new(HashMap::new()),
@@ -207,28 +255,37 @@ impl LightProtocol {
 	/// Check the maximum amount of requests of a specific type 
 	/// which a peer would be able to serve.
 	pub fn max_requests(&self, peer: PeerId, kind: request::Kind) -> Option<usize> {
-		self.peers.read().get(&peer).map(|peer| {
+		self.peers.read().get(&peer).and_then(|peer| {
 			let mut peer = peer.lock();
-			peer.recharge_remote();
-			peer.remote_flow.max_amount(&peer.remote_buffer, kind)
+			match peer.remote_flow.as_mut() {
+				Some(&mut (ref mut buf, ref flow)) => {
+					flow.recharge(buf);
+					Some(flow.max_amount(&*buf, kind))
+				}
+				None => None,
+			}
 		})
 	}
 
 	/// Make a request to a peer. 
 	///
-	/// Fails on: nonexistent peer, network error,
+	/// Fails on: nonexistent peer, network error, peer not server,
 	/// insufficient buffer. Does not check capabilities before sending.
 	/// On success, returns a request id which can later be coordinated 
 	/// with an event.
-	pub fn request_from(&self, io: &NetworkContext, peer_id: &PeerId, request: Request) -> Result<ReqId, Error> {
+	pub fn request_from(&self, io: &IoContext, peer_id: &PeerId, request: Request) -> Result<ReqId, Error> {
 		let peers = self.peers.read();
 		let peer = try!(peers.get(peer_id).ok_or_else(|| Error::UnknownPeer));
 		let mut peer = peer.lock();
 
-		peer.recharge_remote();
-
-		let max = peer.remote_flow.compute_cost(request.kind(), request.amount());
-		try!(peer.remote_buffer.deduct_cost(max));
+		match peer.remote_flow.as_mut() {
+			Some(&mut (ref mut buf, ref flow)) => {
+				flow.recharge(buf);
+				let max = flow.compute_cost(request.kind(), request.amount());
+				try!(buf.deduct_cost(max));
+			}
+			None => return Err(Error::NotServer),
+		}
 
 		let req_id = self.req_id.fetch_add(1, Ordering::SeqCst);
 		let packet_data = encode_request(&request, req_id);
@@ -242,12 +299,12 @@ impl LightProtocol {
 			request::Kind::HeaderProofs => packet::GET_HEADER_PROOFS,
 		};
 
-		try!(io.send(*peer_id, packet_id, packet_data));
+		io.send(*peer_id, packet_id, packet_data);
 
-		peer.current_asking.insert(req_id);
 		self.pending_requests.write().insert(req_id, Requested {
 			request: request,
 			timestamp: SteadyTime::now(),
+			peer_id: *peer_id,
 		});
 
 		Ok(ReqId(req_id))
@@ -255,8 +312,9 @@ impl LightProtocol {
 
 	/// Make an announcement of new chain head and capabilities to all peers.
 	/// The announcement is expected to be valid.
-	pub fn make_announcement(&self, io: &NetworkContext, mut announcement: Announcement) {
+	pub fn make_announcement(&self, io: &IoContext, mut announcement: Announcement) {
 		let mut reorgs_map = HashMap::new();
+		let now = SteadyTime::now();
 
 		// update stored capabilities
 		self.capabilities.write().update_from(&announcement);
@@ -264,6 +322,17 @@ impl LightProtocol {
 		// calculate reorg info and send packets
 		for (peer_id, peer_info) in self.peers.read().iter() {
 			let mut peer_info = peer_info.lock();
+
+			// TODO: "urgent" announcements like new blocks?
+			// the timer approach will skip 1 (possibly 2) in rare occasions.
+			if peer_info.sent_head == announcement.head_hash || 
+				peer_info.status.head_num >= announcement.head_num  ||
+				now - peer_info.last_update < Duration::milliseconds(UPDATE_INTERVAL_MS) {
+				continue 
+			}
+
+			peer_info.last_update = now;
+
 			let reorg_depth = reorgs_map.entry(peer_info.sent_head)
 				.or_insert_with(|| {
 					match self.provider.reorg_depth(&announcement.head_hash, &peer_info.sent_head) {
@@ -281,76 +350,231 @@ impl LightProtocol {
 			peer_info.sent_head = announcement.head_hash;
 			announcement.reorg_depth = *reorg_depth;
 
-			if let Err(e) = io.send(*peer_id, packet::ANNOUNCE, status::write_announcement(&announcement)) {
-				debug!(target: "les", "Error sending to peer {}: {}", peer_id, e);
-			}
+			io.send(*peer_id, packet::ANNOUNCE, status::write_announcement(&announcement));
 		}
 	}
 
 	/// Add an event handler.
 	/// Ownership will be transferred to the protocol structure,
 	/// and the handler will be kept alive as long as it is.
-	/// These are intended to be added at the beginning of the 
+	/// These are intended to be added when the protocol structure 
+	/// is initialized as a means of customizing its behavior.
 	pub fn add_handler(&mut self, handler: Box<Handler>) {
 		self.handlers.push(handler);
+	}
+
+	/// Signal to handlers that network activity is being aborted
+	/// and clear peer data.
+	pub fn abort(&self) {
+		for handler in &self.handlers {
+			handler.on_abort();
+		}
+
+		// acquire in order and hold.
+		let mut pending_peers = self.pending_peers.write();
+		let mut peers = self.peers.write();
+		let mut pending_requests = self.pending_requests.write();
+
+		pending_peers.clear();
+		peers.clear();
+		pending_requests.clear();
+	}
+
+	// Does the common pre-verification of responses before the response itself 
+	// is actually decoded:
+	//   - check whether peer exists
+	//   - check whether request was made
+	//   - check whether request kinds match
+	fn pre_verify_response(&self, peer: &PeerId, kind: request::Kind, raw: &UntrustedRlp) -> Result<ReqId, Error> {
+		let req_id: usize = try!(raw.val_at(0));
+		let cur_buffer: U256 = try!(raw.val_at(1));
+
+		trace!(target: "les", "pre-verifying response from peer {}, kind={:?}", peer, kind);
+
+		match self.pending_requests.write().remove(&req_id) {
+			None => return Err(Error::UnsolicitedResponse),
+			Some(requested) => {
+				if requested.peer_id != *peer || requested.request.kind() != kind {
+					return Err(Error::UnsolicitedResponse)
+				}
+			}
+		}
+
+		let peers = self.peers.read();
+		match peers.get(peer) {
+			Some(peer_info) => {
+				let mut peer_info = peer_info.lock();
+				match peer_info.remote_flow.as_mut() {
+					Some(&mut (ref mut buf, ref mut flow)) => {
+						let actual_buffer = ::std::cmp::min(cur_buffer, *flow.limit());				
+						buf.update_to(actual_buffer)
+					}
+					None => return Err(Error::NotServer), // this really should be impossible.
+				}
+				Ok(ReqId(req_id))
+			}
+			None => Err(Error::UnknownPeer), // probably only occurs in a race of some kind.
+		}
+	}
+
+	// handle a packet using the given io context.
+	fn handle_packet(&self, io: &IoContext, peer: &PeerId, packet_id: u8, data: &[u8]) {
+		let rlp = UntrustedRlp::new(data);
+
+		trace!(target: "les", "Incoming packet {} from peer {}", packet_id, peer);
+
+		// handle the packet
+		let res = match packet_id {
+			packet::STATUS => self.status(peer, io, rlp),
+			packet::ANNOUNCE => self.announcement(peer, io, rlp),
+
+			packet::GET_BLOCK_HEADERS => self.get_block_headers(peer, io, rlp),
+			packet::BLOCK_HEADERS => self.block_headers(peer, io, rlp),
+
+			packet::GET_BLOCK_BODIES => self.get_block_bodies(peer, io, rlp),
+			packet::BLOCK_BODIES => self.block_bodies(peer, io, rlp),
+
+			packet::GET_RECEIPTS => self.get_receipts(peer, io, rlp),
+			packet::RECEIPTS => self.receipts(peer, io, rlp),
+
+			packet::GET_PROOFS => self.get_proofs(peer, io, rlp),
+			packet::PROOFS => self.proofs(peer, io, rlp),
+
+			packet::GET_CONTRACT_CODES => self.get_contract_code(peer, io, rlp),
+			packet::CONTRACT_CODES => self.contract_code(peer, io, rlp),
+
+			packet::GET_HEADER_PROOFS => self.get_header_proofs(peer, io, rlp),
+			packet::HEADER_PROOFS => self.header_proofs(peer, io, rlp),
+
+			packet::SEND_TRANSACTIONS => self.relay_transactions(peer, io, rlp),
+
+			other => {
+				Err(Error::UnrecognizedPacket(other))
+			}
+		};
+
+		if let Err(e) = res {
+			punish(*peer, io, e);
+		}
+	}
+
+	// check timeouts and punish peers.
+	fn timeout_check(&self, io: &IoContext) {
+		let now = SteadyTime::now();
+
+		// handshake timeout
+		{
+			let mut pending = self.pending_peers.write();
+			let slowpokes: Vec<_> = pending.iter()
+				.filter(|&(_, ref peer)| {
+					peer.last_update + Duration::milliseconds(timeout::HANDSHAKE) <= now
+				})
+				.map(|(&p, _)| p)
+				.collect();
+
+			for slowpoke in slowpokes {
+				debug!(target: "les", "Peer {} handshake timed out", slowpoke);
+				pending.remove(&slowpoke);
+				io.disconnect_peer(slowpoke);
+			}
+		}
+
+		// request timeouts
+		{
+			for r in self.pending_requests.read().values() {
+				let kind_timeout = match r.request.kind() {
+					request::Kind::Headers => timeout::HEADERS,
+					request::Kind::Bodies => timeout::BODIES,
+					request::Kind::Receipts => timeout::RECEIPTS,
+					request::Kind::StateProofs => timeout::PROOFS,
+					request::Kind::Codes => timeout::CONTRACT_CODES,
+					request::Kind::HeaderProofs => timeout::HEADER_PROOFS,					
+				};
+
+				if r.timestamp + Duration::milliseconds(kind_timeout) <= now {
+					debug!(target: "les", "Request for {:?} from peer {} timed out", 
+						r.request.kind(), r.peer_id);
+					
+					// keep the request in the `pending` set for now so
+					// on_disconnect will pass unfulfilled ReqIds to handlers.
+					// in the case that a response is received after this, the
+					// disconnect won't be cancelled but the ReqId won't be 
+					// marked as abandoned.
+					io.disconnect_peer(r.peer_id);
+				}
+			}
+		}
 	}
 }
 
 impl LightProtocol {
 	// called when a peer connects.
-	fn on_connect(&self, peer: &PeerId, io: &NetworkContext) {
-		let peer = *peer;
+	fn on_connect(&self, peer: &PeerId, io: &IoContext) {
+		let proto_version = match io.protocol_version(*peer).ok_or(Error::WrongNetwork) {
+			Ok(pv) => pv,
+			Err(e) => { punish(*peer, io, e); return }
+		};
 
-		match self.send_status(peer, io) {
-			Ok(pending_peer) => {
-				self.pending_peers.write().insert(peer, pending_peer);
-			}
-			Err(e) => {
-				trace!(target: "les", "Error while sending status: {}", e);
-				io.disconnect_peer(peer);
-			}
+		if PROTOCOL_VERSIONS.iter().find(|x| **x == proto_version).is_none() {
+			punish(*peer, io, Error::UnsupportedProtocolVersion(proto_version));
+			return;
 		}
-	}
-
-	// called when a peer disconnects.
-	fn on_disconnect(&self, peer: PeerId) {
-		// TODO: reassign all requests assigned to this peer.
-		self.pending_peers.write().remove(&peer);
-		if self.peers.write().remove(&peer).is_some() {
-			for handler in &self.handlers {
-				handler.on_disconnect(peer)
-			}	
-		}
-	}
-
-	// send status to a peer.
-	fn send_status(&self, peer: PeerId, io: &NetworkContext) -> Result<PendingPeer, NetworkError> {
+		
 		let chain_info = self.provider.chain_info();
-
-		// TODO: could update capabilities here.
 
 		let status = Status {
 			head_td: chain_info.total_difficulty,
 			head_hash: chain_info.best_block_hash,
 			head_num: chain_info.best_block_number,
 			genesis_hash: chain_info.genesis_hash,
-			protocol_version: PROTOCOL_VERSION,
+			protocol_version: proto_version as u32, // match peer proto version
 			network_id: self.network_id,
 			last_head: None,
 		};
 
 		let capabilities = self.capabilities.read().clone();
-		let status_packet = status::write_handshake(&status, &capabilities, &self.flow_params);
+		let status_packet = status::write_handshake(&status, &capabilities, Some(&self.flow_params));
 
-		try!(io.send(peer, packet::STATUS, status_packet));
-
-		Ok(PendingPeer {
+		self.pending_peers.write().insert(*peer, PendingPeer {
 			sent_head: chain_info.best_block_hash,
-		})
+			last_update: SteadyTime::now(),
+		});
+
+		io.send(*peer, packet::STATUS, status_packet);		
+	}
+
+	// called when a peer disconnects.
+	fn on_disconnect(&self, peer: PeerId, io: &IoContext) {
+		trace!(target: "les", "Peer {} disconnecting", peer);
+
+
+		self.pending_peers.write().remove(&peer);
+		if self.peers.write().remove(&peer).is_some() {
+			let unfulfilled: Vec<_> = self.pending_requests.read()
+				.iter()
+				.filter(|&(_, r)| r.peer_id == peer)
+				.map(|(&id, _)| ReqId(id))
+				.collect();
+
+			{
+				let mut pending = self.pending_requests.write();
+				for &ReqId(ref inner) in &unfulfilled {
+					pending.remove(inner);
+				}
+			}
+
+			for handler in &self.handlers {
+				handler.on_disconnect(&Ctx {
+					peer: peer,
+					io: io,
+					proto: self,
+				}, &unfulfilled)
+			}	
+		}
 	}
 
 	// Handle status message from peer.
-	fn status(&self, peer: &PeerId, data: UntrustedRlp) -> Result<(), Error> {
+	fn status(&self, peer: &PeerId, io: &IoContext, data: UntrustedRlp) -> Result<(), Error> {
 		let pending = match self.pending_peers.write().remove(peer) {
 			Some(pending) => pending,
 			None => {
@@ -366,63 +590,79 @@ impl LightProtocol {
 			return Err(Error::WrongNetwork);
 		}
 
+		if Some(status.protocol_version as u8) != io.protocol_version(*peer) {
+			return Err(Error::BadProtocolVersion);
+		}
+
+		let remote_flow = flow_params.map(|params| (params.create_buffer(), params));
+
 		self.peers.write().insert(*peer, Mutex::new(Peer {
 			local_buffer: self.flow_params.create_buffer(),
-			remote_buffer: flow_params.create_buffer(),
-			current_asking: HashSet::new(),
 			status: status.clone(),
 			capabilities: capabilities.clone(),
-			remote_flow: flow_params,
+			remote_flow: remote_flow,
 			sent_head: pending.sent_head,
+			last_update: pending.last_update,
 		}));
 
 		for handler in &self.handlers {
-			handler.on_connect(*peer, &status, &capabilities)
+			handler.on_connect(&Ctx {
+				peer: *peer,
+				io: io,	
+				proto: self,
+			}, &status, &capabilities)
 		}
 
 		Ok(())
 	}
 
 	// Handle an announcement.
-	fn announcement(&self, peer: &PeerId, data: UntrustedRlp) -> Result<(), Error> {
+	fn announcement(&self, peer: &PeerId, io: &IoContext, data: UntrustedRlp) -> Result<(), Error> {
 		if !self.peers.read().contains_key(peer) {
 			debug!(target: "les", "Ignoring announcement from unknown peer");
 			return Ok(())
 		}
 
 		let announcement = try!(status::parse_announcement(data));
-		let peers = self.peers.read();
 
-		let peer_info = match peers.get(peer) {
-			Some(info) => info,
-			None => return Ok(()),
-		};
-
-		let mut peer_info = peer_info.lock();
-
-		// update status.
+		// scope to ensure locks are dropped before moving into handler-space.
 		{
-			// TODO: punish peer if they've moved backwards.
-			let status = &mut peer_info.status;
-			let last_head = status.head_hash;
-			status.head_hash = announcement.head_hash;
-			status.head_td = announcement.head_td;
-			status.head_num = announcement.head_num;
-			status.last_head = Some((last_head, announcement.reorg_depth));
+			let peers = self.peers.read();
+			let peer_info = match peers.get(peer) {
+				Some(info) => info,
+				None => return Ok(()),
+			};
+
+			let mut peer_info = peer_info.lock();
+
+			// update status.
+			{
+				// TODO: punish peer if they've moved backwards.
+				let status = &mut peer_info.status;
+				let last_head = status.head_hash;
+				status.head_hash = announcement.head_hash;
+				status.head_td = announcement.head_td;
+				status.head_num = announcement.head_num;
+				status.last_head = Some((last_head, announcement.reorg_depth));
+			}
+
+			// update capabilities.
+			peer_info.capabilities.update_from(&announcement);
 		}
 
-		// update capabilities.
-		peer_info.capabilities.update_from(&announcement);
-
 		for handler in &self.handlers {
-			handler.on_announcement(*peer, &announcement);
+			handler.on_announcement(&Ctx {
+				peer: *peer,
+				io: io,
+				proto: self,
+			}, &announcement);
 		}
 
 		Ok(())
 	}
 
 	// Handle a request for block headers.
-	fn get_block_headers(&self, peer: &PeerId, io: &NetworkContext, data: UntrustedRlp) -> Result<(), Error> {
+	fn get_block_headers(&self, peer: &PeerId, io: &IoContext, data: UntrustedRlp) -> Result<(), Error> {		
 		const MAX_HEADERS: usize = 512;
 
 		let peers = self.peers.read();
@@ -437,18 +677,21 @@ impl LightProtocol {
 		let mut peer = peer.lock();
 
 		let req_id: u64 = try!(data.val_at(0));
+		let data = try!(data.at(1));
 
-		let block = {
-			let rlp = try!(data.at(1));
-			(try!(rlp.val_at(0)), try!(rlp.val_at(1)))
+		let start_block = {
+			if try!(data.at(0)).size() == 32 {
+				HashOrNumber::Hash(try!(data.val_at(0)))
+			} else {
+				HashOrNumber::Number(try!(data.val_at(0)))
+			}
 		};
 
 		let req = request::Headers {
-			block_num: block.0,
-			block_hash: block.1,
-			max: ::std::cmp::min(MAX_HEADERS, try!(data.val_at(2))),
-			skip: try!(data.val_at(3)),
-			reverse: try!(data.val_at(4)),
+			start: start_block,
+			max: ::std::cmp::min(MAX_HEADERS, try!(data.val_at(1))),
+			skip: try!(data.val_at(2)),
+			reverse: try!(data.val_at(3)),
 		};
 
 		let max_cost = try!(peer.deduct_max(&self.flow_params, request::Kind::Headers, req.max));
@@ -459,24 +702,37 @@ impl LightProtocol {
 
 		let cur_buffer = peer.refund(&self.flow_params, max_cost - actual_cost);
 		io.respond(packet::BLOCK_HEADERS, {
-			let mut stream = RlpStream::new_list(response.len() + 2);
-			stream.append(&req_id).append(&cur_buffer);
+			let mut stream = RlpStream::new_list(3);
+			stream.append(&req_id).append(&cur_buffer).begin_list(response.len());
 
 			for header in response {
 				stream.append_raw(&header, 1);
 			}
 
 			stream.out()
-		}).map_err(Into::into)
+		});
+
+		Ok(())
 	}
 
 	// Receive a response for block headers.
-	fn block_headers(&self, _: &PeerId, _: &NetworkContext, _: UntrustedRlp) -> Result<(), Error> {
-		unimplemented!()
+	fn block_headers(&self, peer: &PeerId, io: &IoContext, raw: UntrustedRlp) -> Result<(), Error> {
+		let req_id = try!(self.pre_verify_response(peer, request::Kind::Headers, &raw));
+		let raw_headers: Vec<_> = try!(raw.at(2)).iter().map(|x| x.as_raw().to_owned()).collect();
+
+		for handler in &self.handlers {
+			handler.on_block_headers(&Ctx {
+				peer: *peer,
+				io: io,
+				proto: self,
+			}, req_id, &raw_headers);
+		}
+
+		Ok(())
 	}
 
 	// Handle a request for block bodies.
-	fn get_block_bodies(&self, peer: &PeerId, io: &NetworkContext, data: UntrustedRlp) -> Result<(), Error> {
+	fn get_block_bodies(&self, peer: &PeerId, io: &IoContext, data: UntrustedRlp) -> Result<(), Error> {
 		const MAX_BODIES: usize = 256;
 
 		let peers = self.peers.read();
@@ -492,7 +748,7 @@ impl LightProtocol {
 		let req_id: u64 = try!(data.val_at(0));
 
 		let req = request::Bodies {
-			block_hashes: try!(data.iter().skip(1).take(MAX_BODIES).map(|x| x.as_val()).collect())
+			block_hashes: try!(try!(data.at(1)).iter().take(MAX_BODIES).map(|x| x.as_val()).collect())
 		};
 
 		let max_cost = try!(peer.deduct_max(&self.flow_params, request::Kind::Bodies, req.block_hashes.len()));
@@ -505,24 +761,37 @@ impl LightProtocol {
 		let cur_buffer = peer.refund(&self.flow_params, max_cost - actual_cost);
 
 		io.respond(packet::BLOCK_BODIES, {
-			let mut stream = RlpStream::new_list(response.len() + 2);
-			stream.append(&req_id).append(&cur_buffer);
+			let mut stream = RlpStream::new_list(3);
+			stream.append(&req_id).append(&cur_buffer).begin_list(response.len());
 
 			for body in response {
 				stream.append_raw(&body, 1);
 			}
 
 			stream.out()
-		}).map_err(Into::into)
+		});
+
+		Ok(())
 	}
 
 	// Receive a response for block bodies.
-	fn block_bodies(&self, _: &PeerId, _: &NetworkContext, _: UntrustedRlp) -> Result<(), Error> {
-		unimplemented!()
+	fn block_bodies(&self, peer: &PeerId, io: &IoContext, raw: UntrustedRlp) -> Result<(), Error> {
+		let req_id = try!(self.pre_verify_response(peer, request::Kind::Bodies, &raw));
+		let raw_bodies: Vec<Bytes> = try!(raw.at(2)).iter().map(|x| x.as_raw().to_owned()).collect();
+
+		for handler in &self.handlers {
+			handler.on_block_bodies(&Ctx {
+				peer: *peer,
+				io: io,
+				proto: self,
+			}, req_id, &raw_bodies);
+		}
+
+		Ok(())
 	}
 
 	// Handle a request for receipts.
-	fn get_receipts(&self, peer: &PeerId, io: &NetworkContext, data: UntrustedRlp) -> Result<(), Error> {
+	fn get_receipts(&self, peer: &PeerId, io: &IoContext, data: UntrustedRlp) -> Result<(), Error> {
 		const MAX_RECEIPTS: usize = 256;
 
 		let peers = self.peers.read();
@@ -538,7 +807,7 @@ impl LightProtocol {
 		let req_id: u64 = try!(data.val_at(0));
 
 		let req = request::Receipts {
-			block_hashes: try!(data.iter().skip(1).take(MAX_RECEIPTS).map(|x| x.as_val()).collect())
+			block_hashes: try!(try!(data.at(1)).iter().take(MAX_RECEIPTS).map(|x| x.as_val()).collect())
 		};
 
 		let max_cost = try!(peer.deduct_max(&self.flow_params, request::Kind::Receipts, req.block_hashes.len()));
@@ -551,24 +820,40 @@ impl LightProtocol {
 		let cur_buffer = peer.refund(&self.flow_params, max_cost - actual_cost);
 
 		io.respond(packet::RECEIPTS, {
-			let mut stream = RlpStream::new_list(response.len() + 2);
-			stream.append(&req_id).append(&cur_buffer);
+			let mut stream = RlpStream::new_list(3);
+			stream.append(&req_id).append(&cur_buffer).begin_list(response.len());
 
 			for receipts in response {
 				stream.append_raw(&receipts, 1);
 			}
 
 			stream.out()
-		}).map_err(Into::into)
+		});
+
+		Ok(())
 	}
 
 	// Receive a response for receipts.
-	fn receipts(&self, _: &PeerId, _: &NetworkContext, _: UntrustedRlp) -> Result<(), Error> {
-		unimplemented!()
+	fn receipts(&self, peer: &PeerId, io: &IoContext, raw: UntrustedRlp) -> Result<(), Error> {
+		let req_id = try!(self.pre_verify_response(peer, request::Kind::Receipts, &raw));
+		let raw_receipts: Vec<Vec<Receipt>> = try!(try!(raw.at(2))
+			.iter()
+			.map(|x| x.as_val())
+			.collect());
+
+		for handler in &self.handlers {
+			handler.on_receipts(&Ctx {
+				peer: *peer,
+				io: io,
+				proto: self,
+			}, req_id, &raw_receipts);
+		}
+
+		Ok(())
 	}
 
 	// Handle a request for proofs.
-	fn get_proofs(&self, peer: &PeerId, io: &NetworkContext, data: UntrustedRlp) -> Result<(), Error> {
+	fn get_proofs(&self, peer: &PeerId, io: &IoContext, data: UntrustedRlp) -> Result<(), Error> {
 		const MAX_PROOFS: usize = 128;
 
 		let peers = self.peers.read();
@@ -584,7 +869,7 @@ impl LightProtocol {
 		let req_id: u64 = try!(data.val_at(0));
 
 		let req = {
-			let requests: Result<Vec<_>, Error> = data.iter().skip(1).take(MAX_PROOFS).map(|x| {
+			let requests: Result<Vec<_>, Error> = try!(data.at(1)).iter().take(MAX_PROOFS).map(|x| {
 				Ok(request::StateProof {
 					block: try!(x.val_at(0)),
 					key1: try!(x.val_at(1)),
@@ -608,24 +893,40 @@ impl LightProtocol {
 		let cur_buffer = peer.refund(&self.flow_params, max_cost - actual_cost);
 
 		io.respond(packet::PROOFS, {
-			let mut stream = RlpStream::new_list(response.len() + 2);
-			stream.append(&req_id).append(&cur_buffer);
+			let mut stream = RlpStream::new_list(3);
+			stream.append(&req_id).append(&cur_buffer).begin_list(response.len());
 
 			for proof in response {
 				stream.append_raw(&proof, 1);
 			}
 
 			stream.out()
-		}).map_err(Into::into)
+		});
+
+		Ok(())
 	}
 
 	// Receive a response for proofs.
-	fn proofs(&self, _: &PeerId, _: &NetworkContext, _: UntrustedRlp) -> Result<(), Error> {
-		unimplemented!()
+	fn proofs(&self, peer: &PeerId, io: &IoContext, raw: UntrustedRlp) -> Result<(), Error> {
+		let req_id = try!(self.pre_verify_response(peer, request::Kind::StateProofs, &raw));
+
+		let raw_proofs: Vec<Vec<Bytes>> = try!(raw.at(2)).iter()
+			.map(|x| x.iter().map(|node| node.as_raw().to_owned()).collect())
+			.collect();
+
+		for handler in &self.handlers { 
+			handler.on_state_proofs(&Ctx {
+				peer: *peer,
+				io: io,
+				proto: self,
+			}, req_id, &raw_proofs);
+		}
+
+		Ok(())
 	}
 
 	// Handle a request for contract code.
-	fn get_contract_code(&self, peer: &PeerId, io: &NetworkContext, data: UntrustedRlp) -> Result<(), Error> {
+	fn get_contract_code(&self, peer: &PeerId, io: &IoContext, data: UntrustedRlp) -> Result<(), Error> {
 		const MAX_CODES: usize = 256;
 
 		let peers = self.peers.read();
@@ -641,7 +942,7 @@ impl LightProtocol {
 		let req_id: u64 = try!(data.val_at(0));
 
 		let req = {
-			let requests: Result<Vec<_>, Error> = data.iter().skip(1).take(MAX_CODES).map(|x| {
+			let requests: Result<Vec<_>, Error> = try!(data.at(1)).iter().take(MAX_CODES).map(|x| {
 				Ok(request::ContractCode {
 					block_hash: try!(x.val_at(0)),
 					account_key: try!(x.val_at(1)),
@@ -663,24 +964,38 @@ impl LightProtocol {
 		let cur_buffer = peer.refund(&self.flow_params, max_cost - actual_cost);
 
 		io.respond(packet::CONTRACT_CODES, {
-			let mut stream = RlpStream::new_list(response.len() + 2);
-			stream.append(&req_id).append(&cur_buffer);
+			let mut stream = RlpStream::new_list(3);
+			stream.append(&req_id).append(&cur_buffer).begin_list(response.len());
 
 			for code in response {
-				stream.append_raw(&code, 1);
+				stream.append(&code);
 			}
 
 			stream.out()
-		}).map_err(Into::into)
+		});
+
+		Ok(())
 	}
 
 	// Receive a response for contract code.
-	fn contract_code(&self, _: &PeerId, _: &NetworkContext, _: UntrustedRlp) -> Result<(), Error> {
-		unimplemented!()
+	fn contract_code(&self, peer: &PeerId, io: &IoContext, raw: UntrustedRlp) -> Result<(), Error> {
+		let req_id = try!(self.pre_verify_response(peer, request::Kind::Codes, &raw));
+
+		let raw_code: Vec<Bytes> = try!(try!(raw.at(2)).iter().map(|x| x.as_val()).collect());
+
+		for handler in &self.handlers { 
+			handler.on_code(&Ctx {
+				peer: *peer,
+				io: io,
+				proto: self,
+			}, req_id, &raw_code);
+		}
+
+		Ok(())
 	}
 
 	// Handle a request for header proofs
-	fn get_header_proofs(&self, peer: &PeerId, io: &NetworkContext, data: UntrustedRlp) -> Result<(), Error> {
+	fn get_header_proofs(&self, peer: &PeerId, io: &IoContext, data: UntrustedRlp) -> Result<(), Error> {
 		const MAX_PROOFS: usize = 256;
 
 		let peers = self.peers.read();
@@ -696,7 +1011,7 @@ impl LightProtocol {
 		let req_id: u64 = try!(data.val_at(0));
 
 		let req = {
-			let requests: Result<Vec<_>, Error> = data.iter().skip(1).take(MAX_PROOFS).map(|x| {
+			let requests: Result<Vec<_>, Error> = try!(data.at(1)).iter().take(MAX_PROOFS).map(|x| {
 				Ok(request::HeaderProof {
 					cht_number: try!(x.val_at(0)),
 					block_number: try!(x.val_at(1)),
@@ -719,24 +1034,44 @@ impl LightProtocol {
 		let cur_buffer = peer.refund(&self.flow_params, max_cost - actual_cost);
 
 		io.respond(packet::HEADER_PROOFS, {
-			let mut stream = RlpStream::new_list(response.len() + 2);
-			stream.append(&req_id).append(&cur_buffer);
+			let mut stream = RlpStream::new_list(3);
+			stream.append(&req_id).append(&cur_buffer).begin_list(response.len());
 
 			for proof in response {
 				stream.append_raw(&proof, 1);
 			}
 
 			stream.out()
-		}).map_err(Into::into)
+		});
+
+		Ok(())
 	}
 
 	// Receive a response for header proofs
-	fn header_proofs(&self, _: &PeerId, _: &NetworkContext, _: UntrustedRlp) -> Result<(), Error> {
-		unimplemented!()
+	fn header_proofs(&self, peer: &PeerId, io: &IoContext, raw: UntrustedRlp) -> Result<(), Error> {
+		fn decode_res(raw: UntrustedRlp) -> Result<(Bytes, Vec<Bytes>), ::rlp::DecoderError> {
+			Ok((
+				try!(raw.val_at(0)),
+				try!(raw.at(1)).iter().map(|x| x.as_raw().to_owned()).collect(),
+			))
+		}
+		
+		let req_id = try!(self.pre_verify_response(peer, request::Kind::HeaderProofs, &raw));
+		let raw_proofs: Vec<_> = try!(try!(raw.at(2)).iter().map(decode_res).collect());
+
+		for handler in &self.handlers { 
+			handler.on_header_proofs(&Ctx {
+				peer: *peer,
+				io: io,
+				proto: self,
+			}, req_id, &raw_proofs);
+		}
+
+		Ok(())
 	}
 
 	// Receive a set of transactions to relay.
-	fn relay_transactions(&self, peer: &PeerId, data: UntrustedRlp) -> Result<(), Error> {
+	fn relay_transactions(&self, peer: &PeerId, io: &IoContext, data: UntrustedRlp) -> Result<(), Error> {
 		const MAX_TRANSACTIONS: usize = 256;
 
 		let txs: Vec<_> = try!(data.iter().take(MAX_TRANSACTIONS).map(|x| x.as_val::<SignedTransaction>()).collect());
@@ -744,10 +1079,29 @@ impl LightProtocol {
 		debug!(target: "les", "Received {} transactions to relay from peer {}", txs.len(), peer);
 
 		for handler in &self.handlers {
-			handler.on_transactions(*peer, &txs);
+			handler.on_transactions(&Ctx {
+				peer: *peer,
+				io: io,
+				proto: self,	
+			}, &txs);
 		}
 
 		Ok(())
+	}
+}
+
+// if something went wrong, figure out how much to punish the peer.
+fn punish(peer: PeerId, io: &IoContext, e: Error) {
+	match e.punishment() {
+		Punishment::None => {}
+		Punishment::Disconnect => {
+			debug!(target: "les", "Disconnecting peer {}: {}", peer, e);
+			io.disconnect_peer(peer)
+		}
+		Punishment::Disable => {
+			debug!(target: "les", "Disabling peer {}: {}", peer, e);
+			io.disable_peer(peer)
+		}
 	}
 }
 
@@ -757,67 +1111,20 @@ impl NetworkProtocolHandler for LightProtocol {
 	}
 
 	fn read(&self, io: &NetworkContext, peer: &PeerId, packet_id: u8, data: &[u8]) {
-		let rlp = UntrustedRlp::new(data);
-
-		// handle the packet
-		let res = match packet_id {
-			packet::STATUS => self.status(peer, rlp),
-			packet::ANNOUNCE => self.announcement(peer, rlp),
-
-			packet::GET_BLOCK_HEADERS => self.get_block_headers(peer, io, rlp),
-			packet::BLOCK_HEADERS => self.block_headers(peer, io, rlp),
-
-			packet::GET_BLOCK_BODIES => self.get_block_bodies(peer, io, rlp),
-			packet::BLOCK_BODIES => self.block_bodies(peer, io, rlp),
-
-			packet::GET_RECEIPTS => self.get_receipts(peer, io, rlp),
-			packet::RECEIPTS => self.receipts(peer, io, rlp),
-
-			packet::GET_PROOFS => self.get_proofs(peer, io, rlp),
-			packet::PROOFS => self.proofs(peer, io, rlp),
-
-			packet::GET_CONTRACT_CODES => self.get_contract_code(peer, io, rlp),
-			packet::CONTRACT_CODES => self.contract_code(peer, io, rlp),
-
-			packet::GET_HEADER_PROOFS => self.get_header_proofs(peer, io, rlp),
-			packet::HEADER_PROOFS => self.header_proofs(peer, io, rlp),
-
-			packet::SEND_TRANSACTIONS => self.relay_transactions(peer, rlp),
-
-			other => {
-				Err(Error::UnrecognizedPacket(other))
-			}
-		};
-
-		// if something went wrong, figure out how much to punish the peer.
-		if let Err(e) = res {
-			match e.punishment() {
-				Punishment::None => {}
-				Punishment::Disconnect => {
-					debug!(target: "les", "Disconnecting peer {}: {}", peer, e);
-					io.disconnect_peer(*peer)
-				}
-				Punishment::Disable => {
-					debug!(target: "les", "Disabling peer {}: {}", peer, e);
-					io.disable_peer(*peer)
-				}
-			}
-		}
+		self.handle_packet(io, peer, packet_id, data);
 	}
 
 	fn connected(&self, io: &NetworkContext, peer: &PeerId) {
 		self.on_connect(peer, io);
 	}
 
-	fn disconnected(&self, _io: &NetworkContext, peer: &PeerId) {
-		self.on_disconnect(*peer);
+	fn disconnected(&self, io: &NetworkContext, peer: &PeerId) {
+		self.on_disconnect(*peer, io);
 	}
 
-	fn timeout(&self, _io: &NetworkContext, timer: TimerToken) {
+	fn timeout(&self, io: &NetworkContext, timer: TimerToken) {
 		match timer {
-			TIMEOUT => {
-				// broadcast transactions to peers.
-			}
+			TIMEOUT => self.timeout_check(io),
 			_ => warn!(target: "les", "received timeout on unknown token {}", timer),
 		}
 	}
@@ -827,20 +1134,24 @@ impl NetworkProtocolHandler for LightProtocol {
 fn encode_request(req: &Request, req_id: usize) -> Vec<u8> {
 	match *req {
 		Request::Headers(ref headers) => {
-			let mut stream = RlpStream::new_list(5);
+			let mut stream = RlpStream::new_list(2);
+			stream.append(&req_id).begin_list(4);
+				
+			match headers.start {
+				HashOrNumber::Hash(ref hash) => stream.append(hash),
+				HashOrNumber::Number(ref num) => stream.append(num),
+			};
+			
 			stream
-				.append(&req_id)
-				.begin_list(2)
-					.append(&headers.block_num)
-					.append(&headers.block_hash)
 				.append(&headers.max)
 				.append(&headers.skip)
 				.append(&headers.reverse);
+
 			stream.out()
 		}
 		Request::Bodies(ref request) => {
-			let mut stream = RlpStream::new_list(request.block_hashes.len() + 1);
-			stream.append(&req_id);
+			let mut stream = RlpStream::new_list(2);
+			stream.append(&req_id).begin_list(request.block_hashes.len());
 
 			for hash in &request.block_hashes {
 				stream.append(hash);
@@ -849,8 +1160,8 @@ fn encode_request(req: &Request, req_id: usize) -> Vec<u8> {
 			stream.out()
 		}
 		Request::Receipts(ref request) => {
-			let mut stream = RlpStream::new_list(request.block_hashes.len() + 1);
-			stream.append(&req_id);
+			let mut stream = RlpStream::new_list(2);
+			stream.append(&req_id).begin_list(request.block_hashes.len());
 
 			for hash in &request.block_hashes {
 				stream.append(hash);
@@ -859,8 +1170,8 @@ fn encode_request(req: &Request, req_id: usize) -> Vec<u8> {
 			stream.out()
 		}
 		Request::StateProofs(ref request) => {
-			let mut stream = RlpStream::new_list(request.requests.len() + 1);
-			stream.append(&req_id);
+			let mut stream = RlpStream::new_list(2);
+			stream.append(&req_id).begin_list(request.requests.len());
 
 			for proof_req in &request.requests {
 				stream.begin_list(4)
@@ -878,8 +1189,8 @@ fn encode_request(req: &Request, req_id: usize) -> Vec<u8> {
 			stream.out()
 		}
 		Request::Codes(ref request) => {
-			let mut stream = RlpStream::new_list(request.code_requests.len() + 1);
-			stream.append(&req_id);
+			let mut stream = RlpStream::new_list(2);
+			stream.append(&req_id).begin_list(request.code_requests.len());
 
 			for code_req in &request.code_requests {
 				stream.begin_list(2)
@@ -890,8 +1201,8 @@ fn encode_request(req: &Request, req_id: usize) -> Vec<u8> {
 			stream.out()
 		}
 		Request::HeaderProofs(ref request) => {
-			let mut stream = RlpStream::new_list(request.requests.len() + 1);
-			stream.append(&req_id);
+			let mut stream = RlpStream::new_list(2);
+			stream.append(&req_id).begin_list(request.requests.len());
 
 			for proof_req in &request.requests {
 				stream.begin_list(3)
