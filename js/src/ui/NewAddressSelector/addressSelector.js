@@ -18,6 +18,9 @@ import React, { Component, PropTypes } from 'react';
 import ReactDOM from 'react-dom';
 import { connect } from 'react-redux';
 import Portal from 'react-portal';
+import keycode from 'keycode';
+
+import CloseIcon from 'material-ui/svg-icons/navigation/close';
 
 import IdentityIcon from '~/ui/IdentityIcon';
 import InputAddress from '~/ui/Form/InputAddress';
@@ -53,13 +56,14 @@ class AddressSelector extends Component {
   };
 
   state = {
+    inputValue: '',
     values: [],
     expanded: false,
     top: 0,
     left: 0
   };
 
-  componentDidMount () {
+  componentWillMount () {
     const { accounts = {}, contracts = {}, contacts = {} } = this.props;
 
     this.values = [].concat(
@@ -129,8 +133,12 @@ class AddressSelector extends Component {
     }
 
     return (
-      <Portal isOpened>
-        <div className={ classes.join(' ') } style={ { top, left } }>
+      <Portal isOpened onClose={ this.handleClose }>
+        <div
+          className={ classes.join(' ') }
+          style={ { top, left } }
+          onKeyDown={ this.handleKeyDown }
+        >
           <div className={ styles.inputContainer }>
             <input
               className={ styles.input }
@@ -142,10 +150,44 @@ class AddressSelector extends Component {
               ref={ this.setInputRef }
             />
 
+            { this.renderCurrentInput() }
             { this.renderAccounts() }
+            { this.renderCloseIcon() }
           </div>
         </div>
       </Portal>
+    );
+  }
+
+  renderCurrentInput () {
+    if (!this.props.allowInput) {
+      return null;
+    }
+
+    const { inputValue } = this.state;
+
+    if (inputValue.length === 0 || !/^(0x)?[a-f0-9]*$/i.test(inputValue)) {
+      return null;
+    }
+
+    return (
+      <div>
+        { this.renderAccountCard(inputValue) }
+      </div>
+    );
+  }
+
+  renderCloseIcon () {
+    const { expanded } = this.state;
+
+    if (!expanded) {
+      return null;
+    }
+
+    return (
+      <div className={ styles.closeIcon } onClick={ this.handleClose }>
+        <CloseIcon style={ { width: 48, height: 48 } } />
+      </div>
     );
   }
 
@@ -189,7 +231,7 @@ class AddressSelector extends Component {
     }
 
     const cards = values
-      .map((account) => this.renderAccountCard(account));
+      .map((account) => this.renderAccountCard(account.address));
 
     return (
       <div className={ styles.category } key={ name }>
@@ -201,23 +243,27 @@ class AddressSelector extends Component {
     );
   }
 
-  renderAccountCard (account) {
-    const { address } = account;
-    const name = account.name || address;
+  renderAccountCard (address) {
+    const account = this.props.accountsInfo[address];
+    const name = (account && account.name && account.name.toUpperCase()) || address;
     const balance = this.renderBalance(address);
 
     const onClick = () => {
       this.handleClick(address);
     };
 
+    const addressElements = name !== address
+      ? (
+        <div className={ styles.address }>{ address }</div>
+      )
+      : null;
+
     return (
       <div key={ address } className={ styles.account } onClick={ onClick }>
         <IdentityIcon address={ address } />
         <div className={ styles.accountInfo }>
           <div className={ styles.accountName }>{ name }</div>
-          <div className={ styles.address }>
-            { address }
-          </div>
+          { addressElements }
           { balance }
         </div>
       </div>
@@ -254,25 +300,37 @@ class AddressSelector extends Component {
     this.inputRef = refId;
   }
 
-  handleClick = (address) => {
-    const { top, left } = this.refs.main.getBoundingClientRect();
-    this.props.onChange(null, address);
+  handleKeyDown = (event) => {
+    switch (keycode(event)) {
+      case 'esc':
+        return this.handleClose();
+    }
+  }
 
-    this.setState({ top, left, expanded: false });
+  handleClick = (address) => {
+    this.props.onChange(null, address);
+    this.handleClose();
   }
 
   handleFocus = () => {
     const { top, left } = this.refs.main.getBoundingClientRect();
 
-    this.setState({ top, left }, () => {
-      this.setState({ expanded: true, top: 0, left: 0 }, () => {
-        ReactDOM.findDOMNode(this.inputRef).focus();
+    this.setState({ top, left, expanded: true }, () => {
+      this.setState({ top: 0, left: 0 }, () => {
+        window.setTimeout(() => {
+          ReactDOM.findDOMNode(this.inputRef).focus();
+        }, 250);
       });
     });
   }
 
-  handleBlur = () => {
-    // this.setState({ expanded: false, top: 0 });
+  handleClose = () => {
+    if (!this.refs.main) {
+      return null;
+    }
+
+    const { top, left } = this.refs.main.getBoundingClientRect();
+    this.setState({ top, left, expanded: false });
   }
 
   handleChange = (event) => {
@@ -285,7 +343,7 @@ class AddressSelector extends Component {
       return address.includes(value) || name.includes(value);
     });
 
-    this.setState({ values });
+    this.setState({ values, inputValue: value });
   }
 }
 

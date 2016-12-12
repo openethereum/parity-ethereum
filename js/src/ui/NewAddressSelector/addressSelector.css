@@ -46,6 +46,20 @@
   left: 0;
 }
 
+.closeIcon {
+  position: absolute;
+  top: 1rem;
+  right: 2rem;
+  font-size: 4em;
+
+  height: 48px;
+  width: 48px;
+
+  &:hover {
+    cursor: pointer;
+  }
+}
+
 .overlay {
   position: fixed;
   top: 0;
@@ -56,7 +70,7 @@
   transform-origin: 100% 0;
   transition-property: height, width, top, left, background-color, z-index;
   transition-duration: 0.5s;
-  transition-timing-function: cubic-bezier(0.7,0,0.3,1);
+  transition-timing-function: ease-out;
 
   background-color: rgba(0, 0, 0, 0.0);
   z-index: -9999;
@@ -77,6 +91,8 @@
       font-size: 3em;
       padding: 0.5em 2rem;
       display: block;
+
+      padding-right: 6rem;
     }
   }
 }
@@ -170,7 +186,6 @@
   }
 
   .accountName {
-    text-transform: uppercase;
     font-weight: 700 !important;
   }
 
