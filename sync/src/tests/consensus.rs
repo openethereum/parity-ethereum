@@ -17,7 +17,7 @@
 use util::*;
 use io::{IoHandler, IoContext, IoChannel};
 use ethcore::client::{BlockChainClient, Client, MiningBlockChainClient};
-use ethcore::service::{ClientIoMessage};
+use ethcore::service::ClientIoMessage;
 use ethcore::spec::Spec;
 use ethcore::miner::MinerService;
 use ethcore::transaction::*;
@@ -44,6 +44,17 @@ impl IoHandler<ClientIoMessage> for TestIoHandler {
 	}
 }
 
+fn new_tx(secret: &H256, nonce: U256) -> SignedTransaction {
+	Transaction {
+		nonce: nonce.into(),
+		gas_price: 0.into(),
+		gas: 21000.into(),
+		action: Action::Call(Address::default()),
+		value: 0.into(),
+		data: Vec::new(),
+	}.sign(secret, None)
+}
+
 #[test]
 fn authority_round() {
 	let s0 = KeyPair::from_secret("1".sha3()).unwrap();
@@ -66,35 +77,40 @@ fn authority_round() {
 	net.peer(0).chain.engine().register_message_channel(IoChannel::to_handler(Arc::downgrade(&io_handler0)));
 	net.peer(1).chain.engine().register_message_channel(IoChannel::to_handler(Arc::downgrade(&io_handler1)));
 	net.peer(0).chain.set_io_channel(IoChannel::to_handler(Arc::downgrade(&io_handler1)));
-	net.peer(1).chain.set_io_channel(IoChannel::to_handler(Arc::downgrade(&io_handler1)));
-	let tx0 = Transaction {
-		nonce: 0.into(),
-		gas_price: 0.into(),
-		gas: 21000.into(),
-		action: Action::Call(Address::default()),
-		value: 0.into(),
-		data: Vec::new(),
-	}.sign(s0.secret(), None);
+	net.peer(1).chain.set_io_channel(IoChannel::to_handler(Arc::downgrade(&io_handler0)));
 	// exchange statuses
 	net.sync();
-	net.peer(0).chain.miner().import_own_transaction(&*net.peer(0).chain, tx0).unwrap();
+	// Trigger block proposal
+	net.peer(0).chain.miner().import_own_transaction(&*net.peer(0).chain, new_tx(s0.secret(), 0.into())).unwrap();
+	// Sync a block
 	net.sync();
 	assert_eq!(net.peer(0).chain.chain_info().best_block_number, 1);
 	assert_eq!(net.peer(1).chain.chain_info().best_block_number, 1);
 
-	let tx1 = Transaction {
-		nonce: 0.into(),
-		gas_price: 0.into(),
-		gas: 21000.into(),
-		action: Action::Call(Address::default()),
-		value: 0.into(),
-		data: Vec::new(),
-	}.sign(s1.secret(), None);
-	net.peer(1).chain.miner().import_own_transaction(&*net.peer(1).chain, tx1).unwrap();
+	net.peer(1).chain.miner().import_own_transaction(&*net.peer(1).chain, new_tx(s1.secret(), 0.into())).unwrap();
+	// Move to next proposer step
+	net.peer(0).chain.engine().step();
 	net.peer(1).chain.engine().step();
 	net.sync();
 	assert_eq!(net.peer(0).chain.chain_info().best_block_number, 2);
 	assert_eq!(net.peer(1).chain.chain_info().best_block_number, 2);
+
+	// Fork the network
+	net.peer(0).chain.miner().import_own_transaction(&*net.peer(0).chain, new_tx(s0.secret(), 1.into())).unwrap();
+	net.peer(0).chain.engine().step();
+	net.peer(1).chain.engine().step();
+	assert_eq!(net.peer(0).chain.chain_info().best_block_number, 3);
+	net.peer(1).chain.miner().import_own_transaction(&*net.peer(1).chain, new_tx(s1.secret(), 1.into())).unwrap();
+	net.peer(0).chain.engine().step();
+	net.peer(1).chain.engine().step();
+	assert_eq!(net.peer(1).chain.chain_info().best_block_number, 3);
+	// Reorg to the correct one.
+	net.sync();
+	let ci0 = net.peer(0).chain.chain_info();
+	let ci1 = net.peer(1).chain.chain_info();
+	assert_eq!(ci0.best_block_number, 3);
+	assert_eq!(ci1.best_block_number, 3);
+	assert_eq!(ci0.best_block_hash, ci1.best_block_hash);
 }
 
 #[test]
@@ -117,44 +133,75 @@ fn tendermint() {
 	let io_handler1: Arc<IoHandler<ClientIoMessage>> = Arc::new(TestIoHandler { client: net.peer(1).chain.clone() });
 	// Push transaction to both clients. Only one of them issues a proposal.
 	net.peer(0).chain.miner().set_engine_signer(s0.address(), "".to_owned()).unwrap();
+	trace!(target: "poa", "Peer 0 is {}.", s0.address());
 	net.peer(1).chain.miner().set_engine_signer(s1.address(), "".to_owned()).unwrap();
+	trace!(target: "poa", "Peer 1 is {}.", s1.address());
 	net.peer(0).chain.engine().register_message_channel(IoChannel::to_handler(Arc::downgrade(&io_handler0)));
 	net.peer(1).chain.engine().register_message_channel(IoChannel::to_handler(Arc::downgrade(&io_handler1)));
-	net.peer(0).chain.set_io_channel(IoChannel::to_handler(Arc::downgrade(&io_handler1)));
+	net.peer(0).chain.set_io_channel(IoChannel::to_handler(Arc::downgrade(&io_handler0)));
 	net.peer(1).chain.set_io_channel(IoChannel::to_handler(Arc::downgrade(&io_handler1)));
-	let tx0 = Transaction {
-		nonce: 0.into(),
-		gas_price: 0.into(),
-		gas: 21000.into(),
-		action: Action::Call(Address::default()),
-		value: 0.into(),
-		data: Vec::new(),
-	}.sign(s0.secret(), None);
-	// exhange statuses
+	// Exhange statuses
 	net.sync();
-	net.peer(0).chain.miner().import_own_transaction(&*net.peer(0).chain, tx0).unwrap();
 	// Propose
+	net.peer(0).chain.miner().import_own_transaction(&*net.peer(0).chain, new_tx(s0.secret(), 0.into())).unwrap();
 	net.sync();
-	// Propose timeout
-	net.peer(1).chain.engine().step();
+	// Propose timeout, synchronous for now
 	net.peer(0).chain.engine().step();
-	// Precommit
-	//net.sync();
+	net.peer(1).chain.engine().step();
+	// Prevote, precommit and commit
+	net.sync();
 
 	assert_eq!(net.peer(0).chain.chain_info().best_block_number, 1);
 	assert_eq!(net.peer(1).chain.chain_info().best_block_number, 1);
 
-	let tx1 = Transaction {
-		nonce: 0.into(),
-		gas_price: 0.into(),
-		gas: 21000.into(),
-		action: Action::Call(Address::default()),
-		value: 0.into(),
-		data: Vec::new(),
-	}.sign(s1.secret(), None);
-	net.peer(1).chain.miner().import_own_transaction(&*net.peer(1).chain, tx1).unwrap();
+	net.peer(1).chain.miner().import_own_transaction(&*net.peer(1).chain, new_tx(s1.secret(), 0.into())).unwrap();
+	// Commit timeout
+	net.peer(0).chain.engine().step();
 	net.peer(1).chain.engine().step();
+	// Propose
+	net.sync();
+	// Propose timeout
+	net.peer(0).chain.engine().step();
+	net.peer(1).chain.engine().step();
+	// Prevote, precommit and commit
 	net.sync();
 	assert_eq!(net.peer(0).chain.chain_info().best_block_number, 2);
 	assert_eq!(net.peer(1).chain.chain_info().best_block_number, 2);
+	println!("HEIGHT 2");
+
+	net.peer(0).chain.miner().import_own_transaction(&*net.peer(0).chain, new_tx(s0.secret(), 1.into())).unwrap();
+	net.peer(1).chain.miner().import_own_transaction(&*net.peer(1).chain, new_tx(s1.secret(), 1.into())).unwrap();
+	// Peers get disconnected.
+	// Commit
+	net.peer(0).chain.engine().step();
+	net.peer(1).chain.engine().step();
+	// Propose and Prevote
+	net.peer(0).chain.engine().step();
+	net.peer(1).chain.engine().step();
+	// Negotiate through a None round.
+	println!("RECONNECT");
+net.peer(0).chain.miner().import_own_transaction(&*net.peer(0).chain, new_tx(s0.secret(), 2.into())).unwrap();
+		net.peer(1).chain.miner().import_own_transaction(&*net.peer(1).chain, new_tx(s1.secret(), 2.into())).unwrap();
+
+
+	net.sync();
+	net.peer(0).chain.engine().step();
+	net.peer(1).chain.engine().step();
+	net.sync();
+	net.sync();
+	// Propose timeout.
+	println!("PROPOSE");
+	net.peer(0).chain.engine().step();
+	net.peer(1).chain.engine().step();
+	// Prevote, precommit and commit
+	net.sync();
+	net.peer(0).chain.engine().step();
+	net.peer(1).chain.engine().step();
+	::std::thread::sleep(::std::time::Duration::from_millis(1000));
+	net.sync();
+	let ci0 = net.peer(0).chain.chain_info();
+	let ci1 = net.peer(1).chain.chain_info();
+	assert_eq!(ci0.best_block_number, 3);
+	assert_eq!(ci1.best_block_number, 3);
+	assert_eq!(ci0.best_block_hash, ci1.best_block_hash);
 }
