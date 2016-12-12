@@ -117,6 +117,25 @@ class AddressSelector extends Component {
   renderInput () {
     const { accountsInfo, disabled, error, hint, label, value } = this.props;
 
+    const input = (
+      <InputAddress
+        accountsInfo={ accountsInfo }
+        error={ error }
+        label={ label }
+        hint={ hint }
+        tabIndex={ -1 }
+        value={ value }
+
+        allowCopy={ false }
+        disabled
+        text
+      />
+    );
+
+    if (disabled) {
+      return input;
+    }
+
     return (
       <div
         className={ styles.inputAddress }
@@ -126,25 +145,18 @@ class AddressSelector extends Component {
         ref='inputAddress'
         tabIndex={ 0 }
       >
-        <InputAddress
-          accountsInfo={ accountsInfo }
-          error={ error }
-          label={ label }
-          hint={ hint }
-          tabIndex={ -1 }
-          value={ value }
-
-          allowCopy={ false }
-          disabled
-          text
-        />
+        { input }
       </div>
     );
   }
 
   renderContent () {
-    const { hint } = this.props;
+    const { hint, disabled } = this.props;
     const { expanded, top, left } = this.state;
+
+    if (disabled) {
+      return null;
+    }
 
     const classes = [ styles.overlay ];
 

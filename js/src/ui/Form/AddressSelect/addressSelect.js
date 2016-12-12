@@ -28,10 +28,28 @@ import { fromWei } from '~/api/util/wei';
 import styles from './addressSelect.css';
 
 export default class AddressSelect extends Component {
-  render() {
+  static propTypes = {
+    old: PropTypes.bool
+  };
+
+  static defaultProps = {
+    old: false
+  };
+
+  render () {
+    const { old, ...props } = this.props;
+
+    if (old) {
+      return (
+        <OldAddressSelect
+          { ...props }
+        />
+      );
+    }
+
     return (
       <AddressSelector
-        { ...this.props }
+        { ...props }
       />
     );
   }
