@@ -150,7 +150,7 @@ fn execute_import(cmd: ImportBlockchain) -> Result<String, String> {
 	let genesis_hash = spec.genesis_header().hash();
 
 	// database paths
-	let db_dirs = cmd.dirs.database(genesis_hash, spec.fork_name.clone());
+	let db_dirs = cmd.dirs.database(genesis_hash, None, spec.data_dir.clone());
 
 	// user defaults path
 	let user_defaults_path = db_dirs.user_defaults_path();
@@ -174,7 +174,7 @@ fn execute_import(cmd: ImportBlockchain) -> Result<String, String> {
 	let snapshot_path = db_dirs.snapshot_path();
 
 	// execute upgrades
-	try!(execute_upgrades(&db_dirs, algorithm, cmd.compaction.compaction_profile(db_dirs.fork_path().as_path())));
+	try!(execute_upgrades(&db_dirs, algorithm, cmd.compaction.compaction_profile(db_dirs.db_root_path().as_path())));
 
 	// prepare client config
 	let mut client_config = to_client_config(
@@ -321,7 +321,7 @@ fn start_client(
 	let genesis_hash = spec.genesis_header().hash();
 
 	// database paths
-	let db_dirs = dirs.database(genesis_hash, spec.fork_name.clone());
+	let db_dirs = dirs.database(genesis_hash, None, spec.data_dir.clone());
 
 	// user defaults path
 	let user_defaults_path = db_dirs.user_defaults_path();
@@ -345,7 +345,7 @@ fn start_client(
 	let snapshot_path = db_dirs.snapshot_path();
 
 	// execute upgrades
-	try!(execute_upgrades(&db_dirs, algorithm, compaction.compaction_profile(db_dirs.fork_path().as_path())));
+	try!(execute_upgrades(&db_dirs, algorithm, compaction.compaction_profile(db_dirs.db_root_path().as_path())));
 
 	// prepare client config
 	let client_config = to_client_config(&cache_config, Mode::Active, tracing, fat_db, compaction, wal, VMType::default(), "".into(), algorithm, pruning_history, true);

@@ -41,7 +41,7 @@ impl Default for Configuration {
 			hosts: Some(Vec::new()),
 			user: None,
 			pass: None,
-			dapps_path: replace_home("$HOME/.parity/dapps"),
+			dapps_path: replace_home("", "$HOME/.parity/dapps"),
 		}
 	}
 }

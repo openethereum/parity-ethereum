@@ -77,9 +77,6 @@ impl ClientService {
 		panic_handler.forward_from(&io_service);
 
 		info!("Configured for {} using {} engine", Colour::White.bold().paint(spec.name.clone()), Colour::Yellow.bold().paint(spec.engine.name()));
-		if spec.fork_name.is_some() {
-			warn!("Your chain is an alternative fork. {}", Colour::Red.bold().paint("TRANSACTIONS MAY BE REPLAYED ON THE MAINNET!"));
-		}
 
 		let mut db_config = DatabaseConfig::with_columns(::db::NUM_COLUMNS);
 

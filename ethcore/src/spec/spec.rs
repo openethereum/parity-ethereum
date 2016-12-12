@@ -67,7 +67,7 @@ pub struct Spec {
 	/// What engine are we using for this?
 	pub engine: Arc<Engine>,
 	/// The fork identifier for this chain. Only needed to distinguish two chains sharing the same genesis.
-	pub fork_name: Option<String>,
+	pub data_dir: String,
 
 	/// Known nodes on the network in enode format.
 	pub nodes: Vec<String>,
@@ -110,10 +110,10 @@ impl From<ethjson::spec::Spec> for Spec {
 		let seal: GenericSeal = g.seal.into();
 		let params = CommonParams::from(s.params);
 		Spec {
-			name: s.name.into(),
+			name: s.name.clone().into(),
 			params: params.clone(),
 			engine: Spec::engine(s.engine, params, builtins),
-			fork_name: s.fork_name.map(Into::into),
+			data_dir: s.data_dir.unwrap_or(s.name).into(),
 			nodes: s.nodes.unwrap_or_else(Vec::new),
 			parent_hash: g.parent_hash,
 			transactions_root: g.transactions_root,

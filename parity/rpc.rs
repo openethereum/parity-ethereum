@@ -60,7 +60,7 @@ impl Default for IpcConfiguration {
 	fn default() -> Self {
 		IpcConfiguration {
 			enabled: true,
-			socket_addr: parity_ipc_path("$HOME/.parity/jsonrpc.ipc"),
+			socket_addr: parity_ipc_path("", "$HOME/.parity/jsonrpc.ipc"),
 			apis: ApiSet::IpcContext,
 		}
 	}

@@ -42,7 +42,7 @@ impl Default for Configuration {
 			enabled: true,
 			port: 8180,
 			interface: "127.0.0.1".into(),
-			signer_path: replace_home("$HOME/.parity/signer"),
+			signer_path: replace_home("", "$HOME/.parity/signer"),
 			skip_origin_validation: false,
 		}
 	}

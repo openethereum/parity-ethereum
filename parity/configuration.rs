@@ -40,7 +40,7 @@ use signer::{Configuration as SignerConfiguration};
 use run::RunCmd;
 use blockchain::{BlockchainCmd, ImportBlockchain, ExportBlockchain, ExportState, DataFormat};
 use presale::ImportWallet;
-use account::{AccountCmd, NewAccount, ImportAccounts, ImportFromGethAccounts};
+use account::{AccountCmd, NewAccount, ListAccounts, ImportAccounts, ImportFromGethAccounts};
 use snapshot::{self, SnapshotCommand};
 
 #[derive(Debug, PartialEq)]
@@ -112,15 +112,21 @@ impl Configuration {
 				let new_acc = NewAccount {
 					iterations: self.args.flag_keys_iterations,
 					path: dirs.keys,
+					spec: spec,
 					password_file: self.args.flag_password.first().cloned(),
 				};
 				AccountCmd::New(new_acc)
 			} else if self.args.cmd_list {
-				AccountCmd::List(dirs.keys)
+				let list_acc = ListAccounts {
+					path: dirs.keys,
+					spec: spec,
+				};
+				AccountCmd::List(list_acc)
 			} else if self.args.cmd_import {
 				let import_acc = ImportAccounts {
 					from: self.args.arg_path.clone(),
 					to: dirs.keys,
+					spec: spec,
 				};
 				AccountCmd::Import(import_acc)
 			} else {
@@ -130,6 +136,7 @@ impl Configuration {
 		} else if self.args.flag_import_geth_keys {
         	let account_cmd = AccountCmd::ImportFromGeth(
 				ImportFromGethAccounts {
+					spec: spec,
 					to: dirs.keys,
 					testnet: self.args.flag_testnet
 				}
@@ -139,6 +146,7 @@ impl Configuration {
 			let presale_cmd = ImportWallet {
 				iterations: self.args.flag_keys_iterations,
 				path: dirs.keys,
+				spec: spec,
 				wallet_path: self.args.arg_path.first().unwrap().clone(),
 				password_file: self.args.flag_password.first().cloned(),
 			};
@@ -530,7 +538,7 @@ impl Configuration {
 		ret.snapshot_peers = self.snapshot_peers();
 		ret.allow_ips = try!(self.allow_ips());
 		ret.max_pending_peers = self.max_pending_peers();
-		let mut net_path = PathBuf::from(self.directories().db);
+		let mut net_path = PathBuf::from(self.directories().data);
 		net_path.push("network");
 		ret.config_path = Some(net_path.to_str().unwrap().to_owned());
 		ret.reserved_nodes = try!(self.init_reserved_nodes());
@@ -624,18 +632,11 @@ impl Configuration {
 	fn directories(&self) -> Directories {
 		use util::path;
 
-		let db_path = replace_home(self.args.flag_datadir.as_ref().unwrap_or(&self.args.flag_db_path));
+		let data_path = replace_home("", self.args.flag_datadir.as_ref().unwrap_or(&self.args.flag_db_path));
 
-		let keys_path = replace_home(
-			if self.args.flag_testnet {
-				"$HOME/.parity/testnet_keys"
-			} else {
-				&self.args.flag_keys_path
-			}
-		);
-
-		let dapps_path = replace_home(&self.args.flag_dapps_path);
-		let ui_path = replace_home(&self.args.flag_ui_path);
+		let keys_path = replace_home(&data_path, &self.args.flag_keys_path);
+		let dapps_path = replace_home(&data_path, &self.args.flag_dapps_path);
+		let ui_path = replace_home(&data_path, &self.args.flag_ui_path);
 
 		if self.args.flag_geth  && !cfg!(windows) {
 			let geth_root  = if self.args.flag_testnet { path::ethereum::test() } else {  path::ethereum::default() };
@@ -644,7 +645,7 @@ impl Configuration {
 		}
 
 		if cfg!(feature = "ipc") && !cfg!(feature = "windows") {
-			let mut path_buf = PathBuf::from(db_path.clone());
+			let mut path_buf = PathBuf::from(data_path.clone());
 			path_buf.push("ipc");
 			let ipc_path = path_buf.to_str().unwrap();
 			::std::fs::create_dir_all(ipc_path).unwrap_or_else(
@@ -654,7 +655,7 @@ impl Configuration {
 
 		Directories {
 			keys: keys_path,
-			db: db_path,
+			data: data_path,
 			dapps: dapps_path,
 			signer: ui_path,
 		}
@@ -664,7 +665,7 @@ impl Configuration {
 		if self.args.flag_geth {
 			geth_ipc_path(self.args.flag_testnet)
 		} else {
-			parity_ipc_path(&self.args.flag_ipcpath.clone().unwrap_or(self.args.flag_ipc_path.clone()))
+			parity_ipc_path(&self.directories().data, &self.args.flag_ipcpath.clone().unwrap_or(self.args.flag_ipc_path.clone()))
 		}
 	}
 
@@ -764,7 +765,7 @@ mod tests {
 		let conf = parse(&args);
 		assert_eq!(conf.into_command().unwrap().cmd, Cmd::Account(AccountCmd::New(NewAccount {
 			iterations: 10240,
-			path: replace_home("$HOME/.parity/keys"),
+			path: replace_home("", "$HOME/.parity/keys"),
 			password_file: None,
 		})));
 	}
@@ -774,7 +775,7 @@ mod tests {
 		let args = vec!["parity", "account", "list"];
 		let conf = parse(&args);
 		assert_eq!(conf.into_command().unwrap().cmd, Cmd::Account(
-			AccountCmd::List(replace_home("$HOME/.parity/keys")),
+			AccountCmd::List(replace_home("", "$HOME/.parity/keys")),
 		));
 	}
 
@@ -784,7 +785,7 @@ mod tests {
 		let conf = parse(&args);
 		assert_eq!(conf.into_command().unwrap().cmd, Cmd::Account(AccountCmd::Import(ImportAccounts {
 			from: vec!["my_dir".into(), "another_dir".into()],
-			to: replace_home("$HOME/.parity/keys"),
+			to: replace_home("", "$HOME/.parity/keys"),
 		})));
 	}
 
@@ -794,7 +795,7 @@ mod tests {
 		let conf = parse(&args);
 		assert_eq!(conf.into_command().unwrap().cmd, Cmd::ImportPresaleWallet(ImportWallet {
 			iterations: 10240,
-			path: replace_home("$HOME/.parity/keys"),
+			path: replace_home("", "$HOME/.parity/keys"),
 			wallet_path: "my_wallet.json".into(),
 			password_file: Some("pwd".into()),
 		}));
@@ -895,7 +896,7 @@ mod tests {
 	fn test_command_signer_new_token() {
 		let args = vec!["parity", "signer", "new-token"];
 		let conf = parse(&args);
-		let expected = replace_home("$HOME/.parity/signer");
+		let expected = replace_home("", "$HOME/.parity/signer");
 		assert_eq!(conf.into_command().unwrap().cmd, Cmd::SignerToken(SignerConfiguration {
 			enabled: true,
 			signer_path: expected,
