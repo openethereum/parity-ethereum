@@ -66,7 +66,7 @@ pub struct Spec {
 	pub name: String,
 	/// What engine are we using for this?
 	pub engine: Arc<Engine>,
-	/// The fork identifier for this chain. Only needed to distinguish two chains sharing the same genesis.
+	/// Name of the subdir inside the main data dir to use for chain data and settings.
 	pub data_dir: String,
 
 	/// Known nodes on the network in enode format.

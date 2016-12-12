@@ -130,7 +130,6 @@ pub fn upgrade(db_path: Option<&str>) -> Result<usize, Error> {
 	})
 }
 
-
 fn file_exists(path: &Path) -> bool {
 	match fs::metadata(&path) {
 		Err(ref e) if e.kind() == io::ErrorKind::NotFound => false,
