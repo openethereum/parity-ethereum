@@ -56,13 +56,14 @@ class AddressSelector extends Component {
   };
 
   state = {
-    inputValue: '',
-    values: [],
+    copied: null,
     expanded: false,
-    top: 0,
-    left: 0,
     focusedCat: null,
-    focusedItem: null
+    focusedItem: null,
+    inputValue: '',
+    left: 0,
+    top: 0,
+    values: []
   };
 
   componentWillMount () {
@@ -272,6 +273,7 @@ class AddressSelector extends Component {
   }
 
   renderAccountCard (_account) {
+    const { copied } = this.state;
     const { address, index = null } = _account;
 
     const account = this.props.accountsInfo[address];
@@ -288,9 +290,19 @@ class AddressSelector extends Component {
 
     const classes = [ styles.account ];
 
+    if (copied === index) {
+      classes.push(styles.copied);
+    }
+
     const addressElements = name !== address
       ? (
-        <div className={ styles.address }>{ address }</div>
+        <div
+          className={ styles.address }
+          onClick={ this.preventEvent }
+          ref={ `address_${index}` }
+        >
+          { address }
+        </div>
       )
       : null;
 
@@ -370,6 +382,46 @@ class AddressSelector extends Component {
 
   handleKeyDown = (event) => {
     const codeName = keycode(event);
+
+    if (event.ctrlKey) {
+      const { focusedItem } = this.state;
+
+      // Copy the selected address if nothing selected and there is
+      // a focused item
+      const isSelection = !window.getSelection || window.getSelection().type === 'Range';
+      if (codeName === 'c' && focusedItem && focusedItem > 0 && !isSelection) {
+        const element = ReactDOM.findDOMNode(this.refs[`address_${focusedItem}`]);
+
+        if (!element) {
+          return event;
+        }
+
+        // Copy the address from the right element
+        // @see https://developers.google.com/web/updates/2015/04/cut-and-copy-commands
+        try {
+          const range = document.createRange();
+          range.selectNode(element);
+          window.getSelection().addRange(range);
+          document.execCommand('copy');
+
+          try {
+            window.getSelection().removeRange(range);
+          } catch (e) {
+            window.getSelection().removeAllRanges();
+          }
+
+          this.setState({ copied: focusedItem }, () => {
+            window.setTimeout(() => {
+              this.setState({ copied: null });
+            }, 250);
+          });
+        } catch (e) {
+          console.warn('could not copy', focusedItem, e);
+        }
+      }
+
+      return event;
+    }
 
     switch (codeName) {
       case 'esc':
@@ -588,6 +640,11 @@ class AddressSelector extends Component {
       focusedItem: null,
       inputValue: value
     });
+  }
+
+  preventEvent = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
   }
 }
 

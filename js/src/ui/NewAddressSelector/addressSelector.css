@@ -146,6 +146,20 @@
   cursor: pointer;
 }
 
+@keyframes copied {
+  from {
+    transform: scale(0.99);
+  }
+
+  50% {
+    transform: scale(0.97);
+  }
+
+  to {
+    transform: scale(0.99);
+  }
+}
+
 .account {
   padding: 1em;
   margin: 0.5em 0;
@@ -156,7 +170,16 @@
 
   background-color: rgba(255, 255, 255, 0.25);
 
+  transition: transform ease-out 0.1s;
+  transform: scale(1);
+
+  &.copied {
+    animation-duration: 0.25s;
+    animation-name: copied;
+  }
+
   &:focus {
+    transform: scale(0.99);
     background-color: rgba(255, 255, 255, 0.45);
   }
 
@@ -191,6 +214,10 @@
     overflow: hidden;
     text-overflow: ellipsis;
     font-size: 0.9em;
+
+    &:hover {
+      cursor: text;
+    }
   }
 
   .accountName {
