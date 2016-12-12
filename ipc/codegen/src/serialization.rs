@@ -263,7 +263,7 @@ fn binary_expr_struct(
 		let range_ident = builder.id(format!("r{}", index));
 
 		let error_message = "Error serializing member: ".to_owned() + &::syntax::print::pprust::expr_to_string(&member_expr);
-		let error_message_literal = builder.expr().lit().str::<&str>(&error_message);
+		let _error_message_literal = builder.expr().lit().str::<&str>(&error_message);
 
 		match raw_ident.as_ref() {
 			"u8" => {
