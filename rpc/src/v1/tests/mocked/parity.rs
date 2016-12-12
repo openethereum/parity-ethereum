@@ -26,15 +26,16 @@ use ethstore::ethkey::{Generator, Random};
 use jsonrpc_core::{IoHandler, GenericIoHandler};
 use v1::{Parity, ParityClient};
 use v1::helpers::{SignerService, NetworkSettings};
-use v1::tests::helpers::{TestSyncProvider, Config, TestMinerService};
+use v1::tests::helpers::{TestSyncProvider, Config, TestMinerService, TestUpdater};
 use super::manage_network::TestManageNetwork;
 
-pub type TestParityClient = ParityClient<TestBlockChainClient, TestMinerService, TestSyncProvider>;
+pub type TestParityClient = ParityClient<TestBlockChainClient, TestMinerService, TestSyncProvider, TestUpdater>;
 
 pub struct Dependencies {
 	pub miner: Arc<TestMinerService>,
 	pub client: Arc<TestBlockChainClient>,
 	pub sync: Arc<TestSyncProvider>,
+	pub updater: Arc<TestUpdater>,
 	pub logger: Arc<RotatingLogger>,
 	pub settings: Arc<NetworkSettings>,
 	pub network: Arc<ManageNetwork>,
@@ -52,6 +53,7 @@ impl Dependencies {
 				network_id: 3,
 				num_peers: 120,
 			})),
+			updater: Arc::new(TestUpdater::default()),
 			logger: Arc::new(RotatingLogger::new("rpc=trace".to_owned())),
 			settings: Arc::new(NetworkSettings {
 				name: "mynode".to_owned(),
@@ -73,6 +75,7 @@ impl Dependencies {
 			&self.client,
 			&self.miner,
 			&self.sync,
+			&self.updater,
 			&self.network,
 			&self.accounts,
 			self.logger.clone(),
@@ -94,6 +97,17 @@ impl Dependencies {
 		io.add_delegate(self.client(Some(Arc::new(signer))).to_delegate());
 		io
 	}
+}
+
+#[test]
+fn rpc_parity_consensus_capability() {
+	let deps = Dependencies::new();
+	let io = deps.default_client();
+
+	let request = r#"{"jsonrpc": "2.0", "method": "parity_consensusCapability", "params": [], "id": 1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":{"capableUntil":15100},"id":1}"#;
+
+	assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
 }
 
 #[test]
