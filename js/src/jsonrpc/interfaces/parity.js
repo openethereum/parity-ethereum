@@ -103,10 +103,10 @@ export default {
   consensusCapability: {
     desc: 'Returns an object or string detailing the state of parity capability of maintaining consensus',
     params: [],
-    returns: [
+    returns: {
       type: Object,
       desc: 'Either "capable", {"capableUntil":N}, {"incapableSince":N} or "unknown" (N is a block number)'
-    ]
+    }
   },
 
   dappsPort: {
@@ -175,10 +175,10 @@ export default {
   executeUpgrade: {
     desc: 'Performs an upgrade',
     params: [],
-    returns: [
+    returns: {
       type: Boolean,
       desc: 'returns true if the upgrade to the release specified in parity_upgradeReady was successfully executed, false if not'
-    ]
+    }
   },
 
   extraData: {
@@ -487,12 +487,12 @@ export default {
   },
 
   releasesInfo: {
-    desc: 'returns a ReleasesInfo object describing the current status of releases'
+    desc: 'returns a ReleasesInfo object describing the current status of releases',
     params: [],
-    returns: [
+    returns: {
       type: Object,
       desc: '"fork":N,"minor":null,"this_fork":MN,"track":R} (N is a block number representing the latest known fork of this chain which may be in the future, MN is a block number representing the latest known fork that the currently running binary can sync past or null if not known, R is a ReleaseInfo object describing the latest release in this release track)'
-    ]
+    }
   },
 
   removeReservedPeer: {
