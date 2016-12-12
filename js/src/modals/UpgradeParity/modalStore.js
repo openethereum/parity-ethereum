@@ -39,7 +39,7 @@ export default class ModalStore {
   }
 
   @computed get showUpgrade () {
-    return !closed && Date.now() >= this.remindAt;
+    return !this.closed && Date.now() >= this.remindAt;
   }
 
   @action closeModal = () => {
