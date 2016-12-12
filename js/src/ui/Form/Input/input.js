@@ -62,9 +62,11 @@ export default class Input extends Component {
     onBlur: PropTypes.func,
     onChange: PropTypes.func,
     onClick: PropTypes.func,
+    onFocus: PropTypes.func,
     onKeyDown: PropTypes.func,
     onSubmit: PropTypes.func,
     rows: PropTypes.number,
+    tabIndex: PropTypes.number,
     type: PropTypes.string,
     submitOnBlur: PropTypes.bool,
     style: PropTypes.object,
@@ -98,7 +100,7 @@ export default class Input extends Component {
   render () {
     const { value } = this.state;
     const { children, className, hideUnderline, disabled, error, label } = this.props;
-    const { hint, onClick, multiLine, rows, type, min, max, style } = this.props;
+    const { hint, onClick, onFocus, multiLine, rows, type, min, max, style, tabIndex } = this.props;
 
     const readOnly = this.props.readOnly || disabled;
 
@@ -134,10 +136,12 @@ export default class Input extends Component {
           onChange={ this.onChange }
           onClick={ onClick }
           onKeyDown={ this.onKeyDown }
+          onFocus={ onFocus }
           onPaste={ this.onPaste }
           readOnly={ readOnly }
           rows={ rows }
           style={ textFieldStyle }
+          tabIndex={ tabIndex }
           type={ type || 'text' }
           underlineDisabledStyle={ UNDERLINE_DISABLED }
           underlineStyle={ readOnly ? UNDERLINE_READONLY : UNDERLINE_NORMAL }

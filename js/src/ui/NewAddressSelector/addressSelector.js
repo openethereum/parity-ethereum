@@ -18,7 +18,7 @@ import React, { Component, PropTypes } from 'react';
 import ReactDOM from 'react-dom';
 import { connect } from 'react-redux';
 import Portal from 'react-portal';
-import keycode from 'keycode';
+import keycode, { codes } from 'keycode';
 
 import CloseIcon from 'material-ui/svg-icons/navigation/close';
 
@@ -57,13 +57,12 @@ class AddressSelector extends Component {
 
   state = {
     inputValue: '',
-    indexes: [],
     values: [],
     expanded: false,
     top: 0,
     left: 0,
-    focusedItem: null,
-    focusedCat: null
+    focusedCat: null,
+    focusedItem: null
   };
 
   componentWillMount () {
@@ -81,18 +80,26 @@ class AddressSelector extends Component {
   setValues (props = this.props) {
     const { accounts = {}, contracts = {}, contacts = {} } = props;
 
-    this.values = [].concat(
-      Object.values(accounts)
-        .map((a, idx) => { a.type = 'account'; a.cat = 0; a.index = idx; return a; }),
-      Object.values(contacts)
-        .map((a, idx) => { a.type = 'contact'; a.cat = 1; a.index = idx; return a; }),
-      Object.values(contracts)
-        .map((a, idx) => { a.type = 'contract'; a.cat = 2; a.index = idx; return a; })
-    );
+    if (Object.keys(accounts).length + Object.keys(contracts).length + Object.keys(contacts).length === 0) {
+      return;
+    }
 
-    this.setState({ values: this.values }, () => {
-      this.handleChange(null);
-    });
+    this.values = [
+      {
+        label: 'accounts',
+        values: Object.values(accounts)
+      },
+      {
+        label: 'contacts',
+        values: Object.values(contacts)
+      },
+      {
+        label: 'contracts',
+        values: Object.values(contracts)
+      }
+    ];
+
+    this.handleChange();
   }
 
   render () {
@@ -111,15 +118,24 @@ class AddressSelector extends Component {
     const { accountsInfo, disabled, error, hint, label, value } = this.props;
 
     return (
-      <div className={ styles.inputAddress }>
+      <div
+        className={ styles.inputAddress }
+        onClick={ this.handleFocus }
+        onFocus={ this.handleFocus }
+        onKeyDown={ this.handleInputAddresKeydown }
+        ref='inputAddress'
+        tabIndex={ 0 }
+      >
         <InputAddress
           accountsInfo={ accountsInfo }
-          disabled={ disabled }
           error={ error }
           label={ label }
           hint={ hint }
-          onClick={ this.handleFocus }
+          tabIndex={ -1 }
           value={ value }
+
+          allowCopy={ false }
+          disabled
           text
         />
       </div>
@@ -148,7 +164,7 @@ class AddressSelector extends Component {
               className={ styles.input }
               placeholder={ hint }
 
-              onBlur={ this.handleBlur }
+              onFocus={ this.handleInputFocus }
               onChange={ this.handleChange }
 
               ref={ this.setInputRef }
@@ -175,7 +191,9 @@ class AddressSelector extends Component {
     }
 
     return (
-      <div>
+      <div
+
+      >
         { this.renderAccountCard({ address: inputValue }) }
       </div>
     );
@@ -212,15 +230,9 @@ class AddressSelector extends Component {
       );
     }
 
-    const accounts = values.filter((a) => a.type === 'account');
-    const contacts = values.filter((a) => a.type === 'contact');
-    const contracts = values.filter((a) => a.type === 'contract');
-
-    const categories = [
-      this.renderCategory('accounts', accounts),
-      this.renderCategory('contacts', contacts),
-      this.renderCategory('contracts', contracts)
-    ];
+    const categories = values.map((category) => {
+      return this.renderCategory(category.label, category.values);
+    });
 
     return (
       <div className={ styles.categories }>
@@ -248,7 +260,7 @@ class AddressSelector extends Component {
   }
 
   renderAccountCard (_account) {
-    const { address, index = null, cat = null } = _account;
+    const { address, index = null } = _account;
 
     const account = this.props.accountsInfo[address];
     const name = (account && account.name && account.name.toUpperCase()) || address;
@@ -256,6 +268,10 @@ class AddressSelector extends Component {
 
     const onClick = () => {
       this.handleClick(address);
+    };
+
+    const onFocus = () => {
+      this.setState({ focusedItem: index });
     };
 
     const classes = [ styles.account ];
@@ -269,10 +285,11 @@ class AddressSelector extends Component {
     return (
       <div
         key={ address }
-        ref={ `account_${cat}_${index}` }
-        tabIndex={ index }
+        ref={ `account_${index}` }
+        tabIndex={ 0 }
         className={ classes.join(' ') }
         onClick={ onClick }
+        onFocus={ onFocus }
       >
         <IdentityIcon address={ address } />
         <div className={ styles.accountInfo }>
@@ -314,82 +331,151 @@ class AddressSelector extends Component {
     this.inputRef = refId;
   }
 
-  handleKeyDown = (event) => {
-    const code = keycode(event);
-    const { focusedItem, indexes } = this.state;
+  handleCustomInput = () => {
+    const { allowInput } = this.props;
+    const { inputValue, values } = this.state;
 
-    const firstCat = indexes.findIndex((a) => a && a.length > 0);
-    let focusedCat = this.state.focusedCat === null ? firstCat : this.state.focusedCat;
-    if (!indexes[focusedCat].find((a) => a)) {
-      focusedCat = firstCat;
+    // If input is HEX and allowInput === true, send it
+    if (allowInput && inputValue && /^(0x)?([0-9a-f])+$/i.test(inputValue)) {
+      return this.handleClick(inputValue);
     }
 
-    const catIndexes = indexes[focusedCat];
+    // If only one value, select it
+    if (values.length === 1 && values[0].values.length === 1) {
+      const value = values[0].values[0];
+      return this.handleClick(value.address);
+    }
+  }
 
-    let nextIndex;
-    let nextCat;
+  handleInputAddresKeydown = (event) => {
+    const code = keycode(event);
 
-    switch (code) {
+    // Simulate click on input address if enter is pressed
+    if (code === 'enter') {
+      return this.handleDOMAction('inputAddress', 'click');
+    }
+  }
+
+  handleKeyDown = (event) => {
+    const codeName = keycode(event);
+
+    switch (codeName) {
       case 'esc':
+        event.preventDefault();
         return this.handleClose();
 
-      case 'right':
-        if (focusedCat >= indexes.length - 1) {
-          return;
+      case 'enter':
+        const index = this.state.focusedItem;
+        if (!index) {
+          return this.handleCustomInput();
         }
 
-        nextCat = focusedCat + 1;
-        nextIndex = Math.min(indexes[nextCat].length - 1, focusedItem);
-        return this.setState({ focusedItem: nextIndex, focusedCat: nextCat }, () => {
-          ReactDOM.findDOMNode(this.refs[`account_${nextCat}_${nextIndex}`]).focus();
-        });
+        return this.handleDOMAction(`account_${index}`, 'click');
 
       case 'left':
-        if (focusedCat <= 0) {
-          return;
-        }
-
-        nextCat = focusedCat - 1;
-        nextIndex = Math.min(indexes[nextCat].length - 1, focusedItem);
-        return this.setState({ focusedItem: nextIndex, focusedCat: nextCat }, () => {
-          ReactDOM.findDOMNode(this.refs[`account_${nextCat}_${nextIndex}`]).focus();
-        });
-
-      case 'down':
-        if (focusedItem === null) {
-          nextIndex = catIndexes[focusedCat];
-        } else {
-          const lastIndex = catIndexes.indexOf(focusedItem);
-          nextIndex = lastIndex >= catIndexes.length - 1 ? focusedItem : catIndexes[lastIndex + 1];
-        }
-
-        return this.setState({ focusedItem: nextIndex }, () => {
-          ReactDOM.findDOMNode(this.refs[`account_${focusedCat}_${nextIndex}`]).focus();
-        });
-
+      case 'right':
       case 'up':
-        if (focusedItem === null && focusedCat === null) {
-          return;
+      case 'down':
+        event.preventDefault();
+        return this.handleNavigation(codeName);
+
+      default:
+        const code = codes[codeName];
+
+        // @see https://github.com/timoxley/keycode/blob/master/index.js
+        // lower case chars
+        if (code >= (97 - 32) && code <= (122 - 32)) {
+          return this.handleDOMAction(this.inputRef, 'focus');
         }
 
-        const lastIndex = catIndexes.indexOf(focusedItem);
-
-        if (lastIndex <= 0) {
-          return this.setState({ focusedItem: null, focusedCat: null }, () => {
-            return ReactDOM.findDOMNode(this.inputRef).focus();
-          });
+        // numbers
+        if (code >= 48 && code <= 57) {
+          return this.handleDOMAction(this.inputRef, 'focus');
         }
 
-        nextIndex = catIndexes[lastIndex - 1];
-
-        return this.setState({ focusedItem: nextIndex }, () => {
-          ReactDOM.findDOMNode(this.refs[`account_${focusedCat}_${nextIndex}`]).focus();
-        });
-
-      case 'enter':
-        const account = this.values.find((a) => a.index === focusedItem && a.cat === focusedCat);
-        return this.handleClick(account && account.address);
+        return event;
     }
+  }
+
+  handleDOMAction = (ref, method) => {
+    const refItem = typeof ref === 'string' ? this.refs[ref] : ref;
+    const element = ReactDOM.findDOMNode(refItem);
+
+    if (!element || typeof element[method] !== 'function') {
+      console.warn('could not find', ref, 'or method', method);
+      return;
+    }
+
+    return element[method]();
+  }
+
+  focusItem = (index) => {
+    this.setState({ focusedItem: index });
+    return this.handleDOMAction(`account_${index}`, 'focus');
+  }
+
+  handleNavigation = (direction) => {
+    const { focusedItem, focusedCat, values } = this.state;
+
+    // Don't do anything if no values
+    if (values.length === 0) {
+      return;
+    }
+
+    // Focus on the first element if none selected yet if going down
+    if (!focusedItem) {
+      if (direction !== 'down') {
+        return;
+      }
+
+      const nextValues = values[focusedCat || 0];
+      const nextFocus = nextValues ? nextValues.values[0] : null;
+      return this.focusItem(nextFocus && nextFocus.index || 1);
+    }
+
+    // Find the previous focused category
+    const prevCategoryIndex = values.findIndex((category) => {
+      return category.values.find((value) => value.index === focusedItem);
+    });
+    const prevFocusIndex = values[prevCategoryIndex].values.findIndex((a) => a.index === focusedItem);
+
+    let nextCategory = prevCategoryIndex;
+    let nextFocusIndex;
+
+    // If down: increase index if possible
+    if (direction === 'down') {
+      const prevN = values[prevCategoryIndex].values.length;
+      nextFocusIndex = Math.min(prevFocusIndex + 1, prevN - 1);
+    }
+
+    // If up: decrease index if possible
+    if (direction === 'up') {
+      // Focus on search if at the top
+      if (prevFocusIndex === 0) {
+        return this.handleDOMAction(this.inputRef, 'focus');
+      }
+
+      nextFocusIndex = prevFocusIndex - 1;
+    }
+
+    // If right: next category
+    if (direction === 'right') {
+      nextCategory = Math.min(prevCategoryIndex + 1, values.length - 1);
+    }
+
+    // If right: previous category
+    if (direction === 'left') {
+      nextCategory = Math.max(prevCategoryIndex - 1, 0);
+    }
+
+    // If left or right: try to keep the horizontal index
+    if (direction === 'left' || direction === 'right') {
+      this.setState({ focusedCat: nextCategory });
+      nextFocusIndex = Math.min(prevFocusIndex, values[nextCategory].values.length - 1);
+    }
+
+    const nextFocus = values[nextCategory].values[nextFocusIndex].index;
+    return this.focusItem(nextFocus);
   }
 
   handleClick = (address) => {
@@ -398,12 +484,17 @@ class AddressSelector extends Component {
   }
 
   handleFocus = () => {
+    if (this.closing) {
+      this.closing = false;
+      return;
+    }
+
     const { top, left } = this.refs.main.getBoundingClientRect();
 
     this.setState({ top, left, expanded: true, focusedItem: null, focusedCat: null }, () => {
       this.setState({ top: 0, left: 0 }, () => {
         window.setTimeout(() => {
-          ReactDOM.findDOMNode(this.inputRef).focus();
+          this.handleDOMAction(this.inputRef, 'focus');
         }, 250);
       });
     });
@@ -416,29 +507,69 @@ class AddressSelector extends Component {
 
     const { top, left } = this.refs.main.getBoundingClientRect();
     this.setState({ top, left, expanded: false });
+    this.closing = true;
+
+    return this.handleDOMAction('inputAddress', 'focus');
   }
 
-  handleChange = (event) => {
-    const { value = '' } = event && event.target || {};
-    const indexes = [];
+  /**
+   * Filter the given values based on the given
+   * filter
+   */
+  filterValues = (values = [], _filter = '') => {
+    const filter = _filter.toLowerCase();
 
-    const values = this.values
+    return values
+      // Remove empty accounts
+      .filter((a) => a)
       .filter((account) => {
         const address = account.address.toLowerCase();
-        const name = (account.name || address).toLowerCase();
+        const inAddress = address.includes(filter);
 
-        return address.includes(value) || name.includes(value);
-      })
-      .map((a, idx) => {
-        if (!indexes[a.cat]) {
-          indexes[a.cat] = [];
+        if (!account.name || inAddress) {
+          return inAddress;
         }
 
-        indexes[a.cat].push(a.index);
-        return a;
-      });
+        const name = account.name.toLowerCase();
+        return name.includes(filter);
+      })
+      .sort((accA, accB) => {
+        const nameA = accA.name || accA.address;
+        const nameB = accB.name || accB.address;
 
-    this.setState({ values, inputValue: value, indexes, focusedItem: null, focusedCat: null });
+        return nameA.localeCompare(nameB);
+      });
+  }
+
+  handleInputFocus = () => {
+    this.setState({ focusedItem: null });
+  }
+
+  handleChange = (event = { target: {} }) => {
+    const { value = '' } = event.target;
+    let index = 0;
+
+    const values = this.values
+      .map((category) => {
+        const filteredValues = this
+          .filterValues(category.values, value)
+          .map((value) => {
+            index++;
+            return { ...value, index: parseInt(index) };
+          });
+
+        return {
+          label: category.label,
+          values: filteredValues
+        };
+      })
+      .filter((category) => category.values.length > 0);
+
+    this.setState({
+      values,
+      focusedItem: null,
+      inputValue: value
+    });
   }
 }
 

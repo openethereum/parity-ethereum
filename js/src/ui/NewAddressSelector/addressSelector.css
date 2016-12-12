@@ -142,6 +142,10 @@
   }
 }
 
+.inputAddress:hover {
+  cursor: pointer;
+}
+
 .account {
   padding: 1em;
   margin: 0.5em 0;

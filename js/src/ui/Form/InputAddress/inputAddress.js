@@ -38,8 +38,10 @@ class InputAddress extends Component {
     label: nodeOrStringProptype(),
     onChange: PropTypes.func,
     onClick: PropTypes.func,
+    onFocus: PropTypes.func,
     onSubmit: PropTypes.func,
     small: PropTypes.bool,
+    tabIndex: PropTypes.number,
     text: PropTypes.bool,
     tokens: PropTypes.object,
     value: PropTypes.string
@@ -53,7 +55,8 @@ class InputAddress extends Component {
 
   render () {
     const { accountsInfo, allowCopy, className, disabled, error, hint } = this.props;
-    const { hideUnderline, label, onClick, onSubmit, small, text, tokens, value } = this.props;
+    const { hideUnderline, label, onClick, onFocus, onSubmit, small } = this.props;
+    const { tabIndex, text, tokens, value } = this.props;
 
     const account = value && (accountsInfo[value] || tokens[value]);
 
@@ -80,7 +83,9 @@ class InputAddress extends Component {
           label={ label }
           onChange={ this.handleInputChange }
           onClick={ onClick }
+          onFocus={ onFocus }
           onSubmit={ onSubmit }
+          tabIndex={ tabIndex }
           value={
             text && account
               ? account.name

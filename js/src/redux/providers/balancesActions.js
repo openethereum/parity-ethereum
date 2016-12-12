@@ -48,7 +48,7 @@ function setBalances (_balances) {
 
       const balance = Object.assign({}, balances[address]);
       const { tokens, txCount = balance.txCount } = nextBalances[address];
-      const nextTokens = [].concat(balance.tokens);
+      const nextTokens = balance.tokens.slice();
 
       tokens.forEach((t) => {
         const { token, value } = t;
