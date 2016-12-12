@@ -21,6 +21,8 @@ const CHECK_INTERVAL = 1 * 60 * 1000;
 export default class UpgradeStore {
   @observable available = null;
   @observable consensusCapability = null;
+  @observable upgrading = null;
+  @observable version = null;
 
   constructor (api) {
     this._api = api;
@@ -29,22 +31,28 @@ export default class UpgradeStore {
     setInterval(this.checkUpgrade, CHECK_INTERVAL);
   }
 
-  @action setAvailableUpgrade (available, consensusCapability) {
+  @action setUpgrading () {
+    this.upgrading = this.available;
+  }
+
+  @action setVersions (available, version, consensusCapability) {
     transaction(() => {
       this.available = available;
       this.consensusCapability = consensusCapability;
+      this.version = version;
     });
   }
 
   checkUpgrade = () => {
-    return Promise
+    Promise
       .all([
         this._api.parity.upgradeReady(),
-        this._api.parity.consensusCapability()
+        this._api.parity.consensusCapability(),
+        this._api.parity.versionInfo()
       ])
-      .then(([available, consensusCapability]) => {
-        console.log('[checkUpgrade]', 'available:', available, 'consensusCapability:', consensusCapability);
-        this.setAvailableUpgrade(available, consensusCapability);
+      .then(([available, consensusCapability, version]) => {
+        console.log('[checkUpgrade]', 'available:', available, 'version:', version, 'consensusCapability:', consensusCapability);
+        this.setVersions(available, version, consensusCapability);
       })
       .catch((error) => {
         console.warn('checkUpgrade', error);
@@ -52,6 +60,8 @@ export default class UpgradeStore {
   }
 
   executeUpgrade = () => {
+    this.setUpgrading();
+
     return this._api.parity.executeUpgrade();
   }
 }
