@@ -34,6 +34,8 @@ use util::{Bytes, Mutex};
 use provider::Provider;
 use request;
 
+mod header_chain;
+
 /// Light client implementation.
 pub struct Client {
 	_engine: Arc<Engine>,
@@ -58,7 +60,7 @@ impl Client {
 	/// Import a local transaction.
 	pub fn import_own_transaction(&self, tx: SignedTransaction) {
 		self.tx_pool.lock().insert(tx.hash(), tx);
-	} 
+	}
 
 	/// Fetch a vector of all pending transactions.
 	pub fn pending_transactions(&self) -> Vec<SignedTransaction> {
@@ -73,6 +75,16 @@ impl Client {
 	/// Get the header queue info.
 	pub fn queue_info(&self) -> QueueInfo {
 		self.header_queue.queue_info()
+	}
+
+	/// Best block number.
+	pub fn best_block_number(&self) -> u64 {
+		0
+	}
+
+	/// Best block hash.
+	pub fn best_block_hash(&self) -> u64 {
+		unimplemented!()
 	}
 }
 
@@ -115,6 +127,6 @@ impl Provider for Client {
 	}
 
 	fn pending_transactions(&self) -> Vec<SignedTransaction> {
-		Vec::new()
+		Client::pending_transactions(self)
 	}
 }
