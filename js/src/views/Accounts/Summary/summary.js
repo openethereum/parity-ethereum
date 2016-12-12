@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import BigNumber from 'bignumber.js';
 import React, { Component, PropTypes } from 'react';
 import { Link } from 'react-router';
 import { isEqual } from 'lodash';
@@ -77,6 +78,13 @@ export default class Summary extends Component {
       return true;
     }
 
+    const prevOwners = this.props.owners;
+    const nextOwners = nextProps.owners;
+
+    if (!isEqual(prevOwners, nextOwners)) {
+      return true;
+    }
+
     return false;
   }
 
@@ -117,16 +125,17 @@ export default class Summary extends Component {
 
   renderOwners () {
     const { owners } = this.props;
+    const ownersValid = (owners || []).filter((owner) => owner.address && new BigNumber(owner.address).gt(0));
 
-    if (!owners || owners.length === 0) {
+    if (!ownersValid || ownersValid.length === 0) {
       return null;
     }
 
     return (
       <div className={ styles.owners }>
         {
-          owners.map((owner) => (
-            <div key={ owner.address }>
+          ownersValid.map((owner, index) => (
+            <div key={ `${index}_${owner.address}` }>
               <div
                 data-tip
                 data-for={ `owner_${owner.address}` }
@@ -148,7 +157,7 @@ export default class Summary extends Component {
     const { link, noLink, account, name } = this.props;
 
     const { address } = account;
-    const viewLink = `/${link || 'account'}/${address}`;
+    const viewLink = `/${link || 'accounts'}/${address}`;
 
     const content = (
       <IdentityName address={ address } name={ name } unknown />

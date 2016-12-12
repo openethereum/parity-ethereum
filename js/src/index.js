@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -67,7 +67,7 @@ if (window.location.hash && window.location.hash.indexOf(AUTH_HASH) === 0) {
 const api = new SecureApi(`ws://${parityUrl}`, token);
 ContractInstances.create(api);
 
-const store = initStore(api);
+const store = initStore(api, hashHistory);
 store.dispatch({ type: 'initAll', api });
 store.dispatch(setApi(api));
 

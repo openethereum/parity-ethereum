@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -32,8 +32,10 @@ import Editor from './Editor';
 import Errors from './Errors';
 import Form, { AddressSelect, FormWrap, TypedInput, Input, InputAddress, InputAddressSelect, InputChip, InputInline, Select, RadioButtons } from './Form';
 import GasPriceEditor from './GasPriceEditor';
+import GasPriceSelector from './GasPriceSelector';
 import IdentityIcon from './IdentityIcon';
 import IdentityName from './IdentityName';
+import LanguageSelector from './LanguageSelector';
 import Loading from './Loading';
 import MethodDecoding from './MethodDecoding';
 import Modal, { Busy as BusyStep, Completed as CompletedStep } from './Modal';
@@ -69,15 +71,16 @@ export {
   Form,
   FormWrap,
   GasPriceEditor,
+  GasPriceSelector,
   Input,
   InputAddress,
   InputAddressSelect,
   InputChip,
   InputInline,
-  Loading,
-  Select,
   IdentityIcon,
   IdentityName,
+  LanguageSelector,
+  Loading,
   MethodDecoding,
   Modal,
   BusyStep,
@@ -87,6 +90,7 @@ export {
   ParityBackground,
   RadioButtons,
   ShortenedHash,
+  Select,
   SignerIcon,
   Tags,
   Tooltip,

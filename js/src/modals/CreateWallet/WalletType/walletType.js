@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -17,6 +17,7 @@
 import React, { Component, PropTypes } from 'react';
 
 import { RadioButtons } from '~/ui';
+import { walletSourceURL } from '~/contracts/code/wallet';
 
 // import styles from '../createWallet.css';
 
@@ -46,7 +47,9 @@ export default class WalletType extends Component {
         description: (
           <span>
             <span>Create/Deploy a </span>
-            <a href='https://github.com/ethereum/dapp-bin/blob/master/wallet/wallet.sol' target='_blank'>standard multi-signature </a>
+            <a href={ walletSourceURL } target='_blank'>
+              standard multi-signature
+            </a>
             <span> Wallet</span>
           </span>
         )

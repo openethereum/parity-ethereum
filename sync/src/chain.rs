@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -94,7 +94,7 @@ use rlp::*;
 use network::*;
 use ethcore::views::{HeaderView};
 use ethcore::header::{BlockNumber, Header as BlockHeader};
-use ethcore::client::{BlockChainClient, BlockStatus, BlockID, BlockChainInfo, BlockImportError};
+use ethcore::client::{BlockChainClient, BlockStatus, BlockId, BlockChainInfo, BlockImportError};
 use ethcore::error::*;
 use ethcore::snapshot::{ManifestData, RestorationStatus};
 use sync_io::SyncIo;
@@ -430,6 +430,13 @@ impl ChainSync {
 	/// Returns transactions propagation statistics
 	pub fn transactions_stats(&self) -> &H256FastMap<TransactionStats> {
 		self.transactions_stats.stats()
+	}
+
+	/// Updates transactions were received by a peer
+	pub fn transactions_received(&mut self, hashes: Vec<H256>, peer_id: PeerId) {
+		if let Some(mut peer_info) = self.peers.get_mut(&peer_id) {
+			peer_info.last_sent_transactions.extend(&hashes);
+		}
 	}
 
 	/// Abort all sync activity
@@ -934,7 +941,7 @@ impl ChainSync {
 				io.disable_peer(peer_id);
 				continue;
 			}
-			match io.chain().block_status(BlockID::Hash(hash.clone())) {
+			match io.chain().block_status(BlockId::Hash(hash.clone())) {
 				BlockStatus::InChain  => {
 					trace!(target: "sync", "New block hash already in chain {:?}", hash);
 				},
@@ -1155,7 +1162,7 @@ impl ChainSync {
 						return;
 					}
 
-					let have_latest = io.chain().block_status(BlockID::Hash(peer_latest)) != BlockStatus::Unknown;
+					let have_latest = io.chain().block_status(BlockId::Hash(peer_latest)) != BlockStatus::Unknown;
 					if !have_latest && (higher_difficulty || force || self.state == SyncState::NewBlocks) {
 						// check if got new blocks to download
 						trace!(target: "sync", "Syncing with {}, force={}, td={:?}, our td={}, state={:?}", peer_id, force, peer_difficulty, syncing_difficulty, self.state);
@@ -1409,7 +1416,7 @@ impl ChainSync {
 			let tx = rlp.as_raw().to_vec();
 			transactions.push(tx);
 		}
-		io.chain().queue_transactions(transactions);
+		io.chain().queue_transactions(transactions, peer_id);
 		Ok(())
 	}
 
@@ -1450,11 +1457,11 @@ impl ChainSync {
 			// id is a hash
 			let hash: H256 = try!(r.val_at(0));
 			trace!(target: "sync", "{} -> GetBlockHeaders (hash: {}, max: {}, skip: {}, reverse:{})", peer_id, hash, max_headers, skip, reverse);
-			match io.chain().block_header(BlockID::Hash(hash)) {
+			match io.chain().block_header(BlockId::Hash(hash)) {
 				Some(hdr) => {
 					let number = From::from(HeaderView::new(&hdr).number());
 					debug_assert_eq!(HeaderView::new(&hdr).sha3(), hash);
-					if max_headers == 1 || io.chain().block_hash(BlockID::Number(number)) != Some(hash) {
+					if max_headers == 1 || io.chain().block_hash(BlockId::Number(number)) != Some(hash) {
 						// Non canonical header or single header requested
 						// TODO: handle single-step reverse hashchains of non-canon hashes
 						trace!(target:"sync", "Returning single header: {:?}", hash);
@@ -1487,7 +1494,7 @@ impl ChainSync {
 				trace!(target: "sync", "{}: Returning cached fork header", peer_id);
 				data.extend_from_slice(hdr);
 				count += 1;
-			} else if let Some(mut hdr) = io.chain().block_header(BlockID::Number(number)) {
+			} else if let Some(mut hdr) = io.chain().block_header(BlockId::Number(number)) {
 				data.append(&mut hdr);
 				count += 1;
 			} else {
@@ -1521,7 +1528,7 @@ impl ChainSync {
 		let mut added = 0usize;
 		let mut data = Bytes::new();
 		for i in 0..count {
-			if let Some(mut hdr) = io.chain().block_body(BlockID::Hash(try!(r.val_at::<H256>(i)))) {
+			if let Some(mut hdr) = io.chain().block_body(BlockId::Hash(try!(r.val_at::<H256>(i)))) {
 				data.append(&mut hdr);
 				added += 1;
 			}
@@ -1678,7 +1685,7 @@ impl ChainSync {
 
 	pub fn on_packet(&mut self, io: &mut SyncIo, peer: PeerId, packet_id: u8, data: &[u8]) {
 		if packet_id != STATUS_PACKET && !self.peers.contains_key(&peer) {
-			debug!(target:"sync", "Unexpected packet from unregistered peer: {}:{}", peer, io.peer_info(peer));
+			debug!(target:"sync", "Unexpected packet {} from unregistered peer: {}:{}", packet_id, peer, io.peer_info(peer));
 			return;
 		}
 		let rlp = UntrustedRlp::new(data);
@@ -1778,7 +1785,7 @@ impl ChainSync {
 						let mut rlp_stream = RlpStream::new_list(blocks.len());
 						for block_hash in  blocks {
 							let mut hash_rlp = RlpStream::new_list(2);
-							let number = HeaderView::new(&chain.block_header(BlockID::Hash(block_hash.clone()))
+							let number = HeaderView::new(&chain.block_header(BlockId::Hash(block_hash.clone()))
 								.expect("chain.tree_route and chain.find_uncles only return hahses of blocks that are in the blockchain. qed.")).number();
 							hash_rlp.append(&block_hash);
 							hash_rlp.append(&number);
@@ -1795,7 +1802,7 @@ impl ChainSync {
 	/// creates latest block rlp for the given client
 	fn create_latest_block_rlp(chain: &BlockChainClient) -> Bytes {
 		let mut rlp_stream = RlpStream::new_list(2);
-		rlp_stream.append_raw(&chain.block(BlockID::Hash(chain.chain_info().best_block_hash)).expect("Best block always exists"), 1);
+		rlp_stream.append_raw(&chain.block(BlockId::Hash(chain.chain_info().best_block_hash)).expect("Best block always exists"), 1);
 		rlp_stream.append(&chain.chain_info().total_difficulty);
 		rlp_stream.out()
 	}
@@ -1803,8 +1810,8 @@ impl ChainSync {
 	/// creates latest block rlp for the given client
 	fn create_new_block_rlp(chain: &BlockChainClient, hash: &H256) -> Bytes {
 		let mut rlp_stream = RlpStream::new_list(2);
-		rlp_stream.append_raw(&chain.block(BlockID::Hash(hash.clone())).expect("Block has just been sealed; qed"), 1);
-		rlp_stream.append(&chain.block_total_difficulty(BlockID::Hash(hash.clone())).expect("Block has just been sealed; qed."));
+		rlp_stream.append_raw(&chain.block(BlockId::Hash(hash.clone())).expect("Block has just been sealed; qed"), 1);
+		rlp_stream.append(&chain.block_total_difficulty(BlockId::Hash(hash.clone())).expect("Block has just been sealed; qed."));
 		rlp_stream.out()
 	}
 
@@ -1812,7 +1819,7 @@ impl ChainSync {
 	fn get_lagging_peers(&mut self, chain_info: &BlockChainInfo, io: &SyncIo) -> Vec<PeerId> {
 		let latest_hash = chain_info.best_block_hash;
 		self.peers.iter_mut().filter_map(|(&id, ref mut peer_info)|
-			match io.chain().block_status(BlockID::Hash(peer_info.latest_hash.clone())) {
+			match io.chain().block_status(BlockId::Hash(peer_info.latest_hash.clone())) {
 				BlockStatus::InChain => {
 					if peer_info.latest_hash != latest_hash {
 						Some(id)
@@ -1863,7 +1870,7 @@ impl ChainSync {
 	fn propagate_new_hashes(&mut self, chain_info: &BlockChainInfo, io: &mut SyncIo, peers: &[PeerId]) -> usize {
 		trace!(target: "sync", "Sending NewHashes to {:?}", peers);
 		let mut sent = 0;
-		let last_parent = HeaderView::new(&io.chain().block_header(BlockID::Hash(chain_info.best_block_hash.clone()))
+		let last_parent = HeaderView::new(&io.chain().block_header(BlockId::Hash(chain_info.best_block_hash.clone()))
 			.expect("Best block always exists")).parent_hash();
 		for peer_id in peers {
 			sent += match ChainSync::create_new_hashes_rlp(io.chain(), &last_parent, &chain_info.best_block_hash) {
@@ -2125,7 +2132,7 @@ mod tests {
 
 		let mut client = TestBlockChainClient::new();
 		client.add_blocks(100, EachBlockWith::Nothing);
-		let blocks: Vec<_> = (0 .. 100).map(|i| (&client as &BlockChainClient).block(BlockID::Number(i as BlockNumber)).unwrap()).collect();
+		let blocks: Vec<_> = (0 .. 100).map(|i| (&client as &BlockChainClient).block(BlockId::Number(i as BlockNumber)).unwrap()).collect();
 		let headers: Vec<_> = blocks.iter().map(|b| Rlp::new(b).at(0).as_raw().to_vec()).collect();
 		let hashes: Vec<_> = headers.iter().map(|h| HeaderView::new(h).sha3()).collect();
 
@@ -2298,7 +2305,7 @@ mod tests {
 		let mut client = TestBlockChainClient::new();
 		client.add_blocks(100, EachBlockWith::Uncle);
 		let mut queue = VecDeque::new();
-		let hash = client.block_hash(BlockID::Number(99)).unwrap();
+		let hash = client.block_hash(BlockId::Number(99)).unwrap();
 		let mut sync = dummy_sync_with_peer(client.block_hash_delta_minus(5), &client);
 		let chain_info = client.chain_info();
 		let ss = TestSnapshotService::new();
@@ -2556,7 +2563,7 @@ mod tests {
 
 		// Add some balance to clients and reset nonces
 		for h in &[good_blocks[0], retracted_blocks[0]] {
-			let block = client.block(BlockID::Hash(*h)).unwrap();
+			let block = client.block(BlockId::Hash(*h)).unwrap();
 			let view = BlockView::new(&block);
 			client.set_balance(view.transactions()[0].sender().unwrap(), U256::from(1_000_000_000));
 			client.set_nonce(view.transactions()[0].sender().unwrap(), U256::from(0));
@@ -2575,7 +2582,7 @@ mod tests {
 		}
 		// We need to update nonce status (because we say that the block has been imported)
 		for h in &[good_blocks[0]] {
-			let block = client.block(BlockID::Hash(*h)).unwrap();
+			let block = client.block(BlockId::Hash(*h)).unwrap();
 			let view = BlockView::new(&block);
 			client.set_nonce(view.transactions()[0].sender().unwrap(), U256::from(1));
 		}

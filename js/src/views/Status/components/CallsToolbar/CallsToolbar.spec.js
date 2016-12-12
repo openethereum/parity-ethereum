@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -22,7 +22,7 @@ import '../../../../environment/tests';
 
 import CallsToolbar from './CallsToolbar';
 
-describe('components/CallsToolbar', () => {
+describe('views/Status/components/CallsToolbar', () => {
   const callEl = { offsetTop: 0 };
   const containerEl = { scrollTop: 0, clientHeight: 0, scrollHeight: 999 };
 

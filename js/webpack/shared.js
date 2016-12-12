@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -36,6 +36,29 @@ function getBabelrc () {
   // [ "es2015", { "modules": false } ]
   babelrc.presets[es2015Index] = [ 'es2015', { modules: false } ];
   babelrc['babelrc'] = false;
+
+  const BABEL_PRESET_ENV = process.env.BABEL_PRESET_ENV;
+  const npmStart = process.env.npm_lifecycle_event === 'start';
+  const npmStartApp = process.env.npm_lifecycle_event === 'start:app';
+
+  if (BABEL_PRESET_ENV && (npmStart || npmStartApp)) {
+    console.log('using babel-preset-env');
+
+    babelrc.presets = [
+      // 'es2017',
+      'stage-0', 'react',
+      [
+        'env',
+        {
+          targets: { browsers: ['last 2 Chrome versions'] },
+          modules: false,
+          loose: true,
+          useBuiltIns: true
+        }
+      ]
+    ];
+  }
+
   return babelrc;
 }
 

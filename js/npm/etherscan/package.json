@@ -1,0 +1,33 @@
+{
+  "name": "@parity/etherscan",
+  "description": "The Parity Promise-based library for interfacing with Etherscan over HTTP",
+  "version": "0.0.0",
+  "main": "library.js",
+  "author": "Parity Team <admin@parity.io>",
+  "maintainers": [
+    "Jaco Greeff"
+  ],
+  "contributors": [],
+  "license": "GPL-3.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ethcore/parity.git"
+  },
+  "keywords": [
+    "Ethereum",
+    "ABI",
+    "API",
+    "RPC",
+    "Parity",
+    "Promise"
+  ],
+  "scripts": {
+  },
+  "devDependencies": {
+    "chai": "3.5.0",
+    "mocha": "3.2.0"
+  },
+  "dependencies": {
+    "node-fetch": "~1.6.3"
+  }
+}

@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -21,7 +21,7 @@ import '../../../environment/tests';
 
 import Application from './application';
 
-describe('localtx/Application', () => {
+describe('dapps/localtx/Application', () => {
   describe('rendering', () => {
     it('renders without crashing', () => {
       const rendered = shallow(<Application />);

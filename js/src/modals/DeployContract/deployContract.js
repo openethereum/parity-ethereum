@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -15,8 +15,10 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import { connect } from 'react-redux';
 import ActionDoneAll from 'material-ui/svg-icons/action/done-all';
 import ContentClear from 'material-ui/svg-icons/content/clear';
+import { pick } from 'lodash';
 
 import { BusyStep, CompletedStep, CopyToClipboard, Button, IdentityIcon, Modal, TxHash } from '~/ui';
 import { ERRORS, validateAbi, validateCode, validateName } from '~/util/validation';
@@ -36,7 +38,7 @@ const STEPS = {
   COMPLETED: { title: 'completed' }
 };
 
-export default class DeployContract extends Component {
+class DeployContract extends Component {
   static contextTypes = {
     api: PropTypes.object.isRequired,
     store: PropTypes.object.isRequired
@@ -45,6 +47,7 @@ export default class DeployContract extends Component {
   static propTypes = {
     accounts: PropTypes.object.isRequired,
     onClose: PropTypes.func.isRequired,
+    balances: PropTypes.object,
     abi: PropTypes.string,
     code: PropTypes.string,
     readOnly: PropTypes.bool,
@@ -192,7 +195,7 @@ export default class DeployContract extends Component {
   }
 
   renderStep () {
-    const { accounts, readOnly } = this.props;
+    const { accounts, readOnly, balances } = this.props;
     const { address, deployError, step, deployState, txhash, rejected } = this.state;
 
     if (deployError) {
@@ -216,6 +219,7 @@ export default class DeployContract extends Component {
           <DetailsStep
             { ...this.state }
             accounts={ accounts }
+            balances={ balances }
             readOnly={ readOnly }
             onFromAddressChange={ this.onFromAddressChange }
             onDescriptionChange={ this.onDescriptionChange }
@@ -394,3 +398,17 @@ export default class DeployContract extends Component {
     this.props.onClose();
   }
 }
+
+function mapStateToProps (initState, initProps) {
+  const fromAddresses = Object.keys(initProps.accounts);
+
+  return (state) => {
+    const balances = pick(state.balances.balances, fromAddresses);
+    return { balances };
+  };
+}
+
+export default connect(
+  mapStateToProps
+)(DeployContract);
+

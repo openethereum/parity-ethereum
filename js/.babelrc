@@ -13,10 +13,20 @@
   "retainLines": true,
   "env": {
     "production": {
-      "plugins": ["transform-react-remove-prop-types"]
+      "plugins": [
+        "transform-react-remove-prop-types"
+      ]
     },
     "development": {
-      "plugins": ["react-hot-loader/babel"]
+      "plugins": [
+        "react-hot-loader/babel",
+        ["react-intl", { "messagesDir": "./.build/i18n/" }]
+      ]
+    },
+    "test": {
+      "plugins": [
+        ["babel-plugin-webpack-alias", { "config": "webpack/test.js" }]
+      ]
     }
   }
 }

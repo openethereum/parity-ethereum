@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -17,16 +17,15 @@
 import React, { Component, PropTypes } from 'react';
 import { FlatButton } from 'material-ui';
 
+import { nodeOrStringProptype } from '~/util/proptypes';
+
 export default class Button extends Component {
   static propTypes = {
     backgroundColor: PropTypes.string,
     className: PropTypes.string,
     disabled: PropTypes.bool,
     icon: PropTypes.node,
-    label: PropTypes.oneOfType([
-      React.PropTypes.string,
-      React.PropTypes.object
-    ]),
+    label: nodeOrStringProptype(),
     onClick: PropTypes.func,
     primary: PropTypes.bool
   }

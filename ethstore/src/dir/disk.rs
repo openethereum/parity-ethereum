@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -20,7 +20,7 @@ use std::collections::HashMap;
 use time;
 use ethkey::Address;
 use {json, SafeAccount, Error};
-use json::UUID;
+use json::Uuid;
 use super::KeyDirectory;
 
 const IGNORED_FILES: &'static [&'static str] = &["thumbs.db", "address_book.json"];
@@ -113,7 +113,7 @@ impl KeyDirectory for DiskDirectory {
 		// build file path
 		let filename = account.filename.as_ref().cloned().unwrap_or_else(|| {
 			let timestamp = time::strftime("%Y-%m-%dT%H-%M-%S", &time::now_utc()).expect("Time-format string is valid.");
-			format!("UTC--{}Z--{}", timestamp, UUID::from(account.id))
+			format!("UTC--{}Z--{}", timestamp, Uuid::from(account.id))
 		});
 
 		// update account filename

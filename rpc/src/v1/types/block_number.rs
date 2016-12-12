@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -16,7 +16,7 @@
 
 use serde::{Deserialize, Deserializer, Error};
 use serde::de::Visitor;
-use ethcore::client::BlockID;
+use ethcore::client::BlockId;
 
 /// Represents rpc api block number param.
 #[derive(Debug, PartialEq, Clone)]
@@ -64,20 +64,20 @@ impl Visitor for BlockNumberVisitor {
 	}
 }
 
-impl Into<BlockID> for BlockNumber {
-	fn into(self) -> BlockID {
+impl Into<BlockId> for BlockNumber {
+	fn into(self) -> BlockId {
 		match self {
-			BlockNumber::Num(n) => BlockID::Number(n),
-			BlockNumber::Earliest => BlockID::Earliest,
-			BlockNumber::Latest => BlockID::Latest,
-			BlockNumber::Pending => BlockID::Pending,
+			BlockNumber::Num(n) => BlockId::Number(n),
+			BlockNumber::Earliest => BlockId::Earliest,
+			BlockNumber::Latest => BlockId::Latest,
+			BlockNumber::Pending => BlockId::Pending,
 		}
 	}
 }
 
 #[cfg(test)]
 mod tests {
-	use ethcore::client::BlockID;
+	use ethcore::client::BlockId;
 	use super::*;
 	use serde_json;
 
@@ -90,10 +90,10 @@ mod tests {
 
 	#[test]
 	fn block_number_into() {
-		assert_eq!(BlockID::Number(100), BlockNumber::Num(100).into());
-		assert_eq!(BlockID::Earliest, BlockNumber::Earliest.into());
-		assert_eq!(BlockID::Latest, BlockNumber::Latest.into());
-		assert_eq!(BlockID::Pending, BlockNumber::Pending.into());
+		assert_eq!(BlockId::Number(100), BlockNumber::Num(100).into());
+		assert_eq!(BlockId::Earliest, BlockNumber::Earliest.into());
+		assert_eq!(BlockId::Latest, BlockNumber::Latest.into());
+		assert_eq!(BlockId::Pending, BlockNumber::Pending.into());
 	}
 }
 

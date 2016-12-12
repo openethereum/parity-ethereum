@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -14,13 +14,12 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Light client implementation. Used for raw data queries as well as the header
-//! sync.
+//! Light client implementation. Stores data from light sync
 
 use std::sync::Arc;
 
 use ethcore::engines::Engine;
-use ethcore::ids::BlockID;
+use ethcore::ids::BlockId;
 use ethcore::service::ClientIoMessage;
 use ethcore::block_import_error::BlockImportError;
 use ethcore::block_status::BlockStatus;
@@ -29,7 +28,7 @@ use ethcore::transaction::SignedTransaction;
 use ethcore::blockchain_info::BlockChainInfo;
 
 use io::IoChannel;
-use util::hash::H256;
+use util::hash::{H256, H256FastMap};
 use util::{Bytes, Mutex};
 
 use provider::Provider;
@@ -37,9 +36,10 @@ use request;
 
 /// Light client implementation.
 pub struct Client {
-	engine: Arc<Engine>,
+	_engine: Arc<Engine>,
 	header_queue: HeaderQueue,
-	message_channel: Mutex<IoChannel<ClientIoMessage>>,
+	_message_channel: Mutex<IoChannel<ClientIoMessage>>,
+	tx_pool: Mutex<H256FastMap<SignedTransaction>>,
 }
 
 impl Client {
@@ -51,17 +51,22 @@ impl Client {
 	}
 
 	/// Whether the block is already known (but not necessarily part of the canonical chain)
-	pub fn is_known(&self, _id: BlockID) -> bool {
+	pub fn is_known(&self, _id: BlockId) -> bool {
 		false
 	}
 
+	/// Import a local transaction.
+	pub fn import_own_transaction(&self, tx: SignedTransaction) {
+		self.tx_pool.lock().insert(tx.hash(), tx);
+	} 
+
 	/// Fetch a vector of all pending transactions.
 	pub fn pending_transactions(&self) -> Vec<SignedTransaction> {
-		vec![]
+		self.tx_pool.lock().values().cloned().collect()
 	}
 
-	/// Inquire about the status of a given block.
-	pub fn status(&self, _id: BlockID) -> BlockStatus {
+	/// Inquire about the status of a given block (or header).
+	pub fn status(&self, _id: BlockId) -> BlockStatus {
 		BlockStatus::Unknown
 	}
 

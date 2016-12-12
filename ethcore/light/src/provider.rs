@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -20,7 +20,7 @@
 use ethcore::blockchain_info::BlockChainInfo;
 use ethcore::client::{BlockChainClient, ProvingBlockChainClient};
 use ethcore::transaction::SignedTransaction;
-use ethcore::ids::BlockID;
+use ethcore::ids::BlockId;
 
 use util::{Bytes, H256};
 
@@ -33,6 +33,7 @@ use request;
 /// or empty vector where appropriate.
 ///
 /// [1]: https://github.com/ethcore/parity/wiki/Light-Ethereum-Subprotocol-(LES)
+#[cfg_attr(feature = "ipc", ipc(client_ident="LightProviderClient"))]
 pub trait Provider: Send + Sync {
 	/// Provide current blockchain info.
 	fn chain_info(&self) -> BlockChainInfo;
@@ -71,7 +72,10 @@ pub trait Provider: Send + Sync {
 	/// Each item in the resulting vector is either the raw bytecode or empty.
 	fn contract_code(&self, req: request::ContractCodes) -> Vec<Bytes>;
 
-	/// Provide header proofs from the Canonical Hash Tries.
+	/// Provide header proofs from the Canonical Hash Tries as well as the headers 
+	/// they correspond to -- each element in the returned vector is a 2-tuple.
+	/// The first element is a block header and the second a merkle proof of 
+	/// the header in a requested CHT.
 	fn header_proofs(&self, req: request::HeaderProofs) -> Vec<Bytes>;
 
 	/// Provide pending transactions.
@@ -93,22 +97,34 @@ impl<T: ProvingBlockChainClient + ?Sized> Provider for T {
 	}
 
 	fn block_headers(&self, req: request::Headers) -> Vec<Bytes> {
+		use request::HashOrNumber;
+		use ethcore::views::HeaderView;
+
 		let best_num = self.chain_info().best_block_number;
-		let start_num = req.block_num;
+		let start_num = match req.start {
+			HashOrNumber::Number(start_num) => start_num,
+			HashOrNumber::Hash(hash) => match self.block_header(BlockId::Hash(hash)) {
+				None => {
+					trace!(target: "les_provider", "Unknown block hash {} requested", hash);
+					return Vec::new();
+				}
+				Some(header) => {
+					let num = HeaderView::new(&header).number();
+					if req.max == 1 || self.block_hash(BlockId::Number(num)) != Some(hash) {
+						// Non-canonical header or single header requested.
+						return vec![header];
+					}
 
-		match self.block_hash(BlockID::Number(req.block_num)) {
-			Some(hash) if hash == req.block_hash => {}
-			_=> {
-				trace!(target: "les_provider", "unknown/non-canonical start block in header request: {:?}", (req.block_num, req.block_hash));
-				return vec![]
+					num
+				}
 			}
-		}
-
+		};
+		
 		(0u64..req.max as u64)
-			.map(|x: u64| x.saturating_mul(req.skip))
-			.take_while(|x| if req.reverse { x < &start_num } else { best_num - start_num < *x })
+			.map(|x: u64| x.saturating_mul(req.skip + 1))
+			.take_while(|x| if req.reverse { x < &start_num } else { best_num - start_num >= *x })
 			.map(|x| if req.reverse { start_num - x } else { start_num + x })
-			.map(|x| self.block_header(BlockID::Number(x)))
+			.map(|x| self.block_header(BlockId::Number(x)))
 			.take_while(|x| x.is_some())
 			.flat_map(|x| x)
 			.collect()
@@ -116,7 +132,7 @@ impl<T: ProvingBlockChainClient + ?Sized> Provider for T {
 
 	fn block_bodies(&self, req: request::Bodies) -> Vec<Bytes> {
 		req.block_hashes.into_iter()
-			.map(|hash| self.block_body(BlockID::Hash(hash)))
+			.map(|hash| self.block_body(BlockId::Hash(hash)))
 			.map(|body| body.unwrap_or_else(|| ::rlp::EMPTY_LIST_RLP.to_vec()))
 			.collect()
 	}
@@ -135,8 +151,8 @@ impl<T: ProvingBlockChainClient + ?Sized> Provider for T {
 
 		for request in req.requests {
 			let proof = match request.key2 {
-				Some(key2) => self.prove_storage(request.key1, key2, request.from_level, BlockID::Hash(request.block)),
-				None => self.prove_account(request.key1, request.from_level, BlockID::Hash(request.block)),
+				Some(key2) => self.prove_storage(request.key1, key2, request.from_level, BlockId::Hash(request.block)),
+				None => self.prove_account(request.key1, request.from_level, BlockId::Hash(request.block)),
 			};
 
 			let mut stream = RlpStream::new_list(proof.len());
@@ -153,7 +169,7 @@ impl<T: ProvingBlockChainClient + ?Sized> Provider for T {
 	fn contract_code(&self, req: request::ContractCodes) -> Vec<Bytes> {
 		req.code_requests.into_iter()
 			.map(|req| {
-				self.code_by_hash(req.account_key, BlockID::Hash(req.block_hash))
+				self.code_by_hash(req.account_key, BlockId::Hash(req.block_hash))
 			})
 			.collect()
 	}
