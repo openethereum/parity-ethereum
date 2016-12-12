@@ -130,8 +130,8 @@ impl Tendermint {
 	fn update_sealing(&self) {
 		if let Some(ref channel) = *self.message_channel.lock() {
 			match channel.send(ClientIoMessage::UpdateSealing) {
-				Ok(_) => trace!(target: "poa", "update_sealing: UpdateSealing message sent."),
-				Err(err) => warn!(target: "poa", "update_sealing: Could not send a sealing message {}.", err),
+				Ok(_) => trace!(target: "poa", "UpdateSealing message sent."),
+				Err(err) => warn!(target: "poa", "Could not send a sealing message {}.", err),
 			}
 		}
 	}
@@ -139,8 +139,8 @@ impl Tendermint {
 	fn submit_seal(&self, block_hash: H256, seal: Vec<Bytes>) {
 		if let Some(ref channel) = *self.message_channel.lock() {
 			match channel.send(ClientIoMessage::SubmitSeal(block_hash, seal)) {
-				Ok(_) => trace!(target: "poa", "submit_seal: SubmitSeal message sent."),
-				Err(err) => warn!(target: "poa", "submit_seal: Could not send a sealing message {}.", err),
+				Ok(_) => trace!(target: "poa", "SubmitSeal message sent."),
+				Err(err) => warn!(target: "poa", "Could not send a sealing message {}.", err),
 			}
 		}
 	}
@@ -149,7 +149,7 @@ impl Tendermint {
 		let channel = self.message_channel.lock().clone();
 		if let Some(ref channel) = channel {
 			match channel.send(ClientIoMessage::BroadcastMessage(message)) {
-				Ok(_) => trace!(target: "poa", "broadcast_message: BroadcastMessage message sent."),
+				Ok(_) => trace!(target: "poa", "BroadcastMessage message sent."),
 				Err(err) => warn!(target: "poa", "broadcast_message: Could not send a sealing message {}.", err),
 			}
 		} else {
@@ -175,12 +175,12 @@ impl Tendermint {
 					Some(message_rlp)
 				},
 				Err(e) => {
-					trace!(target: "poa", "generate_message: Could not sign the message {}", e);
+					trace!(target: "poa", "Could not sign the message {}", e);
 					None
 				},
 			}
 		} else {
-			warn!(target: "poa", "generate_message: No AccountProvider available.");
+			warn!(target: "poa", "No AccountProvider available.");
 			None
 		}
 	}
@@ -226,9 +226,10 @@ impl Tendermint {
 				self.generate_and_broadcast_message(block_hash);
 			},
 			Step::Precommit => {
+				trace!(target: "poa", "to_step: Precommit.");
 				let block_hash = match *self.lock_change.read() {
 					Some(ref m) if self.is_round(m) && m.block_hash.is_some() => {
-						trace!(target: "poa", "to_step: Setting last lock: {}", m.round);
+						trace!(target: "poa", "Setting last lock: {}", m.round);
 						self.last_lock.store(m.round, AtomicOrdering::SeqCst);
 						m.block_hash
 					},
@@ -245,7 +246,7 @@ impl Tendermint {
 					// Generate seal and remove old votes.
 					if self.is_proposer(&*self.authority.read()).is_ok() {
 						if let Some(seal) = self.votes.seal_signatures(height, round, block_hash) {
-							trace!(target: "poa", "to_step: Collected seal: {:?}", seal);
+							trace!(target: "poa", "Collected seal: {:?}", seal);
 							let seal = vec![
 								::rlp::encode(&round).to_vec(),
 								::rlp::encode(&seal.proposal).to_vec(),
@@ -331,10 +332,11 @@ impl Tendermint {
 			Some(ref lock) => message > lock,
 			None => true,
 		};
-		if is_newer_than_lock
+		let lock_change = is_newer_than_lock
 			&& message.step == Step::Prevote
 			&& message.block_hash.is_some()
-			&& self.has_enough_aligned_votes(message) {
+			&& self.has_enough_aligned_votes(message);
+		if lock_change {
 			trace!(target: "poa", "handle_valid_message: Lock change.");
 			*self.lock_change.write()	= Some(message.clone());
 		}
@@ -353,6 +355,8 @@ impl Tendermint {
 					self.increment_round(message.round - self.round.load(AtomicOrdering::SeqCst));
 					Some(Step::Precommit)
 				},
+				// Avoid counting twice.
+				Step::Prevote if lock_change => Some(Step::Precommit),
 				Step::Prevote if self.has_enough_aligned_votes(message) => Some(Step::Precommit),
 				Step::Prevote if self.has_enough_future_step_votes(message) => {
 					self.increment_round(message.round - self.round.load(AtomicOrdering::SeqCst));
@@ -362,7 +366,7 @@ impl Tendermint {
 			};
 
 			if let Some(step) = next_step {
-				trace!(target: "poa", "handle_valid_message: Transition to {:?} triggered.", step);
+				trace!(target: "poa", "Transition to {:?} triggered.", step);
 				self.to_step(step);
 			}
 		}
@@ -608,30 +612,30 @@ impl Engine for Tendermint {
 	fn step(&self) {
 		let next_step = match *self.step.read() {
 			Step::Propose => {
-				trace!(target: "poa", "timeout: Propose timeout.");
+				trace!(target: "poa", "Propose timeout.");
 				Step::Prevote
 			},
 			Step::Prevote if self.has_enough_any_votes() => {
-				trace!(target: "poa", "timeout: Prevote timeout.");
+				trace!(target: "poa", "Prevote timeout.");
 				Step::Precommit
 			},
 			Step::Prevote => {
-				trace!(target: "poa", "timeout: Prevote timeout without enough votes.");
+				trace!(target: "poa", "Prevote timeout without enough votes.");
 				self.broadcast_old_messages();
 				Step::Prevote
 			},
 			Step::Precommit if self.has_enough_any_votes() => {
-				trace!(target: "poa", "timeout: Precommit timeout.");
+				trace!(target: "poa", "Precommit timeout.");
 				self.increment_round(1);
 				Step::Propose
 			},
 			Step::Precommit => {
-				trace!(target: "poa", "timeout: Precommit timeout without enough votes.");
+				trace!(target: "poa", "Precommit timeout without enough votes.");
 				self.broadcast_old_messages();
 				Step::Precommit
 			},
 			Step::Commit => {
-				trace!(target: "poa", "timeout: Commit timeout.");
+				trace!(target: "poa", "Commit timeout.");
 				Step::Propose
 			},
 		};
@@ -639,7 +643,7 @@ impl Engine for Tendermint {
 	}
 
 	fn register_message_channel(&self, message_channel: IoChannel<ClientIoMessage>) {
-		trace!(target: "poa", "register_message_channel: Register the IoChannel.");
+		trace!(target: "poa", "Register the IoChannel.");
 		*self.message_channel.lock() = Some(message_channel);
 	}
 
@@ -909,6 +913,9 @@ mod tests {
 		let precommit_current = vote(&engine, |mh| tap.sign(v0, None, mh).map(H520::from), h, r, Step::Precommit, proposal);
 
 		let prevote_future = vote(&engine, |mh| tap.sign(v0, None, mh).map(H520::from), h + 1, r, Step::Prevote, proposal);
+		
+		// Wait a bit for async stuff.
+		::std::thread::sleep(::std::time::Duration::from_millis(500));
 
 		// Relays all valid present and future messages.
 		assert!(test_io.received.read().contains(&ClientIoMessage::BroadcastMessage(prevote_current)));
@@ -919,7 +926,6 @@ mod tests {
 
 	#[test]
 	fn seal_submission() {
-		::env_logger::init().unwrap();
 		let (spec, tap) = setup();
 		let engine = spec.engine.clone();
 		let mut db_result = get_temp_state_db();
@@ -932,32 +938,27 @@ mod tests {
 		let h = 1;
 		let r = 0;
 
-		// Propose
-		let (b, mut seal) = propose_default(&spec, v1.clone());
-		let proposal = Some(b.header().bare_hash());
-		
-		let test_io = TestIo::new();
-
 		// Register IoHandler remembers messages.
+		let test_io = TestIo::new();
 		let io_service = IoService::<ClientIoMessage>::start().unwrap();
 		io_service.register_handler(test_io.clone()).unwrap();
 		engine.register_message_channel(io_service.channel());
 
+		// Propose
+		let (b, mut seal) = propose_default(&spec, v1.clone());
+		let proposal = Some(b.header().bare_hash());
+		engine.step();
+
 		// Prevote.
 		vote(&engine, |mh| tap.sign(v1, None, mh).map(H520::from), h, r, Step::Prevote, proposal);
-		println!("sending second prevote");
 		vote(&engine, |mh| tap.sign(v0, None, mh).map(H520::from), h, r, Step::Prevote, proposal);
-		println!("sending first precommit");
 		vote(&engine, |mh| tap.sign(v1, None, mh).map(H520::from), h, r, Step::Precommit, proposal);
-		println!("sending last precommit");
 		vote(&engine, |mh| tap.sign(v0, None, mh).map(H520::from), h, r, Step::Precommit, proposal);
 
 		// Wait a bit for async stuff.
-		::std::thread::sleep(::std::time::Duration::from_millis(100));
+		::std::thread::sleep(::std::time::Duration::from_millis(500));
 
 		seal[2] = precommit_signatures(&tap, h, r, Some(b.header().bare_hash()), v1, v0);
-		println!("should {:?}, {:?}", proposal.unwrap(), seal);
-		println!("{:?}", *test_io.received.read());
 		assert!(test_io.received.read().contains(&ClientIoMessage::SubmitSeal(proposal.unwrap(), seal)));
 		engine.stop();
 	}
