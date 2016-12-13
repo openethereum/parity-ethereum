@@ -419,9 +419,10 @@ test-darwin:
     - triggers
   before_script:
     - git submodule update --init --recursive
+    - export RUST_FILES_MODIFIED=$(git --no-pager diff --name-only $CI_BUILD_REF^ $CI_BUILD_REF | grep -v -e ^js -e ^\\. -e ^LICENSE -e ^README.md -e ^appveyor.yml -e ^test.sh -e ^windows/ -e ^scripts/ -e^mac/ -e ^nsis/ | wc -l)
   script:
     - export RUST_BACKTRACE=1
-    - ./test.sh $CARGOFLAGS
+    - if [ $RUST_FILES_MODIFIED -eq 0 ]; then echo "Skipping Rust tests since no Rust files modified."; else ./test.sh $CARGOFLAGS; fi
   tags:
     - osx
   allow_failure: true
@@ -468,10 +469,10 @@ test-rust-beta:
   image: ethcore/rust:beta
   before_script:
     - git submodule update --init --recursive
+    - export RUST_FILES_MODIFIED=$(git --no-pager diff --name-only $CI_BUILD_REF^ $CI_BUILD_REF | grep -v -e ^js -e ^\\. -e ^LICENSE -e ^README.md -e ^appveyor.yml -e ^test.sh -e ^windows/ -e ^scripts/ -e^mac/ -e ^nsis/ | wc -l)
   script:
     - export RUST_BACKTRACE=1
-    - echo $JS_FILES_MODIFIED
-    - ./test.sh $CARGOFLAGS
+    - if [ $RUST_FILES_MODIFIED -eq 0 ]; then echo "Skipping Rust tests since no Rust files modified."; else ./test.sh $CARGOFLAGS; fi
   tags:
     - rust
     - rust-beta
@@ -483,9 +484,10 @@ test-rust-nightly:
   image: ethcore/rust:nightly
   before_script:
     - git submodule update --init --recursive
+    - export RUST_FILES_MODIFIED=$(git --no-pager diff --name-only $CI_BUILD_REF^ $CI_BUILD_REF | grep -v -e ^js -e ^\\. -e ^LICENSE -e ^README.md -e ^appveyor.yml -e ^test.sh -e ^windows/ -e ^scripts/ -e^mac/ -e ^nsis/ | wc -l)
   script:
     - export RUST_BACKTRACE=1
-    - ./test.sh $CARGOFLAGS
+    - if [ $RUST_FILES_MODIFIED -eq 0 ]; then echo "Skipping Rust tests since no Rust files modified."; else ./test.sh $CARGOFLAGS; fi
   tags:
     - rust
     - rust-nightly
