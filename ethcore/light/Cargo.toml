@@ -19,6 +19,7 @@ ethcore-io = { path = "../../util/io" }
 ethcore-ipc = { path = "../../ipc/rpc", optional = true }
 rlp = { path = "../../util/rlp" }
 time = "0.1"
+smallvec = "0.3.1"
 
 [features]
 default = []

@@ -60,6 +60,7 @@ extern crate ethcore_util as util;
 extern crate ethcore_network as network;
 extern crate ethcore_io as io;
 extern crate rlp;
+extern crate smallvec;
 extern crate time;
 
 #[cfg(feature = "ipc")]

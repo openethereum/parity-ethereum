@@ -20,41 +20,53 @@ use std::sync::Arc;
 
 use ethcore::engines::Engine;
 use ethcore::ids::BlockId;
-use ethcore::service::ClientIoMessage;
 use ethcore::block_import_error::BlockImportError;
 use ethcore::block_status::BlockStatus;
-use ethcore::verification::queue::{HeaderQueue, QueueInfo};
+use ethcore::verification::queue::{HeaderQueue, QueueInfo, Config as QueueConfig};
 use ethcore::transaction::SignedTransaction;
 use ethcore::blockchain_info::BlockChainInfo;
-
+use ethcore::spec::Spec;
+use ethcore::service::ClientIoMessage;
 use io::IoChannel;
+
 use util::hash::{H256, H256FastMap};
 use util::{Bytes, Mutex};
 
 use provider::Provider;
 use request;
 
+use self::header_chain::HeaderChain;
+
 mod header_chain;
+
+/// Configuration for the light client.
+#[derive(Debug, Default, Clone)]
+pub struct Config {
+	queue: QueueConfig,
+}
 
 /// Light client implementation.
 pub struct Client {
-	_engine: Arc<Engine>,
-	header_queue: HeaderQueue,
-	_message_channel: Mutex<IoChannel<ClientIoMessage>>,
+	queue: HeaderQueue,
+	chain: HeaderChain,
 	tx_pool: Mutex<H256FastMap<SignedTransaction>>,
 }
 
 impl Client {
+	/// Create a new `Client`.
+	pub fn new(config: Config, spec: &Spec, io_channel: IoChannel<ClientIoMessage>) -> Self {
+		Client {
+			queue: HeaderQueue::new(config.queue, spec.engine.clone(), io_channel, true),
+			chain: HeaderChain::new(&::rlp::encode(&spec.genesis_header())),
+			tx_pool: Mutex::new(Default::default()),
+		}
+	}
+
 	/// Import a header as rlp-encoded bytes.
 	pub fn import_header(&self, bytes: Bytes) -> Result<H256, BlockImportError> {
 		let header = ::rlp::decode(&bytes);
 
-		self.header_queue.import(header).map_err(Into::into)
-	}
-
-	/// Whether the block is already known (but not necessarily part of the canonical chain)
-	pub fn is_known(&self, _id: BlockId) -> bool {
-		false
+		self.queue.import(header).map_err(Into::into)
 	}
 
 	/// Import a local transaction.
@@ -68,30 +80,34 @@ impl Client {
 	}
 
 	/// Inquire about the status of a given block (or header).
-	pub fn status(&self, _id: BlockId) -> BlockStatus {
+	pub fn status(&self, id: BlockId) -> BlockStatus {
 		BlockStatus::Unknown
 	}
 
 	/// Get the header queue info.
 	pub fn queue_info(&self) -> QueueInfo {
-		self.header_queue.queue_info()
-	}
-
-	/// Best block number.
-	pub fn best_block_number(&self) -> u64 {
-		0
-	}
-
-	/// Best block hash.
-	pub fn best_block_hash(&self) -> u64 {
-		unimplemented!()
+		self.queue.queue_info()
 	}
 }
 
 // dummy implementation -- may draw from canonical cache further on.
 impl Provider for Client {
 	fn chain_info(&self) -> BlockChainInfo {
-		unimplemented!()
+		let best_block = self.chain.best_block();
+		let first_block = self.chain.first_block();
+		let genesis_hash = self.chain.genesis_hash();
+
+		BlockChainInfo {
+			total_difficulty: best_block.total_difficulty,
+			pending_total_difficulty: best_block.total_difficulty,
+			genesis_hash: genesis_hash,
+			best_block_hash: best_block.hash,
+			best_block_number: best_block.number,
+			ancient_block_hash: if first_block.is_some() { Some(genesis_hash) } else { None },
+			ancient_block_number: if first_block.is_some() { Some(0) } else { None },
+			first_block_hash: first_block.as_ref().map(|first| first.hash),
+			first_block_number: first_block.as_ref().map(|first| first.number),
+		}
 	}
 
 	fn reorg_depth(&self, _a: &H256, _b: &H256) -> Option<u64> {

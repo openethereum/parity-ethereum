@@ -23,28 +23,35 @@
 //! This is separate from the `BlockChain` for two reasons:
 //!   - It stores only headers (and a pruned subset of them)
 //!   - To allow for flexibility in the database layout once that's incorporated.
-// TODO: use DB instead of memory.
+// TODO: use DB instead of memory. DB Layout: just the contents of `candidates`/`headers`
+//
 
 use std::collections::{BTreeMap, HashMap};
 
-use ethcore::header::Header;
 use ethcore::error::BlockError;
 use ethcore::ids::BlockId;
 use ethcore::views::HeaderView;
 use util::{Bytes, H256, U256, Mutex, RwLock};
 
-/// Delay this many blocks before producing a CHT.
+use smallvec::SmallVec;
+
+/// Delay this many blocks before producing a CHT. required to be at
+/// least 1 but should be more in order to be resilient against reorgs.
 const CHT_DELAY: u64 = 2048;
 
 /// Generate CHT roots of this size.
-// TODO: move into more generic module.
+// TODO: move CHT definition/creation into more generic module.
 const CHT_SIZE: u64 = 2048;
 
+/// Information about a block.
 #[derive(Debug, Clone)]
-struct BestBlock {
-	hash: H256,
-	number: u64,
-	total_difficulty: U256,
+pub struct BlockDescriptor {
+	/// The block's hash
+	pub hash: H256,
+	/// The block's number
+	pub number: u64,
+	/// The block's total difficulty.
+	pub total_difficulty: U256,
 }
 
 // candidate block description.
@@ -55,7 +62,7 @@ struct Candidate {
 }
 
 struct Entry {
-	candidates: Vec<Candidate>,
+	candidates: SmallVec<[Candidate; 3]>, // 3 arbitrarily chosen
 	canonical_hash: H256,
 }
 
@@ -64,7 +71,7 @@ pub struct HeaderChain {
 	genesis_header: Bytes, // special-case the genesis.
 	candidates: RwLock<BTreeMap<u64, Entry>>,
 	headers: RwLock<HashMap<H256, Bytes>>,
-	best_block: RwLock<BestBlock>,
+	best_block: RwLock<BlockDescriptor>,
 	cht_roots: Mutex<Vec<H256>>,
 }
 
@@ -75,7 +82,7 @@ impl HeaderChain {
 
 		HeaderChain {
 			genesis_header: genesis.to_owned(),
-			best_block: RwLock::new(BestBlock {
+			best_block: RwLock::new(BlockDescriptor {
 				hash: g_view.hash(),
 				number: 0,
 				total_difficulty: g_view.difficulty(),
@@ -114,7 +121,7 @@ impl HeaderChain {
 
 		// insert headers and candidates entries.
 		let mut candidates = self.candidates.write();
-		candidates.entry(number).or_insert_with(|| Entry { candidates: Vec::new(), canonical_hash: hash})
+		candidates.entry(number).or_insert_with(|| Entry { candidates: SmallVec::new(), canonical_hash: hash})
 			.candidates.push(Candidate {
 				hash: hash,
 				parent_hash: parent_hash,
@@ -137,7 +144,7 @@ impl HeaderChain {
 				canon_hash = canon.parent_hash;
 			}
 
-			*self.best_block.write() = BestBlock {
+			*self.best_block.write() = BlockDescriptor {
 				hash: hash,
 				number: number,
 				total_difficulty: total_difficulty,
@@ -145,13 +152,24 @@ impl HeaderChain {
 
 			// produce next CHT root if it's time.
 			let earliest_era = *candidates.keys().next().expect("at least one era just created; qed");
-			if earliest_era + CHT_DELAY + CHT_SIZE < number {
-				let values: Vec<_> = (0..CHT_SIZE).map(|x| x + earliest_era)
-					.map(|x| candidates.remove(&x).map(|entry| (x, entry)))
-					.map(|x| x.expect("all eras stored are sequential with no gaps; qed"))
-					.map(|(x, entry)| (::rlp::encode(&x), ::rlp::encode(&entry.canonical_hash)))
-					.map(|(k, v)| (k.to_vec(), v.to_vec()))
-					.collect();
+			if earliest_era + CHT_DELAY + CHT_SIZE <= number {
+				let mut values = Vec::with_capacity(CHT_SIZE as usize);
+				{
+					let mut headers = self.headers.write();
+					for i in (0..CHT_SIZE).map(|x| x + earliest_era) {
+						let era_entry = candidates.remove(&i)
+							.expect("all eras are sequential with no gaps; qed");
+
+						for ancient in &era_entry.candidates {
+							headers.remove(&ancient.hash);
+						}
+
+						values.push((
+							::rlp::encode(&i).to_vec(),
+							::rlp::encode(&era_entry.canonical_hash).to_vec(),
+						));
+					}
+				}
 
 				let cht_root = ::util::triehash::trie_root(values);
 				debug!(target: "chain", "Produced CHT {} root: {:?}", (earliest_era - 1) % CHT_SIZE, cht_root);
@@ -165,7 +183,7 @@ impl HeaderChain {
 
 	/// Get a block header. In the case of query by number, only canonical blocks
 	/// will be returned.
-	pub fn block_header(&self, id: BlockId) -> Option<Bytes> {
+	pub fn get_header(&self, id: BlockId) -> Option<Bytes> {
 		match id {
 			BlockId::Earliest | BlockId::Number(0) => Some(self.genesis_header.clone()),
 			BlockId::Hash(hash) => self.headers.read().get(&hash).map(|x| x.to_vec()),
@@ -182,4 +200,141 @@ impl HeaderChain {
 		}
 	}
 
+	/// Get the nth CHT root, if it's been computed.
+	///
+	/// CHT root 0 is from block `1..2048`.
+	/// CHT root 1 is from block `2049..4096`
+	/// and so on.
+	///
+	/// This is because it's assumed that the genesis hash is known,
+	/// so including it within a CHT would be redundant.
+	pub fn cht_root(&self, n: usize) -> Option<H256> {
+		self.cht_roots.lock().get(n).map(|h| h.clone())
+	}
+
+	/// Get the genesis hash.
+	pub fn genesis_hash(&self) -> H256 {
+		use util::Hashable;
+
+		self.genesis_header.sha3()
+	}
+
+	/// Get the best block's data.
+	pub fn best_block(&self) -> BlockDescriptor {
+		self.best_block.read().clone()
+	}
+
+	/// If there is a gap between the genesis and the rest
+	/// of the stored blocks, return the first post-gap block.
+	pub fn first_block(&self) -> Option<BlockDescriptor> {
+		let candidates = self.candidates.read();
+		match candidates.iter().next() {
+			None | Some((&1, _)) => None,
+			Some((&height, entry)) => Some(BlockDescriptor {
+				number: height,
+				hash: entry.canonical_hash,
+				total_difficulty: entry.candidates.iter().find(|x| x.hash == entry.canonical_hash)
+					.expect("entry always stores canonical candidate; qed").total_difficulty,
+			})
+		}
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use super::HeaderChain;
+	use ethcore::ids::BlockId;
+	use ethcore::header::Header;
+	use ethcore::spec::Spec;
+
+	#[test]
+	fn it_works() {
+		let spec = Spec::new_test();
+		let genesis_header = spec.genesis_header();
+
+		let chain = HeaderChain::new(&::rlp::encode(&genesis_header));
+
+		let mut parent_hash = genesis_header.hash();
+		let mut rolling_timestamp = genesis_header.timestamp();
+		for i in 1..10000 {
+			let mut header = Header::new();
+			header.set_parent_hash(parent_hash);
+			header.set_number(i);
+			header.set_timestamp(rolling_timestamp);
+			header.set_difficulty(*genesis_header.difficulty() * i.into());
+
+			chain.insert(::rlp::encode(&header).to_vec());
+
+			parent_hash = header.hash();
+			rolling_timestamp += 10;
+		}
+
+		assert!(chain.get_header(BlockId::Number(10)).is_none());
+		assert!(chain.get_header(BlockId::Number(9000)).is_some());
+		assert!(chain.cht_root(2).is_some());
+		assert!(chain.cht_root(3).is_none());
+	}
+
+	#[test]
+	fn reorganize() {
+		let spec = Spec::new_test();
+		let genesis_header = spec.genesis_header();
+
+		let chain = HeaderChain::new(&::rlp::encode(&genesis_header));
+
+		let mut parent_hash = genesis_header.hash();
+		let mut rolling_timestamp = genesis_header.timestamp();
+		for i in 1..6 {
+			let mut header = Header::new();
+			header.set_parent_hash(parent_hash);
+			header.set_number(i);
+			header.set_timestamp(rolling_timestamp);
+			header.set_difficulty(*genesis_header.difficulty() * i.into());
+
+			chain.insert(::rlp::encode(&header).to_vec()).unwrap();
+
+			parent_hash = header.hash();
+			rolling_timestamp += 10;
+		}
+
+		{
+			let mut rolling_timestamp = rolling_timestamp;
+			let mut parent_hash = parent_hash;
+			for i in 6..16 {
+				let mut header = Header::new();
+				header.set_parent_hash(parent_hash);
+				header.set_number(i);
+				header.set_timestamp(rolling_timestamp);
+				header.set_difficulty(*genesis_header.difficulty() * i.into());
+
+				chain.insert(::rlp::encode(&header).to_vec()).unwrap();
+
+				parent_hash = header.hash();
+				rolling_timestamp += 10;
+			}
+		}
+
+		assert_eq!(chain.best_block().number, 15);
+
+		{
+			let mut rolling_timestamp = rolling_timestamp;
+			let mut parent_hash = parent_hash;
+
+			// import a shorter chain which has better TD.
+			for i in 6..13 {
+				let mut header = Header::new();
+				header.set_parent_hash(parent_hash);
+				header.set_number(i);
+				header.set_timestamp(rolling_timestamp);
+				header.set_difficulty(*genesis_header.difficulty() * (i * i).into());
+
+				chain.insert(::rlp::encode(&header).to_vec()).unwrap();
+
+				parent_hash = header.hash();
+				rolling_timestamp += 11;
+			}
+		}
+
+		assert_eq!(chain.best_block().number, 12);
+	}
 }

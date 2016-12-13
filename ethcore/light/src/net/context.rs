@@ -20,7 +20,7 @@ use network::{NetworkContext, PeerId, NodeId};
 
 use super::{Announcement, LightProtocol, ReqId};
 use super::error::Error;
-use request::Request;
+use request::{self, Request};
 
 /// An I/O context which allows sending and receiving packets as well as
 /// disconnecting peers. This is used as a generalization of the portions
@@ -93,6 +93,10 @@ pub trait EventContext {
 	// TODO: maybe just put this on a timer in LightProtocol?
 	fn make_announcement(&self, announcement: Announcement);
 
+	/// Find the maximum number of requests of a specific type which can be made from
+	/// supplied peer.
+	fn max_requests(&self, peer: PeerId, kind: request::Kind) -> Option<usize>;
+
 	/// Disconnect a peer.
 	fn disconnect_peer(&self, peer: PeerId);
 
@@ -126,6 +130,10 @@ impl<'a> EventContext for Ctx<'a> {
 
 	fn make_announcement(&self, announcement: Announcement) {
 		self.proto.make_announcement(self.io, announcement);
+	}
+
+	fn max_requests(&self, peer: PeerId, kind: request::Kind) -> Option<usize> {
+		self.proto.max_requests(peer, kind)
 	}
 
 	fn disconnect_peer(&self, peer: PeerId) {
