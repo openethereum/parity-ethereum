@@ -19,10 +19,18 @@
 mod simple_list;
 mod contract;
 
-pub use self::simple_list::SimpleList;
-pub use self::contract::ValidatorContract;
-
 use util::Address;
+use ethjson::spec::ValidatorSet as ValidatorSpec;
+use self::simple_list::SimpleList;
+use self::contract::ValidatorContract;
+
+/// Creates a validator set from spec.
+pub fn new_validator_set(spec: ValidatorSpec) -> Box<ValidatorSet + Send + Sync> {
+	match spec {
+		ValidatorSpec::List(list) => Box::new(SimpleList::new(list.into_iter().map(Into::into).collect())),
+		ValidatorSpec::Contract(address) => Box::new(ValidatorContract::new(address.into())),
+	}
+}
 
 pub trait ValidatorSet {
 	/// Checks if a given address is a validator.

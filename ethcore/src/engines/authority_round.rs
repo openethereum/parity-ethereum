@@ -37,7 +37,7 @@ use transaction::SignedTransaction;
 use env_info::EnvInfo;
 use builtin::Builtin;
 use client::Client;
-use super::validator_set::{ValidatorSet, SimpleList};
+use super::validator_set::{ValidatorSet, new_validator_set};
 
 /// `AuthorityRound` params.
 #[derive(Debug, PartialEq)]
@@ -46,10 +46,10 @@ pub struct AuthorityRoundParams {
 	pub gas_limit_bound_divisor: U256,
 	/// Time to wait before next block or authority switching.
 	pub step_duration: Duration,
-	/// Valid authorities.
-	pub authorities: SimpleList,
 	/// Starting step,
 	pub start_step: Option<u64>,
+	/// Valid validators.
+	pub validators: ethjson::spec::ValidatorSet,
 }
 
 impl From<ethjson::spec::AuthorityRoundParams> for AuthorityRoundParams {
@@ -57,7 +57,7 @@ impl From<ethjson::spec::AuthorityRoundParams> for AuthorityRoundParams {
 		AuthorityRoundParams {
 			gas_limit_bound_divisor: p.gas_limit_bound_divisor.into(),
 			step_duration: Duration::from_secs(p.step_duration.into()),
-			authorities: SimpleList::new(p.authorities.into_iter().map(Into::into).collect::<Vec<_>>()),
+			validators: p.validators,
 			start_step: p.start_step.map(Into::into),
 		}
 	}
@@ -67,7 +67,8 @@ impl From<ethjson::spec::AuthorityRoundParams> for AuthorityRoundParams {
 /// mainnet chains in the Olympic, Frontier and Homestead eras.
 pub struct AuthorityRound {
 	params: CommonParams,
-	our_params: AuthorityRoundParams,
+	gas_limit_bound_divisor: U256,
+	step_duration: Duration,
 	builtins: BTreeMap<Address, Builtin>,
 	transition_service: IoService<()>,
 	step: AtomicUsize,
@@ -75,6 +76,7 @@ pub struct AuthorityRound {
 	client: RwLock<Weak<Client>>,
 	account_provider: Mutex<Arc<AccountProvider>>,
 	password: RwLock<Option<String>>,
+	validators: Box<ValidatorSet + Send + Sync>,
 }
 
 fn header_step(header: &Header) -> Result<usize, ::rlp::DecoderError> {
@@ -102,7 +104,8 @@ impl AuthorityRound {
 		let engine = Arc::new(
 			AuthorityRound {
 				params: params,
-				our_params: our_params,
+				gas_limit_bound_divisor: our_params.gas_limit_bound_divisor,
+				step_duration: our_params.step_duration,
 				builtins: builtins,
 				transition_service: try!(IoService::<()>::start()),
 				step: AtomicUsize::new(initial_step),
@@ -110,6 +113,7 @@ impl AuthorityRound {
 				client: RwLock::new(Weak::new()),
 				account_provider: Mutex::new(Arc::new(AccountProvider::transient_provider())),
 				password: RwLock::new(None),
+				validators: new_validator_set(our_params.validators),
 			});
 		let handler = TransitionHandler { engine: Arc::downgrade(&engine) };
 		try!(engine.transition_service.register_handler(Arc::new(handler)));
@@ -122,7 +126,7 @@ impl AuthorityRound {
 
 	fn remaining_step_duration(&self) -> Duration {
 		let now = unix_now();
-		let step_end = self.our_params.step_duration * (self.step() as u32 + 1);
+		let step_end = self.step_duration * (self.step() as u32 + 1);
 		if step_end > now {
 			step_end - now
 		} else {
@@ -131,7 +135,7 @@ impl AuthorityRound {
 	}
 
 	fn step_proposer(&self, step: usize) -> Address {
-		self.our_params.authorities.get(step)
+		self.validators.get(step)
 	}
 
 	fn is_step_proposer(&self, step: usize, address: &Address) -> bool {
@@ -201,7 +205,7 @@ impl Engine for AuthorityRound {
 		header.set_difficulty(parent.difficulty().clone());
 		header.set_gas_limit({
 			let gas_limit = parent.gas_limit().clone();
-			let bound_divisor = self.our_params.gas_limit_bound_divisor;
+			let bound_divisor = self.gas_limit_bound_divisor;
 			if gas_limit < gas_floor_target {
 				min(gas_floor_target, gas_limit + gas_limit / bound_divisor - 1.into())
 			} else {
@@ -211,8 +215,7 @@ impl Engine for AuthorityRound {
 	}
 
 	fn is_sealer(&self, author: &Address) -> Option<bool> {
-		let p = &self.our_params;
-		Some(p.authorities.contains(author))
+		Some(self.validators.contains(author))
 	}
 
 	/// Attempt to seal the block internally.
@@ -281,7 +284,7 @@ impl Engine for AuthorityRound {
 			try!(Err(BlockError::DoubleVote(header.author().clone())));
 		}
 
-		let gas_limit_divisor = self.our_params.gas_limit_bound_divisor;
+		let gas_limit_divisor = self.gas_limit_bound_divisor;
 		let min_gas = parent.gas_limit().clone() - parent.gas_limit().clone() / gas_limit_divisor;
 		let max_gas = parent.gas_limit().clone() + parent.gas_limit().clone() / gas_limit_divisor;
 		if header.gas_limit() <= &min_gas || header.gas_limit() >= &max_gas {
@@ -432,7 +435,7 @@ mod tests {
 		let engine = Spec::new_test_round().engine;
 
 		let signature = tap.sign(addr, Some("0".into()), header.bare_hash()).unwrap();
-		// Two authorities.
+		// Two validators.
 		// Spec starts with step 2.
 		header.set_seal(vec![encode(&2usize).to_vec(), encode(&(&*signature as &[u8])).to_vec()]);
 		assert!(engine.verify_block_seal(&header).is_err());
@@ -451,7 +454,7 @@ mod tests {
 		let engine = Spec::new_test_round().engine;
 
 		let signature = tap.sign(addr, Some("0".into()), header.bare_hash()).unwrap();
-		// Two authorities.
+		// Two validators.
 		// Spec starts with step 2.
 		header.set_seal(vec![encode(&1usize).to_vec(), encode(&(&*signature as &[u8])).to_vec()]);
 		assert!(engine.verify_block_seal(&header).is_ok());

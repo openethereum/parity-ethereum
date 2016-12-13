@@ -16,9 +16,7 @@
 
 //! Engine deserialization.
 
-use spec::Ethash;
-use spec::BasicAuthority;
-use spec::AuthorityRound;
+use super::{Ethash, BasicAuthority, AuthorityRound};
 
 /// Engine deserialization.
 #[derive(Debug, PartialEq, Deserialize)]

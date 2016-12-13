@@ -18,7 +18,8 @@
 
 use util::*;
 use client::chain_notify::ChainNotify;
-use super::{ValidatorSet, SimpleList};
+use super::ValidatorSet;
+use super::simple_list::SimpleList;
 
 #[derive(Debug)]
 pub struct ValidatorContract {
