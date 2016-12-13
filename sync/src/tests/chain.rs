@@ -255,8 +255,12 @@ fn high_td_attach() {
 fn disconnect_on_unrelated_chain() {
 	::env_logger::init().ok();
 	let mut net = TestNet::new(2);
-	net.peer(0).chain.add_blocks(200, EachBlockWith::Uncle);
-	net.peer(1).chain.add_blocks(100, EachBlockWith::Nothing);
+	net.peer(0).chain.set_history(Some(20));
+	net.peer(1).chain.set_history(Some(20));
+	net.restart_peer(0);
+	net.restart_peer(1);
+	net.peer(0).chain.add_blocks(500, EachBlockWith::Uncle);
+	net.peer(1).chain.add_blocks(300, EachBlockWith::Nothing);
 	net.sync();
 	assert_eq!(net.disconnect_events, vec![(0, 0)]);
 }
