@@ -17,7 +17,7 @@ impl SignerRpc {
 	pub fn requests_to_confirm(&mut self) ->
 		BoxFuture<Result<Vec<ConfirmationRequest>, RpcError>, Canceled>
 	{
-		self.rpc.request("personal_requestsToConfirm", vec![])
+		self.rpc.request("signer_requestsToConfirm", vec![])
 	}
 	pub fn confirm_request(
 		&mut self,
@@ -27,7 +27,7 @@ impl SignerRpc {
 		pwd: &str
 	) -> BoxFuture<Result<U256, RpcError>, Canceled>
 	{
-		self.rpc.request("personal_confirmRequest", vec![
+		self.rpc.request("signer_confirmRequest", vec![
 			to_value(&format!("{:#x}", id)),
 			to_value(&TransactionModification { gas_price: new_gas_price, gas: new_gas }),
 			to_value(&pwd),
@@ -36,7 +36,7 @@ impl SignerRpc {
 	pub fn reject_request(&mut self, id: U256) ->
 		BoxFuture<Result<bool, RpcError>, Canceled>
 	{
-		self.rpc.request("personal_rejectRequest", vec![
+		self.rpc.request("signer_rejectRequest", vec![
 			JsonValue::String(format!("{:#x}", id))
 		])
 	}

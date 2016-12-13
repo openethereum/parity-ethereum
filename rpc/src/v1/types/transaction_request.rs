@@ -18,6 +18,7 @@
 
 use v1::types::{Bytes, H160, U256};
 use v1::helpers;
+use util::log::Colour;
 
 use std::fmt;
 
@@ -62,13 +63,19 @@ impl fmt::Display for TransactionRequest {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		let eth = self.value.unwrap_or(U256::from(0));
 		match self.to {
-			Some(ref to) => write!(f, "{} Ether from {:?} to {:?}",
-								   format_ether(eth),
-								   self.from,
-								   to),
-			None => write!(f, "{} Ether from {:?}",
-						   format_ether(eth),
-						   self.from),
+			Some(ref to) => write!(
+				f,
+				"{} ETH from {} to 0x{:?}",
+				Colour::White.bold().paint(format_ether(eth)),
+				Colour::White.bold().paint(format!("0x{:?}", self.from)),
+				to
+			),
+			None => write!(
+				f,
+				"{} ETH from {} for contract creation",
+				Colour::White.bold().paint(format_ether(eth)),
+				Colour::White.bold().paint(format!("0x{:?}", self.from)),
+			),
 		}
 	}
 }

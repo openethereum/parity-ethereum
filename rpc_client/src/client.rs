@@ -22,13 +22,15 @@ use ws::{
 	Error as WsError,
 	ErrorKind as WsErrorKind,
 	Message,
-	Result as WsResult
+	Result as WsResult,
 };
 
 use serde::Deserialize;
-use serde_json::{self as json,
-				 Value as JsonValue,
-				 Error as JsonError};
+use serde_json::{
+	self as json,
+	Value as JsonValue,
+	Error as JsonError,
+};
 
 use futures::{BoxFuture, Canceled, Complete, Future, oneshot, done};
 
@@ -170,13 +172,17 @@ impl Pending {
 }
 
 fn get_authcode(path: &PathBuf) -> Result<String, RpcError> {
-	match File::open(path) {
-		Ok(fd) => match BufReader::new(fd).lines().next() {
-			Some(Ok(code)) => Ok(code),
-			_ => Err(RpcError::NoAuthCode),
-		},
-		Err(_) => Err(RpcError::NoAuthCode)
+	if let Ok(fd) = File::open(path) {
+		if let Some(Ok(line)) = BufReader::new(fd).lines().next() {
+			let mut parts = line.split(';');
+			let token = parts.next();
+
+			if let Some(code) = token {
+				return Ok(code.into());
+			}
+		}
 	}
+	Err(RpcError::NoAuthCode)
 }
 
 /// The handle to the connection

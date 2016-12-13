@@ -18,6 +18,8 @@
 
 use std::fmt;
 use serde::{Serialize, Serializer};
+use util::log::Colour;
+
 use v1::types::{U256, TransactionRequest, RichRawTransaction, H160, H256, H520, Bytes};
 use v1::helpers;
 
@@ -48,11 +50,10 @@ impl fmt::Display for ConfirmationRequest {
 impl fmt::Display for ConfirmationPayload {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		match *self {
-			ConfirmationPayload::SendTransaction(ref transaction)
-				=> write!(f, "{}", transaction),
-			ConfirmationPayload::SignTransaction(_) => write!(f, "TODO: data"),
-			ConfirmationPayload::Decrypt(_) => write!(f, "TODO: decrypt"),
-			ConfirmationPayload::Signature(_) => write!(f, "TODO: signature"),
+			ConfirmationPayload::SendTransaction(ref transaction) => write!(f, "{}", transaction),
+			ConfirmationPayload::SignTransaction(ref transaction) => write!(f, "(Sign only) {}", transaction),
+			ConfirmationPayload::Signature(ref sign) => write!(f, "{}", sign),
+			ConfirmationPayload::Decrypt(ref decrypt) => write!(f, "{}", decrypt),
 		}
 	}
 }
@@ -75,6 +76,17 @@ impl From<(H160, H256)> for SignRequest {
 	}
 }
 
+impl fmt::Display for SignRequest {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		write!(
+			f,
+			"sign 0x{:?} with {}",
+			self.hash,
+			Colour::White.bold().paint(format!("0x{:?}", self.address)),
+		)
+	}
+}
+
 /// Decrypt request
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub struct DecryptRequest {
@@ -90,6 +102,16 @@ impl From<(H160, Bytes)> for DecryptRequest {
 			address: tuple.0,
 			msg: tuple.1,
 		}
+	}
+}
+
+impl fmt::Display for DecryptRequest {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		write!(
+			f,
+			"decrypt data with {}",
+			Colour::White.bold().paint(format!("0x{:?}", self.address)),
+		)
 	}
 }
 
