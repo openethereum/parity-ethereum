@@ -237,6 +237,9 @@ impl<C> TestNet<C> where C: FlushingBlockChainClient {
 	}
 
 	pub fn start(&mut self) {
+		if self.started {
+			return;
+		}
 		for peer in 0..self.peers.len() {
 			for client in 0..self.peers.len() {
 				if peer != client {
@@ -246,6 +249,7 @@ impl<C> TestNet<C> where C: FlushingBlockChainClient {
 				}
 			}
 		}
+		self.started = true;
 	}
 
 	pub fn sync_step(&mut self) {
@@ -306,10 +310,7 @@ impl<C> TestNet<C> where C: FlushingBlockChainClient {
 	}
 
 	pub fn sync_steps(&mut self, count: usize) {
-		if !self.started {
-			self.start();
-			self.started = true;
-		}
+		self.start();
 		for _ in 0..count {
 			self.sync_step();
 		}
