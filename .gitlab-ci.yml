@@ -38,7 +38,7 @@ linux-stable:
     - aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/x86_64-unknown-linux-gnu/parity.sha3 --body parity.sha3
     - aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/x86_64-unknown-linux-gnu/"parity_"$VER"_amd64.deb" --body "parity_"$VER"_amd64.deb"
     - aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/x86_64-unknown-linux-gnu/"parity_"$VER"_amd64.deb.md5" --body "parity_"$VER"_amd64.deb.md5"
-    - curl --data "commit=${commit}&sha3=${sha3}&filename=${filename}" http://icarus.parity.io/push-build/$CI_BUILD_REF_NAME/x86_64-unknown-linux-gnu
+    - curl --data "commit=$CI_BUILD_REF&sha3=$sha3&filename=${filename}" http://icarus.parity.io/push-build/$CI_BUILD_REF_NAME/x86_64-unknown-linux-gnu
   tags:
     - rust
     - rust-stable
@@ -95,7 +95,6 @@ linux-centos:
   script:
     - export CXX="g++"
     - export CC="gcc"
-    - export COMMIT=$(git rev-parse HEAD)
     - export PLATFORM=x86_64-unknown-linux-gnu
     - cargo build -j $(nproc) --release $CARGOFLAGS
     - strip target/release/parity
@@ -107,7 +106,7 @@ linux-centos:
     - aws s3 rm --recursive s3://$S3_BUCKET/$CI_BUILD_REF_NAME/x86_64-unknown-centos-gnu
     - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/x86_64-unknown-centos-gnu/parity --body target/release/parity
     - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/x86_64-unknown-centos-gnu/parity.md5 --body parity.md5
-    - curl --data "commit=${COMMIT}&sha3=${SHA3}&filename=parity" http://icarus.parity.io/push-build/$CI_BUILD_REF_NAME/$PLATFORM
+    - curl --data "commit=$CI_BUILD_REF&sha3=$SHA3&filename=parity" http://icarus.parity.io/push-build/$CI_BUILD_REF_NAME/$PLATFORM
   tags:
     - rust
     - rust-centos
@@ -146,7 +145,7 @@ linux-i686:
     - aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/$PLATFORM/parity.sha3 --body parity.sha3
     - aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/$PLATFORM/"parity_"$VER"_i386.deb" --body "parity_"$VER"_i386.deb"
     - aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/$PLATFORM/"parity_"$VER"_i386.deb.md5" --body "parity_"$VER"_i386.deb.md5"
-    - curl --data "commit=${COMMIT}&sha3=${SHA3}&filename=parity" http://icarus.parity.io/push-build/$CI_BUILD_REF_NAME/$PLATFORM
+    - curl --data "commit=$CI_BUILD_REF&sha3=$SHA3&filename=parity" http://icarus.parity.io/push-build/$CI_BUILD_REF_NAME/$PLATFORM
   tags:
     - rust
     - rust-i686
@@ -343,7 +342,7 @@ darwin:
     - aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/$PLATFORM/parity.sha3 --body parity.sha3
     - aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/$PLATFORM/"parity-"$VER"-osx-installer-EXPERIMENTAL.pkg" --body "parity-"$VER"-osx-installer-EXPERIMENTAL.pkg"
     - aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/$PLATFORM/"parity-"$VER"-osx-installer-EXPERIMENTAL.pkg.md5" --body "parity-"$VER"-osx-installer-EXPERIMENTAL.pkg.md5"
-    - curl --data "commit=${COMMIT}&sha3=${SHA3}&filename=parity" http://icarus.parity.io/push-build/$CI_BUILD_REF_NAME/$PLATFORM
+    - curl --data "commit=$CI_BUILD_REF&sha3=$SHA3&filename=parity" http://icarus.parity.io/push-build/$CI_BUILD_REF_NAME/$PLATFORM
   tags:
     - osx
   artifacts:
@@ -366,7 +365,6 @@ windows:
     - set LIB=C:\vs2015\VC\lib;C:\Program Files (x86)\Windows Kits\10\Lib\10.0.10240.0\ucrt\x64
     - set RUST_BACKTRACE=1
     - set RUSTFLAGS=%RUSTFLAGS%
-    - FOR /F "delims=" %i IN ('git rev-parse HEAD') DO set SHA3=%i
     - rustup default stable-x86_64-pc-windows-msvc
     - cargo build -j 8 --release #%CARGOFLAGS%
     - FOR /F "delims=" %i IN ('target\release\parity.exe tools hash target\release\parity.exe') DO set SHA3=%i
@@ -405,7 +403,7 @@ windows:
     - aws s3api put-object --bucket %S3_BUCKET% --key %CI_BUILD_REF_NAME%/x86_64-pc-windows-msvc/InstallParity.exe.md5 --body nsis\InstallParity.exe.md5
     - aws s3api put-object --bucket %S3_BUCKET% --key %CI_BUILD_REF_NAME%/x86_64-pc-windows-msvc/win-installer.zip --body nsis\win-installer.zip
     - aws s3api put-object --bucket %S3_BUCKET% --key %CI_BUILD_REF_NAME%/x86_64-pc-windows-msvc/win-installer.zip.md5 --body nsis\win-installer.zip.md5
-    - curl --data "commit=%COMMIT%&sha3=%SHA3%&filename=parity.exe" http://icarus.parity.io/push-build/$CI_BUILD_REF_NAME/%PLATFORM%
+    - curl --data "commit=$CI_BUILD_REF&sha3=%SHA3%&filename=parity.exe" http://icarus.parity.io/push-build/$CI_BUILD_REF_NAME/%PLATFORM%
   tags:
    - rust-windows
   artifacts:
