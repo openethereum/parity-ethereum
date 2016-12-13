@@ -276,7 +276,7 @@ mod tests {
 			header.set_timestamp(rolling_timestamp);
 			header.set_difficulty(*genesis_header.difficulty() * i.into());
 
-			chain.insert(::rlp::encode(&header).to_vec());
+			chain.insert(::rlp::encode(&header).to_vec()).unwrap();
 
 			parent_hash = header.hash();
 			rolling_timestamp += 10;

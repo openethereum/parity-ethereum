@@ -28,12 +28,14 @@ use std::collections::{BinaryHeap, HashMap};
 use std::fmt;
 use std::sync::Arc;
 
-use light::client::{Client, BlockDescriptor};
-use light::net::{Error as NetError, Handler, EventContext, Capabilities, ReqId};
+use ethcore::header::Header;
+
+use light::client::Client;
+use light::net::{Announcement, Error as NetError, Handler, EventContext, Capabilities, ReqId, Status};
 use light::request;
 use network::PeerId;
 use rlp::{UntrustedRlp, View};
-use util::{U256, H256};
+use util::{Bytes, U256, H256, Mutex, RwLock};
 
 // How many headers we request at a time when searching for best
 // common ancestor with peer.
@@ -51,6 +53,12 @@ enum Error {
 	PrehistoricAncestor,
 	// Protocol-level error.
 	ProtocolLevel(NetError),
+}
+
+impl From<NetError> for Error {
+	fn from(net_error: NetError) -> Self {
+		Error::ProtocolLevel(net_error)
+	}
 }
 
 impl fmt::Display for Error {
@@ -87,13 +95,13 @@ impl UnconfirmedPeer {
 	fn create(ctx: &EventContext, chain_info: ChainInfo, best_num: u64) -> Result<Self, Error> {
 		let this = ctx.peer();
 
-		if ctx.max_requests(this, request::Kind::Headers) < UNCONFIRMED_SEARCH_SIZE {
+		if ctx.max_requests(this, request::Kind::Headers) < UNCONFIRMED_SEARCH_SIZE as usize {
 			return Err(Error::UselessPeer); // a peer which allows this few header reqs isn't useful anyway.
 		}
 
 		let req_id = try!(ctx.request_from(this, request::Request::Headers(request::Headers {
 			start: best_num.into(),
-			max: ::std::cmp::min(best_num, UNCONFIRMED_SEARCH_SIZE),
+			max: ::std::cmp::min(best_num, UNCONFIRMED_SEARCH_SIZE) as usize,
 			skip: 0,
 			reverse: true,
 		})));
@@ -101,7 +109,7 @@ impl UnconfirmedPeer {
 		Ok(UnconfirmedPeer {
 			chain_info: chain_info,
 			last_batched: best_num,
-			req_id: ReqId,
+			req_id: req_id,
 		})
 	}
 
@@ -142,13 +150,15 @@ impl UnconfirmedPeer {
 		// nothing found, nothing prehistoric.
 		// send the next request.
 		let req_id = try!(ctx.request_from(this, request::Request::Headers(request::Headers {
-			start: cur_num,
-			max: ::std::cmp::min(cur_num, UNCONFIRMED_SEARCH_SIZE),
+			start: cur_num.into(),
+			max: ::std::cmp::min(cur_num, UNCONFIRMED_SEARCH_SIZE) as usize,
 			skip: 0,
 			reverse: true,
 		})));
 
 		self.req_id = req_id;
+
+		Ok(None)
 	}
 }
 
@@ -168,13 +178,13 @@ pub struct LightSync {
 	best_seen: Mutex<Option<(H256, U256)>>, // best seen block on the network.
 	peers: RwLock<HashMap<PeerId, Peer>>, // peers which are relevant to synchronization.
 	client: Arc<Client>,
-	downloader: Downloader,
-	assigned_requests: HashMap<ReqId, HeaderRequest>,
 }
 
 impl Handler for LightSync {
 	fn on_connect(&self, ctx: &EventContext, status: &Status, capabilities: &Capabilities) {
-		if !capabilities.serve_headers || status.head_num <= self.client.best_block().number {
+		let our_best = self.client.chain_info().best_block_number;
+
+		if !capabilities.serve_headers || status.head_num <= our_best {
 			trace!(target: "sync", "Ignoring irrelevant peer: {}", ctx.peer());
 			return;
 		}
@@ -184,7 +194,6 @@ impl Handler for LightSync {
 			head_hash: status.head_hash,
 			head_num: status.head_num,
 		};
-		let our_best = self.client.chain_info().best_block_number;
 		let unconfirmed = match UnconfirmedPeer::create(ctx, chain_info, our_best) {
 			Ok(unconfirmed) => unconfirmed,
 			Err(e) => {
@@ -193,7 +202,7 @@ impl Handler for LightSync {
 			}
 		};
 
-		self.peers.write().insert(ctx.peer(), Mutex::new(unconfirmed));
+		self.peers.write().insert(ctx.peer(), Peer::SearchCommon(Mutex::new(unconfirmed)));
 	}
 }
 
@@ -206,7 +215,7 @@ impl LightSync {
 	pub fn new(client: Arc<Client>) -> Self {
 		LightSync {
 			best_seen: Mutex::new(None),
-			peers: HashMap::new(),
+			peers: RwLock::new(HashMap::new()),
 			client: client,
 		}
 	}

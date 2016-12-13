@@ -18,6 +18,7 @@
 
 use ethcore::block_import_error::BlockImportError;
 use ethcore::block_status::BlockStatus;
+use ethcore::ids::BlockId;
 use ethcore::verification::queue::{self, HeaderQueue};
 use ethcore::transaction::SignedTransaction;
 use ethcore::blockchain_info::BlockChainInfo;
@@ -33,7 +34,7 @@ use request;
 
 use self::header_chain::HeaderChain;
 
-mod cht;
+pub mod cht;
 mod header_chain;
 
 /// Configuration for the light client.
@@ -84,16 +85,8 @@ impl Client {
 		}
 	}
 
-	/// Get the header queue info.
-	pub fn queue_info(&self) -> queue::QueueInfo {
-		self.queue.queue_info()
-	}
-
-}
-
-// dummy implementation -- may draw from canonical cache further on.
-impl Provider for Client {
-	fn chain_info(&self) -> BlockChainInfo {
+	/// Get the chain info.
+	pub fn chain_info(&self) -> BlockChainInfo {
 		let best_block = self.chain.best_block();
 		let first_block = self.chain.first_block();
 		let genesis_hash = self.chain.genesis_hash();
@@ -109,6 +102,28 @@ impl Provider for Client {
 			first_block_hash: first_block.as_ref().map(|first| first.hash),
 			first_block_number: first_block.as_ref().map(|first| first.number),
 		}
+	}
+
+	/// Get the header queue info.
+	pub fn queue_info(&self) -> queue::QueueInfo {
+		self.queue.queue_info()
+	}
+
+	/// Get a block header by Id.
+	pub fn get_header(&self, id: BlockId) -> Option<Bytes> {
+		self.chain.get_header(id)
+	}
+
+	/// Get the `i`th CHT root.
+	pub fn cht_root(&self, i: usize) -> Option<H256> {
+		self.chain.cht_root(i)
+	}
+}
+
+// dummy implementation -- may draw from canonical cache further on.
+impl Provider for Client {
+	fn chain_info(&self) -> BlockChainInfo {
+		Client::chain_info(self)
 	}
 
 	fn reorg_depth(&self, _a: &H256, _b: &H256) -> Option<u64> {

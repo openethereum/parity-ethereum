@@ -38,7 +38,7 @@ use request::{self, HashOrNumber, Request};
 
 use self::buffer_flow::{Buffer, FlowParams};
 use self::context::Ctx;
-use self::error::{Error, Punishment};
+use self::error::Punishment;
 
 mod buffer_flow;
 mod context;
@@ -48,6 +48,7 @@ mod status;
 #[cfg(test)]
 mod tests;
 
+pub use self::error::Error;
 pub use self::context::{EventContext, IoContext};
 pub use self::status::{Status, Capabilities, Announcement};
 
