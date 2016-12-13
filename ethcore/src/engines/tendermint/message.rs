@@ -51,7 +51,7 @@ impl ConsensusMessage {
 
 	pub fn new_proposal(header: &Header) -> Result<Self, ::rlp::DecoderError> {
 		Ok(ConsensusMessage {
-			signature: try!(UntrustedRlp::new(header.seal()[1].as_slice()).as_val()),
+			signature: try!(UntrustedRlp::new(header.seal().get(1).expect("seal passed basic verification; seal has 3 fields; qed").as_slice()).as_val()),
 			height: header.number() as Height,
 			round: try!(consensus_round(header)),
 			step: Step::Propose,
