@@ -27,6 +27,7 @@ pub use self::instant_seal::InstantSeal;
 pub use self::basic_authority::BasicAuthority;
 pub use self::authority_round::AuthorityRound;
 
+use std::sync::Weak;
 use util::*;
 use account_provider::AccountProvider;
 use block::ExecutedBlock;
@@ -35,13 +36,12 @@ use env_info::EnvInfo;
 use error::Error;
 use spec::CommonParams;
 use evm::Schedule;
-use io::IoChannel;
-use service::ClientIoMessage;
 use header::Header;
 use transaction::SignedTransaction;
 use ethereum::ethash;
 use blockchain::extras::BlockDetails;
 use views::HeaderView;
+use client::Client;
 
 /// A consensus mechanism for the chain. Generally either proof-of-work or proof-of-stake-based.
 /// Provides hooks into each of the major parts of block import.
@@ -157,8 +157,8 @@ pub trait Engine : Sync + Send {
 	/// Register an account which signs consensus messages.
 	fn set_signer(&self, _address: Address, _password: String) {}
 
-	/// Add a channel for communication with Client which can be used for sealing.
-	fn register_message_channel(&self, _message_channel: IoChannel<ClientIoMessage>) {}
+	/// Add Client which can be used for sealing, querying the state and sending messages.
+	fn register_client(&self, _client: Weak<Client>) {}
 
 	/// Add an account provider useful for Engines that sign stuff.
 	fn register_account_provider(&self, _account_provider: Arc<AccountProvider>) {}

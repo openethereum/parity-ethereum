@@ -32,11 +32,11 @@ use blockchain::extras::BlockDetails;
 use views::HeaderView;
 use evm::Schedule;
 use ethjson;
-use io::{IoContext, IoHandler, TimerToken, IoService, IoChannel};
-use service::ClientIoMessage;
+use io::{IoContext, IoHandler, TimerToken, IoService};
 use transaction::SignedTransaction;
 use env_info::EnvInfo;
 use builtin::Builtin;
+use client::Client;
 use super::validator_set::{ValidatorSet, SimpleList};
 
 /// `AuthorityRound` params.
@@ -70,10 +70,10 @@ pub struct AuthorityRound {
 	our_params: AuthorityRoundParams,
 	builtins: BTreeMap<Address, Builtin>,
 	transition_service: IoService<()>,
-	message_channel: Mutex<Option<IoChannel<ClientIoMessage>>>,
 	step: AtomicUsize,
 	proposed: AtomicBool,
-	account_provider: Mutex<Option<Arc<AccountProvider>>>,
+	client: RwLock<Weak<Client>>,
+	account_provider: Mutex<Arc<AccountProvider>>,
 	password: RwLock<Option<String>>,
 }
 
@@ -105,10 +105,10 @@ impl AuthorityRound {
 				our_params: our_params,
 				builtins: builtins,
 				transition_service: try!(IoService::<()>::start()),
-				message_channel: Mutex::new(None),
 				step: AtomicUsize::new(initial_step),
 				proposed: AtomicBool::new(false),
-				account_provider: Mutex::new(None),
+				client: RwLock::new(Weak::new()),
+				account_provider: Mutex::new(Arc::new(AccountProvider::transient_provider())),
 				password: RwLock::new(None),
 			});
 		let handler = TransitionHandler { engine: Arc::downgrade(&engine) };
@@ -180,11 +180,8 @@ impl Engine for AuthorityRound {
 	fn step(&self) {
 		self.step.fetch_add(1, AtomicOrdering::SeqCst);
 		self.proposed.store(false, AtomicOrdering::SeqCst);
-		if let Some(ref channel) = *self.message_channel.lock() {
-			match channel.send(ClientIoMessage::UpdateSealing) {
-				Ok(_) => trace!(target: "poa", "timeout: UpdateSealing message sent for step {}.", self.step.load(AtomicOrdering::Relaxed)),
-				Err(err) => trace!(target: "poa", "timeout: Could not send a sealing message {} for step {}.", err, self.step.load(AtomicOrdering::Relaxed)),
-			}
+		if let Some(c) = self.client.read().upgrade() {
+			c.update_sealing();
 		}
 	}
 
@@ -227,17 +224,13 @@ impl Engine for AuthorityRound {
 		let header = block.header();
 		let step = self.step();
 		if self.is_step_proposer(step, header.author()) {
-			if let Some(ref ap) = *self.account_provider.lock() {
-				// Account should be permanently unlocked, otherwise sealing will fail.
-				if let Ok(signature) = ap.sign(*header.author(), self.password.read().clone(), header.bare_hash()) {
-					trace!(target: "poa", "generate_seal: Issuing a block for step {}.", step);
-					self.proposed.store(true, AtomicOrdering::SeqCst);
-					return Some(vec![encode(&step).to_vec(), encode(&(&*signature as &[u8])).to_vec()]);
-				} else {
-					warn!(target: "poa", "generate_seal: FAIL: Accounts secret key unavailable.");
-				}
+			let ref ap = *self.account_provider.lock();
+			if let Ok(signature) = ap.sign(*header.author(), self.password.read().clone(), header.bare_hash()) {
+				trace!(target: "poa", "generate_seal: Issuing a block for step {}.", step);
+				self.proposed.store(true, AtomicOrdering::SeqCst);
+				return Some(vec![encode(&step).to_vec(), encode(&(&*signature as &[u8])).to_vec()]);
 			} else {
-				warn!(target: "poa", "generate_seal: FAIL: Accounts not provided.");
+				warn!(target: "poa", "generate_seal: FAIL: Accounts secret key unavailable.");
 			}
 		} else {
 			trace!(target: "poa", "generate_seal: Not a proposer for step {}.", step);
@@ -319,8 +312,9 @@ impl Engine for AuthorityRound {
 		}
 	}
 
-	fn register_message_channel(&self, message_channel: IoChannel<ClientIoMessage>) {
-		*self.message_channel.lock() = Some(message_channel);
+	fn register_client(&self, client: Weak<Client>) {
+		let mut guard = self.client.write();
+		guard.clone_from(&client)
 	}
 
 	fn set_signer(&self, _address: Address, password: String) {
@@ -328,7 +322,7 @@ impl Engine for AuthorityRound {
 	}
 
 	fn register_account_provider(&self, account_provider: Arc<AccountProvider>) {
-		*self.account_provider.lock() = Some(account_provider);
+		*self.account_provider.lock() = account_provider;
 	}
 }
 
