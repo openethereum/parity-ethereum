@@ -214,6 +214,11 @@ impl Updater {
 	fn poll(&self) {
 		info!(target: "updater", "Current release is {} ({:?})", self.this, self.this.hash);
 
+		// We rely on a secure state. Bail if we're unsure about it.
+		if self.client.upgrade().map_or(true, |s| !s.chain_info().security_level().is_full()) {
+			return;
+		}
+
 		if self.operations.lock().is_none() {
 			if let Some(ops_addr) = self.client.upgrade().and_then(|c| c.registry_address("operations".into())) {
 				trace!(target: "updater", "Found operations at {}", ops_addr);

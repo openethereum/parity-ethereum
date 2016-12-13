@@ -1377,7 +1377,7 @@ impl BlockChainClient for Client {
 		self.registrar.lock().as_ref()
 			.and_then(|r| r.get_address(&(name.as_bytes().sha3()), "A").ok())
 			.and_then(|a| if a.is_zero() { None } else { Some(a) })
-	} 
+	}
 }
 
 impl MiningBlockChainClient for Client {
