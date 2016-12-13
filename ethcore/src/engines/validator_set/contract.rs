@@ -16,15 +16,17 @@
 
 /// Preconfigured validator list.
 
+use std::sync::Weak;
 use util::*;
+use client::Client;
 use client::chain_notify::ChainNotify;
 use super::ValidatorSet;
 use super::simple_list::SimpleList;
 
-#[derive(Debug)]
 pub struct ValidatorContract {
 	address: Address,
 	validators: RwLock<SimpleList>,
+	client: RwLock<Weak<Client>>,
 }
 
 impl ValidatorContract {
@@ -32,6 +34,7 @@ impl ValidatorContract {
 		ValidatorContract {
 			address: contract_address,
 			validators: Default::default(),
+			client: RwLock::new(Weak::new()),
 		}
 	}
 }
@@ -57,5 +60,10 @@ impl ValidatorSet for ValidatorContract {
 
 	fn get(&self, nonce: usize) -> Address {
 		self.validators.read().get(nonce).clone()
+	}
+
+	fn register_client(&self, client: Weak<Client>) {
+		let mut guard = self.client.write();
+		guard.clone_from(&client);
 	}
 }

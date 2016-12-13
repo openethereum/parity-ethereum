@@ -19,8 +19,10 @@
 mod simple_list;
 mod contract;
 
+use std::sync::Weak;
 use util::Address;
 use ethjson::spec::ValidatorSet as ValidatorSpec;
+use client::Client;
 use self::simple_list::SimpleList;
 use self::contract::ValidatorContract;
 
@@ -37,4 +39,6 @@ pub trait ValidatorSet {
 	fn contains(&self, address: &Address) -> bool;
 	/// Draws an validator nonce modulo number of validators.
 	fn get(&self, nonce: usize) -> Address;
+	/// Allows blockchain state access.
+	fn register_client(&self, client: Weak<Client>) {}
 }
