@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -430,6 +430,13 @@ impl ChainSync {
 	/// Returns transactions propagation statistics
 	pub fn transactions_stats(&self) -> &H256FastMap<TransactionStats> {
 		self.transactions_stats.stats()
+	}
+
+	/// Updates transactions were received by a peer
+	pub fn transactions_received(&mut self, hashes: Vec<H256>, peer_id: PeerId) {
+		if let Some(mut peer_info) = self.peers.get_mut(&peer_id) {
+			peer_info.last_sent_transactions.extend(&hashes);
+		}
 	}
 
 	/// Abort all sync activity
@@ -1409,7 +1416,7 @@ impl ChainSync {
 			let tx = rlp.as_raw().to_vec();
 			transactions.push(tx);
 		}
-		io.chain().queue_transactions(transactions);
+		io.chain().queue_transactions(transactions, peer_id);
 		Ok(())
 	}
 

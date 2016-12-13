@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -15,13 +15,13 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Tests for the `LightProtocol` implementation.
-//! These don't test of the higher level logic on top of 
+//! These don't test of the higher level logic on top of
 
 use ethcore::blockchain_info::BlockChainInfo;
 use ethcore::client::{BlockChainClient, EachBlockWith, TestBlockChainClient};
 use ethcore::ids::BlockId;
 use ethcore::transaction::SignedTransaction;
-use network::PeerId;
+use network::{PeerId, NodeId};
 
 use net::buffer_flow::FlowParams;
 use net::context::IoContext;
@@ -68,6 +68,10 @@ impl IoContext for Expect {
 	fn protocol_version(&self, _peer: PeerId) -> Option<u8> {
 		Some(super::MAX_PROTOCOL_VERSION)
 	}
+
+	fn persistent_peer_id(&self, _peer: PeerId) -> Option<NodeId> {
+		None
+	}
 }
 
 // can't implement directly for Arc due to cross-crate orphan rules.
@@ -91,22 +95,33 @@ impl Provider for TestProvider {
 	}
 
 	fn block_headers(&self, req: request::Headers) -> Vec<Bytes> {
-		let best_num = self.0.client.chain_info().best_block_number;
-		let start_num = req.block_num;
+		use request::HashOrNumber;
+		use ethcore::views::HeaderView;
 
-		match self.0.client.block_hash(BlockId::Number(req.block_num)) {
-			Some(hash) if hash == req.block_hash => {}
-			_=> {
-				trace!(target: "les_provider", "unknown/non-canonical start block in header request: {:?}", (req.block_num, req.block_hash));
-				return vec![]
+		let best_num = self.chain_info().best_block_number;
+		let start_num = match req.start {
+			HashOrNumber::Number(start_num) => start_num,
+			HashOrNumber::Hash(hash) => match self.0.client.block_header(BlockId::Hash(hash)) {
+				None => {
+					return Vec::new();
+				}
+				Some(header) => {
+					let num = HeaderView::new(&header).number();
+					if req.max == 1 || self.0.client.block_hash(BlockId::Number(num)) != Some(hash) {
+						// Non-canonical header or single header requested.
+						return vec![header];
+					}
+
+					num
+				}
 			}
-		}
+		};
 
 		(0u64..req.max as u64)
 			.map(|x: u64| x.saturating_mul(req.skip + 1))
 			.take_while(|x| if req.reverse { x < &start_num } else { best_num - start_num >= *x })
 			.map(|x| if req.reverse { start_num - x } else { start_num + x })
-			.map(|x| self.0.client.block_header(BlockId::Number(x))) 
+			.map(|x| self.0.client.block_header(BlockId::Number(x)))
 			.take_while(|x| x.is_some())
 			.flat_map(|x| x)
 			.collect()
@@ -139,12 +154,12 @@ impl Provider for TestProvider {
 					}
 				}
 			})
-			.collect()		
+			.collect()
 	}
 
 	fn contract_code(&self, req: request::ContractCodes) -> Vec<Bytes> {
 		req.code_requests.into_iter()
-			.map(|req| { 
+			.map(|req| {
                 req.account_key.iter().chain(req.account_key.iter()).cloned().collect()
 			 })
 			.collect()
@@ -202,9 +217,9 @@ fn status(chain_info: BlockChainInfo) -> Status {
 #[test]
 fn handshake_expected() {
 	let flow_params = make_flow_params();
-	let capabilities = capabilities();	
+	let capabilities = capabilities();
 
-	let (provider, proto) = setup(flow_params.clone(), capabilities.clone());	
+	let (provider, proto) = setup(flow_params.clone(), capabilities.clone());
 
 	let status = status(provider.client.chain_info());
 
@@ -217,9 +232,9 @@ fn handshake_expected() {
 #[should_panic]
 fn genesis_mismatch() {
 	let flow_params = make_flow_params();
-	let capabilities = capabilities();	
+	let capabilities = capabilities();
 
-	let (provider, proto) = setup(flow_params.clone(), capabilities.clone());	
+	let (provider, proto) = setup(flow_params.clone(), capabilities.clone());
 
 	let mut status = status(provider.client.chain_info());
 	status.genesis_hash = H256::default();
@@ -232,15 +247,15 @@ fn genesis_mismatch() {
 #[test]
 fn buffer_overflow() {
 	let flow_params = make_flow_params();
-	let capabilities = capabilities();	
+	let capabilities = capabilities();
 
-	let (provider, proto) = setup(flow_params.clone(), capabilities.clone());	
+	let (provider, proto) = setup(flow_params.clone(), capabilities.clone());
 
 	let status = status(provider.client.chain_info());
 
 	{
-		let packet_body = write_handshake(&status, &capabilities, Some(&flow_params));	
-		proto.on_connect(&1, &Expect::Send(1, packet::STATUS, packet_body));	
+		let packet_body = write_handshake(&status, &capabilities, Some(&flow_params));
+		proto.on_connect(&1, &Expect::Send(1, packet::STATUS, packet_body));
 	}
 
 	{
@@ -250,8 +265,7 @@ fn buffer_overflow() {
 
 	// 1000 requests is far too many for the default flow params.
 	let request = encode_request(&Request::Headers(Headers {
-		block_num: 1,
-		block_hash: provider.client.chain_info().genesis_hash,
+		start: 1.into(),
 		max: 1000,
 		skip: 0,
 		reverse: false,
@@ -266,9 +280,9 @@ fn buffer_overflow() {
 #[test]
 fn get_block_headers() {
 	let flow_params = FlowParams::new(5_000_000.into(), Default::default(), 0.into());
-	let capabilities = capabilities();	
+	let capabilities = capabilities();
 
-	let (provider, proto) = setup(flow_params.clone(), capabilities.clone());	
+	let (provider, proto) = setup(flow_params.clone(), capabilities.clone());
 
 	let cur_status = status(provider.client.chain_info());
 	let my_status = write_handshake(&cur_status, &capabilities, Some(&flow_params));
@@ -278,14 +292,13 @@ fn get_block_headers() {
 	let cur_status = status(provider.client.chain_info());
 
 	{
-		let packet_body = write_handshake(&cur_status, &capabilities, Some(&flow_params));	
-		proto.on_connect(&1, &Expect::Send(1, packet::STATUS, packet_body));	
+		let packet_body = write_handshake(&cur_status, &capabilities, Some(&flow_params));
+		proto.on_connect(&1, &Expect::Send(1, packet::STATUS, packet_body));
 		proto.handle_packet(&Expect::Nothing, &1, packet::STATUS, &my_status);
 	}
 
 	let request = Headers {
-		block_num: 1,
-		block_hash: provider.client.block_hash(BlockId::Number(1)).unwrap(),
+		start: 1.into(),
 		max: 10,
 		skip: 0,
 		reverse: false,
@@ -299,9 +312,9 @@ fn get_block_headers() {
 
 		let new_buf = *flow_params.limit() - flow_params.compute_cost(request::Kind::Headers, 10);
 
-		let mut response_stream = RlpStream::new_list(12);
-		
-		response_stream.append(&req_id).append(&new_buf);
+		let mut response_stream = RlpStream::new_list(3);
+
+		response_stream.append(&req_id).append(&new_buf).begin_list(10);
 		for header in headers {
 			response_stream.append_raw(&header, 1);
 		}
@@ -316,9 +329,9 @@ fn get_block_headers() {
 #[test]
 fn get_block_bodies() {
 	let flow_params = FlowParams::new(5_000_000.into(), Default::default(), 0.into());
-	let capabilities = capabilities();	
+	let capabilities = capabilities();
 
-	let (provider, proto) = setup(flow_params.clone(), capabilities.clone());	
+	let (provider, proto) = setup(flow_params.clone(), capabilities.clone());
 
 	let cur_status = status(provider.client.chain_info());
 	let my_status = write_handshake(&cur_status, &capabilities, Some(&flow_params));
@@ -328,8 +341,8 @@ fn get_block_bodies() {
 	let cur_status = status(provider.client.chain_info());
 
 	{
-		let packet_body = write_handshake(&cur_status, &capabilities, Some(&flow_params));	
-		proto.on_connect(&1, &Expect::Send(1, packet::STATUS, packet_body));	
+		let packet_body = write_handshake(&cur_status, &capabilities, Some(&flow_params));
+		proto.on_connect(&1, &Expect::Send(1, packet::STATUS, packet_body));
 		proto.handle_packet(&Expect::Nothing, &1, packet::STATUS, &my_status);
 	}
 
@@ -346,9 +359,9 @@ fn get_block_bodies() {
 
 		let new_buf = *flow_params.limit() - flow_params.compute_cost(request::Kind::Bodies, 10);
 
-		let mut response_stream = RlpStream::new_list(12);
-		
-		response_stream.append(&req_id).append(&new_buf);
+		let mut response_stream = RlpStream::new_list(3);
+
+		response_stream.append(&req_id).append(&new_buf).begin_list(10);
 		for body in bodies {
 			response_stream.append_raw(&body, 1);
 		}
@@ -363,9 +376,9 @@ fn get_block_bodies() {
 #[test]
 fn get_block_receipts() {
 	let flow_params = FlowParams::new(5_000_000.into(), Default::default(), 0.into());
-	let capabilities = capabilities();	
+	let capabilities = capabilities();
 
-	let (provider, proto) = setup(flow_params.clone(), capabilities.clone());	
+	let (provider, proto) = setup(flow_params.clone(), capabilities.clone());
 
 	let cur_status = status(provider.client.chain_info());
 	let my_status = write_handshake(&cur_status, &capabilities, Some(&flow_params));
@@ -375,8 +388,8 @@ fn get_block_receipts() {
 	let cur_status = status(provider.client.chain_info());
 
 	{
-		let packet_body = write_handshake(&cur_status, &capabilities, Some(&flow_params));	
-		proto.on_connect(&1, &Expect::Send(1, packet::STATUS, packet_body));	
+		let packet_body = write_handshake(&cur_status, &capabilities, Some(&flow_params));
+		proto.on_connect(&1, &Expect::Send(1, packet::STATUS, packet_body));
 		proto.handle_packet(&Expect::Nothing, &1, packet::STATUS, &my_status);
 	}
 
@@ -399,9 +412,9 @@ fn get_block_receipts() {
 
 		let new_buf = *flow_params.limit() - flow_params.compute_cost(request::Kind::Receipts, receipts.len());
 
-		let mut response_stream = RlpStream::new_list(2 + receipts.len());
-		
-		response_stream.append(&req_id).append(&new_buf);
+		let mut response_stream = RlpStream::new_list(3);
+
+		response_stream.append(&req_id).append(&new_buf).begin_list(receipts.len());
 		for block_receipts in receipts {
 			response_stream.append_raw(&block_receipts, 1);
 		}
@@ -416,15 +429,15 @@ fn get_block_receipts() {
 #[test]
 fn get_state_proofs() {
 	let flow_params = FlowParams::new(5_000_000.into(), Default::default(), 0.into());
-	let capabilities = capabilities();	
+	let capabilities = capabilities();
 
-	let (provider, proto) = setup(flow_params.clone(), capabilities.clone());	
+	let (provider, proto) = setup(flow_params.clone(), capabilities.clone());
 
 	let cur_status = status(provider.client.chain_info());
 
 	{
-		let packet_body = write_handshake(&cur_status, &capabilities, Some(&flow_params));	
-		proto.on_connect(&1, &Expect::Send(1, packet::STATUS, packet_body.clone()));	
+		let packet_body = write_handshake(&cur_status, &capabilities, Some(&flow_params));
+		proto.on_connect(&1, &Expect::Send(1, packet::STATUS, packet_body.clone()));
 		proto.handle_packet(&Expect::Nothing, &1, packet::STATUS, &packet_body);
 	}
 
@@ -432,7 +445,7 @@ fn get_state_proofs() {
 	let key1 = U256::from(11223344).into();
 	let key2 = U256::from(99988887).into();
 
-	let request = Request::StateProofs (request::StateProofs { 
+	let request = Request::StateProofs (request::StateProofs {
 		requests: vec![
 			request::StateProof { block: H256::default(), key1: key1, key2: None, from_level: 0 },
 			request::StateProof { block: H256::default(), key1: key1, key2: Some(key2), from_level: 0},
@@ -448,9 +461,9 @@ fn get_state_proofs() {
 
 		let new_buf = *flow_params.limit() - flow_params.compute_cost(request::Kind::StateProofs, 2);
 
-		let mut response_stream = RlpStream::new_list(4);
-		
-		response_stream.append(&req_id).append(&new_buf);
+		let mut response_stream = RlpStream::new_list(3);
+
+		response_stream.append(&req_id).append(&new_buf).begin_list(2);
 		for proof in proofs {
 			response_stream.append_raw(&proof, 1);
 		}
@@ -465,15 +478,15 @@ fn get_state_proofs() {
 #[test]
 fn get_contract_code() {
 	let flow_params = FlowParams::new(5_000_000.into(), Default::default(), 0.into());
-	let capabilities = capabilities();	
+	let capabilities = capabilities();
 
-	let (provider, proto) = setup(flow_params.clone(), capabilities.clone());	
+	let (provider, proto) = setup(flow_params.clone(), capabilities.clone());
 
 	let cur_status = status(provider.client.chain_info());
 
 	{
-		let packet_body = write_handshake(&cur_status, &capabilities, Some(&flow_params));	
-		proto.on_connect(&1, &Expect::Send(1, packet::STATUS, packet_body.clone()));	
+		let packet_body = write_handshake(&cur_status, &capabilities, Some(&flow_params));
+		proto.on_connect(&1, &Expect::Send(1, packet::STATUS, packet_body.clone()));
 		proto.handle_packet(&Expect::Nothing, &1, packet::STATUS, &packet_body);
 	}
 
@@ -481,7 +494,7 @@ fn get_contract_code() {
 	let key1 = U256::from(11223344).into();
 	let key2 = U256::from(99988887).into();
 
-	let request = Request::Codes (request::ContractCodes { 
+	let request = Request::Codes (request::ContractCodes {
 		code_requests: vec![
 			request::ContractCode { block_hash: H256::default(), account_key: key1 },
 			request::ContractCode { block_hash: H256::default(), account_key: key2 },
@@ -497,9 +510,9 @@ fn get_contract_code() {
 
 		let new_buf = *flow_params.limit() - flow_params.compute_cost(request::Kind::Codes, 2);
 
-		let mut response_stream = RlpStream::new_list(4);
-		
-		response_stream.append(&req_id).append(&new_buf);
+		let mut response_stream = RlpStream::new_list(3);
+
+		response_stream.append(&req_id).append(&new_buf).begin_list(2);
 		for code in codes {
 			response_stream.append(&code);
 		}

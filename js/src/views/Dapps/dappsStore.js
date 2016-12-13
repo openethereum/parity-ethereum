@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -14,17 +14,21 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import BigNumber from 'bignumber.js';
 import { action, computed, observable, transaction } from 'mobx';
 import store from 'store';
 
 import Contracts from '~/contracts';
-import { hashToImageUrl } from '~/redux/util';
-
-import builtinApps from './builtin.json';
+import {
+  fetchBuiltinApps, fetchLocalApps,
+  fetchRegistryAppIds, fetchRegistryApp,
+  subscribeToChanges
+} from '~/util/dapps';
 
 const LS_KEY_DISPLAY = 'displayApps';
 const LS_KEY_EXTERNAL_ACCEPT = 'acceptExternal';
+const BUILTIN_APPS_KEY = 'BUILTIN_APPS_KEY';
+
+let instance = null;
 
 export default class DappsStore {
   @observable apps = [];
@@ -32,21 +36,136 @@ export default class DappsStore {
   @observable modalOpen = false;
   @observable externalOverlayVisible = true;
 
+  _api = null;
+  _subscriptions = {};
+
+  _cachedApps = {};
   _manifests = {};
+  _registryAppsIds = null;
 
   constructor (api) {
     this._api = api;
 
     this.loadExternalOverlay();
-    this.readDisplayApps();
+    this.loadApps();
+    this.subscribeToChanges();
+  }
+
+  loadApps () {
+    const { dappReg } = Contracts.get();
 
     Promise
       .all([
-        this._fetchBuiltinApps(),
-        this._fetchLocalApps(),
-        this._fetchRegistryApps()
+        this.fetchBuiltinApps().then((apps) => this.addApps(apps)),
+        this.fetchLocalApps().then((apps) => this.addApps(apps)),
+        this.fetchRegistryApps(dappReg).then((apps) => this.addApps(apps))
       ])
       .then(this.writeDisplayApps);
+  }
+
+  static get (api) {
+    if (!instance) {
+      instance = new DappsStore(api);
+    } else {
+      instance.loadApps();
+    }
+
+    return instance;
+  }
+
+  subscribeToChanges () {
+    const { dappReg } = Contracts.get();
+
+    // Unsubscribe from previous subscriptions, if any
+    if (this._subscriptions.block) {
+      this._api.unsubscribe(this._subscriptions.block);
+    }
+
+    if (this._subscriptions.filter) {
+      this._api.eth.uninstallFilter(this._subscriptions.filter);
+    }
+
+    // Subscribe to dapps reg changes
+    subscribeToChanges(this._api, dappReg, (appIds) => {
+      const updates = appIds.map((appId) => {
+        return this.fetchRegistryApp(dappReg, appId, true);
+      });
+
+      Promise
+        .all(updates)
+        .then((apps) => {
+          this.addApps(apps);
+        });
+    }).then((subscriptions) => {
+      this._subscriptions = subscriptions;
+    });
+  }
+
+  fetchBuiltinApps (force = false) {
+    if (!force && this._cachedApps[BUILTIN_APPS_KEY] !== undefined) {
+      return Promise.resolve(this._cachedApps[BUILTIN_APPS_KEY]);
+    }
+
+    this._cachedApps[BUILTIN_APPS_KEY] = fetchBuiltinApps()
+      .then((apps) => {
+        this._cachedApps[BUILTIN_APPS_KEY] = apps;
+        return apps;
+      });
+
+    return Promise.resolve(this._cachedApps[BUILTIN_APPS_KEY]);
+  }
+
+  fetchLocalApps () {
+    return fetchLocalApps(this._api);
+  }
+
+  fetchRegistryAppIds (force = false) {
+    if (!force && this._registryAppsIds) {
+      return Promise.resolve(this._registryAppsIds);
+    }
+
+    this._registryAppsIds = fetchRegistryAppIds()
+      .then((appIds) => {
+        this._registryAppsIds = appIds;
+        return this._registryAppsIds;
+      });
+
+    return Promise.resolve(this._registryAppsIds);
+  }
+
+  fetchRegistryApp (dappReg, appId, force = false) {
+    if (!force && this._cachedApps[appId] !== undefined) {
+      return Promise.resolve(this._cachedApps[appId]);
+    }
+
+    this._cachedApps[appId] = fetchRegistryApp(this._api, dappReg, appId)
+      .then((dapp) => {
+        this._cachedApps[appId] = dapp;
+        return dapp;
+      });
+
+    return Promise.resolve(this._cachedApps[appId]);
+  }
+
+  fetchRegistryApps (dappReg) {
+    return this
+      .fetchRegistryAppIds()
+      .then((appIds) => {
+        const promises = appIds.map((appId) => {
+          // Fetch the Dapp and display it ASAP
+          return this
+            .fetchRegistryApp(dappReg, appId)
+            .then((app) => {
+              if (app) {
+                this.addApps([ app ]);
+              }
+
+              return app;
+            });
+        });
+
+        return Promise.all(promises);
+      });
   }
 
   @computed get sortedBuiltin () {
@@ -112,9 +231,17 @@ export default class DappsStore {
     store.set(LS_KEY_DISPLAY, this.displayApps);
   }
 
-  @action addApps = (apps) => {
+  @action addApps = (_apps) => {
     transaction(() => {
+      const apps = _apps.filter((app) => app);
+
+      // Get new apps IDs if available
+      const newAppsIds = apps
+        .map((app) => app.id)
+        .filter((id) => id);
+
       this.apps = this.apps
+        .filter((app) => !app.id || !newAppsIds.includes(app.id))
         .concat(apps || [])
         .sort((a, b) => a.name.localeCompare(b.name));
 
@@ -127,160 +254,5 @@ export default class DappsStore {
 
       this.displayApps = Object.assign({}, this.displayApps, visibility);
     });
-  }
-
-  _getHost (api) {
-    const host = process.env.DAPPS_URL || (process.env.NODE_ENV === 'production'
-      ? this._api.dappsUrl
-      : '');
-
-    if (host === '/') {
-      return '';
-    }
-
-    return host;
-  }
-
-  _fetchBuiltinApps () {
-    const { dappReg } = Contracts.get();
-
-    return Promise
-      .all(builtinApps.map((app) => dappReg.getImage(app.id)))
-      .then((imageIds) => {
-        this.addApps(
-          builtinApps.map((app, index) => {
-            app.type = 'builtin';
-            app.image = hashToImageUrl(imageIds[index]);
-            return app;
-          })
-        );
-      })
-      .catch((error) => {
-        console.warn('DappsStore:fetchBuiltinApps', error);
-      });
-  }
-
-  _fetchLocalApps () {
-    return fetch(`${this._getHost()}/api/apps`)
-      .then((response) => {
-        return response.ok
-          ? response.json()
-          : [];
-      })
-      .then((apps) => {
-        return apps
-          .map((app) => {
-            app.type = 'local';
-            app.visible = true;
-            return app;
-          })
-          .filter((app) => app.id && !['ui'].includes(app.id));
-      })
-      .then(this.addApps)
-      .catch((error) => {
-        console.warn('DappsStore:fetchLocal', error);
-      });
-  }
-
-  _fetchRegistryApps () {
-    const { dappReg } = Contracts.get();
-
-    return dappReg
-      .count()
-      .then((_count) => {
-        const count = _count.toNumber();
-        const promises = [];
-
-        for (let index = 0; index < count; index++) {
-          promises.push(dappReg.at(index));
-        }
-
-        return Promise.all(promises);
-      })
-      .then((appsInfo) => {
-        const appIds = appsInfo
-          .map(([appId, owner]) => this._api.util.bytesToHex(appId))
-          .filter((appId) => {
-            return (new BigNumber(appId)).gt(0) && !builtinApps.find((app) => app.id === appId);
-          });
-
-        return Promise
-          .all([
-            Promise.all(appIds.map((appId) => dappReg.getImage(appId))),
-            Promise.all(appIds.map((appId) => dappReg.getContent(appId))),
-            Promise.all(appIds.map((appId) => dappReg.getManifest(appId)))
-          ])
-          .then(([imageIds, contentIds, manifestIds]) => {
-            return appIds.map((appId, index) => {
-              const app = {
-                id: appId,
-                image: hashToImageUrl(imageIds[index]),
-                contentHash: this._api.util.bytesToHex(contentIds[index]).substr(2),
-                manifestHash: this._api.util.bytesToHex(manifestIds[index]).substr(2),
-                type: 'network',
-                visible: true
-              };
-
-              return app;
-            });
-          });
-      })
-      .then((apps) => {
-        return Promise
-          .all(apps.map((app) => this._fetchManifest(app.manifestHash)))
-          .then((manifests) => {
-            return apps.map((app, index) => {
-              const manifest = manifests[index];
-
-              if (manifest) {
-                app.manifestHash = null;
-                Object.keys(manifest)
-                  .filter((key) => ['author', 'description', 'name', 'version'].includes(key))
-                  .forEach((key) => {
-                    app[key] = manifest[key];
-                  });
-              }
-
-              return app;
-            });
-          })
-          .then((apps) => {
-            return apps.filter((app) => {
-              return !app.manifestHash && app.id;
-            });
-          });
-      })
-      .then(this.addApps)
-      .catch((error) => {
-        console.warn('DappsStore:fetchRegistry', error);
-      });
-  }
-
-  _fetchManifest (manifestHash) {
-    if (/^(0x)?0+/.test(manifestHash)) {
-      return Promise.resolve(null);
-    }
-
-    if (this._manifests[manifestHash]) {
-      return Promise.resolve(this._manifests[manifestHash]);
-    }
-
-    return fetch(`${this._getHost()}/api/content/${manifestHash}/`, { redirect: 'follow', mode: 'cors' })
-      .then((response) => {
-        return response.ok
-          ? response.json()
-          : null;
-      })
-      .then((manifest) => {
-        if (manifest) {
-          this._manifests[manifestHash] = manifest;
-        }
-
-        return manifest;
-      })
-      .catch((error) => {
-        console.warn('DappsStore:fetchManifest', error);
-        return null;
-      });
   }
 }

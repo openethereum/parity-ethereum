@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 import { Link } from 'react-router';
 import { Toolbar, ToolbarGroup } from 'material-ui/Toolbar';
@@ -23,85 +24,57 @@ import { isEqual } from 'lodash';
 
 import { Badge, Tooltip } from '~/ui';
 
+import imagesEthcoreBlock from '~/../assets/images/parity-logo-white-no-text.svg';
+
 import styles from './tabBar.css';
-import imagesEthcoreBlock from '../../../../assets/images/parity-logo-white-no-text.svg';
 
 class Tab extends Component {
   static propTypes = {
-    view: PropTypes.object,
     children: PropTypes.node,
-    pendings: PropTypes.number
+    pendings: PropTypes.number,
+    view: PropTypes.object
   };
-
-  shouldComponentUpdate (nextProps) {
-    return (nextProps.view.id === 'signer' && nextProps.pendings !== this.props.pendings);
-  }
 
   render () {
     const { view, children } = this.props;
 
-    const label = this.getLabel(view);
-
     return (
       <MUITab
         icon={ view.icon }
-        label={ label }
-      >
+        label={
+          view.id === 'signer'
+            ? this.renderSignerLabel(view.id)
+            : this.renderLabel(view.id)
+        }>
         { children }
       </MUITab>
     );
   }
 
-  getLabel (view) {
-    const { label } = view;
-
-    if (view.id === 'signer') {
-      return this.renderSignerLabel(label);
-    }
-
-    if (view.id === 'status') {
-      return this.renderStatusLabel(label);
-    }
-
-    return this.renderLabel(label);
-  }
-
-  renderLabel (name, bubble) {
+  renderLabel (id, bubble) {
     return (
       <div className={ styles.label }>
-        { name }
+        <FormattedMessage
+          id={ `settings.views.${id}.label` } />
         { bubble }
       </div>
     );
   }
 
-  renderSignerLabel (label) {
+  renderSignerLabel (id) {
     const { pendings } = this.props;
+    let bubble;
 
     if (pendings) {
-      const bubble = (
+      bubble = (
         <Badge
           color='red'
           className={ styles.labelBubble }
           value={ pendings } />
       );
-
-      return this.renderLabel(label, bubble);
     }
 
-    return this.renderLabel(label);
-  }
-
-  renderStatusLabel (label) {
-    // const { isTest, netChain } = this.props;
-    // const bubble = (
-    //   <Badge
-    //     color={ isTest ? 'red' : 'default' }
-    //     className={ styles.labelBubble }
-    //     value={ isTest ? 'TEST' : netChain } />
-    //   );
-
-    return this.renderLabel(label, null);
+    return this.renderLabel(id, bubble);
   }
 }
 
@@ -111,28 +84,19 @@ class TabBar extends Component {
   };
 
   static propTypes = {
-    views: PropTypes.array.isRequired,
-    pending: PropTypes.array,
     isTest: PropTypes.bool,
-    netChain: PropTypes.string
+    netChain: PropTypes.string,
+    pending: PropTypes.array,
+    views: PropTypes.array.isRequired
   };
 
   static defaultProps = {
     pending: []
   };
 
-  shouldComponentUpdate (nextProps, nextState) {
-    const prevViews = this.props.views.map((v) => v.id).sort();
-    const nextViews = nextProps.views.map((v) => v.id).sort();
-
-    return (nextProps.pending.length !== this.props.pending.length) ||
-      (!isEqual(prevViews, nextViews));
-  }
-
   render () {
     return (
-      <Toolbar
-        className={ styles.toolbar }>
+      <Toolbar className={ styles.toolbar }>
         { this.renderLogo() }
         { this.renderTabs() }
         { this.renderLast() }
@@ -167,21 +131,20 @@ class TabBar extends Component {
       .map((view, index) => {
         const body = (view.id === 'accounts')
           ? (
-            <Tooltip className={ styles.tabbarTooltip } text='navigate between the different parts and views of the application, switching between an account view, token view and distributed application view' />
+            <Tooltip
+              className={ styles.tabbarTooltip }
+              text='navigate between the different parts and views of the application, switching between an account view, token view and distributed application view' />
           )
           : null;
 
         return (
           <Link
-            key={ view.id }
-            to={ view.route }
             activeClassName={ styles.tabactive }
-            className={ styles.tabLink }
-          >
+            className={ styles.tabLink }key={ view.id }
+            to={ view.route }>
             <Tab
-              view={ view }
               pendings={ pending.length }
-            >
+              view={ view }>
               { body }
             </Tab>
           </Link>
@@ -203,11 +166,10 @@ function mapStateToProps (initState) {
     .keys(views)
     .filter((id) => views[id].fixed || views[id].active);
 
-  let filteredViews = filteredViewIds
-    .map((id) => ({
-      ...views[id],
-      id
-    }));
+  let filteredViews = filteredViewIds.map((id) => ({
+    ...views[id],
+    id
+  }));
 
   return (state) => {
     const { views } = state.settings;
@@ -221,11 +183,10 @@ function mapStateToProps (initState) {
     }
 
     filteredViewIds = viewIds;
-    filteredViews = viewIds
-      .map((id) => ({
-        ...views[id],
-        id
-      }));
+    filteredViews = viewIds.map((id) => ({
+      ...views[id],
+      id
+    }));
 
     return { views: filteredViews };
   };

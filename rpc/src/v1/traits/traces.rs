@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -15,8 +15,9 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Traces specific rpc interface.
+
 use std::sync::Arc;
-use jsonrpc_core::*;
+use jsonrpc_core::{Params, Value, Error, IoDelegate};
 
 /// Traces specific rpc interface.
 pub trait Traces: Sized + Send + Sync + 'static {

@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -105,13 +105,13 @@ impl SyncProvider for TestSyncProvider {
 				first_seen: 10,
 				propagated_to: map![
 					128.into() => 16
-				]
+				],
 			},
 			5.into() => TransactionStats {
 				first_seen: 16,
 				propagated_to: map![
 					16.into() => 1
-				]
+				],
 			}
 		]
 	}
