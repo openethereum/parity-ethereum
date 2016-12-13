@@ -133,7 +133,7 @@ impl BlockDownloader {
 
 	/// Mark a block as known in the chain
 	pub fn mark_as_known(&mut self, hash: &H256, number: BlockNumber) {
-		if number == self.last_imported_block + 1 {
+		if number >= self.last_imported_block + 1 {
 			self.last_imported_block = number;
 			self.last_imported_hash = hash.clone();
 		}
@@ -363,7 +363,7 @@ impl BlockDownloader {
 						self.retract_step += 1;
 						match io.chain().block_hash(BlockID::Number(n)) {
 							Some(h) => {
-								self.last_imported_block -= min(MAX_HEADERS_TO_REQUEST as u64, self.last_imported_block);
+								self.last_imported_block = n;
 								self.last_imported_hash = h;
 								trace!(target: "sync", "Searching common header in the blockchain {} ({})", self.last_imported_block, self.last_imported_hash);
 							}
