@@ -15,10 +15,12 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Parity-specific rpc interface.
-use jsonrpc_core::Error;
 
 use std::collections::BTreeMap;
-use v1::helpers::auto_args::{Wrap, Trailing};
+
+use jsonrpc_core::Error;
+use jsonrpc_macros::Trailing;
+
 use v1::types::{
 	H160, H256, H512, U256, Bytes,
 	Peers, Transaction, RpcSettings, Histogram,

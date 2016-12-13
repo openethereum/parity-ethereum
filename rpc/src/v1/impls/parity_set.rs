@@ -27,7 +27,7 @@ use util::{Mutex, sha3};
 use updater::{Service as UpdateService};
 
 use jsonrpc_core::Error;
-use v1::helpers::auto_args::Ready;
+use jsonrpc_macros::Ready;
 use v1::helpers::errors;
 use v1::traits::ParitySet;
 use v1::types::{Bytes, H160, H256, U256, ReleaseInfo};

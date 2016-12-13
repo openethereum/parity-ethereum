@@ -15,6 +15,7 @@ serde_json = "0.8"
 jsonrpc-core = { git = "https://github.com/ethcore/jsonrpc.git" }
 jsonrpc-http-server = { git = "https://github.com/ethcore/jsonrpc.git" }
 jsonrpc-ipc-server = { git = "https://github.com/ethcore/jsonrpc.git" }
+jsonrpc-macros = { git = "https://github.com/ethcore/jsonrpc.git" }
 ethcore-io = { path = "../util/io" }
 ethcore-util = { path = "../util" }
 ethcore = { path = "../ethcore" }
