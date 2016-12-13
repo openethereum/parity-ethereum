@@ -23,7 +23,7 @@ import ContentSend from 'material-ui/svg-icons/content/send';
 import LockIcon from 'material-ui/svg-icons/action/lock';
 import VerifyIcon from 'material-ui/svg-icons/action/verified-user';
 
-import { EditMeta, DeleteAccount, Shapeshift, SMSVerification, Transfer, PasswordManager } from '~/modals';
+import { EditMeta, DeleteAccount, Shapeshift, Verification, Transfer, PasswordManager } from '~/modals';
 import { Actionbar, Button, Page } from '~/ui';
 
 import shapeshiftBtn from '~/../assets/images/shapeshift-btn.png';
@@ -32,7 +32,8 @@ import Header from './Header';
 import Transactions from './Transactions';
 import { setVisibleAccounts } from '~/redux/providers/personalActions';
 
-import VerificationStore from '~/modals/SMSVerification/store';
+import SMSVerificationStore from '~/modals/Verification/sms-store';
+import EmailVerificationStore from '~/modals/Verification/email-store';
 
 import styles from './account.css';
 
@@ -71,15 +72,6 @@ class Account extends Component {
 
     if (prevAddress !== nextAddress) {
       this.setVisibleAccounts(nextProps);
-    }
-
-    const { isTestnet } = nextProps;
-    if (typeof isTestnet === 'boolean' && !this.state.verificationStore) {
-      const { api } = this.context;
-      const { address } = nextProps.params;
-      this.setState({
-        verificationStore: new VerificationStore(api, address, isTestnet)
-      });
     }
   }
 
@@ -228,8 +220,9 @@ class Account extends Component {
     const { address } = this.props.params;
 
     return (
-      <SMSVerification
+      <Verification
         store={ store } account={ address }
+        onSelectMethod={ this.selectVerificationMethod }
         onClose={ this.onVerificationClose }
       />
     );
@@ -301,6 +294,22 @@ class Account extends Component {
 
   openVerification = () => {
     this.setState({ showVerificationDialog: true });
+  }
+
+  selectVerificationMethod = (name) => {
+    const { isTestnet } = this.props;
+    if (typeof isTestnet !== 'boolean' || this.state.verificationStore) return;
+
+    const { api } = this.context;
+    const { address } = this.props.params;
+
+    let verificationStore = null;
+    if (name === 'sms') {
+      verificationStore = new SMSVerificationStore(api, address, isTestnet);
+    } else if (name === 'email') {
+      verificationStore = new EmailVerificationStore(api, address, isTestnet);
+    }
+    this.setState({ verificationStore });
   }
 
   onVerificationClose = () => {
