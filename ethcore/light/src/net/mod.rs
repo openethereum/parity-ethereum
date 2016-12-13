@@ -255,8 +255,9 @@ impl LightProtocol {
 	}
 
 	/// Check the maximum amount of requests of a specific type
-	/// which a peer would be able to serve.
-	pub fn max_requests(&self, peer: PeerId, kind: request::Kind) -> Option<usize> {
+	/// which a peer would be able to serve. Returns zero if the
+	/// peer is unknown or has no buffer flow parameters.
+	pub fn max_requests(&self, peer: PeerId, kind: request::Kind) -> usize {
 		self.peers.read().get(&peer).and_then(|peer| {
 			let mut peer = peer.lock();
 			match peer.remote_flow.as_mut() {
@@ -266,7 +267,7 @@ impl LightProtocol {
 				}
 				None => None,
 			}
-		})
+		}).unwrap_or(0)
 	}
 
 	/// Make a request to a peer.

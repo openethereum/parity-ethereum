@@ -16,13 +16,9 @@
 
 //! Light client implementation. Stores data from light sync
 
-use std::sync::Arc;
-
-use ethcore::engines::Engine;
-use ethcore::ids::BlockId;
 use ethcore::block_import_error::BlockImportError;
 use ethcore::block_status::BlockStatus;
-use ethcore::verification::queue::{HeaderQueue, QueueInfo, Config as QueueConfig};
+use ethcore::verification::queue::{self, HeaderQueue};
 use ethcore::transaction::SignedTransaction;
 use ethcore::blockchain_info::BlockChainInfo;
 use ethcore::spec::Spec;
@@ -37,12 +33,13 @@ use request;
 
 use self::header_chain::HeaderChain;
 
+mod cht;
 mod header_chain;
 
 /// Configuration for the light client.
 #[derive(Debug, Default, Clone)]
 pub struct Config {
-	queue: QueueConfig,
+	queue: queue::Config,
 }
 
 /// Light client implementation.
@@ -79,15 +76,19 @@ impl Client {
 		self.tx_pool.lock().values().cloned().collect()
 	}
 
-	/// Inquire about the status of a given block (or header).
-	pub fn status(&self, id: BlockId) -> BlockStatus {
-		BlockStatus::Unknown
+	/// Inquire about the status of a given header.
+	pub fn status(&self, hash: &H256) -> BlockStatus {
+		match self.queue.status(hash) {
+			queue::Status::Unknown => self.chain.status(hash),
+			other => other.into(),
+		}
 	}
 
 	/// Get the header queue info.
-	pub fn queue_info(&self) -> QueueInfo {
+	pub fn queue_info(&self) -> queue::QueueInfo {
 		self.queue.queue_info()
 	}
+
 }
 
 // dummy implementation -- may draw from canonical cache further on.

@@ -95,7 +95,7 @@ pub trait EventContext {
 
 	/// Find the maximum number of requests of a specific type which can be made from
 	/// supplied peer.
-	fn max_requests(&self, peer: PeerId, kind: request::Kind) -> Option<usize>;
+	fn max_requests(&self, peer: PeerId, kind: request::Kind) -> usize;
 
 	/// Disconnect a peer.
 	fn disconnect_peer(&self, peer: PeerId);
@@ -132,7 +132,7 @@ impl<'a> EventContext for Ctx<'a> {
 		self.proto.make_announcement(self.io, announcement);
 	}
 
-	fn max_requests(&self, peer: PeerId, kind: request::Kind) -> Option<usize> {
+	fn max_requests(&self, peer: PeerId, kind: request::Kind) -> usize {
 		self.proto.max_requests(peer, kind)
 	}
 
