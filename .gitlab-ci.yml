@@ -20,6 +20,7 @@ linux-stable:
     - stable
     - triggers
   script:
+    - curl http://icarus.parity.io/push-release/$CI_BUILD_REF_NAME/$CI_BUILD_REF
     - cargo build -j $(nproc) --release $CARGOFLAGS
     - strip target/release/parity
     - md5sum target/release/parity > parity.md5
@@ -432,7 +433,7 @@ test-windows:
     - git submodule update --init --recursive
   script:
     - set RUST_BACKTRACE=1
-    - cargo -j 8 test --features json-tests -p rlp -p ethash -p ethcore -p ethcore-bigint -p ethcore-dapps -p ethcore-rpc -p ethcore-signer -p ethcore-util -p ethcore-network -p ethcore-io -p ethkey -p ethstore -p ethsync -p ethcore-ipc -p ethcore-ipc-tests -p ethcore-ipc-nano -p parity %CARGOFLAGS% --verbose --release
+    - cargo test --features json-tests -p rlp -p ethash -p ethcore -p ethcore-bigint -p ethcore-dapps -p ethcore-rpc -p ethcore-signer -p ethcore-util -p ethcore-network -p ethcore-io -p ethkey -p ethstore -p ethsync -p ethcore-ipc -p ethcore-ipc-tests -p ethcore-ipc-nano -p parity %CARGOFLAGS% --verbose --release
   tags:
     - rust-windows
   allow_failure: true
