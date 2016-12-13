@@ -16,7 +16,7 @@
 
 //! ParitySigning rpc interface.
 use jsonrpc_core::Error;
-use jsonrpc_macros::Ready;
+use futures::BoxFuture;
 
 use v1::types::{U256, H160, H256, Bytes, ConfirmationResponse, TransactionRequest, Either};
 
@@ -41,6 +41,6 @@ build_rpc_trait! {
 		/// Decrypt some ECIES-encrypted message.
 		/// First parameter is the address with which it is encrypted, second is the ciphertext.
 		#[rpc(async, name = "parity_decryptMessage")]
-		fn decrypt_message(&self, Ready<Bytes>, H160, Bytes);
+		fn decrypt_message(&self, H160, Bytes) -> BoxFuture<Bytes, Error>;
 	}
 }

@@ -17,7 +17,8 @@
 //! Traces specific rpc interface.
 
 use std::sync::Arc;
-use jsonrpc_core::{Params, Value, Error, IoDelegate};
+use jsonrpc_core::{Params, Value, Error};
+use jsonrpc_macros::IoDelegate;
 
 /// Traces specific rpc interface.
 pub trait Traces: Sized + Send + Sync + 'static {

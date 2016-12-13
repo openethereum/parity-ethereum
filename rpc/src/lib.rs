@@ -24,8 +24,6 @@ extern crate serde;
 extern crate serde_json;
 extern crate jsonrpc_core;
 extern crate jsonrpc_http_server;
-#[macro_use]
-extern crate jsonrpc_macros;
 
 extern crate ethcore_io as io;
 extern crate ethcore;
@@ -39,11 +37,14 @@ extern crate ethcore_ipc;
 extern crate time;
 extern crate rlp;
 extern crate fetch;
+extern crate futures;
 
 #[macro_use]
 extern crate log;
 #[macro_use]
 extern crate ethcore_util as util;
+#[macro_use]
+extern crate jsonrpc_macros;
 
 #[cfg(test)]
 extern crate ethjson;
@@ -52,8 +53,9 @@ extern crate ethcore_devtools as devtools;
 
 use std::sync::Arc;
 use std::net::SocketAddr;
+use std::collections::HashMap;
 use io::PanicHandler;
-use jsonrpc_core::{IoHandler, IoDelegate};
+use jsonrpc_core::IoHandler;
 
 pub use ipc::{Server as IpcServer, Error as IpcServerError};
 pub use jsonrpc_http_server::{ServerBuilder, Server, RpcServerError};
@@ -63,19 +65,21 @@ pub use v1::block_import::is_major_importing;
 
 /// An object that can be extended with `IoDelegates`
 pub trait Extendable {
-	/// Add `Delegate` to this object.
-	fn add_delegate<D: Send + Sync + 'static>(&self, delegate: IoDelegate<D>);
+	/// Extend this object with additional `RemoteProcedures`
+	fn extend_with<T>(&mut self, delegate: T) where T: Into<HashMap<String, jsonrpc_core::RemoteProcedure<()>>>;
 }
 
 /// Http server.
 pub struct RpcServer {
-	handler: Arc<IoHandler>,
+	handler: IoHandler,
 }
 
 impl Extendable for RpcServer {
 	/// Add io delegate.
-	fn add_delegate<D: Send + Sync + 'static>(&self, delegate: IoDelegate<D>) {
-		self.handler.add_delegate(delegate);
+	fn extend_with<T>(&mut self, delegate: T) where
+		T: Into<HashMap<String, jsonrpc_core::RemoteProcedure<()>>>,
+	{
+		self.handler.extend_with(delegate);
 	}
 }
 
@@ -83,13 +87,13 @@ impl RpcServer {
 	/// Construct new http server object.
 	pub fn new() -> RpcServer {
 		RpcServer {
-			handler: Arc::new(IoHandler::new()),
+			handler: IoHandler::default(),
 		}
 	}
 
 	/// Start http server asynchronously and returns result with `Server` handle on success or an error.
 	pub fn start_http(
-		&self,
+		self,
 		addr: &SocketAddr,
 		cors_domains: Option<Vec<String>>,
 		allowed_hosts: Option<Vec<String>>,
@@ -106,7 +110,7 @@ impl RpcServer {
 				.collect()
 		});
 
-		ServerBuilder::new(self.handler.clone())
+		ServerBuilder::new(self.handler)
 			.cors(cors_domains.into())
 			.allowed_hosts(allowed_hosts.into())
 			.panic_handler(move || {
@@ -116,8 +120,8 @@ impl RpcServer {
 	}
 
 	/// Start ipc server asynchronously and returns result with `Server` handle on success or an error.
-	pub fn start_ipc(&self, addr: &str) -> Result<ipc::Server, ipc::Error> {
-		let server = try!(ipc::Server::new(addr, &self.handler));
+	pub fn start_ipc(self, addr: &str) -> Result<ipc::Server, ipc::Error> {
+		let server = try!(ipc::Server::new(addr, self.handler));
 		try!(server.run_async());
 		Ok(server)
 	}

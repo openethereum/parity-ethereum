@@ -30,7 +30,7 @@ use devtools::RandomTempPath;
 use util::Hashable;
 use io::IoChannel;
 use util::{U256, H256, Uint, Address};
-use jsonrpc_core::{IoHandler, GenericIoHandler};
+use jsonrpc_core::IoHandler;
 use ethjson::blockchain::BlockChain;
 
 use v1::impls::{EthClient, SigningUnsafeClient};
@@ -147,9 +147,9 @@ impl EthTester {
 			&miner_service
 		);
 
-		let handler = IoHandler::new();
-		handler.add_delegate(eth_client.to_delegate());
-		handler.add_delegate(eth_sign.to_delegate());
+		let mut handler = IoHandler::default();
+		handler.extend_with(eth_client.to_delegate());
+		handler.extend_with(eth_sign.to_delegate());
 
 		EthTester {
 			_miner: miner_service,

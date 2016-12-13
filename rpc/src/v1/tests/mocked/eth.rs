@@ -31,7 +31,7 @@ use ethcore::transaction::{Transaction, Action};
 use ethcore::miner::{ExternalMiner, MinerService};
 use ethsync::SyncState;
 
-use jsonrpc_core::{IoHandler, GenericIoHandler};
+use jsonrpc_core::IoHandler;
 use v1::{Eth, EthClient, EthClientOptions, EthFilter, EthFilterClient, EthSigning, SigningUnsafeClient};
 use v1::tests::helpers::{TestSyncProvider, Config, TestMinerService, TestSnapshotService};
 
@@ -87,10 +87,10 @@ impl EthTester {
 		let eth = EthClient::new(&client, &snapshot, &sync, &ap, &miner, &external_miner, options).to_delegate();
 		let filter = EthFilterClient::new(&client, &miner).to_delegate();
 		let sign = SigningUnsafeClient::new(&client, &ap, &miner).to_delegate();
-		let io = IoHandler::new();
-		io.add_delegate(eth);
-		io.add_delegate(sign);
-		io.add_delegate(filter);
+		let mut io = IoHandler::default();
+		io.extend_with(eth);
+		io.extend_with(sign);
+		io.extend_with(filter);
 
 		EthTester {
 			client: client,

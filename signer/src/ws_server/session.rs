@@ -21,7 +21,8 @@ use authcode_store::AuthCodes;
 use std::path::{PathBuf, Path};
 use std::sync::Arc;
 use std::str::FromStr;
-use jsonrpc_core::{IoHandler, GenericIoHandler};
+use jsonrpc_core::IoHandler;
+use jsonrpc_core::reactor::RpcHandler;
 use util::{H256, version};
 
 #[cfg(feature = "parity-ui")]
@@ -134,7 +135,7 @@ pub struct Session {
 	skip_origin_validation: bool,
 	self_origin: String,
 	authcodes_path: PathBuf,
-	handler: Arc<IoHandler>,
+	handler: RpcHandler<()>,
 	file_handler: Arc<ui::Handler>,
 }
 
@@ -209,7 +210,8 @@ impl ws::Handler for Session {
 	fn on_message(&mut self, msg: ws::Message) -> ws::Result<()> {
 		let req = try!(msg.as_text());
 		let out = self.out.clone();
-		self.handler.handle_request(req, move |response| {
+		// TODO [ToDr] deploy to eventloop
+		self.handler.handle_request(req, (), move |response| {
 			if let Some(result) = response {
 				let res = out.send(result);
 				if let Err(e) = res {
@@ -222,7 +224,7 @@ impl ws::Handler for Session {
 }
 
 pub struct Factory {
-	handler: Arc<IoHandler>,
+	handler: RpcHandler<()>,
 	skip_origin_validation: bool,
 	self_origin: String,
 	authcodes_path: PathBuf,
@@ -230,9 +232,9 @@ pub struct Factory {
 }
 
 impl Factory {
-	pub fn new(handler: Arc<IoHandler>, self_origin: String, authcodes_path: PathBuf, skip_origin_validation: bool) -> Self {
+	pub fn new(handler: IoHandler, self_origin: String, authcodes_path: PathBuf, skip_origin_validation: bool) -> Self {
 		Factory {
-			handler: handler,
+			handler: unimplemented!(),
 			skip_origin_validation: skip_origin_validation,
 			self_origin: self_origin,
 			authcodes_path: authcodes_path,

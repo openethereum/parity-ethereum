@@ -23,7 +23,7 @@ use ethcore::miner::MinerService;
 use ethcore::client::TestBlockChainClient;
 use ethsync::ManageNetwork;
 
-use jsonrpc_core::{IoHandler, GenericIoHandler};
+use jsonrpc_core::IoHandler;
 use v1::{ParitySet, ParitySetClient};
 use v1::tests::helpers::{TestMinerService, TestFetch};
 use super::manage_network::TestManageNetwork;
@@ -51,8 +51,8 @@ fn rpc_parity_set_min_gas_price() {
 	let miner = miner_service();
 	let client = client_service();
 	let network = network_service();
-	let io = IoHandler::new();
-	io.add_delegate(parity_set_client(&client, &miner, &network).to_delegate());
+	let mut io = IoHandler::default();
+	io.extend_with(parity_set_client(&client, &miner, &network).to_delegate());
 
 	let request = r#"{"jsonrpc": "2.0", "method": "parity_setMinGasPrice", "params":["0xcd1722f3947def4cf144679da39c4c32bdc35681"], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":true,"id":1}"#;
@@ -66,8 +66,8 @@ fn rpc_parity_set_gas_floor_target() {
 	let miner = miner_service();
 	let client = client_service();
 	let network = network_service();
-	let io = IoHandler::new();
-	io.add_delegate(parity_set_client(&client, &miner, &network).to_delegate());
+	let mut io = IoHandler::default();
+	io.extend_with(parity_set_client(&client, &miner, &network).to_delegate());
 
 	let request = r#"{"jsonrpc": "2.0", "method": "parity_setGasFloorTarget", "params":["0xcd1722f3947def4cf144679da39c4c32bdc35681"], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":true,"id":1}"#;
@@ -81,8 +81,8 @@ fn rpc_parity_set_extra_data() {
 	let miner = miner_service();
 	let client = client_service();
 	let network = network_service();
-	let io = IoHandler::new();
-	io.add_delegate(parity_set_client(&client, &miner, &network).to_delegate());
+	let mut io = IoHandler::default();
+	io.extend_with(parity_set_client(&client, &miner, &network).to_delegate());
 
 	let request = r#"{"jsonrpc": "2.0", "method": "parity_setExtraData", "params":["0xcd1722f3947def4cf144679da39c4c32bdc35681"], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":true,"id":1}"#;
@@ -96,8 +96,8 @@ fn rpc_parity_set_author() {
 	let miner = miner_service();
 	let client = client_service();
 	let network = network_service();
-	let io = IoHandler::new();
-	io.add_delegate(parity_set_client(&client, &miner, &network).to_delegate());
+	let mut io = IoHandler::default();
+	io.extend_with(parity_set_client(&client, &miner, &network).to_delegate());
 
 	let request = r#"{"jsonrpc": "2.0", "method": "parity_setAuthor", "params":["0xcd1722f3947def4cf144679da39c4c32bdc35681"], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":true,"id":1}"#;
@@ -111,8 +111,8 @@ fn rpc_parity_set_engine_signer() {
 	let miner = miner_service();
 	let client = client_service();
 	let network = network_service();
-	let io = IoHandler::new();
-	io.add_delegate(parity_set_client(&client, &miner, &network).to_delegate());
+	let mut io = IoHandler::default();
+	io.extend_with(parity_set_client(&client, &miner, &network).to_delegate());
 
 	let request = r#"{"jsonrpc": "2.0", "method": "parity_setEngineSigner", "params":["0xcd1722f3947def4cf144679da39c4c32bdc35681", "password"], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":true,"id":1}"#;
@@ -128,8 +128,8 @@ fn rpc_parity_set_transactions_limit() {
 	let miner = miner_service();
 	let client = client_service();
 	let network = network_service();
-	let io = IoHandler::new();
-	io.add_delegate(parity_set_client(&client, &miner, &network).to_delegate());
+	let mut io = IoHandler::default();
+	io.extend_with(parity_set_client(&client, &miner, &network).to_delegate());
 
 	let request = r#"{"jsonrpc": "2.0", "method": "parity_setTransactionsLimit", "params":[10240240], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":true,"id":1}"#;
@@ -143,8 +143,8 @@ fn rpc_parity_set_hash_content() {
 	let miner = miner_service();
 	let client = client_service();
 	let network = network_service();
-	let io = IoHandler::new();
-	io.add_delegate(parity_set_client(&client, &miner, &network).to_delegate());
+	let mut io = IoHandler::default();
+	io.extend_with(parity_set_client(&client, &miner, &network).to_delegate());
 
 	let request = r#"{"jsonrpc": "2.0", "method": "parity_hashContent", "params":["https://ethcore.io/assets/images/ethcore-black-horizontal.png"], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":"0x2be00befcf008bc0e7d9cdefc194db9c75352e8632f48498b5a6bfce9f02c88e","id":1}"#;

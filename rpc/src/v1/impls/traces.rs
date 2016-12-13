@@ -48,8 +48,8 @@ fn params_len(params: &Params) -> usize {
 /// Deserialize request parameters with optional third parameter `BlockNumber` defaulting to `BlockNumber::Latest`.
 fn from_params_default_third<F1, F2>(params: Params) -> Result<(F1, F2, BlockNumber, ), Error> where F1: serde::de::Deserialize, F2: serde::de::Deserialize {
 	match params_len(&params) {
-		2 => from_params::<(F1, F2, )>(params).map(|(f1, f2)| (f1, f2, BlockNumber::Latest)),
-		_ => from_params::<(F1, F2, BlockNumber)>(params)
+		2 => params.parse::<(F1, F2, )>().map(|(f1, f2)| (f1, f2, BlockNumber::Latest)),
+		_ => params.parse::<(F1, F2, BlockNumber)>()
 	}
 }
 
@@ -93,7 +93,7 @@ impl<C, M> TracesClient<C, M> where C: BlockChainClient, M: MinerService {
 impl<C, M> Traces for TracesClient<C, M> where C: BlockChainClient + 'static, M: MinerService + 'static {
 	fn filter(&self, params: Params) -> Result<Value, Error> {
 		try!(self.active());
-		from_params::<(TraceFilter,)>(params)
+		params.parse::<(TraceFilter,)>()
 			.and_then(|(filter, )| {
 				let client = take_weak!(self.client);
 				let traces = client.filter_traces(filter.into());
@@ -104,7 +104,7 @@ impl<C, M> Traces for TracesClient<C, M> where C: BlockChainClient + 'static, M:
 
 	fn block_traces(&self, params: Params) -> Result<Value, Error> {
 		try!(self.active());
-		from_params::<(BlockNumber,)>(params)
+		params.parse::<(BlockNumber,)>()
 			.and_then(|(block_number,)| {
 				let client = take_weak!(self.client);
 				let traces = client.block_traces(block_number.into());
@@ -115,7 +115,7 @@ impl<C, M> Traces for TracesClient<C, M> where C: BlockChainClient + 'static, M:
 
 	fn transaction_traces(&self, params: Params) -> Result<Value, Error> {
 		try!(self.active());
-		from_params::<(H256,)>(params)
+		params.parse::<(H256,)>()
 			.and_then(|(transaction_hash,)| {
 				let client = take_weak!(self.client);
 				let traces = client.transaction_traces(TransactionId::Hash(transaction_hash.into()));
@@ -126,7 +126,7 @@ impl<C, M> Traces for TracesClient<C, M> where C: BlockChainClient + 'static, M:
 
 	fn trace(&self, params: Params) -> Result<Value, Error> {
 		try!(self.active());
-		from_params::<(H256, Vec<Index>)>(params)
+		params.parse::<(H256, Vec<Index>)>()
 			.and_then(|(transaction_hash, address)| {
 				let client = take_weak!(self.client);
 				let id = TraceId {
@@ -169,7 +169,7 @@ impl<C, M> Traces for TracesClient<C, M> where C: BlockChainClient + 'static, M:
 
 	fn replay_transaction(&self, params: Params) -> Result<Value, Error> {
 		try!(self.active());
-		from_params::<(H256, _)>(params)
+		params.parse::<(H256, _)>()
 			.and_then(|(transaction_hash, flags)| {
 				match take_weak!(self.client).replay(TransactionId::Hash(transaction_hash.into()), to_call_analytics(flags)) {
 					Ok(e) => Ok(to_value(&TraceResults::from(e))),

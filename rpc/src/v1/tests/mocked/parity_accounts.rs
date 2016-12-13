@@ -19,7 +19,7 @@ use std::sync::Arc;
 use ethcore::account_provider::AccountProvider;
 use ethcore::client::TestBlockChainClient;
 
-use jsonrpc_core::{IoHandler, GenericIoHandler};
+use jsonrpc_core::IoHandler;
 use v1::{ParityAccounts, ParityAccountsClient};
 
 struct ParityAccountsTester {
@@ -44,8 +44,8 @@ fn setup() -> ParityAccountsTester {
 	let client = blockchain_client();
 	let parity_accounts = ParityAccountsClient::new(&accounts, &client);
 
-	let io = IoHandler::new();
-	io.add_delegate(parity_accounts.to_delegate());
+	let mut io = IoHandler::default();
+	io.extend_with(parity_accounts.to_delegate());
 
 	let tester = ParityAccountsTester {
 		accounts: accounts,

@@ -166,17 +166,19 @@ impl ApiSet {
 
 macro_rules! add_signing_methods {
 	($namespace:ident, $server:expr, $deps:expr) => {
-		let server = &$server;
-		let deps = &$deps;
-		if deps.signer_service.is_enabled() {
-			server.add_delegate($namespace::to_delegate(SigningQueueClient::new(&deps.signer_service, &deps.client, &deps.miner, &deps.secret_store)))
-		} else {
-			server.add_delegate($namespace::to_delegate(SigningUnsafeClient::new(&deps.client, &deps.secret_store, &deps.miner)))
+		{
+			let server = &mut $server;
+			let deps = &$deps;
+			if deps.signer_service.is_enabled() {
+				server.extend_with($namespace::to_delegate(SigningQueueClient::new(&deps.signer_service, &deps.client, &deps.miner, &deps.secret_store)))
+			} else {
+				server.extend_with($namespace::to_delegate(SigningUnsafeClient::new(&deps.client, &deps.secret_store, &deps.miner)))
+			}
 		}
 	}
 }
 
-pub fn setup_rpc<T: Extendable>(server: T, deps: Arc<Dependencies>, apis: ApiSet) -> T {
+pub fn setup_rpc<T: Extendable>(mut server: T, deps: Arc<Dependencies>, apis: ApiSet) -> T {
 	use ethcore_rpc::v1::*;
 
 	// it's turned into vector, cause ont of the cases requires &[]
@@ -184,10 +186,10 @@ pub fn setup_rpc<T: Extendable>(server: T, deps: Arc<Dependencies>, apis: ApiSet
 	for api in &apis {
 		match *api {
 			Api::Web3 => {
-				server.add_delegate(Web3Client::new().to_delegate());
+				server.extend_with(Web3Client::new().to_delegate());
 			},
 			Api::Net => {
-				server.add_delegate(NetClient::new(&deps.sync).to_delegate());
+				server.extend_with(NetClient::new(&deps.sync).to_delegate());
 			},
 			Api::Eth => {
 				let client = EthClient::new(
@@ -202,25 +204,25 @@ pub fn setup_rpc<T: Extendable>(server: T, deps: Arc<Dependencies>, apis: ApiSet
 						send_block_number_in_get_work: !deps.geth_compatibility,
 					}
 				);
-				server.add_delegate(client.to_delegate());
+				server.extend_with(client.to_delegate());
 
 				let filter_client = EthFilterClient::new(&deps.client, &deps.miner);
-				server.add_delegate(filter_client.to_delegate());
+				server.extend_with(filter_client.to_delegate());
 
 				add_signing_methods!(EthSigning, server, deps);
 			},
 			Api::Personal => {
-				server.add_delegate(PersonalClient::new(&deps.secret_store, &deps.client, &deps.miner, deps.geth_compatibility).to_delegate());
+				server.extend_with(PersonalClient::new(&deps.secret_store, &deps.client, &deps.miner, deps.geth_compatibility).to_delegate());
 			},
 			Api::Signer => {
-				server.add_delegate(SignerClient::new(&deps.secret_store, &deps.client, &deps.miner, &deps.signer_service).to_delegate());
+				server.extend_with(SignerClient::new(&deps.secret_store, &deps.client, &deps.miner, &deps.signer_service).to_delegate());
 			},
 			Api::Parity => {
 				let signer = match deps.signer_service.is_enabled() {
 					true => Some(deps.signer_service.clone()),
 					false => None,
 				};
-				server.add_delegate(ParityClient::new(
+				server.extend_with(ParityClient::new(
 					&deps.client,
 					&deps.miner,
 					&deps.sync,
@@ -237,17 +239,17 @@ pub fn setup_rpc<T: Extendable>(server: T, deps: Arc<Dependencies>, apis: ApiSet
 				add_signing_methods!(ParitySigning, server, deps);
 			},
 			Api::ParityAccounts => {
-				server.add_delegate(ParityAccountsClient::new(&deps.secret_store, &deps.client).to_delegate());
+				server.extend_with(ParityAccountsClient::new(&deps.secret_store, &deps.client).to_delegate());
 			},
 			Api::ParitySet => {
-				server.add_delegate(ParitySetClient::new(&deps.client, &deps.miner, &deps.net_service).to_delegate())
+				server.extend_with(ParitySetClient::new(&deps.client, &deps.miner, &deps.net_service).to_delegate())
 			},
 			Api::Traces => {
-				server.add_delegate(TracesClient::new(&deps.client, &deps.miner).to_delegate())
+				server.extend_with(TracesClient::new(&deps.client, &deps.miner).to_delegate())
 			},
 			Api::Rpc => {
 				let modules = to_modules(&apis);
-				server.add_delegate(RpcClient::new(modules).to_delegate());
+				server.extend_with(RpcClient::new(modules).to_delegate());
 			}
 		}
 	}

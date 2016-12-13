@@ -25,8 +25,8 @@ use ethsync::ManageNetwork;
 use fetch::{Client as FetchClient, Fetch};
 use util::{Mutex, sha3};
 
+use futures::{self, BoxFuture, Future};
 use jsonrpc_core::Error;
-use jsonrpc_macros::Ready;
 use v1::helpers::errors;
 use v1::traits::ParitySet;
 use v1::types::{Bytes, H160, H256, U256};
@@ -189,8 +189,10 @@ impl<C, M, F> ParitySet for ParitySetClient<C, M, F> where
 		Ok(true)
 	}
 
-	fn hash_content(&self, ready: Ready<H256>, url: String) {
+	fn hash_content(&self, url: String) -> BoxFuture<H256, Error> {
 		let res = self.active();
+
+		let (ready, p) = futures::oneshot();
 
 		let hash_content = |result| {
 			let path = try!(result);
@@ -204,7 +206,7 @@ impl<C, M, F> ParitySet for ParitySetClient<C, M, F> where
 		};
 
 		match res {
-			Err(e) => ready.ready(Err(e)),
+			Err(e) => ready.complete(Err(e)),
 			Ok(()) => {
 				let (tx, rx) = mpsc::channel();
 				let res = self.fetch.lock().request_async(&url, Default::default(), Box::new(move |result| {
@@ -213,15 +215,15 @@ impl<C, M, F> ParitySet for ParitySetClient<C, M, F> where
 							.map(Into::into);
 
 					// Receive ready and invoke with result.
-					let ready: Ready<H256> = rx.recv().expect(
+					let ready: futures::sync::oneshot::Sender<Result<H256, Error>> = rx.recv().expect(
 						"recv() fails when `tx` has been dropped, if this closure is invoked `tx` is not dropped (`res == Ok()`); qed"
 					);
-					ready.ready(result);
+					ready.complete(result);
 				}));
 
 				// Either invoke ready right away or transfer it to the closure.
 				if let Err(e) = res {
-					ready.ready(Err(errors::from_fetch_error(e)));
+					ready.complete(Err(errors::from_fetch_error(e)));
 				} else {
 					tx.send(ready).expect(
 						"send() fails when `rx` end is dropped, if `res == Ok()`: `rx` is moved to the closure; qed"
@@ -229,5 +231,7 @@ impl<C, M, F> ParitySet for ParitySetClient<C, M, F> where
 				}
 			}
 		}
+
+		p.then(|result| futures::done(result.expect("Ready is never dropped nor canceled."))).boxed()
 	}
 }

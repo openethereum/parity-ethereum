@@ -15,30 +15,6 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Ethcore Webapplications for Parity
-//! ```
-//! extern crate jsonrpc_core;
-//! extern crate ethcore_dapps;
-//!
-//! use std::sync::Arc;
-//! use jsonrpc_core::IoHandler;
-//! use ethcore_dapps::*;
-//!
-//! struct SayHello;
-//! impl MethodCommand for SayHello {
-//! 	fn execute(&self, _params: Params) -> Result<Value, Error> {
-//! 		Ok(Value::String("hello".to_string()))
-//! 	}
-//! }
-//!
-//! fn main() {
-//! 	let io = IoHandler::new();
-//! 	io.add_method("say_hello", SayHello);
-//! 	let _server = Server::start_unsecure_http(
-//! 		&"127.0.0.1:3030".parse().unwrap(),
-//! 		Arc::new(io)
-//! 	);
-//! }
-//! ```
 //!
 #![warn(missing_docs)]
 #![cfg_attr(feature="nightly", plugin(clippy))]
@@ -89,7 +65,8 @@ use std::net::SocketAddr;
 use std::collections::HashMap;
 
 use hash_fetch::urlhint::ContractClient;
-use jsonrpc_core::{IoHandler, IoDelegate};
+use jsonrpc_core::{MetaIoHandler};
+use jsonrpc_core::reactor::{RpcHandler, RpcEventLoop};
 use router::auth::{Authorization, NoAuth, HttpBasicAuth};
 use ethcore_rpc::Extendable;
 
@@ -108,15 +85,17 @@ impl<F> SyncStatus for F where F: Fn() -> bool + Send + Sync {
 /// Webapps HTTP+RPC server build.
 pub struct ServerBuilder {
 	dapps_path: String,
-	handler: Arc<IoHandler>,
+	handler: MetaIoHandler<()>,
 	registrar: Arc<ContractClient>,
 	sync_status: Arc<SyncStatus>,
 	signer_address: Option<(String, u16)>,
 }
 
 impl Extendable for ServerBuilder {
-	fn add_delegate<D: Send + Sync + 'static>(&self, delegate: IoDelegate<D>) {
-		self.handler.add_delegate(delegate);
+	fn extend_with<T>(&mut self, delegate: T) where
+		T: Into<HashMap<String, jsonrpc_core::RemoteProcedure<()>>>,
+	{
+		self.handler.extend_with(delegate);
 	}
 }
 
@@ -125,7 +104,7 @@ impl ServerBuilder {
 	pub fn new(dapps_path: String, registrar: Arc<ContractClient>) -> Self {
 		ServerBuilder {
 			dapps_path: dapps_path,
-			handler: Arc::new(IoHandler::new()),
+			handler: Default::default(),
 			registrar: registrar,
 			sync_status: Arc::new(|| false),
 			signer_address: None,
@@ -144,12 +123,14 @@ impl ServerBuilder {
 
 	/// Asynchronously start server with no authentication,
 	/// returns result with `Server` handle on success or an error.
-	pub fn start_unsecured_http(&self, addr: &SocketAddr, hosts: Option<Vec<String>>) -> Result<Server, ServerError> {
+	pub fn start_unsecured_http(self, addr: &SocketAddr, hosts: Option<Vec<String>>) -> Result<Server, ServerError> {
+		// TODO [ToDr] Temprary!
+		let el = RpcEventLoop::spawn();
 		Server::start_http(
 			addr,
 			hosts,
 			NoAuth,
-			self.handler.clone(),
+			el.handler(Arc::new(self.handler)),
 			self.dapps_path.clone(),
 			self.signer_address.clone(),
 			self.registrar.clone(),
@@ -159,12 +140,14 @@ impl ServerBuilder {
 
 	/// Asynchronously start server with `HTTP Basic Authentication`,
 	/// return result with `Server` handle on success or an error.
-	pub fn start_basic_auth_http(&self, addr: &SocketAddr, hosts: Option<Vec<String>>, username: &str, password: &str) -> Result<Server, ServerError> {
+	pub fn start_basic_auth_http(self, addr: &SocketAddr, hosts: Option<Vec<String>>, username: &str, password: &str) -> Result<Server, ServerError> {
+
+		let el = RpcEventLoop::spawn();
 		Server::start_http(
 			addr,
 			hosts,
 			HttpBasicAuth::single_user(username, password),
-			self.handler.clone(),
+			el.handler(Arc::new(self.handler)),
 			self.dapps_path.clone(),
 			self.signer_address.clone(),
 			self.registrar.clone(),
@@ -210,7 +193,7 @@ impl Server {
 		addr: &SocketAddr,
 		hosts: Option<Vec<String>>,
 		authorization: A,
-		handler: Arc<IoHandler>,
+		handler: RpcHandler<()>,
 		dapps_path: String,
 		signer_address: Option<(String, u16)>,
 		registrar: Arc<ContractClient>,

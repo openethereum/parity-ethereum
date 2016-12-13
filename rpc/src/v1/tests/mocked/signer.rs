@@ -23,7 +23,7 @@ use ethcore::client::TestBlockChainClient;
 use ethcore::transaction::{Transaction, Action};
 use rlp::encode;
 
-use jsonrpc_core::{IoHandler, GenericIoHandler};
+use jsonrpc_core::IoHandler;
 use v1::{SignerClient, Signer};
 use v1::tests::helpers::TestMinerService;
 use v1::helpers::{SigningQueue, SignerService, FilledTransactionRequest, ConfirmationPayload};
@@ -57,8 +57,8 @@ fn signer_tester() -> SignerTester {
 	let client = blockchain_client();
 	let miner = miner_service();
 
-	let io = IoHandler::new();
-	io.add_delegate(SignerClient::new(&accounts, &client, &miner, &signer).to_delegate());
+	let mut io = IoHandler::default();
+	io.extend_with(SignerClient::new(&accounts, &client, &miner, &signer).to_delegate());
 
 	SignerTester {
 		signer: signer,

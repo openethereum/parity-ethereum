@@ -24,8 +24,9 @@ use std::default::Default;
 use std::ops::Drop;
 use std::sync::Arc;
 use std::net::SocketAddr;
+use std::collections::HashMap;
 use io::{PanicHandler, OnPanicListener, MayPanic};
-use jsonrpc_core::{IoHandler, IoDelegate};
+use jsonrpc_core::{IoHandler, RemoteProcedure};
 use rpc::{Extendable, ConfirmationsQueue};
 
 mod session;
@@ -51,14 +52,16 @@ impl From<ws::Error> for ServerError {
 /// Builder for `WebSockets` server
 pub struct ServerBuilder {
 	queue: Arc<ConfirmationsQueue>,
-	handler: Arc<IoHandler>,
+	handler: IoHandler,
 	authcodes_path: PathBuf,
 	skip_origin_validation: bool,
 }
 
 impl Extendable for ServerBuilder {
-	fn add_delegate<D: Send + Sync + 'static>(&self, delegate: IoDelegate<D>) {
-		self.handler.add_delegate(delegate);
+	fn extend_with<T>(&mut self, delegate: T) where
+		T: Into<HashMap<String, RemoteProcedure<()>>>,
+	{
+		self.handler.extend_with(delegate);
 	}
 }
 
@@ -67,7 +70,7 @@ impl ServerBuilder {
 	pub fn new(queue: Arc<ConfirmationsQueue>, authcodes_path: PathBuf) -> Self {
 		ServerBuilder {
 			queue: queue,
-			handler: Arc::new(IoHandler::new()),
+			handler: IoHandler::default(),
 			authcodes_path: authcodes_path,
 			skip_origin_validation: false,
 		}
@@ -104,7 +107,7 @@ impl Server {
 
 	/// Starts a new `WebSocket` server in separate thread.
 	/// Returns a `Server` handle which closes the server when droped.
-	fn start(addr: SocketAddr, handler: Arc<IoHandler>, queue: Arc<ConfirmationsQueue>, authcodes_path: PathBuf, skip_origin_validation: bool) -> Result<Server, ServerError> {
+	fn start(addr: SocketAddr, handler: IoHandler, queue: Arc<ConfirmationsQueue>, authcodes_path: PathBuf, skip_origin_validation: bool) -> Result<Server, ServerError> {
 		let config = {
 			let mut config = ws::Settings::default();
 			// accept only handshakes beginning with GET

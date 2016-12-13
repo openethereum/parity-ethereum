@@ -16,7 +16,7 @@
 
 use std::sync::Arc;
 use std::str::FromStr;
-use jsonrpc_core::{IoHandler, GenericIoHandler};
+use jsonrpc_core::IoHandler;
 use util::{U256, Uint, Address};
 use ethcore::account_provider::AccountProvider;
 use v1::{PersonalClient, Personal};
@@ -52,8 +52,8 @@ fn setup() -> PersonalTester {
 	let miner = miner_service();
 	let personal = PersonalClient::new(&accounts, &client, &miner, false);
 
-	let io = IoHandler::new();
-	io.add_delegate(personal.to_delegate());
+	let mut io = IoHandler::default();
+	io.extend_with(personal.to_delegate());
 
 	let tester = PersonalTester {
 		accounts: accounts,
