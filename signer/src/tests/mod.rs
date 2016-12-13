@@ -20,6 +20,8 @@ use std::sync::Arc;
 use devtools::{http_client, RandomTempPath};
 use rpc::ConfirmationsQueue;
 use util::Hashable;
+use jsonrpc_core::IoHandler;
+use jsonrpc_core::reactor::RpcEventLoop;
 use rand;
 
 use ServerBuilder;
@@ -42,13 +44,32 @@ impl DerefMut for GuardedAuthCodes {
 	}
 }
 
-pub fn serve() -> (Server, usize, GuardedAuthCodes) {
+pub struct ServerLoop {
+	pub server: Server,
+	pub event_loop: RpcEventLoop,
+}
+
+impl Deref for ServerLoop {
+	type Target = Server;
+
+	fn deref(&self) -> &Self::Target {
+		&self.server
+	}
+}
+
+pub fn serve() -> (ServerLoop, usize, GuardedAuthCodes) {
 	let mut path = RandomTempPath::new();
 	path.panic_on_drop_failure = false;
 	let queue = Arc::new(ConfirmationsQueue::default());
 	let builder = ServerBuilder::new(queue, path.to_path_buf());
 	let port = 35000 + rand::random::<usize>() % 10000;
-	let res = builder.start(format!("127.0.0.1:{}", port).parse().unwrap()).unwrap();
+	let event_loop = RpcEventLoop::spawn();
+	let handler = event_loop.handler(Arc::new(IoHandler::default().into()));
+	let server = builder.start(format!("127.0.0.1:{}", port).parse().unwrap(), handler).unwrap();
+	let res = ServerLoop {
+		server: server,
+		event_loop: event_loop,
+	};
 
 	(res, port, GuardedAuthCodes {
 		authcodes: AuthCodes::from_file(&path).unwrap(),
@@ -56,8 +77,8 @@ pub fn serve() -> (Server, usize, GuardedAuthCodes) {
 	})
 }
 
-pub fn request(server: Server, request: &str) -> http_client::Response {
-	http_client::request(server.addr(), request)
+pub fn request(server: ServerLoop, request: &str) -> http_client::Response {
+	http_client::request(server.server.addr(), request)
 }
 
 #[test]

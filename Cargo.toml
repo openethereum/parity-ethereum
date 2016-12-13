@@ -28,9 +28,10 @@ isatty = "0.1"
 toml = "0.2"
 serde = "0.8"
 serde_json = "0.8"
+fdlimit = "0.1"
 hyper = { version = "0.9", default-features = false }
 ctrlc = { git = "https://github.com/ethcore/rust-ctrlc.git" }
-fdlimit = "0.1"
+jsonrpc-core = { git = "https://github.com/ethcore/jsonrpc.git" }
 ethcore = { path = "ethcore" }
 ethcore-util = { path = "util" }
 ethsync = { path = "sync" }
@@ -43,8 +44,8 @@ ethcore-ipc = { path = "ipc/rpc" }
 ethcore-ipc-hypervisor = { path = "ipc/hypervisor" }
 ethcore-logger = { path = "logger" }
 ethcore-hash-fetch = { path = "ethcore/hash-fetch" }
-rlp = { path = "util/rlp" }
 ethcore-stratum = { path = "stratum" }
+rlp = { path = "util/rlp" }
 ethcore-dapps = { path = "dapps", optional = true }
 clippy = { version = "0.0.103", optional = true}
 ethcore-light = { path = "ethcore/light" }

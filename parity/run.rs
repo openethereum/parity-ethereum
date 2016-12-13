@@ -22,6 +22,7 @@ use ethcore_rpc::{NetworkSettings, is_major_importing};
 use ethsync::NetworkConfiguration;
 use util::{Colour, version, RotatingLogger};
 use io::{MayPanic, ForwardPanic, PanicHandler};
+use jsonrpc_core::reactor::RpcEventLoop;
 use ethcore_logger::{Config as LogConfig};
 use ethcore::client::{Mode, DatabaseCompactionProfile, VMType, ChainNotify, BlockChainClient};
 use ethcore::service::ClientService;
@@ -290,12 +291,12 @@ pub fn execute(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<(), String> {
 
 	// create sync object
 	let (sync_provider, manage_network, chain_notify) = try!(modules::sync(
-		&mut hypervisor, 
-		sync_config, 
-		net_conf.into(), 
-		client.clone(), 
-		snapshot_service.clone(), 
-		client.clone(), 
+		&mut hypervisor,
+		sync_config,
+		net_conf.into(),
+		client.clone(),
+		snapshot_service.clone(),
+		client.clone(),
 		&cmd.logger_config,
 	).map_err(|e| format!("Sync error: {}", e)));
 
@@ -305,6 +306,9 @@ pub fn execute(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<(), String> {
 	if network_enabled {
 		chain_notify.start();
 	}
+
+	// spin up rpc event loop
+	let rpc_loop = RpcEventLoop::spawn();
 
 	// set up dependencies for rpc servers
 	let signer_path = cmd.signer_conf.signer_path.clone();
@@ -336,6 +340,7 @@ pub fn execute(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<(), String> {
 	let dependencies = rpc::Dependencies {
 		panic_handler: panic_handler.clone(),
 		apis: deps_for_rpc_apis.clone(),
+		remote: rpc_loop.remote(),
 	};
 
 	// start rpc servers
@@ -347,6 +352,7 @@ pub fn execute(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<(), String> {
 		apis: deps_for_rpc_apis.clone(),
 		client: client.clone(),
 		sync: sync_provider.clone(),
+		remote: rpc_loop.remote(),
 	};
 
 	// start dapps server
@@ -355,6 +361,7 @@ pub fn execute(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<(), String> {
 	let signer_deps = signer::Dependencies {
 		panic_handler: panic_handler.clone(),
 		apis: deps_for_rpc_apis.clone(),
+		remote: rpc_loop.remote(),
 	};
 
 	// start signer server

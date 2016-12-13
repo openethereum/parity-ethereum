@@ -17,7 +17,7 @@
 //! Traces specific rpc interface.
 
 use std::sync::Arc;
-use jsonrpc_core::{Params, Value, Error};
+use jsonrpc_core::{Params, Value, Error, Metadata};
 use jsonrpc_macros::IoDelegate;
 
 /// Traces specific rpc interface.
@@ -44,7 +44,7 @@ pub trait Traces: Sized + Send + Sync + 'static {
 	fn replay_transaction(&self, _: Params) -> Result<Value, Error>;
 
 	/// Should be used to convert object to io delegate.
-	fn to_delegate(self) -> IoDelegate<Self> {
+	fn to_delegate<M: Metadata>(self) -> IoDelegate<Self, M> {
 		let mut delegate = IoDelegate::new(Arc::new(self));
 		delegate.add_method("trace_filter", Traces::filter);
 		delegate.add_method("trace_get", Traces::trace);

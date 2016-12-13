@@ -31,7 +31,6 @@ extern crate jsonrpc_core;
 extern crate jsonrpc_http_server;
 extern crate mime_guess;
 extern crate rustc_serialize;
-extern crate ethcore_rpc;
 extern crate ethcore_util as util;
 extern crate ethcore_hash_fetch as hash_fetch;
 extern crate linked_hash_map;
@@ -65,10 +64,9 @@ use std::net::SocketAddr;
 use std::collections::HashMap;
 
 use hash_fetch::urlhint::ContractClient;
-use jsonrpc_core::{MetaIoHandler};
-use jsonrpc_core::reactor::{RpcHandler, RpcEventLoop};
+use jsonrpc_core::Metadata;
+use jsonrpc_core::reactor::RpcHandler;
 use router::auth::{Authorization, NoAuth, HttpBasicAuth};
-use ethcore_rpc::Extendable;
 
 use self::apps::{HOME_PAGE, DAPPS_DOMAIN};
 
@@ -85,18 +83,10 @@ impl<F> SyncStatus for F where F: Fn() -> bool + Send + Sync {
 /// Webapps HTTP+RPC server build.
 pub struct ServerBuilder {
 	dapps_path: String,
-	handler: MetaIoHandler<()>,
 	registrar: Arc<ContractClient>,
 	sync_status: Arc<SyncStatus>,
 	signer_address: Option<(String, u16)>,
-}
-
-impl Extendable for ServerBuilder {
-	fn extend_with<T>(&mut self, delegate: T) where
-		T: Into<HashMap<String, jsonrpc_core::RemoteProcedure<()>>>,
-	{
-		self.handler.extend_with(delegate);
-	}
+	allowed_hosts: Option<Vec<String>>,
 }
 
 impl ServerBuilder {
@@ -104,33 +94,41 @@ impl ServerBuilder {
 	pub fn new(dapps_path: String, registrar: Arc<ContractClient>) -> Self {
 		ServerBuilder {
 			dapps_path: dapps_path,
-			handler: Default::default(),
 			registrar: registrar,
 			sync_status: Arc::new(|| false),
 			signer_address: None,
+			allowed_hosts: Some(vec![]),
 		}
 	}
 
 	/// Change default sync status.
-	pub fn with_sync_status(&mut self, status: Arc<SyncStatus>) {
+	pub fn sync_status(mut self, status: Arc<SyncStatus>) -> Self {
 		self.sync_status = status;
+		self
 	}
 
 	/// Change default signer port.
-	pub fn with_signer_address(&mut self, signer_address: Option<(String, u16)>) {
+	pub fn signer_address(mut self, signer_address: Option<(String, u16)>) -> Self {
 		self.signer_address = signer_address;
+		self
+	}
+
+	/// Change allowed hosts.
+	/// `None` - All hosts are allowed
+	/// `Some(whitelist)` - Allow only whitelisted hosts (+ listen address)
+	pub fn allowed_hosts(mut self, allowed_hosts: Option<Vec<String>>) -> Self {
+		self.allowed_hosts = allowed_hosts;
+		self
 	}
 
 	/// Asynchronously start server with no authentication,
 	/// returns result with `Server` handle on success or an error.
-	pub fn start_unsecured_http(self, addr: &SocketAddr, hosts: Option<Vec<String>>) -> Result<Server, ServerError> {
-		// TODO [ToDr] Temprary!
-		let el = RpcEventLoop::spawn();
+	pub fn start_unsecured_http<M: Metadata>(self, addr: &SocketAddr, handler: RpcHandler<M>) -> Result<Server, ServerError> {
 		Server::start_http(
 			addr,
-			hosts,
+			self.allowed_hosts.clone(),
 			NoAuth,
-			el.handler(Arc::new(self.handler)),
+			handler,
 			self.dapps_path.clone(),
 			self.signer_address.clone(),
 			self.registrar.clone(),
@@ -140,14 +138,13 @@ impl ServerBuilder {
 
 	/// Asynchronously start server with `HTTP Basic Authentication`,
 	/// return result with `Server` handle on success or an error.
-	pub fn start_basic_auth_http(self, addr: &SocketAddr, hosts: Option<Vec<String>>, username: &str, password: &str) -> Result<Server, ServerError> {
+	pub fn start_basic_auth_http<M: Metadata>(self, addr: &SocketAddr, username: &str, password: &str, handler: RpcHandler<M>) -> Result<Server, ServerError> {
 
-		let el = RpcEventLoop::spawn();
 		Server::start_http(
 			addr,
-			hosts,
+			self.allowed_hosts.clone(),
 			HttpBasicAuth::single_user(username, password),
-			el.handler(Arc::new(self.handler)),
+			handler,
 			self.dapps_path.clone(),
 			self.signer_address.clone(),
 			self.registrar.clone(),
@@ -189,11 +186,11 @@ impl Server {
 		}
 	}
 
-	fn start_http<A: Authorization + 'static>(
+	fn start_http<A: Authorization + 'static, M: Metadata>(
 		addr: &SocketAddr,
 		hosts: Option<Vec<String>>,
 		authorization: A,
-		handler: RpcHandler<()>,
+		handler: RpcHandler<M>,
 		dapps_path: String,
 		signer_address: Option<(String, u16)>,
 		registrar: Arc<ContractClient>,

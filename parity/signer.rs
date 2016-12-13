@@ -23,6 +23,7 @@ use util::path::restrict_permissions_owner;
 use rpc_apis;
 use ethcore_signer as signer;
 use helpers::replace_home;
+use jsonrpc_core::reactor::{RpcHandler, Remote};
 pub use ethcore_signer::Server as SignerServer;
 
 const CODES_FILENAME: &'static str = "authcodes";
@@ -51,6 +52,7 @@ impl Default for Configuration {
 pub struct Dependencies {
 	pub panic_handler: Arc<PanicHandler>,
 	pub apis: Arc<rpc_apis::Dependencies>,
+	pub remote: Remote,
 }
 
 pub struct NewToken {
@@ -122,8 +124,9 @@ fn do_start(conf: Configuration, deps: Dependencies) -> Result<SignerServer, Str
 			info!("If you do not intend this, exit now.");
 		}
 		let server = server.skip_origin_validation(conf.skip_origin_validation);
-		let server = rpc_apis::setup_rpc(server, deps.apis, rpc_apis::ApiSet::SafeContext);
-		server.start(addr)
+		let apis = rpc_apis::setup_rpc(Default::default(), deps.apis, rpc_apis::ApiSet::SafeContext);
+		let handler = RpcHandler::new(Arc::new(apis), deps.remote);
+		server.start(addr, handler)
 	};
 
 	match start_result {

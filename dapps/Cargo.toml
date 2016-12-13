@@ -28,7 +28,6 @@ time = "0.1.35"
 serde_macros = { version = "0.8", optional = true }
 zip = { version = "0.1", default-features = false }
 ethcore-devtools = { path = "../devtools" }
-ethcore-rpc = { path = "../rpc" }
 ethcore-util = { path = "../util" }
 ethcore-hash-fetch = { path = "../ethcore/hash-fetch" }
 fetch = { path = "../util/fetch" }
@@ -42,7 +41,7 @@ serde_codegen = { version = "0.8", optional = true }
 [features]
 default = ["serde_codegen"]
 nightly = ["serde_macros"]
-dev = ["clippy", "ethcore-rpc/dev", "ethcore-util/dev"]
+dev = ["clippy", "ethcore-util/dev"]
 
 ui = ["parity-ui/no-precompiled-js"]
 ui-precompiled = ["parity-ui/use-precompiled-js"]

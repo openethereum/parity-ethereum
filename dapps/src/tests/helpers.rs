@@ -16,9 +16,12 @@
 
 use std::env;
 use std::str;
+use std::ops::Deref;
 use std::sync::Arc;
 use rustc_serialize::hex::FromHex;
 use env_logger::LogBuilder;
+use jsonrpc_core::IoHandler;
+use jsonrpc_core::reactor::RpcEventLoop;
 
 use ServerBuilder;
 use Server;
@@ -69,47 +72,75 @@ fn init_logger() {
 	}
 }
 
-pub fn init_server(hosts: Option<Vec<String>>, is_syncing: bool) -> (Server, Arc<FakeRegistrar>) {
+pub struct ServerLoop {
+	pub server: Server,
+	pub event_loop: RpcEventLoop,
+}
+
+impl Deref for ServerLoop {
+	type Target = Server;
+
+	fn deref(&self) -> &Self::Target {
+		&self.server
+	}
+}
+
+pub fn init_server(hosts: Option<Vec<String>>, is_syncing: bool) -> (ServerLoop, Arc<FakeRegistrar>) {
 	init_logger();
 	let registrar = Arc::new(FakeRegistrar::new());
 	let mut dapps_path = env::temp_dir();
 	dapps_path.push("non-existent-dir-to-prevent-fs-files-from-loading");
-	let mut builder = ServerBuilder::new(dapps_path.to_str().unwrap().into(), registrar.clone());
-	builder.with_sync_status(Arc::new(move || is_syncing));
-	builder.with_signer_address(Some(("127.0.0.1".into(), SIGNER_PORT)));
+	let builder = ServerBuilder::new(dapps_path.to_str().unwrap().into(), registrar.clone())
+		.sync_status(Arc::new(move || is_syncing))
+		.signer_address(Some(("127.0.0.1".into(), SIGNER_PORT)))
+		.allowed_hosts(hosts);
+	let event_loop = RpcEventLoop::spawn();
+	let handler = event_loop.handler(Arc::new(IoHandler::default().into()));
+	let server = builder.start_unsecured_http(&"127.0.0.1:0".parse().unwrap(), handler).unwrap();
 	(
-		builder.start_unsecured_http(&"127.0.0.1:0".parse().unwrap(), hosts).unwrap(),
+		ServerLoop {
+			server: server,
+			event_loop: event_loop,
+		},
 		registrar,
 	)
 }
 
-pub fn serve_with_auth(user: &str, pass: &str) -> Server {
+pub fn serve_with_auth(user: &str, pass: &str) -> ServerLoop {
 	init_logger();
 	let registrar = Arc::new(FakeRegistrar::new());
 	let mut dapps_path = env::temp_dir();
 	dapps_path.push("non-existent-dir-to-prevent-fs-files-from-loading");
-	let mut builder = ServerBuilder::new(dapps_path.to_str().unwrap().into(), registrar);
-	builder.with_signer_address(Some(("127.0.0.1".into(), SIGNER_PORT)));
-	builder.start_basic_auth_http(&"127.0.0.1:0".parse().unwrap(), None, user, pass).unwrap()
+
+	let event_loop = RpcEventLoop::spawn();
+	let handler = event_loop.handler(Arc::new(IoHandler::default().into()));
+	let server = ServerBuilder::new(dapps_path.to_str().unwrap().into(), registrar)
+		.signer_address(Some(("127.0.0.1".into(), SIGNER_PORT)))
+		.allowed_hosts(None)
+		.start_basic_auth_http(&"127.0.0.1:0".parse().unwrap(), user, pass, handler).unwrap();
+	ServerLoop {
+		server: server,
+		event_loop: event_loop,
+	}
 }
 
-pub fn serve_hosts(hosts: Option<Vec<String>>) -> Server {
+pub fn serve_hosts(hosts: Option<Vec<String>>) -> ServerLoop {
 	init_server(hosts, false).0
 }
 
-pub fn serve_with_registrar() -> (Server, Arc<FakeRegistrar>) {
+pub fn serve_with_registrar() -> (ServerLoop, Arc<FakeRegistrar>) {
 	init_server(None, false)
 }
 
-pub fn serve_with_registrar_and_sync() -> (Server, Arc<FakeRegistrar>) {
+pub fn serve_with_registrar_and_sync() -> (ServerLoop, Arc<FakeRegistrar>) {
 	init_server(None, true)
 }
 
-pub fn serve() -> Server {
+pub fn serve() -> ServerLoop {
 	init_server(None, false).0
 }
 
-pub fn request(server: Server, request: &str) -> http_client::Response {
+pub fn request(server: ServerLoop, request: &str) -> http_client::Response {
 	http_client::request(server.addr(), request)
 }
 

@@ -53,9 +53,9 @@ extern crate ethcore_devtools as devtools;
 
 use std::sync::Arc;
 use std::net::SocketAddr;
-use std::collections::HashMap;
 use io::PanicHandler;
-use jsonrpc_core::IoHandler;
+use jsonrpc_core::Metadata;
+use jsonrpc_core::reactor::RpcHandler;
 
 pub use ipc::{Server as IpcServer, Error as IpcServerError};
 pub use jsonrpc_http_server::{ServerBuilder, Server, RpcServerError};
@@ -63,66 +63,37 @@ pub mod v1;
 pub use v1::{SigningQueue, SignerService, ConfirmationsQueue, NetworkSettings};
 pub use v1::block_import::is_major_importing;
 
-/// An object that can be extended with `IoDelegates`
-pub trait Extendable {
-	/// Extend this object with additional `RemoteProcedures`
-	fn extend_with<T>(&mut self, delegate: T) where T: Into<HashMap<String, jsonrpc_core::RemoteProcedure<()>>>;
-}
+/// Start http server asynchronously and returns result with `Server` handle on success or an error.
+pub fn start_http<M: Metadata>(
+	addr: &SocketAddr,
+	cors_domains: Option<Vec<String>>,
+	allowed_hosts: Option<Vec<String>>,
+	panic_handler: Arc<PanicHandler>,
+	handler: RpcHandler<M>,
+) -> Result<Server, RpcServerError> {
 
-/// Http server.
-pub struct RpcServer {
-	handler: IoHandler,
-}
-
-impl Extendable for RpcServer {
-	/// Add io delegate.
-	fn extend_with<T>(&mut self, delegate: T) where
-		T: Into<HashMap<String, jsonrpc_core::RemoteProcedure<()>>>,
-	{
-		self.handler.extend_with(delegate);
-	}
-}
-
-impl RpcServer {
-	/// Construct new http server object.
-	pub fn new() -> RpcServer {
-		RpcServer {
-			handler: IoHandler::default(),
-		}
-	}
-
-	/// Start http server asynchronously and returns result with `Server` handle on success or an error.
-	pub fn start_http(
-		self,
-		addr: &SocketAddr,
-		cors_domains: Option<Vec<String>>,
-		allowed_hosts: Option<Vec<String>>,
-		panic_handler: Arc<PanicHandler>,
-		) -> Result<Server, RpcServerError> {
-
-		let cors_domains = cors_domains.map(|domains| {
-			domains.into_iter()
-				.map(|v| match v.as_str() {
-					"*" => jsonrpc_http_server::AccessControlAllowOrigin::Any,
-					"null" => jsonrpc_http_server::AccessControlAllowOrigin::Null,
-					v => jsonrpc_http_server::AccessControlAllowOrigin::Value(v.into()),
-				})
-				.collect()
-		});
-
-		ServerBuilder::new(self.handler)
-			.cors(cors_domains.into())
-			.allowed_hosts(allowed_hosts.into())
-			.panic_handler(move || {
-				panic_handler.notify_all("Panic in RPC thread.".to_owned());
+	let cors_domains = cors_domains.map(|domains| {
+		domains.into_iter()
+			.map(|v| match v.as_str() {
+				"*" => jsonrpc_http_server::AccessControlAllowOrigin::Any,
+				"null" => jsonrpc_http_server::AccessControlAllowOrigin::Null,
+				v => jsonrpc_http_server::AccessControlAllowOrigin::Value(v.into()),
 			})
-			.start_http(addr)
-	}
+			.collect()
+	});
 
-	/// Start ipc server asynchronously and returns result with `Server` handle on success or an error.
-	pub fn start_ipc(self, addr: &str) -> Result<ipc::Server, ipc::Error> {
-		let server = try!(ipc::Server::new(addr, self.handler));
-		try!(server.run_async());
-		Ok(server)
-	}
+	ServerBuilder::with_rpc_handler(handler)
+		.cors(cors_domains.into())
+		.allowed_hosts(allowed_hosts.into())
+		.panic_handler(move || {
+			panic_handler.notify_all("Panic in RPC thread.".to_owned());
+		})
+		.start_http(addr)
+}
+
+/// Start ipc server asynchronously and returns result with `Server` handle on success or an error.
+pub fn start_ipc<M: Metadata>(addr: &str, handler: RpcHandler<M>) -> Result<ipc::Server<M>, ipc::Error> {
+	let server = try!(ipc::Server::with_rpc_handler(addr, handler));
+	try!(server.run_async());
+	Ok(server)
 }
