@@ -32,7 +32,6 @@ use ethcore::verification::queue::VerifierSettings;
 use cache::CacheConfig;
 use informant::{Informant, MillisecondDuration};
 use params::{SpecType, Pruning, Switch, tracing_switch_to_bool, fatdb_switch_to_bool};
-use io_handler::ImportIoHandler;
 use helpers::{to_client_config, execute_upgrades};
 use dir::Directories;
 use user_defaults::UserDefaults;
@@ -230,11 +229,8 @@ fn execute_import(cmd: ImportBlockchain) -> Result<String, String> {
 		}
 	};
 
-	let informant = Informant::new(client.clone(), None, None, None, cmd.with_color);
-
-	try!(service.register_io_handler(Arc::new(ImportIoHandler {
-		info: Arc::new(informant),
-	})).map_err(|_| "Unable to register informant handler".to_owned()));
+	let informant = Arc::new(Informant::new(client.clone(), None, None, None, cmd.with_color));
+	service.register_io_handler(informant).map_err(|_| "Unable to register informant handler".to_owned())?;
 
 	let do_import = |bytes| {
 		while client.queue_info().is_full() { sleep(Duration::from_secs(1)); }
@@ -249,7 +245,6 @@ fn execute_import(cmd: ImportBlockchain) -> Result<String, String> {
 		}
 		Ok(())
 	};
-
 
 	match format {
 		DataFormat::Binary => {
@@ -309,7 +304,8 @@ fn start_client(
 	fat_db: Switch,
 	compaction: DatabaseCompactionProfile,
 	wal: bool,
-	cache_config: CacheConfig) -> Result<ClientService, String> {
+	cache_config: CacheConfig
+) -> Result<ClientService, String> {
 
 	// create dirs used by parity
 	try!(dirs.create_dirs(false, false));

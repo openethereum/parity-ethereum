@@ -15,15 +15,18 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Parity-specific rpc interface.
-use jsonrpc_core::Error;
 
 use std::collections::BTreeMap;
-use v1::helpers::auto_args::{Wrap, Trailing};
+
+use jsonrpc_core::Error;
+use jsonrpc_macros::Trailing;
+
 use v1::types::{
 	H160, H256, H512, U256, Bytes,
 	Peers, Transaction, RpcSettings, Histogram,
 	TransactionStats, LocalTransactionStatus,
-	BlockNumber
+	BlockNumber, ConsensusCapability, VersionInfo,
+	OperationsInfo
 };
 
 build_rpc_trait! {
@@ -155,5 +158,17 @@ build_rpc_trait! {
 		/// Returns accounts information.
 		#[rpc(name = "parity_accounts")]
 		fn accounts(&self) -> Result<BTreeMap<String, BTreeMap<String, String>>, Error>;
+
+		/// Returns information on current consensus capability.
+		#[rpc(name = "parity_consensusCapability")]
+		fn consensus_capability(&self) -> Result<ConsensusCapability, Error>;
+
+		/// Get our version information in a nice object.
+		#[rpc(name = "parity_versionInfo")]
+		fn version_info(&self) -> Result<VersionInfo, Error>;
+
+		/// Get information concerning the latest releases if available.
+		#[rpc(name = "parity_releasesInfo")]
+		fn releases_info(&self) -> Result<Option<OperationsInfo>, Error>;
 	}
 }

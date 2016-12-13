@@ -1,5 +1,5 @@
 [package]
-description = "Ethcore client."
+description = "Parity Ethereum client"
 name = "parity"
 version = "1.5.0"
 license = "GPL-3.0"
@@ -20,7 +20,7 @@ time = "0.1"
 num_cpus = "0.2"
 number_prefix = "0.2"
 rpassword = "0.2.1"
-semver = "0.2"
+semver = "0.5"
 ansi_term = "0.7"
 lazy_static = "0.2"
 regex = "0.1"
@@ -31,23 +31,24 @@ serde_json = "0.8.0"
 hyper = { version = "0.9", default-features = false }
 ctrlc = { git = "https://github.com/ethcore/rust-ctrlc.git" }
 fdlimit = "0.1"
+clippy = { version = "0.0.103", optional = true}
+rlp = { path = "util/rlp" }
+ethsync = { path = "sync" }
 ethcore = { path = "ethcore" }
 ethcore-util = { path = "util" }
-ethsync = { path = "sync" }
 ethcore-io = { path = "util/io" }
 ethcore-devtools = { path = "devtools" }
 ethcore-rpc = { path = "rpc" }
 ethcore-signer = { path = "signer" }
-ethcore-ipc-nano = { path = "ipc/nano" }
 ethcore-ipc = { path = "ipc/rpc" }
+ethcore-ipc-nano = { path = "ipc/nano" }
 ethcore-ipc-hypervisor = { path = "ipc/hypervisor" }
 ethcore-logger = { path = "logger" }
-ethcore-hash-fetch = { path = "ethcore/hash-fetch" }
-rlp = { path = "util/rlp" }
 ethcore-stratum = { path = "stratum" }
 ethcore-dapps = { path = "dapps", optional = true }
-clippy = { version = "0.0.103", optional = true}
 ethcore-light = { path = "ethcore/light" }
+parity-hash-fetch = { path = "hash-fetch" }
+parity-updater = { path = "updater" } 
 
 [target.'cfg(windows)'.dependencies]
 winapi = "0.2"
