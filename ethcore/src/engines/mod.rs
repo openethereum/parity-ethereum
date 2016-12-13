@@ -20,7 +20,7 @@ mod null_engine;
 mod instant_seal;
 mod basic_authority;
 mod authority_round;
-mod validator;
+mod validator_set;
 
 pub use self::null_engine::NullEngine;
 pub use self::instant_seal::InstantSeal;

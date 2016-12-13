@@ -37,6 +37,7 @@ use service::ClientIoMessage;
 use transaction::SignedTransaction;
 use env_info::EnvInfo;
 use builtin::Builtin;
+use super::validator_set::{ValidatorSet, SimpleList};
 
 /// `AuthorityRound` params.
 #[derive(Debug, PartialEq)]
@@ -46,9 +47,7 @@ pub struct AuthorityRoundParams {
 	/// Time to wait before next block or authority switching.
 	pub step_duration: Duration,
 	/// Valid authorities.
-	pub authorities: Vec<Address>,
-	/// Number of authorities.
-	pub authority_n: usize,
+	pub authorities: SimpleList,
 	/// Starting step,
 	pub start_step: Option<u64>,
 }
@@ -58,8 +57,7 @@ impl From<ethjson::spec::AuthorityRoundParams> for AuthorityRoundParams {
 		AuthorityRoundParams {
 			gas_limit_bound_divisor: p.gas_limit_bound_divisor.into(),
 			step_duration: Duration::from_secs(p.step_duration.into()),
-			authority_n: p.authorities.len(),
-			authorities: p.authorities.into_iter().map(Into::into).collect::<Vec<_>>(),
+			authorities: SimpleList::new(p.authorities.into_iter().map(Into::into).collect::<Vec<_>>()),
 			start_step: p.start_step.map(Into::into),
 		}
 	}
@@ -132,13 +130,12 @@ impl AuthorityRound {
 		}
 	}
 
-	fn step_proposer(&self, step: usize) -> &Address {
-		let p = &self.our_params;
-		p.authorities.get(step % p.authority_n).expect("There are authority_n authorities; taking number modulo authority_n gives number in authority_n range; qed")
+	fn step_proposer(&self, step: usize) -> Address {
+		self.our_params.authorities.get(step)
 	}
 
 	fn is_step_proposer(&self, step: usize, address: &Address) -> bool {
-		self.step_proposer(step) == address
+		self.step_proposer(step) == *address
 	}
 }
 
@@ -266,7 +263,7 @@ impl Engine for AuthorityRound {
 		// Give one step slack if step is lagging, double vote is still not possible.
 		if header_step <= self.step() + 1 {
 			let proposer_signature = try!(header_signature(header));
-			let ok_sig = try!(verify_address(self.step_proposer(header_step), &proposer_signature, &header.bare_hash()));
+			let ok_sig = try!(verify_address(&self.step_proposer(header_step), &proposer_signature, &header.bare_hash()));
 			if ok_sig {
 				Ok(())
 			} else {

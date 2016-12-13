@@ -16,6 +16,7 @@
 
 //! A blockchain engine that supports a basic, non-BFT proof-of-authority.
 
+use util::*;
 use ethkey::{recover, public_to_address};
 use account_provider::AccountProvider;
 use block::*;
@@ -28,8 +29,7 @@ use evm::Schedule;
 use ethjson;
 use header::Header;
 use transaction::SignedTransaction;
-
-use util::*;
+use super::validator_set::{ValidatorSet, SimpleList};
 
 /// `BasicAuthority` params.
 #[derive(Debug, PartialEq)]
@@ -39,7 +39,7 @@ pub struct BasicAuthorityParams {
 	/// Block duration.
 	pub duration_limit: u64,
 	/// Valid signatories.
-	pub authorities: HashSet<Address>,
+	pub authorities: SimpleList,
 }
 
 impl From<ethjson::spec::BasicAuthorityParams> for BasicAuthorityParams {
@@ -47,7 +47,7 @@ impl From<ethjson::spec::BasicAuthorityParams> for BasicAuthorityParams {
 		BasicAuthorityParams {
 			gas_limit_bound_divisor: p.gas_limit_bound_divisor.into(),
 			duration_limit: p.duration_limit.into(),
-			authorities: p.authorities.into_iter().map(Into::into).collect::<HashSet<_>>(),
+			authorities: SimpleList::new(p.authorities.into_iter().map(Into::into).collect::<Vec<_>>()),
 		}
 	}
 }

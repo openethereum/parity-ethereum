@@ -14,32 +14,19 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-/// Preconfigured validator list.
+/// Validator lists.
+
+mod simple_list;
+mod contract;
+
+pub use self::simple_list::SimpleList;
+pub use self::contract::ValidatorContract;
 
 use util::Address;
-use super::ValidatorSet;
 
-struct SimpleList {
-	validators: Vec<Address>,
-	validator_n: usize,
-}
-
-impl SimpleList {
-	pub fn new(validators: Vec<Address>) -> Self {
-		SimpleList {
-			validator_n: validators.len(),
-			validators: validators,
-		}
-	}
-}
-
-
-impl ValidatorSet for SimpleList {
-	fn contains(&self, address: &Address) -> bool {
-		self.validators.contains(address)
-	}
-
-	fn get(&self, nonce: usize) -> &Address {
-		self.validators.get(nonce % self.validator_n).expect("There are validator_n authorities; taking number modulo validator_n gives number in validator_n range; qed")
-	}
+pub trait ValidatorSet {
+	/// Checks if a given address is a validator.
+	fn contains(&self, address: &Address) -> bool;
+	/// Draws an validator nonce modulo number of validators.
+	fn get(&self, nonce: usize) -> Address;
 }
