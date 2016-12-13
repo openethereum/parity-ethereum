@@ -704,6 +704,7 @@ impl BlockChainClient for TestBlockChainClient {
 		PruningInfo {
 			earliest_chain: 1,
 			earliest_state: 1,
+			history_size: None,
 		}
 	}
 
