@@ -28,6 +28,9 @@
 
 use std::collections::{BTreeMap, HashMap};
 
+use client::cht;
+
+use ethcore::block_status::BlockStatus;
 use ethcore::error::BlockError;
 use ethcore::ids::BlockId;
 use ethcore::views::HeaderView;
@@ -35,13 +38,10 @@ use util::{Bytes, H256, U256, Mutex, RwLock};
 
 use smallvec::SmallVec;
 
-/// Delay this many blocks before producing a CHT. required to be at
-/// least 1 but should be more in order to be resilient against reorgs.
-const CHT_DELAY: u64 = 2048;
-
-/// Generate CHT roots of this size.
-// TODO: move CHT definition/creation into more generic module.
-const CHT_SIZE: u64 = 2048;
+/// Store at least this many candidate headers at all times.
+/// Also functions as the delay for computing CHTs as they aren't
+/// relevant to any blocks we've got in memory.
+const HISTORY: u64 = 2048;
 
 /// Information about a block.
 #[derive(Debug, Clone)]
@@ -94,6 +94,10 @@ impl HeaderChain {
 	}
 
 	/// Insert a pre-verified header.
+	///
+	/// This blindly trusts that the data given to it is
+	/// a) valid RLP encoding of a header and
+	/// b) has sensible data contained within it.
 	pub fn insert(&self, header: Bytes) -> Result<(), BlockError> {
 		let view = HeaderView::new(&header);
 		let hash = view.hash();
@@ -140,7 +144,8 @@ impl HeaderChain {
 				let canon = entry.candidates.iter().find(|x| x.hash == canon_hash)
 					.expect("blocks are only inserted if parent is present; or this is the block we just added; qed");
 
-				// what about reorgs > CHT_SIZE + CHT_DELAY?
+				// what about reorgs > cht::SIZE + HISTORY?
+				// resetting to the last block of a given CHT should be possible.
 				canon_hash = canon.parent_hash;
 			}
 
@@ -152,11 +157,11 @@ impl HeaderChain {
 
 			// produce next CHT root if it's time.
 			let earliest_era = *candidates.keys().next().expect("at least one era just created; qed");
-			if earliest_era + CHT_DELAY + CHT_SIZE <= number {
-				let mut values = Vec::with_capacity(CHT_SIZE as usize);
+			if earliest_era + HISTORY + cht::SIZE <= number {
+				let mut values = Vec::with_capacity(cht::SIZE as usize);
 				{
 					let mut headers = self.headers.write();
-					for i in (0..CHT_SIZE).map(|x| x + earliest_era) {
+					for i in (0..cht::SIZE).map(|x| x + earliest_era) {
 						let era_entry = candidates.remove(&i)
 							.expect("all eras are sequential with no gaps; qed");
 
@@ -172,7 +177,7 @@ impl HeaderChain {
 				}
 
 				let cht_root = ::util::triehash::trie_root(values);
-				debug!(target: "chain", "Produced CHT {} root: {:?}", (earliest_era - 1) % CHT_SIZE, cht_root);
+				debug!(target: "chain", "Produced CHT {} root: {:?}", (earliest_era - 1) % cht::SIZE, cht_root);
 
 				self.cht_roots.lock().push(cht_root);
 			}
@@ -238,6 +243,14 @@ impl HeaderChain {
 			})
 		}
 	}
+
+	/// Get block status.
+	pub fn status(&self, hash: &H256) -> BlockStatus {
+		match self.headers.read().contains_key(hash) {
+			true => BlockStatus::InChain,
+			false => BlockStatus::Unknown,
+		}
+	}
 }
 
 #[cfg(test)]
@@ -248,7 +261,7 @@ mod tests {
 	use ethcore::spec::Spec;
 
 	#[test]
-	fn it_works() {
+	fn basic_chain() {
 		let spec = Spec::new_test();
 		let genesis_header = spec.genesis_header();
 
