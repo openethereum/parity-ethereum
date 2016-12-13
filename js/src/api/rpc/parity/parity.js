@@ -54,6 +54,11 @@ export default class Parity {
       .execute('parity_checkRequest', inNumber16(requestId));
   }
 
+  consensusCapability () {
+    return this._transport
+      .execute('parity_consensusCapability');
+  }
+
   dappsPort () {
     return this._transport
       .execute('parity_dappsPort')
@@ -88,6 +93,11 @@ export default class Parity {
   enode () {
     return this._transport
       .execute('parity_enode');
+  }
+
+  executeUpgrade () {
+    return this._transport
+      .execute('parity_executeUpgrade');
   }
 
   extraData () {
@@ -243,6 +253,11 @@ export default class Parity {
       .then(outAddress);
   }
 
+  releasesInfo () {
+    return this._transport
+      .execute('parity_releasesInfo');
+  }
+
   removeReservedPeer (encode) {
     return this._transport
       .execute('parity_removeReservedPeer', encode);
@@ -316,28 +331,13 @@ export default class Parity {
       .then(outNumber);
   }
 
-  consensusCapability () {
-    return this._transport
-      .execute('parity_consensusCapability');
-  }
-
-  versionInfo () {
-    return this._transport
-      .execute('parity_versionInfo');
-  }
-
-  releasesInfo () {
-    return this._transport
-      .execute('parity_releasesInfo');
-  }
-
   upgradeReady () {
     return this._transport
       .execute('parity_upgradeReady');
   }
 
-  executeUpgrade () {
+  versionInfo () {
     return this._transport
-      .execute('parity_executeUpgrade');
+      .execute('parity_versionInfo');
   }
 }

@@ -14,28 +14,18 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import React, { Component, PropTypes } from 'react';
+import AddIcon from 'material-ui/svg-icons/content/add';
+import CancelIcon from 'material-ui/svg-icons/content/clear';
+import DoneIcon from 'material-ui/svg-icons/action/done-all';
+import PrevIcon from 'material-ui/svg-icons/navigation/arrow-back';
+import NextIcon from 'material-ui/svg-icons/navigation/arrow-forward';
+import SnoozeIcon from 'material-ui/svg-icons/av/snooze';
 
-import { nodeOrStringProptype } from '~/util/proptypes';
-
-import styles from './busy.css';
-
-export default class Busy extends Component {
-  static propTypes = {
-    children: PropTypes.node,
-    state: nodeOrStringProptype(),
-    title: nodeOrStringProptype()
-  }
-
-  render () {
-    const { children, state, title } = this.props;
-
-    return (
-      <div className={ styles.center }>
-        <div className={ styles.title }>{ title }</div>
-        <div className={ styles.state }>{ state }</div>
-        { children }
-      </div>
-    );
-  }
-}
+export {
+  AddIcon,
+  CancelIcon,
+  DoneIcon,
+  PrevIcon,
+  NextIcon,
+  SnoozeIcon
+};
