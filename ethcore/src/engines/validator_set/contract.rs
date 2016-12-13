@@ -14,11 +14,11 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-/// Preconfigured validator list.
+/// Validator set maintained in a contract.
 
 use std::sync::Weak;
 use util::*;
-use client::Client;
+use client::{Client, BlockChainClient};
 use client::chain_notify::ChainNotify;
 use super::ValidatorSet;
 use super::simple_list::SimpleList;
@@ -47,9 +47,16 @@ impl ChainNotify for ValidatorContract {
 		_: Vec<H256>,
 		_: Vec<H256>,
 		_: Vec<H256>,
-		_duration: u64)
-	{
-		//self.client.is_major_importing()
+		_duration: u64) {
+		if let Some(client) = self.client.read().upgrade() {
+
+			// We rely on a secure state. Bail if we're unsure about it.
+			if !client.chain_info().security_level().is_full() {
+				return;
+			}
+
+			
+		}
 	}
 }
 
