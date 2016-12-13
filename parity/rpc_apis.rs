@@ -20,13 +20,13 @@ use std::cmp::PartialEq;
 use std::str::FromStr;
 use std::sync::Arc;
 use util::RotatingLogger;
-use jsonrpc_core::{Metadata, MetaIoHandler};
+use jsonrpc_core::{MetaIoHandler};
 use ethcore::miner::{Miner, ExternalMiner};
 use ethcore::client::Client;
 use ethcore::account_provider::AccountProvider;
 use ethcore::snapshot::SnapshotService;
 use ethsync::{ManageNetwork, SyncProvider};
-use ethcore_rpc::NetworkSettings;
+use ethcore_rpc::{Metadata, NetworkSettings};
 pub use ethcore_rpc::SignerService;
 
 
@@ -179,7 +179,7 @@ macro_rules! add_signing_methods {
 	}
 }
 
-pub fn setup_rpc(mut handler: MetaIoHandler<()>, deps: Arc<Dependencies>, apis: ApiSet) -> MetaIoHandler<()> {
+pub fn setup_rpc(mut handler: MetaIoHandler<Metadata>, deps: Arc<Dependencies>, apis: ApiSet) -> MetaIoHandler<Metadata> {
 	use ethcore_rpc::v1::*;
 
 	// it's turned into vector, cause ont of the cases requires &[]

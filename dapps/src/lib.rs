@@ -31,6 +31,7 @@ extern crate jsonrpc_core;
 extern crate jsonrpc_http_server;
 extern crate mime_guess;
 extern crate rustc_serialize;
+extern crate ethcore_rpc;
 extern crate ethcore_util as util;
 extern crate ethcore_hash_fetch as hash_fetch;
 extern crate linked_hash_map;
@@ -64,7 +65,7 @@ use std::net::SocketAddr;
 use std::collections::HashMap;
 
 use hash_fetch::urlhint::ContractClient;
-use jsonrpc_core::Metadata;
+use ethcore_rpc::Metadata;
 use jsonrpc_core::reactor::RpcHandler;
 use router::auth::{Authorization, NoAuth, HttpBasicAuth};
 
@@ -123,7 +124,7 @@ impl ServerBuilder {
 
 	/// Asynchronously start server with no authentication,
 	/// returns result with `Server` handle on success or an error.
-	pub fn start_unsecured_http<M: Metadata>(self, addr: &SocketAddr, handler: RpcHandler<M>) -> Result<Server, ServerError> {
+	pub fn start_unsecured_http(self, addr: &SocketAddr, handler: RpcHandler<Metadata>) -> Result<Server, ServerError> {
 		Server::start_http(
 			addr,
 			self.allowed_hosts.clone(),
@@ -138,7 +139,7 @@ impl ServerBuilder {
 
 	/// Asynchronously start server with `HTTP Basic Authentication`,
 	/// return result with `Server` handle on success or an error.
-	pub fn start_basic_auth_http<M: Metadata>(self, addr: &SocketAddr, username: &str, password: &str, handler: RpcHandler<M>) -> Result<Server, ServerError> {
+	pub fn start_basic_auth_http(self, addr: &SocketAddr, username: &str, password: &str, handler: RpcHandler<Metadata>) -> Result<Server, ServerError> {
 
 		Server::start_http(
 			addr,
@@ -186,11 +187,11 @@ impl Server {
 		}
 	}
 
-	fn start_http<A: Authorization + 'static, M: Metadata>(
+	fn start_http<A: Authorization + 'static>(
 		addr: &SocketAddr,
 		hosts: Option<Vec<String>>,
 		authorization: A,
-		handler: RpcHandler<M>,
+		handler: RpcHandler<Metadata>,
 		dapps_path: String,
 		signer_address: Option<(String, u16)>,
 		registrar: Arc<ContractClient>,

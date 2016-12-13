@@ -54,7 +54,6 @@ extern crate ethcore_devtools as devtools;
 use std::sync::Arc;
 use std::net::SocketAddr;
 use io::PanicHandler;
-use jsonrpc_core::Metadata;
 use jsonrpc_core::reactor::RpcHandler;
 
 pub use ipc::{Server as IpcServer, Error as IpcServerError};
@@ -63,8 +62,40 @@ pub mod v1;
 pub use v1::{SigningQueue, SignerService, ConfirmationsQueue, NetworkSettings};
 pub use v1::block_import::is_major_importing;
 
+/// RPC methods metadata.
+#[derive(Clone, Default)]
+pub struct Metadata {
+	/// Current dapplication identifier
+	pub dapp_id: Option<String>,
+	/// Request origin
+	pub origin: Origin,
+}
+
+/// RPC request origin
+#[derive(Clone)]
+pub enum Origin {
+	/// RPC server
+	Rpc,
+	/// Dapps server
+	Dapps,
+	/// IPC server
+	Ipc,
+	/// Signer
+	Signer,
+	/// Unknown
+	Unknown,
+}
+
+impl Default for Origin {
+	fn default() -> Self {
+		Origin::Unknown
+	}
+}
+
+impl jsonrpc_core::Metadata for Metadata {}
+
 /// Start http server asynchronously and returns result with `Server` handle on success or an error.
-pub fn start_http<M: Metadata>(
+pub fn start_http<M: jsonrpc_core::Metadata>(
 	addr: &SocketAddr,
 	cors_domains: Option<Vec<String>>,
 	allowed_hosts: Option<Vec<String>>,
@@ -92,7 +123,7 @@ pub fn start_http<M: Metadata>(
 }
 
 /// Start ipc server asynchronously and returns result with `Server` handle on success or an error.
-pub fn start_ipc<M: Metadata>(addr: &str, handler: RpcHandler<M>) -> Result<ipc::Server<M>, ipc::Error> {
+pub fn start_ipc<M: jsonrpc_core::Metadata>(addr: &str, handler: RpcHandler<M>) -> Result<ipc::Server<M>, ipc::Error> {
 	let server = try!(ipc::Server::with_rpc_handler(addr, handler));
 	try!(server.run_async());
 	Ok(server)

@@ -347,6 +347,7 @@ dependencies = [
  "env_logger 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethcore-devtools 1.5.0",
  "ethcore-hash-fetch 1.5.0",
+ "ethcore-rpc 1.5.0",
  "ethcore-util 1.5.0",
  "fetch 0.1.0",
  "hyper 0.10.0-a.0 (git+https://github.com/ethcore/hyper)",

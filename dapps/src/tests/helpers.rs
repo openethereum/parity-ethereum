@@ -20,7 +20,7 @@ use std::ops::Deref;
 use std::sync::Arc;
 use rustc_serialize::hex::FromHex;
 use env_logger::LogBuilder;
-use jsonrpc_core::IoHandler;
+use jsonrpc_core::MetaIoHandler;
 use jsonrpc_core::reactor::RpcEventLoop;
 
 use ServerBuilder;
@@ -95,7 +95,7 @@ pub fn init_server(hosts: Option<Vec<String>>, is_syncing: bool) -> (ServerLoop,
 		.signer_address(Some(("127.0.0.1".into(), SIGNER_PORT)))
 		.allowed_hosts(hosts);
 	let event_loop = RpcEventLoop::spawn();
-	let handler = event_loop.handler(Arc::new(IoHandler::default().into()));
+	let handler = event_loop.handler(Arc::new(MetaIoHandler::default()));
 	let server = builder.start_unsecured_http(&"127.0.0.1:0".parse().unwrap(), handler).unwrap();
 	(
 		ServerLoop {
@@ -113,7 +113,7 @@ pub fn serve_with_auth(user: &str, pass: &str) -> ServerLoop {
 	dapps_path.push("non-existent-dir-to-prevent-fs-files-from-loading");
 
 	let event_loop = RpcEventLoop::spawn();
-	let handler = event_loop.handler(Arc::new(IoHandler::default().into()));
+	let handler = event_loop.handler(Arc::new(MetaIoHandler::default()));
 	let server = ServerBuilder::new(dapps_path.to_str().unwrap().into(), registrar)
 		.signer_address(Some(("127.0.0.1".into(), SIGNER_PORT)))
 		.allowed_hosts(None)
