@@ -26,8 +26,8 @@ lazy_static = "0.2"
 regex = "0.1"
 isatty = "0.1"
 toml = "0.2"
-serde = "0.8.0"
-serde_json = "0.8.0"
+serde = "0.8"
+serde_json = "0.8"
 hyper = { version = "0.9", default-features = false }
 ctrlc = { git = "https://github.com/ethcore/rust-ctrlc.git" }
 fdlimit = "0.1"
