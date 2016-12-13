@@ -32,6 +32,7 @@ use ethcore::mode::Mode;
 use ethcore::account_provider::AccountProvider;
 
 use jsonrpc_core::Error;
+use jsonrpc_macros::Trailing;
 use v1::traits::Parity;
 use v1::types::{
 	Bytes, U256, H160, H256, H512,
@@ -41,7 +42,6 @@ use v1::types::{
 };
 use v1::helpers::{errors, SigningQueue, SignerService, NetworkSettings};
 use v1::helpers::dispatch::DEFAULT_MAC;
-use v1::helpers::auto_args::Trailing;
 
 /// Parity implementation.
 pub struct ParityClient<C, M, S: ?Sized> where
