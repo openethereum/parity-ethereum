@@ -54,6 +54,7 @@ extern crate ansi_term;
 extern crate regex;
 extern crate isatty;
 extern crate toml;
+extern crate app_dirs;
 
 #[macro_use]
 extern crate ethcore_util as util;

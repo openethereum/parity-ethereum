@@ -16,6 +16,7 @@
 
 #[macro_use]
 mod usage;
+use dir::default_data_path;
 
 usage! {
 	{
@@ -82,7 +83,7 @@ usage! {
 		flag_mode_timeout: u64 = 300u64, or |c: &Config| otry!(c.parity).mode_timeout.clone(),
 		flag_mode_alarm: u64 = 3600u64, or |c: &Config| otry!(c.parity).mode_alarm.clone(),
 		flag_chain: String = "homestead", or |c: &Config| otry!(c.parity).chain.clone(),
-		flag_db_path: String = "$HOME/.parity", or |c: &Config| otry!(c.parity).db_path.clone(),
+		flag_db_path: String = default_data_path(), or |c: &Config| otry!(c.parity).db_path.clone(),
 		flag_keys_path: String = "$DATA/keys", or |c: &Config| otry!(c.parity).keys_path.clone(),
 		flag_identity: String = "", or |c: &Config| otry!(c.parity).identity.clone(),
 

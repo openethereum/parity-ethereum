@@ -188,7 +188,7 @@ pub fn to_bootnodes(bootnodes: &Option<String>) -> Result<Vec<String>, String> {
 pub fn default_network_config() -> ::ethsync::NetworkConfiguration {
 	use ethsync::{NetworkConfiguration, AllowIP};
 	NetworkConfiguration {
-		config_path: Some(replace_home("", "$HOME/.parity/network")),
+		config_path: Some(replace_home(&::dir::default_data_path(), "$DATA/network")),
 		net_config_path: None,
 		listen_address: Some("0.0.0.0:30303".into()),
 		public_address: None,

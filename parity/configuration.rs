@@ -739,8 +739,9 @@ mod tests {
 	use ethcore_rpc::NetworkSettings;
 	use ethcore::client::{VMType, BlockId};
 	use ethcore::miner::{MinerOptions, PrioritizationStrategy};
-	use helpers::{replace_home, default_network_config};
+	use helpers::{default_network_config};
 	use run::RunCmd;
+	use dir::Directories;
 	use signer::{Configuration as SignerConfiguration};
 	use blockchain::{BlockchainCmd, ImportBlockchain, ExportBlockchain, DataFormat, ExportState};
 	use presale::ImportWallet;
@@ -772,7 +773,7 @@ mod tests {
 		let conf = parse(&args);
 		assert_eq!(conf.into_command().unwrap().cmd, Cmd::Account(AccountCmd::New(NewAccount {
 			iterations: 10240,
-			path: replace_home("", "$HOME/.parity/keys"),
+			path: Directories::default().keys,
 			password_file: None,
 			spec: SpecType::default(),
 		})));
@@ -784,7 +785,7 @@ mod tests {
 		let conf = parse(&args);
 		assert_eq!(conf.into_command().unwrap().cmd, Cmd::Account(
 			AccountCmd::List(ListAccounts {
-				path: replace_home("", "$HOME/.parity/keys"),
+				path: Directories::default().keys,
 				spec: SpecType::default(),
 			})
 		));
@@ -796,7 +797,7 @@ mod tests {
 		let conf = parse(&args);
 		assert_eq!(conf.into_command().unwrap().cmd, Cmd::Account(AccountCmd::Import(ImportAccounts {
 			from: vec!["my_dir".into(), "another_dir".into()],
-			to: replace_home("", "$HOME/.parity/keys"),
+			to: Directories::default().keys,
 			spec: SpecType::default(),
 		})));
 	}
@@ -807,7 +808,7 @@ mod tests {
 		let conf = parse(&args);
 		assert_eq!(conf.into_command().unwrap().cmd, Cmd::ImportPresaleWallet(ImportWallet {
 			iterations: 10240,
-			path: replace_home("", "$HOME/.parity/keys"),
+			path: Directories::default().keys,
 			wallet_path: "my_wallet.json".into(),
 			password_file: Some("pwd".into()),
 			spec: SpecType::default(),
@@ -909,7 +910,7 @@ mod tests {
 	fn test_command_signer_new_token() {
 		let args = vec!["parity", "signer", "new-token"];
 		let conf = parse(&args);
-		let expected = replace_home("", "$HOME/.parity/signer");
+		let expected = Directories::default().signer;
 		assert_eq!(conf.into_command().unwrap().cmd, Cmd::SignerToken(SignerConfiguration {
 			enabled: true,
 			signer_path: expected,

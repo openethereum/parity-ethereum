@@ -19,6 +19,7 @@ use std::path::{PathBuf, Path};
 use util::{H64, H256};
 use util::journaldb::Algorithm;
 use helpers::replace_home;
+use app_dirs::{AppInfo, get_app_root, AppDataType};
 
 // this const is irrelevent cause we do have migrations now,
 // but we still use it for backwards compatibility
@@ -34,11 +35,12 @@ pub struct Directories {
 
 impl Default for Directories {
 	fn default() -> Self {
+		let data_dir = default_data_path();
 		Directories {
-			data: replace_home("", "$HOME/.parity"),
-			keys: replace_home("", "$HOME/.parity/keys"),
-			signer: replace_home("", "$HOME/.parity/signer"),
-			dapps: replace_home("", "$HOME/.parity/dapps"),
+			data: replace_home(&data_dir, "$DATA"),
+			keys: replace_home(&data_dir, "$DATA/keys"),
+			signer: replace_home(&data_dir, "$DATA/signer"),
+			dapps: replace_home(&data_dir, "$DATA/dapps"),
 		}
 	}
 }
@@ -188,6 +190,11 @@ impl DatabaseDirectories {
 	}
 }
 
+pub fn default_data_path() -> String {
+	let app_info = AppInfo { name: "parity", author: "parity" };
+	get_app_root(AppDataType::UserData, &app_info).map(|p| p.to_string_lossy().into_owned()).unwrap_or_else(|_| "$HOME/.parity".to_owned())
+}
+
 #[cfg(test)]
 mod tests {
 	use super::Directories;
@@ -195,11 +202,12 @@ mod tests {
 
 	#[test]
 	fn test_default_directories() {
+		let data_dir = super::default_data_path();
 		let expected = Directories {
-			data: replace_home("", "$HOME/.parity"),
-			keys: replace_home("", "$HOME/.parity/keys"),
-			signer: replace_home("", "$HOME/.parity/signer"),
-			dapps: replace_home("", "$HOME/.parity/dapps"),
+			data: replace_home(&data_dir, "$DATA"),
+			keys: replace_home(&data_dir, "$DATA/keys"),
+			signer: replace_home(&data_dir, "$DATA/signer"),
+			dapps: replace_home(&data_dir, "$DATA/dapps"),
 		};
 		assert_eq!(expected, Directories::default());
 	}

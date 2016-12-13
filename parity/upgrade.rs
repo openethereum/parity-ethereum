@@ -23,7 +23,8 @@ use std::env;
 use std::io;
 use std::io::{Read, Write};
 use std::path::{PathBuf, Path};
-use dir::DatabaseDirectories;
+use dir::{DatabaseDirectories, default_data_path};
+use helpers::replace_home;
 use util::journaldb::Algorithm;
 
 #[cfg_attr(feature="dev", allow(enum_variant_names))]
@@ -196,6 +197,11 @@ fn upgrade_user_defaults(dirs: &DatabaseDirectories) {
 }
 
 pub fn upgrade_data_paths(dirs: &DatabaseDirectories, pruning: Algorithm) {
+	let legacy_root_path = replace_home("", "$HOME/.parity");
+	let default_path = default_data_path();
+	if legacy_root_path != dirs.path && dirs.path == default_path {
+		upgrade_dir_location(&PathBuf::from(legacy_root_path), &PathBuf::from(&dirs.path));
+	}
 	upgrade_dir_location(&dirs.legacy_version_path(pruning), &dirs.db_path(pruning));
 	upgrade_dir_location(&dirs.legacy_snapshot_path(), &dirs.snapshot_path());
 	upgrade_dir_location(&dirs.legacy_network_path(), &dirs.network_path());

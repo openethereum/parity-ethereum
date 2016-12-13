@@ -130,9 +130,6 @@ pub fn execute(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<(), String> {
 	// increase max number of open files
 	raise_fd_limit();
 
-	// create dirs used by parity
-	try!(cmd.dirs.create_dirs(cmd.dapps_conf.enabled, cmd.signer_conf.enabled));
-
 	// load spec
 	let spec = try!(cmd.spec.spec());
 
@@ -168,6 +165,9 @@ pub fn execute(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<(), String> {
 
 	// execute upgrades
 	try!(execute_upgrades(&db_dirs, algorithm, cmd.compaction.compaction_profile(db_dirs.db_root_path().as_path())));
+
+	// create dirs used by parity
+	try!(cmd.dirs.create_dirs(cmd.dapps_conf.enabled, cmd.signer_conf.enabled));
 
 	// run in daemon mode
 	if let Some(pid_file) = cmd.daemon {

@@ -20,6 +20,7 @@ use rpc_apis;
 use ethcore::client::Client;
 use ethsync::SyncProvider;
 use helpers::replace_home;
+use dir::default_data_path;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Configuration {
@@ -34,6 +35,7 @@ pub struct Configuration {
 
 impl Default for Configuration {
 	fn default() -> Self {
+		let data_dir = default_data_path();
 		Configuration {
 			enabled: true,
 			interface: "127.0.0.1".into(),
@@ -41,7 +43,7 @@ impl Default for Configuration {
 			hosts: Some(Vec::new()),
 			user: None,
 			pass: None,
-			dapps_path: replace_home("", "$HOME/.parity/dapps"),
+			dapps_path: replace_home(&data_dir, "$DATA/dapps"),
 		}
 	}
 }

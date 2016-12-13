@@ -149,9 +149,6 @@ fn execute_import(cmd: ImportBlockchain) -> Result<String, String> {
 	// Setup panic handler
 	let panic_handler = PanicHandler::new_in_arc();
 
-	// create dirs used by parity
-	try!(cmd.dirs.create_dirs(false, false));
-
 	// load spec file
 	let spec = try!(cmd.spec.spec());
 
@@ -184,6 +181,9 @@ fn execute_import(cmd: ImportBlockchain) -> Result<String, String> {
 
 	// execute upgrades
 	try!(execute_upgrades(&db_dirs, algorithm, cmd.compaction.compaction_profile(db_dirs.db_root_path().as_path())));
+
+	// create dirs used by parity
+	try!(cmd.dirs.create_dirs(false, false));
 
 	// prepare client config
 	let mut client_config = to_client_config(
@@ -320,9 +320,6 @@ fn start_client(
 	wal: bool,
 	cache_config: CacheConfig) -> Result<ClientService, String> {
 
-	// create dirs used by parity
-	try!(dirs.create_dirs(false, false));
-
 	// load spec file
 	let spec = try!(spec.spec());
 
@@ -355,6 +352,9 @@ fn start_client(
 
 	// execute upgrades
 	try!(execute_upgrades(&db_dirs, algorithm, compaction.compaction_profile(db_dirs.db_root_path().as_path())));
+
+	// create dirs used by parity
+	try!(dirs.create_dirs(false, false));
 
 	// prepare client config
 	let client_config = to_client_config(&cache_config, Mode::Active, tracing, fat_db, compaction, wal, VMType::default(), "".into(), algorithm, pruning_history, true);
