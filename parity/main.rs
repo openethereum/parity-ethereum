@@ -226,7 +226,7 @@ fn main_direct(can_restart: bool) -> i32 {
 	} else {
 		match start(can_restart) {
 			Ok(result) => match result {
-				PostExecutionAction::Print(s) => { info!("{}", s); 0 },
+				PostExecutionAction::Print(s) => { println!("{}", s); 0 },
 				PostExecutionAction::Restart => PLEASE_RESTART_EXIT_CODE,
 				PostExecutionAction::Quit => 0,
 			},
