@@ -21,7 +21,7 @@ use v1::types::{RichBlock, BlockNumber, Bytes, CallRequest, Filter, FilterChange
 use v1::types::{Log, Receipt, SyncStatus, Transaction, Work};
 use v1::types::{H64, H160, H256, U256};
 
-use v1::helpers::auto_args::{Trailing, Wrap};
+use jsonrpc_macros::Trailing;
 
 build_rpc_trait! {
 	/// Eth rpc interface.

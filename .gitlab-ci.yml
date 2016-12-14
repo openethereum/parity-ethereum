@@ -231,10 +231,10 @@ linux-armv6:
   stage: build
   image: ethcore/rust-armv6:latest
   only:
-#    - beta
+    - beta
 #    - tags
 #    - stable
-    - triggers
+#    - triggers
   script:
     - export CC=arm-linux-gnueabi-gcc
     - export CXX=arm-linux-gnueabi-g++
@@ -350,7 +350,7 @@ windows:
     - set RUST_BACKTRACE=1
     - set RUSTFLAGS=%RUSTFLAGS%
     - rustup default stable-x86_64-pc-windows-msvc
-    - cargo build -j 8 --release #%CARGOFLAGS%
+    - cargo build --release #%CARGOFLAGS%
     - curl -sL --url "https://github.com/ethcore/win-build/raw/master/SimpleFC.dll" -o nsis\SimpleFC.dll
     - curl -sL --url "https://github.com/ethcore/win-build/raw/master/vc_redist.x64.exe" -o nsis\vc_redist.x64.exe
     - signtool sign /f %keyfile% /p %certpass% target\release\parity.exe
@@ -408,7 +408,7 @@ test-darwin:
 test-windows:
   stage: test
   only:
-    - triggers
+#    - triggers
   before_script:
     - git submodule update --init --recursive
   script:

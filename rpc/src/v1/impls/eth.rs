@@ -27,6 +27,7 @@ use time::get_time;
 use ethsync::{SyncProvider};
 use ethcore::miner::{MinerService, ExternalMinerService};
 use jsonrpc_core::*;
+use jsonrpc_macros::Trailing;
 use util::{H256, Address, FixedHash, U256, H64, Uint};
 use util::sha3::*;
 use util::{FromHex, Mutex};
@@ -51,7 +52,6 @@ use v1::types::{
 use v1::helpers::{CallRequest as CRequest, errors, limit_logs};
 use v1::helpers::dispatch::{dispatch_transaction, default_gas_price};
 use v1::helpers::block_import::is_major_importing;
-use v1::helpers::auto_args::Trailing;
 
 const EXTRA_INFO_PROOF: &'static str = "Object exists in in blockchain (fetched earlier), extra_info is always available if object exists; qed";
 

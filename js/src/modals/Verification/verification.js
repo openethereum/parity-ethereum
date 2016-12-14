@@ -20,12 +20,27 @@ import DoneIcon from 'material-ui/svg-icons/action/done-all';
 import CancelIcon from 'material-ui/svg-icons/content/clear';
 
 import { Button, IdentityIcon, Modal } from '~/ui';
+import RadioButtons from '~/ui/Form/RadioButtons';
+import { nullableProptype } from '~/util/proptypes';
+
+import styles from './verification.css';
+
+const methods = {
+  sms: {
+    label: 'SMS Verification', key: 0, value: 'sms',
+    description: (<p className={ styles.noSpacing }>It will be stored on the blockchain that you control a phone number (not <em>which</em>).</p>)
+  },
+  email: {
+    label: 'E-mail Verification', key: 1, value: 'email',
+    description: (<p className={ styles.noSpacing }>The hash of the e-mail address you prove control over will be stored on the blockchain.</p>)
+  }
+};
 
 import {
   LOADING,
   QUERY_DATA,
   POSTING_REQUEST, POSTED_REQUEST,
-  REQUESTING_SMS, QUERY_CODE,
+  REQUESTING_CODE, QUERY_CODE,
   POSTING_CONFIRMATION, POSTED_CONFIRMATION,
   DONE
 } from './store';
@@ -37,34 +52,44 @@ import SendConfirmation from './SendConfirmation';
 import Done from './Done';
 
 @observer
-export default class SMSVerification extends Component {
+export default class Verification extends Component {
   static propTypes = {
-    store: PropTypes.any.isRequired,
+    store: nullableProptype(PropTypes.object.isRequired),
     account: PropTypes.string.isRequired,
+    onSelectMethod: PropTypes.func.isRequired,
     onClose: PropTypes.func.isRequired
   }
 
   static phases = { // mapping (store steps -> steps)
-    [LOADING]: 0,
-    [QUERY_DATA]: 1,
-    [POSTING_REQUEST]: 2, [POSTED_REQUEST]: 2, [REQUESTING_SMS]: 2,
+    [LOADING]: 1, [QUERY_DATA]: 1,
+    [POSTING_REQUEST]: 2, [POSTED_REQUEST]: 2, [REQUESTING_CODE]: 2,
     [QUERY_CODE]: 3,
     [POSTING_CONFIRMATION]: 4, [POSTED_CONFIRMATION]: 4,
     [DONE]: 5
   }
 
+  state = {
+    method: 'sms'
+  };
+
   render () {
-    const phase = SMSVerification.phases[this.props.store.step];
-    const { error, isStepValid } = this.props.store;
+    const { store } = this.props;
+    let phase = 0; let error = false; let isStepValid = true;
+
+    if (store) {
+      phase = Verification.phases[store.step];
+      error = store.error;
+      isStepValid = store.isStepValid;
+    }
 
     return (
       <Modal
         actions={ this.renderDialogActions(phase, error, isStepValid) }
-        title='verify your account via SMS'
+        title='verify your account'
         visible
         current={ phase }
-        steps={ ['Prepare', 'Enter Data', 'Request', 'Enter Code', 'Confirm', 'Done!'] }
-        waiting={ error ? [] : [ 0, 2, 4 ] }
+        steps={ ['Method', 'Enter Data', 'Request', 'Enter Code', 'Confirm', 'Done!'] }
+        waiting={ error ? [] : [ 2, 4 ] }
       >
         { this.renderStep(phase, error) }
       </Modal>
@@ -101,6 +126,13 @@ export default class SMSVerification extends Component {
 
     let action = () => {};
     switch (phase) {
+      case 0:
+        action = () => {
+          const { onSelectMethod } = this.props;
+          const { method } = this.state;
+          onSelectMethod(method);
+        };
+        break;
       case 1:
         action = store.sendRequest;
         break;
@@ -133,26 +165,58 @@ export default class SMSVerification extends Component {
       return (<p>{ error }</p>);
     }
 
+    const { method } = this.state;
+    if (phase === 0) {
+      const values = Object.values(methods);
+      const value = values.findIndex((v) => v.value === method);
+      return (
+        <RadioButtons
+          value={ value < 0 ? 0 : value }
+          values={ values }
+          onChange={ this.selectMethod }
+        />
+      );
+    }
+
     const {
       step,
-      fee, number, isNumberValid, isVerified, hasRequested,
+      fee, isVerified, hasRequested,
       requestTx, isCodeValid, confirmationTx,
       setCode
     } = this.props.store;
 
     switch (phase) {
-      case 0:
-        return (
-          <p>Loading SMS Verification.</p>
-        );
-
       case 1:
-        const { setNumber, setConsentGiven } = this.props.store;
+        if (step === LOADING) {
+          return (<p>Loading verification data.</p>);
+        }
+
+        const { setConsentGiven } = this.props.store;
+
+        const fields = [];
+        if (method === 'sms') {
+          fields.push({
+            key: 'number',
+            label: 'phone number in international format',
+            hint: 'the SMS will be sent to this number',
+            error: this.props.store.isNumberValid ? null : 'invalid number',
+            onChange: this.props.store.setNumber
+          });
+        } else if (method === 'email') {
+          fields.push({
+            key: 'email',
+            label: 'email address',
+            hint: 'the code will be sent to this address',
+            error: this.props.store.isEmailValid ? null : 'invalid email',
+            onChange: this.props.store.setEmail
+          });
+        }
+
         return (
           <GatherData
-            fee={ fee } isNumberValid={ isNumberValid }
-            isVerified={ isVerified } hasRequested={ hasRequested }
-            setNumber={ setNumber } setConsentGiven={ setConsentGiven }
+            method={ method } fields={ fields }
+            fee={ fee } isVerified={ isVerified } hasRequested={ hasRequested }
+            setConsentGiven={ setConsentGiven }
           />
         );
 
@@ -162,9 +226,19 @@ export default class SMSVerification extends Component {
         );
 
       case 3:
+        let receiver, hint;
+        if (method === 'sms') {
+          receiver = this.props.store.number;
+          hint = 'Enter the code you received via SMS.';
+        } else if (method === 'email') {
+          receiver = this.props.store.email;
+          hint = 'Enter the code you received via e-mail.';
+        }
         return (
           <QueryCode
-            number={ number } fee={ fee } isCodeValid={ isCodeValid }
+            receiver={ receiver }
+            hint={ hint }
+            isCodeValid={ isCodeValid }
             setCode={ setCode }
           />
         );
@@ -182,5 +256,9 @@ export default class SMSVerification extends Component {
       default:
         return null;
     }
+  }
+
+  selectMethod = (choice, i) => {
+    this.setState({ method: choice.value });
   }
 }

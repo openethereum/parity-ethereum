@@ -24,7 +24,7 @@ use ethcore::miner::MinerService;
 use ethcore::client::MiningBlockChainClient;
 
 use jsonrpc_core::Error;
-use v1::helpers::auto_args::Ready;
+use jsonrpc_macros::Ready;
 use v1::helpers::errors;
 use v1::helpers::dispatch;
 use v1::traits::{EthSigning, ParitySigning};
