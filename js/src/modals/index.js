@@ -26,7 +26,7 @@ import FirstRun from './FirstRun';
 import LoadContract from './LoadContract';
 import SaveContract from './SaveContract';
 import Shapeshift from './Shapeshift';
-import SMSVerification from './SMSVerification';
+import Verification from './Verification';
 import Transfer from './Transfer';
 import PasswordManager from './PasswordManager';
 import UpgradeParity from './UpgradeParity';
@@ -45,7 +45,7 @@ export {
   LoadContract,
   SaveContract,
   Shapeshift,
-  SMSVerification,
+  Verification,
   Transfer,
   PasswordManager,
   UpgradeParity,

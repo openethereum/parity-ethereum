@@ -14,20 +14,4 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { stringify } from 'querystring';
-
-export const postToServer = (query, isTestnet = false) => {
-  const port = isTestnet ? 8443 : 443;
-  query = stringify(query);
-  return fetch(`https://sms-verification.parity.io:${port}/?` + query, {
-    method: 'POST', mode: 'cors', cache: 'no-store'
-  })
-  .then((res) => {
-    return res.json().then((data) => {
-      if (res.ok) {
-        return data.message;
-      }
-      throw new Error(data.message || 'unknown error');
-    });
-  });
-};
+export default from './verification';
