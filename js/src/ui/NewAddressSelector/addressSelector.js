@@ -118,7 +118,6 @@ class AddressSelector extends Component {
   }
 
   render () {
-    const { muiTheme } = this.context;
     const { focused } = this.state;
 
     const input = this.renderInput();
