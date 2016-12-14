@@ -21,6 +21,7 @@ import Portal from 'react-portal';
 import keycode, { codes } from 'keycode';
 
 import CloseIcon from 'material-ui/svg-icons/navigation/close';
+import TextFieldUnderline from 'material-ui/TextField/TextFieldUnderline';
 
 import ParityBackground from '~/ui/ParityBackground';
 import IdentityIcon from '~/ui/IdentityIcon';
@@ -69,6 +70,7 @@ class AddressSelect extends Component {
     focused: false,
     focusedCat: null,
     focusedItem: null,
+    inputFocused: false,
     inputValue: '',
     left: 0,
     top: 0,
@@ -183,8 +185,8 @@ class AddressSelect extends Component {
 
   renderContent () {
     const { muiTheme } = this.context;
-    const { hint, disabled } = this.props;
-    const { expanded, top, left } = this.state;
+    const { hint, disabled, label } = this.props;
+    const { expanded, top, left, inputFocused } = this.state;
 
     if (disabled) {
       return null;
@@ -196,6 +198,8 @@ class AddressSelect extends Component {
       classes.push(styles.expanded);
     }
 
+    const id = `${label}_${hint}`;
+
     return (
       <Portal isOpened onClose={ this.handleClose }>
         <div
@@ -205,15 +209,33 @@ class AddressSelect extends Component {
         >
           <ParityBackground muiTheme={ muiTheme } className={ styles.parityBackground } />
           <div className={ styles.inputContainer }>
+            <label className={ styles.label } htmlFor={ id }>
+              { label }
+            </label>
             <input
+              id={ id }
               className={ styles.input }
               placeholder={ hint }
 
+              onBlur={ this.handleInputBlur }
               onFocus={ this.handleInputFocus }
               onChange={ this.handleChange }
 
               ref={ this.setInputRef }
             />
+
+            <div className={ styles.underline }>
+              <TextFieldUnderline
+                muiTheme={ muiTheme }
+                focus={ inputFocused }
+                style={ {
+                  borderBottom: 'solid 3px'
+                } }
+                focusStyle={ {
+                  borderBottom: 'solid 3px'
+                } }
+              />
+            </div>
 
             { this.renderCurrentInput() }
             { this.renderAccounts() }
@@ -320,7 +342,7 @@ class AddressSelect extends Component {
 
     const classes = [ styles.account ];
 
-    if (copied === index) {
+    if (index && copied === index) {
       classes.push(styles.copied);
     }
 
@@ -696,8 +718,12 @@ class AddressSelect extends Component {
       });
   }
 
+  handleInputBlur = () => {
+    this.setState({ inputFocused: false });
+  }
+
   handleInputFocus = () => {
-    this.setState({ focusedItem: null });
+    this.setState({ focusedItem: null, inputFocused: true });
   }
 
   handleChange = (event = { target: {} }) => {

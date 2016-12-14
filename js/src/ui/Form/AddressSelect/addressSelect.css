@@ -81,6 +81,16 @@
   }
 }
 
+.label {
+  margin: 1rem 2rem 0.25em;
+  color: rgba(255, 255, 255, 0.498039);
+}
+
+.underline {
+  position: relative;
+  margin: 0 2rem;
+}
+
 .overlay {
   position: fixed;
   top: 0;
@@ -110,7 +120,7 @@
 
     .input {
       font-size: 3em;
-      padding: 0.5em 2rem;
+      padding: 0 2rem 0.5em;
       display: block;
 
       padding-right: 6rem;
