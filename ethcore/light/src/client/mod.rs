@@ -19,6 +19,7 @@
 use ethcore::block_import_error::BlockImportError;
 use ethcore::block_status::BlockStatus;
 use ethcore::ids::BlockId;
+use ethcore::header::Header;
 use ethcore::verification::queue::{self, HeaderQueue};
 use ethcore::transaction::SignedTransaction;
 use ethcore::blockchain_info::BlockChainInfo;
@@ -43,6 +44,28 @@ pub struct Config {
 	queue: queue::Config,
 }
 
+/// Trait for interacting with the header chain abstractly.
+pub trait LightChainClient: Send + Sync {
+	/// Get chain info.
+	fn chain_info(&self) -> BlockChainInfo;
+
+	/// Queue header to be verified. Required that all headers queued have their
+	/// parent queued prior.
+	fn queue_header(&self, header: Header) -> Result<H256, BlockImportError>;
+
+	/// Query whether a block is known.
+	fn is_known(&self, hash: &H256) -> bool;
+
+	/// Clear the queue.
+	fn clear_queue(&self);
+
+	/// Get queue info.
+	fn queue_info(&self) -> queue::QueueInfo;
+
+	/// Get the `i`th CHT root.
+	fn cht_root(&self, i: usize) -> Option<H256>;
+}
+
 /// Light client implementation.
 pub struct Client {
 	queue: HeaderQueue,
@@ -60,10 +83,8 @@ impl Client {
 		}
 	}
 
-	/// Import a header as rlp-encoded bytes.
-	pub fn import_header(&self, bytes: Bytes) -> Result<H256, BlockImportError> {
-		let header = ::rlp::decode(&bytes);
-
+	/// Import a header to the queue for additional verification.
+	pub fn import_header(&self, header: Header) -> Result<H256, BlockImportError> {
 		self.queue.import(header).map_err(Into::into)
 	}
 
@@ -117,6 +138,30 @@ impl Client {
 	/// Get the `i`th CHT root.
 	pub fn cht_root(&self, i: usize) -> Option<H256> {
 		self.chain.cht_root(i)
+	}
+}
+
+impl LightChainClient for Client {
+	fn chain_info(&self) -> BlockChainInfo { Client::chain_info(self) }
+
+	fn queue_header(&self, header: Header) -> Result<H256, BlockImportError> {
+		self.import_header(header)
+	}
+
+	fn is_known(&self, hash: &H256) -> bool {
+		self.status(hash) == BlockStatus::InChain
+	}
+
+	fn clear_queue(&self) {
+		self.queue.clear()
+	}
+
+	fn queue_info(&self) -> queue::QueueInfo {
+		self.queue.queue_info()
+	}
+
+	fn cht_root(&self, i: usize) -> Option<H256> {
+		Client::cht_root(self, i)
 	}
 }
 
