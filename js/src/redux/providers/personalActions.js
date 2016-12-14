@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -18,6 +18,8 @@ import { isEqual } from 'lodash';
 
 import { fetchBalances } from './balancesActions';
 import { attachWallets } from './walletActions';
+
+import MethodDecodingStore from '~/ui/MethodDecoding/methodDecodingStore';
 
 export function personalAccountsInfo (accountsInfo) {
   const accounts = {};
@@ -40,6 +42,9 @@ export function personalAccountsInfo (accountsInfo) {
         contacts[account.address] = account;
       }
     });
+
+  // Load user contracts for Method Decoding
+  MethodDecodingStore.loadContracts(contracts);
 
   return (dispatch) => {
     const data = {

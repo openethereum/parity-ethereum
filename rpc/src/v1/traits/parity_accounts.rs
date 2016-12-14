@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -16,9 +16,8 @@
 
 //! Parity Accounts-related rpc interface.
 use std::collections::BTreeMap;
-use jsonrpc_core::{Value, Error};
 
-use v1::helpers::auto_args::Wrap;
+use jsonrpc_core::{Value, Error};
 use v1::types::{H160, H256, DappId};
 
 build_rpc_trait! {

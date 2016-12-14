@@ -46,7 +46,7 @@
   border-radius: 4px 4px 0 0;
   display: flex;
   flex-direction: column;
-  max-height: 19em;
+  max-height: 50vh;
 }
 
 .expanded .content {

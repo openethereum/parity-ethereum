@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -21,13 +21,18 @@ import { PopoverAnimationVertical } from 'material-ui/Popover';
 
 import { isEqual } from 'lodash';
 
+import styles from './autocomplete.css';
+
 // Hack to prevent "Unknown prop `disableFocusRipple` on <hr> tag" error
 class Divider extends Component {
   static muiName = MUIDivider.muiName;
 
   render () {
     return (
-      <div style={ { margin: '0.25em 0' } }>
+      <div
+        style={ { margin: '0.25em 0' } }
+        className={ [styles.item, styles.divider].join(' ') }
+      >
         <MUIDivider style={ { height: 2 } } />
       </div>
     );
@@ -143,11 +148,16 @@ export default class AutoComplete extends Component {
 
       if (renderItem && typeof renderItem === 'function') {
         item = renderItem(entry);
+
+        // Add the item class to the entry
+        const classNames = [ styles.item ].concat(item.value.props.className);
+        item.value = React.cloneElement(item.value, { className: classNames.join(' ') });
       } else {
         item = {
           text: entry,
           value: (
             <MenuItem
+              className={ styles.item }
               primaryText={ entry }
             />
           )
@@ -160,6 +170,7 @@ export default class AutoComplete extends Component {
       }
 
       item.divider = currentDivider;
+      item.entry = entry;
 
       return item;
     }).filter((item) => item !== undefined);
@@ -215,13 +226,8 @@ export default class AutoComplete extends Component {
       return;
     }
 
-    const { entries } = this.props;
-
-    const entriesArray = (entries instanceof Array)
-      ? entries
-      : Object.values(entries);
-
-    const entry = entriesArray[idx];
+    const { dataSource } = this.state;
+    const { entry } = dataSource[idx];
 
     this.handleOnChange(entry);
     this.setState({ entry, open: false });

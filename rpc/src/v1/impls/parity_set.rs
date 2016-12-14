@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -26,7 +26,7 @@ use fetch::{Client as FetchClient, Fetch};
 use util::{Mutex, sha3};
 
 use jsonrpc_core::Error;
-use v1::helpers::auto_args::Ready;
+use jsonrpc_macros::Ready;
 use v1::helpers::errors;
 use v1::traits::ParitySet;
 use v1::types::{Bytes, H160, H256, U256};

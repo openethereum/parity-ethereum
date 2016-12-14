@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -18,15 +18,34 @@
 
 use util::H256;
 
+/// Either a hash or a number.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "ipc", derive(Binary))]
+pub enum HashOrNumber {
+	/// Block hash variant.
+	Hash(H256),
+	/// Block number variant.
+	Number(u64),
+}
+
+impl From<H256> for HashOrNumber {
+	fn from(hash: H256) -> Self {
+		HashOrNumber::Hash(hash)
+	}
+}
+
+impl From<u64> for HashOrNumber {
+	fn from(num: u64) -> Self {
+		HashOrNumber::Number(num)
+	}
+}
+
 /// A request for block headers.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "ipc", derive(Binary))]
 pub struct Headers {
-	/// Starting block number
-	pub block_num: u64,
-	/// Starting block hash. This and number could be combined but IPC codegen is
-	/// not robust enough to support it.
-	pub block_hash: H256,
+	/// Starting block number or hash.
+	pub start: HashOrNumber,
 	/// The maximum amount of headers which can be returned.
 	pub max: usize,
 	/// The amount of headers to skip between each response entry.

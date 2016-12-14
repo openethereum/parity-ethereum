@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -38,6 +38,14 @@ pub trait ChainNotify : Send + Sync {
 
 	/// fires when chain achieves passive mode
 	fn stop(&self) {
+		// does nothing by default
+	}
+
+	/// fires when new transactions are received from a peer
+	fn transactions_received(&self,
+		_hashes: Vec<H256>,
+		_peer_id: usize,
+	) {
 		// does nothing by default
 	}
 }

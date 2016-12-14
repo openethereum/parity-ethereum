@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -15,13 +15,9 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 #[macro_use]
-pub mod auto_args;
-
-#[macro_use]
 pub mod errors;
 
 pub mod dispatch;
-pub mod params;
 pub mod block_import;
 
 mod poll_manager;
