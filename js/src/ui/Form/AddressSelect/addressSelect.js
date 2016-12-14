@@ -19,12 +19,14 @@ import ReactDOM from 'react-dom';
 import { connect } from 'react-redux';
 import Portal from 'react-portal';
 import keycode, { codes } from 'keycode';
+import { noop } from 'lodash';
 
 import CloseIcon from 'material-ui/svg-icons/navigation/close';
 
 import ParityBackground from '~/ui/ParityBackground';
 import IdentityIcon from '~/ui/IdentityIcon';
 import InputAddress from '~/ui/Form/InputAddress';
+import Tags from '~/ui/Tags';
 import { fromWei } from '~/api/util/wei';
 
 import styles from './addressSelect.css';
@@ -60,6 +62,8 @@ class AddressSelect extends Component {
     value: ''
   };
 
+  nameRefs = {};
+
   state = {
     copied: null,
     expanded: false,
@@ -74,6 +78,8 @@ class AddressSelect extends Component {
 
   componentWillMount () {
     this.setValues();
+
+    window.addEventListener('resize', this.handleTagsOpacity);
   }
 
   componentWillReceiveProps (nextProps) {
@@ -82,6 +88,10 @@ class AddressSelect extends Component {
     }
 
     this.setValues(nextProps);
+  }
+
+  componentWillUnmount () {
+    window.removeEventListener('resize', this.handleTagsOpacity);
   }
 
   setValues (props = this.props) {
@@ -163,7 +173,6 @@ class AddressSelect extends Component {
       return input;
     }
 
-    // Could add `onFocus={ this.handleFocus }` if wanted
     return (
       <div
         className={ styles.inputAddress }
@@ -298,6 +307,8 @@ class AddressSelect extends Component {
 
     const account = this.props.accountsInfo[address];
     const name = (account && account.name && account.name.toUpperCase()) || address;
+    const { tags = [] } = account && account.meta || {};
+
     const balance = this.renderBalance(address);
 
     const onClick = () => {
@@ -326,6 +337,11 @@ class AddressSelect extends Component {
       )
       : null;
 
+    const setRef = (ref) => {
+      const { tagsRef = [] } = this.nameRefs[address] || {};
+      this.nameRefs[address] = { ref, tagsRef };
+    };
+
     return (
       <div
         key={ address }
@@ -337,11 +353,35 @@ class AddressSelect extends Component {
       >
         <IdentityIcon address={ address } />
         <div className={ styles.accountInfo }>
-          <div className={ styles.accountName }>{ name }</div>
+          <div className={ styles.accountName }>
+            <span ref={ setRef }>{ name }</span>
+          </div>
+
+          { this.renderTags(tags, address) }
           { addressElements }
           { balance }
         </div>
       </div>
+    );
+  }
+
+  renderTags (tags = [], address) {
+    if (tags.length === 0) {
+      return null;
+    }
+
+    const setRefs = (tagRef) => {
+      const nameRef = this.nameRefs[address];
+
+      if (!nameRef) {
+        return;
+      }
+
+      nameRef.tagsRef.push(tagRef);
+    };
+
+    return (
+      <Tags tags={ tags } setRefs={ setRefs } />
     );
   }
 
@@ -665,6 +705,8 @@ class AddressSelect extends Component {
     const { value = '' } = event.target;
     let index = 0;
 
+    window.setTimeout(() => { this.handleTagsOpacity(); });
+
     const values = this.values
       .map((category) => {
         const filteredValues = this
@@ -688,6 +730,37 @@ class AddressSelect extends Component {
     });
   }
 
+  handleTagsOpacity = () => {
+    Object.values(this.nameRefs).forEach((data) => {
+      if (data.tagsRef.length === 0) {
+        return;
+      }
+
+      const nameEl = ReactDOM.findDOMNode(data.ref);
+
+      if (!nameEl) {
+        return;
+      }
+
+      const nameBounds = nameEl.getBoundingClientRect();
+
+      data.tagsRef.forEach((tagRef) => {
+        const tagEl = ReactDOM.findDOMNode(tagRef);
+
+        if (!tagEl) {
+          return;
+        }
+
+        const tagBounds = tagEl.getBoundingClientRect();
+
+        // Hide if haven't at least a 10px margin
+        tagEl.style.opacity = (tagBounds.left > nameBounds.right + 10)
+          ? 1
+          : 0;
+      });
+    });
+  }
+
   preventEvent = (e) => {
     e.preventDefault();
     e.stopPropagation();
@@ -695,14 +768,10 @@ class AddressSelect extends Component {
 }
 
 function mapStateToProps (state) {
-  // const { accounts, contacts, contracts } = state.personal;
   const { accountsInfo } = state.personal;
   const { balances } = state.balances;
 
   return {
-    // accounts,
-    // contacts,
-    // contracts,
     accountsInfo,
     balances
   };
