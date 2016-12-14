@@ -16,9 +16,8 @@
 
 //! Parity Accounts-related rpc interface.
 use std::collections::BTreeMap;
-use jsonrpc_core::{Value, Error};
 
-use v1::helpers::auto_args::Wrap;
+use jsonrpc_core::{Value, Error};
 use v1::types::{H160, H256, DappId};
 
 build_rpc_trait! {

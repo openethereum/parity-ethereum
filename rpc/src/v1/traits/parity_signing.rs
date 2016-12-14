@@ -16,8 +16,8 @@
 
 //! ParitySigning rpc interface.
 use jsonrpc_core::Error;
+use jsonrpc_macros::Ready;
 
-use v1::helpers::auto_args::{Wrap, WrapAsync, Ready};
 use v1::types::{U256, H160, H256, Bytes, ConfirmationResponse, TransactionRequest, Either};
 
 build_rpc_trait! {
