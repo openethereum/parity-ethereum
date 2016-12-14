@@ -16,11 +16,17 @@
 */
 
 .error {
-  padding-top: 1.5em;
+  padding-top: 1.25em;
 }
 
 .infoStep {
   div+div {
-    padding-top: 1.5em;
+    padding-top: 1.25em;
   }
+}
+
+.version {
+  display: inline;
+  opacity: 0.5;
+  white-space: normal;
 }

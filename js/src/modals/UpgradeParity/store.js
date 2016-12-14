@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { action, observable, transaction } from 'mobx';
+import { action, computed, observable, transaction } from 'mobx';
 import store from 'store';
 
 const LS_UPDATE = '_parity::update';
@@ -22,10 +22,10 @@ const LS_UPDATE = '_parity::update';
 const A_MINUTE = 60 * 1000;
 const A_DAY = 24 * 60 * A_MINUTE;
 
-const STEP_INFO = 1;
-const STEP_UPDATING = 2;
-const STEP_COMPLETED = 3;
-const STEP_ERROR = 4;
+const STEP_INFO = 0;
+const STEP_UPDATING = 1;
+const STEP_COMPLETED = 2;
+const STEP_ERROR = 3;
 
 const CHECK_INTERVAL = 1 * A_MINUTE;
 
@@ -34,6 +34,7 @@ export default class Store {
   @observable consensusCapability = null;
   @observable closed = true;
   @observable error = null;
+  @observable remindAt = 0;
   @observable step = 0;
   @observable upgrading = null;
   @observable version = null;
@@ -47,35 +48,15 @@ export default class Store {
     setInterval(this.checkUpgrade, CHECK_INTERVAL);
   }
 
-  @action setUpgrading () {
-    transaction(() => {
-      this.upgrading = this.available;
-      this.setStep(STEP_UPDATING);
-    });
+  @computed get isVisible () {
+    return !this.closed && Date.now() >= this.remindAt;
   }
 
-  @action setVersions (available, version, consensusCapability) {
+  @action closeModal = () => {
     transaction(() => {
-      this.available = available;
-      this.consensusCapability = consensusCapability;
-      this.version = version;
+      this.closed = true;
+      this.setStep(0, null);
     });
-  }
-
-  checkUpgrade = () => {
-    Promise
-      .all([
-        this._api.parity.upgradeReady(),
-        this._api.parity.consensusCapability(),
-        this._api.parity.versionInfo()
-      ])
-      .then(([available, consensusCapability, version]) => {
-        console.log('[checkUpgrade]', 'available:', available, 'version:', version, 'consensusCapability:', consensusCapability);
-        this.setVersions(available, version, consensusCapability);
-      })
-      .catch((error) => {
-        console.warn('checkUpgrade', error);
-      });
   }
 
   @action loadStorage = () => {
@@ -93,7 +74,22 @@ export default class Store {
   @action setStep = (step, error = null) => {
     transaction(() => {
       this.error = error;
-      this.setp = step;
+      this.step = step;
+    });
+  }
+
+  @action setUpgrading () {
+    transaction(() => {
+      this.upgrading = this.available;
+      this.setStep(STEP_UPDATING, null);
+    });
+  }
+
+  @action setVersions (available, version, consensusCapability) {
+    transaction(() => {
+      this.available = available;
+      this.consensusCapability = consensusCapability;
+      this.version = version;
     });
   }
 
@@ -112,12 +108,32 @@ export default class Store {
           throw new Error('Unable to complete update');
         }
 
-        this.setStep(STEP_COMPLETED);
+        this.setStep(STEP_COMPLETED, null);
       })
       .catch((error) => {
         console.error('upgradeNow', error);
 
         this.setStep(STEP_ERROR, error);
+      });
+  }
+
+  checkUpgrade = () => {
+    if (!this._api) {
+      return;
+    }
+
+    Promise
+      .all([
+        this._api.parity.upgradeReady(),
+        this._api.parity.consensusCapability(),
+        this._api.parity.versionInfo()
+      ])
+      .then(([available, consensusCapability, version]) => {
+        console.log('[checkUpgrade]', 'available:', available, 'version:', version, 'consensusCapability:', consensusCapability);
+        this.setVersions(available, version, consensusCapability);
+      })
+      .catch((error) => {
+        console.warn('checkUpgrade', error);
       });
   }
 }
