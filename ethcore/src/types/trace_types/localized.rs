@@ -21,7 +21,7 @@ use super::trace::{Action, Res};
 use header::BlockNumber;
 
 /// Localized trace.
-#[derive(Debug, PartialEq, Binary)]
+#[derive(Debug, PartialEq, Clone, Binary)]
 pub struct LocalizedTrace {
 	/// Type of action performed by a transaction.
 	pub action: Action,
