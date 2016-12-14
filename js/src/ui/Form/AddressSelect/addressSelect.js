@@ -352,12 +352,15 @@ class AddressSelect extends Component {
 
     const addressElements = name !== address
       ? (
-        <div
-          className={ styles.address }
-          onClick={ this.preventEvent }
-          ref={ `address_${index}` }
-        >
-          { address }
+        <div className={ styles.addressContainer }>
+          <span
+            className={ styles.address }
+            onClick={ this.preventEvent }
+            ref={ `address_${index}` }
+            title={ address }
+          >
+            { address }
+          </span>
         </div>
       )
       : null;

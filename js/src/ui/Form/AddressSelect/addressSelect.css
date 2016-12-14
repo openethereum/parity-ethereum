@@ -238,14 +238,16 @@
     padding: 0.25em 0;
   }
 
-  .address {
+  .addressContainer {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
     font-size: 0.9em;
 
-    &:hover {
-      cursor: text;
+    .address {
+      &:hover {
+        cursor: text;
+      }
     }
   }
 
