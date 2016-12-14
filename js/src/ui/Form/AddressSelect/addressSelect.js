@@ -19,7 +19,6 @@ import ReactDOM from 'react-dom';
 import { connect } from 'react-redux';
 import Portal from 'react-portal';
 import keycode, { codes } from 'keycode';
-import { noop } from 'lodash';
 
 import CloseIcon from 'material-ui/svg-icons/navigation/close';
 
