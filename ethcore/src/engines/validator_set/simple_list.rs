@@ -43,3 +43,22 @@ impl ValidatorSet for SimpleList {
 		self.validators.get(nonce % self.validator_n).expect("There are validator_n authorities; taking number modulo validator_n gives number in validator_n range; qed").clone()
 	}
 }
+
+#[cfg(test)]
+mod tests {
+	use std::str::FromStr;
+	use util::Address;
+	use super::super::ValidatorSet;
+	use super::SimpleList;
+
+	#[test]
+	fn simple_list() {
+		let a1 = Address::from_str("cd1722f3947def4cf144679da39c4c32bdc35681").unwrap();
+		let a2 = Address::from_str("0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6").unwrap();
+		let list = SimpleList::new(vec![a1.clone(), a2.clone()]);
+		assert!(list.contains(&a1));
+		assert_eq!(list.get(0), a1);
+		assert_eq!(list.get(1), a2);
+		assert_eq!(list.get(2), a1);
+	}
+}
