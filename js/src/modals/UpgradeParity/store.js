@@ -15,24 +15,43 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import { action, observable, transaction } from 'mobx';
+import store from 'store';
 
-const CHECK_INTERVAL = 1 * 60 * 1000;
+const LS_UPDATE = '_parity::update';
 
-export default class UpgradeStore {
+const A_MINUTE = 60 * 1000;
+const A_DAY = 24 * 60 * A_MINUTE;
+
+const STEP_INFO = 1;
+const STEP_UPDATING = 2;
+const STEP_COMPLETED = 3;
+const STEP_ERROR = 4;
+
+const CHECK_INTERVAL = 1 * A_MINUTE;
+
+export default class Store {
   @observable available = null;
   @observable consensusCapability = null;
+  @observable closed = true;
+  @observable error = null;
+  @observable step = 0;
   @observable upgrading = null;
   @observable version = null;
 
   constructor (api) {
     this._api = api;
 
+    this.loadStorage();
     this.checkUpgrade();
+
     setInterval(this.checkUpgrade, CHECK_INTERVAL);
   }
 
   @action setUpgrading () {
-    this.upgrading = this.available;
+    transaction(() => {
+      this.upgrading = this.available;
+      this.setStep(STEP_UPDATING);
+    });
   }
 
   @action setVersions (available, version, consensusCapability) {
@@ -59,9 +78,53 @@ export default class UpgradeStore {
       });
   }
 
-  executeUpgrade = () => {
+  @action loadStorage = () => {
+    const values = store.get(LS_UPDATE) || {};
+
+    this.remindAt = values.remindAt ? values.remindAt : 0;
+
+    return values;
+  }
+
+  @action openModal = () => {
+    this.closed = false;
+  }
+
+  @action setStep = (step, error = null) => {
+    transaction(() => {
+      this.error = error;
+      this.setp = step;
+    });
+  }
+
+  @action snoozeTillTomorrow = () => {
+    this.remindAt = Date.now() + A_DAY;
+    store.set(LS_UPDATE, Object.assign(this.loadStorage(), { remindAt: this.remindAt }));
+  }
+
+  @action upgradeNow = () => {
     this.setUpgrading();
 
-    return this._api.parity.executeUpgrade();
+    return this._api.parity
+      .executeUpgrade()
+      .then((result) => {
+        if (!result) {
+          throw new Error('Unable to complete update');
+        }
+
+        this.setStep(STEP_COMPLETED);
+      })
+      .catch((error) => {
+        console.error('upgradeNow', error);
+
+        this.setStep(STEP_ERROR, error);
+      });
   }
 }
+
+export {
+  STEP_COMPLETED,
+  STEP_ERROR,
+  STEP_INFO,
+  STEP_UPDATING
+};
