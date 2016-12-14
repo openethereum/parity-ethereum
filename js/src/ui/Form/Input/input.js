@@ -39,6 +39,10 @@ const UNDERLINE_NORMAL = {
   borderBottom: 'solid 2px'
 };
 
+const UNDERLINE_FOCUSED = {
+  transform: 'scaleX(1.0)'
+};
+
 const NAME_ID = ' ';
 
 export default class Input extends Component {
@@ -51,6 +55,7 @@ export default class Input extends Component {
     className: PropTypes.string,
     disabled: PropTypes.bool,
     error: PropTypes.string,
+    focused: PropTypes.bool,
     readOnly: PropTypes.bool,
     floatCopy: PropTypes.bool,
     hint: nodeOrStringProptype(),
@@ -99,7 +104,7 @@ export default class Input extends Component {
 
   render () {
     const { value } = this.state;
-    const { children, className, hideUnderline, disabled, error, label } = this.props;
+    const { children, className, hideUnderline, disabled, error, focused, label } = this.props;
     const { hint, onClick, onFocus, multiLine, rows, type, min, max, style, tabIndex } = this.props;
 
     const readOnly = this.props.readOnly || disabled;
@@ -114,6 +119,11 @@ export default class Input extends Component {
     if (hideUnderline && !hint) {
       textFieldStyle.height = 'initial';
     }
+
+    const underlineStyle = readOnly ? UNDERLINE_READONLY : UNDERLINE_NORMAL;
+    const underlineFocusStyle = focused
+      ? UNDERLINE_FOCUSED
+      : readOnly ? { display: 'none' } : null;
 
     return (
       <div className={ styles.container } style={ style }>
@@ -144,8 +154,8 @@ export default class Input extends Component {
           tabIndex={ tabIndex }
           type={ type || 'text' }
           underlineDisabledStyle={ UNDERLINE_DISABLED }
-          underlineStyle={ readOnly ? UNDERLINE_READONLY : UNDERLINE_NORMAL }
-          underlineFocusStyle={ readOnly ? { display: 'none' } : null }
+          underlineStyle={ underlineStyle }
+          underlineFocusStyle={ underlineFocusStyle }
           underlineShow={ !hideUnderline }
           value={ value }>
           { children }

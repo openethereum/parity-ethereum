@@ -33,6 +33,7 @@ class InputAddress extends Component {
     className: PropTypes.string,
     disabled: PropTypes.bool,
     error: PropTypes.string,
+    focused: PropTypes.bool,
     hideUnderline: PropTypes.bool,
     hint: nodeOrStringProptype(),
     label: nodeOrStringProptype(),
@@ -54,7 +55,7 @@ class InputAddress extends Component {
   };
 
   render () {
-    const { accountsInfo, allowCopy, className, disabled, error, hint } = this.props;
+    const { accountsInfo, allowCopy, className, disabled, error, focused, hint } = this.props;
     const { hideUnderline, label, onClick, onFocus, onSubmit, small } = this.props;
     const { tabIndex, text, tokens, value } = this.props;
 
@@ -78,6 +79,7 @@ class InputAddress extends Component {
           className={ classes.join(' ') }
           disabled={ disabled }
           error={ error }
+          focused={ focused }
           hideUnderline={ hideUnderline }
           hint={ hint }
           label={ label }

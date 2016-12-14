@@ -118,16 +118,10 @@ class AddressSelector extends Component {
   }
 
   render () {
-    const { focused } = this.state;
-
     const input = this.renderInput();
     const content = this.renderContent();
 
     const classes = [ styles.main ];
-
-    if (focused) {
-      classes.push(styles.mainFocused);
-    }
 
     return (
       <div
@@ -167,12 +161,14 @@ class AddressSelector extends Component {
   }
 
   renderInput () {
+    const { focused } = this.state;
     const { accountsInfo, disabled, error, hint, label, value } = this.props;
 
     const input = (
       <InputAddress
         accountsInfo={ accountsInfo }
         error={ error }
+        focused={ focused }
         label={ label }
         hint={ hint }
         tabIndex={ -1 }

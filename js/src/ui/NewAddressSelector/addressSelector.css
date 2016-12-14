@@ -64,19 +64,8 @@
   top: 14px;
   left: 0;
 
-  outline: 1px dashed rgba(255, 255, 255, 0);
-
-  transition-property: outline, padding;
-  transition-duration: 0.25s;
-  transition-timing-function: cubic-bezier(0.7,0,0.3,1);
-
   &:focus {
     outline: none;
-  }
-
-  &.mainFocused {
-    outline: 1px dashed rgba(255, 255, 255, 0.5);
-    padding: 0 0.5em;
   }
 }
 
