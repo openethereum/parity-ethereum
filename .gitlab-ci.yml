@@ -231,7 +231,7 @@ linux-armv6:
   stage: build
   image: ethcore/rust-armv6:latest
   only:
-#    - beta
+    - beta
 #    - tags
 #    - stable
 #    - triggers
