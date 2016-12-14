@@ -42,14 +42,23 @@ impl ValidatorContract {
 impl ChainNotify for ValidatorContract {
 	fn new_blocks(
 		&self,
-		imported: Vec<H256>,
+		_imported: Vec<H256>,
 		_: Vec<H256>,
 		_: Vec<H256>,
 		_: Vec<H256>,
 		_: Vec<H256>,
 		_duration: u64) {
-
-			
+		if let Some(ref provider) = *self.provider.read() {
+			match provider.get_validators() {
+				Ok(new) => {
+					debug!(target: "engine", "Set of validators obtained: {:?}", new);
+					*self.validators.write() = SimpleList::new(new);
+				},
+				Err(s) => warn!("Set of validators could not be updated: {}", s),
+			}
+		} else {
+			warn!("Set of validators could not be updated: no provider contract.")
+		}
 	}
 }
 
@@ -63,8 +72,7 @@ impl ValidatorSet for ValidatorContract {
 	}
 
 	fn register_call_contract(&self, client: Weak<Client>) {
-		let mut guard = self.provider.write();
-		*guard = Some(provider::Contract::new(self.address, move |a, d| client.upgrade().ok_or("No client!".into()).and_then(|c| c.call_contract(a, d))));
+		*self.provider.write() = Some(provider::Contract::new(self.address, move |a, d| client.upgrade().ok_or("No client!".into()).and_then(|c| c.call_contract(a, d))));
 	}
 }
 
