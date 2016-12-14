@@ -40,5 +40,5 @@ pub trait ValidatorSet {
 	/// Draws an validator nonce modulo number of validators.
 	fn get(&self, nonce: usize) -> Address;
 	/// Allows blockchain state access.
-	fn register_client(&self, client: Weak<Client>) {}
+	fn register_call_contract(&self, _client: Weak<Client>) {}
 }
