@@ -18,13 +18,15 @@
 
 use std::sync::{Weak, Arc};
 use jsonrpc_core::*;
+use serde;
+
 use rlp::{UntrustedRlp, View};
 use ethcore::client::{BlockChainClient, CallAnalytics, TransactionId, TraceId};
 use ethcore::miner::MinerService;
 use ethcore::transaction::{Transaction as EthTransaction, SignedTransaction, Action};
+
 use v1::traits::Traces;
 use v1::helpers::{errors, CallRequest as CRequest};
-use v1::helpers::params::from_params_default_third;
 use v1::types::{TraceFilter, LocalizedTrace, BlockNumber, Index, CallRequest, Bytes, TraceResults, H256};
 
 fn to_call_analytics(flags: Vec<String>) -> CallAnalytics {
@@ -32,6 +34,22 @@ fn to_call_analytics(flags: Vec<String>) -> CallAnalytics {
 		transaction_tracing: flags.contains(&("trace".to_owned())),
 		vm_tracing: flags.contains(&("vmTrace".to_owned())),
 		state_diffing: flags.contains(&("stateDiff".to_owned())),
+	}
+}
+
+/// Returns number of different parameters in given `Params` object.
+fn params_len(params: &Params) -> usize {
+	match params {
+		&Params::Array(ref vec) => vec.len(),
+		_ => 0,
+	}
+}
+
+/// Deserialize request parameters with optional third parameter `BlockNumber` defaulting to `BlockNumber::Latest`.
+fn from_params_default_third<F1, F2>(params: Params) -> Result<(F1, F2, BlockNumber, ), Error> where F1: serde::de::Deserialize, F2: serde::de::Deserialize {
+	match params_len(&params) {
+		2 => from_params::<(F1, F2, )>(params).map(|(f1, f2)| (f1, f2, BlockNumber::Latest)),
+		_ => from_params::<(F1, F2, BlockNumber)>(params)
 	}
 }
 

@@ -58,23 +58,23 @@ export default class DetailsStep extends Component {
       <Form>
         { this.renderWarning() }
         <AddressSelect
-          label='from account'
-          hint='the account to transact with'
-          value={ fromAddress }
-          error={ fromAddressError }
           accounts={ accounts }
           balances={ balances }
-          onChange={ onFromAddressChange } />
+          error={ fromAddressError }
+          hint='the account to transact with'
+          label='from account'
+          onChange={ onFromAddressChange }
+          value={ fromAddress } />
         { this.renderFunctionSelect() }
         { this.renderParameters() }
         <div className={ styles.columns }>
           <div>
             <Input
-              label='transaction value (in ETH)'
-              hint='the amount to send to with the transaction'
-              value={ amount }
               error={ amountError }
-              onSubmit={ onAmountChange } />
+              hint='the amount to send to with the transaction'
+              label='transaction value (in ETH)'
+              onSubmit={ onAmountChange }
+              value={ amount } />
           </div>
           <div>
             <Checkbox

@@ -17,9 +17,7 @@
 //! Web3 rpc interface.
 use jsonrpc_core::Error;
 
-use v1::helpers::auto_args::Wrap;
 use v1::types::{H256, Bytes};
-
 
 build_rpc_trait! {
 	/// Web3 rpc interface.

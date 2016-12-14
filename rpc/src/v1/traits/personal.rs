@@ -17,7 +17,6 @@
 //! Personal rpc interface.
 use jsonrpc_core::Error;
 
-use v1::helpers::auto_args::Wrap;
 use v1::types::{U128, H160, H256, TransactionRequest};
 
 build_rpc_trait! {

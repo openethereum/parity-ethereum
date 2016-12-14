@@ -266,7 +266,7 @@ Footprint Options:
                            of all accounts and storage keys. Doubles the size
                            of the state database. BOOL may be one of on, off
                            or auto. (default: {flag_fat_db})
-  --scale-verifiers        Automatically scale amount of verifier threads based on 
+  --scale-verifiers        Automatically scale amount of verifier threads based on
                            workload. Not guaranteed to be faster.
                            (default: {flag_scale_verifiers})
   --num-verifiers INT      Amount of verifier threads to use or to begin with, if verifier

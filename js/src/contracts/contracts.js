@@ -19,7 +19,7 @@ import Registry from './registry';
 import SignatureReg from './signaturereg';
 import TokenReg from './tokenreg';
 import GithubHint from './githubhint';
-import * as smsVerification from './sms-verification';
+import * as verification from './verification';
 import BadgeReg from './badgereg';
 
 let instance = null;
@@ -58,7 +58,11 @@ export default class Contracts {
   }
 
   get smsVerification () {
-    return smsVerification;
+    return verification;
+  }
+
+  get emailVerification () {
+    return verification;
   }
 
   static create (api) {

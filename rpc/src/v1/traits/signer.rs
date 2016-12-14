@@ -17,9 +17,7 @@
 //! Parity Signer-related rpc interface.
 use jsonrpc_core::Error;
 
-use v1::helpers::auto_args::Wrap;
 use v1::types::{U256, Bytes, TransactionModification, ConfirmationRequest, ConfirmationResponse};
-
 
 build_rpc_trait! {
 	/// Signer extension for confirmations rpc interface.
