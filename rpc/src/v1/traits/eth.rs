@@ -16,16 +16,19 @@
 
 //! Eth rpc interface.
 use jsonrpc_core::Error;
+use jsonrpc_macros::Trailing;
 
-use v1::types::{RichBlock, BlockNumber, Bytes, CallRequest, Filter, FilterChanges, Index, DappId};
+use futures::BoxFuture;
+
+use v1::types::{RichBlock, BlockNumber, Bytes, CallRequest, Filter, FilterChanges, Index};
 use v1::types::{Log, Receipt, SyncStatus, Transaction, Work};
 use v1::types::{H64, H160, H256, U256};
-
-use jsonrpc_macros::Trailing;
 
 build_rpc_trait! {
 	/// Eth rpc interface.
 	pub trait Eth {
+		type Metadata;
+
 		/// Returns protocol version encoded as a string (quotes are necessary).
 		#[rpc(name = "eth_protocolVersion")]
 		fn protocol_version(&self) -> Result<String, Error>;
@@ -51,8 +54,8 @@ build_rpc_trait! {
 		fn gas_price(&self) -> Result<U256, Error>;
 
 		/// Returns accounts list.
-		#[rpc(name = "eth_accounts")]
-		fn accounts(&self, Trailing<DappId>) -> Result<Vec<H160>, Error>;
+		#[rpc(meta, name = "eth_accounts")]
+		fn accounts(&self, Self::Metadata) -> BoxFuture<Vec<H160>, Error>;
 
 		/// Returns highest block number.
 		#[rpc(name = "eth_blockNumber")]

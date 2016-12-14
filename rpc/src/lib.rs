@@ -31,6 +31,7 @@ extern crate ethkey;
 extern crate ethcrypto as crypto;
 extern crate ethstore;
 extern crate ethsync;
+extern crate ethash;
 extern crate transient_hashmap;
 extern crate jsonrpc_ipc_server as ipc;
 extern crate ethcore_ipc;
@@ -59,40 +60,8 @@ use jsonrpc_core::reactor::RpcHandler;
 pub use ipc::{Server as IpcServer, Error as IpcServerError};
 pub use jsonrpc_http_server::{ServerBuilder, Server, RpcServerError};
 pub mod v1;
-pub use v1::{SigningQueue, SignerService, ConfirmationsQueue, NetworkSettings};
+pub use v1::{SigningQueue, SignerService, ConfirmationsQueue, NetworkSettings, Metadata, Origin};
 pub use v1::block_import::is_major_importing;
-
-/// RPC methods metadata.
-#[derive(Clone, Default)]
-pub struct Metadata {
-	/// Current dapplication identifier
-	pub dapp_id: Option<String>,
-	/// Request origin
-	pub origin: Origin,
-}
-
-/// RPC request origin
-#[derive(Clone)]
-pub enum Origin {
-	/// RPC server
-	Rpc,
-	/// Dapps server
-	Dapps,
-	/// IPC server
-	Ipc,
-	/// Signer
-	Signer,
-	/// Unknown
-	Unknown,
-}
-
-impl Default for Origin {
-	fn default() -> Self {
-		Origin::Unknown
-	}
-}
-
-impl jsonrpc_core::Metadata for Metadata {}
 
 /// Start http server asynchronously and returns result with `Server` handle on success or an error.
 pub fn start_http<M: jsonrpc_core::Metadata>(

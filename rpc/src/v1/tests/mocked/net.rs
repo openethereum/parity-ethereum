@@ -30,7 +30,7 @@ fn sync_provider() -> Arc<TestSyncProvider> {
 fn rpc_net_version() {
 	let sync = sync_provider();
 	let net = NetClient::new(&sync).to_delegate();
-	let mut io = IoHandler::default();
+	let mut io = IoHandler::new();
 	io.extend_with(net);
 
 	let request = r#"{"jsonrpc": "2.0", "method": "net_version", "params": [], "id": 1}"#;
@@ -43,7 +43,7 @@ fn rpc_net_version() {
 fn rpc_net_peer_count() {
 	let sync = sync_provider();
 	let net = NetClient::new(&sync).to_delegate();
-	let mut io = IoHandler::default();
+	let mut io = IoHandler::new();
 	io.extend_with(net);
 
 	let request = r#"{"jsonrpc": "2.0", "method": "net_peerCount", "params": [], "id": 1}"#;
@@ -56,7 +56,7 @@ fn rpc_net_peer_count() {
 fn rpc_net_listening() {
 	let sync = sync_provider();
 	let net = NetClient::new(&sync).to_delegate();
-	let mut io = IoHandler::default();
+	let mut io = IoHandler::new();
 	io.extend_with(net);
 
 	let request = r#"{"jsonrpc": "2.0", "method": "net_listening", "params": [], "id": 1}"#;

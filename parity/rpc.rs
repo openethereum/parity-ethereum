@@ -19,7 +19,7 @@ use std::sync::Arc;
 use std::net::SocketAddr;
 use std::io;
 use io::PanicHandler;
-use ethcore_rpc::{self as rpc, RpcServerError, IpcServerError};
+use ethcore_rpc::{self as rpc, RpcServerError, IpcServerError, Metadata};
 use rpc_apis;
 use rpc_apis::ApiSet;
 use helpers::parity_ipc_path;
@@ -94,7 +94,7 @@ pub fn new_http(conf: HttpConfiguration, deps: &Dependencies) -> Result<Option<H
 	Ok(Some(try!(setup_http_rpc_server(deps, &addr, conf.cors, conf.hosts, conf.apis))))
 }
 
-fn setup_apis(apis: ApiSet, deps: &Dependencies) -> MetaIoHandler<()> {
+fn setup_apis(apis: ApiSet, deps: &Dependencies) -> MetaIoHandler<Metadata> {
 	rpc_apis::setup_rpc(MetaIoHandler::default(), deps.apis.clone(), apis)
 }
 
@@ -119,12 +119,12 @@ pub fn setup_http_rpc_server(
 	}
 }
 
-pub fn new_ipc(conf: IpcConfiguration, deps: &Dependencies) -> Result<Option<IpcServer>, String> {
+pub fn new_ipc(conf: IpcConfiguration, deps: &Dependencies) -> Result<Option<IpcServer<Metadata>>, String> {
 	if !conf.enabled { return Ok(None); }
 	Ok(Some(try!(setup_ipc_rpc_server(deps, &conf.socket_addr, conf.apis))))
 }
 
-pub fn setup_ipc_rpc_server(dependencies: &Dependencies, addr: &str, apis: ApiSet) -> Result<IpcServer, String> {
+pub fn setup_ipc_rpc_server(dependencies: &Dependencies, addr: &str, apis: ApiSet) -> Result<IpcServer<Metadata>, String> {
 	let apis = setup_apis(apis, dependencies);
 	let handler = RpcHandler::new(Arc::new(apis), dependencies.remote.clone());
 	match rpc::start_ipc(addr, handler) {

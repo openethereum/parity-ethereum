@@ -34,6 +34,7 @@ use ethsync::SyncState;
 use jsonrpc_core::IoHandler;
 use v1::{Eth, EthClient, EthClientOptions, EthFilter, EthFilterClient, EthSigning, SigningUnsafeClient};
 use v1::tests::helpers::{TestSyncProvider, Config, TestMinerService, TestSnapshotService};
+use v1::metadata::Metadata;
 
 fn blockchain_client() -> Arc<TestBlockChainClient> {
 	let client = TestBlockChainClient::new();
@@ -66,7 +67,7 @@ struct EthTester {
 	pub miner: Arc<TestMinerService>,
 	pub snapshot: Arc<TestSnapshotService>,
 	hashrates: Arc<Mutex<HashMap<H256, (Instant, U256)>>>,
-	pub io: IoHandler,
+	pub io: IoHandler<Metadata>,
 }
 
 impl Default for EthTester {
@@ -87,7 +88,7 @@ impl EthTester {
 		let eth = EthClient::new(&client, &snapshot, &sync, &ap, &miner, &external_miner, options).to_delegate();
 		let filter = EthFilterClient::new(&client, &miner).to_delegate();
 		let sign = SigningUnsafeClient::new(&client, &ap, &miner).to_delegate();
-		let mut io = IoHandler::default();
+		let mut io: IoHandler<Metadata> = IoHandler::default();
 		io.extend_with(eth);
 		io.extend_with(sign);
 		io.extend_with(filter);
@@ -363,9 +364,11 @@ fn rpc_eth_accounts() {
 
 	// when we add visible address it should return that.
 	tester.accounts_provider.set_dapps_addresses("app1".into(), vec![10.into()]).unwrap();
-	let request = r#"{"jsonrpc": "2.0", "method": "eth_accounts", "params": ["app1"], "id": 1}"#;
+	let request = r#"{"jsonrpc": "2.0", "method": "eth_accounts", "params": [], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":["0x000000000000000000000000000000000000000a"],"id":1}"#;
-	assert_eq!(tester.io.handle_request_sync(request), Some(response.to_owned()));
+	let mut meta = Metadata::default();
+	meta.dapp_id = Some("app1".into());
+	assert_eq!((*tester.io).handle_request_sync(request, meta), Some(response.to_owned()));
 }
 
 #[test]

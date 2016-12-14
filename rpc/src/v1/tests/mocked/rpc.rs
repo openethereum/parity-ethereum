@@ -30,7 +30,7 @@ fn rpc_client() -> RpcClient {
 #[test]
 fn modules() {
 	let rpc = rpc_client().to_delegate();
-	let mut io = IoHandler::default();
+	let mut io = IoHandler::new();
 	io.extend_with(rpc);
 
 	let request = r#"{"jsonrpc": "2.0", "method": "modules", "params": [], "id": 1}"#;
@@ -42,7 +42,7 @@ fn modules() {
 #[test]
 fn rpc_modules() {
 	let rpc = rpc_client().to_delegate();
-	let mut io = IoHandler::default();
+	let mut io = IoHandler::new();
 	io.extend_with(rpc);
 
 	let request = r#"{"jsonrpc": "2.0", "method": "rpc_modules", "params": [], "id": 1}"#;

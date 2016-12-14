@@ -18,7 +18,7 @@ use std::sync::{Arc, Mutex, Condvar};
 use std::net::{TcpListener};
 use ctrlc::CtrlC;
 use fdlimit::raise_fd_limit;
-use ethcore_rpc::{NetworkSettings, is_major_importing};
+use ethcore_rpc::{NetworkSettings, is_major_importing, Metadata};
 use ethsync::NetworkConfiguration;
 use util::{Colour, version, RotatingLogger};
 use io::{MayPanic, ForwardPanic, PanicHandler};
@@ -477,7 +477,7 @@ fn prepare_account_provider(dirs: &Directories, cfg: AccountsConfig, passwords: 
 fn wait_for_exit(
 	panic_handler: Arc<PanicHandler>,
 	_http_server: Option<HttpServer>,
-	_ipc_server: Option<IpcServer>,
+	_ipc_server: Option<IpcServer<Metadata>>,
 	_dapps_server: Option<WebappServer>,
 	_signer_server: Option<SignerServer>
 	) {

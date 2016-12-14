@@ -21,7 +21,7 @@ use v1::{Web3, Web3Client};
 #[test]
 fn rpc_web3_version() {
 	let web3 = Web3Client::new().to_delegate();
-	let mut io = IoHandler::default();
+	let mut io = IoHandler::new();
 	io.extend_with(web3);
 
 	let v = version().to_owned().replace("Parity/", "Parity//");
@@ -35,7 +35,7 @@ fn rpc_web3_version() {
 #[test]
 fn rpc_web3_sha3() {
 	let web3 = Web3Client::new().to_delegate();
-	let mut io = IoHandler::default();
+	let mut io = IoHandler::new();
 	io.extend_with(web3);
 
 	let request = r#"{"jsonrpc": "2.0", "method": "web3_sha3", "params": ["0x00"], "id": 1}"#;
@@ -47,7 +47,7 @@ fn rpc_web3_sha3() {
 #[test]
 fn rpc_web3_sha3_wiki() {
 	let web3 = Web3Client::new().to_delegate();
-	let mut io = IoHandler::default();
+	let mut io = IoHandler::new();
 	io.extend_with(web3);
 
 	let request = r#"{"jsonrpc": "2.0", "method": "web3_sha3", "params": ["0x68656c6c6f20776f726c64"], "id": 1}"#;
