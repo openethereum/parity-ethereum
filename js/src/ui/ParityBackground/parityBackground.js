@@ -19,6 +19,7 @@ import { connect } from 'react-redux';
 
 class ParityBackground extends Component {
   static propTypes = {
+    muiTheme: PropTypes.object.isRequired,
     style: PropTypes.object.isRequired,
     children: PropTypes.node,
     className: PropTypes.string,

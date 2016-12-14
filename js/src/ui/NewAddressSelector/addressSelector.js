@@ -22,6 +22,7 @@ import keycode, { codes } from 'keycode';
 
 import CloseIcon from 'material-ui/svg-icons/navigation/close';
 
+import ParityBackground from '~/ui/ParityBackground';
 import IdentityIcon from '~/ui/IdentityIcon';
 import InputAddress from '~/ui/Form/InputAddress';
 import { fromWei } from '~/api/util/wei';
@@ -29,6 +30,10 @@ import { fromWei } from '~/api/util/wei';
 import styles from './addressSelector.css';
 
 class AddressSelector extends Component {
+  static contextTypes = {
+    muiTheme: PropTypes.object.isRequired
+  };
+
   static propTypes = {
     // Required props
     onChange: PropTypes.func.isRequired,
@@ -58,6 +63,7 @@ class AddressSelector extends Component {
   state = {
     copied: null,
     expanded: false,
+    focused: false,
     focusedCat: null,
     focusedItem: null,
     inputValue: '',
@@ -112,13 +118,24 @@ class AddressSelector extends Component {
   }
 
   render () {
+    const { muiTheme } = this.context;
+    const { focused } = this.state;
+
     const input = this.renderInput();
     const content = this.renderContent();
 
+    const classes = [ styles.main ];
+
+    if (focused) {
+      classes.push(styles.mainFocused);
+    }
+
     return (
       <div
-        className={ styles.main }
+        className={ classes.join(' ') }
+        onBlur={ this.handleMainBlur }
         onClick={ this.handleFocus }
+        onFocus={ this.handleMainFocus }
         onKeyDown={ this.handleInputAddresKeydown }
         ref='inputAddress'
         tabIndex={ 0 }
@@ -127,6 +144,27 @@ class AddressSelector extends Component {
         { content }
       </div>
     );
+  }
+
+  handleMainBlur = () => {
+    if (window.document.hasFocus()) {
+      this.setState({ focused: false });
+    }
+  }
+
+  handleMainFocus = () => {
+    if (this.state.focused) {
+      return;
+    }
+
+    this.setState({ focused: true }, () => {
+      if (this.closing) {
+        this.closing = false;
+        return;
+      }
+
+      this.handleFocus();
+    });
   }
 
   renderInput () {
@@ -162,6 +200,7 @@ class AddressSelector extends Component {
   }
 
   renderContent () {
+    const { muiTheme } = this.context;
     const { hint, disabled } = this.props;
     const { expanded, top, left } = this.state;
 
@@ -182,6 +221,7 @@ class AddressSelector extends Component {
           style={ { top, left } }
           onKeyDown={ this.handleKeyDown }
         >
+          <ParityBackground muiTheme={ muiTheme } className={ styles.parityBackground } />
           <div className={ styles.inputContainer }>
             <input
               className={ styles.input }

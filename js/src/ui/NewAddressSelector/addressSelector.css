@@ -40,6 +40,16 @@
   }
 }
 
+.parityBackground {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  opacity: 0.25;
+  z-index: -1;
+}
+
 .inputAddress {
   position: relative;
   top: -14px;
@@ -61,6 +71,10 @@
   transition-timing-function: cubic-bezier(0.7,0,0.3,1);
 
   &:focus {
+    outline: none;
+  }
+
+  &.mainFocused {
     outline: 1px dashed rgba(255, 255, 255, 0.5);
     padding: 0 0.5em;
   }
