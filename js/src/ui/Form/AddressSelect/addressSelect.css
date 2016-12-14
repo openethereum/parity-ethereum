@@ -52,7 +52,6 @@
 
 .inputAddress {
   position: relative;
-  top: -14px;
 
   &:hover, *:hover {
     cursor: pointer !important;
@@ -61,7 +60,6 @@
 
 .main {
   position: relative;
-  top: 14px;
   left: 0;
 
   &:focus {
