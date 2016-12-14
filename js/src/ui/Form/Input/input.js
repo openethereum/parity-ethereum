@@ -100,6 +100,14 @@ export default class Input extends Component {
     if ((newProps.value !== this.props.value) && (newProps.value !== this.state.value)) {
       this.setValue(newProps.value);
     }
+
+    if (newProps.focused && !this.props.focused) {
+      this.refs.input.setState({ isFocused: true });
+    }
+
+    if (!newProps.focused && this.props.focused) {
+      this.refs.input.setState({ isFocused: false });
+    }
   }
 
   render () {
@@ -123,7 +131,7 @@ export default class Input extends Component {
     const underlineStyle = readOnly ? UNDERLINE_READONLY : UNDERLINE_NORMAL;
     const underlineFocusStyle = focused
       ? UNDERLINE_FOCUSED
-      : readOnly ? { display: 'none' } : null;
+      : readOnly && typeof focused !== 'boolean' ? { display: 'none' } : null;
 
     return (
       <div className={ styles.container } style={ style }>
@@ -149,6 +157,7 @@ export default class Input extends Component {
           onFocus={ onFocus }
           onPaste={ this.onPaste }
           readOnly={ readOnly }
+          ref='input'
           rows={ rows }
           style={ textFieldStyle }
           tabIndex={ tabIndex }

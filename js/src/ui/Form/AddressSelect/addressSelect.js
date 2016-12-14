@@ -15,291 +15,700 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
-import { MenuItem } from 'material-ui';
-import { isEqual, pick } from 'lodash';
+import ReactDOM from 'react-dom';
+import { connect } from 'react-redux';
+import Portal from 'react-portal';
+import keycode, { codes } from 'keycode';
 
-import AutoComplete from '../AutoComplete';
-import IdentityIcon from '../../IdentityIcon';
-import IdentityName from '../../IdentityName';
-import AddressSelector from '~/ui/NewAddressSelector';
+import CloseIcon from 'material-ui/svg-icons/navigation/close';
 
+import ParityBackground from '~/ui/ParityBackground';
+import IdentityIcon from '~/ui/IdentityIcon';
+import InputAddress from '~/ui/Form/InputAddress';
 import { fromWei } from '~/api/util/wei';
 
 import styles from './addressSelect.css';
 
-export default class AddressSelect extends Component {
-  static propTypes = {
-    old: PropTypes.bool
-  };
-
-  static defaultProps = {
-    old: false
-  };
-
-  render () {
-    const { old, ...props } = this.props;
-
-    if (old) {
-      return (
-        <OldAddressSelect
-          { ...props }
-        />
-      );
-    }
-
-    return (
-      <AddressSelector
-        { ...props }
-      />
-    );
-  }
-}
-
-class OldAddressSelect extends Component {
+class AddressSelect extends Component {
   static contextTypes = {
-    api: PropTypes.object.isRequired
-  }
+    muiTheme: PropTypes.object.isRequired
+  };
 
   static propTypes = {
+    // Required props
     onChange: PropTypes.func.isRequired,
 
+    // Redux props
+    accountsInfo: PropTypes.object,
     accounts: PropTypes.object,
-    allowInput: PropTypes.bool,
     balances: PropTypes.object,
     contacts: PropTypes.object,
     contracts: PropTypes.object,
+    tokens: PropTypes.object,
+    wallets: PropTypes.object,
+
+    // Optional props
+    allowInput: PropTypes.bool,
     disabled: PropTypes.bool,
     error: PropTypes.string,
     hint: PropTypes.string,
     label: PropTypes.string,
-    tokens: PropTypes.object,
-    value: PropTypes.string,
-    wallets: PropTypes.object
-  }
+    value: PropTypes.string
+  };
+
+  static defaultProps = {
+    value: ''
+  };
 
   state = {
-    autocompleteEntries: [],
-    entries: {},
-    addresses: [],
-    value: ''
-  }
-
-  // Cache autocomplete items
-  items = {}
-
-  entriesFromProps (props = this.props) {
-    const { accounts = {}, contacts = {}, contracts = {}, wallets = {} } = props;
-
-    const autocompleteEntries = [].concat(
-      Object.values(wallets),
-      'divider',
-      Object.values(accounts),
-      'divider',
-      Object.values(contacts),
-      'divider',
-      Object.values(contracts)
-    );
-
-    const entries = {
-      ...wallets,
-      ...accounts,
-      ...contacts,
-      ...contracts
-    };
-
-    return { autocompleteEntries, entries };
-  }
-
-  shouldComponentUpdate (nextProps, nextState) {
-    const keys = [ 'error', 'value' ];
-
-    const prevValues = pick(this.props, keys);
-    const nextValues = pick(nextProps, keys);
-
-    return !isEqual(prevValues, nextValues);
-  }
+    copied: null,
+    expanded: false,
+    focused: false,
+    focusedCat: null,
+    focusedItem: null,
+    inputValue: '',
+    left: 0,
+    top: 0,
+    values: []
+  };
 
   componentWillMount () {
-    const { value } = this.props;
-    const { entries, autocompleteEntries } = this.entriesFromProps();
-    const addresses = Object.keys(entries).sort();
-
-    this.setState({ autocompleteEntries, entries, addresses, value });
+    this.setValues();
   }
 
-  componentWillReceiveProps (newProps) {
-    if (newProps.value !== this.props.value) {
-      this.setState({ value: newProps.value });
+  componentWillReceiveProps (nextProps) {
+    if (this.values && this.values.length > 0) {
+      return;
     }
+
+    this.setValues(nextProps);
+  }
+
+  setValues (props = this.props) {
+    const { accounts = {}, contracts = {}, contacts = {}, wallets = {} } = props;
+
+    const accountsN = Object.keys(accounts).length;
+    const contractsN = Object.keys(contracts).length;
+    const contactsN = Object.keys(contacts).length;
+    const walletsN = Object.keys(wallets).length;
+
+    if (accountsN + contractsN + contactsN + walletsN === 0) {
+      return;
+    }
+
+    this.values = [
+      {
+        label: 'accounts',
+        values: [].concat(
+          Object.values(wallets),
+          Object.values(accounts)
+        )
+      },
+      {
+        label: 'contacts',
+        values: Object.values(contacts)
+      },
+      {
+        label: 'contracts',
+        values: Object.values(contracts)
+      }
+    ];
+
+    this.handleChange();
   }
 
   render () {
-    const { allowInput, disabled, error, hint, label } = this.props;
-    const { autocompleteEntries, value } = this.state;
+    const input = this.renderInput();
+    const content = this.renderContent();
 
-    const searchText = this.getSearchText();
-    const icon = this.renderIdentityIcon(value);
+    const classes = [ styles.main ];
 
     return (
-      <div className={ styles.container }>
-        <AutoComplete
-          className={ !icon ? '' : styles.paddedInput }
-          disabled={ disabled }
-          label={ label }
-          hint={ hint ? `search for ${hint}` : 'search for an address' }
-          error={ error }
-          onChange={ this.onChange }
-          onBlur={ this.onBlur }
-          onUpdateInput={ allowInput && this.onUpdateInput }
-          value={ searchText }
-          filter={ this.handleFilter }
-          entries={ autocompleteEntries }
-          entry={ this.getEntry() || {} }
-          renderItem={ this.renderItem }
-        />
-        { icon }
+      <div
+        className={ classes.join(' ') }
+        onBlur={ this.handleMainBlur }
+        onClick={ this.handleFocus }
+        onFocus={ this.handleMainFocus }
+        onKeyDown={ this.handleInputAddresKeydown }
+        ref='inputAddress'
+        tabIndex={ 0 }
+      >
+        { input }
+        { content }
       </div>
     );
   }
 
-  renderIdentityIcon (inputValue) {
-    const { error, value, label } = this.props;
+  renderInput () {
+    const { focused } = this.state;
+    const { accountsInfo, disabled, error, hint, label, value } = this.props;
 
-    if (error || !inputValue || value.length !== 42) {
-      return null;
+    const input = (
+      <InputAddress
+        accountsInfo={ accountsInfo }
+        error={ error }
+        focused={ focused }
+        label={ label }
+        hint={ hint }
+        tabIndex={ -1 }
+        value={ value }
+
+        allowCopy={ false }
+        disabled
+        text
+      />
+    );
+
+    if (disabled) {
+      return input;
     }
 
-    const classes = [ styles.icon ];
-
-    if (!label) {
-      classes.push(styles.noLabel);
-    }
-
+    // Could add `onFocus={ this.handleFocus }` if wanted
     return (
-      <IdentityIcon
-        className={ classes.join(' ') }
-        inline center
-        address={ value } />
+      <div
+        className={ styles.inputAddress }
+      >
+        { input }
+      </div>
     );
   }
 
-  renderItem = (entry) => {
-    const { address, name } = entry;
+  renderContent () {
+    const { muiTheme } = this.context;
+    const { hint, disabled } = this.props;
+    const { expanded, top, left } = this.state;
 
-    const _balance = this.getBalance(address);
-    const balance = _balance ? _balance.toNumber() : _balance;
-
-    if (!this.items[address] || this.items[address].balance !== balance) {
-      this.items[address] = {
-        text: name && name.toUpperCase() || address,
-        value: this.renderMenuItem(address),
-        address, balance
-      };
-    }
-
-    return this.items[address];
-  }
-
-  getBalance (address) {
-    const { balances = {} } = this.props;
-    const balance = balances[address];
-
-    if (!balance) {
+    if (disabled) {
       return null;
     }
 
-    const ethToken = balance.tokens.find((tok) => tok.token && tok.token.tag && tok.token.tag.toLowerCase() === 'eth');
+    const classes = [ styles.overlay ];
+
+    if (expanded) {
+      classes.push(styles.expanded);
+    }
+
+    return (
+      <Portal isOpened onClose={ this.handleClose }>
+        <div
+          className={ classes.join(' ') }
+          style={ { top, left } }
+          onKeyDown={ this.handleKeyDown }
+        >
+          <ParityBackground muiTheme={ muiTheme } className={ styles.parityBackground } />
+          <div className={ styles.inputContainer }>
+            <input
+              className={ styles.input }
+              placeholder={ hint }
+
+              onFocus={ this.handleInputFocus }
+              onChange={ this.handleChange }
+
+              ref={ this.setInputRef }
+            />
+
+            { this.renderCurrentInput() }
+            { this.renderAccounts() }
+            { this.renderCloseIcon() }
+          </div>
+        </div>
+      </Portal>
+    );
+  }
+
+  renderCurrentInput () {
+    if (!this.props.allowInput) {
+      return null;
+    }
+
+    const { inputValue } = this.state;
+
+    if (inputValue.length === 0 || !/^(0x)?[a-f0-9]*$/i.test(inputValue)) {
+      return null;
+    }
+
+    return (
+      <div
+
+      >
+        { this.renderAccountCard({ address: inputValue }) }
+      </div>
+    );
+  }
+
+  renderCloseIcon () {
+    const { expanded } = this.state;
+
+    if (!expanded) {
+      return null;
+    }
+
+    return (
+      <div className={ styles.closeIcon } onClick={ this.handleClose }>
+        <CloseIcon style={ { width: 48, height: 48 } } />
+      </div>
+    );
+  }
+
+  renderAccounts () {
+    const { values } = this.state;
+
+    if (values.length === 0) {
+      return (
+        <div className={ styles.categories }>
+          <div className={ styles.empty }>
+            No account matches this query...
+          </div>
+        </div>
+      );
+    }
+
+    const categories = values.map((category) => {
+      return this.renderCategory(category.label, category.values);
+    });
+
+    return (
+      <div className={ styles.categories }>
+        { categories }
+      </div>
+    );
+  }
+
+  renderCategory (name, values = []) {
+    if (values.length === 0) {
+      return null;
+    }
+
+    const cards = values
+      .map((account) => this.renderAccountCard(account));
+
+    return (
+      <div className={ styles.category } key={ name }>
+        <div className={ styles.title }>{ name }</div>
+        <div className={ styles.cards }>
+          <div>{ cards }</div>
+        </div>
+      </div>
+    );
+  }
+
+  renderAccountCard (_account) {
+    const { copied } = this.state;
+    const { address, index = null } = _account;
+
+    const account = this.props.accountsInfo[address];
+    const name = (account && account.name && account.name.toUpperCase()) || address;
+    const balance = this.renderBalance(address);
+
+    const onClick = () => {
+      this.handleClick(address);
+    };
+
+    const onFocus = () => {
+      this.setState({ focusedItem: index });
+    };
+
+    const classes = [ styles.account ];
+
+    if (copied === index) {
+      classes.push(styles.copied);
+    }
+
+    const addressElements = name !== address
+      ? (
+        <div
+          className={ styles.address }
+          onClick={ this.preventEvent }
+          ref={ `address_${index}` }
+        >
+          { address }
+        </div>
+      )
+      : null;
+
+    return (
+      <div
+        key={ address }
+        ref={ `account_${index}` }
+        tabIndex={ 0 }
+        className={ classes.join(' ') }
+        onClick={ onClick }
+        onFocus={ onFocus }
+      >
+        <IdentityIcon address={ address } />
+        <div className={ styles.accountInfo }>
+          <div className={ styles.accountName }>{ name }</div>
+          { addressElements }
+          { balance }
+        </div>
+      </div>
+    );
+  }
+
+  renderBalance (address) {
+    const { balances = {} } = this.props;
+
+    const balance = balances[address];
+
+    if (!balance || !balance.tokens) {
+      return null;
+    }
+
+    const ethToken = balance.tokens
+      .find((tok) => tok.token && (tok.token.tag || '').toLowerCase() === 'eth');
 
     if (!ethToken) {
       return null;
     }
 
-    return ethToken.value;
-  }
-
-  renderBalance (address) {
-    const balance = this.getBalance(address);
-    const value = fromWei(balance);
+    const value = fromWei(ethToken.value).toFormat(3);
 
     return (
       <div className={ styles.balance }>
-        { value.toFormat(3) }<small> { 'ETH' }</small>
+        <span className={ styles.value }>{ value }</span>
+        <span className={ styles.tag }>ETH</span>
       </div>
     );
   }
 
-  renderMenuItem (address) {
-    const balance = this.props.balances
-      ? this.renderBalance(address)
-      : null;
-
-    const item = (
-      <div className={ styles.account }>
-        <IdentityIcon
-          className={ styles.image }
-          inline center
-          address={ address } />
-        <IdentityName
-          className={ styles.name }
-          address={ address } />
-        { balance }
-      </div>
-    );
-
-    return (
-      <MenuItem
-        className={ styles.menuItem }
-        key={ address }
-        value={ address }
-        label={ item }>
-        { item }
-      </MenuItem>
-    );
+  setInputRef = (refId) => {
+    this.inputRef = refId;
   }
 
-  getSearchText () {
-    const entry = this.getEntry();
-
-    return entry && entry.name
-      ? entry.name.toUpperCase()
-      : this.state.value;
-  }
-
-  getEntry () {
-    const { entries, value } = this.state;
-    return value ? entries[value] : null;
-  }
-
-  handleFilter = (searchText, name, item) => {
-    const { address } = item;
-    const entry = this.state.entries[address];
-    const lowCaseSearch = (searchText || '').toLowerCase();
-
-    return [entry.name, entry.address]
-      .some(text => text.toLowerCase().indexOf(lowCaseSearch) !== -1);
-  }
-
-  onChange = (entry, empty) => {
+  handleCustomInput = () => {
     const { allowInput } = this.props;
-    const { value } = this.state;
+    const { inputValue, values } = this.state;
 
-    const address = entry && entry.address
-      ? entry.address
-      : ((empty && !allowInput) ? '' : value);
+    // If input is HEX and allowInput === true, send it
+    if (allowInput && inputValue && /^(0x)?([0-9a-f])+$/i.test(inputValue)) {
+      return this.handleClick(inputValue);
+    }
 
-    this.props.onChange(null, address);
+    // If only one value, select it
+    if (values.length === 1 && values[0].values.length === 1) {
+      const value = values[0].values[0];
+      return this.handleClick(value.address);
+    }
   }
 
-  onUpdateInput = (query, choices) => {
-    const { api } = this.context;
+  handleInputAddresKeydown = (event) => {
+    const code = keycode(event);
 
-    const address = query.trim();
+    // Simulate click on input address if enter is pressed
+    if (code === 'enter') {
+      return this.handleDOMAction('inputAddress', 'click');
+    }
+  }
 
-    if (!/^0x/.test(address) && api.util.isAddressValid(`0x${address}`)) {
-      const checksumed = api.util.toChecksumAddress(`0x${address}`);
-      return this.props.onChange(null, checksumed);
+  handleKeyDown = (event) => {
+    const codeName = keycode(event);
+
+    if (event.ctrlKey) {
+      const { focusedItem } = this.state;
+
+      // Copy the selected address if nothing selected and there is
+      // a focused item
+      const isSelection = !window.getSelection || window.getSelection().type === 'Range';
+      if (codeName === 'c' && focusedItem && focusedItem > 0 && !isSelection) {
+        const element = ReactDOM.findDOMNode(this.refs[`address_${focusedItem}`]);
+
+        if (!element) {
+          return event;
+        }
+
+        // Copy the address from the right element
+        // @see https://developers.google.com/web/updates/2015/04/cut-and-copy-commands
+        try {
+          const range = document.createRange();
+          range.selectNode(element);
+          window.getSelection().addRange(range);
+          document.execCommand('copy');
+
+          try {
+            window.getSelection().removeRange(range);
+          } catch (e) {
+            window.getSelection().removeAllRanges();
+          }
+
+          this.setState({ copied: focusedItem }, () => {
+            window.setTimeout(() => {
+              this.setState({ copied: null });
+            }, 250);
+          });
+        } catch (e) {
+          console.warn('could not copy', focusedItem, e);
+        }
+      }
+
+      return event;
+    }
+
+    switch (codeName) {
+      case 'esc':
+        event.preventDefault();
+        return this.handleClose();
+
+      case 'enter':
+        const index = this.state.focusedItem;
+        if (!index) {
+          return this.handleCustomInput();
+        }
+
+        return this.handleDOMAction(`account_${index}`, 'click');
+
+      case 'left':
+      case 'right':
+      case 'up':
+      case 'down':
+        event.preventDefault();
+        return this.handleNavigation(codeName);
+
+      default:
+        const code = codes[codeName];
+
+        // @see https://github.com/timoxley/keycode/blob/master/index.js
+        // lower case chars
+        if (code >= (97 - 32) && code <= (122 - 32)) {
+          return this.handleDOMAction(this.inputRef, 'focus');
+        }
+
+        // numbers
+        if (code >= 48 && code <= 57) {
+          return this.handleDOMAction(this.inputRef, 'focus');
+        }
+
+        return event;
+    }
+  }
+
+  handleDOMAction = (ref, method) => {
+    const refItem = typeof ref === 'string' ? this.refs[ref] : ref;
+    const element = ReactDOM.findDOMNode(refItem);
+
+    if (!element || typeof element[method] !== 'function') {
+      console.warn('could not find', ref, 'or method', method);
+      return;
+    }
+
+    return element[method]();
+  }
+
+  focusItem = (index) => {
+    this.setState({ focusedItem: index });
+    return this.handleDOMAction(`account_${index}`, 'focus');
+  }
+
+  handleNavigation = (direction) => {
+    const { focusedItem, focusedCat, values } = this.state;
+
+    // Don't do anything if no values
+    if (values.length === 0) {
+      return;
+    }
+
+    // Focus on the first element if none selected yet if going down
+    if (!focusedItem) {
+      if (direction !== 'down') {
+        return;
+      }
+
+      const nextValues = values[focusedCat || 0];
+      const nextFocus = nextValues ? nextValues.values[0] : null;
+      return this.focusItem(nextFocus && nextFocus.index || 1);
+    }
+
+    // Find the previous focused category
+    const prevCategoryIndex = values.findIndex((category) => {
+      return category.values.find((value) => value.index === focusedItem);
+    });
+    const prevFocusIndex = values[prevCategoryIndex].values.findIndex((a) => a.index === focusedItem);
+
+    let nextCategory = prevCategoryIndex;
+    let nextFocusIndex;
+
+    // If down: increase index if possible
+    if (direction === 'down') {
+      const prevN = values[prevCategoryIndex].values.length;
+      nextFocusIndex = Math.min(prevFocusIndex + 1, prevN - 1);
+    }
+
+    // If up: decrease index if possible
+    if (direction === 'up') {
+      // Focus on search if at the top
+      if (prevFocusIndex === 0) {
+        return this.handleDOMAction(this.inputRef, 'focus');
+      }
+
+      nextFocusIndex = prevFocusIndex - 1;
+    }
+
+    // If right: next category
+    if (direction === 'right') {
+      nextCategory = Math.min(prevCategoryIndex + 1, values.length - 1);
+    }
+
+    // If right: previous category
+    if (direction === 'left') {
+      nextCategory = Math.max(prevCategoryIndex - 1, 0);
+    }
+
+    // If left or right: try to keep the horizontal index
+    if (direction === 'left' || direction === 'right') {
+      this.setState({ focusedCat: nextCategory });
+      nextFocusIndex = Math.min(prevFocusIndex, values[nextCategory].values.length - 1);
+    }
+
+    const nextFocus = values[nextCategory].values[nextFocusIndex].index;
+    return this.focusItem(nextFocus);
+  }
+
+  handleClick = (address) => {
+    // Don't do anything if it's only text-selection
+    if (window.getSelection && window.getSelection().type === 'Range') {
+      return;
     }
 
     this.props.onChange(null, address);
+    this.handleClose();
+  }
+
+  handleMainBlur = () => {
+    if (window.document.hasFocus() && !this.state.expanded) {
+      this.closing = false;
+      this.setState({ focused: false });
+    }
+  }
+
+  handleMainFocus = () => {
+    if (this.state.focused) {
+      return;
+    }
+
+    this.setState({ focused: true }, () => {
+      if (this.closing) {
+        this.closing = false;
+        return;
+      }
+
+      this.handleFocus();
+    });
+  }
+
+  handleFocus = () => {
+    const { top, left } = this.refs.inputAddress.getBoundingClientRect();
+
+    this.setState({ top, left }, () => {
+      this.setState({ expanded: true, focusedItem: null, focusedCat: null }, () => {
+        this.setState({ top: 0, left: 0 }, () => {
+          window.setTimeout(() => {
+            this.handleDOMAction(this.inputRef, 'focus');
+          }, 250);
+        });
+      });
+    });
+  }
+
+  handleClose = () => {
+    if (!this.refs.inputAddress) {
+      return null;
+    }
+
+    const { top, left } = this.refs.inputAddress.getBoundingClientRect();
+    this.setState({ top, left, expanded: false });
+    this.closing = true;
+
+    return this.handleDOMAction('inputAddress', 'focus');
+  }
+
+  /**
+   * Filter the given values based on the given
+   * filter
+   */
+  filterValues = (values = [], _filter = '') => {
+    const filter = _filter.toLowerCase();
+
+    return values
+      // Remove empty accounts
+      .filter((a) => a)
+      .filter((account) => {
+        const address = account.address.toLowerCase();
+        const inAddress = address.includes(filter);
+
+        if (!account.name || inAddress) {
+          return inAddress;
+        }
+
+        const name = account.name.toLowerCase();
+        const inName = name.includes(filter);
+        const { meta = {} } = account;
+
+        if (!meta.tags || inName) {
+          return inName;
+        }
+
+        const tags = (meta.tags || []).join('');
+        return tags.includes(filter);
+      })
+      .sort((accA, accB) => {
+        const nameA = accA.name || accA.address;
+        const nameB = accB.name || accB.address;
+
+        return nameA.localeCompare(nameB);
+      });
+  }
+
+  handleInputFocus = () => {
+    this.setState({ focusedItem: null });
+  }
+
+  handleChange = (event = { target: {} }) => {
+    const { value = '' } = event.target;
+    let index = 0;
+
+    const values = this.values
+      .map((category) => {
+        const filteredValues = this
+          .filterValues(category.values, value)
+          .map((value) => {
+            index++;
+            return { ...value, index: parseInt(index) };
+          });
+
+        return {
+          label: category.label,
+          values: filteredValues
+        };
+      })
+      .filter((category) => category.values.length > 0);
+
+    this.setState({
+      values,
+      focusedItem: null,
+      inputValue: value
+    });
+  }
+
+  preventEvent = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+  }
+}
+
+function mapStateToProps (state) {
+  // const { accounts, contacts, contracts } = state.personal;
+  const { accountsInfo } = state.personal;
+  const { balances } = state.balances;
+
+  return {
+    // accounts,
+    // contacts,
+    // contracts,
+    accountsInfo,
+    balances
   };
 }
+
+export default connect(
+  mapStateToProps
+)(AddressSelect);
+
