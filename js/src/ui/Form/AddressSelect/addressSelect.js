@@ -83,6 +83,10 @@ class AddressSelect extends Component {
     window.addEventListener('resize', this.handleTagsOpacity);
   }
 
+  componentDidMount () {
+    this.setPosition();
+  }
+
   componentWillReceiveProps (nextProps) {
     if (this.values && this.values.length > 0) {
       return;
@@ -655,16 +659,15 @@ class AddressSelect extends Component {
     });
   }
 
-  handleFocus = () => {
-    const { top, left } = this.refs.inputAddress.getBoundingClientRect();
+  setPosition = (nextState = {}) => {
+    const { top = 0, left = 0 } = this.handleDOMAction(this.refs.inputAddress, 'getBoundingClientRect') || {};
+    this.setState({ top, left, ...nextState });
+  }
 
-    this.setState({ top, left }, () => {
-      this.setState({ expanded: true, focusedItem: null, focusedCat: null }, () => {
-        this.setState({ top: 0, left: 0 }, () => {
-          window.setTimeout(() => {
-            this.handleDOMAction(this.inputRef, 'focus');
-          }, 250);
-        });
+  handleFocus = () => {
+    this.setState({ expanded: true, focusedItem: null, focusedCat: null, top: 0, left: 0 }, () => {
+      window.setTimeout(() => {
+        this.handleDOMAction(this.inputRef, 'focus');
       });
     });
   }
@@ -674,8 +677,7 @@ class AddressSelect extends Component {
       return null;
     }
 
-    const { top, left } = this.refs.inputAddress.getBoundingClientRect();
-    this.setState({ top, left, expanded: false });
+    this.setPosition({ expanded: false });
     this.closing = true;
 
     return this.handleDOMAction('inputAddress', 'focus');
