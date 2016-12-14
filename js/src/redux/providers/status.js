@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -54,7 +54,10 @@ export default class Status {
         this._api.eth
           .getBlockByNumber(blockNumber)
           .then((block) => {
-            this._store.dispatch(statusCollection({ gasLimit: block.gasLimit }));
+            this._store.dispatch(statusCollection({
+              blockTimestamp: block.timestamp,
+              gasLimit: block.gasLimit
+            }));
           })
           .catch((error) => {
             console.warn('status._subscribeBlockNumber', 'getBlockByNumber', error);

@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -183,7 +183,7 @@ fn should_confirm_transaction_and_dispatch() {
 	let t = Transaction {
 		nonce: U256::zero(),
 		gas_price: U256::from(0x1000),
-		gas: U256::from(10_000_000),
+		gas: U256::from(0x50505),
 		action: Action::Call(recipient),
 		value: U256::from(0x1),
 		data: vec![]
@@ -198,7 +198,7 @@ fn should_confirm_transaction_and_dispatch() {
 	let request = r#"{
 		"jsonrpc":"2.0",
 		"method":"signer_confirmRequest",
-		"params":["0x1", {"gasPrice":"0x1000"}, "test"],
+		"params":["0x1", {"gasPrice":"0x1000","gas":"0x50505"}, "test"],
 		"id":1
 	}"#;
 	let response = r#"{"jsonrpc":"2.0","result":""#.to_owned() + format!("0x{:?}", t.hash()).as_ref() + r#"","id":1}"#;

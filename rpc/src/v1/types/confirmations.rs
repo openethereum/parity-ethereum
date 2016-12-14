@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -151,6 +151,8 @@ pub struct TransactionModification {
 	/// Modified gas price
 	#[serde(rename="gasPrice")]
 	pub gas_price: Option<U256>,
+	/// Modified gas
+	pub gas: Option<U256>,
 }
 
 /// Represents two possible return values.
@@ -284,18 +286,26 @@ mod tests {
 		let s1 = r#"{
 			"gasPrice":"0xba43b7400"
 		}"#;
-		let s2 = r#"{}"#;
+		let s2 = r#"{"gas": "0x1233"}"#;
+		let s3 = r#"{}"#;
 
 		// when
 		let res1: TransactionModification = serde_json::from_str(s1).unwrap();
 		let res2: TransactionModification = serde_json::from_str(s2).unwrap();
+		let res3: TransactionModification = serde_json::from_str(s3).unwrap();
 
 		// then
 		assert_eq!(res1, TransactionModification {
 			gas_price: Some(U256::from_str("0ba43b7400").unwrap()),
+			gas: None,
 		});
 		assert_eq!(res2, TransactionModification {
 			gas_price: None,
+			gas: Some(U256::from_str("1233").unwrap()),
+		});
+		assert_eq!(res3, TransactionModification {
+			gas_price: None,
+			gas: None,
 		});
 	}
 

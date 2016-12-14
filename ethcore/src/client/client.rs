@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -559,11 +559,15 @@ impl Client {
 	}
 
 	/// Import transactions from the IO queue
-	pub fn import_queued_transactions(&self, transactions: &[Bytes]) -> usize {
+	pub fn import_queued_transactions(&self, transactions: &[Bytes], peer_id: usize) -> usize {
 		trace!(target: "external_tx", "Importing queued");
 		let _timer = PerfTimer::new("import_queued_transactions");
 		self.queue_transactions.fetch_sub(transactions.len(), AtomicOrdering::SeqCst);
-		let txs = transactions.iter().filter_map(|bytes| UntrustedRlp::new(bytes).as_val().ok()).collect();
+		let txs: Vec<SignedTransaction> = transactions.iter().filter_map(|bytes| UntrustedRlp::new(bytes).as_val().ok()).collect();
+		let hashes: Vec<_> = txs.iter().map(|tx| tx.hash()).collect();
+		self.notify(|notify| {
+			notify.transactions_received(hashes.clone(), peer_id);
+		});
 		let results = self.miner.import_external_transactions(self, txs);
 		results.len()
 	}
@@ -1264,14 +1268,14 @@ impl BlockChainClient for Client {
 		(*self.build_last_hashes(self.chain.read().best_block_hash())).clone()
 	}
 
-	fn queue_transactions(&self, transactions: Vec<Bytes>) {
+	fn queue_transactions(&self, transactions: Vec<Bytes>, peer_id: usize) {
 		let queue_size = self.queue_transactions.load(AtomicOrdering::Relaxed);
 		trace!(target: "external_tx", "Queue size: {}", queue_size);
 		if queue_size > MAX_TX_QUEUE_SIZE {
 			debug!("Ignoring {} transactions: queue is full", transactions.len());
 		} else {
 			let len = transactions.len();
-			match self.io_channel.lock().send(ClientIoMessage::NewTransactions(transactions)) {
+			match self.io_channel.lock().send(ClientIoMessage::NewTransactions(transactions, peer_id)) {
 				Ok(_) => {
 					self.queue_transactions.fetch_add(len, AtomicOrdering::SeqCst);
 				}

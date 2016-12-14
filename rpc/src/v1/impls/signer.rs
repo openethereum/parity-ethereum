@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -75,11 +75,13 @@ impl<C: 'static, M: 'static> SignerClient<C, M> where C: MiningBlockChainClient,
 		signer.peek(&id).map(|confirmation| {
 			let mut payload = confirmation.payload.clone();
 			// Modify payload
-			match (&mut payload, modification.gas_price) {
-				(&mut ConfirmationPayload::SendTransaction(ref mut request), Some(gas_price)) => {
+			if let ConfirmationPayload::SendTransaction(ref mut request) = payload {
+				if let Some(gas_price) = modification.gas_price {
 					request.gas_price = gas_price.into();
-				},
-				_ => {},
+				}
+				if let Some(gas) = modification.gas {
+					request.gas = gas.into();
+				}
 			}
 			let result = f(&*client, &*miner, &*accounts, payload);
 			// Execute

@@ -1,7 +1,7 @@
 [package]
 name = "ethcore-ipc-codegen"
 version = "1.5.0"
-authors = ["Nikolay Volf"]
+authors = ["Parity Technologies <admin@parity.io>"]
 license = "GPL-3.0"
 description = "Macros to auto-generate implementations for ipc call"
 build = "build.rs"

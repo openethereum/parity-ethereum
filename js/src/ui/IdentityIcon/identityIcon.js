@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -19,6 +19,8 @@ import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 import ContractIcon from 'material-ui/svg-icons/action/code';
 
+import { createIdentityImg } from '~/api/util/identity';
+
 import styles from './identityIcon.css';
 
 class IdentityIcon extends Component {
@@ -29,12 +31,12 @@ class IdentityIcon extends Component {
   static propTypes = {
     address: PropTypes.string,
     button: PropTypes.bool,
-    className: PropTypes.string,
     center: PropTypes.bool,
-    padded: PropTypes.bool,
+    className: PropTypes.string,
     inline: PropTypes.bool,
-    tiny: PropTypes.bool,
-    images: PropTypes.object.isRequired
+    images: PropTypes.object.isRequired,
+    padded: PropTypes.bool,
+    tiny: PropTypes.bool
   }
 
   state = {
@@ -75,7 +77,7 @@ class IdentityIcon extends Component {
     }
 
     this.setState({
-      iconsrc: api.util.createIdentityImg(_address, scale)
+      iconsrc: createIdentityImg(_address, scale)
     });
   }
 
@@ -105,16 +107,20 @@ class IdentityIcon extends Component {
       return (
         <ContractIcon
           className={ classes }
-          style={ { width: size, height: size, background: '#eee' } } />
+          style={ {
+            width: size,
+            height: size,
+            background: '#eee'
+          } } />
       );
     }
 
     return (
       <img
         className={ classes }
-        src={ iconsrc }
+        height={ size }
         width={ size }
-        height={ size } />
+        src={ iconsrc } />
     );
   }
 }

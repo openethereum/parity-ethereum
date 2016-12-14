@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -85,7 +85,7 @@ class Contracts extends Component {
         { this.renderDeployContract() }
         <Page>
           <List
-            link='contract'
+            link='contracts'
             search={ searchValues }
             accounts={ contracts }
             balances={ balances }
@@ -142,12 +142,12 @@ class Contracts extends Component {
         label='deploy contract'
         onClick={ this.onDeployContract } />,
       <Link
-        to='/contracts/write'
+        to='/contracts/develop'
         key='writeContract'
       >
         <Button
           icon={ <FileIcon /> }
-          label='write contract'
+          label='develop contract'
         />
       </Link>,
 

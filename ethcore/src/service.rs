@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -39,7 +39,7 @@ pub enum ClientIoMessage {
 	/// A block is ready
 	BlockVerified,
 	/// New transaction RLPs are ready to be imported
-	NewTransactions(Vec<Bytes>),
+	NewTransactions(Vec<Bytes>, usize),
 	/// Begin snapshot restoration
 	BeginRestoration(ManifestData),
 	/// Feed a state chunk to the snapshot service
@@ -196,7 +196,9 @@ impl IoHandler<ClientIoMessage> for ClientIoHandler {
 
 		match *net_message {
 			ClientIoMessage::BlockVerified => { self.client.import_verified_blocks(); }
-			ClientIoMessage::NewTransactions(ref transactions) => { self.client.import_queued_transactions(transactions); }
+			ClientIoMessage::NewTransactions(ref transactions, peer_id) => {
+				self.client.import_queued_transactions(transactions, peer_id);
+			}
 			ClientIoMessage::BeginRestoration(ref manifest) => {
 				if let Err(e) = self.snapshot.init_restore(manifest.clone(), true) {
 					warn!("Failed to initialize snapshot restoration: {}", e);

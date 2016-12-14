@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -144,7 +144,7 @@ pub struct EthSync {
 	network: NetworkService,
 	/// Main (eth/par) protocol handler
 	sync_handler: Arc<SyncProtocolHandler>,
-	/// Light (les) protocol handler 
+	/// Light (les) protocol handler
 	light_proto: Option<Arc<LightProtocol>>,
 	/// The main subprotocol name
 	subprotocol_name: [u8; 3],
@@ -155,7 +155,7 @@ pub struct EthSync {
 impl EthSync {
 	/// Creates and register protocol with the network service
 	pub fn new(params: Params) -> Result<Arc<EthSync>, NetworkError> {
-		let pruning_info = params.chain.pruning_info();		
+		let pruning_info = params.chain.pruning_info();
 		let light_proto = match params.config.serve_light {
 			false => None,
 			true => Some({
@@ -297,7 +297,7 @@ impl ChainNotify for EthSync {
 				Some(lp) => lp,
 				None => return,
 			};
-			
+
 			let chain_info = self.sync_handler.chain.chain_info();
 			light_proto.make_announcement(context, Announcement {
 				head_hash: chain_info.best_block_hash,
@@ -323,7 +323,7 @@ impl ChainNotify for EthSync {
 		// register the warp sync subprotocol
 		self.network.register_protocol(self.sync_handler.clone(), WARP_SYNC_PROTOCOL_ID, SNAPSHOT_SYNC_PACKET_COUNT, &[1u8])
 			.unwrap_or_else(|e| warn!("Error registering snapshot sync protocol: {:?}", e));
-		
+
 		// register the light protocol.
 		if let Some(light_proto) = self.light_proto.as_ref().map(|x| x.clone()) {
 			self.network.register_protocol(light_proto, self.light_subprotocol_name, ::light::net::PACKET_COUNT, ::light::net::PROTOCOL_VERSIONS)
@@ -335,6 +335,11 @@ impl ChainNotify for EthSync {
 		self.sync_handler.snapshot_service.abort_restore();
 		self.network.stop().unwrap_or_else(|e| warn!("Error stopping network: {:?}", e));
 	}
+
+	fn transactions_received(&self, hashes: Vec<H256>, peer_id: PeerId) {
+		let mut sync = self.sync_handler.sync.write();
+		sync.transactions_received(hashes, peer_id);
+	}
 }
 
 /// LES event handler.
@@ -344,7 +349,7 @@ struct TxRelay(Arc<BlockChainClient>);
 impl LightHandler for TxRelay {
 	fn on_transactions(&self, ctx: &EventContext, relay: &[::ethcore::transaction::SignedTransaction]) {
 		trace!(target: "les", "Relaying {} transactions from peer {}", relay.len(), ctx.peer());
-		self.0.queue_transactions(relay.iter().map(|tx| ::rlp::encode(tx).to_vec()).collect())
+		self.0.queue_transactions(relay.iter().map(|tx| ::rlp::encode(tx).to_vec()).collect(), ctx.peer())
 	}
 }
 

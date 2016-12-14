@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -32,9 +32,9 @@ const storeCreation = window.devToolsExtension
   ? window.devToolsExtension()(createStore)
   : createStore;
 
-export default function (api) {
+export default function (api, browserHistory) {
   const reducers = initReducers();
-  const middleware = initMiddleware(api);
+  const middleware = initMiddleware(api, browserHistory);
   const store = applyMiddleware(...middleware)(storeCreation)(reducers);
 
   new BalancesProvider(store, api).start();
