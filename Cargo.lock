@@ -886,7 +886,7 @@ version = "3.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
- "parking_lot 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
+ "parking_lot 0.2.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde 0.8.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_codegen 0.8.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_json 0.8.1 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1363,9 +1363,20 @@ dependencies = [
 [[package]]
 name = "parity-ui-precompiled"
 version = "1.4.0"
-source = "git+https://github.com/ethcore/js-precompiled.git#ad6617a73dbb17c53dddc0fc567e70ea5b8e882f"
+source = "git+https://github.com/ethcore/js-precompiled.git#2d07c405453bcf1e603c3965387b7f920565b6d8"
 dependencies = [
  "parity-dapps-glue 1.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "parking_lot"
+version = "0.2.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "kernel32-sys 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc 0.2.16 (registry+https://github.com/rust-lang/crates.io-index)",
+ "smallvec 0.1.8 (registry+https://github.com/rust-lang/crates.io-index)",
+ "winapi 0.2.8 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -1620,6 +1631,7 @@ dependencies = [
  "kernel32-sys 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "libc 0.2.16 (registry+https://github.com/rust-lang/crates.io-index)",
  "termios 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "winapi 0.2.8 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -2218,6 +2230,7 @@ dependencies = [
 "checksum owning_ref 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)" = "8d91377085359426407a287ab16884a0111ba473aa6844ff01d4ec20ce3d75e7"
 "checksum parity-dapps-glue 1.4.0 (registry+https://github.com/rust-lang/crates.io-index)" = "98378dec0a185da2b7180308752f0bad73aaa949c3e0a3b0528d0e067945f7ab"
 "checksum parity-ui-precompiled 1.4.0 (git+https://github.com/ethcore/js-precompiled.git)" = "<none>"
+"checksum parking_lot 0.2.8 (registry+https://github.com/rust-lang/crates.io-index)" = "968f685642555d2f7e202c48b8b11de80569e9bfea817f7f12d7c61aac62d4e6"
 "checksum parking_lot 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)" = "e1435e7a2a00dfebededd6c6bdbd54008001e94b4a2aadd6aef0dc4c56317621"
 "checksum parking_lot_core 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)" = "fb1b97670a2ffadce7c397fb80a3d687c4f3060140b885621ef1653d0e5d5068"
 "checksum phf 0.7.14 (registry+https://github.com/rust-lang/crates.io-index)" = "447d9d45f2e0b4a9b532e808365abf18fc211be6ca217202fcd45236ef12f026"
