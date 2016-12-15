@@ -179,7 +179,7 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 
 	// display info about used pruning algorithm
 	info!("Starting {}", Colour::White.bold().paint(version()));
-	info!("State DB configuation: {}{}{}",
+	info!("State DB configuration: {}{}{}",
 		Colour::White.bold().paint(algorithm.as_str()),
 		match fat_db {
 			true => Colour::White.bold().paint(" +Fat").to_string(),
