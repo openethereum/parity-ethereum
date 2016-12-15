@@ -661,7 +661,7 @@ mod tests {
 	use block::*;
 	use error::{Error, BlockError};
 	use header::Header;
-	use io::{IoService, IoChannel};
+	use io::IoChannel;
 	use env_info::EnvInfo;
 	use tests::helpers::*;
 	use account_provider::AccountProvider;
