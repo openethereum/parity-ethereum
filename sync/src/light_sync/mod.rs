@@ -40,45 +40,6 @@ use util::{Bytes, U256, H256, Mutex, RwLock};
 mod response;
 mod sync_round;
 
-/// Light synchronization errors.
-#[derive(Debug)]
-pub enum Error {
-	/// Peer returned a malformed response.
-	MalformedResponse(response::BasicError),
-	/// Peer returned known bad block.
-	BadBlock,
-	/// Peer returned empty response.
-	EmptyResponse,
-	/// Peer returned a subchain with a broken parent connection.
-	ParentMismatch,
-	/// Protocol-level error.
-	ProtocolLevel(NetError),
-}
-
-impl From<NetError> for Error {
-	fn from(net_error: NetError) -> Self {
-		Error::ProtocolLevel(net_error)
-	}
-}
-
-impl From<response::BasicError> for Error {
-	fn from(err: response::BasicError) -> Self {
-		Error::MalformedResponse(err)
-	}
-}
-
-impl fmt::Display for Error {
-	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		match *self {
-			Error::MalformedResponse(ref err) => write!(f, "{}", err),
-			Error::BadBlock => write!(f, "Block known to be bad"),
-			Error::EmptyResponse => write!(f, "Peer returned empty response."),
-			Error::ParentMismatch => write!(f, "Peer returned unknown block in place of parent."),
-			Error::ProtocolLevel(ref err) => write!(f, "Protocol level error: {}", err),
-		}
-	}
-}
-
 /// Peer chain info.
 #[derive(Clone)]
 struct ChainInfo {
