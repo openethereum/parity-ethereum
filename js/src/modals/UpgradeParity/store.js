@@ -19,33 +19,43 @@ import store from 'store';
 
 const LS_UPDATE = '_parity::update';
 
-const A_DAY = 24 * 60 * 60 * 1000;
+const A_MINUTE = 60 * 1000;
+const A_DAY = 24 * 60 * A_MINUTE;
 
-const STEP_INFO = 1;
-const STEP_UPDATING = 2;
-const STEP_COMPLETED = 3;
-const STEP_ERROR = 4;
+const STEP_INFO = 0;
+const STEP_UPDATING = 1;
+const STEP_COMPLETED = 2;
+const STEP_ERROR = 3;
 
-export default class ModalStore {
-  @observable closed = false;
+const CHECK_INTERVAL = 1 * A_MINUTE;
+
+export default class Store {
+  @observable available = null;
+  @observable consensusCapability = null;
+  @observable closed = true;
   @observable error = null;
+  @observable remindAt = 0;
   @observable step = 0;
-  @observable upgrade = null;
+  @observable upgrading = null;
+  @observable version = null;
 
-  constructor (upgradeStore) {
-    this.upgrade = upgradeStore;
+  constructor (api) {
+    this._api = api;
 
     this.loadStorage();
+    this.checkUpgrade();
+
+    setInterval(this.checkUpgrade, CHECK_INTERVAL);
   }
 
-  @computed get showUpgrade () {
+  @computed get isVisible () {
     return !this.closed && Date.now() >= this.remindAt;
   }
 
   @action closeModal = () => {
     transaction(() => {
       this.closed = true;
-      this.setStep(STEP_INFO);
+      this.setStep(0, null);
     });
   }
 
@@ -57,10 +67,29 @@ export default class ModalStore {
     return values;
   }
 
+  @action openModal = () => {
+    this.closed = false;
+  }
+
   @action setStep = (step, error = null) => {
     transaction(() => {
       this.error = error;
-      this.setp = step;
+      this.step = step;
+    });
+  }
+
+  @action setUpgrading () {
+    transaction(() => {
+      this.upgrading = this.available;
+      this.setStep(STEP_UPDATING, null);
+    });
+  }
+
+  @action setVersions (available, version, consensusCapability) {
+    transaction(() => {
+      this.available = available;
+      this.consensusCapability = consensusCapability;
+      this.version = version;
     });
   }
 
@@ -70,21 +99,41 @@ export default class ModalStore {
   }
 
   @action upgradeNow = () => {
-    this.setStep(STEP_UPDATING);
+    this.setUpgrading();
 
-    this.upgrade
+    return this._api.parity
       .executeUpgrade()
       .then((result) => {
         if (!result) {
           throw new Error('Unable to complete update');
         }
 
-        this.setStep(STEP_COMPLETED);
+        this.setStep(STEP_COMPLETED, null);
       })
       .catch((error) => {
         console.error('upgradeNow', error);
 
         this.setStep(STEP_ERROR, error);
+      });
+  }
+
+  checkUpgrade = () => {
+    if (!this._api) {
+      return;
+    }
+
+    Promise
+      .all([
+        this._api.parity.upgradeReady(),
+        this._api.parity.consensusCapability(),
+        this._api.parity.versionInfo()
+      ])
+      .then(([available, consensusCapability, version]) => {
+        console.log('[checkUpgrade]', 'available:', available, 'version:', version, 'consensusCapability:', consensusCapability);
+        this.setVersions(available, version, consensusCapability);
+      })
+      .catch((error) => {
+        console.warn('checkUpgrade', error);
       });
   }
 }

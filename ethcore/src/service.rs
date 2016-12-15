@@ -20,7 +20,7 @@ use util::*;
 use io::*;
 use spec::Spec;
 use error::*;
-use client::{Client, ClientConfig, ChainNotify};
+use client::{Client, BlockChainClient, MiningBlockChainClient, ClientConfig, ChainNotify};
 use miner::Miner;
 use snapshot::ManifestData;
 use snapshot::service::{Service as SnapshotService, ServiceParams as SnapServiceParams};
@@ -28,11 +28,9 @@ use std::sync::atomic::AtomicBool;
 
 #[cfg(feature="ipc")]
 use nanoipc;
-#[cfg(feature="ipc")]
-use client::BlockChainClient;
 
 /// Message type for external and internal events
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq, Debug)]
 pub enum ClientIoMessage {
 	/// Best Block Hash in chain has been changed
 	NewChainHead,
@@ -75,9 +73,6 @@ impl ClientService {
 		panic_handler.forward_from(&io_service);
 
 		info!("Configured for {} using {} engine", Colour::White.bold().paint(spec.name.clone()), Colour::Yellow.bold().paint(spec.engine.name()));
-		if spec.fork_name.is_some() {
-			warn!("Your chain is an alternative fork. {}", Colour::Red.bold().paint("TRANSACTIONS MAY BE REPLAYED ON THE MAINNET!"));
-		}
 
 		let mut db_config = DatabaseConfig::with_columns(::db::NUM_COLUMNS);
 

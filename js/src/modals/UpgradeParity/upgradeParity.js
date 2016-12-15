@@ -19,11 +19,10 @@ import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 
 import { Button } from '~/ui';
-import { CancelIcon, DoneIcon, NextIcon, SnoozeIcon } from '~/ui/Icons';
+import { CancelIcon, DoneIcon, NextIcon } from '~/ui/Icons';
 import Modal, { Busy, Completed } from '~/ui/Modal';
 
-import ModalStore, { STEP_COMPLETED, STEP_ERROR, STEP_INFO, STEP_UPDATING } from './modalStore';
-import UpgradeStore from './upgradeStore';
+import { STEP_COMPLETED, STEP_ERROR, STEP_INFO, STEP_UPDATING } from './store';
 import styles from './upgradeParity.css';
 
 @observer
@@ -32,17 +31,21 @@ export default class UpgradeParity extends Component {
     api: PropTypes.object.isRequired
   };
 
-  store = new ModalStore(new UpgradeStore(this.context.api));
+  static propTypes = {
+    store: PropTypes.object.isRequired
+  }
 
   render () {
-    if (!this.store.upgrade.available || !this.store.showUpgrade) {
+    const { store } = this.props;
+
+    if (!store.isVisible) {
       return null;
     }
 
     return (
       <Modal
         actions={ this.renderActions() }
-        current={ this.store.step }
+        current={ store.step }
         steps={ [
           <FormattedMessage
             id='upgradeParity.step.info'
@@ -50,13 +53,13 @@ export default class UpgradeParity extends Component {
           <FormattedMessage
             id='upgradeParity.step.updating'
             defaultMessage='upgrading parity' />,
-          this.store.step === STEP_ERROR
+          store.step === STEP_ERROR
             ? <FormattedMessage
-              id='upgradeParity.step.completed'
-              defaultMessage='upgrade completed' />
-            : <FormattedMessage
               id='upgradeParity.step.error'
               defaultMessage='error' />
+            : <FormattedMessage
+              id='upgradeParity.step.completed'
+              defaultMessage='upgrade completed' />
         ] }
         visible>
         { this.renderStep() }
@@ -65,44 +68,41 @@ export default class UpgradeParity extends Component {
   }
 
   renderActions () {
+    const { store } = this.props;
+
     const closeButton =
       <Button
         icon={ <CancelIcon /> }
+        key='close'
         label={
           <FormattedMessage
             id='upgradeParity.button.close'
             defaultMessage='close' />
         }
-        onClick={ this.store.closeModal } />;
+        onClick={ store.closeModal } />;
     const doneButton =
       <Button
         icon={ <DoneIcon /> }
+        key='done'
         label={
           <FormattedMessage
             id='upgradeParity.button.done'
             defaultMessage='done' />
         }
-        onClick={ this.store.closeModal } />;
+        onClick={ store.closeModal } />;
 
-    switch (this.store.step) {
+    switch (store.step) {
       case STEP_INFO:
         return [
           <Button
-            icon={ <SnoozeIcon /> }
-            label={
-              <FormattedMessage
-                id='upgradeParity.button.snooze'
-                defaultMessage='ask me tomorrow' />
-            }
-            onClick={ this.store.snoozeTillTomorrow } />,
-          <Button
             icon={ <NextIcon /> }
+            key='upgrade'
             label={
               <FormattedMessage
                 id='upgradeParity.button.upgrade'
                 defaultMessage='upgrade now' />
             }
-            onClick={ this.store.upgradeNow } />,
+            onClick={ store.upgradeNow } />,
           closeButton
         ];
 
@@ -120,48 +120,15 @@ export default class UpgradeParity extends Component {
   }
 
   renderStep () {
-    const { available, consensusCapability, error, upgrading, version } = this.store.upgrade;
+    const { store } = this.props;
 
-    const currentversion = this.renderVersion(version);
-    const newversion = upgrading
-      ? this.renderVersion(upgrading.version)
-      : this.renderVersion(available.version);
+    const currentversion = this.formatVersion(store);
+    const newversion = store.upgrading
+      ? this.formatVersion(store.upgrading)
+      : this.formatVersion(store.available);
 
-    switch (this.store.step) {
+    switch (store.step) {
       case STEP_INFO:
-        let consensusInfo = null;
-        if (consensusCapability === 'capable') {
-          consensusInfo = (
-            <div>
-              <FormattedMessage
-                id='upgradeParity.consensus.capable'
-                defaultMessage='Your current Parity version is capable of handling the nework requirements.' />
-            </div>
-          );
-        } else if (consensusCapability.capableUntil) {
-          consensusInfo = (
-            <div>
-              <FormattedMessage
-                id='upgradeParity.consensus.capableUntil'
-                defaultMessage='Your current Parity version is capable of handling the nework requirements until block {blockNumber}'
-                values={ {
-                  blockNumber: consensusCapability.capableUntil
-                } } />
-            </div>
-          );
-        } else if (consensusCapability.incapableSince) {
-          consensusInfo = (
-            <div>
-              <FormattedMessage
-                id='upgradeParity.consensus.incapableSince'
-                defaultMessage='Your current Parity version is incapable of handling the nework requirements since block {blockNumber}'
-                values={ {
-                  blockNumber: consensusCapability.incapableSince
-                } } />
-            </div>
-          );
-        }
-
         return (
           <div className={ styles.infoStep }>
             <div>
@@ -169,11 +136,11 @@ export default class UpgradeParity extends Component {
                 id='upgradeParity.info.upgrade'
                 defaultMessage='A new version of Parity, version {newversion} is available as an upgrade from your current version {currentversion}'
                 values={ {
-                  currentversion,
-                  newversion
+                  currentversion: <div className={ styles.version }>{ currentversion }</div>,
+                  newversion: <div className={ styles.version }>{ newversion }</div>
                 } } />
             </div>
-            { consensusInfo }
+            { this.renderConsensusInfo() }
           </div>
         );
 
@@ -185,7 +152,7 @@ export default class UpgradeParity extends Component {
                 id='upgradeParity.busy'
                 defaultMessage='Your upgrade to Parity {newversion} is currently in progress'
                 values={ {
-                  newversion
+                  newversion: <div className={ styles.version }>{ newversion }</div>
                 } } />
             } />
         );
@@ -197,7 +164,7 @@ export default class UpgradeParity extends Component {
               id='upgradeParity.completed'
               defaultMessage='Your upgrade to Parity {newversion} has been successfully completed.'
               values={ {
-                newversion
+                newversion: <div className={ styles.version }>{ newversion }</div>
               } } />
           </Completed>
         );
@@ -210,19 +177,74 @@ export default class UpgradeParity extends Component {
                 id='upgradeParity.failed'
                 defaultMessage='Your upgrade to Parity {newversion} has failed with an error.'
                 values={ {
-                  newversion
+                  newversion: <div className={ styles.version }>{ newversion }</div>
                 } } />
             </div>
             <div className={ styles.error }>
-              { error.message }
+              { store.error.message }
             </div>
           </Completed>
         );
     }
   }
 
-  renderVersion (versionInfo) {
-    const { track, version } = versionInfo;
+  renderConsensusInfo () {
+    const { store } = this.props;
+    const { consensusCapability } = store;
+
+    if (consensusCapability) {
+      if (consensusCapability === 'capable') {
+        return (
+          <div>
+            <FormattedMessage
+              id='upgradeParity.consensus.capable'
+              defaultMessage='Your current Parity version is capable of handling the network requirements.' />
+          </div>
+        );
+      } else if (consensusCapability.capableUntil) {
+        return (
+          <div>
+            <FormattedMessage
+              id='upgradeParity.consensus.capableUntil'
+              defaultMessage='Your current Parity version is capable of handling the network requirements until block {blockNumber}'
+              values={ {
+                blockNumber: consensusCapability.capableUntil
+              } } />
+          </div>
+        );
+      } else if (consensusCapability.incapableSince) {
+        return (
+          <div>
+            <FormattedMessage
+              id='upgradeParity.consensus.incapableSince'
+              defaultMessage='Your current Parity version is incapable of handling the network requirements since block {blockNumber}'
+              values={ {
+                blockNumber: consensusCapability.incapableSince
+              } } />
+          </div>
+        );
+      }
+    }
+
+    return (
+      <div>
+        <FormattedMessage
+          id='upgradeParity.consensus.unknown'
+          defaultMessage='Your current Parity version is capable of handling the network requirements.' />
+      </div>
+    );
+  }
+
+  formatVersion (struct) {
+    if (!struct || !struct.version) {
+      return (
+        <FormattedMessage
+          id='upgradeParity.version.unknown'
+          defaultMessage='unknown' />
+      );
+    }
+
+    const { track, version } = struct.version;
 
     return `${version.major}.${version.minor}.${version.patch}-${track}`;
   }

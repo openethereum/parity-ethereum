@@ -205,6 +205,12 @@ pub trait BlockChainClient : Sync + Send {
 	/// Queue transactions for importing.
 	fn queue_transactions(&self, transactions: Vec<Bytes>, peer_id: usize);
 
+	/// Queue conensus engine message.
+	fn queue_consensus_message(&self, message: Bytes);
+
+	/// Used by PoA to communicate with peers.
+	fn broadcast_consensus_message(&self, message: Bytes);
+
 	/// list all transactions
 	fn pending_transactions(&self) -> Vec<SignedTransaction>;
 
@@ -288,6 +294,15 @@ pub trait MiningBlockChainClient: BlockChainClient {
 
 	/// Returns EvmFactory.
 	fn vm_factory(&self) -> &EvmFactory;
+
+	/// Used by PoA to try sealing on period change.
+	fn update_sealing(&self);
+
+	/// Used by PoA to submit gathered signatures.
+	fn submit_seal(&self, block_hash: H256, seal: Vec<Bytes>);
+
+	/// Broadcast a block proposal.
+	fn broadcast_proposal_block(&self, block: SealedBlock);
 
 	/// Import sealed block. Skips all verifications.
 	fn import_sealed_block(&self, block: SealedBlock) -> ImportResult;

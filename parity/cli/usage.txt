@@ -15,6 +15,7 @@ Usage:
   parity snapshot <file> [options]
   parity restore [ <file> ] [options]
   parity tools hash <file>
+  parity db kill [options]
 
 Operating Options:
   --mode MODE              Set the operating mode. MODE can be one of:
@@ -280,7 +281,7 @@ Footprint Options:
                            of all accounts and storage keys. Doubles the size
                            of the state database. BOOL may be one of on, off
                            or auto. (default: {flag_fat_db})
-  --scale-verifiers        Automatically scale amount of verifier threads based on 
+  --scale-verifiers        Automatically scale amount of verifier threads based on
                            workload. Not guaranteed to be faster.
                            (default: {flag_scale_verifiers})
   --num-verifiers INT      Amount of verifier threads to use or to begin with, if verifier
@@ -296,10 +297,8 @@ Import/Export Options:
                            (default: {flag_format:?} = Import: auto, Export: binary)
   --no-seal-check          Skip block seal check. (default: {flag_no_seal_check})
   --at BLOCK               Export state at the given block, which may be an
-                           index, hash, or 'latest'. Note that taking snapshots at
-                           non-recent blocks will only work with --pruning archive
-                           (default: {flag_at})
-  --no-storage             Don't export account storge. (default: {flag_no_storage})
+                           index, hash, or 'latest'. (default: {flag_at})
+  --no-storage             Don't export account storage. (default: {flag_no_storage})
   --no-code                Don't export account code. (default: {flag_no_code})
   --min-balance WEI        Don't export accounts with balance less than specified.
                            (default: {flag_min_balance:?})

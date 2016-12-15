@@ -29,20 +29,23 @@ export default class Container extends Component {
   static propTypes = {
     children: PropTypes.node.isRequired,
     onCloseFirstRun: PropTypes.func,
-    showFirstRun: PropTypes.bool
+    showFirstRun: PropTypes.bool,
+    upgradeStore: PropTypes.object.isRequired
   };
 
   render () {
     const { muiTheme } = this.context;
-    const { children, onCloseFirstRun, showFirstRun } = this.props;
+    const { children, onCloseFirstRun, showFirstRun, upgradeStore } = this.props;
 
     return (
-      <ParityBackground className={ styles.container } muiTheme={ muiTheme }>
+      <ParityBackground
+        className={ styles.container }
+        muiTheme={ muiTheme }>
         <FirstRun
           onClose={ onCloseFirstRun }
           visible={ showFirstRun } />
         <Tooltips />
-        <UpgradeParity />
+        <UpgradeParity store={ upgradeStore } />
         <Errors />
         { children }
       </ParityBackground>

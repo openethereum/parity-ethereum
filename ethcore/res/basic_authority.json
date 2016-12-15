@@ -19,9 +19,7 @@
 	},
 	"genesis": {
 		"seal": {
-			"generic": {
-				"rlp": "0xc180"
-			}
+			"generic": "0xc180"
 		},
 		"difficulty": "0x20000",
 		"author": "0x0000000000000000000000000000000000000000",

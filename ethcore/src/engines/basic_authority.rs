@@ -22,7 +22,7 @@ use account_provider::AccountProvider;
 use block::*;
 use builtin::Builtin;
 use spec::CommonParams;
-use engines::Engine;
+use engines::{Engine, Seal};
 use env_info::EnvInfo;
 use error::{BlockError, Error};
 use evm::Schedule;
@@ -111,20 +111,20 @@ impl Engine for BasicAuthority {
 	///
 	/// This operation is synchronous and may (quite reasonably) not be available, in which `false` will
 	/// be returned.
-	fn generate_seal(&self, block: &ExecutedBlock) -> Option<Vec<Bytes>> {
+	fn generate_seal(&self, block: &ExecutedBlock) -> Seal {
 		if let Some(ref ap) = *self.account_provider.lock() {
 			let header = block.header();
 			let message = header.bare_hash();
 			// account should be pernamently unlocked, otherwise sealing will fail
 			if let Ok(signature) = ap.sign(*block.header().author(), self.password.read().clone(), message) {
-				return Some(vec![::rlp::encode(&(&*signature as &[u8])).to_vec()]);
+				return Seal::Regular(vec![::rlp::encode(&(&*signature as &[u8])).to_vec()]);
 			} else {
 				trace!(target: "basicauthority", "generate_seal: FAIL: accounts secret key unavailable");
 			}
 		} else {
 			trace!(target: "basicauthority", "generate_seal: FAIL: accounts not provided");
 		}
-		None
+		Seal::None
 	}
 
 	fn verify_block_basic(&self, header: &Header, _block: Option<&[u8]>) -> result::Result<(), Error> {
@@ -198,6 +198,7 @@ mod tests {
 	use account_provider::AccountProvider;
 	use header::Header;
 	use spec::Spec;
+	use engines::Seal;
 
 	/// Create a new test chain spec with `BasicAuthority` consensus engine.
 	fn new_test_authority() -> Spec {
@@ -268,8 +269,9 @@ mod tests {
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
 		let b = OpenBlock::new(engine, Default::default(), false, db, &genesis_header, last_hashes, addr, (3141562.into(), 31415620.into()), vec![]).unwrap();
 		let b = b.close_and_lock();
-		let seal = engine.generate_seal(b.block()).unwrap();
-		assert!(b.try_seal(engine, seal).is_ok());
+		if let Seal::Regular(seal) = engine.generate_seal(b.block()) {
+			assert!(b.try_seal(engine, seal).is_ok());
+		}
 	}
 
 	#[test]

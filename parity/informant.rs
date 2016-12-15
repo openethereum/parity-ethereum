@@ -24,7 +24,7 @@ use std::time::{Instant, Duration};
 use io::{TimerToken, IoContext, IoHandler};
 use isatty::{stdout_isatty};
 use ethsync::{SyncProvider, ManageNetwork};
-use util::{Uint, RwLock, Mutex, H256, Colour};
+use util::{Uint, RwLock, Mutex, H256, Colour, Bytes};
 use ethcore::client::*;
 use ethcore::service::ClientIoMessage;
 use ethcore::views::BlockView;
@@ -184,14 +184,13 @@ impl Informant {
 }
 
 impl ChainNotify for Informant {
-	fn new_blocks(&self, imported: Vec<H256>, _invalid: Vec<H256>, _enacted: Vec<H256>, _retracted: Vec<H256>, _sealed: Vec<H256>, duration: u64) {
+	fn new_blocks(&self, imported: Vec<H256>, _invalid: Vec<H256>, _enacted: Vec<H256>, _retracted: Vec<H256>, _sealed: Vec<H256>, _proposed: Vec<Bytes>, duration: u64) {
 		let mut last_import = self.last_import.lock();
 		let sync_state = self.sync.as_ref().map(|s| s.status().state);
 		let importing = is_major_importing(sync_state, self.client.queue_info());
-
 		let ripe = Instant::now() > *last_import + Duration::from_secs(1) && !importing;
 		let txs_imported = imported.iter()
-			.take(imported.len() - if ripe {1} else {0})
+			.take(imported.len().saturating_sub(if ripe { 1 } else { 0 }))
 			.filter_map(|h| self.client.block(BlockId::Hash(*h)))
 			.map(|b| BlockView::new(&b).transactions_count())
 			.sum();

@@ -20,12 +20,14 @@ mod null_engine;
 mod instant_seal;
 mod basic_authority;
 mod authority_round;
+mod tendermint;
 mod validator_set;
 
 pub use self::null_engine::NullEngine;
 pub use self::instant_seal::InstantSeal;
 pub use self::basic_authority::BasicAuthority;
 pub use self::authority_round::AuthorityRound;
+pub use self::tendermint::Tendermint;
 
 use std::sync::Weak;
 use util::*;
@@ -42,6 +44,47 @@ use ethereum::ethash;
 use blockchain::extras::BlockDetails;
 use views::HeaderView;
 use client::Client;
+
+/// Voting errors.
+#[derive(Debug)]
+pub enum EngineError {
+	/// Signature does not belong to an authority.
+	NotAuthorized(Address),
+	/// The same author issued different votes at the same step.
+	DoubleVote(Address),
+	/// The received block is from an incorrect proposer.
+	NotProposer(Mismatch<Address>),
+	/// Message was not expected.
+	UnexpectedMessage,
+	/// Seal field has an unexpected size.
+	BadSealFieldSize(OutOfBounds<usize>),
+}
+
+impl fmt::Display for EngineError {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		use self::EngineError::*;
+		let msg = match *self {
+			DoubleVote(ref address) => format!("Author {} issued too many blocks.", address),
+			NotProposer(ref mis) => format!("Author is not a current proposer: {}", mis),
+			NotAuthorized(ref address) => format!("Signer {} is not authorized.", address),
+			UnexpectedMessage => "This Engine should not be fed messages.".into(),
+			BadSealFieldSize(ref oob) => format!("Seal field has an unexpected length: {}", oob),
+		};
+
+		f.write_fmt(format_args!("Engine error ({})", msg))
+	}
+}
+
+/// Seal type.
+#[derive(Debug, PartialEq, Eq)]
+pub enum Seal {
+	/// Proposal seal; should be broadcasted, but not inserted into blockchain.
+	Proposal(Vec<Bytes>),
+	/// Regular block seal; should be part of the blockchain.
+	Regular(Vec<Bytes>),
+	/// Engine does generate seal for this block right now.
+	None,
+}
 
 /// A consensus mechanism for the chain. Generally either proof-of-work or proof-of-stake-based.
 /// Provides hooks into each of the major parts of block import.
@@ -95,7 +138,7 @@ pub trait Engine : Sync + Send {
 	///
 	/// This operation is synchronous and may (quite reasonably) not be available, in which None will
 	/// be returned.
-	fn generate_seal(&self, _block: &ExecutedBlock) -> Option<Vec<Bytes>> { None }
+	fn generate_seal(&self, _block: &ExecutedBlock) -> Seal { Seal::None }
 
 	/// Phase 1 quick block verification. Only does checks that are cheap. `block` (the header's full block)
 	/// may be provided for additional checks. Returns either a null `Ok` or a general error detailing the problem with import.
@@ -134,6 +177,10 @@ pub trait Engine : Sync + Send {
 		header.set_gas_limit(parent.gas_limit().clone());
 	}
 
+	/// Handle any potential consensus messages;
+	/// updating consensus state and potentially issuing a new one.
+	fn handle_message(&self, _message: &[u8]) -> Result<(), Error> { Err(EngineError::UnexpectedMessage.into()) }
+
 	// TODO: builtin contract routing - to do this properly, it will require removing the built-in configuration-reading logic
 	// from Spec into here and removing the Spec::builtins field.
 	/// Determine whether a particular address is a builtin contract.
@@ -154,11 +201,23 @@ pub trait Engine : Sync + Send {
 		ethash::is_new_best_block(best_total_difficulty, parent_details, new_header)
 	}
 
+	/// Find out if the block is a proposal block and should not be inserted into the DB.
+	/// Takes a header of a fully verified block.
+	fn is_proposal(&self, _verified_header: &Header) -> bool { false }
+
 	/// Register an account which signs consensus messages.
 	fn set_signer(&self, _address: Address, _password: String) {}
 
+<<<<<<< HEAD
 	/// Add Client which can be used for sealing, querying the state and sending messages.
 	fn register_client(&self, _client: Weak<Client>) {}
+=======
+	/// Stops any services that the may hold the Engine and makes it safe to drop.
+	fn stop(&self) {}
+
+	/// Add a channel for communication with Client which can be used for sealing.
+	fn register_message_channel(&self, _message_channel: IoChannel<ClientIoMessage>) {}
+>>>>>>> check-updates
 
 	/// Add an account provider useful for Engines that sign stuff.
 	fn register_account_provider(&self, _account_provider: Arc<AccountProvider>) {}
