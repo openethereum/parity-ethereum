@@ -101,7 +101,6 @@ Networking Options:
   --max-pending-peers NUM  Allow up to NUM pending connections. (default: {flag_max_pending_peers})
   --no-ancient-blocks      Disable downloading old blocks after snapshot restoration
                            or warp sync. (default: {flag_no_ancient_blocks})
-  --serve-light            Experimental: Serve light client peers. (default: {flag_serve_light})
 
 API and Console Options:
   --no-jsonrpc             Disable the JSON-RPC API server. (default: {flag_no_jsonrpc})
