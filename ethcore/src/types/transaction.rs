@@ -390,6 +390,34 @@ impl Deref for LocalizedTransaction {
 	}
 }
 
+/// Queued information with additional information.
+#[derive(Debug, Clone, PartialEq, Eq, Binary)]
+pub struct PendingTransaction {
+	/// Signed transaction data.
+	pub transaction: SignedTransaction,
+	/// Gas price.
+	pub min_block: Option<BlockNumber>,
+}
+
+impl PendingTransaction {
+	/// Create a new pending transaction from signed transaction.
+	pub fn new(signed: SignedTransaction, min_block: Option<BlockNumber>) -> Self {
+		PendingTransaction {
+			transaction: signed,
+			min_block: min_block,
+		}
+	}
+}
+
+impl From<SignedTransaction> for PendingTransaction {
+	fn from(t: SignedTransaction) -> Self {
+		PendingTransaction {
+			transaction: t,
+			min_block: None,
+		}
+	}
+}
+
 #[test]
 fn sender_test() {
 	let t: SignedTransaction = decode(&::rustc_serialize::hex::FromHex::from_hex("f85f800182520894095e7baea6a6c7c4c2dfeb977efac326af552d870a801ba048b55bfa915ac795c431978d8a6a992b628d557da5ff759b307d495a36649353a0efffd310ac743f371de3b9f7f9cb56c0b28ad43601b4ab949f53faa07bd2c804").unwrap());

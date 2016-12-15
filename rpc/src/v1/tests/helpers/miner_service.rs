@@ -22,7 +22,7 @@ use ethcore::error::{Error, CallError};
 use ethcore::client::{MiningBlockChainClient, Executed, CallAnalytics};
 use ethcore::block::{ClosedBlock, IsBlock};
 use ethcore::header::BlockNumber;
-use ethcore::transaction::SignedTransaction;
+use ethcore::transaction::{SignedTransaction, PendingTransaction};
 use ethcore::receipt::{Receipt, RichReceipt};
 use ethcore::miner::{MinerService, MinerStatus, TransactionImportResult, LocalTransactionStatus};
 use ethcore::account_provider::Error as AccountError;
@@ -160,17 +160,17 @@ impl MinerService for TestMinerService {
 	}
 
 	/// Imports transactions to transaction queue.
-	fn import_own_transaction(&self, chain: &MiningBlockChainClient, transaction: SignedTransaction) ->
+	fn import_own_transaction(&self, chain: &MiningBlockChainClient, pending: PendingTransaction) ->
 		Result<TransactionImportResult, Error> {
 
 		// keep the pending nonces up to date
-		if let Ok(ref sender) = transaction.sender() {
+		if let Ok(ref sender) = pending.transaction.sender() {
 			let nonce = self.last_nonce(sender).unwrap_or(chain.latest_nonce(sender));
 			self.last_nonces.write().insert(sender.clone(), nonce + U256::from(1));
 		}
 
 		// lets assume that all txs are valid
-		self.imported_transactions.lock().push(transaction);
+		self.imported_transactions.lock().push(pending.transaction);
 
 		Ok(TransactionImportResult::Current)
 	}
@@ -204,16 +204,20 @@ impl MinerService for TestMinerService {
 		self.pending_transactions.lock().get(hash).cloned()
 	}
 
-	fn all_transactions(&self) -> Vec<SignedTransaction> {
-		self.pending_transactions.lock().values().cloned().collect()
+	fn all_transactions(&self) -> Vec<PendingTransaction> {
+		self.pending_transactions.lock().values().cloned().map(Into::into).collect()
 	}
 
 	fn local_transactions(&self) -> BTreeMap<H256, LocalTransactionStatus> {
 		self.local_transactions.lock().iter().map(|(hash, stats)| (*hash, stats.clone())).collect()
 	}
 
-	fn pending_transactions(&self, _best_block: BlockNumber) -> Vec<SignedTransaction> {
-		self.pending_transactions.lock().values().cloned().collect()
+	fn pending_transactions(&self, _best_block: BlockNumber) -> Vec<PendingTransaction> {
+		self.pending_transactions.lock().values().cloned().map(Into::into).collect()
+	}
+
+	fn future_transactions(&self) -> Vec<PendingTransaction> {
+		vec![]
 	}
 
 	fn pending_receipt(&self, _best_block: BlockNumber, hash: &H256) -> Option<RichReceipt> {

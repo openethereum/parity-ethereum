@@ -265,6 +265,12 @@ impl<C, M, S: ?Sized> Parity for ParityClient<C, M, S> where
 		Ok(take_weak!(self.miner).all_transactions().into_iter().map(Into::into).collect::<Vec<_>>())
 	}
 
+	fn future_transactions(&self) -> Result<Vec<Transaction>, Error> {
+		try!(self.active());
+
+		Ok(take_weak!(self.miner).future_transactions().into_iter().map(Into::into).collect::<Vec<_>>())
+	}
+
 	fn pending_transactions_stats(&self) -> Result<BTreeMap<H256, TransactionStats>, Error> {
 		try!(self.active());
 

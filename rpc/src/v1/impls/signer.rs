@@ -21,7 +21,7 @@ use std::sync::{Arc, Weak};
 use rlp::{UntrustedRlp, View};
 use ethcore::account_provider::AccountProvider;
 use ethcore::client::MiningBlockChainClient;
-use ethcore::transaction::SignedTransaction;
+use ethcore::transaction::{SignedTransaction, PendingTransaction};
 use ethcore::miner::MinerService;
 
 use jsonrpc_core::Error;
@@ -96,6 +96,9 @@ impl<C: 'static, M: 'static> Signer for SignerClient<C, M> where C: MiningBlockC
 				if let Some(gas) = modification.gas {
 					request.gas = gas.into();
 				}
+				if let Some(min_block) = modification.min_block {
+					request.min_block = min_block;
+				}
 			}
 			// Execute
 			let result = dispatch::execute(&*client, &*miner, &*accounts, payload, Some(pass));
@@ -135,7 +138,8 @@ impl<C: 'static, M: 'static> Signer for SignerClient<C, M> where C: MiningBlockC
 
 					// Dispatch if everything is ok
 					if sender_matches && data_matches && value_matches && nonce_matches {
-						dispatch_transaction(&*client, &*miner, signed_transaction)
+						let pending_transaction = PendingTransaction::new(signed_transaction, request.min_block);
+						dispatch_transaction(&*client, &*miner, pending_transaction)
 							.map(Into::into)
 							.map(ConfirmationResponse::SendTransaction)
 					} else {

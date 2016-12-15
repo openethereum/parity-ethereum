@@ -144,6 +144,9 @@ pub struct TransactionModification {
 	pub gas_price: Option<U256>,
 	/// Modified gas
 	pub gas: Option<U256>,
+	/// Modified min block
+	#[serde(rename="minBlock")]
+	pub min_block: Option<Option<u64>>,
 }
 
 /// Represents two possible return values.
@@ -218,12 +221,13 @@ mod tests {
 				value: 100_000.into(),
 				data: vec![1, 2, 3],
 				nonce: Some(1.into()),
+				min_block: None,
 			}),
 		};
 
 		// when
 		let res = serde_json::to_string(&ConfirmationRequest::from(request));
-		let expected = r#"{"id":"0xf","payload":{"sendTransaction":{"from":"0x0000000000000000000000000000000000000000","to":null,"gasPrice":"0x2710","gas":"0x3a98","value":"0x186a0","data":"0x010203","nonce":"0x1"}}}"#;
+		let expected = r#"{"id":"0xf","payload":{"sendTransaction":{"from":"0x0000000000000000000000000000000000000000","to":null,"gasPrice":"0x2710","gas":"0x3a98","value":"0x186a0","data":"0x010203","nonce":"0x1","minBlock":null}}}"#;
 
 		// then
 		assert_eq!(res.unwrap(), expected.to_owned());
@@ -242,12 +246,13 @@ mod tests {
 				value: 100_000.into(),
 				data: vec![1, 2, 3],
 				nonce: Some(1.into()),
+				min_block: None,
 			}),
 		};
 
 		// when
 		let res = serde_json::to_string(&ConfirmationRequest::from(request));
-		let expected = r#"{"id":"0xf","payload":{"signTransaction":{"from":"0x0000000000000000000000000000000000000000","to":null,"gasPrice":"0x2710","gas":"0x3a98","value":"0x186a0","data":"0x010203","nonce":"0x1"}}}"#;
+		let expected = r#"{"id":"0xf","payload":{"signTransaction":{"from":"0x0000000000000000000000000000000000000000","to":null,"gasPrice":"0x2710","gas":"0x3a98","value":"0x186a0","data":"0x010203","nonce":"0x1","minBlock":null}}}"#;
 
 		// then
 		assert_eq!(res.unwrap(), expected.to_owned());
@@ -275,7 +280,8 @@ mod tests {
 	fn should_deserialize_modification() {
 		// given
 		let s1 = r#"{
-			"gasPrice":"0xba43b7400"
+			"gasPrice":"0xba43b7400",
+			"minBlock":42
 		}"#;
 		let s2 = r#"{"gas": "0x1233"}"#;
 		let s3 = r#"{}"#;
@@ -289,14 +295,17 @@ mod tests {
 		assert_eq!(res1, TransactionModification {
 			gas_price: Some(U256::from_str("0ba43b7400").unwrap()),
 			gas: None,
+			min_block: Some(Some(42)),
 		});
 		assert_eq!(res2, TransactionModification {
 			gas_price: None,
 			gas: Some(U256::from_str("1233").unwrap()),
+			min_block: None,
 		});
 		assert_eq!(res3, TransactionModification {
 			gas_price: None,
 			gas: None,
+			min_block: None,
 		});
 	}
 }

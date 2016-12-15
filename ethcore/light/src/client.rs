@@ -24,7 +24,7 @@ use ethcore::service::ClientIoMessage;
 use ethcore::block_import_error::BlockImportError;
 use ethcore::block_status::BlockStatus;
 use ethcore::verification::queue::{HeaderQueue, QueueInfo};
-use ethcore::transaction::SignedTransaction;
+use ethcore::transaction::{SignedTransaction, PendingTransaction};
 use ethcore::blockchain_info::BlockChainInfo;
 
 use io::IoChannel;
@@ -114,7 +114,7 @@ impl Provider for Client {
 		Vec::new()
 	}
 
-	fn pending_transactions(&self) -> Vec<SignedTransaction> {
+	fn pending_transactions(&self) -> Vec<PendingTransaction> {
 		Vec::new()
 	}
 }

@@ -38,6 +38,9 @@ pub struct TransactionRequest {
 	pub data: Option<Bytes>,
 	/// Transaction's nonce
 	pub nonce: Option<U256>,
+	/// Delay until this block if specified.
+	#[serde(rename="minBlock")]
+	pub min_block: Option<u64>,
 }
 
 impl From<helpers::TransactionRequest> for TransactionRequest {
@@ -50,6 +53,7 @@ impl From<helpers::TransactionRequest> for TransactionRequest {
 			value: r.value.map(Into::into),
 			data: r.data.map(Into::into),
 			nonce: r.nonce.map(Into::into),
+			min_block: r.min_block,
 		}
 	}
 }
@@ -64,6 +68,7 @@ impl From<helpers::FilledTransactionRequest> for TransactionRequest {
 			value: Some(r.value.into()),
 			data: Some(r.data.into()),
 			nonce: r.nonce.map(Into::into),
+			min_block: r.min_block,
 		}
 	}
 }
@@ -78,6 +83,7 @@ impl Into<helpers::TransactionRequest> for TransactionRequest {
 			value: self.value.map(Into::into),
 			data: self.data.map(Into::into),
 			nonce: self.nonce.map(Into::into),
+			min_block: self.min_block,
 		}
 	}
 }
@@ -100,7 +106,8 @@ mod tests {
 			"gas":"0x2",
 			"value":"0x3",
 			"data":"0x123456",
-			"nonce":"0x4"
+			"nonce":"0x4",
+			"minBlock":13
 		}"#;
 		let deserialized: TransactionRequest = serde_json::from_str(s).unwrap();
 
@@ -112,6 +119,7 @@ mod tests {
 			value: Some(U256::from(3)),
 			data: Some(vec![0x12, 0x34, 0x56].into()),
 			nonce: Some(U256::from(4)),
+			min_block: Some(13),
 		});
 	}
 
@@ -134,7 +142,8 @@ mod tests {
 			gas: Some(U256::from_str("76c0").unwrap()),
 			value: Some(U256::from_str("9184e72a").unwrap()),
 			data: Some("d46e8dd67c5d32be8d46e8dd67c5d32be8058bb8eb970870f072445675058bb8eb970870f072445675".from_hex().unwrap().into()),
-			nonce: None
+			nonce: None,
+			min_block: None,
 		});
 	}
 
@@ -151,6 +160,7 @@ mod tests {
 			value: None,
 			data: None,
 			nonce: None,
+			min_block: None,
 		});
 	}
 
@@ -174,6 +184,7 @@ mod tests {
 			value: None,
 			data: Some(vec![0x85, 0x95, 0xba, 0xb1].into()),
 			nonce: None,
+			min_block: None,
 		});
 	}
 

@@ -21,7 +21,7 @@ use util::*;
 use rlp::*;
 use ethkey::{Generator, Random};
 use devtools::*;
-use transaction::{Transaction, LocalizedTransaction, SignedTransaction, Action};
+use transaction::{Transaction, LocalizedTransaction, SignedTransaction, PendingTransaction, Action};
 use blockchain::TreeRoute;
 use client::{
 	BlockChainClient, MiningBlockChainClient, BlockChainInfo, BlockStatus, BlockId,
@@ -663,7 +663,7 @@ impl BlockChainClient for TestBlockChainClient {
 		self.miner.import_external_transactions(self, txs);
 	}
 
-	fn pending_transactions(&self) -> Vec<SignedTransaction> {
+	fn pending_transactions(&self) -> Vec<PendingTransaction> {
 		self.miner.pending_transactions(self.chain_info().best_block_number)
 	}
 

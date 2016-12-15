@@ -42,7 +42,7 @@ use env_info::LastHashes;
 use verification;
 use verification::{PreverifiedBlock, Verifier};
 use block::*;
-use transaction::{LocalizedTransaction, SignedTransaction, Action};
+use transaction::{LocalizedTransaction, SignedTransaction, PendingTransaction, Action};
 use blockchain::extras::TransactionAddress;
 use types::filter::Filter;
 use types::mode::Mode as IpcMode;
@@ -1286,7 +1286,7 @@ impl BlockChainClient for Client {
 		}
 	}
 
-	fn pending_transactions(&self) -> Vec<SignedTransaction> {
+	fn pending_transactions(&self) -> Vec<PendingTransaction> {
 		self.miner.pending_transactions(self.chain.read().best_block_number())
 	}
 

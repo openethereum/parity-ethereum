@@ -55,7 +55,7 @@ fn test_authority_round() {
 	}.sign(s1.secret(), None);
 	// exhange statuses
 	net.sync_steps(5);
-	net.peer(0).chain.miner().import_own_transaction(&net.peer(0).chain, tx1).unwrap();
+	net.peer(0).chain.miner().import_own_transaction(&net.peer(0).chain, PendingTransaction::new(tx1, None)).unwrap();
 	net.sync();
 	assert_eq!(net.peer(0).chain.chain_info().best_block_number, 1);
 	assert_eq!(net.peer(1).chain.chain_info().best_block_number, 1);
@@ -68,7 +68,7 @@ fn test_authority_round() {
 		value: 0.into(),
 		data: Vec::new(),
 	}.sign(s2.secret(), None);
-	net.peer(1).chain.miner().import_own_transaction(&net.peer(1).chain, tx2).unwrap();
+	net.peer(1).chain.miner().import_own_transaction(&net.peer(1).chain, PendingTransaction::new(tx2, None)).unwrap();
 	net.peer(1).chain.engine().step();
 	net.peer(1).chain.miner().update_sealing(&net.peer(1).chain);
 	net.sync();
