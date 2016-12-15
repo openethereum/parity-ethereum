@@ -817,7 +817,7 @@ mod tests {
 	use params::SpecType;
 	use account::{AccountCmd, NewAccount, ImportAccounts, ListAccounts};
 	use devtools::{RandomTempPath};
-	use updater::{UpdatePolicy, UpdateFilter};
+	use updater::{UpdatePolicy, UpdateFilter, ReleaseTrack};
 	use std::io::Write;
 	use std::fs::{File, create_dir};
 
@@ -1011,7 +1011,7 @@ mod tests {
 			acc_conf: Default::default(),
 			gas_pricer: Default::default(),
 			miner_extras: Default::default(),
-			update_policy: UpdatePolicy { enable_downloading: true, require_consensus: true, filter: UpdateFilter::Critical },
+			update_policy: UpdatePolicy { enable_downloading: true, require_consensus: true, filter: UpdateFilter::Critical, track: ReleaseTrack::Unknown },
 			mode: Default::default(),
 			tracing: Default::default(),
 			compaction: Default::default(),
@@ -1058,15 +1058,15 @@ mod tests {
 	#[test]
 	fn should_parse_updater_options() {
 		// when
-		let conf0 = parse(&["parity"]);
+		let conf0 = parse(&["parity", "--release-track=testing"]);
 		let conf1 = parse(&["parity", "--auto-update", "all", "--no-consensus"]);
 		let conf2 = parse(&["parity", "--no-download", "--auto-update=all"]);
-		let conf3 = parse(&["parity", "--auto-update=xxx"]);
+		let conf3 = parse(&["parity", "--auto-update=xxx", "--release-track=beta"]);
 
 		// then
-		assert_eq!(conf0.update_policy().unwrap(), UpdatePolicy{enable_downloading: true, require_consensus: true, filter: UpdateFilter::Critical});
-		assert_eq!(conf1.update_policy().unwrap(), UpdatePolicy{enable_downloading: true, require_consensus: false, filter: UpdateFilter::All});
-		assert_eq!(conf2.update_policy().unwrap(), UpdatePolicy{enable_downloading: false, require_consensus: true, filter: UpdateFilter::All});
+		assert_eq!(conf0.update_policy().unwrap(), UpdatePolicy{enable_downloading: true, require_consensus: true, filter: UpdateFilter::Critical, track: ReleaseTrack::Testing});
+		assert_eq!(conf1.update_policy().unwrap(), UpdatePolicy{enable_downloading: true, require_consensus: false, filter: UpdateFilter::All, track: ReleaseTrack::Unknown});
+		assert_eq!(conf2.update_policy().unwrap(), UpdatePolicy{enable_downloading: false, require_consensus: true, filter: UpdateFilter::All, track: ReleaseTrack::Beta});
 		assert!(conf3.update_policy().is_err());
 	}
 
