@@ -18,7 +18,7 @@ use std::sync::{Arc, Weak};
 use std::{fs, env};
 use std::io::Write;
 use std::path::{PathBuf};
-//use util::misc::platform;
+use util::misc::platform;
 use ipc_common_types::{VersionInfo, ReleaseTrack};
 use util::{Address, H160, H256, FixedHash, Mutex, Bytes};
 use ethcore::client::{BlockId, BlockChainClient, ChainNotify};
@@ -47,6 +47,8 @@ pub struct UpdatePolicy {
 	pub require_consensus: bool,
 	/// Which of those downloaded should be automatically installed.
 	pub filter: UpdateFilter,
+	/// Which track we should be following.
+	pub track: ReleaseTrack,
 }
 
 impl Default for UpdatePolicy {
@@ -55,6 +57,7 @@ impl Default for UpdatePolicy {
 			enable_downloading: false,
 			require_consensus: true,
 			filter: UpdateFilter::None,
+			track: ReleaseTrack::Unknown,
 		}
 	}
 }
@@ -89,14 +92,9 @@ pub struct Updater {
 
 const CLIENT_ID: &'static str = "parity";
 
-// TODO!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! REMOVE!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-fn platform() -> String {
-	"test".to_owned()
-}
-
 impl Updater {
 	pub fn new(client: Weak<BlockChainClient>, update_policy: UpdatePolicy) -> Arc<Self> {
-		let mut u = Updater {
+		let r = Arc::new(Updater {
 			update_policy: update_policy,
 			weak_self: Mutex::new(Default::default()),
 			client: client.clone(),
@@ -105,14 +103,7 @@ impl Updater {
 			exit_handler: Mutex::new(None),
 			this: VersionInfo::this(),
 			state: Mutex::new(Default::default()),
-		};
-
-		// TODO!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! REMOVE!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-		if u.this.track == ReleaseTrack::Unknown {
-			u.this.track = ReleaseTrack::Nightly;
-		}
-
-		let r = Arc::new(u);
+		});
 		*r.fetcher.lock() = Some(fetch::Client::new(r.clone()));
 		*r.weak_self.lock() = Arc::downgrade(&r);
 		r.poll();
@@ -135,6 +126,13 @@ impl Updater {
 		})
 	}
 
+	fn track(&self) -> ReleaseTrack {
+		match self.update_policy.track {
+			ReleaseTrack::Unknown => self.this.track,
+			x => x,
+		}
+	}
+
 	fn collect_latest(&self) -> Result<OperationsInfo, String> {
 		if let Some(ref operations) = *self.operations.lock() {
 			let hh: H256 = self.this.hash.into();
@@ -145,15 +143,15 @@ impl Updater {
 					if track > 0 {Some(fork as u64)} else {None}
 				});
 
-			if self.this.track == ReleaseTrack::Unknown {
+			if self.track() == ReleaseTrack::Unknown {
 				return Err(format!("Current executable ({}) is unreleased.", H160::from(self.this.hash)));
 			}
 
-			let latest_in_track = operations.latest_in_track(CLIENT_ID, self.this.track.into())?;
+			let latest_in_track = operations.latest_in_track(CLIENT_ID, self.track().into())?;
 			let in_track = Self::collect_release_info(operations, &latest_in_track)?;
 			let mut in_minor = Some(in_track.clone());
 			const PROOF: &'static str = "in_minor initialised and assigned with Some; loop breaks if None assigned; qed";
-			while in_minor.as_ref().expect(PROOF).version.track != self.this.track {
+			while in_minor.as_ref().expect(PROOF).version.track != self.track() {
 				let track = match in_minor.as_ref().expect(PROOF).version.track {
 					ReleaseTrack::Beta => ReleaseTrack::Stable,
 					ReleaseTrack::Nightly => ReleaseTrack::Beta,

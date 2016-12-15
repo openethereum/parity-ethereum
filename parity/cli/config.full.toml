@@ -3,6 +3,7 @@ mode = "last"
 mode_timeout = 300
 mode_alarm = 3600
 auto_update = "critical"
+releases_track = "current"
 no_download = false
 no_consensus = false
 

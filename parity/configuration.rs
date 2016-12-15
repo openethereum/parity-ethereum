@@ -37,7 +37,7 @@ use ethcore_logger::Config as LogConfig;
 use dir::Directories;
 use dapps::Configuration as DappsConfiguration;
 use signer::{Configuration as SignerConfiguration};
-use updater::{UpdatePolicy, UpdateFilter};
+use updater::{UpdatePolicy, UpdateFilter, ReleaseTrack};
 use run::RunCmd;
 use blockchain::{BlockchainCmd, ImportBlockchain, ExportBlockchain, KillBlockchain, ExportState, DataFormat};
 use presale::ImportWallet;
@@ -692,6 +692,14 @@ impl Configuration {
 				"critical" => UpdateFilter::Critical,
 				"all" => UpdateFilter::All,
 				_ => return Err("Invalid value for `--auto-update`. See `--help` for more information.".into()), 
+			},
+			track: match self.args.flag_releases_track.as_ref() {
+				"stable" => ReleaseTrack::Stable,
+				"beta" => ReleaseTrack::Beta,
+				"nightly" => ReleaseTrack::Nightly,
+				"testing" => ReleaseTrack::Testing,
+				"current" => ReleaseTrack::Unknown,
+				_ => return Err("Invalid value for `--releases-track`. See `--help` for more information.".into()), 
 			},
 		})
 	}

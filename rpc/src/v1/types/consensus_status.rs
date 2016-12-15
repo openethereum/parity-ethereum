@@ -58,6 +58,9 @@ pub enum ReleaseTrack {
 	/// Nightly track.
 	#[serde(rename="nightly")]
 	Nightly,
+	/// Testing track.
+	#[serde(rename="testing")]
+	Testing,
 	/// No known track.
 	#[serde(rename="null")]
 	Unknown,
@@ -69,6 +72,7 @@ impl Into<ReleaseTrack> for updater::ReleaseTrack {
 			updater::ReleaseTrack::Stable => ReleaseTrack::Stable,
 			updater::ReleaseTrack::Beta => ReleaseTrack::Beta,
 			updater::ReleaseTrack::Nightly => ReleaseTrack::Nightly,
+			updater::ReleaseTrack::Testing => ReleaseTrack::Testing,
 			updater::ReleaseTrack::Unknown => ReleaseTrack::Unknown,
 		}
 	}

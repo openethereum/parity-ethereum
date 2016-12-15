@@ -27,7 +27,9 @@ pub enum ReleaseTrack {
 	Beta,
 	/// Nightly track.
 	Nightly,
-	/// No known track.
+	/// Testing track.
+	Testing,
+	/// No known track, also "current executable's track" when it's not yet known.
 	Unknown,
 }
 
@@ -37,7 +39,8 @@ impl fmt::Display for ReleaseTrack {
 			ReleaseTrack::Stable => "stable", 
 			ReleaseTrack::Beta => "beta", 
 			ReleaseTrack::Nightly => "nightly", 
-			ReleaseTrack::Unknown => "unknown", 
+			ReleaseTrack::Testing => "testing",
+			ReleaseTrack::Unknown => "unknown",
 		})
 	}
 }
@@ -48,6 +51,7 @@ impl<'a> From<&'a str> for ReleaseTrack {
 			"stable" => ReleaseTrack::Stable, 
 			"beta" => ReleaseTrack::Beta, 
 			"nightly" => ReleaseTrack::Nightly, 
+			"testing" => ReleaseTrack::Testing, 
 			_ => ReleaseTrack::Unknown, 
 		}		
 	}
@@ -59,6 +63,7 @@ impl From<u8> for ReleaseTrack {
 			1 => ReleaseTrack::Stable, 
 			2 => ReleaseTrack::Beta, 
 			3 => ReleaseTrack::Nightly, 
+			4 => ReleaseTrack::Testing, 
 			_ => ReleaseTrack::Unknown, 
 		}		
 	}
@@ -70,6 +75,7 @@ impl Into<u8> for ReleaseTrack {
 			ReleaseTrack::Stable => 1, 
 			ReleaseTrack::Beta => 2, 
 			ReleaseTrack::Nightly => 3, 
+			ReleaseTrack::Testing => 4, 
 			ReleaseTrack::Unknown => 0, 
 		}		
 	}
