@@ -127,13 +127,13 @@ impl ServerBuilder {
 	pub fn start_unsecured_http(self, addr: &SocketAddr, handler: RpcHandler<Metadata>) -> Result<Server, ServerError> {
 		Server::start_http(
 			addr,
-			self.allowed_hosts.clone(),
+			self.allowed_hosts,
 			NoAuth,
 			handler,
-			self.dapps_path.clone(),
-			self.signer_address.clone(),
-			self.registrar.clone(),
-			self.sync_status.clone(),
+			self.dapps_path,
+			self.signer_address,
+			self.registrar,
+			self.sync_status,
 		)
 	}
 
@@ -143,13 +143,13 @@ impl ServerBuilder {
 
 		Server::start_http(
 			addr,
-			self.allowed_hosts.clone(),
+			self.allowed_hosts,
 			HttpBasicAuth::single_user(username, password),
 			handler,
-			self.dapps_path.clone(),
-			self.signer_address.clone(),
-			self.registrar.clone(),
-			self.sync_status.clone(),
+			self.dapps_path,
+			self.signer_address,
+			self.registrar,
+			self.sync_status,
 		)
 	}
 }
