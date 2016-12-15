@@ -265,7 +265,7 @@ pub trait BlockChainClient : Sync + Send {
 	/// Returns engine-related extra info for `BlockId`.
 	fn block_extra_info(&self, id: BlockId) -> Option<BTreeMap<String, String>>;
 
-	/// Returns engine-related extra info for `UncleID`.
+	/// Returns engine-related extra info for `UncleId`.
 	fn uncle_extra_info(&self, id: UncleId) -> Option<BTreeMap<String, String>>;
 
 	/// Returns information about pruning/data availability.

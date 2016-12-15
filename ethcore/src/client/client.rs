@@ -933,6 +933,7 @@ impl BlockChainClient for Client {
 	fn disable(&self) {
 		self.set_mode(IpcMode::Off);
 		self.enabled.store(false, AtomicOrdering::Relaxed);
+		self.clear_queue();
 	}
 
 	fn set_mode(&self, new_mode: IpcMode) {

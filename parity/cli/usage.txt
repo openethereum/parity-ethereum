@@ -361,7 +361,7 @@ Legacy Options:
   --cache MB               Equivalent to --cache-size MB.
 
 Internal Options:
-  --can-restart            Executable will auto-restart if exiting with 125.  
+  --can-restart            Executable will auto-restart if exiting with 69.  
 
 Miscellaneous Options:
   -c --config CONFIG       Specify a filename containing a configuration file.
