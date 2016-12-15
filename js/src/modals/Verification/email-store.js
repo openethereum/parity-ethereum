@@ -54,7 +54,7 @@ export default class EmailVerificationStore extends VerificationStore {
   }
 
   constructor (api, account, isTestnet) {
-    super(api, EmailVerificationABI, 'emailverification3', account, isTestnet);
+    super(api, EmailVerificationABI, 4, account, isTestnet);
   }
 
   requestValues = () => [ sha3(this.email) ]

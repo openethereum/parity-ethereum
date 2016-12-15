@@ -53,7 +53,7 @@ export default class SMSVerificationStore extends VerificationStore {
   }
 
   constructor (api, account, isTestnet) {
-    super(api, SMSVerificationABI, 'smsverification', account, isTestnet);
+    super(api, SMSVerificationABI, 0, account, isTestnet);
   }
 
   @action setNumber = (number) => {
