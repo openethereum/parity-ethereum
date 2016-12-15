@@ -29,6 +29,7 @@ use hyper::{server, Decoder, Encoder, Next, Method, Control};
 use hyper::net::HttpStream;
 use hyper::status::StatusCode;
 
+use endpoint::EndpointPath;
 use handlers::{ContentHandler, Redirection, extract_url};
 use page::LocalPageEndpoint;
 
@@ -45,7 +46,6 @@ pub trait ContentValidator {
 	type Error: fmt::Debug + fmt::Display;
 
 	fn validate_and_install(&self, app: PathBuf) -> Result<(String, LocalPageEndpoint), Self::Error>;
-	fn done(&self, Option<LocalPageEndpoint>);
 }
 
 pub struct FetchControl {
@@ -88,7 +88,9 @@ impl FetchControl {
 		self.abort.store(true, Ordering::SeqCst);
 	}
 
-	pub fn to_handler(&self, control: Control) -> Box<server::Handler<HttpStream> + Send> {
+	pub fn to_async_handler(&self, path: EndpointPath, control: Control) -> Box<server::Handler<HttpStream> + Send> {
+		// TODO [ToDr] We should be able to pass EndpointPath to handler as well
+		// (request may be coming from different domain, etc)
 		let (tx, rx) = mpsc::channel();
 		self.listeners.lock().push((control, tx));
 
@@ -141,25 +143,13 @@ pub struct ContentFetcherHandler<H: ContentValidator> {
 	embeddable_on: Option<(String, u16)>,
 }
 
-impl<H: ContentValidator> Drop for ContentFetcherHandler<H> {
-	fn drop(&mut self) {
-		let result = match self.status {
-			FetchState::Done(_, ref result, _) => Some(result.clone()),
-			_ => None,
-		};
-		self.installer.done(result);
-	}
-}
-
 impl<H: ContentValidator> ContentFetcherHandler<H> {
-
 	pub fn new(
 		url: String,
 		control: Control,
 		handler: H,
 		embeddable_on: Option<(String, u16)>,
 	) -> (Self, Arc<FetchControl>) {
-
 		let fetch_control = Arc::new(FetchControl::default());
 		let client = Client::default();
 		let handler = ContentFetcherHandler {

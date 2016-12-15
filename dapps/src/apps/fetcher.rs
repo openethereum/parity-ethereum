@@ -120,7 +120,7 @@ impl<R: URLHint> ContentFetcher<R> {
 				// Content is already being fetched
 				Some(&mut ContentStatus::Fetching(ref fetch_control)) => {
 					trace!(target: "dapps", "Content fetching in progress. Waiting...");
-					(None, fetch_control.to_handler(control))
+					(None, fetch_control.to_async_handler(path, control))
 				},
 				// We need to start fetching the content
 				None => {
@@ -129,11 +129,12 @@ impl<R: URLHint> ContentFetcher<R> {
 					let content = self.resolver.resolve(content_hex);
 
 					let cache = self.cache.clone();
-					let on_done = move |id: String, result: Option<LocalPageEndpoint>| {
+					let id = content_id.clone();
+					let on_done = move |result: Option<LocalPageEndpoint>| {
 						let mut cache = cache.lock();
 						match result {
 							Some(endpoint) => {
-								cache.insert(id, ContentStatus::Ready(endpoint));
+								cache.insert(id.clone(), ContentStatus::Ready(endpoint));
 							},
 							// In case of error
 							None => {
@@ -248,43 +249,45 @@ struct ContentInstaller {
 	id: String,
 	mime: String,
 	content_path: PathBuf,
-	on_done: Box<Fn(String, Option<LocalPageEndpoint>) + Send>,
+	on_done: Box<Fn(Option<LocalPageEndpoint>) + Send>,
 }
 
 impl ContentValidator for ContentInstaller {
 	type Error = ValidationError;
 
 	fn validate_and_install(&self, path: PathBuf) -> Result<(String, LocalPageEndpoint), ValidationError> {
-		// Create dir
-		try!(fs::create_dir_all(&self.content_path));
+		let validate = || {
+			// Create dir
+			try!(fs::create_dir_all(&self.content_path));
 
-		// Validate hash
-		let mut file_reader = io::BufReader::new(try!(fs::File::open(&path)));
-		let hash = try!(sha3(&mut file_reader));
-		let id = try!(self.id.as_str().parse().map_err(|_| ValidationError::InvalidContentId));
-		if id != hash {
-			return Err(ValidationError::HashMismatch {
-				expected: id,
-				got: hash,
-			});
-		}
+			// Validate hash
+			let mut file_reader = io::BufReader::new(try!(fs::File::open(&path)));
+			let hash = try!(sha3(&mut file_reader));
+			let id = try!(self.id.as_str().parse().map_err(|_| ValidationError::InvalidContentId));
+			if id != hash {
+				return Err(ValidationError::HashMismatch {
+					expected: id,
+					got: hash,
+				});
+			}
 
-		// And prepare path for a file
-		let filename = path.file_name().expect("We always fetch a file.");
-		let mut content_path = self.content_path.clone();
-		content_path.push(&filename);
+			// And prepare path for a file
+			let filename = path.file_name().expect("We always fetch a file.");
+			let mut content_path = self.content_path.clone();
+			content_path.push(&filename);
 
-		if content_path.exists() {
-			try!(fs::remove_dir_all(&content_path))
-		}
+			if content_path.exists() {
+				try!(fs::remove_dir_all(&content_path))
+			}
 
-		try!(fs::copy(&path, &content_path));
+			try!(fs::copy(&path, &content_path));
+			Ok(LocalPageEndpoint::single_file(content_path, self.mime.clone(), PageCache::Enabled))
+		};
 
-		Ok((self.id.clone(), LocalPageEndpoint::single_file(content_path, self.mime.clone(), PageCache::Enabled)))
-	}
-
-	fn done(&self, endpoint: Option<LocalPageEndpoint>) {
-		(self.on_done)(self.id.clone(), endpoint)
+		// Make sure to always call on_done (even in case of errors)!
+		let result = validate();
+		(self.on_done)(result.as_ref().ok().cloned());
+		result.map(|endpoint| (self.id.clone(), endpoint))
 	}
 }
 
@@ -292,7 +295,7 @@ impl ContentValidator for ContentInstaller {
 struct DappInstaller {
 	id: String,
 	dapps_path: PathBuf,
-	on_done: Box<Fn(String, Option<LocalPageEndpoint>) + Send>,
+	on_done: Box<Fn(Option<LocalPageEndpoint>) + Send>,
 	embeddable_on: Option<(String, u16)>,
 }
 
@@ -333,67 +336,67 @@ impl ContentValidator for DappInstaller {
 
 	fn validate_and_install(&self, app_path: PathBuf) -> Result<(String, LocalPageEndpoint), ValidationError> {
 		trace!(target: "dapps", "Opening dapp bundle at {:?}", app_path);
-		let mut file_reader = io::BufReader::new(try!(fs::File::open(app_path)));
-		let hash = try!(sha3(&mut file_reader));
-		let id = try!(self.id.as_str().parse().map_err(|_| ValidationError::InvalidContentId));
-		if id != hash {
-			return Err(ValidationError::HashMismatch {
-				expected: id,
-				got: hash,
-			});
-		}
-		let file = file_reader.into_inner();
-		// Unpack archive
-		let mut zip = try!(zip::ZipArchive::new(file));
-		// First find manifest file
-		let (mut manifest, manifest_dir) = try!(Self::find_manifest(&mut zip));
-		// Overwrite id to match hash
-		manifest.id = self.id.clone();
+		let validate = || {
+			let mut file_reader = io::BufReader::new(try!(fs::File::open(app_path)));
+			let hash = try!(sha3(&mut file_reader));
+			let id = try!(self.id.as_str().parse().map_err(|_| ValidationError::InvalidContentId));
+			if id != hash {
+				return Err(ValidationError::HashMismatch {
+					expected: id,
+					got: hash,
+				});
+			}
+			let file = file_reader.into_inner();
+			// Unpack archive
+			let mut zip = try!(zip::ZipArchive::new(file));
+			// First find manifest file
+			let (mut manifest, manifest_dir) = try!(Self::find_manifest(&mut zip));
+			// Overwrite id to match hash
+			manifest.id = self.id.clone();
 
-		let target = self.dapp_target_path(&manifest);
+			let target = self.dapp_target_path(&manifest);
 
-		// Remove old directory
-		if target.exists() {
-			warn!(target: "dapps", "Overwriting existing dapp: {}", manifest.id);
-			try!(fs::remove_dir_all(target.clone()));
-		}
+			// Remove old directory
+			if target.exists() {
+				warn!(target: "dapps", "Overwriting existing dapp: {}", manifest.id);
+				try!(fs::remove_dir_all(target.clone()));
+			}
 
-		// Unpack zip
-		for i in 0..zip.len() {
-			let mut file = try!(zip.by_index(i));
-			// TODO [todr] Check if it's consistent on windows.
-			let is_dir = file.name().chars().rev().next() == Some('/');
+			// Unpack zip
+			for i in 0..zip.len() {
+				let mut file = try!(zip.by_index(i));
+				// TODO [todr] Check if it's consistent on windows.
+				let is_dir = file.name().chars().rev().next() == Some('/');
 
-			let file_path = PathBuf::from(file.name());
-			let location_in_manifest_base = file_path.strip_prefix(&manifest_dir);
-			// Create files that are inside manifest directory
-			if let Ok(location_in_manifest_base) = location_in_manifest_base {
-				let p = target.join(location_in_manifest_base);
-				// Check if it's a directory
-				if is_dir {
-					try!(fs::create_dir_all(p));
-				} else {
-					let mut target = try!(fs::File::create(p));
-					try!(io::copy(&mut file, &mut target));
+				let file_path = PathBuf::from(file.name());
+				let location_in_manifest_base = file_path.strip_prefix(&manifest_dir);
+				// Create files that are inside manifest directory
+				if let Ok(location_in_manifest_base) = location_in_manifest_base {
+					let p = target.join(location_in_manifest_base);
+					// Check if it's a directory
+					if is_dir {
+						try!(fs::create_dir_all(p));
+					} else {
+						let mut target = try!(fs::File::create(p));
+						try!(io::copy(&mut file, &mut target));
+					}
 				}
 			}
-		}
 
-		// Write manifest
-		let manifest_str = try!(serialize_manifest(&manifest).map_err(ValidationError::ManifestSerialization));
-		let manifest_path = target.join(MANIFEST_FILENAME);
-		let mut manifest_file = try!(fs::File::create(manifest_path));
-		try!(manifest_file.write_all(manifest_str.as_bytes()));
+			// Write manifest
+			let manifest_str = try!(serialize_manifest(&manifest).map_err(ValidationError::ManifestSerialization));
+			let manifest_path = target.join(MANIFEST_FILENAME);
+			let mut manifest_file = try!(fs::File::create(manifest_path));
+			try!(manifest_file.write_all(manifest_str.as_bytes()));
+			// Create endpoint
+			let endpoint = LocalPageEndpoint::new(target, manifest.clone().into(), PageCache::Enabled, self.embeddable_on.clone());
+			// Return modified app manifest
+			Ok(endpoint)
+		};
 
-		// Create endpoint
-		let app = LocalPageEndpoint::new(target, manifest.clone().into(), PageCache::Enabled, self.embeddable_on.clone());
-
-		// Return modified app manifest
-		Ok((manifest.id.clone(), app))
-	}
-
-	fn done(&self, endpoint: Option<LocalPageEndpoint>) {
-		(self.on_done)(self.id.clone(), endpoint)
+		let result = validate();
+		(self.on_done)(result.as_ref().ok().cloned());
+		result.map(|endpoint| (self.id.clone(), endpoint))
 	}
 }
 
