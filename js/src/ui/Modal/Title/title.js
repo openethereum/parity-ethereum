@@ -72,7 +72,7 @@ export default class Title extends Component {
     return steps.map((label, index) => {
       return (
         <Step
-          key={ index }>
+          key={ label.key || index }>
           <StepLabel>
             { label }
           </StepLabel>

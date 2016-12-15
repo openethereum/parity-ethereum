@@ -25,7 +25,7 @@ const A_DAY = 24 * 60 * A_MINUTE;
 const STEP_INFO = 0;
 const STEP_UPDATING = 1;
 const STEP_COMPLETED = 2;
-const STEP_ERROR = 3;
+const STEP_ERROR = 2;
 
 const CHECK_INTERVAL = 1 * A_MINUTE;
 

@@ -49,16 +49,20 @@ export default class UpgradeParity extends Component {
         steps={ [
           <FormattedMessage
             id='upgradeParity.step.info'
+            key='info'
             defaultMessage='upgrade available' />,
           <FormattedMessage
+            key='updating'
             id='upgradeParity.step.updating'
             defaultMessage='upgrading parity' />,
           store.step === STEP_ERROR
             ? <FormattedMessage
               id='upgradeParity.step.error'
+              key='error'
               defaultMessage='error' />
             : <FormattedMessage
               id='upgradeParity.step.completed'
+              key='completed'
               defaultMessage='upgrade completed' />
         ] }
         visible>
@@ -158,6 +162,25 @@ export default class UpgradeParity extends Component {
         );
 
       case STEP_COMPLETED:
+      case STEP_ERROR:
+        if (store.error) {
+          return (
+            <Completed>
+              <div>
+                <FormattedMessage
+                  id='upgradeParity.failed'
+                  defaultMessage='Your upgrade to Parity {newversion} has failed with an error.'
+                  values={ {
+                    newversion: <div className={ styles.version }>{ newversion }</div>
+                  } } />
+              </div>
+              <div className={ styles.error }>
+                { store.error.message }
+              </div>
+            </Completed>
+          );
+        }
+
         return (
           <Completed>
             <FormattedMessage
@@ -166,23 +189,6 @@ export default class UpgradeParity extends Component {
               values={ {
                 newversion: <div className={ styles.version }>{ newversion }</div>
               } } />
-          </Completed>
-        );
-
-      case STEP_ERROR:
-        return (
-          <Completed>
-            <div>
-              <FormattedMessage
-                id='upgradeParity.failed'
-                defaultMessage='Your upgrade to Parity {newversion} has failed with an error.'
-                values={ {
-                  newversion: <div className={ styles.version }>{ newversion }</div>
-                } } />
-            </div>
-            <div className={ styles.error }>
-              { store.error.message }
-            </div>
           </Completed>
         );
     }
