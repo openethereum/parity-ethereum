@@ -693,7 +693,7 @@ impl Configuration {
 				"all" => UpdateFilter::All,
 				_ => return Err("Invalid value for `--auto-update`. See `--help` for more information.".into()), 
 			},
-			track: match self.args.flag_releases_track.as_ref() {
+			track: match self.args.flag_release_track.as_ref() {
 				"stable" => ReleaseTrack::Stable,
 				"beta" => ReleaseTrack::Beta,
 				"nightly" => ReleaseTrack::Nightly,

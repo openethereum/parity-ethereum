@@ -40,13 +40,13 @@ Operating Options:
                            critical - Only consensus/security updates.
                            none - No updates will be auto-installed. 
                            (default: {flag_auto_update}).
-  --releases-track TRACK   Set which release track we should use for updates.
+  --release-track TRACK    Set which release track we should use for updates.
                            stable - Stable releases. 
                            beta - Beta releases. 
                            nightly - Nightly releases (unstable).
                            testing - Testing releases (do not use). 
                            current - Whatever track this executable was
-                           released on (default: {flag_releases_track}).
+                           released on (default: {flag_release_track}).
   --no-download            Normally new releases will be downloaded ready for
                            updating. This disables it. Not recommended.
                            (default: {flag_no_download}).
