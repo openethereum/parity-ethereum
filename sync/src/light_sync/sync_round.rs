@@ -18,17 +18,14 @@
 
 use std::cmp::Ordering;
 use std::collections::{BinaryHeap, HashMap, HashSet, VecDeque};
-use std::mem;
 
 use ethcore::header::Header;
 
-use light::client::LightChainClient;
-use light::net::{EventContext, ReqId};
+use light::net::ReqId;
 use light::request::Headers as HeadersRequest;
 
 use network::PeerId;
-use rlp::{UntrustedRlp, View};
-use util::{Bytes, H256, Mutex};
+use util::{Bytes, H256};
 
 use super::response;
 
@@ -47,7 +44,7 @@ pub trait ResponseContext {
 	/// Get the peer who sent this response.
 	fn responder(&self) ->	PeerId;
 	/// Get the request ID this response corresponds to.
-	fn req_id(&self) -> ReqId;
+	fn req_id(&self) -> &ReqId;
 	/// Get the (unverified) response data.
 	fn data(&self) -> &[Bytes];
 	/// Punish the responder.
@@ -173,7 +170,7 @@ impl Fetcher {
 	}
 
 	fn process_response<R: ResponseContext>(mut self, ctx: &R) -> SyncRound {
-		let mut request = match self.pending.remove(&ctx.req_id()) {
+		let mut request = match self.pending.remove(ctx.req_id()) {
 			Some(request) => request,
 			None => return SyncRound::Fetch(self),
 		};
@@ -267,8 +264,8 @@ impl Fetcher {
 		SyncRound::Fetch(self)
 	}
 
-	fn drain(mut self, headers: &mut Vec<Header>, max: usize) -> SyncRound {
-		let max = ::std::cmp::min(max, self.ready.len());
+	fn drain(mut self, headers: &mut Vec<Header>, max: Option<usize>) -> SyncRound {
+		let max = ::std::cmp::min(max.unwrap_or(usize::max_value()), self.ready.len());
 		headers.extend(self.ready.drain(0..max));
 
 		if self.sparse.is_empty() && self.ready.is_empty() {
@@ -321,7 +318,7 @@ impl RoundStart {
 
 	fn process_response<R: ResponseContext>(mut self, ctx: &R) -> SyncRound {
 		let req = match self.pending_req.take() {
-			Some((id, ref req)) if ctx.req_id() == id => { req.clone() }
+			Some((id, ref req)) if ctx.req_id() == &id => { req.clone() }
 			other => {
 				self.pending_req = other;
 				return SyncRound::Start(self);
@@ -445,9 +442,9 @@ impl SyncRound {
 		}
 	}
 
-	/// Drain up to a maximum number of headers (continuous, starting with a child of
+	/// Drain up to a maximum number (None -> all) of headers (continuous, starting with a child of
 	/// the round start block) from the round, starting a new one once finished.
-	pub fn drain(self, v: &mut Vec<Header>, max: usize) -> Self {
+	pub fn drain(self, v: &mut Vec<Header>, max: Option<usize>) -> Self {
 		match self {
 			SyncRound::Fetch(fetcher) => fetcher.drain(v, max),
 			other => other,

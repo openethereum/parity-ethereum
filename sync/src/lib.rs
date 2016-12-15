@@ -54,10 +54,11 @@ extern crate ethcore_ipc as ipc;
 mod chain;
 mod blocks;
 mod block_sync;
-mod light_sync;
 mod sync_io;
 mod snapshot;
 mod transactions_stats;
+
+pub mod light_sync;
 
 #[cfg(test)]
 mod tests;

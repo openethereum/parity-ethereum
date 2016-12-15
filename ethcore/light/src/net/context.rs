@@ -105,6 +105,9 @@ pub trait EventContext: BasicContext {
 	/// Get the peer relevant to the event e.g. message sender,
 	/// disconnected/connected peer.
 	fn peer(&self) -> PeerId;
+
+	/// Treat the event context as a basic context.
+	fn as_basic(&self) -> &BasicContext;
 }
 
 /// Basic context.
@@ -181,5 +184,9 @@ impl<'a> BasicContext for Ctx<'a> {
 impl<'a> EventContext for Ctx<'a> {
 	fn peer(&self) -> PeerId {
 		self.peer
+	}
+
+	fn as_basic(&self) -> &BasicContext {
+		&*self
 	}
 }
