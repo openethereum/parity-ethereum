@@ -78,6 +78,24 @@ build_rpc_trait! {
 		#[rpc(name = "parity_setDappsAddresses")]
 		fn set_dapps_addresses(&self, DappId, Vec<H160>) -> Result<bool, Error>;
 
+		/// Gets accounts exposed for particular dapp.
+		#[rpc(name = "parity_getDappsAddresses")]
+		fn dapps_addresses(&self, DappId) -> Result<Vec<H160>, Error>;
+
+		/// Sets accounts exposed for new dapps.
+		/// `None` means that all accounts will be exposed.
+		#[rpc(name = "parity_setNewDappsWhitelist")]
+		fn set_new_dapps_whitelist(&self, Option<Vec<H160>>) -> Result<bool, Error>;
+
+		/// Gets accounts exposed for new dapps.
+		/// `None` means that all accounts will be exposed.
+		#[rpc(name = "parity_getNewDappsWhitelist")]
+		fn new_dapps_whitelist(&self) -> Result<Option<Vec<H160>>, Error>;
+
+		/// Sets accounts exposed for particular dapp.
+		#[rpc(name = "parity_listRecentDapps")]
+		fn recent_dapps(&self) -> Result<Vec<DappId>, Error>;
+
 		/// Imports a number of Geth accounts, with the list provided as the argument.
 		#[rpc(name = "parity_importGethAccounts")]
 		fn import_geth_accounts(&self, Vec<H160>) -> Result<Vec<H160>, Error>;

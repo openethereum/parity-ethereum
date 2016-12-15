@@ -32,6 +32,8 @@ usage! {
 		cmd_import: bool,
 		cmd_signer: bool,
 		cmd_new_token: bool,
+		cmd_sign: bool,
+		cmd_reject: bool,
 		cmd_snapshot: bool,
 		cmd_restore: bool,
 		cmd_ui: bool,
@@ -44,6 +46,7 @@ usage! {
 		arg_pid_file: String,
 		arg_file: Option<String>,
 		arg_path: Vec<String>,
+		arg_id: Option<usize>,
 
 		// Flags
 		// -- Legacy Options
@@ -515,6 +518,8 @@ mod tests {
 			cmd_blocks: false,
 			cmd_import: false,
 			cmd_signer: false,
+			cmd_sign: false,
+			cmd_reject: false,
 			cmd_new_token: false,
 			cmd_snapshot: false,
 			cmd_restore: false,
@@ -527,6 +532,7 @@ mod tests {
 			// Arguments
 			arg_pid_file: "".into(),
 			arg_file: None,
+			arg_id: None,
 			arg_path: vec![],
 
 			// -- Operating Options
