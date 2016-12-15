@@ -101,7 +101,7 @@ fn forked_with_misbehaving_peer() {
 	::env_logger::init().ok();
 	let mut net = TestNet::new(3);
 	// peer 0 is on a totally different chain with higher total difficulty
-	net.peer_mut(0).chain = TestBlockChainClient::new_with_extra_data(b"fork".to_vec());
+	net.peer_mut(0).chain = Arc::new(TestBlockChainClient::new_with_extra_data(b"fork".to_vec()));
 	net.peer(0).chain.add_blocks(50, EachBlockWith::Nothing);
 	net.peer(1).chain.add_blocks(10, EachBlockWith::Nothing);
 	net.peer(2).chain.add_blocks(10, EachBlockWith::Nothing);

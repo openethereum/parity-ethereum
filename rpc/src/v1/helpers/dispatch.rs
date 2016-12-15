@@ -14,6 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::fmt::Debug;
+use std::ops::Deref;
 use rlp;
 use util::{Address, H256, U256, Uint, Bytes};
 use util::bytes::ToPretty;
@@ -37,46 +39,112 @@ use v1::types::{
 
 pub const DEFAULT_MAC: [u8; 2] = [0, 0];
 
-pub fn execute<C, M>(client: &C, miner: &M, accounts: &AccountProvider, payload: ConfirmationPayload, pass: Option<String>) -> Result<ConfirmationResponse, Error>
+type AccountToken = String;
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum SignWith {
+	Nothing,
+	Password(String),
+	Token(AccountToken),
+}
+
+#[derive(Debug)]
+pub enum WithToken<T: Debug> {
+	No(T),
+	Yes(T, AccountToken),
+}
+
+impl<T: Debug> Deref for WithToken<T> {
+	type Target = T;
+
+	fn deref(&self) -> &Self::Target {
+		match *self {
+			WithToken::No(ref v) => v,
+			WithToken::Yes(ref v, _) => v,
+		}
+	}
+}
+
+impl<T: Debug> WithToken<T> {
+	pub fn map<S, F>(self, f: F) -> WithToken<S> where
+		S: Debug,
+		F: FnOnce(T) -> S,
+	{
+		match self {
+			WithToken::No(v) => WithToken::No(f(v)),
+			WithToken::Yes(v, token) => WithToken::Yes(f(v), token),
+		}
+	}
+
+	pub fn into_value(self) -> T {
+		match self {
+			WithToken::No(v) => v,
+			WithToken::Yes(v, _) => v,
+		}
+	}
+}
+
+impl<T: Debug> From<(T, AccountToken)> for WithToken<T> {
+	fn from(tuple: (T, AccountToken)) -> Self {
+		WithToken::Yes(tuple.0, tuple.1)
+	}
+}
+
+pub fn execute<C, M>(client: &C, miner: &M, accounts: &AccountProvider, payload: ConfirmationPayload, pass: SignWith) -> Result<WithToken<ConfirmationResponse>, Error>
 	where C: MiningBlockChainClient, M: MinerService
 {
 	match payload {
 		ConfirmationPayload::SendTransaction(request) => {
 			sign_and_dispatch(client, miner, accounts, request, pass)
-				.map(RpcH256::from)
-				.map(ConfirmationResponse::SendTransaction)
+				.map(|result| result
+					.map(RpcH256::from)
+					.map(ConfirmationResponse::SendTransaction)
+				)
 		},
 		ConfirmationPayload::SignTransaction(request) => {
 			sign_no_dispatch(client, miner, accounts, request, pass)
-				.map(RpcRichRawTransaction::from)
-				.map(ConfirmationResponse::SignTransaction)
+				.map(|result| result
+					.map(RpcRichRawTransaction::from)
+					.map(ConfirmationResponse::SignTransaction)
+				)
 		},
 		ConfirmationPayload::Signature(address, hash) => {
 			signature(accounts, address, hash, pass)
-				.map(RpcH520::from)
-				.map(ConfirmationResponse::Signature)
+				.map(|result| result
+					.map(RpcH520::from)
+					.map(ConfirmationResponse::Signature)
+				)
 		},
 		ConfirmationPayload::Decrypt(address, data) => {
 			decrypt(accounts, address, data, pass)
-				.map(RpcBytes)
-				.map(ConfirmationResponse::Decrypt)
+				.map(|result| result
+					.map(RpcBytes)
+					.map(ConfirmationResponse::Decrypt)
+				)
 		},
 	}
 }
 
-fn signature(accounts: &AccountProvider, address: Address, hash: H256, password: Option<String>) -> Result<Signature, Error> {
-	accounts.sign(address, password.clone(), hash).map_err(|e| match password {
-		Some(_) => errors::from_password_error(e),
-		None => errors::from_signing_error(e),
+fn signature(accounts: &AccountProvider, address: Address, hash: H256, password: SignWith) -> Result<WithToken<Signature>, Error> {
+	match password.clone() {
+		SignWith::Nothing => accounts.sign(address, None, hash).map(WithToken::No),
+		SignWith::Password(pass) => accounts.sign(address, Some(pass), hash).map(WithToken::No),
+		SignWith::Token(token) => accounts.sign_with_token(address, token, hash).map(Into::into),
+	}.map_err(|e| match password {
+		SignWith::Nothing => errors::from_signing_error(e),
+		_ => errors::from_password_error(e),
 	})
 }
 
-fn decrypt(accounts: &AccountProvider, address: Address, msg: Bytes, password: Option<String>) -> Result<Bytes, Error> {
-	accounts.decrypt(address, password.clone(), &DEFAULT_MAC, &msg)
-		.map_err(|e| match password {
-			Some(_) => errors::from_password_error(e),
-			None => errors::from_signing_error(e),
-		})
+fn decrypt(accounts: &AccountProvider, address: Address, msg: Bytes, password: SignWith) -> Result<WithToken<Bytes>, Error> {
+	match password.clone() {
+		SignWith::Nothing => accounts.decrypt(address, None, &DEFAULT_MAC, &msg).map(WithToken::No),
+		SignWith::Password(pass) => accounts.decrypt(address, Some(pass), &DEFAULT_MAC, &msg).map(WithToken::No),
+		SignWith::Token(token) => accounts.decrypt_with_token(address, token, &DEFAULT_MAC, &msg).map(Into::into),
+	}.map_err(|e| match password {
+		SignWith::Nothing => errors::from_signing_error(e),
+		_ => errors::from_password_error(e),
+	})
 }
 
 pub fn dispatch_transaction<C, M>(client: &C, miner: &M, signed_transaction: PendingTransaction) -> Result<H256, Error>
@@ -88,7 +156,7 @@ pub fn dispatch_transaction<C, M>(client: &C, miner: &M, signed_transaction: Pen
 		.map(|_| hash)
 }
 
-pub fn sign_no_dispatch<C, M>(client: &C, miner: &M, accounts: &AccountProvider, filled: FilledTransactionRequest, password: Option<String>) -> Result<SignedTransaction, Error>
+pub fn sign_no_dispatch<C, M>(client: &C, miner: &M, accounts: &AccountProvider, filled: FilledTransactionRequest, password: SignWith) -> Result<WithToken<SignedTransaction>, Error>
 	where C: MiningBlockChainClient, M: MinerService {
 
 	let network_id = client.signing_network_id();
@@ -110,12 +178,14 @@ pub fn sign_no_dispatch<C, M>(client: &C, miner: &M, accounts: &AccountProvider,
 
 		let hash = t.hash(network_id);
 		let signature = try!(signature(accounts, address, hash, password));
-		t.with_signature(signature, network_id)
+		signature.map(|sig| {
+			t.with_signature(sig, network_id)
+		})
 	};
 	Ok(signed_transaction)
 }
 
-pub fn sign_and_dispatch<C, M>(client: &C, miner: &M, accounts: &AccountProvider, filled: FilledTransactionRequest, password: Option<String>) -> Result<H256, Error>
+pub fn sign_and_dispatch<C, M>(client: &C, miner: &M, accounts: &AccountProvider, filled: FilledTransactionRequest, password: SignWith) -> Result<WithToken<H256>, Error>
 	where C: MiningBlockChainClient, M: MinerService
 {
 
@@ -123,9 +193,19 @@ pub fn sign_and_dispatch<C, M>(client: &C, miner: &M, accounts: &AccountProvider
 	let min_block = filled.min_block.clone();
 	let signed_transaction = try!(sign_no_dispatch(client, miner, accounts, filled, password));
 
+	let (signed_transaction, token) = match signed_transaction {
+		WithToken::No(signed_transaction) => (signed_transaction, None),
+		WithToken::Yes(signed_transaction, token) => (signed_transaction, Some(token)),
+	};
+
 	trace!(target: "miner", "send_transaction: dispatching tx: {} for network ID {:?}", rlp::encode(&signed_transaction).to_vec().pretty(), network_id);
 	let pending_transaction = PendingTransaction::new(signed_transaction, min_block);
-	dispatch_transaction(&*client, &*miner, pending_transaction)
+	dispatch_transaction(&*client, &*miner, pending_transaction).map(|hash| {
+		match token {
+			Some(ref token) => WithToken::Yes(hash, token.clone()),
+			None => WithToken::No(hash),
+		}
+	})
 }
 
 pub fn fill_optional_fields<C, M>(request: TransactionRequest, client: &C, miner: &M) -> FilledTransactionRequest

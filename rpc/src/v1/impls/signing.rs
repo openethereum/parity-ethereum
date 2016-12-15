@@ -99,7 +99,9 @@ impl<C, M> SigningQueueClient<C, M> where
 
 		let sender = payload.sender();
 		if accounts.is_unlocked(sender) {
-			return dispatch::execute(&*client, &*miner, &*accounts, payload, None).map(DispatchResult::Value);
+			return dispatch::execute(&*client, &*miner, &*accounts, payload, dispatch::SignWith::Nothing)
+				.map(|v| v.into_value())
+				.map(DispatchResult::Value);
 		}
 
 		take_weak!(self.signer).add_request(payload)

@@ -24,8 +24,8 @@ use time::precise_time_ns;
 // util
 use util::{Bytes, PerfTimer, Itertools, Mutex, RwLock, Hashable};
 use util::{journaldb, TrieFactory, Trie};
-use util::trie::TrieSpec;
 use util::{U256, H256, Address, H2048, Uint, FixedHash};
+use util::trie::TrieSpec;
 use util::kvdb::*;
 
 // other
@@ -396,9 +396,10 @@ impl Client {
 	/// This is triggered by a message coming from a block queue when the block is ready for insertion
 	pub fn import_verified_blocks(&self) -> usize {
 		let max_blocks_to_import = 4;
-		let (imported_blocks, import_results, invalid_blocks, imported, duration, is_empty) = {
+		let (imported_blocks, import_results, invalid_blocks, imported, proposed_blocks, duration, is_empty) = {
 			let mut imported_blocks = Vec::with_capacity(max_blocks_to_import);
 			let mut invalid_blocks = HashSet::new();
+			let mut proposed_blocks = Vec::with_capacity(max_blocks_to_import);
 			let mut import_results = Vec::with_capacity(max_blocks_to_import);
 
 			let _import_lock = self.import_lock.lock();
@@ -417,12 +418,17 @@ impl Client {
 					continue;
 				}
 				if let Ok(closed_block) = self.check_and_close_block(&block) {
-					imported_blocks.push(header.hash());
+					if self.engine.is_proposal(&block.header) {
+						self.block_queue.mark_as_good(&[header.hash()]);
+						proposed_blocks.push(block.bytes);
+					} else {
+						imported_blocks.push(header.hash());
 
-					let route = self.commit_block(closed_block, &header.hash(), &block.bytes);
-					import_results.push(route);
+						let route = self.commit_block(closed_block, &header.hash(), &block.bytes);
+						import_results.push(route);
 
-					self.report.write().accrue_block(&block);
+						self.report.write().accrue_block(&block);
+					}
 				} else {
 					invalid_blocks.insert(header.hash());
 				}
@@ -436,7 +442,7 @@ impl Client {
 			}
 			let is_empty = self.block_queue.mark_as_good(&imported_blocks);
 			let duration_ns = precise_time_ns() - start;
-			(imported_blocks, import_results, invalid_blocks, imported, duration_ns, is_empty)
+			(imported_blocks, import_results, invalid_blocks, imported, proposed_blocks, duration_ns, is_empty)
 		};
 
 		{
@@ -454,6 +460,7 @@ impl Client {
 						enacted.clone(),
 						retracted.clone(),
 						Vec::new(),
+						proposed_blocks.clone(),
 						duration,
 					);
 				});
@@ -577,9 +584,10 @@ impl Client {
 		self.miner.clone()
 	}
 
-	/// Used by PoA to try sealing on period change.
-	pub fn update_sealing(&self) {
-		self.miner.update_sealing(self)
+
+	/// Replace io channel. Useful for testing.
+	pub fn set_io_channel(&self, io_channel: IoChannel<ClientIoMessage>) {
+		*self.io_channel.lock() = io_channel;
 	}
 
 	/// Attempt to get a copy of a specific block's final state.
@@ -1290,6 +1298,18 @@ impl BlockChainClient for Client {
 		self.miner.pending_transactions(self.chain.read().best_block_number())
 	}
 
+	fn queue_consensus_message(&self, message: Bytes) {
+		let channel = self.io_channel.lock().clone();
+		if let Err(e) = channel.send(ClientIoMessage::NewMessage(message)) {
+			debug!("Ignoring the message, error queueing: {}", e);
+		}
+	}
+
+	fn broadcast_consensus_message(&self, message: Bytes) {
+		self.notify(|notify| notify.broadcast(message.clone()));
+	}
+
+
 	fn signing_network_id(&self) -> Option<u64> {
 		self.engine.signing_network_id(&self.latest_env_info())
 	}
@@ -1314,7 +1334,6 @@ impl BlockChainClient for Client {
 }
 
 impl MiningBlockChainClient for Client {
-
 	fn latest_schedule(&self) -> Schedule {
 		self.engine.schedule(&self.latest_env_info())
 	}
@@ -1357,6 +1376,30 @@ impl MiningBlockChainClient for Client {
 		&self.factories.vm
 	}
 
+	fn update_sealing(&self) {
+		self.miner.update_sealing(self)
+	}
+
+	fn submit_seal(&self, block_hash: H256, seal: Vec<Bytes>) {
+		if self.miner.submit_seal(self, block_hash, seal).is_err() {
+			warn!(target: "poa", "Wrong internal seal submission!")
+		}
+	}
+
+	fn broadcast_proposal_block(&self, block: SealedBlock) {
+		self.notify(|notify| {
+			notify.new_blocks(
+				vec![],
+				vec![],
+				vec![],
+				vec![],
+				vec![],
+				vec![block.rlp_bytes()],
+				0,
+			);
+		});
+	}
+
 	fn import_sealed_block(&self, block: SealedBlock) -> ImportResult {
 		let h = block.header().hash();
 		let start = precise_time_ns();
@@ -1381,6 +1424,7 @@ impl MiningBlockChainClient for Client {
 				enacted.clone(),
 				retracted.clone(),
 				vec![h.clone()],
+				vec![],
 				precise_time_ns() - start,
 			);
 		});
@@ -1413,6 +1457,12 @@ impl ::client::ProvingBlockChainClient for Client {
 			.and_then(move |state| state.code_by_address_hash(account_key).ok())
 			.and_then(|x| x)
 			.unwrap_or_else(Vec::new)
+	}
+}
+
+impl Drop for Client {
+	fn drop(&mut self) {
+		self.engine.stop();
 	}
 }
 

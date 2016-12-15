@@ -90,6 +90,8 @@ pub struct TestBlockChainClient {
 	pub ancient_block: RwLock<Option<(H256, u64)>>,
 	/// First block info.
 	pub first_block: RwLock<Option<(H256, u64)>>,
+	/// Traces to return
+	pub traces: RwLock<Option<Vec<LocalizedTrace>>>,
 }
 
 /// Used for generating test client blocks.
@@ -151,6 +153,7 @@ impl TestBlockChainClient {
 			latest_block_timestamp: RwLock::new(10_000_000),
 			ancient_block: RwLock::new(None),
 			first_block: RwLock::new(None),
+			traces: RwLock::new(None),
 		};
 		client.add_blocks(1, EachBlockWith::Nothing); // add genesis block
 		client.genesis_hash = client.last_hash.read().clone();
@@ -359,6 +362,18 @@ impl MiningBlockChainClient for TestBlockChainClient {
 
 	fn import_sealed_block(&self, _block: SealedBlock) -> ImportResult {
 		Ok(H256::default())
+	}
+
+	fn broadcast_proposal_block(&self, _block: SealedBlock) {}
+
+	fn update_sealing(&self) {
+		self.miner.update_sealing(self)
+	}
+
+	fn submit_seal(&self, block_hash: H256, seal: Vec<Bytes>) {
+		if self.miner.submit_seal(self, block_hash, seal).is_err() {
+			warn!(target: "poa", "Wrong internal seal submission!")
+		}
 	}
 }
 
@@ -642,19 +657,19 @@ impl BlockChainClient for TestBlockChainClient {
 	}
 
 	fn filter_traces(&self, _filter: TraceFilter) -> Option<Vec<LocalizedTrace>> {
-		unimplemented!();
+		self.traces.read().clone()
 	}
 
 	fn trace(&self, _trace: TraceId) -> Option<LocalizedTrace> {
-		unimplemented!();
+		self.traces.read().clone().and_then(|vec| vec.into_iter().next())
 	}
 
 	fn transaction_traces(&self, _trace: TransactionId) -> Option<Vec<LocalizedTrace>> {
-		unimplemented!();
+		self.traces.read().clone()
 	}
 
 	fn block_traces(&self, _trace: BlockId) -> Option<Vec<LocalizedTrace>> {
-		unimplemented!();
+		self.traces.read().clone()
 	}
 
 	fn queue_transactions(&self, transactions: Vec<Bytes>, _peer_id: usize) {
@@ -662,6 +677,12 @@ impl BlockChainClient for TestBlockChainClient {
 		let txs = transactions.into_iter().filter_map(|bytes| UntrustedRlp::new(&bytes).as_val().ok()).collect();
 		self.miner.import_external_transactions(self, txs);
 	}
+
+	fn queue_consensus_message(&self, message: Bytes) {
+		self.spec.engine.handle_message(&message).unwrap();
+	}
+
+	fn broadcast_consensus_message(&self, _message: Bytes) {}
 
 	fn pending_transactions(&self) -> Vec<PendingTransaction> {
 		self.miner.pending_transactions(self.chain_info().best_block_number)

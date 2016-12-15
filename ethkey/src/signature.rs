@@ -18,6 +18,7 @@ use std::ops::{Deref, DerefMut};
 use std::cmp::PartialEq;
 use std::{mem, fmt};
 use std::str::FromStr;
+use std::hash::{Hash, Hasher};
 use secp256k1::{Message as SecpMessage, RecoverableSignature, RecoveryId, Error as SecpError};
 use secp256k1::key::{SecretKey, PublicKey};
 use rustc_serialize::hex::{ToHex, FromHex};
@@ -114,6 +115,18 @@ impl Default for Signature {
 	fn default() -> Self {
 		Signature([0; 65])
 	}
+}
+
+impl Hash for Signature {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+    	H520::from(self.0).hash(state);
+    }
+}
+
+impl Clone for Signature {
+    fn clone(&self) -> Self {
+		Signature(self.0)
+    }
 }
 
 impl From<[u8; 65]> for Signature {

@@ -1,5 +1,6 @@
 {
 	"name": "Ropsten",
+	"dataDir": "test",
 	"engine": {
 		"Ethash": {
 			"params": {

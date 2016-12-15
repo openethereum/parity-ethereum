@@ -18,14 +18,14 @@
 
 mod stores;
 
-use self::stores::{AddressBook, DappsSettingsStore};
+use self::stores::{AddressBook, DappsSettingsStore, NewDappsPolicy};
 
 use std::fmt;
 use std::collections::HashMap;
 use std::time::{Instant, Duration};
-use util::{Mutex, RwLock};
-use ethstore::{SecretStore, Error as SSError, SafeAccount, EthStore};
-use ethstore::dir::{KeyDirectory};
+use util::RwLock;
+use ethstore::{SimpleSecretStore, SecretStore, Error as SSError, EthStore, EthMultiStore, random_string};
+use ethstore::dir::MemoryDirectory;
 use ethstore::ethkey::{Address, Message, Public, Secret, Random, Generator};
 use ethjson::misc::AccountMeta;
 pub use ethstore::ethkey::Signature;
@@ -73,58 +73,47 @@ impl From<SSError> for Error {
 	}
 }
 
-#[derive(Default)]
-struct NullDir {
-	accounts: RwLock<HashMap<Address, SafeAccount>>,
-}
-
-impl KeyDirectory for NullDir {
-	fn load(&self) -> Result<Vec<SafeAccount>, SSError> {
-		Ok(self.accounts.read().values().cloned().collect())
-	}
-
-	fn insert(&self, account: SafeAccount) -> Result<SafeAccount, SSError> {
-		self.accounts.write().insert(account.address.clone(), account.clone());
-		Ok(account)
-	}
-
-	fn remove(&self, address: &Address) -> Result<(), SSError> {
-		self.accounts.write().remove(address);
-		Ok(())
-	}
-}
-
 /// Dapp identifier
 pub type DappId = String;
+
+fn transient_sstore() -> EthMultiStore {
+	EthMultiStore::open(Box::new(MemoryDirectory::default())).expect("MemoryDirectory load always succeeds; qed")
+}
+
+type AccountToken = String;
 
 /// Account management.
 /// Responsible for unlocking accounts.
 pub struct AccountProvider {
-	unlocked: Mutex<HashMap<Address, AccountData>>,
-	sstore: Box<SecretStore>,
+	unlocked: RwLock<HashMap<Address, AccountData>>,
 	address_book: RwLock<AddressBook>,
 	dapps_settings: RwLock<DappsSettingsStore>,
+	/// Accounts on disk
+	sstore: Box<SecretStore>,
+	/// Accounts unlocked with rolling tokens
+	transient_sstore: EthMultiStore,
 }
 
 impl AccountProvider {
 	/// Creates new account provider.
 	pub fn new(sstore: Box<SecretStore>) -> Self {
 		AccountProvider {
-			unlocked: Mutex::new(HashMap::new()),
+			unlocked: RwLock::new(HashMap::new()),
 			address_book: RwLock::new(AddressBook::new(sstore.local_path().into())),
 			dapps_settings: RwLock::new(DappsSettingsStore::new(sstore.local_path().into())),
 			sstore: sstore,
+			transient_sstore: transient_sstore(),
 		}
 	}
 
 	/// Creates not disk backed provider.
 	pub fn transient_provider() -> Self {
 		AccountProvider {
-			unlocked: Mutex::new(HashMap::new()),
+			unlocked: RwLock::new(HashMap::new()),
 			address_book: RwLock::new(AddressBook::transient()),
 			dapps_settings: RwLock::new(DappsSettingsStore::transient()),
-			sstore: Box::new(EthStore::open(Box::new(NullDir::default()))
-				.expect("NullDir load always succeeds; qed"))
+			sstore: Box::new(EthStore::open(Box::new(MemoryDirectory::default())).expect("MemoryDirectory load always succeeds; qed")),
+			transient_sstore: transient_sstore(),
 		}
 	}
 
@@ -167,10 +156,49 @@ impl AccountProvider {
 		Ok(accounts)
 	}
 
+	/// Sets a whitelist of accounts exposed for unknown dapps.
+	/// `None` means that all accounts will be visible.
+	pub fn set_new_dapps_whitelist(&self, accounts: Option<Vec<Address>>) -> Result<(), Error> {
+		self.dapps_settings.write().set_policy(match accounts {
+			None => NewDappsPolicy::AllAccounts,
+			Some(accounts) => NewDappsPolicy::Whitelist(accounts),
+		});
+		Ok(())
+	}
+
+	/// Gets a whitelist of accounts exposed for unknown dapps.
+	/// `None` means that all accounts will be visible.
+	pub fn new_dapps_whitelist(&self) -> Result<Option<Vec<Address>>, Error> {
+		Ok(match self.dapps_settings.read().policy() {
+			NewDappsPolicy::AllAccounts => None,
+			NewDappsPolicy::Whitelist(accounts) => Some(accounts),
+		})
+	}
+
+	/// Gets a list of dapps recently requesting accounts.
+	pub fn recent_dapps(&self) -> Result<Vec<DappId>, Error> {
+		Ok(self.dapps_settings.read().recent_dapps())
+	}
+
+	/// Marks dapp as recently used.
+	pub fn note_dapp_used(&self, dapp: DappId) -> Result<(), Error> {
+		let mut dapps = self.dapps_settings.write();
+		dapps.mark_dapp_used(dapp.clone());
+		Ok(())
+	}
+
 	/// Gets addresses visile for dapp.
 	pub fn dapps_addresses(&self, dapp: DappId) -> Result<Vec<Address>, Error> {
-		let accounts = self.dapps_settings.read().get();
-		Ok(accounts.get(&dapp).map(|settings| settings.accounts.clone()).unwrap_or_else(Vec::new))
+		let dapps = self.dapps_settings.read();
+
+		let accounts = dapps.settings().get(&dapp).map(|settings| settings.accounts.clone());
+		match accounts {
+			Some(accounts) => Ok(accounts),
+			None => match dapps.policy() {
+				NewDappsPolicy::AllAccounts => self.accounts(),
+				NewDappsPolicy::Whitelist(accounts) => Ok(accounts),
+			}
+		}
 	}
 
 	/// Sets addresses visile for dapp.
@@ -231,11 +259,8 @@ impl AccountProvider {
 
 	/// Returns `true` if the password for `account` is `password`. `false` if not.
 	pub fn test_password(&self, account: &Address, password: &str) -> Result<bool, Error> {
-		match self.sstore.sign(account, password, &Default::default()) {
-			Ok(_) => Ok(true),
-			Err(SSError::InvalidPassword) => Ok(false),
-			Err(e) => Err(Error::SStore(e)),
-		}
+		self.sstore.test_password(account, password)
+			.map_err(Into::into)
 	}
 
 	/// Permanently removes an account.
@@ -256,7 +281,7 @@ impl AccountProvider {
 		let _ = try!(self.sstore.sign(&account, &password, &Default::default()));
 
 		// check if account is already unlocked pernamently, if it is, do nothing
-		let mut unlocked = self.unlocked.lock();
+		let mut unlocked = self.unlocked.write();
 		if let Some(data) = unlocked.get(&account) {
 			if let Unlock::Perm = data.unlock {
 				return Ok(())
@@ -273,7 +298,7 @@ impl AccountProvider {
 	}
 
 	fn password(&self, account: &Address) -> Result<String, Error> {
-		let mut unlocked = self.unlocked.lock();
+		let mut unlocked = self.unlocked.write();
 		let data = try!(unlocked.get(account).ok_or(Error::NotUnlocked)).clone();
 		if let Unlock::Temp = data.unlock {
 			unlocked.remove(account).expect("data exists: so key must exist: qed");
@@ -304,7 +329,7 @@ impl AccountProvider {
 
 	/// Checks if given account is unlocked
 	pub fn is_unlocked(&self, account: Address) -> bool {
-		let unlocked = self.unlocked.lock();
+		let unlocked = self.unlocked.read();
 		unlocked.get(&account).is_some()
 	}
 
@@ -312,6 +337,48 @@ impl AccountProvider {
 	pub fn sign(&self, account: Address, password: Option<String>, message: Message) -> Result<Signature, Error> {
 		let password = try!(password.map(Ok).unwrap_or_else(|| self.password(&account)));
 		Ok(try!(self.sstore.sign(&account, &password, &message)))
+	}
+
+	/// Signs given message with supplied token. Returns a token to use in next signing within this session.
+	pub fn sign_with_token(&self, account: Address, token: AccountToken, message: Message) -> Result<(Signature, AccountToken), Error> {
+		let is_std_password = try!(self.sstore.test_password(&account, &token));
+
+		let new_token = random_string(16);
+		let signature = if is_std_password {
+			// Insert to transient store
+			try!(self.sstore.copy_account(&self.transient_sstore, &account, &token, &new_token));
+			// sign
+			try!(self.sstore.sign(&account, &token, &message))
+		} else {
+			// check transient store
+			try!(self.transient_sstore.change_password(&account, &token, &new_token));
+			// and sign
+			try!(self.transient_sstore.sign(&account, &new_token, &message))
+		};
+
+		Ok((signature, new_token))
+	}
+
+	/// Decrypts a message with given token. Returns a token to use in next operation for this account.
+	pub fn decrypt_with_token(&self, account: Address, token: AccountToken, shared_mac: &[u8], message: &[u8])
+		-> Result<(Vec<u8>, AccountToken), Error>
+	{
+		let is_std_password = try!(self.sstore.test_password(&account, &token));
+
+		let new_token = random_string(16);
+		let message = if is_std_password {
+			// Insert to transient store
+			try!(self.sstore.copy_account(&self.transient_sstore, &account, &token, &new_token));
+			// decrypt
+			try!(self.sstore.decrypt(&account, &token, shared_mac, message))
+		} else {
+			// check transient store
+			try!(self.transient_sstore.change_password(&account, &token, &new_token));
+			// and decrypt
+			try!(self.transient_sstore.decrypt(&account, &token, shared_mac, message))
+		};
+
+		Ok((message, new_token))
 	}
 
 	/// Decrypts a message. If password is not provided the account must be unlocked.
@@ -370,8 +437,24 @@ mod tests {
 		assert!(ap.unlock_account_timed(kp.address(), "test1".into(), 60000).is_err());
 		assert!(ap.unlock_account_timed(kp.address(), "test".into(), 60000).is_ok());
 		assert!(ap.sign(kp.address(), None, Default::default()).is_ok());
-		ap.unlocked.lock().get_mut(&kp.address()).unwrap().unlock = Unlock::Timed(Instant::now());
+		ap.unlocked.write().get_mut(&kp.address()).unwrap().unlock = Unlock::Timed(Instant::now());
 		assert!(ap.sign(kp.address(), None, Default::default()).is_err());
+	}
+
+	#[test]
+	fn should_sign_and_return_token() {
+		// given
+		let kp = Random.generate().unwrap();
+		let ap = AccountProvider::transient_provider();
+		assert!(ap.insert_account(kp.secret().clone(), "test").is_ok());
+
+		// when
+		let (_signature, token) = ap.sign_with_token(kp.address(), "test".into(), Default::default()).unwrap();
+
+		// then
+		ap.sign_with_token(kp.address(), token.clone(), Default::default())
+			.expect("First usage of token should be correct.");
+		assert!(ap.sign_with_token(kp.address(), token, Default::default()).is_err(), "Second usage of the same token should fail.");
 	}
 
 	#[test]
@@ -379,11 +462,32 @@ mod tests {
 		// given
 		let ap = AccountProvider::transient_provider();
 		let app = "app1".to_owned();
+		// set `AllAccounts` policy
+		ap.set_new_dapps_whitelist(None).unwrap();
 
 		// when
 		ap.set_dapps_addresses(app.clone(), vec![1.into(), 2.into()]).unwrap();
 
 		// then
 		assert_eq!(ap.dapps_addresses(app.clone()).unwrap(), vec![1.into(), 2.into()]);
+	}
+
+	#[test]
+	fn should_set_dapps_policy() {
+		// given
+		let ap = AccountProvider::transient_provider();
+		let address = ap.new_account("test").unwrap();
+
+		// When returning nothing
+		ap.set_new_dapps_whitelist(Some(vec![])).unwrap();
+		assert_eq!(ap.dapps_addresses("app1".into()).unwrap(), vec![]);
+
+		// change to all
+		ap.set_new_dapps_whitelist(None).unwrap();
+		assert_eq!(ap.dapps_addresses("app1".into()).unwrap(), vec![address]);
+
+		// change to a whitelist
+		ap.set_new_dapps_whitelist(Some(vec![1.into()])).unwrap();
+		assert_eq!(ap.dapps_addresses("app1".into()).unwrap(), vec![1.into()]);
 	}
 }

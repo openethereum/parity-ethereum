@@ -25,7 +25,7 @@ use rlp::{UntrustedRlp, Rlp, View, encode};
 use account_provider::AccountProvider;
 use block::*;
 use spec::CommonParams;
-use engines::Engine;
+use engines::{Engine, Seal, EngineError};
 use header::Header;
 use error::{Error, BlockError};
 use blockchain::extras::BlockDetails;
@@ -225,8 +225,8 @@ impl Engine for AuthorityRound {
 	///
 	/// This operation is synchronous and may (quite reasonably) not be available, in which `false` will
 	/// be returned.
-	fn generate_seal(&self, block: &ExecutedBlock) -> Option<Vec<Bytes>> {
-		if self.proposed.load(AtomicOrdering::SeqCst) { return None; }
+	fn generate_seal(&self, block: &ExecutedBlock) -> Seal {
+		if self.proposed.load(AtomicOrdering::SeqCst) { return Seal::None; }
 		let header = block.header();
 		let step = self.step();
 		if self.is_step_proposer(step, header.author()) {
@@ -235,7 +235,8 @@ impl Engine for AuthorityRound {
 				if let Ok(signature) = ap.sign(*header.author(), self.password.read().clone(), header.bare_hash()) {
 					trace!(target: "poa", "generate_seal: Issuing a block for step {}.", step);
 					self.proposed.store(true, AtomicOrdering::SeqCst);
-					return Some(vec![encode(&step).to_vec(), encode(&(&*signature as &[u8])).to_vec()]);
+					let rlps = vec![encode(&step).to_vec(), encode(&(&*signature as &[u8])).to_vec()];
+					return Seal::Regular(rlps);
 				} else {
 					warn!(target: "poa", "generate_seal: FAIL: Accounts secret key unavailable.");
 				}
@@ -245,7 +246,7 @@ impl Engine for AuthorityRound {
 		} else {
 			trace!(target: "poa", "generate_seal: Not a proposer for step {}.", step);
 		}
-		None
+		Seal::None
 	}
 
 	/// Check the number of seal fields.
@@ -288,7 +289,7 @@ impl Engine for AuthorityRound {
 		// Check if parent is from a previous step.
 		if step == try!(header_step(parent)) {
 			trace!(target: "poa", "Multiple blocks proposed for step {}.", step);
-			try!(Err(BlockError::DoubleVote(header.author().clone())));
+			try!(Err(EngineError::DoubleVote(header.author().clone())));
 		}
 
 		let gas_limit_divisor = self.our_params.gas_limit_bound_divisor;
@@ -347,6 +348,7 @@ mod tests {
 	use tests::helpers::*;
 	use account_provider::AccountProvider;
 	use spec::Spec;
+	use engines::Seal;
 
 	#[test]
 	fn has_valid_metadata() {
@@ -416,17 +418,17 @@ mod tests {
 		let b2 = b2.close_and_lock();
 
 		engine.set_signer(addr1, "1".into());
-		if let Some(seal) = engine.generate_seal(b1.block()) {
+		if let Seal::Regular(seal) = engine.generate_seal(b1.block()) {
 			assert!(b1.clone().try_seal(engine, seal).is_ok());
 			// Second proposal is forbidden.
-			assert!(engine.generate_seal(b1.block()).is_none());
+			assert!(engine.generate_seal(b1.block()) == Seal::None);
 		}
 
 		engine.set_signer(addr2, "2".into());
-		if let Some(seal) = engine.generate_seal(b2.block()) {
+		if let Seal::Regular(seal) = engine.generate_seal(b2.block()) {
 			assert!(b2.clone().try_seal(engine, seal).is_ok());
 			// Second proposal is forbidden.
-			assert!(engine.generate_seal(b2.block()).is_none());
+			assert!(engine.generate_seal(b2.block()) == Seal::None);
 		}
 	}
 

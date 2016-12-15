@@ -26,12 +26,12 @@ use state::{State, CleanupMode};
 use client::{MiningBlockChainClient, Executive, Executed, EnvInfo, TransactOptions, BlockId, CallAnalytics, TransactionId};
 use client::TransactionImportResult;
 use executive::contract_address;
-use block::{ClosedBlock, SealedBlock, IsBlock, Block};
+use block::{ClosedBlock, IsBlock, Block};
 use error::*;
 use transaction::{Action, SignedTransaction, PendingTransaction};
 use receipt::{Receipt, RichReceipt};
 use spec::Spec;
-use engines::Engine;
+use engines::{Engine, Seal};
 use miner::{MinerService, MinerStatus, TransactionQueue, PrioritizationStrategy, AccountDetails, TransactionOrigin};
 use miner::banning_queue::{BanningTransactionQueue, Threshold};
 use miner::work_notify::WorkPoster;
@@ -467,34 +467,43 @@ impl Miner {
 		}
 	}
 
-	/// Attempts to perform internal sealing (one that does not require work) to return Ok(sealed),
-	/// Err(Some(block)) returns for unsuccesful sealing while Err(None) indicates misspecified engine.
-	fn seal_block_internally(&self, block: ClosedBlock) -> Result<SealedBlock, Option<ClosedBlock>> {
-		trace!(target: "miner", "seal_block_internally: attempting internal seal.");
-		let s = self.engine.generate_seal(block.block());
-		if let Some(seal) = s {
-			trace!(target: "miner", "seal_block_internally: managed internal seal. importing...");
-			block.lock().try_seal(&*self.engine, seal).or_else(|(e, _)| {
-				warn!("prepare_sealing: ERROR: try_seal failed when given internally generated seal: {}", e);
-				Err(None)
-			})
-		} else {
-			trace!(target: "miner", "seal_block_internally: unable to generate seal internally");
-			Err(Some(block))
-		}
-	}
-
-	/// Uses Engine to seal the block internally and then imports it to chain.
+	/// Attempts to perform internal sealing (one that does not require work) and handles the result depending on the type of Seal.
 	fn seal_and_import_block_internally(&self, chain: &MiningBlockChainClient, block: ClosedBlock) -> bool {
 		if !block.transactions().is_empty() || self.forced_sealing() {
-			if let Ok(sealed) = self.seal_block_internally(block) {
-				if chain.import_sealed_block(sealed).is_ok() {
-					trace!(target: "miner", "import_block_internally: imported internally sealed block");
-					return true
-				}
+			trace!(target: "miner", "seal_block_internally: attempting internal seal.");
+			match self.engine.generate_seal(block.block()) {
+				// Save proposal for later seal submission and broadcast it.
+				Seal::Proposal(seal) => {
+					trace!(target: "miner", "Received a Proposal seal.");
+					{
+						let mut sealing_work = self.sealing_work.lock();
+						sealing_work.queue.push(block.clone());
+						sealing_work.queue.use_last_ref();
+					}
+					block
+						.lock()
+						.seal(&*self.engine, seal)
+						.map(|sealed| { chain.broadcast_proposal_block(sealed); true })
+						.unwrap_or_else(|e| {
+							warn!("ERROR: seal failed when given internally generated seal: {}", e);
+							false
+						})
+				},
+				// Directly import a regular sealed block.
+				Seal::Regular(seal) =>
+					block
+						.lock()
+						.seal(&*self.engine, seal)
+						.map(|sealed| chain.import_sealed_block(sealed).is_ok())
+						.unwrap_or_else(|e| {
+							warn!("ERROR: seal failed when given internally generated seal: {}", e);
+							false
+						}),
+				Seal::None => false,
 			}
+		} else {
+			false
 		}
-		false
 	}
 
 	/// Prepares work which has to be done to seal.
@@ -1035,7 +1044,6 @@ impl MinerService for Miner {
 		self.transaction_queue.lock().last_nonce(address)
 	}
 
-
 	/// Update sealing if required.
 	/// Prepare the block and work if the Engine does not seal internally.
 	fn update_sealing(&self, chain: &MiningBlockChainClient) {
@@ -1050,7 +1058,9 @@ impl MinerService for Miner {
 			let (block, original_work_hash) = self.prepare_block(chain);
 			if self.seals_internally {
 				trace!(target: "miner", "update_sealing: engine indicates internal sealing");
-				self.seal_and_import_block_internally(chain, block);
+				if self.seal_and_import_block_internally(chain, block) {
+					trace!(target: "miner", "update_sealing: imported internally sealed block");
+				}
 			} else {
 				trace!(target: "miner", "update_sealing: engine does not seal internally, preparing work");
 				self.prepare_work(block, original_work_hash);

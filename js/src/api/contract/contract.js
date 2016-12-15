@@ -342,7 +342,8 @@ export default class Contract {
           options: _options,
           autoRemove,
           callback,
-          filterId
+          filterId,
+          id: subscriptionId
         };
 
         if (skipInitFetch) {
@@ -452,13 +453,13 @@ export default class Contract {
         })
       )
       .then((logsArray) => {
-        logsArray.forEach((logs, subscriptionId) => {
+        logsArray.forEach((logs, index) => {
           if (!logs || !logs.length) {
             return;
           }
 
           try {
-            this.sendData(subscriptionId, null, this.parseEventLogs(logs));
+            this._sendData(subscriptions[index].id, null, this.parseEventLogs(logs));
           } catch (error) {
             console.error('_sendSubscriptionChanges', error);
           }

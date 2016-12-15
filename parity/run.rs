@@ -41,6 +41,7 @@ use params::{
 	tracing_switch_to_bool, fatdb_switch_to_bool, mode_switch_to_bool
 };
 use helpers::{to_client_config, execute_upgrades, passwords_from_files};
+use upgrade::upgrade_key_location;
 use dir::Directories;
 use cache::CacheConfig;
 use user_defaults::UserDefaults;
@@ -129,9 +130,6 @@ pub fn execute(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<(), String> {
 	// increase max number of open files
 	raise_fd_limit();
 
-	// create dirs used by parity
-	try!(cmd.dirs.create_dirs(cmd.dapps_conf.enabled, cmd.signer_conf.enabled));
-
 	// load spec
 	let spec = try!(cmd.spec.spec());
 
@@ -139,7 +137,7 @@ pub fn execute(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<(), String> {
 	let genesis_hash = spec.genesis_header().hash();
 
 	// database paths
-	let db_dirs = cmd.dirs.database(genesis_hash, spec.fork_name.clone());
+	let db_dirs = cmd.dirs.database(genesis_hash, cmd.spec.legacy_fork_name(), spec.data_dir.clone());
 
 	// user defaults path
 	let user_defaults_path = db_dirs.user_defaults_path();
@@ -166,7 +164,10 @@ pub fn execute(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<(), String> {
 	let snapshot_path = db_dirs.snapshot_path();
 
 	// execute upgrades
-	try!(execute_upgrades(&db_dirs, algorithm, cmd.compaction.compaction_profile(db_dirs.fork_path().as_path())));
+	try!(execute_upgrades(&db_dirs, algorithm, cmd.compaction.compaction_profile(db_dirs.db_root_path().as_path())));
+
+	// create dirs used by parity
+	try!(cmd.dirs.create_dirs(cmd.dapps_conf.enabled, cmd.signer_conf.enabled));
 
 	// run in daemon mode
 	if let Some(pid_file) = cmd.daemon {
@@ -217,7 +218,7 @@ pub fn execute(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<(), String> {
 	let passwords = try!(passwords_from_files(&cmd.acc_conf.password_files));
 
 	// prepare account provider
-	let account_provider = Arc::new(try!(prepare_account_provider(&cmd.dirs, cmd.acc_conf, &passwords)));
+	let account_provider = Arc::new(try!(prepare_account_provider(&cmd.dirs, &spec.data_dir, cmd.acc_conf, &passwords)));
 
 	// let the Engine access the accounts
 	spec.engine.register_account_provider(account_provider.clone());
@@ -449,11 +450,13 @@ fn daemonize(_pid_file: String) -> Result<(), String> {
 	Err("daemon is no supported on windows".into())
 }
 
-fn prepare_account_provider(dirs: &Directories, cfg: AccountsConfig, passwords: &[String]) -> Result<AccountProvider, String> {
+fn prepare_account_provider(dirs: &Directories, data_dir: &str, cfg: AccountsConfig, passwords: &[String]) -> Result<AccountProvider, String> {
 	use ethcore::ethstore::EthStore;
 	use ethcore::ethstore::dir::DiskDirectory;
 
-	let dir = Box::new(try!(DiskDirectory::create(dirs.keys.clone()).map_err(|e| format!("Could not open keys directory: {}", e))));
+	let path = dirs.keys_path(data_dir);
+	upgrade_key_location(&dirs.legacy_keys_path(cfg.testnet), &path);
+	let dir = Box::new(try!(DiskDirectory::create(&path).map_err(|e| format!("Could not open keys directory: {}", e))));
 	let account_service = AccountProvider::new(Box::new(
 		try!(EthStore::open_with_iterations(dir, cfg.iterations).map_err(|e| format!("Could not open keys directory: {}", e)))
 	));
