@@ -458,7 +458,7 @@ export default class Contract {
           }
 
           try {
-            this.sendData(subscriptionId, null, this.parseEventLogs(logs));
+            this._sendData(subscriptionId, null, this.parseEventLogs(logs));
           } catch (error) {
             console.error('_sendSubscriptionChanges', error);
           }
