@@ -36,7 +36,7 @@ use futures::{BoxFuture, Canceled, Complete, Future, oneshot, done};
 
 use jsonrpc_core::{Id, Version, Params, Error as JsonRpcError};
 use jsonrpc_core::request::MethodCall;
-use jsonrpc_core::response::{SyncOutput, Success, Failure};
+use jsonrpc_core::response::{Output, Success, Failure};
 
 /// The actual websocket connection handler, passed into the
 /// event loop of ws-rs
@@ -107,13 +107,13 @@ impl Handler for RpcHandler {
 		let ret: Result<JsonValue, JsonRpcError>;
 		let response_id;
 		let string = &msg.to_string();
-		match json::from_str::<SyncOutput>(&string) {
-			Ok(SyncOutput::Success(Success { result, id: Id::Num(id), .. })) =>
+		match json::from_str::<Output>(&string) {
+			Ok(Output::Success(Success { result, id: Id::Num(id), .. })) =>
 			{
 				ret = Ok(result);
 				response_id = id as usize;
 			}
-			Ok(SyncOutput::Failure(Failure { error, id: Id::Num(id), .. })) => {
+			Ok(Output::Failure(Failure { error, id: Id::Num(id), .. })) => {
 				ret = Err(error);
 				response_id = id as usize;
 			}
