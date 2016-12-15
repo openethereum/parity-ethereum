@@ -661,10 +661,10 @@ mod tests {
 	use block::*;
 	use error::{Error, BlockError};
 	use header::Header;
+	use io::{IoService, IoChannel};
 	use env_info::EnvInfo;
 	use tests::helpers::*;
 	use account_provider::AccountProvider;
-	use io::IoService;
 	use service::ClientIoMessage;
 	use spec::Spec;
 	use engines::{Engine, EngineError, Seal};
@@ -904,19 +904,15 @@ mod tests {
 		let proposal = Some(b.header().bare_hash());
 
 		// Register IoHandler remembers messages.
-		let io_service = IoService::<ClientIoMessage>::start().unwrap();
 		let test_io = TestIo::new();
-		io_service.register_handler(test_io.clone()).unwrap();
-		engine.register_message_channel(io_service.channel());
+		let channel = IoChannel::to_handler(Arc::downgrade(&(test_io.clone() as Arc<IoHandler<ClientIoMessage>>)));
+		engine.register_message_channel(channel);
 
 		let prevote_current = vote(&engine, |mh| tap.sign(v0, None, mh).map(H520::from), h, r, Step::Prevote, proposal);
 
 		let precommit_current = vote(&engine, |mh| tap.sign(v0, None, mh).map(H520::from), h, r, Step::Precommit, proposal);
 
 		let prevote_future = vote(&engine, |mh| tap.sign(v0, None, mh).map(H520::from), h + 1, r, Step::Prevote, proposal);
-		
-		// Wait a bit for async stuff.
-		::std::thread::sleep(::std::time::Duration::from_millis(500));
 
 		// Relays all valid present and future messages.
 		assert!(test_io.received.read().contains(&ClientIoMessage::BroadcastMessage(prevote_current)));
@@ -941,9 +937,8 @@ mod tests {
 
 		// Register IoHandler remembers messages.
 		let test_io = TestIo::new();
-		let io_service = IoService::<ClientIoMessage>::start().unwrap();
-		io_service.register_handler(test_io.clone()).unwrap();
-		engine.register_message_channel(io_service.channel());
+		let channel = IoChannel::to_handler(Arc::downgrade(&(test_io.clone() as Arc<IoHandler<ClientIoMessage>>)));
+		engine.register_message_channel(channel);
 
 		// Propose
 		let (b, mut seal) = propose_default(&spec, v1.clone());
@@ -956,11 +951,12 @@ mod tests {
 		vote(&engine, |mh| tap.sign(v1, None, mh).map(H520::from), h, r, Step::Precommit, proposal);
 		vote(&engine, |mh| tap.sign(v0, None, mh).map(H520::from), h, r, Step::Precommit, proposal);
 
-		// Wait a bit for async stuff.
-		::std::thread::sleep(::std::time::Duration::from_millis(500));
-
 		seal[2] = precommit_signatures(&tap, h, r, Some(b.header().bare_hash()), v1, v0);
-		assert!(test_io.received.read().contains(&ClientIoMessage::SubmitSeal(proposal.unwrap(), seal)));
+		let first = test_io.received.read().contains(&ClientIoMessage::SubmitSeal(proposal.unwrap(), seal.clone()));
+		seal[2] = precommit_signatures(&tap, h, r, Some(b.header().bare_hash()), v0, v1);
+		let second = test_io.received.read().contains(&ClientIoMessage::SubmitSeal(proposal.unwrap(), seal));
+
+		assert!(first ^ second);
 		engine.stop();
 	}
 }
