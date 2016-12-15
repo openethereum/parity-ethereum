@@ -17,7 +17,6 @@
 import React, { Component, PropTypes } from 'react';
 
 import { Form, TypedInput, Input, AddressSelect, InputAddress } from '~/ui';
-import { parseAbiType } from '~/util/abi';
 
 import styles from '../createWallet.css';
 

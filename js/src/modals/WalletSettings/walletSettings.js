@@ -22,7 +22,6 @@ import { pick } from 'lodash';
 import ActionDone from 'material-ui/svg-icons/action/done';
 import ContentClear from 'material-ui/svg-icons/content/clear';
 import NavigationArrowForward from 'material-ui/svg-icons/navigation/arrow-forward';
-import { parseAbiType } from '~/util/abi';
 
 import { Button, Modal, TxHash, BusyStep, Form, TypedInput, InputAddress, AddressSelect } from '~/ui';
 import { fromWei } from '~/api/util/wei';
