@@ -45,7 +45,7 @@ pub struct AuthorityRound {
 }
 
 /// Tendermint seal.
-pub struct AuthorityRound {
+pub struct Tendermint {
 	/// Seal round.
 	pub round: usize,
 	/// Proposal seal signature.
@@ -62,7 +62,7 @@ impl Into<Generic> for AuthorityRound {
 	}
 }
 
-impl Into<Generic> for AuthorityRound {
+impl Into<Generic> for Tendermint {
 	fn into(self) -> Generic {
 		let mut s = RlpStream::new_list(3);
 		s.append(&self.round).append(&self.proposal).append(&self.precommits);
