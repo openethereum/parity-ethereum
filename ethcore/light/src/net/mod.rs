@@ -37,7 +37,7 @@ use provider::Provider;
 use request::{self, HashOrNumber, Request};
 
 use self::buffer_flow::{Buffer, FlowParams};
-use self::context::Ctx;
+use self::context::{Ctx, TickCtx};
 use self::error::Punishment;
 
 mod buffer_flow;
@@ -49,7 +49,7 @@ mod status;
 mod tests;
 
 pub use self::error::Error;
-pub use self::context::{EventContext, IoContext};
+pub use self::context::{BasicContext, EventContext, IoContext};
 pub use self::status::{Status, Capabilities, Announcement};
 
 const TIMEOUT: TimerToken = 0;
@@ -189,6 +189,8 @@ pub trait Handler: Send + Sync {
 	/// Called when a peer responds with header proofs. Each proof is a block header coupled
 	/// with a series of trie nodes is ascending order by distance from the root.
 	fn on_header_proofs(&self, _ctx: &EventContext, _req_id: ReqId, _proofs: &[(Bytes, Vec<Bytes>)]) { }
+	/// Called to "tick" the handler periodically.
+	fn tick(&self, _ctx: &BasicContext) { }
 	/// Called on abort. This signals to handlers that they should clean up
 	/// and ignore peers.
 	// TODO: coreresponding `on_activate`?
@@ -507,6 +509,15 @@ impl LightProtocol {
 					io.disconnect_peer(r.peer_id);
 				}
 			}
+		}
+	}
+
+	fn tick_handlers(&self, io: &IoContext) {
+		for handler in &self.handlers {
+			handler.tick(&TickCtx {
+				io: io,
+				proto: self,
+			})
 		}
 	}
 }
@@ -1128,7 +1139,10 @@ impl NetworkProtocolHandler for LightProtocol {
 
 	fn timeout(&self, io: &NetworkContext, timer: TimerToken) {
 		match timer {
-			TIMEOUT => self.timeout_check(io),
+			TIMEOUT =>  {
+				self.timeout_check(io);
+				self.tick_handlers(io);
+			},
 			_ => warn!(target: "les", "received timeout on unknown token {}", timer),
 		}
 	}

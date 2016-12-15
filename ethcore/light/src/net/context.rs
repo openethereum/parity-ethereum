@@ -77,12 +77,8 @@ impl<'a> IoContext for NetworkContext<'a> {
 	}
 }
 
-/// Context for a protocol event.
-pub trait EventContext {
-	/// Get the peer relevant to the event e.g. message sender,
-	/// disconnected/connected peer.
-	fn peer(&self) -> PeerId;
-
+/// Basic context for a the protocol.
+pub trait BasicContext {
 	/// Returns the relevant's peer persistent Id (aka NodeId).
 	fn persistent_peer_id(&self, peer: PeerId) -> Option<NodeId>;
 
@@ -104,22 +100,22 @@ pub trait EventContext {
 	fn disable_peer(&self, peer: PeerId);
 }
 
-/// Concrete implementation of `EventContext` over the light protocol struct and
-/// an io context.
-pub struct Ctx<'a> {
-	/// Io context to enable immediate response to events.
+/// Context for a protocol event which has a peer ID attached.
+pub trait EventContext: BasicContext {
+	/// Get the peer relevant to the event e.g. message sender,
+	/// disconnected/connected peer.
+	fn peer(&self) -> PeerId;
+}
+
+/// Basic context.
+pub struct TickCtx<'a> {
+	/// Io context to enable dispatch.
 	pub io: &'a IoContext,
 	/// Protocol implementation.
 	pub proto: &'a LightProtocol,
-	/// Relevant peer for event.
-	pub peer: PeerId,
 }
 
-impl<'a> EventContext for Ctx<'a> {
-	fn peer(&self) -> PeerId {
-		self.peer
-	}
-
+impl<'a> BasicContext for TickCtx<'a> {
 	fn persistent_peer_id(&self, id: PeerId) -> Option<NodeId> {
 		self.io.persistent_peer_id(id)
 	}
@@ -142,5 +138,48 @@ impl<'a> EventContext for Ctx<'a> {
 
 	fn disable_peer(&self, peer: PeerId) {
 		self.io.disable_peer(peer);
+	}
+}
+
+/// Concrete implementation of `EventContext` over the light protocol struct and
+/// an io context.
+pub struct Ctx<'a> {
+	/// Io context to enable immediate response to events.
+	pub io: &'a IoContext,
+	/// Protocol implementation.
+	pub proto: &'a LightProtocol,
+	/// Relevant peer for event.
+	pub peer: PeerId,
+}
+
+impl<'a> BasicContext for Ctx<'a> {
+	fn persistent_peer_id(&self, id: PeerId) -> Option<NodeId> {
+		self.io.persistent_peer_id(id)
+	}
+
+	fn request_from(&self, peer: PeerId, request: Request) -> Result<ReqId, Error> {
+		self.proto.request_from(self.io, &peer, request)
+	}
+
+	fn make_announcement(&self, announcement: Announcement) {
+		self.proto.make_announcement(self.io, announcement);
+	}
+
+	fn max_requests(&self, peer: PeerId, kind: request::Kind) -> usize {
+		self.proto.max_requests(peer, kind)
+	}
+
+	fn disconnect_peer(&self, peer: PeerId) {
+		self.io.disconnect_peer(peer);
+	}
+
+	fn disable_peer(&self, peer: PeerId) {
+		self.io.disable_peer(peer);
+	}
+}
+
+impl<'a> EventContext for Ctx<'a> {
+	fn peer(&self) -> PeerId {
+		self.peer
 	}
 }
