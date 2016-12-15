@@ -38,7 +38,9 @@ Operating Options:
                            JSON chain specification file or olympic, frontier,
                            homestead, mainnet, morden, ropsten, classic, expanse,
                            testnet or dev (default: {flag_chain}).
-  -d --db-path PATH        Specify the database & configuration directory path
+  -d --base-path PATH      Specify the base data storage path.
+                           (default: {flag_base_path}).
+  --db-path PATH           Specify the database directory path
                            (default: {flag_db_path}).
   --keys-path PATH         Specify the path for JSON key files to be found
                            (default: {flag_keys_path}).

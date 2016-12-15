@@ -3,7 +3,8 @@ mode = "last"
 mode_timeout = 300
 mode_alarm = 3600
 chain = "homestead"
-db_path = "$HOME/.parity"
+base_path = "$HOME/.parity"
+db_path = "$HOME/.parity/chains"
 keys_path = "$HOME/.parity/keys"
 identity = ""
 

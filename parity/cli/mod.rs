@@ -86,8 +86,9 @@ usage! {
 		flag_mode_timeout: u64 = 300u64, or |c: &Config| otry!(c.parity).mode_timeout.clone(),
 		flag_mode_alarm: u64 = 3600u64, or |c: &Config| otry!(c.parity).mode_alarm.clone(),
 		flag_chain: String = "homestead", or |c: &Config| otry!(c.parity).chain.clone(),
-		flag_db_path: String = default_data_path(), or |c: &Config| otry!(c.parity).db_path.clone(),
-		flag_keys_path: String = "$DATA/keys", or |c: &Config| otry!(c.parity).keys_path.clone(),
+		flag_base_path: String = default_data_path(), or |c: &Config| otry!(c.parity).base_path.clone(),
+		flag_db_path: String = "$BASE/chains", or |c: &Config| otry!(c.parity).db_path.clone(),
+		flag_keys_path: String = "$BASE/keys", or |c: &Config| otry!(c.parity).keys_path.clone(),
 		flag_identity: String = "", or |c: &Config| otry!(c.parity).identity.clone(),
 
 		// -- Account Options
@@ -106,7 +107,7 @@ usage! {
 			or |c: &Config| otry!(c.ui).port.clone(),
 		flag_ui_interface: String = "local",
 			or |c: &Config| otry!(c.ui).interface.clone(),
-		flag_ui_path: String = "$DATA/signer",
+		flag_ui_path: String = "$BASE/signer",
 			or |c: &Config| otry!(c.ui).path.clone(),
 		// NOTE [todr] For security reasons don't put this to config files
 		flag_ui_no_validation: bool = false, or |_| None,
@@ -162,7 +163,7 @@ usage! {
 		// IPC
 		flag_no_ipc: bool = false,
 			or |c: &Config| otry!(c.ipc).disable.clone(),
-		flag_ipc_path: String = "$DATA/jsonrpc.ipc",
+		flag_ipc_path: String = "$BASE/jsonrpc.ipc",
 			or |c: &Config| otry!(c.ipc).path.clone(),
 		flag_ipc_apis: String = "web3,eth,net,parity,parity_accounts,traces,rpc",
 			or |c: &Config| otry!(c.ipc).apis.clone().map(|vec| vec.join(",")),
@@ -176,7 +177,7 @@ usage! {
 			or |c: &Config| otry!(c.dapps).interface.clone(),
 		flag_dapps_hosts: String = "none",
 			or |c: &Config| otry!(c.dapps).hosts.clone().map(|vec| vec.join(",")),
-		flag_dapps_path: String = "$DATA/dapps",
+		flag_dapps_path: String = "$BASE/dapps",
 			or |c: &Config| otry!(c.dapps).path.clone(),
 		flag_dapps_user: Option<String> = None,
 			or |c: &Config| otry!(c.dapps).user.clone().map(Some),
@@ -277,7 +278,7 @@ usage! {
 			or |c: &Config| otry!(c.vm).jit.clone(),
 
 		// -- Miscellaneous Options
-		flag_config: String = "$DATA/config.toml", or |_| None,
+		flag_config: String = "$BASE/config.toml", or |_| None,
 		flag_logging: Option<String> = None,
 			or |c: &Config| otry!(c.misc).logging.clone().map(Some),
 		flag_log_file: Option<String> = None,
@@ -310,6 +311,7 @@ struct Operating {
 	mode_timeout: Option<u64>,
 	mode_alarm: Option<u64>,
 	chain: Option<String>,
+	base_path: Option<String>,
 	db_path: Option<String>,
 	keys_path: Option<String>,
 	identity: Option<String>,
@@ -534,7 +536,8 @@ mod tests {
 			flag_mode_timeout: 300u64,
 			flag_mode_alarm: 3600u64,
 			flag_chain: "xyz".into(),
-			flag_db_path: "$HOME/.parity".into(),
+			flag_base_path: "$HOME/.parity".into(),
+			flag_db_path: "$HOME/.parity/chains".into(),
 			flag_keys_path: "$HOME/.parity/keys".into(),
 			flag_identity: "".into(),
 
@@ -676,7 +679,7 @@ mod tests {
 
 			// -- Miscellaneous Options
 			flag_version: false,
-			flag_config: "$DATA/config.toml".into(),
+			flag_config: "$BASE/config.toml".into(),
 			flag_logging: Some("own_tx=trace".into()),
 			flag_log_file: Some("/var/log/parity.log".into()),
 			flag_no_color: false,
@@ -708,6 +711,7 @@ mod tests {
 				mode_timeout: Some(15u64),
 				mode_alarm: Some(10u64),
 				chain: Some("./chain.json".into()),
+				base_path: None,
 				db_path: None,
 				keys_path: None,
 				identity: None,
