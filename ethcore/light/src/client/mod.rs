@@ -35,13 +35,18 @@ use request;
 
 use self::header_chain::HeaderChain;
 
+pub use self::service::Service;
+
 pub mod cht;
+
 mod header_chain;
+mod service;
 
 /// Configuration for the light client.
 #[derive(Debug, Default, Clone)]
 pub struct Config {
-	queue: queue::Config,
+	/// Verification queue config.
+	pub queue: queue::Config,
 }
 
 /// Trait for interacting with the header chain abstractly.
@@ -138,6 +143,28 @@ impl Client {
 	/// Get the `i`th CHT root.
 	pub fn cht_root(&self, i: usize) -> Option<H256> {
 		self.chain.cht_root(i)
+	}
+
+	/// Import a set of pre-verified headers from the queue.
+	pub fn import_verified(&self) {
+		const MAX: usize = 256;
+
+		let mut bad = Vec::new();
+		let mut good = Vec::new();
+		for verified_header in self.queue.drain(MAX) {
+			let hash = verified_header.hash();
+
+			match self.chain.insert(::rlp::encode(&verified_header).to_vec()) {
+				Ok(()) => good.push(hash),
+				Err(e) => {
+					debug!(target: "client", "Error importing header {}: {}", hash, e);
+					bad.push(hash);
+				}
+			}
+		}
+
+		self.queue.mark_as_bad(&bad);
+		self.queue.mark_as_good(&good);
 	}
 }
 

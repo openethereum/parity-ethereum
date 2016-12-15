@@ -225,6 +225,7 @@ impl Fetcher {
 					}
 
 					self.complete_requests.insert(subchain_parent, request);
+					self.collect_ready();
 				}
 
 				// state transition not triggered until drain is finished.
@@ -267,8 +268,6 @@ impl Fetcher {
 	}
 
 	fn drain(mut self, headers: &mut Vec<Header>, max: usize) -> SyncRound {
-		self.collect_ready();
-
 		let max = ::std::cmp::min(max, self.ready.len());
 		headers.extend(self.ready.drain(0..max));
 
