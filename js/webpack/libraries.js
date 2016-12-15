@@ -28,7 +28,7 @@ module.exports = {
   context: path.join(__dirname, '../src'),
   entry: {
     // library
-    'inject': ['./web3.js'],
+    'inject': ['./inject.js'],
     'web3': ['./web3.js'],
     'parity': ['./parity.js']
   },
