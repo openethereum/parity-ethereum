@@ -16,7 +16,8 @@
 
 //! Header download state machine.
 
-use std::collections::{HashMap, VecDeque};
+use std::cmp::Ordering;
+use std::collections::{BinaryHeap, HashMap, VecDeque};
 use std::mem;
 
 use ethcore::header::Header;
@@ -30,7 +31,7 @@ use rlp::{UntrustedRlp, View};
 use util::{Bytes, H256, Mutex};
 
 use super::{Error, Peer};
-use super::response::{self, Constraint};
+use super::response;
 
 // amount of blocks between each scaffold entry.
 // TODO: move these into paraeters for `RoundStart::new`?
@@ -51,30 +52,53 @@ pub enum AbortReason {
 	NoResponses,
 }
 
-// A request for headers with a known starting header
+// A request for headers with a known starting header hash.
 // and a known parent hash for the last block.
-struct Request {
-	headers: HeadersRequest,
-	end_parent: H256,
+#[derive(PartialEq, Eq)]
+struct SubchainRequest {
+	subchain_parent: (u64, H256),
+	headers_request: HeadersRequest,
+	subchain_end: (u64, H256),
+	downloaded: VecDeque<Header>,
 }
 
+// ordered by subchain parent number so pending requests towards the
+// front of the round are dispatched first.
+impl PartialOrd for SubchainRequest {
+	fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+		self.subchain_parent.0.partial_cmp(&other.subchain_parent.0)
+	}
+}
+
+impl Ord for SubchainRequest {
+	fn cmp(&self, other: &Self) -> Ordering {
+		self.subchain_parent.0.cmp(&other.subchain_parent.0)
+	}
+}
+
+/// Manages downloading of interior blocks of a sparse header chain.
 pub struct Fetcher {
-	sparse: Vec<Header>, // sparse header chain.
-	requests: VecDeque<Request>,
-	pending: HashMap<ReqId, Request>,
+	sparse: VecDeque<Header>, // sparse header chain.
+	requests: BinaryHeap<SubchainRequest>,
+	complete_requests: HashMap<H256, SubchainRequest>,
+	pending: HashMap<ReqId, SubchainRequest>,
 }
 
 impl Fetcher {
 	// Produce a new fetcher given a sparse headerchain, in ascending order.
 	// The headers must be valid RLP at this point.
 	fn new(sparse_headers: Vec<Header>) -> Self {
-		let mut requests = VecDeque::with_capacity(sparse_headers.len() - 1);
+		let mut requests = BinaryHeap::with_capacity(sparse_headers.len() - 1);
+
 		for pair in sparse_headers.windows(2) {
 			let low_rung = &pair[0];
 			let high_rung = &pair[1];
 
 			let diff = high_rung.number() - low_rung.number();
-			if diff < 2 { continue } // these headers are already adjacent.
+
+			// should never happen as long as we verify the gaps
+			// gotten from SyncRound::Start
+			if diff < 2 { continue }
 
 			let needed_headers = HeadersRequest {
 				start: high_rung.parent_hash().clone().into(),
@@ -83,21 +107,67 @@ impl Fetcher {
 				reverse: true,
 			};
 
-			requests.push_back(Request {
-				headers: needed_headers,
-				end_parent: low_rung.hash(),
+			requests.push(SubchainRequest {
+				headers_request: needed_headers,
+				subchain_end: (high_rung.number() - 1, *high_rung.parent_hash()),
+				downloaded: VecDeque::new(),
+				subchain_parent: (low_rung.number(), low_rung.hash()),
 			});
 		}
 
 		Fetcher {
-			sparse: sparse_headers,
+			sparse: sparse_headers.into(),
 			requests: requests,
+			complete_requests: HashMap::new(),
 			pending: HashMap::new(),
 		}
 	}
 
-	fn process_response(self, req_id: ReqId, headers: &[Bytes]) -> (SyncRound, Result<(), Error>) {
-		unimplemented!()
+	fn process_response(mut self, req_id: ReqId, headers: &[Bytes]) -> (SyncRound, Result<(), Error>) {
+		let mut request = match self.pending.remove(&req_id) {
+			Some(request) => request,
+			None => return (SyncRound::Fetch(self), Ok(())),
+		};
+
+		if headers.len() == 0 {
+			return (SyncRound::Fetch(self), Err(Error::EmptyResponse));
+		}
+
+		match response::decode_and_verify(headers, &request.headers_request) {
+			Err(e) => {
+				// TODO: track number of attempts per request.
+				self.requests.push(request);
+				(SyncRound::Fetch(self), Err(e).map_err(Into::into))
+			}
+			Ok(headers) => {
+				let mut parent_hash = None;
+				for header in headers {
+					if parent_hash.as_ref().map_or(false, |h| h != &header.hash()) {
+						self.requests.push(request);
+						return (SyncRound::Fetch(self), Err(Error::ParentMismatch));
+					}
+
+					// incrementally update the frame request as we go so we can
+					// return at any time in the loop.
+					parent_hash = Some(header.parent_hash().clone());
+					request.headers_request.start = header.parent_hash().clone().into();
+					request.headers_request.max -= 1;
+
+					request.downloaded.push_front(header);
+				}
+
+				let subchain_parent = request.subchain_parent.1;
+
+				// TODO: check subchain parent and punish peers who did framing
+				// if it's inaccurate.
+				if request.headers_request.max == 0 {
+					self.complete_requests.insert(subchain_parent, request);
+				}
+
+				// state transition not triggered until drain is finished.
+				(SyncRound::Fetch(self), Ok(()))
+			}
+		}
 	}
 }
 
@@ -139,8 +209,7 @@ impl RoundStart {
 					trace!(target: "sync", "Beginning fetch of blocks between {} sparse headers",
 						self.sparse_headers.len());
 
-					let fetcher = Fetcher::new(self.sparse_headers);
-					return (SyncRound::Fetch(fetcher), Ok(()));
+					return (SyncRound::Fetch(Fetcher::new(self.sparse_headers)), Ok(()));
 				}
 
 				Ok(())
@@ -149,7 +218,11 @@ impl RoundStart {
 		};
 
 		if self.attempt >= SCAFFOLD_ATTEMPTS {
-			(SyncRound::Abort(AbortReason::NoResponses), res.map_err(Into::into))
+			if self.sparse_headers.len() > 1 {
+				(SyncRound::Fetch(Fetcher::new(self.sparse_headers)), res.map_err(Into::into))
+			} else {
+				(SyncRound::Abort(AbortReason::NoResponses), res.map_err(Into::into))
+			}
 		} else {
 			(SyncRound::Start(self), res.map_err(Into::into))
 		}

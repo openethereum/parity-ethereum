@@ -40,13 +40,18 @@ use util::{Bytes, U256, H256, Mutex, RwLock};
 mod response;
 mod sync_round;
 
+/// Light synchronization errors.
 #[derive(Debug)]
-enum Error {
-	// Peer returned a malformed response.
+pub enum Error {
+	/// Peer returned a malformed response.
 	MalformedResponse(response::BasicError),
-	// Peer returned known bad block.
+	/// Peer returned known bad block.
 	BadBlock,
-	// Protocol-level error.
+	/// Peer returned empty response.
+	EmptyResponse,
+	/// Peer returned a subchain with a broken parent connection.
+	ParentMismatch,
+	/// Protocol-level error.
 	ProtocolLevel(NetError),
 }
 
@@ -67,6 +72,8 @@ impl fmt::Display for Error {
 		match *self {
 			Error::MalformedResponse(ref err) => write!(f, "{}", err),
 			Error::BadBlock => write!(f, "Block known to be bad"),
+			Error::EmptyResponse => write!(f, "Peer returned empty response."),
+			Error::ParentMismatch => write!(f, "Peer returned unknown block in place of parent."),
 			Error::ProtocolLevel(ref err) => write!(f, "Protocol level error: {}", err),
 		}
 	}
