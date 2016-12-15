@@ -20,7 +20,7 @@ import { Form, Input } from '~/ui';
 
 import styles from '../createAccount.css';
 
-import { ERRORS } from '../NewAccount';
+import ERRORS from '../errors';
 
 export default class RawKey extends Component {
   static contextTypes = {
@@ -32,18 +32,18 @@ export default class RawKey extends Component {
   }
 
   state = {
-    rawKey: '',
-    rawKeyError: ERRORS.noKey,
     accountName: '',
     accountNameError: ERRORS.noName,
+    isValidKey: false,
+    isValidName: false,
+    isValidPass: false,
     passwordHint: '',
     password1: '',
     password1Error: ERRORS.invalidPassword,
     password2: '',
     password2Error: ERRORS.noMatchPassword,
-    isValidPass: false,
-    isValidName: false,
-    isValidKey: false
+    rawKey: '',
+    rawKeyError: ERRORS.noKey
   }
 
   componentWillMount () {
@@ -76,7 +76,7 @@ export default class RawKey extends Component {
           <div className={ styles.password }>
             <Input
               label='password'
-              hint='a strong, unique password'
+              hint='a strong, unique password to protect the account'
               type='password'
               error={ password1Error }
               value={ password1 }
@@ -138,7 +138,7 @@ export default class RawKey extends Component {
     const accountName = event.target.value;
     let accountNameError = null;
 
-    if (!accountName || accountName.trim().length < 2) {
+    if (!accountName || !accountName.trim().length) {
       accountNameError = ERRORS.noName;
     }
 
@@ -154,7 +154,7 @@ export default class RawKey extends Component {
     let error1 = null;
     let error2 = null;
 
-    if (!value || value.trim().length < 8) {
+    if (!value || !value.trim().length) {
       error1 = ERRORS.invalidPassword;
     }
 

@@ -21,16 +21,12 @@ import EditorAttachFile from 'material-ui/svg-icons/editor/attach-file';
 
 import { Form, Input } from '~/ui';
 
+import ERRORS from '../errors';
+
 import styles from '../createAccount.css';
 
 const FAKEPATH = 'C:\\fakepath\\';
 const STYLE_HIDDEN = { display: 'none' };
-
-const ERRORS = {
-  noName: 'you need to specify a valid name for the account',
-  noPassword: 'supply a valid password to confirm the transaction',
-  noFile: 'select a valid wallet file to import'
-};
 
 export default class NewImport extends Component {
   static propTypes = {
@@ -40,15 +36,15 @@ export default class NewImport extends Component {
   state = {
     accountName: '',
     accountNameError: ERRORS.noName,
-    passwordHint: '',
-    password: '',
-    passwordError: ERRORS.noPassword,
-    walletFile: '',
-    walletFileError: ERRORS.noFile,
-    walletJson: '',
+    isValidFile: false,
     isValidPass: false,
     isValidName: false,
-    isValidFile: false
+    password: '',
+    passwordError: ERRORS.noPassword,
+    passwordHint: '',
+    walletFile: '',
+    walletFileError: ERRORS.noFile,
+    walletJson: ''
   }
 
   componentWillMount () {
@@ -153,7 +149,7 @@ export default class NewImport extends Component {
     const value = event.target.value;
     let error = null;
 
-    if (!value || value.trim().length < 2) {
+    if (!value || !value.trim().length) {
       error = ERRORS.noName;
     }
 
@@ -169,7 +165,7 @@ export default class NewImport extends Component {
     const value = event.target.value;
 
     if (!value || !value.length) {
-      error = ERRORS.noPassword;
+      error = ERRORS.invalidPassword;
     }
 
     this.setState({

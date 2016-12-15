@@ -21,20 +21,9 @@ import ActionAutorenew from 'material-ui/svg-icons/action/autorenew';
 
 import { Form, Input, IdentityIcon } from '~/ui';
 
+import ERRORS from '../errors';
+
 import styles from '../createAccount.css';
-
-const ERRORS = {
-  noName: 'you need to specify a valid name for the account',
-  noPhrase: 'you need to specify the recovery phrase',
-  noKey: 'you need to provide the raw private key',
-  invalidKey: 'the raw key needs to be hex, 64 characters in length and contain the prefix "0x"',
-  invalidPassword: 'you need to specify a password >= 8 characters',
-  noMatchPassword: 'the supplied passwords does not match'
-};
-
-export {
-  ERRORS
-};
 
 export default class CreateAccount extends Component {
   static contextTypes = {
@@ -49,15 +38,15 @@ export default class CreateAccount extends Component {
   state = {
     accountName: '',
     accountNameError: ERRORS.noName,
+    accounts: null,
+    isValidName: false,
+    isValidPass: false,
     passwordHint: '',
     password1: '',
     password1Error: ERRORS.invalidPassword,
     password2: '',
     password2Error: ERRORS.noMatchPassword,
-    accounts: null,
-    selectedAddress: '',
-    isValidPass: false,
-    isValidName: false
+    selectedAddress: ''
   }
 
   componentWillMount () {
@@ -85,7 +74,7 @@ export default class CreateAccount extends Component {
           <div className={ styles.password }>
             <Input
               label='password'
-              hint='a strong, unique password'
+              hint='a strong, unique password to protect the account'
               type='password'
               error={ password1Error }
               value={ password1 }
@@ -240,7 +229,7 @@ export default class CreateAccount extends Component {
     const value = event.target.value;
     let error = null;
 
-    if (!value || value.trim().length < 2) {
+    if (!value || !value.trim().length) {
       error = ERRORS.noName;
     }
 
@@ -256,7 +245,7 @@ export default class CreateAccount extends Component {
     let error1 = null;
     let error2 = null;
 
-    if (!value || value.trim().length < 8) {
+    if (!value || !value.trim().length) {
       error1 = ERRORS.invalidPassword;
     }
 

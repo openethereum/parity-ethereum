@@ -29,19 +29,19 @@ export default class RecoveryPhrase extends Component {
   }
 
   state = {
-    recoveryPhrase: '',
-    recoveryPhraseError: ERRORS.noPhrase,
     accountName: '',
     accountNameError: ERRORS.noName,
+    isValidPass: false,
+    isValidName: false,
+    isValidPhrase: false,
     passwordHint: '',
     password1: '',
     password1Error: ERRORS.invalidPassword,
     password2: '',
     password2Error: ERRORS.noMatchPassword,
-    windowsPhrase: false,
-    isValidPass: false,
-    isValidName: false,
-    isValidPhrase: false
+    recoveryPhrase: '',
+    recoveryPhraseError: ERRORS.noPhrase,
+    windowsPhrase: false
   }
 
   componentWillMount () {
@@ -73,7 +73,7 @@ export default class RecoveryPhrase extends Component {
           <div className={ styles.password }>
             <Input
               label='password'
-              hint='a strong, unique password'
+              hint='a strong, unique password to protect the account'
               type='password'
               error={ password1Error }
               value={ password1 }
@@ -99,13 +99,13 @@ export default class RecoveryPhrase extends Component {
   }
 
   updateParent = () => {
-    const { isValidName, isValidPass, isValidPhrase, accountName, passwordHint, password1, recoveryPhrase, windowsPhrase } = this.state;
+    const { accountName, isValidName, isValidPass, isValidPhrase, password1, passwordHint, recoveryPhrase, windowsPhrase } = this.state;
     const isValid = isValidName && isValidPass && isValidPhrase;
 
     this.props.onChange(isValid, {
       name: accountName,
-      passwordHint,
       password: password1,
+      passwordHint,
       phrase: recoveryPhrase,
       windowsPhrase
     });
@@ -136,7 +136,7 @@ export default class RecoveryPhrase extends Component {
       .filter((part) => part.length);
     let recoveryPhraseError = null;
 
-    if (!recoveryPhrase || recoveryPhrase.length < 25 || phraseParts.length < 8) {
+    if (!recoveryPhrase || !recoveryPhrase.length) {
       recoveryPhraseError = ERRORS.noPhrase;
     }
 
@@ -151,7 +151,7 @@ export default class RecoveryPhrase extends Component {
     const value = event.target.value;
     let error = null;
 
-    if (!value || value.trim().length < 2) {
+    if (!value || !value.trim().length) {
       error = ERRORS.noName;
     }
 
@@ -167,7 +167,7 @@ export default class RecoveryPhrase extends Component {
     let error1 = null;
     let error2 = null;
 
-    if (!value || value.trim().length < 8) {
+    if (!value || !value.trim().length) {
       error1 = ERRORS.invalidPassword;
     }
 
