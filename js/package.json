@@ -39,6 +39,7 @@
     "clean": "rm -rf ./build ./coverage",
     "coveralls": "npm run testCoverage && coveralls < coverage/lcov.info",
     "lint": "npm run lint:css && npm run lint:js",
+    "lint:cached": "npm run lint:css && npm run lint:js:cached",
     "lint:css": "stylelint ./src/**/*.css",
     "lint:js": "eslint --ignore-path .gitignore ./src/",
     "lint:js:cached": "eslint --cache --ignore-path .gitignore ./src/",
