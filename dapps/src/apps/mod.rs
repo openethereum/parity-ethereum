@@ -17,6 +17,7 @@
 use endpoint::{Endpoints, Endpoint};
 use page::PageEndpoint;
 use proxypac::ProxyPac;
+use web::Web;
 use parity_dapps::WebApp;
 
 mod cache;
@@ -43,6 +44,7 @@ pub fn all_endpoints(dapps_path: String, signer_address: Option<(String, u16)>) 
 	// NOTE [ToDr] Dapps will be currently embeded on 8180
 	insert::<parity_ui::App>(&mut pages, "ui", Embeddable::Yes(signer_address.clone()));
 	pages.insert("proxy".into(), ProxyPac::boxed(signer_address));
+	pages.insert("web".into(), Web::boxed());
 
 	pages
 }

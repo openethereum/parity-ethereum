@@ -133,13 +133,9 @@ impl<R: URLHint> ContentFetcher<R> {
 					let on_done = move |result: Option<LocalPageEndpoint>| {
 						let mut cache = cache.lock();
 						match result {
-							Some(endpoint) => {
-								cache.insert(id.clone(), ContentStatus::Ready(endpoint));
-							},
+							Some(endpoint) => cache.insert(id.clone(), ContentStatus::Ready(endpoint)),
 							// In case of error
-							None => {
-								cache.remove(&id);
-							},
+							None => cache.remove(&id),
 						}
 					};
 
@@ -256,6 +252,7 @@ struct ContentInstaller {
 
 impl ContentValidator for ContentInstaller {
 	type Error = ValidationError;
+	type Result = LocalPageEndpoint;
 
 	fn validate_and_install(&self, path: PathBuf) -> Result<LocalPageEndpoint, ValidationError> {
 		let validate = || {
@@ -335,6 +332,7 @@ impl DappInstaller {
 
 impl ContentValidator for DappInstaller {
 	type Error = ValidationError;
+	type Result = LocalPageEndpoint;
 
 	fn validate_and_install(&self, path: PathBuf) -> Result<LocalPageEndpoint, ValidationError> {
 		trace!(target: "dapps", "Opening dapp bundle at {:?}", path);

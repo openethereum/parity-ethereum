@@ -50,6 +50,7 @@ enum WaitResult {
 
 pub trait ContentValidator {
 	type Error: fmt::Debug + fmt::Display;
+	type Result;
 
 	fn validate_and_install(&self, path: PathBuf) -> Result<LocalPageEndpoint, Self::Error>;
 }
@@ -160,7 +161,20 @@ impl server::Handler<HttpStream> for WaitingHandler {
 	}
 }
 
-pub struct ContentFetcherHandler<H: ContentValidator> {
+struct DefaultValidator;
+impl ContentValidator for DefaultValidator {
+	type Error = String;
+	type Result = ();
+
+	fn validate_and_install(&self, _app: PathBuf) -> Result<(String, ()), Self::Error> {
+		Err("not implemented yet".into())
+	}
+
+	fn done(&self, _: Option<()>) {
+	}
+}
+
+pub struct ContentFetcherHandler<H: ContentValidator = DefaultValidator> {
 	fetch_control: Arc<FetchControl>,
 	control: Option<Control>,
 	status: FetchState,

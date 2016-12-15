@@ -81,6 +81,7 @@ mod rpc;
 mod api;
 mod proxypac;
 mod url;
+mod web;
 #[cfg(test)]
 mod tests;
 
