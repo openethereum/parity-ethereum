@@ -76,6 +76,14 @@ impl SpecType {
 			}
 		}
 	}
+
+	pub fn legacy_fork_name(&self) -> Option<String> {
+		match *self {
+			SpecType::Classic => Some("classic".to_owned()),
+			SpecType::Expanse => Some("expanse".to_owned()),
+			_ => None,
+		}
+	}
 }
 
 #[derive(Debug, PartialEq)]

@@ -31,6 +31,7 @@ import shapeshiftBtn from '~/../assets/images/shapeshift-btn.png';
 import Header from './Header';
 import Transactions from './Transactions';
 import { setVisibleAccounts } from '~/redux/providers/personalActions';
+import { fetchCertifiers, fetchCertifications } from '~/redux/providers/certifications/actions';
 
 import SMSVerificationStore from '~/modals/Verification/sms-store';
 import EmailVerificationStore from '~/modals/Verification/email-store';
@@ -44,6 +45,8 @@ class Account extends Component {
 
   static propTypes = {
     setVisibleAccounts: PropTypes.func.isRequired,
+    fetchCertifiers: PropTypes.func.isRequired,
+    fetchCertifications: PropTypes.func.isRequired,
     images: PropTypes.object.isRequired,
 
     params: PropTypes.object,
@@ -63,6 +66,7 @@ class Account extends Component {
   }
 
   componentDidMount () {
+    this.props.fetchCertifiers();
     this.setVisibleAccounts();
   }
 
@@ -80,9 +84,10 @@ class Account extends Component {
   }
 
   setVisibleAccounts (props = this.props) {
-    const { params, setVisibleAccounts } = props;
+    const { params, setVisibleAccounts, fetchCertifications } = props;
     const addresses = [ params.address ];
     setVisibleAccounts(addresses);
+    fetchCertifications(params.address);
   }
 
   render () {
@@ -353,7 +358,9 @@ function mapStateToProps (state) {
 
 function mapDispatchToProps (dispatch) {
   return bindActionCreators({
-    setVisibleAccounts
+    setVisibleAccounts,
+    fetchCertifiers,
+    fetchCertifications
   }, dispatch);
 }
 

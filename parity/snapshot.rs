@@ -143,7 +143,7 @@ impl SnapshotCommand {
 		let genesis_hash = spec.genesis_header().hash();
 
 		// database paths
-		let db_dirs = self.dirs.database(genesis_hash, spec.fork_name.clone());
+		let db_dirs = self.dirs.database(genesis_hash, None, spec.data_dir.clone());
 
 		// user defaults path
 		let user_defaults_path = db_dirs.user_defaults_path();
@@ -167,7 +167,7 @@ impl SnapshotCommand {
 		let snapshot_path = db_dirs.snapshot_path();
 
 		// execute upgrades
-		try!(execute_upgrades(&db_dirs, algorithm, self.compaction.compaction_profile(db_dirs.fork_path().as_path())));
+		try!(execute_upgrades(&db_dirs, algorithm, self.compaction.compaction_profile(db_dirs.db_root_path().as_path())));
 
 		// prepare client config
 		let client_config = to_client_config(&self.cache_config, Mode::Active, tracing, fat_db, self.compaction, self.wal, VMType::default(), "".into(), algorithm, self.pruning_history, true);
