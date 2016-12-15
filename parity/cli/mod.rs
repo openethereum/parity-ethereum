@@ -16,6 +16,7 @@
 
 #[macro_use]
 mod usage;
+use dir::default_data_path;
 
 usage! {
 	{
@@ -38,6 +39,8 @@ usage! {
 		cmd_ui: bool,
 		cmd_tools: bool,
 		cmd_hash: bool,
+		cmd_kill: bool,
+		cmd_db: bool,
 
 		// Arguments
 		arg_pid_file: String,
@@ -83,8 +86,8 @@ usage! {
 		flag_mode_timeout: u64 = 300u64, or |c: &Config| otry!(c.parity).mode_timeout.clone(),
 		flag_mode_alarm: u64 = 3600u64, or |c: &Config| otry!(c.parity).mode_alarm.clone(),
 		flag_chain: String = "homestead", or |c: &Config| otry!(c.parity).chain.clone(),
-		flag_db_path: String = "$HOME/.parity", or |c: &Config| otry!(c.parity).db_path.clone(),
-		flag_keys_path: String = "$HOME/.parity/keys", or |c: &Config| otry!(c.parity).keys_path.clone(),
+		flag_db_path: String = default_data_path(), or |c: &Config| otry!(c.parity).db_path.clone(),
+		flag_keys_path: String = "$DATA/keys", or |c: &Config| otry!(c.parity).keys_path.clone(),
 		flag_identity: String = "", or |c: &Config| otry!(c.parity).identity.clone(),
 
 		// -- Account Options
@@ -103,7 +106,7 @@ usage! {
 			or |c: &Config| otry!(c.ui).port.clone(),
 		flag_ui_interface: String = "local",
 			or |c: &Config| otry!(c.ui).interface.clone(),
-		flag_ui_path: String = "$HOME/.parity/signer",
+		flag_ui_path: String = "$DATA/signer",
 			or |c: &Config| otry!(c.ui).path.clone(),
 		// NOTE [todr] For security reasons don't put this to config files
 		flag_ui_no_validation: bool = false, or |_| None,
@@ -159,7 +162,7 @@ usage! {
 		// IPC
 		flag_no_ipc: bool = false,
 			or |c: &Config| otry!(c.ipc).disable.clone(),
-		flag_ipc_path: String = "$HOME/.parity/jsonrpc.ipc",
+		flag_ipc_path: String = "$DATA/jsonrpc.ipc",
 			or |c: &Config| otry!(c.ipc).path.clone(),
 		flag_ipc_apis: String = "web3,eth,net,parity,parity_accounts,traces,rpc",
 			or |c: &Config| otry!(c.ipc).apis.clone().map(|vec| vec.join(",")),
@@ -173,7 +176,7 @@ usage! {
 			or |c: &Config| otry!(c.dapps).interface.clone(),
 		flag_dapps_hosts: String = "none",
 			or |c: &Config| otry!(c.dapps).hosts.clone().map(|vec| vec.join(",")),
-		flag_dapps_path: String = "$HOME/.parity/dapps",
+		flag_dapps_path: String = "$DATA/dapps",
 			or |c: &Config| otry!(c.dapps).path.clone(),
 		flag_dapps_user: Option<String> = None,
 			or |c: &Config| otry!(c.dapps).user.clone().map(Some),
@@ -274,7 +277,7 @@ usage! {
 			or |c: &Config| otry!(c.vm).jit.clone(),
 
 		// -- Miscellaneous Options
-		flag_config: String = "$HOME/.parity/config.toml", or |_| None,
+		flag_config: String = "$DATA/config.toml", or |_| None,
 		flag_logging: Option<String> = None,
 			or |c: &Config| otry!(c.misc).logging.clone().map(Some),
 		flag_log_file: Option<String> = None,
@@ -517,6 +520,8 @@ mod tests {
 			cmd_ui: false,
 			cmd_tools: false,
 			cmd_hash: false,
+			cmd_db: false,
+			cmd_kill: false,
 
 			// Arguments
 			arg_pid_file: "".into(),
@@ -671,7 +676,7 @@ mod tests {
 
 			// -- Miscellaneous Options
 			flag_version: false,
-			flag_config: "$HOME/.parity/config.toml".into(),
+			flag_config: "$DATA/config.toml".into(),
 			flag_logging: Some("own_tx=trace".into()),
 			flag_log_file: Some("/var/log/parity.log".into()),
 			flag_no_color: false,

@@ -16,10 +16,8 @@
 
 import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
-import { bindActionCreators } from 'redux';
 
 import { hashToImageUrl } from '~/redux/providers/imagesReducer';
-import { fetchCertifications } from '~/redux/providers/certifications/actions';
 
 import defaultIcon from '../../../assets/images/certifications/unknown.svg';
 
@@ -29,14 +27,7 @@ class Certifications extends Component {
   static propTypes = {
     account: PropTypes.string.isRequired,
     certifications: PropTypes.array.isRequired,
-    dappsUrl: PropTypes.string.isRequired,
-
-    fetchCertifications: PropTypes.func.isRequired
-  }
-
-  componentWillMount () {
-    const { account, fetchCertifications } = this.props;
-    fetchCertifications(account);
+    dappsUrl: PropTypes.string.isRequired
   }
 
   render () {
@@ -73,15 +64,13 @@ function mapStateToProps (_, initProps) {
 
   return (state) => {
     const certifications = state.certifications[account] || [];
-    return { certifications };
-  };
-}
+    const dappsUrl = state.api.dappsUrl;
 
-function mapDispatchToProps (dispatch) {
-  return bindActionCreators({ fetchCertifications }, dispatch);
+    return { certifications, dappsUrl };
+  };
 }
 
 export default connect(
   mapStateToProps,
-  mapDispatchToProps
+  null
 )(Certifications);

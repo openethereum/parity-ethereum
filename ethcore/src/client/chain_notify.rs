@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use ipc::IpcConfig;
-use util::H256;
+use util::{H256, Bytes};
 
 /// Represents what has to be handled by actor listening to chain events
 #[ipc]
@@ -27,6 +27,8 @@ pub trait ChainNotify : Send + Sync {
 		_enacted: Vec<H256>,
 		_retracted: Vec<H256>,
 		_sealed: Vec<H256>,
+		// Block bytes.
+		_proposed: Vec<Bytes>,
 		_duration: u64) {
 		// does nothing by default
 	}
@@ -40,6 +42,9 @@ pub trait ChainNotify : Send + Sync {
 	fn stop(&self) {
 		// does nothing by default
 	}
+
+	/// fires when chain broadcasts a message
+	fn broadcast(&self, _data: Vec<u8>) {}
 
 	/// fires when new transactions are received from a peer
 	fn transactions_received(&self,

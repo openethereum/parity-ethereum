@@ -15,22 +15,29 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import { connect } from 'react-redux';
+import { bindActionCreators } from 'redux';
 
 import { Container } from '~/ui';
+import { fetchCertifiers, fetchCertifications } from '~/redux/providers/certifications/actions';
 
 import Summary from '../Summary';
 import styles from './list.css';
 
-export default class List extends Component {
+class List extends Component {
   static propTypes = {
     accounts: PropTypes.object,
-    walletsOwners: PropTypes.object,
     balances: PropTypes.object,
-    link: PropTypes.string,
-    search: PropTypes.array,
+    certifications: PropTypes.object.isRequired,
     empty: PropTypes.bool,
+    link: PropTypes.string,
     order: PropTypes.string,
     orderFallback: PropTypes.string,
+    search: PropTypes.array,
+    walletsOwners: PropTypes.object,
+
+    fetchCertifiers: PropTypes.func.isRequired,
+    fetchCertifications: PropTypes.func.isRequired,
     handleAddSearchToken: PropTypes.func
   };
 
@@ -42,8 +49,16 @@ export default class List extends Component {
     );
   }
 
+  componentWillMount () {
+    const { accounts, fetchCertifiers, fetchCertifications } = this.props;
+    fetchCertifiers();
+    for (let address in accounts) {
+      fetchCertifications(address);
+    }
+  }
+
   renderAccounts () {
-    const { accounts, balances, link, empty, handleAddSearchToken, walletsOwners } = this.props;
+    const { accounts, balances, empty, link, walletsOwners, handleAddSearchToken } = this.props;
 
     if (empty) {
       return (
@@ -72,7 +87,9 @@ export default class List extends Component {
             account={ account }
             balance={ balance }
             owners={ owners }
-            handleAddSearchToken={ handleAddSearchToken } />
+            handleAddSearchToken={ handleAddSearchToken }
+            showCertifications
+          />
         </div>
       );
     });
@@ -207,3 +224,20 @@ export default class List extends Component {
       });
   }
 }
+
+function mapStateToProps (state) {
+  const { certifications } = state;
+  return { certifications };
+}
+
+function mapDispatchToProps (dispatch) {
+  return bindActionCreators({
+    fetchCertifiers,
+    fetchCertifications
+  }, dispatch);
+}
+
+export default connect(
+  mapStateToProps,
+  mapDispatchToProps
+)(List);
