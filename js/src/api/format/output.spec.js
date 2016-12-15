@@ -153,17 +153,17 @@ describe('api/format/output', () => {
         max: 0x7b,
         peers: [
           {
-            caps: ["par/1"],
-            id: "0x01",
-            name: "Parity",
+            caps: ['par/1'],
+            id: '0x01',
+            name: 'Parity',
             network: {
-              localAddress: "10.0.0.1",
-              remoteAddress: "10.0.0.1"
+              localAddress: '10.0.0.1',
+              remoteAddress: '10.0.0.1'
             },
             protocols: {
               par: {
-                difficulty: "0x0f",
-                head: "0x02",
+                difficulty: '0x0f',
+                head: '0x02',
                 version: 63
               }
             }
@@ -175,17 +175,17 @@ describe('api/format/output', () => {
         max: new BigNumber(123),
         peers: [
           {
-            caps: ["par/1"],
-            id: "0x01",
-            name: "Parity",
+            caps: ['par/1'],
+            id: '0x01',
+            name: 'Parity',
             network: {
-              localAddress: "10.0.0.1",
-              remoteAddress: "10.0.0.1"
+              localAddress: '10.0.0.1',
+              remoteAddress: '10.0.0.1'
             },
             protocols: {
               par: {
                 difficulty: new BigNumber(15),
-                head: "0x02",
+                head: '0x02',
                 version: 63
               }
             }
