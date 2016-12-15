@@ -18,7 +18,7 @@
 
 use util::*;
 use builtin::Builtin;
-use engines::{Engine, NullEngine, InstantSeal, BasicAuthority, AuthorityRound};
+use engines::{Engine, NullEngine, InstantSeal, BasicAuthority, AuthorityRound, Tendermint};
 use pod_state::*;
 use account_db::*;
 use header::{BlockNumber, Header};
@@ -146,7 +146,8 @@ impl Spec {
 			ethjson::spec::Engine::InstantSeal => Arc::new(InstantSeal::new(params, builtins)),
 			ethjson::spec::Engine::Ethash(ethash) => Arc::new(ethereum::Ethash::new(params, From::from(ethash.params), builtins)),
 			ethjson::spec::Engine::BasicAuthority(basic_authority) => Arc::new(BasicAuthority::new(params, From::from(basic_authority.params), builtins)),
-			ethjson::spec::Engine::AuthorityRound(authority_round) => AuthorityRound::new(params, From::from(authority_round.params), builtins).expect("Consensus engine could not be started."),
+			ethjson::spec::Engine::AuthorityRound(authority_round) => AuthorityRound::new(params, From::from(authority_round.params), builtins).expect("Failed to start AuthorityRound consensus engine."),
+			ethjson::spec::Engine::Tendermint(tendermint) => Tendermint::new(params, From::from(tendermint.params), builtins).expect("Failed to start the Tendermint consensus engine."),
 		}
 	}
 
@@ -275,6 +276,10 @@ impl Spec {
 	/// Create a new Spec with AuthorityRound consensus which does internal sealing (not requiring work).
 	/// Accounts with secrets "0".sha3() and "1".sha3() are the authorities.
 	pub fn new_test_round() -> Self { load_bundled!("authority_round") }
+
+	/// Create a new Spec with Tendermint consensus which does internal sealing (not requiring work).
+	/// Account "0".sha3() and "1".sha3() are a authorities.
+	pub fn new_test_tendermint() -> Self { load_bundled!("tendermint") }
 }
 
 #[cfg(test)]
