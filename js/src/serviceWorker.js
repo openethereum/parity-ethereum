@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import solc from 'solc/browser-wrapper';
-import { isWebUri } from 'valid-url';
+// import { isWebUri } from 'valid-url';
 import registerPromiseWorker from 'promise-worker/register';
 
 const CACHE_NAME = 'parity-cache-v1';
