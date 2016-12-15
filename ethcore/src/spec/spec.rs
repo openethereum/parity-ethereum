@@ -107,7 +107,7 @@ impl From<ethjson::spec::Spec> for Spec {
 	fn from(s: ethjson::spec::Spec) -> Self {
 		let builtins = s.accounts.builtins().into_iter().map(|p| (p.0.into(), From::from(p.1))).collect();
 		let g = Genesis::from(s.genesis);
-		let seal: GenericSeal = g.seal.into();
+		let GenericSeal(seal_rlp) = g.seal.into();
 		let params = CommonParams::from(s.params);
 		Spec {
 			name: s.name.into(),
@@ -124,7 +124,7 @@ impl From<ethjson::spec::Spec> for Spec {
 			gas_used: g.gas_used,
 			timestamp: g.timestamp,
 			extra_data: g.extra_data,
-			seal_rlp: seal.rlp,
+			seal_rlp: seal_rlp,
 			state_root_memo: RwLock::new(g.state_root),
 			genesis_state: From::from(s.accounts),
 		}
@@ -208,7 +208,7 @@ impl Spec {
 
 	/// Overwrite the genesis components.
 	pub fn overwrite_genesis_params(&mut self, g: Genesis) {
-		let seal: GenericSeal = g.seal.into();
+		let GenericSeal(seal_rlp) = g.seal.into();
 		self.parent_hash = g.parent_hash;
 		self.transactions_root = g.transactions_root;
 		self.receipts_root = g.receipts_root;
@@ -218,7 +218,7 @@ impl Spec {
 		self.gas_used = g.gas_used;
 		self.timestamp = g.timestamp;
 		self.extra_data = g.extra_data;
-		self.seal_rlp = seal.rlp;
+		self.seal_rlp = seal_rlp;
 		self.state_root_memo = RwLock::new(g.state_root);
 	}
 

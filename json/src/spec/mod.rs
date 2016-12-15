@@ -33,7 +33,7 @@ pub use self::builtin::{Builtin, Pricing, Linear};
 pub use self::genesis::Genesis;
 pub use self::params::Params;
 pub use self::spec::Spec;
-pub use self::seal::{Seal, Ethereum, Generic};
+pub use self::seal::{Seal, Ethereum, AuthorityRoundSeal};
 pub use self::engine::Engine;
 pub use self::state::State;
 pub use self::ethash::{Ethash, EthashParams};
