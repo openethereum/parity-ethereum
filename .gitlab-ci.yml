@@ -95,7 +95,7 @@ linux-centos:
   script:
     - export CXX="g++"
     - export CC="gcc"
-    - export PLATFORM=x86_64-unknown-linux-gnu
+    - export PLATFORM=x86_64-unknown-centos-gnu
     - cargo build -j $(nproc) --release $CARGOFLAGS
     - strip target/release/parity
     - md5sum target/release/parity > parity.md5
