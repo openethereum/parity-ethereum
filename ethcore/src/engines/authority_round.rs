@@ -466,7 +466,7 @@ mod tests {
 		// Spec starts with step 2.
 		header.set_seal(vec![encode(&1usize).to_vec(), encode(&(&*signature as &[u8])).to_vec()]);
 		assert!(engine.verify_block_seal(&header).is_ok());
-		header.set_seal(vec![encode(&11usize).to_vec(), encode(&(&*signature as &[u8])).to_vec()]);
+		header.set_seal(vec![encode(&5usize).to_vec(), encode(&(&*signature as &[u8])).to_vec()]);
 		assert!(engine.verify_block_seal(&header).is_err());
 	}
 }
