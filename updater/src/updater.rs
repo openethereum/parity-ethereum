@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::sync::{Arc, Weak};
-use std::{fs, env};
+use std::fs;
 use std::io::Write;
 use std::path::{PathBuf};
 use util::misc::platform;
@@ -49,6 +49,8 @@ pub struct UpdatePolicy {
 	pub filter: UpdateFilter,
 	/// Which track we should be following.
 	pub track: ReleaseTrack,
+	/// Path for the updates to go.
+	pub path: String,
 }
 
 impl Default for UpdatePolicy {
@@ -58,6 +60,7 @@ impl Default for UpdatePolicy {
 			require_consensus: true,
 			filter: UpdateFilter::None,
 			track: ReleaseTrack::Unknown,
+			path: Default::default(),
 		}
 	}
 }
@@ -175,9 +178,8 @@ impl Updater {
 		format!("parity-{}.{}.{}-{:?}", v.version.major, v.version.minor, v.version.patch, v.hash)
 	}
 
-	fn updates_path(name: &str) -> PathBuf {
-		let mut dest = PathBuf::from(env::home_dir().unwrap().to_str().expect("env filesystem paths really should be valid; qed"));
-		dest.push(".parity-updates");
+	fn updates_path(&self, name: &str) -> PathBuf {
+		let mut dest = PathBuf::from(self.update_policy.path.clone());
 		dest.push(name);
 		dest
 	}
@@ -189,7 +191,7 @@ impl Updater {
 				let fetched = s.fetching.take().unwrap();
 				let b = result.map_err(|e| format!("Unable to fetch update ({}): {:?}", fetched.version, e))?;
 				info!(target: "updater", "Fetched latest version ({}) OK to {}", fetched.version, b.display());
-				let dest = Self::updates_path(&Self::update_file_name(&fetched.version));
+				let dest = self.updates_path(&Self::update_file_name(&fetched.version));
 				fs::create_dir_all(dest.parent().expect("at least one thing pushed; qed")).map_err(|e| format!("Unable to create updates path: {:?}", e))?;
 				fs::copy(&b, &dest).map_err(|e| format!("Unable to copy update: {:?}", e))?;
 				info!(target: "updater", "Copied file to {}", dest.display());
@@ -322,7 +324,7 @@ impl Service for Updater {
 			let mut s = self.state.lock();
 			if let Some(r) = s.ready.take() {
 				let p = Self::update_file_name(&r.version);
-				let n = Self::updates_path("latest");
+				let n = self.updates_path("latest");
 				// TODO: creating then writing is a bit fragile. would be nice to make it atomic.
 				match fs::File::create(&n).and_then(|mut f| f.write_all(p.as_bytes())) {
 					Ok(_) => {

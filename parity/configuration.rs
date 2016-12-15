@@ -34,7 +34,7 @@ use helpers::{to_duration, to_mode, to_block_id, to_u256, to_pending_set, to_pri
 geth_ipc_path, parity_ipc_path, to_bootnodes, to_addresses, to_address, to_gas_limit, to_queue_strategy};
 use params::{ResealPolicy, AccountsConfig, GasPricerConfig, MinerExtras};
 use ethcore_logger::Config as LogConfig;
-use dir::Directories;
+use dir::{Directories, default_hypervisor_path};
 use dapps::Configuration as DappsConfiguration;
 use signer::{Configuration as SignerConfiguration};
 use updater::{UpdatePolicy, UpdateFilter, ReleaseTrack};
@@ -701,6 +701,7 @@ impl Configuration {
 				"current" => ReleaseTrack::Unknown,
 				_ => return Err("Invalid value for `--releases-track`. See `--help` for more information.".into()), 
 			},
+			path: default_hypervisor_path(),
 		})
 	}
 
@@ -810,7 +811,7 @@ mod tests {
 	use ethcore::miner::{MinerOptions, PrioritizationStrategy};
 	use helpers::{default_network_config};
 	use run::RunCmd;
-	use dir::Directories;
+	use dir::{Directories, default_hypervisor_path};
 	use signer::{Configuration as SignerConfiguration};
 	use blockchain::{BlockchainCmd, ImportBlockchain, ExportBlockchain, DataFormat, ExportState};
 	use presale::ImportWallet;
@@ -1011,7 +1012,7 @@ mod tests {
 			acc_conf: Default::default(),
 			gas_pricer: Default::default(),
 			miner_extras: Default::default(),
-			update_policy: UpdatePolicy { enable_downloading: true, require_consensus: true, filter: UpdateFilter::Critical, track: ReleaseTrack::Unknown },
+			update_policy: UpdatePolicy { enable_downloading: true, require_consensus: true, filter: UpdateFilter::Critical, track: ReleaseTrack::Unknown, path: default_hypervisor_path() },
 			mode: Default::default(),
 			tracing: Default::default(),
 			compaction: Default::default(),
@@ -1064,9 +1065,9 @@ mod tests {
 		let conf3 = parse(&["parity", "--auto-update=xxx"]);
 
 		// then
-		assert_eq!(conf0.update_policy().unwrap(), UpdatePolicy{enable_downloading: true, require_consensus: true, filter: UpdateFilter::Critical, track: ReleaseTrack::Testing});
-		assert_eq!(conf1.update_policy().unwrap(), UpdatePolicy{enable_downloading: true, require_consensus: false, filter: UpdateFilter::All, track: ReleaseTrack::Unknown});
-		assert_eq!(conf2.update_policy().unwrap(), UpdatePolicy{enable_downloading: false, require_consensus: true, filter: UpdateFilter::All, track: ReleaseTrack::Beta});
+		assert_eq!(conf0.update_policy().unwrap(), UpdatePolicy{enable_downloading: true, require_consensus: true, filter: UpdateFilter::Critical, track: ReleaseTrack::Testing, path: default_hypervisor_path()});
+		assert_eq!(conf1.update_policy().unwrap(), UpdatePolicy{enable_downloading: true, require_consensus: false, filter: UpdateFilter::All, track: ReleaseTrack::Unknown, path: default_hypervisor_path()});
+		assert_eq!(conf2.update_policy().unwrap(), UpdatePolicy{enable_downloading: false, require_consensus: true, filter: UpdateFilter::All, track: ReleaseTrack::Beta, path: default_hypervisor_path()});
 		assert!(conf3.update_policy().is_err());
 	}
 

@@ -195,6 +195,11 @@ pub fn default_data_path() -> String {
 	get_app_root(AppDataType::UserData, &app_info).map(|p| p.to_string_lossy().into_owned()).unwrap_or_else(|_| "$HOME/.parity".to_owned())
 }
 
+pub fn default_hypervisor_path() -> String {
+	let app_info = AppInfo { name: "parity-hypervisor", author: "parity" };
+	get_app_root(AppDataType::UserData, &app_info).map(|p| p.to_string_lossy().into_owned()).unwrap_or_else(|_| "$HOME/.parity-hypervisor".to_owned())
+}
+
 #[cfg(test)]
 mod tests {
 	use super::Directories;

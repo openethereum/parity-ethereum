@@ -126,6 +126,7 @@ use cli::Args;
 use configuration::{Cmd, Execute, Configuration};
 use deprecated::find_deprecated;
 use ethcore_logger::setup_log;
+use dir::default_hypervisor_path;
 
 fn print_hash_of(maybe_file: Option<String>) -> Result<String, String> {
 	if let Some(file) = maybe_file {
@@ -193,10 +194,8 @@ fn sync_main(alt_mains: &mut HashMap<String, fn()>) {
 	alt_mains.insert("sync".to_owned(), sync::main);
 }
 
-// TODO: merge with version in Updater.
 fn updates_path(name: &str) -> PathBuf {
-	let mut dest = PathBuf::from(env::home_dir().unwrap().to_str().expect("env filesystem paths really should be valid; qed"));
-	dest.push(".parity-updates");
+	let mut dest = PathBuf::from(default_hypervisor_path());
 	dest.push(name);
 	dest
 }
