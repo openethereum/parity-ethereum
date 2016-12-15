@@ -978,7 +978,7 @@ impl TransactionQueue {
 
 	}
 
-	fn collect_pending_transaction<F>(&self, best_block: BlockNumber, mut f: F)
+	fn filter_pending_transaction<F>(&self, best_block: BlockNumber, mut f: F)
 		where F: FnMut(&VerifiedTransaction) {
 
 		let mut delayed = HashSet::new();
@@ -999,14 +999,14 @@ impl TransactionQueue {
 	/// Returns top transactions from the queue ordered by priority.
 	pub fn top_transactions_at(&self, best_block: BlockNumber) -> Vec<SignedTransaction> {
 		let mut r = Vec::new();
-		self.collect_pending_transaction(best_block, |tx| r.push(tx.transaction.clone()));
+		self.filter_pending_transaction(best_block, |tx| r.push(tx.transaction.clone()));
 		r
 	}
 
 	/// Return all ready transactions.
 	pub fn pending_transactions(&self, best_block: BlockNumber) -> Vec<PendingTransaction> {
 		let mut r = Vec::new();
-		self.collect_pending_transaction(best_block, |tx| r.push(PendingTransaction::new(tx.transaction.clone(), tx.min_block)));
+		self.filter_pending_transaction(best_block, |tx| r.push(PendingTransaction::new(tx.transaction.clone(), tx.min_block)));
 		r
 	}
 

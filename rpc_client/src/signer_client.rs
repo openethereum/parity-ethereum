@@ -1,7 +1,5 @@
 use client::{Rpc, RpcError};
-use rpc::v1::types::{ConfirmationRequest,
-					 TransactionModification,
-					 U256};
+use rpc::v1::types::{ConfirmationRequest, TransactionModification, U256, BlockNumber};
 use serde_json::{Value as JsonValue, to_value};
 use std::path::PathBuf;
 use futures::{BoxFuture, Canceled};
@@ -24,7 +22,7 @@ impl SignerRpc {
 		id: U256,
 		new_gas: Option<U256>,
 		new_gas_price: Option<U256>,
-		new_min_block: Option<Option<u64>>,
+		new_min_block: Option<Option<BlockNumber>>,
 		pwd: &str
 	) -> BoxFuture<Result<U256, RpcError>, Canceled>
 	{
