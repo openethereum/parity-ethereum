@@ -101,6 +101,15 @@ impl Serialize for ConfirmationResponse {
 	}
 }
 
+/// Confirmation response with additional token for further requests
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct ConfirmationResponseWithToken {
+	/// Actual response
+	pub result: ConfirmationResponse,
+	/// New token
+	pub token: String,
+}
+
 /// Confirmation payload, i.e. the thing to be confirmed
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize)]
 pub enum ConfirmationPayload {
@@ -185,7 +194,7 @@ impl<A, B> Serialize for Either<A, B>  where
 mod tests {
 	use std::str::FromStr;
 	use serde_json;
-	use v1::types::U256;
+	use v1::types::{U256, H256};
 	use v1::helpers;
 	use super::*;
 
@@ -298,6 +307,22 @@ mod tests {
 			gas_price: None,
 			gas: None,
 		});
+	}
+
+	#[test]
+	fn should_serialize_confirmation_response_with_token() {
+		// given
+		let response = ConfirmationResponseWithToken {
+			result: ConfirmationResponse::SendTransaction(H256::default()),
+			token: "test-token".into(),
+		};
+
+		// when
+		let res = serde_json::to_string(&response);
+		let expected = r#"{"result":"0x0000000000000000000000000000000000000000000000000000000000000000","token":"test-token"}"#;
+
+		// then
+		assert_eq!(res.unwrap(), expected.to_owned());
 	}
 }
 
