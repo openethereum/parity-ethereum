@@ -151,6 +151,7 @@ impl<R: URLHint> ContentFetcher<R> {
 						Some(URLHintResult::Dapp(dapp)) => {
 							let (handler, fetch_control) = ContentFetcherHandler::new(
 								dapp.url(),
+								path,
 								control,
 								DappInstaller {
 									id: content_id.clone(),
@@ -166,6 +167,7 @@ impl<R: URLHint> ContentFetcher<R> {
 						Some(URLHintResult::Content(content)) => {
 							let (handler, fetch_control) = ContentFetcherHandler::new(
 								content.url,
+								path,
 								control,
 								ContentInstaller {
 									id: content_id.clone(),
@@ -255,7 +257,7 @@ struct ContentInstaller {
 impl ContentValidator for ContentInstaller {
 	type Error = ValidationError;
 
-	fn validate_and_install(&self, path: PathBuf) -> Result<(String, LocalPageEndpoint), ValidationError> {
+	fn validate_and_install(&self, path: PathBuf) -> Result<LocalPageEndpoint, ValidationError> {
 		let validate = || {
 			// Create dir
 			try!(fs::create_dir_all(&self.content_path));
@@ -287,7 +289,7 @@ impl ContentValidator for ContentInstaller {
 		// Make sure to always call on_done (even in case of errors)!
 		let result = validate();
 		(self.on_done)(result.as_ref().ok().cloned());
-		result.map(|endpoint| (self.id.clone(), endpoint))
+		result
 	}
 }
 
@@ -334,10 +336,10 @@ impl DappInstaller {
 impl ContentValidator for DappInstaller {
 	type Error = ValidationError;
 
-	fn validate_and_install(&self, app_path: PathBuf) -> Result<(String, LocalPageEndpoint), ValidationError> {
-		trace!(target: "dapps", "Opening dapp bundle at {:?}", app_path);
+	fn validate_and_install(&self, path: PathBuf) -> Result<LocalPageEndpoint, ValidationError> {
+		trace!(target: "dapps", "Opening dapp bundle at {:?}", path);
 		let validate = || {
-			let mut file_reader = io::BufReader::new(try!(fs::File::open(app_path)));
+			let mut file_reader = io::BufReader::new(try!(fs::File::open(path)));
 			let hash = try!(sha3(&mut file_reader));
 			let id = try!(self.id.as_str().parse().map_err(|_| ValidationError::InvalidContentId));
 			if id != hash {
@@ -390,13 +392,12 @@ impl ContentValidator for DappInstaller {
 			try!(manifest_file.write_all(manifest_str.as_bytes()));
 			// Create endpoint
 			let endpoint = LocalPageEndpoint::new(target, manifest.clone().into(), PageCache::Enabled, self.embeddable_on.clone());
-			// Return modified app manifest
 			Ok(endpoint)
 		};
 
 		let result = validate();
 		(self.on_done)(result.as_ref().ok().cloned());
-		result.map(|endpoint| (self.id.clone(), endpoint))
+		result
 	}
 }
 
