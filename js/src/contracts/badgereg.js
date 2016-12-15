@@ -31,7 +31,7 @@ export default class BadgeReg {
     this.contracts = {}; // by name
   }
 
-  nrOfCertifiers () {
+  certifierCount () {
     return this._registry.getContract('badgereg')
       .then((badgeReg) => {
         return badgeReg.instance.badgeCount.call({}, [])
@@ -48,9 +48,14 @@ export default class BadgeReg {
         return badgeReg.instance.badge.call({}, [ id ]);
       })
       .then(([ address, name ]) => {
-        if (address === ZERO20) throw new Error(`Certifier ${id} does not exist.`);
+        if (address === ZERO20) {
+          throw new Error(`Certifier ${id} does not exist.`);
+        }
+
         name = bytesToHex(name);
-        name = name === ZERO32 ? null : hex2Ascii(name);
+        name = name === ZERO32
+          ? null
+          : hex2Ascii(name);
         return this.fetchMeta(id)
           .then(({ title, icon }) => {
             const data = { address, id, name, title, icon };

@@ -24,8 +24,10 @@ export default (state = initialState, action) => {
     if (certifications.some((c) => c.id === id)) {
       return state;
     }
-    const newCertifications = certifications.concat({ id, name, icon, title });
 
+    const newCertifications = certifications.concat({
+      id, name, icon, title
+    });
     return { ...state, [address]: newCertifications };
   }
 

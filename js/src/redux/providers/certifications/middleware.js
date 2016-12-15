@@ -44,8 +44,11 @@ export default class CertificationsMiddleware {
         .then((logs) => {
           logs.forEach((log) => {
             const certifier = certifiers.find((c) => c.address === log.address);
-            if (!certifier) throw new Error(`Could not find certifier at ${log.address}.`);
+            if (!certifier) {
+              throw new Error(`Could not find certifier at ${log.address}.`);
+            }
             const { id, name, title, icon } = certifier;
+
             if (log.event === 'Revoked') {
               dispatch(removeCertification(log.params.who.value, id));
             } else {
@@ -59,33 +62,42 @@ export default class CertificationsMiddleware {
     };
 
     return (store) => (next) => (action) => {
-      if (action.type === 'fetchCertifiers') {
-        badgeReg.nrOfCertifiers().then((count) => {
-          new Array(+count).fill(null).forEach((_, id) => {
-            badgeReg.fetchCertifier(id)
-              .then((cert) => {
-                if (!certifiers.some((c) => c.id === cert.id)) {
-                  certifiers = certifiers.concat(cert);
-                  fetchConfirmedEvents(store.dispatch);
-                }
-              })
-              .catch((err) => {
-                console.warn(`Could not fetch certifier ${id}:`, err);
-              });
+      switch (action.type) {
+        case 'fetchCertifiers':
+          badgeReg.certifierCount().then((count) => {
+            new Array(+count).fill(null).forEach((_, id) => {
+              badgeReg.fetchCertifier(id)
+                .then((cert) => {
+                  if (!certifiers.some((c) => c.id === cert.id)) {
+                    certifiers = certifiers.concat(cert);
+                    fetchConfirmedEvents(store.dispatch);
+                  }
+                })
+                .catch((err) => {
+                  console.warn(`Could not fetch certifier ${id}:`, err);
+                });
+            });
           });
-        });
-      } else if (action.type === 'fetchCertifications') {
-        const { address } = action;
 
-        if (!accounts.includes(address)) {
-          accounts = accounts.concat(address);
+          break;
+        case 'fetchCertifications':
+          const { address } = action;
+
+          if (!accounts.includes(address)) {
+            accounts = accounts.concat(address);
+            fetchConfirmedEvents(store.dispatch);
+          }
+
+          break;
+        case 'setVisibleAccounts':
+          const { addresses } = action;
+          accounts = uniq(accounts.concat(addresses));
           fetchConfirmedEvents(store.dispatch);
-        }
-      } else if (action.type === 'setVisibleAccounts') {
-        const { addresses } = action;
-        accounts = uniq(accounts.concat(addresses));
-        fetchConfirmedEvents(store.dispatch);
-      } else return next(action);
+
+          break;
+        default:
+          next(action);
+      }
     };
   }
 }
