@@ -42,10 +42,11 @@ class WriteContract extends Component {
   static propTypes = {
     accounts: PropTypes.object.isRequired,
     setupWorker: PropTypes.func.isRequired,
-    worker: PropTypes.object
+    worker: PropTypes.object,
+    workerError: PropTypes.any
   };
 
-  store = new WriteContractStore();
+  store = WriteContractStore.get();
 
   state = {
     resizing: false,
@@ -57,12 +58,16 @@ class WriteContract extends Component {
     setupWorker();
 
     if (worker) {
-      this.store.setCompiler(worker);
+      this.store.setWorker(worker);
     }
   }
 
   componentDidMount () {
     this.store.setEditor(this.refs.editor);
+
+    if (this.props.workerError) {
+      this.store.setWorkerError(this.props.workerError);
+    }
 
     // Wait for editor to be loaded
     window.setTimeout(() => {
@@ -70,9 +75,14 @@ class WriteContract extends Component {
     }, 2000);
   }
 
+  // Set the worker if not set before (eg. first page loading)
   componentWillReceiveProps (nextProps) {
     if (!this.props.worker && nextProps.worker) {
-      this.store.setCompiler(nextProps.worker);
+      this.store.setWorker(nextProps.worker);
+    }
+
+    if (this.props.workerError !== nextProps.workerError) {
+      this.store.setWorkerError(nextProps.workerError);
     }
   }
 
@@ -217,7 +227,18 @@ class WriteContract extends Component {
   }
 
   renderParameters () {
-    const { compiling, contract, selectedBuild, loading } = this.store;
+    const { compiling, contract, selectedBuild, loading, workerError } = this.store;
+
+    if (workerError) {
+      return (
+        <div className={ styles.panel }>
+          <div className={ styles.centeredMessage }>
+            <p>Unfortuantely, an error occurred...</p>
+            <div className={ styles.error }>{ workerError }</div>
+          </div>
+        </div>
+      );
+    }
 
     if (selectedBuild < 0) {
       return (
@@ -485,8 +506,8 @@ class WriteContract extends Component {
 
 function mapStateToProps (state) {
   const { accounts } = state.personal;
-  const { worker } = state.compiler;
-  return { accounts, worker };
+  const { worker, error } = state.compiler;
+  return { accounts, worker, workerError: error };
 }
 
 function mapDispatchToProps (dispatch) {
