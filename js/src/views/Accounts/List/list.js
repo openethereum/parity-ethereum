@@ -27,18 +27,18 @@ import styles from './list.css';
 class List extends Component {
   static propTypes = {
     accounts: PropTypes.object,
-    walletsOwners: PropTypes.object,
     balances: PropTypes.object,
-    link: PropTypes.string,
-    search: PropTypes.array,
+    certifications: PropTypes.object.isRequired,
     empty: PropTypes.bool,
+    link: PropTypes.string,
     order: PropTypes.string,
     orderFallback: PropTypes.string,
-    certifications: PropTypes.object.isRequired,
+    search: PropTypes.array,
+    walletsOwners: PropTypes.object,
 
-    handleAddSearchToken: PropTypes.func,
     fetchCertifiers: PropTypes.func.isRequired,
-    fetchCertifications: PropTypes.func.isRequired
+    fetchCertifications: PropTypes.func.isRequired,
+    handleAddSearchToken: PropTypes.func
   };
 
   render () {
@@ -50,7 +50,7 @@ class List extends Component {
   }
 
   componentWillMount () {
-    const { fetchCertifiers, accounts, fetchCertifications } = this.props;
+    const { accounts, fetchCertifiers, fetchCertifications } = this.props;
     fetchCertifiers();
     for (let address in accounts) {
       fetchCertifications(address);
@@ -58,7 +58,7 @@ class List extends Component {
   }
 
   renderAccounts () {
-    const { accounts, balances, link, empty, handleAddSearchToken, walletsOwners } = this.props;
+    const { accounts, balances, empty, link, walletsOwners, handleAddSearchToken } = this.props;
 
     if (empty) {
       return (
