@@ -39,6 +39,17 @@ pub struct AuthorityRoundSeal {
 	pub signature: H520,
 }
 
+/// Tendermint seal.
+#[derive(Debug, PartialEq, Deserialize)]
+pub struct TendermintSeal {
+	/// Seal round.
+	pub round: Uint,
+	/// Proposal seal signature.
+	pub proposal: H520,
+	/// Proposal seal signature.
+	pub precommits: Vec<H520>,
+}
+
 /// Seal variants.
 #[derive(Debug, PartialEq, Deserialize)]
 pub enum Seal {
@@ -48,6 +59,9 @@ pub enum Seal {
 	/// AuthorityRound seal.
 	#[serde(rename="authority_round")]
 	AuthorityRound(AuthorityRoundSeal),
+	/// Tendermint seal.
+	#[serde(rename="tendermint")]
+	Tendermint(TendermintSeal),
 	/// Generic seal.
 	#[serde(rename="generic")]
 	Generic(Bytes),
@@ -71,6 +85,14 @@ mod tests {
 			"authority_round": {
 				"step": "0x0",
 				"signature": "0x0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+			}
+		},{
+			"tendermint": {
+				"round": "0x0",
+				"proposal": "0x0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+				"precommits": [
+					"0x0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+				]
 			}
 		}]"#;
 		let _deserialized: Vec<Seal> = serde_json::from_str(s).unwrap();
