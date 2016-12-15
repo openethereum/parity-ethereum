@@ -24,7 +24,7 @@ use ethcore::miner::MinerService;
 use ethcore::client::MiningBlockChainClient;
 
 use jsonrpc_core::Error;
-use v1::helpers::auto_args::Ready;
+use jsonrpc_macros::Ready;
 use v1::helpers::errors;
 use v1::helpers::dispatch;
 use v1::traits::{EthSigning, ParitySigning};
@@ -76,7 +76,8 @@ impl<C, M> SigningUnsafeClient<C, M> where
 		let accounts = take_weak!(self.accounts);
 
 		let payload = dispatch::from_rpc(payload, &*client, &*miner);
-		dispatch::execute(&*client, &*miner, &*accounts, payload, None)
+		dispatch::execute(&*client, &*miner, &*accounts, payload, dispatch::SignWith::Nothing)
+			.map(|v| v.into_value())
 	}
 }
 

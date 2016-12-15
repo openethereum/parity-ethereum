@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import { connect } from 'react-redux';
 import ActionDone from 'material-ui/svg-icons/action/done';
 import ActionDoneAll from 'material-ui/svg-icons/action/done-all';
 import NavigationArrowForward from 'material-ui/svg-icons/navigation/arrow-forward';
@@ -35,14 +36,15 @@ import ParityLogo from '../../../assets/images/parity-logo-black-no-text.svg';
 
 const STAGE_NAMES = ['welcome', 'terms', 'new account', 'recovery', 'completed'];
 
-export default class FirstRun extends Component {
+class FirstRun extends Component {
   static contextTypes = {
     api: PropTypes.object.isRequired,
     store: PropTypes.object.isRequired
   }
 
   static propTypes = {
-    visible: PropTypes.bool,
+    hasAccounts: PropTypes.bool.isRequired,
+    visible: PropTypes.bool.isRequired,
     onClose: PropTypes.func.isRequired
   }
 
@@ -109,6 +111,7 @@ export default class FirstRun extends Component {
   }
 
   renderDialogActions () {
+    const { hasAccounts } = this.props;
     const { canCreate, stage, hasAcceptedTnc } = this.state;
 
     switch (stage) {
@@ -130,13 +133,26 @@ export default class FirstRun extends Component {
         );
 
       case 2:
-        return (
+        const buttons = [
           <Button
             icon={ <ActionDone /> }
             label='Create'
+            key='create'
             disabled={ !canCreate }
-            onClick={ this.onCreate } />
-        );
+            onClick={ this.onCreate }
+          />
+        ];
+        if (hasAccounts) {
+          buttons.unshift(
+            <Button
+              icon={ <NavigationArrowForward /> }
+              label='Skip'
+              key='skip'
+              onClick={ this.skipAccountCreation }
+            />
+          );
+        }
+        return buttons;
 
       case 3:
         return [
@@ -219,6 +235,10 @@ export default class FirstRun extends Component {
       });
   }
 
+  skipAccountCreation = () => {
+    this.setState({ stage: this.state.stage + 2 });
+  }
+
   newError = (error) => {
     const { store } = this.context;
 
@@ -232,3 +252,9 @@ export default class FirstRun extends Component {
     print(recoveryPage({ phrase, name, identity, address, logo: ParityLogo }));
   }
 }
+
+function mapStateToProps (state) {
+  return { hasAccounts: state.personal.hasAccounts };
+}
+
+export default connect(mapStateToProps, null)(FirstRun);

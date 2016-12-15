@@ -16,7 +16,8 @@
 
 //! Eth rpc interface.
 
-use v1::helpers::auto_args::{WrapAsync, Ready};
+use jsonrpc_macros::Ready;
+
 use v1::types::{Bytes, H160, H256, H520, TransactionRequest, RichRawTransaction};
 
 build_rpc_trait! {

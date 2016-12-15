@@ -28,6 +28,7 @@ isatty = "0.1"
 toml = "0.2"
 serde = "0.8.0"
 serde_json = "0.8.0"
+app_dirs = "1.1.1"
 hyper = { version = "0.9", default-features = false }
 ctrlc = { git = "https://github.com/ethcore/rust-ctrlc.git" }
 fdlimit = "0.1"
@@ -47,6 +48,8 @@ rlp = { path = "util/rlp" }
 ethcore-stratum = { path = "stratum" }
 ethcore-dapps = { path = "dapps", optional = true }
 clippy = { version = "0.0.103", optional = true}
+rpc-cli = { path = "rpc_cli" }
+parity-rpc-client = { path = "rpc_client" }
 ethcore-light = { path = "ethcore/light" }
 
 [target.'cfg(windows)'.dependencies]

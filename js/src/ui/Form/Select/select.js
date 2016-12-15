@@ -46,26 +46,26 @@ export default class Select extends Component {
   }
 
   render () {
-    const { disabled, error, label, hint, value, children, className, onBlur, onChange, onKeyDown } = this.props;
+    const { children, className, disabled, error, hint, label, onBlur, onChange, onKeyDown, value } = this.props;
 
     return (
       <SelectField
-        className={ className }
         autoComplete='off'
+        className={ className }
         disabled={ disabled }
         errorText={ error }
         floatingLabelFixed
         floatingLabelText={ label }
         fullWidth
         hintText={ hint }
-        name={ NAME_ID }
         id={ NAME_ID }
-        underlineDisabledStyle={ UNDERLINE_DISABLED }
-        underlineStyle={ UNDERLINE_NORMAL }
-        value={ value }
+        name={ NAME_ID }
         onBlur={ onBlur }
         onChange={ onChange }
-        onKeyDown={ onKeyDown }>
+        onKeyDown={ onKeyDown }
+        underlineDisabledStyle={ UNDERLINE_DISABLED }
+        underlineStyle={ UNDERLINE_NORMAL }
+        value={ value }>
         { children }
       </SelectField>
     );

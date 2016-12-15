@@ -17,17 +17,27 @@
 const initialState = {};
 
 export default (state = initialState, action) => {
-  if (action.type !== 'addCertification') {
-    return state;
+  if (action.type === 'addCertification') {
+    const { address, id, name, icon, title } = action;
+    const certifications = state[address] || [];
+
+    if (certifications.some((c) => c.id === id)) {
+      return state;
+    }
+
+    const newCertifications = certifications.concat({
+      id, name, icon, title
+    });
+    return { ...state, [address]: newCertifications };
   }
 
-  const { address, name, icon, title } = action;
-  const certifications = state[address] || [];
+  if (action.type === 'removeCertification') {
+    const { address, id } = action;
+    const certifications = state[address] || [];
 
-  if (certifications.some((c) => c.name === name)) {
-    return state;
+    const newCertifications = certifications.filter((c) => c.id !== id);
+    return { ...state, [address]: newCertifications };
   }
-  const newCertifications = certifications.concat({ name, icon, title });
 
-  return { ...state, [address]: newCertifications };
+  return state;
 };

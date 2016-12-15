@@ -17,8 +17,8 @@
 //! Parity-specific rpc interface for operations altering the settings.
 
 use jsonrpc_core::Error;
+use jsonrpc_macros::Ready;
 
-use v1::helpers::auto_args::{Wrap, WrapAsync, Ready};
 use v1::types::{Bytes, H160, H256, U256};
 
 build_rpc_trait! {

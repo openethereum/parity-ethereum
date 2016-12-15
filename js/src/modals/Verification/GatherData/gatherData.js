@@ -25,41 +25,33 @@ import { fromWei } from '~/api/util/wei';
 import { Form, Input } from '~/ui';
 import { nullableProptype } from '~/util/proptypes';
 
-import { termsOfService } from '../../../3rdparty/sms-verification';
+import smsTermsOfService from '~/3rdparty/sms-verification/terms-of-service';
+import emailTermsOfService from '~/3rdparty/email-verification/terms-of-service';
+import { howSMSVerificationWorks, howEmailVerificationWorks } from '../how-it-works';
 import styles from './gatherData.css';
 
 export default class GatherData extends Component {
   static propTypes = {
     fee: React.PropTypes.instanceOf(BigNumber),
-    isNumberValid: PropTypes.bool.isRequired,
+    method: PropTypes.string.isRequired,
+    fields: PropTypes.array.isRequired,
     isVerified: nullableProptype(PropTypes.bool.isRequired),
     hasRequested: nullableProptype(PropTypes.bool.isRequired),
-    setNumber: PropTypes.func.isRequired,
     setConsentGiven: PropTypes.func.isRequired
   }
 
   render () {
-    const { isNumberValid, isVerified } = this.props;
+    const { method, isVerified } = this.props;
+    const termsOfService = method === 'email' ? emailTermsOfService : smsTermsOfService;
+    const howItWorks = method === 'email' ? howEmailVerificationWorks : howSMSVerificationWorks;
 
     return (
       <Form>
-        <p>The following steps will let you prove that you control both an account and a phone number.</p>
-        <ol className={ styles.list }>
-          <li>You send a verification request to a specific contract.</li>
-          <li>Our server puts a puzzle into this contract.</li>
-          <li>The code you receive via SMS is the solution to this puzzle.</li>
-        </ol>
+        { howItWorks }
         { this.renderFee() }
         { this.renderCertified() }
         { this.renderRequested() }
-        <Input
-          label={ 'phone number in international format' }
-          hint={ 'the SMS will be sent to this number' }
-          error={ isNumberValid ? null : 'invalid number' }
-          disabled={ isVerified }
-          onChange={ this.numberOnChange }
-          onSubmit={ this.numberOnSubmit }
-        />
+        { this.renderFields() }
         <Checkbox
           className={ styles.spacing }
           label={ 'I agree to the terms and conditions below.' }
@@ -136,12 +128,28 @@ export default class GatherData extends Component {
     );
   }
 
-  numberOnSubmit = (value) => {
-    this.props.setNumber(value);
-  }
+  renderFields () {
+    const { isVerified, fields } = this.props;
 
-  numberOnChange = (_, value) => {
-    this.props.setNumber(value);
+    const rendered = fields.map((field) => {
+      const onChange = (_, v) => {
+        field.onChange(v);
+      };
+      const onSubmit = field.onChange;
+      return (
+        <Input
+          key={ field.key }
+          label={ field.label }
+          hint={ field.hint }
+          error={ field.error }
+          disabled={ isVerified }
+          onChange={ onChange }
+          onSubmit={ onSubmit }
+        />
+      );
+    });
+
+    return (<div>{rendered}</div>);
   }
 
   consentOnChange = (_, consentGiven) => {

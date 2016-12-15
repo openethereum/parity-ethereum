@@ -17,8 +17,6 @@
 //! Net rpc interface.
 use jsonrpc_core::Error;
 
-use v1::helpers::auto_args::Wrap;
-
 build_rpc_trait! {
 	/// Net rpc interface.
 	pub trait Net {
