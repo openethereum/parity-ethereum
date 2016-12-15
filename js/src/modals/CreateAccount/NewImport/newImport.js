@@ -40,7 +40,7 @@ export default class NewImport extends Component {
     isValidPass: false,
     isValidName: false,
     password: '',
-    passwordError: ERRORS.noPassword,
+    passwordError: null,
     passwordHint: '',
     walletFile: '',
     walletFileError: ERRORS.noFile,
@@ -139,39 +139,34 @@ export default class NewImport extends Component {
     });
   }
 
-  onEditPasswordHint = (event, value) => {
+  onEditPasswordHint = (event, passwordHint) => {
     this.setState({
-      passwordHint: value
+      passwordHint
     });
   }
 
   onEditAccountName = (event) => {
-    const value = event.target.value;
-    let error = null;
+    const accountName = event.target.value;
+    let accountNameError = null;
 
-    if (!value || !value.trim().length) {
-      error = ERRORS.noName;
+    if (!accountName || !accountName.trim().length) {
+      accountNameError = ERRORS.noName;
     }
 
     this.setState({
-      accountName: value,
-      accountNameError: error,
-      isValidName: !error
+      accountName,
+      accountNameError,
+      isValidName: !accountNameError
     }, this.updateParent);
   }
 
   onEditPassword = (event) => {
-    let error = null;
-    const value = event.target.value;
-
-    if (!value || !value.length) {
-      error = ERRORS.invalidPassword;
-    }
+    const password = event.target.value;
 
     this.setState({
-      password: value,
-      passwordError: error,
-      isValidPass: !error
+      password,
+      passwordError: null,
+      isValidPass: true
     }, this.updateParent);
   }
 }

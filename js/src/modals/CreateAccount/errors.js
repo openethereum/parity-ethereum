@@ -18,11 +18,6 @@ import React from 'react';
 import { FormattedMessage } from 'react-intl';
 
 export default {
-  invalidPassword:
-    <FormattedMessage
-      id='createAccount.error.invalidPassword'
-      defaultMessage='you need to specify a password' />,
-
   noFile:
     <FormattedMessage
       id='createAccount.error.noFile'
@@ -42,16 +37,6 @@ export default {
     <FormattedMessage
       id='createAccount.error.noName'
       defaultMessage='you need to specify a valid name for the account' />,
-
-  noPassword:
-    <FormattedMessage
-      id='createAccount.error.noPassword'
-      defaultMessage='supply a valid password to confirm the transaction' />,
-
-  noPhrase:
-    <FormattedMessage
-      id='createAccount.error.noPhrase'
-      defaultMessage='you need to specify the recovery phrase' />,
 
   invalidKey:
     <FormattedMessage

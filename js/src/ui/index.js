@@ -48,6 +48,7 @@ import Tags from './Tags';
 import Tooltips, { Tooltip } from './Tooltips';
 import TxHash from './TxHash';
 import TxList from './TxList';
+import Warning from './Warning';
 
 export {
   Actionbar,
@@ -97,5 +98,6 @@ export {
   Tooltips,
   TxHash,
   TxList,
-  TypedInput
+  TypedInput,
+  Warning
 };

@@ -43,9 +43,9 @@ export default class CreateAccount extends Component {
     isValidPass: false,
     passwordHint: '',
     password1: '',
-    password1Error: ERRORS.invalidPassword,
+    password1Error: null,
     password2: '',
-    password2Error: ERRORS.noMatchPassword,
+    password2Error: null,
     selectedAddress: ''
   }
 
@@ -74,7 +74,7 @@ export default class CreateAccount extends Component {
           <div className={ styles.password }>
             <Input
               label='password'
-              hint='a strong, unique password to protect the account'
+              hint='a strong, unique password'
               type='password'
               error={ password1Error }
               value={ password1 }
@@ -219,60 +219,55 @@ export default class CreateAccount extends Component {
     }, this.updateParent);
   }
 
-  onEditPasswordHint = (event, value) => {
+  onEditPasswordHint = (event, passwordHint) => {
     this.setState({
-      passwordHint: value
+      passwordHint
     });
   }
 
   onEditAccountName = (event) => {
-    const value = event.target.value;
-    let error = null;
+    const accountName = event.target.value;
+    let accountNameError = null;
 
-    if (!value || !value.trim().length) {
-      error = ERRORS.noName;
+    if (!accountName || !accountName.trim().length) {
+      accountNameError = ERRORS.noName;
     }
 
     this.setState({
-      accountName: value,
-      accountNameError: error,
-      isValidName: !error
+      accountName,
+      accountNameError,
+      isValidName: !accountNameError
     }, this.updateParent);
   }
 
   onEditPassword1 = (event) => {
-    const value = event.target.value;
-    let error1 = null;
-    let error2 = null;
+    const password1 = event.target.value;
+    let password2Error = null;
 
-    if (!value || !value.trim().length) {
-      error1 = ERRORS.invalidPassword;
-    }
-
-    if (value !== this.state.password2) {
-      error2 = ERRORS.noMatchPassword;
+    if (password1 !== this.state.password2) {
+      password2Error = ERRORS.noMatchPassword;
     }
 
     this.setState({
-      password1: value,
-      password1Error: error1,
-      password2Error: error2,
-      isValidPass: !error1 && !error2
+      password1,
+      password1Error: null,
+      password2Error,
+      isValidPass: !password2Error
     }, this.updateParent);
   }
 
   onEditPassword2 = (event) => {
-    const value = event.target.value;
-    let error2 = null;
+    const password2 = event.target.value;
+    let password2Error = null;
 
-    if (value !== this.state.password1) {
-      error2 = ERRORS.noMatchPassword;
+    if (password2 !== this.state.password1) {
+      password2Error = ERRORS.noMatchPassword;
     }
 
     this.setState({
-      password2: value,
-      password2Error: error2,
-      isValidPass: !error2
+      password2,
+      password2Error,
+      isValidPass: !password2Error
     }, this.updateParent);
   }
 
