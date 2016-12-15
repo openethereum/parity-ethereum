@@ -984,7 +984,7 @@ impl TransactionQueue {
 		let mut delayed = HashSet::new();
 		for t in self.current.by_priority.iter() {
 			let tx = self.by_hash.get(&t.hash).expect("All transactions in `current` and `future` are always included in `by_hash`");
-			let sender = tx.transaction.sender().expect("Queue only contains transactions with valid sender");
+			let sender = tx.sender();
 			if delayed.contains(&sender) {
 				continue;
 			}

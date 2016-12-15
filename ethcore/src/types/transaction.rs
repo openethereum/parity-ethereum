@@ -390,7 +390,7 @@ impl Deref for LocalizedTransaction {
 	}
 }
 
-/// Queued information with additional information.
+/// Queued transaction with additional information.
 #[derive(Debug, Clone, PartialEq, Eq, Binary)]
 pub struct PendingTransaction {
 	/// Signed transaction data.
