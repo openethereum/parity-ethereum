@@ -80,7 +80,7 @@ describe('api/rpc/parity', () => {
 
   describe('newPeers', () => {
     it('returns the peer structure, formatted', () => {
-      mockHttp([{ method: 'parity_netPeers', reply: { result: { active: 123, connected: 456, max: 789 } } }]);
+      mockHttp([{ method: 'parity_netPeers', reply: { result: { active: 123, connected: 456, max: 789, peers: [] } } }]);
 
       return instance.netPeers().then((peers) => {
         expect(peers.active.eq(123)).to.be.true;

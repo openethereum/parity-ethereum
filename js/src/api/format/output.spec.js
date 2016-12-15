@@ -147,10 +147,50 @@ describe('api/format/output', () => {
 
   describe('outPeers', () => {
     it('converts all internal numbers to BigNumbers', () => {
-      expect(outPeers({ active: 789, connected: '456', max: 0x7b })).to.deep.equal({
+      expect(outPeers({
+        active: 789,
+        connected: '456',
+        max: 0x7b,
+        peers: [
+          {
+            caps: ["par/1"],
+            id: "0x01",
+            name: "Parity",
+            network: {
+              localAddress: "10.0.0.1",
+              remoteAddress: "10.0.0.1"
+            },
+            protocols: {
+              par: {
+                difficulty: "0x0f",
+                head: "0x02",
+                version: 63
+              }
+            }
+          }
+        ]
+      })).to.deep.equal({
         active: new BigNumber(789),
         connected: new BigNumber(456),
-        max: new BigNumber(123)
+        max: new BigNumber(123),
+        peers: [
+          {
+            caps: ["par/1"],
+            id: "0x01",
+            name: "Parity",
+            network: {
+              localAddress: "10.0.0.1",
+              remoteAddress: "10.0.0.1"
+            },
+            protocols: {
+              par: {
+                difficulty: new BigNumber(15),
+                head: "0x02",
+                version: 63
+              }
+            }
+          }
+        ]
       });
     });
   });
