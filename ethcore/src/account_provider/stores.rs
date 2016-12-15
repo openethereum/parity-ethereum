@@ -175,7 +175,7 @@ impl DappsSettingsStore {
 
 	/// Returns current new dapps policy
 	pub fn policy(&self) -> NewDappsPolicy {
-		self.policy.get("default").cloned().unwrap_or(NewDappsPolicy::Whitelist(vec![]))
+		self.policy.get("default").cloned().unwrap_or(NewDappsPolicy::AllAccounts)
 	}
 
 	/// Returns recent dapps (in order of last request)
@@ -353,8 +353,9 @@ mod tests {
 		let temp = RandomTempPath::create_dir();
 		let path = temp.as_str().to_owned();
 		let mut store = DappsSettingsStore::new(path.clone());
+		
 		// Test default policy
-		assert_eq!(store.policy(), NewDappsPolicy::Whitelist(vec![]));
+		assert_eq!(store.policy(), NewDappsPolicy::AllAccounts);
 
 		// when
 		store.set_policy(NewDappsPolicy::Whitelist(vec![1.into(), 2.into()]));

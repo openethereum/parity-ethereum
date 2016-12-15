@@ -478,7 +478,8 @@ mod tests {
 		let ap = AccountProvider::transient_provider();
 		let address = ap.new_account("test").unwrap();
 
-		// Default policy should be to return nothing
+		// When returning nothing
+		ap.set_new_dapps_whitelist(Some(vec![])).unwrap();
 		assert_eq!(ap.dapps_addresses("app1".into()).unwrap(), vec![]);
 
 		// change to all
