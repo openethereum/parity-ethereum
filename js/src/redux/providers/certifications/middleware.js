@@ -14,38 +14,90 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import Contracts from '~/contracts';
-import { addCertification } from './actions';
+import { uniq } from 'lodash';
 
-const knownCertifiers = [ 'smsverification' ];
+import ABI from '~/contracts/abi/certifier.json';
+import Contract from '~/api/contract';
+import Contracts from '~/contracts';
+import { addCertification, removeCertification } from './actions';
 
 export default class CertificationsMiddleware {
   toMiddleware () {
-    return (store) => (next) => (action) => {
-      if (action.type !== 'fetchCertifications') {
-        return next(action);
-      }
+    const api = Contracts.get()._api;
+    const badgeReg = Contracts.get().badgeReg;
+    const contract = new Contract(api, ABI);
+    const Confirmed = contract.events.find((e) => e.name === 'Confirmed');
+    const Revoked = contract.events.find((e) => e.name === 'Revoked');
 
-      const { address } = action;
-      const badgeReg = Contracts.get().badgeReg;
+    let certifiers = [];
+    let accounts = []; // these are addresses
 
-      knownCertifiers.forEach((name) => {
-        badgeReg.fetchCertifier(name)
-          .then((cert) => {
-            return badgeReg.checkIfCertified(cert.address, address)
-              .then((isCertified) => {
-                if (isCertified) {
-                  const { name, title, icon } = cert;
-                  store.dispatch(addCertification(address, name, title, icon));
-                }
-              });
-          })
-          .catch((err) => {
-            if (err) {
-              console.error(`Failed to check if ${address} certified by ${name}:`, err);
+    const fetchConfirmedEvents = (dispatch) => {
+      if (certifiers.length === 0 || accounts.length === 0) return;
+      api.eth.getLogs({
+        fromBlock: 0,
+        toBlock: 'latest',
+        address: certifiers.map((c) => c.address),
+        topics: [ [ Confirmed.signature, Revoked.signature ], accounts ]
+      })
+        .then((logs) => contract.parseEventLogs(logs))
+        .then((logs) => {
+          logs.forEach((log) => {
+            const certifier = certifiers.find((c) => c.address === log.address);
+            if (!certifier) {
+              throw new Error(`Could not find certifier at ${log.address}.`);
+            }
+            const { id, name, title, icon } = certifier;
+
+            if (log.event === 'Revoked') {
+              dispatch(removeCertification(log.params.who.value, id));
+            } else {
+              dispatch(addCertification(log.params.who.value, id, name, title, icon));
             }
           });
-      });
+        })
+        .catch((err) => {
+          console.error('Failed to fetch Confirmed events:', err);
+        });
+    };
+
+    return (store) => (next) => (action) => {
+      switch (action.type) {
+        case 'fetchCertifiers':
+          badgeReg.certifierCount().then((count) => {
+            new Array(+count).fill(null).forEach((_, id) => {
+              badgeReg.fetchCertifier(id)
+                .then((cert) => {
+                  if (!certifiers.some((c) => c.id === cert.id)) {
+                    certifiers = certifiers.concat(cert);
+                    fetchConfirmedEvents(store.dispatch);
+                  }
+                })
+                .catch((err) => {
+                  console.warn(`Could not fetch certifier ${id}:`, err);
+                });
+            });
+          });
+
+          break;
+        case 'fetchCertifications':
+          const { address } = action;
+
+          if (!accounts.includes(address)) {
+            accounts = accounts.concat(address);
+            fetchConfirmedEvents(store.dispatch);
+          }
+
+          break;
+        case 'setVisibleAccounts':
+          const { addresses } = action;
+          accounts = uniq(accounts.concat(addresses));
+          fetchConfirmedEvents(store.dispatch);
+
+          break;
+        default:
+          next(action);
+      }
     };
   }
 }

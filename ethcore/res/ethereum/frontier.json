@@ -1,5 +1,6 @@
 {
 	"name": "Frontier/Homestead",
+	"dataDir": "ethereum",
 	"engine": {
 		"Ethash": {
 			"params": {
