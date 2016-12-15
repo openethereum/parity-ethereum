@@ -20,7 +20,7 @@ use std::fmt;
 use serde::{Serialize, Serializer};
 use util::log::Colour;
 
-use v1::types::{U256, TransactionRequest, RichRawTransaction, H160, H256, H520, Bytes};
+use v1::types::{U256, TransactionRequest, RichRawTransaction, H160, H256, H520, Bytes, BlockNumber};
 use v1::helpers;
 
 /// Confirmation waiting in a queue
@@ -195,7 +195,7 @@ pub struct TransactionModification {
 	pub gas: Option<U256>,
 	/// Modified min block
 	#[serde(rename="minBlock")]
-	pub min_block: Option<Option<u64>>,
+	pub min_block: Option<Option<BlockNumber>>,
 }
 
 /// Represents two possible return values.
@@ -237,7 +237,7 @@ impl<A, B> Serialize for Either<A, B>  where
 mod tests {
 	use std::str::FromStr;
 	use serde_json;
-	use v1::types::{U256, H256};
+	use v1::types::{U256, H256, BlockNumber};
 	use v1::helpers;
 	use super::*;
 
@@ -330,7 +330,7 @@ mod tests {
 		// given
 		let s1 = r#"{
 			"gasPrice":"0xba43b7400",
-			"minBlock":42
+			"minBlock":"0x42"
 		}"#;
 		let s2 = r#"{"gas": "0x1233"}"#;
 		let s3 = r#"{}"#;
@@ -344,7 +344,7 @@ mod tests {
 		assert_eq!(res1, TransactionModification {
 			gas_price: Some(U256::from_str("0ba43b7400").unwrap()),
 			gas: None,
-			min_block: Some(Some(42)),
+			min_block: Some(Some(BlockNumber::Num(0x42))),
 		});
 		assert_eq!(res2, TransactionModification {
 			gas_price: None,

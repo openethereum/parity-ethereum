@@ -19,7 +19,7 @@ use ethcore::miner;
 use ethcore::contract_address;
 use ethcore::transaction::{LocalizedTransaction, Action, PendingTransaction, SignedTransaction};
 use v1::helpers::errors;
-use v1::types::{Bytes, H160, H256, U256, H512};
+use v1::types::{Bytes, H160, H256, U256, H512, BlockNumber};
 
 /// Transaction
 #[derive(Debug, Default, Clone, PartialEq, Serialize)]
@@ -71,7 +71,7 @@ pub struct Transaction {
 	pub s: U256,
 	/// Transaction activates at specified block.
 	#[serde(rename="minBlock")]
-	pub min_block: Option<u64>,
+	pub min_block: Option<BlockNumber>,
 }
 
 /// Local Transaction Status
@@ -232,7 +232,7 @@ impl From<SignedTransaction> for Transaction {
 impl From<PendingTransaction> for Transaction {
 	fn from(t: PendingTransaction) -> Transaction {
 		let mut r = Transaction::from(t.transaction);
-		r.min_block = t.min_block;
+		r.min_block = t.min_block.map(|b| BlockNumber::Num(b));
 		r
 	}
 }

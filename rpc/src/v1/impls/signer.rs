@@ -82,8 +82,8 @@ impl<C: 'static, M: 'static> SignerClient<C, M> where C: MiningBlockChainClient,
 				if let Some(gas) = modification.gas {
 					request.gas = gas.into();
 				}
-				if let Some(min_block) = modification.min_block {
-					request.min_block = min_block;
+				if let Some(ref min_block) = modification.min_block {
+					request.min_block = min_block.as_ref().and_then(|b| b.to_min_block_num());
 				}
 			}
 			let result = f(&*client, &*miner, &*accounts, payload);
