@@ -100,6 +100,7 @@ impl AsMillis for Duration {
 impl AuthorityRound {
 	/// Create a new instance of AuthorityRound engine.
 	pub fn new(params: CommonParams, our_params: AuthorityRoundParams, builtins: BTreeMap<Address, Builtin>) -> Result<Arc<Self>, Error> {
+		let should_timeout = our_params.start_step.is_none();
 		let initial_step = our_params.start_step.unwrap_or_else(|| (unix_now().as_secs() / our_params.step_duration.as_secs())) as usize;
 		let engine = Arc::new(
 			AuthorityRound {
@@ -113,8 +114,11 @@ impl AuthorityRound {
 				account_provider: Mutex::new(None),
 				password: RwLock::new(None),
 			});
-		let handler = TransitionHandler { engine: Arc::downgrade(&engine) };
-		try!(engine.transition_service.register_handler(Arc::new(handler)));
+		// Do not initialize timeouts for tests.
+		if should_timeout {
+			let handler = TransitionHandler { engine: Arc::downgrade(&engine) };
+			try!(engine.transition_service.register_handler(Arc::new(handler)));
+		}
 		Ok(engine)
 	}
 
