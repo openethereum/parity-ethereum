@@ -21,7 +21,7 @@ import { Form, Input } from '~/ui';
 
 import styles from '../createAccount.css';
 
-import { ERRORS } from '../NewAccount';
+import ERRORS from '../errors';
 
 export default class RecoveryPhrase extends Component {
   static propTypes = {
