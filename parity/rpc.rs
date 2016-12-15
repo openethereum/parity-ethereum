@@ -19,12 +19,14 @@ use std::sync::Arc;
 use std::net::SocketAddr;
 use std::io;
 use io::PanicHandler;
+
+use dir::default_data_path;
 use ethcore_rpc::{self as rpc, RpcServerError, IpcServerError, Metadata};
-use rpc_apis;
-use rpc_apis::ApiSet;
 use helpers::parity_ipc_path;
 use jsonrpc_core::MetaIoHandler;
 use jsonrpc_core::reactor::{RpcHandler, Remote};
+use rpc_apis;
+use rpc_apis::ApiSet;
 
 pub use ethcore_rpc::{IpcServer, Server as HttpServer};
 
@@ -60,9 +62,10 @@ pub struct IpcConfiguration {
 
 impl Default for IpcConfiguration {
 	fn default() -> Self {
+		let data_dir = default_data_path();
 		IpcConfiguration {
 			enabled: true,
-			socket_addr: parity_ipc_path("$HOME/.parity/jsonrpc.ipc"),
+			socket_addr: parity_ipc_path(&data_dir, "$DATA/jsonrpc.ipc"),
 			apis: ApiSet::IpcContext,
 		}
 	}

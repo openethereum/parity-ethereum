@@ -18,7 +18,6 @@ use std::{fs, io};
 use std::path::{PathBuf, Path};
 use std::collections::HashMap;
 use time;
-use ethkey::Address;
 use {json, SafeAccount, Error};
 use json::Uuid;
 use super::KeyDirectory;
@@ -106,6 +105,11 @@ impl KeyDirectory for DiskDirectory {
 		Ok(accounts)
 	}
 
+	fn update(&self, account: SafeAccount) -> Result<SafeAccount, Error> {
+		// Disk store handles updates correctly iff filename is the same
+		self.insert(account)
+	}
+
 	fn insert(&self, account: SafeAccount) -> Result<SafeAccount, Error> {
 		// transform account into key file
 		let keyfile: json::KeyFile = account.clone().into();
@@ -138,12 +142,12 @@ impl KeyDirectory for DiskDirectory {
 		Ok(account)
 	}
 
-	fn remove(&self, address: &Address) -> Result<(), Error> {
+	fn remove(&self, account: &SafeAccount) -> Result<(), Error> {
 		// enumerate all entries in keystore
 		// and find entry with given address
 		let to_remove = try!(self.files())
 			.into_iter()
-			.find(|&(_, ref account)| &account.address == address);
+			.find(|&(_, ref acc)| acc == account);
 
 		// remove it
 		match to_remove {

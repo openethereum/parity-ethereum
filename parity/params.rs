@@ -49,7 +49,7 @@ impl str::FromStr for SpecType {
 		let spec = match s {
 			"frontier" | "homestead" | "mainnet" => SpecType::Mainnet,
 			"frontier-dogmatic" | "homestead-dogmatic" | "classic" => SpecType::Classic,
-			"morden" | "testnet" => SpecType::Testnet,
+			"morden" | "testnet" | "classic-testnet" => SpecType::Testnet,
 			"ropsten" => SpecType::Ropsten,
 			"olympic" => SpecType::Olympic,
 			"expanse" => SpecType::Expanse,
@@ -74,6 +74,14 @@ impl SpecType {
 				let file = try!(fs::File::open(filename).map_err(|_| "Could not load specification file."));
 				Spec::load(file)
 			}
+		}
+	}
+
+	pub fn legacy_fork_name(&self) -> Option<String> {
+		match *self {
+			SpecType::Classic => Some("classic".to_owned()),
+			SpecType::Expanse => Some("expanse".to_owned()),
+			_ => None,
 		}
 	}
 }
@@ -288,6 +296,8 @@ mod tests {
 		assert_eq!(SpecType::Testnet, "morden".parse().unwrap());
 		assert_eq!(SpecType::Ropsten, "ropsten".parse().unwrap());
 		assert_eq!(SpecType::Olympic, "olympic".parse().unwrap());
+		assert_eq!(SpecType::Classic, "classic".parse().unwrap());
+		assert_eq!(SpecType::Testnet, "classic-testnet".parse().unwrap());
 	}
 
 	#[test]

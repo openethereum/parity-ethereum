@@ -76,7 +76,8 @@ impl<C, M> SigningUnsafeClient<C, M> where
 		let accounts = take_weak!(self.accounts);
 
 		let payload = dispatch::from_rpc(payload, &*client, &*miner);
-		dispatch::execute(&*client, &*miner, &*accounts, payload, None)
+		dispatch::execute(&*client, &*miner, &*accounts, payload, dispatch::SignWith::Nothing)
+			.map(|v| v.into_value())
 	}
 }
 
