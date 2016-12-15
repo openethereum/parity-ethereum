@@ -19,7 +19,7 @@ extern crate ethstore;
 
 mod util;
 
-use ethstore::{SecretStore, EthStore};
+use ethstore::{EthStore, SimpleSecretStore};
 use ethstore::ethkey::{Random, Generator, Secret, KeyPair, verify_address};
 use ethstore::dir::DiskDirectory;
 use util::TransientDir;

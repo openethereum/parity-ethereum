@@ -18,11 +18,13 @@ use ethcore::ethstore::{PresaleWallet, EthStore};
 use ethcore::ethstore::dir::DiskDirectory;
 use ethcore::account_provider::AccountProvider;
 use helpers::{password_prompt, password_from_file};
+use params::SpecType;
 
 #[derive(Debug, PartialEq)]
 pub struct ImportWallet {
 	pub iterations: u32,
 	pub path: String,
+	pub spec: SpecType,
 	pub wallet_path: String,
 	pub password_file: Option<String>,
 }

@@ -19,6 +19,7 @@
 use spec::Ethash;
 use spec::BasicAuthority;
 use spec::AuthorityRound;
+use spec::Tendermint;
 
 /// Engine deserialization.
 #[derive(Debug, PartialEq, Deserialize)]
@@ -33,6 +34,8 @@ pub enum Engine {
 	BasicAuthority(BasicAuthority),
 	/// AuthorityRound engine.
 	AuthorityRound(AuthorityRound),
+	/// Tendermint engine.
+	Tendermint(Tendermint)
 }
 
 #[cfg(test)]

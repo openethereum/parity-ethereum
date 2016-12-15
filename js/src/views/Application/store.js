@@ -16,13 +16,16 @@
 
 import { action, observable } from 'mobx';
 
-const showFirstRun = window.localStorage.getItem('showFirstRun') !== '0';
-
 export default class Store {
-  @observable firstrunVisible = showFirstRun;
+  @observable firstrunVisible = false;
 
   constructor (api) {
     this._api = api;
+
+    const value = window.localStorage.getItem('showFirstRun');
+    if (value) {
+      this.firstrunVisible = JSON.parse(value);
+    }
 
     this._checkAccounts();
   }
@@ -33,7 +36,7 @@ export default class Store {
 
   @action toggleFirstrun = (visible = false) => {
     this.firstrunVisible = visible;
-    window.localStorage.setItem('showFirstRun', visible ? '1' : '0');
+    window.localStorage.setItem('showFirstRun', JSON.stringify(!!visible));
   }
 
   _checkAccounts () {

@@ -64,9 +64,17 @@ impl FromStr for DataFormat {
 
 #[derive(Debug, PartialEq)]
 pub enum BlockchainCmd {
+	Kill(KillBlockchain),
 	Import(ImportBlockchain),
 	Export(ExportBlockchain),
 	ExportState(ExportState),
+}
+
+#[derive(Debug, PartialEq)]
+pub struct KillBlockchain {
+	pub spec: SpecType,
+	pub dirs: Directories,
+	pub pruning: Pruning,
 }
 
 #[derive(Debug, PartialEq)]
@@ -128,6 +136,7 @@ pub struct ExportState {
 
 pub fn execute(cmd: BlockchainCmd) -> Result<String, String> {
 	match cmd {
+		BlockchainCmd::Kill(kill_cmd) => kill_db(kill_cmd),
 		BlockchainCmd::Import(import_cmd) => execute_import(import_cmd),
 		BlockchainCmd::Export(export_cmd) => execute_export(export_cmd),
 		BlockchainCmd::ExportState(export_cmd) => execute_export_state(export_cmd),
@@ -140,9 +149,6 @@ fn execute_import(cmd: ImportBlockchain) -> Result<String, String> {
 	// Setup panic handler
 	let panic_handler = PanicHandler::new_in_arc();
 
-	// create dirs used by parity
-	try!(cmd.dirs.create_dirs(false, false));
-
 	// load spec file
 	let spec = try!(cmd.spec.spec());
 
@@ -150,7 +156,7 @@ fn execute_import(cmd: ImportBlockchain) -> Result<String, String> {
 	let genesis_hash = spec.genesis_header().hash();
 
 	// database paths
-	let db_dirs = cmd.dirs.database(genesis_hash, spec.fork_name.clone());
+	let db_dirs = cmd.dirs.database(genesis_hash, None, spec.data_dir.clone());
 
 	// user defaults path
 	let user_defaults_path = db_dirs.user_defaults_path();
@@ -174,7 +180,10 @@ fn execute_import(cmd: ImportBlockchain) -> Result<String, String> {
 	let snapshot_path = db_dirs.snapshot_path();
 
 	// execute upgrades
-	try!(execute_upgrades(&db_dirs, algorithm, cmd.compaction.compaction_profile(db_dirs.fork_path().as_path())));
+	try!(execute_upgrades(&db_dirs, algorithm, cmd.compaction.compaction_profile(db_dirs.db_root_path().as_path())));
+
+	// create dirs used by parity
+	try!(cmd.dirs.create_dirs(false, false));
 
 	// prepare client config
 	let mut client_config = to_client_config(
@@ -311,9 +320,6 @@ fn start_client(
 	wal: bool,
 	cache_config: CacheConfig) -> Result<ClientService, String> {
 
-	// create dirs used by parity
-	try!(dirs.create_dirs(false, false));
-
 	// load spec file
 	let spec = try!(spec.spec());
 
@@ -321,7 +327,7 @@ fn start_client(
 	let genesis_hash = spec.genesis_header().hash();
 
 	// database paths
-	let db_dirs = dirs.database(genesis_hash, spec.fork_name.clone());
+	let db_dirs = dirs.database(genesis_hash, None, spec.data_dir.clone());
 
 	// user defaults path
 	let user_defaults_path = db_dirs.user_defaults_path();
@@ -345,7 +351,10 @@ fn start_client(
 	let snapshot_path = db_dirs.snapshot_path();
 
 	// execute upgrades
-	try!(execute_upgrades(&db_dirs, algorithm, compaction.compaction_profile(db_dirs.fork_path().as_path())));
+	try!(execute_upgrades(&db_dirs, algorithm, compaction.compaction_profile(db_dirs.db_root_path().as_path())));
+
+	// create dirs used by parity
+	try!(dirs.create_dirs(false, false));
 
 	// prepare client config
 	let client_config = to_client_config(&cache_config, Mode::Active, tracing, fat_db, compaction, wal, VMType::default(), "".into(), algorithm, pruning_history, true);
@@ -471,6 +480,18 @@ fn execute_export_state(cmd: ExportState) -> Result<String, String> {
 	}
 	out.write_fmt(format_args!("\n]}}")).expect("Write error");
 	Ok("Export completed.".into())
+}
+
+pub fn kill_db(cmd: KillBlockchain) -> Result<String, String> {
+	let spec = try!(cmd.spec.spec());
+	let genesis_hash = spec.genesis_header().hash();
+	let db_dirs = cmd.dirs.database(genesis_hash, None, spec.data_dir);
+	let user_defaults_path = db_dirs.user_defaults_path();
+	let user_defaults = try!(UserDefaults::load(&user_defaults_path));
+	let algorithm = cmd.pruning.to_algorithm(&user_defaults);
+	let dir = db_dirs.db_path(algorithm);
+	try!(fs::remove_dir_all(&dir).map_err(|e| format!("Error removing database: {:?}", e)));
+	Ok("Database deleted.".to_owned())
 }
 
 #[cfg(test)]

@@ -312,9 +312,8 @@ darwin:
     - stable
     - triggers
   script:
-    - cargo clean
-    - cargo build -j 8 --release -p ethstore #$CARGOFLAGS
     - cargo build -j 8 --release #$CARGOFLAGS
+    - cargo build -j 8 --release -p ethstore #$CARGOFLAGS
     - rm -rf parity.md5
     - md5sum target/release/parity > parity.md5
     - packagesbuild -v mac/Parity.pkgproj
