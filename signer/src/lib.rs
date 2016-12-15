@@ -52,13 +52,13 @@ extern crate ethcore_io as io;
 extern crate ethcore_rpc as rpc;
 extern crate jsonrpc_core;
 extern crate ws;
-#[cfg(test)]
+
 extern crate ethcore_devtools as devtools;
 
 mod authcode_store;
 mod ws_server;
-#[cfg(test)]
-mod tests;
 
+/// Exported tests for use in signer RPC client testing
+pub mod tests;
 pub use authcode_store::*;
 pub use ws_server::*;
