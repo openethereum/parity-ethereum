@@ -118,13 +118,9 @@ impl AuthorityRound {
 		Ok(engine)
 	}
 
-	fn step(&self) -> usize {
-		self.step.load(AtomicOrdering::SeqCst)
-	}
-
 	fn remaining_step_duration(&self) -> Duration {
 		let now = unix_now();
-		let step_end = self.our_params.step_duration * (self.step() as u32 + 1);
+		let step_end = self.our_params.step_duration * (self.step.load(AtomicOrdering::SeqCst) as u32 + 1);
 		if step_end > now {
 			step_end - now
 		} else {
@@ -228,7 +224,7 @@ impl Engine for AuthorityRound {
 	fn generate_seal(&self, block: &ExecutedBlock) -> Seal {
 		if self.proposed.load(AtomicOrdering::SeqCst) { return Seal::None; }
 		let header = block.header();
-		let step = self.step();
+		let step = self.step.load(AtomicOrdering::SeqCst);
 		if self.is_step_proposer(step, header.author()) {
 			if let Some(ref ap) = *self.account_provider.lock() {
 				// Account should be permanently unlocked, otherwise sealing will fail.
@@ -265,7 +261,7 @@ impl Engine for AuthorityRound {
 	fn verify_block_unordered(&self, header: &Header, _block: Option<&[u8]>) -> Result<(), Error> {
 		let header_step = try!(header_step(header));
 		// Give one step slack if step is lagging, double vote is still not possible.
-		if header_step <= self.step() + 1 {
+		if header_step <= self.step.load(AtomicOrdering::SeqCst) + 1 {
 			let proposer_signature = try!(header_signature(header));
 			let ok_sig = try!(verify_address(self.step_proposer(header_step), &proposer_signature, &header.bare_hash()));
 			if ok_sig {
