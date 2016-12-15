@@ -23,6 +23,8 @@ import VerificationStore, {
 } from './store';
 import { postToServer } from '../../3rdparty/email-verification';
 
+const EMAIL_VERIFICATION = 4; // id in the `BadgeReg.sol` contract
+
 export default class EmailVerificationStore extends VerificationStore {
   @observable email = '';
 
@@ -54,7 +56,7 @@ export default class EmailVerificationStore extends VerificationStore {
   }
 
   constructor (api, account, isTestnet) {
-    super(api, EmailVerificationABI, 4, account, isTestnet);
+    super(api, EmailVerificationABI, EMAIL_VERIFICATION, account, isTestnet);
   }
 
   requestValues = () => [ sha3(this.email) ]
