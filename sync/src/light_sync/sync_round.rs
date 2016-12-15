@@ -183,8 +183,6 @@ impl Fetcher {
 
 				let subchain_parent = request.subchain_parent.1;
 
-				// TODO: check subchain parent and punish peers who did framing
-				// if it's inaccurate.
 				if request.headers_request.max == 0 {
 					if parent_hash.map_or(true, |hash| hash != subchain_parent) {
 						let abort = AbortReason::BadScaffold(self.scaffold_contributors);
@@ -198,6 +196,18 @@ impl Fetcher {
 				(SyncRound::Fetch(self))
 			}
 		}
+	}
+
+	fn requests_abandoned(mut self, abandoned: &[ReqId]) -> SyncRound {
+		for abandoned in abandoned {
+			match self.pending.remove(abandoned) {
+				None => {},
+				Some(req) => self.requests.push(req),
+			}
+		}
+
+		// TODO: track failure rate and potentially abort.
+		SyncRound::Fetch(self)
 	}
 }
 
@@ -223,6 +233,22 @@ impl RoundStart {
 		}
 	}
 
+	// called on failed attempt. may trigger a transition.
+	fn failed_attempt(mut self) -> SyncRound {
+		self.attempt += 1;
+
+		if self.attempt >= SCAFFOLD_ATTEMPTS {
+			if self.sparse_headers.len() > 1 {
+				let fetcher = Fetcher::new(self.sparse_headers, self.contributors.into_iter().collect());
+				SyncRound::Fetch(fetcher)
+			} else {
+				SyncRound::Abort(AbortReason::NoResponses)
+			}
+		} else {
+			SyncRound::Start(self)
+		}
+	}
+
 	fn process_response<R: ResponseContext>(mut self, ctx: &R) -> SyncRound {
 		let req = match self.pending_req.take() {
 			Some((id, ref req)) if ctx.req_id() == id => { req.clone() }
@@ -232,7 +258,6 @@ impl RoundStart {
 			}
 		};
 
-		self.attempt += 1;
 		match response::decode_and_verify(ctx.data(), &req) {
 			Ok(headers) => {
 				self.contributors.insert(ctx.responder());
@@ -252,15 +277,21 @@ impl RoundStart {
 			}
 		};
 
-		if self.attempt >= SCAFFOLD_ATTEMPTS {
-			if self.sparse_headers.len() > 1 {
-				let fetcher = Fetcher::new(self.sparse_headers, self.contributors.into_iter().collect());
-				SyncRound::Fetch(fetcher)
-			} else {
-				SyncRound::Abort(AbortReason::NoResponses)
+		self.failed_attempt()
+	}
+
+	fn requests_abandoned(mut self, abandoned: &[ReqId]) -> SyncRound {
+		match self.pending_req.take() {
+			Some((id, req)) => {
+				if abandoned.iter().any(|r| r == &id) {
+					self.pending_req = None;
+					self.failed_attempt()
+				} else {
+					self.pending_req = Some((id, req));
+					SyncRound::Start(self)
+				}
 			}
-		} else {
-			SyncRound::Start(self)
+			None => SyncRound::Start(self),
 		}
 	}
 }
@@ -293,7 +324,11 @@ impl SyncRound {
 
 	/// Return unfulfilled requests from disconnected peer. Unknown requests will be ignored.
 	pub fn requests_abandoned(self, abandoned: &[ReqId]) -> Self {
-		unimplemented!()
+		match self {
+			SyncRound::Start(round_start) => round_start.requests_abandoned(abandoned),
+			SyncRound::Fetch(fetcher) => fetcher.requests_abandoned(abandoned),
+			other => other,
+		}
 	}
 
 	/// Dispatch pending requests. The dispatcher provided will attempt to
