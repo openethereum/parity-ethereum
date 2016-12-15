@@ -234,7 +234,7 @@ class WriteContract extends Component {
         <div className={ styles.panel }>
           <div className={ styles.centeredMessage }>
             <p>Unfortuantely, an error occurred...</p>
-            <div className={ styles.error }>{ workerError }</div>
+            <div className={ styles.error }>{ workerError.toString() }</div>
           </div>
         </div>
       );
