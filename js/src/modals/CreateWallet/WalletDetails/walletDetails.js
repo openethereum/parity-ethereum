@@ -105,7 +105,7 @@ export default class WalletDetails extends Component {
           value={ wallet.owners.slice() }
           onChange={ this.onOwnersChange }
           accounts={ accounts }
-          param={ parseAbiType('address[]') }
+          param='address[]'
         />
 
         <div className={ styles.splitInput }>
@@ -115,7 +115,7 @@ export default class WalletDetails extends Component {
             value={ wallet.required }
             error={ errors.required }
             onChange={ this.onRequiredChange }
-            param={ parseAbiType('uint') }
+            param='uint'
             min={ 1 }
             max={ wallet.owners.length + 1 }
           />
@@ -126,7 +126,7 @@ export default class WalletDetails extends Component {
             value={ wallet.daylimit }
             error={ errors.daylimit }
             onChange={ this.onDaylimitChange }
-            param={ parseAbiType('uint') }
+            param='uint'
             isEth
           />
         </div>

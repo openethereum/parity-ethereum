@@ -162,7 +162,8 @@ export default class DetailsStep extends Component {
             error={ valuesError[index] }
             onChange={ onChange }
             accounts={ accounts }
-            param={ parseAbiType(input.type) }
+            param={ input.type }
+            isEth={ false }
           />
         </div>
       );
