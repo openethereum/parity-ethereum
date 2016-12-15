@@ -65,7 +65,7 @@ impl RpcHandler {
 }
 
 impl Handler for RpcHandler {
-    fn build_request(&mut self, url: &Url) -> WsResult<Request> {
+	fn build_request(&mut self, url: &Url) -> WsResult<Request> {
 		match Request::from_url(url) {
 			Ok(mut r) => {
 				let timestamp = try!(time::UNIX_EPOCH.elapsed().map_err(|err| {
@@ -80,14 +80,14 @@ impl Handler for RpcHandler {
 			Err(e) =>
 				Err(WsError::new(WsErrorKind::Internal, format!("{}", e))),
 		}
-    }
-    fn on_error(&mut self, err: WsError) {
+	}
+	fn on_error(&mut self, err: WsError) {
 		match self.complete.take() {
 			Some(c) => c.complete(Err(RpcError::WsError(err))),
 			None => println!("unexpected error: {}", err),
 		}
-    }
-    fn on_open(&mut self, _: Handshake) -> WsResult<()> {
+	}
+	fn on_open(&mut self, _: Handshake) -> WsResult<()> {
 		match (self.complete.take(), self.out.take()) {
 			(Some(c), Some(out)) => {
 				c.complete(Ok(Rpc {
@@ -103,7 +103,7 @@ impl Handler for RpcHandler {
 			}
 		}
 	}
-    fn on_message(&mut self, msg: Message) -> WsResult<()> {
+	fn on_message(&mut self, msg: Message) -> WsResult<()> {
 		let ret: Result<JsonValue, JsonRpcError>;
 		let response_id;
 		let string = &msg.to_string();
@@ -147,7 +147,7 @@ impl Handler for RpcHandler {
 			),
 		}
 		Ok(())
-    }
+	}
 }
 
 /// Keeping track of issued requests to be matched up with responses
