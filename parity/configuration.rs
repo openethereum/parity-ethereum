@@ -1060,8 +1060,8 @@ mod tests {
 		// when
 		let conf0 = parse(&["parity", "--release-track=testing"]);
 		let conf1 = parse(&["parity", "--auto-update", "all", "--no-consensus"]);
-		let conf2 = parse(&["parity", "--no-download", "--auto-update=all"]);
-		let conf3 = parse(&["parity", "--auto-update=xxx", "--release-track=beta"]);
+		let conf2 = parse(&["parity", "--no-download", "--auto-update=all", "--release-track=beta"]);
+		let conf3 = parse(&["parity", "--auto-update=xxx"]);
 
 		// then
 		assert_eq!(conf0.update_policy().unwrap(), UpdatePolicy{enable_downloading: true, require_consensus: true, filter: UpdateFilter::Critical, track: ReleaseTrack::Testing});
