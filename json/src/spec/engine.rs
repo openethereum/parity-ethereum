@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -19,6 +19,7 @@
 use spec::Ethash;
 use spec::BasicAuthority;
 use spec::AuthorityRound;
+use spec::Tendermint;
 
 /// Engine deserialization.
 #[derive(Debug, PartialEq, Deserialize)]
@@ -33,6 +34,8 @@ pub enum Engine {
 	BasicAuthority(BasicAuthority),
 	/// AuthorityRound engine.
 	AuthorityRound(AuthorityRound),
+	/// Tendermint engine.
+	Tendermint(Tendermint)
 }
 
 #[cfg(test)]

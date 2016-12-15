@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -14,12 +14,12 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use ethkey::Address;
 use std::path::{PathBuf};
 use {SafeAccount, Error};
 
 mod disk;
 mod geth;
+mod memory;
 mod parity;
 
 pub enum DirectoryType {
@@ -30,10 +30,12 @@ pub enum DirectoryType {
 pub trait KeyDirectory: Send + Sync {
 	fn load(&self) -> Result<Vec<SafeAccount>, Error>;
 	fn insert(&self, account: SafeAccount) -> Result<SafeAccount, Error>;
-	fn remove(&self, address: &Address) -> Result<(), Error>;
+	fn update(&self, account: SafeAccount) -> Result<SafeAccount, Error>;
+	fn remove(&self, account: &SafeAccount) -> Result<(), Error>;
 	fn path(&self) -> Option<&PathBuf> { None }
 }
 
 pub use self::disk::DiskDirectory;
 pub use self::geth::GethDirectory;
+pub use self::memory::MemoryDirectory;
 pub use self::parity::ParityDirectory;

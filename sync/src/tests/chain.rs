@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use util::*;
-use ethcore::client::{TestBlockChainClient, BlockChainClient, BlockID, EachBlockWith};
+use ethcore::client::{TestBlockChainClient, BlockChainClient, BlockId, EachBlockWith};
 use chain::{SyncState};
 use super::helpers::*;
 use SyncConfig;
@@ -27,7 +27,7 @@ fn two_peers() {
 	net.peer(1).chain.add_blocks(1000, EachBlockWith::Uncle);
 	net.peer(2).chain.add_blocks(1000, EachBlockWith::Uncle);
 	net.sync();
-	assert!(net.peer(0).chain.block(BlockID::Number(1000)).is_some());
+	assert!(net.peer(0).chain.block(BlockId::Number(1000)).is_some());
 	assert_eq!(*net.peer(0).chain.blocks.read(), *net.peer(1).chain.blocks.read());
 }
 
@@ -37,7 +37,7 @@ fn long_chain() {
 	let mut net = TestNet::new(2);
 	net.peer(1).chain.add_blocks(50000, EachBlockWith::Nothing);
 	net.sync();
-	assert!(net.peer(0).chain.block(BlockID::Number(50000)).is_some());
+	assert!(net.peer(0).chain.block(BlockId::Number(50000)).is_some());
 	assert_eq!(*net.peer(0).chain.blocks.read(), *net.peer(1).chain.blocks.read());
 }
 
@@ -71,7 +71,7 @@ fn empty_blocks() {
 		net.peer(2).chain.add_blocks(5, with);
 	}
 	net.sync();
-	assert!(net.peer(0).chain.block(BlockID::Number(1000)).is_some());
+	assert!(net.peer(0).chain.block(BlockId::Number(1000)).is_some());
 	assert_eq!(*net.peer(0).chain.blocks.read(), *net.peer(1).chain.blocks.read());
 }
 
@@ -101,7 +101,7 @@ fn forked_with_misbehaving_peer() {
 	::env_logger::init().ok();
 	let mut net = TestNet::new(3);
 	// peer 0 is on a totally different chain with higher total difficulty
-	net.peer_mut(0).chain = TestBlockChainClient::new_with_extra_data(b"fork".to_vec());
+	net.peer_mut(0).chain = Arc::new(TestBlockChainClient::new_with_extra_data(b"fork".to_vec()));
 	net.peer(0).chain.add_blocks(50, EachBlockWith::Nothing);
 	net.peer(1).chain.add_blocks(10, EachBlockWith::Nothing);
 	net.peer(2).chain.add_blocks(10, EachBlockWith::Nothing);
@@ -123,13 +123,13 @@ fn net_hard_fork() {
 	let ref_client = TestBlockChainClient::new();
 	ref_client.add_blocks(50, EachBlockWith::Uncle);
 	{
-		let mut net = TestNet::new_with_fork(2, Some((50, ref_client.block_hash(BlockID::Number(50)).unwrap())));
+		let mut net = TestNet::new_with_fork(2, Some((50, ref_client.block_hash(BlockId::Number(50)).unwrap())));
 		net.peer(0).chain.add_blocks(100, EachBlockWith::Uncle);
 		net.sync();
 		assert_eq!(net.peer(1).chain.chain_info().best_block_number, 100);
 	}
 	{
-		let mut net = TestNet::new_with_fork(2, Some((50, ref_client.block_hash(BlockID::Number(50)).unwrap())));
+		let mut net = TestNet::new_with_fork(2, Some((50, ref_client.block_hash(BlockId::Number(50)).unwrap())));
 		net.peer(0).chain.add_blocks(100, EachBlockWith::Nothing);
 		net.sync();
 		assert_eq!(net.peer(1).chain.chain_info().best_block_number, 0);

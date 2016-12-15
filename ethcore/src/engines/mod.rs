@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -20,11 +20,13 @@ mod null_engine;
 mod instant_seal;
 mod basic_authority;
 mod authority_round;
+mod tendermint;
 
 pub use self::null_engine::NullEngine;
 pub use self::instant_seal::InstantSeal;
 pub use self::basic_authority::BasicAuthority;
 pub use self::authority_round::AuthorityRound;
+pub use self::tendermint::Tendermint;
 
 use util::*;
 use account_provider::AccountProvider;
@@ -41,6 +43,47 @@ use transaction::SignedTransaction;
 use ethereum::ethash;
 use blockchain::extras::BlockDetails;
 use views::HeaderView;
+
+/// Voting errors.
+#[derive(Debug)]
+pub enum EngineError {
+	/// Signature does not belong to an authority.
+	NotAuthorized(Address),
+	/// The same author issued different votes at the same step.
+	DoubleVote(Address),
+	/// The received block is from an incorrect proposer.
+	NotProposer(Mismatch<Address>),
+	/// Message was not expected.
+	UnexpectedMessage,
+	/// Seal field has an unexpected size.
+	BadSealFieldSize(OutOfBounds<usize>),
+}
+
+impl fmt::Display for EngineError {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		use self::EngineError::*;
+		let msg = match *self {
+			DoubleVote(ref address) => format!("Author {} issued too many blocks.", address),
+			NotProposer(ref mis) => format!("Author is not a current proposer: {}", mis),
+			NotAuthorized(ref address) => format!("Signer {} is not authorized.", address),
+			UnexpectedMessage => "This Engine should not be fed messages.".into(),
+			BadSealFieldSize(ref oob) => format!("Seal field has an unexpected length: {}", oob),
+		};
+
+		f.write_fmt(format_args!("Engine error ({})", msg))
+	}
+}
+
+/// Seal type.
+#[derive(Debug, PartialEq, Eq)]
+pub enum Seal {
+	/// Proposal seal; should be broadcasted, but not inserted into blockchain.
+	Proposal(Vec<Bytes>),
+	/// Regular block seal; should be part of the blockchain.
+	Regular(Vec<Bytes>),
+	/// Engine does generate seal for this block right now.
+	None,
+}
 
 /// A consensus mechanism for the chain. Generally either proof-of-work or proof-of-stake-based.
 /// Provides hooks into each of the major parts of block import.
@@ -94,7 +137,7 @@ pub trait Engine : Sync + Send {
 	///
 	/// This operation is synchronous and may (quite reasonably) not be available, in which None will
 	/// be returned.
-	fn generate_seal(&self, _block: &ExecutedBlock) -> Option<Vec<Bytes>> { None }
+	fn generate_seal(&self, _block: &ExecutedBlock) -> Seal { Seal::None }
 
 	/// Phase 1 quick block verification. Only does checks that are cheap. `block` (the header's full block)
 	/// may be provided for additional checks. Returns either a null `Ok` or a general error detailing the problem with import.
@@ -125,12 +168,17 @@ pub trait Engine : Sync + Send {
 		self.verify_block_basic(header, None).and_then(|_| self.verify_block_unordered(header, None))
 	}
 
-	/// Don't forget to call Super::populate_from_parent when subclassing & overriding.
-	// TODO: consider including State in the params.
+	/// Populate a header's fields based on its parent's header.
+	/// Takes gas floor and ceiling targets.
+	/// The gas floor target must not be lower than the engine's minimum gas limit.
 	fn populate_from_parent(&self, header: &mut Header, parent: &Header, _gas_floor_target: U256, _gas_ceil_target: U256) {
 		header.set_difficulty(parent.difficulty().clone());
 		header.set_gas_limit(parent.gas_limit().clone());
 	}
+
+	/// Handle any potential consensus messages;
+	/// updating consensus state and potentially issuing a new one.
+	fn handle_message(&self, _message: &[u8]) -> Result<(), Error> { Err(EngineError::UnexpectedMessage.into()) }
 
 	// TODO: builtin contract routing - to do this properly, it will require removing the built-in configuration-reading logic
 	// from Spec into here and removing the Spec::builtins field.
@@ -152,8 +200,15 @@ pub trait Engine : Sync + Send {
 		ethash::is_new_best_block(best_total_difficulty, parent_details, new_header)
 	}
 
+	/// Find out if the block is a proposal block and should not be inserted into the DB.
+	/// Takes a header of a fully verified block.
+	fn is_proposal(&self, _verified_header: &Header) -> bool { false }
+
 	/// Register an account which signs consensus messages.
 	fn set_signer(&self, _address: Address, _password: String) {}
+
+	/// Stops any services that the may hold the Engine and makes it safe to drop.
+	fn stop(&self) {}
 
 	/// Add a channel for communication with Client which can be used for sealing.
 	fn register_message_channel(&self, _message_channel: IoChannel<ClientIoMessage>) {}

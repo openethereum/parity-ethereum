@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -25,7 +25,7 @@ use io::{PanicHandler, ForwardPanic};
 use util::{ToPretty, Uint, U256, H256, Address, Hashable};
 use rlp::PayloadInfo;
 use ethcore::service::ClientService;
-use ethcore::client::{Mode, DatabaseCompactionProfile, VMType, BlockImportError, BlockChainClient, BlockID};
+use ethcore::client::{Mode, DatabaseCompactionProfile, VMType, BlockImportError, BlockChainClient, BlockId};
 use ethcore::error::ImportError;
 use ethcore::miner::Miner;
 use ethcore::verification::queue::VerifierSettings;
@@ -101,8 +101,8 @@ pub struct ExportBlockchain {
 	pub wal: bool,
 	pub fat_db: Switch,
 	pub tracing: Switch,
-	pub from_block: BlockID,
-	pub to_block: BlockID,
+	pub from_block: BlockId,
+	pub to_block: BlockId,
 	pub check_seal: bool,
 }
 
@@ -119,7 +119,7 @@ pub struct ExportState {
 	pub wal: bool,
 	pub fat_db: Switch,
 	pub tracing: Switch,
-	pub at: BlockID,
+	pub at: BlockId,
 	pub storage: bool,
 	pub code: bool,
 	pub min_balance: Option<U256>,
@@ -384,7 +384,7 @@ fn execute_export(cmd: ExportBlockchain) -> Result<String, String> {
 		if i % 10000 == 0 {
 			info!("#{}", i);
 		}
-		let b = try!(client.block(BlockID::Number(i)).ok_or("Error exporting incomplete chain"));
+		let b = try!(client.block(BlockId::Number(i)).ok_or("Error exporting incomplete chain"));
 		match format {
 			DataFormat::Binary => { out.write(&b).expect("Couldn't write to stream."); }
 			DataFormat::Hex => { out.write_fmt(format_args!("{}", b.pretty())).expect("Couldn't write to stream."); }

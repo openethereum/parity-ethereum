@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -31,7 +31,7 @@ export default class Dapp extends Component {
     params: PropTypes.object
   };
 
-  store = new DappsStore(this.context.api);
+  store = DappsStore.get(this.context.api);
 
   render () {
     const { dappsUrl } = this.context.api;
@@ -51,9 +51,16 @@ export default class Dapp extends Component {
         src = `${dappsUrl}/${app.contentHash}/`;
         break;
       default:
-        const dapphost = process.env.NODE_ENV === 'production' && !app.secure
-          ? `${dappsUrl}/ui`
-          : '';
+        let dapphost = process.env.DAPPS_URL || (
+          process.env.NODE_ENV === 'production' && !app.secure
+            ? `${dappsUrl}/ui`
+            : ''
+        );
+
+        if (dapphost === '/') {
+          dapphost = '';
+        }
+
         src = `${dapphost}/${app.url}.html`;
         break;
     }

@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -28,7 +28,7 @@ module.exports = {
   context: path.join(__dirname, '../src'),
   entry: {
     // library
-    'inject': ['./web3.js'],
+    'inject': ['./inject.js'],
     'web3': ['./web3.js'],
     'parity': ['./parity.js']
   },

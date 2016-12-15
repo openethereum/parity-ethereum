@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -39,7 +39,10 @@ pub use self::bytes::Bytes;
 pub use self::block::{RichBlock, Block, BlockTransactions};
 pub use self::block_number::BlockNumber;
 pub use self::call_request::CallRequest;
-pub use self::confirmations::{ConfirmationPayload, ConfirmationRequest, ConfirmationResponse, TransactionModification, SignRequest, DecryptRequest, Either};
+pub use self::confirmations::{
+	ConfirmationPayload, ConfirmationRequest, ConfirmationResponse, ConfirmationResponseWithToken,
+	TransactionModification, SignRequest, DecryptRequest, Either
+};
 pub use self::dapp_id::DappId;
 pub use self::filter::{Filter, FilterChanges};
 pub use self::hash::{H64, H160, H256, H512, H520, H2048};

@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -30,7 +30,7 @@ use blockchain::BlockChain;
 use client::{BlockChainClient, Client};
 use engines::Engine;
 use error::Error;
-use ids::BlockID;
+use ids::BlockId;
 use service::ClientIoMessage;
 
 use io::IoChannel;
@@ -354,7 +354,7 @@ impl Service {
 		let writer = try!(LooseWriter::new(temp_dir.clone()));
 
 		let guard = Guard::new(temp_dir.clone());
-		let res = client.take_snapshot(writer, BlockID::Number(num), &self.progress);
+		let res = client.take_snapshot(writer, BlockId::Number(num), &self.progress);
 
 		self.taking_snapshot.store(false, Ordering::SeqCst);
 		if let Err(e) = res {

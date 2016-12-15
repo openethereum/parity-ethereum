@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -19,7 +19,7 @@ extern crate ethstore;
 
 mod util;
 
-use ethstore::{SecretStore, EthStore};
+use ethstore::{EthStore, SimpleSecretStore};
 use ethstore::ethkey::{Random, Generator, Secret, KeyPair, verify_address};
 use ethstore::dir::DiskDirectory;
 use util::TransientDir;

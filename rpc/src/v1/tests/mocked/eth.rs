@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -18,13 +18,13 @@ use std::str::FromStr;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Instant, Duration};
-use rustc_serialize::hex::ToHex;
+use rustc_serialize::hex::{FromHex, ToHex};
 use time::get_time;
 use rlp;
 
-use util::{Uint, U256, Address, H256, FixedHash, Mutex};
+use util::{Uint, U256, Address, H256, FixedHash, Mutex, Hashable};
 use ethcore::account_provider::AccountProvider;
-use ethcore::client::{TestBlockChainClient, EachBlockWith, Executed, TransactionID};
+use ethcore::client::{TestBlockChainClient, EachBlockWith, Executed, TransactionId};
 use ethcore::log_entry::{LocalizedLogEntry, LogEntry};
 use ethcore::receipt::LocalizedReceipt;
 use ethcore::transaction::{Transaction, Action};
@@ -294,8 +294,8 @@ fn rpc_eth_sign() {
 
 	let account = tester.accounts_provider.new_account("abcd").unwrap();
 	tester.accounts_provider.unlock_account_permanently(account, "abcd".into()).unwrap();
-	let message = H256::from("0x0cc175b9c0f1b6a831c399e26977266192eb5ffee6ae2fec3ad71c777531578f");
-	let signed = tester.accounts_provider.sign(account, None, message).unwrap();
+	let message = "0cc175b9c0f1b6a831c399e26977266192eb5ffee6ae2fec3ad71c777531578f".from_hex().unwrap();
+	let signed = tester.accounts_provider.sign(account, None, message.sha3()).unwrap();
 
 	let req = r#"{
 		"jsonrpc": "2.0",
@@ -959,7 +959,7 @@ fn rpc_eth_transaction_receipt() {
 
 	let hash = H256::from_str("b903239f8543d04b5dc1ba6579132b143087c68db1b2168786408fcbce568238").unwrap();
 	let tester = EthTester::default();
-	tester.client.set_transaction_receipt(TransactionID::Hash(hash), receipt);
+	tester.client.set_transaction_receipt(TransactionId::Hash(hash), receipt);
 
 	let request = r#"{
 		"jsonrpc": "2.0",

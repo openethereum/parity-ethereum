@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -101,6 +101,15 @@ impl Serialize for ConfirmationResponse {
 	}
 }
 
+/// Confirmation response with additional token for further requests
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct ConfirmationResponseWithToken {
+	/// Actual response
+	pub result: ConfirmationResponse,
+	/// New token
+	pub token: String,
+}
+
 /// Confirmation payload, i.e. the thing to be confirmed
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize)]
 pub enum ConfirmationPayload {
@@ -142,6 +151,8 @@ pub struct TransactionModification {
 	/// Modified gas price
 	#[serde(rename="gasPrice")]
 	pub gas_price: Option<U256>,
+	/// Modified gas
+	pub gas: Option<U256>,
 }
 
 /// Represents two possible return values.
@@ -183,7 +194,7 @@ impl<A, B> Serialize for Either<A, B>  where
 mod tests {
 	use std::str::FromStr;
 	use serde_json;
-	use v1::types::U256;
+	use v1::types::{U256, H256};
 	use v1::helpers;
 	use super::*;
 
@@ -275,19 +286,43 @@ mod tests {
 		let s1 = r#"{
 			"gasPrice":"0xba43b7400"
 		}"#;
-		let s2 = r#"{}"#;
+		let s2 = r#"{"gas": "0x1233"}"#;
+		let s3 = r#"{}"#;
 
 		// when
 		let res1: TransactionModification = serde_json::from_str(s1).unwrap();
 		let res2: TransactionModification = serde_json::from_str(s2).unwrap();
+		let res3: TransactionModification = serde_json::from_str(s3).unwrap();
 
 		// then
 		assert_eq!(res1, TransactionModification {
 			gas_price: Some(U256::from_str("0ba43b7400").unwrap()),
+			gas: None,
 		});
 		assert_eq!(res2, TransactionModification {
 			gas_price: None,
+			gas: Some(U256::from_str("1233").unwrap()),
 		});
+		assert_eq!(res3, TransactionModification {
+			gas_price: None,
+			gas: None,
+		});
+	}
+
+	#[test]
+	fn should_serialize_confirmation_response_with_token() {
+		// given
+		let response = ConfirmationResponseWithToken {
+			result: ConfirmationResponse::SendTransaction(H256::default()),
+			token: "test-token".into(),
+		};
+
+		// when
+		let res = serde_json::to_string(&response);
+		let expected = r#"{"result":"0x0000000000000000000000000000000000000000000000000000000000000000","token":"test-token"}"#;
+
+		// then
+		assert_eq!(res.unwrap(), expected.to_owned());
 	}
 }
 

@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -457,7 +457,6 @@ impl StateDB {
 
 #[cfg(test)]
 mod tests {
-
 	use util::{U256, H256, FixedHash, Address, DBTransaction};
 	use tests::helpers::*;
 	use state::Account;
@@ -531,4 +530,3 @@ mod tests {
 		assert!(s.get_cached_account(&address).is_none());
 	}
 }
-

@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -17,7 +17,7 @@
 //! Spec seal.
 
 use rlp::*;
-use util::hash::{H64, H256};
+use util::hash::{H64, H256, H520};
 use ethjson;
 
 /// Classic ethereum seal.
@@ -32,23 +32,35 @@ impl Into<Generic> for Ethereum {
 	fn into(self) -> Generic {
 		let mut s = RlpStream::new_list(2);
 		s.append(&self.mix_hash).append(&self.nonce);
-		Generic {
-			rlp: s.out()
-		}
+		Generic(s.out())
 	}
 }
 
-/// Generic seal.
-pub struct Generic {
-	/// Seal rlp.
-	pub rlp: Vec<u8>,
+/// AuthorityRound seal.
+pub struct AuthorityRound {
+	/// Seal step.
+	pub step: usize,
+	/// Seal signature.
+	pub signature: H520,
 }
+
+impl Into<Generic> for AuthorityRound {
+	fn into(self) -> Generic {
+		let mut s = RlpStream::new_list(2);
+		s.append(&self.step).append(&self.signature);
+		Generic(s.out())
+	}
+}
+
+pub struct Generic(pub Vec<u8>);
 
 /// Genesis seal type.
 pub enum Seal {
 	/// Classic ethereum seal.
 	Ethereum(Ethereum),
-	/// Generic seal.
+	/// AuthorityRound seal.
+	AuthorityRound(AuthorityRound),
+	/// Generic RLP seal.
 	Generic(Generic),
 }
 
@@ -59,9 +71,11 @@ impl From<ethjson::spec::Seal> for Seal {
 				nonce: eth.nonce.into(),
 				mix_hash: eth.mix_hash.into()
 			}),
-			ethjson::spec::Seal::Generic(g) => Seal::Generic(Generic {
-				rlp: g.rlp.into()
-			})
+			ethjson::spec::Seal::AuthorityRound(ar) => Seal::AuthorityRound(AuthorityRound {
+				step: ar.step.into(),
+				signature: ar.signature.into()
+			}),
+			ethjson::spec::Seal::Generic(g) => Seal::Generic(Generic(g.into())),
 		}
 	}
 }
@@ -70,7 +84,8 @@ impl Into<Generic> for Seal {
 	fn into(self) -> Generic {
 		match self {
 			Seal::Generic(generic) => generic,
-			Seal::Ethereum(eth) => eth.into()
+			Seal::Ethereum(eth) => eth.into(),
+			Seal::AuthorityRound(ar) => ar.into(),
 		}
 	}
 }

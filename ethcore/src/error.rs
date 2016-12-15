@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -24,6 +24,7 @@ use client::Error as ClientError;
 use ipc::binary::{BinaryConvertError, BinaryConvertable};
 use types::block_import_error::BlockImportError;
 use snapshot::Error as SnapshotError;
+use engines::EngineError;
 use ethkey::Error as EthkeyError;
 
 pub use types::executed::{ExecutionError, CallError};
@@ -167,8 +168,6 @@ pub enum BlockError {
 	UnknownParent(H256),
 	/// Uncle parent given is unknown.
 	UnknownUncleParent(H256),
-	/// The same author issued different votes at the same step.
-	DoubleVote(H160),
 }
 
 impl fmt::Display for BlockError {
@@ -202,7 +201,6 @@ impl fmt::Display for BlockError {
 			RidiculousNumber(ref oob) => format!("Implausible block number. {}", oob),
 			UnknownParent(ref hash) => format!("Unknown parent: {}", hash),
 			UnknownUncleParent(ref hash) => format!("Unknown uncle parent: {}", hash),
-			DoubleVote(ref address) => format!("Author {} issued too many blocks.", address),
 		};
 
 		f.write_fmt(format_args!("Block error ({})", msg))
@@ -263,6 +261,8 @@ pub enum Error {
 	Snappy(::util::snappy::InvalidInput),
 	/// Snapshot error.
 	Snapshot(SnapshotError),
+	/// Consensus vote error.
+	Engine(EngineError),
 	/// Ethkey error.
 	Ethkey(EthkeyError),
 }
@@ -285,6 +285,7 @@ impl fmt::Display for Error {
 			Error::StdIo(ref err) => err.fmt(f),
 			Error::Snappy(ref err) => err.fmt(f),
 			Error::Snapshot(ref err) => err.fmt(f),
+			Error::Engine(ref err) => err.fmt(f),
 			Error::Ethkey(ref err) => err.fmt(f),
 		}
 	}
@@ -380,6 +381,12 @@ impl From<SnapshotError> for Error {
 			SnapshotError::Decoder(err) => err.into(),
 			other => Error::Snapshot(other),
 		}
+	}
+}
+
+impl From<EngineError> for Error {
+	fn from(err: EngineError) -> Error {
+		Error::Engine(err)
 	}
 }
 

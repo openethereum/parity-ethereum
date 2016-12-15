@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -23,15 +23,15 @@ use account_provider::{AccountProvider, Error as AccountError};
 use views::{BlockView, HeaderView};
 use header::Header;
 use state::{State, CleanupMode};
-use client::{MiningBlockChainClient, Executive, Executed, EnvInfo, TransactOptions, BlockID, CallAnalytics, TransactionID};
+use client::{MiningBlockChainClient, Executive, Executed, EnvInfo, TransactOptions, BlockId, CallAnalytics, TransactionId};
 use client::TransactionImportResult;
 use executive::contract_address;
-use block::{ClosedBlock, SealedBlock, IsBlock, Block};
+use block::{ClosedBlock, IsBlock, Block};
 use error::*;
 use transaction::{Action, SignedTransaction};
 use receipt::{Receipt, RichReceipt};
 use spec::Spec;
-use engines::Engine;
+use engines::{Engine, Seal};
 use miner::{MinerService, MinerStatus, TransactionQueue, PrioritizationStrategy, AccountDetails, TransactionOrigin};
 use miner::banning_queue::{BanningTransactionQueue, Threshold};
 use miner::work_notify::WorkPoster;
@@ -466,34 +466,43 @@ impl Miner {
 		}
 	}
 
-	/// Attempts to perform internal sealing (one that does not require work) to return Ok(sealed),
-	/// Err(Some(block)) returns for unsuccesful sealing while Err(None) indicates misspecified engine.
-	fn seal_block_internally(&self, block: ClosedBlock) -> Result<SealedBlock, Option<ClosedBlock>> {
-		trace!(target: "miner", "seal_block_internally: attempting internal seal.");
-		let s = self.engine.generate_seal(block.block());
-		if let Some(seal) = s {
-			trace!(target: "miner", "seal_block_internally: managed internal seal. importing...");
-			block.lock().try_seal(&*self.engine, seal).or_else(|(e, _)| {
-				warn!("prepare_sealing: ERROR: try_seal failed when given internally generated seal: {}", e);
-				Err(None)
-			})
-		} else {
-			trace!(target: "miner", "seal_block_internally: unable to generate seal internally");
-			Err(Some(block))
-		}
-	}
-
-	/// Uses Engine to seal the block internally and then imports it to chain.
+	/// Attempts to perform internal sealing (one that does not require work) and handles the result depending on the type of Seal.
 	fn seal_and_import_block_internally(&self, chain: &MiningBlockChainClient, block: ClosedBlock) -> bool {
 		if !block.transactions().is_empty() || self.forced_sealing() {
-			if let Ok(sealed) = self.seal_block_internally(block) {
-				if chain.import_sealed_block(sealed).is_ok() {
-					trace!(target: "miner", "import_block_internally: imported internally sealed block");
-					return true
-				}
+			trace!(target: "miner", "seal_block_internally: attempting internal seal.");
+			match self.engine.generate_seal(block.block()) {
+				// Save proposal for later seal submission and broadcast it.
+				Seal::Proposal(seal) => {
+					trace!(target: "miner", "Received a Proposal seal.");
+					{
+						let mut sealing_work = self.sealing_work.lock();
+						sealing_work.queue.push(block.clone());
+						sealing_work.queue.use_last_ref();
+					}
+					block
+						.lock()
+						.seal(&*self.engine, seal)
+						.map(|sealed| { chain.broadcast_proposal_block(sealed); true })
+						.unwrap_or_else(|e| {
+							warn!("ERROR: seal failed when given internally generated seal: {}", e);
+							false
+						})
+				},
+				// Directly import a regular sealed block.
+				Seal::Regular(seal) =>
+					block
+						.lock()
+						.seal(&*self.engine, seal)
+						.map(|sealed| chain.import_sealed_block(sealed).is_ok())
+						.unwrap_or_else(|e| {
+							warn!("ERROR: seal failed when given internally generated seal: {}", e);
+							false
+						}),
+				Seal::None => false,
 			}
+		} else {
+			false
 		}
-		false
 	}
 
 	/// Prepares work which has to be done to seal.
@@ -585,7 +594,7 @@ impl Miner {
 		let best_block_header: Header = ::rlp::decode(&chain.best_block_header());
 		transactions.into_iter()
 			.map(|tx| {
-				if chain.transaction_block(TransactionID::Hash(tx.hash())).is_some() {
+				if chain.transaction_block(TransactionId::Hash(tx.hash())).is_some() {
 					debug!(target: "miner", "Rejected tx {:?}: already in the blockchain", tx.hash());
 					return Err(Error::Transaction(TransactionError::AlreadyImported));
 				}
@@ -701,7 +710,7 @@ impl MinerService for Miner {
 				Ok(ret)
 			},
 			None => {
-				chain.call(t, BlockID::Latest, analytics)
+				chain.call(t, BlockId::Latest, analytics)
 			}
 		}
 	}
@@ -1024,7 +1033,6 @@ impl MinerService for Miner {
 		self.transaction_queue.lock().last_nonce(address)
 	}
 
-
 	/// Update sealing if required.
 	/// Prepare the block and work if the Engine does not seal internally.
 	fn update_sealing(&self, chain: &MiningBlockChainClient) {
@@ -1039,7 +1047,9 @@ impl MinerService for Miner {
 			let (block, original_work_hash) = self.prepare_block(chain);
 			if self.seals_internally {
 				trace!(target: "miner", "update_sealing: engine indicates internal sealing");
-				self.seal_and_import_block_internally(chain, block);
+				if self.seal_and_import_block_internally(chain, block) {
+					trace!(target: "miner", "update_sealing: imported internally sealed block");
+				}
 			} else {
 				trace!(target: "miner", "update_sealing: engine does not seal internally, preparing work");
 				self.prepare_work(block, original_work_hash);
@@ -1092,20 +1102,6 @@ impl MinerService for Miner {
 	fn chain_new_blocks(&self, chain: &MiningBlockChainClient, _imported: &[H256], _invalid: &[H256], enacted: &[H256], retracted: &[H256]) {
 		trace!(target: "miner", "chain_new_blocks");
 
-		fn fetch_transactions(chain: &MiningBlockChainClient, hash: &H256) -> Vec<SignedTransaction> {
-			let block = chain
-				.block(BlockID::Hash(*hash))
-				// Client should send message after commit to db and inserting to chain.
-				.expect("Expected in-chain blocks.");
-			let block = BlockView::new(&block);
-			let txs = block.transactions();
-			// populate sender
-			for tx in &txs {
-				let _sender = tx.sender();
-			}
-			txs
-		}
-
 		// 1. We ignore blocks that were `imported` (because it means that they are not in canon-chain, and transactions
 		//	  should be still available in the queue.
 		// 2. We ignore blocks that are `invalid` because it doesn't have any meaning in terms of the transactions that
@@ -1116,35 +1112,29 @@ impl MinerService for Miner {
 
 		// Then import all transactions...
 		{
-			let out_of_chain = retracted
-				.par_iter()
-				.map(|h| fetch_transactions(chain, h));
-			out_of_chain.for_each(|txs| {
-				let mut transaction_queue = self.transaction_queue.lock();
-				let _ = self.add_transactions_to_queue(
-					chain, txs, TransactionOrigin::RetractedBlock, &mut transaction_queue
-				);
-			});
+			retracted.par_iter()
+				.map(|hash| {
+					let block = chain.block(BlockId::Hash(*hash))
+						.expect("Client is sending message after commit to db and inserting to chain; the block is available; qed");
+					let block = BlockView::new(&block);
+					let txs = block.transactions();
+					// populate sender
+					for tx in &txs {
+						let _sender = tx.sender();
+					}
+					txs
+				}).for_each(|txs| {
+					let mut transaction_queue = self.transaction_queue.lock();
+					let _ = self.add_transactions_to_queue(
+						chain, txs, TransactionOrigin::RetractedBlock, &mut transaction_queue
+					);
+				});
 		}
 
-		// ...and at the end remove old ones
+		// ...and at the end remove the old ones
 		{
-			let in_chain = enacted
-				.par_iter()
-				.map(|h: &H256| fetch_transactions(chain, h));
-
-			in_chain.for_each(|mut txs| {
-				let mut transaction_queue = self.transaction_queue.lock();
-
-				let to_remove = txs.drain(..)
-						.map(|tx| {
-							tx.sender().expect("Transaction is in block, so sender has to be defined.")
-						})
-						.collect::<HashSet<Address>>();
-				for sender in to_remove {
-					transaction_queue.remove_all(sender, chain.latest_nonce(&sender));
-				}
-			});
+			let mut transaction_queue = self.transaction_queue.lock();
+			transaction_queue.remove_old(|sender| chain.latest_nonce(sender));
 		}
 
 		if enacted.len() > 0 {

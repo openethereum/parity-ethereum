@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -18,13 +18,15 @@
 
 use std::sync::{Weak, Arc};
 use jsonrpc_core::*;
+use serde;
+
 use rlp::{UntrustedRlp, View};
-use ethcore::client::{BlockChainClient, CallAnalytics, TransactionID, TraceId};
+use ethcore::client::{BlockChainClient, CallAnalytics, TransactionId, TraceId};
 use ethcore::miner::MinerService;
 use ethcore::transaction::{Transaction as EthTransaction, SignedTransaction, Action};
+
 use v1::traits::Traces;
 use v1::helpers::{errors, CallRequest as CRequest};
-use v1::helpers::params::from_params_default_third;
 use v1::types::{TraceFilter, LocalizedTrace, BlockNumber, Index, CallRequest, Bytes, TraceResults, H256};
 
 fn to_call_analytics(flags: Vec<String>) -> CallAnalytics {
@@ -32,6 +34,22 @@ fn to_call_analytics(flags: Vec<String>) -> CallAnalytics {
 		transaction_tracing: flags.contains(&("trace".to_owned())),
 		vm_tracing: flags.contains(&("vmTrace".to_owned())),
 		state_diffing: flags.contains(&("stateDiff".to_owned())),
+	}
+}
+
+/// Returns number of different parameters in given `Params` object.
+fn params_len(params: &Params) -> usize {
+	match params {
+		&Params::Array(ref vec) => vec.len(),
+		_ => 0,
+	}
+}
+
+/// Deserialize request parameters with optional third parameter `BlockNumber` defaulting to `BlockNumber::Latest`.
+fn from_params_default_third<F1, F2>(params: Params) -> Result<(F1, F2, BlockNumber, ), Error> where F1: serde::de::Deserialize, F2: serde::de::Deserialize {
+	match params_len(&params) {
+		2 => from_params::<(F1, F2, )>(params).map(|(f1, f2)| (f1, f2, BlockNumber::Latest)),
+		_ => from_params::<(F1, F2, BlockNumber)>(params)
 	}
 }
 
@@ -100,7 +118,7 @@ impl<C, M> Traces for TracesClient<C, M> where C: BlockChainClient + 'static, M:
 		from_params::<(H256,)>(params)
 			.and_then(|(transaction_hash,)| {
 				let client = take_weak!(self.client);
-				let traces = client.transaction_traces(TransactionID::Hash(transaction_hash.into()));
+				let traces = client.transaction_traces(TransactionId::Hash(transaction_hash.into()));
 				let traces = traces.map_or_else(Vec::new, |traces| traces.into_iter().map(LocalizedTrace::from).collect());
 				Ok(to_value(&traces))
 			})
@@ -112,7 +130,7 @@ impl<C, M> Traces for TracesClient<C, M> where C: BlockChainClient + 'static, M:
 			.and_then(|(transaction_hash, address)| {
 				let client = take_weak!(self.client);
 				let id = TraceId {
-					transaction: TransactionID::Hash(transaction_hash.into()),
+					transaction: TransactionId::Hash(transaction_hash.into()),
 					address: address.into_iter().map(|i| i.value()).collect()
 				};
 				let trace = client.trace(id);
@@ -153,7 +171,7 @@ impl<C, M> Traces for TracesClient<C, M> where C: BlockChainClient + 'static, M:
 		try!(self.active());
 		from_params::<(H256, _)>(params)
 			.and_then(|(transaction_hash, flags)| {
-				match take_weak!(self.client).replay(TransactionID::Hash(transaction_hash.into()), to_call_analytics(flags)) {
+				match take_weak!(self.client).replay(TransactionId::Hash(transaction_hash.into()), to_call_analytics(flags)) {
 					Ok(e) => Ok(to_value(&TraceResults::from(e))),
 					_ => Ok(Value::Null),
 				}

@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -50,8 +50,8 @@ mod secret_store;
 
 pub use self::account::SafeAccount;
 pub use self::error::Error;
-pub use self::ethstore::EthStore;
+pub use self::ethstore::{EthStore, EthMultiStore};
 pub use self::import::{import_accounts, read_geth_accounts};
 pub use self::presale::PresaleWallet;
-pub use self::secret_store::SecretStore;
-pub use self::random::random_phrase;
+pub use self::secret_store::{SimpleSecretStore, SecretStore};
+pub use self::random::{random_phrase, random_string};

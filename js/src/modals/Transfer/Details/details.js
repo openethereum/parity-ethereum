@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -134,6 +134,7 @@ export default class Details extends Component {
     images: PropTypes.object.isRequired,
     sender: PropTypes.string,
     senderError: PropTypes.string,
+    sendersBalances: PropTypes.object,
     recipient: PropTypes.string,
     recipientError: PropTypes.string,
     tag: PropTypes.string,
@@ -203,7 +204,7 @@ export default class Details extends Component {
   }
 
   renderFromAddress () {
-    const { sender, senderError, senders } = this.props;
+    const { sender, senderError, senders, sendersBalances } = this.props;
 
     if (!senders) {
       return null;
@@ -218,6 +219,7 @@ export default class Details extends Component {
           hint='the sender address'
           value={ sender }
           onChange={ this.onEditSender }
+          balances={ sendersBalances }
         />
       </div>
     );

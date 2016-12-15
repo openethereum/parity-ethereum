@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -25,7 +25,7 @@ use rlp::{UntrustedRlp, Rlp, View, encode};
 use account_provider::AccountProvider;
 use block::*;
 use spec::CommonParams;
-use engines::Engine;
+use engines::{Engine, Seal, EngineError};
 use header::Header;
 use error::{Error, BlockError};
 use blockchain::extras::BlockDetails;
@@ -225,8 +225,8 @@ impl Engine for AuthorityRound {
 	///
 	/// This operation is synchronous and may (quite reasonably) not be available, in which `false` will
 	/// be returned.
-	fn generate_seal(&self, block: &ExecutedBlock) -> Option<Vec<Bytes>> {
-		if self.proposed.load(AtomicOrdering::SeqCst) { return None; }
+	fn generate_seal(&self, block: &ExecutedBlock) -> Seal {
+		if self.proposed.load(AtomicOrdering::SeqCst) { return Seal::None; }
 		let header = block.header();
 		let step = self.step();
 		if self.is_step_proposer(step, header.author()) {
@@ -235,7 +235,8 @@ impl Engine for AuthorityRound {
 				if let Ok(signature) = ap.sign(*header.author(), self.password.read().clone(), header.bare_hash()) {
 					trace!(target: "poa", "generate_seal: Issuing a block for step {}.", step);
 					self.proposed.store(true, AtomicOrdering::SeqCst);
-					return Some(vec![encode(&step).to_vec(), encode(&(&*signature as &[u8])).to_vec()]);
+					let rlps = vec![encode(&step).to_vec(), encode(&(&*signature as &[u8])).to_vec()];
+					return Seal::Regular(rlps);
 				} else {
 					warn!(target: "poa", "generate_seal: FAIL: Accounts secret key unavailable.");
 				}
@@ -245,7 +246,7 @@ impl Engine for AuthorityRound {
 		} else {
 			trace!(target: "poa", "generate_seal: Not a proposer for step {}.", step);
 		}
-		None
+		Seal::None
 	}
 
 	/// Check the number of seal fields.
@@ -288,7 +289,7 @@ impl Engine for AuthorityRound {
 		// Check if parent is from a previous step.
 		if step == try!(header_step(parent)) {
 			trace!(target: "poa", "Multiple blocks proposed for step {}.", step);
-			try!(Err(BlockError::DoubleVote(header.author().clone())));
+			try!(Err(EngineError::DoubleVote(header.author().clone())));
 		}
 
 		let gas_limit_divisor = self.our_params.gas_limit_bound_divisor;
@@ -347,7 +348,7 @@ mod tests {
 	use tests::helpers::*;
 	use account_provider::AccountProvider;
 	use spec::Spec;
-	use std::time::UNIX_EPOCH;
+	use engines::Seal;
 
 	#[test]
 	fn has_valid_metadata() {
@@ -417,17 +418,17 @@ mod tests {
 		let b2 = b2.close_and_lock();
 
 		engine.set_signer(addr1, "1".into());
-		if let Some(seal) = engine.generate_seal(b1.block()) {
+		if let Seal::Regular(seal) = engine.generate_seal(b1.block()) {
 			assert!(b1.clone().try_seal(engine, seal).is_ok());
 			// Second proposal is forbidden.
-			assert!(engine.generate_seal(b1.block()).is_none());
+			assert!(engine.generate_seal(b1.block()) == Seal::None);
 		}
 
 		engine.set_signer(addr2, "2".into());
-		if let Some(seal) = engine.generate_seal(b2.block()) {
+		if let Seal::Regular(seal) = engine.generate_seal(b2.block()) {
 			assert!(b2.clone().try_seal(engine, seal).is_ok());
 			// Second proposal is forbidden.
-			assert!(engine.generate_seal(b2.block()).is_none());
+			assert!(engine.generate_seal(b2.block()) == Seal::None);
 		}
 	}
 
@@ -442,13 +443,30 @@ mod tests {
 		let engine = Spec::new_test_round().engine;
 
 		let signature = tap.sign(addr, Some("0".into()), header.bare_hash()).unwrap();
-		let time = UNIX_EPOCH.elapsed().unwrap().as_secs();
 		// Two authorities.
-		let mut step =  time - time % 2;
-		header.set_seal(vec![encode(&step).to_vec(), encode(&(&*signature as &[u8])).to_vec()]);
+		// Spec starts with step 2.
+		header.set_seal(vec![encode(&2usize).to_vec(), encode(&(&*signature as &[u8])).to_vec()]);
 		assert!(engine.verify_block_seal(&header).is_err());
-		step = step + 1;
-		header.set_seal(vec![encode(&step).to_vec(), encode(&(&*signature as &[u8])).to_vec()]);
+		header.set_seal(vec![encode(&1usize).to_vec(), encode(&(&*signature as &[u8])).to_vec()]);
 		assert!(engine.verify_block_seal(&header).is_ok());
+	}
+
+	#[test]
+	fn rejects_future_block() {
+		let mut header: Header = Header::default();
+		let tap = AccountProvider::transient_provider();
+		let addr = tap.insert_account("0".sha3(), "0").unwrap();
+
+		header.set_author(addr);
+
+		let engine = Spec::new_test_round().engine;
+
+		let signature = tap.sign(addr, Some("0".into()), header.bare_hash()).unwrap();
+		// Two authorities.
+		// Spec starts with step 2.
+		header.set_seal(vec![encode(&1usize).to_vec(), encode(&(&*signature as &[u8])).to_vec()]);
+		assert!(engine.verify_block_seal(&header).is_ok());
+		header.set_seal(vec![encode(&5usize).to_vec(), encode(&(&*signature as &[u8])).to_vec()]);
+		assert!(engine.verify_block_seal(&header).is_err());
 	}
 }

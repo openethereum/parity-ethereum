@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -18,7 +18,6 @@ use std::path::PathBuf;
 use std::{env, fs};
 use rand::{Rng, OsRng};
 use ethstore::dir::{KeyDirectory, DiskDirectory};
-use ethstore::ethkey::Address;
 use ethstore::{Error, SafeAccount};
 
 pub fn random_dir() -> PathBuf {
@@ -64,11 +63,15 @@ impl KeyDirectory for TransientDir {
 		self.dir.load()
 	}
 
+	fn update(&self, account: SafeAccount) -> Result<SafeAccount, Error> {
+		self.dir.update(account)
+	}
+
 	fn insert(&self, account: SafeAccount) -> Result<SafeAccount, Error> {
 		self.dir.insert(account)
 	}
 
-	fn remove(&self, address: &Address) -> Result<(), Error> {
-		self.dir.remove(address)
+	fn remove(&self, account: &SafeAccount) -> Result<(), Error> {
+		self.dir.remove(account)
 	}
 }

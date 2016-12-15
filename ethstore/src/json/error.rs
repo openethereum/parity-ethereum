@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -21,7 +21,7 @@ pub enum Error {
 	UnsupportedCipher,
 	InvalidCipherParams,
 	UnsupportedKdf,
-	InvalidUUID,
+	InvalidUuid,
 	UnsupportedVersion,
 	InvalidCiphertext,
 	InvalidH256,
@@ -31,7 +31,7 @@ pub enum Error {
 impl fmt::Display for Error {
 	fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
 		match *self {
-			Error::InvalidUUID => write!(f, "Invalid UUID"),
+			Error::InvalidUuid => write!(f, "Invalid Uuid"),
 			Error::UnsupportedVersion => write!(f, "Unsupported version"),
 			Error::UnsupportedKdf => write!(f, "Unsupported kdf"),
 			Error::InvalidCiphertext => write!(f, "Invalid ciphertext"),

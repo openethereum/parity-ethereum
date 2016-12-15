@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -114,7 +114,7 @@ impl<C: 'static, M: 'static> Personal for PersonalClient<C, M> where C: MiningBl
 			&*miner,
 			&*accounts,
 			request,
-			Some(password)
-		).map(Into::into)
+			dispatch::SignWith::Password(password)
+		).map(|v| v.into_value().into())
 	}
 }

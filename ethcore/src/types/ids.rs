@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -21,7 +21,7 @@ use header::BlockNumber;
 
 /// Uniquely identifies block.
 #[derive(Debug, PartialEq, Copy, Clone, Hash, Eq, Binary)]
-pub enum BlockID {
+pub enum BlockId {
 	/// Block's sha3.
 	/// Querying by hash is always faster.
 	Hash(H256),
@@ -37,28 +37,28 @@ pub enum BlockID {
 
 /// Uniquely identifies transaction.
 #[derive(Debug, PartialEq, Clone, Hash, Eq, Binary)]
-pub enum TransactionID {
+pub enum TransactionId {
 	/// Transaction's sha3.
 	Hash(H256),
 	/// Block id and transaction index within this block.
 	/// Querying by block position is always faster.
-	Location(BlockID, usize)
+	Location(BlockId, usize)
 }
 
 /// Uniquely identifies Trace.
 #[derive(Binary)]
 pub struct TraceId {
 	/// Transaction
-	pub transaction: TransactionID,
+	pub transaction: TransactionId,
 	/// Trace address within transaction.
 	pub address: Vec<usize>,
 }
 
 /// Uniquely identifies Uncle.
 #[derive(Debug, PartialEq, Eq, Copy, Clone, Binary)]
-pub struct UncleID {
+pub struct UncleId {
 	/// Block id.
-	pub block: BlockID,
+	pub block: BlockId,
 	/// Position in block.
 	pub position: usize
 }

@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -289,9 +289,8 @@ export default class TypedInput extends Component {
       return (
         <MenuItem
           key={ bool }
-          value={ bool }
           label={ bool }
-        >
+          value={ bool }>
           { bool }
         </MenuItem>
       );
@@ -299,19 +298,23 @@ export default class TypedInput extends Component {
 
     return (
       <Select
-        label={ label }
-        hint={ hint }
-        value={ value ? 'true' : 'false' }
         error={ error }
+        hint={ hint }
+        label={ label }
         onChange={ this.onChangeBool }
-      >
+        value={
+          value
+            ? 'true'
+            : 'false'
+        }>
         { boolitems }
       </Select>
     );
   }
 
   onChangeBool = (event, _index, value) => {
-    this.props.onChange(value === 'true');
+    // NOTE: event.target.value added for enzyme simulated event testing
+    this.props.onChange((value || event.target.value) === 'true');
   }
 
   onEthTypeChange = () => {

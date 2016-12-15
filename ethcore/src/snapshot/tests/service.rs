@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -19,7 +19,7 @@
 use std::sync::Arc;
 
 use client::{BlockChainClient, Client};
-use ids::BlockID;
+use ids::BlockId;
 use snapshot::service::{Service, ServiceParams};
 use snapshot::{self, ManifestData, SnapshotService};
 use spec::Spec;
@@ -96,8 +96,8 @@ fn restored_is_equivalent() {
 	assert_eq!(service.status(), ::snapshot::RestorationStatus::Inactive);
 
 	for x in 0..NUM_BLOCKS {
-		let block1 = client.block(BlockID::Number(x as u64)).unwrap();
-		let block2 = client2.block(BlockID::Number(x as u64)).unwrap();
+		let block1 = client.block(BlockId::Number(x as u64)).unwrap();
+		let block2 = client2.block(BlockId::Number(x as u64)).unwrap();
 
 		assert_eq!(block1, block2);
 	}

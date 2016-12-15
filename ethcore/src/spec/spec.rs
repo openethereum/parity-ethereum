@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -18,7 +18,7 @@
 
 use util::*;
 use builtin::Builtin;
-use engines::{Engine, NullEngine, InstantSeal, BasicAuthority, AuthorityRound};
+use engines::{Engine, NullEngine, InstantSeal, BasicAuthority, AuthorityRound, Tendermint};
 use pod_state::*;
 use account_db::*;
 use header::{BlockNumber, Header};
@@ -107,7 +107,7 @@ impl From<ethjson::spec::Spec> for Spec {
 	fn from(s: ethjson::spec::Spec) -> Self {
 		let builtins = s.accounts.builtins().into_iter().map(|p| (p.0.into(), From::from(p.1))).collect();
 		let g = Genesis::from(s.genesis);
-		let seal: GenericSeal = g.seal.into();
+		let GenericSeal(seal_rlp) = g.seal.into();
 		let params = CommonParams::from(s.params);
 		Spec {
 			name: s.name.into(),
@@ -124,7 +124,7 @@ impl From<ethjson::spec::Spec> for Spec {
 			gas_used: g.gas_used,
 			timestamp: g.timestamp,
 			extra_data: g.extra_data,
-			seal_rlp: seal.rlp,
+			seal_rlp: seal_rlp,
 			state_root_memo: RwLock::new(g.state_root),
 			genesis_state: From::from(s.accounts),
 		}
@@ -146,7 +146,8 @@ impl Spec {
 			ethjson::spec::Engine::InstantSeal => Arc::new(InstantSeal::new(params, builtins)),
 			ethjson::spec::Engine::Ethash(ethash) => Arc::new(ethereum::Ethash::new(params, From::from(ethash.params), builtins)),
 			ethjson::spec::Engine::BasicAuthority(basic_authority) => Arc::new(BasicAuthority::new(params, From::from(basic_authority.params), builtins)),
-			ethjson::spec::Engine::AuthorityRound(authority_round) => AuthorityRound::new(params, From::from(authority_round.params), builtins).expect("Consensus engine could not be started."),
+			ethjson::spec::Engine::AuthorityRound(authority_round) => AuthorityRound::new(params, From::from(authority_round.params), builtins).expect("Failed to start AuthorityRound consensus engine."),
+			ethjson::spec::Engine::Tendermint(tendermint) => Tendermint::new(params, From::from(tendermint.params), builtins).expect("Failed to start the Tendermint consensus engine."),
 		}
 	}
 
@@ -208,7 +209,7 @@ impl Spec {
 
 	/// Overwrite the genesis components.
 	pub fn overwrite_genesis_params(&mut self, g: Genesis) {
-		let seal: GenericSeal = g.seal.into();
+		let GenericSeal(seal_rlp) = g.seal.into();
 		self.parent_hash = g.parent_hash;
 		self.transactions_root = g.transactions_root;
 		self.receipts_root = g.receipts_root;
@@ -218,7 +219,7 @@ impl Spec {
 		self.gas_used = g.gas_used;
 		self.timestamp = g.timestamp;
 		self.extra_data = g.extra_data;
-		self.seal_rlp = seal.rlp;
+		self.seal_rlp = seal_rlp;
 		self.state_root_memo = RwLock::new(g.state_root);
 	}
 
@@ -275,6 +276,10 @@ impl Spec {
 	/// Create a new Spec with AuthorityRound consensus which does internal sealing (not requiring work).
 	/// Accounts with secrets "0".sha3() and "1".sha3() are the authorities.
 	pub fn new_test_round() -> Self { load_bundled!("authority_round") }
+
+	/// Create a new Spec with Tendermint consensus which does internal sealing (not requiring work).
+	/// Account "0".sha3() and "1".sha3() are a authorities.
+	pub fn new_test_tendermint() -> Self { load_bundled!("tendermint") }
 }
 
 #[cfg(test)]

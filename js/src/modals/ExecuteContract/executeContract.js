@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -18,11 +18,14 @@ import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 import { observer } from 'mobx-react';
+import { pick } from 'lodash';
+
 import ActionDoneAll from 'material-ui/svg-icons/action/done-all';
 import ContentClear from 'material-ui/svg-icons/content/clear';
 import NavigationArrowBack from 'material-ui/svg-icons/navigation/arrow-back';
 import NavigationArrowForward from 'material-ui/svg-icons/navigation/arrow-forward';
 
+import { toWei } from '~/api/util/wei';
 import { BusyStep, Button, CompletedStep, GasPriceEditor, IdentityIcon, Modal, TxHash } from '~/ui';
 import { MAX_GAS_ESTIMATION } from '~/util/constants';
 import { validateAddress, validateUint } from '~/util/validation';
@@ -54,16 +57,17 @@ class ExecuteContract extends Component {
   }
 
   static propTypes = {
-    isTest: PropTypes.bool,
-    fromAddress: PropTypes.string,
     accounts: PropTypes.object,
-    contract: PropTypes.object,
+    balances: PropTypes.object,
+    contract: PropTypes.object.isRequired,
+    fromAddress: PropTypes.string,
     gasLimit: PropTypes.object.isRequired,
+    isTest: PropTypes.bool,
     onClose: PropTypes.func.isRequired,
     onFromAddressChange: PropTypes.func.isRequired
   }
 
-  gasStore = new GasPriceEditor.Store(this.context.api, this.props.gasLimit);
+  gasStore = new GasPriceEditor.Store(this.context.api, { gasLimit: this.props.gasLimit });
 
   state = {
     amount: '0',
@@ -74,11 +78,11 @@ class ExecuteContract extends Component {
     funcError: null,
     gasEdit: false,
     rejected: false,
-    step: STEP_DETAILS,
     sending: false,
+    step: STEP_DETAILS,
+    txhash: null,
     values: [],
-    valuesError: [],
-    txhash: null
+    valuesError: []
   }
 
   componentDidMount () {
@@ -252,10 +256,6 @@ class ExecuteContract extends Component {
         valueError = validateAddress(_value).addressError;
         break;
 
-      case 'bool':
-        value = _value === 'true';
-        break;
-
       case 'uint':
         valueError = validateUint(_value).valueError;
         break;
@@ -275,13 +275,12 @@ class ExecuteContract extends Component {
   }
 
   estimateGas = (_fromAddress) => {
-    const { api } = this.context;
     const { fromAddress } = this.props;
     const { amount, func, values } = this.state;
     const options = {
       gas: MAX_GAS_ESTIMATION,
       from: _fromAddress || fromAddress,
-      value: api.util.toWei(amount || 0)
+      value: toWei(amount || 0)
     };
 
     if (!func) {
@@ -362,10 +361,15 @@ class ExecuteContract extends Component {
   }
 }
 
-function mapStateToProps (state) {
-  const { gasLimit } = state.nodeStatus;
+function mapStateToProps (initState, initProps) {
+  const fromAddresses = Object.keys(initProps.accounts);
 
-  return { gasLimit };
+  return (state) => {
+    const balances = pick(state.balances.balances, fromAddresses);
+    const { gasLimit } = state.nodeStatus;
+
+    return { gasLimit, balances };
+  };
 }
 
 function mapDispatchToProps (dispatch) {

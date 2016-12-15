@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -28,8 +28,7 @@
 //! It starts by performing a header-only sync, verifying random samples
 //! of members of the chain to varying degrees.
 
-// TODO: remove when integrating with the rest of parity.
-#![allow(dead_code)]
+#![deny(missing_docs)]
 
 pub mod client;
 pub mod net;
