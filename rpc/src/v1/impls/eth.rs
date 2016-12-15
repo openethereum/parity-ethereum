@@ -347,7 +347,11 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 			try!(self.active());
 
 			let store = take_weak!(self.accounts);
-			let accounts = try!(store.dapps_addresses(dapp.into()).map_err(|e| errors::internal("Could not fetch accounts.", e)));
+			let accounts = try!(store
+				.note_dapp_used(dapp.clone().into())
+				.and_then(|_| store.dapps_addresses(dapp.into()))
+				.map_err(|e| errors::internal("Could not fetch accounts.", e))
+			);
 			Ok(accounts.into_iter().map(Into::into).collect())
 		};
 

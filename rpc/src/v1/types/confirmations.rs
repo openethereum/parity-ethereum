@@ -18,11 +18,13 @@
 
 use std::fmt;
 use serde::{Serialize, Serializer};
+use util::log::Colour;
+
 use v1::types::{U256, TransactionRequest, RichRawTransaction, H160, H256, H520, Bytes};
 use v1::helpers;
 
 /// Confirmation waiting in a queue
-#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub struct ConfirmationRequest {
 	/// Id of this confirmation
 	pub id: U256,
@@ -39,8 +41,25 @@ impl From<helpers::ConfirmationRequest> for ConfirmationRequest {
 	}
 }
 
+impl fmt::Display for ConfirmationRequest {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		write!(f, "#{}: {}", self.id, self.payload)
+	}
+}
+
+impl fmt::Display for ConfirmationPayload {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		match *self {
+			ConfirmationPayload::SendTransaction(ref transaction) => write!(f, "{}", transaction),
+			ConfirmationPayload::SignTransaction(ref transaction) => write!(f, "(Sign only) {}", transaction),
+			ConfirmationPayload::Signature(ref sign) => write!(f, "{}", sign),
+			ConfirmationPayload::Decrypt(ref decrypt) => write!(f, "{}", decrypt),
+		}
+	}
+}
+
 /// Sign request
-#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub struct SignRequest {
 	/// Address
 	pub address: H160,
@@ -57,8 +76,19 @@ impl From<(H160, H256)> for SignRequest {
 	}
 }
 
+impl fmt::Display for SignRequest {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		write!(
+			f,
+			"sign 0x{:?} with {}",
+			self.hash,
+			Colour::White.bold().paint(format!("0x{:?}", self.address)),
+		)
+	}
+}
+
 /// Decrypt request
-#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub struct DecryptRequest {
 	/// Address
 	pub address: H160,
@@ -72,6 +102,16 @@ impl From<(H160, Bytes)> for DecryptRequest {
 			address: tuple.0,
 			msg: tuple.1,
 		}
+	}
+}
+
+impl fmt::Display for DecryptRequest {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		write!(
+			f,
+			"decrypt data with {}",
+			Colour::White.bold().paint(format!("0x{:?}", self.address)),
+		)
 	}
 }
 
@@ -111,7 +151,7 @@ pub struct ConfirmationResponseWithToken {
 }
 
 /// Confirmation payload, i.e. the thing to be confirmed
-#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub enum ConfirmationPayload {
 	/// Send Transaction
 	#[serde(rename="sendTransaction")]
@@ -145,7 +185,7 @@ impl From<helpers::ConfirmationPayload> for ConfirmationPayload {
 }
 
 /// Possible modifications to the confirmed transaction sent by `Trusted Signer`
-#[derive(Debug, PartialEq, Deserialize)]
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct TransactionModification {
 	/// Modified gas price
@@ -325,4 +365,3 @@ mod tests {
 		assert_eq!(res.unwrap(), expected.to_owned());
 	}
 }
-

@@ -49,6 +49,8 @@ ethcore-stratum = { path = "stratum" }
 rlp = { path = "util/rlp" }
 ethcore-dapps = { path = "dapps", optional = true }
 clippy = { version = "0.0.103", optional = true}
+rpc-cli = { path = "rpc_cli" }
+parity-rpc-client = { path = "rpc_client" }
 ethcore-light = { path = "ethcore/light" }
 
 [target.'cfg(windows)'.dependencies]
