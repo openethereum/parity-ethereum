@@ -289,7 +289,7 @@ impl Updater {
 }
 
 impl ChainNotify for Updater {
-	fn new_blocks(&self, _imported: Vec<H256>, _invalid: Vec<H256>, _enacted: Vec<H256>, _retracted: Vec<H256>, _sealed: Vec<H256>, _duration: u64) {
+	fn new_blocks(&self, _imported: Vec<H256>, _invalid: Vec<H256>, _enacted: Vec<H256>, _retracted: Vec<H256>, _sealed: Vec<H256>, _proposed: Vec<Bytes>, _duration: u64) {
 		// TODO: something like this
 //		if !self.client.upgrade().map_or(true, |c| c.is_major_syncing()) {
 			self.poll();
