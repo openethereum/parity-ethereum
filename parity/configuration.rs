@@ -342,6 +342,7 @@ impl Configuration {
 				check_seal: !self.args.flag_no_seal_check,
 				download_old_blocks: !self.args.flag_no_ancient_blocks,
 				serve_light: self.args.flag_serve_light,
+				light: self.args.flag_light,
 				verifier_settings: verifier_settings,
 			};
 			Cmd::Run(run_cmd)
@@ -691,7 +692,7 @@ impl Configuration {
 				"none" => UpdateFilter::None,
 				"critical" => UpdateFilter::Critical,
 				"all" => UpdateFilter::All,
-				_ => return Err("Invalid value for `--auto-update`. See `--help` for more information.".into()), 
+				_ => return Err("Invalid value for `--auto-update`. See `--help` for more information.".into()),
 			},
 			track: match self.args.flag_release_track.as_ref() {
 				"stable" => ReleaseTrack::Stable,
@@ -699,7 +700,7 @@ impl Configuration {
 				"nightly" => ReleaseTrack::Nightly,
 				"testing" => ReleaseTrack::Testing,
 				"current" => ReleaseTrack::Unknown,
-				_ => return Err("Invalid value for `--releases-track`. See `--help` for more information.".into()), 
+				_ => return Err("Invalid value for `--releases-track`. See `--help` for more information.".into()),
 			},
 			path: default_hypervisor_path(),
 		})
@@ -1034,6 +1035,7 @@ mod tests {
 			download_old_blocks: true,
 			serve_light: false,
 			verifier_settings: Default::default(),
+			light: false,
 		}));
 	}
 

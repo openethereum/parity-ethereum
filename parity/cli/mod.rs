@@ -94,6 +94,7 @@ usage! {
 		flag_db_path: String = "$BASE/chains", or |c: &Config| otry!(c.parity).db_path.clone(),
 		flag_keys_path: String = "$BASE/keys", or |c: &Config| otry!(c.parity).keys_path.clone(),
 		flag_identity: String = "", or |c: &Config| otry!(c.parity).identity.clone(),
+		flag_light: bool = false, or |c: &Config| otry!(c.parity).light.clone(),
 
 		// -- Account Options
 		flag_unlock: Option<String> = None,
@@ -259,7 +260,7 @@ usage! {
 			or |c: &Config| otry!(c.footprint).fat_db.clone(),
 		flag_scale_verifiers: bool = false,
 			or |c: &Config| otry!(c.footprint).scale_verifiers.clone(),
-		flag_num_verifiers: Option<usize> = None, 
+		flag_num_verifiers: Option<usize> = None,
 			or |c: &Config| otry!(c.footprint).num_verifiers.clone().map(Some),
 
 		// -- Import/Export Options
@@ -323,6 +324,7 @@ struct Operating {
 	db_path: Option<String>,
 	keys_path: Option<String>,
 	identity: Option<String>,
+	light: Option<bool>,
 }
 
 #[derive(Default, Debug, PartialEq, RustcDecodable)]
@@ -552,6 +554,7 @@ mod tests {
 			flag_db_path: "$HOME/.parity/chains".into(),
 			flag_keys_path: "$HOME/.parity/keys".into(),
 			flag_identity: "".into(),
+			flag_light: false,
 
 			// -- Account Options
 			flag_unlock: Some("0xdeadbeefcafe0000000000000000000000000000".into()),

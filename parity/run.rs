@@ -97,6 +97,7 @@ pub struct RunCmd {
 	pub download_old_blocks: bool,
 	pub serve_light: bool,
 	pub verifier_settings: VerifierSettings,
+	pub light: bool,
 }
 
 pub fn open_ui(dapps_conf: &dapps::Configuration, signer_conf: &signer::Configuration) -> Result<(), String> {
@@ -116,6 +117,56 @@ pub fn open_ui(dapps_conf: &dapps::Configuration, signer_conf: &signer::Configur
 	Ok(())
 }
 
+// Execute in light client mode.
+pub fn execute_light(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<bool, String> {
+	use light::client::{Config as ClientConfig, Service as LightClientService};
+	use ethsync::{LightSync, LightSyncParams, ManageNetwork};
+
+	let panic_handler = PanicHandler::new_in_arc();
+
+	info!(
+		"Configured in {} mode. Note that this feature is {}.",
+		Colour::White.bold().paint("Light Client"),
+		Colour::Red.bold().paint("experimental"),
+	);
+
+	let mut client_config = ClientConfig::default();
+	let queue_size = cmd.cache_config.queue();
+
+	client_config.queue.max_queue_size = queue_size as usize;
+	client_config.queue.verifier_settings = cmd.verifier_settings;
+
+	let spec = try!(cmd.spec.spec());
+	let service = try!(LightClientService::start(client_config, &spec)
+		.map_err(|e| format!("Error starting light client service: {}", e)));
+
+	let net_conf = try!(cmd.net_conf.into_basic()
+		.map_err(|e| format!("Failed to create network config: {}", e)));
+
+	let sync_params = LightSyncParams {
+		network_config: net_conf,
+		client: service.client().clone(),
+		network_id: cmd.network_id.unwrap_or(spec.network_id()),
+		subprotocol_name: *b"les",
+	};
+
+	let sync = try!(LightSync::new(sync_params)
+		.map_err(|e| format!("Failed to initialize sync service: {}", e)));
+
+	sync.start_network();
+
+	let log_client = service.client().clone();
+	::std::thread::spawn(move || {
+		loop {
+			::std::thread::sleep(::std::time::Duration::from_secs(5));
+			println!("Best block: #{}", log_client.chain_info().best_block_number);
+		}
+	});
+
+	wait_for_exit(panic_handler, None, false);
+	Ok(false)
+}
+
 pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> Result<bool, String> {
 	if cmd.ui && cmd.dapps_conf.enabled {
 		// Check if Parity is already running
@@ -123,6 +174,10 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 		if !TcpListener::bind(&addr as &str).is_ok() {
 			return open_ui(&cmd.dapps_conf, &cmd.signer_conf).map(|_| false);
 		}
+	}
+
+	if cmd.light {
+		return execute_light(cmd, logger);
 	}
 
 	// set up panic handler
@@ -295,12 +350,12 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 
 	// create sync object
 	let (sync_provider, manage_network, chain_notify) = try!(modules::sync(
-		&mut hypervisor, 
-		sync_config, 
-		net_conf.into(), 
-		client.clone(), 
-		snapshot_service.clone(), 
-		client.clone(), 
+		&mut hypervisor,
+		sync_config,
+		net_conf.into(),
+		client.clone(),
+		snapshot_service.clone(),
+		client.clone(),
 		&cmd.logger_config,
 	).map_err(|e| format!("Sync error: {}", e)));
 
@@ -416,7 +471,7 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 	}
 
 	// Handle exit
-	let restart = wait_for_exit(panic_handler, http_server, ipc_server, dapps_server, signer_server, updater, can_restart);
+	let restart = wait_for_exit(panic_handler, Some(updater), can_restart);
 
 	info!("Finishing work, please wait...");
 
@@ -471,11 +526,7 @@ fn prepare_account_provider(dirs: &Directories, data_dir: &str, cfg: AccountsCon
 
 fn wait_for_exit(
 	panic_handler: Arc<PanicHandler>,
-	_http_server: Option<HttpServer>,
-	_ipc_server: Option<IpcServer>,
-	_dapps_server: Option<WebappServer>,
-	_signer_server: Option<SignerServer>,
-	updater: Arc<Updater>,
+	updater: Option<Arc<Updater>>,
 	can_restart: bool
 ) -> bool {
 	let exit = Arc::new((Mutex::new(false), Condvar::new()));
@@ -488,12 +539,14 @@ fn wait_for_exit(
 	let e = exit.clone();
 	panic_handler.on_panic(move |_reason| { e.1.notify_all(); });
 
-	// Handle updater wanting to restart us
-	if can_restart {
-		let e = exit.clone();
-		updater.set_exit_handler(move || { *e.0.lock() = true; e.1.notify_all(); });
-	} else {
-		updater.set_exit_handler(|| info!("Update installed; ready for restart."));
+	if let Some(updater) = updater {
+		// Handle updater wanting to restart us
+		if can_restart {
+			let e = exit.clone();
+			updater.set_exit_handler(move || { *e.0.lock() = true; e.1.notify_all(); });
+		} else {
+			updater.set_exit_handler(|| info!("Update installed; ready for restart."));
+		}
 	}
 
 	// Wait for signal
