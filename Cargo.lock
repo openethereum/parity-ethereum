@@ -1393,6 +1393,7 @@ dependencies = [
  "ethcore-ipc 1.5.0",
  "ethcore-ipc-codegen 1.5.0",
  "ethcore-util 1.5.0",
+ "ethsync 1.5.0",
  "ipc-common-types 1.5.0",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "parity-hash-fetch 1.5.0",

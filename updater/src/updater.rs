@@ -21,11 +21,13 @@ use std::path::{PathBuf};
 use util::misc::platform;
 use ipc_common_types::{VersionInfo, ReleaseTrack};
 use util::{Address, H160, H256, FixedHash, Mutex, Bytes};
+use ethsync::{SyncProvider};
 use ethcore::client::{BlockId, BlockChainClient, ChainNotify};
 use hash_fetch::{self as fetch, HashFetch};
 use operations::Operations;
 use service::{Service};
 use types::all::{ReleaseInfo, OperationsInfo, CapState};
+use ethcore_rpc::is_major_importing;
 
 /// Filter for releases.
 #[derive(Debug, Eq, PartialEq, Clone)]
@@ -82,6 +84,7 @@ pub struct Updater {
 	update_policy: UpdatePolicy,
 	weak_self: Mutex<Weak<Updater>>,
 	client: Weak<BlockChainClient>,
+	sync: Weak<SyncProvider>,
 	fetcher: Mutex<Option<fetch::Client>>,
 	operations: Mutex<Option<Operations>>,
 	exit_handler: Mutex<Option<Box<Fn() + 'static + Send>>>,
@@ -96,11 +99,12 @@ pub struct Updater {
 const CLIENT_ID: &'static str = "parity";
 
 impl Updater {
-	pub fn new(client: Weak<BlockChainClient>, update_policy: UpdatePolicy) -> Arc<Self> {
+	pub fn new(client: Weak<BlockChainClient>, sync: Arc<SyncProvider>, update_policy: UpdatePolicy) -> Arc<Self> {
 		let r = Arc::new(Updater {
 			update_policy: update_policy,
 			weak_self: Mutex::new(Default::default()),
 			client: client.clone(),
+			sync: sync.clone(),
 			fetcher: Mutex::new(None),
 			operations: Mutex::new(None),
 			exit_handler: Mutex::new(None),
@@ -290,10 +294,10 @@ impl Updater {
 
 impl ChainNotify for Updater {
 	fn new_blocks(&self, _imported: Vec<H256>, _invalid: Vec<H256>, _enacted: Vec<H256>, _retracted: Vec<H256>, _sealed: Vec<H256>, _proposed: Vec<Bytes>, _duration: u64) {
-		// TODO: something like this
-//		if !self.client.upgrade().map_or(true, |c| c.is_major_syncing()) {
-			self.poll();
-//		}
+		match (self.client.upgrade(), self.sync.upgrade()) {
+			(Some(c), Some(s)) if is_major_importing(s.status().state, c.queue_info()) => self.poll(),
+			_ => {},
+		}
 	}
 }
 
