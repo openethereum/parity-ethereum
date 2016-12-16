@@ -2130,16 +2130,35 @@ mod tests {
 		}
 	}
 
+	fn sync_status(state: SyncState) -> SyncStatus {
+		SyncStatus {
+			state: state,
+			protocol_version: 0,
+			network_id: 0,
+			start_block_number: 0,
+			last_imported_block_number: None,
+			highest_block_number: None,
+			blocks_total: 0,
+			blocks_received: 0,
+			num_peers: 0,
+			num_active_peers: 0,
+			mem_used: 0,
+			num_snapshot_chunks: 0,
+			snapshot_chunks_done: 0,
+			last_imported_old_block_number: None,
+		}
+	}
+
 	#[test]
 	fn is_still_verifying() {
-		assert!(!is_major_importing(None, queue_info(2, 1)));
-		assert!(is_major_importing(None, queue_info(2, 2)));
+		assert!(!sync_status(SyncState::Idle).is_syncing(queue_info(2, 1)));
+		assert!(sync_status(SyncState::Idle).is_syncing(queue_info(2, 2)));
 	}
 
 	#[test]
 	fn is_synced_state() {
-		assert!(is_major_importing(Some(SyncState::Blocks), queue_info(0, 0)));
-		assert!(!is_major_importing(Some(SyncState::Idle), queue_info(0, 0)));
+		assert!(sync_status(SyncState::Blocks).is_syncing(queue_info(0, 0)));
+		assert!(!sync_status(SyncState::Idle).is_syncing(queue_info(0, 0)));
 	}
 
 	#[test]

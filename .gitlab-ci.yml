@@ -365,7 +365,7 @@ windows:
     - set RUSTFLAGS=%RUSTFLAGS%
     - rustup default stable-x86_64-pc-windows-msvc
     - cargo build --release #%CARGOFLAGS%
-    - FOR /F "delims=" %i IN ('target\release\parity.exe tools hash target\release\parity.exe') DO set SHA3=%i
+    - FOR /F "tokens=* USEBACKQ" %%i IN ('target\release\parity.exe tools hash target\release\parity.exe') DO set SHA3=%%i
     - curl -sL --url "https://github.com/ethcore/win-build/raw/master/SimpleFC.dll" -o nsis\SimpleFC.dll
     - curl -sL --url "https://github.com/ethcore/win-build/raw/master/vc_redist.x64.exe" -o nsis\vc_redist.x64.exe
     - signtool sign /f %keyfile% /p %certpass% target\release\parity.exe
