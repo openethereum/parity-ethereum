@@ -193,9 +193,11 @@ impl<L: LightChainClient> Handler for LightSync<L> {
 			head_num: status.head_num,
 		};
 
-		let mut best = self.best_seen.lock();
-		if best.as_ref().map_or(true, |b| status.head_td > b.1) {
-			*best = Some((status.head_hash, status.head_td));
+		{
+			let mut best = self.best_seen.lock();
+			if best.as_ref().map_or(true, |b| status.head_td > b.1) {
+				*best = Some((status.head_hash, status.head_td));
+			}
 		}
 
 		self.peers.write().insert(ctx.peer(), Mutex::new(Peer::new(chain_info)));
@@ -209,6 +211,8 @@ impl<L: LightChainClient> Handler for LightSync<L> {
 			Some(peer) => peer,
 			None => return,
 		};
+
+		trace!(target: "sync", "peer {} disconnecting", peer_id);
 
 		let new_best = {
 			let mut best = self.best_seen.lock();
@@ -249,7 +253,7 @@ impl<L: LightChainClient> Handler for LightSync<L> {
 	fn on_announcement(&self, ctx: &EventContext, announcement: &Announcement) {
 		let last_td = {
 			let peers = self.peers.read();
-			match peers.get(&ctx.peer()){
+			match peers.get(&ctx.peer()) {
 				None => return,
 				Some(peer) => {
 					let mut peer = peer.lock();
@@ -273,9 +277,11 @@ impl<L: LightChainClient> Handler for LightSync<L> {
 			ctx.disconnect_peer(ctx.peer());
 		}
 
-		let mut best = self.best_seen.lock();
-		if best.as_ref().map_or(true, |b| announcement.head_td > b.1) {
-			*best = Some((announcement.head_hash, announcement.head_td));
+		{
+			let mut best = self.best_seen.lock();
+			if best.as_ref().map_or(true, |b| announcement.head_td > b.1) {
+				*best = Some((announcement.head_hash, announcement.head_td));
+			}
 		}
 
 		self.maintain_sync(ctx.as_basic());
@@ -326,11 +332,15 @@ impl<L: LightChainClient> LightSync<L> {
 			return;
 		}
 
+		trace!(target: "sync", "Beginning search for common ancestor");
+
 		*state = SyncState::AncestorSearch(AncestorSearch::begin(chain_info.best_block_number));
 	}
 
 	fn maintain_sync(&self, ctx: &BasicContext) {
 		const DRAIN_AMOUNT: usize = 128;
+
+		debug!(target: "sync", "Maintaining sync.");
 
 		let mut state = self.state.lock();
 

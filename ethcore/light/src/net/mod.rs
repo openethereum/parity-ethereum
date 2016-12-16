@@ -284,8 +284,8 @@ impl LightProtocol {
 		let peer = try!(peers.get(peer_id).ok_or_else(|| Error::UnknownPeer));
 		let mut peer = peer.lock();
 
-		match peer.remote_flow.as_mut() {
-			Some(&mut (ref mut buf, ref flow)) => {
+		match peer.remote_flow {
+			Some((ref mut buf, ref flow)) => {
 				flow.recharge(buf);
 				let max = flow.compute_cost(request.kind(), request.amount());
 				try!(buf.deduct_cost(max));
@@ -295,6 +295,8 @@ impl LightProtocol {
 
 		let req_id = self.req_id.fetch_add(1, Ordering::SeqCst);
 		let packet_data = encode_request(&request, req_id);
+
+		trace!(target: "les", "Dispatching request {} to peer {}", req_id, peer_id);
 
 		let packet_id = match request.kind() {
 			request::Kind::Headers => packet::GET_BLOCK_HEADERS,
