@@ -33,9 +33,7 @@ use ethsync::SyncConfig;
 use informant::Informant;
 use updater::{UpdatePolicy, Updater};
 
-use rpc::{HttpServer, IpcServer, HttpConfiguration, IpcConfiguration};
-use signer::SignerServer;
-use dapps::WebappServer;
+use rpc::{HttpConfiguration, IpcConfiguration};
 use params::{
 	SpecType, Pruning, AccountsConfig, GasPricerConfig, MinerExtras, Switch,
 	tracing_switch_to_bool, fatdb_switch_to_bool, mode_switch_to_bool
@@ -118,7 +116,7 @@ pub fn open_ui(dapps_conf: &dapps::Configuration, signer_conf: &signer::Configur
 }
 
 // Execute in light client mode.
-pub fn execute_light(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<bool, String> {
+pub fn execute_light(cmd: RunCmd) -> Result<bool, String> {
 	use light::client::{Config as ClientConfig, Service as LightClientService};
 	use ethsync::{LightSync, LightSyncParams, ManageNetwork};
 
@@ -157,6 +155,7 @@ pub fn execute_light(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<bool, S
 
 	let log_client = service.client().clone();
 	::std::thread::spawn(move || {
+		// TODO: proper informant.
 		loop {
 			::std::thread::sleep(::std::time::Duration::from_secs(5));
 			let chain_info = log_client.chain_info();
@@ -184,7 +183,7 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 	}
 
 	if cmd.light {
-		return execute_light(cmd, logger);
+		return execute_light(cmd);
 	}
 
 	// set up panic handler
@@ -479,6 +478,9 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 
 	// Handle exit
 	let restart = wait_for_exit(panic_handler, Some(updater), can_restart);
+
+	// drop this stuff as soon as exit detected.
+	drop((http_server, ipc_server, dapps_server, signer_server));
 
 	info!("Finishing work, please wait...");
 
