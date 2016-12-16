@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import { uniq } from 'lodash';
+import debounce from 'debounce';
 
 import ABI from '~/contracts/abi/certifier.json';
 import Contract from '~/api/contract';
@@ -75,17 +76,10 @@ export default class CertificationsMiddleware {
         });
       };
 
-      let changesInterval = null;
       let filter = null;
 
       const onFilter = (filterId) => {
         filter = filterId;
-        if (changesInterval) {
-          clearInterval(changesInterval);
-        }
-        // TODO: find a better solution than this stupid 5s interval
-        changesInterval = setInterval(fetchChanges, 5000);
-
         api.eth.getFilterLogs(filterId)
           .then(onLogs)
           .catch((err) => {
@@ -93,13 +87,17 @@ export default class CertificationsMiddleware {
           });
       };
 
-      const fetchChanges = () => {
+      const fetchChanges = debounce(() => {
         api.eth.getFilterChanges(filter)
           .then(onLogs)
           .catch((err) => {
             console.error('Failed to fetch new certifier events:', err);
           });
-      };
+      }, 10 * 1000, true);
+      api.subscribe('eth_blockNumber', (err) => {
+        if (err) return;
+        fetchChanges();
+      });
 
       const updateFilter = updatableFilter(api, onFilter);
       let certifiers = [];
