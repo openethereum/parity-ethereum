@@ -299,9 +299,7 @@ impl RoundStart {
 	}
 
 	// called on failed attempt. may trigger a transition after a number of attempts.
-	// a failed attempt is defined as:
-	//   - any time we try to make a request to a peer and fail
-	//   - any time a peer returns invalid or incomplete response
+	// a failed attempt is defined as any time a peer returns invalid or incomplete response
 	fn failed_attempt(mut self) -> SyncRound {
 		self.attempt += 1;
 
@@ -371,7 +369,6 @@ impl RoundStart {
 		where D: Fn(HeadersRequest) -> Option<ReqId>
 	{
 		if self.pending_req.is_none() {
-
 			// beginning offset + first block expected after last header we have.
 			let start = (self.start_block.0 + 1)
 				+ self.sparse_headers.len() as u64 * (ROUND_SKIP + 1);
@@ -383,9 +380,8 @@ impl RoundStart {
 				reverse: false,
 			};
 
-			match dispatcher(headers_request.clone()) {
-				Some(req_id) => self.pending_req = Some((req_id, headers_request)),
-				None => return self.failed_attempt(),
+			if let Some(req_id) = dispatcher(headers_request.clone()) {
+				self.pending_req = Some((req_id, headers_request));
 			}
 		}
 
@@ -408,6 +404,11 @@ impl SyncRound {
 		trace!(target: "sync", "Aborting sync round: {:?}", reason);
 
 		SyncRound::Abort(reason)
+	}
+
+	/// Begin sync rounds from a starting block.
+	pub fn begin(num: u64, hash: H256) -> Self {
+		SyncRound::Start(RoundStart::new((num, hash)))
 	}
 
 	/// Process an answer to a request. Unknown requests will be ignored.

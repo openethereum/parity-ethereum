@@ -33,7 +33,7 @@ use ethcore::header::Header;
 use light::client::LightChainClient;
 use light::net::{
 	Announcement, Handler, BasicContext, EventContext,
-	Capabilities, ReqId, Status
+	Capabilities, ReqId, Status,
 };
 use light::request;
 use network::PeerId;
@@ -66,10 +66,60 @@ impl Peer {
 	}
 }
 
-// Search for a common ancestor with the best chain.
-struct AncestorSearch {
-	last_batched: u64,
-	req_id: Option<ReqId>,
+// search for a common ancestor with the best chain.
+enum AncestorSearch {
+	Queued(u64), // queued to search for blocks starting from here.
+	Awaiting(ReqId, u64, request::Headers), // awaiting response for this request.
+	Prehistoric, // prehistoric block found. TODO: start to roll back CHTs.
+	FoundCommon(u64, H256), // common block found.
+	Genesis, // common ancestor is the genesis.
+}
+
+impl AncestorSearch {
+	fn begin(best_num: u64) -> Self {
+		match best_num {
+			0 => AncestorSearch::Genesis,
+			x => AncestorSearch::Queued(best_num),
+		}
+	}
+
+	fn process_response<L>(mut self, ctx: &ResponseContext, client: &L) -> AncestorSearch
+		where L: LightChainClient
+	{
+		let first_num = client.chain_info().first_block_number.unwrap_or(0);
+		match self {
+			AncestorSearch::Awaiting(id, start, req) => {
+				if &id == ctx.req_id() {
+					match response::decode_and_verify(ctx.data(), &req) {
+						Ok(headers) => {
+							for header in &headers {
+								if client.is_known(&header.hash()) {
+									debug!(target: "sync", "Found common ancestor with best chain");
+									return AncestorSearch::FoundCommon(header.number(), header.hash());
+								}
+
+								if header.number() <= first_num {
+									debug!(target: "sync", "Prehistoric common ancestor with best chain.");
+									return AncestorSearch::Prehistoric;
+								}
+							}
+
+							AncestorSearch::Queued(start - headers.len() as u64)
+						}
+						Err(e) => {
+							trace!(target: "sync", "Bad headers response from {}: {}", ctx.responder(), e);
+
+							ctx.punish_responder();
+							AncestorSearch::Queued(start)
+						}
+					}
+				} else {
+					AncestorSearch::Awaiting(id, start, req)
+				}
+			}
+			other => other,
+		}
+	}
 }
 
 // synchronization state machine.
@@ -218,17 +268,18 @@ impl<L: LightChainClient> Handler for LightSync<L> {
 		{
 			let mut state = self.state.lock();
 
+			let ctx = ResponseCtx {
+				peer: ctx.peer(),
+				req_id: req_id,
+				ctx: ctx.as_basic(),
+				data: headers,
+			};
+
 			*state = match mem::replace(&mut *state, SyncState::Idle) {
 				SyncState::Idle => SyncState::Idle,
-				SyncState::AncestorSearch(search) => SyncState::AncestorSearch(search),
-				SyncState::Rounds(round) => {
-					SyncState::Rounds(round.process_response(&ResponseCtx {
-						peer: ctx.peer(),
-						req_id: req_id,
-						ctx: ctx.as_basic(),
-						data: headers,
-					}))
-				}
+				SyncState::AncestorSearch(search) =>
+					SyncState::AncestorSearch(search.process_response(&ctx, &*self.client)),
+				SyncState::Rounds(round) => SyncState::Rounds(round.process_response(&ctx)),
 			};
 		}
 
@@ -244,10 +295,17 @@ impl<L: LightChainClient> Handler for LightSync<L> {
 impl<L: LightChainClient> LightSync<L> {
 	// Begins a search for the common ancestor and our best block.
 	// does not lock state, instead has a mutable reference to it passed.
-	fn begin_search(&self, _state: &mut SyncState) {
+	fn begin_search(&self, state: &mut SyncState) {
 		self.client.clear_queue();
 
-		unimplemented!();
+		let chain_info = self.client.chain_info();
+		if let None =  *self.best_seen.lock() {
+			// no peers.
+			*state = SyncState::Idle;
+			return;
+		}
+
+		*state = SyncState::AncestorSearch(AncestorSearch::begin(chain_info.best_block_number));
 	}
 
 	fn maintain_sync(&self, ctx: &BasicContext) {
@@ -283,7 +341,7 @@ impl<L: LightChainClient> LightSync<L> {
 			}
 		}
 
-		// check for aborted sync round.
+		// handle state transitions.
 		{
 			match mem::replace(&mut *state, SyncState::Idle) {
 				SyncState::Rounds(SyncRound::Abort(reason)) => {
@@ -300,11 +358,24 @@ impl<L: LightChainClient> LightSync<L> {
 					debug!(target: "sync", "Beginning search after aborted sync round");
 					self.begin_search(&mut state);
 				}
+				SyncState::AncestorSearch(AncestorSearch::FoundCommon(num, hash)) => {
+					// TODO: compare to best block and switch to another downloading
+					// method when close.
+					*state = SyncState::Rounds(SyncRound::begin(num, hash));
+				}
+				SyncState::AncestorSearch(AncestorSearch::Genesis) => {
+					// Same here.
+					let g_hash = self.client.chain_info().genesis_hash;
+					*state = SyncState::Rounds(SyncRound::begin(0, g_hash));
+				}
+				SyncState::Idle => self.begin_search(&mut state),
 				other => *state = other, // restore displaced state.
 			}
 		}
 
 		// allow dispatching of requests.
+		// TODO: maybe wait until the amount of cumulative requests remaining is high enough
+		// to avoid pumping the failure rate.
 		{
 			*state = match mem::replace(&mut *state, SyncState::Idle) {
 				SyncState::Rounds(round)
