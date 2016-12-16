@@ -1,5 +1,5 @@
 [package]
-name = "evmjit"
+name = "evmjitlib"
 version = "1.4.0"
 authors = ["debris <marek.kotewicz@gmail.com>"]
 

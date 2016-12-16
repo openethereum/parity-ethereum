@@ -27,7 +27,7 @@ time = "0.1"
 rand = "0.3"
 byteorder = "0.5"
 transient-hashmap = "0.1"
-evmjit = { path = "../evmjit", optional = true }
+evmjitlib = { path = "../evmjit", optional = true }
 clippy = { version = "0.0.96", optional = true}
 ethash = { path = "../ethash" }
 ethcore-util = { path = "../util" }
@@ -47,7 +47,7 @@ git = "https://github.com/ethcore/hyper"
 default-features = false
 
 [features]
-jit = ["evmjit"]
+jit = ["evmjitlib"]
 evm-debug = ["slow-blocks"]
 evm-debug-tests = ["evm-debug"]
 slow-blocks = [] # Use SLOW_TX_DURATION="50" (compile time!) to track transactions over 50ms
