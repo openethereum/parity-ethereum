@@ -74,13 +74,15 @@ struct SubchainRequest {
 // front of the round are dispatched first.
 impl PartialOrd for SubchainRequest {
 	fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-		self.subchain_parent.0.partial_cmp(&other.subchain_parent.0)
+		self.subchain_parent.0
+			.partial_cmp(&other.subchain_parent.0)
+			.map(Ordering::reverse)
 	}
 }
 
 impl Ord for SubchainRequest {
 	fn cmp(&self, other: &Self) -> Ordering {
-		self.subchain_parent.0.cmp(&other.subchain_parent.0)
+		self.subchain_parent.0.cmp(&other.subchain_parent.0).reverse()
 	}
 }
 
