@@ -282,7 +282,7 @@ impl<L: LightChainClient> Handler for LightSync<L> {
 		trace!(target: "sync", "Announcement from peer {}: new chain head {:?}, reorg depth {}",
 			ctx.peer(), (announcement.head_hash, announcement.head_num), announcement.reorg_depth);
 
-		if last_td < announcement.head_td {
+		if last_td > announcement.head_td {
 			trace!(target: "sync", "Peer {} moved backwards.", ctx.peer());
 			self.peers.write().remove(&ctx.peer());
 			ctx.disconnect_peer(ctx.peer());
