@@ -53,6 +53,7 @@ struct ChainInfo {
 
 struct Peer {
 	status: ChainInfo,
+	working: bool,
 }
 
 impl Peer {
@@ -60,8 +61,18 @@ impl Peer {
 	fn new(chain_info: ChainInfo) -> Self {
 		Peer {
 			status: chain_info,
+			working: false,
 		}
 	}
+
+	// whether the peer is fully loaded with requests.
+	fn is_fully_loaded(&self) -> bool { self.working }
+
+	// signal that the peer's load has been lightened.
+	fn load_lightened(&mut self) { self.working = false }
+
+	// signal that the peer's load has been increased.
+	fn load_increased(&mut self) { self.working = true }
 }
 
 // search for a common ancestor with the best chain.
@@ -288,8 +299,9 @@ impl<L: LightChainClient> Handler for LightSync<L> {
 	}
 
 	fn on_block_headers(&self, ctx: &EventContext, req_id: ReqId, headers: &[Bytes]) {
-		if !self.peers.read().contains_key(&ctx.peer()) {
-			return;
+		match self.peers.read().get(&ctx.peer()) {
+			Some(peer) => peer.lock().load_lightened(),
+			None => return,
 		}
 
 		{
@@ -418,9 +430,15 @@ impl<L: LightChainClient> LightSync<L> {
 				rng.shuffle(&mut peer_ids);
 
 				for peer in &peer_ids {
+					let peer_info = peers.get(peer).expect("key known to be present; qed");
+					let mut peer_info = peer_info.lock();
+					if peer_info.is_fully_loaded() { continue }
 					if ctx.max_requests(*peer, request::Kind::Headers) >= req.max {
 						match ctx.request_from(*peer, request::Request::Headers(req.clone())) {
-							Ok(id) => return Some(id),
+							Ok(id) => {
+								peer_info.load_increased();
+								return Some(id)
+							}
 							Err(e) =>
 								trace!(target: "sync", "Error requesting headers from viable peer: {}", e),
 						}
