@@ -76,6 +76,7 @@ pub struct Client {
 	queue: HeaderQueue,
 	chain: HeaderChain,
 	tx_pool: Mutex<H256FastMap<SignedTransaction>>,
+	import_lock: Mutex<()>,
 }
 
 impl Client {
@@ -85,6 +86,7 @@ impl Client {
 			queue: HeaderQueue::new(config.queue, spec.engine.clone(), io_channel, true),
 			chain: HeaderChain::new(&::rlp::encode(&spec.genesis_header())),
 			tx_pool: Mutex::new(Default::default()),
+			import_lock: Mutex::new(()),
 		}
 	}
 
@@ -149,15 +151,17 @@ impl Client {
 	pub fn import_verified(&self) {
 		const MAX: usize = 256;
 
+		let _lock = self.import_lock.lock();
+
 		let mut bad = Vec::new();
 		let mut good = Vec::new();
 		for verified_header in self.queue.drain(MAX) {
-			let hash = verified_header.hash();
+			let (num, hash) = (verified_header.number(), verified_header.hash());
 
 			match self.chain.insert(::rlp::encode(&verified_header).to_vec()) {
 				Ok(()) => good.push(hash),
 				Err(e) => {
-					debug!(target: "client", "Error importing header {}: {}", hash, e);
+					debug!(target: "client", "Error importing header {:?}: {}", (num, hash), e);
 					bad.push(hash);
 				}
 			}

@@ -104,13 +104,16 @@ impl HeaderChain {
 		let number = view.number();
 		let parent_hash = view.parent_hash();
 
+		// hold candidates the whole time to guard import order.
+		let mut candidates = self.candidates.write();
+
 		// find parent details.
 		let parent_td = {
 			if number == 1 {
 				let g_view = HeaderView::new(&self.genesis_header);
 				g_view.difficulty()
 			} else {
-				let maybe_td = self.candidates.read().get(&(number - 1))
+				let maybe_td = candidates.get(&(number - 1))
 					.and_then(|entry| entry.candidates.iter().find(|c| c.hash == parent_hash))
 					.map(|c| c.total_difficulty);
 
@@ -124,7 +127,6 @@ impl HeaderChain {
 		let total_difficulty = parent_td + view.difficulty();
 
 		// insert headers and candidates entries.
-		let mut candidates = self.candidates.write();
 		candidates.entry(number).or_insert_with(|| Entry { candidates: SmallVec::new(), canonical_hash: hash})
 			.candidates.push(Candidate {
 				hash: hash,
