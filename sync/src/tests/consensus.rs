@@ -82,12 +82,14 @@ fn authority_round() {
 	net.sync();
 	// Trigger block proposal
 	net.peer(0).chain.miner().import_own_transaction(&*net.peer(0).chain, new_tx(s0.secret(), 0.into())).unwrap();
+	net.peer(1).chain.miner().import_own_transaction(&*net.peer(1).chain, new_tx(s1.secret(), 0.into())).unwrap();
 	// Sync a block
 	net.sync();
 	assert_eq!(net.peer(0).chain.chain_info().best_block_number, 1);
 	assert_eq!(net.peer(1).chain.chain_info().best_block_number, 1);
 
-	net.peer(1).chain.miner().import_own_transaction(&*net.peer(1).chain, new_tx(s1.secret(), 0.into())).unwrap();
+	net.peer(0).chain.miner().import_own_transaction(&*net.peer(0).chain, new_tx(s0.secret(), 1.into())).unwrap();
+	net.peer(1).chain.miner().import_own_transaction(&*net.peer(1).chain, new_tx(s1.secret(), 1.into())).unwrap();
 	// Move to next proposer step
 	net.peer(0).chain.engine().step();
 	net.peer(1).chain.engine().step();
@@ -96,14 +98,17 @@ fn authority_round() {
 	assert_eq!(net.peer(1).chain.chain_info().best_block_number, 2);
 
 	// Fork the network
-	net.peer(0).chain.miner().import_own_transaction(&*net.peer(0).chain, new_tx(s0.secret(), 1.into())).unwrap();
+	net.peer(0).chain.miner().import_own_transaction(&*net.peer(0).chain, new_tx(s0.secret(), 2.into())).unwrap();
+	net.peer(1).chain.miner().import_own_transaction(&*net.peer(1).chain, new_tx(s1.secret(), 2.into())).unwrap();
 	net.peer(0).chain.engine().step();
 	net.peer(1).chain.engine().step();
-	assert_eq!(net.peer(0).chain.chain_info().best_block_number, 3);
-	net.peer(1).chain.miner().import_own_transaction(&*net.peer(1).chain, new_tx(s1.secret(), 1.into())).unwrap();
 	net.peer(0).chain.engine().step();
 	net.peer(1).chain.engine().step();
-	assert_eq!(net.peer(1).chain.chain_info().best_block_number, 3);
+	let ci0 = net.peer(0).chain.chain_info();
+	let ci1 = net.peer(1).chain.chain_info();
+	assert_eq!(ci0.best_block_number, 3);
+	assert_eq!(ci1.best_block_number, 3);
+	assert!(ci0.best_block_hash != ci1.best_block_hash);
 	// Reorg to the correct one.
 	net.sync();
 	let ci0 = net.peer(0).chain.chain_info();

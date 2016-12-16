@@ -488,6 +488,10 @@ impl BlockChainClient for TestBlockChainClient {
 		self.block_hash(id).and_then(|hash| self.blocks.read().get(&hash).map(|r| Rlp::new(r).at(0).as_raw().to_vec()))
 	}
 
+	fn block_number(&self, _id: BlockId) -> Option<BlockNumber> {
+		unimplemented!()
+	}
+
 	fn block_body(&self, id: BlockId) -> Option<Bytes> {
 		self.block_hash(id).and_then(|hash| self.blocks.read().get(&hash).map(|r| {
 			let mut stream = RlpStream::new_list(2);
@@ -694,10 +698,18 @@ impl BlockChainClient for TestBlockChainClient {
 
 	fn set_mode(&self, _: Mode) { unimplemented!(); }
 
+	fn disable(&self) { unimplemented!(); }
+
 	fn pruning_info(&self) -> PruningInfo {
 		PruningInfo {
 			earliest_chain: 1,
 			earliest_state: 1,
 		}
 	}
+
+	fn call_contract(&self, _address: Address, _data: Bytes) -> Result<Bytes, String> { Ok(vec![]) }
+
+	fn registrar_address(&self) -> Option<Address> { None }
+
+	fn registry_address(&self, _name: String) -> Option<Address> { None }
 }

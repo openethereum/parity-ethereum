@@ -14,20 +14,27 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Hash-addressed content resolver & fetcher.
+//! Indication of how secure the chain is.
 
-#![warn(missing_docs)]
+use header::BlockNumber;
 
-#[macro_use]
-extern crate log;
-extern crate rustc_serialize;
-extern crate mime_guess;
-extern crate ethabi;
-extern crate ethcore_util as util;
-extern crate fetch;
+/// Indication of how secure the chain is.
+#[derive(Debug, PartialEq, Copy, Clone, Hash, Eq, Binary)]
+pub enum SecurityLevel {
+	/// All blocks from genesis to chain head are known to have valid state transitions and PoW.
+	FullState,
+	/// All blocks from genesis to chain head are known to have a valid PoW.
+	FullProofOfWork,
+	/// Some recent headers (the argument) are known to have a valid PoW.
+	PartialProofOfWork(BlockNumber),
+}
 
-mod client;
-
-pub mod urlhint;
-
-pub use client::{HashFetch, Client};
+impl SecurityLevel {
+	/// `true` for `FullPoW`/`FullState`.
+	pub fn is_full(&self) -> bool {
+		match *self {
+			SecurityLevel::FullState | SecurityLevel::FullProofOfWork => true,
+			_ => false,
+		} 
+	}
+}
