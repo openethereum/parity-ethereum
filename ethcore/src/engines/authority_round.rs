@@ -36,7 +36,7 @@ use io::{IoContext, IoHandler, TimerToken, IoService};
 use transaction::SignedTransaction;
 use env_info::EnvInfo;
 use builtin::Builtin;
-use client::Client;
+use client::{Client, MiningBlockChainClient};
 use super::validator_set::{ValidatorSet, new_validator_set};
 
 /// `AuthorityRound` params.
@@ -231,7 +231,7 @@ impl Engine for AuthorityRound {
 			if let Ok(signature) = ap.sign(*header.author(), self.password.read().clone(), header.bare_hash()) {
 				trace!(target: "poa", "generate_seal: Issuing a block for step {}.", step);
 				self.proposed.store(true, AtomicOrdering::SeqCst);
-				return Some(vec![encode(&step).to_vec(), encode(&(&*signature as &[u8])).to_vec()]);
+				return Seal::Regular(vec![encode(&step).to_vec(), encode(&(&*signature as &[u8])).to_vec()]);
 			} else {
 				warn!(target: "poa", "generate_seal: FAIL: Accounts secret key unavailable.");
 			}

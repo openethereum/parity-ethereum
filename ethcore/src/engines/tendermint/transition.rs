@@ -23,7 +23,17 @@ use super::{Tendermint, Step};
 use engines::Engine;
 
 pub struct TransitionHandler {
-	pub engine: Weak<Tendermint>,
+	engine: Weak<Tendermint>,
+	timeouts: TendermintTimeouts,
+}
+
+impl TransitionHandler {
+	pub fn new(engine: Weak<Tendermint>, timeouts: TendermintTimeouts) -> Self {
+		TransitionHandler {
+			engine: engine,
+			timeouts: timeouts,
+		}
+	}
 }
 
 /// Base timeout of each step in ms.
@@ -67,9 +77,7 @@ fn set_timeout(io: &IoContext<Step>, timeout: Duration) {
 
 impl IoHandler<Step> for TransitionHandler {
 	fn initialize(&self, io: &IoContext<Step>) {
-		if let Some(engine) = self.engine.upgrade() {
-			set_timeout(io, engine.our_params.timeouts.propose)
-		}
+		set_timeout(io, self.timeouts.propose)
 	}
 
 	fn timeout(&self, _io: &IoContext<Step>, timer: TimerToken) {
@@ -81,16 +89,14 @@ impl IoHandler<Step> for TransitionHandler {
 	}
 
 	fn message(&self, io: &IoContext<Step>, next_step: &Step) {
-		if let Some(engine) = self.engine.upgrade() {
-			if let Err(io_err) = io.clear_timer(ENGINE_TIMEOUT_TOKEN) {
-				warn!(target: "poa", "Could not remove consensus timer {}.", io_err)
-			}
-			match *next_step {
-				Step::Propose => set_timeout(io, engine.our_params.timeouts.propose),
-				Step::Prevote => set_timeout(io, engine.our_params.timeouts.prevote),
-				Step::Precommit => set_timeout(io, engine.our_params.timeouts.precommit),
-				Step::Commit => set_timeout(io, engine.our_params.timeouts.commit),
-			};
+		if let Err(io_err) = io.clear_timer(ENGINE_TIMEOUT_TOKEN) {
+			warn!(target: "poa", "Could not remove consensus timer {}.", io_err)
 		}
+		match *next_step {
+			Step::Propose => set_timeout(io, self.timeouts.propose),
+			Step::Prevote => set_timeout(io, self.timeouts.prevote),
+			Step::Precommit => set_timeout(io, self.timeouts.precommit),
+			Step::Commit => set_timeout(io, self.timeouts.commit),
+		};
 	}
 }

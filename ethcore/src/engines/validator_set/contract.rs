@@ -62,6 +62,7 @@ impl ChainNotify for ValidatorContract {
 		_: Vec<H256>,
 		_: Vec<H256>,
 		_: Vec<H256>,
+		_: Vec<Bytes>,
 		_duration: u64) {
 		self.update();
 	}
@@ -74,6 +75,10 @@ impl ValidatorSet for ValidatorContract {
 
 	fn get(&self, nonce: usize) -> Address {
 		self.validators.read().get(nonce).clone()
+	}
+
+	fn count(&self) -> usize {
+		self.validators.read().count()
 	}
 
 	fn register_call_contract(&self, client: Weak<Client>) {

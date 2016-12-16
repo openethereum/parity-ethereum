@@ -42,6 +42,10 @@ impl ValidatorSet for SimpleList {
 	fn get(&self, nonce: usize) -> Address {
 		self.validators.get(nonce % self.validator_n).expect("There are validator_n authorities; taking number modulo validator_n gives number in validator_n range; qed").clone()
 	}
+
+	fn count(&self) -> usize {
+		self.validator_n
+	}
 }
 
 #[cfg(test)]

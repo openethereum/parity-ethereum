@@ -20,7 +20,7 @@ use util::*;
 use io::*;
 use spec::Spec;
 use error::*;
-use client::{Client, BlockChainClient, MiningBlockChainClient, ClientConfig, ChainNotify};
+use client::{Client, ClientConfig, ChainNotify};
 use miner::Miner;
 use snapshot::ManifestData;
 use snapshot::service::{Service as SnapshotService, ServiceParams as SnapServiceParams};
@@ -46,6 +46,8 @@ pub enum ClientIoMessage {
 	FeedBlockChunk(H256, Bytes),
 	/// Take a snapshot for the block with given number.
 	TakeSnapshot(u64),
+	/// New consensus message received.
+	NewMessage(Bytes)
 }
 
 /// Client service setup. Creates and registers client and network services with the IO subsystem.
@@ -212,6 +214,9 @@ impl IoHandler<ClientIoMessage> for ClientIoHandler {
 				if let Err(e) = res {
 					debug!(target: "snapshot", "Failed to initialize periodic snapshot thread: {:?}", e);
 				}
+			},
+			ClientIoMessage::NewMessage(ref message) => if let Err(e) = self.client.engine().handle_message(message) {
+				trace!(target: "poa", "Invalid message received: {}", e);
 			},
 			_ => {} // ignore other messages
 		}

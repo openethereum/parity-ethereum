@@ -208,19 +208,15 @@ pub trait Engine : Sync + Send {
 	/// Register an account which signs consensus messages.
 	fn set_signer(&self, _address: Address, _password: String) {}
 
-<<<<<<< HEAD
 	/// Add Client which can be used for sealing, querying the state and sending messages.
 	fn register_client(&self, _client: Weak<Client>) {}
-=======
-	/// Stops any services that the may hold the Engine and makes it safe to drop.
-	fn stop(&self) {}
-
-	/// Add a channel for communication with Client which can be used for sealing.
-	fn register_message_channel(&self, _message_channel: IoChannel<ClientIoMessage>) {}
->>>>>>> check-updates
 
 	/// Add an account provider useful for Engines that sign stuff.
 	fn register_account_provider(&self, _account_provider: Arc<AccountProvider>) {}
+
 	/// Trigger next step of the consensus engine.
 	fn step(&self) {}
+
+	/// Stops any services that the may hold the Engine and makes it safe to drop.
+	fn stop(&self) {}
 }

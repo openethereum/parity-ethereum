@@ -39,6 +39,8 @@ pub trait ValidatorSet {
 	fn contains(&self, address: &Address) -> bool;
 	/// Draws an validator nonce modulo number of validators.
 	fn get(&self, nonce: usize) -> Address;
+	/// Returns the current number of validators.
+	fn count(&self) -> usize;
 	/// Allows blockchain state access.
 	fn register_call_contract(&self, _client: Weak<Client>) {}
 }
