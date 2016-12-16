@@ -126,7 +126,7 @@ pub fn execute_light(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<bool, S
 
 	info!(
 		"Configured in {} mode. Note that this feature is {}.",
-		Colour::White.bold().paint("Light Client"),
+		Colour::Blue.bold().paint("Light Client"),
 		Colour::Red.bold().paint("experimental"),
 	);
 
@@ -159,7 +159,14 @@ pub fn execute_light(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<bool, S
 	::std::thread::spawn(move || {
 		loop {
 			::std::thread::sleep(::std::time::Duration::from_secs(5));
-			println!("Best block: #{}", log_client.chain_info().best_block_number);
+			let chain_info = log_client.chain_info();
+			let queue_info = log_client.queue_info();
+			println!(
+				"#{}    {:5}+{:5} Qed",
+				chain_info.best_block_number,
+				queue_info.unverified_queue_size,
+				queue_info.verified_queue_size
+			);
 		}
 	});
 
