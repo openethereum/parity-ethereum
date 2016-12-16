@@ -395,7 +395,7 @@ impl Deref for LocalizedTransaction {
 pub struct PendingTransaction {
 	/// Signed transaction data.
 	pub transaction: SignedTransaction,
-	/// Gas price.
+	/// To be activated at this block. `None` for immediately.
 	pub min_block: Option<BlockNumber>,
 }
 
