@@ -19,6 +19,8 @@ import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 import { observer } from 'mobx-react';
 
+import UpgradeStore from '~/modals/UpgradeParity/store';
+
 import Connection from '../Connection';
 import ParityBar from '../ParityBar';
 
@@ -42,14 +44,15 @@ class Application extends Component {
   }
 
   static propTypes = {
+    blockNumber: PropTypes.object,
     children: PropTypes.node,
-    netChain: PropTypes.string,
     isTest: PropTypes.bool,
-    pending: PropTypes.array,
-    blockNumber: PropTypes.object
+    netChain: PropTypes.string,
+    pending: PropTypes.array
   }
 
   store = new Store(this.context.api);
+  upgradeStore = new UpgradeStore(this.context.api);
 
   render () {
     const [root] = (window.location.hash || '').replace('#/', '').split('/');
@@ -71,12 +74,13 @@ class Application extends Component {
   }
 
   renderApp () {
-    const { children, pending, netChain, isTest, blockNumber } = this.props;
+    const { blockNumber, children, pending, netChain, isTest } = this.props;
 
     return (
       <Container
-        showFirstRun={ this.store.firstrunVisible }
-        onCloseFirstRun={ this.store.closeFirstrun }>
+        upgradeStore={ this.upgradeStore }
+        onCloseFirstRun={ this.store.closeFirstrun }
+        showFirstRun={ this.store.firstrunVisible }>
         <TabBar
           netChain={ netChain }
           isTest={ isTest }
@@ -84,7 +88,11 @@ class Application extends Component {
         <div className={ styles.content }>
           { children }
         </div>
-        { blockNumber ? (<Status />) : null }
+        {
+          blockNumber
+            ? <Status upgradeStore={ this.upgradeStore } />
+            : null
+        }
         <Snackbar />
       </Container>
     );
@@ -102,16 +110,16 @@ class Application extends Component {
 }
 
 function mapStateToProps (state) {
-  const { netChain, isTest, blockNumber } = state.nodeStatus;
+  const { blockNumber, netChain, isTest } = state.nodeStatus;
   const { hasAccounts } = state.personal;
   const { pending } = state.signer;
 
   return {
+    blockNumber,
     hasAccounts,
-    netChain,
     isTest,
-    pending,
-    blockNumber
+    netChain,
+    pending
   };
 }
 

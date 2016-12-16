@@ -26,7 +26,7 @@ use fetch::{Fetch, FetchError, Client as FetchClient};
 use urlhint::{ContractClient, URLHintContract, URLHint, URLHintResult};
 
 /// API for fetching by hash.
-pub trait HashFetch {
+pub trait HashFetch: Send + Sync + 'static {
 	/// Fetch hash-addressed content.
 	/// Parameters:
 	/// 1. `hash` - content hash
@@ -42,7 +42,12 @@ pub enum Error {
 	/// Hash could not be resolved to a valid content address.
 	NoResolution,
 	/// Downloaded content hash does not match.
-	HashMismatch { expected: H256, got: H256 },
+	HashMismatch {
+		/// Expected hash
+		expected: H256,
+		/// Computed hash
+		got: H256,
+	},
 	/// IO Error while validating hash.
 	IO(io::Error),
 	/// Error during fetch.
@@ -79,7 +84,7 @@ impl Client {
 
 impl HashFetch for Client {
 	fn fetch(&self, hash: H256, on_done: Box<Fn(Result<PathBuf, Error>) + Send>) -> Result<(), Error> {
-		debug!(target: "dapps", "Fetching: {:?}", hash);
+		debug!(target: "fetch", "Fetching: {:?}", hash);
 
 		let url = try!(
 			self.contract.resolve(hash.to_vec()).map(|content| match content {
@@ -92,7 +97,7 @@ impl HashFetch for Client {
 			}).ok_or_else(|| Error::NoResolution)
 		);
 
-		debug!(target: "dapps", "Resolved {:?} to {:?}. Fetching...", hash, url);
+		debug!(target: "fetch", "Resolved {:?} to {:?}. Fetching...", hash, url);
 
 		self.fetch.lock().request_async(&url, Default::default(), Box::new(move |result| {
 			fn validate_hash(hash: H256, result: Result<PathBuf, FetchError>) -> Result<PathBuf, Error> {
@@ -107,7 +112,7 @@ impl HashFetch for Client {
 				}
 			}
 
-			debug!(target: "dapps", "Content fetched, validating hash ({:?})", hash);
+			debug!(target: "fetch", "Content fetched, validating hash ({:?})", hash);
 			on_done(validate_hash(hash, result))
 		})).map_err(Into::into)
 	}

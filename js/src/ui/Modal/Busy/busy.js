@@ -16,17 +16,19 @@
 
 import React, { Component, PropTypes } from 'react';
 
+import { nodeOrStringProptype } from '~/util/proptypes';
+
 import styles from './busy.css';
 
 export default class Busy extends Component {
   static propTypes = {
-    title: PropTypes.string,
-    state: PropTypes.string,
-    children: PropTypes.node
+    children: PropTypes.node,
+    state: nodeOrStringProptype(),
+    title: nodeOrStringProptype()
   }
 
   render () {
-    const { children, title, state } = this.props;
+    const { children, state, title } = this.props;
 
     return (
       <div className={ styles.center }>

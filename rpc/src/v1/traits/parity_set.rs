@@ -19,7 +19,7 @@
 use jsonrpc_core::Error;
 use jsonrpc_macros::Ready;
 
-use v1::types::{Bytes, H160, H256, U256};
+use v1::types::{Bytes, H160, H256, U256, ReleaseInfo};
 
 build_rpc_trait! {
 	/// Parity-specific rpc interface for operations altering the settings.
@@ -91,5 +91,13 @@ build_rpc_trait! {
 		/// Hash a file content under given URL.
 		#[rpc(async, name = "parity_hashContent")]
 		fn hash_content(&self, Ready<H256>, String);
+
+		/// Is there a release ready for install?
+		#[rpc(name = "parity_upgradeReady")]
+		fn upgrade_ready(&self) -> Result<Option<ReleaseInfo>, Error>;
+
+		/// Execute a release which is ready according to upgrade_ready().
+		#[rpc(name = "parity_executeUpgrade")]
+		fn execute_upgrade(&self) -> Result<bool, Error>;
 	}
 }
