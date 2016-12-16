@@ -58,26 +58,46 @@ export default class CertificationsMiddleware {
     const Revoked = contract.events.find((e) => e.name === 'Revoked');
 
     return (store) => {
-      const onFilter = (filterId) => {
-        api.eth.getFilterLogs(filterId) // TODO: query changes
-          .then((logs) => {
-            logs = contract.parseEventLogs(logs);
-            logs.forEach((log) => {
-              const certifier = certifiers.find((c) => c.address === log.address);
-              if (!certifier) {
-                throw new Error(`Could not find certifier at ${log.address}.`);
-              }
-              const { id, name, title, icon } = certifier;
+      const onLogs = (logs) => {
+        logs = contract.parseEventLogs(logs);
+        logs.forEach((log) => {
+          const certifier = certifiers.find((c) => c.address === log.address);
+          if (!certifier) {
+            throw new Error(`Could not find certifier at ${log.address}.`);
+          }
+          const { id, name, title, icon } = certifier;
 
-              if (log.event === 'Revoked') {
-                store.dispatch(removeCertification(log.params.who.value, id));
-              } else {
-                store.dispatch(addCertification(log.params.who.value, id, name, title, icon));
-              }
-            });
-          })
+          if (log.event === 'Revoked') {
+            store.dispatch(removeCertification(log.params.who.value, id));
+          } else {
+            store.dispatch(addCertification(log.params.who.value, id, name, title, icon));
+          }
+        });
+      };
+
+      let changesInterval = null;
+      let filter = null;
+
+      const onFilter = (filterId) => {
+        filter = filterId;
+        if (changesInterval) {
+          clearInterval(changesInterval);
+        }
+        // TODO: find a better solution than this stupid 5s interval
+        changesInterval = setInterval(fetchChanges, 5000);
+
+        api.eth.getFilterLogs(filterId)
+          .then(onLogs)
           .catch((err) => {
             console.error('Failed to fetch certifier events:', err);
+          });
+      };
+
+      const fetchChanges = () => {
+        api.eth.getFilterChanges(filter)
+          .then(onLogs)
+          .catch((err) => {
+            console.error('Failed to fetch new certifier events:', err);
           });
       };
 
