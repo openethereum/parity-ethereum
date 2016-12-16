@@ -200,11 +200,11 @@ fn upgrade_user_defaults(dirs: &DatabaseDirectories) {
 	}
 }
 
-pub fn upgrade_data_paths(dirs: &DatabaseDirectories, pruning: Algorithm) {
+pub fn upgrade_data_paths(base_path: &str, dirs: &DatabaseDirectories, pruning: Algorithm) {
 	let legacy_root_path = replace_home("", "$HOME/.parity");
 	let default_path = default_data_path();
-	if legacy_root_path != dirs.path && dirs.path == default_path {
-		upgrade_dir_location(&PathBuf::from(legacy_root_path), &PathBuf::from(&dirs.path));
+	if legacy_root_path != base_path && base_path == default_path {
+		upgrade_dir_location(&PathBuf::from(legacy_root_path), &PathBuf::from(&base_path));
 	}
 	upgrade_dir_location(&dirs.legacy_version_path(pruning), &dirs.db_path(pruning));
 	upgrade_dir_location(&dirs.legacy_snapshot_path(), &dirs.snapshot_path());

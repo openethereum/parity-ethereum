@@ -15,6 +15,7 @@ serde_json = "0.8"
 rustc-serialize = "0.3"
 transient-hashmap = "0.1"
 time = "0.1"
+semver = "0.5"
 futures = "0.1"
 
 jsonrpc-core = { git = "https://github.com/ethcore/jsonrpc.git" }
@@ -31,6 +32,7 @@ ethash = { path = "../ethash" }
 ethsync = { path = "../sync" }
 ethjson = { path = "../json" }
 ethcore-devtools = { path = "../devtools" }
+parity-updater = { path = "../updater" }
 rlp = { path = "../util/rlp" }
 fetch = { path = "../util/fetch" }
 serde_macros = { version = "0.8", optional = true }

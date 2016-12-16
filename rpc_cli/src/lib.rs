@@ -117,7 +117,7 @@ fn reject_transaction(
 
 // cmds
 
-pub fn cmd_signer_list(
+pub fn signer_list(
 	signerport: u16, authfile: PathBuf
 ) -> Result<String, String> {
 	let addr = &format!("ws://127.0.0.1:{}", signerport);
@@ -127,7 +127,7 @@ pub fn cmd_signer_list(
 	list_transactions(&mut signer)
 }
 
-pub fn cmd_signer_reject(
+pub fn signer_reject(
 	id: Option<usize>, signerport: u16, authfile: PathBuf
 ) -> Result<String, String> {
 	let id = try!(id.ok_or(format!("id required for signer reject")));
@@ -138,7 +138,7 @@ pub fn cmd_signer_reject(
 	reject_transaction(&mut signer, U256::from(id))
 }
 
-pub fn cmd_signer_sign(
+pub fn signer_sign(
 	id: Option<usize>,
 	pwfile: Option<PathBuf>,
 	signerport: u16,

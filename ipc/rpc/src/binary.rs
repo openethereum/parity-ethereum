@@ -804,6 +804,17 @@ binary_fixed_size!(H512);
 binary_fixed_size!(H2048);
 binary_fixed_size!(Address);
 binary_fixed_size!(BinHandshake);
+binary_fixed_size!(BinVersion);
+
+impl BinaryConvertable for ::semver::Version {
+	fn from_bytes(bytes: &[u8], length_stack: &mut ::std::collections::VecDeque<usize>) -> Result<Self, BinaryConvertError> {
+		BinVersion::from_bytes(bytes, length_stack).map(BinVersion::to_semver)
+	}
+
+	fn to_bytes(&self, buffer: &mut [u8], length_stack: &mut ::std::collections::VecDeque<usize>) -> Result<(), BinaryConvertError> {
+		BinVersion::from(self.clone()).to_bytes(buffer, length_stack)
+	}
+}
 
 #[test]
 fn vec_serialize() {

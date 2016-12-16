@@ -19,6 +19,7 @@
 #![cfg_attr(feature="nightly", feature(custom_derive, custom_attribute, plugin))]
 #![cfg_attr(feature="nightly", plugin(serde_macros, clippy))]
 
+extern crate semver;
 extern crate rustc_serialize;
 extern crate serde;
 extern crate serde_json;
@@ -39,6 +40,7 @@ extern crate time;
 extern crate rlp;
 extern crate fetch;
 extern crate futures;
+extern crate parity_updater as updater;
 
 #[macro_use]
 extern crate log;

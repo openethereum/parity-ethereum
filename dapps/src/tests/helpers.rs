@@ -68,7 +68,7 @@ fn init_logger() {
 	if let Ok(log) = env::var("RUST_LOG") {
 		let mut builder = LogBuilder::new();
 		builder.parse(&log);
-		builder.init().expect("Logger is initialized only once.");
+		let _ = builder.init();	// ignore errors since ./test.sh will call this multiple times.
 	}
 }
 
