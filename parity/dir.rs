@@ -27,7 +27,8 @@ const LEGACY_CLIENT_DB_VER_STR: &'static str = "5.3";
 
 #[derive(Debug, PartialEq)]
 pub struct Directories {
-	pub data: String,
+	pub base: String,
+	pub db: String,
 	pub keys: String,
 	pub signer: String,
 	pub dapps: String,
@@ -37,17 +38,19 @@ impl Default for Directories {
 	fn default() -> Self {
 		let data_dir = default_data_path();
 		Directories {
-			data: replace_home(&data_dir, "$DATA"),
-			keys: replace_home(&data_dir, "$DATA/keys"),
-			signer: replace_home(&data_dir, "$DATA/signer"),
-			dapps: replace_home(&data_dir, "$DATA/dapps"),
+			base: replace_home(&data_dir, "$BASE"),
+			db: replace_home(&data_dir, "$BASE/chains"),
+			keys: replace_home(&data_dir, "$BASE/keys"),
+			signer: replace_home(&data_dir, "$BASE/signer"),
+			dapps: replace_home(&data_dir, "$BASE/dapps"),
 		}
 	}
 }
 
 impl Directories {
 	pub fn create_dirs(&self, dapps_enabled: bool, signer_enabled: bool) -> Result<(), String> {
-		try!(fs::create_dir_all(&self.data).map_err(|e| e.to_string()));
+		try!(fs::create_dir_all(&self.base).map_err(|e| e.to_string()));
+		try!(fs::create_dir_all(&self.db).map_err(|e| e.to_string()));
 		try!(fs::create_dir_all(&self.keys).map_err(|e| e.to_string()));
 		if signer_enabled {
 			try!(fs::create_dir_all(&self.signer).map_err(|e| e.to_string()));
@@ -61,7 +64,8 @@ impl Directories {
 	/// Database paths.
 	pub fn database(&self, genesis_hash: H256, fork_name: Option<String>, spec_name: String) -> DatabaseDirectories {
 		DatabaseDirectories {
-			path: self.data.clone(),
+			path: self.db.clone(),
+			legacy_path: self.base.clone(),
 			genesis_hash: genesis_hash,
 			fork_name: fork_name,
 			spec_name: spec_name,
@@ -70,14 +74,14 @@ impl Directories {
 
 	/// Get the ipc sockets path
 	pub fn ipc_path(&self) -> PathBuf {
-		let mut dir = Path::new(&self.data).to_path_buf();
+		let mut dir = Path::new(&self.base).to_path_buf();
 		dir.push("ipc");
 		dir
 	}
 
 	// TODO: remove in 1.7
 	pub fn legacy_keys_path(&self, testnet: bool) -> PathBuf {
-		let mut dir = Path::new(&self.data).to_path_buf();
+		let mut dir = Path::new(&self.base).to_path_buf();
 		if testnet {
 			dir.push("testnet_keys");
 		} else {
@@ -96,6 +100,7 @@ impl Directories {
 #[derive(Debug, PartialEq)]
 pub struct DatabaseDirectories {
 	pub path: String,
+	pub legacy_path: String,
 	pub genesis_hash: H256,
 	pub fork_name: Option<String>,
 	pub spec_name: String,
@@ -105,14 +110,13 @@ impl DatabaseDirectories {
 	/// Base DB directory for the given fork.
 	// TODO: remove in 1.7
 	pub fn legacy_fork_path(&self) -> PathBuf {
-		let mut dir = Path::new(&self.path).to_path_buf();
+		let mut dir = Path::new(&self.legacy_path).to_path_buf();
 		dir.push(format!("{:?}{}", H64::from(self.genesis_hash), self.fork_name.as_ref().map(|f| format!("-{}", f)).unwrap_or_default()));
 		dir
 	}
 
 	pub fn spec_root_path(&self) -> PathBuf {
 		let mut dir = Path::new(&self.path).to_path_buf();
-		dir.push("chains");
 		dir.push(&self.spec_name);
 		dir
 	}
@@ -209,10 +213,11 @@ mod tests {
 	fn test_default_directories() {
 		let data_dir = super::default_data_path();
 		let expected = Directories {
-			data: replace_home(&data_dir, "$DATA"),
-			keys: replace_home(&data_dir, "$DATA/keys"),
-			signer: replace_home(&data_dir, "$DATA/signer"),
-			dapps: replace_home(&data_dir, "$DATA/dapps"),
+			base: replace_home(&data_dir, "$BASE"),
+			db: replace_home(&data_dir, "$BASE/chains"),
+			keys: replace_home(&data_dir, "$BASE/keys"),
+			signer: replace_home(&data_dir, "$BASE/signer"),
+			dapps: replace_home(&data_dir, "$BASE/dapps"),
 		};
 		assert_eq!(expected, Directories::default());
 	}

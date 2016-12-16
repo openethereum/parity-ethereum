@@ -44,7 +44,7 @@ impl Default for Configuration {
 			enabled: true,
 			port: 8180,
 			interface: "127.0.0.1".into(),
-			signer_path: replace_home(&data_dir, "$DATA/signer"),
+			signer_path: replace_home(&data_dir, "$BASE/signer"),
 			skip_origin_validation: false,
 		}
 	}

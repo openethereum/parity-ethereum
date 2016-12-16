@@ -62,7 +62,7 @@ impl Default for IpcConfiguration {
 		let data_dir = default_data_path();
 		IpcConfiguration {
 			enabled: true,
-			socket_addr: parity_ipc_path(&data_dir, "$DATA/jsonrpc.ipc"),
+			socket_addr: parity_ipc_path(&data_dir, "$BASE/jsonrpc.ipc"),
 			apis: ApiSet::IpcContext,
 		}
 	}

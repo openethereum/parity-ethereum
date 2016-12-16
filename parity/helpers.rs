@@ -135,7 +135,7 @@ pub fn to_price(s: &str) -> Result<f32, String> {
 pub fn replace_home(base: &str, arg: &str) -> String {
 	// the $HOME directory on mac os should be `~/Library` or `~/Library/Application Support`
 	let r = arg.replace("$HOME", env::home_dir().unwrap().to_str().unwrap());
-	let r = r.replace("$DATA", base	);
+	let r = r.replace("$BASE", base	);
 	r.replace("/", &::std::path::MAIN_SEPARATOR.to_string()	)
 }
 
@@ -188,7 +188,7 @@ pub fn to_bootnodes(bootnodes: &Option<String>) -> Result<Vec<String>, String> {
 pub fn default_network_config() -> ::ethsync::NetworkConfiguration {
 	use ethsync::{NetworkConfiguration, AllowIP};
 	NetworkConfiguration {
-		config_path: Some(replace_home(&::dir::default_data_path(), "$DATA/network")),
+		config_path: Some(replace_home(&::dir::default_data_path(), "$BASE/network")),
 		net_config_path: None,
 		listen_address: Some("0.0.0.0:30303".into()),
 		public_address: None,
@@ -257,12 +257,13 @@ pub fn to_client_config(
 }
 
 pub fn execute_upgrades(
+	base_path: &str,
 	dirs: &DatabaseDirectories,
 	pruning: Algorithm,
 	compaction_profile: CompactionProfile
 ) -> Result<(), String> {
 
-	upgrade_data_paths(dirs, pruning);
+	upgrade_data_paths(base_path, dirs, pruning);
 
 	match upgrade(Some(&dirs.path)) {
 		Ok(upgrades_applied) if upgrades_applied > 0 => {

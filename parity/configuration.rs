@@ -592,7 +592,7 @@ impl Configuration {
 		ret.snapshot_peers = self.snapshot_peers();
 		ret.allow_ips = try!(self.allow_ips());
 		ret.max_pending_peers = self.max_pending_peers();
-		let mut net_path = PathBuf::from(self.directories().data);
+		let mut net_path = PathBuf::from(self.directories().base);
 		net_path.push("network");
 		ret.config_path = Some(net_path.to_str().unwrap().to_owned());
 		ret.reserved_nodes = try!(self.init_reserved_nodes());
@@ -708,8 +708,9 @@ impl Configuration {
 	fn directories(&self) -> Directories {
 		use util::path;
 
-		let data_path = replace_home("", self.args.flag_datadir.as_ref().unwrap_or(&self.args.flag_db_path));
+		let data_path = replace_home("", self.args.flag_datadir.as_ref().unwrap_or(&self.args.flag_base_path));
 
+		let db_path = replace_home(&data_path, &self.args.flag_db_path);
 		let keys_path = replace_home(&data_path, &self.args.flag_keys_path);
 		let dapps_path = replace_home(&data_path, &self.args.flag_dapps_path);
 		let ui_path = replace_home(&data_path, &self.args.flag_ui_path);
@@ -731,7 +732,8 @@ impl Configuration {
 
 		Directories {
 			keys: keys_path,
-			data: data_path,
+			base: data_path,
+			db: db_path,
 			dapps: dapps_path,
 			signer: ui_path,
 		}
@@ -741,7 +743,7 @@ impl Configuration {
 		if self.args.flag_geth {
 			geth_ipc_path(self.args.flag_testnet)
 		} else {
-			parity_ipc_path(&self.directories().data, &self.args.flag_ipcpath.clone().unwrap_or(self.args.flag_ipc_path.clone()))
+			parity_ipc_path(&self.directories().base, &self.args.flag_ipcpath.clone().unwrap_or(self.args.flag_ipc_path.clone()))
 		}
 	}
 
