@@ -94,7 +94,7 @@ pub fn restrict_permissions_owner(file_path: &Path, write: bool, executable: boo
 
 /// Restricts the permissions of given path only to the owner.
 #[cfg(not(unix))]
-pub fn restrict_permissions_owner(_file_path: &Path) -> Result<(), String>  {
+pub fn restrict_permissions_owner(_file_path: &Path, _write: bool, _executable: bool) -> Result<(), String>  {
 	//TODO: implement me
 	Ok(())
 }
