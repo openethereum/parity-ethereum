@@ -90,6 +90,8 @@ pub struct TestBlockChainClient {
 	pub ancient_block: RwLock<Option<(H256, u64)>>,
 	/// First block info.
 	pub first_block: RwLock<Option<(H256, u64)>>,
+	/// Traces to return
+	pub traces: RwLock<Option<Vec<LocalizedTrace>>>,
 }
 
 /// Used for generating test client blocks.
@@ -151,6 +153,7 @@ impl TestBlockChainClient {
 			latest_block_timestamp: RwLock::new(10_000_000),
 			ancient_block: RwLock::new(None),
 			first_block: RwLock::new(None),
+			traces: RwLock::new(None),
 		};
 		client.add_blocks(1, EachBlockWith::Nothing); // add genesis block
 		client.genesis_hash = client.last_hash.read().clone();
@@ -658,19 +661,19 @@ impl BlockChainClient for TestBlockChainClient {
 	}
 
 	fn filter_traces(&self, _filter: TraceFilter) -> Option<Vec<LocalizedTrace>> {
-		unimplemented!();
+		self.traces.read().clone()
 	}
 
 	fn trace(&self, _trace: TraceId) -> Option<LocalizedTrace> {
-		unimplemented!();
+		self.traces.read().clone().and_then(|vec| vec.into_iter().next())
 	}
 
 	fn transaction_traces(&self, _trace: TransactionId) -> Option<Vec<LocalizedTrace>> {
-		unimplemented!();
+		self.traces.read().clone()
 	}
 
 	fn block_traces(&self, _trace: BlockId) -> Option<Vec<LocalizedTrace>> {
-		unimplemented!();
+		self.traces.read().clone()
 	}
 
 	fn queue_transactions(&self, transactions: Vec<Bytes>, _peer_id: usize) {

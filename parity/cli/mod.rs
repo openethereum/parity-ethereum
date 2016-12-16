@@ -32,6 +32,8 @@ usage! {
 		cmd_import: bool,
 		cmd_signer: bool,
 		cmd_new_token: bool,
+		cmd_sign: bool,
+		cmd_reject: bool,
 		cmd_snapshot: bool,
 		cmd_restore: bool,
 		cmd_ui: bool,
@@ -44,6 +46,7 @@ usage! {
 		arg_pid_file: String,
 		arg_file: Option<String>,
 		arg_path: Vec<String>,
+		arg_id: Option<usize>,
 
 		// Flags
 		// -- Legacy Options
@@ -83,6 +86,7 @@ usage! {
 		flag_mode_timeout: u64 = 300u64, or |c: &Config| otry!(c.parity).mode_timeout.clone(),
 		flag_mode_alarm: u64 = 3600u64, or |c: &Config| otry!(c.parity).mode_alarm.clone(),
 		flag_auto_update: String = "critical", or |c: &Config| otry!(c.parity).auto_update.clone(),
+		flag_release_track: String = "current", or |c: &Config| otry!(c.parity).release_track.clone(),
 		flag_no_download: bool = false, or |c: &Config| otry!(c.parity).no_download.clone(),
 		flag_no_consensus: bool = false, or |c: &Config| otry!(c.parity).no_consensus.clone(),
 		flag_chain: String = "homestead", or |c: &Config| otry!(c.parity).chain.clone(),
@@ -310,6 +314,7 @@ struct Operating {
 	mode_timeout: Option<u64>,
 	mode_alarm: Option<u64>,
 	auto_update: Option<String>,
+	release_track: Option<String>,
 	no_download: Option<bool>,
 	no_consensus: Option<bool>,
 	chain: Option<String>,
@@ -515,6 +520,8 @@ mod tests {
 			cmd_blocks: false,
 			cmd_import: false,
 			cmd_signer: false,
+			cmd_sign: false,
+			cmd_reject: false,
 			cmd_new_token: false,
 			cmd_snapshot: false,
 			cmd_restore: false,
@@ -527,6 +534,7 @@ mod tests {
 			// Arguments
 			arg_pid_file: "".into(),
 			arg_file: None,
+			arg_id: None,
 			arg_path: vec![],
 
 			// -- Operating Options
@@ -534,6 +542,7 @@ mod tests {
 			flag_mode_timeout: 300u64,
 			flag_mode_alarm: 3600u64,
 			flag_auto_update: "critical".into(),
+			flag_release_track: "current".into(),
 			flag_no_download: false,
 			flag_no_consensus: false,
 			flag_chain: "xyz".into(),
@@ -711,6 +720,7 @@ mod tests {
 				mode_timeout: Some(15u64),
 				mode_alarm: Some(10u64),
 				auto_update: None,
+				release_track: None,
 				no_download: None,
 				no_consensus: None,
 				chain: Some("./chain.json".into()),

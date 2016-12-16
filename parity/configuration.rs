@@ -34,15 +34,17 @@ use helpers::{to_duration, to_mode, to_block_id, to_u256, to_pending_set, to_pri
 geth_ipc_path, parity_ipc_path, to_bootnodes, to_addresses, to_address, to_gas_limit, to_queue_strategy};
 use params::{ResealPolicy, AccountsConfig, GasPricerConfig, MinerExtras};
 use ethcore_logger::Config as LogConfig;
-use dir::Directories;
+use dir::{Directories, default_hypervisor_path};
 use dapps::Configuration as DappsConfiguration;
 use signer::{Configuration as SignerConfiguration};
-use updater::{UpdatePolicy, UpdateFilter};
+use updater::{UpdatePolicy, UpdateFilter, ReleaseTrack};
 use run::RunCmd;
 use blockchain::{BlockchainCmd, ImportBlockchain, ExportBlockchain, KillBlockchain, ExportState, DataFormat};
 use presale::ImportWallet;
 use account::{AccountCmd, NewAccount, ListAccounts, ImportAccounts, ImportFromGethAccounts};
 use snapshot::{self, SnapshotCommand};
+
+const AUTHCODE_FILENAME: &'static str = "authcodes";
 
 #[derive(Debug, PartialEq)]
 pub enum Cmd {
@@ -52,6 +54,21 @@ pub enum Cmd {
 	ImportPresaleWallet(ImportWallet),
 	Blockchain(BlockchainCmd),
 	SignerToken(SignerConfiguration),
+	SignerSign {
+		id: Option<usize>,
+		pwfile: Option<PathBuf>,
+		port: u16,
+		authfile: PathBuf,
+	},
+	SignerList {
+		port: u16,
+		authfile: PathBuf
+	},
+	SignerReject {
+		id: Option<usize>,
+		port: u16,
+		authfile: PathBuf
+	},
 	Snapshot(SnapshotCommand),
 	Hash(Option<String>),
 }
@@ -105,8 +122,36 @@ impl Configuration {
 
 		let cmd = if self.args.flag_version {
 			Cmd::Version
-		} else if self.args.cmd_signer && self.args.cmd_new_token {
-			Cmd::SignerToken(signer_conf)
+		} else if self.args.cmd_signer {
+			let mut authfile = PathBuf::from(signer_conf.signer_path.clone());
+			authfile.push(AUTHCODE_FILENAME);
+
+			if self.args.cmd_new_token {
+				Cmd::SignerToken(signer_conf)
+			} else if self.args.cmd_sign {
+				let pwfile = self.args.flag_password.get(0).map(|pwfile| {
+					PathBuf::from(pwfile)
+				});
+				Cmd::SignerSign {
+					id: self.args.arg_id,
+					pwfile: pwfile,
+					port: signer_conf.port,
+					authfile: authfile,
+				}
+			} else if self.args.cmd_reject  {
+				Cmd::SignerReject {
+					id: self.args.arg_id,
+					port: signer_conf.port,
+					authfile: authfile,
+				}
+			} else if self.args.cmd_list  {
+				Cmd::SignerList {
+					port: signer_conf.port,
+					authfile: authfile,
+				}
+			} else {
+				unreachable!();
+			}
 		} else if self.args.cmd_tools && self.args.cmd_hash {
 			Cmd::Hash(self.args.arg_file)
 		} else if self.args.cmd_db && self.args.cmd_kill {
@@ -648,6 +693,15 @@ impl Configuration {
 				"all" => UpdateFilter::All,
 				_ => return Err("Invalid value for `--auto-update`. See `--help` for more information.".into()), 
 			},
+			track: match self.args.flag_release_track.as_ref() {
+				"stable" => ReleaseTrack::Stable,
+				"beta" => ReleaseTrack::Beta,
+				"nightly" => ReleaseTrack::Nightly,
+				"testing" => ReleaseTrack::Testing,
+				"current" => ReleaseTrack::Unknown,
+				_ => return Err("Invalid value for `--releases-track`. See `--help` for more information.".into()), 
+			},
+			path: default_hypervisor_path(),
 		})
 	}
 
@@ -757,14 +811,14 @@ mod tests {
 	use ethcore::miner::{MinerOptions, PrioritizationStrategy};
 	use helpers::{default_network_config};
 	use run::RunCmd;
-	use dir::Directories;
+	use dir::{Directories, default_hypervisor_path};
 	use signer::{Configuration as SignerConfiguration};
 	use blockchain::{BlockchainCmd, ImportBlockchain, ExportBlockchain, DataFormat, ExportState};
 	use presale::ImportWallet;
 	use params::SpecType;
 	use account::{AccountCmd, NewAccount, ImportAccounts, ListAccounts};
 	use devtools::{RandomTempPath};
-	use updater::{UpdatePolicy, UpdateFilter};
+	use updater::{UpdatePolicy, UpdateFilter, ReleaseTrack};
 	use std::io::Write;
 	use std::fs::{File, create_dir};
 
@@ -958,7 +1012,7 @@ mod tests {
 			acc_conf: Default::default(),
 			gas_pricer: Default::default(),
 			miner_extras: Default::default(),
-			update_policy: UpdatePolicy { enable_downloading: true, require_consensus: true, filter: UpdateFilter::Critical },
+			update_policy: UpdatePolicy { enable_downloading: true, require_consensus: true, filter: UpdateFilter::Critical, track: ReleaseTrack::Unknown, path: default_hypervisor_path() },
 			mode: Default::default(),
 			tracing: Default::default(),
 			compaction: Default::default(),
@@ -1005,15 +1059,15 @@ mod tests {
 	#[test]
 	fn should_parse_updater_options() {
 		// when
-		let conf0 = parse(&["parity"]);
+		let conf0 = parse(&["parity", "--release-track=testing"]);
 		let conf1 = parse(&["parity", "--auto-update", "all", "--no-consensus"]);
-		let conf2 = parse(&["parity", "--no-download", "--auto-update=all"]);
+		let conf2 = parse(&["parity", "--no-download", "--auto-update=all", "--release-track=beta"]);
 		let conf3 = parse(&["parity", "--auto-update=xxx"]);
 
 		// then
-		assert_eq!(conf0.update_policy().unwrap(), UpdatePolicy{enable_downloading: true, require_consensus: true, filter: UpdateFilter::Critical});
-		assert_eq!(conf1.update_policy().unwrap(), UpdatePolicy{enable_downloading: true, require_consensus: false, filter: UpdateFilter::All});
-		assert_eq!(conf2.update_policy().unwrap(), UpdatePolicy{enable_downloading: false, require_consensus: true, filter: UpdateFilter::All});
+		assert_eq!(conf0.update_policy().unwrap(), UpdatePolicy{enable_downloading: true, require_consensus: true, filter: UpdateFilter::Critical, track: ReleaseTrack::Testing, path: default_hypervisor_path()});
+		assert_eq!(conf1.update_policy().unwrap(), UpdatePolicy{enable_downloading: true, require_consensus: false, filter: UpdateFilter::All, track: ReleaseTrack::Unknown, path: default_hypervisor_path()});
+		assert_eq!(conf2.update_policy().unwrap(), UpdatePolicy{enable_downloading: false, require_consensus: true, filter: UpdateFilter::All, track: ReleaseTrack::Beta, path: default_hypervisor_path()});
 		assert!(conf3.update_policy().is_err());
 	}
 
@@ -1176,4 +1230,3 @@ mod tests {
 		assert!(conf.init_reserved_nodes().is_ok());
 	}
 }
-

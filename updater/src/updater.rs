@@ -15,12 +15,13 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::sync::{Arc, Weak};
-use std::{fs, env};
+use std::fs;
 use std::io::Write;
 use std::path::{PathBuf};
-//use util::misc::platform;
+use util::misc::platform;
 use ipc_common_types::{VersionInfo, ReleaseTrack};
 use util::{Address, H160, H256, FixedHash, Mutex, Bytes};
+use ethsync::{SyncProvider};
 use ethcore::client::{BlockId, BlockChainClient, ChainNotify};
 use hash_fetch::{self as fetch, HashFetch};
 use operations::Operations;
@@ -47,6 +48,10 @@ pub struct UpdatePolicy {
 	pub require_consensus: bool,
 	/// Which of those downloaded should be automatically installed.
 	pub filter: UpdateFilter,
+	/// Which track we should be following.
+	pub track: ReleaseTrack,
+	/// Path for the updates to go.
+	pub path: String,
 }
 
 impl Default for UpdatePolicy {
@@ -55,6 +60,8 @@ impl Default for UpdatePolicy {
 			enable_downloading: false,
 			require_consensus: true,
 			filter: UpdateFilter::None,
+			track: ReleaseTrack::Unknown,
+			path: Default::default(),
 		}
 	}
 }
@@ -76,6 +83,7 @@ pub struct Updater {
 	update_policy: UpdatePolicy,
 	weak_self: Mutex<Weak<Updater>>,
 	client: Weak<BlockChainClient>,
+	sync: Weak<SyncProvider>,
 	fetcher: Mutex<Option<fetch::Client>>,
 	operations: Mutex<Option<Operations>>,
 	exit_handler: Mutex<Option<Box<Fn() + 'static + Send>>>,
@@ -89,30 +97,19 @@ pub struct Updater {
 
 const CLIENT_ID: &'static str = "parity";
 
-// TODO!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! REMOVE!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-fn platform() -> String {
-	"test".to_owned()
-}
-
 impl Updater {
-	pub fn new(client: Weak<BlockChainClient>, update_policy: UpdatePolicy) -> Arc<Self> {
-		let mut u = Updater {
+	pub fn new(client: Weak<BlockChainClient>, sync: Weak<SyncProvider>, update_policy: UpdatePolicy) -> Arc<Self> {
+		let r = Arc::new(Updater {
 			update_policy: update_policy,
 			weak_self: Mutex::new(Default::default()),
 			client: client.clone(),
+			sync: sync.clone(),
 			fetcher: Mutex::new(None),
 			operations: Mutex::new(None),
 			exit_handler: Mutex::new(None),
 			this: VersionInfo::this(),
 			state: Mutex::new(Default::default()),
-		};
-
-		// TODO!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! REMOVE!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-		if u.this.track == ReleaseTrack::Unknown {
-			u.this.track = ReleaseTrack::Nightly;
-		}
-
-		let r = Arc::new(u);
+		});
 		*r.fetcher.lock() = Some(fetch::Client::new(r.clone()));
 		*r.weak_self.lock() = Arc::downgrade(&r);
 		r.poll();
@@ -135,25 +132,32 @@ impl Updater {
 		})
 	}
 
+	fn track(&self) -> ReleaseTrack {
+		match self.update_policy.track {
+			ReleaseTrack::Unknown => self.this.track,
+			x => x,
+		}
+	}
+
 	fn collect_latest(&self) -> Result<OperationsInfo, String> {
 		if let Some(ref operations) = *self.operations.lock() {
 			let hh: H256 = self.this.hash.into();
-			info!(target: "updater", "Looking up this_fork for our release: {}/{:?}", CLIENT_ID, hh);
+			trace!(target: "updater", "Looking up this_fork for our release: {}/{:?}", CLIENT_ID, hh);
 			let this_fork = operations.release(CLIENT_ID, &self.this.hash.into()).ok()
 				.and_then(|(fork, track, _, _)| {
-					info!(target: "updater", "Operations returned fork={}, track={}", fork as u64, track);				 
+					trace!(target: "updater", "Operations returned fork={}, track={}", fork as u64, track);				 
 					if track > 0 {Some(fork as u64)} else {None}
 				});
 
-			if self.this.track == ReleaseTrack::Unknown {
+			if self.track() == ReleaseTrack::Unknown {
 				return Err(format!("Current executable ({}) is unreleased.", H160::from(self.this.hash)));
 			}
 
-			let latest_in_track = operations.latest_in_track(CLIENT_ID, self.this.track.into())?;
+			let latest_in_track = operations.latest_in_track(CLIENT_ID, self.track().into())?;
 			let in_track = Self::collect_release_info(operations, &latest_in_track)?;
 			let mut in_minor = Some(in_track.clone());
 			const PROOF: &'static str = "in_minor initialised and assigned with Some; loop breaks if None assigned; qed";
-			while in_minor.as_ref().expect(PROOF).version.track != self.this.track {
+			while in_minor.as_ref().expect(PROOF).version.track != self.track() {
 				let track = match in_minor.as_ref().expect(PROOF).version.track {
 					ReleaseTrack::Beta => ReleaseTrack::Stable,
 					ReleaseTrack::Nightly => ReleaseTrack::Beta,
@@ -177,9 +181,8 @@ impl Updater {
 		format!("parity-{}.{}.{}-{:?}", v.version.major, v.version.minor, v.version.patch, v.hash)
 	}
 
-	fn updates_path(name: &str) -> PathBuf {
-		let mut dest = PathBuf::from(env::home_dir().unwrap().to_str().expect("env filesystem paths really should be valid; qed"));
-		dest.push(".parity-updates");
+	fn updates_path(&self, name: &str) -> PathBuf {
+		let mut dest = PathBuf::from(self.update_policy.path.clone());
 		dest.push(name);
 		dest
 	}
@@ -191,7 +194,7 @@ impl Updater {
 				let fetched = s.fetching.take().unwrap();
 				let b = result.map_err(|e| format!("Unable to fetch update ({}): {:?}", fetched.version, e))?;
 				info!(target: "updater", "Fetched latest version ({}) OK to {}", fetched.version, b.display());
-				let dest = Self::updates_path(&Self::update_file_name(&fetched.version));
+				let dest = self.updates_path(&Self::update_file_name(&fetched.version));
 				fs::create_dir_all(dest.parent().expect("at least one thing pushed; qed")).map_err(|e| format!("Unable to create updates path: {:?}", e))?;
 				fs::copy(&b, &dest).map_err(|e| format!("Unable to copy update: {:?}", e))?;
 				info!(target: "updater", "Copied file to {}", dest.display());
@@ -212,7 +215,7 @@ impl Updater {
 	}
 
 	fn poll(&self) {
-		info!(target: "updater", "Current release is {} ({:?})", self.this, self.this.hash);
+		trace!(target: "updater", "Current release is {} ({:?})", self.this, self.this.hash);
 
 		// We rely on a secure state. Bail if we're unsure about it.
 		if self.client.upgrade().map_or(true, |s| !s.chain_info().security_level().is_full()) {
@@ -235,7 +238,7 @@ impl Updater {
 		let mut capability = CapState::Unknown; 
 		let latest = self.collect_latest().ok();
 		if let Some(ref latest) = latest {
-			info!(target: "updater", "Latest release in our track is v{} it is {}critical ({} binary is {})",
+			trace!(target: "updater", "Latest release in our track is v{} it is {}critical ({} binary is {})",
 				latest.track.version,
 				if latest.track.is_critical {""} else {"non-"},
 				platform(),
@@ -259,7 +262,7 @@ impl Updater {
 					}
 				}
 			}
-			info!(target: "updater", "Fork: this/current/latest/latest-known: {}/#{}/#{}/#{}", match latest.this_fork { Some(f) => format!("#{}", f), None => "unknown".into(), }, current_number, latest.track.fork, latest.fork);
+			trace!(target: "updater", "Fork: this/current/latest/latest-known: {}/#{}/#{}/#{}", match latest.this_fork { Some(f) => format!("#{}", f), None => "unknown".into(), }, current_number, latest.track.fork, latest.fork);
 
 			if let Some(this_fork) = latest.this_fork {
 				if this_fork < latest.fork {
@@ -289,11 +292,11 @@ impl Updater {
 }
 
 impl ChainNotify for Updater {
-	fn new_blocks(&self, _imported: Vec<H256>, _invalid: Vec<H256>, _enacted: Vec<H256>, _retracted: Vec<H256>, _sealed: Vec<H256>, _duration: u64) {
-		// TODO: something like this
-//		if !self.client.upgrade().map_or(true, |c| c.is_major_syncing()) {
-			self.poll();
-//		}
+	fn new_blocks(&self, _imported: Vec<H256>, _invalid: Vec<H256>, _enacted: Vec<H256>, _retracted: Vec<H256>, _sealed: Vec<H256>, _proposed: Vec<Bytes>, _duration: u64) {
+		match (self.client.upgrade(), self.sync.upgrade()) {
+			(Some(ref c), Some(ref s)) if s.status().is_syncing(c.queue_info()) => self.poll(),
+			_ => {},
+		}
 	}
 }
 
@@ -324,7 +327,7 @@ impl Service for Updater {
 			let mut s = self.state.lock();
 			if let Some(r) = s.ready.take() {
 				let p = Self::update_file_name(&r.version);
-				let n = Self::updates_path("latest");
+				let n = self.updates_path("latest");
 				// TODO: creating then writing is a bit fragile. would be nice to make it atomic.
 				match fs::File::create(&n).and_then(|mut f| f.write_all(p.as_bytes())) {
 					Ok(_) => {

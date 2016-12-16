@@ -651,6 +651,7 @@ mod tests {
 	use block::*;
 	use error::{Error, BlockError};
 	use header::Header;
+	use io::IoChannel;
 	use env_info::EnvInfo;
 	use client::chain_notify::ChainNotify;
 	use tests::helpers::*;
@@ -914,7 +915,7 @@ mod tests {
 		let precommit_current = vote(&engine, |mh| tap.sign(v0, None, mh).map(H520::from), h, r, Step::Precommit, proposal);
 
 		let prevote_future = vote(&engine, |mh| tap.sign(v0, None, mh).map(H520::from), h + 1, r, Step::Prevote, proposal);
-		
+
 		// Relays all valid present and future messages.
 		assert!(notify.messages.read().contains(&prevote_current));
 		assert!(notify.messages.read().contains(&precommit_current));
@@ -959,6 +960,7 @@ mod tests {
 		seal[2] = precommit_signatures(&tap, h, r, Some(b.header().bare_hash()), v0, v1);
 		let b2 = b.lock().seal(engine.as_ref(), seal.clone()).unwrap();
 		let second = notify.blocks.read().contains(&b2.header().hash());
+		assert!(first ^ second);
 
 		engine.stop();
 	}

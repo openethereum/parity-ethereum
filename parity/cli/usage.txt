@@ -12,6 +12,9 @@ Usage:
   parity import [ <file> ] [options]
   parity export (blocks | state) [ <file> ] [options]
   parity signer new-token [options]
+  parity signer list [options]
+  parity signer sign [ <id> ] [ --password FILE ] [options]
+  parity signer reject <id> [options]
   parity snapshot <file> [options]
   parity restore [ <file> ] [options]
   parity tools hash <file>
@@ -31,12 +34,19 @@ Operating Options:
   --mode-alarm SECS        Specify the number of seconds before auto sleep
                            reawake timeout occurs when mode is passive
                            (default: {flag_mode_alarm}).
-  --auto-update TRACK      Set a release track to automatically update and
+  --auto-update SET        Set a releases set to automatically update and
                            install.
-                           all - All updates in the current release track. 
+                           all - All updates in the our release track. 
                            critical - Only consensus/security updates.
                            none - No updates will be auto-installed. 
                            (default: {flag_auto_update}).
+  --release-track TRACK    Set which release track we should use for updates.
+                           stable - Stable releases. 
+                           beta - Beta releases. 
+                           nightly - Nightly releases (unstable).
+                           testing - Testing releases (do not use). 
+                           current - Whatever track this executable was
+                           released on (default: {flag_release_track}).
   --no-download            Normally new releases will be downloaded ready for
                            updating. This disables it. Not recommended.
                            (default: {flag_no_download}).
@@ -44,7 +54,7 @@ Operating Options:
                            issues regarding consensus. Not recommended.
                            (default: {flag_no_consensus}).
   --force-direct           Run the originally installed version of Parity,
-                           ignoring any updates that have since been installed.  
+                           ignoring any updates that have since been installed.
   --chain CHAIN            Specify the blockchain type. CHAIN may be either a
                            JSON chain specification file or olympic, frontier,
                            homestead, mainnet, morden, ropsten, classic, expanse,
@@ -351,7 +361,7 @@ Legacy Options:
   --cache MB               Equivalent to --cache-size MB.
 
 Internal Options:
-  --can-restart            Executable will auto-restart if exiting with 125.  
+  --can-restart            Executable will auto-restart if exiting with 69.  
 
 Miscellaneous Options:
   -c --config CONFIG       Specify a filename containing a configuration file.

@@ -46,13 +46,13 @@ export default class VerificationStore {
   @observable isCodeValid = null;
   @observable confirmationTx = null;
 
-  constructor (api, abi, name, account, isTestnet) {
+  constructor (api, abi, certifierId, account, isTestnet) {
     this.api = api;
     this.account = account;
     this.isTestnet = isTestnet;
 
     this.step = LOADING;
-    Contracts.get().badgeReg.fetchCertifier(name)
+    Contracts.get().badgeReg.fetchCertifier(certifierId)
       .then(({ address }) => {
         this.contract = new Contract(api, abi).at(address);
         this.load();

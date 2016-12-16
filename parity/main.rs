@@ -72,6 +72,8 @@ extern crate ethcore_stratum;
 #[cfg(feature = "dapps")]
 extern crate ethcore_dapps;
 
+extern crate rpc_cli;
+
 macro_rules! dependency {
 	($dep_ty:ident, $url:expr) => {
 		{
@@ -124,6 +126,7 @@ use cli::Args;
 use configuration::{Cmd, Execute, Configuration};
 use deprecated::find_deprecated;
 use ethcore_logger::setup_log;
+use dir::default_hypervisor_path;
 
 fn print_hash_of(maybe_file: Option<String>) -> Result<String, String> {
 	if let Some(file) = maybe_file {
@@ -153,8 +156,11 @@ fn execute(command: Execute, can_restart: bool) -> Result<PostExecutionAction, S
 		Cmd::Hash(maybe_file) => print_hash_of(maybe_file).map(|s| PostExecutionAction::Print(s)),
 		Cmd::Account(account_cmd) => account::execute(account_cmd).map(|s| PostExecutionAction::Print(s)),
 		Cmd::ImportPresaleWallet(presale_cmd) => presale::execute(presale_cmd).map(|s| PostExecutionAction::Print(s)),
-		Cmd::Blockchain(blockchain_cmd) => blockchain::execute(blockchain_cmd).map(|s| PostExecutionAction::Print(s)),
+		Cmd::Blockchain(blockchain_cmd) => blockchain::execute(blockchain_cmd).map(|_| PostExecutionAction::Quit),
 		Cmd::SignerToken(signer_cmd) => signer::execute(signer_cmd).map(|s| PostExecutionAction::Print(s)),
+		Cmd::SignerSign { id, pwfile, port, authfile } => rpc_cli::signer_sign(id, pwfile, port, authfile).map(|s| PostExecutionAction::Print(s)),
+		Cmd::SignerList { port, authfile } => rpc_cli::signer_list(port, authfile).map(|s| PostExecutionAction::Print(s)),
+		Cmd::SignerReject { id, port, authfile } => rpc_cli::signer_reject(id, port, authfile).map(|s| PostExecutionAction::Print(s)),
 		Cmd::Snapshot(snapshot_cmd) => snapshot::execute(snapshot_cmd).map(|s| PostExecutionAction::Print(s)),
 	}
 }
@@ -188,10 +194,8 @@ fn sync_main(alt_mains: &mut HashMap<String, fn()>) {
 	alt_mains.insert("sync".to_owned(), sync::main);
 }
 
-// TODO: merge with version in Updater.
 fn updates_path(name: &str) -> PathBuf {
-	let mut dest = PathBuf::from(env::home_dir().unwrap().to_str().expect("env filesystem paths really should be valid; qed"));
-	dest.push(".parity-updates");
+	let mut dest = PathBuf::from(default_hypervisor_path());
 	dest.push(name);
 	dest
 }

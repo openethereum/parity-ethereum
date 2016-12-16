@@ -22,6 +22,7 @@ extern crate ipc_common_types;
 extern crate parity_hash_fetch as hash_fetch;
 extern crate ethcore;
 extern crate ethabi;
+extern crate ethsync;
 extern crate ethcore_ipc as ipc;
 
 mod updater;
