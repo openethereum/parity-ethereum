@@ -27,7 +27,6 @@ use hash_fetch::{self as fetch, HashFetch};
 use operations::Operations;
 use service::{Service};
 use types::all::{ReleaseInfo, OperationsInfo, CapState};
-use ethcore_rpc::is_major_importing;
 
 /// Filter for releases.
 #[derive(Debug, Eq, PartialEq, Clone)]
@@ -99,7 +98,7 @@ pub struct Updater {
 const CLIENT_ID: &'static str = "parity";
 
 impl Updater {
-	pub fn new(client: Weak<BlockChainClient>, sync: Arc<SyncProvider>, update_policy: UpdatePolicy) -> Arc<Self> {
+	pub fn new(client: Weak<BlockChainClient>, sync: Weak<SyncProvider>, update_policy: UpdatePolicy) -> Arc<Self> {
 		let r = Arc::new(Updater {
 			update_policy: update_policy,
 			weak_self: Mutex::new(Default::default()),
@@ -295,7 +294,7 @@ impl Updater {
 impl ChainNotify for Updater {
 	fn new_blocks(&self, _imported: Vec<H256>, _invalid: Vec<H256>, _enacted: Vec<H256>, _retracted: Vec<H256>, _sealed: Vec<H256>, _proposed: Vec<Bytes>, _duration: u64) {
 		match (self.client.upgrade(), self.sync.upgrade()) {
-			(Some(c), Some(s)) if is_major_importing(s.status().state, c.queue_info()) => self.poll(),
+			(Some(ref c), Some(ref s)) if s.status().is_syncing(c.queue_info()) => self.poll(),
 			_ => {},
 		}
 	}

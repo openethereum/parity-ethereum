@@ -312,7 +312,7 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 	}
 
 	// the updater service
-	let updater = Updater::new(Arc::downgrade(&(service.client() as Arc<BlockChainClient>)), update_policy);
+	let updater = Updater::new(Arc::downgrade(&(service.client() as Arc<BlockChainClient>)), Arc::downgrade(&sync_provider), update_policy);
 	service.add_notify(updater.clone());
 
 	// set up dependencies for rpc servers

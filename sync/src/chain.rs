@@ -94,7 +94,7 @@ use rlp::*;
 use network::*;
 use ethcore::views::{HeaderView};
 use ethcore::header::{BlockNumber, Header as BlockHeader};
-use ethcore::client::{BlockChainClient, BlockStatus, BlockId, BlockChainInfo, BlockImportError};
+use ethcore::client::{BlockChainClient, BlockStatus, BlockId, BlockChainInfo, BlockImportError, BlockQueueInfo};
 use ethcore::error::*;
 use ethcore::snapshot::{ManifestData, RestorationStatus};
 use sync_io::SyncIo;
@@ -234,6 +234,13 @@ impl SyncStatus {
 		} else {
 			min_peers
 		}
+	}
+
+	/// Is it doing a major sync?
+	pub fn is_syncing(&self, queue_info: BlockQueueInfo) -> bool {
+		let is_syncing_state = match self.state { SyncState::Idle | SyncState::NewBlocks => false, _ => true };
+		let is_verifying = queue_info.unverified_queue_size + queue_info.verified_queue_size > 3;
+		is_verifying || is_syncing_state
 	}
 }
 
@@ -2110,6 +2117,29 @@ mod tests {
 		}
 
 		rlp.out()
+	}
+
+	fn queue_info(unverified: usize, verified: usize) -> BlockQueueInfo {
+		BlockQueueInfo {
+			unverified_queue_size: unverified,
+			verified_queue_size: verified,
+			verifying_queue_size: 0,
+			max_queue_size: 1000,
+			max_mem_use: 1000,
+			mem_used: 500
+		}
+	}
+
+	#[test]
+	fn is_still_verifying() {
+		assert!(!is_major_importing(None, queue_info(2, 1)));
+		assert!(is_major_importing(None, queue_info(2, 2)));
+	}
+
+	#[test]
+	fn is_synced_state() {
+		assert!(is_major_importing(Some(SyncState::Blocks), queue_info(0, 0)));
+		assert!(!is_major_importing(Some(SyncState::Idle), queue_info(0, 0)));
 	}
 
 	#[test]
