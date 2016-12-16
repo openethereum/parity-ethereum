@@ -144,11 +144,11 @@ pub trait MinerService : Send + Sync {
 	/// Query pending transactions for hash.
 	fn transaction(&self, best_block: BlockNumber, hash: &H256) -> Option<SignedTransaction>;
 
-	/// Get a list of all ready transactions in the queue.
-	fn all_transactions(&self) -> Vec<PendingTransaction>;
+	/// Get a list of all pending transactions in the queue.
+	fn pending_transactions(&self) -> Vec<PendingTransaction>;
 
-	/// Get a list of all pending transactions.
-	fn pending_transactions(&self, best_block: BlockNumber) -> Vec<PendingTransaction>;
+	/// Get a list of all transactions that can go into the given block.
+	fn ready_transactions(&self, best_block: BlockNumber) -> Vec<PendingTransaction>;
 
 	/// Get a list of all future transactions.
 	fn future_transactions(&self) -> Vec<PendingTransaction>;

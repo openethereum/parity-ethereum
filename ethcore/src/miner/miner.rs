@@ -909,7 +909,7 @@ impl MinerService for Miner {
 		imported
 	}
 
-	fn all_transactions(&self) -> Vec<PendingTransaction> {
+	fn pending_transactions(&self) -> Vec<PendingTransaction> {
 		let queue = self.transaction_queue.lock();
 		queue.pending_transactions(BlockNumber::max_value())
 	}
@@ -926,7 +926,7 @@ impl MinerService for Miner {
 		self.transaction_queue.lock().future_transactions()
 	}
 
-	fn pending_transactions(&self, best_block: BlockNumber) -> Vec<PendingTransaction> {
+	fn ready_transactions(&self, best_block: BlockNumber) -> Vec<PendingTransaction> {
 		let queue = self.transaction_queue.lock();
 		match self.options.pending_set {
 			PendingSet::AlwaysQueue => queue.pending_transactions(best_block),
@@ -1253,8 +1253,8 @@ mod tests {
 
 		// then
 		assert_eq!(res.unwrap(), TransactionImportResult::Current);
-		assert_eq!(miner.all_transactions().len(), 1);
-		assert_eq!(miner.pending_transactions(best_block).len(), 1);
+		assert_eq!(miner.pending_transactions().len(), 1);
+		assert_eq!(miner.ready_transactions(best_block).len(), 1);
 		assert_eq!(miner.pending_transactions_hashes(best_block).len(), 1);
 		assert_eq!(miner.pending_receipts(best_block).len(), 1);
 		// This method will let us know if pending block was created (before calling that method)
@@ -1273,8 +1273,8 @@ mod tests {
 
 		// then
 		assert_eq!(res.unwrap(), TransactionImportResult::Current);
-		assert_eq!(miner.all_transactions().len(), 1);
-		assert_eq!(miner.pending_transactions(best_block).len(), 0);
+		assert_eq!(miner.pending_transactions().len(), 1);
+		assert_eq!(miner.ready_transactions(best_block).len(), 0);
 		assert_eq!(miner.pending_transactions_hashes(best_block).len(), 0);
 		assert_eq!(miner.pending_receipts(best_block).len(), 0);
 	}
@@ -1291,9 +1291,9 @@ mod tests {
 
 		// then
 		assert_eq!(res.unwrap(), TransactionImportResult::Current);
-		assert_eq!(miner.all_transactions().len(), 1);
+		assert_eq!(miner.pending_transactions().len(), 1);
 		assert_eq!(miner.pending_transactions_hashes(best_block).len(), 0);
-		assert_eq!(miner.pending_transactions(best_block).len(), 0);
+		assert_eq!(miner.ready_transactions(best_block).len(), 0);
 		assert_eq!(miner.pending_receipts(best_block).len(), 0);
 		// This method will let us know if pending block was created (before calling that method)
 		assert!(miner.prepare_work_sealing(&client));

@@ -313,11 +313,11 @@ fn does_not_propagate_delayed_transactions() {
 
 	client.miner().import_own_transaction(&**client, tx0).unwrap();
 	client.miner().import_own_transaction(&**client, tx1).unwrap();
-	assert_eq!(0, client.pending_transactions().len());
-	assert_eq!(2, client.miner().all_transactions().len());
-	push_blocks_to_client(client, 53, 2, 1);
+	assert_eq!(0, client.ready_transactions().len());
+	assert_eq!(2, client.miner().pending_transactions().len());
+	push_blocks_to_client(client, 53, 2, 2);
 	client.import_verified_blocks();
-	assert_eq!(2, client.pending_transactions().len());
-	assert_eq!(2, client.miner().all_transactions().len());
+	assert_eq!(2, client.ready_transactions().len());
+	assert_eq!(2, client.miner().pending_transactions().len());
 }
 

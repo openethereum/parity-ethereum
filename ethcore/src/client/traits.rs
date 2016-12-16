@@ -211,8 +211,8 @@ pub trait BlockChainClient : Sync + Send {
 	/// Used by PoA to communicate with peers.
 	fn broadcast_consensus_message(&self, message: Bytes);
 
-	/// list all transactions
-	fn pending_transactions(&self) -> Vec<PendingTransaction>;
+	/// List all transactions that are allowed into the next block.
+	fn ready_transactions(&self) -> Vec<PendingTransaction>;
 
 	/// Sorted list of transaction gas prices from at least last sample_size blocks.
 	fn gas_price_corpus(&self, sample_size: usize) -> Vec<U256> {

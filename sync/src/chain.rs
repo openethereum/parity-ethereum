@@ -1919,7 +1919,7 @@ impl ChainSync {
 			return 0;
 		}
 
-		let transactions = io.chain().pending_transactions();
+		let transactions = io.chain().ready_transactions();
 		if transactions.is_empty() {
 			return 0;
 		}

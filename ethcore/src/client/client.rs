@@ -1334,8 +1334,8 @@ impl BlockChainClient for Client {
 		}
 	}
 
-	fn pending_transactions(&self) -> Vec<PendingTransaction> {
-		self.miner.pending_transactions(self.chain.read().best_block_number())
+	fn ready_transactions(&self) -> Vec<PendingTransaction> {
+		self.miner.ready_transactions(self.chain.read().best_block_number())
 	}
 
 	fn queue_consensus_message(&self, message: Bytes) {

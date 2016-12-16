@@ -270,7 +270,7 @@ impl<C, M, S: ?Sized, U> Parity for ParityClient<C, M, S, U> where
 	fn pending_transactions(&self) -> Result<Vec<Transaction>, Error> {
 		try!(self.active());
 
-		Ok(take_weak!(self.miner).all_transactions().into_iter().map(Into::into).collect::<Vec<_>>())
+		Ok(take_weak!(self.miner).pending_transactions().into_iter().map(Into::into).collect::<Vec<_>>())
 	}
 
 	fn future_transactions(&self) -> Result<Vec<Transaction>, Error> {

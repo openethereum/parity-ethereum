@@ -114,7 +114,7 @@ impl Provider for Client {
 		Vec::new()
 	}
 
-	fn pending_transactions(&self) -> Vec<PendingTransaction> {
+	fn ready_transactions(&self) -> Vec<PendingTransaction> {
 		Vec::new()
 	}
 }
