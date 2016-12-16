@@ -23,13 +23,13 @@ use app_dirs::{AppInfo, get_app_root, AppDataType};
 
 #[cfg(target_os = "macos")] const AUTHOR: &'static str = "Parity";
 #[cfg(target_os = "macos")] const PRODUCT: &'static str = "io.parity.ethereum";
-#[cfg(target_os = "macos")] const PRODUCT_HYPERVISOR: &'static str = "io.parity.ethereum-hypervisor";
+#[cfg(target_os = "macos")] const PRODUCT_HYPERVISOR: &'static str = "io.parity.ethereum-updates";
 #[cfg(target_os = "windows")] const AUTHOR: &'static str = "Parity";
 #[cfg(target_os = "windows")] const PRODUCT: &'static str = "Ethereum";
-#[cfg(target_os = "windows")] const PRODUCT_HYPERVISOR: &'static str = "EthereumHypervisor";
+#[cfg(target_os = "windows")] const PRODUCT_HYPERVISOR: &'static str = "EthereumUpdates";
 #[cfg(not(any(target_os = "windows", target_os = "macos")))] const AUTHOR: &'static str = "parity";
-#[cfg(not(any(target_os = "windows", target_os = "macos")))] const PRODUCT: &'static str = "parity";
-#[cfg(not(any(target_os = "windows", target_os = "macos")))] const PRODUCT_HYPERVISOR: &'static str = "parity-hypervisor";
+#[cfg(not(any(target_os = "windows", target_os = "macos")))] const PRODUCT: &'static str = "io.parity.ethereum";
+#[cfg(not(any(target_os = "windows", target_os = "macos")))] const PRODUCT_HYPERVISOR: &'static str = "io.parity.ethereum-updates";
 
 // this const is irrelevent cause we do have migrations now,
 // but we still use it for backwards compatibility
