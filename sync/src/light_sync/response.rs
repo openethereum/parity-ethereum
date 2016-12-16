@@ -96,10 +96,8 @@ struct Max(usize);
 impl Constraint for StartsAtNumber {
 	type Error = BasicError;
 
-	fn verify(&self, headers: &[Header], reverse: bool) -> Result<(), BasicError> {
-		let earliest = if reverse { headers.last() } else {	headers.first() };
-
-		earliest.map_or(Ok(()), |h| {
+	fn verify(&self, headers: &[Header], _reverse: bool) -> Result<(), BasicError> {
+		headers.first().map_or(Ok(()), |h| {
 			if h.number() == self.0 {
 				Ok(())
 			} else {
@@ -112,10 +110,8 @@ impl Constraint for StartsAtNumber {
 impl Constraint for StartsAtHash {
 	type Error = BasicError;
 
-	fn verify(&self, headers: &[Header], reverse: bool) -> Result<(), BasicError> {
-		let earliest = if reverse { headers.last() } else {	headers.first() };
-
-		earliest.map_or(Ok(()), |h| {
+	fn verify(&self, headers: &[Header], _reverse: bool) -> Result<(), BasicError> {
+		headers.first().map_or(Ok(()), |h| {
 			if h.hash() == self.0 {
 				Ok(())
 			} else {
@@ -188,7 +184,7 @@ mod tests {
 	#[test]
 	fn sequential_backward() {
 		let request = HeadersRequest {
-			start: 10.into(),
+			start: 34.into(),
 			max: 30,
 			skip: 0,
 			reverse: true,
