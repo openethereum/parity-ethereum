@@ -139,10 +139,10 @@ impl Updater {
 	fn collect_latest(&self) -> Result<OperationsInfo, String> {
 		if let Some(ref operations) = *self.operations.lock() {
 			let hh: H256 = self.this.hash.into();
-			info!(target: "updater", "Looking up this_fork for our release: {}/{:?}", CLIENT_ID, hh);
+			trace!(target: "updater", "Looking up this_fork for our release: {}/{:?}", CLIENT_ID, hh);
 			let this_fork = operations.release(CLIENT_ID, &self.this.hash.into()).ok()
 				.and_then(|(fork, track, _, _)| {
-					info!(target: "updater", "Operations returned fork={}, track={}", fork as u64, track);				 
+					trace!(target: "updater", "Operations returned fork={}, track={}", fork as u64, track);				 
 					if track > 0 {Some(fork as u64)} else {None}
 				});
 
@@ -212,7 +212,7 @@ impl Updater {
 	}
 
 	fn poll(&self) {
-		info!(target: "updater", "Current release is {} ({:?})", self.this, self.this.hash);
+		trace!(target: "updater", "Current release is {} ({:?})", self.this, self.this.hash);
 
 		// We rely on a secure state. Bail if we're unsure about it.
 		if self.client.upgrade().map_or(true, |s| !s.chain_info().security_level().is_full()) {
@@ -235,7 +235,7 @@ impl Updater {
 		let mut capability = CapState::Unknown; 
 		let latest = self.collect_latest().ok();
 		if let Some(ref latest) = latest {
-			info!(target: "updater", "Latest release in our track is v{} it is {}critical ({} binary is {})",
+			trace!(target: "updater", "Latest release in our track is v{} it is {}critical ({} binary is {})",
 				latest.track.version,
 				if latest.track.is_critical {""} else {"non-"},
 				platform(),
@@ -259,7 +259,7 @@ impl Updater {
 					}
 				}
 			}
-			info!(target: "updater", "Fork: this/current/latest/latest-known: {}/#{}/#{}/#{}", match latest.this_fork { Some(f) => format!("#{}", f), None => "unknown".into(), }, current_number, latest.track.fork, latest.fork);
+			trace!(target: "updater", "Fork: this/current/latest/latest-known: {}/#{}/#{}/#{}", match latest.this_fork { Some(f) => format!("#{}", f), None => "unknown".into(), }, current_number, latest.track.fork, latest.fork);
 
 			if let Some(this_fork) = latest.this_fork {
 				if this_fork < latest.fork {
