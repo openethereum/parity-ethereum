@@ -23,7 +23,7 @@ linux-stable:
     - curl --data "secret=$RELEASES_SECRET" http://icarus.parity.io/push-release/$CI_BUILD_REF_NAME/$CI_BUILD_REF
     - cargo build -j $(nproc) --release $CARGOFLAGS
     - strip target/release/parity
-    - export SHA3=$(target/release/parity tools hash target/release/parity)
+    - rhash --sha3-256 target/release/parity > parity.sha3
     - md5sum target/release/parity > parity.md5
     - sh scripts/deb-build.sh amd64
     - cp target/release/parity deb/usr/bin/parity
@@ -99,7 +99,7 @@ linux-centos:
     - cargo build -j $(nproc) --release $CARGOFLAGS
     - strip target/release/parity
     - md5sum target/release/parity > parity.md5
-    - export SHA3=$(target/release/parity tools hash target/release/parity)
+    - rhash --sha3-256 target/release/parity > parity.sha3
     - aws configure set aws_access_key_id $s3_key
     - aws configure set aws_secret_access_key $s3_secret
     - if [[ $CI_BUILD_REF_NAME =~ ^(master|beta|stable)$ ]]; then export S3_BUCKET=builds-parity-published; else export S3_BUCKET=builds-parity; fi
@@ -130,7 +130,7 @@ linux-i686:
     - cargo build -j $(nproc) --target i686-unknown-linux-gnu --release $CARGOFLAGS
     - strip target/$PLATFORM/release/parity
     - md5sum target/$PLATFORM/release/parity > parity.md5
-    - export SHA3=$(target/$PLATFORM/release/parity tools hash target/$PLATFORM/release/parity)
+    - rhash --sha3-256 target/$PLATFORM/release/parity > parity.sha3
     - sh scripts/deb-build.sh i386
     - cp target/$PLATFORM/release/parity deb/usr/bin/parity
     - export VER=$(grep -m 1 version Cargo.toml | awk '{print $3}' | tr -d '"' | tr -d "\n")
@@ -327,7 +327,7 @@ darwin:
     - cargo build -j 8 --release -p ethstore #$CARGOFLAGS
     - rm -rf parity.md5
     - md5sum target/release/parity > parity.md5
-    - export SHA3=$(target/release/parity tools hash target/release/parity)
+    - rhash --sha3-256 target/release/parity > parity.sha3
     - packagesbuild -v mac/Parity.pkgproj
     - export VER=$(grep -m 1 version Cargo.toml | awk '{print $3}' | tr -d '"' | tr -d "\n")
     - mv target/release/Parity\ Ethereum.pkg "parity-"$VER"-osx-installer-EXPERIMENTAL.pkg"
