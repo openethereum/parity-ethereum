@@ -11,7 +11,7 @@ log = "0.3"
 rand = "0.3"
 hyper = { default-features = false, git = "https://github.com/ethcore/hyper" }
 https-fetch = { path = "../https-fetch" }
-clippy = { version = "0.0.90", optional = true}
+clippy = { version = "0.0.90", optional = true }
 
 [features]
 default = []

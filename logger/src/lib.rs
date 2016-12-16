@@ -27,12 +27,12 @@ extern crate time;
 extern crate lazy_static;
 
 use std::{env, thread, fs};
-use std::sync::Arc;
+use std::sync::{Weak, Arc};
 use std::io::Write;
 use isatty::{stderr_isatty, stdout_isatty};
 use env_logger::LogBuilder;
 use regex::Regex;
-use util::RotatingLogger;
+use util::{Mutex, RotatingLogger}	;
 use util::log::Colour;
 
 #[derive(Debug, PartialEq, Clone)]
@@ -50,6 +50,10 @@ impl Default for Config {
 			file: None,
 		}
 	}
+}
+
+lazy_static! {
+	static ref ROTATING_LOGGER : Mutex<Weak<RotatingLogger>> = Mutex::new(Default::default());
 }
 
 /// Sets up the logger
@@ -121,9 +125,17 @@ pub fn setup_log(config: &Config) -> Result<Arc<RotatingLogger>, String> {
     };
 
 	builder.format(format);
-	builder.init().expect("Logger initialized only once.");
-
-	Ok(logs)
+	builder.init()
+		.and_then(|_| {
+			*ROTATING_LOGGER.lock() = Arc::downgrade(&logs);
+			Ok(logs)
+		})
+		// couldn't create new logger - try to fall back on previous logger.
+		.or_else(|err| match ROTATING_LOGGER.lock().upgrade() {
+			Some(l) => Ok(l),
+			// no previous logger. fatal.
+			None => Err(format!("{:?}", err)),
+		})
 }
 
 fn kill_color(s: &str) -> String {
