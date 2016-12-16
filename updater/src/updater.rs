@@ -18,8 +18,9 @@ use std::sync::{Arc, Weak};
 use std::fs;
 use std::io::Write;
 use std::path::{PathBuf};
-use util::misc::platform;
 use ipc_common_types::{VersionInfo, ReleaseTrack};
+use util::path::restrict_permissions_owner; 
+use util::misc::platform;
 use util::{Address, H160, H256, FixedHash, Mutex, Bytes};
 use ethsync::{SyncProvider};
 use ethcore::client::{BlockId, BlockChainClient, ChainNotify};
@@ -197,7 +198,8 @@ impl Updater {
 				let dest = self.updates_path(&Self::update_file_name(&fetched.version));
 				fs::create_dir_all(dest.parent().expect("at least one thing pushed; qed")).map_err(|e| format!("Unable to create updates path: {:?}", e))?;
 				fs::copy(&b, &dest).map_err(|e| format!("Unable to copy update: {:?}", e))?;
-				info!(target: "updater", "Copied file to {}", dest.display());
+				restrict_permissions_owner(&dest, false, true).map_err(|e| format!("Unable to update permissions: {}", e))?;
+				info!(target: "updater", "Installed updated binary to {}", dest.display());
 				let auto = match self.update_policy.filter {
 					UpdateFilter::All => true,
 					UpdateFilter::Critical if fetched.is_critical /* TODO: or is on a bad fork */ => true,
