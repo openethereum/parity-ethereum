@@ -243,8 +243,8 @@ impl Fetcher {
 		SyncRound::Fetch(self)
 	}
 
-	fn dispatch_requests<D>(mut self, dispatcher: D) -> SyncRound
-		where D: Fn(HeadersRequest) -> Option<ReqId>
+	fn dispatch_requests<D>(mut self, mut dispatcher: D) -> SyncRound
+		where D: FnMut(HeadersRequest) -> Option<ReqId>
 	{
 		while let Some(pending_req) = self.requests.pop() {
 			match dispatcher(pending_req.headers_request.clone()) {
@@ -365,8 +365,8 @@ impl RoundStart {
 		}
 	}
 
-	fn dispatch_requests<D>(mut self, dispatcher: D) -> SyncRound
-		where D: Fn(HeadersRequest) -> Option<ReqId>
+	fn dispatch_requests<D>(mut self, mut dispatcher: D) -> SyncRound
+		where D: FnMut(HeadersRequest) -> Option<ReqId>
 	{
 		if self.pending_req.is_none() {
 			// beginning offset + first block expected after last header we have.
@@ -434,7 +434,7 @@ impl SyncRound {
 	// TODO: have dispatcher take capabilities argument? and return an error as
 	// to why no suitable peer can be found? (no buffer, no chain heads that high, etc)
 	pub fn dispatch_requests<D>(self, dispatcher: D) -> Self
-		where D: Fn(HeadersRequest) -> Option<ReqId>
+		where D: FnMut(HeadersRequest) -> Option<ReqId>
 	{
 		match self {
 			SyncRound::Start(round_start) => round_start.dispatch_requests(dispatcher),
