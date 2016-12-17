@@ -20,8 +20,8 @@ linux-stable:
     - stable
     - triggers
   script:
-    - curl --data "secret=$RELEASES_SECRET" http://icarus.parity.io/push-release/$CI_BUILD_REF_NAME/$CI_BUILD_REF
-    - cargo build -j $(nproc) --release $CARGOFLAGS
+    - curl --data "secret=$RELEASES_SECRET" http://icarus.parity.io:1337/push-release/$CI_BUILD_REF_NAME/$CI_BUILD_REF
+    - cargo build -j $(nproc) --release --features final $CARGOFLAGS
     - strip target/release/parity
     - export SHA3=$(target/release/parity tools hash target/release/parity)
     - md5sum target/release/parity > parity.md5
@@ -38,7 +38,7 @@ linux-stable:
     - aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/x86_64-unknown-linux-gnu/parity.md5 --body parity.md5
     - aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/x86_64-unknown-linux-gnu/"parity_"$VER"_amd64.deb" --body "parity_"$VER"_amd64.deb"
     - aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/x86_64-unknown-linux-gnu/"parity_"$VER"_amd64.deb.md5" --body "parity_"$VER"_amd64.deb.md5"
-    - curl --data "commit=$CI_BUILD_REF&sha3=$SHA3&filename=parity&secret=$RELEASES_SECRET" http://icarus.parity.io/push-build/$CI_BUILD_REF_NAME/x86_64-unknown-linux-gnu
+    - curl --data "commit=$CI_BUILD_REF&sha3=$SHA3&filename=parity&secret=$RELEASES_SECRET" http://icarus.parity.io:1337/push-build/$CI_BUILD_REF_NAME/x86_64-unknown-linux-gnu
   tags:
     - rust
     - rust-stable
@@ -96,7 +96,7 @@ linux-centos:
     - export CXX="g++"
     - export CC="gcc"
     - export PLATFORM=x86_64-unknown-centos-gnu
-    - cargo build -j $(nproc) --release $CARGOFLAGS
+    - cargo build -j $(nproc) --release --features final $CARGOFLAGS
     - strip target/release/parity
     - md5sum target/release/parity > parity.md5
     - export SHA3=$(target/release/parity tools hash target/release/parity)
@@ -106,7 +106,7 @@ linux-centos:
     - aws s3 rm --recursive s3://$S3_BUCKET/$CI_BUILD_REF_NAME/x86_64-unknown-centos-gnu
     - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/x86_64-unknown-centos-gnu/parity --body target/release/parity
     - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/x86_64-unknown-centos-gnu/parity.md5 --body parity.md5
-    - curl --data "commit=$CI_BUILD_REF&sha3=$SHA3&filename=parity&secret=$RELEASES_SECRET" http://icarus.parity.io/push-build/$CI_BUILD_REF_NAME/$PLATFORM
+    - curl --data "commit=$CI_BUILD_REF&sha3=$SHA3&filename=parity&secret=$RELEASES_SECRET" http://icarus.parity.io:1337/push-build/$CI_BUILD_REF_NAME/$PLATFORM
   tags:
     - rust
     - rust-centos
@@ -127,7 +127,7 @@ linux-i686:
     - export HOST_CXX=g++
     - export COMMIT=$(git rev-parse HEAD)
     - export PLATFORM=i686-unknown-linux-gnu
-    - cargo build -j $(nproc) --target i686-unknown-linux-gnu --release $CARGOFLAGS
+    - cargo build -j $(nproc) --target i686-unknown-linux-gnu --features final --release $CARGOFLAGS
     - strip target/$PLATFORM/release/parity
     - md5sum target/$PLATFORM/release/parity > parity.md5
     - export SHA3=$(target/$PLATFORM/release/parity tools hash target/$PLATFORM/release/parity)
@@ -144,7 +144,7 @@ linux-i686:
     - aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/$PLATFORM/parity.md5 --body parity.md5
     - aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/$PLATFORM/"parity_"$VER"_i386.deb" --body "parity_"$VER"_i386.deb"
     - aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/$PLATFORM/"parity_"$VER"_i386.deb.md5" --body "parity_"$VER"_i386.deb.md5"
-    - curl --data "commit=$CI_BUILD_REF&sha3=$SHA3&filename=parity&secret=$RELEASES_SECRET" http://icarus.parity.io/push-build/$CI_BUILD_REF_NAME/$PLATFORM
+    - curl --data "commit=$CI_BUILD_REF&sha3=$SHA3&filename=parity&secret=$RELEASES_SECRET" http://icarus.parity.io:1337/push-build/$CI_BUILD_REF_NAME/$PLATFORM
   tags:
     - rust
     - rust-i686
@@ -171,7 +171,7 @@ linux-armv7:
     - echo "[target.armv7-unknown-linux-gnueabihf]" >> .cargo/config
     - echo "linker= \"arm-linux-gnueabihf-gcc\"" >> .cargo/config
     - cat .cargo/config
-    - cargo build -j $(nproc) --target armv7-unknown-linux-gnueabihf --release $CARGOFLAGS
+    - cargo build -j $(nproc) --target armv7-unknown-linux-gnueabihf --features final --release $CARGOFLAGS
     - arm-linux-gnueabihf-strip target/armv7-unknown-linux-gnueabihf/release/parity
     - md5sum target/armv7-unknown-linux-gnueabihf/release/parity > parity.md5
     - sh scripts/deb-build.sh armhf
@@ -213,7 +213,7 @@ linux-arm:
     - echo "[target.arm-unknown-linux-gnueabihf]" >> .cargo/config
     - echo "linker= \"arm-linux-gnueabihf-gcc\"" >> .cargo/config
     - cat .cargo/config
-    - cargo build -j $(nproc) --target arm-unknown-linux-gnueabihf --release $CARGOFLAGS
+    - cargo build -j $(nproc) --target arm-unknown-linux-gnueabihf --features final --release $CARGOFLAGS
     - arm-linux-gnueabihf-strip target/arm-unknown-linux-gnueabihf/release/parity
     - md5sum target/arm-unknown-linux-gnueabihf/release/parity > parity.md5
     - sh scripts/deb-build.sh armhf
@@ -255,7 +255,7 @@ linux-armv6:
     - echo "[target.arm-unknown-linux-gnueabi]" >> .cargo/config
     - echo "linker= \"arm-linux-gnueabi-gcc\"" >> .cargo/config
     - cat .cargo/config
-    - cargo build -j $(nproc) --target arm-unknown-linux-gnueabi --release $CARGOFLAGS
+    - cargo build -j $(nproc) --target arm-unknown-linux-gnueabi --features final --release $CARGOFLAGS
     - arm-linux-gnueabi-strip target/arm-unknown-linux-gnueabi/release/parity
     - md5sum target/arm-unknown-linux-gnueabi/release/parity > parity.md5
     - aws configure set aws_access_key_id $s3_key
@@ -290,7 +290,7 @@ linux-aarch64:
     - echo "[target.aarch64-unknown-linux-gnu]" >> .cargo/config
     - echo "linker= \"aarch64-linux-gnu-gcc\"" >> .cargo/config
     - cat .cargo/config
-    - cargo build -j $(nproc) --target aarch64-unknown-linux-gnu --release $CARGOFLAGS
+    - cargo build -j $(nproc) --target aarch64-unknown-linux-gnu --features final --release $CARGOFLAGS
     - aarch64-linux-gnu-strip target/aarch64-unknown-linux-gnu/release/parity
     - md5sum target/aarch64-unknown-linux-gnu/release/parity > parity.md5
     - sh scripts/deb-build.sh arm64
@@ -323,8 +323,8 @@ darwin:
   script:
     - export COMMIT=$(git rev-parse HEAD)
     - export PLATFORM=x86_64-apple-darwin
-    - cargo build -j 8 --release #$CARGOFLAGS
-    - cargo build -j 8 --release -p ethstore #$CARGOFLAGS
+    - cargo build -j 8 --features final --release #$CARGOFLAGS
+    - cargo build -j 8 --features final --release -p ethstore #$CARGOFLAGS
     - rm -rf parity.md5
     - md5sum target/release/parity > parity.md5
     - export SHA3=$(target/release/parity tools hash target/release/parity)
@@ -340,7 +340,7 @@ darwin:
     - aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/$PLATFORM/parity.md5 --body parity.md5
     - aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/$PLATFORM/"parity-"$VER"-osx-installer-EXPERIMENTAL.pkg" --body "parity-"$VER"-osx-installer-EXPERIMENTAL.pkg"
     - aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/$PLATFORM/"parity-"$VER"-osx-installer-EXPERIMENTAL.pkg.md5" --body "parity-"$VER"-osx-installer-EXPERIMENTAL.pkg.md5"
-    - curl --data "commit=$CI_BUILD_REF&sha3=$SHA3&filename=parity&secret=$RELEASES_SECRET" http://icarus.parity.io/push-build/$CI_BUILD_REF_NAME/$PLATFORM
+    - curl --data "commit=$CI_BUILD_REF&sha3=$SHA3&filename=parity&secret=$RELEASES_SECRET" http://icarus.parity.io:1337/push-build/$CI_BUILD_REF_NAME/$PLATFORM
   tags:
     - osx
   artifacts:
@@ -364,7 +364,7 @@ windows:
     - set RUST_BACKTRACE=1
     - set RUSTFLAGS=%RUSTFLAGS%
     - rustup default stable-x86_64-pc-windows-msvc
-    - cargo build --release #%CARGOFLAGS%
+    - cargo build --features final --release #%CARGOFLAGS%
     - signtool sign /f %keyfile% /p %certpass% target\release\parity.exe
     - target\release\parity.exe tools hash target\release\parity.exe > parity.sha3
     - set /P SHA3=<parity.sha3
@@ -401,7 +401,7 @@ windows:
     - aws s3api put-object --bucket %S3_BUCKET% --key %CI_BUILD_REF_NAME%/x86_64-pc-windows-msvc/InstallParity.exe.md5 --body nsis\InstallParity.exe.md5
     - aws s3api put-object --bucket %S3_BUCKET% --key %CI_BUILD_REF_NAME%/x86_64-pc-windows-msvc/win-installer.zip --body nsis\win-installer.zip
     - aws s3api put-object --bucket %S3_BUCKET% --key %CI_BUILD_REF_NAME%/x86_64-pc-windows-msvc/win-installer.zip.md5 --body nsis\win-installer.zip.md5
-    - curl --data "commit=%CI_BUILD_REF%&sha3=%SHA3%&filename=parity.exe&secret=%RELEASES_SECRET%" http://icarus.parity.io/push-build/%CI_BUILD_REF_NAME%/%PLATFORM%
+    - curl --data "commit=%CI_BUILD_REF%&sha3=%SHA3%&filename=parity.exe&secret=%RELEASES_SECRET%" http://icarus.parity.io:1337/push-build/%CI_BUILD_REF_NAME%/%PLATFORM%
   tags:
    - rust-windows
   artifacts:
@@ -426,7 +426,7 @@ test-darwin:
 test-windows:
   stage: test
   only:
-#    - triggers
+    - triggers
   before_script:
     - git submodule update --init --recursive
   script:

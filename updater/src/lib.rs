@@ -24,6 +24,7 @@ extern crate ethcore;
 extern crate ethabi;
 extern crate ethsync;
 extern crate ethcore_ipc as ipc;
+extern crate target_info;
 
 mod updater;
 mod operations;
