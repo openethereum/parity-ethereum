@@ -21,6 +21,7 @@ use devtools::http_client;
 use devtools::RandomTempPath;
 
 use rpc::ConfirmationsQueue;
+#[cfg(test)]
 use util::Hashable;
 use jsonrpc_core::IoHandler;
 use jsonrpc_core::reactor::RpcEventLoop;
