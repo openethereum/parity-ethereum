@@ -1397,6 +1397,7 @@ dependencies = [
  "ipc-common-types 1.5.0",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "parity-hash-fetch 1.5.0",
+ "target_info 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]

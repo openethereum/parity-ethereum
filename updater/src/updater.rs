@@ -18,7 +18,8 @@ use std::sync::{Arc, Weak};
 use std::fs;
 use std::io::Write;
 use std::path::{PathBuf};
-use util::misc::platform;
+use target_info::Target;
+use util::misc;
 use ipc_common_types::{VersionInfo, ReleaseTrack};
 use util::{Address, H160, H256, FixedHash, Mutex, Bytes};
 use ethsync::{SyncProvider};
@@ -96,6 +97,18 @@ pub struct Updater {
 }
 
 const CLIENT_ID: &'static str = "parity";
+
+fn platform() -> String {
+	if cfg!(target_os = "macos") {
+		"x86_64-apple-darwin".into()
+	} else if cfg!(windows) {
+		"x86_64-pc-windows-msvc".into()
+	} else if cfg!(target_os = "linux") {
+		format!("{}-unknown-linux-gnu", Target::arch())
+	} else {
+		misc::platform()
+	}
+}
 
 impl Updater {
 	pub fn new(client: Weak<BlockChainClient>, sync: Weak<SyncProvider>, update_policy: UpdatePolicy) -> Arc<Self> {
@@ -241,7 +254,7 @@ impl Updater {
 			trace!(target: "updater", "Latest release in our track is v{} it is {}critical ({} binary is {})",
 				latest.track.version,
 				if latest.track.is_critical {""} else {"non-"},
-				platform(),
+				&platform(),
 				if let Some(ref b) = latest.track.binary {
 					format!("{}", b)
 				} else {

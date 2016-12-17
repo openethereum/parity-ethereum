@@ -21,7 +21,7 @@ linux-stable:
     - triggers
   script:
     - curl --data "secret=$RELEASES_SECRET" http://icarus.parity.io/push-release/$CI_BUILD_REF_NAME/$CI_BUILD_REF
-    - cargo build -j $(nproc) --release $CARGOFLAGS
+    - cargo build -j $(nproc) --release --features final $CARGOFLAGS
     - strip target/release/parity
     - export SHA3=$(target/release/parity tools hash target/release/parity)
     - md5sum target/release/parity > parity.md5
@@ -96,7 +96,7 @@ linux-centos:
     - export CXX="g++"
     - export CC="gcc"
     - export PLATFORM=x86_64-unknown-centos-gnu
-    - cargo build -j $(nproc) --release $CARGOFLAGS
+    - cargo build -j $(nproc) --release --features final $CARGOFLAGS
     - strip target/release/parity
     - md5sum target/release/parity > parity.md5
     - export SHA3=$(target/release/parity tools hash target/release/parity)
@@ -127,7 +127,7 @@ linux-i686:
     - export HOST_CXX=g++
     - export COMMIT=$(git rev-parse HEAD)
     - export PLATFORM=i686-unknown-linux-gnu
-    - cargo build -j $(nproc) --target i686-unknown-linux-gnu --release $CARGOFLAGS
+    - cargo build -j $(nproc) --target i686-unknown-linux-gnu --features final --release $CARGOFLAGS
     - strip target/$PLATFORM/release/parity
     - md5sum target/$PLATFORM/release/parity > parity.md5
     - export SHA3=$(target/$PLATFORM/release/parity tools hash target/$PLATFORM/release/parity)
@@ -171,7 +171,7 @@ linux-armv7:
     - echo "[target.armv7-unknown-linux-gnueabihf]" >> .cargo/config
     - echo "linker= \"arm-linux-gnueabihf-gcc\"" >> .cargo/config
     - cat .cargo/config
-    - cargo build -j $(nproc) --target armv7-unknown-linux-gnueabihf --release $CARGOFLAGS
+    - cargo build -j $(nproc) --target armv7-unknown-linux-gnueabihf --features final --release $CARGOFLAGS
     - arm-linux-gnueabihf-strip target/armv7-unknown-linux-gnueabihf/release/parity
     - md5sum target/armv7-unknown-linux-gnueabihf/release/parity > parity.md5
     - sh scripts/deb-build.sh armhf
@@ -213,7 +213,7 @@ linux-arm:
     - echo "[target.arm-unknown-linux-gnueabihf]" >> .cargo/config
     - echo "linker= \"arm-linux-gnueabihf-gcc\"" >> .cargo/config
     - cat .cargo/config
-    - cargo build -j $(nproc) --target arm-unknown-linux-gnueabihf --release $CARGOFLAGS
+    - cargo build -j $(nproc) --target arm-unknown-linux-gnueabihf --features final --release $CARGOFLAGS
     - arm-linux-gnueabihf-strip target/arm-unknown-linux-gnueabihf/release/parity
     - md5sum target/arm-unknown-linux-gnueabihf/release/parity > parity.md5
     - sh scripts/deb-build.sh armhf
@@ -255,7 +255,7 @@ linux-armv6:
     - echo "[target.arm-unknown-linux-gnueabi]" >> .cargo/config
     - echo "linker= \"arm-linux-gnueabi-gcc\"" >> .cargo/config
     - cat .cargo/config
-    - cargo build -j $(nproc) --target arm-unknown-linux-gnueabi --release $CARGOFLAGS
+    - cargo build -j $(nproc) --target arm-unknown-linux-gnueabi --features final --release $CARGOFLAGS
     - arm-linux-gnueabi-strip target/arm-unknown-linux-gnueabi/release/parity
     - md5sum target/arm-unknown-linux-gnueabi/release/parity > parity.md5
     - aws configure set aws_access_key_id $s3_key
@@ -290,7 +290,7 @@ linux-aarch64:
     - echo "[target.aarch64-unknown-linux-gnu]" >> .cargo/config
     - echo "linker= \"aarch64-linux-gnu-gcc\"" >> .cargo/config
     - cat .cargo/config
-    - cargo build -j $(nproc) --target aarch64-unknown-linux-gnu --release $CARGOFLAGS
+    - cargo build -j $(nproc) --target aarch64-unknown-linux-gnu --features final --release $CARGOFLAGS
     - aarch64-linux-gnu-strip target/aarch64-unknown-linux-gnu/release/parity
     - md5sum target/aarch64-unknown-linux-gnu/release/parity > parity.md5
     - sh scripts/deb-build.sh arm64
@@ -323,8 +323,8 @@ darwin:
   script:
     - export COMMIT=$(git rev-parse HEAD)
     - export PLATFORM=x86_64-apple-darwin
-    - cargo build -j 8 --release #$CARGOFLAGS
-    - cargo build -j 8 --release -p ethstore #$CARGOFLAGS
+    - cargo build -j 8 --features final --release #$CARGOFLAGS
+    - cargo build -j 8 --features final --release -p ethstore #$CARGOFLAGS
     - rm -rf parity.md5
     - md5sum target/release/parity > parity.md5
     - export SHA3=$(target/release/parity tools hash target/release/parity)
@@ -364,7 +364,7 @@ windows:
     - set RUST_BACKTRACE=1
     - set RUSTFLAGS=%RUSTFLAGS%
     - rustup default stable-x86_64-pc-windows-msvc
-    - cargo build --release #%CARGOFLAGS%
+    - cargo build --features final --release #%CARGOFLAGS%
     - signtool sign /f %keyfile% /p %certpass% target\release\parity.exe
     - target\release\parity.exe tools hash target\release\parity.exe > parity.sha3
     - set /P SHA3=<parity.sha3
