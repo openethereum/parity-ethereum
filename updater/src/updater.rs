@@ -22,7 +22,6 @@ use target_info::Target;
 use util::misc;
 use ipc_common_types::{VersionInfo, ReleaseTrack};
 use util::path::restrict_permissions_owner; 
-use util::misc::platform;
 use util::{Address, H160, H256, FixedHash, Mutex, Bytes};
 use ethsync::{SyncProvider};
 use ethcore::client::{BlockId, BlockChainClient, ChainNotify};
