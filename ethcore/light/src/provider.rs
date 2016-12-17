@@ -19,7 +19,7 @@
 
 use ethcore::blockchain_info::BlockChainInfo;
 use ethcore::client::{BlockChainClient, ProvingBlockChainClient};
-use ethcore::transaction::SignedTransaction;
+use ethcore::transaction::PendingTransaction;
 use ethcore::ids::BlockId;
 
 use util::{Bytes, H256};
@@ -79,7 +79,7 @@ pub trait Provider: Send + Sync {
 	fn header_proofs(&self, req: request::HeaderProofs) -> Vec<Bytes>;
 
 	/// Provide pending transactions.
-	fn pending_transactions(&self) -> Vec<SignedTransaction>;
+	fn ready_transactions(&self) -> Vec<PendingTransaction>;
 }
 
 // Implementation of a light client data provider for a client.
@@ -178,7 +178,7 @@ impl<T: ProvingBlockChainClient + ?Sized> Provider for T {
 		req.requests.into_iter().map(|_| ::rlp::EMPTY_LIST_RLP.to_vec()).collect()
 	}
 
-	fn pending_transactions(&self) -> Vec<SignedTransaction> {
-		BlockChainClient::pending_transactions(self)
+	fn ready_transactions(&self) -> Vec<PendingTransaction> {
+		BlockChainClient::ready_transactions(self)
 	}
 }

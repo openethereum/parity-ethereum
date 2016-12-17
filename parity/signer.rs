@@ -74,7 +74,7 @@ pub fn start(conf: Configuration, deps: Dependencies) -> Result<Option<SignerSer
 fn codes_path(path: String) -> PathBuf {
 	let mut p = PathBuf::from(path);
 	p.push(CODES_FILENAME);
-	let _ = restrict_permissions_owner(&p);
+	let _ = restrict_permissions_owner(&p, true, false);
 	p
 }
 

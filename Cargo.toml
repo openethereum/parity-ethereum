@@ -62,7 +62,6 @@ daemonize = "0.2"
 
 [features]
 default = ["ui-precompiled"]
-
 ui = [
 	"dapps",
 	"ethcore-dapps/ui",
@@ -73,7 +72,6 @@ ui-precompiled = [
 	"ethcore-signer/ui-precompiled",
 	"ethcore-dapps/ui-precompiled",
 ]
-
 dapps = ["ethcore-dapps"]
 ipc = ["ethcore/ipc", "ethsync/ipc"]
 jit = ["ethcore/jit"]
@@ -86,6 +84,7 @@ ethstore-cli = ["ethcore/ethstore-cli"]
 evm-debug = ["ethcore/evm-debug"]
 evm-debug-tests = ["ethcore/evm-debug-tests"]
 slow-blocks = ["ethcore/slow-blocks"]
+final = ["ethcore-util/final"]
 
 [[bin]]
 path = "parity/main.rs"

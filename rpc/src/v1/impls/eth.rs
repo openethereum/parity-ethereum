@@ -38,7 +38,7 @@ use ethcore::filter::Filter as EthcoreFilter;
 use ethcore::header::{Header as BlockHeader, BlockNumber as EthBlockNumber};
 use ethcore::log_entry::LogEntry;
 use ethcore::miner::{MinerService, ExternalMinerService};
-use ethcore::transaction::{Transaction as EthTransaction, SignedTransaction, Action};
+use ethcore::transaction::{Transaction as EthTransaction, SignedTransaction, PendingTransaction, Action};
 use ethcore::snapshot::SnapshotService;
 use ethcore::views::BlockView;
 use ethsync::{SyncProvider};
@@ -626,7 +626,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 
 		let raw_transaction = raw.to_vec();
 		match UntrustedRlp::new(&raw_transaction).as_val() {
-			Ok(signed_transaction) => dispatch_transaction(&*take_weak!(self.client), &*take_weak!(self.miner), signed_transaction).map(Into::into),
+			Ok(signed_transaction) => dispatch_transaction(&*take_weak!(self.client), &*take_weak!(self.miner), PendingTransaction::new(signed_transaction, None)).map(Into::into),
 			Err(e) => Err(errors::from_rlp_error(e)),
 		}
 	}

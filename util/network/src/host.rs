@@ -1168,8 +1168,8 @@ fn save_key(path: &Path, key: &Secret) {
 			return;
 		}
 	};
-	if let Err(e) = restrict_permissions_owner(path) {
-		warn!(target: "network", "Failed to modify permissions of the file (chmod: {})", e);
+	if let Err(e) = restrict_permissions_owner(path, true, false) {
+		warn!(target: "network", "Failed to modify permissions of the file ({})", e);
 	}
 	if let Err(e) = file.write(&key.hex().into_bytes()) {
 		warn!("Error writing key file: {:?}", e);

@@ -48,8 +48,11 @@ impl DerefMut for GuardedAuthCodes {
 	}
 }
 
+/// Server with event loop
 pub struct ServerLoop {
+	/// Signer Server
 	pub server: Server,
+	/// RPC Event Loop
 	pub event_loop: RpcEventLoop,
 }
 

@@ -28,6 +28,9 @@ use rlp::{Rlp, View};
 use spec::Spec;
 use views::BlockView;
 use util::stats::Histogram;
+use ethkey::KeyPair;
+use transaction::{PendingTransaction, Transaction, Action};
+use miner::MinerService;
 
 #[test]
 fn imports_from_empty() {
@@ -284,3 +287,37 @@ fn change_history_size() {
 	let client = Client::new(config, &test_spec, dir.as_path(), Arc::new(Miner::with_spec(&test_spec)), IoChannel::disconnected(), &db_config).unwrap();
 	assert_eq!(client.state().balance(&address), 100.into());
 }
+
+#[test]
+fn does_not_propagate_delayed_transactions() {
+	let key = KeyPair::from_secret("test".sha3()).unwrap();
+	let secret = key.secret();
+	let tx0 = PendingTransaction::new(Transaction {
+		nonce: 0.into(),
+		gas_price: 0.into(),
+		gas: 21000.into(),
+		action: Action::Call(Address::default()),
+		value: 0.into(),
+		data: Vec::new(),
+	}.sign(secret, None), Some(2));
+	let tx1 = PendingTransaction::new(Transaction {
+		nonce: 1.into(),
+		gas_price: 0.into(),
+		gas: 21000.into(),
+		action: Action::Call(Address::default()),
+		value: 0.into(),
+		data: Vec::new(),
+	}.sign(secret, None), None);
+	let client_result = generate_dummy_client(1);
+	let client = client_result.reference();
+
+	client.miner().import_own_transaction(&**client, tx0).unwrap();
+	client.miner().import_own_transaction(&**client, tx1).unwrap();
+	assert_eq!(0, client.ready_transactions().len());
+	assert_eq!(2, client.miner().pending_transactions().len());
+	push_blocks_to_client(client, 53, 2, 2);
+	client.flush_queue();
+	assert_eq!(2, client.ready_transactions().len());
+	assert_eq!(2, client.miner().pending_transactions().len());
+}
+
