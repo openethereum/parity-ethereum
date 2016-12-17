@@ -316,7 +316,7 @@ fn does_not_propagate_delayed_transactions() {
 	assert_eq!(0, client.ready_transactions().len());
 	assert_eq!(2, client.miner().pending_transactions().len());
 	push_blocks_to_client(client, 53, 2, 2);
-	client.import_verified_blocks();
+	client.flush_queue();
 	assert_eq!(2, client.ready_transactions().len());
 	assert_eq!(2, client.miner().pending_transactions().len());
 }
