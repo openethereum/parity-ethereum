@@ -426,7 +426,7 @@ test-darwin:
 test-windows:
   stage: test
   only:
-#    - triggers
+    - triggers
   before_script:
     - git submodule update --init --recursive
   script:
