@@ -44,7 +44,7 @@ use env_info::LastHashes;
 use verification;
 use verification::{PreverifiedBlock, Verifier};
 use block::*;
-use transaction::{LocalizedTransaction, SignedTransaction, Transaction, Action};
+use transaction::{LocalizedTransaction, SignedTransaction, Transaction, PendingTransaction, Action};
 use blockchain::extras::TransactionAddress;
 use types::filter::Filter;
 use types::mode::Mode as IpcMode;
@@ -1334,8 +1334,8 @@ impl BlockChainClient for Client {
 		}
 	}
 
-	fn pending_transactions(&self) -> Vec<SignedTransaction> {
-		self.miner.pending_transactions(self.chain.read().best_block_number())
+	fn ready_transactions(&self) -> Vec<PendingTransaction> {
+		self.miner.ready_transactions(self.chain.read().best_block_number())
 	}
 
 	fn queue_consensus_message(&self, message: Bytes) {

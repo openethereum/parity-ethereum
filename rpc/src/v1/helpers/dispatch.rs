@@ -23,7 +23,7 @@ use util::bytes::ToPretty;
 use ethkey::Signature;
 use ethcore::miner::MinerService;
 use ethcore::client::MiningBlockChainClient;
-use ethcore::transaction::{Action, SignedTransaction, Transaction};
+use ethcore::transaction::{Action, SignedTransaction, PendingTransaction, Transaction};
 use ethcore::account_provider::AccountProvider;
 
 use jsonrpc_core::Error;
@@ -147,9 +147,9 @@ fn decrypt(accounts: &AccountProvider, address: Address, msg: Bytes, password: S
 	})
 }
 
-pub fn dispatch_transaction<C, M>(client: &C, miner: &M, signed_transaction: SignedTransaction) -> Result<H256, Error>
+pub fn dispatch_transaction<C, M>(client: &C, miner: &M, signed_transaction: PendingTransaction) -> Result<H256, Error>
 	where C: MiningBlockChainClient, M: MinerService {
-	let hash = signed_transaction.hash();
+	let hash = signed_transaction.transaction.hash();
 
 	miner.import_own_transaction(client, signed_transaction)
 		.map_err(errors::from_transaction_error)
@@ -190,6 +190,7 @@ pub fn sign_and_dispatch<C, M>(client: &C, miner: &M, accounts: &AccountProvider
 {
 
 	let network_id = client.signing_network_id();
+	let min_block = filled.min_block.clone();
 	let signed_transaction = try!(sign_no_dispatch(client, miner, accounts, filled, password));
 
 	let (signed_transaction, token) = match signed_transaction {
@@ -198,7 +199,8 @@ pub fn sign_and_dispatch<C, M>(client: &C, miner: &M, accounts: &AccountProvider
 	};
 
 	trace!(target: "miner", "send_transaction: dispatching tx: {} for network ID {:?}", rlp::encode(&signed_transaction).to_vec().pretty(), network_id);
-	dispatch_transaction(&*client, &*miner, signed_transaction).map(|hash| {
+	let pending_transaction = PendingTransaction::new(signed_transaction, min_block);
+	dispatch_transaction(&*client, &*miner, pending_transaction).map(|hash| {
 		match token {
 			Some(ref token) => WithToken::Yes(hash, token.clone()),
 			None => WithToken::No(hash),
@@ -217,6 +219,7 @@ pub fn fill_optional_fields<C, M>(request: TransactionRequest, client: &C, miner
 		gas: request.gas.unwrap_or_else(|| miner.sensible_gas_limit()),
 		value: request.value.unwrap_or_else(|| 0.into()),
 		data: request.data.unwrap_or_else(Vec::new),
+		min_block: request.min_block,
 	}
 }
 

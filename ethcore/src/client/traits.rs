@@ -21,7 +21,7 @@ use blockchain::TreeRoute;
 use verification::queue::QueueInfo as BlockQueueInfo;
 use block::{OpenBlock, SealedBlock};
 use header::{BlockNumber};
-use transaction::{LocalizedTransaction, SignedTransaction};
+use transaction::{LocalizedTransaction, SignedTransaction, PendingTransaction};
 use log_entry::LocalizedLogEntry;
 use filter::Filter;
 use views::{BlockView};
@@ -211,8 +211,8 @@ pub trait BlockChainClient : Sync + Send {
 	/// Used by PoA to communicate with peers.
 	fn broadcast_consensus_message(&self, message: Bytes);
 
-	/// list all transactions
-	fn pending_transactions(&self) -> Vec<SignedTransaction>;
+	/// List all transactions that are allowed into the next block.
+	fn ready_transactions(&self) -> Vec<PendingTransaction>;
 
 	/// Sorted list of transaction gas prices from at least last sample_size blocks.
 	fn gas_price_corpus(&self, sample_size: usize) -> Vec<U256> {

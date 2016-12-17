@@ -123,6 +123,10 @@ build_rpc_trait! {
 		#[rpc(name = "parity_pendingTransactions")]
 		fn pending_transactions(&self) -> Result<Vec<Transaction>, Error>;
 
+		/// Returns all future transactions from transaction queue.
+		#[rpc(name = "parity_futureTransactions")]
+		fn future_transactions(&self) -> Result<Vec<Transaction>, Error>;
+
 		/// Returns propagation statistics on transactions pending in the queue.
 		#[rpc(name = "parity_pendingTransactionsStats")]
 		fn pending_transactions_stats(&self) -> Result<BTreeMap<H256, TransactionStats>, Error>;

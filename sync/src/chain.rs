@@ -1919,15 +1919,15 @@ impl ChainSync {
 			return 0;
 		}
 
-		let transactions = io.chain().pending_transactions();
+		let transactions = io.chain().ready_transactions();
 		if transactions.is_empty() {
 			return 0;
 		}
 
-		let all_transactions_hashes = transactions.iter().map(|tx| tx.hash()).collect::<HashSet<H256>>();
+		let all_transactions_hashes = transactions.iter().map(|tx| tx.transaction.hash()).collect::<HashSet<H256>>();
 		let all_transactions_rlp = {
 			let mut packet = RlpStream::new_list(transactions.len());
-			for tx in &transactions { packet.append(tx); }
+			for tx in &transactions { packet.append(&tx.transaction); }
 			packet.out()
 		};
 
@@ -1965,11 +1965,11 @@ impl ChainSync {
 					// Construct RLP
 					let mut packet = RlpStream::new_list(to_send.len());
 					for tx in &transactions {
-						if to_send.contains(&tx.hash()) {
-							packet.append(tx);
+						if to_send.contains(&tx.transaction.hash()) {
+							packet.append(&tx.transaction);
 							// update stats
 							let id = io.peer_session_info(*peer_id).and_then(|info| info.id);
-							stats.propagated(tx.hash(), id, block_number);
+							stats.propagated(tx.transaction.hash(), id, block_number);
 						}
 					}
 
