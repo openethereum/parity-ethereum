@@ -93,7 +93,7 @@ notify_work = ["http://localhost:3001"]
 [footprint]
 tracing = "auto"
 pruning = "auto"
-pruning_history = 64
+pruning_history = 1200
 cache_size_db = 64
 cache_size_blocks = 8
 cache_size_queue = 50
