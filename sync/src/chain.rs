@@ -901,6 +901,8 @@ impl ChainSync {
 				trace!(target: "sync", "New block already queued {:?}", h);
 			},
 			Ok(_) => {
+				// abort current download of the same block
+				self.complete_sync(io);
 				self.new_blocks.mark_as_known(&header.hash(), header.number());
 				trace!(target: "sync", "New block queued {:?} ({})", h, header.number());
 			},
@@ -922,6 +924,7 @@ impl ChainSync {
 				self.sync_peer(io, peer_id, true);
 			}
 		}
+		self.continue_sync(io);
 		Ok(())
 	}
 
@@ -945,6 +948,7 @@ impl ChainSync {
 			if max > self.highest_block.unwrap_or(0) {
 				self.highest_block = Some(max);
 			}
+			self.continue_sync(io);
 			return Ok(());
 		}
 		trace!(target: "sync", "{} -> NewHashes ({} entries)", peer_id, r.item_count());
@@ -995,6 +999,7 @@ impl ChainSync {
 			self.state = SyncState::NewBlocks;
 			self.sync_peer(io, peer_id, true);
 		}
+		self.continue_sync(io);
 		Ok(())
 	}
 
