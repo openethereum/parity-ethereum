@@ -34,8 +34,6 @@ use number_prefix::{binary_prefix, Standalone, Prefixed};
 use ethcore_rpc::is_major_importing;
 
 pub struct Informant {
-	chain_info: RwLock<Option<BlockChainInfo>>,
-	cache_info: RwLock<Option<BlockChainCacheSize>>,
 	report: RwLock<Option<ClientReport>>,
 	last_tick: RwLock<Instant>,
 	with_color: bool,
@@ -73,8 +71,6 @@ impl Informant {
 	/// Make a new instance potentially `with_color` output.
 	pub fn new(client: Arc<Client>, sync: Option<Arc<SyncProvider>>, net: Option<Arc<ManageNetwork>>, snapshot: Option<Arc<SnapshotService>>, with_color: bool) -> Self {
 		Informant {
-			chain_info: RwLock::new(None),
-			cache_info: RwLock::new(None),
 			report: RwLock::new(None),
 			last_tick: RwLock::new(Instant::now()),
 			with_color: with_color,
@@ -177,8 +173,6 @@ impl Informant {
 			)
 		);
 
-		*self.chain_info.write() = Some(chain_info);
-		*self.cache_info.write() = Some(cache_info);
 		*write_report = Some(report);
 	}
 }
