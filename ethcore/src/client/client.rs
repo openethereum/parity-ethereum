@@ -1371,7 +1371,7 @@ impl BlockChainClient for Client {
 		PruningInfo {
 			earliest_chain: self.chain.read().first_block_number().unwrap_or(1),
 			earliest_state: self.state_db.lock().journal_db().earliest_era().unwrap_or(0),
-			history_size: Some(self.history),
+			state_history_size: Some(self.history),
 		}
 	}
 
