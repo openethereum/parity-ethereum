@@ -17,13 +17,14 @@
 //! Unsafe Signing RPC implementation.
 
 use std::sync::{Arc, Weak};
+use util::Hashable;
 
 use ethcore::account_provider::AccountProvider;
 use ethcore::miner::MinerService;
 use ethcore::client::MiningBlockChainClient;
 
 use jsonrpc_core::Error;
-use v1::helpers::auto_args::Ready;
+use jsonrpc_macros::Ready;
 use v1::helpers::errors;
 use v1::helpers::dispatch;
 use v1::traits::{EthSigning, ParitySigning};
@@ -75,7 +76,8 @@ impl<C, M> SigningUnsafeClient<C, M> where
 		let accounts = take_weak!(self.accounts);
 
 		let payload = dispatch::from_rpc(payload, &*client, &*miner);
-		dispatch::execute(&*client, &*miner, &*accounts, payload, None)
+		dispatch::execute(&*client, &*miner, &*accounts, payload, dispatch::SignWith::Nothing)
+			.map(|v| v.into_value())
 	}
 }
 
@@ -83,7 +85,8 @@ impl<C: 'static, M: 'static> EthSigning for SigningUnsafeClient<C, M> where
 	C: MiningBlockChainClient,
 	M: MinerService,
 {
-	fn sign(&self, ready: Ready<RpcH520>, address: RpcH160, hash: RpcH256) {
+	fn sign(&self, ready: Ready<RpcH520>, address: RpcH160, data: RpcBytes) {
+		let hash = data.0.sha3().into();
 		let result = match self.handle(RpcConfirmationPayload::Signature((address, hash).into())) {
 			Ok(RpcConfirmationResponse::Signature(signature)) => Ok(signature),
 			Err(e) => Err(e),

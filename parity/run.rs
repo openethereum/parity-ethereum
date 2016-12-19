@@ -14,16 +14,16 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::sync::{Arc, Mutex, Condvar};
+use std::sync::Arc;
 use std::net::{TcpListener};
 use ctrlc::CtrlC;
 use fdlimit::raise_fd_limit;
 use ethcore_rpc::{NetworkSettings, is_major_importing};
 use ethsync::NetworkConfiguration;
-use util::{Colour, version, RotatingLogger};
+use util::{Colour, version, RotatingLogger, Mutex, Condvar};
 use io::{MayPanic, ForwardPanic, PanicHandler};
 use ethcore_logger::{Config as LogConfig};
-use ethcore::client::{Mode, DatabaseCompactionProfile, VMType, ChainNotify, BlockChainClient};
+use ethcore::client::{Mode, DatabaseCompactionProfile, VMType, BlockChainClient};
 use ethcore::service::ClientService;
 use ethcore::account_provider::AccountProvider;
 use ethcore::miner::{Miner, MinerService, ExternalMiner, MinerOptions};
@@ -31,16 +31,17 @@ use ethcore::snapshot;
 use ethcore::verification::queue::VerifierSettings;
 use ethsync::SyncConfig;
 use informant::Informant;
+use updater::{UpdatePolicy, Updater};
 
 use rpc::{HttpServer, IpcServer, HttpConfiguration, IpcConfiguration};
 use signer::SignerServer;
 use dapps::WebappServer;
-use io_handler::ClientIoHandler;
 use params::{
 	SpecType, Pruning, AccountsConfig, GasPricerConfig, MinerExtras, Switch,
 	tracing_switch_to_bool, fatdb_switch_to_bool, mode_switch_to_bool
 };
 use helpers::{to_client_config, execute_upgrades, passwords_from_files};
+use upgrade::upgrade_key_location;
 use dir::Directories;
 use cache::CacheConfig;
 use user_defaults::UserDefaults;
@@ -76,6 +77,7 @@ pub struct RunCmd {
 	pub acc_conf: AccountsConfig,
 	pub gas_pricer: GasPricerConfig,
 	pub miner_extras: MinerExtras,
+	pub update_policy: UpdatePolicy,
 	pub mode: Option<Mode>,
 	pub tracing: Switch,
 	pub fat_db: Switch,
@@ -114,12 +116,12 @@ pub fn open_ui(dapps_conf: &dapps::Configuration, signer_conf: &signer::Configur
 	Ok(())
 }
 
-pub fn execute(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<(), String> {
+pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> Result<bool, String> {
 	if cmd.ui && cmd.dapps_conf.enabled {
 		// Check if Parity is already running
 		let addr = format!("{}:{}", cmd.dapps_conf.interface, cmd.dapps_conf.port);
 		if !TcpListener::bind(&addr as &str).is_ok() {
-			return open_ui(&cmd.dapps_conf, &cmd.signer_conf);
+			return open_ui(&cmd.dapps_conf, &cmd.signer_conf).map(|_| false);
 		}
 	}
 
@@ -129,9 +131,6 @@ pub fn execute(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<(), String> {
 	// increase max number of open files
 	raise_fd_limit();
 
-	// create dirs used by parity
-	try!(cmd.dirs.create_dirs(cmd.dapps_conf.enabled, cmd.signer_conf.enabled));
-
 	// load spec
 	let spec = try!(cmd.spec.spec());
 
@@ -139,7 +138,7 @@ pub fn execute(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<(), String> {
 	let genesis_hash = spec.genesis_header().hash();
 
 	// database paths
-	let db_dirs = cmd.dirs.database(genesis_hash, spec.fork_name.clone());
+	let db_dirs = cmd.dirs.database(genesis_hash, cmd.spec.legacy_fork_name(), spec.data_dir.clone());
 
 	// user defaults path
 	let user_defaults_path = db_dirs.user_defaults_path();
@@ -161,12 +160,18 @@ pub fn execute(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<(), String> {
 	trace!(target: "mode", "mode is {:?}", mode);
 	let network_enabled = match mode { Mode::Dark(_) | Mode::Off => false, _ => true, };
 
+	// get the update policy
+	let update_policy = cmd.update_policy;
+
 	// prepare client and snapshot paths.
 	let client_path = db_dirs.client_path(algorithm);
 	let snapshot_path = db_dirs.snapshot_path();
 
 	// execute upgrades
-	try!(execute_upgrades(&db_dirs, algorithm, cmd.compaction.compaction_profile(db_dirs.fork_path().as_path())));
+	try!(execute_upgrades(&cmd.dirs.base, &db_dirs, algorithm, cmd.compaction.compaction_profile(db_dirs.db_root_path().as_path())));
+
+	// create dirs used by parity
+	try!(cmd.dirs.create_dirs(cmd.dapps_conf.enabled, cmd.signer_conf.enabled));
 
 	// run in daemon mode
 	if let Some(pid_file) = cmd.daemon {
@@ -175,7 +180,7 @@ pub fn execute(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<(), String> {
 
 	// display info about used pruning algorithm
 	info!("Starting {}", Colour::White.bold().paint(version()));
-	info!("State DB configuation: {}{}{}",
+	info!("State DB configuration: {}{}{}",
 		Colour::White.bold().paint(algorithm.as_str()),
 		match fat_db {
 			true => Colour::White.bold().paint(" +Fat").to_string(),
@@ -217,7 +222,7 @@ pub fn execute(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<(), String> {
 	let passwords = try!(passwords_from_files(&cmd.acc_conf.password_files));
 
 	// prepare account provider
-	let account_provider = Arc::new(try!(prepare_account_provider(&cmd.dirs, cmd.acc_conf, &passwords)));
+	let account_provider = Arc::new(try!(prepare_account_provider(&cmd.dirs, &spec.data_dir, cmd.acc_conf, &passwords)));
 
 	// let the Engine access the accounts
 	spec.engine.register_account_provider(account_provider.clone());
@@ -306,6 +311,10 @@ pub fn execute(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<(), String> {
 		chain_notify.start();
 	}
 
+	// the updater service
+	let updater = Updater::new(Arc::downgrade(&(service.client() as Arc<BlockChainClient>)), Arc::downgrade(&sync_provider), update_policy);
+	service.add_notify(updater.clone());
+
 	// set up dependencies for rpc servers
 	let signer_path = cmd.signer_conf.signer_path.clone();
 	let deps_for_rpc_apis = Arc::new(rpc_apis::Dependencies {
@@ -322,6 +331,7 @@ pub fn execute(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<(), String> {
 		logger: logger.clone(),
 		settings: Arc::new(cmd.net_settings.clone()),
 		net_service: manage_network.clone(),
+		updater: updater.clone(),
 		geth_compatibility: cmd.geth_compatibility,
 		dapps_interface: match cmd.dapps_conf.enabled {
 			true => Some(cmd.dapps_conf.interface.clone()),
@@ -342,24 +352,23 @@ pub fn execute(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<(), String> {
 	let http_server = try!(rpc::new_http(cmd.http_conf, &dependencies));
 	let ipc_server = try!(rpc::new_ipc(cmd.ipc_conf, &dependencies));
 
+	// the dapps server
 	let dapps_deps = dapps::Dependencies {
 		panic_handler: panic_handler.clone(),
 		apis: deps_for_rpc_apis.clone(),
 		client: client.clone(),
 		sync: sync_provider.clone(),
 	};
-
-	// start dapps server
 	let dapps_server = try!(dapps::new(cmd.dapps_conf.clone(), dapps_deps));
 
+	// the signer server
 	let signer_deps = signer::Dependencies {
 		panic_handler: panic_handler.clone(),
 		apis: deps_for_rpc_apis.clone(),
 	};
-
-	// start signer server
 	let signer_server = try!(signer::start(cmd.signer_conf.clone(), signer_deps));
 
+	// the informant
 	let informant = Arc::new(Informant::new(
 		service.client(),
 		Some(sync_provider.clone()),
@@ -367,17 +376,8 @@ pub fn execute(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<(), String> {
 		Some(snapshot_service.clone()),
 		cmd.logger_config.color
 	));
-	let info_notify: Arc<ChainNotify> = informant.clone();
-	service.add_notify(info_notify);
-	let io_handler = Arc::new(ClientIoHandler {
-		client: service.client(),
-		info: informant,
-		sync: sync_provider.clone(),
-		net: manage_network.clone(),
-		accounts: account_provider.clone(),
-		shutdown: Default::default(),
-	});
-	service.register_io_handler(io_handler.clone()).expect("Error registering IO handler");
+	service.add_notify(informant.clone());
+	service.register_io_handler(informant.clone()).map_err(|_| "Unable to register informant handler".to_owned())?;
 
 	// save user defaults
 	user_defaults.pruning = algorithm;
@@ -386,13 +386,11 @@ pub fn execute(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<(), String> {
 	user_defaults.mode = mode;
 	try!(user_defaults.save(&user_defaults_path));
 
-	let on_mode_change = move |mode: &Mode| {
+	// tell client how to save the default mode if it gets changed.
+	client.on_mode_change(move |mode: &Mode| {
 		user_defaults.mode = mode.clone();
 		let _ = user_defaults.save(&user_defaults_path);	// discard failures - there's nothing we can do
-	};
-
-	// tell client how to save the default mode if it gets changed.
-	client.on_mode_change(on_mode_change);
+	});
 
 	// the watcher must be kept alive.
 	let _watcher = match cmd.no_periodic_snapshot {
@@ -418,18 +416,20 @@ pub fn execute(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<(), String> {
 	}
 
 	// Handle exit
-	wait_for_exit(panic_handler, http_server, ipc_server, dapps_server, signer_server);
+	let restart = wait_for_exit(panic_handler, http_server, ipc_server, dapps_server, signer_server, updater, can_restart);
+
+	info!("Finishing work, please wait...");
 
 	// to make sure timer does not spawn requests while shutdown is in progress
-	io_handler.shutdown.store(true, ::std::sync::atomic::Ordering::SeqCst);
+	informant.shutdown();
 	// just Arc is dropping here, to allow other reference release in its default time
-	drop(io_handler);
+	drop(informant);
 
 	// hypervisor should be shutdown first while everything still works and can be
 	// terminated gracefully
 	drop(hypervisor);
 
-	Ok(())
+	Ok(restart)
 }
 
 #[cfg(not(windows))]
@@ -437,11 +437,11 @@ fn daemonize(pid_file: String) -> Result<(), String> {
 	extern crate daemonize;
 
 	daemonize::Daemonize::new()
-			.pid_file(pid_file)
-			.chown_pid_file(true)
-			.start()
-			.map(|_| ())
-			.map_err(|e| format!("Couldn't daemonize; {}", e))
+		.pid_file(pid_file)
+		.chown_pid_file(true)
+		.start()
+		.map(|_| ())
+		.map_err(|e| format!("Couldn't daemonize; {}", e))
 }
 
 #[cfg(windows)]
@@ -449,11 +449,13 @@ fn daemonize(_pid_file: String) -> Result<(), String> {
 	Err("daemon is no supported on windows".into())
 }
 
-fn prepare_account_provider(dirs: &Directories, cfg: AccountsConfig, passwords: &[String]) -> Result<AccountProvider, String> {
+fn prepare_account_provider(dirs: &Directories, data_dir: &str, cfg: AccountsConfig, passwords: &[String]) -> Result<AccountProvider, String> {
 	use ethcore::ethstore::EthStore;
 	use ethcore::ethstore::dir::DiskDirectory;
 
-	let dir = Box::new(try!(DiskDirectory::create(dirs.keys.clone()).map_err(|e| format!("Could not open keys directory: {}", e))));
+	let path = dirs.keys_path(data_dir);
+	upgrade_key_location(&dirs.legacy_keys_path(cfg.testnet), &path);
+	let dir = Box::new(try!(DiskDirectory::create(&path).map_err(|e| format!("Could not open keys directory: {}", e))));
 	let account_service = AccountProvider::new(Box::new(
 		try!(EthStore::open_with_iterations(dir, cfg.iterations).map_err(|e| format!("Could not open keys directory: {}", e)))
 	));
@@ -472,20 +474,30 @@ fn wait_for_exit(
 	_http_server: Option<HttpServer>,
 	_ipc_server: Option<IpcServer>,
 	_dapps_server: Option<WebappServer>,
-	_signer_server: Option<SignerServer>
-	) {
-	let exit = Arc::new(Condvar::new());
+	_signer_server: Option<SignerServer>,
+	updater: Arc<Updater>,
+	can_restart: bool
+) -> bool {
+	let exit = Arc::new((Mutex::new(false), Condvar::new()));
 
 	// Handle possible exits
 	let e = exit.clone();
-	CtrlC::set_handler(move || { e.notify_all(); });
+	CtrlC::set_handler(move || { e.1.notify_all(); });
 
 	// Handle panics
 	let e = exit.clone();
-	panic_handler.on_panic(move |_reason| { e.notify_all(); });
+	panic_handler.on_panic(move |_reason| { e.1.notify_all(); });
+
+	// Handle updater wanting to restart us
+	if can_restart {
+		let e = exit.clone();
+		updater.set_exit_handler(move || { *e.0.lock() = true; e.1.notify_all(); });
+	} else {
+		updater.set_exit_handler(|| info!("Update installed; ready for restart."));
+	}
 
 	// Wait for signal
-	let mutex = Mutex::new(());
-	let _ = exit.wait(mutex.lock().unwrap());
-	info!("Finishing work, please wait...");
+	let mut l = exit.0.lock();
+	let _ = exit.1.wait(&mut l);
+	*l
 }

@@ -16,11 +16,9 @@
 
 //! RPC interface.
 
-use jsonrpc_core::Error;
-
-use v1::helpers::auto_args::Wrap;
-
 use std::collections::BTreeMap;
+
+use jsonrpc_core::Error;
 
 build_rpc_trait! {
 	/// RPC Interface.

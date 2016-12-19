@@ -23,7 +23,7 @@ use cli::{Args, ArgsError};
 use util::{Hashable, U256, Uint, Bytes, version_data, Secret, Address};
 use util::log::Colour;
 use ethsync::{NetworkConfiguration, is_valid_node_url, AllowIP};
-use ethcore::client::VMType;
+use ethcore::client::{VMType};
 use ethcore::miner::{MinerOptions, Banning};
 use ethcore::verification::queue::VerifierSettings;
 
@@ -34,14 +34,17 @@ use helpers::{to_duration, to_mode, to_block_id, to_u256, to_pending_set, to_pri
 geth_ipc_path, parity_ipc_path, to_bootnodes, to_addresses, to_address, to_gas_limit, to_queue_strategy};
 use params::{ResealPolicy, AccountsConfig, GasPricerConfig, MinerExtras};
 use ethcore_logger::Config as LogConfig;
-use dir::Directories;
+use dir::{Directories, default_hypervisor_path};
 use dapps::Configuration as DappsConfiguration;
 use signer::{Configuration as SignerConfiguration};
+use updater::{UpdatePolicy, UpdateFilter, ReleaseTrack};
 use run::RunCmd;
-use blockchain::{BlockchainCmd, ImportBlockchain, ExportBlockchain, ExportState, DataFormat};
+use blockchain::{BlockchainCmd, ImportBlockchain, ExportBlockchain, KillBlockchain, ExportState, DataFormat};
 use presale::ImportWallet;
-use account::{AccountCmd, NewAccount, ImportAccounts, ImportFromGethAccounts};
+use account::{AccountCmd, NewAccount, ListAccounts, ImportAccounts, ImportFromGethAccounts};
 use snapshot::{self, SnapshotCommand};
+
+const AUTHCODE_FILENAME: &'static str = "authcodes";
 
 #[derive(Debug, PartialEq)]
 pub enum Cmd {
@@ -51,6 +54,21 @@ pub enum Cmd {
 	ImportPresaleWallet(ImportWallet),
 	Blockchain(BlockchainCmd),
 	SignerToken(SignerConfiguration),
+	SignerSign {
+		id: Option<usize>,
+		pwfile: Option<PathBuf>,
+		port: u16,
+		authfile: PathBuf,
+	},
+	SignerList {
+		port: u16,
+		authfile: PathBuf
+	},
+	SignerReject {
+		id: Option<usize>,
+		port: u16,
+		authfile: PathBuf
+	},
 	Snapshot(SnapshotCommand),
 	Hash(Option<String>),
 }
@@ -82,6 +100,7 @@ impl Configuration {
 		let pruning_history = self.args.flag_pruning_history;
 		let vm_type = try!(self.vm_type());
 		let mode = match self.args.flag_mode.as_ref() { "last" => None, mode => Some(try!(to_mode(&mode, self.args.flag_mode_timeout, self.args.flag_mode_alarm))), };
+		let update_policy = try!(self.update_policy());
 		let miner_options = try!(self.miner_options());
 		let logger_config = self.logger_config();
 		let http_conf = try!(self.http_config());
@@ -103,24 +122,64 @@ impl Configuration {
 
 		let cmd = if self.args.flag_version {
 			Cmd::Version
-		} else if self.args.cmd_signer && self.args.cmd_new_token {
-			Cmd::SignerToken(signer_conf)
+		} else if self.args.cmd_signer {
+			let mut authfile = PathBuf::from(signer_conf.signer_path.clone());
+			authfile.push(AUTHCODE_FILENAME);
+
+			if self.args.cmd_new_token {
+				Cmd::SignerToken(signer_conf)
+			} else if self.args.cmd_sign {
+				let pwfile = self.args.flag_password.get(0).map(|pwfile| {
+					PathBuf::from(pwfile)
+				});
+				Cmd::SignerSign {
+					id: self.args.arg_id,
+					pwfile: pwfile,
+					port: signer_conf.port,
+					authfile: authfile,
+				}
+			} else if self.args.cmd_reject  {
+				Cmd::SignerReject {
+					id: self.args.arg_id,
+					port: signer_conf.port,
+					authfile: authfile,
+				}
+			} else if self.args.cmd_list  {
+				Cmd::SignerList {
+					port: signer_conf.port,
+					authfile: authfile,
+				}
+			} else {
+				unreachable!();
+			}
 		} else if self.args.cmd_tools && self.args.cmd_hash {
 			Cmd::Hash(self.args.arg_file)
+		} else if self.args.cmd_db && self.args.cmd_kill {
+			Cmd::Blockchain(BlockchainCmd::Kill(KillBlockchain {
+				spec: spec,
+				dirs: dirs,
+				pruning: pruning,
+			}))
 		} else if self.args.cmd_account {
 			let account_cmd = if self.args.cmd_new {
 				let new_acc = NewAccount {
 					iterations: self.args.flag_keys_iterations,
 					path: dirs.keys,
+					spec: spec,
 					password_file: self.args.flag_password.first().cloned(),
 				};
 				AccountCmd::New(new_acc)
 			} else if self.args.cmd_list {
-				AccountCmd::List(dirs.keys)
+				let list_acc = ListAccounts {
+					path: dirs.keys,
+					spec: spec,
+				};
+				AccountCmd::List(list_acc)
 			} else if self.args.cmd_import {
 				let import_acc = ImportAccounts {
 					from: self.args.arg_path.clone(),
 					to: dirs.keys,
+					spec: spec,
 				};
 				AccountCmd::Import(import_acc)
 			} else {
@@ -130,6 +189,7 @@ impl Configuration {
 		} else if self.args.flag_import_geth_keys {
         	let account_cmd = AccountCmd::ImportFromGeth(
 				ImportFromGethAccounts {
+					spec: spec,
 					to: dirs.keys,
 					testnet: self.args.flag_testnet
 				}
@@ -139,6 +199,7 @@ impl Configuration {
 			let presale_cmd = ImportWallet {
 				iterations: self.args.flag_keys_iterations,
 				path: dirs.keys,
+				spec: spec,
 				wallet_path: self.args.arg_path.first().unwrap().clone(),
 				password_file: self.args.flag_password.first().cloned(),
 			};
@@ -261,6 +322,7 @@ impl Configuration {
 				acc_conf: try!(self.accounts_config()),
 				gas_pricer: try!(self.gas_pricer_config()),
 				miner_extras: try!(self.miner_extras()),
+				update_policy: update_policy,
 				mode: mode,
 				tracing: tracing,
 				fat_db: fat_db,
@@ -530,7 +592,7 @@ impl Configuration {
 		ret.snapshot_peers = self.snapshot_peers();
 		ret.allow_ips = try!(self.allow_ips());
 		ret.max_pending_peers = self.max_pending_peers();
-		let mut net_path = PathBuf::from(self.directories().db);
+		let mut net_path = PathBuf::from(self.directories().base);
 		net_path.push("network");
 		ret.config_path = Some(net_path.to_str().unwrap().to_owned());
 		ret.reserved_nodes = try!(self.init_reserved_nodes());
@@ -621,21 +683,37 @@ impl Configuration {
 		}
 	}
 
+	fn update_policy(&self) -> Result<UpdatePolicy, String> {
+		Ok(UpdatePolicy {
+			enable_downloading: !self.args.flag_no_download,
+			require_consensus: !self.args.flag_no_consensus,
+			filter: match self.args.flag_auto_update.as_ref() {
+				"none" => UpdateFilter::None,
+				"critical" => UpdateFilter::Critical,
+				"all" => UpdateFilter::All,
+				_ => return Err("Invalid value for `--auto-update`. See `--help` for more information.".into()), 
+			},
+			track: match self.args.flag_release_track.as_ref() {
+				"stable" => ReleaseTrack::Stable,
+				"beta" => ReleaseTrack::Beta,
+				"nightly" => ReleaseTrack::Nightly,
+				"testing" => ReleaseTrack::Testing,
+				"current" => ReleaseTrack::Unknown,
+				_ => return Err("Invalid value for `--releases-track`. See `--help` for more information.".into()), 
+			},
+			path: default_hypervisor_path(),
+		})
+	}
+
 	fn directories(&self) -> Directories {
 		use util::path;
 
-		let db_path = replace_home(self.args.flag_datadir.as_ref().unwrap_or(&self.args.flag_db_path));
+		let data_path = replace_home("", self.args.flag_datadir.as_ref().unwrap_or(&self.args.flag_base_path));
 
-		let keys_path = replace_home(
-			if self.args.flag_testnet {
-				"$HOME/.parity/testnet_keys"
-			} else {
-				&self.args.flag_keys_path
-			}
-		);
-
-		let dapps_path = replace_home(&self.args.flag_dapps_path);
-		let ui_path = replace_home(&self.args.flag_ui_path);
+		let db_path = replace_home(&data_path, &self.args.flag_db_path);
+		let keys_path = replace_home(&data_path, &self.args.flag_keys_path);
+		let dapps_path = replace_home(&data_path, &self.args.flag_dapps_path);
+		let ui_path = replace_home(&data_path, &self.args.flag_ui_path);
 
 		if self.args.flag_geth  && !cfg!(windows) {
 			let geth_root  = if self.args.flag_testnet { path::ethereum::test() } else {  path::ethereum::default() };
@@ -644,7 +722,7 @@ impl Configuration {
 		}
 
 		if cfg!(feature = "ipc") && !cfg!(feature = "windows") {
-			let mut path_buf = PathBuf::from(db_path.clone());
+			let mut path_buf = PathBuf::from(data_path.clone());
 			path_buf.push("ipc");
 			let ipc_path = path_buf.to_str().unwrap();
 			::std::fs::create_dir_all(ipc_path).unwrap_or_else(
@@ -654,6 +732,7 @@ impl Configuration {
 
 		Directories {
 			keys: keys_path,
+			base: data_path,
 			db: db_path,
 			dapps: dapps_path,
 			signer: ui_path,
@@ -664,7 +743,7 @@ impl Configuration {
 		if self.args.flag_geth {
 			geth_ipc_path(self.args.flag_testnet)
 		} else {
-			parity_ipc_path(&self.args.flag_ipcpath.clone().unwrap_or(self.args.flag_ipc_path.clone()))
+			parity_ipc_path(&self.directories().base, &self.args.flag_ipcpath.clone().unwrap_or(self.args.flag_ipc_path.clone()))
 		}
 	}
 
@@ -732,13 +811,16 @@ mod tests {
 	use ethcore_rpc::NetworkSettings;
 	use ethcore::client::{VMType, BlockId};
 	use ethcore::miner::{MinerOptions, PrioritizationStrategy};
-	use helpers::{replace_home, default_network_config};
+	use helpers::{default_network_config};
 	use run::RunCmd;
+	use dir::{Directories, default_hypervisor_path};
 	use signer::{Configuration as SignerConfiguration};
 	use blockchain::{BlockchainCmd, ImportBlockchain, ExportBlockchain, DataFormat, ExportState};
 	use presale::ImportWallet;
-	use account::{AccountCmd, NewAccount, ImportAccounts};
+	use params::SpecType;
+	use account::{AccountCmd, NewAccount, ImportAccounts, ListAccounts};
 	use devtools::{RandomTempPath};
+	use updater::{UpdatePolicy, UpdateFilter, ReleaseTrack};
 	use std::io::Write;
 	use std::fs::{File, create_dir};
 
@@ -764,8 +846,9 @@ mod tests {
 		let conf = parse(&args);
 		assert_eq!(conf.into_command().unwrap().cmd, Cmd::Account(AccountCmd::New(NewAccount {
 			iterations: 10240,
-			path: replace_home("$HOME/.parity/keys"),
+			path: Directories::default().keys,
 			password_file: None,
+			spec: SpecType::default(),
 		})));
 	}
 
@@ -774,7 +857,10 @@ mod tests {
 		let args = vec!["parity", "account", "list"];
 		let conf = parse(&args);
 		assert_eq!(conf.into_command().unwrap().cmd, Cmd::Account(
-			AccountCmd::List(replace_home("$HOME/.parity/keys")),
+			AccountCmd::List(ListAccounts {
+				path: Directories::default().keys,
+				spec: SpecType::default(),
+			})
 		));
 	}
 
@@ -784,7 +870,8 @@ mod tests {
 		let conf = parse(&args);
 		assert_eq!(conf.into_command().unwrap().cmd, Cmd::Account(AccountCmd::Import(ImportAccounts {
 			from: vec!["my_dir".into(), "another_dir".into()],
-			to: replace_home("$HOME/.parity/keys"),
+			to: Directories::default().keys,
+			spec: SpecType::default(),
 		})));
 	}
 
@@ -794,9 +881,10 @@ mod tests {
 		let conf = parse(&args);
 		assert_eq!(conf.into_command().unwrap().cmd, Cmd::ImportPresaleWallet(ImportWallet {
 			iterations: 10240,
-			path: replace_home("$HOME/.parity/keys"),
+			path: Directories::default().keys,
 			wallet_path: "my_wallet.json".into(),
 			password_file: Some("pwd".into()),
+			spec: SpecType::default(),
 		}));
 	}
 
@@ -895,7 +983,7 @@ mod tests {
 	fn test_command_signer_new_token() {
 		let args = vec!["parity", "signer", "new-token"];
 		let conf = parse(&args);
-		let expected = replace_home("$HOME/.parity/signer");
+		let expected = Directories::default().signer;
 		assert_eq!(conf.into_command().unwrap().cmd, Cmd::SignerToken(SignerConfiguration {
 			enabled: true,
 			signer_path: expected,
@@ -926,6 +1014,7 @@ mod tests {
 			acc_conf: Default::default(),
 			gas_pricer: Default::default(),
 			miner_extras: Default::default(),
+			update_policy: UpdatePolicy { enable_downloading: true, require_consensus: true, filter: UpdateFilter::Critical, track: ReleaseTrack::Unknown, path: default_hypervisor_path() },
 			mode: Default::default(),
 			tracing: Default::default(),
 			compaction: Default::default(),
@@ -967,6 +1056,21 @@ mod tests {
 		assert_eq!(conf2.miner_options().unwrap(), mining_options);
 		mining_options.tx_queue_strategy = PrioritizationStrategy::GasAndGasPrice;
 		assert_eq!(conf3.miner_options().unwrap(), mining_options);
+	}
+
+	#[test]
+	fn should_parse_updater_options() {
+		// when
+		let conf0 = parse(&["parity", "--release-track=testing"]);
+		let conf1 = parse(&["parity", "--auto-update", "all", "--no-consensus"]);
+		let conf2 = parse(&["parity", "--no-download", "--auto-update=all", "--release-track=beta"]);
+		let conf3 = parse(&["parity", "--auto-update=xxx"]);
+
+		// then
+		assert_eq!(conf0.update_policy().unwrap(), UpdatePolicy{enable_downloading: true, require_consensus: true, filter: UpdateFilter::Critical, track: ReleaseTrack::Testing, path: default_hypervisor_path()});
+		assert_eq!(conf1.update_policy().unwrap(), UpdatePolicy{enable_downloading: true, require_consensus: false, filter: UpdateFilter::All, track: ReleaseTrack::Unknown, path: default_hypervisor_path()});
+		assert_eq!(conf2.update_policy().unwrap(), UpdatePolicy{enable_downloading: false, require_consensus: true, filter: UpdateFilter::All, track: ReleaseTrack::Beta, path: default_hypervisor_path()});
+		assert!(conf3.update_policy().is_err());
 	}
 
 	#[test]
@@ -1128,4 +1232,3 @@ mod tests {
 		assert!(conf.init_reserved_nodes().is_ok());
 	}
 }
-

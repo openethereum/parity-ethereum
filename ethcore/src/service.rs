@@ -20,7 +20,7 @@ use util::*;
 use io::*;
 use spec::Spec;
 use error::*;
-use client::{Client, ClientConfig, ChainNotify};
+use client::{Client, BlockChainClient, MiningBlockChainClient, ClientConfig, ChainNotify};
 use miner::Miner;
 use snapshot::ManifestData;
 use snapshot::service::{Service as SnapshotService, ServiceParams as SnapServiceParams};
@@ -28,18 +28,16 @@ use std::sync::atomic::AtomicBool;
 
 #[cfg(feature="ipc")]
 use nanoipc;
-#[cfg(feature="ipc")]
-use client::BlockChainClient;
 
 /// Message type for external and internal events
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq, Debug)]
 pub enum ClientIoMessage {
 	/// Best Block Hash in chain has been changed
 	NewChainHead,
 	/// A block is ready
 	BlockVerified,
 	/// New transaction RLPs are ready to be imported
-	NewTransactions(Vec<Bytes>),
+	NewTransactions(Vec<Bytes>, usize),
 	/// Begin snapshot restoration
 	BeginRestoration(ManifestData),
 	/// Feed a state chunk to the snapshot service
@@ -50,6 +48,12 @@ pub enum ClientIoMessage {
 	TakeSnapshot(u64),
 	/// Trigger sealing update (useful for internal sealing).
 	UpdateSealing,
+	/// Submit seal (useful for internal sealing).
+	SubmitSeal(H256, Vec<Bytes>),
+	/// Broadcast a message to the network.
+	BroadcastMessage(Bytes),
+	/// New consensus message received.
+	NewMessage(Bytes)
 }
 
 /// Client service setup. Creates and registers client and network services with the IO subsystem.
@@ -77,9 +81,6 @@ impl ClientService {
 		panic_handler.forward_from(&io_service);
 
 		info!("Configured for {} using {} engine", Colour::White.bold().paint(spec.name.clone()), Colour::Yellow.bold().paint(spec.engine.name()));
-		if spec.fork_name.is_some() {
-			warn!("Your chain is an alternative fork. {}", Colour::Red.bold().paint("TRANSACTIONS MAY BE REPLAYED ON THE MAINNET!"));
-		}
 
 		let mut db_config = DatabaseConfig::with_columns(::db::NUM_COLUMNS);
 
@@ -196,7 +197,9 @@ impl IoHandler<ClientIoMessage> for ClientIoHandler {
 
 		match *net_message {
 			ClientIoMessage::BlockVerified => { self.client.import_verified_blocks(); }
-			ClientIoMessage::NewTransactions(ref transactions) => { self.client.import_queued_transactions(transactions); }
+			ClientIoMessage::NewTransactions(ref transactions, peer_id) => {
+				self.client.import_queued_transactions(transactions, peer_id);
+			}
 			ClientIoMessage::BeginRestoration(ref manifest) => {
 				if let Err(e) = self.snapshot.init_restore(manifest.clone(), true) {
 					warn!("Failed to initialize snapshot restoration: {}", e);
@@ -218,9 +221,11 @@ impl IoHandler<ClientIoMessage> for ClientIoHandler {
 					debug!(target: "snapshot", "Failed to initialize periodic snapshot thread: {:?}", e);
 				}
 			},
-			ClientIoMessage::UpdateSealing => {
-				trace!(target: "authorityround", "message: UpdateSealing");
-				self.client.update_sealing()
+			ClientIoMessage::UpdateSealing => self.client.update_sealing(),
+			ClientIoMessage::SubmitSeal(ref hash, ref seal) => self.client.submit_seal(*hash, seal.clone()),
+			ClientIoMessage::BroadcastMessage(ref message) => self.client.broadcast_consensus_message(message.clone()),
+			ClientIoMessage::NewMessage(ref message) => if let Err(e) = self.client.engine().handle_message(message) {
+				trace!(target: "poa", "Invalid message received: {}", e);
 			},
 			_ => {} // ignore other messages
 		}

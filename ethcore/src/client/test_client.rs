@@ -21,7 +21,7 @@ use util::*;
 use rlp::*;
 use ethkey::{Generator, Random};
 use devtools::*;
-use transaction::{Transaction, LocalizedTransaction, SignedTransaction, Action};
+use transaction::{Transaction, LocalizedTransaction, SignedTransaction, PendingTransaction, Action};
 use blockchain::TreeRoute;
 use client::{
 	BlockChainClient, MiningBlockChainClient, BlockChainInfo, BlockStatus, BlockId,
@@ -90,6 +90,8 @@ pub struct TestBlockChainClient {
 	pub ancient_block: RwLock<Option<(H256, u64)>>,
 	/// First block info.
 	pub first_block: RwLock<Option<(H256, u64)>>,
+	/// Traces to return
+	pub traces: RwLock<Option<Vec<LocalizedTrace>>>,
 }
 
 /// Used for generating test client blocks.
@@ -151,6 +153,7 @@ impl TestBlockChainClient {
 			latest_block_timestamp: RwLock::new(10_000_000),
 			ancient_block: RwLock::new(None),
 			first_block: RwLock::new(None),
+			traces: RwLock::new(None),
 		};
 		client.add_blocks(1, EachBlockWith::Nothing); // add genesis block
 		client.genesis_hash = client.last_hash.read().clone();
@@ -360,6 +363,18 @@ impl MiningBlockChainClient for TestBlockChainClient {
 	fn import_sealed_block(&self, _block: SealedBlock) -> ImportResult {
 		Ok(H256::default())
 	}
+
+	fn broadcast_proposal_block(&self, _block: SealedBlock) {}
+
+	fn update_sealing(&self) {
+		self.miner.update_sealing(self)
+	}
+
+	fn submit_seal(&self, block_hash: H256, seal: Vec<Bytes>) {
+		if self.miner.submit_seal(self, block_hash, seal).is_err() {
+			warn!(target: "poa", "Wrong internal seal submission!")
+		}
+	}
 }
 
 impl BlockChainClient for TestBlockChainClient {
@@ -471,6 +486,10 @@ impl BlockChainClient for TestBlockChainClient {
 
 	fn block_header(&self, id: BlockId) -> Option<Bytes> {
 		self.block_hash(id).and_then(|hash| self.blocks.read().get(&hash).map(|r| Rlp::new(r).at(0).as_raw().to_vec()))
+	}
+
+	fn block_number(&self, _id: BlockId) -> Option<BlockNumber> {
+		unimplemented!()
 	}
 
 	fn block_body(&self, id: BlockId) -> Option<Bytes> {
@@ -642,29 +661,35 @@ impl BlockChainClient for TestBlockChainClient {
 	}
 
 	fn filter_traces(&self, _filter: TraceFilter) -> Option<Vec<LocalizedTrace>> {
-		unimplemented!();
+		self.traces.read().clone()
 	}
 
 	fn trace(&self, _trace: TraceId) -> Option<LocalizedTrace> {
-		unimplemented!();
+		self.traces.read().clone().and_then(|vec| vec.into_iter().next())
 	}
 
 	fn transaction_traces(&self, _trace: TransactionId) -> Option<Vec<LocalizedTrace>> {
-		unimplemented!();
+		self.traces.read().clone()
 	}
 
 	fn block_traces(&self, _trace: BlockId) -> Option<Vec<LocalizedTrace>> {
-		unimplemented!();
+		self.traces.read().clone()
 	}
 
-	fn queue_transactions(&self, transactions: Vec<Bytes>) {
+	fn queue_transactions(&self, transactions: Vec<Bytes>, _peer_id: usize) {
 		// import right here
 		let txs = transactions.into_iter().filter_map(|bytes| UntrustedRlp::new(&bytes).as_val().ok()).collect();
 		self.miner.import_external_transactions(self, txs);
 	}
 
-	fn pending_transactions(&self) -> Vec<SignedTransaction> {
-		self.miner.pending_transactions(self.chain_info().best_block_number)
+	fn queue_consensus_message(&self, message: Bytes) {
+		self.spec.engine.handle_message(&message).unwrap();
+	}
+
+	fn broadcast_consensus_message(&self, _message: Bytes) {}
+
+	fn ready_transactions(&self) -> Vec<PendingTransaction> {
+		self.miner.ready_transactions(self.chain_info().best_block_number)
 	}
 
 	fn signing_network_id(&self) -> Option<u64> { None }
@@ -673,10 +698,18 @@ impl BlockChainClient for TestBlockChainClient {
 
 	fn set_mode(&self, _: Mode) { unimplemented!(); }
 
+	fn disable(&self) { unimplemented!(); }
+
 	fn pruning_info(&self) -> PruningInfo {
 		PruningInfo {
 			earliest_chain: 1,
 			earliest_state: 1,
 		}
 	}
+
+	fn call_contract(&self, _address: Address, _data: Bytes) -> Result<Bytes, String> { Ok(vec![]) }
+
+	fn registrar_address(&self) -> Option<Address> { None }
+
+	fn registry_address(&self, _name: String) -> Option<Address> { None }
 }

@@ -19,5 +19,5 @@
 mod account_meta;
 mod dapps_settings;
 
-pub use self::dapps_settings::DappsSettings;
+pub use self::dapps_settings::{DappsSettings, NewDappsPolicy};
 pub use self::account_meta::AccountMeta;

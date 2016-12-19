@@ -14,55 +14,52 @@
 /* You should have received a copy of the GNU General Public License
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
+
 .status {
-  position: fixed;
+  align-items: center;
+  background-color: rgba(0, 0, 0, 0.8);
   bottom: 0;
+  color: #ccc;
+  display: flex;
+  font-size: 0.75em;
   left: 0;
+  padding: .4em .5em;
+  position: fixed;
   right: 0;
   z-index: 1000;
-  display: flex;
-  align-items: center;
-  padding: .4em .5em;
-  font-size: x-small;
-  color: #ccc;
-  background-color: rgba(0, 0, 0, 0.8);
-}
-
-.enode {
-  word-wrap: break-word;
-}
-
-.enode > * {
-  display: inline-block;
-  margin: 0 .25em;
-  vertical-align: middle;
-}
-.enode > :last-child {
-  margin-right: 0;
 }
 
 .netinfo {
-  display: flex;
-  flex-grow: 1;
-  align-items: center;
   color: #ddd;
-}
+  flex-grow: 1;
+  text-align: right;
+  vertical-align: middle;
+  text-align: right;
 
-.netinfo > * {
-  margin-left: 1em;
+  div {
+    display: inline-block;
+    margin-left: 1em;
+  }
 }
 
 .network {
-  padding: 0.25em 0.5em;
-  border-radius: .4em;
+  border-radius: 0.4em;
   line-height: 1.2;
+  padding: 0.25em 0.5em;
   text-transform: uppercase;
+
+  &.live {
+    background: rgb(0, 136, 0);
+  }
+
+  &.test {
+    background: rgb(136, 0, 0);
+  }
 }
 
-.networklive {
-  background: rgb(0, 136, 0);
-}
-
-.networktest {
-  background: rgb(136, 0, 0);
+.upgrade {
+  div {
+    display: inline-block;
+    margin-left: 1em;
+  }
 }

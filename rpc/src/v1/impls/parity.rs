@@ -30,28 +30,32 @@ use ethcore::miner::MinerService;
 use ethcore::client::{MiningBlockChainClient};
 use ethcore::mode::Mode;
 use ethcore::account_provider::AccountProvider;
+use updater::{Service as UpdateService};
 
 use jsonrpc_core::Error;
+use jsonrpc_macros::Trailing;
 use v1::traits::Parity;
 use v1::types::{
 	Bytes, U256, H160, H256, H512,
 	Peers, Transaction, RpcSettings, Histogram,
 	TransactionStats, LocalTransactionStatus,
-	BlockNumber,
+	BlockNumber, ConsensusCapability, VersionInfo,
+	OperationsInfo
 };
 use v1::helpers::{errors, SigningQueue, SignerService, NetworkSettings};
 use v1::helpers::dispatch::DEFAULT_MAC;
-use v1::helpers::auto_args::Trailing;
 
 /// Parity implementation.
-pub struct ParityClient<C, M, S: ?Sized> where
+pub struct ParityClient<C, M, S: ?Sized, U> where
 	C: MiningBlockChainClient,
 	M: MinerService,
 	S: SyncProvider,
+	U: UpdateService,
 {
 	client: Weak<C>,
 	miner: Weak<M>,
 	sync: Weak<S>,
+	updater: Weak<U>,
 	net: Weak<ManageNetwork>,
 	accounts: Weak<AccountProvider>,
 	logger: Arc<RotatingLogger>,
@@ -61,16 +65,18 @@ pub struct ParityClient<C, M, S: ?Sized> where
 	dapps_port: Option<u16>,
 }
 
-impl<C, M, S: ?Sized> ParityClient<C, M, S> where
+impl<C, M, S: ?Sized, U> ParityClient<C, M, S, U> where
 	C: MiningBlockChainClient,
 	M: MinerService,
 	S: SyncProvider,
+	U: UpdateService,
 {
 	/// Creates new `ParityClient`.
 	pub fn new(
 		client: &Arc<C>,
 		miner: &Arc<M>,
 		sync: &Arc<S>,
+		updater: &Arc<U>,
 		net: &Arc<ManageNetwork>,
 		store: &Arc<AccountProvider>,
 		logger: Arc<RotatingLogger>,
@@ -83,6 +89,7 @@ impl<C, M, S: ?Sized> ParityClient<C, M, S> where
 			client: Arc::downgrade(client),
 			miner: Arc::downgrade(miner),
 			sync: Arc::downgrade(sync),
+			updater: Arc::downgrade(updater),
 			net: Arc::downgrade(net),
 			accounts: Arc::downgrade(store),
 			logger: logger,
@@ -100,10 +107,11 @@ impl<C, M, S: ?Sized> ParityClient<C, M, S> where
 	}
 }
 
-impl<C, M, S: ?Sized> Parity for ParityClient<C, M, S> where
+impl<C, M, S: ?Sized, U> Parity for ParityClient<C, M, S, U> where
 	M: MinerService + 'static,
 	C: MiningBlockChainClient + 'static,
-	S: SyncProvider + 'static {
+	S: SyncProvider + 'static,
+	U: UpdateService + 'static {
 
 	fn transactions_limit(&self) -> Result<usize, Error> {
 		try!(self.active());
@@ -262,7 +270,13 @@ impl<C, M, S: ?Sized> Parity for ParityClient<C, M, S> where
 	fn pending_transactions(&self) -> Result<Vec<Transaction>, Error> {
 		try!(self.active());
 
-		Ok(take_weak!(self.miner).all_transactions().into_iter().map(Into::into).collect::<Vec<_>>())
+		Ok(take_weak!(self.miner).pending_transactions().into_iter().map(Into::into).collect::<Vec<_>>())
+	}
+
+	fn future_transactions(&self) -> Result<Vec<Transaction>, Error> {
+		try!(self.active());
+
+		Ok(take_weak!(self.miner).future_transactions().into_iter().map(Into::into).collect::<Vec<_>>())
 	}
 
 	fn pending_transactions_stats(&self) -> Result<BTreeMap<H256, TransactionStats>, Error> {
@@ -352,5 +366,23 @@ impl<C, M, S: ?Sized> Parity for ParityClient<C, M, S> where
 			}
 			(format!("0x{}", a.hex()), m)
 		}).collect())
+	}
+
+	fn consensus_capability(&self) -> Result<ConsensusCapability, Error> {
+		try!(self.active());
+		let updater = take_weak!(self.updater);
+		Ok(updater.capability().into())
+	}
+
+	fn version_info(&self) -> Result<VersionInfo, Error> {
+		try!(self.active());
+		let updater = take_weak!(self.updater);
+		Ok(updater.version_info().into())
+	}
+
+	fn releases_info(&self) -> Result<Option<OperationsInfo>, Error> {
+		try!(self.active());
+		let updater = take_weak!(self.updater);
+		Ok(updater.info().map(Into::into))
 	}
 }

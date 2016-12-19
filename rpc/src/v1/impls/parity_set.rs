@@ -24,45 +24,51 @@ use ethcore::mode::Mode;
 use ethsync::ManageNetwork;
 use fetch::{Client as FetchClient, Fetch};
 use util::{Mutex, sha3};
+use updater::{Service as UpdateService};
 
 use jsonrpc_core::Error;
-use v1::helpers::auto_args::Ready;
+use jsonrpc_macros::Ready;
 use v1::helpers::errors;
 use v1::traits::ParitySet;
-use v1::types::{Bytes, H160, H256, U256};
+use v1::types::{Bytes, H160, H256, U256, ReleaseInfo};
 
 /// Parity-specific rpc interface for operations altering the settings.
-pub struct ParitySetClient<C, M, F=FetchClient> where
+pub struct ParitySetClient<C, M, U, F=FetchClient> where
 	C: MiningBlockChainClient,
 	M: MinerService,
+	U: UpdateService,
 	F: Fetch,
 {
 	client: Weak<C>,
 	miner: Weak<M>,
+	updater: Weak<U>,
 	net: Weak<ManageNetwork>,
 	fetch: Mutex<F>,
 }
 
-impl<C, M> ParitySetClient<C, M, FetchClient> where
+impl<C, M, U> ParitySetClient<C, M, U, FetchClient> where
 	C: MiningBlockChainClient,
-	M: MinerService
+	M: MinerService,
+	U: UpdateService,
 {
 	/// Creates new `ParitySetClient` with default `FetchClient`.
-	pub fn new(client: &Arc<C>, miner: &Arc<M>, net: &Arc<ManageNetwork>) -> Self {
-		Self::with_fetch(client, miner, net)
+	pub fn new(client: &Arc<C>, miner: &Arc<M>, updater: &Arc<U>, net: &Arc<ManageNetwork>) -> Self {
+		Self::with_fetch(client, miner, updater, net)
 	}
 }
 
-impl<C, M, F> ParitySetClient<C, M, F> where
+impl<C, M, U, F> ParitySetClient<C, M, U, F> where
 	C: MiningBlockChainClient,
 	M: MinerService,
+	U: UpdateService,
 	F: Fetch,
 {
 	/// Creates new `ParitySetClient` with default `FetchClient`.
-	pub fn with_fetch(client: &Arc<C>, miner: &Arc<M>, net: &Arc<ManageNetwork>) -> Self {
+	pub fn with_fetch(client: &Arc<C>, miner: &Arc<M>, updater: &Arc<U>, net: &Arc<ManageNetwork>) -> Self {
 		ParitySetClient {
 			client: Arc::downgrade(client),
 			miner: Arc::downgrade(miner),
+			updater: Arc::downgrade(updater),
 			net: Arc::downgrade(net),
 			fetch: Mutex::new(F::default()),
 		}
@@ -75,9 +81,10 @@ impl<C, M, F> ParitySetClient<C, M, F> where
 	}
 }
 
-impl<C, M, F> ParitySet for ParitySetClient<C, M, F> where
+impl<C, M, U, F> ParitySet for ParitySetClient<C, M, U, F> where
 	C: MiningBlockChainClient + 'static,
 	M: MinerService + 'static,
+	U: UpdateService + 'static,
 	F: Fetch + 'static,
 {
 
@@ -229,5 +236,17 @@ impl<C, M, F> ParitySet for ParitySetClient<C, M, F> where
 				}
 			}
 		}
+	}
+
+	fn upgrade_ready(&self) -> Result<Option<ReleaseInfo>, Error> {
+		try!(self.active());
+		let updater = take_weak!(self.updater);
+		Ok(updater.upgrade_ready().map(Into::into))
+	}
+
+	fn execute_upgrade(&self) -> Result<bool, Error> {
+		try!(self.active());
+		let updater = take_weak!(self.updater);
+		Ok(updater.execute_upgrade())
 	}
 }

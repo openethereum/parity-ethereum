@@ -14,10 +14,10 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import { Dialog } from 'material-ui';
 import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
-import { Dialog } from 'material-ui';
 
 import { nodeOrStringProptype } from '~/util/proptypes';
 
@@ -42,36 +42,36 @@ class Modal extends Component {
     className: PropTypes.string,
     compact: PropTypes.bool,
     current: PropTypes.number,
-    waiting: PropTypes.array,
+    settings: PropTypes.object.isRequired,
     steps: PropTypes.array,
     title: nodeOrStringProptype(),
     visible: PropTypes.bool.isRequired,
-    settings: PropTypes.object.isRequired
+    waiting: PropTypes.array
   }
 
   render () {
     const { muiTheme } = this.context;
-    const { actions, busy, className, current, children, compact, steps, waiting, title, visible, settings } = this.props;
+    const { actions, busy, children, className, current, compact, settings, steps, title, visible, waiting } = this.props;
     const contentStyle = muiTheme.parity.getBackgroundStyle(null, settings.backgroundSeed);
     const header = (
       <Title
-        current={ current }
         busy={ busy }
-        waiting={ waiting }
+        current={ current }
         steps={ steps }
-        title={ title } />
+        title={ title }
+        waiting={ waiting } />
     );
     const classes = `${styles.dialog} ${className}`;
 
     return (
       <Dialog
-        className={ classes }
         actions={ actions }
+        actionsContainerClassName={ styles.actions }
         actionsContainerStyle={ ACTIONS_STYLE }
         autoDetectWindowHeight={ false }
         autoScrollBodyContent
-        actionsContainerClassName={ styles.actions }
         bodyClassName={ styles.body }
+        className={ classes }
         contentClassName={ styles.content }
         contentStyle={ contentStyle }
         modal
@@ -82,7 +82,12 @@ class Modal extends Component {
         style={ DIALOG_STYLE }
         title={ header }
         titleStyle={ TITLE_STYLE }>
-        <Container light compact={ compact } style={ { transition: 'none' } }>
+        <Container
+          compact={ compact }
+          light
+          style={
+            { transition: 'none' }
+          }>
           { children }
         </Container>
       </Dialog>

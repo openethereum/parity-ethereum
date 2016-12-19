@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 const webpack = require('webpack');
+const WebpackStats = require('webpack/lib/Stats');
 const webpackDevMiddleware = require('webpack-dev-middleware');
 const webpackHotMiddleware = require('webpack-hot-middleware');
 
@@ -59,12 +60,24 @@ app.use(webpackHotMiddleware(compiler, {
 }));
 
 app.use(webpackDevMiddleware(compiler, {
-  noInfo: false,
-  quiet: true,
+  noInfo: true,
+  quiet: false,
   progress: true,
   publicPath: webpackConfig.output.publicPath,
   stats: {
     colors: true
+  },
+  reporter: function (data) {
+    // @see https://github.com/webpack/webpack/blob/324d309107f00cfc38ec727521563d309339b2ec/lib/Stats.js#L790
+    // Accepted values: none, errors-only, minimal, normal, verbose
+    const options = WebpackStats.presetToOptions('minimal');
+    options.timings = true;
+
+    const output = data.stats.toString(options);
+
+    process.stdout.write('\n');
+    process.stdout.write(output);
+    process.stdout.write('\n\n');
   }
 }));
 

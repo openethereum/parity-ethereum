@@ -18,11 +18,11 @@ use std::str::FromStr;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Instant, Duration};
-use rustc_serialize::hex::ToHex;
+use rustc_serialize::hex::{FromHex, ToHex};
 use time::get_time;
 use rlp;
 
-use util::{Uint, U256, Address, H256, FixedHash, Mutex};
+use util::{Uint, U256, Address, H256, FixedHash, Mutex, Hashable};
 use ethcore::account_provider::AccountProvider;
 use ethcore::client::{TestBlockChainClient, EachBlockWith, Executed, TransactionId};
 use ethcore::log_entry::{LocalizedLogEntry, LogEntry};
@@ -294,8 +294,8 @@ fn rpc_eth_sign() {
 
 	let account = tester.accounts_provider.new_account("abcd").unwrap();
 	tester.accounts_provider.unlock_account_permanently(account, "abcd".into()).unwrap();
-	let message = H256::from("0x0cc175b9c0f1b6a831c399e26977266192eb5ffee6ae2fec3ad71c777531578f");
-	let signed = tester.accounts_provider.sign(account, None, message).unwrap();
+	let message = "0cc175b9c0f1b6a831c399e26977266192eb5ffee6ae2fec3ad71c777531578f".from_hex().unwrap();
+	let signed = tester.accounts_provider.sign(account, None, message.sha3()).unwrap();
 
 	let req = r#"{
 		"jsonrpc": "2.0",
@@ -354,11 +354,18 @@ fn rpc_eth_gas_price() {
 #[test]
 fn rpc_eth_accounts() {
 	let tester = EthTester::default();
-	let _address = tester.accounts_provider.new_account("").unwrap();
+	let address = tester.accounts_provider.new_account("").unwrap();
+	tester.accounts_provider.set_new_dapps_whitelist(None).unwrap();
 
+	// with current policy it should return the account
+	let request = r#"{"jsonrpc": "2.0", "method": "eth_accounts", "params": [], "id": 1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":[""#.to_owned() + &format!("0x{:?}", address) + r#""],"id":1}"#;
+	assert_eq!(tester.io.handle_request_sync(request), Some(response.to_owned()));
+
+	tester.accounts_provider.set_new_dapps_whitelist(Some(vec![1.into()])).unwrap();
 	// even with some account it should return empty list (no dapp detected)
 	let request = r#"{"jsonrpc": "2.0", "method": "eth_accounts", "params": [], "id": 1}"#;
-	let response = r#"{"jsonrpc":"2.0","result":[],"id":1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":["0x0000000000000000000000000000000000000001"],"id":1}"#;
 	assert_eq!(tester.io.handle_request_sync(request), Some(response.to_owned()));
 
 	// when we add visible address it should return that.
@@ -494,7 +501,7 @@ fn rpc_eth_pending_transaction_by_hash() {
 		tester.miner.pending_transactions.lock().insert(H256::zero(), tx);
 	}
 
-	let response = r#"{"jsonrpc":"2.0","result":{"blockHash":null,"blockNumber":null,"creates":null,"from":"0x0f65fe9276bc9a24ae7083ae28e2660ef72df99e","gas":"0x5208","gasPrice":"0x1","hash":"0x41df922fd0d4766fcc02e161f8295ec28522f329ae487f14d811e4b64c8d6e31","input":"0x","networkId":null,"nonce":"0x0","publicKey":"0x7ae46da747962c2ee46825839c1ef9298e3bd2e70ca2938495c3693a485ec3eaa8f196327881090ff64cf4fbb0a48485d4f83098e189ed3b7a87d5941b59f789","r":"0x48b55bfa915ac795c431978d8a6a992b628d557da5ff759b307d495a36649353","raw":"0xf85f800182520894095e7baea6a6c7c4c2dfeb977efac326af552d870a801ba048b55bfa915ac795c431978d8a6a992b628d557da5ff759b307d495a36649353a0efffd310ac743f371de3b9f7f9cb56c0b28ad43601b4ab949f53faa07bd2c804","s":"0xefffd310ac743f371de3b9f7f9cb56c0b28ad43601b4ab949f53faa07bd2c804","standardV":"0x0","to":"0x095e7baea6a6c7c4c2dfeb977efac326af552d87","transactionIndex":null,"v":"0x1b","value":"0xa"},"id":1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":{"blockHash":null,"blockNumber":null,"creates":null,"from":"0x0f65fe9276bc9a24ae7083ae28e2660ef72df99e","gas":"0x5208","gasPrice":"0x1","hash":"0x41df922fd0d4766fcc02e161f8295ec28522f329ae487f14d811e4b64c8d6e31","input":"0x","minBlock":null,"networkId":null,"nonce":"0x0","publicKey":"0x7ae46da747962c2ee46825839c1ef9298e3bd2e70ca2938495c3693a485ec3eaa8f196327881090ff64cf4fbb0a48485d4f83098e189ed3b7a87d5941b59f789","r":"0x48b55bfa915ac795c431978d8a6a992b628d557da5ff759b307d495a36649353","raw":"0xf85f800182520894095e7baea6a6c7c4c2dfeb977efac326af552d870a801ba048b55bfa915ac795c431978d8a6a992b628d557da5ff759b307d495a36649353a0efffd310ac743f371de3b9f7f9cb56c0b28ad43601b4ab949f53faa07bd2c804","s":"0xefffd310ac743f371de3b9f7f9cb56c0b28ad43601b4ab949f53faa07bd2c804","standardV":"0x0","to":"0x095e7baea6a6c7c4c2dfeb977efac326af552d87","transactionIndex":null,"v":"0x1b","value":"0xa"},"id":1}"#;
 	let request = r#"{
 		"jsonrpc": "2.0",
 		"method": "eth_getTransactionByHash",
@@ -810,6 +817,7 @@ fn rpc_eth_sign_transaction() {
 		r#""gas":"0x76c0","gasPrice":"0x9184e72a000","# +
 		&format!("\"hash\":\"0x{:?}\",", t.hash()) +
 		r#""input":"0x","# +
+		r#""minBlock":null,"# +
 		&format!("\"networkId\":{},", t.network_id().map_or("null".to_owned(), |n| format!("{}", n))) +
 		r#""nonce":"0x1","# +
 		&format!("\"publicKey\":\"0x{:?}\",", t.public_key().unwrap()) +

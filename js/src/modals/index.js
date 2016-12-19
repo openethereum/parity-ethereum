@@ -23,12 +23,13 @@ import DeployContract from './DeployContract';
 import EditMeta from './EditMeta';
 import ExecuteContract from './ExecuteContract';
 import FirstRun from './FirstRun';
+import LoadContract from './LoadContract';
+import SaveContract from './SaveContract';
 import Shapeshift from './Shapeshift';
-import SMSVerification from './SMSVerification';
+import Verification from './Verification';
 import Transfer from './Transfer';
 import PasswordManager from './PasswordManager';
-import SaveContract from './SaveContract';
-import LoadContract from './LoadContract';
+import UpgradeParity from './UpgradeParity';
 import WalletSettings from './WalletSettings';
 
 export {
@@ -41,11 +42,12 @@ export {
   EditMeta,
   ExecuteContract,
   FirstRun,
-  Shapeshift,
-  SMSVerification,
-  Transfer,
-  PasswordManager,
   LoadContract,
   SaveContract,
+  Shapeshift,
+  Verification,
+  Transfer,
+  PasswordManager,
+  UpgradeParity,
   WalletSettings
 };

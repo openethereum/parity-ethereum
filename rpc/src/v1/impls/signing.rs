@@ -18,14 +18,14 @@
 
 use std::sync::{Arc, Weak};
 use transient_hashmap::TransientHashMap;
-use util::{U256, Mutex};
+use util::{U256, Mutex, Hashable};
 
 use ethcore::account_provider::AccountProvider;
 use ethcore::miner::MinerService;
 use ethcore::client::MiningBlockChainClient;
 
 use jsonrpc_core::Error;
-use v1::helpers::auto_args::Ready;
+use jsonrpc_macros::Ready;
 use v1::helpers::{
 	errors, dispatch,
 	SigningQueue, ConfirmationPromise, ConfirmationResult, ConfirmationPayload, SignerService
@@ -99,7 +99,9 @@ impl<C, M> SigningQueueClient<C, M> where
 
 		let sender = payload.sender();
 		if accounts.is_unlocked(sender) {
-			return dispatch::execute(&*client, &*miner, &*accounts, payload, None).map(DispatchResult::Value);
+			return dispatch::execute(&*client, &*miner, &*accounts, payload, dispatch::SignWith::Nothing)
+				.map(|v| v.into_value())
+				.map(DispatchResult::Value);
 		}
 
 		take_weak!(self.signer).add_request(payload)
@@ -180,7 +182,8 @@ impl<C: 'static, M: 'static> EthSigning for SigningQueueClient<C, M> where
 	C: MiningBlockChainClient,
 	M: MinerService,
 {
-	fn sign(&self, ready: Ready<RpcH520>, address: RpcH160, hash: RpcH256) {
+	fn sign(&self, ready: Ready<RpcH520>, address: RpcH160, data: RpcBytes) {
+		let hash = data.0.sha3().into();
 		let res = self.active().and_then(|_| self.dispatch(RpcConfirmationPayload::Signature((address, hash).into())));
 		self.handle_dispatch(res, |response| {
 			match response {
