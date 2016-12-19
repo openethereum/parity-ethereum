@@ -322,9 +322,6 @@ impl<L: LightChainClient> LightSync<L> {
 	// Begins a search for the common ancestor and our best block.
 	// does not lock state, instead has a mutable reference to it passed.
 	fn begin_search(&self, state: &mut SyncState) {
-		self.client.clear_queue();
-
-		let chain_info = self.client.chain_info();
 		if let None =  *self.best_seen.lock() {
 			// no peers.
 			*state = SyncState::Idle;
@@ -332,6 +329,8 @@ impl<L: LightChainClient> LightSync<L> {
 		}
 
 		trace!(target: "sync", "Beginning search for common ancestor");
+		self.client.clear_queue();
+		let chain_info = self.client.chain_info();
 
 		*state = SyncState::AncestorSearch(AncestorSearch::begin(chain_info.best_block_number));
 	}
