@@ -486,7 +486,13 @@ impl<K: Kind> VerificationQueue<K> {
 				Ok(h)
 			},
 			Err(err) => {
-				self.verification.bad.lock().insert(h.clone());
+				match err {
+					// Don't mark future blocks as bad.
+					Error::Block(BlockError::InvalidTimestamp(ref e)) if e.max.is_some() => {},
+					_ => {
+						self.verification.bad.lock().insert(h.clone());
+					}
+				}
 				Err(err)
 			}
 		}

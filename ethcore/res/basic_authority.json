@@ -1,7 +1,7 @@
 {
 	"name": "TestBasicAuthority",
 	"engine": {
-		"BasicAuthority": {
+		"basicAuthority": {
 			"params": {
 				"gasLimitBoundDivisor": "0x0400",
 				"durationLimit": "0x0d",
