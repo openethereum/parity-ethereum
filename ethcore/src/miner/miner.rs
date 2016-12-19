@@ -767,9 +767,11 @@ impl MinerService for Miner {
 			if let Some(ref ap) = self.accounts {
 				try!(ap.sign(address.clone(), Some(password.clone()), Default::default()));
 			}
-			let mut sealing_work = self.sealing_work.lock();
-			sealing_work.enabled = self.engine.is_sealer(&address).unwrap_or(false);
-			*self.author.write() = address;
+			{
+				let mut sealing_work = self.sealing_work.lock();
+				sealing_work.enabled = self.engine.is_sealer(&address).unwrap_or(false);
+				*self.author.write() = address;
+			}
 			self.engine.set_signer(address, password);
 		}
 		Ok(())
