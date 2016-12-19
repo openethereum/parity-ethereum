@@ -417,8 +417,6 @@ impl<L: LightChainClient> LightSync<L> {
 				rng.shuffle(&mut peer_ids);
 
 				for peer in &peer_ids {
-					let peer_info = peers.get(peer).expect("key known to be present; qed");
-					let mut peer_info = peer_info.lock();
 					if ctx.max_requests(*peer, request::Kind::Headers) >= req.max {
 						match ctx.request_from(*peer, request::Request::Headers(req.clone())) {
 							Ok(id) => {
