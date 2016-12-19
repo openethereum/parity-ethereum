@@ -8,6 +8,7 @@ authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
 log = "0.3"
+ethabi = "0.2.2"
 mio = { git = "https://github.com/ethcore/mio", branch = "v0.5.x" }
 rustls = { git = "https://github.com/ctz/rustls" }
 clippy = { version = "0.0.85", optional = true}

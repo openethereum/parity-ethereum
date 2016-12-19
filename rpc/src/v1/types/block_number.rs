@@ -14,12 +14,12 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use serde::{Deserialize, Deserializer, Error};
+use serde::{Deserialize, Deserializer, Error, Serialize, Serializer};
 use serde::de::Visitor;
 use ethcore::client::BlockId;
 
 /// Represents rpc api block number param.
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Hash, Eq)]
 pub enum BlockNumber {
 	/// Number
 	Num(u64),
@@ -41,6 +41,27 @@ impl Deserialize for BlockNumber {
 	fn deserialize<D>(deserializer: &mut D) -> Result<BlockNumber, D::Error>
 	where D: Deserializer {
 		deserializer.deserialize(BlockNumberVisitor)
+	}
+}
+
+impl BlockNumber {
+	/// Convert block number to min block target.
+	pub fn to_min_block_num(&self) -> Option<u64> {
+		match *self {
+			BlockNumber::Num(ref x) => Some(*x),
+			_ => None,
+		}
+	}
+}
+
+impl Serialize for BlockNumber {
+	fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Error> where S: Serializer {
+		match *self {
+			BlockNumber::Num(ref x) => serializer.serialize_str(&format!("0x{:x}", x)),
+			BlockNumber::Latest => serializer.serialize_str("latest"),
+			BlockNumber::Earliest => serializer.serialize_str("earliest"),
+			BlockNumber::Pending => serializer.serialize_str("pending"),
+		}
 	}
 }
 

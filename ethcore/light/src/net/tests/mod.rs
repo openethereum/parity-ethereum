@@ -20,7 +20,7 @@
 use ethcore::blockchain_info::BlockChainInfo;
 use ethcore::client::{BlockChainClient, EachBlockWith, TestBlockChainClient};
 use ethcore::ids::BlockId;
-use ethcore::transaction::SignedTransaction;
+use ethcore::transaction::PendingTransaction;
 use network::{PeerId, NodeId};
 
 use net::buffer_flow::FlowParams;
@@ -169,8 +169,8 @@ impl Provider for TestProvider {
 		req.requests.into_iter().map(|_| ::rlp::EMPTY_LIST_RLP.to_vec()).collect()
 	}
 
-	fn pending_transactions(&self) -> Vec<SignedTransaction> {
-		self.0.client.pending_transactions()
+	fn ready_transactions(&self) -> Vec<PendingTransaction> {
+		self.0.client.ready_transactions()
 	}
 }
 

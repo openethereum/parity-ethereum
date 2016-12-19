@@ -16,7 +16,7 @@
 
 import React, { Component, PropTypes } from 'react';
 
-import { FirstRun } from '~/modals';
+import { FirstRun, UpgradeParity } from '~/modals';
 import { Errors, ParityBackground, Tooltips } from '~/ui';
 
 import styles from '../application.css';
@@ -28,20 +28,24 @@ export default class Container extends Component {
 
   static propTypes = {
     children: PropTypes.node.isRequired,
+    onCloseFirstRun: PropTypes.func,
     showFirstRun: PropTypes.bool,
-    onCloseFirstRun: PropTypes.func
+    upgradeStore: PropTypes.object.isRequired
   };
 
   render () {
-    const { children, showFirstRun, onCloseFirstRun } = this.props;
     const { muiTheme } = this.context;
+    const { children, onCloseFirstRun, showFirstRun, upgradeStore } = this.props;
 
     return (
-      <ParityBackground className={ styles.container } muiTheme={ muiTheme }>
+      <ParityBackground
+        className={ styles.container }
+        muiTheme={ muiTheme }>
         <FirstRun
-          visible={ showFirstRun }
-          onClose={ onCloseFirstRun } />
+          onClose={ onCloseFirstRun }
+          visible={ showFirstRun } />
         <Tooltips />
+        <UpgradeParity store={ upgradeStore } />
         <Errors />
         { children }
       </ParityBackground>
