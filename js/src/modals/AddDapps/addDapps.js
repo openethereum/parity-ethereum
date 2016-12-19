@@ -21,7 +21,7 @@ import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 
 import { Modal, Button } from '~/ui';
-import { DoneIcon } from '~/ui/icons';
+import { DoneIcon } from '~/ui/Icons';
 
 import styles from './addDapps.css';
 
