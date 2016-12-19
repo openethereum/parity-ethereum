@@ -38,7 +38,7 @@ export default class SecureApi extends Api {
 
   setToken = () => {
     window.localStorage.setItem('sysuiToken', this._transport.token);
-    console.log('SecureApi:setToken', this._transport.token);
+    // DEBUG: console.log('SecureApi:setToken', this._transport.token);
   }
 
   _checkNodeUp () {
@@ -149,14 +149,14 @@ export default class SecureApi extends Api {
         this._signerPort = signerPort.toNumber();
       });
 
-    console.log('SecureApi:connectSuccess', this._transport.token);
+    // DEBUG: console.log('SecureApi:connectSuccess', this._transport.token);
   }
 
   updateToken (token, connectState = 0) {
     this._connectState = connectState;
     this._transport.updateToken(token.replace(/[^a-zA-Z0-9]/g, ''));
     this._followConnection();
-    console.log('SecureApi:updateToken', this._transport.token, connectState);
+    // DEBUG: console.log('SecureApi:updateToken', this._transport.token, connectState);
   }
 
   get dappsPort () {

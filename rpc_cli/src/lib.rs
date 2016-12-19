@@ -91,7 +91,7 @@ fn list_transactions(signer: &mut SignerRpc) -> Result<String, String> {
 fn sign_transaction(
 	signer: &mut SignerRpc, id: U256, password: &str
 ) -> Result<String, String> {
-	try!(signer.confirm_request(id, None, None, password).map(|res| {
+	try!(signer.confirm_request(id, None, None, None, password).map(|res| {
 		match res {
 			Ok(u) => Ok(format!("Signed transaction id: {:#x}", u)),
 			Err(e) => Err(format!("{:?}", e)),

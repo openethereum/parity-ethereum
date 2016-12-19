@@ -651,9 +651,10 @@ mod tests {
 	use block::*;
 	use error::{Error, BlockError};
 	use header::Header;
-	use io::IoChannel;
 	use env_info::EnvInfo;
 	use client::chain_notify::ChainNotify;
+	use client::MiningBlockChainClient;
+	use miner::MinerService;
 	use tests::helpers::*;
 	use account_provider::AccountProvider;
 	use spec::Spec;
@@ -684,7 +685,7 @@ mod tests {
 		}
 	}
 
-	fn vote<F>(engine: &Arc<Engine>, signer: F, height: usize, round: usize, step: Step, block_hash: Option<H256>) -> Bytes where F: FnOnce(H256) -> Result<H520, ::account_provider::Error> {
+	fn vote<F>(engine: &Engine, signer: F, height: usize, round: usize, step: Step, block_hash: Option<H256>) -> Bytes where F: FnOnce(H256) -> Result<H520, ::account_provider::Error> {
 		let mi = message_info_rlp(height, round, step, block_hash);
 		let m = message_full_rlp(&signer(mi.sha3()).unwrap().into(), &mi);
 		engine.handle_message(&m).unwrap();
@@ -702,21 +703,13 @@ mod tests {
 		]
 	}
 
-	fn precommit_signatures(tap: &Arc<AccountProvider>, height: Height, round: Round, bare_hash: Option<H256>, v1: H160, v2: H160) -> Bytes {
-		let vote_info = message_info_rlp(height, round, Step::Precommit, bare_hash);
-		::rlp::encode(&vec![
-			H520::from(tap.sign(v1, None, vote_info.sha3()).unwrap()),
-			H520::from(tap.sign(v2, None, vote_info.sha3()).unwrap())
-		]).to_vec()
-	}
-
 	fn insert_and_unlock(tap: &Arc<AccountProvider>, acc: &str) -> Address {
 		let addr = tap.insert_account(acc.sha3(), acc).unwrap();
 		tap.unlock_account_permanently(addr, acc.into()).unwrap();
 		addr
 	}
 
-	fn insert_and_register(tap: &Arc<AccountProvider>, engine: &Arc<Engine>, acc: &str) -> Address {
+	fn insert_and_register(tap: &Arc<AccountProvider>, engine: &Engine, acc: &str) -> Address {
 		let addr = insert_and_unlock(tap, acc);
 		engine.set_signer(addr.clone(), acc.into());
 		addr
@@ -868,7 +861,7 @@ mod tests {
 	fn can_generate_seal() {
 		let (spec, tap) = setup();
 
-		let proposer = insert_and_register(&tap, &spec.engine, "1");
+		let proposer = insert_and_register(&tap, spec.engine.as_ref(), "1");
 
 		let (b, seal) = propose_default(&spec, proposer);
 		assert!(b.lock().try_seal(spec.engine.as_ref(), seal).is_ok());
@@ -879,7 +872,7 @@ mod tests {
 	fn can_recognize_proposal() {
 		let (spec, tap) = setup();
 
-		let proposer = insert_and_register(&tap, &spec.engine, "1");
+		let proposer = insert_and_register(&tap, spec.engine.as_ref(), "1");
 
 		let (b, seal) = propose_default(&spec, proposer);
 		let sealed = b.lock().seal(spec.engine.as_ref(), seal).unwrap();
@@ -895,8 +888,8 @@ mod tests {
 		let mut db = db_result.take();
 		spec.ensure_db_good(&mut db, &TrieFactory::new(TrieSpec::Secure)).unwrap();
 		
-		let v0 = insert_and_register(&tap, &engine, "0");
-		let v1 = insert_and_register(&tap, &engine, "1");
+		let v0 = insert_and_register(&tap, engine.as_ref(), "0");
+		let v1 = insert_and_register(&tap, engine.as_ref(), "1");
 
 		let h = 0;
 		let r = 0;
@@ -910,11 +903,11 @@ mod tests {
 		client.add_notify(notify.clone());
 		engine.register_client(Arc::downgrade(&client));
 
-		let prevote_current = vote(&engine, |mh| tap.sign(v0, None, mh).map(H520::from), h, r, Step::Prevote, proposal);
+		let prevote_current = vote(engine.as_ref(), |mh| tap.sign(v0, None, mh).map(H520::from), h, r, Step::Prevote, proposal);
 
-		let precommit_current = vote(&engine, |mh| tap.sign(v0, None, mh).map(H520::from), h, r, Step::Precommit, proposal);
+		let precommit_current = vote(engine.as_ref(), |mh| tap.sign(v0, None, mh).map(H520::from), h, r, Step::Precommit, proposal);
 
-		let prevote_future = vote(&engine, |mh| tap.sign(v0, None, mh).map(H520::from), h + 1, r, Step::Prevote, proposal);
+		let prevote_future = vote(engine.as_ref(), |mh| tap.sign(v0, None, mh).map(H520::from), h + 1, r, Step::Prevote, proposal);
 
 		// Relays all valid present and future messages.
 		assert!(notify.messages.read().contains(&prevote_current));
@@ -925,42 +918,57 @@ mod tests {
 
 	#[test]
 	fn seal_submission() {
-		let (spec, tap) = setup();
-		let engine = spec.engine.clone();
-		let mut db_result = get_temp_state_db();
-		let mut db = db_result.take();
-		spec.ensure_db_good(&mut db, &TrieFactory::new(TrieSpec::Secure)).unwrap();
-		
-		let v0 = insert_and_register(&tap, &engine, "0");
-		let v1 = insert_and_register(&tap, &engine, "1");
+		::env_logger::init().unwrap();
+		use ethkey::{Generator, Random};
+		use types::transaction::{Transaction, Action};
+
+		let client = generate_dummy_client_with_spec_and_data(Spec::new_test_tendermint, 0, 0, &[]);
+		let engine = client.engine();
+		let tap = Arc::new(AccountProvider::transient_provider());
+		let v0 = insert_and_unlock(&tap, "0");
+		let v1 = insert_and_unlock(&tap, "1");
+		let notify = Arc::new(TestNotify::default());
+		println!("inserted");
+
+		{
+			println!("r ap");
+			engine.register_account_provider(tap.clone());
+			println!("add notify");
+			client.add_notify(notify.clone());
+			println!("add cli");
+			engine.register_client(Arc::downgrade(&client));
+			println!("add signer");
+		}
+		client.miner().set_engine_signer(v0.clone(), "0".into()).unwrap();
+
+		// Propose
+		let keypair = Random.generate().unwrap();
+		println!("generate tx");
+		let transaction = Transaction {
+			action: Action::Create,
+			value: U256::zero(),
+			data: "3331600055".from_hex().unwrap(),
+			gas: U256::from(100_000),
+			gas_price: U256::zero(),
+			nonce: U256::zero(),
+		}.sign(keypair.secret(), None);
+		println!("submitting tx");
+		client.miner().import_own_transaction(client.as_ref(), transaction).unwrap();
+		println!("proposal");
+		let proposal = Some(client.miner().pending_block().unwrap().header.bare_hash());
+		println!("step");
+		engine.step();
 
 		let h = 1;
 		let r = 0;
 
-		let client = generate_dummy_client(0);
-		let notify = Arc::new(TestNotify::default());
-		client.add_notify(notify.clone());
-		engine.register_client(Arc::downgrade(&client));
-
-		// Propose
-		let (mut b, mut seal) = propose_default(&spec, v1.clone());
-		let proposal = Some(b.header().bare_hash());
-		engine.step();
-
 		// Prevote.
-		vote(&engine, |mh| tap.sign(v1, None, mh).map(H520::from), h, r, Step::Prevote, proposal);
-		vote(&engine, |mh| tap.sign(v0, None, mh).map(H520::from), h, r, Step::Prevote, proposal);
-		vote(&engine, |mh| tap.sign(v1, None, mh).map(H520::from), h, r, Step::Precommit, proposal);
-		vote(&engine, |mh| tap.sign(v0, None, mh).map(H520::from), h, r, Step::Precommit, proposal);
+		vote(engine, |mh| tap.sign(v1, None, mh).map(H520::from), h, r, Step::Prevote, proposal);
+		vote(engine, |mh| tap.sign(v0, None, mh).map(H520::from), h, r, Step::Prevote, proposal);
+		vote(engine, |mh| tap.sign(v1, None, mh).map(H520::from), h, r, Step::Precommit, proposal);
+		vote(engine, |mh| tap.sign(v0, None, mh).map(H520::from), h, r, Step::Precommit, proposal);
 
-		// Check two possible orderings.
-		seal[2] = precommit_signatures(&tap, h, r, Some(b.header().bare_hash()), v1, v0);
-		let b1 = b.clone().lock().seal(engine.as_ref(), seal.clone()).unwrap();
-		let first = notify.blocks.read().contains(&b1.header().hash());
-		seal[2] = precommit_signatures(&tap, h, r, Some(b.header().bare_hash()), v0, v1);
-		let b2 = b.lock().seal(engine.as_ref(), seal.clone()).unwrap();
-		let second = notify.blocks.read().contains(&b2.header().hash());
-		assert!(first ^ second);
+		assert!(notify.blocks.read().contains(&proposal.unwrap()));
 
 		engine.stop();
 	}

@@ -8,7 +8,8 @@ no_download = false
 no_consensus = false
 
 chain = "homestead"
-db_path = "$HOME/.parity"
+base_path = "$HOME/.parity"
+db_path = "$HOME/.parity/chains"
 keys_path = "$HOME/.parity/keys"
 identity = ""
 

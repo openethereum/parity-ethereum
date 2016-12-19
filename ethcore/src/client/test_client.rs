@@ -21,7 +21,7 @@ use util::*;
 use rlp::*;
 use ethkey::{Generator, Random};
 use devtools::*;
-use transaction::{Transaction, LocalizedTransaction, SignedTransaction, Action};
+use transaction::{Transaction, LocalizedTransaction, SignedTransaction, PendingTransaction, Action};
 use blockchain::TreeRoute;
 use client::{
 	BlockChainClient, MiningBlockChainClient, BlockChainInfo, BlockStatus, BlockId,
@@ -688,8 +688,8 @@ impl BlockChainClient for TestBlockChainClient {
 
 	fn broadcast_consensus_message(&self, _message: Bytes) {}
 
-	fn pending_transactions(&self) -> Vec<SignedTransaction> {
-		self.miner.pending_transactions(self.chain_info().best_block_number)
+	fn ready_transactions(&self) -> Vec<PendingTransaction> {
+		self.miner.ready_transactions(self.chain_info().best_block_number)
 	}
 
 	fn signing_network_id(&self) -> Option<u64> { None }
