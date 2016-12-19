@@ -1,7 +1,7 @@
 {
 	"name": "TestAuthorityRound",
 	"engine": {
-		"AuthorityRound": {
+		"authorityRound": {
 			"params": {
 				"gasLimitBoundDivisor": "0x0400",
 				"stepDuration": 1,
@@ -21,7 +21,7 @@
 	},
 	"genesis": {
 		"seal": {
-			"authority_round": {
+			"authorityRound": {
 				"step": "0x0",
 				"signature": "0x0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
 			}

@@ -50,7 +50,7 @@ export default class Input extends Component {
     children: PropTypes.node,
     className: PropTypes.string,
     disabled: PropTypes.bool,
-    error: PropTypes.string,
+    error: nodeOrStringProptype(),
     readOnly: PropTypes.bool,
     floatCopy: PropTypes.bool,
     hint: nodeOrStringProptype(),
@@ -96,8 +96,7 @@ export default class Input extends Component {
 
   render () {
     const { value } = this.state;
-    const { children, className, hideUnderline, disabled, error, label } = this.props;
-    const { hint, multiLine, rows, type, min, max, style } = this.props;
+    const { children, className, disabled, error, hideUnderline, hint, label, max, min, multiLine, rows, style, type } = this.props;
 
     const readOnly = this.props.readOnly || disabled;
 

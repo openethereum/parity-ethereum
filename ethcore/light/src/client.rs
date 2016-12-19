@@ -58,7 +58,7 @@ impl Client {
 	/// Import a local transaction.
 	pub fn import_own_transaction(&self, tx: SignedTransaction) {
 		self.tx_pool.lock().insert(tx.hash(), tx);
-	} 
+	}
 
 	/// Fetch a vector of all pending transactions.
 	pub fn pending_transactions(&self) -> Vec<SignedTransaction> {
@@ -90,28 +90,28 @@ impl Provider for Client {
 		None
 	}
 
-	fn block_headers(&self, _req: request::Headers) -> Vec<Bytes> {
+	fn block_header(&self, _id: BlockId) -> Option<Bytes> {
+		None
+	}
+
+	fn block_body(&self, _id: BlockId) -> Option<Bytes> {
+		None
+	}
+
+	fn block_receipts(&self, _hash: &H256) -> Option<Bytes> {
+		None
+	}
+
+	fn state_proof(&self, _req: request::StateProof) -> Vec<Bytes> {
 		Vec::new()
 	}
 
-	fn block_bodies(&self, _req: request::Bodies) -> Vec<Bytes> {
+	fn contract_code(&self, _req: request::ContractCode) -> Bytes {
 		Vec::new()
 	}
 
-	fn receipts(&self, _req: request::Receipts) -> Vec<Bytes> {
-		Vec::new()
-	}
-
-	fn proofs(&self, _req: request::StateProofs) -> Vec<Bytes> {
-		Vec::new()
-	}
-
-	fn contract_code(&self, _req: request::ContractCodes) -> Vec<Bytes> {
-		Vec::new()
-	}
-
-	fn header_proofs(&self, _req: request::HeaderProofs) -> Vec<Bytes> {
-		Vec::new()
+	fn header_proof(&self, _req: request::HeaderProof) -> Option<(Bytes, Vec<Bytes>)> {
+		None
 	}
 
 	fn ready_transactions(&self) -> Vec<PendingTransaction> {
