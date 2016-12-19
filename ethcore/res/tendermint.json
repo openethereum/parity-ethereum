@@ -1,7 +1,7 @@
 {
 	"name": "TestBFT",
 	"engine": {
-		"Tendermint": {
+		"tendermint": {
 			"params": {
 				"gasLimitBoundDivisor": "0x0400",
 				"authorities" : [
