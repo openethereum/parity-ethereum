@@ -734,6 +734,7 @@ mod tests {
 				db_path: None,
 				keys_path: None,
 				identity: None,
+				light: None,
 			}),
 			account: Some(Account {
 				unlock: Some(vec!["0x1".into(), "0x2".into(), "0x3".into()]),
