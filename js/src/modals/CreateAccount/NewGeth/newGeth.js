@@ -47,6 +47,7 @@ export default class NewGeth extends Component {
         <div className={ styles.list }>There are currently no importable keys available from the Geth keystore, which are not already available on your Parity instance</div>
       );
     }
+
     const checkboxes = available.map((account) => {
       const label = (
         <div className={ styles.selection }>

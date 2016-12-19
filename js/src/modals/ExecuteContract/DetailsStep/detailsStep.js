@@ -18,7 +18,6 @@ import React, { Component, PropTypes } from 'react';
 import { Checkbox, MenuItem } from 'material-ui';
 
 import { AddressSelect, Form, Input, Select, TypedInput } from '~/ui';
-import { parseAbiType } from '~/util/abi';
 
 import styles from '../executeContract.css';
 
@@ -162,7 +161,8 @@ export default class DetailsStep extends Component {
             error={ valuesError[index] }
             onChange={ onChange }
             accounts={ accounts }
-            param={ parseAbiType(input.type) }
+            param={ input.type }
+            isEth={ false }
           />
         </div>
       );
