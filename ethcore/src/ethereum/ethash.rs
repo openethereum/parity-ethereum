@@ -178,15 +178,15 @@ impl Engine for Ethash {
 		let gas_limit = {
 			let gas_limit = parent.gas_limit().clone();
 			let bound_divisor = self.ethash_params.gas_limit_bound_divisor;
+			let lower_limit = gas_limit - gas_limit / bound_divisor + 1.into();
+			let upper_limit = gas_limit + gas_limit / bound_divisor - 1.into();
 			if gas_limit < gas_floor_target {
-				min(gas_floor_target, gas_limit + gas_limit / bound_divisor - 1.into())
+				min(gas_floor_target, upper_limit)
 			} else if gas_limit > gas_ceil_target {
-				max(gas_ceil_target, gas_limit - gas_limit / bound_divisor + 1.into())
+				max(gas_ceil_target, lower_limit)
 			} else {
-				min(gas_ceil_target,
-					max(gas_floor_target,
-						gas_limit - gas_limit / bound_divisor + 1.into() +
-							(header.gas_used().clone() * 6.into() / 5.into()) / bound_divisor))
+				max(gas_floor_target, min(min(gas_ceil_target, upper_limit), 
+					lower_limit + (header.gas_used().clone() * 6.into() / 5.into()) / bound_divisor))
 			}
 		};
 		header.set_difficulty(difficulty);

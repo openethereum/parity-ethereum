@@ -21,6 +21,16 @@ use util::journaldb::Algorithm;
 use helpers::replace_home;
 use app_dirs::{AppInfo, get_app_root, AppDataType};
 
+#[cfg(target_os = "macos")] const AUTHOR: &'static str = "Parity";
+#[cfg(target_os = "macos")] const PRODUCT: &'static str = "io.parity.ethereum";
+#[cfg(target_os = "macos")] const PRODUCT_HYPERVISOR: &'static str = "io.parity.ethereum-updates";
+#[cfg(target_os = "windows")] const AUTHOR: &'static str = "Parity";
+#[cfg(target_os = "windows")] const PRODUCT: &'static str = "Ethereum";
+#[cfg(target_os = "windows")] const PRODUCT_HYPERVISOR: &'static str = "EthereumUpdates";
+#[cfg(not(any(target_os = "windows", target_os = "macos")))] const AUTHOR: &'static str = "parity";
+#[cfg(not(any(target_os = "windows", target_os = "macos")))] const PRODUCT: &'static str = "io.parity.ethereum";
+#[cfg(not(any(target_os = "windows", target_os = "macos")))] const PRODUCT_HYPERVISOR: &'static str = "io.parity.ethereum-updates";
+
 // this const is irrelevent cause we do have migrations now,
 // but we still use it for backwards compatibility
 const LEGACY_CLIENT_DB_VER_STR: &'static str = "5.3";
@@ -195,12 +205,12 @@ impl DatabaseDirectories {
 }
 
 pub fn default_data_path() -> String {
-	let app_info = AppInfo { name: "parity", author: "parity" };
+	let app_info = AppInfo { name: PRODUCT, author: AUTHOR };
 	get_app_root(AppDataType::UserData, &app_info).map(|p| p.to_string_lossy().into_owned()).unwrap_or_else(|_| "$HOME/.parity".to_owned())
 }
 
 pub fn default_hypervisor_path() -> String {
-	let app_info = AppInfo { name: "parity-hypervisor", author: "parity" };
+	let app_info = AppInfo { name: PRODUCT_HYPERVISOR, author: AUTHOR };
 	get_app_root(AppDataType::UserData, &app_info).map(|p| p.to_string_lossy().into_owned()).unwrap_or_else(|_| "$HOME/.parity-hypervisor".to_owned())
 }
 

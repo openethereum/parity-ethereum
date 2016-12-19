@@ -21,7 +21,7 @@ use ethcore::block_status::BlockStatus;
 use ethcore::ids::BlockId;
 use ethcore::header::Header;
 use ethcore::verification::queue::{self, HeaderQueue};
-use ethcore::transaction::SignedTransaction;
+use ethcore::transaction::PendingTransaction;
 use ethcore::blockchain_info::BlockChainInfo;
 use ethcore::spec::Spec;
 use ethcore::service::ClientIoMessage;
@@ -75,7 +75,7 @@ pub trait LightChainClient: Send + Sync {
 pub struct Client {
 	queue: HeaderQueue,
 	chain: HeaderChain,
-	tx_pool: Mutex<H256FastMap<SignedTransaction>>,
+	tx_pool: Mutex<H256FastMap<PendingTransaction>>,
 	import_lock: Mutex<()>,
 }
 
@@ -96,13 +96,18 @@ impl Client {
 	}
 
 	/// Import a local transaction.
-	pub fn import_own_transaction(&self, tx: SignedTransaction) {
-		self.tx_pool.lock().insert(tx.hash(), tx);
+	pub fn import_own_transaction(&self, tx: PendingTransaction) {
+		self.tx_pool.lock().insert(tx.transaction.hash(), tx);
 	}
 
 	/// Fetch a vector of all pending transactions.
-	pub fn pending_transactions(&self) -> Vec<SignedTransaction> {
-		self.tx_pool.lock().values().cloned().collect()
+	pub fn ready_transactions(&self) -> Vec<PendingTransaction> {
+		let best_num = self.chain.best_block().number;
+		self.tx_pool.lock()
+			.values()
+			.filter(|t| t.min_block.as_ref().map_or(true, |x| x <= &best_num))
+			.cloned()
+			.collect()
 	}
 
 	/// Inquire about the status of a given header.
@@ -234,7 +239,7 @@ impl Provider for Client {
 		Vec::new()
 	}
 
-	fn pending_transactions(&self) -> Vec<SignedTransaction> {
-		Client::pending_transactions(self)
+	fn ready_transactions(&self) -> Vec<PendingTransaction> {
+		Client::ready_transactions(self)
 	}
 }
