@@ -20,45 +20,28 @@ import 'whatwg-fetch';
 import es6Promise from 'es6-promise';
 es6Promise.polyfill();
 
+import qs from 'querystring';
 import React from 'react';
 import ReactDOM from 'react-dom';
 import { AppContainer } from 'react-hot-loader';
 import { Router, hashHistory } from 'react-router';
-
 import injectTapEventPlugin from 'react-tap-event-plugin';
-import qs from 'querystring';
+injectTapEventPlugin();
 
-import SecureApi from './secureApi';
-import ContractInstances from '~/contracts';
-
+import ContractInstances from './contracts';
 import { initStore } from './redux';
-import ContextProvider from '~/ui/ContextProvider';
-import muiTheme from '~/ui/Theme';
+import { setApi } from './redux/providers/apiActions';
+import { ContextProvider, muiTheme } from './ui';
+
+import { parityUrl } from './environment';
+import SecureApi from './secureApi';
 import routes from './routes';
-
-import { setApi } from '~/redux/providers/apiActions';
-
-import './environment';
 
 import '../assets/fonts/Roboto/font.css';
 import '../assets/fonts/RobotoMono/font.css';
 import reset from './reset.css';
 
-injectTapEventPlugin();
-
-if (process.env.NODE_ENV === 'development') {
-  // Expose the React Performance Tools on the`window` object
-  const Perf = require('react-addons-perf');
-  window.Perf = Perf;
-}
-
 const AUTH_HASH = '#/auth?';
-const parityUrl = process.env.PARITY_URL ||
-  (
-    process.env.NODE_ENV === 'production'
-    ? window.location.host
-    : '127.0.0.1:8180'
-  );
 
 let token = null;
 if (window.location.hash && window.location.hash.indexOf(AUTH_HASH) === 0) {
@@ -76,8 +59,14 @@ window.secureApi = api;
 
 const container = () => (
   <AppContainer>
-    <ContextProvider api={ api } muiTheme={ muiTheme } store={ store }>
-      <Router className={ reset.reset } history={ hashHistory } routes={ routes } />
+    <ContextProvider
+      api={ api }
+      muiTheme={ muiTheme }
+      store={ store }>
+      <Router
+        className={ reset.reset }
+        history={ hashHistory }
+        routes={ routes } />
     </ContextProvider>
   </AppContainer>
 );
