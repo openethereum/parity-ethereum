@@ -21,7 +21,7 @@ use util::*;
 use rlp::*;
 use ethkey::{Generator, Random};
 use devtools::*;
-use transaction::{Transaction, LocalizedTransaction, SignedTransaction, Action};
+use transaction::{Transaction, LocalizedTransaction, SignedTransaction, PendingTransaction, Action};
 use blockchain::TreeRoute;
 use client::{
 	BlockChainClient, MiningBlockChainClient, BlockChainInfo, BlockStatus, BlockId,
@@ -488,6 +488,10 @@ impl BlockChainClient for TestBlockChainClient {
 		self.block_hash(id).and_then(|hash| self.blocks.read().get(&hash).map(|r| Rlp::new(r).at(0).as_raw().to_vec()))
 	}
 
+	fn block_number(&self, _id: BlockId) -> Option<BlockNumber> {
+		unimplemented!()
+	}
+
 	fn block_body(&self, id: BlockId) -> Option<Bytes> {
 		self.block_hash(id).and_then(|hash| self.blocks.read().get(&hash).map(|r| {
 			let mut stream = RlpStream::new_list(2);
@@ -684,8 +688,8 @@ impl BlockChainClient for TestBlockChainClient {
 
 	fn broadcast_consensus_message(&self, _message: Bytes) {}
 
-	fn pending_transactions(&self) -> Vec<SignedTransaction> {
-		self.miner.pending_transactions(self.chain_info().best_block_number)
+	fn ready_transactions(&self) -> Vec<PendingTransaction> {
+		self.miner.ready_transactions(self.chain_info().best_block_number)
 	}
 
 	fn signing_network_id(&self) -> Option<u64> { None }
@@ -694,10 +698,18 @@ impl BlockChainClient for TestBlockChainClient {
 
 	fn set_mode(&self, _: Mode) { unimplemented!(); }
 
+	fn disable(&self) { unimplemented!(); }
+
 	fn pruning_info(&self) -> PruningInfo {
 		PruningInfo {
 			earliest_chain: 1,
 			earliest_state: 1,
 		}
 	}
+
+	fn call_contract(&self, _address: Address, _data: Bytes) -> Result<Bytes, String> { Ok(vec![]) }
+
+	fn registrar_address(&self) -> Option<Address> { None }
+
+	fn registry_address(&self, _name: String) -> Option<Address> { None }
 }

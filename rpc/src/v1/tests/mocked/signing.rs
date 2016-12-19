@@ -285,6 +285,7 @@ fn should_add_sign_transaction_to_the_queue() {
 		r#""gas":"0x76c0","gasPrice":"0x9184e72a000","# +
 		&format!("\"hash\":\"0x{:?}\",", t.hash()) +
 		r#""input":"0x","# +
+		r#""minBlock":null,"# +
 		&format!("\"networkId\":{},", t.network_id().map_or("null".to_owned(), |n| format!("{}", n))) +
 		r#""nonce":"0x1","# +
 		&format!("\"publicKey\":\"0x{:?}\",", t.public_key().unwrap()) +

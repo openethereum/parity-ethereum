@@ -32,7 +32,6 @@ use ethcore::verification::queue::VerifierSettings;
 use cache::CacheConfig;
 use informant::{Informant, MillisecondDuration};
 use params::{SpecType, Pruning, Switch, tracing_switch_to_bool, fatdb_switch_to_bool};
-use io_handler::ImportIoHandler;
 use helpers::{to_client_config, execute_upgrades};
 use dir::Directories;
 use user_defaults::UserDefaults;
@@ -134,7 +133,7 @@ pub struct ExportState {
 	pub max_balance: Option<U256>,
 }
 
-pub fn execute(cmd: BlockchainCmd) -> Result<String, String> {
+pub fn execute(cmd: BlockchainCmd) -> Result<(), String> {
 	match cmd {
 		BlockchainCmd::Kill(kill_cmd) => kill_db(kill_cmd),
 		BlockchainCmd::Import(import_cmd) => execute_import(import_cmd),
@@ -143,7 +142,7 @@ pub fn execute(cmd: BlockchainCmd) -> Result<String, String> {
 	}
 }
 
-fn execute_import(cmd: ImportBlockchain) -> Result<String, String> {
+fn execute_import(cmd: ImportBlockchain) -> Result<(), String> {
 	let timer = Instant::now();
 
 	// Setup panic handler
@@ -180,7 +179,7 @@ fn execute_import(cmd: ImportBlockchain) -> Result<String, String> {
 	let snapshot_path = db_dirs.snapshot_path();
 
 	// execute upgrades
-	try!(execute_upgrades(&db_dirs, algorithm, cmd.compaction.compaction_profile(db_dirs.db_root_path().as_path())));
+	try!(execute_upgrades(&cmd.dirs.base, &db_dirs, algorithm, cmd.compaction.compaction_profile(db_dirs.db_root_path().as_path())));
 
 	// create dirs used by parity
 	try!(cmd.dirs.create_dirs(false, false));
@@ -239,11 +238,8 @@ fn execute_import(cmd: ImportBlockchain) -> Result<String, String> {
 		}
 	};
 
-	let informant = Informant::new(client.clone(), None, None, None, cmd.with_color);
-
-	try!(service.register_io_handler(Arc::new(ImportIoHandler {
-		info: Arc::new(informant),
-	})).map_err(|_| "Unable to register informant handler".to_owned()));
+	let informant = Arc::new(Informant::new(client.clone(), None, None, None, cmd.with_color));
+	service.register_io_handler(informant).map_err(|_| "Unable to register informant handler".to_owned())?;
 
 	let do_import = |bytes| {
 		while client.queue_info().is_full() { sleep(Duration::from_secs(1)); }
@@ -258,7 +254,6 @@ fn execute_import(cmd: ImportBlockchain) -> Result<String, String> {
 		}
 		Ok(())
 	};
-
 
 	match format {
 		DataFormat::Binary => {
@@ -298,7 +293,7 @@ fn execute_import(cmd: ImportBlockchain) -> Result<String, String> {
 	let report = client.report();
 
 	let ms = timer.elapsed().as_milliseconds();
-	Ok(format!("Import completed in {} seconds, {} blocks, {} blk/s, {} transactions, {} tx/s, {} Mgas, {} Mgas/s",
+	info!("Import completed in {} seconds, {} blocks, {} blk/s, {} transactions, {} tx/s, {} Mgas, {} Mgas/s",
 		ms / 1000,
 		report.blocks_imported,
 		(report.blocks_imported * 1000) as u64 / ms,
@@ -306,7 +301,8 @@ fn execute_import(cmd: ImportBlockchain) -> Result<String, String> {
 		(report.transactions_applied * 1000) as u64 / ms,
 		report.gas_processed / From::from(1_000_000),
 		(report.gas_processed / From::from(ms * 1000)).low_u64(),
-	).into())
+	);
+	Ok(())
 }
 
 fn start_client(
@@ -318,7 +314,8 @@ fn start_client(
 	fat_db: Switch,
 	compaction: DatabaseCompactionProfile,
 	wal: bool,
-	cache_config: CacheConfig) -> Result<ClientService, String> {
+	cache_config: CacheConfig
+) -> Result<ClientService, String> {
 
 	// load spec file
 	let spec = try!(spec.spec());
@@ -351,7 +348,7 @@ fn start_client(
 	let snapshot_path = db_dirs.snapshot_path();
 
 	// execute upgrades
-	try!(execute_upgrades(&db_dirs, algorithm, compaction.compaction_profile(db_dirs.db_root_path().as_path())));
+	try!(execute_upgrades(&dirs.base, &db_dirs, algorithm, compaction.compaction_profile(db_dirs.db_root_path().as_path())));
 
 	// create dirs used by parity
 	try!(dirs.create_dirs(false, false));
@@ -372,7 +369,7 @@ fn start_client(
 	Ok(service)
 }
 
-fn execute_export(cmd: ExportBlockchain) -> Result<String, String> {
+fn execute_export(cmd: ExportBlockchain) -> Result<(), String> {
 	// Setup panic handler
 	let service = try!(start_client(cmd.dirs, cmd.spec, cmd.pruning, cmd.pruning_history, cmd.tracing, cmd.fat_db, cmd.compaction, cmd.wal, cmd.cache_config));
 	let panic_handler = PanicHandler::new_in_arc();
@@ -400,10 +397,11 @@ fn execute_export(cmd: ExportBlockchain) -> Result<String, String> {
 		}
 	}
 
-	Ok("Export completed.".into())
+	info!("Export completed.");
+	Ok(())
 }
 
-fn execute_export_state(cmd: ExportState) -> Result<String, String> {
+fn execute_export_state(cmd: ExportState) -> Result<(), String> {
 	// Setup panic handler
 	let service = try!(start_client(cmd.dirs, cmd.spec, cmd.pruning, cmd.pruning_history, cmd.tracing, cmd.fat_db, cmd.compaction, cmd.wal, cmd.cache_config));
 	let panic_handler = PanicHandler::new_in_arc();
@@ -479,10 +477,11 @@ fn execute_export_state(cmd: ExportState) -> Result<String, String> {
 		}
 	}
 	out.write_fmt(format_args!("\n]}}")).expect("Write error");
-	Ok("Export completed.".into())
+	info!("Export completed.");
+	Ok(())
 }
 
-pub fn kill_db(cmd: KillBlockchain) -> Result<String, String> {
+pub fn kill_db(cmd: KillBlockchain) -> Result<(), String> {
 	let spec = try!(cmd.spec.spec());
 	let genesis_hash = spec.genesis_header().hash();
 	let db_dirs = cmd.dirs.database(genesis_hash, None, spec.data_dir);
@@ -491,7 +490,8 @@ pub fn kill_db(cmd: KillBlockchain) -> Result<String, String> {
 	let algorithm = cmd.pruning.to_algorithm(&user_defaults);
 	let dir = db_dirs.db_path(algorithm);
 	try!(fs::remove_dir_all(&dir).map_err(|e| format!("Error removing database: {:?}", e)));
-	Ok("Database deleted.".to_owned())
+	info!("Database deleted.");
+	Ok(())
 }
 
 #[cfg(test)]

@@ -1,6 +1,6 @@
 {
   "name": "parity.js",
-  "version": "0.2.125",
+  "version": "0.2.128",
   "main": "release/index.js",
   "jsnext:main": "src/index.js",
   "author": "Parity Team <admin@parity.io>",
@@ -36,7 +36,7 @@
     "ci:build:npm": "NODE_ENV=production webpack --config webpack/npm",
     "start": "npm install && npm run build:lib && npm run build:dll && npm run start:app",
     "start:app": "node webpack/dev.server",
-    "clean": "rm -rf ./build ./coverage",
+    "clean": "rm -rf ./.build ./.coverage ./.happypack ./.npmjs ./build",
     "coveralls": "npm run testCoverage && coveralls < coverage/lcov.info",
     "lint": "npm run lint:css && npm run lint:js",
     "lint:cached": "npm run lint:css && npm run lint:js:cached",

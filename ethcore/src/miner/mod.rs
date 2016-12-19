@@ -62,7 +62,7 @@ use block::ClosedBlock;
 use header::BlockNumber;
 use receipt::{RichReceipt, Receipt};
 use error::{Error, CallError};
-use transaction::SignedTransaction;
+use transaction::{SignedTransaction, PendingTransaction};
 
 /// Miner client API
 pub trait MinerService : Send + Sync {
@@ -118,7 +118,7 @@ pub trait MinerService : Send + Sync {
 		Vec<Result<TransactionImportResult, Error>>;
 
 	/// Imports own (node owner) transaction to queue.
-	fn import_own_transaction(&self, chain: &MiningBlockChainClient, transaction: SignedTransaction) ->
+	fn import_own_transaction(&self, chain: &MiningBlockChainClient, transaction: PendingTransaction) ->
 		Result<TransactionImportResult, Error>;
 
 	/// Returns hashes of transactions currently in pending
@@ -144,11 +144,14 @@ pub trait MinerService : Send + Sync {
 	/// Query pending transactions for hash.
 	fn transaction(&self, best_block: BlockNumber, hash: &H256) -> Option<SignedTransaction>;
 
-	/// Get a list of all transactions.
-	fn all_transactions(&self) -> Vec<SignedTransaction>;
+	/// Get a list of all pending transactions in the queue.
+	fn pending_transactions(&self) -> Vec<PendingTransaction>;
 
-	/// Get a list of all pending transactions.
-	fn pending_transactions(&self, best_block: BlockNumber) -> Vec<SignedTransaction>;
+	/// Get a list of all transactions that can go into the given block.
+	fn ready_transactions(&self, best_block: BlockNumber) -> Vec<PendingTransaction>;
+
+	/// Get a list of all future transactions.
+	fn future_transactions(&self) -> Vec<PendingTransaction>;
 
 	/// Get a list of local transactions with statuses.
 	fn local_transactions(&self) -> BTreeMap<H256, LocalTransactionStatus>;

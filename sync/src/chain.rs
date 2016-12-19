@@ -94,7 +94,7 @@ use rlp::*;
 use network::*;
 use ethcore::views::{HeaderView};
 use ethcore::header::{BlockNumber, Header as BlockHeader};
-use ethcore::client::{BlockChainClient, BlockStatus, BlockId, BlockChainInfo, BlockImportError};
+use ethcore::client::{BlockChainClient, BlockStatus, BlockId, BlockChainInfo, BlockImportError, BlockQueueInfo};
 use ethcore::error::*;
 use ethcore::snapshot::{ManifestData, RestorationStatus};
 use sync_io::SyncIo;
@@ -234,6 +234,13 @@ impl SyncStatus {
 		} else {
 			min_peers
 		}
+	}
+
+	/// Is it doing a major sync?
+	pub fn is_syncing(&self, queue_info: BlockQueueInfo) -> bool {
+		let is_syncing_state = match self.state { SyncState::Idle | SyncState::NewBlocks => false, _ => true };
+		let is_verifying = queue_info.unverified_queue_size + queue_info.verified_queue_size > 3;
+		is_verifying || is_syncing_state
 	}
 }
 
@@ -1912,15 +1919,15 @@ impl ChainSync {
 			return 0;
 		}
 
-		let transactions = io.chain().pending_transactions();
+		let transactions = io.chain().ready_transactions();
 		if transactions.is_empty() {
 			return 0;
 		}
 
-		let all_transactions_hashes = transactions.iter().map(|tx| tx.hash()).collect::<HashSet<H256>>();
+		let all_transactions_hashes = transactions.iter().map(|tx| tx.transaction.hash()).collect::<HashSet<H256>>();
 		let all_transactions_rlp = {
 			let mut packet = RlpStream::new_list(transactions.len());
-			for tx in &transactions { packet.append(tx); }
+			for tx in &transactions { packet.append(&tx.transaction); }
 			packet.out()
 		};
 
@@ -1958,11 +1965,11 @@ impl ChainSync {
 					// Construct RLP
 					let mut packet = RlpStream::new_list(to_send.len());
 					for tx in &transactions {
-						if to_send.contains(&tx.hash()) {
-							packet.append(tx);
+						if to_send.contains(&tx.transaction.hash()) {
+							packet.append(&tx.transaction);
 							// update stats
 							let id = io.peer_session_info(*peer_id).and_then(|info| info.id);
-							stats.propagated(tx.hash(), id, block_number);
+							stats.propagated(tx.transaction.hash(), id, block_number);
 						}
 					}
 
@@ -2110,6 +2117,48 @@ mod tests {
 		}
 
 		rlp.out()
+	}
+
+	fn queue_info(unverified: usize, verified: usize) -> BlockQueueInfo {
+		BlockQueueInfo {
+			unverified_queue_size: unverified,
+			verified_queue_size: verified,
+			verifying_queue_size: 0,
+			max_queue_size: 1000,
+			max_mem_use: 1000,
+			mem_used: 500
+		}
+	}
+
+	fn sync_status(state: SyncState) -> SyncStatus {
+		SyncStatus {
+			state: state,
+			protocol_version: 0,
+			network_id: 0,
+			start_block_number: 0,
+			last_imported_block_number: None,
+			highest_block_number: None,
+			blocks_total: 0,
+			blocks_received: 0,
+			num_peers: 0,
+			num_active_peers: 0,
+			mem_used: 0,
+			num_snapshot_chunks: 0,
+			snapshot_chunks_done: 0,
+			last_imported_old_block_number: None,
+		}
+	}
+
+	#[test]
+	fn is_still_verifying() {
+		assert!(!sync_status(SyncState::Idle).is_syncing(queue_info(2, 1)));
+		assert!(sync_status(SyncState::Idle).is_syncing(queue_info(2, 2)));
+	}
+
+	#[test]
+	fn is_synced_state() {
+		assert!(sync_status(SyncState::Blocks).is_syncing(queue_info(0, 0)));
+		assert!(!sync_status(SyncState::Idle).is_syncing(queue_info(0, 0)));
 	}
 
 	#[test]
