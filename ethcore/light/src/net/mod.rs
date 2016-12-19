@@ -157,7 +157,7 @@ impl Peer {
 
 /// An LES event handler.
 ///
-/// Each handler function takes a context which describes the relevant peer 
+/// Each handler function takes a context which describes the relevant peer
 /// and gives references to the IO layer and protocol structure so new messages
 /// can be dispatched immediately.
 ///
@@ -185,7 +185,7 @@ pub trait Handler: Send + Sync {
 	fn on_state_proofs(&self, _ctx: &EventContext, _req_id: ReqId, _proofs: &[Vec<Bytes>]) { }
 	/// Called when a peer responds with contract code.
 	fn on_code(&self, _ctx: &EventContext, _req_id: ReqId, _codes: &[Bytes]) { }
-	/// Called when a peer responds with header proofs. Each proof is a block header coupled 
+	/// Called when a peer responds with header proofs. Each proof is a block header coupled
 	/// with a series of trie nodes is ascending order by distance from the root.
 	fn on_header_proofs(&self, _ctx: &EventContext, _req_id: ReqId, _proofs: &[(Bytes, Vec<Bytes>)]) { }
 	/// Called on abort.
@@ -215,9 +215,9 @@ pub struct Params {
 /// This is simply designed for request-response purposes. Higher level uses
 /// of the protocol, such as synchronization, will function as wrappers around
 /// this system.
-// 
+//
 // LOCK ORDER:
-//   Locks must be acquired in the order declared, and when holding a read lock 
+//   Locks must be acquired in the order declared, and when holding a read lock
 //   on the peers, only one peer may be held at a time.
 pub struct LightProtocol {
 	provider: Arc<Provider>,
@@ -252,7 +252,7 @@ impl LightProtocol {
 		}
 	}
 
-	/// Check the maximum amount of requests of a specific type 
+	/// Check the maximum amount of requests of a specific type
 	/// which a peer would be able to serve.
 	pub fn max_requests(&self, peer: PeerId, kind: request::Kind) -> Option<usize> {
 		self.peers.read().get(&peer).and_then(|peer| {
@@ -267,11 +267,11 @@ impl LightProtocol {
 		})
 	}
 
-	/// Make a request to a peer. 
+	/// Make a request to a peer.
 	///
 	/// Fails on: nonexistent peer, network error, peer not server,
 	/// insufficient buffer. Does not check capabilities before sending.
-	/// On success, returns a request id which can later be coordinated 
+	/// On success, returns a request id which can later be coordinated
 	/// with an event.
 	pub fn request_from(&self, io: &IoContext, peer_id: &PeerId, request: Request) -> Result<ReqId, Error> {
 		let peers = self.peers.read();
@@ -325,10 +325,10 @@ impl LightProtocol {
 
 			// TODO: "urgent" announcements like new blocks?
 			// the timer approach will skip 1 (possibly 2) in rare occasions.
-			if peer_info.sent_head == announcement.head_hash || 
+			if peer_info.sent_head == announcement.head_hash ||
 				peer_info.status.head_num >= announcement.head_num  ||
 				now - peer_info.last_update < Duration::milliseconds(UPDATE_INTERVAL_MS) {
-				continue 
+				continue
 			}
 
 			peer_info.last_update = now;
@@ -357,7 +357,7 @@ impl LightProtocol {
 	/// Add an event handler.
 	/// Ownership will be transferred to the protocol structure,
 	/// and the handler will be kept alive as long as it is.
-	/// These are intended to be added when the protocol structure 
+	/// These are intended to be added when the protocol structure
 	/// is initialized as a means of customizing its behavior.
 	pub fn add_handler(&mut self, handler: Box<Handler>) {
 		self.handlers.push(handler);
@@ -380,7 +380,7 @@ impl LightProtocol {
 		pending_requests.clear();
 	}
 
-	// Does the common pre-verification of responses before the response itself 
+	// Does the common pre-verification of responses before the response itself
 	// is actually decoded:
 	//   - check whether peer exists
 	//   - check whether request was made
@@ -406,7 +406,7 @@ impl LightProtocol {
 				let mut peer_info = peer_info.lock();
 				match peer_info.remote_flow.as_mut() {
 					Some(&mut (ref mut buf, ref mut flow)) => {
-						let actual_buffer = ::std::cmp::min(cur_buffer, *flow.limit());				
+						let actual_buffer = ::std::cmp::min(cur_buffer, *flow.limit());
 						buf.update_to(actual_buffer)
 					}
 					None => return Err(Error::NotServer), // this really should be impossible.
@@ -488,17 +488,17 @@ impl LightProtocol {
 					request::Kind::Receipts => timeout::RECEIPTS,
 					request::Kind::StateProofs => timeout::PROOFS,
 					request::Kind::Codes => timeout::CONTRACT_CODES,
-					request::Kind::HeaderProofs => timeout::HEADER_PROOFS,					
+					request::Kind::HeaderProofs => timeout::HEADER_PROOFS,
 				};
 
 				if r.timestamp + Duration::milliseconds(kind_timeout) <= now {
-					debug!(target: "les", "Request for {:?} from peer {} timed out", 
+					debug!(target: "les", "Request for {:?} from peer {} timed out",
 						r.request.kind(), r.peer_id);
-					
+
 					// keep the request in the `pending` set for now so
 					// on_disconnect will pass unfulfilled ReqIds to handlers.
 					// in the case that a response is received after this, the
-					// disconnect won't be cancelled but the ReqId won't be 
+					// disconnect won't be cancelled but the ReqId won't be
 					// marked as abandoned.
 					io.disconnect_peer(r.peer_id);
 				}
@@ -519,7 +519,7 @@ impl LightProtocol {
 			punish(*peer, io, Error::UnsupportedProtocolVersion(proto_version));
 			return;
 		}
-		
+
 		let chain_info = self.provider.chain_info();
 
 		let status = Status {
@@ -540,7 +540,7 @@ impl LightProtocol {
 			last_update: SteadyTime::now(),
 		});
 
-		io.send(*peer, packet::STATUS, status_packet);		
+		io.send(*peer, packet::STATUS, status_packet);
 	}
 
 	// called when a peer disconnects.
@@ -569,7 +569,7 @@ impl LightProtocol {
 					io: io,
 					proto: self,
 				}, &unfulfilled)
-			}	
+			}
 		}
 	}
 
@@ -608,7 +608,7 @@ impl LightProtocol {
 		for handler in &self.handlers {
 			handler.on_connect(&Ctx {
 				peer: *peer,
-				io: io,	
+				io: io,
 				proto: self,
 			}, &status, &capabilities)
 		}
@@ -662,7 +662,7 @@ impl LightProtocol {
 	}
 
 	// Handle a request for block headers.
-	fn get_block_headers(&self, peer: &PeerId, io: &IoContext, data: UntrustedRlp) -> Result<(), Error> {		
+	fn get_block_headers(&self, peer: &PeerId, io: &IoContext, data: UntrustedRlp) -> Result<(), Error> {
 		const MAX_HEADERS: usize = 512;
 
 		let peers = self.peers.read();
@@ -914,7 +914,7 @@ impl LightProtocol {
 			.map(|x| x.iter().map(|node| node.as_raw().to_owned()).collect())
 			.collect();
 
-		for handler in &self.handlers { 
+		for handler in &self.handlers {
 			handler.on_state_proofs(&Ctx {
 				peer: *peer,
 				io: io,
@@ -956,7 +956,7 @@ impl LightProtocol {
 
 		let max_cost = try!(peer.deduct_max(&self.flow_params, request::Kind::Codes, req.code_requests.len()));
 
-		let response = self.provider.contract_code(req);
+		let response = self.provider.contract_codes(req);
 		let response_len = response.iter().filter(|x| !x.is_empty()).count();
 		let actual_cost = self.flow_params.compute_cost(request::Kind::Codes, response_len);
 		assert!(max_cost >= actual_cost, "Actual cost exceeded maximum computed cost.");
@@ -983,7 +983,7 @@ impl LightProtocol {
 
 		let raw_code: Vec<Bytes> = try!(try!(raw.at(2)).iter().map(|x| x.as_val()).collect());
 
-		for handler in &self.handlers { 
+		for handler in &self.handlers {
 			handler.on_code(&Ctx {
 				peer: *peer,
 				io: io,
@@ -1055,11 +1055,11 @@ impl LightProtocol {
 				try!(raw.at(1)).iter().map(|x| x.as_raw().to_owned()).collect(),
 			))
 		}
-		
+
 		let req_id = try!(self.pre_verify_response(peer, request::Kind::HeaderProofs, &raw));
 		let raw_proofs: Vec<_> = try!(try!(raw.at(2)).iter().map(decode_res).collect());
 
-		for handler in &self.handlers { 
+		for handler in &self.handlers {
 			handler.on_header_proofs(&Ctx {
 				peer: *peer,
 				io: io,
@@ -1082,7 +1082,7 @@ impl LightProtocol {
 			handler.on_transactions(&Ctx {
 				peer: *peer,
 				io: io,
-				proto: self,	
+				proto: self,
 			}, &txs);
 		}
 
@@ -1136,12 +1136,12 @@ fn encode_request(req: &Request, req_id: usize) -> Vec<u8> {
 		Request::Headers(ref headers) => {
 			let mut stream = RlpStream::new_list(2);
 			stream.append(&req_id).begin_list(4);
-				
+
 			match headers.start {
 				HashOrNumber::Hash(ref hash) => stream.append(hash),
 				HashOrNumber::Number(ref num) => stream.append(num),
 			};
-			
+
 			stream
 				.append(&headers.max)
 				.append(&headers.skip)
