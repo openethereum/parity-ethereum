@@ -40,7 +40,7 @@ use v1::types::{
 	Peers, Transaction, RpcSettings, Histogram,
 	TransactionStats, LocalTransactionStatus,
 	BlockNumber, ConsensusCapability, VersionInfo,
-	OperationsInfo
+	OperationsInfo, ChainStatus,
 };
 use v1::helpers::{errors, SigningQueue, SignerService, NetworkSettings};
 use v1::helpers::dispatch::DEFAULT_MAC;
@@ -384,5 +384,18 @@ impl<C, M, S: ?Sized, U> Parity for ParityClient<C, M, S, U> where
 		try!(self.active());
 		let updater = take_weak!(self.updater);
 		Ok(updater.info().map(Into::into))
+	}
+
+	fn chain_status(&self) -> Result<ChainStatus, Error> {
+		try!(self.active());
+
+		let chain_info = take_weak!(self.client).chain_info();
+
+		let gap = chain_info.ancient_block_number.map(|x| U256::from(x + 1))
+			.and_then(|first| chain_info.first_block_number.map(|last| (first, U256::from(last))));
+
+		Ok(ChainStatus {
+			block_gap: gap.map(|(x, y)| (x.into(), y.into())),
+		})
 	}
 }
