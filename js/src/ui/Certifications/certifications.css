@@ -22,6 +22,7 @@
 .certification {
   display: inline-block;
   position: relative;
+  margin-top: 1em;
   margin-right: .5em;
   padding: .3em .6em .2em 2.6em;
   border-radius: 1em;
