@@ -44,7 +44,7 @@ impl Default for Configuration {
 			enabled: true,
 			port: 8180,
 			interface: "127.0.0.1".into(),
-			signer_path: replace_home(&data_dir, "$DATA/signer"),
+			signer_path: replace_home(&data_dir, "$BASE/signer"),
 			skip_origin_validation: false,
 		}
 	}
@@ -72,7 +72,7 @@ pub fn start(conf: Configuration, deps: Dependencies) -> Result<Option<SignerSer
 fn codes_path(path: String) -> PathBuf {
 	let mut p = PathBuf::from(path);
 	p.push(CODES_FILENAME);
-	let _ = restrict_permissions_owner(&p);
+	let _ = restrict_permissions_owner(&p, true, false);
 	p
 }
 
