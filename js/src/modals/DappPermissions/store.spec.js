@@ -80,5 +80,21 @@ describe('modals/DappPermissions/store', () => {
         expect(api.parity.setNewDappsWhitelist).to.have.been.calledOnce;
       });
     });
+
+    describe('selectAccount', () => {
+      beforeEach(() => {
+        store.openModal(ACCOUNTS);
+        store.selectAccount('123');
+        store.selectAccount('789');
+      });
+
+      it('unselects previous selected accounts', () => {
+        expect(store.accounts.find((account) => account.address === '123').checked).to.be.false;
+      });
+
+      it('selects previous unselected accounts', () => {
+        expect(store.accounts.find((account) => account.address === '789').checked).to.be.true;
+      });
+    });
   });
 });
