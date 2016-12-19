@@ -26,7 +26,7 @@ import { fromWei, toWei } from '~/api/util/wei';
 import Input from '~/ui/Form/Input';
 import InputAddressSelect from '~/ui/Form/InputAddressSelect';
 import Select from '~/ui/Form/Select';
-import { ABI_TYPES } from '~/util/abi';
+import { ABI_TYPES, parseAbiType } from '~/util/abi';
 
 import styles from './typedInput.css';
 
@@ -34,22 +34,25 @@ export default class TypedInput extends Component {
 
   static propTypes = {
     onChange: PropTypes.func.isRequired,
-    param: PropTypes.object.isRequired,
 
     accounts: PropTypes.object,
     error: PropTypes.any,
-    value: PropTypes.any,
-    label: PropTypes.string,
     hint: PropTypes.string,
-    min: PropTypes.number,
+    isEth: PropTypes.bool,
+    label: PropTypes.string,
     max: PropTypes.number,
-    isEth: PropTypes.bool
+    min: PropTypes.number,
+    param: PropTypes.oneOfType([
+      PropTypes.object,
+      PropTypes.string
+    ]).isRequired,
+    value: PropTypes.any
   };
 
   static defaultProps = {
     min: null,
     max: null,
-    isEth: false
+    isEth: null
   };
 
   state = {
@@ -64,7 +67,26 @@ export default class TypedInput extends Component {
   }
 
   render () {
-    const { param, isEth } = this.props;
+    const { param } = this.props;
+
+    if (typeof param === 'string') {
+      const parsedParam = parseAbiType(param);
+
+      if (parsedParam) {
+        return this.renderParam(parsedParam);
+      }
+    }
+
+    if (param) {
+      return this.renderParam(param);
+    }
+
+    console.error('<TypedInput>', `unkown "${param}" param passed to props`);
+    return null;
+  }
+
+  renderParam (param) {
+    const { isEth } = this.props;
     const { type } = param;
 
     if (type === ABI_TYPES.ARRAY) {
@@ -163,7 +185,16 @@ export default class TypedInput extends Component {
       return this.renderDefault();
     }
 
+    // If the `isEth` prop is present (true or false)
+    // then render the ETH toggle (usefull for contract execution)
+    // Don't by default
     if (type === ABI_TYPES.INT) {
+      const { isEth } = this.props;
+
+      if (typeof isEth !== 'boolean') {
+        return this.renderInteger();
+      }
+
       return this.renderEth();
     }
 

@@ -147,8 +147,6 @@ usage! {
 		flag_reserved_only: bool = false,
 			or |c: &Config| otry!(c.network).reserved_only.clone(),
 		flag_no_ancient_blocks: bool = false, or |_| None,
-		flag_serve_light: bool = false,
-			or |c: &Config| otry!(c.network).serve_light.clone(),
 
 		// -- API and Console Options
 		// RPC
@@ -360,7 +358,6 @@ struct Network {
 	node_key: Option<String>,
 	reserved_peers: Option<String>,
 	reserved_only: Option<bool>,
-	serve_light: Option<bool>,
 }
 
 #[derive(Default, Debug, PartialEq, RustcDecodable)]
@@ -584,7 +581,6 @@ mod tests {
 			flag_reserved_peers: Some("./path_to_file".into()),
 			flag_reserved_only: false,
 			flag_no_ancient_blocks: false,
-			flag_serve_light: true,
 
 			// -- API and Console Options
 			// RPC
@@ -764,7 +760,6 @@ mod tests {
 				node_key: None,
 				reserved_peers: Some("./path/to/reserved_peers".into()),
 				reserved_only: Some(true),
-				serve_light: None,
 			}),
 			rpc: Some(Rpc {
 				disable: Some(true),
