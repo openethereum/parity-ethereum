@@ -14,22 +14,19 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import AddIcon from 'material-ui/svg-icons/content/add';
-import CancelIcon from 'material-ui/svg-icons/content/clear';
-import DoneIcon from 'material-ui/svg-icons/action/done-all';
-import LockedIcon from 'material-ui/svg-icons/action/lock-outline';
-import NextIcon from 'material-ui/svg-icons/navigation/arrow-forward';
-import PrevIcon from 'material-ui/svg-icons/navigation/arrow-back';
-import SnoozeIcon from 'material-ui/svg-icons/av/snooze';
-import VisibleIcon from 'material-ui/svg-icons/image/remove-red-eye';
+import { shallow } from 'enzyme';
+import React from 'react';
 
-export {
-  AddIcon,
-  CancelIcon,
-  DoneIcon,
-  LockedIcon,
-  NextIcon,
-  PrevIcon,
-  SnoozeIcon,
-  VisibleIcon
-};
+import DappPermissions from './';
+
+describe('modals/DappPermissions', () => {
+  describe('rendering', () => {
+    it('renders defaults', () => {
+      expect(
+        shallow(
+          <DappPermissions store={ {} } />
+        )
+      ).to.be.ok;
+    });
+  });
+});

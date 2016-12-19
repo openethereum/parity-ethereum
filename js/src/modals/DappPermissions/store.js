@@ -14,11 +14,11 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { action, observable } from 'mobx';
+import { action, observable, transaction } from 'mobx';
 
 export default class Store {
-  @observable checked = [];
-  @observable showing = false;
+  @observable accounts = [];
+  @observable modalOpen = false;
   @observable whitelist = [];
 
   constructor (api) {
@@ -27,16 +27,49 @@ export default class Store {
     this.loadWhitelist();
   }
 
-  @action setModalVisibility (showing) {
-    this.showing = showing;
+  @action closeModal = () => {
+    transaction(() => {
+      this.modalOpen = false;
+      this.updateWhitelist(
+        this.accounts
+          .filter((account) => account.checked)
+          .map((account) => account.address)
+      );
+    });
   }
 
-  @action setWhitelist (whitelist) {
+  @action openModal = (accounts) => {
+    transaction(() => {
+      this.accounts = Object
+        .values(accounts)
+        .map((account) => {
+          return {
+            address: account.address,
+            checked: this.whitelist.includes(account.address),
+            description: account.meta.description,
+            name: account.name
+          };
+        });
+      this.modalOpen = true;
+    });
+  }
+
+  @action selectAccount = (address) => {
+    this.accounts = this.accounts.map((account) => {
+      if (account.address === address) {
+        account.checked = !account.checked;
+      }
+
+      return account;
+    });
+  }
+
+  @action setWhitelist = (whitelist) => {
     this.whitelist = whitelist;
   }
 
   loadWhitelist () {
-    return this._api
+    return this._api.parity
       .getNewDappsWhitelist()
       .then((whitelist) => {
         this.setWhitelist(whitelist);
@@ -47,7 +80,7 @@ export default class Store {
   }
 
   updateWhitelist (whitelist) {
-    return this._api
+    return this._api.parity
       .setNewDappsWhitelist(whitelist)
       .then(() => {
         this.setWhitelist(whitelist);

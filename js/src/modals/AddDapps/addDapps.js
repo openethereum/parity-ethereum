@@ -14,14 +14,14 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import { Checkbox } from 'material-ui';
+import { List, ListItem } from 'material-ui/List';
+import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
-import { observer } from 'mobx-react';
-import DoneIcon from 'material-ui/svg-icons/action/done';
-import { List, ListItem } from 'material-ui/List';
-import Checkbox from 'material-ui/Checkbox';
 
 import { Modal, Button } from '~/ui';
+import { DoneIcon } from '~/ui/icons';
 
 import styles from './addDapps.css';
 
@@ -40,13 +40,6 @@ export default class AddDapps extends Component {
 
     return (
       <Modal
-        visible
-        compact
-        title={
-          <FormattedMessage
-            id='dapps.add.label'
-            defaultMessage='visible applications' />
-        }
         actions={ [
           <Button
             label={
@@ -58,7 +51,14 @@ export default class AddDapps extends Component {
             onClick={ store.closeModal }
             icon={ <DoneIcon /> }
           />
-        ] }>
+        ] }
+        compact
+        title={
+          <FormattedMessage
+            id='dapps.add.label'
+            defaultMessage='visible applications' />
+        }
+        visible>
         <div className={ styles.warning } />
         {
           this.renderList(store.sortedLocal,
