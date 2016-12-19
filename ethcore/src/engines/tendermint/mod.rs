@@ -653,7 +653,6 @@ mod tests {
 	use header::Header;
 	use env_info::EnvInfo;
 	use client::chain_notify::ChainNotify;
-	use client::MiningBlockChainClient;
 	use miner::MinerService;
 	use tests::helpers::*;
 	use account_provider::AccountProvider;
@@ -718,24 +717,9 @@ mod tests {
 	#[derive(Default)]
 	struct TestNotify {
 		messages: RwLock<Vec<Bytes>>,
-		blocks: RwLock<Vec<H256>>,
 	}
 
 	impl ChainNotify for TestNotify {
-		fn new_blocks(&self,
-			imported: Vec<H256>,
-			_invalid: Vec<H256>,
-			_enacted: Vec<H256>,
-			_retracted: Vec<H256>,
-			_sealed: Vec<H256>,
-			// Block bytes.
-			_proposed: Vec<Bytes>,
-			_duration: u64) {
-			if let Some(h) = imported.get(0) {
-				self.blocks.write().push(*h);
-			}
-		}
-
 		fn broadcast(&self, data: Vec<u8>) {
 			self.messages.write().push(data);
 		}
@@ -918,32 +902,24 @@ mod tests {
 
 	#[test]
 	fn seal_submission() {
-		::env_logger::init().unwrap();
 		use ethkey::{Generator, Random};
 		use types::transaction::{Transaction, Action};
+		use client::BlockChainClient;
 
 		let client = generate_dummy_client_with_spec_and_data(Spec::new_test_tendermint, 0, 0, &[]);
 		let engine = client.engine();
 		let tap = Arc::new(AccountProvider::transient_provider());
+
+		// Accounts for signing votes.
 		let v0 = insert_and_unlock(&tap, "0");
 		let v1 = insert_and_unlock(&tap, "1");
+
 		let notify = Arc::new(TestNotify::default());
-		println!("inserted");
+		engine.register_account_provider(tap.clone());
+		client.add_notify(notify.clone());
+		engine.register_client(Arc::downgrade(&client));
 
-		{
-			println!("r ap");
-			engine.register_account_provider(tap.clone());
-			println!("add notify");
-			client.add_notify(notify.clone());
-			println!("add cli");
-			engine.register_client(Arc::downgrade(&client));
-			println!("add signer");
-		}
-		client.miner().set_engine_signer(v0.clone(), "0".into()).unwrap();
-
-		// Propose
 		let keypair = Random.generate().unwrap();
-		println!("generate tx");
 		let transaction = Transaction {
 			action: Action::Create,
 			value: U256::zero(),
@@ -952,11 +928,13 @@ mod tests {
 			gas_price: U256::zero(),
 			nonce: U256::zero(),
 		}.sign(keypair.secret(), None);
-		println!("submitting tx");
-		client.miner().import_own_transaction(client.as_ref(), transaction).unwrap();
-		println!("proposal");
+		client.miner().import_own_transaction(client.as_ref(), transaction.into()).unwrap();
+
+		client.miner().set_engine_signer(v1.clone(), "1".into()).unwrap();
+
+		// Propose
 		let proposal = Some(client.miner().pending_block().unwrap().header.bare_hash());
-		println!("step");
+		// Propose timeout
 		engine.step();
 
 		let h = 1;
@@ -966,9 +944,11 @@ mod tests {
 		vote(engine, |mh| tap.sign(v1, None, mh).map(H520::from), h, r, Step::Prevote, proposal);
 		vote(engine, |mh| tap.sign(v0, None, mh).map(H520::from), h, r, Step::Prevote, proposal);
 		vote(engine, |mh| tap.sign(v1, None, mh).map(H520::from), h, r, Step::Precommit, proposal);
-		vote(engine, |mh| tap.sign(v0, None, mh).map(H520::from), h, r, Step::Precommit, proposal);
 
-		assert!(notify.blocks.read().contains(&proposal.unwrap()));
+		assert_eq!(client.chain_info().best_block_number, 0);
+		// Last precommit.
+		vote(engine, |mh| tap.sign(v0, None, mh).map(H520::from), h, r, Step::Precommit, proposal);
+		assert_eq!(client.chain_info().best_block_number, 1);
 
 		engine.stop();
 	}
