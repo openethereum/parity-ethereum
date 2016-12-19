@@ -119,7 +119,6 @@ mod provider {
 			let data = call.encode_call(
 				vec![]
 			).map_err(Self::as_string)?;
-			println!("{:?}", data.to_hex());
 			let output = call.decode_output((self.do_call)(self.address.clone(), data)?).map_err(Self::as_string)?;
 			let mut result = output.into_iter().rev().collect::<Vec<_>>();
 			Ok(({ let r = result.pop().ok_or("Invalid return arity")?; let r = try!(r.to_array().and_then(|v| v.into_iter().map(|a| a.to_address()).collect::<Option<Vec<[u8; 20]>>>()).ok_or("Invalid type returned")); r.into_iter().map(|a| util::Address::from(a)).collect::<Vec<_>>() })) 
@@ -138,7 +137,6 @@ mod tests {
 
 	#[test]
 	fn updates_validators() {
-		::env_logger::init().unwrap();
 		let client = generate_dummy_client_with_spec_and_data(Spec::new_validator_contract, 0, 0, &[]);
 		let vc = ValidatorContract::new(Address::from_str("0000000000000000000000000000000000000005").unwrap());
 		vc.register_call_contract(Arc::downgrade(&client));
