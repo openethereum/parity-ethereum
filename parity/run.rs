@@ -291,12 +291,12 @@ pub fn execute(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<(), String> {
 
 	// create sync object
 	let (sync_provider, manage_network, chain_notify) = try!(modules::sync(
-		&mut hypervisor, 
-		sync_config, 
-		net_conf.into(), 
-		client.clone(), 
-		snapshot_service.clone(), 
-		client.clone(), 
+		&mut hypervisor,
+		sync_config,
+		net_conf.into(),
+		client.clone(),
+		snapshot_service.clone(),
+		client.clone(),
 		&cmd.logger_config,
 	).map_err(|e| format!("Sync error: {}", e)));
 

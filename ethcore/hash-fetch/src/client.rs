@@ -20,8 +20,9 @@ use std::{io, fs};
 use std::sync::Arc;
 use std::path::PathBuf;
 
-use util::{Mutex, H256, sha3};
-use fetch::{Fetch, FetchError, Client as FetchClient};
+use util::{H256, sha3};
+use fetch::{Fetch, Error as FetchError, Client as FetchClient};
+use futures::Future;
 
 use urlhint::{ContractClient, URLHintContract, URLHint, URLHintResult};
 
@@ -64,7 +65,7 @@ impl From<io::Error> for Error {
 /// Default Hash-fetching client using on-chain contract to resolve hashes to URLs.
 pub struct Client {
 	contract: URLHintContract,
-	fetch: Mutex<FetchClient>,
+	fetch: FetchClient,
 }
 
 impl Client {
@@ -72,7 +73,7 @@ impl Client {
 	pub fn new(contract: Arc<ContractClient>) -> Self {
 		Client {
 			contract: URLHintContract::new(contract),
-			fetch: Mutex::new(FetchClient::default()),
+			fetch: FetchClient::new().unwrap(),
 		}
 	}
 }
@@ -94,7 +95,7 @@ impl HashFetch for Client {
 
 		debug!(target: "dapps", "Resolved {:?} to {:?}. Fetching...", hash, url);
 
-		self.fetch.lock().request_async(&url, Default::default(), Box::new(move |result| {
+		let task = self.fetch.fetch_to_file(&url, &FetchClient::temp_filename()).then(move |result| {
 			fn validate_hash(hash: H256, result: Result<PathBuf, FetchError>) -> Result<PathBuf, Error> {
 				let path = try!(result);
 				let mut file_reader = io::BufReader::new(try!(fs::File::open(&path)));
@@ -108,7 +109,10 @@ impl HashFetch for Client {
 			}
 
 			debug!(target: "dapps", "Content fetched, validating hash ({:?})", hash);
-			on_done(validate_hash(hash, result))
-		})).map_err(Into::into)
+			on_done(validate_hash(hash, result));
+			Ok(()) as Result<(), FetchError>
+		});
+
+		Ok(())
 	}
 }

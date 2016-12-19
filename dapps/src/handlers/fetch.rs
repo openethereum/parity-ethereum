@@ -16,13 +16,14 @@
 
 //! Hyper Server Handler that fetches a file during a request (proxy).
 
-use std::{fs, fmt};
+use std::fmt;
 use std::path::PathBuf;
 use std::sync::{mpsc, Arc};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Instant, Duration};
+use fetch::{self, Client, Response, Fetch};
+use futures::Future;
 use util::Mutex;
-use fetch::{Client, Fetch, FetchResult};
 
 use hyper::{server, Decoder, Encoder, Next, Method, Control};
 use hyper::net::HttpStream;
@@ -39,7 +40,7 @@ enum FetchState {
 	Waiting,
 	NotStarted(String),
 	Error(ContentHandler),
-	InProgress(mpsc::Receiver<FetchResult>),
+	InProgress(mpsc::Receiver<Result<PathBuf, fetch::Error>>),
 	Done(LocalPageEndpoint, Box<PageHandlerWaiting>),
 }
 
@@ -50,7 +51,6 @@ enum WaitResult {
 
 pub trait ContentValidator {
 	type Error: fmt::Debug + fmt::Display;
-	type Result;
 
 	fn validate_and_install(&self, path: PathBuf) -> Result<LocalPageEndpoint, Self::Error>;
 }
@@ -161,22 +161,9 @@ impl server::Handler<HttpStream> for WaitingHandler {
 	}
 }
 
-struct DefaultValidator;
-impl ContentValidator for DefaultValidator {
-	type Error = String;
-	type Result = ();
-
-	fn validate_and_install(&self, _app: PathBuf) -> Result<(String, ()), Self::Error> {
-		Err("not implemented yet".into())
-	}
-
-	fn done(&self, _: Option<()>) {
-	}
-}
-
-pub struct ContentFetcherHandler<H: ContentValidator = DefaultValidator> {
+pub struct ContentFetcherHandler<H: ContentValidator> {
 	fetch_control: Arc<FetchControl>,
-	control: Option<Control>,
+	control: Control,
 	status: FetchState,
 	client: Option<Client>,
 	installer: H,
@@ -197,7 +184,7 @@ impl<H: ContentValidator> ContentFetcherHandler<H> {
 		let client = Client::default();
 		let handler = ContentFetcherHandler {
 			fetch_control: fetch_control.clone(),
-			control: Some(control),
+			control: control,
 			client: Some(client),
 			status: FetchState::NotStarted(url),
 			installer: handler,
@@ -215,12 +202,17 @@ impl<H: ContentValidator> ContentFetcherHandler<H> {
 			.close();
 	}
 
-	fn fetch_content(client: &mut Client, url: &str, abort: Arc<AtomicBool>, control: Control) -> Result<mpsc::Receiver<FetchResult>, String> {
-		client.request(url, abort, Box::new(move || {
+	fn fetch_content(client: &mut Client, url: &str, abort: Arc<AtomicBool>, control: Control) -> mpsc::Receiver<Result<PathBuf, fetch::Error>> {
+		let (tx, rx) = mpsc::channel();
+		client.fetch_to_file(url, &Client::temp_filename()).then(move |result| {
 			trace!(target: "dapps", "Fetching finished.");
+			tx.send(result).unwrap();
 			// Ignoring control errors
 			let _ = control.ready(Next::read());
-		})).map_err(|e| format!("{:?}", e))
+			Ok(()) as Result<(), ()>
+		});
+
+		rx
 	}
 }
 
@@ -231,19 +223,10 @@ impl<H: ContentValidator> server::Handler<HttpStream> for ContentFetcherHandler<
 				// Start fetching content
 				Method::Get => {
 					trace!(target: "dapps", "Fetching content from: {:?}", url);
-					let control = self.control.take().expect("on_request is called only once, thus control is always Some");
+					let control = self.control.clone();
 					let client = self.client.as_mut().expect("on_request is called before client is closed.");
-					let fetch = Self::fetch_content(client, url, self.fetch_control.abort.clone(), control);
-					match fetch {
-						Ok(receiver) => FetchState::InProgress(receiver),
-						Err(e) => FetchState::Error(ContentHandler::error(
-							StatusCode::BadGateway,
-							"Unable To Start Content Download",
-							"Could not initialize download of the content. It might be a problem with the remote server.",
-							Some(&format!("{}", e)),
-							self.embeddable_on.clone(),
-						)),
-					}
+					let receiver = Self::fetch_content(client, url, self.fetch_control.abort.clone(), control);
+					FetchState::InProgress(receiver)
 				},
 				// or return error
 				_ => FetchState::Error(ContentHandler::error(
@@ -307,7 +290,8 @@ impl<H: ContentValidator> server::Handler<HttpStream> for ContentFetcherHandler<
 							},
 						};
 						// Remove temporary zip file
-						let _ = fs::remove_file(path);
+						// let _ = fs::remove_file(path);
+						// TODO [ToDr] Temporary!
 						(Some(state), Next::write())
 					},
 					Ok(Err(e)) => {

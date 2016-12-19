@@ -61,6 +61,8 @@ extern crate ethcore_hash_fetch as hash_fetch;
 extern crate linked_hash_map;
 extern crate fetch;
 extern crate parity_dapps_glue as parity_dapps;
+extern crate futures;
+
 #[macro_use]
 extern crate log;
 #[macro_use]
@@ -297,13 +299,6 @@ impl From<hyper::error::Error> for ServerError {
 			e => ServerError::Other(e),
 		}
 	}
-}
-
-/// Random filename
-pub fn random_filename() -> String {
-	use ::rand::Rng;
-	let mut rng = ::rand::OsRng::new().unwrap();
-	rng.gen_ascii_chars().take(12).collect()
 }
 
 fn address(address: (String, u16)) -> String {

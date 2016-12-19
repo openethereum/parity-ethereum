@@ -29,6 +29,7 @@ toml = "0.2"
 serde = "0.8.0"
 serde_json = "0.8.0"
 app_dirs = "1.1.1"
+tokio_core = "0.1"
 hyper = { version = "0.9", default-features = false }
 ctrlc = { git = "https://github.com/ethcore/rust-ctrlc.git" }
 fdlimit = "0.1"

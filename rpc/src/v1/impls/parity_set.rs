@@ -22,8 +22,9 @@ use ethcore::miner::MinerService;
 use ethcore::client::MiningBlockChainClient;
 use ethcore::mode::Mode;
 use ethsync::ManageNetwork;
-use fetch::{Client as FetchClient, Fetch};
-use util::{Mutex, sha3};
+use fetch::{Client as FetchClient, Error as FetchError, Fetch};
+use futures::Future;
+use util::sha3;
 
 use jsonrpc_core::Error;
 use jsonrpc_macros::Ready;
@@ -40,7 +41,7 @@ pub struct ParitySetClient<C, M, F=FetchClient> where
 	client: Weak<C>,
 	miner: Weak<M>,
 	net: Weak<ManageNetwork>,
-	fetch: Mutex<F>,
+	fetch: F,
 }
 
 impl<C, M> ParitySetClient<C, M, FetchClient> where
@@ -64,7 +65,7 @@ impl<C, M, F> ParitySetClient<C, M, F> where
 			client: Arc::downgrade(client),
 			miner: Arc::downgrade(miner),
 			net: Arc::downgrade(net),
-			fetch: Mutex::new(F::default()),
+			fetch: F::default(),
 		}
 	}
 
@@ -207,7 +208,8 @@ impl<C, M, F> ParitySet for ParitySetClient<C, M, F> where
 			Err(e) => ready.ready(Err(e)),
 			Ok(()) => {
 				let (tx, rx) = mpsc::channel();
-				let res = self.fetch.lock().request_async(&url, Default::default(), Box::new(move |result| {
+				let path = F::temp_filename();
+				let task = self.fetch.fetch_to_file(&url, &path).then(move |result| {
 					let result = hash_content(result)
 							.map_err(errors::from_fetch_error)
 							.map(Into::into);
@@ -217,16 +219,12 @@ impl<C, M, F> ParitySet for ParitySetClient<C, M, F> where
 						"recv() fails when `tx` has been dropped, if this closure is invoked `tx` is not dropped (`res == Ok()`); qed"
 					);
 					ready.ready(result);
-				}));
+					Ok(()) as Result<(), FetchError>
+				});
 
-				// Either invoke ready right away or transfer it to the closure.
-				if let Err(e) = res {
-					ready.ready(Err(errors::from_fetch_error(e)));
-				} else {
-					tx.send(ready).expect(
-						"send() fails when `rx` end is dropped, if `res == Ok()`: `rx` is moved to the closure; qed"
-					);
-				}
+				tx.send(ready).expect(
+					"send() fails when `rx` end is dropped, if `res == Ok()`: `rx` is moved to the closure; qed"
+				);
 			}
 		}
 	}

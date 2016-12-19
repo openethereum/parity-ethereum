@@ -17,28 +17,33 @@
 //! Test implementation of fetch client.
 
 use std::io::Write;
-use std::{env, fs, thread};
-use std::sync::Arc;
-use std::sync::atomic::AtomicBool;
-use fetch::{Fetch, FetchError, FetchResult};
+use std::{fs, thread};
+use std::path::{Path, PathBuf};
+use futures::{self, Future};
+use fetch::{Fetch, Error as FetchError, Response};
 
 /// Test implementation of fetcher. Will always return the same file.
 #[derive(Default)]
 pub struct TestFetch;
 
 impl Fetch for TestFetch {
-	fn request_async(&mut self, _url: &str, _abort: Arc<AtomicBool>, on_done: Box<Fn(FetchResult) + Send>) -> Result<(), FetchError> {
-		thread::spawn(move || {
-			let mut path = env::temp_dir();
-			path.push(Self::random_filename());
+	type Result = futures::BoxFuture<Response, FetchError>;
+	type FileResult = futures::BoxFuture<PathBuf, FetchError>;
 
+	fn fetch(&self, _url: &str) -> Self::Result {
+		unimplemented!()
+	}
+
+	fn fetch_to_file(&self, _url: &str, path: &Path) -> Self::FileResult {
+		let path = path.to_path_buf();
+		let (tx, rx) = futures::oneshot();
+		thread::spawn(move || {
 			let mut file = fs::File::create(&path).unwrap();
 			file.write_all(b"Some content").unwrap();
 
-			on_done(Ok(path));
+			tx.complete(path);
 		});
-		Ok(())
+
+		rx.map_err(|_| unimplemented!()).boxed()
 	}
 }
-
-

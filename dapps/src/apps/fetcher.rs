@@ -19,17 +19,17 @@
 //! Uses `URLHint` to resolve addresses into Dapps bundle file location.
 
 use zip;
-use std::{fs, env, fmt};
+use std::{fs, fmt};
 use std::io::{self, Read, Write};
 use std::path::PathBuf;
 use std::sync::Arc;
 use rustc_serialize::hex::FromHex;
+use fetch::{Client as FetchClient, Fetch};
 use hash_fetch::urlhint::{URLHintContract, URLHint, URLHintResult};
 
 use hyper;
 use hyper::status::StatusCode;
 
-use random_filename;
 use SyncStatus;
 use util::{Mutex, H256};
 use util::sha3::sha3;
@@ -60,8 +60,7 @@ impl<R: URLHint> Drop for ContentFetcher<R> {
 impl<R: URLHint> ContentFetcher<R> {
 
 	pub fn new(resolver: R, sync_status: Arc<SyncStatus>, embeddable_on: Option<(String, u16)>) -> Self {
-		let mut dapps_path = env::temp_dir();
-		dapps_path.push(random_filename());
+		let dapps_path = FetchClient::temp_filename();
 
 		ContentFetcher {
 			dapps_path: dapps_path,
@@ -136,7 +135,7 @@ impl<R: URLHint> ContentFetcher<R> {
 							Some(endpoint) => cache.insert(id.clone(), ContentStatus::Ready(endpoint)),
 							// In case of error
 							None => cache.remove(&id),
-						}
+						};
 					};
 
 					match content {
@@ -252,7 +251,6 @@ struct ContentInstaller {
 
 impl ContentValidator for ContentInstaller {
 	type Error = ValidationError;
-	type Result = LocalPageEndpoint;
 
 	fn validate_and_install(&self, path: PathBuf) -> Result<LocalPageEndpoint, ValidationError> {
 		let validate = || {
@@ -332,7 +330,6 @@ impl DappInstaller {
 
 impl ContentValidator for DappInstaller {
 	type Error = ValidationError;
-	type Result = LocalPageEndpoint;
 
 	fn validate_and_install(&self, path: PathBuf) -> Result<LocalPageEndpoint, ValidationError> {
 		trace!(target: "dapps", "Opening dapp bundle at {:?}", path);

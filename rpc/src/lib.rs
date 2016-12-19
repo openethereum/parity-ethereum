@@ -37,6 +37,8 @@ extern crate ethcore_ipc;
 extern crate time;
 extern crate rlp;
 extern crate fetch;
+extern crate futures;
+extern crate rand;
 
 #[macro_use]
 extern crate log;
