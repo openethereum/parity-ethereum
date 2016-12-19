@@ -16,8 +16,10 @@
 
 import AddAddress from './AddAddress';
 import AddContract from './AddContract';
+import AddDapps from './AddDapps';
 import CreateAccount from './CreateAccount';
 import CreateWallet from './CreateWallet';
+import DappPermissions from './DappPermissions';
 import DeleteAccount from './DeleteAccount';
 import DeployContract from './DeployContract';
 import EditMeta from './EditMeta';
@@ -35,8 +37,10 @@ import WalletSettings from './WalletSettings';
 export {
   AddAddress,
   AddContract,
+  AddDapps,
   CreateAccount,
   CreateWallet,
+  DappPermissions,
   DeleteAccount,
   DeployContract,
   EditMeta,

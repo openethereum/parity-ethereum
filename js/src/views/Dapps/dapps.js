@@ -16,16 +16,15 @@
 
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
-import { Checkbox } from 'material-ui';
+import { Checkbox, FlatButton } from 'material-ui';
+import EyeIcon from 'material-ui/svg-icons/image/remove-red-eye';
 import { observer } from 'mobx-react';
 
+import { AddDapps, DappPermissions } from '~/modals';
+import DappPermissionStore from '~/modals/DappPermissions/store';
 import { Actionbar, Page } from '~/ui';
-import FlatButton from 'material-ui/FlatButton';
-import EyeIcon from 'material-ui/svg-icons/image/remove-red-eye';
 
 import DappsStore from './dappsStore';
-
-import AddDapps from './AddDapps';
 import Summary from './Summary';
 
 import styles from './dapps.css';
@@ -37,6 +36,7 @@ export default class Dapps extends Component {
   }
 
   store = DappsStore.get(this.context.api);
+  permissionStore = new DappPermissionStore(this.context.api);
 
   render () {
     let externalOverlay = null;
@@ -68,6 +68,7 @@ export default class Dapps extends Component {
     return (
       <div>
         <AddDapps store={ this.store } />
+        <DappPermissions store={ this.permissionStore } />
         <Actionbar
           className={ styles.toolbar }
           title={

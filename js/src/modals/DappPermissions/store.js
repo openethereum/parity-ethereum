@@ -14,13 +14,46 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import { action, observable } from 'mobx';
+
 export default class Store {
+  @observable checked = [];
+  @observable showing = false;
+  @observable whitelist = [];
+
   constructor (api) {
     this._api = api;
 
-    this.loadDefaults();
+    this.loadWhitelist();
   }
 
-  loadDefaults () {
+  @action setModalVisibility (showing) {
+    this.showing = showing;
+  }
+
+  @action setWhitelist (whitelist) {
+    this.whitelist = whitelist;
+  }
+
+  loadWhitelist () {
+    return this._api
+      .getNewDappsWhitelist()
+      .then((whitelist) => {
+        this.setWhitelist(whitelist);
+      })
+      .catch((error) => {
+        console.warn('loadWhitelist', error);
+      });
+  }
+
+  updateWhitelist (whitelist) {
+    return this._api
+      .setNewDappsWhitelist(whitelist)
+      .then(() => {
+        this.setWhitelist(whitelist);
+      })
+      .catch((error) => {
+        console.warn('updateWhitelist', error);
+      });
   }
 }
