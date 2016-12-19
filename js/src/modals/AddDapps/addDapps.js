@@ -23,7 +23,7 @@ import Checkbox from 'material-ui/Checkbox';
 
 import { Modal, Button } from '~/ui';
 
-import styles from './AddDapps.css';
+import styles from './addDapps.css';
 
 @observer
 export default class AddDapps extends Component {
