@@ -25,29 +25,15 @@ if ('serviceWorker' in navigator) {
     .register()
     .then(() => {
       console.log('registering service worker');
-
-      if (navigator.serviceWorker.controller) {
-        // already active and controlling this page
-        return navigator.serviceWorker;
-      }
-      // wait for a new service worker to control this page
-      return new Promise((resolve, reject) => {
-        try {
-          const onControllerChange = () => {
-            navigator.serviceWorker.removeEventListener('controllerchange', onControllerChange);
-            resolve(navigator.serviceWorker);
-          };
-
-          navigator.serviceWorker.addEventListener('controllerchange', onControllerChange);
-        } catch (error) {
-          reject(error);
-        }
-      });
+      return navigator.serviceWorker.ready;
     })
-    .then((_worker) => {
+    .then((registration) => {
+      console.log('registered service worker');
+
+      const _worker = registration.active;
+      _worker.controller = registration.active;
       const worker = new PromiseWorker(_worker);
 
-      console.log('registered service worker');
       return worker;
     });
 } else {

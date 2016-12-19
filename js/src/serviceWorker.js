@@ -25,10 +25,12 @@ registerPromiseWorker((msg) => {
 });
 
 self.addEventListener('install', (event) => {
+  console.warn('installing sw');
   event.waitUntil(self.skipWaiting());
 });
 
 self.addEventListener('activate', (event) => {
+  console.warn('activating sw');
   event.waitUntil(self.clients.claim());
 });
 
@@ -141,18 +143,19 @@ function fetchSolc (build) {
 
       return fetch(URL)
         .then((response) => {
-          if (!response || response.status !== 200 || response.type !== 'basic') {
+          if (!response || response.status !== 200) {
             return response;
           }
 
           const responseToCache = response.clone();
 
-          caches.open(CACHE_NAME)
+          return caches.open(CACHE_NAME)
             .then((cache) => {
-              cache.put(URL, responseToCache);
+              return cache.put(URL, responseToCache);
+            })
+            .then(() => {
+              return response;
             });
-
-          return response;
         });
     });
 }

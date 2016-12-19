@@ -74,6 +74,7 @@ export default class WriteContractStore {
 
   @observable workerError = null;
 
+  loadingSolidity = false;
   lastCompilation = {};
   snippets = SNIPPETS;
   worker = null;
@@ -147,7 +148,11 @@ export default class WriteContractStore {
       return;
     }
 
-    return this.worker
+    if (this.loadingSolidity) {
+      return this.loadingSolidity;
+    }
+
+    this.loadingSolidity = this.worker
       .postMessage({
         action: 'load',
         data: build
@@ -161,8 +166,11 @@ export default class WriteContractStore {
         this.setWorkerError(error);
       })
       .then(() => {
+        this.loadingSolidity = false;
         this.loading = false;
       });
+
+    return this.loadingSolidity;
   }
 
   @action handleOpenDeployModal = () => {
@@ -243,18 +251,20 @@ export default class WriteContractStore {
         });
     }
 
-    return promise.then((data = {}) => {
-      const {
-        contract, contractIndex,
-        annotations, contracts, errors
-      } = data.result;
+    return promise.then((data = null) => {
+      if (data) {
+        const {
+          contract, contractIndex,
+          annotations, contracts, errors
+        } = data.result;
 
-      this.contract = contract;
-      this.contractIndex = contractIndex;
+        this.contract = contract;
+        this.contractIndex = contractIndex;
 
-      this.annotations = annotations;
-      this.contracts = contracts;
-      this.errors = errors;
+        this.annotations = annotations;
+        this.contracts = contracts;
+        this.errors = errors;
+      }
 
       this.compiled = true;
       this.compiling = false;
