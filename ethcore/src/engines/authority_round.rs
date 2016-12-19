@@ -126,7 +126,7 @@ impl AuthorityRound {
 
 	fn remaining_step_duration(&self) -> Duration {
 		let now = unix_now();
-		let step_end = self.our_params.step_duration * (self.step.load(AtomicOrdering::SeqCst) as u32 + 1);
+		let step_end = self.step_duration * (self.step.load(AtomicOrdering::SeqCst) as u32 + 1);
 		if step_end > now {
 			step_end - now
 		} else {
