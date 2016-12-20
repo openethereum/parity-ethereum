@@ -53,7 +53,7 @@ export default class Extras extends Component {
               defaultMessage='BlockNumber to send from' />
           }
           value={ minBlock }
-          onSubmit={ this.onEditMinBlock } />
+          onChange={ this.onEditMinBlock } />
         <div className={ styles.gaseditor }>
           <GasPriceEditor
             store={ gasStore }

@@ -87,7 +87,7 @@ export default class TransferStore {
 
   @computed get isValid () {
     const detailsValid = !this.recipientError && !this.valueError && !this.totalError && !this.senderError;
-    const extrasValid = !this.gasStore.errorGas && !this.gasStore.errorPrice && !this.totalError;
+    const extrasValid = !this.gasStore.errorGas && !this.gasStore.errorPrice && !this.minBlockError && !this.totalError;
     const verifyValid = !this.passwordError;
 
     switch (this.stage) {
@@ -95,7 +95,9 @@ export default class TransferStore {
         return detailsValid;
 
       case 1:
-        return this.extras ? extrasValid : verifyValid;
+        return this.extras
+          ? extrasValid
+          : verifyValid;
 
       case 2:
         return verifyValid;
@@ -261,6 +263,7 @@ export default class TransferStore {
   }
 
   @action _onUpdateMinBlock = (minBlock) => {
+    console.log('minBlock', minBlock);
     transaction(() => {
       this.minBlock = minBlock;
       this.minBlockError = this._validatePositiveNumber(minBlock);
