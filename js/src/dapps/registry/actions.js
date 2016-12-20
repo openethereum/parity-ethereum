@@ -26,6 +26,21 @@ import * as records from './Records/actions.js';
 
 export { addresses, accounts, lookup, events, names, records };
 
+export const setIsTestnet = (isTestnet) => ({ type: 'set isTestnet', isTestnet });
+
+export const fetchIsTestnet = () => (dispatch) =>
+  api.net.version()
+  .then((netVersion) => {
+    dispatch(setIsTestnet(
+      netVersion === '2' || // morden
+      netVersion === '3' // ropsten
+    ));
+  })
+  .catch((err) => {
+    console.error('could not check if testnet');
+    if (err) console.error(err.stack);
+  });
+
 export const setContract = (contract) => ({ type: 'set contract', contract });
 
 export const fetchContract = () => (dispatch) =>

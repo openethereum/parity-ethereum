@@ -21,6 +21,9 @@ import eventsReducer from './Events/reducers.js';
 import namesReducer from './Names/reducers.js';
 import recordsReducer from './Records/reducers.js';
 
+const isTestnetReducer = (state = null, action) =>
+  action.type === 'set isTestnet' ? action.isTestnet : state;
+
 const contractReducer = (state = null, action) =>
   action.type === 'set contract' ? action.contract : state;
 
@@ -31,6 +34,7 @@ const ownerReducer = (state = null, action) =>
   action.type === 'set owner' ? action.owner : state;
 
 const initialState = {
+  isTestnet: isTestnetReducer(undefined, { type: '' }),
   accounts: accountsReducer(undefined, { type: '' }),
   contacts: contactsReducer(undefined, { type: '' }),
   contract: contractReducer(undefined, { type: '' }),
@@ -43,6 +47,7 @@ const initialState = {
 };
 
 export default (state = initialState, action) => ({
+  isTestnet: isTestnetReducer(state.isTestnet, action),
   accounts: accountsReducer(state.accounts, action),
   contacts: contactsReducer(state.contacts, action),
   contract: contractReducer(state.contract, action),

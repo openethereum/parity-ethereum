@@ -37,6 +37,7 @@ class Container extends Component {
 
   componentDidMount () {
     Promise.all([
+      this.props.actions.fetchIsTestnet(),
       this.props.actions.addresses.fetch(),
       this.props.actions.fetchContract()
     ]).then(() => {
