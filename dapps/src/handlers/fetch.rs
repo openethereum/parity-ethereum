@@ -202,9 +202,9 @@ impl<H: ContentValidator, F: Fetch> ContentFetcherHandler<H, F> {
 
 	fn fetch_content(&self, url: &str, control: Control) -> mpsc::Receiver<Result<(PathBuf, Option<Mime>), fetch::Error>> {
 		let (tx, rx) = mpsc::channel();
-		let abort = self.fetch_control.clone();
+		let abort = self.fetch_control.abort.clone();
 
-		let future = self.fetch.fetch_to_file(url, &F::temp_filename()).then(move |result| {
+		let future = self.fetch.fetch_to_file(url, &F::temp_filename(), abort.into()).then(move |result| {
 			trace!(target: "dapps", "Fetching finished.");
 			tx.send(result).unwrap();
 			// Ignoring control errors

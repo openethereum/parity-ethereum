@@ -27,4 +27,4 @@ extern crate reqwest;
 
 pub mod client;
 
-pub use self::client::{Client, Fetch, Error, Response, Mime};
+pub use self::client::{Client, Fetch, Error, Response, Mime, Abort};

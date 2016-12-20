@@ -20,11 +20,27 @@ use std::{fs, io};
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
+use std::sync::atomic::{self, AtomicBool};
 
 use futures::{self, Future};
 use futures_cpupool::{CpuPool, CpuFuture};
 use reqwest;
 pub use mime::Mime;
+
+#[derive(Default, Debug, Clone)]
+pub struct Abort(Arc<AtomicBool>);
+
+impl Abort {
+	pub fn is_aborted(&self) -> bool {
+		self.0.load(atomic::Ordering::SeqCst)
+	}
+}
+
+impl From<Arc<AtomicBool>> for Abort {
+	fn from(a: Arc<AtomicBool>) -> Self {
+		Abort(a)
+	}
+}
 
 pub trait Fetch: Clone + Send + Sync + 'static {
 	type Result: Future<Item=Response, Error=Error> + Send + 'static;
@@ -38,7 +54,7 @@ pub trait Fetch: Clone + Send + Sync + 'static {
 		self.fetch(url).wait()
 	}
 
-	fn fetch_to_file(&self, url: &str, path: &Path) -> Self::FileResult;
+	fn fetch_to_file(&self, url: &str, path: &Path, abort: Abort) -> Self::FileResult;
 
 	/// Closes this client
 	fn close(self) where Self: Sized {}
@@ -80,6 +96,17 @@ impl Client {
 			limit: limit,
 		})
 	}
+
+	fn fetch_with_abort(&self, url: &str, abort: Abort) -> CpuFuture<Response, Error> {
+		debug!(target: "fetch", "Fetching from: {:?}", url);
+
+		self.pool.spawn(FetchTask {
+			url: url.into(),
+			client: self.client.clone(),
+			limit: self.limit,
+			abort: abort,
+		})
+	}
 }
 
 impl Fetch for Client {
@@ -87,18 +114,13 @@ impl Fetch for Client {
 	type FileResult = CpuFuture<(PathBuf, Option<Mime>), Error>;
 
 	fn fetch(&self, url: &str) -> Self::Result {
-		debug!(target: "fetch", "Fetching from: {:?}", url);
-
-		self.pool.spawn(FetchTask {
-			url: url.into(),
-			client: self.client.clone(),
-		})
+		self.fetch_with_abort(url, Default::default())
 	}
 
-	fn fetch_to_file(&self, url: &str, path: &Path) -> Self::FileResult {
+	fn fetch_to_file(&self, url: &str, path: &Path, abort: Abort) -> Self::FileResult {
 		let path = path.to_path_buf();
 		trace!(target: "fetch", "Fetching {:?} to file: {:?}", url, path);
-		self.pool.spawn(self.fetch(url).and_then(move |mut result| {
+		self.pool.spawn(self.fetch_with_abort(url, abort).and_then(move |mut result| {
 			trace!(target: "fetch", "Got response: {:?}. Saving.", result);
 			let mut file = try!(fs::File::create(&path));
 			try!(io::copy(&mut result, &mut file));
@@ -113,14 +135,21 @@ impl Fetch for Client {
 struct FetchTask {
 	url: String,
 	client: Arc<reqwest::Client>,
+	limit: Option<usize>,
+	abort: Abort,
 }
 
 impl Future for FetchTask {
-	// TODO [ToDr] Response should handle cancelation, timeouts and size limit!
+	// TODO [ToDr] timeouts handling?
 	type Item = Response;
 	type Error = Error;
 
 	fn poll(&mut self) -> futures::Poll<Self::Item, Self::Error> {
+		if self.abort.is_aborted() {
+			trace!(target: "fetch", "Fetch of {:?} aborted.", self.url);
+			return Err(Error::Aborted);
+		}
+
 		trace!(target: "fetch", "Starting fetch task: {:?}", self.url);
 		let result = try!(self.client.get(&self.url)
 			.header(reqwest::header::UserAgent("Parity Fetch".into()))
@@ -128,6 +157,9 @@ impl Future for FetchTask {
 
 		Ok(futures::Async::Ready(Response {
 			inner: result,
+			abort: self.abort.clone(),
+			limit: self.limit,
+			read: 0,
 		}))
 	}
 }
@@ -136,6 +168,7 @@ impl Future for FetchTask {
 pub enum Error {
 	Fetch(reqwest::Error),
 	Io(io::Error),
+	Aborted,
 }
 
 impl From<reqwest::Error> for Error {
@@ -153,6 +186,9 @@ impl From<io::Error> for Error {
 #[derive(Debug)]
 pub struct Response {
 	inner: reqwest::Response,
+	abort: Abort,
+	limit: Option<usize>,
+	read: usize,
 }
 
 impl Response {
@@ -164,6 +200,25 @@ impl Response {
 
 impl io::Read for Response {
 	fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-		self.inner.read(buf)
+		if self.abort.is_aborted() {
+			return Err(io::Error::new(io::ErrorKind::ConnectionAborted, "Fetch aborted."));
+		}
+
+		let res = self.inner.read(buf);
+
+		// increase bytes read
+		if let Ok(read) = res {
+			self.read += read;
+		}
+
+		// check limit
+		match self.limit {
+			Some(limit) if limit < self.read => {
+				return Err(io::Error::new(io::ErrorKind::PermissionDenied, "Size limit reached."));
+			},
+			_ => {},
+		}
+
+		res
 	}
 }

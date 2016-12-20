@@ -111,7 +111,7 @@ impl<F: Fetch + 'static> HashFetch for Client<F> {
 		match url {
 			Err(err) => on_done(Err(err)),
 			Ok(url) => {
-				let future = self.fetch.fetch_to_file(&url, &F::temp_filename()).then(move |result| {
+				let future = self.fetch.fetch_to_file(&url, &F::temp_filename(), Default::default()).then(move |result| {
 					fn validate_hash(hash: H256, result: Result<PathBuf, FetchError>) -> Result<PathBuf, Error> {
 						let path = try!(result);
 						let mut file_reader = io::BufReader::new(try!(fs::File::open(&path)));

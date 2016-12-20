@@ -20,7 +20,7 @@ use std::io::Write;
 use std::{fs, thread};
 use std::path::{Path, PathBuf};
 use futures::{self, Future};
-use fetch::{Fetch, Error as FetchError, Response, Mime};
+use fetch::{Fetch, Error as FetchError, Response, Mime, Abort};
 
 /// Test implementation of fetcher. Will always return the same file.
 #[derive(Default, Clone)]
@@ -34,7 +34,7 @@ impl Fetch for TestFetch {
 		unimplemented!()
 	}
 
-	fn fetch_to_file(&self, _url: &str, path: &Path) -> Self::FileResult {
+	fn fetch_to_file(&self, _url: &str, path: &Path, _abort: Abort) -> Self::FileResult {
 		let path = path.to_path_buf();
 		let (tx, rx) = futures::oneshot();
 		thread::spawn(move || {

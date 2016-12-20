@@ -208,7 +208,7 @@ impl<C, M, U, F> ParitySet for ParitySetClient<C, M, U, F> where
 			Err(e) => ready.ready(Err(e)),
 			Ok(()) => {
 				let path = F::temp_filename();
-				let task = self.fetch.fetch_to_file(&url, &path).then(move |result| {
+				let task = self.fetch.fetch_to_file(&url, &path, Default::default()).then(move |result| {
 					let result = hash_content(result)
 							.map_err(errors::from_fetch_error)
 							.map(Into::into);
