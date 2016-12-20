@@ -20,7 +20,7 @@ const sysuiToken = window.localStorage.getItem('sysuiToken');
 
 export default class SecureApi extends Api {
   constructor (url, nextToken) {
-    super(new Api.Transport.Ws(url, sysuiToken));
+    super(new Api.Transport.Ws(url, sysuiToken, false));
 
     this._url = url;
     this._isConnecting = true;
@@ -140,7 +140,7 @@ export default class SecureApi extends Api {
   }
 
   updateToken (token) {
-    this._transport.updateToken(token.replace(/[^a-zA-Z0-9]/g, ''));
+    this._transport.updateToken(token.replace(/[^a-zA-Z0-9]/g, ''), false);
     return this._followConnection();
     // DEBUG: console.log('SecureApi:updateToken', this._transport.token, connectState);
   }

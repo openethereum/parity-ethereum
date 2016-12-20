@@ -22,7 +22,7 @@ import TransportError from '../error';
 
 /* global WebSocket */
 export default class Ws extends JsonRpcBase {
-  constructor (url, token) {
+  constructor (url, token, connect = true) {
     super();
 
     this._url = url;
@@ -39,14 +39,18 @@ export default class Ws extends JsonRpcBase {
     this._connectPromise = null;
     this._connectPromiseFunctions = {};
 
-    // this.connect();
+    if (connect) {
+      this.connect();
+    }
   }
 
-  updateToken (token) {
+  updateToken (token, connect = true) {
     this._token = token;
     // this._autoConnect = true;
 
-    // this.connect();
+    if (connect) {
+      this.connect();
+    }
   }
 
   connect () {
