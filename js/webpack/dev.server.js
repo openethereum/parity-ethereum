@@ -34,6 +34,8 @@ let progressBar = { update: () => {} };
  * and HMR to the plugins
  */
 (function updateWebpackConfig () {
+  webpackConfig.performance = { hints: false };
+
   Object.keys(webpackConfig.entry).forEach((key) => {
     const entry = webpackConfig.entry[key];
 
