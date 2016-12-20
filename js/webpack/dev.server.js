@@ -22,6 +22,7 @@ const webpackHotMiddleware = require('webpack-hot-middleware');
 const http = require('http');
 const express = require('express');
 const ProgressBar = require('progress');
+const proxy = require('http-proxy-middleware');
 
 const webpackConfig = require('./app');
 const Shared = require('./shared');
@@ -81,13 +82,18 @@ app.use(webpackDevMiddleware(compiler, {
   }
 }));
 
-app.use(express.static(webpackConfig.output.path));
+var wsProxy = proxy('ws://127.0.0.1:8180', { changeOrigin: true });
 
 // Add the dev proxies in the express App
 Shared.addProxies(app);
+
+app.use(express.static(webpackConfig.output.path));
+app.use(wsProxy);
 
 const server = http.createServer(app);
 server.listen(process.env.PORT || 3000, function () {
   console.log('Listening on port', server.address().port);
   progressBar = new ProgressBar('[:bar] :percent :etas', { total: 50 });
 });
+
+server.on('upgrade', wsProxy.upgrade);
