@@ -53,6 +53,12 @@ const STORE = {
       },
       nodeStatus: {
         gasLimit: new BigNumber(123)
+      },
+      personal: {
+        accountsInfo: {}
+      },
+      settings: {
+        backgroundSeed: ''
       }
     };
   }
