@@ -14,29 +14,18 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { isAction, isStage } from '../util/actions';
-
-const initialState = {
-  pending: false,
-  name: '', type: '', value: ''
+export const isAction = (ns, type, action) => {
+  return action.type.slice(0, ns.length + 1 + type.length) === `${ns} ${type}`;
 };
 
-export default (state = initialState, action) => {
-  if (!isAction('records', 'update', action)) {
-    return state;
-  }
+export const isStage = (stage, action) => {
+  return action.type.slice(-1 - stage.length) === ` ${stage}`;
+};
 
-  if (isStage('start', action)) {
-    return {
-      ...state, pending: true,
-      name: action.name, type: action.entry, value: action.value
-    };
-  } else if (isStage('success', action) || isStage('fail', action)) {
-    return {
-      ...state, pending: false,
-      name: initialState.name, type: initialState.type, value: initialState.value
-    };
-  } else {
-    return state;
-  }
+export const addToQueue = (queue, action, name) => {
+  return queue.concat({ action, name });
+};
+
+export const removeFromQueue = (queue, action, name) => {
+  return queue.filter((e) => e.action === action && e.name === name);
 };
