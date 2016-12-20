@@ -16,7 +16,7 @@
 
 import React, { PropTypes, Component } from 'react';
 import { observer } from 'mobx-react';
-import { MenuItem } from 'material-ui';
+import { MenuItem, Toggle } from 'material-ui';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 import CircularProgress from 'material-ui/CircularProgress';
@@ -282,6 +282,24 @@ class WriteContract extends Component {
             />
             : null
           }
+        </div>
+        <div className={ styles.toggles }>
+          <div>
+            <Toggle
+              label='Optimize'
+              labelPosition='right'
+              onToggle={ this.store.handleOptimizeToggle }
+              toggled={ this.store.optimize }
+            />
+          </div>
+          <div>
+            <Toggle
+              label='Auto-Compile'
+              labelPosition='right'
+              onToggle={ this.store.handleAutocompileToggle }
+              toggled={ this.store.autocompile }
+            />
+          </div>
         </div>
         { this.renderSolidityVersions() }
         { this.renderCompilation() }

@@ -66,6 +66,9 @@ export default class WriteContractStore {
   @observable builds = [];
   @observable selectedBuild = -1;
 
+  @observable autocompile = false;
+  @observable optimize = false;
+
   @observable showDeployModal = false;
   @observable showSaveModal = false;
   @observable showLoadModal = false;
@@ -278,7 +281,7 @@ export default class WriteContractStore {
     const build = this.builds[this.selectedBuild];
     const version = build.longVersion;
     const sourcecode = this.sourcecode.replace(/\n+/g, '\n').replace(/\s(\s+)/g, ' ');
-    const hash = sha3(JSON.stringify({ version, sourcecode }));
+    const hash = sha3(JSON.stringify({ version, sourcecode, optimize: this.optimize }));
 
     let promise = Promise.resolve(null);
 
@@ -297,7 +300,8 @@ export default class WriteContractStore {
         .then(() => {
           return this.compile({
             sourcecode: sourcecode,
-            build: build
+            build: build,
+            optimize: this.optimize
           });
         })
         .then((data) => {
@@ -335,6 +339,14 @@ export default class WriteContractStore {
       this.compiled = true;
       this.compiling = false;
     });
+  }
+
+  @action handleAutocompileToggle = () => {
+    this.autocompile = !this.autocompile;
+  }
+
+  @action handleOptimizeToggle = () => {
+    this.optimize = !this.optimize;
   }
 
   @action parseCompiled = (data) => {
@@ -395,7 +407,7 @@ export default class WriteContractStore {
 
     if (compile) {
       this.handleCompile();
-    } else {
+    } else if (this.autocompile) {
       this.debouncedCompile();
     }
   }

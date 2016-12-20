@@ -26,6 +26,16 @@
   color: #ccc;
 }
 
+.toggles {
+  display: flex;
+  flex-direction: row;
+  margin: 1em 0 0;
+
+  > * {
+    flex: 1;
+  }
+}
+
 .container {
   padding: 1em 0;
   display: flex;
