@@ -1,7 +1,7 @@
 {
 	"name": "DevelopmentChain",
 	"engine": {
-		"InstantSeal": null
+		"instantSeal": null
 	},
 	"params": {
 		"accountStartNonce": "0x0",

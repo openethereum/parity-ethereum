@@ -139,9 +139,7 @@ fn file_exists(path: &Path) -> bool {
 }
 
 pub fn upgrade_key_location(from: &PathBuf, to: &PathBuf) {
-	let mut parent = to.clone();
-	parent.pop();
-	match fs::create_dir_all(&parent).and_then(|()| fs::read_dir(from)) {
+	match fs::create_dir_all(&to).and_then(|()| fs::read_dir(from)) {
 		Ok(entries) => {
 			let files: Vec<_> = entries.filter_map(|f| f.ok().and_then(|f| if f.file_type().ok().map_or(false, |f| f.is_file()) { f.file_name().to_str().map(|s| s.to_owned()) } else { None })).collect();
 			let mut num: usize = 0;
@@ -165,7 +163,7 @@ pub fn upgrade_key_location(from: &PathBuf, to: &PathBuf) {
 			}
 		},
 		Err(e) => {
-			warn!("Error moving keys from {:?} to {:?}: {:?}", from, to, e);
+			debug!("Error moving keys from {:?} to {:?}: {:?}", from, to, e);
 		}
 	}
 }

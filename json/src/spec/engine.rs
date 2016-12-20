@@ -25,16 +25,21 @@ use spec::Tendermint;
 #[derive(Debug, PartialEq, Deserialize)]
 pub enum Engine {
 	/// Null engine.
+	#[serde(rename="null")]
 	Null,
 	/// Instantly sealing engine.
+	#[serde(rename="instantSeal")]
 	InstantSeal,
 	/// Ethash engine.
 	Ethash(Ethash),
 	/// BasicAuthority engine.
+	#[serde(rename="basicAuthority")]
 	BasicAuthority(BasicAuthority),
 	/// AuthorityRound engine.
+	#[serde(rename="authorityRound")]
 	AuthorityRound(AuthorityRound),
 	/// Tendermint engine.
+	#[serde(rename="tendermint")]
 	Tendermint(Tendermint)
 }
 
@@ -46,14 +51,14 @@ mod tests {
 	#[test]
 	fn engine_deserialization() {
 		let s = r#"{
-			"Null": null
+			"null": null
 		}"#;
 
 		let deserialized: Engine = serde_json::from_str(s).unwrap();
 		assert_eq!(Engine::Null, deserialized);
 
 		let s = r#"{
-			"InstantSeal": null
+			"instantSeal": null
 		}"#;
 
 		let deserialized: Engine = serde_json::from_str(s).unwrap();
