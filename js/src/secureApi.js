@@ -22,6 +22,7 @@ export default class SecureApi extends Api {
   constructor (url, nextToken) {
     super(new Api.Transport.Ws(url, sysuiToken));
 
+    this._url = url;
     this._isConnecting = true;
     this._connectState = sysuiToken === 'initial' ? 1 : 0;
     this._needsToken = false;
@@ -41,8 +42,13 @@ export default class SecureApi extends Api {
     // DEBUG: console.log('SecureApi:setToken', this._transport.token);
   }
 
+  /**
+   * Returns a Promise that gets resolved with
+   * a boolean: `true` if the node is up, `false`
+   * otherwise
+   */
   _checkNodeUp () {
-    return fetch('/', { method: 'HEAD' })
+    return fetch(this._url, { method: 'HEAD' })
       .then(
         (r) => r.status === 200,
         () => false
