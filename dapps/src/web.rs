@@ -18,26 +18,36 @@
 
 use std::path::PathBuf;
 use endpoint::{Endpoint, Handler, EndpointPath};
-use handlers::{ContentFetcherHandler, ContentHandler, ContentValidator, extract_url};
+use handlers::{ContentFetcherHandler, ContentHandler, ContentValidator, Redirection, extract_url};
 use page::{LocalPageEndpoint, PageCache};
+use fetch::{Fetch, Mime};
 use url::Url;
 use hyper::{self, server, net, Next, Encoder, Decoder};
 use hyper::status::StatusCode;
+use parity_reactor::Remote;
 
-pub struct Web;
+pub struct Web<F> {
+	remote: Remote,
+	fetch: F,
+}
 
-impl Web {
-	pub fn boxed() -> Box<Endpoint> {
-		Box::new(Web)
+impl<F: Fetch> Web<F> {
+	pub fn boxed(remote: Remote, fetch: F) -> Box<Endpoint> {
+		Box::new(Web {
+			remote: remote,
+			fetch: fetch,
+		})
 	}
 }
 
-impl Endpoint for Web {
+impl<F: Fetch> Endpoint for Web<F> {
 	fn to_async_handler(&self, path: EndpointPath, control: hyper::Control) -> Box<Handler> {
 		Box::new(WebHandler {
 			control: control,
 			state: State::Initial,
 			path: path,
+			remote: self.remote.clone(),
+			fetch: self.fetch.clone(),
 		})
 	}
 }
@@ -47,52 +57,71 @@ pub struct WebInstaller;
 impl ContentValidator for WebInstaller {
 	type Error = String;
 
-	fn validate_and_install(&self, path: PathBuf) -> Result<LocalPageEndpoint, Self::Error> {
-		Ok(LocalPageEndpoint::single_file(path, "text/html".into(), PageCache::Enabled))
+	fn validate_and_install(&self, path: PathBuf, mime: Option<Mime>) -> Result<LocalPageEndpoint, Self::Error> {
+		let mime = mime.unwrap_or(mime!(Text/Html));
+		Ok(LocalPageEndpoint::single_file(path, mime, PageCache::Enabled))
 	}
 }
 
-enum State {
+enum State<F: Fetch> {
 	Initial,
 	Error(ContentHandler),
-	Fetching(ContentFetcherHandler<WebInstaller>),
+	Redirecting(Redirection),
+	Fetching(ContentFetcherHandler<WebInstaller, F>),
 }
 
-struct WebHandler {
+struct WebHandler<F: Fetch> {
 	control: hyper::Control,
-	state: State,
+	state: State<F>,
 	path: EndpointPath,
+	remote: Remote,
+	fetch: F,
 }
 
-impl WebHandler {
-	fn extract_target_url(url: Option<Url>) -> Result<String, ContentHandler> {
+impl<F: Fetch> WebHandler<F> {
+	fn extract_target_url(url: Option<Url>) -> Result<String, State<F>> {
 		let path = match url {
 			Some(url) => url.path,
 			None => {
-				return Err(ContentHandler::error(StatusCode::BadRequest, "Invalid URL", "Couldn't parse URL", None, None));
+				return Err(State::Error(
+					ContentHandler::error(StatusCode::BadRequest, "Invalid URL", "Couldn't parse URL", None, None)
+				));
 			}
 		};
+
 		println!("Path: {:?}", path);
+
+		// Validate protocol
 		let protocol = match path.get(1).map(|a| a.as_str()) {
 			Some("http") => "http",
 			Some("https") => "https",
 			_ => {
-				return Err(ContentHandler::error(StatusCode::BadRequest, "Invalid Protocol", "Invalid protocol used", None, None));
+				return Err(State::Error(
+					ContentHandler::error(StatusCode::BadRequest, "Invalid Protocol", "Invalid protocol used", None, None)
+				));
 			}
 		};
+
+		// Redirect if address to main page does not end with /
+		if let None = path.get(3) {
+			return Err(State::Redirecting(
+				Redirection::new(&format!("/{}/", path.join("/")))
+			));
+		}
 
 		Ok(format!("{}://{}", protocol, path[2..].join("/")))
 	}
 }
 
-impl server::Handler<net::HttpStream> for WebHandler {
+impl<F: Fetch> server::Handler<net::HttpStream> for WebHandler<F> {
 	fn on_request(&mut self, request: server::Request<net::HttpStream>) -> Next {
 		let url = extract_url(&request);
 
+		// First extract the URL (reject invalid URLs)
 		let target_url = match Self::extract_target_url(url) {
 			Ok(url) => url,
 			Err(error) => {
-				self.state = State::Error(error);
+				self.state = error;
 				return Next::write();
 			}
 		};
@@ -102,16 +131,15 @@ impl server::Handler<net::HttpStream> for WebHandler {
 			self.path.clone(),
 			self.control.clone(),
 			WebInstaller,
-			None
+			None,
+			self.remote.clone(),
+			self.fetch.clone(),
 		);
 		let res = handler.on_request(request);
 		self.state = State::Fetching(handler);
-		// First extract the URL (reject invalid URLs)
-		// Reject non-GET request
-		// Do some magic to check if it's a XHR request
+
+		// TODO [ToDr] Do some magic to check if it's a XHR request
 		// (maybe some additional Header that has to be sent by the dapp)
-		//
-		// Spin-up the ContentFetchHandler
 		res
 	}
 
@@ -119,6 +147,7 @@ impl server::Handler<net::HttpStream> for WebHandler {
 		match self.state {
 			State::Initial => Next::end(),
 			State::Error(ref mut handler) => handler.on_request_readable(decoder),
+			State::Redirecting(ref mut handler) => handler.on_request_readable(decoder),
 			State::Fetching(ref mut handler) => handler.on_request_readable(decoder),
 		}
 	}
@@ -127,6 +156,7 @@ impl server::Handler<net::HttpStream> for WebHandler {
 		match self.state {
 			State::Initial => Next::end(),
 			State::Error(ref mut handler) => handler.on_response(res),
+			State::Redirecting(ref mut handler) => handler.on_response(res),
 			State::Fetching(ref mut handler) => handler.on_response(res),
 		}
 	}
@@ -135,6 +165,7 @@ impl server::Handler<net::HttpStream> for WebHandler {
 		match self.state {
 			State::Initial => Next::end(),
 			State::Error(ref mut handler) => handler.on_response_writable(encoder),
+			State::Redirecting(ref mut handler) => handler.on_response_writable(encoder),
 			State::Fetching(ref mut handler) => handler.on_response_writable(encoder),
 		}
 	}

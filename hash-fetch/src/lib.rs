@@ -20,13 +20,16 @@
 
 #[macro_use]
 extern crate log;
+#[macro_use]
+extern crate mime;
 
 extern crate ethabi;
 extern crate ethcore_util as util;
-extern crate fetch;
+pub extern crate fetch;
 extern crate futures;
 extern crate mime_guess;
 extern crate rustc_serialize;
+extern crate parity_reactor;
 
 mod client;
 

@@ -23,7 +23,7 @@ use hyper::header::AccessControlAllowOrigin;
 
 use api::types::{App, ApiError};
 use api::response;
-use apps::fetcher::ContentFetcher;
+use apps::fetcher::Fetcher;
 
 use handlers::extract_url;
 use endpoint::{Endpoint, Endpoints, Handler, EndpointPath};
@@ -33,11 +33,11 @@ use jsonrpc_http_server::cors;
 pub struct RestApi {
 	cors_domains: Option<Vec<AccessControlAllowOrigin>>,
 	endpoints: Arc<Endpoints>,
-	fetcher: Arc<ContentFetcher>,
+	fetcher: Arc<Fetcher>,
 }
 
 impl RestApi {
-	pub fn new(cors_domains: Vec<String>, endpoints: Arc<Endpoints>, fetcher: Arc<ContentFetcher>) -> Box<Endpoint> {
+	pub fn new(cors_domains: Vec<String>, endpoints: Arc<Endpoints>, fetcher: Arc<Fetcher>) -> Box<Endpoint> {
 		Box::new(RestApi {
 			cors_domains: Some(cors_domains.into_iter().map(AccessControlAllowOrigin::Value).collect()),
 			endpoints: endpoints,

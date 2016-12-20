@@ -41,6 +41,7 @@ extern crate fetch;
 extern crate futures;
 extern crate rand;
 extern crate parity_updater as updater;
+extern crate parity_reactor;
 
 #[macro_use]
 extern crate log;

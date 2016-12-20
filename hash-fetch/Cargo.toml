@@ -10,7 +10,9 @@ authors = ["Parity Technologies <admin@parity.io>"]
 ethabi = "0.2.2"
 futures = "0.1"
 log = "0.3"
+mime = "0.2"
 mime_guess = "1.6.1"
 rustc-serialize = "0.3"
 fetch = { path = "../util/fetch" }
 ethcore-util = { path = "../util" }
+parity-reactor = { path = "../util/reactor" }

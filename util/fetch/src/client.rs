@@ -24,10 +24,11 @@ use std::sync::Arc;
 use futures::{self, Future};
 use futures_cpupool::{CpuPool, CpuFuture};
 use reqwest;
+pub use mime::Mime;
 
-pub trait Fetch: Default + Send + Sync {
+pub trait Fetch: Clone + Send + Sync + 'static {
 	type Result: Future<Item=Response, Error=Error> + Send + 'static;
-	type FileResult: Future<Item=PathBuf, Error=Error> + Send + 'static;
+	type FileResult: Future<Item=(PathBuf, Option<Mime>), Error=Error> + Send + 'static;
 
 	/// Fetch URL and get a future for the result.
 	fn fetch(&self, url: &str) -> Self::Result;
@@ -81,15 +82,9 @@ impl Client {
 	}
 }
 
-impl Default for Client {
-	fn default() -> Self {
-		Self::new().unwrap()
-	}
-}
-
 impl Fetch for Client {
 	type Result = CpuFuture<Response, Error>;
-	type FileResult = CpuFuture<PathBuf, Error>;
+	type FileResult = CpuFuture<(PathBuf, Option<Mime>), Error>;
 
 	fn fetch(&self, url: &str) -> Self::Result {
 		debug!(target: "fetch", "Fetching from: {:?}", url);
@@ -102,14 +97,14 @@ impl Fetch for Client {
 
 	fn fetch_to_file(&self, url: &str, path: &Path) -> Self::FileResult {
 		let path = path.to_path_buf();
-		self.pool.spawn(self.fetch(url).then(move |result| {
-			let result = result.and_then(|mut result| {
-				let mut file = try!(fs::File::create(&path));
-				try!(io::copy(&mut result, &mut file));
-				try!(file.flush());
-				Ok(file)
-			});
-			result.map(|_| path)
+		trace!(target: "fetch", "Fetching {:?} to file: {:?}", url, path);
+		self.pool.spawn(self.fetch(url).and_then(move |mut result| {
+			trace!(target: "fetch", "Got response: {:?}. Saving.", result);
+			let mut file = try!(fs::File::create(&path));
+			try!(io::copy(&mut result, &mut file));
+			try!(file.flush());
+
+			Ok((path, result.content_type()))
 		}))
 	}
 
@@ -132,7 +127,7 @@ impl Future for FetchTask {
 			.send());
 
 		Ok(futures::Async::Ready(Response {
-			inner: ResponseInner::Response(result),
+			inner: result,
 		}))
 	}
 }
@@ -156,28 +151,19 @@ impl From<io::Error> for Error {
 }
 
 #[derive(Debug)]
-enum ResponseInner {
-	Response(reqwest::Response),
-	File(fs::File),
-}
-#[derive(Debug)]
 pub struct Response {
-	inner: ResponseInner,
+	inner: reqwest::Response,
 }
 
 impl Response {
-	pub fn from_file(file: fs::File) -> Self {
-		Response {
-			inner: ResponseInner::File(file),
-		}
+	pub fn content_type(&self) -> Option<Mime> {
+		let content_type = self.inner.headers().get::<reqwest::header::ContentType>();
+		content_type.map(|mime| mime.0.clone())
 	}
 }
 
 impl io::Read for Response {
 	fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-		match self.inner {
-			ResponseInner::Response(ref mut res) => res.read(buf),
-			ResponseInner::File(ref mut file) => file.read(buf),
-		}
+		self.inner.read(buf)
 	}
 }

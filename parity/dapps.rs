@@ -21,6 +21,7 @@ use ethcore::client::Client;
 use ethsync::SyncProvider;
 use helpers::replace_home;
 use dir::default_data_path;
+use parity_reactor::Remote;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Configuration {
@@ -53,6 +54,7 @@ pub struct Dependencies {
 	pub apis: Arc<rpc_apis::Dependencies>,
 	pub client: Arc<Client>,
 	pub sync: Arc<SyncProvider>,
+	pub remote: Remote,
 }
 
 pub fn new(configuration: Configuration, deps: Dependencies) -> Result<Option<WebappServer>, String> {
@@ -128,7 +130,8 @@ mod server {
 
 		let mut server = dapps::ServerBuilder::new(
 			dapps_path,
-			Arc::new(Registrar { client: deps.client.clone() })
+			Arc::new(Registrar { client: deps.client.clone() }),
+			deps.remote.clone(),
 		);
 		let sync = deps.sync.clone();
 		let client = deps.client.clone();

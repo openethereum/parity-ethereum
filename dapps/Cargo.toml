@@ -34,6 +34,7 @@ ethcore-util = { path = "../util" }
 fetch = { path = "../util/fetch" }
 parity-ui = { path = "./ui" }
 parity-hash-fetch = { path = "../hash-fetch" }
+parity-reactor = { path = "../util/reactor" }
 
 clippy = { version = "0.0.103", optional = true}
 

@@ -21,8 +21,9 @@ use std::path::PathBuf;
 use std::sync::{mpsc, Arc};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Instant, Duration};
-use fetch::{self, Client, Response, Fetch};
+use fetch::{self, Fetch, Mime};
 use futures::Future;
+use parity_reactor::Remote;
 use util::Mutex;
 
 use hyper::{server, Decoder, Encoder, Next, Method, Control};
@@ -40,7 +41,7 @@ enum FetchState {
 	Waiting,
 	NotStarted(String),
 	Error(ContentHandler),
-	InProgress(mpsc::Receiver<Result<PathBuf, fetch::Error>>),
+	InProgress(mpsc::Receiver<Result<(PathBuf, Option<Mime>), fetch::Error>>),
 	Done(LocalPageEndpoint, Box<PageHandlerWaiting>),
 }
 
@@ -52,7 +53,7 @@ enum WaitResult {
 pub trait ContentValidator {
 	type Error: fmt::Debug + fmt::Display;
 
-	fn validate_and_install(&self, path: PathBuf) -> Result<LocalPageEndpoint, Self::Error>;
+	fn validate_and_install(&self, path: PathBuf, mime: Option<Mime>) -> Result<LocalPageEndpoint, Self::Error>;
 }
 
 pub struct FetchControl {
@@ -161,31 +162,34 @@ impl server::Handler<HttpStream> for WaitingHandler {
 	}
 }
 
-pub struct ContentFetcherHandler<H: ContentValidator> {
+pub struct ContentFetcherHandler<H: ContentValidator, F: Fetch> {
 	fetch_control: Arc<FetchControl>,
 	control: Control,
+	remote: Remote,
 	status: FetchState,
-	client: Option<Client>,
+	fetch: F,
 	installer: H,
 	path: EndpointPath,
 	uri: RequestUri,
 	embeddable_on: Option<(String, u16)>,
 }
 
-impl<H: ContentValidator> ContentFetcherHandler<H> {
+impl<H: ContentValidator, F: Fetch> ContentFetcherHandler<H, F> {
 	pub fn new(
 		url: String,
 		path: EndpointPath,
 		control: Control,
 		handler: H,
 		embeddable_on: Option<(String, u16)>,
+		remote: Remote,
+		fetch: F,
 	) -> (Self, Arc<FetchControl>) {
 		let fetch_control = Arc::new(FetchControl::default());
-		let client = Client::default();
 		let handler = ContentFetcherHandler {
 			fetch_control: fetch_control.clone(),
 			control: control,
-			client: Some(client),
+			remote: remote,
+			fetch: fetch,
 			status: FetchState::NotStarted(url),
 			installer: handler,
 			path: path,
@@ -196,15 +200,11 @@ impl<H: ContentValidator> ContentFetcherHandler<H> {
 		(handler, fetch_control)
 	}
 
-	fn close_client(client: &mut Option<Client>) {
-		client.take()
-			.expect("After client is closed we are going into write, hence we can never close it again")
-			.close();
-	}
-
-	fn fetch_content(client: &mut Client, url: &str, abort: Arc<AtomicBool>, control: Control) -> mpsc::Receiver<Result<PathBuf, fetch::Error>> {
+	fn fetch_content(&self, url: &str, control: Control) -> mpsc::Receiver<Result<(PathBuf, Option<Mime>), fetch::Error>> {
 		let (tx, rx) = mpsc::channel();
-		client.fetch_to_file(url, &Client::temp_filename()).then(move |result| {
+		let abort = self.fetch_control.clone();
+
+		let future = self.fetch.fetch_to_file(url, &F::temp_filename()).then(move |result| {
 			trace!(target: "dapps", "Fetching finished.");
 			tx.send(result).unwrap();
 			// Ignoring control errors
@@ -212,11 +212,13 @@ impl<H: ContentValidator> ContentFetcherHandler<H> {
 			Ok(()) as Result<(), ()>
 		});
 
+		self.remote.spawn(future);
+
 		rx
 	}
 }
 
-impl<H: ContentValidator> server::Handler<HttpStream> for ContentFetcherHandler<H> {
+impl<H: ContentValidator, F: Fetch> server::Handler<HttpStream> for ContentFetcherHandler<H, F> {
 	fn on_request(&mut self, request: server::Request<HttpStream>) -> Next {
 		let status = if let FetchState::NotStarted(ref url) = self.status {
 			Some(match *request.method() {
@@ -224,8 +226,7 @@ impl<H: ContentValidator> server::Handler<HttpStream> for ContentFetcherHandler<
 				Method::Get => {
 					trace!(target: "dapps", "Fetching content from: {:?}", url);
 					let control = self.control.clone();
-					let client = self.client.as_mut().expect("on_request is called before client is closed.");
-					let receiver = Self::fetch_content(client, url, self.fetch_control.abort.clone(), control);
+					let receiver = self.fetch_content(url, control);
 					FetchState::InProgress(receiver)
 				},
 				// or return error
@@ -260,7 +261,6 @@ impl<H: ContentValidator> server::Handler<HttpStream> for ContentFetcherHandler<
 					None,
 					self.embeddable_on.clone(),
 				);
-				Self::close_client(&mut self.client);
 				(Some(FetchState::Error(timeout)), Next::write())
 			},
 			FetchState::InProgress(ref receiver) => {
@@ -268,11 +268,10 @@ impl<H: ContentValidator> server::Handler<HttpStream> for ContentFetcherHandler<
 				let rec = receiver.try_recv();
 				match rec {
 					// Unpack and validate
-					Ok(Ok(path)) => {
+					Ok(Ok((path, mime))) => {
 						trace!(target: "dapps", "Fetching content finished. Starting validation ({:?})", path);
-						Self::close_client(&mut self.client);
 						// Unpack and verify
-						let state = match self.installer.validate_and_install(path.clone()) {
+						let state = match self.installer.validate_and_install(path.clone(), mime.clone()) {
 							Err(e) => {
 								trace!(target: "dapps", "Error while validating content: {:?}", e);
 								FetchState::Error(ContentHandler::error(

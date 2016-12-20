@@ -29,7 +29,6 @@ toml = "0.2"
 serde = "0.8.0"
 serde_json = "0.8.0"
 app_dirs = "1.1.1"
-tokio-core = "0.1"
 hyper = { version = "0.9", default-features = false }
 ctrlc = { git = "https://github.com/ethcore/rust-ctrlc.git" }
 fdlimit = "0.1"
@@ -53,6 +52,7 @@ parity-rpc-client = { path = "rpc_client" }
 ethcore-light = { path = "ethcore/light" }
 parity-hash-fetch = { path = "hash-fetch" }
 parity-updater = { path = "updater" }
+parity-reactor = { path = "util/reactor" }
 
 [target.'cfg(windows)'.dependencies]
 winapi = "0.2"

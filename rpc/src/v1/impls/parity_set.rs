@@ -16,16 +16,18 @@
 
 /// Parity-specific rpc interface for operations altering the settings.
 use std::{fs, io};
-use std::sync::{Arc, Weak, mpsc};
+use std::sync::{Arc, Weak};
+use std::path::PathBuf;
 
 use ethcore::miner::MinerService;
 use ethcore::client::MiningBlockChainClient;
 use ethcore::mode::Mode;
 use ethsync::ManageNetwork;
-use fetch::{Client as FetchClient, Error as FetchError, Fetch};
+use fetch::{Client as FetchClient, Error as FetchError, Fetch, Mime};
 use futures::Future;
 use util::sha3;
 use updater::{Service as UpdateService};
+use parity_reactor::Remote;
 
 use jsonrpc_core::Error;
 use jsonrpc_macros::Ready;
@@ -45,17 +47,7 @@ pub struct ParitySetClient<C, M, U, F=FetchClient> where
 	updater: Weak<U>,
 	net: Weak<ManageNetwork>,
 	fetch: F,
-}
-
-impl<C, M, U> ParitySetClient<C, M, U, FetchClient> where
-	C: MiningBlockChainClient,
-	M: MinerService,
-	U: UpdateService,
-{
-	/// Creates new `ParitySetClient` with default `FetchClient`.
-	pub fn new(client: &Arc<C>, miner: &Arc<M>, updater: &Arc<U>, net: &Arc<ManageNetwork>) -> Self {
-		Self::with_fetch(client, miner, updater, net)
-	}
+	remote: Remote,
 }
 
 impl<C, M, U, F> ParitySetClient<C, M, U, F> where
@@ -64,14 +56,15 @@ impl<C, M, U, F> ParitySetClient<C, M, U, F> where
 	U: UpdateService,
 	F: Fetch,
 {
-	/// Creates new `ParitySetClient` with default `FetchClient`.
-	pub fn with_fetch(client: &Arc<C>, miner: &Arc<M>, updater: &Arc<U>, net: &Arc<ManageNetwork>) -> Self {
+	/// Creates new `ParitySetClient` with given `Fetch`.
+	pub fn new(client: &Arc<C>, miner: &Arc<M>, updater: &Arc<U>, net: &Arc<ManageNetwork>, fetch: F, remote: Remote) -> Self {
 		ParitySetClient {
 			client: Arc::downgrade(client),
 			miner: Arc::downgrade(miner),
 			updater: Arc::downgrade(updater),
 			net: Arc::downgrade(net),
-			fetch: F::default(),
+			fetch: fetch,
+			remote: remote,
 		}
 	}
 
@@ -200,8 +193,8 @@ impl<C, M, U, F> ParitySet for ParitySetClient<C, M, U, F> where
 	fn hash_content(&self, ready: Ready<H256>, url: String) {
 		let res = self.active();
 
-		let hash_content = |result| {
-			let path = try!(result);
+		let hash_content = |result: Result<(PathBuf, Option<Mime>), FetchError>| {
+			let path = try!(result).0;
 			let mut file = io::BufReader::new(try!(fs::File::open(&path)));
 			// Try to hash
 			let result = sha3(&mut file);
@@ -214,7 +207,6 @@ impl<C, M, U, F> ParitySet for ParitySetClient<C, M, U, F> where
 		match res {
 			Err(e) => ready.ready(Err(e)),
 			Ok(()) => {
-				let (tx, rx) = mpsc::channel();
 				let path = F::temp_filename();
 				let task = self.fetch.fetch_to_file(&url, &path).then(move |result| {
 					let result = hash_content(result)
@@ -222,16 +214,11 @@ impl<C, M, U, F> ParitySet for ParitySetClient<C, M, U, F> where
 							.map(Into::into);
 
 					// Receive ready and invoke with result.
-					let ready: Ready<H256> = rx.recv().expect(
-						"recv() fails when `tx` has been dropped, if this closure is invoked `tx` is not dropped (`res == Ok()`); qed"
-					);
 					ready.ready(result);
-					Ok(()) as Result<(), FetchError>
+					Ok(()) as Result<(), ()>
 				});
 
-				tx.send(ready).expect(
-					"send() fails when `rx` end is dropped, if `res == Ok()`: `rx` is moved to the closure; qed"
-				);
+				self.remote.spawn(task);
 			}
 		}
 	}

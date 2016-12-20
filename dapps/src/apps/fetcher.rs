@@ -24,8 +24,9 @@ use std::io::{self, Read, Write};
 use std::path::PathBuf;
 use std::sync::Arc;
 use rustc_serialize::hex::FromHex;
-use fetch::{Client as FetchClient, Fetch};
+use fetch::{Client as FetchClient, Fetch, Mime};
 use hash_fetch::urlhint::{URLHintContract, URLHint, URLHintResult};
+use parity_reactor::Remote;
 
 use hyper;
 use hyper::status::StatusCode;
@@ -42,24 +43,32 @@ use apps::manifest::{MANIFEST_FILENAME, deserialize_manifest, serialize_manifest
 /// Limit of cached dapps/content
 const MAX_CACHED_DAPPS: usize = 20;
 
-pub struct ContentFetcher<R: URLHint = URLHintContract> {
+pub trait Fetcher: Send + Sync + 'static {
+	fn contains(&self, content_id: &str) -> bool;
+
+	fn to_async_handler(&self, path: EndpointPath, control: hyper::Control) -> Box<Handler>;
+}
+
+pub struct ContentFetcher<F: Fetch = FetchClient, R: URLHint + Send + Sync + 'static = URLHintContract> {
 	dapps_path: PathBuf,
 	resolver: R,
 	cache: Arc<Mutex<ContentCache>>,
 	sync: Arc<SyncStatus>,
 	embeddable_on: Option<(String, u16)>,
+	remote: Remote,
+	fetch: F,
 }
 
-impl<R: URLHint> Drop for ContentFetcher<R> {
+impl<R: URLHint + Send + Sync + 'static, F: Fetch> Drop for ContentFetcher<F, R> {
 	fn drop(&mut self) {
 		// Clear cache path
 		let _ = fs::remove_dir_all(&self.dapps_path);
 	}
 }
 
-impl<R: URLHint> ContentFetcher<R> {
+impl<R: URLHint + Send + Sync + 'static, F: Fetch> ContentFetcher<F, R> {
 
-	pub fn new(resolver: R, sync_status: Arc<SyncStatus>, embeddable_on: Option<(String, u16)>) -> Self {
+	pub fn new(resolver: R, sync_status: Arc<SyncStatus>, embeddable_on: Option<(String, u16)>, remote: Remote, fetch: F) -> Self {
 		let dapps_path = FetchClient::temp_filename();
 
 		ContentFetcher {
@@ -68,6 +77,8 @@ impl<R: URLHint> ContentFetcher<R> {
 			sync: sync_status,
 			cache: Arc::new(Mutex::new(ContentCache::default())),
 			embeddable_on: embeddable_on,
+			remote: remote,
+			fetch: fetch,
 		}
 	}
 
@@ -85,8 +96,10 @@ impl<R: URLHint> ContentFetcher<R> {
 	fn set_status(&self, content_id: &str, status: ContentStatus) {
 		self.cache.lock().insert(content_id.to_owned(), status);
 	}
+}
 
-	pub fn contains(&self, content_id: &str) -> bool {
+impl<R: URLHint + Send + Sync + 'static, F: Fetch> Fetcher for ContentFetcher<F, R> {
+	fn contains(&self, content_id: &str) -> bool {
 		{
 			let mut cache = self.cache.lock();
 			// Check if we already have the app
@@ -105,7 +118,7 @@ impl<R: URLHint> ContentFetcher<R> {
 		}
 	}
 
-	pub fn to_async_handler(&self, path: EndpointPath, control: hyper::Control) -> Box<Handler> {
+	fn to_async_handler(&self, path: EndpointPath, control: hyper::Control) -> Box<Handler> {
 		let mut cache = self.cache.lock();
 		let content_id = path.app_id.clone();
 
@@ -155,6 +168,8 @@ impl<R: URLHint> ContentFetcher<R> {
 									embeddable_on: self.embeddable_on.clone(),
 								},
 								self.embeddable_on.clone(),
+								self.remote.clone(),
+								self.fetch.clone(),
 							);
 
 							(Some(ContentStatus::Fetching(fetch_control)), Box::new(handler) as Box<Handler>)
@@ -171,6 +186,8 @@ impl<R: URLHint> ContentFetcher<R> {
 									on_done: Box::new(on_done),
 								},
 								self.embeddable_on.clone(),
+								self.remote.clone(),
+								self.fetch.clone(),
 							);
 
 							(Some(ContentStatus::Fetching(fetch_control)), Box::new(handler) as Box<Handler>)
@@ -244,7 +261,7 @@ impl From<zip::result::ZipError> for ValidationError {
 
 struct ContentInstaller {
 	id: String,
-	mime: String,
+	mime: Mime,
 	content_path: PathBuf,
 	on_done: Box<Fn(Option<LocalPageEndpoint>) + Send>,
 }
@@ -252,7 +269,7 @@ struct ContentInstaller {
 impl ContentValidator for ContentInstaller {
 	type Error = ValidationError;
 
-	fn validate_and_install(&self, path: PathBuf) -> Result<LocalPageEndpoint, ValidationError> {
+	fn validate_and_install(&self, path: PathBuf, _mime: Option<Mime>) -> Result<LocalPageEndpoint, ValidationError> {
 		let validate = || {
 			// Create dir
 			try!(fs::create_dir_all(&self.content_path));
@@ -331,7 +348,7 @@ impl DappInstaller {
 impl ContentValidator for DappInstaller {
 	type Error = ValidationError;
 
-	fn validate_and_install(&self, path: PathBuf) -> Result<LocalPageEndpoint, ValidationError> {
+	fn validate_and_install(&self, path: PathBuf, _mime: Option<Mime>) -> Result<LocalPageEndpoint, ValidationError> {
 		trace!(target: "dapps", "Opening dapp bundle at {:?}", path);
 		let validate = || {
 			let mut file_reader = io::BufReader::new(try!(fs::File::open(path)));
@@ -401,12 +418,14 @@ mod tests {
 	use std::env;
 	use std::sync::Arc;
 	use util::Bytes;
+	use fetch::Client;
 	use hash_fetch::urlhint::{URLHint, URLHintResult};
+	use parity_reactor::Remote;
 
 	use apps::cache::ContentStatus;
 	use endpoint::EndpointInfo;
 	use page::LocalPageEndpoint;
-	use super::ContentFetcher;
+	use super::{ContentFetcher, Fetcher};
 
 	struct FakeResolver;
 	impl URLHint for FakeResolver {
@@ -419,7 +438,7 @@ mod tests {
 	fn should_true_if_contains_the_app() {
 		// given
 		let path = env::temp_dir();
-		let fetcher = ContentFetcher::new(FakeResolver, Arc::new(|| false), None);
+		let fetcher = ContentFetcher::new(FakeResolver, Arc::new(|| false), None, Remote::new_sync(), Client::new().unwrap());
 		let handler = LocalPageEndpoint::new(path, EndpointInfo {
 			name: "fake".into(),
 			description: "".into(),

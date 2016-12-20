@@ -20,15 +20,15 @@ use std::io::Write;
 use std::{fs, thread};
 use std::path::{Path, PathBuf};
 use futures::{self, Future};
-use fetch::{Fetch, Error as FetchError, Response};
+use fetch::{Fetch, Error as FetchError, Response, Mime};
 
 /// Test implementation of fetcher. Will always return the same file.
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct TestFetch;
 
 impl Fetch for TestFetch {
 	type Result = futures::BoxFuture<Response, FetchError>;
-	type FileResult = futures::BoxFuture<PathBuf, FetchError>;
+	type FileResult = futures::BoxFuture<(PathBuf, Option<Mime>), FetchError>;
 
 	fn fetch(&self, _url: &str) -> Self::Result {
 		unimplemented!()
@@ -41,7 +41,7 @@ impl Fetch for TestFetch {
 			let mut file = fs::File::create(&path).unwrap();
 			file.write_all(b"Some content").unwrap();
 
-			tx.complete(path);
+			tx.complete((path, None));
 		});
 
 		rx.map_err(|_| unimplemented!()).boxed()
