@@ -90,7 +90,7 @@ pub fn register(reg: &mut syntex::Registry) {
 	reg.add_attr("feature(custom_attribute)");
 
 	reg.add_decorator("ipc", codegen::expand_ipc_implementation);
-	reg.add_decorator("derive_Binary", serialization::expand_serialization_implementation);
+	reg.add_decorator("binary", serialization::expand_serialization_implementation);
 
 	register_cleaner(reg);
 }
@@ -102,7 +102,7 @@ pub fn register(reg: &mut rustc_plugin::Registry) {
 		syntax::ext::base::MultiDecorator(
 			Box::new(codegen::expand_ipc_implementation)));
 	reg.register_syntax_extension(
-		syntax::parse::token::intern("derive_Binary"),
+		syntax::parse::token::intern("binary"),
 		syntax::ext::base::MultiDecorator(
 			Box::new(serialization::expand_serialization_implementation)));
 
