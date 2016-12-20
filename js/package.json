@@ -157,6 +157,7 @@
     "mobx-react-devtools": "4.2.10",
     "moment": "2.17.0",
     "phoneformat.js": "1.0.3",
+    "promise-worker": "1.1.1",
     "push.js": "0.0.11",
     "qs": "6.3.0",
     "react": "15.4.1",
@@ -183,7 +184,6 @@
     "valid-url": "1.0.9",
     "validator": "6.2.0",
     "web3": "0.17.0-beta",
-    "whatwg-fetch": "2.0.1",
-    "worker-loader": "0.7.1"
+    "whatwg-fetch": "2.0.1"
   }
 }
