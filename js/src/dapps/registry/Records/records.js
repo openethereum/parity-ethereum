@@ -60,14 +60,16 @@ export default class Records extends Component {
               value={ value }
               onChange={ this.onValueChange }
             />
-            <RaisedButton
-              disabled={ pending }
-              className={ styles.spacing }
-              label='Save'
-              primary
-              icon={ <SaveIcon /> }
-              onTouchTap={ this.onSaveClick }
-            />
+            <div className={ styles.button }>
+              <RaisedButton
+                disabled={ pending }
+                className={ styles.spacing }
+                label='Save'
+                primary
+                icon={ <SaveIcon /> }
+                onTouchTap={ this.onSaveClick }
+              />
+            </div>
           </div>
         </CardText>
       </Card>

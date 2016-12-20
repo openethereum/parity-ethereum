@@ -33,7 +33,7 @@ const Address = ({ address, accounts, contacts, shortenHash }) => {
   } else {
     caption = (
       <code className={ styles.align }>
-        { shortenHash ? (<Hash address={ address } />) : address }
+        { shortenHash ? (<Hash hash={ address } linked />) : address }
       </code>
     );
   }
