@@ -117,27 +117,29 @@ export default class Names extends Component {
               : (<p className={ styles.noSpacing }>To drop a name, you have to be the owner.</p>)
             )
           }
-          <TextField
-            hintText='name'
-            value={ name }
-            onChange={ this.onNameChange }
-          />
-          <DropDownMenu
-            disabled={ pending }
-            value={ action }
-            onChange={ this.onActionChange }
-          >
-            <MenuItem value='reserve' primaryText='reserve this name' />
-            <MenuItem value='drop' primaryText='drop this name' />
-          </DropDownMenu>
-          <RaisedButton
-            disabled={ pending }
-            className={ styles.spacing }
-            label={ action === 'reserve' ? 'Reserve' : 'Drop' }
-            primary
-            icon={ <CheckIcon /> }
-            onTouchTap={ this.onSubmitClick }
-          />
+          <div className={ styles.box }>
+            <TextField
+              hintText='name'
+              value={ name }
+              onChange={ this.onNameChange }
+            />
+            <DropDownMenu
+              disabled={ pending }
+              value={ action }
+              onChange={ this.onActionChange }
+            >
+              <MenuItem value='reserve' primaryText='reserve this name' />
+              <MenuItem value='drop' primaryText='drop this name' />
+            </DropDownMenu>
+            <RaisedButton
+              disabled={ pending }
+              className={ styles.spacing }
+              label={ action === 'reserve' ? 'Reserve' : 'Drop' }
+              primary
+              icon={ <CheckIcon /> }
+              onTouchTap={ this.onSubmitClick }
+            />
+          </div>
           { queue.length > 0
             ? (<div>{ useSignerText }{ renderQueue(queue) }</div>)
             : null

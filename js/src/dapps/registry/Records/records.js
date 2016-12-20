@@ -48,28 +48,27 @@ export default class Records extends Component {
           <p className={ styles.noSpacing }>
             You can only modify entries of names that you previously registered.
           </p>
-
-          <TextField
-            className={ styles.spacing }
-            hintText='name'
-            value={ name }
-            onChange={ this.onNameChange }
-          />
-          { recordTypeSelect(type, this.onTypeChange, styles.spacing) }
-          <TextField
-            className={ styles.spacing }
-            hintText='value'
-            value={ value }
-            onChange={ this.onValueChange }
-          />
-          <RaisedButton
-            disabled={ pending }
-            className={ styles.spacing }
-            label='Save'
-            primary
-            icon={ <SaveIcon /> }
-            onTouchTap={ this.onSaveClick }
-          />
+          <div className={ styles.box }>
+            <TextField
+              hintText='name'
+              value={ name }
+              onChange={ this.onNameChange }
+            />
+            { recordTypeSelect(type, this.onTypeChange) }
+            <TextField
+              hintText='value'
+              value={ value }
+              onChange={ this.onValueChange }
+            />
+            <RaisedButton
+              disabled={ pending }
+              className={ styles.spacing }
+              label='Save'
+              primary
+              icon={ <SaveIcon /> }
+              onTouchTap={ this.onSaveClick }
+            />
+          </div>
         </CardText>
       </Card>
     );

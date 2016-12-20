@@ -67,14 +67,12 @@ export default class Lookup extends Component {
         <CardHeader title={ 'Query the Registry' } />
         <div className={ styles.box }>
           <TextField
-            className={ styles.spacing }
             hintText='name'
             value={ name }
             onChange={ this.onNameChange }
           />
-          { recordTypeSelect(type, this.onTypeChange, styles.spacing) }
+          { recordTypeSelect(type, this.onTypeChange) }
           <RaisedButton
-            className={ styles.spacing }
             label='Lookup'
             primary
             icon={ <SearchIcon /> }
