@@ -14,11 +14,40 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import React from 'react';
+import React, { PropTypes } from 'react';
+import { connect } from 'react-redux';
 
-export default (hash) => {
-  const shortened = hash.length > (2 + 9 + 9)
-    ? hash.substr(2, 9) + '...' + hash.slice(-9)
-    : hash.slice(2);
-  return (<abbr title={ hash }>{ shortened }</abbr>);
+import styles from './hash.css';
+
+const leading0x = /^0x/;
+
+const Hash = ({ hash, isTestnet }) => {
+  hash = hash.toLowerCase().replace(leading0x, '');
+  const shortened = hash.length > (6 + 6)
+    ? hash.substr(0, 6) + '...' + hash.slice(-6)
+    : hash;
+  const type = hash.length === 40 ? 'address' : 'tx';
+  const url = `https://${isTestnet ? 'testnet.' : ''}etherscan.io/${type}/0x${hash}`;
+
+  return (
+    <a
+      className={ styles.link }
+      href={ url }
+      target='_blank'
+    >
+      <abbr title={ hash }>{ shortened }</abbr>
+    </a>
+  );
 };
+
+Hash.propTypes = {
+  hash: PropTypes.string.isRequired,
+  isTestnet: PropTypes.bool.isRequired
+};
+
+export default connect(
+  (state) => ({ // mapStateToProps
+    isTestnet: state.isTestnet
+  }),
+  null // mapDispatchToProps
+)(Hash);

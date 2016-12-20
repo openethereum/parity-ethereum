@@ -22,7 +22,7 @@ import SearchIcon from 'material-ui/svg-icons/action/search';
 
 import { nullableProptype } from '~/util/proptypes';
 
-import renderAddress from '../ui/address.js';
+import Address from '../ui/address.js';
 import renderImage from '../ui/image.js';
 
 import recordTypeSelect from '../ui/record-type-select.js';
@@ -49,7 +49,7 @@ export default class Lookup extends Component {
     let output = '';
     if (result) {
       if (type === 'A') {
-        output = (<code>{ renderAddress(result, accounts, contacts, false) }</code>);
+        output = (<code><Address address={ result } accounts={ accounts } contacts={ contacts } shortenHash={ false } /></code>);
       } else if (type === 'IMG') {
         output = renderImage(result);
       } else if (type === 'CONTENT') {

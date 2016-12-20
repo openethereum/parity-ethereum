@@ -21,7 +21,7 @@ import AccountIcon from 'material-ui/svg-icons/action/account-circle';
 import MenuItem from 'material-ui/MenuItem';
 
 import IdentityIcon from '../IdentityIcon';
-import renderAddress from '../ui/address';
+import Address from '../ui/address';
 
 import styles from './accounts.css';
 
@@ -69,7 +69,7 @@ export default class Accounts extends Component {
         key={ account.address } value={ account.address }
         checked={ isSelected } insetChildren={ !isSelected }
       >
-        { renderAddress(account.address, all, {}) }
+        <Address address={ account.address } accounts={ all } contacts={ {} } />
       </MenuItem>
     );
   };

@@ -20,8 +20,8 @@ import Toggle from 'material-ui/Toggle';
 import moment from 'moment';
 
 import { bytesToHex } from '../parity';
-import renderHash from '../ui/hash';
-import renderAddress from '../ui/address';
+import Hash from '../ui/hash';
+import Address from '../ui/address';
 import styles from './events.css';
 
 const inlineButton = {
@@ -48,9 +48,9 @@ const renderEvent = (classNames, verb) => (e, accounts, contacts) => {
 
   return (
     <tr key={ e.key } className={ classes }>
-      <td>{ renderAddress(e.parameters.owner.value, accounts, contacts) }</td>
+      <td><Address address={ e.parameters.owner.value } accounts={ accounts } contacts={ contacts } /></td>
       <td><abbr title={ e.transaction }>{ verb }</abbr></td>
-      <td><code>{ renderHash(bytesToHex(e.parameters.name.value)) }</code></td>
+      <td><code><Hash hash={ bytesToHex(e.parameters.name.value) } /></code></td>
       <td>{ renderStatus(e.timestamp, e.state === 'pending') }</td>
     </tr>
   );
@@ -64,10 +64,10 @@ const renderDataChanged = (e, accounts, contacts) => {
 
   return (
     <tr key={ e.key } className={ classNames }>
-      <td>{ renderAddress(e.parameters.owner.value, accounts, contacts) }</td>
+      <td><Address address={ e.parameters.owner.value } accounts={ accounts } contacts={ contacts } /></td>
       <td><abbr title={ e.transaction }>updated</abbr></td>
       <td>
-        key <code>{ new Buffer(e.parameters.plainKey.value).toString('utf8') }</code> of <code>{ renderHash(bytesToHex(e.parameters.name.value)) }</code>
+        key <code>{ new Buffer(e.parameters.plainKey.value).toString('utf8') }</code> of <code><Hash hash={ bytesToHex(e.parameters.name.value) } /></code>
       </td>
       <td>{ renderStatus(e.timestamp, e.state === 'pending') }</td>
     </tr>

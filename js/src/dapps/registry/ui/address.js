@@ -14,34 +14,47 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import React from 'react';
-import renderHash from './hash';
+import React, { PropTypes } from 'react';
+
+import Hash from './hash';
 import IdentityIcon from '../IdentityIcon';
 
-const container = {
-  display: 'inline-block',
-  verticalAlign: 'middle',
-  height: '24px'
-};
-const align = {
-  display: 'inline-block',
-  verticalAlign: 'top',
-  lineHeight: '24px'
-};
+import styles from './address.css';
 
-export default (address, accounts, contacts, shortenHash = true) => {
+const Address = ({ address, accounts, contacts, shortenHash }) => {
   let caption;
-  if (accounts[address]) {
-    caption = (<abbr title={ address } style={ align }>{ accounts[address].name || address }</abbr>);
-  } else if (contacts[address]) {
-    caption = (<abbr title={ address } style={ align }>{ contacts[address].name || address }</abbr>);
+  if (accounts[address] || contacts[address]) {
+    const name = (accounts[address] || contacts[address] || {}).name;
+    caption = (
+      <abbr title={ address } className={ styles.align }>
+        { name || address }
+      </abbr>
+    );
   } else {
-    caption = (<code style={ align }>{ shortenHash ? renderHash(address) : address }</code>);
+    caption = (
+      <code className={ styles.align }>
+        { shortenHash ? (<Hash address={ address } />) : address }
+      </code>
+    );
   }
+
   return (
-    <div style={ container }>
-      <IdentityIcon address={ address } style={ align } />
+    <div className={ styles.container }>
+      <IdentityIcon address={ address } className={ styles.align } />
       { caption }
     </div>
   );
 };
+
+Address.propTypes = {
+  address: PropTypes.string.isRequired,
+  accounts: PropTypes.object.isRequired,
+  contacts: PropTypes.object.isRequired,
+  shortenHash: PropTypes.bool
+};
+
+Address.defaultProps = {
+  shortenHash: true
+};
+
+export default Address;
