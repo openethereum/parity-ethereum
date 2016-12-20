@@ -16,7 +16,7 @@
 
 //! Hyper Server Handler that fetches a file during a request (proxy).
 
-use std::fmt;
+use std::{fs, fmt};
 use std::path::PathBuf;
 use std::sync::{mpsc, Arc};
 use std::sync::atomic::{AtomicBool, Ordering};

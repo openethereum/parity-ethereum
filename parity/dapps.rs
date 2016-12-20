@@ -21,6 +21,7 @@ use ethcore::client::Client;
 use ethsync::SyncProvider;
 use helpers::replace_home;
 use dir::default_data_path;
+use hash_fetch::fetch::Client as FetchClient;
 use parity_reactor::Remote;
 
 #[derive(Debug, PartialEq, Clone)]
@@ -55,6 +56,7 @@ pub struct Dependencies {
 	pub client: Arc<Client>,
 	pub sync: Arc<SyncProvider>,
 	pub remote: Remote,
+	pub fetch: FetchClient,
 }
 
 pub fn new(configuration: Configuration, deps: Dependencies) -> Result<Option<WebappServer>, String> {
@@ -135,6 +137,7 @@ mod server {
 		);
 		let sync = deps.sync.clone();
 		let client = deps.client.clone();
+		server.with_fetch(deps.fetch.clone());
 		server.with_sync_status(Arc::new(move || is_major_importing(Some(sync.status().state), client.queue_info())));
 		server.with_signer_address(signer_address);
 

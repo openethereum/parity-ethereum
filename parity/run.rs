@@ -376,7 +376,7 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 		client: client.clone(),
 		sync: sync_provider.clone(),
 		remote: event_loop.remote(),
-		// fetch: fetch.clone(),
+		fetch: fetch.clone(),
 	};
 	let dapps_server = try!(dapps::new(cmd.dapps_conf.clone(), dapps_deps));
 
