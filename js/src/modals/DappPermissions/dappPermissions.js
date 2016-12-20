@@ -78,6 +78,11 @@ export default class DappPermissions extends Component {
       // For now in the current/old style, not as pretty but consistent.
       return (
         <ListItem
+          className={
+            account.checked
+              ? styles.selected
+              : styles.unselected
+          }
           key={ account.address }
           leftCheckbox={
             <Checkbox

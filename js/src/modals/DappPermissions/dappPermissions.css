@@ -34,3 +34,14 @@
     }
   }
 }
+
+.selected, .unselected {
+  margin-bottom: 0.25em;
+}
+
+.selected {
+  background: rgba(0, 151, 167, 0.15);
+}
+
+.unselected {
+}

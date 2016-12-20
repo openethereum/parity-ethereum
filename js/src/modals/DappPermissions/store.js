@@ -29,12 +29,12 @@ export default class Store {
 
   @action closeModal = () => {
     transaction(() => {
+      const accounts = this.accounts
+        .filter((account) => account.checked)
+        .map((account) => account.address);
+
       this.modalOpen = false;
-      this.updateWhitelist(
-        this.accounts
-          .filter((account) => account.checked)
-          .map((account) => account.address)
-      );
+      this.updateWhitelist(accounts.length === this.accounts.length ? null : accounts);
     });
   }
 
@@ -45,7 +45,9 @@ export default class Store {
         .map((account) => {
           return {
             address: account.address,
-            checked: this.whitelist.includes(account.address),
+            checked: this.whitelist
+              ? this.whitelist.includes(account.address)
+              : true,
             description: account.meta.description,
             name: account.name
           };
