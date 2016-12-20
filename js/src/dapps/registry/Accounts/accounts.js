@@ -15,6 +15,8 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import { connect } from 'react-redux';
+import { bindActionCreators } from 'redux';
 import IconMenu from 'material-ui/IconMenu';
 import IconButton from 'material-ui/IconButton/IconButton';
 import AccountIcon from 'material-ui/svg-icons/action/account-circle';
@@ -23,14 +25,16 @@ import MenuItem from 'material-ui/MenuItem';
 import IdentityIcon from '../IdentityIcon';
 import Address from '../ui/address';
 
+import { select } from './actions';
 import styles from './accounts.css';
 
-export default class Accounts extends Component {
+class Accounts extends Component {
 
   static propTypes = {
-    actions: PropTypes.object.isRequired,
     all: PropTypes.object.isRequired,
-    selected: PropTypes.object
+    selected: PropTypes.object,
+
+    select: PropTypes.func.isRequired
   }
 
   render () {
@@ -79,6 +83,13 @@ export default class Accounts extends Component {
   };
 
   onAccountSelect = (e, address) => {
-    this.props.actions.select(address);
+    this.props.select(address);
   };
 }
+
+export default connect(
+  // mapStateToProps
+  (state) => state.accounts,
+  // mapDispatchToProps
+  (dispatch) => bindActionCreators({ select }, dispatch)
+)(Accounts);

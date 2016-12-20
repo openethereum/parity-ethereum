@@ -15,6 +15,8 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import { connect } from 'react-redux';
+import { bindActionCreators } from 'redux';
 import { Card, CardHeader, CardText } from 'material-ui/Card';
 import TextField from 'material-ui/TextField';
 import DropDownMenu from 'material-ui/DropDownMenu';
@@ -24,6 +26,7 @@ import CheckIcon from 'material-ui/svg-icons/navigation/check';
 
 import { fromWei } from '../parity.js';
 
+import { reserve, drop } from './actions';
 import styles from './names.css';
 
 const useSignerText = (<p>Use the <a href='/#/signer' className={ styles.link } target='_blank'>Signer</a> to authenticate the following changes.</p>);
@@ -72,13 +75,15 @@ const renderQueue = (queue) => {
   );
 };
 
-export default class Names extends Component {
+class Names extends Component {
 
   static propTypes = {
-    actions: PropTypes.object.isRequired,
     fee: PropTypes.object.isRequired,
     pending: PropTypes.bool.isRequired,
-    queue: PropTypes.array.isRequired
+    queue: PropTypes.array.isRequired,
+
+    reserve: PropTypes.func.isRequired,
+    drop: PropTypes.func.isRequired
   }
 
   state = {
@@ -158,9 +163,16 @@ export default class Names extends Component {
   onSubmitClick = () => {
     const { action, name } = this.state;
     if (action === 'reserve') {
-      this.props.actions.reserve(name);
+      this.props.reserve(name);
     } else if (action === 'drop') {
-      this.props.actions.drop(name);
+      this.props.drop(name);
     }
   };
 }
+
+export default connect(
+  // mapStateToProps
+  (state) => ({ ...state.names, fee: state.fee }),
+  // mapDispatchToProps
+  (dispatch) => bindActionCreators({ reserve, drop }, dispatch)
+)(Names);

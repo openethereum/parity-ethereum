@@ -15,6 +15,8 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import { connect } from 'react-redux';
+import { bindActionCreators } from 'redux';
 import { Card, CardHeader, CardText } from 'material-ui/Card';
 import TextField from 'material-ui/TextField';
 import RaisedButton from 'material-ui/RaisedButton';
@@ -24,19 +26,22 @@ import { nullableProptype } from '~/util/proptypes';
 
 import Address from '../ui/address.js';
 import renderImage from '../ui/image.js';
-
 import recordTypeSelect from '../ui/record-type-select.js';
+
+import { clear, lookup } from './actions';
 import styles from './lookup.css';
 
-export default class Lookup extends Component {
+class Lookup extends Component {
 
   static propTypes = {
-    actions: PropTypes.object.isRequired,
     name: PropTypes.string.isRequired,
     type: PropTypes.string.isRequired,
     result: nullableProptype(PropTypes.string.isRequired),
     accounts: PropTypes.object.isRequired,
-    contacts: PropTypes.object.isRequired
+    contacts: PropTypes.object.isRequired,
+
+    clear: PropTypes.func.isRequired,
+    lookup: PropTypes.func.isRequired
   }
 
   state = { name: '', type: 'A' };
@@ -98,9 +103,20 @@ export default class Lookup extends Component {
   };
   onTypeChange = (e, i, type) => {
     this.setState({ type });
-    this.props.actions.clear();
+    this.props.clear();
   };
   onLookupClick = () => {
-    this.props.actions.lookup(this.state.name, this.state.type);
+    this.props.lookup(this.state.name, this.state.type);
   };
 }
+
+export default connect(
+  // mapStateToProps
+  (state) => ({
+    ...state.lookup,
+    accounts: state.accounts.all,
+    contacts: state.contacts
+  }),
+  // mapDispatchToProps
+  (dispatch) => bindActionCreators({ clear, lookup }, dispatch)
+)(Lookup);

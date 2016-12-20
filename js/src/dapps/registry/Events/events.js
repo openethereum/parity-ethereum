@@ -15,6 +15,8 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import { connect } from 'react-redux';
+import { bindActionCreators } from 'redux';
 import { Card, CardHeader, CardActions, CardText } from 'material-ui/Card';
 import Toggle from 'material-ui/Toggle';
 import moment from 'moment';
@@ -22,6 +24,8 @@ import moment from 'moment';
 import { bytesToHex } from '../parity';
 import Hash from '../ui/hash';
 import Address from '../ui/address';
+
+import { subscribe, unsubscribe } from './actions';
 import styles from './events.css';
 
 const inlineButton = {
@@ -114,15 +118,17 @@ const eventTypes = {
   ReverseRemoved: () => 'ReverseRemoved'
 };
 
-export default class Events extends Component {
+class Events extends Component {
 
   static propTypes = {
-    actions: PropTypes.object.isRequired,
     subscriptions: PropTypes.object.isRequired,
     pending: PropTypes.object.isRequired,
     events: PropTypes.array.isRequired,
     accounts: PropTypes.object.isRequired,
-    contacts: PropTypes.object.isRequired
+    contacts: PropTypes.object.isRequired,
+
+    subscribe: PropTypes.func.isRequired,
+    unsubscribe: PropTypes.func.isRequired
   }
 
   render () {
@@ -214,50 +220,59 @@ export default class Events extends Component {
   }
 
   onReservedToggle = (e, isToggled) => {
-    const { pending, subscriptions, actions } = this.props;
+    const { pending, subscriptions, subscribe, unsubscribe } = this.props;
     if (!pending.Reserved) {
       if (isToggled && subscriptions.Reserved === null) {
-        actions.subscribe('Reserved');
+        subscribe('Reserved');
       } else if (!isToggled && subscriptions.Reserved !== null) {
-        actions.unsubscribe('Reserved');
+        unsubscribe('Reserved');
       }
     }
   };
   onDroppedToggle = (e, isToggled) => {
-    const { pending, subscriptions, actions } = this.props;
+    const { pending, subscriptions, subscribe, unsubscribe } = this.props;
     if (!pending.Dropped) {
       if (isToggled && subscriptions.Dropped === null) {
-        actions.subscribe('Dropped');
+        subscribe('Dropped');
       } else if (!isToggled && subscriptions.Dropped !== null) {
-        actions.unsubscribe('Dropped');
+        unsubscribe('Dropped');
       }
     }
   };
   onDataChangedToggle = (e, isToggled) => {
-    const { pending, subscriptions, actions } = this.props;
+    const { pending, subscriptions, subscribe, unsubscribe } = this.props;
     if (!pending.DataChanged) {
       if (isToggled && subscriptions.DataChanged === null) {
-        actions.subscribe('DataChanged');
+        subscribe('DataChanged');
       } else if (!isToggled && subscriptions.DataChanged !== null) {
-        actions.unsubscribe('DataChanged');
+        unsubscribe('DataChanged');
       }
     }
   };
 
   onReverseToggle = (e, isToggled) => {
-    const { pending, subscriptions, actions } = this.props;
+    const { pending, subscriptions, subscribe, unsubscribe } = this.props;
 
     for (let e of ['ReverseProposed', 'ReverseConfirmed', 'ReverseRemoved']) {
       if (pending[e]) {
         continue;
       }
       if (isToggled && subscriptions[e] === null) {
-        console.warn('subscribing to', e);
-        actions.subscribe(e);
+        subscribe(e);
       } else if (!isToggled && subscriptions[e] !== null) {
-        console.warn('unsubscribing from', e);
-        actions.unsubscribe(e);
+        unsubscribe(e);
       }
     }
   };
 }
+
+export default connect(
+  // mapStateToProps
+  (state) => ({
+    ...state.events,
+    accounts: state.accounts.all,
+    contacts: state.contacts
+  }),
+  // mapDispatchToProps
+  (dispatch) => bindActionCreators({ subscribe, unsubscribe }, dispatch)
+)(Events);

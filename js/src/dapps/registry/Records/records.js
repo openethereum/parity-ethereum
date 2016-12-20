@@ -15,22 +15,27 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import { connect } from 'react-redux';
+import { bindActionCreators } from 'redux';
 import { Card, CardHeader, CardText } from 'material-ui/Card';
 import TextField from 'material-ui/TextField';
 import RaisedButton from 'material-ui/RaisedButton';
 import SaveIcon from 'material-ui/svg-icons/content/save';
 
 import recordTypeSelect from '../ui/record-type-select.js';
+
+import { update } from './actions';
 import styles from './records.css';
 
-export default class Records extends Component {
+class Records extends Component {
 
   static propTypes = {
-    actions: PropTypes.object.isRequired,
     pending: PropTypes.bool.isRequired,
     name: PropTypes.string.isRequired,
     type: PropTypes.string.isRequired,
-    value: PropTypes.string.isRequired
+    value: PropTypes.string.isRequired,
+
+    update: PropTypes.func.isRequired
   }
 
   state = { name: '', type: 'A', value: '' };
@@ -87,6 +92,13 @@ export default class Records extends Component {
   };
   onSaveClick = () => {
     const { name, type, value } = this.state;
-    this.props.actions.update(name, type, value);
+    this.props.update(name, type, value);
   };
 }
+
+export default connect(
+  // mapStateToProps
+  (state) => state.records,
+  // mapDispatchToProps
+  (dispatch) => bindActionCreators({ update }, dispatch)
+)(Records);
