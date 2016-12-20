@@ -18,7 +18,7 @@
 
 /// Statuses for restorations.
 #[derive(PartialEq, Eq, Clone, Copy, Debug)]
-#[binary]
+#[cfg_attr(feature = "ipc", binary)]
 pub enum RestorationStatus {
 	///	No restoration.
 	Inactive,

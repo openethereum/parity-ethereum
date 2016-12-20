@@ -21,7 +21,7 @@ use client::Mode as ClientMode;
 
 /// IPC-capable shadow-type for `client::config::Mode`
 #[derive(Clone, Debug)]
-#[binary]
+#[cfg_attr(feature = "ipc", binary)]
 pub enum Mode {
 	/// Same as `ClientMode::Off`.
 	Off,

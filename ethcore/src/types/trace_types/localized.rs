@@ -22,7 +22,7 @@ use header::BlockNumber;
 
 /// Localized trace.
 #[derive(Debug, PartialEq, Clone)]
-#[binary]
+#[cfg_attr(feature = "ipc", binary)]
 pub struct LocalizedTrace {
 	/// Type of action performed by a transaction.
 	pub action: Action,

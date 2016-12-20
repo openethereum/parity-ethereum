@@ -22,7 +22,7 @@
 
 /// Client pruning info. See module-level docs for more details.
 #[derive(Debug, Clone)]
-#[binary]
+#[cfg_attr(feature = "ipc", binary)]
 pub struct PruningInfo {
 	/// The first block which everything can be served after.
 	pub earliest_chain: u64,

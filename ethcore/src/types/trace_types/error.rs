@@ -22,7 +22,7 @@ use evm::Error as EvmError;
 
 /// Trace evm errors.
 #[derive(Debug, PartialEq, Clone)]
-#[binary]
+#[cfg_attr(feature = "ipc", binary)]
 pub enum Error {
 	/// `OutOfGas` is returned when transaction execution runs out of gas.
 	OutOfGas,

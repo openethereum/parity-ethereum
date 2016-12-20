@@ -22,7 +22,7 @@ use util::Bytes;
 
 /// Manifest data.
 #[derive(Debug, Clone, PartialEq, Eq)]
-#[binary]
+#[cfg_attr(feature = "ipc", binary)]
 pub struct ManifestData {
 	/// List of state chunk hashes.
 	pub state_hashes: Vec<H256>,

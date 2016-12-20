@@ -20,7 +20,7 @@ use util::H256;
 
 /// Represents a tree route between `from` block and `to` block:
 #[derive(Debug)]
-#[binary]
+#[cfg_attr(feature = "ipc", binary)]
 pub struct TreeRoute {
 	/// A vector of hashes of all blocks, ordered from `from` to `to`.
 	pub blocks: Vec<H256>,

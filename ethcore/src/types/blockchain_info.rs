@@ -22,7 +22,7 @@ use types::security_level::SecurityLevel;
 
 /// Information about the blockchain gathered together.
 #[derive(Clone, Debug)]
-#[binary]
+#[cfg_attr(feature = "ipc", binary)]
 pub struct BlockChainInfo {
 	/// Blockchain difficulty.
 	pub total_difficulty: U256,

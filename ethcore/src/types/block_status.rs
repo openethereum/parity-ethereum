@@ -19,7 +19,7 @@ use verification::queue::Status as QueueStatus;
 
 /// General block status
 #[derive(Debug, Eq, PartialEq)]
-#[binary]
+#[cfg_attr(feature = "ipc", binary)]
 pub enum BlockStatus {
 	/// Part of the blockchain.
 	InChain,

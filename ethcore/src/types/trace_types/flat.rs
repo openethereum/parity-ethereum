@@ -26,7 +26,7 @@ use super::trace::{Action, Res};
 ///
 /// Parent and children indexes refer to positions in this vector.
 #[derive(Debug, PartialEq, Clone)]
-#[binary]
+#[cfg_attr(feature = "ipc", binary)]
 pub struct FlatTrace {
 	/// Type of action performed by a transaction.
 	pub action: Action,

@@ -26,7 +26,7 @@ use log_entry::{LogEntry, LocalizedLogEntry};
 
 /// Information describing execution of a transaction.
 #[derive(Default, Debug, Clone)]
-#[binary]
+#[cfg_attr(feature = "ipc", binary)]
 pub struct Receipt {
 	/// The state root after executing the transaction.
 	pub state_root: H256,
@@ -81,7 +81,7 @@ impl HeapSizeOf for Receipt {
 
 /// Receipt with additional info.
 #[derive(Debug, Clone, PartialEq)]
-#[binary]
+#[cfg_attr(feature = "ipc", binary)]
 pub struct RichReceipt {
 	/// Transaction hash.
 	pub transaction_hash: H256,
@@ -103,7 +103,7 @@ pub struct RichReceipt {
 
 /// Receipt with additional info.
 #[derive(Debug, Clone, PartialEq)]
-#[binary]
+#[cfg_attr(feature = "ipc", binary)]
 pub struct LocalizedReceipt {
 	/// Transaction hash.
 	pub transaction_hash: H256,

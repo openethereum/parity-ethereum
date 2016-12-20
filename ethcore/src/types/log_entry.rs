@@ -27,7 +27,7 @@ use ethjson;
 
 /// A record of execution for a `LOG` operation.
 #[derive(Default, Debug, Clone, PartialEq, Eq)]
-#[binary]
+#[cfg_attr(feature = "ipc", binary)]
 pub struct LogEntry {
 	/// The address of the contract executing at the point of the `LOG` operation.
 	pub address: Address,
@@ -83,7 +83,7 @@ impl From<ethjson::state::Log> for LogEntry {
 
 /// Log localized in a blockchain.
 #[derive(Default, Debug, PartialEq, Clone)]
-#[binary]
+#[cfg_attr(feature = "ipc", binary)]
 pub struct LocalizedLogEntry {
 	/// Plain log entry.
 	pub entry: LogEntry,

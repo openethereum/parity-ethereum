@@ -23,7 +23,7 @@ use util::{U256, H256, Uint, Bytes};
 use ipc::binary::BinaryConvertable;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-#[binary]
+#[cfg_attr(feature = "ipc", binary)]
 /// Diff type for specifying a change (or not).
 pub enum Diff<T> where T: Eq + BinaryConvertable {
 	/// Both sides are the same.
@@ -51,7 +51,7 @@ impl<T> Diff<T> where T: Eq + BinaryConvertable {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-#[binary]
+#[cfg_attr(feature = "ipc", binary)]
 /// Account diff.
 pub struct AccountDiff {
 	/// Change in balance, allowed to be `Diff::Same`.
@@ -65,7 +65,7 @@ pub struct AccountDiff {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-#[binary]
+#[cfg_attr(feature = "ipc", binary)]
 /// Change in existance type.
 // TODO: include other types of change.
 pub enum Existance {

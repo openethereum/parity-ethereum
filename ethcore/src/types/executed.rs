@@ -25,7 +25,7 @@ use std::fmt;
 
 /// The type of the call-like instruction.
 #[derive(Debug, PartialEq, Clone)]
-#[binary]
+#[cfg_attr(feature = "ipc", binary)]
 pub enum CallType {
 	/// Not a CALL.
 	None,
@@ -63,7 +63,7 @@ impl Decodable for CallType {
 
 /// Transaction execution receipt.
 #[derive(Debug, PartialEq, Clone)]
-#[binary]
+#[cfg_attr(feature = "ipc", binary)]
 pub struct Executed {
 	/// Gas paid up front for execution of transaction.
 	pub gas: U256,
@@ -104,7 +104,7 @@ pub struct Executed {
 
 /// Result of executing the transaction.
 #[derive(PartialEq, Debug, Clone)]
-#[binary]
+#[cfg_attr(feature = "ipc", binary)]
 pub enum ExecutionError {
 	/// Returned when there gas paid for transaction execution is
 	/// lower than base gas required.
@@ -172,7 +172,7 @@ impl fmt::Display for ExecutionError {
 
 /// Result of executing the transaction.
 #[derive(PartialEq, Debug, Clone)]
-#[binary]
+#[cfg_attr(feature = "ipc", binary)]
 pub enum CallError {
 	/// Couldn't find the transaction in the chain.
 	TransactionNotFound,
