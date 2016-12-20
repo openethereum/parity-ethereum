@@ -271,7 +271,7 @@ describe('api/format/output', () => {
       });
     });
 
-    ['blockNumber', 'gasPrice', 'gas', 'nonce', 'transactionIndex', 'value'].forEach((input) => {
+    ['blockNumber', 'gasPrice', 'gas', 'minBlock', 'nonce', 'transactionIndex', 'value'].forEach((input) => {
       it(`formats ${input} number as hexnumber`, () => {
         const block = {};
         block[input] = 0x123;
@@ -280,6 +280,10 @@ describe('api/format/output', () => {
         expect(isInstanceOf(formatted, BigNumber)).to.be.true;
         expect(formatted.toString(16)).to.equal('123');
       });
+    });
+
+    it('passes minBlock as null when null', () => {
+      expect(outTransaction({ minBlock: null })).to.deep.equal({ minBlock: null });
     });
 
     it('ignores and passes through unknown keys', () => {
