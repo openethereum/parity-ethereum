@@ -14,15 +14,17 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import React, { Component, PropTypes } from 'react';
-import { MenuItem } from 'material-ui';
 import { isEqual, pick } from 'lodash';
+import { MenuItem } from 'material-ui';
+import React, { Component, PropTypes } from 'react';
+import { FormattedMessage } from 'react-intl';
+
+import { fromWei } from '~/api/util/wei';
+import { nodeOrStringProptype } from '~/util/proptypes';
 
 import AutoComplete from '../AutoComplete';
 import IdentityIcon from '../../IdentityIcon';
 import IdentityName from '../../IdentityName';
-
-import { fromWei } from '~/api/util/wei';
 
 import styles from './addressSelect.css';
 
@@ -40,9 +42,9 @@ export default class AddressSelect extends Component {
     contacts: PropTypes.object,
     contracts: PropTypes.object,
     disabled: PropTypes.bool,
-    error: PropTypes.string,
-    hint: PropTypes.string,
-    label: PropTypes.string,
+    error: nodeOrStringProptype(),
+    hint: nodeOrStringProptype(),
+    label: nodeOrStringProptype(),
     tokens: PropTypes.object,
     value: PropTypes.string,
     wallets: PropTypes.object
@@ -116,18 +118,27 @@ export default class AddressSelect extends Component {
         <AutoComplete
           className={ !icon ? '' : styles.paddedInput }
           disabled={ disabled }
-          label={ label }
-          hint={ hint ? `search for ${hint}` : 'search for an address' }
-          error={ error }
-          onChange={ this.onChange }
-          onBlur={ this.onBlur }
-          onUpdateInput={ allowInput && this.onUpdateInput }
-          value={ searchText }
-          filter={ this.handleFilter }
           entries={ autocompleteEntries }
           entry={ this.getEntry() || {} }
+          error={ error }
+          filter={ this.handleFilter }
+          hint={
+            <FormattedMessage
+              id='ui.addressSelect.search.hint'
+              defaultMessage='search for {hint}'
+              values={ {
+                hint: hint ||
+                  <FormattedMessage
+                    id='ui.addressSelect.search.address'
+                    defaultMessage='address' />
+              } } />
+          }
+          label={ label }
+          onBlur={ this.onBlur }
+          onChange={ this.onChange }
+          onUpdateInput={ allowInput && this.onUpdateInput }
           renderItem={ this.renderItem }
-        />
+          value={ searchText } />
         { icon }
       </div>
     );
@@ -148,9 +159,10 @@ export default class AddressSelect extends Component {
 
     return (
       <IdentityIcon
+        address={ value }
+        center
         className={ classes.join(' ') }
-        inline center
-        address={ value } />
+        inline />
     );
   }
 
@@ -162,9 +174,10 @@ export default class AddressSelect extends Component {
 
     if (!this.items[address] || this.items[address].balance !== balance) {
       this.items[address] = {
+        address,
+        balance,
         text: name && name.toUpperCase() || address,
-        value: this.renderMenuItem(address),
-        address, balance
+        value: this.renderMenuItem(address)
       };
     }
 
@@ -189,7 +202,7 @@ export default class AddressSelect extends Component {
   }
 
   renderBalance (address) {
-    const balance = this.getBalance(address);
+    const balance = this.getBalance(address) || 0;
     const value = fromWei(balance);
 
     return (
@@ -207,12 +220,13 @@ export default class AddressSelect extends Component {
     const item = (
       <div className={ styles.account }>
         <IdentityIcon
+          address={ address }
+          center
           className={ styles.image }
-          inline center
-          address={ address } />
+          inline />
         <IdentityName
-          className={ styles.name }
-          address={ address } />
+          address={ address }
+          className={ styles.name } />
         { balance }
       </div>
     );
@@ -221,8 +235,8 @@ export default class AddressSelect extends Component {
       <MenuItem
         className={ styles.menuItem }
         key={ address }
-        value={ address }
-        label={ item }>
+        label={ item }
+        value={ address }>
         { item }
       </MenuItem>
     );
