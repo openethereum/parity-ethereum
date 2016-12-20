@@ -69,7 +69,11 @@ export default class Accounts extends Component {
         key={ account.address } value={ account.address }
         checked={ isSelected } insetChildren={ !isSelected }
       >
-        <Address address={ account.address } accounts={ all } contacts={ {} } />
+        <Address
+          address={ account.address }
+          accounts={ all }
+          contacts={ {} }
+        />
       </MenuItem>
     );
   };

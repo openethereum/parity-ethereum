@@ -48,10 +48,24 @@ const renderEvent = (classNames, verb) => (e, accounts, contacts) => {
 
   return (
     <tr key={ e.key } className={ classes }>
-      <td><Address address={ e.parameters.owner.value } accounts={ accounts } contacts={ contacts } /></td>
-      <td><abbr title={ e.transaction }>{ verb }</abbr></td>
-      <td><code><Hash hash={ bytesToHex(e.parameters.name.value) } /></code></td>
-      <td>{ renderStatus(e.timestamp, e.state === 'pending') }</td>
+      <td>
+        <Address
+          address={ e.parameters.owner.value }
+          accounts={ accounts }
+          contacts={ contacts }
+        />
+      </td>
+      <td>
+        <abbr title={ e.transaction }>{ verb }</abbr>
+      </td>
+      <td>
+        <code>
+          <Hash hash={ bytesToHex(e.parameters.name.value) } />
+        </code>
+      </td>
+      <td>
+        { renderStatus(e.timestamp, e.state === 'pending') }
+      </td>
     </tr>
   );
 };
@@ -64,12 +78,29 @@ const renderDataChanged = (e, accounts, contacts) => {
 
   return (
     <tr key={ e.key } className={ classNames }>
-      <td><Address address={ e.parameters.owner.value } accounts={ accounts } contacts={ contacts } /></td>
-      <td><abbr title={ e.transaction }>updated</abbr></td>
       <td>
-        key <code>{ new Buffer(e.parameters.plainKey.value).toString('utf8') }</code> of <code><Hash hash={ bytesToHex(e.parameters.name.value) } /></code>
+        <Address
+          address={ e.parameters.owner.value }
+          accounts={ accounts }
+          contacts={ contacts }
+        />
       </td>
-      <td>{ renderStatus(e.timestamp, e.state === 'pending') }</td>
+      <td>
+        <abbr title={ e.transaction }>updated</abbr>
+      </td>
+      <td>
+        { 'key ' }
+        <code>
+          { new Buffer(e.parameters.plainKey.value).toString('utf8') }
+        </code>
+        { 'of ' }
+        <code>
+          <Hash hash={ bytesToHex(e.parameters.name.value) } />
+        </code>
+      </td>
+      <td>
+        { renderStatus(e.timestamp, e.state === 'pending') }
+      </td>
     </tr>
   );
 };

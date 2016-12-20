@@ -49,7 +49,16 @@ export default class Lookup extends Component {
     let output = '';
     if (result) {
       if (type === 'A') {
-        output = (<code><Address address={ result } accounts={ accounts } contacts={ contacts } shortenHash={ false } /></code>);
+        output = (
+          <code>
+            <Address
+              address={ result }
+              accounts={ accounts }
+              contacts={ contacts }
+              shortenHash={ false }
+            />
+          </code>
+        );
       } else if (type === 'IMG') {
         output = renderImage(result);
       } else if (type === 'CONTENT') {
