@@ -81,7 +81,7 @@ export default class WriteContractStore {
   loadingSolidity = false;
   lastCompilation = {};
   snippets = SNIPPETS;
-  worker = null;
+  worker = undefined;
 
   useWorker = true;
   solc = {};
@@ -107,6 +107,10 @@ export default class WriteContractStore {
   }
 
   @action setWorker (worker) {
+    if (this.worker !== undefined) {
+      return;
+    }
+
     this.worker = worker;
 
     this
@@ -150,7 +154,9 @@ export default class WriteContractStore {
 
   @action handleSelectBuild = (_, index, value) => {
     this.selectedBuild = value;
-    return this.loadSolidityVersion(this.builds[value]);
+    return this
+      .loadSolidityVersion(this.builds[value])
+      .then(() => this.handleCompile());
   }
 
   getCompiler (build) {
@@ -181,6 +187,8 @@ export default class WriteContractStore {
     if (this.loadingSolidity) {
       return this.loadingSolidity;
     }
+
+    this.loading = true;
 
     if (this.useWorker) {
       this.loadingSolidity = this.worker
@@ -272,7 +280,7 @@ export default class WriteContractStore {
     });
   }
 
-  @action handleCompile = (loadFiles = false) => {
+  @action handleCompile = () => {
     transaction(() => {
       this.compiled = false;
       this.compiling = true;
@@ -292,17 +300,12 @@ export default class WriteContractStore {
         }, 500);
       });
     } else {
-      promise = loadFiles && this.useWorker
-        ? this.sendFilesToWorker()
-        : Promise.resolve();
-
-      promise = promise
-        .then(() => {
-          return this.compile({
-            sourcecode: sourcecode,
-            build: build,
-            optimize: this.optimize
-          });
+      promise = this
+        .compile({
+          sourcecode: sourcecode,
+          build: build,
+          optimize: this.optimize,
+          files: this.files
         })
         .then((data) => {
           const result = this.parseCompiled(data);
@@ -468,8 +471,7 @@ export default class WriteContractStore {
 
     this.resizeEditor();
 
-    // Send the new files to the Worker and compile
-    return this.handleCompile(true);
+    return this.handleCompile();
   }
 
   @action handleLoadContract = (contract) => {
@@ -504,20 +506,13 @@ export default class WriteContractStore {
     } catch (e) {}
   }
 
-  sendFilesToWorker = () => {
-    if (!this.useWorker) {
-      return Promise.resolve();
-    }
-
+  get files() {
     const files = [].concat(
       Object.values(this.snippets),
       Object.values(this.savedContracts)
     );
 
-    return this.worker.postMessage({
-      action: 'setFiles',
-      data: files
-    });
+    return files;
   }
 
 }

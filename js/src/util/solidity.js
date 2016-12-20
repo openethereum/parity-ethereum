@@ -19,7 +19,7 @@ import solc from 'solc/browser-wrapper';
 export default class SolidityUtils {
 
   static compile (data, compiler) {
-    const { sourcecode, build, optimize } = data;
+    const { sourcecode, build, optimize, files } = data;
 
     const start = Date.now();
     console.log('[solidity] compiling...');
@@ -28,7 +28,17 @@ export default class SolidityUtils {
       '': sourcecode
     };
 
-    const compiled = compiler.compile({ sources: input }, optimize ? 1 : 0);
+    const findFiles = (path) => {
+      const file = files.find((f) => f.name === path);
+
+      if (file) {
+        return { contents: file.sourcecode };
+      } else {
+        return { error: 'File not found' };
+      }
+    };
+
+    const compiled = compiler.compile({ sources: input }, optimize ? 1 : 0, findFiles);
 
     const time = Math.round((Date.now() - start) / 100) / 10;
     console.log(`[solidity] done compiling in ${time}s`);
