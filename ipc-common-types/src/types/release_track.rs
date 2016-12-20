@@ -20,7 +20,7 @@ use std::fmt;
 
 /// A release's track.
 #[derive(PartialEq, Eq, Clone, Copy, Debug)]
-#[derive(binary)]
+#[binary]
 pub enum ReleaseTrack {
 	/// Stable track.
 	Stable,

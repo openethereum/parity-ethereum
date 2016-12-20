@@ -24,7 +24,7 @@ use release_track::ReleaseTrack;
 
 /// Version information of a particular release.
 #[derive(Debug, Clone, PartialEq)]
-#[derive(binary)]
+#[binary]
 pub struct VersionInfo {
 	/// The track on which it was released.
 	pub track: ReleaseTrack,
