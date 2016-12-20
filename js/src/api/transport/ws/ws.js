@@ -32,23 +32,30 @@ export default class Ws extends JsonRpcBase {
     this._connecting = false;
     this._connected = false;
     this._lastError = null;
-    this._autoConnect = true;
+    this._autoConnect = false;
     this._retries = 0;
     this._reconnectTimeoutId = null;
 
-    this._connect();
+    this._connectPromise = null;
+    this._connectPromiseFunctions = {};
+
+    // this.connect();
   }
 
   updateToken (token) {
     this._token = token;
-    this._autoConnect = true;
+    // this._autoConnect = true;
 
-    this._connect();
+    // this.connect();
   }
 
-  _connect () {
+  connect () {
+    if (this._connected) {
+      return Promise.resolve();
+    }
+
     if (this._connecting) {
-      return;
+      return this._connectPromise || Promise.resolve();
     }
 
     if (this._reconnectTimeoutId) {
@@ -104,10 +111,17 @@ export default class Ws extends JsonRpcBase {
 
       window._parityWS = this;
     }
+
+    this._connectPromise = new Promise((resolve, reject) => {
+      this._connectPromiseFunctions = { resolve, reject };
+    });
+
+    return this._connectPromise;
   }
 
   _onOpen = (event) => {
-    console.log('ws:onOpen', event);
+    console.log('ws:onOpen');
+
     this._connected = true;
     this._connecting = false;
     this._autoConnect = true;
@@ -116,6 +130,11 @@ export default class Ws extends JsonRpcBase {
     Object.keys(this._messages)
       .filter((id) => this._messages[id].queued)
       .forEach(this._send);
+
+    this._connectPromiseFunctions.resolve();
+
+    this._connectPromise = null;
+    this._connectPromiseFunctions = {};
   }
 
   _onClose = (event) => {
@@ -135,13 +154,20 @@ export default class Ws extends JsonRpcBase {
       console.log('ws:onClose', `trying again in ${time}...`);
 
       this._reconnectTimeoutId = setTimeout(() => {
-        this._connect();
+        this.connect();
       }, timeout);
 
       return;
     }
 
-    console.log('ws:onClose', event);
+    if (this._connectPromise) {
+      this._connectPromiseFunctions.reject(event);
+
+      this._connectPromise = null;
+      this._connectPromiseFunctions = {};
+    }
+
+    console.log('ws:onClose');
   }
 
   _onError = (event) => {
@@ -149,10 +175,17 @@ export default class Ws extends JsonRpcBase {
     // ie. don't print if error == closed
     window.setTimeout(() => {
       if (this._connected) {
-        console.error('ws:onError', event);
+        console.error('ws:onError');
 
         event.timestamp = Date.now();
         this._lastError = event;
+
+        if (this._connectPromise) {
+          this._connectPromiseFunctions.reject(event);
+
+          this._connectPromise = null;
+          this._connectPromiseFunctions = {};
+        }
       }
     }, 50);
   }

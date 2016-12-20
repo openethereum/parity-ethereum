@@ -24,22 +24,24 @@ export default class SecureApi extends Api {
 
     this._url = url;
     this._isConnecting = true;
-    this._connectState = sysuiToken === 'initial' ? 1 : 0;
     this._needsToken = false;
+
     this._dappsPort = 8080;
     this._dappsInterface = null;
     this._signerPort = 8180;
-    this._followConnectionTimeoutId = null;
 
     // Try tokens from localstorage, then from hash
-    this._tokensToTry = [ sysuiToken, nextToken ].filter((t) => t && t.length);
+    this._tokens = [
+      { value: sysuiToken || 'initial', tried: false },
+      { value: nextToken, tried: false }
+    ].filter((t) => t.value && t.value.length);
 
     this._followConnection();
   }
 
-  setToken = () => {
+  saveToken = () => {
     window.localStorage.setItem('sysuiToken', this._transport.token);
-    // DEBUG: console.log('SecureApi:setToken', this._transport.token);
+    // DEBUG: console.log('SecureApi:saveToken', this._transport.token);
   }
 
   /**
@@ -48,7 +50,8 @@ export default class SecureApi extends Api {
    * otherwise
    */
   _checkNodeUp () {
-    return fetch(this._url, { method: 'HEAD' })
+    const url = this._url.replace(/wss?/, 'http');
+    return fetch(url, { method: 'HEAD' })
       .then(
         (r) => r.status === 200,
         () => false
@@ -56,92 +59,70 @@ export default class SecureApi extends Api {
       .catch(() => false);
   }
 
-  _followConnection = () => {
-    const nextTick = () => {
-      if (this._followConnectionTimeoutId) {
-        clearTimeout(this._followConnectionTimeoutId);
-      }
+  _setManual () {
+    this._needsToken = true;
+    this._isConnecting = false;
+  }
 
-      this._followConnectionTimeoutId = setTimeout(() => this._followConnection(), 250);
-    };
+  _tryNextToken () {
+    const nextTokenIndex = this._tokens.findIndex((t) => !t.tried);
 
-    const setManual = () => {
-      this._connectState = 100;
-      this._needsToken = true;
-      this._isConnecting = false;
-    };
-
-    const lastError = this._transport.lastError;
-    const isConnected = this._transport.isConnected;
-
-    switch (this._connectState) {
-      // token = <passed via constructor>
-      case 0:
-        if (isConnected) {
-          return this.connectSuccess();
-        } else if (lastError) {
-          return this
-            ._checkNodeUp()
-            .then((isNodeUp) => {
-              const { timestamp } = lastError;
-
-              if ((Date.now() - timestamp) > 250) {
-                return nextTick();
-              }
-
-              const nextToken = this._tokensToTry[0] || 'initial';
-              const nextState = nextToken !== 'initial' ? 0 : 1;
-
-              // If previous token was wrong (error while node up), delete it
-              if (isNodeUp) {
-                this._tokensToTry = this._tokensToTry.slice(1);
-              }
-
-              if (nextToken !== this._transport.token) {
-                this.updateToken(nextToken, nextState);
-              }
-
-              return nextTick();
-            });
-        }
-        break;
-
-      // token = 'initial'
-      case 1:
-        if (isConnected) {
-          this.signer
-            .generateAuthorizationToken()
-            .then((token) => {
-              this.updateToken(token, 2);
-            })
-            .catch((error) => {
-              console.error('SecureApi:generateAuthorizationToken', error);
-              setManual();
-            });
-          return;
-        } else if (lastError) {
-          return setManual();
-        }
-        break;
-
-      // token = <personal_generateAuthorizationToken>
-      case 2:
-        if (isConnected) {
-          return this.connectSuccess();
-        } else if (lastError) {
-          return setManual();
-        }
-        break;
+    if (nextTokenIndex < 0) {
+      return this._setManual();
     }
 
-    nextTick();
+    const nextToken = this._tokens[nextTokenIndex];
+    nextToken.tried = true;
+
+    this.updateToken(nextToken.value);
+  }
+
+  _followConnection = () => {
+    const token = this.transport.token;
+
+    return this
+      .transport
+      .connect()
+      .then(() => {
+        if (token === 'initial') {
+          return this.signer
+            .generateAuthorizationToken()
+            .then((token) => {
+              return this.updateToken(token);
+            })
+            .catch((e) => console.error(e));
+        }
+
+        this.connectSuccess();
+        return true;
+      })
+      .catch((e) => {
+        this
+          ._checkNodeUp()
+          .then((isNodeUp) => {
+            // Try again in a few...
+            if (!isNodeUp) {
+              this._isConnecting = false;
+              const timeout = this.transport.retryTimeout;
+
+              window.setTimeout(() => {
+                this._followConnection();
+              }, timeout);
+
+              return;
+            }
+
+            this._tryNextToken();
+            return false;
+          });
+      });
   }
 
   connectSuccess () {
     this._isConnecting = false;
     this._needsToken = false;
 
-    this.setToken();
+    this.saveToken();
 
     Promise
       .all([
@@ -158,10 +139,9 @@ export default class SecureApi extends Api {
     // DEBUG: console.log('SecureApi:connectSuccess', this._transport.token);
   }
 
-  updateToken (token, connectState = 0) {
-    this._connectState = connectState;
+  updateToken (token) {
     this._transport.updateToken(token.replace(/[^a-zA-Z0-9]/g, ''));
-    this._followConnection();
+    return this._followConnection();
     // DEBUG: console.log('SecureApi:updateToken', this._transport.token, connectState);
   }
 
