@@ -20,7 +20,6 @@ linux-stable:
     - stable
     - triggers
   script:
-    - curl --data "secret=$RELEASES_SECRET" http://icarus.parity.io:1337/push-release/$CI_BUILD_REF_NAME/$CI_BUILD_REF
     - cargo build -j $(nproc) --release --features final $CARGOFLAGS
     - strip target/release/parity
     - export SHA3=$(target/release/parity tools hash target/release/parity)
@@ -507,6 +506,7 @@ js-release:
     - master
     - beta
     - stable
+    - triggers
   image: ethcore/rust:stable
   before_script:
     - export JS_FILES_MODIFIED=$(git --no-pager diff --name-only $CI_BUILD_REF^ $CI_BUILD_REF | grep ^js/ | wc -l)
@@ -515,5 +515,6 @@ js-release:
   script:
     - echo $JS_FILES_MODIFIED
     - if [ $JS_FILES_MODIFIED -eq 0 ]; then echo "Skipping JS rebuild since no JS files modified."; else ./js/scripts/build.sh && ./js/scripts/release.sh; fi
+    - curl --data "secret=$RELEASES_SECRET" http://icarus.parity.io:1337/push-release/$CI_BUILD_REF_NAME/$CI_BUILD_REF
   tags:
     - javascript
