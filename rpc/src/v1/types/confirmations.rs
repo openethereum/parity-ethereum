@@ -18,11 +18,13 @@
 
 use std::fmt;
 use serde::{Serialize, Serializer};
-use v1::types::{U256, TransactionRequest, RichRawTransaction, H160, H256, H520, Bytes};
+use util::log::Colour;
+
+use v1::types::{U256, TransactionRequest, RichRawTransaction, H160, H256, H520, Bytes, BlockNumber};
 use v1::helpers;
 
 /// Confirmation waiting in a queue
-#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub struct ConfirmationRequest {
 	/// Id of this confirmation
 	pub id: U256,
@@ -39,8 +41,25 @@ impl From<helpers::ConfirmationRequest> for ConfirmationRequest {
 	}
 }
 
+impl fmt::Display for ConfirmationRequest {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		write!(f, "#{}: {}", self.id, self.payload)
+	}
+}
+
+impl fmt::Display for ConfirmationPayload {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		match *self {
+			ConfirmationPayload::SendTransaction(ref transaction) => write!(f, "{}", transaction),
+			ConfirmationPayload::SignTransaction(ref transaction) => write!(f, "(Sign only) {}", transaction),
+			ConfirmationPayload::Signature(ref sign) => write!(f, "{}", sign),
+			ConfirmationPayload::Decrypt(ref decrypt) => write!(f, "{}", decrypt),
+		}
+	}
+}
+
 /// Sign request
-#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub struct SignRequest {
 	/// Address
 	pub address: H160,
@@ -57,8 +76,19 @@ impl From<(H160, H256)> for SignRequest {
 	}
 }
 
+impl fmt::Display for SignRequest {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		write!(
+			f,
+			"sign 0x{:?} with {}",
+			self.hash,
+			Colour::White.bold().paint(format!("0x{:?}", self.address)),
+		)
+	}
+}
+
 /// Decrypt request
-#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub struct DecryptRequest {
 	/// Address
 	pub address: H160,
@@ -72,6 +102,16 @@ impl From<(H160, Bytes)> for DecryptRequest {
 			address: tuple.0,
 			msg: tuple.1,
 		}
+	}
+}
+
+impl fmt::Display for DecryptRequest {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		write!(
+			f,
+			"decrypt data with {}",
+			Colour::White.bold().paint(format!("0x{:?}", self.address)),
+		)
 	}
 }
 
@@ -111,7 +151,7 @@ pub struct ConfirmationResponseWithToken {
 }
 
 /// Confirmation payload, i.e. the thing to be confirmed
-#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub enum ConfirmationPayload {
 	/// Send Transaction
 	#[serde(rename="sendTransaction")]
@@ -145,7 +185,7 @@ impl From<helpers::ConfirmationPayload> for ConfirmationPayload {
 }
 
 /// Possible modifications to the confirmed transaction sent by `Trusted Signer`
-#[derive(Debug, PartialEq, Deserialize)]
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct TransactionModification {
 	/// Modified gas price
@@ -153,6 +193,9 @@ pub struct TransactionModification {
 	pub gas_price: Option<U256>,
 	/// Modified gas
 	pub gas: Option<U256>,
+	/// Modified min block
+	#[serde(rename="minBlock")]
+	pub min_block: Option<Option<BlockNumber>>,
 }
 
 /// Represents two possible return values.
@@ -194,7 +237,7 @@ impl<A, B> Serialize for Either<A, B>  where
 mod tests {
 	use std::str::FromStr;
 	use serde_json;
-	use v1::types::{U256, H256};
+	use v1::types::{U256, H256, BlockNumber};
 	use v1::helpers;
 	use super::*;
 
@@ -227,12 +270,13 @@ mod tests {
 				value: 100_000.into(),
 				data: vec![1, 2, 3],
 				nonce: Some(1.into()),
+				min_block: None,
 			}),
 		};
 
 		// when
 		let res = serde_json::to_string(&ConfirmationRequest::from(request));
-		let expected = r#"{"id":"0xf","payload":{"sendTransaction":{"from":"0x0000000000000000000000000000000000000000","to":null,"gasPrice":"0x2710","gas":"0x3a98","value":"0x186a0","data":"0x010203","nonce":"0x1"}}}"#;
+		let expected = r#"{"id":"0xf","payload":{"sendTransaction":{"from":"0x0000000000000000000000000000000000000000","to":null,"gasPrice":"0x2710","gas":"0x3a98","value":"0x186a0","data":"0x010203","nonce":"0x1","minBlock":null}}}"#;
 
 		// then
 		assert_eq!(res.unwrap(), expected.to_owned());
@@ -251,12 +295,13 @@ mod tests {
 				value: 100_000.into(),
 				data: vec![1, 2, 3],
 				nonce: Some(1.into()),
+				min_block: None,
 			}),
 		};
 
 		// when
 		let res = serde_json::to_string(&ConfirmationRequest::from(request));
-		let expected = r#"{"id":"0xf","payload":{"signTransaction":{"from":"0x0000000000000000000000000000000000000000","to":null,"gasPrice":"0x2710","gas":"0x3a98","value":"0x186a0","data":"0x010203","nonce":"0x1"}}}"#;
+		let expected = r#"{"id":"0xf","payload":{"signTransaction":{"from":"0x0000000000000000000000000000000000000000","to":null,"gasPrice":"0x2710","gas":"0x3a98","value":"0x186a0","data":"0x010203","nonce":"0x1","minBlock":null}}}"#;
 
 		// then
 		assert_eq!(res.unwrap(), expected.to_owned());
@@ -284,7 +329,8 @@ mod tests {
 	fn should_deserialize_modification() {
 		// given
 		let s1 = r#"{
-			"gasPrice":"0xba43b7400"
+			"gasPrice":"0xba43b7400",
+			"minBlock":"0x42"
 		}"#;
 		let s2 = r#"{"gas": "0x1233"}"#;
 		let s3 = r#"{}"#;
@@ -298,14 +344,17 @@ mod tests {
 		assert_eq!(res1, TransactionModification {
 			gas_price: Some(U256::from_str("0ba43b7400").unwrap()),
 			gas: None,
+			min_block: Some(Some(BlockNumber::Num(0x42))),
 		});
 		assert_eq!(res2, TransactionModification {
 			gas_price: None,
 			gas: Some(U256::from_str("1233").unwrap()),
+			min_block: None,
 		});
 		assert_eq!(res3, TransactionModification {
 			gas_price: None,
 			gas: None,
+			min_block: None,
 		});
 	}
 
@@ -325,4 +374,3 @@ mod tests {
 		assert_eq!(res.unwrap(), expected.to_owned());
 	}
 }
-

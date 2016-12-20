@@ -22,7 +22,6 @@ import { pick } from 'lodash';
 import ActionDone from 'material-ui/svg-icons/action/done';
 import ContentClear from 'material-ui/svg-icons/content/clear';
 import NavigationArrowForward from 'material-ui/svg-icons/navigation/arrow-forward';
-import { parseAbiType } from '~/util/abi';
 
 import { Button, Modal, TxHash, BusyStep, Form, TypedInput, InputAddress, AddressSelect } from '~/ui';
 import { fromWei } from '~/api/util/wei';
@@ -107,10 +106,7 @@ class WalletSettings extends Component {
 
         return (
           <div>
-            <p>You are about to make the following modifications</p>
-            <div>
-              { this.renderChanges(changes) }
-            </div>
+            { this.renderChanges(changes) }
           </div>
         );
 
@@ -142,19 +138,19 @@ class WalletSettings extends Component {
               value={ wallet.owners.slice() }
               onChange={ this.store.onOwnersChange }
               accounts={ accounts }
-              param={ parseAbiType('address[]') }
+              param='address[]'
             />
 
             <div className={ styles.splitInput }>
               <TypedInput
                 label='required owners'
                 hint='number of required owners to accept a transaction'
-                value={ wallet.require }
                 error={ errors.require }
-                onChange={ this.store.onRequireChange }
-                param={ parseAbiType('uint') }
                 min={ 1 }
+                onChange={ this.store.onRequireChange }
                 max={ wallet.owners.length }
+                param='uint'
+                value={ wallet.require }
               />
 
               <TypedInput
@@ -163,7 +159,7 @@ class WalletSettings extends Component {
                 value={ wallet.dailylimit }
                 error={ errors.dailylimit }
                 onChange={ this.store.onDailylimitChange }
-                param={ parseAbiType('uint') }
+                param='uint'
                 isEth
               />
             </div>
@@ -173,11 +169,24 @@ class WalletSettings extends Component {
   }
 
   renderChanges (changes) {
-    return changes.map((change, index) => (
+    if (changes.length === 0) {
+      return (
+        <p>No modifications have been made to the Wallet settings.</p>
+      );
+    }
+
+    const modifications = changes.map((change, index) => (
       <div key={ `${change.type}_${index}` }>
         { this.renderChange(change) }
       </div>
     ));
+
+    return (
+      <div>
+        <p>You are about to make the following modifications</p>
+        { modifications }
+      </div>
+    );
   }
 
   renderChange (change) {
@@ -297,6 +306,12 @@ class WalletSettings extends Component {
         return done ? [ closeBtn ] : [ closeBtn, sendingBtn ];
 
       case 'CONFIRMATION':
+        const { changes } = this.store;
+
+        if (changes.length === 0) {
+          return [ closeBtn ];
+        }
+
         return [ cancelBtn, sendBtn ];
 
       default:

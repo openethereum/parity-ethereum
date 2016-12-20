@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import { FormattedMessage } from 'react-intl';
 import ActionDone from 'material-ui/svg-icons/action/done';
 import ActionDoneAll from 'material-ui/svg-icons/action/done-all';
 import ContentClear from 'material-ui/svg-icons/content/clear';
@@ -22,7 +23,7 @@ import NavigationArrowBack from 'material-ui/svg-icons/navigation/arrow-back';
 import NavigationArrowForward from 'material-ui/svg-icons/navigation/arrow-forward';
 import PrintIcon from 'material-ui/svg-icons/action/print';
 
-import { Button, Modal } from '~/ui';
+import { Button, Modal, Warning } from '~/ui';
 
 import AccountDetails from './AccountDetails';
 import AccountDetailsGeth from './AccountDetailsGeth';
@@ -86,6 +87,7 @@ export default class CreateAccount extends Component {
         actions={ this.renderDialogActions() }
         current={ stage }
         steps={ steps }>
+        { this.renderWarning() }
         { this.renderPage() }
       </Modal>
     );
@@ -198,6 +200,22 @@ export default class CreateAccount extends Component {
             onClick={ this.onClose } />
         ];
     }
+  }
+
+  renderWarning () {
+    const { createType, stage } = this.state;
+
+    if (stage !== 1 || ['fromJSON', 'fromPresale'].includes(createType)) {
+      return null;
+    }
+
+    return (
+      <Warning warning={
+        <FormattedMessage
+          id='createAccount.warning.insecurePassword'
+          defaultMessage='It is recommended that a strong password be used to secure your accounts. Empty and trivial passwords are a security risk.' />
+      } />
+    );
   }
 
   onNext = () => {

@@ -33,6 +33,7 @@ import Errors from './Errors';
 import Form, { AddressSelect, FormWrap, TypedInput, Input, InputAddress, InputAddressSelect, InputChip, InputInline, Select, RadioButtons } from './Form';
 import GasPriceEditor from './GasPriceEditor';
 import GasPriceSelector from './GasPriceSelector';
+import Icons from './Icons';
 import IdentityIcon from './IdentityIcon';
 import IdentityName from './IdentityName';
 import LanguageSelector from './LanguageSelector';
@@ -48,6 +49,7 @@ import Tags from './Tags';
 import Tooltips, { Tooltip } from './Tooltips';
 import TxHash from './TxHash';
 import TxList from './TxList';
+import Warning from './Warning';
 
 export {
   Actionbar,
@@ -72,6 +74,7 @@ export {
   FormWrap,
   GasPriceEditor,
   GasPriceSelector,
+  Icons,
   Input,
   InputAddress,
   InputAddressSelect,
@@ -97,5 +100,6 @@ export {
   Tooltips,
   TxHash,
   TxList,
-  TypedInput
+  TypedInput,
+  Warning
 };

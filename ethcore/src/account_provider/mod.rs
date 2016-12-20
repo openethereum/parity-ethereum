@@ -18,7 +18,7 @@
 
 mod stores;
 
-use self::stores::{AddressBook, DappsSettingsStore};
+use self::stores::{AddressBook, DappsSettingsStore, NewDappsPolicy};
 
 use std::fmt;
 use std::collections::HashMap;
@@ -156,10 +156,49 @@ impl AccountProvider {
 		Ok(accounts)
 	}
 
+	/// Sets a whitelist of accounts exposed for unknown dapps.
+	/// `None` means that all accounts will be visible.
+	pub fn set_new_dapps_whitelist(&self, accounts: Option<Vec<Address>>) -> Result<(), Error> {
+		self.dapps_settings.write().set_policy(match accounts {
+			None => NewDappsPolicy::AllAccounts,
+			Some(accounts) => NewDappsPolicy::Whitelist(accounts),
+		});
+		Ok(())
+	}
+
+	/// Gets a whitelist of accounts exposed for unknown dapps.
+	/// `None` means that all accounts will be visible.
+	pub fn new_dapps_whitelist(&self) -> Result<Option<Vec<Address>>, Error> {
+		Ok(match self.dapps_settings.read().policy() {
+			NewDappsPolicy::AllAccounts => None,
+			NewDappsPolicy::Whitelist(accounts) => Some(accounts),
+		})
+	}
+
+	/// Gets a list of dapps recently requesting accounts.
+	pub fn recent_dapps(&self) -> Result<Vec<DappId>, Error> {
+		Ok(self.dapps_settings.read().recent_dapps())
+	}
+
+	/// Marks dapp as recently used.
+	pub fn note_dapp_used(&self, dapp: DappId) -> Result<(), Error> {
+		let mut dapps = self.dapps_settings.write();
+		dapps.mark_dapp_used(dapp.clone());
+		Ok(())
+	}
+
 	/// Gets addresses visile for dapp.
 	pub fn dapps_addresses(&self, dapp: DappId) -> Result<Vec<Address>, Error> {
-		let accounts = self.dapps_settings.read().get();
-		Ok(accounts.get(&dapp).map(|settings| settings.accounts.clone()).unwrap_or_else(Vec::new))
+		let dapps = self.dapps_settings.read();
+
+		let accounts = dapps.settings().get(&dapp).map(|settings| settings.accounts.clone());
+		match accounts {
+			Some(accounts) => Ok(accounts),
+			None => match dapps.policy() {
+				NewDappsPolicy::AllAccounts => self.accounts(),
+				NewDappsPolicy::Whitelist(accounts) => Ok(accounts),
+			}
+		}
 	}
 
 	/// Sets addresses visile for dapp.
@@ -423,11 +462,32 @@ mod tests {
 		// given
 		let ap = AccountProvider::transient_provider();
 		let app = "app1".to_owned();
+		// set `AllAccounts` policy
+		ap.set_new_dapps_whitelist(None).unwrap();
 
 		// when
 		ap.set_dapps_addresses(app.clone(), vec![1.into(), 2.into()]).unwrap();
 
 		// then
 		assert_eq!(ap.dapps_addresses(app.clone()).unwrap(), vec![1.into(), 2.into()]);
+	}
+
+	#[test]
+	fn should_set_dapps_policy() {
+		// given
+		let ap = AccountProvider::transient_provider();
+		let address = ap.new_account("test").unwrap();
+
+		// When returning nothing
+		ap.set_new_dapps_whitelist(Some(vec![])).unwrap();
+		assert_eq!(ap.dapps_addresses("app1".into()).unwrap(), vec![]);
+
+		// change to all
+		ap.set_new_dapps_whitelist(None).unwrap();
+		assert_eq!(ap.dapps_addresses("app1".into()).unwrap(), vec![address]);
+
+		// change to a whitelist
+		ap.set_new_dapps_whitelist(Some(vec![1.into()])).unwrap();
+		assert_eq!(ap.dapps_addresses("app1".into()).unwrap(), vec![1.into()]);
 	}
 }

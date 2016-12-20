@@ -16,6 +16,7 @@
 
 //! Blockchain database client.
 
+mod registry;
 mod config;
 mod error;
 mod test_client;

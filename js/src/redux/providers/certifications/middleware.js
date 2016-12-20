@@ -14,38 +14,140 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import Contracts from '~/contracts';
-import { addCertification } from './actions';
+import { uniq } from 'lodash';
+import debounce from 'debounce';
 
-const knownCertifiers = [ 'smsverification' ];
+import ABI from '~/contracts/abi/certifier.json';
+import Contract from '~/api/contract';
+import Contracts from '~/contracts';
+import { addCertification, removeCertification } from './actions';
+
+// TODO: move this to a more general place
+const updatableFilter = (api, onFilter) => {
+  let filter = null;
+
+  const update = (address, topics) => {
+    if (filter) {
+      filter = filter.then((filterId) => {
+        api.eth.uninstallFilter(filterId);
+      });
+    }
+    filter = (filter || Promise.resolve())
+      .then(() => api.eth.newFilter({
+        fromBlock: 0,
+        toBlock: 'latest',
+        address,
+        topics
+      }))
+      .then((filterId) => {
+        onFilter(filterId);
+        return filterId;
+      })
+      .catch((err) => {
+        console.error('Failed to create certifications filter:', err);
+      });
+  };
+  return update;
+};
 
 export default class CertificationsMiddleware {
   toMiddleware () {
-    return (store) => (next) => (action) => {
-      if (action.type !== 'fetchCertifications') {
-        return next(action);
-      }
+    const api = Contracts.get()._api;
+    const badgeReg = Contracts.get().badgeReg;
+    const contract = new Contract(api, ABI);
+    const Confirmed = contract.events.find((e) => e.name === 'Confirmed');
+    const Revoked = contract.events.find((e) => e.name === 'Revoked');
 
-      const { address } = action;
-      const badgeReg = Contracts.get().badgeReg;
+    return (store) => {
+      const onLogs = (logs) => {
+        logs = contract.parseEventLogs(logs);
+        logs.forEach((log) => {
+          const certifier = certifiers.find((c) => c.address === log.address);
+          if (!certifier) {
+            throw new Error(`Could not find certifier at ${log.address}.`);
+          }
+          const { id, name, title, icon } = certifier;
 
-      knownCertifiers.forEach((name) => {
-        badgeReg.fetchCertifier(name)
-          .then((cert) => {
-            return badgeReg.checkIfCertified(cert.address, address)
-              .then((isCertified) => {
-                if (isCertified) {
-                  const { name, title, icon } = cert;
-                  store.dispatch(addCertification(address, name, title, icon));
-                }
-              });
-          })
+          if (log.event === 'Revoked') {
+            store.dispatch(removeCertification(log.params.who.value, id));
+          } else {
+            store.dispatch(addCertification(log.params.who.value, id, name, title, icon));
+          }
+        });
+      };
+
+      let filter = null;
+
+      const onFilter = (filterId) => {
+        filter = filterId;
+        api.eth.getFilterLogs(filterId)
+          .then(onLogs)
           .catch((err) => {
-            if (err) {
-              console.error(`Failed to check if ${address} certified by ${name}:`, err);
-            }
+            console.error('Failed to fetch certifier events:', err);
           });
+      };
+
+      const fetchChanges = debounce(() => {
+        api.eth.getFilterChanges(filter)
+          .then(onLogs)
+          .catch((err) => {
+            console.error('Failed to fetch new certifier events:', err);
+          });
+      }, 10 * 1000, true);
+      api.subscribe('eth_blockNumber', (err) => {
+        if (err) return;
+        fetchChanges();
       });
+
+      const updateFilter = updatableFilter(api, onFilter);
+      let certifiers = [];
+      let accounts = []; // these are addresses
+
+      const fetchConfirmedEvents = () => {
+        updateFilter(certifiers.map((c) => c.address), [
+          [ Confirmed.signature, Revoked.signature ],
+          accounts
+        ]);
+      };
+
+      return (next) => (action) => {
+        switch (action.type) {
+          case 'fetchCertifiers':
+            badgeReg.certifierCount().then((count) => {
+              new Array(+count).fill(null).forEach((_, id) => {
+                badgeReg.fetchCertifier(id)
+                  .then((cert) => {
+                    if (!certifiers.some((c) => c.id === cert.id)) {
+                      certifiers = certifiers.concat(cert);
+                      fetchConfirmedEvents();
+                    }
+                  })
+                  .catch((err) => {
+                    console.warn(`Could not fetch certifier ${id}:`, err);
+                  });
+              });
+            });
+
+            break;
+          case 'fetchCertifications':
+            const { address } = action;
+
+            if (!accounts.includes(address)) {
+              accounts = accounts.concat(address);
+              fetchConfirmedEvents();
+            }
+
+            break;
+          case 'setVisibleAccounts':
+            const { addresses } = action;
+            accounts = uniq(accounts.concat(addresses));
+            fetchConfirmedEvents();
+
+            break;
+          default:
+            next(action);
+        }
+      };
     };
   }
 }

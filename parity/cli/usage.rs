@@ -145,7 +145,7 @@ macro_rules! usage {
 				}
 
 				let config_file = raw_args.flag_config.clone().unwrap_or_else(|| raw_args.clone().into_args(Config::default()).flag_config);
-				let config_file = replace_home(&config_file);
+				let config_file = replace_home(&::dir::default_data_path(), &config_file);
 				let config = match (fs::File::open(&config_file), raw_args.flag_config.is_some()) {
 					// Load config file
 					(Ok(mut file), _) => {

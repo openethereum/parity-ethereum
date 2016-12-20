@@ -23,6 +23,8 @@ import VerificationStore, {
 } from './store';
 import { postToServer } from '../../3rdparty/sms-verification';
 
+const SMS_VERIFICATION = 0; // id in the `BadgeReg.sol` contract
+
 export default class SMSVerificationStore extends VerificationStore {
   @observable number = '';
 
@@ -53,7 +55,7 @@ export default class SMSVerificationStore extends VerificationStore {
   }
 
   constructor (api, account, isTestnet) {
-    super(api, SMSVerificationABI, 'smsverification', account, isTestnet);
+    super(api, SMSVerificationABI, SMS_VERIFICATION, account, isTestnet);
   }
 
   @action setNumber = (number) => {

@@ -29,6 +29,12 @@ pub use self::denominations::*;
 
 use super::spec::*;
 
+/// Most recent fork block that we support on Mainnet.
+pub const FORK_SUPPORTED_FRONTIER: u64 = 2675000;
+
+/// Most recent fork block that we support on Ropsten.
+pub const FORK_SUPPORTED_ROPSTEN: u64 = 10;
+
 fn load(b: &[u8]) -> Spec {
 	Spec::load(b).expect("chain spec is invalid")
 }

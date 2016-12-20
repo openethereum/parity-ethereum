@@ -118,6 +118,7 @@ extern crate lru_cache;
 
 #[cfg(feature = "jit" )]
 extern crate evmjit;
+extern crate ethabi;
 
 pub extern crate ethstore;
 

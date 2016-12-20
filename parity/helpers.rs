@@ -24,7 +24,7 @@ use ethcore::client::{Mode, BlockId, VMType, DatabaseCompactionProfile, ClientCo
 use ethcore::miner::{PendingSet, GasLimit, PrioritizationStrategy};
 use cache::CacheConfig;
 use dir::DatabaseDirectories;
-use upgrade::upgrade;
+use upgrade::{upgrade, upgrade_data_paths};
 use migration::migrate;
 use ethsync::is_valid_node_url;
 
@@ -132,9 +132,10 @@ pub fn to_price(s: &str) -> Result<f32, String> {
 }
 
 /// Replaces `$HOME` str with home directory path.
-pub fn replace_home(arg: &str) -> String {
+pub fn replace_home(base: &str, arg: &str) -> String {
 	// the $HOME directory on mac os should be `~/Library` or `~/Library/Application Support`
 	let r = arg.replace("$HOME", env::home_dir().unwrap().to_str().unwrap());
+	let r = r.replace("$BASE", base	);
 	r.replace("/", &::std::path::MAIN_SEPARATOR.to_string()	)
 }
 
@@ -159,13 +160,13 @@ pub fn geth_ipc_path(testnet: bool) -> String {
 }
 
 /// Formats and returns parity ipc path.
-pub fn parity_ipc_path(s: &str) -> String {
+pub fn parity_ipc_path(base: &str, s: &str) -> String {
 	// Windows path should not be hardcoded here.
 	if cfg!(windows) {
 		return r"\\.\pipe\parity.jsonrpc".to_owned();
 	}
 
-	replace_home(s)
+	replace_home(base, s)
 }
 
 /// Validates and formats bootnodes option.
@@ -187,7 +188,7 @@ pub fn to_bootnodes(bootnodes: &Option<String>) -> Result<Vec<String>, String> {
 pub fn default_network_config() -> ::ethsync::NetworkConfiguration {
 	use ethsync::{NetworkConfiguration, AllowIP};
 	NetworkConfiguration {
-		config_path: Some(replace_home("$HOME/.parity/network")),
+		config_path: Some(replace_home(&::dir::default_data_path(), "$BASE/network")),
 		net_config_path: None,
 		listen_address: Some("0.0.0.0:30303".into()),
 		public_address: None,
@@ -256,10 +257,13 @@ pub fn to_client_config(
 }
 
 pub fn execute_upgrades(
+	base_path: &str,
 	dirs: &DatabaseDirectories,
 	pruning: Algorithm,
 	compaction_profile: CompactionProfile
 ) -> Result<(), String> {
+
+	upgrade_data_paths(base_path, dirs, pruning);
 
 	match upgrade(Some(&dirs.path)) {
 		Ok(upgrades_applied) if upgrades_applied > 0 => {
@@ -271,7 +275,7 @@ pub fn execute_upgrades(
 		_ => {},
 	}
 
-	let client_path = dirs.version_path(pruning);
+	let client_path = dirs.db_path(pruning);
 	migrate(&client_path, pruning, compaction_profile).map_err(|e| format!("{}", e))
 }
 

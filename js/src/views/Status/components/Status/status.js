@@ -68,13 +68,13 @@ export default class Status extends Component {
                 </div>
               </div>
             </div>
-            <div className={ styles.col5 }>
+            <div className={ styles.col4_5 }>
               <MiningSettings
                 { ...this._test('mining') }
                 nodeStatus={ nodeStatus }
                 actions={ this.props.actions } />
             </div>
-            <div className={ styles.col4 }>
+            <div className={ styles.col4_5 }>
               { this.renderSettings() }
             </div>
           </div>
@@ -102,6 +102,7 @@ export default class Status extends Component {
       <div { ...this._test('settings') }>
         <ContainerTitle title='network settings' />
         <Input
+          allowCopy
           readOnly
           label='chain'
           value={ nodeStatus.netChain }
@@ -109,6 +110,7 @@ export default class Status extends Component {
         <div className={ styles.row }>
           <div className={ styles.col6 }>
             <Input
+              allowCopy
               readOnly
               label='peers'
               value={ peers }
@@ -116,6 +118,7 @@ export default class Status extends Component {
           </div>
           <div className={ styles.col6 }>
             <Input
+              allowCopy
               readOnly
               label='network port'
               value={ nodeStatus.netPort.toString() }
@@ -124,6 +127,7 @@ export default class Status extends Component {
         </div>
 
         <Input
+          allowCopy
           readOnly
           label='rpc enabled'
           value={ rpcSettings.enabled ? 'yes' : 'no' }
@@ -131,6 +135,7 @@ export default class Status extends Component {
         <div className={ styles.row }>
           <div className={ styles.col6 }>
             <Input
+              allowCopy
               readOnly
               label='rpc interface'
               value={ rpcSettings.interface }
@@ -138,10 +143,22 @@ export default class Status extends Component {
           </div>
           <div className={ styles.col6 }>
             <Input
+              allowCopy
               readOnly
               label='rpc port'
               value={ rpcSettings.port.toString() }
               { ...this._test('rpc-port') } />
+          </div>
+        </div>
+
+        <div className={ styles.row }>
+          <div className={ styles.col12 }>
+            <Input
+              allowCopy
+              readOnly
+              label='enode'
+              value={ nodeStatus.enode }
+              { ...this._test('node-enode') } />
           </div>
         </div>
       </div>

@@ -19,12 +19,14 @@ use self::ansi_term::Colour::{White, Yellow, Green, Cyan, Blue};
 use self::ansi_term::Style;
 
 use std::sync::{Arc};
-use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
+use std::sync::atomic::{AtomicUsize, AtomicBool, Ordering as AtomicOrdering};
 use std::time::{Instant, Duration};
+use io::{TimerToken, IoContext, IoHandler};
 use isatty::{stdout_isatty};
 use ethsync::{SyncProvider, ManageNetwork};
 use util::{Uint, RwLock, Mutex, H256, Colour, Bytes};
 use ethcore::client::*;
+use ethcore::service::ClientIoMessage;
 use ethcore::views::BlockView;
 use ethcore::snapshot::service::Service as SnapshotService;
 use ethcore::snapshot::{RestorationStatus, SnapshotService as SS};
@@ -44,6 +46,7 @@ pub struct Informant {
 	last_import: Mutex<Instant>,
 	skipped: AtomicUsize,
 	skipped_txs: AtomicUsize,
+	in_shutdown: AtomicBool,
 }
 
 /// Format byte counts to standard denominations.
@@ -82,9 +85,14 @@ impl Informant {
 			last_import: Mutex::new(Instant::now()),
 			skipped: AtomicUsize::new(0),
 			skipped_txs: AtomicUsize::new(0),
+			in_shutdown: AtomicBool::new(false),
 		}
 	}
 
+	/// Signal that we're shutting down; no more output necessary.
+	pub fn shutdown(&self) {
+		self.in_shutdown.store(true, ::std::sync::atomic::Ordering::SeqCst);
+	}
 
 	#[cfg_attr(feature="dev", allow(match_bool))]
 	pub fn tick(&self) {
@@ -221,3 +229,16 @@ impl ChainNotify for Informant {
 	}
 }
 
+const INFO_TIMER: TimerToken = 0;
+
+impl IoHandler<ClientIoMessage> for Informant {
+	fn initialize(&self, io: &IoContext<ClientIoMessage>) {
+		io.register_timer(INFO_TIMER, 5000).expect("Error registering timer");
+	}
+
+	fn timeout(&self, _io: &IoContext<ClientIoMessage>, timer: TimerToken) {
+		if timer == INFO_TIMER && !self.in_shutdown.load(AtomicOrdering::SeqCst) {
+			self.tick();
+		}
+	}
+}
