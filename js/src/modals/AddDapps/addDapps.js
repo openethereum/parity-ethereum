@@ -42,15 +42,14 @@ export default class AddDapps extends Component {
       <Modal
         actions={ [
           <Button
+            icon={ <DoneIcon /> }
+            key='done'
             label={
               <FormattedMessage
                 id='dapps.add.button.done'
                 defaultMessage='Done' />
             }
-            key='done'
-            onClick={ store.closeModal }
-            icon={ <DoneIcon /> }
-          />
+            onClick={ store.closeModal } />
         ] }
         compact
         title={

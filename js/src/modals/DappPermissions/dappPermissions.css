@@ -15,11 +15,22 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-.description {
-  margin-top: .5em !important;
-}
+.item {
+  .info {
+    display: inline-block;
 
-.info {
-  .address {}
-  .name {}
+    .address {
+      opacity: 0.75;
+    }
+
+    .description {
+      margin-top: 0.5em;
+      opacity: 0.75;
+    }
+
+    .name {
+      margin-top: 0;
+      text-transform: uppercase;
+    }
+  }
 }

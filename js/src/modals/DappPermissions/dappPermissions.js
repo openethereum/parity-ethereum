@@ -20,7 +20,7 @@ import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 
-import { Button, Modal } from '~/ui';
+import { Button, IdentityIcon, Modal } from '~/ui';
 import { DoneIcon } from '~/ui/Icons';
 
 import styles from './dappPermissions.css';
@@ -42,15 +42,14 @@ export default class DappPermissions extends Component {
       <Modal
         actions={ [
           <Button
+            icon={ <DoneIcon /> }
+            key='done'
             label={
               <FormattedMessage
                 id='dapps.permissions.button.done'
                 defaultMessage='Done' />
             }
-            key='done'
-            onClick={ store.closeModal }
-            icon={ <DoneIcon /> }
-          />
+            onClick={ store.closeModal } />
         ] }
         compact
         title={
@@ -60,44 +59,49 @@ export default class DappPermissions extends Component {
         }
         visible>
         <List>
-          {
-            store.accounts.map((account) => {
-              const onCheck = () => {
-                store.selectAccount(account.address);
-              };
-
-              // TODO: Once new modal & account selection is in, this should be updated
-              // to conform to the new (as of this code WIP) look & feel for selection.
-              // For now in the current/old style, not as pretty but consistent.
-              return (
-                <ListItem
-                  key={ account.address }
-                  leftCheckbox={
-                    <Checkbox
-                      checked={ account.checked }
-                      onCheck={ onCheck }
-                    />
-                  }
-                  primaryText={
-                    <div className={ styles.info }>
-                      <div className={ styles.name }>
-                        { account.name }
-                      </div>
-                      <div className={ styles.address }>
-                        { account.address }
-                      </div>
-                    </div>
-                  }
-                  secondaryText={
-                    <div className={ styles.description }>
-                      { account.description }
-                    </div>
-                  } />
-              );
-            })
-          }
+          { this.renderListItems() }
         </List>
       </Modal>
     );
+  }
+
+  renderListItems () {
+    const { store } = this.props;
+
+    return store.accounts.map((account) => {
+      const onCheck = () => {
+        store.selectAccount(account.address);
+      };
+
+      // TODO: Once new modal & account selection is in, this should be updated
+      // to conform to the new (as of this code WIP) look & feel for selection.
+      // For now in the current/old style, not as pretty but consistent.
+      return (
+        <ListItem
+          key={ account.address }
+          leftCheckbox={
+            <Checkbox
+              checked={ account.checked }
+              onCheck={ onCheck }
+            />
+          }
+          primaryText={
+            <div className={ styles.item }>
+              <IdentityIcon address={ account.address } />
+              <div className={ styles.info }>
+                <h3 className={ styles.name }>
+                  { account.name }
+                </h3>
+                <div className={ styles.address }>
+                  { account.address }
+                </div>
+                <div className={ styles.description }>
+                  { account.description }
+                </div>
+              </div>
+            </div>
+          } />
+      );
+    });
   }
 }
