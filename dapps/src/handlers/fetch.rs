@@ -289,8 +289,8 @@ impl<H: ContentValidator, F: Fetch> server::Handler<HttpStream> for ContentFetch
 							},
 						};
 						// Remove temporary zip file
-						// let _ = fs::remove_file(path);
-						// TODO [ToDr] Temporary!
+						let _ = fs::remove_file(path);
+
 						(Some(state), Next::write())
 					},
 					Ok(Err(e)) => {
