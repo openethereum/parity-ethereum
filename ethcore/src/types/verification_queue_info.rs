@@ -17,7 +17,8 @@
 //! Verification queue info types
 
 /// Verification queue status
-#[derive(Debug, Binary)]
+#[derive(Debug)]
+#[binary]
 pub struct VerificationQueueInfo {
 	/// Number of queued items pending verification
 	pub unverified_queue_size: usize,

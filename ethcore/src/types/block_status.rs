@@ -18,7 +18,8 @@
 use verification::queue::Status as QueueStatus;
 
 /// General block status
-#[derive(Debug, Eq, PartialEq, Binary)]
+#[derive(Debug, Eq, PartialEq)]
+#[binary]
 pub enum BlockStatus {
 	/// Part of the blockchain.
 	InChain,

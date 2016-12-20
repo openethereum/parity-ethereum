@@ -27,7 +27,8 @@ use evm::Schedule;
 use header::BlockNumber;
 use ethjson;
 
-#[derive(Debug, Clone, PartialEq, Eq, Binary)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[binary]
 /// Transaction action type.
 pub enum Action {
 	/// Create creates new contract.
@@ -54,7 +55,8 @@ impl Decodable for Action {
 
 /// A set of information describing an externally-originating message call
 /// or contract creation operation.
-#[derive(Default, Debug, Clone, PartialEq, Eq, Binary)]
+#[derive(Default, Debug, Clone, PartialEq, Eq)]
+#[binary]
 pub struct Transaction {
 	/// Nonce.
 	pub nonce: U256,
@@ -205,7 +207,8 @@ impl Transaction {
 }
 
 /// Signed transaction information.
-#[derive(Debug, Clone, Eq, Binary)]
+#[derive(Debug, Clone, Eq)]
+#[binary]
 pub struct SignedTransaction {
 	/// Plain Transaction.
 	unsigned: Transaction,
@@ -370,7 +373,8 @@ impl SignedTransaction {
 }
 
 /// Signed Transaction that is a part of canon blockchain.
-#[derive(Debug, PartialEq, Eq, Binary)]
+#[derive(Debug, PartialEq, Eq)]
+#[binary]
 pub struct LocalizedTransaction {
 	/// Signed part.
 	pub signed: SignedTransaction,
@@ -391,7 +395,8 @@ impl Deref for LocalizedTransaction {
 }
 
 /// Queued transaction with additional information.
-#[derive(Debug, Clone, PartialEq, Eq, Binary)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[binary]
 pub struct PendingTransaction {
 	/// Signed transaction data.
 	pub transaction: SignedTransaction,
