@@ -23,13 +23,8 @@ let workerRegistration;
 if ('serviceWorker' in navigator) {
   workerRegistration = runtime
     .register()
-    .then(() => {
-      console.log('registering service worker');
-      return navigator.serviceWorker.ready;
-    })
+    .then(() => navigator.serviceWorker.ready)
     .then((registration) => {
-      console.log('registered service worker');
-
       const _worker = registration.active;
       _worker.controller = registration.active;
       const worker = new PromiseWorker(_worker);
@@ -68,7 +63,7 @@ export function setupWorker () {
       })
       .catch((error) => {
         console.error('sw', error);
-        dispatch(setError(error));
+        dispatch(setWorker(null));
       });
   };
 }

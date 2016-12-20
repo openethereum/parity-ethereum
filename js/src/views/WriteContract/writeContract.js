@@ -57,7 +57,7 @@ class WriteContract extends Component {
     const { setupWorker, worker } = this.props;
     setupWorker();
 
-    if (worker) {
+    if (worker !== undefined) {
       this.store.setWorker(worker);
     }
   }
@@ -77,7 +77,7 @@ class WriteContract extends Component {
 
   // Set the worker if not set before (eg. first page loading)
   componentWillReceiveProps (nextProps) {
-    if (!this.props.worker && nextProps.worker) {
+    if (this.props.worker === undefined && nextProps.worker !== undefined) {
       this.store.setWorker(nextProps.worker);
     }
 

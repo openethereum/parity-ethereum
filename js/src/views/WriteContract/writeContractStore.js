@@ -14,11 +14,12 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { action, observable } from 'mobx';
+import { action, observable, transaction } from 'mobx';
 import store from 'store';
 import { debounce } from 'lodash';
 
 import { sha3 } from '~/api/util/sha3';
+import SolidityUtils from '~/util/solidity';
 
 const WRITE_CONTRACT_STORE_KEY = '_parity::writeContractStore';
 
@@ -79,6 +80,9 @@ export default class WriteContractStore {
   snippets = SNIPPETS;
   worker = null;
 
+  useWorker = true;
+  solc = {};
+
   constructor () {
     this.debouncedCompile = debounce(this.handleCompile, 1000);
   }
@@ -131,6 +135,9 @@ export default class WriteContractStore {
 
         this.selectedBuild = latestIndex;
         return promise;
+      })
+      .catch((error) => {
+        this.setWorkerError(error);
       });
   }
 
@@ -143,32 +150,71 @@ export default class WriteContractStore {
     return this.loadSolidityVersion(this.builds[value]);
   }
 
+  getCompiler (build) {
+    const { longVersion } = build;
+
+    if (!this.solc[longVersion]) {
+      this.solc[longVersion] = SolidityUtils
+        .getCompiler(build)
+        .then((compiler) => {
+          this.solc[longVersion] = compiler;
+          return compiler;
+        })
+        .catch((error) => {
+          this.setWorkerError(error);
+        });
+    }
+
+    return Promise.resolve(this.solc[longVersion]);
+  }
+
   @action loadSolidityVersion = (build) => {
-    if (!this.worker) {
+    if (this.worker === undefined) {
       return;
+    } else if (this.worker === null) {
+      this.useWorker = false;
     }
 
     if (this.loadingSolidity) {
       return this.loadingSolidity;
     }
 
-    this.loadingSolidity = this.worker
-      .postMessage({
-        action: 'load',
-        data: build
-      })
-      .then((result) => {
-        if (result !== 'ok') {
-          this.setWorkerError(result);
-        }
-      })
-      .catch((error) => {
-        this.setWorkerError(error);
-      })
-      .then(() => {
-        this.loadingSolidity = false;
-        this.loading = false;
-      });
+    if (this.useWorker) {
+      this.loadingSolidity = this.worker
+        .postMessage({
+          action: 'load',
+          data: build
+        })
+        .then((result) => {
+          if (result !== 'ok') {
+            throw new Error('error while loading solidity: ' + result);
+          }
+
+          this.loadingSolidity = false;
+          this.loading = false;
+        })
+        .catch((error) => {
+          console.warn('error while loading solidity', error);
+          this.useWorker = false;
+          this.loadingSolidity = null;
+
+          return this.loadSolidityVersion(build);
+        });
+    } else {
+      this.loadingSolidity = this
+        .getCompiler(build)
+        .then(() => {
+          this.loadingSolidity = false;
+          this.loading = false;
+
+          return 'ok';
+        })
+        .catch((error) => {
+          this.setWorkerError(error);
+          this.loadingSolidity = false;
+          this.loading = false;
+        });
+    }
 
     return this.loadingSolidity;
   }
@@ -202,9 +248,32 @@ export default class WriteContractStore {
     this.contract = this.contracts[Object.keys(this.contracts)[value]];
   }
 
+  compile = (data) => {
+    if (this.useWorker) {
+      return this.worker.postMessage({
+        action: 'compile',
+        data
+      });
+    }
+
+    return new Promise((resolve, reject) => {
+      window.setTimeout(() => {
+        this
+          .getCompiler(data.build)
+          .then((compiler) => {
+            return SolidityUtils.compile(data, compiler);
+          })
+          .then(resolve)
+          .catch(reject);
+      }, 0);
+    });
+  }
+
   @action handleCompile = (loadFiles = false) => {
-    this.compiled = false;
-    this.compiling = true;
+    transaction(() => {
+      this.compiled = false;
+      this.compiling = true;
+    });
 
     const build = this.builds[this.selectedBuild];
     const version = build.longVersion;
@@ -219,19 +288,16 @@ export default class WriteContractStore {
           resolve(this.lastCompilation);
         }, 500);
       });
-    } else if (this.worker) {
-      promise = loadFiles
+    } else {
+      promise = loadFiles && this.useWorker
         ? this.sendFilesToWorker()
         : Promise.resolve();
 
       promise = promise
         .then(() => {
-          return this.worker.postMessage({
-            action: 'compile',
-            data: {
-              sourcecode: sourcecode,
-              build: build
-            }
+          return this.compile({
+            sourcecode: sourcecode,
+            build: build
           });
         })
         .then((data) => {
@@ -427,6 +493,10 @@ export default class WriteContractStore {
   }
 
   sendFilesToWorker = () => {
+    if (!this.useWorker) {
+      return Promise.resolve();
+    }
+
     const files = [].concat(
       Object.values(this.snippets),
       Object.values(this.savedContracts)

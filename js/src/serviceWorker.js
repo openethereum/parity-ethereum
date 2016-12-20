@@ -14,9 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import solc from 'solc/browser-wrapper';
-// import { isWebUri } from 'valid-url';
 import registerPromiseWorker from 'promise-worker/register';
+import SolidityUtils from '~/util/solidity';
 
 const CACHE_NAME = 'parity-cache-v1';
 
@@ -25,17 +24,63 @@ registerPromiseWorker((msg) => {
 });
 
 self.addEventListener('install', (event) => {
-  console.warn('installing sw');
   event.waitUntil(self.skipWaiting());
 });
 
 self.addEventListener('activate', (event) => {
-  console.warn('activating sw');
   event.waitUntil(self.clients.claim());
 });
 
-self.solcVersions = {};
+self.addEventListener('fetch', (event) => {
+  const { url } = event.request;
+
+  if (/raw.githubusercontent.com\/ethereum\/solc-bin(.+)list\.json$/.test(url)) {
+    // Return the cached version, but still update it in background
+    return event.respondWith(cachedFetcher(event.request, true));
+  }
+
+  if (/raw.githubusercontent.com\/ethereum\/solc-bin(.+)soljson(.+)\.js$/.test(url)) {
+    return event.respondWith(cachedFetcher(event.request));
+  }
+});
+
+self.solc = {};
 self.files = {};
+
+function cachedFetcher (request, update = false) {
+  return caches
+    .match(request)
+    .then((response) => {
+      // Return cached response if exists and no
+      // updates needed
+      if (response && !update) {
+        return response;
+      }
+
+      const fetcher = fetch(request.clone())
+        .then((response) => {
+          // Check if we received a valid response
+          if (!response || response.status !== 200) {
+            return response;
+          }
+
+          return caches
+            .open(CACHE_NAME)
+            .then((cache) => {
+              cache.put(request, response.clone());
+              return response;
+            });
+        });
+
+      // Cache hit - return response
+      // Still want to perform the fetch (update)
+      if (response) {
+        return response;
+      }
+
+      return fetcher;
+    });
+}
 
 function handleMessage (message) {
   switch (message.action) {
@@ -43,7 +88,7 @@ function handleMessage (message) {
       return compile(message.data);
 
     case 'load':
-      return load(message.data);
+      return getCompiler(message.data).then(() => 'ok');
 
     case 'setFiles':
       return setFiles(message.data);
@@ -52,6 +97,15 @@ function handleMessage (message) {
       console.warn(`unknown action "${message.action}"`);
       return null;
   }
+}
+
+function compile (data) {
+  const { build } = data;
+
+  return getCompiler(build)
+    .then((compiler) => {
+      return SolidityUtils.compile(data, compiler);
+    });
 }
 
 function setFiles (files) {
@@ -69,120 +123,22 @@ function setFiles (files) {
   return 'ok';
 }
 
-// @todo re-implement find imports (with ASYNC fetch)
-// function findImports (path) {
-//   if (self.files[path]) {
-//     if (self.files[path].error) {
-//       return Promise.reject(self.files[path].error);
-//     }
+function getCompiler (build) {
+  const { longVersion } = build;
 
-//     return Promise.resolve(self.files[path]);
-//   }
+  const fetcher = (url) => {
+    const request = new Request(url);
+    return cachedFetcher(request);
+  };
 
-//   if (isWebUri(path)) {
-//     console.log('[sw] fetching', path);
-
-//     return fetch(path)
-//       .then((r) => r.text())
-//       .then((c) => {
-//         console.log('[sw]', 'got content at ' + path);
-//         self.files[path] = c;
-//         return c;
-//       })
-//       .catch((e) => {
-//         console.error('[sw]', 'fetching', path, e);
-//         self.files[path] = { error: e };
-//         throw e;
-//       });
-//   }
-
-//   console.log(`[sw] path ${path} not found...`);
-//   return Promise.reject('File not found');
-// }
-
-function compile (data, optimized = 1) {
-  const { sourcecode, build } = data;
-
-  return fetchSolidity(build)
-    .then((compiler) => {
-      const start = Date.now();
-      console.log('[sw] compiling...');
-
-      const input = {
-        '': sourcecode
-      };
-
-      const compiled = compiler.compile({ sources: input }, optimized);
-
-      const time = Math.round((Date.now() - start) / 100) / 10;
-      console.log(`[sw] done compiling in ${time}s`);
-
-      compiled.version = build.longVersion;
-
-      return compiled;
-    });
-}
-
-function load (build) {
-  return fetchSolidity(build)
-    .then(() => 'ok');
-}
-
-function fetchSolc (build) {
-  const { path, longVersion } = build;
-  const URL = `https://raw.githubusercontent.com/ethereum/solc-bin/gh-pages/bin/${path}`;
-
-  return caches
-    .match(URL)
-    .then((response) => {
-      if (response) {
-        return response;
-      }
-
-      console.log(`[sw] fetching solc-bin ${longVersion} at ${URL}`);
-
-      return fetch(URL)
-        .then((response) => {
-          if (!response || response.status !== 200) {
-            return response;
-          }
-
-          const responseToCache = response.clone();
-
-          return caches.open(CACHE_NAME)
-            .then((cache) => {
-              return cache.put(URL, responseToCache);
-            })
-            .then(() => {
-              return response;
-            });
-        });
-    });
-}
-
-function fetchSolidity (build) {
-  const { path, longVersion } = build;
-
-  if (self.solcVersions[path]) {
-    return Promise.resolve(self.solcVersions[path]);
+  if (!self.solc[longVersion]) {
+    self.solc[longVersion] = SolidityUtils
+      .getCompiler(build, fetcher)
+      .then((compiler) => {
+        self.solc[longVersion] = compiler;
+        return compiler;
+      });
   }
 
-  return fetchSolc(build)
-    .then((r) => r.text())
-    .then((code) => {
-      const solcCode = code.replace(/^var Module;/, 'var Module=self.__solcModule;');
-      self.__solcModule = {};
-
-      console.log(`[sw] evaluating ${longVersion}`);
-
-      // eslint-disable-next-line no-eval
-      eval(solcCode);
-
-      console.log(`[sw] done evaluating ${longVersion}`);
-
-      const compiler = solc(self.__solcModule);
-      self.solcVersions[path] = compiler;
-
-      return compiler;
-    });
+  return self.solc[longVersion];
 }

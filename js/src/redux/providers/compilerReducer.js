@@ -17,7 +17,7 @@
 import { handleActions } from 'redux-actions';
 
 const initialState = {
-  worker: null,
+  worker: undefined,
   error: null
 };
 
