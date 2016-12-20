@@ -425,6 +425,9 @@ export default class TransferStore {
 
   send () {
     const { options, values } = this._getTransferParams();
+
+    options.minBlock = new BigNumber(this.minBlock || 0).gt(0) ? this.minBlock : null;
+
     return this._getTransferMethod().postTransaction(options, values);
   }
 
@@ -481,7 +484,6 @@ export default class TransferStore {
 
     const options = {
       from: this.sender || this.account.address,
-      minBlock: new BigNumber(this.minBlock || 0).gt(0) ? this.minBlock : null,
       to
     };
 

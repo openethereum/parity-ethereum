@@ -20,13 +20,9 @@ import { bindActionCreators } from 'redux';
 import { observer } from 'mobx-react';
 import { pick } from 'lodash';
 
-import ActionDoneAll from 'material-ui/svg-icons/action/done-all';
-import ContentClear from 'material-ui/svg-icons/content/clear';
-import NavigationArrowBack from 'material-ui/svg-icons/navigation/arrow-back';
-import NavigationArrowForward from 'material-ui/svg-icons/navigation/arrow-forward';
-
-import { newError } from '~/ui/Errors/actions';
 import { BusyStep, CompletedStep, Button, IdentityIcon, Modal, TxHash, Input } from '~/ui';
+import { newError } from '~/ui/Errors/actions';
+import { CancelIcon, DoneIcon, NextIcon, PrevIcon } from '~/ui/Icons';
 import { nullableProptype } from '~/util/proptypes';
 
 import Details from './Details';
@@ -188,17 +184,19 @@ class Transfer extends Component {
       return null;
     }
 
-    const { isEth, data, dataError, total, totalError } = this.store;
+    const { isEth, data, dataError, minBlock, minBlockError, total, totalError } = this.store;
 
     return (
       <Extras
-        isEth={ isEth }
         data={ data }
         dataError={ dataError }
-        total={ total }
-        totalError={ totalError }
         gasStore={ this.store.gasStore }
-        onChange={ this.store.onUpdateDetails } />
+        isEth={ isEth }
+        minBlock={ minBlock }
+        minBlockError={ minBlockError }
+        onChange={ this.store.onUpdateDetails }
+        total={ total }
+        totalError={ totalError } />
     );
   }
 
@@ -208,20 +206,20 @@ class Transfer extends Component {
 
     const cancelBtn = (
       <Button
-        icon={ <ContentClear /> }
+        icon={ <CancelIcon /> }
         label='Cancel'
         onClick={ this.handleClose } />
     );
     const nextBtn = (
       <Button
         disabled={ !this.store.isValid }
-        icon={ <NavigationArrowForward /> }
+        icon={ <NextIcon /> }
         label='Next'
         onClick={ this.store.onNext } />
     );
     const prevBtn = (
       <Button
-        icon={ <NavigationArrowBack /> }
+        icon={ <PrevIcon /> }
         label='Back'
         onClick={ this.store.onPrev } />
     );
@@ -234,7 +232,7 @@ class Transfer extends Component {
     );
     const doneBtn = (
       <Button
-        icon={ <ActionDoneAll /> }
+        icon={ <DoneIcon /> }
         label='Close'
         onClick={ this.handleClose } />
     );
