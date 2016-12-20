@@ -139,7 +139,7 @@ export default class Parity {
   getNewDappsWhitelist () {
     return this._transport
       .execute('parity_getNewDappsWhitelist')
-      .then(outAddresses);
+      .then((addresses) => addresses ? addresses.map(outAddress) : null);
   }
 
   hashContent (url) {
@@ -335,7 +335,7 @@ export default class Parity {
 
   setNewDappsWhitelist (addresses) {
     return this._transport
-      .execute('parity_setNewDappsWhitelist', inAddresses(addresses));
+      .execute('parity_setNewDappsWhitelist', addresses ? inAddresses(addresses) : null);
   }
 
   setTransactionsLimit (quantity) {
