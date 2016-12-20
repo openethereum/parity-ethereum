@@ -49,6 +49,9 @@ export default class TransferStore {
   @observable data = '';
   @observable dataError = null;
 
+  @observable minBlock = '0';
+  @observable minBlockError = null;
+
   @observable recipient = '';
   @observable recipientError = ERRORS.requireRecipient;
 
@@ -155,6 +158,9 @@ export default class TransferStore {
       case 'gasPrice':
         return this._onUpdateGasPrice(value);
 
+      case 'minBlock':
+        return this._onUpdateMinBlock(value);
+
       case 'recipient':
         return this._onUpdateRecipient(value);
 
@@ -252,6 +258,13 @@ export default class TransferStore {
 
   @action _onUpdateGas = (gas) => {
     this.recalculate();
+  }
+
+  @action _onUpdateMinBlock = (minBlock) => {
+    transaction(() => {
+      this.minBlock = minBlock;
+      this.minBlockError = this._validatePositiveNumber(minBlock);
+    });
   }
 
   @action _onUpdateGasPrice = (gasPrice) => {
@@ -468,6 +481,7 @@ export default class TransferStore {
 
     const options = {
       from: this.sender || this.account.address,
+      minBlock: new BigNumber(this.minBlock || 0).gt(0) ? this.minBlock : null,
       to
     };
 
