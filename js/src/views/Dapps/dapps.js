@@ -24,7 +24,7 @@ import { bindActionCreators } from 'redux';
 import { AddDapps, DappPermissions } from '~/modals';
 import PermissionStore from '~/modals/DappPermissions/store';
 import { Actionbar, Button, Page } from '~/ui';
-import { LockedIcon, VisibleIcon } from '~/ui/icons';
+import { LockedIcon, VisibleIcon } from '~/ui/Icons';
 
 import DappsStore from './dappsStore';
 import Summary from './Summary';
