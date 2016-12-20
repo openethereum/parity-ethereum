@@ -19,6 +19,12 @@
 use util::*;
 use builtin::Builtin;
 use engines::{Engine, NullEngine, InstantSeal, BasicAuthority, AuthorityRound, Tendermint};
+use factory::Factories;
+use transaction::{Transaction, Action};
+use executive::{Executive, TransactOptions};
+use state::State;
+use client::CallAnalytics;
+use env_info::EnvInfo;
 use pod_state::*;
 use account_db::*;
 use header::{BlockNumber, Header};
@@ -96,10 +102,13 @@ pub struct Spec {
 	/// Each seal field, expressed as RLP, concatenated.
 	pub seal_rlp: Bytes,
 
-	// May be prepopulated if we know this in advance.
+	/// Contract constructors to be executed on genesis.
+	constructors: Vec<(Address, Bytes)>,
+
+	/// May be prepopulated if we know this in advance.
 	state_root_memo: RwLock<Option<H256>>,
 
-	// Genesis state as plain old data.
+	/// Genesis state as plain old data.
 	genesis_state: PodState,
 }
 
@@ -125,6 +134,7 @@ impl From<ethjson::spec::Spec> for Spec {
 			timestamp: g.timestamp,
 			extra_data: g.extra_data,
 			seal_rlp: seal_rlp,
+			constructors: s.accounts.constructors().into_iter().map(|(a, c)| (a.into(), c.into())).collect(),
 			state_root_memo: RwLock::new(g.state_root),
 			genesis_state: From::from(s.accounts),
 		}
@@ -235,25 +245,62 @@ impl Spec {
 	}
 
 	/// Ensure that the given state DB has the trie nodes in for the genesis state.
-	pub fn ensure_db_good(&self, db: &mut StateDB, factory: &TrieFactory) -> Result<bool, Box<TrieError>> {
+	pub fn ensure_db_good(&self, mut db: StateDB, factories: &Factories) -> Result<StateDB, Box<TrieError>> {
 		if !db.as_hashdb().contains(&self.state_root()) {
 			trace!(target: "spec", "ensure_db_good: Fresh database? Cannot find state root {}", self.state_root());
 			let mut root = H256::new();
 
 			{
-				let mut t = factory.create(db.as_hashdb_mut(), &mut root);
+				let mut t = factories.trie.create(db.as_hashdb_mut(), &mut root);
 				for (address, account) in self.genesis_state.get().iter() {
 					try!(t.insert(&**address, &account.rlp()));
 				}
 			}
+
 			trace!(target: "spec", "ensure_db_good: Populated sec trie; root is {}", root);
 			for (address, account) in self.genesis_state.get().iter() {
 				db.note_non_null_account(address);
-				account.insert_additional(&mut AccountDBMut::new(db.as_hashdb_mut(), address), factory);
+				account.insert_additional(&mut AccountDBMut::new(db.as_hashdb_mut(), address), &factories.trie);
 			}
-			assert!(db.as_hashdb().contains(&self.state_root()));
-			Ok(true)
-		} else { Ok(false) }
+
+			// Execute contract constructors.
+			let mut state = State::from_existing(db, root, self.engine.account_start_nonce(), factories.clone())?;
+			let env_info = EnvInfo {
+				number: 0,
+				author: self.author,
+				timestamp: self.timestamp,
+				difficulty: self.difficulty,
+				last_hashes: Default::default(),
+				gas_used: U256::zero(),
+				gas_limit: U256::max_value(),
+			};
+			let from = Address::default();
+
+			for &(ref address, ref constructor) in self.constructors.iter() {
+				trace!(target: "spec", "ensure_db_good: Creating a contract at {}.", address);
+				let transaction = Transaction {
+					nonce: state.nonce(address),
+					action: Action::Create,
+					gas: U256::from(50_000_000),
+					gas_price: U256::default(),
+					value: U256::default(),
+					data: constructor.clone(),
+				}.fake_sign(from);
+
+				match state.apply(&env_info, self.engine.as_ref(), &transaction, false).map(|ref r| { trace!(target: "spec", "Execution trace {:?}", r.trace); r.contracts_created.last().cloned() }) {
+					Ok(Some(base_contract)) => {
+						trace!(target: "spec", "ensure_db_good: Base contract created at {}.", base_contract);
+					},
+					Ok(None) => warn!(target: "spec", "Contract constructor at {} does not create a contract.", address),
+					Err(e) => warn!(target: "spec", "Contract constructor at {} failed to execute: {}", address, e),
+				}
+			}
+			trace!(target: "spec", "Initial state: {:?}", state);
+			let (root, db) = state.drop();
+
+			*self.state_root_memo.write() = Some(root);
+			Ok(db)
+		} else { Ok(db) }
 	}
 
 	/// Loads spec from json file.
@@ -270,6 +317,9 @@ impl Spec {
 	/// Create a new Spec which is a NullEngine consensus with a premine of address whose secret is sha3('').
 	pub fn new_null() -> Spec { load_bundled!("null") }
 
+	/// Create a new Spec which constructs a contract at address 5 with storage at 0 equal to 1.
+	pub fn new_test_constructor() -> Spec { load_bundled!("constructor") }
+
 	/// Create a new Spec with InstantSeal consensus which does internal sealing (not requiring work).
 	pub fn new_instant() -> Spec { load_bundled!("instant_seal") }
 
@@ -284,10 +334,10 @@ impl Spec {
 
 #[cfg(test)]
 mod tests {
-	use std::str::FromStr;
-	use util::hash::*;
-	use util::sha3::*;
+	use util::*;
 	use views::*;
+	use tests::helpers::get_temp_state_db;
+	use state::State;
 	use super::*;
 
 	// https://github.com/ethcore/parity/issues/1840
@@ -303,5 +353,16 @@ mod tests {
 		assert_eq!(test_spec.state_root(), H256::from_str("f3f4696bbf3b3b07775128eb7a3763279a394e382130f27c21e70233e04946a9").unwrap());
 		let genesis = test_spec.genesis_block();
 		assert_eq!(BlockView::new(&genesis).header_view().sha3(), H256::from_str("0cd786a2425d16f152c658316c423e6ce1181e15c3295826d7c9904cba9ce303").unwrap());
+	}
+
+	#[test]
+	fn genesis_constructor() {
+		::env_logger::init().unwrap();
+		let spec = Spec::new_test_constructor();
+		let mut db_result = get_temp_state_db();
+		let db = spec.ensure_db_good(db_result.take(), &Default::default()).unwrap();
+		let state = State::from_existing(db.boxed_clone(), spec.state_root(), spec.engine.account_start_nonce(), Default::default()).unwrap();
+		let expected = H256::from_str("0000000000000000000000000000000000000000000000000000000000000001").unwrap();
+		assert_eq!(state.storage_at(&Address::from_str("0000000000000000000000000000000000000005").unwrap(), &H256::zero()), expected);
 	}
 }

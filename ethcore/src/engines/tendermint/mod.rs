@@ -656,7 +656,6 @@ impl Engine for Tendermint {
 #[cfg(test)]
 mod tests {
 	use util::*;
-	use util::trie::TrieSpec;
 	use io::{IoContext, IoHandler};
 	use block::*;
 	use error::{Error, BlockError};
@@ -681,8 +680,7 @@ mod tests {
 
 	fn propose_default(spec: &Spec, proposer: Address) -> (LockedBlock, Vec<Bytes>) {
 		let mut db_result = get_temp_state_db();
-		let mut db = db_result.take();
-		spec.ensure_db_good(&mut db, &TrieFactory::new(TrieSpec::Secure)).unwrap();
+		let db = spec.ensure_db_good(db_result.take(), &Default::default()).unwrap();
 		let genesis_header = spec.genesis_header();
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
 		let b = OpenBlock::new(spec.engine.as_ref(), Default::default(), false, db.boxed_clone(), &genesis_header, last_hashes, proposer, (3141562.into(), 31415620.into()), vec![]).unwrap();
@@ -889,9 +887,6 @@ mod tests {
 	fn relays_messages() {
 		let (spec, tap) = setup();
 		let engine = spec.engine.clone();
-		let mut db_result = get_temp_state_db();
-		let mut db = db_result.take();
-		spec.ensure_db_good(&mut db, &TrieFactory::new(TrieSpec::Secure)).unwrap();
 		
 		let v0 = insert_and_register(&tap, &engine, "0");
 		let v1 = insert_and_register(&tap, &engine, "1");
@@ -925,9 +920,6 @@ mod tests {
 	fn seal_submission() {
 		let (spec, tap) = setup();
 		let engine = spec.engine.clone();
-		let mut db_result = get_temp_state_db();
-		let mut db = db_result.take();
-		spec.ensure_db_good(&mut db, &TrieFactory::new(TrieSpec::Secure)).unwrap();
 		
 		let v0 = insert_and_register(&tap, &engine, "0");
 		let v1 = insert_and_register(&tap, &engine, "1");

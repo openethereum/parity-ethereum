@@ -179,9 +179,16 @@ impl Client {
 		};
 
 		let trie_factory = TrieFactory::new(trie_spec);
+		let factories = Factories {
+			vm: EvmFactory::new(config.vm_type.clone(), config.jump_table_size),
+			trie: trie_factory,
+			accountdb: Default::default(),
+		};
+
 		let journal_db = journaldb::new(db.clone(), config.pruning, ::db::COL_STATE);
 		let mut state_db = StateDB::new(journal_db, config.state_cache_size);
-		if state_db.journal_db().is_empty() && try!(spec.ensure_db_good(&mut state_db, &trie_factory)) {
+		if state_db.journal_db().is_empty() {
+			state_db = spec.ensure_db_good(state_db, &factories)?;
 			let mut batch = DBTransaction::new(&db);
 			try!(state_db.journal_under(&mut batch, 0, &spec.genesis_header().hash()));
 			try!(db.write(batch).map_err(ClientError::Database));
@@ -220,12 +227,6 @@ impl Client {
 		panic_handler.forward_from(&block_queue);
 
 		let awake = match config.mode { Mode::Dark(..) | Mode::Off => false, _ => true };
-
-		let factories = Factories {
-			vm: EvmFactory::new(config.vm_type.clone(), config.jump_table_size),
-			trie: trie_factory,
-			accountdb: Default::default(),
-		};
 
 		let client = Arc::new(Client {
 			enabled: AtomicBool::new(true),

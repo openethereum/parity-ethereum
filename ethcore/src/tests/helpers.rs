@@ -18,7 +18,6 @@ use ethkey::KeyPair;
 use io::*;
 use client::{BlockChainClient, Client, ClientConfig};
 use util::*;
-use util::trie::TrieSpec;
 use spec::*;
 use state_db::StateDB;
 use block::{OpenBlock, Drain};
@@ -157,8 +156,7 @@ pub fn generate_dummy_client_with_spec_and_data<F>(get_test_spec: F, block_numbe
 	let test_engine = &*test_spec.engine;
 
 	let mut db_result = get_temp_state_db();
-	let mut db = db_result.take();
-	test_spec.ensure_db_good(&mut db, &TrieFactory::new(TrieSpec::Secure)).unwrap();
+	let mut db = test_spec.ensure_db_good(db_result.take(), &Default::default()).unwrap();
 	let genesis_header = test_spec.genesis_header();
 
 	let mut rolling_timestamp = 40;
