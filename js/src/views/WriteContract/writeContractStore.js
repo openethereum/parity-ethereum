@@ -506,7 +506,7 @@ export default class WriteContractStore {
     } catch (e) {}
   }
 
-  get files() {
+  get files () {
     const files = [].concat(
       Object.values(this.snippets),
       Object.values(this.savedContracts)
