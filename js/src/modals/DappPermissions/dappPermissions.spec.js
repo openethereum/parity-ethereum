@@ -19,14 +19,28 @@ import React from 'react';
 
 import DappPermissions from './';
 
+function renderShallow (store = {}) {
+  return shallow(
+    <DappPermissions store={ store } />
+  );
+}
+
 describe('modals/DappPermissions', () => {
   describe('rendering', () => {
     it('renders defaults', () => {
+      expect(renderShallow()).to.be.ok;
+    });
+
+    it('does not render the modal with modalOpen = false', () => {
       expect(
-        shallow(
-          <DappPermissions store={ {} } />
-        )
-      ).to.be.ok;
+        renderShallow({ modalOpen: false }).find('Connect(Modal)')
+      ).to.have.length(0);
+    });
+
+    it('does render the modal with modalOpen = true', () => {
+      expect(
+        renderShallow({ modalOpen: true, accounts: [] }).find('Connect(Modal)')
+      ).to.have.length(1);
     });
   });
 });
