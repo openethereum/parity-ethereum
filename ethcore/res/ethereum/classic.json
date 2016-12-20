@@ -1,6 +1,6 @@
 {
 	"name": "Ethereum Classic",
-	"forkName": "classic",
+	"dataDir": "classic",
 	"engine": {
 		"Ethash": {
 			"params": {

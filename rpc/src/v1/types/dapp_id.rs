@@ -26,6 +26,12 @@ impl Into<String> for DappId {
 	}
 }
 
+impl From<String> for DappId {
+	fn from(s: String) -> Self {
+		DappId(s)
+	}
+}
+
 #[cfg(test)]
 mod tests {
 

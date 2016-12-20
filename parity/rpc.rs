@@ -23,6 +23,7 @@ use ethcore_rpc::{RpcServerError, RpcServer as Server, IpcServerError};
 use rpc_apis;
 use rpc_apis::ApiSet;
 use helpers::parity_ipc_path;
+use dir::default_data_path;
 
 pub use ethcore_rpc::{IpcServer, Server as HttpServer};
 
@@ -58,9 +59,10 @@ pub struct IpcConfiguration {
 
 impl Default for IpcConfiguration {
 	fn default() -> Self {
+		let data_dir = default_data_path();
 		IpcConfiguration {
 			enabled: true,
-			socket_addr: parity_ipc_path("$HOME/.parity/jsonrpc.ipc"),
+			socket_addr: parity_ipc_path(&data_dir, "$BASE/jsonrpc.ipc"),
 			apis: ApiSet::IpcContext,
 		}
 	}

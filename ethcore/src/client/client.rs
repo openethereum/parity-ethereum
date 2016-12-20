@@ -13,7 +13,9 @@
 
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+
 use std::collections::{HashSet, HashMap, BTreeMap, VecDeque};
+use std::str::FromStr;
 use std::sync::{Arc, Weak};
 use std::path::{Path};
 use std::fmt;
@@ -22,10 +24,10 @@ use std::time::{Instant};
 use time::precise_time_ns;
 
 // util
-use util::{Bytes, PerfTimer, Itertools, Mutex, RwLock, Hashable};
+use util::{Bytes, PerfTimer, Itertools, Mutex, RwLock, MutexGuard, Hashable};
 use util::{journaldb, TrieFactory, Trie};
-use util::trie::TrieSpec;
 use util::{U256, H256, Address, H2048, Uint, FixedHash};
+use util::trie::TrieSpec;
 use util::kvdb::*;
 
 // other
@@ -42,7 +44,7 @@ use env_info::LastHashes;
 use verification;
 use verification::{PreverifiedBlock, Verifier};
 use block::*;
-use transaction::{LocalizedTransaction, SignedTransaction, Action};
+use transaction::{LocalizedTransaction, SignedTransaction, Transaction, PendingTransaction, Action};
 use blockchain::extras::TransactionAddress;
 use types::filter::Filter;
 use types::mode::Mode as IpcMode;
@@ -68,6 +70,7 @@ use factory::Factories;
 use rlp::{decode, View, UntrustedRlp};
 use state_db::StateDB;
 use rand::OsRng;
+use client::registry::Registry;
 
 // re-export
 pub use types::blockchain_info::BlockChainInfo;
@@ -124,6 +127,7 @@ impl SleepState {
 /// Blockchain database client backed by a persistent database. Owns and manages a blockchain and a block queue.
 /// Call `import_block()` to import a block asynchronously; `flush_queue()` flushes the queue.
 pub struct Client {
+	enabled: AtomicBool,
 	mode: Mutex<Mode>,
 	chain: RwLock<Arc<BlockChain>>,
 	tracedb: RwLock<TraceDB<BlockChain>>,
@@ -148,6 +152,7 @@ pub struct Client {
 	history: u64,
 	rng: Mutex<OsRng>,
 	on_mode_change: Mutex<Option<Box<FnMut(&Mode) + 'static + Send>>>,
+	registrar: Mutex<Option<Registry>>,
 }
 
 impl Client {
@@ -160,6 +165,7 @@ impl Client {
 		message_channel: IoChannel<ClientIoMessage>,
 		db_config: &DatabaseConfig,
 	) -> Result<Arc<Client>, ClientError> {
+
 		let path = path.to_path_buf();
 		let gb = spec.genesis_block();
 
@@ -221,7 +227,8 @@ impl Client {
 			accountdb: Default::default(),
 		};
 
-		let client = Client {
+		let client = Arc::new(Client {
+			enabled: AtomicBool::new(true),
 			sleep_state: Mutex::new(SleepState::new(awake)),
 			liveness: AtomicBool::new(awake),
 			mode: Mutex::new(config.mode.clone()),
@@ -246,8 +253,15 @@ impl Client {
 			history: history,
 			rng: Mutex::new(try!(OsRng::new().map_err(::util::UtilError::StdIo))),
 			on_mode_change: Mutex::new(None),
-		};
-		Ok(Arc::new(client))
+			registrar: Mutex::new(None),
+		});
+		if let Some(reg_addr) = client.additional_params().get("registrar").and_then(|s| Address::from_str(s).ok()) {
+			trace!(target: "client", "Found registrar at {}", reg_addr);
+			let weak = Arc::downgrade(&client);
+			let registrar = Registry::new(reg_addr, move |a, d| weak.upgrade().ok_or("No client!".into()).and_then(|c| c.call_contract(a, d)));
+			*client.registrar.lock() = Some(registrar);
+		}
+		Ok(client)
 	}
 
 	/// Adds an actor to be notified on certain events
@@ -266,6 +280,11 @@ impl Client {
 				f(&*n);
 			}
 		}
+	}
+
+	/// Get the Registry object - useful for looking up names.
+	pub fn registrar(&self) -> MutexGuard<Option<Registry>> {
+		self.registrar.lock()
 	}
 
 	/// Register an action to be done if a mode change happens.
@@ -395,10 +414,17 @@ impl Client {
 
 	/// This is triggered by a message coming from a block queue when the block is ready for insertion
 	pub fn import_verified_blocks(&self) -> usize {
+
+		// Shortcut out if we know we're incapable of syncing the chain.
+		if !self.enabled.load(AtomicOrdering::Relaxed) {
+			return 0;
+		}
+
 		let max_blocks_to_import = 4;
-		let (imported_blocks, import_results, invalid_blocks, imported, duration, is_empty) = {
+		let (imported_blocks, import_results, invalid_blocks, imported, proposed_blocks, duration, is_empty) = {
 			let mut imported_blocks = Vec::with_capacity(max_blocks_to_import);
 			let mut invalid_blocks = HashSet::new();
+			let mut proposed_blocks = Vec::with_capacity(max_blocks_to_import);
 			let mut import_results = Vec::with_capacity(max_blocks_to_import);
 
 			let _import_lock = self.import_lock.lock();
@@ -417,12 +443,17 @@ impl Client {
 					continue;
 				}
 				if let Ok(closed_block) = self.check_and_close_block(&block) {
-					imported_blocks.push(header.hash());
+					if self.engine.is_proposal(&block.header) {
+						self.block_queue.mark_as_good(&[header.hash()]);
+						proposed_blocks.push(block.bytes);
+					} else {
+						imported_blocks.push(header.hash());
 
-					let route = self.commit_block(closed_block, &header.hash(), &block.bytes);
-					import_results.push(route);
+						let route = self.commit_block(closed_block, &header.hash(), &block.bytes);
+						import_results.push(route);
 
-					self.report.write().accrue_block(&block);
+						self.report.write().accrue_block(&block);
+					}
 				} else {
 					invalid_blocks.insert(header.hash());
 				}
@@ -436,7 +467,7 @@ impl Client {
 			}
 			let is_empty = self.block_queue.mark_as_good(&imported_blocks);
 			let duration_ns = precise_time_ns() - start;
-			(imported_blocks, import_results, invalid_blocks, imported, duration_ns, is_empty)
+			(imported_blocks, import_results, invalid_blocks, imported, proposed_blocks, duration_ns, is_empty)
 		};
 
 		{
@@ -454,6 +485,7 @@ impl Client {
 						enacted.clone(),
 						retracted.clone(),
 						Vec::new(),
+						proposed_blocks.clone(),
 						duration,
 					);
 				});
@@ -577,9 +609,10 @@ impl Client {
 		self.miner.clone()
 	}
 
-	/// Used by PoA to try sealing on period change.
-	pub fn update_sealing(&self) {
-		self.miner.update_sealing(self)
+
+	/// Replace io channel. Useful for testing.
+	pub fn set_io_channel(&self, io_channel: IoChannel<ClientIoMessage>) {
+		*self.io_channel.lock() = io_channel;
 	}
 
 	/// Attempt to get a copy of a specific block's final state.
@@ -655,10 +688,17 @@ impl Client {
 	/// Tick the client.
 	// TODO: manage by real events.
 	pub fn tick(&self) {
+		self.check_garbage();
+		self.check_snooze();
+	}
+
+	fn check_garbage(&self) {
 		self.chain.read().collect_garbage();
 		self.block_queue.collect_garbage();
 		self.tracedb.read().collect_garbage();
+	}
 
+	fn check_snooze(&self) {
 		let mode = self.mode.lock().clone();
 		match mode {
 			Mode::Dark(timeout) => {
@@ -689,16 +729,6 @@ impl Client {
 				}
 			}
 			_ => {}
-		}
-	}
-
-	/// Look up the block number for the given block ID.
-	pub fn block_number(&self, id: BlockId) -> Option<BlockNumber> {
-		match id {
-			BlockId::Number(number) => Some(number),
-			BlockId::Hash(ref hash) => self.chain.read().block_number(hash),
-			BlockId::Earliest => Some(0),
-			BlockId::Latest | BlockId::Pending => Some(self.chain.read().best_block_number()),
 		}
 	}
 
@@ -900,8 +930,17 @@ impl BlockChainClient for Client {
 		r
 	}
 
+	fn disable(&self) {
+		self.set_mode(IpcMode::Off);
+		self.enabled.store(false, AtomicOrdering::Relaxed);
+		self.clear_queue();
+	}
+
 	fn set_mode(&self, new_mode: IpcMode) {
 		trace!(target: "mode", "Client::set_mode({:?})", new_mode);
+		if !self.enabled.load(AtomicOrdering::Relaxed) {
+			return;
+		}
 		{
 			let mut mode = self.mode.lock();
 			*mode = new_mode.clone().into();
@@ -925,6 +964,15 @@ impl BlockChainClient for Client {
 	fn block_header(&self, id: BlockId) -> Option<Bytes> {
 		let chain = self.chain.read();
 		Self::block_hash(&chain, id).and_then(|hash| chain.block_header_data(&hash))
+	}
+
+	fn block_number(&self, id: BlockId) -> Option<BlockNumber> {
+		match id {
+			BlockId::Number(number) => Some(number),
+			BlockId::Hash(ref hash) => self.chain.read().block_number(hash),
+			BlockId::Earliest => Some(0),
+			BlockId::Latest | BlockId::Pending => Some(self.chain.read().best_block_number()),
+		}
 	}
 
 	fn block_body(&self, id: BlockId) -> Option<Bytes> {
@@ -1286,9 +1334,21 @@ impl BlockChainClient for Client {
 		}
 	}
 
-	fn pending_transactions(&self) -> Vec<SignedTransaction> {
-		self.miner.pending_transactions(self.chain.read().best_block_number())
+	fn ready_transactions(&self) -> Vec<PendingTransaction> {
+		self.miner.ready_transactions(self.chain.read().best_block_number())
 	}
+
+	fn queue_consensus_message(&self, message: Bytes) {
+		let channel = self.io_channel.lock().clone();
+		if let Err(e) = channel.send(ClientIoMessage::NewMessage(message)) {
+			debug!("Ignoring the message, error queueing: {}", e);
+		}
+	}
+
+	fn broadcast_consensus_message(&self, message: Bytes) {
+		self.notify(|notify| notify.broadcast(message.clone()));
+	}
+
 
 	fn signing_network_id(&self) -> Option<u64> {
 		self.engine.signing_network_id(&self.latest_env_info())
@@ -1311,10 +1371,37 @@ impl BlockChainClient for Client {
 			earliest_state: self.state_db.lock().journal_db().earliest_era().unwrap_or(0),
 		}
 	}
+
+	fn call_contract(&self, address: Address, data: Bytes) -> Result<Bytes, String> {
+		let from = Address::default();
+		let transaction = Transaction {
+			nonce: self.latest_nonce(&from),
+			action: Action::Call(address),
+			gas: U256::from(50_000_000),
+			gas_price: U256::default(),
+			value: U256::default(),
+			data: data,
+		}.fake_sign(from);
+
+		self.call(&transaction, BlockId::Latest, Default::default())
+			.map_err(|e| format!("{:?}", e))
+			.map(|executed| {
+				executed.output
+			})
+	}
+
+	fn registrar_address(&self) -> Option<Address> {
+		self.registrar.lock().as_ref().map(|r| r.address.clone())
+	}
+
+	fn registry_address(&self, name: String) -> Option<Address> {
+		self.registrar.lock().as_ref()
+			.and_then(|r| r.get_address(&(name.as_bytes().sha3()), "A").ok())
+			.and_then(|a| if a.is_zero() { None } else { Some(a) })
+	}
 }
 
 impl MiningBlockChainClient for Client {
-
 	fn latest_schedule(&self) -> Schedule {
 		self.engine.schedule(&self.latest_env_info())
 	}
@@ -1357,6 +1444,30 @@ impl MiningBlockChainClient for Client {
 		&self.factories.vm
 	}
 
+	fn update_sealing(&self) {
+		self.miner.update_sealing(self)
+	}
+
+	fn submit_seal(&self, block_hash: H256, seal: Vec<Bytes>) {
+		if self.miner.submit_seal(self, block_hash, seal).is_err() {
+			warn!(target: "poa", "Wrong internal seal submission!")
+		}
+	}
+
+	fn broadcast_proposal_block(&self, block: SealedBlock) {
+		self.notify(|notify| {
+			notify.new_blocks(
+				vec![],
+				vec![],
+				vec![],
+				vec![],
+				vec![],
+				vec![block.rlp_bytes()],
+				0,
+			);
+		});
+	}
+
 	fn import_sealed_block(&self, block: SealedBlock) -> ImportResult {
 		let h = block.header().hash();
 		let start = precise_time_ns();
@@ -1381,6 +1492,7 @@ impl MiningBlockChainClient for Client {
 				enacted.clone(),
 				retracted.clone(),
 				vec![h.clone()],
+				vec![],
 				precise_time_ns() - start,
 			);
 		});
@@ -1413,6 +1525,12 @@ impl ::client::ProvingBlockChainClient for Client {
 			.and_then(move |state| state.code_by_address_hash(account_key).ok())
 			.and_then(|x| x)
 			.unwrap_or_else(Vec::new)
+	}
+}
+
+impl Drop for Client {
+	fn drop(&mut self) {
+		self.engine.stop();
 	}
 }
 

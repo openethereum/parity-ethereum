@@ -54,7 +54,7 @@ export default class Input extends Component {
     children: PropTypes.node,
     className: PropTypes.string,
     disabled: PropTypes.bool,
-    error: PropTypes.string,
+    error: nodeOrStringProptype(),
     focused: PropTypes.bool,
     readOnly: PropTypes.bool,
     floatCopy: PropTypes.bool,

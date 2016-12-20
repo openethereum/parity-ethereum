@@ -21,7 +21,7 @@ use blockchain::TreeRoute;
 use verification::queue::QueueInfo as BlockQueueInfo;
 use block::{OpenBlock, SealedBlock};
 use header::{BlockNumber};
-use transaction::{LocalizedTransaction, SignedTransaction};
+use transaction::{LocalizedTransaction, SignedTransaction, PendingTransaction};
 use log_entry::LocalizedLogEntry;
 use filter::Filter;
 use views::{BlockView};
@@ -51,6 +51,9 @@ pub trait BlockChainClient : Sync + Send {
 
 	/// Get raw block header data by block id.
 	fn block_header(&self, id: BlockId) -> Option<Bytes>;
+
+	/// Look up the block number for the given block ID.
+	fn block_number(&self, id: BlockId) -> Option<BlockNumber>;
 
 	/// Get raw block body data by block id.
 	/// Block body is an RLP list of two items: uncles and transactions.
@@ -202,8 +205,14 @@ pub trait BlockChainClient : Sync + Send {
 	/// Queue transactions for importing.
 	fn queue_transactions(&self, transactions: Vec<Bytes>, peer_id: usize);
 
-	/// list all transactions
-	fn pending_transactions(&self) -> Vec<SignedTransaction>;
+	/// Queue conensus engine message.
+	fn queue_consensus_message(&self, message: Bytes);
+
+	/// Used by PoA to communicate with peers.
+	fn broadcast_consensus_message(&self, message: Bytes);
+
+	/// List all transactions that are allowed into the next block.
+	fn ready_transactions(&self) -> Vec<PendingTransaction>;
 
 	/// Sorted list of transaction gas prices from at least last sample_size blocks.
 	fn gas_price_corpus(&self, sample_size: usize) -> Vec<U256> {
@@ -249,6 +258,10 @@ pub trait BlockChainClient : Sync + Send {
 	/// Set the mode.
 	fn set_mode(&self, mode: Mode);
 
+	/// Disable the client from importing blocks. This cannot be undone in this session and indicates
+	/// that a subsystem has reason to believe this executable incapable of syncing the chain.
+	fn disable(&self);
+
 	/// Returns engine-related extra info for `BlockId`.
 	fn block_extra_info(&self, id: BlockId) -> Option<BTreeMap<String, String>>;
 
@@ -257,6 +270,15 @@ pub trait BlockChainClient : Sync + Send {
 
 	/// Returns information about pruning/data availability.
 	fn pruning_info(&self) -> PruningInfo;
+
+	/// Like `call`, but with various defaults. Designed to be used for calling contracts.
+	fn call_contract(&self, address: Address, data: Bytes) -> Result<Bytes, String>;
+
+	/// Get the address of the registry itself.
+	fn registrar_address(&self) -> Option<Address>;
+
+	/// Get the address of a particular blockchain service, if available. 
+	fn registry_address(&self, name: String) -> Option<Address>;
 }
 
 impl IpcConfig for BlockChainClient { }
@@ -272,6 +294,15 @@ pub trait MiningBlockChainClient: BlockChainClient {
 
 	/// Returns EvmFactory.
 	fn vm_factory(&self) -> &EvmFactory;
+
+	/// Used by PoA to try sealing on period change.
+	fn update_sealing(&self);
+
+	/// Used by PoA to submit gathered signatures.
+	fn submit_seal(&self, block_hash: H256, seal: Vec<Bytes>);
+
+	/// Broadcast a block proposal.
+	fn broadcast_proposal_block(&self, block: SealedBlock);
 
 	/// Import sealed block. Skips all verifications.
 	fn import_sealed_block(&self, block: SealedBlock) -> ImportResult;

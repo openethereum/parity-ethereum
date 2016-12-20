@@ -23,7 +23,7 @@ use service::ClientIoMessage;
 use views::HeaderView;
 
 use io::IoChannel;
-use util::hash::H256;
+use util::{H256, Bytes};
 
 use std::sync::Arc;
 
@@ -107,6 +107,7 @@ impl ChainNotify for Watcher {
 		_: Vec<H256>,
 		_: Vec<H256>,
 		_: Vec<H256>,
+		_: Vec<Bytes>,
 		_duration: u64)
 	{
 		if self.oracle.is_major_importing() { return }
@@ -170,6 +171,7 @@ mod tests {
 
 		watcher.new_blocks(
 			hashes,
+			vec![],
 			vec![],
 			vec![],
 			vec![],

@@ -83,6 +83,7 @@ export default class ParametersStep extends Component {
             accounts={ accounts }
             onChange={ onChange }
             param={ param }
+            isEth={ false }
           />
         </div>
       );

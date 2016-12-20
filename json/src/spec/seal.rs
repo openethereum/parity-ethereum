@@ -16,7 +16,8 @@
 
 //! Spec seal deserialization.
 
-use hash::{H64, H256};
+use hash::*;
+use uint::Uint;
 use bytes::Bytes;
 
 /// Ethereum seal.
@@ -29,11 +30,24 @@ pub struct Ethereum {
 	pub mix_hash: H256,
 }
 
-/// Generic seal.
+/// AuthorityRound seal.
 #[derive(Debug, PartialEq, Deserialize)]
-pub struct Generic {
-	/// Seal rlp.
-	pub rlp: Bytes,
+pub struct AuthorityRoundSeal {
+	/// Seal step.
+	pub step: Uint,
+	/// Seal signature.
+	pub signature: H520,
+}
+
+/// Tendermint seal.
+#[derive(Debug, PartialEq, Deserialize)]
+pub struct TendermintSeal {
+	/// Seal round.
+	pub round: Uint,
+	/// Proposal seal signature.
+	pub proposal: H520,
+	/// Proposal seal signature.
+	pub precommits: Vec<H520>,
 }
 
 /// Seal variants.
@@ -42,9 +56,15 @@ pub enum Seal {
 	/// Ethereum seal.
 	#[serde(rename="ethereum")]
 	Ethereum(Ethereum),
+	/// AuthorityRound seal.
+	#[serde(rename="authorityRound")]
+	AuthorityRound(AuthorityRoundSeal),
+	/// Tendermint seal.
+	#[serde(rename="tendermint")]
+	Tendermint(TendermintSeal),
 	/// Generic seal.
 	#[serde(rename="generic")]
-	Generic(Generic),
+	Generic(Bytes),
 }
 
 #[cfg(test)]
@@ -53,15 +73,26 @@ mod tests {
 	use spec::Seal;
 
 	#[test]
-	fn builtin_deserialization() {
+	fn seal_deserialization() {
 		let s = r#"[{
 			"ethereum": {
 				"nonce": "0x0000000000000042",
 				"mixHash": "0x0000000000000000000000000000000000000000000000000000000000000000"
 			}
 		},{
-			"generic": {
-				"rlp": "0xe011bbe8db4e347b4e8c937c1c8370e4b5ed33adb3db69cbdb7a38e1e50b1b82fa"
+			"generic": "0xe011bbe8db4e347b4e8c937c1c8370e4b5ed33adb3db69cbdb7a38e1e50b1b82fa"
+		},{
+			"authorityRound": {
+				"step": "0x0",
+				"signature": "0x0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+			}
+		},{
+			"tendermint": {
+				"round": "0x0",
+				"proposal": "0x0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+				"precommits": [
+					"0x0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+				]
 			}
 		}]"#;
 		let _deserialized: Vec<Seal> = serde_json::from_str(s).unwrap();

@@ -21,14 +21,14 @@ use std::sync::{Arc, Weak};
 use rlp::{UntrustedRlp, View};
 use ethcore::account_provider::AccountProvider;
 use ethcore::client::MiningBlockChainClient;
-use ethcore::transaction::SignedTransaction;
+use ethcore::transaction::{SignedTransaction, PendingTransaction};
 use ethcore::miner::MinerService;
 
 use jsonrpc_core::Error;
 use v1::traits::Signer;
-use v1::types::{TransactionModification, ConfirmationRequest, ConfirmationResponse, U256, Bytes};
+use v1::types::{TransactionModification, ConfirmationRequest, ConfirmationResponse, ConfirmationResponseWithToken, U256, Bytes};
 use v1::helpers::{errors, SignerService, SigningQueue, ConfirmationPayload};
-use v1::helpers::dispatch::{self, dispatch_transaction};
+use v1::helpers::dispatch::{self, dispatch_transaction, WithToken};
 
 /// Transactions confirmation (personal) rpc implementation.
 pub struct SignerClient<C, M> where C: MiningBlockChainClient, M: MinerService {
@@ -60,24 +60,10 @@ impl<C: 'static, M: 'static> SignerClient<C, M> where C: MiningBlockChainClient,
 		take_weak!(self.client).keep_alive();
 		Ok(())
 	}
-}
 
-impl<C: 'static, M: 'static> Signer for SignerClient<C, M> where C: MiningBlockChainClient, M: MinerService {
-
-	fn requests_to_confirm(&self) -> Result<Vec<ConfirmationRequest>, Error> {
-		try!(self.active());
-		let signer = take_weak!(self.signer);
-
-		Ok(signer.requests()
-			.into_iter()
-			.map(Into::into)
-			.collect()
-		)
-	}
-
-	// TODO [ToDr] TransactionModification is redundant for some calls
-	// might be better to replace it in future
-	fn confirm_request(&self, id: U256, modification: TransactionModification, pass: String) -> Result<ConfirmationResponse, Error> {
+	fn confirm_internal<F>(&self, id: U256, modification: TransactionModification, f: F) -> Result<WithToken<ConfirmationResponse>, Error> where
+		F: FnOnce(&C, &M, &AccountProvider, ConfirmationPayload) -> Result<WithToken<ConfirmationResponse>, Error>,
+	{
 		try!(self.active());
 
 		let id = id.into();
@@ -96,14 +82,51 @@ impl<C: 'static, M: 'static> Signer for SignerClient<C, M> where C: MiningBlockC
 				if let Some(gas) = modification.gas {
 					request.gas = gas.into();
 				}
+				if let Some(ref min_block) = modification.min_block {
+					request.min_block = min_block.as_ref().and_then(|b| b.to_min_block_num());
+				}
 			}
+			let result = f(&*client, &*miner, &*accounts, payload);
 			// Execute
-			let result = dispatch::execute(&*client, &*miner, &*accounts, payload, Some(pass));
 			if let Ok(ref response) = result {
-				signer.request_confirmed(id, Ok(response.clone()));
+				signer.request_confirmed(id, Ok((*response).clone()));
 			}
 			result
 		}).unwrap_or_else(|| Err(errors::invalid_params("Unknown RequestID", id)))
+	}
+}
+
+impl<C: 'static, M: 'static> Signer for SignerClient<C, M> where C: MiningBlockChainClient, M: MinerService {
+
+	fn requests_to_confirm(&self) -> Result<Vec<ConfirmationRequest>, Error> {
+		try!(self.active());
+		let signer = take_weak!(self.signer);
+
+		Ok(signer.requests()
+			.into_iter()
+			.map(Into::into)
+			.collect()
+		)
+	}
+
+	// TODO [ToDr] TransactionModification is redundant for some calls
+	// might be better to replace it in future
+	fn confirm_request(&self, id: U256, modification: TransactionModification, pass: String) -> Result<ConfirmationResponse, Error> {
+		self.confirm_internal(id, modification, move |client, miner, accounts, payload| {
+			dispatch::execute(client, miner, accounts, payload, dispatch::SignWith::Password(pass))
+		}).map(|v| v.into_value())
+	}
+
+	fn confirm_request_with_token(&self, id: U256, modification: TransactionModification, token: String) -> Result<ConfirmationResponseWithToken, Error> {
+		self.confirm_internal(id, modification, move |client, miner, accounts, payload| {
+			dispatch::execute(client, miner, accounts, payload, dispatch::SignWith::Token(token))
+		}).and_then(|v| match v {
+			WithToken::No(_) => Err(errors::internal("Unexpected response without token.", "")),
+			WithToken::Yes(response, token) => Ok(ConfirmationResponseWithToken {
+				result: response,
+				token: token,
+			}),
+		})
 	}
 
 	fn confirm_request_raw(&self, id: U256, bytes: Bytes) -> Result<ConfirmationResponse, Error> {
@@ -135,7 +158,8 @@ impl<C: 'static, M: 'static> Signer for SignerClient<C, M> where C: MiningBlockC
 
 					// Dispatch if everything is ok
 					if sender_matches && data_matches && value_matches && nonce_matches {
-						dispatch_transaction(&*client, &*miner, signed_transaction)
+						let pending_transaction = PendingTransaction::new(signed_transaction, request.min_block);
+						dispatch_transaction(&*client, &*miner, pending_transaction)
 							.map(Into::into)
 							.map(ConfirmationResponse::SendTransaction)
 					} else {

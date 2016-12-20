@@ -20,7 +20,7 @@
 use ethcore::blockchain_info::BlockChainInfo;
 use ethcore::client::{BlockChainClient, EachBlockWith, TestBlockChainClient};
 use ethcore::ids::BlockId;
-use ethcore::transaction::SignedTransaction;
+use ethcore::transaction::PendingTransaction;
 use network::{PeerId, NodeId};
 
 use net::buffer_flow::FlowParams;
@@ -94,83 +94,40 @@ impl Provider for TestProvider {
 		None
 	}
 
-	fn block_headers(&self, req: request::Headers) -> Vec<Bytes> {
-		use request::HashOrNumber;
-		use ethcore::views::HeaderView;
+	fn block_header(&self, id: BlockId) -> Option<Bytes> {
+		self.0.client.block_header(id)
+	}
 
-		let best_num = self.chain_info().best_block_number;
-		let start_num = match req.start {
-			HashOrNumber::Number(start_num) => start_num,
-			HashOrNumber::Hash(hash) => match self.0.client.block_header(BlockId::Hash(hash)) {
-				None => {
-					return Vec::new();
-				}
-				Some(header) => {
-					let num = HeaderView::new(&header).number();
-					if req.max == 1 || self.0.client.block_hash(BlockId::Number(num)) != Some(hash) {
-						// Non-canonical header or single header requested.
-						return vec![header];
-					}
+	fn block_body(&self, id: BlockId) -> Option<Bytes> {
+		self.0.client.block_body(id)
+	}
 
-					num
-				}
+	fn block_receipts(&self, hash: &H256) -> Option<Bytes> {
+		self.0.client.block_receipts(&hash)
+	}
+
+	fn state_proof(&self, req: request::StateProof) -> Vec<Bytes> {
+		match req.key2 {
+			Some(_) => vec![::util::sha3::SHA3_NULL_RLP.to_vec()],
+			None => {
+				// sort of a leaf node
+				let mut stream = RlpStream::new_list(2);
+				stream.append(&req.key1).append_empty_data();
+				vec![stream.out()]
 			}
-		};
-
-		(0u64..req.max as u64)
-			.map(|x: u64| x.saturating_mul(req.skip + 1))
-			.take_while(|x| if req.reverse { x < &start_num } else { best_num - start_num >= *x })
-			.map(|x| if req.reverse { start_num - x } else { start_num + x })
-			.map(|x| self.0.client.block_header(BlockId::Number(x)))
-			.take_while(|x| x.is_some())
-			.flat_map(|x| x)
-			.collect()
+		}
 	}
 
-	fn block_bodies(&self, req: request::Bodies) -> Vec<Bytes> {
-		req.block_hashes.into_iter()
-			.map(|hash| self.0.client.block_body(BlockId::Hash(hash)))
-			.map(|body| body.unwrap_or_else(|| ::rlp::EMPTY_LIST_RLP.to_vec()))
-			.collect()
+	fn contract_code(&self, req: request::ContractCode) -> Bytes {
+		req.account_key.iter().chain(req.account_key.iter()).cloned().collect()
 	}
 
-	fn receipts(&self, req: request::Receipts) -> Vec<Bytes> {
-		req.block_hashes.into_iter()
-			.map(|hash| self.0.client.block_receipts(&hash))
-			.map(|receipts| receipts.unwrap_or_else(|| ::rlp::EMPTY_LIST_RLP.to_vec()))
-			.collect()
+	fn header_proof(&self, _req: request::HeaderProof) -> Option<(Bytes, Vec<Bytes>)> {
+		None
 	}
 
-	fn proofs(&self, req: request::StateProofs) -> Vec<Bytes> {
-		req.requests.into_iter()
-			.map(|req| {
-				match req.key2 {
-					Some(_) => ::util::sha3::SHA3_NULL_RLP.to_vec(),
-					None => {
-						// sort of a leaf node
-						let mut stream = RlpStream::new_list(2);
-						stream.append(&req.key1).append_empty_data();
-						stream.out()
-					}
-				}
-			})
-			.collect()
-	}
-
-	fn contract_code(&self, req: request::ContractCodes) -> Vec<Bytes> {
-		req.code_requests.into_iter()
-			.map(|req| {
-                req.account_key.iter().chain(req.account_key.iter()).cloned().collect()
-			 })
-			.collect()
-	}
-
-	fn header_proofs(&self, req: request::HeaderProofs) -> Vec<Bytes> {
-		req.requests.into_iter().map(|_| ::rlp::EMPTY_LIST_RLP.to_vec()).collect()
-	}
-
-	fn pending_transactions(&self) -> Vec<SignedTransaction> {
-		self.0.client.pending_transactions()
+	fn ready_transactions(&self) -> Vec<PendingTransaction> {
+		self.0.client.ready_transactions()
 	}
 }
 
@@ -455,8 +412,8 @@ fn get_state_proofs() {
 	let request_body = encode_request(&request, req_id);
 	let response = {
 		let proofs = vec![
-			{ let mut stream = RlpStream::new_list(2); stream.append(&key1).append_empty_data(); stream.out() },
-			::util::sha3::SHA3_NULL_RLP.to_vec(),
+			{ let mut stream = RlpStream::new_list(2); stream.append(&key1).append_empty_data(); vec![stream.out()] },
+			vec![::util::sha3::SHA3_NULL_RLP.to_vec()],
 		];
 
 		let new_buf = *flow_params.limit() - flow_params.compute_cost(request::Kind::StateProofs, 2);
@@ -465,7 +422,10 @@ fn get_state_proofs() {
 
 		response_stream.append(&req_id).append(&new_buf).begin_list(2);
 		for proof in proofs {
-			response_stream.append_raw(&proof, 1);
+			response_stream.begin_list(proof.len());
+			for node in proof {
+				response_stream.append_raw(&node, 1);
+			}
 		}
 
 		response_stream.out()

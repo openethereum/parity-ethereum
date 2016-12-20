@@ -16,6 +16,7 @@
 
 #[macro_use]
 mod usage;
+use dir::default_data_path;
 
 usage! {
 	{
@@ -31,16 +32,21 @@ usage! {
 		cmd_import: bool,
 		cmd_signer: bool,
 		cmd_new_token: bool,
+		cmd_sign: bool,
+		cmd_reject: bool,
 		cmd_snapshot: bool,
 		cmd_restore: bool,
 		cmd_ui: bool,
 		cmd_tools: bool,
 		cmd_hash: bool,
+		cmd_kill: bool,
+		cmd_db: bool,
 
 		// Arguments
 		arg_pid_file: String,
 		arg_file: Option<String>,
 		arg_path: Vec<String>,
+		arg_id: Option<usize>,
 
 		// Flags
 		// -- Legacy Options
@@ -79,9 +85,14 @@ usage! {
 		flag_mode: String = "last", or |c: &Config| otry!(c.parity).mode.clone(),
 		flag_mode_timeout: u64 = 300u64, or |c: &Config| otry!(c.parity).mode_timeout.clone(),
 		flag_mode_alarm: u64 = 3600u64, or |c: &Config| otry!(c.parity).mode_alarm.clone(),
+		flag_auto_update: String = "critical", or |c: &Config| otry!(c.parity).auto_update.clone(),
+		flag_release_track: String = "current", or |c: &Config| otry!(c.parity).release_track.clone(),
+		flag_no_download: bool = false, or |c: &Config| otry!(c.parity).no_download.clone(),
+		flag_no_consensus: bool = false, or |c: &Config| otry!(c.parity).no_consensus.clone(),
 		flag_chain: String = "homestead", or |c: &Config| otry!(c.parity).chain.clone(),
-		flag_db_path: String = "$HOME/.parity", or |c: &Config| otry!(c.parity).db_path.clone(),
-		flag_keys_path: String = "$HOME/.parity/keys", or |c: &Config| otry!(c.parity).keys_path.clone(),
+		flag_base_path: String = default_data_path(), or |c: &Config| otry!(c.parity).base_path.clone(),
+		flag_db_path: String = "$BASE/chains", or |c: &Config| otry!(c.parity).db_path.clone(),
+		flag_keys_path: String = "$BASE/keys", or |c: &Config| otry!(c.parity).keys_path.clone(),
 		flag_identity: String = "", or |c: &Config| otry!(c.parity).identity.clone(),
 
 		// -- Account Options
@@ -100,7 +111,7 @@ usage! {
 			or |c: &Config| otry!(c.ui).port.clone(),
 		flag_ui_interface: String = "local",
 			or |c: &Config| otry!(c.ui).interface.clone(),
-		flag_ui_path: String = "$HOME/.parity/signer",
+		flag_ui_path: String = "$BASE/signer",
 			or |c: &Config| otry!(c.ui).path.clone(),
 		// NOTE [todr] For security reasons don't put this to config files
 		flag_ui_no_validation: bool = false, or |_| None,
@@ -135,8 +146,6 @@ usage! {
 		flag_reserved_only: bool = false,
 			or |c: &Config| otry!(c.network).reserved_only.clone(),
 		flag_no_ancient_blocks: bool = false, or |_| None,
-		flag_serve_light: bool = false,
-			or |c: &Config| otry!(c.network).serve_light.clone(),
 
 		// -- API and Console Options
 		// RPC
@@ -156,7 +165,7 @@ usage! {
 		// IPC
 		flag_no_ipc: bool = false,
 			or |c: &Config| otry!(c.ipc).disable.clone(),
-		flag_ipc_path: String = "$HOME/.parity/jsonrpc.ipc",
+		flag_ipc_path: String = "$BASE/jsonrpc.ipc",
 			or |c: &Config| otry!(c.ipc).path.clone(),
 		flag_ipc_apis: String = "web3,eth,net,parity,parity_accounts,traces,rpc",
 			or |c: &Config| otry!(c.ipc).apis.clone().map(|vec| vec.join(",")),
@@ -170,7 +179,7 @@ usage! {
 			or |c: &Config| otry!(c.dapps).interface.clone(),
 		flag_dapps_hosts: String = "none",
 			or |c: &Config| otry!(c.dapps).hosts.clone().map(|vec| vec.join(",")),
-		flag_dapps_path: String = "$HOME/.parity/dapps",
+		flag_dapps_path: String = "$BASE/dapps",
 			or |c: &Config| otry!(c.dapps).path.clone(),
 		flag_dapps_user: Option<String> = None,
 			or |c: &Config| otry!(c.dapps).user.clone().map(Some),
@@ -248,7 +257,7 @@ usage! {
 			or |c: &Config| otry!(c.footprint).fat_db.clone(),
 		flag_scale_verifiers: bool = false,
 			or |c: &Config| otry!(c.footprint).scale_verifiers.clone(),
-		flag_num_verifiers: Option<usize> = None, 
+		flag_num_verifiers: Option<usize> = None,
 			or |c: &Config| otry!(c.footprint).num_verifiers.clone().map(Some),
 
 		// -- Import/Export Options
@@ -271,7 +280,7 @@ usage! {
 			or |c: &Config| otry!(c.vm).jit.clone(),
 
 		// -- Miscellaneous Options
-		flag_config: String = "$HOME/.parity/config.toml", or |_| None,
+		flag_config: String = "$BASE/config.toml", or |_| None,
 		flag_logging: Option<String> = None,
 			or |c: &Config| otry!(c.misc).logging.clone().map(Some),
 		flag_log_file: Option<String> = None,
@@ -303,7 +312,12 @@ struct Operating {
 	mode: Option<String>,
 	mode_timeout: Option<u64>,
 	mode_alarm: Option<u64>,
+	auto_update: Option<String>,
+	release_track: Option<String>,
+	no_download: Option<bool>,
+	no_consensus: Option<bool>,
 	chain: Option<String>,
+	base_path: Option<String>,
 	db_path: Option<String>,
 	keys_path: Option<String>,
 	identity: Option<String>,
@@ -342,7 +356,6 @@ struct Network {
 	node_key: Option<String>,
 	reserved_peers: Option<String>,
 	reserved_only: Option<bool>,
-	serve_light: Option<bool>,
 }
 
 #[derive(Default, Debug, PartialEq, RustcDecodable)]
@@ -506,24 +519,34 @@ mod tests {
 			cmd_blocks: false,
 			cmd_import: false,
 			cmd_signer: false,
+			cmd_sign: false,
+			cmd_reject: false,
 			cmd_new_token: false,
 			cmd_snapshot: false,
 			cmd_restore: false,
 			cmd_ui: false,
 			cmd_tools: false,
 			cmd_hash: false,
+			cmd_db: false,
+			cmd_kill: false,
 
 			// Arguments
 			arg_pid_file: "".into(),
 			arg_file: None,
+			arg_id: None,
 			arg_path: vec![],
 
 			// -- Operating Options
 			flag_mode: "last".into(),
 			flag_mode_timeout: 300u64,
 			flag_mode_alarm: 3600u64,
+			flag_auto_update: "critical".into(),
+			flag_release_track: "current".into(),
+			flag_no_download: false,
+			flag_no_consensus: false,
 			flag_chain: "xyz".into(),
-			flag_db_path: "$HOME/.parity".into(),
+			flag_base_path: "$HOME/.parity".into(),
+			flag_db_path: "$HOME/.parity/chains".into(),
 			flag_keys_path: "$HOME/.parity/keys".into(),
 			flag_identity: "".into(),
 
@@ -555,7 +578,6 @@ mod tests {
 			flag_reserved_peers: Some("./path_to_file".into()),
 			flag_reserved_only: false,
 			flag_no_ancient_blocks: false,
-			flag_serve_light: true,
 
 			// -- API and Console Options
 			// RPC
@@ -665,7 +687,7 @@ mod tests {
 
 			// -- Miscellaneous Options
 			flag_version: false,
-			flag_config: "$HOME/.parity/config.toml".into(),
+			flag_config: "$BASE/config.toml".into(),
 			flag_logging: Some("own_tx=trace".into()),
 			flag_log_file: Some("/var/log/parity.log".into()),
 			flag_no_color: false,
@@ -696,7 +718,12 @@ mod tests {
 				mode: Some("dark".into()),
 				mode_timeout: Some(15u64),
 				mode_alarm: Some(10u64),
+				auto_update: None,
+				release_track: None,
+				no_download: None,
+				no_consensus: None,
 				chain: Some("./chain.json".into()),
+				base_path: None,
 				db_path: None,
 				keys_path: None,
 				identity: None,
@@ -729,7 +756,6 @@ mod tests {
 				node_key: None,
 				reserved_peers: Some("./path/to/reserved_peers".into()),
 				reserved_only: Some(true),
-				serve_light: None,
 			}),
 			rpc: Some(Rpc {
 				disable: Some(true),

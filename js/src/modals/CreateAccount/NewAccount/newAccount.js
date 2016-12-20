@@ -21,20 +21,9 @@ import ActionAutorenew from 'material-ui/svg-icons/action/autorenew';
 
 import { Form, Input, IdentityIcon } from '~/ui';
 
+import ERRORS from '../errors';
+
 import styles from '../createAccount.css';
-
-const ERRORS = {
-  noName: 'you need to specify a valid name for the account',
-  noPhrase: 'you need to specify the recovery phrase',
-  noKey: 'you need to provide the raw private key',
-  invalidKey: 'the raw key needs to be hex, 64 characters in length and contain the prefix "0x"',
-  invalidPassword: 'you need to specify a password >= 8 characters',
-  noMatchPassword: 'the supplied passwords does not match'
-};
-
-export {
-  ERRORS
-};
 
 export default class CreateAccount extends Component {
   static contextTypes = {
@@ -49,15 +38,15 @@ export default class CreateAccount extends Component {
   state = {
     accountName: '',
     accountNameError: ERRORS.noName,
+    accounts: null,
+    isValidName: false,
+    isValidPass: false,
     passwordHint: '',
     password1: '',
-    password1Error: ERRORS.invalidPassword,
+    password1Error: null,
     password2: '',
-    password2Error: ERRORS.noMatchPassword,
-    accounts: null,
-    selectedAddress: '',
-    isValidPass: false,
-    isValidName: false
+    password2Error: null,
+    selectedAddress: ''
   }
 
   componentWillMount () {
@@ -230,60 +219,55 @@ export default class CreateAccount extends Component {
     }, this.updateParent);
   }
 
-  onEditPasswordHint = (event, value) => {
+  onEditPasswordHint = (event, passwordHint) => {
     this.setState({
-      passwordHint: value
+      passwordHint
     });
   }
 
   onEditAccountName = (event) => {
-    const value = event.target.value;
-    let error = null;
+    const accountName = event.target.value;
+    let accountNameError = null;
 
-    if (!value || value.trim().length < 2) {
-      error = ERRORS.noName;
+    if (!accountName || !accountName.trim().length) {
+      accountNameError = ERRORS.noName;
     }
 
     this.setState({
-      accountName: value,
-      accountNameError: error,
-      isValidName: !error
+      accountName,
+      accountNameError,
+      isValidName: !accountNameError
     }, this.updateParent);
   }
 
   onEditPassword1 = (event) => {
-    const value = event.target.value;
-    let error1 = null;
-    let error2 = null;
+    const password1 = event.target.value;
+    let password2Error = null;
 
-    if (!value || value.trim().length < 8) {
-      error1 = ERRORS.invalidPassword;
-    }
-
-    if (value !== this.state.password2) {
-      error2 = ERRORS.noMatchPassword;
+    if (password1 !== this.state.password2) {
+      password2Error = ERRORS.noMatchPassword;
     }
 
     this.setState({
-      password1: value,
-      password1Error: error1,
-      password2Error: error2,
-      isValidPass: !error1 && !error2
+      password1,
+      password1Error: null,
+      password2Error,
+      isValidPass: !password2Error
     }, this.updateParent);
   }
 
   onEditPassword2 = (event) => {
-    const value = event.target.value;
-    let error2 = null;
+    const password2 = event.target.value;
+    let password2Error = null;
 
-    if (value !== this.state.password1) {
-      error2 = ERRORS.noMatchPassword;
+    if (password2 !== this.state.password1) {
+      password2Error = ERRORS.noMatchPassword;
     }
 
     this.setState({
-      password2: value,
-      password2Error: error2,
-      isValidPass: !error2
+      password2,
+      password2Error,
+      isValidPass: !password2Error
     }, this.updateParent);
   }
 

@@ -27,7 +27,7 @@ use ethcore::snapshot::SnapshotService;
 use ethsync::{ManageNetwork, SyncProvider};
 use ethcore_rpc::{Extendable, NetworkSettings};
 pub use ethcore_rpc::SignerService;
-
+use updater::Updater;
 
 #[derive(Debug, PartialEq, Clone, Eq, Hash)]
 pub enum Api {
@@ -118,6 +118,7 @@ pub struct Dependencies {
 	pub logger: Arc<RotatingLogger>,
 	pub settings: Arc<NetworkSettings>,
 	pub net_service: Arc<ManageNetwork>,
+	pub updater: Arc<Updater>,
 	pub geth_compatibility: bool,
 	pub dapps_interface: Option<String>,
 	pub dapps_port: Option<u16>,
@@ -224,6 +225,7 @@ pub fn setup_rpc<T: Extendable>(server: T, deps: Arc<Dependencies>, apis: ApiSet
 					&deps.client,
 					&deps.miner,
 					&deps.sync,
+					&deps.updater,
 					&deps.net_service,
 					&deps.secret_store,
 					deps.logger.clone(),
@@ -240,7 +242,7 @@ pub fn setup_rpc<T: Extendable>(server: T, deps: Arc<Dependencies>, apis: ApiSet
 				server.add_delegate(ParityAccountsClient::new(&deps.secret_store, &deps.client).to_delegate());
 			},
 			Api::ParitySet => {
-				server.add_delegate(ParitySetClient::new(&deps.client, &deps.miner, &deps.net_service).to_delegate())
+				server.add_delegate(ParitySetClient::new(&deps.client, &deps.miner, &deps.updater, &deps.net_service).to_delegate())
 			},
 			Api::Traces => {
 				server.add_delegate(TracesClient::new(&deps.client, &deps.miner).to_delegate())

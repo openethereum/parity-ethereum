@@ -36,7 +36,13 @@ export default class Title extends Component {
 
     return (
       <div className={ styles.title }>
-        <h3>{ steps ? steps[current] : title }</h3>
+        <h3>
+          {
+            steps
+              ? steps[current]
+              : title
+          }
+        </h3>
         { this.renderSteps() }
         { this.renderWaiting() }
       </div>
@@ -63,10 +69,10 @@ export default class Title extends Component {
   renderTimeline () {
     const { steps } = this.props;
 
-    return steps.map((label) => {
+    return steps.map((label, index) => {
       return (
         <Step
-          key={ label }>
+          key={ label.key || index }>
           <StepLabel>
             { label }
           </StepLabel>

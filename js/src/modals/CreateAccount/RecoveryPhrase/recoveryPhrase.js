@@ -21,7 +21,7 @@ import { Form, Input } from '~/ui';
 
 import styles from '../createAccount.css';
 
-import { ERRORS } from '../NewAccount';
+import ERRORS from '../errors';
 
 export default class RecoveryPhrase extends Component {
   static propTypes = {
@@ -29,19 +29,19 @@ export default class RecoveryPhrase extends Component {
   }
 
   state = {
-    recoveryPhrase: '',
-    recoveryPhraseError: ERRORS.noPhrase,
     accountName: '',
     accountNameError: ERRORS.noName,
-    passwordHint: '',
-    password1: '',
-    password1Error: ERRORS.invalidPassword,
-    password2: '',
-    password2Error: ERRORS.noMatchPassword,
-    windowsPhrase: false,
     isValidPass: false,
     isValidName: false,
-    isValidPhrase: false
+    isValidPhrase: false,
+    passwordHint: '',
+    password1: '',
+    password1Error: null,
+    password2: '',
+    password2Error: null,
+    recoveryPhrase: '',
+    recoveryPhraseError: null,
+    windowsPhrase: false
   }
 
   componentWillMount () {
@@ -99,13 +99,13 @@ export default class RecoveryPhrase extends Component {
   }
 
   updateParent = () => {
-    const { isValidName, isValidPass, isValidPhrase, accountName, passwordHint, password1, recoveryPhrase, windowsPhrase } = this.state;
+    const { accountName, isValidName, isValidPass, isValidPhrase, password1, passwordHint, recoveryPhrase, windowsPhrase } = this.state;
     const isValid = isValidName && isValidPass && isValidPhrase;
 
     this.props.onChange(isValid, {
       name: accountName,
-      passwordHint,
       password: password1,
+      passwordHint,
       phrase: recoveryPhrase,
       windowsPhrase
     });
@@ -134,67 +134,57 @@ export default class RecoveryPhrase extends Component {
       .split(' ')
       .map((part) => part.trim())
       .filter((part) => part.length);
-    let recoveryPhraseError = null;
-
-    if (!recoveryPhrase || recoveryPhrase.length < 25 || phraseParts.length < 8) {
-      recoveryPhraseError = ERRORS.noPhrase;
-    }
 
     this.setState({
       recoveryPhrase: phraseParts.join(' '),
-      recoveryPhraseError,
-      isValidPhrase: !recoveryPhraseError
+      recoveryPhraseError: null,
+      isValidPhrase: true
     }, this.updateParent);
   }
 
   onEditAccountName = (event) => {
-    const value = event.target.value;
-    let error = null;
+    const accountName = event.target.value;
+    let accountNameError = null;
 
-    if (!value || value.trim().length < 2) {
-      error = ERRORS.noName;
+    if (!accountName || !accountName.trim().length) {
+      accountNameError = ERRORS.noName;
     }
 
     this.setState({
-      accountName: value,
-      accountNameError: error,
-      isValidName: !error
+      accountName,
+      accountNameError,
+      isValidName: !accountNameError
     }, this.updateParent);
   }
 
   onEditPassword1 = (event) => {
-    const value = event.target.value;
-    let error1 = null;
-    let error2 = null;
+    const password1 = event.target.value;
+    let password2Error = null;
 
-    if (!value || value.trim().length < 8) {
-      error1 = ERRORS.invalidPassword;
-    }
-
-    if (value !== this.state.password2) {
-      error2 = ERRORS.noMatchPassword;
+    if (password1 !== this.state.password2) {
+      password2Error = ERRORS.noMatchPassword;
     }
 
     this.setState({
-      password1: value,
-      password1Error: error1,
-      password2Error: error2,
-      isValidPass: !error1 && !error2
+      password1,
+      password1Error: null,
+      password2Error,
+      isValidPass: !password2Error
     }, this.updateParent);
   }
 
   onEditPassword2 = (event) => {
-    const value = event.target.value;
-    let error2 = null;
+    const password2 = event.target.value;
+    let password2Error = null;
 
-    if (value !== this.state.password1) {
-      error2 = ERRORS.noMatchPassword;
+    if (password2 !== this.state.password1) {
+      password2Error = ERRORS.noMatchPassword;
     }
 
     this.setState({
-      password2: value,
-      password2Error: error2,
-      isValidPass: !error2
+      password2,
+      password2Error,
+      isValidPass: !password2Error
     }, this.updateParent);
   }
 }

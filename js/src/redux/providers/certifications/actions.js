@@ -14,10 +14,18 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+export const fetchCertifiers = () => ({
+  type: 'fetchCertifiers'
+});
+
 export const fetchCertifications = (address) => ({
   type: 'fetchCertifications', address
 });
 
-export const addCertification = (address, name, title, icon) => ({
-  type: 'addCertification', address, name, title, icon
+export const addCertification = (address, id, name, title, icon) => ({
+  type: 'addCertification', address, id, name, title, icon
+});
+
+export const removeCertification = (address, id) => ({
+  type: 'removeCertification', address, id
 });

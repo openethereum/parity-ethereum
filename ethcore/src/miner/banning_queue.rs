@@ -115,7 +115,7 @@ impl BanningTransactionQueue {
 				}
 			}
 		}
-		self.queue.add(transaction, TransactionOrigin::External, account_details, gas_estimator)
+		self.queue.add(transaction, TransactionOrigin::External, None, account_details, gas_estimator)
 	}
 
 	/// Ban transaction with given hash.
@@ -263,7 +263,7 @@ mod tests {
 		let mut txq = queue();
 
 		// when
-		txq.queue().add(tx, TransactionOrigin::External, &default_account_details, &gas_required).unwrap();
+		txq.queue().add(tx, TransactionOrigin::External, None, &default_account_details, &gas_required).unwrap();
 
 		// then
 		// should also deref to queue

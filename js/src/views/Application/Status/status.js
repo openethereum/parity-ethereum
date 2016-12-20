@@ -15,78 +15,118 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
 import { BlockStatus } from '~/ui';
-import CopyToClipboard from '~/ui/CopyToClipboard';
 
 import styles from './status.css';
 
 class Status extends Component {
   static propTypes = {
-    blockNumber: PropTypes.object.isRequired,
     clientVersion: PropTypes.string,
-    enode: PropTypes.string,
-    netPeers: PropTypes.object,
+    isTest: PropTypes.bool,
     netChain: PropTypes.string,
-    isTest: PropTypes.bool
+    netPeers: PropTypes.object,
+    upgradeStore: PropTypes.object.isRequired
   }
 
   render () {
-    const { blockNumber, clientVersion, netChain, netPeers, isTest } = this.props;
-    const netStyle = `${styles.network} ${styles[isTest ? 'networktest' : 'networklive']}`;
-
-    if (!blockNumber) {
-      return null;
-    }
+    const { clientVersion, isTest, netChain, netPeers } = this.props;
 
     return (
       <div className={ styles.status }>
         <div className={ styles.version }>
           { clientVersion }
         </div>
+        <div className={ styles.upgrade }>
+          { this.renderConsensus() }
+          { this.renderUpgradeButton() }
+        </div>
         <div className={ styles.netinfo }>
           <BlockStatus />
-          <div className={ netStyle }>
-            { isTest ? 'test' : netChain }
+          <div className={ `${styles.network} ${styles[isTest ? 'test' : 'live']}` }>
+            { netChain }
           </div>
           <div className={ styles.peers }>
             { netPeers.active.toFormat() }/{ netPeers.connected.toFormat() }/{ netPeers.max.toFormat() } peers
           </div>
         </div>
-        { this.renderEnode() }
       </div>
     );
   }
 
-  renderEnode () {
-    const { enode } = this.props;
+  renderConsensus () {
+    const { upgradeStore } = this.props;
 
-    if (!enode) {
+    if (upgradeStore.consensusCapability === 'capable') {
+      return (
+        <div>
+          <FormattedMessage
+            id='application.status.consensus.capable'
+            defaultMessage='Capable' />
+        </div>
+      );
+    } else if (upgradeStore.consensusCapability.capableUntil) {
+      return (
+        <div>
+          <FormattedMessage
+            id='application.status.consensus.capableUntil'
+            defaultMessage='Capable until #{blockNumber}'
+            values={ {
+              blockNumber: upgradeStore.consensusCapability.capableUntil
+            } } />
+        </div>
+      );
+    } else if (upgradeStore.consensusCapability.incapableSince) {
+      return (
+        <div>
+          <FormattedMessage
+            id='application.status.consensus.incapableSince'
+            defaultMessage='Incapable since #{blockNumber}'
+            values={ {
+              blockNumber: upgradeStore.consensusCapability.incapableSince
+            } } />
+        </div>
+      );
+    }
+
+    return (
+      <div>
+        <FormattedMessage
+          id='application.status.consensus.unknown'
+          defaultMessage='Unknown capability' />
+      </div>
+    );
+  }
+
+  renderUpgradeButton () {
+    const { upgradeStore } = this.props;
+
+    if (!upgradeStore.available) {
       return null;
     }
 
-    const [protocol, rest] = enode.split('://');
-    const [id, host] = rest.split('@');
-    const abbreviated = `${protocol}://${id.slice(0, 3)}…${id.slice(-3)}@${host}`;
-
     return (
-      <div className={ styles.enode }>
-        <CopyToClipboard data={ enode } size={ 12 } />
-        <div>{ abbreviated }</div>
+      <div>
+        <a
+          href='javascript:void(0)'
+          onClick={ upgradeStore.openModal }>
+          <FormattedMessage
+            id='application.status.upgrade'
+            defaultMessage='Upgrade' />
+        </a>
       </div>
     );
   }
 }
 
 function mapStateToProps (state) {
-  const { blockNumber, clientVersion, enode, netPeers, netChain, isTest } = state.nodeStatus;
+  const { clientVersion, netPeers, netChain, isTest } = state.nodeStatus;
 
   return {
-    blockNumber,
     clientVersion,
-    enode,
     netPeers,
     netChain,
     isTest

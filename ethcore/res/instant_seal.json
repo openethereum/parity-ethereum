@@ -1,7 +1,7 @@
 {
 	"name": "DevelopmentChain",
 	"engine": {
-		"InstantSeal": null
+		"instantSeal": null
 	},
 	"params": {
 		"accountStartNonce": "0x0",
@@ -11,9 +11,7 @@
 	},
 	"genesis": {
 		"seal": {
-			"generic": {
-				"rlp": "0x0"
-			}
+			"generic": "0x0"
 		},
 		"difficulty": "0x20000",
 		"author": "0x0000000000000000000000000000000000000000",

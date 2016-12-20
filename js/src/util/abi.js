@@ -143,4 +143,7 @@ export function parseAbiType (type) {
       signed: true
     };
   }
+
+  // If no matches, return null
+  return null;
 }
