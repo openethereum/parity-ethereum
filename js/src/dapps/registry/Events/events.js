@@ -77,7 +77,10 @@ const renderDataChanged = (e, accounts, contacts) => {
 const eventTypes = {
   Reserved: renderEvent(styles.reserved, 'reserved'),
   Dropped: renderEvent(styles.dropped, 'dropped'),
-  DataChanged: renderDataChanged
+  DataChanged: renderDataChanged,
+  ReverseProposed: () => 'ReverseProposed',
+  ReverseConfirmed: () => 'ReverseConfirmed',
+  ReverseRemoved: () => 'ReverseRemoved'
 };
 
 export default class Events extends Component {
@@ -124,6 +127,17 @@ export default class Events extends Component {
       })
       .map((e) => eventTypes[e.type](e, accounts, contacts));
 
+    const reverseToggled = (
+      subscriptions.ReverseProposed !== null &&
+      subscriptions.ReverseConfirmed !== null &&
+      subscriptions.ReverseRemoved !== null
+    );
+    const reverseDisabled = (
+      pending.ReverseProposed ||
+      pending.ReverseConfirmed ||
+      pending.ReverseRemoved
+    );
+
     return (
       <Card className={ styles.events }>
         <CardHeader title='Event Log' />
@@ -147,6 +161,13 @@ export default class Events extends Component {
             toggled={ subscriptions.DataChanged !== null }
             disabled={ pending.DataChanged }
             onToggle={ this.onDataChangedToggle }
+            style={ inlineButton }
+          />
+          <Toggle
+            label='Reverse Lookup'
+            toggled={ reverseToggled }
+            disabled={ reverseDisabled }
+            onToggle={ this.onReverseToggle }
             style={ inlineButton }
           />
         </CardActions>
@@ -188,6 +209,23 @@ export default class Events extends Component {
         actions.subscribe('DataChanged');
       } else if (!isToggled && subscriptions.DataChanged !== null) {
         actions.unsubscribe('DataChanged');
+      }
+    }
+  };
+
+  onReverseToggle = (e, isToggled) => {
+    const { pending, subscriptions, actions } = this.props;
+
+    for (let e of ['ReverseProposed', 'ReverseConfirmed', 'ReverseRemoved']) {
+      if (pending[e]) {
+        continue;
+      }
+      if (isToggled && subscriptions[e] === null) {
+        console.warn('subscribing to', e);
+        actions.subscribe(e);
+      } else if (!isToggled && subscriptions[e] !== null) {
+        console.warn('unsubscribing from', e);
+        actions.unsubscribe(e);
       }
     }
   };
