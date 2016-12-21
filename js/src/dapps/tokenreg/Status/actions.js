@@ -66,7 +66,7 @@ export const loadContractDetails = () => (dispatch, getState) => {
 
   Promise
     .all([
-      api.eth.accounts(),
+      api.eth.accountsInfo(),
       instance.owner.call(),
       instance.fee.call()
     ])

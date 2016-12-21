@@ -36,11 +36,10 @@ export const setSelectedAccount = (address) => ({
 
 export const loadAccounts = () => (dispatch) => {
   api.parity
-    .accounts()
+    .accountsInfo()
     .then((accountsInfo) => {
       const accountsList = Object
         .keys(accountsInfo)
-        .filter((address) => accountsInfo[address].uuid)
         .map((address) => ({
           ...accountsInfo[address],
           address

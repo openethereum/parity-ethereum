@@ -49,7 +49,7 @@ export function attachInterface (callback) {
       return Promise
         .all([
           registry.getAddress.call({}, [api.util.sha3('signaturereg'), 'A']),
-          api.parity.accounts()
+          api.parity.accountsInfo()
         ]);
     })
     .then(([address, accountsInfo]) => {
@@ -58,7 +58,6 @@ export function attachInterface (callback) {
       const contract = api.newContract(abis.signaturereg, address);
       const accounts = Object
         .keys(accountsInfo)
-        .filter((address) => accountsInfo[address].uuid)
         .reduce((obj, address) => {
           const info = accountsInfo[address] || {};
 
