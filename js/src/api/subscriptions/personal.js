@@ -46,9 +46,9 @@ export default class Personal {
 
   _accountsInfo = () => {
     return this._api.parity
-      .accountsInfo()
+      .allAccountsInfo()
       .then((info) => {
-        this._updateSubscriptions('parity_accountsInfo', null, info);
+        this._updateSubscriptions('parity_allAccountsInfo', null, info);
       });
   }
 

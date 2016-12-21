@@ -29,9 +29,9 @@ export default class Personal {
 
   _subscribeAccountsInfo () {
     this._api
-      .subscribe('parity_accountsInfo', (error, accountsInfo) => {
+      .subscribe('parity_allAccountsInfo', (error, accountsInfo) => {
         if (error) {
-          console.error('parity_accountsInfo', error);
+          console.error('parity_allAccountsInfo', error);
           return;
         }
 
@@ -41,7 +41,7 @@ export default class Personal {
 
   _removeDeleted () {
     this._api.parity
-      .accountsInfo()
+      .allAccountsInfo()
       .then((accountsInfo) => {
         return Promise.all(
           Object

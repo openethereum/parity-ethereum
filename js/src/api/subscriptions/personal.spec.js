@@ -28,7 +28,7 @@ const TEST_LIST = ['0xfa64203C044691aA57251aF95f4b48d85eC00Dd5'];
 
 function stubApi (accounts, info) {
   const _calls = {
-    accountsInfo: [],
+    allAccountsInfo: [],
     listAccounts: []
   };
 
@@ -86,8 +86,8 @@ describe('api/subscriptions/personal', () => {
         expect(personal.isStarted).to.be.true;
       });
 
-      it('calls parity_accountsInfo', () => {
-        expect(api._calls.accountsInfo.length).to.be.ok;
+      it('calls parity_allAccountsInfo', () => {
+        expect(api._calls.allAccountsInfo.length).to.be.ok;
       });
 
       it('calls eth_accounts', () => {

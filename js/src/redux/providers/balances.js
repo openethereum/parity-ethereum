@@ -60,7 +60,7 @@ export default class Balances {
 
   subscribeAccountsInfo () {
     this._api
-      .subscribe('parity_accountsInfo', (error, accountsInfo) => {
+      .subscribe('parity_allAccountsInfo', (error, accountsInfo) => {
         if (error) {
           return;
         }
