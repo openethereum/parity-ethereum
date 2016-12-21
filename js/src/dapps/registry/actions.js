@@ -23,8 +23,9 @@ import * as lookup from './Lookup/actions.js';
 import * as events from './Events/actions.js';
 import * as names from './Names/actions.js';
 import * as records from './Records/actions.js';
+import * as reverse from './Reverse/actions.js';
 
-export { addresses, accounts, lookup, events, names, records };
+export { addresses, accounts, lookup, events, names, records, reverse };
 
 export const setIsTestnet = (isTestnet) => ({ type: 'set isTestnet', isTestnet });
 

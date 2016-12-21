@@ -20,6 +20,7 @@ import lookupReducer from './Lookup/reducers.js';
 import eventsReducer from './Events/reducers.js';
 import namesReducer from './Names/reducers.js';
 import recordsReducer from './Records/reducers.js';
+import reverseReducer from './Reverse/reducers.js';
 
 const isTestnetReducer = (state = null, action) =>
   action.type === 'set isTestnet' ? action.isTestnet : state;
@@ -43,7 +44,8 @@ const initialState = {
   lookup: lookupReducer(undefined, { type: '' }),
   events: eventsReducer(undefined, { type: '' }),
   names: namesReducer(undefined, { type: '' }),
-  records: recordsReducer(undefined, { type: '' })
+  records: recordsReducer(undefined, { type: '' }),
+  reverse: reverseReducer(undefined, { type: '' })
 };
 
 export default (state = initialState, action) => ({
@@ -56,5 +58,6 @@ export default (state = initialState, action) => ({
   lookup: lookupReducer(state.lookup, action),
   events: eventsReducer(state.events, action),
   names: namesReducer(state.names, action),
-  records: recordsReducer(state.records, action)
+  records: recordsReducer(state.records, action),
+  reverse: reverseReducer(state.reverse, action)
 });
