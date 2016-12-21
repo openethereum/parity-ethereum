@@ -309,7 +309,6 @@ impl<'a> Executive<'a> {
 			let gas = params.gas;
 
 			if params.code.is_some() {
-				println!("{:?}", params.code);
 				// part of substate that may be reverted
 				let mut unconfirmed_substate = Substate::new();
 

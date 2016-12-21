@@ -20,7 +20,7 @@ mod simple_list;
 mod contract;
 
 use std::sync::Weak;
-use util::Address;
+use util::{Address, Arc};
 use ethjson::spec::ValidatorSet as ValidatorSpec;
 use client::Client;
 use self::simple_list::SimpleList;
@@ -30,7 +30,7 @@ use self::contract::ValidatorContract;
 pub fn new_validator_set(spec: ValidatorSpec) -> Box<ValidatorSet + Send + Sync> {
 	match spec {
 		ValidatorSpec::List(list) => Box::new(SimpleList::new(list.into_iter().map(Into::into).collect())),
-		ValidatorSpec::Contract(address) => Box::new(ValidatorContract::new(address.into())),
+		ValidatorSpec::Contract(address) => Box::new(Arc::new(ValidatorContract::new(address.into()))),
 	}
 }
 

@@ -46,10 +46,10 @@ impl ValidatorContract {
 					debug!(target: "engine", "Set of validators obtained: {:?}", new);
 					*self.validators.write() = SimpleList::new(new);
 				},
-				Err(s) => warn!("Set of validators could not be updated: {}", s),
+				Err(s) => warn!(target: "engine", "Set of validators could not be updated: {}", s),
 			}
 		} else {
-			warn!("Set of validators could not be updated: no provider contract.")
+			warn!(target: "engine", "Set of validators could not be updated: no provider contract.")
 		}
 	}
 }
@@ -68,7 +68,7 @@ impl ChainNotify for ValidatorContract {
 	}
 }
 
-impl ValidatorSet for ValidatorContract {
+impl ValidatorSet for Arc<ValidatorContract> {
 	fn contains(&self, address: &Address) -> bool {
 		self.validators.read().contains(address)
 	}
@@ -82,7 +82,13 @@ impl ValidatorSet for ValidatorContract {
 	}
 
 	fn register_call_contract(&self, client: Weak<Client>) {
-		*self.provider.write() = Some(provider::Contract::new(self.address, move |a, d| client.upgrade().ok_or("No client!".into()).and_then(|c| c.call_contract(a, d))));
+		if let Some(c) = client.upgrade() {
+			c.add_notify(self.clone());
+		}
+		{
+			*self.provider.write() = Some(provider::Contract::new(self.address, move |a, d| client.upgrade().ok_or("No client!".into()).and_then(|c| c.call_contract(a, d))));
+		}
+		self.update();
 	}
 }
 
@@ -128,20 +134,85 @@ mod provider {
 
 #[cfg(test)]
 mod tests {
-	use std::str::FromStr;
-	use util::{Address, Arc};
+	use util::*;
 	use spec::Spec;
+	use account_provider::AccountProvider;
+	use transaction::{Transaction, Action};
+	use client::{BlockChainClient, MiningBlockChainClient};
+	use miner::MinerService;
 	use tests::helpers::generate_dummy_client_with_spec_and_data;
 	use super::super::ValidatorSet;
 	use super::ValidatorContract;
 
 	#[test]
-	fn updates_validators() {
+	fn fetches_validators() {
 		let client = generate_dummy_client_with_spec_and_data(Spec::new_validator_contract, 0, 0, &[]);
-		let vc = ValidatorContract::new(Address::from_str("0000000000000000000000000000000000000005").unwrap());
+		let vc = Arc::new(ValidatorContract::new(Address::from_str("0000000000000000000000000000000000000005").unwrap()));
 		vc.register_call_contract(Arc::downgrade(&client));
 		vc.update();
 		assert!(vc.contains(&Address::from_str("7d577a597b2742b498cb5cf0c26cdcd726d39e6e").unwrap()));
 		assert!(vc.contains(&Address::from_str("82a978b3f5962a5b0957d9ee9eef472ee55b42f1").unwrap()));
+	}
+
+	#[test]
+	fn changes_validators() {
+		::env_logger::init().unwrap();
+		let tap = Arc::new(AccountProvider::transient_provider());
+		let v0 = tap.insert_account("1".sha3(), "").unwrap();
+		let v1 = tap.insert_account("0".sha3(), "").unwrap();
+		let spec_factory = || {
+			let spec = Spec::new_validator_contract();
+			spec.engine.register_account_provider(tap.clone());
+			spec
+		};
+		let client = generate_dummy_client_with_spec_and_data(spec_factory, 0, 0, &[]);
+		client.engine().register_client(Arc::downgrade(&client));
+		let validator_contract = Address::from_str("0000000000000000000000000000000000000005").unwrap();
+
+		client.miner().set_engine_signer(v1, "".into()).unwrap();
+		// Remove "1" validator.
+		let tx = Transaction {
+			nonce: 0.into(),
+			gas_price: 0.into(),
+			gas: 500_000.into(),
+			action: Action::Call(validator_contract),
+			value: 0.into(),
+			data: "9112f55c0000000000000000000000000000000000000000000000000000000000000001".from_hex().unwrap(),
+		}.sign(&"1".sha3(), None);
+		client.miner().import_own_transaction(client.as_ref(), tx.into()).unwrap();
+		client.update_sealing();
+		assert_eq!(client.chain_info().best_block_number, 1);
+		// Add "1" validator back in.
+		let tx = Transaction {
+			nonce: 1.into(),
+			gas_price: 0.into(),
+			gas: 500_000.into(),
+			action: Action::Call(validator_contract),
+			value: 0.into(),
+			data: "80a02a4100000000000000000000000082a978b3f5962a5b0957d9ee9eef472ee55b42f1".from_hex().unwrap(),
+		}.sign(&"1".sha3(), None);
+		client.miner().import_own_transaction(client.as_ref(), tx.into()).unwrap();
+		client.update_sealing();
+		// The transaction is not yet included so still unable to seal.
+		assert_eq!(client.chain_info().best_block_number, 1);
+
+		// Switch to the validator that is still there.
+		client.miner().set_engine_signer(v0, "".into()).unwrap();
+		client.update_sealing();
+		assert_eq!(client.chain_info().best_block_number, 2);
+		// Switch back to the added validator, since the state is updated.
+		client.miner().set_engine_signer(v1, "".into()).unwrap();
+		let tx = Transaction {
+			nonce: 2.into(),
+			gas_price: 0.into(),
+			gas: 21000.into(),
+			action: Action::Call(Address::default()),
+			value: 0.into(),
+			data: Vec::new(),
+		}.sign(&"1".sha3(), None);
+		client.miner().import_own_transaction(client.as_ref(), tx.into()).unwrap();
+		client.update_sealing();
+		// Able to seal again.
+		assert_eq!(client.chain_info().best_block_number, 3);
 	}
 }
