@@ -17,6 +17,7 @@
 import { pick } from 'lodash';
 import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
+import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 
 import { BusyStep, Button, CompletedStep, CopyToClipboard, GasPriceEditor, IdentityIcon, Modal, TxHash, Warning } from '~/ui';
@@ -32,10 +33,31 @@ import styles from './deployContract.css';
 import { ERROR_CODES } from '~/api/transport/error';
 
 const STEPS = {
-  CONTRACT_DETAILS: { title: 'contract details' },
-  CONTRACT_PARAMETERS: { title: 'contract parameters' },
-  DEPLOYMENT: { title: 'deployment', waiting: true },
-  COMPLETED: { title: 'completed' }
+  CONTRACT_DETAILS: {
+    title:
+      <FormattedMessage
+        id='deployContract.title.details'
+        defaultMessage='contract details' />
+  },
+  CONTRACT_PARAMETERS: {
+    title:
+      <FormattedMessage
+        id='deployContract.title.parameters'
+        defaultMessage='contract parameters' />
+  },
+  DEPLOYMENT: {
+    waiting: true,
+    title:
+      <FormattedMessage
+        id='deployContract.title.deployment'
+        defaultMessage='deployment' />
+  },
+  COMPLETED: {
+    title:
+      <FormattedMessage
+        id='deployContract.title.completed'
+        defaultMessage='completed' />
+  }
 };
 
 @observer
@@ -120,7 +142,14 @@ class DeployContract extends Component {
 
     const title = realSteps
       ? null
-      : (deployError ? 'deployment failed' : 'rejected');
+      : (deployError
+          ? <FormattedMessage
+            id='deployContract.title.failed'
+            defaultMessage='deployment failed' />
+          : <FormattedMessage
+            id='deployContract.title.rejected'
+            defaultMessage='rejected' />
+      );
 
     const waiting = realSteps
       ? realSteps.map((s, i) => s.waiting ? i : false).filter((v) => v !== false)
@@ -130,11 +159,14 @@ class DeployContract extends Component {
       <Modal
         actions={ this.renderDialogActions() }
         current={ realStep }
-        steps={ realSteps ? realSteps.map((s) => s.title) : null }
+        steps={
+          realSteps
+            ? realSteps.map((s) => s.title)
+            : null
+        }
         title={ title }
-        waiting={ waiting }
         visible
-      >
+        waiting={ waiting }>
         { this.renderExceptionWarning() }
         { this.renderStep() }
       </Modal>
@@ -161,21 +193,33 @@ class DeployContract extends Component {
     const cancelBtn = (
       <Button
         icon={ <CancelIcon /> }
-        label='Cancel'
+        label={
+          <FormattedMessage
+            id='deployContract.button.cancel'
+            defaultMessage='Cancel' />
+        }
         onClick={ this.onClose } />
     );
 
     const closeBtn = (
       <Button
         icon={ <CancelIcon /> }
-        label='Close'
+        label={
+          <FormattedMessage
+            id='deployContract.button.close'
+            defaultMessage='Close' />
+        }
         onClick={ this.onClose } />
     );
 
     const closeBtnOk = (
       <Button
         icon={ <DoneIcon /> }
-        label='Close'
+        label={
+          <FormattedMessage
+            id='deployContract.button.done'
+            defaultMessage='Done' />
+        }
         onClick={ this.onClose } />
     );
 
@@ -189,8 +233,16 @@ class DeployContract extends Component {
           cancelBtn,
           <Button
             disabled={ !isValid }
-            icon={ <IdentityIcon button address={ fromAddress } /> }
-            label='Next'
+            icon={
+              <IdentityIcon
+                address={ fromAddress }
+                button />
+            }
+            label={
+              <FormattedMessage
+                id='deployContract.button.next'
+                defaultMessage='Next' />
+            }
             onClick={ this.onParametersStep } />
         ];
 
@@ -198,8 +250,16 @@ class DeployContract extends Component {
         return [
           cancelBtn,
           <Button
-            icon={ <IdentityIcon button address={ fromAddress } /> }
-            label='Create'
+            icon={
+              <IdentityIcon
+                address={ fromAddress }
+                button />
+            }
+            label={
+              <FormattedMessage
+                id='deployContract.button.create'
+                defaultMessage='Create' />
+            }
             onClick={ this.onDeployStart } />
         ];
 
@@ -224,9 +284,16 @@ class DeployContract extends Component {
     if (rejected) {
       return (
         <BusyStep
-          title='The deployment has been rejected'
-          state='You can safely close this window, the contract deployment will not occur.'
-        />
+          title={
+            <FormattedMessage
+              id='deployContract.rejected.title'
+              defaultMessage='The deployment has been rejected' />
+          }
+          state={
+            <FormattedMessage
+              id='deployContract.rejected.description'
+              defaultMessage='You can safely close this window, the contract deployment will not occur.' />
+          } />
       );
     }
 
@@ -264,7 +331,11 @@ class DeployContract extends Component {
           : null;
         return (
           <BusyStep
-            title='The deployment is currently in progress'
+            title={
+              <FormattedMessage
+                id='deployContract.busy.title'
+                defaultMessage='The deployment is currently in progress' />
+            }
             state={ deployState }>
             { body }
           </BusyStep>
@@ -273,11 +344,21 @@ class DeployContract extends Component {
       case 'COMPLETED':
         return (
           <CompletedStep>
-            <div>Your contract has been deployed at</div>
             <div>
-              <CopyToClipboard data={ address } label='copy address to clipboard' />
-              <IdentityIcon address={ address } inline center className={ styles.identityicon } />
-              <div className={ styles.address }>{ address }</div>
+              <FormattedMessage
+                id='deployContract.completed.description'
+                defaultMessage='Your contract has been deployed at' />
+            </div>
+            <div>
+              <CopyToClipboard data={ address } />
+              <IdentityIcon
+                address={ address }
+                center
+                className={ styles.identityicon }
+                inline />
+              <div className={ styles.address }>
+                { address }
+              </div>
             </div>
             <TxHash hash={ txhash } />
           </CompletedStep>
@@ -326,7 +407,11 @@ class DeployContract extends Component {
 
     const fromAddressError = api.util.isAddressValid(fromAddress)
       ? null
-      : 'a valid account as the contract owner needs to be selected';
+      : (
+        <FormattedMessage
+          id='deployContract.owner.noneSelected'
+          defaultMessage='a valid account as the contract owner needs to be selected' />
+      );
 
     this.setState({ fromAddress, fromAddressError }, this.estimateGas);
   }
@@ -407,28 +492,54 @@ class DeployContract extends Component {
     switch (data.state) {
       case 'estimateGas':
       case 'postTransaction':
-        this.setState({ deployState: 'Preparing transaction for network transmission' });
+        this.setState({
+          deployState:
+            <FormattedMessage
+              id='deployContract.state.preparing'
+              defaultMessage='Preparing transaction for network transmission' />
+        });
         return;
 
       case 'checkRequest':
-        this.setState({ deployState: 'Waiting for confirmation of the transaction in the Parity Secure Signer' });
+        this.setState({
+          deployState:
+            <FormattedMessage
+              id='deployContract.state.waitSigner'
+              defaultMessage='Waiting for confirmation of the transaction in the Parity Secure Signer' />
+        });
         return;
 
       case 'getTransactionReceipt':
-        this.setState({ deployState: 'Waiting for the contract deployment transaction receipt', txhash: data.txhash });
+        this.setState({
+          txhash: data.txhash,
+          deployState:
+            <FormattedMessage
+              id='deployContract.state.waitReceipt'
+              defaultMessage='Waiting for the contract deployment transaction receipt' />
+        });
         return;
 
       case 'hasReceipt':
       case 'getCode':
-        this.setState({ deployState: 'Validating the deployed contract code' });
+        this.setState({
+          deployState:
+            <FormattedMessage
+              id='deployContract.state.validatingCode'
+              defaultMessage='Validating the deployed contract code' />
+        });
         return;
 
       case 'completed':
-        this.setState({ deployState: 'The contract deployment has been completed' });
+        this.setState({
+          deployState:
+            <FormattedMessage
+              id='deployContract.state.completed'
+              defaultMessage='The contract deployment has been completed' />
+        });
         return;
 
       default:
-        console.error('Unknow contract deployment state', data);
+        console.error('Unknown contract deployment state', data);
         return;
     }
   }
