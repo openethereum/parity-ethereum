@@ -522,7 +522,7 @@ impl State {
 		try!(self.commit());
 		let receipt = Receipt::new(self.root().clone(), e.cumulative_gas_used, e.logs);
 		trace!(target: "state", "Transaction receipt: {:?}", receipt);
-		Ok(ApplyOutcome{receipt: receipt, trace: e.trace })
+		Ok(ApplyOutcome{receipt: receipt, trace: e.trace})
 	}
 
 	/// Commit accounts to SecTrieDBMut. This is similar to cpp-ethereum's dev::eth::commit.
