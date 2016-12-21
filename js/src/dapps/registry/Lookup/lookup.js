@@ -37,8 +37,6 @@ class Lookup extends Component {
     name: PropTypes.string.isRequired,
     type: PropTypes.string.isRequired,
     result: nullableProptype(PropTypes.string.isRequired),
-    accounts: PropTypes.object.isRequired,
-    contacts: PropTypes.object.isRequired,
 
     clear: PropTypes.func.isRequired,
     lookup: PropTypes.func.isRequired
@@ -49,19 +47,14 @@ class Lookup extends Component {
   render () {
     const name = this.state.name || this.props.name;
     const type = this.state.type || this.props.type;
-    const { result, accounts, contacts } = this.props;
+    const { result } = this.props;
 
     let output = '';
     if (result) {
       if (type === 'A') {
         output = (
           <code>
-            <Address
-              address={ result }
-              accounts={ accounts }
-              contacts={ contacts }
-              shortenHash={ false }
-            />
+            <Address address={ result } shortenHash={ false } />
           </code>
         );
       } else if (type === 'IMG') {
@@ -112,11 +105,7 @@ class Lookup extends Component {
 
 export default connect(
   // mapStateToProps
-  (state) => ({
-    ...state.lookup,
-    accounts: state.accounts.all,
-    contacts: state.contacts
-  }),
+  (state) => state.lookup,
   // mapDispatchToProps
   (dispatch) => bindActionCreators({ clear, lookup }, dispatch)
 )(Lookup);

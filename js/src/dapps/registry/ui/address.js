@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { PropTypes } from 'react';
+import { connect } from 'react-redux';
 
 import Hash from './hash';
 import IdentityIcon from '../IdentityIcon';
@@ -57,4 +58,12 @@ Address.defaultProps = {
   shortenHash: true
 };
 
-export default Address;
+export default connect(
+  // mapStateToProps
+  (state) => ({
+    accounts: state.accounts.all,
+    contacts: state.contacts
+  }),
+  // mapDispatchToProps
+  null
+)(Address);

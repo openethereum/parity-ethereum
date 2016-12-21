@@ -46,18 +46,14 @@ const renderStatus = (timestamp, isPending) => {
   );
 };
 
-const renderEvent = (classNames, verb) => (e, accounts, contacts) => {
+const renderEvent = (classNames, verb) => (e) => {
   const classes = e.state === 'pending'
     ? classNames + ' ' + styles.pending : classNames;
 
   return (
     <tr key={ e.key } className={ classes }>
       <td>
-        <Address
-          address={ e.parameters.owner.value }
-          accounts={ accounts }
-          contacts={ contacts }
-        />
+        <Address address={ e.parameters.owner.value } />
       </td>
       <td>
         <abbr title={ e.transaction }>{ verb }</abbr>
@@ -74,7 +70,7 @@ const renderEvent = (classNames, verb) => (e, accounts, contacts) => {
   );
 };
 
-const renderDataChanged = (e, accounts, contacts) => {
+const renderDataChanged = (e) => {
   let classNames = styles.dataChanged;
   if (e.state === 'pending') {
     classNames += ' ' + styles.pending;
@@ -83,11 +79,7 @@ const renderDataChanged = (e, accounts, contacts) => {
   return (
     <tr key={ e.key } className={ classNames }>
       <td>
-        <Address
-          address={ e.parameters.owner.value }
-          accounts={ accounts }
-          contacts={ contacts }
-        />
+        <Address address={ e.parameters.owner.value } />
       </td>
       <td>
         <abbr title={ e.transaction }>updated</abbr>
@@ -124,15 +116,13 @@ class Events extends Component {
     subscriptions: PropTypes.object.isRequired,
     pending: PropTypes.object.isRequired,
     events: PropTypes.array.isRequired,
-    accounts: PropTypes.object.isRequired,
-    contacts: PropTypes.object.isRequired,
 
     subscribe: PropTypes.func.isRequired,
     unsubscribe: PropTypes.func.isRequired
   }
 
   render () {
-    const { subscriptions, pending, accounts, contacts } = this.props;
+    const { subscriptions, pending } = this.props;
 
     const eventsObject = this.props.events
       .filter((e) => eventTypes[e.type])
@@ -162,7 +152,7 @@ class Events extends Component {
 
         return evB.timestamp - evA.timestamp;
       })
-      .map((e) => eventTypes[e.type](e, accounts, contacts));
+      .map((e) => eventTypes[e.type](e));
 
     const reverseToggled = (
       subscriptions.ReverseProposed !== null &&
@@ -268,11 +258,7 @@ class Events extends Component {
 
 export default connect(
   // mapStateToProps
-  (state) => ({
-    ...state.events,
-    accounts: state.accounts.all,
-    contacts: state.contacts
-  }),
+  (state) => state.events,
   // mapDispatchToProps
   (dispatch) => bindActionCreators({ subscribe, unsubscribe }, dispatch)
 )(Events);

@@ -65,7 +65,7 @@ class Accounts extends Component {
   }
 
   renderAccount = (account) => {
-    const { all, selected } = this.props;
+    const { selected } = this.props;
     const isSelected = selected && selected.address === account.address;
 
     return (
@@ -73,11 +73,7 @@ class Accounts extends Component {
         key={ account.address } value={ account.address }
         checked={ isSelected } insetChildren={ !isSelected }
       >
-        <Address
-          address={ account.address }
-          accounts={ all }
-          contacts={ {} }
-        />
+        <Address address={ account.address } />
       </MenuItem>
     );
   };
