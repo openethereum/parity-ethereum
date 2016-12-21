@@ -23,13 +23,10 @@ import { FormattedMessage } from 'react-intl';
 
 import TextFieldUnderline from 'material-ui/TextField/TextFieldUnderline';
 
+import AccountCard from '~/ui/AccountCard';
 import { CloseIcon } from '~/ui/Icons';
-import IdentityIcon from '~/ui/IdentityIcon';
 import InputAddress from '~/ui/Form/InputAddress';
 import ParityBackground from '~/ui/ParityBackground';
-import Tags from '~/ui/Tags';
-
-import { fromWei } from '~/api/util/wei';
 
 import styles from './addressSelect.css';
 
@@ -66,8 +63,6 @@ class AddressSelect extends Component {
     value: ''
   };
 
-  nameRefs = {};
-
   state = {
     copied: null,
     expanded: false,
@@ -83,8 +78,6 @@ class AddressSelect extends Component {
 
   componentWillMount () {
     this.setValues();
-
-    window.addEventListener('resize', this.handleTagsOpacity);
   }
 
   componentDidMount () {
@@ -97,10 +90,6 @@ class AddressSelect extends Component {
     }
 
     this.setValues(nextProps);
-  }
-
-  componentWillUnmount () {
-    window.removeEventListener('resize', this.handleTagsOpacity);
   }
 
   setValues (props = this.props) {
@@ -331,115 +320,32 @@ class AddressSelect extends Component {
   }
 
   renderAccountCard (_account) {
-    const { copied } = this.state;
+    const { balances, accountsInfo } = this.props;
     const { address, index = null } = _account;
 
-    const account = this.props.accountsInfo[address];
-    const name = (account && account.name && account.name.toUpperCase()) || address;
-    const { tags = [] } = account && account.meta || {};
-
-    const balance = this.renderBalance(address);
-
-    const onClick = () => {
-      this.handleClick(address);
+    const balance = balances[address];
+    const account = {
+      ...accountsInfo[address],
+      address, index
     };
 
-    const onFocus = () => {
-      this.setState({ focusedItem: index });
+    const onClick = (account) => {
+      this.handleClick(account.address);
     };
 
-    const classes = [ styles.account ];
-
-    if (index && copied === index) {
-      classes.push(styles.copied);
-    }
-
-    const addressElements = name !== address
-      ? (
-        <div className={ styles.addressContainer }>
-          <span
-            className={ styles.address }
-            onClick={ this.preventEvent }
-            ref={ `address_${index}` }
-            title={ address }
-          >
-            { address }
-          </span>
-        </div>
-      )
-      : null;
-
-    const setRef = (ref) => {
-      const { tagsRef = [] } = this.nameRefs[address] || {};
-      this.nameRefs[address] = { ref, tagsRef };
+    const onFocus = (account) => {
+      this.setState({ focusedItem: account.index });
     };
 
     return (
-      <div
-        key={ address }
-        ref={ `account_${index}` }
-        tabIndex={ 0 }
-        className={ classes.join(' ') }
+      <AccountCard
+        account={ account }
+        balance={ balance }
+        key={ `account_${index}` }
         onClick={ onClick }
         onFocus={ onFocus }
-      >
-        <IdentityIcon address={ address } />
-        <div className={ styles.accountInfo }>
-          <div className={ styles.accountName }>
-            <span ref={ setRef }>{ name }</span>
-          </div>
-
-          { this.renderTags(tags, address) }
-          { addressElements }
-          { balance }
-        </div>
-      </div>
-    );
-  }
-
-  renderTags (tags = [], address) {
-    if (tags.length === 0) {
-      return null;
-    }
-
-    const setRefs = (tagRef) => {
-      const nameRef = this.nameRefs[address];
-
-      if (!nameRef) {
-        return;
-      }
-
-      nameRef.tagsRef.push(tagRef);
-    };
-
-    return (
-      <Tags tags={ tags } setRefs={ setRefs } />
-    );
-  }
-
-  renderBalance (address) {
-    const { balances = {} } = this.props;
-
-    const balance = balances[address];
-
-    if (!balance || !balance.tokens) {
-      return null;
-    }
-
-    const ethToken = balance.tokens
-      .find((tok) => tok.token && (tok.token.tag || '').toLowerCase() === 'eth');
-
-    if (!ethToken) {
-      return null;
-    }
-
-    const value = fromWei(ethToken.value).toFormat(3);
-
-    return (
-      <div className={ styles.balance }>
-        <span className={ styles.value }>{ value }</span>
-        <span className={ styles.tag }>ETH</span>
-      </div>
+        ref={ `account_${index}` }
+      />
     );
   }
 
@@ -739,8 +645,6 @@ class AddressSelect extends Component {
     const { value = '' } = event.target;
     let index = 0;
 
-    window.setTimeout(() => { this.handleTagsOpacity(); });
-
     const values = this.values
       .map((category) => {
         const filteredValues = this
@@ -763,42 +667,6 @@ class AddressSelect extends Component {
       inputValue: value
     });
   }
-
-  handleTagsOpacity = () => {
-    Object.values(this.nameRefs).forEach((data) => {
-      if (data.tagsRef.length === 0) {
-        return;
-      }
-
-      const nameEl = ReactDOM.findDOMNode(data.ref);
-
-      if (!nameEl) {
-        return;
-      }
-
-      const nameBounds = nameEl.getBoundingClientRect();
-
-      data.tagsRef.forEach((tagRef) => {
-        const tagEl = ReactDOM.findDOMNode(tagRef);
-
-        if (!tagEl) {
-          return;
-        }
-
-        const tagBounds = tagEl.getBoundingClientRect();
-
-        // Hide if haven't at least a 10px margin
-        tagEl.style.opacity = (tagBounds.left > nameBounds.right + 10)
-          ? 1
-          : 0;
-      });
-    });
-  }
-
-  preventEvent = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-  }
 }
 
 function mapStateToProps (state) {
@@ -814,4 +682,3 @@ function mapStateToProps (state) {
 export default connect(
   mapStateToProps
 )(AddressSelect);
-
