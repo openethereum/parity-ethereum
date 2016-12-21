@@ -73,8 +73,10 @@
   right: 1rem;
   font-size: 4em;
 
-  height: 48px;
-  width: 48px;
+  &, * {
+    height: 48px !important;
+    width: 48px !important;
+  }
 
   &:hover {
     cursor: pointer;
@@ -119,7 +121,7 @@
     z-index: 9999;
 
     .input {
-      font-size: 3em;
+      font-size: 36px;
       padding: 0 9rem 0.5em 2rem;
       display: block;
 

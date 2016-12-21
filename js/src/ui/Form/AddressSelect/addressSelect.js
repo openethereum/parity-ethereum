@@ -19,17 +19,21 @@ import ReactDOM from 'react-dom';
 import { connect } from 'react-redux';
 import Portal from 'react-portal';
 import keycode, { codes } from 'keycode';
+import { FormattedMessage } from 'react-intl';
 
-import CloseIcon from 'material-ui/svg-icons/navigation/close';
 import TextFieldUnderline from 'material-ui/TextField/TextFieldUnderline';
 
-import ParityBackground from '~/ui/ParityBackground';
+import { CloseIcon } from '~/ui/Icons';
 import IdentityIcon from '~/ui/IdentityIcon';
 import InputAddress from '~/ui/Form/InputAddress';
+import ParityBackground from '~/ui/ParityBackground';
 import Tags from '~/ui/Tags';
+
 import { fromWei } from '~/api/util/wei';
 
 import styles from './addressSelect.css';
+
+const BOTTOM_BORDER_STYLE = 'solid 3px';
 
 class AddressSelect extends Component {
   static contextTypes = {
@@ -161,16 +165,15 @@ class AddressSelect extends Component {
     const input = (
       <InputAddress
         accountsInfo={ accountsInfo }
-        error={ error }
-        focused={ focused }
-        label={ label }
-        hint={ hint }
-        tabIndex={ -1 }
-        value={ value }
-
         allowCopy={ false }
         disabled
+        error={ error }
+        hint={ hint }
+        focused={ focused }
+        label={ label }
+        tabIndex={ -1 }
         text
+        value={ value }
       />
     );
 
@@ -202,7 +205,7 @@ class AddressSelect extends Component {
       classes.push(styles.expanded);
     }
 
-    const id = `${label}_${hint}`;
+    const id = 'addressSelect_' + Math.round(Math.random() * 100).toString();
 
     return (
       <Portal isOpened onClose={ this.handleClose }>
@@ -211,7 +214,7 @@ class AddressSelect extends Component {
           style={ { top, left } }
           onKeyDown={ this.handleKeyDown }
         >
-          <ParityBackground muiTheme={ muiTheme } className={ styles.parityBackground } />
+          <ParityBackground className={ styles.parityBackground } />
           <div className={ styles.inputContainer }>
             <label className={ styles.label } htmlFor={ id }>
               { label }
@@ -233,10 +236,10 @@ class AddressSelect extends Component {
                 muiTheme={ muiTheme }
                 focus={ inputFocused }
                 style={ {
-                  borderBottom: 'solid 3px'
+                  borderBottom: BOTTOM_BORDER_STYLE
                 } }
                 focusStyle={ {
-                  borderBottom: 'solid 3px'
+                  borderBottom: BOTTOM_BORDER_STYLE
                 } }
               />
             </div>
@@ -262,9 +265,7 @@ class AddressSelect extends Component {
     }
 
     return (
-      <div
-
-      >
+      <div>
         { this.renderAccountCard({ address: inputValue }) }
       </div>
     );
@@ -279,7 +280,7 @@ class AddressSelect extends Component {
 
     return (
       <div className={ styles.closeIcon } onClick={ this.handleClose }>
-        <CloseIcon style={ { width: 48, height: 48 } } />
+        <CloseIcon />
       </div>
     );
   }
@@ -291,7 +292,10 @@ class AddressSelect extends Component {
       return (
         <div className={ styles.categories }>
           <div className={ styles.empty }>
-            No account matches this query...
+            <FormattedMessage
+              id='addressSelect.noAccount'
+              defaultMessage='No account matches this query...'
+            />
           </div>
         </div>
       );
