@@ -46,8 +46,6 @@ pub struct ApplyOutcome {
 	pub receipt: Receipt,
 	/// The trace for the applied transaction, if None if tracing is disabled.
 	pub trace: Vec<FlatTrace>,
-	/// Contracts created.
-	pub contracts_created: Vec<Address>,
 }
 
 /// Result type for the execution ("application") of a transaction.
@@ -524,7 +522,7 @@ impl State {
 		try!(self.commit());
 		let receipt = Receipt::new(self.root().clone(), e.cumulative_gas_used, e.logs);
 		trace!(target: "state", "Transaction receipt: {:?}", receipt);
-		Ok(ApplyOutcome{receipt: receipt, trace: e.trace, contracts_created: e.contracts_created})
+		Ok(ApplyOutcome{receipt: receipt, trace: e.trace })
 	}
 
 	/// Commit accounts to SecTrieDBMut. This is similar to cpp-ethereum's dev::eth::commit.

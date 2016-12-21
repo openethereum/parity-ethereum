@@ -20,10 +20,11 @@ use util::*;
 use builtin::Builtin;
 use engines::{Engine, NullEngine, InstantSeal, BasicAuthority, AuthorityRound, Tendermint};
 use factory::Factories;
-use transaction::{Transaction, Action};
-use executive::{Executive, TransactOptions};
-use state::State;
-use client::CallAnalytics;
+use executive::Executive;
+use trace::{NoopTracer, NoopVMTracer};
+use action_params::{ActionValue, ActionParams};
+use types::executed::CallType;
+use state::{State, Substate};
 use env_info::EnvInfo;
 use pod_state::*;
 use account_db::*;
@@ -246,61 +247,70 @@ impl Spec {
 
 	/// Ensure that the given state DB has the trie nodes in for the genesis state.
 	pub fn ensure_db_good(&self, mut db: StateDB, factories: &Factories) -> Result<StateDB, Box<TrieError>> {
-		if !db.as_hashdb().contains(&self.state_root()) {
-			trace!(target: "spec", "ensure_db_good: Fresh database? Cannot find state root {}", self.state_root());
-			let mut root = H256::new();
+		if db.as_hashdb().contains(&self.state_root()) {
+			return Ok(db)
+		}
+		trace!(target: "spec", "ensure_db_good: Fresh database? Cannot find state root {}", self.state_root());
+		let mut root = H256::new();
 
-			{
-				let mut t = factories.trie.create(db.as_hashdb_mut(), &mut root);
-				for (address, account) in self.genesis_state.get().iter() {
-					try!(t.insert(&**address, &account.rlp()));
-				}
-			}
-
-			trace!(target: "spec", "ensure_db_good: Populated sec trie; root is {}", root);
+		{
+			let mut t = factories.trie.create(db.as_hashdb_mut(), &mut root);
 			for (address, account) in self.genesis_state.get().iter() {
-				db.note_non_null_account(address);
-				account.insert_additional(&mut AccountDBMut::new(db.as_hashdb_mut(), address), &factories.trie);
+				try!(t.insert(&**address, &account.rlp()));
 			}
+		}
 
-			// Execute contract constructors.
-			let mut state = State::from_existing(db, root, self.engine.account_start_nonce(), factories.clone())?;
-			let env_info = EnvInfo {
-				number: 0,
-				author: self.author,
-				timestamp: self.timestamp,
-				difficulty: self.difficulty,
-				last_hashes: Default::default(),
-				gas_used: U256::zero(),
-				gas_limit: U256::max_value(),
+		trace!(target: "spec", "ensure_db_good: Populated sec trie; root is {}", root);
+		for (address, account) in self.genesis_state.get().iter() {
+			db.note_non_null_account(address);
+			account.insert_additional(&mut AccountDBMut::new(db.as_hashdb_mut(), address), &factories.trie);
+		}
+
+		// Execute contract constructors.
+		let env_info = EnvInfo {
+			number: 0,
+			author: self.author,
+			timestamp: self.timestamp,
+			difficulty: self.difficulty,
+			last_hashes: Default::default(),
+			gas_used: U256::zero(),
+			gas_limit: U256::max_value(),
+		};
+		let from = Address::default();
+		let start_nonce = self.engine.account_start_nonce();
+
+		let mut state = State::from_existing(db, root, start_nonce, factories.clone())?;
+		// Mutate the state with each constructor.
+		for &(ref address, ref constructor) in self.constructors.iter() {
+			trace!(target: "spec", "ensure_db_good: Creating a contract at {}.", address);
+			let params = ActionParams {
+				code_address: address.clone(),
+				code_hash: constructor.sha3(),
+				address: address.clone(),
+				sender: from.clone(),
+				origin: from.clone(),
+				gas: U256::max_value(),
+				gas_price: Default::default(),
+				value: ActionValue::Transfer(Default::default()),
+				code: Some(Arc::new(constructor.clone())),
+				data: None,
+				call_type: CallType::None,
 			};
-			let from = Address::default();
-
-			for &(ref address, ref constructor) in self.constructors.iter() {
-				trace!(target: "spec", "ensure_db_good: Creating a contract at {}.", address);
-				let transaction = Transaction {
-					nonce: state.nonce(address),
-					action: Action::Create,
-					gas: U256::from(50_000_000),
-					gas_price: U256::default(),
-					value: U256::default(),
-					data: constructor.clone(),
-				}.fake_sign(from);
-
-				match state.apply(&env_info, self.engine.as_ref(), &transaction, false).map(|ref r| { trace!(target: "spec", "Execution trace {:?}", r.trace); r.contracts_created.last().cloned() }) {
-					Ok(Some(base_contract)) => {
-						trace!(target: "spec", "ensure_db_good: Base contract created at {}.", base_contract);
-					},
-					Ok(None) => warn!(target: "spec", "Contract constructor at {} does not create a contract.", address),
-					Err(e) => warn!(target: "spec", "Contract constructor at {} failed to execute: {}", address, e),
+			let mut substate = Substate::new();
+			{
+				let mut exec = Executive::new(&mut state, &env_info, self.engine.as_ref(), &factories.vm);
+				if let Err(e) = exec.create(params, &mut substate, &mut NoopTracer, &mut NoopVMTracer) {
+					warn!(target: "spec", "Genesis constructor execution at {} failed: {}.", address, e);
 				}
 			}
-			trace!(target: "spec", "Initial state: {:?}", state);
-			let (root, db) = state.drop();
+			if let Err(e) = state.commit() {
+				warn!(target: "spec", "Genesis constructor trie commit at {} failed: {}.", address, e);
+			}
+		}
+		let (root, db) = state.drop();
 
-			*self.state_root_memo.write() = Some(root);
-			Ok(db)
-		} else { Ok(db) }
+		*self.state_root_memo.write() = Some(root);
+		Ok(db)
 	}
 
 	/// Loads spec from json file.
