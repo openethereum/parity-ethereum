@@ -30,6 +30,7 @@ import Events from '../Events';
 import Lookup from '../Lookup';
 import Names from '../Names';
 import Records from '../Records';
+import Reverse from '../Reverse';
 
 export default class Application extends Component {
   static childContextTypes = {
@@ -93,6 +94,7 @@ export default class Application extends Component {
       <div>
         <Names />
         <Records />
+        <Reverse />
       </div>
     );
   }
