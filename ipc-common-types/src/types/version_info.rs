@@ -22,8 +22,9 @@ use util::{H160};
 use util::misc::raw_package_info;
 use release_track::ReleaseTrack;
 
-/// Version information of a particular release. 
-#[derive(Debug, Clone, PartialEq, Binary)]
+/// Version information of a particular release.
+#[derive(Debug, Clone, PartialEq)]
+#[binary]
 pub struct VersionInfo {
 	/// The track on which it was released.
 	pub track: ReleaseTrack,

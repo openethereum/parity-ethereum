@@ -23,6 +23,7 @@ const CopyWebpackPlugin = require('copy-webpack-plugin');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 const ExtractTextPlugin = require('extract-text-webpack-plugin');
 const ServiceWorkerWebpackPlugin = require('serviceworker-webpack-plugin');
+const ScriptExtHtmlWebpackPlugin = require('script-ext-html-webpack-plugin');
 
 const Shared = require('./shared');
 const DAPPS = require('../src/dapps');
@@ -35,10 +36,13 @@ const isProd = ENV === 'production';
 
 module.exports = {
   cache: !isProd,
-  devtool: isProd ? '#eval' : '#eval-source-map',
+  devtool: isProd ? '#hidden-source-map' : '#source-map',
 
   context: path.join(__dirname, '../src'),
   entry: Object.assign({}, Shared.dappsEntry, {
+    modals: './modals/index.js',
+    views: './views/index.js',
+    ui: './ui/index.js',
     index: './index.js'
   }),
   output: {
@@ -162,11 +166,41 @@ module.exports = {
         filename: 'index.html',
         template: './index.ejs',
         favicon: FAVICON,
-        chunks: [ isProd ? null : 'commons', 'index' ]
+        chunks: [
+          isProd ? null : 'commons',
+          'common.modals', 'common.views', 'common.ui',
+          'modals', 'views', 'ui',
+          'index'
+        ]
+      }),
+
+      new ScriptExtHtmlWebpackPlugin({
+        sync: [ 'commons', 'vendor.js' ],
+        defaultAttribute: 'defer'
       }),
 
       new ServiceWorkerWebpackPlugin({
         entry: path.join(__dirname, '../src/serviceWorker.js')
+      }),
+
+      new webpack.optimize.CommonsChunkPlugin({
+        filename: 'commons.modals.[hash:10].js',
+        name: 'common.modals',
+        minChunks: 2,
+        chunks: [ 'index', 'modals' ]
+      }),
+
+      new webpack.optimize.CommonsChunkPlugin({
+        filename: 'commons.views.[hash:10].js',
+        name: 'common.views',
+        minChunks: 2,
+        chunks: [ 'index', 'views' ]
+      }),
+
+      new webpack.optimize.CommonsChunkPlugin({
+        filename: 'commons.ui.[hash:10].js',
+        name: 'common.ui',
+        minChunks: 2
       }),
 
       DappsHTMLInjection
@@ -185,7 +219,7 @@ module.exports = {
         new webpack.optimize.CommonsChunkPlugin({
           filename: 'commons.[hash:10].js',
           name: 'commons',
-          minChunks: Infinity
+          minChunks: 2
         })
       );
     }

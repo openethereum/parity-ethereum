@@ -105,6 +105,8 @@
   display: flex;
   flex-direction: column;
   margin-right: 0.5em;
+  overflow: auto;
+
   .panel {
     background-color: rgba(0, 0, 0, 0.5);
     padding: 1em;
