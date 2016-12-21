@@ -14,6 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import { uniq } from 'lodash';
+
 import Api from './api';
 
 const sysuiToken = window.localStorage.getItem('sysuiToken');
@@ -31,12 +33,11 @@ export default class SecureApi extends Api {
     this._signerPort = 8180;
 
     // Try tokens from localstorage, then from hash
-    this._tokens = [
-      { value: sysuiToken || 'initial', tried: false },
-      { value: nextToken, tried: false }
-    ].filter((t) => t.value && t.value.length);
+    this._tokens = uniq([sysuiToken, nextToken, 'initial'])
+      .filter((token) => token)
+      .map((token) => ({ value: token, tried: false }));
 
-    this._followConnection();
+    this._tryNextToken();
   }
 
   saveToken = () => {
