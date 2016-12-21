@@ -43,6 +43,10 @@ extern crate rustc_plugin;
 use syntax::feature_gate::AttributeType;
 
 #[cfg(feature = "with-syntex")]
+use syntax::{ast, fold};
+
+
+#[cfg(feature = "with-syntex")]
 include!(concat!(env!("OUT_DIR"), "/lib.rs"));
 
 #[cfg(not(feature = "with-syntex"))]
@@ -56,29 +60,44 @@ pub fn expand(src: &std::path::Path, dst: &std::path::Path) {
 }
 
 #[cfg(feature = "with-syntex")]
-pub fn register_cleaner(reg: &mut syntex::Registry) {
-	use syntax::{ast, fold};
+struct StripAttributeFolder<'a> {
+	attr_title: &'a str,
+}
 
-	#[cfg(feature = "with-syntex")]
-	fn strip_attributes(krate: ast::Crate) -> ast::Crate {
-		struct StripAttributeFolder;
-		impl fold::Folder for StripAttributeFolder {
-			fn fold_attribute(&mut self, attr: ast::Attribute) -> Option<ast::Attribute> {
-				match attr.node.value.node {
-					ast::MetaItemKind::List(ref n, _) if n == &"ipc" => { return None; }
-					ast::MetaItemKind::Word(ref n) if n == &"ipc" => { return None; }
-					_ => {}
-				}
-
-				Some(attr)
-			}
-
-			fn fold_mac(&mut self, mac: ast::Mac) -> ast::Mac {
-				fold::noop_fold_mac(mac, self)
-			}
+#[cfg(feature = "with-syntex")]
+impl<'a> fold::Folder for StripAttributeFolder<'a> {
+	fn fold_attribute(&mut self, attr: ast::Attribute) -> Option<ast::Attribute> {
+		match attr.node.value.node {
+			ast::MetaItemKind::List(ref n, _) if n == self.attr_title => { return None; }
+			ast::MetaItemKind::Word(ref n) if n == self.attr_title => { return None; }
+			_ => {}
 		}
 
-		fold::Folder::fold_crate(&mut StripAttributeFolder, krate)
+		Some(attr)
+	}
+
+	fn fold_mac(&mut self, mac: ast::Mac) -> ast::Mac {
+		fold::noop_fold_mac(mac, self)
+	}
+}
+
+#[cfg(feature = "with-syntex")]
+pub fn register_cleaner_ipc(reg: &mut syntex::Registry) {
+	#[cfg(feature = "with-syntex")]
+	fn strip_attributes(krate: ast::Crate) -> ast::Crate {
+		let mut folder = StripAttributeFolder { attr_title: "ipc" };
+		fold::Folder::fold_crate(&mut folder, krate)
+	}
+
+	reg.add_post_expansion_pass(strip_attributes);
+}
+
+#[cfg(feature = "with-syntex")]
+pub fn register_cleaner_binary(reg: &mut syntex::Registry) {
+	#[cfg(feature = "with-syntex")]
+	fn strip_attributes(krate: ast::Crate) -> ast::Crate {
+		let mut folder = StripAttributeFolder { attr_title: "binary" };
+		fold::Folder::fold_crate(&mut folder, krate)
 	}
 
 	reg.add_post_expansion_pass(strip_attributes);
@@ -90,9 +109,10 @@ pub fn register(reg: &mut syntex::Registry) {
 	reg.add_attr("feature(custom_attribute)");
 
 	reg.add_decorator("ipc", codegen::expand_ipc_implementation);
-	reg.add_decorator("derive_Binary", serialization::expand_serialization_implementation);
+	reg.add_decorator("binary", serialization::expand_serialization_implementation);
 
-	register_cleaner(reg);
+	register_cleaner_ipc(reg);
+	register_cleaner_binary(reg);
 }
 
 #[cfg(not(feature = "with-syntex"))]
@@ -102,11 +122,12 @@ pub fn register(reg: &mut rustc_plugin::Registry) {
 		syntax::ext::base::MultiDecorator(
 			Box::new(codegen::expand_ipc_implementation)));
 	reg.register_syntax_extension(
-		syntax::parse::token::intern("derive_Binary"),
+		syntax::parse::token::intern("binary"),
 		syntax::ext::base::MultiDecorator(
 			Box::new(serialization::expand_serialization_implementation)));
 
 	reg.register_attribute("ipc".to_owned(), AttributeType::Normal);
+	reg.register_attribute("binary".to_owned(), AttributeType::Normal);
 }
 
 #[derive(Debug)]
@@ -124,13 +145,31 @@ pub fn derive_ipc_cond(src_path: &str, has_feature: bool) -> Result<(), Error> {
 }
 
 pub fn cleanup_ipc(src_path: &str) -> Result<(), Error> {
+	cleanup(src_path, AttributeKind::Ipc)
+}
+
+pub fn cleanup_binary(src_path: &str) -> Result<(), Error> {
+	cleanup(src_path, AttributeKind::Binary)
+}
+
+enum AttributeKind {
+	Ipc,
+	Binary,
+}
+
+fn cleanup(src_path: &str, attr: AttributeKind) -> Result<(), Error> {
 	use std::env;
 	use std::path::{Path, PathBuf};
 
 	let out_dir = env::var_os("OUT_DIR").unwrap();
 	let file_name = try!(PathBuf::from(src_path).file_name().ok_or(Error::InvalidFileName).map(|val| val.to_str().unwrap().to_owned()));
 	let mut registry = syntex::Registry::new();
-	register_cleaner(&mut registry);
+
+	match attr {
+		AttributeKind::Ipc => { register_cleaner_ipc(&mut registry); }
+		AttributeKind::Binary => { register_cleaner_binary(&mut registry); }
+	}
+
 	if let Err(_) = registry.expand("", &Path::new(src_path), &Path::new(&out_dir).join(&file_name))
 	{
 		// will be reported by compiler
@@ -189,4 +228,9 @@ pub fn derive_binary(src_path: &str) -> Result<(), Error> {
 	}
 
 	Ok(())
+}
+
+pub fn derive_binary_cond(src_path: &str, has_feature: bool) -> Result<(), Error> {
+	if has_feature { derive_binary(src_path) }
+	else { cleanup_binary(src_path) }
 }

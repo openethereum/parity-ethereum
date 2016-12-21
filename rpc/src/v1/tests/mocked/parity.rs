@@ -421,3 +421,18 @@ fn rpc_parity_local_transactions() {
 	assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
 }
 
+#[test]
+fn rpc_parity_chain_status() {
+	use util::{H256, U256};
+
+	let deps = Dependencies::new();
+	let io = deps.default_client();
+
+	*deps.client.ancient_block.write() = Some((H256::default(), 5));
+	*deps.client.first_block.write() = Some((H256::from(U256::from(1234)), 3333));
+
+	let request = r#"{"jsonrpc": "2.0", "method": "parity_chainStatus", "params":[], "id": 1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":{"blockGap":["0x6","0xd05"]},"id":1}"#;
+
+	assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
+}

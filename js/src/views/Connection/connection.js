@@ -34,27 +34,26 @@ class Connection extends Component {
   static propTypes = {
     isConnected: PropTypes.bool,
     isConnecting: PropTypes.bool,
-    isPingable: PropTypes.bool,
     needsToken: PropTypes.bool
   }
 
   state = {
+    loading: false,
     token: '',
     validToken: false
   }
 
   render () {
-    const { isConnected, isConnecting, isPingable } = this.props;
-    const isOk = !isConnecting && isConnected && isPingable;
+    const { isConnected, needsToken } = this.props;
 
-    if (isOk) {
+    if (isConnected) {
       return null;
     }
 
-    const typeIcon = isPingable
+    const typeIcon = needsToken
       ? <NotificationVpnLock className={ styles.svg } />
       : <ActionDashboard className={ styles.svg } />;
-    const description = isPingable
+    const description = needsToken
       ? this.renderSigner()
       : this.renderPing();
 
@@ -82,7 +81,7 @@ class Connection extends Component {
   }
 
   renderSigner () {
-    const { token, validToken } = this.state;
+    const { loading, token, validToken } = this.state;
     const { isConnecting, needsToken } = this.props;
 
     if (needsToken && !isConnecting) {
@@ -93,9 +92,11 @@ class Connection extends Component {
             <Input
               label='secure token'
               hint='a generated token from Parity'
+              disabled={ loading }
               error={ validToken || (!token || !token.length) ? null : 'invalid signer token' }
               value={ token }
-              onChange={ this.onChangeToken } />
+              onChange={ this.onChangeToken }
+            />
           </div>
         </div>
       );
@@ -117,7 +118,7 @@ class Connection extends Component {
   }
 
   onChangeToken = (event, token) => {
-    const validToken = /[a-zA-Z0-9]{4}-[a-zA-Z0-9]{4}-[a-zA-Z0-9]{4}-[a-zA-Z0-9]{4}/.test(token);
+    const validToken = /[a-zA-Z0-9]{4}-?[a-zA-Z0-9]{4}-?[a-zA-Z0-9]{4}-?[a-zA-Z0-9]{4}/.test(token);
     this.setState({ token, validToken }, () => {
       validToken && this.setToken();
     });
@@ -127,15 +128,20 @@ class Connection extends Component {
     const { api } = this.context;
     const { token } = this.state;
 
-    api.updateToken(token, 0);
-    this.setState({ token: '', validToken: false });
+    this.setState({ loading: true });
+
+    api
+      .updateToken(token, 0)
+      .then((isValid) => {
+        this.setState({ loading: isValid || false, validToken: isValid });
+      });
   }
 }
 
 function mapStateToProps (state) {
-  const { isConnected, isConnecting, isPingable, needsToken } = state.nodeStatus;
+  const { isConnected, isConnecting, needsToken } = state.nodeStatus;
 
-  return { isConnected, isConnecting, isPingable, needsToken };
+  return { isConnected, isConnecting, needsToken };
 }
 
 function mapDispatchToProps (dispatch) {
