@@ -101,13 +101,41 @@ const renderDataChanged = (e) => {
   );
 };
 
+const renderReverse = (e) => {
+  const verb = ({
+    ReverseProposed: 'proposed',
+    ReverseConfirmed: 'confirmed',
+    ReverseRemoved: 'removed'
+  })[e.type];
+  if (!verb) return null;
+
+  const classNames = styles.reverse + (e.state === 'pending' ? ` ${styles.pending}` : '');
+  const details = [
+    'name ',
+    (<code>{ e.parameters.name.value }</code>), // TODO: this is an indexed param, cannot display as plain text
+    ' for ',
+    (<Address address={ e.parameters.reverse.value } />)
+  ];
+
+  return (
+    <tr key={ e.key } className={ classNames }>
+      <td>someone</td> // TODO: find sender of tx
+      <td>{ verb }</td>
+      <td>{ details }</td>
+      <td>
+        { renderStatus(e.timestamp, e.state === 'pending') }
+      </td>
+    </tr>
+  );
+};
+
 const eventTypes = {
   Reserved: renderEvent(styles.reserved, 'reserved'),
   Dropped: renderEvent(styles.dropped, 'dropped'),
   DataChanged: renderDataChanged,
-  ReverseProposed: () => 'ReverseProposed',
-  ReverseConfirmed: () => 'ReverseConfirmed',
-  ReverseRemoved: () => 'ReverseRemoved'
+  ReverseProposed: renderReverse,
+  ReverseConfirmed: renderReverse,
+  ReverseRemoved: renderReverse
 };
 
 class Events extends Component {
