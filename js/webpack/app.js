@@ -200,7 +200,8 @@ module.exports = {
       new webpack.optimize.CommonsChunkPlugin({
         filename: 'commons.ui.[hash:10].js',
         name: 'common.ui',
-        minChunks: 2
+        minChunks: 2,
+        chunks: [ 'index', 'ui' ]
       }),
 
       DappsHTMLInjection
