@@ -16,6 +16,7 @@
 
 //! A blockchain engine that supports a basic, non-BFT proof-of-authority.
 
+use std::sync::Weak;
 use util::*;
 use ethkey::{recover, public_to_address};
 use account_provider::AccountProvider;
@@ -29,6 +30,7 @@ use evm::Schedule;
 use ethjson;
 use header::Header;
 use transaction::SignedTransaction;
+use client::Client;
 use super::validator_set::{ValidatorSet, new_validator_set};
 
 /// `BasicAuthority` params.
@@ -108,18 +110,18 @@ impl Engine for BasicAuthority {
 	}
 
 	/// Attempt to seal the block internally.
-	///
-	/// This operation is synchronous and may (quite reasonably) not be available, in which `false` will
-	/// be returned.
 	fn generate_seal(&self, block: &ExecutedBlock) -> Seal {
 		if let Some(ref ap) = *self.account_provider.lock() {
 			let header = block.header();
-			let message = header.bare_hash();
-			// account should be pernamently unlocked, otherwise sealing will fail
-			if let Ok(signature) = ap.sign(*block.header().author(), self.password.read().clone(), message) {
-				return Seal::Regular(vec![::rlp::encode(&(&*signature as &[u8])).to_vec()]);
-			} else {
-				trace!(target: "basicauthority", "generate_seal: FAIL: accounts secret key unavailable");
+			let author = header.author();
+			if self.validators.contains(author) {
+				let message = header.bare_hash();
+				// account should be pernamently unlocked, otherwise sealing will fail
+				if let Ok(signature) = ap.sign(*author, self.password.read().clone(), message) {
+					return Seal::Regular(vec![::rlp::encode(&(&*signature as &[u8])).to_vec()]);
+				} else {
+					trace!(target: "basicauthority", "generate_seal: FAIL: accounts secret key unavailable");
+				}
 			}
 		} else {
 			trace!(target: "basicauthority", "generate_seal: FAIL: accounts not provided");
@@ -176,6 +178,10 @@ impl Engine for BasicAuthority {
 
 	fn verify_transaction(&self, t: &SignedTransaction, _header: &Header) -> Result<(), Error> {
 		t.sender().map(|_|()) // Perform EC recovery and cache sender
+	}
+
+	fn register_client(&self, client: Weak<Client>) {
+		self.validators.register_call_contract(client);
 	}
 
 	fn set_signer(&self, _address: Address, password: String) {
