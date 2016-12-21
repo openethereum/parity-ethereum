@@ -29,25 +29,23 @@ import { nullableProptype } from '~/util/proptypes';
 import Address from '../ui/address.js';
 import renderImage from '../ui/image.js';
 
-import { clear, lookup } from './actions';
+import { clear, lookup, reverseLookup } from './actions';
 import styles from './lookup.css';
 
 class Lookup extends Component {
 
   static propTypes = {
-    name: PropTypes.string.isRequired,
-    type: PropTypes.string.isRequired,
     result: nullableProptype(PropTypes.string.isRequired),
 
     clear: PropTypes.func.isRequired,
-    lookup: PropTypes.func.isRequired
+    lookup: PropTypes.func.isRequired,
+    reverseLookup: PropTypes.func.isRequired
   }
 
-  state = { name: '', type: 'A' };
+  state = { input: '', type: 'A' };
 
   render () {
-    const name = this.state.name || this.props.name;
-    const type = this.state.type || this.props.type;
+    const { input, type } = this.state;
     const { result } = this.props;
 
     let output = '';
@@ -61,12 +59,16 @@ class Lookup extends Component {
       } else if (type === 'IMG') {
         output = renderImage(result);
       } else if (type === 'CONTENT') {
-        output = (<div>
-          <code>{ result }</code>
-          <p>This is most likely just the hash of the content you are looking for</p>
-        </div>);
+        output = (
+          <div>
+            <code>{ result }</code>
+            <p>Keep in mind that this is most likely the hash of the content you are looking for.</p>
+          </div>
+        );
       } else {
-        output = (<code>{ result }</code>);
+        output = (
+          <code>{ result }</code>
+        );
       }
     }
 
@@ -75,9 +77,9 @@ class Lookup extends Component {
         <CardHeader title={ 'Query the Registry' } />
         <div className={ styles.box }>
           <TextField
-            hintText='name'
-            value={ name }
-            onChange={ this.onNameChange }
+            hintText={ type === 'reverse' ? 'address' : 'name' }
+            value={ input }
+            onChange={ this.onInputChange }
           />
           <DropDownMenu
             value={ type }
@@ -86,6 +88,7 @@ class Lookup extends Component {
             <MenuItem value='A' primaryText='A – Ethereum address' />
             <MenuItem value='IMG' primaryText='IMG – hash of a picture in the blockchain' />
             <MenuItem value='CONTENT' primaryText='CONTENT – hash of a data in the blockchain' />
+            <MenuItem value='reverse' primaryText='reverse – find a name for an address' />
           </DropDownMenu>
           <RaisedButton
             label='Lookup'
@@ -99,15 +102,20 @@ class Lookup extends Component {
     );
   }
 
-  onNameChange = (e) => {
-    this.setState({ name: e.target.value });
+  onInputChange = (e) => {
+    this.setState({ input: e.target.value });
   };
   onTypeChange = (e, i, type) => {
     this.setState({ type });
     this.props.clear();
   };
   onLookupClick = () => {
-    this.props.lookup(this.state.name, this.state.type);
+    const { input, type } = this.state;
+    if (type === 'reverse') {
+      this.props.reverseLookup(input);
+    } else {
+      this.props.lookup(input, type);
+    }
   };
 }
 
@@ -115,5 +123,5 @@ export default connect(
   // mapStateToProps
   (state) => state.lookup,
   // mapDispatchToProps
-  (dispatch) => bindActionCreators({ clear, lookup }, dispatch)
+  (dispatch) => bindActionCreators({ clear, lookup, reverseLookup }, dispatch)
 )(Lookup);

@@ -18,41 +18,30 @@ import { isStage } from '../util/actions';
 
 const initialState = {
   pending: false,
-  name: '', type: '',
   result: null
 };
 
 export default (state = initialState, action) => {
-  if (action.type.slice(0, 7) !== 'lookup ') {
+  if (action.type.slice(0, 7) !== 'lookup ' &&
+    action.type.slice(0, 14) !== 'reverseLookup '
+  ) {
     return state;
   }
 
   if (isStage('clear', action)) {
-    return { ...state, result: null };
+    return { pending: state.pending, result: null };
   }
 
   if (isStage('start', action)) {
-    return {
-      pending: true,
-      name: action.name, type: action.entry,
-      result: null
-    };
+    return { pending: true, result: null };
   }
 
   if (isStage('error', action)) {
-    return {
-      pending: false,
-      name: initialState.name, type: initialState.type,
-      result: null
-    };
+    return { pending: false, result: null };
   }
 
   if (isStage('success', action)) {
-    return {
-      pending: false,
-      name: initialState.name, type: initialState.type,
-      result: action.result
-    };
+    return { pending: false, result: action.result };
   }
 
   return state;
