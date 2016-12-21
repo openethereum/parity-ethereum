@@ -35,9 +35,9 @@ function stubApi (accounts, info) {
   return {
     _calls,
     parity: {
-      accountsInfo: () => {
+      allAccountsInfo: () => {
         const stub = sinon.stub().resolves(info || TEST_INFO)();
-        _calls.accountsInfo.push(stub);
+        _calls.allAccountsInfo.push(stub);
         return stub;
       }
     },
@@ -96,7 +96,7 @@ describe('api/subscriptions/personal', () => {
 
       it('updates subscribers', () => {
         expect(cb.firstCall).to.have.been.calledWith('eth_accounts', null, TEST_LIST);
-        expect(cb.secondCall).to.have.been.calledWith('parity_accountsInfo', null, TEST_INFO);
+        expect(cb.secondCall).to.have.been.calledWith('parity_allAccountsInfo', null, TEST_INFO);
       });
     });
 
@@ -112,7 +112,7 @@ describe('api/subscriptions/personal', () => {
       });
 
       it('calls personal_accountsInfo', () => {
-        expect(api._calls.accountsInfo.length).to.be.ok;
+        expect(api._calls.allAccountsInfo.length).to.be.ok;
       });
 
       it('calls personal_listAccounts', () => {
