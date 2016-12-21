@@ -23,6 +23,8 @@ use client::chain_notify::ChainNotify;
 use super::ValidatorSet;
 use super::simple_list::SimpleList;
 
+/// The validator contract should have the following interface:
+/// [{"constant":true,"inputs":[],"name":"get_validators","outputs":[{"name":"","type":"address[]"}],"payable":false,"type":"function"}]
 pub struct ValidatorContract {
 	address: Address,
 	validators: RwLock<SimpleList>,
@@ -54,6 +56,7 @@ impl ValidatorContract {
 	}
 }
 
+/// Checks validators on every block.
 impl ChainNotify for ValidatorContract {
 	fn new_blocks(
 		&self,
