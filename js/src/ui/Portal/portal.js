@@ -18,7 +18,6 @@ import React, { Component, PropTypes } from 'react';
 import ReactDOM from 'react-dom';
 import Portal from 'react-portal';
 import keycode from 'keycode';
-import { noop } from 'lodash';
 
 import { CloseIcon } from '~/ui/Icons';
 import ParityBackground from '~/ui/ParityBackground';
@@ -29,27 +28,34 @@ export default class Protal extends Component {
 
   static propTypes = {
     onClose: PropTypes.func.isRequired,
+    open: PropTypes.bool.isRequired,
 
     children: PropTypes.node,
     className: PropTypes.string,
-    onKeyDown: PropTypes.func,
-    target: PropTypes.any
+    onKeyDown: PropTypes.func
   };
 
   state = {
-    expanded: false,
-    left: 0,
-    top: 0
+    expanded: false
   }
 
-  componentWillMount () {
-    this.setPosition({}, () => {
-      this.setState({ expanded: true, top: 0, left: 0 });
-    });
+  componentWillReceiveProps (nextProps) {
+    if (this.props.open !== nextProps.open) {
+      const opening = nextProps.open;
+      const closing = !opening;
+
+      if (opening) {
+        return this.setState({ expanded: true });
+      }
+
+      if (closing) {
+        return this.setState({ expanded: false });
+      }
+    }
   }
 
   render () {
-    const { expanded, top, left } = this.state;
+    const { expanded } = this.state;
     const { children, className } = this.props;
 
     const classes = [ styles.overlay, className ];
@@ -62,7 +68,6 @@ export default class Protal extends Component {
       <Portal isOpened onClose={ this.handleClose }>
         <div
           className={ classes.join(' ') }
-          style={ { top, left } }
           onKeyDown={ this.handleKeyDown }
         >
           <ParityBackground className={ styles.parityBackground } />
@@ -89,7 +94,7 @@ export default class Protal extends Component {
   }
 
   handleClose = () => {
-    this.setPosition({ expanded: false }, this.props.onClose, 250);
+    this.props.onClose();
   }
 
   handleKeyDown = (event) => {
@@ -116,14 +121,5 @@ export default class Protal extends Component {
     }
 
     return element[method]();
-  }
-
-  setPosition = (nextProps, callback = noop, callbackTimeout = 0) => {
-    const { target } = this.props;
-    const { top = 0, left = 0 } = this.handleDOMAction(target, 'getBoundingClientRect') || {};
-
-    this.setState({ top, left, ...nextProps }, () => {
-      window.setTimeout(callback, callbackTimeout);
-    });
   }
 }

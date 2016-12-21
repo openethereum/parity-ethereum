@@ -173,7 +173,7 @@ class AddressSelect extends Component {
     const { hint, disabled, label } = this.props;
     const { expanded, inputFocused } = this.state;
 
-    if (disabled || !expanded) {
+    if (disabled) {
       return null;
     }
 
@@ -184,7 +184,7 @@ class AddressSelect extends Component {
         className={ styles.inputContainer }
         onClose={ this.handleClose }
         onKeyDown={ this.handleKeyDown }
-        target={ this.refs.inputAddress }
+        open={ expanded }
       >
         <label className={ styles.label } htmlFor={ id }>
           { label }

@@ -39,16 +39,6 @@ export default class AccountCard extends Component {
     copied: false
   };
 
-  tagRefs = [];
-
-  componentWillMount () {
-    window.addEventListener('resize', this.handleTagsOpacity);
-  }
-
-  componentWillUnmount () {
-    window.removeEventListener('resize', this.handleTagsOpacity);
-  }
-
   render () {
     const { account } = this.props;
     const { copied } = this.state;
@@ -64,8 +54,6 @@ export default class AccountCard extends Component {
       classes.push(styles.copied);
     }
 
-    this.tagRefs = [];
-
     return (
       <div
         key={ address }
@@ -78,7 +66,7 @@ export default class AccountCard extends Component {
         <IdentityIcon address={ address } />
         <div className={ styles.accountInfo }>
           <div className={ styles.accountName }>
-            <span ref='name'>{ displayName }</span>
+            <span>{ displayName }</span>
           </div>
 
           { this.renderTags(tags, address) }
@@ -114,7 +102,7 @@ export default class AccountCard extends Component {
     }
 
     return (
-      <Tags tags={ tags } setRefs={ this.setTagRef } />
+      <Tags tags={ tags } />
     );
   }
 
@@ -179,31 +167,6 @@ export default class AccountCard extends Component {
 
       return event;
     }
-  }
-
-  handleTagsOpacity = () => {
-    const nameEl = ReactDOM.findDOMNode(this.refs.name);
-
-    if (!nameEl) {
-      return;
-    }
-
-    const nameBounds = nameEl.getBoundingClientRect();
-
-    this.tagRefs.forEach((tagRef) => {
-      const tagEl = ReactDOM.findDOMNode(tagRef);
-
-      if (!tagEl) {
-        return;
-      }
-
-      const tagBounds = tagEl.getBoundingClientRect();
-
-      // Hide if haven't at least a 10px margin
-      tagEl.style.opacity = (tagBounds.left > nameBounds.right + 10)
-        ? 1
-        : 0;
-    });
   }
 
   onClick = () => {
