@@ -94,10 +94,7 @@ export default class Overview extends Component {
 
   loadOwners () {
     const { accounts } = this.context;
-    const addresses = Object
-      .values(accounts)
-      .filter((account) => account.uuid)
-      .map((account) => account.address);
+    const addresses = Object.keys(accounts);
 
     loadOwnedTokens(addresses)
       .then(({ tokens, total }) => {
