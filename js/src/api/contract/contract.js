@@ -98,8 +98,6 @@ export default class Contract {
   }
 
   deploy (options, values, statecb) {
-    let gas;
-
     const setState = (state) => {
       if (!statecb) {
         return;
@@ -116,24 +114,26 @@ export default class Contract {
         options.gas = gas.toFixed(0);
 
         setState({ state: 'postTransaction', gas });
-        return this._api.parity.postTransaction(this._encodeOptions(this.constructors[0], options, values));
-      })
-      .then((requestId) => {
-        setState({ state: 'checkRequest', requestId });
-        return this._pollCheckRequest(requestId);
-      })
-      .then((txhash) => {
-        setState({ state: 'getTransactionReceipt', txhash });
-        return this._pollTransactionReceipt(txhash, gas);
-      })
-      .then((receipt) => {
-        if (receipt.gasUsed.eq(gas)) {
-          throw new Error(`Contract not deployed, gasUsed == ${gas.toFixed(0)}`);
-        }
 
-        setState({ state: 'hasReceipt', receipt });
-        this._address = receipt.contractAddress;
-        return this._address;
+        return this._api.parity
+          .postTransaction(this._encodeOptions(this.constructors[0], options, values))
+          .then((requestId) => {
+            setState({ state: 'checkRequest', requestId });
+            return this._pollCheckRequest(requestId);
+          })
+          .then((txhash) => {
+            setState({ state: 'getTransactionReceipt', txhash });
+            return this._pollTransactionReceipt(txhash, gas);
+          })
+          .then((receipt) => {
+            if (receipt.gasUsed.eq(gas)) {
+              throw new Error(`Contract not deployed, gasUsed == ${gas.toFixed(0)}`);
+            }
+
+            setState({ state: 'hasReceipt', receipt });
+            this._address = receipt.contractAddress;
+            return this._address;
+          });
       })
       .then((address) => {
         setState({ state: 'getCode' });
