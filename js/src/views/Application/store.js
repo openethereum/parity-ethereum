@@ -41,7 +41,7 @@ export default class Store {
 
   _checkAccounts () {
     this._api.parity
-      .accountsInfo()
+      .allAccountsInfo()
       .then((info) => {
         const accounts = Object.keys(info).filter((address) => info[address].uuid);
 
