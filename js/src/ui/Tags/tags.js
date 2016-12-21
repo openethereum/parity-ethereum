@@ -20,9 +20,9 @@ import styles from './tags.css';
 
 export default class Tags extends Component {
   static propTypes = {
-    tags: PropTypes.array,
     handleAddSearchToken: PropTypes.func,
-    setRefs: PropTypes.func
+    setRefs: PropTypes.func,
+    tags: PropTypes.array
   }
 
   render () {
