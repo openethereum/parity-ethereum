@@ -123,6 +123,10 @@ export default class CertificationsMiddleware {
                     }
                   })
                   .catch((err) => {
+                    if (/does not exist/.test(err.toString())) {
+                      return console.warn(err.toString());
+                    }
+
                     console.warn(`Could not fetch certifier ${id}:`, err);
                   });
               });
