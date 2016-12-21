@@ -159,7 +159,6 @@ mod tests {
 
 	#[test]
 	fn changes_validators() {
-		::env_logger::init().unwrap();
 		let tap = Arc::new(AccountProvider::transient_provider());
 		let v0 = tap.insert_account("1".sha3(), "").unwrap();
 		let v1 = tap.insert_account("0".sha3(), "").unwrap();
