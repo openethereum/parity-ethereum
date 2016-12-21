@@ -89,6 +89,14 @@ export default class Contract {
     return this;
   }
 
+  deployEstimateGas (options, values) {
+    return this._api.eth
+      .estimateGas(this._encodeOptions(this.constructors[0], options, values))
+      .then((gasEst) => {
+        return [gasEst, gasEst.mul(1.2)];
+      });
+  }
+
   deploy (options, values, statecb) {
     let gas;
 
@@ -102,10 +110,9 @@ export default class Contract {
 
     setState({ state: 'estimateGas' });
 
-    return this._api.eth
-      .estimateGas(this._encodeOptions(this.constructors[0], options, values))
-      .then((_gas) => {
-        gas = _gas.mul(1.2);
+    return this
+      .deployEstimateGas(options, values)
+      .then(([gasEst, gas]) => {
         options.gas = gas.toFixed(0);
 
         setState({ state: 'postTransaction', gas });
