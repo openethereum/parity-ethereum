@@ -16,13 +16,11 @@
 
 //! Fetching
 
-use std::{fs, io};
-use std::io::Write;
-use std::path::{Path, PathBuf};
+use std::{io, fmt};
 use std::sync::Arc;
 use std::sync::atomic::{self, AtomicBool};
 
-use futures::{self, Future};
+use futures::{self, BoxFuture, Future};
 use futures_cpupool::{CpuPool, CpuFuture};
 use reqwest;
 pub use mime::Mime;
@@ -44,33 +42,31 @@ impl From<Arc<AtomicBool>> for Abort {
 
 pub trait Fetch: Clone + Send + Sync + 'static {
 	type Result: Future<Item=Response, Error=Error> + Send + 'static;
-	type FileResult: Future<Item=(PathBuf, Option<Mime>), Error=Error> + Send + 'static;
+
+	/// Spawn the future in context of this `Fetch` thread pool.
+	/// Implementation is optional.
+	fn process<F>(&self, f: F) -> BoxFuture<(), ()> where
+		F: Future<Item=(), Error=()> + Send + 'static,
+			{
+				f.boxed()
+			}
 
 	/// Fetch URL and get a future for the result.
-	fn fetch(&self, url: &str) -> Self::Result;
+	/// Supports aborting the request in the middle of execution.
+	fn fetch_with_abort(&self, url: &str, abort: Abort) -> Self::Result;
+
+	/// Fetch URL and get a future for the result.
+	fn fetch(&self, url: &str) -> Self::Result {
+		self.fetch_with_abort(url, Default::default())
+	}
 
 	/// Fetch URL and get the result synchronously.
 	fn fetch_sync(&self, url: &str) -> Result<Response, Error> {
 		self.fetch(url).wait()
 	}
 
-	fn fetch_to_file(&self, url: &str, path: &Path, abort: Abort) -> Self::FileResult;
-
 	/// Closes this client
 	fn close(self) where Self: Sized {}
-
-	/// Random filename
-	fn temp_filename() -> PathBuf {
-		use ::rand::Rng;
-		use ::std::env;
-
-		let mut rng = ::rand::OsRng::new().expect("Reliable random source is required to work.");
-		let file: String = rng.gen_ascii_chars().take(12).collect();
-
-		let mut path = env::temp_dir();
-		path.push(file);
-		path
-	}
 }
 
 #[derive(Clone)]
@@ -96,8 +92,18 @@ impl Client {
 			limit: limit,
 		})
 	}
+}
 
-	fn fetch_with_abort(&self, url: &str, abort: Abort) -> CpuFuture<Response, Error> {
+impl Fetch for Client {
+	type Result = CpuFuture<Response, Error>;
+
+	fn process<F>(&self, f: F) -> BoxFuture<(), ()> where
+		F: Future<Item=(), Error=()> + Send + 'static,
+			{
+				self.pool.spawn(f).boxed()
+			}
+
+	fn fetch_with_abort(&self, url: &str, abort: Abort) -> Self::Result {
 		debug!(target: "fetch", "Fetching from: {:?}", url);
 
 		self.pool.spawn(FetchTask {
@@ -107,29 +113,6 @@ impl Client {
 			abort: abort,
 		})
 	}
-}
-
-impl Fetch for Client {
-	type Result = CpuFuture<Response, Error>;
-	type FileResult = CpuFuture<(PathBuf, Option<Mime>), Error>;
-
-	fn fetch(&self, url: &str) -> Self::Result {
-		self.fetch_with_abort(url, Default::default())
-	}
-
-	fn fetch_to_file(&self, url: &str, path: &Path, abort: Abort) -> Self::FileResult {
-		let path = path.to_path_buf();
-		trace!(target: "fetch", "Fetching {:?} to file: {:?}", url, path);
-		self.pool.spawn(self.fetch_with_abort(url, abort).and_then(move |mut result| {
-			trace!(target: "fetch", "Got response: {:?}. Saving.", result);
-			let mut file = try!(fs::File::create(&path));
-			try!(io::copy(&mut result, &mut file));
-			try!(file.flush());
-
-			Ok((path, result.content_type()))
-		}))
-	}
-
 }
 
 struct FetchTask {
@@ -152,11 +135,11 @@ impl Future for FetchTask {
 
 		trace!(target: "fetch", "Starting fetch task: {:?}", self.url);
 		let result = try!(self.client.get(&self.url)
-			.header(reqwest::header::UserAgent("Parity Fetch".into()))
-			.send());
+						  .header(reqwest::header::UserAgent("Parity Fetch".into()))
+						  .send());
 
 		Ok(futures::Async::Ready(Response {
-			inner: result,
+			inner: ResponseInner::Response(result),
 			abort: self.abort.clone(),
 			limit: self.limit,
 			read: 0,
@@ -167,7 +150,6 @@ impl Future for FetchTask {
 #[derive(Debug)]
 pub enum Error {
 	Fetch(reqwest::Error),
-	Io(io::Error),
 	Aborted,
 }
 
@@ -177,24 +159,46 @@ impl From<reqwest::Error> for Error {
 	}
 }
 
-impl From<io::Error> for Error {
-	fn from(error: io::Error) -> Self {
-		Error::Io(error)
+enum ResponseInner {
+	Response(reqwest::Response),
+	Reader(Box<io::Read + Send>),
+}
+
+impl fmt::Debug for ResponseInner {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		match *self {
+			ResponseInner::Response(ref response) => response.fmt(f),
+			ResponseInner::Reader(_) => write!(f, "io Reader"),
+		}
 	}
 }
 
 #[derive(Debug)]
 pub struct Response {
-	inner: reqwest::Response,
+	inner: ResponseInner,
 	abort: Abort,
 	limit: Option<usize>,
 	read: usize,
 }
 
 impl Response {
+	pub fn from_reader<R: io::Read + Send + 'static>(reader: R) -> Self {
+		Response {
+			inner: ResponseInner::Reader(Box::new(reader)),
+			abort: Abort::default(),
+			limit: None,
+			read: 0,
+		}
+	}
+
 	pub fn content_type(&self) -> Option<Mime> {
-		let content_type = self.inner.headers().get::<reqwest::header::ContentType>();
-		content_type.map(|mime| mime.0.clone())
+		match self.inner {
+			ResponseInner::Response(ref r) => {
+				let content_type = r.headers().get::<reqwest::header::ContentType>();
+				content_type.map(|mime| mime.0.clone())
+			},
+			_ => None,
+		}
 	}
 }
 
@@ -204,7 +208,10 @@ impl io::Read for Response {
 			return Err(io::Error::new(io::ErrorKind::ConnectionAborted, "Fetch aborted."));
 		}
 
-		let res = self.inner.read(buf);
+		let res = match self.inner {
+			ResponseInner::Response(ref mut response) => response.read(buf),
+			ResponseInner::Reader(ref mut reader) => reader.read(buf),
+		};
 
 		// increase bytes read
 		if let Ok(read) = res {

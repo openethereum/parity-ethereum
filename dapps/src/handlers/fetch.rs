@@ -16,12 +16,11 @@
 
 //! Hyper Server Handler that fetches a file during a request (proxy).
 
-use std::{fs, fmt};
-use std::path::PathBuf;
+use std::fmt;
 use std::sync::{mpsc, Arc};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Instant, Duration};
-use fetch::{self, Fetch, Mime};
+use fetch::{self, Fetch};
 use futures::Future;
 use parity_reactor::Remote;
 use util::Mutex;
@@ -41,7 +40,7 @@ enum FetchState {
 	Waiting,
 	NotStarted(String),
 	Error(ContentHandler),
-	InProgress(mpsc::Receiver<Result<(PathBuf, Option<Mime>), fetch::Error>>),
+	InProgress(mpsc::Receiver<FetchState>),
 	Done(LocalPageEndpoint, Box<PageHandlerWaiting>),
 }
 
@@ -50,10 +49,10 @@ enum WaitResult {
 	Done(LocalPageEndpoint),
 }
 
-pub trait ContentValidator {
+pub trait ContentValidator: Send + 'static {
 	type Error: fmt::Debug + fmt::Display;
 
-	fn validate_and_install(&self, path: PathBuf, mime: Option<Mime>) -> Result<LocalPageEndpoint, Self::Error>;
+	fn validate_and_install(&self, fetch::Response) -> Result<LocalPageEndpoint, Self::Error>;
 }
 
 pub struct FetchControl {
@@ -168,7 +167,7 @@ pub struct ContentFetcherHandler<H: ContentValidator, F: Fetch> {
 	remote: Remote,
 	status: FetchState,
 	fetch: F,
-	installer: H,
+	installer: Option<H>,
 	path: EndpointPath,
 	uri: RequestUri,
 	embeddable_on: Option<(String, u16)>,
@@ -191,7 +190,7 @@ impl<H: ContentValidator, F: Fetch> ContentFetcherHandler<H, F> {
 			remote: remote,
 			fetch: fetch,
 			status: FetchState::NotStarted(url),
-			installer: handler,
+			installer: Some(handler),
 			path: path,
 			uri: RequestUri::default(),
 			embeddable_on: embeddable_on,
@@ -200,18 +199,56 @@ impl<H: ContentValidator, F: Fetch> ContentFetcherHandler<H, F> {
 		(handler, fetch_control)
 	}
 
-	fn fetch_content(&self, url: &str, control: Control) -> mpsc::Receiver<Result<(PathBuf, Option<Mime>), fetch::Error>> {
+	fn fetch_content(&self, url: &str, installer: H) -> mpsc::Receiver<FetchState> {
 		let (tx, rx) = mpsc::channel();
 		let abort = self.fetch_control.abort.clone();
 
-		let future = self.fetch.fetch_to_file(url, &F::temp_filename(), abort.into()).then(move |result| {
-			trace!(target: "dapps", "Fetching finished.");
-			tx.send(result).unwrap();
+		let control = self.control.clone();
+		let embeddable_on = self.embeddable_on.clone();
+		let uri = self.uri.clone();
+		let path = self.path.clone();
+
+		let future = self.fetch.fetch_with_abort(url, abort.into()).then(move |result| {
+			trace!(target: "dapps", "Fetching content finished. Starting validation: {:?}", result);
+			let new_state = match result {
+				Ok(response) => match installer.validate_and_install(response) {
+					Ok(endpoint) => {
+						trace!(target: "dapps", "Validation OK. Returning response.");
+						let mut handler = endpoint.to_page_handler(path);
+						handler.set_uri(&uri);
+						FetchState::Done(endpoint, handler)
+					},
+					Err(e) => {
+						trace!(target: "dapps", "Error while validating content: {:?}", e);
+						FetchState::Error(ContentHandler::error(
+							StatusCode::BadGateway,
+							"Invalid Dapp",
+							"Downloaded bundle does not contain a valid content.",
+							Some(&format!("{:?}", e)),
+							embeddable_on,
+						))
+					},
+				},
+				Err(e) => {
+					warn!(target: "dapps", "Unable to fetch content: {:?}", e);
+					FetchState::Error(ContentHandler::error(
+						StatusCode::BadGateway,
+						"Download Error",
+						"There was an error when fetching the content.",
+						Some(&format!("{:?}", e)),
+						embeddable_on,
+					))
+				},
+			};
+			tx.send(new_state).expect("Receiving end is never dropped before the fetch request is finished.");
 			// Ignoring control errors
 			let _ = control.ready(Next::read());
 			Ok(()) as Result<(), ()>
 		});
 
+		// make sure to run within fetch thread pool.
+		let future = self.fetch.process(future);
+		// spawn to event loop
 		self.remote.spawn(future);
 
 		rx
@@ -220,13 +257,13 @@ impl<H: ContentValidator, F: Fetch> ContentFetcherHandler<H, F> {
 
 impl<H: ContentValidator, F: Fetch> server::Handler<HttpStream> for ContentFetcherHandler<H, F> {
 	fn on_request(&mut self, request: server::Request<HttpStream>) -> Next {
+		let installer = self.installer.take().expect("Installer always set initialy; installer used only in on_request; on_request invoked only once; qed");
 		let status = if let FetchState::NotStarted(ref url) = self.status {
 			Some(match *request.method() {
 				// Start fetching content
 				Method::Get => {
 					trace!(target: "dapps", "Fetching content from: {:?}", url);
-					let control = self.control.clone();
-					let receiver = self.fetch_content(url, control);
+					let receiver = self.fetch_content(url, installer);
 					FetchState::InProgress(receiver)
 				},
 				// or return error
@@ -267,43 +304,8 @@ impl<H: ContentValidator, F: Fetch> server::Handler<HttpStream> for ContentFetch
 				// Check if there is an answer
 				let rec = receiver.try_recv();
 				match rec {
-					// Unpack and validate
-					Ok(Ok((path, mime))) => {
-						trace!(target: "dapps", "Fetching content finished. Starting validation ({:?})", path);
-						// Unpack and verify
-						let state = match self.installer.validate_and_install(path.clone(), mime.clone()) {
-							Err(e) => {
-								trace!(target: "dapps", "Error while validating content: {:?}", e);
-								FetchState::Error(ContentHandler::error(
-									StatusCode::BadGateway,
-									"Invalid Dapp",
-									"Downloaded bundle does not contain a valid content.",
-									Some(&format!("{:?}", e)),
-									self.embeddable_on.clone(),
-								))
-							},
-							Ok(endpoint) => {
-								let mut handler = endpoint.to_page_handler(self.path.clone());
-								handler.set_uri(&self.uri);
-								FetchState::Done(endpoint, handler)
-							},
-						};
-						// Remove temporary zip file
-						let _ = fs::remove_file(path);
-
-						(Some(state), Next::write())
-					},
-					Ok(Err(e)) => {
-						warn!(target: "dapps", "Unable to fetch content: {:?}", e);
-						let error = ContentHandler::error(
-							StatusCode::BadGateway,
-							"Download Error",
-							"There was an error when fetching the content.",
-							Some(&format!("{:?}", e)),
-							self.embeddable_on.clone(),
-						);
-						(Some(FetchState::Error(error)), Next::write())
-					},
+					// just return the new state
+					Ok(state) => (Some(state), Next::write()),
 					// wait some more
 					_ => (None, Next::wait())
 				}

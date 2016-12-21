@@ -334,6 +334,13 @@ impl From<hyper::error::Error> for ServerError {
 	}
 }
 
+/// Random filename
+fn random_filename() -> String {
+	use ::rand::Rng;
+	let mut rng = ::rand::OsRng::new().unwrap();
+	rng.gen_ascii_chars().take(12).collect()
+}
+
 fn address(address: (String, u16)) -> String {
 	format!("{}:{}", address.0, address.1)
 }

@@ -18,27 +18,25 @@
 //! Manages downloaded (cached) Dapps and downloads them when necessary.
 //! Uses `URLHint` to resolve addresses into Dapps bundle file location.
 
-use zip;
-use std::{fs, fmt};
-use std::io::{self, Read, Write};
+mod installers;
+
+use std::{fs, env};
 use std::path::PathBuf;
 use std::sync::Arc;
 use rustc_serialize::hex::FromHex;
-use fetch::{Client as FetchClient, Fetch, Mime};
+use fetch::{Client as FetchClient, Fetch};
 use hash_fetch::urlhint::{URLHintContract, URLHint, URLHintResult};
 use parity_reactor::Remote;
 
 use hyper;
 use hyper::status::StatusCode;
 
-use SyncStatus;
-use util::{Mutex, H256};
-use util::sha3::sha3;
-use page::{LocalPageEndpoint, PageCache};
-use handlers::{ContentHandler, ContentFetcherHandler, ContentValidator};
+use {SyncStatus, random_filename};
+use util::Mutex;
+use page::LocalPageEndpoint;
+use handlers::{ContentHandler, ContentFetcherHandler};
 use endpoint::{Endpoint, EndpointPath, Handler};
 use apps::cache::{ContentCache, ContentStatus};
-use apps::manifest::{MANIFEST_FILENAME, deserialize_manifest, serialize_manifest, Manifest};
 
 /// Limit of cached dapps/content
 const MAX_CACHED_DAPPS: usize = 20;
@@ -69,7 +67,8 @@ impl<R: URLHint + Send + Sync + 'static, F: Fetch> Drop for ContentFetcher<F, R>
 impl<R: URLHint + Send + Sync + 'static, F: Fetch> ContentFetcher<F, R> {
 
 	pub fn new(resolver: R, sync_status: Arc<SyncStatus>, embeddable_on: Option<(String, u16)>, remote: Remote, fetch: F) -> Self {
-		let dapps_path = FetchClient::temp_filename();
+		let mut dapps_path = env::temp_dir();
+		dapps_path.push(random_filename());
 
 		ContentFetcher {
 			dapps_path: dapps_path,
@@ -161,12 +160,12 @@ impl<R: URLHint + Send + Sync + 'static, F: Fetch> Fetcher for ContentFetcher<F,
 								dapp.url(),
 								path,
 								control,
-								DappInstaller {
-									id: content_id.clone(),
-									dapps_path: self.dapps_path.clone(),
-									on_done: Box::new(on_done),
-									embeddable_on: self.embeddable_on.clone(),
-								},
+								installers::Dapp::new(
+									content_id.clone(),
+									self.dapps_path.clone(),
+									Box::new(on_done),
+									self.embeddable_on.clone(),
+								),
 								self.embeddable_on.clone(),
 								self.remote.clone(),
 								self.fetch.clone(),
@@ -179,12 +178,12 @@ impl<R: URLHint + Send + Sync + 'static, F: Fetch> Fetcher for ContentFetcher<F,
 								content.url,
 								path,
 								control,
-								ContentInstaller {
-									id: content_id.clone(),
-									mime: content.mime,
-									content_path: self.dapps_path.clone(),
-									on_done: Box::new(on_done),
-								},
+								installers::Content::new(
+									content_id.clone(),
+									content.mime,
+									self.dapps_path.clone(),
+									Box::new(on_done),
+								),
 								self.embeddable_on.clone(),
 								self.remote.clone(),
 								self.fetch.clone(),
@@ -217,199 +216,6 @@ impl<R: URLHint + Send + Sync + 'static, F: Fetch> Fetcher for ContentFetcher<F,
 		}
 
 		handler
-	}
-}
-
-#[derive(Debug)]
-pub enum ValidationError {
-	Io(io::Error),
-	Zip(zip::result::ZipError),
-	InvalidContentId,
-	ManifestNotFound,
-	ManifestSerialization(String),
-	HashMismatch { expected: H256, got: H256, },
-}
-
-impl fmt::Display for ValidationError {
-	fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-		match *self {
-			ValidationError::Io(ref io) => write!(f, "Unexpected IO error occured: {:?}", io),
-			ValidationError::Zip(ref zip) => write!(f, "Unable to read ZIP archive: {:?}", zip),
-			ValidationError::InvalidContentId => write!(f, "ID is invalid. It should be 256 bits keccak hash of content."),
-			ValidationError::ManifestNotFound => write!(f, "Downloaded Dapp bundle did not contain valid manifest.json file."),
-			ValidationError::ManifestSerialization(ref err) => {
-				write!(f, "There was an error during Dapp Manifest serialization: {:?}", err)
-			},
-			ValidationError::HashMismatch { ref expected, ref got } => {
-				write!(f, "Hash of downloaded content did not match. Expected:{:?}, Got:{:?}.", expected, got)
-			},
-		}
-	}
-}
-
-impl From<io::Error> for ValidationError {
-	fn from(err: io::Error) -> Self {
-		ValidationError::Io(err)
-	}
-}
-
-impl From<zip::result::ZipError> for ValidationError {
-	fn from(err: zip::result::ZipError) -> Self {
-		ValidationError::Zip(err)
-	}
-}
-
-struct ContentInstaller {
-	id: String,
-	mime: Mime,
-	content_path: PathBuf,
-	on_done: Box<Fn(Option<LocalPageEndpoint>) + Send>,
-}
-
-impl ContentValidator for ContentInstaller {
-	type Error = ValidationError;
-
-	fn validate_and_install(&self, path: PathBuf, _mime: Option<Mime>) -> Result<LocalPageEndpoint, ValidationError> {
-		let validate = || {
-			// Create dir
-			try!(fs::create_dir_all(&self.content_path));
-
-			// Validate hash
-			let mut file_reader = io::BufReader::new(try!(fs::File::open(&path)));
-			let hash = try!(sha3(&mut file_reader));
-			let id = try!(self.id.as_str().parse().map_err(|_| ValidationError::InvalidContentId));
-			if id != hash {
-				return Err(ValidationError::HashMismatch {
-					expected: id,
-					got: hash,
-				});
-			}
-
-			// And prepare path for a file
-			let filename = path.file_name().expect("We always fetch a file.");
-			let mut content_path = self.content_path.clone();
-			content_path.push(&filename);
-
-			if content_path.exists() {
-				try!(fs::remove_dir_all(&content_path))
-			}
-
-			try!(fs::copy(&path, &content_path));
-			Ok(LocalPageEndpoint::single_file(content_path, self.mime.clone(), PageCache::Enabled))
-		};
-
-		// Make sure to always call on_done (even in case of errors)!
-		let result = validate();
-		(self.on_done)(result.as_ref().ok().cloned());
-		result
-	}
-}
-
-
-struct DappInstaller {
-	id: String,
-	dapps_path: PathBuf,
-	on_done: Box<Fn(Option<LocalPageEndpoint>) + Send>,
-	embeddable_on: Option<(String, u16)>,
-}
-
-impl DappInstaller {
-	fn find_manifest(zip: &mut zip::ZipArchive<fs::File>) -> Result<(Manifest, PathBuf), ValidationError> {
-		for i in 0..zip.len() {
-			let mut file = try!(zip.by_index(i));
-
-			if !file.name().ends_with(MANIFEST_FILENAME) {
-				continue;
-			}
-
-			// try to read manifest
-			let mut manifest = String::new();
-			let manifest = file
-				.read_to_string(&mut manifest).ok()
-				.and_then(|_| deserialize_manifest(manifest).ok());
-
-			if let Some(manifest) = manifest {
-				let mut manifest_location = PathBuf::from(file.name());
-				manifest_location.pop(); // get rid of filename
-				return Ok((manifest, manifest_location));
-			}
-		}
-
-		Err(ValidationError::ManifestNotFound)
-	}
-
-	fn dapp_target_path(&self, manifest: &Manifest) -> PathBuf {
-		let mut target = self.dapps_path.clone();
-		target.push(&manifest.id);
-		target
-	}
-}
-
-impl ContentValidator for DappInstaller {
-	type Error = ValidationError;
-
-	fn validate_and_install(&self, path: PathBuf, _mime: Option<Mime>) -> Result<LocalPageEndpoint, ValidationError> {
-		trace!(target: "dapps", "Opening dapp bundle at {:?}", path);
-		let validate = || {
-			let mut file_reader = io::BufReader::new(try!(fs::File::open(path)));
-			let hash = try!(sha3(&mut file_reader));
-			let id = try!(self.id.as_str().parse().map_err(|_| ValidationError::InvalidContentId));
-			if id != hash {
-				return Err(ValidationError::HashMismatch {
-					expected: id,
-					got: hash,
-				});
-			}
-			let file = file_reader.into_inner();
-			// Unpack archive
-			let mut zip = try!(zip::ZipArchive::new(file));
-			// First find manifest file
-			let (mut manifest, manifest_dir) = try!(Self::find_manifest(&mut zip));
-			// Overwrite id to match hash
-			manifest.id = self.id.clone();
-
-			let target = self.dapp_target_path(&manifest);
-
-			// Remove old directory
-			if target.exists() {
-				warn!(target: "dapps", "Overwriting existing dapp: {}", manifest.id);
-				try!(fs::remove_dir_all(target.clone()));
-			}
-
-			// Unpack zip
-			for i in 0..zip.len() {
-				let mut file = try!(zip.by_index(i));
-				// TODO [todr] Check if it's consistent on windows.
-				let is_dir = file.name().chars().rev().next() == Some('/');
-
-				let file_path = PathBuf::from(file.name());
-				let location_in_manifest_base = file_path.strip_prefix(&manifest_dir);
-				// Create files that are inside manifest directory
-				if let Ok(location_in_manifest_base) = location_in_manifest_base {
-					let p = target.join(location_in_manifest_base);
-					// Check if it's a directory
-					if is_dir {
-						try!(fs::create_dir_all(p));
-					} else {
-						let mut target = try!(fs::File::create(p));
-						try!(io::copy(&mut file, &mut target));
-					}
-				}
-			}
-
-			// Write manifest
-			let manifest_str = try!(serialize_manifest(&manifest).map_err(ValidationError::ManifestSerialization));
-			let manifest_path = target.join(MANIFEST_FILENAME);
-			let mut manifest_file = try!(fs::File::create(manifest_path));
-			try!(manifest_file.write_all(manifest_str.as_bytes()));
-			// Create endpoint
-			let endpoint = LocalPageEndpoint::new(target, manifest.clone().into(), PageCache::Enabled, self.embeddable_on.clone());
-			Ok(endpoint)
-		};
-
-		let result = validate();
-		(self.on_done)(result.as_ref().ok().cloned());
-		result
 	}
 }
 

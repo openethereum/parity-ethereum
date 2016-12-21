@@ -16,15 +16,15 @@
 
 //! Serving web-based content (proxying)
 
-use std::path::PathBuf;
 use endpoint::{Endpoint, Handler, EndpointPath};
 use handlers::{ContentFetcherHandler, ContentHandler, ContentValidator, Redirection, extract_url};
-use page::{LocalPageEndpoint, PageCache};
-use fetch::{Fetch, Mime};
+use page::{LocalPageEndpoint};
+use fetch::{self, Fetch};
 use url::Url;
 use hyper::{self, server, net, Next, Encoder, Decoder};
 use hyper::status::StatusCode;
 use parity_reactor::Remote;
+use apps::WEB_PATH;
 
 pub struct Web<F> {
 	remote: Remote,
@@ -57,9 +57,11 @@ pub struct WebInstaller;
 impl ContentValidator for WebInstaller {
 	type Error = String;
 
-	fn validate_and_install(&self, path: PathBuf, mime: Option<Mime>) -> Result<LocalPageEndpoint, Self::Error> {
-		let mime = mime.unwrap_or(mime!(Text/Html));
-		Ok(LocalPageEndpoint::single_file(path, mime, PageCache::Enabled))
+	fn validate_and_install(&self, _response: fetch::Response) -> Result<LocalPageEndpoint, String> {
+		// let path = unimplemented!();
+		// let mime = response.content_type().unwrap_or(mime!(Text/Html));
+		// Ok(LocalPageEndpoint::single_file(path, mime, PageCache::Enabled))
+		Err("unimplemented".into())
 	}
 }
 
@@ -89,10 +91,16 @@ impl<F: Fetch> WebHandler<F> {
 			}
 		};
 
-		println!("Path: {:?}", path);
+		// TODO [ToDr] Check if token supplied in URL is correct.
+
+		// Support domain based routing.
+		let idx = match path.get(0).map(|m| m.as_ref()) {
+			Some(WEB_PATH) => 1,
+			_ => 0,
+		};
 
 		// Validate protocol
-		let protocol = match path.get(1).map(|a| a.as_str()) {
+		let protocol = match path.get(idx).map(|a| a.as_str()) {
 			Some("http") => "http",
 			Some("https") => "https",
 			_ => {
@@ -103,7 +111,7 @@ impl<F: Fetch> WebHandler<F> {
 		};
 
 		// Redirect if address to main page does not end with /
-		if let None = path.get(3) {
+		if let None = path.get(idx + 2) {
 			return Err(State::Redirecting(
 				Redirection::new(&format!("/{}/", path.join("/")))
 			));
@@ -138,8 +146,6 @@ impl<F: Fetch> server::Handler<net::HttpStream> for WebHandler<F> {
 		let res = handler.on_request(request);
 		self.state = State::Fetching(handler);
 
-		// TODO [ToDr] Do some magic to check if it's a XHR request
-		// (maybe some additional Header that has to be sent by the dapp)
 		res
 	}
 

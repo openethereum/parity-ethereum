@@ -16,34 +16,24 @@
 
 //! Test implementation of fetch client.
 
-use std::io::Write;
-use std::{fs, thread};
-use std::path::{Path, PathBuf};
+use std::{io, thread};
 use futures::{self, Future};
-use fetch::{Fetch, Error as FetchError, Response, Mime, Abort};
+use fetch::{self, Fetch};
 
 /// Test implementation of fetcher. Will always return the same file.
 #[derive(Default, Clone)]
 pub struct TestFetch;
 
 impl Fetch for TestFetch {
-	type Result = futures::BoxFuture<Response, FetchError>;
-	type FileResult = futures::BoxFuture<(PathBuf, Option<Mime>), FetchError>;
+	type Result = futures::BoxFuture<fetch::Response, fetch::Error>;
 
-	fn fetch(&self, _url: &str) -> Self::Result {
-		unimplemented!()
-	}
-
-	fn fetch_to_file(&self, _url: &str, path: &Path, _abort: Abort) -> Self::FileResult {
-		let path = path.to_path_buf();
+	fn fetch_with_abort(&self, _url: &str, _abort: fetch::Abort) -> Self::Result {
 		let (tx, rx) = futures::oneshot();
 		thread::spawn(move || {
-			let mut file = fs::File::create(&path).unwrap();
-			file.write_all(b"Some content").unwrap();
-
-			tx.complete((path, None));
+			let cursor = io::Cursor::new(b"Some content");
+			tx.complete(fetch::Response::from_reader(cursor));
 		});
 
-		rx.map_err(|_| unimplemented!()).boxed()
+		rx.map_err(|_| fetch::Error::Aborted).boxed()
 	}
 }

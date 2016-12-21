@@ -30,10 +30,11 @@ pub mod manifest;
 extern crate parity_ui;
 
 pub const HOME_PAGE: &'static str = "home";
-pub const DAPPS_DOMAIN : &'static str = ".parity";
-pub const RPC_PATH : &'static str =  "rpc";
-pub const API_PATH : &'static str =  "api";
-pub const UTILS_PATH : &'static str =  "parity-utils";
+pub const DAPPS_DOMAIN: &'static str = ".parity";
+pub const RPC_PATH: &'static str =  "rpc";
+pub const API_PATH: &'static str =  "api";
+pub const UTILS_PATH: &'static str =  "parity-utils";
+pub const WEB_PATH: &'static str = "web";
 
 pub fn utils() -> Box<Endpoint> {
 	Box::new(PageEndpoint::with_prefix(parity_ui::App::default(), UTILS_PATH.to_owned()))
@@ -46,7 +47,7 @@ pub fn all_endpoints<F: Fetch>(dapps_path: String, signer_address: Option<(Strin
 	// NOTE [ToDr] Dapps will be currently embeded on 8180
 	insert::<parity_ui::App>(&mut pages, "ui", Embeddable::Yes(signer_address.clone()));
 	pages.insert("proxy".into(), ProxyPac::boxed(signer_address));
-	pages.insert("web".into(), Web::boxed(remote, fetch));
+	pages.insert(WEB_PATH.into(), Web::boxed(remote, fetch));
 
 	pages
 }

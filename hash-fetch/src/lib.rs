@@ -28,6 +28,7 @@ extern crate ethcore_util as util;
 pub extern crate fetch;
 extern crate futures;
 extern crate mime_guess;
+extern crate rand;
 extern crate rustc_serialize;
 extern crate parity_reactor;
 

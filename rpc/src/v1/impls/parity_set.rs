@@ -15,15 +15,14 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 /// Parity-specific rpc interface for operations altering the settings.
-use std::{fs, io};
+use std::io;
 use std::sync::{Arc, Weak};
-use std::path::PathBuf;
 
 use ethcore::miner::MinerService;
 use ethcore::client::MiningBlockChainClient;
 use ethcore::mode::Mode;
 use ethsync::ManageNetwork;
-use fetch::{Client as FetchClient, Error as FetchError, Fetch, Mime};
+use fetch::{self, Fetch};
 use futures::Future;
 use util::sha3;
 use updater::{Service as UpdateService};
@@ -36,7 +35,7 @@ use v1::traits::ParitySet;
 use v1::types::{Bytes, H160, H256, U256, ReleaseInfo};
 
 /// Parity-specific rpc interface for operations altering the settings.
-pub struct ParitySetClient<C, M, U, F=FetchClient> where
+pub struct ParitySetClient<C, M, U, F=fetch::Client> where
 	C: MiningBlockChainClient,
 	M: MinerService,
 	U: UpdateService,
@@ -193,24 +192,15 @@ impl<C, M, U, F> ParitySet for ParitySetClient<C, M, U, F> where
 	fn hash_content(&self, ready: Ready<H256>, url: String) {
 		let res = self.active();
 
-		let hash_content = |result: Result<(PathBuf, Option<Mime>), FetchError>| {
-			let path = try!(result).0;
-			let mut file = io::BufReader::new(try!(fs::File::open(&path)));
-			// Try to hash
-			let result = sha3(&mut file);
-			// Remove file (always)
-			try!(fs::remove_file(&path));
-			// Return the result
-			Ok(try!(result))
-		};
-
 		match res {
 			Err(e) => ready.ready(Err(e)),
 			Ok(()) => {
-				let path = F::temp_filename();
-				let task = self.fetch.fetch_to_file(&url, &path, Default::default()).then(move |result| {
-					let result = hash_content(result)
+				let task = self.fetch.fetch(&url).then(move |result| {
+					let result = result
 							.map_err(errors::from_fetch_error)
+							.and_then(|response| {
+								sha3(&mut io::BufReader::new(response)).map_err(errors::from_fetch_error)
+							})
 							.map(Into::into);
 
 					// Receive ready and invoke with result.

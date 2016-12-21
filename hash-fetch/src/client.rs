@@ -17,10 +17,11 @@
 //! Hash-addressed content resolver & fetcher.
 
 use std::{io, fs};
+use std::io::Write;
 use std::sync::Arc;
 use std::path::PathBuf;
 
-use fetch::{Fetch, Error as FetchError, Client as FetchClient};
+use fetch::{Fetch, Response, Error as FetchError, Client as FetchClient};
 use futures::Future;
 use parity_reactor::Remote;
 use urlhint::{ContractClient, URLHintContract, URLHint, URLHintResult};
@@ -111,12 +112,18 @@ impl<F: Fetch + 'static> HashFetch for Client<F> {
 		match url {
 			Err(err) => on_done(Err(err)),
 			Ok(url) => {
-				let future = self.fetch.fetch_to_file(&url, &F::temp_filename(), Default::default()).then(move |result| {
-					fn validate_hash(hash: H256, result: Result<PathBuf, FetchError>) -> Result<PathBuf, Error> {
-						let path = try!(result);
+				let future = self.fetch.fetch(&url).then(move |result| {
+					fn validate_hash(path: PathBuf, hash: H256, result: Result<Response, FetchError>) -> Result<PathBuf, Error> {
+						let response = try!(result);
+						// Read the response
+						let mut reader = io::BufReader::new(response);
+						let mut writer = io::BufWriter::new(try!(fs::File::create(&path)));
+						try!(io::copy(&mut reader, &mut writer));
+						try!(writer.flush());
+
+						// And validate the hash
 						let mut file_reader = io::BufReader::new(try!(fs::File::open(&path)));
 						let content_hash = try!(sha3(&mut file_reader));
-
 						if content_hash != hash {
 							Err(Error::HashMismatch{ got: content_hash, expected: hash })
 						} else {
@@ -125,11 +132,31 @@ impl<F: Fetch + 'static> HashFetch for Client<F> {
 					}
 
 					debug!(target: "fetch", "Content fetched, validating hash ({:?})", hash);
-					on_done(validate_hash(hash, result.map(|x| x.0)));
+					let path = random_temp_path();
+					let res = validate_hash(path.clone(), hash, result);
+					if let Err(ref err) = res {
+						trace!(target: "fetch", "Error: {:?}", err);
+						// Remove temporary file in case of error
+						let _ = fs::remove_dir_all(&path);
+					}
+					on_done(res);
+
 					Ok(()) as Result<(), ()>
 				});
-				self.remote.spawn(future);
+				self.remote.spawn(self.fetch.process(future));
 			},
 		}
 	}
+}
+
+fn random_temp_path() -> PathBuf {
+	use ::rand::Rng;
+	use ::std::env;
+
+	let mut rng = ::rand::OsRng::new().expect("Reliable random source is required to work.");
+	let file: String = rng.gen_ascii_chars().take(12).collect();
+
+	let mut path = env::temp_dir();
+	path.push(file);
+	path
 }
