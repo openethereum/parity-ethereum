@@ -26,7 +26,8 @@ import NavigationArrowBack from 'material-ui/svg-icons/navigation/arrow-back';
 import NavigationArrowForward from 'material-ui/svg-icons/navigation/arrow-forward';
 
 import { newError } from '~/ui/Errors/actions';
-import { BusyStep, CompletedStep, Button, IdentityIcon, Modal, TxHash, Input } from '~/ui';
+import { BusyStep, Button, CompletedStep, IdentityIcon, Input, Modal, TxHash, Warning } from '~/ui';
+import { } from '~/ui/Icons';
 import { nullableProptype } from '~/util/proptypes';
 
 import Details from './Details';
@@ -67,9 +68,22 @@ class Transfer extends Component {
         waiting={ extras ? [2] : [1] }
         visible
       >
-        { this.renderWarning() }
+        { this.renderExceptionWarning() }
         { this.renderPage() }
       </Modal>
+    );
+  }
+
+  renderExceptionWarning () {
+    const { errorEstimated } = this.store.gasStore;
+
+    if (!errorEstimated) {
+      return null;
+    }
+
+    return (
+      <Warning
+        warning={ errorEstimated } />
     );
   }
 
@@ -251,20 +265,6 @@ class Transfer extends Component {
       default:
         return [doneBtn];
     }
-  }
-
-  renderWarning () {
-    const { errorEstimated } = this.store.gasStore;
-
-    if (!errorEstimated) {
-      return null;
-    }
-
-    return (
-      <div className={ styles.warning }>
-        { errorEstimated }
-      </div>
-    );
   }
 
   handleClose = () => {

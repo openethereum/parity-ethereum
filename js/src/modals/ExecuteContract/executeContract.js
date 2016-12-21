@@ -26,7 +26,7 @@ import NavigationArrowBack from 'material-ui/svg-icons/navigation/arrow-back';
 import NavigationArrowForward from 'material-ui/svg-icons/navigation/arrow-forward';
 
 import { toWei } from '~/api/util/wei';
-import { BusyStep, Button, CompletedStep, GasPriceEditor, IdentityIcon, Modal, TxHash } from '~/ui';
+import { BusyStep, Button, CompletedStep, GasPriceEditor, IdentityIcon, Modal, TxHash, Warning } from '~/ui';
 import { MAX_GAS_ESTIMATION } from '~/util/constants';
 import { validateAddress, validateUint } from '~/util/validation';
 import { parseAbiType } from '~/util/abi';
@@ -116,8 +116,22 @@ class ExecuteContract extends Component {
         steps={ steps }
         visible
         waiting={ gasEdit ? [STEP_BUSY] : [STEP_BUSY_OR_GAS] }>
+        { this.renderExceptionWarning() }
         { this.renderStep() }
       </Modal>
+    );
+  }
+
+  renderExceptionWarning () {
+    const { errorEstimated } = this.gasStore;
+
+    if (!errorEstimated) {
+      return null;
+    }
+
+    return (
+      <Warning
+        warning={ errorEstimated } />
     );
   }
 
@@ -185,7 +199,6 @@ class ExecuteContract extends Component {
   renderStep () {
     const { onFromAddressChange } = this.props;
     const { gasEdit, step, busyState, txhash, rejected } = this.state;
-    const { errorEstimated } = this.gasStore;
 
     if (rejected) {
       return (
@@ -201,7 +214,6 @@ class ExecuteContract extends Component {
         <DetailsStep
           { ...this.props }
           { ...this.state }
-          warning={ errorEstimated }
           onAmountChange={ this.onAmountChange }
           onFromAddressChange={ onFromAddressChange }
           onFuncChange={ this.onFuncChange }

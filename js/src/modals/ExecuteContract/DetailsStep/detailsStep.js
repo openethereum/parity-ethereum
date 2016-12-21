@@ -46,8 +46,7 @@ export default class DetailsStep extends Component {
     funcError: PropTypes.string,
     gasEdit: PropTypes.bool,
     onFuncChange: PropTypes.func,
-    onGasEditClick: PropTypes.func,
-    warning: PropTypes.string
+    onGasEditClick: PropTypes.func
   }
 
   render () {
@@ -55,7 +54,6 @@ export default class DetailsStep extends Component {
 
     return (
       <Form>
-        { this.renderWarning() }
         <AddressSelect
           accounts={ accounts }
           balances={ balances }
@@ -167,20 +165,6 @@ export default class DetailsStep extends Component {
         </div>
       );
     });
-  }
-
-  renderWarning () {
-    const { warning } = this.props;
-
-    if (!warning) {
-      return null;
-    }
-
-    return (
-      <div className={ styles.warning }>
-        { warning }
-      </div>
-    );
   }
 
   onFuncChange = (event, index, signature) => {
