@@ -17,16 +17,14 @@
 import React, { Component, PropTypes } from 'react';
 import ReactDOM from 'react-dom';
 import { connect } from 'react-redux';
-import Portal from 'react-portal';
 import keycode, { codes } from 'keycode';
 import { FormattedMessage } from 'react-intl';
 
 import TextFieldUnderline from 'material-ui/TextField/TextFieldUnderline';
 
 import AccountCard from '~/ui/AccountCard';
-import { CloseIcon } from '~/ui/Icons';
 import InputAddress from '~/ui/Form/InputAddress';
-import ParityBackground from '~/ui/ParityBackground';
+import Portal from '~/ui/Portal';
 
 import styles from './addressSelect.css';
 
@@ -64,24 +62,17 @@ class AddressSelect extends Component {
   };
 
   state = {
-    copied: null,
     expanded: false,
     focused: false,
     focusedCat: null,
     focusedItem: null,
     inputFocused: false,
     inputValue: '',
-    left: 0,
-    top: 0,
     values: []
   };
 
   componentWillMount () {
     this.setValues();
-  }
-
-  componentDidMount () {
-    this.setPosition();
   }
 
   componentWillReceiveProps (nextProps) {
@@ -171,9 +162,7 @@ class AddressSelect extends Component {
     }
 
     return (
-      <div
-        className={ styles.inputAddress }
-      >
+      <div className={ styles.inputAddress }>
         { input }
       </div>
     );
@@ -182,58 +171,47 @@ class AddressSelect extends Component {
   renderContent () {
     const { muiTheme } = this.context;
     const { hint, disabled, label } = this.props;
-    const { expanded, top, left, inputFocused } = this.state;
+    const { expanded, inputFocused } = this.state;
 
-    if (disabled) {
+    if (disabled || !expanded) {
       return null;
-    }
-
-    const classes = [ styles.overlay ];
-
-    if (expanded) {
-      classes.push(styles.expanded);
     }
 
     const id = 'addressSelect_' + Math.round(Math.random() * 100).toString();
 
     return (
-      <Portal isOpened onClose={ this.handleClose }>
-        <div
-          className={ classes.join(' ') }
-          style={ { top, left } }
-          onKeyDown={ this.handleKeyDown }
-        >
-          <ParityBackground className={ styles.parityBackground } />
-          <div className={ styles.inputContainer }>
-            <label className={ styles.label } htmlFor={ id }>
-              { label }
-            </label>
-            <input
-              id={ id }
-              className={ styles.input }
-              placeholder={ hint }
+      <Portal
+        className={ styles.inputContainer }
+        onClose={ this.handleClose }
+        onKeyDown={ this.handleKeyDown }
+        target={ this.refs.inputAddress }
+      >
+        <label className={ styles.label } htmlFor={ id }>
+          { label }
+        </label>
+        <input
+          id={ id }
+          className={ styles.input }
+          placeholder={ hint }
 
-              onBlur={ this.handleInputBlur }
-              onFocus={ this.handleInputFocus }
-              onChange={ this.handleChange }
+          onBlur={ this.handleInputBlur }
+          onFocus={ this.handleInputFocus }
+          onChange={ this.handleChange }
 
-              ref={ this.setInputRef }
-            />
+          ref={ this.setInputRef }
+        />
 
-            <div className={ styles.underline }>
-              <TextFieldUnderline
-                focus={ inputFocused }
-                focusStyle={ BOTTOM_BORDER_STYLE }
-                muiTheme={ muiTheme }
-                style={ BOTTOM_BORDER_STYLE }
-              />
-            </div>
-
-            { this.renderCurrentInput() }
-            { this.renderAccounts() }
-            { this.renderCloseIcon() }
-          </div>
+        <div className={ styles.underline }>
+          <TextFieldUnderline
+            focus={ inputFocused }
+            focusStyle={ BOTTOM_BORDER_STYLE }
+            muiTheme={ muiTheme }
+            style={ BOTTOM_BORDER_STYLE }
+          />
         </div>
+
+        { this.renderCurrentInput() }
+        { this.renderAccounts() }
       </Portal>
     );
   }
@@ -252,20 +230,6 @@ class AddressSelect extends Component {
     return (
       <div>
         { this.renderAccountCard({ address: inputValue }) }
-      </div>
-    );
-  }
-
-  renderCloseIcon () {
-    const { expanded } = this.state;
-
-    if (!expanded) {
-      return null;
-    }
-
-    return (
-      <div className={ styles.closeIcon } onClick={ this.handleClose }>
-        <CloseIcon />
       </div>
     );
   }
@@ -374,10 +338,6 @@ class AddressSelect extends Component {
     }
 
     switch (codeName) {
-      case 'esc':
-        event.preventDefault();
-        return this.handleClose();
-
       case 'enter':
         const index = this.state.focusedItem;
         if (!index) {
@@ -524,13 +484,8 @@ class AddressSelect extends Component {
     });
   }
 
-  setPosition = (nextState = {}) => {
-    const { top = 0, left = 0 } = this.handleDOMAction(this.refs.inputAddress, 'getBoundingClientRect') || {};
-    this.setState({ top, left, ...nextState });
-  }
-
   handleFocus = () => {
-    this.setState({ expanded: true, focusedItem: null, focusedCat: null, top: 0, left: 0 }, () => {
+    this.setState({ expanded: true, focusedItem: null, focusedCat: null }, () => {
       window.setTimeout(() => {
         this.handleDOMAction(this.inputRef, 'focus');
       });
@@ -538,14 +493,13 @@ class AddressSelect extends Component {
   }
 
   handleClose = () => {
-    if (!this.refs.inputAddress) {
-      return null;
-    }
-
-    this.setPosition({ expanded: false });
     this.closing = true;
 
-    return this.handleDOMAction('inputAddress', 'focus');
+    if (this.refs.inputAddress) {
+      this.handleDOMAction('inputAddress', 'focus');
+    }
+
+    this.setState({ expanded: false });
   }
 
   /**

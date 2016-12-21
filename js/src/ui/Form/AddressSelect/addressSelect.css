@@ -40,16 +40,6 @@
   }
 }
 
-.parityBackground {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  opacity: 0.25;
-  z-index: -1;
-}
-
 .inputAddress {
   position: relative;
 
@@ -67,22 +57,6 @@
   }
 }
 
-.closeIcon {
-  position: absolute;
-  top: 0.5rem;
-  right: 1rem;
-  font-size: 4em;
-
-  &, * {
-    height: 48px !important;
-    width: 48px !important;
-  }
-
-  &:hover {
-    cursor: pointer;
-  }
-}
-
 .label {
   margin: 1rem 2rem 0.25em;
   color: rgba(255, 255, 255, 0.498039);
@@ -93,43 +67,6 @@
   margin: 0 9rem 0 2rem;
 }
 
-.overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 80px;
-
-  transform-origin: 100% 0;
-  transition-property: height, width, top, left, background-color, z-index;
-  transition-duration: 0.5s;
-  transition-timing-function: ease-out;
-
-  background-color: rgba(0, 0, 0, 0.0);
-  z-index: -9999;
-
-  display: flex;
-
-  * {
-    min-width: 0;
-  }
-
-  &.expanded {
-    height: 100vh;
-
-    background-color: rgba(0, 0, 0, 0.85);
-    z-index: 9999;
-
-    .input {
-      font-size: 36px;
-      padding: 0 9rem 0.5em 2rem;
-      display: block;
-
-      padding-right: 6rem;
-    }
-  }
-}
-
 .empty {
   font-size: 1.5em;
 }
@@ -138,6 +75,14 @@
   display: flex;
   flex-direction: column;
   flex: 1;
+
+  .input {
+    font-size: 36px;
+    padding: 0 9rem 0.5em 2rem;
+    display: block;
+
+    padding-right: 6rem;
+  }
 }
 
 .categories {
