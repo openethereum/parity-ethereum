@@ -23,8 +23,6 @@ class ParityBackground extends Component {
   };
 
   static propTypes = {
-    style: PropTypes.object.isRequired,
-
     backgroundSeed: PropTypes.string,
     children: PropTypes.node,
     className: PropTypes.string,

@@ -30,7 +30,7 @@ import ParityBackground from '~/ui/ParityBackground';
 
 import styles from './addressSelect.css';
 
-const BOTTOM_BORDER_STYLE = 'solid 3px';
+const BOTTOM_BORDER_STYLE = { borderBottom: 'solid 3px' };
 
 class AddressSelect extends Component {
   static contextTypes = {
@@ -222,14 +222,10 @@ class AddressSelect extends Component {
 
             <div className={ styles.underline }>
               <TextFieldUnderline
-                muiTheme={ muiTheme }
                 focus={ inputFocused }
-                style={ {
-                  borderBottom: BOTTOM_BORDER_STYLE
-                } }
-                focusStyle={ {
-                  borderBottom: BOTTOM_BORDER_STYLE
-                } }
+                focusStyle={ BOTTOM_BORDER_STYLE }
+                muiTheme={ muiTheme }
+                style={ BOTTOM_BORDER_STYLE }
               />
             </div>
 
@@ -382,42 +378,6 @@ class AddressSelect extends Component {
     const codeName = keycode(event);
 
     if (event.ctrlKey) {
-      const { focusedItem } = this.state;
-
-      // Copy the selected address if nothing selected and there is
-      // a focused item
-      const isSelection = !window.getSelection || window.getSelection().type === 'Range';
-      if (codeName === 'c' && focusedItem && focusedItem > 0 && !isSelection) {
-        const element = ReactDOM.findDOMNode(this.refs[`address_${focusedItem}`]);
-
-        if (!element) {
-          return event;
-        }
-
-        // Copy the address from the right element
-        // @see https://developers.google.com/web/updates/2015/04/cut-and-copy-commands
-        try {
-          const range = document.createRange();
-          range.selectNode(element);
-          window.getSelection().addRange(range);
-          document.execCommand('copy');
-
-          try {
-            window.getSelection().removeRange(range);
-          } catch (e) {
-            window.getSelection().removeAllRanges();
-          }
-
-          this.setState({ copied: focusedItem }, () => {
-            window.setTimeout(() => {
-              this.setState({ copied: null });
-            }, 250);
-          });
-        } catch (e) {
-          console.warn('could not copy', focusedItem, e);
-        }
-      }
-
       return event;
     }
 

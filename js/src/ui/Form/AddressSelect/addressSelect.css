@@ -176,18 +176,3 @@
     margin: 1em 0;
   }
 }
-
-@keyframes copied {
-  from {
-    transform: scale(0.99);
-  }
-
-  50% {
-    transform: scale(0.97);
-  }
-
-  to {
-    transform: scale(0.99);
-  }
-}
-

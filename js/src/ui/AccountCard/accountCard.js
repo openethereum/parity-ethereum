@@ -16,6 +16,7 @@
 
 import React, { Component, PropTypes } from 'react';
 import ReactDOM from 'react-dom';
+import keycode, { codes } from 'keycode';
 
 import IdentityIcon from '~/ui/IdentityIcon';
 import Tags from '~/ui/Tags';
@@ -52,14 +53,14 @@ export default class AccountCard extends Component {
     const { account } = this.props;
     const { copied } = this.state;
 
-    const { address, name, meta = {}, index = null } = account;
+    const { address, name, meta = {} } = account;
 
     const displayName = (name && name.toUpperCase()) || address;
     const { tags = [] } = meta;
 
     const classes = [ styles.account ];
 
-    if (index && copied === index) {
+    if (copied) {
       classes.push(styles.copied);
     }
 
@@ -72,6 +73,7 @@ export default class AccountCard extends Component {
         className={ classes.join(' ') }
         onClick={ this.onClick }
         onFocus={ this.onFocus }
+        onKeyDown={ this.handleKeyDown }
       >
         <IdentityIcon address={ address } />
         <div className={ styles.accountInfo }>
@@ -88,8 +90,6 @@ export default class AccountCard extends Component {
   }
 
   renderAddress (name, address) {
-    const { account } = this.props;
-
     if (name === address) {
       return null;
     }
@@ -99,7 +99,7 @@ export default class AccountCard extends Component {
         <span
           className={ styles.address }
           onClick={ this.preventEvent }
-          ref={ `address_${account.index}` }
+          ref={ `address` }
           title={ address }
         >
           { address }
@@ -140,6 +140,45 @@ export default class AccountCard extends Component {
         <span className={ styles.tag }>ETH</span>
       </div>
     );
+  }
+
+  handleKeyDown = (event) => {
+    const codeName = keycode(event);
+
+    if (event.ctrlKey) {
+      // Copy the selected address if nothing selected and there is
+      // a focused item
+      const isSelection = !window.getSelection || window.getSelection().type === 'Range';
+
+      if (codeName === 'c' && !isSelection) {
+        const element = ReactDOM.findDOMNode(this.refs.address);
+
+        // Copy the address from the right element
+        // @see https://developers.google.com/web/updates/2015/04/cut-and-copy-commands
+        try {
+          const range = document.createRange();
+          range.selectNode(element);
+          window.getSelection().addRange(range);
+          document.execCommand('copy');
+
+          try {
+            window.getSelection().removeRange(range);
+          } catch (e) {
+            window.getSelection().removeAllRanges();
+          }
+
+          this.setState({ copied: true }, () => {
+            window.setTimeout(() => {
+              this.setState({ copied: false });
+            }, 250);
+          });
+        } catch (e) {
+          console.warn('could not copy');
+        }
+      }
+
+      return event;
+    }
   }
 
   handleTagsOpacity = () => {
