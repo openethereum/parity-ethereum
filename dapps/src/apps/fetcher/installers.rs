@@ -93,7 +93,7 @@ impl ContentValidator for Content {
 	fn validate_and_install(&self, response: fetch::Response) -> Result<LocalPageEndpoint, ValidationError> {
 		let validate = |content_path: PathBuf| {
 			// Create dir
-			try!(write_response_and_check_hash(self.id.as_str(), content_path.clone(), self.id.as_str(), response));
+			let (_, content_path) = try!(write_response_and_check_hash(self.id.as_str(), content_path.clone(), self.id.as_str(), response));
 
 			Ok(LocalPageEndpoint::single_file(content_path, self.mime.clone(), PageCache::Enabled))
 		};
@@ -159,7 +159,7 @@ impl ContentValidator for Dapp {
 
 	fn validate_and_install(&self, response: fetch::Response) -> Result<LocalPageEndpoint, ValidationError> {
 		let validate = |dapp_path: PathBuf| {
-			let (file, zip_path) = try!(write_response_and_check_hash(self.id.as_str(), dapp_path.clone(), &format!("{:?}.zip", self.id), response));
+			let (file, zip_path) = try!(write_response_and_check_hash(self.id.as_str(), dapp_path.clone(), &format!("{}.zip", self.id), response));
 			trace!(target: "dapps", "Opening dapp bundle at {:?}", zip_path);
 			// Unpack archive
 			let mut zip = try!(zip::ZipArchive::new(file));
@@ -189,7 +189,7 @@ impl ContentValidator for Dapp {
 			}
 
 			// Remove zip
-			try!(fs::remove_dir_all(&zip_path));
+			try!(fs::remove_file(&zip_path));
 
 			// Write manifest
 			let manifest_str = try!(serialize_manifest(&manifest).map_err(ValidationError::ManifestSerialization));
