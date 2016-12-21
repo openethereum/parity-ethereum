@@ -19,19 +19,23 @@ import BigNumber from 'bignumber.js';
 import { toChecksumAddress } from '../../abi/util/address';
 
 export function outAccountInfo (infos) {
-  return Object.keys(infos).reduce((ret, _address) => {
-    const info = infos[_address];
-    const address = outAddress(_address);
+  return Object
+    .keys(infos)
+    .reduce((ret, _address) => {
+      const info = infos[_address];
+      const address = outAddress(_address);
 
-    ret[address] = {
-      name: info.name
-    };
+      ret[address] = {
+        name: info.name
+      };
 
-    if (info.meta) {
-      ret[address].uuid = info.uuid;
-      ret[address].meta = JSON.parse(info.meta);
-    }
-  }, {});
+      if (info.meta) {
+        ret[address].uuid = info.uuid;
+        ret[address].meta = JSON.parse(info.meta);
+      }
+
+      return ret;
+    }, {});
 }
 
 export function outAddress (address) {

@@ -29,13 +29,13 @@ export default class Parity {
 
   accountsInfo () {
     return this._transport
-      .execute('parity_accounts')
+      .execute('parity_accountsInfo')
       .then(outAccountInfo);
   }
 
   allAccountsInfo () {
     return this._transport
-      .execute('parity_accountsInfo')
+      .execute('parity_allAccountsInfo')
       .then(outAccountInfo);
   }
 
