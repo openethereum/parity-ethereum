@@ -22,7 +22,8 @@ use std::collections::BTreeMap;
 use util::{U256, H256, Uint, Bytes};
 use ipc::binary::BinaryConvertable;
 
-#[derive(Debug, PartialEq, Eq, Clone, Binary)]
+#[derive(Debug, PartialEq, Eq, Clone)]
+#[cfg_attr(feature = "ipc", binary)]
 /// Diff type for specifying a change (or not).
 pub enum Diff<T> where T: Eq + BinaryConvertable {
 	/// Both sides are the same.
@@ -49,7 +50,8 @@ impl<T> Diff<T> where T: Eq + BinaryConvertable {
 	pub fn is_same(&self) -> bool { match *self { Diff::Same => true, _ => false }}
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, Binary)]
+#[derive(Debug, PartialEq, Eq, Clone)]
+#[cfg_attr(feature = "ipc", binary)]
 /// Account diff.
 pub struct AccountDiff {
 	/// Change in balance, allowed to be `Diff::Same`.
@@ -62,7 +64,8 @@ pub struct AccountDiff {
 	pub storage: BTreeMap<H256, Diff<H256>>,
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, Binary)]
+#[derive(Debug, PartialEq, Eq, Clone)]
+#[cfg_attr(feature = "ipc", binary)]
 /// Change in existance type.
 // TODO: include other types of change.
 pub enum Existance {
