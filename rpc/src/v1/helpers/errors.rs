@@ -246,7 +246,7 @@ pub fn transaction_message(error: TransactionError) -> String {
 			format!("Transaction gas price is too low. It does not satisfy your node's minimal gas price (minimal: {}, got: {}). Try increasing the gas price.", minimal, got)
 		},
 		InsufficientBalance { balance, cost } => {
-			format!("Insufficient funds. Account you try to send transaction from does not have enough funds. Required {} and got: {}.", cost, balance)
+			format!("Insufficient funds. The account you tried to send transaction from does not have enough funds. Required {} and got: {}.", cost, balance)
 		},
 		GasLimitExceeded { limit, got } => {
 			format!("Transaction cost exceeds current gas limit. Limit: {}, got: {}. Try decreasing supplied gas.", limit, got)
