@@ -339,7 +339,7 @@ impl Spec {
 
 	/// Create a new Spec with BasicAuthority which uses a contract at address 5 to determine the current validators.
 	/// Accounts with secrets "0".sha3() and "1".sha3() are initially the validators.
-	/// Second validator can be removed with "0x9112f55c0000000000000000000000000000000000000000000000000000000000000001".
+	/// Second validator can be removed with "0x9112f55c0000000000000000000000000000000000000000000000000000000000000001" and added back in using "0x80a02a4100000000000000000000000082a978b3f5962a5b0957d9ee9eef472ee55b42f1".
 	pub fn new_validator_contract() -> Self { load_bundled!("validator_contract") }
 
 	/// Create a new Spec with Tendermint consensus which does internal sealing (not requiring work).
