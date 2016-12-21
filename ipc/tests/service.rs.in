@@ -22,7 +22,7 @@ pub struct Service {
 	pub rollbacks: RwLock<usize>,
 }
 
-#[derive(Binary)]
+#[binary]
 pub struct CustomData {
 	pub a: u64,
 	pub b: u64,

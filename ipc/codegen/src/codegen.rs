@@ -111,7 +111,7 @@ fn push_invoke_signature_aster(
 			let arg_ty = &inputs[skip-1].ty;
 
 			let mut tree = builder.item()
-				.attr().word("derive(Binary)")
+				.attr().word("binary")
 				.attr().word("allow(non_camel_case_types)")
 				.struct_(name_str.as_str())
 				.field(arg_name.as_str())
@@ -140,7 +140,7 @@ fn push_invoke_signature_aster(
 		FunctionRetTy::Ty(ref ty) => {
 			let name_str = format!("{}_output", named_signature.ident.name.as_str());
 			let tree = builder.item()
-				.attr().word("derive(Binary)")
+				.attr().word("binary")
 				.attr().word("allow(non_camel_case_types)")
 				.struct_(name_str.as_str())
 				.field(format!("payload")).ty().build(ty.clone());
@@ -326,7 +326,7 @@ pub fn has_ptr(ty: &P<ast::Ty>) -> bool {
 ///   fn commit(&self, f: u32) -> u32
 ///
 /// the expanded implementation will generate method for the client like that
-///    #[derive(Serialize)]
+///    #[binary]
 ///    struct Request<'a> {
 ///	     f: &'a u32,
 ///    }
@@ -358,7 +358,7 @@ fn implement_client_method_body(
 			.build(static_ty.clone());
 
 		let mut tree = builder.item()
-			.attr().word("derive(Binary)")
+			.attr().word("binary")
 			.struct_("Request")
 			.generics()
 			.lifetime_name("'a")
