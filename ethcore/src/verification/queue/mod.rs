@@ -137,7 +137,7 @@ pub struct VerificationQueue<K: Kind> {
 	max_queue_size: usize,
 	max_mem_use: usize,
 	scale_verifiers: bool,
-	verifier_handles: Vec<JoinHandle<()>>,	
+	verifier_handles: Vec<JoinHandle<()>>,
 	state: Arc<(Mutex<State>, Condvar)>,
 }
 
@@ -225,8 +225,8 @@ impl<K: Kind> VerificationQueue<K> {
 
 		let num_cpus = ::num_cpus::get();
 		let max_verifiers = min(num_cpus, MAX_VERIFIERS);
-		let default_amount = max(1, min(max_verifiers, config.verifier_settings.num_verifiers));		
-		let state = Arc::new((Mutex::new(State::Work(default_amount)), Condvar::new()));		
+		let default_amount = max(1, min(max_verifiers, config.verifier_settings.num_verifiers));
+		let state = Arc::new((Mutex::new(State::Work(default_amount)), Condvar::new()));
 		let mut verifier_handles = Vec::with_capacity(max_verifiers);
 
 		debug!(target: "verification", "Allocating {} verifiers, {} initially active", max_verifiers, default_amount);
@@ -248,11 +248,11 @@ impl<K: Kind> VerificationQueue<K> {
 				.spawn(move || {
 					panic_handler.catch_panic(move || {
 						VerificationQueue::verify(
-							verification, 
-							engine, 
-							wait, 
-							ready, 
-							empty, 
+							verification,
+							engine,
+							wait,
+							ready,
+							empty,
 							state,
 							i,
 						)
@@ -299,11 +299,11 @@ impl<K: Kind> VerificationQueue<K> {
 
 					debug!(target: "verification", "verifier {} sleeping", id);
 					state.1.wait(&mut cur_state);
-					debug!(target: "verification", "verifier {} waking up", id);					
+					debug!(target: "verification", "verifier {} waking up", id);
 				}
 
-				if let State::Exit = *cur_state { 
-					debug!(target: "verification", "verifier {} exiting", id);										
+				if let State::Exit = *cur_state {
+					debug!(target: "verification", "verifier {} exiting", id);
 					break;
 				}
 			}
@@ -326,7 +326,7 @@ impl<K: Kind> VerificationQueue<K> {
 				}
 
 				if let State::Exit = *state.0.lock() {
-					debug!(target: "verification", "verifier {} exiting", id);										
+					debug!(target: "verification", "verifier {} exiting", id);
 					return;
 				}
 			}
@@ -687,8 +687,12 @@ impl<K: Kind> Drop for VerificationQueue<K> {
 		*self.state.0.lock() = State::Exit;
 		self.state.1.notify_all();
 
-		// wake up all threads waiting for more work.
-		self.more_to_verify.notify_all();
+		// acquire this lock to force threads to reach the waiting point
+		// if they're in-between the exit check and the more_to_verify wait.
+		{
+			let _more = self.verification.more_to_verify.lock().unwrap();
+			self.more_to_verify.notify_all();
+		}
 
 		// wait for all verifier threads to join.
 		for thread in self.verifier_handles.drain(..) {
@@ -817,7 +821,7 @@ mod tests {
 	fn readjust_verifiers() {
 		let queue = get_test_queue(true);
 
-		// put all the verifiers to sleep to ensure 
+		// put all the verifiers to sleep to ensure
 		// the test isn't timing sensitive.
 		*queue.state.0.lock() = State::Work(0);
 

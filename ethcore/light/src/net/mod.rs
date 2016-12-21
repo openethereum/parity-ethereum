@@ -264,7 +264,7 @@ impl LightProtocol {
 	/// Check the maximum amount of requests of a specific type
 	/// which a peer would be able to serve. Returns zero if the
 	/// peer is unknown or has no buffer flow parameters.
-	pub fn max_requests(&self, peer: PeerId, kind: request::Kind) -> usize {
+	fn max_requests(&self, peer: PeerId, kind: request::Kind) -> usize {
 		self.peers.read().get(&peer).and_then(|peer| {
 			let mut peer = peer.lock();
 			let idle = peer.idle;
@@ -989,7 +989,7 @@ impl LightProtocol {
 
 		let max_cost = try!(peer.deduct_max(&self.flow_params, request::Kind::Codes, req.code_requests.len()));
 
-		let response = self.provider.contract_code(req);
+		let response = self.provider.contract_codes(req);
 		let response_len = response.iter().filter(|x| !x.is_empty()).count();
 		let actual_cost = self.flow_params.compute_cost(request::Kind::Codes, response_len);
 		assert!(max_cost >= actual_cost, "Actual cost exceeded maximum computed cost.");
