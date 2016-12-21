@@ -897,17 +897,9 @@ mod tests {
 
 	#[test]
 	fn seal_submission() {
-<<<<<<< HEAD
 		use ethkey::{Generator, Random};
 		use types::transaction::{Transaction, Action};
 		use client::BlockChainClient;
-=======
-		let (spec, tap) = setup();
-		let engine = spec.engine.clone();
-		
-		let v0 = insert_and_register(&tap, &engine, "0");
-		let v1 = insert_and_register(&tap, &engine, "1");
->>>>>>> spec-constructor
 
 		let client = generate_dummy_client_with_spec_and_data(Spec::new_test_tendermint, 0, 0, &[]);
 		let engine = client.engine();
