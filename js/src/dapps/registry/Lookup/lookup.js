@@ -19,6 +19,8 @@ import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 import { Card, CardHeader, CardText } from 'material-ui/Card';
 import TextField from 'material-ui/TextField';
+import DropDownMenu from 'material-ui/DropDownMenu';
+import MenuItem from 'material-ui/MenuItem';
 import RaisedButton from 'material-ui/RaisedButton';
 import SearchIcon from 'material-ui/svg-icons/action/search';
 
@@ -26,7 +28,6 @@ import { nullableProptype } from '~/util/proptypes';
 
 import Address from '../ui/address.js';
 import renderImage from '../ui/image.js';
-import recordTypeSelect from '../ui/record-type-select.js';
 
 import { clear, lookup } from './actions';
 import styles from './lookup.css';
@@ -78,7 +79,14 @@ class Lookup extends Component {
             value={ name }
             onChange={ this.onNameChange }
           />
-          { recordTypeSelect(type, this.onTypeChange) }
+          <DropDownMenu
+            value={ type }
+            onChange={ this.onTypeChange }
+          >
+            <MenuItem value='A' primaryText='A – Ethereum address' />
+            <MenuItem value='IMG' primaryText='IMG – hash of a picture in the blockchain' />
+            <MenuItem value='CONTENT' primaryText='CONTENT – hash of a data in the blockchain' />
+          </DropDownMenu>
           <RaisedButton
             label='Lookup'
             primary
