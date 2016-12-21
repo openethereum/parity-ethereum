@@ -367,7 +367,6 @@ mod tests {
 
 	#[test]
 	fn genesis_constructor() {
-		::env_logger::init().unwrap();
 		let spec = Spec::new_test_constructor();
 		let mut db_result = get_temp_state_db();
 		let db = spec.ensure_db_good(db_result.take(), &Default::default()).unwrap();
