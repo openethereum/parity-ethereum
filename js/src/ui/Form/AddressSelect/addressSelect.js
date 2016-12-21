@@ -325,21 +325,13 @@ class AddressSelect extends Component {
       address, index
     };
 
-    const onClick = (account) => {
-      this.handleClick(account.address);
-    };
-
-    const onFocus = (account) => {
-      this.setState({ focusedItem: account.index });
-    };
-
     return (
       <AccountCard
         account={ account }
         balance={ balance }
         key={ `account_${index}` }
-        onClick={ onClick }
-        onFocus={ onFocus }
+        onClick={ this.handleClick }
+        onFocus={ this.focusItem }
         ref={ `account_${index}` }
       />
     );

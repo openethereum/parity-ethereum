@@ -16,7 +16,7 @@
 
 import React, { Component, PropTypes } from 'react';
 import ReactDOM from 'react-dom';
-import keycode, { codes } from 'keycode';
+import keycode from 'keycode';
 
 import IdentityIcon from '~/ui/IdentityIcon';
 import Tags from '~/ui/Tags';
@@ -208,12 +208,12 @@ export default class AccountCard extends Component {
 
   onClick = () => {
     const { account, onClick } = this.props;
-    onClick(account);
+    onClick(account.address);
   }
 
   onFocus = () => {
     const { account, onFocus } = this.props;
-    onFocus(account);
+    onFocus(account.index);
   }
 
   preventEvent = (e) => {
