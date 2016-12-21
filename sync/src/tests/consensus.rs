@@ -16,7 +16,7 @@
 
 use util::*;
 use io::{IoHandler, IoContext, IoChannel};
-use ethcore::client::{BlockChainClient, Client, MiningBlockChainClient};
+use ethcore::client::{BlockChainClient, Client};
 use ethcore::service::ClientIoMessage;
 use ethcore::spec::Spec;
 use ethcore::miner::MinerService;
@@ -33,9 +33,6 @@ struct TestIoHandler {
 impl IoHandler<ClientIoMessage> for TestIoHandler {
 	fn message(&self, _io: &IoContext<ClientIoMessage>, net_message: &ClientIoMessage) {
 		match *net_message {
-			ClientIoMessage::UpdateSealing => self.client.update_sealing(),
-			ClientIoMessage::SubmitSeal(ref hash, ref seal) => self.client.submit_seal(*hash, seal.clone()),
-			ClientIoMessage::BroadcastMessage(ref message) => self.client.broadcast_consensus_message(message.clone()),
 			ClientIoMessage::NewMessage(ref message) => if let Err(e) = self.client.engine().handle_message(message) {
 				panic!("Invalid message received: {}", e);
 			},
@@ -75,8 +72,8 @@ fn authority_round() {
 	// Push transaction to both clients. Only one of them gets lucky to produce a block.
 	net.peer(0).chain.miner().set_engine_signer(s0.address(), "".to_owned()).unwrap();
 	net.peer(1).chain.miner().set_engine_signer(s1.address(), "".to_owned()).unwrap();
-	net.peer(0).chain.engine().register_message_channel(IoChannel::to_handler(Arc::downgrade(&io_handler0)));
-	net.peer(1).chain.engine().register_message_channel(IoChannel::to_handler(Arc::downgrade(&io_handler1)));
+	net.peer(0).chain.engine().register_client(Arc::downgrade(&net.peer(0).chain));
+	net.peer(1).chain.engine().register_client(Arc::downgrade(&net.peer(1).chain));
 	net.peer(0).chain.set_io_channel(IoChannel::to_handler(Arc::downgrade(&io_handler1)));
 	net.peer(1).chain.set_io_channel(IoChannel::to_handler(Arc::downgrade(&io_handler0)));
 	// exchange statuses
@@ -140,8 +137,8 @@ fn tendermint() {
 	trace!(target: "poa", "Peer 0 is {}.", s0.address());
 	net.peer(1).chain.miner().set_engine_signer(s1.address(), "".to_owned()).unwrap();
 	trace!(target: "poa", "Peer 1 is {}.", s1.address());
-	net.peer(0).chain.engine().register_message_channel(IoChannel::to_handler(Arc::downgrade(&io_handler0)));
-	net.peer(1).chain.engine().register_message_channel(IoChannel::to_handler(Arc::downgrade(&io_handler1)));
+	net.peer(0).chain.engine().register_client(Arc::downgrade(&net.peer(0).chain));
+	net.peer(1).chain.engine().register_client(Arc::downgrade(&net.peer(1).chain));
 	net.peer(0).chain.set_io_channel(IoChannel::to_handler(Arc::downgrade(&io_handler0)));
 	net.peer(1).chain.set_io_channel(IoChannel::to_handler(Arc::downgrade(&io_handler1)));
 	// Exhange statuses
