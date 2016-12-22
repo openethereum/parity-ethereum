@@ -223,7 +223,7 @@ function convertFunction(json, _prefs) {
 	}`;
 }
 
-let jsonabi = [{"constant":true,"inputs":[],"name":"get_validators","outputs":[{"name":"","type":"address[]"}],"payable":false,"type":"function"}];
+let jsonabi = [{"constant":true,"inputs":[],"name":"getValidators","outputs":[{"name":"","type":"address[]"}],"payable":false,"type":"function"}];
 
 let out = makeContractFile("Contract", jsonabi, {"_pub": true, "_": {"_client": {"string": true}, "_platform": {"string": true}}, "_sync": true});
 console.log(`${out}`);
