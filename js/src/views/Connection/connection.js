@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 import ActionCompareArrows from 'material-ui/svg-icons/action/compare-arrows';
@@ -67,7 +68,7 @@ class Connection extends Component {
                 <HardwareDesktopMac className={ styles.svg } />
               </div>
               <div className={ styles.iconSmall }>
-                <ActionCompareArrows className={ styles.svg + ' ' + styles.pulse } />
+                <ActionCompareArrows className={ `${styles.svg} ${styles.pulse}` } />
               </div>
               <div className={ styles.icon }>
                 { typeIcon }
@@ -87,16 +88,38 @@ class Connection extends Component {
     if (needsToken && !isConnecting) {
       return (
         <div className={ styles.info }>
-          <div>Unable to make a connection to the Parity Secure API. To update your secure token or to generate a new one, run <span className={ styles.console }>parity signer new-token</span> and supply the token below</div>
+          <div>
+            <FormattedMessage
+              id='connection.noConnection'
+              defaultMessage='Unable to make a connection to the Parity Secure API. To update your secure token or to generate a new one, run {newToken} and supply the token below'
+              values={ {
+                newToken: <span className={ styles.console }>parity signer new-token</span>
+              } } />
+          </div>
           <div className={ styles.form }>
             <Input
-              label='secure token'
-              hint='a generated token from Parity'
               disabled={ loading }
-              error={ validToken || (!token || !token.length) ? null : 'invalid signer token' }
-              value={ token }
+              error={
+                validToken || (!token || !token.length)
+                  ? null
+                  : (
+                    <FormattedMessage
+                      id='connection.invalidToken'
+                      defaultMessage='invalid signer token' />
+                  )
+              }
+              hint={
+                <FormattedMessage
+                  id='connection.token.hint'
+                  defaultMessage='a generated token from Parity' />
+              }
+              label={
+                <FormattedMessage
+                  id='connection.token.label'
+                  defaultMessage='secure token' />
+              }
               onChange={ this.onChangeToken }
-            />
+              value={ token } />
           </div>
         </div>
       );
@@ -104,7 +127,9 @@ class Connection extends Component {
 
     return (
       <div className={ styles.info }>
-        Connecting to the Parity Secure API.
+        <FormattedMessage
+          id='connection.connectingAPI'
+          defaultMessage='Connecting to the Parity Secure API.' />
       </div>
     );
   }
@@ -112,13 +137,17 @@ class Connection extends Component {
   renderPing () {
     return (
       <div className={ styles.info }>
-        Connecting to the Parity Node. If this informational message persists, please ensure that your Parity node is running and reachable on the network.
+        <FormattedMessage
+          id='connection.connectingNode'
+          defaultMessage='Connecting to the Parity Node. If this informational message persists, please ensure that your Parity node is running and reachable on the network.' />
       </div>
     );
   }
 
-  onChangeToken = (event, token) => {
-    const validToken = /[a-zA-Z0-9]{4}-?[a-zA-Z0-9]{4}-?[a-zA-Z0-9]{4}-?[a-zA-Z0-9]{4}/.test(token);
+  onChangeToken = (event, _token) => {
+    const token = _token.trim();
+    const validToken = /^[a-zA-Z0-9]{4}(-)?[a-zA-Z0-9]{4}(-)?[a-zA-Z0-9]{4}(-)?[a-zA-Z0-9]{4}$/.test(token);
+
     this.setState({ token, validToken }, () => {
       validToken && this.setToken();
     });
@@ -133,7 +162,10 @@ class Connection extends Component {
     api
       .updateToken(token, 0)
       .then((isValid) => {
-        this.setState({ loading: isValid || false, validToken: isValid });
+        this.setState({
+          loading: isValid || false,
+          validToken: isValid
+        });
       });
   }
 }
