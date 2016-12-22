@@ -62,7 +62,7 @@ impl Histogram {
 
 #[cfg(test)]
 mod tests {
-	use bigint::uint::U256;
+	use bigint::prelude::U256;
 	use super::Histogram;
 
 	#[test]
