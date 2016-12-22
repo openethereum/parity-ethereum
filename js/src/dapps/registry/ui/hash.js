@@ -17,24 +17,23 @@
 import React, { PropTypes } from 'react';
 import { connect } from 'react-redux';
 
+import etherscanUrl from '../util/etherscan-url';
+
 import styles from './hash.css';
 
 const leading0x = /^0x/;
 
 const Hash = ({ hash, isTestnet, linked }) => {
-  hash = hash.toLowerCase().replace(leading0x, '');
-  const shortened = hash.length > (6 + 6)
-    ? hash.substr(0, 6) + '...' + hash.slice(-6)
-    : hash;
+  let shortened = hash.toLowerCase().replace(leading0x, '');
+  shortened = shortened.length > (6 + 6)
+    ? shortened.substr(0, 6) + '...' + shortened.slice(-6)
+    : shortened;
 
   if (linked) {
-    const type = hash.length === 40 ? 'address' : 'tx';
-    const url = `https://${isTestnet ? 'testnet.' : ''}etherscan.io/${type}/0x${hash}`;
-
     return (
       <a
         className={ styles.link }
-        href={ url }
+        href={ etherscanUrl(hash, isTestnet) }
         target='_blank'
       >
         <abbr title={ hash }>{ shortened }</abbr>

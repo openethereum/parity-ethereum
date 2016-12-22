@@ -18,18 +18,25 @@ import React, { PropTypes } from 'react';
 import { connect } from 'react-redux';
 
 import Hash from './hash';
+import etherscanUrl from '../util/etherscan-url';
 import IdentityIcon from '../IdentityIcon';
 
 import styles from './address.css';
 
-const Address = ({ address, accounts, contacts, key, shortenHash }) => {
+const Address = ({ address, accounts, contacts, isTestnet, key, shortenHash }) => {
   let caption;
   if (accounts[address] || contacts[address]) {
     const name = (accounts[address] || contacts[address] || {}).name;
     caption = (
-      <abbr title={ address } className={ styles.align }>
-        { name || address }
-      </abbr>
+      <a
+        className={ styles.link }
+        href={ etherscanUrl(address, isTestnet) }
+        target='_blank'
+      >
+        <abbr title={ address } className={ styles.align }>
+          { name || address }
+        </abbr>
+      </a>
     );
   } else {
     caption = (
@@ -51,6 +58,7 @@ Address.propTypes = {
   address: PropTypes.string.isRequired,
   accounts: PropTypes.object.isRequired,
   contacts: PropTypes.object.isRequired,
+  isTestnet: PropTypes.bool.isRequired,
   key: PropTypes.string,
   shortenHash: PropTypes.bool
 };
@@ -64,7 +72,8 @@ export default connect(
   // mapStateToProps
   (state) => ({
     accounts: state.accounts.all,
-    contacts: state.contacts
+    contacts: state.contacts,
+    isTestnet: state.isTestnet
   }),
   // mapDispatchToProps
   null

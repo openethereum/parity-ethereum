@@ -26,3 +26,14 @@
   vertical-align: top;
   line-height: 24px;
 }
+
+.link {
+  text-decoration: none;
+  color: inherit;
+}
+.link:hover {
+  text-decoration: underline;
+}
+.link abbr {
+  text-decoration: inherit;
+}
