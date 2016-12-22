@@ -144,7 +144,8 @@ class Connection extends Component {
     );
   }
 
-  onChangeToken = (event, token) => {
+  onChangeToken = (event, _token) => {
+    const token = _token.trim();
     const validToken = /[a-zA-Z0-9]{4}(-)?[a-zA-Z0-9]{4}(-)?[a-zA-Z0-9]{4}(-)?[a-zA-Z0-9]{4}/.test(token);
 
     this.setState({ token, validToken }, () => {
