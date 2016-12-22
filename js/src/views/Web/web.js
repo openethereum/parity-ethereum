@@ -26,11 +26,15 @@ export default class Web extends Component {
   state = {
     token: null,
     isLoading: true,
-    displayedUrl: 'https://mkr.market',
-    url: 'https://mkr.market'
+    displayedUrl: this.lastAddress(),
+    url: this.lastAddress()
   };
 
   handleUpdateUrl = (url) => {
+    try {
+      window.localStorage.setItem('parity-web-lastAddress', url);
+    } catch (e) {}
+
     this.setState({
       isLoading: true,
       displayedUrl: url,
@@ -51,6 +55,14 @@ export default class Web extends Component {
       isLoading: false
     });
   };
+
+  lastAddress () {
+    let res = null;
+    try {
+      res = window.localStorage.getItem('parity-web-lastAddress');
+    } catch (e) {}
+    return res || 'https://mkr.market';
+  }
 
   componentDidMount () {
     this.context.api.signer.generateWebProxyAccessToken().then(token => {
