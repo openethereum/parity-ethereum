@@ -29,7 +29,6 @@ import { propose, confirm } from './actions';
 import styles from './reverse.css';
 
 class Reverse extends Component {
-
   static propTypes = {
     pending: PropTypes.bool.isRequired,
     queue: PropTypes.array.isRequired,
@@ -48,6 +47,29 @@ class Reverse extends Component {
     const { pending } = this.props;
     const { action, address, name } = this.state;
 
+    const explanation = action === 'propose'
+      ? (
+        <p className={ styles.noSpacing }>
+          To propose a reverse entry for <code>foo</code>, you have to be the owner of it.
+        </p>
+      ) : (
+        <p className={ styles.noSpacing }>
+          To confirm a proposal, send the transaction from the account that the name has been proposed for.
+        </p>
+      );
+
+    let addressInput = null;
+    if (action === 'propose') {
+      addressInput = (
+        <TextField
+          className={ styles.spacing }
+          hintText='address'
+          value={ address }
+          onChange={ this.onAddressChange }
+        />
+      );
+    }
+
     return (
       <Card className={ styles.reverse }>
         <CardHeader title={ 'Manage Reverse Names' } />
@@ -57,15 +79,7 @@ class Reverse extends Component {
               To make others to find the name of an address using the registry, you can propose & confirm reverse entries.
             </strong>
           </p>
-          { action === 'propose' ? (
-            <p className={ styles.noSpacing }>
-              To propose a reverse entry for <code>foo</code>, you have to be the owner of it.
-            </p>
-          ) : (
-            <p className={ styles.noSpacing }>
-              To confirm a proposal, send the transaction from the account that the name has been proposed for.
-            </p>
-          ) }
+          { explanation }
           <div className={ styles.box }>
             <DropDownMenu
               disabled={ pending }
@@ -75,14 +89,7 @@ class Reverse extends Component {
               <MenuItem value='propose' primaryText='propose a reverse entry' />
               <MenuItem value='confirm' primaryText='confirm a reverse entry' />
             </DropDownMenu>
-            { action === 'propose' ? (
-              <TextField
-                className={ styles.spacing }
-                hintText='address'
-                value={ address }
-                onChange={ this.onAddressChange }
-              />
-            ) : null }
+            { addressInput }
             <TextField
               className={ styles.spacing }
               hintText='name'
@@ -107,14 +114,18 @@ class Reverse extends Component {
   onNameChange = (e) => {
     this.setState({ name: e.target.value });
   };
+
   onAddressChange = (e) => {
     this.setState({ address: e.target.value });
   };
+
   onActionChange = (e, i, action) => {
     this.setState({ action });
   };
+
   onSubmitClick = () => {
     const { action, name, address } = this.state;
+
     if (action === 'propose') {
       this.props.propose(name, address);
     } else if (action === 'confirm') {
@@ -123,9 +134,7 @@ class Reverse extends Component {
   };
 }
 
-export default connect(
-  // mapStateToProps
-  (state) => state.reverse,
-  // mapDispatchToProps
-  (dispatch) => bindActionCreators({ propose, confirm }, dispatch)
-)(Reverse);
+const mapStateToProps = (state) => state.reverse;
+const mapDispatchToProps = (dispatch) => bindActionCreators({ propose, confirm }, dispatch);
+
+export default connect(mapStateToProps, mapDispatchToProps)(Reverse);

@@ -36,7 +36,7 @@ export default (state = initialState, action) => {
       ...state, pending: false,
       name: initialState.name, type: initialState.type, value: initialState.value
     };
-  } else {
-    return state;
   }
+
+  return state;
 };

@@ -45,8 +45,17 @@ class Accounts extends Component {
     const accountsButton = (
       <IconButton className={ styles.button }>
         { selected
-          ? (<IdentityIcon className={ styles.icon } address={ selected.address } />)
-          : (<AccountIcon className={ styles.icon } color='white' />)
+          ? (
+            <IdentityIcon
+              className={ styles.icon }
+              address={ selected.address }
+            />
+          ) : (
+            <AccountIcon
+              className={ styles.icon }
+              color='white'
+            />
+          )
         }
       </IconButton>);
 
@@ -70,8 +79,10 @@ class Accounts extends Component {
 
     return (
       <MenuItem
-        key={ account.address } value={ account.address }
-        checked={ isSelected } insetChildren={ !isSelected }
+        key={ account.address }
+        value={ account.address }
+        checked={ isSelected }
+        insetChildren={ !isSelected }
       >
         <Address address={ account.address } />
       </MenuItem>
@@ -83,9 +94,7 @@ class Accounts extends Component {
   };
 }
 
-export default connect(
-  // mapStateToProps
-  (state) => state.accounts,
-  // mapDispatchToProps
-  (dispatch) => bindActionCreators({ select }, dispatch)
-)(Accounts);
+const mapStateToProps = (state) => state.accounts;
+const mapDispatchToProps = (dispatch) => bindActionCreators({ select }, dispatch);
+
+export default connect(mapStateToProps, mapDispatchToProps)(Accounts);

@@ -22,9 +22,9 @@ const initialState = {
 };
 
 export default (state = initialState, action) => {
-  if (action.type.slice(0, 7) !== 'lookup ' &&
-    action.type.slice(0, 14) !== 'reverseLookup '
-  ) {
+  const { type } = action;
+
+  if (type.slice(0, 7) !== 'lookup ' && type.slice(0, 14) !== 'reverseLookup ') {
     return state;
   }
 

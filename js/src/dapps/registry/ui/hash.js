@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import React, { PropTypes } from 'react';
+import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 
 import etherscanUrl from '../util/etherscan-url';
@@ -23,36 +23,40 @@ import styles from './hash.css';
 
 const leading0x = /^0x/;
 
-const Hash = ({ hash, isTestnet, linked }) => {
-  let shortened = hash.toLowerCase().replace(leading0x, '');
-  shortened = shortened.length > (6 + 6)
-    ? shortened.substr(0, 6) + '...' + shortened.slice(-6)
-    : shortened;
-
-  if (linked) {
-    return (
-      <a
-        className={ styles.link }
-        href={ etherscanUrl(hash, isTestnet) }
-        target='_blank'
-      >
-        <abbr title={ hash }>{ shortened }</abbr>
-      </a>
-    );
+class Hash extends Component {
+  static propTypes = {
+    hash: PropTypes.string.isRequired,
+    isTestnet: PropTypes.bool.isRequired,
+    linked: PropTypes.bool
   }
 
-  return (<abbr title={ hash }>{ shortened }</abbr>);
-};
+  static defaultProps = {
+    linked: false
+  }
 
-Hash.propTypes = {
-  hash: PropTypes.string.isRequired,
-  isTestnet: PropTypes.bool.isRequired,
-  linked: PropTypes.bool
-};
+  render () {
+    const { hash, isTestnet, linked } = this.props;
 
-Hash.defaultProps = {
-  linked: false
-};
+    let shortened = hash.toLowerCase().replace(leading0x, '');
+    shortened = shortened.length > (6 + 6)
+      ? shortened.substr(0, 6) + '...' + shortened.slice(-6)
+      : shortened;
+
+    if (linked) {
+      return (
+        <a
+          className={ styles.link }
+          href={ etherscanUrl(hash, isTestnet) }
+          target='_blank'
+        >
+          <abbr title={ hash }>{ shortened }</abbr>
+        </a>
+      );
+    }
+
+    return (<abbr title={ hash }>{ shortened }</abbr>);
+  }
+}
 
 export default connect(
   (state) => ({ // mapStateToProps

@@ -27,23 +27,33 @@ export const propose = (name, address) => (dispatch, getState) => {
   const state = getState();
   const account = state.accounts.selected;
   const contract = state.contract;
-  if (!contract || !account) return;
+  if (!contract || !account) {
+    return;
+  }
+
   name = name.toLowerCase();
 
   const proposeReverse = contract.functions.find((f) => f.name === 'proposeReverse');
 
   dispatch(start('propose', name, address));
-  postTx(api, proposeReverse, {
+
+  const options = {
     from: account.address
-  }, [
+  };
+  const values = [
     name,
     address
-  ])
+  ];
+
+  postTx(api, proposeReverse, options, values)
     .then((txHash) => {
       dispatch(success('propose'));
-    }).catch((err) => {
+    })
+    .catch((err) => {
       console.error(`could not propose reverse ${name} for address ${address}`);
-      if (err) console.error(err.stack);
+      if (err) {
+        console.error(err.stack);
+      }
       dispatch(fail('propose'));
     });
 };
@@ -58,16 +68,23 @@ export const confirm = (name) => (dispatch, getState) => {
   const confirmReverse = contract.functions.find((f) => f.name === 'confirmReverse');
 
   dispatch(start('confirm', name));
-  postTx(api, confirmReverse, {
+
+  const options = {
     from: account.address
-  }, [
+  };
+  const values = [
     name
-  ])
+  ];
+
+  postTx(api, confirmReverse, options, values)
     .then((txHash) => {
       dispatch(success('confirm'));
-    }).catch((err) => {
+    })
+    .catch((err) => {
       console.error(`could not confirm reverse ${name}`);
-      if (err) console.error(err.stack);
+      if (err) {
+        console.error(err.stack);
+      }
       dispatch(fail('confirm'));
     });
 };

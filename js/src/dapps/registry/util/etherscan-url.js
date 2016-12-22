@@ -19,6 +19,7 @@ const leading0x = /^0x/;
 const etherscanUrl = (hash, isTestnet) => {
   hash = hash.toLowerCase().replace(leading0x, '');
   const type = hash.length === 40 ? 'address' : 'tx';
+
   return `https://${isTestnet ? 'testnet.' : ''}etherscan.io/${type}/0x${hash}`;
 };
 

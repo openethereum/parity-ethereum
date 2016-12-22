@@ -31,19 +31,26 @@ export const reserve = (name) => (dispatch, getState) => {
   const account = state.accounts.selected;
   const contract = state.contract;
   const fee = state.fee;
-  if (!contract || !account) return;
+  if (!contract || !account) {
+    return;
+  }
+
   name = name.toLowerCase();
 
   if (alreadyQueued(state.names.queue, 'reserve', name)) return;
   const reserve = contract.functions.find((f) => f.name === 'reserve');
 
   dispatch(reserveStart(name));
-  postTx(api, reserve, {
+
+  const options = {
     from: account.address,
     value: fee
-  }, [
+  };
+  const values = [
     sha3(name)
-  ])
+  ];
+
+  postTx(api, reserve, options, values)
     .then((txHash) => {
       dispatch(reserveSuccess(name));
     })
@@ -64,18 +71,25 @@ export const drop = (name) => (dispatch, getState) => {
   const state = getState();
   const account = state.accounts.selected;
   const contract = state.contract;
-  if (!contract || !account) return;
+  if (!contract || !account) {
+    return;
+  }
+
   name = name.toLowerCase();
 
   if (alreadyQueued(state.names.queue, 'drop', name)) return;
   const drop = contract.functions.find((f) => f.name === 'drop');
 
   dispatch(dropStart(name));
-  postTx(api, drop, {
+
+  const options = {
     from: account.address
-  }, [
+  };
+  const values = [
     sha3(name)
-  ])
+  ];
+
+  postTx(api, drop, options, values)
     .then((txhash) => {
       dispatch(dropSuccess(name));
     })

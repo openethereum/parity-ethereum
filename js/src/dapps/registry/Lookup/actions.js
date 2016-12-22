@@ -27,33 +27,44 @@ export const fail = (action) => ({ type: `${action} error` });
 
 export const lookup = (name, key) => (dispatch, getState) => {
   const { contract } = getState();
-  if (!contract) return;
+  if (!contract) {
+    return;
+  }
   const getAddress = contract.functions
     .find((f) => f.name === 'getAddress');
 
   name = name.toLowerCase();
   dispatch(lookupStart(name, key));
-  getAddress.call({}, [sha3(name), key])
+
+  getAddress.call({}, [ sha3(name), key ])
     .then((address) => dispatch(success('lookup', address)))
     .catch((err) => {
       console.error(`could not lookup ${key} for ${name}`);
-      if (err) console.error(err.stack);
+      if (err) {
+        console.error(err.stack);
+      }
       dispatch(fail('lookup'));
     });
 };
 
 export const reverseLookup = (address) => (dispatch, getState) => {
   const { contract } = getState();
-  if (!contract) return;
+  if (!contract) {
+    return;
+  }
+
   const reverse = contract.functions
     .find((f) => f.name === 'reverse');
 
   dispatch(reverseLookupStart(address));
-  reverse.call({}, [address])
+
+  reverse.call({}, [ address ])
     .then((address) => dispatch(success('reverseLookup', address)))
     .catch((err) => {
       console.error(`could not lookup reverse for ${address}`);
-      if (err) console.error(err.stack);
+      if (err) {
+        console.error(err.stack);
+      }
       dispatch(fail('reverseLookup'));
     });
 };

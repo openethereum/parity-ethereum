@@ -103,9 +103,7 @@ class Records extends Component {
   };
 }
 
-export default connect(
-  // mapStateToProps
-  (state) => state.records,
-  // mapDispatchToProps
-  (dispatch) => bindActionCreators({ update }, dispatch)
-)(Records);
+const mapStateToProps = (state) => state.records;
+const mapDispatchToProps = (dispatch) => bindActionCreators({ update }, dispatch);
+
+export default connect(mapStateToProps, mapDispatchToProps)(Records);

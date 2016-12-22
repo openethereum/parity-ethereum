@@ -107,24 +107,29 @@ const renderReverse = (e) => {
     ReverseConfirmed: 'confirmed',
     ReverseRemoved: 'removed'
   })[e.type];
-  if (!verb) return null;
 
-  const classNames = styles.reverse + (e.state === 'pending' ? ` ${styles.pending}` : '');
-  const details = [
-    'name ',
-    // TODO: this is an indexed param, cannot display as plain text
-    (<code key='name'>{ bytesToHex(e.parameters.name.value) }</code>),
-    ' for ',
-    (<Address key='reverse' address={ e.parameters.reverse.value } />)
-  ];
+  if (!verb) {
+    return null;
+  }
 
+  const classes = [ styles.reverse ];
+  if (e.state === 'pending') {
+    classes.push(styles.pending);
+  }
+
+  // TODO: `name` is an indexed param, cannot display as plain text
   return (
-    <tr key={ e.key } className={ classNames }>
+    <tr key={ e.key } className={ classes.join(' ') }>
       <td>
         <Address address={ e.from } />
       </td>
       <td>{ verb }</td>
-      <td>{ details }</td>
+      <td>
+        { 'name ' }
+        <code key='name'>{ bytesToHex(e.parameters.name.value) }</code>
+        { ' for ' }
+        <Address key='reverse' address={ e.parameters.reverse.value } />
+      </td>
       <td>
         { renderStatus(e.timestamp, e.state === 'pending') }
       </td>
@@ -144,9 +149,9 @@ const eventTypes = {
 class Events extends Component {
 
   static propTypes = {
-    subscriptions: PropTypes.object.isRequired,
-    pending: PropTypes.object.isRequired,
     events: PropTypes.array.isRequired,
+    pending: PropTypes.object.isRequired,
+    subscriptions: PropTypes.object.isRequired,
 
     subscribe: PropTypes.func.isRequired,
     unsubscribe: PropTypes.func.isRequired
@@ -185,16 +190,14 @@ class Events extends Component {
       })
       .map((e) => eventTypes[e.type](e));
 
-    const reverseToggled = (
+    const reverseToggled =
       subscriptions.ReverseProposed !== null &&
       subscriptions.ReverseConfirmed !== null &&
-      subscriptions.ReverseRemoved !== null
-    );
-    const reverseDisabled = (
+      subscriptions.ReverseRemoved !== null;
+    const reverseDisabled =
       pending.ReverseProposed ||
       pending.ReverseConfirmed ||
-      pending.ReverseRemoved
-    );
+      pending.ReverseRemoved;
 
     return (
       <Card className={ styles.events }>
@@ -242,6 +245,7 @@ class Events extends Component {
 
   onReservedToggle = (e, isToggled) => {
     const { pending, subscriptions, subscribe, unsubscribe } = this.props;
+
     if (!pending.Reserved) {
       if (isToggled && subscriptions.Reserved === null) {
         subscribe('Reserved');
@@ -250,8 +254,10 @@ class Events extends Component {
       }
     }
   };
+
   onDroppedToggle = (e, isToggled) => {
     const { pending, subscriptions, subscribe, unsubscribe } = this.props;
+
     if (!pending.Dropped) {
       if (isToggled && subscriptions.Dropped === null) {
         subscribe('Dropped');
@@ -260,8 +266,10 @@ class Events extends Component {
       }
     }
   };
+
   onDataChangedToggle = (e, isToggled) => {
     const { pending, subscriptions, subscribe, unsubscribe } = this.props;
+
     if (!pending.DataChanged) {
       if (isToggled && subscriptions.DataChanged === null) {
         subscribe('DataChanged');
@@ -278,6 +286,7 @@ class Events extends Component {
       if (pending[e]) {
         continue;
       }
+
       if (isToggled && subscriptions[e] === null) {
         subscribe(e);
       } else if (!isToggled && subscriptions[e] !== null) {
@@ -287,9 +296,7 @@ class Events extends Component {
   };
 }
 
-export default connect(
-  // mapStateToProps
-  (state) => state.events,
-  // mapDispatchToProps
-  (dispatch) => bindActionCreators({ subscribe, unsubscribe }, dispatch)
-)(Events);
+const mapStateToProps = (state) => state.events;
+const mapDispatchToProps = (dispatch) => bindActionCreators({ subscribe, unsubscribe }, dispatch);
+
+export default connect(mapStateToProps, mapDispatchToProps)(Events);

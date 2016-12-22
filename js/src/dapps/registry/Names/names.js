@@ -170,9 +170,7 @@ class Names extends Component {
   };
 }
 
-export default connect(
-  // mapStateToProps
-  (state) => ({ ...state.names, fee: state.fee }),
-  // mapDispatchToProps
-  (dispatch) => bindActionCreators({ reserve, drop }, dispatch)
-)(Names);
+const mapStateToProps = (state) => ({ ...state.names, fee: state.fee });
+const mapDispatchToProps = (dispatch) => bindActionCreators({ reserve, drop }, dispatch);
+
+export default connect(mapStateToProps, mapDispatchToProps)(Names);

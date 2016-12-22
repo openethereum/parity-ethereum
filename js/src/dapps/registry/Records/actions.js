@@ -27,20 +27,27 @@ export const update = (name, key, value) => (dispatch, getState) => {
   const state = getState();
   const account = state.accounts.selected;
   const contract = state.contract;
-  if (!contract || !account) return;
+  if (!contract || !account) {
+    return;
+  }
+
   name = name.toLowerCase();
 
   const fnName = key === 'A' ? 'setAddress' : 'set';
   const setAddress = contract.functions.find((f) => f.name === fnName);
 
   dispatch(start(name, key, value));
-  postTx(api, setAddress, {
+
+  const options = {
     from: account.address
-  }, [
+  };
+  const values = [
     sha3(name),
     key,
     value
-  ])
+  ];
+
+  postTx(api, setAddress, options, values)
     .then((txHash) => {
       dispatch(success());
     }).catch((err) => {

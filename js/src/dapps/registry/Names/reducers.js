@@ -33,12 +33,8 @@ export default (state = initialState, action) => {
         ...state, pending: false,
         queue: removeFromQueue(state.queue, 'reserve', action.name)
       };
-    } else {
-      return state;
     }
-  }
-
-  if (isAction('names', 'drop', action)) {
+  } else if (isAction('names', 'drop', action)) {
     if (isStage('start', action)) {
       return {
         ...state, pending: true,
@@ -49,8 +45,6 @@ export default (state = initialState, action) => {
         ...state, pending: false,
         queue: removeFromQueue(state.queue, 'drop', action.name)
       };
-    } else {
-      return state;
     }
   }
 

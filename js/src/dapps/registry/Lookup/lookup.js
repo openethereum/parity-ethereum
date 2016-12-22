@@ -42,7 +42,9 @@ class Lookup extends Component {
     reverseLookup: PropTypes.func.isRequired
   }
 
-  state = { input: '', type: 'A' };
+  state = {
+    input: '', type: 'A'
+  };
 
   render () {
     const { input, type } = this.state;
@@ -53,7 +55,10 @@ class Lookup extends Component {
       if (type === 'A') {
         output = (
           <code>
-            <Address address={ result } shortenHash={ false } />
+            <Address
+              address={ result }
+              shortenHash={ false }
+            />
           </code>
         );
       } else if (type === 'IMG') {
@@ -105,12 +110,15 @@ class Lookup extends Component {
   onInputChange = (e) => {
     this.setState({ input: e.target.value });
   };
+
   onTypeChange = (e, i, type) => {
     this.setState({ type });
     this.props.clear();
   };
+
   onLookupClick = () => {
     const { input, type } = this.state;
+
     if (type === 'reverse') {
       this.props.reverseLookup(input);
     } else {
@@ -119,9 +127,10 @@ class Lookup extends Component {
   };
 }
 
-export default connect(
-  // mapStateToProps
-  (state) => state.lookup,
-  // mapDispatchToProps
-  (dispatch) => bindActionCreators({ clear, lookup, reverseLookup }, dispatch)
-)(Lookup);
+const mapStateToProps = (state) => state.lookup;
+const mapDispatchToProps = (dispatch) =>
+  bindActionCreators({
+    clear, lookup, reverseLookup
+  }, dispatch);
+
+export default connect(mapStateToProps, mapDispatchToProps)(Lookup);
