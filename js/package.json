@@ -126,7 +126,7 @@
     "stylelint": "7.6.0",
     "stylelint-config-standard": "15.0.0",
     "url-loader": "0.5.7",
-    "webpack": "2.2.0-rc.1",
+    "webpack": "2.2.0-rc.2",
     "webpack-dev-middleware": "1.8.4",
     "webpack-error-notification": "0.1.6",
     "webpack-hot-middleware": "2.13.2",
