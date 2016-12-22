@@ -25,7 +25,7 @@ use std::str::FromStr;
 use rand::Rng;
 use rand::os::OsRng;
 use rustc_serialize::hex::{FromHex, FromHexError};
-use uint::{Uint, U256};
+use bigint::{Uint, U256};
 
 /// Trait for a fixed-size byte array to be used as the output of hash functions.
 pub trait FixedHash: Sized {
