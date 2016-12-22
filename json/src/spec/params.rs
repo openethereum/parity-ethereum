@@ -22,9 +22,9 @@ use hash::H256;
 /// Spec params.
 #[derive(Debug, PartialEq, Deserialize)]
 pub struct Params {
-	/// Account start nonce.
+	/// Account start nonce, defaults to 0.
 	#[serde(rename="accountStartNonce")]
-	pub account_start_nonce: Uint,
+	pub account_start_nonce: Option<Uint>,
 	/// Maximum size of extra data.
 	#[serde(rename="maximumExtraDataSize")]
 	pub maximum_extra_data_size: Uint,
