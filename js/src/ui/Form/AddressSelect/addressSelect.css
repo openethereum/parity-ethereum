@@ -44,7 +44,7 @@
   position: relative;
 
   &:hover, *:hover {
-    cursor: pointer !important;
+    cursor: text !important;
   }
 }
 
@@ -58,13 +58,13 @@
 }
 
 .label {
-  margin: 1rem 2rem 0.25em;
+  margin: 1rem 2.5rem 0.25em;
   color: rgba(255, 255, 255, 0.498039);
 }
 
 .underline {
   position: relative;
-  margin: 0 9rem 0 2rem;
+  margin: 0 9rem 0 2.5rem;
 }
 
 .empty {
@@ -77,8 +77,8 @@
   flex: 1;
 
   .input {
-    font-size: 36px;
-    padding: 0 9rem 0.5em 2rem;
+    font-size: 1.5em;
+    padding: 0 9rem 0.5em 2.5rem;
     display: block;
 
     padding-right: 6rem;
@@ -90,7 +90,7 @@
 
   display: flex;
   flex-direction: row;
-  justify-content: space-around;
+  justify-content: flex-start;
 
   margin: 2rem 2rem 0;
 

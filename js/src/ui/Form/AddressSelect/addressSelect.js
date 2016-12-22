@@ -25,10 +25,14 @@ import TextFieldUnderline from 'material-ui/TextField/TextFieldUnderline';
 import AccountCard from '~/ui/AccountCard';
 import InputAddress from '~/ui/Form/InputAddress';
 import Portal from '~/ui/Portal';
+import { validateAddress } from '~/util/validation';
 
 import styles from './addressSelect.css';
 
 const BOTTOM_BORDER_STYLE = { borderBottom: 'solid 3px' };
+
+// Current Form ID
+let currentId = 1;
 
 class AddressSelect extends Component {
   static contextTypes = {
@@ -111,7 +115,7 @@ class AddressSelect extends Component {
         label: 'contracts',
         values: Object.values(contracts)
       }
-    ];
+    ].filter((cat) => cat.values.length > 0);
 
     this.handleChange();
   }
@@ -146,11 +150,12 @@ class AddressSelect extends Component {
       <InputAddress
         accountsInfo={ accountsInfo }
         allowCopy={ false }
-        disabled
+        disabled={ disabled }
         error={ error }
         hint={ hint }
         focused={ focused }
         label={ label }
+        readOnly
         tabIndex={ -1 }
         text
         value={ value }
@@ -177,7 +182,7 @@ class AddressSelect extends Component {
       return null;
     }
 
-    const id = 'addressSelect_' + Math.round(Math.random() * 100).toString();
+    const id = `addressSelect_${++currentId}`;
 
     return (
       <Portal
@@ -217,19 +222,21 @@ class AddressSelect extends Component {
   }
 
   renderCurrentInput () {
-    if (!this.props.allowInput) {
+    const { inputValue } = this.state;
+
+    if (!this.props.allowInput || !inputValue) {
       return null;
     }
 
-    const { inputValue } = this.state;
+    const { address, addressError } = validateAddress(inputValue);
 
-    if (inputValue.length === 0 || !/^(0x)?[a-f0-9]*$/i.test(inputValue)) {
+    if (addressError) {
       return null;
     }
 
     return (
       <div>
-        { this.renderAccountCard({ address: inputValue }) }
+        { this.renderAccountCard({ address }) }
       </div>
     );
   }
@@ -262,19 +269,32 @@ class AddressSelect extends Component {
   }
 
   renderCategory (name, values = []) {
-    if (values.length === 0) {
-      return null;
-    }
+    let content;
 
-    const cards = values
-      .map((account) => this.renderAccountCard(account));
+    if (values.length === 0) {
+      content = (
+        <p>
+          <FormattedMessage
+            id='addressSelect.noAccount'
+            defaultMessage='No account matches this query...'
+          />
+        </p>
+      );
+    } else {
+      const cards = values
+        .map((account) => this.renderAccountCard(account));
+
+      content = (
+        <div className={ styles.cards }>
+          <div>{ cards }</div>
+        </div>
+      );
+    }
 
     return (
       <div className={ styles.category } key={ name }>
         <div className={ styles.title }>{ name }</div>
-        <div className={ styles.cards }>
-          <div>{ cards }</div>
-        </div>
+        { content }
       </div>
     );
   }
@@ -350,8 +370,7 @@ class AddressSelect extends Component {
       case 'right':
       case 'up':
       case 'down':
-        event.preventDefault();
-        return this.handleNavigation(codeName);
+        return this.handleNavigation(codeName, event);
 
       default:
         const code = codes[codeName];
@@ -388,24 +407,28 @@ class AddressSelect extends Component {
     return this.handleDOMAction(`account_${index}`, 'focus');
   }
 
-  handleNavigation = (direction) => {
+  handleNavigation = (direction, event) => {
     const { focusedItem, focusedCat, values } = this.state;
 
     // Don't do anything if no values
     if (values.length === 0) {
-      return;
+      return event;
     }
 
     // Focus on the first element if none selected yet if going down
     if (!focusedItem) {
       if (direction !== 'down') {
-        return;
+        return event;
       }
+
+      event.preventDefault();
 
       const nextValues = values[focusedCat || 0];
       const nextFocus = nextValues ? nextValues.values[0] : null;
       return this.focusItem(nextFocus && nextFocus.index || 1);
     }
+
+    event.preventDefault();
 
     // Find the previous focused category
     const prevCategoryIndex = values.findIndex((category) => {
@@ -564,8 +587,7 @@ class AddressSelect extends Component {
           label: category.label,
           values: filteredValues
         };
-      })
-      .filter((category) => category.values.length > 0);
+      });
 
     this.setState({
       values,
