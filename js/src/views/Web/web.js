@@ -24,9 +24,10 @@ export default class Web extends Component {
   }
 
   state = {
+    token: null,
     isLoading: true,
     displayedUrl: 'https://mkr.market',
-    url: 'https://mkr.market',
+    url: 'https://mkr.market'
   };
 
   handleUpdateUrl = (url) => {
@@ -51,17 +52,35 @@ export default class Web extends Component {
     });
   };
 
+  componentDidMount () {
+    this.context.api.signer.generateWebProxyAccessToken().then(token => {
+      this.setState({ token });
+    });
+  }
+
   address () {
     const { dappsUrl } = this.context.api;
-    const { url } = this.state;
+    const { url, token } = this.state;
     const path = url.replace(/:/g, '').replace(/\/\//g, '/');
 
-    return `${dappsUrl}/web/${path}/`;
+    return `${dappsUrl}/web/${token}/${path}/`;
   }
 
   render () {
-    const { displayedUrl, isLoading } = this.state;
+    const { displayedUrl, isLoading, token } = this.state;
     const address = this.address();
+
+    if (!token) {
+      return (
+        <div
+          className={ styles.wrapper }
+          >
+          <h1 className={ styles.loading }>
+            Requesting access token...
+          </h1>
+        </div>
+      );
+    }
 
     return (
       <div
@@ -85,7 +104,6 @@ export default class Web extends Component {
     );
   }
 }
-
 
 class AddressBar extends Component {
 
@@ -137,7 +155,7 @@ class AddressBar extends Component {
     return this.state.currentUrl === this.props.url;
   }
 
-  componentWillReceiveProps(nextProps) {
+  componentWillReceiveProps (nextProps) {
     if (this.props.url === nextProps.url) {
       return;
     }

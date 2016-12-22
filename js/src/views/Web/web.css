@@ -20,27 +20,33 @@
   height: 100%;
   width: 100%;
 }
+.loading {
+  text-align: center;
+  margin-top: 5em;
+  color: #999;
+  font-size: 2em;
+}
 .url {
   position: absolute;
   top: 0;
   width: 100%;
   box-sizing: border-box;
-  height: 40px;
-  line-height: 40px;
+  height: 2em;
+  line-height: 2em;
   display: flex;
 }
 
 .url > input {
   flex: 1;
-  font-size: 18px;
-  padding: 3px 5px;
+  font-size: 1.1em;
+  padding: 0.1em 0.2em;
 }
 
 .frame {
   position: absolute;
   width: 100%;
-  height: calc(100% - 40px);
-  top: 40px;
+  height: calc(100% - 2em);
+  top: 2em;
   bottom: 0;
   left: 0;
   right: 0;

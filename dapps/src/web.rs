@@ -16,6 +16,7 @@
 
 //! Serving web-based content (proxying)
 
+use std::sync::Arc;
 use fetch::{self, Fetch};
 use parity_reactor::Remote;
 
@@ -29,21 +30,24 @@ use handlers::{
 	StreamingHandler, Redirection, extract_url,
 };
 use url::Url;
+use WebProxyTokens;
 
 pub type Embeddable = Option<(String, u16)>;
 
 pub struct Web<F> {
+	embeddable_on: Embeddable,
+	web_proxy_tokens: Arc<WebProxyTokens>,
 	remote: Remote,
 	fetch: F,
-	embeddable_on: Embeddable,
 }
 
 impl<F: Fetch> Web<F> {
-	pub fn boxed(remote: Remote, fetch: F, embeddable_on: Embeddable) -> Box<Endpoint> {
+	pub fn boxed(embeddable_on: Embeddable, web_proxy_tokens: Arc<WebProxyTokens>, remote: Remote, fetch: F) -> Box<Endpoint> {
 		Box::new(Web {
+			embeddable_on: embeddable_on,
+			web_proxy_tokens: web_proxy_tokens,
 			remote: remote,
 			fetch: fetch,
-			embeddable_on: embeddable_on,
 		})
 	}
 }
@@ -56,6 +60,7 @@ impl<F: Fetch> Endpoint for Web<F> {
 			path: path,
 			remote: self.remote.clone(),
 			fetch: self.fetch.clone(),
+			web_proxy_tokens: self.web_proxy_tokens.clone(),
 			embeddable_on: self.embeddable_on.clone(),
 		})
 	}
@@ -98,21 +103,20 @@ struct WebHandler<F: Fetch> {
 	path: EndpointPath,
 	remote: Remote,
 	fetch: F,
+	web_proxy_tokens: Arc<WebProxyTokens>,
 	embeddable_on: Embeddable,
 }
 
 impl<F: Fetch> WebHandler<F> {
-	fn extract_target_url(url: Option<Url>, embeddable_on: Embeddable) -> Result<String, State<F>> {
+	fn extract_target_url(&self, url: Option<Url>) -> Result<String, State<F>> {
 		let (path, query) = match url {
 			Some(url) => (url.path, url.query),
 			None => {
-				return Err(State::Error(
-					ContentHandler::error(StatusCode::BadRequest, "Invalid URL", "Couldn't parse URL", None, embeddable_on)
-				));
+				return Err(State::Error(ContentHandler::error(
+					StatusCode::BadRequest, "Invalid URL", "Couldn't parse URL", None, self.embeddable_on.clone()
+				)));
 			}
 		};
-
-		// TODO [ToDr] Check if token supplied in URL is correct.
 
 		// Support domain based routing.
 		let idx = match path.get(0).map(|m| m.as_ref()) {
@@ -120,19 +124,29 @@ impl<F: Fetch> WebHandler<F> {
 			_ => 0,
 		};
 
+		// Check if token supplied in URL is correct.
+		match path.get(idx) {
+			Some(ref token) if self.web_proxy_tokens.is_web_proxy_token_valid(token) => {},
+			_ => {
+				return Err(State::Error(ContentHandler::error(
+					StatusCode::BadRequest, "Invalid Access Token", "Invalid or old web proxy access token supplied.", Some("Try refreshing the page."), self.embeddable_on.clone()
+				)));
+			}
+		}
+
 		// Validate protocol
-		let protocol = match path.get(idx).map(|a| a.as_str()) {
+		let protocol = match path.get(idx + 1).map(|a| a.as_str()) {
 			Some("http") => "http",
 			Some("https") => "https",
 			_ => {
-				return Err(State::Error(
-					ContentHandler::error(StatusCode::BadRequest, "Invalid Protocol", "Invalid protocol used", None, embeddable_on)
-				));
+				return Err(State::Error(ContentHandler::error(
+					StatusCode::BadRequest, "Invalid Protocol", "Invalid protocol used.", None, self.embeddable_on.clone()
+				)));
 			}
 		};
 
 		// Redirect if address to main page does not end with /
-		if let None = path.get(idx + 2) {
+		if let None = path.get(idx + 3) {
 			return Err(State::Redirecting(
 				Redirection::new(&format!("/{}/", path.join("/")))
 			));
@@ -143,7 +157,7 @@ impl<F: Fetch> WebHandler<F> {
 			None => "".into(),
 		};
 
-		Ok(format!("{}://{}{}", protocol, path[2..].join("/"), query))
+		Ok(format!("{}://{}{}", protocol, path[idx + 2..].join("/"), query))
 	}
 }
 
@@ -152,7 +166,7 @@ impl<F: Fetch> server::Handler<net::HttpStream> for WebHandler<F> {
 		let url = extract_url(&request);
 
 		// First extract the URL (reject invalid URLs)
-		let target_url = match Self::extract_target_url(url, self.embeddable_on.clone()) {
+		let target_url = match self.extract_target_url(url) {
 			Ok(url) => url,
 			Err(error) => {
 				self.state = error;

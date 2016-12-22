@@ -46,5 +46,9 @@ build_rpc_trait! {
 		/// Generates new authorization token.
 		#[rpc(name = "signer_generateAuthorizationToken")]
 		fn generate_token(&self) -> Result<String, Error>;
+
+		/// Generates new web proxy access token.
+		#[rpc(name = "signer_generateWebProxyAccessToken")]
+		fn generate_web_proxy_token(&self) -> Result<String, Error>;
 	}
 }

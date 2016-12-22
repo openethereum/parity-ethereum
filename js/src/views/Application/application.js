@@ -56,7 +56,7 @@ class Application extends Component {
 
   render () {
     const [root] = (window.location.hash || '').replace('#/', '').split('/');
-    const isMinimized = root === 'app' || root == 'web';
+    const isMinimized = root === 'app' || root === 'web';
 
     if (inFrame) {
       return (
