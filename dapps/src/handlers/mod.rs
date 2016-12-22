@@ -51,9 +51,15 @@ pub fn add_security_headers(headers: &mut header::Headers, embeddable_on: Option
 	}
 }
 
+
 /// Extracts URL part from the Request.
 pub fn extract_url(req: &server::Request<net::HttpStream>) -> Option<Url> {
-	match *req.uri() {
+	convert_uri_to_url(req.uri(), req.headers().get::<header::Host>())
+}
+
+/// Extracts URL given URI and Host header.
+pub fn convert_uri_to_url(uri: &uri::RequestUri, host: Option<&header::Host>) -> Option<Url> {
+	match *uri {
 		uri::RequestUri::AbsoluteUri(ref url) => {
 			match Url::from_generic_url(url.clone()) {
 				Ok(url) => Some(url),
@@ -66,7 +72,7 @@ pub fn extract_url(req: &server::Request<net::HttpStream>) -> Option<Url> {
 				None => "".into(),
 			};
 			// Attempt to prepend the Host header (mandatory in HTTP/1.1)
-			let url_string = match req.headers().get::<header::Host>() {
+			let url_string = match host {
 				Some(ref host) => {
 					format!("http://{}:{}{}{}", host.hostname, host.port.unwrap_or(80), path, query)
 				},
