@@ -303,7 +303,10 @@ class Account extends Component {
 
   selectVerificationMethod = (name) => {
     const { isTestnet } = this.props;
-    if (typeof isTestnet !== 'boolean' || this.state.verificationStore) return;
+
+    if (typeof isTestnet !== 'boolean' || this.state.verificationStore) {
+      return;
+    }
 
     const { api } = this.context;
     const { address } = this.props.params;

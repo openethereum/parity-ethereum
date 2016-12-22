@@ -173,20 +173,26 @@ export default class QueryAction extends Component {
   onQueryKeyChange = (event, index, queryKey) => {
     this.setState({
       queryKey,
-      form: { valid: false, value: '' }
+      form: {
+        valid: false,
+        value: ''
+      }
     });
   }
 
   onChange = (valid, value) => {
     this.setState({
       form: {
-        valid, value
+        valid,
+        value
       }
     });
   }
 
   onQuery = () => {
-    if (!this.state.form.valid) return;
+    if (!this.state.form.valid) {
+      return;
+    }
 
     const { queryKey, form } = this.state;
 

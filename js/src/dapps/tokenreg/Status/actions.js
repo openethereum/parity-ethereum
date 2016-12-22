@@ -119,7 +119,9 @@ export const subscribeEvents = () => (dispatch, getState) => {
         return;
       }
 
-      if (!logs || logs.length === 0) return;
+      if (!logs || logs.length === 0) {
+        return;
+      }
 
       logs.forEach(log => {
         const event = log.event;
