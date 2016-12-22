@@ -66,6 +66,20 @@ export function outBlock (block) {
   return block;
 }
 
+export function outChainStatus (status) {
+  if (status) {
+    Object.keys(status).forEach((key) => {
+      switch (key) {
+        case 'blockGap':
+          status[key] = status[key].map(outNumber);
+          break;
+      }
+    });
+  }
+
+  return status;
+}
+
 export function outDate (date) {
   return new Date(outNumber(date).toNumber() * 1000);
 }
@@ -77,6 +91,7 @@ export function outHistogram (histogram) {
         case 'bucketBounds':
         case 'counts':
           histogram[key] = histogram[key].map(outNumber);
+          break;
       }
     });
   }

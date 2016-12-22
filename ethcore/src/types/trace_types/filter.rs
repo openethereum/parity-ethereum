@@ -28,7 +28,8 @@ use types::trace_types::trace::{Action, Res};
 /// Addresses filter.
 ///
 /// Used to create bloom possibilities and match filters.
-#[derive(Debug, Binary)]
+#[derive(Debug)]
+#[cfg_attr(feature = "ipc", binary)]
 pub struct AddressesFilter {
 	list: Vec<Address>
 }
@@ -74,7 +75,8 @@ impl AddressesFilter {
 	}
 }
 
-#[derive(Debug, Binary)]
+#[derive(Debug)]
+#[cfg_attr(feature = "ipc", binary)]
 /// Traces filter.
 pub struct Filter {
 	/// Block range.

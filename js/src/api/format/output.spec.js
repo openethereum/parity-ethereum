@@ -16,7 +16,7 @@
 
 import BigNumber from 'bignumber.js';
 
-import { outBlock, outAccountInfo, outAddress, outDate, outHistogram, outNumber, outPeers, outReceipt, outSyncing, outTransaction, outTrace } from './output';
+import { outBlock, outAccountInfo, outAddress, outChainStatus, outDate, outHistogram, outNumber, outPeers, outReceipt, outSyncing, outTransaction, outTrace } from './output';
 import { isAddress, isBigNumber, isInstanceOf } from '../../../test/types';
 
 describe('api/format/output', () => {
@@ -110,6 +110,18 @@ describe('api/format/output', () => {
         totalDifficulty: new BigNumber('0x105'),
         timestamp: new Date('2016-06-03T07:48:56.000Z'),
         extraData: 'someExtraStuffInHere'
+      });
+    });
+  });
+
+  describe('outChainStatus', () => {
+    it('formats blockGap values', () => {
+      const status = {
+        blockGap: [0x1234, '0x5678']
+      };
+
+      expect(outChainStatus(status)).to.deep.equal({
+        blockGap: [new BigNumber(0x1234), new BigNumber(0x5678)]
       });
     });
   });
