@@ -22,7 +22,7 @@ import IdentityIcon from '../IdentityIcon';
 
 import styles from './address.css';
 
-const Address = ({ address, accounts, contacts, shortenHash }) => {
+const Address = ({ address, accounts, contacts, key, shortenHash }) => {
   let caption;
   if (accounts[address] || contacts[address]) {
     const name = (accounts[address] || contacts[address] || {}).name;
@@ -40,7 +40,7 @@ const Address = ({ address, accounts, contacts, shortenHash }) => {
   }
 
   return (
-    <div className={ styles.container }>
+    <div key={ key } className={ styles.container }>
       <IdentityIcon address={ address } className={ styles.align } />
       { caption }
     </div>
@@ -51,10 +51,12 @@ Address.propTypes = {
   address: PropTypes.string.isRequired,
   accounts: PropTypes.object.isRequired,
   contacts: PropTypes.object.isRequired,
+  key: PropTypes.string,
   shortenHash: PropTypes.bool
 };
 
 Address.defaultProps = {
+  key: 'address',
   shortenHash: true
 };
 

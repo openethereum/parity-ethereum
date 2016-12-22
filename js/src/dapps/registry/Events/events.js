@@ -112,14 +112,17 @@ const renderReverse = (e) => {
   const classNames = styles.reverse + (e.state === 'pending' ? ` ${styles.pending}` : '');
   const details = [
     'name ',
-    (<code>{ e.parameters.name.value }</code>), // TODO: this is an indexed param, cannot display as plain text
+    // TODO: this is an indexed param, cannot display as plain text
+    (<code key='name'>{ bytesToHex(e.parameters.name.value) }</code>),
     ' for ',
-    (<Address address={ e.parameters.reverse.value } />)
+    (<Address key='reverse' address={ e.parameters.reverse.value } />)
   ];
 
   return (
     <tr key={ e.key } className={ classNames }>
-      <td>someone</td> // TODO: find sender of tx
+      <td>
+        <Address address={ e.from } />
+      </td>
       <td>{ verb }</td>
       <td>{ details }</td>
       <td>
