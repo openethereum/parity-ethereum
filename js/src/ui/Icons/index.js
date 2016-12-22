@@ -16,6 +16,7 @@
 
 import AddIcon from 'material-ui/svg-icons/content/add';
 import CancelIcon from 'material-ui/svg-icons/content/clear';
+import ContractIcon from 'material-ui/svg-icons/action/code';
 import DoneIcon from 'material-ui/svg-icons/action/done-all';
 import PrevIcon from 'material-ui/svg-icons/navigation/arrow-back';
 import NextIcon from 'material-ui/svg-icons/navigation/arrow-forward';
@@ -24,6 +25,7 @@ import SnoozeIcon from 'material-ui/svg-icons/av/snooze';
 export {
   AddIcon,
   CancelIcon,
+  ContractIcon,
   DoneIcon,
   PrevIcon,
   NextIcon,
