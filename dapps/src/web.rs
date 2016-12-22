@@ -30,14 +30,16 @@ use handlers::{
 };
 use url::Url;
 
+pub type Embeddable = Option<(String, u16)>;
+
 pub struct Web<F> {
 	remote: Remote,
 	fetch: F,
-	embeddable_on: Option<(String, u16)>,
+	embeddable_on: Embeddable,
 }
 
 impl<F: Fetch> Web<F> {
-	pub fn boxed(remote: Remote, fetch: F, embeddable_on: Option<(String, u16)>) -> Box<Endpoint> {
+	pub fn boxed(remote: Remote, fetch: F, embeddable_on: Embeddable) -> Box<Endpoint> {
 		Box::new(Web {
 			remote: remote,
 			fetch: fetch,
@@ -60,7 +62,7 @@ impl<F: Fetch> Endpoint for Web<F> {
 }
 
 struct WebInstaller {
-	embeddable_on: Option<(String, u16)>,
+	embeddable_on: Embeddable,
 }
 
 impl ContentValidator for WebInstaller {
@@ -96,16 +98,16 @@ struct WebHandler<F: Fetch> {
 	path: EndpointPath,
 	remote: Remote,
 	fetch: F,
-	embeddable_on: Option<(String, u16)>,
+	embeddable_on: Embeddable,
 }
 
 impl<F: Fetch> WebHandler<F> {
-	fn extract_target_url(url: Option<Url>) -> Result<String, State<F>> {
+	fn extract_target_url(url: Option<Url>, embeddable_on: Embeddable) -> Result<String, State<F>> {
 		let (path, query) = match url {
 			Some(url) => (url.path, url.query),
 			None => {
 				return Err(State::Error(
-					ContentHandler::error(StatusCode::BadRequest, "Invalid URL", "Couldn't parse URL", None, None)
+					ContentHandler::error(StatusCode::BadRequest, "Invalid URL", "Couldn't parse URL", None, embeddable_on)
 				));
 			}
 		};
@@ -124,7 +126,7 @@ impl<F: Fetch> WebHandler<F> {
 			Some("https") => "https",
 			_ => {
 				return Err(State::Error(
-					ContentHandler::error(StatusCode::BadRequest, "Invalid Protocol", "Invalid protocol used", None, None)
+					ContentHandler::error(StatusCode::BadRequest, "Invalid Protocol", "Invalid protocol used", None, embeddable_on)
 				));
 			}
 		};
@@ -150,7 +152,7 @@ impl<F: Fetch> server::Handler<net::HttpStream> for WebHandler<F> {
 		let url = extract_url(&request);
 
 		// First extract the URL (reject invalid URLs)
-		let target_url = match Self::extract_target_url(url) {
+		let target_url = match Self::extract_target_url(url, self.embeddable_on.clone()) {
 			Ok(url) => url,
 			Err(error) => {
 				self.state = error;
@@ -165,7 +167,7 @@ impl<F: Fetch> server::Handler<net::HttpStream> for WebHandler<F> {
 			WebInstaller {
 				embeddable_on: self.embeddable_on.clone(),
 			},
-			None,
+			self.embeddable_on.clone(),
 			self.remote.clone(),
 			self.fetch.clone(),
 		);

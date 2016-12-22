@@ -23,6 +23,7 @@ import Contract from './Contract';
 import Contracts from './Contracts';
 import WriteContract from './WriteContract';
 import Dapp from './Dapp';
+import Web from './Web';
 import Dapps from './Dapps';
 import ParityBar from './ParityBar';
 import Settings, { SettingsBackground, SettingsParity, SettingsProxy, SettingsViews } from './Settings';
@@ -49,5 +50,6 @@ export {
   SettingsViews,
   Signer,
   Status,
-  Wallet
+  Wallet,
+  Web
 };
