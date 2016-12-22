@@ -16,7 +16,7 @@
 
 //! Statistical functions.
 
-use bigint::uint::*;
+use bigint::prelude::*;
 
 /// Discretised histogram.
 #[derive(Debug, PartialEq)]
