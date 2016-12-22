@@ -115,7 +115,11 @@ class ExecuteContract extends Component {
         current={ step }
         steps={ steps }
         visible
-        waiting={ gasEdit ? [STEP_BUSY] : [STEP_BUSY_OR_GAS] }>
+        waiting={
+          gasEdit
+            ? [STEP_BUSY]
+            : [STEP_BUSY_OR_GAS]
+        }>
         { this.renderExceptionWarning() }
         { this.renderStep() }
       </Modal>
@@ -123,9 +127,10 @@ class ExecuteContract extends Component {
   }
 
   renderExceptionWarning () {
+    const { gasEdit, step } = this.state;
     const { errorEstimated } = this.gasStore;
 
-    if (!errorEstimated) {
+    if (!errorEstimated || step >= (gasEdit ? STEP_BUSY : STEP_BUSY_OR_GAS)) {
       return null;
     }
 

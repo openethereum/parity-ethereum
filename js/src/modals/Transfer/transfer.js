@@ -35,6 +35,10 @@ import Extras from './Extras';
 import TransferStore from './store';
 import styles from './transfer.css';
 
+const STEP_DETAILS = 0;
+const STEP_ADVANCED_OR_BUSY = 1;
+const STEP_BUSY = 2;
+
 @observer
 class Transfer extends Component {
   static contextTypes = {
@@ -64,7 +68,11 @@ class Transfer extends Component {
         actions={ this.renderDialogActions() }
         current={ stage }
         steps={ steps }
-        waiting={ extras ? [2] : [1] }
+        waiting={
+          extras
+            ? [STEP_BUSY]
+            : [STEP_ADVANCED_OR_BUSY]
+        }
         visible
       >
         { this.renderExceptionWarning() }
@@ -74,9 +82,10 @@ class Transfer extends Component {
   }
 
   renderExceptionWarning () {
+    const { extras, stage } = this.store;
     const { errorEstimated } = this.store.gasStore;
 
-    if (!errorEstimated) {
+    if (!errorEstimated || stage >= (extras ? STEP_BUSY : STEP_ADVANCED_OR_BUSY)) {
       return null;
     }
 
@@ -112,9 +121,9 @@ class Transfer extends Component {
   renderPage () {
     const { extras, stage } = this.store;
 
-    if (stage === 0) {
+    if (stage === STEP_DETAILS) {
       return this.renderDetailsPage();
-    } else if (stage === 1 && extras) {
+    } else if (stage === STEP_ADVANCED_OR_BUSY && extras) {
       return this.renderExtrasPage();
     }
 

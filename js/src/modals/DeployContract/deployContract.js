@@ -174,9 +174,11 @@ class DeployContract extends Component {
   }
 
   renderExceptionWarning () {
+    const { step } = this.state;
     const { errorEstimated } = this.gasStore;
+    const realStep = Object.keys(STEPS).findIndex((k) => k === step);
 
-    if (!errorEstimated) {
+    if (!errorEstimated || realStep >= 2) {
       return null;
     }
 
