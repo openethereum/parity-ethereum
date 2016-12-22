@@ -140,5 +140,5 @@ function getCompiler (build) {
       });
   }
 
-  return self.solc[longVersion];
+  return Promise.resolve(self.solc[longVersion]);
 }

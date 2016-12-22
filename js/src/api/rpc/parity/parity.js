@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import { inAddress, inData, inHex, inNumber16, inOptions } from '../../format/input';
-import { outAccountInfo, outAddress, outHistogram, outNumber, outPeers, outTransaction } from '../../format/output';
+import { outAccountInfo, outAddress, outChainStatus, outHistogram, outNumber, outPeers, outTransaction } from '../../format/output';
 
 function inAddresses (addresses) {
   return (addresses || []).map(inAddress);
@@ -50,6 +50,12 @@ export default class Parity {
   addReservedPeer (encode) {
     return this._transport
       .execute('parity_addReservedPeer', encode);
+  }
+
+  chainStatus () {
+    return this._transport
+      .execute('parity_chainStatus')
+      .then(outChainStatus);
   }
 
   changePassword (account, password, newPassword) {

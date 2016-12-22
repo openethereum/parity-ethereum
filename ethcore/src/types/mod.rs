@@ -16,5 +16,10 @@
 
 //! Types used in the public api
 
-#![allow(dead_code, unused_assignments, unused_variables)] // codegen issues
+#![cfg_attr(feature = "ipc", allow(dead_code, unused_assignments, unused_variables))] // codegen issues
+
+#[cfg(feature = "ipc")]
 include!(concat!(env!("OUT_DIR"), "/mod.rs.in"));
+
+#[cfg(not(feature = "ipc"))]
+include!("mod.rs.in");

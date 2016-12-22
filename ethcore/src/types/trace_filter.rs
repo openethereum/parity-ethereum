@@ -21,7 +21,7 @@ use util::{Address};
 use types::ids::BlockId;
 
 /// Easy to use trace filter.
-#[derive(Binary)]
+#[cfg_attr(feature = "ipc", binary)]
 pub struct Filter {
 	/// Range of filtering.
 	pub range: Range<BlockId>,

@@ -27,7 +27,8 @@ use types::executed::CallType;
 use super::error::Error;
 
 /// `Call` result.
-#[derive(Debug, Clone, PartialEq, Default, Binary)]
+#[derive(Debug, Clone, PartialEq, Default)]
+#[cfg_attr(feature = "ipc", binary)]
 pub struct CallResult {
 	/// Gas used by call.
 	pub gas_used: U256,
@@ -56,7 +57,8 @@ impl Decodable for CallResult {
 }
 
 /// `Create` result.
-#[derive(Debug, Clone, PartialEq, Binary)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "ipc", binary)]
 pub struct CreateResult {
 	/// Gas used by create.
 	pub gas_used: U256,
@@ -96,7 +98,8 @@ impl CreateResult {
 }
 
 /// Description of a _call_ action, either a `CALL` operation or a message transction.
-#[derive(Debug, Clone, PartialEq, Binary)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "ipc", binary)]
 pub struct Call {
 	/// The sending account.
 	pub from: Address,
@@ -163,7 +166,8 @@ impl Call {
 }
 
 /// Description of a _create_ action, either a `CREATE` operation or a create transction.
-#[derive(Debug, Clone, PartialEq, Binary)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "ipc", binary)]
 pub struct Create {
 	/// The address of the creator.
 	pub from: Address,
@@ -219,7 +223,8 @@ impl Create {
 }
 
 /// Suicide action.
-#[derive(Debug, Clone, PartialEq, Binary)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "ipc", binary)]
 pub struct Suicide {
 	/// Suicided address.
 	pub address: Address,
@@ -261,7 +266,8 @@ impl Decodable for Suicide {
 
 
 /// Description of an action that we trace; will be either a call or a create.
-#[derive(Debug, Clone, PartialEq, Binary)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "ipc", binary)]
 pub enum Action {
 	/// It's a call action.
 	Call(Call),
@@ -316,7 +322,8 @@ impl Action {
 }
 
 /// The result of the performed action.
-#[derive(Debug, Clone, PartialEq, Binary)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "ipc", binary)]
 pub enum Res {
 	/// Successful call action result.
 	Call(CallResult),
@@ -386,7 +393,8 @@ impl Res {
 	}
 }
 
-#[derive(Debug, Clone, PartialEq, Binary)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "ipc", binary)]
 /// A diff of some chunk of memory.
 pub struct MemoryDiff {
 	/// Offset into memory the change begins.
@@ -413,7 +421,8 @@ impl Decodable for MemoryDiff {
 	}
 }
 
-#[derive(Debug, Clone, PartialEq, Binary)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "ipc", binary)]
 /// A diff of some storage value.
 pub struct StorageDiff {
 	/// Which key in storage is changed.
@@ -440,7 +449,8 @@ impl Decodable for StorageDiff {
 	}
 }
 
-#[derive(Debug, Clone, PartialEq, Binary)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "ipc", binary)]
 /// A record of an executed VM operation.
 pub struct VMExecutedOperation {
 	/// The total gas used.
@@ -475,7 +485,8 @@ impl Decodable for VMExecutedOperation {
 	}
 }
 
-#[derive(Debug, Clone, PartialEq, Binary, Default)]
+#[derive(Debug, Clone, PartialEq, Default)]
+#[cfg_attr(feature = "ipc", binary)]
 /// A record of the execution of a single VM operation.
 pub struct VMOperation {
 	/// The program counter.
@@ -512,7 +523,8 @@ impl Decodable for VMOperation {
 	}
 }
 
-#[derive(Debug, Clone, PartialEq, Binary, Default)]
+#[derive(Debug, Clone, PartialEq, Default)]
+#[cfg_attr(feature = "ipc", binary)]
 /// A record of a full VM trace for a CALL/CREATE.
 pub struct VMTrace {
 	/// The step (i.e. index into operations) at which this trace corresponds.

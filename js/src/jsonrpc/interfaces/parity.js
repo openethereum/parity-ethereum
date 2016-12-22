@@ -86,6 +86,22 @@ export default {
     }
   },
 
+  chainStatus: {
+    desc: 'Returns the information on warp sync blocks',
+    params: [],
+    returns: {
+      type: Object,
+      desc: 'The status object',
+      details: {
+        blockGap: {
+          type: Array,
+          desc: 'Describes the gap in the blockchain, if there is one: (first, last)',
+          optional: true
+        }
+      }
+    }
+  },
+
   checkRequest: {
     desc: 'Returns the transactionhash of the requestId (received from parity_postTransaction) if the request was confirmed',
     params: [
