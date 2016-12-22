@@ -177,6 +177,53 @@ impl server::Handler<HttpStream> for WaitingHandler {
 	}
 }
 
+#[derive(Clone)]
+struct Errors {
+	embeddable_on: Option<(String, u16)>,
+}
+
+impl Errors {
+	fn download_error<E: fmt::Debug>(&self, e: E) -> ContentHandler {
+		ContentHandler::error(
+			StatusCode::BadGateway,
+			"Download Error",
+			"There was an error when fetching the content.",
+			Some(&format!("{:?}", e)),
+			self.embeddable_on.clone(),
+		)
+	}
+
+	fn invalid_content<E: fmt::Debug>(&self, e: E) -> ContentHandler {
+		ContentHandler::error(
+			StatusCode::BadGateway,
+			"Invalid Dapp",
+			"Downloaded bundle does not contain a valid content.",
+			Some(&format!("{:?}", e)),
+			self.embeddable_on.clone(),
+		)
+	}
+
+	fn timeout_error(&self) -> ContentHandler {
+		ContentHandler::error(
+			StatusCode::GatewayTimeout,
+			"Download Timeout",
+			&format!("Could not fetch content within {} seconds.", FETCH_TIMEOUT),
+			None,
+			self.embeddable_on.clone(),
+		)
+	}
+
+	fn method_not_allowed(&self) -> ContentHandler {
+		ContentHandler::error(
+			StatusCode::MethodNotAllowed,
+			"Method Not Allowed",
+			"Only <code>GET</code> requests are allowed.",
+			None,
+			self.embeddable_on.clone(),
+		)
+	}
+}
+
 pub struct ContentFetcherHandler<H: ContentValidator, F: Fetch> {
 	fetch_control: FetchControl,
 	control: Control,
@@ -185,7 +232,7 @@ pub struct ContentFetcherHandler<H: ContentValidator, F: Fetch> {
 	fetch: F,
 	installer: Option<H>,
 	path: EndpointPath,
-	embeddable_on: Option<(String, u16)>,
+	errors: Errors,
 }
 
 impl<H: ContentValidator, F: Fetch> ContentFetcherHandler<H, F> {
@@ -206,7 +253,9 @@ impl<H: ContentValidator, F: Fetch> ContentFetcherHandler<H, F> {
 			status: FetchState::NotStarted(url),
 			installer: Some(installer),
 			path: path,
-			embeddable_on: embeddable_on,
+			errors: Errors {
+				embeddable_on: embeddable_on,
+			},
 		}
 	}
 
@@ -218,9 +267,10 @@ impl<H: ContentValidator, F: Fetch> ContentFetcherHandler<H, F> {
 		let (tx, rx) = mpsc::channel();
 		let abort = self.fetch_control.abort.clone();
 
-		let control = self.control.clone();
-		let embeddable_on = self.embeddable_on.clone();
 		let path = self.path.clone();
+		let tx2 = tx.clone();
+		let control = self.control.clone();
+		let errors = self.errors.clone();
 
 		let future = self.fetch.fetch_with_abort(url, abort.into()).then(move |result| {
 			trace!(target: "dapps", "Fetching content finished. Starting validation: {:?}", result);
@@ -238,28 +288,16 @@ impl<H: ContentValidator, F: Fetch> ContentFetcherHandler<H, F> {
 					},
 					Err(e) => {
 						trace!(target: "dapps", "Error while validating content: {:?}", e);
-						FetchState::Error(ContentHandler::error(
-							StatusCode::BadGateway,
-							"Invalid Dapp",
-							"Downloaded bundle does not contain a valid content.",
-							Some(&format!("{:?}", e)),
-							embeddable_on,
-						))
+						FetchState::Error(errors.invalid_content(e))
 					},
 				},
 				Err(e) => {
 					warn!(target: "dapps", "Unable to fetch content: {:?}", e);
-					FetchState::Error(ContentHandler::error(
-						StatusCode::BadGateway,
-						"Download Error",
-						"There was an error when fetching the content.",
-						Some(&format!("{:?}", e)),
-						embeddable_on,
-					))
+					FetchState::Error(errors.download_error(e))
 				},
 			};
 			// Content may be resolved when the connection is already dropped.
-			let _ = tx.send(new_state);
+			let _ = tx2.send(new_state);
 			// Ignoring control errors
 			let _ = control.ready(Next::read());
 			Ok(()) as Result<(), ()>
@@ -268,7 +306,14 @@ impl<H: ContentValidator, F: Fetch> ContentFetcherHandler<H, F> {
 		// make sure to run within fetch thread pool.
 		let future = self.fetch.process(future);
 		// spawn to event loop
-		self.remote.spawn(future);
+		let control = self.control.clone();
+		let errors = self.errors.clone();
+		self.remote.spawn_with_timeout(|| future, Duration::from_secs(FETCH_TIMEOUT), move || {
+			// Notify about the timeout
+			let _ = tx.send(FetchState::Error(errors.timeout_error()));
+			// Ignoring control errors
+			let _ = control.ready(Next::read());
+		});
 
 		rx
 	}
@@ -288,13 +333,7 @@ impl<H: ContentValidator, F: Fetch> server::Handler<HttpStream> for ContentFetch
 					FetchState::InProgress(receiver)
 				},
 				// or return error
-				_ => FetchState::Error(ContentHandler::error(
-					StatusCode::MethodNotAllowed,
-					"Method Not Allowed",
-					"Only <code>GET</code> requests are allowed.",
-					None,
-					self.embeddable_on.clone(),
-				)),
+				_ => FetchState::Error(self.errors.method_not_allowed()),
 			})
 		} else { None };
 
@@ -311,14 +350,7 @@ impl<H: ContentValidator, F: Fetch> server::Handler<HttpStream> for ContentFetch
 			// Request may time out
 			FetchState::InProgress(_) if self.fetch_control.is_deadline_reached() => {
 				trace!(target: "dapps", "Fetching dapp failed because of timeout.");
-				let timeout = ContentHandler::error(
-					StatusCode::GatewayTimeout,
-					"Download Timeout",
-					&format!("Could not fetch content within {} seconds.", FETCH_TIMEOUT),
-					None,
-					self.embeddable_on.clone(),
-				);
-				(Some(FetchState::Error(timeout)), Next::write())
+				(Some(FetchState::Error(self.errors.timeout_error())), Next::write())
 			},
 			FetchState::InProgress(ref receiver) => {
 				// Check if there is an answer

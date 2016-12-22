@@ -47,9 +47,9 @@ pub trait Fetch: Clone + Send + Sync + 'static {
 	/// Implementation is optional.
 	fn process<F>(&self, f: F) -> BoxFuture<(), ()> where
 		F: Future<Item=(), Error=()> + Send + 'static,
-			{
-				f.boxed()
-			}
+	{
+		f.boxed()
+	}
 
 	/// Fetch URL and get a future for the result.
 	/// Supports aborting the request in the middle of execution.
@@ -188,6 +188,13 @@ impl Response {
 			abort: Abort::default(),
 			limit: None,
 			read: 0,
+		}
+	}
+
+	pub fn status(&self) -> reqwest::StatusCode {
+		match self.inner {
+			ResponseInner::Response(ref r) => *r.status(),
+			_ => reqwest::StatusCode::Ok,
 		}
 	}
 

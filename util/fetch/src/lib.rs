@@ -26,5 +26,6 @@ extern crate reqwest;
 pub extern crate mime;
 pub mod client;
 
+pub use self::reqwest::StatusCode;
 pub use self::mime::Mime;
 pub use self::client::{Client, Fetch, Error, Response, Abort};

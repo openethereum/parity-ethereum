@@ -22,7 +22,7 @@ use parity_reactor::Remote;
 use hyper::{self, server, net, Next, Encoder, Decoder};
 use hyper::status::StatusCode;
 
-use apps::WEB_PATH;
+use apps;
 use endpoint::{Endpoint, Handler, EndpointPath};
 use handlers::{
 	ContentFetcherHandler, ContentHandler, ContentValidator, ValidatorResponse,
@@ -33,13 +33,15 @@ use url::Url;
 pub struct Web<F> {
 	remote: Remote,
 	fetch: F,
+	embeddable_on: Option<(String, u16)>,
 }
 
 impl<F: Fetch> Web<F> {
-	pub fn boxed(remote: Remote, fetch: F) -> Box<Endpoint> {
+	pub fn boxed(remote: Remote, fetch: F, embeddable_on: Option<(String, u16)>) -> Box<Endpoint> {
 		Box::new(Web {
 			remote: remote,
 			fetch: fetch,
+			embeddable_on: embeddable_on,
 		})
 	}
 }
@@ -52,11 +54,12 @@ impl<F: Fetch> Endpoint for Web<F> {
 			path: path,
 			remote: self.remote.clone(),
 			fetch: self.fetch.clone(),
+			embeddable_on: self.embeddable_on.clone(),
 		})
 	}
 }
 
-pub struct WebInstaller {
+struct WebInstaller {
 	embeddable_on: Option<(String, u16)>,
 }
 
@@ -64,8 +67,7 @@ impl ContentValidator for WebInstaller {
 	type Error = String;
 
 	fn validate_and_install(&self, response: fetch::Response) -> Result<ValidatorResponse, String> {
-		// TODO [ToDr] Get from original response
-		let status = StatusCode::Ok;
+		let status = StatusCode::from_u16(response.status().to_u16());
 		let is_html = response.is_html();
 		let mime = response.content_type().unwrap_or(mime!(Text/Html));
 		let mut handler = StreamingHandler::new(
@@ -75,10 +77,7 @@ impl ContentValidator for WebInstaller {
 			self.embeddable_on.clone(),
 		);
 		if is_html {
-			handler.set_initial_content(&format!(
-				r#"<script src="/parity-utils/inject.js"></script><base href="{}">"#,
-				"/web/https/mkr.market/"
-			));
+			handler.set_initial_content(&format!(r#"<script src="/{}/inject.js"></script>"#, apps::UTILS_PATH));
 		}
 		Ok(ValidatorResponse::Streaming(handler))
 	}
@@ -97,12 +96,13 @@ struct WebHandler<F: Fetch> {
 	path: EndpointPath,
 	remote: Remote,
 	fetch: F,
+	embeddable_on: Option<(String, u16)>,
 }
 
 impl<F: Fetch> WebHandler<F> {
 	fn extract_target_url(url: Option<Url>) -> Result<String, State<F>> {
-		let path = match url {
-			Some(url) => url.path,
+		let (path, query) = match url {
+			Some(url) => (url.path, url.query),
 			None => {
 				return Err(State::Error(
 					ContentHandler::error(StatusCode::BadRequest, "Invalid URL", "Couldn't parse URL", None, None)
@@ -114,7 +114,7 @@ impl<F: Fetch> WebHandler<F> {
 
 		// Support domain based routing.
 		let idx = match path.get(0).map(|m| m.as_ref()) {
-			Some(WEB_PATH) => 1,
+			Some(apps::WEB_PATH) => 1,
 			_ => 0,
 		};
 
@@ -136,7 +136,12 @@ impl<F: Fetch> WebHandler<F> {
 			));
 		}
 
-		Ok(format!("{}://{}", protocol, path[2..].join("/")))
+		let query = match query {
+			Some(query) => format!("?{}", query),
+			None => "".into(),
+		};
+
+		Ok(format!("{}://{}{}", protocol, path[2..].join("/"), query))
 	}
 }
 
@@ -158,7 +163,7 @@ impl<F: Fetch> server::Handler<net::HttpStream> for WebHandler<F> {
 			self.path.clone(),
 			self.control.clone(),
 			WebInstaller {
-				embeddable_on: None,
+				embeddable_on: self.embeddable_on.clone(),
 			},
 			None,
 			self.remote.clone(),

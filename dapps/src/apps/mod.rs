@@ -46,8 +46,8 @@ pub fn all_endpoints<F: Fetch>(dapps_path: String, signer_address: Option<(Strin
 
 	// NOTE [ToDr] Dapps will be currently embeded on 8180
 	insert::<parity_ui::App>(&mut pages, "ui", Embeddable::Yes(signer_address.clone()));
-	pages.insert("proxy".into(), ProxyPac::boxed(signer_address));
-	pages.insert(WEB_PATH.into(), Web::boxed(remote, fetch));
+	pages.insert("proxy".into(), ProxyPac::boxed(signer_address.clone()));
+	pages.insert(WEB_PATH.into(), Web::boxed(remote, fetch, signer_address.clone()));
 
 	pages
 }
