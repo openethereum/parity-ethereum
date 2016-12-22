@@ -32,6 +32,8 @@ use ethcore::verification::queue::VerifierSettings;
 use ethsync::SyncConfig;
 use informant::Informant;
 use updater::{UpdatePolicy, Updater};
+use parity_reactor::{EventLoop, EventLoopHandle};
+use hash_fetch::fetch::Client as FetchClient;
 
 use rpc::{HttpServer, IpcServer, HttpConfiguration, IpcConfiguration};
 use signer::SignerServer;
@@ -304,9 +306,22 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 		chain_notify.start();
 	}
 
+	// spin up event loop
+	let event_loop = EventLoop::spawn();
+
+	// fetch service
+	let fetch = try!(FetchClient::new().map_err(|e| format!("Error starting fetch client: {:?}", e)));
+
 	// the updater service
-	let updater = Updater::new(Arc::downgrade(&(service.client() as Arc<BlockChainClient>)), Arc::downgrade(&sync_provider), update_policy);
+	let updater = Updater::new(
+		Arc::downgrade(&(service.client() as Arc<BlockChainClient>)),
+		Arc::downgrade(&sync_provider),
+		update_policy,
+		fetch.clone(),
+		event_loop.remote(),
+	);
 	service.add_notify(updater.clone());
+
 
 	// set up dependencies for rpc servers
 	let signer_path = cmd.signer_conf.signer_path.clone();
@@ -334,6 +349,8 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 			true => Some(cmd.dapps_conf.port),
 			false => None,
 		},
+		fetch: fetch.clone(),
+		remote: event_loop.remote(),
 	});
 
 	let dependencies = rpc::Dependencies {
@@ -351,6 +368,8 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 		apis: deps_for_rpc_apis.clone(),
 		client: client.clone(),
 		sync: sync_provider.clone(),
+		remote: event_loop.remote(),
+		fetch: fetch.clone(),
 	};
 	let dapps_server = try!(dapps::new(cmd.dapps_conf.clone(), dapps_deps));
 
@@ -409,7 +428,16 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 	}
 
 	// Handle exit
-	let restart = wait_for_exit(panic_handler, http_server, ipc_server, dapps_server, signer_server, updater, can_restart);
+	let restart = wait_for_exit(
+		panic_handler,
+		http_server,
+		ipc_server,
+		dapps_server,
+		signer_server,
+		event_loop.into(),
+		updater,
+		can_restart,
+	);
 
 	info!("Finishing work, please wait...");
 
@@ -468,6 +496,7 @@ fn wait_for_exit(
 	_ipc_server: Option<IpcServer>,
 	_dapps_server: Option<WebappServer>,
 	_signer_server: Option<SignerServer>,
+	_event_loop: EventLoopHandle,
 	updater: Arc<Updater>,
 	can_restart: bool
 ) -> bool {
