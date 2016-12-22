@@ -22,8 +22,8 @@ use std::sync::atomic::{self, AtomicBool};
 
 use futures::{self, BoxFuture, Future};
 use futures_cpupool::{CpuPool, CpuFuture};
+use mime::{self, Mime};
 use reqwest;
-pub use mime::Mime;
 
 #[derive(Default, Debug, Clone)]
 pub struct Abort(Arc<AtomicBool>);
@@ -188,6 +188,13 @@ impl Response {
 			abort: Abort::default(),
 			limit: None,
 			read: 0,
+		}
+	}
+
+	pub fn is_html(&self) -> bool {
+		match self.content_type() {
+			Some(Mime(mime::TopLevel::Text, mime::SubLevel::Html, _)) => true,
+			_ => false,
 		}
 	}
 

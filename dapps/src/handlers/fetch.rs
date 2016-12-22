@@ -31,33 +31,41 @@ use hyper::uri::RequestUri;
 use hyper::status::StatusCode;
 
 use endpoint::EndpointPath;
-use handlers::ContentHandler;
+use handlers::{ContentHandler, StreamingHandler};
 use page::{LocalPageEndpoint, PageHandlerWaiting};
 
 const FETCH_TIMEOUT: u64 = 30;
+
+pub enum ValidatorResponse {
+	Local(LocalPageEndpoint),
+	Streaming(StreamingHandler<fetch::Response>),
+}
+
+pub trait ContentValidator: Send + 'static {
+	type Error: fmt::Debug + fmt::Display;
+
+	fn validate_and_install(&self, fetch::Response) -> Result<ValidatorResponse, Self::Error>;
+}
 
 enum FetchState {
 	Waiting,
 	NotStarted(String),
 	Error(ContentHandler),
 	InProgress(mpsc::Receiver<FetchState>),
+	Streaming(StreamingHandler<fetch::Response>),
 	Done(LocalPageEndpoint, Box<PageHandlerWaiting>),
 }
 
 enum WaitResult {
 	Error(ContentHandler),
 	Done(LocalPageEndpoint),
+	NonAwaitable,
 }
 
-pub trait ContentValidator: Send + 'static {
-	type Error: fmt::Debug + fmt::Display;
-
-	fn validate_and_install(&self, fetch::Response) -> Result<LocalPageEndpoint, Self::Error>;
-}
-
+#[derive(Clone)]
 pub struct FetchControl {
 	abort: Arc<AtomicBool>,
-	listeners: Mutex<Vec<(Control, mpsc::Sender<WaitResult>)>>,
+	listeners: Arc<Mutex<Vec<(Control, mpsc::Sender<WaitResult>)>>>,
 	deadline: Instant,
 }
 
@@ -65,7 +73,7 @@ impl Default for FetchControl {
 	fn default() -> Self {
 		FetchControl {
 			abort: Arc::new(AtomicBool::new(false)),
-			listeners: Mutex::new(Vec::new()),
+			listeners: Arc::new(Mutex::new(Vec::new())),
 			deadline: Instant::now() + Duration::from_secs(FETCH_TIMEOUT),
 		}
 	}
@@ -88,6 +96,7 @@ impl FetchControl {
 		match *status {
 			FetchState::Error(ref handler) => self.notify(|| WaitResult::Error(handler.clone())),
 			FetchState::Done(ref endpoint, _) => self.notify(|| WaitResult::Done(endpoint.clone())),
+			FetchState::Streaming(_) => self.notify(|| WaitResult::NonAwaitable),
 			FetchState::NotStarted(_) | FetchState::InProgress(_) | FetchState::Waiting => {},
 		}
 	}
@@ -131,7 +140,7 @@ impl server::Handler<HttpStream> for WaitingHandler {
 				page_handler.set_uri(&self.uri);
 				FetchState::Done(endpoint, page_handler)
 			},
-			None => {
+			_ => {
 				warn!("A result for waiting request was not received.");
 				FetchState::Waiting
 			},
@@ -139,6 +148,7 @@ impl server::Handler<HttpStream> for WaitingHandler {
 
 		match self.state {
 			FetchState::Done(_, ref mut handler) => handler.on_request_readable(decoder),
+			FetchState::Streaming(ref mut handler) => handler.on_request_readable(decoder),
 			FetchState::Error(ref mut handler) => handler.on_request_readable(decoder),
 			_ => Next::write(),
 		}
@@ -147,6 +157,7 @@ impl server::Handler<HttpStream> for WaitingHandler {
 	fn on_response(&mut self, res: &mut server::Response) -> Next {
 		match self.state {
 			FetchState::Done(_, ref mut handler) => handler.on_response(res),
+			FetchState::Streaming(ref mut handler) => handler.on_response(res),
 			FetchState::Error(ref mut handler) => handler.on_response(res),
 			_ => Next::end(),
 		}
@@ -155,6 +166,7 @@ impl server::Handler<HttpStream> for WaitingHandler {
 	fn on_response_writable(&mut self, encoder: &mut Encoder<HttpStream>) -> Next {
 		match self.state {
 			FetchState::Done(_, ref mut handler) => handler.on_response_writable(encoder),
+			FetchState::Streaming(ref mut handler) => handler.on_response_writable(encoder),
 			FetchState::Error(ref mut handler) => handler.on_response_writable(encoder),
 			_ => Next::end(),
 		}
@@ -162,14 +174,13 @@ impl server::Handler<HttpStream> for WaitingHandler {
 }
 
 pub struct ContentFetcherHandler<H: ContentValidator, F: Fetch> {
-	fetch_control: Arc<FetchControl>,
+	fetch_control: FetchControl,
 	control: Control,
 	remote: Remote,
 	status: FetchState,
 	fetch: F,
 	installer: Option<H>,
 	path: EndpointPath,
-	uri: RequestUri,
 	embeddable_on: Option<(String, u16)>,
 }
 
@@ -178,45 +189,48 @@ impl<H: ContentValidator, F: Fetch> ContentFetcherHandler<H, F> {
 		url: String,
 		path: EndpointPath,
 		control: Control,
-		handler: H,
+		installer: H,
 		embeddable_on: Option<(String, u16)>,
 		remote: Remote,
 		fetch: F,
-	) -> (Self, Arc<FetchControl>) {
-		let fetch_control = Arc::new(FetchControl::default());
-		let handler = ContentFetcherHandler {
-			fetch_control: fetch_control.clone(),
+	) -> Self {
+		ContentFetcherHandler {
+			fetch_control: FetchControl::default(),
 			control: control,
 			remote: remote,
 			fetch: fetch,
 			status: FetchState::NotStarted(url),
-			installer: Some(handler),
+			installer: Some(installer),
 			path: path,
-			uri: RequestUri::default(),
 			embeddable_on: embeddable_on,
-		};
-
-		(handler, fetch_control)
+		}
 	}
 
-	fn fetch_content(&self, url: &str, installer: H) -> mpsc::Receiver<FetchState> {
+	pub fn fetch_control(&self) -> FetchControl {
+		self.fetch_control.clone()
+	}
+
+	fn fetch_content(&self, uri: RequestUri, url: &str, installer: H) -> mpsc::Receiver<FetchState> {
 		let (tx, rx) = mpsc::channel();
 		let abort = self.fetch_control.abort.clone();
 
 		let control = self.control.clone();
 		let embeddable_on = self.embeddable_on.clone();
-		let uri = self.uri.clone();
 		let path = self.path.clone();
 
 		let future = self.fetch.fetch_with_abort(url, abort.into()).then(move |result| {
 			trace!(target: "dapps", "Fetching content finished. Starting validation: {:?}", result);
 			let new_state = match result {
 				Ok(response) => match installer.validate_and_install(response) {
-					Ok(endpoint) => {
+					Ok(ValidatorResponse::Local(endpoint)) => {
 						trace!(target: "dapps", "Validation OK. Returning response.");
 						let mut handler = endpoint.to_page_handler(path);
 						handler.set_uri(&uri);
 						FetchState::Done(endpoint, handler)
+					},
+					Ok(ValidatorResponse::Streaming(handler)) => {
+						trace!(target: "dapps", "Validation OK. Streaming response.");
+						FetchState::Streaming(handler)
 					},
 					Err(e) => {
 						trace!(target: "dapps", "Error while validating content: {:?}", e);
@@ -258,14 +272,15 @@ impl<H: ContentValidator, F: Fetch> ContentFetcherHandler<H, F> {
 
 impl<H: ContentValidator, F: Fetch> server::Handler<HttpStream> for ContentFetcherHandler<H, F> {
 	fn on_request(&mut self, request: server::Request<HttpStream>) -> Next {
-		self.uri = request.uri().clone();
-		let installer = self.installer.take().expect("Installer always set initialy; installer used only in on_request; on_request invoked only once; qed");
 		let status = if let FetchState::NotStarted(ref url) = self.status {
+			let uri = request.uri().clone();
+			let installer = self.installer.take().expect("Installer always set initialy; installer used only in on_request; on_request invoked only once; qed");
+
 			Some(match *request.method() {
 				// Start fetching content
 				Method::Get => {
 					trace!(target: "dapps", "Fetching content from: {:?}", url);
-					let receiver = self.fetch_content(url, installer);
+					let receiver = self.fetch_content(uri, url, installer);
 					FetchState::InProgress(receiver)
 				},
 				// or return error
@@ -326,6 +341,7 @@ impl<H: ContentValidator, F: Fetch> server::Handler<HttpStream> for ContentFetch
 	fn on_response(&mut self, res: &mut server::Response) -> Next {
 		match self.status {
 			FetchState::Done(_, ref mut handler) => handler.on_response(res),
+			FetchState::Streaming(ref mut handler) => handler.on_response(res),
 			FetchState::Error(ref mut handler) => handler.on_response(res),
 			_ => Next::end(),
 		}
@@ -334,6 +350,7 @@ impl<H: ContentValidator, F: Fetch> server::Handler<HttpStream> for ContentFetch
 	fn on_response_writable(&mut self, encoder: &mut Encoder<HttpStream>) -> Next {
 		match self.status {
 			FetchState::Done(_, ref mut handler) => handler.on_response_writable(encoder),
+			FetchState::Streaming(ref mut handler) => handler.on_response_writable(encoder),
 			FetchState::Error(ref mut handler) => handler.on_response_writable(encoder),
 			_ => Next::end(),
 		}

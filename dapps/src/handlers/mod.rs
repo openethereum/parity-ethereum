@@ -17,16 +17,18 @@
 //! Hyper handlers implementations.
 
 mod auth;
-mod echo;
 mod content;
-mod redirect;
+mod echo;
 mod fetch;
+mod redirect;
+mod streaming;
 
 pub use self::auth::AuthRequiredHandler;
-pub use self::echo::EchoHandler;
 pub use self::content::ContentHandler;
+pub use self::echo::EchoHandler;
+pub use self::fetch::{ContentFetcherHandler, ContentValidator, FetchControl, ValidatorResponse};
 pub use self::redirect::Redirection;
-pub use self::fetch::{ContentFetcherHandler, ContentValidator, FetchControl};
+pub use self::streaming::StreamingHandler;
 
 use url::Url;
 use hyper::{server, header, net, uri};

@@ -156,7 +156,7 @@ impl<R: URLHint + Send + Sync + 'static, F: Fetch> Fetcher for ContentFetcher<F,
 							(None, Self::still_syncing(self.embeddable_on.clone()))
 						},
 						Some(URLHintResult::Dapp(dapp)) => {
-							let (handler, fetch_control) = ContentFetcherHandler::new(
+							let handler = ContentFetcherHandler::new(
 								dapp.url(),
 								path,
 								control,
@@ -171,10 +171,10 @@ impl<R: URLHint + Send + Sync + 'static, F: Fetch> Fetcher for ContentFetcher<F,
 								self.fetch.clone(),
 							);
 
-							(Some(ContentStatus::Fetching(fetch_control)), Box::new(handler) as Box<Handler>)
+							(Some(ContentStatus::Fetching(handler.fetch_control())), Box::new(handler) as Box<Handler>)
 						},
 						Some(URLHintResult::Content(content)) => {
-							let (handler, fetch_control) = ContentFetcherHandler::new(
+							let handler = ContentFetcherHandler::new(
 								content.url,
 								path,
 								control,
@@ -189,7 +189,7 @@ impl<R: URLHint + Send + Sync + 'static, F: Fetch> Fetcher for ContentFetcher<F,
 								self.fetch.clone(),
 							);
 
-							(Some(ContentStatus::Fetching(fetch_control)), Box::new(handler) as Box<Handler>)
+							(Some(ContentStatus::Fetching(handler.fetch_control())), Box::new(handler) as Box<Handler>)
 						},
 						None if self.sync.is_major_importing() => {
 							(None, Self::still_syncing(self.embeddable_on.clone()))

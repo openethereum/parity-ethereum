@@ -16,15 +16,19 @@
 
 //! Serving web-based content (proxying)
 
-use endpoint::{Endpoint, Handler, EndpointPath};
-use handlers::{ContentFetcherHandler, ContentHandler, ContentValidator, Redirection, extract_url};
-use page::{LocalPageEndpoint};
 use fetch::{self, Fetch};
-use url::Url;
+use parity_reactor::Remote;
+
 use hyper::{self, server, net, Next, Encoder, Decoder};
 use hyper::status::StatusCode;
-use parity_reactor::Remote;
+
 use apps::WEB_PATH;
+use endpoint::{Endpoint, Handler, EndpointPath};
+use handlers::{
+	ContentFetcherHandler, ContentHandler, ContentValidator, ValidatorResponse,
+	StreamingHandler, Redirection, extract_url,
+};
+use url::Url;
 
 pub struct Web<F> {
 	remote: Remote,
@@ -52,16 +56,31 @@ impl<F: Fetch> Endpoint for Web<F> {
 	}
 }
 
-pub struct WebInstaller;
+pub struct WebInstaller {
+	embeddable_on: Option<(String, u16)>,
+}
 
 impl ContentValidator for WebInstaller {
 	type Error = String;
 
-	fn validate_and_install(&self, _response: fetch::Response) -> Result<LocalPageEndpoint, String> {
-		// let path = unimplemented!();
-		// let mime = response.content_type().unwrap_or(mime!(Text/Html));
-		// Ok(LocalPageEndpoint::single_file(path, mime, PageCache::Enabled))
-		Err("unimplemented".into())
+	fn validate_and_install(&self, response: fetch::Response) -> Result<ValidatorResponse, String> {
+		// TODO [ToDr] Get from original response
+		let status = StatusCode::Ok;
+		let is_html = response.is_html();
+		let mime = response.content_type().unwrap_or(mime!(Text/Html));
+		let mut handler = StreamingHandler::new(
+			response,
+			status,
+			mime,
+			self.embeddable_on.clone(),
+		);
+		if is_html {
+			handler.set_initial_content(&format!(
+				r#"<script src="/parity-utils/inject.js"></script><base href="{}">"#,
+				"/web/https/mkr.market/"
+			));
+		}
+		Ok(ValidatorResponse::Streaming(handler))
 	}
 }
 
@@ -134,11 +153,13 @@ impl<F: Fetch> server::Handler<net::HttpStream> for WebHandler<F> {
 			}
 		};
 
-		let (mut handler, _control) = ContentFetcherHandler::new(
+		let mut handler = ContentFetcherHandler::new(
 			target_url,
 			self.path.clone(),
 			self.control.clone(),
-			WebInstaller,
+			WebInstaller {
+				embeddable_on: None,
+			},
 			None,
 			self.remote.clone(),
 			self.fetch.clone(),

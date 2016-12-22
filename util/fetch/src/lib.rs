@@ -21,9 +21,10 @@ extern crate log;
 
 extern crate futures;
 extern crate futures_cpupool;
-extern crate mime;
 extern crate reqwest;
 
+pub extern crate mime;
 pub mod client;
 
-pub use self::client::{Client, Fetch, Error, Response, Mime, Abort};
+pub use self::mime::Mime;
+pub use self::client::{Client, Fetch, Error, Response, Abort};
