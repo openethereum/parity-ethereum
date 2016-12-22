@@ -99,9 +99,9 @@ impl Fetch for Client {
 
 	fn process<F>(&self, f: F) -> BoxFuture<(), ()> where
 		F: Future<Item=(), Error=()> + Send + 'static,
-			{
-				self.pool.spawn(f).boxed()
-			}
+	{
+		self.pool.spawn(f).boxed()
+	}
 
 	fn fetch_with_abort(&self, url: &str, abort: Abort) -> Self::Result {
 		debug!(target: "fetch", "Fetching from: {:?}", url);

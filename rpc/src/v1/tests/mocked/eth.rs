@@ -137,16 +137,15 @@ fn rpc_eth_syncing() {
 	// "sync" to 1000 blocks.
 	// causes TestBlockChainClient to return 1000 for its best block number.
 	tester.add_blocks(1000, EachBlockWith::Nothing);
-	*tester.client.ancient_block.write() = Some((H256::new(), 5));
-	*tester.client.first_block.write() = Some((H256::from(U256::from(1234)), 3333));
 
-	let true_res = r#"{"jsonrpc":"2.0","result":{"blockGap":["0x6","0xd05"],"currentBlock":"0x3e8","highestBlock":"0x9c4","startingBlock":"0x0","warpChunksAmount":null,"warpChunksProcessed":null},"id":1}"#;
+
+	let true_res = r#"{"jsonrpc":"2.0","result":{"currentBlock":"0x3e8","highestBlock":"0x9c4","startingBlock":"0x0","warpChunksAmount":null,"warpChunksProcessed":null},"id":1}"#;
 	assert_eq!(tester.io.handle_request_sync(request), Some(true_res.to_owned()));
 
 	*tester.client.ancient_block.write() = None;
 	*tester.client.first_block.write() = None;
 
-	let snap_res = r#"{"jsonrpc":"2.0","result":{"blockGap":null,"currentBlock":"0x3e8","highestBlock":"0x9c4","startingBlock":"0x0","warpChunksAmount":"0x32","warpChunksProcessed":"0x18"},"id":1}"#;
+	let snap_res = r#"{"jsonrpc":"2.0","result":{"currentBlock":"0x3e8","highestBlock":"0x9c4","startingBlock":"0x0","warpChunksAmount":"0x32","warpChunksProcessed":"0x18"},"id":1}"#;
 	tester.snapshot.set_status(RestorationStatus::Ongoing {
 		state_chunks: 40,
 		block_chunks: 10,

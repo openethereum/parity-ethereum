@@ -321,6 +321,8 @@ impl<H: ContentValidator, F: Fetch> ContentFetcherHandler<H, F> {
 
 impl<H: ContentValidator, F: Fetch> server::Handler<HttpStream> for ContentFetcherHandler<H, F> {
 	fn on_request(&mut self, request: server::Request<HttpStream>) -> Next {
+		let uri = request.uri().clone();
+		let installer = self.installer.take().expect("Installer always set initialy; installer used only in on_request; on_request invoked only once; qed");
 		let status = if let FetchState::NotStarted(ref url) = self.status {
 			let uri = request.uri().clone();
 			let installer = self.installer.take().expect("Installer always set initialy; installer used only in on_request; on_request invoked only once; qed");
