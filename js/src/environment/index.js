@@ -32,12 +32,7 @@ const parityDapps = process.env.PARITY_URL ||
       : ''
   );
 
-const parityUrl = process.env.PARITY_URL ||
-  (
-    process.env.NODE_ENV === 'production'
-      ? window.location.host
-      : '127.0.0.1:8180'
-  );
+const parityUrl = process.env.PARITY_URL || window.location.host;
 
 export {
   parityDapps,

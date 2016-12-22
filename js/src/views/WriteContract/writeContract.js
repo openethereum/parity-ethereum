@@ -16,11 +16,12 @@
 
 import React, { PropTypes, Component } from 'react';
 import { observer } from 'mobx-react';
-import { MenuItem } from 'material-ui';
+import { MenuItem, Toggle } from 'material-ui';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 import CircularProgress from 'material-ui/CircularProgress';
 import moment from 'moment';
+import { throttle } from 'lodash';
 
 import ContentClear from 'material-ui/svg-icons/content/clear';
 import SaveIcon from 'material-ui/svg-icons/content/save';
@@ -42,10 +43,11 @@ class WriteContract extends Component {
   static propTypes = {
     accounts: PropTypes.object.isRequired,
     setupWorker: PropTypes.func.isRequired,
-    worker: PropTypes.object
+    worker: PropTypes.object,
+    workerError: PropTypes.any
   };
 
-  store = new WriteContractStore();
+  store = WriteContractStore.get();
 
   state = {
     resizing: false,
@@ -56,13 +58,19 @@ class WriteContract extends Component {
     const { setupWorker, worker } = this.props;
     setupWorker();
 
-    if (worker) {
-      this.store.setCompiler(worker);
+    if (worker !== undefined) {
+      this.store.setWorker(worker);
     }
+
+    this.throttledResize = throttle(this.applyResize, 100, { leading: true });
   }
 
   componentDidMount () {
     this.store.setEditor(this.refs.editor);
+
+    if (this.props.workerError) {
+      this.store.setWorkerError(this.props.workerError);
+    }
 
     // Wait for editor to be loaded
     window.setTimeout(() => {
@@ -70,9 +78,14 @@ class WriteContract extends Component {
     }, 2000);
   }
 
+  // Set the worker if not set before (eg. first page loading)
   componentWillReceiveProps (nextProps) {
-    if (!this.props.worker && nextProps.worker) {
-      this.store.setCompiler(nextProps.worker);
+    if (this.props.worker === undefined && nextProps.worker !== undefined) {
+      this.store.setWorker(nextProps.worker);
+    }
+
+    if (this.props.workerError !== nextProps.workerError) {
+      this.store.setWorkerError(nextProps.workerError);
     }
   }
 
@@ -217,7 +230,18 @@ class WriteContract extends Component {
   }
 
   renderParameters () {
-    const { compiling, contract, selectedBuild, loading } = this.store;
+    const { compiling, contract, selectedBuild, loading, workerError } = this.store;
+
+    if (workerError) {
+      return (
+        <div className={ styles.panel }>
+          <div className={ styles.centeredMessage }>
+            <p>Unfortuantely, an error occurred...</p>
+            <div className={ styles.error }>{ workerError.toString() }</div>
+          </div>
+        </div>
+      );
+    }
 
     if (selectedBuild < 0) {
       return (
@@ -261,6 +285,24 @@ class WriteContract extends Component {
             />
             : null
           }
+        </div>
+        <div className={ styles.toggles }>
+          <div>
+            <Toggle
+              label='Optimize'
+              labelPosition='right'
+              onToggle={ this.store.handleOptimizeToggle }
+              toggled={ this.store.optimize }
+            />
+          </div>
+          <div>
+            <Toggle
+              label='Auto-Compile'
+              labelPosition='right'
+              onToggle={ this.store.handleAutocompileToggle }
+              toggled={ this.store.autocompile }
+            />
+          </div>
         </div>
         { this.renderSolidityVersions() }
         { this.renderCompilation() }
@@ -477,16 +519,22 @@ class WriteContract extends Component {
 
     const x = pageX - left;
 
-    this.setState({ size: 100 * x / width });
+    this.size = 100 * x / width;
+    this.throttledResize();
+
     event.stopPropagation();
+  }
+
+  applyResize = () => {
+    this.setState({ size: this.size });
   }
 
 }
 
 function mapStateToProps (state) {
   const { accounts } = state.personal;
-  const { worker } = state.compiler;
-  return { accounts, worker };
+  const { worker, error } = state.compiler;
+  return { accounts, worker, workerError: error };
 }
 
 function mapDispatchToProps (dispatch) {

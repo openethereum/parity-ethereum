@@ -22,13 +22,11 @@ export default class Status {
     this._api = api;
     this._store = store;
 
-    this._pingable = false;
     this._apiStatus = {};
     this._status = {};
     this._longStatus = {};
     this._minerSettings = {};
 
-    this._pollPingTimeoutId = null;
     this._longStatusTimeoutId = null;
 
     this._timestamp = Date.now();
@@ -36,7 +34,6 @@ export default class Status {
 
   start () {
     this._subscribeBlockNumber();
-    this._pollPing();
     this._pollStatus();
     this._pollLongStatus();
     this._pollLogs();
@@ -63,50 +60,6 @@ export default class Status {
             console.warn('status._subscribeBlockNumber', 'getBlockByNumber', error);
           });
       });
-  }
-
-  /**
-   * Pinging should be smart. It should only
-   * be used when the UI is connecting or the
-   * Node is deconnected.
-   *
-   * @see src/views/Connection/connection.js
-   */
-  _shouldPing = () => {
-    const { isConnected } = this._apiStatus;
-    return !isConnected;
-  }
-
-  _stopPollPing = () => {
-    if (!this._pollPingTimeoutId) {
-      return;
-    }
-
-    clearTimeout(this._pollPingTimeoutId);
-    this._pollPingTimeoutId = null;
-  }
-
-  _pollPing = () => {
-    // Already pinging, don't try again
-    if (this._pollPingTimeoutId) {
-      return;
-    }
-
-    const dispatch = (pingable, timeout = 1000) => {
-      if (pingable !== this._pingable) {
-        this._pingable = pingable;
-        this._store.dispatch(statusCollection({ isPingable: pingable }));
-      }
-
-      this._pollPingTimeoutId = setTimeout(() => {
-        this._stopPollPing();
-        this._pollPing();
-      }, timeout);
-    };
-
-    fetch('/', { method: 'HEAD' })
-      .then((response) => dispatch(!!response.ok))
-      .catch(() => dispatch(false));
   }
 
   _pollTraceMode = () => {
@@ -137,19 +90,11 @@ export default class Status {
 
     if (gotConnected) {
       this._pollLongStatus();
-      this._store.dispatch(statusCollection({ isPingable: true }));
     }
 
     if (!isEqual(apiStatus, this._apiStatus)) {
       this._store.dispatch(statusCollection(apiStatus));
       this._apiStatus = apiStatus;
-    }
-
-    // Ping if necessary, otherwise stop pinging
-    if (this._shouldPing()) {
-      this._pollPing();
-    } else {
-      this._stopPollPing();
     }
 
     if (!isConnected) {
