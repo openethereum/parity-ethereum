@@ -101,6 +101,10 @@ impl FetchControl {
 		}
 	}
 
+	pub fn is_deadline_reached(&self) -> bool {
+		self.deadline < Instant::now()
+	}
+
 	pub fn abort(&self) {
 		self.abort.store(true, Ordering::SeqCst);
 	}
@@ -305,7 +309,7 @@ impl<H: ContentValidator, F: Fetch> server::Handler<HttpStream> for ContentFetch
 	fn on_request_readable(&mut self, decoder: &mut Decoder<HttpStream>) -> Next {
 		let (status, next) = match self.status {
 			// Request may time out
-			FetchState::InProgress(_) if self.fetch_control.deadline < Instant::now() => {
+			FetchState::InProgress(_) if self.fetch_control.is_deadline_reached() => {
 				trace!(target: "dapps", "Fetching dapp failed because of timeout.");
 				let timeout = ContentHandler::error(
 					StatusCode::GatewayTimeout,

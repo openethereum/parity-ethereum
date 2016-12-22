@@ -129,12 +129,12 @@ impl<R: URLHint + Send + Sync + 'static, F: Fetch> Fetcher for ContentFetcher<F,
 					(None, endpoint.to_async_handler(path, control))
 				},
 				// Content is already being fetched
-				Some(&mut ContentStatus::Fetching(ref fetch_control)) => {
+				Some(&mut ContentStatus::Fetching(ref fetch_control)) if !fetch_control.is_deadline_reached() => {
 					trace!(target: "dapps", "Content fetching in progress. Waiting...");
 					(None, fetch_control.to_async_handler(path, control))
 				},
 				// We need to start fetching the content
-				None => {
+				_ => {
 					trace!(target: "dapps", "Content unavailable. Fetching... {:?}", content_id);
 					let content_hex = content_id.from_hex().expect("to_handler is called only when `contains` returns true.");
 					let content = self.resolver.resolve(content_hex);
