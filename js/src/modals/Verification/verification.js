@@ -15,13 +15,16 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import { connect } from 'react-redux';
 import { observer } from 'mobx-react';
 import DoneIcon from 'material-ui/svg-icons/action/done-all';
 import CancelIcon from 'material-ui/svg-icons/content/clear';
 
 import { Button, IdentityIcon, Modal } from '~/ui';
 import RadioButtons from '~/ui/Form/RadioButtons';
-import { nullableProptype } from '~/util/proptypes';
+
+import SMSVerificationStore from './sms-store';
+import EmailVerificationStore from './email-store';
 
 import styles from './verification.css';
 
@@ -52,12 +55,15 @@ import SendConfirmation from './SendConfirmation';
 import Done from './Done';
 
 @observer
-export default class Verification extends Component {
+class Verification extends Component {
+  static contextTypes = {
+    api: PropTypes.object.isRequired
+  }
+
   static propTypes = {
-    store: nullableProptype(PropTypes.object.isRequired),
     account: PropTypes.string.isRequired,
-    onSelectMethod: PropTypes.func.isRequired,
-    onClose: PropTypes.func.isRequired
+    onClose: PropTypes.func.isRequired,
+    isTestnet: PropTypes.bool.isRequired
   }
 
   static phases = { // mapping (store steps -> steps)
@@ -69,11 +75,12 @@ export default class Verification extends Component {
   }
 
   state = {
-    method: 'sms'
+    method: 'sms',
+    store: null
   };
 
   render () {
-    const { store } = this.props;
+    const { store } = this.state;
     let phase = 0; let error = false; let isStepValid = true;
 
     if (store) {
@@ -97,7 +104,8 @@ export default class Verification extends Component {
   }
 
   renderDialogActions (phase, error, isStepValid) {
-    const { store, account, onClose } = this.props;
+    const { account, onClose } = this.props;
+    const { store } = this.state;
 
     const cancel = (
       <Button
@@ -128,9 +136,8 @@ export default class Verification extends Component {
     switch (phase) {
       case 0:
         action = () => {
-          const { onSelectMethod } = this.props;
           const { method } = this.state;
-          onSelectMethod(method);
+          this.onSelectMethod(method);
         };
         break;
       case 1:
@@ -183,7 +190,7 @@ export default class Verification extends Component {
       fee, isVerified, hasRequested,
       requestTx, isCodeValid, confirmationTx,
       setCode
-    } = this.props.store;
+    } = this.state.store;
 
     switch (phase) {
       case 1:
@@ -191,7 +198,7 @@ export default class Verification extends Component {
           return (<p>Loading verification data.</p>);
         }
 
-        const { setConsentGiven } = this.props.store;
+        const { setConsentGiven } = this.state.store;
 
         const fields = [];
         if (method === 'sms') {
@@ -199,16 +206,16 @@ export default class Verification extends Component {
             key: 'number',
             label: 'phone number in international format',
             hint: 'the SMS will be sent to this number',
-            error: this.props.store.isNumberValid ? null : 'invalid number',
-            onChange: this.props.store.setNumber
+            error: this.state.store.isNumberValid ? null : 'invalid number',
+            onChange: this.state.store.setNumber
           });
         } else if (method === 'email') {
           fields.push({
             key: 'email',
             label: 'email address',
             hint: 'the code will be sent to this address',
-            error: this.props.store.isEmailValid ? null : 'invalid email',
-            onChange: this.props.store.setEmail
+            error: this.state.store.isEmailValid ? null : 'invalid email',
+            onChange: this.state.store.setEmail
           });
         }
 
@@ -228,10 +235,10 @@ export default class Verification extends Component {
       case 3:
         let receiver, hint;
         if (method === 'sms') {
-          receiver = this.props.store.number;
+          receiver = this.state.store.number;
           hint = 'Enter the code you received via SMS.';
         } else if (method === 'email') {
-          receiver = this.props.store.email;
+          receiver = this.state.store.email;
           hint = 'Enter the code you received via e-mail.';
         }
         return (
@@ -258,7 +265,29 @@ export default class Verification extends Component {
     }
   }
 
+  onSelectMethod = (name) => {
+    const { api } = this.context;
+    const { account, isTestnet } = this.props;
+
+    let store = null;
+    if (name === 'sms') {
+      store = new SMSVerificationStore(api, account, isTestnet);
+    } else if (name === 'email') {
+      store = new EmailVerificationStore(api, account, isTestnet);
+    }
+    this.setState({ store });
+  }
+
   selectMethod = (choice, i) => {
     this.setState({ method: choice.value });
   }
 }
+
+const mapStateToProps = (state) => ({
+  isTestnet: state.nodeStatus.isTest
+});
+
+export default connect(
+  mapStateToProps,
+  null // mapDispatchToProps
+)(Verification);
