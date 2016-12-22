@@ -39,6 +39,8 @@ pub struct CommonParams {
 	pub maximum_extra_data_size: usize,
 	/// Network id.
 	pub network_id: u64,
+	/// Chain id.
+	pub chain_id: u64,
 	/// Main subprotocol name.
 	pub subprotocol_name: String,
 	/// Minimum gas limit.
@@ -53,6 +55,7 @@ impl From<ethjson::spec::Params> for CommonParams {
 			account_start_nonce: p.account_start_nonce.into(),
 			maximum_extra_data_size: p.maximum_extra_data_size.into(),
 			network_id: p.network_id.into(),
+			chain_id: if let Some(n) = p.chain_id { n.into() } else { p.network_id.into() },
 			subprotocol_name: p.subprotocol_name.unwrap_or_else(|| "eth".to_owned()),
 			min_gas_limit: p.min_gas_limit.into(),
 			fork_block: if let (Some(n), Some(h)) = (p.fork_block, p.fork_hash) { Some((n.into(), h.into())) } else { None },

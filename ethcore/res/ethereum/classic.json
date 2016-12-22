@@ -26,6 +26,7 @@
 		"maximumExtraDataSize": "0x20",
 		"minGasLimit": "0x1388",
 		"networkID" : "0x1",
+		"chainID": "0x3d",
 		"forkBlock": "0x1d4c00",
 		"forkCanonHash": "0x94365e3a8c0b35089c1d1195081fe7489b528a84b22199c916180db8b28ade7f"
 	},
