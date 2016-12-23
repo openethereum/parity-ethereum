@@ -1,4 +1,4 @@
-/* Copyright 2015, 2016 Ethcore (UK) Ltd.
+/* Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 /* This file is part of Parity.
 /*
 /* Parity is free software: you can redistribute it and/or modify
@@ -15,65 +15,68 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+.columns {
+  display: flex;
+  position: relative;
+  flex-wrap: wrap;
+
+  &>div {
+    flex: 0 1 50%;
+    position: relative;
+    width: 50%;
+  }
+}
+
+.gaseditor {
+  margin-top: 1em;
+}
+
 .info {
   line-height: 1.618em;
   width: 100%;
 }
 
-.columns {
-  display: flex;
-  flex-wrap: wrap;
-  position: relative;
-}
-
 .row {
   display: flex;
-  flex-wrap: wrap;
-  position: relative;
   flex-direction: column;
-}
-
-.columns>div {
-  flex: 0 1 50%;
-  width: 50%;
+  flex-wrap: wrap;
   position: relative;
 }
 
 .floatbutton {
-  text-align: right;
   float: right;
   margin-left: -100%;
   margin-top: 28px;
-}
+  text-align: right;
 
-.floatbutton>div {
-  margin-right: 0.5em;
-}
-
-.tokenSelect {
+  &>div {
+    margin-right: 0.5em;
+  }
 }
 
 .token {
   height: 32px;
   padding: 4px 0;
+
+  img {
+    height: 32px;
+    width: 32px;
+    margin: 0 16px 0 0;
+    z-index: 10;
+  }
+
+  div {
+    height: 32px;
+    line-height: 32px;
+    display: inline-block;
+    vertical-align: top;
+  }
 }
 
-.tokenSelect .token {
-  margin-top: 10px;
-}
-
-.token img {
-  height: 32px;
-  width: 32px;
-  margin: 0 16px 0 0;
-  z-index: 10;
-}
-
-.token div {
-  height: 32px;
-  line-height: 32px;
-  display: inline-block;
-  vertical-align: top;
+.tokenSelect {
+  .token {
+    margin-top: 10px;
+  }
 }
 
 .tokenbalance {

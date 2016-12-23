@@ -51,7 +51,8 @@ rpc-cli = { path = "rpc_cli" }
 parity-rpc-client = { path = "rpc_client" }
 ethcore-light = { path = "ethcore/light" }
 parity-hash-fetch = { path = "hash-fetch" }
-parity-updater = { path = "updater" } 
+parity-updater = { path = "updater" }
+parity-reactor = { path = "util/reactor" }
 
 [target.'cfg(windows)'.dependencies]
 winapi = "0.2"
