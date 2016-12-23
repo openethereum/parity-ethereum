@@ -16,29 +16,24 @@
 
 //! Test implementation of fetch client.
 
-use std::io::Write;
-use std::{env, fs, thread};
-use std::sync::Arc;
-use std::sync::atomic::AtomicBool;
-use fetch::{Fetch, FetchError, FetchResult};
+use std::{io, thread};
+use futures::{self, Future};
+use fetch::{self, Fetch};
 
 /// Test implementation of fetcher. Will always return the same file.
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct TestFetch;
 
 impl Fetch for TestFetch {
-	fn request_async(&mut self, _url: &str, _abort: Arc<AtomicBool>, on_done: Box<Fn(FetchResult) + Send>) -> Result<(), FetchError> {
+	type Result = futures::BoxFuture<fetch::Response, fetch::Error>;
+
+	fn fetch_with_abort(&self, _url: &str, _abort: fetch::Abort) -> Self::Result {
+		let (tx, rx) = futures::oneshot();
 		thread::spawn(move || {
-			let mut path = env::temp_dir();
-			path.push(Self::random_filename());
-
-			let mut file = fs::File::create(&path).unwrap();
-			file.write_all(b"Some content").unwrap();
-
-			on_done(Ok(path));
+			let cursor = io::Cursor::new(b"Some content");
+			tx.complete(fetch::Response::from_reader(cursor));
 		});
-		Ok(())
+
+		rx.map_err(|_| fetch::Error::Aborted).boxed()
 	}
 }
-
-
