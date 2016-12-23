@@ -15,8 +15,13 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import store from 'store';
+
+import AddressBar from './AddressBar';
 
 import styles from './web.css';
+
+const LS_LAST_ADDRESS = '_parity::webLastAddress';
 
 export default class Web extends Component {
   static contextTypes = {
@@ -24,45 +29,11 @@ export default class Web extends Component {
   }
 
   state = {
-    token: null,
-    isLoading: true,
     displayedUrl: this.lastAddress(),
+    isLoading: true,
+    token: null,
     url: this.lastAddress()
   };
-
-  handleUpdateUrl = (url) => {
-    try {
-      window.localStorage.setItem('parity-web-lastAddress', url);
-    } catch (e) {}
-
-    this.setState({
-      isLoading: true,
-      displayedUrl: url,
-      url: url
-    });
-  };
-
-  handleOnRefresh = (ev) => {
-    // TODO [ToDr]
-    this.setState({
-      isLoading: true,
-      url: `${this.state.displayedUrl}?t=${Date.now()}`
-    });
-  };
-
-  handleIframeLoad = (ev) => {
-    this.setState({
-      isLoading: false
-    });
-  };
-
-  lastAddress () {
-    let res = null;
-    try {
-      res = window.localStorage.getItem('parity-web-lastAddress');
-    } catch (e) {}
-    return res || 'https://mkr.market';
-  }
 
   componentDidMount () {
     this.context.api.signer.generateWebProxyAccessToken().then(token => {
@@ -78,15 +49,17 @@ export default class Web extends Component {
     return `${dappsUrl}/web/${token}/${path}/`;
   }
 
+  lastAddress () {
+    return store.get(LS_LAST_ADDRESS) || 'https://mkr.market';
+  }
+
   render () {
     const { displayedUrl, isLoading, token } = this.state;
     const address = this.address();
 
     if (!token) {
       return (
-        <div
-          className={ styles.wrapper }
-          >
+        <div className={ styles.wrapper }>
           <h1 className={ styles.loading }>
             Requesting access token...
           </h1>
@@ -95,115 +68,51 @@ export default class Web extends Component {
     }
 
     return (
-      <div
-        className={ styles.wrapper }
-        >
+      <div className={ styles.wrapper }>
         <AddressBar
-          url={ displayedUrl }
+          className={ styles.url }
           isLoading={ isLoading }
           onChange={ this.handleUpdateUrl }
           onRefresh={ this.handleOnRefresh }
+          url={ displayedUrl }
         />
         <iframe
           className={ styles.frame }
           frameBorder={ 0 }
           name={ name }
+          onLoad={ this.handleIframeLoad }
           sandbox='allow-forms allow-same-origin allow-scripts'
           scrolling='auto'
-          onLoad={ this.handleIframeLoad }
           src={ address } />
       </div>
     );
   }
-}
 
-class AddressBar extends Component {
+  handleUpdateUrl = (url) => {
+    store.set(LS_LAST_ADDRESS, url);
 
-  static propTypes = {
-    isLoading: PropTypes.bool.isRequired,
-    url: PropTypes.string.isRequired,
-    onChange: PropTypes.func.isRequired,
-    onRefresh: PropTypes.func.isRequired
-  };
-
-  state = {
-    currentUrl: this.props.url
-  };
-
-  onUpdateUrl = (ev) => {
     this.setState({
-      currentUrl: ev.target.value
+      isLoading: true,
+      displayedUrl: url,
+      url: url
     });
   };
 
-  onKey = (ev) => {
-    const KEY_ESC = 27;
-    const KEY_ENTER = 13;
-
-    const key = ev.which;
-
-    if (key === KEY_ESC) {
-      this.setState({
-        currentUrl: this.props.url
-      });
-      return;
-    }
-
-    if (key === KEY_ENTER) {
-      this.onGo();
-      return;
-    }
-  };
-
-  onGo = () => {
-    if (this.isPristine()) {
-      this.props.onRefresh();
-    } else {
-      this.props.onChange(this.state.currentUrl);
-    }
-  };
-
-  isPristine () {
-    return this.state.currentUrl === this.props.url;
-  }
-
-  componentWillReceiveProps (nextProps) {
-    if (this.props.url === nextProps.url) {
-      return;
-    }
+  handleOnRefresh = (ev) => {
+    const { displayedUrl } = this.state;
+    const hasQuery = displayedUrl.indexOf('?') > 0;
+    const separator = hasQuery ? '&' : '?';
 
     this.setState({
-      currentUrl: nextProps.url
+      isLoading: true,
+      url: `${displayedUrl}${separator}t=${Date.now()}`
     });
-  }
+  };
 
-  render () {
-    const { isLoading } = this.props;
-    const { currentUrl } = this.state;
-    const isPristine = this.isPristine();
-
-    return (
-      <div className={ styles.url }>
-        <button
-          disabled={ isLoading }
-          onClick={ this.onGo }
-          >
-          { isLoading ? 'Loading' : 'Refresh'}
-        </button>
-        <input
-          onChange={ this.onUpdateUrl }
-          onKeyDown={ this.onKey }
-          type='text'
-          value={ currentUrl }
-        />
-        <button
-          disabled={ isPristine }
-          onClick={ this.onGo }
-          >
-          Go
-        </button>
-      </div>
-    );
-  }
-
+  handleIframeLoad = (ev) => {
+    this.setState({
+      isLoading: false
+    });
+  };
 }
+
