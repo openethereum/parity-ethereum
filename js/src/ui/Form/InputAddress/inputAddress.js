@@ -69,7 +69,7 @@ class InputAddress extends Component {
     classes.push(!icon ? styles.inputEmpty : styles.input);
 
     const containerClasses = [ styles.container ];
-    const nullName = new BigNumber(value).eq(0) ? 'null' : null;
+    const nullName = value && new BigNumber(value).eq(0) ? 'null' : null;
 
     if (small) {
       containerClasses.push(styles.small);
