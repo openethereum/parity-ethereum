@@ -33,16 +33,9 @@ import Transactions from './Transactions';
 import { setVisibleAccounts } from '~/redux/providers/personalActions';
 import { fetchCertifiers, fetchCertifications } from '~/redux/providers/certifications/actions';
 
-import SMSVerificationStore from '~/modals/Verification/sms-store';
-import EmailVerificationStore from '~/modals/Verification/email-store';
-
 import styles from './account.css';
 
 class Account extends Component {
-  static contextTypes = {
-    api: PropTypes.object.isRequired
-  }
-
   static propTypes = {
     setVisibleAccounts: PropTypes.func.isRequired,
     fetchCertifiers: PropTypes.func.isRequired,
@@ -51,7 +44,6 @@ class Account extends Component {
 
     params: PropTypes.object,
     accounts: PropTypes.object,
-    isTestnet: PropTypes.bool,
     balances: PropTypes.object
   }
 
@@ -60,7 +52,6 @@ class Account extends Component {
     showEditDialog: false,
     showFundDialog: false,
     showVerificationDialog: false,
-    verificationStore: null,
     showTransferDialog: false,
     showPasswordDialog: false
   }
@@ -221,13 +212,11 @@ class Account extends Component {
       return null;
     }
 
-    const store = this.state.verificationStore;
     const { address } = this.props.params;
 
     return (
       <Verification
-        store={ store } account={ address }
-        onSelectMethod={ this.selectVerificationMethod }
+        account={ address }
         onClose={ this.onVerificationClose }
       />
     );
@@ -301,22 +290,6 @@ class Account extends Component {
     this.setState({ showVerificationDialog: true });
   }
 
-  selectVerificationMethod = (name) => {
-    const { isTestnet } = this.props;
-    if (typeof isTestnet !== 'boolean' || this.state.verificationStore) return;
-
-    const { api } = this.context;
-    const { address } = this.props.params;
-
-    let verificationStore = null;
-    if (name === 'sms') {
-      verificationStore = new SMSVerificationStore(api, address, isTestnet);
-    } else if (name === 'email') {
-      verificationStore = new EmailVerificationStore(api, address, isTestnet);
-    }
-    this.setState({ verificationStore });
-  }
-
   onVerificationClose = () => {
     this.setState({ showVerificationDialog: false });
   }
@@ -344,13 +317,11 @@ class Account extends Component {
 
 function mapStateToProps (state) {
   const { accounts } = state.personal;
-  const { isTest } = state.nodeStatus;
   const { balances } = state.balances;
   const { images } = state;
 
   return {
     accounts,
-    isTestnet: isTest,
     balances,
     images
   };
