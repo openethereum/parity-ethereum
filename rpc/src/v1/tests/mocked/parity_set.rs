@@ -22,7 +22,6 @@ use util::{U256, Address};
 use ethcore::miner::MinerService;
 use ethcore::client::TestBlockChainClient;
 use ethsync::ManageNetwork;
-use parity_reactor::Remote;
 
 use jsonrpc_core::IoHandler;
 use v1::{ParitySet, ParitySetClient};
@@ -48,7 +47,7 @@ fn updater_service() -> Arc<TestUpdater> {
 pub type TestParitySetClient = ParitySetClient<TestBlockChainClient, TestMinerService, TestUpdater, TestFetch>;
 
 fn parity_set_client(client: &Arc<TestBlockChainClient>, miner: &Arc<TestMinerService>, updater: &Arc<TestUpdater>, net: &Arc<TestManageNetwork>) -> TestParitySetClient {
-	ParitySetClient::new(client, miner, updater, &(net.clone() as Arc<ManageNetwork>), TestFetch::default(), Remote::new_sync())
+	ParitySetClient::new(client, miner, updater, &(net.clone() as Arc<ManageNetwork>), TestFetch::default())
 }
 
 #[test]
