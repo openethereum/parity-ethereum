@@ -246,7 +246,7 @@ impl Spec {
 			{
 				let mut t = factory.create(db.as_hashdb_mut(), &mut root);
 				for (address, account) in self.genesis_state.get().iter() {
-					try!(t.insert(&**address, &account.rlp()));
+					t.insert(&**address, &account.rlp())?;
 				}
 			}
 			trace!(target: "spec", "ensure_db_good: Populated sec trie; root is {}", root);

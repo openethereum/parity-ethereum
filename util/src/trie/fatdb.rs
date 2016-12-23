@@ -33,7 +33,7 @@ impl<'db> FatDB<'db> {
 	/// This guarantees the trie is built correctly.
 	pub fn new(db: &'db HashDB, root: &'db H256) -> super::Result<Self> {
 		let fatdb = FatDB {
-			raw: try!(TrieDB::new(db, root))
+			raw: TrieDB::new(db, root)?
 		};
 
 		Ok(fatdb)
@@ -75,7 +75,7 @@ impl<'db> FatDBIterator<'db> {
 	/// Creates new iterator.
 	pub fn new(trie: &'db TrieDB) -> super::Result<Self> {
 		Ok(FatDBIterator {
-			trie_iterator: try!(TrieDBIterator::new(trie)),
+			trie_iterator: TrieDBIterator::new(trie)?,
 			trie: trie,
 		})
 	}

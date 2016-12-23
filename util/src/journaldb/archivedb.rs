@@ -159,7 +159,7 @@ impl JournalDB for ArchiveDB {
 		for i in self.overlay.drain() {
 			let (key, (value, rc)) = i;
 			if rc > 0 {
-				if try!(self.backing.get(self.column, &key)).is_some() {
+				if self.backing.get(self.column, &key)?.is_some() {
 					return Err(BaseDataError::AlreadyExists(key).into());
 				}
 				batch.put(self.column, &key, &value);
@@ -167,7 +167,7 @@ impl JournalDB for ArchiveDB {
 			}
 			if rc < 0 {
 				assert!(rc == -1);
-				if try!(self.backing.get(self.column, &key)).is_none() {
+				if self.backing.get(self.column, &key)?.is_none() {
 					return Err(BaseDataError::NegativelyReferencedHash(key).into());
 				}
 				batch.delete(self.column, &key);

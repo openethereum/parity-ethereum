@@ -109,7 +109,7 @@ impl OverlayRecentV7 {
 	// walk all journal entries in the database backwards.
 	// find migrations for any possible inserted keys.
 	fn walk_journal(&mut self, source: Arc<Database>) -> Result<(), Error> {
-		if let Some(val) = try!(source.get(None, V7_LATEST_ERA_KEY).map_err(Error::Custom)) {
+		if let Some(val) = source.get(None, V7_LATEST_ERA_KEY).map_err(Error::Custom)? {
 			let mut era = decode::<u64>(&val);
 			loop {
 				let mut index: usize = 0;
@@ -120,7 +120,7 @@ impl OverlayRecentV7 {
 						r.out()
 					};
 
-					if let Some(journal_raw) = try!(source.get(None, &entry_key).map_err(Error::Custom)) {
+					if let Some(journal_raw) = source.get(None, &entry_key).map_err(Error::Custom)? {
 						let rlp = Rlp::new(&journal_raw);
 
 						// migrate all inserted keys.
@@ -153,8 +153,8 @@ impl OverlayRecentV7 {
 	// replace all possible inserted/deleted keys with their migrated counterparts
 	// and commit the altered entries.
 	fn migrate_journal(&self, source: Arc<Database>, mut batch: Batch, dest: &mut Database) -> Result<(), Error> {
-		if let Some(val) = try!(source.get(None, V7_LATEST_ERA_KEY).map_err(Error::Custom)) {
-			try!(batch.insert(V7_LATEST_ERA_KEY.into(), val.clone().to_vec(), dest));
+		if let Some(val) = source.get(None, V7_LATEST_ERA_KEY).map_err(Error::Custom)? {
+			batch.insert(V7_LATEST_ERA_KEY.into(), val.clone().to_vec(), dest)?;
 
 			let mut era = decode::<u64>(&val);
 			loop {
@@ -166,7 +166,7 @@ impl OverlayRecentV7 {
 						r.out()
 					};
 
-					if let Some(journal_raw) = try!(source.get(None, &entry_key).map_err(Error::Custom)) {
+					if let Some(journal_raw) = source.get(None, &entry_key).map_err(Error::Custom)? {
 						let rlp = Rlp::new(&journal_raw);
 						let id: H256 = rlp.val_at(0);
 						let mut inserted_keys: Vec<(H256, Bytes)> = Vec::new();
@@ -202,7 +202,7 @@ impl OverlayRecentV7 {
 						stream.append(&deleted_keys);
 
 						// and insert it into the new database.
-						try!(batch.insert(entry_key, stream.out(), dest));
+						batch.insert(entry_key, stream.out(), dest)?;
 
 						index += 1;
 					} else {
@@ -233,7 +233,7 @@ impl Migration for OverlayRecentV7 {
 		let mut batch = Batch::new(config, col);
 
 		// check version metadata.
-		match try!(source.get(None, V7_VERSION_KEY).map_err(Error::Custom)) {
+		match source.get(None, V7_VERSION_KEY).map_err(Error::Custom)? {
 			Some(ref version) if decode::<u32>(&*version) == DB_VERSION => {}
 			_ => return Err(Error::MigrationImpossible), // missing or wrong version
 		}
@@ -255,10 +255,10 @@ impl Migration for OverlayRecentV7 {
 				}
 			}
 
-			try!(batch.insert(key, value.into_vec(), dest));
+			batch.insert(key, value.into_vec(), dest)?;
 		}
 
-		try!(self.walk_journal(source.clone()));
+		self.walk_journal(source.clone())?;
 		self.migrate_journal(source, batch, dest)
 	}
 }

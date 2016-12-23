@@ -66,7 +66,7 @@ pub struct GethDirectory {
 impl GethDirectory {
 	pub fn create(t: DirectoryType) -> Result<Self, Error> {
 		let result = GethDirectory {
-			dir: try!(DiskDirectory::create(geth_keystore(t))),
+			dir: DiskDirectory::create(geth_keystore(t))?,
 		};
 
 		Ok(result)

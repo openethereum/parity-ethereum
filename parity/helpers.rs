@@ -97,7 +97,7 @@ pub fn to_gas_limit(s: &str) -> Result<GasLimit, String> {
 	match s {
 		"auto" => Ok(GasLimit::Auto),
 		"off" => Ok(GasLimit::None),
-		other => Ok(GasLimit::Fixed(try!(to_u256(other)))),
+		other => Ok(GasLimit::Fixed(to_u256(other)?)),
 	}
 }
 
@@ -288,12 +288,12 @@ pub fn password_prompt() -> Result<String, String> {
 	print!("Type password: ");
 	flush_stdout();
 
-	let password = try!(read_password().map_err(|_| STDIN_ERROR.to_owned()));
+	let password = read_password().map_err(|_| STDIN_ERROR.to_owned())?;
 
 	print!("Repeat password: ");
 	flush_stdout();
 
-	let password_repeat = try!(read_password().map_err(|_| STDIN_ERROR.to_owned()));
+	let password_repeat = read_password().map_err(|_| STDIN_ERROR.to_owned())?;
 
 	if password != password_repeat {
 		return Err("Passwords do not match!".into());
@@ -304,7 +304,7 @@ pub fn password_prompt() -> Result<String, String> {
 
 /// Read a password from password file.
 pub fn password_from_file(path: String) -> Result<String, String> {
-	let passwords = try!(passwords_from_files(&[path]));
+	let passwords = passwords_from_files(&[path])?;
 	// use only first password from the file
 	passwords.get(0).map(String::to_owned)
 		.ok_or_else(|| "Password file seems to be empty.".to_owned())
@@ -313,7 +313,7 @@ pub fn password_from_file(path: String) -> Result<String, String> {
 /// Reads passwords from files. Treats each line as a separate password.
 pub fn passwords_from_files(files: &[String]) -> Result<Vec<String>, String> {
 	let passwords = files.iter().map(|filename| {
-		let file = try!(File::open(filename).map_err(|_| format!("{} Unable to read password file. Ensure it exists and permissions are correct.", filename)));
+		let file = File::open(filename).map_err(|_| format!("{} Unable to read password file. Ensure it exists and permissions are correct.", filename))?;
 		let reader = BufReader::new(&file);
 		let lines = reader.lines()
 			.filter_map(|l| l.ok())
@@ -321,7 +321,7 @@ pub fn passwords_from_files(files: &[String]) -> Result<Vec<String>, String> {
 			.collect::<Vec<String>>();
 		Ok(lines)
 	}).collect::<Result<Vec<Vec<String>>, String>>();
-	Ok(try!(passwords).into_iter().flat_map(|x| x).collect())
+	Ok(passwords?.into_iter().flat_map(|x| x).collect())
 }
 
 #[cfg(test)]

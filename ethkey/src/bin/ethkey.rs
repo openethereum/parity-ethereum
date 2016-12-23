@@ -160,37 +160,37 @@ fn execute<S, I>(command: I) -> Result<String, Error> where I: IntoIterator<Item
 
 	return if args.cmd_info {
 		let display_mode = DisplayMode::new(&args);
-		let secret = try!(args.arg_secret.parse().map_err(|_| EthkeyError::InvalidSecret));
-		let keypair = try!(KeyPair::from_secret(secret));
+		let secret = args.arg_secret.parse().map_err(|_| EthkeyError::InvalidSecret)?;
+		let keypair = KeyPair::from_secret(secret)?;
 		Ok(display(keypair, display_mode))
 	} else if args.cmd_generate {
 		let display_mode = DisplayMode::new(&args);
 		let keypair = if args.cmd_random {
 			Random.generate()
 		} else if args.cmd_prefix {
-			let prefix = try!(args.arg_prefix.from_hex());
-			let iterations = try!(usize::from_str_radix(&args.arg_iterations, 10));
+			let prefix = args.arg_prefix.from_hex()?;
+			let iterations = usize::from_str_radix(&args.arg_iterations, 10)?;
 			Prefix::new(prefix, iterations).generate()
 		} else if args.cmd_brain {
 			Brain::new(args.arg_seed).generate()
 		} else {
 			unreachable!();
 		};
-		Ok(display(try!(keypair), display_mode))
+		Ok(display(keypair?, display_mode))
 	} else if args.cmd_sign {
-		let secret = try!(args.arg_secret.parse().map_err(|_| EthkeyError::InvalidSecret));
-		let message = try!(args.arg_message.parse().map_err(|_| EthkeyError::InvalidMessage));
-		let signature = try!(sign(&secret, &message));
+		let secret = args.arg_secret.parse().map_err(|_| EthkeyError::InvalidSecret)?;
+		let message = args.arg_message.parse().map_err(|_| EthkeyError::InvalidMessage)?;
+		let signature = sign(&secret, &message)?;
 		Ok(format!("{}", signature))
 	} else if args.cmd_verify {
-		let signature = try!(args.arg_signature.parse().map_err(|_| EthkeyError::InvalidSignature));
-		let message = try!(args.arg_message.parse().map_err(|_| EthkeyError::InvalidMessage));
+		let signature = args.arg_signature.parse().map_err(|_| EthkeyError::InvalidSignature)?;
+		let message = args.arg_message.parse().map_err(|_| EthkeyError::InvalidMessage)?;
 		let ok = if args.cmd_public {
-			let public = try!(args.arg_public.parse().map_err(|_| EthkeyError::InvalidPublic));
-			try!(verify_public(&public, &signature, &message))
+			let public = args.arg_public.parse().map_err(|_| EthkeyError::InvalidPublic)?;
+			verify_public(&public, &signature, &message)?
 		} else if args.cmd_address {
-			let address = try!(args.arg_address.parse().map_err(|_| EthkeyError::InvalidAddress));
-			try!(verify_address(&address, &signature, &message))
+			let address = args.arg_address.parse().map_err(|_| EthkeyError::InvalidAddress)?;
+			verify_address(&address, &signature, &message)?
 		} else {
 			unreachable!();
 		};

@@ -10,7 +10,7 @@ pub struct SignerRpc {
 
 impl SignerRpc {
 	pub fn new(url: &str, authfile: &PathBuf) -> Result<Self, RpcError> {
-		Ok(SignerRpc { rpc: try!(Rpc::new(&url, authfile)) })
+		Ok(SignerRpc { rpc: Rpc::new(&url, authfile)? })
 	}
 	pub fn requests_to_confirm(&mut self) ->
 		BoxFuture<Result<Vec<ConfirmationRequest>, RpcError>, Canceled>

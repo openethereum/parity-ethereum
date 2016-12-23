@@ -162,7 +162,7 @@ fn cleanup(src_path: &str, attr: AttributeKind) -> Result<(), Error> {
 	use std::path::{Path, PathBuf};
 
 	let out_dir = env::var_os("OUT_DIR").unwrap();
-	let file_name = try!(PathBuf::from(src_path).file_name().ok_or(Error::InvalidFileName).map(|val| val.to_str().unwrap().to_owned()));
+	let file_name = PathBuf::from(src_path).file_name().ok_or(Error::InvalidFileName).map(|val| val.to_str().unwrap().to_owned())?;
 	let mut registry = syntex::Registry::new();
 
 	match attr {
@@ -183,7 +183,7 @@ pub fn derive_ipc(src_path: &str) -> Result<(), Error> {
 	use std::path::{Path, PathBuf};
 
 	let out_dir = env::var_os("OUT_DIR").unwrap();
-	let file_name = try!(PathBuf::from(src_path).file_name().ok_or(Error::InvalidFileName).map(|val| val.to_str().unwrap().to_owned()));
+	let file_name = PathBuf::from(src_path).file_name().ok_or(Error::InvalidFileName).map(|val| val.to_str().unwrap().to_owned())?;
 
 	let final_path = Path::new(&out_dir).join(&file_name);
 
@@ -217,7 +217,7 @@ pub fn derive_binary(src_path: &str) -> Result<(), Error> {
 	use std::path::{Path, PathBuf};
 
 	let out_dir = env::var_os("OUT_DIR").unwrap();
-	let file_name = try!(PathBuf::from(src_path).file_name().ok_or(Error::InvalidFileName).map(|val| val.to_str().unwrap().to_owned()));
+	let file_name = PathBuf::from(src_path).file_name().ok_or(Error::InvalidFileName).map(|val| val.to_str().unwrap().to_owned())?;
 	let final_path = Path::new(&out_dir).join(&file_name);
 
 	let mut registry = syntex::Registry::new();

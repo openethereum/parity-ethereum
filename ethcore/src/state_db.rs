@@ -195,9 +195,9 @@ impl StateDB {
 	pub fn journal_under(&mut self, batch: &mut DBTransaction, now: u64, id: &H256) -> Result<u32, UtilError> {
 		{
  			let mut bloom_lock = self.account_bloom.lock();
- 			try!(Self::commit_bloom(batch, bloom_lock.drain_journal()));
+ 			Self::commit_bloom(batch, bloom_lock.drain_journal())?;
  		}
-		let records = try!(self.db.journal_under(batch, now, id));
+		let records = self.db.journal_under(batch, now, id)?;
 		self.commit_hash = Some(id.clone());
 		self.commit_number = Some(now);
 		Ok(records)

@@ -65,7 +65,7 @@ impl<F: Fn(PriceInfo) + Sync + Send + 'static> Handler<HttpStream> for SetPriceH
 impl PriceInfo {
 	pub fn get<F: Fn(PriceInfo) + Sync + Send + 'static>(set_price: F) -> Result<(), ()> {
 		// TODO: Handle each error type properly
-		let client = try!(Client::new().map_err(|_| ()));
+		let client = Client::new().map_err(|_| ())?;
 		thread::spawn(move || {
 			let (tx, rx) = mpsc::channel();
 			let url = FromStr::from_str("http://api.etherscan.io/api?module=stats&action=ethprice")

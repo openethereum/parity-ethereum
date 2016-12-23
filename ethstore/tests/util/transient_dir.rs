@@ -36,7 +36,7 @@ impl TransientDir {
 	pub fn create() -> Result<Self, Error> {
 		let path = random_dir();
 		let result = TransientDir {
-			dir: try!(DiskDirectory::create(&path)),
+			dir: DiskDirectory::create(&path)?,
 			path: path,
 		};
 

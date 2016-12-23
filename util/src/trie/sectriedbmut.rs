@@ -39,7 +39,7 @@ impl<'db> SecTrieDBMut<'db> {
 	///
 	/// Returns an error if root does not exist.
 	pub fn from_existing(db: &'db mut HashDB, root: &'db mut H256) -> super::Result<Self> {
-		Ok(SecTrieDBMut { raw: try!(TrieDBMut::from_existing(db, root)) })
+		Ok(SecTrieDBMut { raw: TrieDBMut::from_existing(db, root)? })
 	}
 
 	/// Get the backing database.

@@ -348,13 +348,13 @@ impl JournalDB for OverlayRecentDB {
 			match rc {
 				0 => {}
 				1 => {
-					if cfg!(debug_assertions) && try!(self.backing.get(self.column, &key)).is_some() {
+					if cfg!(debug_assertions) && self.backing.get(self.column, &key)?.is_some() {
 						return Err(BaseDataError::AlreadyExists(key).into());
 					}
 					batch.put(self.column, &key, &value)
 				}
 				-1 => {
-					if cfg!(debug_assertions) && try!(self.backing.get(self.column, &key)).is_none() {
+					if cfg!(debug_assertions) && self.backing.get(self.column, &key)?.is_none() {
 						return Err(BaseDataError::NegativelyReferencedHash(key).into());
 					}
 					batch.delete(self.column, &key)

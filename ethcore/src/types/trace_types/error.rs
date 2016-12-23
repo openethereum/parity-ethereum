@@ -86,7 +86,7 @@ impl Encodable for Error {
 impl Decodable for Error {
 	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
 		use self::Error::*;
-		let value: u8 = try!(decoder.as_rlp().as_val());
+		let value: u8 = decoder.as_rlp().as_val()?;
 		match value {
 			0 => Ok(OutOfGas),
 			1 => Ok(BadJumpDestination),

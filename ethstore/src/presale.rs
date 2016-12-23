@@ -32,9 +32,9 @@ impl From<json::PresaleWallet> for PresaleWallet {
 
 impl PresaleWallet {
 	pub fn open<P>(path: P) -> Result<Self, Error> where P: AsRef<Path> {
-		let file = try!(fs::File::open(path));
-		let presale = try!(json::PresaleWallet::load(file)
-			.map_err(|e| Error::InvalidKeyFile(format!("{}", e))));
+		let file = fs::File::open(path)?;
+		let presale = json::PresaleWallet::load(file)
+			.map_err(|e| Error::InvalidKeyFile(format!("{}", e)))?;
 		Ok(PresaleWallet::from(presale))
 	}
 
@@ -44,7 +44,7 @@ impl PresaleWallet {
 		pbkdf2(&mut h_mac, password.as_bytes(), 2000, &mut derived_key);
 
 		let mut key = vec![0; self.ciphertext.len()];
-		let len = try!(crypto::aes::decrypt_cbc(&derived_key, &self.iv, &self.ciphertext, &mut key).map_err(|_| Error::InvalidPassword));
+		let len = crypto::aes::decrypt_cbc(&derived_key, &self.iv, &self.ciphertext, &mut key).map_err(|_| Error::InvalidPassword)?;
 		let unpadded = &key[..len];
 
 		let secret = Secret::from(unpadded.keccak256());

@@ -95,65 +95,65 @@ impl<Message> IoContext<Message> where Message: Send + Clone + Sync + 'static {
 
 	/// Register a new recurring IO timer. 'IoHandler::timeout' will be called with the token.
 	pub fn register_timer(&self, token: TimerToken, ms: u64) -> Result<(), IoError> {
-		try!(self.channel.send_io(IoMessage::AddTimer {
+		self.channel.send_io(IoMessage::AddTimer {
 			token: token,
 			delay: ms,
 			handler_id: self.handler,
 			once: false,
-		}));
+		})?;
 		Ok(())
 	}
 
 	/// Register a new IO timer once. 'IoHandler::timeout' will be called with the token.
 	pub fn register_timer_once(&self, token: TimerToken, ms: u64) -> Result<(), IoError> {
-		try!(self.channel.send_io(IoMessage::AddTimer {
+		self.channel.send_io(IoMessage::AddTimer {
 			token: token,
 			delay: ms,
 			handler_id: self.handler,
 			once: true,
-		}));
+		})?;
 		Ok(())
 	}
 
 	/// Delete a timer.
 	pub fn clear_timer(&self, token: TimerToken) -> Result<(), IoError> {
-		try!(self.channel.send_io(IoMessage::RemoveTimer {
+		self.channel.send_io(IoMessage::RemoveTimer {
 			token: token,
 			handler_id: self.handler,
-		}));
+		})?;
 		Ok(())
 	}
 
 	/// Register a new IO stream.
 	pub fn register_stream(&self, token: StreamToken) -> Result<(), IoError> {
-		try!(self.channel.send_io(IoMessage::RegisterStream {
+		self.channel.send_io(IoMessage::RegisterStream {
 			token: token,
 			handler_id: self.handler,
-		}));
+		})?;
 		Ok(())
 	}
 
 	/// Deregister an IO stream.
 	pub fn deregister_stream(&self, token: StreamToken) -> Result<(), IoError> {
-		try!(self.channel.send_io(IoMessage::DeregisterStream {
+		self.channel.send_io(IoMessage::DeregisterStream {
 			token: token,
 			handler_id: self.handler,
-		}));
+		})?;
 		Ok(())
 	}
 
 	/// Reregister an IO stream.
 	pub fn update_registration(&self, token: StreamToken) -> Result<(), IoError> {
-		try!(self.channel.send_io(IoMessage::UpdateStreamRegistration {
+		self.channel.send_io(IoMessage::UpdateStreamRegistration {
 			token: token,
 			handler_id: self.handler,
-		}));
+		})?;
 		Ok(())
 	}
 
 	/// Broadcast a message to other IO clients
 	pub fn message(&self, message: Message) -> Result<(), IoError> {
-		try!(self.channel.send(message));
+		self.channel.send(message)?;
 		Ok(())
 	}
 
@@ -164,9 +164,9 @@ impl<Message> IoContext<Message> where Message: Send + Clone + Sync + 'static {
 
 	/// Unregister current IO handler.
 	pub fn unregister_handler(&self) -> Result<(), IoError> {
-		try!(self.channel.send_io(IoMessage::RemoveHandler {
+		self.channel.send_io(IoMessage::RemoveHandler {
 			handler_id: self.handler,
-		}));
+		})?;
 		Ok(())
 	}
 
@@ -217,7 +217,7 @@ impl<Message> IoManager<Message> where Message: Send + Sync + Clone + 'static {
 			workers: workers,
 			work_ready: work_ready,
 		};
-		try!(event_loop.run(&mut io));
+		event_loop.run(&mut io)?;
 		Ok(())
 	}
 }
@@ -356,8 +356,8 @@ impl<Message> IoChannel<Message> where Message: Send + Clone + Sync + 'static {
 	/// Send a message through the channel
 	pub fn send(&self, message: Message) -> Result<(), IoError> {
 		match self.channel {
-			Some(ref channel) => try!(channel.send(IoMessage::UserMessage(message))),
-			None => try!(self.send_sync(message))
+			Some(ref channel) => channel.send(IoMessage::UserMessage(message))?,
+			None => self.send_sync(message)?
 		}
 		Ok(())
 	}
@@ -387,7 +387,7 @@ impl<Message> IoChannel<Message> where Message: Send + Clone + Sync + 'static {
 	/// Send low level io message
 	pub fn send_io(&self, message: IoMessage<Message>) -> Result<(), IoError> {
 		if let Some(ref channel) = self.channel {
-			try!(channel.send(message))
+			channel.send(message)?
 		}
 		Ok(())
 	}
@@ -470,15 +470,15 @@ impl<Message> IoService<Message> where Message: Send + Sync + Clone + 'static {
 
 	/// Regiter an IO handler with the event loop.
 	pub fn register_handler(&self, handler: Arc<IoHandler<Message>+Send>) -> Result<(), IoError> {
-		try!(self.host_channel.lock().send(IoMessage::AddHandler {
+		self.host_channel.lock().send(IoMessage::AddHandler {
 			handler: handler,
-		}));
+		})?;
 		Ok(())
 	}
 
 	/// Send a message over the network. Normaly `HostIo::send` should be used. This can be used from non-io threads.
 	pub fn send_message(&self, message: Message) -> Result<(), IoError> {
-		try!(self.host_channel.lock().send(IoMessage::UserMessage(message)));
+		self.host_channel.lock().send(IoMessage::UserMessage(message))?;
 		Ok(())
 	}
 

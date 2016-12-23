@@ -71,7 +71,7 @@ impl SpecType {
 			SpecType::Expanse => Ok(ethereum::new_expanse()),
 			SpecType::Dev => Ok(Spec::new_instant()),
 			SpecType::Custom(ref filename) => {
-				let file = try!(fs::File::open(filename).map_err(|_| "Could not load specification file."));
+				let file = fs::File::open(filename).map_err(|_| "Could not load specification file.")?;
 				Spec::load(file)
 			}
 		}

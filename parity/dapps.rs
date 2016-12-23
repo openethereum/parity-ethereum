@@ -66,7 +66,7 @@ pub fn new(configuration: Configuration, deps: Dependencies) -> Result<Option<We
 
 	let signer_address = deps.apis.signer_service.address();
 	let url = format!("{}:{}", configuration.interface, configuration.port);
-	let addr = try!(url.parse().map_err(|_| format!("Invalid Webapps listen host/port given: {}", url)));
+	let addr = url.parse().map_err(|_| format!("Invalid Webapps listen host/port given: {}", url))?;
 
 	let auth = configuration.user.as_ref().map(|username| {
 		let password = configuration.pass.as_ref().map_or_else(|| {
@@ -79,7 +79,7 @@ pub fn new(configuration: Configuration, deps: Dependencies) -> Result<Option<We
 		(username.to_owned(), password)
 	});
 
-	Ok(Some(try!(setup_dapps_server(deps, configuration.dapps_path, &addr, configuration.hosts, auth, signer_address))))
+	Ok(Some(setup_dapps_server(deps, configuration.dapps_path, &addr, configuration.hosts, auth, signer_address)?))
 }
 
 pub use self::server::WebappServer;

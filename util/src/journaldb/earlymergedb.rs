@@ -391,14 +391,14 @@ impl JournalDB for EarlyMergeDB {
 			let mut index = 0usize;
 			let mut last;
 
-			while try!(self.backing.get(self.column, {
+			while self.backing.get(self.column, {
 				let mut r = RlpStream::new_list(3);
 				r.append(&now);
 				r.append(&index);
 				r.append(&&PADDING[..]);
 				last = r.drain();
 				&last
-			})).is_some() {
+			})?.is_some() {
 				index += 1;
 			}
 
@@ -461,14 +461,14 @@ impl JournalDB for EarlyMergeDB {
 		let mut index = 0usize;
 		let mut last;
 
-		while let Some(rlp_data) = try!(self.backing.get(self.column, {
+		while let Some(rlp_data) = self.backing.get(self.column, {
 			let mut r = RlpStream::new_list(3);
 			r.append(&end_era);
 			r.append(&index);
 			r.append(&&PADDING[..]);
 			last = r.drain();
 			&last
-		})) {
+		})? {
 			let rlp = Rlp::new(&rlp_data);
 			let inserts: Vec<H256> = rlp.val_at(1);
 
@@ -525,13 +525,13 @@ impl JournalDB for EarlyMergeDB {
 			match rc {
 				0 => {}
 				1 => {
-					if try!(self.backing.get(self.column, &key)).is_some() {
+					if self.backing.get(self.column, &key)?.is_some() {
 						return Err(BaseDataError::AlreadyExists(key).into());
 					}
 					batch.put(self.column, &key, &value)
 				}
 				-1 => {
-					if try!(self.backing.get(self.column, &key)).is_none() {
+					if self.backing.get(self.column, &key)?.is_none() {
 						return Err(BaseDataError::NegativelyReferencedHash(key).into());
 					}
 					batch.delete(self.column, &key)

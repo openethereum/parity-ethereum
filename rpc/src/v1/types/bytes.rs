@@ -77,7 +77,7 @@ impl Visitor for BytesVisitor {
 			);
 			Ok(Bytes::new(Vec::new()))
 		} else if value.len() >= 2 && &value[0..2] == "0x" && value.len() & 1 == 0 {
-			Ok(Bytes::new(try!(FromHex::from_hex(&value[2..]).map_err(|_| Error::custom("invalid hex")))))
+			Ok(Bytes::new(FromHex::from_hex(&value[2..]).map_err(|_| Error::custom("invalid hex"))?))
 		} else {
 			Err(Error::custom("invalid format"))
 		}

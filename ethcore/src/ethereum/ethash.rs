@@ -240,8 +240,8 @@ impl Engine for Ethash {
 				Mismatch { expected: self.seal_fields(), found: header.seal().len() }
 			)));
 		}
-		try!(UntrustedRlp::new(&header.seal()[0]).as_val::<H256>());
-		try!(UntrustedRlp::new(&header.seal()[1]).as_val::<H64>());
+		UntrustedRlp::new(&header.seal()[0]).as_val::<H256>()?;
+		UntrustedRlp::new(&header.seal()[1]).as_val::<H64>()?;
 
 		// TODO: consider removing these lines.
 		let min_difficulty = self.ethash_params.minimum_difficulty;
@@ -312,7 +312,7 @@ impl Engine for Ethash {
 
 	fn verify_transaction_basic(&self, t: &SignedTransaction, header: &Header) -> result::Result<(), Error> {
 		if header.number() >= self.ethash_params.homestead_transition {
-			try!(t.check_low_s());
+			t.check_low_s()?;
 		}
 
 		if let Some(n) = t.network_id() {

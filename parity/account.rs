@@ -70,7 +70,7 @@ pub fn execute(cmd: AccountCmd) -> Result<String, String> {
 }
 
 fn keys_dir(path: String, spec: SpecType) -> Result<DiskDirectory, String> {
-	let spec = try!(spec.spec());
+	let spec = spec.spec()?;
 	let mut path = PathBuf::from(&path);
 	path.push(spec.data_dir);
 	DiskDirectory::create(path).map_err(|e| format!("Could not open keys directory: {}", e))
@@ -85,20 +85,20 @@ fn secret_store(dir: Box<DiskDirectory>, iterations: Option<u32>) -> Result<EthS
 
 fn new(n: NewAccount) -> Result<String, String> {
 	let password: String = match n.password_file {
-		Some(file) => try!(password_from_file(file)),
-		None => try!(password_prompt()),
+		Some(file) => password_from_file(file)?,
+		None => password_prompt()?,
 	};
 
-	let dir = Box::new(try!(keys_dir(n.path, n.spec)));
-	let secret_store = Box::new(try!(secret_store(dir, Some(n.iterations))));
+	let dir = Box::new(keys_dir(n.path, n.spec)?);
+	let secret_store = Box::new(secret_store(dir, Some(n.iterations))?);
 	let acc_provider = AccountProvider::new(secret_store);
-	let new_account = try!(acc_provider.new_account(&password).map_err(|e| format!("Could not create new account: {}", e)));
+	let new_account = acc_provider.new_account(&password).map_err(|e| format!("Could not create new account: {}", e))?;
 	Ok(format!("{:?}", new_account))
 }
 
 fn list(list_cmd: ListAccounts) -> Result<String, String> {
-	let dir = Box::new(try!(keys_dir(list_cmd.path, list_cmd.spec)));
-	let secret_store = Box::new(try!(secret_store(dir, None)));
+	let dir = Box::new(keys_dir(list_cmd.path, list_cmd.spec)?);
+	let secret_store = Box::new(secret_store(dir, None)?);
 	let acc_provider = AccountProvider::new(secret_store);
 	let accounts = acc_provider.accounts();
 	let result = accounts.into_iter()
@@ -110,11 +110,11 @@ fn list(list_cmd: ListAccounts) -> Result<String, String> {
 }
 
 fn import(i: ImportAccounts) -> Result<String, String> {
-	let to = try!(keys_dir(i.to, i.spec));
+	let to = keys_dir(i.to, i.spec)?;
 	let mut imported = 0;
 	for path in &i.from {
 		let from = DiskDirectory::at(path);
-		imported += try!(import_accounts(&from, &to).map_err(|_| "Importing accounts failed.")).len();
+		imported += import_accounts(&from, &to).map_err(|_| "Importing accounts failed.")?.len();
 	}
 	Ok(format!("{} account(s) imported", imported))
 }
@@ -123,8 +123,8 @@ fn import_geth(i: ImportFromGethAccounts) -> Result<String, String> {
 	use std::io::ErrorKind;
 	use ethcore::ethstore::Error;
 
-	let dir = Box::new(try!(keys_dir(i.to, i.spec)));
-	let secret_store = Box::new(try!(secret_store(dir, None)));
+	let dir = Box::new(keys_dir(i.to, i.spec)?);
+	let secret_store = Box::new(secret_store(dir, None)?);
 	let geth_accounts = read_geth_accounts(i.testnet);
 	match secret_store.import_geth_accounts(geth_accounts, i.testnet) {
 		Ok(v) => Ok(format!("Successfully imported {} account(s) from geth.", v.len())),

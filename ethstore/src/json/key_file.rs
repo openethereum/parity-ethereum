@@ -93,11 +93,11 @@ impl Visitor for KeyFileVisitor {
 		let mut meta = None;
 
 		loop {
-			match try!(visitor.visit_key()) {
-				Some(KeyFileField::Id) => { id = Some(try!(visitor.visit_value())); }
-				Some(KeyFileField::Version) => { version = Some(try!(visitor.visit_value())); }
-				Some(KeyFileField::Crypto) => { crypto = Some(try!(visitor.visit_value())); }
-				Some(KeyFileField::Address) => { address = Some(try!(visitor.visit_value())); }
+			match visitor.visit_key()? {
+				Some(KeyFileField::Id) => { id = Some(visitor.visit_value()?); }
+				Some(KeyFileField::Version) => { version = Some(visitor.visit_value()?); }
+				Some(KeyFileField::Crypto) => { crypto = Some(visitor.visit_value()?); }
+				Some(KeyFileField::Address) => { address = Some(visitor.visit_value()?); }
 				Some(KeyFileField::Name) => { name = visitor.visit_value().ok(); }	// ignore anyhing that is not a string to be permissive.
 				Some(KeyFileField::Meta) => { meta = visitor.visit_value().ok(); }	// ignore anyhing that is not a string to be permissive.
 				None => { break; }
@@ -106,25 +106,25 @@ impl Visitor for KeyFileVisitor {
 
 		let id = match id {
 			Some(id) => id,
-			None => try!(visitor.missing_field("id")),
+			None => visitor.missing_field("id")?,
 		};
 
 		let version = match version {
 			Some(version) => version,
-			None => try!(visitor.missing_field("version")),
+			None => visitor.missing_field("version")?,
 		};
 
 		let crypto = match crypto {
 			Some(crypto) => crypto,
-			None => try!(visitor.missing_field("crypto")),
+			None => visitor.missing_field("crypto")?,
 		};
 
 		let address = match address {
 			Some(address) => address,
-			None => try!(visitor.missing_field("address")),
+			None => visitor.missing_field("address")?,
 		};
 
-		try!(visitor.end());
+		visitor.end()?;
 
 		let result = KeyFile {
 			id: id,

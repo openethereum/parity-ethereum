@@ -48,7 +48,7 @@ impl Decodable for Action {
 		if rlp.is_empty() {
 			Ok(Action::Create)
 		} else {
-			Ok(Action::Call(try!(rlp.as_val())))
+			Ok(Action::Call(rlp.as_val()?))
 		}
 	}
 }
@@ -247,16 +247,16 @@ impl Decodable for SignedTransaction {
 		}
 		Ok(SignedTransaction {
 			unsigned: Transaction {
-				nonce: try!(d.val_at(0)),
-				gas_price: try!(d.val_at(1)),
-				gas: try!(d.val_at(2)),
-				action: try!(d.val_at(3)),
-				value: try!(d.val_at(4)),
-				data: try!(d.val_at(5)),
+				nonce: d.val_at(0)?,
+				gas_price: d.val_at(1)?,
+				gas: d.val_at(2)?,
+				action: d.val_at(3)?,
+				value: d.val_at(4)?,
+				data: d.val_at(5)?,
 			},
-			v: try!(d.val_at(6)),
-			r: try!(d.val_at(7)),
-			s: try!(d.val_at(8)),
+			v: d.val_at(6)?,
+			r: d.val_at(7)?,
+			s: d.val_at(8)?,
 			hash: Cell::new(None),
 			sender: Cell::new(None),
 		})
@@ -338,7 +338,7 @@ impl SignedTransaction {
 		match sender {
 			Some(s) => Ok(s),
 			None => {
-				let s = public_to_address(&try!(self.public_key()));
+				let s = public_to_address(&self.public_key()?);
 				self.sender.set(Some(s));
 				Ok(s)
 			}
@@ -347,7 +347,7 @@ impl SignedTransaction {
 
 	/// Returns the public key of the sender.
 	pub fn public_key(&self) -> Result<Public, Error> {
-		Ok(try!(recover(&self.signature(), &self.unsigned.hash(self.network_id()))))
+		Ok(recover(&self.signature(), &self.unsigned.hash(self.network_id()))?)
 	}
 
 	/// Do basic validation, checking for valid signature and minimum gas,
@@ -363,7 +363,7 @@ impl SignedTransaction {
 			Some(1) if allow_network_id_of_one => {},
 			_ => return Err(TransactionError::InvalidNetworkId.into()),
 		}
-		try!(self.sender());
+		self.sender()?;
 		if self.gas < U256::from(self.gas_required(&schedule)) {
 			Err(TransactionError::InvalidGasLimit(::util::OutOfBounds{min: Some(U256::from(self.gas_required(&schedule))), max: None, found: self.gas}).into())
 		} else {

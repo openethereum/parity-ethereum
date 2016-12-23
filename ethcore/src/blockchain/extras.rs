@@ -157,10 +157,10 @@ impl Decodable for BlockDetails {
 	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
 		let d = decoder.as_rlp();
 		let details = BlockDetails {
-			number: try!(d.val_at(0)),
-			total_difficulty: try!(d.val_at(1)),
-			parent: try!(d.val_at(2)),
-			children: try!(d.val_at(3)),
+			number: d.val_at(0)?,
+			total_difficulty: d.val_at(1)?,
+			parent: d.val_at(2)?,
+			children: d.val_at(3)?,
 		};
 		Ok(details)
 	}
@@ -193,8 +193,8 @@ impl Decodable for TransactionAddress {
 	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
 		let d = decoder.as_rlp();
 		let tx_address = TransactionAddress {
-			block_hash: try!(d.val_at(0)),
-			index: try!(d.val_at(1)),
+			block_hash: d.val_at(0)?,
+			index: d.val_at(1)?,
 		};
 
 		Ok(tx_address)
@@ -226,7 +226,7 @@ impl BlockReceipts {
 impl Decodable for BlockReceipts {
 	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
 		Ok(BlockReceipts {
-			receipts: try!(Decodable::decode(decoder))
+			receipts: Decodable::decode(decoder)?
 		})
 	}
 }

@@ -90,13 +90,13 @@ impl Visitor for CryptoVisitor {
 		let mut mac = None;
 
 		loop {
-			match try!(visitor.visit_key()) {
-				Some(CryptoField::Cipher) => { cipher = Some(try!(visitor.visit_value())); }
-				Some(CryptoField::CipherParams) => { cipherparams = Some(try!(visitor.visit_value())); }
-				Some(CryptoField::CipherText) => { ciphertext = Some(try!(visitor.visit_value())); }
-				Some(CryptoField::Kdf) => { kdf = Some(try!(visitor.visit_value())); }
-				Some(CryptoField::KdfParams) => { kdfparams = Some(try!(visitor.visit_value())); }
-				Some(CryptoField::Mac) => { mac = Some(try!(visitor.visit_value())); }
+			match visitor.visit_key()? {
+				Some(CryptoField::Cipher) => { cipher = Some(visitor.visit_value()?); }
+				Some(CryptoField::CipherParams) => { cipherparams = Some(visitor.visit_value()?); }
+				Some(CryptoField::CipherText) => { ciphertext = Some(visitor.visit_value()?); }
+				Some(CryptoField::Kdf) => { kdf = Some(visitor.visit_value()?); }
+				Some(CryptoField::KdfParams) => { kdfparams = Some(visitor.visit_value()?); }
+				Some(CryptoField::Mac) => { mac = Some(visitor.visit_value()?); }
 				None => { break; }
 			}
 		}
@@ -109,7 +109,7 @@ impl Visitor for CryptoVisitor {
 
 		let ciphertext = match ciphertext {
 			Some(ciphertext) => ciphertext,
-			None => try!(visitor.missing_field("ciphertext")),
+			None => visitor.missing_field("ciphertext")?,
 		};
 
 		let kdf = match (kdf, kdfparams) {
@@ -122,10 +122,10 @@ impl Visitor for CryptoVisitor {
 
 		let mac = match mac {
 			Some(mac) => mac,
-			None => try!(visitor.missing_field("mac")),
+			None => visitor.missing_field("mac")?,
 		};
 
-		try!(visitor.end());
+		visitor.end()?;
 
 		let result = Crypto {
 			cipher: cipher,
@@ -142,26 +142,26 @@ impl Serialize for Crypto {
 	fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Error>
 		where S: Serializer
 	{
-		let mut state = try!(serializer.serialize_struct("Crypto", 6));
+		let mut state = serializer.serialize_struct("Crypto", 6)?;
 		match self.cipher {
 			Cipher::Aes128Ctr(ref params) => {
-				try!(serializer.serialize_struct_elt(&mut state, "cipher", &CipherSer::Aes128Ctr));
-				try!(serializer.serialize_struct_elt(&mut state, "cipherparams", params));
+				serializer.serialize_struct_elt(&mut state, "cipher", &CipherSer::Aes128Ctr)?;
+				serializer.serialize_struct_elt(&mut state, "cipherparams", params)?;
 			},
 		}
-		try!(serializer.serialize_struct_elt(&mut state, "ciphertext", &self.ciphertext));
+		serializer.serialize_struct_elt(&mut state, "ciphertext", &self.ciphertext)?;
 		match self.kdf {
 			Kdf::Pbkdf2(ref params) => {
-				try!(serializer.serialize_struct_elt(&mut state, "kdf", &KdfSer::Pbkdf2));
-				try!(serializer.serialize_struct_elt(&mut state, "kdfparams", params));
+				serializer.serialize_struct_elt(&mut state, "kdf", &KdfSer::Pbkdf2)?;
+				serializer.serialize_struct_elt(&mut state, "kdfparams", params)?;
 			},
 			Kdf::Scrypt(ref params) => {
-				try!(serializer.serialize_struct_elt(&mut state, "kdf", &KdfSer::Scrypt));
-				try!(serializer.serialize_struct_elt(&mut state, "kdfparams", params));
+				serializer.serialize_struct_elt(&mut state, "kdf", &KdfSer::Scrypt)?;
+				serializer.serialize_struct_elt(&mut state, "kdfparams", params)?;
 			},
 		}
 
-		try!(serializer.serialize_struct_elt(&mut state, "mac", &self.mac));
+		serializer.serialize_struct_elt(&mut state, "mac", &self.mac)?;
 		serializer.serialize_struct_end(state)
 	}
 }

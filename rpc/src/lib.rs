@@ -122,8 +122,8 @@ impl RpcServer {
 
 	/// Start ipc server asynchronously and returns result with `Server` handle on success or an error.
 	pub fn start_ipc(&self, addr: &str) -> Result<ipc::Server, ipc::Error> {
-		let server = try!(ipc::Server::new(addr, &self.handler));
-		try!(server.run_async());
+		let server = ipc::Server::new(addr, &self.handler)?;
+		server.run_async()?;
 		Ok(server)
 	}
 }

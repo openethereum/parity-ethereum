@@ -74,7 +74,7 @@ impl Stratum {
 		secret: Option<H256>,
 	) -> Result<Arc<Stratum>, jsonrpc_tcp_server::Error> {
 		let handler = Arc::new(IoHandler::new());
-		let server = try!(JsonRpcServer::new(addr, &handler));
+		let server = JsonRpcServer::new(addr, &handler)?;
 		let stratum = Arc::new(Stratum {
 			rpc_server: server,
 			handler: handler,
@@ -90,7 +90,7 @@ impl Stratum {
 		delegate.add_method("miner.authorize", Stratum::authorize);
 		stratum.handler.add_delegate(delegate);
 
-		try!(stratum.rpc_server.run_async());
+		stratum.rpc_server.run_async()?;
 
 		Ok(stratum)
 	}
@@ -163,7 +163,7 @@ impl PushWorkHandler for Stratum {
 		let workers = self.workers.read();
 		println!("pushing work for {} workers", workers.len());
 		for (ref addr, _) in workers.iter() {
-			try!(self.rpc_server.push_message(addr, payload.as_bytes()));
+			self.rpc_server.push_message(addr, payload.as_bytes())?;
 		}
 		Ok(())
 	}
@@ -182,12 +182,10 @@ impl PushWorkHandler for Stratum {
 		while que.len() > 0 {
 			let next_worker = addrs[addr_index];
 			let mut next_payload = que.drain(0..1);
-			try!(
-				self.rpc_server.push_message(
+			self.rpc_server.push_message(
 					next_worker,
 					next_payload.nth(0).expect("drained successfully of 0..1, so 0-th element should exist").as_bytes()
-				)
-			);
+				)?;
 			addr_index = addr_index + 1;
 		}
 		Ok(())

@@ -64,10 +64,10 @@ impl NodeEndpoint {
 	}
 
 	pub fn from_rlp(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
-		let tcp_port = try!(rlp.val_at::<u16>(2));
-		let udp_port = try!(rlp.val_at::<u16>(1));
-		let addr_bytes = try!(try!(rlp.at(0)).data());
-		let address = try!(match addr_bytes.len() {
+		let tcp_port = rlp.val_at::<u16>(2)?;
+		let udp_port = rlp.val_at::<u16>(1)?;
+		let addr_bytes = rlp.at(0)?.data()?;
+		let address = match addr_bytes.len() {
 			4 => Ok(SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::new(addr_bytes[0], addr_bytes[1], addr_bytes[2], addr_bytes[3]), tcp_port))),
 			16 => unsafe {
 				let o: *const u16 = mem::transmute(addr_bytes.as_ptr());
@@ -75,7 +75,7 @@ impl NodeEndpoint {
 				Ok(SocketAddr::V6(SocketAddrV6::new(Ipv6Addr::new(o[0], o[1], o[2], o[3], o[4], o[5], o[6], o[7]), tcp_port, 0, 0)))
 			},
 			_ => Err(DecoderError::RlpInconsistentLengthAndData)
-		});
+		}?;
 		Ok(NodeEndpoint { address: address, udp_port: udp_port })
 	}
 
@@ -153,9 +153,9 @@ impl Node {
 impl Display for Node {
 	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
 		if self.endpoint.udp_port != self.endpoint.address.port() {
-			try!(write!(f, "enode://{}@{}+{}", self.id.hex(), self.endpoint.address, self.endpoint.udp_port));
+			write!(f, "enode://{}@{}+{}", self.id.hex(), self.endpoint.address, self.endpoint.udp_port)?;
 		} else {
-			try!(write!(f, "enode://{}@{}", self.id.hex(), self.endpoint.address));
+			write!(f, "enode://{}@{}", self.id.hex(), self.endpoint.address)?;
 		}
 		Ok(())
 	}
@@ -165,10 +165,10 @@ impl FromStr for Node {
 	type Err = NetworkError;
 	fn from_str(s: &str) -> Result<Self, Self::Err> {
 		let (id, endpoint) = if s.len() > 136 && &s[0..8] == "enode://" && &s[136..137] == "@" {
-			(try!(s[8..136].parse().map_err(UtilError::from)), try!(NodeEndpoint::from_str(&s[137..])))
+			(s[8..136].parse().map_err(UtilError::from)?, NodeEndpoint::from_str(&s[137..])?)
 		}
 		else {
-			(NodeId::new(), try!(NodeEndpoint::from_str(s)))
+			(NodeId::new(), NodeEndpoint::from_str(s)?)
 		};
 
 		Ok(Node {

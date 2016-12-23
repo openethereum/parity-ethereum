@@ -46,7 +46,7 @@ fn sign_transactions(
 	signer: &mut SignerRpc,
 	password: String
 ) -> Result<String, String> {
-	try!(signer.requests_to_confirm().map(|reqs| {
+	signer.requests_to_confirm().map(|reqs| {
 		match reqs {
 			Ok(ref reqs) if reqs.is_empty() => {
 				Ok("No transactions in signing queue".to_owned())
@@ -63,11 +63,11 @@ fn sign_transactions(
 		}
 	}).map_err(|err| {
 		format!("{:?}", err)
-	}).wait())
+	}).wait()?
 }
 
 fn list_transactions(signer: &mut SignerRpc) -> Result<String, String> {
-	try!(signer.requests_to_confirm().map(|reqs| {
+	signer.requests_to_confirm().map(|reqs| {
 		match reqs {
 			Ok(ref reqs) if reqs.is_empty() => {
 				Ok("No transactions in signing queue".to_owned())
@@ -85,26 +85,26 @@ fn list_transactions(signer: &mut SignerRpc) -> Result<String, String> {
 		}
 	}).map_err(|err| {
 		format!("{:?}", err)
-	}).wait())
+	}).wait()?
 }
 
 fn sign_transaction(
 	signer: &mut SignerRpc, id: U256, password: &str
 ) -> Result<String, String> {
-	try!(signer.confirm_request(id, None, None, None, password).map(|res| {
+	signer.confirm_request(id, None, None, None, password).map(|res| {
 		match res {
 			Ok(u) => Ok(format!("Signed transaction id: {:#x}", u)),
 			Err(e) => Err(format!("{:?}", e)),
 		}
 	}).map_err(|err| {
 		format!("{:?}", err)
-	}).wait())
+	}).wait()?
 }
 
 fn reject_transaction(
 	signer: &mut SignerRpc, id: U256) -> Result<String, String>
 {
-	try!(signer.reject_request(id).map(|res| {
+	signer.reject_request(id).map(|res| {
 		match res {
 			Ok(true) => Ok(format!("Rejected transaction id {:#x}", id)),
 			Ok(false) => Err(format!("No such request")),
@@ -112,7 +112,7 @@ fn reject_transaction(
 		}
 	}).map_err(|err| {
 		format!("{:?}", err)
-	}).wait())
+	}).wait()?
 }
 
 // cmds
@@ -121,20 +121,20 @@ pub fn signer_list(
 	signerport: u16, authfile: PathBuf
 ) -> Result<String, String> {
 	let addr = &format!("ws://127.0.0.1:{}", signerport);
-	let mut signer = try!(SignerRpc::new(addr, &authfile).map_err(|err| {
+	let mut signer = SignerRpc::new(addr, &authfile).map_err(|err| {
 		format!("{:?}", err)
-	}));
+	})?;
 	list_transactions(&mut signer)
 }
 
 pub fn signer_reject(
 	id: Option<usize>, signerport: u16, authfile: PathBuf
 ) -> Result<String, String> {
-	let id = try!(id.ok_or(format!("id required for signer reject")));
+	let id = id.ok_or(format!("id required for signer reject"))?;
 	let addr = &format!("ws://127.0.0.1:{}", signerport);
-	let mut signer = try!(SignerRpc::new(addr, &authfile).map_err(|err| {
+	let mut signer = SignerRpc::new(addr, &authfile).map_err(|err| {
 		format!("{:?}", err)
-	}));
+	})?;
 	reject_transaction(&mut signer, U256::from(id))
 }
 
@@ -167,9 +167,9 @@ pub fn signer_sign(
 	}
 
 	let addr = &format!("ws://127.0.0.1:{}", signerport);
-	let mut signer = try!(SignerRpc::new(addr, &authfile).map_err(|err| {
+	let mut signer = SignerRpc::new(addr, &authfile).map_err(|err| {
 		format!("{:?}", err)
-	}));
+	})?;
 
 	match id {
 		Some(id) => {

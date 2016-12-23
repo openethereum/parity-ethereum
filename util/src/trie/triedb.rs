@@ -80,7 +80,7 @@ impl<'db> TrieDB<'db> {
 	pub fn keys(&self) -> super::Result<Vec<H256>> {
 		let mut ret: Vec<H256> = Vec::new();
 		ret.push(self.root.clone());
-		try!(self.accumulate_keys(try!(self.root_node(&mut NoOp)), &mut ret));
+		self.accumulate_keys(self.root_node(&mut NoOp)?, &mut ret)?;
 		Ok(ret)
 	}
 
@@ -97,7 +97,7 @@ impl<'db> TrieDB<'db> {
 	/// trie.
 	pub fn db_items_remaining(&self) -> super::Result<HashMap<H256, i32>> {
 		let mut ret = self.db.keys();
-		for (k, v) in Self::to_map(try!(self.keys())) {
+		for (k, v) in Self::to_map(self.keys()?) {
 			let keycount = *ret.get(&k).unwrap_or(&0);
 			match keycount <= v as i32 {
 				true => ret.remove(&k),
@@ -115,12 +115,12 @@ impl<'db> TrieDB<'db> {
 				acc.push(p.as_val());
 			}
 
-			self.accumulate_keys(try!(self.get_node(payload, &mut NoOp, 0)), acc)
+			self.accumulate_keys(self.get_node(payload, &mut NoOp, 0)?, acc)
 		};
 
 		match node {
-			Node::Extension(_, ref payload) => try!(handle_payload(payload)),
-			Node::Branch(ref payloads, _) => for payload in payloads { try!(handle_payload(payload)) },
+			Node::Extension(_, ref payload) => handle_payload(payload)?,
+			Node::Branch(ref payloads, _) => for payload in payloads { handle_payload(payload)? },
 			_ => {},
 		}
 
@@ -146,7 +146,7 @@ impl<'db> TrieDB<'db> {
 	/// Indentation helper for `formal_all`.
 	fn fmt_indent(&self, f: &mut fmt::Formatter, size: usize) -> fmt::Result {
 		for _ in 0..size {
-			try!(write!(f, "  "));
+			write!(f, "  ")?;
 		}
 		Ok(())
 	}
@@ -154,36 +154,36 @@ impl<'db> TrieDB<'db> {
 	/// Recursion helper for implementation of formatting trait.
 	fn fmt_all(&self, node: Node, f: &mut fmt::Formatter, deepness: usize) -> fmt::Result {
 		match node {
-			Node::Leaf(slice, value) => try!(writeln!(f, "'{:?}: {:?}.", slice, value.pretty())),
+			Node::Leaf(slice, value) => writeln!(f, "'{:?}: {:?}.", slice, value.pretty())?,
 			Node::Extension(ref slice, ref item) => {
-				try!(write!(f, "'{:?} ", slice));
+				write!(f, "'{:?} ", slice)?;
 				if let Ok(node) = self.get_node(&*item, &mut NoOp, 0) {
-					try!(self.fmt_all(node, f, deepness));
+					self.fmt_all(node, f, deepness)?;
 				}
 			},
 			Node::Branch(ref nodes, ref value) => {
-				try!(writeln!(f, ""));
+				writeln!(f, "")?;
 				if let Some(ref v) = *value {
-					try!(self.fmt_indent(f, deepness + 1));
-					try!(writeln!(f, "=: {:?}", v.pretty()))
+					self.fmt_indent(f, deepness + 1)?;
+					writeln!(f, "=: {:?}", v.pretty())?
 				}
 				for i in 0..16 {
 					match self.get_node(&*nodes[i], &mut NoOp, 0) {
 						Ok(Node::Empty) => {},
 						Ok(n) => {
-							try!(self.fmt_indent(f, deepness + 1));
-							try!(write!(f, "'{:x} ", i));
-							try!(self.fmt_all(n, f, deepness + 1));
+							self.fmt_indent(f, deepness + 1)?;
+							write!(f, "'{:x} ", i)?;
+							self.fmt_all(n, f, deepness + 1)?;
 						}
 						Err(e) => {
-							try!(write!(f, "ERROR: {}", e));
+							write!(f, "ERROR: {}", e)?;
 						}
 					}
 				}
 			},
 			// empty
 			Node::Empty => {
-				try!(writeln!(f, "<empty>"));
+				writeln!(f, "<empty>")?;
 			}
 		};
 		Ok(())
@@ -193,7 +193,7 @@ impl<'db> TrieDB<'db> {
 	fn do_lookup<'key, R: 'key>(&'db self, key: &NibbleSlice<'key>, r: &'key mut R) -> super::Result<Option<DBValue>>
 		where 'db: 'key, R: Recorder
 	{
-		let root_rlp = try!(self.root_data(r));
+		let root_rlp = self.root_data(r)?;
 		self.get_from_node(&root_rlp, key, r, 1)
 	}
 
@@ -213,7 +213,7 @@ impl<'db> TrieDB<'db> {
 			Node::Extension(ref slice, ref item) => {
 				let slice = &NibbleSlice::from_encoded(slice).0;
 				if key.starts_with(slice) {
-					let data = try!(self.get_raw_or_lookup(&*item, r, d));
+					let data = self.get_raw_or_lookup(&*item, r, d)?;
 					self.get_from_node(&data, &key.mid(slice.len()), r, d + 1)
 				} else {
 					Ok(None)
@@ -222,7 +222,7 @@ impl<'db> TrieDB<'db> {
 			Node::Branch(ref nodes, ref value) => match key.is_empty() {
 				true => Ok(value.clone()),
 				false => {
-					let node = try!(self.get_raw_or_lookup(&*nodes[key.at(0) as usize], r, d));
+					let node = self.get_raw_or_lookup(&*nodes[key.at(0) as usize], r, d)?;
 					self.get_from_node(&node, &key.mid(1), r, d + 1)
 				}
 			},
@@ -291,7 +291,7 @@ impl<'a> TrieDBIterator<'a> {
 			key_nibbles: Vec::new(),
 		};
 
-		try!(db.root_data(&mut NoOp).and_then(|root| r.descend(&root)));
+		db.root_data(&mut NoOp).and_then(|root| r.descend(&root))?;
 		Ok(r)
 	}
 
@@ -322,10 +322,10 @@ impl<'a> TrieDBIterator<'a> {
 						node: Node::decoded(node),
 					});
 					self.key_nibbles.extend(slice.iter());
-					let data = try!(self.db.get_raw_or_lookup(&*item, &mut r, d));
+					let data = self.db.get_raw_or_lookup(&*item, &mut r, d)?;
 					self.seek_descend(&data, &key.mid(slice.len()), d + 1)
 				} else {
-					try!(self.descend(node));
+					self.descend(node)?;
 					Ok(())
 				}
 			},
@@ -345,7 +345,7 @@ impl<'a> TrieDBIterator<'a> {
 						node: Node::decoded(node),
 					});
 					self.key_nibbles.push(i);
-					let child = try!(self.db.get_raw_or_lookup(&*nodes[i as usize], &mut r, d));
+					let child = self.db.get_raw_or_lookup(&*nodes[i as usize], &mut r, d)?;
 					self.seek_descend(&child, &key.mid(1), d + 1)
 				}
 			},
@@ -357,7 +357,7 @@ impl<'a> TrieDBIterator<'a> {
 	fn descend(&mut self, d: &[u8]) -> super::Result<()> {
 		self.trail.push(Crumb {
 			status: Status::Entering,
-			node: try!(self.db.get_node(d, &mut NoOp, 0)),
+			node: self.db.get_node(d, &mut NoOp, 0)?,
 		});
 		match self.trail.last().expect("just pushed item; qed").node {
 			Node::Leaf(ref n, _) | Node::Extension(ref n, _) => { self.key_nibbles.extend(NibbleSlice::from_encoded(n).0.iter()); },
@@ -380,7 +380,7 @@ impl<'a> TrieIterator for TrieDBIterator<'a> {
 		self.trail.clear();
 		self.key_nibbles.clear();
 		let mut r = NoOp;
-		let root_rlp = try!(self.db.root_data(&mut r));
+		let root_rlp = self.db.root_data(&mut r)?;
 		self.seek_descend(&root_rlp, &NibbleSlice::new(key), 1)
 	}
 }
@@ -456,9 +456,9 @@ impl<'db> Trie for TrieDB<'db> {
 
 impl<'db> fmt::Debug for TrieDB<'db> {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		try!(writeln!(f, "c={:?} [", self.hash_count));
+		writeln!(f, "c={:?} [", self.hash_count)?;
 		let root_rlp = self.db.get(self.root).expect("Trie root not found!");
-		try!(self.fmt_all(Node::decoded(&root_rlp), f, 0));
+		self.fmt_all(Node::decoded(&root_rlp), f, 0)?;
 		writeln!(f, "]")
 	}
 }

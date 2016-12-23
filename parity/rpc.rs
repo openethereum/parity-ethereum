@@ -89,8 +89,8 @@ pub fn new_http(conf: HttpConfiguration, deps: &Dependencies) -> Result<Option<H
 	}
 
 	let url = format!("{}:{}", conf.interface, conf.port);
-	let addr = try!(url.parse().map_err(|_| format!("Invalid JSONRPC listen host/port given: {}", url)));
-	Ok(Some(try!(setup_http_rpc_server(deps, &addr, conf.cors, conf.hosts, conf.apis))))
+	let addr = url.parse().map_err(|_| format!("Invalid JSONRPC listen host/port given: {}", url))?;
+	Ok(Some(setup_http_rpc_server(deps, &addr, conf.cors, conf.hosts, conf.apis)?))
 }
 
 fn setup_rpc_server(apis: ApiSet, deps: &Dependencies) -> Result<Server, String> {
@@ -105,7 +105,7 @@ pub fn setup_http_rpc_server(
 	allowed_hosts: Option<Vec<String>>,
 	apis: ApiSet
 ) -> Result<HttpServer, String> {
-	let server = try!(setup_rpc_server(apis, dependencies));
+	let server = setup_rpc_server(apis, dependencies)?;
 	let ph = dependencies.panic_handler.clone();
 	let start_result = server.start_http(url, cors_domains, allowed_hosts, ph);
 	match start_result {
@@ -120,11 +120,11 @@ pub fn setup_http_rpc_server(
 
 pub fn new_ipc(conf: IpcConfiguration, deps: &Dependencies) -> Result<Option<IpcServer>, String> {
 	if !conf.enabled { return Ok(None); }
-	Ok(Some(try!(setup_ipc_rpc_server(deps, &conf.socket_addr, conf.apis))))
+	Ok(Some(setup_ipc_rpc_server(deps, &conf.socket_addr, conf.apis)?))
 }
 
 pub fn setup_ipc_rpc_server(dependencies: &Dependencies, addr: &str, apis: ApiSet) -> Result<IpcServer, String> {
-	let server = try!(setup_rpc_server(apis, dependencies));
+	let server = setup_rpc_server(apis, dependencies)?;
 	match server.start_ipc(addr) {
 		Err(IpcServerError::Io(io_error)) => Err(format!("RPC io error: {}", io_error)),
 		Err(any_error) => Err(format!("Rpc error: {:?}", any_error)),

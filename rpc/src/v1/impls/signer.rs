@@ -64,7 +64,7 @@ impl<C: 'static, M: 'static> SignerClient<C, M> where C: MiningBlockChainClient,
 	fn confirm_internal<F>(&self, id: U256, modification: TransactionModification, f: F) -> Result<WithToken<ConfirmationResponse>, Error> where
 		F: FnOnce(&C, &M, &AccountProvider, ConfirmationPayload) -> Result<WithToken<ConfirmationResponse>, Error>,
 	{
-		try!(self.active());
+		self.active()?;
 
 		let id = id.into();
 		let accounts = take_weak!(self.accounts);
@@ -99,7 +99,7 @@ impl<C: 'static, M: 'static> SignerClient<C, M> where C: MiningBlockChainClient,
 impl<C: 'static, M: 'static> Signer for SignerClient<C, M> where C: MiningBlockChainClient, M: MinerService {
 
 	fn requests_to_confirm(&self) -> Result<Vec<ConfirmationRequest>, Error> {
-		try!(self.active());
+		self.active()?;
 		let signer = take_weak!(self.signer);
 
 		Ok(signer.requests()
@@ -130,7 +130,7 @@ impl<C: 'static, M: 'static> Signer for SignerClient<C, M> where C: MiningBlockC
 	}
 
 	fn confirm_request_raw(&self, id: U256, bytes: Bytes) -> Result<ConfirmationResponse, Error> {
-		try!(self.active());
+		self.active()?;
 
 		let id = id.into();
 		let signer = take_weak!(self.signer);
@@ -140,12 +140,8 @@ impl<C: 'static, M: 'static> Signer for SignerClient<C, M> where C: MiningBlockC
 		signer.peek(&id).map(|confirmation| {
 			let result = match confirmation.payload {
 				ConfirmationPayload::SendTransaction(request) => {
-					let signed_transaction: SignedTransaction = try!(
-						UntrustedRlp::new(&bytes.0).as_val().map_err(errors::from_rlp_error)
-					);
-					let sender = try!(
-						signed_transaction.sender().map_err(|e| errors::invalid_params("Invalid signature.", e))
-					);
+					let signed_transaction: SignedTransaction = UntrustedRlp::new(&bytes.0).as_val().map_err(errors::from_rlp_error)?;
+					let sender = signed_transaction.sender().map_err(|e| errors::invalid_params("Invalid signature.", e))?;
 
 					// Verification
 					let sender_matches = sender == request.from;
@@ -185,7 +181,7 @@ impl<C: 'static, M: 'static> Signer for SignerClient<C, M> where C: MiningBlockC
 	}
 
 	fn reject_request(&self, id: U256) -> Result<bool, Error> {
-		try!(self.active());
+		self.active()?;
 		let signer = take_weak!(self.signer);
 
 		let res = signer.request_rejected(id.into());
@@ -193,7 +189,7 @@ impl<C: 'static, M: 'static> Signer for SignerClient<C, M> where C: MiningBlockC
 	}
 
 	fn generate_token(&self) -> Result<String, Error> {
-		try!(self.active());
+		self.active()?;
 		let signer = take_weak!(self.signer);
 
 		signer.generate_token()

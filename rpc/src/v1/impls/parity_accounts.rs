@@ -52,9 +52,9 @@ impl<C> ParityAccountsClient<C> where C: MiningBlockChainClient {
 
 impl<C: 'static> ParityAccounts for ParityAccountsClient<C> where C: MiningBlockChainClient {
 	fn accounts_info(&self) -> Result<BTreeMap<String, Value>, Error> {
-		try!(self.active());
+		self.active()?;
 		let store = take_weak!(self.accounts);
-		let info = try!(store.accounts_info().map_err(|e| errors::account("Could not fetch account info.", e)));
+		let info = store.accounts_info().map_err(|e| errors::account("Could not fetch account info.", e))?;
 		let other = store.addresses_info().expect("addresses_info always returns Ok; qed");
 
 		Ok(other.into_iter().chain(info.into_iter()).map(|(a, v)| {
@@ -72,7 +72,7 @@ impl<C: 'static> ParityAccounts for ParityAccountsClient<C> where C: MiningBlock
 	}
 
 	fn new_account_from_phrase(&self, phrase: String, pass: String) -> Result<RpcH160, Error> {
-		try!(self.active());
+		self.active()?;
 		let store = take_weak!(self.accounts);
 
 		store.insert_account(*Brain::new(phrase).generate().unwrap().secret(), &pass)
@@ -81,7 +81,7 @@ impl<C: 'static> ParityAccounts for ParityAccountsClient<C> where C: MiningBlock
 	}
 
 	fn new_account_from_wallet(&self, json: String, pass: String) -> Result<RpcH160, Error> {
-		try!(self.active());
+		self.active()?;
 		let store = take_weak!(self.accounts);
 
 		store.import_presale(json.as_bytes(), &pass)
@@ -91,7 +91,7 @@ impl<C: 'static> ParityAccounts for ParityAccountsClient<C> where C: MiningBlock
 	}
 
 	fn new_account_from_secret(&self, secret: RpcH256, pass: String) -> Result<RpcH160, Error> {
-		try!(self.active());
+		self.active()?;
 		let store = take_weak!(self.accounts);
 
 		store.insert_account(secret.into(), &pass)
@@ -100,7 +100,7 @@ impl<C: 'static> ParityAccounts for ParityAccountsClient<C> where C: MiningBlock
 	}
 
 	fn test_password(&self, account: RpcH160, password: String) -> Result<bool, Error> {
-		try!(self.active());
+		self.active()?;
 		let account: Address = account.into();
 
 		take_weak!(self.accounts)
@@ -109,7 +109,7 @@ impl<C: 'static> ParityAccounts for ParityAccountsClient<C> where C: MiningBlock
 	}
 
 	fn change_password(&self, account: RpcH160, password: String, new_password: String) -> Result<bool, Error> {
-		try!(self.active());
+		self.active()?;
 		let account: Address = account.into();
 		take_weak!(self.accounts)
 			.change_password(&account, password, new_password)
@@ -118,7 +118,7 @@ impl<C: 'static> ParityAccounts for ParityAccountsClient<C> where C: MiningBlock
 	}
 
 	fn kill_account(&self, account: RpcH160, password: String) -> Result<bool, Error> {
-		try!(self.active());
+		self.active()?;
 		let account: Address = account.into();
 		take_weak!(self.accounts)
 			.kill_account(&account, &password)
@@ -127,7 +127,7 @@ impl<C: 'static> ParityAccounts for ParityAccountsClient<C> where C: MiningBlock
 	}
 
 	fn remove_address(&self, addr: RpcH160) -> Result<bool, Error> {
-		try!(self.active());
+		self.active()?;
 		let store = take_weak!(self.accounts);
 		let addr: Address = addr.into();
 
@@ -137,7 +137,7 @@ impl<C: 'static> ParityAccounts for ParityAccountsClient<C> where C: MiningBlock
 	}
 
 	fn set_account_name(&self, addr: RpcH160, name: String) -> Result<bool, Error> {
-		try!(self.active());
+		self.active()?;
 		let store = take_weak!(self.accounts);
 		let addr: Address = addr.into();
 
@@ -148,7 +148,7 @@ impl<C: 'static> ParityAccounts for ParityAccountsClient<C> where C: MiningBlock
 	}
 
 	fn set_account_meta(&self, addr: RpcH160, meta: String) -> Result<bool, Error> {
-		try!(self.active());
+		self.active()?;
 		let store = take_weak!(self.accounts);
 		let addr: Address = addr.into();
 
@@ -213,7 +213,7 @@ impl<C: 'static> ParityAccounts for ParityAccountsClient<C> where C: MiningBlock
 	}
 
 	fn geth_accounts(&self) -> Result<Vec<RpcH160>, Error> {
-		try!(self.active());
+		self.active()?;
 		let store = take_weak!(self.accounts);
 
 		Ok(into_vec(store.list_geth_accounts(false)))

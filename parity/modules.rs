@@ -171,13 +171,13 @@ pub fn sync
 	)
 	-> Result<SyncModules, NetworkError>
 {
-	let eth_sync = try!(EthSync::new(Params {
+	let eth_sync = EthSync::new(Params {
 		config: sync_cfg, 
 		chain: client,
 		provider: provider,
 		snapshot_service: snapshot_service, 
 		network_config: net_cfg,
-	}));
+	})?;
 
 	Ok((eth_sync.clone() as Arc<SyncProvider>, eth_sync.clone() as Arc<ManageNetwork>, eth_sync.clone() as Arc<ChainNotify>))
 }

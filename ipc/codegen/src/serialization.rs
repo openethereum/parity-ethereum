@@ -80,11 +80,11 @@ fn serialize_item(
 
 	let where_clause = &generics.where_clause;
 
-	let binary_expressions = try!(binary_expr(cx,
+	let binary_expressions = binary_expr(cx,
 		&builder,
 		&item,
 		&generics,
-		ty.clone()));
+		ty.clone())?;
 
 	let (size_expr, read_expr, write_expr) =
 		(binary_expressions.size, binary_expressions.read, binary_expressions.write);
@@ -388,8 +388,7 @@ fn binary_expr_enum(
 	span: Span,
 	enum_def: &ast::EnumDef,
 ) -> Result<BinaryExpressions, Error> {
-	let arms: Vec<_> = try!(
-		enum_def.variants.iter()
+	let arms: Vec<_> = enum_def.variants.iter()
 			.enumerate()
 			.map(|(variant_index, variant)| {
 				binary_expr_variant(
@@ -403,8 +402,7 @@ fn binary_expr_enum(
 					variant_index,
 				)
 			})
-			.collect()
-	);
+			.collect()?;
 
 	let (size_arms, write_arms, mut read_arms) = (
 		arms.iter().map(|x| x.size.clone()).collect::<Vec<ast::Arm>>(),
@@ -735,14 +733,14 @@ fn binary_expr_variant(
 				)
 				.build();
 
-			let binary_expr = try!(binary_expr_struct(
+			let binary_expr = binary_expr_struct(
 				cx,
 				&builder,
 				ty,
 				fields,
 				None,
 				Some(builder.id(format!("{}::{}", type_ident, variant_ident))),
-			));
+			)?;
 
 			let (size_expr, write_expr, read_expr) = (binary_expr.size, vec![binary_expr.write], binary_expr.read);
 			Ok(BinaryArm {
@@ -774,14 +772,14 @@ fn binary_expr_variant(
 						.map(|(id, field)|(field.ident.unwrap(), builder.pat().ref_id(id))))
 				.build();
 
-			let binary_expr = try!(binary_expr_struct(
+			let binary_expr = binary_expr_struct(
 				cx,
 				&builder,
 				ty,
 				fields,
 				None,
 				Some(builder.id(format!("{}::{}", type_ident, variant_ident))),
-			));
+			)?;
 
 			let (size_expr, write_expr, read_expr) = (binary_expr.size, vec![binary_expr.write], binary_expr.read);
 

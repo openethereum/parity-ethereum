@@ -64,10 +64,10 @@ impl Decodable for Receipt {
 	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
 		let d = decoder.as_rlp();
 		let receipt = Receipt {
-			state_root: try!(d.val_at(0)),
-			gas_used: try!(d.val_at(1)),
-			log_bloom: try!(d.val_at(2)),
-			logs: try!(d.val_at(3)),
+			state_root: d.val_at(0)?,
+			gas_used: d.val_at(1)?,
+			log_bloom: d.val_at(2)?,
+			logs: d.val_at(3)?,
 		};
 		Ok(receipt)
 	}

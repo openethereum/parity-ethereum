@@ -20,14 +20,14 @@ use dir::{GethDirectory, KeyDirectory, DirectoryType};
 use Error;
 
 pub fn import_accounts(src: &KeyDirectory, dst: &KeyDirectory) -> Result<Vec<Address>, Error> {
-	let accounts = try!(src.load());
-	let existing_accounts = try!(dst.load()).into_iter().map(|a| a.address).collect::<HashSet<_>>();
+	let accounts = src.load()?;
+	let existing_accounts = dst.load()?.into_iter().map(|a| a.address).collect::<HashSet<_>>();
 
 	accounts.into_iter()
 		.filter(|a| !existing_accounts.contains(&a.address))
 		.map(|a| {
 			let address = a.address.clone();
-			try!(dst.insert(a));
+			dst.insert(a)?;
 			Ok(address)
 		}).collect()
 }
@@ -55,15 +55,15 @@ pub fn import_geth_accounts(dst: &KeyDirectory, desired: HashSet<Address>, testn
 	};
 
 	let src = GethDirectory::open(t);
-	let accounts = try!(src.load());
-	let existing_accounts = try!(dst.load()).into_iter().map(|a| a.address).collect::<HashSet<_>>();
+	let accounts = src.load()?;
+	let existing_accounts = dst.load()?.into_iter().map(|a| a.address).collect::<HashSet<_>>();
 
 	accounts.into_iter()
 		.filter(|a| !existing_accounts.contains(&a.address))
 		.filter(|a| desired.contains(&a.address))
 		.map(|a| {
 			let address = a.address.clone();
-			try!(dst.insert(a));
+			dst.insert(a)?;
 			Ok(address)
 		}).collect()
 }

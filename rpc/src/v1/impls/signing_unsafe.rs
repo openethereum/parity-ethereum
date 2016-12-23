@@ -70,7 +70,7 @@ impl<C, M> SigningUnsafeClient<C, M> where
 	}
 
 	fn handle(&self, payload: RpcConfirmationPayload) -> Result<RpcConfirmationResponse, Error> {
-		try!(self.active());
+		self.active()?;
 		let client = take_weak!(self.client);
 		let miner = take_weak!(self.miner);
 		let accounts = take_weak!(self.accounts);

@@ -97,11 +97,11 @@ impl Restoration {
 		let state_chunks = manifest.state_hashes.iter().cloned().collect();
 		let block_chunks = manifest.block_hashes.iter().cloned().collect();
 
-		let raw_db = Arc::new(try!(Database::open(params.db_config, &*params.db_path.to_string_lossy())
-			.map_err(UtilError::SimpleString)));
+		let raw_db = Arc::new(Database::open(params.db_config, &*params.db_path.to_string_lossy())
+			.map_err(UtilError::SimpleString)?);
 
 		let chain = BlockChain::new(Default::default(), params.genesis, raw_db.clone(), params.engine);
-		let blocks = try!(BlockRebuilder::new(chain, raw_db.clone(), &manifest));
+		let blocks = BlockRebuilder::new(chain, raw_db.clone(), &manifest)?;
 
 		let root = manifest.state_root.clone();
 		Ok(Restoration {
@@ -122,12 +122,12 @@ impl Restoration {
 	// feeds a state chunk, aborts early if `flag` becomes false.
 	fn feed_state(&mut self, hash: H256, chunk: &[u8], flag: &AtomicBool) -> Result<(), Error> {
 		if self.state_chunks_left.remove(&hash) {
-			let len = try!(snappy::decompress_into(chunk, &mut self.snappy_buffer));
+			let len = snappy::decompress_into(chunk, &mut self.snappy_buffer)?;
 
-			try!(self.state.feed(&self.snappy_buffer[..len], flag));
+			self.state.feed(&self.snappy_buffer[..len], flag)?;
 
 			if let Some(ref mut writer) = self.writer.as_mut() {
-				try!(writer.write_state_chunk(hash, chunk));
+				writer.write_state_chunk(hash, chunk)?;
 			}
 		}
 
@@ -137,11 +137,11 @@ impl Restoration {
 	// feeds a block chunk
 	fn feed_blocks(&mut self, hash: H256, chunk: &[u8], engine: &Engine, flag: &AtomicBool) -> Result<(), Error> {
 		if self.block_chunks_left.remove(&hash) {
-			let len = try!(snappy::decompress_into(chunk, &mut self.snappy_buffer));
+			let len = snappy::decompress_into(chunk, &mut self.snappy_buffer)?;
 
-			try!(self.blocks.feed(&self.snappy_buffer[..len], engine, flag));
+			self.blocks.feed(&self.snappy_buffer[..len], engine, flag)?;
 			if let Some(ref mut writer) = self.writer.as_mut() {
-				 try!(writer.write_block_chunk(hash, chunk));
+				 writer.write_block_chunk(hash, chunk)?;
 			}
 		}
 
@@ -167,13 +167,13 @@ impl Restoration {
 		}
 
 		// check for missing code.
-		try!(self.state.check_missing());
+		self.state.check_missing()?;
 
 		// connect out-of-order chunks and verify chain integrity.
-		try!(self.blocks.finalize(self.canonical_hashes));
+		self.blocks.finalize(self.canonical_hashes)?;
 
 		if let Some(writer) = self.writer {
-			try!(writer.finish(self.manifest));
+			writer.finish(self.manifest)?;
 		}
 
 		self.guard.disarm();
@@ -315,7 +315,7 @@ impl Service {
 	fn replace_client_db(&self) -> Result<(), Error> {
 		let our_db = self.restoration_db();
 
-		try!(self.db_restore.restore_db(&*our_db.to_string_lossy()));
+		self.db_restore.restore_db(&*our_db.to_string_lossy())?;
 		Ok(())
 	}
 
@@ -351,7 +351,7 @@ impl Service {
 
 		let _ = fs::remove_dir_all(&temp_dir);
 
-		let writer = try!(LooseWriter::new(temp_dir.clone()));
+		let writer = LooseWriter::new(temp_dir.clone())?;
 
 		let guard = Guard::new(temp_dir.clone());
 		let res = client.take_snapshot(writer, BlockId::Number(num), &self.progress);
@@ -378,12 +378,12 @@ impl Service {
 		*reader = None;
 
 		if snapshot_dir.exists() {
-			try!(fs::remove_dir_all(&snapshot_dir));
+			fs::remove_dir_all(&snapshot_dir)?;
 		}
 
-		try!(fs::rename(temp_dir, &snapshot_dir));
+		fs::rename(temp_dir, &snapshot_dir)?;
 
-		*reader = Some(try!(LooseReader::new(snapshot_dir)));
+		*reader = Some(LooseReader::new(snapshot_dir)?);
 
 		guard.disarm();
 		Ok(())
@@ -410,11 +410,11 @@ impl Service {
 			}
 		}
 
-		try!(fs::create_dir_all(&rest_dir));
+		fs::create_dir_all(&rest_dir)?;
 
 		// make new restoration.
 		let writer = match recover {
-			true => Some(try!(LooseWriter::new(self.temp_recovery_dir()))),
+			true => Some(LooseWriter::new(self.temp_recovery_dir())?),
 			false => None
 		};
 
@@ -432,7 +432,7 @@ impl Service {
 		let state_chunks = params.manifest.state_hashes.len();
 		let block_chunks = params.manifest.block_hashes.len();
 
-		*res = Some(try!(Restoration::new(params)));
+		*res = Some(Restoration::new(params)?);
 
 		*self.status.lock() = RestorationStatus::Ongoing {
 			state_chunks: state_chunks as u32,
@@ -454,8 +454,8 @@ impl Service {
 		let recover = rest.as_ref().map_or(false, |rest| rest.writer.is_some());
 
 		// destroy the restoration before replacing databases and snapshot.
-		try!(rest.take().map(Restoration::finalize).unwrap_or(Ok(())));
-		try!(self.replace_client_db());
+		rest.take().map(Restoration::finalize).unwrap_or(Ok(()))?;
+		self.replace_client_db()?;
 
 		if recover {
 			let mut reader = self.reader.write();
@@ -465,13 +465,13 @@ impl Service {
 
 			if snapshot_dir.exists() {
 				trace!(target: "snapshot", "removing old snapshot dir at {}", snapshot_dir.to_string_lossy());
-				try!(fs::remove_dir_all(&snapshot_dir));
+				fs::remove_dir_all(&snapshot_dir)?;
 			}
 
 			trace!(target: "snapshot", "copying restored snapshot files over");
-			try!(fs::rename(self.temp_recovery_dir(), &snapshot_dir));
+			fs::rename(self.temp_recovery_dir(), &snapshot_dir)?;
 
-			*reader = Some(try!(LooseReader::new(snapshot_dir)));
+			*reader = Some(LooseReader::new(snapshot_dir)?);
 		}
 
 		let _ = fs::remove_dir_all(self.restoration_dir());
@@ -510,7 +510,7 @@ impl Service {
 
 							match is_done {
 								true => {
-									try!(db.flush().map_err(::util::UtilError::SimpleString));
+									db.flush().map_err(::util::UtilError::SimpleString)?;
 									drop(db);
 									return self.finalize_restoration(&mut *restoration);
 								},

@@ -207,7 +207,7 @@ impl ws::Handler for Session {
 	}
 
 	fn on_message(&mut self, msg: ws::Message) -> ws::Result<()> {
-		let req = try!(msg.as_text());
+		let req = msg.as_text()?;
 		let out = self.out.clone();
 		self.handler.handle_request(req, move |response| {
 			if let Some(result) = response {

@@ -199,7 +199,7 @@ impl ConfirmationsQueue {
 		let recv = recv.expect("Check for none is done earlier.");
 
 		loop {
-			let message = try!(recv.recv().map_err(|e| QueueError::ReceiverError(e)));
+			let message = recv.recv().map_err(|e| QueueError::ReceiverError(e))?;
 			if let QueueEvent::Finish = message {
 				return Ok(());
 			}

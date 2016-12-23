@@ -116,17 +116,17 @@ impl Light {
 	pub fn from_file(block_number: u64) -> io::Result<Light> {
 		let seed_compute = SeedHashCompute::new();
 		let path = Light::file_path(seed_compute.get_seedhash(block_number));
-		let mut file = try!(File::open(path));
+		let mut file = File::open(path)?;
 
 		let cache_size = get_cache_size(block_number);
-		if try!(file.metadata()).len() != cache_size as u64 {
+		if file.metadata()?.len() != cache_size as u64 {
 			return Err(io::Error::new(io::ErrorKind::Other, "Cache file size mismatch"));
 		}
 		let num_nodes = cache_size / NODE_BYTES;
 		let mut nodes: Vec<Node> = Vec::new();
 		nodes.resize(num_nodes, unsafe { mem::uninitialized() });
 		let buf = unsafe { slice::from_raw_parts_mut(nodes.as_mut_ptr() as *mut u8, cache_size) };
-		try!(file.read_exact(buf));
+		file.read_exact(buf)?;
 		Ok(Light {
 			cache: nodes,
 			block_number: block_number,
@@ -144,16 +144,16 @@ impl Light {
 
 			if deprecated.exists() {
 				debug!(target: "ethash", "removing: {:?}", &deprecated);
-				try!(fs::remove_file(deprecated));
+				fs::remove_file(deprecated)?;
 			}
 		}
 
-		try!(fs::create_dir_all(path.parent().unwrap()));
-		let mut file = try!(File::create(&path));
+		fs::create_dir_all(path.parent().unwrap())?;
+		let mut file = File::create(&path)?;
 
 		let cache_size = self.cache.len() * NODE_BYTES;
 		let buf = unsafe { slice::from_raw_parts(self.cache.as_ptr() as *const u8, cache_size) };
-		try!(file.write(buf));
+		file.write(buf)?;
 		Ok(path)
 	}
 }

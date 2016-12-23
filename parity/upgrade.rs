@@ -89,7 +89,7 @@ fn upgrade_from_version(previous_version: &Version) -> Result<usize, Error> {
 	for upgrade_key in upgrades.keys() {
 		if upgrade_key.is_applicable(previous_version, &current_version) {
 			let upgrade_script = upgrades[upgrade_key];
-			try!(upgrade_script());
+			upgrade_script()?;
 			count += 1;
 		}
 	}
@@ -104,7 +104,7 @@ fn with_locked_version<F>(db_path: Option<&str>, script: F) -> Result<usize, Err
 		path.push(".parity");
 		path
 	}, PathBuf::from);
-	try!(create_dir_all(&path).map_err(|_| Error::CannotCreateConfigPath));
+	create_dir_all(&path).map_err(|_| Error::CannotCreateConfigPath)?;
 	path.push("ver.lock");
 
 	let version =
@@ -117,11 +117,11 @@ fn with_locked_version<F>(db_path: Option<&str>, script: F) -> Result<usize, Err
 			})
 			.unwrap_or_else(|| Version::parse("0.9.0").unwrap());
 
-	let mut lock = try!(File::create(&path).map_err(|_| Error::CannotWriteVersionFile));
+	let mut lock = File::create(&path).map_err(|_| Error::CannotWriteVersionFile)?;
 	let result = script(&version);
 
 	let written_version = Version::parse(CURRENT_VERSION).unwrap();
-	try!(lock.write_all(written_version.to_string().as_bytes()).map_err(|_| Error::CannotUpdateVersionFile));
+	lock.write_all(written_version.to_string().as_bytes()).map_err(|_| Error::CannotUpdateVersionFile)?;
 	result
 }
 
