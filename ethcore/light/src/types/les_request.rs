@@ -20,7 +20,7 @@ use util::H256;
 
 /// Either a hash or a number.
 #[derive(Debug, Clone, PartialEq, Eq)]
-#[cfg_attr(feature = "ipc", derive(Binary))]
+#[cfg_attr(feature = "ipc", binary)]
 pub enum HashOrNumber {
 	/// Block hash variant.
 	Hash(H256),
@@ -42,7 +42,7 @@ impl From<u64> for HashOrNumber {
 
 /// A request for block headers.
 #[derive(Debug, Clone, PartialEq, Eq)]
-#[cfg_attr(feature = "ipc", derive(Binary))]
+#[cfg_attr(feature = "ipc", binary)]
 pub struct Headers {
 	/// Starting block number or hash.
 	pub start: HashOrNumber,
@@ -56,7 +56,7 @@ pub struct Headers {
 
 /// A request for specific block bodies.
 #[derive(Debug, Clone, PartialEq, Eq)]
-#[cfg_attr(feature = "ipc", derive(Binary))]
+#[cfg_attr(feature = "ipc", binary)]
 pub struct Bodies {
 	/// Hashes which bodies are being requested for.
 	pub block_hashes: Vec<H256>
@@ -67,7 +67,7 @@ pub struct Bodies {
 /// This request is answered with a list of transaction receipts for each block
 /// requested.
 #[derive(Debug, Clone, PartialEq, Eq)]
-#[cfg_attr(feature = "ipc", derive(Binary))]
+#[cfg_attr(feature = "ipc", binary)]
 pub struct Receipts {
 	/// Block hashes to return receipts for.
 	pub block_hashes: Vec<H256>,
@@ -75,7 +75,7 @@ pub struct Receipts {
 
 /// A request for a state proof
 #[derive(Debug, Clone, PartialEq, Eq)]
-#[cfg_attr(feature = "ipc", derive(Binary))]
+#[cfg_attr(feature = "ipc", binary)]
 pub struct StateProof {
 	/// Block hash to query state from.
 	pub block: H256,
@@ -90,7 +90,7 @@ pub struct StateProof {
 
 /// A request for state proofs.
 #[derive(Debug, Clone, PartialEq, Eq)]
-#[cfg_attr(feature = "ipc", derive(Binary))]
+#[cfg_attr(feature = "ipc", binary)]
 pub struct StateProofs {
 	/// All the proof requests.
 	pub requests: Vec<StateProof>,
@@ -98,7 +98,7 @@ pub struct StateProofs {
 
 /// A request for contract code.
 #[derive(Debug, Clone, PartialEq, Eq)]
-#[cfg_attr(feature = "ipc", derive(Binary))]
+#[cfg_attr(feature = "ipc", binary)]
 pub struct ContractCode {
 	/// Block hash
 	pub block_hash: H256,
@@ -108,7 +108,7 @@ pub struct ContractCode {
 
 /// A request for contract code.
 #[derive(Debug, Clone, PartialEq, Eq)]
-#[cfg_attr(feature = "ipc", derive(Binary))]
+#[cfg_attr(feature = "ipc", binary)]
 pub struct ContractCodes {
 	/// Block hash and account key (== sha3(address)) pairs to fetch code for.
 	pub code_requests: Vec<ContractCode>,
@@ -116,7 +116,7 @@ pub struct ContractCodes {
 
 /// A request for a header proof from the Canonical Hash Trie.
 #[derive(Debug, Clone, PartialEq, Eq)]
-#[cfg_attr(feature = "ipc", derive(Binary))]
+#[cfg_attr(feature = "ipc", binary)]
 pub struct HeaderProof {
 	/// Number of the CHT.
 	pub cht_number: u64,
@@ -128,7 +128,7 @@ pub struct HeaderProof {
 
 /// A request for header proofs from the CHT.
 #[derive(Debug, Clone, PartialEq, Eq)]
-#[cfg_attr(feature = "ipc", derive(Binary))]
+#[cfg_attr(feature = "ipc", binary)]
 pub struct HeaderProofs {
 	/// All the proof requests.
 	pub requests: Vec<HeaderProof>,
@@ -136,7 +136,7 @@ pub struct HeaderProofs {
 
 /// Kinds of requests.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[cfg_attr(feature = "ipc", derive(Binary))]
+#[cfg_attr(feature = "ipc", binary)]
 pub enum Kind {
 	/// Requesting headers.
 	Headers,
@@ -154,7 +154,7 @@ pub enum Kind {
 
 /// Encompasses all possible types of requests in a single structure.
 #[derive(Debug, Clone, PartialEq, Eq)]
-#[cfg_attr(feature = "ipc", derive(Binary))]
+#[cfg_attr(feature = "ipc", binary)]
 pub enum Request {
 	/// Requesting headers.
 	Headers(Headers),

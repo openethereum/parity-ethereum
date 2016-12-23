@@ -433,7 +433,7 @@ impl ManageNetwork for EthSync {
 
 /// IP fiter
 #[derive(Clone, Debug, PartialEq, Eq)]
-#[cfg_attr(feature = "ipc", derive(Binary))]
+#[cfg_attr(feature = "ipc", binary)]
 pub enum AllowIP {
 	/// Connect to any address
 	All,
@@ -456,7 +456,7 @@ impl AllowIP {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-#[cfg_attr(feature = "ipc", derive(Binary))]
+#[cfg_attr(feature = "ipc", binary)]
 /// Network service configuration
 pub struct NetworkConfiguration {
 	/// Directory path to store general network configuration. None means nothing will be saved
@@ -560,7 +560,7 @@ impl From<BasicNetworkConfiguration> for NetworkConfiguration {
 
 /// Configuration for IPC service.
 #[derive(Debug, Clone)]
-#[cfg_attr(feature = "ipc", derive(Binary))]
+#[cfg_attr(feature = "ipc", binary)]
 pub struct ServiceConfiguration {
 	/// Sync config.
 	pub sync: SyncConfig,

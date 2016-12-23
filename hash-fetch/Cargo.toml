@@ -7,9 +7,13 @@ version = "1.5.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
-log = "0.3"
-rustc-serialize = "0.3"
 ethabi = "0.2.2"
+futures = "0.1"
+log = "0.3"
+mime = "0.2"
 mime_guess = "1.6.1"
+rand = "0.3"
+rustc-serialize = "0.3"
 fetch = { path = "../util/fetch" }
 ethcore-util = { path = "../util" }
+parity-reactor = { path = "../util/reactor" }

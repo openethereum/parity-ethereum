@@ -12,13 +12,14 @@ ethcore-ipc-codegen = { path = "../ipc/codegen" }
 [dependencies]
 log = "0.3"
 ethabi = "0.2.2"
+target_info = "0.1"
 ethcore = { path = "../ethcore" }
 ethsync = { path = "../sync" }
 ethcore-util = { path = "../util" }
 parity-hash-fetch = { path = "../hash-fetch" }
 ipc-common-types = { path = "../ipc-common-types" }
 ethcore-ipc = { path = "../ipc/rpc" }
-target_info = "0.1"
+parity-reactor = { path = "../util/reactor" }
 
 [profile.release]
 debug = true
