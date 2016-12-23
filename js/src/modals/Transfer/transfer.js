@@ -20,7 +20,7 @@ import { bindActionCreators } from 'redux';
 import { observer } from 'mobx-react';
 import { pick } from 'lodash';
 
-import { BusyStep, CompletedStep, Button, IdentityIcon, Modal, TxHash, Input } from '~/ui';
+import { BusyStep, CompletedStep, Button, IdentityIcon, Input, Modal, TxHash, Warning } from '~/ui';
 import { newError } from '~/ui/Errors/actions';
 import { CancelIcon, DoneIcon, NextIcon, PrevIcon } from '~/ui/Icons';
 import { nullableProptype } from '~/util/proptypes';
@@ -30,6 +30,10 @@ import Extras from './Extras';
 
 import TransferStore from './store';
 import styles from './transfer.css';
+
+const STEP_DETAILS = 0;
+const STEP_ADVANCED_OR_BUSY = 1;
+const STEP_BUSY = 2;
 
 @observer
 class Transfer extends Component {
@@ -60,12 +64,30 @@ class Transfer extends Component {
         actions={ this.renderDialogActions() }
         current={ stage }
         steps={ steps }
-        waiting={ extras ? [2] : [1] }
+        waiting={
+          extras
+            ? [STEP_BUSY]
+            : [STEP_ADVANCED_OR_BUSY]
+        }
         visible
       >
-        { this.renderWarning() }
+        { this.renderExceptionWarning() }
         { this.renderPage() }
       </Modal>
+    );
+  }
+
+  renderExceptionWarning () {
+    const { extras, stage } = this.store;
+    const { errorEstimated } = this.store.gasStore;
+
+    if (!errorEstimated || stage >= (extras ? STEP_BUSY : STEP_ADVANCED_OR_BUSY)) {
+      return null;
+    }
+
+    return (
+      <Warning
+        warning={ errorEstimated } />
     );
   }
 
@@ -95,9 +117,9 @@ class Transfer extends Component {
   renderPage () {
     const { extras, stage } = this.store;
 
-    if (stage === 0) {
+    if (stage === STEP_DETAILS) {
       return this.renderDetailsPage();
-    } else if (stage === 1 && extras) {
+    } else if (stage === STEP_ADVANCED_OR_BUSY && extras) {
       return this.renderExtrasPage();
     }
 
@@ -249,20 +271,6 @@ class Transfer extends Component {
       default:
         return [doneBtn];
     }
-  }
-
-  renderWarning () {
-    const { errorEstimated } = this.store.gasStore;
-
-    if (!errorEstimated) {
-      return null;
-    }
-
-    return (
-      <div className={ styles.warning }>
-        { errorEstimated }
-      </div>
-    );
   }
 
   handleClose = () => {

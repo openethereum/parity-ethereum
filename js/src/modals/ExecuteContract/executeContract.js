@@ -23,7 +23,7 @@ import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
 import { toWei } from '~/api/util/wei';
-import { BusyStep, Button, CompletedStep, GasPriceEditor, IdentityIcon, Modal, TxHash } from '~/ui';
+import { BusyStep, Button, CompletedStep, GasPriceEditor, IdentityIcon, Modal, TxHash, Warning } from '~/ui';
 import { CancelIcon, DoneIcon, NextIcon, PrevIcon } from '~/ui/Icons';
 import { MAX_GAS_ESTIMATION } from '~/util/constants';
 import { validateAddress, validateUint } from '~/util/validation';
@@ -131,9 +131,28 @@ class ExecuteContract extends Component {
         current={ step }
         steps={ steps }
         visible
-        waiting={ advancedOptions ? [STEP_BUSY] : [STEP_BUSY_OR_ADVANCED] }>
+        waiting={
+          advancedOptions
+            ? [STEP_BUSY]
+            : [STEP_BUSY_OR_ADVANCED]
+        }>
+        { this.renderExceptionWarning() }
         { this.renderStep() }
       </Modal>
+    );
+  }
+
+  renderExceptionWarning () {
+    const { gasEdit, step } = this.state;
+    const { errorEstimated } = this.gasStore;
+
+    if (!errorEstimated || step >= (gasEdit ? STEP_BUSY : STEP_BUSY_OR_ADVANCED)) {
+      return null;
+    }
+
+    return (
+      <Warning
+        warning={ errorEstimated } />
     );
   }
 
@@ -221,7 +240,6 @@ class ExecuteContract extends Component {
   renderStep () {
     const { onFromAddressChange } = this.props;
     const { advancedOptions, step, busyState, minBlock, minBlockError, txhash, rejected } = this.state;
-    const { errorEstimated } = this.gasStore;
 
     if (rejected) {
       return (
@@ -244,7 +262,6 @@ class ExecuteContract extends Component {
         <DetailsStep
           { ...this.props }
           { ...this.state }
-          warning={ errorEstimated }
           onAmountChange={ this.onAmountChange }
           onFromAddressChange={ onFromAddressChange }
           onFuncChange={ this.onFuncChange }
