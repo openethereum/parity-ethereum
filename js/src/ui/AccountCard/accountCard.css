@@ -71,8 +71,6 @@
     font-size: 0.9em;
 
     .address {
-      font-family: monospace;
-
       &:hover {
         cursor: text;
       }
