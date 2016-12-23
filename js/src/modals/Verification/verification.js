@@ -17,6 +17,7 @@
 import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { observer } from 'mobx-react';
+import { observable } from 'mobx';
 import DoneIcon from 'material-ui/svg-icons/action/done-all';
 import CancelIcon from 'material-ui/svg-icons/content/clear';
 
@@ -62,8 +63,8 @@ class Verification extends Component {
 
   static propTypes = {
     account: PropTypes.string.isRequired,
-    onClose: PropTypes.func.isRequired,
-    isTestnet: PropTypes.bool.isRequired
+    isTest: PropTypes.bool.isRequired,
+    onClose: PropTypes.func.isRequired
   }
 
   static phases = { // mapping (store steps -> steps)
@@ -75,12 +76,13 @@ class Verification extends Component {
   }
 
   state = {
-    method: 'sms',
-    store: null
+    method: 'sms'
   };
 
+  @observable store = null;
+
   render () {
-    const { store } = this.state;
+    const store = this.store;
     let phase = 0; let error = false; let isStepValid = true;
 
     if (store) {
@@ -105,7 +107,7 @@ class Verification extends Component {
 
   renderDialogActions (phase, error, isStepValid) {
     const { account, onClose } = this.props;
-    const { store } = this.state;
+    const store = this.store;
 
     const cancel = (
       <Button
@@ -190,7 +192,7 @@ class Verification extends Component {
       fee, isVerified, hasRequested,
       requestTx, isCodeValid, confirmationTx,
       setCode
-    } = this.state.store;
+    } = this.store;
 
     switch (phase) {
       case 1:
@@ -198,7 +200,7 @@ class Verification extends Component {
           return (<p>Loading verification data.</p>);
         }
 
-        const { setConsentGiven } = this.state.store;
+        const { setConsentGiven } = this.store;
 
         const fields = [];
         if (method === 'sms') {
@@ -206,16 +208,16 @@ class Verification extends Component {
             key: 'number',
             label: 'phone number in international format',
             hint: 'the SMS will be sent to this number',
-            error: this.state.store.isNumberValid ? null : 'invalid number',
-            onChange: this.state.store.setNumber
+            error: this.store.isNumberValid ? null : 'invalid number',
+            onChange: this.store.setNumber
           });
         } else if (method === 'email') {
           fields.push({
             key: 'email',
             label: 'email address',
             hint: 'the code will be sent to this address',
-            error: this.state.store.isEmailValid ? null : 'invalid email',
-            onChange: this.state.store.setEmail
+            error: this.store.isEmailValid ? null : 'invalid email',
+            onChange: this.store.setEmail
           });
         }
 
@@ -235,10 +237,10 @@ class Verification extends Component {
       case 3:
         let receiver, hint;
         if (method === 'sms') {
-          receiver = this.state.store.number;
+          receiver = this.store.number;
           hint = 'Enter the code you received via SMS.';
         } else if (method === 'email') {
-          receiver = this.state.store.email;
+          receiver = this.store.email;
           hint = 'Enter the code you received via e-mail.';
         }
         return (
@@ -267,15 +269,13 @@ class Verification extends Component {
 
   onSelectMethod = (name) => {
     const { api } = this.context;
-    const { account, isTestnet } = this.props;
+    const { account, isTest } = this.props;
 
-    let store = null;
     if (name === 'sms') {
-      store = new SMSVerificationStore(api, account, isTestnet);
+      this.store = new SMSVerificationStore(api, account, isTest);
     } else if (name === 'email') {
-      store = new EmailVerificationStore(api, account, isTestnet);
+      this.store = new EmailVerificationStore(api, account, isTest);
     }
-    this.setState({ store });
   }
 
   selectMethod = (choice, i) => {
@@ -284,7 +284,7 @@ class Verification extends Component {
 }
 
 const mapStateToProps = (state) => ({
-  isTestnet: state.nodeStatus.isTest
+  isTest: state.nodeStatus.isTest
 });
 
 export default connect(
