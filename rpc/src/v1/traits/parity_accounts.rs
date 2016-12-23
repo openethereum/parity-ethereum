@@ -17,15 +17,15 @@
 //! Parity Accounts-related rpc interface.
 use std::collections::BTreeMap;
 
-use jsonrpc_core::{Value, Error};
+use jsonrpc_core::Error;
 use v1::types::{H160, H256, DappId};
 
 build_rpc_trait! {
 	/// Personal Parity rpc interface.
 	pub trait ParityAccounts {
 		/// Returns accounts information.
-		#[rpc(name = "parity_accountsInfo")]
-		fn accounts_info(&self) -> Result<BTreeMap<String, Value>, Error>;
+		#[rpc(name = "parity_allAccountsInfo")]
+		fn all_accounts_info(&self) -> Result<BTreeMap<String, BTreeMap<String, String>>, Error>;
 
 		/// Creates new account from the given phrase using standard brainwallet mechanism.
 		/// Second parameter is password for the new account.

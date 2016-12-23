@@ -204,7 +204,7 @@ describe('api/format/input', () => {
       });
     });
 
-    ['gas', 'gasPrice', 'value', 'nonce'].forEach((input) => {
+    ['gas', 'gasPrice', 'value', 'minBlock', 'nonce'].forEach((input) => {
       it(`formats ${input} number as hexnumber`, () => {
         const block = {};
         block[input] = 0x123;
@@ -212,6 +212,10 @@ describe('api/format/input', () => {
 
         expect(formatted).to.equal('0x123');
       });
+    });
+
+    it('passes minBlock as null when specified as such', () => {
+      expect(inOptions({ minBlock: null })).to.deep.equal({ minBlock: null });
     });
 
     it('ignores and passes through unknown keys', () => {

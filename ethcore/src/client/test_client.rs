@@ -92,6 +92,8 @@ pub struct TestBlockChainClient {
 	pub first_block: RwLock<Option<(H256, u64)>>,
 	/// Traces to return
 	pub traces: RwLock<Option<Vec<LocalizedTrace>>>,
+	/// Pruning history size to report.
+	pub history: RwLock<Option<u64>>,
 }
 
 /// Used for generating test client blocks.
@@ -154,6 +156,7 @@ impl TestBlockChainClient {
 			ancient_block: RwLock::new(None),
 			first_block: RwLock::new(None),
 			traces: RwLock::new(None),
+			history: RwLock::new(None),
 		};
 		client.add_blocks(1, EachBlockWith::Nothing); // add genesis block
 		client.genesis_hash = client.last_hash.read().clone();
@@ -314,6 +317,11 @@ impl TestBlockChainClient {
 		let res = res.into_iter().next().unwrap().expect("Successful import");
 		assert_eq!(res, TransactionImportResult::Current);
 	}
+
+	/// Set reported history size.
+	pub fn set_history(&self, h: Option<u64>) {
+		*self.history.write() = h;
+	}
 }
 
 pub fn get_temp_state_db() -> GuardedTempResult<StateDB> {
@@ -336,8 +344,7 @@ impl MiningBlockChainClient for TestBlockChainClient {
 		let engine = &*self.spec.engine;
 		let genesis_header = self.spec.genesis_header();
 		let mut db_result = get_temp_state_db();
-		let mut db = db_result.take();
-		self.spec.ensure_db_good(&mut db, &TrieFactory::default()).unwrap();
+		let db = self.spec.ensure_db_good(db_result.take(), &Default::default()).unwrap();
 
 		let last_hashes = vec![genesis_header.hash()];
 		let mut open_block = OpenBlock::new(
@@ -516,7 +523,8 @@ impl BlockChainClient for TestBlockChainClient {
 		match id {
 			BlockId::Number(number) if (number as usize) < self.blocks.read().len() => BlockStatus::InChain,
 			BlockId::Hash(ref hash) if self.blocks.read().get(hash).is_some() => BlockStatus::InChain,
-			_ => BlockStatus::Unknown
+			BlockId::Latest | BlockId::Pending | BlockId::Earliest => BlockStatus::InChain,
+			_ => BlockStatus::Unknown,
 		}
 	}
 
@@ -704,6 +712,7 @@ impl BlockChainClient for TestBlockChainClient {
 		PruningInfo {
 			earliest_chain: 1,
 			earliest_state: 1,
+			state_history_size: *self.history.read(),
 		}
 	}
 

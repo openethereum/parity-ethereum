@@ -277,7 +277,7 @@ pub trait BlockChainClient : Sync + Send {
 	/// Get the address of the registry itself.
 	fn registrar_address(&self) -> Option<Address>;
 
-	/// Get the address of a particular blockchain service, if available. 
+	/// Get the address of a particular blockchain service, if available.
 	fn registry_address(&self, name: String) -> Option<Address>;
 }
 

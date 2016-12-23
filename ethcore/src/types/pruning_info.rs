@@ -28,4 +28,6 @@ pub struct PruningInfo {
 	pub earliest_chain: u64,
 	/// The first block where state requests may be served.
 	pub earliest_state: u64,
+	/// State pruning history size.
+	pub state_history_size: Option<u64>,
 }
