@@ -14,16 +14,19 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { observable } from 'mobx';
+import { action, computed, observable, toJS, transaction } from 'mobx';
+
+import { newError } from '~/redux/actions';
+import { validateName } from '~/util/validation';
 
 export default class Store {
   @observable address = null;
   @observable isAccount = false;
   @observable description = null;
-  @observable descriptionError = null;
   @observable meta = {};
   @observable name = null;
   @observable nameError = null;
+  @observable passwordHint = null;
   @observable tags = [];
 
   constructor (api, account) {
@@ -33,10 +36,62 @@ export default class Store {
 
     this.isAccount = !!uuid;
     this.address = address;
-    this.meta = meta || {};
+    this.meta = Object.assign({}, meta || {});
     this.name = name || '';
 
     this.description = this.meta.description || '';
-    this.tags = this.meta.tags || [];
+    this.passwordHint = this.meta.passwordHint || '';
+    this.tags = [].concat((meta || {}).tags || []);
+  }
+
+  @computed get hasError () {
+    return !!(this.nameError);
+  }
+
+  @action setDescription = (description) => {
+    this.description = description;
+  }
+
+  @action setName = (_name) => {
+    const { name, nameError } = validateName(_name);
+
+    transaction(() => {
+      this.name = name;
+      this.setNameError(nameError);
+    });
+  }
+
+  @action setNameError = (nameError) => {
+    this.nameError = nameError;
+  }
+
+  @action setPasswordHint = (passwordHint) => {
+    this.passwordHint = passwordHint;
+  }
+
+  @action setTags = (tags) => {
+    this.tags = [].concat(tags);
+  }
+
+  save () {
+    const meta = {
+      description: this.description,
+      tags: this.tags.peek()
+    };
+
+    if (this.isAccount) {
+      meta.passwordHint = this.passwordHint;
+    }
+
+    return Promise
+      .all([
+        this._api.parity.setAccountName(this.address, this.name),
+        this._api.parity.setAccountMeta(this.address, Object.assign({}, toJS(this.meta), meta))
+      ])
+      .catch((error) => {
+        console.error('onSave', error);
+
+        newError(error);
+      });
   }
 }

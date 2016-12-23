@@ -32,10 +32,12 @@ function createStore (account) {
   };
 
   store = new Store(api, account);
+
+  return store;
 }
 
 describe('modals/EditMeta/Store', () => {
-  describe('creation', () => {
+  describe('constructor', () => {
     describe('accounts', () => {
       beforeEach(() => {
         createStore(ACCOUNT);
@@ -59,11 +61,11 @@ describe('modals/EditMeta/Store', () => {
 
       describe('meta', () => {
         it('extracts the full meta', () => {
-          expect(toJS(store.meta)).to.deep.equal(ADDRESS.meta);
+          expect(toJS(store.meta)).to.deep.equal(ACCOUNT.meta);
         });
 
         it('extracts the description', () => {
-          expect(store.description).to.equal(ADDRESS.meta.description);
+          expect(store.description).to.equal(ACCOUNT.meta.description);
         });
       });
     });
@@ -88,6 +90,91 @@ describe('modals/EditMeta/Store', () => {
       it('extracts the tags (empty)', () => {
         expect(store.tags.peek()).to.deep.equal([]);
       });
+    });
+  });
+
+  describe('@computed', () => {
+    beforeEach(() => {
+      createStore(ADDRESS);
+    });
+
+    describe('hasError', () => {
+      it('is false when no nameError', () => {
+        store.setNameError(null);
+        expect(store.hasError).to.be.false;
+      });
+
+      it('is false with a nameError', () => {
+        store.setNameError('some error');
+        expect(store.hasError).to.be.true;
+      });
+    });
+  });
+
+  describe('@actions', () => {
+    beforeEach(() => {
+      createStore(ADDRESS);
+    });
+
+    describe('setDescription', () => {
+      it('sets the description', () => {
+        store.setDescription('description');
+        expect(store.description).to.equal('description');
+      });
+    });
+
+    describe('setName', () => {
+      it('sets the name', () => {
+        store.setName('valid name');
+        expect(store.name).to.equal('valid name');
+        expect(store.nameError).to.be.null;
+      });
+
+      it('sets name and error on invalid', () => {
+        store.setName('');
+        expect(store.name).to.equal('');
+        expect(store.nameError).not.to.be.null;
+      });
+    });
+
+    describe('setPasswordHint', () => {
+      it('sets the description', () => {
+        store.setPasswordHint('passwordHint');
+        expect(store.passwordHint).to.equal('passwordHint');
+      });
+    });
+
+    describe('setTags', () => {
+      it('sets the tags', () => {
+        store.setTags(['taga', 'tagb']);
+        expect(store.tags.peek()).to.deep.equal(['taga', 'tagb']);
+      });
+    });
+  });
+
+  describe('save', () => {
+    beforeEach(() => {
+      createStore(ACCOUNT);
+    });
+
+    it('calls parity.setAccountName with the set value', () => {
+      store.setName('test name');
+      store.save();
+
+      expect(api.parity.setAccountName).to.be.calledWith(ACCOUNT.address, 'test name');
+    });
+
+    it('calls parity.setAccountMeta with the adjusted values', () => {
+      store.setDescription('some new description');
+      store.setPasswordHint('some new passwordhint');
+      store.setTags(['taga']);
+      store.save();
+
+      expect(api.parity.setAccountMeta).to.have.been.calledWith(ACCOUNT.address, Object.assign({}, ACCOUNT.meta, {
+        description: 'some new description',
+        passwordHint: 'some new passwordhint',
+        tags: ['taga']
+      }));
     });
   });
 });

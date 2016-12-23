@@ -182,7 +182,6 @@ class Address extends Component {
     return (
       <EditMeta
         account={ contact }
-        keys={ ['description'] }
         onClose={ this.onEditClick } />
     );
   }

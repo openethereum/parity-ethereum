@@ -195,7 +195,6 @@ class Account extends Component {
     return (
       <EditMeta
         account={ account }
-        keys={ ['description', 'passwordHint'] }
         onClose={ this.onEditClick } />
     );
   }
