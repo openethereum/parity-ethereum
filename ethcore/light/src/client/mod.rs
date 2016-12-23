@@ -186,6 +186,13 @@ impl Client {
 	pub fn report(&self) -> ClientReport {
 		::std::mem::replace(&mut *self.report.write(), ClientReport::default())
 	}
+
+	/// Get blockchain mem usage in bytes.
+	pub fn chain_mem_used(&self) -> usize {
+		use util::HeapSizeOf;
+
+		self.chain.heap_size_of_children()
+	}
 }
 
 impl LightChainClient for Client {
