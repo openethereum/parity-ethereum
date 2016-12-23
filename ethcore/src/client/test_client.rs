@@ -516,7 +516,8 @@ impl BlockChainClient for TestBlockChainClient {
 		match id {
 			BlockId::Number(number) if (number as usize) < self.blocks.read().len() => BlockStatus::InChain,
 			BlockId::Hash(ref hash) if self.blocks.read().get(hash).is_some() => BlockStatus::InChain,
-			_ => BlockStatus::Unknown
+			BlockId::Latest | BlockId::Pending | BlockId::Earliest => BlockStatus::InChain,
+			_ => BlockStatus::Unknown,
 		}
 	}
 

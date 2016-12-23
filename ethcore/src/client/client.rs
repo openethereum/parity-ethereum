@@ -618,7 +618,8 @@ impl Client {
 	/// Attempt to get a copy of a specific block's final state.
 	///
 	/// This will not fail if given BlockId::Latest.
-	/// Otherwise, this can fail (but may not) if the DB prunes state.
+	/// Otherwise, this can fail (but may not) if the DB prunes state or the block
+	/// is unknown.
 	pub fn state_at(&self, id: BlockId) -> Option<State> {
 		// fast path for latest state.
 		match id.clone() {

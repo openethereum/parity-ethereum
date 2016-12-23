@@ -290,3 +290,11 @@ pub fn from_call_error(error: CallError) -> Error {
 		CallError::TransactionNotFound => internal("{}, this should not be the case with eth_call, most likely a bug.", CallError::TransactionNotFound),
 	}
 }
+
+pub fn unknown_block() -> Error {
+	Error {
+		code: ErrorCode::ServerError(codes::UNSUPPORTED_REQUEST),
+		message: "Unknown block number".into(),
+		data: None,
+	}
+}
