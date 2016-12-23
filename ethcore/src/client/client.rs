@@ -167,25 +167,32 @@ impl Client {
 	) -> Result<Arc<Client>, ClientError> {
 
 		let path = path.to_path_buf();
-		let gb = spec.genesis_block();
-
 		let db = Arc::new(try!(Database::open(&db_config, &path.to_str().expect("DB path could not be converted to string.")).map_err(ClientError::Database)));
-		let chain = Arc::new(BlockChain::new(config.blockchain.clone(), &gb, db.clone(), spec.engine.clone()));
-		let tracedb = RwLock::new(TraceDB::new(config.tracing.clone(), db.clone(), chain.clone()));
-
 		let trie_spec = match config.fat_db {
 			true => TrieSpec::Fat,
 			false => TrieSpec::Secure,
 		};
 
 		let trie_factory = TrieFactory::new(trie_spec);
+		let factories = Factories {
+			vm: EvmFactory::new(config.vm_type.clone(), config.jump_table_size),
+			trie: trie_factory,
+			accountdb: Default::default(),
+		};
+
 		let journal_db = journaldb::new(db.clone(), config.pruning, ::db::COL_STATE);
 		let mut state_db = StateDB::new(journal_db, config.state_cache_size);
-		if state_db.journal_db().is_empty() && try!(spec.ensure_db_good(&mut state_db, &trie_factory)) {
+		if state_db.journal_db().is_empty() {
+			// Sets the correct state root.
+			state_db = spec.ensure_db_good(state_db, &factories)?;
 			let mut batch = DBTransaction::new(&db);
 			try!(state_db.journal_under(&mut batch, 0, &spec.genesis_header().hash()));
 			try!(db.write(batch).map_err(ClientError::Database));
 		}
+
+		let gb = spec.genesis_block();
+		let chain = Arc::new(BlockChain::new(config.blockchain.clone(), &gb, db.clone(), spec.engine.clone()));
+		let tracedb = RwLock::new(TraceDB::new(config.tracing.clone(), db.clone(), chain.clone()));
 
 		trace!("Cleanup journal: DB Earliest = {:?}, Latest = {:?}", state_db.journal_db().earliest_era(), state_db.journal_db().latest_era());
 
@@ -220,12 +227,6 @@ impl Client {
 		panic_handler.forward_from(&block_queue);
 
 		let awake = match config.mode { Mode::Dark(..) | Mode::Off => false, _ => true };
-
-		let factories = Factories {
-			vm: EvmFactory::new(config.vm_type.clone(), config.jump_table_size),
-			trie: trie_factory,
-			accountdb: Default::default(),
-		};
 
 		let client = Arc::new(Client {
 			enabled: AtomicBool::new(true),

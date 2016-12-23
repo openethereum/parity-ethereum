@@ -344,8 +344,7 @@ impl MiningBlockChainClient for TestBlockChainClient {
 		let engine = &*self.spec.engine;
 		let genesis_header = self.spec.genesis_header();
 		let mut db_result = get_temp_state_db();
-		let mut db = db_result.take();
-		self.spec.ensure_db_good(&mut db, &TrieFactory::default()).unwrap();
+		let db = self.spec.ensure_db_good(db_result.take(), &Default::default()).unwrap();
 
 		let last_hashes = vec![genesis_header.hash()];
 		let mut open_block = OpenBlock::new(
