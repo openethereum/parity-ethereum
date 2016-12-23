@@ -64,5 +64,14 @@
     "version": "1.0.0",
     "visible": false,
     "secure": true
+  },
+  {
+    "id": "0x9042323cd85c6576992d211de34b3ecc183f15e4f639aa87859882f839c374e5",
+    "url": "web",
+    "name": "Browser",
+    "description": "A Web 2.0 hosted pseudo-dapps browser.",
+    "author": "Parity Team <admin@ethcore.io>",
+    "version": "1.0.0",
+    "visible": true
   }
 ]
