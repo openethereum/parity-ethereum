@@ -52,7 +52,7 @@ export default class Status extends Component {
                   #{ nodeStatus.blockNumber.toFormat() }
                 </div>
                 <div className={ styles.blockByline }>
-                  { moment().calendar(nodeStatus.blockTimestamp) }
+                  { moment(nodeStatus.blockTimestamp).calendar() }
                 </div>
               </div>
               <div className={ `${styles.col12} ${styles.padBottom}` }>

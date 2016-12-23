@@ -5,6 +5,7 @@ authors = ["Parity Technologies <admin@parity.io>"]
 build = "build.rs"
 
 [dependencies]
+log = "0.3"
 libc = "0.2.11"
 rand = "0.3.14"
 ethkey = { path = "../ethkey" }

@@ -33,6 +33,9 @@ extern crate ethkey as _ethkey;
 extern crate ethcrypto as crypto;
 
 #[macro_use]
+extern crate log;
+
+#[macro_use]
 extern crate lazy_static;
 
 pub mod dir;

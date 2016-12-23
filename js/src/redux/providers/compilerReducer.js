@@ -17,13 +17,18 @@
 import { handleActions } from 'redux-actions';
 
 const initialState = {
-  worker: null
+  worker: undefined,
+  error: null
 };
 
 export default handleActions({
   setWorker (state, action) {
     const { worker } = action;
-
     return Object.assign({}, state, { worker });
+  },
+
+  setError (state, action) {
+    const { error } = action;
+    return Object.assign({}, state, { error });
   }
 }, initialState);

@@ -17,37 +17,40 @@
 
 use util::Bytes;
 
-#[derive(Binary)]
+#[binary]
 pub enum Root {
 	Top,
 	Middle(u32, u64),
 }
 
-#[derive(Binary, PartialEq, Debug)]
+#[derive(PartialEq, Debug)]
+#[binary]
 pub struct DoubleRoot {
 	pub x1: u32,
 	pub x2: u64,
 	pub x3: u32,
 }
 
-#[derive(Binary, PartialEq, Debug)]
+#[derive(PartialEq, Debug)]
+#[binary]
 pub struct ReferenceStruct<'a> {
 	pub ref_data: &'a u64,
 }
 
-#[derive(Binary, PartialEq, Debug)]
+#[derive(PartialEq, Debug)]
+#[binary]
 pub enum EnumWithStruct {
 	Left,
 	Right { how_much: u64 },
 }
 
-#[derive(Binary)]
+#[binary]
 pub struct TwoVec {
 	v1: Vec<u8>,
 	v2: Vec<u8>,
 }
 
-#[derive(Binary)]
+#[binary]
 struct ChunkSet {
     items: Vec<Bytes>,
 }

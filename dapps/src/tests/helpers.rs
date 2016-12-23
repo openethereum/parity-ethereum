@@ -28,6 +28,7 @@ use Server;
 use hash_fetch::urlhint::ContractClient;
 use util::{Bytes, Address, Mutex, ToPretty};
 use devtools::http_client;
+use parity_reactor::Remote;
 
 const REGISTRAR: &'static str = "8e4e9b13d4b45cb0befc93c3061b1408f67316b2";
 const URLHINT: &'static str = "deadbeefcafe0000000000000000000000000000";
@@ -90,13 +91,14 @@ pub fn init_server(hosts: Option<Vec<String>>, is_syncing: bool) -> (ServerLoop,
 	let registrar = Arc::new(FakeRegistrar::new());
 	let mut dapps_path = env::temp_dir();
 	dapps_path.push("non-existent-dir-to-prevent-fs-files-from-loading");
-	let builder = ServerBuilder::new(dapps_path.to_str().unwrap().into(), registrar.clone())
-		.sync_status(Arc::new(move || is_syncing))
-		.signer_address(Some(("127.0.0.1".into(), SIGNER_PORT)))
-		.allowed_hosts(hosts);
+
 	let event_loop = RpcEventLoop::spawn();
 	let handler = event_loop.handler(Arc::new(MetaIoHandler::default()));
-	let server = builder.start_unsecured_http(&"127.0.0.1:0".parse().unwrap(), handler).unwrap();
+	let server = ServerBuilder::new(dapps_path.to_str().unwrap().into(), registrar.clone(), Remote::new(event_loop.remote()))
+		.sync_status(Arc::new(move || is_syncing))
+		.signer_address(Some(("127.0.0.1".into(), SIGNER_PORT)))
+		.allowed_hosts(hosts)
+		.start_unsecured_http(&"127.0.0.1:0".parse().unwrap(), handler).unwrap();
 	(
 		ServerLoop {
 			server: server,
@@ -114,7 +116,7 @@ pub fn serve_with_auth(user: &str, pass: &str) -> ServerLoop {
 
 	let event_loop = RpcEventLoop::spawn();
 	let handler = event_loop.handler(Arc::new(MetaIoHandler::default()));
-	let server = ServerBuilder::new(dapps_path.to_str().unwrap().into(), registrar)
+	let server = ServerBuilder::new(dapps_path.to_str().unwrap().into(), registrar, Remote::new(event_loop.remote()))
 		.signer_address(Some(("127.0.0.1".into(), SIGNER_PORT)))
 		.allowed_hosts(None)
 		.start_basic_auth_http(&"127.0.0.1:0".parse().unwrap(), user, pass, handler).unwrap();

@@ -15,25 +15,25 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 /// Parity-specific rpc interface for operations altering the settings.
-use std::{fs, io};
-use std::sync::{Arc, Weak, mpsc};
+use std::io;
+use std::sync::{Arc, Weak};
 
 use ethcore::miner::MinerService;
 use ethcore::client::MiningBlockChainClient;
 use ethcore::mode::Mode;
 use ethsync::ManageNetwork;
-use fetch::{Client as FetchClient, Fetch};
-use util::{Mutex, sha3};
+use fetch::{self, Fetch};
+use futures::{self, BoxFuture, Future};
+use util::sha3;
 use updater::{Service as UpdateService};
 
-use futures::{self, BoxFuture, Future};
 use jsonrpc_core::Error;
 use v1::helpers::errors;
 use v1::traits::ParitySet;
 use v1::types::{Bytes, H160, H256, U256, ReleaseInfo};
 
 /// Parity-specific rpc interface for operations altering the settings.
-pub struct ParitySetClient<C, M, U, F=FetchClient> where
+pub struct ParitySetClient<C, M, U, F=fetch::Client> where
 	C: MiningBlockChainClient,
 	M: MinerService,
 	U: UpdateService,
@@ -43,18 +43,7 @@ pub struct ParitySetClient<C, M, U, F=FetchClient> where
 	miner: Weak<M>,
 	updater: Weak<U>,
 	net: Weak<ManageNetwork>,
-	fetch: Mutex<F>,
-}
-
-impl<C, M, U> ParitySetClient<C, M, U, FetchClient> where
-	C: MiningBlockChainClient,
-	M: MinerService,
-	U: UpdateService,
-{
-	/// Creates new `ParitySetClient` with default `FetchClient`.
-	pub fn new(client: &Arc<C>, miner: &Arc<M>, updater: &Arc<U>, net: &Arc<ManageNetwork>) -> Self {
-		Self::with_fetch(client, miner, updater, net)
-	}
+	fetch: F,
 }
 
 impl<C, M, U, F> ParitySetClient<C, M, U, F> where
@@ -63,14 +52,14 @@ impl<C, M, U, F> ParitySetClient<C, M, U, F> where
 	U: UpdateService,
 	F: Fetch,
 {
-	/// Creates new `ParitySetClient` with default `FetchClient`.
-	pub fn with_fetch(client: &Arc<C>, miner: &Arc<M>, updater: &Arc<U>, net: &Arc<ManageNetwork>) -> Self {
+	/// Creates new `ParitySetClient` with given `Fetch`.
+	pub fn new(client: &Arc<C>, miner: &Arc<M>, updater: &Arc<U>, net: &Arc<ManageNetwork>, fetch: F) -> Self {
 		ParitySetClient {
 			client: Arc::downgrade(client),
 			miner: Arc::downgrade(miner),
 			updater: Arc::downgrade(updater),
 			net: Arc::downgrade(net),
-			fetch: Mutex::new(F::default()),
+			fetch: fetch,
 		}
 	}
 
@@ -197,49 +186,18 @@ impl<C, M, U, F> ParitySet for ParitySetClient<C, M, U, F> where
 	}
 
 	fn hash_content(&self, url: String) -> BoxFuture<H256, Error> {
-		let res = self.active();
-
-		let (ready, p) = futures::oneshot();
-
-		let hash_content = |result| {
-			let path = try!(result);
-			let mut file = io::BufReader::new(try!(fs::File::open(&path)));
-			// Try to hash
-			let result = sha3(&mut file);
-			// Remove file (always)
-			try!(fs::remove_file(&path));
-			// Return the result
-			Ok(try!(result))
-		};
-
-		match res {
-			Err(e) => ready.complete(Err(e)),
-			Ok(()) => {
-				let (tx, rx) = mpsc::channel();
-				let res = self.fetch.lock().request_async(&url, Default::default(), Box::new(move |result| {
-					let result = hash_content(result)
-							.map_err(errors::from_fetch_error)
-							.map(Into::into);
-
-					// Receive ready and invoke with result.
-					let ready: futures::sync::oneshot::Sender<Result<H256, Error>> = rx.recv().expect(
-						"recv() fails when `tx` has been dropped, if this closure is invoked `tx` is not dropped (`res == Ok()`); qed"
-					);
-					ready.complete(result);
-				}));
-
-				// Either invoke ready right away or transfer it to the closure.
-				if let Err(e) = res {
-					ready.complete(Err(errors::from_fetch_error(e)));
-				} else {
-					tx.send(ready).expect(
-						"send() fails when `rx` end is dropped, if `res == Ok()`: `rx` is moved to the closure; qed"
-					);
-				}
-			}
+		if let Err(e) = self.active() {
+			return futures::failed(e).boxed();
 		}
 
-		p.then(|result| futures::done(result.expect("Ready is never dropped nor canceled."))).boxed()
+		self.fetch.process(self.fetch.fetch(&url).then(move |result| {
+			result
+				.map_err(errors::from_fetch_error)
+				.and_then(|response| {
+					sha3(&mut io::BufReader::new(response)).map_err(errors::from_fetch_error)
+				})
+				.map(Into::into)
+		}))
 	}
 
 	fn upgrade_ready(&self) -> Result<Option<ReleaseInfo>, Error> {

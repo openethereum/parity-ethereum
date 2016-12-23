@@ -29,6 +29,7 @@ use ethsync::{ManageNetwork, SyncProvider};
 use ethcore_rpc::{Metadata, NetworkSettings};
 pub use ethcore_rpc::SignerService;
 use updater::Updater;
+use hash_fetch::fetch::Client as FetchClient;
 
 #[derive(Debug, PartialEq, Clone, Eq, Hash)]
 pub enum Api {
@@ -123,6 +124,7 @@ pub struct Dependencies {
 	pub geth_compatibility: bool,
 	pub dapps_interface: Option<String>,
 	pub dapps_port: Option<u16>,
+	pub fetch: FetchClient,
 }
 
 fn to_modules(apis: &[Api]) -> BTreeMap<String, String> {
@@ -245,7 +247,13 @@ pub fn setup_rpc(mut handler: MetaIoHandler<Metadata>, deps: Arc<Dependencies>, 
 				handler.extend_with(ParityAccountsClient::new(&deps.secret_store, &deps.client).to_delegate());
 			},
 			Api::ParitySet => {
-				handler.extend_with(ParitySetClient::new(&deps.client, &deps.miner, &deps.updater, &deps.net_service).to_delegate())
+				handler.extend_with(ParitySetClient::new(
+					&deps.client,
+					&deps.miner,
+					&deps.updater,
+					&deps.net_service,
+					deps.fetch.clone(),
+				).to_delegate())
 			},
 			Api::Traces => {
 				handler.extend_with(TracesClient::new(&deps.client, &deps.miner).to_delegate())

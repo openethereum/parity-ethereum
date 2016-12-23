@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import BigNumber from 'bignumber.js';
 import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
@@ -62,6 +63,7 @@ class InputAddress extends Component {
     classes.push(!icon ? styles.inputEmpty : styles.input);
 
     const containerClasses = [ styles.container ];
+    const nullName = new BigNumber(value).eq(0) ? 'null' : null;
 
     if (small) {
       containerClasses.push(styles.small);
@@ -82,7 +84,7 @@ class InputAddress extends Component {
           value={
             text && account
               ? account.name
-              : value
+              : (nullName || value)
           } />
         { icon }
       </div>

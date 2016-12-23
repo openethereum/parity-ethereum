@@ -16,131 +16,220 @@
 
 //! Fetching
 
-use std::{env, io};
-use std::sync::{mpsc, Arc};
-use std::sync::atomic::AtomicBool;
-use std::path::PathBuf;
+use std::{io, fmt};
+use std::sync::Arc;
+use std::sync::atomic::{self, AtomicBool};
 
-use hyper;
-use https_fetch as https;
+use futures::{self, BoxFuture, Future};
+use futures_cpupool::{CpuPool, CpuFuture};
+use reqwest;
+pub use mime::Mime;
 
-use fetch_file::{FetchHandler, Error as HttpFetchError};
+#[derive(Default, Debug, Clone)]
+pub struct Abort(Arc<AtomicBool>);
 
-pub type FetchResult = Result<PathBuf, FetchError>;
-
-#[derive(Debug)]
-pub enum FetchError {
-	InvalidUrl,
-	Http(HttpFetchError),
-	Https(https::FetchError),
-	Io(io::Error),
-	Other(String),
-}
-
-impl From<HttpFetchError> for FetchError {
-	fn from(e: HttpFetchError) -> Self {
-		FetchError::Http(e)
+impl Abort {
+	pub fn is_aborted(&self) -> bool {
+		self.0.load(atomic::Ordering::SeqCst)
 	}
 }
 
-impl From<io::Error> for FetchError {
-	fn from(e: io::Error) -> Self {
-		FetchError::Io(e)
+impl From<Arc<AtomicBool>> for Abort {
+	fn from(a: Arc<AtomicBool>) -> Self {
+		Abort(a)
 	}
 }
 
-pub trait Fetch: Default + Send {
-	/// Fetch URL and get the result in callback.
-	fn request_async(&mut self, url: &str, abort: Arc<AtomicBool>, on_done: Box<Fn(FetchResult) + Send>) -> Result<(), FetchError>;
+pub trait Fetch: Clone + Send + Sync + 'static {
+	type Result: Future<Item=Response, Error=Error> + Send + 'static;
 
-	/// Fetch URL and get a result Receiver. You will be notified when receiver is ready by `on_done` callback.
-	fn request(&mut self, url: &str, abort: Arc<AtomicBool>, on_done: Box<Fn() + Send>) -> Result<mpsc::Receiver<FetchResult>, FetchError> {
-		let (tx, rx) = mpsc::channel();
-		try!(self.request_async(url, abort, Box::new(move |result| {
-			let res = tx.send(result);
-			if let Err(_) = res {
-				warn!("Fetch finished, but no one was listening");
-			}
-			on_done();
-		})));
-		Ok(rx)
+	/// Spawn the future in context of this `Fetch` thread pool.
+	/// Implementation is optional.
+	fn process<F, I, E>(&self, f: F) -> BoxFuture<I, E> where
+		F: Future<Item=I, Error=E> + Send + 'static,
+		I: Send + 'static,
+		E: Send + 'static,
+	{
+		f.boxed()
+	}
+
+	/// Fetch URL and get a future for the result.
+	/// Supports aborting the request in the middle of execution.
+	fn fetch_with_abort(&self, url: &str, abort: Abort) -> Self::Result;
+
+	/// Fetch URL and get a future for the result.
+	fn fetch(&self, url: &str) -> Self::Result {
+		self.fetch_with_abort(url, Default::default())
+	}
+
+	/// Fetch URL and get the result synchronously.
+	fn fetch_sync(&self, url: &str) -> Result<Response, Error> {
+		self.fetch(url).wait()
 	}
 
 	/// Closes this client
-	fn close(self) {}
-
-	/// Returns a random filename
-	fn random_filename() -> String {
-		use ::rand::Rng;
-		let mut rng = ::rand::OsRng::new().unwrap();
-		rng.gen_ascii_chars().take(12).collect()
-	}
+	fn close(self) where Self: Sized {}
 }
 
+#[derive(Clone)]
 pub struct Client {
-	http_client: hyper::Client<FetchHandler>,
-	https_client: https::Client,
+	client: Arc<reqwest::Client>,
+	pool: CpuPool,
 	limit: Option<usize>,
 }
 
-impl Default for Client {
-	fn default() -> Self {
-		// Max 15MB will be downloaded.
-		Client::with_limit(Some(15*1024*1024))
-	}
-}
-
 impl Client {
-	fn with_limit(limit: Option<usize>) -> Self {
-		Client {
-			http_client: hyper::Client::new().expect("Unable to initialize http client."),
-			https_client: https::Client::with_limit(limit).expect("Unable to initialize https client."),
+	pub fn new() -> Result<Self, Error> {
+		// Max 15MB will be downloaded.
+		Self::with_limit(Some(15*1024*1024))
+	}
+
+	fn with_limit(limit: Option<usize>) -> Result<Self, Error> {
+		let mut client = try!(reqwest::Client::new());
+		client.redirect(reqwest::RedirectPolicy::limited(5));
+
+		Ok(Client {
+			client: Arc::new(client),
+			pool: CpuPool::new(4),
 			limit: limit,
-		}
-	}
-
-	fn convert_url(url: hyper::Url) -> Result<https::Url, FetchError> {
-		let host = format!("{}", try!(url.host().ok_or(FetchError::InvalidUrl)));
-		let port = try!(url.port_or_known_default().ok_or(FetchError::InvalidUrl));
-		https::Url::new(&host, port, url.path()).map_err(|_| FetchError::InvalidUrl)
-	}
-
-	fn temp_path() -> PathBuf {
-		let mut dir = env::temp_dir();
-		dir.push(Self::random_filename());
-		dir
+		})
 	}
 }
 
 impl Fetch for Client {
-	fn close(self) {
-		self.http_client.close();
-		self.https_client.close();
+	type Result = CpuFuture<Response, Error>;
+
+	fn process<F, I, E>(&self, f: F) -> BoxFuture<I, E> where
+		F: Future<Item=I, Error=E> + Send + 'static,
+		I: Send + 'static,
+		E: Send + 'static,
+	{
+		self.pool.spawn(f).boxed()
 	}
 
-	fn request_async(&mut self, url: &str, abort: Arc<AtomicBool>, on_done: Box<Fn(FetchResult) + Send>) -> Result<(), FetchError> {
-		let is_https = url.starts_with("https://");
-		let url = try!(url.parse().map_err(|_| FetchError::InvalidUrl));
-		let temp_path = Self::temp_path();
+	fn fetch_with_abort(&self, url: &str, abort: Abort) -> Self::Result {
+		debug!(target: "fetch", "Fetching from: {:?}", url);
 
-		trace!(target: "fetch", "Fetching from: {:?}", url);
-
-		if is_https {
-			let url = try!(Self::convert_url(url));
-			try!(self.https_client.fetch_to_file(
-				url,
-				temp_path.clone(),
-				abort,
-				move |result| on_done(result.map(|_| temp_path).map_err(FetchError::Https)),
-			).map_err(|e| FetchError::Other(format!("{:?}", e))));
-		} else {
-			try!(self.http_client.request(
-				url,
-				FetchHandler::new(temp_path, abort, Box::new(move |result| on_done(result)), self.limit.map(|v| v as u64).clone()),
-			).map_err(|e| FetchError::Other(format!("{:?}", e))));
-		}
-
-		Ok(())
+		self.pool.spawn(FetchTask {
+			url: url.into(),
+			client: self.client.clone(),
+			limit: self.limit,
+			abort: abort,
+		})
 	}
 }
 
+struct FetchTask {
+	url: String,
+	client: Arc<reqwest::Client>,
+	limit: Option<usize>,
+	abort: Abort,
+}
+
+impl Future for FetchTask {
+	// TODO [ToDr] timeouts handling?
+	type Item = Response;
+	type Error = Error;
+
+	fn poll(&mut self) -> futures::Poll<Self::Item, Self::Error> {
+		if self.abort.is_aborted() {
+			trace!(target: "fetch", "Fetch of {:?} aborted.", self.url);
+			return Err(Error::Aborted);
+		}
+
+		trace!(target: "fetch", "Starting fetch task: {:?}", self.url);
+		let result = try!(self.client.get(&self.url)
+						  .header(reqwest::header::UserAgent("Parity Fetch".into()))
+						  .send());
+
+		Ok(futures::Async::Ready(Response {
+			inner: ResponseInner::Response(result),
+			abort: self.abort.clone(),
+			limit: self.limit,
+			read: 0,
+		}))
+	}
+}
+
+#[derive(Debug)]
+pub enum Error {
+	Fetch(reqwest::Error),
+	Aborted,
+}
+
+impl From<reqwest::Error> for Error {
+	fn from(error: reqwest::Error) -> Self {
+		Error::Fetch(error)
+	}
+}
+
+enum ResponseInner {
+	Response(reqwest::Response),
+	Reader(Box<io::Read + Send>),
+}
+
+impl fmt::Debug for ResponseInner {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		match *self {
+			ResponseInner::Response(ref response) => response.fmt(f),
+			ResponseInner::Reader(_) => write!(f, "io Reader"),
+		}
+	}
+}
+
+#[derive(Debug)]
+pub struct Response {
+	inner: ResponseInner,
+	abort: Abort,
+	limit: Option<usize>,
+	read: usize,
+}
+
+impl Response {
+	pub fn from_reader<R: io::Read + Send + 'static>(reader: R) -> Self {
+		Response {
+			inner: ResponseInner::Reader(Box::new(reader)),
+			abort: Abort::default(),
+			limit: None,
+			read: 0,
+		}
+	}
+
+	pub fn content_type(&self) -> Option<Mime> {
+		match self.inner {
+			ResponseInner::Response(ref r) => {
+				let content_type = r.headers().get::<reqwest::header::ContentType>();
+				content_type.map(|mime| mime.0.clone())
+			},
+			_ => None,
+		}
+	}
+}
+
+impl io::Read for Response {
+	fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+		if self.abort.is_aborted() {
+			return Err(io::Error::new(io::ErrorKind::ConnectionAborted, "Fetch aborted."));
+		}
+
+		let res = match self.inner {
+			ResponseInner::Response(ref mut response) => response.read(buf),
+			ResponseInner::Reader(ref mut reader) => reader.read(buf),
+		};
+
+		// increase bytes read
+		if let Ok(read) = res {
+			self.read += read;
+		}
+
+		// check limit
+		match self.limit {
+			Some(limit) if limit < self.read => {
+				return Err(io::Error::new(io::ErrorKind::PermissionDenied, "Size limit reached."));
+			},
+			_ => {},
+		}
+
+		res
+	}
+}

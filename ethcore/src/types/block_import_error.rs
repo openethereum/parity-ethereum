@@ -20,7 +20,8 @@ use error::{ImportError, BlockError, Error};
 use std::convert::From;
 
 /// Error dedicated to import block function
-#[derive(Binary, Debug)]
+#[derive(Debug)]
+#[cfg_attr(feature = "ipc", binary)]
 pub enum BlockImportError {
 	/// Import error
 	Import(ImportError),

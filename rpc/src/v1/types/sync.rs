@@ -37,9 +37,6 @@ pub struct SyncInfo {
 	/// Warp sync snpashot chunks processed.
 	#[serde(rename="warpChunksProcessed")]
 	pub warp_chunks_processed: Option<U256>,
-	/// Describes the gap in the blockchain, if there is one: (first, last)
-	#[serde(rename="blockGap")]
-	pub block_gap: Option<(U256, U256)>,
 }
 
 /// Peers info
@@ -162,17 +159,25 @@ impl From<SyncTransactionStats> for TransactionStats {
 	}
 }
 
+/// Chain status.
+#[derive(Default, Debug, Serialize)]
+pub struct ChainStatus {
+	/// Describes the gap in the blockchain, if there is one: (first, last)
+	#[serde(rename="blockGap")]
+	pub block_gap: Option<(U256, U256)>,
+}
+
 #[cfg(test)]
 mod tests {
 	use serde_json;
 	use std::collections::BTreeMap;
-	use super::{SyncInfo, SyncStatus, Peers, TransactionStats};
+	use super::{SyncInfo, SyncStatus, Peers, TransactionStats, ChainStatus};
 
 	#[test]
 	fn test_serialize_sync_info() {
 		let t = SyncInfo::default();
 		let serialized = serde_json::to_string(&t).unwrap();
-		assert_eq!(serialized, r#"{"startingBlock":"0x0","currentBlock":"0x0","highestBlock":"0x0","warpChunksAmount":null,"warpChunksProcessed":null,"blockGap":null}"#);
+		assert_eq!(serialized, r#"{"startingBlock":"0x0","currentBlock":"0x0","highestBlock":"0x0","warpChunksAmount":null,"warpChunksProcessed":null}"#);
 	}
 
 	#[test]
@@ -190,16 +195,19 @@ mod tests {
 
 		let t = SyncStatus::Info(SyncInfo::default());
 		let serialized = serde_json::to_string(&t).unwrap();
-		assert_eq!(serialized, r#"{"startingBlock":"0x0","currentBlock":"0x0","highestBlock":"0x0","warpChunksAmount":null,"warpChunksProcessed":null,"blockGap":null}"#);
+		assert_eq!(serialized, r#"{"startingBlock":"0x0","currentBlock":"0x0","highestBlock":"0x0","warpChunksAmount":null,"warpChunksProcessed":null}"#);
 	}
 
 	#[test]
 	fn test_serialize_block_gap() {
-		let mut t = SyncInfo::default();
+		let mut t = ChainStatus::default();
+		let serialized = serde_json::to_string(&t).unwrap();
+		assert_eq!(serialized, r#"{"blockGap":null}"#);
+
 		t.block_gap = Some((1.into(), 5.into()));
 
 		let serialized = serde_json::to_string(&t).unwrap();
-		assert_eq!(serialized, r#"{"startingBlock":"0x0","currentBlock":"0x0","highestBlock":"0x0","warpChunksAmount":null,"warpChunksProcessed":null,"blockGap":["0x1","0x5"]}"#)
+		assert_eq!(serialized, r#"{"blockGap":["0x1","0x5"]}"#);
 	}
 
 	#[test]

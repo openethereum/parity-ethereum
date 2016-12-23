@@ -24,7 +24,6 @@ use std::fmt;
 use rlp::DecoderError;
 use ethcore::error::{Error as EthcoreError, CallError, TransactionError};
 use ethcore::account_provider::{Error as AccountError};
-use fetch::FetchError;
 use jsonrpc_core::{Error, ErrorCode, Value};
 
 mod codes {
@@ -203,7 +202,7 @@ pub fn encryption_error<T: fmt::Debug>(error: T) -> Error {
 	}
 }
 
-pub fn from_fetch_error(error: FetchError) -> Error {
+pub fn from_fetch_error<T: fmt::Debug>(error: T) -> Error {
 	Error {
 		code: ErrorCode::ServerError(codes::FETCH_ERROR),
 		message: "Error while fetching content.".into(),

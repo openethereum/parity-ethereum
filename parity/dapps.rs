@@ -20,8 +20,9 @@ use rpc_apis;
 use ethcore::client::Client;
 use ethsync::SyncProvider;
 use helpers::replace_home;
-use jsonrpc_core::reactor::Remote;
 use dir::default_data_path;
+use jsonrpc_core::reactor::Remote;
+use hash_fetch::fetch::Client as FetchClient;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Configuration {
@@ -55,6 +56,7 @@ pub struct Dependencies {
 	pub client: Arc<Client>,
 	pub sync: Arc<SyncProvider>,
 	pub remote: Remote,
+	pub fetch: FetchClient,
 }
 
 pub fn new(configuration: Configuration, deps: Dependencies) -> Result<Option<WebappServer>, String> {
@@ -116,6 +118,7 @@ mod server {
 	use ethcore_rpc::is_major_importing;
 	use hash_fetch::urlhint::ContractClient;
 	use jsonrpc_core::reactor::RpcHandler;
+	use parity_reactor;
 
 	pub use ethcore_dapps::Server as WebappServer;
 
@@ -131,7 +134,14 @@ mod server {
 
 		let sync = deps.sync.clone();
 		let client = deps.client.clone();
-		let server = dapps::ServerBuilder::new(dapps_path, Arc::new(Registrar { client: deps.client.clone() }))
+		let server = dapps::ServerBuilder::new(
+			dapps_path,
+			Arc::new(Registrar { client: deps.client.clone() }),
+			parity_reactor::Remote::new(deps.remote.clone()),
+		);
+
+		let server = server
+			.fetch(deps.fetch.clone())
 			.sync_status(Arc::new(move || is_major_importing(Some(sync.status().state), client.queue_info())))
 			.signer_address(signer_address)
 			.allowed_hosts(allowed_hosts);

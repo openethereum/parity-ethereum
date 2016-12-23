@@ -299,15 +299,13 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 			let chain_info = client.chain_info();
 			let current_block = U256::from(chain_info.best_block_number);
 			let highest_block = U256::from(status.highest_block_number.unwrap_or(status.start_block_number));
-			let gap = chain_info.ancient_block_number.map(|x| U256::from(x + 1))
-				.and_then(|first| chain_info.first_block_number.map(|last| (first, U256::from(last))));
+
 			let info = SyncInfo {
 				starting_block: status.start_block_number.into(),
 				current_block: current_block.into(),
 				highest_block: highest_block.into(),
 				warp_chunks_amount: warp_chunks_amount.map(|x| U256::from(x as u64)).map(Into::into),
 				warp_chunks_processed: warp_chunks_processed.map(|x| U256::from(x as u64)).map(Into::into),
-				block_gap: gap.map(|(x, y)| (x.into(), y.into())),
 			};
 			Ok(SyncStatus::Info(info))
 		} else {

@@ -21,12 +21,14 @@ use std::path::{PathBuf};
 use target_info::Target;
 use util::misc;
 use ipc_common_types::{VersionInfo, ReleaseTrack};
-use util::path::restrict_permissions_owner; 
+use util::path::restrict_permissions_owner;
 use util::{Address, H160, H256, FixedHash, Mutex, Bytes};
 use ethsync::{SyncProvider};
 use ethcore::client::{BlockId, BlockChainClient, ChainNotify};
 use hash_fetch::{self as fetch, HashFetch};
+use hash_fetch::fetch::Client as FetchService;
 use operations::Operations;
+use parity_reactor::Remote;
 use service::{Service};
 use types::all::{ReleaseInfo, OperationsInfo, CapState};
 
@@ -35,7 +37,7 @@ use types::all::{ReleaseInfo, OperationsInfo, CapState};
 pub enum UpdateFilter {
 	/// All releases following the same track.
 	All,
-	/// As with `All`, but only those which are known to be critical. 
+	/// As with `All`, but only those which are known to be critical.
 	Critical,
 	/// None.
 	None,
@@ -112,7 +114,7 @@ fn platform() -> String {
 }
 
 impl Updater {
-	pub fn new(client: Weak<BlockChainClient>, sync: Weak<SyncProvider>, update_policy: UpdatePolicy) -> Arc<Self> {
+	pub fn new(client: Weak<BlockChainClient>, sync: Weak<SyncProvider>, update_policy: UpdatePolicy, fetch: FetchService, remote: Remote) -> Arc<Self> {
 		let r = Arc::new(Updater {
 			update_policy: update_policy,
 			weak_self: Mutex::new(Default::default()),
@@ -124,7 +126,7 @@ impl Updater {
 			this: VersionInfo::this(),
 			state: Mutex::new(Default::default()),
 		});
-		*r.fetcher.lock() = Some(fetch::Client::new(r.clone()));
+		*r.fetcher.lock() = Some(fetch::Client::with_fetch(r.clone(), fetch, remote));
 		*r.weak_self.lock() = Arc::downgrade(&r);
 		r.poll();
 		r
@@ -132,7 +134,7 @@ impl Updater {
 
 	/// Set a closure to call when we want to restart the client
 	pub fn set_exit_handler<F>(&self, f: F) where F: Fn() + 'static + Send {
-		*self.exit_handler.lock() = Some(Box::new(f)); 
+		*self.exit_handler.lock() = Some(Box::new(f));
 	}
 
 	fn collect_release_info(operations: &Operations, release_id: &H256) -> Result<ReleaseInfo, String> {
@@ -159,7 +161,7 @@ impl Updater {
 			trace!(target: "updater", "Looking up this_fork for our release: {}/{:?}", CLIENT_ID, hh);
 			let this_fork = operations.release(CLIENT_ID, &self.this.hash.into()).ok()
 				.and_then(|(fork, track, _, _)| {
-					trace!(target: "updater", "Operations returned fork={}, track={}", fork as u64, track);				 
+					trace!(target: "updater", "Operations returned fork={}, track={}", fork as u64, track);
 					if track > 0 {Some(fork as u64)} else {None}
 				});
 
@@ -250,7 +252,7 @@ impl Updater {
 
 		let current_number = self.client.upgrade().map_or(0, |c| c.block_number(BlockId::Latest).unwrap_or(0));
 
-		let mut capability = CapState::Unknown; 
+		let mut capability = CapState::Unknown;
 		let latest = self.collect_latest().ok();
 		if let Some(ref latest) = latest {
 			trace!(target: "updater", "Latest release in our track is v{} it is {}critical ({} binary is {})",
@@ -273,7 +275,7 @@ impl Updater {
 						s.fetching = Some(latest.track.clone());
 						let weak_self = self.weak_self.lock().clone();
 						let f = move |r: Result<PathBuf, fetch::Error>| if let Some(this) = weak_self.upgrade() { this.fetch_done(r) };
-						self.fetcher.lock().as_ref().expect("Created on `new`; qed").fetch(b, Box::new(f)).ok();
+						self.fetcher.lock().as_ref().expect("Created on `new`; qed").fetch(b, Box::new(f));
 					}
 				}
 			}
@@ -281,7 +283,7 @@ impl Updater {
 
 			if let Some(this_fork) = latest.this_fork {
 				if this_fork < latest.fork {
-					// We're behind the latest fork. Now is the time to be upgrading; perhaps we're too late... 
+					// We're behind the latest fork. Now is the time to be upgrading; perhaps we're too late...
 					if let Some(c) = self.client.upgrade() {
 						let current_number = c.block_number(BlockId::Latest).unwrap_or(0);
 						if current_number >= latest.fork - 1 {

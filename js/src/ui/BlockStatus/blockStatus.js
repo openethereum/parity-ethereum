@@ -62,9 +62,17 @@ class BlockStatus extends Component {
       );
     }
 
+    let syncStatus = null;
+
+    if (syncing && syncing.currentBlock && syncing.highestBlock) {
+      syncStatus = (
+        <span>{ syncing.currentBlock.toFormat() }/{ syncing.highestBlock.toFormat() } syncing</span>
+      );
+    }
+
     return (
       <div className={ styles.syncStatus }>
-        <span>{ syncing.currentBlock.toFormat() }/{ syncing.highestBlock.toFormat() } syncing</span>
+        { syncStatus }
         { warpStatus }
       </div>
     );

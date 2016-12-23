@@ -26,7 +26,7 @@ use v1::types::{
 	Peers, Transaction, RpcSettings, Histogram,
 	TransactionStats, LocalTransactionStatus,
 	BlockNumber, ConsensusCapability, VersionInfo,
-	OperationsInfo
+	OperationsInfo, ChainStatus,
 };
 
 build_rpc_trait! {
@@ -174,5 +174,9 @@ build_rpc_trait! {
 		/// Get information concerning the latest releases if available.
 		#[rpc(name = "parity_releasesInfo")]
 		fn releases_info(&self) -> Result<Option<OperationsInfo>, Error>;
+
+		/// Get the current chain status.
+		#[rpc(name = "parity_chainStatus")]
+		fn chain_status(&self) -> Result<ChainStatus, Error>;
 	}
 }

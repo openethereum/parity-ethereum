@@ -18,12 +18,12 @@
 
 #[macro_use]
 extern crate log;
-extern crate hyper;
-extern crate https_fetch;
-extern crate rand;
 
+extern crate futures;
+extern crate futures_cpupool;
+extern crate mime;
+extern crate reqwest;
 
 pub mod client;
-pub mod fetch_file;
 
-pub use self::client::{Client, Fetch, FetchError, FetchResult};
+pub use self::client::{Client, Fetch, Error, Response, Mime, Abort};

@@ -22,7 +22,7 @@ use {json, SafeAccount, Error};
 use json::Uuid;
 use super::KeyDirectory;
 
-const IGNORED_FILES: &'static [&'static str] = &["thumbs.db", "address_book.json"];
+const IGNORED_FILES: &'static [&'static str] = &["thumbs.db", "address_book.json", "dapps_policy.json"];
 
 #[cfg(not(windows))]
 fn restrict_permissions_to_owner(file_path: &Path) -> Result<(), i32>  {
@@ -78,7 +78,7 @@ impl DiskDirectory {
 			.map(|entry| entry.path())
 			.collect::<Vec<PathBuf>>();
 
-		paths
+		Ok(paths
 			.iter()
 			.map(|p| (
 				fs::File::open(p)
@@ -86,13 +86,17 @@ impl DiskDirectory {
 					.and_then(|r| json::KeyFile::load(r).map_err(|e| Error::Custom(format!("{:?}", e)))),
 				p
 			))
-			.map(|(file, path)| match file {
-				Ok(file) => Ok((path.clone(), SafeAccount::from_file(
+			.filter_map(|(file, path)| match file {
+				Ok(file) => Some((path.clone(), SafeAccount::from_file(
 					file, Some(path.file_name().and_then(|n| n.to_str()).expect("Keys have valid UTF8 names only.").to_owned())
 				))),
-				Err(err) => Err(Error::InvalidKeyFile(format!("{:?}: {}", path, err))),
+				Err(err) => {
+					warn!("Invalid key file: {:?} ({})", path, err);
+					None
+				},
 			})
 			.collect()
+		)
 	}
 }
 

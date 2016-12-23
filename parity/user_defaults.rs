@@ -77,24 +77,24 @@ impl Visitor for UserDefaultsVisitor {
 	fn visit_map<V>(&mut self, visitor: V) -> Result<Self::Value, V::Error>
 	where V: MapVisitor {
 		let mut map: BTreeMap<String, Value> = try!(BTreeMapVisitor::new().visit_map(visitor));
-		let pruning: Value = try!(map.remove("pruning".into()).ok_or_else(|| Error::custom("missing pruning")));
+		let pruning: Value = try!(map.remove("pruning").ok_or_else(|| Error::custom("missing pruning")));
 		let pruning = try!(pruning.as_str().ok_or_else(|| Error::custom("invalid pruning value")));
 		let pruning = try!(pruning.parse().map_err(|_| Error::custom("invalid pruning method")));
-		let tracing: Value = try!(map.remove("tracing".into()).ok_or_else(|| Error::custom("missing tracing")));
+		let tracing: Value = try!(map.remove("tracing").ok_or_else(|| Error::custom("missing tracing")));
 		let tracing = try!(tracing.as_bool().ok_or_else(|| Error::custom("invalid tracing value")));
-		let fat_db: Value = map.remove("fat_db".into()).unwrap_or_else(|| Value::Bool(false));
+		let fat_db: Value = map.remove("fat_db").unwrap_or_else(|| Value::Bool(false));
 		let fat_db = try!(fat_db.as_bool().ok_or_else(|| Error::custom("invalid fat_db value")));
 
-		let mode: Value = map.remove("mode".into()).unwrap_or_else(|| Value::String("active".to_owned()));
+		let mode: Value = map.remove("mode").unwrap_or_else(|| Value::String("active".to_owned()));
 		let mode = match try!(mode.as_str().ok_or_else(|| Error::custom("invalid mode value"))) {
 			"offline" => Mode::Off,
 			"dark" => {
-				let timeout = try!(map.remove("mode.timeout".into()).and_then(|v| v.as_u64()).ok_or_else(|| Error::custom("invalid/missing mode.timeout value")));
+				let timeout = try!(map.remove("mode.timeout").and_then(|v| v.as_u64()).ok_or_else(|| Error::custom("invalid/missing mode.timeout value")));
 				Mode::Dark(Duration::from_secs(timeout))
 			},
 			"passive" => {
-				let timeout = try!(map.remove("mode.timeout".into()).and_then(|v| v.as_u64()).ok_or_else(|| Error::custom("invalid/missing mode.timeout value")));
-				let alarm = try!(map.remove("mode.alarm".into()).and_then(|v| v.as_u64()).ok_or_else(|| Error::custom("invalid/missing mode.alarm value")));
+				let timeout = try!(map.remove("mode.timeout").and_then(|v| v.as_u64()).ok_or_else(|| Error::custom("invalid/missing mode.timeout value")));
+				let alarm = try!(map.remove("mode.alarm").and_then(|v| v.as_u64()).ok_or_else(|| Error::custom("invalid/missing mode.alarm value")));
 				Mode::Passive(Duration::from_secs(timeout), Duration::from_secs(alarm))
 			},
 			"active" => Mode::Active,

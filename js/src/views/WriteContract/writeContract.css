@@ -1,4 +1,4 @@
-/* Copyright 2015, 2016 Ethcore (UK) Ltd.
+/* Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 /* This file is part of Parity.
 /*
 /* Parity is free software: you can redistribute it and/or modify
@@ -26,6 +26,16 @@
   color: #ccc;
 }
 
+.toggles {
+  display: flex;
+  flex-direction: row;
+  margin: 1em 0 0;
+
+  > * {
+    flex: 1;
+  }
+}
+
 .container {
   padding: 1em 0;
   display: flex;
@@ -43,6 +53,14 @@
       margin-top: 0;
     }
   }
+}
+
+.error {
+  background-color: rgba(200, 0, 0, 0.25);
+  padding: 1em 0.5em;
+  margin-top: -0.5em;
+  font-family: monospace;
+  font-size: 0.9em;
 }
 
 .mainEditor {
@@ -87,6 +105,7 @@
   display: flex;
   flex-direction: column;
   margin-right: 0.5em;
+  overflow: auto;
 
   .panel {
     background-color: rgba(0, 0, 0, 0.5);
@@ -94,6 +113,7 @@
     flex: 1;
     display: flex;
     flex-direction: column;
+    box-sizing: border-box;
   }
 
   .compilation {

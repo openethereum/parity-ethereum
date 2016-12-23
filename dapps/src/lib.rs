@@ -37,6 +37,9 @@ extern crate parity_hash_fetch as hash_fetch;
 extern crate linked_hash_map;
 extern crate fetch;
 extern crate parity_dapps_glue as parity_dapps;
+extern crate futures;
+extern crate parity_reactor;
+
 #[macro_use]
 extern crate log;
 #[macro_use]
@@ -57,6 +60,7 @@ mod rpc;
 mod api;
 mod proxypac;
 mod url;
+mod web;
 #[cfg(test)]
 mod tests;
 
@@ -64,10 +68,12 @@ use std::sync::{Arc, Mutex};
 use std::net::SocketAddr;
 use std::collections::HashMap;
 
-use hash_fetch::urlhint::ContractClient;
 use ethcore_rpc::Metadata;
+use fetch::{Fetch, Client as FetchClient};
+use hash_fetch::urlhint::ContractClient;
 use jsonrpc_core::reactor::RpcHandler;
 use router::auth::{Authorization, NoAuth, HttpBasicAuth};
+use parity_reactor::Remote;
 
 use self::apps::{HOME_PAGE, DAPPS_DOMAIN};
 
@@ -88,18 +94,28 @@ pub struct ServerBuilder {
 	sync_status: Arc<SyncStatus>,
 	signer_address: Option<(String, u16)>,
 	allowed_hosts: Option<Vec<String>>,
+	remote: Remote,
+	fetch: Option<FetchClient>,
 }
 
 impl ServerBuilder {
 	/// Construct new dapps server
-	pub fn new(dapps_path: String, registrar: Arc<ContractClient>) -> Self {
+	pub fn new(dapps_path: String, registrar: Arc<ContractClient>, remote: Remote) -> Self {
 		ServerBuilder {
 			dapps_path: dapps_path,
 			registrar: registrar,
 			sync_status: Arc::new(|| false),
 			signer_address: None,
 			allowed_hosts: Some(vec![]),
+			remote: remote,
+			fetch: None,
 		}
+	}
+
+	/// Set a fetch client to use.
+	pub fn fetch(mut self, fetch: FetchClient) -> Self {
+		self.fetch = Some(fetch);
+		self
 	}
 
 	/// Change default sync status.
@@ -125,6 +141,8 @@ impl ServerBuilder {
 	/// Asynchronously start server with no authentication,
 	/// returns result with `Server` handle on success or an error.
 	pub fn start_unsecured_http(self, addr: &SocketAddr, handler: RpcHandler<Metadata>) -> Result<Server, ServerError> {
+		let fetch = try!(self.fetch_client());
+
 		Server::start_http(
 			addr,
 			self.allowed_hosts,
@@ -134,13 +152,15 @@ impl ServerBuilder {
 			self.signer_address,
 			self.registrar,
 			self.sync_status,
+			self.remote,
+			fetch,
 		)
 	}
 
 	/// Asynchronously start server with `HTTP Basic Authentication`,
 	/// return result with `Server` handle on success or an error.
 	pub fn start_basic_auth_http(self, addr: &SocketAddr, username: &str, password: &str, handler: RpcHandler<Metadata>) -> Result<Server, ServerError> {
-
+		let fetch = try!(self.fetch_client());
 		Server::start_http(
 			addr,
 			self.allowed_hosts,
@@ -150,7 +170,16 @@ impl ServerBuilder {
 			self.signer_address,
 			self.registrar,
 			self.sync_status,
+			self.remote,
+			fetch,
 		)
+	}
+
+	fn fetch_client(&self) -> Result<FetchClient, ServerError> {
+		match self.fetch.clone() {
+			Some(fetch) => Ok(fetch),
+			None => FetchClient::new().map_err(|_| ServerError::FetchInitialization),
+		}
 	}
 }
 
@@ -187,7 +216,7 @@ impl Server {
 		}
 	}
 
-	fn start_http<A: Authorization + 'static>(
+	fn start_http<A: Authorization + 'static, F: Fetch>(
 		addr: &SocketAddr,
 		hosts: Option<Vec<String>>,
 		authorization: A,
@@ -196,11 +225,19 @@ impl Server {
 		signer_address: Option<(String, u16)>,
 		registrar: Arc<ContractClient>,
 		sync_status: Arc<SyncStatus>,
+		remote: Remote,
+		fetch: F,
 	) -> Result<Server, ServerError> {
 		let panic_handler = Arc::new(Mutex::new(None));
 		let authorization = Arc::new(authorization);
-		let content_fetcher = Arc::new(apps::fetcher::ContentFetcher::new(hash_fetch::urlhint::URLHintContract::new(registrar), sync_status, signer_address.clone()));
-		let endpoints = Arc::new(apps::all_endpoints(dapps_path, signer_address.clone()));
+		let content_fetcher = Arc::new(apps::fetcher::ContentFetcher::new(
+			hash_fetch::urlhint::URLHintContract::new(registrar),
+			sync_status,
+			signer_address.clone(),
+			remote.clone(),
+			fetch.clone(),
+		));
+		let endpoints = Arc::new(apps::all_endpoints(dapps_path, signer_address.clone(), remote.clone(), fetch.clone()));
 		let cors_domains = Self::cors_domains(signer_address.clone());
 
 		let special = Arc::new({
@@ -268,6 +305,8 @@ pub enum ServerError {
 	IoError(std::io::Error),
 	/// Other `hyper` error
 	Other(hyper::error::Error),
+	/// Fetch service initialization error
+	FetchInitialization,
 }
 
 impl From<hyper::error::Error> for ServerError {
@@ -280,7 +319,7 @@ impl From<hyper::error::Error> for ServerError {
 }
 
 /// Random filename
-pub fn random_filename() -> String {
+fn random_filename() -> String {
 	use ::rand::Rng;
 	let mut rng = ::rand::OsRng::new().unwrap();
 	rng.gen_ascii_chars().take(12).collect()

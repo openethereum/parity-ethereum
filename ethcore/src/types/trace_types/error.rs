@@ -21,7 +21,8 @@ use rlp::{Encodable, RlpStream, Decodable, Decoder, DecoderError, Stream, View};
 use evm::Error as EvmError;
 
 /// Trace evm errors.
-#[derive(Debug, PartialEq, Clone, Binary)]
+#[derive(Debug, PartialEq, Clone)]
+#[cfg_attr(feature = "ipc", binary)]
 pub enum Error {
 	/// `OutOfGas` is returned when transaction execution runs out of gas.
 	OutOfGas,

@@ -14,12 +14,13 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import BigNumber from 'bignumber.js';
 import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
-import ContractIcon from 'material-ui/svg-icons/action/code';
 
 import { createIdentityImg } from '~/api/util/identity';
+import ContractIcon from '../Icons';
 
 import styles from './identityIcon.css';
 
@@ -108,9 +109,20 @@ class IdentityIcon extends Component {
         <ContractIcon
           className={ classes }
           style={ {
-            width: size,
+            background: '#eee',
             height: size,
-            background: '#eee'
+            width: size
+          } } />
+      );
+    } else if (new BigNumber(address).eq(0)) {
+      return (
+        <div
+          className={ classes }
+          style={ {
+            background: '#333',
+            display: 'inline-block',
+            height: size,
+            width: size
           } } />
       );
     }
