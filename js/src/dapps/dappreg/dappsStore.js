@@ -26,7 +26,6 @@ let instance = null;
 
 export default class DappsStore {
   @observable accounts = [];
-  @observable addresses = [];
   @observable apps = [];
   @observable contractOwner = null;
   @observable currentAccount = null;
@@ -191,7 +190,7 @@ export default class DappsStore {
 
   @action setAccounts = (accountsInfo) => {
     transaction(() => {
-      this.addresses = Object
+      this.accounts = Object
         .keys(accountsInfo)
         .map((address) => {
           const account = accountsInfo[address];
@@ -199,7 +198,6 @@ export default class DappsStore {
           return account;
         });
 
-      this.accounts = this.addresses.filter((account) => account.uuid);
       this.currentAccount = this.accounts[0];
     });
 
@@ -315,7 +313,7 @@ export default class DappsStore {
           this
             .setApps(appsInfo.map(([appId, owner]) => {
               const isOwner = !!this.accounts.find((account) => account.address === owner);
-              const account = this.addresses.find((account) => account.address === owner);
+              const account = this.accounts.find((account) => account.address === owner);
               const id = api.util.bytesToHex(appId);
 
               return {
@@ -445,7 +443,7 @@ export default class DappsStore {
 
   _loadAccounts () {
     return api.parity
-      .accounts()
+      .accountsInfo()
       .then(this.setAccounts)
       .catch((error) => {
         console.error('Store:loadAccounts', error);
