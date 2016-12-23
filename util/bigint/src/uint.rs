@@ -522,7 +522,7 @@ pub trait Uint: Sized + Default + FromStr + From<u64> + fmt::Debug + fmt::Displa
 	fn byte(&self, index: usize) -> u8;
 	/// Convert to the sequence of bytes with a big endian
 	fn to_big_endian(&self, bytes: &mut[u8]);
-	/// Convert to a non-zero-prefixed hex representation (not prefixed by `0x`). 
+	/// Convert to a non-zero-prefixed hex representation (not prefixed by `0x`).
 	fn to_hex(&self) -> String;
 	/// Create `Uint(10**n)`
 	fn exp10(n: usize) -> Self;
@@ -887,8 +887,8 @@ macro_rules! construct_uint {
 
 			fn from_str(value: &str) -> Result<$name, Self::Err> {
 				let bytes: Vec<u8> = match value.len() % 2 == 0 {
-					true => try!(value.from_hex()),
-					false => try!(("0".to_owned() + value).from_hex())
+					true => value.from_hex()?,
+					false => ("0".to_owned() + value).from_hex()?
 				};
 
 				let bytes_ref: &[u8] = &bytes;
@@ -1127,14 +1127,14 @@ macro_rules! construct_uint {
 		impl fmt::LowerHex for $name {
 			fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 				let &$name(ref data) = self;
-				try!(write!(f, "0x"));
+				write!(f, "0x")?;
 				let mut latch = false;
 				for ch in data.iter().rev() {
 					for x in 0..16 {
 						let nibble = (ch & (15u64 << ((15 - x) * 4) as u64)) >> (((15 - x) * 4) as u64);
 						if !latch { latch = nibble != 0 }
 						if latch {
-							try!(write!(f, "{:x}", nibble));
+							write!(f, "{:x}", nibble)?;
 						}
 					}
 				}

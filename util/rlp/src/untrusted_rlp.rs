@@ -436,7 +436,7 @@ macro_rules! impl_array_decodable {
 				}
 
 				for i in 0..decoders.item_count() {
-					result[i] = try!(T::decode(&BasicDecoder::new(try!(decoders.at(i)))));
+					result[i] = T::decode(&BasicDecoder::new(decoders.at(i)?))?;
 				}
 
 				Ok(result)

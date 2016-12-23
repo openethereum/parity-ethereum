@@ -748,7 +748,10 @@ impl LightProtocol {
 		let req_id: u64 = data.val_at(0)?;
 
 		let req = request::Bodies {
-			block_hashes: data.at(1)?.iter().take(MAX_BODIES).map(|x| x.as_val()).collect()?
+			block_hashes: data.at(1)?.iter()
+				.take(MAX_BODIES)
+				.map(|x| x.as_val())
+				.collect::<Result<_, _>>()?
 		};
 
 		let max_cost = peer.deduct_max(&self.flow_params, request::Kind::Bodies, req.block_hashes.len())?;
@@ -807,7 +810,10 @@ impl LightProtocol {
 		let req_id: u64 = data.val_at(0)?;
 
 		let req = request::Receipts {
-			block_hashes: data.at(1)?.iter().take(MAX_RECEIPTS).map(|x| x.as_val()).collect()?
+			block_hashes: data.at(1)?.iter()
+				.take(MAX_RECEIPTS)
+				.map(|x| x.as_val())
+				.collect::<Result<_,_>>()?
 		};
 
 		let max_cost = peer.deduct_max(&self.flow_params, request::Kind::Receipts, req.block_hashes.len())?;
@@ -839,7 +845,7 @@ impl LightProtocol {
 		let raw_receipts: Vec<Vec<Receipt>> = raw.at(2)?
 			.iter()
 			.map(|x| x.as_val())
-			.collect()?;
+			.collect::<Result<_,_>>()?;
 
 		for handler in &self.handlers {
 			handler.on_receipts(&Ctx {
@@ -981,7 +987,9 @@ impl LightProtocol {
 	fn contract_code(&self, peer: &PeerId, io: &IoContext, raw: UntrustedRlp) -> Result<(), Error> {
 		let req_id = self.pre_verify_response(peer, request::Kind::Codes, &raw)?;
 
-		let raw_code: Vec<Bytes> = raw.at(2)?.iter().map(|x| x.as_val()).collect()?;
+		let raw_code: Vec<Bytes> = raw.at(2)?.iter()
+			.map(|x| x.as_val())
+			.collect::<Result<_,_>>()?;
 
 		for handler in &self.handlers {
 			handler.on_code(&Ctx {
@@ -1057,7 +1065,9 @@ impl LightProtocol {
 		}
 
 		let req_id = self.pre_verify_response(peer, request::Kind::HeaderProofs, &raw)?;
-		let raw_proofs: Vec<_> = raw.at(2)?.iter().map(decode_res).collect()?;
+		let raw_proofs: Vec<_> = raw.at(2)?.iter()
+			.map(decode_res)
+			.collect::<Result<_,_>>()?;
 
 		for handler in &self.handlers {
 			handler.on_header_proofs(&Ctx {
@@ -1074,7 +1084,10 @@ impl LightProtocol {
 	fn relay_transactions(&self, peer: &PeerId, io: &IoContext, data: UntrustedRlp) -> Result<(), Error> {
 		const MAX_TRANSACTIONS: usize = 256;
 
-		let txs: Vec<_> = data.iter().take(MAX_TRANSACTIONS).map(|x| x.as_val::<SignedTransaction>()).collect()?;
+		let txs: Vec<_> = data.iter()
+			.take(MAX_TRANSACTIONS)
+			.map(|x| x.as_val::<SignedTransaction>())
+			.collect::<Result<_,_>>()?;
 
 		debug!(target: "les", "Received {} transactions to relay from peer {}", txs.len(), peer);
 

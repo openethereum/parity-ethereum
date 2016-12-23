@@ -52,27 +52,27 @@ impl std::convert::From<nanoipc::SocketError> for ServiceError {
 
 pub fn blocks_service_url(db_path: &str) -> Result<String, std::io::Error> {
 	let mut path = PathBuf::from(db_path);
-	try!(::std::fs::create_dir_all(db_path));
+	::std::fs::create_dir_all(db_path)?;
 	path.push("blocks.ipc");
 	Ok(format!("ipc://{}", path.to_str().unwrap()))
 }
 
 pub fn extras_service_url(db_path: &str) -> Result<String, ::std::io::Error> {
 	let mut path = PathBuf::from(db_path);
-	try!(::std::fs::create_dir_all(db_path));
+	::std::fs::create_dir_all(db_path)?;
 	path.push("extras.ipc");
 	Ok(format!("ipc://{}", path.to_str().unwrap()))
 }
 
 pub fn blocks_client(db_path: &str) -> Result<DatabaseConnection, ServiceError> {
-	let url = try!(blocks_service_url(db_path));
-	let client = try!(nanoipc::generic_client::<DatabaseClient<_>>(&url));
+	let url = blocks_service_url(db_path)?;
+	let client = nanoipc::generic_client::<DatabaseClient<_>>(&url)?;
 	Ok(client)
 }
 
 pub fn extras_client(db_path: &str) -> Result<DatabaseConnection, ServiceError> {
-	let url = try!(extras_service_url(db_path));
-	let client = try!(nanoipc::generic_client::<DatabaseClient<_>>(&url));
+	let url = extras_service_url(db_path)?;
+	let client = nanoipc::generic_client::<DatabaseClient<_>>(&url)?;
 	Ok(client)
 }
 

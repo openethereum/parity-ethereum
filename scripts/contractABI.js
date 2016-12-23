@@ -195,25 +195,25 @@ function tokenCoerce(name, type, _prefs) {
 }
 
 function tokenExtract(expr, type, _prefs) {
-	return `{ let r = ${expr}; let r = try!(${tokenType('r', type, _prefs)}.ok_or("Invalid type returned")); ${tokenCoerce('r', type, _prefs)} }`;
+	return `{ let r = ${expr}; let r = ${tokenType('r', type, _prefs)}.ok_or("Invalid type returned")?; ${tokenCoerce('r', type, _prefs)} }`;
 }
 
 function convertFunction(json, _prefs) {
 	let prefs = (_prefs || {})[json.name] || (_prefs || {})['_'] || {};
 	let snakeName = json.name.toSnake();
 	let params = json.inputs.map((x, i) => (x.name ? x.name.toSnake() : ("_" + (i + 1))) + ": " + mapType(x.name, x.type, prefs[x.name]));
-	let returns = json.outputs.length != 1 ? "(" + json.outputs.map(x => mapReturnType(x.name, x.type, prefs[x.name])).join(", ") + ")" : mapReturnType(json.outputs[0].name, json.outputs[0].type, prefs[json.outputs[0].name]); 
+	let returns = json.outputs.length != 1 ? "(" + json.outputs.map(x => mapReturnType(x.name, x.type, prefs[x.name])).join(", ") + ")" : mapReturnType(json.outputs[0].name, json.outputs[0].type, prefs[json.outputs[0].name]);
 	return `
 	/// Auto-generated from: \`${JSON.stringify(json)}\`
 	#[allow(dead_code)]
-	pub fn ${snakeName}(&self${params.length > 0 ? ', ' + params.join(", ") : ''}) -> Result<${returns}, String> { 
+	pub fn ${snakeName}(&self${params.length > 0 ? ', ' + params.join(", ") : ''}) -> Result<${returns}, String> {
 		let call = self.contract.function("${json.name}".into()).map_err(Self::as_string)?;
 		let data = call.encode_call(
 			vec![${json.inputs.map((x, i) => convertToken(x.name ? x.name.toSnake() : ("_" + (i + 1)), x.type, prefs[x.name])).join(', ')}]
 		).map_err(Self::as_string)?;
 		${json.outputs.length > 0 ? 'let output = ' : ''}call.decode_output((self.do_call)(self.address.clone(), data)?).map_err(Self::as_string)?;
 		${json.outputs.length > 0 ? 'let mut result = output.into_iter().rev().collect::<Vec<_>>();' : ''}
-		Ok((${json.outputs.map((o, i) => tokenExtract('result.pop().ok_or("Invalid return arity")?', o.type, prefs[o.name])).join(', ')})) 
+		Ok((${json.outputs.map((o, i) => tokenExtract('result.pop().ok_or("Invalid return arity")?', o.type, prefs[o.name])).join(', ')}))
 	}`;
 }
 

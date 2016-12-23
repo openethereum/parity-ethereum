@@ -616,7 +616,6 @@ pub fn deserialize_from<T, R>(r: &mut R) -> Result<T, BinaryError>
 				}
 			}
 
-			//try!(r.read(&mut size_buffer).map_err(|_| BinaryConvertError));
 			let size = u64::from_bytes(&payload[8+stack_len*8..16+stack_len*8], &mut fake_stack)? as usize;
 			match size {
 				0 => {

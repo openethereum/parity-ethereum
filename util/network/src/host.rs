@@ -737,7 +737,7 @@ impl Host {
 		});
 
 		match token {
-			Some(t) => Ok(From::from(io.register_stream(t))?),
+			Some(t) => io.register_stream(t).map(|_| ()).map_err(Into::into),
 			None => {
 				debug!(target: "network", "Max sessions reached");
 				Ok(())
