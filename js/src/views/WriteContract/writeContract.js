@@ -21,6 +21,7 @@ import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 import CircularProgress from 'material-ui/CircularProgress';
 import moment from 'moment';
+import { throttle } from 'lodash';
 
 import ContentClear from 'material-ui/svg-icons/content/clear';
 import SaveIcon from 'material-ui/svg-icons/content/save';
@@ -60,6 +61,8 @@ class WriteContract extends Component {
     if (worker !== undefined) {
       this.store.setWorker(worker);
     }
+
+    this.throttledResize = throttle(this.applyResize, 100, { leading: true });
   }
 
   componentDidMount () {
@@ -516,8 +519,14 @@ class WriteContract extends Component {
 
     const x = pageX - left;
 
-    this.setState({ size: 100 * x / width });
+    this.size = 100 * x / width;
+    this.throttledResize();
+
     event.stopPropagation();
+  }
+
+  applyResize = () => {
+    this.setState({ size: this.size });
   }
 
 }

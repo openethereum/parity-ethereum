@@ -26,12 +26,16 @@ use v1::types::{
 	Peers, Transaction, RpcSettings, Histogram,
 	TransactionStats, LocalTransactionStatus,
 	BlockNumber, ConsensusCapability, VersionInfo,
-	OperationsInfo
+	OperationsInfo, DappId, ChainStatus,
 };
 
 build_rpc_trait! {
 	/// Parity-specific rpc interface.
 	pub trait Parity {
+		/// Returns accounts information.
+		#[rpc(name = "parity_accountsInfo")]
+		fn accounts_info(&self, Trailing<DappId>) -> Result<BTreeMap<String, BTreeMap<String, String>>, Error>;
+
 		/// Returns current transactions limit.
 		#[rpc(name = "parity_transactionsLimit")]
 		fn transactions_limit(&self) -> Result<usize, Error>;
@@ -159,10 +163,6 @@ build_rpc_trait! {
 		#[rpc(name = "parity_enode")]
 		fn enode(&self) -> Result<String, Error>;
 
-		/// Returns accounts information.
-		#[rpc(name = "parity_accounts")]
-		fn accounts(&self) -> Result<BTreeMap<String, BTreeMap<String, String>>, Error>;
-
 		/// Returns information on current consensus capability.
 		#[rpc(name = "parity_consensusCapability")]
 		fn consensus_capability(&self) -> Result<ConsensusCapability, Error>;
@@ -174,5 +174,9 @@ build_rpc_trait! {
 		/// Get information concerning the latest releases if available.
 		#[rpc(name = "parity_releasesInfo")]
 		fn releases_info(&self) -> Result<Option<OperationsInfo>, Error>;
+
+		/// Get the current chain status.
+		#[rpc(name = "parity_chainStatus")]
+		fn chain_status(&self) -> Result<ChainStatus, Error>;
 	}
 }

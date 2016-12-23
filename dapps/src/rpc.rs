@@ -51,16 +51,16 @@ impl Endpoint for RpcEndpoint {
 	}
 }
 
-const MIDDLEWARE_METHOD: &'static str = "eth_accounts";
-
 struct RpcMiddleware {
 	handler: Arc<IoHandler>,
+	methods: Vec<String>,
 }
 
 impl RpcMiddleware {
 	fn new(handler: Arc<IoHandler>) -> Self {
 		RpcMiddleware {
 			handler: handler,
+			methods: vec!["eth_accounts".into(), "parity_accountsInfo".into()],
 		}
 	}
 
@@ -68,9 +68,9 @@ impl RpcMiddleware {
 	fn augment_request(&self, request: &mut Request, meta: Option<Meta>) {
 		use jsonrpc_core::{Call, Params, to_value};
 
-		fn augment_call(call: &mut Call, meta: Option<&Meta>) {
+		fn augment_call(call: &mut Call, meta: Option<&Meta>, methods: &Vec<String>) {
 			match (call, meta) {
-				(&mut Call::MethodCall(ref mut method_call), Some(meta)) if &method_call.method == MIDDLEWARE_METHOD => {
+				(&mut Call::MethodCall(ref mut method_call), Some(meta)) if methods.contains(&method_call.method) => {
 					let session = to_value(&meta.app_id);
 
 					let params = match method_call.params {
@@ -86,10 +86,10 @@ impl RpcMiddleware {
 		}
 
 		match *request {
-			Request::Single(ref mut call) => augment_call(call, meta.as_ref()),
+			Request::Single(ref mut call) => augment_call(call, meta.as_ref(), &self.methods),
 			Request::Batch(ref mut vec) => {
 				for mut call in vec {
-					augment_call(call, meta.as_ref())
+					augment_call(call, meta.as_ref(), &self.methods)
 				}
 			},
 		}

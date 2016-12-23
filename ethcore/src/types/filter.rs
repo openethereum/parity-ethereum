@@ -22,7 +22,8 @@ use client::BlockId;
 use log_entry::LogEntry;
 
 /// Blockchain Filter.
-#[derive(Binary, Debug, PartialEq)]
+#[derive(Debug, PartialEq)]
+#[cfg_attr(feature = "ipc", binary)]
 pub struct Filter {
 	/// Blockchain will be searched from this block.
 	pub from_block: BlockId,

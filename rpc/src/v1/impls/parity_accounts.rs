@@ -23,7 +23,7 @@ use ethkey::{Brain, Generator};
 use ethcore::account_provider::AccountProvider;
 use ethcore::client::MiningBlockChainClient;
 
-use jsonrpc_core::{Value, Error, to_value};
+use jsonrpc_core::Error;
 use v1::traits::ParityAccounts;
 use v1::types::{H160 as RpcH160, H256 as RpcH256, DappId};
 use v1::helpers::errors;
@@ -51,23 +51,21 @@ impl<C> ParityAccountsClient<C> where C: MiningBlockChainClient {
 }
 
 impl<C: 'static> ParityAccounts for ParityAccountsClient<C> where C: MiningBlockChainClient {
-	fn accounts_info(&self) -> Result<BTreeMap<String, Value>, Error> {
+	fn all_accounts_info(&self) -> Result<BTreeMap<String, BTreeMap<String, String>>, Error> {
 		try!(self.active());
 		let store = take_weak!(self.accounts);
 		let info = try!(store.accounts_info().map_err(|e| errors::account("Could not fetch account info.", e)));
 		let other = store.addresses_info().expect("addresses_info always returns Ok; qed");
 
-		Ok(other.into_iter().chain(info.into_iter()).map(|(a, v)| {
-			let m = map![
-				"name".to_owned() => to_value(&v.name),
-				"meta".to_owned() => to_value(&v.meta),
-				"uuid".to_owned() => if let &Some(ref uuid) = &v.uuid {
-					to_value(uuid)
-				} else {
-					Value::Null
-				}
+		Ok(info.into_iter().chain(other.into_iter()).map(|(a, v)| {
+			let mut m = map![
+				"name".to_owned() => v.name,
+				"meta".to_owned() => v.meta
 			];
-			(format!("0x{}", a.hex()), Value::Object(m))
+			if let &Some(ref uuid) = &v.uuid {
+				m.insert("uuid".to_owned(), format!("{}", uuid));
+			}
+			(format!("0x{}", a.hex()), m)
 		}).collect())
 	}
 

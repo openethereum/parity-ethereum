@@ -17,7 +17,8 @@
 //! Call analytics related types
 
 /// Options concerning what analytics we run on the call.
-#[derive(Eq, PartialEq, Default, Clone, Copy, Debug, Binary)]
+#[derive(Eq, PartialEq, Default, Clone, Copy, Debug)]
+#[cfg_attr(feature = "ipc", binary)]
 pub struct CallAnalytics {
 	/// Make a transaction trace.
 	pub transaction_tracing: bool,

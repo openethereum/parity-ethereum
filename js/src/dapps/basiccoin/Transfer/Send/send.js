@@ -303,12 +303,9 @@ export default class Send extends Component {
 
   loadBalances () {
     const { accounts } = this.context;
-    const myAccounts = Object
-      .values(accounts)
-      .filter((account) => account.uuid)
-      .map((account) => account.address);
+    const addresses = Object.keys(accounts);
 
-    loadBalances(myAccounts)
+    loadBalances(addresses)
       .then((_tokens) => {
         const tokens = _tokens.filter((token) => {
           for (let index = 0; index < token.balances.length; index++) {

@@ -288,7 +288,7 @@ export default class WriteContractStore {
 
     const build = this.builds[this.selectedBuild];
     const version = build.longVersion;
-    const sourcecode = this.sourcecode.replace(/\n+/g, '\n').replace(/\s(\s+)/g, ' ');
+    const sourcecode = this.sourcecode.replace(/\s+/g, ' ');
     const hash = sha3(JSON.stringify({ version, sourcecode, optimize: this.optimize }));
 
     let promise = Promise.resolve(null);
@@ -302,7 +302,7 @@ export default class WriteContractStore {
     } else {
       promise = this
         .compile({
-          sourcecode: sourcecode,
+          sourcecode: this.sourcecode,
           build: build,
           optimize: this.optimize,
           files: this.files
