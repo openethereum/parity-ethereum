@@ -137,6 +137,10 @@ export function inOptions (options) {
           options[key] = inNumber16((new BigNumber(options[key])).round());
           break;
 
+        case 'minBlock':
+          options[key] = options[key] ? inNumber16(options[key]) : null;
+          break;
+
         case 'value':
         case 'nonce':
           options[key] = inNumber16(options[key]);
