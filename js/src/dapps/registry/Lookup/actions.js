@@ -26,7 +26,11 @@ export const fail = () => ({ type: 'lookup error' });
 
 export const lookup = (name, key) => (dispatch, getState) => {
   const { contract } = getState();
-  if (!contract) return;
+
+  if (!contract) {
+    return;
+  }
+
   const getAddress = contract.functions
     .find((f) => f.name === 'getAddress');
 
@@ -36,7 +40,11 @@ export const lookup = (name, key) => (dispatch, getState) => {
     .then((address) => dispatch(success(address)))
     .catch((err) => {
       console.error(`could not lookup ${key} for ${name}`);
-      if (err) console.error(err.stack);
+
+      if (err) {
+        console.error(err.stack);
+      }
+
       dispatch(fail());
     });
 };

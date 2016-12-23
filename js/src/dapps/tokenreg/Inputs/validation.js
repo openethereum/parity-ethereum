@@ -71,9 +71,14 @@ const validateAddress = (address) => {
 
 const validateTokenAddress = (address, contract, simple) => {
   const addressValidation = validateAddress(address);
-  if (!addressValidation.valid) return addressValidation;
 
-  if (simple) return addressValidation;
+  if (!addressValidation.valid) {
+    return addressValidation;
+  }
+
+  if (simple) {
+    return addressValidation;
+  }
 
   return getTokenTotalSupply(address)
     .then(balance => {
@@ -96,7 +101,10 @@ const validateTokenAddress = (address, contract, simple) => {
         });
     })
     .then((result) => {
-      if (result) return result;
+      if (result) {
+        return result;
+      }
+
       return addressValidation;
     });
 };
@@ -130,7 +138,10 @@ const validateTLA = (tla, contract, simple) => {
       }
     })
     .then((result) => {
-      if (result) return result;
+      if (result) {
+        return result;
+      }
+
       return {
         value: fTLA,
         error: null,
@@ -215,16 +226,28 @@ const validateURL = (string) => {
 };
 
 export const validate = (value, type, contract) => {
-  if (type === ADDRESS_TYPE) return validateAddress(value);
-  if (type === TOKEN_ADDRESS_TYPE) return validateTokenAddress(value, contract);
-  if (type === SIMPLE_TOKEN_ADDRESS_TYPE) return validateTokenAddress(value, contract, true);
-  if (type === TLA_TYPE) return validateTLA(value, contract);
-  if (type === SIMPLE_TLA_TYPE) return validateTLA(value, contract, true);
-  if (type === UINT_TYPE) return validateUint(value);
-  if (type === DECIMAL_TYPE) return validateDecimal(value);
-  if (type === STRING_TYPE) return validateString(value);
-  if (type === HEX_TYPE) return validateHex(value);
-  if (type === URL_TYPE) return validateURL(value);
-
-  return { valid: true, error: null };
+  switch (type) {
+    case ADDRESS_TYPE:
+      return validateAddress(value);
+    case TOKEN_ADDRESS_TYPE:
+      return validateTokenAddress(value, contract);
+    case SIMPLE_TOKEN_ADDRESS_TYPE:
+      return validateTokenAddress(value, contract, true);
+    case TLA_TYPE:
+      return validateTLA(value, contract);
+    case SIMPLE_TLA_TYPE:
+      return validateTLA(value, contract, true);
+    case UINT_TYPE:
+      return validateUint(value);
+    case DECIMAL_TYPE:
+      return validateDecimal(value);
+    case STRING_TYPE:
+      return validateString(value);
+    case HEX_TYPE:
+      return validateHex(value);
+    case URL_TYPE:
+      return validateURL(value);
+    default:
+      return { valid: true, error: null };
+  }
 };
