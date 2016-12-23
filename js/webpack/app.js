@@ -40,9 +40,6 @@ module.exports = {
 
   context: path.join(__dirname, '../src'),
   entry: Object.assign({}, Shared.dappsEntry, {
-    modals: './modals/index.js',
-    views: './views/index.js',
-    ui: './ui/index.js',
     index: './index.js'
   }),
   output: {
@@ -168,8 +165,6 @@ module.exports = {
         favicon: FAVICON,
         chunks: [
           isProd ? null : 'commons',
-          'common.modals', 'common.views', 'common.ui',
-          'modals', 'views', 'ui',
           'index'
         ]
       }),
@@ -181,27 +176,6 @@ module.exports = {
 
       new ServiceWorkerWebpackPlugin({
         entry: path.join(__dirname, '../src/serviceWorker.js')
-      }),
-
-      new webpack.optimize.CommonsChunkPlugin({
-        filename: 'commons.modals.[hash:10].js',
-        name: 'common.modals',
-        minChunks: 2,
-        chunks: [ 'index', 'modals' ]
-      }),
-
-      new webpack.optimize.CommonsChunkPlugin({
-        filename: 'commons.views.[hash:10].js',
-        name: 'common.views',
-        minChunks: 2,
-        chunks: [ 'index', 'views' ]
-      }),
-
-      new webpack.optimize.CommonsChunkPlugin({
-        filename: 'commons.ui.[hash:10].js',
-        name: 'common.ui',
-        minChunks: 2,
-        chunks: [ 'index', 'ui' ]
       }),
 
       DappsHTMLInjection
