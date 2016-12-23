@@ -18,6 +18,7 @@
 
 use ethcore::block_import_error::BlockImportError;
 use ethcore::block_status::BlockStatus;
+use ethcore::client::ClientReport;
 use ethcore::ids::BlockId;
 use ethcore::header::Header;
 use ethcore::verification::queue::{self, HeaderQueue};
@@ -28,7 +29,7 @@ use ethcore::service::ClientIoMessage;
 use io::IoChannel;
 
 use util::hash::{H256, H256FastMap};
-use util::{Bytes, Mutex};
+use util::{Bytes, Mutex, RwLock};
 
 use provider::Provider;
 use request;
@@ -76,6 +77,7 @@ pub struct Client {
 	queue: HeaderQueue,
 	chain: HeaderChain,
 	tx_pool: Mutex<H256FastMap<PendingTransaction>>,
+	report: RwLock<ClientReport>,
 	import_lock: Mutex<()>,
 }
 
@@ -86,6 +88,7 @@ impl Client {
 			queue: HeaderQueue::new(config.queue, spec.engine.clone(), io_channel, true),
 			chain: HeaderChain::new(&::rlp::encode(&spec.genesis_header())),
 			tx_pool: Mutex::new(Default::default()),
+			report: RwLock::new(ClientReport::default()),
 			import_lock: Mutex::new(()),
 		}
 	}
@@ -164,7 +167,10 @@ impl Client {
 			let (num, hash) = (verified_header.number(), verified_header.hash());
 
 			match self.chain.insert(::rlp::encode(&verified_header).to_vec()) {
-				Ok(()) => good.push(hash),
+				Ok(()) => {
+					good.push(hash);
+					self.report.write().blocks_imported += 1;
+				}
 				Err(e) => {
 					debug!(target: "client", "Error importing header {:?}: {}", (num, hash), e);
 					bad.push(hash);
@@ -174,6 +180,11 @@ impl Client {
 
 		self.queue.mark_as_bad(&bad);
 		self.queue.mark_as_good(&good);
+	}
+
+	/// Get a report about blocks imported.
+	pub fn report(&self) -> ClientReport {
+		::std::mem::replace(&mut *self.report.write(), ClientReport::default())
 	}
 }
 

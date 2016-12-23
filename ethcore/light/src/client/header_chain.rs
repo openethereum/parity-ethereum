@@ -34,7 +34,7 @@ use ethcore::block_status::BlockStatus;
 use ethcore::error::BlockError;
 use ethcore::ids::BlockId;
 use ethcore::views::HeaderView;
-use util::{Bytes, H256, U256, Mutex, RwLock};
+use util::{Bytes, H256, U256, HeapSizeOf, Mutex, RwLock};
 
 use smallvec::SmallVec;
 
@@ -64,6 +64,15 @@ struct Candidate {
 struct Entry {
 	candidates: SmallVec<[Candidate; 3]>, // 3 arbitrarily chosen
 	canonical_hash: H256,
+}
+
+impl HeapSizeOf for Entry {
+	fn heap_size_of_children(&self) -> usize {
+		match self.candidates.spilled() {
+			false => 0,
+			true => self.candidates.capacity() * ::std::mem::size_of::<Candidate>(),
+		}
+	}
 }
 
 /// Header chain. See module docs for more details.
@@ -252,6 +261,14 @@ impl HeaderChain {
 			true => BlockStatus::InChain,
 			false => BlockStatus::Unknown,
 		}
+	}
+}
+
+impl HeapSizeOf for HeaderChain {
+	fn heap_size_of_children(&self) -> usize {
+		self.candidates.read().heap_size_of_children() +
+			self.headers.read().heap_size_of_children() +
+			self.cht_roots.lock().heap_size_of_children()
 	}
 }
 
