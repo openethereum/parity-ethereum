@@ -53,7 +53,9 @@ impl SignerService {
 	/// Generates a new web proxy access token.
 	pub fn generate_web_proxy_access_token(&self) -> String {
 		let token = random_string(16);
-		self.web_proxy_tokens.lock().insert(token.clone(), ());
+		let mut tokens = self.web_proxy_tokens.lock();
+		tokens.prune();
+		tokens.insert(token.clone(), ());
 		token
 	}
 
