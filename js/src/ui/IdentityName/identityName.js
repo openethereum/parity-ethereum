@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import BigNumber from 'bignumber.js';
 import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
@@ -24,35 +25,41 @@ const defaultName = 'UNNAMED';
 
 class IdentityName extends Component {
   static propTypes = {
-    className: PropTypes.string,
-    address: PropTypes.string,
     accountsInfo: PropTypes.object,
-    tokens: PropTypes.object,
+    address: PropTypes.string,
+    className: PropTypes.string,
     empty: PropTypes.bool,
+    name: PropTypes.string,
     shorten: PropTypes.bool,
-    unknown: PropTypes.bool,
-    name: PropTypes.string
+    tokens: PropTypes.object,
+    unknown: PropTypes.bool
   }
 
   render () {
-    const { address, accountsInfo, tokens, empty, name, shorten, unknown, className } = this.props;
+    const { address, accountsInfo, className, empty, name, shorten, tokens, unknown } = this.props;
     const account = accountsInfo[address] || tokens[address];
 
     if (!account && empty) {
       return null;
     }
 
-    const addressFallback = shorten ? (<ShortenedHash data={ address } />) : address;
+    const nullName = new BigNumber(address).eq(0) ? 'null' : null;
+    const addressFallback = nullName || (shorten ? (<ShortenedHash data={ address } />) : address);
     const fallback = unknown ? defaultName : addressFallback;
     const isUuid = account && account.name === account.uuid;
     const displayName = (name && name.toUpperCase().trim()) ||
       (account && !isUuid
-      ? account.name.toUpperCase().trim()
-      : fallback);
+        ? account.name.toUpperCase().trim()
+        : fallback
+      );
 
     return (
       <span className={ className }>
-        { displayName && displayName.length ? displayName : fallback }
+        {
+          displayName && displayName.length
+            ? displayName
+            : fallback
+        }
       </span>
     );
   }

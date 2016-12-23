@@ -19,6 +19,7 @@
 use std::fmt;
 use std::sync::Arc;
 use rustc_serialize::hex::ToHex;
+use mime::Mime;
 use mime_guess;
 
 use ethabi::{Interface, Contract, Token};
@@ -76,7 +77,7 @@ pub struct Content {
 	/// URL of the content
 	pub url: String,
 	/// MIME type of the content
-	pub mime: String,
+	pub mime: Mime,
 	/// Content owner address
 	pub owner: Address,
 }
@@ -183,7 +184,7 @@ impl URLHintContract {
 
 					let commit = GithubApp::commit(&commit);
 					if commit == Some(Default::default()) {
-						let mime = guess_mime_type(&account_slash_repo).unwrap_or("application/octet-stream".into());
+						let mime = guess_mime_type(&account_slash_repo).unwrap_or(mime!(Application/_));
 						return Some(URLHintResult::Content(Content {
 							url: account_slash_repo,
 							mime: mime,
@@ -235,7 +236,7 @@ impl URLHint for URLHintContract {
 	}
 }
 
-fn guess_mime_type(url: &str) -> Option<String> {
+fn guess_mime_type(url: &str) -> Option<Mime> {
 	const CONTENT_TYPE: &'static str = "content-type=";
 
 	let mut it = url.split('#');
@@ -247,14 +248,14 @@ fn guess_mime_type(url: &str) -> Option<String> {
 		for meta in metas.split('&') {
 			let meta = meta.to_lowercase();
 			if meta.starts_with(CONTENT_TYPE) {
-				return Some(meta[CONTENT_TYPE.len()..].to_owned());
+				return meta[CONTENT_TYPE.len()..].parse().ok();
 			}
 		}
 	}
 	url.and_then(|url| {
 		url.split('.').last()
 	}).and_then(|extension| {
-		mime_guess::get_mime_type_str(extension).map(Into::into)
+		mime_guess::get_mime_type_opt(extension)
 	})
 }
 
@@ -369,7 +370,7 @@ mod tests {
 		// then
 		assert_eq!(res, Some(URLHintResult::Content(Content {
 			url: "https://ethcore.io/assets/images/ethcore-black-horizontal.png".into(),
-			mime: "image/png".into(),
+			mime: mime!(Image/Png),
 			owner: Address::from_str("deadcafebeefbeefcafedeaddeedfeedffffffff").unwrap(),
 		})))
 	}
@@ -401,9 +402,9 @@ mod tests {
 
 
 		assert_eq!(guess_mime_type(url1), None);
-		assert_eq!(guess_mime_type(url2), Some("image/png".into()));
-		assert_eq!(guess_mime_type(url3), Some("image/png".into()));
-		assert_eq!(guess_mime_type(url4), Some("image/jpeg".into()));
-		assert_eq!(guess_mime_type(url5), Some("image/png".into()));
+		assert_eq!(guess_mime_type(url2), Some(mime!(Image/Png)));
+		assert_eq!(guess_mime_type(url3), Some(mime!(Image/Png)));
+		assert_eq!(guess_mime_type(url4), Some(mime!(Image/Jpeg)));
+		assert_eq!(guess_mime_type(url5), Some(mime!(Image/Png)));
 	}
 }

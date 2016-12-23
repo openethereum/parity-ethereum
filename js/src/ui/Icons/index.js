@@ -16,6 +16,7 @@
 
 import AddIcon from 'material-ui/svg-icons/content/add';
 import CancelIcon from 'material-ui/svg-icons/content/clear';
+import ContractIcon from 'material-ui/svg-icons/action/code';
 import DoneIcon from 'material-ui/svg-icons/action/done-all';
 import LockedIcon from 'material-ui/svg-icons/action/lock-outline';
 import NextIcon from 'material-ui/svg-icons/navigation/arrow-forward';
@@ -26,6 +27,7 @@ import VisibleIcon from 'material-ui/svg-icons/image/remove-red-eye';
 export {
   AddIcon,
   CancelIcon,
+  ContractIcon,
   DoneIcon,
   LockedIcon,
   NextIcon,
