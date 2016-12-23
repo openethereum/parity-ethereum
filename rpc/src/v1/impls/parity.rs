@@ -17,7 +17,7 @@
 //! Parity-specific rpc implementation.
 use std::sync::{Arc, Weak};
 use std::str::FromStr;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashSet};
 
 use util::{RotatingLogger, Address};
 use util::misc::version_data;
@@ -40,7 +40,7 @@ use v1::types::{
 	Peers, Transaction, RpcSettings, Histogram,
 	TransactionStats, LocalTransactionStatus,
 	BlockNumber, ConsensusCapability, VersionInfo,
-	OperationsInfo, ChainStatus,
+	OperationsInfo, DappId, ChainStatus,
 };
 use v1::helpers::{errors, SigningQueue, SignerService, NetworkSettings};
 use v1::helpers::dispatch::DEFAULT_MAC;
@@ -111,7 +111,36 @@ impl<C, M, S: ?Sized, U> Parity for ParityClient<C, M, S, U> where
 	M: MinerService + 'static,
 	C: MiningBlockChainClient + 'static,
 	S: SyncProvider + 'static,
-	U: UpdateService + 'static {
+	U: UpdateService + 'static,
+{
+	fn accounts_info(&self, dapp: Trailing<DappId>) -> Result<BTreeMap<String, BTreeMap<String, String>>, Error> {
+		try!(self.active());
+
+		let dapp = dapp.0;
+
+		let store = take_weak!(self.accounts);
+		let dapp_accounts = try!(store
+			.note_dapp_used(dapp.clone().into())
+			.and_then(|_| store.dapps_addresses(dapp.into()))
+			.map_err(|e| errors::internal("Could not fetch accounts.", e))
+		).into_iter().collect::<HashSet<_>>();
+
+		let info = try!(store.accounts_info().map_err(|e| errors::account("Could not fetch account info.", e)));
+		let other = store.addresses_info().expect("addresses_info always returns Ok; qed");
+
+		Ok(info
+			.into_iter()
+			.chain(other.into_iter())
+			.filter(|&(ref a, _)| dapp_accounts.contains(a))
+			.map(|(a, v)| {
+				let m = map![
+					"name".to_owned() => v.name
+				];
+				(format!("0x{}", a.hex()), m)
+			})
+			.collect()
+		)
+	}
 
 	fn transactions_limit(&self) -> Result<usize, Error> {
 		try!(self.active());
@@ -348,24 +377,6 @@ impl<C, M, S: ?Sized, U> Parity for ParityClient<C, M, S, U> where
 
 	fn enode(&self) -> Result<String, Error> {
 		take_weak!(self.sync).enode().ok_or_else(errors::network_disabled)
-	}
-
-	fn accounts(&self) -> Result<BTreeMap<String, BTreeMap<String, String>>, Error> {
-		try!(self.active());
-		let store = take_weak!(self.accounts);
-		let info = try!(store.accounts_info().map_err(|e| errors::account("Could not fetch account info.", e)));
-		let other = store.addresses_info().expect("addresses_info always returns Ok; qed");
-
-		Ok(info.into_iter().chain(other.into_iter()).map(|(a, v)| {
-			let mut m = map![
-				"name".to_owned() => v.name,
-				"meta".to_owned() => v.meta
-			];
-			if let &Some(ref uuid) = &v.uuid {
-				m.insert("uuid".to_owned(), format!("{}", uuid));
-			}
-			(format!("0x{}", a.hex()), m)
-		}).collect())
 	}
 
 	fn consensus_capability(&self) -> Result<ConsensusCapability, Error> {

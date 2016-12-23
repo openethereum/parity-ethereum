@@ -83,7 +83,7 @@ export default class Application extends Component {
     Promise
       .all([
         attachInstances(),
-        api.parity.accounts()
+        api.parity.accountsInfo()
       ])
       .then(([{ managerInstance, registryInstance, tokenregInstance }, accountsInfo]) => {
         accountsInfo = accountsInfo || {};
@@ -95,7 +95,7 @@ export default class Application extends Component {
           accounts: Object
             .keys(accountsInfo)
             .sort((a, b) => {
-              return (accountsInfo[b].uuid || '').localeCompare(accountsInfo[a].uuid || '');
+              return (accountsInfo[b].name || '').localeCompare(accountsInfo[a].name || '');
             })
             .reduce((accounts, address) => {
               accounts[address] = Object.assign(accountsInfo[address], { address });

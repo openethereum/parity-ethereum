@@ -43,7 +43,7 @@ class IdentityName extends Component {
       return null;
     }
 
-    const nullName = new BigNumber(address).eq(0) ? 'null' : null;
+    const nullName = new BigNumber(address || 0).eq(0) ? 'null' : null;
     const addressFallback = nullName || (shorten ? (<ShortenedHash data={ address } />) : address);
     const fallback = unknown ? defaultName : addressFallback;
     const isUuid = account && account.name === account.uuid;

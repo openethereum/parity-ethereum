@@ -113,7 +113,10 @@ export default class VerificationStore {
 
   @action setCode = (code) => {
     const { contract, account } = this;
-    if (!contract || !account || code.length === 0) return;
+
+    if (!contract || !account || code.length === 0) {
+      return;
+    }
 
     const confirm = contract.functions.find((fn) => fn.name === 'confirm');
     const options = { from: account };

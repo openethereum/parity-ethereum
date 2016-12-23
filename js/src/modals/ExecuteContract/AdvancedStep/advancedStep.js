@@ -17,29 +17,23 @@
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 
-import { GasPriceEditor, Form, Input } from '~/ui';
+import { Input, GasPriceEditor } from '~/ui';
 
-import styles from '../transfer.css';
+import styles from '../executeContract.css';
 
-export default class Extras extends Component {
+export default class AdvancedStep extends Component {
   static propTypes = {
-    data: PropTypes.string,
-    dataError: PropTypes.string,
     gasStore: PropTypes.object.isRequired,
-    isEth: PropTypes.bool,
     minBlock: PropTypes.string,
     minBlockError: PropTypes.string,
-    onChange: PropTypes.func.isRequired,
-    total: PropTypes.string,
-    totalError: PropTypes.string
-  }
+    onMinBlockChange: PropTypes.func
+  };
 
   render () {
-    const { gasStore, minBlock, minBlockError, onChange } = this.props;
+    const { gasStore, minBlock, minBlockError, onMinBlockChange } = this.props;
 
     return (
-      <Form>
-        { this.renderData() }
+      <div>
         <Input
           error={ minBlockError }
           hint={
@@ -53,46 +47,11 @@ export default class Extras extends Component {
               defaultMessage='BlockNumber to send from' />
           }
           value={ minBlock }
-          onChange={ this.onEditMinBlock } />
+          onSubmit={ onMinBlockChange } />
         <div className={ styles.gaseditor }>
-          <GasPriceEditor
-            store={ gasStore }
-            onChange={ onChange } />
+          <GasPriceEditor store={ gasStore } />
         </div>
-      </Form>
+      </div>
     );
-  }
-
-  renderData () {
-    const { isEth, data, dataError } = this.props;
-
-    if (!isEth) {
-      return null;
-    }
-
-    return (
-      <Input
-        error={ dataError }
-        hint={
-          <FormattedMessage
-            id='transfer.advanced.data.hint'
-            defaultMessage='the data to pass through with the transaction' />
-        }
-        label={
-          <FormattedMessage
-            id='transfer.advanced.data.label'
-            defaultMessage='transaction data' />
-        }
-        onChange={ this.onEditData }
-        value={ data } />
-    );
-  }
-
-  onEditData = (event) => {
-    this.props.onChange('data', event.target.value);
-  }
-
-  onEditMinBlock = (event) => {
-    this.props.onChange('minBlock', event.target.value);
   }
 }

@@ -80,8 +80,8 @@ pub struct Client {
 
 impl Client {
 	pub fn new() -> Result<Self, Error> {
-		// Max 15MB will be downloaded.
-		Self::with_limit(Some(15*1024*1024))
+		// Max 50MB will be downloaded.
+		Self::with_limit(Some(50*1024*1024))
 	}
 
 	fn with_limit(limit: Option<usize>) -> Result<Self, Error> {

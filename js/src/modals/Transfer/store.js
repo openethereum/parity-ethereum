@@ -49,6 +49,9 @@ export default class TransferStore {
   @observable data = '';
   @observable dataError = null;
 
+  @observable minBlock = '0';
+  @observable minBlockError = null;
+
   @observable recipient = '';
   @observable recipientError = ERRORS.requireRecipient;
 
@@ -84,7 +87,7 @@ export default class TransferStore {
 
   @computed get isValid () {
     const detailsValid = !this.recipientError && !this.valueError && !this.totalError && !this.senderError;
-    const extrasValid = !this.gasStore.errorGas && !this.gasStore.errorPrice && !this.totalError;
+    const extrasValid = !this.gasStore.errorGas && !this.gasStore.errorPrice && !this.minBlockError && !this.totalError;
     const verifyValid = !this.passwordError;
 
     switch (this.stage) {
@@ -92,7 +95,9 @@ export default class TransferStore {
         return detailsValid;
 
       case 1:
-        return this.extras ? extrasValid : verifyValid;
+        return this.extras
+          ? extrasValid
+          : verifyValid;
 
       case 2:
         return verifyValid;
@@ -154,6 +159,9 @@ export default class TransferStore {
 
       case 'gasPrice':
         return this._onUpdateGasPrice(value);
+
+      case 'minBlock':
+        return this._onUpdateMinBlock(value);
 
       case 'recipient':
         return this._onUpdateRecipient(value);
@@ -252,6 +260,14 @@ export default class TransferStore {
 
   @action _onUpdateGas = (gas) => {
     this.recalculate();
+  }
+
+  @action _onUpdateMinBlock = (minBlock) => {
+    console.log('minBlock', minBlock);
+    transaction(() => {
+      this.minBlock = minBlock;
+      this.minBlockError = this._validatePositiveNumber(minBlock);
+    });
   }
 
   @action _onUpdateGasPrice = (gasPrice) => {
@@ -412,6 +428,9 @@ export default class TransferStore {
 
   send () {
     const { options, values } = this._getTransferParams();
+
+    options.minBlock = new BigNumber(this.minBlock || 0).gt(0) ? this.minBlock : null;
+
     return this._getTransferMethod().postTransaction(options, values);
   }
 
