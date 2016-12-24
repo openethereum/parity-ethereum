@@ -28,6 +28,8 @@ use ethsync::{ManageNetwork, SyncProvider};
 use ethcore_rpc::{Extendable, NetworkSettings};
 pub use ethcore_rpc::SignerService;
 use updater::Updater;
+use hash_fetch::fetch::Client as FetchClient;
+use parity_reactor::Remote;
 
 #[derive(Debug, PartialEq, Clone, Eq, Hash)]
 pub enum Api {
@@ -122,6 +124,8 @@ pub struct Dependencies {
 	pub geth_compatibility: bool,
 	pub dapps_interface: Option<String>,
 	pub dapps_port: Option<u16>,
+	pub fetch: FetchClient,
+	pub remote: Remote,
 }
 
 fn to_modules(apis: &[Api]) -> BTreeMap<String, String> {
@@ -242,7 +246,14 @@ pub fn setup_rpc<T: Extendable>(server: T, deps: Arc<Dependencies>, apis: ApiSet
 				server.add_delegate(ParityAccountsClient::new(&deps.secret_store, &deps.client).to_delegate());
 			},
 			Api::ParitySet => {
-				server.add_delegate(ParitySetClient::new(&deps.client, &deps.miner, &deps.updater, &deps.net_service).to_delegate())
+				server.add_delegate(ParitySetClient::new(
+					&deps.client,
+					&deps.miner,
+					&deps.updater,
+					&deps.net_service,
+					deps.fetch.clone(),
+					deps.remote.clone(),
+				).to_delegate())
 			},
 			Api::Traces => {
 				server.add_delegate(TracesClient::new(&deps.client, &deps.miner).to_delegate())

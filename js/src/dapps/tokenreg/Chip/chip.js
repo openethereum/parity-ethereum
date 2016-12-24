@@ -57,7 +57,9 @@ export default class CustomChip extends Component {
   }
 
   renderIcon (isAddress, address) {
-    if (!isAddress) return;
+    if (!isAddress) {
+      return;
+    }
 
     return (
       <IdentityIcon

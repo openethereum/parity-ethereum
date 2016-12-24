@@ -23,6 +23,7 @@ import IdentityName from './identityName';
 const ADDR_A = '0x123456789abcdef0123456789A';
 const ADDR_B = '0x123456789abcdef0123456789B';
 const ADDR_C = '0x123456789abcdef0123456789C';
+const ADDR_NULL = '0x0000000000000000000000000000000000000000';
 const STORE = {
   dispatch: sinon.stub(),
   subscribe: sinon.stub(),
@@ -52,7 +53,7 @@ function render (props) {
 describe('ui/IdentityName', () => {
   describe('rendering', () => {
     it('renders defaults', () => {
-      expect(render()).to.be.ok;
+      expect(render({ address: ADDR_A })).to.be.ok;
     });
 
     describe('account not found', () => {
@@ -70,6 +71,10 @@ describe('ui/IdentityName', () => {
 
       it('renders unknown with flag', () => {
         expect(render({ address: ADDR_C, unknown: true }).text()).to.equal('UNNAMED');
+      });
+
+      it('renders 0x000...000 as null', () => {
+        expect(render({ address: ADDR_NULL }).text()).to.equal('null');
       });
     });
   });

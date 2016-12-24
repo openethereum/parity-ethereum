@@ -32,8 +32,10 @@ pub struct Account {
 	pub nonce: Option<Uint>,
 	/// Code.
 	pub code: Option<Bytes>,
-	/// Storage
+	/// Storage.
 	pub storage: Option<BTreeMap<Uint, Uint>>,
+	/// Constructor.
+	pub constructor: Option<Bytes>,
 }
 
 impl Account {

@@ -25,6 +25,7 @@ use Server;
 use hash_fetch::urlhint::ContractClient;
 use util::{Bytes, Address, Mutex, ToPretty};
 use devtools::http_client;
+use parity_reactor::Remote;
 
 const REGISTRAR: &'static str = "8e4e9b13d4b45cb0befc93c3061b1408f67316b2";
 const URLHINT: &'static str = "deadbeefcafe0000000000000000000000000000";
@@ -74,7 +75,7 @@ pub fn init_server(hosts: Option<Vec<String>>, is_syncing: bool) -> (Server, Arc
 	let registrar = Arc::new(FakeRegistrar::new());
 	let mut dapps_path = env::temp_dir();
 	dapps_path.push("non-existent-dir-to-prevent-fs-files-from-loading");
-	let mut builder = ServerBuilder::new(dapps_path.to_str().unwrap().into(), registrar.clone());
+	let mut builder = ServerBuilder::new(dapps_path.to_str().unwrap().into(), registrar.clone(), Remote::new_sync());
 	builder.with_sync_status(Arc::new(move || is_syncing));
 	builder.with_signer_address(Some(("127.0.0.1".into(), SIGNER_PORT)));
 	(
@@ -88,7 +89,7 @@ pub fn serve_with_auth(user: &str, pass: &str) -> Server {
 	let registrar = Arc::new(FakeRegistrar::new());
 	let mut dapps_path = env::temp_dir();
 	dapps_path.push("non-existent-dir-to-prevent-fs-files-from-loading");
-	let mut builder = ServerBuilder::new(dapps_path.to_str().unwrap().into(), registrar);
+	let mut builder = ServerBuilder::new(dapps_path.to_str().unwrap().into(), registrar.clone(), Remote::new_sync());
 	builder.with_signer_address(Some(("127.0.0.1".into(), SIGNER_PORT)));
 	builder.start_basic_auth_http(&"127.0.0.1:0".parse().unwrap(), None, user, pass).unwrap()
 }

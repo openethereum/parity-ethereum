@@ -20,11 +20,12 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use page::handler::{self, PageCache, PageHandlerWaiting};
 use endpoint::{Endpoint, EndpointInfo, EndpointPath, Handler};
+use mime::Mime;
 
 #[derive(Debug, Clone)]
 pub struct LocalPageEndpoint {
 	path: PathBuf,
-	mime: Option<String>,
+	mime: Option<Mime>,
 	info: Option<EndpointInfo>,
 	cache: PageCache,
 	embeddable_on: Option<(String, u16)>,
@@ -41,7 +42,7 @@ impl LocalPageEndpoint {
 		}
 	}
 
-	pub fn single_file(path: PathBuf, mime: String, cache: PageCache) -> Self {
+	pub fn single_file(path: PathBuf, mime: Mime, cache: PageCache) -> Self {
 		LocalPageEndpoint {
 			path: path,
 			mime: Some(mime),
@@ -55,9 +56,9 @@ impl LocalPageEndpoint {
 		self.path.clone()
 	}
 
-	fn page_handler_with_mime(&self, path: EndpointPath, mime: &str) -> handler::PageHandler<LocalSingleFile> {
+	fn page_handler_with_mime(&self, path: EndpointPath, mime: &Mime) -> handler::PageHandler<LocalSingleFile> {
 		handler::PageHandler {
-			app: LocalSingleFile { path: self.path.clone(), mime: mime.into() },
+			app: LocalSingleFile { path: self.path.clone(), mime: format!("{}", mime) },
 			prefix: None,
 			path: path,
 			file: handler::ServedFile::new(None),

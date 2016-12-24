@@ -27,7 +27,7 @@ use url::{Url, Host};
 use hyper::{self, server, Next, Encoder, Decoder, Control, StatusCode};
 use hyper::net::HttpStream;
 use apps::{self, DAPPS_DOMAIN};
-use apps::fetcher::ContentFetcher;
+use apps::fetcher::Fetcher;
 use endpoint::{Endpoint, Endpoints, EndpointPath};
 use handlers::{Redirection, extract_url, ContentHandler};
 use self::auth::{Authorization, Authorized};
@@ -45,7 +45,7 @@ pub struct Router<A: Authorization + 'static> {
 	control: Option<Control>,
 	signer_address: Option<(String, u16)>,
 	endpoints: Arc<Endpoints>,
-	fetch: Arc<ContentFetcher>,
+	fetch: Arc<Fetcher>,
 	special: Arc<HashMap<SpecialEndpoint, Box<Endpoint>>>,
 	authorization: Arc<A>,
 	allowed_hosts: Option<Vec<String>>,
@@ -169,7 +169,7 @@ impl<A: Authorization> Router<A> {
 	pub fn new(
 		control: Control,
 		signer_address: Option<(String, u16)>,
-		content_fetcher: Arc<ContentFetcher>,
+		content_fetcher: Arc<Fetcher>,
 		endpoints: Arc<Endpoints>,
 		special: Arc<HashMap<SpecialEndpoint, Box<Endpoint>>>,
 		authorization: Arc<A>,

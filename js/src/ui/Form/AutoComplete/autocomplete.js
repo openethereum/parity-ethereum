@@ -14,12 +14,13 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import React, { Component, PropTypes } from 'react';
 import keycode from 'keycode';
+import { isEqual } from 'lodash';
 import { MenuItem, AutoComplete as MUIAutoComplete, Divider as MUIDivider } from 'material-ui';
 import { PopoverAnimationVertical } from 'material-ui/Popover';
+import React, { Component, PropTypes } from 'react';
 
-import { isEqual } from 'lodash';
+import { nodeOrStringProptype } from '~/util/proptypes';
 
 import styles from './autocomplete.css';
 
@@ -41,21 +42,21 @@ class Divider extends Component {
 
 export default class AutoComplete extends Component {
   static propTypes = {
-    onChange: PropTypes.func.isRequired,
-    onUpdateInput: PropTypes.func,
-    disabled: PropTypes.bool,
-    label: PropTypes.string,
-    hint: PropTypes.string,
-    error: PropTypes.string,
-    value: PropTypes.string,
     className: PropTypes.string,
-    filter: PropTypes.func,
-    renderItem: PropTypes.func,
+    disabled: PropTypes.bool,
     entry: PropTypes.object,
     entries: PropTypes.oneOfType([
       PropTypes.array,
       PropTypes.object
-    ])
+    ]),
+    error: nodeOrStringProptype(),
+    filter: PropTypes.func,
+    hint: nodeOrStringProptype(),
+    label: nodeOrStringProptype(),
+    onChange: PropTypes.func.isRequired,
+    onUpdateInput: PropTypes.func,
+    renderItem: PropTypes.func,
+    value: PropTypes.string
   };
 
   state = {
