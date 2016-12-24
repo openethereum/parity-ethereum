@@ -168,7 +168,7 @@ impl<Gas: CostType> Gasometer<Gas> {
 				Request::GasMem(default_gas, mem_needed(stack.peek(0), stack.peek(1))?)
 			},
 			instructions::SHA3 => {
-				let w = overflowing!(add_gas_usize(try!(Gas::from_u256(*stack.peek(1))), 31));
+				let w = overflowing!(add_gas_usize(Gas::from_u256(*stack.peek(1))?, 31));
 				let words = w >> 5;
 				let gas = Gas::from(schedule.sha3_gas) + (Gas::from(schedule.sha3_word_gas) * words);
 				Request::GasMem(gas, mem_needed(stack.peek(0), stack.peek(1))?)
@@ -183,7 +183,7 @@ impl<Gas: CostType> Gasometer<Gas> {
 				let no_of_topics = instructions::get_log_topics(instruction);
 				let log_gas = schedule.log_gas + schedule.log_topic_gas * no_of_topics;
 
-				let data_gas = overflowing!(try!(Gas::from_u256(*stack.peek(1))).overflow_mul(Gas::from(schedule.log_data_gas)));
+				let data_gas = overflowing!(Gas::from_u256(*stack.peek(1))?.overflow_mul(Gas::from(schedule.log_data_gas)));
 				let gas = overflowing!(data_gas.overflow_add(Gas::from(log_gas)));
 				Request::GasMem(gas, mem_needed(stack.peek(0), stack.peek(1))?)
 			},

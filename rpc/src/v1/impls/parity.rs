@@ -114,18 +114,18 @@ impl<C, M, S: ?Sized, U> Parity for ParityClient<C, M, S, U> where
 	U: UpdateService + 'static,
 {
 	fn accounts_info(&self, dapp: Trailing<DappId>) -> Result<BTreeMap<String, BTreeMap<String, String>>, Error> {
-		try!(self.active());
+		self.active()?;
 
 		let dapp = dapp.0;
 
 		let store = take_weak!(self.accounts);
-		let dapp_accounts = try!(store
+		let dapp_accounts = store
 			.note_dapp_used(dapp.clone().into())
 			.and_then(|_| store.dapps_addresses(dapp.into()))
-			.map_err(|e| errors::internal("Could not fetch accounts.", e))
-		).into_iter().collect::<HashSet<_>>();
+			.map_err(|e| errors::internal("Could not fetch accounts.", e))?
+			.into_iter().collect::<HashSet<_>>();
 
-		let info = try!(store.accounts_info().map_err(|e| errors::account("Could not fetch account info.", e)));
+		let info = store.accounts_info().map_err(|e| errors::account("Could not fetch account info.", e))?;
 		let other = store.addresses_info().expect("addresses_info always returns Ok; qed");
 
 		Ok(info
