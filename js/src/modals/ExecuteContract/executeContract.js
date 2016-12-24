@@ -14,40 +14,54 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import BigNumber from 'bignumber.js';
+import { pick } from 'lodash';
+import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
+import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
-import { observer } from 'mobx-react';
-import { pick } from 'lodash';
-
-import ActionDoneAll from 'material-ui/svg-icons/action/done-all';
-import ContentClear from 'material-ui/svg-icons/content/clear';
-import NavigationArrowBack from 'material-ui/svg-icons/navigation/arrow-back';
-import NavigationArrowForward from 'material-ui/svg-icons/navigation/arrow-forward';
 
 import { toWei } from '~/api/util/wei';
-import { BusyStep, Button, CompletedStep, GasPriceEditor, IdentityIcon, Modal, TxHash } from '~/ui';
+import { BusyStep, Button, CompletedStep, GasPriceEditor, IdentityIcon, Modal, TxHash, Warning } from '~/ui';
+import { CancelIcon, DoneIcon, NextIcon, PrevIcon } from '~/ui/Icons';
 import { MAX_GAS_ESTIMATION } from '~/util/constants';
 import { validateAddress, validateUint } from '~/util/validation';
 import { parseAbiType } from '~/util/abi';
 
+import AdvancedStep from './AdvancedStep';
 import DetailsStep from './DetailsStep';
 
 import { ERROR_CODES } from '~/api/transport/error';
 
 const STEP_DETAILS = 0;
-const STEP_BUSY_OR_GAS = 1;
+const STEP_BUSY_OR_ADVANCED = 1;
 const STEP_BUSY = 2;
 
 const TITLES = {
-  transfer: 'function details',
-  sending: 'sending',
-  complete: 'complete',
-  gas: 'gas selection',
-  rejected: 'rejected'
+  transfer:
+    <FormattedMessage
+      id='executeContract.steps.transfer'
+      defaultMessage='function details' />,
+  sending:
+    <FormattedMessage
+      id='executeContract.steps.sending'
+      defaultMessage='sending' />,
+  complete:
+    <FormattedMessage
+      id='executeContract.steps.complete'
+      defaultMessage='complete' />,
+  advanced:
+    <FormattedMessage
+      id='executeContract.steps.advanced'
+      defaultMessage='advanced options' />,
+  rejected:
+    <FormattedMessage
+      id='executeContract.steps.rejected'
+      defaultMessage='rejected' />
 };
 const STAGES_BASIC = [TITLES.transfer, TITLES.sending, TITLES.complete];
-const STAGES_GAS = [TITLES.transfer, TITLES.gas, TITLES.sending, TITLES.complete];
+const STAGES_ADVANCED = [TITLES.transfer, TITLES.advanced, TITLES.sending, TITLES.complete];
 
 @observer
 class ExecuteContract extends Component {
@@ -70,13 +84,15 @@ class ExecuteContract extends Component {
   gasStore = new GasPriceEditor.Store(this.context.api, { gasLimit: this.props.gasLimit });
 
   state = {
+    advancedOptions: false,
     amount: '0',
     amountError: null,
     busyState: null,
     fromAddressError: null,
     func: null,
     funcError: null,
-    gasEdit: false,
+    minBlock: '0',
+    minBlockError: null,
     rejected: false,
     sending: false,
     step: STEP_DETAILS,
@@ -101,8 +117,8 @@ class ExecuteContract extends Component {
   }
 
   render () {
-    const { sending, step, gasEdit, rejected } = this.state;
-    const steps = gasEdit ? STAGES_GAS : STAGES_BASIC;
+    const { advancedOptions, rejected, sending, step } = this.state;
+    const steps = advancedOptions ? STAGES_ADVANCED : STAGES_BASIC;
 
     if (rejected) {
       steps[steps.length - 1] = TITLES.rejected;
@@ -115,28 +131,55 @@ class ExecuteContract extends Component {
         current={ step }
         steps={ steps }
         visible
-        waiting={ gasEdit ? [STEP_BUSY] : [STEP_BUSY_OR_GAS] }>
+        waiting={
+          advancedOptions
+            ? [STEP_BUSY]
+            : [STEP_BUSY_OR_ADVANCED]
+        }>
+        { this.renderExceptionWarning() }
         { this.renderStep() }
       </Modal>
     );
   }
 
+  renderExceptionWarning () {
+    const { gasEdit, step } = this.state;
+    const { errorEstimated } = this.gasStore;
+
+    if (!errorEstimated || step >= (gasEdit ? STEP_BUSY : STEP_BUSY_OR_ADVANCED)) {
+      return null;
+    }
+
+    return (
+      <Warning
+        warning={ errorEstimated } />
+    );
+  }
+
   renderDialogActions () {
     const { onClose, fromAddress } = this.props;
-    const { gasEdit, sending, step, fromAddressError, valuesError } = this.state;
-    const hasError = fromAddressError || valuesError.find((error) => error);
+    const { advancedOptions, sending, step, fromAddressError, minBlockError, valuesError } = this.state;
+    const hasError = fromAddressError || minBlockError || valuesError.find((error) => error);
 
     const cancelBtn = (
       <Button
         key='cancel'
-        label='Cancel'
-        icon={ <ContentClear /> }
+        label={
+          <FormattedMessage
+            id='executeContract.button.cancel'
+            defaultMessage='cancel' />
+        }
+        icon={ <CancelIcon /> }
         onClick={ onClose } />
     );
     const postBtn = (
       <Button
         key='postTransaction'
-        label='post transaction'
+        label={
+          <FormattedMessage
+            id='executeContract.button.post'
+            defaultMessage='post transaction' />
+        }
         disabled={ !!(sending || hasError) }
         icon={ <IdentityIcon address={ fromAddress } button /> }
         onClick={ this.postTransaction } />
@@ -144,28 +187,36 @@ class ExecuteContract extends Component {
     const nextBtn = (
       <Button
         key='nextStep'
-        label='next'
-        icon={ <NavigationArrowForward /> }
+        label={
+          <FormattedMessage
+            id='executeContract.button.next'
+            defaultMessage='next' />
+        }
+        icon={ <NextIcon /> }
         onClick={ this.onNextClick } />
     );
     const prevBtn = (
       <Button
         key='prevStep'
-        label='prev'
-        icon={ <NavigationArrowBack /> }
+        label={
+          <FormattedMessage
+            id='executeContract.button.prev'
+            defaultMessage='prev' />
+        }
+        icon={ <PrevIcon /> }
         onClick={ this.onPrevClick } />
     );
 
     if (step === STEP_DETAILS) {
       return [
         cancelBtn,
-        gasEdit ? nextBtn : postBtn
+        advancedOptions ? nextBtn : postBtn
       ];
-    } else if (step === (gasEdit ? STEP_BUSY : STEP_BUSY_OR_GAS)) {
+    } else if (step === (advancedOptions ? STEP_BUSY : STEP_BUSY_OR_ADVANCED)) {
       return [
         cancelBtn
       ];
-    } else if (gasEdit && (step === STEP_BUSY_OR_GAS)) {
+    } else if (advancedOptions && (step === STEP_BUSY_OR_ADVANCED)) {
       return [
         cancelBtn,
         prevBtn,
@@ -176,23 +227,33 @@ class ExecuteContract extends Component {
     return [
       <Button
         key='close'
-        label='Done'
-        icon={ <ActionDoneAll /> }
+        label={
+          <FormattedMessage
+            id='executeContract.button.done'
+            defaultMessage='done' />
+        }
+        icon={ <DoneIcon /> }
         onClick={ onClose } />
     ];
   }
 
   renderStep () {
     const { onFromAddressChange } = this.props;
-    const { gasEdit, step, busyState, txhash, rejected } = this.state;
-    const { errorEstimated } = this.gasStore;
+    const { advancedOptions, step, busyState, minBlock, minBlockError, txhash, rejected } = this.state;
 
     if (rejected) {
       return (
         <BusyStep
-          title='The execution has been rejected'
-          state='You can safely close this window, the function execution will not occur.'
-        />
+          title={
+            <FormattedMessage
+              id='executeContract.rejected.title'
+              defaultMessage='The execution has been rejected' />
+          }
+          state={
+            <FormattedMessage
+              id='executeContract.rejected.state'
+              defaultMessage='You can safely close this window, the function execution will not occur.' />
+          } />
       );
     }
 
@@ -201,23 +262,29 @@ class ExecuteContract extends Component {
         <DetailsStep
           { ...this.props }
           { ...this.state }
-          warning={ errorEstimated }
           onAmountChange={ this.onAmountChange }
           onFromAddressChange={ onFromAddressChange }
           onFuncChange={ this.onFuncChange }
-          onGasEditClick={ this.onGasEditClick }
+          onAdvancedClick={ this.onAdvancedClick }
           onValueChange={ this.onValueChange } />
       );
-    } else if (step === (gasEdit ? STEP_BUSY : STEP_BUSY_OR_GAS)) {
+    } else if (step === (advancedOptions ? STEP_BUSY : STEP_BUSY_OR_ADVANCED)) {
       return (
         <BusyStep
-          title='The function execution is in progress'
+          title={
+            <FormattedMessage
+              id='executeContract.busy.title'
+              defaultMessage='The function execution is in progress' />
+          }
           state={ busyState } />
       );
-    } else if (gasEdit && (step === STEP_BUSY_OR_GAS)) {
+    } else if (advancedOptions && (step === STEP_BUSY_OR_ADVANCED)) {
       return (
-        <GasPriceEditor
-          store={ this.gasStore } />
+        <AdvancedStep
+          gasStore={ this.gasStore }
+          minBlock={ minBlock }
+          minBlockError={ minBlockError }
+          onMinBlockChange={ this.onMinBlockChange } />
       );
     }
 
@@ -243,6 +310,15 @@ class ExecuteContract extends Component {
       func,
       values
     }, this.estimateGas);
+  }
+
+  onMinBlockChange = (minBlock) => {
+    const minBlockError = validateUint(minBlock).valueError;
+
+    this.setState({
+      minBlock,
+      minBlockError
+    });
   }
 
   onValueChange = (event, index, _value) => {
@@ -305,22 +381,28 @@ class ExecuteContract extends Component {
   postTransaction = () => {
     const { api, store } = this.context;
     const { fromAddress } = this.props;
-    const { amount, func, gasEdit, values } = this.state;
-    const steps = gasEdit ? STAGES_GAS : STAGES_BASIC;
+    const { advancedOptions, amount, func, minBlock, values } = this.state;
+    const steps = advancedOptions ? STAGES_ADVANCED : STAGES_BASIC;
     const finalstep = steps.length - 1;
     const options = {
       gas: this.gasStore.gas,
       gasPrice: this.gasStore.price,
       from: fromAddress,
+      minBlock: new BigNumber(minBlock || 0).gt(0) ? minBlock : null,
       value: api.util.toWei(amount || 0)
     };
 
-    this.setState({ sending: true, step: gasEdit ? STEP_BUSY : STEP_BUSY_OR_GAS });
+    this.setState({ sending: true, step: advancedOptions ? STEP_BUSY : STEP_BUSY_OR_ADVANCED });
 
     func
       .postTransaction(options, values)
       .then((requestId) => {
-        this.setState({ busyState: 'Waiting for authorization in the Parity Signer' });
+        this.setState({
+          busyState:
+            <FormattedMessage
+              id='executeContract.busy.waitAuth'
+              defaultMessage='Waiting for authorization in the Parity Signer' />
+        });
 
         return api
           .pollMethod('parity_checkRequest', requestId)
@@ -334,7 +416,15 @@ class ExecuteContract extends Component {
           });
       })
       .then((txhash) => {
-        this.setState({ sending: false, step: finalstep, txhash, busyState: 'Your transaction has been posted to the network' });
+        this.setState({
+          sending: false,
+          step: finalstep,
+          txhash,
+          busyState:
+            <FormattedMessage
+              id='executeContract.busy.posted'
+              defaultMessage='Your transaction has been posted to the network' />
+        });
       })
       .catch((error) => {
         console.error('postTransaction', error);
@@ -342,9 +432,9 @@ class ExecuteContract extends Component {
       });
   }
 
-  onGasEditClick = () => {
+  onAdvancedClick = () => {
     this.setState({
-      gasEdit: !this.state.gasEdit
+      advancedOptions: !this.state.advancedOptions
     });
   }
 

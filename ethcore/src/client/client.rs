@@ -167,25 +167,32 @@ impl Client {
 	) -> Result<Arc<Client>, ClientError> {
 
 		let path = path.to_path_buf();
-		let gb = spec.genesis_block();
-
 		let db = Arc::new(Database::open(&db_config, &path.to_str().expect("DB path could not be converted to string.")).map_err(ClientError::Database)?);
-		let chain = Arc::new(BlockChain::new(config.blockchain.clone(), &gb, db.clone(), spec.engine.clone()));
-		let tracedb = RwLock::new(TraceDB::new(config.tracing.clone(), db.clone(), chain.clone()));
-
 		let trie_spec = match config.fat_db {
 			true => TrieSpec::Fat,
 			false => TrieSpec::Secure,
 		};
 
 		let trie_factory = TrieFactory::new(trie_spec);
+		let factories = Factories {
+			vm: EvmFactory::new(config.vm_type.clone(), config.jump_table_size),
+			trie: trie_factory,
+			accountdb: Default::default(),
+		};
+
 		let journal_db = journaldb::new(db.clone(), config.pruning, ::db::COL_STATE);
 		let mut state_db = StateDB::new(journal_db, config.state_cache_size);
-		if state_db.journal_db().is_empty() && spec.ensure_db_good(&mut state_db, &trie_factory)? {
+		if state_db.journal_db().is_empty() {
+			// Sets the correct state root.
+			state_db = spec.ensure_db_good(state_db, &factories)?;
 			let mut batch = DBTransaction::new(&db);
 			state_db.journal_under(&mut batch, 0, &spec.genesis_header().hash())?;
 			db.write(batch).map_err(ClientError::Database)?;
 		}
+
+		let gb = spec.genesis_block();
+		let chain = Arc::new(BlockChain::new(config.blockchain.clone(), &gb, db.clone(), spec.engine.clone()));
+		let tracedb = RwLock::new(TraceDB::new(config.tracing.clone(), db.clone(), chain.clone()));
 
 		trace!("Cleanup journal: DB Earliest = {:?}, Latest = {:?}", state_db.journal_db().earliest_era(), state_db.journal_db().latest_era());
 
@@ -220,12 +227,6 @@ impl Client {
 		panic_handler.forward_from(&block_queue);
 
 		let awake = match config.mode { Mode::Dark(..) | Mode::Off => false, _ => true };
-
-		let factories = Factories {
-			vm: EvmFactory::new(config.vm_type.clone(), config.jump_table_size),
-			trie: trie_factory,
-			accountdb: Default::default(),
-		};
 
 		let client = Arc::new(Client {
 			enabled: AtomicBool::new(true),
@@ -618,7 +619,8 @@ impl Client {
 	/// Attempt to get a copy of a specific block's final state.
 	///
 	/// This will not fail if given BlockId::Latest.
-	/// Otherwise, this can fail (but may not) if the DB prunes state.
+	/// Otherwise, this can fail (but may not) if the DB prunes state or the block
+	/// is unknown.
 	pub fn state_at(&self, id: BlockId) -> Option<State> {
 		// fast path for latest state.
 		match id.clone() {
@@ -1205,7 +1207,7 @@ impl BlockChainClient for Client {
 	}
 
 	fn import_block(&self, bytes: Bytes) -> Result<H256, BlockImportError> {
-		use verification::queue::kind::HasHash;
+		use verification::queue::kind::BlockLike;
 		use verification::queue::kind::blocks::Unverified;
 
 		// create unverified block here so the `sha3` calculation can be cached.
@@ -1245,7 +1247,9 @@ impl BlockChainClient for Client {
 	}
 
 	fn chain_info(&self) -> BlockChainInfo {
-		self.chain.read().chain_info()
+		let mut chain_info = self.chain.read().chain_info();
+		chain_info.pending_total_difficulty = chain_info.total_difficulty + self.block_queue.total_difficulty();
+		chain_info
 	}
 
 	fn additional_params(&self) -> BTreeMap<String, String> {
@@ -1369,6 +1373,7 @@ impl BlockChainClient for Client {
 		PruningInfo {
 			earliest_chain: self.chain.read().first_block_number().unwrap_or(1),
 			earliest_state: self.state_db.lock().journal_db().earliest_era().unwrap_or(0),
+			state_history_size: Some(self.history),
 		}
 	}
 

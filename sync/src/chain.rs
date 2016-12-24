@@ -372,6 +372,7 @@ impl ChainSync {
 	/// Create a new instance of syncing strategy.
 	pub fn new(config: SyncConfig, chain: &BlockChainClient) -> ChainSync {
 		let chain_info = chain.chain_info();
+		let pruning = chain.pruning_info();
 		let mut sync = ChainSync {
 			state: if config.warp_sync { SyncState::WaitingPeers } else { SyncState::Idle },
 			starting_block: chain.chain_info().best_block_number,
@@ -379,7 +380,7 @@ impl ChainSync {
 			peers: HashMap::new(),
 			handshaking_peers: HashMap::new(),
 			active_peers: HashSet::new(),
-			new_blocks: BlockDownloader::new(false, &chain_info.best_block_hash, chain_info.best_block_number),
+			new_blocks: BlockDownloader::new(false, &chain_info.best_block_hash, chain_info.best_block_number, pruning.state_history_size),
 			old_blocks: None,
 			last_sent_block_number: 0,
 			network_id: config.network_id,
@@ -459,6 +460,7 @@ impl ChainSync {
 	fn reset(&mut self, io: &mut SyncIo) {
 		self.new_blocks.reset();
 		self.snapshot.clear();
+		let chain_info = io.chain().chain_info();
 		if self.state == SyncState::SnapshotData {
 			debug!(target:"sync", "Aborting snapshot restore");
 			io.snapshot_service().abort_restore();
@@ -466,6 +468,10 @@ impl ChainSync {
 		for (_, ref mut p) in &mut self.peers {
 			if p.block_set != Some(BlockSet::OldBlocks) {
 				p.reset_asking();
+				if p.difficulty.is_none() {
+					// assume peer has up to date difficulty
+					p.difficulty = Some(chain_info.pending_total_difficulty);
+				}
 			}
 		}
 		self.state = SyncState::Idle;
@@ -557,14 +563,15 @@ impl ChainSync {
 	/// Update sync after the blockchain has been changed externally.
 	pub fn update_targets(&mut self, chain: &BlockChainClient) {
 		// Do not assume that the block queue/chain still has our last_imported_block
+		let pruning = chain.pruning_info();
 		let chain = chain.chain_info();
-		self.new_blocks = BlockDownloader::new(false, &chain.best_block_hash, chain.best_block_number);
+		self.new_blocks = BlockDownloader::new(false, &chain.best_block_hash, chain.best_block_number, pruning.state_history_size);
 		self.old_blocks = None;
 		if self.download_old_blocks {
 			if let (Some(ancient_block_hash), Some(ancient_block_number)) = (chain.ancient_block_hash, chain.ancient_block_number) {
 
 				trace!(target: "sync", "Downloading old blocks from {:?} (#{}) till {:?} (#{:?})", ancient_block_hash, ancient_block_number, chain.first_block_hash, chain.first_block_number);
-				let mut downloader = BlockDownloader::new(true, &ancient_block_hash, ancient_block_number);
+				let mut downloader = BlockDownloader::new(true, &ancient_block_hash, ancient_block_number, pruning.state_history_size);
 				if let Some(hash) = chain.first_block_hash {
 					trace!(target: "sync", "Downloader target set to {:?}", hash);
 					downloader.set_target(&hash);
@@ -860,6 +867,12 @@ impl ChainSync {
 			trace!(target: "sync", "Ignoring new block from unconfirmed peer {}", peer_id);
 			return Ok(());
 		}
+		let difficulty: U256 = r.val_at(1)?;
+		if let Some(ref mut peer) = self.peers.get_mut(&peer_id) {
+			if peer.difficulty.map_or(true, |pd| difficulty > pd) {
+				peer.difficulty = Some(difficulty);
+			}
+		}
 		let block_rlp = r.at(0)?;
 		let header_rlp = block_rlp.at(0)?;
 		let h = header_rlp.as_raw().sha3();
@@ -888,6 +901,8 @@ impl ChainSync {
 				trace!(target: "sync", "New block already queued {:?}", h);
 			},
 			Ok(_) => {
+				// abort current download of the same block
+				self.complete_sync(io);
 				self.new_blocks.mark_as_known(&header.hash(), header.number());
 				trace!(target: "sync", "New block queued {:?} ({})", h, header.number());
 			},
@@ -906,16 +921,10 @@ impl ChainSync {
 			} else {
 				trace!(target: "sync", "New unknown block {:?}", h);
 				//TODO: handle too many unknown blocks
-				let difficulty: U256 = r.val_at(1)?;
-				if let Some(ref mut peer) = self.peers.get_mut(&peer_id) {
-					if peer.difficulty.map_or(true, |pd| difficulty > pd) {
-						peer.difficulty = Some(difficulty);
-						trace!(target: "sync", "Received block {:?}  with no known parent. Peer needs syncing...", h);
-					}
-				}
 				self.sync_peer(io, peer_id, true);
 			}
 		}
+		self.continue_sync(io);
 		Ok(())
 	}
 
@@ -925,16 +934,24 @@ impl ChainSync {
 			trace!(target: "sync", "Ignoring new hashes from unconfirmed peer {}", peer_id);
 			return Ok(());
 		}
+		let hashes: Vec<_> = r.iter().take(MAX_NEW_HASHES).map(|item| (item.val_at::<H256>(0), item.val_at::<BlockNumber>(1))).collect();
+		if let Some(ref mut peer) = self.peers.get_mut(&peer_id) {
+			// Peer has new blocks with unknown difficulty
+			peer.difficulty = None;
+			if let Some(&(Ok(ref h), _)) = hashes.last() {
+				peer.latest_hash = h.clone();
+			}
+		}
 		if self.state != SyncState::Idle {
 			trace!(target: "sync", "Ignoring new hashes since we're already downloading.");
 			let max = r.iter().take(MAX_NEW_HASHES).map(|item| item.val_at::<BlockNumber>(1).unwrap_or(0)).fold(0u64, max);
 			if max > self.highest_block.unwrap_or(0) {
 				self.highest_block = Some(max);
 			}
+			self.continue_sync(io);
 			return Ok(());
 		}
 		trace!(target: "sync", "{} -> NewHashes ({} entries)", peer_id, r.item_count());
-		let hashes = r.iter().take(MAX_NEW_HASHES).map(|item| (item.val_at::<H256>(0), item.val_at::<BlockNumber>(1)));
 		let mut max_height: BlockNumber = 0;
 		let mut new_hashes = Vec::new();
 		let last_imported_number = self.new_blocks.last_imported_block_number();
@@ -982,6 +999,7 @@ impl ChainSync {
 			self.state = SyncState::NewBlocks;
 			self.sync_peer(io, peer_id, true);
 		}
+		self.continue_sync(io);
 		Ok(())
 	}
 
@@ -1106,7 +1124,7 @@ impl ChainSync {
 		thread_rng().shuffle(&mut peers); //TODO: sort by rating
 		// prefer peers with higher protocol version
 		peers.sort_by(|&(_, _, ref v1), &(_, _, ref v2)| v1.cmp(v2));
-		trace!(target: "sync", "Syncing with {}/{} peers", self.active_peers.len(), peers.len());
+		trace!(target: "sync", "Syncing with peers: {} active, {} confirmed, {} total", self.active_peers.len(), peers.len(), self.peers.len());
 		for (p, _, _) in peers {
 			if self.active_peers.contains(&p) {
 				self.sync_peer(io, p, false);
@@ -1135,12 +1153,13 @@ impl ChainSync {
 	/// Find something to do for a peer. Called for a new peer or when a peer is done with its task.
 	fn sync_peer(&mut self, io: &mut SyncIo, peer_id: PeerId, force: bool) {
 		if !self.active_peers.contains(&peer_id) {
-			trace!(target: "sync", "Skipping deactivated peer");
+			trace!(target: "sync", "Skipping deactivated peer {}", peer_id);
 			return;
 		}
 		let (peer_latest, peer_difficulty, peer_snapshot_number, peer_snapshot_hash) = {
 			if let Some(peer) = self.peers.get_mut(&peer_id) {
 				if peer.asking != PeerAsking::Nothing || !peer.can_sync() {
+					trace!(target: "sync", "Skipping busy peer {}", peer_id);
 					return;
 				}
 				if self.state == SyncState::Waiting {
@@ -1161,7 +1180,7 @@ impl ChainSync {
 		let num_active_peers = self.peers.values().filter(|p| p.asking != PeerAsking::Nothing).count();
 
 		let higher_difficulty = peer_difficulty.map_or(true, |pd| pd > syncing_difficulty);
-		if force || self.state == SyncState::NewBlocks || higher_difficulty || self.old_blocks.is_some() {
+		if force || higher_difficulty || self.old_blocks.is_some() {
 			match self.state {
 				SyncState::WaitingPeers => {
 					trace!(target: "sync", "Checking snapshot sync: {} vs {}", peer_snapshot_number, chain_info.best_block_number);
@@ -1174,9 +1193,10 @@ impl ChainSync {
 					}
 
 					let have_latest = io.chain().block_status(BlockId::Hash(peer_latest)) != BlockStatus::Unknown;
+					trace!(target: "sync", "Considering peer {}, force={}, td={:?}, our td={}, latest={}, have_latest={}, state={:?}", peer_id, force, peer_difficulty, syncing_difficulty, peer_latest, have_latest, self.state);
 					if !have_latest && (higher_difficulty || force || self.state == SyncState::NewBlocks) {
 						// check if got new blocks to download
-						trace!(target: "sync", "Syncing with {}, force={}, td={:?}, our td={}, state={:?}", peer_id, force, peer_difficulty, syncing_difficulty, self.state);
+						trace!(target: "sync", "Syncing with peer {}, force={}, td={:?}, our td={}, state={:?}", peer_id, force, peer_difficulty, syncing_difficulty, self.state);
 						if let Some(request) = self.new_blocks.request_blocks(io, num_active_peers) {
 							self.request_blocks(io, peer_id, request, BlockSet::NewBlocks);
 							if self.state == SyncState::Idle {
@@ -1206,6 +1226,8 @@ impl ChainSync {
 				SyncState::SnapshotManifest | //already downloading from other peer
 					SyncState::Waiting | SyncState::SnapshotWaiting => ()
 			}
+		} else {
+			trace!(target: "sync", "Skipping peer {}, force={}, td={:?}, our td={}, state={:?}", peer_id, force, peer_difficulty, syncing_difficulty, self.state);
 		}
 	}
 
@@ -2035,7 +2057,9 @@ impl ChainSync {
 
 	/// called when block is imported to chain - propagates the blocks and updates transactions sent to peers
 	pub fn chain_new_blocks(&mut self, io: &mut SyncIo, _imported: &[H256], invalid: &[H256], _enacted: &[H256], _retracted: &[H256], sealed: &[H256], proposed: &[Bytes]) {
-		if io.is_chain_queue_empty() {
+		let queue_info = io.chain().queue_info();
+		if !self.status().is_syncing(queue_info) || !sealed.is_empty() {
+			trace!(target: "sync", "Propagating blocks, state={:?}", self.state);
 			self.propagate_latest_blocks(io, sealed);
 			self.propagate_proposed_blocks(io, proposed);
 		}

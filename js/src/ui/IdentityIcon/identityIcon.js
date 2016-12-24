@@ -20,7 +20,7 @@ import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
 import { createIdentityImg } from '~/api/util/identity';
-import ContractIcon from '../Icons';
+import { ContractIcon } from '../Icons';
 
 import styles from './identityIcon.css';
 

@@ -17,7 +17,7 @@
 use std::{fmt, cmp};
 use std::str::FromStr;
 use ::{Encodable, RlpDecodable, UntrustedRlp, RlpStream, View, Stream, DecoderError};
-use bigint::uint::U256;
+use bigint::prelude::U256;
 
 #[test]
 fn rlp_at() {

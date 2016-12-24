@@ -172,7 +172,7 @@ macro_rules! usage {
 
 			#[cfg(test)]
 			fn parse_with_config<S: AsRef<str>>(command: &[S], config: Config) -> Result<Self, ArgsError> {
-				RawArgs::parse(command).map(|raw| raw.into_args(config))
+				RawArgs::parse(command).map(|raw| raw.into_args(config)).map_err(ArgsError::Docopt)
 			}
 
 			fn parse_config(config: &str) -> Result<Config, ArgsError> {
