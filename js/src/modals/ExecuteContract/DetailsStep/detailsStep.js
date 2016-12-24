@@ -14,8 +14,9 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import React, { Component, PropTypes } from 'react';
 import { Checkbox, MenuItem } from 'material-ui';
+import React, { Component, PropTypes } from 'react';
+import { FormattedMessage } from 'react-intl';
 
 import { AddressSelect, Form, Input, Select, TypedInput } from '~/ui';
 
@@ -29,39 +30,45 @@ const CHECK_STYLE = {
 
 export default class DetailsStep extends Component {
   static propTypes = {
+    advancedOptions: PropTypes.bool,
     accounts: PropTypes.object.isRequired,
-    contract: PropTypes.object.isRequired,
-    onAmountChange: PropTypes.func.isRequired,
-    onFromAddressChange: PropTypes.func.isRequired,
-    onValueChange: PropTypes.func.isRequired,
-    values: PropTypes.array.isRequired,
-    valuesError: PropTypes.array.isRequired,
-
     amount: PropTypes.string,
     amountError: PropTypes.string,
     balances: PropTypes.object,
+    contract: PropTypes.object.isRequired,
     fromAddress: PropTypes.string,
     fromAddressError: PropTypes.string,
     func: PropTypes.object,
     funcError: PropTypes.string,
-    gasEdit: PropTypes.bool,
+    onAdvancedClick: PropTypes.func,
+    onAmountChange: PropTypes.func.isRequired,
+    onFromAddressChange: PropTypes.func.isRequired,
     onFuncChange: PropTypes.func,
-    onGasEditClick: PropTypes.func,
+    onValueChange: PropTypes.func.isRequired,
+    values: PropTypes.array.isRequired,
+    valuesError: PropTypes.array.isRequired,
     warning: PropTypes.string
   }
 
   render () {
-    const { accounts, amount, amountError, balances, fromAddress, fromAddressError, gasEdit, onGasEditClick, onFromAddressChange, onAmountChange } = this.props;
+    const { accounts, advancedOptions, amount, amountError, balances, fromAddress, fromAddressError, onAdvancedClick, onAmountChange, onFromAddressChange } = this.props;
 
     return (
       <Form>
-        { this.renderWarning() }
         <AddressSelect
           accounts={ accounts }
           balances={ balances }
           error={ fromAddressError }
-          hint='the account to transact with'
-          label='from account'
+          hint={
+            <FormattedMessage
+              id='executeContract.details.address.label'
+              defaultMessage='the account to transact with' />
+          }
+          label={
+            <FormattedMessage
+              id='executeContract.details.address.hint'
+              defaultMessage='from account' />
+           }
           onChange={ onFromAddressChange }
           value={ fromAddress } />
         { this.renderFunctionSelect() }
@@ -70,16 +77,28 @@ export default class DetailsStep extends Component {
           <div>
             <Input
               error={ amountError }
-              hint='the amount to send to with the transaction'
-              label='transaction value (in ETH)'
+              hint={
+                <FormattedMessage
+                  id='executeContract.details.amount.hint'
+                  defaultMessage='the amount to send to with the transaction' />
+              }
+              label={
+                <FormattedMessage
+                  id='executeContract.details.amount.label'
+                  defaultMessage='transaction value (in ETH)' />
+              }
               onSubmit={ onAmountChange }
               value={ amount } />
           </div>
           <div>
             <Checkbox
-              checked={ gasEdit }
-              label='edit gas price or value'
-              onCheck={ onGasEditClick }
+              checked={ advancedOptions }
+              label={
+                <FormattedMessage
+                  id='executeContract.details.advancedCheck.label'
+                  defaultMessage='advanced sending options' />
+              }
+              onCheck={ onAdvancedClick }
               style={ CHECK_STYLE } />
           </div>
         </div>
@@ -129,9 +148,17 @@ export default class DetailsStep extends Component {
 
     return (
       <Select
-        label='function to execute'
-        hint='the function to call on the contract'
         error={ funcError }
+        hint={
+          <FormattedMessage
+            id='executeContract.details.function.hint'
+            defaultMessage='the function to call on the contract' />
+        }
+        label={
+          <FormattedMessage
+            id='executeContract.details.function.label'
+            defaultMessage='function to execute' />
+        }
         onChange={ this.onFuncChange }
         value={ func.signature }>
         { functions }
@@ -167,20 +194,6 @@ export default class DetailsStep extends Component {
         </div>
       );
     });
-  }
-
-  renderWarning () {
-    const { warning } = this.props;
-
-    if (!warning) {
-      return null;
-    }
-
-    return (
-      <div className={ styles.warning }>
-        { warning }
-      </div>
-    );
   }
 
   onFuncChange = (event, index, signature) => {

@@ -30,6 +30,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import { FormattedMessage } from 'react-intl';
 
 import { Form, TypedInput } from '~/ui';
 import { parseAbiType } from '~/util/abi';
@@ -77,21 +78,24 @@ export default class ParametersStep extends Component {
       return (
         <div key={ index } className={ styles.funcparams }>
           <TypedInput
-            label={ label }
-            value={ value }
-            error={ error }
             accounts={ accounts }
+            error={ error }
+            isEth={ false }
+            label={ label }
             onChange={ onChange }
             param={ param }
-            isEth={ false }
-          />
+            value={ value } />
         </div>
       );
     });
 
     return (
       <div>
-        <p>Choose the contract parameters</p>
+        <p>
+          <FormattedMessage
+            id='deployContract.parameters.choose'
+            defaultMessage='Choose the contract parameters' />
+        </p>
         { inputsComponents }
       </div>
     );

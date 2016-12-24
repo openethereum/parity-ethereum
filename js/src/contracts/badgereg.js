@@ -32,7 +32,8 @@ export default class BadgeReg {
   }
 
   certifierCount () {
-    return this._registry.getContract('badgereg')
+    return this._registry
+      .getContract('badgereg')
       .then((badgeReg) => {
         return badgeReg.instance.badgeCount.call({}, [])
           .then((count) => count.valueOf());
@@ -43,7 +44,9 @@ export default class BadgeReg {
     if (this.certifiers[id]) {
       return Promise.resolve(this.certifiers[id]);
     }
-    return this._registry.getContract('badgereg')
+
+    return this._registry
+      .getContract('badgereg')
       .then((badgeReg) => {
         return badgeReg.instance.badge.call({}, [ id ]);
       })
@@ -56,6 +59,7 @@ export default class BadgeReg {
         name = name === ZERO32
           ? null
           : hex2Ascii(name);
+
         return this.fetchMeta(id)
           .then(({ title, icon }) => {
             const data = { address, id, name, title, icon };
@@ -66,7 +70,8 @@ export default class BadgeReg {
   }
 
   fetchMeta (id) {
-    return this._registry.getContract('badgereg')
+    return this._registry
+      .getContract('badgereg')
       .then((badgeReg) => {
         return Promise.all([
           badgeReg.instance.meta.call({}, [id, 'TITLE']),
@@ -76,7 +81,11 @@ export default class BadgeReg {
       .then(([ title, icon ]) => {
         title = bytesToHex(title);
         title = title === ZERO32 ? null : hex2Ascii(title);
-        if (bytesToHex(icon) === ZERO32) icon = null;
+
+        if (bytesToHex(icon) === ZERO32) {
+          icon = null;
+        }
+
         return { title, icon };
       });
   }
@@ -85,6 +94,7 @@ export default class BadgeReg {
     if (!this.contracts[certifier]) {
       this.contracts[certifier] = this._api.newContract(ABI, certifier);
     }
+
     const contract = this.contracts[certifier];
 
     return contract.instance.certified.call({}, [address]);

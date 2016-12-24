@@ -14,24 +14,41 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { api } from '../parity';
+import BigNumber from 'bignumber.js';
+import { shallow } from 'enzyme';
+import React from 'react';
+import sinon from 'sinon';
 
-export const set = (addresses) => ({ type: 'addresses set', addresses });
+import DeployContract from './';
 
-export const fetch = () => (dispatch) => {
-  return api.parity
-    .accountsInfo()
-    .then((accountsInfo) => {
-      const addresses = Object
-        .keys(accountsInfo)
-        .map((address) => ({
-          ...accountsInfo[address],
-          address,
-          isAccount: true
-        }));
-      dispatch(set(addresses));
-    })
-    .catch((error) => {
-      console.error('could not fetch addresses', error);
-    });
+const STORE = {
+  dispatch: sinon.stub(),
+  subscribe: sinon.stub(),
+  getState: () => {
+    return {
+      balances: {
+        balances: {}
+      },
+      nodeStatus: {
+        gasLimit: new BigNumber(0x12345)
+      }
+    };
+  }
 };
+
+function renderShallow () {
+  return shallow(
+    <DeployContract
+      accounts={ {} }
+      store={ STORE }
+      onClose={ sinon.stub() } />
+  );
+}
+
+describe('modals/DeployContract', () => {
+  describe('rendering', () => {
+    it('renders defaults', () => {
+      expect(renderShallow()).to.be.ok;
+    });
+  });
+});

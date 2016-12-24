@@ -21,8 +21,7 @@ use std::mem;
 use std::fmt;
 use std::cmp::Ordering;
 use std::error::Error as StdError;
-use bigint::uint::{Uint, U128, U256};
-use bigint::hash::{H64, H128, H160, H256, H512, H520, H2048};
+use bigint::prelude::{Uint, U128, U256, H64, H128, H160, H256, H512, H520, H2048};
 use elastic_array::*;
 
 /// Vector like object
