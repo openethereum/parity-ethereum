@@ -20,7 +20,7 @@ import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
 import { createIdentityImg } from '~/api/util/identity';
-import { ContractIcon } from '../Icons';
+import { CancelIcon, ContractIcon } from '../Icons';
 
 import styles from './identityIcon.css';
 
@@ -108,6 +108,7 @@ class IdentityIcon extends Component {
       return (
         <ContractIcon
           className={ classes }
+          data-img
           style={ {
             background: '#eee',
             height: size,
@@ -116,11 +117,11 @@ class IdentityIcon extends Component {
       );
     } else if (new BigNumber(address).eq(0)) {
       return (
-        <div
+        <CancelIcon
           className={ classes }
+          data-img
           style={ {
             background: '#333',
-            display: 'inline-block',
             height: size,
             width: size
           } } />
