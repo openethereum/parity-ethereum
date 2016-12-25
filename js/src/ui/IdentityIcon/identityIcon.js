@@ -108,7 +108,7 @@ class IdentityIcon extends Component {
       return (
         <ContractIcon
           className={ classes }
-          data-img
+          data-address-img
           style={ {
             background: '#eee',
             height: size,
@@ -119,7 +119,7 @@ class IdentityIcon extends Component {
       return (
         <CancelIcon
           className={ classes }
-          data-img
+          data-address-img
           style={ {
             background: '#333',
             height: size,
@@ -131,6 +131,7 @@ class IdentityIcon extends Component {
     return (
       <img
         className={ classes }
+        data-address-img
         height={ size }
         width={ size }
         src={ iconsrc } />
