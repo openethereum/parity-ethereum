@@ -14,12 +14,12 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import BigNumber from 'bignumber.js';
 import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
 import { createIdentityImg } from '~/api/util/identity';
+import { isNullAddress } from '~/util/validation';
 import { CancelIcon, ContractIcon } from '../Icons';
 
 import styles from './identityIcon.css';
@@ -115,7 +115,7 @@ class IdentityIcon extends Component {
             width: size
           } } />
       );
-    } else if (new BigNumber(address).eq(0)) {
+    } else if (isNullAddress(address)) {
       return (
         <CancelIcon
           className={ classes }
