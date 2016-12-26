@@ -238,6 +238,15 @@ pub fn pending_logs<M>(miner: &M, best_block: EthBlockNumber, filter: &EthcoreFi
 	result
 }
 
+fn check_known<C>(client: &C, number: BlockNumber) -> Result<(), Error> where C: MiningBlockChainClient {
+	use ethcore::block_status::BlockStatus;
+
+	match client.block_status(number.into()) {
+		BlockStatus::InChain => Ok(()),
+		_ => Err(errors::unknown_block()),
+	}
+}
+
 const MAX_QUEUE_SIZE_TO_MINE_ON: usize = 4;	// because uncles go back 6.
 
 impl<C, SN: ?Sized, S: ?Sized, M, EM> EthClient<C, SN, S, M, EM> where
@@ -359,9 +368,14 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 		let address = address.into();
 		match num.0 {
 			BlockNumber::Pending => Ok(take_weak!(self.miner).balance(&*take_weak!(self.client), &address).into()),
-			id => match take_weak!(self.client).balance(&address, id.into()) {
-				Some(balance) => Ok(balance.into()),
-				None => Err(errors::state_pruned()),
+			id => {
+				let client = take_weak!(self.client);
+
+				check_known(&*client, id.clone())?;
+				match client.balance(&address, id.into()) {
+					Some(balance) => Ok(balance.into()),
+					None => Err(errors::state_pruned()),
+				}
 			}
 		}
 	}
@@ -372,9 +386,14 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 		let position: U256 = RpcU256::into(pos);
 		match num.0 {
 			BlockNumber::Pending => Ok(take_weak!(self.miner).storage_at(&*take_weak!(self.client), &address, &H256::from(position)).into()),
-			id => match take_weak!(self.client).storage_at(&address, &H256::from(position), id.into()) {
-				Some(s) => Ok(s.into()),
-				None => Err(errors::state_pruned()),
+			id => {
+				let client = take_weak!(self.client);
+
+				check_known(&*client, id.clone())?;
+				match client.storage_at(&address, &H256::from(position), id.into()) {
+					Some(s) => Ok(s.into()),
+					None => Err(errors::state_pruned()),
+				}
 			}
 		}
 	}
@@ -385,9 +404,14 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 		let address: Address = RpcH160::into(address);
 		match num.0 {
 			BlockNumber::Pending => Ok(take_weak!(self.miner).nonce(&*take_weak!(self.client), &address).into()),
-			id => match take_weak!(self.client).nonce(&address, id.into()) {
-				Some(nonce) => Ok(nonce.into()),
-				None => Err(errors::state_pruned()),
+			id => {
+				let client = take_weak!(self.client);
+
+				check_known(&*client, id.clone())?;
+				match client.nonce(&address, id.into()) {
+					Some(nonce) => Ok(nonce.into()),
+					None => Err(errors::state_pruned()),
+				}
 			}
 		}
 	}
@@ -441,10 +465,15 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 		let address: Address = RpcH160::into(address);
 		match num.0 {
 			BlockNumber::Pending => Ok(take_weak!(self.miner).code(&*take_weak!(self.client), &address).map_or_else(Bytes::default, Bytes::new)),
-			_ => match take_weak!(self.client).code(&address, num.0.into()) {
-				Some(code) => Ok(code.map_or_else(Bytes::default, Bytes::new)),
-				None => Err(errors::state_pruned()),
-			},
+			id => {
+				let client = take_weak!(self.client);
+
+				check_known(&*client, id.clone())?;
+				match client.code(&address, id.into()) {
+					Some(code) => Ok(code.map_or_else(Bytes::default, Bytes::new)),
+					None => Err(errors::state_pruned()),
+				}
+			}
 		}
 	}
 

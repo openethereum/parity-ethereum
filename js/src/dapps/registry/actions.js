@@ -39,7 +39,9 @@ export const fetchIsTestnet = () => (dispatch) =>
     })
     .catch((err) => {
       console.error('could not check if testnet');
-      if (err) console.error(err.stack);
+      if (err) {
+        console.error(err.stack);
+      }
     });
 
 export const setContract = (contract) => ({ type: 'set contract', contract });
@@ -54,7 +56,9 @@ export const fetchContract = () => (dispatch) =>
     })
     .catch((err) => {
       console.error('could not fetch contract');
-      if (err) console.error(err.stack);
+      if (err) {
+        console.error(err.stack);
+      }
     });
 
 export const setFee = (fee) => ({ type: 'set fee', fee });
@@ -69,7 +73,9 @@ const fetchFee = () => (dispatch, getState) => {
     .then((fee) => dispatch(setFee(fee)))
     .catch((err) => {
       console.error('could not fetch fee');
-      if (err) console.error(err.stack);
+      if (err) {
+        console.error(err.stack);
+      }
     });
 };
 
@@ -85,6 +91,8 @@ export const fetchOwner = () => (dispatch, getState) => {
     .then((owner) => dispatch(setOwner(owner)))
     .catch((err) => {
       console.error('could not fetch owner');
-      if (err) console.error(err.stack);
+      if (err) {
+        console.error(err.stack);
+      }
     });
 };

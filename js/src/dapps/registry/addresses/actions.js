@@ -20,14 +20,14 @@ export const set = (addresses) => ({ type: 'addresses set', addresses });
 
 export const fetch = () => (dispatch) => {
   return api.parity
-    .accounts()
+    .accountsInfo()
     .then((accountsInfo) => {
       const addresses = Object
         .keys(accountsInfo)
         .map((address) => ({
           ...accountsInfo[address],
           address,
-          isAccount: !!accountsInfo[address].uuid
+          isAccount: true
         }));
       dispatch(set(addresses));
     })

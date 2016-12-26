@@ -37,7 +37,9 @@ export const reserve = (name) => (dispatch, getState) => {
 
   name = name.toLowerCase();
 
-  if (alreadyQueued(state.names.queue, 'reserve', name)) return;
+  if (alreadyQueued(state.names.queue, 'reserve', name)) {
+    return;
+  }
   const reserve = contract.functions.find((f) => f.name === 'reserve');
 
   dispatch(reserveStart(name));
@@ -56,7 +58,11 @@ export const reserve = (name) => (dispatch, getState) => {
     })
     .catch((err) => {
       console.error(`could not reserve ${name}`);
-      if (err) console.error(err.stack);
+
+      if (err) {
+        console.error(err.stack);
+      }
+
       dispatch(reserveFail(name));
     });
 };
@@ -76,8 +82,10 @@ export const drop = (name) => (dispatch, getState) => {
   }
 
   name = name.toLowerCase();
+  if (alreadyQueued(state.names.queue, 'drop', name)) {
+    return;
+  }
 
-  if (alreadyQueued(state.names.queue, 'drop', name)) return;
   const drop = contract.functions.find((f) => f.name === 'drop');
 
   dispatch(dropStart(name));
@@ -95,7 +103,11 @@ export const drop = (name) => (dispatch, getState) => {
     })
     .catch((err) => {
       console.error(`could not drop ${name}`);
-      if (err) console.error(err.stack);
+
+      if (err) {
+        console.error(err.stack);
+      }
+
       dispatch(reserveFail(name));
     });
 };

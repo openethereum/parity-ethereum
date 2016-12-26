@@ -339,7 +339,6 @@ impl Engine for AuthorityRound {
 #[cfg(test)]
 mod tests {
 	use util::*;
-	use util::trie::TrieSpec;
 	use env_info::EnvInfo;
 	use header::Header;
 	use error::{Error, BlockError};
@@ -407,10 +406,8 @@ mod tests {
 		let engine = &*spec.engine;
 		engine.register_account_provider(Arc::new(tap));
 		let genesis_header = spec.genesis_header();
-		let mut db1 = get_temp_state_db().take();
-		spec.ensure_db_good(&mut db1, &TrieFactory::new(TrieSpec::Secure)).unwrap();
-		let mut db2 = get_temp_state_db().take();
-		spec.ensure_db_good(&mut db2, &TrieFactory::new(TrieSpec::Secure)).unwrap();
+		let db1 = spec.ensure_db_good(get_temp_state_db().take(), &Default::default()).unwrap();
+		let db2 = spec.ensure_db_good(get_temp_state_db().take(), &Default::default()).unwrap();
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
 		let b1 = OpenBlock::new(engine, Default::default(), false, db1, &genesis_header, last_hashes.clone(), addr1, (3141562.into(), 31415620.into()), vec![]).unwrap();
 		let b1 = b1.close_and_lock();

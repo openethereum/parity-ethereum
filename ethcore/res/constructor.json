@@ -1,0 +1,30 @@
+{
+	"name": "GenesisConstructor",
+	"engine": {
+		"null": null
+	},
+	"params": {
+		"accountStartNonce": "0x0",
+		"maximumExtraDataSize": "0x20",
+		"minGasLimit": "0x1388",
+		"networkID" : "0x2"
+	},
+	"genesis": {
+		"seal": {
+			"generic": "0x"
+		},
+		"difficulty": "0x20000",
+		"author": "0x0000000000000000000000000000000000000000",
+		"timestamp": "0x00",
+		"parentHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+		"extraData": "0x",
+		"gasLimit": "0x2fefd8"
+	},
+	"accounts": {
+		"0000000000000000000000000000000000000001": { "balance": "1", "builtin": { "name": "ecrecover", "pricing": { "linear": { "base": 3000, "word": 0 } } } },
+		"0000000000000000000000000000000000000002": { "balance": "1", "builtin": { "name": "sha256", "pricing": { "linear": { "base": 60, "word": 12 } } } },
+		"0000000000000000000000000000000000000003": { "balance": "1", "builtin": { "name": "ripemd160", "pricing": { "linear": { "base": 600, "word": 120 } } } },
+		"0000000000000000000000000000000000000004": { "balance": "1", "builtin": { "name": "identity", "pricing": { "linear": { "base": 15, "word": 3 } } } },
+		"0000000000000000000000000000000000000005": { "balance": "1", "constructor": "60606040526000805460ff19166001179055346000575b6075806100246000396000f300606060405263ffffffff60e060020a60003504166394b91deb81146022575b6000565b34600057602c6040565b604080519115158252519081900360200190f35b60005460ff16815600a165627a7a723058207882eb60ebce23178b3fa06d4cd8e5adc17711937ccddacb18a04abca2a2c9ee0029" }
+	}
+}

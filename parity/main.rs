@@ -56,6 +56,7 @@ extern crate regex;
 extern crate isatty;
 extern crate toml;
 extern crate app_dirs;
+extern crate parity_reactor;
 
 #[macro_use]
 extern crate ethcore_util as util;
@@ -203,7 +204,7 @@ fn updates_path(name: &str) -> PathBuf {
 fn latest_exe_path() -> Option<PathBuf> {
 	File::open(updates_path("latest")).ok()
 		.and_then(|mut f| { let mut exe = String::new(); f.read_to_string(&mut exe).ok().map(|_| updates_path(&exe)) })
-} 
+}
 
 // Starts ~/.parity-updates/parity and returns the code it exits with.
 fn run_parity() -> Option<i32> {
@@ -220,7 +221,7 @@ fn run_parity() -> Option<i32> {
 const PLEASE_RESTART_EXIT_CODE: i32 = 69;
 
 // Run our version of parity.
-// Returns the exit error code. 
+// Returns the exit error code.
 fn main_direct(can_restart: bool) -> i32 {
 	let mut alt_mains = HashMap::new();
 	sync_main(&mut alt_mains);
@@ -271,9 +272,9 @@ fn main() {
 	trace_main!("Starting up {} (force-direct: {}, development: {}, same-name: {}, have-update: {}, non-updated-current: {})", std::env::current_exe().map(|x| format!("{}", x.display())).unwrap_or("<unknown>".to_owned()), force_direct, development, same_name, have_update, is_non_updated_current);
 	if !force_direct && !development && same_name && have_update && is_non_updated_current {
 		// looks like we're not running ~/.parity-updates/parity when the user is expecting otherwise.
-		// Everything run inside a loop, so we'll be able to restart from the child into a new version seamlessly. 
+		// Everything run inside a loop, so we'll be able to restart from the child into a new version seamlessly.
 		loop {
-			// If we fail to run the updated parity then fallback to local version. 
+			// If we fail to run the updated parity then fallback to local version.
 			trace_main!("Attempting to run latest update ({})...", latest_exe.as_ref().expect("guarded by have_update; latest_exe must exist for have_update; qed").display());
 			let exit_code = run_parity().unwrap_or_else(|| { trace_main!("Falling back to local..."); main_direct(true) });
 			trace_main!("Latest exited with {}", exit_code);

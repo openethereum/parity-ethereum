@@ -14,15 +14,41 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-extern crate rustls;
-extern crate mio;
-#[macro_use] extern crate log;
+import BigNumber from 'bignumber.js';
+import { shallow } from 'enzyme';
+import React from 'react';
+import sinon from 'sinon';
 
-mod tlsclient;
-mod client;
-mod url;
-mod http;
+import DeployContract from './';
 
-pub use self::client::{Client, FetchError, FetchResult};
-pub use self::url::{Url, UrlError};
+const STORE = {
+  dispatch: sinon.stub(),
+  subscribe: sinon.stub(),
+  getState: () => {
+    return {
+      balances: {
+        balances: {}
+      },
+      nodeStatus: {
+        gasLimit: new BigNumber(0x12345)
+      }
+    };
+  }
+};
 
+function renderShallow () {
+  return shallow(
+    <DeployContract
+      accounts={ {} }
+      store={ STORE }
+      onClose={ sinon.stub() } />
+  );
+}
+
+describe('modals/DeployContract', () => {
+  describe('rendering', () => {
+    it('renders defaults', () => {
+      expect(renderShallow()).to.be.ok;
+    });
+  });
+});

@@ -6,12 +6,9 @@ license = "GPL-3.0"
 name = "ethcore-bigint"
 version = "0.1.2"
 authors = ["Parity Technologies <admin@parity.io>"]
-build = "build.rs"
-
-[build-dependencies]
-rustc_version = "0.1"
 
 [dependencies]
+bigint = "1.0"
 rustc-serialize = "0.3"
 heapsize = "0.3"
 rand = "0.3.12"

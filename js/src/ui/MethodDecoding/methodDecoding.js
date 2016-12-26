@@ -122,7 +122,21 @@ class MethodDecoding extends Component {
         </span>
         <span> for a total transaction value of </span>
         <span className={ styles.highlight }>{ this.renderEtherValue(gasValue) }</span>
+        { this.renderMinBlock() }
       </div>
+    );
+  }
+
+  renderMinBlock () {
+    const { historic, transaction } = this.props;
+    const { minBlock } = transaction;
+
+    if (!minBlock || minBlock.eq(0)) {
+      return null;
+    }
+
+    return (
+      <span>, { historic ? 'Submitted' : 'Submission' } at block <span className={ styles.highlight }>#{ minBlock.toFormat(0) }</span></span>
     );
   }
 

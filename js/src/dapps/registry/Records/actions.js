@@ -52,7 +52,11 @@ export const update = (name, key, value) => (dispatch, getState) => {
       dispatch(success());
     }).catch((err) => {
       console.error(`could not update ${key} record of ${name}`);
-      if (err) console.error(err.stack);
+
+      if (err) {
+        console.error(err.stack);
+      }
+
       dispatch(fail());
     });
 };

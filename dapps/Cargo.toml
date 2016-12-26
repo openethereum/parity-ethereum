@@ -12,6 +12,7 @@ build = "build.rs"
 rand = "0.3.14"
 log = "0.3"
 env_logger = "0.3"
+futures = "0.1"
 jsonrpc-core = { git = "https://github.com/ethcore/jsonrpc.git" }
 jsonrpc-http-server = { git = "https://github.com/ethcore/jsonrpc.git" }
 hyper = { default-features = false, git = "https://github.com/ethcore/hyper" }
@@ -33,6 +34,7 @@ ethcore-util = { path = "../util" }
 fetch = { path = "../util/fetch" }
 parity-ui = { path = "./ui" }
 parity-hash-fetch = { path = "../hash-fetch" }
+parity-reactor = { path = "../util/reactor" }
 
 clippy = { version = "0.0.103", optional = true}
 

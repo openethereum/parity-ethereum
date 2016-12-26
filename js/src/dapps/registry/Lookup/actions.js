@@ -30,6 +30,7 @@ export const lookup = (name, key) => (dispatch, getState) => {
   if (!contract) {
     return;
   }
+
   const getAddress = contract.functions
     .find((f) => f.name === 'getAddress');
 
