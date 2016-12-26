@@ -17,13 +17,9 @@
 import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
-import { Card, CardHeader, CardText } from 'material-ui/Card';
-import TextField from 'material-ui/TextField';
-import DropDownMenu from 'material-ui/DropDownMenu';
-import MenuItem from 'material-ui/MenuItem';
-import RaisedButton from 'material-ui/RaisedButton';
-import AddIcon from 'material-ui/svg-icons/content/add';
-import CheckIcon from 'material-ui/svg-icons/navigation/check';
+import {
+  Card, CardHeader, CardText, TextField, DropDownMenu, MenuItem, RaisedButton, AddIcon, CheckIcon
+} from 'material-ui';
 
 import { propose, confirm } from './actions';
 import styles from './reverse.css';

@@ -62,7 +62,9 @@ export const confirm = (name) => (dispatch, getState) => {
   const state = getState();
   const account = state.accounts.selected;
   const contract = state.contract;
-  if (!contract || !account) return;
+  if (!contract || !account) {
+    return;
+  }
   name = name.toLowerCase();
 
   const confirmReverse = contract.functions.find((f) => f.name === 'confirmReverse');
