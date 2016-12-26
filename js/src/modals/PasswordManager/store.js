@@ -14,13 +14,22 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import { observable } from 'mobx';
 import React from 'react';
 
 import { showSnackbar } from '~/redux/providers/snackbarActions';
 
 export default class Store {
-  constructor (api) {
+  @observable address = null;
+  @observable meta = null;
+
+  constructor (api, account) {
+    const { address, meta } = account;
+
     this._api = api;
+
+    this.address = address;
+    this.meta = meta;
   }
 
   changePassword = () => {
