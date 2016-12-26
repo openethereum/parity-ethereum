@@ -14,27 +14,34 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import React, { Component, PropTypes } from 'react';
-import ContentClear from 'material-ui/svg-icons/content/clear';
-import CheckIcon from 'material-ui/svg-icons/navigation/check';
-import SendIcon from 'material-ui/svg-icons/content/send';
-
-import { Tabs, Tab } from 'material-ui/Tabs';
 import Paper from 'material-ui/Paper';
+import { Tabs, Tab } from 'material-ui/Tabs';
+import React, { Component, PropTypes } from 'react';
+import { FormattedMessage } from 'react-intl';
 
-import { connect } from 'react-redux';
-import { bindActionCreators } from 'redux';
-import { showSnackbar } from '~/redux/providers/snackbarActions';
-
-import Form, { Input } from '~/ui/Form';
 import { Button, Modal, IdentityName, IdentityIcon } from '~/ui';
+import Form, { Input } from '~/ui/Form';
+import { CancelIcon, CheckIcon, SendIcon } from '~/ui/Icons';
 
 import styles from './passwordManager.css';
 
 const TEST_ACTION = 'TEST_ACTION';
 const CHANGE_ACTION = 'CHANGE_ACTION';
 
-class PasswordManager extends Component {
+const MSG_SUCCESS_STYLE = {
+  backgroundColor: 'rgba(174, 213, 129, 0.75)'
+};
+const MSG_FAILURE_STYLE = {
+  backgroundColor: 'rgba(229, 115, 115, 0.75)'
+};
+const TABS_INKBAR_STYLE = {
+  backgroundColor: 'rgba(255, 255, 255, 0.55)'
+};
+const TABS_ITEM_STYLE = {
+  backgroundColor: 'rgba(255, 255, 255, 0.05)'
+};
+
+export default class PasswordManager extends Component {
   static contextTypes = {
     api: PropTypes.object.isRequired
   }
@@ -53,7 +60,7 @@ class PasswordManager extends Component {
     currentPass: '',
     newPass: '',
     repeatNewPass: '',
-    repeatValid: true,
+    repeatNewPassValid: true,
     passwordHint: this.props.account.meta && this.props.account.meta.passwordHint || ''
   }
 
@@ -61,7 +68,11 @@ class PasswordManager extends Component {
     return (
       <Modal
         actions={ this.renderDialogActions() }
-        title='Password Manager'
+        title={
+          <FormattedMessage
+            id='passwordChange.title'
+            defaultMessage='Password Manager' />
+        }
         visible>
         { this.renderAccount() }
         { this.renderPage() }
@@ -72,16 +83,7 @@ class PasswordManager extends Component {
 
   renderMessage () {
     const { message, showMessage } = this.state;
-
-    const style = message.success
-      ? {
-        backgroundColor: 'rgba(174, 213, 129, 0.75)'
-      }
-      : {
-        backgroundColor: 'rgba(229, 115, 115, 0.75)'
-      };
-
-    const classes = [ styles.message ];
+    const classes = [styles.message];
 
     if (!showMessage) {
       classes.push(styles.hideMessage);
@@ -89,9 +91,13 @@ class PasswordManager extends Component {
 
     return (
       <Paper
-        zDepth={ 1 }
-        style={ style }
-        className={ classes.join(' ') }>
+        className={ classes.join(' ') }
+        style={
+          message.success
+            ? MSG_SUCCESS_STYLE
+            : MSG_FAILURE_STYLE
+        }
+        zDepth={ 1 }>
         { message.value }
       </Paper>
     );
@@ -112,15 +118,12 @@ class PasswordManager extends Component {
 
     return (
       <div className={ styles.accountContainer }>
-        <IdentityIcon
-          address={ address }
-        />
+        <IdentityIcon address={ address } />
         <div className={ styles.accountInfos }>
           <IdentityName
-            className={ styles.accountName }
             address={ address }
-            unknown
-          />
+            className={ styles.accountName }
+            unknown />
           <span className={ styles.accountAddress }>
             { address }
           </span>
@@ -132,89 +135,128 @@ class PasswordManager extends Component {
 
   renderPage () {
     const { account } = this.props;
-    const { waiting, repeatValid } = this.state;
+    const { waiting, repeatNewPassValid } = this.state;
     const disabled = !!waiting;
-
-    const repeatError = repeatValid
-      ? null
-      : 'the two passwords differ';
 
     const { meta } = account;
     const passwordHint = meta && meta.passwordHint || '';
 
     return (
       <Tabs
-        inkBarStyle={ {
-          backgroundColor: 'rgba(255, 255, 255, 0.55)'
-        } }
-        tabItemContainerStyle={ {
-          backgroundColor: 'rgba(255, 255, 255, 0.05)'
-        } }
-      >
+        inkBarStyle={ TABS_INKBAR_STYLE }
+        tabItemContainerStyle={ TABS_ITEM_STYLE }>
         <Tab
-          onActive={ this.handleTestActive }
-          label='Test Password'
-        >
-          <Form
-            className={ styles.form }
-          >
+          label={
+            <FormattedMessage
+              id='passwordChange.tabTest.label'
+              defaultMessage='Test Password' />
+          }
+          onActive={ this.handleTestActive }>
+          <Form className={ styles.form }>
             <div>
               <Input
-                label='password'
-                hint='your current password for this account'
-                type='password'
-                submitOnBlur={ false }
                 disabled={ disabled }
+                hint={
+                  <FormattedMessage
+                    id='passwordChange.testPassword.hint'
+                    defaultMessage='your account password' />
+                }
+                label={
+                  <FormattedMessage
+                    id='passwordChange.testPassword.label'
+                    defaultMessage='password' />
+                }
+                onChange={ this.onEditCurrent }
                 onSubmit={ this.handleTestPassword }
-                onChange={ this.onEditCurrent } />
+                submitOnBlur={ false }
+                type='password' />
             </div>
           </Form>
         </Tab>
         <Tab
-          onActive={ this.handleChangeActive }
-          label='Change Password'
-        >
-          <Form
-            className={ styles.form }
-          >
+          label={
+            <FormattedMessage
+              id='passwordChange.tabChange.label'
+              defaultMessage='Change Password' />
+          }
+          onActive={ this.handleChangeActive }>
+          <Form className={ styles.form }>
             <div>
               <Input
-                label='current password'
-                hint='your current password for this account'
-                type='password'
-                submitOnBlur={ false }
                 disabled={ disabled }
+                hint={
+                  <FormattedMessage
+                    id='passwordChange.currentPassword.hint'
+                    defaultMessage='your current password for this account' />
+                }
+                label={
+                  <FormattedMessage
+                    id='passwordChange.currentPassword.label'
+                    defaultMessage='current password' />
+                }
+                onChange={ this.onEditCurrent }
                 onSubmit={ this.handleChangePassword }
-                onChange={ this.onEditCurrent } />
+                submitOnBlur={ false }
+                type='password' />
               <Input
-                label='(optional) new password hint'
-                hint='hint for the new password'
-                submitOnBlur={ false }
-                value={ passwordHint }
                 disabled={ disabled }
+                hint={
+                  <FormattedMessage
+                    id='passwordChange.passwordHint.hint'
+                    defaultMessage='hint for the new password' />
+                }
+                label={
+                  <FormattedMessage
+                    id='passwordChange.passwordHint.label'
+                    defaultMessage='(optional) new password hint' />
+                }
+                onChange={ this.onEditHint }
                 onSubmit={ this.handleChangePassword }
-                onChange={ this.onEditHint } />
+                submitOnBlur={ false }
+                value={ passwordHint } />
               <div className={ styles.passwords }>
                 <div className={ styles.password }>
                   <Input
-                    label='new password'
-                    hint='the new password for this account'
-                    type='password'
-                    submitOnBlur={ false }
                     disabled={ disabled }
+                    hint={
+                      <FormattedMessage
+                        id='passwordChange.newPassword.hint'
+                        defaultMessage='the new password for this account' />
+                    }
+                    label={
+                      <FormattedMessage
+                        id='passwordChange.newPassword.label'
+                        defaultMessage='new password' />
+                    }
+                    onChange={ this.onEditNew }
                     onSubmit={ this.handleChangePassword }
-                    onChange={ this.onEditNew } />
+                    submitOnBlur={ false }
+                    type='password' />
                 </div>
                 <div className={ styles.password }>
                   <Input
-                    label='repeat new password'
-                    hint='repeat the new password for this account'
-                    type='password'
-                    submitOnBlur={ false }
-                    error={ repeatError }
                     disabled={ disabled }
+                    error={
+                      repeatNewPassValid
+                        ? null
+                        : <FormattedMessage
+                          id='passwordChange.repeatPassword.error'
+                          defaultMessage='the supplied passwords do not match' />
+                    }
+                    hint={
+                      <FormattedMessage
+                        id='passwordChange.repeatPassword.hint'
+                        defaultMessage='repeat the new password for this account' />
+                    }
+                    label={
+                      <FormattedMessage
+                        id='passwordChange.repeatPassword.label'
+                        defaultMessage='repeat new password' />
+                    }
+                    onChange={ this.onEditRepeatNew }
                     onSubmit={ this.handleChangePassword }
-                    onChange={ this.onEditRepeatNew } />
+                    submitOnBlur={ false }
+                    type='password' />
                 </div>
               </div>
             </div>
@@ -230,41 +272,58 @@ class PasswordManager extends Component {
 
     const cancelBtn = (
       <Button
-        icon={ <ContentClear /> }
-        label='Cancel'
+        icon={ <CancelIcon /> }
+        key='cancel'
+        label={
+          <FormattedMessage
+            id='passwordChange.button.cancel'
+            defaultMessage='Cancel' />
+        }
         onClick={ onClose } />
     );
 
     if (waiting) {
-      const waitingBtn = (
+      return [
+        cancelBtn,
         <Button
           disabled
-          label='Wait...' />
-      );
-
-      return [ cancelBtn, waitingBtn ];
+          key='wait'
+          label={
+            <FormattedMessage
+              id='passwordChange.button.wait'
+              defaultMessage='Wait...' />
+          } />
+      ];
     }
 
     if (action === TEST_ACTION) {
-      const testBtn = (
+      return [
+        cancelBtn,
         <Button
           icon={ <CheckIcon /> }
-          label='Test'
+          key='test'
+          label={
+            <FormattedMessage
+              id='passwordChange.button.test'
+              defaultMessage='Test' />
+          }
           onClick={ this.handleTestPassword } />
-      );
-
-      return [ cancelBtn, testBtn ];
+      ];
     }
 
-    const changeBtn = (
+    return [
+      cancelBtn,
       <Button
         disabled={ !repeatValid }
         icon={ <SendIcon /> }
-        label='Change'
+        key='change'
+        label={
+          <FormattedMessage
+            id='passwordChange.button.change'
+            defaultMessage='Change' />
+        }
         onClick={ this.handleChangePassword } />
-    );
-
-    return [ cancelBtn, changeBtn ];
+    ];
   }
 
   onEditCurrent = (event, value) => {
@@ -314,87 +373,4 @@ class PasswordManager extends Component {
       showMessage: false
     });
   }
-
-  handleTestPassword = () => {
-    const { account } = this.props;
-    const { currentPass } = this.state;
-
-    this.setState({ waiting: true, showMessage: false });
-
-    this.context
-      .api.parity
-      .testPassword(account.address, currentPass)
-      .then(correct => {
-        const message = correct
-          ? { value: 'This password is correct', success: true }
-          : { value: 'This password is not correct', success: false };
-
-        this.setState({ waiting: false, message, showMessage: true });
-      })
-      .catch(e => {
-        console.error('passwordManager::handleTestPassword', e);
-        this.setState({ waiting: false });
-      });
-  }
-
-  handleChangePassword = () => {
-    const { account, showSnackbar, onClose } = this.props;
-    const { currentPass, newPass, repeatNewPass, passwordHint } = this.state;
-
-    if (repeatNewPass !== newPass) {
-      return;
-    }
-
-    this.setState({ waiting: true, showMessage: false });
-
-    this.context
-      .api.parity
-      .testPassword(account.address, currentPass)
-      .then(correct => {
-        if (!correct) {
-          const message = {
-            value: 'This provided current password is not correct',
-            success: false
-          };
-
-          this.setState({ waiting: false, message, showMessage: true });
-
-          return false;
-        }
-
-        const meta = Object.assign({}, account.meta, {
-          passwordHint
-        });
-
-        return Promise.all([
-          this.context
-            .api.parity
-            .setAccountMeta(account.address, meta),
-
-          this.context
-            .api.parity
-            .changePassword(account.address, currentPass, newPass)
-        ])
-          .then(() => {
-            showSnackbar(<div>Your password has been successfully changed.</div>);
-            this.setState({ waiting: false, showMessage: false });
-            onClose();
-          });
-      })
-      .catch(e => {
-        console.error('passwordManager::handleChangePassword', e);
-        this.setState({ waiting: false });
-      });
-  }
 }
-
-function mapDispatchToProps (dispatch) {
-  return bindActionCreators({
-    showSnackbar
-  }, dispatch);
-}
-
-export default connect(
-  null,
-  mapDispatchToProps
-)(PasswordManager);
