@@ -16,22 +16,26 @@
 
 import AddIcon from 'material-ui/svg-icons/content/add';
 import CancelIcon from 'material-ui/svg-icons/content/clear';
+import CloseIcon from 'material-ui/svg-icons/navigation/close';
 import ContractIcon from 'material-ui/svg-icons/action/code';
 import CheckIcon from 'material-ui/svg-icons/navigation/check';
 import DoneIcon from 'material-ui/svg-icons/action/done-all';
 import PrevIcon from 'material-ui/svg-icons/navigation/arrow-back';
 import NextIcon from 'material-ui/svg-icons/navigation/arrow-forward';
+import SaveIcon from 'material-ui/svg-icons/content/save';
 import SendIcon from 'material-ui/svg-icons/content/send';
 import SnoozeIcon from 'material-ui/svg-icons/av/snooze';
 
 export {
   AddIcon,
   CancelIcon,
+  CloseIcon,
   ContractIcon,
   CheckIcon,
   DoneIcon,
   PrevIcon,
   NextIcon,
+  SaveIcon,
   SendIcon,
   SnoozeIcon
 };

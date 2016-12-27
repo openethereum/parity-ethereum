@@ -26,6 +26,15 @@ export default {
     }
   },
 
+  generateWebProxyAccessToken: {
+    desc: 'Generates a new web proxy access token',
+    params: [],
+    returns: {
+      type: String,
+      desc: 'The new web proxy access token'
+    }
+  },
+
   requestsToConfirm: {
     desc: 'Returns a list of the transactions requiring authorization',
     params: [],

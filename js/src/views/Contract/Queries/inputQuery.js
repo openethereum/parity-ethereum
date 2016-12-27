@@ -184,7 +184,7 @@ export default class InputQuery extends Component {
   }
 
   renderValue (value) {
-    if (!value) {
+    if (value === null || value === undefined) {
       return 'no data';
     }
 

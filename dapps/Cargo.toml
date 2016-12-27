@@ -9,7 +9,7 @@ build = "build.rs"
 [lib]
 
 [dependencies]
-rand = "0.3.14"
+rand = "0.3"
 log = "0.3"
 env_logger = "0.3"
 futures = "0.1"
