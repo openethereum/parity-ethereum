@@ -383,9 +383,7 @@ export default class TransferStore {
 
     const senderBalance = this.balance.tokens.find((b) => tag === b.token.tag);
     const format = new BigNumber(senderBalance.token.format || 1);
-    const available = isWallet
-      ? this.api.util.fromWei(new BigNumber(senderBalance.value))
-      : (new BigNumber(senderBalance.value)).div(format);
+    const available = new BigNumber(senderBalance.value).div(format);
 
     let { value, valueError } = this;
     let totalEth = gasTotal;
@@ -440,16 +438,7 @@ export default class TransferStore {
   }
 
   estimateGas () {
-    if (this.isEth || !this.isWallet) {
-      return this._estimateGas();
-    }
-
-    return Promise
-      .all([
-        this._estimateGas(true),
-        this._estimateGas()
-      ])
-      .then((results) => results[0].plus(results[1]));
+    return this._estimateGas();
   }
 
   _getTransferMethod (gas = false, forceToken = false) {
