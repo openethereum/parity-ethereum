@@ -232,9 +232,10 @@ export default class Contract {
     };
 
     if (!func.constant) {
-      func.postTransaction = (options, values = []) => {
-        return this._api.parity
-          .postTransaction(this._encodeOptions(func, this._addOptionsTo(options), values));
+      func.postTransaction = (options, values = [], isWallet = true) => {
+        let _options = this._encodeOptions(func, this._addOptionsTo(options), values);
+
+        return this._api.parity.postTransaction(_options);
       };
 
       func.estimateGas = (options, values = []) => {
