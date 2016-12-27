@@ -43,6 +43,8 @@ impl From<Arc<AtomicBool>> for Abort {
 pub trait Fetch: Clone + Send + Sync + 'static {
 	type Result: Future<Item=Response, Error=Error> + Send + 'static;
 
+	fn new() -> Result<Self, Error> where Self: Sized;
+
 	/// Spawn the future in context of this `Fetch` thread pool.
 	/// Implementation is optional.
 	fn process<F>(&self, f: F) -> BoxFuture<(), ()> where
@@ -77,11 +79,6 @@ pub struct Client {
 }
 
 impl Client {
-	pub fn new() -> Result<Self, Error> {
-		// Max 50MB will be downloaded.
-		Self::with_limit(Some(50*1024*1024))
-	}
-
 	fn with_limit(limit: Option<usize>) -> Result<Self, Error> {
 		let mut client = try!(reqwest::Client::new());
 		client.redirect(reqwest::RedirectPolicy::limited(5));
@@ -96,6 +93,11 @@ impl Client {
 
 impl Fetch for Client {
 	type Result = CpuFuture<Response, Error>;
+
+	fn new() -> Result<Self, Error> {
+		// Max 50MB will be downloaded.
+		Self::with_limit(Some(50*1024*1024))
+	}
 
 	fn process<F>(&self, f: F) -> BoxFuture<(), ()> where
 		F: Future<Item=(), Error=()> + Send + 'static,

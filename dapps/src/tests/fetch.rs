@@ -65,3 +65,8 @@ fn should_return_503_when_syncing_but_should_make_the_calls() {
 	assert_eq!(registrar.calls.lock().len(), 4);
 	assert_security_headers_for_embed(&response.headers);
 }
+
+#[test]
+fn should_fetch_the_content() {
+
+}

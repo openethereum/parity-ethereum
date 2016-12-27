@@ -75,11 +75,14 @@ pub fn init_server(hosts: Option<Vec<String>>, is_syncing: bool) -> (Server, Arc
 	let registrar = Arc::new(FakeRegistrar::new());
 	let mut dapps_path = env::temp_dir();
 	dapps_path.push("non-existent-dir-to-prevent-fs-files-from-loading");
-	let mut builder = ServerBuilder::new(dapps_path.to_str().unwrap().into(), registrar.clone(), Remote::new_sync());
-	builder.with_sync_status(Arc::new(move || is_syncing));
-	builder.with_signer_address(Some(("127.0.0.1".into(), SIGNER_PORT)));
+	let server = ServerBuilder::new(
+		dapps_path.to_str().unwrap().into(), registrar.clone(), Remote::new_sync()
+	)
+		.sync_status(Arc::new(move || is_syncing))
+		.signer_address(Some(("127.0.0.1".into(), SIGNER_PORT)))
+		.start_unsecured_http(&"127.0.0.1:0".parse().unwrap(), hosts).unwrap();
 	(
-		builder.start_unsecured_http(&"127.0.0.1:0".parse().unwrap(), hosts).unwrap(),
+		server,
 		registrar,
 	)
 }
@@ -89,9 +92,9 @@ pub fn serve_with_auth(user: &str, pass: &str) -> Server {
 	let registrar = Arc::new(FakeRegistrar::new());
 	let mut dapps_path = env::temp_dir();
 	dapps_path.push("non-existent-dir-to-prevent-fs-files-from-loading");
-	let mut builder = ServerBuilder::new(dapps_path.to_str().unwrap().into(), registrar.clone(), Remote::new_sync());
-	builder.with_signer_address(Some(("127.0.0.1".into(), SIGNER_PORT)));
-	builder.start_basic_auth_http(&"127.0.0.1:0".parse().unwrap(), None, user, pass).unwrap()
+	ServerBuilder::new(dapps_path.to_str().unwrap().into(), registrar.clone(), Remote::new_sync())
+		.signer_address(Some(("127.0.0.1".into(), SIGNER_PORT)))
+		.start_basic_auth_http(&"127.0.0.1:0".parse().unwrap(), None, user, pass).unwrap()
 }
 
 pub fn serve_hosts(hosts: Option<Vec<String>>) -> Server {
