@@ -167,7 +167,7 @@ macro_rules! impl_hash {
 			type Err = FromHexError;
 
 			fn from_str(s: &str) -> Result<$from, FromHexError> {
-				let a = try!(s.from_hex());
+				let a = s.from_hex()?;
 				if a.len() != $size {
 					return Err(FromHexError::InvalidHexLength);
 				}
@@ -181,7 +181,7 @@ macro_rules! impl_hash {
 		impl fmt::Debug for $from {
 			fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 				for i in &self.0[..] {
-					try!(write!(f, "{:02x}", i));
+					write!(f, "{:02x}", i)?;
 				}
 				Ok(())
 			}
@@ -190,11 +190,11 @@ macro_rules! impl_hash {
 		impl fmt::Display for $from {
 			fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 				for i in &self.0[0..2] {
-					try!(write!(f, "{:02x}", i));
+					write!(f, "{:02x}", i)?;
 				}
-				try!(write!(f, "…"));
+				write!(f, "…")?;
 				for i in &self.0[$size - 2..$size] {
-					try!(write!(f, "{:02x}", i));
+					write!(f, "{:02x}", i)?;
 				}
 				Ok(())
 			}

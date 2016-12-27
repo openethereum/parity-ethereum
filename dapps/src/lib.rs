@@ -202,7 +202,7 @@ impl<T: Fetch> ServerBuilder<T> {
 			self.sync_status.clone(),
 			self.web_proxy_tokens.clone(),
 			self.remote.clone(),
-			try!(self.fetch_client()),
+			self.fetch_client()?,
 		)
 	}
 
@@ -220,7 +220,7 @@ impl<T: Fetch> ServerBuilder<T> {
 			self.sync_status.clone(),
 			self.web_proxy_tokens.clone(),
 			self.remote.clone(),
-			try!(self.fetch_client()),
+			self.fetch_client()?,
 		)
 	}
 
@@ -302,7 +302,7 @@ impl Server {
 		});
 		let hosts = Self::allowed_hosts(hosts, format!("{}", addr));
 
-		try!(hyper::Server::http(addr))
+		hyper::Server::http(addr)?
 			.handle(move |ctrl| router::Router::new(
 				ctrl,
 				signer_address.clone(),

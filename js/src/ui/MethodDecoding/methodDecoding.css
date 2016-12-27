@@ -75,7 +75,7 @@
   font-family: inherit !important;
 }
 
-.inputs img {
+.inputs [data-address-img] {
   position: absolute;
   top: -16px;
 }

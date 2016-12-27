@@ -14,13 +14,13 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import BigNumber from 'bignumber.js';
 import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
 import util from '~/api/util';
 import { nodeOrStringProptype } from '~/util/proptypes';
+import { isNullAddress } from '~/util/validation';
 
 import IdentityIcon from '../../IdentityIcon';
 import Input from '../Input';
@@ -69,7 +69,7 @@ class InputAddress extends Component {
     classes.push(!icon ? styles.inputEmpty : styles.input);
 
     const containerClasses = [ styles.container ];
-    const nullName = value && new BigNumber(value).eq(0) ? 'null' : null;
+    const nullName = (disabled || readOnly) && isNullAddress(value) ? 'null' : null;
 
     if (small) {
       containerClasses.push(styles.small);

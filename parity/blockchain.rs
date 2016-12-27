@@ -149,7 +149,7 @@ fn execute_import(cmd: ImportBlockchain) -> Result<(), String> {
 	let panic_handler = PanicHandler::new_in_arc();
 
 	// load spec file
-	let spec = try!(cmd.spec.spec());
+	let spec = cmd.spec.spec()?;
 
 	// load genesis hash
 	let genesis_hash = spec.genesis_header().hash();
@@ -161,7 +161,7 @@ fn execute_import(cmd: ImportBlockchain) -> Result<(), String> {
 	let user_defaults_path = db_dirs.user_defaults_path();
 
 	// load user defaults
-	let mut user_defaults = try!(UserDefaults::load(&user_defaults_path));
+	let mut user_defaults = UserDefaults::load(&user_defaults_path)?;
 
 	fdlimit::raise_fd_limit();
 
@@ -169,20 +169,20 @@ fn execute_import(cmd: ImportBlockchain) -> Result<(), String> {
 	let algorithm = cmd.pruning.to_algorithm(&user_defaults);
 
 	// check if tracing is on
-	let tracing = try!(tracing_switch_to_bool(cmd.tracing, &user_defaults));
+	let tracing = tracing_switch_to_bool(cmd.tracing, &user_defaults)?;
 
 	// check if fatdb is on
-	let fat_db = try!(fatdb_switch_to_bool(cmd.fat_db, &user_defaults, algorithm));
+	let fat_db = fatdb_switch_to_bool(cmd.fat_db, &user_defaults, algorithm)?;
 
 	// prepare client and snapshot paths.
 	let client_path = db_dirs.client_path(algorithm);
 	let snapshot_path = db_dirs.snapshot_path();
 
 	// execute upgrades
-	try!(execute_upgrades(&cmd.dirs.base, &db_dirs, algorithm, cmd.compaction.compaction_profile(db_dirs.db_root_path().as_path())));
+	execute_upgrades(&cmd.dirs.base, &db_dirs, algorithm, cmd.compaction.compaction_profile(db_dirs.db_root_path().as_path()))?;
 
 	// create dirs used by parity
-	try!(cmd.dirs.create_dirs(false, false));
+	cmd.dirs.create_dirs(false, false)?;
 
 	// prepare client config
 	let mut client_config = to_client_config(
@@ -202,14 +202,14 @@ fn execute_import(cmd: ImportBlockchain) -> Result<(), String> {
 	client_config.queue.verifier_settings = cmd.verifier_settings;
 
 	// build client
-	let service = try!(ClientService::start(
+	let service = ClientService::start(
 		client_config,
 		&spec,
 		&client_path,
 		&snapshot_path,
 		&cmd.dirs.ipc_path(),
 		Arc::new(Miner::with_spec(&spec)),
-	).map_err(|e| format!("Client service error: {:?}", e)));
+	).map_err(|e| format!("Client service error: {:?}", e))?;
 
 	// free up the spec in memory.
 	drop(spec);
@@ -218,7 +218,7 @@ fn execute_import(cmd: ImportBlockchain) -> Result<(), String> {
 	let client = service.client();
 
 	let mut instream: Box<io::Read> = match cmd.file_path {
-		Some(f) => Box::new(try!(fs::File::open(&f).map_err(|_| format!("Cannot open given file: {}", f)))),
+		Some(f) => Box::new(fs::File::open(&f).map_err(|_| format!("Cannot open given file: {}", f))?),
 		None => Box::new(io::stdin()),
 	};
 
@@ -230,7 +230,7 @@ fn execute_import(cmd: ImportBlockchain) -> Result<(), String> {
 	let format = match cmd.format {
 		Some(format) => format,
 		None => {
-			first_read = try!(instream.read(&mut first_bytes).map_err(|_| "Error reading from the file/stream."));
+			first_read = instream.read(&mut first_bytes).map_err(|_| "Error reading from the file/stream.")?;
 			match first_bytes[0] {
 				0xf9 => DataFormat::Binary,
 				_ => DataFormat::Hex,
@@ -262,23 +262,23 @@ fn execute_import(cmd: ImportBlockchain) -> Result<(), String> {
 				let n = if first_read > 0 {
 					first_read
 				} else {
-					try!(instream.read(&mut bytes).map_err(|_| "Error reading from the file/stream."))
+					instream.read(&mut bytes).map_err(|_| "Error reading from the file/stream.")?
 				};
 				if n == 0 { break; }
 				first_read = 0;
-				let s = try!(PayloadInfo::from(&bytes).map_err(|e| format!("Invalid RLP in the file/stream: {:?}", e))).total();
+				let s = PayloadInfo::from(&bytes).map_err(|e| format!("Invalid RLP in the file/stream: {:?}", e))?.total();
 				bytes.resize(s, 0);
-				try!(instream.read_exact(&mut bytes[n..]).map_err(|_| "Error reading from the file/stream."));
-				try!(do_import(bytes));
+				instream.read_exact(&mut bytes[n..]).map_err(|_| "Error reading from the file/stream.")?;
+				do_import(bytes)?;
 			}
 		}
 		DataFormat::Hex => {
 			for line in BufReader::new(instream).lines() {
-				let s = try!(line.map_err(|_| "Error reading from the file/stream."));
+				let s = line.map_err(|_| "Error reading from the file/stream.")?;
 				let s = if first_read > 0 {from_utf8(&first_bytes).unwrap().to_owned() + &(s[..])} else {s};
 				first_read = 0;
-				let bytes = try!(s.from_hex().map_err(|_| "Invalid hex in file/stream."));
-				try!(do_import(bytes));
+				let bytes = s.from_hex().map_err(|_| "Invalid hex in file/stream.")?;
+				do_import(bytes)?;
 			}
 		}
 	}
@@ -288,7 +288,7 @@ fn execute_import(cmd: ImportBlockchain) -> Result<(), String> {
 	user_defaults.pruning = algorithm;
 	user_defaults.tracing = tracing;
 	user_defaults.fat_db = fat_db;
-	try!(user_defaults.save(&user_defaults_path));
+	user_defaults.save(&user_defaults_path)?;
 
 	let report = client.report();
 
@@ -318,7 +318,7 @@ fn start_client(
 ) -> Result<ClientService, String> {
 
 	// load spec file
-	let spec = try!(spec.spec());
+	let spec = spec.spec()?;
 
 	// load genesis hash
 	let genesis_hash = spec.genesis_header().hash();
@@ -330,7 +330,7 @@ fn start_client(
 	let user_defaults_path = db_dirs.user_defaults_path();
 
 	// load user defaults
-	let user_defaults = try!(UserDefaults::load(&user_defaults_path));
+	let user_defaults = UserDefaults::load(&user_defaults_path)?;
 
 	fdlimit::raise_fd_limit();
 
@@ -338,32 +338,32 @@ fn start_client(
 	let algorithm = pruning.to_algorithm(&user_defaults);
 
 	// check if tracing is on
-	let tracing = try!(tracing_switch_to_bool(tracing, &user_defaults));
+	let tracing = tracing_switch_to_bool(tracing, &user_defaults)?;
 
 	// check if fatdb is on
-	let fat_db = try!(fatdb_switch_to_bool(fat_db, &user_defaults, algorithm));
+	let fat_db = fatdb_switch_to_bool(fat_db, &user_defaults, algorithm)?;
 
 	// prepare client and snapshot paths.
 	let client_path = db_dirs.client_path(algorithm);
 	let snapshot_path = db_dirs.snapshot_path();
 
 	// execute upgrades
-	try!(execute_upgrades(&dirs.base, &db_dirs, algorithm, compaction.compaction_profile(db_dirs.db_root_path().as_path())));
+	execute_upgrades(&dirs.base, &db_dirs, algorithm, compaction.compaction_profile(db_dirs.db_root_path().as_path()))?;
 
 	// create dirs used by parity
-	try!(dirs.create_dirs(false, false));
+	dirs.create_dirs(false, false)?;
 
 	// prepare client config
 	let client_config = to_client_config(&cache_config, Mode::Active, tracing, fat_db, compaction, wal, VMType::default(), "".into(), algorithm, pruning_history, true);
 
-	let service = try!(ClientService::start(
+	let service = ClientService::start(
 		client_config,
 		&spec,
 		&client_path,
 		&snapshot_path,
 		&dirs.ipc_path(),
 		Arc::new(Miner::with_spec(&spec)),
-	).map_err(|e| format!("Client service error: {:?}", e)));
+	).map_err(|e| format!("Client service error: {:?}", e))?;
 
 	drop(spec);
 	Ok(service)
@@ -371,7 +371,7 @@ fn start_client(
 
 fn execute_export(cmd: ExportBlockchain) -> Result<(), String> {
 	// Setup panic handler
-	let service = try!(start_client(cmd.dirs, cmd.spec, cmd.pruning, cmd.pruning_history, cmd.tracing, cmd.fat_db, cmd.compaction, cmd.wal, cmd.cache_config));
+	let service = start_client(cmd.dirs, cmd.spec, cmd.pruning, cmd.pruning_history, cmd.tracing, cmd.fat_db, cmd.compaction, cmd.wal, cmd.cache_config)?;
 	let panic_handler = PanicHandler::new_in_arc();
 	let format = cmd.format.unwrap_or_default();
 
@@ -379,18 +379,18 @@ fn execute_export(cmd: ExportBlockchain) -> Result<(), String> {
 	let client = service.client();
 
 	let mut out: Box<io::Write> = match cmd.file_path {
-		Some(f) => Box::new(try!(fs::File::create(&f).map_err(|_| format!("Cannot write to file given: {}", f)))),
+		Some(f) => Box::new(fs::File::create(&f).map_err(|_| format!("Cannot write to file given: {}", f))?),
 		None => Box::new(io::stdout()),
 	};
 
-	let from = try!(client.block_number(cmd.from_block).ok_or("From block could not be found"));
-	let to = try!(client.block_number(cmd.to_block).ok_or("To block could not be found"));
+	let from = client.block_number(cmd.from_block).ok_or("From block could not be found")?;
+	let to = client.block_number(cmd.to_block).ok_or("To block could not be found")?;
 
 	for i in from..(to + 1) {
 		if i % 10000 == 0 {
 			info!("#{}", i);
 		}
-		let b = try!(client.block(BlockId::Number(i)).ok_or("Error exporting incomplete chain"));
+		let b = client.block(BlockId::Number(i)).ok_or("Error exporting incomplete chain")?;
 		match format {
 			DataFormat::Binary => { out.write(&b).expect("Couldn't write to stream."); }
 			DataFormat::Hex => { out.write_fmt(format_args!("{}", b.pretty())).expect("Couldn't write to stream."); }
@@ -403,14 +403,14 @@ fn execute_export(cmd: ExportBlockchain) -> Result<(), String> {
 
 fn execute_export_state(cmd: ExportState) -> Result<(), String> {
 	// Setup panic handler
-	let service = try!(start_client(cmd.dirs, cmd.spec, cmd.pruning, cmd.pruning_history, cmd.tracing, cmd.fat_db, cmd.compaction, cmd.wal, cmd.cache_config));
+	let service = start_client(cmd.dirs, cmd.spec, cmd.pruning, cmd.pruning_history, cmd.tracing, cmd.fat_db, cmd.compaction, cmd.wal, cmd.cache_config)?;
 	let panic_handler = PanicHandler::new_in_arc();
 
 	panic_handler.forward_from(&service);
 	let client = service.client();
 
 	let mut out: Box<io::Write> = match cmd.file_path {
-		Some(f) => Box::new(try!(fs::File::create(&f).map_err(|_| format!("Cannot write to file given: {}", f)))),
+		Some(f) => Box::new(fs::File::create(&f).map_err(|_| format!("Cannot write to file given: {}", f))?),
 		None => Box::new(io::stdout()),
 	};
 
@@ -420,7 +420,7 @@ fn execute_export_state(cmd: ExportState) -> Result<(), String> {
 
 	out.write_fmt(format_args!("{{ \"state\": [", )).expect("Couldn't write to stream.");
 	loop {
-		let accounts = try!(client.list_accounts(at, last.as_ref(), 1000).ok_or("Specified block not found"));
+		let accounts = client.list_accounts(at, last.as_ref(), 1000).ok_or("Specified block not found")?;
 		if accounts.is_empty() {
 			break;
 		}
@@ -450,7 +450,7 @@ fn execute_export_state(cmd: ExportState) -> Result<(), String> {
 					out.write_fmt(format_args!(", \"storage\": {{")).expect("Write error");
 					let mut last_storage: Option<H256> = None;
 					loop {
-						let keys = try!(client.list_storage(at, &account, last_storage.as_ref(), 1000).ok_or("Specified block not found"));
+						let keys = client.list_storage(at, &account, last_storage.as_ref(), 1000).ok_or("Specified block not found")?;
 						if keys.is_empty() {
 							break;
 						}
@@ -482,14 +482,14 @@ fn execute_export_state(cmd: ExportState) -> Result<(), String> {
 }
 
 pub fn kill_db(cmd: KillBlockchain) -> Result<(), String> {
-	let spec = try!(cmd.spec.spec());
+	let spec = cmd.spec.spec()?;
 	let genesis_hash = spec.genesis_header().hash();
 	let db_dirs = cmd.dirs.database(genesis_hash, None, spec.data_dir);
 	let user_defaults_path = db_dirs.user_defaults_path();
-	let user_defaults = try!(UserDefaults::load(&user_defaults_path));
+	let user_defaults = UserDefaults::load(&user_defaults_path)?;
 	let algorithm = cmd.pruning.to_algorithm(&user_defaults);
 	let dir = db_dirs.db_path(algorithm);
-	try!(fs::remove_dir_all(&dir).map_err(|e| format!("Error removing database: {:?}", e)));
+	fs::remove_dir_all(&dir).map_err(|e| format!("Error removing database: {:?}", e))?;
 	info!("Database deleted.");
 	Ok(())
 }

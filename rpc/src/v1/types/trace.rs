@@ -431,36 +431,36 @@ impl Serialize for LocalizedTrace {
 	fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Error>
 		where S: Serializer
 	{
-		let mut state = try!(serializer.serialize_struct("LocalizedTrace", 9));
+		let mut state = serializer.serialize_struct("LocalizedTrace", 9)?;
 		match self.action {
 			Action::Call(ref call) => {
-				try!(serializer.serialize_struct_elt(&mut state, "type", "call"));
-				try!(serializer.serialize_struct_elt(&mut state, "action", call));
+				serializer.serialize_struct_elt(&mut state, "type", "call")?;
+				serializer.serialize_struct_elt(&mut state, "action", call)?;
 			},
 			Action::Create(ref create) => {
-				try!(serializer.serialize_struct_elt(&mut state, "type", "create"));
-				try!(serializer.serialize_struct_elt(&mut state, "action", create));
+				serializer.serialize_struct_elt(&mut state, "type", "create")?;
+				serializer.serialize_struct_elt(&mut state, "action", create)?;
 			},
 			Action::Suicide(ref suicide) => {
-				try!(serializer.serialize_struct_elt(&mut state, "type", "suicide"));
-				try!(serializer.serialize_struct_elt(&mut state, "action", suicide));
+				serializer.serialize_struct_elt(&mut state, "type", "suicide")?;
+				serializer.serialize_struct_elt(&mut state, "action", suicide)?;
 			},
 		}
 
 		match self.result {
-			Res::Call(ref call) => try!(serializer.serialize_struct_elt(&mut state, "result", call)),
-			Res::Create(ref create) => try!(serializer.serialize_struct_elt(&mut state, "result", create)),
-			Res::FailedCall(ref error) => try!(serializer.serialize_struct_elt(&mut state, "error", error.to_string())),
-			Res::FailedCreate(ref error) => try!(serializer.serialize_struct_elt(&mut state, "error", error.to_string())),
-			Res::None => try!(serializer.serialize_struct_elt(&mut state, "result", None as Option<u8>)),
+			Res::Call(ref call) => serializer.serialize_struct_elt(&mut state, "result", call)?,
+			Res::Create(ref create) => serializer.serialize_struct_elt(&mut state, "result", create)?,
+			Res::FailedCall(ref error) => serializer.serialize_struct_elt(&mut state, "error", error.to_string())?,
+			Res::FailedCreate(ref error) => serializer.serialize_struct_elt(&mut state, "error", error.to_string())?,
+			Res::None => serializer.serialize_struct_elt(&mut state, "result", None as Option<u8>)?,
 		}
 
-		try!(serializer.serialize_struct_elt(&mut state, "traceAddress", &self.trace_address));
-		try!(serializer.serialize_struct_elt(&mut state, "subtraces", &self.subtraces));
-		try!(serializer.serialize_struct_elt(&mut state, "transactionPosition", &self.transaction_position));
-		try!(serializer.serialize_struct_elt(&mut state, "transactionHash", &self.transaction_hash));
-		try!(serializer.serialize_struct_elt(&mut state, "blockNumber", &self.block_number));
-		try!(serializer.serialize_struct_elt(&mut state, "blockHash", &self.block_hash));
+		serializer.serialize_struct_elt(&mut state, "traceAddress", &self.trace_address)?;
+		serializer.serialize_struct_elt(&mut state, "subtraces", &self.subtraces)?;
+		serializer.serialize_struct_elt(&mut state, "transactionPosition", &self.transaction_position)?;
+		serializer.serialize_struct_elt(&mut state, "transactionHash", &self.transaction_hash)?;
+		serializer.serialize_struct_elt(&mut state, "blockNumber", &self.block_number)?;
+		serializer.serialize_struct_elt(&mut state, "blockHash", &self.block_hash)?;
 
 		serializer.serialize_struct_end(state)
 	}
@@ -498,32 +498,32 @@ impl Serialize for Trace {
 	fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Error>
 		where S: Serializer
 	{
-		let mut state = try!(serializer.serialize_struct("Trace", 4));
+		let mut state = serializer.serialize_struct("Trace", 4)?;
 		match self.action {
 			Action::Call(ref call) => {
-				try!(serializer.serialize_struct_elt(&mut state, "type", "call"));
-				try!(serializer.serialize_struct_elt(&mut state, "action", call));
+				serializer.serialize_struct_elt(&mut state, "type", "call")?;
+				serializer.serialize_struct_elt(&mut state, "action", call)?;
 			},
 			Action::Create(ref create) => {
-				try!(serializer.serialize_struct_elt(&mut state, "type", "create"));
-				try!(serializer.serialize_struct_elt(&mut state, "action", create));
+				serializer.serialize_struct_elt(&mut state, "type", "create")?;
+				serializer.serialize_struct_elt(&mut state, "action", create)?;
 			},
 			Action::Suicide(ref suicide) => {
-				try!(serializer.serialize_struct_elt(&mut state, "type", "suicide"));
-				try!(serializer.serialize_struct_elt(&mut state, "action", suicide));
+				serializer.serialize_struct_elt(&mut state, "type", "suicide")?;
+				serializer.serialize_struct_elt(&mut state, "action", suicide)?;
 			},
 		}
 
 		match self.result {
-			Res::Call(ref call) => try!(serializer.serialize_struct_elt(&mut state, "result", call)),
-			Res::Create(ref create) => try!(serializer.serialize_struct_elt(&mut state, "result", create)),
-			Res::FailedCall(ref error) => try!(serializer.serialize_struct_elt(&mut state, "error", error.to_string())),
-			Res::FailedCreate(ref error) => try!(serializer.serialize_struct_elt(&mut state, "error", error.to_string())),
-			Res::None => try!(serializer.serialize_struct_elt(&mut state, "result", None as Option<u8>)),
+			Res::Call(ref call) => serializer.serialize_struct_elt(&mut state, "result", call)?,
+			Res::Create(ref create) => serializer.serialize_struct_elt(&mut state, "result", create)?,
+			Res::FailedCall(ref error) => serializer.serialize_struct_elt(&mut state, "error", error.to_string())?,
+			Res::FailedCreate(ref error) => serializer.serialize_struct_elt(&mut state, "error", error.to_string())?,
+			Res::None => serializer.serialize_struct_elt(&mut state, "result", None as Option<u8>)?,
 		}
 
-		try!(serializer.serialize_struct_elt(&mut state, "traceAddress", &self.trace_address));
-		try!(serializer.serialize_struct_elt(&mut state, "subtraces", &self.subtraces));
+		serializer.serialize_struct_elt(&mut state, "traceAddress", &self.trace_address)?;
+		serializer.serialize_struct_elt(&mut state, "subtraces", &self.subtraces)?;
 
 		serializer.serialize_struct_end(state)
 	}
