@@ -64,13 +64,14 @@ class Wallet extends Component {
   };
 
   static propTypes = {
-    setVisibleAccounts: PropTypes.func.isRequired,
+    address: PropTypes.string.isRequired,
     balance: nullableProptype(PropTypes.object.isRequired),
     images: PropTypes.object.isRequired,
-    address: PropTypes.string.isRequired,
-    walletAccount: nullableProptype(PropTypes.object.isRequired),
+    isTest: PropTypes.bool.isRequired,
+    owned: PropTypes.bool.isRequired,
+    setVisibleAccounts: PropTypes.func.isRequired,
     wallet: PropTypes.object.isRequired,
-    isTest: PropTypes.bool.isRequired
+    walletAccount: nullableProptype(PropTypes.object.isRequired)
   };
 
   state = {
@@ -104,13 +105,13 @@ class Wallet extends Component {
   }
 
   render () {
-    const { walletAccount, balance } = this.props;
+    const { walletAccount, balance, wallet } = this.props;
 
     if (!walletAccount) {
       return null;
     }
 
-    const { owners, require, dailylimit } = this.props.wallet;
+    const { owners, require, dailylimit } = wallet;
 
     return (
       <div className={ styles.wallet }>
@@ -207,32 +208,47 @@ class Wallet extends Component {
   }
 
   renderActionbar () {
-    const { balance } = this.props;
+    const { balance, owned } = this.props;
     const showTransferButton = !!(balance && balance.tokens);
 
-    const buttons = [
-      <Button
-        key='transferFunds'
-        icon={ <ContentSend /> }
-        label='transfer'
-        disabled={ !showTransferButton }
-        onClick={ this.onTransferClick } />,
+    const buttons = [];
+
+    if (owned) {
+      buttons.push(
+        <Button
+          key='transferFunds'
+          icon={ <ContentSend /> }
+          label='transfer'
+          disabled={ !showTransferButton }
+          onClick={ this.onTransferClick } />
+      );
+    }
+
+    buttons.push(
       <Button
         key='delete'
         icon={ <ActionDelete /> }
         label='delete'
-        onClick={ this.showDeleteDialog } />,
+        onClick={ this.showDeleteDialog } />
+    );
+
+    buttons.push(
       <Button
         key='editmeta'
         icon={ <ContentCreate /> }
         label='edit'
-        onClick={ this.onEditClick } />,
-      <Button
-        key='settings'
-        icon={ <SettingsIcon /> }
-        label='settings'
-        onClick={ this.onSettingsClick } />
-    ];
+        onClick={ this.onEditClick } />
+    );
+
+    if (owned) {
+      buttons.push(
+        <Button
+          key='settings'
+          icon={ <SettingsIcon /> }
+          label='settings'
+          onClick={ this.onSettingsClick } />
+      );
+    }
 
     return (
       <Actionbar
@@ -339,7 +355,7 @@ function mapStateToProps (_, initProps) {
 
   return (state) => {
     const { isTest } = state.nodeStatus;
-    const { accountsInfo = {} } = state.personal;
+    const { accountsInfo = {}, accounts = {} } = state.personal;
     const { balances } = state.balances;
     const { images } = state;
     const walletAccount = accountsInfo[address] || null;
@@ -350,14 +366,16 @@ function mapStateToProps (_, initProps) {
 
     const wallet = state.wallet.wallets[address] || {};
     const balance = balances[address] || null;
+    const owned = !!accounts[address];
 
     return {
-      isTest,
-      walletAccount,
+      address,
       balance,
       images,
-      address,
-      wallet
+      isTest,
+      owned,
+      wallet,
+      walletAccount
     };
   };
 }

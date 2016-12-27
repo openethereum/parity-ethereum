@@ -67,13 +67,17 @@ export function personalAccountsInfo (accountsInfo) {
         return Object
           .values(wallets)
           .map((wallet, index) => {
-            wallet.meta.owners = walletsOwners[index];
+            wallet.owners = walletsOwners[index].map((owner) => ({
+              address: owner,
+              name: accountsInfo[owner] && accountsInfo[owner].name || owner
+            }));
+
             return wallet;
           });
       })
       .then((_wallets) => {
         _wallets.forEach((wallet) => {
-          const { owners } = wallet.meta;
+          const owners = wallet.owners.map((o) => o.address);
 
           // Owners ∩ Addresses not null : Wallet is owned
           // by one of the accounts
