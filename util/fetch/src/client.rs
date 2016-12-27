@@ -83,7 +83,7 @@ impl Client {
 	}
 
 	fn with_limit(limit: Option<usize>) -> Result<Self, Error> {
-		let mut client = try!(reqwest::Client::new());
+		let mut client = reqwest::Client::new()?;
 		client.redirect(reqwest::RedirectPolicy::limited(5));
 
 		Ok(Client {
@@ -134,9 +134,9 @@ impl Future for FetchTask {
 		}
 
 		trace!(target: "fetch", "Starting fetch task: {:?}", self.url);
-		let result = try!(self.client.get(&self.url)
+		let result = self.client.get(&self.url)
 						  .header(reqwest::header::UserAgent("Parity Fetch".into()))
-						  .send());
+						  .send()?;
 
 		Ok(futures::Async::Ready(Response {
 			inner: ResponseInner::Response(result),

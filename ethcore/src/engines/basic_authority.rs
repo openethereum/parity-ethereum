@@ -143,10 +143,10 @@ impl Engine for BasicAuthority {
 		use rlp::{UntrustedRlp, View};
 
 		// check the signature is legit.
-		let sig = try!(UntrustedRlp::new(&header.seal()[0]).as_val::<H520>());
-		let signer = public_to_address(&try!(recover(&sig.into(), &header.bare_hash())));
+		let sig = UntrustedRlp::new(&header.seal()[0]).as_val::<H520>()?;
+		let signer = public_to_address(&recover(&sig.into(), &header.bare_hash())?);
 		if !self.our_params.authorities.contains(&signer) {
-			return try!(Err(BlockError::InvalidSeal));
+			return Err(BlockError::InvalidSeal)?;
 		}
 		Ok(())
 	}
@@ -171,7 +171,7 @@ impl Engine for BasicAuthority {
 	}
 
 	fn verify_transaction_basic(&self, t: &SignedTransaction, _header: &Header) -> result::Result<(), Error> {
-		try!(t.check_low_s());
+		t.check_low_s()?;
 		Ok(())
 	}
 

@@ -53,7 +53,7 @@ impl Into<bc::BloomGroup> for BloomGroup {
 
 impl Decodable for BloomGroup {
 	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
-		let blooms = try!(Decodable::decode(decoder));
+		let blooms = Decodable::decode(decoder)?;
 		let group = BloomGroup {
 			blooms: blooms
 		};

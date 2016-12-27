@@ -100,12 +100,12 @@ impl Account {
 			return Ok(::rlp::NULL_RLP.to_vec());
 		}
 
-		let db = try!(TrieDB::new(acct_db, &self.storage_root));
+		let db = TrieDB::new(acct_db, &self.storage_root)?;
 
 		let mut pairs = Vec::new();
 
-		for item in try!(db.iter()) {
-			let (k, v) = try!(item);
+		for item in db.iter()? {
+			let (k, v) = item?;
 			pairs.push((k, v));
 		}
 
@@ -158,24 +158,24 @@ impl Account {
 			return Ok((ACC_EMPTY, None));
 		}
 
-		let nonce = try!(rlp.val_at(0));
-		let balance = try!(rlp.val_at(1));
+		let nonce = rlp.val_at(0)?;
+		let balance = rlp.val_at(1)?;
 		let code_state: CodeState = {
-			let raw: u8 = try!(rlp.val_at(2));
-			try!(CodeState::from(raw))
+			let raw: u8 = rlp.val_at(2)?;
+			CodeState::from(raw)?
 		};
 
 		// load the code if it exists.
 		let (code_hash, new_code) = match code_state {
 			CodeState::Empty => (SHA3_EMPTY, None),
 			CodeState::Inline => {
-				let code: Bytes = try!(rlp.val_at(3));
+				let code: Bytes = rlp.val_at(3)?;
 				let code_hash = acct_db.insert(&code);
 
 				(code_hash, Some(code))
 			}
 			CodeState::Hash => {
-				let code_hash = try!(rlp.val_at(3));
+				let code_hash = rlp.val_at(3)?;
 
 				(code_hash, None)
 			}
@@ -185,12 +185,12 @@ impl Account {
 
 		{
 			let mut storage_trie = TrieDBMut::new(acct_db, &mut storage_root);
-			let pairs = try!(rlp.at(4));
+			let pairs = rlp.at(4)?;
 			for pair_rlp in pairs.iter() {
-				let k: Bytes  = try!(pair_rlp.val_at(0));
-				let v: Bytes = try!(pair_rlp.val_at(1));
+				let k: Bytes  = pair_rlp.val_at(0)?;
+				let v: Bytes = pair_rlp.val_at(1)?;
 
-				try!(storage_trie.insert(&k, &v));
+				storage_trie.insert(&k, &v)?;
 			}
 		}
 

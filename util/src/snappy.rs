@@ -127,7 +127,7 @@ pub fn decompress(input: &[u8]) -> Result<Vec<u8>, InvalidInput> {
 /// Will error if the input buffer is not snappy-compressed.
 /// Otherwise, returns the length of the decompressed data.
 pub fn decompress_into(input: &[u8], output: &mut Vec<u8>) -> Result<usize, InvalidInput> {
-	let mut len = try!(decompressed_len(input));
+	let mut len = decompressed_len(input)?;
 
 	if output.len() < len {
 		output.resize(len, 0);

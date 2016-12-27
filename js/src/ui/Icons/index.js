@@ -16,6 +16,7 @@
 
 import AddIcon from 'material-ui/svg-icons/content/add';
 import CancelIcon from 'material-ui/svg-icons/content/clear';
+import CheckIcon from 'material-ui/svg-icons/navigation/check';
 import CloseIcon from 'material-ui/svg-icons/navigation/close';
 import ContractIcon from 'material-ui/svg-icons/action/code';
 import CheckIcon from 'material-ui/svg-icons/navigation/check';
@@ -29,6 +30,7 @@ import SnoozeIcon from 'material-ui/svg-icons/av/snooze';
 export {
   AddIcon,
   CancelIcon,
+  CheckIcon,
   CloseIcon,
   ContractIcon,
   CheckIcon,

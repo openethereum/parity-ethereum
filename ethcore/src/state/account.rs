@@ -450,8 +450,8 @@ impl Account {
 
 		let mut recorder = TrieRecorder::with_depth(from_level);
 
-		let trie = try!(TrieDB::new(db, &self.storage_root));
-		let _ = try!(trie.get_recorded(&storage_key, &mut recorder));
+		let trie = TrieDB::new(db, &self.storage_root)?;
+		let _ = trie.get_recorded(&storage_key, &mut recorder)?;
 
 		Ok(recorder.drain().into_iter().map(|r| r.data).collect())
 	}

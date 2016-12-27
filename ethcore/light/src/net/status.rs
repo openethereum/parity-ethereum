@@ -100,7 +100,7 @@ impl<'a> Parser<'a> {
 	fn expect_raw(&mut self, key: Key) -> Result<UntrustedRlp<'a>, DecoderError> {
 		trace!(target: "les", "Expecting key {}", key.as_str());
 		let pre_pos = self.pos;
-		if let Some((k, val)) = try!(self.get_next()) {
+		if let Some((k, val)) = self.get_next()? {
 			if k == key { return Ok(val) }
 		}
 
@@ -111,12 +111,12 @@ impl<'a> Parser<'a> {
 	// get the next key and value RLP.
 	fn get_next(&mut self) -> Result<Option<(Key, UntrustedRlp<'a>)>, DecoderError> {
 		while self.pos < self.rlp.item_count() {
-			let pair = try!(self.rlp.at(self.pos));
-			let k: String = try!(pair.val_at(0));
+			let pair = self.rlp.at(self.pos)?;
+			let k: String = pair.val_at(0)?;
 
 			self.pos += 1;
 			match Key::from_str(&k) {
-				Some(key) => return Ok(Some((key , try!(pair.at(1))))),
+				Some(key) => return Ok(Some((key , pair.at(1)?))),
 				None => continue,
 			}
 		}
@@ -205,12 +205,12 @@ pub fn parse_handshake(rlp: UntrustedRlp) -> Result<(Status, Capabilities, Optio
 	};
 
 	let status = Status {
-		protocol_version: try!(parser.expect(Key::ProtocolVersion)),
-		network_id: try!(parser.expect(Key::NetworkId)),
-		head_td: try!(parser.expect(Key::HeadTD)),
-		head_hash: try!(parser.expect(Key::HeadHash)),
-		head_num: try!(parser.expect(Key::HeadNum)),
-		genesis_hash: try!(parser.expect(Key::GenesisHash)),
+		protocol_version: parser.expect(Key::ProtocolVersion)?,
+		network_id: parser.expect(Key::NetworkId)?,
+		head_td: parser.expect(Key::HeadTD)?,
+		head_hash: parser.expect(Key::HeadHash)?,
+		head_num: parser.expect(Key::HeadNum)?,
+		genesis_hash: parser.expect(Key::GenesisHash)?,
 		last_head: None,
 	};
 
@@ -298,10 +298,10 @@ pub fn parse_announcement(rlp: UntrustedRlp) -> Result<Announcement, DecoderErro
 	let mut last_key = None;
 
 	let mut announcement = Announcement {
-		head_hash: try!(rlp.val_at(0)),
-		head_num: try!(rlp.val_at(1)),
-		head_td: try!(rlp.val_at(2)),
-		reorg_depth: try!(rlp.val_at(3)),
+		head_hash: rlp.val_at(0)?,
+		head_num: rlp.val_at(1)?,
+		head_td: rlp.val_at(2)?,
+		reorg_depth: rlp.val_at(3)?,
 		serve_headers: false,
 		serve_state_since: None,
 		serve_chain_since: None,
@@ -313,14 +313,14 @@ pub fn parse_announcement(rlp: UntrustedRlp) -> Result<Announcement, DecoderErro
 		rlp: rlp,
 	};
 
-	while let Some((key, item)) = try!(parser.get_next()) {
+	while let Some((key, item)) = parser.get_next()? {
 		if Some(key) <= last_key { return Err(DecoderError::Custom("Invalid announcement key ordering")) }
 		last_key = Some(key);
 
 		match key {
 			Key::ServeHeaders => announcement.serve_headers = true,
-			Key::ServeStateSince => announcement.serve_state_since = Some(try!(item.as_val())),
-			Key::ServeChainSince => announcement.serve_chain_since = Some(try!(item.as_val())),
+			Key::ServeStateSince => announcement.serve_state_since = Some(item.as_val()?),
+			Key::ServeChainSince => announcement.serve_chain_since = Some(item.as_val()?),
 			Key::TxRelay => announcement.tx_relay = true,
 			_ => return Err(DecoderError::Custom("Nonsensical key in announcement")),
 		}

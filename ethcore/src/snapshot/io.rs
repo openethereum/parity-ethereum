@@ -60,9 +60,9 @@ impl rlp::Decodable for ChunkInfo {
 	fn decode<D: rlp::Decoder>(decoder: &D) -> Result<Self, rlp::DecoderError> {
 		let d = decoder.as_rlp();
 
-		let hash = try!(d.val_at(0));
-		let len = try!(d.val_at(1));
-		let off = try!(d.val_at(2));
+		let hash = d.val_at(0)?;
+		let len = d.val_at(1)?;
+		let off = d.val_at(2)?;
 		Ok(ChunkInfo(hash, len, off))
 	}
 }
@@ -88,7 +88,7 @@ impl PackedWriter {
 	/// Create a new "PackedWriter", to write into the file at the given path.
 	pub fn new(path: &Path) -> io::Result<Self> {
 		Ok(PackedWriter {
-			file: try!(File::create(path)),
+			file: File::create(path)?,
 			state_hashes: Vec::new(),
 			block_hashes: Vec::new(),
 			cur_len: 0,
@@ -98,7 +98,7 @@ impl PackedWriter {
 
 impl SnapshotWriter for PackedWriter {
 	fn write_state_chunk(&mut self, hash: H256, chunk: &[u8]) -> io::Result<()> {
-		try!(self.file.write_all(chunk));
+		self.file.write_all(chunk)?;
 
 		let len = chunk.len() as u64;
 		self.state_hashes.push(ChunkInfo(hash, len, self.cur_len));
@@ -108,7 +108,7 @@ impl SnapshotWriter for PackedWriter {
 	}
 
 	fn write_block_chunk(&mut self, hash: H256, chunk: &[u8]) -> io::Result<()> {
-		try!(self.file.write_all(chunk));
+		self.file.write_all(chunk)?;
 
 		let len = chunk.len() as u64;
 		self.block_hashes.push(ChunkInfo(hash, len, self.cur_len));
@@ -130,7 +130,7 @@ impl SnapshotWriter for PackedWriter {
 
 		let manifest_rlp = stream.out();
 
-		try!(self.file.write_all(&manifest_rlp));
+		self.file.write_all(&manifest_rlp)?;
 		let off = self.cur_len;
 		trace!(target: "snapshot_io", "writing manifest of len {} to offset {}", manifest_rlp.len(), off);
 
@@ -146,7 +146,7 @@ impl SnapshotWriter for PackedWriter {
 				(off >> 56) as u8,
 			];
 
-		try!(self.file.write_all(&off_bytes[..]));
+		self.file.write_all(&off_bytes[..])?;
 
 		Ok(())
 	}
@@ -161,7 +161,7 @@ impl LooseWriter {
 	/// Create a new LooseWriter which will write into the given directory,
 	/// creating it if it doesn't exist.
 	pub fn new(path: PathBuf) -> io::Result<Self> {
-		try!(fs::create_dir_all(&path));
+		fs::create_dir_all(&path)?;
 
 		Ok(LooseWriter {
 			dir: path,
@@ -173,8 +173,8 @@ impl LooseWriter {
 		let mut file_path = self.dir.clone();
 		file_path.push(hash.hex());
 
-		let mut file = try!(File::create(file_path));
-		try!(file.write_all(chunk));
+		let mut file = File::create(file_path)?;
+		file.write_all(chunk)?;
 
 		Ok(())
 	}
@@ -194,8 +194,8 @@ impl SnapshotWriter for LooseWriter {
 		let mut path = self.dir.clone();
 		path.push("MANIFEST");
 
-		let mut file = try!(File::create(path));
-		try!(file.write_all(&rlp[..]));
+		let mut file = File::create(path)?;
+		file.write_all(&rlp[..])?;
 
 		Ok(())
 	}
@@ -224,18 +224,18 @@ impl PackedReader {
 	/// This will fail if any io errors are encountered or the file
 	/// is not a valid packed snapshot.
 	pub fn new(path: &Path) -> Result<Option<Self>, ::error::Error> {
-		let mut file = try!(File::open(path));
-		let file_len = try!(file.metadata()).len();
+		let mut file = File::open(path)?;
+		let file_len = file.metadata()?.len();
 		if file_len < 8 {
 			// ensure we don't seek before beginning.
 			return Ok(None);
 		}
 
 
-		try!(file.seek(SeekFrom::End(-8)));
+		file.seek(SeekFrom::End(-8))?;
 		let mut off_bytes = [0u8; 8];
 
-		try!(file.read_exact(&mut off_bytes[..]));
+		file.read_exact(&mut off_bytes[..])?;
 
 		let manifest_off: u64 =
 			((off_bytes[7] as u64) << 56) +
@@ -252,20 +252,20 @@ impl PackedReader {
 
 		let	mut manifest_buf = vec![0; manifest_len as usize];
 
-		try!(file.seek(SeekFrom::Start(manifest_off)));
-		try!(file.read_exact(&mut manifest_buf));
+		file.seek(SeekFrom::Start(manifest_off))?;
+		file.read_exact(&mut manifest_buf)?;
 
 		let rlp = UntrustedRlp::new(&manifest_buf);
 
-		let state: Vec<ChunkInfo> = try!(rlp.val_at(0));
-		let blocks: Vec<ChunkInfo> = try!(rlp.val_at(1));
+		let state: Vec<ChunkInfo> = rlp.val_at(0)?;
+		let blocks: Vec<ChunkInfo> = rlp.val_at(1)?;
 
 		let manifest = ManifestData {
 			state_hashes: state.iter().map(|c| c.0).collect(),
 			block_hashes: blocks.iter().map(|c| c.0).collect(),
-			state_root: try!(rlp.val_at(2)),
-			block_number: try!(rlp.val_at(3)),
-			block_hash: try!(rlp.val_at(4)),
+			state_root: rlp.val_at(2)?,
+			block_number: rlp.val_at(3)?,
+			block_hash: rlp.val_at(4)?,
 		};
 
 		Ok(Some(PackedReader {
@@ -288,10 +288,10 @@ impl SnapshotReader for PackedReader {
 
 		let mut file = &self.file;
 
-		try!(file.seek(SeekFrom::Start(off)));
+		file.seek(SeekFrom::Start(off))?;
 		let mut buf = vec![0; len as usize];
 
-		try!(file.read_exact(&mut buf[..]));
+		file.read_exact(&mut buf[..])?;
 
 		Ok(buf)
 	}
@@ -310,10 +310,10 @@ impl LooseReader {
 		let mut manifest_buf = Vec::new();
 
 		dir.push("MANIFEST");
-		let mut manifest_file = try!(File::open(&dir));
-		try!(manifest_file.read_to_end(&mut manifest_buf));
+		let mut manifest_file = File::open(&dir)?;
+		manifest_file.read_to_end(&mut manifest_buf)?;
 
-		let manifest = try!(ManifestData::from_rlp(&manifest_buf[..]));
+		let manifest = ManifestData::from_rlp(&manifest_buf[..])?;
 
 		dir.pop();
 
@@ -334,9 +334,9 @@ impl SnapshotReader for LooseReader {
 		path.push(hash.hex());
 
 		let mut buf = Vec::new();
-		let mut file = try!(File::open(&path));
+		let mut file = File::open(&path)?;
 
-		try!(file.read_to_end(&mut buf));
+		file.read_to_end(&mut buf)?;
 
 		Ok(buf)
 	}

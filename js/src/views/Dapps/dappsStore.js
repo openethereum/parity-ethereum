@@ -46,6 +46,7 @@ export default class DappsStore {
   constructor (api) {
     this._api = api;
 
+    this.readDisplayApps();
     this.loadExternalOverlay();
     this.loadApps();
     this.subscribeToChanges();

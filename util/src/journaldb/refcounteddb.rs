@@ -127,14 +127,14 @@ impl JournalDB for RefCountedDB {
 		let mut index = 0usize;
 		let mut last;
 
-		while try!(self.backing.get(self.column, {
+		while self.backing.get(self.column, {
 			let mut r = RlpStream::new_list(3);
 			r.append(&now);
 			r.append(&index);
 			r.append(&&PADDING[..]);
 			last = r.drain();
 			&last
-		})).is_some() {
+		})?.is_some() {
 			index += 1;
 		}
 
@@ -164,14 +164,14 @@ impl JournalDB for RefCountedDB {
 		let mut index = 0usize;
 		let mut last;
 		while let Some(rlp_data) = {
-			try!(self.backing.get(self.column, {
+			self.backing.get(self.column, {
 				let mut r = RlpStream::new_list(3);
 				r.append(&end_era);
 				r.append(&index);
 				r.append(&&PADDING[..]);
 				last = r.drain();
 				&last
-			}))
+			})?
 		} {
 			let rlp = Rlp::new(&rlp_data);
 			let our_id: H256 = rlp.val_at(0);
@@ -184,7 +184,7 @@ impl JournalDB for RefCountedDB {
 			index += 1;
 		}
 
-		let r = try!(self.forward.commit_to_batch(batch));
+		let r = self.forward.commit_to_batch(batch)?;
 		Ok(r)
 	}
 
