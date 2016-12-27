@@ -46,6 +46,7 @@ use transaction::{LocalizedTransaction, SignedTransaction, Action};
 use blockchain::extras::TransactionAddress;
 use types::filter::Filter;
 use types::mode::Mode as IpcMode;
+use types::pruning_info::PruningInfo;
 use log_entry::LocalizedLogEntry;
 use verification::queue::BlockQueue;
 use blockchain::{BlockChain, BlockProvider, TreeRoute, ImportRoute};
@@ -1081,7 +1082,7 @@ impl BlockChainClient for Client {
 	}
 
 	fn import_block(&self, bytes: Bytes) -> Result<H256, BlockImportError> {
-		use verification::queue::kind::HasHash;
+		use verification::queue::kind::BlockLike;
 		use verification::queue::kind::blocks::Unverified;
 
 		// create unverified block here so the `sha3` calculation can be cached.
@@ -1121,7 +1122,9 @@ impl BlockChainClient for Client {
 	}
 
 	fn chain_info(&self) -> BlockChainInfo {
-		self.chain.read().chain_info()
+		let mut chain_info = self.chain.read().chain_info();
+		chain_info.pending_total_difficulty = chain_info.total_difficulty + self.block_queue.total_difficulty();
+		chain_info
 	}
 
 	fn additional_params(&self) -> BTreeMap<String, String> {
@@ -1225,6 +1228,12 @@ impl BlockChainClient for Client {
 	fn uncle_extra_info(&self, id: UncleID) -> Option<BTreeMap<String, String>> {
 		self.uncle(id)
 			.map(|header| self.engine.extra_info(&decode(&header)))
+	}
+
+	fn pruning_info(&self) -> PruningInfo {
+		PruningInfo {
+			history_size: Some(self.history),
+		}
 	}
 }
 

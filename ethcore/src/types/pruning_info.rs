@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -14,24 +14,16 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-pub mod transaction;
-pub mod ids;
-pub mod receipt;
-pub mod tree_route;
-pub mod blockchain_info;
-pub mod log_entry;
-pub mod trace_types;
-pub mod executed;
-pub mod block_status;
-pub mod account_diff;
-pub mod state_diff;
-pub mod verification_queue_info;
-pub mod filter;
-pub mod trace_filter;
-pub mod call_analytics;
-pub mod transaction_import;
-pub mod block_import_error;
-pub mod restoration_status;
-pub mod snapshot_manifest;
-pub mod mode;
-pub mod pruning_info;
+//! Information about portions of the state and chain which the client may serve.
+//!
+//! Currently assumes that a client will store everything past a certain point
+//! or everything. Will be extended in the future to support a definition
+//! of which portions of the ancient chain and current state trie are stored as well.
+
+/// Client pruning info. See module-level docs for more details.
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "ipc", binary)]
+pub struct PruningInfo {
+	/// Pruning history size
+	pub history_size: Option<u64>,
+}

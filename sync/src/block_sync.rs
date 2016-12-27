@@ -32,9 +32,8 @@ const MAX_HEADERS_TO_REQUEST: usize = 128;
 const MAX_BODIES_TO_REQUEST: usize = 64;
 const MAX_RECEPITS_TO_REQUEST: usize = 128;
 const SUBCHAIN_SIZE: u64 = 256;
-const MAX_ROUND_PARENTS: usize = 32;
+const MAX_ROUND_PARENTS: usize = 16;
 const MAX_PARALLEL_SUBCHAIN_DOWNLOAD: usize = 5;
-const MAX_REORG_BLOCKS: u64 = 20;
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
 /// Downloader state
@@ -95,27 +94,38 @@ pub struct BlockDownloader {
 	last_imported_hash: H256,
 	/// Number of blocks imported this round
 	imported_this_round: Option<usize>,
+	/// Block number the last round started with.
+	last_round_start: BlockNumber,
+	last_round_start_hash: H256,
 	/// Block parents imported this round (hash, parent)
 	round_parents: VecDeque<(H256, H256)>,
 	/// Do we need to download block recetips.
 	download_receipts: bool,
 	/// Sync up to the block with this hash.
 	target_hash: Option<H256>,
+	/// Reorganize up to this many blocks. Up to genesis if `None`,
+	max_reorg_blocks: Option<BlockNumber>,
+	/// Probing range for seeking common best block.
+	retract_step: u64,
 }
 
 impl BlockDownloader {
 	/// Create a new instance of syncing strategy.
-	pub fn new(sync_receipts: bool, start_hash: &H256, start_number: BlockNumber) -> BlockDownloader {
+	pub fn new(sync_receipts: bool, start_hash: &H256, start_number: BlockNumber, max_reorg: Option<BlockNumber>) -> BlockDownloader {
 		BlockDownloader {
 			state: State::Idle,
 			highest_block: None,
 			last_imported_block: start_number,
 			last_imported_hash: start_hash.clone(),
+			last_round_start: start_number,
+			last_round_start_hash: start_hash.clone(),
 			blocks: BlockCollection::new(sync_receipts),
 			imported_this_round: None,
 			round_parents: VecDeque::new(),
 			download_receipts: sync_receipts,
 			target_hash: None,
+			max_reorg_blocks: max_reorg,
+			retract_step: 1,
 		}
 	}
 
@@ -127,9 +137,12 @@ impl BlockDownloader {
 
 	/// Mark a block as known in the chain
 	pub fn mark_as_known(&mut self, hash: &H256, number: BlockNumber) {
-		if number == self.last_imported_block + 1 {
+		if number >= self.last_imported_block + 1 {
 			self.last_imported_block = number;
 			self.last_imported_hash = hash.clone();
+			self.imported_this_round = Some(self.imported_this_round.unwrap_or(0) + 1);
+			self.last_round_start = number;
+			self.last_round_start_hash = hash.clone();
 		}
 	}
 
@@ -146,12 +159,6 @@ impl BlockDownloader {
 	/// Set starting sync block
 	pub fn set_target(&mut self, hash: &H256) {
 		self.target_hash = Some(hash.clone());
-	}
-
-	/// Set starting sync block
-	pub fn _set_start(&mut self, hash: &H256, number: BlockNumber) {
-		self.last_imported_hash = hash.clone();
-		self.last_imported_block = number;
 	}
 
 	/// Unmark header as being downloaded.
@@ -172,6 +179,7 @@ impl BlockDownloader {
 	pub fn reset_to(&mut self, hashes: Vec<H256>) {
 		self.reset();
 		self.blocks.reset_to(hashes);
+		self.state = State::Blocks;
 	}
 
 	/// Returns used heap memory size.
@@ -260,7 +268,7 @@ impl BlockDownloader {
 					return Ok(DownloadAction::Reset);
 				} else {
 					let best = io.chain().chain_info().best_block_number;
-					if best > self.last_imported_block && best - self.last_imported_block > MAX_REORG_BLOCKS {
+					if best > self.last_imported_block && (self.last_imported_block == 0 || best - self.last_imported_block > self.max_reorg_blocks.unwrap_or(u64::max_value())) {
 						trace!(target: "sync", "No common block, disabling peer");
 						return Err(BlockDownloaderImportError::Invalid);
 					}
@@ -336,39 +344,47 @@ impl BlockDownloader {
 
 	fn start_sync_round(&mut self, io: &mut SyncIo) {
 		self.state = State::ChainHead;
-		trace!(target: "sync", "Starting round (last imported count = {:?}, block = {:?}", self.imported_this_round, self.last_imported_block);
+		trace!(target: "sync", "Starting round (last imported count = {:?}, last started = {}, block = {:?}", self.imported_this_round, self.last_round_start, self.last_imported_block);
 		// Check if need to retract to find the common block. The problem is that the peers still return headers by hash even
 		// from the non-canonical part of the tree. So we also retract if nothing has been imported last round.
+		let start = self.last_round_start;
+		let start_hash = self.last_round_start_hash;
 		match self.imported_this_round {
-			Some(n) if n == 0 && self.last_imported_block > 0 => {
+			Some(n) if n == 0 && start > 0 => {
 				// nothing was imported last round, step back to a previous block
 				// search parent in last round known parents first
-				if let Some(&(_, p)) = self.round_parents.iter().find(|&&(h, _)| h == self.last_imported_hash) {
-					self.last_imported_block -= 1;
+				if let Some(&(_, p)) = self.round_parents.iter().find(|&&(h, _)| h == start_hash) {
+					self.last_imported_block = start - 1;
 					self.last_imported_hash = p.clone();
 					trace!(target: "sync", "Searching common header from the last round {} ({})", self.last_imported_block, self.last_imported_hash);
 				} else {
 					let best = io.chain().chain_info().best_block_number;
-					if best > self.last_imported_block && best - self.last_imported_block > MAX_REORG_BLOCKS {
-						debug!(target: "sync", "Could not revert to previous ancient block, last: {} ({})", self.last_imported_block, self.last_imported_hash);
+					if best > start && (start == 0 || best - start > self.max_reorg_blocks.unwrap_or(u64::max_value())) {
+						debug!(target: "sync", "Could not revert to previous ancient block, last: {} ({})", start, start_hash);
 						self.reset();
 					} else {
-						match io.chain().block_hash(BlockID::Number(self.last_imported_block - 1)) {
+						let n = start - min(self.retract_step, start);
+						self.retract_step *= 2;
+						match io.chain().block_hash(BlockID::Number(n)) {
 							Some(h) => {
-								self.last_imported_block -= 1;
+								self.last_imported_block = n;
 								self.last_imported_hash = h;
-								trace!(target: "sync", "Searching common header in the blockchain {} ({})", self.last_imported_block, self.last_imported_hash);
+								trace!(target: "sync", "Searching common header in the blockchain {} ({})", start, self.last_imported_hash);
 							}
 							None => {
-								debug!(target: "sync", "Could not revert to previous block, last: {} ({})", self.last_imported_block, self.last_imported_hash);
+								debug!(target: "sync", "Could not revert to previous block, last: {} ({})", start, self.last_imported_hash);
 								self.reset();
 							}
 						}
 					}
 				}
 			},
-			_ => (),
+			_ => {
+				self.retract_step = 1;
+			},
 		}
+		self.last_round_start = self.last_imported_block;
+		self.last_round_start_hash = self.last_imported_hash;
 		self.imported_this_round = None;
 	}
 
@@ -474,6 +490,9 @@ impl BlockDownloader {
 					self.block_imported(&h, number, &parent);
 				},
 				Err(BlockImportError::Block(BlockError::UnknownParent(_))) if allow_out_of_order => {
+					break;
+				},
+				Err(BlockImportError::Block(BlockError::UnknownParent(_))) => {
 					trace!(target: "sync", "Unknown new block parent, restarting sync");
 					break;
 				},

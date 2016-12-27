@@ -26,7 +26,7 @@ use error::*;
 use engines::Engine;
 use service::*;
 
-use self::kind::{HasHash, Kind};
+use self::kind::{BlockLike, Kind};
 
 pub use types::verification_queue_info::VerificationQueueInfo as QueueInfo;
 
@@ -101,9 +101,10 @@ pub struct VerificationQueue<K: Kind> {
 	deleting: Arc<AtomicBool>,
 	ready_signal: Arc<QueueSignal>,
 	empty: Arc<SCondvar>,
-	processing: RwLock<HashSet<H256>>,
+	processing: RwLock<HashMap<H256, U256>>, // hash to difficulty
 	max_queue_size: usize,
 	max_mem_use: usize,
+	total_difficulty: RwLock<U256>,
 }
 
 struct QueueSignal {
@@ -214,10 +215,11 @@ impl<K: Kind> VerificationQueue<K> {
 			verification: verification.clone(),
 			verifiers: verifiers,
 			deleting: deleting.clone(),
-			processing: RwLock::new(HashSet::new()),
+			processing: RwLock::new(HashMap::new()),
 			empty: empty.clone(),
 			max_queue_size: max(config.max_queue_size, MIN_QUEUE_LIMIT),
 			max_mem_use: max(config.max_mem_use, MIN_MEM_LIMIT),
+			total_difficulty: RwLock::new(0.into()),
 		}
 	}
 
@@ -335,6 +337,7 @@ impl<K: Kind> VerificationQueue<K> {
 		sizes.unverified.store(0, AtomicOrdering::Release);
 		sizes.verifying.store(0, AtomicOrdering::Release);
 		sizes.verified.store(0, AtomicOrdering::Release);
+		*self.total_difficulty.write() = 0.into();
 
 		self.processing.write().clear();
 	}
@@ -349,7 +352,7 @@ impl<K: Kind> VerificationQueue<K> {
 
 	/// Check if the item is currently in the queue
 	pub fn status(&self, hash: &H256) -> Status {
-		if self.processing.read().contains(hash) {
+		if self.processing.read().contains_key(hash) {
 			return Status::Queued;
 		}
 		if self.verification.bad.lock().contains(hash) {
@@ -362,7 +365,7 @@ impl<K: Kind> VerificationQueue<K> {
 	pub fn import(&self, input: K::Input) -> ImportResult {
 		let h = input.hash();
 		{
-			if self.processing.read().contains(&h) {
+			if self.processing.read().contains_key(&h) {
 				return Err(ImportError::AlreadyQueued.into());
 			}
 
@@ -381,7 +384,11 @@ impl<K: Kind> VerificationQueue<K> {
 			Ok(item) => {
 				self.verification.sizes.unverified.fetch_add(item.heap_size_of_children(), AtomicOrdering::SeqCst);
 
-				self.processing.write().insert(h.clone());
+				self.processing.write().insert(h.clone(), item.difficulty());
+				{
+					let mut td = self.total_difficulty.write();
+					*td = *td + item.difficulty();
+				}
 				self.verification.unverified.lock().push_back(item);
 				self.more_to_verify.notify_all();
 				Ok(h)
@@ -406,7 +413,10 @@ impl<K: Kind> VerificationQueue<K> {
 		bad.reserve(hashes.len());
 		for hash in hashes {
 			bad.insert(hash.clone());
-			processing.remove(hash);
+			if let Some(difficulty) = processing.remove(hash) {
+				let mut td = self.total_difficulty.write();
+				*td = *td - difficulty;
+			}
 		}
 
 		let mut new_verified = VecDeque::new();
@@ -415,7 +425,10 @@ impl<K: Kind> VerificationQueue<K> {
 			if bad.contains(&output.parent_hash()) {
 				removed_size += output.heap_size_of_children();
 				bad.insert(output.hash());
-				processing.remove(&output.hash());
+				if let Some(difficulty) = processing.remove(&output.hash()) {
+					let mut td = self.total_difficulty.write();
+					*td = *td - difficulty;
+				}
 			} else {
 				new_verified.push_back(output);
 			}
@@ -433,7 +446,10 @@ impl<K: Kind> VerificationQueue<K> {
 		}
 		let mut processing = self.processing.write();
 		for hash in hashes {
-			processing.remove(hash);
+			if let Some(difficulty) = processing.remove(hash) {
+				let mut td = self.total_difficulty.write();
+				*td = *td - difficulty;
+			}
 		}
 		processing.is_empty()
 	}
@@ -487,7 +503,13 @@ impl<K: Kind> VerificationQueue<K> {
 		}
 	}
 
-	/// Optimise memory footprint of the heap fields.
+	/// Get the total difficulty of all the blocks in the queue.
+	pub fn total_difficulty(&self) -> U256 {
+		self.total_difficulty.read().clone()
+	}
+
+	/// Optimise memory footprint of the heap fields, and adjust the number of threads
+	/// to better suit the workload.
 	pub fn collect_garbage(&self) {
 		{
 			self.verification.unverified.lock().shrink_to_fit();
@@ -567,6 +589,22 @@ mod tests {
 			}
 			Ok(_) => { panic!("must produce error"); }
 		}
+	}
+
+	#[test]
+	fn returns_total_difficulty() {
+		let queue = get_test_queue();
+		let block = get_good_dummy_block();
+		let hash = BlockView::new(&block).header().hash().clone();
+		if let Err(e) = queue.import(Unverified::new(block)) {
+			panic!("error importing block that is valid by definition({:?})", e);
+		}
+		queue.flush();
+		assert_eq!(queue.total_difficulty(), 131072.into());
+		queue.drain(10);
+		assert_eq!(queue.total_difficulty(), 131072.into());
+		queue.mark_as_good(&[ hash ]);
+		assert_eq!(queue.total_difficulty(), 0.into());
 	}
 
 	#[test]
