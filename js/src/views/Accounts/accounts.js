@@ -18,7 +18,7 @@ import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 import ContentAdd from 'material-ui/svg-icons/content/add';
-import { uniq, isEqual, pickBy } from 'lodash';
+import { uniq, isEqual, pickBy, omitBy } from 'lodash';
 
 import List from './List';
 import { CreateAccount, CreateWallet } from '~/modals';
@@ -285,15 +285,18 @@ class Accounts extends Component {
 }
 
 function mapStateToProps (state) {
-  const { accounts, hasAccounts } = state.personal;
+  const { accounts } = state.personal;
   const { balances } = state.balances;
 
   const wallets = pickBy(accounts, (a) => a.wallet);
   const hasWallets = Object.keys(wallets).length > 0;
 
+  const _accounts = omitBy(accounts, (a) => a.wallet);
+  const _hasAccounts = Object.keys(_accounts).length > 0;
+
   return {
-    accounts,
-    hasAccounts,
+    accounts: _accounts,
+    hasAccounts: _hasAccounts,
     wallets,
     hasWallets,
     balances
