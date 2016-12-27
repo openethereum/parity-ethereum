@@ -42,10 +42,6 @@ export default class AddContract extends Component {
     step: 0
   };
 
-  componentDidMount () {
-    this.onChangeABIType(null, this.state.abiTypeIndex);
-  }
-
   render () {
     const { step } = this.state;
 
@@ -221,10 +217,7 @@ export default class AddContract extends Component {
   }
 
   onChangeABIType = (value, index) => {
-    const abiType = value || ABI_TYPES[index];
-
-    this.setState({ abiTypeIndex: index, abiType });
-    this.onEditAbi(abiType.value);
+    this.store.setAbiTypeIndex(index);
   }
 
   onEditAbi = (abi) => {

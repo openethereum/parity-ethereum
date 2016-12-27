@@ -35,6 +35,8 @@ export default class Store {
   constructor (api, contracts) {
     this._api = api;
     this._contracts = contracts;
+
+    this.setAbiTypeIndex(this.abiTypeIndex);
   }
 
   @computed get abiType () {
@@ -52,6 +54,13 @@ export default class Store {
       this.abi = abi;
       this.abiError = abiError;
       this.abiParsed = abiParsed;
+    });
+  }
+
+  @action setAbiTypeIndex = (abiTypeIndex) => {
+    transaction(() => {
+      this.abiTypeIndex = abiTypeIndex;
+      this.setAbi(this.abiTypes[abiTypeIndex].value);
     });
   }
 
