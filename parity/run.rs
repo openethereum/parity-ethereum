@@ -370,6 +370,7 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 		sync: sync_provider.clone(),
 		remote: event_loop.remote(),
 		fetch: fetch.clone(),
+		signer: deps_for_rpc_apis.signer_service.clone(),
 	};
 	let dapps_server = dapps::new(cmd.dapps_conf.clone(), dapps_deps)?;
 

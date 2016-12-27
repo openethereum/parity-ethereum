@@ -20,7 +20,8 @@
 }
 
 .box {
-  margin: 0 1em 1em 1em;
+  display: flex;
+  align-items: baseline;
 }
 
 .spacing {

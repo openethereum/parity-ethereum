@@ -37,6 +37,9 @@ pub struct Url {
 	/// Empty entries of `""` correspond to trailing slashes.
 	pub path: Vec<String>,
 
+	/// The URL query.
+	pub query: Option<String>,
+
 	/// The URL username field, from the userinfo section of the URL.
 	///
 	/// `None` if the `@` character was not part of the input OR
@@ -86,11 +89,13 @@ impl Url {
 		let host = raw_url.host().ok_or_else(|| "Valid host, because only data:, mailto: protocols does not have host.".to_owned())?.to_owned();
 		let path = raw_url.path_segments().ok_or_else(|| "Valid path segments. In HTTP we won't get cannot-be-a-base URLs".to_owned())?
 					.map(|part| part.to_owned()).collect();
+		let query = raw_url.query().map(|x| x.to_owned());
 
 		Ok(Url {
 			port: port,
 			host: host,
 			path: path,
+			query: query,
 			raw: raw_url,
 			username: username,
 			password: password,

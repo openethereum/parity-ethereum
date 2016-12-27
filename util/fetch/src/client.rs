@@ -22,8 +22,8 @@ use std::sync::atomic::{self, AtomicBool};
 
 use futures::{self, BoxFuture, Future};
 use futures_cpupool::{CpuPool, CpuFuture};
+use mime::{self, Mime};
 use reqwest;
-pub use mime::Mime;
 
 #[derive(Default, Debug, Clone)]
 pub struct Abort(Arc<AtomicBool>);
@@ -47,9 +47,9 @@ pub trait Fetch: Clone + Send + Sync + 'static {
 	/// Implementation is optional.
 	fn process<F>(&self, f: F) -> BoxFuture<(), ()> where
 		F: Future<Item=(), Error=()> + Send + 'static,
-			{
-				f.boxed()
-			}
+	{
+		f.boxed()
+	}
 
 	/// Fetch URL and get a future for the result.
 	/// Supports aborting the request in the middle of execution.
@@ -99,9 +99,9 @@ impl Fetch for Client {
 
 	fn process<F>(&self, f: F) -> BoxFuture<(), ()> where
 		F: Future<Item=(), Error=()> + Send + 'static,
-			{
-				self.pool.spawn(f).boxed()
-			}
+	{
+		self.pool.spawn(f).boxed()
+	}
 
 	fn fetch_with_abort(&self, url: &str, abort: Abort) -> Self::Result {
 		debug!(target: "fetch", "Fetching from: {:?}", url);
@@ -188,6 +188,20 @@ impl Response {
 			abort: Abort::default(),
 			limit: None,
 			read: 0,
+		}
+	}
+
+	pub fn status(&self) -> reqwest::StatusCode {
+		match self.inner {
+			ResponseInner::Response(ref r) => *r.status(),
+			_ => reqwest::StatusCode::Ok,
+		}
+	}
+
+	pub fn is_html(&self) -> bool {
+		match self.content_type() {
+			Some(Mime(mime::TopLevel::Text, mime::SubLevel::Html, _)) => true,
+			_ => false,
 		}
 	}
 

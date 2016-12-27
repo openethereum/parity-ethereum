@@ -23,7 +23,7 @@ use util::H256;
 
 use util::sha3::sha3;
 use page::{LocalPageEndpoint, PageCache};
-use handlers::ContentValidator;
+use handlers::{ContentValidator, ValidatorResponse};
 use apps::manifest::{MANIFEST_FILENAME, deserialize_manifest, serialize_manifest, Manifest};
 
 type OnDone = Box<Fn(Option<LocalPageEndpoint>) + Send>;
@@ -90,7 +90,7 @@ impl Content {
 impl ContentValidator for Content {
 	type Error = ValidationError;
 
-	fn validate_and_install(&self, response: fetch::Response) -> Result<LocalPageEndpoint, ValidationError> {
+	fn validate_and_install(&self, response: fetch::Response) -> Result<ValidatorResponse, ValidationError> {
 		let validate = |content_path: PathBuf| {
 			// Create dir
 			let (_, content_path) = write_response_and_check_hash(self.id.as_str(), content_path.clone(), self.id.as_str(), response)?;
@@ -108,7 +108,7 @@ impl ContentValidator for Content {
 			let _ = fs::remove_dir_all(&content_path);
 		}
 		(self.on_done)(result.as_ref().ok().cloned());
-		result
+		result.map(ValidatorResponse::Local)
 	}
 }
 
@@ -157,7 +157,7 @@ impl Dapp {
 impl ContentValidator for Dapp {
 	type Error = ValidationError;
 
-	fn validate_and_install(&self, response: fetch::Response) -> Result<LocalPageEndpoint, ValidationError> {
+	fn validate_and_install(&self, response: fetch::Response) -> Result<ValidatorResponse, ValidationError> {
 		let validate = |dapp_path: PathBuf| {
 			let (file, zip_path) = write_response_and_check_hash(self.id.as_str(), dapp_path.clone(), &format!("{}.zip", self.id), response)?;
 			trace!(target: "dapps", "Opening dapp bundle at {:?}", zip_path);
@@ -211,7 +211,7 @@ impl ContentValidator for Dapp {
 			let _ = fs::remove_dir_all(&target);
 		}
 		(self.on_done)(result.as_ref().ok().cloned());
-		result
+		result.map(ValidatorResponse::Local)
 	}
 }
 

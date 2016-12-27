@@ -195,5 +195,12 @@ impl<C: 'static, M: 'static> Signer for SignerClient<C, M> where C: MiningBlockC
 		signer.generate_token()
 			.map_err(|e| errors::token(e))
 	}
+
+	fn generate_web_proxy_token(&self) -> Result<String, Error> {
+		try!(self.active());
+		let signer = take_weak!(self.signer);
+
+		Ok(signer.generate_web_proxy_access_token())
+	}
 }
 

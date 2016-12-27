@@ -22,8 +22,9 @@ extern crate tokio_core;
 
 use std::thread;
 use std::sync::mpsc;
+use std::time::Duration;
 use futures::{Future, IntoFuture};
-use self::tokio_core::reactor::Remote as TokioRemote;
+use self::tokio_core::reactor::{Remote as TokioRemote, Timeout};
 
 /// Event Loop for futures.
 /// Wrapper around `tokio::reactor::Core`.
@@ -102,6 +103,28 @@ impl Remote {
 	{
 		match self.inner {
 			Mode::Tokio(ref remote) => remote.spawn(move |_| f()),
+			Mode::Sync => {
+				let _ = f().into_future().wait();
+			},
+		}
+	}
+
+	/// Spawn a new future and wait for it or for a timeout to occur.
+	pub fn spawn_with_timeout<F, R, T>(&self, f: F, duration: Duration, on_timeout: T) where
+		T: FnOnce() -> () + Send + 'static,
+		F: FnOnce() -> R + Send + 'static,
+		R: IntoFuture<Item=(), Error=()>,
+		R::Future: 'static,
+	{
+		match self.inner {
+			Mode::Tokio(ref remote) => remote.spawn(move |handle| {
+				let future = f().into_future();
+				let timeout = Timeout::new(duration, handle).expect("Event loop is still up.");
+				future.select(timeout.then(move |_| {
+					on_timeout();
+					Ok(())
+				})).then(|_| Ok(()))
+			}),
 			Mode::Sync => {
 				let _ = f().into_future().wait();
 			},
