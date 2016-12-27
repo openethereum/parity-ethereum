@@ -32,6 +32,7 @@ const updatableFilter = (api, onFilter) => {
         api.eth.uninstallFilter(filterId);
       });
     }
+
     filter = (filter || Promise.resolve())
       .then(() => api.eth.newFilter({
         fromBlock: 0,
@@ -46,7 +47,10 @@ const updatableFilter = (api, onFilter) => {
       .catch((err) => {
         console.error('Failed to create certifications filter:', err);
       });
+
+    return filter;
   };
+
   return update;
 };
 
@@ -63,39 +67,27 @@ export default class CertificationsMiddleware {
       let certifiers = [];
       let accounts = []; // these are addresses
       let filter = null;
+      let badgeRegFilter = null;
 
-      const onFilter = (filterId) => {
+      const updateFilter = updatableFilter(api, (filterId) => {
         filter = filterId;
-        api.eth.getFilterLogs(filterId)
-          .then(onLogs)
-          .catch((err) => {
-            console.error('Failed to fetch certifier events:', err);
-          });
-      };
-
-      const onBadgeFilter = (filterId) => {
-        api.eth.getFilterLogs(filterId)
-          .then((logs) => {
-            const ids = logs.map((log) => log.params.id.value.toNumber());
-            return fetchCertifiers(uniq(ids));
-          })
-          .catch((err) => {
-            console.error('Failed to fetch badgereg events:', err);
-          });
-      };
-
-      const updateFilter = updatableFilter(api, onFilter);
-      const badgeRegFilter = updatableFilter(api, onBadgeFilter);
+      });
+      const badgeRegUpdateFilter = updatableFilter(api, (filterId) => {
+        badgeRegFilter = filterId;
+      });
 
       badgeReg
         .getContract()
         .then((badgeRegContract) => {
-          badgeRegFilter(badgeRegContract.address, [
+          return badgeRegUpdateFilter(badgeRegContract.address, [
             badgeRegContract.instance.Registered.signature,
             badgeRegContract.instance.Unregistered.signature,
             badgeRegContract.instance.MetaChanged.signature,
             badgeRegContract.instance.AddressChanged.signature
           ]);
+        })
+        .then(() => {
+          fetchChanges();
         });
 
       const onLogs = (logs) => {
@@ -103,6 +95,7 @@ export default class CertificationsMiddleware {
         logs.forEach((log) => {
           const certifier = certifiers.find((c) => c.address === log.address);
           if (!certifier) {
+            console.warn(certifiers, log);
             throw new Error(`Could not find certifier at ${log.address}.`);
           }
           const { id, name, title, icon } = certifier;
@@ -115,8 +108,18 @@ export default class CertificationsMiddleware {
         });
       };
 
+      const onBadgeRegLogs = (logs) => {
+        const ids = logs.map((log) => log.params.id.value.toNumber());
+        return fetchCertifiers(uniq(ids));
+      };
+
       const fetchChanges = debounce(() => {
-        api.eth.getFilterChanges(filter)
+        api.eth.getFilterChanges(badgeRegFilter)
+          .then(onBadgeRegLogs)
+          .catch((err) => {
+            console.error('Failed to fetch badge reg events:', err);
+          })
+          .then(() => api.eth.getFilterChanges(filter))
           .then(onLogs)
           .catch((err) => {
             console.error('Failed to fetch new certifier events:', err);
@@ -139,8 +142,8 @@ export default class CertificationsMiddleware {
       };
 
       const fetchCertifiers = (ids) => {
-        return ids.forEach((id) => {
-          badgeReg.fetchCertifier(id)
+        const promises = ids.map((id) => {
+          return badgeReg.fetchCertifier(id)
             .then((cert) => {
               if (!certifiers.some((c) => c.id === cert.id)) {
                 certifiers = certifiers.concat(cert);
@@ -155,6 +158,8 @@ export default class CertificationsMiddleware {
               console.warn(`Could not fetch certifier ${id}:`, err);
             });
         });
+
+        return Promise.all(promises);
       };
 
       return (next) => (action) => {
