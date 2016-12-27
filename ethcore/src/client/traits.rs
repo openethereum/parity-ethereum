@@ -39,6 +39,7 @@ use types::call_analytics::CallAnalytics;
 use types::blockchain_info::BlockChainInfo;
 use types::block_status::BlockStatus;
 use types::mode::Mode;
+use types::pruning_info::PruningInfo;
 
 #[ipc(client_ident="RemoteClient")]
 /// Blockchain database client. Owns and manages a blockchain and a block queue.
@@ -241,6 +242,9 @@ pub trait BlockChainClient : Sync + Send {
 
 	/// Returns engine-related extra info for `UncleID`.
 	fn uncle_extra_info(&self, id: UncleID) -> Option<BTreeMap<String, String>>;
+
+	/// Get pruning settings.
+	fn pruning_info(&self) -> PruningInfo;
 }
 
 /// Extended client interface used for mining

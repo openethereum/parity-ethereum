@@ -38,6 +38,7 @@ use evm::{Factory as EvmFactory, VMType, Schedule};
 use miner::{Miner, MinerService, TransactionImportResult};
 use spec::Spec;
 use types::mode::Mode;
+use types::pruning_info::PruningInfo;
 use views::BlockView;
 
 use verification::queue::QueueInfo;
@@ -89,6 +90,8 @@ pub struct TestBlockChainClient {
 	pub ancient_block: RwLock<Option<(H256, u64)>>,
 	/// First block info.
 	pub first_block: RwLock<Option<(H256, u64)>>,
+	/// Pruning history size to report.
+	pub history: RwLock<Option<u64>>,
 }
 
 #[derive(Clone)]
@@ -140,6 +143,7 @@ impl TestBlockChainClient {
 			latest_block_timestamp: RwLock::new(10_000_000),
 			ancient_block: RwLock::new(None),
 			first_block: RwLock::new(None),
+			history: RwLock::new(None),
 		};
 		client.add_blocks(1, EachBlockWith::Nothing); // add genesis block
 		client.genesis_hash = client.last_hash.read().clone();
@@ -299,6 +303,11 @@ impl TestBlockChainClient {
 		let res = self.miner.import_external_transactions(self, vec![signed_tx]);
 		let res = res.into_iter().next().unwrap().expect("Successful import");
 		assert_eq!(res, TransactionImportResult::Current);
+	}
+
+	/// Set reported history size.
+	pub fn set_history(&self, h: Option<u64>) {
+		*self.history.write() = h;
 	}
 }
 
@@ -650,4 +659,10 @@ impl BlockChainClient for TestBlockChainClient {
 	fn mode(&self) -> Mode { Mode::Active }
 
 	fn set_mode(&self, _: Mode) { unimplemented!(); }
+
+	fn pruning_info(&self) -> PruningInfo {
+		PruningInfo {
+			history_size: *self.history.read(),
+		}
+	}
 }
