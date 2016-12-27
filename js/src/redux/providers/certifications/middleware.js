@@ -64,7 +64,7 @@ export default class CertificationsMiddleware {
 
     return (store) => {
       let certifiers = [];
-      let accounts = []; // these are addresses
+      let addresses = []; // these are addresses
       let filterChanged = false;
       let filter = null;
       let badgeRegFilter = null;
@@ -106,7 +106,6 @@ export default class CertificationsMiddleware {
         logs.forEach((log) => {
           const certifier = certifiers.find((c) => c.address === log.address);
           if (!certifier) {
-            console.warn(certifiers, log);
             throw new Error(`Could not find certifier at ${log.address}.`);
           }
           const { id, name, title, icon } = certifier;
@@ -149,7 +148,7 @@ export default class CertificationsMiddleware {
       function fetchConfirmedEvents () {
         return updateFilter(certifiers.map((c) => c.address), [
           [ Confirmed.signature, Revoked.signature ],
-          accounts
+          addresses
         ]).then(() => shortFetchChanges());
       }
 
@@ -200,15 +199,15 @@ export default class CertificationsMiddleware {
           case 'fetchCertifications':
             const { address } = action;
 
-            if (!accounts.includes(address)) {
-              accounts = accounts.concat(address);
+            if (!addresses.includes(address)) {
+              addresses = addresses.concat(address);
               fetchConfirmedEvents();
             }
 
             break;
           case 'setVisibleAccounts':
-            const { addresses } = action;
-            accounts = uniq(accounts.concat(addresses));
+            const _addresses = action.addresses || [];
+            addresses = uniq(addresses.concat(_addresses));
             fetchConfirmedEvents();
 
             break;
