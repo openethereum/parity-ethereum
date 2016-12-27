@@ -42,6 +42,10 @@ export function outAddress (address) {
   return toChecksumAddress(address);
 }
 
+export function outAddresses (addresses) {
+  return (addresses || []).map(outAddress);
+}
+
 export function outBlock (block) {
   if (block) {
     Object.keys(block).forEach((key) => {

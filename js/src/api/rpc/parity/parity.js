@@ -14,16 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { inAddress, inData, inHex, inNumber16, inOptions } from '../../format/input';
-import { outAccountInfo, outAddress, outChainStatus, outHistogram, outNumber, outPeers, outTransaction } from '../../format/output';
-
-function inAddresses (addresses) {
-  return (addresses || []).map(inAddress);
-}
-
-function outAddresses (addresses) {
-  return (addresses || []).map(outAddress);
-}
+import { inAddress, inAddresses, inData, inHex, inNumber16, inOptions } from '../../format/input';
+import { outAccountInfo, outAddress, outAddresses, outChainStatus, outHistogram, outNumber, outPeers, outTransaction } from '../../format/output';
 
 export default class Parity {
   constructor (transport) {
