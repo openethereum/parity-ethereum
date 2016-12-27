@@ -17,16 +17,24 @@
 // import './integration-tests';
 // import './perf-debug';
 
-import './tests';
+if (process.env.NODE_ENV === 'development') {
+  window.Perf = require('react-addons-perf');
+}
 
-const parityNode = (
-    process.env.PARITY_URL && `http://${process.env.PARITY_URL}`
-  ) || (
+if (process.env.NODE_ENV === 'test') {
+  require('./tests');
+}
+
+const parityDapps = process.env.PARITY_URL ||
+  (
     process.env.NODE_ENV === 'production'
-    ? 'http://127.0.0.1:8080'
-    : ''
+      ? '127.0.0.1:8080'
+      : ''
   );
 
+const parityUrl = process.env.PARITY_URL || window.location.host;
+
 export {
-  parityNode
+  parityDapps,
+  parityUrl
 };

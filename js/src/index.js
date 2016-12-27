@@ -20,39 +20,28 @@ import 'whatwg-fetch';
 import es6Promise from 'es6-promise';
 es6Promise.polyfill();
 
+import qs from 'querystring';
 import React from 'react';
 import ReactDOM from 'react-dom';
 import { AppContainer } from 'react-hot-loader';
-
+import { Router, hashHistory } from 'react-router';
 import injectTapEventPlugin from 'react-tap-event-plugin';
-import { hashHistory } from 'react-router';
-import qs from 'querystring';
+injectTapEventPlugin();
 
-import SecureApi from './secureApi';
-import ContractInstances from '~/contracts';
-
+import ContractInstances from './contracts';
 import { initStore } from './redux';
-import ContextProvider from '~/ui/ContextProvider';
-import muiTheme from '~/ui/Theme';
-import MainApplication from './main';
+import { setApi } from './redux/providers/apiActions';
+import { ContextProvider, muiTheme } from './ui';
 
-import { setApi } from '~/redux/providers/apiActions';
-
-import './environment';
+import { parityUrl } from './environment';
+import SecureApi from './secureApi';
+import routes from './routes';
 
 import '../assets/fonts/Roboto/font.css';
 import '../assets/fonts/RobotoMono/font.css';
-
-injectTapEventPlugin();
-
-if (process.env.NODE_ENV === 'development') {
-  // Expose the React Performance Tools on the`window` object
-  const Perf = require('react-addons-perf');
-  window.Perf = Perf;
-}
+import reset from './reset.css';
 
 const AUTH_HASH = '#/auth?';
-const parityUrl = process.env.PARITY_URL || window.location.host;
 
 let token = null;
 if (window.location.hash && window.location.hash.indexOf(AUTH_HASH) === 0) {
@@ -68,30 +57,29 @@ store.dispatch(setApi(api));
 
 window.secureApi = api;
 
-ReactDOM.render(
+const container = () => (
   <AppContainer>
-    <ContextProvider api={ api } muiTheme={ muiTheme } store={ store }>
-      <MainApplication
-        routerHistory={ hashHistory }
-      />
+    <ContextProvider
+      api={ api }
+      muiTheme={ muiTheme }
+      store={ store }>
+      <Router
+        className={ reset.reset }
+        history={ hashHistory }
+        routes={ routes } />
     </ContextProvider>
-  </AppContainer>,
-  document.querySelector('#container')
+  </AppContainer>
 );
 
-if (module.hot) {
-  module.hot.accept('./main.js', () => {
-    require('./main.js');
+ReactDOM.render(container(), document.querySelector('#container'));
 
-    ReactDOM.render(
-      <AppContainer>
-        <ContextProvider api={ api } muiTheme={ muiTheme } store={ store }>
-          <MainApplication
-            routerHistory={ hashHistory }
-          />
-        </ContextProvider>
-      </AppContainer>,
-      document.querySelector('#container')
-    );
+if (module.hot) {
+  module.hot.accept((error) => {
+    if (error) {
+      console.error('hot loading', error);
+      return;
+    }
+
+    ReactDOM.render(container(), document.querySelector('#container'));
   });
 }
