@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { computed, observable } from 'mobx';
+import { action, computed, observable, transaction } from 'mobx';
 
 import { ERRORS, validateAbi, validateAddress, validateName } from '~/util/validation';
 
@@ -23,6 +23,7 @@ import { ABI_TYPES } from './types';
 export default class Store {
   @observable abi = '';
   @observable abiError = ERRORS.invalidAbi;
+  @observable abiParsed = null;
   @observable abiTypes = ABI_TYPES;
   @observable abiTypeIndex = 2;
   @observable address = '';
@@ -31,12 +32,57 @@ export default class Store {
   @observable name = '';
   @observable nameError = ERRORS.invalidName;
 
-  constructor (api, abiTypes) {
+  constructor (api, contracts) {
     this._api = api;
+    this._contracts = contracts;
   }
 
   @computed get abiType () {
     return this.abiTypes[this.abiTypeIndex];
+  }
+
+  @computed get hasError () {
+    return !!(this.abiError || this.addressError || this.nameError);
+  }
+
+  @action setAbi = (_abi) => {
+    const { abi, abiError, abiParsed } = validateAbi(_abi, this._api);
+
+    transaction(() => {
+      this.abi = abi;
+      this.abiError = abiError;
+      this.abiParsed = abiParsed;
+    });
+  }
+
+  @action setAddress = (_address) => {
+    let { address, addressError } = validateAddress(_address);
+
+    if (!addressError) {
+      const contract = this._contracts[address];
+
+      if (contract) {
+        addressError = ERRORS.duplicateAddress;
+      }
+    }
+
+    transaction(() => {
+      this.address = address;
+      this.addressError = addressError;
+    });
+  }
+
+  @action setDescription = (description) => {
+    this.description = description;
+  }
+
+  @action setName = (_name) => {
+    const { name, nameError } = validateName(_name);
+
+    transaction(() => {
+      this.name = name;
+      this.nameError = nameError;
+    });
   }
 
   addContract () {

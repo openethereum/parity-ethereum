@@ -24,17 +24,6 @@ import { AddIcon, CancelIcon, NextIcon, PrevIcon } from '~/ui/Icons';
 
 import Store from './store';
 
-const STEPS = [
-  <FormattedMessage
-    id='addContract.title.type'
-    defaultMessage='choose a contract type'
-    key='type' />,
-  <FormattedMessage
-    id='addContract.title.details'
-    defaultMessage='enter contract details'
-    key='details' />
-];
-
 @observer
 export default class AddContract extends Component {
   static contextTypes = {
@@ -64,7 +53,16 @@ export default class AddContract extends Component {
       <Modal
         actions={ this.renderDialogActions() }
         current={ step }
-        steps={ STEPS }
+        steps={ [
+          <FormattedMessage
+            id='addContract.title.type'
+            defaultMessage='choose a contract type'
+            key='type' />,
+          <FormattedMessage
+            id='addContract.title.details'
+            defaultMessage='enter contract details'
+            key='details' />
+        ] }
         visible>
         { this.renderStep(step) }
       </Modal>
@@ -82,21 +80,20 @@ export default class AddContract extends Component {
   }
 
   renderContractTypeSelector () {
-    const { abiTypeIndex } = this.state;
+    const { abiTypeIndex, abiTypes } = this.store;
 
     return (
       <RadioButtons
         name='contractType'
         value={ abiTypeIndex }
-        values={ this.getAbiTypes() }
+        values={ abiTypes }
         onChange={ this.onChangeABIType }
       />
     );
   }
 
   renderDialogActions () {
-    const { addressError, nameError, step } = this.state;
-    const hasError = !!(addressError || nameError);
+    const { step } = this.state;
 
     const cancelBtn = (
       <Button
@@ -144,13 +141,13 @@ export default class AddContract extends Component {
             id='addContract.button.add'
             defaultMessage='Add Contract' />
         }
-        disabled={ hasError }
+        disabled={ this.store.hasError }
         onClick={ this.onAdd } />
     ];
   }
 
   renderFields () {
-    const { abi, abiError, address, addressError, description, name, nameError, abiType } = this.state;
+    const { abi, abiError, abiType, address, addressError, description, name, nameError } = this.store;
 
     return (
       <Form>
@@ -215,15 +212,6 @@ export default class AddContract extends Component {
     );
   }
 
-  getAbiTypes () {
-    return ABI_TYPES.map((type, index) => ({
-      label: type.label,
-      description: type.description,
-      key: index,
-      ...type
-    }));
-  }
-
   onNext = () => {
     this.setState({ step: this.state.step + 1 });
   }
@@ -234,45 +222,29 @@ export default class AddContract extends Component {
 
   onChangeABIType = (value, index) => {
     const abiType = value || ABI_TYPES[index];
+
     this.setState({ abiTypeIndex: index, abiType });
     this.onEditAbi(abiType.value);
   }
 
-  onEditAbi = (abiIn) => {
-    const { api } = this.context;
-    const { abi, abiError, abiParsed } = validateAbi(abiIn, api);
-
-    this.setState({ abi, abiError, abiParsed });
+  onEditAbi = (abi) => {
+    this.store.setAbi(abi);
   }
 
-  onChangeAddress = (event, value) => {
-    this.onEditAddress(value);
+  onChangeAddress = (event, address) => {
+    this.onEditAddress(address);
   }
 
-  onEditAddress = (_address) => {
-    const { contracts } = this.props;
-    let { address, addressError } = validateAddress(_address);
-
-    if (!addressError) {
-      const contract = contracts[address];
-
-      if (contract) {
-        addressError = ERRORS.duplicateAddress;
-      }
-    }
-
-    this.setState({
-      address,
-      addressError
-    });
+  onEditAddress = (address) => {
+    this.store.setAddress(address);
   }
 
   onEditDescription = (description) => {
-    this.setState({ description });
+    this.store.setDescription(description);
   }
 
   onEditName = (name) => {
-    this.setState(validateName(name));
+    this.store.setName(name);
   }
 
   onAdd = () => {
