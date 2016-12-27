@@ -14,19 +14,23 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { action, computed, observable, toJS } from 'mobx';
-import React from 'react';
+import { action, computed, observable, toJS, transaction } from 'mobx';
 
-import { showSnackbar } from '~/redux/providers/snackbarActions';
+const CHANGE_ACTION = 'CHANGE_ACTION';
+const TEST_ACTION = 'TEST_ACTION';
 
 export default class Store {
+  @observable actionTab = TEST_ACTION;
   @observable address = null;
+  @observable busy = false;
+  @observable infoMessage = null;
   @observable meta = null;
   @observable newPassword = '';
   @observable newPasswordHint = '';
   @observable newPasswordRepeat = '';
   @observable password = '';
   @observable passwordHint = '';
+  @observable testPassword = '';
 
   constructor (api, account) {
     const { address, meta } = account;
@@ -42,24 +46,60 @@ export default class Store {
     return this.newPasswordRepeat === this.newPassword;
   }
 
+  @action setActionTab = (actionTab) => {
+    transaction(() => {
+      this.actionTab = actionTab;
+      this.setInfoMessage();
+    });
+  }
+
+  @action setBusy = (busy, message) => {
+    transaction(() => {
+      this.busy = busy;
+      this.setInfoMessage(message);
+    });
+  }
+
+  @action setInfoMessage = (message = null) => {
+    this.infoMessage = message;
+  }
+
   @action setPassword = (password) => {
-    this.password = password;
+    transaction(() => {
+      this.password = password;
+      this.setInfoMessage();
+    });
   }
 
   @action setNewPassword = (password) => {
-    this.newPassword = password;
+    transaction(() => {
+      this.newPassword = password;
+      this.setInfoMessage();
+    });
   }
 
   @action setNewPasswordHint = (passwordHint) => {
-    this.newPasswordHint = passwordHint;
+    transaction(() => {
+      this.newPasswordHint = passwordHint;
+      this.setInfoMessage();
+    });
   }
 
   @action setNewPasswordRepeat = (password) => {
-    this.newPasswordRepeat = password;
+    transaction(() => {
+      this.newPasswordRepeat = password;
+      this.setInfoMessage();
+    });
+  }
+
+  @action setTestPassword = (password) => {
+    transaction(() => {
+      this.testPassword = password;
+      this.setInfoMessage();
+    });
   }
 
   changePassword = () => {
-    const { onClose } = this.props;
     const { currentPass } = this.state;
 
     if (this.newPasswordRepeat !== this.newPassword) {
@@ -92,32 +132,39 @@ export default class Store {
             this._api.parity.changePassword(this.address, this.password, this.newPassword)
           ])
           .then(() => {
-            showSnackbar(<div>Your password has been successfully changed.</div>);
             this.setState({ waiting: false, showMessage: false });
-            onClose();
+            return true;
           });
       })
       .catch((error) => {
         console.error('changePassword', error);
-        this.setState({ waiting: false });
+        this.setBusy(false);
+        throw error;
       });
   }
 
   testPassword = () => {
-    this.setState({ waiting: true, showMessage: false });
+    this.setBusy(false);
 
     return this._api.parity
-      .testPassword(this.address, this.password)
-      .then(correct => {
-        const message = correct
-          ? { value: 'This password is correct', success: true }
-          : { value: 'This password is not correct', success: false };
-
-        this.setState({ waiting: false, message, showMessage: true });
+      .testPassword(this.address, this.testPassword)
+      .then((success) => {
+        this.setBusy(false, {
+          success,
+          value: success
+            ? 'This password is correct'
+            : 'This password is not correct'
+        });
       })
       .catch((error) => {
         console.error('testPassword', error);
-        this.setState({ waiting: false });
+        this.setBusy(false);
+        throw error;
       });
   }
 }
+
+export {
+  CHANGE_ACTION,
+  TEST_ACTION
+};
