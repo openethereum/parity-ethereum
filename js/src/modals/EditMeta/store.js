@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { action, computed, observable, toJS, transaction } from 'mobx';
+import { action, computed, observable, transaction } from 'mobx';
 
 import { newError } from '~/redux/actions';
 import { validateName } from '~/util/validation';
@@ -36,7 +36,7 @@ export default class Store {
 
     this.isAccount = !!uuid;
     this.address = address;
-    this.meta = Object.assign({}, meta || {});
+    this.meta = meta || {};
     this.name = name || '';
 
     this.description = this.meta.description || '';
@@ -86,7 +86,7 @@ export default class Store {
     return Promise
       .all([
         this._api.parity.setAccountName(this.address, this.name),
-        this._api.parity.setAccountMeta(this.address, Object.assign({}, toJS(this.meta), meta))
+        this._api.parity.setAccountMeta(this.address, Object.assign({}, this.meta, meta))
       ])
       .catch((error) => {
         console.error('onSave', error);
