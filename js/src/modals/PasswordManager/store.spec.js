@@ -14,5 +14,41 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import { toJS } from 'mobx';
+
+import Store from './store';
+import { ACCOUNT, createApi } from './passwordManager.test.js';
+
+let api;
+let store;
+
+function createStore (account) {
+  api = createApi();
+  store = new Store(api, account);
+
+  return store;
+}
+
 describe('modals/PasswordManager/Store', () => {
+  describe('constructor', () => {
+    describe('accounts', () => {
+      beforeEach(() => {
+        createStore(ACCOUNT);
+      });
+
+      it('extracts the address', () => {
+        expect(store.address).to.equal(ACCOUNT.address);
+      });
+
+      describe('meta', () => {
+        it('extracts the full meta', () => {
+          expect(toJS(store.meta)).to.deep.equal(ACCOUNT.meta);
+        });
+
+        it('extracts the passwordHint', () => {
+          expect(store.passwordHint).to.equal(ACCOUNT.meta.passwordHint);
+        });
+      });
+    });
+  });
 });
