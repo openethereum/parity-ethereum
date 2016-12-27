@@ -168,6 +168,7 @@
     "react-dom": "15.4.1",
     "react-dropzone": "3.7.3",
     "react-intl": "2.1.5",
+    "react-portal": "3.0.0",
     "react-redux": "4.4.6",
     "react-router": "3.0.0",
     "react-router-redux": "4.0.7",
