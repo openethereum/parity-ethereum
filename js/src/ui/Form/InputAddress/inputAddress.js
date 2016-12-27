@@ -69,7 +69,7 @@ class InputAddress extends Component {
     classes.push(!icon ? styles.inputEmpty : styles.input);
 
     const containerClasses = [ styles.container ];
-    const nullName = readOnly && isNullAddress(value) ? 'null' : null;
+    const nullName = (disabled || readOnly) && isNullAddress(value) ? 'null' : null;
 
     if (small) {
       containerClasses.push(styles.small);
