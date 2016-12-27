@@ -593,7 +593,7 @@ mod tests {
 
 	#[test]
 	fn returns_total_difficulty() {
-		let queue = get_test_queue(false);
+		let queue = get_test_queue();
 		let block = get_good_dummy_block();
 		let hash = BlockView::new(&block).header().hash().clone();
 		if let Err(e) = queue.import(Unverified::new(block)) {

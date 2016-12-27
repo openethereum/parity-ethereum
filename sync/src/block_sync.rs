@@ -365,7 +365,7 @@ impl BlockDownloader {
 					} else {
 						let n = start - min(self.retract_step, start);
 						self.retract_step *= 2;
-						match io.chain().block_hash(BlockId::Number(n)) {
+						match io.chain().block_hash(BlockID::Number(n)) {
 							Some(h) => {
 								self.last_imported_block = n;
 								self.last_imported_hash = h;
