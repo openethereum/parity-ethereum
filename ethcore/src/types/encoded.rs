@@ -29,6 +29,7 @@ use transaction::SignedTransaction;
 use views;
 
 use util::{Address, Hashable, H256, H2048, U256};
+use rlp::{Rlp, View};
 
 /// Owning header view.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -45,7 +46,15 @@ impl Header {
 	pub fn decode(&self) -> FullHeader { ::rlp::decode(&self.0) }
 
 	/// Get a borrowed header view onto the data.
+	#[inline]
 	pub fn view(&self) -> views::HeaderView { views::HeaderView::new(&self.0) }
+
+	/// Get the rlp of the header.
+	#[inline]
+	pub fn rlp(&self) -> Rlp { Rlp::new(&self.0) }
+
+	/// Consume the view and return the raw bytes.
+	pub fn into_inner(self) -> Vec<u8> { self.0 }
 }
 
 // forwarders to borrowed view.
@@ -113,12 +122,22 @@ impl Body {
 	pub fn new(raw: Vec<u8>) -> Self { Body(raw) }
 
 	/// Get a borrowed view of the data within.
+	#[inline]
 	pub fn view(&self) -> views::BodyView { views::BodyView::new(&self.0) }
 
 	/// Fully decode this block body.
 	pub fn decode(&self) -> (Vec<SignedTransaction>, Vec<FullHeader>) {
 		(self.view().transactions(), self.view().uncles())
 	}
+
+	/// Get the RLP of this block body.
+	#[inline]
+	pub fn rlp(&self) -> Rlp {
+		Rlp::new(&self.0)
+	}
+
+	/// Consume the view and return the raw bytes.
+	pub fn into_inner(self) -> Vec<u8> { self.0 }
 }
 
 // forwarders to borrowed view.
@@ -158,13 +177,24 @@ impl Block {
 	pub fn new(raw: Vec<u8>) -> Self { Block(raw) }
 
 	/// Get a borrowed view of the whole block.
+	#[inline]
 	pub fn view(&self) -> views::BlockView { views::BlockView::new(&self.0) }
 
 	/// Get a borrowed view of the block header.
+	#[inline]
 	pub fn header_view(&self) -> views::HeaderView { self.view().header_view() }
 
 	/// Decode to a full block.
 	pub fn decode(&self) -> FullBlock { ::rlp::decode(&self.0) }
+
+	/// Get the rlp of this block.
+	#[inline]
+	pub fn rlp(&self) -> Rlp {
+		Rlp::new(&self.0)
+	}
+
+	/// Consume the view and return the raw bytes.
+	pub fn into_inner(self) -> Vec<u8> { self.0 }
 }
 
 // forwarders to borrowed header view.
@@ -215,7 +245,7 @@ impl Block {
 	pub fn seal(&self) -> Vec<Vec<u8>> { self.header_view().seal() }
 }
 
-// forwarders to borrowed view.
+// forwarders to body view.
 impl Block {
 	/// Get a vector of all transactions.
 	pub fn transactions(&self) -> Vec<SignedTransaction> { self.view().transactions() }

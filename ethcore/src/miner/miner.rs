@@ -20,8 +20,6 @@ use std::time::{Instant, Duration};
 use util::*;
 use util::using_queue::{UsingQueue, GetAction};
 use account_provider::{AccountProvider, Error as AccountError};
-use views::{BlockView, HeaderView};
-use header::Header;
 use state::{State, CleanupMode};
 use client::{MiningBlockChainClient, Executive, Executed, EnvInfo, TransactOptions, BlockId, CallAnalytics, TransactionId};
 use client::TransactionImportResult;
@@ -536,7 +534,7 @@ impl Miner {
 	}
 
 	fn update_gas_limit(&self, chain: &MiningBlockChainClient) {
-		let gas_limit = HeaderView::new(&chain.best_block_header()).gas_limit();
+		let gas_limit = chain.best_block_header().gas_limit();
 		let mut queue = self.transaction_queue.lock();
 		queue.set_gas_limit(gas_limit);
 		if let GasLimit::Auto = self.options.tx_queue_gas_limit {
@@ -598,7 +596,7 @@ impl Miner {
 
 		let schedule = chain.latest_schedule();
 		let gas_required = |tx: &SignedTransaction| tx.gas_required(&schedule).into();
-		let best_block_header: Header = ::rlp::decode(&chain.best_block_header());
+		let best_block_header = chain.best_block_header().decode();
 		transactions.into_iter()
 			.map(|tx| {
 				if chain.transaction_block(TransactionId::Hash(tx.hash())).is_some() {
@@ -1127,7 +1125,6 @@ impl MinerService for Miner {
 				.map(|hash| {
 					let block = chain.block(BlockId::Hash(*hash))
 						.expect("Client is sending message after commit to db and inserting to chain; the block is available; qed");
-					let block = BlockView::new(&block);
 					let txs = block.transactions();
 					// populate sender
 					for tx in &txs {

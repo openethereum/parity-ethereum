@@ -117,7 +117,7 @@ pub fn verify_block_family(header: &Header, bytes: &[u8], engine: &Engine, bc: &
 					excluded.insert(details.parent.clone());
 					let b = bc.block(&hash)
 						.expect("parent already known to be stored; qed");
-					excluded.extend(BlockView::new(&b).uncle_hashes());
+					excluded.extend(b.uncle_hashes());
 					hash = details.parent;
 				}
 				None => break
