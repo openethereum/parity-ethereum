@@ -20,10 +20,12 @@ import CheckIcon from 'material-ui/svg-icons/navigation/check';
 import CloseIcon from 'material-ui/svg-icons/navigation/close';
 import ContractIcon from 'material-ui/svg-icons/action/code';
 import DoneIcon from 'material-ui/svg-icons/action/done-all';
-import PrevIcon from 'material-ui/svg-icons/navigation/arrow-back';
+import LockedIcon from 'material-ui/svg-icons/action/lock-outline';
 import NextIcon from 'material-ui/svg-icons/navigation/arrow-forward';
+import PrevIcon from 'material-ui/svg-icons/navigation/arrow-back';
 import SaveIcon from 'material-ui/svg-icons/content/save';
 import SnoozeIcon from 'material-ui/svg-icons/av/snooze';
+import VisibleIcon from 'material-ui/svg-icons/image/remove-red-eye';
 
 export {
   AddIcon,
@@ -32,8 +34,10 @@ export {
   CloseIcon,
   ContractIcon,
   DoneIcon,
-  PrevIcon,
+  LockedIcon,
   NextIcon,
+  PrevIcon,
   SaveIcon,
-  SnoozeIcon
+  SnoozeIcon,
+  VisibleIcon
 };
