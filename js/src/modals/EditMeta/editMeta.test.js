@@ -14,24 +14,32 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import AddIcon from 'material-ui/svg-icons/content/add';
-import CancelIcon from 'material-ui/svg-icons/content/clear';
-import CloseIcon from 'material-ui/svg-icons/navigation/close';
-import ContractIcon from 'material-ui/svg-icons/action/code';
-import DoneIcon from 'material-ui/svg-icons/action/done-all';
-import PrevIcon from 'material-ui/svg-icons/navigation/arrow-back';
-import NextIcon from 'material-ui/svg-icons/navigation/arrow-forward';
-import SaveIcon from 'material-ui/svg-icons/content/save';
-import SnoozeIcon from 'material-ui/svg-icons/av/snooze';
+const ACCOUNT = {
+  address: '0x123456789a123456789a123456789a123456789a',
+  meta: {
+    description: 'Call me bob',
+    passwordHint: 'some hint',
+    tags: ['testing']
+  },
+  name: 'Bobby',
+  uuid: '123-456'
+};
+
+const ADDRESS = {
+  address: '0x0123456789012345678901234567890123456789',
+  meta: {
+    description: 'Some address',
+    extraMeta: {
+      some: 'random',
+      extra: {
+        meta: 'data'
+      }
+    }
+  },
+  name: 'Random address'
+};
 
 export {
-  AddIcon,
-  CancelIcon,
-  CloseIcon,
-  ContractIcon,
-  DoneIcon,
-  PrevIcon,
-  NextIcon,
-  SaveIcon,
-  SnoozeIcon
+  ACCOUNT,
+  ADDRESS
 };
