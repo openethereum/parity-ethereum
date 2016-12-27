@@ -14,6 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import sinon from 'sinon';
+
 const ACCOUNT = {
   address: '0x123456789a123456789a123456789a123456789a',
   meta: {
@@ -39,7 +41,17 @@ const ADDRESS = {
   name: 'Random address'
 };
 
+function createApi () {
+  return {
+    parity: {
+      setAccountName: sinon.stub().resolves(),
+      setAccountMeta: sinon.stub().resolves()
+    }
+  };
+}
+
 export {
   ACCOUNT,
-  ADDRESS
+  ADDRESS,
+  createApi
 };

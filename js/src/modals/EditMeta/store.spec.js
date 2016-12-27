@@ -15,21 +15,15 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import { toJS } from 'mobx';
-import sinon from 'sinon';
 
 import Store from './store';
-import { ACCOUNT, ADDRESS } from './editMeta.test.js';
+import { ACCOUNT, ADDRESS, createApi } from './editMeta.test.js';
 
 let api;
 let store;
 
 function createStore (account) {
-  api = {
-    parity: {
-      setAccountName: sinon.stub().resolves(),
-      setAccountMeta: sinon.stub().resolves()
-    }
-  };
+  api = createApi();
 
   store = new Store(api, account);
 

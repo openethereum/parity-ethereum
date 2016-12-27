@@ -20,7 +20,7 @@ import sinon from 'sinon';
 
 import EditMeta from './';
 
-import { ACCOUNT } from './editMeta.test.js';
+import { ACCOUNT, createApi } from './editMeta.test.js';
 
 let component;
 let onClose;
@@ -35,12 +35,7 @@ function render (props) {
       onClose={ onClose } />,
     {
       context: {
-        api: {
-          parity: {
-            setAccountName: sinon.stub().resolves(),
-            setAccountMeta: sinon.stub().resolves()
-          }
-        }
+        api: createApi()
       }
     }
   );
