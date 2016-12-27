@@ -30,6 +30,7 @@ use util::{Bytes, Mutex, RwLock, U256};
 use time::{Duration, SteadyTime};
 
 use std::collections::HashMap;
+use std::fmt;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
@@ -121,6 +122,12 @@ mod timeout {
 /// A request id.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct ReqId(usize);
+
+impl fmt::Display for ReqId {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		write!(f, "Request #{}", self.0)
+	}
+}
 
 // A pending peer: one we've sent our status to but
 // may not have received one for.
