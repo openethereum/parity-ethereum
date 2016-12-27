@@ -23,6 +23,7 @@ import { Button, Modal, IdentityName, IdentityIcon } from '~/ui';
 import Form, { Input } from '~/ui/Form';
 import { CancelIcon, CheckIcon, SendIcon } from '~/ui/Icons';
 
+import Store from './store';
 import styles from './passwordManager.css';
 
 const TEST_ACTION = 'TEST_ACTION';
@@ -48,20 +49,17 @@ export default class PasswordManager extends Component {
 
   static propTypes = {
     account: PropTypes.object.isRequired,
-    showSnackbar: PropTypes.func.isRequired,
     onClose: PropTypes.func
   }
+
+  store = new Store(this.context.api, this.props.account);
 
   state = {
     action: TEST_ACTION,
     waiting: false,
     showMessage: false,
     message: { value: '', success: true },
-    currentPass: '',
-    newPass: '',
-    repeatNewPass: '',
-    repeatNewPassValid: true,
-    passwordHint: this.props.account.meta && this.props.account.meta.passwordHint || ''
+    repeatNewPassValid: true
   }
 
   render () {
@@ -104,17 +102,7 @@ export default class PasswordManager extends Component {
   }
 
   renderAccount () {
-    const { account } = this.props;
-    const { address, meta } = account;
-
-    const passwordHint = meta && meta.passwordHint
-      ? (
-        <span className={ styles.passwordHint }>
-          <span className={ styles.hintLabel }>Hint </span>
-          { meta.passwordHint }
-        </span>
-      )
-      : null;
+    const { address, passwordHint } = this.store;
 
     return (
       <div className={ styles.accountContainer }>
@@ -127,19 +115,19 @@ export default class PasswordManager extends Component {
           <span className={ styles.accountAddress }>
             { address }
           </span>
-          { passwordHint }
+          <span className={ styles.passwordHint }>
+            <span className={ styles.hintLabel }>Hint </span>
+            { passwordHint || '-' }
+          </span>
         </div>
       </div>
     );
   }
 
   renderPage () {
-    const { account } = this.props;
-    const { waiting, repeatNewPassValid } = this.state;
+    const { isRepeatValid, passwordHint } = this.store;
+    const { waiting } = this.state;
     const disabled = !!waiting;
-
-    const { meta } = account;
-    const passwordHint = meta && meta.passwordHint || '';
 
     return (
       <Tabs
@@ -237,7 +225,7 @@ export default class PasswordManager extends Component {
                   <Input
                     disabled={ disabled }
                     error={
-                      repeatNewPassValid
+                      isRepeatValid
                         ? null
                         : <FormattedMessage
                           id='passwordChange.repeatPassword.error'
@@ -344,12 +332,9 @@ export default class PasswordManager extends Component {
   }
 
   onEditRepeatNew = (event, value) => {
-    const repeatValid = value === this.state.newPass;
-
     this.setState({
       repeatNewPass: value,
-      showMessage: false,
-      repeatValid
+      showMessage: false
     });
   }
 
