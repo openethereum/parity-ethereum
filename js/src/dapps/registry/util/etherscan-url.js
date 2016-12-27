@@ -14,29 +14,13 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { isAction, isStage } from '../util/actions';
+const leading0x = /^0x/;
 
-const initialState = {
-  pending: false,
-  name: '', type: '', value: ''
+const etherscanUrl = (hash, isTestnet) => {
+  hash = hash.toLowerCase().replace(leading0x, '');
+  const type = hash.length === 40 ? 'address' : 'tx';
+
+  return `https://${isTestnet ? 'testnet.' : ''}etherscan.io/${type}/0x${hash}`;
 };
 
-export default (state = initialState, action) => {
-  if (!isAction('records', 'update', action)) {
-    return state;
-  }
-
-  if (isStage('start', action)) {
-    return {
-      ...state, pending: true,
-      name: action.name, type: action.entry, value: action.value
-    };
-  } else if (isStage('success', action) || isStage('fail', action)) {
-    return {
-      ...state, pending: false,
-      name: initialState.name, type: initialState.type, value: initialState.value
-    };
-  }
-
-  return state;
-};
+export default etherscanUrl;

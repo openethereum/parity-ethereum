@@ -1,4 +1,4 @@
-/* Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+/* Copyright 2015, 2016 Ethcore (UK) Ltd.
 /* This file is part of Parity.
 /*
 /* Parity is free software: you can redistribute it and/or modify
@@ -15,43 +15,25 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-.events {
+.reverse {
   margin: 1em;
 }
 
-.options {
-  margin: 0 .5em;
+.noSpacing {
+  margin-top: 0;
 }
 
-.reserved, .dropped, .dataChanged {
+.box {
+  display: flex;
+  align-items: baseline;
 }
 
-.reserved abbr, .dropped abbr {
-  cursor: help;
-}
-
-.pending {
-  opacity: .6;
-}
-
-.owner code {
-  display: inline-block;
-  vertical-align: top;
-  line-height: 32px;
-  word-wrap: break-word;
-}
-
-.eventsList {
-  width: 100%;
-  boder: none;
-}
-
-.eventsList td {
-  padding: 0.25em 0.5em;
-}
-
-.inline {
-  display: inline-block;
-  width: auto;
+.spacing {
   margin-right: 1em;
 }
+
+.button {
+  flex-grow: 0;
+  flex-shrink: 0;
+}
+

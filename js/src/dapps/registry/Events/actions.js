@@ -42,8 +42,11 @@ export const subscribe = (name, from = 0, to = 'pending') =>
         }
 
         events.forEach((e) => {
-          api.eth.getBlockByNumber(e.blockNumber)
-          .then((block) => {
+          Promise.all([
+            api.eth.getBlockByNumber(e.blockNumber),
+            api.eth.getTransactionByHash(e.transactionHash)
+          ])
+          .then(([block, tx]) => {
             const data = {
               type: name,
               key: '' + e.transactionHash + e.logIndex,
@@ -51,6 +54,8 @@ export const subscribe = (name, from = 0, to = 'pending') =>
               block: e.blockNumber,
               index: e.logIndex,
               transaction: e.transactionHash,
+              from: tx.from,
+              to: tx.to,
               parameters: e.params,
               timestamp: block.timestamp
             };

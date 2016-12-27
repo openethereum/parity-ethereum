@@ -14,29 +14,23 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { isAction, isStage } from '../util/actions';
+const postTx = (api, method, opt = {}, values = []) => {
+  opt = Object.assign({}, opt);
 
-const initialState = {
-  pending: false,
-  name: '', type: '', value: ''
+  return method.estimateGas(opt, values)
+    .then((gas) => {
+      opt.gas = gas.mul(1.2).toFixed(0);
+      return method.postTransaction(opt, values);
+    })
+    .then((reqId) => {
+      return api.pollMethod('parity_checkRequest', reqId);
+    })
+    .catch((err) => {
+      if (err && err.type === 'REQUEST_REJECTED') {
+        throw new Error('The request has been rejected.');
+      }
+      throw err;
+    });
 };
 
-export default (state = initialState, action) => {
-  if (!isAction('records', 'update', action)) {
-    return state;
-  }
-
-  if (isStage('start', action)) {
-    return {
-      ...state, pending: true,
-      name: action.name, type: action.entry, value: action.value
-    };
-  } else if (isStage('success', action) || isStage('fail', action)) {
-    return {
-      ...state, pending: false,
-      name: initialState.name, type: initialState.type, value: initialState.value
-    };
-  }
-
-  return state;
-};
+export default postTx;
