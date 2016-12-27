@@ -64,10 +64,11 @@ export default class CertificationsMiddleware {
 
     return (store) => {
       let certifiers = [];
-      let addresses = []; // these are addresses
+      let addresses = [];
       let filterChanged = false;
       let filter = null;
       let badgeRegFilter = null;
+      let fetchCertifiersPromise = null;
 
       const updateFilter = updatableFilter(api, (filterId) => {
         filterChanged = true;
@@ -153,6 +154,10 @@ export default class CertificationsMiddleware {
       }
 
       function fetchCertifiers (ids = []) {
+        if (fetchCertifiersPromise) {
+          return fetchCertifiersPromise;
+        }
+
         let fetchEvents = false;
 
         const idsPromise = (certifiers.length === 0)
@@ -161,7 +166,7 @@ export default class CertificationsMiddleware {
           })
           : Promise.resolve(ids);
 
-        return idsPromise
+        fetchCertifiersPromise = idsPromise
           .then((ids) => {
             const promises = ids.map((id) => {
               return badgeReg.fetchCertifier(id)
@@ -183,11 +188,15 @@ export default class CertificationsMiddleware {
             return Promise
               .all(promises)
               .then(() => {
+                fetchCertifiersPromise = null;
+
                 if (fetchEvents) {
                   return fetchConfirmedEvents();
                 }
               });
           });
+
+        return fetchCertifiersPromise;
       }
 
       return (next) => (action) => {
