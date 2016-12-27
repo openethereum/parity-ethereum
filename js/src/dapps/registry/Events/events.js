@@ -15,13 +15,17 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import { connect } from 'react-redux';
+import { bindActionCreators } from 'redux';
 import { Card, CardHeader, CardActions, CardText } from 'material-ui/Card';
 import Toggle from 'material-ui/Toggle';
 import moment from 'moment';
 
 import { bytesToHex } from '../parity';
-import renderHash from '../ui/hash';
-import renderAddress from '../ui/address';
+import Hash from '../ui/hash';
+import Address from '../ui/address';
+
+import { subscribe, unsubscribe } from './actions';
 import styles from './events.css';
 
 const inlineButton = {
@@ -42,21 +46,31 @@ const renderStatus = (timestamp, isPending) => {
   );
 };
 
-const renderEvent = (classNames, verb) => (e, accounts, contacts) => {
+const renderEvent = (classNames, verb) => (e) => {
   const classes = e.state === 'pending'
     ? classNames + ' ' + styles.pending : classNames;
 
   return (
     <tr key={ e.key } className={ classes }>
-      <td>{ renderAddress(e.parameters.owner.value, accounts, contacts) }</td>
-      <td><abbr title={ e.transaction }>{ verb }</abbr></td>
-      <td><code>{ renderHash(bytesToHex(e.parameters.name.value)) }</code></td>
-      <td>{ renderStatus(e.timestamp, e.state === 'pending') }</td>
+      <td>
+        <Address address={ e.parameters.owner.value } />
+      </td>
+      <td>
+        <abbr title={ e.transaction }>{ verb }</abbr>
+      </td>
+      <td>
+        <code>
+          <Hash hash={ bytesToHex(e.parameters.name.value) } />
+        </code>
+      </td>
+      <td>
+        { renderStatus(e.timestamp, e.state === 'pending') }
+      </td>
     </tr>
   );
 };
 
-const renderDataChanged = (e, accounts, contacts) => {
+const renderDataChanged = (e) => {
   let classNames = styles.dataChanged;
   if (e.state === 'pending') {
     classNames += ' ' + styles.pending;
@@ -64,12 +78,61 @@ const renderDataChanged = (e, accounts, contacts) => {
 
   return (
     <tr key={ e.key } className={ classNames }>
-      <td>{ renderAddress(e.parameters.owner.value, accounts, contacts) }</td>
-      <td><abbr title={ e.transaction }>updated</abbr></td>
       <td>
-        key <code>{ new Buffer(e.parameters.plainKey.value).toString('utf8') }</code> of <code>{ renderHash(bytesToHex(e.parameters.name.value)) }</code>
+        <Address address={ e.parameters.owner.value } />
       </td>
-      <td>{ renderStatus(e.timestamp, e.state === 'pending') }</td>
+      <td>
+        <abbr title={ e.transaction }>updated</abbr>
+      </td>
+      <td>
+        { 'key ' }
+        <code>
+          { new Buffer(e.parameters.plainKey.value).toString('utf8') }
+        </code>
+        { 'of ' }
+        <code>
+          <Hash hash={ bytesToHex(e.parameters.name.value) } />
+        </code>
+      </td>
+      <td>
+        { renderStatus(e.timestamp, e.state === 'pending') }
+      </td>
+    </tr>
+  );
+};
+
+const renderReverse = (e) => {
+  const verb = ({
+    ReverseProposed: 'proposed',
+    ReverseConfirmed: 'confirmed',
+    ReverseRemoved: 'removed'
+  })[e.type];
+
+  if (!verb) {
+    return null;
+  }
+
+  const classes = [ styles.reverse ];
+  if (e.state === 'pending') {
+    classes.push(styles.pending);
+  }
+
+  // TODO: `name` is an indexed param, cannot display as plain text
+  return (
+    <tr key={ e.key } className={ classes.join(' ') }>
+      <td>
+        <Address address={ e.from } />
+      </td>
+      <td>{ verb }</td>
+      <td>
+        { 'name ' }
+        <code key='name'>{ bytesToHex(e.parameters.name.value) }</code>
+        { ' for ' }
+        <Address key='reverse' address={ e.parameters.reverse.value } />
+      </td>
+      <td>
+        { renderStatus(e.timestamp, e.state === 'pending') }
+      </td>
     </tr>
   );
 };
@@ -77,22 +140,25 @@ const renderDataChanged = (e, accounts, contacts) => {
 const eventTypes = {
   Reserved: renderEvent(styles.reserved, 'reserved'),
   Dropped: renderEvent(styles.dropped, 'dropped'),
-  DataChanged: renderDataChanged
+  DataChanged: renderDataChanged,
+  ReverseProposed: renderReverse,
+  ReverseConfirmed: renderReverse,
+  ReverseRemoved: renderReverse
 };
 
-export default class Events extends Component {
+class Events extends Component {
 
   static propTypes = {
-    actions: PropTypes.object.isRequired,
-    subscriptions: PropTypes.object.isRequired,
-    pending: PropTypes.object.isRequired,
     events: PropTypes.array.isRequired,
-    accounts: PropTypes.object.isRequired,
-    contacts: PropTypes.object.isRequired
+    pending: PropTypes.object.isRequired,
+    subscriptions: PropTypes.object.isRequired,
+
+    subscribe: PropTypes.func.isRequired,
+    unsubscribe: PropTypes.func.isRequired
   }
 
   render () {
-    const { subscriptions, pending, accounts, contacts } = this.props;
+    const { subscriptions, pending } = this.props;
 
     const eventsObject = this.props.events
       .filter((e) => eventTypes[e.type])
@@ -122,7 +188,16 @@ export default class Events extends Component {
 
         return evB.timestamp - evA.timestamp;
       })
-      .map((e) => eventTypes[e.type](e, accounts, contacts));
+      .map((e) => eventTypes[e.type](e));
+
+    const reverseToggled =
+      subscriptions.ReverseProposed !== null &&
+      subscriptions.ReverseConfirmed !== null &&
+      subscriptions.ReverseRemoved !== null;
+    const reverseDisabled =
+      pending.ReverseProposed ||
+      pending.ReverseConfirmed ||
+      pending.ReverseRemoved;
 
     return (
       <Card className={ styles.events }>
@@ -149,6 +224,13 @@ export default class Events extends Component {
             onToggle={ this.onDataChangedToggle }
             style={ inlineButton }
           />
+          <Toggle
+            label='Reverse Lookup'
+            toggled={ reverseToggled }
+            disabled={ reverseDisabled }
+            onToggle={ this.onReverseToggle }
+            style={ inlineButton }
+          />
         </CardActions>
         <CardText>
           <table className={ styles.eventsList }>
@@ -162,33 +244,59 @@ export default class Events extends Component {
   }
 
   onReservedToggle = (e, isToggled) => {
-    const { pending, subscriptions, actions } = this.props;
+    const { pending, subscriptions, subscribe, unsubscribe } = this.props;
+
     if (!pending.Reserved) {
       if (isToggled && subscriptions.Reserved === null) {
-        actions.subscribe('Reserved');
+        subscribe('Reserved');
       } else if (!isToggled && subscriptions.Reserved !== null) {
-        actions.unsubscribe('Reserved');
+        unsubscribe('Reserved');
       }
     }
   };
+
   onDroppedToggle = (e, isToggled) => {
-    const { pending, subscriptions, actions } = this.props;
+    const { pending, subscriptions, subscribe, unsubscribe } = this.props;
+
     if (!pending.Dropped) {
       if (isToggled && subscriptions.Dropped === null) {
-        actions.subscribe('Dropped');
+        subscribe('Dropped');
       } else if (!isToggled && subscriptions.Dropped !== null) {
-        actions.unsubscribe('Dropped');
+        unsubscribe('Dropped');
       }
     }
   };
+
   onDataChangedToggle = (e, isToggled) => {
-    const { pending, subscriptions, actions } = this.props;
+    const { pending, subscriptions, subscribe, unsubscribe } = this.props;
+
     if (!pending.DataChanged) {
       if (isToggled && subscriptions.DataChanged === null) {
-        actions.subscribe('DataChanged');
+        subscribe('DataChanged');
       } else if (!isToggled && subscriptions.DataChanged !== null) {
-        actions.unsubscribe('DataChanged');
+        unsubscribe('DataChanged');
+      }
+    }
+  };
+
+  onReverseToggle = (e, isToggled) => {
+    const { pending, subscriptions, subscribe, unsubscribe } = this.props;
+
+    for (let e of ['ReverseProposed', 'ReverseConfirmed', 'ReverseRemoved']) {
+      if (pending[e]) {
+        continue;
+      }
+
+      if (isToggled && subscriptions[e] === null) {
+        subscribe(e);
+      } else if (!isToggled && subscriptions[e] !== null) {
+        unsubscribe(e);
       }
     }
   };
 }
+
+const mapStateToProps = (state) => state.events;
+const mapDispatchToProps = (dispatch) => bindActionCreators({ subscribe, unsubscribe }, dispatch);
+
+export default connect(mapStateToProps, mapDispatchToProps)(Events);

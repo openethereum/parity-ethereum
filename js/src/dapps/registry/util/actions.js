@@ -14,14 +14,18 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import React from 'react';
-import DropDownMenu from 'material-ui/DropDownMenu';
-import MenuItem from 'material-ui/MenuItem';
+export const isAction = (ns, type, action) => {
+  return action.type.slice(0, ns.length + 1 + type.length) === `${ns} ${type}`;
+};
 
-export default (value, onSelect, className = '') => (
-  <DropDownMenu className={ className } value={ value } onChange={ onSelect }>
-    <MenuItem value='A' primaryText='A – Ethereum address' />
-    <MenuItem value='IMG' primaryText='IMG – hash of a picture in the blockchain' />
-    <MenuItem value='CONTENT' primaryText='CONTENT – hash of a data in the blockchain' />
-  </DropDownMenu>
-);
+export const isStage = (stage, action) => {
+  return action.type.slice(-1 - stage.length) === ` ${stage}`;
+};
+
+export const addToQueue = (queue, action, name) => {
+  return queue.concat({ action, name });
+};
+
+export const removeFromQueue = (queue, action, name) => {
+  return queue.filter((e) => e.action === action && e.name === name);
+};
