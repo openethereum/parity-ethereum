@@ -18,9 +18,10 @@ import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 import {
-  Card, CardHeader, CardText, TextField, DropDownMenu, MenuItem, RaisedButton, AddIcon, CheckIcon
+  Card, CardHeader, CardText, TextField, DropDownMenu, MenuItem, RaisedButton
 } from 'material-ui';
 
+import { AddIcon, CheckIcon } from '~/ui/Icons';
 import { propose, confirm } from './actions';
 import styles from './reverse.css';
 
