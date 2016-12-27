@@ -25,6 +25,7 @@ import TextFieldUnderline from 'material-ui/TextField/TextFieldUnderline';
 import AccountCard from '~/ui/AccountCard';
 import InputAddress from '~/ui/Form/InputAddress';
 import Portal from '~/ui/Portal';
+import { nodeOrStringProptype } from '~/util/proptypes';
 import { validateAddress } from '~/util/validation';
 
 import styles from './addressSelect.css';
@@ -36,6 +37,7 @@ let currentId = 1;
 
 class AddressSelect extends Component {
   static contextTypes = {
+    intl: React.PropTypes.object.isRequired,
     muiTheme: PropTypes.object.isRequired
   };
 
@@ -50,15 +52,14 @@ class AddressSelect extends Component {
     contacts: PropTypes.object,
     contracts: PropTypes.object,
     tokens: PropTypes.object,
-    wallets: PropTypes.object,
 
     // Optional props
     allowInput: PropTypes.bool,
     disabled: PropTypes.bool,
-    error: PropTypes.string,
-    hint: PropTypes.string,
-    label: PropTypes.string,
-    value: PropTypes.string
+    error: nodeOrStringProptype(),
+    hint: nodeOrStringProptype(),
+    label: nodeOrStringProptype(),
+    value: nodeOrStringProptype()
   };
 
   static defaultProps = {
@@ -88,14 +89,13 @@ class AddressSelect extends Component {
   }
 
   setValues (props = this.props) {
-    const { accounts = {}, contracts = {}, contacts = {}, wallets = {} } = props;
+    const { accounts = {}, contracts = {}, contacts = {} } = props;
 
     const accountsN = Object.keys(accounts).length;
     const contractsN = Object.keys(contracts).length;
     const contactsN = Object.keys(contacts).length;
-    const walletsN = Object.keys(wallets).length;
 
-    if (accountsN + contractsN + contactsN + walletsN === 0) {
+    if (accountsN + contractsN + contactsN === 0) {
       return;
     }
 
@@ -103,7 +103,6 @@ class AddressSelect extends Component {
       {
         label: 'accounts',
         values: [].concat(
-          Object.values(wallets),
           Object.values(accounts)
         )
       },
@@ -183,6 +182,12 @@ class AddressSelect extends Component {
     }
 
     const id = `addressSelect_${++currentId}`;
+    const ilHint = typeof hint === 'string' || !(hint && hint.props)
+      ? (hint || '')
+      : this.context.intl.formatMessage(
+        hint.props,
+        hint.props.values || []
+      );
 
     return (
       <Portal
@@ -197,7 +202,7 @@ class AddressSelect extends Component {
         <input
           id={ id }
           className={ styles.input }
-          placeholder={ hint }
+          placeholder={ ilHint }
 
           onBlur={ this.handleInputBlur }
           onFocus={ this.handleInputFocus }

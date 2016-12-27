@@ -68,7 +68,7 @@ class Wallet extends Component {
     balance: nullableProptype(PropTypes.object.isRequired),
     images: PropTypes.object.isRequired,
     address: PropTypes.string.isRequired,
-    wallets: PropTypes.object.isRequired,
+    walletAccount: nullableProptype(PropTypes.object.isRequired),
     wallet: PropTypes.object.isRequired,
     isTest: PropTypes.bool.isRequired
   };
@@ -104,11 +104,9 @@ class Wallet extends Component {
   }
 
   render () {
-    const { wallets, balance, address } = this.props;
+    const { walletAccount, balance } = this.props;
 
-    const wallet = (wallets || {})[address];
-
-    if (!wallet) {
+    if (!walletAccount) {
       return null;
     }
 
@@ -116,16 +114,16 @@ class Wallet extends Component {
 
     return (
       <div className={ styles.wallet }>
-        { this.renderEditDialog(wallet) }
+        { this.renderEditDialog(walletAccount) }
         { this.renderSettingsDialog() }
         { this.renderTransferDialog() }
-        { this.renderDeleteDialog(wallet) }
+        { this.renderDeleteDialog(walletAccount) }
         { this.renderActionbar() }
         <Page>
           <div className={ styles.info }>
             <Header
               className={ styles.header }
-              account={ wallet }
+              account={ walletAccount }
               balance={ balance }
               isContract
             >
@@ -293,12 +291,11 @@ class Wallet extends Component {
       return null;
     }
 
-    const { wallets, balance, images, address } = this.props;
-    const wallet = wallets[address];
+    const { walletAccount, balance, images } = this.props;
 
     return (
       <Transfer
-        account={ wallet }
+        account={ walletAccount }
         balance={ balance }
         images={ images }
         onClose={ this.onTransferClose }
@@ -342,16 +339,21 @@ function mapStateToProps (_, initProps) {
 
   return (state) => {
     const { isTest } = state.nodeStatus;
-    const { wallets } = state.personal;
+    const { accountsInfo = {} } = state.personal;
     const { balances } = state.balances;
     const { images } = state;
+    const walletAccount = accountsInfo[address] || null;
+
+    if (walletAccount) {
+      walletAccount.address = address;
+    }
 
     const wallet = state.wallet.wallets[address] || {};
     const balance = balances[address] || null;
 
     return {
       isTest,
-      wallets,
+      walletAccount,
       balance,
       images,
       address,
