@@ -117,21 +117,16 @@ impl HeaderChain {
 		let mut candidates = self.candidates.write();
 
 		// find parent details.
-		let parent_td = {
+		let parent_td =
 			if number == 1 {
 				let g_view = HeaderView::new(&self.genesis_header);
 				g_view.difficulty()
 			} else {
-				let maybe_td = candidates.get(&(number - 1))
+				candidates.get(&(number - 1))
 					.and_then(|entry| entry.candidates.iter().find(|c| c.hash == parent_hash))
-					.map(|c| c.total_difficulty);
-
-				match maybe_td {
-					Some(td) => td,
-					None => return Err(BlockError::UnknownParent(parent_hash)),
-				}
-			}
-		};
+					.map(|c| c.total_difficulty)
+					.ok_or_else(|| BlockError::UnknownParent(parent_hash))?
+			};
 
 		let total_difficulty = parent_td + view.difficulty();
 
@@ -230,9 +225,7 @@ impl HeaderChain {
 
 	/// Get the genesis hash.
 	pub fn genesis_hash(&self) -> H256 {
-		use util::Hashable;
-
-		self.genesis_header.sha3()
+		::util::Hashable::sha3(&self.genesis_header)
 	}
 
 	/// Get the best block's data.
