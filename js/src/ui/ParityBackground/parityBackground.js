@@ -18,48 +18,70 @@ import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 
 class ParityBackground extends Component {
+  static contextTypes = {
+    muiTheme: PropTypes.object.isRequired
+  };
+
   static propTypes = {
-    style: PropTypes.object.isRequired,
+    backgroundSeed: PropTypes.string,
     children: PropTypes.node,
     className: PropTypes.string,
     onClick: PropTypes.func
   };
 
+  state = {
+    style: {}
+  };
+
+  _seed = null;
+
+  componentWillMount () {
+    this.setStyle();
+  }
+
+  componentWillReceiveProps (nextProps) {
+    this.setStyle(nextProps);
+  }
+
+  shouldComponentUpdate (_, nextState) {
+    return nextState.style !== this.state.style;
+  }
+
+  setStyle (props = this.props) {
+    const { seed, gradient, backgroundSeed } = props;
+
+    const _seed = seed || backgroundSeed;
+
+    // Don't update if it's the same seed...
+    if (this._seed === _seed) {
+      return;
+    }
+
+    const { muiTheme } = this.context;
+
+    const style = muiTheme.parity.getBackgroundStyle(gradient, _seed);
+    this.setState({ style });
+  }
+
   render () {
-    const { children, className, style, onClick } = this.props;
+    const { children, className, onClick } = this.props;
+    const { style } = this.state;
 
     return (
       <div
         className={ className }
         style={ style }
-        onTouchTap={ onClick }>
+        onTouchTap={ onClick }
+      >
         { children }
       </div>
     );
   }
 }
 
-function mapStateToProps (_, initProps) {
-  const { gradient, seed, muiTheme } = initProps;
-
-  let _seed = seed;
-  let _props = { style: muiTheme.parity.getBackgroundStyle(gradient, seed) };
-
-  return (state, props) => {
-    const { backgroundSeed } = state.settings;
-    const { seed } = props;
-
-    const newSeed = seed || backgroundSeed;
-
-    if (newSeed === _seed) {
-      return _props;
-    }
-
-    _seed = newSeed;
-    _props = { style: muiTheme.parity.getBackgroundStyle(gradient, newSeed) };
-
-    return _props;
-  };
+function mapStateToProps (state) {
+  const { backgroundSeed } = state.settings;
+  return { backgroundSeed };
 }
 
 export default connect(

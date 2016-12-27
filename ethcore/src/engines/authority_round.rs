@@ -107,7 +107,7 @@ impl AuthorityRound {
 				params: params,
 				our_params: our_params,
 				builtins: builtins,
-				transition_service: try!(IoService::<()>::start()),
+				transition_service: IoService::<()>::start()?,
 				message_channel: Mutex::new(None),
 				step: AtomicUsize::new(initial_step),
 				proposed: AtomicBool::new(false),
@@ -117,7 +117,7 @@ impl AuthorityRound {
 		// Do not initialize timeouts for tests.
 		if should_timeout {
 			let handler = TransitionHandler { engine: Arc::downgrade(&engine) };
-			try!(engine.transition_service.register_handler(Arc::new(handler)));
+			engine.transition_service.register_handler(Arc::new(handler))?;
 		}
 		Ok(engine)
 	}
@@ -263,20 +263,20 @@ impl Engine for AuthorityRound {
 
 	/// Check if the signature belongs to the correct proposer.
 	fn verify_block_unordered(&self, header: &Header, _block: Option<&[u8]>) -> Result<(), Error> {
-		let header_step = try!(header_step(header));
+		let header_step = header_step(header)?;
 		// Give one step slack if step is lagging, double vote is still not possible.
 		if header_step <= self.step.load(AtomicOrdering::SeqCst) + 1 {
-			let proposer_signature = try!(header_signature(header));
-			let ok_sig = try!(verify_address(self.step_proposer(header_step), &proposer_signature, &header.bare_hash()));
+			let proposer_signature = header_signature(header)?;
+			let ok_sig = verify_address(self.step_proposer(header_step), &proposer_signature, &header.bare_hash())?;
 			if ok_sig {
 				Ok(())
 			} else {
 				trace!(target: "poa", "verify_block_unordered: invalid seal signature");
-				try!(Err(BlockError::InvalidSeal))
+				Err(BlockError::InvalidSeal)?
 			}
 		} else {
 			trace!(target: "poa", "verify_block_unordered: block from the future");
-			try!(Err(BlockError::InvalidSeal))
+			Err(BlockError::InvalidSeal)?
 		}
 	}
 
@@ -285,11 +285,11 @@ impl Engine for AuthorityRound {
 			return Err(From::from(BlockError::RidiculousNumber(OutOfBounds { min: Some(1), max: None, found: header.number() })));
 		}
 
-		let step = try!(header_step(header));
+		let step = header_step(header)?;
 		// Check if parent is from a previous step.
-		if step == try!(header_step(parent)) {
+		if step == header_step(parent)? {
 			trace!(target: "poa", "Multiple blocks proposed for step {}.", step);
-			try!(Err(EngineError::DoubleVote(header.author().clone())));
+			Err(EngineError::DoubleVote(header.author().clone()))?;
 		}
 
 		let gas_limit_divisor = self.our_params.gas_limit_bound_divisor;
@@ -302,7 +302,7 @@ impl Engine for AuthorityRound {
 	}
 
 	fn verify_transaction_basic(&self, t: &SignedTransaction, _header: &Header) -> Result<(), Error> {
-		try!(t.check_low_s());
+		t.check_low_s()?;
 		Ok(())
 	}
 
@@ -339,7 +339,6 @@ impl Engine for AuthorityRound {
 #[cfg(test)]
 mod tests {
 	use util::*;
-	use util::trie::TrieSpec;
 	use env_info::EnvInfo;
 	use header::Header;
 	use error::{Error, BlockError};
@@ -407,10 +406,8 @@ mod tests {
 		let engine = &*spec.engine;
 		engine.register_account_provider(Arc::new(tap));
 		let genesis_header = spec.genesis_header();
-		let mut db1 = get_temp_state_db().take();
-		spec.ensure_db_good(&mut db1, &TrieFactory::new(TrieSpec::Secure)).unwrap();
-		let mut db2 = get_temp_state_db().take();
-		spec.ensure_db_good(&mut db2, &TrieFactory::new(TrieSpec::Secure)).unwrap();
+		let db1 = spec.ensure_db_good(get_temp_state_db().take(), &Default::default()).unwrap();
+		let db2 = spec.ensure_db_good(get_temp_state_db().take(), &Default::default()).unwrap();
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
 		let b1 = OpenBlock::new(engine, Default::default(), false, db1, &genesis_header, last_hashes.clone(), addr1, (3141562.into(), 31415620.into()), vec![]).unwrap();
 		let b1 = b1.close_and_lock();

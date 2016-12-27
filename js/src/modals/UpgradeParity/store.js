@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { action, computed, observable, transaction } from 'mobx';
+import { action, computed, observable, transaction, toJS } from 'mobx';
 import store from 'store';
 
 const LS_UPDATE = '_parity::update';
@@ -129,7 +129,10 @@ export default class Store {
         this._api.parity.versionInfo()
       ])
       .then(([available, consensusCapability, version]) => {
-        console.log('[checkUpgrade]', 'available:', available, 'version:', version, 'consensusCapability:', consensusCapability);
+        if (!this.version || version.hash !== this.version.hash) {
+          console.log('[checkUpgrade]', 'available:', available, 'version:', toJS(version.version), 'consensusCapability:', consensusCapability);
+        }
+
         this.setVersions(available, version, consensusCapability);
       })
       .catch((error) => {

@@ -94,8 +94,12 @@ export default class CertificationsMiddleware {
             console.error('Failed to fetch new certifier events:', err);
           });
       }, 10 * 1000, true);
+
       api.subscribe('eth_blockNumber', (err) => {
-        if (err) return;
+        if (err) {
+          return;
+        }
+
         fetchChanges();
       });
 
@@ -123,6 +127,10 @@ export default class CertificationsMiddleware {
                     }
                   })
                   .catch((err) => {
+                    if (/does not exist/.test(err.toString())) {
+                      return console.warn(err.toString());
+                    }
+
                     console.warn(`Could not fetch certifier ${id}:`, err);
                   });
               });

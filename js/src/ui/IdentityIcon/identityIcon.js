@@ -14,13 +14,13 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import BigNumber from 'bignumber.js';
 import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
 import { createIdentityImg } from '~/api/util/identity';
-import ContractIcon from '../Icons';
+import { isNullAddress } from '~/util/validation';
+import { CancelIcon, ContractIcon } from '../Icons';
 
 import styles from './identityIcon.css';
 
@@ -108,19 +108,20 @@ class IdentityIcon extends Component {
       return (
         <ContractIcon
           className={ classes }
+          data-address-img
           style={ {
             background: '#eee',
             height: size,
             width: size
           } } />
       );
-    } else if (new BigNumber(address).eq(0)) {
+    } else if (isNullAddress(address)) {
       return (
-        <div
+        <CancelIcon
           className={ classes }
+          data-address-img
           style={ {
             background: '#333',
-            display: 'inline-block',
             height: size,
             width: size
           } } />
@@ -130,6 +131,7 @@ class IdentityIcon extends Component {
     return (
       <img
         className={ classes }
+        data-address-img
         height={ size }
         width={ size }
         src={ iconsrc } />

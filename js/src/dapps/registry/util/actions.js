@@ -14,12 +14,18 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-extern crate rustc_version;
+export const isAction = (ns, type, action) => {
+  return action.type.slice(0, ns.length + 1 + type.length) === `${ns} ${type}`;
+};
 
-use rustc_version::{version_meta, Channel};
+export const isStage = (stage, action) => {
+  return action.type.slice(-1 - stage.length) === ` ${stage}`;
+};
 
-fn main() {
-	if let Channel::Nightly = version_meta().channel {
-		println!("cargo:rustc-cfg=asm_available");
-	}
-}
+export const addToQueue = (queue, action, name) => {
+  return queue.concat({ action, name });
+};
+
+export const removeFromQueue = (queue, action, name) => {
+  return queue.filter((e) => e.action === action && e.name === name);
+};

@@ -111,12 +111,23 @@ impl<F> SyncStatus for F where F: Fn() -> bool + Send + Sync {
 	fn is_major_importing(&self) -> bool { self() }
 }
 
+/// Validates Web Proxy tokens
+pub trait WebProxyTokens: Send + Sync {
+	/// Should return true if token is a valid web proxy access token.
+	fn is_web_proxy_token_valid(&self, token: &String) -> bool;
+}
+
+impl<F> WebProxyTokens for F where F: Fn(String) -> bool + Send + Sync {
+	fn is_web_proxy_token_valid(&self, token: &String) -> bool { self(token.to_owned()) }
+}
+
 /// Webapps HTTP+RPC server build.
 pub struct ServerBuilder {
 	dapps_path: String,
 	handler: Arc<IoHandler>,
 	registrar: Arc<ContractClient>,
 	sync_status: Arc<SyncStatus>,
+	web_proxy_tokens: Arc<WebProxyTokens>,
 	signer_address: Option<(String, u16)>,
 	remote: Remote,
 	fetch: Option<FetchClient>,
@@ -136,6 +147,7 @@ impl ServerBuilder {
 			handler: Arc::new(IoHandler::new()),
 			registrar: registrar,
 			sync_status: Arc::new(|| false),
+			web_proxy_tokens: Arc::new(|_| false),
 			signer_address: None,
 			remote: remote,
 			fetch: None,
@@ -150,6 +162,11 @@ impl ServerBuilder {
 	/// Change default sync status.
 	pub fn with_sync_status(&mut self, status: Arc<SyncStatus>) {
 		self.sync_status = status;
+	}
+
+	/// Change default web proxy tokens validator.
+	pub fn with_web_proxy_tokens(&mut self, tokens: Arc<WebProxyTokens>) {
+		self.web_proxy_tokens = tokens;
 	}
 
 	/// Change default signer port.
@@ -169,8 +186,9 @@ impl ServerBuilder {
 			self.signer_address.clone(),
 			self.registrar.clone(),
 			self.sync_status.clone(),
+			self.web_proxy_tokens.clone(),
 			self.remote.clone(),
-			try!(self.fetch()),
+			self.fetch()?,
 		)
 	}
 
@@ -186,8 +204,9 @@ impl ServerBuilder {
 			self.signer_address.clone(),
 			self.registrar.clone(),
 			self.sync_status.clone(),
+			self.web_proxy_tokens.clone(),
 			self.remote.clone(),
-			try!(self.fetch()),
+			self.fetch()?,
 		)
 	}
 
@@ -241,6 +260,7 @@ impl Server {
 		signer_address: Option<(String, u16)>,
 		registrar: Arc<ContractClient>,
 		sync_status: Arc<SyncStatus>,
+		web_proxy_tokens: Arc<WebProxyTokens>,
 		remote: Remote,
 		fetch: F,
 	) -> Result<Server, ServerError> {
@@ -253,7 +273,7 @@ impl Server {
 			remote.clone(),
 			fetch.clone(),
 		));
-		let endpoints = Arc::new(apps::all_endpoints(dapps_path, signer_address.clone(), remote.clone(), fetch.clone()));
+		let endpoints = Arc::new(apps::all_endpoints(dapps_path, signer_address.clone(), web_proxy_tokens, remote.clone(), fetch.clone()));
 		let cors_domains = Self::cors_domains(signer_address.clone());
 
 		let special = Arc::new({
@@ -268,7 +288,7 @@ impl Server {
 		});
 		let hosts = Self::allowed_hosts(hosts, format!("{}", addr));
 
-		try!(hyper::Server::http(addr))
+		hyper::Server::http(addr)?
 			.handle(move |ctrl| router::Router::new(
 				ctrl,
 				signer_address.clone(),

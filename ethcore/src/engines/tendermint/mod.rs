@@ -109,7 +109,7 @@ impl Tendermint {
 				params: params,
 				our_params: our_params,
 				builtins: builtins,
-				step_service: try!(IoService::<Step>::start()),
+				step_service: IoService::<Step>::start()?,
 				authority: RwLock::new(Address::default()),
 				password: RwLock::new(None),
 				height: AtomicUsize::new(1),
@@ -123,7 +123,7 @@ impl Tendermint {
 				proposal: RwLock::new(None),
 			});
 		let handler = TransitionHandler { engine: Arc::downgrade(&engine) };
-		try!(engine.step_service.register_handler(Arc::new(handler)));
+		engine.step_service.register_handler(Arc::new(handler))?;
 		Ok(engine)
 	}
 
@@ -455,11 +455,11 @@ impl Engine for Tendermint {
 
 	fn handle_message(&self, rlp: &[u8]) -> Result<(), Error> {
 		let rlp = UntrustedRlp::new(rlp);
-		let message: ConsensusMessage = try!(rlp.as_val());
+		let message: ConsensusMessage = rlp.as_val()?;
 		if !self.votes.is_old_or_known(&message) {
-			let sender = public_to_address(&try!(recover(&message.signature.into(), &try!(rlp.at(1)).as_raw().sha3())));
+			let sender = public_to_address(&recover(&message.signature.into(), &rlp.at(1)?.as_raw().sha3())?);
 			if !self.is_authority(&sender) {
-				try!(Err(EngineError::NotAuthorized(sender)));
+				Err(EngineError::NotAuthorized(sender))?;
 			}
 			self.broadcast_message(rlp.as_raw().to_vec());
 			trace!(target: "poa", "Handling a valid {:?} from {}.", message, sender);
@@ -491,10 +491,10 @@ impl Engine for Tendermint {
 	}
 
 	fn verify_block_unordered(&self, header: &Header, _block: Option<&[u8]>) -> Result<(), Error> {
-		let proposal = try!(ConsensusMessage::new_proposal(header));	
-		let proposer = try!(proposal.verify());
+		let proposal = ConsensusMessage::new_proposal(header)?;	
+		let proposer = proposal.verify()?;
 		if !self.is_authority(&proposer) {
-			try!(Err(EngineError::NotAuthorized(proposer)))
+			Err(EngineError::NotAuthorized(proposer))?
 		}
 
 		let precommit_hash = proposal.precommit_hash();
@@ -502,20 +502,20 @@ impl Engine for Tendermint {
 		let mut signature_count = 0;
 		let mut origins = HashSet::new();
 		for rlp in UntrustedRlp::new(signatures_field).iter() {
-			let precommit: ConsensusMessage = ConsensusMessage::new_commit(&proposal, try!(rlp.as_val()));
+			let precommit: ConsensusMessage = ConsensusMessage::new_commit(&proposal, rlp.as_val()?);
 			let address = match self.votes.get(&precommit) {
 				Some(a) => a,
-				None => public_to_address(&try!(recover(&precommit.signature.into(), &precommit_hash))),
+				None => public_to_address(&recover(&precommit.signature.into(), &precommit_hash)?),
 			};
 			if !self.our_params.authorities.contains(&address) {
-				try!(Err(EngineError::NotAuthorized(address.to_owned())))
+				Err(EngineError::NotAuthorized(address.to_owned()))?
 			}
 
 			if origins.insert(address) {
 				signature_count += 1;
 			} else {
 				warn!(target: "poa", "verify_block_unordered: Duplicate signature from {} on the seal.", address);
-				try!(Err(BlockError::InvalidSeal));
+				Err(BlockError::InvalidSeal)?;
 			}
 		}
 
@@ -524,34 +524,34 @@ impl Engine for Tendermint {
 			let signatures_len = signatures_field.len();
 			// Proposal has to have an empty signature list.
 			if signatures_len != 1 {
-				try!(Err(EngineError::BadSealFieldSize(OutOfBounds {
+				Err(EngineError::BadSealFieldSize(OutOfBounds {
 					min: Some(1),
 					max: Some(1),
 					found: signatures_len
-				})));
+				}))?;
 			}
-			try!(self.is_round_proposer(proposal.height, proposal.round, &proposer));
+			self.is_round_proposer(proposal.height, proposal.round, &proposer)?;
 		}
 		Ok(())
 	}
 
 	fn verify_block_family(&self, header: &Header, parent: &Header, _block: Option<&[u8]>) -> Result<(), Error> {
 		if header.number() == 0 {
-			try!(Err(BlockError::RidiculousNumber(OutOfBounds { min: Some(1), max: None, found: header.number() })));
+			Err(BlockError::RidiculousNumber(OutOfBounds { min: Some(1), max: None, found: header.number() }))?;
 		}
 
 		let gas_limit_divisor = self.our_params.gas_limit_bound_divisor;
 		let min_gas = parent.gas_limit().clone() - parent.gas_limit().clone() / gas_limit_divisor;
 		let max_gas = parent.gas_limit().clone() + parent.gas_limit().clone() / gas_limit_divisor;
 		if header.gas_limit() <= &min_gas || header.gas_limit() >= &max_gas {
-			try!(Err(BlockError::InvalidGasLimit(OutOfBounds { min: Some(min_gas), max: Some(max_gas), found: header.gas_limit().clone() })));
+			Err(BlockError::InvalidGasLimit(OutOfBounds { min: Some(min_gas), max: Some(max_gas), found: header.gas_limit().clone() }))?;
 		}
 
 		Ok(())
 	}
 
 	fn verify_transaction_basic(&self, t: &SignedTransaction, _header: &Header) -> Result<(), Error> {
-		try!(t.check_low_s());
+		t.check_low_s()?;
 		Ok(())
 	}
 
@@ -656,7 +656,6 @@ impl Engine for Tendermint {
 #[cfg(test)]
 mod tests {
 	use util::*;
-	use util::trie::TrieSpec;
 	use io::{IoContext, IoHandler};
 	use block::*;
 	use error::{Error, BlockError};
@@ -681,8 +680,7 @@ mod tests {
 
 	fn propose_default(spec: &Spec, proposer: Address) -> (LockedBlock, Vec<Bytes>) {
 		let mut db_result = get_temp_state_db();
-		let mut db = db_result.take();
-		spec.ensure_db_good(&mut db, &TrieFactory::new(TrieSpec::Secure)).unwrap();
+		let db = spec.ensure_db_good(db_result.take(), &Default::default()).unwrap();
 		let genesis_header = spec.genesis_header();
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
 		let b = OpenBlock::new(spec.engine.as_ref(), Default::default(), false, db.boxed_clone(), &genesis_header, last_hashes, proposer, (3141562.into(), 31415620.into()), vec![]).unwrap();
@@ -889,9 +887,6 @@ mod tests {
 	fn relays_messages() {
 		let (spec, tap) = setup();
 		let engine = spec.engine.clone();
-		let mut db_result = get_temp_state_db();
-		let mut db = db_result.take();
-		spec.ensure_db_good(&mut db, &TrieFactory::new(TrieSpec::Secure)).unwrap();
 		
 		let v0 = insert_and_register(&tap, &engine, "0");
 		let v1 = insert_and_register(&tap, &engine, "1");
@@ -925,9 +920,6 @@ mod tests {
 	fn seal_submission() {
 		let (spec, tap) = setup();
 		let engine = spec.engine.clone();
-		let mut db_result = get_temp_state_db();
-		let mut db = db_result.take();
-		spec.ensure_db_good(&mut db, &TrieFactory::new(TrieSpec::Secure)).unwrap();
 		
 		let v0 = insert_and_register(&tap, &engine, "0");
 		let v1 = insert_and_register(&tap, &engine, "1");

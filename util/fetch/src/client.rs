@@ -22,8 +22,8 @@ use std::sync::atomic::{self, AtomicBool};
 
 use futures::{self, BoxFuture, Future};
 use futures_cpupool::{CpuPool, CpuFuture};
+use mime::{self, Mime};
 use reqwest;
-pub use mime::Mime;
 
 #[derive(Default, Debug, Clone)]
 pub struct Abort(Arc<AtomicBool>);
@@ -47,9 +47,9 @@ pub trait Fetch: Clone + Send + Sync + 'static {
 	/// Implementation is optional.
 	fn process<F>(&self, f: F) -> BoxFuture<(), ()> where
 		F: Future<Item=(), Error=()> + Send + 'static,
-			{
-				f.boxed()
-			}
+	{
+		f.boxed()
+	}
 
 	/// Fetch URL and get a future for the result.
 	/// Supports aborting the request in the middle of execution.
@@ -78,12 +78,12 @@ pub struct Client {
 
 impl Client {
 	pub fn new() -> Result<Self, Error> {
-		// Max 15MB will be downloaded.
-		Self::with_limit(Some(15*1024*1024))
+		// Max 50MB will be downloaded.
+		Self::with_limit(Some(50*1024*1024))
 	}
 
 	fn with_limit(limit: Option<usize>) -> Result<Self, Error> {
-		let mut client = try!(reqwest::Client::new());
+		let mut client = reqwest::Client::new()?;
 		client.redirect(reqwest::RedirectPolicy::limited(5));
 
 		Ok(Client {
@@ -99,9 +99,9 @@ impl Fetch for Client {
 
 	fn process<F>(&self, f: F) -> BoxFuture<(), ()> where
 		F: Future<Item=(), Error=()> + Send + 'static,
-			{
-				self.pool.spawn(f).boxed()
-			}
+	{
+		self.pool.spawn(f).boxed()
+	}
 
 	fn fetch_with_abort(&self, url: &str, abort: Abort) -> Self::Result {
 		debug!(target: "fetch", "Fetching from: {:?}", url);
@@ -134,9 +134,9 @@ impl Future for FetchTask {
 		}
 
 		trace!(target: "fetch", "Starting fetch task: {:?}", self.url);
-		let result = try!(self.client.get(&self.url)
+		let result = self.client.get(&self.url)
 						  .header(reqwest::header::UserAgent("Parity Fetch".into()))
-						  .send());
+						  .send()?;
 
 		Ok(futures::Async::Ready(Response {
 			inner: ResponseInner::Response(result),
@@ -188,6 +188,20 @@ impl Response {
 			abort: Abort::default(),
 			limit: None,
 			read: 0,
+		}
+	}
+
+	pub fn status(&self) -> reqwest::StatusCode {
+		match self.inner {
+			ResponseInner::Response(ref r) => *r.status(),
+			_ => reqwest::StatusCode::Ok,
+		}
+	}
+
+	pub fn is_html(&self) -> bool {
+		match self.content_type() {
+			Some(Mime(mime::TopLevel::Text, mime::SubLevel::Html, _)) => true,
+			_ => false,
 		}
 	}
 

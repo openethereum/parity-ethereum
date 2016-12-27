@@ -14,34 +14,85 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import React from 'react';
-import renderHash from './hash';
+import React, { Component, PropTypes } from 'react';
+import { connect } from 'react-redux';
+
+import Hash from './hash';
+import etherscanUrl from '../util/etherscan-url';
 import IdentityIcon from '../IdentityIcon';
 
-const container = {
-  display: 'inline-block',
-  verticalAlign: 'middle',
-  height: '24px'
-};
-const align = {
-  display: 'inline-block',
-  verticalAlign: 'top',
-  lineHeight: '24px'
-};
+import styles from './address.css';
 
-export default (address, accounts, contacts, shortenHash = true) => {
-  let caption;
-  if (accounts[address]) {
-    caption = (<abbr title={ address } style={ align }>{ accounts[address].name || address }</abbr>);
-  } else if (contacts[address]) {
-    caption = (<abbr title={ address } style={ align }>{ contacts[address].name || address }</abbr>);
-  } else {
-    caption = (<code style={ align }>{ shortenHash ? renderHash(address) : address }</code>);
+class Address extends Component {
+  static propTypes = {
+    address: PropTypes.string.isRequired,
+    accounts: PropTypes.object.isRequired,
+    contacts: PropTypes.object.isRequired,
+    isTestnet: PropTypes.bool.isRequired,
+    key: PropTypes.string,
+    shortenHash: PropTypes.bool
   }
-  return (
-    <div style={ container }>
-      <IdentityIcon address={ address } style={ align } />
-      { caption }
-    </div>
-  );
-};
+
+  static defaultProps = {
+    key: 'address',
+    shortenHash: true
+  }
+
+  render () {
+    const { address, accounts, contacts, isTestnet, key, shortenHash } = this.props;
+
+    let caption;
+    if (accounts[address] || contacts[address]) {
+      const name = (accounts[address] || contacts[address] || {}).name;
+      caption = (
+        <a
+          className={ styles.link }
+          href={ etherscanUrl(address, isTestnet) }
+          target='_blank'
+        >
+          <abbr
+            title={ address }
+            className={ styles.align }
+          >
+            { name || address }
+          </abbr>
+        </a>
+      );
+    } else {
+      caption = (
+        <code className={ styles.align }>
+          { shortenHash ? (
+            <Hash
+              hash={ address }
+              linked
+            />
+          ) : address }
+        </code>
+      );
+    }
+
+    return (
+      <div
+        key={ key }
+        className={ styles.container }
+      >
+        <IdentityIcon
+          address={ address }
+          className={ styles.align }
+        />
+        { caption }
+      </div>
+    );
+  }
+}
+
+export default connect(
+  // mapStateToProps
+  (state) => ({
+    accounts: state.accounts.all,
+    contacts: state.contacts,
+    isTestnet: state.isTestnet
+  }),
+  // mapDispatchToProps
+  null
+)(Address);

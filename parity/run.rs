@@ -109,7 +109,7 @@ pub fn open_ui(dapps_conf: &dapps::Configuration, signer_conf: &signer::Configur
 		return Err("Cannot use UI command with UI turned off.".into())
 	}
 
-	let token = try!(signer::generate_token_and_url(signer_conf));
+	let token = signer::generate_token_and_url(signer_conf)?;
 	// Open a browser
 	url::open(&token.url);
 	// Print a message
@@ -133,7 +133,7 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 	raise_fd_limit();
 
 	// load spec
-	let spec = try!(cmd.spec.spec());
+	let spec = cmd.spec.spec()?;
 
 	// load genesis hash
 	let genesis_hash = spec.genesis_header().hash();
@@ -145,19 +145,19 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 	let user_defaults_path = db_dirs.user_defaults_path();
 
 	// load user defaults
-	let mut user_defaults = try!(UserDefaults::load(&user_defaults_path));
+	let mut user_defaults = UserDefaults::load(&user_defaults_path)?;
 
 	// select pruning algorithm
 	let algorithm = cmd.pruning.to_algorithm(&user_defaults);
 
 	// check if tracing is on
-	let tracing = try!(tracing_switch_to_bool(cmd.tracing, &user_defaults));
+	let tracing = tracing_switch_to_bool(cmd.tracing, &user_defaults)?;
 
 	// check if fatdb is on
-	let fat_db = try!(fatdb_switch_to_bool(cmd.fat_db, &user_defaults, algorithm));
+	let fat_db = fatdb_switch_to_bool(cmd.fat_db, &user_defaults, algorithm)?;
 
 	// get the mode
-	let mode = try!(mode_switch_to_bool(cmd.mode, &user_defaults));
+	let mode = mode_switch_to_bool(cmd.mode, &user_defaults)?;
 	trace!(target: "mode", "mode is {:?}", mode);
 	let network_enabled = match mode { Mode::Dark(_) | Mode::Off => false, _ => true, };
 
@@ -169,14 +169,14 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 	let snapshot_path = db_dirs.snapshot_path();
 
 	// execute upgrades
-	try!(execute_upgrades(&cmd.dirs.base, &db_dirs, algorithm, cmd.compaction.compaction_profile(db_dirs.db_root_path().as_path())));
+	execute_upgrades(&cmd.dirs.base, &db_dirs, algorithm, cmd.compaction.compaction_profile(db_dirs.db_root_path().as_path()))?;
 
 	// create dirs used by parity
-	try!(cmd.dirs.create_dirs(cmd.dapps_conf.enabled, cmd.signer_conf.enabled));
+	cmd.dirs.create_dirs(cmd.dapps_conf.enabled, cmd.signer_conf.enabled)?;
 
 	// run in daemon mode
 	if let Some(pid_file) = cmd.daemon {
-		try!(daemonize(pid_file));
+		daemonize(pid_file)?;
 	}
 
 	// display info about used pruning algorithm
@@ -214,10 +214,10 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 	sync_config.warp_sync = cmd.warp_sync;
 	sync_config.download_old_blocks = cmd.download_old_blocks;
 
-	let passwords = try!(passwords_from_files(&cmd.acc_conf.password_files));
+	let passwords = passwords_from_files(&cmd.acc_conf.password_files)?;
 
 	// prepare account provider
-	let account_provider = Arc::new(try!(prepare_account_provider(&cmd.dirs, &spec.data_dir, cmd.acc_conf, &passwords)));
+	let account_provider = Arc::new(prepare_account_provider(&cmd.dirs, &spec.data_dir, cmd.acc_conf, &passwords)?);
 
 	// let the Engine access the accounts
 	spec.engine.register_account_provider(account_provider.clone());
@@ -266,14 +266,14 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 	let mut hypervisor = modules::hypervisor(&cmd.dirs.ipc_path());
 
 	// create client service.
-	let service = try!(ClientService::start(
+	let service = ClientService::start(
 		client_config,
 		&spec,
 		&client_path,
 		&snapshot_path,
 		&cmd.dirs.ipc_path(),
 		miner.clone(),
-	).map_err(|e| format!("Client service error: {:?}", e)));
+	).map_err(|e| format!("Client service error: {:?}", e))?;
 
 	// drop the spec to free up genesis state.
 	drop(spec);
@@ -289,7 +289,7 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 	let external_miner = Arc::new(ExternalMiner::default());
 
 	// create sync object
-	let (sync_provider, manage_network, chain_notify) = try!(modules::sync(
+	let (sync_provider, manage_network, chain_notify) = modules::sync(
 		&mut hypervisor,
 		sync_config,
 		net_conf.into(),
@@ -297,7 +297,7 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 		snapshot_service.clone(),
 		client.clone(),
 		&cmd.logger_config,
-	).map_err(|e| format!("Sync error: {}", e)));
+	).map_err(|e| format!("Sync error: {}", e))?;
 
 	service.add_notify(chain_notify.clone());
 
@@ -310,7 +310,7 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 	let event_loop = EventLoop::spawn();
 
 	// fetch service
-	let fetch = try!(FetchClient::new().map_err(|e| format!("Error starting fetch client: {:?}", e)));
+	let fetch = FetchClient::new().map_err(|e| format!("Error starting fetch client: {:?}", e))?;
 
 	// the updater service
 	let updater = Updater::new(
@@ -359,8 +359,8 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 	};
 
 	// start rpc servers
-	let http_server = try!(rpc::new_http(cmd.http_conf, &dependencies));
-	let ipc_server = try!(rpc::new_ipc(cmd.ipc_conf, &dependencies));
+	let http_server = rpc::new_http(cmd.http_conf, &dependencies)?;
+	let ipc_server = rpc::new_ipc(cmd.ipc_conf, &dependencies)?;
 
 	// the dapps server
 	let dapps_deps = dapps::Dependencies {
@@ -370,15 +370,16 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 		sync: sync_provider.clone(),
 		remote: event_loop.remote(),
 		fetch: fetch.clone(),
+		signer: deps_for_rpc_apis.signer_service.clone(),
 	};
-	let dapps_server = try!(dapps::new(cmd.dapps_conf.clone(), dapps_deps));
+	let dapps_server = dapps::new(cmd.dapps_conf.clone(), dapps_deps)?;
 
 	// the signer server
 	let signer_deps = signer::Dependencies {
 		panic_handler: panic_handler.clone(),
 		apis: deps_for_rpc_apis.clone(),
 	};
-	let signer_server = try!(signer::start(cmd.signer_conf.clone(), signer_deps));
+	let signer_server = signer::start(cmd.signer_conf.clone(), signer_deps)?;
 
 	// the informant
 	let informant = Arc::new(Informant::new(
@@ -396,7 +397,7 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 	user_defaults.tracing = tracing;
 	user_defaults.fat_db = fat_db;
 	user_defaults.mode = mode;
-	try!(user_defaults.save(&user_defaults_path));
+	user_defaults.save(&user_defaults_path)?;
 
 	// tell client how to save the default mode if it gets changed.
 	client.on_mode_change(move |mode: &Mode| {
@@ -424,7 +425,7 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 
 	// start ui
 	if cmd.ui {
-		try!(open_ui(&cmd.dapps_conf, &cmd.signer_conf));
+		open_ui(&cmd.dapps_conf, &cmd.signer_conf)?;
 	}
 
 	// Handle exit
@@ -476,9 +477,9 @@ fn prepare_account_provider(dirs: &Directories, data_dir: &str, cfg: AccountsCon
 
 	let path = dirs.keys_path(data_dir);
 	upgrade_key_location(&dirs.legacy_keys_path(cfg.testnet), &path);
-	let dir = Box::new(try!(DiskDirectory::create(&path).map_err(|e| format!("Could not open keys directory: {}", e))));
+	let dir = Box::new(DiskDirectory::create(&path).map_err(|e| format!("Could not open keys directory: {}", e))?);
 	let account_service = AccountProvider::new(Box::new(
-		try!(EthStore::open_with_iterations(dir, cfg.iterations).map_err(|e| format!("Could not open keys directory: {}", e)))
+		EthStore::open_with_iterations(dir, cfg.iterations).map_err(|e| format!("Could not open keys directory: {}", e))?
 	));
 
 	for a in cfg.unlocked_accounts {

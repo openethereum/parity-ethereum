@@ -37,6 +37,11 @@ export default class Signer {
       .execute('signer_generateAuthorizationToken');
   }
 
+  generateWebProxyAccessToken () {
+    return this._transport
+      .execute('signer_generateWebProxyAccessToken');
+  }
+
   rejectRequest (requestId) {
     return this._transport
       .execute('signer_rejectRequest', inNumber16(requestId));

@@ -35,15 +35,15 @@ export default class Parity {
       .execute('parity_acceptNonReservedPeers');
   }
 
-  accounts () {
-    return this._transport
-      .execute('parity_accounts')
-      .then(outAccountInfo);
-  }
-
   accountsInfo () {
     return this._transport
       .execute('parity_accountsInfo')
+      .then(outAccountInfo);
+  }
+
+  allAccountsInfo () {
+    return this._transport
+      .execute('parity_allAccountsInfo')
       .then(outAccountInfo);
   }
 

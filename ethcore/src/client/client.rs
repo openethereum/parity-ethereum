@@ -167,25 +167,32 @@ impl Client {
 	) -> Result<Arc<Client>, ClientError> {
 
 		let path = path.to_path_buf();
-		let gb = spec.genesis_block();
-
-		let db = Arc::new(try!(Database::open(&db_config, &path.to_str().expect("DB path could not be converted to string.")).map_err(ClientError::Database)));
-		let chain = Arc::new(BlockChain::new(config.blockchain.clone(), &gb, db.clone(), spec.engine.clone()));
-		let tracedb = RwLock::new(TraceDB::new(config.tracing.clone(), db.clone(), chain.clone()));
-
+		let db = Arc::new(Database::open(&db_config, &path.to_str().expect("DB path could not be converted to string.")).map_err(ClientError::Database)?);
 		let trie_spec = match config.fat_db {
 			true => TrieSpec::Fat,
 			false => TrieSpec::Secure,
 		};
 
 		let trie_factory = TrieFactory::new(trie_spec);
+		let factories = Factories {
+			vm: EvmFactory::new(config.vm_type.clone(), config.jump_table_size),
+			trie: trie_factory,
+			accountdb: Default::default(),
+		};
+
 		let journal_db = journaldb::new(db.clone(), config.pruning, ::db::COL_STATE);
 		let mut state_db = StateDB::new(journal_db, config.state_cache_size);
-		if state_db.journal_db().is_empty() && try!(spec.ensure_db_good(&mut state_db, &trie_factory)) {
+		if state_db.journal_db().is_empty() {
+			// Sets the correct state root.
+			state_db = spec.ensure_db_good(state_db, &factories)?;
 			let mut batch = DBTransaction::new(&db);
-			try!(state_db.journal_under(&mut batch, 0, &spec.genesis_header().hash()));
-			try!(db.write(batch).map_err(ClientError::Database));
+			state_db.journal_under(&mut batch, 0, &spec.genesis_header().hash())?;
+			db.write(batch).map_err(ClientError::Database)?;
 		}
+
+		let gb = spec.genesis_block();
+		let chain = Arc::new(BlockChain::new(config.blockchain.clone(), &gb, db.clone(), spec.engine.clone()));
+		let tracedb = RwLock::new(TraceDB::new(config.tracing.clone(), db.clone(), chain.clone()));
 
 		trace!("Cleanup journal: DB Earliest = {:?}, Latest = {:?}", state_db.journal_db().earliest_era(), state_db.journal_db().latest_era());
 
@@ -203,8 +210,8 @@ impl Client {
 				for era in earliest..(latest - history + 1) {
 					trace!("Removing era {}", era);
 					let mut batch = DBTransaction::new(&db);
-					try!(state_db.mark_canonical(&mut batch, era, &chain.block_hash(era).expect("Old block not found in the database")));
-					try!(db.write(batch).map_err(ClientError::Database));
+					state_db.mark_canonical(&mut batch, era, &chain.block_hash(era).expect("Old block not found in the database"))?;
+					db.write(batch).map_err(ClientError::Database)?;
 				}
 			}
 		}
@@ -220,12 +227,6 @@ impl Client {
 		panic_handler.forward_from(&block_queue);
 
 		let awake = match config.mode { Mode::Dark(..) | Mode::Off => false, _ => true };
-
-		let factories = Factories {
-			vm: EvmFactory::new(config.vm_type.clone(), config.jump_table_size),
-			trie: trie_factory,
-			accountdb: Default::default(),
-		};
 
 		let client = Arc::new(Client {
 			enabled: AtomicBool::new(true),
@@ -251,7 +252,7 @@ impl Client {
 			last_hashes: RwLock::new(VecDeque::new()),
 			factories: factories,
 			history: history,
-			rng: Mutex::new(try!(OsRng::new().map_err(::util::UtilError::StdIo))),
+			rng: Mutex::new(OsRng::new().map_err(::util::UtilError::StdIo)?),
 			on_mode_change: Mutex::new(None),
 			registrar: Mutex::new(None),
 		});
@@ -369,9 +370,9 @@ impl Client {
 			let db = self.state_db.lock().boxed_clone_canon(header.parent_hash());
 
 			let enact_result = enact_verified(block, engine, self.tracedb.read().tracing_enabled(), db, &parent, last_hashes, self.factories.clone());
-			let locked_block = try!(enact_result.map_err(|e| {
+			let locked_block = enact_result.map_err(|e| {
 				warn!(target: "client", "Block import failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
-			}));
+			})?;
 
 			// Final Verification
 			if let Err(e) = self.verifier.verify_block_final(header, locked_block.block().header()) {
@@ -510,14 +511,14 @@ impl Client {
 			let chain = self.chain.read();
 
 			// verify block.
-			try!(::snapshot::verify_old_block(
+			::snapshot::verify_old_block(
 				&mut *rng,
 				&header,
 				&*self.engine,
 				&*chain,
 				Some(&block_bytes),
 				false,
-			));
+			)?;
 
 			// Commit results
 			let receipts = ::rlp::decode(&receipts_bytes);
@@ -618,7 +619,8 @@ impl Client {
 	/// Attempt to get a copy of a specific block's final state.
 	///
 	/// This will not fail if given BlockId::Latest.
-	/// Otherwise, this can fail (but may not) if the DB prunes state.
+	/// Otherwise, this can fail (but may not) if the DB prunes state or the block
+	/// is unknown.
 	pub fn state_at(&self, id: BlockId) -> Option<State> {
 		// fast path for latest state.
 		match id.clone() {
@@ -737,7 +739,7 @@ impl Client {
 	pub fn take_snapshot<W: snapshot_io::SnapshotWriter + Send>(&self, writer: W, at: BlockId, p: &snapshot::Progress) -> Result<(), EthcoreError> {
 		let db = self.state_db.lock().journal_db().boxed_clone();
 		let best_block_number = self.chain_info().best_block_number;
-		let block_number = try!(self.block_number(at).ok_or(snapshot::Error::InvalidStartingBlock(at)));
+		let block_number = self.block_number(at).ok_or(snapshot::Error::InvalidStartingBlock(at))?;
 
 		if best_block_number > self.history + block_number && db.is_pruned() {
 			return Err(snapshot::Error::OldBlockPrunedDB.into());
@@ -763,7 +765,7 @@ impl Client {
 			},
 		};
 
-		try!(snapshot::take_snapshot(&self.chain.read(), start_hash, db.as_hashdb(), writer, p));
+		snapshot::take_snapshot(&self.chain.read(), start_hash, db.as_hashdb(), writer, p)?;
 
 		Ok(())
 	}
@@ -827,7 +829,7 @@ impl snapshot::DatabaseRestore for Client {
 		let mut tracedb = self.tracedb.write();
 		self.miner.clear();
 		let db = self.db.write();
-		try!(db.restore(new_db));
+		db.restore(new_db)?;
 
 		let cache_size = state_db.cache_size();
 		*state_db = StateDB::new(journaldb::new(db.clone(), self.pruning, ::db::COL_STATE), cache_size);
@@ -840,7 +842,7 @@ impl snapshot::DatabaseRestore for Client {
 
 impl BlockChainClient for Client {
 	fn call(&self, t: &SignedTransaction, block: BlockId, analytics: CallAnalytics) -> Result<Executed, CallError> {
-		let header = try!(self.block_header(block).ok_or(CallError::StatePruned));
+		let header = self.block_header(block).ok_or(CallError::StatePruned)?;
 		let view = HeaderView::new(&header);
 		let last_hashes = self.build_last_hashes(view.parent_hash());
 		let env_info = EnvInfo {
@@ -853,13 +855,13 @@ impl BlockChainClient for Client {
 			gas_limit: U256::max_value(),
 		};
 		// that's just a copy of the state.
-		let mut state = try!(self.state_at(block).ok_or(CallError::StatePruned));
+		let mut state = self.state_at(block).ok_or(CallError::StatePruned)?;
 		let original_state = if analytics.state_diffing { Some(state.clone()) } else { None };
 
-		let sender = try!(t.sender().map_err(|e| {
+		let sender = t.sender().map_err(|e| {
 			let message = format!("Transaction malformed: {:?}", e);
 			ExecutionError::TransactionMalformed(message)
-		}));
+		})?;
 		let balance = state.balance(&sender);
 		let needed_balance = t.value + t.gas * t.gas_price;
 		if balance < needed_balance {
@@ -867,7 +869,7 @@ impl BlockChainClient for Client {
 			state.add_balance(&sender, &(needed_balance - balance), CleanupMode::NoEmpty);
 		}
 		let options = TransactOptions { tracing: analytics.transaction_tracing, vm_tracing: analytics.vm_tracing, check_nonce: false };
-		let mut ret = try!(Executive::new(&mut state, &env_info, &*self.engine, &self.factories.vm).transact(t, options));
+		let mut ret = Executive::new(&mut state, &env_info, &*self.engine, &self.factories.vm).transact(t, options)?;
 
 		// TODO gav move this into Executive.
 		ret.state_diff = original_state.map(|original| state.diff_from(original));
@@ -876,10 +878,10 @@ impl BlockChainClient for Client {
 	}
 
 	fn replay(&self, id: TransactionId, analytics: CallAnalytics) -> Result<Executed, CallError> {
-		let address = try!(self.transaction_address(id).ok_or(CallError::TransactionNotFound));
-		let header_data = try!(self.block_header(BlockId::Hash(address.block_hash)).ok_or(CallError::StatePruned));
-		let body_data = try!(self.block_body(BlockId::Hash(address.block_hash)).ok_or(CallError::StatePruned));
-		let mut state = try!(self.state_at_beginning(BlockId::Hash(address.block_hash)).ok_or(CallError::StatePruned));
+		let address = self.transaction_address(id).ok_or(CallError::TransactionNotFound)?;
+		let header_data = self.block_header(BlockId::Hash(address.block_hash)).ok_or(CallError::StatePruned)?;
+		let body_data = self.block_body(BlockId::Hash(address.block_hash)).ok_or(CallError::StatePruned)?;
+		let mut state = self.state_at_beginning(BlockId::Hash(address.block_hash)).ok_or(CallError::StatePruned)?;
 		let txs = BodyView::new(&body_data).transactions();
 
 		if address.index >= txs.len() {
@@ -907,7 +909,7 @@ impl BlockChainClient for Client {
 		let t = &txs[address.index];
 
 		let original_state = if analytics.state_diffing { Some(state.clone()) } else { None };
-		let mut ret = try!(Executive::new(&mut state, &env_info, &*self.engine, &self.factories.vm).transact(t, options));
+		let mut ret = Executive::new(&mut state, &env_info, &*self.engine, &self.factories.vm).transact(t, options)?;
 		ret.state_diff = original_state.map(|original| state.diff_from(original));
 
 		Ok(ret)
@@ -1205,7 +1207,7 @@ impl BlockChainClient for Client {
 	}
 
 	fn import_block(&self, bytes: Bytes) -> Result<H256, BlockImportError> {
-		use verification::queue::kind::HasHash;
+		use verification::queue::kind::BlockLike;
 		use verification::queue::kind::blocks::Unverified;
 
 		// create unverified block here so the `sha3` calculation can be cached.
@@ -1219,7 +1221,7 @@ impl BlockChainClient for Client {
 				return Err(BlockImportError::Block(BlockError::UnknownParent(unverified.parent_hash())));
 			}
 		}
-		Ok(try!(self.block_queue.import(unverified)))
+		Ok(self.block_queue.import(unverified)?)
 	}
 
 	fn import_block_with_receipts(&self, block_bytes: Bytes, receipts_bytes: Bytes) -> Result<H256, BlockImportError> {
@@ -1245,7 +1247,9 @@ impl BlockChainClient for Client {
 	}
 
 	fn chain_info(&self) -> BlockChainInfo {
-		self.chain.read().chain_info()
+		let mut chain_info = self.chain.read().chain_info();
+		chain_info.pending_total_difficulty = chain_info.total_difficulty + self.block_queue.total_difficulty();
+		chain_info
 	}
 
 	fn additional_params(&self) -> BTreeMap<String, String> {
@@ -1369,6 +1373,7 @@ impl BlockChainClient for Client {
 		PruningInfo {
 			earliest_chain: self.chain.read().first_block_number().unwrap_or(1),
 			earliest_state: self.state_db.lock().journal_db().earliest_era().unwrap_or(0),
+			state_history_size: Some(self.history),
 		}
 	}
 

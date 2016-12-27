@@ -48,8 +48,8 @@ impl Decodable for CallResult {
 	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
 		let d = decoder.as_rlp();
 		let res = CallResult {
-			gas_used: try!(d.val_at(0)),
-			output: try!(d.val_at(1)),
+			gas_used: d.val_at(0)?,
+			output: d.val_at(1)?,
 		};
 
 		Ok(res)
@@ -81,9 +81,9 @@ impl Decodable for CreateResult {
 	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
 		let d = decoder.as_rlp();
 		let res = CreateResult {
-			gas_used: try!(d.val_at(0)),
-			code: try!(d.val_at(1)),
-			address: try!(d.val_at(2)),
+			gas_used: d.val_at(0)?,
+			code: d.val_at(1)?,
+			address: d.val_at(2)?,
 		};
 
 		Ok(res)
@@ -144,12 +144,12 @@ impl Decodable for Call {
 	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
 		let d = decoder.as_rlp();
 		let res = Call {
-			from: try!(d.val_at(0)),
-			to: try!(d.val_at(1)),
-			value: try!(d.val_at(2)),
-			gas: try!(d.val_at(3)),
-			input: try!(d.val_at(4)),
-			call_type: try!(d.val_at(5)),
+			from: d.val_at(0)?,
+			to: d.val_at(1)?,
+			value: d.val_at(2)?,
+			gas: d.val_at(3)?,
+			input: d.val_at(4)?,
+			call_type: d.val_at(5)?,
 		};
 
 		Ok(res)
@@ -204,10 +204,10 @@ impl Decodable for Create {
 	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
 		let d = decoder.as_rlp();
 		let res = Create {
-			from: try!(d.val_at(0)),
-			value: try!(d.val_at(1)),
-			gas: try!(d.val_at(2)),
-			init: try!(d.val_at(3)),
+			from: d.val_at(0)?,
+			value: d.val_at(1)?,
+			gas: d.val_at(2)?,
+			init: d.val_at(3)?,
 		};
 
 		Ok(res)
@@ -255,9 +255,9 @@ impl Decodable for Suicide {
 	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
 		let d = decoder.as_rlp();
 		let res = Suicide {
-			address: try!(d.val_at(0)),
-			refund_address: try!(d.val_at(1)),
-			balance: try!(d.val_at(2)),
+			address: d.val_at(0)?,
+			refund_address: d.val_at(1)?,
+			balance: d.val_at(2)?,
 		};
 
 		Ok(res)
@@ -300,7 +300,7 @@ impl Encodable for Action {
 impl Decodable for Action {
 	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
 		let d = decoder.as_rlp();
-		let action_type: u8 = try!(d.val_at(0));
+		let action_type: u8 = d.val_at(0)?;
 		match action_type {
 			0 => d.val_at(1).map(Action::Call),
 			1 => d.val_at(1).map(Action::Create),
@@ -371,7 +371,7 @@ impl Encodable for Res {
 impl Decodable for Res {
 	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
 		let d = decoder.as_rlp();
-		let action_type: u8 = try!(d.val_at(0));
+		let action_type: u8 = d.val_at(0)?;
 		match action_type {
 			0 => d.val_at(1).map(Res::Call),
 			1 => d.val_at(1).map(Res::Create),
@@ -415,8 +415,8 @@ impl Decodable for MemoryDiff {
 	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
 		let d = decoder.as_rlp();
 		Ok(MemoryDiff {
-			offset: try!(d.val_at(0)),
-			data: try!(d.val_at(1)),
+			offset: d.val_at(0)?,
+			data: d.val_at(1)?,
 		})
 	}
 }
@@ -443,8 +443,8 @@ impl Decodable for StorageDiff {
 	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
 		let d = decoder.as_rlp();
 		Ok(StorageDiff {
-			location: try!(d.val_at(0)),
-			value: try!(d.val_at(1)),
+			location: d.val_at(0)?,
+			value: d.val_at(1)?,
 		})
 	}
 }
@@ -477,10 +477,10 @@ impl Decodable for VMExecutedOperation {
 	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
 		let d = decoder.as_rlp();
 		Ok(VMExecutedOperation {
-			gas_used: try!(d.val_at(0)),
-			stack_push: try!(d.val_at(1)),
-			mem_diff: try!(d.val_at(2)),
-			store_diff: try!(d.val_at(3)),
+			gas_used: d.val_at(0)?,
+			stack_push: d.val_at(1)?,
+			mem_diff: d.val_at(2)?,
+			store_diff: d.val_at(3)?,
 		})
 	}
 }
@@ -513,10 +513,10 @@ impl Decodable for VMOperation {
 	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
 		let d = decoder.as_rlp();
 		let res = VMOperation {
-			pc: try!(d.val_at(0)),
-			instruction: try!(d.val_at(1)),
-			gas_cost: try!(d.val_at(2)),
-			executed: try!(d.val_at(3)),
+			pc: d.val_at(0)?,
+			instruction: d.val_at(1)?,
+			gas_cost: d.val_at(2)?,
+			executed: d.val_at(3)?,
 		};
 
 		Ok(res)
@@ -552,10 +552,10 @@ impl Decodable for VMTrace {
 	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
 		let d = decoder.as_rlp();
 		let res = VMTrace {
-			parent_step: try!(d.val_at(0)),
-			code: try!(d.val_at(1)),
-			operations: try!(d.val_at(2)),
-			subs: try!(d.val_at(3)),
+			parent_step: d.val_at(0)?,
+			code: d.val_at(1)?,
+			operations: d.val_at(2)?,
+			subs: d.val_at(3)?,
 		};
 
 		Ok(res)

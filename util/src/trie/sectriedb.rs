@@ -34,7 +34,7 @@ impl<'db> SecTrieDB<'db> {
 	/// This guarantees the trie is built correctly.
 	/// Returns an error if root does not exist.
 	pub fn new(db: &'db HashDB, root: &'db H256) -> super::Result<Self> {
-		Ok(SecTrieDB { raw: try!(TrieDB::new(db, root)) })
+		Ok(SecTrieDB { raw: TrieDB::new(db, root)? })
 	}
 
 	/// Get a reference to the underlying raw `TrieDB` struct.
