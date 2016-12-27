@@ -16,7 +16,7 @@
 
 import Paper from 'material-ui/Paper';
 import { Tabs, Tab } from 'material-ui/Tabs';
-import { observer } from 'mobx';
+import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 
@@ -328,7 +328,7 @@ export default class PasswordManager extends Component {
   }
 
   onEditTestPassword = (event, password) => {
-    this.store.setTestPassword(password);
+    this.store.setValidatePassword(password);
   }
 
   changePassword = () => {

@@ -14,8 +14,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { toJS } from 'mobx';
-
 import Store from './store';
 import { ACCOUNT, ADDRESS, createApi } from './editMeta.test.js';
 
@@ -50,12 +48,12 @@ describe('modals/EditMeta/Store', () => {
       });
 
       it('extracts the tags', () => {
-        expect(store.tags.peek()).to.deep.equal(ACCOUNT.meta.tags);
+        expect(store.tags).to.deep.equal(ACCOUNT.meta.tags);
       });
 
       describe('meta', () => {
         it('extracts the full meta', () => {
-          expect(toJS(store.meta)).to.deep.equal(ACCOUNT.meta);
+          expect(store.meta).to.deep.equal(ACCOUNT.meta);
         });
 
         it('extracts the description', () => {

@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { action, computed, observable, toJS, transaction } from 'mobx';
+import { action, computed, observable, transaction } from 'mobx';
 
 const CHANGE_ACTION = 'CHANGE_ACTION';
 const TEST_ACTION = 'TEST_ACTION';
@@ -30,19 +30,17 @@ export default class Store {
   @observable newPasswordRepeat = '';
   @observable password = '';
   @observable passwordHint = '';
-  @observable testPassword = '';
+  @observable validatePassword = '';
 
   constructor (api, account) {
-    const { address, meta } = account;
-
     this._api = api;
 
-    this.address = address;
-    this.meta = meta || {};
+    this.address = account.address;
+    this.meta = account.meta || {};
     this.passwordHint = this.meta.passwordHint || '';
   }
 
-  @computed isRepeatValid () {
+  @computed get isRepeatValid () {
     return this.newPasswordRepeat === this.newPassword;
   }
 
@@ -92,37 +90,28 @@ export default class Store {
     });
   }
 
-  @action setTestPassword = (password) => {
+  @action setValidatePassword = (password) => {
     transaction(() => {
-      this.testPassword = password;
+      this.validatePassword = password;
       this.setInfoMessage();
     });
   }
 
   changePassword = () => {
-    const { currentPass } = this.state;
-
-    if (this.newPasswordRepeat !== this.newPassword) {
-      return;
+    if (!this.isRepeatValid) {
+      return Promise.resolve(false);
     }
 
-    this.setState({ waiting: true, showMessage: false });
+    this.setBusy(true);
 
-    return this._api.parity
-      .testPassword(this.address, currentPass)
-      .then(correct => {
-        if (!correct) {
-          const message = {
-            value: 'This provided current password is not correct',
-            success: false
-          };
-
-          this.setState({ waiting: false, message, showMessage: true });
-
+    return this
+      .testPassword(this.password)
+      .then((result) => {
+        if (!result) {
           return false;
         }
 
-        const meta = Object.assign({}, toJS(this.meta), {
+        const meta = Object.assign({}, this.meta, {
           passwordHint: this.newPasswordHint
         });
 
@@ -132,7 +121,7 @@ export default class Store {
             this._api.parity.changePassword(this.address, this.password, this.newPassword)
           ])
           .then(() => {
-            this.setState({ waiting: false, showMessage: false });
+            this.setBusy(false);
             return true;
           });
       })
@@ -143,11 +132,11 @@ export default class Store {
       });
   }
 
-  testPassword = () => {
+  testPassword = (password) => {
     this.setBusy(false);
 
     return this._api.parity
-      .testPassword(this.address, this.testPassword)
+      .testPassword(this.address, password || this.validatePassword)
       .then((success) => {
         this.setBusy(false, {
           success,
@@ -155,6 +144,8 @@ export default class Store {
             ? 'This password is correct'
             : 'This password is not correct'
         });
+
+        return success;
       })
       .catch((error) => {
         console.error('testPassword', error);

@@ -27,12 +27,12 @@ const ACCOUNT = {
   uuid: '123-456'
 };
 
-function createApi () {
+function createApi (result = true) {
   return {
     parity: {
-      changePassword: sinon.stub().resolves(),
-      setAccountMeta: sinon.stub().resolves(),
-      testPassword: sinon.stub().resolves()
+      changePassword: sinon.stub().resolves(result),
+      setAccountMeta: sinon.stub().resolves(result),
+      testPassword: sinon.stub().resolves(result)
     }
   };
 }

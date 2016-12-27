@@ -23,11 +23,11 @@ export default class Store {
   @observable address = null;
   @observable isAccount = false;
   @observable description = null;
-  @observable meta = {};
+  @observable meta = null;
   @observable name = null;
   @observable nameError = null;
   @observable passwordHint = null;
-  @observable tags = [];
+  @observable tags = null;
 
   constructor (api, account) {
     const { address, name, meta, uuid } = account;
@@ -41,7 +41,7 @@ export default class Store {
 
     this.description = this.meta.description || '';
     this.passwordHint = this.meta.passwordHint || '';
-    this.tags = [].concat((meta || {}).tags || []);
+    this.tags = [].concat(this.meta.tags || []);
   }
 
   @computed get hasError () {
