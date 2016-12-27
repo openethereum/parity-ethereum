@@ -19,7 +19,6 @@ import CancelIcon from 'material-ui/svg-icons/content/clear';
 import CheckIcon from 'material-ui/svg-icons/navigation/check';
 import CloseIcon from 'material-ui/svg-icons/navigation/close';
 import ContractIcon from 'material-ui/svg-icons/action/code';
-import CheckIcon from 'material-ui/svg-icons/navigation/check';
 import DoneIcon from 'material-ui/svg-icons/action/done-all';
 import PrevIcon from 'material-ui/svg-icons/navigation/arrow-back';
 import NextIcon from 'material-ui/svg-icons/navigation/arrow-forward';
@@ -33,7 +32,6 @@ export {
   CheckIcon,
   CloseIcon,
   ContractIcon,
-  CheckIcon,
   DoneIcon,
   PrevIcon,
   NextIcon,
