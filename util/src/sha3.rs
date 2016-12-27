@@ -76,7 +76,7 @@ pub fn sha3(r: &mut io::BufRead) -> Result<H256, io::Error> {
 
 	// read file
 	loop {
-		let some = try!(r.read(&mut input));
+		let some = r.read(&mut input)?;
 		if some == 0 {
 			break;
 		}

@@ -77,7 +77,7 @@ impl ClientService {
 		) -> Result<ClientService, Error>
 	{
 		let panic_handler = PanicHandler::new_in_arc();
-		let io_service = try!(IoService::<ClientIoMessage>::start());
+		let io_service = IoService::<ClientIoMessage>::start()?;
 		panic_handler.forward_from(&io_service);
 
 		info!("Configured for {} using {} engine", Colour::White.bold().paint(spec.name.clone()), Colour::Yellow.bold().paint(spec.engine.name()));
@@ -94,7 +94,7 @@ impl ClientService {
 		db_config.wal = config.db_wal;
 
 		let pruning = config.pruning;
-		let client = try!(Client::new(config, &spec, client_path, miner, io_service.channel(), &db_config));
+		let client = Client::new(config, &spec, client_path, miner, io_service.channel(), &db_config)?;
 
 		let snapshot_params = SnapServiceParams {
 			engine: spec.engine.clone(),
@@ -105,14 +105,14 @@ impl ClientService {
 			snapshot_root: snapshot_path.into(),
 			db_restore: client.clone(),
 		};
-		let snapshot = Arc::new(try!(SnapshotService::new(snapshot_params)));
+		let snapshot = Arc::new(SnapshotService::new(snapshot_params)?);
 
 		panic_handler.forward_from(&*client);
 		let client_io = Arc::new(ClientIoHandler {
 			client: client.clone(),
 			snapshot: snapshot.clone(),
 		});
-		try!(io_service.register_handler(client_io));
+		io_service.register_handler(client_io)?;
 
 		spec.engine.register_message_channel(io_service.channel());
 

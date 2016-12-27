@@ -119,12 +119,12 @@ impl URLHintContract {
 
 	fn urlhint_address(&self) -> Option<Address> {
 		let res = || {
-			let get_address = try!(self.registrar.function("getAddress".into()).map_err(as_string));
-			let params = try!(get_address.encode_call(
+			let get_address = self.registrar.function("getAddress".into()).map_err(as_string)?;
+			let params = get_address.encode_call(
 					vec![Token::FixedBytes((*"githubhint".sha3()).to_vec()), Token::String("A".into())]
-			).map_err(as_string));
-			let output = try!(self.client.call(try!(self.client.registrar()), params));
-			let result = try!(get_address.decode_output(output).map_err(as_string));
+			).map_err(as_string)?;
+			let output = self.client.call(self.client.registrar()?, params)?;
+			let result = get_address.decode_output(output).map_err(as_string)?;
 
 			match result.get(0) {
 				Some(&Token::Address(address)) if address != *Address::default() => Ok(address.into()),

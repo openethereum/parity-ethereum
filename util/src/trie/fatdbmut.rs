@@ -39,7 +39,7 @@ impl<'db> FatDBMut<'db> {
 	///
 	/// Returns an error if root does not exist.
 	pub fn from_existing(db: &'db mut HashDB, root: &'db mut H256) -> super::Result<Self> {
-		Ok(FatDBMut { raw: try!(TrieDBMut::from_existing(db, root)) })
+		Ok(FatDBMut { raw: TrieDBMut::from_existing(db, root)? })
 	}
 
 	/// Get the backing database.
@@ -78,7 +78,7 @@ impl<'db> TrieMut for FatDBMut<'db> {
 
 	fn insert(&mut self, key: &[u8], value: &[u8]) -> super::Result<()> {
 		let hash = key.sha3();
-		try!(self.raw.insert(&hash, value));
+		self.raw.insert(&hash, value)?;
 		let db = self.raw.db_mut();
 		db.emplace(Self::to_aux_key(&hash), DBValue::from_slice(key));
 		Ok(())

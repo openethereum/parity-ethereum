@@ -114,16 +114,16 @@ impl<F: Fetch + 'static> HashFetch for Client<F> {
 			Ok(url) => {
 				let future = self.fetch.fetch(&url).then(move |result| {
 					fn validate_hash(path: PathBuf, hash: H256, result: Result<Response, FetchError>) -> Result<PathBuf, Error> {
-						let response = try!(result);
+						let response = result?;
 						// Read the response
 						let mut reader = io::BufReader::new(response);
-						let mut writer = io::BufWriter::new(try!(fs::File::create(&path)));
-						try!(io::copy(&mut reader, &mut writer));
-						try!(writer.flush());
+						let mut writer = io::BufWriter::new(fs::File::create(&path)?);
+						io::copy(&mut reader, &mut writer)?;
+						writer.flush()?;
 
 						// And validate the hash
-						let mut file_reader = io::BufReader::new(try!(fs::File::open(&path)));
-						let content_hash = try!(sha3(&mut file_reader));
+						let mut file_reader = io::BufReader::new(fs::File::open(&path)?);
+						let content_hash = sha3(&mut file_reader)?;
 						if content_hash != hash {
 							Err(Error::HashMismatch{ got: content_hash, expected: hash })
 						} else {
