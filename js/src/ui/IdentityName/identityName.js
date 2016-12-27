@@ -14,11 +14,11 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import BigNumber from 'bignumber.js';
 import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
+import { isNullAddress } from '~/util/validation';
 import ShortenedHash from '../ShortenedHash';
 
 const defaultName = 'UNNAMED';
@@ -43,7 +43,7 @@ class IdentityName extends Component {
       return null;
     }
 
-    const nullName = new BigNumber(address || 0).eq(0) ? 'null' : null;
+    const nullName = isNullAddress(address) ? 'null' : null;
     const addressFallback = nullName || (shorten ? (<ShortenedHash data={ address } />) : address);
     const fallback = unknown ? defaultName : addressFallback;
     const isUuid = account && account.name === account.uuid;
