@@ -581,7 +581,7 @@ impl BlockChain {
 				batch.put(db::COL_EXTRA, b"best", &hash);
 
 				let best_block_total_difficulty = self.block_details(&hash).unwrap().total_difficulty;
-				let best_block_rlp = self.block(&hash).unwrap();
+				let best_block_rlp = self.block(&hash).unwrap().into_inner();
 
 				let mut best_block = self.best_block.write();
 				*best_block = BestBlock {
