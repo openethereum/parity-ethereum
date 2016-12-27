@@ -155,7 +155,7 @@ export default class CertificationsMiddleware {
               console.warn(`Could not fetch certifier ${id}:`, err);
             });
         });
-      }
+      };
 
       return (next) => (action) => {
         switch (action.type) {
