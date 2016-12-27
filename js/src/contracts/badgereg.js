@@ -31,9 +31,13 @@ export default class BadgeReg {
     this.contracts = {}; // by name
   }
 
+  getContract () {
+    return this._registry.getContract('badgereg');
+  }
+
   certifierCount () {
-    return this._registry
-      .getContract('badgereg')
+    return this
+      .getContract()
       .then((badgeReg) => {
         return badgeReg.instance.badgeCount.call({}, [])
           .then((count) => count.valueOf());
@@ -45,8 +49,8 @@ export default class BadgeReg {
       return Promise.resolve(this.certifiers[id]);
     }
 
-    return this._registry
-      .getContract('badgereg')
+    return this
+      .getContract()
       .then((badgeReg) => {
         return badgeReg.instance.badge.call({}, [ id ]);
       })
@@ -70,8 +74,8 @@ export default class BadgeReg {
   }
 
   fetchMeta (id) {
-    return this._registry
-      .getContract('badgereg')
+    return this
+      .getContract()
       .then((badgeReg) => {
         return Promise.all([
           badgeReg.instance.meta.call({}, [id, 'TITLE']),
