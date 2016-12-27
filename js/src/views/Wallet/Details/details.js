@@ -55,14 +55,20 @@ export default class WalletDetails extends Component {
       return null;
     }
 
-    const ownersList = owners.map((address, idx) => (
-      <InputAddress
-        key={ `${idx}_${address}` }
-        value={ address }
-        disabled
-        text
-      />
-    ));
+    const ownersList = owners.map((owner, idx) => {
+      const address = typeof owner === 'object'
+        ? owner.address
+        : owner;
+
+      return (
+        <InputAddress
+          key={ `${idx}_${address}` }
+          value={ address }
+          disabled
+          text
+        />
+      );
+    });
 
     return (
       <div>

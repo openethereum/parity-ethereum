@@ -358,7 +358,7 @@ function mapStateToProps (_, initProps) {
     const { accountsInfo = {}, accounts = {} } = state.personal;
     const { balances } = state.balances;
     const { images } = state;
-    const walletAccount = accountsInfo[address] || null;
+    const walletAccount = accounts[address] || accountsInfo[address] || null;
 
     if (walletAccount) {
       walletAccount.address = address;

@@ -60,6 +60,7 @@ class TransactionPendingFormConfirm extends Component {
         <Form>
           { keyInput }
           <Input
+            autoFocus
             hint={
               isExternal
                 ? 'decrypt the key'

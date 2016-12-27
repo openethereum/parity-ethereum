@@ -209,7 +209,10 @@ export default class Ws extends JsonRpcBase {
       if (result.error) {
         this.error(event.data);
 
-        console.error(`${method}(${JSON.stringify(params)}): ${result.error.code}: ${result.error.message}`);
+        // Don't print error if request rejected...
+        if (!/rejected/.test(result.error.message)) {
+          console.error(`${method}(${JSON.stringify(params)}): ${result.error.code}: ${result.error.message}`);
+        }
 
         const error = new TransportError(method, result.error.code, result.error.message);
         reject(error);

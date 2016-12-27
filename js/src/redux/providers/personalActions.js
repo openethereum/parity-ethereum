@@ -95,6 +95,7 @@ export function personalAccountsInfo (accountsInfo) {
 
         dispatch(_personalAccountsInfo(data));
         dispatch(attachWallets(wallets));
+        dispatch(fetchBalances());
       });
   };
 }
