@@ -25,7 +25,7 @@ export default class Store {
   @observable abiError = ERRORS.invalidAbi;
   @observable abiParsed = null;
   @observable abiTypes = ABI_TYPES;
-  @observable abiTypeIndex = 2;
+  @observable abiTypeIndex = 0;
   @observable address = '';
   @observable addressError = ERRORS.invalidAddress;
   @observable description = null;
@@ -37,7 +37,7 @@ export default class Store {
     this._api = api;
     this._contracts = contracts;
 
-    this.setAbiTypeIndex(this.abiTypeIndex);
+    this.setAbiTypeIndex(2);
   }
 
   @computed get abiType () {
@@ -57,7 +57,7 @@ export default class Store {
   }
 
   @action setAbi = (_abi) => {
-    const { abi, abiError, abiParsed } = validateAbi(_abi, this._api);
+    const { abi, abiError, abiParsed } = validateAbi(_abi);
 
     transaction(() => {
       this.abi = abi;
@@ -104,14 +104,12 @@ export default class Store {
   }
 
   addContract () {
-    const { abiParsed, abiType } = this.state;
-
     const meta = {
       contract: true,
       deleted: false,
       timestamp: Date.now(),
-      abi: abiParsed,
-      type: abiType.type,
+      abi: this.abiParsed,
+      type: this.abiType.type,
       description: this.description
     };
 

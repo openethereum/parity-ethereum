@@ -16,7 +16,11 @@
 
 import Store from './store';
 
-import { CONTRACTS, createApi } from './addContract.test.js';
+import { ABI, CONTRACTS, createApi } from './addContract.test.js';
+
+const INVALID_ADDR = '0x123';
+const VALID_ADDR = '0x5A5eFF38DA95b0D58b6C616f2699168B480953C9';
+const DUPE_ADDR = Object.keys(CONTRACTS)[0];
 
 let api;
 let store;
@@ -35,6 +39,10 @@ describe('modals/AddContract/Store', () => {
     it('creates an instance', () => {
       expect(store).to.be.ok;
     });
+
+    it('defaults to custom ABI', () => {
+      expect(store.abiType.type).to.equal('custom');
+    });
   });
 
   describe('@actions', () => {
@@ -48,11 +56,21 @@ describe('modals/AddContract/Store', () => {
       });
     });
 
-    describe('setAddress', () => {
-      const INVALID_ADDR = '0x123';
-      const VALID_ADDR = '0x5A5eFF38DA95b0D58b6C616f2699168B480953C9';
-      const DUPE_ADDR = Object.keys(CONTRACTS)[0];
+    describe('setAbiTypeIndex', () => {
+      beforeEach(() => {
+        store.setAbiTypeIndex(1);
+      });
 
+      it('changes the index', () => {
+        expect(store.abiTypeIndex).to.equal(1);
+      });
+
+      it('changes the abi', () => {
+        expect(store.abi).to.deep.equal(store.abiTypes[1].value);
+      });
+    });
+
+    describe('setAddress', () => {
       it('sets a valid address', () => {
         store.setAddress(VALID_ADDR);
         expect(store.address).to.equal(VALID_ADDR);
@@ -90,6 +108,63 @@ describe('modals/AddContract/Store', () => {
         store.setName('s');
         expect(store.name).to.equal('s');
         expect(store.nameError).not.to.be.null;
+      });
+    });
+  });
+
+  describe('@computed', () => {
+    describe('abiType', () => {
+      it('matches the index', () => {
+        expect(store.abiType).to.deep.equal(store.abiTypes[2]);
+      });
+    });
+
+    describe('hasError', () => {
+      beforeEach(() => {
+        store.setAddress(VALID_ADDR);
+        store.setName('valid name');
+        store.setAbi(ABI);
+      });
+
+      it('is false with no errors', () => {
+        expect(store.hasError).to.be.false;
+      });
+
+      it('is true with address error', () => {
+        store.setAddress(DUPE_ADDR);
+        expect(store.hasError).to.be.true;
+      });
+
+      it('is true with name error', () => {
+        store.setName('s');
+        expect(store.hasError).to.be.true;
+      });
+
+      it('is true with abi error', () => {
+        store.setAbi('');
+        expect(store.hasError).to.be.true;
+      });
+    });
+  });
+
+  describe('interactions', () => {
+    describe('addContract', () => {
+      beforeEach(() => {
+        store.setAddress(VALID_ADDR);
+        store.setName('valid name');
+        store.setAbi(ABI);
+      });
+
+      it('sets the account name', () => {
+        return store.addContract().then(() => {
+          expect(api.parity.setAccountName).to.have.been.calledWith(VALID_ADDR, 'valid name');
+        });
+      });
+
+      it('sets the account meta', () => {
+        return store.addContract().then(() => {
+          expect(api.parity.setAccountMeta).to.have.been.called;
+        });
       });
     });
   });
