@@ -14,25 +14,42 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { PropTypes } from 'react';
+import { shallow } from 'enzyme';
+import React from 'react';
+import sinon from 'sinon';
 
-export function arrayOrObjectProptype () {
-  return PropTypes.oneOfType([
-    PropTypes.array,
-    PropTypes.object
-  ]);
+import AddContract from './';
+
+import { CONTRACTS, createApi } from './addContract.test.js';
+
+let component;
+let onClose;
+
+function renderShallow (props) {
+  onClose = sinon.stub();
+  component = shallow(
+    <AddContract
+      { ...props }
+      contracts={ CONTRACTS }
+      onClose={ onClose } />,
+    {
+      context: {
+        api: createApi()
+      }
+    }
+  );
+
+  return component;
 }
 
-export function nullableProptype (type) {
-  return PropTypes.oneOfType([
-    PropTypes.oneOf([ null ]),
-    type
-  ]);
-}
+describe('modals/AddContract', () => {
+  describe('rendering', () => {
+    beforeEach(() => {
+      renderShallow();
+    });
 
-export function nodeOrStringProptype () {
-  return PropTypes.oneOfType([
-    PropTypes.node,
-    PropTypes.string
-  ]);
-}
+    it('renders the defauls', () => {
+      expect(component).to.be.ok;
+    });
+  });
+});

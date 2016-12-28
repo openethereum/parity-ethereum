@@ -14,25 +14,25 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { PropTypes } from 'react';
+import sinon from 'sinon';
 
-export function arrayOrObjectProptype () {
-  return PropTypes.oneOfType([
-    PropTypes.array,
-    PropTypes.object
-  ]);
+const ABI = '[{"constant":true,"inputs":[],"name":"totalDonated","outputs":[{"name":"","type":"uint256"}],"type":"function"}]';
+
+const CONTRACTS = {
+  '0x1234567890123456789012345678901234567890': {}
+};
+
+function createApi () {
+  return {
+    parity: {
+      setAccountMeta: sinon.stub().resolves(),
+      setAccountName: sinon.stub().resolves()
+    }
+  };
 }
 
-export function nullableProptype (type) {
-  return PropTypes.oneOfType([
-    PropTypes.oneOf([ null ]),
-    type
-  ]);
-}
-
-export function nodeOrStringProptype () {
-  return PropTypes.oneOfType([
-    PropTypes.node,
-    PropTypes.string
-  ]);
-}
+export {
+  ABI,
+  CONTRACTS,
+  createApi
+};
