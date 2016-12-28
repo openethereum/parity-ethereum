@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import { observable, action } from 'mobx';
+import { flatMap } from 'lodash';
 
 import Contracts from '~/contracts';
 import { sha3 } from '~/api/util/sha3';
@@ -25,16 +26,36 @@ export default class AddressSelectStore {
   @observable regsitryValues = [];
 
   initValues = [];
+  regLookups = [];
 
   constructor (api) {
     this.api = api;
 
-    Contracts
-      .get()
-      .registry
+    const { registry } = Contracts.get();
+
+    registry
       .getContract('emailverification')
       .then((emailVerification) => {
-        this.emailVerification = emailVerification;
+        this.regLookups.push({
+          lookup: (value) => {
+            return emailVerification
+              .instance
+              .reverse.call({}, [ sha3(value) ]);
+          },
+          describe: (value) => `${value} (from email verification)`
+        });
+      });
+
+    registry
+      .getInstance()
+      .then((registryInstance) => {
+        this.regLookups.push({
+          lookup: (value) => {
+            return registryInstance
+              .getAddress.call({}, [ sha3(value), 'A' ]);
+          },
+          describe: (value) => `${value} (from registry)`
+        });
       });
   }
 
@@ -92,24 +113,31 @@ export default class AddressSelectStore {
     // Registries Lookup
     this.regsitryValues = [];
 
-    if (this.emailVerification) {
-      this
-        .emailVerification
-        .instance
-        .reverse
-        .call({}, [ sha3(value) ])
-        .then((result) => {
-          if (/^(0x)?0*$/.test(result)) {
-            return;
-          }
+    const lookups = this.regLookups.map((regLookup) => regLookup.lookup(value));
 
-          this.regsitryValues.push({
-            type: 'email',
-            address: result,
-            value
-          });
-        });
-    }
+    Promise
+      .all(lookups)
+      .then((results) => {
+        return results
+          .map((result, index) => {
+            if (/^(0x)?0*$/.test(result)) {
+              return;
+            }
+
+            const account = flatMap(this.initValues, (cat) => cat.values)
+              .find((account) => account.address.toLowerCase() === result.toLowerCase());
+
+            return {
+              description: this.regLookups[index].describe(value),
+              address: result,
+              name: account && account.name || value
+            };
+          })
+          .filter((data) => data);
+      })
+      .then((regsitryValues) => {
+        this.regsitryValues = regsitryValues;
+      });
   }
 
   /**

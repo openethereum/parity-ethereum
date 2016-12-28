@@ -43,7 +43,7 @@ export default class AccountCard extends Component {
     const { account } = this.props;
     const { copied } = this.state;
 
-    const { address, name, meta = {} } = account;
+    const { address, name, description, meta = {} } = account;
 
     const displayName = (name && name.toUpperCase()) || address;
     const { tags = [] } = meta;
@@ -70,9 +70,22 @@ export default class AccountCard extends Component {
           </div>
 
           { this.renderTags(tags, address) }
+          { this.renderDescription(description) }
           { this.renderAddress(displayName, address) }
           { this.renderBalance(address) }
         </div>
+      </div>
+    );
+  }
+
+  renderDescription (description) {
+    if (!description) {
+      return null;
+    }
+
+    return (
+      <div className={ styles.description }>
+        <span>{ description }</span>
       </div>
     );
   }

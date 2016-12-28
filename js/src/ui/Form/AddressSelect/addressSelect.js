@@ -225,10 +225,8 @@ class AddressSelect extends Component {
     }
 
     const accounts = regsitryValues
-      .map((regsitryValue) => {
-        const { address, value } = regsitryValue;
-        const account = { address, name: value, index: address };
-
+      .map((regsitryValue, index) => {
+        const account = { ...regsitryValue, index: `${regsitryValue.address}_${index}` };
         return this.renderAccountCard(account);
       });
 
@@ -423,7 +421,12 @@ class AddressSelect extends Component {
 
       event.preventDefault();
 
-      const nextValues = values[focusedCat || 0];
+      const firstCat = values.findIndex((cat) => cat.values.length > 0);
+      const nextCat = focusedCat && values[focusedCat].values.length > 0
+        ? focusedCat
+        : firstCat;
+
+      const nextValues = values[nextCat];
       const nextFocus = nextValues ? nextValues.values[0] : null;
       return this.focusItem(nextFocus && nextFocus.index || 1);
     }
@@ -457,12 +460,21 @@ class AddressSelect extends Component {
 
     // If right: next category
     if (direction === 'right') {
-      nextCategory = Math.min(prevCategoryIndex + 1, values.length - 1);
+      const categoryShift = values
+        .slice(prevCategoryIndex + 1, values.length)
+        .findIndex((cat) => cat.values.length > 0) + 1;
+
+      nextCategory = Math.min(prevCategoryIndex + categoryShift, values.length - 1);
     }
 
     // If right: previous category
     if (direction === 'left') {
-      nextCategory = Math.max(prevCategoryIndex - 1, 0);
+      const categoryShift = values
+        .slice(0, prevCategoryIndex)
+        .reverse()
+        .findIndex((cat) => cat.values.length > 0) + 1;
+
+      nextCategory =  Math.max(prevCategoryIndex - categoryShift, 0);
     }
 
     // If left or right: try to keep the horizontal index
