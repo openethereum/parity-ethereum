@@ -706,7 +706,7 @@ impl LightProtocol {
 			stream.append(&req_id).append(&cur_buffer).begin_list(response.len());
 
 			for header in response {
-				stream.append_raw(&header, 1);
+				stream.append_raw(&header.into_inner(), 1);
 			}
 
 			stream.out()
@@ -754,7 +754,7 @@ impl LightProtocol {
 		let max_cost = try!(peer.deduct_max(&self.flow_params, request::Kind::Bodies, req.block_hashes.len()));
 
 		let response = self.provider.block_bodies(req);
-		let response_len = response.iter().filter(|x| &x[..] != &::rlp::EMPTY_LIST_RLP).count();
+		let response_len = response.iter().filter(|x| x.is_some()).count();
 		let actual_cost = self.flow_params.compute_cost(request::Kind::Bodies, response_len);
 		assert!(max_cost >= actual_cost, "Actual cost exceeded maximum computed cost.");
 
@@ -765,7 +765,10 @@ impl LightProtocol {
 			stream.append(&req_id).append(&cur_buffer).begin_list(response.len());
 
 			for body in response {
-				stream.append_raw(&body, 1);
+				match body {
+					Some(body) => stream.append_raw(&body.into_inner(), 1),
+					None => stream.append_empty_data(),
+				};
 			}
 
 			stream.out()
