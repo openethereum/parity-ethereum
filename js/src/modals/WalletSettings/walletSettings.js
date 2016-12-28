@@ -36,14 +36,13 @@ class WalletSettings extends Component {
   };
 
   static propTypes = {
-    accounts: PropTypes.object.isRequired,
     accountsInfo: PropTypes.object.isRequired,
     wallet: PropTypes.object.isRequired,
     onClose: PropTypes.func.isRequired,
     senders: PropTypes.object.isRequired
   };
 
-  store = new WalletSettingsStore(this.context.api, this.props.wallet, this.props.accounts);
+  store = new WalletSettingsStore(this.context.api, this.props.wallet);
 
   render () {
     const { stage, steps, waiting, rejected } = this.store;
@@ -330,7 +329,7 @@ function mapStateToProps (initState, initProps) {
   const senders = pick(accounts, owners);
 
   return () => {
-    return { accounts, accountsInfo, senders };
+    return { accountsInfo, senders };
   };
 }
 

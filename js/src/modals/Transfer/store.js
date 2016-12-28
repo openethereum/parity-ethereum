@@ -25,7 +25,6 @@ import ERRORS from './errors';
 import { ERROR_CODES } from '~/api/transport/error';
 import { DEFAULT_GAS, MAX_GAS_ESTIMATION } from '~/util/constants';
 import GasPriceStore from '~/ui/GasPriceEditor/store';
-import { addTxOwner } from '~/util/tx';
 
 const TITLES = {
   transfer: 'transfer details',
@@ -427,18 +426,14 @@ export default class TransferStore {
 
   send () {
     const { options, values } = this._getTransferParams();
-    const accounts = this.senders;
-
     options.minBlock = new BigNumber(this.minBlock || 0).gt(0) ? this.minBlock : null;
 
-    return this._getTransferMethod().postTransaction(addTxOwner(accounts, options), values);
+    return this._getTransferMethod().postTransaction(options, values);
   }
 
   _estimateGas (forceToken = false) {
     const { options, values } = this._getTransferParams(true, forceToken);
-    const accounts = this.senders;
-
-    return this._getTransferMethod(true, forceToken).estimateGas(addTxOwner(accounts, options), values);
+    return this._getTransferMethod(true, forceToken).estimateGas(options, values);
   }
 
   estimateGas () {

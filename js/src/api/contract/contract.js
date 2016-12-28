@@ -15,10 +15,13 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import BigNumber from 'bignumber.js';
+import { intersection } from 'lodash';
 
-import Abi from '../../abi';
+import Abi from '~/abi';
+import WalletAbi from '~/contracts/abi/wallet.json';
+import WalletsUtils from '~/util/wallets';
 
-let walletContract;
+const _cachedWalletLookup = {};
 let nextSubscriptionId = 0;
 
 export default class Contract {
@@ -93,8 +96,11 @@ export default class Contract {
   }
 
   deployEstimateGas (options, values) {
-    return this._api.eth
-      .estimateGas(this._encodeOptions(this.constructors[0], options, values, false))
+    return this
+      ._encodeOptions(this.constructors[0], options, values, false)
+      .then((_options) => {
+        return this._api.eth.estimateGas(_options);
+      })
       .then((gasEst) => {
         return [gasEst, gasEst.mul(1.2)];
       });
@@ -118,8 +124,11 @@ export default class Contract {
 
         setState({ state: 'postTransaction', gas });
 
-        return this._api.parity
-          .postTransaction(this._encodeOptions(this.constructors[0], options, values, false))
+        return this
+          ._encodeOptions(this.constructors[0], options, values, false)
+          .then((_options) => {
+            return this._api.parity.postTransaction(_options)
+          })
           .then((requestId) => {
             setState({ state: 'checkRequest', requestId });
             return this._pollCheckRequest(requestId);
@@ -212,31 +221,93 @@ export default class Contract {
     return `0x${data || ''}${call || ''}`;
   }
 
+  /**
+   * Check whether the given address could be
+   * a Wallet. The result is cached in order not
+   * to make unnecessary calls on non wallet accounts
+   */
+  _isWallet (address) {
+    if (!_cachedWalletLookup[address]) {
+      const walletContract = new Contract(this._api, WalletAbi);
+
+      _cachedWalletLookup[address] = walletContract
+        .at(address)
+        .instance
+        .m_numOwners
+        .call()
+        .then((result) => {
+          if (!result || result.equals(0)) {
+            return false;
+          }
+
+          return true;
+        })
+        .then((bool) => {
+          _cachedWalletLookup[address] = Promise.resolve(bool);
+          return bool;
+        });
+    }
+
+    return _cachedWalletLookup[address];
+  }
+
   _encodeOptions (func, options, values, tryWallet = true) {
     options.data = this.getCallData(func, options, values);
 
-    if (tryWallet && options.wallet && options.owner) {
-      const _options = Object.assign({}, options);
-      const { from, to, value = new BigNumber(0), data, owner } = options;
-
-      delete _options.data;
-      delete _options.owner;
-      delete _options.wallet;
-
-      const nextValues = [ to, value, data ];
-      const nextOptions = {
-        ..._options,
-        from: owner,
-        to: from
-      };
-
-      const execFunc = walletContract.instance.execute;
-      nextOptions.data = this.getCallData(execFunc, nextOptions, nextValues);
-
-      return nextOptions;
+    if (!tryWallet || !options.from) {
+      return Promise.resolve(options);
     }
 
-    return options;
+    // Try to find out if the `from` field is a Wallet
+    // And if one of the owners is in the accounts
+    return this
+      ._isWallet(options.from)
+      .then((isWallet) => {
+        if (!isWallet) {
+          return options;
+        }
+
+        const walletContract = new Contract(this._api, WalletAbi);
+
+        const promises = [
+          this._api.parity.accountsInfo(),
+          WalletsUtils.fetchOwners(walletContract.at(options.from))
+        ];
+
+        return Promise
+          .all(promises)
+          .then(([ accounts, owners ]) => {
+            const addresses = Object.keys(accounts);
+            const owner = intersection(addresses, owners).pop();
+
+            if (!owner) {
+              return false;
+            }
+
+            return owner;
+          })
+          .then((owner) => {
+            if (!owner) {
+              return options;
+            }
+
+            const _options = Object.assign({}, options);
+            const { from, to, value = new BigNumber(0), data } = options;
+
+            delete _options.data;
+
+            const nextValues = [ to, value, data ];
+            const nextOptions = {
+              ..._options,
+              from: owner,
+              to: from
+            };
+
+            const execFunc = walletContract.instance.execute;
+
+            return this._encodeOptions(execFunc, nextOptions, nextValues, tryWallet);
+          });
+      });
   }
 
   _addOptionsTo (options = {}) {
@@ -247,10 +318,11 @@ export default class Contract {
 
   _bindFunction = (func) => {
     func.call = (options, values = []) => {
-      const callParams = this._encodeOptions(func, this._addOptionsTo(options), values);
-
-      return this._api.eth
-        .call(callParams)
+      return this
+        ._encodeOptions(func, this._addOptionsTo(options), values, false)
+        .then((callParams) => {
+          return this._api.eth.call(callParams);
+        })
         .then((encoded) => func.decodeOutput(encoded))
         .then((tokens) => tokens.map((token) => token.value))
         .then((returns) => returns.length === 1 ? returns[0] : returns);
@@ -258,13 +330,19 @@ export default class Contract {
 
     if (!func.constant) {
       func.postTransaction = (options, values = []) => {
-        const _options = this._encodeOptions(func, this._addOptionsTo(options), values);
-        return this._api.parity.postTransaction(_options);
+        return this
+          ._encodeOptions(func, this._addOptionsTo(options), values)
+          .then((_options) => {
+            return this._api.parity.postTransaction(_options);
+          });
       };
 
       func.estimateGas = (options, values = []) => {
-        const _options = this._encodeOptions(func, this._addOptionsTo(options), values);
-        return this._api.eth.estimateGas(_options);
+        return this
+          ._encodeOptions(func, this._addOptionsTo(options), values)
+          .then((_options) => {
+            return this._api.eth.estimateGas(_options);
+          });
       };
     }
 
@@ -502,11 +580,3 @@ export default class Contract {
       });
   }
 }
-
-const WalletAbi = `[{
-  "constant":false, "name":"execute",
-  "inputs":[{"name":"_to","type":"address"},{"name":"_value","type":"uint256"},{"name":"_data","type":"bytes"}],
-  "outputs":[{"name":"_r","type":"bytes32"}],"type":"function"
-}]`;
-
-walletContract = new Contract({}, JSON.parse(WalletAbi));

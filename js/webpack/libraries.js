@@ -38,6 +38,13 @@ module.exports = {
     library: '[name].js',
     libraryTarget: 'umd'
   },
+
+  resolve: {
+    alias: {
+      '~': path.resolve(__dirname, '../src')
+    }
+  },
+
   module: {
     rules: [
       {

@@ -53,27 +53,3 @@ export function waitForConfirmations (api, tx, confirmations) {
     });
   });
 }
-
-/**
- * Extract extra options for estimate gas/deploy/post transaction
- * in the case of a Wallet (ie. set Wallet to true and set the owner
- * as the first owned account in the owners Array).
- */
-export function addTxOwner (accounts, options) {
-  const account = accounts[options.from];
-
-  if (!account || !account.wallet) {
-    return options;
-  }
-
-  const owners = (account.owners || []).map((o) => o.address);
-  const addresses = Object.keys(accounts);
-
-  const owner = intersection(owners, addresses).pop();
-
-  if (!owner) {
-    return options;
-  }
-
-  return { ...options, wallet: true, owner };
-}
