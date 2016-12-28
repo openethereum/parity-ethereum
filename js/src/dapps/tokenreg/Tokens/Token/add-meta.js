@@ -46,7 +46,9 @@ export default class AddMeta extends Component {
   state = initState;
 
   render () {
-    if (!this.props.isTokenOwner) return null;
+    if (!this.props.isTokenOwner) {
+      return null;
+    }
 
     return (<div className={ styles['add-meta'] }>
       <RaisedButton
@@ -98,7 +100,10 @@ export default class AddMeta extends Component {
   renderContent () {
     const { complete } = this.state;
 
-    if (complete) return this.renderComplete();
+    if (complete) {
+      return this.renderComplete();
+    }
+
     return this.renderForm();
   }
 

@@ -14,4 +14,18 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-export default from './AddDapps';
+export const isAction = (ns, type, action) => {
+  return action.type.slice(0, ns.length + 1 + type.length) === `${ns} ${type}`;
+};
+
+export const isStage = (stage, action) => {
+  return action.type.slice(-1 - stage.length) === ` ${stage}`;
+};
+
+export const addToQueue = (queue, action, name) => {
+  return queue.concat({ action, name });
+};
+
+export const removeFromQueue = (queue, action, name) => {
+  return queue.filter((e) => e.action === action && e.name === name);
+};

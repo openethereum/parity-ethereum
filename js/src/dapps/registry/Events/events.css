@@ -49,3 +49,9 @@
 .eventsList td {
   padding: 0.25em 0.5em;
 }
+
+.inline {
+  display: inline-block;
+  width: auto;
+  margin-right: 1em;
+}

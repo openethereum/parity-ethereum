@@ -26,6 +26,7 @@ use ethcore::transaction::PendingTransaction;
 use ethcore::blockchain_info::BlockChainInfo;
 use ethcore::spec::Spec;
 use ethcore::service::ClientIoMessage;
+use ethcore::encoded;
 use io::IoChannel;
 
 use util::hash::{H256, H256FastMap};
@@ -233,11 +234,11 @@ impl Provider for Client {
 		None
 	}
 
-	fn block_header(&self, id: BlockId) -> Option<Bytes> {
-		self.chain.get_header(id)
+	fn block_header(&self, id: BlockId) -> Option<encoded::Header> {
+		self.chain.get_header(id).map(encoded::Header::new)
 	}
 
-	fn block_body(&self, _id: BlockId) -> Option<Bytes> {
+	fn block_body(&self, _id: BlockId) -> Option<encoded::Body> {
 		None
 	}
 
@@ -253,7 +254,7 @@ impl Provider for Client {
 		Vec::new()
 	}
 
-	fn header_proof(&self, _req: request::HeaderProof) -> Option<(Bytes, Vec<Bytes>)> {
+	fn header_proof(&self, _req: request::HeaderProof) -> Option<(encoded::Header, Vec<Bytes>)> {
 		None
 	}
 

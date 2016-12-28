@@ -23,7 +23,7 @@ use util::H256;
 
 use util::sha3::sha3;
 use page::{LocalPageEndpoint, PageCache};
-use handlers::ContentValidator;
+use handlers::{ContentValidator, ValidatorResponse};
 use apps::manifest::{MANIFEST_FILENAME, deserialize_manifest, serialize_manifest, Manifest};
 
 type OnDone = Box<Fn(Option<LocalPageEndpoint>) + Send>;
@@ -35,30 +35,30 @@ fn write_response_and_check_hash(
 	response: fetch::Response
 ) -> Result<(fs::File, PathBuf), ValidationError> {
 	// try to parse id
-	let id = try!(id.parse().map_err(|_| ValidationError::InvalidContentId));
+	let id = id.parse().map_err(|_| ValidationError::InvalidContentId)?;
 
 	// check if content exists
 	if content_path.exists() {
 		warn!(target: "dapps", "Overwriting existing content at 0x{:?}", id);
-		try!(fs::remove_dir_all(&content_path))
+		fs::remove_dir_all(&content_path)?
 	}
 
 	// create directory
-	try!(fs::create_dir_all(&content_path));
+	fs::create_dir_all(&content_path)?;
 
 	// append filename
 	content_path.push(filename);
 
 	// Now write the response
-	let mut file = io::BufWriter::new(try!(fs::File::create(&content_path)));
+	let mut file = io::BufWriter::new(fs::File::create(&content_path)?);
 	let mut reader = io::BufReader::new(response);
-	try!(io::copy(&mut reader, &mut file));
-	try!(file.flush());
+	io::copy(&mut reader, &mut file)?;
+	file.flush()?;
 
 	// Validate hash
 	// TODO [ToDr] calculate sha3 in-flight while reading the response
-	let mut file = io::BufReader::new(try!(fs::File::open(&content_path)));
-	let hash = try!(sha3(&mut file));
+	let mut file = io::BufReader::new(fs::File::open(&content_path)?);
+	let hash = sha3(&mut file)?;
 	if id == hash {
 		Ok((file.into_inner(), content_path))
 	} else {
@@ -90,10 +90,10 @@ impl Content {
 impl ContentValidator for Content {
 	type Error = ValidationError;
 
-	fn validate_and_install(&self, response: fetch::Response) -> Result<LocalPageEndpoint, ValidationError> {
+	fn validate_and_install(&self, response: fetch::Response) -> Result<ValidatorResponse, ValidationError> {
 		let validate = |content_path: PathBuf| {
 			// Create dir
-			let (_, content_path) = try!(write_response_and_check_hash(self.id.as_str(), content_path.clone(), self.id.as_str(), response));
+			let (_, content_path) = write_response_and_check_hash(self.id.as_str(), content_path.clone(), self.id.as_str(), response)?;
 
 			Ok(LocalPageEndpoint::single_file(content_path, self.mime.clone(), PageCache::Enabled))
 		};
@@ -108,7 +108,7 @@ impl ContentValidator for Content {
 			let _ = fs::remove_dir_all(&content_path);
 		}
 		(self.on_done)(result.as_ref().ok().cloned());
-		result
+		result.map(ValidatorResponse::Local)
 	}
 }
 
@@ -131,7 +131,7 @@ impl Dapp {
 
 	fn find_manifest(zip: &mut zip::ZipArchive<fs::File>) -> Result<(Manifest, PathBuf), ValidationError> {
 		for i in 0..zip.len() {
-			let mut file = try!(zip.by_index(i));
+			let mut file = zip.by_index(i)?;
 
 			if !file.name().ends_with(MANIFEST_FILENAME) {
 				continue;
@@ -157,20 +157,20 @@ impl Dapp {
 impl ContentValidator for Dapp {
 	type Error = ValidationError;
 
-	fn validate_and_install(&self, response: fetch::Response) -> Result<LocalPageEndpoint, ValidationError> {
+	fn validate_and_install(&self, response: fetch::Response) -> Result<ValidatorResponse, ValidationError> {
 		let validate = |dapp_path: PathBuf| {
-			let (file, zip_path) = try!(write_response_and_check_hash(self.id.as_str(), dapp_path.clone(), &format!("{}.zip", self.id), response));
+			let (file, zip_path) = write_response_and_check_hash(self.id.as_str(), dapp_path.clone(), &format!("{}.zip", self.id), response)?;
 			trace!(target: "dapps", "Opening dapp bundle at {:?}", zip_path);
 			// Unpack archive
-			let mut zip = try!(zip::ZipArchive::new(file));
+			let mut zip = zip::ZipArchive::new(file)?;
 			// First find manifest file
-			let (mut manifest, manifest_dir) = try!(Self::find_manifest(&mut zip));
+			let (mut manifest, manifest_dir) = Self::find_manifest(&mut zip)?;
 			// Overwrite id to match hash
 			manifest.id = self.id.clone();
 
 			// Unpack zip
 			for i in 0..zip.len() {
-				let mut file = try!(zip.by_index(i));
+				let mut file = zip.by_index(i)?;
 				let is_dir = file.name().chars().rev().next() == Some('/');
 
 				let file_path = PathBuf::from(file.name());
@@ -180,22 +180,22 @@ impl ContentValidator for Dapp {
 					let p = dapp_path.join(location_in_manifest_base);
 					// Check if it's a directory
 					if is_dir {
-						try!(fs::create_dir_all(p));
+						fs::create_dir_all(p)?;
 					} else {
-						let mut target = try!(fs::File::create(p));
-						try!(io::copy(&mut file, &mut target));
+						let mut target = fs::File::create(p)?;
+						io::copy(&mut file, &mut target)?;
 					}
 				}
 			}
 
 			// Remove zip
-			try!(fs::remove_file(&zip_path));
+			fs::remove_file(&zip_path)?;
 
 			// Write manifest
-			let manifest_str = try!(serialize_manifest(&manifest).map_err(ValidationError::ManifestSerialization));
+			let manifest_str = serialize_manifest(&manifest).map_err(ValidationError::ManifestSerialization)?;
 			let manifest_path = dapp_path.join(MANIFEST_FILENAME);
-			let mut manifest_file = try!(fs::File::create(manifest_path));
-			try!(manifest_file.write_all(manifest_str.as_bytes()));
+			let mut manifest_file = fs::File::create(manifest_path)?;
+			manifest_file.write_all(manifest_str.as_bytes())?;
 			// Create endpoint
 			let endpoint = LocalPageEndpoint::new(dapp_path, manifest.clone().into(), PageCache::Enabled, self.embeddable_on.clone());
 			Ok(endpoint)
@@ -211,7 +211,7 @@ impl ContentValidator for Dapp {
 			let _ = fs::remove_dir_all(&target);
 		}
 		(self.on_done)(result.as_ref().ok().cloned());
-		result
+		result.map(ValidatorResponse::Local)
 	}
 }
 

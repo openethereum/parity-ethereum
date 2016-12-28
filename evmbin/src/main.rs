@@ -104,9 +104,9 @@ pub struct Success {
 }
 impl fmt::Display for Success {
 	fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-		try!(writeln!(f, "Gas used: {:?}", self.gas_used));
-		try!(writeln!(f, "Output: {:?}", self.output));
-		try!(writeln!(f, "Time: {}.{:.9}s", self.time.as_secs(), self.time.subsec_nanos()));
+		writeln!(f, "Gas used: {:?}", self.gas_used)?;
+		writeln!(f, "Output: {:?}", self.output)?;
+		writeln!(f, "Time: {}.{:.9}s", self.time.as_secs(), self.time.subsec_nanos())?;
 		Ok(())
 	}
 }
@@ -120,8 +120,8 @@ pub struct Failure {
 }
 impl fmt::Display for Failure {
 	fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-		try!(writeln!(f, "Error: {:?}", self.error));
-		try!(writeln!(f, "Time: {}.{:.9}s", self.time.as_secs(), self.time.subsec_nanos()));
+		writeln!(f, "Error: {:?}", self.error)?;
+		writeln!(f, "Time: {}.{:.9}s", self.time.as_secs(), self.time.subsec_nanos())?;
 		Ok(())
 	}
 }

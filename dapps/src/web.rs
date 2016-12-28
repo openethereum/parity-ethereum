@@ -16,24 +16,36 @@
 
 //! Serving web-based content (proxying)
 
-use endpoint::{Endpoint, Handler, EndpointPath};
-use handlers::{ContentFetcherHandler, ContentHandler, ContentValidator, Redirection, extract_url};
-use page::{LocalPageEndpoint};
+use std::sync::Arc;
 use fetch::{self, Fetch};
-use url::Url;
+use parity_reactor::Remote;
+
 use hyper::{self, server, net, Next, Encoder, Decoder};
 use hyper::status::StatusCode;
-use parity_reactor::Remote;
-use apps::WEB_PATH;
+
+use apps;
+use endpoint::{Endpoint, Handler, EndpointPath};
+use handlers::{
+	ContentFetcherHandler, ContentHandler, ContentValidator, ValidatorResponse,
+	StreamingHandler, Redirection, extract_url,
+};
+use url::Url;
+use WebProxyTokens;
+
+pub type Embeddable = Option<(String, u16)>;
 
 pub struct Web<F> {
+	embeddable_on: Embeddable,
+	web_proxy_tokens: Arc<WebProxyTokens>,
 	remote: Remote,
 	fetch: F,
 }
 
 impl<F: Fetch> Web<F> {
-	pub fn boxed(remote: Remote, fetch: F) -> Box<Endpoint> {
+	pub fn boxed(embeddable_on: Embeddable, web_proxy_tokens: Arc<WebProxyTokens>, remote: Remote, fetch: F) -> Box<Endpoint> {
 		Box::new(Web {
+			embeddable_on: embeddable_on,
+			web_proxy_tokens: web_proxy_tokens,
 			remote: remote,
 			fetch: fetch,
 		})
@@ -48,20 +60,33 @@ impl<F: Fetch> Endpoint for Web<F> {
 			path: path,
 			remote: self.remote.clone(),
 			fetch: self.fetch.clone(),
+			web_proxy_tokens: self.web_proxy_tokens.clone(),
+			embeddable_on: self.embeddable_on.clone(),
 		})
 	}
 }
 
-pub struct WebInstaller;
+struct WebInstaller {
+	embeddable_on: Embeddable,
+}
 
 impl ContentValidator for WebInstaller {
 	type Error = String;
 
-	fn validate_and_install(&self, _response: fetch::Response) -> Result<LocalPageEndpoint, String> {
-		// let path = unimplemented!();
-		// let mime = response.content_type().unwrap_or(mime!(Text/Html));
-		// Ok(LocalPageEndpoint::single_file(path, mime, PageCache::Enabled))
-		Err("unimplemented".into())
+	fn validate_and_install(&self, response: fetch::Response) -> Result<ValidatorResponse, String> {
+		let status = StatusCode::from_u16(response.status().to_u16());
+		let is_html = response.is_html();
+		let mime = response.content_type().unwrap_or(mime!(Text/Html));
+		let mut handler = StreamingHandler::new(
+			response,
+			status,
+			mime,
+			self.embeddable_on.clone(),
+		);
+		if is_html {
+			handler.set_initial_content(&format!(r#"<script src="/{}/inject.js"></script>"#, apps::UTILS_PATH));
+		}
+		Ok(ValidatorResponse::Streaming(handler))
 	}
 }
 
@@ -78,46 +103,61 @@ struct WebHandler<F: Fetch> {
 	path: EndpointPath,
 	remote: Remote,
 	fetch: F,
+	web_proxy_tokens: Arc<WebProxyTokens>,
+	embeddable_on: Embeddable,
 }
 
 impl<F: Fetch> WebHandler<F> {
-	fn extract_target_url(url: Option<Url>) -> Result<String, State<F>> {
-		let path = match url {
-			Some(url) => url.path,
+	fn extract_target_url(&self, url: Option<Url>) -> Result<String, State<F>> {
+		let (path, query) = match url {
+			Some(url) => (url.path, url.query),
 			None => {
-				return Err(State::Error(
-					ContentHandler::error(StatusCode::BadRequest, "Invalid URL", "Couldn't parse URL", None, None)
-				));
+				return Err(State::Error(ContentHandler::error(
+					StatusCode::BadRequest, "Invalid URL", "Couldn't parse URL", None, self.embeddable_on.clone()
+				)));
 			}
 		};
 
-		// TODO [ToDr] Check if token supplied in URL is correct.
-
 		// Support domain based routing.
 		let idx = match path.get(0).map(|m| m.as_ref()) {
-			Some(WEB_PATH) => 1,
+			Some(apps::WEB_PATH) => 1,
 			_ => 0,
 		};
 
+		// Check if token supplied in URL is correct.
+		match path.get(idx) {
+			Some(ref token) if self.web_proxy_tokens.is_web_proxy_token_valid(token) => {},
+			_ => {
+				return Err(State::Error(ContentHandler::error(
+					StatusCode::BadRequest, "Invalid Access Token", "Invalid or old web proxy access token supplied.", Some("Try refreshing the page."), self.embeddable_on.clone()
+				)));
+			}
+		}
+
 		// Validate protocol
-		let protocol = match path.get(idx).map(|a| a.as_str()) {
+		let protocol = match path.get(idx + 1).map(|a| a.as_str()) {
 			Some("http") => "http",
 			Some("https") => "https",
 			_ => {
-				return Err(State::Error(
-					ContentHandler::error(StatusCode::BadRequest, "Invalid Protocol", "Invalid protocol used", None, None)
-				));
+				return Err(State::Error(ContentHandler::error(
+					StatusCode::BadRequest, "Invalid Protocol", "Invalid protocol used.", None, self.embeddable_on.clone()
+				)));
 			}
 		};
 
 		// Redirect if address to main page does not end with /
-		if let None = path.get(idx + 2) {
+		if let None = path.get(idx + 3) {
 			return Err(State::Redirecting(
 				Redirection::new(&format!("/{}/", path.join("/")))
 			));
 		}
 
-		Ok(format!("{}://{}", protocol, path[2..].join("/")))
+		let query = match query {
+			Some(query) => format!("?{}", query),
+			None => "".into(),
+		};
+
+		Ok(format!("{}://{}{}", protocol, path[idx + 2..].join("/"), query))
 	}
 }
 
@@ -126,7 +166,7 @@ impl<F: Fetch> server::Handler<net::HttpStream> for WebHandler<F> {
 		let url = extract_url(&request);
 
 		// First extract the URL (reject invalid URLs)
-		let target_url = match Self::extract_target_url(url) {
+		let target_url = match self.extract_target_url(url) {
 			Ok(url) => url,
 			Err(error) => {
 				self.state = error;
@@ -134,12 +174,14 @@ impl<F: Fetch> server::Handler<net::HttpStream> for WebHandler<F> {
 			}
 		};
 
-		let (mut handler, _control) = ContentFetcherHandler::new(
+		let mut handler = ContentFetcherHandler::new(
 			target_url,
 			self.path.clone(),
 			self.control.clone(),
-			WebInstaller,
-			None,
+			WebInstaller {
+				embeddable_on: self.embeddable_on.clone(),
+			},
+			self.embeddable_on.clone(),
 			self.remote.clone(),
 			self.fetch.clone(),
 		);

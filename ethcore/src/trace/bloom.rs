@@ -73,7 +73,7 @@ impl Encodable for BlockTracesBloom {
 
 impl Decodable for BlockTracesBloomGroup {
 	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
-		let blooms = try!(Decodable::decode(decoder));
+		let blooms = Decodable::decode(decoder)?;
 		let group = BlockTracesBloomGroup {
 			blooms: blooms
 		};

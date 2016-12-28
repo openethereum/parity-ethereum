@@ -95,7 +95,10 @@ export default class InputQuery extends Component {
       return (<LinearProgress mode='indeterminate' />);
     }
 
-    if (!results || results.length < 1) return null;
+    if (!results || results.length < 1) {
+      return null;
+    }
+
     return outputs
       .map((out, index) => ({
         name: out.name,
@@ -181,7 +184,9 @@ export default class InputQuery extends Component {
   }
 
   renderValue (value) {
-    if (!value) return 'no data';
+    if (value === null || value === undefined) {
+      return 'no data';
+    }
 
     const { api } = this.context;
 

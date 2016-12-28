@@ -25,7 +25,11 @@ export const event = (name, event) => ({ type: 'events event', name, event });
 export const subscribe = (name, from = 0, to = 'pending') =>
   (dispatch, getState) => {
     const { contract } = getState();
-    if (!contract) return;
+
+    if (!contract) {
+      return;
+    }
+
     const opt = { fromBlock: from, toBlock: to, limit: 50 };
 
     dispatch(start(name, from, to));
@@ -38,8 +42,11 @@ export const subscribe = (name, from = 0, to = 'pending') =>
         }
 
         events.forEach((e) => {
-          api.eth.getBlockByNumber(e.blockNumber)
-          .then((block) => {
+          Promise.all([
+            api.eth.getBlockByNumber(e.blockNumber),
+            api.eth.getTransactionByHash(e.transactionHash)
+          ])
+          .then(([block, tx]) => {
             const data = {
               type: name,
               key: '' + e.transactionHash + e.logIndex,
@@ -47,6 +54,8 @@ export const subscribe = (name, from = 0, to = 'pending') =>
               block: e.blockNumber,
               index: e.logIndex,
               transaction: e.transactionHash,
+              from: tx.from,
+              to: tx.to,
               parameters: e.params,
               timestamp: block.timestamp
             };
@@ -70,9 +79,16 @@ export const subscribe = (name, from = 0, to = 'pending') =>
 export const unsubscribe = (name) =>
   (dispatch, getState) => {
     const state = getState();
-    if (!state.contract) return;
+
+    if (!state.contract) {
+      return;
+    }
+
     const subscriptions = state.events.subscriptions;
-    if (!(name in subscriptions) || subscriptions[name] === null) return;
+
+    if (!(name in subscriptions) || subscriptions[name] === null) {
+      return;
+    }
 
     state.contract
       .unsubscribe(subscriptions[name])

@@ -14,12 +14,13 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-extern crate rustc_version;
+const leading0x = /^0x/;
 
-use rustc_version::{version_meta, Channel};
+const etherscanUrl = (hash, isTestnet) => {
+  hash = hash.toLowerCase().replace(leading0x, '');
+  const type = hash.length === 40 ? 'address' : 'tx';
 
-fn main() {
-	if let Channel::Nightly = version_meta().channel {
-		println!("cargo:rustc-cfg=asm_available");
-	}
-}
+  return `https://${isTestnet ? 'testnet.' : ''}etherscan.io/${type}/0x${hash}`;
+};
+
+export default etherscanUrl;

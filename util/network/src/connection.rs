@@ -150,7 +150,7 @@ impl<Socket: GenericSocket> GenericConnection<Socket> {
 				},
 				Ok(Some(_)) => { panic!("Wrote past buffer");},
 				Ok(None) => Ok(WriteStatus::Ongoing),
-				Err(e) => try!(Err(e))
+				Err(e) => Err(e)?
 			}
 		}.and_then(|r| {
 			if r == WriteStatus::Complete {
@@ -158,7 +158,7 @@ impl<Socket: GenericSocket> GenericConnection<Socket> {
 			}
 			if self.send_queue.is_empty() {
 				self.interest.remove(Ready::writable());
-				try!(io.update_registration(self.token));
+				io.update_registration(self.token)?;
 			}
 			Ok(r)
 		})
@@ -207,7 +207,7 @@ impl Connection {
 	pub fn try_clone(&self) -> io::Result<Self> {
 		Ok(Connection {
 			token: self.token,
-			socket: try!(self.socket.try_clone()),
+			socket: self.socket.try_clone()?,
 			rec_buf: Vec::new(),
 			rec_size: 0,
 			send_queue: self.send_queue.clone(),
@@ -300,7 +300,7 @@ pub struct EncryptedConnection {
 impl EncryptedConnection {
 	/// Create an encrypted connection out of the handshake.
 	pub fn new(handshake: &mut Handshake) -> Result<EncryptedConnection, NetworkError> {
-		let shared = try!(crypto::ecdh::agree(handshake.ecdhe.secret(), &handshake.remote_ephemeral));
+		let shared = crypto::ecdh::agree(handshake.ecdhe.secret(), &handshake.remote_ephemeral)?;
 		let mut nonce_material = H512::new();
 		if handshake.originated {
 			handshake.remote_nonce.copy_to(&mut nonce_material[0..32]);
@@ -334,7 +334,7 @@ impl EncryptedConnection {
 		ingress_mac.update(&mac_material);
 		ingress_mac.update(if handshake.originated { &handshake.ack_cipher } else { &handshake.auth_cipher });
 
-		let old_connection = try!(handshake.connection.try_clone());
+		let old_connection = handshake.connection.try_clone()?;
 		let connection = ::std::mem::replace(&mut handshake.connection, old_connection);
 		let mut enc = EncryptedConnection {
 			connection: connection,
@@ -396,7 +396,7 @@ impl EncryptedConnection {
 
 		let length = ((((hdec[0] as u32) << 8) + (hdec[1] as u32)) << 8) + (hdec[2] as u32);
 		let header_rlp = UntrustedRlp::new(&hdec[3..6]);
-		let protocol_id = try!(header_rlp.val_at::<u16>(0));
+		let protocol_id = header_rlp.val_at::<u16>(0)?;
 
 		self.payload_len = length as usize;
 		self.protocol_id = protocol_id;
@@ -448,19 +448,19 @@ impl EncryptedConnection {
 
 	/// Readable IO handler. Tracker receive status and returns decoded packet if avaialable.
 	pub fn readable<Message>(&mut self, io: &IoContext<Message>) -> Result<Option<Packet>, NetworkError> where Message: Send + Clone + Sync + 'static {
-		try!(io.clear_timer(self.connection.token));
+		io.clear_timer(self.connection.token)?;
 		if let EncryptedConnectionState::Header = self.read_state {
-			if let Some(data) = try!(self.connection.readable()) {
-				try!(self.read_header(&data));
-				try!(io.register_timer(self.connection.token, RECIEVE_PAYLOAD_TIMEOUT));
+			if let Some(data) = self.connection.readable()? {
+				self.read_header(&data)?;
+				io.register_timer(self.connection.token, RECIEVE_PAYLOAD_TIMEOUT)?;
 			}
 		};
 		if let EncryptedConnectionState::Payload = self.read_state {
-			match try!(self.connection.readable()) {
+			match self.connection.readable()? {
 				Some(data) => {
 					self.read_state = EncryptedConnectionState::Header;
 					self.connection.expect(ENCRYPTED_HEADER_LEN);
-					Ok(Some(try!(self.read_payload(&data))))
+					Ok(Some(self.read_payload(&data)?))
 				},
 				None => Ok(None)
 			}
@@ -471,7 +471,7 @@ impl EncryptedConnection {
 
 	/// Writable IO handler. Processes send queeue.
 	pub fn writable<Message>(&mut self, io: &IoContext<Message>) -> Result<(), NetworkError> where Message: Send + Clone + Sync + 'static {
-		try!(self.connection.writable(io));
+		self.connection.writable(io)?;
 		Ok(())
 	}
 }

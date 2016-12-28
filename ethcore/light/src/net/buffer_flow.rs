@@ -135,10 +135,10 @@ impl RlpDecodable for CostTable {
 		let mut header_proofs = None;
 
 		for row in rlp.iter() {
-			let msg_id: u8 = try!(row.val_at(0));
+			let msg_id: u8 = row.val_at(0)?;
 			let cost = {
-				let base = try!(row.val_at(1));
-				let per = try!(row.val_at(2));
+				let base = row.val_at(1)?;
+				let per = row.val_at(2)?;
 
 				Cost(base, per)
 			};
@@ -155,12 +155,12 @@ impl RlpDecodable for CostTable {
 		}
 
 		Ok(CostTable {
-			headers: try!(headers.ok_or(DecoderError::Custom("No headers cost specified"))),
-			bodies: try!(bodies.ok_or(DecoderError::Custom("No bodies cost specified"))),
-			receipts: try!(receipts.ok_or(DecoderError::Custom("No receipts cost specified"))),
-			state_proofs: try!(state_proofs.ok_or(DecoderError::Custom("No proofs cost specified"))),
-			contract_codes: try!(contract_codes.ok_or(DecoderError::Custom("No contract codes specified"))),
-			header_proofs: try!(header_proofs.ok_or(DecoderError::Custom("No header proofs cost specified"))),
+			headers: headers.ok_or(DecoderError::Custom("No headers cost specified"))?,
+			bodies: bodies.ok_or(DecoderError::Custom("No bodies cost specified"))?,
+			receipts: receipts.ok_or(DecoderError::Custom("No receipts cost specified"))?,
+			state_proofs: state_proofs.ok_or(DecoderError::Custom("No proofs cost specified"))?,
+			contract_codes: contract_codes.ok_or(DecoderError::Custom("No contract codes specified"))?,
+			header_proofs: header_proofs.ok_or(DecoderError::Custom("No header proofs cost specified"))?,
 		})
 	}
 }

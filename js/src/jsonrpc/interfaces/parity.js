@@ -26,7 +26,7 @@ export default {
     }
   },
 
-  accounts: {
+  accountsInfo: {
     desc: 'returns a map of accounts as an object',
     params: [],
     returns: {
@@ -36,20 +36,12 @@ export default {
         name: {
           type: String,
           desc: 'Account name'
-        },
-        meta: {
-          type: String,
-          desc: 'Encoded JSON string the defines additional account metadata'
-        },
-        uuid: {
-          type: String,
-          desc: 'The account Uuid, or null if not available/unknown/not applicable.'
         }
       }
     }
   },
 
-  accountsInfo: {
+  allAccountsInfo: {
     desc: 'returns a map of accounts as an object',
     params: [],
     returns: {
@@ -244,6 +236,29 @@ export default {
     }
   },
 
+  getDappsAddresses: {
+    desc: 'Returns the list of accounts available to a specific dapp',
+    params: [
+      {
+        type: String,
+        desc: 'Dapp Id'
+      }
+    ],
+    returns: {
+      type: Array,
+      desc: 'The list of available accounts'
+    }
+  },
+
+  getNewDappsWhitelist: {
+    desc: 'Returns the list of accounts available to a new dapps',
+    params: [],
+    returns: {
+      type: Array,
+      desc: 'The list of available accounts'
+    }
+  },
+
   hashContent: {
     desc: 'Creates a hash of the file as retrieved',
     params: [
@@ -287,6 +302,15 @@ export default {
     returns: {
       type: Boolean,
       desc: 'true on success'
+    }
+  },
+
+  listRecentDapps: {
+    desc: 'Returns a list of the most recent active dapps',
+    params: [],
+    returns: {
+      type: Array,
+      desc: 'Array of Dapp Ids'
     }
   },
 
@@ -594,6 +618,24 @@ export default {
     }
   },
 
+  setDappsAddresses: {
+    desc: 'Sets the available addresses for a dapp',
+    params: [
+      {
+        type: String,
+        desc: 'Dapp Id'
+      },
+      {
+        type: Array,
+        desc: 'Array of available accounts available to the dapp'
+      }
+    ],
+    returns: {
+      type: Boolean,
+      desc: 'True if the call succeeded'
+    }
+  },
+
   setExtraData: {
     desc: 'Changes extra data for newly mined blocks',
     params: [
@@ -645,6 +687,20 @@ export default {
       {
         type: String,
         desc: 'The mode to set, one of "active", "passive", "dark", "offline"'
+      }
+    ],
+    returns: {
+      type: Boolean,
+      desc: 'True if the call succeeded'
+    }
+  },
+
+  setNewDappsWhitelist: {
+    desc: 'Sets the list of accounts available to new dapps',
+    params: [
+      {
+        type: Array,
+        desc: 'List of accounts available by default'
       }
     ],
     returns: {

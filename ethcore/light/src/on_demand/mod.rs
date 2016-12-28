@@ -22,6 +22,7 @@ use std::collections::HashMap;
 
 use ethcore::ids::BlockId;
 use ethcore::block::Block;
+use ethcore::encoded;
 use ethcore::header::Header;
 use ethcore::receipt::Receipt;
 
@@ -33,7 +34,8 @@ use client::Client;
 use net::{Handler, Status, Capabilities, Announcement, EventContext, BasicContext, ReqId};
 use util::{Address, H256, RwLock};
 
-struct Account;
+/// Dummy type for "basic account"
+pub struct Account;
 
 // relevant peer info.
 struct Peer {
@@ -43,12 +45,12 @@ struct Peer {
 
 // request info and where to send the result.
 enum Request {
-	HeaderByNumber(u64, H256, Sender<Header>), // num + CHT root
-	HeaderByHash(H256, Sender<Header>),
-	Block(Header, Sender<Block>),
-	BlockReceipts(Header, Sender<Vec<Receipt>>),
-	Account(Header, Address, Sender<Account>),
-	Storage(Header, Address, H256, Sender<H256>),
+	HeaderByNumber(u64, H256, Sender<encoded::Header>), // num + CHT root
+	HeaderByHash(H256, Sender<encoded::Header>),
+	Block(encoded::Header, Sender<encoded::Block>),
+	BlockReceipts(encoded::Header, Sender<Vec<Receipt>>),
+	Account(encoded::Header, Address, Sender<Account>),
+	Storage(encoded::Header, Address, H256, Sender<H256>),
 }
 
 /// On demand request service. See module docs for more details.
@@ -61,7 +63,7 @@ pub struct OnDemand {
 
 impl Handler for OnDemand {
 	fn on_connect(&self, ctx: &EventContext, status: &Status, capabilities: &Capabilities) {
-		self.peers.write().insert(ctx.peer(), Peer { status: status.clone(), capabilities: capabilities.clone() })
+		self.peers.write().insert(ctx.peer(), Peer { status: status.clone(), capabilities: capabilities.clone() });
 	}
 
 	fn on_disconnect(&self, ctx: &EventContext, unfulfilled: &[ReqId]) {
@@ -71,7 +73,7 @@ impl Handler for OnDemand {
 
 impl OnDemand {
 	/// Request a header by block number and CHT root hash.
-	pub fn header_by_number(&self, ctx: &BasicContext, num: u64, cht_root: H256) -> Receiver<Header> {
+	pub fn header_by_number(&self, ctx: &BasicContext, num: u64, cht_root: H256) -> Receiver<encoded::Header> {
 		let (sender, receiver) = oneshot::channel();
 		self.dispatch_request(ctx, Request::HeaderByNumber(num, cht_root, sender));
 		receiver
@@ -80,7 +82,7 @@ impl OnDemand {
 	/// Request a header by hash. This is less accurate than by-number because we don't know
 	/// where in the chain this header lies, and therefore can't find a peer who is supposed to have
 	/// it as easily.
-	pub fn header_by_hash(&self, ctx: &BasicContext, hash: H256) -> Receiver<Header> {
+	pub fn header_by_hash(&self, ctx: &BasicContext, hash: H256) -> Receiver<encoded::Header> {
 		let (sender, receiver) = oneshot::channel();
 		self.dispatch_request(ctx, Request::HeaderByHash(hash, sender));
 		receiver
@@ -89,7 +91,7 @@ impl OnDemand {
 	/// Request a block, given its header. Block bodies are requestable by hash only,
 	/// and the header is required anyway to verify and complete the block body
 	/// -- this just doesn't obscure the network query.
-	pub fn block(&self, ctx: &BasicContext, header: Header) -> Receiver<Block> {
+	pub fn block(&self, ctx: &BasicContext, header: encoded::Header) -> Receiver<encoded::Block> {
 		let (sender, receiver) = oneshot::channel();
 		self.dispatch_request(ctx, Request::Block(header, sender));
 		receiver
@@ -97,7 +99,7 @@ impl OnDemand {
 
 	/// Request the receipts for a block. The header serves two purposes:
 	/// provide the block hash to fetch receipts for, and for verification of the receipts root.
-	pub fn block_receipts(&self, ctx: &BasicContext, header: Header) -> Receiver<Vec<Receipt>> {
+	pub fn block_receipts(&self, ctx: &BasicContext, header: encoded::Header) -> Receiver<Vec<Receipt>> {
 		let (sender, receiver) = oneshot::channel();
 		self.dispatch_request(ctx, Request::BlockReceipts(header, sender));
 		receiver
@@ -105,14 +107,14 @@ impl OnDemand {
 
 	/// Request an account by address and block header -- which gives a hash to query and a state root
 	/// to verify against.
-	pub fn account(&self, ctx: &BasicContext, header: Header, address: Address) -> Receiver<Account> {
+	pub fn account(&self, ctx: &BasicContext, header: encoded::Header, address: Address) -> Receiver<Account> {
 		let (sender, receiver) = oneshot::channel();
 		self.dispatch_request(ctx, Request::Account(header, address, sender));
 		receiver
 	}
 
 	/// Request account storage value by block header, address, and key.
-	pub fn storage(&self, ctx: &BasicContext, header: Header, address: Address, key: H256) -> Receiver<H256> {
+	pub fn storage(&self, ctx: &BasicContext, header: encoded::Header, address: Address, key: H256) -> Receiver<H256> {
 		let (sender, receiver) = oneshot::channel();
 		self.dispatch_request(ctx, Request::Storage(header, address, key, sender));
 		receiver

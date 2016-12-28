@@ -24,7 +24,6 @@ use header::{BlockNumber};
 use transaction::{LocalizedTransaction, SignedTransaction, PendingTransaction};
 use log_entry::LocalizedLogEntry;
 use filter::Filter;
-use views::{BlockView};
 use error::{ImportResult, CallError};
 use receipt::LocalizedReceipt;
 use trace::LocalizedTrace;
@@ -40,6 +39,7 @@ use types::blockchain_info::BlockChainInfo;
 use types::block_status::BlockStatus;
 use types::mode::Mode;
 use types::pruning_info::PruningInfo;
+use encoded;
 
 #[ipc(client_ident="RemoteClient")]
 /// Blockchain database client. Owns and manages a blockchain and a block queue.
@@ -50,17 +50,17 @@ pub trait BlockChainClient : Sync + Send {
 	fn keep_alive(&self) {}
 
 	/// Get raw block header data by block id.
-	fn block_header(&self, id: BlockId) -> Option<Bytes>;
+	fn block_header(&self, id: BlockId) -> Option<encoded::Header>;
 
 	/// Look up the block number for the given block ID.
 	fn block_number(&self, id: BlockId) -> Option<BlockNumber>;
 
 	/// Get raw block body data by block id.
 	/// Block body is an RLP list of two items: uncles and transactions.
-	fn block_body(&self, id: BlockId) -> Option<Bytes>;
+	fn block_body(&self, id: BlockId) -> Option<encoded::Body>;
 
 	/// Get raw block data by block header hash.
-	fn block(&self, id: BlockId) -> Option<Bytes>;
+	fn block(&self, id: BlockId) -> Option<encoded::Block>;
 
 	/// Get block status by block header hash.
 	fn block_status(&self, id: BlockId) -> BlockStatus;
@@ -136,7 +136,7 @@ pub trait BlockChainClient : Sync + Send {
 	fn transaction_block(&self, id: TransactionId) -> Option<H256>;
 
 	/// Get uncle with given id.
-	fn uncle(&self, id: UncleId) -> Option<Bytes>;
+	fn uncle(&self, id: UncleId) -> Option<encoded::Header>;
 
 	/// Get transaction receipt with given hash.
 	fn transaction_receipt(&self, id: TransactionId) -> Option<LocalizedReceipt>;
@@ -173,7 +173,7 @@ pub trait BlockChainClient : Sync + Send {
 	fn additional_params(&self) -> BTreeMap<String, String>;
 
 	/// Get the best block header.
-	fn best_block_header(&self) -> Bytes;
+	fn best_block_header(&self) -> encoded::Header;
 
 	/// Returns numbers of blocks containing given bloom.
 	fn blocks_with_bloom(&self, bloom: &H2048, from_block: BlockId, to_block: BlockId) -> Option<Vec<BlockNumber>>;
@@ -220,8 +220,7 @@ pub trait BlockChainClient : Sync + Send {
 		let mut corpus = Vec::new();
 		while corpus.is_empty() {
 			for _ in 0..sample_size {
-				let block_bytes = self.block(BlockId::Hash(h)).expect("h is either the best_block_hash or an ancestor; qed");
-				let block = BlockView::new(&block_bytes);
+				let block = self.block(BlockId::Hash(h)).expect("h is either the best_block_hash or an ancestor; qed");
 				let header = block.header_view();
 				if header.number() == 0 {
 					return corpus;
@@ -277,7 +276,7 @@ pub trait BlockChainClient : Sync + Send {
 	/// Get the address of the registry itself.
 	fn registrar_address(&self) -> Option<Address>;
 
-	/// Get the address of a particular blockchain service, if available. 
+	/// Get the address of a particular blockchain service, if available.
 	fn registry_address(&self, name: String) -> Option<Address>;
 }
 
