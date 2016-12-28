@@ -21,6 +21,7 @@ use ethcore::blockchain_info::BlockChainInfo;
 use ethcore::client::{BlockChainClient, EachBlockWith, TestBlockChainClient};
 use ethcore::ids::BlockId;
 use ethcore::transaction::PendingTransaction;
+use ethcore::encoded;
 use network::{PeerId, NodeId};
 
 use net::buffer_flow::FlowParams;
@@ -94,11 +95,11 @@ impl Provider for TestProvider {
 		None
 	}
 
-	fn block_header(&self, id: BlockId) -> Option<Bytes> {
+	fn block_header(&self, id: BlockId) -> Option<encoded::Header> {
 		self.0.client.block_header(id)
 	}
 
-	fn block_body(&self, id: BlockId) -> Option<Bytes> {
+	fn block_body(&self, id: BlockId) -> Option<encoded::Body> {
 		self.0.client.block_body(id)
 	}
 
@@ -122,7 +123,7 @@ impl Provider for TestProvider {
 		req.account_key.iter().chain(req.account_key.iter()).cloned().collect()
 	}
 
-	fn header_proof(&self, _req: request::HeaderProof) -> Option<(Bytes, Vec<Bytes>)> {
+	fn header_proof(&self, _req: request::HeaderProof) -> Option<(encoded::Header, Vec<Bytes>)> {
 		None
 	}
 
@@ -273,7 +274,7 @@ fn get_block_headers() {
 
 		response_stream.append(&req_id).append(&new_buf).begin_list(10);
 		for header in headers {
-			response_stream.append_raw(&header, 1);
+			response_stream.append_raw(&header.into_inner(), 1);
 		}
 
 		response_stream.out()
@@ -320,7 +321,7 @@ fn get_block_bodies() {
 
 		response_stream.append(&req_id).append(&new_buf).begin_list(10);
 		for body in bodies {
-			response_stream.append_raw(&body, 1);
+			response_stream.append_raw(&body.into_inner(), 1);
 		}
 
 		response_stream.out()

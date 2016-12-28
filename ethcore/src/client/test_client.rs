@@ -39,7 +39,6 @@ use miner::{Miner, MinerService, TransactionImportResult};
 use spec::Spec;
 use types::mode::Mode;
 use types::pruning_info::PruningInfo;
-use views::BlockView;
 
 use verification::queue::QueueInfo;
 use block::{OpenBlock, SealedBlock};
@@ -47,6 +46,7 @@ use executive::Executed;
 use error::CallError;
 use trace::LocalizedTrace;
 use state_db::StateDB;
+use encoded;
 
 /// Test client.
 pub struct TestBlockChainClient {
@@ -263,7 +263,7 @@ impl TestBlockChainClient {
 	/// Make a bad block by setting invalid extra data.
 	pub fn corrupt_block(&self, n: BlockNumber) {
 		let hash = self.block_hash(BlockId::Number(n)).unwrap();
-		let mut header: BlockHeader = decode(&self.block_header(BlockId::Number(n)).unwrap());
+		let mut header: BlockHeader = self.block_header(BlockId::Number(n)).unwrap().decode();
 		header.set_extra_data(b"This extra data is way too long to be considered valid".to_vec());
 		let mut rlp = RlpStream::new_list(3);
 		rlp.append(&header);
@@ -275,7 +275,7 @@ impl TestBlockChainClient {
 	/// Make a bad block by setting invalid parent hash.
 	pub fn corrupt_block_parent(&self, n: BlockNumber) {
 		let hash = self.block_hash(BlockId::Number(n)).unwrap();
-		let mut header: BlockHeader = decode(&self.block_header(BlockId::Number(n)).unwrap());
+		let mut header: BlockHeader = self.block_header(BlockId::Number(n)).unwrap().decode();
 		header.set_parent_hash(H256::from(42));
 		let mut rlp = RlpStream::new_list(3);
 		rlp.append(&header);
@@ -458,7 +458,7 @@ impl BlockChainClient for TestBlockChainClient {
 		None	// Simple default.
 	}
 
-	fn uncle(&self, _id: UncleId) -> Option<Bytes> {
+	fn uncle(&self, _id: UncleId) -> Option<encoded::Header> {
 		None	// Simple default.
 	}
 
@@ -487,34 +487,39 @@ impl BlockChainClient for TestBlockChainClient {
 		unimplemented!();
 	}
 
-	fn best_block_header(&self) -> Bytes {
-		self.block_header(BlockId::Hash(self.chain_info().best_block_hash)).expect("Best block always have header.")
+	fn best_block_header(&self) -> encoded::Header {
+		self.block_header(BlockId::Hash(self.chain_info().best_block_hash))
+			.expect("Best block always has header.")
 	}
 
-	fn block_header(&self, id: BlockId) -> Option<Bytes> {
-		self.block_hash(id).and_then(|hash| self.blocks.read().get(&hash).map(|r| Rlp::new(r).at(0).as_raw().to_vec()))
+	fn block_header(&self, id: BlockId) -> Option<encoded::Header> {
+		self.block_hash(id)
+			.and_then(|hash| self.blocks.read().get(&hash).map(|r| Rlp::new(r).at(0).as_raw().to_vec()))
+			.map(encoded::Header::new)
 	}
 
 	fn block_number(&self, _id: BlockId) -> Option<BlockNumber> {
 		unimplemented!()
 	}
 
-	fn block_body(&self, id: BlockId) -> Option<Bytes> {
+	fn block_body(&self, id: BlockId) -> Option<encoded::Body> {
 		self.block_hash(id).and_then(|hash| self.blocks.read().get(&hash).map(|r| {
 			let mut stream = RlpStream::new_list(2);
 			stream.append_raw(Rlp::new(r).at(1).as_raw(), 1);
 			stream.append_raw(Rlp::new(r).at(2).as_raw(), 1);
-			stream.out()
+			encoded::Body::new(stream.out())
 		}))
 	}
 
-	fn block(&self, id: BlockId) -> Option<Bytes> {
-		self.block_hash(id).and_then(|hash| self.blocks.read().get(&hash).cloned())
+	fn block(&self, id: BlockId) -> Option<encoded::Block> {
+		self.block_hash(id)
+			.and_then(|hash| self.blocks.read().get(&hash).cloned())
+			.map(encoded::Block::new)
 	}
 
 	fn block_extra_info(&self, id: BlockId) -> Option<BTreeMap<String, String>> {
 		self.block(id)
-			.map(|block| BlockView::new(&block).header())
+			.map(|block| block.view().header())
 			.map(|header| self.spec.engine.extra_info(&header))
 	}
 

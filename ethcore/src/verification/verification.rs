@@ -117,7 +117,7 @@ pub fn verify_block_family(header: &Header, bytes: &[u8], engine: &Engine, bc: &
 					excluded.insert(details.parent.clone());
 					let b = bc.block(&hash)
 						.expect("parent already known to be stored; qed");
-					excluded.extend(BlockView::new(&b).uncle_hashes());
+					excluded.extend(b.uncle_hashes());
 					hash = details.parent;
 				}
 				None => break
@@ -264,6 +264,7 @@ mod tests {
 	use types::log_entry::{LogEntry, LocalizedLogEntry};
 	use rlp::View;
 	use time::get_time;
+	use encoded;
 
 	fn check_ok(result: Result<(), Error>) {
 		result.unwrap_or_else(|e| panic!("Block verification failed: {:?}", e));
@@ -322,16 +323,20 @@ mod tests {
 		}
 
 		/// Get raw block data
-		fn block(&self, hash: &H256) -> Option<Bytes> {
-			self.blocks.get(hash).cloned()
+		fn block(&self, hash: &H256) -> Option<encoded::Block> {
+			self.blocks.get(hash).cloned().map(encoded::Block::new)
 		}
 
-		fn block_header_data(&self, hash: &H256) -> Option<Bytes> {
-			self.block(hash).map(|b| BlockView::new(&b).header_rlp().as_raw().to_vec())
+		fn block_header_data(&self, hash: &H256) -> Option<encoded::Header> {
+			self.block(hash)
+				.map(|b| b.header_view().rlp().as_raw().to_vec())
+				.map(encoded::Header::new)
 		}
 
-		fn block_body(&self, hash: &H256) -> Option<Bytes> {
-			self.block(hash).map(|b| BlockChain::block_to_body(&b))
+		fn block_body(&self, hash: &H256) -> Option<encoded::Body> {
+			self.block(hash)
+				.map(|b| BlockChain::block_to_body(&b.into_inner()))
+				.map(encoded::Body::new)
 		}
 
 		fn best_ancient_block(&self) -> Option<H256> {
