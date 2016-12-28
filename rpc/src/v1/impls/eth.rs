@@ -36,7 +36,6 @@ use ethcore::account_provider::AccountProvider;
 use ethcore::client::{MiningBlockChainClient, BlockId, TransactionId, UncleId};
 use ethcore::header::{Header as BlockHeader, BlockNumber as EthBlockNumber};
 use ethcore::block::IsBlock;
-use ethcore::views::*;
 use ethcore::ethereum::Ethash;
 use ethcore::transaction::{Transaction as EthTransaction, SignedTransaction, PendingTransaction, Action};
 use ethcore::log_entry::LogEntry;
@@ -122,13 +121,12 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> EthClient<C, SN, S, M, EM> where
 	fn block(&self, id: BlockId, include_txs: bool) -> Result<Option<RichBlock>, Error> {
 		let client = take_weak!(self.client);
 		match (client.block(id.clone()), client.block_total_difficulty(id)) {
-			(Some(bytes), Some(total_difficulty)) => {
-				let block_view = BlockView::new(&bytes);
-				let view = block_view.header_view();
-				let block = RichBlock {
+			(Some(block), Some(total_difficulty)) => {
+				let view = block.header_view();
+				Ok(Some(RichBlock {
 					block: Block {
 						hash: Some(view.sha3().into()),
-						size: Some(bytes.len().into()),
+						size: Some(block.rlp().as_raw().len().into()),
 						parent_hash: view.parent_hash().into(),
 						uncles_hash: view.uncles_hash().into(),
 						author: view.author().into(),
@@ -144,16 +142,15 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> EthClient<C, SN, S, M, EM> where
 						difficulty: view.difficulty().into(),
 						total_difficulty: total_difficulty.into(),
 						seal_fields: view.seal().into_iter().map(|f| rlp::decode(&f)).map(Bytes::new).collect(),
-						uncles: block_view.uncle_hashes().into_iter().map(Into::into).collect(),
+						uncles: block.uncle_hashes().into_iter().map(Into::into).collect(),
 						transactions: match include_txs {
-							true => BlockTransactions::Full(block_view.localized_transactions().into_iter().map(Into::into).collect()),
-							false => BlockTransactions::Hashes(block_view.transaction_hashes().into_iter().map(Into::into).collect()),
+							true => BlockTransactions::Full(block.view().localized_transactions().into_iter().map(Into::into).collect()),
+							false => BlockTransactions::Hashes(block.transaction_hashes().into_iter().map(Into::into).collect()),
 						},
 						extra_data: Bytes::new(view.extra_data()),
 					},
 					extra_info: client.block_extra_info(id.clone()).expect(EXTRA_INFO_PROOF),
-				};
-				Ok(Some(block))
+				}))
 			},
 			_ => Ok(None)
 		}
@@ -169,7 +166,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> EthClient<C, SN, S, M, EM> where
 	fn uncle(&self, id: UncleId) -> Result<Option<RichBlock>, Error> {
 		let client = take_weak!(self.client);
 		let uncle: BlockHeader = match client.uncle(id) {
-			Some(rlp) => rlp::decode(&rlp),
+			Some(hdr) => hdr.decode(),
 			None => { return Ok(None); }
 		};
 		let parent_difficulty = match client.block_total_difficulty(BlockId::Hash(uncle.parent_hash().clone())) {
@@ -420,7 +417,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 		try!(self.active());
 		Ok(
 			take_weak!(self.client).block(BlockId::Hash(hash.into()))
-				.map(|bytes| BlockView::new(&bytes).transactions_count().into())
+				.map(|block| block.transactions_count().into())
 		)
 	}
 
@@ -433,7 +430,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 			)),
 			_ => Ok(
 				take_weak!(self.client).block(num.into())
-					.map(|bytes| BlockView::new(&bytes).transactions_count().into())
+					.map(|block| block.transactions_count().into())
 				)
 		}
 	}
@@ -443,7 +440,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 
 		Ok(
 			take_weak!(self.client).block(BlockId::Hash(hash.into()))
-				.map(|bytes| BlockView::new(&bytes).uncles_count().into())
+				.map(|block| block.uncles_count().into())
 		)
 	}
 
@@ -454,7 +451,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 			BlockNumber::Pending => Ok(Some(0.into())),
 			_ => Ok(
 				take_weak!(self.client).block(num.into())
-					.map(|bytes| BlockView::new(&bytes).uncles_count().into())
+					.map(|block| block.uncles_count().into())
 			),
 		}
 	}
