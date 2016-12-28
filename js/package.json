@@ -43,8 +43,8 @@
     "lint:css": "stylelint ./src/**/*.css",
     "lint:js": "eslint --ignore-path .gitignore ./src/",
     "lint:js:cached": "eslint --cache --ignore-path .gitignore ./src/",
-    "test": "NODE_ENV=test mocha 'src/**/*.spec.js'",
-    "test:coverage": "NODE_ENV=test istanbul cover _mocha -- 'src/**/*.spec.js'",
+    "test": "NODE_ENV=test mocha --compilers ejs:ejsify 'src/**/*.spec.js'",
+    "test:coverage": "NODE_ENV=test istanbul cover _mocha -- --compilers ejs:ejsify 'src/**/*.spec.js'",
     "test:e2e": "NODE_ENV=test mocha 'src/**/*.e2e.js'",
     "test:npm": "(cd .npmjs && npm i) && node test/npmParity && (rm -rf .npmjs/node_modules)",
     "prepush": "npm run lint:cached"
@@ -80,6 +80,7 @@
     "coveralls": "2.11.15",
     "css-loader": "0.26.1",
     "ejs-loader": "0.3.0",
+    "ejsify": "1.0.0",
     "enzyme": "2.7.0",
     "eslint": "3.11.1",
     "eslint-config-semistandard": "7.0.0",
