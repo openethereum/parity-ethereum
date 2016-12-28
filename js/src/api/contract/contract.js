@@ -16,6 +16,7 @@
 
 import Abi from '../../abi';
 
+let walletContract;
 let nextSubscriptionId = 0;
 
 export default class Contract {
@@ -232,15 +233,32 @@ export default class Contract {
     };
 
     if (!func.constant) {
-      func.postTransaction = (options, values = [], isWallet = true) => {
-        let _options = this._encodeOptions(func, this._addOptionsTo(options), values);
+      func._encodeOptions = (options, values = [], extras = {}) => {
+        const _options = this._encodeOptions(func, this._addOptionsTo(options), values);
 
+        if (extras && extras.wallet && extras.owner) {
+          const { from, to, value, data } = _options;
+
+          const nextValues = [ to, value, data ];
+          const nextOptions = {
+            from: extras.owner,
+            to: from
+          };
+
+          return walletContract._encodeOptions(walletContract.instance.execute, nextOptions, nextValues);
+        }
+
+        return _options;
+      };
+
+      func.postTransaction = (options, values = [], extras = {}) => {
+        let _options = func._encodeOptions(options, values, extras);
         return this._api.parity.postTransaction(_options);
       };
 
-      func.estimateGas = (options, values = []) => {
-        return this._api.eth
-          .estimateGas(this._encodeOptions(func, this._addOptionsTo(options), values));
+      func.estimateGas = (options, values = [], extras = {}) => {
+        let _options = func._encodeOptions(options, values, extras);
+        return this._api.eth.estimateGas(_options);
       };
     }
 
@@ -478,3 +496,11 @@ export default class Contract {
       });
   }
 }
+
+const WalletAbi = `[{
+  "constant":false, "name":"execute",
+  "inputs":[{"name":"_to","type":"address"},{"name":"_value","type":"uint256"},{"name":"_data","type":"bytes"}],
+  "outputs":[{"name":"_r","type":"bytes32"}],"type":"function"
+}]`;
+
+walletContract = new Contract({}, JSON.parse(WalletAbi));

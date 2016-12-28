@@ -36,8 +36,6 @@ class Accounts extends Component {
     setVisibleAccounts: PropTypes.func.isRequired,
     accounts: PropTypes.object.isRequired,
     hasAccounts: PropTypes.bool.isRequired,
-    wallets: PropTypes.object.isRequired,
-    hasWallets: PropTypes.bool.isRequired,
 
     balances: PropTypes.object
   }

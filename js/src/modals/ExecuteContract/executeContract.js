@@ -28,6 +28,7 @@ import { CancelIcon, DoneIcon, NextIcon, PrevIcon } from '~/ui/Icons';
 import { MAX_GAS_ESTIMATION } from '~/util/constants';
 import { validateAddress, validateUint } from '~/util/validation';
 import { parseAbiType } from '~/util/abi';
+import { getTxExtras } from '~/util/tx';
 
 import AdvancedStep from './AdvancedStep';
 import DetailsStep from './DetailsStep';
@@ -351,7 +352,7 @@ class ExecuteContract extends Component {
   }
 
   estimateGas = (_fromAddress) => {
-    const { fromAddress } = this.props;
+    const { accounts, fromAddress } = this.props;
     const { amount, func, values } = this.state;
     const options = {
       gas: MAX_GAS_ESTIMATION,
@@ -364,7 +365,7 @@ class ExecuteContract extends Component {
     }
 
     func
-      .estimateGas(options, values)
+      .estimateGas(options, values, getTxExtras(accounts, options))
       .then((gasEst) => {
         const gas = gasEst.mul(1.2);
 
@@ -380,10 +381,11 @@ class ExecuteContract extends Component {
 
   postTransaction = () => {
     const { api, store } = this.context;
-    const { fromAddress } = this.props;
+    const { accounts, fromAddress } = this.props;
     const { advancedOptions, amount, func, minBlock, values } = this.state;
     const steps = advancedOptions ? STAGES_ADVANCED : STAGES_BASIC;
     const finalstep = steps.length - 1;
+
     const options = {
       gas: this.gasStore.gas,
       gasPrice: this.gasStore.price,
@@ -395,7 +397,7 @@ class ExecuteContract extends Component {
     this.setState({ sending: true, step: advancedOptions ? STEP_BUSY : STEP_BUSY_OR_ADVANCED });
 
     func
-      .postTransaction(options, values)
+      .postTransaction(options, values, getTxExtras(accounts, options))
       .then((requestId) => {
         this.setState({
           busyState:

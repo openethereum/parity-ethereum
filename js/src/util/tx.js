@@ -14,6 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import { intersection } from 'lodash';
+
 const isValidReceipt = (receipt) => {
   return receipt && receipt.blockNumber && receipt.blockNumber.gt(0);
 };
@@ -50,4 +52,28 @@ export function waitForConfirmations (api, tx, confirmations) {
       .catch(reject);
     });
   });
+}
+
+/**
+ * Extract extra options for estimate gas/deploy/post transaction
+ * in the case of a Wallet (ie. set Wallet to true and set the owner
+ * as the first owned account in the owners Array).
+ */
+export function getTxExtras (accounts, options) {
+  const account = accounts[options.from];
+
+  if (!account || !account.wallet) {
+    return {};
+  }
+
+  const owners = (account.owners || []).map((o) => o.address);
+  const addresses = Object.keys(accounts);
+
+  const owner = intersection(owners, addresses).pop();
+
+  if (!owner) {
+    return {};
+  }
+
+  return { wallet: true, owner };
 }
