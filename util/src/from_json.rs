@@ -17,7 +17,7 @@
 //! Coversion from json.
 
 use standard::*;
-use bigint::uint::*;
+use bigint::prelude::*;
 
 #[macro_export]
 macro_rules! xjson {

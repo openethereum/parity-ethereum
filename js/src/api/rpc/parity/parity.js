@@ -14,8 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { inAddress, inData, inHex, inNumber16, inOptions } from '../../format/input';
-import { outAccountInfo, outAddress, outChainStatus, outHistogram, outNumber, outPeers, outTransaction } from '../../format/output';
+import { inAddress, inAddresses, inData, inHex, inNumber16, inOptions } from '../../format/input';
+import { outAccountInfo, outAddress, outAddresses, outChainStatus, outHistogram, outNumber, outPeers, outTransaction } from '../../format/output';
 
 export default class Parity {
   constructor (transport) {
@@ -27,15 +27,15 @@ export default class Parity {
       .execute('parity_acceptNonReservedPeers');
   }
 
-  accounts () {
-    return this._transport
-      .execute('parity_accounts')
-      .then(outAccountInfo);
-  }
-
   accountsInfo () {
     return this._transport
       .execute('parity_accountsInfo')
+      .then(outAccountInfo);
+  }
+
+  allAccountsInfo () {
+    return this._transport
+      .execute('parity_allAccountsInfo')
       .then(outAccountInfo);
   }
 
@@ -128,6 +128,18 @@ export default class Parity {
       .execute('parity_generateSecretPhrase');
   }
 
+  getDappsAddresses (dappId) {
+    return this._transport
+      .execute('parity_getDappsAddresses', dappId)
+      .then(outAddresses);
+  }
+
+  getNewDappsWhitelist () {
+    return this._transport
+      .execute('parity_getNewDappsWhitelist')
+      .then((addresses) => addresses ? addresses.map(outAddress) : null);
+  }
+
   hashContent (url) {
     return this._transport
       .execute('parity_hashContent', url);
@@ -135,13 +147,18 @@ export default class Parity {
 
   importGethAccounts (accounts) {
     return this._transport
-      .execute('parity_importGethAccounts', (accounts || []).map(inAddress))
-      .then((accounts) => (accounts || []).map(outAddress));
+      .execute('parity_importGethAccounts', inAddresses)
+      .then(outAddresses);
   }
 
   killAccount (account, password) {
     return this._transport
       .execute('parity_killAccount', inAddress(account), password);
+  }
+
+  listRecentDapps () {
+    return this._transport
+      .execute('parity_listRecentDapps');
   }
 
   removeAddress (address) {
@@ -152,7 +169,7 @@ export default class Parity {
   listGethAccounts () {
     return this._transport
       .execute('parity_listGethAccounts')
-      .then((accounts) => (accounts || []).map(outAddress));
+      .then(outAddresses);
   }
 
   localTransactions () {
@@ -289,6 +306,11 @@ export default class Parity {
       .execute('parity_setAuthor', inAddress(address));
   }
 
+  setDappsAddresses (dappId, addresses) {
+    return this._transport
+      .execute('parity_setDappsAddresses', dappId, inAddresses(addresses));
+  }
+
   setExtraData (data) {
     return this._transport
       .execute('parity_setExtraData', inData(data));
@@ -307,6 +329,11 @@ export default class Parity {
   setMode (mode) {
     return this._transport
       .execute('parity_setMode', mode);
+  }
+
+  setNewDappsWhitelist (addresses) {
+    return this._transport
+      .execute('parity_setNewDappsWhitelist', addresses ? inAddresses(addresses) : null);
   }
 
   setTransactionsLimit (quantity) {

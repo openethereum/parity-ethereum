@@ -18,6 +18,8 @@ import BigNumber from 'bignumber.js';
 
 import util from '~/api/util';
 
+import { NULL_ADDRESS } from './constants';
+
 export const ERRORS = {
   invalidAddress: 'address is an invalid network address',
   invalidAmount: 'the supplied amount should be a valid positive number',
@@ -173,4 +175,12 @@ export function validateUint (value) {
     value,
     valueError
   };
+}
+
+export function isNullAddress (address) {
+  if (address && address.substr(0, 2) === '0x') {
+    return isNullAddress(address.substr(2));
+  }
+
+  return address === NULL_ADDRESS;
 }

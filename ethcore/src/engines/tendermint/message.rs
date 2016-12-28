@@ -51,9 +51,9 @@ impl ConsensusMessage {
 
 	pub fn new_proposal(header: &Header) -> Result<Self, ::rlp::DecoderError> {
 		Ok(ConsensusMessage {
-			signature: try!(UntrustedRlp::new(header.seal().get(1).expect("seal passed basic verification; seal has 3 fields; qed").as_slice()).as_val()),
+			signature: UntrustedRlp::new(header.seal().get(1).expect("seal passed basic verification; seal has 3 fields; qed").as_slice()).as_val()?,
 			height: header.number() as Height,
-			round: try!(consensus_round(header)),
+			round: consensus_round(header)?,
 			step: Step::Propose,
 			block_hash: Some(header.bare_hash()),
 		})
@@ -92,7 +92,7 @@ impl ConsensusMessage {
 	pub fn verify(&self) -> Result<Address, Error> {
 		let full_rlp = ::rlp::encode(self);
 		let block_info = Rlp::new(&full_rlp).at(1);
-		let public_key = try!(recover(&self.signature.into(), &block_info.as_raw().sha3()));
+		let public_key = recover(&self.signature.into(), &block_info.as_raw().sha3())?;
 		Ok(public_to_address(&public_key))
 	}
 
@@ -134,7 +134,7 @@ impl Ord for ConsensusMessage {
 
 impl Decodable for Step {
 	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
-		match try!(decoder.as_rlp().as_val()) {
+		match decoder.as_rlp().as_val()? {
 			0u8 => Ok(Step::Propose),
 			1 => Ok(Step::Prevote),
 			2 => Ok(Step::Precommit),
@@ -153,13 +153,13 @@ impl Encodable for Step {
 impl Decodable for ConsensusMessage {
 	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
 		let rlp = decoder.as_rlp();
-		let m = try!(rlp.at(1));
-		let block_message: H256 = try!(m.val_at(3));
+		let m = rlp.at(1)?;
+		let block_message: H256 = m.val_at(3)?;
 		Ok(ConsensusMessage {
-			signature: try!(rlp.val_at(0)),
-			height: try!(m.val_at(0)),
-			round: try!(m.val_at(1)),
-			step: try!(m.val_at(2)),
+			signature: rlp.val_at(0)?,
+			height: m.val_at(0)?,
+			round: m.val_at(1)?,
+			step: m.val_at(2)?,
 			block_hash: match block_message.is_zero() {
 				true => None,
 				false => Some(block_message),

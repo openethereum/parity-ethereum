@@ -16,28 +16,50 @@
 
 use std::sync::Arc;
 use std::ops::Deref;
+use util::Mutex;
+use transient_hashmap::TransientHashMap;
+
+use ethstore::random_string;
+
 use v1::helpers::signing_queue::{ConfirmationsQueue};
+
+const TOKEN_LIFETIME_SECS: u64 = 3600;
 
 /// Manages communication with Signer crate
 pub struct SignerService {
 	queue: Arc<ConfirmationsQueue>,
+	web_proxy_tokens: Mutex<TransientHashMap<String, ()>>,
 	generate_new_token: Box<Fn() -> Result<String, String> + Send + Sync + 'static>,
 	address: Option<(String, u16)>,
 }
 
 impl SignerService {
-
 	/// Creates new Signer Service given function to generate new tokens.
 	pub fn new<F>(new_token: F, address: Option<(String, u16)>) -> Self
 		where F: Fn() -> Result<String, String> + Send + Sync + 'static {
 		SignerService {
 			queue: Arc::new(ConfirmationsQueue::default()),
+			web_proxy_tokens: Mutex::new(TransientHashMap::new(TOKEN_LIFETIME_SECS)),
 			generate_new_token: Box::new(new_token),
 			address: address,
 		}
 	}
 
-	/// Generates new token.
+	/// Checks if the token is valid web proxy access token.
+	pub fn is_valid_web_proxy_access_token(&self, token: &String) -> bool {
+		self.web_proxy_tokens.lock().contains_key(&token)
+	}
+
+	/// Generates a new web proxy access token.
+	pub fn generate_web_proxy_access_token(&self) -> String {
+		let token = random_string(16);
+		let mut tokens = self.web_proxy_tokens.lock();
+		tokens.prune();
+		tokens.insert(token.clone(), ());
+		token
+	}
+
+	/// Generates new signer authorization token.
 	pub fn generate_token(&self) -> Result<String, String> {
 		(self.generate_new_token)()
 	}

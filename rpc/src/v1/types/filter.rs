@@ -35,7 +35,7 @@ pub enum VariadicValue<T> where T: Deserialize {
 impl<T> Deserialize for VariadicValue<T> where T: Deserialize {
 	fn deserialize<D>(deserializer: &mut D) -> Result<VariadicValue<T>, D::Error>
 	where D: Deserializer {
-		let v = try!(Value::deserialize(deserializer));
+		let v = Value::deserialize(deserializer)?;
 
 		if v.is_null() {
 			return Ok(VariadicValue::Null);

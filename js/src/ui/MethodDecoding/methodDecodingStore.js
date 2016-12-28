@@ -118,15 +118,6 @@ export default class MethodDecodingStore {
       return Promise.resolve(result);
     }
 
-    const { signature, paramdata } = this.api.util.decodeCallData(input);
-    result.signature = signature;
-    result.params = paramdata;
-
-    // Contract deployment
-    if (!signature || signature === CONTRACT_CREATE || transaction.creates) {
-      return Promise.resolve({ ...result, deploy: true });
-    }
-
     return this
       .isContract(contractAddress || transaction.creates)
       .then((isContract) => {
@@ -134,6 +125,15 @@ export default class MethodDecodingStore {
 
         if (!isContract) {
           return result;
+        }
+
+        const { signature, paramdata } = this.api.util.decodeCallData(input);
+        result.signature = signature;
+        result.params = paramdata;
+
+        // Contract deployment
+        if (!signature || signature === CONTRACT_CREATE || transaction.creates) {
+          return Promise.resolve({ ...result, deploy: true });
         }
 
         return this

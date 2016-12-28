@@ -134,7 +134,7 @@ impl Serialize for KdfSerParams {
 impl Deserialize for KdfSerParams {
 	fn deserialize<D>(deserializer: &mut D) -> Result<Self, D::Error>
 	where D: Deserializer {
-		let v = try!(Value::deserialize(deserializer));
+		let v = Value::deserialize(deserializer)?;
 
 		Deserialize::deserialize(&mut value::Deserializer::new(v.clone())).map(KdfSerParams::Pbkdf2)
 			.or_else(|_| Deserialize::deserialize(&mut value::Deserializer::new(v)).map(KdfSerParams::Scrypt))

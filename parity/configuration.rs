@@ -85,7 +85,7 @@ pub struct Configuration {
 
 impl Configuration {
 	pub fn parse<S: AsRef<str>>(command: &[S]) -> Result<Self, ArgsError> {
-		let args = try!(Args::parse(command));
+		let args = Args::parse(command)?;
 
 		let config = Configuration {
 			args: args,
@@ -96,29 +96,29 @@ impl Configuration {
 
 	pub fn into_command(self) -> Result<Execute, String> {
 		let dirs = self.directories();
-		let pruning = try!(self.args.flag_pruning.parse());
+		let pruning = self.args.flag_pruning.parse()?;
 		let pruning_history = self.args.flag_pruning_history;
-		let vm_type = try!(self.vm_type());
-		let mode = match self.args.flag_mode.as_ref() { "last" => None, mode => Some(try!(to_mode(&mode, self.args.flag_mode_timeout, self.args.flag_mode_alarm))), };
-		let update_policy = try!(self.update_policy());
-		let miner_options = try!(self.miner_options());
+		let vm_type = self.vm_type()?;
+		let mode = match self.args.flag_mode.as_ref() { "last" => None, mode => Some(to_mode(&mode, self.args.flag_mode_timeout, self.args.flag_mode_alarm)?), };
+		let update_policy = self.update_policy()?;
+		let miner_options = self.miner_options()?;
 		let logger_config = self.logger_config();
-		let http_conf = try!(self.http_config());
-		let ipc_conf = try!(self.ipc_config());
-		let net_conf = try!(self.net_config());
+		let http_conf = self.http_config()?;
+		let ipc_conf = self.ipc_config()?;
+		let net_conf = self.net_config()?;
 		let network_id = self.network_id();
 		let cache_config = self.cache_config();
-		let spec = try!(self.chain().parse());
-		let tracing = try!(self.args.flag_tracing.parse());
-		let fat_db = try!(self.args.flag_fat_db.parse());
-		let compaction = try!(self.args.flag_db_compaction.parse());
+		let spec = self.chain().parse()?;
+		let tracing = self.args.flag_tracing.parse()?;
+		let fat_db = self.args.flag_fat_db.parse()?;
+		let compaction = self.args.flag_db_compaction.parse()?;
 		let wal = !self.args.flag_fast_and_loose;
 		let warp_sync = self.args.flag_warp;
 		let geth_compatibility = self.args.flag_geth;
 		let ui_address = self.ui_port().map(|port| (self.ui_interface(), port));
 		let dapps_conf = self.dapps_config();
 		let signer_conf = self.signer_config();
-		let format = try!(self.format());
+		let format = self.format()?;
 
 		let cmd = if self.args.flag_version {
 			Cmd::Version
@@ -237,8 +237,8 @@ impl Configuration {
 					wal: wal,
 					tracing: tracing,
 					fat_db: fat_db,
-					from_block: try!(to_block_id(&self.args.flag_from)),
-					to_block: try!(to_block_id(&self.args.flag_to)),
+					from_block: to_block_id(&self.args.flag_from)?,
+					to_block: to_block_id(&self.args.flag_to)?,
 					check_seal: !self.args.flag_no_seal_check,
 				};
 				Cmd::Blockchain(BlockchainCmd::Export(export_cmd))
@@ -255,7 +255,7 @@ impl Configuration {
 					wal: wal,
 					tracing: tracing,
 					fat_db: fat_db,
-					at: try!(to_block_id(&self.args.flag_at)),
+					at: to_block_id(&self.args.flag_at)?,
 					storage: !self.args.flag_no_storage,
 					code: !self.args.flag_no_code,
 					min_balance: self.args.flag_min_balance.and_then(|s| to_u256(&s).ok()),
@@ -278,7 +278,7 @@ impl Configuration {
 				file_path: self.args.arg_file.clone(),
 				wal: wal,
 				kind: snapshot::Kind::Take,
-				block_at: try!(to_block_id(&self.args.flag_at)),
+				block_at: to_block_id(&self.args.flag_at)?,
 			};
 			Cmd::Snapshot(snapshot_cmd)
 		} else if self.args.cmd_restore {
@@ -294,7 +294,7 @@ impl Configuration {
 				file_path: self.args.arg_file.clone(),
 				wal: wal,
 				kind: snapshot::Kind::Restore,
-				block_at: try!(to_block_id("latest")), // unimportant.
+				block_at: to_block_id("latest")?, // unimportant.
 			};
 			Cmd::Snapshot(restore_cmd)
 		} else {
@@ -319,9 +319,9 @@ impl Configuration {
 				ipc_conf: ipc_conf,
 				net_conf: net_conf,
 				network_id: network_id,
-				acc_conf: try!(self.accounts_config()),
-				gas_pricer: try!(self.gas_pricer_config()),
-				miner_extras: try!(self.miner_extras()),
+				acc_conf: self.accounts_config()?,
+				gas_pricer: self.gas_pricer_config()?,
+				miner_extras: self.miner_extras()?,
 				update_policy: update_policy,
 				mode: mode,
 				tracing: tracing,
@@ -363,12 +363,12 @@ impl Configuration {
 
 	fn miner_extras(&self) -> Result<MinerExtras, String> {
 		let extras = MinerExtras {
-			author: try!(self.author()),
-			extra_data: try!(self.extra_data()),
-			gas_floor_target: try!(to_u256(&self.args.flag_gas_floor_target)),
-			gas_ceil_target: try!(to_u256(&self.args.flag_gas_cap)),
+			author: self.author()?,
+			extra_data: self.extra_data()?,
+			gas_floor_target: to_u256(&self.args.flag_gas_floor_target)?,
+			gas_ceil_target: to_u256(&self.args.flag_gas_cap)?,
 			transactions_limit: self.args.flag_tx_queue_size,
-			engine_signer: try!(self.engine_signer()),
+			engine_signer: self.engine_signer()?,
 		};
 
 		Ok(extras)
@@ -384,7 +384,7 @@ impl Configuration {
 
 	fn format(&self) -> Result<Option<DataFormat>, String> {
 		match self.args.flag_format {
-			Some(ref f) => Ok(Some(try!(f.parse()))),
+			Some(ref f) => Ok(Some(f.parse()?)),
 			None => Ok(None),
 		}
 	}
@@ -452,14 +452,14 @@ impl Configuration {
 			iterations: self.args.flag_keys_iterations,
 			testnet: self.args.flag_testnet,
 			password_files: self.args.flag_password.clone(),
-			unlocked_accounts: try!(to_addresses(&self.args.flag_unlock)),
+			unlocked_accounts: to_addresses(&self.args.flag_unlock)?,
 		};
 
 		Ok(cfg)
 	}
 
 	fn miner_options(&self) -> Result<MinerOptions, String> {
-		let reseal = try!(self.args.flag_reseal_on_txs.parse::<ResealPolicy>());
+		let reseal = self.args.flag_reseal_on_txs.parse::<ResealPolicy>()?;
 
 		let options = MinerOptions {
 			new_work_notify: self.work_notify(),
@@ -467,13 +467,13 @@ impl Configuration {
 			reseal_on_external_tx: reseal.external,
 			reseal_on_own_tx: reseal.own,
 			tx_gas_limit: match self.args.flag_tx_gas_limit {
-				Some(ref d) => try!(to_u256(d)),
+				Some(ref d) => to_u256(d)?,
 				None => U256::max_value(),
 			},
 			tx_queue_size: self.args.flag_tx_queue_size,
-			tx_queue_gas_limit: try!(to_gas_limit(&self.args.flag_tx_queue_gas)),
-			tx_queue_strategy: try!(to_queue_strategy(&self.args.flag_tx_queue_strategy)),
-			pending_set: try!(to_pending_set(&self.args.flag_relay_set)),
+			tx_queue_gas_limit: to_gas_limit(&self.args.flag_tx_queue_gas)?,
+			tx_queue_strategy: to_queue_strategy(&self.args.flag_tx_queue_strategy)?,
+			pending_set: to_pending_set(&self.args.flag_relay_set)?,
 			reseal_min_period: Duration::from_millis(self.args.flag_reseal_min_period),
 			work_queue_size: self.args.flag_work_queue_size,
 			enable_resubmission: !self.args.flag_remove_solved,
@@ -514,18 +514,18 @@ impl Configuration {
 
 	fn gas_pricer_config(&self) -> Result<GasPricerConfig, String> {
 		if let Some(d) = self.args.flag_gasprice.as_ref() {
-			return Ok(GasPricerConfig::Fixed(try!(to_u256(d))));
+			return Ok(GasPricerConfig::Fixed(to_u256(d)?));
 		}
 
-		let usd_per_tx = try!(to_price(&self.args.flag_usd_per_tx));
+		let usd_per_tx = to_price(&self.args.flag_usd_per_tx)?;
 		if "auto" == self.args.flag_usd_per_eth.as_str() {
 			return Ok(GasPricerConfig::Calibrated {
 				usd_per_tx: usd_per_tx,
-				recalibration_period: try!(to_duration(self.args.flag_price_update_period.as_str())),
+				recalibration_period: to_duration(self.args.flag_price_update_period.as_str())?,
 			});
 		}
 
-		let usd_per_eth = try!(to_price(&self.args.flag_usd_per_eth));
+		let usd_per_eth = to_price(&self.args.flag_usd_per_eth)?;
 		let wei_per_usd: f32 = 1.0e18 / usd_per_eth;
 		let gas_per_tx: f32 = 21000.0;
 		let wei_per_gas: f32 = wei_per_usd * usd_per_tx / gas_per_tx;
@@ -553,8 +553,8 @@ impl Configuration {
 		match self.args.flag_reserved_peers {
 			Some(ref path) => {
 				let mut buffer = String::new();
-				let mut node_file = try!(File::open(path).map_err(|e| format!("Error opening reserved nodes file: {}", e)));
-				try!(node_file.read_to_string(&mut buffer).map_err(|_| "Error reading reserved node file"));
+				let mut node_file = File::open(path).map_err(|e| format!("Error opening reserved nodes file: {}", e))?;
+				node_file.read_to_string(&mut buffer).map_err(|_| "Error reading reserved node file")?;
 				let lines = buffer.lines().map(|s| s.trim().to_owned()).filter(|s| !s.is_empty()).collect::<Vec<_>>();
 				if let Some(invalid) = lines.iter().find(|s| !is_valid_node_url(s)) {
 					return Err(format!("Invalid node address format given for a boot node: {}", invalid));
@@ -570,7 +570,7 @@ impl Configuration {
 		let listen_address = Some(SocketAddr::new("0.0.0.0".parse().unwrap(), port));
 		let public_address = if self.args.flag_nat.starts_with("extip:") {
 			let host = &self.args.flag_nat[6..];
-			let host = try!(host.parse().map_err(|_| format!("Invalid host given with `--nat extip:{}`", host)));
+			let host = host.parse().map_err(|_| format!("Invalid host given with `--nat extip:{}`", host))?;
 			Some(SocketAddr::new(host, port))
 		} else {
 			None
@@ -581,8 +581,8 @@ impl Configuration {
 	fn net_config(&self) -> Result<NetworkConfiguration, String> {
 		let mut ret = NetworkConfiguration::new();
 		ret.nat_enabled = self.args.flag_nat == "any" || self.args.flag_nat == "upnp";
-		ret.boot_nodes = try!(to_bootnodes(&self.args.flag_bootnodes));
-		let (listen, public) = try!(self.net_addresses());
+		ret.boot_nodes = to_bootnodes(&self.args.flag_bootnodes)?;
+		let (listen, public) = self.net_addresses()?;
 		ret.listen_address = listen.map(|l| format!("{}", l));
 		ret.public_address = public.map(|p| format!("{}", p));
 		ret.use_secret = self.args.flag_node_key.as_ref().map(|s| s.parse::<Secret>().unwrap_or_else(|_| s.sha3()));
@@ -590,12 +590,12 @@ impl Configuration {
 		ret.max_peers = self.max_peers();
 		ret.min_peers = self.min_peers();
 		ret.snapshot_peers = self.snapshot_peers();
-		ret.allow_ips = try!(self.allow_ips());
+		ret.allow_ips = self.allow_ips()?;
 		ret.max_pending_peers = self.max_pending_peers();
 		let mut net_path = PathBuf::from(self.directories().base);
 		net_path.push("network");
 		ret.config_path = Some(net_path.to_str().unwrap().to_owned());
-		ret.reserved_nodes = try!(self.init_reserved_nodes());
+		ret.reserved_nodes = self.init_reserved_nodes()?;
 		ret.allow_non_reserved = !self.args.flag_reserved_only;
 		Ok(ret)
 	}
@@ -652,7 +652,7 @@ impl Configuration {
  					}
 					apis.push_str("personal");
 				}
-				try!(apis.parse())
+				apis.parse()?
 			},
 		};
 
@@ -664,7 +664,7 @@ impl Configuration {
 			enabled: !self.args.flag_jsonrpc_off && !self.args.flag_no_jsonrpc,
 			interface: self.rpc_interface(),
 			port: self.args.flag_rpcport.unwrap_or(self.args.flag_jsonrpc_port),
-			apis: try!(self.rpc_apis().parse()),
+			apis: self.rpc_apis().parse()?,
 			hosts: self.rpc_hosts(),
 			cors: self.rpc_cors(),
 		};
@@ -899,7 +899,7 @@ mod tests {
 			file_path: Some("blockchain.json".into()),
 			format: Default::default(),
 			pruning: Default::default(),
-			pruning_history: 64,
+			pruning_history: 1200,
 			compaction: Default::default(),
 			wal: true,
 			tracing: Default::default(),
@@ -921,7 +921,7 @@ mod tests {
 			dirs: Default::default(),
 			file_path: Some("blockchain.json".into()),
 			pruning: Default::default(),
-			pruning_history: 64,
+			pruning_history: 1200,
 			format: Default::default(),
 			compaction: Default::default(),
 			wal: true,
@@ -943,7 +943,7 @@ mod tests {
 			dirs: Default::default(),
 			file_path: Some("state.json".into()),
 			pruning: Default::default(),
-			pruning_history: 64,
+			pruning_history: 1200,
 			format: Default::default(),
 			compaction: Default::default(),
 			wal: true,
@@ -967,7 +967,7 @@ mod tests {
 			dirs: Default::default(),
 			file_path: Some("blockchain.json".into()),
 			pruning: Default::default(),
-			pruning_history: 64,
+			pruning_history: 1200,
 			format: Some(DataFormat::Hex),
 			compaction: Default::default(),
 			wal: true,
@@ -1002,7 +1002,7 @@ mod tests {
 			dirs: Default::default(),
 			spec: Default::default(),
 			pruning: Default::default(),
-			pruning_history: 64,
+			pruning_history: 1200,
 			daemon: None,
 			logger_config: Default::default(),
 			miner_options: Default::default(),

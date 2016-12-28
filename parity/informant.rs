@@ -27,15 +27,13 @@ use ethsync::{SyncProvider, ManageNetwork};
 use util::{Uint, RwLock, Mutex, H256, Colour, Bytes};
 use ethcore::client::*;
 use ethcore::service::ClientIoMessage;
-use ethcore::views::BlockView;
 use ethcore::snapshot::service::Service as SnapshotService;
 use ethcore::snapshot::{RestorationStatus, SnapshotService as SS};
 use number_prefix::{binary_prefix, Standalone, Prefixed};
 use ethcore_rpc::is_major_importing;
+use rlp::View;
 
 pub struct Informant {
-	chain_info: RwLock<Option<BlockChainInfo>>,
-	cache_info: RwLock<Option<BlockChainCacheSize>>,
 	report: RwLock<Option<ClientReport>>,
 	last_tick: RwLock<Instant>,
 	with_color: bool,
@@ -73,8 +71,6 @@ impl Informant {
 	/// Make a new instance potentially `with_color` output.
 	pub fn new(client: Arc<Client>, sync: Option<Arc<SyncProvider>>, net: Option<Arc<ManageNetwork>>, snapshot: Option<Arc<SnapshotService>>, with_color: bool) -> Self {
 		Informant {
-			chain_info: RwLock::new(None),
-			cache_info: RwLock::new(None),
 			report: RwLock::new(None),
 			last_tick: RwLock::new(Instant::now()),
 			with_color: with_color,
@@ -177,8 +173,6 @@ impl Informant {
 			)
 		);
 
-		*self.chain_info.write() = Some(chain_info);
-		*self.cache_info.write() = Some(cache_info);
 		*write_report = Some(report);
 	}
 }
@@ -192,21 +186,19 @@ impl ChainNotify for Informant {
 		let txs_imported = imported.iter()
 			.take(imported.len().saturating_sub(if ripe { 1 } else { 0 }))
 			.filter_map(|h| self.client.block(BlockId::Hash(*h)))
-			.map(|b| BlockView::new(&b).transactions_count())
+			.map(|b| b.transactions_count())
 			.sum();
 
 		if ripe {
 			if let Some(block) = imported.last().and_then(|h| self.client.block(BlockId::Hash(*h))) {
-				let view = BlockView::new(&block);
-				let header = view.header();
-				let tx_count = view.transactions_count();
-				let size = block.len();
+				let header_view = block.header_view();
+				let size = block.rlp().as_raw().len();
 				let (skipped, skipped_txs) = (self.skipped.load(AtomicOrdering::Relaxed) + imported.len() - 1, self.skipped_txs.load(AtomicOrdering::Relaxed) + txs_imported);
 				info!(target: "import", "Imported {} {} ({} txs, {} Mgas, {} ms, {} KiB){}",
-					Colour::White.bold().paint(format!("#{}", header.number())),
-					Colour::White.bold().paint(format!("{}", header.hash())),
-					Colour::Yellow.bold().paint(format!("{}", tx_count)),
-					Colour::Yellow.bold().paint(format!("{:.2}", header.gas_used().low_u64() as f32 / 1000000f32)),
+					Colour::White.bold().paint(format!("#{}", header_view.number())),
+					Colour::White.bold().paint(format!("{}", header_view.hash())),
+					Colour::Yellow.bold().paint(format!("{}", block.transactions_count())),
+					Colour::Yellow.bold().paint(format!("{:.2}", header_view.gas_used().low_u64() as f32 / 1000000f32)),
 					Colour::Purple.bold().paint(format!("{:.2}", duration as f32 / 1000000f32)),
 					Colour::Blue.bold().paint(format!("{:.2}", size as f32 / 1024f32)),
 					if skipped > 0 {

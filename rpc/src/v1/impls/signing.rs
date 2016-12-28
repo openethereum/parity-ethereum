@@ -123,7 +123,7 @@ impl<C: 'static, M: 'static> ParitySigning for SigningQueueClient<C, M> where
 	M: MinerService,
 {
 	fn post_sign(&self, address: RpcH160, hash: RpcH256) -> Result<RpcEither<RpcU256, RpcConfirmationResponse>, Error> {
-		try!(self.active());
+		self.active()?;
 		self.dispatch(RpcConfirmationPayload::Signature((address, hash).into()))
 			.map(|result| match result {
 				DispatchResult::Value(v) => RpcEither::Or(v),
@@ -136,7 +136,7 @@ impl<C: 'static, M: 'static> ParitySigning for SigningQueueClient<C, M> where
 	}
 
 	fn post_transaction(&self, request: RpcTransactionRequest) -> Result<RpcEither<RpcU256, RpcConfirmationResponse>, Error> {
-		try!(self.active());
+		self.active()?;
 		self.dispatch(RpcConfirmationPayload::SendTransaction(request))
 			.map(|result| match result {
 				DispatchResult::Value(v) => RpcEither::Or(v),
@@ -149,7 +149,7 @@ impl<C: 'static, M: 'static> ParitySigning for SigningQueueClient<C, M> where
 	}
 
 	fn check_request(&self, id: RpcU256) -> Result<Option<RpcConfirmationResponse>, Error> {
-		try!(self.active());
+		self.active()?;
 		let mut pending = self.pending.lock();
 		let id: U256 = id.into();
 		let res = match pending.get(&id) {

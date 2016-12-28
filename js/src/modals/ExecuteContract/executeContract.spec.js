@@ -42,7 +42,7 @@ function render (props) {
   return component;
 }
 
-describe('modals/ExecuteContract/DetailsStep', () => {
+describe('modals/ExecuteContract', () => {
   it('renders', () => {
     expect(render({ accounts: {} })).to.be.ok;
   });

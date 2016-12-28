@@ -62,7 +62,7 @@ impl fmt::Display for Uuid {
 }
 
 fn copy_into(from: &str, into: &mut [u8]) -> Result<(), Error> {
-	let from = try!(from.from_hex().map_err(|_| Error::InvalidUuid));
+	let from = from.from_hex().map_err(|_| Error::InvalidUuid)?;
 
 	if from.len() != into.len() {
 		return Err(Error::InvalidUuid);
@@ -84,11 +84,11 @@ impl str::FromStr for Uuid {
 
 		let mut uuid = [0u8; 16];
 
-		try!(copy_into(parts[0], &mut uuid[0..4]));
-		try!(copy_into(parts[1], &mut uuid[4..6]));
-		try!(copy_into(parts[2], &mut uuid[6..8]));
-		try!(copy_into(parts[3], &mut uuid[8..10]));
-		try!(copy_into(parts[4], &mut uuid[10..16]));
+		copy_into(parts[0], &mut uuid[0..4])?;
+		copy_into(parts[1], &mut uuid[4..6])?;
+		copy_into(parts[2], &mut uuid[6..8])?;
+		copy_into(parts[3], &mut uuid[8..10])?;
+		copy_into(parts[4], &mut uuid[10..16])?;
 
 		Ok(Uuid(uuid))
 	}
