@@ -474,7 +474,7 @@ class AddressSelect extends Component {
         .reverse()
         .findIndex((cat) => cat.values.length > 0) + 1;
 
-      nextCategory =  Math.max(prevCategoryIndex - categoryShift, 0);
+      nextCategory = Math.max(prevCategoryIndex - categoryShift, 0);
     }
 
     // If left or right: try to keep the horizontal index
