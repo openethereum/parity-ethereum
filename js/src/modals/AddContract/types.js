@@ -33,7 +33,6 @@ const ABI_TYPES = [
                 defaultMessage='ERC 20' />
             </a>
         } } />,
-    key: 'token',
     label:
       <FormattedMessage
         id='addContract.abiType.token.label'
@@ -55,7 +54,6 @@ const ABI_TYPES = [
                 defaultMessage='see contract code' />
             </a>
         } } />,
-    key: 'multisig',
     label:
       <FormattedMessage
         id='addContract.abiType.multisigWallet.label'
@@ -69,7 +67,6 @@ const ABI_TYPES = [
       <FormattedMessage
         id='addContract.abiType.custom.description'
         defaultMessage='Contract created from custom ABI' />,
-    key: 'custom',
     label:
       <FormattedMessage
         id='addContract.abiType.custom.label'

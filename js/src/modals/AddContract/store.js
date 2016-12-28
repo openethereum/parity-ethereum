@@ -28,7 +28,7 @@ export default class Store {
   @observable abiTypeIndex = 0;
   @observable address = '';
   @observable addressError = ERRORS.invalidAddress;
-  @observable description = null;
+  @observable description = '';
   @observable name = '';
   @observable nameError = ERRORS.invalidName;
   @observable step = 0;
