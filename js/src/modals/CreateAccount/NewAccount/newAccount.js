@@ -15,11 +15,12 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import { FormattedMessage } from 'react-intl';
 import IconButton from 'material-ui/IconButton';
 import { RadioButton, RadioButtonGroup } from 'material-ui/RadioButton';
-import ActionAutorenew from 'material-ui/svg-icons/action/autorenew';
 
 import { Form, Input, IdentityIcon } from '~/ui';
+import { RefreshIcon } from '~/ui/Icons';
 
 import ERRORS from '../errors';
 
@@ -60,34 +61,66 @@ export default class CreateAccount extends Component {
     return (
       <Form>
         <Input
-          label='account name'
-          hint='a descriptive name for the account'
           error={ accountNameError }
-          value={ accountName }
-          onChange={ this.onEditAccountName } />
+          hint={
+            <FormattedMessage
+              id='createAccount.newAccount.name.hint'
+              defaultMessage='a descriptive name for the account' />
+          }
+          label={
+            <FormattedMessage
+              id='createAccount.newAccount.name.label'
+              defaultMessage='account name' />
+          }
+          onChange={ this.onEditAccountName }
+          value={ accountName } />
         <Input
-          label='password hint'
-          hint='(optional) a hint to help with remembering the password'
-          value={ passwordHint }
-          onChange={ this.onEditPasswordHint } />
+          hint={
+            <FormattedMessage
+              id='createAccount.newAccount.hint.hint'
+              defaultMessage='(optional) a hint to help with remembering the password' />
+          }
+          label={
+            <FormattedMessage
+              id='createAccount.newAccount.hint.label'
+              defaultMessage='password hint' />
+          }
+          onChange={ this.onEditPasswordHint }
+          value={ passwordHint } />
         <div className={ styles.passwords }>
           <div className={ styles.password }>
             <Input
-              label='password'
-              hint='a strong, unique password'
-              type='password'
               error={ password1Error }
-              value={ password1 }
-              onChange={ this.onEditPassword1 } />
+              hint={
+                <FormattedMessage
+                  id='createAccount.newAccount.password.hint'
+                  defaultMessage='a strong, unique password' />
+              }
+              label={
+                <FormattedMessage
+                  id='createAccount.newAccount.password.label'
+                  defaultMessage='password' />
+              }
+              onChange={ this.onEditPassword1 }
+              type='password'
+              value={ password1 } />
           </div>
           <div className={ styles.password }>
             <Input
-              label='password (repeat)'
-              hint='verify your password'
-              type='password'
               error={ password2Error }
-              value={ password2 }
-              onChange={ this.onEditPassword2 } />
+              hint={
+                <FormattedMessage
+                  id='createAccount.newAccount.password2.hint'
+                  defaultMessage='verify your password' />
+              }
+              label={
+                <FormattedMessage
+                  id='createAccount.newAccount.password2.label'
+                  defaultMessage='password (repeat)' />
+              }
+              onChange={ this.onEditPassword2 }
+              type='password'
+              value={ password2 } />
           </div>
         </div>
         { this.renderIdentitySelector() }
@@ -103,21 +136,23 @@ export default class CreateAccount extends Component {
       return null;
     }
 
-    const buttons = Object.keys(accounts).map((address) => {
-      return (
-        <RadioButton
-          className={ styles.button }
-          key={ address }
-          value={ address } />
-      );
-    });
+    const buttons = Object
+      .keys(accounts)
+      .map((address) => {
+        return (
+          <RadioButton
+            className={ styles.button }
+            key={ address }
+            value={ address } />
+        );
+      });
 
     return (
       <RadioButtonGroup
-        valueSelected={ selectedAddress }
         className={ styles.selector }
         name='identitySelector'
-        onChange={ this.onChangeIdentity }>
+        onChange={ this.onChangeIdentity }
+        valueSelected={ selectedAddress }>
         { buttons }
       </RadioButtonGroup>
     );
@@ -130,18 +165,20 @@ export default class CreateAccount extends Component {
       return null;
     }
 
-    const identities = Object.keys(accounts).map((address) => {
-      return (
-        <div
-          className={ styles.identity }
-          key={ address }
-          onTouchTap={ this.onChangeIdentity }>
-          <IdentityIcon
-            address={ address }
-            center />
-        </div>
-      );
-    });
+    const identities = Object
+      .keys(accounts)
+      .map((address) => {
+        return (
+          <div
+            className={ styles.identity }
+            key={ address }
+            onTouchTap={ this.onChangeIdentity }>
+            <IdentityIcon
+              address={ address }
+              center />
+          </div>
+        );
+      });
 
     return (
       <div className={ styles.identities }>
@@ -149,8 +186,7 @@ export default class CreateAccount extends Component {
         <div className={ styles.refresh }>
           <IconButton
             onTouchTap={ this.createIdentities }>
-            <ActionAutorenew
-              color='rgb(0, 151, 167)' />
+            <RefreshIcon color='rgb(0, 151, 167)' />
           </IconButton>
         </div>
       </div>

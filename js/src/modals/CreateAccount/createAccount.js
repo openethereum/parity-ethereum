@@ -16,14 +16,9 @@
 
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
-import ActionDone from 'material-ui/svg-icons/action/done';
-import ActionDoneAll from 'material-ui/svg-icons/action/done-all';
-import ContentClear from 'material-ui/svg-icons/content/clear';
-import NavigationArrowBack from 'material-ui/svg-icons/navigation/arrow-back';
-import NavigationArrowForward from 'material-ui/svg-icons/navigation/arrow-forward';
-import PrintIcon from 'material-ui/svg-icons/action/print';
 
 import { Button, Modal, Warning } from '~/ui';
+import { CancelIcon, CheckIcon, DoneIcon, NextIcon, PrevIcon, PrintIcon } from '~/ui/Icons';
 
 import AccountDetails from './AccountDetails';
 import AccountDetailsGeth from './AccountDetailsGeth';
@@ -36,14 +31,26 @@ import RecoveryPhrase from './RecoveryPhrase';
 
 import { createIdentityImg } from '~/api/util/identity';
 import print from './print';
-import recoveryPage from './recovery-page.ejs';
-import ParityLogo from '../../../assets/images/parity-logo-black-no-text.svg';
+import recoveryPage from './recoveryPage.ejs';
+import ParityLogo from '~/../assets/images/parity-logo-black-no-text.svg';
 
 const TITLES = {
-  type: 'creation type',
-  create: 'create account',
-  info: 'account information',
-  import: 'import wallet'
+  type:
+    <FormattedMessage
+      id='createAccount.title.createType'
+      defaultMessage='creation type' />,
+  create:
+    <FormattedMessage
+      id='createAccount.title.createAccount'
+      defaultMessage='create account' />,
+  info:
+    <FormattedMessage
+      id='createAccount.title.accountInfo'
+      defaultMessage='account information' />,
+  import:
+    <FormattedMessage
+      id='createAccount.title.importWallet'
+      defaultMessage='import wallet' />
 };
 const STAGE_NAMES = [TITLES.type, TITLES.create, TITLES.info];
 const STAGE_IMPORT = [TITLES.type, TITLES.import, TITLES.info];
@@ -153,15 +160,19 @@ export default class CreateAccount extends Component {
   renderDialogActions () {
     const { createType, stage } = this.state;
 
+    const cancelBtn = (
+      <Button
+        icon={ <CancelIcon /> }
+        label='Cancel'
+        onClick={ this.onClose } />
+    );
+
     switch (stage) {
       case 0:
         return [
+          cancelBtn,
           <Button
-            icon={ <ContentClear /> }
-            label='Cancel'
-            onClick={ this.onClose } />,
-          <Button
-            icon={ <NavigationArrowForward /> }
+            icon={ <NextIcon /> }
             label='Next'
             onClick={ this.onNext } />
         ];
@@ -171,16 +182,13 @@ export default class CreateAccount extends Component {
           : 'Import';
 
         return [
+          cancelBtn,
           <Button
-            icon={ <ContentClear /> }
-            label='Cancel'
-            onClick={ this.onClose } />,
-          <Button
-            icon={ <NavigationArrowBack /> }
+            icon={ <PrevIcon /> }
             label='Back'
             onClick={ this.onPrev } />,
           <Button
-            icon={ <ActionDone /> }
+            icon={ <CheckIcon /> }
             label={ createLabel }
             disabled={ !this.state.canCreate }
             onClick={ this.onCreate } />
@@ -195,7 +203,7 @@ export default class CreateAccount extends Component {
               onClick={ this.printPhrase } />
           ) : null,
           <Button
-            icon={ <ActionDoneAll /> }
+            icon={ <DoneIcon /> }
             label='Close'
             onClick={ this.onClose } />
         ];
@@ -412,6 +420,12 @@ export default class CreateAccount extends Component {
     const { address, phrase, name } = this.state;
     const identity = createIdentityImg(address);
 
-    print(recoveryPage({ phrase, name, identity, address, logo: ParityLogo }));
+    print(recoveryPage({
+      phrase,
+      name,
+      identity,
+      address,
+      logo: ParityLogo
+    }));
   }
 }

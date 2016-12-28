@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import { FormattedMessage } from 'react-intl';
 import { Checkbox } from 'material-ui';
 
 import { Form, Input } from '~/ui';
@@ -54,44 +55,88 @@ export default class RecoveryPhrase extends Component {
     return (
       <Form>
         <Input
-          hint='the account recovery phrase'
-          label='account recovery phrase'
-          value={ recoveryPhrase }
-          onChange={ this.onEditPhrase } />
+          hint={
+            <FormattedMessage
+              id='createAccount.recoveryPhrase.phrase.hint'
+              defaultMessage='the account recovery phrase' />
+          }
+          label={
+            <FormattedMessage
+              id='createAccount.recoveryPhrase.phrase.label'
+              defaultMessage='account recovery phrase' />
+          }
+          onChange={ this.onEditPhrase }
+          value={ recoveryPhrase } />
         <Input
-          label='account name'
-          hint='a descriptive name for the account'
           error={ accountNameError }
-          value={ accountName }
-          onChange={ this.onEditAccountName } />
+          hint={
+            <FormattedMessage
+              id='createAccount.recoveryPhrase.name.hint'
+              defaultMessage='a descriptive name for the account' />
+          }
+          label={
+            <FormattedMessage
+              id='createAccount.recoveryPhrase.name.label'
+              defaultMessage='account name' />
+          }
+          onChange={ this.onEditAccountName }
+          value={ accountName } />
         <Input
-          label='password hint'
-          hint='(optional) a hint to help with remembering the password'
-          value={ passwordHint }
-          onChange={ this.onEditPasswordHint } />
+          hint={
+            <FormattedMessage
+              id='createAccount.recoveryPhrase.hint.hint'
+              defaultMessage='(optional) a hint to help with remembering the password' />
+          }
+          label={
+            <FormattedMessage
+              id='createAccount.recoveryPhrase.hint.label'
+              defaultMessage='password hint' />
+          }
+          onChange={ this.onEditPasswordHint }
+          value={ passwordHint } />
         <div className={ styles.passwords }>
           <div className={ styles.password }>
             <Input
-              label='password'
-              hint='a strong, unique password'
-              type='password'
               error={ password1Error }
-              value={ password1 }
-              onChange={ this.onEditPassword1 } />
+              hint={
+                <FormattedMessage
+                  id='createAccount.recoveryPhrase.password.hint'
+                  defaultMessage='a strong, unique password' />
+              }
+              label={
+                <FormattedMessage
+                  id='createAccount.recoveryPhrase.password.label'
+                  defaultMessage='password' />
+              }
+              onChange={ this.onEditPassword1 }
+              type='password'
+              value={ password1 } />
           </div>
           <div className={ styles.password }>
             <Input
-              label='password (repeat)'
-              hint='verify your password'
-              type='password'
               error={ password2Error }
-              value={ password2 }
-              onChange={ this.onEditPassword2 } />
+              hint={
+                <FormattedMessage
+                  id='createAccount.recoveryPhrase.password2.hint'
+                  defaultMessage='verify your password' />
+              }
+              label={
+                <FormattedMessage
+                  id='createAccount.recoveryPhrase.password2.label'
+                  defaultMessage='password (repeat)' />
+              }
+              onChange={ this.onEditPassword2 }
+              type='password'
+              value={ password2 } />
           </div>
           <Checkbox
-            className={ styles.checkbox }
-            label='Key was created with Parity <1.4.5 on Windows'
             checked={ windowsPhrase }
+            className={ styles.checkbox }
+            label={
+              <FormattedMessage
+                id='createAccount.recoveryPhrase.windowsKey.label'
+                defaultMessage='Key was created with Parity <1.4.5 on Windows' />
+            }
             onCheck={ this.onToggleWindowsPhrase } />
         </div>
       </Form>

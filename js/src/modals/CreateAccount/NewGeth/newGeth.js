@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import { FormattedMessage } from 'react-intl';
 import { Checkbox } from 'material-ui';
 
 import { IdentityIcon } from '~/ui';
@@ -44,7 +45,11 @@ export default class NewGeth extends Component {
 
     if (!available.length) {
       return (
-        <div className={ styles.list }>There are currently no importable keys available from the Geth keystore, which are not already available on your Parity instance</div>
+        <div className={ styles.list }>
+          <FormattedMessage
+            id='createAccount.newGeth.noKeys'
+            defaultMessage='There are currently no importable keys available from the Geth keystore, which are not already available on your Parity instance' />
+        </div>
       );
     }
 
@@ -53,22 +58,27 @@ export default class NewGeth extends Component {
         <div className={ styles.selection }>
           <div className={ styles.icon }>
             <IdentityIcon
-              center inline
-              address={ account.address } />
+              address={ account.address }
+              center
+              inline />
           </div>
           <div className={ styles.detail }>
-            <div className={ styles.address }>{ account.address }</div>
-            <div className={ styles.balance }>{ account.balance } ETH</div>
+            <div className={ styles.address }>
+              { account.address }
+            </div>
+            <div className={ styles.balance }>
+              { account.balance } ETH
+            </div>
           </div>
         </div>
       );
 
       return (
         <Checkbox
-          key={ account.address }
           checked={ account.checked }
-          label={ label }
           data-address={ account.address }
+          key={ account.address }
+          label={ label }
           onCheck={ this.onSelect } />
       );
     });
@@ -123,7 +133,7 @@ export default class NewGeth extends Component {
           });
       })
       .catch((error) => {
-        console.error('loadAvailable', error);
+        console.warn('loadAvailable', error);
       });
   }
 }

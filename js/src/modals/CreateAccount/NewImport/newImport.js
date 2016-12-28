@@ -16,10 +16,11 @@
 
 import React, { Component, PropTypes } from 'react';
 import ReactDOM from 'react-dom';
+import { FormattedMessage } from 'react-intl';
 import { FloatingActionButton } from 'material-ui';
-import EditorAttachFile from 'material-ui/svg-icons/editor/attach-file';
 
 import { Form, Input } from '~/ui';
+import { AttachFileIcon } from '~/ui/Icons';
 
 import ERRORS from '../errors';
 
@@ -55,45 +56,77 @@ export default class NewImport extends Component {
     return (
       <Form>
         <Input
-          label='account name'
-          hint='a descriptive name for the account'
           error={ this.state.accountNameError }
-          value={ this.state.accountName }
-          onChange={ this.onEditAccountName } />
+          hint={
+            <FormattedMessage
+              id='createAccount.newImport.name.hint'
+              defaultMessage='a descriptive name for the account' />
+          }
+          label={
+            <FormattedMessage
+              id='createAccount.newImport.name.label'
+              defaultMessage='account name' />
+          }
+          onChange={ this.onEditAccountName }
+          value={ this.state.accountName } />
         <Input
-          label='password hint'
-          hint='(optional) a hint to help with remembering the password'
-          value={ this.state.passwordHint }
-          onChange={ this.onEditpasswordHint } />
+          hint={
+            <FormattedMessage
+              id='createAccount.newImport.hint.hint'
+              defaultMessage='(optional) a hint to help with remembering the password' />
+          }
+          label={
+            <FormattedMessage
+              id='createAccount.newImport.hint.label'
+              defaultMessage='password hint' />
+          }
+          onChange={ this.onEditpasswordHint }
+          value={ this.state.passwordHint } />
         <div className={ styles.passwords }>
           <div className={ styles.password }>
             <Input
-              label='password'
-              hint='the password to unlock the wallet'
-              type='password'
               error={ this.state.passwordError }
-              value={ this.state.password }
-              onChange={ this.onEditPassword } />
+              hint={
+                <FormattedMessage
+                  id='createAccount.newImport.password.hint'
+                  defaultMessage='the password to unlock the wallet' />
+              }
+              label={
+                <FormattedMessage
+                  id='createAccount.newImport.password.label'
+                  defaultMessage='password' />
+              }
+              type='password'
+              onChange={ this.onEditPassword }
+              value={ this.state.password } />
           </div>
         </div>
         <div>
           <Input
             disabled
-            label='wallet file'
-            hint='the wallet file for import'
             error={ this.state.walletFileError }
+            hint={
+              <FormattedMessage
+                id='createAccount.newImport.file.hint'
+                defaultMessage='the wallet file for import' />
+            }
+            label={
+              <FormattedMessage
+                id='createAccount.newImport.file.label'
+                defaultMessage='wallet file' />
+            }
             value={ this.state.walletFile } />
           <div className={ styles.upload }>
             <FloatingActionButton
               mini
               onTouchTap={ this.openFileDialog }>
-              <EditorAttachFile />
+              <AttachFileIcon />
             </FloatingActionButton>
             <input
+              onChange={ this.onFileChange }
               ref='fileUpload'
-              type='file'
               style={ STYLE_HIDDEN }
-              onChange={ this.onFileChange } />
+              type='file' />
           </div>
         </div>
       </Form>

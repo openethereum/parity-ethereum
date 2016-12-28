@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import { FormattedMessage } from 'react-intl';
 
 import styles from './accountDetailsGeth.css';
 
@@ -26,16 +27,30 @@ export default class AccountDetailsGeth extends Component {
   render () {
     const { addresses } = this.props;
 
-    const formatted = addresses.map((address, idx) => {
-      const comma = !idx ? '' : ((idx === addresses.length - 1) ? ' & ' : ', ');
-      return `${comma}${address}`;
-    }).join('');
-
     return (
       <div>
-        <div>You have imported { addresses.length } addresses from the Geth keystore:</div>
-        <div className={ styles.address }>{ formatted }</div>
+        <div>
+          <FormattedMessage
+            id='createAccount.accountDetailsGeth.imported'
+            defaultMessage='You have imported {number} addresses from the Geth keystore:'
+            values={ {
+              number: addresses.length
+            } } />
+        </div>
+        <div className={ styles.address }>
+          { this.formatAddresses(addresses) }
+        </div>
       </div>
     );
+  }
+
+  formatAddresses (addresses) {
+    return addresses.map((address, index) => {
+      const comma = !index
+        ? ''
+        : ((index === addresses.length - 1) ? ' & ' : ', ');
+
+      return `${comma}${address}`;
+    }).join('');
   }
 }

@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import { FormattedMessage } from 'react-intl';
 
 import { Form, Input } from '~/ui';
 
@@ -56,40 +57,80 @@ export default class RawKey extends Component {
     return (
       <Form>
         <Input
-          hint='the raw hex encoded private key'
-          label='private key'
           error={ rawKeyError }
-          value={ rawKey }
-          onChange={ this.onEditKey } />
+          hint={
+            <FormattedMessage
+              id='createAccount.rawKey.private.hint'
+              defaultMessage='the raw hex encoded private key' />
+          }
+          label={
+            <FormattedMessage
+              id='createAccount.rawKey.private.label'
+              defaultMessage='private key' />
+          }
+          onChange={ this.onEditKey }
+          value={ rawKey } />
         <Input
-          label='account name'
-          hint='a descriptive name for the account'
           error={ accountNameError }
-          value={ accountName }
-          onChange={ this.onEditAccountName } />
+          hint={
+            <FormattedMessage
+              id='createAccount.rawKey.name.hint'
+              defaultMessage='a descriptive name for the account' />
+          }
+          label={
+            <FormattedMessage
+              id='createAccount.rawKey.name.label'
+              defaultMessage='account name' />
+          }
+          onChange={ this.onEditAccountName }
+          value={ accountName } />
         <Input
-          label='password hint'
-          hint='(optional) a hint to help with remembering the password'
-          value={ passwordHint }
-          onChange={ this.onEditPasswordHint } />
+          hint={
+            <FormattedMessage
+              id='createAccount.rawKey.hint.hint'
+              defaultMessage='(optional) a hint to help with remembering the password' />
+          }
+          label={
+            <FormattedMessage
+              id='createAccount.rawKey.hint.label'
+              defaultMessage='password hint' />
+          }
+          onChange={ this.onEditPasswordHint }
+          value={ passwordHint } />
         <div className={ styles.passwords }>
           <div className={ styles.password }>
             <Input
-              label='password'
-              hint='a strong, unique password'
-              type='password'
               error={ password1Error }
-              value={ password1 }
-              onChange={ this.onEditPassword1 } />
+              hint={
+                <FormattedMessage
+                  id='createAccount.rawKey.password.hint'
+                  defaultMessage='a strong, unique password' />
+              }
+              label={
+                <FormattedMessage
+                  id='createAccount.rawKey.password.label'
+                  defaultMessage='password' />
+              }
+              onChange={ this.onEditPassword1 }
+              type='password'
+              value={ password1 } />
           </div>
           <div className={ styles.password }>
             <Input
-              label='password (repeat)'
-              hint='verify your password'
-              type='password'
               error={ password2Error }
-              value={ password2 }
-              onChange={ this.onEditPassword2 } />
+              hint={
+                <FormattedMessage
+                  id='createAccount.rawKey.password2.hint'
+                  defaultMessage='verify your password' />
+              }
+              label={
+                <FormattedMessage
+                  id='createAccount.rawKey.password2.label'
+                  defaultMessage='password (repeat)' />
+              }
+              onChange={ this.onEditPassword2 }
+              type='password'
+              value={ password2 } />
           </div>
         </div>
       </Form>
@@ -118,8 +159,6 @@ export default class RawKey extends Component {
     const { api } = this.context;
     const rawKey = event.target.value;
     let rawKeyError = null;
-
-    console.log(rawKey.length, rawKey);
 
     if (!rawKey || !rawKey.trim().length) {
       rawKeyError = ERRORS.noKey;
