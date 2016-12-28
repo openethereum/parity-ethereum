@@ -17,6 +17,8 @@
 import { action, observable } from 'mobx';
 
 const STAGE_SELECT_TYPE = 0;
+const STAGE_CREATE = 1;
+const STAGE_INFO = 2;
 
 export default class Store {
   @observable createType = 'fromNew';
@@ -44,5 +46,7 @@ export default class Store {
 }
 
 export {
+  STAGE_CREATE,
+  STAGE_INFO,
   STAGE_SELECT_TYPE
 };

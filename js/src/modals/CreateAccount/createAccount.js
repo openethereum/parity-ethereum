@@ -32,7 +32,7 @@ import NewGeth from './NewGeth';
 import NewImport from './NewImport';
 import RawKey from './RawKey';
 import RecoveryPhrase from './RecoveryPhrase';
-import Store, { STAGE_SELECT_TYPE } from './store';
+import Store, { STAGE_CREATE, STAGE_INFO, STAGE_SELECT_TYPE } from './store';
 import print from './print';
 import recoveryPage from './recoveryPage.ejs';
 
@@ -113,7 +113,7 @@ export default class CreateAccount extends Component {
           <CreationType store={ this.store } />
         );
 
-      case 1:
+      case STAGE_CREATE:
         if (createType === 'fromNew') {
           return (
             <NewAccount
@@ -147,7 +147,7 @@ export default class CreateAccount extends Component {
             store={ this.store } />
         );
 
-      case 2:
+      case STAGE_INFO:
         if (createType === 'fromGeth') {
           return (
             <AccountDetailsGeth
@@ -196,7 +196,7 @@ export default class CreateAccount extends Component {
             onClick={ this.store.nextStage } />
         ];
 
-      case 1:
+      case STAGE_CREATE:
         return [
           cancelBtn,
           <Button
@@ -224,7 +224,7 @@ export default class CreateAccount extends Component {
             onClick={ this.onCreate } />
         ];
 
-      case 2:
+      case STAGE_INFO:
         return [
           ['fromNew', 'fromPhrase'].includes(createType)
             ? <Button
@@ -253,7 +253,7 @@ export default class CreateAccount extends Component {
   renderWarning () {
     const { createType, stage } = this.store;
 
-    if (stage !== 1 || ['fromJSON', 'fromPresale'].includes(createType)) {
+    if (stage !== STAGE_CREATE || ['fromJSON', 'fromPresale'].includes(createType)) {
       return null;
     }
 
