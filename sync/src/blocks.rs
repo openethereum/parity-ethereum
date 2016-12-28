@@ -17,7 +17,7 @@
 use util::*;
 use rlp::*;
 use network::NetworkError;
-use ethcore::header::{ Header as BlockHeader};
+use ethcore::header::Header as BlockHeader;
 
 known_heap_size!(0, HeaderId);
 
@@ -511,7 +511,9 @@ mod test {
 		let client = TestBlockChainClient::new();
 		let nblocks = 200;
 		client.add_blocks(nblocks, EachBlockWith::Nothing);
-		let blocks: Vec<_> = (0 .. nblocks).map(|i| (&client as &BlockChainClient).block(BlockId::Number(i as BlockNumber)).unwrap()).collect();
+		let blocks: Vec<_> = (0..nblocks)
+			.map(|i| (&client as &BlockChainClient).block(BlockId::Number(i as BlockNumber)).unwrap().into_inner())
+			.collect();
 		let headers: Vec<_> = blocks.iter().map(|b| Rlp::new(b).at(0).as_raw().to_vec()).collect();
 		let hashes: Vec<_> = headers.iter().map(|h| HeaderView::new(h).sha3()).collect();
 		let heads: Vec<_> = hashes.iter().enumerate().filter_map(|(i, h)| if i % 20 == 0 { Some(h.clone()) } else { None }).collect();
@@ -564,7 +566,9 @@ mod test {
 		let client = TestBlockChainClient::new();
 		let nblocks = 200;
 		client.add_blocks(nblocks, EachBlockWith::Nothing);
-		let blocks: Vec<_> = (0 .. nblocks).map(|i| (&client as &BlockChainClient).block(BlockId::Number(i as BlockNumber)).unwrap()).collect();
+		let blocks: Vec<_> = (0..nblocks)
+			.map(|i| (&client as &BlockChainClient).block(BlockId::Number(i as BlockNumber)).unwrap().into_inner())
+			.collect();
 		let headers: Vec<_> = blocks.iter().map(|b| Rlp::new(b).at(0).as_raw().to_vec()).collect();
 		let hashes: Vec<_> = headers.iter().map(|h| HeaderView::new(h).sha3()).collect();
 		let heads: Vec<_> = hashes.iter().enumerate().filter_map(|(i, h)| if i % 20 == 0 { Some(h.clone()) } else { None }).collect();
@@ -586,7 +590,9 @@ mod test {
 		let client = TestBlockChainClient::new();
 		let nblocks = 200;
 		client.add_blocks(nblocks, EachBlockWith::Nothing);
-		let blocks: Vec<_> = (0 .. nblocks).map(|i| (&client as &BlockChainClient).block(BlockId::Number(i as BlockNumber)).unwrap()).collect();
+		let blocks: Vec<_> = (0..nblocks)
+			.map(|i| (&client as &BlockChainClient).block(BlockId::Number(i as BlockNumber)).unwrap().into_inner())
+			.collect();
 		let headers: Vec<_> = blocks.iter().map(|b| Rlp::new(b).at(0).as_raw().to_vec()).collect();
 		let hashes: Vec<_> = headers.iter().map(|h| HeaderView::new(h).sha3()).collect();
 		let heads: Vec<_> = hashes.iter().enumerate().filter_map(|(i, h)| if i % 20 == 0 { Some(h.clone()) } else { None }).collect();
