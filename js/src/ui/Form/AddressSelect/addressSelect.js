@@ -191,6 +191,7 @@ class AddressSelect extends Component {
         </div>
 
         { this.renderCurrentInput() }
+        { this.renderRegsitryValues() }
         { this.renderAccounts() }
       </Portal>
     );
@@ -212,6 +213,28 @@ class AddressSelect extends Component {
     return (
       <div>
         { this.renderAccountCard({ address }) }
+      </div>
+    );
+  }
+
+  renderRegsitryValues () {
+    const { regsitryValues } = this.store;
+
+    if (regsitryValues.length === 0) {
+      return null;
+    }
+
+    const accounts = regsitryValues
+      .map((regsitryValue) => {
+        const { address, value } = regsitryValue;
+        const account = { address, name: value, index: address };
+
+        return this.renderAccountCard(account);
+      });
+
+    return (
+      <div>
+        { accounts }
       </div>
     );
   }
@@ -303,7 +326,7 @@ class AddressSelect extends Component {
   validateCustomInput = () => {
     const { allowInput } = this.props;
     const { inputValue } = this.store;
-    const { values } = this.state;
+    const { values } = this.store;
 
     // If input is HEX and allowInput === true, send it
     if (allowInput && inputValue && /^(0x)?([0-9a-f])+$/i.test(inputValue)) {
@@ -311,8 +334,8 @@ class AddressSelect extends Component {
     }
 
     // If only one value, select it
-    if (values.length === 1 && values[0].values.length === 1) {
-      const value = values[0].values[0];
+    if (values.reduce((cur, cat) => cur + cat.values.length, 0) === 1) {
+      const value = values.find((cat) => cat.values.length > 0).values[0];
       return this.handleClick(value.address);
     }
   }
@@ -388,7 +411,7 @@ class AddressSelect extends Component {
     const { values } = this.store;
 
     // Don't do anything if no values
-    if (values.length === 0) {
+    if (values.reduce((cur, cat) => cur + cat.values.length, 0) === 0) {
       return event;
     }
 
