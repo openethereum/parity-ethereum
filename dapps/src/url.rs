@@ -85,9 +85,9 @@ impl Url {
 			_ => None,
 		};
 
-		let port = try!(raw_url.port_or_known_default().ok_or_else(|| format!("Unknown port for scheme: `{}`", raw_url.scheme())));
-		let host = try!(raw_url.host().ok_or_else(|| "Valid host, because only data:, mailto: protocols does not have host.".to_owned())).to_owned();
-		let path = try!(raw_url.path_segments().ok_or_else(|| "Valid path segments. In HTTP we won't get cannot-be-a-base URLs".to_owned()))
+		let port = raw_url.port_or_known_default().ok_or_else(|| format!("Unknown port for scheme: `{}`", raw_url.scheme()))?;
+		let host = raw_url.host().ok_or_else(|| "Valid host, because only data:, mailto: protocols does not have host.".to_owned())?.to_owned();
+		let path = raw_url.path_segments().ok_or_else(|| "Valid path segments. In HTTP we won't get cannot-be-a-base URLs".to_owned())?
 					.map(|part| part.to_owned()).collect();
 		let query = raw_url.query().map(|x| x.to_owned());
 

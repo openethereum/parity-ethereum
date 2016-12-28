@@ -64,7 +64,7 @@ impl From<ethjson::spec::State> for PodState {
 impl fmt::Display for PodState {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		for (add, acc) in &self.0 {
-			try!(writeln!(f, "{} => {}", add, acc));
+			writeln!(f, "{} => {}", add, acc)?;
 		}
 		Ok(())
 	}

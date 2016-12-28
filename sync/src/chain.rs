@@ -583,14 +583,14 @@ impl ChainSync {
 	/// Called by peer to report status
 	fn on_peer_status(&mut self, io: &mut SyncIo, peer_id: PeerId, r: &UntrustedRlp) -> Result<(), PacketDecodeError> {
 		self.handshaking_peers.remove(&peer_id);
-		let protocol_version: u8 = try!(r.val_at(0));
+		let protocol_version: u8 = r.val_at(0)?;
 		let warp_protocol = io.protocol_version(&WARP_SYNC_PROTOCOL_ID, peer_id) != 0;
 		let peer = PeerInfo {
 			protocol_version: protocol_version,
-			network_id: try!(r.val_at(1)),
-			difficulty: Some(try!(r.val_at(2))),
-			latest_hash: try!(r.val_at(3)),
-			genesis: try!(r.val_at(4)),
+			network_id: r.val_at(1)?,
+			difficulty: Some(r.val_at(2)?),
+			latest_hash: r.val_at(3)?,
+			genesis: r.val_at(4)?,
 			asking: PeerAsking::Nothing,
 			asking_blocks: Vec::new(),
 			asking_hash: None,
@@ -599,8 +599,8 @@ impl ChainSync {
 			expired: false,
 			confirmation: if self.fork_block.is_none() { ForkConfirmation::Confirmed } else { ForkConfirmation::Unconfirmed },
 			asking_snapshot_data: None,
-			snapshot_hash: if warp_protocol { Some(try!(r.val_at(5))) } else { None },
-			snapshot_number: if warp_protocol { Some(try!(r.val_at(6))) } else { None },
+			snapshot_hash: if warp_protocol { Some(r.val_at(5)?) } else { None },
+			snapshot_number: if warp_protocol { Some(r.val_at(6)?) } else { None },
 			block_set: None,
 		};
 
@@ -661,7 +661,7 @@ impl ChainSync {
 					trace!(target: "sync", "{}: Chain is too short to confirm the block", peer_id);
 					peer.confirmation = ForkConfirmation::TooShort;
 				} else {
-					let header = try!(r.at(0)).as_raw();
+					let header = r.at(0)?.as_raw();
 					if header.sha3() == fork_hash {
 						trace!(target: "sync", "{}: Confirmed peer", peer_id);
 						peer.confirmation = ForkConfirmation::Confirmed;
@@ -866,17 +866,17 @@ impl ChainSync {
 			trace!(target: "sync", "Ignoring new block from unconfirmed peer {}", peer_id);
 			return Ok(());
 		}
-		let difficulty: U256 = try!(r.val_at(1));
+		let difficulty: U256 = r.val_at(1)?;
 		if let Some(ref mut peer) = self.peers.get_mut(&peer_id) {
 			if peer.difficulty.map_or(true, |pd| difficulty > pd) {
 				peer.difficulty = Some(difficulty);
 			}
 		}
-		let block_rlp = try!(r.at(0));
-		let header_rlp = try!(block_rlp.at(0));
+		let block_rlp = r.at(0)?;
+		let header_rlp = block_rlp.at(0)?;
 		let h = header_rlp.as_raw().sha3();
 		trace!(target: "sync", "{} -> NewBlock ({})", peer_id, h);
-		let header: BlockHeader = try!(header_rlp.as_val());
+		let header: BlockHeader = header_rlp.as_val()?;
 		if header.number() > self.highest_block.unwrap_or(0) {
 			self.highest_block = Some(header.number());
 		}
@@ -955,8 +955,8 @@ impl ChainSync {
 		let mut new_hashes = Vec::new();
 		let last_imported_number = self.new_blocks.last_imported_block_number();
 		for (rh, rn) in hashes {
-			let hash = try!(rh);
-			let number = try!(rn);
+			let hash = rh?;
+			let number = rn?;
 			if number > self.highest_block.unwrap_or(0) {
 				self.highest_block = Some(number);
 			}
@@ -1015,7 +1015,7 @@ impl ChainSync {
 			return Ok(());
 		}
 
-		let manifest_rlp = try!(r.at(0));
+		let manifest_rlp = r.at(0)?;
 		let manifest = match ManifestData::from_rlp(manifest_rlp.as_raw()) {
 			Err(e) => {
 				trace!(target: "sync", "{}: Ignored bad manifest: {:?}", peer_id, e);
@@ -1063,7 +1063,7 @@ impl ChainSync {
 			},
 		}
 
-		let snapshot_data: Bytes = try!(r.val_at(0));
+		let snapshot_data: Bytes = r.val_at(0)?;
 		match self.snapshot.validate_chunk(&snapshot_data) {
 			Ok(ChunkType::Block(hash)) => {
 				trace!(target: "sync", "{}: Processing block chunk", peer_id);
@@ -1440,7 +1440,7 @@ impl ChainSync {
 		item_count = min(item_count, MAX_TX_TO_IMPORT);
 		let mut transactions = Vec::with_capacity(item_count);
 		for i in 0 .. item_count {
-			let rlp = try!(r.at(i));
+			let rlp = r.at(i)?;
 			if rlp.as_raw().len() > MAX_TRANSACTION_SIZE {
 				debug!("Skipped oversized transaction of {} bytes", rlp.as_raw().len());
 				continue;
@@ -1482,13 +1482,13 @@ impl ChainSync {
 	fn return_block_headers(io: &SyncIo, r: &UntrustedRlp, peer_id: PeerId) -> RlpResponseResult {
 		// Packet layout:
 		// [ block: { P , B_32 }, maxHeaders: P, skip: P, reverse: P in { 0 , 1 } ]
-		let max_headers: usize = try!(r.val_at(1));
-		let skip: usize = try!(r.val_at(2));
-		let reverse: bool = try!(r.val_at(3));
+		let max_headers: usize = r.val_at(1)?;
+		let skip: usize = r.val_at(2)?;
+		let reverse: bool = r.val_at(3)?;
 		let last = io.chain().chain_info().best_block_number;
-		let number = if try!(r.at(0)).size() == 32 {
+		let number = if r.at(0)?.size() == 32 {
 			// id is a hash
-			let hash: H256 = try!(r.val_at(0));
+			let hash: H256 = r.val_at(0)?;
 			trace!(target: "sync", "{} -> GetBlockHeaders (hash: {}, max: {}, skip: {}, reverse:{})", peer_id, hash, max_headers, skip, reverse);
 			match io.chain().block_header(BlockId::Hash(hash)) {
 				Some(hdr) => {
@@ -1508,8 +1508,8 @@ impl ChainSync {
 				None => return Ok(Some((BLOCK_HEADERS_PACKET, RlpStream::new_list(0)))) //no such header, return nothing
 			}
 		} else {
-			trace!(target: "sync", "{} -> GetBlockHeaders (number: {}, max: {}, skip: {}, reverse:{})", peer_id, try!(r.val_at::<BlockNumber>(0)), max_headers, skip, reverse);
-			try!(r.val_at(0))
+			trace!(target: "sync", "{} -> GetBlockHeaders (number: {}, max: {}, skip: {}, reverse:{})", peer_id, r.val_at::<BlockNumber>(0)?, max_headers, skip, reverse);
+			r.val_at(0)?
 		};
 
 		let mut number = if reverse {
@@ -1562,7 +1562,7 @@ impl ChainSync {
 		let mut added = 0usize;
 		let mut data = Bytes::new();
 		for i in 0..count {
-			if let Some(body) = io.chain().block_body(BlockId::Hash(try!(r.val_at::<H256>(i)))) {
+			if let Some(body) = io.chain().block_body(BlockId::Hash(r.val_at::<H256>(i)?)) {
 				data.append(&mut body.into_inner());
 				added += 1;
 			}
@@ -1585,7 +1585,7 @@ impl ChainSync {
 		let mut added = 0usize;
 		let mut data = Vec::new();
 		for i in 0..count {
-			if let Some(node) = io.chain().state_data(&try!(r.val_at::<H256>(i))) {
+			if let Some(node) = io.chain().state_data(&r.val_at::<H256>(i)?) {
 				data.push(node);
 				added += 1;
 			}
@@ -1610,7 +1610,7 @@ impl ChainSync {
 		let mut added_receipts = 0usize;
 		let mut data = Bytes::new();
 		for i in 0..count {
-			if let Some(mut receipts_bytes) = io.chain().block_receipts(&try!(rlp.val_at::<H256>(i))) {
+			if let Some(mut receipts_bytes) = io.chain().block_receipts(&rlp.val_at::<H256>(i)?) {
 				data.append(&mut receipts_bytes);
 				added_receipts += receipts_bytes.len();
 				added_headers += 1;
@@ -1647,7 +1647,7 @@ impl ChainSync {
 
 	/// Respond to GetSnapshotData request
 	fn return_snapshot_data(io: &SyncIo, r: &UntrustedRlp, peer_id: PeerId) -> RlpResponseResult {
-		let hash: H256 = try!(r.val_at(0));
+		let hash: H256 = r.val_at(0)?;
 		trace!(target: "sync", "{} -> GetSnapshotData {:?}", peer_id, hash);
 		let rlp = match io.snapshot_service().chunk(hash) {
 			Some(data) => {

@@ -50,9 +50,9 @@ impl Decodable for LogEntry {
 	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
 		let d = decoder.as_rlp();
 		let entry = LogEntry {
-			address: try!(d.val_at(0)),
-			topics: try!(d.val_at(1)),
-			data: try!(d.val_at(2)),
+			address: d.val_at(0)?,
+			topics: d.val_at(1)?,
+			data: d.val_at(2)?,
 		};
 		Ok(entry)
 	}

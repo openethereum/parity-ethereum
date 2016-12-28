@@ -696,10 +696,10 @@ impl MinerService for Miner {
 				let mut state = block.state().clone();
 				let original_state = if analytics.state_diffing { Some(state.clone()) } else { None };
 
-				let sender = try!(t.sender().map_err(|e| {
+				let sender = t.sender().map_err(|e| {
 					let message = format!("Transaction malformed: {:?}", e);
 					ExecutionError::TransactionMalformed(message)
-				}));
+				})?;
 				let balance = state.balance(&sender);
 				let needed_balance = t.value + t.gas * t.gas_price;
 				if balance < needed_balance {
@@ -707,7 +707,7 @@ impl MinerService for Miner {
 					state.add_balance(&sender, &(needed_balance - balance), CleanupMode::NoEmpty);
 				}
 				let options = TransactOptions { tracing: analytics.transaction_tracing, vm_tracing: analytics.vm_tracing, check_nonce: false };
-				let mut ret = try!(Executive::new(&mut state, &env_info, &*self.engine, chain.vm_factory()).transact(t, options));
+				let mut ret = Executive::new(&mut state, &env_info, &*self.engine, chain.vm_factory()).transact(t, options)?;
 
 				// TODO gav move this into Executive.
 				ret.state_diff = original_state.map(|original| state.diff_from(original));
@@ -763,7 +763,7 @@ impl MinerService for Miner {
 	fn set_engine_signer(&self, address: Address, password: String) -> Result<(), AccountError> {
 		if self.seals_internally {
 			if let Some(ref ap) = self.accounts {
-				try!(ap.sign(address.clone(), Some(password.clone()), Default::default()));
+				ap.sign(address.clone(), Some(password.clone()), Default::default())?;
 			}
 			let mut sealing_work = self.sealing_work.lock();
 			sealing_work.enabled = self.engine.is_sealer(&address).unwrap_or(false);
@@ -1102,7 +1102,7 @@ impl MinerService for Miner {
 		result.and_then(|sealed| {
 			let n = sealed.header().number();
 			let h = sealed.header().hash();
-			try!(chain.import_sealed_block(sealed));
+			chain.import_sealed_block(sealed)?;
 			info!(target: "miner", "Submitted block imported OK. #{}: {}", Colour::White.bold().paint(format!("{}", n)), Colour::White.bold().paint(h.hex()));
 			Ok(())
 		})

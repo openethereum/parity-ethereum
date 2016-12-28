@@ -82,62 +82,62 @@ impl<C, M, U, F> ParitySet for ParitySetClient<C, M, U, F> where
 {
 
 	fn set_min_gas_price(&self, gas_price: U256) -> Result<bool, Error> {
-		try!(self.active());
+		self.active()?;
 
 		take_weak!(self.miner).set_minimal_gas_price(gas_price.into());
 		Ok(true)
 	}
 
 	fn set_gas_floor_target(&self, target: U256) -> Result<bool, Error> {
-		try!(self.active());
+		self.active()?;
 
 		take_weak!(self.miner).set_gas_floor_target(target.into());
 		Ok(true)
 	}
 
 	fn set_gas_ceil_target(&self, target: U256) -> Result<bool, Error> {
-		try!(self.active());
+		self.active()?;
 
 		take_weak!(self.miner).set_gas_ceil_target(target.into());
 		Ok(true)
 	}
 
 	fn set_extra_data(&self, extra_data: Bytes) -> Result<bool, Error> {
-		try!(self.active());
+		self.active()?;
 
 		take_weak!(self.miner).set_extra_data(extra_data.to_vec());
 		Ok(true)
 	}
 
 	fn set_author(&self, author: H160) -> Result<bool, Error> {
-		try!(self.active());
+		self.active()?;
 
 		take_weak!(self.miner).set_author(author.into());
 		Ok(true)
 	}
 
 	fn set_engine_signer(&self, address: H160, password: String) -> Result<bool, Error> {
-		try!(self.active());
-		try!(take_weak!(self.miner).set_engine_signer(address.into(), password).map_err(Into::into).map_err(errors::from_password_error));
+		self.active()?;
+		take_weak!(self.miner).set_engine_signer(address.into(), password).map_err(Into::into).map_err(errors::from_password_error)?;
 		Ok(true)
 	}
 
 	fn set_transactions_limit(&self, limit: usize) -> Result<bool, Error> {
-		try!(self.active());
+		self.active()?;
 
 		take_weak!(self.miner).set_transactions_limit(limit);
 		Ok(true)
 	}
 
 	fn set_tx_gas_limit(&self, limit: U256) -> Result<bool, Error> {
-		try!(self.active());
+		self.active()?;
 
 		take_weak!(self.miner).set_tx_gas_limit(limit.into());
 		Ok(true)
 	}
 
 	fn add_reserved_peer(&self, peer: String) -> Result<bool, Error> {
-		try!(self.active());
+		self.active()?;
 
 		match take_weak!(self.net).add_reserved_peer(peer) {
 			Ok(()) => Ok(true),
@@ -146,7 +146,7 @@ impl<C, M, U, F> ParitySet for ParitySetClient<C, M, U, F> where
 	}
 
 	fn remove_reserved_peer(&self, peer: String) -> Result<bool, Error> {
-		try!(self.active());
+		self.active()?;
 
 		match take_weak!(self.net).remove_reserved_peer(peer) {
 			Ok(()) => Ok(true),
@@ -155,14 +155,14 @@ impl<C, M, U, F> ParitySet for ParitySetClient<C, M, U, F> where
 	}
 
 	fn drop_non_reserved_peers(&self) -> Result<bool, Error> {
-		try!(self.active());
+		self.active()?;
 
 		take_weak!(self.net).deny_unreserved_peers();
 		Ok(true)
 	}
 
 	fn accept_non_reserved_peers(&self) -> Result<bool, Error> {
-		try!(self.active());
+		self.active()?;
 
 		take_weak!(self.net).accept_unreserved_peers();
 		Ok(true)
@@ -214,13 +214,13 @@ impl<C, M, U, F> ParitySet for ParitySetClient<C, M, U, F> where
 	}
 
 	fn upgrade_ready(&self) -> Result<Option<ReleaseInfo>, Error> {
-		try!(self.active());
+		self.active()?;
 		let updater = take_weak!(self.updater);
 		Ok(updater.upgrade_ready().map(Into::into))
 	}
 
 	fn execute_upgrade(&self) -> Result<bool, Error> {
-		try!(self.active());
+		self.active()?;
 		let updater = take_weak!(self.updater);
 		Ok(updater.execute_upgrade())
 	}

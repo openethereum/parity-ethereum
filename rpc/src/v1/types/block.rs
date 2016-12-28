@@ -122,7 +122,7 @@ impl Serialize for RichBlock {
 			// join two objects
 			block.extend(extras);
 			// and serialize
-			try!(block.serialize(serializer));
+			block.serialize(serializer)?;
 		}
 		Ok(())
 	}

@@ -251,7 +251,7 @@ impl<'s> NetworkContext<'s> {
 	pub fn send_protocol(&self, protocol: ProtocolId, peer: PeerId, packet_id: PacketId, data: Vec<u8>) -> Result<(), NetworkError> {
 		let session = self.resolve_session(peer);
 		if let Some(session) = session {
-			try!(session.lock().send_packet(self.io, protocol, packet_id as u8, &data));
+			session.lock().send_packet(self.io, protocol, packet_id as u8, &data)?;
 		} else  {
 			trace!(target: "network", "Send: Peer no longer exist")
 		}
@@ -387,7 +387,7 @@ impl Host {
 		};
 
 		let keys = if let Some(ref secret) = config.use_secret {
-			try!(KeyPair::from_secret(secret.clone()))
+			KeyPair::from_secret(secret.clone())?
 		} else {
 			config.config_path.clone().and_then(|ref p| load_key(Path::new(&p)))
 				.map_or_else(|| {
@@ -401,8 +401,8 @@ impl Host {
 		};
 		let path = config.net_config_path.clone();
 		// Setup the server socket
-		let tcp_listener = try!(TcpListener::bind(&listen_address));
-		listen_address = SocketAddr::new(listen_address.ip(), try!(tcp_listener.local_addr()).port());
+		let tcp_listener = TcpListener::bind(&listen_address)?;
+		listen_address = SocketAddr::new(listen_address.ip(), tcp_listener.local_addr()?.port());
 		debug!(target: "network", "Listening at {:?}", listen_address);
 		let udp_port = config.udp_port.unwrap_or(listen_address.port());
 		let local_endpoint = NodeEndpoint { address: listen_address, udp_port: udp_port };
@@ -462,7 +462,7 @@ impl Host {
 	}
 
 	pub fn add_reserved_node(&self, id: &str) -> Result<(), NetworkError> {
-		let n = try!(Node::from_str(id));
+		let n = Node::from_str(id)?;
 
 		let entry = NodeEntry { endpoint: n.endpoint.clone(), id: n.id.clone() };
 		self.reserved_nodes.write().insert(n.id.clone());
@@ -506,7 +506,7 @@ impl Host {
 	}
 
 	pub fn remove_reserved_node(&self, id: &str) -> Result<(), NetworkError> {
-		let n = try!(Node::from_str(id));
+		let n = Node::from_str(id)?;
 		self.reserved_nodes.write().remove(&n.id);
 
 		Ok(())
@@ -538,7 +538,7 @@ impl Host {
 			trace!(target: "network", "Disconnecting on shutdown: {}", p);
 			self.kill_connection(p, io, true);
 		}
-		try!(io.unregister_handler());
+		io.unregister_handler()?;
 		Ok(())
 	}
 
@@ -588,12 +588,12 @@ impl Host {
 			discovery.init_node_list(self.nodes.read().unordered_entries());
 			discovery.add_node_list(self.nodes.read().unordered_entries());
 			*self.discovery.lock() = Some(discovery);
-			try!(io.register_stream(DISCOVERY));
-			try!(io.register_timer(DISCOVERY_REFRESH, DISCOVERY_REFRESH_TIMEOUT));
-			try!(io.register_timer(DISCOVERY_ROUND, DISCOVERY_ROUND_TIMEOUT));
+			io.register_stream(DISCOVERY)?;
+			io.register_timer(DISCOVERY_REFRESH, DISCOVERY_REFRESH_TIMEOUT)?;
+			io.register_timer(DISCOVERY_ROUND, DISCOVERY_ROUND_TIMEOUT)?;
 		}
-		try!(io.register_timer(NODE_TABLE, NODE_TABLE_TIMEOUT));
-		try!(io.register_stream(TCP_ACCEPT));
+		io.register_timer(NODE_TABLE, NODE_TABLE_TIMEOUT)?;
+		io.register_stream(TCP_ACCEPT)?;
 		Ok(())
 	}
 
@@ -737,7 +737,7 @@ impl Host {
 		});
 
 		match token {
-			Some(t) => Ok(try!(From::from(io.register_stream(t)))),
+			Some(t) => io.register_stream(t).map(|_| ()).map_err(Into::into),
 			None => {
 				debug!(target: "network", "Max sessions reached");
 				Ok(())

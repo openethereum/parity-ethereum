@@ -67,7 +67,7 @@ pub fn new(configuration: Configuration, deps: Dependencies) -> Result<Option<We
 	}
 
 	let url = format!("{}:{}", configuration.interface, configuration.port);
-	let addr = try!(url.parse().map_err(|_| format!("Invalid Webapps listen host/port given: {}", url)));
+	let addr = url.parse().map_err(|_| format!("Invalid Webapps listen host/port given: {}", url))?;
 
 	let auth = configuration.user.as_ref().map(|username| {
 		let password = configuration.pass.as_ref().map_or_else(|| {
@@ -80,7 +80,7 @@ pub fn new(configuration: Configuration, deps: Dependencies) -> Result<Option<We
 		(username.to_owned(), password)
 	});
 
-	Ok(Some(try!(setup_dapps_server(deps, configuration.dapps_path, &addr, configuration.hosts, auth))))
+	Ok(Some(setup_dapps_server(deps, configuration.dapps_path, &addr, configuration.hosts, auth)?))
 }
 
 pub use self::server::WebappServer;
@@ -129,7 +129,7 @@ mod server {
 	) -> Result<WebappServer, String> {
 		use ethcore_dapps as dapps;
 
-		let mut server = dapps::ServerBuilder::new(
+		let server = dapps::ServerBuilder::new(
 			dapps_path,
 			Arc::new(Registrar { client: deps.client.clone() }),
 			deps.remote.clone(),
@@ -137,11 +137,11 @@ mod server {
 		let sync = deps.sync.clone();
 		let client = deps.client.clone();
 		let signer = deps.signer.clone();
-
-		server.with_fetch(deps.fetch.clone());
-		server.with_sync_status(Arc::new(move || is_major_importing(Some(sync.status().state), client.queue_info())));
-		server.with_web_proxy_tokens(Arc::new(move |token| signer.is_valid_web_proxy_access_token(&token)));
-		server.with_signer_address(deps.signer.address());
+		let server = server
+			.fetch(deps.fetch.clone())
+			.sync_status(Arc::new(move || is_major_importing(Some(sync.status().state), client.queue_info())))
+			.web_proxy_tokens(Arc::new(move |token| signer.is_valid_web_proxy_access_token(&token)))
+			.signer_address(deps.signer.address());
 
 		let server = rpc_apis::setup_rpc(server, deps.apis.clone(), rpc_apis::ApiSet::UnsafeContext);
 		let start_result = match auth {

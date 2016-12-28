@@ -43,7 +43,7 @@ impl Registry {
 		).map_err(Self::as_string)?;
 		let output = call.decode_output((self.do_call)(self.address.clone(), data)?).map_err(Self::as_string)?;
 		let mut result = output.into_iter().rev().collect::<Vec<_>>();
-		Ok(({ let r = result.pop().ok_or("Invalid return arity")?; let r = try!(r.to_bool().ok_or("Invalid type returned")); r })) 
+		Ok(({ let r = result.pop().ok_or("Invalid return arity")?; let r = r.to_bool().ok_or("Invalid type returned")?; r })) 
 	}
 
 	/// Auto-generated from: `{"constant":false,"inputs":[{"name":"_name","type":"bytes32"}],"name":"reserve","outputs":[{"name":"success","type":"bool"}],"payable":false,"type":"function"}`
@@ -55,7 +55,7 @@ impl Registry {
 		).map_err(Self::as_string)?;
 		let output = call.decode_output((self.do_call)(self.address.clone(), data)?).map_err(Self::as_string)?;
 		let mut result = output.into_iter().rev().collect::<Vec<_>>();
-		Ok(({ let r = result.pop().ok_or("Invalid return arity")?; let r = try!(r.to_bool().ok_or("Invalid type returned")); r })) 
+		Ok(({ let r = result.pop().ok_or("Invalid return arity")?; let r = r.to_bool().ok_or("Invalid type returned")?; r })) 
 	}
 
 	/// Auto-generated from: `{"constant":false,"inputs":[{"name":"_name","type":"bytes32"},{"name":"_key","type":"string"},{"name":"_value","type":"bytes32"}],"name":"set","outputs":[{"name":"success","type":"bool"}],"payable":false,"type":"function"}`
@@ -67,7 +67,7 @@ impl Registry {
 		).map_err(Self::as_string)?;
 		let output = call.decode_output((self.do_call)(self.address.clone(), data)?).map_err(Self::as_string)?;
 		let mut result = output.into_iter().rev().collect::<Vec<_>>();
-		Ok(({ let r = result.pop().ok_or("Invalid return arity")?; let r = try!(r.to_bool().ok_or("Invalid type returned")); r })) 
+		Ok(({ let r = result.pop().ok_or("Invalid return arity")?; let r = r.to_bool().ok_or("Invalid type returned")?; r })) 
 	}
 
 	/// Auto-generated from: `{"constant":false,"inputs":[{"name":"_name","type":"bytes32"}],"name":"drop","outputs":[{"name":"success","type":"bool"}],"payable":false,"type":"function"}`
@@ -79,7 +79,7 @@ impl Registry {
 		).map_err(Self::as_string)?;
 		let output = call.decode_output((self.do_call)(self.address.clone(), data)?).map_err(Self::as_string)?;
 		let mut result = output.into_iter().rev().collect::<Vec<_>>();
-		Ok(({ let r = result.pop().ok_or("Invalid return arity")?; let r = try!(r.to_bool().ok_or("Invalid type returned")); r })) 
+		Ok(({ let r = result.pop().ok_or("Invalid return arity")?; let r = r.to_bool().ok_or("Invalid type returned")?; r })) 
 	}
 
 	/// Auto-generated from: `{"constant":true,"inputs":[{"name":"_name","type":"bytes32"},{"name":"_key","type":"string"}],"name":"getAddress","outputs":[{"name":"","type":"address"}],"payable":false,"type":"function"}`
@@ -91,7 +91,7 @@ impl Registry {
 		).map_err(Self::as_string)?;
 		let output = call.decode_output((self.do_call)(self.address.clone(), data)?).map_err(Self::as_string)?;
 		let mut result = output.into_iter().rev().collect::<Vec<_>>();
-		Ok(({ let r = result.pop().ok_or("Invalid return arity")?; let r = try!(r.to_address().ok_or("Invalid type returned")); util::Address::from(r) })) 
+		Ok(({ let r = result.pop().ok_or("Invalid return arity")?; let r = r.to_address().ok_or("Invalid type returned")?; util::Address::from(r) })) 
 	}
 
 	/// Auto-generated from: `{"constant":false,"inputs":[{"name":"_amount","type":"uint256"}],"name":"setFee","outputs":[],"payable":false,"type":"function"}`
@@ -115,7 +115,7 @@ impl Registry {
 		).map_err(Self::as_string)?;
 		let output = call.decode_output((self.do_call)(self.address.clone(), data)?).map_err(Self::as_string)?;
 		let mut result = output.into_iter().rev().collect::<Vec<_>>();
-		Ok(({ let r = result.pop().ok_or("Invalid return arity")?; let r = try!(r.to_bool().ok_or("Invalid type returned")); r })) 
+		Ok(({ let r = result.pop().ok_or("Invalid return arity")?; let r = r.to_bool().ok_or("Invalid type returned")?; r })) 
 	}
 
 	/// Auto-generated from: `{"constant":true,"inputs":[],"name":"owner","outputs":[{"name":"","type":"address"}],"payable":false,"type":"function"}`
@@ -127,7 +127,7 @@ impl Registry {
 		).map_err(Self::as_string)?;
 		let output = call.decode_output((self.do_call)(self.address.clone(), data)?).map_err(Self::as_string)?;
 		let mut result = output.into_iter().rev().collect::<Vec<_>>();
-		Ok(({ let r = result.pop().ok_or("Invalid return arity")?; let r = try!(r.to_address().ok_or("Invalid type returned")); util::Address::from(r) })) 
+		Ok(({ let r = result.pop().ok_or("Invalid return arity")?; let r = r.to_address().ok_or("Invalid type returned")?; util::Address::from(r) })) 
 	}
 
 	/// Auto-generated from: `{"constant":true,"inputs":[{"name":"_name","type":"bytes32"}],"name":"reserved","outputs":[{"name":"reserved","type":"bool"}],"payable":false,"type":"function"}`
@@ -139,7 +139,7 @@ impl Registry {
 		).map_err(Self::as_string)?;
 		let output = call.decode_output((self.do_call)(self.address.clone(), data)?).map_err(Self::as_string)?;
 		let mut result = output.into_iter().rev().collect::<Vec<_>>();
-		Ok(({ let r = result.pop().ok_or("Invalid return arity")?; let r = try!(r.to_bool().ok_or("Invalid type returned")); r })) 
+		Ok(({ let r = result.pop().ok_or("Invalid return arity")?; let r = r.to_bool().ok_or("Invalid type returned")?; r })) 
 	}
 
 	/// Auto-generated from: `{"constant":false,"inputs":[],"name":"drain","outputs":[],"payable":false,"type":"function"}`
@@ -163,7 +163,7 @@ impl Registry {
 		).map_err(Self::as_string)?;
 		let output = call.decode_output((self.do_call)(self.address.clone(), data)?).map_err(Self::as_string)?;
 		let mut result = output.into_iter().rev().collect::<Vec<_>>();
-		Ok(({ let r = result.pop().ok_or("Invalid return arity")?; let r = try!(r.to_bool().ok_or("Invalid type returned")); r })) 
+		Ok(({ let r = result.pop().ok_or("Invalid return arity")?; let r = r.to_bool().ok_or("Invalid type returned")?; r })) 
 	}
 
 	/// Auto-generated from: `{"constant":true,"inputs":[{"name":"_name","type":"bytes32"},{"name":"_key","type":"string"}],"name":"getUint","outputs":[{"name":"","type":"uint256"}],"payable":false,"type":"function"}`
@@ -175,7 +175,7 @@ impl Registry {
 		).map_err(Self::as_string)?;
 		let output = call.decode_output((self.do_call)(self.address.clone(), data)?).map_err(Self::as_string)?;
 		let mut result = output.into_iter().rev().collect::<Vec<_>>();
-		Ok(({ let r = result.pop().ok_or("Invalid return arity")?; let r = try!(r.to_uint().ok_or("Invalid type returned")); util::U256::from(r.as_ref()) })) 
+		Ok(({ let r = result.pop().ok_or("Invalid return arity")?; let r = r.to_uint().ok_or("Invalid type returned")?; util::U256::from(r.as_ref()) })) 
 	}
 
 	/// Auto-generated from: `{"constant":true,"inputs":[{"name":"_name","type":"bytes32"},{"name":"_key","type":"string"}],"name":"get","outputs":[{"name":"","type":"bytes32"}],"payable":false,"type":"function"}`
@@ -187,7 +187,7 @@ impl Registry {
 		).map_err(Self::as_string)?;
 		let output = call.decode_output((self.do_call)(self.address.clone(), data)?).map_err(Self::as_string)?;
 		let mut result = output.into_iter().rev().collect::<Vec<_>>();
-		Ok(({ let r = result.pop().ok_or("Invalid return arity")?; let r = try!(r.to_fixed_bytes().ok_or("Invalid type returned")); util::H256::from_slice(r.as_ref()) })) 
+		Ok(({ let r = result.pop().ok_or("Invalid return arity")?; let r = r.to_fixed_bytes().ok_or("Invalid type returned")?; util::H256::from_slice(r.as_ref()) })) 
 	}
 
 	/// Auto-generated from: `{"constant":true,"inputs":[],"name":"fee","outputs":[{"name":"","type":"uint256"}],"payable":false,"type":"function"}`
@@ -199,7 +199,7 @@ impl Registry {
 		).map_err(Self::as_string)?;
 		let output = call.decode_output((self.do_call)(self.address.clone(), data)?).map_err(Self::as_string)?;
 		let mut result = output.into_iter().rev().collect::<Vec<_>>();
-		Ok(({ let r = result.pop().ok_or("Invalid return arity")?; let r = try!(r.to_uint().ok_or("Invalid type returned")); util::U256::from(r.as_ref()) })) 
+		Ok(({ let r = result.pop().ok_or("Invalid return arity")?; let r = r.to_uint().ok_or("Invalid type returned")?; util::U256::from(r.as_ref()) })) 
 	}
 
 	/// Auto-generated from: `{"constant":true,"inputs":[{"name":"_name","type":"bytes32"}],"name":"getOwner","outputs":[{"name":"","type":"address"}],"payable":false,"type":"function"}`
@@ -211,7 +211,7 @@ impl Registry {
 		).map_err(Self::as_string)?;
 		let output = call.decode_output((self.do_call)(self.address.clone(), data)?).map_err(Self::as_string)?;
 		let mut result = output.into_iter().rev().collect::<Vec<_>>();
-		Ok(({ let r = result.pop().ok_or("Invalid return arity")?; let r = try!(r.to_address().ok_or("Invalid type returned")); util::Address::from(r) })) 
+		Ok(({ let r = result.pop().ok_or("Invalid return arity")?; let r = r.to_address().ok_or("Invalid type returned")?; util::Address::from(r) })) 
 	}
 
 	/// Auto-generated from: `{"constant":true,"inputs":[{"name":"","type":"address"}],"name":"reverse","outputs":[{"name":"","type":"string"}],"payable":false,"type":"function"}`
@@ -223,7 +223,7 @@ impl Registry {
 		).map_err(Self::as_string)?;
 		let output = call.decode_output((self.do_call)(self.address.clone(), data)?).map_err(Self::as_string)?;
 		let mut result = output.into_iter().rev().collect::<Vec<_>>();
-		Ok(({ let r = result.pop().ok_or("Invalid return arity")?; let r = try!(r.to_string().ok_or("Invalid type returned")); r })) 
+		Ok(({ let r = result.pop().ok_or("Invalid return arity")?; let r = r.to_string().ok_or("Invalid type returned")?; r })) 
 	}
 
 	/// Auto-generated from: `{"constant":false,"inputs":[{"name":"_name","type":"bytes32"},{"name":"_key","type":"string"},{"name":"_value","type":"uint256"}],"name":"setUint","outputs":[{"name":"success","type":"bool"}],"payable":false,"type":"function"}`
@@ -235,7 +235,7 @@ impl Registry {
 		).map_err(Self::as_string)?;
 		let output = call.decode_output((self.do_call)(self.address.clone(), data)?).map_err(Self::as_string)?;
 		let mut result = output.into_iter().rev().collect::<Vec<_>>();
-		Ok(({ let r = result.pop().ok_or("Invalid return arity")?; let r = try!(r.to_bool().ok_or("Invalid type returned")); r })) 
+		Ok(({ let r = result.pop().ok_or("Invalid return arity")?; let r = r.to_bool().ok_or("Invalid type returned")?; r })) 
 	}
 
 	/// Auto-generated from: `{"constant":false,"inputs":[],"name":"removeReverse","outputs":[],"payable":false,"type":"function"}`
@@ -259,6 +259,6 @@ impl Registry {
 		).map_err(Self::as_string)?;
 		let output = call.decode_output((self.do_call)(self.address.clone(), data)?).map_err(Self::as_string)?;
 		let mut result = output.into_iter().rev().collect::<Vec<_>>();
-		Ok(({ let r = result.pop().ok_or("Invalid return arity")?; let r = try!(r.to_bool().ok_or("Invalid type returned")); r })) 
+		Ok(({ let r = result.pop().ok_or("Invalid return arity")?; let r = r.to_bool().ok_or("Invalid type returned")?; r })) 
 	}
 }

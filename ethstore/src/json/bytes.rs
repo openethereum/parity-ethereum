@@ -17,8 +17,8 @@ impl Deserialize for Bytes {
 	fn deserialize<D>(deserializer: &mut D) -> Result<Self, D::Error>
 		where D: Deserializer
 	{
-		let s = try!(String::deserialize(deserializer));
-		let data = try!(s.from_hex().map_err(|e| Error::custom(format!("Invalid hex value {}", e))));
+		let s = String::deserialize(deserializer)?;
+		let data = s.from_hex().map_err(|e| Error::custom(format!("Invalid hex value {}", e)))?;
 		Ok(Bytes(data))
 	}
 }

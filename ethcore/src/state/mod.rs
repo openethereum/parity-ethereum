@@ -515,11 +515,11 @@ impl State {
 
 		let options = TransactOptions { tracing: tracing, vm_tracing: false, check_nonce: true };
 		let vm_factory = self.factories.vm.clone();
-		let e = try!(Executive::new(self, env_info, engine, &vm_factory).transact(t, options));
+		let e = Executive::new(self, env_info, engine, &vm_factory).transact(t, options)?;
 
 		// TODO uncomment once to_pod() works correctly.
 //		trace!("Applied transaction. Diff:\n{}\n", state_diff::diff_pod(&old, &self.to_pod()));
-		try!(self.commit());
+		self.commit()?;
 		let receipt = Receipt::new(self.root().clone(), e.cumulative_gas_used, e.logs);
 		trace!(target: "state", "Transaction receipt: {:?}", receipt);
 		Ok(ApplyOutcome{receipt: receipt, trace: e.trace})
@@ -551,15 +551,15 @@ impl State {
 		}
 
 		{
-			let mut trie = try!(factories.trie.from_existing(db.as_hashdb_mut(), root));
+			let mut trie = factories.trie.from_existing(db.as_hashdb_mut(), root)?;
 			for (address, ref mut a) in accounts.iter_mut().filter(|&(_, ref a)| a.is_dirty()) {
 				a.state = AccountState::Committed;
 				match a.account {
 					Some(ref mut account) => {
-						try!(trie.insert(address, &account.rlp()));
+						trie.insert(address, &account.rlp())?;
 					},
 					None => {
-						try!(trie.remove(address));
+						trie.remove(address)?;
 					},
 				}
 			}
@@ -771,8 +771,8 @@ impl State {
 	/// `account_key` == sha3(address)
 	pub fn prove_account(&self, account_key: H256, from_level: u32) -> Result<Vec<Bytes>, Box<TrieError>> {
 		let mut recorder = TrieRecorder::with_depth(from_level);
-		let trie = try!(TrieDB::new(self.db.as_hashdb(), &self.root));
-		let _  = try!(trie.get_recorded(&account_key, &mut recorder));
+		let trie = TrieDB::new(self.db.as_hashdb(), &self.root)?;
+		let _  = trie.get_recorded(&account_key, &mut recorder)?;
 
 		Ok(recorder.drain().into_iter().map(|r| r.data).collect())
 	}
@@ -785,8 +785,8 @@ impl State {
 	pub fn prove_storage(&self, account_key: H256, storage_key: H256, from_level: u32) -> Result<Vec<Bytes>, Box<TrieError>> {
 		// TODO: probably could look into cache somehow but it's keyed by
 		// address, not sha3(address).
-		let trie = try!(TrieDB::new(self.db.as_hashdb(), &self.root));
-		let acc = match try!(trie.get(&account_key)) {
+		let trie = TrieDB::new(self.db.as_hashdb(), &self.root)?;
+		let acc = match trie.get(&account_key)? {
 			Some(rlp) => Account::from_rlp(&rlp),
 			None => return Ok(Vec::new()),
 		};
@@ -798,8 +798,8 @@ impl State {
 	/// Get code by address hash.
 	/// Only works when backed by a secure trie.
 	pub fn code_by_address_hash(&self, account_key: H256) -> Result<Option<Bytes>, Box<TrieError>> {
-		let trie = try!(TrieDB::new(self.db.as_hashdb(), &self.root));
-		let mut acc = match try!(trie.get(&account_key)) {
+		let trie = TrieDB::new(self.db.as_hashdb(), &self.root)?;
+		let mut acc = match trie.get(&account_key)? {
 			Some(rlp) => Account::from_rlp(&rlp),
 			None => return Ok(None),
 		};

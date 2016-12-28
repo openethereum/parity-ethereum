@@ -27,6 +27,16 @@ pub struct Response {
 	pub body: String,
 }
 
+impl Response {
+	pub fn assert_status(&self, status: &str) {
+		assert_eq!(self.status, status.to_owned(), "Got unexpected code. Body: {:?}", self.body);
+	}
+
+	pub fn assert_security_headers_present(&self, port: Option<u16>) {
+		assert_security_headers_present(&self.headers, port)
+	}
+}
+
 pub fn read_block(lines: &mut Lines, all: bool) -> String {
 	let mut block = String::new();
 	loop {
