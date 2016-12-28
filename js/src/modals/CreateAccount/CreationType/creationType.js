@@ -14,20 +14,17 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 import { RadioButton, RadioButtonGroup } from 'material-ui/RadioButton';
 
 import styles from '../createAccount.css';
 
+@observer
 export default class CreationType extends Component {
   static propTypes = {
-    onChange: PropTypes.func.isRequired,
     store: PropTypes.object.isRequired
-  }
-
-  componentWillMount () {
-    this.props.onChange('fromNew');
   }
 
   render () {
@@ -85,6 +82,6 @@ export default class CreationType extends Component {
   }
 
   onChange = (event) => {
-    this.props.onChange(event.target.value);
+    this.props.store.setCreateType(event.target.value);
   }
 }

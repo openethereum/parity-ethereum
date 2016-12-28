@@ -16,6 +16,8 @@
 
 import sinon from 'sinon';
 
+import Store from './store';
+
 function createApi () {
   return {
     parity: {
@@ -24,6 +26,11 @@ function createApi () {
   };
 }
 
+function createStore () {
+  return new Store(createApi());
+}
+
 export {
-  createApi
+  createApi,
+  createStore
 };

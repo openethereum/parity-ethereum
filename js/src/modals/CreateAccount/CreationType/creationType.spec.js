@@ -16,27 +16,41 @@
 
 import { shallow } from 'enzyme';
 import React from 'react';
-import sinon from 'sinon';
+
+import { createStore } from '../createAccount.test.js';
 
 import CreationType from './';
 
 let component;
-let onChange;
+let store;
 
 function render () {
-  onChange = sinon.stub();
+  store = createStore();
   component = shallow(
     <CreationType
-      onChange={ onChange } />
+      store={ store } />
   );
 
   return component;
 }
 
 describe('modals/CreateAccount/CreationType', () => {
+  beforeEach(() => {
+    render();
+  });
+
   describe('rendering', () => {
     it('renders with defaults', () => {
-      expect(render()).to.be.ok;
+      expect(component).to.be.ok;
+    });
+  });
+
+  describe('events', () => {
+    describe('onChange', () => {
+      it('changes the store createType', () => {
+        component.instance().onChange({ target: { value: 'testing' } });
+        expect(store.createType).to.equal('testing');
+      });
     });
   });
 });

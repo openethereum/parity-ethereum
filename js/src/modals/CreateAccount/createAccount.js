@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 
@@ -56,6 +57,7 @@ const TITLES = {
 const STAGE_NAMES = [TITLES.type, TITLES.create, TITLES.info];
 const STAGE_IMPORT = [TITLES.type, TITLES.import, TITLES.info];
 
+@observer
 export default class CreateAccount extends Component {
   static contextTypes = {
     api: PropTypes.object.isRequired
@@ -79,7 +81,6 @@ export default class CreateAccount extends Component {
     rawKey: null,
     json: null,
     canCreate: false,
-    createType: null,
     gethAddresses: [],
     stage: 0
   }
@@ -103,15 +104,14 @@ export default class CreateAccount extends Component {
   }
 
   renderPage () {
-    const { createType, stage } = this.state;
+    const { createType } = this.store;
+    const { stage } = this.state;
     const { accounts } = this.props;
 
     switch (stage) {
       case 0:
         return (
-          <CreationType
-            onChange={ this.onChangeType }
-            store={ this.store } />
+          <CreationType store={ this.store } />
         );
 
       case 1:
@@ -168,7 +168,8 @@ export default class CreateAccount extends Component {
   }
 
   renderDialogActions () {
-    const { createType, stage } = this.state;
+    const { createType } = this.store;
+    const { stage } = this.state;
 
     const cancelBtn = (
       <Button
@@ -221,7 +222,8 @@ export default class CreateAccount extends Component {
   }
 
   renderWarning () {
-    const { createType, stage } = this.state;
+    const { createType } = this.store;
+    const { stage } = this.state;
 
     if (stage !== 1 || ['fromJSON', 'fromPresale'].includes(createType)) {
       return null;
@@ -249,7 +251,8 @@ export default class CreateAccount extends Component {
   }
 
   onCreate = () => {
-    const { createType, windowsPhrase } = this.state;
+    const { createType } = this.store;
+    const { windowsPhrase } = this.state;
     const { api } = this.context;
 
     this.setState({
@@ -374,12 +377,6 @@ export default class CreateAccount extends Component {
       canCreate: false
     }, () => {
       this.props.onClose && this.props.onClose();
-    });
-  }
-
-  onChangeType = (value) => {
-    this.setState({
-      createType: value
     });
   }
 

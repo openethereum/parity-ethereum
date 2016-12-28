@@ -32,4 +32,19 @@ describe('modals/CreateAccount/Store', () => {
   beforeEach(() => {
     createStore();
   });
+
+  describe('constructor', () => {
+    it('sets the initial createType to fromNew', () => {
+      expect(store.createType).to.equal('fromNew');
+    });
+  });
+
+  describe('@action', () => {
+    describe('setCreateType', () => {
+      it('allows changing the type', () => {
+        store.setCreateType('testing');
+        expect(store.createType).to.equal('testing');
+      });
+    });
+  });
 });
