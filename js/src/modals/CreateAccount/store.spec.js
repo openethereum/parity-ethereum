@@ -37,6 +37,10 @@ describe('modals/CreateAccount/Store', () => {
     it('sets the initial createType to fromNew', () => {
       expect(store.createType).to.equal('fromNew');
     });
+
+    it('sets the initial stage to create', () => {
+      expect(store.stage).to.equal(0);
+    });
   });
 
   describe('@action', () => {
@@ -44,6 +48,23 @@ describe('modals/CreateAccount/Store', () => {
       it('allows changing the type', () => {
         store.setCreateType('testing');
         expect(store.createType).to.equal('testing');
+      });
+    });
+
+    describe('setStage', () => {
+      it('changes to the provided stage', () => {
+        store.setStage(2);
+        expect(store.stage).to.equal(2);
+      });
+    });
+
+    describe('nextStage/prevStage', () => {
+      it('changes to next/prev', () => {
+        expect(store.stage).to.equal(0);
+        store.nextStage();
+        expect(store.stage).to.equal(1);
+        store.prevStage();
+        expect(store.stage).to.equal(0);
       });
     });
   });

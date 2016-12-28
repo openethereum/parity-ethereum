@@ -32,7 +32,7 @@ import NewGeth from './NewGeth';
 import NewImport from './NewImport';
 import RawKey from './RawKey';
 import RecoveryPhrase from './RecoveryPhrase';
-import Store from './store';
+import Store, { STAGE_SELECT_TYPE } from './store';
 import print from './print';
 import recoveryPage from './recoveryPage.ejs';
 
@@ -81,12 +81,11 @@ export default class CreateAccount extends Component {
     rawKey: null,
     json: null,
     canCreate: false,
-    gethAddresses: [],
-    stage: 0
+    gethAddresses: []
   }
 
   render () {
-    const { createType, stage } = this.state;
+    const { createType, stage } = this.store;
     const steps = createType === 'fromNew'
       ? STAGE_NAMES
       : STAGE_IMPORT;
@@ -104,12 +103,11 @@ export default class CreateAccount extends Component {
   }
 
   renderPage () {
-    const { createType } = this.store;
-    const { stage } = this.state;
+    const { createType, stage } = this.store;
     const { accounts } = this.props;
 
     switch (stage) {
-      case 0:
+      case STAGE_SELECT_TYPE:
         return (
           <CreationType store={ this.store } />
         );
@@ -168,8 +166,7 @@ export default class CreateAccount extends Component {
   }
 
   renderDialogActions () {
-    const { createType } = this.store;
-    const { stage } = this.state;
+    const { createType, stage } = this.store;
 
     const cancelBtn = (
       <Button
@@ -179,14 +176,15 @@ export default class CreateAccount extends Component {
     );
 
     switch (stage) {
-      case 0:
+      case STAGE_SELECT_TYPE:
         return [
           cancelBtn,
           <Button
             icon={ <NextIcon /> }
             label='Next'
-            onClick={ this.onNext } />
+            onClick={ this.store.nextStage } />
         ];
+
       case 1:
         const createLabel = createType === 'fromNew'
           ? 'Create'
@@ -197,7 +195,7 @@ export default class CreateAccount extends Component {
           <Button
             icon={ <PrevIcon /> }
             label='Back'
-            onClick={ this.onPrev } />,
+            onClick={ this.store.prevStage } />,
           <Button
             icon={ <CheckIcon /> }
             label={ createLabel }
@@ -222,8 +220,7 @@ export default class CreateAccount extends Component {
   }
 
   renderWarning () {
-    const { createType } = this.store;
-    const { stage } = this.state;
+    const { createType, stage } = this.store;
 
     if (stage !== 1 || ['fromJSON', 'fromPresale'].includes(createType)) {
       return null;
@@ -236,18 +233,6 @@ export default class CreateAccount extends Component {
           defaultMessage='It is recommended that a strong password be used to secure your accounts. Empty and trivial passwords are a security risk.' />
       } />
     );
-  }
-
-  onNext = () => {
-    this.setState({
-      stage: this.state.stage + 1
-    });
-  }
-
-  onPrev = () => {
-    this.setState({
-      stage: this.state.stage - 1
-    });
   }
 
   onCreate = () => {
@@ -280,7 +265,7 @@ export default class CreateAccount extends Component {
             }));
         })
         .then(() => {
-          this.onNext();
+          this.store.nextStage();
           this.props.onUpdate && this.props.onUpdate();
         })
         .catch((error) => {
@@ -305,7 +290,7 @@ export default class CreateAccount extends Component {
             }));
         })
         .then(() => {
-          this.onNext();
+          this.store.nextStage();
           this.props.onUpdate && this.props.onUpdate();
         })
         .catch((error) => {
@@ -328,7 +313,7 @@ export default class CreateAccount extends Component {
           }));
         })
         .then(() => {
-          this.onNext();
+          this.store.nextStage();
           this.props.onUpdate && this.props.onUpdate();
         })
         .catch((error) => {
@@ -357,7 +342,7 @@ export default class CreateAccount extends Component {
           }));
       })
       .then(() => {
-        this.onNext();
+        this.store.nextStage();
         this.props.onUpdate && this.props.onUpdate();
       })
       .catch((error) => {

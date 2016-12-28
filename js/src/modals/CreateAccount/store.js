@@ -16,8 +16,11 @@
 
 import { action, observable } from 'mobx';
 
+const STAGE_SELECT_TYPE = 0;
+
 export default class Store {
   @observable createType = 'fromNew';
+  @observable stage = STAGE_SELECT_TYPE;
 
   constructor (api) {
     this._api = api;
@@ -26,4 +29,20 @@ export default class Store {
   @action setCreateType = (createType) => {
     this.createType = createType;
   }
+
+  @action setStage = (stage) => {
+    this.stage = stage;
+  }
+
+  @action nextStage = () => {
+    this.stage++;
+  }
+
+  @action prevStage = () => {
+    this.stage--;
+  }
 }
+
+export {
+  STAGE_SELECT_TYPE
+};
