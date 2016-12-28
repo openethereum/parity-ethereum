@@ -59,8 +59,8 @@ class Accounts extends Component {
   }
 
   componentWillReceiveProps (nextProps) {
-    const prevAddresses = Object.keys({ ...this.props.accounts, ...this.props.wallets });
-    const nextAddresses = Object.keys({ ...nextProps.accounts, ...nextProps.wallets });
+    const prevAddresses = Object.keys(this.props.accounts);
+    const nextAddresses = Object.keys(nextProps.accounts);
 
     if (prevAddresses.length !== nextAddresses.length || !isEqual(prevAddresses.sort(), nextAddresses.sort())) {
       this.setVisibleAccounts(nextProps);
@@ -72,8 +72,8 @@ class Accounts extends Component {
   }
 
   setVisibleAccounts (props = this.props) {
-    const { accounts, wallets, setVisibleAccounts } = props;
-    const addresses = Object.keys({ ...accounts, ...wallets });
+    const { accounts, setVisibleAccounts } = props;
+    const addresses = Object.keys(accounts);
     setVisibleAccounts(addresses);
   }
 
@@ -112,15 +112,16 @@ class Accounts extends Component {
   }
 
   renderAccounts () {
-    if (!this.state.show) {
-      return this.renderLoading(this.props.accounts);
-    }
-
     const { accounts, balances } = this.props;
-    const { searchValues, sortOrder } = this.state;
 
     const _accounts = omitBy(accounts, (a) => a.wallet);
     const _hasAccounts = Object.keys(_accounts).length > 0;
+
+    if (!this.state.show) {
+      return this.renderLoading(_accounts);
+    }
+
+    const { searchValues, sortOrder } = this.state;
 
     return (
       <List
@@ -134,15 +135,16 @@ class Accounts extends Component {
   }
 
   renderWallets () {
-    if (!this.state.show) {
-      return this.renderLoading(this.props.wallets);
-    }
-
     const { accounts, balances } = this.props;
-    const { searchValues, sortOrder } = this.state;
 
     const wallets = pickBy(accounts, (a) => a.wallet);
     const hasWallets = Object.keys(wallets).length > 0;
+
+    if (!this.state.show) {
+      return this.renderLoading(wallets);
+    }
+
+    const { searchValues, sortOrder } = this.state;
 
     if (!wallets || Object.keys(wallets).length === 0) {
       return null;
