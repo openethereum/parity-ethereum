@@ -122,7 +122,7 @@ impl<F> WebProxyTokens for F where F: Fn(String) -> bool + Send + Sync {
 }
 
 /// Webapps HTTP+RPC server build.
-pub struct ServerBuilder {
+pub struct ServerBuilder<T: Fetch = FetchClient> {
 	dapps_path: String,
 	handler: Arc<IoHandler>,
 	registrar: Arc<ContractClient>,
@@ -130,10 +130,10 @@ pub struct ServerBuilder {
 	web_proxy_tokens: Arc<WebProxyTokens>,
 	signer_address: Option<(String, u16)>,
 	remote: Remote,
-	fetch: Option<FetchClient>,
+	fetch: Option<T>,
 }
 
-impl Extendable for ServerBuilder {
+impl<T: Fetch> Extendable for ServerBuilder<T> {
 	fn add_delegate<D: Send + Sync + 'static>(&self, delegate: IoDelegate<D>) {
 		self.handler.add_delegate(delegate);
 	}
@@ -153,30 +153,44 @@ impl ServerBuilder {
 			fetch: None,
 		}
 	}
+}
 
+impl<T: Fetch> ServerBuilder<T> {
 	/// Set a fetch client to use.
-	pub fn with_fetch(&mut self, fetch: FetchClient) {
-		self.fetch = Some(fetch);
+	pub fn fetch<X: Fetch>(self, fetch: X) -> ServerBuilder<X> {
+		ServerBuilder {
+			dapps_path: self.dapps_path,
+			handler: self.handler,
+			registrar: self.registrar,
+			sync_status: self.sync_status,
+			web_proxy_tokens: self.web_proxy_tokens,
+			signer_address: self.signer_address,
+			remote: self.remote,
+			fetch: Some(fetch),
+		}
 	}
 
 	/// Change default sync status.
-	pub fn with_sync_status(&mut self, status: Arc<SyncStatus>) {
+	pub fn sync_status(mut self, status: Arc<SyncStatus>) -> Self {
 		self.sync_status = status;
+		self
 	}
 
 	/// Change default web proxy tokens validator.
-	pub fn with_web_proxy_tokens(&mut self, tokens: Arc<WebProxyTokens>) {
+	pub fn web_proxy_tokens(mut self, tokens: Arc<WebProxyTokens>) -> Self {
 		self.web_proxy_tokens = tokens;
+		self
 	}
 
 	/// Change default signer port.
-	pub fn with_signer_address(&mut self, signer_address: Option<(String, u16)>) {
+	pub fn signer_address(mut self, signer_address: Option<(String, u16)>) -> Self {
 		self.signer_address = signer_address;
+		self
 	}
 
 	/// Asynchronously start server with no authentication,
 	/// returns result with `Server` handle on success or an error.
-	pub fn start_unsecured_http(&self, addr: &SocketAddr, hosts: Option<Vec<String>>) -> Result<Server, ServerError> {
+	pub fn start_unsecured_http(self, addr: &SocketAddr, hosts: Option<Vec<String>>) -> Result<Server, ServerError> {
 		Server::start_http(
 			addr,
 			hosts,
@@ -188,13 +202,13 @@ impl ServerBuilder {
 			self.sync_status.clone(),
 			self.web_proxy_tokens.clone(),
 			self.remote.clone(),
-			self.fetch()?,
+			self.fetch_client()?,
 		)
 	}
 
 	/// Asynchronously start server with `HTTP Basic Authentication`,
 	/// return result with `Server` handle on success or an error.
-	pub fn start_basic_auth_http(&self, addr: &SocketAddr, hosts: Option<Vec<String>>, username: &str, password: &str) -> Result<Server, ServerError> {
+	pub fn start_basic_auth_http(self, addr: &SocketAddr, hosts: Option<Vec<String>>, username: &str, password: &str) -> Result<Server, ServerError> {
 		Server::start_http(
 			addr,
 			hosts,
@@ -206,14 +220,14 @@ impl ServerBuilder {
 			self.sync_status.clone(),
 			self.web_proxy_tokens.clone(),
 			self.remote.clone(),
-			self.fetch()?,
+			self.fetch_client()?,
 		)
 	}
 
-	fn fetch(&self) -> Result<FetchClient, ServerError> {
+	fn fetch_client(&self) -> Result<T, ServerError> {
 		match self.fetch.clone() {
 			Some(fetch) => Ok(fetch),
-			None => FetchClient::new().map_err(|_| ServerError::FetchInitialization),
+			None => T::new().map_err(|_| ServerError::FetchInitialization),
 		}
 	}
 }

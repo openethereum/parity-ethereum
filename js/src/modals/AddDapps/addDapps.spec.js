@@ -14,4 +14,33 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-export default from './AddDapps';
+import { shallow } from 'enzyme';
+import React from 'react';
+
+import AddDapps from './';
+
+function renderShallow (store = {}) {
+  return shallow(
+    <AddDapps store={ store } />
+  );
+}
+
+describe('modals/AddDapps', () => {
+  describe('rendering', () => {
+    it('renders defaults', () => {
+      expect(renderShallow()).to.be.ok;
+    });
+
+    it('does not render the modal with modalOpen = false', () => {
+      expect(
+        renderShallow({ modalOpen: false }).find('Connect(Modal)')
+      ).to.have.length(0);
+    });
+
+    it('does render the modal with modalOpen = true', () => {
+      expect(
+        renderShallow({ modalOpen: true }).find('Connect(Modal)')
+      ).to.have.length(1);
+    });
+  });
+});
