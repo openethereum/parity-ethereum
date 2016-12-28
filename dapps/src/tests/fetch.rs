@@ -17,7 +17,8 @@
 use devtools::http_client;
 use rustc_serialize::hex::FromHex;
 use tests::helpers::{
-	serve_with_registrar, serve_with_registrar_and_sync, serve_with_registrar_and_fetch, serve_with_fetch,
+	serve_with_registrar, serve_with_registrar_and_sync, serve_with_fetch,
+	serve_with_registrar_and_fetch, serve_with_registrar_and_fetch_and_threads,
 	request, assert_security_headers_for_embed,
 };
 
@@ -188,6 +189,52 @@ fn should_cache_content() {
 }
 
 #[test]
+fn should_not_request_content_twice() {
+	use std::thread;
+
+	// given
+	let (server, fetch, registrar) = serve_with_registrar_and_fetch_and_threads(true);
+	let gavcoin = GAVCOIN_ICON.from_hex().unwrap();
+	registrar.set_result(
+		"2be00befcf008bc0e7d9cdefc194db9c75352e8632f48498b5a6bfce9f02c88e".parse().unwrap(),
+		Ok(gavcoin.clone())
+	);
+	let request_str = "\
+		GET / HTTP/1.1\r\n\
+		Host: 2be00befcf008bc0e7d9cdefc194db9c75352e8632f48498b5a6bfce9f02c88e.parity\r\n\
+		Connection: close\r\n\
+		\r\n\
+	";
+	let fire_request = || {
+		let addr = server.addr().to_owned();
+		let req = request_str.to_owned();
+		thread::spawn(move || {
+			http_client::request(&addr, &req)
+		})
+	};
+	let control = fetch.manual();
+
+	// when
+
+	// Fire two requests at the same time
+	let r1 = fire_request();
+	let r2 = fire_request();
+
+	// wait for single request in fetch, the second one should go into waiting state.
+	control.wait_for_requests(1);
+	control.respond();
+
+	let response1 = r1.join().unwrap();
+	let response2 = r2.join().unwrap();
+
+	// then
+	fetch.assert_requested("https://raw.githubusercontent.com/ethcore/dapp-assets/b88e983abaa1a6a6345b8d9448c15b117ddb540e/tokens/gavcoin-64x64.png");
+	fetch.assert_no_more_requests();
+	response1.assert_status("HTTP/1.1 200 OK");
+	response2.assert_status("HTTP/1.1 200 OK");
+}
+
+#[test]
 fn should_stream_web_content() {
 	// given
 	let (server, fetch) = serve_with_fetch("token");
@@ -195,7 +242,7 @@ fn should_stream_web_content() {
 	// when
 	let response = request(server,
 		"\
-			GET /web/token/https/ethcore.io/ HTTP/1.1\r\n\
+			GET /web/token/https/parity.io/ HTTP/1.1\r\n\
 			Host: localhost:8080\r\n\
 			Connection: close\r\n\
 			\r\n\
@@ -206,7 +253,7 @@ fn should_stream_web_content() {
 	response.assert_status("HTTP/1.1 200 OK");
 	assert_security_headers_for_embed(&response.headers);
 
-	fetch.assert_requested("https://ethcore.io/");
+	fetch.assert_requested("https://parity.io/");
 	fetch.assert_no_more_requests();
 }
 
@@ -218,7 +265,7 @@ fn should_return_error_on_invalid_token() {
 	// when
 	let response = request(server,
 		"\
-			GET /web/invalidtoken/https/ethcore.io/ HTTP/1.1\r\n\
+			GET /web/invalidtoken/https/parity.io/ HTTP/1.1\r\n\
 			Host: localhost:8080\r\n\
 			Connection: close\r\n\
 			\r\n\
@@ -240,7 +287,7 @@ fn should_return_error_on_invalid_protocol() {
 	// when
 	let response = request(server,
 		"\
-			GET /web/token/ftp/ethcore.io/ HTTP/1.1\r\n\
+			GET /web/token/ftp/parity.io/ HTTP/1.1\r\n\
 			Host: localhost:8080\r\n\
 			Connection: close\r\n\
 			\r\n\
@@ -250,6 +297,76 @@ fn should_return_error_on_invalid_protocol() {
 	// then
 	response.assert_status("HTTP/1.1 400 Bad Request");
 	assert_security_headers_for_embed(&response.headers);
+
+	fetch.assert_no_more_requests();
+}
+
+#[test]
+fn should_redirect_if_trailing_slash_is_missing() {
+	// given
+	let (server, fetch) = serve_with_fetch("token");
+
+	// when
+	let response = request(server,
+		"\
+			GET /web/token/https/parity.io HTTP/1.1\r\n\
+			Host: localhost:8080\r\n\
+			Connection: close\r\n\
+			\r\n\
+		"
+	);
+
+	// then
+	response.assert_status("HTTP/1.1 302 Found");
+	response.assert_header("Location", "/web/token/https/parity.io/");
+
+	fetch.assert_no_more_requests();
+}
+
+#[test]
+fn should_disallow_non_get_requests() {
+	// given
+	let (server, fetch) = serve_with_fetch("token");
+
+	// when
+	let response = request(server,
+		"\
+			POST /token/https/parity.io/ HTTP/1.1\r\n\
+			Host: web.parity\r\n\
+			Content-Type: application/json\r\n\
+			Connection: close\r\n\
+			\r\n\
+			123\r\n\
+			\r\n\
+		"
+	);
+
+	// then
+	response.assert_status("HTTP/1.1 405 Method Not Allowed");
+	assert_security_headers_for_embed(&response.headers);
+
+	fetch.assert_no_more_requests();
+}
+
+#[test]
+fn should_fix_absolute_requests_based_on_referer() {
+	// given
+	let (server, fetch) = serve_with_fetch("token");
+
+	// when
+	let response = request(server,
+		"\
+			GET /styles.css HTTP/1.1\r\n\
+			Host: localhost:8080\r\n\
+			Connection: close\r\n\
+			Referer: http://localhost:8080/web/token/https/parity.io/\r\n\
+			\r\n\
+		"
+	);
+
+	// then
+	response.assert_status("HTTP/1.1 302 Found");
+	response.assert_header("Location", "/web/token/https/parity.io/styles.css");
 
 	fetch.assert_no_more_requests();
 }

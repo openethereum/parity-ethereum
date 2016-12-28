@@ -14,21 +14,66 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::{io, thread};
-use std::sync::Arc;
-use std::sync::atomic::{self, AtomicUsize};
+use std::{io, thread, time};
+use std::sync::{atomic, mpsc, Arc};
 use util::Mutex;
 
 use futures::{self, Future};
 use fetch::{self, Fetch};
 
+pub struct FetchControl {
+	sender: mpsc::Sender<()>,
+	fetch: FakeFetch,
+}
+
+impl FetchControl {
+	pub fn respond(self) {
+		self.sender.send(())
+			.expect("Fetch cannot be finished without sending a response at least once.");
+	}
+
+	pub fn wait_for_requests(&self, len: usize) {
+		const MAX_TIMEOUT_MS: u64 = 5000;
+		const ATTEMPTS: u64 = 10;
+		let mut attempts_left = ATTEMPTS;
+		loop {
+			let current = self.fetch.requested.lock().len();
+
+			if current == len {
+				break;
+			} else if attempts_left == 0 {
+				panic!(
+					"Timeout reached when waiting for pending requests. Expected: {}, current: {}",
+					len, current
+				);
+			} else {
+				attempts_left -= 1;
+				// Should we handle spurious timeouts better?
+				thread::park_timeout(time::Duration::from_millis(MAX_TIMEOUT_MS / ATTEMPTS));
+			}
+		}
+	}
+}
+
 #[derive(Clone, Default)]
 pub struct FakeFetch {
-	asserted: Arc<AtomicUsize>,
+	manual: Arc<Mutex<Option<mpsc::Receiver<()>>>>,
+	asserted: Arc<atomic::AtomicUsize>,
 	requested: Arc<Mutex<Vec<String>>>,
 }
 
 impl FakeFetch {
+	pub fn manual(&self) -> FetchControl {
+		assert!(self.manual.lock().is_none(), "Only one manual control may be active.");
+		let (tx, rx) = mpsc::channel();
+		*self.manual.lock() = Some(rx);
+
+		FetchControl {
+			sender: tx,
+			fetch: self.clone(),
+		}
+	}
+
 	pub fn assert_requested(&self, url: &str) {
 		let requests = self.requested.lock();
 		let idx = self.asserted.fetch_add(1, atomic::Ordering::SeqCst);
@@ -52,9 +97,15 @@ impl Fetch for FakeFetch {
 
 	fn fetch_with_abort(&self, url: &str, _abort: fetch::Abort) -> Self::Result {
 		self.requested.lock().push(url.into());
+		let manual = self.manual.clone();
 
 		let (tx, rx) = futures::oneshot();
 		thread::spawn(move || {
+			if let Some(rx) = manual.lock().take() {
+				// wait for manual resume
+				let _ = rx.recv();
+			}
+
 			let cursor = io::Cursor::new(b"Some content");
 			tx.complete(fetch::Response::from_reader(cursor));
 		});

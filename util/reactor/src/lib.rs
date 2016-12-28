@@ -67,6 +67,7 @@ impl EventLoop {
 enum Mode {
 	Tokio(TokioRemote),
 	Sync,
+	ThreadPerFuture,
 }
 
 #[derive(Clone)]
@@ -82,6 +83,14 @@ impl Remote {
 		}
 	}
 
+	/// Spawns a new thread for each future (use only for tests).
+	pub fn new_thread_per_future() -> Self {
+		Remote {
+			inner: Mode::ThreadPerFuture,
+		}
+	}
+
+
 	/// Spawn a future to this event loop
 	pub fn spawn<R>(&self, r: R) where
         R: IntoFuture<Item=(), Error=()> + Send + 'static,
@@ -91,6 +100,11 @@ impl Remote {
 			Mode::Tokio(ref remote) => remote.spawn(move |_| r),
 			Mode::Sync => {
 				let _= r.into_future().wait();
+			},
+			Mode::ThreadPerFuture => {
+				thread::spawn(move || {
+					let _= r.into_future().wait();
+				});
 			},
 		}
 	}
@@ -105,6 +119,11 @@ impl Remote {
 			Mode::Tokio(ref remote) => remote.spawn(move |_| f()),
 			Mode::Sync => {
 				let _ = f().into_future().wait();
+			},
+			Mode::ThreadPerFuture => {
+				thread::spawn(move || {
+					let _= f().into_future().wait();
+				});
 			},
 		}
 	}
@@ -127,6 +146,11 @@ impl Remote {
 			}),
 			Mode::Sync => {
 				let _ = f().into_future().wait();
+			},
+			Mode::ThreadPerFuture => {
+				thread::spawn(move || {
+					let _ = f().into_future().wait();
+				});
 			},
 		}
 	}
