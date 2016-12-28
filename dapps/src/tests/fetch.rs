@@ -130,6 +130,70 @@ fn should_return_error_for_invalid_dapp_zip() {
 }
 
 #[test]
+fn should_return_fetched_dapp_content() {
+	// given
+	let (server, fetch, registrar) = serve_with_registrar_and_fetch();
+	let gavcoin = GAVCOIN_DAPP.from_hex().unwrap();
+	registrar.set_result(
+		"9c94e154dab8acf859b30ee80fc828fb1d38359d938751b65db71d460588d82a".parse().unwrap(),
+		Ok(gavcoin.clone())
+	);
+	fetch.set_response(include_bytes!("../../res/gavcoin.zip"));
+
+	// when
+	let response1 = http_client::request(server.addr(),
+		"\
+			GET /index.html HTTP/1.1\r\n\
+			Host: 9c94e154dab8acf859b30ee80fc828fb1d38359d938751b65db71d460588d82a.parity\r\n\
+			Connection: close\r\n\
+			\r\n\
+		"
+	);
+	let response2 = http_client::request(server.addr(),
+		"\
+			GET /manifest.json HTTP/1.1\r\n\
+			Host: 9c94e154dab8acf859b30ee80fc828fb1d38359d938751b65db71d460588d82a.parity\r\n\
+			Connection: close\r\n\
+			\r\n\
+		"
+	);
+
+	// then
+	assert_eq!(registrar.calls.lock().len(), 4);
+
+	fetch.assert_requested("https://codeload.github.com/gavofyork/gavcoin/zip/9faf32e1e3845e237cc6efd27187cee13b3b99db");
+	fetch.assert_no_more_requests();
+
+	response1.assert_status("HTTP/1.1 200 OK");
+	assert_security_headers_for_embed(&response1.headers);
+	assert_eq!(
+		response1.body,
+		r#"18
+<h1>Hello Gavcoin!</h1>
+
+"#
+	);
+
+	response2.assert_status("HTTP/1.1 200 OK");
+	assert_security_headers_for_embed(&response2.headers);
+	assert_eq!(
+		response2.body,
+		r#"BE
+{
+  "id": "9c94e154dab8acf859b30ee80fc828fb1d38359d938751b65db71d460588d82a",
+  "name": "Gavcoin",
+  "description": "Gavcoin",
+  "version": "1.0.0",
+  "author": "",
+  "iconUrl": "icon.png"
+}
+0
+
+"#
+	);
+}
+
+#[test]
 fn should_return_fetched_content() {
 	// given
 	let (server, fetch, registrar) = serve_with_registrar_and_fetch();

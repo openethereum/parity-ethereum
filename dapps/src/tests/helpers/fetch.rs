@@ -58,11 +58,16 @@ impl FetchControl {
 #[derive(Clone, Default)]
 pub struct FakeFetch {
 	manual: Arc<Mutex<Option<mpsc::Receiver<()>>>>,
+	response: Arc<Mutex<Option<&'static [u8]>>>,
 	asserted: Arc<atomic::AtomicUsize>,
 	requested: Arc<Mutex<Vec<String>>>,
 }
 
 impl FakeFetch {
+	pub fn set_response(&self, data: &'static [u8]) {
+		*self.response.lock() = Some(data);
+	}
+
 	pub fn manual(&self) -> FetchControl {
 		assert!(self.manual.lock().is_none(), "Only one manual control may be active.");
 		let (tx, rx) = mpsc::channel();
@@ -98,6 +103,7 @@ impl Fetch for FakeFetch {
 	fn fetch_with_abort(&self, url: &str, _abort: fetch::Abort) -> Self::Result {
 		self.requested.lock().push(url.into());
 		let manual = self.manual.clone();
+		let response = self.response.clone();
 
 		let (tx, rx) = futures::oneshot();
 		thread::spawn(move || {
@@ -106,7 +112,8 @@ impl Fetch for FakeFetch {
 				let _ = rx.recv();
 			}
 
-			let cursor = io::Cursor::new(b"Some content");
+			let data = response.lock().take().unwrap_or(b"Some content");
+			let cursor = io::Cursor::new(data);
 			tx.complete(fetch::Response::from_reader(cursor));
 		});
 
