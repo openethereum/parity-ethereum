@@ -127,7 +127,7 @@ export default class Contract {
         return this
           ._encodeOptions(this.constructors[0], options, values, false)
           .then((_options) => {
-            return this._api.parity.postTransaction(_options)
+            return this._api.parity.postTransaction(_options);
           })
           .then((requestId) => {
             setState({ state: 'checkRequest', requestId });
