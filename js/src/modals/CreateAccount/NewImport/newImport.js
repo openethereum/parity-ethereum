@@ -31,7 +31,8 @@ const STYLE_HIDDEN = { display: 'none' };
 
 export default class NewImport extends Component {
   static propTypes = {
-    onChange: PropTypes.func.isRequired
+    onChange: PropTypes.func.isRequired,
+    store: PropTypes.object.isRequired
   }
 
   state = {

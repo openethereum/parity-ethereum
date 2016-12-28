@@ -21,7 +21,8 @@ import styles from './accountDetailsGeth.css';
 
 export default class AccountDetailsGeth extends Component {
   static propTypes = {
-    addresses: PropTypes.array
+    addresses: PropTypes.array,
+    store: PropTypes.object.isRequired
   }
 
   render () {

@@ -29,7 +29,8 @@ export default class NewGeth extends Component {
 
   static propTypes = {
     accounts: PropTypes.object.isRequired,
-    onChange: PropTypes.func.isRequired
+    onChange: PropTypes.func.isRequired,
+    store: PropTypes.object.isRequired
   }
 
   state = {

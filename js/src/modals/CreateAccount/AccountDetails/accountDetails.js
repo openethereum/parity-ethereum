@@ -23,7 +23,8 @@ export default class AccountDetails extends Component {
   static propTypes = {
     address: PropTypes.string,
     name: PropTypes.string,
-    phrase: PropTypes.string
+    phrase: PropTypes.string,
+    store: PropTypes.object.isRequired
   }
 
   render () {

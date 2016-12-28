@@ -19,6 +19,7 @@ import { FormattedMessage } from 'react-intl';
 import IconButton from 'material-ui/IconButton';
 import { RadioButton, RadioButtonGroup } from 'material-ui/RadioButton';
 
+import { newError } from '~/redux/actions';
 import { Form, Input, IdentityIcon } from '~/ui';
 import { RefreshIcon } from '~/ui/Icons';
 
@@ -28,12 +29,12 @@ import styles from '../createAccount.css';
 
 export default class CreateAccount extends Component {
   static contextTypes = {
-    api: PropTypes.object.isRequired,
-    store: PropTypes.object.isRequired
+    api: PropTypes.object.isRequired
   }
 
   static propTypes = {
-    onChange: PropTypes.func.isRequired
+    onChange: PropTypes.func.isRequired,
+    store: PropTypes.object.isRequired
   }
 
   state = {
@@ -226,7 +227,7 @@ export default class CreateAccount extends Component {
       .catch((error) => {
         console.error('createIdentities', error);
         setTimeout(this.createIdentities, 1000);
-        this.newError(error);
+        newError(error);
       });
   }
 
@@ -305,11 +306,5 @@ export default class CreateAccount extends Component {
       password2Error,
       isValidPass: !password2Error
     }, this.updateParent);
-  }
-
-  newError = (error) => {
-    const { store } = this.context;
-
-    store.dispatch({ type: 'newError', error });
   }
 }

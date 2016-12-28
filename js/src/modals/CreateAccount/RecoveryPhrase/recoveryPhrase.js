@@ -26,7 +26,8 @@ import ERRORS from '../errors';
 
 export default class RecoveryPhrase extends Component {
   static propTypes = {
-    onChange: PropTypes.func.isRequired
+    onChange: PropTypes.func.isRequired,
+    store: PropTypes.object.isRequired
   }
 
   state = {

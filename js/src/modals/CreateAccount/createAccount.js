@@ -110,43 +110,50 @@ export default class CreateAccount extends Component {
       case 0:
         return (
           <CreationType
-            onChange={ this.onChangeType } />
+            onChange={ this.onChangeType }
+            store={ this.store } />
         );
 
       case 1:
         if (createType === 'fromNew') {
           return (
             <NewAccount
-              onChange={ this.onChangeDetails } />
+              onChange={ this.onChangeDetails }
+              store={ this.store } />
           );
         } else if (createType === 'fromGeth') {
           return (
             <NewGeth
               accounts={ accounts }
-              onChange={ this.onChangeGeth } />
+              onChange={ this.onChangeGeth }
+              store={ this.store } />
           );
         } else if (createType === 'fromPhrase') {
           return (
             <RecoveryPhrase
-              onChange={ this.onChangeDetails } />
+              onChange={ this.onChangeDetails }
+              store={ this.store } />
           );
         } else if (createType === 'fromRaw') {
           return (
             <RawKey
-              onChange={ this.onChangeDetails } />
+              onChange={ this.onChangeDetails }
+              store={ this.store } />
           );
         }
 
         return (
           <NewImport
-            onChange={ this.onChangeWallet } />
+            onChange={ this.onChangeWallet }
+            store={ this.store } />
         );
 
       case 2:
         if (createType === 'fromGeth') {
           return (
             <AccountDetailsGeth
-              addresses={ this.state.gethAddresses } />
+              addresses={ this.state.gethAddresses }
+              store={ this.store } />
           );
         }
 
@@ -154,7 +161,8 @@ export default class CreateAccount extends Component {
           <AccountDetails
             address={ this.state.address }
             name={ this.state.name }
-            phrase={ this.state.phrase } />
+            phrase={ this.state.phrase }
+            store={ this.store } />
         );
     }
   }

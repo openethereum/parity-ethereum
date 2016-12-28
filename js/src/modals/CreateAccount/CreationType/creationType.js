@@ -22,7 +22,8 @@ import styles from '../createAccount.css';
 
 export default class CreationType extends Component {
   static propTypes = {
-    onChange: PropTypes.func.isRequired
+    onChange: PropTypes.func.isRequired,
+    store: PropTypes.object.isRequired
   }
 
   componentWillMount () {

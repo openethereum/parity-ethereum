@@ -29,7 +29,8 @@ export default class RawKey extends Component {
   }
 
   static propTypes = {
-    onChange: PropTypes.func.isRequired
+    onChange: PropTypes.func.isRequired,
+    store: PropTypes.object.isRequired
   }
 
   state = {
