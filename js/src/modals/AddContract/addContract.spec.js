@@ -20,7 +20,7 @@ import sinon from 'sinon';
 
 import AddContract from './';
 
-import { createApi } from './addContract.test.js';
+import { CONTRACTS, createApi } from './addContract.test.js';
 
 let component;
 let onClose;
@@ -30,6 +30,7 @@ function renderShallow (props) {
   component = shallow(
     <AddContract
       { ...props }
+      contracts={ CONTRACTS }
       onClose={ onClose } />,
     {
       context: {

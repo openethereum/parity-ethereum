@@ -16,6 +16,27 @@
 
 import sinon from 'sinon';
 
+const ABI = [
+  {
+    'constant': true,
+    'inputs': [],
+    'name': 'totalDonated',
+    'outputs': [{ 'name': '', 'type': 'uint256' }],
+    'type': 'function'
+  },
+  {
+    'constant': false,
+    'inputs': [{ 'name': 'name', 'type': 'string' }],
+    'name': 'personAdd',
+    'outputs': [],
+    'type': 'function'
+  }
+];
+
+const CONTRACTS = {
+  '0x1234567890123456789012345678901234567890': {}
+};
+
 function createApi () {
   return {
     parity: {
@@ -26,5 +47,7 @@ function createApi () {
 }
 
 export {
+  ABI,
+  CONTRACTS,
   createApi
 };

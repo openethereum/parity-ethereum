@@ -31,6 +31,7 @@ export default class Store {
   @observable description = null;
   @observable name = '';
   @observable nameError = ERRORS.invalidName;
+  @observable step = 0;
 
   constructor (api, contracts) {
     this._api = api;
@@ -45,6 +46,14 @@ export default class Store {
 
   @computed get hasError () {
     return !!(this.abiError || this.addressError || this.nameError);
+  }
+
+  @action nextStep = () => {
+    this.step++;
+  }
+
+  @action prevStep = () => {
+    this.step--;
   }
 
   @action setAbi = (_abi) => {

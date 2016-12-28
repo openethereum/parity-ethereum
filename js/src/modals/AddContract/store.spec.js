@@ -16,24 +16,81 @@
 
 import Store from './store';
 
-import { createApi } from './addContract.test.js';
+import { CONTRACTS, createApi } from './addContract.test.js';
 
 let api;
 let store;
 
 function createStore () {
   api = createApi();
-  store = new Store(api);
+  store = new Store(api, CONTRACTS);
 }
 
 describe('modals/AddContract/Store', () => {
-  describe('constructor', () => {
-    beforeEach(() => {
-      createStore();
-    });
+  beforeEach(() => {
+    createStore();
+  });
 
+  describe('constructor', () => {
     it('creates an instance', () => {
       expect(store).to.be.ok;
+    });
+  });
+
+  describe('@actions', () => {
+    describe('nextStep/prevStep', () => {
+      it('moves to the next/prev step', () => {
+        expect(store.step).to.equal(0);
+        store.nextStep();
+        expect(store.step).to.equal(1);
+        store.prevStep();
+        expect(store.step).to.equal(0);
+      });
+    });
+
+    describe('setAddress', () => {
+      const INVALID_ADDR = '0x123';
+      const VALID_ADDR = '0x5A5eFF38DA95b0D58b6C616f2699168B480953C9';
+      const DUPE_ADDR = Object.keys(CONTRACTS)[0];
+
+      it('sets a valid address', () => {
+        store.setAddress(VALID_ADDR);
+        expect(store.address).to.equal(VALID_ADDR);
+        expect(store.addressError).to.be.null;
+      });
+
+      it('sets the error on invalid address', () => {
+        store.setAddress(INVALID_ADDR);
+        expect(store.address).to.equal(INVALID_ADDR);
+        expect(store.addressError).not.to.be.null;
+      });
+
+      it('sets the error on suplicate address', () => {
+        store.setAddress(DUPE_ADDR);
+        expect(store.address).to.equal(DUPE_ADDR);
+        expect(store.addressError).not.to.be.null;
+      });
+    });
+
+    describe('setDescription', () => {
+      it('sets the description', () => {
+        store.setDescription('test description');
+        expect(store.description).to.equal('test description');
+      });
+    });
+
+    describe('setName', () => {
+      it('sets the name', () => {
+        store.setName('some name');
+        expect(store.name).to.equal('some name');
+        expect(store.nameError).to.be.null;
+      });
+
+      it('sets the error', () => {
+        store.setName('s');
+        expect(store.name).to.equal('s');
+        expect(store.nameError).not.to.be.null;
+      });
     });
   });
 });

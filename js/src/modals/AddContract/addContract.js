@@ -35,15 +35,10 @@ export default class AddContract extends Component {
     onClose: PropTypes.func
   };
 
-  store = new Store(this.context.api);
-
-  state = {
-    abiParsed: null,
-    step: 0
-  };
+  store = new Store(this.context.api, this.props.contracts);
 
   render () {
-    const { step } = this.state;
+    const { step } = this.store;
 
     return (
       <Modal
@@ -60,12 +55,14 @@ export default class AddContract extends Component {
             key='details' />
         ] }
         visible>
-        { this.renderStep(step) }
+        { this.renderStep() }
       </Modal>
     );
   }
 
-  renderStep (step) {
+  renderStep () {
+    const { step } = this.store;
+
     switch (step) {
       case 0:
         return this.renderContractTypeSelector();
@@ -89,7 +86,7 @@ export default class AddContract extends Component {
   }
 
   renderDialogActions () {
-    const { step } = this.state;
+    const { step } = this.store;
 
     const cancelBtn = (
       <Button
@@ -209,11 +206,11 @@ export default class AddContract extends Component {
   }
 
   onNext = () => {
-    this.setState({ step: this.state.step + 1 });
+    this.store.nextStep();
   }
 
   onPrev = () => {
-    this.setState({ step: this.state.step - 1 });
+    this.store.prevStep();
   }
 
   onChangeABIType = (value, index) => {
