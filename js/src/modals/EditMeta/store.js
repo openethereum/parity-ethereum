@@ -34,14 +34,16 @@ export default class Store {
 
     this._api = api;
 
-    this.isAccount = !!uuid;
-    this.address = address;
-    this.meta = meta || {};
-    this.name = name || '';
+    transaction(() => {
+      this.isAccount = !!uuid;
+      this.address = address;
+      this.meta = meta || {};
+      this.name = name || '';
 
-    this.description = this.meta.description || '';
-    this.passwordHint = this.meta.passwordHint || '';
-    this.tags = [].concat(this.meta.tags || []);
+      this.description = this.meta.description || '';
+      this.passwordHint = this.meta.passwordHint || '';
+      this.tags = this.meta.tags && this.meta.tags.peek() || [];
+    });
   }
 
   @computed get hasError () {
@@ -70,7 +72,7 @@ export default class Store {
   }
 
   @action setTags = (tags) => {
-    this.tags = [].concat(tags);
+    this.tags = tags.slice();
   }
 
   save () {
