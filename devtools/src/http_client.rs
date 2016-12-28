@@ -28,6 +28,11 @@ pub struct Response {
 }
 
 impl Response {
+	pub fn assert_header(&self, header: &str, value: &str) {
+		let header = format!("{}: {}", header, value);
+		assert!(self.headers.iter().find(|h| *h == &header).is_some(), "Couldn't find header {} in {:?}", header, &self.headers)
+	}
+
 	pub fn assert_status(&self, status: &str) {
 		assert_eq!(self.status, status.to_owned(), "Got unexpected code. Body: {:?}", self.body);
 	}
@@ -75,7 +80,7 @@ fn connect(address: &SocketAddr) -> TcpStream {
 
 pub fn request(address: &SocketAddr, request: &str) -> Response {
 	let mut req = connect(address);
-	req.set_read_timeout(Some(Duration::from_secs(1))).unwrap();
+	req.set_read_timeout(Some(Duration::from_secs(2))).unwrap();
 	req.write_all(request.as_bytes()).unwrap();
 
 	let mut response = String::new();
