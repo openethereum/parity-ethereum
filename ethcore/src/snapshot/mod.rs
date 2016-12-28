@@ -190,8 +190,7 @@ impl<'a> BlockChunker<'a> {
 				.and_then(|b| self.chain.block_receipts(&self.current_hash).map(|r| (b, r)))
 				.ok_or(Error::BlockNotFound(self.current_hash))?;
 
-			let view = BlockView::new(&block);
-			let abridged_rlp = AbridgedBlock::from_block_view(&view).into_inner();
+			let abridged_rlp = AbridgedBlock::from_block_view(&block.view()).into_inner();
 
 			let pair = {
 				let mut pair_stream = RlpStream::new_list(2);
@@ -213,7 +212,7 @@ impl<'a> BlockChunker<'a> {
 			self.rlps.push_front(pair);
 
 			last = self.current_hash;
-			self.current_hash = view.header_view().parent_hash();
+			self.current_hash = block.header_view().parent_hash();
 		}
 
 		if loaded_size != 0 {

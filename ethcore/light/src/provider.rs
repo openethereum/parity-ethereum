@@ -21,6 +21,7 @@ use ethcore::blockchain_info::BlockChainInfo;
 use ethcore::client::{BlockChainClient, ProvingBlockChainClient};
 use ethcore::transaction::PendingTransaction;
 use ethcore::ids::BlockId;
+use ethcore::encoded;
 
 use util::{Bytes, H256};
 
@@ -52,9 +53,8 @@ pub trait Provider: Send + Sync {
 	///
 	/// The returned vector may have any length in the range [0, `max`], but the
 	/// results within must adhere to the `skip` and `reverse` parameters.
-	fn block_headers(&self, req: request::Headers) -> Vec<Bytes> {
+	fn block_headers(&self, req: request::Headers) -> Vec<encoded::Header> {
 		use request::HashOrNumber;
-		use ethcore::views::HeaderView;
 
 		if req.max == 0 { return Vec::new() }
 
@@ -67,9 +67,9 @@ pub trait Provider: Send + Sync {
 					return Vec::new();
 				}
 				Some(header) => {
-					let num = HeaderView::new(&header).number();
+					let num = header.number();
 					let canon_hash = self.block_header(BlockId::Number(num))
-						.map(|h| HeaderView::new(&h).hash());
+						.map(|h| h.hash());
 
 					if req.max == 1 || canon_hash != Some(hash) {
 						// Non-canonical header or single header requested.
@@ -92,19 +92,18 @@ pub trait Provider: Send + Sync {
 	}
 
 	/// Get a block header by id.
-	fn block_header(&self, id: BlockId) -> Option<Bytes>;
+	fn block_header(&self, id: BlockId) -> Option<encoded::Header>;
 
 	/// Provide as many as possible of the requested blocks (minus the headers) encoded
 	/// in RLP format.
-	fn block_bodies(&self, req: request::Bodies) -> Vec<Bytes> {
+	fn block_bodies(&self, req: request::Bodies) -> Vec<Option<encoded::Body>> {
 		req.block_hashes.into_iter()
 			.map(|hash| self.block_body(BlockId::Hash(hash)))
-			.map(|body| body.unwrap_or_else(|| ::rlp::EMPTY_LIST_RLP.to_vec()))
 			.collect()
 	}
 
 	/// Get a block body by id.
-	fn block_body(&self, id: BlockId) -> Option<Bytes>;
+	fn block_body(&self, id: BlockId) -> Option<encoded::Body>;
 
 	/// Provide the receipts as many as possible of the requested blocks.
 	/// Returns a vector of RLP-encoded lists of receipts.
@@ -169,7 +168,7 @@ pub trait Provider: Send + Sync {
 				None => rlp::EMPTY_LIST_RLP.to_vec(),
 				Some((header, proof)) => {
 					let mut stream = RlpStream::new_list(2);
-					stream.append_raw(&header, 1).begin_list(proof.len());
+					stream.append_raw(&header.into_inner(), 1).begin_list(proof.len());
 
 					for node in proof {
 						stream.append_raw(&node, 1);
@@ -184,7 +183,7 @@ pub trait Provider: Send + Sync {
 	/// Provide a header proof from a given Canonical Hash Trie as well as the
 	/// corresponding header. The first element is the block header and the
 	/// second is a merkle proof of the CHT.
-	fn header_proof(&self, req: request::HeaderProof) -> Option<(Bytes, Vec<Bytes>)>;
+	fn header_proof(&self, req: request::HeaderProof) -> Option<(encoded::Header, Vec<Bytes>)>;
 
 	/// Provide pending transactions.
 	fn ready_transactions(&self) -> Vec<PendingTransaction>;
@@ -204,11 +203,11 @@ impl<T: ProvingBlockChainClient + ?Sized> Provider for T {
 		Some(self.pruning_info().earliest_state)
 	}
 
-	fn block_header(&self, id: BlockId) -> Option<Bytes> {
+	fn block_header(&self, id: BlockId) -> Option<encoded::Header> {
 		BlockChainClient::block_header(self, id)
 	}
 
-	fn block_body(&self, id: BlockId) -> Option<Bytes> {
+	fn block_body(&self, id: BlockId) -> Option<encoded::Body> {
 		BlockChainClient::block_body(self, id)
 	}
 
@@ -227,7 +226,7 @@ impl<T: ProvingBlockChainClient + ?Sized> Provider for T {
 		self.code_by_hash(req.account_key, BlockId::Hash(req.block_hash))
 	}
 
-	fn header_proof(&self, _req: request::HeaderProof) -> Option<(Bytes, Vec<Bytes>)> {
+	fn header_proof(&self, _req: request::HeaderProof) -> Option<(encoded::Header, Vec<Bytes>)> {
 		None
 	}
 
