@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { pick } from 'lodash';
+import { pick, omitBy } from 'lodash';
 import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
@@ -552,13 +552,19 @@ class DeployContract extends Component {
 }
 
 function mapStateToProps (initState, initProps) {
-  const fromAddresses = Object.keys(initProps.accounts);
+  const { accounts } = initProps;
+
+  // Skip Wallet accounts : they can't create Contracts
+  const _accounts = omitBy(accounts, (a) => a.wallet);
+
+  const fromAddresses = Object.keys(_accounts);
 
   return (state) => {
     const balances = pick(state.balances.balances, fromAddresses);
     const { gasLimit } = state.nodeStatus;
 
     return {
+      accounts: _accounts,
       balances,
       gasLimit
     };

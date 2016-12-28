@@ -37,12 +37,13 @@ class WalletSettings extends Component {
 
   static propTypes = {
     accounts: PropTypes.object.isRequired,
+    accountsInfo: PropTypes.object.isRequired,
     wallet: PropTypes.object.isRequired,
     onClose: PropTypes.func.isRequired,
     senders: PropTypes.object.isRequired
   };
 
-  store = new WalletSettingsStore(this.context.api, this.props.wallet);
+  store = new WalletSettingsStore(this.context.api, this.props.wallet, this.props.accounts);
 
   render () {
     const { stage, steps, waiting, rejected } = this.store;
@@ -113,7 +114,7 @@ class WalletSettings extends Component {
       default:
       case 'EDIT':
         const { wallet, errors } = this.store;
-        const { accounts, senders } = this.props;
+        const { accountsInfo, senders } = this.props;
 
         return (
           <Form>
@@ -137,7 +138,7 @@ class WalletSettings extends Component {
               label='other wallet owners'
               value={ wallet.owners.slice() }
               onChange={ this.store.onOwnersChange }
-              accounts={ accounts }
+              accounts={ accountsInfo }
               param='address[]'
             />
 
@@ -190,7 +191,7 @@ class WalletSettings extends Component {
   }
 
   renderChange (change) {
-    const { accounts } = this.props;
+    const { accountsInfo } = this.props;
 
     switch (change.type) {
       case 'dailylimit':
@@ -229,7 +230,7 @@ class WalletSettings extends Component {
               <InputAddress
                 disabled
                 value={ change.value }
-                accounts={ accounts }
+                accounts={ accountsInfo }
               />
             </div>
           </div>
@@ -243,7 +244,7 @@ class WalletSettings extends Component {
               <InputAddress
                 disabled
                 value={ change.value }
-                accounts={ accounts }
+                accounts={ accountsInfo }
               />
             </div>
           </div>
@@ -329,7 +330,7 @@ function mapStateToProps (initState, initProps) {
   const senders = pick(accounts, owners);
 
   return () => {
-    return { accounts: accountsInfo, senders };
+    return { accounts, accountsInfo, senders };
   };
 }
 

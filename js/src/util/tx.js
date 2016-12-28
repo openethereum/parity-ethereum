@@ -59,11 +59,11 @@ export function waitForConfirmations (api, tx, confirmations) {
  * in the case of a Wallet (ie. set Wallet to true and set the owner
  * as the first owned account in the owners Array).
  */
-export function getTxExtras (accounts, options) {
+export function addTxOwner (accounts, options) {
   const account = accounts[options.from];
 
   if (!account || !account.wallet) {
-    return {};
+    return options;
   }
 
   const owners = (account.owners || []).map((o) => o.address);
@@ -72,8 +72,8 @@ export function getTxExtras (accounts, options) {
   const owner = intersection(owners, addresses).pop();
 
   if (!owner) {
-    return {};
+    return options;
   }
 
-  return { wallet: true, owner };
+  return { ...options, wallet: true, owner };
 }

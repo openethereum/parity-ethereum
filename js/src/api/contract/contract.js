@@ -14,6 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import BigNumber from 'bignumber.js';
+
 import Abi from '../../abi';
 
 let walletContract;
@@ -92,7 +94,7 @@ export default class Contract {
 
   deployEstimateGas (options, values) {
     return this._api.eth
-      .estimateGas(this._encodeOptions(this.constructors[0], options, values))
+      .estimateGas(this._encodeOptions(this.constructors[0], options, values, false))
       .then((gasEst) => {
         return [gasEst, gasEst.mul(1.2)];
       });
@@ -117,7 +119,7 @@ export default class Contract {
         setState({ state: 'postTransaction', gas });
 
         return this._api.parity
-          .postTransaction(this._encodeOptions(this.constructors[0], options, values))
+          .postTransaction(this._encodeOptions(this.constructors[0], options, values, false))
           .then((requestId) => {
             setState({ state: 'checkRequest', requestId });
             return this._pollCheckRequest(requestId);
@@ -210,8 +212,30 @@ export default class Contract {
     return `0x${data || ''}${call || ''}`;
   }
 
-  _encodeOptions (func, options, values) {
+  _encodeOptions (func, options, values, tryWallet = true) {
     options.data = this.getCallData(func, options, values);
+
+    if (tryWallet && options.wallet && options.owner) {
+      const _options = Object.assign({}, options);
+      const { from, to, value = new BigNumber(0), data, owner } = options;
+
+      delete _options.data;
+      delete _options.owner;
+      delete _options.wallet;
+
+      const nextValues = [ to, value, data ];
+      const nextOptions = {
+        ..._options,
+        from: owner,
+        to: from
+      };
+
+      const execFunc = walletContract.instance.execute;
+      nextOptions.data = this.getCallData(execFunc, nextOptions, nextValues);
+
+      return nextOptions;
+    }
+
     return options;
   }
 
@@ -233,31 +257,13 @@ export default class Contract {
     };
 
     if (!func.constant) {
-      func._encodeOptions = (options, values = [], extras = {}) => {
+      func.postTransaction = (options, values = []) => {
         const _options = this._encodeOptions(func, this._addOptionsTo(options), values);
-
-        if (extras && extras.wallet && extras.owner) {
-          const { from, to, value, data } = _options;
-
-          const nextValues = [ to, value, data ];
-          const nextOptions = {
-            from: extras.owner,
-            to: from
-          };
-
-          return walletContract._encodeOptions(walletContract.instance.execute, nextOptions, nextValues);
-        }
-
-        return _options;
-      };
-
-      func.postTransaction = (options, values = [], extras = {}) => {
-        let _options = func._encodeOptions(options, values, extras);
         return this._api.parity.postTransaction(_options);
       };
 
-      func.estimateGas = (options, values = [], extras = {}) => {
-        let _options = func._encodeOptions(options, values, extras);
+      func.estimateGas = (options, values = []) => {
+        const _options = this._encodeOptions(func, this._addOptionsTo(options), values);
         return this._api.eth.estimateGas(_options);
       };
     }

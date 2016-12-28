@@ -22,6 +22,7 @@ import { ERROR_CODES } from '~/api/transport/error';
 import { wallet as WALLET_ABI } from '~/contracts/abi';
 import { MAX_GAS_ESTIMATION } from '~/util/constants';
 import WalletsUtils from '~/util/wallets';
+import { addTxOwner } from '~/util/tx';
 
 import { newError } from '~/ui/Errors/actions';
 
@@ -41,7 +42,7 @@ export function revokeOperation (address, owner, operation) {
 
 function modifyOperation (method, address, owner, operation) {
   return (dispatch, getState) => {
-    const { api } = getState();
+    const { api, personal } = getState();
     const contract = new Contract(api, WALLET_ABI).at(address);
 
     const options = {
@@ -54,10 +55,10 @@ function modifyOperation (method, address, owner, operation) {
     dispatch(setOperationPendingState(address, operation, true));
 
     contract.instance[method]
-      .estimateGas(options, values)
+      .estimateGas(addTxOwner(personal.accounts, options), values)
       .then((gas) => {
         options.gas = gas.mul(1.2);
-        return contract.instance[method].postTransaction(options, values);
+        return contract.instance[method].postTransaction(addTxOwner(personal.accounts, options), values);
       })
       .then((requestId) => {
         return api

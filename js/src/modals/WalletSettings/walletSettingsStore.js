@@ -20,6 +20,7 @@ import BigNumber from 'bignumber.js';
 import { validateUint, validateAddress } from '~/util/validation';
 import { DEFAULT_GAS, MAX_GAS_ESTIMATION } from '~/util/constants';
 import { ERROR_CODES } from '~/api/transport/error';
+import { addTxOwner } from '~/util/tx';
 
 const STEPS = {
   EDIT: { title: 'wallet settings' },
@@ -28,6 +29,8 @@ const STEPS = {
 };
 
 export default class WalletSettingsStore {
+  accounts = {};
+
   @observable step = null;
   @observable requests = [];
   @observable deployState = '';
@@ -125,11 +128,12 @@ export default class WalletSettingsStore {
     return changes;
   }
 
-  constructor (api, wallet) {
+  constructor (api, wallet, accounts) {
     this.api = api;
     this.step = this.stepsKeys[0];
 
     this.walletInstance = wallet.instance;
+    this.accounts = accounts;
 
     this.initialWallet = {
       address: wallet.address,
@@ -220,7 +224,7 @@ export default class WalletSettingsStore {
     };
 
     return method
-      .estimateGas(options, values)
+      .estimateGas(addTxOwner(this.accounts, options), values)
       .then((gasEst) => {
         let gas = gasEst;
 
@@ -229,7 +233,7 @@ export default class WalletSettingsStore {
         }
         options.gas = gas;
 
-        return method.postTransaction(options, values);
+        return method.postTransaction(addTxOwner(this.accounts, options), values);
       });
   }
 
