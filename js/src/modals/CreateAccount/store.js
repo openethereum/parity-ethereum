@@ -21,11 +21,16 @@ const STAGE_CREATE = 1;
 const STAGE_INFO = 2;
 
 export default class Store {
+  @observable address = null;
   @observable createType = 'fromNew';
   @observable stage = STAGE_SELECT_TYPE;
 
   constructor (api) {
     this._api = api;
+  }
+
+  @action setAddress = (address) => {
+    this.address = address;
   }
 
   @action setCreateType = (createType) => {

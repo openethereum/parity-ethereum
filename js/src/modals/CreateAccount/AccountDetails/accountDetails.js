@@ -21,14 +21,14 @@ import { Form, Input, InputAddress } from '~/ui';
 
 export default class AccountDetails extends Component {
   static propTypes = {
-    address: PropTypes.string,
     name: PropTypes.string,
     phrase: PropTypes.string,
     store: PropTypes.object.isRequired
   }
 
   render () {
-    const { address, name } = this.props;
+    const { address } = this.props.store;
+    const { name } = this.props;
 
     return (
       <Form>

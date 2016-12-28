@@ -72,7 +72,6 @@ export default class CreateAccount extends Component {
   store = new Store(this.context.api);
 
   state = {
-    address: null,
     name: null,
     passwordHint: null,
     password: null,
@@ -158,7 +157,6 @@ export default class CreateAccount extends Component {
 
         return (
           <AccountDetails
-            address={ this.state.address }
             name={ this.state.name }
             phrase={ this.state.phrase }
             store={ this.store } />
@@ -287,7 +285,8 @@ export default class CreateAccount extends Component {
       return api.parity
         .newAccountFromPhrase(phrase, this.state.password)
         .then((address) => {
-          this.setState({ address });
+          this.store.setAddress(address);
+
           return api.parity
             .setAccountName(address, this.state.name)
             .then(() => api.parity.setAccountMeta(address, {
@@ -312,7 +311,8 @@ export default class CreateAccount extends Component {
       return api.parity
         .newAccountFromSecret(this.state.rawKey, this.state.password)
         .then((address) => {
-          this.setState({ address });
+          this.store.setAddress(address);
+
           return api.parity
             .setAccountName(address, this.state.name)
             .then(() => api.parity.setAccountMeta(address, {
@@ -361,9 +361,7 @@ export default class CreateAccount extends Component {
     return api.parity
       .newAccountFromWallet(this.state.json, this.state.password)
       .then((address) => {
-        this.setState({
-          address: address
-        });
+        this.store.setAddress(address);
 
         return api.parity
           .setAccountName(address, this.state.name)
@@ -397,8 +395,9 @@ export default class CreateAccount extends Component {
   }
 
   onChangeDetails = (canCreate, { name, passwordHint, address, password, phrase, rawKey, windowsPhrase }) => {
+    this.store.setAddress(address);
+
     this.setState({
-      address,
       canCreate,
       name,
       password,
@@ -434,7 +433,8 @@ export default class CreateAccount extends Component {
   }
 
   printPhrase = () => {
-    const { address, phrase, name } = this.state;
+    const { address } = this.store;
+    const { phrase, name } = this.state;
     const identity = createIdentityImg(address);
 
     print(recoveryPage({

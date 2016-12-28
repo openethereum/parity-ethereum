@@ -44,6 +44,15 @@ describe('modals/CreateAccount/Store', () => {
   });
 
   describe('@action', () => {
+    describe('setAddress', () => {
+      const ADDR = '0x1234567890123456789012345678901234567890';
+
+      it('sets the address', () => {
+        store.setAddress(ADDR);
+        expect(store.address).to.equal(ADDR);
+      });
+    });
+
     describe('setCreateType', () => {
       it('allows changing the type', () => {
         store.setCreateType('testing');
