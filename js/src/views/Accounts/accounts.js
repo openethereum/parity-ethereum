@@ -118,7 +118,7 @@ class Accounts extends Component {
       return this.renderLoading(this.props.accounts);
     }
 
-    const { accounts, hasAccounts, balances } = this.props;
+    const { accounts, balances } = this.props;
     const { searchValues, sortOrder } = this.state;
 
     const _accounts = omitBy(accounts, (a) => a.wallet);
@@ -193,7 +193,7 @@ class Accounts extends Component {
   renderActionbar () {
     const { accounts } = this.props;
 
-      const buttons = [
+    const buttons = [
       <Button
         key='newAccount'
         icon={ <ContentAdd /> }
