@@ -81,7 +81,7 @@ export default class AccountDetails extends Component {
         }
         label={
           <FormattedMessage
-            id='createAccount.accountDetails.phrsae.label'
+            id='createAccount.accountDetails.phrase.label'
             defaultMessage='owner recovery phrase (keep private and secure, it allows full and unlimited access to the account)' />
         }
         readOnly

@@ -86,16 +86,17 @@ export default class CreateAccount extends Component {
 
   render () {
     const { createType, stage } = this.store;
-    const steps = createType === 'fromNew'
-      ? STAGE_NAMES
-      : STAGE_IMPORT;
 
     return (
       <Modal
         visible
         actions={ this.renderDialogActions() }
         current={ stage }
-        steps={ steps }>
+        steps={
+          createType === 'fromNew'
+            ? STAGE_NAMES
+            : STAGE_IMPORT
+        }>
         { this.renderWarning() }
         { this.renderPage() }
       </Modal>
@@ -171,7 +172,12 @@ export default class CreateAccount extends Component {
     const cancelBtn = (
       <Button
         icon={ <CancelIcon /> }
-        label='Cancel'
+        key='cancel'
+        label={
+          <FormattedMessage
+            id='createAccount.button.cancel'
+            defaultMessage='Cancel' />
+        }
         onClick={ this.onClose } />
     );
 
@@ -181,39 +187,64 @@ export default class CreateAccount extends Component {
           cancelBtn,
           <Button
             icon={ <NextIcon /> }
-            label='Next'
+            key='next'
+            label={
+              <FormattedMessage
+                id='createAccount.button.next'
+                defaultMessage='Next' />
+            }
             onClick={ this.store.nextStage } />
         ];
 
       case 1:
-        const createLabel = createType === 'fromNew'
-          ? 'Create'
-          : 'Import';
-
         return [
           cancelBtn,
           <Button
             icon={ <PrevIcon /> }
-            label='Back'
+            key='back'
+            label={
+              <FormattedMessage
+                id='createAccount.button.back'
+                defaultMessage='Back' />
+            }
             onClick={ this.store.prevStage } />,
           <Button
-            icon={ <CheckIcon /> }
-            label={ createLabel }
             disabled={ !this.state.canCreate }
+            icon={ <CheckIcon /> }
+            key='create'
+            label={
+              createType === 'fromNew'
+                ? <FormattedMessage
+                  id='createAccount.button.create'
+                  defaultMessage='Create' />
+                : <FormattedMessage
+                  id='createAccount.button.import'
+                  defaultMessage='Import' />
+            }
             onClick={ this.onCreate } />
         ];
 
       case 2:
         return [
-          createType === 'fromNew' || createType === 'fromPhrase' ? (
-            <Button
+          ['fromNew', 'fromPhrase'].includes(createType)
+            ? <Button
               icon={ <PrintIcon /> }
-              label='Print Phrase'
+              key='print'
+              label={
+                <FormattedMessage
+                  id='createAccount.button.print'
+                  defaultMessage='Print Phrase' />
+              }
               onClick={ this.printPhrase } />
-          ) : null,
+            : null,
           <Button
             icon={ <DoneIcon /> }
-            label='Close'
+            key='close'
+            label={
+              <FormattedMessage
+                id='createAccount.button.close'
+                defaultMessage='Close' />
+            }
             onClick={ this.onClose } />
         ];
     }
@@ -244,7 +275,7 @@ export default class CreateAccount extends Component {
       canCreate: false
     });
 
-    if (createType === 'fromNew' || createType === 'fromPhrase') {
+    if (['fromNew', 'fromPhrase'].includes(createType)) {
       let phrase = this.state.phrase;
       if (createType === 'fromPhrase' && windowsPhrase) {
         phrase = phrase
