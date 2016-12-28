@@ -66,6 +66,7 @@ extern crate rlp;
 extern crate smallvec;
 extern crate time;
 extern crate futures;
+extern crate rand;
 
 #[cfg(feature = "ipc")]
 extern crate ethcore_ipc as ipc;
