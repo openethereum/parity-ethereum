@@ -121,12 +121,15 @@ class Accounts extends Component {
     const { accounts, hasAccounts, balances } = this.props;
     const { searchValues, sortOrder } = this.state;
 
+    const _accounts = omitBy(accounts, (a) => a.wallet);
+    const _hasAccounts = Object.keys(_accounts).length > 0;
+
     return (
       <List
         search={ searchValues }
-        accounts={ accounts }
+        accounts={ _accounts }
         balances={ balances }
-        empty={ !hasAccounts }
+        empty={ !_hasAccounts }
         order={ sortOrder }
         handleAddSearchToken={ this.onAddSearchToken } />
     );
@@ -137,8 +140,11 @@ class Accounts extends Component {
       return this.renderLoading(this.props.wallets);
     }
 
-    const { wallets, hasWallets, balances } = this.props;
+    const { accounts, balances } = this.props;
     const { searchValues, sortOrder } = this.state;
+
+    const wallets = pickBy(accounts, (a) => a.wallet);
+    const hasWallets = Object.keys(wallets).length > 0;
 
     if (!wallets || Object.keys(wallets).length === 0) {
       return null;
@@ -187,7 +193,7 @@ class Accounts extends Component {
   renderActionbar () {
     const { accounts } = this.props;
 
-    const buttons = [
+      const buttons = [
       <Button
         key='newAccount'
         icon={ <ContentAdd /> }
@@ -285,20 +291,12 @@ class Accounts extends Component {
 }
 
 function mapStateToProps (state) {
-  const { accounts } = state.personal;
+  const { accounts, hasAccounts } = state.personal;
   const { balances } = state.balances;
 
-  const wallets = pickBy(accounts, (a) => a.wallet);
-  const hasWallets = Object.keys(wallets).length > 0;
-
-  const _accounts = omitBy(accounts, (a) => a.wallet);
-  const _hasAccounts = Object.keys(_accounts).length > 0;
-
   return {
-    accounts: _accounts,
-    hasAccounts: _hasAccounts,
-    wallets,
-    hasWallets,
+    accounts: accounts,
+    hasAccounts: hasAccounts,
     balances
   };
 }
