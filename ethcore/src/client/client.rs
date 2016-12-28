@@ -59,7 +59,7 @@ use client::{
 use client::Error as ClientError;
 use env_info::EnvInfo;
 use executive::{Executive, Executed, TransactOptions, contract_address};
-use receipt::LocalizedReceipt;
+use receipt::{Receipt, LocalizedReceipt};
 use trace::{TraceDB, ImportRequest as TraceImportRequest, LocalizedTrace, Database as TraceDatabase};
 use trace;
 use trace::FlatTransactionTraces;
@@ -837,6 +837,43 @@ impl snapshot::DatabaseRestore for Client {
 	}
 }
 
+fn transaction_receipt(index: usize, transactions: Option<Vec<LocalizedTransaction>>, receipt: Option<Receipt>, prior_gas: Option<U256>) -> Option<LocalizedReceipt> {
+	let tx_and_sender = transactions.as_ref()
+		.and_then(|list| list.get(index))
+		.map(|tx| (*tx).clone())
+		.and_then(|tx: LocalizedTransaction| tx.sender().ok().map(|sender| (tx, sender)));
+	match (tx_and_sender, transactions, receipt, prior_gas) {
+		(Some((tx, sender)), Some(_transactions_in_block), Some(receipt), Some(prior_gas_used)) => {
+			let block_hash = tx.block_hash.clone();
+			let block_number = tx.block_number.clone();
+			let transaction_hash = tx.hash();
+			let transaction_index = tx.transaction_index;
+			Some(LocalizedReceipt {
+				transaction_hash: tx.hash(),
+				transaction_index: tx.transaction_index,
+				block_hash: tx.block_hash,
+				block_number: tx.block_number,
+				cumulative_gas_used: receipt.gas_used,
+				gas_used: receipt.gas_used - prior_gas_used,
+				contract_address: match tx.action {
+					Action::Call(_) => None,
+					Action::Create => Some(contract_address(&sender, &tx.nonce))
+				},
+				logs: receipt.logs.into_iter().enumerate().map(|(i, log)| LocalizedLogEntry {
+					entry: log,
+					block_hash: block_hash.clone(),
+					block_number: block_number,
+					transaction_hash: transaction_hash.clone(),
+					transaction_index: transaction_index,
+					log_index: i
+				}).collect(),
+				log_bloom: receipt.log_bloom,
+				state_root: receipt.state_root,
+			})
+		},
+		_ => None
+	}
+}
 
 impl BlockChainClient for Client {
 	fn call(&self, t: &SignedTransaction, block: BlockId, analytics: CallAnalytics) -> Result<Executed, CallError> {
@@ -1134,53 +1171,21 @@ impl BlockChainClient for Client {
 		let chain = self.chain.read();
 		self.transaction_address(id)
 			.and_then(|address| chain.block_number(&address.block_hash).and_then(|block_number| {
-			let t = chain.block_body(&address.block_hash)
-				.and_then(|body| {
-					body.view().localized_transaction_at(&address.block_hash, block_number, address.index)
-				});
+				let transactions = chain.block_body(&address.block_hash)
+					.map(|body| body.view().localized_transactions(&address.block_hash, block_number));
 
-			let tx_and_sender = t.and_then(|tx| tx.sender().ok().map(|sender| (tx, sender)));
+				let prior_gas = match address.index {
+					0 => Some(U256::zero()),
+					_ => {
+						let mut prior_address = address.clone();
+						prior_address.index -= 1;
+						chain.transaction_receipt(&prior_address).map(|receipt| receipt.gas_used)
+					},
+				};
+				let receipt = chain.transaction_receipt(&address);
 
-			match (tx_and_sender, chain.transaction_receipt(&address)) {
-				(Some((tx, sender)), Some(receipt)) => {
-					let block_hash = tx.block_hash.clone();
-					let block_number = tx.block_number.clone();
-					let transaction_hash = tx.hash();
-					let transaction_index = tx.transaction_index;
-					let prior_gas_used = match tx.transaction_index {
-						0 => U256::zero(),
-						i => {
-							let prior_address = TransactionAddress { block_hash: address.block_hash, index: i - 1 };
-							let prior_receipt = chain.transaction_receipt(&prior_address).expect("Transaction receipt at `address` exists; `prior_address` has lower index in same block; qed");
-							prior_receipt.gas_used
-						}
-					};
-					Some(LocalizedReceipt {
-						transaction_hash: tx.hash(),
-						transaction_index: tx.transaction_index,
-						block_hash: tx.block_hash,
-						block_number: tx.block_number,
-						cumulative_gas_used: receipt.gas_used,
-						gas_used: receipt.gas_used - prior_gas_used,
-						contract_address: match tx.action {
-							Action::Call(_) => None,
-							Action::Create => Some(contract_address(&sender, &tx.nonce))
-						},
-						logs: receipt.logs.into_iter().enumerate().map(|(i, log)| LocalizedLogEntry {
-							entry: log,
-							block_hash: block_hash.clone(),
-							block_number: block_number,
-							transaction_hash: transaction_hash.clone(),
-							transaction_index: transaction_index,
-							log_index: i
-						}).collect(),
-						log_bloom: receipt.log_bloom,
-						state_root: receipt.state_root,
-					})
-				},
-				_ => None
-			}
-		}))
+				transaction_receipt(address.index, transactions, receipt, prior_gas)
+			}))
 	}
 
 	fn tree_route(&self, from: &H256, to: &H256) -> Option<TreeRoute> {
