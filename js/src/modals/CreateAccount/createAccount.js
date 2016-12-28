@@ -17,8 +17,11 @@
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 
+import { createIdentityImg } from '~/api/util/identity';
+import { newError } from '~/redux/actions';
 import { Button, Modal, Warning } from '~/ui';
 import { CancelIcon, CheckIcon, DoneIcon, NextIcon, PrevIcon, PrintIcon } from '~/ui/Icons';
+import ParityLogo from '~/../assets/images/parity-logo-black-no-text.svg';
 
 import AccountDetails from './AccountDetails';
 import AccountDetailsGeth from './AccountDetailsGeth';
@@ -28,11 +31,9 @@ import NewGeth from './NewGeth';
 import NewImport from './NewImport';
 import RawKey from './RawKey';
 import RecoveryPhrase from './RecoveryPhrase';
-
-import { createIdentityImg } from '~/api/util/identity';
+import Store from './store';
 import print from './print';
 import recoveryPage from './recoveryPage.ejs';
-import ParityLogo from '~/../assets/images/parity-logo-black-no-text.svg';
 
 const TITLES = {
   type:
@@ -57,8 +58,7 @@ const STAGE_IMPORT = [TITLES.type, TITLES.import, TITLES.info];
 
 export default class CreateAccount extends Component {
   static contextTypes = {
-    api: PropTypes.object.isRequired,
-    store: PropTypes.object.isRequired
+    api: PropTypes.object.isRequired
   }
 
   static propTypes = {
@@ -66,6 +66,8 @@ export default class CreateAccount extends Component {
     onClose: PropTypes.func,
     onUpdate: PropTypes.func
   }
+
+  store = new Store(this.context.api);
 
   state = {
     address: null,
@@ -277,7 +279,7 @@ export default class CreateAccount extends Component {
             canCreate: true
           });
 
-          this.newError(error);
+          newError(error);
         });
     } else if (createType === 'fromRaw') {
       return api.parity
@@ -302,7 +304,7 @@ export default class CreateAccount extends Component {
             canCreate: true
           });
 
-          this.newError(error);
+          newError(error);
         });
     } else if (createType === 'fromGeth') {
       return api.parity
@@ -325,7 +327,7 @@ export default class CreateAccount extends Component {
             canCreate: true
           });
 
-          this.newError(error);
+          newError(error);
         });
     }
 
@@ -354,7 +356,7 @@ export default class CreateAccount extends Component {
           canCreate: true
         });
 
-        this.newError(error);
+        newError(error);
       });
   }
 
@@ -375,14 +377,14 @@ export default class CreateAccount extends Component {
 
   onChangeDetails = (canCreate, { name, passwordHint, address, password, phrase, rawKey, windowsPhrase }) => {
     this.setState({
+      address,
       canCreate,
       name,
-      passwordHint,
-      address,
       password,
+      passwordHint,
       phrase,
-      windowsPhrase: windowsPhrase || false,
-      rawKey
+      rawKey,
+      windowsPhrase: windowsPhrase || false
     });
   }
 
@@ -403,17 +405,11 @@ export default class CreateAccount extends Component {
   onChangeWallet = (canCreate, { name, passwordHint, password, json }) => {
     this.setState({
       canCreate,
+      json,
       name,
-      passwordHint,
       password,
-      json
+      passwordHint
     });
-  }
-
-  newError = (error) => {
-    const { store } = this.context;
-
-    store.dispatch({ type: 'newError', error });
   }
 
   printPhrase = () => {
@@ -421,11 +417,11 @@ export default class CreateAccount extends Component {
     const identity = createIdentityImg(address);
 
     print(recoveryPage({
-      phrase,
-      name,
-      identity,
       address,
-      logo: ParityLogo
+      identity,
+      logo: ParityLogo,
+      name,
+      phrase
     }));
   }
 }

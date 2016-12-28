@@ -27,18 +27,16 @@
   .icon {
     display: inline-block;
   }
-}
 
-.selection .detail {
-  display: inline-block;
-}
+  .detail {
+    display: inline-block;
 
-.detail {
-  .address {
-    color: #aaa;
-  }
+    .address {
+      color: #aaa;
+    }
 
-  .balance {
-    font-family: 'Roboto Mono', monospace;
+    .balance {
+      font-family: 'Roboto Mono', monospace;
+    }
   }
 }

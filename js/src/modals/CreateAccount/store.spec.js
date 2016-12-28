@@ -14,30 +14,22 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { shallow } from 'enzyme';
-import React from 'react';
+import Store from './store';
 
 import { createApi } from './createAccount.test.js';
 
-import CreateAccount from './';
-
 let api;
-let component;
+let store;
 
-function render () {
+function createStore () {
   api = createApi();
-  component = shallow(
-    <CreateAccount />,
-    { context: { api } }
-  );
+  store = new Store(api);
 
-  return component;
+  return store;
 }
 
-describe('modals/CreateAccount', () => {
-  describe('rendering', () => {
-    it('renders with defaults', () => {
-      expect(render()).to.be.ok;
-    });
+describe('modals/CreateAccount/Store', () => {
+  beforeEach(() => {
+    createStore();
   });
 });

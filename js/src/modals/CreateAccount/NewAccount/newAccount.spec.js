@@ -20,23 +20,19 @@ import sinon from 'sinon';
 
 import NewAccount from './';
 
+import { createApi } from '../createAccount.test.js';
+
+let api;
 let component;
 let onChange;
 
 function render () {
+  api = createApi();
   onChange = sinon.stub();
   component = shallow(
     <NewAccount
       onChange={ onChange } />,
-    {
-      context: {
-        api: {
-          parity: {
-            generateSecretPhrase: sinon.stub().resolves()
-          }
-        }
-      }
-    }
+    { context: { api } }
   );
 
   return component;
