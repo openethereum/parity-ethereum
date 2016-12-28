@@ -24,6 +24,10 @@ export function inAddress (address) {
   return inHex(address);
 }
 
+export function inAddresses (addresses) {
+  return (addresses || []).map(inAddress);
+}
+
 export function inBlockNumber (blockNumber) {
   if (isString(blockNumber)) {
     switch (blockNumber) {

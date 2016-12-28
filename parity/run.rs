@@ -33,7 +33,7 @@ use ethsync::SyncConfig;
 use informant::Informant;
 use updater::{UpdatePolicy, Updater};
 use parity_reactor::{EventLoop, EventLoopHandle};
-use hash_fetch::fetch::Client as FetchClient;
+use hash_fetch::fetch::{Fetch, Client as FetchClient};
 
 use rpc::{HttpServer, IpcServer, HttpConfiguration, IpcConfiguration};
 use signer::SignerServer;

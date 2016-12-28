@@ -224,7 +224,7 @@ mod tests {
 	use std::env;
 	use std::sync::Arc;
 	use util::Bytes;
-	use fetch::Client;
+	use fetch::{Fetch, Client};
 	use hash_fetch::urlhint::{URLHint, URLHintResult};
 	use parity_reactor::Remote;
 
