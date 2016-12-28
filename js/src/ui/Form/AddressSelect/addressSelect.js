@@ -19,6 +19,7 @@ import ReactDOM from 'react-dom';
 import { connect } from 'react-redux';
 import keycode, { codes } from 'keycode';
 import { FormattedMessage } from 'react-intl';
+import { observer } from 'mobx-react';
 
 import TextFieldUnderline from 'material-ui/TextField/TextFieldUnderline';
 
@@ -27,6 +28,7 @@ import InputAddress from '~/ui/Form/InputAddress';
 import Portal from '~/ui/Portal';
 import { validateAddress } from '~/util/validation';
 
+import AddressSelectStore from './addressSelectStore';
 import styles from './addressSelect.css';
 
 const BOTTOM_BORDER_STYLE = { borderBottom: 'solid 3px' };
@@ -34,6 +36,7 @@ const BOTTOM_BORDER_STYLE = { borderBottom: 'solid 3px' };
 // Current Form ID
 let currentId = 1;
 
+@observer
 class AddressSelect extends Component {
   static contextTypes = {
     muiTheme: PropTypes.object.isRequired
@@ -65,14 +68,15 @@ class AddressSelect extends Component {
     value: ''
   };
 
+  store = new AddressSelectStore(this.context.api);
+
   state = {
     expanded: false,
     focused: false,
     focusedCat: null,
     focusedItem: null,
     inputFocused: false,
-    inputValue: '',
-    values: []
+    inputValue: ''
   };
 
   componentWillMount () {
@@ -80,7 +84,7 @@ class AddressSelect extends Component {
   }
 
   componentWillReceiveProps (nextProps) {
-    if (this.values && this.values.length > 0) {
+    if (this.store.values && this.store.values.length > 0) {
       return;
     }
 
@@ -88,36 +92,7 @@ class AddressSelect extends Component {
   }
 
   setValues (props = this.props) {
-    const { accounts = {}, contracts = {}, contacts = {}, wallets = {} } = props;
-
-    const accountsN = Object.keys(accounts).length;
-    const contractsN = Object.keys(contracts).length;
-    const contactsN = Object.keys(contacts).length;
-    const walletsN = Object.keys(wallets).length;
-
-    if (accountsN + contractsN + contactsN + walletsN === 0) {
-      return;
-    }
-
-    this.values = [
-      {
-        label: 'accounts',
-        values: [].concat(
-          Object.values(wallets),
-          Object.values(accounts)
-        )
-      },
-      {
-        label: 'contacts',
-        values: Object.values(contacts)
-      },
-      {
-        label: 'contracts',
-        values: Object.values(contracts)
-      }
-    ].filter((cat) => cat.values.length > 0);
-
-    this.handleChange();
+    this.store.setValues(props);
   }
 
   render () {
@@ -242,7 +217,7 @@ class AddressSelect extends Component {
   }
 
   renderAccounts () {
-    const { values } = this.state;
+    const { values } = this.store;
 
     if (values.length === 0) {
       return (
@@ -306,7 +281,7 @@ class AddressSelect extends Component {
     const balance = balances[address];
     const account = {
       ...accountsInfo[address],
-      address, index
+      ..._account
     };
 
     return (
@@ -325,9 +300,10 @@ class AddressSelect extends Component {
     this.inputRef = refId;
   }
 
-  handleCustomInput = () => {
+  validateCustomInput = () => {
     const { allowInput } = this.props;
-    const { inputValue, values } = this.state;
+    const { inputValue } = this.store;
+    const { values } = this.state;
 
     // If input is HEX and allowInput === true, send it
     if (allowInput && inputValue && /^(0x)?([0-9a-f])+$/i.test(inputValue)) {
@@ -361,7 +337,7 @@ class AddressSelect extends Component {
       case 'enter':
         const index = this.state.focusedItem;
         if (!index) {
-          return this.handleCustomInput();
+          return this.validateCustomInput();
         }
 
         return this.handleDOMAction(`account_${index}`, 'click');
@@ -408,7 +384,8 @@ class AddressSelect extends Component {
   }
 
   handleNavigation = (direction, event) => {
-    const { focusedItem, focusedCat, values } = this.state;
+    const { focusedItem, focusedCat } = this.state;
+    const { values } = this.store;
 
     // Don't do anything if no values
     if (values.length === 0) {
@@ -525,43 +502,6 @@ class AddressSelect extends Component {
     this.setState({ expanded: false });
   }
 
-  /**
-   * Filter the given values based on the given
-   * filter
-   */
-  filterValues = (values = [], _filter = '') => {
-    const filter = _filter.toLowerCase();
-
-    return values
-      // Remove empty accounts
-      .filter((a) => a)
-      .filter((account) => {
-        const address = account.address.toLowerCase();
-        const inAddress = address.includes(filter);
-
-        if (!account.name || inAddress) {
-          return inAddress;
-        }
-
-        const name = account.name.toLowerCase();
-        const inName = name.includes(filter);
-        const { meta = {} } = account;
-
-        if (!meta.tags || inName) {
-          return inName;
-        }
-
-        const tags = (meta.tags || []).join('');
-        return tags.includes(filter);
-      })
-      .sort((accA, accB) => {
-        const nameA = accA.name || accA.address;
-        const nameB = accB.name || accB.address;
-
-        return nameA.localeCompare(nameB);
-      });
-  }
-
   handleInputBlur = () => {
     this.setState({ inputFocused: false });
   }
@@ -572,25 +512,10 @@ class AddressSelect extends Component {
 
   handleChange = (event = { target: {} }) => {
     const { value = '' } = event.target;
-    let index = 0;
 
-    const values = this.values
-      .map((category) => {
-        const filteredValues = this
-          .filterValues(category.values, value)
-          .map((value) => {
-            index++;
-            return { ...value, index: parseInt(index) };
-          });
-
-        return {
-          label: category.label,
-          values: filteredValues
-        };
-      });
+    this.store.handleChange(value);
 
     this.setState({
-      values,
       focusedItem: null,
       inputValue: value
     });
