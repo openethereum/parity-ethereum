@@ -18,9 +18,9 @@ import { shallow } from 'enzyme';
 import React from 'react';
 import sinon from 'sinon';
 
-import EditMeta from './';
+import PasswordManager from './';
 
-import { ACCOUNT, createApi } from './editMeta.test.js';
+import { ACCOUNT, createApi } from './passwordManager.test.js';
 
 let component;
 let onClose;
@@ -29,7 +29,7 @@ function render (props) {
   onClose = sinon.stub();
 
   component = shallow(
-    <EditMeta
+    <PasswordManager
       { ...props }
       account={ ACCOUNT }
       onClose={ onClose } />,
@@ -43,7 +43,7 @@ function render (props) {
   return component;
 }
 
-describe('modals/EditMeta', () => {
+describe('modals/PasswordManager', () => {
   describe('rendering', () => {
     it('renders defaults', () => {
       expect(render()).to.be.ok;
@@ -55,14 +55,25 @@ describe('modals/EditMeta', () => {
       render();
     });
 
-    describe('onSave', () => {
-      it('calls store.save() & props.onClose', () => {
+    describe('changePassword', () => {
+      it('calls store.changePassword & props.onClose', () => {
         const instance = component.instance();
-        sinon.spy(instance.store, 'save');
+        sinon.spy(instance.store, 'changePassword');
 
-        instance.onSave().then(() => {
-          expect(instance.store.save).to.have.been.called;
+        instance.changePassword().then(() => {
+          expect(instance.store.changePassword).to.have.been.called;
           expect(onClose).to.have.been.called;
+        });
+      });
+    });
+
+    describe('testPassword', () => {
+      it('calls store.testPassword', () => {
+        const instance = component.instance();
+        sinon.spy(instance.store, 'testPassword');
+
+        instance.testPassword().then(() => {
+          expect(instance.store.testPassword).to.have.been.called;
         });
       });
     });

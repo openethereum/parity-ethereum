@@ -27,6 +27,7 @@ import PrevIcon from 'material-ui/svg-icons/navigation/arrow-back';
 import PrintIcon from 'material-ui/svg-icons/action/print';
 import RefreshIcon from 'material-ui/svg-icons/action/autorenew';
 import SaveIcon from 'material-ui/svg-icons/content/save';
+import SendIcon from 'material-ui/svg-icons/content/send';
 import SnoozeIcon from 'material-ui/svg-icons/av/snooze';
 import VisibleIcon from 'material-ui/svg-icons/image/remove-red-eye';
 
@@ -44,6 +45,7 @@ export {
   PrintIcon,
   RefreshIcon,
   SaveIcon,
+  SendIcon,
   SnoozeIcon,
   VisibleIcon
 };
