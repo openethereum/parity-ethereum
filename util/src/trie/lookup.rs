@@ -42,7 +42,7 @@ impl<'a, R: 'a + Recorder> Lookup<'a, R> {
 
 		// this loop iterates through non-inline nodes.
 		for depth in 0.. {
-			let mut node_data = match self.db.get(&hash) {
+			let node_data = match self.db.get(&hash) {
 				Some(value) => value,
 				None => return Err(Box::new(match depth {
 					0 => TrieError::InvalidStateRoot(hash),
@@ -54,28 +54,27 @@ impl<'a, R: 'a + Recorder> Lookup<'a, R> {
 
 			// this loop iterates through all inline children (usually max 1)
 			// without incrementing the depth.
+			let mut node_data = &node_data[..];
 			loop {
-				match Node::decoded(&node_data) {
+				match Node::decoded(node_data) {
 					Node::Leaf(slice, value) => {
-						let slice = NibbleSlice::from_encoded(&slice).0;
 						return Ok(match slice == key {
-							true => Some(value),
+							true => Some(DBValue::from_slice(value)),
 							false => None,
 						})
 					}
 					Node::Extension(slice, item) => {
-						let slice = NibbleSlice::from_encoded(&slice).0;
 						if key.starts_with(&slice) {
-							node_data = DBValue::from_slice(&item[..]);
+							node_data = item;
 							key = key.mid(slice.len());
 						} else {
 							return Ok(None)
 						}
 					}
 					Node::Branch(children, value) => match key.is_empty() {
-						true => return Ok(value),
+						true => return Ok(value.map(DBValue::from_slice)),
 						false => {
-							node_data = DBValue::from_slice(&children[key.at(0) as usize]);
+							node_data = children[key.at(0) as usize];
 							key = key.mid(1);
 						}
 					},
@@ -83,7 +82,7 @@ impl<'a, R: 'a + Recorder> Lookup<'a, R> {
 				}
 
 				// check if new node data is inline or hash.
-				let r = Rlp::new(&node_data);
+				let r = Rlp::new(node_data);
 				if r.is_data() && r.size() == 32 {
 					hash = r.as_val();
 					break

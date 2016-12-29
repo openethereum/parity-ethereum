@@ -18,47 +18,26 @@ use elastic_array::ElasticArray36;
 use nibbleslice::*;
 use bytes::*;
 use rlp::*;
-use super::journal::*;
-use hashdb::DBValue;
 
 /// Partial node key type.
 pub type NodeKey = ElasticArray36<u8>;
 
 /// Type of node in the trie and essential information thereof.
-#[derive(Eq, PartialEq, Debug)]
-pub enum Node {
+#[derive(Eq, PartialEq, Debug, Clone)]
+pub enum Node<'a> {
 	/// Null trie node; could be an empty root or an empty branch entry.
 	Empty,
 	/// Leaf node; has key slice and value. Value may not be empty.
-	Leaf(NodeKey, DBValue),
+	Leaf(NibbleSlice<'a>, &'a [u8]),
 	/// Extension node; has key slice and node data. Data may not be null.
-	Extension(NodeKey, DBValue),
+	Extension(NibbleSlice<'a>, &'a [u8]),
 	/// Branch node; has array of 16 child nodes (each possibly null) and an optional immediate node data.
-	Branch([NodeKey; 16], Option<DBValue>)
+	Branch([&'a [u8]; 16], Option<&'a [u8]>)
 }
 
-impl Clone for Node {
-	fn clone(&self) -> Node {
-		match *self {
-			Node::Empty => Node::Empty,
-			Node::Leaf(ref k, ref v) => Node::Leaf(k.clone(), v.clone()),
-			Node::Extension(ref k, ref v) => Node::Extension(k.clone(), v.clone()),
-			Node::Branch(ref k, ref v) => {
-				let mut branch = [NodeKey::new(), NodeKey::new(), NodeKey::new(), NodeKey::new(), NodeKey::new(),
-					NodeKey::new(), NodeKey::new(), NodeKey::new(), NodeKey::new(), NodeKey::new(), NodeKey::new(),
-					NodeKey::new(), NodeKey::new(), NodeKey::new(), NodeKey::new(), NodeKey::new()];
-				for i in 0 .. 16 {
-					branch[i] = k[i].clone();
-				}
-				Node::Branch(branch, v.clone())
-			}
-		}
-	}
-}
-
-impl Node {
+impl<'a> Node<'a> {
 	/// Decode the `node_rlp` and return the Node.
-	pub fn decoded(node_rlp: &[u8]) -> Node {
+	pub fn decoded(node_rlp: &'a [u8]) -> Self {
 		let r = Rlp::new(node_rlp);
 		match r.prototype() {
 			// either leaf or extension - decode first item with NibbleSlice::???
@@ -67,18 +46,16 @@ impl Node {
 			// if extension, second item is a node (either SHA3 to be looked up and
 			// fed back into this function or inline RLP which can be fed back into this function).
 			Prototype::List(2) => match NibbleSlice::from_encoded(r.at(0).data()) {
-				(slice, true) => Node::Leaf(slice.encoded(true), DBValue::from_slice(r.at(1).data())),
-				(slice, false) => Node::Extension(slice.encoded(false), DBValue::from_slice(r.at(1).as_raw())),
+				(slice, true) => Node::Leaf(slice, r.at(1).data()),
+				(slice, false) => Node::Extension(slice, r.at(1).as_raw()),
 			},
 			// branch - first 16 are nodes, 17th is a value (or empty).
 			Prototype::List(17) => {
-				let mut nodes: [NodeKey; 16] = [NodeKey::new(), NodeKey::new(), NodeKey::new(), NodeKey::new(), NodeKey::new(),
-					NodeKey::new(), NodeKey::new(), NodeKey::new(), NodeKey::new(), NodeKey::new(), NodeKey::new(),
-					NodeKey::new(), NodeKey::new(), NodeKey::new(), NodeKey::new(), NodeKey::new()];
+				let mut nodes = [&[] as &[u8]; 16];
 				for i in 0..16 {
-					nodes[i] = NodeKey::from_slice(r.at(i).as_raw());
+					nodes[i] = r.at(i).as_raw();
 				}
-				Node::Branch(nodes, if r.at(16).is_empty() { None } else { Some(DBValue::from_slice(r.at(16).data())) })
+				Node::Branch(nodes, if r.at(16).is_empty() { None } else { Some(r.at(16).data()) })
 			},
 			// an empty branch index.
 			Prototype::Data(0) => Node::Empty,
@@ -95,23 +72,23 @@ impl Node {
 		match *self {
 			Node::Leaf(ref slice, ref value) => {
 				let mut stream = RlpStream::new_list(2);
-				stream.append(&&**slice);
-				stream.append(&&**value);
+				stream.append(&&*slice.encoded(true));
+				stream.append(value);
 				stream.out()
 			},
 			Node::Extension(ref slice, ref raw_rlp) => {
 				let mut stream = RlpStream::new_list(2);
-				stream.append(&&**slice);
-				stream.append_raw(&&*raw_rlp, 1);
+				stream.append(&&*slice.encoded(false));
+				stream.append_raw(raw_rlp, 1);
 				stream.out()
 			},
 			Node::Branch(ref nodes, ref value) => {
 				let mut stream = RlpStream::new_list(17);
 				for i in 0..16 {
-					stream.append_raw(&*nodes[i], 1);
+					stream.append_raw(nodes[i], 1);
 				}
 				match *value {
-					Some(ref n) => { stream.append(&&**n); },
+					Some(ref n) => { stream.append(n); },
 					None => { stream.append_empty_data(); },
 				}
 				stream.out()
@@ -120,46 +97,6 @@ impl Node {
 				let mut stream = RlpStream::new();
 				stream.append_empty_data();
 				stream.out()
-			}
-		}
-	}
-
-	/// Encode the node, adding it to `journal` if necessary and return the RLP valid for
-	/// insertion into a parent node.
-	pub fn encoded_and_added(&self, journal: &mut Journal) -> DBValue {
-		let mut stream = RlpStream::new();
-		match *self {
-			Node::Leaf(ref slice, ref value) => {
-				stream.begin_list(2);
-				stream.append(&&**slice);
-				stream.append(&&**value);
-			},
-			Node::Extension(ref slice, ref raw_rlp) => {
-				stream.begin_list(2);
-				stream.append(&&**slice);
-				stream.append_raw(&&**raw_rlp, 1);
-			},
-			Node::Branch(ref nodes, ref value) => {
-				stream.begin_list(17);
-				for i in 0..16 {
-					stream.append_raw(&*nodes[i], 1);
-				}
-				match *value {
-					Some(ref n) => { stream.append(&&**n); },
-					None => { stream.append_empty_data(); },
-				}
-			},
-			Node::Empty => {
-				stream.append_empty_data();
-			}
-		}
-		let node = DBValue::from_slice(stream.as_raw());
-		match node.len() {
-			0 ... 31 => node,
-			_ => {
-				let mut stream = RlpStream::new();
-				journal.new_node(node, &mut stream);
-				DBValue::from_slice(stream.as_raw())
 			}
 		}
 	}

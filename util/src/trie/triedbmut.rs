@@ -101,22 +101,22 @@ impl Node {
 	fn from_rlp(rlp: &[u8], db: &HashDB, storage: &mut NodeStorage) -> Self {
 		match RlpNode::decoded(rlp) {
 			RlpNode::Empty => Node::Empty,
-			RlpNode::Leaf(k, v) => Node::Leaf(k, v),
+			RlpNode::Leaf(k, v) => Node::Leaf(k.encoded(true), DBValue::from_slice(&v)),
 			RlpNode::Extension(key, cb) => {
-				Node::Extension(key, Self::inline_or_hash(&*cb, db, storage))
+				Node::Extension(key.encoded(false), Self::inline_or_hash(cb, db, storage))
 			}
 			RlpNode::Branch(children_rlp, val) => {
 				let mut children = empty_children();
 
 				for i in 0..16 {
-					let raw = &children_rlp[i];
-					let child_rlp = Rlp::new(&*raw);
+					let raw = children_rlp[i];
+					let child_rlp = Rlp::new(raw);
 					if !child_rlp.is_empty()  {
-						children[i] = Some(Self::inline_or_hash(&*raw, db, storage));
+						children[i] = Some(Self::inline_or_hash(raw, db, storage));
 					}
 				}
 
-				Node::Branch(children, val)
+				Node::Branch(children, val.map(DBValue::from_slice))
 			}
 		}
 	}
