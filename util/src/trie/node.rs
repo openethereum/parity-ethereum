@@ -16,8 +16,10 @@
 
 use elastic_array::ElasticArray36;
 use nibbleslice::*;
+use nibblevec::NibbleVec;
 use bytes::*;
 use rlp::*;
+use hashdb::DBValue;
 
 /// Partial node key type.
 pub type NodeKey = ElasticArray36<u8>;
@@ -97,6 +99,67 @@ impl<'a> Node<'a> {
 				let mut stream = RlpStream::new();
 				stream.append_empty_data();
 				stream.out()
+			}
+		}
+	}
+}
+
+/// An owning node type. Useful for trie iterators.
+#[derive(Debug, PartialEq, Eq)]
+pub enum OwnedNode {
+	/// Empty trie node.
+	Empty,
+	/// Leaf node: partial key and value.
+	Leaf(NibbleVec, DBValue),
+	/// Extension node: partial key and child node.
+	Extension(NibbleVec, DBValue),
+	/// Branch node: 16 children and an optional value.
+	Branch([NodeKey; 16], Option<DBValue>),
+}
+
+impl Clone for OwnedNode {
+	fn clone(&self) -> Self {
+		match *self {
+			OwnedNode::Empty => OwnedNode::Empty,
+			OwnedNode::Leaf(ref k, ref v) => OwnedNode::Leaf(k.clone(), v.clone()),
+			OwnedNode::Extension(ref k, ref c) => OwnedNode::Extension(k.clone(), c.clone()),
+			OwnedNode::Branch(ref c, ref v) => {
+				let mut children = [
+					NodeKey::new(), NodeKey::new(), NodeKey::new(), NodeKey::new(),
+					NodeKey::new(), NodeKey::new(), NodeKey::new(), NodeKey::new(),
+					NodeKey::new(), NodeKey::new(), NodeKey::new(), NodeKey::new(),
+					NodeKey::new(), NodeKey::new(), NodeKey::new(), NodeKey::new(),
+				];
+
+				for (owned, borrowed) in children.iter_mut().zip(c.iter()) {
+					*owned = borrowed.clone()
+				}
+
+				OwnedNode::Branch(children, v.as_ref().cloned())
+			}
+		}
+	}
+}
+
+impl<'a> From<Node<'a>> for OwnedNode {
+	fn from(node: Node<'a>) -> Self {
+		match node {
+			Node::Empty => OwnedNode::Empty,
+			Node::Leaf(k, v) => OwnedNode::Leaf(k.into(), DBValue::from_slice(v)),
+			Node::Extension(k, child) => OwnedNode::Extension(k.into(), DBValue::from_slice(child)),
+			Node::Branch(c, val) => {
+				let mut children = [
+					NodeKey::new(), NodeKey::new(), NodeKey::new(), NodeKey::new(),
+					NodeKey::new(), NodeKey::new(), NodeKey::new(), NodeKey::new(),
+					NodeKey::new(), NodeKey::new(), NodeKey::new(), NodeKey::new(),
+					NodeKey::new(), NodeKey::new(), NodeKey::new(), NodeKey::new(),
+				];
+
+				for (owned, borrowed) in children.iter_mut().zip(c.iter()) {
+					*owned = NodeKey::from_slice(borrowed)
+				}
+
+				OwnedNode::Branch(children, val.map(DBValue::from_slice))
 			}
 		}
 	}

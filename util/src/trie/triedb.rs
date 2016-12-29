@@ -18,7 +18,7 @@ use common::*;
 use hashdb::*;
 use nibbleslice::*;
 use rlp::*;
-use super::node::Node;
+use super::node::{Node, OwnedNode};
 use super::recorder::Recorder;
 use super::lookup::Lookup;
 use super::{Trie, TrieItem, TrieError, TrieIterator};
@@ -179,18 +179,18 @@ enum Status {
 
 #[derive(Clone, Eq, PartialEq)]
 struct Crumb {
-	node: DBValue,
+	node: OwnedNode,
 	status: Status,
 }
 
 impl Crumb {
 	/// Move on to next status in the node's sequence.
 	fn increment(&mut self) {
-		self.status = match (&self.status, Node::decoded(&self.node)) {
-			(_, Node::Empty) => Status::Exiting,
+		self.status = match (&self.status, &self.node) {
+			(_, &OwnedNode::Empty) => Status::Exiting,
 			(&Status::Entering, _) => Status::At,
-			(&Status::At, Node::Branch(_, _)) => Status::AtChild(0),
-			(&Status::AtChild(x), Node::Branch(_, _)) if x < 15 => Status::AtChild(x + 1),
+			(&Status::At, &OwnedNode::Branch(_, _)) => Status::AtChild(0),
+			(&Status::AtChild(x), &OwnedNode::Branch(_, _)) if x < 15 => Status::AtChild(x + 1),
 			_ => Status::Exiting,
 		}
 	}
@@ -217,20 +217,22 @@ impl<'a> TrieDBIterator<'a> {
 		Ok(r)
 	}
 
-	fn seek_descend<'key>(&mut self, node: DBValue, key: &NibbleSlice<'key>) -> super::Result<()> {
-		match Node::decoded(&node) {
+	fn seek_descend<'key>(&mut self, node_data: DBValue, key: &NibbleSlice<'key>) -> super::Result<()> {
+		let node = Node::decoded(&node_data);
+		match node {
 			Node::Leaf(ref slice, _) => {
 				if slice == key {
 					self.trail.push(Crumb {
 						status: Status::At,
-						node: node.clone(),
+						node: node.clone().into(),
 					});
 				} else {
 					self.trail.push(Crumb {
 						status: Status::Exiting,
-						node: node.clone(),
+						node: node.clone().into(),
 					});
 				}
+
 				self.key_nibbles.extend(slice.iter());
 				Ok(())
 			},
@@ -238,13 +240,13 @@ impl<'a> TrieDBIterator<'a> {
 				if key.starts_with(slice) {
 					self.trail.push(Crumb {
 						status: Status::At,
-						node: node.clone(),
+						node: node.clone().into(),
 					});
 					self.key_nibbles.extend(slice.iter());
 					let data = self.db.get_raw_or_lookup(&*item)?;
 					self.seek_descend(data, &key.mid(slice.len()))
 				} else {
-					self.descend(&node)?;
+					self.descend(&node_data)?;
 					Ok(())
 				}
 			},
@@ -252,7 +254,7 @@ impl<'a> TrieDBIterator<'a> {
 				true => {
 					self.trail.push(Crumb {
 						status: Status::At,
-						node: node.clone(),
+						node: node.clone().into(),
 					});
 					Ok(())
 				},
@@ -260,7 +262,7 @@ impl<'a> TrieDBIterator<'a> {
 					let i = key.at(0);
 					self.trail.push(Crumb {
 						status: Status::AtChild(i as usize),
-						node: node.clone(),
+						node: node.clone().into(),
 					});
 					self.key_nibbles.push(i);
 					let child = self.db.get_raw_or_lookup(&*nodes[i as usize])?;
@@ -275,10 +277,12 @@ impl<'a> TrieDBIterator<'a> {
 	fn descend(&mut self, d: &[u8]) -> super::Result<()> {
 		self.trail.push(Crumb {
 			status: Status::Entering,
-			node: self.db.get_raw_or_lookup(d)?,
+			node: Node::decoded(&self.db.get_raw_or_lookup(d)?).into(),
 		});
-		match Node::decoded(&self.trail.last().expect("just pushed item; qed").node) {
-			Node::Leaf(ref n, _) | Node::Extension(ref n, _) => { self.key_nibbles.extend(n.iter()); },
+		match &self.trail.last().expect("just pushed item; qed").node {
+			&OwnedNode::Leaf(ref n, _) | &OwnedNode::Extension(ref n, _) => {
+				self.key_nibbles.extend((0..n.len()).map(|i| n.at(i)));
+			},
 			_ => {}
 		}
 
@@ -311,30 +315,30 @@ impl<'a> Iterator for TrieDBIterator<'a> {
 				Some(mut b) => { b.increment(); b.clone() },
 				None => return None,
 			};
-			match (b.status, Node::decoded(&b.node)) {
+			match (b.status, b.node) {
 				(Status::Exiting, n) => {
 					match n {
-						Node::Leaf(n, _) | Node::Extension(n, _) => {
+						OwnedNode::Leaf(n, _) | OwnedNode::Extension(n, _) => {
 							let l = self.key_nibbles.len();
 							self.key_nibbles.truncate(l - n.len());
 						},
-						Node::Branch(_, _) => { self.key_nibbles.pop(); },
+						OwnedNode::Branch(_, _) => { self.key_nibbles.pop(); },
 						_ => {}
 					}
 					self.trail.pop();
 					// continue
 				},
-				(Status::At, Node::Leaf(_, v)) | (Status::At, Node::Branch(_, Some(v))) => {
-					return Some(Ok((self.key(), DBValue::from_slice(v))));
+				(Status::At, OwnedNode::Leaf(_, v)) | (Status::At, OwnedNode::Branch(_, Some(v))) => {
+					return Some(Ok((self.key(), v)));
 				},
-				(Status::At, Node::Extension(_, d)) => {
+				(Status::At, OwnedNode::Extension(_, d)) => {
 					if let Err(e) = self.descend(&*d) {
 						return Some(Err(e));
 					}
 					// continue
 				},
-				(Status::At, Node::Branch(_, _)) => {},
-				(Status::AtChild(i), Node::Branch(ref children, _)) if children[i].len() > 0 => {
+				(Status::At, OwnedNode::Branch(_, _)) => {},
+				(Status::AtChild(i), OwnedNode::Branch(ref children, _)) if children[i].len() > 0 => {
 					match i {
 						0 => self.key_nibbles.push(0),
 						i => *self.key_nibbles.last_mut()
@@ -345,7 +349,7 @@ impl<'a> Iterator for TrieDBIterator<'a> {
 					}
 					// continue
 				},
-				(Status::AtChild(i), Node::Branch(_, _)) => {
+				(Status::AtChild(i), OwnedNode::Branch(_, _)) => {
 					if i == 0 {
 						self.key_nibbles.push(0);
 					}
