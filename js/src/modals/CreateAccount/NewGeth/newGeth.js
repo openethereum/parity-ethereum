@@ -30,23 +30,13 @@ export default class NewGeth extends Component {
   }
 
   static propTypes = {
-    accounts: PropTypes.object.isRequired,
-    onChange: PropTypes.func.isRequired,
     store: PropTypes.object.isRequired
   }
 
-  state = {
-    available: []
-  }
-
-  componentDidMount () {
-    this.loadAvailable();
-  }
-
   render () {
-    const { available } = this.state;
+    const { gethAccountsAvailable, gethAddresses } = this.props.store;
 
-    if (!available.length) {
+    if (!gethAccountsAvailable.length) {
       return (
         <div className={ styles.list }>
           <FormattedMessage
@@ -56,7 +46,9 @@ export default class NewGeth extends Component {
       );
     }
 
-    const checkboxes = available.map((account) => {
+    const checkboxes = gethAccountsAvailable.map((account) => {
+      const onSelect = () => this.props.store.selectGethAccount(account.address);
+
       const label = (
         <div className={ styles.selection }>
           <div className={ styles.icon }>
@@ -78,11 +70,10 @@ export default class NewGeth extends Component {
 
       return (
         <Checkbox
-          checked={ account.checked }
-          data-address={ account.address }
+          checked={ gethAddresses.includes(account.address) }
           key={ account.address }
           label={ label }
-          onCheck={ this.onSelect } />
+          onCheck={ onSelect } />
       );
     });
 
@@ -91,52 +82,5 @@ export default class NewGeth extends Component {
         { checkboxes }
       </div>
     );
-  }
-
-  onSelect = (event, checked) => {
-    const address = event.target.getAttribute('data-address');
-
-    if (!address) {
-      return;
-    }
-
-    const { available } = this.state;
-    const account = available.find((_account) => _account.address === address);
-    account.checked = checked;
-    const selected = available.filter((_account) => _account.checked);
-
-    this.setState({
-      available
-    });
-
-    this.props.onChange(selected.length, selected.map((account) => account.address));
-  }
-
-  loadAvailable = () => {
-    const { api } = this.context;
-    const { accounts } = this.props;
-
-    api.parity
-      .listGethAccounts()
-      .then((_addresses) => {
-        const addresses = (addresses || []).filter((address) => !accounts[address]);
-
-        return Promise
-          .all(addresses.map((address) => api.eth.getBalance(address)))
-          .then((balances) => {
-            this.setState({
-              available: addresses.map((address, idx) => {
-                return {
-                  address,
-                  balance: api.util.fromWei(balances[idx]).toFormat(5),
-                  checked: false
-                };
-              })
-            });
-          });
-      })
-      .catch((error) => {
-        console.warn('loadAvailable', error);
-      });
   }
 }

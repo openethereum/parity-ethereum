@@ -16,14 +16,14 @@
 
 import Store from './store';
 
-import { createApi } from './createAccount.test.js';
+import { ACCOUNTS, GETH_ADDRESSES, createApi } from './createAccount.test.js';
 
 let api;
 let store;
 
 function createStore () {
   api = createApi();
-  store = new Store(api);
+  store = new Store(api, ACCOUNTS);
 
   return store;
 }
@@ -34,6 +34,10 @@ describe('modals/CreateAccount/Store', () => {
   });
 
   describe('constructor', () => {
+    it('captures the accounts passed', () => {
+      expect(store.accounts).to.deep.equal(ACCOUNTS);
+    });
+
     it('sets the initial createType to fromNew', () => {
       expect(store.createType).to.equal('fromNew');
     });
@@ -41,9 +45,23 @@ describe('modals/CreateAccount/Store', () => {
     it('sets the initial stage to create', () => {
       expect(store.stage).to.equal(0);
     });
+
+    it('loads the geth accounts', () => {
+      expect(store.gethAccountsAvailable.map((account) => account.address)).to.deep.equal(GETH_ADDRESSES);
+    });
   });
 
   describe('@action', () => {
+    describe('selectGethAccount', () => {
+      it('selects and deselects and address', () => {
+        expect(store.gethAddresses.peek()).to.deep.equal([]);
+        store.selectGethAccount(GETH_ADDRESSES[0]);
+        expect(store.gethAddresses.peek()).to.deep.equal([GETH_ADDRESSES[0]]);
+        store.selectGethAccount(GETH_ADDRESSES[0]);
+        expect(store.gethAddresses.peek()).to.deep.equal([]);
+      });
+    });
+
     describe('setAddress', () => {
       const ADDR = '0x1234567890123456789012345678901234567890';
 
@@ -64,15 +82,6 @@ describe('modals/CreateAccount/Store', () => {
       it('allows setting the description', () => {
         store.setDescription('testing');
         expect(store.description).to.equal('testing');
-      });
-    });
-
-    describe('setGethAddresses', () => {
-      const ADDRESSES = ['one', 'two'];
-
-      it('allows setting the addresses', () => {
-        store.setGethAddresses(ADDRESSES);
-        expect(store.gethAddresses.peek()).to.deep.equal(ADDRESSES);
       });
     });
 

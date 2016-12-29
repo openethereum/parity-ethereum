@@ -69,7 +69,7 @@ export default class CreateAccount extends Component {
     onUpdate: PropTypes.func
   }
 
-  store = new Store(this.context.api);
+  store = new Store(this.context.api, this.props.accounts);
 
   state = {
     passwordHint: null,
@@ -100,7 +100,6 @@ export default class CreateAccount extends Component {
 
   renderPage () {
     const { createType, stage } = this.store;
-    const { accounts } = this.props;
 
     switch (stage) {
       case STAGE_SELECT_TYPE:
@@ -117,10 +116,7 @@ export default class CreateAccount extends Component {
           );
         } else if (createType === 'fromGeth') {
           return (
-            <NewGeth
-              accounts={ accounts }
-              onChange={ this.onChangeGeth }
-              store={ this.store } />
+            <NewGeth store={ this.store } />
           );
         } else if (createType === 'fromPhrase') {
           return (
@@ -400,14 +396,6 @@ export default class CreateAccount extends Component {
     this.setState({
       canCreate,
       rawKey
-    });
-  }
-
-  onChangeGeth = (canCreate, gethAddresses) => {
-    this.store.setGethAddresses(gethAddresses);
-
-    this.setState({
-      canCreate
     });
   }
 

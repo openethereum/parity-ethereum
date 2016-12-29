@@ -17,7 +17,7 @@
 import { shallow } from 'enzyme';
 import React from 'react';
 
-import { createApi } from './createAccount.test.js';
+import { ACCOUNTS, createApi } from './createAccount.test.js';
 
 import CreateAccount from './';
 
@@ -27,7 +27,7 @@ let component;
 function render () {
   api = createApi();
   component = shallow(
-    <CreateAccount />,
+    <CreateAccount accounts={ ACCOUNTS } />,
     { context: { api } }
   );
 

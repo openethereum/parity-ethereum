@@ -16,14 +16,18 @@
 
 import { action, observable } from 'mobx';
 
+import apiutil from '~/api/util';
+
 const STAGE_SELECT_TYPE = 0;
 const STAGE_CREATE = 1;
 const STAGE_INFO = 2;
 
 export default class Store {
+  @observable accounts = null;
   @observable address = null;
   @observable createType = 'fromNew';
   @observable description = '';
+  @observable gethAccountsAvailable = [];
   @observable gethAddresses = [];
   @observable isWindowsPhrase = false;
   @observable name = '';
@@ -31,8 +35,19 @@ export default class Store {
   @observable phrase = '';
   @observable stage = STAGE_SELECT_TYPE;
 
-  constructor (api) {
+  constructor (api, accounts) {
     this._api = api;
+    this.accounts = accounts;
+
+    this.loadAvailableGethAccounts();
+  }
+
+  @action selectGethAccount = (address) => {
+    if (this.gethAddresses.includes(address)) {
+      this.gethAddresses = this.gethAddresses.filter((_address) => _address !== address);
+    } else {
+      this.gethAddresses = [address].concat(this.gethAddresses.peek());
+    }
   }
 
   @action setAddress = (address) => {
@@ -47,8 +62,8 @@ export default class Store {
     this.description = description;
   }
 
-  @action setGethAddresses = (gethAddresses) => {
-    this.gethAddresses = [].concat(gethAddresses);
+  @action setGethAccountsAvailable = (gethAccountsAvailable) => {
+    this.gethAccountsAvailable = [].concat(gethAccountsAvailable);
   }
 
   @action setIsWindowsPhrase = (isWindowsPhrase = false) => {
@@ -73,6 +88,28 @@ export default class Store {
 
   @action prevStage = () => {
     this.stage--;
+  }
+
+  loadAvailableGethAccounts () {
+    return this._api.parity
+      .listGethAccounts()
+      .then((_addresses) => {
+        const addresses = (_addresses || []).filter((address) => !this.accounts[address]);
+
+        return Promise
+          .all(addresses.map((address) => this._api.eth.getBalance(address)))
+          .then((balances) => {
+            this.setGethAccountsAvailable(addresses.map((address, index) => {
+              return {
+                address,
+                balance: apiutil.fromWei(balances[index]).toFormat(5)
+              };
+            }));
+          });
+      })
+      .catch((error) => {
+        console.warn('loadAvailableGethAccounts', error);
+      });
   }
 }
 
