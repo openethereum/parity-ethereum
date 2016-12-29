@@ -72,7 +72,6 @@ export default class CreateAccount extends Component {
   store = new Store(this.context.api);
 
   state = {
-    name: null,
     passwordHint: null,
     password: null,
     phrase: null,
@@ -157,7 +156,6 @@ export default class CreateAccount extends Component {
 
         return (
           <AccountDetails
-            name={ this.state.name }
             phrase={ this.state.phrase }
             store={ this.store } />
         );
@@ -265,8 +263,8 @@ export default class CreateAccount extends Component {
   }
 
   onCreate = () => {
-    const { createType } = this.store;
-    const { windowsPhrase } = this.state;
+    const { createType, name } = this.store;
+    const { phrase, windowsPhrase } = this.state;
     const { api } = this.context;
 
     this.setState({
@@ -274,21 +272,21 @@ export default class CreateAccount extends Component {
     });
 
     if (['fromNew', 'fromPhrase'].includes(createType)) {
-      let phrase = this.state.phrase;
+      let formattedPhrase = phrase;
       if (createType === 'fromPhrase' && windowsPhrase) {
-        phrase = phrase
+        formattedPhrase = phrase
           .split(' ') // get the words
           .map((word) => word === 'misjudged' ? word : `${word}\r`) // add \r after each (except last in dict)
           .join(' '); // re-create string
       }
 
       return api.parity
-        .newAccountFromPhrase(phrase, this.state.password)
+        .newAccountFromPhrase(formattedPhrase, this.state.password)
         .then((address) => {
           this.store.setAddress(address);
 
           return api.parity
-            .setAccountName(address, this.state.name)
+            .setAccountName(address, name)
             .then(() => api.parity.setAccountMeta(address, {
               timestamp: Date.now(),
               passwordHint: this.state.passwordHint
@@ -314,7 +312,7 @@ export default class CreateAccount extends Component {
           this.store.setAddress(address);
 
           return api.parity
-            .setAccountName(address, this.state.name)
+            .setAccountName(address, name)
             .then(() => api.parity.setAccountMeta(address, {
               timestamp: Date.now(),
               passwordHint: this.state.passwordHint
@@ -364,7 +362,7 @@ export default class CreateAccount extends Component {
         this.store.setAddress(address);
 
         return api.parity
-          .setAccountName(address, this.state.name)
+          .setAccountName(address, name)
           .then(() => api.parity.setAccountMeta(address, {
             timestamp: Date.now(),
             passwordHint: this.state.passwordHint
@@ -387,7 +385,6 @@ export default class CreateAccount extends Component {
 
   onClose = () => {
     this.setState({
-      stage: 0,
       canCreate: false
     }, () => {
       this.props.onClose && this.props.onClose();
@@ -396,10 +393,10 @@ export default class CreateAccount extends Component {
 
   onChangeDetails = (canCreate, { name, passwordHint, address, password, phrase, rawKey, windowsPhrase }) => {
     this.store.setAddress(address);
+    this.store.setName(name);
 
     this.setState({
       canCreate,
-      name,
       password,
       passwordHint,
       phrase,
@@ -423,18 +420,19 @@ export default class CreateAccount extends Component {
   }
 
   onChangeWallet = (canCreate, { name, passwordHint, password, json }) => {
+    this.store.setName(name);
+
     this.setState({
       canCreate,
       json,
-      name,
       password,
       passwordHint
     });
   }
 
   printPhrase = () => {
-    const { address } = this.store;
-    const { phrase, name } = this.state;
+    const { address, name } = this.store;
+    const { phrase } = this.state;
     const identity = createIdentityImg(address);
 
     print(recoveryPage({

@@ -23,6 +23,9 @@ const STAGE_INFO = 2;
 export default class Store {
   @observable address = null;
   @observable createType = 'fromNew';
+  @observable description = '';
+  @observable name = '';
+  @observable nameError = null;
   @observable stage = STAGE_SELECT_TYPE;
 
   constructor (api) {
@@ -35,6 +38,14 @@ export default class Store {
 
   @action setCreateType = (createType) => {
     this.createType = createType;
+  }
+
+  @action setDescription = (description) => {
+    this.description = description;
+  }
+
+  @action setName = (name) => {
+    this.name = name;
   }
 
   @action setStage = (stage) => {

@@ -60,6 +60,20 @@ describe('modals/CreateAccount/Store', () => {
       });
     });
 
+    describe('setDescription', () => {
+      it('allows setting the description', () => {
+        store.setDescription('testing');
+        expect(store.description).to.equal('testing');
+      });
+    });
+
+    describe('setName', () => {
+      it('allows setting the name', () => {
+        store.setName('testing');
+        expect(store.name).to.equal('testing');
+      });
+    });
+
     describe('setStage', () => {
       it('changes to the provided stage', () => {
         store.setStage(2);
