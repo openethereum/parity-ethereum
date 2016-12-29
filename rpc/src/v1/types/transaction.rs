@@ -189,7 +189,6 @@ mod tests {
 			&format!("{}", tx_ser) +
 			r#","hash":"0x000000000000000000000000000000000000000000000000000000000000000a","gasPrice":"0x5"}"#
 		);
->>>>>>> 436016e... Introduce to_hex() utility in bigint. Fix tests.
 	}
 }
 

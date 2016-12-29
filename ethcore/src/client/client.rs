@@ -58,7 +58,7 @@ use client::{
 use client::Error as ClientError;
 use env_info::EnvInfo;
 use executive::{Executive, Executed, TransactOptions, contract_address};
-use receipt::LocalizedReceipt;
+use receipt::{Receipt, LocalizedReceipt};
 use trace::{TraceDB, ImportRequest as TraceImportRequest, LocalizedTrace, Database as TraceDatabase};
 use trace;
 use trace::FlatTransactionTraces;
@@ -263,7 +263,7 @@ impl Client {
 		}
 	}
 
-	/// Register an action to be done if a mode change happens. 
+	/// Register an action to be done if a mode change happens.
 	pub fn on_mode_change<F>(&self, f: F) where F: 'static + FnMut(&Mode) + Send {
 		*self.on_mode_change.lock() = Some(Box::new(f));
 	}
@@ -787,7 +787,6 @@ impl snapshot::DatabaseRestore for Client {
 	}
 }
 
-
 impl BlockChainClient for Client {
 	fn call(&self, t: &SignedTransaction, block: BlockID, analytics: CallAnalytics) -> Result<Executed, CallError> {
 		let header = try!(self.block_header(block).ok_or(CallError::StatePruned));
@@ -891,7 +890,7 @@ impl BlockChainClient for Client {
 					trace!(target: "mode", "Making callback...");
 					f(&*mode)
 				},
-				_ => {} 
+				_ => {}
 			}
 		}
 		match new_mode {
@@ -1012,53 +1011,23 @@ impl BlockChainClient for Client {
 		let chain = self.chain.read();
 		self.transaction_address(id)
 			.and_then(|address| chain.block_number(&address.block_hash).and_then(|block_number| {
-			let t = chain.block_body(&address.block_hash)
-				.and_then(|block| {
-					BodyView::new(&block).localized_transaction_at(&address.block_hash, block_number, address.index)
-				});
+				let transaction = chain.block_body(&address.block_hash)
+					.and_then(|body| BodyView::new(body).localized_transaction_at(&address.block_hash, block_number, address.index));
 
-			let tx_and_sender = t.and_then(|tx| tx.sender().ok().map(|sender| (tx, sender)));
-
-			match (tx_and_sender, chain.transaction_receipt(&address)) {
-				(Some((tx, sender)), Some(receipt)) => {
-					let block_hash = tx.block_hash.clone();
-					let block_number = tx.block_number.clone();
-					let transaction_hash = tx.hash();
-					let transaction_index = tx.transaction_index;
-					let prior_gas_used = match tx.transaction_index {
-						0 => U256::zero(),
-						i => {
-							let prior_address = TransactionAddress { block_hash: address.block_hash, index: i - 1 };
-							let prior_receipt = chain.transaction_receipt(&prior_address).expect("Transaction receipt at `address` exists; `prior_address` has lower index in same block; qed");
-							prior_receipt.gas_used
-						}
-					};
-					Some(LocalizedReceipt {
-						transaction_hash: tx.hash(),
-						transaction_index: tx.transaction_index,
-						block_hash: tx.block_hash,
-						block_number: tx.block_number,
-						cumulative_gas_used: receipt.gas_used,
-						gas_used: receipt.gas_used - prior_gas_used,
-						contract_address: match tx.action {
-							Action::Call(_) => None,
-							Action::Create => Some(contract_address(&sender, &tx.nonce))
-						},
-						logs: receipt.logs.into_iter().enumerate().map(|(i, log)| LocalizedLogEntry {
-							entry: log,
-							block_hash: block_hash.clone(),
-							block_number: block_number,
-							transaction_hash: transaction_hash.clone(),
-							transaction_index: transaction_index,
-							log_index: i
-						}).collect(),
-						log_bloom: receipt.log_bloom,
-						state_root: receipt.state_root,
+				let previous_receipts = (0..address.index + 1)
+					.map(|index| {
+						let mut address = address.clone();
+						address.index = index;
+						chain.transaction_receipt(&address)
 					})
-				},
-				_ => None
-			}
-		}))
+					.collect();
+				match (transaction, previous_receipts) {
+					(Some(transaction), Some(previous_receipts)) => {
+						Some(transaction_receipt(transaction, previous_receipts))
+					},
+					_ => None,
+				}
+			}))
 	}
 
 	fn tree_route(&self, from: &H256, to: &H256) -> Option<TreeRoute> {
@@ -1319,32 +1288,169 @@ impl MayPanic for Client {
 	}
 }
 
+/// Returns `LocalizedReceipt` given `LocalizedTransaction`
+/// and a vector of receipts from given block up to transaction index.
+fn transaction_receipt(tx: LocalizedTransaction, mut receipts: Vec<Receipt>) -> LocalizedReceipt {
+	assert_eq!(receipts.len(), tx.transaction_index + 1, "All previous receipts are provided.");
 
-#[test]
-fn should_not_cache_details_before_commit() {
-	use tests::helpers::*;
-	use std::thread;
-	use std::time::Duration;
-	use std::sync::atomic::{AtomicBool, Ordering};
-
-	let client = generate_dummy_client(0);
-	let genesis = client.chain_info().best_block_hash;
-	let (new_hash, new_block) = get_good_dummy_block_hash();
-
-	let go = {
-		// Separate thread uncommited transaction
-		let go = Arc::new(AtomicBool::new(false));
-		let go_thread = go.clone();
-		let another_client = client.reference().clone();
-		thread::spawn(move || {
-			let mut batch = DBTransaction::new(&*another_client.chain.read().db().clone());
-			another_client.chain.read().insert_block(&mut batch, &new_block, Vec::new());
-			go_thread.store(true, Ordering::SeqCst);
-		});
-		go
+	let sender = tx.sender()
+		.expect("LocalizedTransaction is part of the blockchain; We have only valid transactions in chain; qed");
+	let receipt = receipts.pop().expect("Current receipt is provided; qed");
+	let prior_gas_used = match tx.transaction_index {
+		0 => 0.into(),
+		i => receipts.get(i - 1).expect("All previous receipts are provided; qed").gas_used,
 	};
+	let no_of_logs = receipts.into_iter().map(|receipt| receipt.logs.len()).sum::<usize>();
+	let transaction_hash = tx.hash();
+	let block_hash = tx.block_hash;
+	let block_number = tx.block_number;
+	let transaction_index = tx.transaction_index;
 
-	while !go.load(Ordering::SeqCst) { thread::park_timeout(Duration::from_millis(5)); }
+	LocalizedReceipt {
+		transaction_hash: transaction_hash,
+		transaction_index: transaction_index,
+		block_hash: block_hash,
+		block_number:block_number,
+		cumulative_gas_used: receipt.gas_used,
+		gas_used: receipt.gas_used - prior_gas_used,
+		contract_address: match tx.action {
+			Action::Call(_) => None,
+			Action::Create => Some(contract_address(&sender, &tx.nonce))
+		},
+		logs: receipt.logs.into_iter().enumerate().map(|(i, log)| LocalizedLogEntry {
+			entry: log,
+			block_hash: block_hash,
+			block_number: block_number,
+			transaction_hash: transaction_hash,
+			transaction_index: transaction_index,
+			transaction_log_index: i,
+			log_index: no_of_logs + i,
+		}).collect(),
+		log_bloom: receipt.log_bloom,
+		state_root: receipt.state_root,
+	}
+}
 
-	assert!(client.tree_route(&genesis, &new_hash).is_none());
+#[cfg(test)]
+mod tests {
+
+	#[test]
+	fn should_not_cache_details_before_commit() {
+		use client::BlockChainClient;
+		use tests::helpers::*;
+
+		use std::thread;
+		use std::time::Duration;
+		use std::sync::Arc;
+		use std::sync::atomic::{AtomicBool, Ordering};
+		use util::kvdb::DBTransaction;
+
+		let client = generate_dummy_client(0);
+		let genesis = client.chain_info().best_block_hash;
+		let (new_hash, new_block) = get_good_dummy_block_hash();
+
+		let go = {
+			// Separate thread uncommited transaction
+			let go = Arc::new(AtomicBool::new(false));
+			let go_thread = go.clone();
+			let another_client = client.reference().clone();
+			thread::spawn(move || {
+				let mut batch = DBTransaction::new(&*another_client.chain.read().db().clone());
+				another_client.chain.read().insert_block(&mut batch, &new_block, Vec::new());
+				go_thread.store(true, Ordering::SeqCst);
+			});
+			go
+		};
+
+		while !go.load(Ordering::SeqCst) { thread::park_timeout(Duration::from_millis(5)); }
+
+		assert!(client.tree_route(&genesis, &new_hash).is_none());
+	}
+
+	#[test]
+	fn should_return_correct_log_index() {
+		use super::transaction_receipt;
+		use ethkey::KeyPair;
+		use log_entry::{LogEntry, LocalizedLogEntry};
+		use receipt::{Receipt, LocalizedReceipt};
+		use transaction::{Transaction, LocalizedTransaction, Action};
+		use util::Hashable;
+
+		// given
+		let key = KeyPair::from_secret("test".sha3()).unwrap();
+		let secret = key.secret();
+
+		let block_number = 1;
+		let block_hash = 5.into();
+		let state_root = 99.into();
+		let gas_used = 10.into();
+		let raw_tx = Transaction {
+			nonce: 0.into(),
+			gas_price: 0.into(),
+			gas: 21000.into(),
+			action: Action::Call(10.into()),
+			value: 0.into(),
+			data: vec![],
+		};
+		let tx1 = raw_tx.clone().sign(secret, None);
+		let transaction = LocalizedTransaction {
+			signed: tx1.clone(),
+			block_number: block_number,
+			block_hash: block_hash,
+			transaction_index: 1,
+		};
+		let logs = vec![LogEntry {
+			address: 5.into(),
+			topics: vec![],
+			data: vec![],
+		}, LogEntry {
+			address: 15.into(),
+			topics: vec![],
+			data: vec![],
+		}];
+		let receipts = vec![Receipt {
+			state_root: state_root,
+			gas_used: 5.into(),
+			log_bloom: Default::default(),
+			logs: vec![logs[0].clone()],
+		}, Receipt {
+			state_root: state_root,
+			gas_used: gas_used,
+			log_bloom: Default::default(),
+			logs: logs.clone(),
+		}];
+
+		// when
+		let receipt = transaction_receipt(transaction, receipts);
+
+		// then
+		assert_eq!(receipt, LocalizedReceipt {
+			transaction_hash: tx1.hash(),
+			transaction_index: 1,
+			block_hash: block_hash,
+			block_number: block_number,
+			cumulative_gas_used: gas_used,
+			gas_used: gas_used - 5.into(),
+			contract_address: None,
+			logs: vec![LocalizedLogEntry {
+				entry: logs[0].clone(),
+				block_hash: block_hash,
+				block_number: block_number,
+				transaction_hash: tx1.hash(),
+				transaction_index: 1,
+				transaction_log_index: 0,
+				log_index: 1,
+			}, LocalizedLogEntry {
+				entry: logs[1].clone(),
+				block_hash: block_hash,
+				block_number: block_number,
+				transaction_hash: tx1.hash(),
+				transaction_index: 1,
+				transaction_log_index: 1,
+				log_index: 2,
+			}],
+			log_bloom: Default::default(),
+			state_root: state_root,
+		});
+	}
 }
