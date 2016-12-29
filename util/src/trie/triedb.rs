@@ -24,10 +24,8 @@ use super::{Trie, TrieItem, TrieError, TrieIterator};
 
 /// A `Trie` implementation using a generic `HashDB` backing database.
 ///
-/// Use it as a `Trie` trait object. You can use `db()` to get the backing database object, `keys`
-/// to get the keys belonging to the trie in the backing database, and `db_items_remaining()` to get
-/// which items in the backing database do not belong to this trie. If this is the only trie in the
-/// backing database, then `db_items_remaining()` should be empty.
+/// Use it as a `Trie` trait object. You can use `db()` to get the backing database object.
+/// Use `get` and `contains` to query values associated with keys in the trie.
 ///
 /// # Example
 /// ```
@@ -45,7 +43,6 @@ use super::{Trie, TrieItem, TrieError, TrieIterator};
 ///   let t = TrieDB::new(&memdb, &root).unwrap();
 ///   assert!(t.contains(b"foo").unwrap());
 ///   assert_eq!(t.get(b"foo").unwrap().unwrap(), DBValue::from_slice(b"bar"));
-///   assert!(t.db_items_remaining().unwrap().is_empty());
 /// }
 /// ```
 pub struct TrieDB<'db> {
@@ -76,14 +73,6 @@ impl<'db> TrieDB<'db> {
 		self.db
 	}
 
-	/// Determine all the keys in the backing database that belong to the trie.
-	pub fn keys(&self) -> super::Result<Vec<H256>> {
-		let mut ret: Vec<H256> = Vec::new();
-		ret.push(self.root.clone());
-		self.accumulate_keys(self.root_node(&mut NoOp)?, &mut ret)?;
-		Ok(ret)
-	}
-
 	/// Convert a vector of hashes to a hashmap of hash to occurrences.
 	pub fn to_map(hashes: Vec<H256>) -> HashMap<H256, u32> {
 		let mut r: HashMap<H256, u32> = HashMap::new();
@@ -93,57 +82,18 @@ impl<'db> TrieDB<'db> {
 		r
 	}
 
-	/// Determine occurrences of items in the backing database which are not related to this
-	/// trie.
-	pub fn db_items_remaining(&self) -> super::Result<HashMap<H256, i32>> {
-		let mut ret = self.db.keys();
-		for (k, v) in Self::to_map(self.keys()?) {
-			let keycount = *ret.get(&k).unwrap_or(&0);
-			match keycount <= v as i32 {
-				true => ret.remove(&k),
-				_ => ret.insert(k, keycount - v as i32),
-			};
-		}
-		Ok(ret)
-	}
-
-	/// Recursion helper for `keys`.
-	fn accumulate_keys(&self, node: Node, acc: &mut Vec<H256>) -> super::Result<()> {
-		let mut handle_payload = |payload| {
-			let p = Rlp::new(payload);
-			if p.is_data() && p.size() == 32 {
-				acc.push(p.as_val());
-			}
-
-			self.accumulate_keys(self.get_node(payload, &mut NoOp, 0)?, acc)
-		};
-
-		match node {
-			Node::Extension(_, ref payload) => handle_payload(payload)?,
-			Node::Branch(ref payloads, _) => for payload in payloads { handle_payload(payload)? },
-			_ => {},
-		}
-
-		Ok(())
-	}
-
-	/// Get the root node's RLP.
-	fn root_node<R: Recorder>(&self, r: &mut R) -> super::Result<Node> {
-		self.root_data(r).map(|d| Node::decoded(&d))
-	}
-
 	/// Get the data of the root node.
 	fn root_data<R: Recorder>(&self, r: &mut R) -> super::Result<DBValue> {
 		self.db.get(self.root).ok_or_else(|| Box::new(TrieError::InvalidStateRoot(*self.root)))
 			.map(|node| { r.record(self.root, &*node, 0); node })
 	}
 
-	/// Get the root node as a `Node`.
+	/// Get a node as a `Node`.
 	fn get_node<'a, R: 'a + Recorder>(&'db self, node: &'db [u8], r: &'a mut R, depth: u32) -> super::Result<Node> {
 		self.get_raw_or_lookup(node, r, depth).map(|n| Node::decoded(&n))
 	}
 
-	/// Indentation helper for `formal_all`.
+	/// Indentation helper for `format_all`.
 	fn fmt_indent(&self, f: &mut fmt::Formatter, size: usize) -> fmt::Result {
 		for _ in 0..size {
 			write!(f, "  ")?;
@@ -187,14 +137,6 @@ impl<'db> TrieDB<'db> {
 			}
 		};
 		Ok(())
-	}
-
-	/// Return optional data for a key given as a `NibbleSlice`. Returns `None` if no data exists.
-	fn do_lookup<'key, R: 'key>(&'db self, key: &NibbleSlice<'key>, r: &'key mut R) -> super::Result<Option<DBValue>>
-		where 'db: 'key, R: Recorder
-	{
-		let root_rlp = self.root_data(r)?;
-		self.get_from_node(&root_rlp, key, r, 1)
 	}
 
 	/// Recursible function to retrieve the value given a `node` and a partial `key`. `None` if no
@@ -295,7 +237,7 @@ impl<'a> TrieDBIterator<'a> {
 		Ok(r)
 	}
 
-	fn seek_descend<'key> ( &mut self, node: &[u8], key: &NibbleSlice<'key>, d: u32) -> super::Result<()> {
+	fn seek_descend<'key>(&mut self, node: &[u8], key: &NibbleSlice<'key>, d: u32) -> super::Result<()> {
 		match Node::decoded(node) {
 			Node::Leaf(ref slice, _) => {
 				let slice = &NibbleSlice::from_encoded(slice).0;
@@ -379,8 +321,7 @@ impl<'a> TrieIterator for TrieDBIterator<'a> {
 	fn seek(&mut self, key: &[u8]) -> super::Result<()> {
 		self.trail.clear();
 		self.key_nibbles.clear();
-		let mut r = NoOp;
-		let root_rlp = self.db.root_data(&mut r)?;
+		let root_rlp = self.db.root_data(&mut NoOp)?;
 		self.seek_descend(&root_rlp, &NibbleSlice::new(key), 1)
 	}
 }
@@ -450,7 +391,8 @@ impl<'db> Trie for TrieDB<'db> {
 	fn get_recorded<'a, 'b, R: 'b>(&'a self, key: &'b [u8], rec: &'b mut R) -> super::Result<Option<DBValue>>
 		where 'a: 'b, R: Recorder
 	{
-		self.do_lookup(&NibbleSlice::new(key), rec)
+		let root_rlp = self.root_data(rec)?;
+		self.get_from_node(&root_rlp, &NibbleSlice::new(key), rec, 1)
 	}
 }
 
