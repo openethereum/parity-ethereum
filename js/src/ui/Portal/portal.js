@@ -24,7 +24,7 @@ import ParityBackground from '~/ui/ParityBackground';
 
 import styles from './portal.css';
 
-export default class Protal extends Component {
+export default class Portal extends Component {
 
   static propTypes = {
     onClose: PropTypes.func.isRequired,
