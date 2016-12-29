@@ -72,6 +72,7 @@ export const reserve = (name) => (dispatch, getState) => {
     })
     .catch((err) => {
       if (err.type !== 'REQUEST_REJECTED') {
+        console.error(`error rerserving ${name}`, err);
         return dispatch(reserveFail(name, err));
       }
 
@@ -125,6 +126,7 @@ export const drop = (name) => (dispatch, getState) => {
     })
     .catch((err) => {
       if (err.type !== 'REQUEST_REJECTED') {
+        console.error(`error dropping ${name}`, err);
         return dispatch(dropFail(name, err));
       }
 
