@@ -837,44 +837,6 @@ impl snapshot::DatabaseRestore for Client {
 	}
 }
 
-fn transaction_receipt(index: usize, transactions: Option<Vec<LocalizedTransaction>>, receipt: Option<Receipt>, prior_gas: Option<U256>) -> Option<LocalizedReceipt> {
-	let tx_and_sender = transactions.as_ref()
-		.and_then(|list| list.get(index))
-		.map(|tx| (*tx).clone())
-		.and_then(|tx: LocalizedTransaction| tx.sender().ok().map(|sender| (tx, sender)));
-	match (tx_and_sender, transactions, receipt, prior_gas) {
-		(Some((tx, sender)), Some(_transactions_in_block), Some(receipt), Some(prior_gas_used)) => {
-			let block_hash = tx.block_hash.clone();
-			let block_number = tx.block_number.clone();
-			let transaction_hash = tx.hash();
-			let transaction_index = tx.transaction_index;
-			Some(LocalizedReceipt {
-				transaction_hash: tx.hash(),
-				transaction_index: tx.transaction_index,
-				block_hash: tx.block_hash,
-				block_number: tx.block_number,
-				cumulative_gas_used: receipt.gas_used,
-				gas_used: receipt.gas_used - prior_gas_used,
-				contract_address: match tx.action {
-					Action::Call(_) => None,
-					Action::Create => Some(contract_address(&sender, &tx.nonce))
-				},
-				logs: receipt.logs.into_iter().enumerate().map(|(i, log)| LocalizedLogEntry {
-					entry: log,
-					block_hash: block_hash.clone(),
-					block_number: block_number,
-					transaction_hash: transaction_hash.clone(),
-					transaction_index: transaction_index,
-					log_index: i
-				}).collect(),
-				log_bloom: receipt.log_bloom,
-				state_root: receipt.state_root,
-			})
-		},
-		_ => None
-	}
-}
-
 impl BlockChainClient for Client {
 	fn call(&self, t: &SignedTransaction, block: BlockId, analytics: CallAnalytics) -> Result<Executed, CallError> {
 		let header = self.block_header(block).ok_or(CallError::StatePruned)?;
@@ -1540,6 +1502,44 @@ impl Drop for Client {
 	}
 }
 
+fn transaction_receipt(index: usize, transactions: Option<Vec<LocalizedTransaction>>, receipt: Option<Receipt>, prior_gas: Option<U256>) -> Option<LocalizedReceipt> {
+	let tx_and_sender = transactions.as_ref()
+		.and_then(|list| list.get(index))
+		.map(|tx| (*tx).clone())
+		.and_then(|tx: LocalizedTransaction| tx.sender().ok().map(|sender| (tx, sender)));
+	match (tx_and_sender, transactions, receipt, prior_gas) {
+		(Some((tx, sender)), Some(_transactions_in_block), Some(receipt), Some(prior_gas_used)) => {
+			let block_hash = tx.block_hash.clone();
+			let block_number = tx.block_number.clone();
+			let transaction_hash = tx.hash();
+			let transaction_index = tx.transaction_index;
+			Some(LocalizedReceipt {
+				transaction_hash: tx.hash(),
+				transaction_index: tx.transaction_index,
+				block_hash: tx.block_hash,
+				block_number: tx.block_number,
+				cumulative_gas_used: receipt.gas_used,
+				gas_used: receipt.gas_used - prior_gas_used,
+				contract_address: match tx.action {
+					Action::Call(_) => None,
+					Action::Create => Some(contract_address(&sender, &tx.nonce))
+				},
+				logs: receipt.logs.into_iter().enumerate().map(|(i, log)| LocalizedLogEntry {
+					entry: log,
+					block_hash: block_hash.clone(),
+					block_number: block_number,
+					transaction_hash: transaction_hash.clone(),
+					transaction_index: transaction_index,
+					log_index: i
+				}).collect(),
+				log_bloom: receipt.log_bloom,
+				state_root: receipt.state_root,
+			})
+		},
+		_ => None
+	}
+}
+
 #[cfg(test)]
 mod tests {
 
@@ -1574,5 +1574,95 @@ mod tests {
 		while !go.load(Ordering::SeqCst) { thread::park_timeout(Duration::from_millis(5)); }
 
 		assert!(client.tree_route(&genesis, &new_hash).is_none());
+	}
+
+	#[test]
+	fn should_return_correct_log_index() {
+		use super::transaction_receipt;
+		use ethkey::KeyPair;
+		use log_entry::{LogEntry, LocalizedLogEntry};
+		use receipt::{Receipt, LocalizedReceipt};
+		use transaction::{Transaction, LocalizedTransaction, Action};
+		use util::Hashable;
+
+		// given
+		let key = KeyPair::from_secret("test".sha3()).unwrap();
+		let secret = key.secret();
+
+		let block_number = 1;
+		let block_hash = 5.into();
+		let state_root = 99.into();
+		let gas_used = 10.into();
+		let mut raw_tx = Transaction {
+			nonce: 0.into(),
+			gas_price: 0.into(),
+			gas: 21000.into(),
+			action: Action::Call(10.into()),
+			value: 0.into(),
+			data: vec![],
+		};
+		let tx1 = raw_tx.clone().sign(secret, None);
+		let tx2 = {
+			raw_tx.nonce = 1.into();
+			raw_tx.sign(secret, None)
+		};
+
+		let transactions = vec![LocalizedTransaction {
+			signed: tx1.clone(),
+			block_number: block_number,
+			block_hash: block_hash,
+			transaction_index: 0,
+		}, LocalizedTransaction {
+			signed: tx2.clone(),
+			block_number: block_number,
+			block_hash: block_hash,
+			transaction_index: 1,
+		}];
+		let logs = vec![LogEntry {
+			address: 5.into(),
+			topics: vec![],
+			data: vec![],
+		}, LogEntry {
+			address: 15.into(),
+			topics: vec![],
+			data: vec![],
+		}];
+		let receipt = Receipt {
+			state_root: state_root,
+			gas_used: gas_used,
+			log_bloom: Default::default(),
+			logs: logs.clone(),
+		};
+
+		// when
+		let receipt = transaction_receipt(1, Some(transactions), Some(receipt), Some(5.into()));
+
+		// then
+		assert_eq!(receipt, Some(LocalizedReceipt {
+			transaction_hash: tx2.hash(),
+			transaction_index: 1,
+			block_hash: block_hash,
+			block_number: block_number,
+			cumulative_gas_used: gas_used,
+			gas_used: gas_used - 5.into(),
+			contract_address: None,
+			logs: vec![LocalizedLogEntry {
+				entry: logs[0].clone(),
+				block_hash: block_hash,
+				block_number: block_number,
+				transaction_hash: tx2.hash(),
+				transaction_index: 1,
+				log_index: 0,
+			}, LocalizedLogEntry {
+				entry: logs[1].clone(),
+				block_hash: block_hash,
+				block_number: block_number,
+				transaction_hash: tx2.hash(),
+				transaction_index: 1,
+				log_index: 1,
+			}],
+			log_bloom: Default::default(),
+			state_root: state_root,
+		}));
 	}
 }

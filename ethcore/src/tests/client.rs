@@ -320,15 +320,3 @@ fn does_not_propagate_delayed_transactions() {
 	assert_eq!(2, client.ready_transactions().len());
 	assert_eq!(2, client.miner().pending_transactions().len());
 }
-
-#[test]
-fn should_return_correct_log_index() {
-	let key = KeyPair::from_secret("test".sha3()).unwrap();
-	let secret = key.secret();
-
-	let dummy_blocks = get_good_dummy_block_seq(2);
-	let client_result = get_test_client_with_blocks(vec![dummy_blocks[0].clone()]);
-	let client = client_result.reference();
-
-
-}
