@@ -95,38 +95,7 @@ class AddressSelect extends Component {
   }
 
   setValues (props = this.props) {
-<<<<<<< HEAD
-    const { accounts = {}, contracts = {}, contacts = {} } = props;
-
-    const accountsN = Object.keys(accounts).length;
-    const contractsN = Object.keys(contracts).length;
-    const contactsN = Object.keys(contacts).length;
-
-    if (accountsN + contractsN + contactsN === 0) {
-      return;
-    }
-
-    this.values = [
-      {
-        label: 'accounts',
-        values: [].concat(
-          Object.values(accounts)
-        )
-      },
-      {
-        label: 'contacts',
-        values: Object.values(contacts)
-      },
-      {
-        label: 'contracts',
-        values: Object.values(contracts)
-      }
-    ].filter((cat) => cat.values.length > 0);
-
-    this.handleChange();
-=======
     this.store.setValues(props);
->>>>>>> master
   }
 
   render () {
