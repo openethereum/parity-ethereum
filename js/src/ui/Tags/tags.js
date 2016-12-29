@@ -16,13 +16,15 @@
 
 import React, { Component, PropTypes } from 'react';
 
+import { arrayOrObjectProptype } from '~/util/proptypes';
+
 import styles from './tags.css';
 
 export default class Tags extends Component {
   static propTypes = {
     handleAddSearchToken: PropTypes.func,
     setRefs: PropTypes.func,
-    tags: PropTypes.array
+    tags: arrayOrObjectProptype()
   }
 
   render () {
