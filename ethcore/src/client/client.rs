@@ -1143,7 +1143,12 @@ impl BlockChainClient for Client {
 						chain.transaction_receipt(&address)
 					})
 					.collect();
-				transaction_receipt(transaction, previous_receipts)
+				match (transaction, previous_receipts) {
+					(Some(transaction), Some(previous_receipts)) => {
+						Some(transaction_receipt(transaction, previous_receipts))
+					},
+					_ => None,
+				}
 			}))
 	}
 
@@ -1499,49 +1504,46 @@ impl Drop for Client {
 	}
 }
 
-fn transaction_receipt(transaction: Option<LocalizedTransaction>, receipts: Option<Vec<Receipt>>) -> Option<LocalizedReceipt> {
-	let tx_and_sender = transaction
-		.and_then(|tx| tx.sender().ok().map(|sender| (tx, sender)));
+/// Returns `LocalizedReceipt` given `LocalizedTransaction`
+/// and a vector of receipts from given block up to transaction index.
+fn transaction_receipt(tx: LocalizedTransaction, mut receipts: Vec<Receipt>) -> LocalizedReceipt {
+	assert_eq!(receipts.len(), tx.transaction_index + 1, "All previous receipts are provided.");
 
-	match (tx_and_sender, receipts) {
-		(Some((tx, sender)), Some(mut receipts)) => {
-			assert_eq!(receipts.len(), tx.transaction_index + 1, "All previous receipts are provided.");
+	let sender = tx.sender()
+		.expect("LocalizedTransaction is part of the blockchain; We have only valid transactions in chain; qed");
+	let receipt = receipts.pop().expect("Current receipt is provided; qed");
+	let prior_gas_used = match tx.transaction_index {
+		0 => 0.into(),
+		i => receipts.get(i - 1).expect("All previous receipts are provided; qed").gas_used,
+	};
+	let no_of_logs = receipts.into_iter().map(|receipt| receipt.logs.len()).sum::<usize>();
+	let transaction_hash = tx.hash();
+	let block_hash = tx.block_hash;
+	let block_number = tx.block_number;
+	let transaction_index = tx.transaction_index;
 
-			let receipt = receipts.pop().expect("Current receipt is provided; qed");
-			let prior_gas_used = match tx.transaction_index {
-				0 => 0.into(),
-				i => receipts.get(i - 1).expect("All previous receipts are provided; qed").gas_used,
-			};
-			let no_of_logs = receipts.into_iter().map(|receipt| receipt.logs.len()).sum::<usize>();
-			let transaction_hash = tx.hash();
-			let block_hash = tx.block_hash;
-			let block_number = tx.block_number;
-			let transaction_index = tx.transaction_index;
-			Some(LocalizedReceipt {
-				transaction_hash: transaction_hash,
-				transaction_index: transaction_index,
-				block_hash: block_hash,
-				block_number:block_number,
-				cumulative_gas_used: receipt.gas_used,
-				gas_used: receipt.gas_used - prior_gas_used,
-				contract_address: match tx.action {
-					Action::Call(_) => None,
-					Action::Create => Some(contract_address(&sender, &tx.nonce))
-				},
-				logs: receipt.logs.into_iter().enumerate().map(|(i, log)| LocalizedLogEntry {
-					entry: log,
-					block_hash: block_hash,
-					block_number: block_number,
-					transaction_hash: transaction_hash,
-					transaction_index: transaction_index,
-					transaction_log_index: i,
-					log_index: no_of_logs + i,
-				}).collect(),
-				log_bloom: receipt.log_bloom,
-				state_root: receipt.state_root,
-			})
+	LocalizedReceipt {
+		transaction_hash: transaction_hash,
+		transaction_index: transaction_index,
+		block_hash: block_hash,
+		block_number:block_number,
+		cumulative_gas_used: receipt.gas_used,
+		gas_used: receipt.gas_used - prior_gas_used,
+		contract_address: match tx.action {
+			Action::Call(_) => None,
+			Action::Create => Some(contract_address(&sender, &tx.nonce))
 		},
-		_ => None
+		logs: receipt.logs.into_iter().enumerate().map(|(i, log)| LocalizedLogEntry {
+			entry: log,
+			block_hash: block_hash,
+			block_number: block_number,
+			transaction_hash: transaction_hash,
+			transaction_index: transaction_index,
+			transaction_log_index: i,
+			log_index: no_of_logs + i,
+		}).collect(),
+		log_bloom: receipt.log_bloom,
+		state_root: receipt.state_root,
 	}
 }
 
@@ -1635,10 +1637,10 @@ mod tests {
 		}];
 
 		// when
-		let receipt = transaction_receipt(Some(transaction), Some(receipts));
+		let receipt = transaction_receipt(transaction, receipts);
 
 		// then
-		assert_eq!(receipt, Some(LocalizedReceipt {
+		assert_eq!(receipt, LocalizedReceipt {
 			transaction_hash: tx1.hash(),
 			transaction_index: 1,
 			block_hash: block_hash,
@@ -1665,6 +1667,6 @@ mod tests {
 			}],
 			log_bloom: Default::default(),
 			state_root: state_root,
-		}));
+		});
 	}
 }
