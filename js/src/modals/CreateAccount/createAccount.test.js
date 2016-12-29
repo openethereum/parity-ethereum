@@ -21,7 +21,8 @@ import Store from './store';
 function createApi () {
   return {
     parity: {
-      generateSecretPhrase: sinon.stub().resolves()
+      generateSecretPhrase: sinon.stub().resolves(),
+      phraseToAddress: sinon.stub().resolves()
     }
   };
 }

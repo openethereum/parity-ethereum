@@ -44,8 +44,7 @@ export default class RecoveryPhrase extends Component {
     password2: '',
     password2Error: null,
     recoveryPhrase: '',
-    recoveryPhraseError: null,
-    windowsPhrase: false
+    recoveryPhraseError: null
   }
 
   componentWillMount () {
@@ -53,7 +52,8 @@ export default class RecoveryPhrase extends Component {
   }
 
   render () {
-    const { accountName, accountNameError, passwordHint, password1, password1Error, password2, password2Error, recoveryPhrase, windowsPhrase } = this.state;
+    const { isWindowsPhrase } = this.props.store;
+    const { accountName, accountNameError, passwordHint, password1, password1Error, password2, password2Error, recoveryPhrase } = this.state;
 
     return (
       <Form>
@@ -133,7 +133,7 @@ export default class RecoveryPhrase extends Component {
               value={ password2 } />
           </div>
           <Checkbox
-            checked={ windowsPhrase }
+            checked={ isWindowsPhrase }
             className={ styles.checkbox }
             label={
               <FormattedMessage
@@ -147,15 +147,14 @@ export default class RecoveryPhrase extends Component {
   }
 
   updateParent = () => {
-    const { accountName, isValidName, isValidPass, isValidPhrase, password1, passwordHint, recoveryPhrase, windowsPhrase } = this.state;
+    const { accountName, isValidName, isValidPass, isValidPhrase, password1, passwordHint, recoveryPhrase } = this.state;
     const isValid = isValidName && isValidPass && isValidPhrase;
 
     this.props.onChange(isValid, {
       name: accountName,
       password: password1,
       passwordHint,
-      phrase: recoveryPhrase,
-      windowsPhrase
+      phrase: recoveryPhrase
     });
   }
 
@@ -166,9 +165,9 @@ export default class RecoveryPhrase extends Component {
   }
 
   onToggleWindowsPhrase = (event) => {
-    this.setState({
-      windowsPhrase: !this.state.windowsPhrase
-    }, this.updateParent);
+    const { store } = this.props;
+
+    store.setIsWindowsPhrase(!store.isWindowsPhrase);
   }
 
   onEditPhrase = (event) => {

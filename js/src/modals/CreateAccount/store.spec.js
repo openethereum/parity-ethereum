@@ -67,6 +67,13 @@ describe('modals/CreateAccount/Store', () => {
       });
     });
 
+    describe('setIsWindowsPhrase', () => {
+      it('allows setting the windows toggle', () => {
+        store.setIsWindowsPhrase(true);
+        expect(store.isWindowsPhrase).to.be.true;
+      });
+    });
+
     describe('setName', () => {
       it('allows setting the name', () => {
         store.setName('testing');

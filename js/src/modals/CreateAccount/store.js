@@ -24,6 +24,7 @@ export default class Store {
   @observable address = null;
   @observable createType = 'fromNew';
   @observable description = '';
+  @observable isWindowsPhrase = false;
   @observable name = '';
   @observable nameError = null;
   @observable phrase = '';
@@ -43,6 +44,10 @@ export default class Store {
 
   @action setDescription = (description) => {
     this.description = description;
+  }
+
+  @action setIsWindowsPhrase = (isWindowsPhrase = false) => {
+    this.isWindowsPhrase = isWindowsPhrase;
   }
 
   @action setName = (name) => {

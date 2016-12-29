@@ -74,7 +74,6 @@ export default class CreateAccount extends Component {
   state = {
     passwordHint: null,
     password: null,
-    windowsPhrase: false,
     rawKey: null,
     json: null,
     canCreate: false,
@@ -260,8 +259,7 @@ export default class CreateAccount extends Component {
   }
 
   onCreate = () => {
-    const { createType, name, phrase } = this.store;
-    const { windowsPhrase } = this.state;
+    const { createType, isWindowsPhrase, name, phrase } = this.store;
     const { api } = this.context;
 
     this.setState({
@@ -270,7 +268,7 @@ export default class CreateAccount extends Component {
 
     if (['fromNew', 'fromPhrase'].includes(createType)) {
       let formattedPhrase = phrase;
-      if (createType === 'fromPhrase' && windowsPhrase) {
+      if (isWindowsPhrase && createType === 'fromPhrase') {
         formattedPhrase = phrase
           .split(' ') // get the words
           .map((word) => word === 'misjudged' ? word : `${word}\r`) // add \r after each (except last in dict)
@@ -388,7 +386,7 @@ export default class CreateAccount extends Component {
     });
   }
 
-  onChangeDetails = (canCreate, { name, passwordHint, address, password, phrase, rawKey, windowsPhrase }) => {
+  onChangeDetails = (canCreate, { name, passwordHint, address, password, phrase, rawKey }) => {
     this.store.setAddress(address);
     this.store.setName(name);
     this.store.setPhrase(phrase);
@@ -397,8 +395,7 @@ export default class CreateAccount extends Component {
       canCreate,
       password,
       passwordHint,
-      rawKey,
-      windowsPhrase: windowsPhrase || false
+      rawKey
     });
   }
 
