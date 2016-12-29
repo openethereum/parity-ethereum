@@ -28,7 +28,6 @@ import InputAddress from '~/ui/Form/InputAddress';
 import Portal from '~/ui/Portal';
 import { nodeOrStringProptype } from '~/util/proptypes';
 import { validateAddress } from '~/util/validation';
-import { nodeOrStringProptype } from '~/util/proptypes';
 
 import AddressSelectStore from './addressSelectStore';
 import styles from './addressSelect.css';
