@@ -71,3 +71,27 @@ export const reverseLookup = (address) => (dispatch, getState) => {
       dispatch(fail('reverseLookup'));
     });
 };
+
+export const lookupOwner = (name) => (dispatch, getState) => {
+  const { contract } = getState();
+
+  if (!contract) {
+    return;
+  }
+
+  dispatch(reverseLookupStart(name));
+
+  contract.instance
+    .reverse
+    .call({}, [ name ])
+    .then((address) => {
+      dispatch(success('reverseLookup', address));
+    })
+    .catch((err) => {
+      console.error(`could not lookup owner for ${name}`);
+      if (err) {
+        console.error(err.stack);
+      }
+      dispatch(fail('reverseLookup'));
+    });
+};

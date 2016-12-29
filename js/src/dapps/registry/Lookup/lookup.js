@@ -29,7 +29,7 @@ import { nullableProptype } from '~/util/proptypes';
 import Address from '../ui/address.js';
 import renderImage from '../ui/image.js';
 
-import { clear, lookup, reverseLookup } from './actions';
+import { clear, lookup, lookupOwner, reverseLookup } from './actions';
 import styles from './lookup.css';
 
 class Lookup extends Component {
@@ -39,6 +39,7 @@ class Lookup extends Component {
 
     clear: PropTypes.func.isRequired,
     lookup: PropTypes.func.isRequired,
+    lookupOwner: PropTypes.func.isRequired,
     reverseLookup: PropTypes.func.isRequired
   }
 
@@ -68,6 +69,7 @@ class Lookup extends Component {
             <MenuItem value='IMG' primaryText='IMG – hash of a picture in the blockchain' />
             <MenuItem value='CONTENT' primaryText='CONTENT – hash of a data in the blockchain' />
             <MenuItem value='reverse' primaryText='reverse – find a name for an address' />
+            <MenuItem value='owner' primaryText='owner – find a the owner' />
           </DropDownMenu>
           <RaisedButton
             label='Lookup'
@@ -88,7 +90,7 @@ class Lookup extends Component {
       return null;
     }
 
-    if (type === 'A') {
+    if (type === 'A' || type === 'owner') {
       return (
         <code>
           <Address
@@ -138,17 +140,21 @@ class Lookup extends Component {
     const { input, type } = this.state;
 
     if (type === 'reverse') {
-      this.props.reverseLookup(input);
-    } else {
-      this.props.lookup(input, type);
+      return this.props.reverseLookup(input);
     }
+
+    if (type === 'owner') {
+      return this.props.lookupOwner(input);
+    }
+
+    return this.props.lookup(input, type);
   }
 }
 
 const mapStateToProps = (state) => state.lookup;
 const mapDispatchToProps = (dispatch) =>
   bindActionCreators({
-    clear, lookup, reverseLookup
+    clear, lookup, lookupOwner, reverseLookup
   }, dispatch);
 
 export default connect(mapStateToProps, mapDispatchToProps)(Lookup);
