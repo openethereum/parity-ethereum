@@ -40,6 +40,7 @@ pub mod recorder;
 
 mod fatdb;
 mod fatdbmut;
+mod lookup;
 
 pub use self::standardmap::{Alphabet, StandardMap, ValueMode};
 pub use self::triedbmut::TrieDBMut;
