@@ -29,9 +29,11 @@ export default (state = initialState, action) => {
   if (isStage('start', action)) {
     return {
       ...state, pending: true,
-      name: action.name, type: action.entry, value: action.value
+      name: action.name, type: action.key, value: action.value
     };
-  } else if (isStage('success', action) || isStage('fail', action)) {
+  }
+
+  if (isStage('success', action) || isStage('fail', action)) {
     return {
       ...state, pending: false,
       name: initialState.name, type: initialState.type, value: initialState.value

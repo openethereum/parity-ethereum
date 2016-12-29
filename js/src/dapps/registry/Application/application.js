@@ -44,8 +44,8 @@ export default class Application extends Component {
 
   static propTypes = {
     accounts: PropTypes.object.isRequired,
-    contract: nullableProptype(PropTypes.object).isRequired,
-    fee: nullableProptype(PropTypes.object).isRequired
+    contract: nullableProptype(PropTypes.object.isRequired),
+    fee: nullableProptype(PropTypes.object.isRequired)
   };
 
   render () {

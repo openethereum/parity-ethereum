@@ -21,7 +21,7 @@ export const start = (name, key, value) => ({ type: 'records update start', name
 
 export const success = () => ({ type: 'records update success' });
 
-export const fail = () => ({ type: 'records update error' });
+export const fail = () => ({ type: 'records update fail' });
 
 export const update = (name, key, value) => (dispatch, getState) => {
   const state = getState();
@@ -51,10 +51,12 @@ export const update = (name, key, value) => (dispatch, getState) => {
     .then((txHash) => {
       dispatch(success());
     }).catch((err) => {
-      console.error(`could not update ${key} record of ${name}`);
+      if (err.type !== 'REQUEST_REJECTED') {
+        console.error(`could not update ${key} record of ${name}`);
 
-      if (err) {
-        console.error(err.stack);
+        if (err) {
+          console.error(err.stack);
+        }
       }
 
       dispatch(fail());

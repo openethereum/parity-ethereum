@@ -21,7 +21,7 @@ export const start = (action, name, address) => ({ type: `reverse ${action} star
 
 export const success = (action) => ({ type: `reverse ${action} success` });
 
-export const fail = (action) => ({ type: `reverse ${action} error` });
+export const fail = (action) => ({ type: `reverse ${action} fail` });
 
 export const propose = (name, address) => (dispatch, getState) => {
   const state = getState();
@@ -50,10 +50,13 @@ export const propose = (name, address) => (dispatch, getState) => {
       dispatch(success('propose'));
     })
     .catch((err) => {
-      console.error(`could not propose reverse ${name} for address ${address}`);
-      if (err) {
-        console.error(err.stack);
+      if (err.type !== 'REQUEST_REJECTED') {
+        console.error(`could not propose reverse ${name} for address ${address}`);
+        if (err) {
+          console.error(err.stack);
+        }
       }
+
       dispatch(fail('propose'));
     });
 };
@@ -83,10 +86,13 @@ export const confirm = (name) => (dispatch, getState) => {
       dispatch(success('confirm'));
     })
     .catch((err) => {
-      console.error(`could not confirm reverse ${name}`);
-      if (err) {
-        console.error(err.stack);
+      if (err.type !== 'REQUEST_REJECTED') {
+        console.error(`could not confirm reverse ${name}`);
+        if (err) {
+          console.error(err.stack);
+        }
       }
+
       dispatch(fail('confirm'));
     });
 };

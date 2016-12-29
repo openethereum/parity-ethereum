@@ -28,19 +28,25 @@ export default (state = initialState, action) => {
         ...state, pending: true,
         queue: addToQueue(state.queue, 'reserve', action.name)
       };
-    } else if (isStage('success', action) || isStage('fail', action)) {
+    }
+
+    if (isStage('success', action) || isStage('fail', action)) {
       return {
         ...state, pending: false,
         queue: removeFromQueue(state.queue, 'reserve', action.name)
       };
     }
-  } else if (isAction('names', 'drop', action)) {
+  }
+
+  if (isAction('names', 'drop', action)) {
     if (isStage('start', action)) {
       return {
         ...state, pending: true,
         queue: addToQueue(state.queue, 'drop', action.name)
       };
-    } else if (isStage('success', action) || isStage('fail', action)) {
+    }
+
+    if (isStage('success', action) || isStage('fail', action)) {
       return {
         ...state, pending: false,
         queue: removeFromQueue(state.queue, 'drop', action.name)

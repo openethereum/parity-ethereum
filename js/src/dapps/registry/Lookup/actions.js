@@ -50,17 +50,19 @@ export const lookup = (name, key) => (dispatch, getState) => {
 
 export const reverseLookup = (address) => (dispatch, getState) => {
   const { contract } = getState();
+
   if (!contract) {
     return;
   }
 
-  const reverse = contract.functions
-    .find((f) => f.name === 'reverse');
-
   dispatch(reverseLookupStart(address));
 
-  reverse.call({}, [ address ])
-    .then((address) => dispatch(success('reverseLookup', address)))
+  contract.instance
+    .reverse
+    .call({}, [ address ])
+    .then((address) => {
+      dispatch(success('reverseLookup', address));
+    })
     .catch((err) => {
       console.error(`could not lookup reverse for ${address}`);
       if (err) {

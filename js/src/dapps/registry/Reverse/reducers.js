@@ -32,7 +32,9 @@ export default (state = initialState, action) => {
           address: action.address
         })
       };
-    } else if (isStage('success', action) || isStage('fail', action)) {
+    }
+
+    if (isStage('success', action) || isStage('fail', action)) {
       return {
         ...state, pending: false,
         queue: state.queue.filter((e) =>
@@ -53,7 +55,9 @@ export default (state = initialState, action) => {
           name: action.name
         })
       };
-    } else if (isStage('success', action) || isStage('fail', action)) {
+    }
+
+    if (isStage('success', action) || isStage('fail', action)) {
       return {
         ...state, pending: false,
         queue: state.queue.filter((e) =>

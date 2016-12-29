@@ -50,33 +50,6 @@ class Lookup extends Component {
     const { input, type } = this.state;
     const { result } = this.props;
 
-    let output = '';
-    if (result) {
-      if (type === 'A') {
-        output = (
-          <code>
-            <Address
-              address={ result }
-              shortenHash={ false }
-            />
-          </code>
-        );
-      } else if (type === 'IMG') {
-        output = renderImage(result);
-      } else if (type === 'CONTENT') {
-        output = (
-          <div>
-            <code>{ result }</code>
-            <p>Keep in mind that this is most likely the hash of the content you are looking for.</p>
-          </div>
-        );
-      } else {
-        output = (
-          <code>{ result }</code>
-        );
-      }
-    }
-
     return (
       <Card className={ styles.lookup }>
         <CardHeader title={ 'Query the Registry' } />
@@ -85,6 +58,7 @@ class Lookup extends Component {
             hintText={ type === 'reverse' ? 'address' : 'name' }
             value={ input }
             onChange={ this.onInputChange }
+            onKeyDown={ this.onKeyDown }
           />
           <DropDownMenu
             value={ type }
@@ -102,19 +76,63 @@ class Lookup extends Component {
             onTouchTap={ this.onLookupClick }
           />
         </div>
-        <CardText>{ output }</CardText>
+        <CardText>
+          { this.renderOutput(type, result) }
+        </CardText>
       </Card>
+    );
+  }
+
+  renderOutput (type, result) {
+    if (result === null) {
+      return null;
+    }
+
+    if (type === 'A') {
+      return (
+        <code>
+          <Address
+            address={ result }
+            shortenHash={ false }
+          />
+        </code>
+      );
+    }
+
+    if (type === 'IMG') {
+      return renderImage(result);
+    }
+
+    if (type === 'CONTENT') {
+      return (
+        <div>
+          <code>{ result }</code>
+          <p>Keep in mind that this is most likely the hash of the content you are looking for.</p>
+        </div>
+      );
+    }
+
+    return (
+      <code>{ result || 'No data' }</code>
     );
   }
 
   onInputChange = (e) => {
     this.setState({ input: e.target.value });
-  };
+  }
+
+  onKeyDown = (event) => {
+    if (event.which !== 13) {
+      return;
+    }
+
+    this.onLookupClick();
+  }
 
   onTypeChange = (e, i, type) => {
     this.setState({ type });
     this.props.clear();
-  };
+  }
 
   onLookupClick = () => {
     const { input, type } = this.state;
@@ -124,7 +142,7 @@ class Lookup extends Component {
     } else {
       this.props.lookup(input, type);
     }
-  };
+  }
 }
 
 const mapStateToProps = (state) => state.lookup;

@@ -57,10 +57,12 @@ export const reserve = (name) => (dispatch, getState) => {
       dispatch(reserveSuccess(name));
     })
     .catch((err) => {
-      console.error(`could not reserve ${name}`);
+      if (err.type !== 'REQUEST_REJECTED') {
+        console.error(`could not reserve ${name}`);
 
-      if (err) {
-        console.error(err.stack);
+        if (err) {
+          console.error(err.stack);
+        }
       }
 
       dispatch(reserveFail(name));
@@ -102,12 +104,14 @@ export const drop = (name) => (dispatch, getState) => {
       dispatch(dropSuccess(name));
     })
     .catch((err) => {
-      console.error(`could not drop ${name}`);
+      if (err.type !== 'REQUEST_REJECTED') {
+        console.error(`could not drop ${name}`);
 
-      if (err) {
-        console.error(err.stack);
+        if (err) {
+          console.error(err.stack);
+        }
       }
 
-      dispatch(reserveFail(name));
+      dispatch(dropFail(name));
     });
 };
