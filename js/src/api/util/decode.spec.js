@@ -48,10 +48,6 @@ describe('api/util/decode', () => {
       expect(() => decodeMethodInput({}, 'invalid')).to.throw(/should be a hex value/);
     });
 
-    it('throws on invalid lengths', () => {
-      expect(() => decodeMethodInput({}, DATA.slice(-32))).to.throw(/not a multiple of/);
-    });
-
     it('correctly decodes valid inputs', () => {
       expect(decodeMethodInput({
         type: 'function',
