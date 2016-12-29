@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 import IconButton from 'material-ui/IconButton';
@@ -27,6 +28,7 @@ import ERRORS from '../errors';
 
 import styles from '../createAccount.css';
 
+@observer
 export default class CreateAccount extends Component {
   static contextTypes = {
     api: PropTypes.object.isRequired
