@@ -67,6 +67,15 @@ describe('modals/CreateAccount/Store', () => {
       });
     });
 
+    describe('setGethAddresses', () => {
+      const ADDRESSES = ['one', 'two'];
+
+      it('allows setting the addresses', () => {
+        store.setGethAddresses(ADDRESSES);
+        expect(store.gethAddresses.peek()).to.deep.equal(ADDRESSES);
+      });
+    });
+
     describe('setIsWindowsPhrase', () => {
       it('allows setting the windows toggle', () => {
         store.setIsWindowsPhrase(true);

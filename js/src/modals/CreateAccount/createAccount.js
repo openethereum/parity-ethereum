@@ -76,8 +76,7 @@ export default class CreateAccount extends Component {
     password: null,
     rawKey: null,
     json: null,
-    canCreate: false,
-    gethAddresses: []
+    canCreate: false
   }
 
   render () {
@@ -146,9 +145,7 @@ export default class CreateAccount extends Component {
       case STAGE_INFO:
         if (createType === 'fromGeth') {
           return (
-            <AccountDetailsGeth
-              addresses={ this.state.gethAddresses }
-              store={ this.store } />
+            <AccountDetailsGeth store={ this.store } />
           );
         }
 
@@ -328,11 +325,11 @@ export default class CreateAccount extends Component {
         });
     } else if (createType === 'fromGeth') {
       return api.parity
-        .importGethAccounts(this.state.gethAddresses)
+        .importGethAccounts(this.store.gethAddresses)
         .then((result) => {
           console.log('result', result);
 
-          return Promise.all(this.state.gethAddresses.map((address) => {
+          return Promise.all(this.store.gethAddresses.map((address) => {
             return api.parity.setAccountName(address, 'Geth Import');
           }));
         })
@@ -407,9 +404,10 @@ export default class CreateAccount extends Component {
   }
 
   onChangeGeth = (canCreate, gethAddresses) => {
+    this.store.setGethAddresses(gethAddresses);
+
     this.setState({
-      canCreate,
-      gethAddresses
+      canCreate
     });
   }
 

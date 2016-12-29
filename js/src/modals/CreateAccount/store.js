@@ -24,6 +24,7 @@ export default class Store {
   @observable address = null;
   @observable createType = 'fromNew';
   @observable description = '';
+  @observable gethAddresses = [];
   @observable isWindowsPhrase = false;
   @observable name = '';
   @observable nameError = null;
@@ -44,6 +45,10 @@ export default class Store {
 
   @action setDescription = (description) => {
     this.description = description;
+  }
+
+  @action setGethAddresses = (gethAddresses) => {
+    this.gethAddresses = [].concat(gethAddresses);
   }
 
   @action setIsWindowsPhrase = (isWindowsPhrase = false) => {

@@ -23,12 +23,11 @@ import styles from './accountDetailsGeth.css';
 @observer
 export default class AccountDetailsGeth extends Component {
   static propTypes = {
-    addresses: PropTypes.array,
     store: PropTypes.object.isRequired
   }
 
   render () {
-    const { addresses } = this.props;
+    const { gethAddresses } = this.props.store;
 
     return (
       <div>
@@ -37,11 +36,11 @@ export default class AccountDetailsGeth extends Component {
             id='createAccount.accountDetailsGeth.imported'
             defaultMessage='You have imported {number} addresses from the Geth keystore:'
             values={ {
-              number: addresses.length
+              number: gethAddresses.length
             } } />
         </div>
         <div className={ styles.address }>
-          { this.formatAddresses(addresses) }
+          { this.formatAddresses(gethAddresses) }
         </div>
       </div>
     );
