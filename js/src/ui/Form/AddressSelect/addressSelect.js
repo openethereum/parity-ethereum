@@ -186,7 +186,7 @@ class AddressSelect extends Component {
       ? (hint || '')
       : this.context.intl.formatMessage(
         hint.props,
-        hint.props.values || []
+        hint.props.values || {}
       );
 
     return (
