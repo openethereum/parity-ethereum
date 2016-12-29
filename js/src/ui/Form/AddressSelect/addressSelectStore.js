@@ -33,7 +33,7 @@ export default class AddressSelectStore {
   constructor (api) {
     this.api = api;
 
-    const { registry } = Contracts.get();
+    const { registry } = Contracts.create(api);
 
     registry
       .getContract('emailverification')

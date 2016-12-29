@@ -27,6 +27,7 @@ import AccountCard from '~/ui/AccountCard';
 import InputAddress from '~/ui/Form/InputAddress';
 import Portal from '~/ui/Portal';
 import { validateAddress } from '~/util/validation';
+import { nodeOrStringProptype } from '~/util/proptypes';
 
 import AddressSelectStore from './addressSelectStore';
 import styles from './addressSelect.css';
@@ -39,6 +40,7 @@ let currentId = 1;
 @observer
 class AddressSelect extends Component {
   static contextTypes = {
+    api: PropTypes.object.isRequired,
     muiTheme: PropTypes.object.isRequired
   };
 
@@ -58,10 +60,10 @@ class AddressSelect extends Component {
     // Optional props
     allowInput: PropTypes.bool,
     disabled: PropTypes.bool,
-    error: PropTypes.string,
-    hint: PropTypes.string,
-    label: PropTypes.string,
-    value: PropTypes.string
+    error: nodeOrStringProptype(),
+    hint: nodeOrStringProptype(),
+    label: nodeOrStringProptype(),
+    value: nodeOrStringProptype()
   };
 
   static defaultProps = {
