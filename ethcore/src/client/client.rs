@@ -1534,6 +1534,7 @@ fn transaction_receipt(transaction: Option<LocalizedTransaction>, receipts: Opti
 					block_number: block_number,
 					transaction_hash: transaction_hash,
 					transaction_index: transaction_index,
+					transaction_log_index: i,
 					log_index: no_of_logs + i,
 				}).collect(),
 				log_bloom: receipt.log_bloom,
@@ -1651,6 +1652,7 @@ mod tests {
 				block_number: block_number,
 				transaction_hash: tx1.hash(),
 				transaction_index: 1,
+				transaction_log_index: 0,
 				log_index: 1,
 			}, LocalizedLogEntry {
 				entry: logs[1].clone(),
@@ -1658,6 +1660,7 @@ mod tests {
 				block_number: block_number,
 				transaction_hash: tx1.hash(),
 				transaction_index: 1,
+				transaction_log_index: 1,
 				log_index: 2,
 			}],
 			log_bloom: Default::default(),
