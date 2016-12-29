@@ -97,7 +97,7 @@ export default class AddressSelectStore {
             defaultMessage='accounts'
           />
         ),
-        values: [].concat(accounts)
+        values: Object.values(accounts)
       },
       {
         key: 'contacts',
