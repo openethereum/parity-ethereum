@@ -53,6 +53,10 @@ export default class Contract {
 
     this._subscribedToBlock = false;
     this._blockSubscriptionId = null;
+
+    if (api && api.patch && api.patch.contract) {
+      api.patch.contract(this);
+    }
   }
 
   get address () {

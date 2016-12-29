@@ -57,7 +57,7 @@ export default class WalletTransactions extends Component {
       );
     }
 
-    const txRows = transactions.map((transaction, index) => {
+    const txRows = transactions.slice(0, 15).map((transaction, index) => {
       const { transactionHash, blockNumber, from, to, value, data } = transaction;
 
       return (

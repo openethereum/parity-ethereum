@@ -37,7 +37,11 @@ function getTxArgs (func, options, values = []) {
       }
 
       options.data = contract.getCallData(func, options, values);
-      options.to = contract.address;
+      options.to = options.to || contract.address;
+
+      if (!options.to) {
+        return { func, options, values };
+      }
 
       return WalletsUtils
         .getCallArgs(api, options, values)
@@ -55,7 +59,7 @@ export function estimateGas (_func, _options, _values = []) {
   return getTxArgs(_func, _options, _values)
     .then((callArgs) => {
       const { func, options, values } = callArgs;
-      return func.estimateGas(options, values);
+      return func._estimateGas(options, values);
     })
     .then((gas) => {
       return WalletsUtils
@@ -74,8 +78,27 @@ export function postTransaction (_func, _options, _values = []) {
   return getTxArgs(_func, _options, _values)
     .then((callArgs) => {
       const { func, options, values } = callArgs;
-      return func.postTransaction(options, values);
+      return func._postTransaction(options, values);
     });
+}
+
+export function patchApi (api) {
+  api.patch = {
+    ...api.patch,
+    contract: patchContract
+  };
+}
+
+export function patchContract (contract) {
+  contract._functions.forEach((func) => {
+    if (!func.constant) {
+      func._postTransaction = func.postTransaction;
+      func._estimateGas = func.estimateGas;
+
+      func.postTransaction = postTransaction.bind(contract, func);
+      func.estimateGas = estimateGas.bind(contract, func);
+    }
+  });
 }
 
 export function checkIfTxFailed (api, tx, gasSent) {
