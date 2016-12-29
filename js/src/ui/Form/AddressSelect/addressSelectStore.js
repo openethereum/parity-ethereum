@@ -14,8 +14,10 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import React from 'react';
 import { observable, action } from 'mobx';
 import { flatMap } from 'lodash';
+import { FormattedMessage } from 'react-intl';
 
 import Contracts from '~/contracts';
 import { sha3 } from '~/api/util/sha3';
@@ -23,7 +25,7 @@ import { sha3 } from '~/api/util/sha3';
 export default class AddressSelectStore {
 
   @observable values = [];
-  @observable regsitryValues = [];
+  @observable registryValues = [];
 
   initValues = [];
   regLookups = [];
@@ -42,7 +44,15 @@ export default class AddressSelectStore {
               .instance
               .reverse.call({}, [ sha3(value) ]);
           },
-          describe: (value) => `${value} (from email verification)`
+          describe: (value) => (
+            <FormattedMessage
+              id='addressSelect.fromEmail'
+              defaultMessage='Verified using email {value}'
+              values={ {
+                value
+              } }
+            />
+          )
         });
       });
 
@@ -54,7 +64,15 @@ export default class AddressSelectStore {
             return registryInstance
               .getAddress.call({}, [ sha3(value), 'A' ]);
           },
-          describe: (value) => `${value} (from registry)`
+          describe: (value) => (
+            <FormattedMessage
+              id='addressSelect.fromRegistry'
+              defaultMessage='{value} (from registry)'
+              values={ {
+                value
+              } }
+            />
+          )
         });
       });
   }
@@ -73,18 +91,36 @@ export default class AddressSelectStore {
 
     this.initValues = [
       {
-        label: 'accounts',
+        key: 'accounts',
+        label: (
+          <FormattedMessage
+            id='addressSelect.labels.accounts'
+            defaultMessage='accounts'
+          />
+        ),
         values: [].concat(
           Object.values(wallets),
           Object.values(accounts)
         )
       },
       {
-        label: 'contacts',
+        key: 'contacts',
+        label: (
+          <FormattedMessage
+            id='addressSelect.labels.contacts'
+            defaultMessage='contacts'
+          />
+        ),
         values: Object.values(contacts)
       },
       {
-        label: 'contracts',
+        key: 'contracts',
+        label: (
+          <FormattedMessage
+            id='addressSelect.labels.contracts'
+            defaultMessage='contracts'
+          />
+        ),
         values: Object.values(contracts)
       }
     ].filter((cat) => cat.values.length > 0);
@@ -101,7 +137,11 @@ export default class AddressSelectStore {
           .filterValues(category.values, value)
           .map((value) => {
             index++;
-            return { ...value, index: parseInt(index) };
+
+            return {
+              index: parseInt(index),
+              ...value
+            };
           });
 
         return {
@@ -111,7 +151,7 @@ export default class AddressSelectStore {
       });
 
     // Registries Lookup
-    this.regsitryValues = [];
+    this.registryValues = [];
 
     const lookups = this.regLookups.map((regLookup) => regLookup.lookup(value));
 
@@ -124,8 +164,10 @@ export default class AddressSelectStore {
               return;
             }
 
+            const lowercaseResult = result.toLowerCase();
+
             const account = flatMap(this.initValues, (cat) => cat.values)
-              .find((account) => account.address.toLowerCase() === result.toLowerCase());
+              .find((account) => account.address.toLowerCase() === lowercaseResult);
 
             return {
               description: this.regLookups[index].describe(value),
@@ -135,8 +177,8 @@ export default class AddressSelectStore {
           })
           .filter((data) => data);
       })
-      .then((regsitryValues) => {
-        this.regsitryValues = regsitryValues;
+      .then((registryValues) => {
+        this.registryValues = registryValues;
       });
   }
 

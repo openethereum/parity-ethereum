@@ -191,7 +191,7 @@ class AddressSelect extends Component {
         </div>
 
         { this.renderCurrentInput() }
-        { this.renderRegsitryValues() }
+        { this.renderRegistryValues() }
         { this.renderAccounts() }
       </Portal>
     );
@@ -217,16 +217,16 @@ class AddressSelect extends Component {
     );
   }
 
-  renderRegsitryValues () {
-    const { regsitryValues } = this.store;
+  renderRegistryValues () {
+    const { registryValues } = this.store;
 
-    if (regsitryValues.length === 0) {
+    if (registryValues.length === 0) {
       return null;
     }
 
-    const accounts = regsitryValues
-      .map((regsitryValue, index) => {
-        const account = { ...regsitryValue, index: `${regsitryValue.address}_${index}` };
+    const accounts = registryValues
+      .map((registryValue, index) => {
+        const account = { ...registryValue, index: `${registryValue.address}_${index}` };
         return this.renderAccountCard(account);
       });
 
@@ -253,8 +253,8 @@ class AddressSelect extends Component {
       );
     }
 
-    const categories = values.map((category) => {
-      return this.renderCategory(category.label, category.values);
+    const categories = values.map((category, index) => {
+      return this.renderCategory(category, index);
     });
 
     return (
@@ -264,7 +264,8 @@ class AddressSelect extends Component {
     );
   }
 
-  renderCategory (name, values = []) {
+  renderCategory (category, index) {
+    const { label, key, values = [] } = category;
     let content;
 
     if (values.length === 0) {
@@ -288,8 +289,8 @@ class AddressSelect extends Component {
     }
 
     return (
-      <div className={ styles.category } key={ name }>
-        <div className={ styles.title }>{ name }</div>
+      <div className={ styles.category } key={ `${key}_${index}` }>
+        <div className={ styles.title }>{ label }</div>
         { content }
       </div>
     );
