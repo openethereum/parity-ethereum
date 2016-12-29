@@ -45,7 +45,6 @@ export default class CreateAccount extends Component {
     accounts: null,
     isValidName: false,
     isValidPass: false,
-    passwordHint: '',
     password1: '',
     password1Error: null,
     password2: '',
@@ -59,7 +58,8 @@ export default class CreateAccount extends Component {
   }
 
   render () {
-    const { accountName, accountNameError, passwordHint, password1, password1Error, password2, password2Error } = this.state;
+    const { passwordHint } = this.props.store;
+    const { accountName, accountNameError, password1, password1Error, password2, password2Error } = this.state;
 
     return (
       <Form>
@@ -234,13 +234,12 @@ export default class CreateAccount extends Component {
   }
 
   updateParent = () => {
-    const { isValidName, isValidPass, accounts, accountName, passwordHint, password1, selectedAddress } = this.state;
+    const { isValidName, isValidPass, accounts, accountName, password1, selectedAddress } = this.state;
     const isValid = isValidName && isValidPass;
 
     this.props.onChange(isValid, {
       address: selectedAddress,
       name: accountName,
-      passwordHint,
       password: password1,
       phrase: accounts[selectedAddress].phrase
     });
@@ -259,9 +258,9 @@ export default class CreateAccount extends Component {
   }
 
   onEditPasswordHint = (event, passwordHint) => {
-    this.setState({
-      passwordHint
-    });
+    const { store } = this.props;
+
+    store.setPasswordHint(passwordHint);
   }
 
   onEditAccountName = (event) => {

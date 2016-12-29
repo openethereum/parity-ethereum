@@ -32,6 +32,7 @@ export default class Store {
   @observable isWindowsPhrase = false;
   @observable name = '';
   @observable nameError = null;
+  @observable passwordHint = '';
   @observable phrase = '';
   @observable stage = STAGE_SELECT_TYPE;
 
@@ -72,6 +73,10 @@ export default class Store {
 
   @action setName = (name) => {
     this.name = name;
+  }
+
+  @action setPasswordHint = (passwordHint) => {
+    this.passwordHint = passwordHint;
   }
 
   @action setPhrase = (phrase) => {

@@ -45,7 +45,6 @@ export default class NewImport extends Component {
     isValidName: false,
     password: '',
     passwordError: null,
-    passwordHint: '',
     walletFile: '',
     walletFileError: ERRORS.noFile,
     walletJson: ''
@@ -56,6 +55,8 @@ export default class NewImport extends Component {
   }
 
   render () {
+    const { passwordHint } = this.props.store;
+
     return (
       <Form>
         <Input
@@ -84,7 +85,7 @@ export default class NewImport extends Component {
               defaultMessage='password hint' />
           }
           onChange={ this.onEditpasswordHint }
-          value={ this.state.passwordHint } />
+          value={ passwordHint } />
         <div className={ styles.passwords }>
           <div className={ styles.password }>
             <Input
@@ -168,7 +169,6 @@ export default class NewImport extends Component {
 
     this.props.onChange(valid, {
       name: this.state.accountName,
-      passwordHint: this.state.passwordHint,
       password: this.state.password,
       phrase: null,
       json: this.state.walletJson
@@ -176,9 +176,9 @@ export default class NewImport extends Component {
   }
 
   onEditPasswordHint = (event, passwordHint) => {
-    this.setState({
-      passwordHint
-    });
+    const { store } = this.props;
+
+    store.setPasswordHint(passwordHint);
   }
 
   onEditAccountName = (event) => {

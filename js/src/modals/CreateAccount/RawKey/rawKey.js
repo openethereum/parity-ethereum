@@ -41,7 +41,6 @@ export default class RawKey extends Component {
     isValidKey: false,
     isValidName: false,
     isValidPass: false,
-    passwordHint: '',
     password1: '',
     password1Error: null,
     password2: '',
@@ -55,7 +54,8 @@ export default class RawKey extends Component {
   }
 
   render () {
-    const { accountName, accountNameError, passwordHint, password1, password1Error, password2, password2Error, rawKey, rawKeyError } = this.state;
+    const { passwordHint } = this.props.store;
+    const { accountName, accountNameError, password1, password1Error, password2, password2Error, rawKey, rawKeyError } = this.state;
 
     return (
       <Form>
@@ -141,21 +141,20 @@ export default class RawKey extends Component {
   }
 
   updateParent = () => {
-    const { isValidName, isValidPass, isValidKey, accountName, passwordHint, password1, rawKey } = this.state;
+    const { isValidName, isValidPass, isValidKey, accountName, password1, rawKey } = this.state;
     const isValid = isValidName && isValidPass && isValidKey;
 
     this.props.onChange(isValid, {
       name: accountName,
-      passwordHint,
       password: password1,
       rawKey
     });
   }
 
-  onEditPasswordHint = (event, value) => {
-    this.setState({
-      passwordHint: value
-    });
+  onEditPasswordHint = (event, passwordHint) => {
+    const { store } = this.props;
+
+    store.setPasswordHint(passwordHint);
   }
 
   onEditKey = (event) => {

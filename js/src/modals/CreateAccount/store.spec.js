@@ -99,6 +99,13 @@ describe('modals/CreateAccount/Store', () => {
       });
     });
 
+    describe('setPasswordHint', () => {
+      it('allows setting the passwordHint', () => {
+        store.setPasswordHint('testing');
+        expect(store.passwordHint).to.equal('testing');
+      });
+    });
+
     describe('setPhrase', () => {
       it('allows setting the phrase', () => {
         store.setPhrase('testing');

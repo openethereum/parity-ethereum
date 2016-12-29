@@ -72,7 +72,6 @@ export default class CreateAccount extends Component {
   store = new Store(this.context.api, this.props.accounts);
 
   state = {
-    passwordHint: null,
     password: null,
     rawKey: null,
     json: null,
@@ -252,7 +251,7 @@ export default class CreateAccount extends Component {
   }
 
   onCreate = () => {
-    const { createType, isWindowsPhrase, name, phrase } = this.store;
+    const { createType, isWindowsPhrase, name, passwordHint, phrase } = this.store;
     const { api } = this.context;
 
     this.setState({
@@ -277,7 +276,7 @@ export default class CreateAccount extends Component {
             .setAccountName(address, name)
             .then(() => api.parity.setAccountMeta(address, {
               timestamp: Date.now(),
-              passwordHint: this.state.passwordHint
+              passwordHint
             }));
         })
         .then(() => {
@@ -303,7 +302,7 @@ export default class CreateAccount extends Component {
             .setAccountName(address, name)
             .then(() => api.parity.setAccountMeta(address, {
               timestamp: Date.now(),
-              passwordHint: this.state.passwordHint
+              passwordHint
             }));
         })
         .then(() => {
@@ -353,7 +352,7 @@ export default class CreateAccount extends Component {
           .setAccountName(address, name)
           .then(() => api.parity.setAccountMeta(address, {
             timestamp: Date.now(),
-            passwordHint: this.state.passwordHint
+            passwordHint
           }));
       })
       .then(() => {
@@ -379,7 +378,7 @@ export default class CreateAccount extends Component {
     });
   }
 
-  onChangeDetails = (canCreate, { name, passwordHint, address, password, phrase, rawKey }) => {
+  onChangeDetails = (canCreate, { name, address, password, phrase, rawKey }) => {
     this.store.setAddress(address);
     this.store.setName(name);
     this.store.setPhrase(phrase);
@@ -387,7 +386,6 @@ export default class CreateAccount extends Component {
     this.setState({
       canCreate,
       password,
-      passwordHint,
       rawKey
     });
   }
@@ -399,14 +397,13 @@ export default class CreateAccount extends Component {
     });
   }
 
-  onChangeWallet = (canCreate, { name, passwordHint, password, json }) => {
+  onChangeWallet = (canCreate, { name, password, json }) => {
     this.store.setName(name);
 
     this.setState({
       canCreate,
       json,
-      password,
-      passwordHint
+      password
     });
   }
 

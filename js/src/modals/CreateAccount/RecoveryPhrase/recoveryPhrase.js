@@ -38,7 +38,6 @@ export default class RecoveryPhrase extends Component {
     isValidPass: false,
     isValidName: false,
     isValidPhrase: false,
-    passwordHint: '',
     password1: '',
     password1Error: null,
     password2: '',
@@ -52,8 +51,8 @@ export default class RecoveryPhrase extends Component {
   }
 
   render () {
-    const { isWindowsPhrase } = this.props.store;
-    const { accountName, accountNameError, passwordHint, password1, password1Error, password2, password2Error, recoveryPhrase } = this.state;
+    const { isWindowsPhrase, passwordHint } = this.props.store;
+    const { accountName, accountNameError, password1, password1Error, password2, password2Error, recoveryPhrase } = this.state;
 
     return (
       <Form>
@@ -147,21 +146,20 @@ export default class RecoveryPhrase extends Component {
   }
 
   updateParent = () => {
-    const { accountName, isValidName, isValidPass, isValidPhrase, password1, passwordHint, recoveryPhrase } = this.state;
+    const { accountName, isValidName, isValidPass, isValidPhrase, password1, recoveryPhrase } = this.state;
     const isValid = isValidName && isValidPass && isValidPhrase;
 
     this.props.onChange(isValid, {
       name: accountName,
       password: password1,
-      passwordHint,
       phrase: recoveryPhrase
     });
   }
 
-  onEditPasswordHint = (event, value) => {
-    this.setState({
-      passwordHint: value
-    });
+  onEditPasswordHint = (event, passwordHint) => {
+    const { store } = this.props;
+
+    store.setPasswordHint(passwordHint);
   }
 
   onToggleWindowsPhrase = (event) => {
