@@ -23,7 +23,7 @@ import PrintIcon from 'material-ui/svg-icons/action/print';
 
 import { createIdentityImg } from '~/api/util/identity';
 import { Button, Modal } from '~/ui';
-import ParityLogo from '.~/../assets/images/parity-logo-black-no-text.svg';
+import ParityLogo from '~/../assets/images/parity-logo-black-no-text.svg';
 
 import { NewAccount, AccountDetails } from '../CreateAccount';
 import print from '../CreateAccount/print';
