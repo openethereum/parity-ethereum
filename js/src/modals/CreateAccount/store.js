@@ -14,9 +14,11 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { action, observable } from 'mobx';
+import { action, observable, transaction } from 'mobx';
 
 import apiutil from '~/api/util';
+
+import ERRORS from './errors';
 
 const STAGE_SELECT_TYPE = 0;
 const STAGE_CREATE = 1;
@@ -34,6 +36,8 @@ export default class Store {
   @observable nameError = null;
   @observable passwordHint = '';
   @observable phrase = '';
+  @observable rawKey = '';
+  @observable rawKeyError = ERRORS.nokey;
   @observable stage = STAGE_SELECT_TYPE;
 
   constructor (api, accounts) {
@@ -81,6 +85,21 @@ export default class Store {
 
   @action setPhrase = (phrase) => {
     this.phrase = phrase;
+  }
+
+  @action setRawKey = (rawKey) => {
+    let rawKeyError = null;
+
+    if (!rawKey || !rawKey.trim().length) {
+      rawKeyError = ERRORS.noKey;
+    } else if (rawKey.substr(0, 2) !== '0x' || rawKey.substr(2).length !== 64 || !apiutil.isHex(rawKey)) {
+      rawKeyError = ERRORS.invalidKey;
+    }
+
+    transaction(() => {
+      this.rawKey = rawKey;
+      this.rawKeyError = rawKeyError;
+    });
   }
 
   @action setStage = (stage) => {

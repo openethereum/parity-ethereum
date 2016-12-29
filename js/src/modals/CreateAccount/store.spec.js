@@ -113,6 +113,30 @@ describe('modals/CreateAccount/Store', () => {
       });
     });
 
+    describe('setRawKey', () => {
+      it('sets error when empty key', () => {
+        store.setRawKey(null);
+        expect(store.rawKeyError).not.to.be.null;
+      });
+
+      it('sets error when non-hex value', () => {
+        store.setRawKey('0000000000000000000000000000000000000000000000000000000000000000');
+        expect(store.rawKeyError).not.to.be.null;
+      });
+
+      it('sets error when non-valid length value', () => {
+        store.setRawKey('0x0');
+        expect(store.rawKeyError).not.to.be.null;
+      });
+
+      it('sets the key when checks pass', () => {
+        const KEY = '0x1000000000000000000000000000000000000000000000000000000000000000';
+        store.setRawKey(KEY);
+        expect(store.rawKey).to.equal(KEY);
+        expect(store.rawKeyError).to.be.null;
+      });
+    });
+
     describe('setStage', () => {
       it('changes to the provided stage', () => {
         store.setStage(2);

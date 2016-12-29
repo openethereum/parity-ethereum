@@ -73,7 +73,6 @@ export default class CreateAccount extends Component {
 
   state = {
     password: null,
-    rawKey: null,
     json: null,
     canCreate: false
   }
@@ -294,7 +293,7 @@ export default class CreateAccount extends Component {
         });
     } else if (createType === 'fromRaw') {
       return api.parity
-        .newAccountFromSecret(this.state.rawKey, this.state.password)
+        .newAccountFromSecret(this.store.rawKey, this.state.password)
         .then((address) => {
           this.store.setAddress(address);
 
@@ -378,22 +377,20 @@ export default class CreateAccount extends Component {
     });
   }
 
-  onChangeDetails = (canCreate, { name, address, password, phrase, rawKey }) => {
+  onChangeDetails = (canCreate, { name, address, password, phrase }) => {
     this.store.setAddress(address);
     this.store.setName(name);
     this.store.setPhrase(phrase);
 
     this.setState({
       canCreate,
-      password,
-      rawKey
+      password
     });
   }
 
-  onChangeRaw = (canCreate, rawKey) => {
+  onChangeRaw = (canCreate) => {
     this.setState({
-      canCreate,
-      rawKey
+      canCreate
     });
   }
 

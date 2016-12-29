@@ -38,15 +38,12 @@ export default class RawKey extends Component {
   state = {
     accountName: '',
     accountNameError: ERRORS.noName,
-    isValidKey: false,
     isValidName: false,
     isValidPass: false,
     password1: '',
     password1Error: null,
     password2: '',
-    password2Error: null,
-    rawKey: '',
-    rawKeyError: ERRORS.noKey
+    password2Error: null
   }
 
   componentWillMount () {
@@ -54,8 +51,8 @@ export default class RawKey extends Component {
   }
 
   render () {
-    const { passwordHint } = this.props.store;
-    const { accountName, accountNameError, password1, password1Error, password2, password2Error, rawKey, rawKeyError } = this.state;
+    const { passwordHint, rawKey, rawKeyError } = this.props.store;
+    const { accountName, accountNameError, password1, password1Error, password2, password2Error } = this.state;
 
     return (
       <Form>
@@ -141,13 +138,12 @@ export default class RawKey extends Component {
   }
 
   updateParent = () => {
-    const { isValidName, isValidPass, isValidKey, accountName, password1, rawKey } = this.state;
-    const isValid = isValidName && isValidPass && isValidKey;
+    const { isValidName, isValidPass, accountName, password1 } = this.state;
+    const isValid = isValidName && isValidPass;
 
     this.props.onChange(isValid, {
       name: accountName,
-      password: password1,
-      rawKey
+      password: password1
     });
   }
 
@@ -157,22 +153,10 @@ export default class RawKey extends Component {
     store.setPasswordHint(passwordHint);
   }
 
-  onEditKey = (event) => {
-    const { api } = this.context;
-    const rawKey = event.target.value;
-    let rawKeyError = null;
+  onEditKey = (event, rawKey) => {
+    const { store } = this.props;
 
-    if (!rawKey || !rawKey.trim().length) {
-      rawKeyError = ERRORS.noKey;
-    } else if (rawKey.substr(0, 2) !== '0x' || rawKey.substr(2).length !== 64 || !api.util.isHex(rawKey)) {
-      rawKeyError = ERRORS.invalidKey;
-    }
-
-    this.setState({
-      rawKey,
-      rawKeyError,
-      isValidKey: !rawKeyError
-    }, this.updateParent);
+    store.setRawKey(rawKey);
   }
 
   onEditAccountName = (event) => {
