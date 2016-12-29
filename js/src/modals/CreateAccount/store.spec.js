@@ -144,6 +144,10 @@ describe('modals/CreateAccount/Store', () => {
       });
     });
 
+    describe('setWalletFile', () => {
+
+    });
+
     describe('nextStage/prevStage', () => {
       it('changes to next/prev', () => {
         expect(store.stage).to.equal(0);

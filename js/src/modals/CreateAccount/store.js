@@ -20,6 +20,7 @@ import apiutil from '~/api/util';
 
 import ERRORS from './errors';
 
+const FAKEPATH = 'C:\\fakepath\\';
 const STAGE_SELECT_TYPE = 0;
 const STAGE_CREATE = 1;
 const STAGE_INFO = 2;
@@ -33,12 +34,15 @@ export default class Store {
   @observable gethAddresses = [];
   @observable isWindowsPhrase = false;
   @observable name = '';
-  @observable nameError = null;
+  @observable nameError = ERRORS.noName;
   @observable passwordHint = '';
   @observable phrase = '';
   @observable rawKey = '';
   @observable rawKeyError = ERRORS.nokey;
   @observable stage = STAGE_SELECT_TYPE;
+  @observable walletFile = '';
+  @observable walletFileError = ERRORS.noFile;
+  @observable walletJson = '';
 
   constructor (api, accounts) {
     this._api = api;
@@ -76,6 +80,12 @@ export default class Store {
   }
 
   @action setName = (name) => {
+    let nameError = null;
+
+    if (!name || !name.trim().length) {
+      nameError = ERRORS.noName;
+    }
+
     this.name = name;
   }
 
@@ -104,6 +114,20 @@ export default class Store {
 
   @action setStage = (stage) => {
     this.stage = stage;
+  }
+
+  @action setWalletFile = (walletFile) => {
+    transaction(() => {
+      this.walletFile = walletFile.replace(FAKEPATH, '');
+      this.walletFileError = ERRORS.noFile;
+    });
+  }
+
+  @action setWalletJson = (walletJson) => {
+    transaction(() => {
+      this.walletFileError = null;
+      this.walletJson = walletJson;
+    });
   }
 
   @action nextStage = () => {

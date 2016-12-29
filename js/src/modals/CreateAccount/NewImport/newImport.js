@@ -14,20 +14,18 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import { FloatingActionButton } from 'material-ui';
 import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
 import ReactDOM from 'react-dom';
 import { FormattedMessage } from 'react-intl';
-import { FloatingActionButton } from 'material-ui';
 
 import { Form, Input } from '~/ui';
 import { AttachFileIcon } from '~/ui/Icons';
 
 import ERRORS from '../errors';
-
 import styles from '../createAccount.css';
 
-const FAKEPATH = 'C:\\fakepath\\';
 const STYLE_HIDDEN = { display: 'none' };
 
 @observer
@@ -40,14 +38,10 @@ export default class NewImport extends Component {
   state = {
     accountName: '',
     accountNameError: ERRORS.noName,
-    isValidFile: false,
     isValidPass: false,
     isValidName: false,
     password: '',
-    passwordError: null,
-    walletFile: '',
-    walletFileError: ERRORS.noFile,
-    walletJson: ''
+    passwordError: null
   }
 
   componentWillMount () {
@@ -55,7 +49,7 @@ export default class NewImport extends Component {
   }
 
   render () {
-    const { passwordHint } = this.props.store;
+    const { passwordHint, walletFile, walletFileError } = this.props.store;
 
     return (
       <Form>
@@ -108,7 +102,7 @@ export default class NewImport extends Component {
         <div>
           <Input
             disabled
-            error={ this.state.walletFileError }
+            error={ walletFileError }
             hint={
               <FormattedMessage
                 id='createAccount.newImport.file.hint'
@@ -119,7 +113,7 @@ export default class NewImport extends Component {
                 id='createAccount.newImport.file.label'
                 defaultMessage='wallet file' />
             }
-            value={ this.state.walletFile } />
+            value={ walletFile } />
           <div className={ styles.upload }>
             <FloatingActionButton
               mini
@@ -138,26 +132,16 @@ export default class NewImport extends Component {
   }
 
   onFileChange = (event) => {
-    const el = event.target;
-    const error = ERRORS.noFile;
+    const { store } = this.props;
 
-    if (el.files.length) {
+    if (event.target.files.length) {
       const reader = new FileReader();
-      reader.onload = (event) => {
-        this.setState({
-          walletJson: event.target.result,
-          walletFileError: null,
-          isValidFile: true
-        }, this.updateParent);
-      };
-      reader.readAsText(el.files[0]);
+
+      reader.onload = (event) => store.setWalletJson(event.target.result);
+      reader.readAsText(event.target.files[0]);
     }
 
-    this.setState({
-      walletFile: el.value.replace(FAKEPATH, ''),
-      walletFileError: error,
-      isValidFile: false
-    }, this.updateParent);
+    store.setWalletFile(event.target.value);
   }
 
   openFileDialog = () => {
@@ -165,13 +149,12 @@ export default class NewImport extends Component {
   }
 
   updateParent = () => {
-    const valid = this.state.isValidName && this.state.isValidPass && this.state.isValidFile;
+    const valid = this.state.isValidName && this.state.isValidPass;
 
     this.props.onChange(valid, {
       name: this.state.accountName,
       password: this.state.password,
-      phrase: null,
-      json: this.state.walletJson
+      phrase: null
     });
   }
 
