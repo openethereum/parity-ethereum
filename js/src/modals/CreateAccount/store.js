@@ -26,6 +26,7 @@ export default class Store {
   @observable description = '';
   @observable name = '';
   @observable nameError = null;
+  @observable phrase = '';
   @observable stage = STAGE_SELECT_TYPE;
 
   constructor (api) {
@@ -46,6 +47,10 @@ export default class Store {
 
   @action setName = (name) => {
     this.name = name;
+  }
+
+  @action setPhrase = (phrase) => {
+    this.phrase = phrase;
   }
 
   @action setStage = (stage) => {

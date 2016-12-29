@@ -17,13 +17,17 @@
 import { shallow } from 'enzyme';
 import React from 'react';
 
+import { createStore } from '../createAccount.test.js';
+
 import AccountDetails from './';
 
 let component;
+let store;
 
 function render () {
+  store = createStore();
   component = shallow(
-    <AccountDetails />
+    <AccountDetails store={ store } />
   );
 
   return component;

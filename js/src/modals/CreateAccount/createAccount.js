@@ -74,7 +74,6 @@ export default class CreateAccount extends Component {
   state = {
     passwordHint: null,
     password: null,
-    phrase: null,
     windowsPhrase: false,
     rawKey: null,
     json: null,
@@ -155,9 +154,7 @@ export default class CreateAccount extends Component {
         }
 
         return (
-          <AccountDetails
-            phrase={ this.state.phrase }
-            store={ this.store } />
+          <AccountDetails store={ this.store } />
         );
     }
   }
@@ -263,8 +260,8 @@ export default class CreateAccount extends Component {
   }
 
   onCreate = () => {
-    const { createType, name } = this.store;
-    const { phrase, windowsPhrase } = this.state;
+    const { createType, name, phrase } = this.store;
+    const { windowsPhrase } = this.state;
     const { api } = this.context;
 
     this.setState({
@@ -394,12 +391,12 @@ export default class CreateAccount extends Component {
   onChangeDetails = (canCreate, { name, passwordHint, address, password, phrase, rawKey, windowsPhrase }) => {
     this.store.setAddress(address);
     this.store.setName(name);
+    this.store.setPhrase(phrase);
 
     this.setState({
       canCreate,
       password,
       passwordHint,
-      phrase,
       rawKey,
       windowsPhrase: windowsPhrase || false
     });
@@ -431,8 +428,7 @@ export default class CreateAccount extends Component {
   }
 
   printPhrase = () => {
-    const { address, name } = this.store;
-    const { phrase } = this.state;
+    const { address, name, phrase } = this.store;
     const identity = createIdentityImg(address);
 
     print(recoveryPage({

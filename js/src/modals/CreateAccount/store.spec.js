@@ -74,6 +74,13 @@ describe('modals/CreateAccount/Store', () => {
       });
     });
 
+    describe('setPhrase', () => {
+      it('allows setting the phrase', () => {
+        store.setPhrase('testing');
+        expect(store.phrase).to.equal('testing');
+      });
+    });
+
     describe('setStage', () => {
       it('changes to the provided stage', () => {
         store.setStage(2);

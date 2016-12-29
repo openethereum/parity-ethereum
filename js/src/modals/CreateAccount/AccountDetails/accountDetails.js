@@ -23,7 +23,6 @@ import { Form, Input, InputAddress } from '~/ui';
 @observer
 export default class AccountDetails extends Component {
   static propTypes = {
-    phrase: PropTypes.string,
     store: PropTypes.object.isRequired
   }
 
@@ -65,7 +64,7 @@ export default class AccountDetails extends Component {
   }
 
   renderPhrase () {
-    const { phrase } = this.props;
+    const { phrase } = this.props.store;
 
     if (!phrase) {
       return null;
