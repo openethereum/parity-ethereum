@@ -320,4 +320,3 @@ fn does_not_propagate_delayed_transactions() {
 	assert_eq!(2, client.ready_transactions().len());
 	assert_eq!(2, client.miner().pending_transactions().len());
 }
-
