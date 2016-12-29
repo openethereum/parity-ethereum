@@ -378,7 +378,8 @@ impl BlockProvider for BlockChain {
 					.enumerate()
 					.flat_map(move |(index, (mut logs, tx_hash))| {
 						let current_log_index = log_index;
-						log_index -= logs.len();
+						let no_of_logs = logs.len();
+						log_index -= no_of_logs;
 
 						logs.reverse();
 						logs.into_iter()
@@ -390,6 +391,7 @@ impl BlockProvider for BlockChain {
 								transaction_hash: tx_hash,
 								// iterating in reverse order
 								transaction_index: receipts_len - index - 1,
+								transaction_log_index: no_of_logs - i - 1,
 								log_index: current_log_index - i - 1,
 							})
 					})
@@ -1936,6 +1938,7 @@ mod tests {
 				block_number: block1.header().number(),
 				transaction_hash: tx_hash1.clone(),
 				transaction_index: 0,
+				transaction_log_index: 0,
 				log_index: 0,
 			},
 			LocalizedLogEntry {
@@ -1944,6 +1947,7 @@ mod tests {
 				block_number: block1.header().number(),
 				transaction_hash: tx_hash1.clone(),
 				transaction_index: 0,
+				transaction_log_index: 1,
 				log_index: 1,
 			},
 			LocalizedLogEntry {
@@ -1952,6 +1956,7 @@ mod tests {
 				block_number: block1.header().number(),
 				transaction_hash: tx_hash2.clone(),
 				transaction_index: 1,
+				transaction_log_index: 0,
 				log_index: 2,
 			},
 			LocalizedLogEntry {
@@ -1960,6 +1965,7 @@ mod tests {
 				block_number: block2.header().number(),
 				transaction_hash: tx_hash3.clone(),
 				transaction_index: 0,
+				transaction_log_index: 0,
 				log_index: 0,
 			}
 		]);
@@ -1970,6 +1976,7 @@ mod tests {
 				block_number: block2.header().number(),
 				transaction_hash: tx_hash3.clone(),
 				transaction_index: 0,
+				transaction_log_index: 0,
 				log_index: 0,
 			}
 		]);
