@@ -373,7 +373,7 @@ impl<'a> TrieDBMut<'a> {
 		match *handle {
 			NodeHandle::Hash(ref hash) => Lookup {
 				db: &*self.db,
-				rec: &mut ::trie::recorder::NoOp,
+				query: DBValue::from_slice,
 				hash: hash.clone(),
 			}.look_up(partial),
 			NodeHandle::InMemory(ref handle) => match self.storage[handle] {

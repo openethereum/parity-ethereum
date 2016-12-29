@@ -16,28 +16,28 @@
 
 //! Trie lookup via HashDB.
 
-use hashdb::{DBValue, HashDB};
+use hashdb::HashDB;
 use nibbleslice::NibbleSlice;
 use rlp::{Rlp, View};
 use ::{H256};
 
-use super::TrieError;
+use super::{TrieError, Query};
 use super::node::Node;
-use super::recorder::Recorder;
 
 /// Trie lookup helper object.
-pub struct Lookup<'a, R: 'a + Recorder> {
+pub struct Lookup<'a, Q: Query> {
 	/// database to query from.
 	pub db: &'a HashDB,
-	/// Recorder to write into.
-	pub rec: &'a mut R,
+	/// Query object to record nodes and transform data.
+	pub query: Q,
 	/// Hash to start at
 	pub hash: H256,
 }
 
-impl<'a, R: 'a + Recorder> Lookup<'a, R> {
-	/// Look up the given key.
-	pub fn look_up(self, mut key: NibbleSlice) -> super::Result<Option<DBValue>> {
+impl<'a, Q: Query> Lookup<'a, Q> {
+	/// Look up the given key. If the value is found, it will be passed to the given
+	/// function to decode or copy.
+	pub fn look_up(mut self, mut key: NibbleSlice) -> super::Result<Option<Q::Item>> {
 		let mut hash = self.hash;
 
 		// this loop iterates through non-inline nodes.
@@ -50,7 +50,7 @@ impl<'a, R: 'a + Recorder> Lookup<'a, R> {
 				})),
 			};
 
-			self.rec.record(&hash, &node_data, depth);
+			self.query.record(&hash, &node_data, depth);
 
 			// this loop iterates through all inline children (usually max 1)
 			// without incrementing the depth.
@@ -59,7 +59,7 @@ impl<'a, R: 'a + Recorder> Lookup<'a, R> {
 				match Node::decoded(node_data) {
 					Node::Leaf(slice, value) => {
 						return Ok(match slice == key {
-							true => Some(DBValue::from_slice(value)),
+							true => Some(self.query.decode(value)),
 							false => None,
 						})
 					}
@@ -72,7 +72,7 @@ impl<'a, R: 'a + Recorder> Lookup<'a, R> {
 						}
 					}
 					Node::Branch(children, value) => match key.is_empty() {
-						true => return Ok(value.map(DBValue::from_slice)),
+						true => return Ok(value.map(move |val| self.query.decode(val))),
 						false => {
 							node_data = children[key.at(0) as usize];
 							key = key.mid(1);

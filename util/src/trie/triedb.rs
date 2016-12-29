@@ -19,9 +19,8 @@ use hashdb::*;
 use nibbleslice::*;
 use rlp::*;
 use super::node::{Node, OwnedNode};
-use super::recorder::Recorder;
 use super::lookup::Lookup;
-use super::{Trie, TrieItem, TrieError, TrieIterator};
+use super::{Trie, TrieItem, TrieError, TrieIterator, Query};
 
 /// A `Trie` implementation using a generic `HashDB` backing database.
 ///
@@ -149,12 +148,12 @@ impl<'db> Trie for TrieDB<'db> {
 
 	fn root(&self) -> &H256 { self.root }
 
-	fn get_recorded<'a, 'b, R: 'b>(&'a self, key: &'b [u8], rec: &'b mut R) -> super::Result<Option<DBValue>>
-		where 'a: 'b, R: Recorder
+	fn get_with<'a, 'key, Q: Query>(&'a self, key: &'key [u8], query: Q) -> super::Result<Option<Q::Item>>
+		where 'a: 'key
 	{
 		Lookup {
 			db: self.db,
-			rec: rec,
+			query: query,
 			hash: self.root.clone(),
 		}.look_up(NibbleSlice::new(key))
 	}
