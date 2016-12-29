@@ -16,7 +16,7 @@
 
 import React, { Component, PropTypes } from 'react';
 import ReactDOM from 'react-dom';
-import Portal from 'react-portal';
+import ReactPortal from 'react-portal';
 import keycode from 'keycode';
 
 import { CloseIcon } from '~/ui/Icons';
@@ -65,7 +65,7 @@ export default class Portal extends Component {
     }
 
     return (
-      <Portal isOpened onClose={ this.handleClose }>
+      <ReactPortal isOpened onClose={ this.handleClose }>
         <div
           className={ classes.join(' ') }
           onKeyDown={ this.handleKeyDown }
@@ -75,7 +75,7 @@ export default class Portal extends Component {
           { this.renderCloseIcon() }
           { children }
         </div>
-      </Portal>
+      </ReactPortal>
     );
   }
 
