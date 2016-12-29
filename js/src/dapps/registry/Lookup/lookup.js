@@ -29,7 +29,7 @@ import { nullableProptype } from '~/util/proptypes';
 import Address from '../ui/address.js';
 import renderImage from '../ui/image.js';
 
-import { clear, lookup, lookupOwner, reverseLookup } from './actions';
+import { clear, lookup, ownerLookup, reverseLookup } from './actions';
 import styles from './lookup.css';
 
 class Lookup extends Component {
@@ -39,7 +39,7 @@ class Lookup extends Component {
 
     clear: PropTypes.func.isRequired,
     lookup: PropTypes.func.isRequired,
-    lookupOwner: PropTypes.func.isRequired,
+    ownerLookup: PropTypes.func.isRequired,
     reverseLookup: PropTypes.func.isRequired
   }
 
@@ -90,7 +90,24 @@ class Lookup extends Component {
       return null;
     }
 
-    if (type === 'A' || type === 'owner') {
+    if (type === 'A') {
+      return (
+        <code>
+          <Address
+            address={ result }
+            shortenHash={ false }
+          />
+        </code>
+      );
+    }
+
+    if (type === 'owner') {
+      if (!result) {
+        return (
+          <code>No data</code>
+        );
+      }
+
       return (
         <code>
           <Address
@@ -144,7 +161,7 @@ class Lookup extends Component {
     }
 
     if (type === 'owner') {
-      return this.props.lookupOwner(input);
+      return this.props.ownerLookup(input);
     }
 
     return this.props.lookup(input, type);
@@ -154,7 +171,7 @@ class Lookup extends Component {
 const mapStateToProps = (state) => state.lookup;
 const mapDispatchToProps = (dispatch) =>
   bindActionCreators({
-    clear, lookup, lookupOwner, reverseLookup
+    clear, lookup, ownerLookup, reverseLookup
   }, dispatch);
 
 export default connect(mapStateToProps, mapDispatchToProps)(Lookup);

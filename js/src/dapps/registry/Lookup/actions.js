@@ -20,6 +20,7 @@ export const clear = () => ({ type: 'lookup clear' });
 
 export const lookupStart = (name, key) => ({ type: 'lookup start', name, key });
 export const reverseLookupStart = (address) => ({ type: 'reverseLookup start', address });
+export const ownerLookupStart = (name) => ({ type: 'ownerLookup start', name });
 
 export const success = (action, result) => ({ type: `${action} success`, result: result });
 
@@ -72,26 +73,40 @@ export const reverseLookup = (address) => (dispatch, getState) => {
     });
 };
 
-export const lookupOwner = (name) => (dispatch, getState) => {
+export const ownerLookup = (name) => (dispatch, getState) => {
   const { contract } = getState();
 
   if (!contract) {
     return;
   }
 
-  dispatch(reverseLookupStart(name));
+  const { address, api } = contract;
 
-  contract.instance
-    .reverse
-    .call({}, [ name ])
-    .then((address) => {
-      dispatch(success('reverseLookup', address));
+  dispatch(ownerLookupStart(name));
+
+  const key = api.util.sha3(name) + '0000000000000000000000000000000000000000000000000000000000000001';
+  const position = api.util.sha3(key, { encoding: 'hex' });
+
+  api
+    .eth
+    .getStorageAt(address, position)
+    .then((result) => {
+      if (/^(0x)?0*$/.test(result)) {
+        return '';
+      }
+
+      return '0x' + result.slice(-40);
+    })
+    .then((owner) => {
+      dispatch(success('ownerLookup', owner));
     })
     .catch((err) => {
       console.error(`could not lookup owner for ${name}`);
+
       if (err) {
         console.error(err.stack);
       }
-      dispatch(fail('reverseLookup'));
+
+      dispatch(fail('ownerLookup'));
     });
 };
