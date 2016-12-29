@@ -71,7 +71,7 @@ export default class Header extends Component {
           </div>
 
           <div className={ styles.tags }>
-            <Tags tags={ meta.tags } />
+            <Tags tags={ meta.tags.slice() } />
           </div>
           <div className={ styles.balances }>
             <Balance

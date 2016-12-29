@@ -14,18 +14,42 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { newError } from '~/ui/Errors/actions';
-import { setAddressImage } from './providers/imagesActions';
-import { showSnackbar } from './providers/snackbarActions';
-import { clearStatusLogs, toggleStatusLogs, toggleStatusRefresh } from './providers/statusActions';
-import { toggleView } from '~/views/Settings/actions';
+import { shallow } from 'enzyme';
+import React from 'react';
+import sinon from 'sinon';
 
-export {
-  newError,
-  clearStatusLogs,
-  setAddressImage,
-  showSnackbar,
-  toggleStatusLogs,
-  toggleStatusRefresh,
-  toggleView
-};
+import AddContract from './';
+
+import { CONTRACTS, createApi } from './addContract.test.js';
+
+let component;
+let onClose;
+
+function renderShallow (props) {
+  onClose = sinon.stub();
+  component = shallow(
+    <AddContract
+      { ...props }
+      contracts={ CONTRACTS }
+      onClose={ onClose } />,
+    {
+      context: {
+        api: createApi()
+      }
+    }
+  );
+
+  return component;
+}
+
+describe('modals/AddContract', () => {
+  describe('rendering', () => {
+    beforeEach(() => {
+      renderShallow();
+    });
+
+    it('renders the defauls', () => {
+      expect(component).to.be.ok;
+    });
+  });
+});

@@ -20,7 +20,7 @@ import sinon from 'sinon';
 
 import ExecuteContract from './';
 
-import { CONTRACT, STORE } from './executeContract.test.js';
+import { createApi, CONTRACT, STORE } from './executeContract.test.js';
 
 let component;
 let onClose;
@@ -36,7 +36,7 @@ function render (props) {
       contract={ CONTRACT }
       onClose={ onClose }
       onFromAddressChange={ onFromAddressChange } />,
-      { context: { api: {}, store: STORE } }
+      { context: { api: createApi(), store: STORE } }
   ).find('ExecuteContract').shallow();
 
   return component;

@@ -85,7 +85,7 @@ export default class EditMeta extends Component {
                 defaultMessage='(optional) tags' />
             }
             onTokensChange={ this.store.setTags }
-            tokens={ tags } />
+            tokens={ tags.slice() } />
         </Form>
       </Modal>
     );

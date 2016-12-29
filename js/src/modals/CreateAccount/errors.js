@@ -18,28 +18,33 @@ import React from 'react';
 import { FormattedMessage } from 'react-intl';
 
 export default {
-  noFile:
+  noFile: (
     <FormattedMessage
       id='createAccount.error.noFile'
-      defaultMessage='select a valid wallet file to import' />,
+      defaultMessage='select a valid wallet file to import' />
+  ),
 
-  noKey:
+  noKey: (
     <FormattedMessage
       id='createAccount.error.noKey'
-      defaultMessage='you need to provide the raw private key' />,
+      defaultMessage='you need to provide the raw private key' />
+  ),
 
-  noMatchPassword:
+  noMatchPassword: (
     <FormattedMessage
       id='createAccount.error.noMatchPassword'
-      defaultMessage='the supplied passwords does not match' />,
+      defaultMessage='the supplied passwords does not match' />
+  ),
 
-  noName:
+  noName: (
     <FormattedMessage
       id='createAccount.error.noName'
-      defaultMessage='you need to specify a valid name for the account' />,
+      defaultMessage='you need to specify a valid name for the account' />
+  ),
 
-  invalidKey:
+  invalidKey: (
     <FormattedMessage
       id='createAccount.error.invalidKey'
       defaultMessage='the raw key needs to be hex, 64 characters in length and contain the prefix "0x"' />
+  )
 };

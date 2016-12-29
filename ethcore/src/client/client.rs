@@ -32,7 +32,7 @@ use util::kvdb::*;
 
 // other
 use io::*;
-use views::{HeaderView, BodyView, BlockView};
+use views::BlockView;
 use error::{ImportError, ExecutionError, CallError, BlockError, ImportResult, Error as EthcoreError};
 use header::BlockNumber;
 use state::{State, CleanupMode};
@@ -59,7 +59,7 @@ use client::{
 use client::Error as ClientError;
 use env_info::EnvInfo;
 use executive::{Executive, Executed, TransactOptions, contract_address};
-use receipt::LocalizedReceipt;
+use receipt::{Receipt, LocalizedReceipt};
 use trace::{TraceDB, ImportRequest as TraceImportRequest, LocalizedTrace, Database as TraceDatabase};
 use trace;
 use trace::FlatTransactionTraces;
@@ -67,10 +67,11 @@ use evm::{Factory as EvmFactory, Schedule};
 use miner::{Miner, MinerService};
 use snapshot::{self, io as snapshot_io};
 use factory::Factories;
-use rlp::{decode, View, UntrustedRlp};
+use rlp::{View, UntrustedRlp};
 use state_db::StateDB;
 use rand::OsRng;
 use client::registry::Registry;
+use encoded;
 
 // re-export
 pub use types::blockchain_info::BlockChainInfo;
@@ -303,17 +304,16 @@ impl Client {
 
 	/// The env info as of the best block.
 	fn latest_env_info(&self) -> EnvInfo {
-		let header_data = self.best_block_header();
-		let view = HeaderView::new(&header_data);
+		let header = self.best_block_header();
 
 		EnvInfo {
-			number: view.number(),
-			author: view.author(),
-			timestamp: view.timestamp(),
-			difficulty: view.difficulty(),
-			last_hashes: self.build_last_hashes(view.hash()),
+			number: header.number(),
+			author: header.author(),
+			timestamp: header.timestamp(),
+			difficulty: header.difficulty(),
+			last_hashes: self.build_last_hashes(header.hash()),
 			gas_used: U256::default(),
-			gas_limit: view.gas_limit(),
+			gas_limit: header.gas_limit(),
 		}
 	}
 
@@ -642,8 +642,7 @@ impl Client {
 				return None;
 			}
 
-			let root = HeaderView::new(&header).state_root();
-
+			let root = header.state_root();
 			State::from_existing(db, root, self.engine.account_start_nonce(), self.factories.clone()).ok()
 		})
 	}
@@ -666,7 +665,6 @@ impl Client {
 	/// Get a copy of the best block's state.
 	pub fn state(&self) -> State {
 		let header = self.best_block_header();
-		let header = HeaderView::new(&header);
 		State::from_existing(
 			self.state_db.lock().boxed_clone_canon(&header.hash()),
 			header.state_root(),
@@ -839,17 +837,15 @@ impl snapshot::DatabaseRestore for Client {
 	}
 }
 
-
 impl BlockChainClient for Client {
 	fn call(&self, t: &SignedTransaction, block: BlockId, analytics: CallAnalytics) -> Result<Executed, CallError> {
 		let header = self.block_header(block).ok_or(CallError::StatePruned)?;
-		let view = HeaderView::new(&header);
-		let last_hashes = self.build_last_hashes(view.parent_hash());
+		let last_hashes = self.build_last_hashes(header.parent_hash());
 		let env_info = EnvInfo {
-			number: view.number(),
-			author: view.author(),
-			timestamp: view.timestamp(),
-			difficulty: view.difficulty(),
+			number: header.number(),
+			author: header.author(),
+			timestamp: header.timestamp(),
+			difficulty: header.difficulty(),
 			last_hashes: last_hashes,
 			gas_used: U256::zero(),
 			gas_limit: U256::max_value(),
@@ -879,26 +875,25 @@ impl BlockChainClient for Client {
 
 	fn replay(&self, id: TransactionId, analytics: CallAnalytics) -> Result<Executed, CallError> {
 		let address = self.transaction_address(id).ok_or(CallError::TransactionNotFound)?;
-		let header_data = self.block_header(BlockId::Hash(address.block_hash)).ok_or(CallError::StatePruned)?;
-		let body_data = self.block_body(BlockId::Hash(address.block_hash)).ok_or(CallError::StatePruned)?;
+		let header = self.block_header(BlockId::Hash(address.block_hash)).ok_or(CallError::StatePruned)?;
+		let body = self.block_body(BlockId::Hash(address.block_hash)).ok_or(CallError::StatePruned)?;
 		let mut state = self.state_at_beginning(BlockId::Hash(address.block_hash)).ok_or(CallError::StatePruned)?;
-		let txs = BodyView::new(&body_data).transactions();
+		let txs = body.transactions();
 
 		if address.index >= txs.len() {
 			return Err(CallError::TransactionNotFound);
 		}
 
 		let options = TransactOptions { tracing: analytics.transaction_tracing, vm_tracing: analytics.vm_tracing, check_nonce: false };
-		let view = HeaderView::new(&header_data);
-		let last_hashes = self.build_last_hashes(view.hash());
+		let last_hashes = self.build_last_hashes(header.hash());
 		let mut env_info = EnvInfo {
-			number: view.number(),
-			author: view.author(),
-			timestamp: view.timestamp(),
-			difficulty: view.difficulty(),
+			number: header.number(),
+			author: header.author(),
+			timestamp: header.timestamp(),
+			difficulty: header.difficulty(),
 			last_hashes: last_hashes,
 			gas_used: U256::default(),
-			gas_limit: view.gas_limit(),
+			gas_limit: header.gas_limit(),
 		};
 		for t in txs.iter().take(address.index) {
 			match Executive::new(&mut state, &env_info, &*self.engine, &self.factories.vm).transact(t, Default::default()) {
@@ -959,11 +954,11 @@ impl BlockChainClient for Client {
 		}
 	}
 
-	fn best_block_header(&self) -> Bytes {
+	fn best_block_header(&self) -> encoded::Header {
 		self.chain.read().best_block_header()
 	}
 
-	fn block_header(&self, id: BlockId) -> Option<Bytes> {
+	fn block_header(&self, id: BlockId) -> Option<::encoded::Header> {
 		let chain = self.chain.read();
 		Self::block_hash(&chain, id).and_then(|hash| chain.block_header_data(&hash))
 	}
@@ -977,15 +972,15 @@ impl BlockChainClient for Client {
 		}
 	}
 
-	fn block_body(&self, id: BlockId) -> Option<Bytes> {
+	fn block_body(&self, id: BlockId) -> Option<encoded::Body> {
 		let chain = self.chain.read();
 		Self::block_hash(&chain, id).and_then(|hash| chain.block_body(&hash))
 	}
 
-	fn block(&self, id: BlockId) -> Option<Bytes> {
+	fn block(&self, id: BlockId) -> Option<encoded::Block> {
 		if let BlockId::Pending = id {
 			if let Some(block) = self.miner.pending_block() {
-				return Some(block.rlp_bytes(Seal::Without));
+				return Some(encoded::Block::new(block.rlp_bytes(Seal::Without)));
 			}
 		}
 		let chain = self.chain.read();
@@ -1128,62 +1123,33 @@ impl BlockChainClient for Client {
 		self.transaction_address(id).map(|addr| addr.block_hash)
 	}
 
-	fn uncle(&self, id: UncleId) -> Option<Bytes> {
+	fn uncle(&self, id: UncleId) -> Option<encoded::Header> {
 		let index = id.position;
-		self.block_body(id.block).and_then(|body| BodyView::new(&body).uncle_rlp_at(index))
+		self.block_body(id.block).and_then(|body| body.view().uncle_rlp_at(index))
+			.map(encoded::Header::new)
 	}
 
 	fn transaction_receipt(&self, id: TransactionId) -> Option<LocalizedReceipt> {
 		let chain = self.chain.read();
 		self.transaction_address(id)
 			.and_then(|address| chain.block_number(&address.block_hash).and_then(|block_number| {
-			let t = chain.block_body(&address.block_hash)
-				.and_then(|block| {
-					BodyView::new(&block).localized_transaction_at(&address.block_hash, block_number, address.index)
-				});
+				let transaction = chain.block_body(&address.block_hash)
+					.and_then(|body| body.view().localized_transaction_at(&address.block_hash, block_number, address.index));
 
-			let tx_and_sender = t.and_then(|tx| tx.sender().ok().map(|sender| (tx, sender)));
-
-			match (tx_and_sender, chain.transaction_receipt(&address)) {
-				(Some((tx, sender)), Some(receipt)) => {
-					let block_hash = tx.block_hash.clone();
-					let block_number = tx.block_number.clone();
-					let transaction_hash = tx.hash();
-					let transaction_index = tx.transaction_index;
-					let prior_gas_used = match tx.transaction_index {
-						0 => U256::zero(),
-						i => {
-							let prior_address = TransactionAddress { block_hash: address.block_hash, index: i - 1 };
-							let prior_receipt = chain.transaction_receipt(&prior_address).expect("Transaction receipt at `address` exists; `prior_address` has lower index in same block; qed");
-							prior_receipt.gas_used
-						}
-					};
-					Some(LocalizedReceipt {
-						transaction_hash: tx.hash(),
-						transaction_index: tx.transaction_index,
-						block_hash: tx.block_hash,
-						block_number: tx.block_number,
-						cumulative_gas_used: receipt.gas_used,
-						gas_used: receipt.gas_used - prior_gas_used,
-						contract_address: match tx.action {
-							Action::Call(_) => None,
-							Action::Create => Some(contract_address(&sender, &tx.nonce))
-						},
-						logs: receipt.logs.into_iter().enumerate().map(|(i, log)| LocalizedLogEntry {
-							entry: log,
-							block_hash: block_hash.clone(),
-							block_number: block_number,
-							transaction_hash: transaction_hash.clone(),
-							transaction_index: transaction_index,
-							log_index: i
-						}).collect(),
-						log_bloom: receipt.log_bloom,
-						state_root: receipt.state_root,
+				let previous_receipts = (0..address.index + 1)
+					.map(|index| {
+						let mut address = address.clone();
+						address.index = index;
+						chain.transaction_receipt(&address)
 					})
-				},
-				_ => None
-			}
-		}))
+					.collect();
+				match (transaction, previous_receipts) {
+					(Some(transaction), Some(previous_receipts)) => {
+						Some(transaction_receipt(transaction, previous_receipts))
+					},
+					_ => None,
+				}
+			}))
 	}
 
 	fn tree_route(&self, from: &H256, to: &H256) -> Option<TreeRoute> {
@@ -1360,13 +1326,12 @@ impl BlockChainClient for Client {
 
 	fn block_extra_info(&self, id: BlockId) -> Option<BTreeMap<String, String>> {
 		self.block_header(id)
-			.map(|block| decode(&block))
-			.map(|header| self.engine.extra_info(&header))
+			.map(|header| self.engine.extra_info(&header.decode()))
 	}
 
 	fn uncle_extra_info(&self, id: UncleId) -> Option<BTreeMap<String, String>> {
 		self.uncle(id)
-			.map(|header| self.engine.extra_info(&decode(&header)))
+			.map(|header| self.engine.extra_info(&header.decode()))
 	}
 
 	fn pruning_info(&self) -> PruningInfo {
@@ -1539,6 +1504,49 @@ impl Drop for Client {
 	}
 }
 
+/// Returns `LocalizedReceipt` given `LocalizedTransaction`
+/// and a vector of receipts from given block up to transaction index.
+fn transaction_receipt(tx: LocalizedTransaction, mut receipts: Vec<Receipt>) -> LocalizedReceipt {
+	assert_eq!(receipts.len(), tx.transaction_index + 1, "All previous receipts are provided.");
+
+	let sender = tx.sender()
+		.expect("LocalizedTransaction is part of the blockchain; We have only valid transactions in chain; qed");
+	let receipt = receipts.pop().expect("Current receipt is provided; qed");
+	let prior_gas_used = match tx.transaction_index {
+		0 => 0.into(),
+		i => receipts.get(i - 1).expect("All previous receipts are provided; qed").gas_used,
+	};
+	let no_of_logs = receipts.into_iter().map(|receipt| receipt.logs.len()).sum::<usize>();
+	let transaction_hash = tx.hash();
+	let block_hash = tx.block_hash;
+	let block_number = tx.block_number;
+	let transaction_index = tx.transaction_index;
+
+	LocalizedReceipt {
+		transaction_hash: transaction_hash,
+		transaction_index: transaction_index,
+		block_hash: block_hash,
+		block_number:block_number,
+		cumulative_gas_used: receipt.gas_used,
+		gas_used: receipt.gas_used - prior_gas_used,
+		contract_address: match tx.action {
+			Action::Call(_) => None,
+			Action::Create => Some(contract_address(&sender, &tx.nonce))
+		},
+		logs: receipt.logs.into_iter().enumerate().map(|(i, log)| LocalizedLogEntry {
+			entry: log,
+			block_hash: block_hash,
+			block_number: block_number,
+			transaction_hash: transaction_hash,
+			transaction_index: transaction_index,
+			transaction_log_index: i,
+			log_index: no_of_logs + i,
+		}).collect(),
+		log_bloom: receipt.log_bloom,
+		state_root: receipt.state_root,
+	}
+}
+
 #[cfg(test)]
 mod tests {
 
@@ -1573,5 +1581,92 @@ mod tests {
 		while !go.load(Ordering::SeqCst) { thread::park_timeout(Duration::from_millis(5)); }
 
 		assert!(client.tree_route(&genesis, &new_hash).is_none());
+	}
+
+	#[test]
+	fn should_return_correct_log_index() {
+		use super::transaction_receipt;
+		use ethkey::KeyPair;
+		use log_entry::{LogEntry, LocalizedLogEntry};
+		use receipt::{Receipt, LocalizedReceipt};
+		use transaction::{Transaction, LocalizedTransaction, Action};
+		use util::Hashable;
+
+		// given
+		let key = KeyPair::from_secret("test".sha3()).unwrap();
+		let secret = key.secret();
+
+		let block_number = 1;
+		let block_hash = 5.into();
+		let state_root = 99.into();
+		let gas_used = 10.into();
+		let raw_tx = Transaction {
+			nonce: 0.into(),
+			gas_price: 0.into(),
+			gas: 21000.into(),
+			action: Action::Call(10.into()),
+			value: 0.into(),
+			data: vec![],
+		};
+		let tx1 = raw_tx.clone().sign(secret, None);
+		let transaction = LocalizedTransaction {
+			signed: tx1.clone(),
+			block_number: block_number,
+			block_hash: block_hash,
+			transaction_index: 1,
+		};
+		let logs = vec![LogEntry {
+			address: 5.into(),
+			topics: vec![],
+			data: vec![],
+		}, LogEntry {
+			address: 15.into(),
+			topics: vec![],
+			data: vec![],
+		}];
+		let receipts = vec![Receipt {
+			state_root: state_root,
+			gas_used: 5.into(),
+			log_bloom: Default::default(),
+			logs: vec![logs[0].clone()],
+		}, Receipt {
+			state_root: state_root,
+			gas_used: gas_used,
+			log_bloom: Default::default(),
+			logs: logs.clone(),
+		}];
+
+		// when
+		let receipt = transaction_receipt(transaction, receipts);
+
+		// then
+		assert_eq!(receipt, LocalizedReceipt {
+			transaction_hash: tx1.hash(),
+			transaction_index: 1,
+			block_hash: block_hash,
+			block_number: block_number,
+			cumulative_gas_used: gas_used,
+			gas_used: gas_used - 5.into(),
+			contract_address: None,
+			logs: vec![LocalizedLogEntry {
+				entry: logs[0].clone(),
+				block_hash: block_hash,
+				block_number: block_number,
+				transaction_hash: tx1.hash(),
+				transaction_index: 1,
+				transaction_log_index: 0,
+				log_index: 1,
+			}, LocalizedLogEntry {
+				entry: logs[1].clone(),
+				block_hash: block_hash,
+				block_number: block_number,
+				transaction_hash: tx1.hash(),
+				transaction_index: 1,
+				transaction_log_index: 1,
+				log_index: 2,
+			}],
+			log_bloom: Default::default(),
+			state_root: state_root,
+		});
 	}
 }

@@ -14,18 +14,30 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { newError } from '~/ui/Errors/actions';
-import { setAddressImage } from './providers/imagesActions';
-import { showSnackbar } from './providers/snackbarActions';
-import { clearStatusLogs, toggleStatusLogs, toggleStatusRefresh } from './providers/statusActions';
-import { toggleView } from '~/views/Settings/actions';
+import sinon from 'sinon';
+
+const ACCOUNT = {
+  address: '0x123456789a123456789a123456789a123456789a',
+  meta: {
+    description: 'Call me bob',
+    passwordHint: 'some hint',
+    tags: ['testing']
+  },
+  name: 'Bobby',
+  uuid: '123-456'
+};
+
+function createApi (result = true) {
+  return {
+    parity: {
+      changePassword: sinon.stub().resolves(result),
+      setAccountMeta: sinon.stub().resolves(result),
+      testPassword: sinon.stub().resolves(result)
+    }
+  };
+}
 
 export {
-  newError,
-  clearStatusLogs,
-  setAddressImage,
-  showSnackbar,
-  toggleStatusLogs,
-  toggleStatusRefresh,
-  toggleView
+  ACCOUNT,
+  createApi
 };

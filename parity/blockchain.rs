@@ -186,16 +186,16 @@ fn execute_import(cmd: ImportBlockchain) -> Result<(), String> {
 
 	// prepare client config
 	let mut client_config = to_client_config(
-		&cmd.cache_config, 
-		Mode::Active, 
-		tracing, 
-		fat_db, 
-		cmd.compaction, 
-		cmd.wal, 
-		cmd.vm_type, 
-		"".into(), 
-		algorithm, 
-		cmd.pruning_history, 
+		&cmd.cache_config,
+		Mode::Active,
+		tracing,
+		fat_db,
+		cmd.compaction,
+		cmd.wal,
+		cmd.vm_type,
+		"".into(),
+		algorithm,
+		cmd.pruning_history,
 		cmd.check_seal
 	);
 
@@ -390,7 +390,7 @@ fn execute_export(cmd: ExportBlockchain) -> Result<(), String> {
 		if i % 10000 == 0 {
 			info!("#{}", i);
 		}
-		let b = client.block(BlockId::Number(i)).ok_or("Error exporting incomplete chain")?;
+		let b = client.block(BlockId::Number(i)).ok_or("Error exporting incomplete chain")?.into_inner();
 		match format {
 			DataFormat::Binary => { out.write(&b).expect("Couldn't write to stream."); }
 			DataFormat::Hex => { out.write_fmt(format_args!("{}", b.pretty())).expect("Couldn't write to stream."); }
