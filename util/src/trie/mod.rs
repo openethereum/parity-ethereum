@@ -22,8 +22,6 @@ use hashdb::{HashDB, DBValue};
 
 /// Export the standardmap module.
 pub mod standardmap;
-/// Export the journal module.
-pub mod journal;
 /// Export the node module.
 pub mod node;
 /// Export the triedb module.

@@ -14,22 +14,14 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { toJS } from 'mobx';
-import sinon from 'sinon';
-
 import Store from './store';
-import { ACCOUNT, ADDRESS } from './editMeta.test.js';
+import { ACCOUNT, ADDRESS, createApi } from './editMeta.test.js';
 
 let api;
 let store;
 
 function createStore (account) {
-  api = {
-    parity: {
-      setAccountName: sinon.stub().resolves(),
-      setAccountMeta: sinon.stub().resolves()
-    }
-  };
+  api = createApi();
 
   store = new Store(api, account);
 
@@ -56,12 +48,12 @@ describe('modals/EditMeta/Store', () => {
       });
 
       it('extracts the tags', () => {
-        expect(store.tags.peek()).to.deep.equal(ACCOUNT.meta.tags);
+        expect(store.tags).to.deep.equal(ACCOUNT.meta.tags);
       });
 
       describe('meta', () => {
         it('extracts the full meta', () => {
-          expect(toJS(store.meta)).to.deep.equal(ACCOUNT.meta);
+          expect(store.meta).to.deep.equal(ACCOUNT.meta);
         });
 
         it('extracts the description', () => {

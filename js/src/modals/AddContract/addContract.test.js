@@ -14,18 +14,25 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { newError } from '~/ui/Errors/actions';
-import { setAddressImage } from './providers/imagesActions';
-import { showSnackbar } from './providers/snackbarActions';
-import { clearStatusLogs, toggleStatusLogs, toggleStatusRefresh } from './providers/statusActions';
-import { toggleView } from '~/views/Settings/actions';
+import sinon from 'sinon';
+
+const ABI = '[{"constant":true,"inputs":[],"name":"totalDonated","outputs":[{"name":"","type":"uint256"}],"type":"function"}]';
+
+const CONTRACTS = {
+  '0x1234567890123456789012345678901234567890': {}
+};
+
+function createApi () {
+  return {
+    parity: {
+      setAccountMeta: sinon.stub().resolves(),
+      setAccountName: sinon.stub().resolves()
+    }
+  };
+}
 
 export {
-  newError,
-  clearStatusLogs,
-  setAddressImage,
-  showSnackbar,
-  toggleStatusLogs,
-  toggleStatusRefresh,
-  toggleView
+  ABI,
+  CONTRACTS,
+  createApi
 };
