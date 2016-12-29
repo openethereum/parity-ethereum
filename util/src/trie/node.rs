@@ -18,7 +18,6 @@ use elastic_array::ElasticArray36;
 use nibbleslice::*;
 use bytes::*;
 use rlp::*;
-use super::journal::*;
 use hashdb::DBValue;
 
 /// Partial node key type.
@@ -120,46 +119,6 @@ impl Node {
 				let mut stream = RlpStream::new();
 				stream.append_empty_data();
 				stream.out()
-			}
-		}
-	}
-
-	/// Encode the node, adding it to `journal` if necessary and return the RLP valid for
-	/// insertion into a parent node.
-	pub fn encoded_and_added(&self, journal: &mut Journal) -> DBValue {
-		let mut stream = RlpStream::new();
-		match *self {
-			Node::Leaf(ref slice, ref value) => {
-				stream.begin_list(2);
-				stream.append(&&**slice);
-				stream.append(&&**value);
-			},
-			Node::Extension(ref slice, ref raw_rlp) => {
-				stream.begin_list(2);
-				stream.append(&&**slice);
-				stream.append_raw(&&**raw_rlp, 1);
-			},
-			Node::Branch(ref nodes, ref value) => {
-				stream.begin_list(17);
-				for i in 0..16 {
-					stream.append_raw(&*nodes[i], 1);
-				}
-				match *value {
-					Some(ref n) => { stream.append(&&**n); },
-					None => { stream.append_empty_data(); },
-				}
-			},
-			Node::Empty => {
-				stream.append_empty_data();
-			}
-		}
-		let node = DBValue::from_slice(stream.as_raw());
-		match node.len() {
-			0 ... 31 => node,
-			_ => {
-				let mut stream = RlpStream::new();
-				journal.new_node(node, &mut stream);
-				DBValue::from_slice(stream.as_raw())
 			}
 		}
 	}
