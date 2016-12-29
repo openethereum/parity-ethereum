@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import { sha3 } from '../parity.js';
+import { getOwner } from '../util/registry';
 
 export const clear = () => ({ type: 'lookup clear' });
 
@@ -80,23 +81,9 @@ export const ownerLookup = (name) => (dispatch, getState) => {
     return;
   }
 
-  const { address, api } = contract;
-
   dispatch(ownerLookupStart(name));
 
-  const key = api.util.sha3(name) + '0000000000000000000000000000000000000000000000000000000000000001';
-  const position = api.util.sha3(key, { encoding: 'hex' });
-
-  api
-    .eth
-    .getStorageAt(address, position)
-    .then((result) => {
-      if (/^(0x)?0*$/.test(result)) {
-        return '';
-      }
-
-      return '0x' + result.slice(-40);
-    })
+  return getOwner(contract, name)
     .then((owner) => {
       dispatch(success('ownerLookup', owner));
     })

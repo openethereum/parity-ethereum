@@ -104,7 +104,7 @@ class Lookup extends Component {
     if (type === 'owner') {
       if (!result) {
         return (
-          <code>No data</code>
+          <code>Not reserved yet</code>
         );
       }
 
