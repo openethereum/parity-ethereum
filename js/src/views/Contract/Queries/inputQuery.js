@@ -19,29 +19,31 @@ import React, { Component, PropTypes } from 'react';
 import LinearProgress from 'material-ui/LinearProgress';
 import { Card, CardActions, CardTitle, CardText } from 'material-ui/Card';
 
-import { Button, Input, InputAddress, InputAddressSelect } from '~/ui';
+import { Button, TypedInput } from '~/ui';
+import { arrayOrObjectProptype } from '~/util/proptypes';
 
 import styles from './queries.css';
 
 export default class InputQuery extends Component {
   static contextTypes = {
     api: PropTypes.object
-  }
+  };
 
   static propTypes = {
+    accountsInfo: PropTypes.object.isRequired,
     contract: PropTypes.object.isRequired,
-    inputs: PropTypes.array.isRequired,
-    outputs: PropTypes.array.isRequired,
+    inputs: arrayOrObjectProptype().isRequired,
+    outputs: arrayOrObjectProptype().isRequired,
     name: PropTypes.string.isRequired,
     signature: PropTypes.string.isRequired,
     className: PropTypes.string
-  }
+  };
 
   state = {
     isValid: true,
     results: [],
     values: {}
-  }
+  };
 
   render () {
     const { name, className } = this.props;
@@ -89,7 +91,7 @@ export default class InputQuery extends Component {
 
   renderResults () {
     const { results, isLoading } = this.state;
-    const { outputs } = this.props;
+    const { accountsInfo, outputs } = this.props;
 
     if (isLoading) {
       return (<LinearProgress mode='indeterminate' />);
@@ -108,25 +110,16 @@ export default class InputQuery extends Component {
       }))
       .sort((outA, outB) => outA.display.length - outB.display.length)
       .map((out, index) => {
-        let input = null;
-        if (out.type === 'address') {
-          input = (
-            <InputAddress
-              className={ styles.queryValue }
-              disabled
-              value={ out.display }
-            />
-          );
-        } else {
-          input = (
-            <Input
-              className={ styles.queryValue }
-              readOnly
-              allowCopy
-              value={ out.display }
-            />
-          );
-        }
+        const input = (
+          <TypedInput
+            accounts={ accountsInfo }
+            allowCopy
+            isEth={ false }
+            param={ out.type }
+            readOnly
+            value={ out.display }
+          />
+        );
 
         return (
           <div key={ index }>
@@ -144,8 +137,7 @@ export default class InputQuery extends Component {
     const { name, type } = input;
     const label = `${name ? `${name}: ` : ''}${type}`;
 
-    const onChange = (event, input) => {
-      const value = event && event.target.value || input;
+    const onChange = (value) => {
       const { values } = this.state;
 
       this.setState({
@@ -156,28 +148,15 @@ export default class InputQuery extends Component {
       });
     };
 
-    if (type === 'address') {
-      return (
-        <div key={ name }>
-          <InputAddressSelect
-            hint={ type }
-            label={ label }
-            value={ values[name] }
-            required
-            onChange={ onChange }
-          />
-        </div>
-      );
-    }
-
     return (
       <div key={ name }>
-        <Input
+        <TypedInput
           hint={ type }
           label={ label }
-          value={ values[name] }
-          required
+          isEth={ false }
           onChange={ onChange }
+          param={ type }
+          value={ values[name] }
         />
       </div>
     );
@@ -192,7 +171,9 @@ export default class InputQuery extends Component {
 
     if (api.util.isInstanceOf(value, BigNumber)) {
       return value.toFormat(0);
-    } else if (api.util.isArray(value)) {
+    }
+
+    if (api.util.isArray(value)) {
       return api.util.bytesToHex(value);
     }
 
