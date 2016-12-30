@@ -33,10 +33,7 @@ export default class RecoveryPhrase extends Component {
   }
 
   state = {
-    accountName: '',
-    accountNameError: ERRORS.noName,
     isValidPass: false,
-    isValidName: false,
     isValidPhrase: false,
     password1: '',
     password1Error: null,
@@ -51,8 +48,8 @@ export default class RecoveryPhrase extends Component {
   }
 
   render () {
-    const { isWindowsPhrase, passwordHint } = this.props.store;
-    const { accountName, accountNameError, password1, password1Error, password2, password2Error, recoveryPhrase } = this.state;
+    const { isWindowsPhrase, name, nameError, passwordHint } = this.props.store;
+    const { password1, password1Error, password2, password2Error, recoveryPhrase } = this.state;
 
     return (
       <Form>
@@ -70,7 +67,7 @@ export default class RecoveryPhrase extends Component {
           onChange={ this.onEditPhrase }
           value={ recoveryPhrase } />
         <Input
-          error={ accountNameError }
+          error={ nameError }
           hint={
             <FormattedMessage
               id='createAccount.recoveryPhrase.name.hint'
@@ -81,8 +78,8 @@ export default class RecoveryPhrase extends Component {
               id='createAccount.recoveryPhrase.name.label'
               defaultMessage='account name' />
           }
-          onChange={ this.onEditAccountName }
-          value={ accountName } />
+          onChange={ this.onEditName }
+          value={ name } />
         <Input
           hint={
             <FormattedMessage
@@ -146,11 +143,10 @@ export default class RecoveryPhrase extends Component {
   }
 
   updateParent = () => {
-    const { accountName, isValidName, isValidPass, isValidPhrase, password1, recoveryPhrase } = this.state;
-    const isValid = isValidName && isValidPass && isValidPhrase;
+    const { isValidPass, isValidPhrase, password1, recoveryPhrase } = this.state;
+    const isValid = isValidPass && isValidPhrase;
 
     this.props.onChange(isValid, {
-      name: accountName,
       password: password1,
       phrase: recoveryPhrase
     });
@@ -187,19 +183,10 @@ export default class RecoveryPhrase extends Component {
     }, this.updateParent);
   }
 
-  onEditAccountName = (event) => {
-    const accountName = event.target.value;
-    let accountNameError = null;
+  onEditName = (event, name) => {
+    const { store } = this.props;
 
-    if (!accountName || !accountName.trim().length) {
-      accountNameError = ERRORS.noName;
-    }
-
-    this.setState({
-      accountName,
-      accountNameError,
-      isValidName: !accountNameError
-    }, this.updateParent);
+    store.setName(name);
   }
 
   onEditPassword1 = (event) => {

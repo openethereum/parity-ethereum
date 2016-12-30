@@ -377,9 +377,8 @@ export default class CreateAccount extends Component {
     });
   }
 
-  onChangeDetails = (canCreate, { name, address, password, phrase }) => {
+  onChangeDetails = (canCreate, { address, password, phrase }) => {
     this.store.setAddress(address);
-    this.store.setName(name);
     this.store.setPhrase(phrase);
 
     this.setState({
@@ -394,12 +393,9 @@ export default class CreateAccount extends Component {
     });
   }
 
-  onChangeWallet = (canCreate, { name, password, json }) => {
-    this.store.setName(name);
-
+  onChangeWallet = (canCreate, { password }) => {
     this.setState({
       canCreate,
-      json,
       password
     });
   }

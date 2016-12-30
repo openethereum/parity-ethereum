@@ -96,6 +96,12 @@ describe('modals/CreateAccount/Store', () => {
       it('allows setting the name', () => {
         store.setName('testing');
         expect(store.name).to.equal('testing');
+        expect(store.nameError).to.be.null;
+      });
+
+      it('sets errors on invalid names', () => {
+        store.setName('');
+        expect(store.nameError).not.to.be.null;
       });
     });
 
@@ -145,7 +151,33 @@ describe('modals/CreateAccount/Store', () => {
     });
 
     describe('setWalletFile', () => {
+      it('sets the filepath', () => {
+        store.setWalletFile('testing');
+        expect(store.walletFile).to.equal('testing');
+      });
 
+      it('cleans up the fakepath', () => {
+        store.setWalletFile('C:\\fakepath\\testing');
+        expect(store.walletFile).to.equal('testing');
+      });
+
+      it('sets the error', () => {
+        store.setWalletFile('testing');
+        expect(store.walletFileError).not.to.be.null;
+      });
+    });
+
+    describe('setWalletJson', () => {
+      it('sets the json', () => {
+        store.setWalletJson('testing');
+        expect(store.walletJson).to.equal('testing');
+      });
+
+      it('clears previous file errors', () => {
+        store.setWalletFile('testing');
+        store.setWalletJson('testing');
+        expect(store.walletFileError).to.be.null;
+      });
     });
 
     describe('nextStage/prevStage', () => {

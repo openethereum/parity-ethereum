@@ -36,9 +36,6 @@ export default class RawKey extends Component {
   }
 
   state = {
-    accountName: '',
-    accountNameError: ERRORS.noName,
-    isValidName: false,
     isValidPass: false,
     password1: '',
     password1Error: null,
@@ -51,8 +48,8 @@ export default class RawKey extends Component {
   }
 
   render () {
-    const { passwordHint, rawKey, rawKeyError } = this.props.store;
-    const { accountName, accountNameError, password1, password1Error, password2, password2Error } = this.state;
+    const { name, nameError, passwordHint, rawKey, rawKeyError } = this.props.store;
+    const { password1, password1Error, password2, password2Error } = this.state;
 
     return (
       <Form>
@@ -71,7 +68,7 @@ export default class RawKey extends Component {
           onChange={ this.onEditKey }
           value={ rawKey } />
         <Input
-          error={ accountNameError }
+          error={ nameError }
           hint={
             <FormattedMessage
               id='createAccount.rawKey.name.hint'
@@ -82,8 +79,8 @@ export default class RawKey extends Component {
               id='createAccount.rawKey.name.label'
               defaultMessage='account name' />
           }
-          onChange={ this.onEditAccountName }
-          value={ accountName } />
+          onChange={ this.onEditName }
+          value={ name } />
         <Input
           hint={
             <FormattedMessage
@@ -138,11 +135,10 @@ export default class RawKey extends Component {
   }
 
   updateParent = () => {
-    const { isValidName, isValidPass, accountName, password1 } = this.state;
-    const isValid = isValidName && isValidPass;
+    const { isValidPass, password1 } = this.state;
+    const isValid = isValidPass;
 
     this.props.onChange(isValid, {
-      name: accountName,
       password: password1
     });
   }
@@ -159,19 +155,10 @@ export default class RawKey extends Component {
     store.setRawKey(rawKey);
   }
 
-  onEditAccountName = (event) => {
-    const accountName = event.target.value;
-    let accountNameError = null;
+  onEditName = (event, name) => {
+    const { store } = this.props;
 
-    if (!accountName || !accountName.trim().length) {
-      accountNameError = ERRORS.noName;
-    }
-
-    this.setState({
-      accountName,
-      accountNameError,
-      isValidName: !accountNameError
-    }, this.updateParent);
+    store.steName(name);
   }
 
   onEditPassword1 = (event) => {

@@ -123,6 +123,7 @@ export default class Store {
     transaction(() => {
       this.walletFile = walletFile.replace(FAKEPATH, '');
       this.walletFileError = ERRORS.noFile;
+      this.walletJson = null;
     });
   }
 
