@@ -19,7 +19,8 @@ import sinon from 'sinon';
 
 import Store from './store';
 
-const ACCOUNTS = { '0x00000123456789abcdef123456789abcdef123456789abcdef': {} };
+const ADDRESS = '0x00000123456789abcdef123456789abcdef123456789abcdef';
+const ACCOUNTS = { [ADDRESS]: {} };
 const GETH_ADDRESSES = [
   '0x123456789abcdef123456789abcdef123456789abcdef00000',
   '0x00000123456789abcdef123456789abcdef123456789abcdef'
@@ -34,7 +35,11 @@ function createApi () {
     },
     parity: {
       generateSecretPhrase: sinon.stub().resolves('some account phrase'),
+      importGethAccounts: sinon.stub().resolves(),
       listGethAccounts: sinon.stub().resolves(GETH_ADDRESSES),
+      newAccountFromPhrase: sinon.stub().resolves(ADDRESS),
+      newAccountFromSecret: sinon.stub().resolves(ADDRESS),
+      newAccountFromWallet: sinon.stub().resolves(ADDRESS),
       phraseToAddress: () => Promise.resolve(`${++counter}`),
       setAccountMeta: sinon.stub().resolves(),
       setAccountName: sinon.stub().resolves()
@@ -48,6 +53,7 @@ function createStore () {
 
 export {
   ACCOUNTS,
+  ADDRESS,
   GETH_ADDRESSES,
   createApi,
   createStore

@@ -228,9 +228,9 @@ export default class Store {
     }
   }
 
-  createAccountFromGeth = () => {
+  createAccountFromGeth = (timestamp = Date.now()) => {
     return this._api.parity
-      .importGethAccounts(this.gethAddresses)
+      .importGethAccounts(this.gethAddresses.peek())
       .then(() => {
         return Promise.all(this.gethAddresses.map((address) => {
           return this._api.parity.setAccountName(address, 'Geth Import');
@@ -238,7 +238,9 @@ export default class Store {
       })
       .then(() => {
         return Promise.all(this.gethAddresses.map((address) => {
-          return this._api.parity.setAccountMeta(address, { timestamp: Date.now() });
+          return this._api.parity.setAccountMeta(address, {
+            timestamp
+          });
         }));
       })
       .catch((error) => {
@@ -247,7 +249,7 @@ export default class Store {
       });
   }
 
-  createAccountFromPhrase = () => {
+  createAccountFromPhrase = (timestamp = Date.now()) => {
     let formattedPhrase = this.phrase;
     if (this.isWindowsPhrase && this.createType === 'fromPhrase') {
       formattedPhrase = this.phrase
@@ -265,7 +267,7 @@ export default class Store {
           .setAccountName(address, this.name)
           .then(() => this._api.parity.setAccountMeta(address, {
             passwordHint: this.passwordHint,
-            timestamp: Date.now()
+            timestamp
           }));
       })
       .catch((error) => {
@@ -274,7 +276,7 @@ export default class Store {
       });
   }
 
-  createAccountFromRaw = () => {
+  createAccountFromRaw = (timestamp = Date.now()) => {
     return this._api.parity
       .newAccountFromSecret(this.rawKey, this.password)
       .then((address) => {
@@ -284,7 +286,7 @@ export default class Store {
           .setAccountName(address, this.name)
           .then(() => this._api.parity.setAccountMeta(address, {
             passwordHint: this.passwordHint,
-            timestamp: Date.now()
+            timestamp
           }));
       })
       .catch((error) => {
@@ -293,7 +295,7 @@ export default class Store {
       });
   }
 
-  createAccountFromWallet = () => {
+  createAccountFromWallet = (timestamp = Date.now()) => {
     return this._api.parity
       .newAccountFromWallet(this.walletJson, this.password)
       .then((address) => {
@@ -303,7 +305,7 @@ export default class Store {
           .setAccountName(address, this.name)
           .then(() => this._api.parity.setAccountMeta(address, {
             passwordHint: this.passwordHint,
-            timestamp: Date.now()
+            timestamp
           }));
       })
       .catch((error) => {

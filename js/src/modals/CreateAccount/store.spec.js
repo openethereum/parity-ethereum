@@ -14,9 +14,11 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import sinon from 'sinon';
+
 import Store from './store';
 
-import { ACCOUNTS, GETH_ADDRESSES, createApi } from './createAccount.test.js';
+import { ACCOUNTS, ADDRESS, GETH_ADDRESSES, createApi } from './createAccount.test.js';
 
 let api;
 let store;
@@ -360,6 +362,196 @@ describe('modals/CreateAccount/Store', () => {
   });
 
   describe('operations', () => {
+    describe('createAccount', () => {
+      let createAccountFromGethSpy;
+      let createAccountFromWalletSpy;
+      let createAccountFromPhraseSpy;
+      let createAccountFromRawSpy;
+
+      beforeEach(() => {
+        createAccountFromGethSpy = sinon.spy(store, 'createAccountFromGeth');
+        createAccountFromWalletSpy = sinon.spy(store, 'createAccountFromWallet');
+        createAccountFromPhraseSpy = sinon.spy(store, 'createAccountFromPhrase');
+        createAccountFromRawSpy = sinon.spy(store, 'createAccountFromRaw');
+      });
+
+      it('throws error on invalid createType', () => {
+        store.setCreateType('testing');
+        expect(() => store.createAccount()).to.throw;
+      });
+
+      it('calls createAccountFromGeth on createType === fromGeth', () => {
+        store.setCreateType('fromGeth');
+        store.createAccount();
+        expect(createAccountFromGethSpy).to.have.been.called;
+      });
+
+      it('calls createAccountFromWallet on createType === fromJSON', () => {
+        store.setCreateType('fromJSON');
+        store.createAccount();
+        expect(createAccountFromWalletSpy).to.have.been.called;
+      });
+
+      it('calls createAccountFromPhrase on createType === fromNew', () => {
+        store.setCreateType('fromNew');
+        store.createAccount();
+        expect(createAccountFromPhraseSpy).to.have.been.called;
+      });
+
+      it('calls createAccountFromPhrase on createType === fromPhrase', () => {
+        store.setCreateType('fromPhrase');
+        store.createAccount();
+        expect(createAccountFromPhraseSpy).to.have.been.called;
+      });
+
+      it('calls createAccountFromWallet on createType === fromPresale', () => {
+        store.setCreateType('fromPresale');
+        store.createAccount();
+        expect(createAccountFromWalletSpy).to.have.been.called;
+      });
+
+      it('calls createAccountFromRaw on createType === fromRaw', () => {
+        store.setCreateType('fromRaw');
+        store.createAccount();
+        expect(createAccountFromRawSpy).to.have.been.called;
+      });
+
+      describe('createAccountFromGeth', () => {
+        beforeEach(() => {
+          store.selectGethAccount(GETH_ADDRESSES[0]);
+        });
+
+        it('calls parity.importGethAccounts', () => {
+          return store.createAccountFromGeth().then(() => {
+            expect(store._api.parity.importGethAccounts).to.have.been.calledWith([GETH_ADDRESSES[0]]);
+          });
+        });
+
+        it('sets the account name', () => {
+          return store.createAccountFromGeth().then(() => {
+            expect(store._api.parity.setAccountName).to.have.been.calledWith(GETH_ADDRESSES[0], 'Geth Import');
+          });
+        });
+
+        it('sets the account meta', () => {
+          return store.createAccountFromGeth(-1).then(() => {
+            expect(store._api.parity.setAccountMeta).to.have.been.calledWith(GETH_ADDRESSES[0], {
+              timestamp: -1
+            });
+          });
+        });
+      });
+
+      describe('createAccountFromPhrase', () => {
+        beforeEach(() => {
+          store.setCreateType('fromPhrase');
+          store.setName('some name');
+          store.setPassword('P@55worD');
+          store.setPasswordHint('some hint');
+          store.setPhrase('some phrase');
+        });
+
+        it('calls parity.newAccountFromWallet', () => {
+          return store.createAccountFromPhrase().then(() => {
+            expect(store._api.parity.newAccountFromPhrase).to.have.been.calledWith('some phrase', 'P@55worD');
+          });
+        });
+
+        it('sets the address', () => {
+          return store.createAccountFromPhrase().then(() => {
+            expect(store.address).to.equal(ADDRESS);
+          });
+        });
+
+        it('sets the account name', () => {
+          return store.createAccountFromPhrase().then(() => {
+            expect(store._api.parity.setAccountName).to.have.been.calledWith(ADDRESS, 'some name');
+          });
+        });
+
+        it('sets the account meta', () => {
+          return store.createAccountFromPhrase(-1).then(() => {
+            expect(store._api.parity.setAccountMeta).to.have.been.calledWith(ADDRESS, {
+              passwordHint: 'some hint',
+              timestamp: -1
+            });
+          });
+        });
+      });
+
+      describe('createAccountFromRaw', () => {
+        beforeEach(() => {
+          store.setName('some name');
+          store.setPassword('P@55worD');
+          store.setPasswordHint('some hint');
+          store.setRawKey('rawKey');
+        });
+
+        it('calls parity.newAccountFromSecret', () => {
+          return store.createAccountFromRaw().then(() => {
+            expect(store._api.parity.newAccountFromSecret).to.have.been.calledWith('rawKey', 'P@55worD');
+          });
+        });
+
+        it('sets the address', () => {
+          return store.createAccountFromRaw().then(() => {
+            expect(store.address).to.equal(ADDRESS);
+          });
+        });
+
+        it('sets the account name', () => {
+          return store.createAccountFromRaw().then(() => {
+            expect(store._api.parity.setAccountName).to.have.been.calledWith(ADDRESS, 'some name');
+          });
+        });
+
+        it('sets the account meta', () => {
+          return store.createAccountFromRaw(-1).then(() => {
+            expect(store._api.parity.setAccountMeta).to.have.been.calledWith(ADDRESS, {
+              passwordHint: 'some hint',
+              timestamp: -1
+            });
+          });
+        });
+      });
+
+      describe('createAccountFromWallet', () => {
+        beforeEach(() => {
+          store.setName('some name');
+          store.setPassword('P@55worD');
+          store.setPasswordHint('some hint');
+          store.setWalletJson('json');
+        });
+
+        it('calls parity.newAccountFromWallet', () => {
+          return store.createAccountFromWallet().then(() => {
+            expect(store._api.parity.newAccountFromWallet).to.have.been.calledWith('json', 'P@55worD');
+          });
+        });
+
+        it('sets the address', () => {
+          return store.createAccountFromWallet().then(() => {
+            expect(store.address).to.equal(ADDRESS);
+          });
+        });
+
+        it('sets the account name', () => {
+          return store.createAccountFromWallet().then(() => {
+            expect(store._api.parity.setAccountName).to.have.been.calledWith(ADDRESS, 'some name');
+          });
+        });
+
+        it('sets the account meta', () => {
+          return store.createAccountFromWallet(-1).then(() => {
+            expect(store._api.parity.setAccountMeta).to.have.been.calledWith(ADDRESS, {
+              passwordHint: 'some hint',
+              timestamp: -1
+            });
+          });
+        });
+      });
+    });
+
     describe('createIdentities', () => {
       it('creates calls parity.generateSecretPhrase', () => {
         return store.createIdentities().then(() => {
