@@ -35,7 +35,9 @@ function createApi () {
     parity: {
       generateSecretPhrase: sinon.stub().resolves('some account phrase'),
       listGethAccounts: sinon.stub().resolves(GETH_ADDRESSES),
-      phraseToAddress: () => Promise.resolve(`${++counter}`)
+      phraseToAddress: () => Promise.resolve(`${++counter}`),
+      setAccountMeta: sinon.stub().resolves(),
+      setAccountName: sinon.stub().resolves()
     }
   };
 }

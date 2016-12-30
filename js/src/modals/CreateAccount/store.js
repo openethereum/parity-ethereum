@@ -207,6 +207,111 @@ export default class Store {
     this.stage--;
   }
 
+  createAccount = () => {
+    switch (this.createType) {
+      case 'fromGeth':
+        return this.createAccountFromGeth();
+
+      case 'fromJSON':
+      case 'fromPresale':
+        return this.createAccountFromWallet();
+
+      case 'fromNew':
+      case 'fromPhrase':
+        return this.createAccountFromPhrase();
+
+      case 'fromRaw':
+        return this.createAccountFromRaw();
+
+      default:
+        throw new Error(`Cannot create account for ${this.createType}`);
+    }
+  }
+
+  createAccountFromGeth = () => {
+    return this._api.parity
+      .importGethAccounts(this.gethAddresses)
+      .then(() => {
+        return Promise.all(this.gethAddresses.map((address) => {
+          return this._api.parity.setAccountName(address, 'Geth Import');
+        }));
+      })
+      .then(() => {
+        return Promise.all(this.gethAddresses.map((address) => {
+          return this._api.parity.setAccountMeta(address, { timestamp: Date.now() });
+        }));
+      })
+      .catch((error) => {
+        console.error('createAccount', error);
+        throw error;
+      });
+  }
+
+  createAccountFromPhrase = () => {
+    let formattedPhrase = this.phrase;
+    if (this.isWindowsPhrase && this.createType === 'fromPhrase') {
+      formattedPhrase = this.phrase
+        .split(' ') // get the words
+        .map((word) => word === 'misjudged' ? word : `${word}\r`) // add \r after each (except last in dict)
+        .join(' '); // re-create string
+    }
+
+    return this._api.parity
+      .newAccountFromPhrase(formattedPhrase, this.password)
+      .then((address) => {
+        this.setAddress(address);
+
+        return this._api.parity
+          .setAccountName(address, this.name)
+          .then(() => this._api.parity.setAccountMeta(address, {
+            passwordHint: this.passwordHint,
+            timestamp: Date.now()
+          }));
+      })
+      .catch((error) => {
+        console.error('createAccount', error);
+        throw error;
+      });
+  }
+
+  createAccountFromRaw = () => {
+    return this._api.parity
+      .newAccountFromSecret(this.rawKey, this.password)
+      .then((address) => {
+        this.setAddress(address);
+
+        return this._api.parity
+          .setAccountName(address, this.name)
+          .then(() => this._api.parity.setAccountMeta(address, {
+            passwordHint: this.passwordHint,
+            timestamp: Date.now()
+          }));
+      })
+      .catch((error) => {
+        console.error('createAccount', error);
+        throw error;
+      });
+  }
+
+  createAccountFromWallet = () => {
+    return this._api.parity
+      .newAccountFromWallet(this.walletJson, this.password)
+      .then((address) => {
+        this.setAddress(address);
+
+        return this._api.parity
+          .setAccountName(address, this.name)
+          .then(() => this._api.parity.setAccountMeta(address, {
+            passwordHint: this.passwordHint,
+            timestamp: Date.now()
+          }));
+      })
+      .catch((error) => {
+        console.error('createAccount', error);
+        throw error;
+      });
+  }
+
   createIdentities = () => {
     return Promise
       .all([

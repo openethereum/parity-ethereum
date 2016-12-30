@@ -140,7 +140,7 @@ export default class CreateAccount extends Component {
   }
 
   renderDialogActions () {
-    const { createType, canCreate, stage } = this.store;
+    const { createType, canCreate, isBusy, stage } = this.store;
 
     const cancelBtn = (
       <Button
@@ -182,7 +182,7 @@ export default class CreateAccount extends Component {
             }
             onClick={ this.store.prevStage } />,
           <Button
-            disabled={ !canCreate }
+            disabled={ !canCreate || isBusy }
             icon={ <CheckIcon /> }
             key='create'
             label={
@@ -240,121 +240,17 @@ export default class CreateAccount extends Component {
   }
 
   onCreate = () => {
-    const { createType, isWindowsPhrase, name, passwordHint, phrase } = this.store;
-    const { api } = this.context;
+    this.setBusy(true);
 
-    this.setState({
-      canCreate: false
-    });
-
-    if (['fromNew', 'fromPhrase'].includes(createType)) {
-      let formattedPhrase = phrase;
-      if (isWindowsPhrase && createType === 'fromPhrase') {
-        formattedPhrase = phrase
-          .split(' ') // get the words
-          .map((word) => word === 'misjudged' ? word : `${word}\r`) // add \r after each (except last in dict)
-          .join(' '); // re-create string
-      }
-
-      return api.parity
-        .newAccountFromPhrase(formattedPhrase, this.state.password)
-        .then((address) => {
-          this.store.setAddress(address);
-
-          return api.parity
-            .setAccountName(address, name)
-            .then(() => api.parity.setAccountMeta(address, {
-              timestamp: Date.now(),
-              passwordHint
-            }));
-        })
-        .then(() => {
-          this.store.nextStage();
-          this.props.onUpdate && this.props.onUpdate();
-        })
-        .catch((error) => {
-          console.error('onCreate', error);
-
-          this.setState({
-            canCreate: true
-          });
-
-          newError(error);
-        });
-    } else if (createType === 'fromRaw') {
-      return api.parity
-        .newAccountFromSecret(this.store.rawKey, this.state.password)
-        .then((address) => {
-          this.store.setAddress(address);
-
-          return api.parity
-            .setAccountName(address, name)
-            .then(() => api.parity.setAccountMeta(address, {
-              timestamp: Date.now(),
-              passwordHint
-            }));
-        })
-        .then(() => {
-          this.store.nextStage();
-          this.props.onUpdate && this.props.onUpdate();
-        })
-        .catch((error) => {
-          console.error('onCreate', error);
-
-          this.setState({
-            canCreate: true
-          });
-
-          newError(error);
-        });
-    } else if (createType === 'fromGeth') {
-      return api.parity
-        .importGethAccounts(this.store.gethAddresses)
-        .then((result) => {
-          console.log('result', result);
-
-          return Promise.all(this.store.gethAddresses.map((address) => {
-            return api.parity.setAccountName(address, 'Geth Import');
-          }));
-        })
-        .then(() => {
-          this.store.nextStage();
-          this.props.onUpdate && this.props.onUpdate();
-        })
-        .catch((error) => {
-          console.error('onCreate', error);
-
-          this.setState({
-            canCreate: true
-          });
-
-          newError(error);
-        });
-    }
-
-    return api.parity
-      .newAccountFromWallet(this.state.json, this.state.password)
-      .then((address) => {
-        this.store.setAddress(address);
-
-        return api.parity
-          .setAccountName(address, name)
-          .then(() => api.parity.setAccountMeta(address, {
-            timestamp: Date.now(),
-            passwordHint
-          }));
-      })
+    return this.store
+      .createAccount()
       .then(() => {
+        this.store.setBusy(false);
         this.store.nextStage();
         this.props.onUpdate && this.props.onUpdate();
       })
       .catch((error) => {
-        console.error('onCreate', error);
-
-        this.setState({
-          canCreate: true
-        });
-
+        this.store.setBusy(false);
         newError(error);
       });
   }
