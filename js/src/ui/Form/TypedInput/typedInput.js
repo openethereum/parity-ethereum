@@ -329,6 +329,10 @@ export default class TypedInput extends Component {
   renderBoolean () {
     const { allowCopy, label, value, error, hint, readOnly } = this.props;
 
+    if (readOnly) {
+      return this.renderDefault();
+    }
+
     const boolitems = ['false', 'true'].map((bool) => {
       return (
         <MenuItem
@@ -347,7 +351,6 @@ export default class TypedInput extends Component {
         hint={ hint }
         label={ label }
         onChange={ this.onChangeBool }
-        readOnly={ readOnly }
         value={
           value
             ? 'true'
