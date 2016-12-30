@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import { omitBy } from 'lodash';
 
 import { Form, TypedInput, Input, AddressSelect, InputAddress } from '~/ui';
 
@@ -73,6 +74,9 @@ export default class WalletDetails extends Component {
   renderMultisigDetails () {
     const { accounts, wallet, errors } = this.props;
 
+    // Wallets cannot create contracts
+    const _accounts = omitBy(accounts, (a) => a.wallet);
+
     return (
       <Form>
         <AddressSelect
@@ -81,7 +85,7 @@ export default class WalletDetails extends Component {
           value={ wallet.account }
           error={ errors.account }
           onChange={ this.onAccoutChange }
-          accounts={ accounts }
+          accounts={ _accounts }
         />
 
         <Input
