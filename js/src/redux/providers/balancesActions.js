@@ -175,7 +175,7 @@ export function fetchBalances (_addresses) {
     const { api, personal } = getState();
     const { visibleAccounts, accounts } = personal;
 
-    const addresses = uniq(_addresses || visibleAccounts || []);
+    const addresses = uniq((_addresses || visibleAccounts || []).concat(Object.keys(accounts)));
 
     if (addresses.length === 0) {
       return Promise.resolve();
@@ -183,7 +183,7 @@ export function fetchBalances (_addresses) {
 
     const fullFetch = addresses.length === 1;
 
-    const addressesToFetch = uniq(addresses.concat(Object.keys(accounts)));
+    const addressesToFetch = uniq(addresses);
 
     return Promise
       .all(addressesToFetch.map((addr) => fetchAccount(addr, api, fullFetch)))

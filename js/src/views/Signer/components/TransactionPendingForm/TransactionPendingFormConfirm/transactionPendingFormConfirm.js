@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import ReactDOM from 'react-dom';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 import RaisedButton from 'material-ui/RaisedButton';
@@ -26,11 +27,16 @@ import styles from './transactionPendingFormConfirm.css';
 
 class TransactionPendingFormConfirm extends Component {
   static propTypes = {
-    accounts: PropTypes.object.isRequired,
+    account: PropTypes.object.isRequired,
     address: PropTypes.string.isRequired,
     isSending: PropTypes.bool.isRequired,
-    onConfirm: PropTypes.func.isRequired
-  }
+    onConfirm: PropTypes.func.isRequired,
+    focus: PropTypes.bool
+  };
+
+  static defaultProps = {
+    focus: false
+  };
 
   id = Math.random(); // for tooltip
 
@@ -40,10 +46,39 @@ class TransactionPendingFormConfirm extends Component {
     walletError: null
   }
 
+  componentDidMount () {
+    this.focus();
+  }
+
+  componentWillReceiveProps (nextProps) {
+    if (!this.props.focus && nextProps.focus) {
+      this.focus(nextProps);
+    }
+  }
+
+  /**
+   * Properly focus on the input element when needed.
+   * This might be fixed some day in MaterialUI with
+   * an autoFocus prop.
+   *
+   * @see https://github.com/callemall/material-ui/issues/5632
+   */
+  focus (props = this.props) {
+    if (props.focus) {
+      const textNode = ReactDOM.findDOMNode(this.refs.input);
+
+      if (!textNode) {
+        return;
+      }
+
+      const inputNode = textNode.querySelector('input');
+      inputNode && inputNode.focus();
+    }
+  }
+
   render () {
-    const { accounts, address, isSending } = this.props;
+    const { account, address, isSending } = this.props;
     const { password, wallet, walletError } = this.state;
-    const account = accounts[address] || {};
     const isExternal = !account.uuid;
 
     const passwordHint = account.meta && account.meta.passwordHint
@@ -72,8 +107,10 @@ class TransactionPendingFormConfirm extends Component {
             }
             onChange={ this.onModifyPassword }
             onKeyDown={ this.onKeyDown }
+            ref='input'
             type='password'
-            value={ password } />
+            value={ password }
+          />
           <div className={ styles.passwordHint }>
             { passwordHint }
           </div>
@@ -178,11 +215,14 @@ class TransactionPendingFormConfirm extends Component {
   }
 }
 
-function mapStateToProps (state) {
-  const { accounts } = state.personal;
+function mapStateToProps (initState, initProps) {
+  const { accounts } = initState.personal;
+  const { address } = initProps;
 
-  return {
-    accounts
+  const account = accounts[address] || {};
+
+  return () => {
+    return { account };
   };
 }
 
