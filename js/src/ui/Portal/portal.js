@@ -71,8 +71,8 @@ export default class Portal extends Component {
         <div className={ backClasses.join(' ') } onClick={ this.handleClose }>
           <div
             className={ classes.join(' ') }
-            onKeyDown={ this.handleKeyDown }
             onClick={ this.stopEvent }
+            onKeyDown={ this.handleKeyDown }
           >
             <ParityBackground className={ styles.parityBackground } />
 

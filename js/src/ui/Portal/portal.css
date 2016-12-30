@@ -18,7 +18,7 @@
 $left: 1.5em;
 $right: $left;
 $bottom: $left;
-$top: 15vh;
+$top: 20vh;
 
 .backOverlay {
   position: fixed;
