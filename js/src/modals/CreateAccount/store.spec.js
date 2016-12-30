@@ -477,6 +477,21 @@ describe('modals/CreateAccount/Store', () => {
             });
           });
         });
+
+        it('adjusts phrases for Windows', () => {
+          store.setWindowsPhrase(true);
+          return store.createAccountFromPhrase().then(() => {
+            expect(store._api.parity.newAccountFromPhrase).to.have.been.calledWith('some\r phrase\r', 'P@55worD');
+          });
+        });
+
+        it('adjusts phrases for Windows (except last word)', () => {
+          store.setWindowsPhrase(true);
+          store.setPhrase('misjudged phrase');
+          return store.createAccountFromPhrase().then(() => {
+            expect(store._api.parity.newAccountFromPhrase).to.have.been.calledWith('misjudged phrase\r', 'P@55worD');
+          });
+        });
       });
 
       describe('createAccountFromRaw', () => {
