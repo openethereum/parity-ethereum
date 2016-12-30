@@ -86,7 +86,10 @@ export default class Store {
       nameError = ERRORS.noName;
     }
 
-    this.name = name;
+    transaction(() => {
+      this.name = name;
+      this.nameError = nameError;
+    });
   }
 
   @action setPasswordHint = (passwordHint) => {

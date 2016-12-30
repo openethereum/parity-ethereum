@@ -21,56 +21,64 @@ import { eip20, wallet } from '~/contracts/abi';
 
 const ABI_TYPES = [
   {
-    description:
+    description: (
       <FormattedMessage
         id='addContract.abiType.token.description'
         defaultMessage='A standard {erc20} token'
         values={ {
-          erc20:
+          erc20: (
             <a href='https://github.com/ethereum/EIPs/issues/20' target='_blank'>
               <FormattedMessage
                 id='addContract.abiType.token.erc20'
                 defaultMessage='ERC 20' />
             </a>
-        } } />,
-    label:
+          )
+        } } />
+    ),
+    label: (
       <FormattedMessage
         id='addContract.abiType.token.label'
-        defaultMessage='Token' />,
+        defaultMessage='Token' />
+    ),
     readOnly: true,
     type: 'token',
     value: JSON.stringify(eip20)
   },
   {
-    description:
+    description: (
       <FormattedMessage
         id='addContract.abiType.multisigWallet.description'
         defaultMessage='Ethereum Multisig contract {link}'
         values={ {
-          link:
+          link: (
             <a href='https://github.com/ethereum/dapp-bin/blob/master/wallet/wallet.sol' target='_blank'>
               <FormattedMessage
                 id='addContract.abiType.multisigWallet.link'
                 defaultMessage='see contract code' />
             </a>
-        } } />,
-    label:
+          )
+        } } />
+    ),
+    label: (
       <FormattedMessage
         id='addContract.abiType.multisigWallet.label'
-        defaultMessage='Multisig Wallet' />,
+        defaultMessage='Multisig Wallet' />
+    ),
     readOnly: true,
     type: 'multisig',
     value: JSON.stringify(wallet)
   },
   {
-    description:
+    description: (
       <FormattedMessage
         id='addContract.abiType.custom.description'
-        defaultMessage='Contract created from custom ABI' />,
-    label:
+        defaultMessage='Contract created from custom ABI' />
+    ),
+    label: (
       <FormattedMessage
         id='addContract.abiType.custom.label'
-        defaultMessage='Custom Contract' />,
+        defaultMessage='Custom Contract' />
+    ),
     type: 'custom',
     value: ''
   }
