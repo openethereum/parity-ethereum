@@ -140,7 +140,7 @@ export default class CreateAccount extends Component {
   }
 
   renderDialogActions () {
-    const { createType, stage } = this.store;
+    const { createType, canCreate, stage } = this.store;
 
     const cancelBtn = (
       <Button
@@ -182,7 +182,7 @@ export default class CreateAccount extends Component {
             }
             onClick={ this.store.prevStage } />,
           <Button
-            disabled={ !this.state.canCreate }
+            disabled={ !canCreate }
             icon={ <CheckIcon /> }
             key='create'
             label={

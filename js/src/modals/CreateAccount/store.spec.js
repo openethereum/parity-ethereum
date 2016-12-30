@@ -38,6 +38,10 @@ describe('modals/CreateAccount/Store', () => {
       expect(store.accounts).to.deep.equal(ACCOUNTS);
     });
 
+    it('starts as non-busy', () => {
+      expect(store.isBusy).to.be.false;
+    });
+
     it('sets the initial createType to fromNew', () => {
       expect(store.createType).to.equal('fromNew');
     });
@@ -47,11 +51,22 @@ describe('modals/CreateAccount/Store', () => {
     });
 
     it('loads the geth accounts', () => {
-      expect(store.gethAccountsAvailable.map((account) => account.address)).to.deep.equal(GETH_ADDRESSES);
+      expect(store.gethAccountsAvailable.map((account) => account.address)).to.deep.equal([GETH_ADDRESSES[0]]);
     });
   });
 
   describe('@action', () => {
+    describe('clearErrors', () => {
+      it('clears all errors', () => {
+        store.clearErrors();
+
+        expect(store.nameError).to.be.null;
+        expect(store.passwordRepeatError).to.be.null;
+        expect(store.rawKeyError).to.be.null;
+        expect(store.walletFileError).to.be.null;
+      });
+    });
+
     describe('selectGethAccount', () => {
       it('selects and deselects and address', () => {
         expect(store.gethAddresses.peek()).to.deep.equal([]);
@@ -71,6 +86,13 @@ describe('modals/CreateAccount/Store', () => {
       });
     });
 
+    describe('setBusy', () => {
+      it('sets the busy flag', () => {
+        store.setBusy(true);
+        expect(store.isBusy).to.be.true;
+      });
+    });
+
     describe('setCreateType', () => {
       it('allows changing the type', () => {
         store.setCreateType('testing');
@@ -82,13 +104,6 @@ describe('modals/CreateAccount/Store', () => {
       it('allows setting the description', () => {
         store.setDescription('testing');
         expect(store.description).to.equal('testing');
-      });
-    });
-
-    describe('setIsWindowsPhrase', () => {
-      it('allows setting the windows toggle', () => {
-        store.setIsWindowsPhrase(true);
-        expect(store.isWindowsPhrase).to.be.true;
       });
     });
 
@@ -194,6 +209,13 @@ describe('modals/CreateAccount/Store', () => {
       });
     });
 
+    describe('setWindowsPhrase', () => {
+      it('allows setting the windows toggle', () => {
+        store.setWindowsPhrase(true);
+        expect(store.isWindowsPhrase).to.be.true;
+      });
+    });
+
     describe('nextStage/prevStage', () => {
       it('changes to next/prev', () => {
         expect(store.stage).to.equal(0);
@@ -206,6 +228,122 @@ describe('modals/CreateAccount/Store', () => {
   });
 
   describe('@computed', () => {
+    describe('canCreate', () => {
+      beforeEach(() => {
+        store.clearErrors();
+      });
+
+      describe('createType === fromGeth', () => {
+        beforeEach(() => {
+          store.setCreateType('fromGeth');
+        });
+
+        it('returns false on none selected', () => {
+          expect(store.canCreate).to.be.false;
+        });
+
+        it('returns true when selected', () => {
+          store.selectGethAccount(GETH_ADDRESSES[0]);
+          expect(store.canCreate).to.be.true;
+        });
+      });
+
+      describe('createType === fromJSON/fromPresale', () => {
+        beforeEach(() => {
+          store.setCreateType('fromJSON');
+        });
+
+        it('returns true on no errors', () => {
+          expect(store.canCreate).to.be.true;
+        });
+
+        it('returns false on nameError', () => {
+          store.setName('');
+          expect(store.canCreate).to.be.false;
+        });
+
+        it('returns false on walletFileError', () => {
+          store.setWalletFile('testing');
+          expect(store.canCreate).to.be.false;
+        });
+      });
+
+      describe('createType === fromNew', () => {
+        beforeEach(() => {
+          store.setCreateType('fromNew');
+        });
+
+        it('returns true on no errors', () => {
+          expect(store.canCreate).to.be.true;
+        });
+
+        it('returns false on nameError', () => {
+          store.setName('');
+          expect(store.canCreate).to.be.false;
+        });
+
+        it('returns false on passwordRepeatError', () => {
+          store.setPassword('testing');
+          expect(store.canCreate).to.be.false;
+        });
+      });
+
+      describe('createType === fromPhrase', () => {
+        beforeEach(() => {
+          store.setCreateType('fromPhrase');
+        });
+
+        it('returns true on no errors', () => {
+          expect(store.canCreate).to.be.true;
+        });
+
+        it('returns false on nameError', () => {
+          store.setName('');
+          expect(store.canCreate).to.be.false;
+        });
+
+        it('returns false on passwordRepeatError', () => {
+          store.setPassword('testing');
+          expect(store.canCreate).to.be.false;
+        });
+      });
+
+      describe('createType === fromRaw', () => {
+        beforeEach(() => {
+          store.setCreateType('fromRaw');
+        });
+
+        it('returns true on no errors', () => {
+          expect(store.canCreate).to.be.true;
+        });
+
+        it('returns false on nameError', () => {
+          store.setName('');
+          expect(store.canCreate).to.be.false;
+        });
+
+        it('returns false on passwordRepeatError', () => {
+          store.setPassword('testing');
+          expect(store.canCreate).to.be.false;
+        });
+
+        it('returns false on rawKeyError', () => {
+          store.setRawKey('testing');
+          expect(store.canCreate).to.be.false;
+        });
+      });
+
+      describe('createType === anythingElse', () => {
+        beforeEach(() => {
+          store.setCreateType('anythingElse');
+        });
+
+        it('always returns false', () => {
+          expect(store.canCreate).to.be.false;
+        });
+      });
+    });
+
     describe('passwordRepeatError', () => {
       it('is clear when passwords match', () => {
         store.setPassword('testing');
@@ -217,6 +355,56 @@ describe('modals/CreateAccount/Store', () => {
         store.setPassword('testing');
         store.setPasswordRepeat('testing2');
         expect(store.passwordRepeatError).not.to.be.null;
+      });
+    });
+  });
+
+  describe('operations', () => {
+    describe('createIdentities', () => {
+      it('creates calls parity.generateSecretPhrase', () => {
+        return store.createIdentities().then(() => {
+          expect(store._api.parity.generateSecretPhrase).to.have.been.called;
+        });
+      });
+
+      it('returns a map of 5 accounts', () => {
+        return store.createIdentities().then((accounts) => {
+          expect(Object.keys(accounts).length).to.equal(5);
+        });
+      });
+
+      it('creates accounts with an address & phrase', () => {
+        return store.createIdentities().then((accounts) => {
+          Object.keys(accounts).forEach((address) => {
+            const account = accounts[address];
+
+            expect(account.address).to.equal(address);
+            expect(account.phrase).to.be.ok;
+          });
+        });
+      });
+    });
+
+    describe('loadAvailableGethAccounts', () => {
+      it('retrieves the list from parity.listGethAccounts', () => {
+        return store.loadAvailableGethAccounts().then(() => {
+          expect(store._api.parity.listGethAccounts).to.have.been.called;
+        });
+      });
+
+      it('sets the available addresses with balances', () => {
+        return store.loadAvailableGethAccounts().then(() => {
+          expect(store.gethAccountsAvailable[0]).to.deep.equal({
+            address: GETH_ADDRESSES[0],
+            balance: '0.00000'
+          });
+        });
+      });
+
+      it('filters accounts already available', () => {
+        return store.loadAvailableGethAccounts().then(() => {
+          expect(store.gethAccountsAvailable.length).to.equal(1);
+        });
       });
     });
   });

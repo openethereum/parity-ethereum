@@ -32,6 +32,7 @@ export default class Store {
   @observable description = '';
   @observable gethAccountsAvailable = [];
   @observable gethAddresses = [];
+  @observable isBusy = false;
   @observable isWindowsPhrase = false;
   @observable name = '';
   @observable nameError = ERRORS.noName;
@@ -53,10 +54,43 @@ export default class Store {
     this.loadAvailableGethAccounts();
   }
 
+  @computed get canCreate () {
+    switch (this.createType) {
+      case 'fromGeth':
+        return this.gethAddresses.length !== 0;
+
+      case 'fromJSON':
+      case 'fromPresale':
+        return !(this.nameError || this.walletFileError);
+
+      case 'fromNew':
+        return !(this.nameError || this.passwordRepeatError);
+
+      case 'fromPhrase':
+        return !(this.nameError || this.passwordRepeatError);
+
+      case 'fromRaw':
+        return !(this.nameError || this.passwordRepeatError || this.rawKeyError);
+
+      default:
+        return false;
+    }
+  }
+
   @computed get passwordRepeatError () {
     return this.password === this.passwordRepeat
       ? null
       : ERRORS.noMatchPassword;
+  }
+
+  @action clearErrors = () => {
+    transaction(() => {
+      this.password = '';
+      this.passwordRepeat = '';
+      this.nameError = null;
+      this.rawKeyError = null;
+      this.walletFileError = null;
+    });
   }
 
   @action selectGethAccount = (address) => {
@@ -71,6 +105,10 @@ export default class Store {
     this.address = address;
   }
 
+  @action setBusy = (isBusy) => {
+    this.isBusy = isBusy;
+  }
+
   @action setCreateType = (createType) => {
     this.createType = createType;
   }
@@ -83,7 +121,7 @@ export default class Store {
     this.gethAccountsAvailable = [].concat(gethAccountsAvailable);
   }
 
-  @action setIsWindowsPhrase = (isWindowsPhrase = false) => {
+  @action setWindowsPhrase = (isWindowsPhrase = false) => {
     this.isWindowsPhrase = isWindowsPhrase;
   }
 
@@ -167,6 +205,37 @@ export default class Store {
 
   @action prevStage = () => {
     this.stage--;
+  }
+
+  createIdentities = () => {
+    return Promise
+      .all([
+        this._api.parity.generateSecretPhrase(),
+        this._api.parity.generateSecretPhrase(),
+        this._api.parity.generateSecretPhrase(),
+        this._api.parity.generateSecretPhrase(),
+        this._api.parity.generateSecretPhrase()
+      ])
+      .then((phrases) => {
+        return Promise
+          .all(phrases.map((phrase) => this._api.parity.phraseToAddress(phrase)))
+          .then((addresses) => {
+            return phrases.reduce((accounts, phrase, index) => {
+              const address = addresses[index];
+
+              accounts[address] = {
+                address,
+                phrase
+              };
+
+              return accounts;
+            }, {});
+          });
+      })
+      .catch((error) => {
+        console.error('createIdentities', error);
+        throw error;
+      });
   }
 
   loadAvailableGethAccounts () {

@@ -134,7 +134,7 @@ export default class RecoveryPhrase extends Component {
   onToggleWindowsPhrase = (event) => {
     const { store } = this.props;
 
-    store.setIsWindowsPhrase(!store.isWindowsPhrase);
+    store.setWindowsPhrase(!store.isWindowsPhrase);
   }
 
   onEditPhrase = (event, phrase) => {

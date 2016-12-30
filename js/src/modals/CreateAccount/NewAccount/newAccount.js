@@ -28,10 +28,6 @@ import styles from '../createAccount.css';
 
 @observer
 export default class CreateAccount extends Component {
-  static contextTypes = {
-    api: PropTypes.object.isRequired
-  }
-
   static propTypes = {
     store: PropTypes.object.isRequired
   }
@@ -183,38 +179,17 @@ export default class CreateAccount extends Component {
   }
 
   createIdentities = () => {
-    const { api } = this.context;
+    const { store } = this.props;
 
-    Promise
-      .all([
-        api.parity.generateSecretPhrase(),
-        api.parity.generateSecretPhrase(),
-        api.parity.generateSecretPhrase(),
-        api.parity.generateSecretPhrase(),
-        api.parity.generateSecretPhrase()
-      ])
-      .then((phrases) => {
-        return Promise
-          .all(phrases.map((phrase) => api.parity.phraseToAddress(phrase)))
-          .then((addresses) => {
-            const accounts = {};
-
-            phrases.forEach((phrase, idx) => {
-              accounts[addresses[idx]] = {
-                address: addresses[idx],
-                phrase: phrase
-              };
-            });
-
-            this.setState({
-              selectedAddress: addresses[0],
-              accounts: accounts
-            });
-          });
+    store
+      .createIdentities()
+      .then((accounts) => {
+        this.setState({
+          accounts,
+          selectedAddress: accounts[0].address
+        });
       })
       .catch((error) => {
-        console.error('createIdentities', error);
-        setTimeout(this.createIdentities, 1000);
         newError(error);
       });
   }

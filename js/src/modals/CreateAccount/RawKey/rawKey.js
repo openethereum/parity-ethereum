@@ -138,7 +138,7 @@ export default class RawKey extends Component {
     store.steName(name);
   }
 
-  onEditPassword1 = (event, password) => {
+  onEditPassword = (event, password) => {
     const { store } = this.store;
 
     store.setPassword(password);

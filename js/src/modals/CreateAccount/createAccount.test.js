@@ -20,7 +20,12 @@ import sinon from 'sinon';
 import Store from './store';
 
 const ACCOUNTS = { '0x00000123456789abcdef123456789abcdef123456789abcdef': {} };
-const GETH_ADDRESSES = ['0x123456789abcdef123456789abcdef123456789abcdef00000'];
+const GETH_ADDRESSES = [
+  '0x123456789abcdef123456789abcdef123456789abcdef00000',
+  '0x00000123456789abcdef123456789abcdef123456789abcdef'
+];
+
+let counter = 1;
 
 function createApi () {
   return {
@@ -28,9 +33,9 @@ function createApi () {
       getBalance: sinon.stub().resolves(new BigNumber(1))
     },
     parity: {
-      generateSecretPhrase: sinon.stub().resolves(),
+      generateSecretPhrase: sinon.stub().resolves('some account phrase'),
       listGethAccounts: sinon.stub().resolves(GETH_ADDRESSES),
-      phraseToAddress: sinon.stub().resolves()
+      phraseToAddress: () => Promise.resolve(`${++counter}`)
     }
   };
 }

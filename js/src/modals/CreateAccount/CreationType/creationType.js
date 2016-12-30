@@ -82,6 +82,8 @@ export default class CreationType extends Component {
   }
 
   onChange = (event) => {
-    this.props.store.setCreateType(event.target.value);
+    const { store } = this.props;
+
+    store.setCreateType(event.target.value);
   }
 }
