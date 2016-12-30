@@ -21,17 +21,20 @@ import {
   Card, CardHeader, CardText, TextField, DropDownMenu, MenuItem, RaisedButton
 } from 'material-ui';
 
+import { nullableProptype } from '~/util/proptypes';
 import { AddIcon, CheckIcon } from '~/ui/Icons';
-import { propose, confirm } from './actions';
+import { clearError, confirm, propose } from './actions';
 import styles from './reverse.css';
 
 class Reverse extends Component {
   static propTypes = {
+    error: nullableProptype(PropTypes.object.isRequired),
     pending: PropTypes.bool.isRequired,
     queue: PropTypes.array.isRequired,
 
-    propose: PropTypes.func.isRequired,
-    confirm: PropTypes.func.isRequired
+    clearError: PropTypes.func.isRequired,
+    confirm: PropTypes.func.isRequired,
+    propose: PropTypes.func.isRequired
   }
 
   state = {
@@ -77,6 +80,7 @@ class Reverse extends Component {
             </strong>
           </p>
           { explanation }
+          { this.renderError() }
           <div className={ styles.box }>
             <DropDownMenu
               disabled={ pending }
@@ -108,6 +112,20 @@ class Reverse extends Component {
     );
   }
 
+  renderError () {
+    const { error } = this.props;
+
+    if (!error) {
+      return null;
+    }
+
+    return (
+      <div className={ styles.error }>
+        <code>{ error.message }</code>
+      </div>
+    );
+  }
+
   onNameChange = (e) => {
     this.setState({ name: e.target.value });
   };
@@ -129,9 +147,15 @@ class Reverse extends Component {
       this.props.confirm(name);
     }
   };
+
+  clearError = () => {
+    if (this.props.error) {
+      this.props.clearError();
+    }
+  };
 }
 
 const mapStateToProps = (state) => state.reverse;
-const mapDispatchToProps = (dispatch) => bindActionCreators({ propose, confirm }, dispatch);
+const mapDispatchToProps = (dispatch) => bindActionCreators({ clearError, confirm, propose }, dispatch);
 
 export default connect(mapStateToProps, mapDispatchToProps)(Reverse);

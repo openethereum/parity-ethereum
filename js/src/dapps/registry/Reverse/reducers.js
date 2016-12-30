@@ -17,15 +17,25 @@
 import { isAction, isStage } from '../util/actions';
 
 const initialState = {
+  error: null,
   pending: false,
   queue: []
 };
 
 export default (state = initialState, action) => {
+  switch (action.type) {
+    case 'clearError':
+      return {
+        ...state,
+        error: null
+      };
+  }
+
   if (isAction('reverse', 'propose', action)) {
     if (isStage('start', action)) {
       return {
         ...state, pending: true,
+        error: null,
         queue: state.queue.concat({
           action: 'propose',
           name: action.name,
@@ -37,6 +47,7 @@ export default (state = initialState, action) => {
     if (isStage('success', action) || isStage('fail', action)) {
       return {
         ...state, pending: false,
+        error: action.error || null,
         queue: state.queue.filter((e) =>
           e.action === 'propose' &&
           e.name === action.name &&
@@ -50,6 +61,7 @@ export default (state = initialState, action) => {
     if (isStage('start', action)) {
       return {
         ...state, pending: true,
+        error: null,
         queue: state.queue.concat({
           action: 'confirm',
           name: action.name
@@ -60,6 +72,7 @@ export default (state = initialState, action) => {
     if (isStage('success', action) || isStage('fail', action)) {
       return {
         ...state, pending: false,
+        error: action.error || null,
         queue: state.queue.filter((e) =>
           e.action === 'confirm' &&
           e.name === action.name
