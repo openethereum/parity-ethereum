@@ -23,33 +23,17 @@ import { Form, Input } from '~/ui';
 
 import styles from '../createAccount.css';
 
-import ERRORS from '../errors';
-
 @observer
 export default class RecoveryPhrase extends Component {
   static propTypes = {
-    onChange: PropTypes.func.isRequired,
     store: PropTypes.object.isRequired
   }
 
-  state = {
-    isValidPass: false,
-    isValidPhrase: false,
-    password1: '',
-    password1Error: null,
-    password2: '',
-    password2Error: null,
-    recoveryPhrase: '',
-    recoveryPhraseError: null
-  }
-
   componentWillMount () {
-    this.props.onChange(false, {});
   }
 
   render () {
-    const { isWindowsPhrase, name, nameError, passwordHint } = this.props.store;
-    const { password1, password1Error, password2, password2Error, recoveryPhrase } = this.state;
+    const { isWindowsPhrase, name, nameError, password, passwordRepeat, passwordRepeatError, passwordHint, phrase } = this.props.store;
 
     return (
       <Form>
@@ -65,7 +49,7 @@ export default class RecoveryPhrase extends Component {
               defaultMessage='account recovery phrase' />
           }
           onChange={ this.onEditPhrase }
-          value={ recoveryPhrase } />
+          value={ phrase } />
         <Input
           error={ nameError }
           hint={
@@ -96,7 +80,6 @@ export default class RecoveryPhrase extends Component {
         <div className={ styles.passwords }>
           <div className={ styles.password }>
             <Input
-              error={ password1Error }
               hint={
                 <FormattedMessage
                   id='createAccount.recoveryPhrase.password.hint'
@@ -107,13 +90,13 @@ export default class RecoveryPhrase extends Component {
                   id='createAccount.recoveryPhrase.password.label'
                   defaultMessage='password' />
               }
-              onChange={ this.onEditPassword1 }
+              onChange={ this.onEditPassword }
               type='password'
-              value={ password1 } />
+              value={ password } />
           </div>
           <div className={ styles.password }>
             <Input
-              error={ password2Error }
+              error={ passwordRepeatError }
               hint={
                 <FormattedMessage
                   id='createAccount.recoveryPhrase.password2.hint'
@@ -124,9 +107,9 @@ export default class RecoveryPhrase extends Component {
                   id='createAccount.recoveryPhrase.password2.label'
                   defaultMessage='password (repeat)' />
               }
-              onChange={ this.onEditPassword2 }
+              onChange={ this.onEditPasswordRepeat }
               type='password'
-              value={ password2 } />
+              value={ passwordRepeat } />
           </div>
           <Checkbox
             checked={ isWindowsPhrase }
@@ -142,16 +125,6 @@ export default class RecoveryPhrase extends Component {
     );
   }
 
-  updateParent = () => {
-    const { isValidPass, isValidPhrase, password1, recoveryPhrase } = this.state;
-    const isValid = isValidPass && isValidPhrase;
-
-    this.props.onChange(isValid, {
-      password: password1,
-      phrase: recoveryPhrase
-    });
-  }
-
   onEditPasswordHint = (event, passwordHint) => {
     const { store } = this.props;
 
@@ -164,23 +137,10 @@ export default class RecoveryPhrase extends Component {
     store.setIsWindowsPhrase(!store.isWindowsPhrase);
   }
 
-  onEditPhrase = (event) => {
-    const recoveryPhrase = event.target.value
-      .toLowerCase() // wordlists are lowercase
-      .trim() // remove whitespace at both ends
-      .replace(/\s/g, ' ') // replace any whitespace with single space
-      .replace(/ +/g, ' '); // replace multiple spaces with a single space
+  onEditPhrase = (event, phrase) => {
+    const { store } = this.props;
 
-    const phraseParts = recoveryPhrase
-      .split(' ')
-      .map((part) => part.trim())
-      .filter((part) => part.length);
-
-    this.setState({
-      recoveryPhrase: phraseParts.join(' '),
-      recoveryPhraseError: null,
-      isValidPhrase: true
-    }, this.updateParent);
+    store.setPhrase(phrase);
   }
 
   onEditName = (event, name) => {
@@ -189,34 +149,15 @@ export default class RecoveryPhrase extends Component {
     store.setName(name);
   }
 
-  onEditPassword1 = (event) => {
-    const password1 = event.target.value;
-    let password2Error = null;
+  onEditPassword = (event, password) => {
+    const { store } = this.store;
 
-    if (password1 !== this.state.password2) {
-      password2Error = ERRORS.noMatchPassword;
-    }
-
-    this.setState({
-      password1,
-      password1Error: null,
-      password2Error,
-      isValidPass: !password2Error
-    }, this.updateParent);
+    store.setPassword(password);
   }
 
-  onEditPassword2 = (event) => {
-    const password2 = event.target.value;
-    let password2Error = null;
+  onEditPasswordRepeat = (event, password) => {
+    const { store } = this.store;
 
-    if (password2 !== this.state.password1) {
-      password2Error = ERRORS.noMatchPassword;
-    }
-
-    this.setState({
-      password2,
-      password2Error,
-      isValidPass: !password2Error
-    }, this.updateParent);
+    store.setPasswordRepeat(password);
   }
 }

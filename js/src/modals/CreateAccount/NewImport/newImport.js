@@ -30,22 +30,14 @@ const STYLE_HIDDEN = { display: 'none' };
 @observer
 export default class NewImport extends Component {
   static propTypes = {
-    onChange: PropTypes.func.isRequired,
     store: PropTypes.object.isRequired
   }
 
-  state = {
-    isValidPass: false,
-    password: '',
-    passwordError: null
-  }
-
   componentWillMount () {
-    this.props.onChange(false, {});
   }
 
   render () {
-    const { name, nameError, passwordHint, walletFile, walletFileError } = this.props.store;
+    const { name, nameError, password, passwordHint, walletFile, walletFileError } = this.props.store;
 
     return (
       <Form>
@@ -79,7 +71,6 @@ export default class NewImport extends Component {
         <div className={ styles.passwords }>
           <div className={ styles.password }>
             <Input
-              error={ this.state.passwordError }
               hint={
                 <FormattedMessage
                   id='createAccount.newImport.password.hint'
@@ -92,7 +83,7 @@ export default class NewImport extends Component {
               }
               type='password'
               onChange={ this.onEditPassword }
-              value={ this.state.password } />
+              value={ password } />
           </div>
         </div>
         <div>
@@ -144,15 +135,6 @@ export default class NewImport extends Component {
     ReactDOM.findDOMNode(this.refs.fileUpload).click();
   }
 
-  updateParent = () => {
-    const valid = this.state.isValidPass;
-
-    this.props.onChange(valid, {
-      password: this.state.password,
-      phrase: null
-    });
-  }
-
   onEditPasswordHint = (event, passwordHint) => {
     const { store } = this.props;
 
@@ -165,13 +147,9 @@ export default class NewImport extends Component {
     store.setName(name);
   }
 
-  onEditPassword = (event) => {
-    const password = event.target.value;
+  onEditPassword = (event, password) => {
+    const { store } = this.store;
 
-    this.setState({
-      password,
-      passwordError: null,
-      isValidPass: true
-    }, this.updateParent);
+    store.setPassword(password);
   }
 }

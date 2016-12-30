@@ -22,8 +22,6 @@ import { Form, Input } from '~/ui';
 
 import styles from '../createAccount.css';
 
-import ERRORS from '../errors';
-
 @observer
 export default class RawKey extends Component {
   static contextTypes = {
@@ -31,25 +29,14 @@ export default class RawKey extends Component {
   }
 
   static propTypes = {
-    onChange: PropTypes.func.isRequired,
     store: PropTypes.object.isRequired
   }
 
-  state = {
-    isValidPass: false,
-    password1: '',
-    password1Error: null,
-    password2: '',
-    password2Error: null
-  }
-
   componentWillMount () {
-    this.props.onChange(false, {});
   }
 
   render () {
-    const { name, nameError, passwordHint, rawKey, rawKeyError } = this.props.store;
-    const { password1, password1Error, password2, password2Error } = this.state;
+    const { name, nameError, password, passwordRepeat, passwordRepeatError, passwordHint, rawKey, rawKeyError } = this.props.store;
 
     return (
       <Form>
@@ -97,7 +84,6 @@ export default class RawKey extends Component {
         <div className={ styles.passwords }>
           <div className={ styles.password }>
             <Input
-              error={ password1Error }
               hint={
                 <FormattedMessage
                   id='createAccount.rawKey.password.hint'
@@ -108,13 +94,13 @@ export default class RawKey extends Component {
                   id='createAccount.rawKey.password.label'
                   defaultMessage='password' />
               }
-              onChange={ this.onEditPassword1 }
+              onChange={ this.onEditPassword }
               type='password'
-              value={ password1 } />
+              value={ password } />
           </div>
           <div className={ styles.password }>
             <Input
-              error={ password2Error }
+              error={ passwordRepeatError }
               hint={
                 <FormattedMessage
                   id='createAccount.rawKey.password2.hint'
@@ -125,22 +111,13 @@ export default class RawKey extends Component {
                   id='createAccount.rawKey.password2.label'
                   defaultMessage='password (repeat)' />
               }
-              onChange={ this.onEditPassword2 }
+              onChange={ this.onEditPasswordRepeat }
               type='password'
-              value={ password2 } />
+              value={ passwordRepeat } />
           </div>
         </div>
       </Form>
     );
-  }
-
-  updateParent = () => {
-    const { isValidPass, password1 } = this.state;
-    const isValid = isValidPass;
-
-    this.props.onChange(isValid, {
-      password: password1
-    });
   }
 
   onEditPasswordHint = (event, passwordHint) => {
@@ -161,34 +138,15 @@ export default class RawKey extends Component {
     store.steName(name);
   }
 
-  onEditPassword1 = (event) => {
-    const password1 = event.target.value;
-    let password2Error = null;
+  onEditPassword1 = (event, password) => {
+    const { store } = this.store;
 
-    if (password1 !== this.state.password2) {
-      password2Error = ERRORS.noMatchPassword;
-    }
-
-    this.setState({
-      password1,
-      password1Error: null,
-      password2Error,
-      isValidPass: !password2Error
-    }, this.updateParent);
+    store.setPassword(password);
   }
 
-  onEditPassword2 = (event) => {
-    const password2 = event.target.value;
-    let password2Error = null;
+  onEditPasswordRepeat = (event, password) => {
+    const { store } = this.store;
 
-    if (password2 !== this.state.password1) {
-      password2Error = ERRORS.noMatchPassword;
-    }
-
-    this.setState({
-      password2,
-      password2Error,
-      isValidPass: !password2Error
-    }, this.updateParent);
+    store.setPasswordRepeat(password);
   }
 }

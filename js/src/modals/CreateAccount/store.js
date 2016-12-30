@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { action, observable, transaction } from 'mobx';
+import { action, computed, observable, transaction } from 'mobx';
 
 import apiutil from '~/api/util';
 
@@ -35,7 +35,9 @@ export default class Store {
   @observable isWindowsPhrase = false;
   @observable name = '';
   @observable nameError = ERRORS.noName;
+  @observable password = '';
   @observable passwordHint = '';
+  @observable passwordRepeat = '';
   @observable phrase = '';
   @observable rawKey = '';
   @observable rawKeyError = ERRORS.nokey;
@@ -49,6 +51,12 @@ export default class Store {
     this.accounts = accounts;
 
     this.loadAvailableGethAccounts();
+  }
+
+  @computed get passwordRepeatError () {
+    return this.password === this.passwordRepeat
+      ? null
+      : ERRORS.noMatchPassword;
   }
 
   @action selectGethAccount = (address) => {
@@ -92,12 +100,31 @@ export default class Store {
     });
   }
 
+  @action setPassword = (password) => {
+    this.password = password;
+  }
+
   @action setPasswordHint = (passwordHint) => {
     this.passwordHint = passwordHint;
   }
 
+  @action setPasswordRepeat = (passwordRepeat) => {
+    this.passwordRepeat = passwordRepeat;
+  }
+
   @action setPhrase = (phrase) => {
-    this.phrase = phrase;
+    const recoveryPhrase = phrase
+      .toLowerCase() // wordlists are lowercase
+      .trim() // remove whitespace at both ends
+      .replace(/\s/g, ' ') // replace any whitespace with single space
+      .replace(/ +/g, ' '); // replace multiple spaces with a single space
+
+    const phraseParts = recoveryPhrase
+      .split(' ')
+      .map((part) => part.trim())
+      .filter((part) => part.length);
+
+    this.phrase = phraseParts.join(' ');
   }
 
   @action setRawKey = (rawKey) => {

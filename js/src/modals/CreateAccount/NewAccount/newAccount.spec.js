@@ -16,7 +16,6 @@
 
 import { shallow } from 'enzyme';
 import React from 'react';
-import sinon from 'sinon';
 
 import { createApi, createStore } from '../createAccount.test.js';
 
@@ -24,17 +23,13 @@ import NewAccount from './';
 
 let api;
 let component;
-let onChange;
 let store;
 
 function render () {
   api = createApi();
-  onChange = sinon.stub();
   store = createStore();
   component = shallow(
-    <NewAccount
-      onChange={ onChange }
-      store={ store } />,
+    <NewAccount store={ store } />,
     { context: { api } }
   );
 

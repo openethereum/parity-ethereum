@@ -105,10 +105,24 @@ describe('modals/CreateAccount/Store', () => {
       });
     });
 
+    describe('setPassword', () => {
+      it('allows setting the password', () => {
+        store.setPassword('testing');
+        expect(store.password).to.equal('testing');
+      });
+    });
+
     describe('setPasswordHint', () => {
       it('allows setting the passwordHint', () => {
         store.setPasswordHint('testing');
         expect(store.passwordHint).to.equal('testing');
+      });
+    });
+
+    describe('setPasswordRepeat', () => {
+      it('allows setting the passwordRepeat', () => {
+        store.setPasswordRepeat('testing');
+        expect(store.passwordRepeat).to.equal('testing');
       });
     });
 
@@ -187,6 +201,22 @@ describe('modals/CreateAccount/Store', () => {
         expect(store.stage).to.equal(1);
         store.prevStage();
         expect(store.stage).to.equal(0);
+      });
+    });
+  });
+
+  describe('@computed', () => {
+    describe('passwordRepeatError', () => {
+      it('is clear when passwords match', () => {
+        store.setPassword('testing');
+        store.setPasswordRepeat('testing');
+        expect(store.passwordRepeatError).to.be.null;
+      });
+
+      it('has error when passwords does not match', () => {
+        store.setPassword('testing');
+        store.setPasswordRepeat('testing2');
+        expect(store.passwordRepeatError).not.to.be.null;
       });
     });
   });

@@ -37,22 +37,26 @@ import print from './print';
 import recoveryPage from './recoveryPage.ejs';
 
 const TITLES = {
-  type:
+  type: (
     <FormattedMessage
       id='createAccount.title.createType'
-      defaultMessage='creation type' />,
-  create:
+      defaultMessage='creation type' />
+  ),
+  create: (
     <FormattedMessage
       id='createAccount.title.createAccount'
-      defaultMessage='create account' />,
-  info:
+      defaultMessage='create account' />
+  ),
+  info: (
     <FormattedMessage
       id='createAccount.title.accountInfo'
-      defaultMessage='account information' />,
-  import:
+      defaultMessage='account information' />
+  ),
+  import: (
     <FormattedMessage
       id='createAccount.title.importWallet'
       defaultMessage='import wallet' />
+  )
 };
 const STAGE_NAMES = [TITLES.type, TITLES.create, TITLES.info];
 const STAGE_IMPORT = [TITLES.type, TITLES.import, TITLES.info];
@@ -70,12 +74,6 @@ export default class CreateAccount extends Component {
   }
 
   store = new Store(this.context.api, this.props.accounts);
-
-  state = {
-    password: null,
-    json: null,
-    canCreate: false
-  }
 
   render () {
     const { createType, stage } = this.store;
@@ -108,9 +106,7 @@ export default class CreateAccount extends Component {
       case STAGE_CREATE:
         if (createType === 'fromNew') {
           return (
-            <NewAccount
-              onChange={ this.onChangeDetails }
-              store={ this.store } />
+            <NewAccount store={ this.store } />
           );
         } else if (createType === 'fromGeth') {
           return (
@@ -118,22 +114,16 @@ export default class CreateAccount extends Component {
           );
         } else if (createType === 'fromPhrase') {
           return (
-            <RecoveryPhrase
-              onChange={ this.onChangeDetails }
-              store={ this.store } />
+            <RecoveryPhrase store={ this.store } />
           );
         } else if (createType === 'fromRaw') {
           return (
-            <RawKey
-              onChange={ this.onChangeDetails }
-              store={ this.store } />
+            <RawKey store={ this.store } />
           );
         }
 
         return (
-          <NewImport
-            onChange={ this.onChangeWallet }
-            store={ this.store } />
+          <NewImport store={ this.store } />
         );
 
       case STAGE_INFO:
@@ -370,34 +360,7 @@ export default class CreateAccount extends Component {
   }
 
   onClose = () => {
-    this.setState({
-      canCreate: false
-    }, () => {
-      this.props.onClose && this.props.onClose();
-    });
-  }
-
-  onChangeDetails = (canCreate, { address, password, phrase }) => {
-    this.store.setAddress(address);
-    this.store.setPhrase(phrase);
-
-    this.setState({
-      canCreate,
-      password
-    });
-  }
-
-  onChangeRaw = (canCreate) => {
-    this.setState({
-      canCreate
-    });
-  }
-
-  onChangeWallet = (canCreate, { password }) => {
-    this.setState({
-      canCreate,
-      password
-    });
+    this.props.onClose && this.props.onClose();
   }
 
   printPhrase = () => {

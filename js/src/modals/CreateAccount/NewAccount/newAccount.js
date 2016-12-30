@@ -24,8 +24,6 @@ import { newError } from '~/redux/actions';
 import { Form, Input, IdentityIcon } from '~/ui';
 import { RefreshIcon } from '~/ui/Icons';
 
-import ERRORS from '../errors';
-
 import styles from '../createAccount.css';
 
 @observer
@@ -35,28 +33,20 @@ export default class CreateAccount extends Component {
   }
 
   static propTypes = {
-    onChange: PropTypes.func.isRequired,
     store: PropTypes.object.isRequired
   }
 
   state = {
     accounts: null,
-    isValidPass: false,
-    password1: '',
-    password1Error: null,
-    password2: '',
-    password2Error: null,
     selectedAddress: ''
   }
 
   componentWillMount () {
     this.createIdentities();
-    this.props.onChange(false, {});
   }
 
   render () {
-    const { name, nameError, passwordHint } = this.props.store;
-    const { password1, password1Error, password2, password2Error } = this.state;
+    const { name, nameError, password, passwordRepeat, passwordRepeatError, passwordHint } = this.props.store;
 
     return (
       <Form>
@@ -90,7 +80,6 @@ export default class CreateAccount extends Component {
         <div className={ styles.passwords }>
           <div className={ styles.password }>
             <Input
-              error={ password1Error }
               hint={
                 <FormattedMessage
                   id='createAccount.newAccount.password.hint'
@@ -101,13 +90,13 @@ export default class CreateAccount extends Component {
                   id='createAccount.newAccount.password.label'
                   defaultMessage='password' />
               }
-              onChange={ this.onEditPassword1 }
+              onChange={ this.onEditPassword }
               type='password'
-              value={ password1 } />
+              value={ password } />
           </div>
           <div className={ styles.password }>
             <Input
-              error={ password2Error }
+              error={ passwordRepeatError }
               hint={
                 <FormattedMessage
                   id='createAccount.newAccount.password2.hint'
@@ -118,9 +107,9 @@ export default class CreateAccount extends Component {
                   id='createAccount.newAccount.password2.label'
                   defaultMessage='password (repeat)' />
               }
-              onChange={ this.onEditPassword2 }
+              onChange={ this.onEditPasswordRepeat }
               type='password'
-              value={ password2 } />
+              value={ passwordRepeat } />
           </div>
         </div>
         { this.renderIdentitySelector() }
@@ -230,27 +219,17 @@ export default class CreateAccount extends Component {
       });
   }
 
-  updateParent = () => {
-    const { isValidPass, accounts, password1, selectedAddress } = this.state;
-    const isValid = isValidPass;
-
-    this.props.onChange(isValid, {
-      address: selectedAddress,
-      password: password1,
-      phrase: accounts[selectedAddress].phrase
-    });
-  }
-
   onChangeIdentity = (event) => {
-    const address = event.target.value || event.target.getAttribute('value');
+    const { store } = this.props;
+    const selectedAddress = event.target.value || event.target.getAttribute('value');
 
-    if (!address) {
+    if (!selectedAddress) {
       return;
     }
 
-    this.setState({
-      selectedAddress: address
-    }, this.updateParent);
+    this.state.setState({ selectedAddress }, () => {
+      store.setAddress(selectedAddress);
+    });
   }
 
   onEditPasswordHint = (event, passwordHint) => {
@@ -265,34 +244,15 @@ export default class CreateAccount extends Component {
     store.setName(name);
   }
 
-  onEditPassword1 = (event) => {
-    const password1 = event.target.value;
-    let password2Error = null;
+  onEditPassword = (event, password) => {
+    const { store } = this.store;
 
-    if (password1 !== this.state.password2) {
-      password2Error = ERRORS.noMatchPassword;
-    }
-
-    this.setState({
-      password1,
-      password1Error: null,
-      password2Error,
-      isValidPass: !password2Error
-    }, this.updateParent);
+    store.setPassword(password);
   }
 
-  onEditPassword2 = (event) => {
-    const password2 = event.target.value;
-    let password2Error = null;
+  onEditPasswordRepeat = (event, password) => {
+    const { store } = this.store;
 
-    if (password2 !== this.state.password1) {
-      password2Error = ERRORS.noMatchPassword;
-    }
-
-    this.setState({
-      password2,
-      password2Error,
-      isValidPass: !password2Error
-    }, this.updateParent);
+    store.setPasswordRepeat(password);
   }
 }

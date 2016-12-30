@@ -16,23 +16,18 @@
 
 import { shallow } from 'enzyme';
 import React from 'react';
-import sinon from 'sinon';
 
 import { createStore } from '../createAccount.test.js';
 
 import RawKey from './';
 
 let component;
-let onChange;
 let store;
 
 function render () {
-  onChange = sinon.stub();
   store = createStore();
   component = shallow(
-    <RawKey
-      onChange={ onChange }
-      store={ store } />
+    <RawKey store={ store } />
   );
 
   return component;
