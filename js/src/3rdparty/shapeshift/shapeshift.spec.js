@@ -211,8 +211,9 @@ describe('shapeshift/calls', () => {
 
         shapeshift.subscribe(ADDRESS2, sinon.stub());
         expect(shapeshift._getSubscriptions().length).to.equal(2);
-        shapeshift.unsubscribe(ADDRESS2);
         expect(shapeshift._getSubscriptions()[0].depositAddress).to.equal(ADDRESS);
+        shapeshift.unsubscribe(ADDRESS);
+        expect(shapeshift._getSubscriptions()[0].depositAddress).to.equal(ADDRESS2);
       });
     });
   });
