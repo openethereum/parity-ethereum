@@ -56,12 +56,21 @@ export default class Shapeshift extends Component {
     exchangeInfo: null,
     error: {},
     hasAccepted: false,
-    shifting: false,
-    subscribed: false
+    shifting: false
   }
 
   componentDidMount () {
     this.retrieveCoins();
+  }
+
+  componentWillUnmount () {
+    this.unsubscribe();
+  }
+
+  unsubscribe () {
+    // Unsubscribe from Shapeshit
+    const { depositAddress } = this.state;
+    shapeshift.unsubscribe(depositAddress);
   }
 
   render () {
@@ -187,7 +196,6 @@ export default class Shapeshift extends Component {
   }
 
   onClose = () => {
-    this.unsubscribe();
     this.setStage(0);
     this.props.onClose && this.props.onClose();
   }
@@ -207,12 +215,12 @@ export default class Shapeshift extends Component {
         console.log('onShift', result);
         const depositAddress = result.deposit;
 
-        this.unsubscribe();
+        if (this.state.depositAddress) {
+          this.unsubscribe();
+        }
+
         shapeshift.subscribe(depositAddress, this.onExchangeInfo);
-        this.setState({
-          depositAddress,
-          subscribed: true
-        });
+        this.setState({ depositAddress });
       })
       .catch((error) => {
         console.error('onShift', error);
@@ -302,16 +310,6 @@ export default class Shapeshift extends Component {
         this.newError(new Error(message));
         this.setFatalError(message);
       });
-  }
-
-  unsubscribe () {
-    const { depositAddress, subscribed } = this.state;
-
-    if (!subscribed || !depositAddress || !depositAddress.length) {
-      return;
-    }
-
-    shapeshift.unsubscribe(depositAddress);
   }
 
   newError (error) {
