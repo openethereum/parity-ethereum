@@ -15,6 +15,32 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+$left: 1.5em;
+$right: $left;
+$bottom: $left;
+$top: 20vh;
+
+.backOverlay {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  background-color: rgba(255, 255, 255, 0.25);
+  z-index: -10;
+  opacity: 0;
+
+  transform-origin: 100% 0;
+  transition-property: opacity, z-index;
+  transition-duration: 0.25s;
+  transition-timing-function: ease-out;
+
+  &.expanded {
+    opacity: 1;
+    z-index: 2500;
+  }
+}
+
 .parityBackground {
   position: absolute;
   top: 0;
@@ -28,10 +54,10 @@
 .overlay {
   display: flex;
   position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
+  top: $top;
+  left: $left;
+  width: calc(100vw - $left - $right);
+  height: calc(100vh - $top - $bottom);
 
   transform-origin: 100% 0;
   transition-property: opacity, z-index;
@@ -48,7 +74,7 @@
 
   &.expanded {
     opacity: 1;
-    z-index: 9999;
+    z-index: 3500;
   }
 }
 
