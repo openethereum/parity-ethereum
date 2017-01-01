@@ -47,7 +47,8 @@ export default class Header extends Component {
       return null;
     }
 
-    const { address, meta } = account;
+    const { address } = account;
+    const meta = account.meta || {};
 
     return (
       <div className={ className }>

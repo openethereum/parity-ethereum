@@ -46,45 +46,61 @@ function render (props = {}) {
 }
 
 describe('views/Account/Header', () => {
-  it('renders defaults', () => {
-    expect(render()).to.be.ok;
-  });
+  describe('rendering', () => {
+    it('renders defaults', () => {
+      expect(render()).to.be.ok;
+    });
 
-  it('renders null with no account', () => {
-    expect(render(null).find('div')).to.have.length(0);
-  });
+    it('renders null with no account', () => {
+      expect(render(null).find('div')).to.have.length(0);
+    });
 
-  it('renders the Balance', () => {
-    render({ balance: { balance: 'testing' } });
-    const balance = component.find('Connect(Balance)');
+    it('renders when no account meta', () => {
+      expect(render({ account: { address: ACCOUNT.address } })).to.be.ok;
+    });
 
-    expect(balance).to.have.length(1);
-    expect(balance.props().account).to.deep.equal(ACCOUNT);
-    expect(balance.props().balance).to.deep.equal({ balance: 'testing' });
-  });
+    it('renders when no account description', () => {
+      expect(render({ account: { address: ACCOUNT.address, meta: { tags: [] } } })).to.be.ok;
+    });
 
-  it('renders the Certifications', () => {
-    render();
-    const certs = component.find('Connect(Certifications)');
+    it('renders when no account tags', () => {
+      expect(render({ account: { address: ACCOUNT.address, meta: { description: 'something' } } })).to.be.ok;
+    });
 
-    expect(certs).to.have.length(1);
-    expect(certs.props().address).to.deep.equal(ACCOUNT.address);
-  });
+    describe('sections', () => {
+      it('renders the Balance', () => {
+        render({ balance: { balance: 'testing' } });
+        const balance = component.find('Connect(Balance)');
 
-  it('renders the IdentityIcon', () => {
-    render();
-    const icon = component.find('Connect(IdentityIcon)');
+        expect(balance).to.have.length(1);
+        expect(balance.props().account).to.deep.equal(ACCOUNT);
+        expect(balance.props().balance).to.deep.equal({ balance: 'testing' });
+      });
 
-    expect(icon).to.have.length(1);
-    expect(icon.props().address).to.equal(ACCOUNT.address);
-  });
+      it('renders the Certifications', () => {
+        render();
+        const certs = component.find('Connect(Certifications)');
 
-  it('renders the Tags', () => {
-    render();
-    const tags = component.find('Tags');
+        expect(certs).to.have.length(1);
+        expect(certs.props().address).to.deep.equal(ACCOUNT.address);
+      });
 
-    expect(tags).to.have.length(1);
-    expect(tags.props().tags).to.deep.equal(ACCOUNT.meta.tags);
+      it('renders the IdentityIcon', () => {
+        render();
+        const icon = component.find('Connect(IdentityIcon)');
+
+        expect(icon).to.have.length(1);
+        expect(icon.props().address).to.equal(ACCOUNT.address);
+      });
+
+      it('renders the Tags', () => {
+        render();
+        const tags = component.find('Tags');
+
+        expect(tags).to.have.length(1);
+        expect(tags.props().tags).to.deep.equal(ACCOUNT.meta.tags);
+      });
+    });
   });
 
   describe('renderName', () => {
@@ -96,6 +112,11 @@ describe('views/Account/Header', () => {
     it('renders the name', () => {
       render();
       expect(instance.renderName()).not.to.be.null;
+    });
+
+    it('renders when no address specified', () => {
+      render({ account: {} });
+      expect(instance.renderName()).to.be.ok;
     });
   });
 
