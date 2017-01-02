@@ -14,18 +14,39 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { ADDRESS, createRedux } from '../account.test.js';
+import sinon from 'sinon';
 
-function createApi () {
+const ADDRESS = '0x0123456789012345678901234567890123456789';
+
+function createRedux () {
   return {
-    trace: {
-      filter: (options) => Promise.resolve([{ transactionHash: options.fromAddress ? '123' : '098', action: {} }])
+    dispatch: sinon.stub(),
+    subscribe: sinon.stub(),
+    getState: () => {
+      return {
+        balances: {
+          balances: {
+            [ADDRESS]: {}
+          }
+        },
+        images: {},
+        nodeStatus: {
+          isTest: false,
+          traceMode: false
+        },
+        personal: {
+          accounts: {
+            [ADDRESS]: {
+              address: ADDRESS
+            }
+          }
+        }
+      };
     }
   };
 }
 
 export {
   ADDRESS,
-  createApi,
   createRedux
 };
