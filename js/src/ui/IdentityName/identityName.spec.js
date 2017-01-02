@@ -14,8 +14,10 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import React from 'react';
 import { mount } from 'enzyme';
+import React from 'react';
+import { IntlProvider } from 'react-intl';
+
 import sinon from 'sinon';
 
 import IdentityName from './identityName';
@@ -44,9 +46,11 @@ const STORE = {
 
 function render (props) {
   return mount(
-    <IdentityName
-      store={ STORE }
-      { ...props } />
+    <IntlProvider locale='en'>
+      <IdentityName
+        store={ STORE }
+        { ...props } />
+    </IntlProvider>
   );
 }
 
@@ -74,7 +78,7 @@ describe('ui/IdentityName', () => {
       });
 
       it('renders 0x000...000 as null', () => {
-        expect(render({ address: ADDR_NULL }).text()).to.equal('null');
+        expect(render({ address: ADDR_NULL }).text()).to.equal('NULL');
       });
     });
   });

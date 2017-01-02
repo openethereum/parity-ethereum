@@ -15,13 +15,23 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
 import { isNullAddress } from '~/util/validation';
 import ShortenedHash from '../ShortenedHash';
 
-const defaultName = 'UNNAMED';
+const defaultName = (
+  <FormattedMessage
+    id='ui.identityName.unnamed'
+    defaultMessage='UNNAMED' />
+);
+const defaultNameNull = (
+  <FormattedMessage
+    id='ui.identityName.null'
+    defaultMessage='NULL' />
+);
 
 class IdentityName extends Component {
   static propTypes = {
@@ -43,7 +53,7 @@ class IdentityName extends Component {
       return null;
     }
 
-    const nullName = isNullAddress(address) ? 'null' : null;
+    const nullName = isNullAddress(address) ? defaultNameNull : null;
     const addressFallback = nullName || (shorten ? (<ShortenedHash data={ address } />) : address);
     const fallback = unknown ? defaultName : addressFallback;
     const isUuid = account && account.name === account.uuid;
