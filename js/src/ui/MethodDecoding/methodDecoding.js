@@ -14,7 +14,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import BigNumber from 'bignumber.js';
 import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import CircularProgress from 'material-ui/CircularProgress';
@@ -377,7 +376,7 @@ class MethodDecoding extends Component {
       return null;
     }
 
-    return methodInputs.map((input, index) => {
+    const inputs = methodInputs.map((input, index) => {
       return (
         <TypedInput
           allowCopy
@@ -390,6 +389,8 @@ class MethodDecoding extends Component {
         />
       );
     });
+
+    return inputs;
   }
 
   renderValue (value) {
