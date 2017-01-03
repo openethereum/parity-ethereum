@@ -19,6 +19,8 @@ import { Tabs, Tab } from 'material-ui/Tabs';
 import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
+import { connect } from 'react-redux';
+import { bindActionCreators } from 'redux';
 
 import { newError, showSnackbar } from '~/redux/actions';
 import { Button, Modal, IdentityName, IdentityIcon } from '~/ui';
@@ -42,13 +44,14 @@ const TABS_ITEM_STYLE = {
 };
 
 @observer
-export default class PasswordManager extends Component {
+class PasswordManager extends Component {
   static contextTypes = {
     api: PropTypes.object.isRequired
   }
 
   static propTypes = {
     account: PropTypes.object.isRequired,
+    newError: PropTypes.func.isRequired,
     onClose: PropTypes.func
   }
 
@@ -347,7 +350,7 @@ export default class PasswordManager extends Component {
         }
       })
       .catch((error) => {
-        newError(error);
+        this.props.newError(error);
       });
   }
 
@@ -355,7 +358,22 @@ export default class PasswordManager extends Component {
     return this.store
       .testPassword()
       .catch((error) => {
-        newError(error);
+        this.props.newError(error);
       });
   }
 }
+
+function mapStateToProps (state) {
+  return {};
+}
+
+function mapDispatchToProps (dispatch) {
+  return bindActionCreators({
+    newError
+  }, dispatch);
+}
+
+export default connect(
+  mapStateToProps,
+  mapDispatchToProps
+)(PasswordManager);
