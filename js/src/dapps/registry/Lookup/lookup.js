@@ -23,6 +23,7 @@ import DropDownMenu from 'material-ui/DropDownMenu';
 import MenuItem from 'material-ui/MenuItem';
 import RaisedButton from 'material-ui/RaisedButton';
 import SearchIcon from 'material-ui/svg-icons/action/search';
+import keycode from 'keycode';
 
 import { nullableProptype } from '~/util/proptypes';
 
@@ -141,7 +142,9 @@ class Lookup extends Component {
   }
 
   onKeyDown = (event) => {
-    if (event.which !== 13) {
+    const codeName = keycode(event);
+
+    if (codeName !== 'enter') {
       return;
     }
 
