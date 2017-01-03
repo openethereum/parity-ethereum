@@ -236,12 +236,24 @@ export default class TypedInput extends Component {
     );
   }
 
+  getNumberValue (value) {
+    if (!value) {
+      return value;
+    }
+
+    const rawValue = typeof value === 'string'
+      ? value.replace(/,/g, '')
+      : value;
+
+    return new BigNumber(rawValue);
+  }
+
   renderInteger (value = this.props.value, onChange = this.onChange) {
     const { allowCopy, label, error, hint, min, max, readOnly } = this.props;
     const param = this.getParam();
 
     const realValue = value
-      ? (new BigNumber(value))[readOnly ? 'toFormat' : 'toNumber']()
+      ? this.getNumberValue(value)[readOnly ? 'toFormat' : 'toNumber']()
       : value;
 
     return (
@@ -273,7 +285,7 @@ export default class TypedInput extends Component {
     const param = this.getParam();
 
     const realValue = value
-      ? (new BigNumber(value))[readOnly ? 'toFormat' : 'toNumber']()
+      ? this.getNumberValue(value)[readOnly ? 'toFormat' : 'toNumber']()
       : value;
 
     return (

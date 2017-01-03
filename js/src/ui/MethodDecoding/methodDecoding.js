@@ -395,9 +395,7 @@ class MethodDecoding extends Component {
   renderValue (value) {
     const { api } = this.context;
 
-    if (api.util.isInstanceOf(value, BigNumber)) {
-      return value.toFormat(0);
-    } else if (api.util.isArray(value)) {
+    if (api.util.isArray(value)) {
       return api.util.bytesToHex(value);
     }
 
