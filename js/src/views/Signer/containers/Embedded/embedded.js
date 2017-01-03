@@ -78,7 +78,7 @@ class Embedded extends Component {
     );
   }
 
-  renderPending = (data) => {
+  renderPending = (data, index) => {
     const { actions, gasLimit, isTest } = this.props;
     const { date, id, isSending, payload } = data;
 
@@ -86,6 +86,7 @@ class Embedded extends Component {
       <RequestPending
         className={ styles.request }
         date={ date }
+        focus={ index === 0 }
         gasLimit={ gasLimit }
         id={ id }
         isSending={ isSending }

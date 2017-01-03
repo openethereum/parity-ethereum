@@ -1,4 +1,4 @@
-/* Copyright 2015, 2016 Ethcore (UK) Ltd.
+/* Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 /* This file is part of Parity.
 /*
 /* Parity is free software: you can redistribute it and/or modify
@@ -14,53 +14,110 @@
 /* You should have received a copy of the GNU General Public License
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
-.account {
-  padding: 0.25em 0;
-  display: flex;
-  align-items: center;
-}
 
-.name {
-  height: 32px;
-  line-height: 32px;
-  display: inline-block;
-  vertical-align: top;
-  text-transform: uppercase;
-  padding: 0 0 0 1em;
-}
+.input {
+  box-sizing: border-box;
+  appearance: textfield;
+  width: 100%;
+  padding: 0;
+  border: none;
+  background: transparent;
 
-.balance {
-  color: #aaa;
-  padding-left: 1em;
-}
+  transition-property: font-size, padding;
+  transition-duration: 0.5s;
+  transition-timing-function: cubic-bezier(0.7,0,0.3,1);
 
-.image {
-  display: inline-block;
-  height: 32px;
-  width: 32px;
-  margin: 0;
-  z-index: 10;
-}
+  color: white;
+  font-family: inherit;
+  font-size: 2em;
 
-.icon {
-  position: absolute;
-  left: 0;
-  top: 35px;
+  &:focus {
+    outline: none;
+  }
 
-  &.noLabel {
-    top: 11px;
+  &::placeholder {
+    color: #a2a2a2;
   }
 }
 
-.paddedInput input {
-  padding-left: 46px !important;
-}
-
-.container {
+.inputAddress {
   position: relative;
+
+  &:hover, *:hover {
+    cursor: text !important;
+  }
 }
 
-.menuItem {
-  min-height: 0 !important;
-  line-height: inherit !important;
+.main {
+  position: relative;
+  left: 0;
+
+  &:focus {
+    outline: none;
+  }
+}
+
+.label {
+  margin: 1rem 2.5rem 0.25em;
+  color: rgba(255, 255, 255, 0.498039);
+}
+
+.underline {
+  position: relative;
+  margin: 0 9rem 0 2.5rem;
+}
+
+.empty {
+  font-size: 1.5em;
+}
+
+.inputContainer {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+
+  .input {
+    font-size: 1.5em;
+    padding: 0 9rem 0.5em 2.5rem;
+    display: block;
+
+    padding-right: 6rem;
+  }
+}
+
+.categories {
+  flex: 1;
+
+  display: flex;
+  flex-direction: row;
+  justify-content: flex-start;
+
+  margin: 2rem 2rem 0;
+
+  > * {
+    flex: 1;
+  }
+}
+
+.category {
+  display: flex;
+  flex-direction: column;
+  margin: 0 0.5em;
+  max-width: 35em;
+
+  .title {
+    text-transform: uppercase;
+    font-size: 1.5em;
+    font-color: white;
+  }
+
+  .cards {
+    flex: 1;
+    overflow: auto;
+
+    display: flex;
+    flex-direction: column;
+
+    margin: 1em 0;
+  }
 }

@@ -1,4 +1,4 @@
-/* Copyright 2015, 2016 Ethcore (UK) Ltd.
+/* Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 /* This file is part of Parity.
 /*
 /* Parity is free software: you can redistribute it and/or modify
@@ -105,6 +105,8 @@
   display: flex;
   flex-direction: column;
   margin-right: 0.5em;
+  overflow: auto;
+
   .panel {
     background-color: rgba(0, 0, 0, 0.5);
     padding: 1em;

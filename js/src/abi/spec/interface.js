@@ -41,6 +41,10 @@ export default class Interface {
   }
 
   encodeTokens (paramTypes, values) {
+    return Interface.encodeTokens(paramTypes, values);
+  }
+
+  static encodeTokens (paramTypes, values) {
     const createToken = function (paramType, value) {
       if (paramType.subtype) {
         return new Token(paramType.type, value.map((entry) => createToken(paramType.subtype, entry)));

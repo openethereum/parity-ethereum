@@ -183,7 +183,7 @@ impl EthSync {
 		};
 
 		let chain_sync = ChainSync::new(params.config, &*params.chain);
-		let service = try!(NetworkService::new(try!(params.network_config.clone().into_basic())));
+		let service = NetworkService::new(params.network_config.clone().into_basic()?)?;
 
 		let sync = Arc::new(EthSync {
 			network: service,
@@ -304,7 +304,7 @@ impl ChainNotify for EthSync {
 				Some(lp) => lp,
 				None => return,
 			};
-			
+
 			let chain_info = self.eth_handler.chain.chain_info();
 			light_proto.make_announcement(context, Announcement {
 				head_hash: chain_info.best_block_hash,
@@ -431,7 +431,7 @@ impl ManageNetwork for EthSync {
 
 /// IP fiter
 #[derive(Clone, Debug, PartialEq, Eq)]
-#[cfg_attr(feature = "ipc", derive(Binary))]
+#[cfg_attr(feature = "ipc", binary)]
 pub enum AllowIP {
 	/// Connect to any address
 	All,
@@ -454,7 +454,7 @@ impl AllowIP {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-#[cfg_attr(feature = "ipc", derive(Binary))]
+#[cfg_attr(feature = "ipc", binary)]
 /// Network service configuration
 pub struct NetworkConfiguration {
 	/// Directory path to store general network configuration. None means nothing will be saved
@@ -507,8 +507,8 @@ impl NetworkConfiguration {
 		Ok(BasicNetworkConfiguration {
 			config_path: self.config_path,
 			net_config_path: self.net_config_path,
-			listen_address: match self.listen_address { None => None, Some(addr) => Some(try!(SocketAddr::from_str(&addr))) },
-			public_address:  match self.public_address { None => None, Some(addr) => Some(try!(SocketAddr::from_str(&addr))) },
+			listen_address: match self.listen_address { None => None, Some(addr) => Some(SocketAddr::from_str(&addr)?) },
+			public_address:  match self.public_address { None => None, Some(addr) => Some(SocketAddr::from_str(&addr)?) },
 			udp_port: self.udp_port,
 			nat_enabled: self.nat_enabled,
 			discovery_enabled: self.discovery_enabled,
@@ -558,7 +558,7 @@ impl From<BasicNetworkConfiguration> for NetworkConfiguration {
 
 /// Configuration for IPC service.
 #[derive(Debug, Clone)]
-#[cfg_attr(feature = "ipc", derive(Binary))]
+#[cfg_attr(feature = "ipc", binary)]
 pub struct ServiceConfiguration {
 	/// Sync config.
 	pub sync: SyncConfig,

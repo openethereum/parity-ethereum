@@ -137,7 +137,7 @@ macro_rules! usage {
 		impl Args {
 
 			pub fn parse<S: AsRef<str>>(command: &[S]) -> Result<Self, ArgsError> {
-				let raw_args = try!(RawArgs::parse(command));
+				let raw_args = RawArgs::parse(command)?;
 
 				// Skip loading config file if no_config flag is specified
 				if raw_args.flag_no_config {
@@ -151,8 +151,8 @@ macro_rules! usage {
 					(Ok(mut file), _) => {
 						println_stderr!("Loading config file from {}", &config_file);
 						let mut config = String::new();
-						try!(file.read_to_string(&mut config).map_err(|e| ArgsError::Config(config_file, e)));
-						try!(Self::parse_config(&config))
+						file.read_to_string(&mut config).map_err(|e| ArgsError::Config(config_file, e))?;
+						Self::parse_config(&config)?
 					},
 					// Don't display error in case default config cannot be loaded.
 					(Err(_), false) => Config::default(),
@@ -172,7 +172,7 @@ macro_rules! usage {
 
 			#[cfg(test)]
 			fn parse_with_config<S: AsRef<str>>(command: &[S], config: Config) -> Result<Self, ArgsError> {
-				Ok(try!(RawArgs::parse(command)).into_args(config))
+				RawArgs::parse(command).map(|raw| raw.into_args(config)).map_err(ArgsError::Docopt)
 			}
 
 			fn parse_config(config: &str) -> Result<Config, ArgsError> {

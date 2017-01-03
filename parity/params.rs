@@ -27,7 +27,7 @@ use user_defaults::UserDefaults;
 #[derive(Debug, PartialEq)]
 pub enum SpecType {
 	Mainnet,
-	Testnet,
+	Morden,
 	Ropsten,
 	Olympic,
 	Classic,
@@ -49,8 +49,8 @@ impl str::FromStr for SpecType {
 		let spec = match s {
 			"frontier" | "homestead" | "mainnet" => SpecType::Mainnet,
 			"frontier-dogmatic" | "homestead-dogmatic" | "classic" => SpecType::Classic,
-			"morden" | "testnet" | "classic-testnet" => SpecType::Testnet,
-			"ropsten" => SpecType::Ropsten,
+			"morden" | "classic-testnet" => SpecType::Morden,
+			"ropsten" | "testnet" => SpecType::Ropsten,
 			"olympic" => SpecType::Olympic,
 			"expanse" => SpecType::Expanse,
 			"dev" => SpecType::Dev,
@@ -64,14 +64,14 @@ impl SpecType {
 	pub fn spec(&self) -> Result<Spec, String> {
 		match *self {
 			SpecType::Mainnet => Ok(ethereum::new_frontier()),
-			SpecType::Testnet => Ok(ethereum::new_morden()),
+			SpecType::Morden => Ok(ethereum::new_morden()),
 			SpecType::Ropsten => Ok(ethereum::new_ropsten()),
 			SpecType::Olympic => Ok(ethereum::new_olympic()),
 			SpecType::Classic => Ok(ethereum::new_classic()),
 			SpecType::Expanse => Ok(ethereum::new_expanse()),
 			SpecType::Dev => Ok(Spec::new_instant()),
 			SpecType::Custom(ref filename) => {
-				let file = try!(fs::File::open(filename).map_err(|_| "Could not load specification file."));
+				let file = fs::File::open(filename).map_err(|_| "Could not load specification file.")?;
 				Spec::load(file)
 			}
 		}
@@ -292,12 +292,12 @@ mod tests {
 		assert_eq!(SpecType::Mainnet, "frontier".parse().unwrap());
 		assert_eq!(SpecType::Mainnet, "homestead".parse().unwrap());
 		assert_eq!(SpecType::Mainnet, "mainnet".parse().unwrap());
-		assert_eq!(SpecType::Testnet, "testnet".parse().unwrap());
-		assert_eq!(SpecType::Testnet, "morden".parse().unwrap());
+		assert_eq!(SpecType::Ropsten, "testnet".parse().unwrap());
+		assert_eq!(SpecType::Morden, "morden".parse().unwrap());
 		assert_eq!(SpecType::Ropsten, "ropsten".parse().unwrap());
 		assert_eq!(SpecType::Olympic, "olympic".parse().unwrap());
 		assert_eq!(SpecType::Classic, "classic".parse().unwrap());
-		assert_eq!(SpecType::Testnet, "classic-testnet".parse().unwrap());
+		assert_eq!(SpecType::Morden, "classic-testnet".parse().unwrap());
 	}
 
 	#[test]

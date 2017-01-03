@@ -16,7 +16,7 @@
 
 import BigNumber from 'bignumber.js';
 
-import { outBlock, outAccountInfo, outAddress, outDate, outHistogram, outNumber, outPeers, outReceipt, outSyncing, outTransaction, outTrace } from './output';
+import { outBlock, outAccountInfo, outAddress, outChainStatus, outDate, outHistogram, outNumber, outPeers, outReceipt, outSyncing, outTransaction, outTrace } from './output';
 import { isAddress, isBigNumber, isInstanceOf } from '../../../test/types';
 
 describe('api/format/output', () => {
@@ -33,6 +33,14 @@ describe('api/format/output', () => {
         '0x63Cf90D3f0410092FC0fca41846f596223979195': {
           name: 'name', uuid: 'uuid', meta: { name: '456' }
         }
+      });
+    });
+
+    it('returns objects without meta & uuid as required', () => {
+      expect(outAccountInfo(
+        { '0x63cf90d3f0410092fc0fca41846f596223979195': { name: 'name' } }
+      )).to.deep.equal({
+        '0x63Cf90D3f0410092FC0fca41846f596223979195': { name: 'name' }
       });
     });
   });
@@ -110,6 +118,18 @@ describe('api/format/output', () => {
         totalDifficulty: new BigNumber('0x105'),
         timestamp: new Date('2016-06-03T07:48:56.000Z'),
         extraData: 'someExtraStuffInHere'
+      });
+    });
+  });
+
+  describe('outChainStatus', () => {
+    it('formats blockGap values', () => {
+      const status = {
+        blockGap: [0x1234, '0x5678']
+      };
+
+      expect(outChainStatus(status)).to.deep.equal({
+        blockGap: [new BigNumber(0x1234), new BigNumber(0x5678)]
       });
     });
   });
@@ -271,7 +291,7 @@ describe('api/format/output', () => {
       });
     });
 
-    ['blockNumber', 'gasPrice', 'gas', 'nonce', 'transactionIndex', 'value'].forEach((input) => {
+    ['blockNumber', 'gasPrice', 'gas', 'minBlock', 'nonce', 'transactionIndex', 'value'].forEach((input) => {
       it(`formats ${input} number as hexnumber`, () => {
         const block = {};
         block[input] = 0x123;
@@ -280,6 +300,10 @@ describe('api/format/output', () => {
         expect(isInstanceOf(formatted, BigNumber)).to.be.true;
         expect(formatted.toString(16)).to.equal('123');
       });
+    });
+
+    it('passes minBlock as null when null', () => {
+      expect(outTransaction({ minBlock: null })).to.deep.equal({ minBlock: null });
     });
 
     it('ignores and passes through unknown keys', () => {

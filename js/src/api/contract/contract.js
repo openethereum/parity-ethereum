@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import Abi from '../../abi';
+import Abi from '~/abi';
 
 let nextSubscriptionId = 0;
 
@@ -53,6 +53,10 @@ export default class Contract {
 
     this._subscribedToBlock = false;
     this._blockSubscriptionId = null;
+
+    if (api && api.patch && api.patch.contract) {
+      api.patch.contract(this);
+    }
   }
 
   get address () {
@@ -89,9 +93,17 @@ export default class Contract {
     return this;
   }
 
-  deploy (options, values, statecb) {
-    let gas;
+  deployEstimateGas (options, values) {
+    const _options = this._encodeOptions(this.constructors[0], options, values);
 
+    return this._api.eth
+      .estimateGas(_options)
+      .then((gasEst) => {
+        return [gasEst, gasEst.mul(1.2)];
+      });
+  }
+
+  deploy (options, values, statecb) {
     const setState = (state) => {
       if (!statecb) {
         return;
@@ -102,31 +114,34 @@ export default class Contract {
 
     setState({ state: 'estimateGas' });
 
-    return this._api.eth
-      .estimateGas(this._encodeOptions(this.constructors[0], options, values))
-      .then((_gas) => {
-        gas = _gas.mul(1.2);
+    return this
+      .deployEstimateGas(options, values)
+      .then(([gasEst, gas]) => {
         options.gas = gas.toFixed(0);
 
         setState({ state: 'postTransaction', gas });
-        return this._api.parity.postTransaction(this._encodeOptions(this.constructors[0], options, values));
-      })
-      .then((requestId) => {
-        setState({ state: 'checkRequest', requestId });
-        return this._pollCheckRequest(requestId);
-      })
-      .then((txhash) => {
-        setState({ state: 'getTransactionReceipt', txhash });
-        return this._pollTransactionReceipt(txhash, gas);
-      })
-      .then((receipt) => {
-        if (receipt.gasUsed.eq(gas)) {
-          throw new Error(`Contract not deployed, gasUsed == ${gas.toFixed(0)}`);
-        }
 
-        setState({ state: 'hasReceipt', receipt });
-        this._address = receipt.contractAddress;
-        return this._address;
+        const _options = this._encodeOptions(this.constructors[0], options, values);
+
+        return this._api.parity
+          .postTransaction(_options)
+          .then((requestId) => {
+            setState({ state: 'checkRequest', requestId });
+            return this._pollCheckRequest(requestId);
+          })
+          .then((txhash) => {
+            setState({ state: 'getTransactionReceipt', txhash });
+            return this._pollTransactionReceipt(txhash, gas);
+          })
+          .then((receipt) => {
+            if (receipt.gasUsed.eq(gas)) {
+              throw new Error(`Contract not deployed, gasUsed == ${gas.toFixed(0)}`);
+            }
+
+            setState({ state: 'hasReceipt', receipt });
+            this._address = receipt.contractAddress;
+            return this._address;
+          });
       })
       .then((address) => {
         setState({ state: 'getCode' });
@@ -192,7 +207,7 @@ export default class Contract {
   getCallData = (func, options, values) => {
     let data = options.data;
 
-    const tokens = func ? this._abi.encodeTokens(func.inputParamTypes(), values) : null;
+    const tokens = func ? Abi.encodeTokens(func.inputParamTypes(), values) : null;
     const call = tokens ? func.encodeCall(tokens) : null;
 
     if (data && data.substr(0, 2) === '0x') {
@@ -214,6 +229,8 @@ export default class Contract {
   }
 
   _bindFunction = (func) => {
+    func.contract = this;
+
     func.call = (options, values = []) => {
       const callParams = this._encodeOptions(func, this._addOptionsTo(options), values);
 
@@ -226,13 +243,13 @@ export default class Contract {
 
     if (!func.constant) {
       func.postTransaction = (options, values = []) => {
-        return this._api.parity
-          .postTransaction(this._encodeOptions(func, this._addOptionsTo(options), values));
+        const _options = this._encodeOptions(func, this._addOptionsTo(options), values);
+        return this._api.parity.postTransaction(_options);
       };
 
       func.estimateGas = (options, values = []) => {
-        return this._api.eth
-          .estimateGas(this._encodeOptions(func, this._addOptionsTo(options), values));
+        const _options = this._encodeOptions(func, this._addOptionsTo(options), values);
+        return this._api.eth.estimateGas(_options);
       };
     }
 

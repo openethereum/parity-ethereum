@@ -67,7 +67,7 @@ impl Block {
 
 impl Decodable for Block {
 	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
-		if decoder.as_raw().len() != try!(decoder.as_rlp().payload_info()).total() {
+		if decoder.as_raw().len() != decoder.as_rlp().payload_info()?.total() {
 			return Err(DecoderError::RlpIsTooBig);
 		}
 		let d = decoder.as_rlp();
@@ -75,9 +75,9 @@ impl Decodable for Block {
 			return Err(DecoderError::RlpIncorrectListLen);
 		}
 		Ok(Block {
-			header: try!(d.val_at(0)),
-			transactions: try!(d.val_at(1)),
-			uncles: try!(d.val_at(2)),
+			header: d.val_at(0)?,
+			transactions: d.val_at(1)?,
+			uncles: d.val_at(2)?,
 		})
 	}
 }
@@ -252,7 +252,7 @@ impl<'x> OpenBlock<'x> {
 		gas_range_target: (U256, U256),
 		extra_data: Bytes,
 	) -> Result<Self, Error> {
-		let state = try!(State::from_existing(db, parent.state_root().clone(), engine.account_start_nonce(), factories));
+		let state = State::from_existing(db, parent.state_root().clone(), engine.account_start_nonce(), factories)?;
 		let mut r = OpenBlock {
 			block: ExecutedBlock::new(state, tracing),
 			engine: engine,
@@ -521,12 +521,12 @@ pub fn enact(
 ) -> Result<LockedBlock, Error> {
 	{
 		if ::log::max_log_level() >= ::log::LogLevel::Trace {
-			let s = try!(State::from_existing(db.boxed_clone(), parent.state_root().clone(), engine.account_start_nonce(), factories.clone()));
+			let s = State::from_existing(db.boxed_clone(), parent.state_root().clone(), engine.account_start_nonce(), factories.clone())?;
 			trace!(target: "enact", "num={}, root={}, author={}, author_balance={}\n", header.number(), s.root(), header.author(), s.balance(&header.author()));
 		}
 	}
 
-	let mut b = try!(OpenBlock::new(engine, factories, tracing, db, parent, last_hashes, Address::new(), (3141562.into(), 31415620.into()), vec![]));
+	let mut b = OpenBlock::new(engine, factories, tracing, db, parent, last_hashes, Address::new(), (3141562.into(), 31415620.into()), vec![])?;
 	b.set_difficulty(*header.difficulty());
 	b.set_gas_limit(*header.gas_limit());
 	b.set_timestamp(header.timestamp());
@@ -536,9 +536,9 @@ pub fn enact(
 	b.set_transactions_root(header.transactions_root().clone());
 	b.set_receipts_root(header.receipts_root().clone());
 
-	try!(push_transactions(&mut b, transactions));
+	push_transactions(&mut b, transactions)?;
 	for u in uncles {
-		try!(b.push_uncle(u.clone()));
+		b.push_uncle(u.clone())?;
 	}
 	Ok(b.close_and_lock())
 }
@@ -547,7 +547,7 @@ pub fn enact(
 #[cfg(not(feature = "slow-blocks"))]
 fn push_transactions(block: &mut OpenBlock, transactions: &[SignedTransaction]) -> Result<(), Error> {
 	for t in transactions {
-		try!(block.push_transaction(t.clone(), None));
+		block.push_transaction(t.clone(), None)?;
 	}
 	Ok(())
 }
@@ -560,7 +560,7 @@ fn push_transactions(block: &mut OpenBlock, transactions: &[SignedTransaction]) 
 	for t in transactions {
 		let hash = t.hash();
 		let start = time::Instant::now();
-		try!(block.push_transaction(t.clone(), None));
+		block.push_transaction(t.clone(), None)?;
 		let took = start.elapsed();
 		if took > time::Duration::from_millis(slow_tx) {
 			warn!("Heavy transaction in block {:?}: {:?}", block.header().number(), hash);
@@ -595,9 +595,8 @@ mod tests {
 	use factory::Factories;
 	use state_db::StateDB;
 	use views::BlockView;
-	use util::{Address, TrieFactory};
+	use util::Address;
 	use util::hash::FixedHash;
-	use util::trie::TrieSpec;
 	use std::sync::Arc;
 
 	/// Enact the block given by `block_bytes` using `engine` on the database `db` with given `parent` block header
@@ -628,7 +627,7 @@ mod tests {
 		factories: Factories,
 	) -> Result<SealedBlock, Error> {
 		let header = BlockView::new(block_bytes).header_view();
-		Ok(try!(try!(enact_bytes(block_bytes, engine, tracing, db, parent, last_hashes, factories)).seal(engine, header.seal())))
+		Ok(enact_bytes(block_bytes, engine, tracing, db, parent, last_hashes, factories)?.seal(engine, header.seal())?)
 	}
 
 	#[test]
@@ -637,8 +636,7 @@ mod tests {
 		let spec = Spec::new_test();
 		let genesis_header = spec.genesis_header();
 		let mut db_result = get_temp_state_db();
-		let mut db = db_result.take();
-		spec.ensure_db_good(&mut db, &TrieFactory::new(TrieSpec::Secure)).unwrap();
+		let db = spec.ensure_db_good(db_result.take(), &Default::default()).unwrap();
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
 		let b = OpenBlock::new(&*spec.engine, Default::default(), false, db, &genesis_header, last_hashes, Address::zero(), (3141562.into(), 31415620.into()), vec![]).unwrap();
 		let b = b.close_and_lock();
@@ -653,8 +651,7 @@ mod tests {
 		let genesis_header = spec.genesis_header();
 
 		let mut db_result = get_temp_state_db();
-		let mut db = db_result.take();
-		spec.ensure_db_good(&mut db, &TrieFactory::new(TrieSpec::Secure)).unwrap();
+		let db = spec.ensure_db_good(db_result.take(), &Default::default()).unwrap();
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
 		let b = OpenBlock::new(engine, Default::default(), false, db, &genesis_header, last_hashes.clone(), Address::zero(), (3141562.into(), 31415620.into()), vec![]).unwrap()
 			.close_and_lock().seal(engine, vec![]).unwrap();
@@ -662,8 +659,7 @@ mod tests {
 		let orig_db = b.drain();
 
 		let mut db_result = get_temp_state_db();
-		let mut db = db_result.take();
-		spec.ensure_db_good(&mut db, &TrieFactory::new(TrieSpec::Secure)).unwrap();
+		let db = spec.ensure_db_good(db_result.take(), &Default::default()).unwrap();
 		let e = enact_and_seal(&orig_bytes, engine, false, db, &genesis_header, last_hashes, Default::default()).unwrap();
 
 		assert_eq!(e.rlp_bytes(), orig_bytes);
@@ -681,8 +677,7 @@ mod tests {
 		let genesis_header = spec.genesis_header();
 
 		let mut db_result = get_temp_state_db();
-		let mut db = db_result.take();
-		spec.ensure_db_good(&mut db, &TrieFactory::new(TrieSpec::Secure)).unwrap();
+		let db = spec.ensure_db_good(db_result.take(), &Default::default()).unwrap();
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
 		let mut open_block = OpenBlock::new(engine, Default::default(), false, db, &genesis_header, last_hashes.clone(), Address::zero(), (3141562.into(), 31415620.into()), vec![]).unwrap();
 		let mut uncle1_header = Header::new();
@@ -697,8 +692,7 @@ mod tests {
 		let orig_db = b.drain();
 
 		let mut db_result = get_temp_state_db();
-		let mut db = db_result.take();
-		spec.ensure_db_good(&mut db, &TrieFactory::new(TrieSpec::Secure)).unwrap();
+		let db = spec.ensure_db_good(db_result.take(), &Default::default()).unwrap();
 		let e = enact_and_seal(&orig_bytes, engine, false, db, &genesis_header, last_hashes, Default::default()).unwrap();
 
 		let bytes = e.rlp_bytes();

@@ -25,7 +25,6 @@ class InputAddressSelect extends Component {
     accounts: PropTypes.object.isRequired,
     contacts: PropTypes.object.isRequired,
     contracts: PropTypes.object.isRequired,
-    wallets: PropTypes.object.isRequired,
     error: PropTypes.string,
     label: PropTypes.string,
     hint: PropTypes.string,
@@ -34,7 +33,7 @@ class InputAddressSelect extends Component {
   };
 
   render () {
-    const { accounts, contacts, contracts, wallets, label, hint, error, value, onChange } = this.props;
+    const { accounts, contacts, contracts, label, hint, error, value, onChange } = this.props;
 
     return (
       <AddressSelect
@@ -42,7 +41,6 @@ class InputAddressSelect extends Component {
         accounts={ accounts }
         contacts={ contacts }
         contracts={ contracts }
-        wallets={ wallets }
         error={ error }
         label={ label }
         hint={ hint }
@@ -53,13 +51,12 @@ class InputAddressSelect extends Component {
 }
 
 function mapStateToProps (state) {
-  const { accounts, contacts, contracts, wallets } = state.personal;
+  const { accounts, contacts, contracts } = state.personal;
 
   return {
     accounts,
     contacts,
-    contracts,
-    wallets
+    contracts
   };
 }
 

@@ -18,7 +18,7 @@ import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 import ContentAdd from 'material-ui/svg-icons/content/add';
-import { uniq, isEqual } from 'lodash';
+import { uniq, isEqual, pickBy, omitBy } from 'lodash';
 
 import List from './List';
 import { CreateAccount, CreateWallet } from '~/modals';
@@ -36,9 +36,6 @@ class Accounts extends Component {
     setVisibleAccounts: PropTypes.func.isRequired,
     accounts: PropTypes.object.isRequired,
     hasAccounts: PropTypes.bool.isRequired,
-    wallets: PropTypes.object.isRequired,
-    walletsOwners: PropTypes.object.isRequired,
-    hasWallets: PropTypes.bool.isRequired,
 
     balances: PropTypes.object
   }
@@ -62,8 +59,8 @@ class Accounts extends Component {
   }
 
   componentWillReceiveProps (nextProps) {
-    const prevAddresses = Object.keys({ ...this.props.accounts, ...this.props.wallets });
-    const nextAddresses = Object.keys({ ...nextProps.accounts, ...nextProps.wallets });
+    const prevAddresses = Object.keys(this.props.accounts);
+    const nextAddresses = Object.keys(nextProps.accounts);
 
     if (prevAddresses.length !== nextAddresses.length || !isEqual(prevAddresses.sort(), nextAddresses.sort())) {
       this.setVisibleAccounts(nextProps);
@@ -75,8 +72,8 @@ class Accounts extends Component {
   }
 
   setVisibleAccounts (props = this.props) {
-    const { accounts, wallets, setVisibleAccounts } = props;
-    const addresses = Object.keys({ ...accounts, ...wallets });
+    const { accounts, setVisibleAccounts } = props;
+    const addresses = Object.keys(accounts);
     setVisibleAccounts(addresses);
   }
 
@@ -115,30 +112,38 @@ class Accounts extends Component {
   }
 
   renderAccounts () {
+    const { accounts, balances } = this.props;
+
+    const _accounts = omitBy(accounts, (a) => a.wallet);
+    const _hasAccounts = Object.keys(_accounts).length > 0;
+
     if (!this.state.show) {
-      return this.renderLoading(this.props.accounts);
+      return this.renderLoading(_accounts);
     }
 
-    const { accounts, hasAccounts, balances } = this.props;
     const { searchValues, sortOrder } = this.state;
 
     return (
       <List
         search={ searchValues }
-        accounts={ accounts }
+        accounts={ _accounts }
         balances={ balances }
-        empty={ !hasAccounts }
+        empty={ !_hasAccounts }
         order={ sortOrder }
         handleAddSearchToken={ this.onAddSearchToken } />
     );
   }
 
   renderWallets () {
+    const { accounts, balances } = this.props;
+
+    const wallets = pickBy(accounts, (a) => a.wallet);
+    const hasWallets = Object.keys(wallets).length > 0;
+
     if (!this.state.show) {
-      return this.renderLoading(this.props.wallets);
+      return this.renderLoading(wallets);
     }
 
-    const { wallets, hasWallets, balances, walletsOwners } = this.props;
     const { searchValues, sortOrder } = this.state;
 
     if (!wallets || Object.keys(wallets).length === 0) {
@@ -154,7 +159,6 @@ class Accounts extends Component {
         empty={ !hasWallets }
         order={ sortOrder }
         handleAddSearchToken={ this.onAddSearchToken }
-        walletsOwners={ walletsOwners }
       />
     );
   }
@@ -287,34 +291,12 @@ class Accounts extends Component {
 }
 
 function mapStateToProps (state) {
-  const { accounts, hasAccounts, wallets, hasWallets, accountsInfo } = state.personal;
+  const { accounts, hasAccounts } = state.personal;
   const { balances } = state.balances;
-  const walletsInfo = state.wallet.wallets;
-
-  const walletsOwners = Object
-    .keys(walletsInfo)
-    .map((wallet) => {
-      const owners = walletsInfo[wallet].owners || [];
-
-      return {
-        owners: owners.map((owner) => ({
-          address: owner,
-          name: accountsInfo[owner] && accountsInfo[owner].name || owner
-        })),
-        address: wallet
-      };
-    })
-    .reduce((walletsOwners, wallet) => {
-      walletsOwners[wallet.address] = wallet.owners;
-      return walletsOwners;
-    }, {});
 
   return {
-    accounts,
-    hasAccounts,
-    wallets,
-    walletsOwners,
-    hasWallets,
+    accounts: accounts,
+    hasAccounts: hasAccounts,
     balances
   };
 }

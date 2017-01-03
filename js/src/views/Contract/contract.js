@@ -220,7 +220,7 @@ class Contract extends Component {
         key='editmeta'
         icon={ <ContentCreate /> }
         label='edit'
-        onClick={ this.onEditClick } />,
+        onClick={ this.showEditDialog } />,
       <Button
         key='delete'
         icon={ <ActionDelete /> }
@@ -262,8 +262,7 @@ class Contract extends Component {
     return (
       <EditMeta
         account={ account }
-        keys={ ['description'] }
-        onClose={ this.onEditClick } />
+        onClose={ this.closeEditDialog } />
     );
   }
 
@@ -312,10 +311,12 @@ class Contract extends Component {
       });
   }
 
-  onEditClick = () => {
-    this.setState({
-      showEditDialog: !this.state.showEditDialog
-    });
+  closeEditDialog = () => {
+    this.setState({ showEditDialog: false });
+  }
+
+  showEditDialog = () => {
+    this.setState({ showEditDialog: true });
   }
 
   closeDeleteDialog = () => {

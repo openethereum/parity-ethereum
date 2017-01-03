@@ -89,7 +89,7 @@ impl Handshake {
 			connection: Connection::new(token, socket, stats),
 			originated: false,
 			state: HandshakeState::New,
-			ecdhe: try!(Random.generate()),
+			ecdhe: Random.generate()?,
 			nonce: nonce.clone(),
 			remote_ephemeral: Public::new(),
 			remote_nonce: H256::new(),
@@ -110,7 +110,7 @@ impl Handshake {
 		self.originated = originated;
 		io.register_timer(self.connection.token, HANDSHAKE_TIMEOUT).ok();
 		if originated {
-			try!(self.write_auth(io, host.secret(), host.id()));
+			self.write_auth(io, host.secret(), host.id())?;
 		}
 		else {
 			self.state = HandshakeState::ReadingAuth;
@@ -127,21 +127,21 @@ impl Handshake {
 	/// Readable IO handler. Drives the state change.
 	pub fn readable<Message>(&mut self, io: &IoContext<Message>, host: &HostInfo) -> Result<(), NetworkError> where Message: Send + Clone + Sync + 'static {
 		if !self.expired() {
-			while let Some(data) = try!(self.connection.readable()) {
+			while let Some(data) = self.connection.readable()? {
 				match self.state {
 					HandshakeState::New => {},
 					HandshakeState::StartSession => {},
 					HandshakeState::ReadingAuth => {
-						try!(self.read_auth(io, host.secret(), &data));
+						self.read_auth(io, host.secret(), &data)?;
 					},
 					HandshakeState::ReadingAuthEip8 => {
-						try!(self.read_auth_eip8(io, host.secret(), &data));
+						self.read_auth_eip8(io, host.secret(), &data)?;
 					},
 					HandshakeState::ReadingAck => {
-						try!(self.read_ack(host.secret(), &data));
+						self.read_ack(host.secret(), &data)?;
 					},
 					HandshakeState::ReadingAckEip8 => {
-						try!(self.read_ack_eip8(host.secret(), &data));
+						self.read_ack_eip8(host.secret(), &data)?;
 					},
 				}
 				if self.state == HandshakeState::StartSession {
@@ -156,7 +156,7 @@ impl Handshake {
 	/// Writabe IO handler.
 	pub fn writable<Message>(&mut self, io: &IoContext<Message>) -> Result<(), NetworkError> where Message: Send + Clone + Sync + 'static {
 		if !self.expired() {
-			try!(self.connection.writable(io));
+			self.connection.writable(io)?;
 		}
 		Ok(())
 	}
@@ -165,9 +165,9 @@ impl Handshake {
 		self.id.clone_from_slice(remote_public);
 		self.remote_nonce.clone_from_slice(remote_nonce);
 		self.remote_version = remote_version;
-		let shared = try!(ecdh::agree(host_secret, &self.id));
+		let shared = ecdh::agree(host_secret, &self.id)?;
 		let signature = H520::from_slice(sig);
-		self.remote_ephemeral = try!(recover(&signature.into(), &(&shared ^ &self.remote_nonce)));
+		self.remote_ephemeral = recover(&signature.into(), &(&shared ^ &self.remote_nonce))?;
 		Ok(())
 	}
 
@@ -185,8 +185,8 @@ impl Handshake {
 				let (_, rest) = rest.split_at(32);
 				let (pubk, rest) = rest.split_at(64);
 				let (nonce, _) = rest.split_at(32);
-				try!(self.set_auth(secret, sig, pubk, nonce, PROTOCOL_VERSION));
-				try!(self.write_ack(io));
+				self.set_auth(secret, sig, pubk, nonce, PROTOCOL_VERSION)?;
+				self.write_ack(io)?;
 			}
 			Err(_) => {
 				// Try to interpret as EIP-8 packet
@@ -206,14 +206,14 @@ impl Handshake {
 	fn read_auth_eip8<Message>(&mut self, io: &IoContext<Message>, secret: &Secret, data: &[u8]) -> Result<(), NetworkError> where Message: Send + Clone + Sync + 'static {
 		trace!(target: "network", "Received EIP8 handshake auth from {:?}", self.connection.remote_addr_str());
 		self.auth_cipher.extend_from_slice(data);
-		let auth = try!(ecies::decrypt(secret, &self.auth_cipher[0..2], &self.auth_cipher[2..]));
+		let auth = ecies::decrypt(secret, &self.auth_cipher[0..2], &self.auth_cipher[2..])?;
 		let rlp = UntrustedRlp::new(&auth);
-		let signature: H520 = try!(rlp.val_at(0));
-		let remote_public: Public = try!(rlp.val_at(1));
-		let remote_nonce: H256 = try!(rlp.val_at(2));
-		let remote_version: u64 = try!(rlp.val_at(3));
-		try!(self.set_auth(secret, &signature, &remote_public, &remote_nonce, remote_version));
-		try!(self.write_ack_eip8(io));
+		let signature: H520 = rlp.val_at(0)?;
+		let remote_public: Public = rlp.val_at(1)?;
+		let remote_nonce: H256 = rlp.val_at(2)?;
+		let remote_version: u64 = rlp.val_at(3)?;
+		self.set_auth(secret, &signature, &remote_public, &remote_nonce, remote_version)?;
+		self.write_ack_eip8(io)?;
 		Ok(())
 	}
 
@@ -249,11 +249,11 @@ impl Handshake {
 	fn read_ack_eip8(&mut self, secret: &Secret, data: &[u8]) -> Result<(), NetworkError> {
 		trace!(target: "network", "Received EIP8 handshake auth from {:?}", self.connection.remote_addr_str());
 		self.ack_cipher.extend_from_slice(data);
-		let ack = try!(ecies::decrypt(secret, &self.ack_cipher[0..2], &self.ack_cipher[2..]));
+		let ack = ecies::decrypt(secret, &self.ack_cipher[0..2], &self.ack_cipher[2..])?;
 		let rlp = UntrustedRlp::new(&ack);
-		self.remote_ephemeral = try!(rlp.val_at(0));
-		self.remote_nonce = try!(rlp.val_at(1));
-		self.remote_version = try!(rlp.val_at(2));
+		self.remote_ephemeral = rlp.val_at(0)?;
+		self.remote_nonce = rlp.val_at(1)?;
+		self.remote_version = rlp.val_at(2)?;
 		self.state = HandshakeState::StartSession;
 		Ok(())
 	}
@@ -271,13 +271,13 @@ impl Handshake {
 			let (nonce, _) = rest.split_at_mut(32);
 
 			// E(remote-pubk, S(ecdhe-random, ecdh-shared-secret^nonce) || H(ecdhe-random-pubk) || pubk || nonce || 0x0)
-			let shared = try!(ecdh::agree(secret, &self.id));
-			sig.copy_from_slice(&*try!(sign(self.ecdhe.secret(), &(&shared ^ &self.nonce))));
+			let shared = ecdh::agree(secret, &self.id)?;
+			sig.copy_from_slice(&*sign(self.ecdhe.secret(), &(&shared ^ &self.nonce))?);
 			self.ecdhe.public().sha3_into(hepubk);
 			pubk.copy_from_slice(public);
 			nonce.copy_from_slice(&self.nonce);
 		}
-		let message = try!(ecies::encrypt(&self.id, &[], &data));
+		let message = ecies::encrypt(&self.id, &[], &data)?;
 		self.auth_cipher = message.clone();
 		self.connection.send(io, message);
 		self.connection.expect(V4_ACK_PACKET_SIZE);
@@ -297,7 +297,7 @@ impl Handshake {
 			self.ecdhe.public().copy_to(epubk);
 			self.nonce.copy_to(nonce);
 		}
-		let message = try!(ecies::encrypt(&self.id, &[], &data));
+		let message = ecies::encrypt(&self.id, &[], &data)?;
 		self.ack_cipher = message.clone();
 		self.connection.send(io, message);
 		self.state = HandshakeState::StartSession;
@@ -319,7 +319,7 @@ impl Handshake {
 		let encoded = rlp.drain();
 		let len = (encoded.len() + ECIES_OVERHEAD) as u16;
 		let prefix = [ (len >> 8) as u8, (len & 0xff) as u8 ];
-		let message = try!(ecies::encrypt(&self.id, &prefix, &encoded));
+		let message = ecies::encrypt(&self.id, &prefix, &encoded)?;
 		self.ack_cipher.extend_from_slice(&prefix);
 		self.ack_cipher.extend_from_slice(&message);
 		self.connection.send(io, self.ack_cipher.clone());

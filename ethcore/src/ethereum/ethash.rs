@@ -167,7 +167,7 @@ impl Engine for Ethash {
 
 	fn signing_network_id(&self, env_info: &EnvInfo) -> Option<u64> {
 		if env_info.number >= self.ethash_params.eip155_transition {
-			Some(self.params().network_id)
+			Some(self.params().chain_id)
 		} else {
 			None
 		}
@@ -240,8 +240,8 @@ impl Engine for Ethash {
 				Mismatch { expected: self.seal_fields(), found: header.seal().len() }
 			)));
 		}
-		try!(UntrustedRlp::new(&header.seal()[0]).as_val::<H256>());
-		try!(UntrustedRlp::new(&header.seal()[1]).as_val::<H64>());
+		UntrustedRlp::new(&header.seal()[0]).as_val::<H256>()?;
+		UntrustedRlp::new(&header.seal()[1]).as_val::<H64>()?;
 
 		// TODO: consider removing these lines.
 		let min_difficulty = self.ethash_params.minimum_difficulty;
@@ -312,11 +312,11 @@ impl Engine for Ethash {
 
 	fn verify_transaction_basic(&self, t: &SignedTransaction, header: &Header) -> result::Result<(), Error> {
 		if header.number() >= self.ethash_params.homestead_transition {
-			try!(t.check_low_s());
+			t.check_low_s()?;
 		}
 
 		if let Some(n) = t.network_id() {
-			if header.number() < self.ethash_params.eip155_transition || n != self.params().network_id {
+			if header.number() < self.ethash_params.eip155_transition || n != self.params().chain_id {
 				return Err(TransactionError::InvalidNetworkId.into())
 			}
 		}
@@ -433,7 +433,6 @@ impl Header {
 #[cfg(test)]
 mod tests {
 	use util::*;
-	use util::trie::TrieSpec;
 	use block::*;
 	use tests::helpers::*;
 	use env_info::EnvInfo;
@@ -449,8 +448,7 @@ mod tests {
 		let engine = &*spec.engine;
 		let genesis_header = spec.genesis_header();
 		let mut db_result = get_temp_state_db();
-		let mut db = db_result.take();
-		spec.ensure_db_good(&mut db, &TrieFactory::new(TrieSpec::Secure)).unwrap();
+		let db = spec.ensure_db_good(db_result.take(), &Default::default()).unwrap();
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
 		let b = OpenBlock::new(engine, Default::default(), false, db, &genesis_header, last_hashes, Address::zero(), (3141562.into(), 31415620.into()), vec![]).unwrap();
 		let b = b.close();
@@ -463,8 +461,7 @@ mod tests {
 		let engine = &*spec.engine;
 		let genesis_header = spec.genesis_header();
 		let mut db_result = get_temp_state_db();
-		let mut db = db_result.take();
-		spec.ensure_db_good(&mut db, &TrieFactory::new(TrieSpec::Secure)).unwrap();
+		let db = spec.ensure_db_good(db_result.take(), &Default::default()).unwrap();
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
 		let mut b = OpenBlock::new(engine, Default::default(), false, db, &genesis_header, last_hashes, Address::zero(), (3141562.into(), 31415620.into()), vec![]).unwrap();
 		let mut uncle = Header::new();

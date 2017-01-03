@@ -31,9 +31,11 @@ let modules = [
   'ethereumjs-tx',
   'lodash',
   'material-ui',
+  'material-ui-chip-input',
   'mobx',
   'mobx-react',
   'moment',
+  'phoneformat.js',
   'react',
   'react-dom',
   'react-redux',
@@ -62,6 +64,13 @@ module.exports = {
       }
     ]
   },
+
+  resolve: {
+    alias: {
+      '~': path.resolve(__dirname, '../src')
+    }
+  },
+
   output: {
     filename: '[name].js',
     path: path.resolve(__dirname, '../', `${DEST}/`),

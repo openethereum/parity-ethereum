@@ -19,23 +19,31 @@ import BigNumber from 'bignumber.js';
 import { toChecksumAddress } from '../../abi/util/address';
 
 export function outAccountInfo (infos) {
-  const ret = {};
+  return Object
+    .keys(infos)
+    .reduce((ret, _address) => {
+      const info = infos[_address];
+      const address = outAddress(_address);
 
-  Object.keys(infos).forEach((address) => {
-    const info = infos[address];
+      ret[address] = {
+        name: info.name
+      };
 
-    ret[outAddress(address)] = {
-      name: info.name,
-      uuid: info.uuid,
-      meta: JSON.parse(info.meta)
-    };
-  });
+      if (info.meta) {
+        ret[address].uuid = info.uuid;
+        ret[address].meta = JSON.parse(info.meta);
+      }
 
-  return ret;
+      return ret;
+    }, {});
 }
 
 export function outAddress (address) {
   return toChecksumAddress(address);
+}
+
+export function outAddresses (addresses) {
+  return (addresses || []).map(outAddress);
 }
 
 export function outBlock (block) {
@@ -66,6 +74,20 @@ export function outBlock (block) {
   return block;
 }
 
+export function outChainStatus (status) {
+  if (status) {
+    Object.keys(status).forEach((key) => {
+      switch (key) {
+        case 'blockGap':
+          status[key] = status[key].map(outNumber);
+          break;
+      }
+    });
+  }
+
+  return status;
+}
+
 export function outDate (date) {
   return new Date(outNumber(date).toNumber() * 1000);
 }
@@ -77,6 +99,7 @@ export function outHistogram (histogram) {
         case 'bucketBounds':
         case 'counts':
           histogram[key] = histogram[key].map(outNumber);
+          break;
       }
     });
   }
@@ -188,6 +211,10 @@ export function outTransaction (tx) {
         case 'transactionIndex':
         case 'value':
           tx[key] = outNumber(tx[key]);
+          break;
+
+        case 'minBlock':
+          tx[key] = tx[key] ? outNumber(tx[key]) : null;
           break;
 
         case 'creates':

@@ -28,7 +28,7 @@ export function attachInterface () {
       return Promise
         .all([
           registry.getAddress.call({}, [api.util.sha3('githubhint'), 'A']),
-          api.parity.accounts()
+          api.parity.accountsInfo()
         ]);
     })
     .then(([address, accountsInfo]) => {
@@ -37,7 +37,6 @@ export function attachInterface () {
       const contract = api.newContract(abis.githubhint, address);
       const accounts = Object
         .keys(accountsInfo)
-        .filter((address) => accountsInfo[address].uuid)
         .reduce((obj, address) => {
           const account = accountsInfo[address];
 

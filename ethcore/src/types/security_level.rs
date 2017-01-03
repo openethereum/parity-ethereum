@@ -19,7 +19,8 @@
 use header::BlockNumber;
 
 /// Indication of how secure the chain is.
-#[derive(Debug, PartialEq, Copy, Clone, Hash, Eq, Binary)]
+#[derive(Debug, PartialEq, Copy, Clone, Hash, Eq)]
+#[cfg_attr(feature = "ipc", binary)]
 pub enum SecurityLevel {
 	/// All blocks from genesis to chain head are known to have valid state transitions and PoW.
 	FullState,
@@ -35,6 +36,6 @@ impl SecurityLevel {
 		match *self {
 			SecurityLevel::FullState | SecurityLevel::FullProofOfWork => true,
 			_ => false,
-		} 
+		}
 	}
 }

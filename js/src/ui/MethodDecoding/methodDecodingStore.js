@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -118,14 +118,14 @@ export default class MethodDecodingStore {
       return Promise.resolve(result);
     }
 
-    const { signature, paramdata } = this.api.util.decodeCallData(input);
-    result.signature = signature;
-    result.params = paramdata;
+    try {
+      const { signature } = this.api.util.decodeCallData(input);
 
-    // Contract deployment
-    if (!signature || signature === CONTRACT_CREATE || transaction.creates) {
-      return Promise.resolve({ ...result, deploy: true });
-    }
+      if (signature === CONTRACT_CREATE || transaction.creates) {
+        result.contract = true;
+        return Promise.resolve({ ...result, deploy: true });
+      }
+    } catch (e) {}
 
     return this
       .isContract(contractAddress || transaction.creates)
@@ -134,6 +134,15 @@ export default class MethodDecodingStore {
 
         if (!isContract) {
           return result;
+        }
+
+        const { signature, paramdata } = this.api.util.decodeCallData(input);
+        result.signature = signature;
+        result.params = paramdata;
+
+        // Contract deployment
+        if (!signature) {
+          return Promise.resolve({ ...result, deploy: true });
         }
 
         return this
@@ -192,7 +201,7 @@ export default class MethodDecodingStore {
    */
   isContract (contractAddress) {
     // If zero address, it isn't a contract
-    if (/^(0x)?0*$/.test(contractAddress)) {
+    if (!contractAddress || /^(0x)?0*$/.test(contractAddress)) {
       return Promise.resolve(false);
     }
 

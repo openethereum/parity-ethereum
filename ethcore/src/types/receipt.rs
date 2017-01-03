@@ -25,7 +25,8 @@ use header::BlockNumber;
 use log_entry::{LogEntry, LocalizedLogEntry};
 
 /// Information describing execution of a transaction.
-#[derive(Default, Debug, Clone, Binary)]
+#[derive(Default, Debug, Clone)]
+#[cfg_attr(feature = "ipc", binary)]
 pub struct Receipt {
 	/// The state root after executing the transaction.
 	pub state_root: H256,
@@ -63,10 +64,10 @@ impl Decodable for Receipt {
 	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
 		let d = decoder.as_rlp();
 		let receipt = Receipt {
-			state_root: try!(d.val_at(0)),
-			gas_used: try!(d.val_at(1)),
-			log_bloom: try!(d.val_at(2)),
-			logs: try!(d.val_at(3)),
+			state_root: d.val_at(0)?,
+			gas_used: d.val_at(1)?,
+			log_bloom: d.val_at(2)?,
+			logs: d.val_at(3)?,
 		};
 		Ok(receipt)
 	}
@@ -79,7 +80,8 @@ impl HeapSizeOf for Receipt {
 }
 
 /// Receipt with additional info.
-#[derive(Debug, Clone, PartialEq, Binary)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "ipc", binary)]
 pub struct RichReceipt {
 	/// Transaction hash.
 	pub transaction_hash: H256,
@@ -100,7 +102,8 @@ pub struct RichReceipt {
 }
 
 /// Receipt with additional info.
-#[derive(Debug, Clone, PartialEq, Binary)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "ipc", binary)]
 pub struct LocalizedReceipt {
 	/// Transaction hash.
 	pub transaction_hash: H256,

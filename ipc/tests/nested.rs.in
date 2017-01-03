@@ -30,7 +30,7 @@ pub trait DBWriter {
 
 impl IpcConfig for DBWriter {}
 
-#[derive(Binary)]
+#[binary]
 pub enum DBError { Write, Read }
 
 #[ipc]

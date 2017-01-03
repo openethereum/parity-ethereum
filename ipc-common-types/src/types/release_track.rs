@@ -19,7 +19,8 @@
 use std::fmt;
 
 /// A release's track.
-#[derive(PartialEq, Eq, Clone, Copy, Debug, Binary)]
+#[derive(PartialEq, Eq, Clone, Copy, Debug)]
+#[binary]
 pub enum ReleaseTrack {
 	/// Stable track.
 	Stable,
@@ -36,9 +37,9 @@ pub enum ReleaseTrack {
 impl fmt::Display for ReleaseTrack {
 	fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
 		write!(f, "{}", match *self {
-			ReleaseTrack::Stable => "stable", 
-			ReleaseTrack::Beta => "beta", 
-			ReleaseTrack::Nightly => "nightly", 
+			ReleaseTrack::Stable => "stable",
+			ReleaseTrack::Beta => "beta",
+			ReleaseTrack::Nightly => "nightly",
 			ReleaseTrack::Testing => "testing",
 			ReleaseTrack::Unknown => "unknown",
 		})
@@ -48,35 +49,35 @@ impl fmt::Display for ReleaseTrack {
 impl<'a> From<&'a str> for ReleaseTrack {
 	fn from(s: &'a str) -> Self {
 		match s {
-			"stable" => ReleaseTrack::Stable, 
-			"beta" => ReleaseTrack::Beta, 
-			"nightly" => ReleaseTrack::Nightly, 
-			"testing" => ReleaseTrack::Testing, 
-			_ => ReleaseTrack::Unknown, 
-		}		
+			"stable" => ReleaseTrack::Stable,
+			"beta" => ReleaseTrack::Beta,
+			"nightly" => ReleaseTrack::Nightly,
+			"testing" => ReleaseTrack::Testing,
+			_ => ReleaseTrack::Unknown,
+		}
 	}
 }
 
 impl From<u8> for ReleaseTrack {
 	fn from(i: u8) -> Self {
 		match i {
-			1 => ReleaseTrack::Stable, 
-			2 => ReleaseTrack::Beta, 
-			3 => ReleaseTrack::Nightly, 
-			4 => ReleaseTrack::Testing, 
-			_ => ReleaseTrack::Unknown, 
-		}		
+			1 => ReleaseTrack::Stable,
+			2 => ReleaseTrack::Beta,
+			3 => ReleaseTrack::Nightly,
+			4 => ReleaseTrack::Testing,
+			_ => ReleaseTrack::Unknown,
+		}
 	}
 }
 
 impl Into<u8> for ReleaseTrack {
 	fn into(self) -> u8 {
 		match self {
-			ReleaseTrack::Stable => 1, 
-			ReleaseTrack::Beta => 2, 
-			ReleaseTrack::Nightly => 3, 
-			ReleaseTrack::Testing => 4, 
-			ReleaseTrack::Unknown => 0, 
-		}		
+			ReleaseTrack::Stable => 1,
+			ReleaseTrack::Beta => 2,
+			ReleaseTrack::Nightly => 3,
+			ReleaseTrack::Testing => 4,
+			ReleaseTrack::Unknown => 0,
+		}
 	}
 }

@@ -14,10 +14,15 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::sync::Arc;
 use endpoint::{Endpoints, Endpoint};
 use page::PageEndpoint;
 use proxypac::ProxyPac;
+use web::Web;
+use fetch::Fetch;
 use parity_dapps::WebApp;
+use parity_reactor::Remote;
+use {WebProxyTokens};
 
 mod cache;
 mod fs;
@@ -27,22 +32,30 @@ pub mod manifest;
 extern crate parity_ui;
 
 pub const HOME_PAGE: &'static str = "home";
-pub const DAPPS_DOMAIN : &'static str = ".parity";
-pub const RPC_PATH : &'static str =  "rpc";
-pub const API_PATH : &'static str =  "api";
-pub const UTILS_PATH : &'static str =  "parity-utils";
+pub const DAPPS_DOMAIN: &'static str = ".parity";
+pub const RPC_PATH: &'static str =  "rpc";
+pub const API_PATH: &'static str =  "api";
+pub const UTILS_PATH: &'static str =  "parity-utils";
+pub const WEB_PATH: &'static str = "web";
 
 pub fn utils() -> Box<Endpoint> {
 	Box::new(PageEndpoint::with_prefix(parity_ui::App::default(), UTILS_PATH.to_owned()))
 }
 
-pub fn all_endpoints(dapps_path: String, signer_address: Option<(String, u16)>) -> Endpoints {
+pub fn all_endpoints<F: Fetch>(
+	dapps_path: String,
+	signer_address: Option<(String, u16)>,
+	web_proxy_tokens: Arc<WebProxyTokens>,
+	remote: Remote,
+	fetch: F,
+) -> Endpoints {
 	// fetch fs dapps at first to avoid overwriting builtins
 	let mut pages = fs::local_endpoints(dapps_path, signer_address.clone());
 
 	// NOTE [ToDr] Dapps will be currently embeded on 8180
 	insert::<parity_ui::App>(&mut pages, "ui", Embeddable::Yes(signer_address.clone()));
-	pages.insert("proxy".into(), ProxyPac::boxed(signer_address));
+	pages.insert("proxy".into(), ProxyPac::boxed(signer_address.clone()));
+	pages.insert(WEB_PATH.into(), Web::boxed(signer_address.clone(), web_proxy_tokens.clone(), remote.clone(), fetch.clone()));
 
 	pages
 }

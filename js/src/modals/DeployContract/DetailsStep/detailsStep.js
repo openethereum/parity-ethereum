@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import { FormattedMessage } from 'react-intl';
 import { MenuItem } from 'material-ui';
 
 import { AddressSelect, Form, Input, Select } from '~/ui';
@@ -92,27 +93,51 @@ export default class DetailsStep extends Component {
     return (
       <Form>
         <AddressSelect
-          label='from account (contract owner)'
-          hint='the owner account for this contract'
           accounts={ accounts }
           balances={ balances }
           error={ fromAddressError }
+          hint={
+            <FormattedMessage
+              id='deployContract.details.address.hint'
+              defaultMessage='the owner account for this contract' />
+          }
+          label={
+            <FormattedMessage
+              id='deployContract.details.address.label'
+              defaultMessage='from account (contract owner)' />
+          }
           onChange={ this.onFromAddressChange }
           value={ fromAddress }
         />
 
         <Input
-          label='contract name'
-          hint='a name for the deployed contract'
           error={ nameError }
+          hint={
+            <FormattedMessage
+              id='deployContract.details.name.hint'
+              defaultMessage='a name for the deployed contract' />
+          }
+          label={
+            <FormattedMessage
+              id='deployContract.details.name.label'
+              defaultMessage='contract name' />
+          }
           onChange={ this.onNameChange }
           value={ name || '' }
         />
 
         <Input
-          label='contract description (optional)'
-          hint='a description for the contract'
           error={ descriptionError }
+          hint={
+            <FormattedMessage
+              id='deployContract.details.description.hint'
+              defaultMessage='a description for the contract' />
+          }
+          label={
+            <FormattedMessage
+              id='deployContract.details.description.label'
+              defaultMessage='contract description (optional)' />
+          }
           onChange={ this.onDescriptionChange }
           value={ description }
         />
@@ -120,18 +145,34 @@ export default class DetailsStep extends Component {
         { this.renderContractSelect() }
 
         <Input
-          label='abi / solc combined-output'
-          hint='the abi of the contract to deploy or solc combined-output'
           error={ abiError }
+          hint={
+            <FormattedMessage
+              id='deployContract.details.abi.hint'
+              defaultMessage='the abi of the contract to deploy or solc combined-output' />
+          }
+          label={
+            <FormattedMessage
+              id='deployContract.details.abi.label'
+              defaultMessage='abi / solc combined-output' />
+          }
           onChange={ this.onSolcChange }
           onSubmit={ this.onSolcSubmit }
           readOnly={ readOnly }
           value={ solcOutput }
         />
         <Input
-          label='code'
-          hint='the compiled code of the contract to deploy'
           error={ codeError }
+          hint={
+            <FormattedMessage
+              id='deployContract.details.code.hint'
+              defaultMessage='the compiled code of the contract to deploy' />
+          }
+          label={
+            <FormattedMessage
+              id='deployContract.details.code.label'
+              defaultMessage='code' />
+          }
           onSubmit={ this.onCodeChange }
           readOnly={ readOnly || solc }
           value={ code }
@@ -149,22 +190,26 @@ export default class DetailsStep extends Component {
     }
 
     const { selectedContractIndex } = this.state;
-    const contractsItems = Object.keys(contracts).map((name, index) => (
-      <MenuItem
-        key={ index }
-        label={ name }
-        value={ index }
-      >
-        { name }
-      </MenuItem>
-    ));
+    const contractsItems = Object
+      .keys(contracts)
+      .map((name, index) => (
+        <MenuItem
+          key={ index }
+          label={ name }
+          value={ index }>
+          { name }
+        </MenuItem>
+      ));
 
     return (
       <Select
-        label='select a contract'
+        label={
+          <FormattedMessage
+            id='deployContract.details.contract.label'
+            defaultMessage='select a contract' />
+        }
         onChange={ this.onContractChange }
-        value={ selectedContractIndex }
-      >
+        value={ selectedContractIndex }>
         { contractsItems }
       </Select>
     );
@@ -180,7 +225,9 @@ export default class DetailsStep extends Component {
     }
 
     const { abi, bin } = contract;
-    const code = /^0x/.test(bin) ? bin : `0x${bin}`;
+    const code = /^0x/.test(bin)
+      ? bin
+      : `0x${bin}`;
 
     this.setState({ selectedContractIndex: index }, () => {
       this.onAbiChange(abi);

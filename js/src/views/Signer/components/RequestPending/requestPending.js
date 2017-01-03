@@ -23,6 +23,7 @@ export default class RequestPending extends Component {
   static propTypes = {
     className: PropTypes.string,
     date: PropTypes.instanceOf(Date).isRequired,
+    focus: PropTypes.bool,
     gasLimit: PropTypes.object.isRequired,
     id: PropTypes.object.isRequired,
     isSending: PropTypes.bool.isRequired,
@@ -38,6 +39,7 @@ export default class RequestPending extends Component {
   };
 
   static defaultProps = {
+    focus: false,
     isSending: false
   };
 
@@ -49,7 +51,7 @@ export default class RequestPending extends Component {
   };
 
   render () {
-    const { className, date, gasLimit, id, isSending, isTest, onReject, payload, store } = this.props;
+    const { className, date, focus, gasLimit, id, isSending, isTest, onReject, payload, store } = this.props;
 
     if (payload.sign) {
       const { sign } = payload;
@@ -58,6 +60,7 @@ export default class RequestPending extends Component {
         <SignRequest
           address={ sign.address }
           className={ className }
+          focus={ focus }
           hash={ sign.hash }
           id={ id }
           isFinished={ false }
@@ -75,6 +78,7 @@ export default class RequestPending extends Component {
         <TransactionPending
           className={ className }
           date={ date }
+          focus={ focus }
           gasLimit={ gasLimit }
           id={ id }
           isSending={ isSending }

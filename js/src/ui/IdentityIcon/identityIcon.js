@@ -17,9 +17,10 @@
 import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
-import ContractIcon from 'material-ui/svg-icons/action/code';
 
 import { createIdentityImg } from '~/api/util/identity';
+import { isNullAddress } from '~/util/validation';
+import { CancelIcon, ContractIcon } from '../Icons';
 
 import styles from './identityIcon.css';
 
@@ -107,10 +108,22 @@ class IdentityIcon extends Component {
       return (
         <ContractIcon
           className={ classes }
+          data-address-img
           style={ {
-            width: size,
+            background: '#eee',
             height: size,
-            background: '#eee'
+            width: size
+          } } />
+      );
+    } else if (isNullAddress(address)) {
+      return (
+        <CancelIcon
+          className={ classes }
+          data-address-img
+          style={ {
+            background: '#333',
+            height: size,
+            width: size
           } } />
       );
     }
@@ -118,6 +131,7 @@ class IdentityIcon extends Component {
     return (
       <img
         className={ classes }
+        data-address-img
         height={ size }
         width={ size }
         src={ iconsrc } />

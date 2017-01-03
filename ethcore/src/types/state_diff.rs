@@ -22,7 +22,8 @@ use std::collections::BTreeMap;
 use util::Address;
 use account_diff::*;
 
-#[derive(Debug, PartialEq, Eq, Clone, Binary)]
+#[derive(Debug, PartialEq, Eq, Clone)]
+#[cfg_attr(feature = "ipc", binary)]
 /// Expression for the delta between two system states. Encoded the
 /// delta of every altered account.
 pub struct StateDiff {
@@ -40,7 +41,7 @@ impl StateDiff {
 impl fmt::Display for StateDiff {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		for (add, acc) in &self.raw {
-			try!(write!(f, "{} {}: {}", acc.existance(), add, acc));
+			write!(f, "{} {}: {}", acc.existance(), add, acc)?;
 		}
 		Ok(())
 	}

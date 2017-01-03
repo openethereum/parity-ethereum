@@ -38,7 +38,10 @@ extern crate ethcore_ipc;
 extern crate time;
 extern crate rlp;
 extern crate fetch;
+extern crate futures;
+extern crate rand;
 extern crate parity_updater as updater;
+extern crate parity_reactor;
 
 #[macro_use]
 extern crate log;
@@ -119,8 +122,8 @@ impl RpcServer {
 
 	/// Start ipc server asynchronously and returns result with `Server` handle on success or an error.
 	pub fn start_ipc(&self, addr: &str) -> Result<ipc::Server, ipc::Error> {
-		let server = try!(ipc::Server::new(addr, &self.handler));
-		try!(server.run_async());
+		let server = ipc::Server::new(addr, &self.handler)?;
+		server.run_async()?;
 		Ok(server)
 	}
 }

@@ -36,6 +36,7 @@ import ContextProvider from '~/ui/ContextProvider';
 import muiTheme from '~/ui/Theme';
 import MainApplication from './main';
 
+import { patchApi } from '~/util/tx';
 import { setApi } from '~/redux/providers/apiActions';
 
 import './environment';
@@ -52,12 +53,7 @@ if (process.env.NODE_ENV === 'development') {
 }
 
 const AUTH_HASH = '#/auth?';
-const parityUrl = process.env.PARITY_URL ||
-  (
-    process.env.NODE_ENV === 'production'
-    ? window.location.host
-    : '127.0.0.1:8180'
-  );
+const parityUrl = process.env.PARITY_URL || window.location.host;
 
 let token = null;
 if (window.location.hash && window.location.hash.indexOf(AUTH_HASH) === 0) {
@@ -65,6 +61,7 @@ if (window.location.hash && window.location.hash.indexOf(AUTH_HASH) === 0) {
 }
 
 const api = new SecureApi(`ws://${parityUrl}`, token);
+patchApi(api);
 ContractInstances.create(api);
 
 const store = initStore(api, hashHistory);

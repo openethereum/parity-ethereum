@@ -31,7 +31,8 @@ pub enum TransactionImportResult {
 binary_fixed_size!(TransactionImportResult);
 
 /// Api-level error for transaction import
-#[derive(Debug, Clone, Binary)]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "ipc", binary)]
 pub enum TransactionImportError {
 	/// Transaction error
 	Transaction(TransactionError),

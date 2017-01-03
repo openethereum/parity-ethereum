@@ -57,12 +57,12 @@ export default class WalletTransactions extends Component {
       );
     }
 
-    const txRows = transactions.map((transaction) => {
+    const txRows = transactions.slice(0, 15).map((transaction, index) => {
       const { transactionHash, blockNumber, from, to, value, data } = transaction;
 
       return (
         <TxRow
-          key={ transactionHash }
+          key={ `${transactionHash}_${index}` }
           tx={ {
             hash: transactionHash,
             input: data && bytesToHex(data) || '',

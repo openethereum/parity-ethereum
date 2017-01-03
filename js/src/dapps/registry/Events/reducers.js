@@ -18,21 +18,35 @@ const initialState = {
   subscriptions: {
     Reserved: null,
     Dropped: null,
-    DataChanged: null
+    DataChanged: null,
+    ReverseProposed: null,
+    ReverseConfirmed: null,
+    ReverseRemoved: null
   },
   pending: {
     Reserved: false,
     Dropped: false,
-    DataChanged: false
+    DataChanged: false,
+    ReverseProposed: false,
+    ReverseConfirmed: false,
+    ReverseRemoved: false
   },
   events: []
 };
 
 const sortEvents = (a, b) => {
-  if (a.state === 'pending' && b.state !== 'pending') return -1;
-  if (a.state !== 'pending' && b.state === 'pending') return 1;
+  if (a.state === 'pending' && b.state !== 'pending') {
+    return -1;
+  } else if (a.state !== 'pending' && b.state === 'pending') {
+    return 1;
+  }
+
   const d = b.block.minus(a.block).toFixed(0);
-  if (d === 0) return b.index.minus(a.index).toFixed(0);
+
+  if (d === 0) {
+    return b.index.minus(a.index).toFixed(0);
+  }
+
   return d;
 };
 

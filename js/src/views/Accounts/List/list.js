@@ -34,7 +34,6 @@ class List extends Component {
     order: PropTypes.string,
     orderFallback: PropTypes.string,
     search: PropTypes.array,
-    walletsOwners: PropTypes.object,
 
     fetchCertifiers: PropTypes.func.isRequired,
     fetchCertifications: PropTypes.func.isRequired,
@@ -58,7 +57,7 @@ class List extends Component {
   }
 
   renderAccounts () {
-    const { accounts, balances, empty, link, walletsOwners, handleAddSearchToken } = this.props;
+    const { accounts, balances, empty, link, handleAddSearchToken } = this.props;
 
     if (empty) {
       return (
@@ -76,7 +75,7 @@ class List extends Component {
       const account = accounts[address] || {};
       const balance = balances[address] || {};
 
-      const owners = walletsOwners && walletsOwners[address] || null;
+      const owners = account.owners || null;
 
       return (
         <div
@@ -134,16 +133,24 @@ class List extends Component {
       const balanceA = balances[accountA.address];
       const balanceB = balances[accountB.address];
 
-      if (!balanceA && !balanceB) return 0;
-      if (balanceA && !balanceB) return -1;
-      if (!balanceA && balanceB) return 1;
+      if (!balanceA && !balanceB) {
+        return 0;
+      } else if (balanceA && !balanceB) {
+        return -1;
+      } else if (!balanceA && balanceB) {
+        return 1;
+      }
 
       const ethA = balanceA.tokens.find(token => token.token.tag.toLowerCase() === 'eth');
       const ethB = balanceB.tokens.find(token => token.token.tag.toLowerCase() === 'eth');
 
-      if (!ethA && !ethB) return 0;
-      if (ethA && !ethB) return -1;
-      if (!ethA && ethB) return 1;
+      if (!ethA && !ethB) {
+        return 0;
+      } else if (ethA && !ethB) {
+        return -1;
+      } else if (!ethA && ethB) {
+        return 1;
+      }
 
       return -1 * ethA.value.comparedTo(ethB.value);
     }
@@ -159,9 +166,13 @@ class List extends Component {
         .sort()
         .join('');
 
-      if (!tagsA && !tagsB) return 0;
-      if (tagsA && !tagsB) return -1;
-      if (!tagsA && tagsB) return 1;
+      if (!tagsA && !tagsB) {
+        return 0;
+      } else if (tagsA && !tagsB) {
+        return -1;
+      } else if (!tagsA && tagsB) {
+        return 1;
+      }
 
       return tagsA.localeCompare(tagsB);
     }

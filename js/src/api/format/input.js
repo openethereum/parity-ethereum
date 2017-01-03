@@ -24,6 +24,10 @@ export function inAddress (address) {
   return inHex(address);
 }
 
+export function inAddresses (addresses) {
+  return (addresses || []).map(inAddress);
+}
+
 export function inBlockNumber (blockNumber) {
   if (isString(blockNumber)) {
     switch (blockNumber) {
@@ -135,6 +139,10 @@ export function inOptions (options) {
         case 'gas':
         case 'gasPrice':
           options[key] = inNumber16((new BigNumber(options[key])).round());
+          break;
+
+        case 'minBlock':
+          options[key] = options[key] ? inNumber16(options[key]) : null;
           break;
 
         case 'value':

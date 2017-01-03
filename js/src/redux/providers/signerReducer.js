@@ -90,7 +90,7 @@ export default handleActions({
   signerSuccessRejectRequest (state, action) {
     const { id } = action.payload;
     const rejected = Object.assign(
-      state.pending.find(p => p.id === id),
+      state.pending.find(p => p.id === id) || { id },
       { status: 'rejected' }
     );
     return {

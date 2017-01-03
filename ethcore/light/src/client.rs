@@ -26,6 +26,7 @@ use ethcore::block_status::BlockStatus;
 use ethcore::verification::queue::{HeaderQueue, QueueInfo};
 use ethcore::transaction::{SignedTransaction, PendingTransaction};
 use ethcore::blockchain_info::BlockChainInfo;
+use ethcore::encoded;
 
 use io::IoChannel;
 use util::hash::{H256, H256FastMap};
@@ -90,11 +91,11 @@ impl Provider for Client {
 		None
 	}
 
-	fn block_header(&self, _id: BlockId) -> Option<Bytes> {
+	fn block_header(&self, _id: BlockId) -> Option<encoded::Header> {
 		None
 	}
 
-	fn block_body(&self, _id: BlockId) -> Option<Bytes> {
+	fn block_body(&self, _id: BlockId) -> Option<encoded::Body> {
 		None
 	}
 
@@ -110,7 +111,7 @@ impl Provider for Client {
 		Vec::new()
 	}
 
-	fn header_proof(&self, _req: request::HeaderProof) -> Option<(Bytes, Vec<Bytes>)> {
+	fn header_proof(&self, _req: request::HeaderProof) -> Option<(encoded::Header, Vec<Bytes>)> {
 		None
 	}
 

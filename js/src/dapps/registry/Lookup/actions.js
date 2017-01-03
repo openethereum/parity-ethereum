@@ -18,25 +18,54 @@ import { sha3 } from '../parity.js';
 
 export const clear = () => ({ type: 'lookup clear' });
 
-export const start = (name, key) => ({ type: 'lookup start', name, key });
+export const lookupStart = (name, key) => ({ type: 'lookup start', name, key });
+export const reverseLookupStart = (address) => ({ type: 'reverseLookup start', address });
 
-export const success = (address) => ({ type: 'lookup success', result: address });
+export const success = (action, result) => ({ type: `${action} success`, result: result });
 
-export const fail = () => ({ type: 'lookup error' });
+export const fail = (action) => ({ type: `${action} error` });
 
 export const lookup = (name, key) => (dispatch, getState) => {
   const { contract } = getState();
-  if (!contract) return;
+  if (!contract) {
+    return;
+  }
+
   const getAddress = contract.functions
     .find((f) => f.name === 'getAddress');
 
   name = name.toLowerCase();
-  dispatch(start(name, key));
-  getAddress.call({}, [sha3(name), key])
-    .then((address) => dispatch(success(address)))
+  dispatch(lookupStart(name, key));
+
+  getAddress.call({}, [ sha3(name), key ])
+    .then((address) => dispatch(success('lookup', address)))
     .catch((err) => {
       console.error(`could not lookup ${key} for ${name}`);
-      if (err) console.error(err.stack);
-      dispatch(fail());
+      if (err) {
+        console.error(err.stack);
+      }
+      dispatch(fail('lookup'));
+    });
+};
+
+export const reverseLookup = (address) => (dispatch, getState) => {
+  const { contract } = getState();
+  if (!contract) {
+    return;
+  }
+
+  const reverse = contract.functions
+    .find((f) => f.name === 'reverse');
+
+  dispatch(reverseLookupStart(address));
+
+  reverse.call({}, [ address ])
+    .then((address) => dispatch(success('reverseLookup', address)))
+    .catch((err) => {
+      console.error(`could not lookup reverse for ${address}`);
+      if (err) {
+        console.error(err.stack);
+      }
+      dispatch(fail('reverseLookup'));
     });
 };

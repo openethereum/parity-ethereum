@@ -61,6 +61,9 @@ extern crate parity_hash_fetch as hash_fetch;
 extern crate linked_hash_map;
 extern crate fetch;
 extern crate parity_dapps_glue as parity_dapps;
+extern crate futures;
+extern crate parity_reactor;
+
 #[macro_use]
 extern crate log;
 #[macro_use]
@@ -81,6 +84,7 @@ mod rpc;
 mod api;
 mod proxypac;
 mod url;
+mod web;
 #[cfg(test)]
 mod tests;
 
@@ -89,9 +93,11 @@ use std::net::SocketAddr;
 use std::collections::HashMap;
 
 use hash_fetch::urlhint::ContractClient;
+use fetch::{Fetch, Client as FetchClient};
 use jsonrpc_core::{IoHandler, IoDelegate};
 use router::auth::{Authorization, NoAuth, HttpBasicAuth};
 use ethcore_rpc::Extendable;
+use parity_reactor::Remote;
 
 use self::apps::{HOME_PAGE, DAPPS_DOMAIN};
 
@@ -105,16 +111,29 @@ impl<F> SyncStatus for F where F: Fn() -> bool + Send + Sync {
 	fn is_major_importing(&self) -> bool { self() }
 }
 
+/// Validates Web Proxy tokens
+pub trait WebProxyTokens: Send + Sync {
+	/// Should return true if token is a valid web proxy access token.
+	fn is_web_proxy_token_valid(&self, token: &String) -> bool;
+}
+
+impl<F> WebProxyTokens for F where F: Fn(String) -> bool + Send + Sync {
+	fn is_web_proxy_token_valid(&self, token: &String) -> bool { self(token.to_owned()) }
+}
+
 /// Webapps HTTP+RPC server build.
-pub struct ServerBuilder {
+pub struct ServerBuilder<T: Fetch = FetchClient> {
 	dapps_path: String,
 	handler: Arc<IoHandler>,
 	registrar: Arc<ContractClient>,
 	sync_status: Arc<SyncStatus>,
+	web_proxy_tokens: Arc<WebProxyTokens>,
 	signer_address: Option<(String, u16)>,
+	remote: Remote,
+	fetch: Option<T>,
 }
 
-impl Extendable for ServerBuilder {
+impl<T: Fetch> Extendable for ServerBuilder<T> {
 	fn add_delegate<D: Send + Sync + 'static>(&self, delegate: IoDelegate<D>) {
 		self.handler.add_delegate(delegate);
 	}
@@ -122,29 +141,56 @@ impl Extendable for ServerBuilder {
 
 impl ServerBuilder {
 	/// Construct new dapps server
-	pub fn new(dapps_path: String, registrar: Arc<ContractClient>) -> Self {
+	pub fn new(dapps_path: String, registrar: Arc<ContractClient>, remote: Remote) -> Self {
 		ServerBuilder {
 			dapps_path: dapps_path,
 			handler: Arc::new(IoHandler::new()),
 			registrar: registrar,
 			sync_status: Arc::new(|| false),
+			web_proxy_tokens: Arc::new(|_| false),
 			signer_address: None,
+			remote: remote,
+			fetch: None,
+		}
+	}
+}
+
+impl<T: Fetch> ServerBuilder<T> {
+	/// Set a fetch client to use.
+	pub fn fetch<X: Fetch>(self, fetch: X) -> ServerBuilder<X> {
+		ServerBuilder {
+			dapps_path: self.dapps_path,
+			handler: self.handler,
+			registrar: self.registrar,
+			sync_status: self.sync_status,
+			web_proxy_tokens: self.web_proxy_tokens,
+			signer_address: self.signer_address,
+			remote: self.remote,
+			fetch: Some(fetch),
 		}
 	}
 
 	/// Change default sync status.
-	pub fn with_sync_status(&mut self, status: Arc<SyncStatus>) {
+	pub fn sync_status(mut self, status: Arc<SyncStatus>) -> Self {
 		self.sync_status = status;
+		self
+	}
+
+	/// Change default web proxy tokens validator.
+	pub fn web_proxy_tokens(mut self, tokens: Arc<WebProxyTokens>) -> Self {
+		self.web_proxy_tokens = tokens;
+		self
 	}
 
 	/// Change default signer port.
-	pub fn with_signer_address(&mut self, signer_address: Option<(String, u16)>) {
+	pub fn signer_address(mut self, signer_address: Option<(String, u16)>) -> Self {
 		self.signer_address = signer_address;
+		self
 	}
 
 	/// Asynchronously start server with no authentication,
 	/// returns result with `Server` handle on success or an error.
-	pub fn start_unsecured_http(&self, addr: &SocketAddr, hosts: Option<Vec<String>>) -> Result<Server, ServerError> {
+	pub fn start_unsecured_http(self, addr: &SocketAddr, hosts: Option<Vec<String>>) -> Result<Server, ServerError> {
 		Server::start_http(
 			addr,
 			hosts,
@@ -154,12 +200,15 @@ impl ServerBuilder {
 			self.signer_address.clone(),
 			self.registrar.clone(),
 			self.sync_status.clone(),
+			self.web_proxy_tokens.clone(),
+			self.remote.clone(),
+			self.fetch_client()?,
 		)
 	}
 
 	/// Asynchronously start server with `HTTP Basic Authentication`,
 	/// return result with `Server` handle on success or an error.
-	pub fn start_basic_auth_http(&self, addr: &SocketAddr, hosts: Option<Vec<String>>, username: &str, password: &str) -> Result<Server, ServerError> {
+	pub fn start_basic_auth_http(self, addr: &SocketAddr, hosts: Option<Vec<String>>, username: &str, password: &str) -> Result<Server, ServerError> {
 		Server::start_http(
 			addr,
 			hosts,
@@ -169,7 +218,17 @@ impl ServerBuilder {
 			self.signer_address.clone(),
 			self.registrar.clone(),
 			self.sync_status.clone(),
+			self.web_proxy_tokens.clone(),
+			self.remote.clone(),
+			self.fetch_client()?,
 		)
+	}
+
+	fn fetch_client(&self) -> Result<T, ServerError> {
+		match self.fetch.clone() {
+			Some(fetch) => Ok(fetch),
+			None => T::new().map_err(|_| ServerError::FetchInitialization),
+		}
 	}
 }
 
@@ -206,7 +265,7 @@ impl Server {
 		}
 	}
 
-	fn start_http<A: Authorization + 'static>(
+	fn start_http<A: Authorization + 'static, F: Fetch>(
 		addr: &SocketAddr,
 		hosts: Option<Vec<String>>,
 		authorization: A,
@@ -215,11 +274,20 @@ impl Server {
 		signer_address: Option<(String, u16)>,
 		registrar: Arc<ContractClient>,
 		sync_status: Arc<SyncStatus>,
+		web_proxy_tokens: Arc<WebProxyTokens>,
+		remote: Remote,
+		fetch: F,
 	) -> Result<Server, ServerError> {
 		let panic_handler = Arc::new(Mutex::new(None));
 		let authorization = Arc::new(authorization);
-		let content_fetcher = Arc::new(apps::fetcher::ContentFetcher::new(hash_fetch::urlhint::URLHintContract::new(registrar), sync_status, signer_address.clone()));
-		let endpoints = Arc::new(apps::all_endpoints(dapps_path, signer_address.clone()));
+		let content_fetcher = Arc::new(apps::fetcher::ContentFetcher::new(
+			hash_fetch::urlhint::URLHintContract::new(registrar),
+			sync_status,
+			signer_address.clone(),
+			remote.clone(),
+			fetch.clone(),
+		));
+		let endpoints = Arc::new(apps::all_endpoints(dapps_path, signer_address.clone(), web_proxy_tokens, remote.clone(), fetch.clone()));
 		let cors_domains = Self::cors_domains(signer_address.clone());
 
 		let special = Arc::new({
@@ -234,7 +302,7 @@ impl Server {
 		});
 		let hosts = Self::allowed_hosts(hosts, format!("{}", addr));
 
-		try!(hyper::Server::http(addr))
+		hyper::Server::http(addr)?
 			.handle(move |ctrl| router::Router::new(
 				ctrl,
 				signer_address.clone(),
@@ -287,6 +355,8 @@ pub enum ServerError {
 	IoError(std::io::Error),
 	/// Other `hyper` error
 	Other(hyper::error::Error),
+	/// Fetch service initialization error
+	FetchInitialization,
 }
 
 impl From<hyper::error::Error> for ServerError {
@@ -299,7 +369,7 @@ impl From<hyper::error::Error> for ServerError {
 }
 
 /// Random filename
-pub fn random_filename() -> String {
+fn random_filename() -> String {
 	use ::rand::Rng;
 	let mut rng = ::rand::OsRng::new().unwrap();
 	rng.gen_ascii_chars().take(12).collect()

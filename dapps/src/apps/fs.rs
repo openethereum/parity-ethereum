@@ -37,8 +37,8 @@ fn local_dapps(dapps_path: String) -> Vec<LocalDapp> {
 
 	let files = files.expect("Check is done earlier");
 	files.map(|dir| {
-			let entry = try!(dir);
-			let file_type = try!(entry.file_type());
+			let entry = dir?;
+			let file_type = entry.file_type()?;
 
 			// skip files
 			if file_type.is_file() {
@@ -79,7 +79,7 @@ fn read_manifest(name: &str, mut path: PathBuf) -> EndpointInfo {
 		.and_then(|mut f| {
 			// Reat file
 			let mut s = String::new();
-			try!(f.read_to_string(&mut s).map_err(|e| format!("{:?}", e)));
+			f.read_to_string(&mut s).map_err(|e| format!("{:?}", e))?;
 			// Try to deserialize manifest
 			deserialize_manifest(s)
 		})

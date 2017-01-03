@@ -20,6 +20,7 @@ import { bindActionCreators } from 'redux';
 
 import util from '~/api/util';
 import { nodeOrStringProptype } from '~/util/proptypes';
+import { isNullAddress } from '~/util/validation';
 
 import IdentityIcon from '../../IdentityIcon';
 import Input from '../Input';
@@ -33,12 +34,17 @@ class InputAddress extends Component {
     className: PropTypes.string,
     disabled: PropTypes.bool,
     error: PropTypes.string,
+    focused: PropTypes.bool,
     hideUnderline: PropTypes.bool,
     hint: nodeOrStringProptype(),
     label: nodeOrStringProptype(),
     onChange: PropTypes.func,
+    onClick: PropTypes.func,
+    onFocus: PropTypes.func,
     onSubmit: PropTypes.func,
+    readOnly: PropTypes.bool,
     small: PropTypes.bool,
+    tabIndex: PropTypes.number,
     text: PropTypes.bool,
     tokens: PropTypes.object,
     value: PropTypes.string
@@ -51,10 +57,11 @@ class InputAddress extends Component {
   };
 
   render () {
-    const { className, disabled, error, hint, label, text, value } = this.props;
-    const { accountsInfo, allowCopy, hideUnderline, onSubmit, small, tokens } = this.props;
+    const { accountsInfo, allowCopy, className, disabled, error, focused, hint } = this.props;
+    const { hideUnderline, label, onClick, onFocus, onSubmit, readOnly, small } = this.props;
+    const { tabIndex, text, tokens, value } = this.props;
 
-    const account = accountsInfo[value] || tokens[value];
+    const account = value && (accountsInfo[value] || tokens[value]);
 
     const icon = this.renderIcon();
 
@@ -62,6 +69,7 @@ class InputAddress extends Component {
     classes.push(!icon ? styles.inputEmpty : styles.input);
 
     const containerClasses = [ styles.container ];
+    const nullName = (disabled || readOnly) && isNullAddress(value) ? 'null' : null;
 
     if (small) {
       containerClasses.push(styles.small);
@@ -74,15 +82,20 @@ class InputAddress extends Component {
           className={ classes.join(' ') }
           disabled={ disabled }
           error={ error }
+          focused={ focused }
           hideUnderline={ hideUnderline }
           hint={ hint }
           label={ label }
           onChange={ this.handleInputChange }
+          onClick={ onClick }
+          onFocus={ onFocus }
           onSubmit={ onSubmit }
+          readOnly={ readOnly }
+          tabIndex={ tabIndex }
           value={
             text && account
               ? account.name
-              : value
+              : (nullName || value)
           } />
         { icon }
       </div>
