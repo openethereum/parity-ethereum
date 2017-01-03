@@ -25,21 +25,67 @@ import styles from './dapp.css';
 export default class Dapp extends Component {
   static contextTypes = {
     api: PropTypes.object.isRequired
-  }
+  };
 
   static propTypes = {
     params: PropTypes.object
   };
 
+  state = {
+    app: null,
+    loading: true
+  };
+
   store = DappsStore.get(this.context.api);
+
+  componentWillMount () {
+    const { id } = this.props.params;
+    this.loadApp(id);
+  }
+
+  componentWillReceiveProps (nextProps) {
+    if (nextProps.params.id !== this.props.params.id) {
+      this.loadApp(nextProps.params.id);
+    }
+  }
+
+  loadApp (id) {
+    this.setState({ loading: true });
+
+    this.store
+      .loadApp(id)
+      .then((app) => {
+        this.setState({ loading: false, app });
+      })
+      .catch(() => {
+        this.setState({ loading: false });
+      });
+  }
 
   render () {
     const { dappsUrl } = this.context.api;
-    const { id } = this.props.params;
-    const app = this.store.apps.find((app) => app.id === id);
+    const { app, loading } = this.state;
+
+    if (loading) {
+      return (
+        <div className={ styles.full }>
+          <div className={ styles.text }>
+            Loading
+          </div>
+        </div>
+      );
+    }
 
     if (!app) {
-      return null;
+      const { id } = this.props.params;
+
+      return (
+        <div className={ styles.full }>
+          <div className={ styles.text }>
+            The dapp <code title={ id }>{ id }</code> can't be reached
+          </div>
+        </div>
+      );
     }
 
     let src = null;
