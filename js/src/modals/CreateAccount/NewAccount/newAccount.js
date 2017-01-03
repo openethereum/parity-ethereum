@@ -20,7 +20,6 @@ import { FormattedMessage } from 'react-intl';
 import IconButton from 'material-ui/IconButton';
 import { RadioButton, RadioButtonGroup } from 'material-ui/RadioButton';
 
-import { newError } from '~/redux/actions';
 import { Form, Input, IdentityIcon } from '~/ui';
 import { RefreshIcon } from '~/ui/Icons';
 
@@ -29,6 +28,7 @@ import styles from '../createAccount.css';
 @observer
 export default class CreateAccount extends Component {
   static propTypes = {
+    newError: PropTypes.func.isRequired,
     store: PropTypes.object.isRequired
   }
 
@@ -190,7 +190,7 @@ export default class CreateAccount extends Component {
         });
       })
       .catch((error) => {
-        newError(error);
+        this.props.newError(error);
       });
   }
 

@@ -17,6 +17,8 @@
 import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
+import { connect } from 'react-redux';
+import { bindActionCreators } from 'redux';
 
 import { createIdentityImg } from '~/api/util/identity';
 import { newError } from '~/redux/actions';
@@ -62,13 +64,14 @@ const STAGE_NAMES = [TITLES.type, TITLES.create, TITLES.info];
 const STAGE_IMPORT = [TITLES.type, TITLES.import, TITLES.info];
 
 @observer
-export default class CreateAccount extends Component {
+class CreateAccount extends Component {
   static contextTypes = {
     api: PropTypes.object.isRequired
   }
 
   static propTypes = {
     accounts: PropTypes.object.isRequired,
+    newError: PropTypes.func.isRequired,
     onClose: PropTypes.func,
     onUpdate: PropTypes.func
   }
@@ -106,7 +109,9 @@ export default class CreateAccount extends Component {
       case STAGE_CREATE:
         if (createType === 'fromNew') {
           return (
-            <NewAccount store={ this.store } />
+            <NewAccount
+              newError={ this.props.newError }
+              store={ this.store } />
           );
         } else if (createType === 'fromGeth') {
           return (
@@ -251,7 +256,7 @@ export default class CreateAccount extends Component {
       })
       .catch((error) => {
         this.store.setBusy(false);
-        newError(error);
+        this.props.newError(error);
       });
   }
 
@@ -272,3 +277,18 @@ export default class CreateAccount extends Component {
     }));
   }
 }
+
+function mapStateToProps (state) {
+  return {};
+}
+
+function mapDispatchToProps (dispatch) {
+  return bindActionCreators({
+    newError
+  }, dispatch);
+}
+
+export default connect(
+  mapStateToProps,
+  mapDispatchToProps
+)(CreateAccount);
