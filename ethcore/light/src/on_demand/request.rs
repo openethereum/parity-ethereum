@@ -1,8 +1,26 @@
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// This file is part of Parity.
+
+// Parity is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// Parity is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+
+//! Request types, verification, and verification errors.
+
 use ethcore::encoded;
 use ethcore::receipt::Receipt;
 
-use rlp::{RlpStream, Stream};
-use util::{Address, Bytes, HashDB, H256, U256};
+use rlp::{RlpStream, Stream, UntrustedRlp, View};
+use util::{Address, Bytes, HashDB, H256};
 use util::memorydb::MemoryDB;
 use util::sha3::Hashable;
 use util::trie::{Trie, TrieDB, TrieError};
@@ -41,7 +59,7 @@ impl From<Box<TrieError>> for Error {
 /// Request for a header by number.
 pub struct HeaderByNumber {
 	/// The header's number.
-	pub num: u64
+	pub num: u64,
 	/// The root of the CHT containing this header.
 	pub cht_root: H256,
 }
@@ -50,12 +68,11 @@ impl HeaderByNumber {
 	/// Check a response with a header and cht proof.
 	pub fn check_response(&self, header: &[u8], proof: &[Bytes]) -> Result<encoded::Header, Error> {
 		use util::trie::{Trie, TrieDB};
-		use rlp::{UntrustedRlp, View};
 
 		// check the proof
 		let mut db = MemoryDB::new();
 
-		for node in proof { db.insert(&node[..]) }
+		for node in proof { db.insert(&node[..]); }
 		let key = ::rlp::encode(&self.num);
 
 		let expected_hash: H256 = match TrieDB::new(&db, &self.cht_root).and_then(|t| t.get(&*key))? {
@@ -107,12 +124,12 @@ impl Body {
 
 		let uncles_hash = body_view.at(1)?.as_raw().sha3();
 		if uncles_hash != self.header.uncles_hash() {
-			return Err(Error::WrongHash(self.header.uncles_hash(), uncles_hash);
+			return Err(Error::WrongHash(self.header.uncles_hash(), uncles_hash));
 		}
 
 		// concatenate the header and the body.
 		let mut stream = RlpStream::new_list(3);
-		stream.append_raw(header.rlp().as_raw(), 1);
+		stream.append_raw(self.header.rlp().as_raw(), 1);
 		stream.append_raw(body, 2);
 
 		Ok(encoded::Block::new(stream.out()))
@@ -145,14 +162,23 @@ pub struct Account {
 
 impl Account {
 	/// Check a response with an account against the stored header.
-	pub fn check_response(&self, proof: &[Bytes]) -> Result<Vec<Receipt>, Error> {
-		let state_root = header.state_root();
+	pub fn check_response(&self, proof: &[Bytes]) -> Result<BasicAccount, Error> {
+		let state_root = self.header.state_root();
 
 		let mut db = MemoryDB::new();
-		for node in proof { db.insert(&*node) }
+		for node in proof { db.insert(&node[..]); }
 
-		match TrieDB::new(&db, &state_root).and_then(|t| t.get(&address.sha3()))? {
-
+		match TrieDB::new(&db, &state_root).and_then(|t| t.get(&self.address.sha3()))? {
+			Some(val) => {
+				let rlp = UntrustedRlp::new(&val);
+				Ok(BasicAccount {
+					nonce: rlp.val_at(0)?,
+					balance: rlp.val_at(1)?,
+					storage_root: rlp.val_at(2)?,
+					code_hash: rlp.val_at(3)?,
+				})
+			},
+			None => Err(Error::BadProof)
 		}
 	}
 }
