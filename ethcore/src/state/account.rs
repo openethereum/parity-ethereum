@@ -25,6 +25,41 @@ use std::cell::{RefCell, Cell};
 
 const STORAGE_CACHE_ITEMS: usize = 8192;
 
+/// Basic account type.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct BasicAccount {
+	/// Nonce of the account.
+	pub nonce: U256,
+	/// Balance of the account.
+	pub balance: U256,
+	/// Storage root of the account.
+	pub storage_root: H256,
+	/// Code hash of the account.
+	pub code_hash: H256,
+}
+
+impl Encodable for BasicAccount {
+	fn rlp_append(&self, s: &mut RlpStream) {
+		s.begin_list(4)
+			.append(&self.nonce)
+			.append(&self.balance)
+			.append(&self.storage_root)
+			.append(&self.code_hash);
+	}
+}
+
+impl Decodable for BasicAccount {
+	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
+		let rlp = decoder.as_rlp();
+		Ok(BasicAccount {
+			nonce: rlp.val_at(0)?,
+			balance: rlp.val_at(1)?,
+			storage_root: rlp.val_at(2)?,
+			code_hash: rlp.val_at(3)?,
+		})
+	}
+}
+
 /// Single account in the system.
 /// Keeps track of changes to the code and storage.
 /// The changes are applied in `commit_storage` and `commit_code`
@@ -51,6 +86,23 @@ pub struct Account {
 	code_filth: Filth,
 	// Cached address hash.
 	address_hash: Cell<Option<H256>>,
+}
+
+impl From<BasicAccount> for Account {
+	fn from(basic: BasicAccount) -> Self {
+		Account {
+			balance: basic.balance,
+			nonce: basic.nonce,
+			storage_root: basic.storage_root,
+			storage_cache: Self::empty_storage_cache(),
+			storage_changes: HashMap::new(),
+			code_hash: basic.code_hash,
+			code_size: None,
+			code_cache: Arc::new(vec![]),
+			code_filth: Filth::Clean,
+			address_hash: Cell::new(None),
+		}
+	}
 }
 
 impl Account {
@@ -109,19 +161,8 @@ impl Account {
 
 	/// Create a new account from RLP.
 	pub fn from_rlp(rlp: &[u8]) -> Account {
-		let r: Rlp = Rlp::new(rlp);
-		Account {
-			nonce: r.val_at(0),
-			balance: r.val_at(1),
-			storage_root: r.val_at(2),
-			storage_cache: Self::empty_storage_cache(),
-			storage_changes: HashMap::new(),
-			code_hash: r.val_at(3),
-			code_cache: Arc::new(vec![]),
-			code_size: None,
-			code_filth: Filth::Clean,
-			address_hash: Cell::new(None),
-		}
+		let basic: BasicAccount = ::rlp::decode(rlp);
+		basic.into()
 	}
 
 	/// Create a new contract account.
