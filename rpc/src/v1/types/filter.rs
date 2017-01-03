@@ -124,7 +124,7 @@ impl Serialize for FilterChanges {
 mod tests {
 	use serde_json;
 	use std::str::FromStr;
-	use util::hash::*;
+	use util::hash::H256;
 	use super::*;
 	use v1::types::BlockNumber;
 	use ethcore::filter::Filter as EthFilter;

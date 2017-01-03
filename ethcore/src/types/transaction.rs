@@ -72,7 +72,6 @@ pub struct Transaction {
 
 impl Transaction {
 	/// Append object with a without signature into RLP stream
-
 	pub fn rlp_append_unsigned_transaction(&self, s: &mut RlpStream, network_id: Option<u64>) {
 		s.begin_list(if network_id.is_none() { 6 } else { 9 });
 		s.append(&self.nonce);

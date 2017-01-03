@@ -1012,7 +1012,7 @@ impl BlockChainClient for Client {
 		self.transaction_address(id)
 			.and_then(|address| chain.block_number(&address.block_hash).and_then(|block_number| {
 				let transaction = chain.block_body(&address.block_hash)
-					.and_then(|body| BodyView::new(body).localized_transaction_at(&address.block_hash, block_number, address.index));
+					.and_then(|body| BodyView::new(&body).localized_transaction_at(&address.block_hash, block_number, address.index));
 
 				let previous_receipts = (0..address.index + 1)
 					.map(|index| {
