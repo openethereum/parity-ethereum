@@ -17,7 +17,6 @@
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
-import { bindActionCreators } from 'redux';
 import ActionCompareArrows from 'material-ui/svg-icons/action/compare-arrows';
 import ActionDashboard from 'material-ui/svg-icons/action/dashboard';
 import HardwareDesktopMac from 'material-ui/svg-icons/hardware/desktop-mac';
@@ -51,13 +50,6 @@ class Connection extends Component {
       return null;
     }
 
-    const typeIcon = needsToken
-      ? <NotificationVpnLock className={ styles.svg } />
-      : <ActionDashboard className={ styles.svg } />;
-    const description = needsToken
-      ? this.renderSigner()
-      : this.renderPing();
-
     return (
       <div>
         <div className={ styles.overlay } />
@@ -71,10 +63,18 @@ class Connection extends Component {
                 <ActionCompareArrows className={ `${styles.svg} ${styles.pulse}` } />
               </div>
               <div className={ styles.icon }>
-                { typeIcon }
+                {
+                  needsToken
+                    ? <NotificationVpnLock className={ styles.svg } />
+                    : <ActionDashboard className={ styles.svg } />
+                }
               </div>
             </div>
-            { description }
+            {
+              needsToken
+                ? this.renderSigner()
+                : this.renderPing()
+            }
           </div>
         </div>
       </div>
@@ -144,9 +144,18 @@ class Connection extends Component {
     );
   }
 
-  onChangeToken = (event, _token) => {
+  validateToken = (_token) => {
     const token = _token.trim();
     const validToken = /^[a-zA-Z0-9]{4}(-)?[a-zA-Z0-9]{4}(-)?[a-zA-Z0-9]{4}(-)?[a-zA-Z0-9]{4}$/.test(token);
+
+    return {
+      token,
+      validToken
+    };
+  }
+
+  onChangeToken = (event, _token) => {
+    const { token, validToken } = this.validateToken(_token || event.target.value);
 
     this.setState({ token, validToken }, () => {
       validToken && this.setToken();
@@ -159,7 +168,7 @@ class Connection extends Component {
 
     this.setState({ loading: true });
 
-    api
+    return api
       .updateToken(token, 0)
       .then((isValid) => {
         this.setState({
@@ -173,14 +182,14 @@ class Connection extends Component {
 function mapStateToProps (state) {
   const { isConnected, isConnecting, needsToken } = state.nodeStatus;
 
-  return { isConnected, isConnecting, needsToken };
-}
-
-function mapDispatchToProps (dispatch) {
-  return bindActionCreators({}, dispatch);
+  return {
+    isConnected,
+    isConnecting,
+    needsToken
+  };
 }
 
 export default connect(
   mapStateToProps,
-  mapDispatchToProps
+  null
 )(Connection);
