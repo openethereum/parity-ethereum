@@ -67,15 +67,7 @@ export default class TypedInput extends Component {
   }
 
   render () {
-    const { param } = this.props;
-
-    if (typeof param === 'string') {
-      const parsedParam = parseAbiType(param);
-
-      if (parsedParam) {
-        return this.renderParam(parsedParam);
-      }
-    }
+    const param = this.getParam();
 
     if (param) {
       return this.renderParam(param);
@@ -234,7 +226,8 @@ export default class TypedInput extends Component {
   }
 
   renderInteger (value = this.props.value, onChange = this.onChange) {
-    const { label, error, param, hint, min, max } = this.props;
+    const { label, error, hint, min, max } = this.props;
+    const param = this.getParam();
 
     const realValue = value && typeof value.toNumber === 'function'
       ? value.toNumber()
@@ -263,7 +256,8 @@ export default class TypedInput extends Component {
    * @see https://github.com/facebook/react/issues/1549
    */
   renderFloat (value = this.props.value, onChange = this.onChange) {
-    const { label, error, param, hint, min, max } = this.props;
+    const { label, error, hint, min, max } = this.props;
+    const param = this.getParam();
 
     const realValue = value && typeof value.toNumber === 'function'
       ? value.toNumber()
@@ -379,7 +373,9 @@ export default class TypedInput extends Component {
   }
 
   onAddField = () => {
-    const { value, onChange, param } = this.props;
+    const { value, onChange } = this.props;
+    const param = this.getParam();
+
     const newValues = [].concat(value, param.subtype.default);
 
     onChange(newValues);
@@ -390,6 +386,16 @@ export default class TypedInput extends Component {
     const newValues = value.slice(0, -1);
 
     onChange(newValues);
+  }
+
+  getParam = () => {
+    const { param } = this.props;
+
+    if (typeof param === 'string') {
+      return parseAbiType(param);
+    }
+
+    return param;
   }
 
 }

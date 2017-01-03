@@ -26,8 +26,8 @@ import TextFieldUnderline from 'material-ui/TextField/TextFieldUnderline';
 import AccountCard from '~/ui/AccountCard';
 import InputAddress from '~/ui/Form/InputAddress';
 import Portal from '~/ui/Portal';
-import { validateAddress } from '~/util/validation';
 import { nodeOrStringProptype } from '~/util/proptypes';
+import { validateAddress } from '~/util/validation';
 
 import AddressSelectStore from './addressSelectStore';
 import styles from './addressSelect.css';
@@ -40,6 +40,7 @@ let currentId = 1;
 @observer
 class AddressSelect extends Component {
   static contextTypes = {
+    intl: React.PropTypes.object.isRequired,
     api: PropTypes.object.isRequired,
     muiTheme: PropTypes.object.isRequired
   };
@@ -55,7 +56,6 @@ class AddressSelect extends Component {
     contacts: PropTypes.object,
     contracts: PropTypes.object,
     tokens: PropTypes.object,
-    wallets: PropTypes.object,
 
     // Optional props
     allowInput: PropTypes.bool,
@@ -160,6 +160,12 @@ class AddressSelect extends Component {
     }
 
     const id = `addressSelect_${++currentId}`;
+    const ilHint = typeof hint === 'string' || !(hint && hint.props)
+      ? (hint || '')
+      : this.context.intl.formatMessage(
+        hint.props,
+        hint.props.values || {}
+      );
 
     return (
       <Portal
@@ -174,7 +180,7 @@ class AddressSelect extends Component {
         <input
           id={ id }
           className={ styles.input }
-          placeholder={ hint }
+          placeholder={ ilHint }
 
           onBlur={ this.handleInputBlur }
           onFocus={ this.handleInputFocus }

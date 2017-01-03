@@ -389,6 +389,7 @@ class ExecuteContract extends Component {
     const { advancedOptions, amount, func, minBlock, values } = this.state;
     const steps = advancedOptions ? STAGES_ADVANCED : STAGES_BASIC;
     const finalstep = steps.length - 1;
+
     const options = {
       gas: this.gasStore.gas,
       gasPrice: this.gasStore.price,

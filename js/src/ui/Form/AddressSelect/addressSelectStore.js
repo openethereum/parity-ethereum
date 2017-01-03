@@ -78,14 +78,13 @@ export default class AddressSelectStore {
   }
 
   @action setValues (props) {
-    const { accounts = {}, contracts = {}, contacts = {}, wallets = {} } = props;
+    const { accounts = {}, contracts = {}, contacts = {} } = props;
 
     const accountsN = Object.keys(accounts).length;
     const contractsN = Object.keys(contracts).length;
     const contactsN = Object.keys(contacts).length;
-    const walletsN = Object.keys(wallets).length;
 
-    if (accountsN + contractsN + contactsN + walletsN === 0) {
+    if (accountsN + contractsN + contactsN === 0) {
       return;
     }
 
@@ -98,10 +97,7 @@ export default class AddressSelectStore {
             defaultMessage='accounts'
           />
         ),
-        values: [].concat(
-          Object.values(wallets),
-          Object.values(accounts)
-        )
+        values: Object.values(accounts)
       },
       {
         key: 'contacts',

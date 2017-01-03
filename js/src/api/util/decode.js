@@ -47,8 +47,6 @@ export function decodeMethodInput (methodAbi, paramdata) {
       throw new Error('Input to decodeMethodInput should be a hex value');
     } else if (paramdata.substr(0, 2) === '0x') {
       return decodeMethodInput(methodAbi, paramdata.slice(2));
-    } else if (paramdata.length % 64 !== 0) {
-      throw new Error('Parameter length in decodeMethodInput not a multiple of 64 characters');
     }
   }
 

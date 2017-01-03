@@ -42,7 +42,6 @@ export default class Header extends Component {
   render () {
     const { account, balance, className, children, hideName } = this.props;
     const { address, meta, uuid } = account;
-
     if (!account) {
       return null;
     }
@@ -72,7 +71,7 @@ export default class Header extends Component {
           </div>
 
           <div className={ styles.tags }>
-            <Tags tags={ meta.tags.slice() } />
+            <Tags tags={ meta.tags } />
           </div>
           <div className={ styles.balances }>
             <Balance

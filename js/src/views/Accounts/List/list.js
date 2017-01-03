@@ -34,7 +34,6 @@ class List extends Component {
     order: PropTypes.string,
     orderFallback: PropTypes.string,
     search: PropTypes.array,
-    walletsOwners: PropTypes.object,
 
     fetchCertifiers: PropTypes.func.isRequired,
     fetchCertifications: PropTypes.func.isRequired,
@@ -58,7 +57,7 @@ class List extends Component {
   }
 
   renderAccounts () {
-    const { accounts, balances, empty, link, walletsOwners, handleAddSearchToken } = this.props;
+    const { accounts, balances, empty, link, handleAddSearchToken } = this.props;
 
     if (empty) {
       return (
@@ -76,7 +75,7 @@ class List extends Component {
       const account = accounts[address] || {};
       const balance = balances[address] || {};
 
-      const owners = walletsOwners && walletsOwners[address] || null;
+      const owners = account.owners || null;
 
       return (
         <div

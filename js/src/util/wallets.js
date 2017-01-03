@@ -14,12 +14,91 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { range, uniq } from 'lodash';
+import BigNumber from 'bignumber.js';
+import { intersection, range, uniq } from 'lodash';
 
+import Contract from '~/api/contract';
 import { bytesToHex, toHex } from '~/api/util/format';
 import { validateAddress } from '~/util/validation';
+import WalletAbi from '~/contracts/abi/wallet.json';
+
+const _cachedWalletLookup = {};
 
 export default class WalletsUtils {
+
+  static getCallArgs (api, options, values = []) {
+    const walletContract = new Contract(api, WalletAbi);
+
+    const promises = [
+      api.parity.accountsInfo(),
+      WalletsUtils.fetchOwners(walletContract.at(options.from))
+    ];
+
+    return Promise
+      .all(promises)
+      .then(([ accounts, owners ]) => {
+        const addresses = Object.keys(accounts);
+        const owner = intersection(addresses, owners).pop();
+
+        if (!owner) {
+          return false;
+        }
+
+        return owner;
+      })
+      .then((owner) => {
+        if (!owner) {
+          return false;
+        }
+
+        const _options = Object.assign({}, options);
+        const { from, to, value = new BigNumber(0), data } = options;
+
+        delete _options.data;
+
+        const nextValues = [ to, value, data ];
+        const nextOptions = {
+          ..._options,
+          from: owner,
+          to: from,
+          value: new BigNumber(0)
+        };
+
+        const execFunc = walletContract.instance.execute;
+
+        return { func: execFunc, options: nextOptions, values: nextValues };
+      });
+  }
+
+  /**
+   * Check whether the given address could be
+   * a Wallet. The result is cached in order not
+   * to make unnecessary calls on non-wallet accounts
+   */
+  static isWallet (api, address) {
+    if (!_cachedWalletLookup[address]) {
+      const walletContract = new Contract(api, WalletAbi);
+
+      _cachedWalletLookup[address] = walletContract
+        .at(address)
+        .instance
+        .m_numOwners
+        .call()
+        .then((result) => {
+          if (!result || result.equals(0)) {
+            return false;
+          }
+
+          return true;
+        })
+        .then((bool) => {
+          _cachedWalletLookup[address] = Promise.resolve(bool);
+          return bool;
+        });
+    }
+
+    return _cachedWalletLookup[address];
+  }
 
   static fetchRequire (walletContract) {
     return walletContract.instance.m_required.call();

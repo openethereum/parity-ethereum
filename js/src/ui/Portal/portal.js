@@ -16,7 +16,7 @@
 
 import React, { Component, PropTypes } from 'react';
 import ReactDOM from 'react-dom';
-import Portal from 'react-portal';
+import ReactPortal from 'react-portal';
 import keycode from 'keycode';
 
 import { CloseIcon } from '~/ui/Icons';
@@ -24,7 +24,7 @@ import ParityBackground from '~/ui/ParityBackground';
 
 import styles from './portal.css';
 
-export default class Protal extends Component {
+export default class Portal extends Component {
 
   static propTypes = {
     onClose: PropTypes.func.isRequired,
@@ -59,23 +59,28 @@ export default class Protal extends Component {
     const { children, className } = this.props;
 
     const classes = [ styles.overlay, className ];
+    const backClasses = [ styles.backOverlay ];
 
     if (expanded) {
       classes.push(styles.expanded);
+      backClasses.push(styles.expanded);
     }
 
     return (
-      <Portal isOpened onClose={ this.handleClose }>
-        <div
-          className={ classes.join(' ') }
-          onKeyDown={ this.handleKeyDown }
-        >
-          <ParityBackground className={ styles.parityBackground } />
+      <ReactPortal isOpened onClose={ this.handleClose }>
+        <div className={ backClasses.join(' ') } onClick={ this.handleClose }>
+          <div
+            className={ classes.join(' ') }
+            onClick={ this.stopEvent }
+            onKeyDown={ this.handleKeyDown }
+          >
+            <ParityBackground className={ styles.parityBackground } />
 
-          { this.renderCloseIcon() }
-          { children }
+            { this.renderCloseIcon() }
+            { children }
+          </div>
         </div>
-      </Portal>
+      </ReactPortal>
     );
   }
 
@@ -91,6 +96,11 @@ export default class Protal extends Component {
         <CloseIcon />
       </div>
     );
+  }
+
+  stopEvent = (event) => {
+    event.preventDefault();
+    event.stopPropagation();
   }
 
   handleClose = () => {

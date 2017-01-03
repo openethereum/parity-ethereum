@@ -20,6 +20,7 @@ import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
+import { omitBy } from 'lodash';
 
 import { AddDapps, DappPermissions } from '~/modals';
 import PermissionStore from '~/modals/DappPermissions/store';
@@ -150,8 +151,15 @@ class Dapps extends Component {
 function mapStateToProps (state) {
   const { accounts } = state.personal;
 
+  /**
+   * Do not show the Wallet Accounts in the Dapps
+   * Permissions Modal. This will come in v1.6, but
+   * for now it would break dApps using Web3...
+   */
+  const _accounts = omitBy(accounts, (account) => account.wallet);
+
   return {
-    accounts
+    accounts: _accounts
   };
 }
 
