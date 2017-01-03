@@ -51,10 +51,10 @@ class Modal extends Component {
   }
 
   componentDidMount () {
-    const e = ReactDOM.findDOMNode(this.refs.dialog);
+    const element = ReactDOM.findDOMNode(this.refs.dialog);
 
-    if (e) {
-      e.focus();
+    if (element) {
+      element.focus();
     }
   }
 
