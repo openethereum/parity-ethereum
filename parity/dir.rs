@@ -226,7 +226,7 @@ pub fn default_hypervisor_path() -> String {
 #[cfg(test)]
 mod tests {
 	use super::Directories;
-	use helpers::replace_home;
+	use helpers::{replace_home, replace_home_for_db};
 
 	#[test]
 	fn test_default_directories() {
