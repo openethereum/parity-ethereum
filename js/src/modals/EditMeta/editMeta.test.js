@@ -50,8 +50,19 @@ function createApi () {
   };
 }
 
+function createRedux () {
+  return {
+    dispatch: sinon.stub(),
+    subscribe: sinon.stub(),
+    getState: () => {
+      return {};
+    }
+  };
+}
+
 export {
   ACCOUNT,
   ADDRESS,
-  createApi
+  createApi,
+  createRedux
 };
