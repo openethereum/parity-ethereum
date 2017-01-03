@@ -19,7 +19,7 @@ import { uniq, range, debounce } from 'lodash';
 import CertifierABI from '~/contracts/abi/certifier.json';
 import Contract from '~/api/contract';
 import Contracts from '~/contracts';
-import { clearCertifiers, addCertification, removeCertification } from './actions';
+import { addCertification, removeCertification } from './actions';
 
 // TODO: move this to a more general place
 const updatableFilter = (api, onFilter) => {

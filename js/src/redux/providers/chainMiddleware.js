@@ -14,18 +14,25 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-export const fetchCertifiers = () => ({
-  type: 'fetchCertifiers'
-});
+import { showSnackbar } from './snackbarActions';
 
-export const fetchCertifications = (address) => ({
-  type: 'fetchCertifications', address
-});
+export default class ChainMiddleware {
+  toMiddleware () {
+    return (store) => (next) => (action) => {
+      if (action.type === 'statusCollection') {
+        const { collection } = action;
 
-export const addCertification = (address, id, name, title, icon) => ({
-  type: 'addCertification', address, id, name, title, icon
-});
+        if (collection && collection.netChain) {
+          const chain = collection.netChain;
+          const { nodeStatus } = store.getState();
 
-export const removeCertification = (address, id) => ({
-  type: 'removeCertification', address, id
-});
+          if (chain !== nodeStatus.netChain) {
+            showSnackbar(`Switched to ${chain}. Please reload the page.`, 3000);
+          }
+        }
+      }
+
+      next(action);
+    };
+  }
+}
