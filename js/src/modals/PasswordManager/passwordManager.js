@@ -19,8 +19,10 @@ import { Tabs, Tab } from 'material-ui/Tabs';
 import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
+import { connect } from 'react-redux';
+import { bindActionCreators } from 'redux';
 
-import { newError, showSnackbar } from '~/redux/actions';
+import { newError, openSnackbar } from '~/redux/actions';
 import { Button, Modal, IdentityName, IdentityIcon } from '~/ui';
 import Form, { Input } from '~/ui/Form';
 import { CancelIcon, CheckIcon, SendIcon } from '~/ui/Icons';
@@ -42,13 +44,15 @@ const TABS_ITEM_STYLE = {
 };
 
 @observer
-export default class PasswordManager extends Component {
+class PasswordManager extends Component {
   static contextTypes = {
     api: PropTypes.object.isRequired
   }
 
   static propTypes = {
     account: PropTypes.object.isRequired,
+    openSnackbar: PropTypes.func.isRequired,
+    newError: PropTypes.func.isRequired,
     onClose: PropTypes.func
   }
 
@@ -336,7 +340,7 @@ export default class PasswordManager extends Component {
       .changePassword()
       .then((result) => {
         if (result) {
-          showSnackbar(
+          this.props.openSnackbar(
             <div>
               <FormattedMessage
                 id='passwordChange.success'
@@ -347,7 +351,7 @@ export default class PasswordManager extends Component {
         }
       })
       .catch((error) => {
-        newError(error);
+        this.props.newError(error);
       });
   }
 
@@ -355,7 +359,19 @@ export default class PasswordManager extends Component {
     return this.store
       .testPassword()
       .catch((error) => {
-        newError(error);
+        this.props.newError(error);
       });
   }
 }
+
+function mapDispatchToProps (dispatch) {
+  return bindActionCreators({
+    openSnackbar,
+    newError
+  }, dispatch);
+}
+
+export default connect(
+  null,
+  mapDispatchToProps
+)(PasswordManager);

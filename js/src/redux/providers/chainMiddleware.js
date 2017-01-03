@@ -14,36 +14,25 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import sinon from 'sinon';
+import { showSnackbar } from './snackbarActions';
 
-const ABI = '[{"constant":true,"inputs":[],"name":"totalDonated","outputs":[{"name":"","type":"uint256"}],"type":"function"}]';
+export default class ChainMiddleware {
+  toMiddleware () {
+    return (store) => (next) => (action) => {
+      if (action.type === 'statusCollection') {
+        const { collection } = action;
 
-const CONTRACTS = {
-  '0x1234567890123456789012345678901234567890': {}
-};
+        if (collection && collection.netChain) {
+          const chain = collection.netChain;
+          const { nodeStatus } = store.getState();
 
-function createApi () {
-  return {
-    parity: {
-      setAccountMeta: sinon.stub().resolves(),
-      setAccountName: sinon.stub().resolves()
-    }
-  };
+          if (chain !== nodeStatus.netChain) {
+            store.dispatch(showSnackbar(`Switched to ${chain}. Please reload the page.`, 5000));
+          }
+        }
+      }
+
+      next(action);
+    };
+  }
 }
-
-function createRedux () {
-  return {
-    dispatch: sinon.stub(),
-    subscribe: sinon.stub(),
-    getState: () => {
-      return {};
-    }
-  };
-}
-
-export {
-  ABI,
-  CONTRACTS,
-  createApi,
-  createRedux
-};
