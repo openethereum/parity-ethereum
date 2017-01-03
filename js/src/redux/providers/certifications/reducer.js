@@ -39,5 +39,9 @@ export default (state = initialState, action) => {
     return { ...state, [address]: newCertifications };
   }
 
+  if (action.type === 'clearCertifiers') {
+    return {};
+  }
+
   return state;
 };

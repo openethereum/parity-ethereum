@@ -22,6 +22,7 @@ import SignerMiddleware from './providers/signerMiddleware';
 
 import statusMiddleware from '~/views/Status/middleware';
 import CertificationsMiddleware from './providers/certifications/middleware';
+import StatusMiddleware from './providers/statusMiddleware';
 
 export default function (api, browserHistory) {
   const errors = new ErrorsMiddleware();
@@ -29,13 +30,15 @@ export default function (api, browserHistory) {
   const settings = new SettingsMiddleware();
   const status = statusMiddleware();
   const certifications = new CertificationsMiddleware();
+  const status2 = new StatusMiddleware();
   const routeMiddleware = routerMiddleware(browserHistory);
 
   const middleware = [
     settings.toMiddleware(),
     signer.toMiddleware(),
     errors.toMiddleware(),
-    certifications.toMiddleware()
+    certifications.toMiddleware(),
+    status2.toMiddleware()
   ];
 
   return middleware.concat(status, routeMiddleware, thunk);
