@@ -17,6 +17,8 @@
 import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
+import { connect } from 'react-redux';
+import { bindActionCreators } from 'redux';
 
 import { newError } from '~/redux/actions';
 import { Button, Modal, Form, Input, InputAddress, RadioButtons } from '~/ui';
@@ -25,13 +27,14 @@ import { AddIcon, CancelIcon, NextIcon, PrevIcon } from '~/ui/Icons';
 import Store from './store';
 
 @observer
-export default class AddContract extends Component {
+class AddContract extends Component {
   static contextTypes = {
     api: PropTypes.object.isRequired
   }
 
   static propTypes = {
     contracts: PropTypes.object.isRequired,
+    newError: PropTypes.func.isRequired,
     onClose: PropTypes.func
   };
 
@@ -244,7 +247,7 @@ export default class AddContract extends Component {
         this.onClose();
       })
       .catch((error) => {
-        newError(error);
+        this.props.newError(error);
       });
   }
 
@@ -252,3 +255,18 @@ export default class AddContract extends Component {
     this.props.onClose();
   }
 }
+
+function mapStateToProps (state) {
+  return {};
+}
+
+function mapDispatchToProps (dispatch) {
+  return bindActionCreators({
+    newError
+  }, dispatch);
+}
+
+export default connect(
+  mapStateToProps,
+  mapDispatchToProps
+)(AddContract);
