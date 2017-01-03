@@ -19,7 +19,7 @@ import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import CircularProgress from 'material-ui/CircularProgress';
 
-import { Input, InputAddress } from '../Form';
+import { TypedInput, InputAddress } from '../Form';
 import MethodDecodingStore from './methodDecodingStore';
 
 import styles from './methodDecoding.css';
@@ -245,6 +245,7 @@ class MethodDecoding extends Component {
 
   renderDeploy () {
     const { historic, transaction } = this.props;
+    const { methodInputs } = this.state;
 
     if (!historic) {
       return (
@@ -261,6 +262,14 @@ class MethodDecoding extends Component {
         </div>
 
         { this.renderAddressName(transaction.creates, false) }
+
+        <div>
+          { methodInputs && methodInputs.length ? 'with the following parameters:' : ''}
+        </div>
+
+        <div className={ styles.inputs }>
+          { this.renderInputs() }
+        </div>
       </div>
     );
   }
@@ -364,30 +373,22 @@ class MethodDecoding extends Component {
   renderInputs () {
     const { methodInputs } = this.state;
 
-    return methodInputs.map((input, index) => {
-      switch (input.type) {
-        case 'address':
-          return (
-            <InputAddress
-              disabled
-              text
-              key={ index }
-              className={ styles.input }
-              value={ input.value }
-              label={ input.type } />
-          );
+    if (!methodInputs || methodInputs.length === 0) {
+      return null;
+    }
 
-        default:
-          return (
-            <Input
-              readOnly
-              allowCopy
-              key={ index }
-              className={ styles.input }
-              value={ this.renderValue(input.value) }
-              label={ input.type } />
-          );
-      }
+    return methodInputs.map((input, index) => {
+      return (
+        <TypedInput
+          allowCopy
+          className={ styles.input }
+          label={ input.type }
+          key={ index }
+          param={ input.type }
+          readOnly
+          value={ this.renderValue(input.value) }
+        />
+      );
     });
   }
 
