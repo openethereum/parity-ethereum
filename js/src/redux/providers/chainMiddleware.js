@@ -27,7 +27,7 @@ export default class ChainMiddleware {
           const { nodeStatus } = store.getState();
 
           if (chain !== nodeStatus.netChain) {
-            showSnackbar(`Switched to ${chain}. Please reload the page.`, 3000);
+            store.dispatch(showSnackbar(`Switched to ${chain}. Please reload the page.`, 5000));
           }
         }
       }
