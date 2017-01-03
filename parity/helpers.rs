@@ -135,8 +135,13 @@ pub fn to_price(s: &str) -> Result<f32, String> {
 pub fn replace_home(base: &str, arg: &str) -> String {
 	// the $HOME directory on mac os should be `~/Library` or `~/Library/Application Support`
 	let r = arg.replace("$HOME", env::home_dir().unwrap().to_str().unwrap());
-	let r = r.replace("$BASE", base	);
-	r.replace("/", &::std::path::MAIN_SEPARATOR.to_string()	)
+	let r = r.replace("$BASE", base);
+	r.replace("/", &::std::path::MAIN_SEPARATOR.to_string())
+}
+
+pub fn replace_home_for_db(base: &str, local: &str, arg: &str) -> String {
+	let r = replace_home(base, arg);
+	r.replace("$LOCAL", local)
 }
 
 /// Flush output buffer.
