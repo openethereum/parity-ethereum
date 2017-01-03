@@ -22,7 +22,7 @@ import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
-import { newError, showSnackbar } from '~/redux/actions';
+import { newError, openSnackbar } from '~/redux/actions';
 import { Button, Modal, IdentityName, IdentityIcon } from '~/ui';
 import Form, { Input } from '~/ui/Form';
 import { CancelIcon, CheckIcon, SendIcon } from '~/ui/Icons';
@@ -51,6 +51,7 @@ class PasswordManager extends Component {
 
   static propTypes = {
     account: PropTypes.object.isRequired,
+    openSnackbar: PropTypes.func.isRequired,
     newError: PropTypes.func.isRequired,
     onClose: PropTypes.func
   }
@@ -339,7 +340,7 @@ class PasswordManager extends Component {
       .changePassword()
       .then((result) => {
         if (result) {
-          showSnackbar(
+          this.props.openSnackbar(
             <div>
               <FormattedMessage
                 id='passwordChange.success'
@@ -365,6 +366,7 @@ class PasswordManager extends Component {
 
 function mapDispatchToProps (dispatch) {
   return bindActionCreators({
+    openSnackbar,
     newError
   }, dispatch);
 }

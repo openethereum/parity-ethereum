@@ -71,6 +71,12 @@ describe('modals/PasswordManager', () => {
         });
       });
 
+      it('shows snackbar on success', () => {
+        return instance.changePassword().then(() => {
+          expect(reduxStore.dispatch).to.have.been.calledWithMatch({ type: 'openSnackbar' });
+        });
+      });
+
       it('adds newError on failure', () => {
         sinon.stub(instance.store, 'changePassword').rejects('test');
 
