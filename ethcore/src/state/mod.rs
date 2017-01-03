@@ -37,7 +37,7 @@ use util::trie::recorder::{Recorder, BasicRecorder as TrieRecorder};
 mod account;
 mod substate;
 
-pub use self::account::{BasicAccount, Account};
+pub use self::account::Account;
 pub use self::substate::Substate;
 
 /// Used to return information about an `State::apply` operation.

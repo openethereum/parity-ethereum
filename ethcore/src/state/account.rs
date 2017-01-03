@@ -20,45 +20,11 @@ use util::*;
 use pod_account::*;
 use rlp::*;
 use lru_cache::LruCache;
+use basic_account::BasicAccount;
 
 use std::cell::{RefCell, Cell};
 
 const STORAGE_CACHE_ITEMS: usize = 8192;
-
-/// Basic account type.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct BasicAccount {
-	/// Nonce of the account.
-	pub nonce: U256,
-	/// Balance of the account.
-	pub balance: U256,
-	/// Storage root of the account.
-	pub storage_root: H256,
-	/// Code hash of the account.
-	pub code_hash: H256,
-}
-
-impl Encodable for BasicAccount {
-	fn rlp_append(&self, s: &mut RlpStream) {
-		s.begin_list(4)
-			.append(&self.nonce)
-			.append(&self.balance)
-			.append(&self.storage_root)
-			.append(&self.code_hash);
-	}
-}
-
-impl Decodable for BasicAccount {
-	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
-		let rlp = decoder.as_rlp();
-		Ok(BasicAccount {
-			nonce: rlp.val_at(0)?,
-			balance: rlp.val_at(1)?,
-			storage_root: rlp.val_at(2)?,
-			code_hash: rlp.val_at(3)?,
-		})
-	}
-}
 
 /// Single account in the system.
 /// Keeps track of changes to the code and storage.
