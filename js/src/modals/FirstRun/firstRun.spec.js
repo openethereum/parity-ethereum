@@ -16,28 +16,45 @@
 
 import { shallow } from 'enzyme';
 import React from 'react';
+import sinon from 'sinon';
 
-import { ACCOUNTS, createApi, createRedux } from './createAccount.test.js';
+import FirstRun from './';
 
-import CreateAccount from './';
-
-let api;
 let component;
+let onClose;
 
-function render () {
-  api = createApi();
+function createApi () {
+  return {};
+}
+
+function createRedux () {
+  return {
+    dispatch: sinon.stub(),
+    subscribe: sinon.stub(),
+    getState: () => {
+      return {
+        personal: {
+          hasAccounts: false
+        }
+      };
+    }
+  };
+}
+
+function render (props = { visible: true }) {
+  onClose = sinon.stub();
   component = shallow(
-    <CreateAccount accounts={ ACCOUNTS } />,
+    <FirstRun
+      { ...props }
+      onClose={ onClose } />,
     { context: { store: createRedux() } }
-  ).find('CreateAccount').shallow({ context: { api } });
+  ).find('FirstRun').shallow({ context: { api: createApi() } });
 
   return component;
 }
 
-describe('modals/CreateAccount', () => {
-  describe('rendering', () => {
-    it('renders with defaults', () => {
-      expect(render()).to.be.ok;
-    });
+describe('modals/FirstRun', () => {
+  it('renders defaults', () => {
+    expect(render()).to.be.ok;
   });
 });

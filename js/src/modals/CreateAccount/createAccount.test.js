@@ -47,6 +47,16 @@ function createApi () {
   };
 }
 
+function createRedux () {
+  return {
+    dispatch: sinon.stub(),
+    subscribe: sinon.stub(),
+    getState: () => {
+      return {};
+    }
+  };
+}
+
 function createStore () {
   return new Store(createApi(), ACCOUNTS);
 }
@@ -56,5 +66,6 @@ export {
   ADDRESS,
   GETH_ADDRESSES,
   createApi,
+  createRedux,
   createStore
 };

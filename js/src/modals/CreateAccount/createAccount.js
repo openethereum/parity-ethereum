@@ -245,7 +245,7 @@ class CreateAccount extends Component {
   }
 
   onCreate = () => {
-    this.setBusy(true);
+    this.store.setBusy(true);
 
     return this.store
       .createAccount()

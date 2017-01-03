@@ -47,11 +47,13 @@ export default class Store {
   @observable walletFileError = ERRORS.noFile;
   @observable walletJson = '';
 
-  constructor (api, accounts) {
+  constructor (api, accounts, loadGeth = true) {
     this._api = api;
     this.accounts = accounts;
 
-    this.loadAvailableGethAccounts();
+    if (loadGeth) {
+      this.loadAvailableGethAccounts();
+    }
   }
 
   @computed get canCreate () {

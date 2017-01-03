@@ -23,9 +23,9 @@ import { ACCOUNTS, ADDRESS, GETH_ADDRESSES, createApi } from './createAccount.te
 let api;
 let store;
 
-function createStore () {
+function createStore (loadGeth) {
   api = createApi();
-  store = new Store(api, ACCOUNTS);
+  store = new Store(api, ACCOUNTS, loadGeth);
 
   return store;
 }
@@ -54,6 +54,11 @@ describe('modals/CreateAccount/Store', () => {
 
     it('loads the geth accounts', () => {
       expect(store.gethAccountsAvailable.map((account) => account.address)).to.deep.equal([GETH_ADDRESSES[0]]);
+    });
+
+    it('does not load geth accounts when loadGeth === false', () => {
+      createStore(false);
+      expect(store.gethAccountsAvailable.peek()).to.deep.equal([]);
     });
   });
 
