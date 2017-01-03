@@ -363,10 +363,6 @@ class PasswordManager extends Component {
   }
 }
 
-function mapStateToProps (state) {
-  return {};
-}
-
 function mapDispatchToProps (dispatch) {
   return bindActionCreators({
     newError
@@ -374,6 +370,6 @@ function mapDispatchToProps (dispatch) {
 }
 
 export default connect(
-  mapStateToProps,
+  null,
   mapDispatchToProps
 )(PasswordManager);
