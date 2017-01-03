@@ -259,7 +259,7 @@ impl Spec {
 		{
 			let mut t = factories.trie.create(db.as_hashdb_mut(), &mut root);
 			for (address, account) in self.genesis_state.get().iter() {
-				try!(t.insert(&**address, &account.rlp()));
+				t.insert(&**address, &account.rlp())?;
 			}
 		}
 

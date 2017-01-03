@@ -109,32 +109,32 @@ impl Serialize for LocalTransactionStatus {
 		let status = "status";
 		let transaction = "transaction";
 
-		let mut state = try!(serializer.serialize_struct("LocalTransactionStatus", elems));
+		let mut state = serializer.serialize_struct("LocalTransactionStatus", elems)?;
 		match *self {
-			Pending => try!(serializer.serialize_struct_elt(&mut state, status, "pending")),
-			Future => try!(serializer.serialize_struct_elt(&mut state, status, "future")),
+			Pending => serializer.serialize_struct_elt(&mut state, status, "pending")?,
+			Future => serializer.serialize_struct_elt(&mut state, status, "future")?,
 			Mined(ref tx) => {
-				try!(serializer.serialize_struct_elt(&mut state, status, "mined"));
-				try!(serializer.serialize_struct_elt(&mut state, transaction, tx));
+				serializer.serialize_struct_elt(&mut state, status, "mined")?;
+				serializer.serialize_struct_elt(&mut state, transaction, tx)?;
 			},
 			Dropped(ref tx) => {
-				try!(serializer.serialize_struct_elt(&mut state, status, "dropped"));
-				try!(serializer.serialize_struct_elt(&mut state, transaction, tx));
+				serializer.serialize_struct_elt(&mut state, status, "dropped")?;
+				serializer.serialize_struct_elt(&mut state, transaction, tx)?;
 			},
 			Invalid(ref tx) => {
-				try!(serializer.serialize_struct_elt(&mut state, status, "invalid"));
-				try!(serializer.serialize_struct_elt(&mut state, transaction, tx));
+				serializer.serialize_struct_elt(&mut state, status, "invalid")?;
+				serializer.serialize_struct_elt(&mut state, transaction, tx)?;
 			},
 			Rejected(ref tx, ref reason) => {
-				try!(serializer.serialize_struct_elt(&mut state, status, "rejected"));
-				try!(serializer.serialize_struct_elt(&mut state, transaction, tx));
-				try!(serializer.serialize_struct_elt(&mut state, "error", reason));
+				serializer.serialize_struct_elt(&mut state, status, "rejected")?;
+				serializer.serialize_struct_elt(&mut state, transaction, tx)?;
+				serializer.serialize_struct_elt(&mut state, "error", reason)?;
 			},
 			Replaced(ref tx, ref gas_price, ref hash) => {
-				try!(serializer.serialize_struct_elt(&mut state, status, "replaced"));
-				try!(serializer.serialize_struct_elt(&mut state, transaction, tx));
-				try!(serializer.serialize_struct_elt(&mut state, "hash", hash));
-				try!(serializer.serialize_struct_elt(&mut state, "gasPrice", gas_price));
+				serializer.serialize_struct_elt(&mut state, status, "replaced")?;
+				serializer.serialize_struct_elt(&mut state, transaction, tx)?;
+				serializer.serialize_struct_elt(&mut state, "hash", hash)?;
+				serializer.serialize_struct_elt(&mut state, "gasPrice", gas_price)?;
 			},
 		}
 		serializer.serialize_struct_end(state)

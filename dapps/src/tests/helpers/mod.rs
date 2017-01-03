@@ -17,49 +17,21 @@
 use std::env;
 use std::str;
 use std::sync::Arc;
-use rustc_serialize::hex::FromHex;
 use env_logger::LogBuilder;
 
 use ServerBuilder;
 use Server;
-use hash_fetch::urlhint::ContractClient;
-use util::{Bytes, Address, Mutex, ToPretty};
+use fetch::Fetch;
 use devtools::http_client;
 use parity_reactor::Remote;
 
-const REGISTRAR: &'static str = "8e4e9b13d4b45cb0befc93c3061b1408f67316b2";
-const URLHINT: &'static str = "deadbeefcafe0000000000000000000000000000";
+mod registrar;
+mod fetch;
+
+use self::registrar::FakeRegistrar;
+use self::fetch::FakeFetch;
+
 const SIGNER_PORT: u16 = 18180;
-
-pub struct FakeRegistrar {
-	pub calls: Arc<Mutex<Vec<(String, String)>>>,
-	pub responses: Mutex<Vec<Result<Bytes, String>>>,
-}
-
-impl FakeRegistrar {
-	fn new() -> Self {
-		FakeRegistrar {
-			calls: Arc::new(Mutex::new(Vec::new())),
-			responses: Mutex::new(
-				vec![
-					Ok(format!("000000000000000000000000{}", URLHINT).from_hex().unwrap()),
-					Ok(Vec::new())
-				]
-			),
-		}
-	}
-}
-
-impl ContractClient for FakeRegistrar {
-	fn registrar(&self) -> Result<Address, String> {
-		Ok(REGISTRAR.parse().unwrap())
-	}
-
-	fn call(&self, address: Address, data: Bytes) -> Result<Bytes, String> {
-		self.calls.lock().push((address.to_hex(), data.to_hex()));
-		self.responses.lock().remove(0)
-	}
-}
 
 fn init_logger() {
 	// Initialize logger
@@ -70,16 +42,21 @@ fn init_logger() {
 	}
 }
 
-pub fn init_server(hosts: Option<Vec<String>>, is_syncing: bool) -> (Server, Arc<FakeRegistrar>) {
+pub fn init_server<F, B>(hosts: Option<Vec<String>>, process: F, remote: Remote) -> (Server, Arc<FakeRegistrar>) where
+	F: FnOnce(ServerBuilder) -> ServerBuilder<B>,
+	B: Fetch,
+{
 	init_logger();
 	let registrar = Arc::new(FakeRegistrar::new());
 	let mut dapps_path = env::temp_dir();
 	dapps_path.push("non-existent-dir-to-prevent-fs-files-from-loading");
-	let mut builder = ServerBuilder::new(dapps_path.to_str().unwrap().into(), registrar.clone(), Remote::new_sync());
-	builder.with_sync_status(Arc::new(move || is_syncing));
-	builder.with_signer_address(Some(("127.0.0.1".into(), SIGNER_PORT)));
+	let server = process(ServerBuilder::new(
+		dapps_path.to_str().unwrap().into(), registrar.clone(), remote,
+	))
+		.signer_address(Some(("127.0.0.1".into(), SIGNER_PORT)))
+		.start_unsecured_http(&"127.0.0.1:0".parse().unwrap(), hosts).unwrap();
 	(
-		builder.start_unsecured_http(&"127.0.0.1:0".parse().unwrap(), hosts).unwrap(),
+		server,
 		registrar,
 	)
 }
@@ -89,25 +66,53 @@ pub fn serve_with_auth(user: &str, pass: &str) -> Server {
 	let registrar = Arc::new(FakeRegistrar::new());
 	let mut dapps_path = env::temp_dir();
 	dapps_path.push("non-existent-dir-to-prevent-fs-files-from-loading");
-	let mut builder = ServerBuilder::new(dapps_path.to_str().unwrap().into(), registrar.clone(), Remote::new_sync());
-	builder.with_signer_address(Some(("127.0.0.1".into(), SIGNER_PORT)));
-	builder.start_basic_auth_http(&"127.0.0.1:0".parse().unwrap(), None, user, pass).unwrap()
+	ServerBuilder::new(dapps_path.to_str().unwrap().into(), registrar.clone(), Remote::new_sync())
+		.signer_address(Some(("127.0.0.1".into(), SIGNER_PORT)))
+		.start_basic_auth_http(&"127.0.0.1:0".parse().unwrap(), None, user, pass).unwrap()
 }
 
 pub fn serve_hosts(hosts: Option<Vec<String>>) -> Server {
-	init_server(hosts, false).0
+	init_server(hosts, |builder| builder, Remote::new_sync()).0
 }
 
 pub fn serve_with_registrar() -> (Server, Arc<FakeRegistrar>) {
-	init_server(None, false)
+	init_server(None, |builder| builder, Remote::new_sync())
 }
 
 pub fn serve_with_registrar_and_sync() -> (Server, Arc<FakeRegistrar>) {
-	init_server(None, true)
+	init_server(None, |builder| {
+		builder.sync_status(Arc::new(|| true))
+	}, Remote::new_sync())
+}
+
+pub fn serve_with_registrar_and_fetch() -> (Server, FakeFetch, Arc<FakeRegistrar>) {
+	serve_with_registrar_and_fetch_and_threads(false)
+}
+
+pub fn serve_with_registrar_and_fetch_and_threads(multi_threaded: bool) -> (Server, FakeFetch, Arc<FakeRegistrar>) {
+	let fetch = FakeFetch::default();
+	let f = fetch.clone();
+	let (server, reg) = init_server(None, move |builder| {
+		builder.fetch(f.clone())
+	}, if multi_threaded { Remote::new_thread_per_future() } else { Remote::new_sync() });
+
+	(server, fetch, reg)
+}
+
+pub fn serve_with_fetch(web_token: &'static str) -> (Server, FakeFetch) {
+	let fetch = FakeFetch::default();
+	let f = fetch.clone();
+	let (server, _) = init_server(None, move |builder| {
+		builder
+			.fetch(f.clone())
+			.web_proxy_tokens(Arc::new(move |token| &token == web_token))
+	}, Remote::new_sync());
+
+	(server, fetch)
 }
 
 pub fn serve() -> Server {
-	init_server(None, false).0
+	init_server(None, |builder| builder, Remote::new_sync()).0
 }
 
 pub fn request(server: Server, request: &str) -> http_client::Response {

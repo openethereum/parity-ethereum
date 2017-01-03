@@ -27,6 +27,10 @@ pub struct TestFetch;
 impl Fetch for TestFetch {
 	type Result = futures::BoxFuture<fetch::Response, fetch::Error>;
 
+	fn new() -> Result<Self, fetch::Error> where Self: Sized {
+		Ok(TestFetch)
+	}
+
 	fn fetch_with_abort(&self, _url: &str, _abort: fetch::Abort) -> Self::Result {
 		let (tx, rx) = futures::oneshot();
 		thread::spawn(move || {

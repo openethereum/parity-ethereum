@@ -177,7 +177,7 @@ pub fn sign_no_dispatch<C, M>(client: &C, miner: &M, accounts: &AccountProvider,
 		};
 
 		let hash = t.hash(network_id);
-		let signature = try!(signature(accounts, address, hash, password));
+		let signature = signature(accounts, address, hash, password)?;
 		signature.map(|sig| {
 			t.with_signature(sig, network_id)
 		})
@@ -191,7 +191,7 @@ pub fn sign_and_dispatch<C, M>(client: &C, miner: &M, accounts: &AccountProvider
 
 	let network_id = client.signing_network_id();
 	let min_block = filled.min_block.clone();
-	let signed_transaction = try!(sign_no_dispatch(client, miner, accounts, filled, password));
+	let signed_transaction = sign_no_dispatch(client, miner, accounts, filled, password)?;
 
 	let (signed_transaction, token) = match signed_transaction {
 		WithToken::No(signed_transaction) => (signed_transaction, None),

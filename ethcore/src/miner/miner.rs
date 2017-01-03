@@ -20,8 +20,6 @@ use std::time::{Instant, Duration};
 use util::*;
 use util::using_queue::{UsingQueue, GetAction};
 use account_provider::{AccountProvider, Error as AccountError};
-use views::{BlockView, HeaderView};
-use header::Header;
 use state::{State, CleanupMode};
 use client::{MiningBlockChainClient, Executive, Executed, EnvInfo, TransactOptions, BlockId, CallAnalytics, TransactionId};
 use client::TransactionImportResult;
@@ -536,7 +534,7 @@ impl Miner {
 	}
 
 	fn update_gas_limit(&self, chain: &MiningBlockChainClient) {
-		let gas_limit = HeaderView::new(&chain.best_block_header()).gas_limit();
+		let gas_limit = chain.best_block_header().gas_limit();
 		let mut queue = self.transaction_queue.lock();
 		queue.set_gas_limit(gas_limit);
 		if let GasLimit::Auto = self.options.tx_queue_gas_limit {
@@ -598,7 +596,7 @@ impl Miner {
 
 		let schedule = chain.latest_schedule();
 		let gas_required = |tx: &SignedTransaction| tx.gas_required(&schedule).into();
-		let best_block_header: Header = ::rlp::decode(&chain.best_block_header());
+		let best_block_header = chain.best_block_header().decode();
 		transactions.into_iter()
 			.map(|tx| {
 				if chain.transaction_block(TransactionId::Hash(tx.hash())).is_some() {
@@ -698,10 +696,10 @@ impl MinerService for Miner {
 				let mut state = block.state().clone();
 				let original_state = if analytics.state_diffing { Some(state.clone()) } else { None };
 
-				let sender = try!(t.sender().map_err(|e| {
+				let sender = t.sender().map_err(|e| {
 					let message = format!("Transaction malformed: {:?}", e);
 					ExecutionError::TransactionMalformed(message)
-				}));
+				})?;
 				let balance = state.balance(&sender);
 				let needed_balance = t.value + t.gas * t.gas_price;
 				if balance < needed_balance {
@@ -709,7 +707,7 @@ impl MinerService for Miner {
 					state.add_balance(&sender, &(needed_balance - balance), CleanupMode::NoEmpty);
 				}
 				let options = TransactOptions { tracing: analytics.transaction_tracing, vm_tracing: analytics.vm_tracing, check_nonce: false };
-				let mut ret = try!(Executive::new(&mut state, &env_info, &*self.engine, chain.vm_factory()).transact(t, options));
+				let mut ret = Executive::new(&mut state, &env_info, &*self.engine, chain.vm_factory()).transact(t, options)?;
 
 				// TODO gav move this into Executive.
 				ret.state_diff = original_state.map(|original| state.diff_from(original));
@@ -765,7 +763,7 @@ impl MinerService for Miner {
 	fn set_engine_signer(&self, address: Address, password: String) -> Result<(), AccountError> {
 		if self.seals_internally {
 			if let Some(ref ap) = self.accounts {
-				try!(ap.sign(address.clone(), Some(password.clone()), Default::default()));
+				ap.sign(address.clone(), Some(password.clone()), Default::default())?;
 			}
 			{
 				let mut sealing_work = self.sealing_work.lock();
@@ -1106,7 +1104,7 @@ impl MinerService for Miner {
 		result.and_then(|sealed| {
 			let n = sealed.header().number();
 			let h = sealed.header().hash();
-			try!(chain.import_sealed_block(sealed));
+			chain.import_sealed_block(sealed)?;
 			info!(target: "miner", "Submitted block imported OK. #{}: {}", Colour::White.bold().paint(format!("{}", n)), Colour::White.bold().paint(h.hex()));
 			Ok(())
 		})
@@ -1129,7 +1127,6 @@ impl MinerService for Miner {
 				.map(|hash| {
 					let block = chain.block(BlockId::Hash(*hash))
 						.expect("Client is sending message after commit to db and inserting to chain; the block is available; qed");
-					let block = BlockView::new(&block);
 					let txs = block.transactions();
 					// populate sender
 					for tx in &txs {

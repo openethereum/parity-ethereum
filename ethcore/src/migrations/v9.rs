@@ -63,17 +63,17 @@ impl Migration for ToV9 {
 			self.progress.tick();
 			match self.extract {
 				Extract::Header => {
-					try!(batch.insert(key.to_vec(), Rlp::new(&value).at(0).as_raw().to_vec(), dest))
+					batch.insert(key.to_vec(), Rlp::new(&value).at(0).as_raw().to_vec(), dest)?
 				},
 				Extract::Body => {
 					let mut body = RlpStream::new_list(2);
 					let block_rlp = Rlp::new(&value);
 					body.append_raw(block_rlp.at(1).as_raw(), 1);
 					body.append_raw(block_rlp.at(2).as_raw(), 1);
-					try!(batch.insert(key.to_vec(), body.out(), dest))
+					batch.insert(key.to_vec(), body.out(), dest)?
 				},
 				Extract::All => {
-					try!(batch.insert(key.to_vec(), value.to_vec(), dest))
+					batch.insert(key.to_vec(), value.to_vec(), dest)?
 				}
 			}
 		}

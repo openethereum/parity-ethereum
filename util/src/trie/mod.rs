@@ -22,8 +22,6 @@ use hashdb::{HashDB, DBValue};
 
 /// Export the standardmap module.
 pub mod standardmap;
-/// Export the journal module.
-pub mod journal;
 /// Export the node module.
 pub mod node;
 /// Export the triedb module.
@@ -216,9 +214,9 @@ impl TrieFactory {
 	/// Create new immutable instance of Trie.
 	pub fn readonly<'db>(&self, db: &'db HashDB, root: &'db H256) -> Result<TrieKinds<'db>> {
 		match self.spec {
-			TrieSpec::Generic => Ok(TrieKinds::Generic(try!(TrieDB::new(db, root)))),
-			TrieSpec::Secure => Ok(TrieKinds::Secure(try!(SecTrieDB::new(db, root)))),
-			TrieSpec::Fat => Ok(TrieKinds::Fat(try!(FatDB::new(db, root)))),
+			TrieSpec::Generic => Ok(TrieKinds::Generic(TrieDB::new(db, root)?)),
+			TrieSpec::Secure => Ok(TrieKinds::Secure(SecTrieDB::new(db, root)?)),
+			TrieSpec::Fat => Ok(TrieKinds::Fat(FatDB::new(db, root)?)),
 		}
 	}
 
@@ -234,9 +232,9 @@ impl TrieFactory {
 	/// Create new mutable instance of trie and check for errors.
 	pub fn from_existing<'db>(&self, db: &'db mut HashDB, root: &'db mut H256) -> Result<Box<TrieMut + 'db>> {
 		match self.spec {
-			TrieSpec::Generic => Ok(Box::new(try!(TrieDBMut::from_existing(db, root)))),
-			TrieSpec::Secure => Ok(Box::new(try!(SecTrieDBMut::from_existing(db, root)))),
-			TrieSpec::Fat => Ok(Box::new(try!(FatDBMut::from_existing(db, root)))),
+			TrieSpec::Generic => Ok(Box::new(TrieDBMut::from_existing(db, root)?)),
+			TrieSpec::Secure => Ok(Box::new(SecTrieDBMut::from_existing(db, root)?)),
+			TrieSpec::Fat => Ok(Box::new(FatDBMut::from_existing(db, root)?)),
 		}
 	}
 

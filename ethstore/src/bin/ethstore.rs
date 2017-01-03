@@ -93,11 +93,11 @@ fn main() {
 
 fn key_dir(location: &str) -> Result<Box<KeyDirectory>, Error> {
 	let dir: Box<KeyDirectory> = match location {
-		"parity" => Box::new(try!(ParityDirectory::create(DirectoryType::Main))),
-		"parity-test" => Box::new(try!(ParityDirectory::create(DirectoryType::Testnet))),
-		"geth" => Box::new(try!(GethDirectory::create(DirectoryType::Main))),
-		"geth-test" => Box::new(try!(GethDirectory::create(DirectoryType::Testnet))),
-		path => Box::new(try!(DiskDirectory::create(path))),
+		"parity" => Box::new(ParityDirectory::create(DirectoryType::Main)?),
+		"parity-test" => Box::new(ParityDirectory::create(DirectoryType::Testnet)?),
+		"geth" => Box::new(GethDirectory::create(DirectoryType::Main)?),
+		"geth-test" => Box::new(GethDirectory::create(DirectoryType::Testnet)?),
+		path => Box::new(DiskDirectory::create(path)?),
 	};
 
 	Ok(dir)
@@ -112,9 +112,9 @@ fn format_accounts(accounts: &[Address]) -> String {
 }
 
 fn load_password(path: &str) -> Result<String, Error> {
-	let mut file = try!(fs::File::open(path));
+	let mut file = fs::File::open(path)?;
 	let mut password = String::new();
-	try!(file.read_to_string(&mut password));
+	file.read_to_string(&mut password)?;
 	// drop EOF
 	let _ = password.pop();
 	Ok(password)
@@ -125,48 +125,48 @@ fn execute<S, I>(command: I) -> Result<String, Error> where I: IntoIterator<Item
 		.and_then(|d| d.argv(command).decode())
 		.unwrap_or_else(|e| e.exit());
 
-	let store = try!(EthStore::open(try!(key_dir(&args.flag_dir))));
+	let store = EthStore::open(key_dir(&args.flag_dir)?)?;
 
 	return if args.cmd_insert {
-		let secret = try!(args.arg_secret.parse().map_err(|_| Error::InvalidSecret));
-		let password = try!(load_password(&args.arg_password));
-		let address = try!(store.insert_account(secret, &password));
+		let secret = args.arg_secret.parse().map_err(|_| Error::InvalidSecret)?;
+		let password = load_password(&args.arg_password)?;
+		let address = store.insert_account(secret, &password)?;
 		Ok(format!("0x{:?}", address))
 	} else if args.cmd_change_pwd {
-		let address = try!(args.arg_address.parse().map_err(|_| Error::InvalidAccount));
-		let old_pwd = try!(load_password(&args.arg_old_pwd));
-		let new_pwd = try!(load_password(&args.arg_new_pwd));
+		let address = args.arg_address.parse().map_err(|_| Error::InvalidAccount)?;
+		let old_pwd = load_password(&args.arg_old_pwd)?;
+		let new_pwd = load_password(&args.arg_new_pwd)?;
 		let ok = store.change_password(&address, &old_pwd, &new_pwd).is_ok();
 		Ok(format!("{}", ok))
 	} else if args.cmd_list {
-		let accounts = try!(store.accounts());
+		let accounts = store.accounts()?;
 		Ok(format_accounts(&accounts))
 	} else if args.cmd_import {
-		let src = try!(key_dir(&args.flag_src));
-		let dst = try!(key_dir(&args.flag_dir));
-		let accounts = try!(import_accounts(&*src, &*dst));
+		let src = key_dir(&args.flag_src)?;
+		let dst = key_dir(&args.flag_dir)?;
+		let accounts = import_accounts(&*src, &*dst)?;
 		Ok(format_accounts(&accounts))
 	} else if args.cmd_import_wallet {
-		let wallet = try!(PresaleWallet::open(&args.arg_path));
-		let password = try!(load_password(&args.arg_password));
-		let kp = try!(wallet.decrypt(&password));
-		let address = try!(store.insert_account(kp.secret().clone(), &password));
+		let wallet = PresaleWallet::open(&args.arg_path)?;
+		let password = load_password(&args.arg_password)?;
+		let kp = wallet.decrypt(&password)?;
+		let address = store.insert_account(kp.secret().clone(), &password)?;
 		Ok(format!("0x{:?}", address))
 	} else if args.cmd_remove {
-		let address = try!(args.arg_address.parse().map_err(|_| Error::InvalidAccount));
-		let password = try!(load_password(&args.arg_password));
+		let address = args.arg_address.parse().map_err(|_| Error::InvalidAccount)?;
+		let password = load_password(&args.arg_password)?;
 		let ok = store.remove_account(&address, &password).is_ok();
 		Ok(format!("{}", ok))
 	} else if args.cmd_sign {
-		let address = try!(args.arg_address.parse().map_err(|_| Error::InvalidAccount));
-		let message = try!(args.arg_message.parse().map_err(|_| Error::InvalidMessage));
-		let password = try!(load_password(&args.arg_password));
-		let signature = try!(store.sign(&address, &password, &message));
+		let address = args.arg_address.parse().map_err(|_| Error::InvalidAccount)?;
+		let message = args.arg_message.parse().map_err(|_| Error::InvalidMessage)?;
+		let password = load_password(&args.arg_password)?;
+		let signature = store.sign(&address, &password, &message)?;
 		Ok(format!("0x{:?}", signature))
 	} else if args.cmd_public {
-		let address = try!(args.arg_address.parse().map_err(|_| Error::InvalidAccount));
-		let password = try!(load_password(&args.arg_password));
-		let public = try!(store.public(&address, &password));
+		let address = args.arg_address.parse().map_err(|_| Error::InvalidAccount)?;
+		let password = load_password(&args.arg_password)?;
+		let public = store.public(&address, &password)?;
 		Ok(format!("0x{:?}", public))
 	} else {
 		Ok(format!("{}", USAGE))

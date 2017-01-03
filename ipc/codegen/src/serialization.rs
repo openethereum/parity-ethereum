@@ -388,8 +388,7 @@ fn binary_expr_enum(
 	span: Span,
 	enum_def: &ast::EnumDef,
 ) -> Result<BinaryExpressions, Error> {
-	let arms: Vec<_> = try!(
-		enum_def.variants.iter()
+	let arms: Vec<_> = try!(enum_def.variants.iter()
 			.enumerate()
 			.map(|(variant_index, variant)| {
 				binary_expr_variant(
@@ -403,8 +402,7 @@ fn binary_expr_enum(
 					variant_index,
 				)
 			})
-			.collect()
-	);
+			.collect());
 
 	let (size_arms, write_arms, mut read_arms) = (
 		arms.iter().map(|x| x.size.clone()).collect::<Vec<ast::Arm>>(),

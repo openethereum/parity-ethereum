@@ -29,8 +29,8 @@ fn restrict_permissions_to_owner(file_path: &Path) -> Result<(), i32>  {
 	use std::ffi;
 	use libc;
 
-	let cstr = try!(ffi::CString::new(&*file_path.to_string_lossy())
-		.map_err(|_| -1));
+	let cstr = ffi::CString::new(&*file_path.to_string_lossy())
+		.map_err(|_| -1)?;
 	match unsafe { libc::chmod(cstr.as_ptr(), libc::S_IWUSR | libc::S_IRUSR) } {
 		0 => Ok(()),
 		x => Err(x),
@@ -48,7 +48,7 @@ pub struct DiskDirectory {
 
 impl DiskDirectory {
 	pub fn create<P>(path: P) -> Result<Self, Error> where P: AsRef<Path> {
-		try!(fs::create_dir_all(&path));
+		fs::create_dir_all(&path)?;
 		Ok(Self::at(path))
 	}
 
@@ -62,7 +62,7 @@ impl DiskDirectory {
 	fn files(&self) -> Result<HashMap<PathBuf, SafeAccount>, Error> {
 		// it's not done using one iterator cause
 		// there is an issue with rustc and it takes tooo much time to compile
-		let paths = try!(fs::read_dir(&self.path))
+		let paths = fs::read_dir(&self.path)?
 			.flat_map(Result::ok)
 			.filter(|entry| {
 				let metadata = entry.metadata().ok();
@@ -102,7 +102,7 @@ impl DiskDirectory {
 
 impl KeyDirectory for DiskDirectory {
 	fn load(&self) -> Result<Vec<SafeAccount>, Error> {
-		let accounts = try!(self.files())
+		let accounts = self.files()?
 			.into_iter()
 			.map(|(_, account)| account)
 			.collect();
@@ -134,8 +134,8 @@ impl KeyDirectory for DiskDirectory {
 			keyfile_path.push(filename.as_str());
 
 			// save the file
-			let mut file = try!(fs::File::create(&keyfile_path));
-			try!(keyfile.write(&mut file).map_err(|e| Error::Custom(format!("{:?}", e))));
+			let mut file = fs::File::create(&keyfile_path)?;
+			keyfile.write(&mut file).map_err(|e| Error::Custom(format!("{:?}", e)))?;
 
 			if let Err(_) = restrict_permissions_to_owner(keyfile_path.as_path()) {
 				fs::remove_file(keyfile_path).expect("Expected to remove recently created file");
@@ -149,7 +149,7 @@ impl KeyDirectory for DiskDirectory {
 	fn remove(&self, account: &SafeAccount) -> Result<(), Error> {
 		// enumerate all entries in keystore
 		// and find entry with given address
-		let to_remove = try!(self.files())
+		let to_remove = self.files()?
 			.into_iter()
 			.find(|&(_, ref acc)| acc == account);
 

@@ -111,8 +111,8 @@ impl Tendermint {
 				params: params,
 				gas_limit_bound_divisor: our_params.gas_limit_bound_divisor,
 				builtins: builtins,
-				step_service: try!(IoService::<Step>::start()),
 				client: RwLock::new(Weak::new()),
+				step_service: IoService::<Step>::start()?,
 				authority: RwLock::new(Address::default()),
 				password: RwLock::new(None),
 				height: AtomicUsize::new(1),
@@ -126,7 +126,7 @@ impl Tendermint {
 				validators: new_validator_set(our_params.validators),
 			});
 		let handler = TransitionHandler::new(Arc::downgrade(&engine), our_params.timeouts);
-		try!(engine.step_service.register_handler(Arc::new(handler)));
+		engine.step_service.register_handler(Arc::new(handler))?;
 		Ok(engine)
 	}
 
@@ -445,11 +445,11 @@ impl Engine for Tendermint {
 
 	fn handle_message(&self, rlp: &[u8]) -> Result<(), Error> {
 		let rlp = UntrustedRlp::new(rlp);
-		let message: ConsensusMessage = try!(rlp.as_val());
+		let message: ConsensusMessage = rlp.as_val()?;
 		if !self.votes.is_old_or_known(&message) {
-			let sender = public_to_address(&try!(recover(&message.signature.into(), &try!(rlp.at(1)).as_raw().sha3())));
+			let sender = public_to_address(&recover(&message.signature.into(), &rlp.at(1)?.as_raw().sha3())?);
 			if !self.is_authority(&sender) {
-				try!(Err(EngineError::NotAuthorized(sender)));
+				Err(EngineError::NotAuthorized(sender))?;
 			}
 			self.broadcast_message(rlp.as_raw().to_vec());
 			trace!(target: "poa", "Handling a valid {:?} from {}.", message, sender);
@@ -481,10 +481,10 @@ impl Engine for Tendermint {
 	}
 
 	fn verify_block_unordered(&self, header: &Header, _block: Option<&[u8]>) -> Result<(), Error> {
-		let proposal = try!(ConsensusMessage::new_proposal(header));	
-		let proposer = try!(proposal.verify());
+		let proposal = ConsensusMessage::new_proposal(header)?;	
+		let proposer = proposal.verify()?;
 		if !self.is_authority(&proposer) {
-			try!(Err(EngineError::NotAuthorized(proposer)))
+			Err(EngineError::NotAuthorized(proposer))?
 		}
 
 		let precommit_hash = proposal.precommit_hash();
@@ -492,20 +492,20 @@ impl Engine for Tendermint {
 		let mut signature_count = 0;
 		let mut origins = HashSet::new();
 		for rlp in UntrustedRlp::new(signatures_field).iter() {
-			let precommit: ConsensusMessage = ConsensusMessage::new_commit(&proposal, try!(rlp.as_val()));
+			let precommit: ConsensusMessage = ConsensusMessage::new_commit(&proposal, rlp.as_val()?);
 			let address = match self.votes.get(&precommit) {
 				Some(a) => a,
-				None => public_to_address(&try!(recover(&precommit.signature.into(), &precommit_hash))),
+				None => public_to_address(&recover(&precommit.signature.into(), &precommit_hash)?),
 			};
 			if !self.validators.contains(&address) {
-				try!(Err(EngineError::NotAuthorized(address.to_owned())))
+				Err(EngineError::NotAuthorized(address.to_owned()))?
 			}
 
 			if origins.insert(address) {
 				signature_count += 1;
 			} else {
 				warn!(target: "poa", "verify_block_unordered: Duplicate signature from {} on the seal.", address);
-				try!(Err(BlockError::InvalidSeal));
+				Err(BlockError::InvalidSeal)?;
 			}
 		}
 
@@ -514,34 +514,34 @@ impl Engine for Tendermint {
 			let signatures_len = signatures_field.len();
 			// Proposal has to have an empty signature list.
 			if signatures_len != 1 {
-				try!(Err(EngineError::BadSealFieldSize(OutOfBounds {
+				Err(EngineError::BadSealFieldSize(OutOfBounds {
 					min: Some(1),
 					max: Some(1),
 					found: signatures_len
-				})));
+				}))?;
 			}
-			try!(self.is_round_proposer(proposal.height, proposal.round, &proposer));
+			self.is_round_proposer(proposal.height, proposal.round, &proposer)?;
 		}
 		Ok(())
 	}
 
 	fn verify_block_family(&self, header: &Header, parent: &Header, _block: Option<&[u8]>) -> Result<(), Error> {
 		if header.number() == 0 {
-			try!(Err(BlockError::RidiculousNumber(OutOfBounds { min: Some(1), max: None, found: header.number() })));
+			Err(BlockError::RidiculousNumber(OutOfBounds { min: Some(1), max: None, found: header.number() }))?;
 		}
 
 		let gas_limit_divisor = self.gas_limit_bound_divisor;
 		let min_gas = parent.gas_limit().clone() - parent.gas_limit().clone() / gas_limit_divisor;
 		let max_gas = parent.gas_limit().clone() + parent.gas_limit().clone() / gas_limit_divisor;
 		if header.gas_limit() <= &min_gas || header.gas_limit() >= &max_gas {
-			try!(Err(BlockError::InvalidGasLimit(OutOfBounds { min: Some(min_gas), max: Some(max_gas), found: header.gas_limit().clone() })));
+			Err(BlockError::InvalidGasLimit(OutOfBounds { min: Some(min_gas), max: Some(max_gas), found: header.gas_limit().clone() }))?;
 		}
 
 		Ok(())
 	}
 
 	fn verify_transaction_basic(&self, t: &SignedTransaction, _header: &Header) -> Result<(), Error> {
-		try!(t.check_low_s());
+		t.check_low_s()?;
 		Ok(())
 	}
 

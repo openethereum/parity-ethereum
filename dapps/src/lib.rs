@@ -111,18 +111,29 @@ impl<F> SyncStatus for F where F: Fn() -> bool + Send + Sync {
 	fn is_major_importing(&self) -> bool { self() }
 }
 
+/// Validates Web Proxy tokens
+pub trait WebProxyTokens: Send + Sync {
+	/// Should return true if token is a valid web proxy access token.
+	fn is_web_proxy_token_valid(&self, token: &String) -> bool;
+}
+
+impl<F> WebProxyTokens for F where F: Fn(String) -> bool + Send + Sync {
+	fn is_web_proxy_token_valid(&self, token: &String) -> bool { self(token.to_owned()) }
+}
+
 /// Webapps HTTP+RPC server build.
-pub struct ServerBuilder {
+pub struct ServerBuilder<T: Fetch = FetchClient> {
 	dapps_path: String,
 	handler: Arc<IoHandler>,
 	registrar: Arc<ContractClient>,
 	sync_status: Arc<SyncStatus>,
+	web_proxy_tokens: Arc<WebProxyTokens>,
 	signer_address: Option<(String, u16)>,
 	remote: Remote,
-	fetch: Option<FetchClient>,
+	fetch: Option<T>,
 }
 
-impl Extendable for ServerBuilder {
+impl<T: Fetch> Extendable for ServerBuilder<T> {
 	fn add_delegate<D: Send + Sync + 'static>(&self, delegate: IoDelegate<D>) {
 		self.handler.add_delegate(delegate);
 	}
@@ -136,30 +147,50 @@ impl ServerBuilder {
 			handler: Arc::new(IoHandler::new()),
 			registrar: registrar,
 			sync_status: Arc::new(|| false),
+			web_proxy_tokens: Arc::new(|_| false),
 			signer_address: None,
 			remote: remote,
 			fetch: None,
 		}
 	}
+}
 
+impl<T: Fetch> ServerBuilder<T> {
 	/// Set a fetch client to use.
-	pub fn with_fetch(&mut self, fetch: FetchClient) {
-		self.fetch = Some(fetch);
+	pub fn fetch<X: Fetch>(self, fetch: X) -> ServerBuilder<X> {
+		ServerBuilder {
+			dapps_path: self.dapps_path,
+			handler: self.handler,
+			registrar: self.registrar,
+			sync_status: self.sync_status,
+			web_proxy_tokens: self.web_proxy_tokens,
+			signer_address: self.signer_address,
+			remote: self.remote,
+			fetch: Some(fetch),
+		}
 	}
 
 	/// Change default sync status.
-	pub fn with_sync_status(&mut self, status: Arc<SyncStatus>) {
+	pub fn sync_status(mut self, status: Arc<SyncStatus>) -> Self {
 		self.sync_status = status;
+		self
+	}
+
+	/// Change default web proxy tokens validator.
+	pub fn web_proxy_tokens(mut self, tokens: Arc<WebProxyTokens>) -> Self {
+		self.web_proxy_tokens = tokens;
+		self
 	}
 
 	/// Change default signer port.
-	pub fn with_signer_address(&mut self, signer_address: Option<(String, u16)>) {
+	pub fn signer_address(mut self, signer_address: Option<(String, u16)>) -> Self {
 		self.signer_address = signer_address;
+		self
 	}
 
 	/// Asynchronously start server with no authentication,
 	/// returns result with `Server` handle on success or an error.
-	pub fn start_unsecured_http(&self, addr: &SocketAddr, hosts: Option<Vec<String>>) -> Result<Server, ServerError> {
+	pub fn start_unsecured_http(self, addr: &SocketAddr, hosts: Option<Vec<String>>) -> Result<Server, ServerError> {
 		Server::start_http(
 			addr,
 			hosts,
@@ -169,14 +200,15 @@ impl ServerBuilder {
 			self.signer_address.clone(),
 			self.registrar.clone(),
 			self.sync_status.clone(),
+			self.web_proxy_tokens.clone(),
 			self.remote.clone(),
-			try!(self.fetch()),
+			self.fetch_client()?,
 		)
 	}
 
 	/// Asynchronously start server with `HTTP Basic Authentication`,
 	/// return result with `Server` handle on success or an error.
-	pub fn start_basic_auth_http(&self, addr: &SocketAddr, hosts: Option<Vec<String>>, username: &str, password: &str) -> Result<Server, ServerError> {
+	pub fn start_basic_auth_http(self, addr: &SocketAddr, hosts: Option<Vec<String>>, username: &str, password: &str) -> Result<Server, ServerError> {
 		Server::start_http(
 			addr,
 			hosts,
@@ -186,15 +218,16 @@ impl ServerBuilder {
 			self.signer_address.clone(),
 			self.registrar.clone(),
 			self.sync_status.clone(),
+			self.web_proxy_tokens.clone(),
 			self.remote.clone(),
-			try!(self.fetch()),
+			self.fetch_client()?,
 		)
 	}
 
-	fn fetch(&self) -> Result<FetchClient, ServerError> {
+	fn fetch_client(&self) -> Result<T, ServerError> {
 		match self.fetch.clone() {
 			Some(fetch) => Ok(fetch),
-			None => FetchClient::new().map_err(|_| ServerError::FetchInitialization),
+			None => T::new().map_err(|_| ServerError::FetchInitialization),
 		}
 	}
 }
@@ -241,6 +274,7 @@ impl Server {
 		signer_address: Option<(String, u16)>,
 		registrar: Arc<ContractClient>,
 		sync_status: Arc<SyncStatus>,
+		web_proxy_tokens: Arc<WebProxyTokens>,
 		remote: Remote,
 		fetch: F,
 	) -> Result<Server, ServerError> {
@@ -253,7 +287,7 @@ impl Server {
 			remote.clone(),
 			fetch.clone(),
 		));
-		let endpoints = Arc::new(apps::all_endpoints(dapps_path, signer_address.clone(), remote.clone(), fetch.clone()));
+		let endpoints = Arc::new(apps::all_endpoints(dapps_path, signer_address.clone(), web_proxy_tokens, remote.clone(), fetch.clone()));
 		let cors_domains = Self::cors_domains(signer_address.clone());
 
 		let special = Arc::new({
@@ -268,7 +302,7 @@ impl Server {
 		});
 		let hosts = Self::allowed_hosts(hosts, format!("{}", addr));
 
-		try!(hyper::Server::http(addr))
+		hyper::Server::http(addr)?
 			.handle(move |ctrl| router::Router::new(
 				ctrl,
 				signer_address.clone(),

@@ -25,14 +25,13 @@ const initialState = {
   hasContacts: false,
   contracts: {},
   hasContracts: false,
-  wallet: {},
-  hasWallets: false,
   visibleAccounts: []
 };
 
 export default handleActions({
   personalAccountsInfo (state, action) {
-    const { accountsInfo, accounts, contacts, contracts, wallets } = action;
+    const accountsInfo = action.accountsInfo || state.accountsInfo;
+    const { accounts, contacts, contracts } = action;
 
     return Object.assign({}, state, {
       accountsInfo,
@@ -41,9 +40,7 @@ export default handleActions({
       contacts,
       hasContacts: Object.keys(contacts).length !== 0,
       contracts,
-      hasContracts: Object.keys(contracts).length !== 0,
-      wallets,
-      hasWallets: Object.keys(wallets).length !== 0
+      hasContracts: Object.keys(contracts).length !== 0
     });
   },
 

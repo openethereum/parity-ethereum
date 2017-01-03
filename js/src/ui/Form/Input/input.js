@@ -39,6 +39,10 @@ const UNDERLINE_NORMAL = {
   borderBottom: 'solid 2px'
 };
 
+const UNDERLINE_FOCUSED = {
+  transform: 'scaleX(1.0)'
+};
+
 const NAME_ID = ' ';
 
 export default class Input extends Component {
@@ -47,10 +51,12 @@ export default class Input extends Component {
       PropTypes.string,
       PropTypes.bool
     ]),
+    autoFocus: PropTypes.bool,
     children: PropTypes.node,
     className: PropTypes.string,
     disabled: PropTypes.bool,
     error: nodeOrStringProptype(),
+    focused: PropTypes.bool,
     readOnly: PropTypes.bool,
     floatCopy: PropTypes.bool,
     hint: nodeOrStringProptype(),
@@ -61,9 +67,12 @@ export default class Input extends Component {
     multiLine: PropTypes.bool,
     onBlur: PropTypes.func,
     onChange: PropTypes.func,
+    onClick: PropTypes.func,
+    onFocus: PropTypes.func,
     onKeyDown: PropTypes.func,
     onSubmit: PropTypes.func,
     rows: PropTypes.number,
+    tabIndex: PropTypes.number,
     type: PropTypes.string,
     submitOnBlur: PropTypes.bool,
     style: PropTypes.object,
@@ -92,11 +101,20 @@ export default class Input extends Component {
     if ((newProps.value !== this.props.value) && (newProps.value !== this.state.value)) {
       this.setValue(newProps.value);
     }
+
+    if (newProps.focused && !this.props.focused) {
+      this.refs.input.setState({ isFocused: true });
+    }
+
+    if (!newProps.focused && this.props.focused) {
+      this.refs.input.setState({ isFocused: false });
+    }
   }
 
   render () {
     const { value } = this.state;
-    const { children, className, disabled, error, hideUnderline, hint, label, max, min, multiLine, rows, style, type } = this.props;
+    const { autoFocus, children, className, hideUnderline, disabled, error, focused, label } = this.props;
+    const { hint, onClick, onFocus, multiLine, rows, type, min, max, style, tabIndex } = this.props;
 
     const readOnly = this.props.readOnly || disabled;
 
@@ -111,11 +129,17 @@ export default class Input extends Component {
       textFieldStyle.height = 'initial';
     }
 
+    const underlineStyle = readOnly ? UNDERLINE_READONLY : UNDERLINE_NORMAL;
+    const underlineFocusStyle = focused
+      ? UNDERLINE_FOCUSED
+      : readOnly && typeof focused !== 'boolean' ? { display: 'none' } : null;
+
     return (
       <div className={ styles.container } style={ style }>
         { this.renderCopyButton() }
         <TextField
           autoComplete='off'
+          autoFocus={ autoFocus }
           className={ className }
           errorText={ error }
           floatingLabelFixed
@@ -130,15 +154,19 @@ export default class Input extends Component {
           name={ NAME_ID }
           onBlur={ this.onBlur }
           onChange={ this.onChange }
+          onClick={ onClick }
           onKeyDown={ this.onKeyDown }
+          onFocus={ onFocus }
           onPaste={ this.onPaste }
           readOnly={ readOnly }
+          ref='input'
           rows={ rows }
           style={ textFieldStyle }
+          tabIndex={ tabIndex }
           type={ type || 'text' }
           underlineDisabledStyle={ UNDERLINE_DISABLED }
-          underlineStyle={ readOnly ? UNDERLINE_READONLY : UNDERLINE_NORMAL }
-          underlineFocusStyle={ readOnly ? { display: 'none' } : null }
+          underlineStyle={ underlineStyle }
+          underlineFocusStyle={ underlineFocusStyle }
           underlineShow={ !hideUnderline }
           value={ value }>
           { children }

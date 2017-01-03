@@ -14,36 +14,38 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import { isAction, isStage, addToQueue, removeFromQueue } from '../util/actions';
+
 const initialState = {
   pending: false,
   queue: []
 };
 
 export default (state = initialState, action) => {
-  if (action.type === 'names reserve start') {
-    return { ...state, pending: true };
-  }
-  if (action.type === 'names reserve success') {
-    return {
-      ...state, pending: false,
-      queue: state.queue.concat({ action: 'reserve', name: action.name })
-    };
-  }
-  if (action.type === 'names reserve fail') {
-    return { ...state, pending: false };
-  }
-
-  if (action.type === 'names drop start') {
-    return { ...state, pending: true };
-  }
-  if (action.type === 'names drop success') {
-    return {
-      ...state, pending: false,
-      queue: state.queue.concat({ action: 'drop', name: action.name })
-    };
-  }
-  if (action.type === 'names drop fail') {
-    return { ...state, pending: false };
+  if (isAction('names', 'reserve', action)) {
+    if (isStage('start', action)) {
+      return {
+        ...state, pending: true,
+        queue: addToQueue(state.queue, 'reserve', action.name)
+      };
+    } else if (isStage('success', action) || isStage('fail', action)) {
+      return {
+        ...state, pending: false,
+        queue: removeFromQueue(state.queue, 'reserve', action.name)
+      };
+    }
+  } else if (isAction('names', 'drop', action)) {
+    if (isStage('start', action)) {
+      return {
+        ...state, pending: true,
+        queue: addToQueue(state.queue, 'drop', action.name)
+      };
+    } else if (isStage('success', action) || isStage('fail', action)) {
+      return {
+        ...state, pending: false,
+        queue: removeFromQueue(state.queue, 'drop', action.name)
+      };
+    }
   }
 
   return state;

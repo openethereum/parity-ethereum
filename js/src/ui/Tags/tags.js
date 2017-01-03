@@ -16,12 +16,15 @@
 
 import React, { Component, PropTypes } from 'react';
 
+import { arrayOrObjectProptype } from '~/util/proptypes';
+
 import styles from './tags.css';
 
 export default class Tags extends Component {
   static propTypes = {
-    tags: PropTypes.array,
-    handleAddSearchToken: PropTypes.func
+    handleAddSearchToken: PropTypes.func,
+    setRefs: PropTypes.func,
+    tags: arrayOrObjectProptype()
   }
 
   render () {
@@ -31,12 +34,16 @@ export default class Tags extends Component {
   }
 
   renderTags () {
-    const { handleAddSearchToken } = this.props;
+    const { handleAddSearchToken, setRefs } = this.props;
     const tags = this.props.tags || [];
 
     const tagClasses = handleAddSearchToken
       ? [ styles.tag, styles.tagClickable ]
       : [ styles.tag ];
+
+    const setRef = setRefs
+      ? (ref) => { setRefs(ref); }
+      : () => {};
 
     return tags
       .sort()
@@ -49,7 +56,9 @@ export default class Tags extends Component {
           <div
             key={ idx }
             className={ tagClasses.join(' ') }
-            onClick={ onClick }>
+            onClick={ onClick }
+            ref={ setRef }
+          >
             { tag }
           </div>
         );

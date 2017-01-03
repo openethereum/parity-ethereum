@@ -108,7 +108,7 @@ impl AuthorityRound {
 				gas_limit_bound_divisor: our_params.gas_limit_bound_divisor,
 				step_duration: our_params.step_duration,
 				builtins: builtins,
-				transition_service: try!(IoService::<()>::start()),
+				transition_service: IoService::<()>::start()?,
 				step: AtomicUsize::new(initial_step),
 				proposed: AtomicBool::new(false),
 				client: RwLock::new(Weak::new()),
@@ -119,7 +119,7 @@ impl AuthorityRound {
 		// Do not initialize timeouts for tests.
 		if should_timeout {
 			let handler = TransitionHandler { engine: Arc::downgrade(&engine) };
-			try!(engine.transition_service.register_handler(Arc::new(handler)));
+			engine.transition_service.register_handler(Arc::new(handler))?;
 		}
 		Ok(engine)
 	}
@@ -255,20 +255,20 @@ impl Engine for AuthorityRound {
 
 	/// Check if the signature belongs to the correct proposer.
 	fn verify_block_unordered(&self, header: &Header, _block: Option<&[u8]>) -> Result<(), Error> {
-		let header_step = try!(header_step(header));
+		let header_step = header_step(header)?;
 		// Give one step slack if step is lagging, double vote is still not possible.
 		if header_step <= self.step.load(AtomicOrdering::SeqCst) + 1 {
-			let proposer_signature = try!(header_signature(header));
-			let ok_sig = try!(verify_address(&self.step_proposer(header_step), &proposer_signature, &header.bare_hash()));
+			let proposer_signature = header_signature(header)?;
+			let ok_sig = verify_address(&self.step_proposer(header_step), &proposer_signature, &header.bare_hash())?;
 			if ok_sig {
 				Ok(())
 			} else {
 				trace!(target: "poa", "verify_block_unordered: invalid seal signature");
-				try!(Err(BlockError::InvalidSeal))
+				Err(BlockError::InvalidSeal)?
 			}
 		} else {
 			trace!(target: "poa", "verify_block_unordered: block from the future");
-			try!(Err(BlockError::InvalidSeal))
+			Err(BlockError::InvalidSeal)?
 		}
 	}
 
@@ -277,11 +277,11 @@ impl Engine for AuthorityRound {
 			return Err(From::from(BlockError::RidiculousNumber(OutOfBounds { min: Some(1), max: None, found: header.number() })));
 		}
 
-		let step = try!(header_step(header));
+		let step = header_step(header)?;
 		// Check if parent is from a previous step.
-		if step == try!(header_step(parent)) {
+		if step == header_step(parent)? {
 			trace!(target: "poa", "Multiple blocks proposed for step {}.", step);
-			try!(Err(EngineError::DoubleVote(header.author().clone())));
+			Err(EngineError::DoubleVote(header.author().clone()))?;
 		}
 
 		let gas_limit_divisor = self.gas_limit_bound_divisor;
@@ -294,7 +294,7 @@ impl Engine for AuthorityRound {
 	}
 
 	fn verify_transaction_basic(&self, t: &SignedTransaction, _header: &Header) -> Result<(), Error> {
-		try!(t.check_low_s());
+		t.check_low_s()?;
 		Ok(())
 	}
 

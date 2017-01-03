@@ -18,6 +18,8 @@ import BigNumber from 'bignumber.js';
 
 import util from '~/api/util';
 
+import { NULL_ADDRESS } from './constants';
+
 export const ERRORS = {
   invalidAddress: 'address is an invalid network address',
   invalidAmount: 'the supplied amount should be a valid positive number',
@@ -33,21 +35,21 @@ export const ERRORS = {
   gasBlockLimit: 'the transaction execution will exceed the block gas limit'
 };
 
-export function validateAbi (abi, api) {
+export function validateAbi (abi) {
   let abiError = null;
   let abiParsed = null;
 
   try {
     abiParsed = JSON.parse(abi);
 
-    if (!api.util.isArray(abiParsed)) {
+    if (!util.isArray(abiParsed)) {
       abiError = ERRORS.invalidAbi;
       return { abi, abiError, abiParsed };
     }
 
     // Validate each elements of the Array
     const invalidIndex = abiParsed
-      .map((o) => isValidAbiEvent(o, api) || isValidAbiFunction(o, api) || isAbiFallback(o))
+      .map((o) => isValidAbiEvent(o) || isValidAbiFunction(o) || isAbiFallback(o))
       .findIndex((valid) => !valid);
 
     if (invalidIndex !== -1) {
@@ -68,13 +70,13 @@ export function validateAbi (abi, api) {
   };
 }
 
-function isValidAbiFunction (object, api) {
+function isValidAbiFunction (object) {
   if (!object) {
     return false;
   }
 
   return ((object.type === 'function' && object.name) || object.type === 'constructor') &&
-    (object.inputs && api.util.isArray(object.inputs));
+    (object.inputs && util.isArray(object.inputs));
 }
 
 function isAbiFallback (object) {
@@ -85,14 +87,14 @@ function isAbiFallback (object) {
   return object.type === 'fallback';
 }
 
-function isValidAbiEvent (object, api) {
+function isValidAbiEvent (object) {
   if (!object) {
     return false;
   }
 
   return (object.type === 'event') &&
     (object.name) &&
-    (object.inputs && api.util.isArray(object.inputs));
+    (object.inputs && util.isArray(object.inputs));
 }
 
 export function validateAddress (address) {
@@ -173,4 +175,12 @@ export function validateUint (value) {
     value,
     valueError
   };
+}
+
+export function isNullAddress (address) {
+  if (address && address.substr(0, 2) === '0x') {
+    return isNullAddress(address.substr(2));
+  }
+
+  return address === NULL_ADDRESS;
 }

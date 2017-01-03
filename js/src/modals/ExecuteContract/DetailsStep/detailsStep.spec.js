@@ -22,7 +22,7 @@ import { ContextProvider, muiTheme } from '~/ui';
 
 import DetailsStep from './';
 
-import { CONTRACT } from '../executeContract.test.js';
+import { createApi, STORE, CONTRACT } from '../executeContract.test.js';
 
 let component;
 let onAmountChange;
@@ -41,7 +41,7 @@ function render (props) {
   onValueChange = sinon.stub();
 
   component = mount(
-    <ContextProvider api={ {} } muiTheme={ muiTheme } store={ {} }>
+    <ContextProvider api={ createApi() } muiTheme={ muiTheme } store={ STORE }>
       <DetailsStep
         { ...props }
         contract={ CONTRACT }

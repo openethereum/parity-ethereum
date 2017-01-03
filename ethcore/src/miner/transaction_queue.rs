@@ -264,7 +264,7 @@ struct VerifiedTransaction {
 
 impl VerifiedTransaction {
 	fn new(transaction: SignedTransaction, origin: TransactionOrigin, min_block: Option<BlockNumber>) -> Result<Self, Error> {
-		try!(transaction.sender());
+		transaction.sender()?;
 		Ok(VerifiedTransaction {
 			transaction: transaction,
 			origin: origin,
@@ -732,9 +732,9 @@ impl TransactionQueue {
 		}
 
 		// Verify signature
-		try!(tx.check_low_s());
+		tx.check_low_s()?;
 
-		let vtx = try!(VerifiedTransaction::new(tx, origin, min_block));
+		let vtx = VerifiedTransaction::new(tx, origin, min_block)?;
 		let client_account = fetch_account(&vtx.sender());
 
 		let cost = vtx.transaction.value + vtx.transaction.gas_price * vtx.transaction.gas;
@@ -1138,13 +1138,13 @@ impl TransactionQueue {
 		if nonce > next_nonce {
 			// We have a gap - put to future.
 			// Insert transaction (or replace old one with lower gas price)
-			try!(check_too_cheap(
+			check_too_cheap(
 				Self::replace_transaction(tx, state_nonce, min_gas_price, &mut self.future, &mut self.by_hash, &mut self.local_transactions)
-			));
+			)?;
 			// Enforce limit in Future
 			let removed = self.future.enforce_limit(&mut self.by_hash, &mut self.local_transactions);
 			// Return an error if this transaction was not imported because of limit.
-			try!(check_if_removed(&address, &nonce, removed));
+			check_if_removed(&address, &nonce, removed)?;
 
 			debug!(target: "txqueue", "Importing transaction to future: {:?}", hash);
 			debug!(target: "txqueue", "status: {:?}", self.status());
@@ -1156,9 +1156,9 @@ impl TransactionQueue {
 		self.move_matching_future_to_current(address, nonce + U256::one(), state_nonce);
 
 		// Replace transaction if any
-		try!(check_too_cheap(
+		check_too_cheap(
 			Self::replace_transaction(tx, state_nonce, min_gas_price, &mut self.current, &mut self.by_hash, &mut self.local_transactions)
-		));
+		)?;
 		// Keep track of highest nonce stored in current
 		let new_max = self.last_nonces.get(&address).map_or(nonce, |n| cmp::max(nonce, *n));
 		self.last_nonces.insert(address, new_max);
@@ -1168,7 +1168,7 @@ impl TransactionQueue {
 		// If some transaction were removed because of limit we need to update last_nonces also.
 		self.update_last_nonces(&removed);
 		// Trigger error if the transaction we are importing was removed.
-		try!(check_if_removed(&address, &nonce, removed));
+		check_if_removed(&address, &nonce, removed)?;
 
 		debug!(target: "txqueue", "Imported transaction to current: {:?}", hash);
 		debug!(target: "txqueue", "status: {:?}", self.status());

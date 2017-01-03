@@ -53,12 +53,30 @@ const STORE = {
       },
       nodeStatus: {
         gasLimit: new BigNumber(123)
+      },
+      personal: {
+        accountsInfo: {}
+      },
+      settings: {
+        backgroundSeed: ''
       }
     };
   }
 };
 
+function createApi (result = true) {
+  return {
+    parity: {
+      registryAddress: sinon.stub().resolves('0x0000000000000000000000000000000000000000')
+    },
+    util: {
+      sha3: sinon.stub().resolves('0x0000000000000000000000000000000000000000')
+    }
+  };
+}
+
 export {
+  createApi,
   CONTRACT,
   STORE
 };

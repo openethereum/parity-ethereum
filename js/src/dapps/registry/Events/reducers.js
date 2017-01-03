@@ -18,12 +18,18 @@ const initialState = {
   subscriptions: {
     Reserved: null,
     Dropped: null,
-    DataChanged: null
+    DataChanged: null,
+    ReverseProposed: null,
+    ReverseConfirmed: null,
+    ReverseRemoved: null
   },
   pending: {
     Reserved: false,
     Dropped: false,
-    DataChanged: false
+    DataChanged: false,
+    ReverseProposed: false,
+    ReverseConfirmed: false,
+    ReverseRemoved: false
   },
   events: []
 };

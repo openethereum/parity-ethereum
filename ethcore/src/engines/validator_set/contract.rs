@@ -128,7 +128,7 @@ mod provider {
 			).map_err(Self::as_string)?;
 			let output = call.decode_output((self.do_call)(self.address.clone(), data)?).map_err(Self::as_string)?;
 			let mut result = output.into_iter().rev().collect::<Vec<_>>();
-			Ok(({ let r = result.pop().ok_or("Invalid return arity")?; let r = try!(r.to_array().and_then(|v| v.into_iter().map(|a| a.to_address()).collect::<Option<Vec<[u8; 20]>>>()).ok_or("Invalid type returned")); r.into_iter().map(|a| util::Address::from(a)).collect::<Vec<_>>() })) 
+			Ok(({ let r = result.pop().ok_or("Invalid return arity")?; let r = r.to_array().and_then(|v| v.into_iter().map(|a| a.to_address()).collect::<Option<Vec<[u8; 20]>>>()).ok_or("Invalid type returned")?; r.into_iter().map(|a| util::Address::from(a)).collect::<Vec<_>>() })) 
 		}
 	}
 }

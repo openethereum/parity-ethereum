@@ -107,7 +107,7 @@ impl<Cost: CostType> evm::Evm for Interpreter<Cost> {
 		let code = &params.code.as_ref().expect("exec always called with code; qed");
 		let valid_jump_destinations = self.cache.jump_destinations(&params.code_hash, code);
 
-		let mut gasometer = Gasometer::<Cost>::new(try!(Cost::from_u256(params.gas)));
+		let mut gasometer = Gasometer::<Cost>::new(Cost::from_u256(params.gas)?);
 		let mut stack = VecStack::with_capacity(ext.schedule().stack_limit, U256::zero());
 		let mut reader = CodeReader::new(code);
 		let infos = &*instructions::INSTRUCTIONS;
@@ -117,14 +117,14 @@ impl<Cost: CostType> evm::Evm for Interpreter<Cost> {
 			reader.position += 1;
 
 			let info = &infos[instruction as usize];
-			try!(self.verify_instruction(ext, instruction, info, &stack));
+			self.verify_instruction(ext, instruction, info, &stack)?;
 
 			// Calculate gas cost
-			let requirements = try!(gasometer.requirements(ext, instruction, info, &stack, self.mem.size()));
+			let requirements = gasometer.requirements(ext, instruction, info, &stack, self.mem.size())?;
 			// TODO: make compile-time removable if too much of a performance hit.
 			let trace_executed = ext.trace_prepare_execute(reader.position - 1, instruction, &requirements.gas_cost.as_u256());
 
-			try!(gasometer.verify_gas(&requirements.gas_cost));
+			gasometer.verify_gas(&requirements.gas_cost)?;
 			self.mem.expand(requirements.memory_required_size);
 			gasometer.current_mem_gas = requirements.memory_total_gas;
 			gasometer.current_gas = gasometer.current_gas - requirements.gas_cost;
@@ -137,9 +137,9 @@ impl<Cost: CostType> evm::Evm for Interpreter<Cost> {
 			};
 
 			// Execute instruction
-			let result = try!(self.exec_instruction(
+			let result = self.exec_instruction(
 				gasometer.current_gas, &params, ext, instruction, &mut reader, &mut stack, requirements.provide_gas
-			));
+			)?;
 
 			evm_debug!({ informant.after_instruction(instruction) });
 
@@ -154,7 +154,7 @@ impl<Cost: CostType> evm::Evm for Interpreter<Cost> {
 			// Advance
 			match result {
 				InstructionResult::JumpToPosition(position) => {
-					let pos = try!(self.verify_jump(position, &valid_jump_destinations));
+					let pos = self.verify_jump(position, &valid_jump_destinations)?;
 					reader.position = pos;
 				},
 				InstructionResult::StopExecutionNeedsReturn(gas, off, size) => {
@@ -513,7 +513,7 @@ impl<Cost: CostType> Interpreter<Cost> {
 				stack.push(ext.env_info().gas_limit.clone());
 			},
 			_ => {
-				try!(self.exec_stack_instruction(instruction, stack));
+				self.exec_stack_instruction(instruction, stack)?;
 			}
 		};
 		Ok(InstructionResult::Ok)

@@ -15,22 +15,27 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import { connect } from 'react-redux';
+import { bindActionCreators } from 'redux';
 import { Card, CardHeader, CardText } from 'material-ui/Card';
 import TextField from 'material-ui/TextField';
+import DropDownMenu from 'material-ui/DropDownMenu';
+import MenuItem from 'material-ui/MenuItem';
 import RaisedButton from 'material-ui/RaisedButton';
 import SaveIcon from 'material-ui/svg-icons/content/save';
 
-import recordTypeSelect from '../ui/record-type-select.js';
+import { update } from './actions';
 import styles from './records.css';
 
-export default class Records extends Component {
+class Records extends Component {
 
   static propTypes = {
-    actions: PropTypes.object.isRequired,
     pending: PropTypes.bool.isRequired,
     name: PropTypes.string.isRequired,
     type: PropTypes.string.isRequired,
-    value: PropTypes.string.isRequired
+    value: PropTypes.string.isRequired,
+
+    update: PropTypes.func.isRequired
   }
 
   state = { name: '', type: 'A', value: '' };
@@ -48,28 +53,36 @@ export default class Records extends Component {
           <p className={ styles.noSpacing }>
             You can only modify entries of names that you previously registered.
           </p>
-
-          <TextField
-            className={ styles.spacing }
-            hintText='name'
-            value={ name }
-            onChange={ this.onNameChange }
-          />
-          { recordTypeSelect(type, this.onTypeChange, styles.spacing) }
-          <TextField
-            className={ styles.spacing }
-            hintText='value'
-            value={ value }
-            onChange={ this.onValueChange }
-          />
-          <RaisedButton
-            disabled={ pending }
-            className={ styles.spacing }
-            label='Save'
-            primary
-            icon={ <SaveIcon /> }
-            onTouchTap={ this.onSaveClick }
-          />
+          <div className={ styles.box }>
+            <TextField
+              hintText='name'
+              value={ name }
+              onChange={ this.onNameChange }
+            />
+            <DropDownMenu
+              value={ type }
+              onChange={ this.onTypeChange }
+            >
+              <MenuItem value='A' primaryText='A – Ethereum address' />
+              <MenuItem value='IMG' primaryText='IMG – hash of a picture in the blockchain' />
+              <MenuItem value='CONTENT' primaryText='CONTENT – hash of a data in the blockchain' />
+            </DropDownMenu>
+            <TextField
+              hintText='value'
+              value={ value }
+              onChange={ this.onValueChange }
+            />
+            <div className={ styles.button }>
+              <RaisedButton
+                disabled={ pending }
+                className={ styles.spacing }
+                label='Save'
+                primary
+                icon={ <SaveIcon /> }
+                onTouchTap={ this.onSaveClick }
+              />
+            </div>
+          </div>
         </CardText>
       </Card>
     );
@@ -86,6 +99,11 @@ export default class Records extends Component {
   };
   onSaveClick = () => {
     const { name, type, value } = this.state;
-    this.props.actions.update(name, type, value);
+    this.props.update(name, type, value);
   };
 }
+
+const mapStateToProps = (state) => state.records;
+const mapDispatchToProps = (dispatch) => bindActionCreators({ update }, dispatch);
+
+export default connect(mapStateToProps, mapDispatchToProps)(Records);
