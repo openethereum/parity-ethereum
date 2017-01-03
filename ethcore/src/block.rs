@@ -16,6 +16,7 @@
 
 //! Blockchain block.
 
+use std::cmp;
 use std::sync::Arc;
 use std::collections::HashSet;
 
@@ -266,8 +267,9 @@ impl<'x> OpenBlock<'x> {
 		r.block.base.header.set_extra_data(extra_data);
 		r.block.base.header.note_dirty();
 
-		let gas_floor_target = ::std::cmp::max(gas_range_target.0, engine.params().min_gas_limit);
-		engine.populate_from_parent(&mut r.block.base.header, parent, gas_floor_target, gas_range_target.1);
+		let gas_floor_target = cmp::max(gas_range_target.0, engine.params().min_gas_limit);
+		let gas_ceil_target = cmp::max(gas_range_target.1, gas_floor_target);
+		engine.populate_from_parent(&mut r.block.base.header, parent, gas_floor_target, gas_ceil_target);
 		engine.on_new_block(&mut r.block);
 		Ok(r)
 	}
