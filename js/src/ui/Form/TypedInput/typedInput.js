@@ -272,8 +272,8 @@ export default class TypedInput extends Component {
     const { allowCopy, label, error, hint, min, max, readOnly } = this.props;
     const param = this.getParam();
 
-    const realValue = value && typeof value.toNumber === 'function'
-      ? (readOnly ? value.toFormat() : value.toNumber())
+    const realValue = value
+      ? (new BigNumber(value))[readOnly ? 'toFormat' : 'toNumber']()
       : value;
 
     return (
@@ -315,7 +315,6 @@ export default class TypedInput extends Component {
       <InputAddressSelect
         allowCopy={ allowCopy }
         accounts={ accounts }
-        editing
         error={ error }
         hint={ hint }
         label={ label }
