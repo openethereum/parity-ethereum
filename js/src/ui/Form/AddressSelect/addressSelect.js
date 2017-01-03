@@ -58,11 +58,13 @@ class AddressSelect extends Component {
     tokens: PropTypes.object,
 
     // Optional props
+    allowCopy: PropTypes.bool,
     allowInput: PropTypes.bool,
     disabled: PropTypes.bool,
     error: nodeOrStringProptype(),
     hint: nodeOrStringProptype(),
     label: nodeOrStringProptype(),
+    readOnly: PropTypes.bool,
     value: nodeOrStringProptype()
   };
 
@@ -121,12 +123,12 @@ class AddressSelect extends Component {
 
   renderInput () {
     const { focused } = this.state;
-    const { accountsInfo, disabled, error, hint, label, value } = this.props;
+    const { accountsInfo, allowCopy, disabled, error, hint, label, readOnly, value } = this.props;
 
     const input = (
       <InputAddress
         accountsInfo={ accountsInfo }
-        allowCopy={ false }
+        allowCopy={ allowCopy }
         disabled={ disabled }
         error={ error }
         hint={ hint }
@@ -139,7 +141,7 @@ class AddressSelect extends Component {
       />
     );
 
-    if (disabled) {
+    if (disabled || readOnly) {
       return input;
     }
 
@@ -152,10 +154,10 @@ class AddressSelect extends Component {
 
   renderContent () {
     const { muiTheme } = this.context;
-    const { hint, disabled, label } = this.props;
+    const { hint, disabled, label, readOnly } = this.props;
     const { expanded, inputFocused } = this.state;
 
-    if (disabled) {
+    if (disabled || readOnly) {
       return null;
     }
 
@@ -507,6 +509,10 @@ class AddressSelect extends Component {
   }
 
   handleMainBlur = () => {
+    if (this.props.readOnly) {
+      return;
+    }
+
     if (window.document.hasFocus() && !this.state.expanded) {
       this.closing = false;
       this.setState({ focused: false });
@@ -514,7 +520,7 @@ class AddressSelect extends Component {
   }
 
   handleMainFocus = () => {
-    if (this.state.focused) {
+    if (this.state.focused || this.props.readOnly) {
       return;
     }
 
@@ -529,6 +535,12 @@ class AddressSelect extends Component {
   }
 
   handleFocus = () => {
+    const { disabled, readOnly } = this.props;
+
+    if (disabled || readOnly) {
+      return;
+    }
+
     this.setState({ expanded: true, focusedItem: null, focusedCat: null }, () => {
       window.setTimeout(() => {
         this.handleDOMAction(this.inputRef, 'focus');

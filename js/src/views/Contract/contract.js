@@ -46,6 +46,7 @@ class Contract extends Component {
     setVisibleAccounts: PropTypes.func.isRequired,
 
     accounts: PropTypes.object,
+    accountsInfo: PropTypes.object,
     balances: PropTypes.object,
     contracts: PropTypes.object,
     isTest: PropTypes.bool,
@@ -115,7 +116,7 @@ class Contract extends Component {
   }
 
   render () {
-    const { balances, contracts, params, isTest } = this.props;
+    const { accountsInfo, balances, contracts, params, isTest } = this.props;
     const { allEvents, contract, queryValues, loadingEvents } = this.state;
     const account = contracts[params.address];
     const balance = balances[params.address];
@@ -138,6 +139,7 @@ class Contract extends Component {
           />
 
           <Queries
+            accountsInfo={ accountsInfo }
             contract={ contract }
             values={ queryValues }
           />
@@ -447,13 +449,14 @@ class Contract extends Component {
 }
 
 function mapStateToProps (state) {
-  const { accounts, contracts } = state.personal;
+  const { accounts, accountsInfo, contracts } = state.personal;
   const { balances } = state.balances;
   const { isTest } = state.nodeStatus;
 
   return {
     isTest,
     accounts,
+    accountsInfo,
     contracts,
     balances
   };
