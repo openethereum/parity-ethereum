@@ -140,7 +140,6 @@ struct Peer {
 	sent_head: H256, // last chain head we've given them.
 	last_update: SteadyTime,
 	pending_requests: RequestSet,
-	idle: bool, // make into a current percentage of max buffer being requested?
 }
 
 impl Peer {
@@ -261,16 +260,10 @@ impl LightProtocol {
 	fn max_requests(&self, peer: PeerId, kind: request::Kind) -> usize {
 		self.peers.read().get(&peer).and_then(|peer| {
 			let mut peer = peer.lock();
-			let idle = peer.idle;
 			match peer.remote_flow {
 				Some((ref mut buf, ref flow)) => {
 					flow.recharge(buf);
-
-					if !idle {
-						Some(0)
-					} else {
-						Some(flow.max_amount(&*buf, kind))
-					}
+					Some(flow.max_amount(&*buf, kind))
 				}
 				None => None,
 			}
@@ -287,8 +280,6 @@ impl LightProtocol {
 		let peers = self.peers.read();
 		let peer = peers.get(peer_id).ok_or_else(|| Error::UnknownPeer)?;
 		let mut peer = peer.lock();
-
-		if !peer.idle { return Err(Error::Overburdened) }
 
 		match peer.remote_flow {
 			Some((ref mut buf, ref flow)) => {
@@ -315,7 +306,6 @@ impl LightProtocol {
 
 		io.send(*peer_id, packet_id, packet_data);
 
-		peer.idle = false;
 		peer.pending_requests.insert(ReqId(req_id), request, SteadyTime::now());
 
 		Ok(ReqId(req_id))
@@ -404,7 +394,6 @@ impl LightProtocol {
 		match peers.get(peer) {
 			Some(peer_info) => {
 				let mut peer_info = peer_info.lock();
-				peer_info.idle = true;
 
 				match peer_info.pending_requests.remove(&req_id, SteadyTime::now()) {
 					None => return Err(Error::UnsolicitedResponse),
@@ -596,7 +585,6 @@ impl LightProtocol {
 			sent_head: pending.sent_head,
 			last_update: pending.last_update,
 			pending_requests: RequestSet::default(),
-			idle: true,
 		}));
 
 		for handler in &self.handlers {

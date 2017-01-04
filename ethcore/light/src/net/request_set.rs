@@ -111,3 +111,30 @@ impl RequestSet {
 		self.ids.keys().cloned().collect()
 	}
 }
+
+#[cfg(test)]
+mod tests {
+	use net::{timeout, ReqId};
+	use request::{Request, Receipts};
+	use time::{SteadyTime, Duration};
+	use super::RequestSet;
+
+	#[test]
+	fn multi_timeout() {
+		let test_begin = SteadyTime::now();
+		let mut req_set = RequestSet::default();
+
+		let the_req = Request::Receipts(Receipts { block_hashes: Vec::new() });
+		req_set.insert(ReqId(0), the_req.clone(), test_begin);
+		req_set.insert(ReqId(1), the_req, test_begin + Duration::seconds(1));
+
+		assert_eq!(req_set.base, Some(test_begin));
+
+		let test_end = test_begin + Duration::milliseconds(timeout::RECEIPTS);
+		assert!(req_set.check_timeout(test_end));
+
+		req_set.remove(&ReqId(0), test_begin + Duration::seconds(1)).unwrap();
+		assert!(!req_set.check_timeout(test_end));
+		assert!(req_set.check_timeout(test_end + Duration::seconds(1)));
+	}
+}
