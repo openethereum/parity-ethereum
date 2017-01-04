@@ -32,10 +32,10 @@ export default class Store {
   @observable depositInfo = null;
   @observable exchangeInfo = null;
   @observable error = null;
-  @observable hasAccepted = false;
+  @observable hasAcceptedTerms = false;
   @observable price = null;
   @observable refundAddress = '';
-  @observable stage = 0;
+  @observable stage = STAGE_OPTIONS;
 
   constructor (address) {
     this._shapeshiftApi = initShapeshift();
@@ -44,6 +44,16 @@ export default class Store {
 
   @action setCoins = (coins) => {
     this.coins = coins;
+  }
+
+  @action setCoinSymbol = (coinSymbol) => {
+    transaction(() => {
+      this.coinSymbol = coinSymbol;
+      this.coinPair = `${coinSymbol.toLowerCase()}_eth`;
+      this.price = null;
+    });
+
+    return this.getCoinPrice();
   }
 
   @action setDepositAddress = (depositAddress) => {
@@ -80,38 +90,28 @@ export default class Store {
     this.stage = stage;
   }
 
-  @action setCoinSymbol = (coinSymbol) => {
-    transaction(() => {
-      this.coinSymbol = coinSymbol;
-      this.coinPair = `${coinSymbol.toLowerCase()}_eth`;
-      this.price = null;
-    });
-
-    return this.getPrice();
+  @action toggleAcceptTerms = () => {
+    this.hasAcceptedTerms = !this.hasAcceptedTerms;
   }
 
-  @action toggleAccept = () => {
-    this.hasAccepted = !this.hasAccepted;
-  }
-
-  getPrice () {
+  getCoinPrice () {
     return this._shapeshiftApi
       .getMarketInfo(this.coinPair)
       .then((price) => {
         this.setPrice(price);
       })
       .catch((error) => {
-        console.error('getPrice', error);
+        console.error('getCoinPrice', error);
       });
   }
 
   retrieveCoins () {
     return this._shapeshiftApi
       .getCoins()
-      .then((_coins) => {
-        this.setCoins(Object.values(_coins).filter((coin) => coin.status === 'available'));
+      .then((coins) => {
+        this.setCoins(Object.values(coins).filter((coin) => coin.status === 'available'));
 
-        return this.getPrice();
+        return this.getCoinPrice();
       })
       .catch((error) => {
         console.error('retrieveCoins', error);

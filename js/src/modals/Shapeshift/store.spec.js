@@ -14,7 +14,9 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import Store from './store';
+import sinon from 'sinon';
+
+import Store, { STAGE_COMPLETED, STAGE_OPTIONS, STAGE_WAIT_EXCHANGE } from './store';
 
 const ADDRESS = '0xabcdeffdecbaabcdeffdecbaabcdeffdecbaabcdeffdecba';
 
@@ -27,5 +29,211 @@ describe('modals/Shapeshift/Store', () => {
 
   it('stores the ETH address', () => {
     expect(store.address).to.equal(ADDRESS);
+  });
+
+  it('defaults to BTC-ETH pair', () => {
+    expect(store.coinSymbol).to.equal('BTC');
+    expect(store.coinPair).to.equal('btc_eth');
+  });
+
+  it('defaults to stage STAGE_OPTIONS', () => {
+    expect(store.stage).to.equal(STAGE_OPTIONS);
+  });
+
+  it('defaults to terms not accepted', () => {
+    expect(store.hasAcceptedTerms).to.be.false;
+  });
+
+  describe('@action', () => {
+    describe('setCoins', () => {
+      it('sets the available coins', () => {
+        const coins = ['BTC', 'ETC', 'XMR'];
+
+        store.setCoins(coins);
+        expect(store.coins.peek()).to.deep.equal(coins);
+      });
+    });
+
+    describe('setCoinSymbol', () => {
+      beforeEach(() => {
+        sinon.stub(store, 'getCoinPrice');
+        store.setCoinSymbol('XMR');
+      });
+
+      afterEach(() => {
+        store.getCoinPrice.restore();
+      });
+
+      it('sets the coinSymbol', () => {
+        expect(store.coinSymbol).to.equal('XMR');
+      });
+
+      it('sets the coinPair', () => {
+        expect(store.coinPair).to.equal('xmr_eth');
+      });
+
+      it('resets the price retrieved', () => {
+        expect(store.price).to.be.null;
+      });
+
+      it('retrieves the pair price', () => {
+        expect(store.getCoinPrice).to.have.been.called;
+      });
+    });
+
+    describe('setDepositAddress', () => {
+      it('sets the depositAddress', () => {
+        store.setDepositAddress('testing');
+        expect(store.depositAddress).to.equal('testing');
+      });
+    });
+
+    describe('setDepositInfo', () => {
+      beforeEach(() => {
+        store.setDepositInfo('testing');
+      });
+
+      it('sets the depositInfo', () => {
+        expect(store.depositInfo).to.equal('testing');
+      });
+
+      it('sets the stage to STAGE_WAIT_EXCHANGE', () => {
+        expect(store.stage).to.equal(STAGE_WAIT_EXCHANGE);
+      });
+    });
+
+    describe('setError', () => {
+      it('sets the error', () => {
+        store.setError(new Error('testing'));
+        expect(store.error).to.match(/testing/);
+      });
+    });
+
+    describe('setExchangeInfo', () => {
+      beforeEach(() => {
+        store.setExchangeInfo('testing');
+      });
+
+      it('sets the exchangeInfo', () => {
+        expect(store.exchangeInfo).to.equal('testing');
+      });
+
+      it('sets the stage to STAGE_COMPLETED', () => {
+        expect(store.stage).to.equal(STAGE_COMPLETED);
+      });
+    });
+
+    describe('setPrice', () => {
+      it('sets the price', () => {
+        store.setPrice('testing');
+        expect(store.price).to.equal('testing');
+      });
+    });
+
+    describe('setRefundAddress', () => {
+      it('sets the price', () => {
+        store.setRefundAddress('testing');
+        expect(store.refundAddress).to.equal('testing');
+      });
+    });
+
+    describe('setStage', () => {
+      it('sets the state', () => {
+        store.setStage('testing');
+        expect(store.stage).to.equal('testing');
+      });
+    });
+
+    describe('toggleAcceptTerms', () => {
+      it('changes state on hasAcceptedTerms', () => {
+        store.toggleAcceptTerms();
+        expect(store.hasAcceptedTerms).to.be.true;
+      });
+    });
+  });
+
+  describe('operations', () => {
+    describe('getCoinPrice', () => {
+      beforeEach(() => {
+        sinon.stub(store._shapeshiftApi, 'getMarketInfo').resolves('testPrice');
+        return store.getCoinPrice();
+      });
+
+      afterEach(() => {
+        store._shapeshiftApi.getMarketInfo.restore();
+      });
+
+      it('retrieves the market info from ShapeShift', () => {
+        expect(store._shapeshiftApi.getMarketInfo).to.have.been.calledWith('btc_eth');
+      });
+
+      it('stores the price retrieved', () => {
+        expect(store.price).to.equal('testPrice');
+      });
+    });
+
+    describe('retrieveCoins', () => {
+      beforeEach(() => {
+        sinon.stub(store._shapeshiftApi, 'getCoins').resolves({
+          BTC: { symbol: 'BTC', status: 'available' },
+          ETC: { symbol: 'ETC' },
+          XMR: { symbol: 'XMR', status: 'available' }
+        });
+        sinon.stub(store, 'getCoinPrice');
+        return store.retrieveCoins();
+      });
+
+      afterEach(() => {
+        store._shapeshiftApi.getCoins.restore();
+        store.getCoinPrice.restore();
+      });
+
+      it('retrieves the coins from ShapeShift', () => {
+        expect(store._shapeshiftApi.getCoins).to.have.been.called;
+      });
+
+      it('sets the available coins', () => {
+        expect(store.coins.peek()).to.deep.equal([
+          { status: 'available', symbol: 'BTC' },
+          { status: 'available', symbol: 'XMR' }
+        ]);
+      });
+
+      it('retrieves the price once resolved', () => {
+        expect(store.getCoinPrice).to.have.been.called;
+      });
+    });
+
+    describe('subscribe', () => {
+      beforeEach(() => {
+        sinon.stub(store._shapeshiftApi, 'subscribe');
+        store.setDepositAddress('depositAddress');
+        return store.subscribe();
+      });
+
+      afterEach(() => {
+        store._shapeshiftApi.subscribe.restore();
+      });
+
+      it('calls into the ShapeShift subscribe', () => {
+        expect(store._shapeshiftApi.subscribe).to.have.been.calledWith('depositAddress', store.onExchangeInfo);
+      });
+    });
+
+    describe('unsubscribe', () => {
+      beforeEach(() => {
+        sinon.stub(store._shapeshiftApi, 'unsubscribe');
+        store.setDepositAddress('depositAddress');
+        return store.unsubscribe();
+      });
+
+      afterEach(() => {
+        store._shapeshiftApi.unsubscribe.restore();
+      });
+
+      it('calls into the ShapeShift unsubscribe', () => {
+        expect(store._shapeshiftApi.unsubscribe).to.have.been.calledWith('depositAddress');
+      });
+    });
   });
 });

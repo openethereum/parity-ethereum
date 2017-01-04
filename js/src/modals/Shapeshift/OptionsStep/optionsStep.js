@@ -86,7 +86,7 @@ export default class OptionsStep extends Component {
                 id='shapeshift.optionsStep.terms.label'
                 defaultMessage='I understand that ShapeShift.io is a 3rd-party service and by using the service any transfer of information and/or funds is completely out of the control of Parity' />
             }
-            onCheck={ this.onToggleAccept } />
+            onCheck={ this.onToggleAcceptTerms } />
         </Form>
         <Price
           coinSymbol={ coinSymbol }
@@ -132,7 +132,7 @@ export default class OptionsStep extends Component {
     this.props.store.setCoinSymbol(coinSymbol);
   }
 
-  onToggleAccept = () => {
-    this.props.store.toggleAccept();
+  onToggleAcceptTerms = () => {
+    this.props.store.toggleAcceptTerms();
   }
 }

@@ -23,6 +23,7 @@ import Shapeshift from './';
 const ADDRESS = '0x0123456789012345678901234567890123456789';
 
 let component;
+let instance;
 let onClose;
 
 function render (props = {}) {
@@ -31,8 +32,10 @@ function render (props = {}) {
     <Shapeshift
       address={ ADDRESS }
       onClose={ onClose }
-      { ...props } />
+      { ...props } />,
+    { context: { store: {} } }
   );
+  instance = component.instance();
 
   return component;
 }
@@ -40,5 +43,35 @@ function render (props = {}) {
 describe('modals/Shapeshift', () => {
   it('renders defaults', () => {
     expect(render()).to.be.ok;
+  });
+
+  describe('componentDidMount', () => {
+    beforeEach(() => {
+      sinon.stub(instance.store, 'retrieveCoins');
+      return instance.componentDidMount();
+    });
+
+    afterEach(() => {
+      instance.store.retrieveCoins.restore();
+    });
+
+    it('retrieves the list of coins when mounting', () => {
+      expect(instance.store.retrieveCoins).to.have.been.called;
+    });
+  });
+
+  describe('componentWillUnmount', () => {
+    beforeEach(() => {
+      sinon.stub(instance.store, 'unsubscribe');
+      return instance.componentWillUnmount();
+    });
+
+    afterEach(() => {
+      instance.store.unsubscribe.restore();
+    });
+
+    it('removes any subscriptions when unmounting', () => {
+      expect(instance.store.unsubscribe).to.have.been.called;
+    });
   });
 });

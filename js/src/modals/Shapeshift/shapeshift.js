@@ -63,7 +63,7 @@ export default class Shapeshift extends Component {
   store = new Store(this.props.address);
 
   componentDidMount () {
-    this.retrieveCoins();
+    this.store.retrieveCoins();
   }
 
   componentWillUnmount () {
@@ -205,9 +205,5 @@ export default class Shapeshift extends Component {
 
   onShift = () => {
     return this.store.shift();
-  }
-
-  retrieveCoins = () => {
-    return this.store.retrieveCoins();
   }
 }
