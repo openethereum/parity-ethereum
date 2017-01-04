@@ -20,6 +20,7 @@ import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 import RaisedButton from 'material-ui/RaisedButton';
 import ReactTooltip from 'react-tooltip';
+import keycode from 'keycode';
 
 import { Form, Input, IdentityIcon } from '~/ui';
 
@@ -207,7 +208,9 @@ class TransactionPendingFormConfirm extends Component {
   }
 
   onKeyDown = (event) => {
-    if (event.which !== 13) {
+    const codeName = keycode(event);
+
+    if (codeName !== 'enter') {
       return;
     }
 

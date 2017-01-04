@@ -71,7 +71,7 @@ class Wallet extends Component {
     owned: PropTypes.bool.isRequired,
     setVisibleAccounts: PropTypes.func.isRequired,
     wallet: PropTypes.object.isRequired,
-    walletAccount: nullableProptype(PropTypes.object).isRequired
+    walletAccount: nullableProptype(PropTypes.object.isRequired)
   };
 
   state = {

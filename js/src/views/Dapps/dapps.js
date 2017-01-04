@@ -45,6 +45,10 @@ class Dapps extends Component {
   store = DappsStore.get(this.context.api);
   permissionStore = new PermissionStore(this.context.api);
 
+  componentWillMount () {
+    this.store.loadAllApps();
+  }
+
   render () {
     let externalOverlay = null;
     if (this.store.externalOverlayVisible) {

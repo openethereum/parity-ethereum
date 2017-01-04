@@ -20,7 +20,7 @@ export function showSnackbar (message, cooldown) {
   };
 }
 
-function openSnackbar (message, cooldown) {
+export function openSnackbar (message, cooldown) {
   return {
     type: 'openSnackbar',
     message, cooldown

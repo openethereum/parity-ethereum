@@ -18,6 +18,7 @@ import { Dialog } from 'material-ui';
 import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
+import ReactDOM from 'react-dom';
 
 import { nodeOrStringProptype } from '~/util/proptypes';
 
@@ -47,6 +48,14 @@ class Modal extends Component {
     title: nodeOrStringProptype(),
     visible: PropTypes.bool.isRequired,
     waiting: PropTypes.array
+  }
+
+  componentDidMount () {
+    const element = ReactDOM.findDOMNode(this.refs.dialog);
+
+    if (element) {
+      element.focus();
+    }
   }
 
   render () {
@@ -85,9 +94,12 @@ class Modal extends Component {
         <Container
           compact={ compact }
           light
+          ref='dialog'
           style={
             { transition: 'none' }
-          }>
+          }
+          tabIndex={ 0 }
+        >
           { children }
         </Container>
       </Dialog>
