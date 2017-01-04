@@ -155,7 +155,7 @@ describe('views/Account', () => {
         render();
 
         store.toggleEditDialog();
-        expect(instance.renderEditDialog({ address: ADDRESS }).type).to.match(/EditMeta/);
+        expect(instance.renderEditDialog({ address: ADDRESS }).type).to.match(/Connect/);
       });
     });
 
@@ -187,7 +187,7 @@ describe('views/Account', () => {
         render();
 
         store.togglePasswordDialog();
-        expect(instance.renderPasswordDialog({ address: ADDRESS }).type).to.match(/PasswordManager/);
+        expect(instance.renderPasswordDialog({ address: ADDRESS }).type).to.match(/Connect/);
       });
     });
 
