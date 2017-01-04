@@ -32,7 +32,7 @@ use ethcore::verification::queue::VerifierSettings;
 use ethsync::SyncConfig;
 use informant::Informant;
 use updater::{UpdatePolicy, Updater};
-use parity_reactor::{EventLoop, EventLoopHandle};
+use parity_reactor::EventLoop;
 use hash_fetch::fetch::{Fetch, Client as FetchClient};
 
 use rpc::{HttpConfiguration, IpcConfiguration};
@@ -96,7 +96,6 @@ pub struct RunCmd {
 	pub check_seal: bool,
 	pub download_old_blocks: bool,
 	pub verifier_settings: VerifierSettings,
-	pub light: bool,
 }
 
 pub fn open_ui(dapps_conf: &dapps::Configuration, signer_conf: &signer::Configuration) -> Result<(), String> {
@@ -116,64 +115,6 @@ pub fn open_ui(dapps_conf: &dapps::Configuration, signer_conf: &signer::Configur
 	Ok(())
 }
 
-// Execute in light client mode.
-pub fn execute_light(cmd: RunCmd) -> Result<bool, String> {
-	use light::client::{Config as ClientConfig, Service as LightClientService};
-	use ethsync::{LightSync, LightSyncParams, ManageNetwork};
-
-	let panic_handler = PanicHandler::new_in_arc();
-
-	info!(
-		"Configured in {} mode. Note that this feature is {}.",
-		Colour::Blue.bold().paint("Light Client"),
-		Colour::Red.bold().paint("experimental"),
-	);
-
-	let mut client_config = ClientConfig::default();
-	let queue_size = cmd.cache_config.queue();
-
-	client_config.queue.max_queue_size = queue_size as usize;
-	client_config.queue.verifier_settings = cmd.verifier_settings;
-
-	let spec = try!(cmd.spec.spec());
-	let service = try!(LightClientService::start(client_config, &spec)
-		.map_err(|e| format!("Error starting light client service: {}", e)));
-
-	let net_conf = try!(cmd.net_conf.into_basic()
-		.map_err(|e| format!("Failed to create network config: {}", e)));
-
-	let sync_params = LightSyncParams {
-		network_config: net_conf,
-		client: service.client().clone(),
-		network_id: cmd.network_id.unwrap_or(spec.network_id()),
-		subprotocol_name: *b"les",
-	};
-
-	let sync = try!(LightSync::new(sync_params)
-		.map_err(|e| format!("Failed to initialize sync service: {}", e)));
-
-	sync.start_network();
-
-	let log_client = service.client().clone();
-	::std::thread::spawn(move || {
-		// TODO: proper informant.
-		loop {
-			::std::thread::sleep(::std::time::Duration::from_secs(5));
-			let chain_info = log_client.chain_info();
-			let queue_info = log_client.queue_info();
-			println!(
-				"#{}    {:5}+{:5} Qed",
-				chain_info.best_block_number,
-				queue_info.unverified_queue_size,
-				queue_info.verified_queue_size
-			);
-		}
-	});
-
-	wait_for_exit(panic_handler, None, false);
-	Ok(false)
-}
-
 pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> Result<bool, String> {
 	if cmd.ui && cmd.dapps_conf.enabled {
 		// Check if Parity is already running
@@ -181,10 +122,6 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 		if !TcpListener::bind(&addr as &str).is_ok() {
 			return open_ui(&cmd.dapps_conf, &cmd.signer_conf).map(|_| false);
 		}
-	}
-
-	if cmd.light {
-		return execute_light(cmd);
 	}
 
 	// set up panic handler

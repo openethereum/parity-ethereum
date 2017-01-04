@@ -341,7 +341,6 @@ impl Configuration {
 				no_periodic_snapshot: self.args.flag_no_periodic_snapshot,
 				check_seal: !self.args.flag_no_seal_check,
 				download_old_blocks: !self.args.flag_no_ancient_blocks,
-				light: self.args.flag_light,
 				verifier_settings: verifier_settings,
 			};
 			Cmd::Run(run_cmd)
@@ -1033,7 +1032,6 @@ mod tests {
 			check_seal: true,
 			download_old_blocks: true,
 			verifier_settings: Default::default(),
-			light: false,
 		}));
 	}
 

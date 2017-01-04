@@ -66,8 +66,6 @@ Operating Options:
   --keys-path PATH         Specify the path for JSON key files to be found
                            (default: {flag_keys_path}).
   --identity NAME          Specify your node's name. (default: {flag_identity})
-  --light                  Run in light client mode. Very experimental.
-                           (default: {flag_light})
 
 Account Options:
   --unlock ACCOUNTS        Unlock ACCOUNTS for the duration of the execution.
