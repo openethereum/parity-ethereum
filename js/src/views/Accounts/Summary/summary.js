@@ -157,7 +157,11 @@ export default class Summary extends Component {
     const { link, noLink, account, name } = this.props;
 
     const { address } = account;
-    const viewLink = `/${link || 'accounts'}/${address}`;
+    const baseLink = account.wallet
+      ? 'wallet'
+      : link || 'accounts';
+
+    const viewLink = `/${baseLink}/${address}`;
 
     const content = (
       <IdentityName address={ address } name={ name } unknown />

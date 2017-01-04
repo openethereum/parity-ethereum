@@ -27,25 +27,12 @@ const ACCOUNT = {
   uuid: '123-456'
 };
 
-const ADDRESS = {
-  address: '0x0123456789012345678901234567890123456789',
-  meta: {
-    description: 'Some address',
-    extraMeta: {
-      some: 'random',
-      extra: {
-        meta: 'data'
-      }
-    }
-  },
-  name: 'Random address'
-};
-
-function createApi () {
+function createApi (result = true) {
   return {
     parity: {
-      setAccountName: sinon.stub().resolves(),
-      setAccountMeta: sinon.stub().resolves()
+      changePassword: sinon.stub().resolves(result),
+      setAccountMeta: sinon.stub().resolves(result),
+      testPassword: sinon.stub().resolves(result)
     }
   };
 }
@@ -62,7 +49,6 @@ function createRedux () {
 
 export {
   ACCOUNT,
-  ADDRESS,
   createApi,
   createRedux
 };

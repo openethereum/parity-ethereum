@@ -28,6 +28,8 @@ const STEPS = {
 };
 
 export default class WalletSettingsStore {
+  accounts = {};
+
   @observable step = null;
   @observable requests = [];
   @observable deployState = '';

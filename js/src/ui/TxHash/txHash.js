@@ -134,7 +134,7 @@ class TxHash extends Component {
     const { api } = this.context;
     const { hash } = this.props;
 
-    if (error) {
+    if (error || !hash || /^(0x)?0*$/.test(hash)) {
       return;
     }
 

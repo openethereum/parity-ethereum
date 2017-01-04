@@ -14,34 +14,35 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { action, computed, observable, toJS, transaction } from 'mobx';
+import { action, computed, observable, transaction } from 'mobx';
 
-import { newError } from '~/redux/actions';
 import { validateName } from '~/util/validation';
 
 export default class Store {
   @observable address = null;
   @observable isAccount = false;
   @observable description = null;
-  @observable meta = {};
+  @observable meta = null;
   @observable name = null;
   @observable nameError = null;
   @observable passwordHint = null;
-  @observable tags = [];
+  @observable tags = null;
 
   constructor (api, account) {
     const { address, name, meta, uuid } = account;
 
     this._api = api;
 
-    this.isAccount = !!uuid;
-    this.address = address;
-    this.meta = Object.assign({}, meta || {});
-    this.name = name || '';
+    transaction(() => {
+      this.isAccount = !!uuid;
+      this.address = address;
+      this.meta = meta || {};
+      this.name = name || '';
 
-    this.description = this.meta.description || '';
-    this.passwordHint = this.meta.passwordHint || '';
-    this.tags = [].concat((meta || {}).tags || []);
+      this.description = this.meta.description || '';
+      this.passwordHint = this.meta.passwordHint || '';
+      this.tags = this.meta.tags && this.meta.tags.peek() || [];
+    });
   }
 
   @computed get hasError () {
@@ -70,7 +71,7 @@ export default class Store {
   }
 
   @action setTags = (tags) => {
-    this.tags = [].concat(tags);
+    this.tags = tags.slice();
   }
 
   save () {
@@ -86,12 +87,11 @@ export default class Store {
     return Promise
       .all([
         this._api.parity.setAccountName(this.address, this.name),
-        this._api.parity.setAccountMeta(this.address, Object.assign({}, toJS(this.meta), meta))
+        this._api.parity.setAccountMeta(this.address, Object.assign({}, this.meta, meta))
       ])
       .catch((error) => {
         console.error('onSave', error);
-
-        newError(error);
+        throw error;
       });
   }
 }

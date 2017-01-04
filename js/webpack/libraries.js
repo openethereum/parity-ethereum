@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-// Run with `webpack --config webpack.libraries.js --progress`
+// Run with `webpack --config webpack.libraries.js`
 
 const path = require('path');
 
@@ -38,6 +38,13 @@ module.exports = {
     library: '[name].js',
     libraryTarget: 'umd'
   },
+
+  resolve: {
+    alias: {
+      '~': path.resolve(__dirname, '../src')
+    }
+  },
+
   module: {
     rules: [
       {

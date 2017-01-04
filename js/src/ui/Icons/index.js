@@ -24,6 +24,7 @@ import LockedIcon from 'material-ui/svg-icons/action/lock-outline';
 import NextIcon from 'material-ui/svg-icons/navigation/arrow-forward';
 import PrevIcon from 'material-ui/svg-icons/navigation/arrow-back';
 import SaveIcon from 'material-ui/svg-icons/content/save';
+import SendIcon from 'material-ui/svg-icons/content/send';
 import SnoozeIcon from 'material-ui/svg-icons/av/snooze';
 import VisibleIcon from 'material-ui/svg-icons/image/remove-red-eye';
 
@@ -38,6 +39,7 @@ export {
   NextIcon,
   PrevIcon,
   SaveIcon,
+  SendIcon,
   SnoozeIcon,
   VisibleIcon
 };

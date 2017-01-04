@@ -51,6 +51,7 @@ export default class Input extends Component {
       PropTypes.string,
       PropTypes.bool
     ]),
+    autoFocus: PropTypes.bool,
     children: PropTypes.node,
     className: PropTypes.string,
     disabled: PropTypes.bool,
@@ -112,7 +113,7 @@ export default class Input extends Component {
 
   render () {
     const { value } = this.state;
-    const { children, className, hideUnderline, disabled, error, focused, label } = this.props;
+    const { autoFocus, children, className, hideUnderline, disabled, error, focused, label } = this.props;
     const { hint, onClick, onFocus, multiLine, rows, type, min, max, style, tabIndex } = this.props;
 
     const readOnly = this.props.readOnly || disabled;
@@ -138,6 +139,7 @@ export default class Input extends Component {
         { this.renderCopyButton() }
         <TextField
           autoComplete='off'
+          autoFocus={ autoFocus }
           className={ className }
           errorText={ error }
           floatingLabelFixed
@@ -183,7 +185,7 @@ export default class Input extends Component {
 
     const text = typeof allowCopy === 'string'
       ? allowCopy
-      : value;
+      : value.toString();
 
     const style = hideUnderline
       ? {}

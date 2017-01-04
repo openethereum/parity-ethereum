@@ -14,25 +14,25 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { PropTypes } from 'react';
+import { showSnackbar } from './snackbarActions';
 
-export function arrayOrObjectProptype () {
-  return PropTypes.oneOfType([
-    PropTypes.array,
-    PropTypes.object
-  ]);
-}
+export default class ChainMiddleware {
+  toMiddleware () {
+    return (store) => (next) => (action) => {
+      if (action.type === 'statusCollection') {
+        const { collection } = action;
 
-export function nullableProptype (type) {
-  return PropTypes.oneOfType([
-    PropTypes.oneOf([ null ]),
-    type
-  ]);
-}
+        if (collection && collection.netChain) {
+          const chain = collection.netChain;
+          const { nodeStatus } = store.getState();
 
-export function nodeOrStringProptype () {
-  return PropTypes.oneOfType([
-    PropTypes.node,
-    PropTypes.string
-  ]);
+          if (chain !== nodeStatus.netChain) {
+            store.dispatch(showSnackbar(`Switched to ${chain}. Please reload the page.`, 5000));
+          }
+        }
+      }
+
+      next(action);
+    };
+  }
 }

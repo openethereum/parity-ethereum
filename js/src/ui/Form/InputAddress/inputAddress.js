@@ -78,7 +78,7 @@ class InputAddress extends Component {
     return (
       <div className={ containerClasses.join(' ') }>
         <Input
-          allowCopy={ allowCopy && (disabled ? value : false) }
+          allowCopy={ allowCopy && ((disabled || readOnly) ? value : false) }
           className={ classes.join(' ') }
           disabled={ disabled }
           error={ error }
@@ -103,13 +103,13 @@ class InputAddress extends Component {
   }
 
   renderIcon () {
-    const { value, disabled, label, allowCopy, hideUnderline } = this.props;
+    const { value, disabled, label, allowCopy, hideUnderline, readOnly } = this.props;
 
     if (!value || !value.length || !util.isAddressValid(value)) {
       return null;
     }
 
-    const classes = [disabled ? styles.iconDisabled : styles.icon];
+    const classes = [(disabled || readOnly) ? styles.iconDisabled : styles.icon];
 
     if (!label) {
       classes.push(styles.noLabel);

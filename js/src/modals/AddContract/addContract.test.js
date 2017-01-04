@@ -16,36 +16,17 @@
 
 import sinon from 'sinon';
 
-const ACCOUNT = {
-  address: '0x123456789a123456789a123456789a123456789a',
-  meta: {
-    description: 'Call me bob',
-    passwordHint: 'some hint',
-    tags: ['testing']
-  },
-  name: 'Bobby',
-  uuid: '123-456'
-};
+const ABI = '[{"constant":true,"inputs":[],"name":"totalDonated","outputs":[{"name":"","type":"uint256"}],"type":"function"}]';
 
-const ADDRESS = {
-  address: '0x0123456789012345678901234567890123456789',
-  meta: {
-    description: 'Some address',
-    extraMeta: {
-      some: 'random',
-      extra: {
-        meta: 'data'
-      }
-    }
-  },
-  name: 'Random address'
+const CONTRACTS = {
+  '0x1234567890123456789012345678901234567890': {}
 };
 
 function createApi () {
   return {
     parity: {
-      setAccountName: sinon.stub().resolves(),
-      setAccountMeta: sinon.stub().resolves()
+      setAccountMeta: sinon.stub().resolves(),
+      setAccountName: sinon.stub().resolves()
     }
   };
 }
@@ -61,8 +42,8 @@ function createRedux () {
 }
 
 export {
-  ACCOUNT,
-  ADDRESS,
+  ABI,
+  CONTRACTS,
   createApi,
   createRedux
 };

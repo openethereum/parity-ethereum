@@ -17,20 +17,24 @@
 import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
+import { connect } from 'react-redux';
+import { bindActionCreators } from 'redux';
 
+import { newError } from '~/redux/actions';
 import { Button, Form, Input, InputChip, Modal } from '~/ui';
 import { CancelIcon, SaveIcon } from '~/ui/Icons';
 
 import Store from './store';
 
 @observer
-export default class EditMeta extends Component {
+class EditMeta extends Component {
   static contextTypes = {
     api: PropTypes.object.isRequired
   }
 
   static propTypes = {
     account: PropTypes.object.isRequired,
+    newError: PropTypes.func.isRequired,
     onClose: PropTypes.func.isRequired
   }
 
@@ -85,7 +89,7 @@ export default class EditMeta extends Component {
                 defaultMessage='(optional) tags' />
             }
             onTokensChange={ this.store.setTags }
-            tokens={ tags } />
+            tokens={ tags.slice() } />
         </Form>
       </Modal>
     );
@@ -138,6 +142,20 @@ export default class EditMeta extends Component {
 
     return this.store
       .save()
-      .then(() => this.props.onClose());
+      .then(() => this.props.onClose())
+      .catch((error) => {
+        this.props.newError(error);
+      });
   }
 }
+
+function mapDispatchToProps (dispatch) {
+  return bindActionCreators({
+    newError
+  }, dispatch);
+}
+
+export default connect(
+  null,
+  mapDispatchToProps
+)(EditMeta);

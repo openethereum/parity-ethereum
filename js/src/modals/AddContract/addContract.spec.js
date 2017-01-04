@@ -18,9 +18,9 @@ import { shallow } from 'enzyme';
 import React from 'react';
 import sinon from 'sinon';
 
-import EditMeta from './';
+import AddContract from './';
 
-import { ACCOUNT, createApi, createRedux } from './editMeta.test.js';
+import { CONTRACTS, createApi, createRedux } from './addContract.test.js';
 
 let api;
 let component;
@@ -28,58 +28,56 @@ let instance;
 let onClose;
 let reduxStore;
 
-function render (props) {
+function render (props = {}) {
   api = createApi();
   onClose = sinon.stub();
   reduxStore = createRedux();
 
   component = shallow(
-    <EditMeta
+    <AddContract
       { ...props }
-      account={ ACCOUNT }
+      contracts={ CONTRACTS }
       onClose={ onClose } />,
     { context: { store: reduxStore } }
-  ).find('EditMeta').shallow({ context: { api } });
+  ).find('AddContract').shallow({ context: { api } });
   instance = component.instance();
 
   return component;
 }
 
-describe('modals/EditMeta', () => {
+describe('modals/AddContract', () => {
   describe('rendering', () => {
-    it('renders defaults', () => {
-      expect(render()).to.be.ok;
-    });
-  });
-
-  describe('actions', () => {
     beforeEach(() => {
       render();
     });
 
-    describe('onSave', () => {
-      it('calls store.save', () => {
-        sinon.spy(instance.store, 'save');
+    it('renders the defauls', () => {
+      expect(component).to.be.ok;
+    });
+  });
 
-        return instance.onSave().then(() => {
-          expect(instance.store.save).to.have.been.called;
-          instance.store.save.restore();
-        });
+  describe('onAdd', () => {
+    it('calls store addContract', () => {
+      sinon.stub(instance.store, 'addContract').resolves(true);
+      return instance.onAdd().then(() => {
+        expect(instance.store.addContract).to.have.been.called;
+        instance.store.addContract.restore();
       });
+    });
 
-      it('closes the dialog on success', () => {
-        return instance.onSave().then(() => {
-          expect(onClose).to.have.been.called;
-        });
+    it('calls closes dialog on success', () => {
+      sinon.stub(instance.store, 'addContract').resolves(true);
+      return instance.onAdd().then(() => {
+        expect(onClose).to.have.been.called;
+        instance.store.addContract.restore();
       });
+    });
 
-      it('adds newError on failure', () => {
-        sinon.stub(instance.store, 'save').rejects('test');
-
-        return instance.onSave().then(() => {
-          expect(reduxStore.dispatch).to.have.been.calledWith({ error: new Error('test'), type: 'newError' });
-          instance.store.save.restore();
-        });
+    it('adds newError on failure', () => {
+      sinon.stub(instance.store, 'addContract').rejects('test');
+      return instance.onAdd().then(() => {
+        expect(reduxStore.dispatch).to.have.been.calledWith({ error: new Error('test'), type: 'newError' });
+        instance.store.addContract.restore();
       });
     });
   });
