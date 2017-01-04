@@ -243,20 +243,24 @@ export default class TypedInput extends Component {
       return value;
     }
 
+    const { readOnly } = this.props;
+
     const rawValue = typeof value === 'string'
       ? value.replace(/,/g, '')
       : value;
 
-    return new BigNumber(rawValue);
+    const bnValue = new BigNumber(rawValue);
+
+    return readOnly
+      ? bnValue.toFormat()
+      : bnValue.toNumber();
   }
 
   renderInteger (value = this.props.value, onChange = this.onChange) {
     const { allowCopy, className, label, error, hint, min, max, readOnly } = this.props;
     const param = this.getParam();
 
-    const realValue = value
-      ? this.getNumberValue(value)[readOnly ? 'toFormat' : 'toNumber']()
-      : value;
+    const realValue = this.getNumberValue(value);
 
     return (
       <Input
@@ -287,9 +291,7 @@ export default class TypedInput extends Component {
     const { allowCopy, className, label, error, hint, min, max, readOnly } = this.props;
     const param = this.getParam();
 
-    const realValue = value
-      ? this.getNumberValue(value)[readOnly ? 'toFormat' : 'toNumber']()
-      : value;
+    const realValue = this.getNumberValue(value);
 
     return (
       <Input

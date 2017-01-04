@@ -536,7 +536,7 @@ class AddressSelect extends Component {
     });
   }
 
-  handleFocus = (e) => {
+  handleFocus = () => {
     const { disabled, readOnly } = this.props;
 
     if (disabled || readOnly) {
