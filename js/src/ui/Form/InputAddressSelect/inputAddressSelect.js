@@ -25,27 +25,33 @@ class InputAddressSelect extends Component {
     accounts: PropTypes.object.isRequired,
     contacts: PropTypes.object.isRequired,
     contracts: PropTypes.object.isRequired,
+
+    allowCopy: PropTypes.bool,
     error: PropTypes.string,
-    label: PropTypes.string,
     hint: PropTypes.string,
-    value: PropTypes.string,
-    onChange: PropTypes.func
+    label: PropTypes.string,
+    onChange: PropTypes.func,
+    readOnly: PropTypes.bool,
+    value: PropTypes.string
   };
 
   render () {
-    const { accounts, contacts, contracts, label, hint, error, value, onChange } = this.props;
+    const { accounts, allowCopy, contacts, contracts, label, hint, error, value, onChange, readOnly } = this.props;
 
     return (
       <AddressSelect
+        allowCopy={ allowCopy }
         allowInput
         accounts={ accounts }
         contacts={ contacts }
         contracts={ contracts }
         error={ error }
-        label={ label }
         hint={ hint }
+        label={ label }
+        onChange={ onChange }
+        readOnly={ readOnly }
         value={ value }
-        onChange={ onChange } />
+      />
     );
   }
 }

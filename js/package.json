@@ -1,6 +1,6 @@
 {
   "name": "parity.js",
-  "version": "0.2.162",
+  "version": "0.2.167",
   "main": "release/index.js",
   "jsnext:main": "src/index.js",
   "author": "Parity Team <admin@parity.io>",
@@ -138,6 +138,7 @@
     "blockies": "0.0.2",
     "brace": "0.9.0",
     "bytes": "2.4.0",
+    "crypto-js": "3.1.9-1",
     "debounce": "1.0.0",
     "es6-error": "4.0.0",
     "es6-promise": "4.0.5",

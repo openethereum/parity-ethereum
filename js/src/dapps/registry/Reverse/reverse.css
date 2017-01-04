@@ -37,3 +37,6 @@
   flex-shrink: 0;
 }
 
+.error {
+  color: red;
+}

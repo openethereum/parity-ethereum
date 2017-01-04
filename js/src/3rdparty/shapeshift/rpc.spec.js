@@ -16,12 +16,21 @@
 
 const helpers = require('./helpers.spec.js');
 
-const APIKEY = helpers.APIKEY;
+const ShapeShift = require('./');
+const initShapeshift = (ShapeShift.default || ShapeShift);
+
 const mockget = helpers.mockget;
 const mockpost = helpers.mockpost;
-const rpc = helpers.rpc;
 
 describe('shapeshift/rpc', () => {
+  let rpc;
+  let shapeshift;
+
+  beforeEach(() => {
+    shapeshift = initShapeshift(helpers.APIKEY);
+    rpc = shapeshift.getRpc();
+  });
+
   describe('GET', () => {
     const REPLY = { test: 'this is some result' };
 
@@ -29,7 +38,7 @@ describe('shapeshift/rpc', () => {
     let result;
 
     beforeEach(() => {
-      scope = mockget([{ path: 'test', reply: REPLY }]);
+      scope = mockget(shapeshift, [{ path: 'test', reply: REPLY }]);
 
       return rpc
         .get('test')
@@ -54,7 +63,7 @@ describe('shapeshift/rpc', () => {
     let result;
 
     beforeEach(() => {
-      scope = mockpost([{ path: 'test', reply: REPLY }]);
+      scope = mockpost(shapeshift, [{ path: 'test', reply: REPLY }]);
 
       return rpc
         .post('test', { input: 'stuff' })
@@ -76,7 +85,7 @@ describe('shapeshift/rpc', () => {
     });
 
     it('passes the apikey specified', () => {
-      expect(scope.body.test.apiKey).to.equal(APIKEY);
+      expect(scope.body.test.apiKey).to.equal(helpers.APIKEY);
     });
   });
 });

@@ -16,7 +16,6 @@
 
 import { action, computed, observable, transaction } from 'mobx';
 
-import { newError } from '~/redux/actions';
 import { validateName } from '~/util/validation';
 
 export default class Store {
@@ -92,8 +91,7 @@ export default class Store {
       ])
       .catch((error) => {
         console.error('onSave', error);
-
-        newError(error);
+        throw error;
       });
   }
 }

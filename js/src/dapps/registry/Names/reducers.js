@@ -17,32 +17,55 @@
 import { isAction, isStage, addToQueue, removeFromQueue } from '../util/actions';
 
 const initialState = {
+  error: null,
   pending: false,
   queue: []
 };
 
 export default (state = initialState, action) => {
+  switch (action.type) {
+    case 'clearError':
+      return {
+        ...state,
+        error: null
+      };
+  }
+
   if (isAction('names', 'reserve', action)) {
     if (isStage('start', action)) {
       return {
-        ...state, pending: true,
+        ...state,
+        error: null,
+        pending: true,
         queue: addToQueue(state.queue, 'reserve', action.name)
       };
-    } else if (isStage('success', action) || isStage('fail', action)) {
+    }
+
+    if (isStage('success', action) || isStage('fail', action)) {
       return {
-        ...state, pending: false,
+        ...state,
+        error: action.error || null,
+        pending: false,
         queue: removeFromQueue(state.queue, 'reserve', action.name)
       };
     }
-  } else if (isAction('names', 'drop', action)) {
+  }
+
+  if (isAction('names', 'drop', action)) {
     if (isStage('start', action)) {
       return {
-        ...state, pending: true,
+        ...state,
+        error: null,
+        pending: true,
         queue: addToQueue(state.queue, 'drop', action.name)
       };
-    } else if (isStage('success', action) || isStage('fail', action)) {
+    }
+
+    if (isStage('success', action) || isStage('fail', action)) {
       return {
-        ...state, pending: false,
+        ...state,
+        error: action.error || null,
+        pending: false,
         queue: removeFromQueue(state.queue, 'drop', action.name)
       };
     }

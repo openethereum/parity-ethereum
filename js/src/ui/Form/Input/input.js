@@ -185,7 +185,7 @@ export default class Input extends Component {
 
     const text = typeof allowCopy === 'string'
       ? allowCopy
-      : value;
+      : value.toString();
 
     const style = hideUnderline
       ? {}
