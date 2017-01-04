@@ -60,9 +60,6 @@ const SNAPSHOT_PERIOD: u64 = 10000;
 // how many blocks to wait before starting a periodic snapshot.
 const SNAPSHOT_HISTORY: u64 = 100;
 
-// Pops along with error message when an account address is not found.
-const CREATE_ACCOUNT_HINT: &'static str = "Please run `parity account new [-d current-d --chain current-chain --keys-path current-keys-path]`.";
-
 // Pops along with error messages when a password is missing or invalid.
 const VERIFY_PASSWORD_HINT: &'static str = "Make sure valid password is present in files passed using `--password` or in the configuration file.";
 
@@ -223,7 +220,7 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 	let passwords = passwords_from_files(&cmd.acc_conf.password_files)?;
 
 	// prepare account provider
-	let account_provider = Arc::new(prepare_account_provider(&cmd.dirs, &spec.data_dir, cmd.acc_conf, &passwords)?);
+	let account_provider = Arc::new(prepare_account_provider(&cmd.spec, &cmd.dirs, &spec.data_dir, cmd.acc_conf, &passwords)?);
 
 	// let the Engine access the accounts
 	spec.engine.register_account_provider(account_provider.clone());
@@ -240,7 +237,7 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 	if engine_signer != Default::default() {
 		// Check if engine signer exists
 		if !account_provider.has_account(engine_signer).unwrap_or(false) {
-			return Err(format!("Consensus signer account not found for the current chain. {}", CREATE_ACCOUNT_HINT));
+			return Err(format!("Consensus signer account not found for the current chain. {}", build_create_account_hint(&cmd.spec, &cmd.dirs.keys)));
 		}
 
 		// Check if any passwords have been read from the password file(s)
@@ -489,7 +486,7 @@ fn daemonize(_pid_file: String) -> Result<(), String> {
 	Err("daemon is no supported on windows".into())
 }
 
-fn prepare_account_provider(dirs: &Directories, data_dir: &str, cfg: AccountsConfig, passwords: &[String]) -> Result<AccountProvider, String> {
+fn prepare_account_provider(spec: &SpecType, dirs: &Directories, data_dir: &str, cfg: AccountsConfig, passwords: &[String]) -> Result<AccountProvider, String> {
 	use ethcore::ethstore::EthStore;
 	use ethcore::ethstore::dir::DiskDirectory;
 
@@ -503,7 +500,7 @@ fn prepare_account_provider(dirs: &Directories, data_dir: &str, cfg: AccountsCon
 	for a in cfg.unlocked_accounts {
 		// Check if the account exists
 		if !account_provider.has_account(a).unwrap_or(false) {
-			return Err(format!("Account {} not found for the current chain. {}", a, CREATE_ACCOUNT_HINT));
+			return Err(format!("Account {} not found for the current chain. {}", a, build_create_account_hint(spec, &dirs.keys)));
 		}
 
 		// Check if any passwords have been read from the password file(s)
@@ -517,6 +514,11 @@ fn prepare_account_provider(dirs: &Directories, data_dir: &str, cfg: AccountsCon
 	}
 
 	Ok(account_provider)
+}
+
+// Construct an error `String` with an adaptive hint on how to create an account.
+fn build_create_account_hint(spec: &SpecType, keys: &str) -> String {
+	format!("You can create an account via RPC, UI or `parity account new --chain {} --keys-path {}`.", spec, keys)
 }
 
 fn wait_for_exit(
