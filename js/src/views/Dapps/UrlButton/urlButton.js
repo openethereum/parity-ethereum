@@ -16,14 +16,13 @@
 
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
-import { parse } from 'url';
 import { withRouter } from 'react-router';
 
 import Button from '~/ui/Button';
 import { LinkIcon } from '~/ui/Icons';
 import Input from '~/ui/Form/Input';
 
-// import styles from './urlButton.css';
+import styles from './urlButton.css';
 
 class UrlButton extends Component {
   static propTypes = {
@@ -31,8 +30,7 @@ class UrlButton extends Component {
   };
 
   state = {
-    inputShown: false,
-    urlIsValid: false
+    inputShown: false
   };
 
   render () {
@@ -42,6 +40,7 @@ class UrlButton extends Component {
       <div>
         { inputShown ? this.renderInput() : null }
         <Button
+          className={ styles.button }
           icon={ <LinkIcon /> }
           label={
             <FormattedMessage
@@ -55,8 +54,6 @@ class UrlButton extends Component {
   }
 
   renderInput () {
-    const { urlIsValid } = this.state;
-
     return (
       <Input
         hint={
@@ -64,13 +61,7 @@ class UrlButton extends Component {
             id='dapps.button.url.input'
             defaultMessage='https://mkr.market' />
         }
-        error={ urlIsValid ? null : (
-          <FormattedMessage
-            id='dapps.button.url.invalid'
-            defaultMessage='invalid url' />
-        ) }
         onBlur={ this.hideInput }
-        onChange={ this.inputOnChange }
         onFocus={ this.showInput }
         onSubmit={ this.inputOnSubmit }
         style={ { display: 'inline-block', width: '20em' } }
@@ -97,13 +88,6 @@ class UrlButton extends Component {
     const { router } = this.props;
 
     router.push(`/web/${encodeURIComponent(url)}`);
-  }
-
-  inputOnChange = (event) => {
-    const url = event.target.value;
-    this.setState({
-      urlIsValid: url && !!parse(url).host
-    });
   }
 }
 
