@@ -327,15 +327,134 @@ impl Handler for OnDemand {
 
 		match req {
 			Pending::HeaderByNumber(req, sender) => {
-				let &&(ref header, ref proof) = match proofs.get(0) {
-					Some(ref x) => x,
-					None => {
-						ctx.disconnect_peer(peer);
-						return
+				if let Some(&(ref header, ref proof)) = proofs.get(0) {
+					match req.check_response(header, proof) {
+						Ok(header) => {
+							sender.complete(Ok(header));
+							return
+						}
+						Err(e) => {
+							warn!("Error handling response for header request: {:?}", e);
+							ctx.disable_peer(peer);
+						}
 					}
-				};
+				}
+
+				// attempt reassign.
 			}
 			_ => panic!("Only header by number request fetches header proofs; qed"),
+		}
+	}
+
+	fn on_block_headers(&self, ctx: &EventContext, req_id: ReqId, headers: &[Bytes]) {
+		let peer = ctx.peer();
+		let req = match self.pending_requests.write().remove(&req_id) {
+			Some(req) => req,
+			None => return,
+		};
+
+		match req {
+			Pending::HeaderByHash(req, sender) => {
+				if let Some(ref header) = headers.get(0) {
+					match req.check_response(header) {
+						Ok(header) => {
+							sender.complete(Ok(header));
+							return
+						}
+						Err(e) => {
+							warn!("Error handling response for header request: {:?}", e);
+							ctx.disable_peer(peer);
+						}
+					}
+				}
+
+				// attempt reassign.
+			}
+			_ => panic!("Only header by hash request fetches headers; qed"),
+		}
+	}
+
+	fn on_block_bodies(&self, ctx: &EventContext, req_id: ReqId, bodies: &[Bytes]) {
+		let peer = ctx.peer();
+		let req = match self.pending_requests.write().remove(&req_id) {
+			Some(req) => req,
+			None => return,
+		};
+
+		match req {
+			Pending::Block(req, sender) => {
+				if let Some(ref block) = bodies.get(0) {
+					match req.check_response(block) {
+						Ok(block) => {
+							sender.complete(Ok(block));
+							return
+						}
+						Err(e) => {
+							warn!("Error handling response for block request: {:?}", e);
+							ctx.disable_peer(peer);
+						}
+					}
+				}
+
+				// attempt reassign.
+			}
+			_ => panic!("Only block request fetches bodies; qed"),
+		}
+	}
+
+	fn on_receipts(&self, ctx: &EventContext, req_id: ReqId, receipts: &[Vec<Receipt>]) {
+		let peer = ctx.peer();
+		let req = match self.pending_requests.write().remove(&req_id) {
+			Some(req) => req,
+			None => return,
+		};
+
+		match req {
+			Pending::BlockReceipts(req, sender) => {
+				if let Some(ref receipts) = receipts.get(0) {
+					match req.check_response(receipts) {
+						Ok(receipts) => {
+							sender.complete(Ok(receipts));
+							return
+						}
+						Err(e) => {
+							warn!("Error handling response for receipts request: {:?}", e);
+							ctx.disable_peer(peer);
+						}
+					}
+				}
+
+				// attempt reassign.
+			}
+			_ => panic!("Only receipts request fetches receipts; qed"),
+		}
+	}
+
+	fn on_state_proofs(&self, ctx: &EventContext, req_id: ReqId, proofs: &[Vec<Bytes>]) {
+		let peer = ctx.peer();
+		let req = match self.pending_requests.write().remove(&req_id) {
+			Some(req) => req,
+			None => return,
+		};
+
+		match req {
+			Pending::Account(req, sender) => {
+				if let Some(ref proof) = proofs.get(0) {
+					match req.check_response(proof) {
+						Ok(proof) => {
+							sender.complete(Ok(proof));
+							return
+						}
+						Err(e) => {
+							warn!("Error handling response for state request: {:?}", e);
+							ctx.disable_peer(peer);
+						}
+					}
+				}
+
+				// attempt reassign.
+			}
+			_ => panic!("Only account request fetches state proof; qed"),
 		}
 	}
 }
