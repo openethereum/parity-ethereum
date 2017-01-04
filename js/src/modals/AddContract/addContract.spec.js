@@ -20,24 +20,27 @@ import sinon from 'sinon';
 
 import AddContract from './';
 
-import { CONTRACTS, createApi } from './addContract.test.js';
+import { CONTRACTS, createApi, createRedux } from './addContract.test.js';
 
+let api;
 let component;
+let instance;
 let onClose;
+let reduxStore;
 
-function renderShallow (props) {
+function render (props = {}) {
+  api = createApi();
   onClose = sinon.stub();
+  reduxStore = createRedux();
+
   component = shallow(
     <AddContract
       { ...props }
       contracts={ CONTRACTS }
       onClose={ onClose } />,
-    {
-      context: {
-        api: createApi()
-      }
-    }
-  );
+    { context: { store: reduxStore } }
+  ).find('AddContract').shallow({ context: { api } });
+  instance = component.instance();
 
   return component;
 }
@@ -45,11 +48,37 @@ function renderShallow (props) {
 describe('modals/AddContract', () => {
   describe('rendering', () => {
     beforeEach(() => {
-      renderShallow();
+      render();
     });
 
     it('renders the defauls', () => {
       expect(component).to.be.ok;
+    });
+  });
+
+  describe('onAdd', () => {
+    it('calls store addContract', () => {
+      sinon.stub(instance.store, 'addContract').resolves(true);
+      return instance.onAdd().then(() => {
+        expect(instance.store.addContract).to.have.been.called;
+        instance.store.addContract.restore();
+      });
+    });
+
+    it('calls closes dialog on success', () => {
+      sinon.stub(instance.store, 'addContract').resolves(true);
+      return instance.onAdd().then(() => {
+        expect(onClose).to.have.been.called;
+        instance.store.addContract.restore();
+      });
+    });
+
+    it('adds newError on failure', () => {
+      sinon.stub(instance.store, 'addContract').rejects('test');
+      return instance.onAdd().then(() => {
+        expect(reduxStore.dispatch).to.have.been.calledWith({ error: new Error('test'), type: 'newError' });
+        instance.store.addContract.restore();
+      });
     });
   });
 });

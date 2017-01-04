@@ -173,14 +173,15 @@ export function fetchTokens (_tokenIds) {
 export function fetchBalances (_addresses) {
   return (dispatch, getState) => {
     const { api, personal } = getState();
-    const { visibleAccounts, accounts } = personal;
+    const { visibleAccounts, accountsInfo } = personal;
 
-    const addresses = uniq((_addresses || visibleAccounts || []).concat(Object.keys(accounts)));
+    const addresses = uniq((_addresses || visibleAccounts || []).concat(Object.keys(accountsInfo)));
 
     if (addresses.length === 0) {
       return Promise.resolve();
     }
 
+    // With only a single account, more info will be displayed.
     const fullFetch = addresses.length === 1;
 
     const addressesToFetch = uniq(addresses);
