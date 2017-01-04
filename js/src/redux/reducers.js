@@ -24,6 +24,7 @@ import {
   snackbarReducer, walletReducer
 } from './providers';
 import certificationsReducer from './providers/certifications/reducer';
+import registryReducer from './providers/registry/reducer';
 
 import errorReducer from '~/ui/Errors/reducers';
 import settingsReducer from '~/views/Settings/reducers';
@@ -46,6 +47,7 @@ export default function () {
     personal: personalReducer,
     signer: signerReducer,
     snackbar: snackbarReducer,
-    wallet: walletReducer
+    wallet: walletReducer,
+    registry: registryReducer
   });
 }
