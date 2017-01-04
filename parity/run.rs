@@ -230,9 +230,21 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 	miner.set_extra_data(cmd.miner_extras.extra_data);
 	miner.set_transactions_limit(cmd.miner_extras.transactions_limit);
 	let engine_signer = cmd.miner_extras.engine_signer;
+
 	if engine_signer != Default::default() {
+		// Check if engine signer exists
+		if !account_provider.has_account(engine_signer).unwrap_or(false) {
+			return Err(format!("Consensus signer account not found for the current chain, please run `parity account new -d current-d --chain current-chain`"));
+		}
+
+		// Check if any passwords have been read from the password file(s)
+		if passwords.is_empty() {
+			return Err(format!("No password found for the consensus signer {}. Make sure valid password is present in files passed using `--password` or in the configuration file.", engine_signer));
+		}
+
+		// Attempt to sign in the engine signer.
 		if !passwords.into_iter().any(|p| miner.set_engine_signer(engine_signer, p).is_ok()) {
-			return Err(format!("No password found for the consensus signer {}. Make sure valid password is present in files passed using `--password`.", engine_signer));
+			return Err(format!("Invalid password for consensus signer {}. Make sure valid password is present in files passed using `--password` or in the configuration file.", engine_signer));
 		}
 	}
 
