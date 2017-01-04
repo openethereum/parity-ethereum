@@ -17,7 +17,7 @@
 use std::time::Duration;
 use std::io::Read;
 use std::net::SocketAddr;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::cmp::max;
 use cli::{Args, ArgsError};
 use util::{Hashable, U256, Uint, Bytes, version_data, Secret, Address};
@@ -335,6 +335,7 @@ impl Configuration {
 				net_settings: self.network_settings(),
 				dapps_conf: dapps_conf,
 				signer_conf: signer_conf,
+				dapp: self.dapp_to_open()?,
 				ui: self.args.cmd_ui,
 				name: self.args.flag_identity,
 				custom_bootnodes: self.args.flag_bootnodes.is_some(),
@@ -508,7 +509,25 @@ impl Configuration {
 			user: self.args.flag_dapps_user.clone(),
 			pass: self.args.flag_dapps_pass.clone(),
 			dapps_path: self.directories().dapps,
+			extra_dapps: if self.args.cmd_dapp {
+				self.args.arg_path.clone()
+			} else {
+				vec![]
+			},
 		}
+	}
+
+	fn dapp_to_open(&self) -> Result<Option<String>, String> {
+		if !self.args.cmd_dapp {
+			return Ok(None);
+		}
+		let path = self.args.arg_path.get(0).map(String::as_str).unwrap_or(".");
+		let path = Path::new(path).canonicalize()
+			.map_err(|e| format!("Invalid path: {}. Error: {:?}", path, e))?;
+		let name = path.file_name()
+			.and_then(|name| name.to_str())
+			.ok_or_else(|| "Root path is not supported.".to_owned())?;
+		Ok(Some(name.into()))
 	}
 
 	fn gas_pricer_config(&self) -> Result<GasPricerConfig, String> {
@@ -690,7 +709,7 @@ impl Configuration {
 				"none" => UpdateFilter::None,
 				"critical" => UpdateFilter::Critical,
 				"all" => UpdateFilter::All,
-				_ => return Err("Invalid value for `--auto-update`. See `--help` for more information.".into()), 
+				_ => return Err("Invalid value for `--auto-update`. See `--help` for more information.".into()),
 			},
 			track: match self.args.flag_release_track.as_ref() {
 				"stable" => ReleaseTrack::Stable,
@@ -698,7 +717,7 @@ impl Configuration {
 				"nightly" => ReleaseTrack::Nightly,
 				"testing" => ReleaseTrack::Testing,
 				"current" => ReleaseTrack::Unknown,
-				_ => return Err("Invalid value for `--releases-track`. See `--help` for more information.".into()), 
+				_ => return Err("Invalid value for `--releases-track`. See `--help` for more information.".into()),
 			},
 			path: default_hypervisor_path(),
 		})
@@ -1025,6 +1044,7 @@ mod tests {
 			dapps_conf: Default::default(),
 			signer_conf: Default::default(),
 			ui: false,
+			dapp: None,
 			name: "".into(),
 			custom_bootnodes: false,
 			fat_db: Default::default(),
@@ -1217,6 +1237,22 @@ mod tests {
 			signer_path: "signer".into(),
 			skip_origin_validation: false,
 		});
+	}
+
+	#[test]
+	fn should_parse_dapp_opening() {
+		// given
+		let temp = RandomTempPath::new();
+		let name = temp.file_name().unwrap().to_str().unwrap();
+		create_dir(temp.as_str().to_owned()).unwrap();
+
+		// when
+		let conf0 = parse(&["parity", "dapp", temp.to_str().unwrap()]);
+
+		// then
+		assert_eq!(conf0.dapp_to_open(), Ok(Some(name.into())));
+		let extra_dapps = conf0.dapps_config().extra_dapps;
+		assert_eq!(extra_dapps, vec![temp.to_str().unwrap().to_owned()]);
 	}
 
 	#[test]

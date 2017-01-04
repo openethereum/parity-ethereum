@@ -28,6 +28,16 @@ struct LocalDapp {
 	info: EndpointInfo,
 }
 
+fn local_dapp(name: String, path: PathBuf) -> LocalDapp {
+	// try to get manifest file
+	let info = read_manifest(&name, path.clone());
+	LocalDapp {
+		id: name,
+		path: path,
+		info: info,
+	}
+}
+
 fn local_dapps(dapps_path: String) -> Vec<LocalDapp> {
 	let files = fs::read_dir(dapps_path.as_str());
 	if let Err(e) = files {
@@ -59,15 +69,7 @@ fn local_dapps(dapps_path: String) -> Vec<LocalDapp> {
 			}
 			m.ok()
 		})
-		.map(|(name, path)| {
-			// try to get manifest file
-			let info = read_manifest(&name, path.clone());
-			LocalDapp {
-				id: name,
-				path: path,
-				info: info,
-			}
-		})
+		.map(|(name, path)| local_dapp(name, path))
 		.collect()
 }
 
@@ -95,6 +97,19 @@ fn read_manifest(name: &str, mut path: PathBuf) -> EndpointInfo {
 				icon_url: "icon.png".into(),
 			}
 		})
+}
+
+pub fn local_endpoint(path: String, signer_address: Option<(String, u16)>) -> Option<(String, Box<LocalPageEndpoint>)> {
+	let path = PathBuf::from(path);
+	path.canonicalize().ok().and_then(|path| {
+		let name = path.file_name().and_then(|name| name.to_str());
+		name.map(|name| {
+			let dapp = local_dapp(name.into(), path.clone());
+			(dapp.id, Box::new(LocalPageEndpoint::new(
+				dapp.path, dapp.info, PageCache::Disabled, signer_address.clone())
+			))
+		})
+	})
 }
 
 pub fn local_endpoints(dapps_path: String, signer_address: Option<(String, u16)>) -> Endpoints {
