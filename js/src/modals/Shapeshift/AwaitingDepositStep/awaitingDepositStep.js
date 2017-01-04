@@ -14,25 +14,21 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 
 import Value from '../Value';
 import styles from '../shapeshift.css';
 
+@observer
 export default class AwaitingDepositStep extends Component {
   static propTypes = {
-    coinSymbol: PropTypes.string.isRequired,
-    depositAddress: PropTypes.string,
-    price: PropTypes.shape({
-      rate: PropTypes.number.isRequired,
-      minimum: PropTypes.number.isRequired,
-      limit: PropTypes.number.isRequired
-    }).isRequired
+    store: PropTypes.object.isRequired
   }
 
   render () {
-    const { coinSymbol, depositAddress, price } = this.props;
+    const { coinSymbol, depositAddress, price } = this.props.store;
     const typeSymbol = (
       <div className={ styles.symbol }>
         { coinSymbol }

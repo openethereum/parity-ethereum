@@ -46,11 +46,19 @@ export default class Store {
     this.coins = coins;
   }
 
+  @action setDepositAddress = (depositAddress) => {
+    this.depositAddress = depositAddress;
+  }
+
   @action setDepositInfo = (depositInfo) => {
     transaction(() => {
       this.depositInfo = depositInfo;
       this.setStage(STAGE_WAIT_EXCHANGE);
     });
+  }
+
+  @action setError = (error) => {
+    this.error = error;
   }
 
   @action setExchangeInfo = (exchangeInfo) => {
@@ -72,17 +80,23 @@ export default class Store {
     this.stage = stage;
   }
 
-  @action setSymbol = (symbol) => {
-    this.symbol = symbol;
+  @action setCoinSymbol = (coinSymbol) => {
+    transaction(() => {
+      this.coinSymbol = coinSymbol;
+      this.coinPair = `${coinSymbol.toLowerCase()}_eth`;
+      this.price = null;
+    });
+
+    return this.getPrice();
   }
 
   @action toggleAccept = () => {
     this.hasAccepted = !this.hasAccepted;
   }
 
-  getPrice (coinPair) {
+  getPrice () {
     return this._shapeshiftApi
-      .getMarketInfo(coinPair)
+      .getMarketInfo(this.coinPair)
       .then((price) => {
         this.setPrice(price);
       })
@@ -97,14 +111,13 @@ export default class Store {
       .then((_coins) => {
         this.setCoins(Object.values(_coins).filter((coin) => coin.status === 'available'));
 
-        return this.getPrice(this.coinPair);
+        return this.getPrice();
       })
       .catch((error) => {
         console.error('retrieveCoins', error);
         const message = `Failed to retrieve available coins from ShapeShift.io: ${error.message}`;
 
-        this.setFatalError(message);
-        throw new Error(message);
+        this.setError(message);
       });
   }
 
@@ -121,15 +134,14 @@ export default class Store {
           this.unsubscribe();
         }
 
-        this.subscribe();
-        this.setState({ depositAddress });
+        this.setDepositAddress(depositAddress);
+        return this.subscribe();
       })
       .catch((error) => {
         console.error('onShift', error);
         const message = `Failed to start exchange: ${error.message}`;
 
-        this.newError(new Error(message));
-        this.setFatalError(message);
+        this.setError(new Error(message));
       });
   }
 
@@ -138,10 +150,8 @@ export default class Store {
       console.error('onExchangeInfo', error);
 
       if (error.fatal) {
-        this.setFatalError(error.message);
+        this.setError(error);
       }
-
-      this.newError(error);
       return;
     }
 

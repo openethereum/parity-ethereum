@@ -21,12 +21,13 @@ import AwaitingDepositStep from './';
 
 let component;
 
-function render (props = {}) {
+function render () {
   component = shallow(
     <AwaitingDepositStep
-      coinSymbol='BTC'
-      price={ { rate: 0.001, minimum: 0, limit: 1.999 } }
-      { ...props } />
+      store={ {
+        coinSymbol: 'BTC',
+        price: { rate: 0.001, minimum: 0, limit: 1.999 }
+      } } />
   );
 
   return component;

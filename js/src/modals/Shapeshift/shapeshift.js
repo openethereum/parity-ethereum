@@ -78,12 +78,12 @@ export default class Shapeshift extends Component {
         actions={ this.renderDialogActions() }
         current={ stage }
         steps={
-          error && error.fatal
+          error
             ? null
             : STAGE_TITLES
         }
         title={
-          error && error.fatal
+          error
             ? ERROR_TITLE
             : null
         }
@@ -117,7 +117,7 @@ export default class Shapeshift extends Component {
         onClick={ this.onClose } />
     );
 
-    if (error && error.fatal) {
+    if (error) {
       return [
         logo,
         cancelBtn
@@ -131,7 +131,11 @@ export default class Shapeshift extends Component {
           cancelBtn,
           <Button
             disabled={ !coins.length || !hasAccepted }
-            icon={ <IdentityIcon address={ address } button /> }
+            icon={
+              <IdentityIcon
+                address={ address }
+                button />
+            }
             label={
               <FormattedMessage
                 id='shapeshift.button.shift'
@@ -165,7 +169,7 @@ export default class Shapeshift extends Component {
   renderPage () {
     const { error, stage } = this.store;
 
-    if (error && error.fatal) {
+    if (error) {
       return (
         <ErrorStep error={ error } />
       );
@@ -194,59 +198,16 @@ export default class Shapeshift extends Component {
     }
   }
 
-  setFatalError (message) {
-    this.setState({
-      stage: STAGE_OPTIONS,
-      error: {
-        fatal: true,
-        message
-      }
-    });
-  }
-
   onClose = () => {
     this.store.setStage(STAGE_OPTIONS);
     this.props.onClose && this.props.onClose();
   }
 
   onShift = () => {
-    this.store.shift();
-  }
-
-  onChangeSymbol = (event, coinSymbol) => {
-    const coinPair = `${coinSymbol.toLowerCase()}_eth`;
-
-    this.setState({
-      coinPair,
-      coinSymbol,
-      price: null
-    });
-    this.getPrice(coinPair);
-  }
-
-  onChangeRefund = (event, refundAddress) => {
-    this.setState({ refundAddress });
-  }
-
-  onToggleAccept = () => {
-    const { hasAccepted } = this.state;
-
-    this.setState({
-      hasAccepted: !hasAccepted
-    });
+    return this.store.shift();
   }
 
   retrieveCoins = () => {
-    return this.store
-      .retrieveCoins()
-      .catch((error) => {
-        this.newError(error);
-      });
-  }
-
-  newError (error) {
-    const { store } = this.context;
-
-    store.dispatch({ type: 'newError', error });
+    return this.store.retrieveCoins();
   }
 }

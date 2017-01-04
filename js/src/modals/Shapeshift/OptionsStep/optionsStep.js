@@ -31,7 +31,7 @@ export default class OptionsStep extends Component {
   };
 
   render () {
-    const { coinSymbol, coins, hasAccepted, refundAddress } = this.props.store;
+    const { coinSymbol, coins, hasAccepted, price, refundAddress } = this.props.store;
 
     if (!coins.length) {
       return (
@@ -88,7 +88,9 @@ export default class OptionsStep extends Component {
             }
             onCheck={ this.onToggleAccept } />
         </Form>
-        <Price { ...this.props } />
+        <Price
+          coinSymbol={ coinSymbol }
+          price={ price } />
       </div>
     );
   }
@@ -126,8 +128,8 @@ export default class OptionsStep extends Component {
     this.props.store.setRefundAddress(refundAddress);
   }
 
-  onSelectCoin = (event, index, symbol) => {
-    this.props.store.setSymbol(symbol);
+  onSelectCoin = (event, index, coinSymbol) => {
+    this.props.store.setCoinSymbol(coinSymbol);
   }
 
   onToggleAccept = () => {
