@@ -47,6 +47,7 @@ describe('modals/Shapeshift', () => {
 
   describe('componentDidMount', () => {
     beforeEach(() => {
+      render();
       sinon.stub(instance.store, 'retrieveCoins');
       return instance.componentDidMount();
     });
@@ -62,6 +63,7 @@ describe('modals/Shapeshift', () => {
 
   describe('componentWillUnmount', () => {
     beforeEach(() => {
+      render();
       sinon.stub(instance.store, 'unsubscribe');
       return instance.componentWillUnmount();
     });
@@ -72,6 +74,39 @@ describe('modals/Shapeshift', () => {
 
     it('removes any subscriptions when unmounting', () => {
       expect(instance.store.unsubscribe).to.have.been.called;
+    });
+  });
+
+  describe('renderDialogActions', () => {
+    beforeEach(() => {
+      render();
+    });
+
+    describe('shift button', () => {
+      beforeEach(() => {
+        sinon.stub(instance.store, 'shift').resolves();
+
+        instance.store.setCoins(['BTC']);
+        instance.store.toggleAcceptTerms();
+      });
+
+      afterEach(() => {
+        instance.store.shift.restore();
+      });
+
+      it('disabled shift button when not accepted', () => {
+        instance.store.toggleAcceptTerms();
+        expect(shallow(instance.renderDialogActions()[2]).props().disabled).to.be.true;
+      });
+
+      it('shows shift button when accepted', () => {
+        expect(shallow(instance.renderDialogActions()[2]).props().disabled).to.be.false;
+      });
+
+      it('calls the shift on store when clicked', () => {
+        shallow(instance.renderDialogActions()[2]).simulate('touchTap');
+        expect(instance.store.shift).to.have.been.called;
+      });
     });
   });
 });

@@ -31,7 +31,7 @@ export default class OptionsStep extends Component {
   };
 
   render () {
-    const { coinSymbol, coins, hasAccepted, price, refundAddress } = this.props.store;
+    const { coinSymbol, coins, hasAcceptedTerms, price, refundAddress } = this.props.store;
 
     if (!coins.length) {
       return (
@@ -79,7 +79,7 @@ export default class OptionsStep extends Component {
             onSubmit={ this.onChangeRefundAddress }
             value={ refundAddress } />
           <Checkbox
-            checked={ hasAccepted }
+            checked={ hasAcceptedTerms }
             className={ styles.accept }
             label={
               <FormattedMessage

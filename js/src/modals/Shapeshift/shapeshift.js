@@ -99,7 +99,7 @@ export default class Shapeshift extends Component {
 
   renderDialogActions () {
     const { address } = this.props;
-    const { coins, error, hasAccepted, stage } = this.store;
+    const { coins, error, hasAcceptedTerms, stage } = this.store;
 
     const logo = (
       <a href='http://shapeshift.io' target='_blank' className={ styles.shapeshift }>
@@ -130,7 +130,7 @@ export default class Shapeshift extends Component {
           logo,
           cancelBtn,
           <Button
-            disabled={ !coins.length || !hasAccepted }
+            disabled={ !coins.length || !hasAcceptedTerms }
             icon={
               <IdentityIcon
                 address={ address }

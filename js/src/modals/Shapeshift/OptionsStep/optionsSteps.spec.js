@@ -39,19 +39,32 @@ function render () {
 }
 
 describe('modals/Shapeshift/OptionsStep', () => {
+  beforeEach(() => {
+    render();
+  });
+
   it('renders defaults', () => {
-    expect(render()).to.be.ok;
+    expect(component).to.be.ok;
   });
 
   it('renders no coins when none available', () => {
-    expect(render().find('FormattedMessage').props().id).to.equal('shapeshift.optionsStep.noPairs');
+    expect(component.find('FormattedMessage').props().id).to.equal('shapeshift.optionsStep.noPairs');
+  });
+
+  describe('components', () => {
+    beforeEach(() => {
+      store.setCoins([{ symbol: 'BTC', name: 'Bitcoin' }]);
+      store.toggleAcceptTerms();
+    });
+
+    describe('terms Checkbox', () => {
+      it('shows the state of store.hasAcceptedTerms', () => {
+        expect(component.find('Checkbox').props().checked).to.be.true;
+      });
+    });
   });
 
   describe('events', () => {
-    beforeEach(() => {
-      render();
-    });
-
     describe('onChangeRefundAddress', () => {
       beforeEach(() => {
         sinon.stub(store, 'setRefundAddress');
