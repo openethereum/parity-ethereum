@@ -16,6 +16,8 @@
 
 import React, { Component, PropTypes } from 'react';
 import store from 'store';
+import { parse as parseUrl, format as formatUrl } from 'url';
+import { parse as parseQuery } from 'querystring';
 
 import AddressBar from './AddressBar';
 
@@ -44,9 +46,9 @@ export default class Web extends Component {
   address () {
     const { dappsUrl } = this.context.api;
     const { url, token } = this.state;
-    const path = url.replace(/:/g, '').replace(/\/\//g, '/');
 
-    return `${dappsUrl}/web/${token}/${path}/`;
+    const { protocol, host, path } = parseUrl(url);
+    return `${dappsUrl}/web/${token}/${protocol.slice(0, -1)}/${host}${path}`;
   }
 
   lastAddress () {
@@ -72,15 +74,15 @@ export default class Web extends Component {
         <AddressBar
           className={ styles.url }
           isLoading={ isLoading }
-          onChange={ this.handleUpdateUrl }
-          onRefresh={ this.handleOnRefresh }
+          onChange={ this.onUrlChange }
+          onRefresh={ this.onRefresh }
           url={ displayedUrl }
         />
         <iframe
           className={ styles.frame }
           frameBorder={ 0 }
           name={ name }
-          onLoad={ this.handleIframeLoad }
+          onLoad={ this.iframeOnLoad }
           sandbox='allow-forms allow-same-origin allow-scripts'
           scrolling='auto'
           src={ address } />
@@ -88,7 +90,7 @@ export default class Web extends Component {
     );
   }
 
-  handleUpdateUrl = (url) => {
+  onUrlChange = (url) => {
     store.set(LS_LAST_ADDRESS, url);
 
     this.setState({
@@ -98,18 +100,23 @@ export default class Web extends Component {
     });
   };
 
-  handleOnRefresh = (ev) => {
+  onRefresh = () => {
     const { displayedUrl } = this.state;
-    const hasQuery = displayedUrl.indexOf('?') > 0;
-    const separator = hasQuery ? '&' : '?';
+
+    // Insert timestamp
+    // This is a hack to prevent caching.
+    const parsed = parseUrl(displayedUrl);
+    parsed.query = parseQuery(parsed.query);
+    parsed.query.t = Date.now().toString();
+    delete parsed.search;
 
     this.setState({
       isLoading: true,
-      url: `${displayedUrl}${separator}t=${Date.now()}`
+      url: formatUrl(parsed)
     });
   };
 
-  handleIframeLoad = (ev) => {
+  iframeOnLoad = () => {
     this.setState({
       isLoading: false
     });
