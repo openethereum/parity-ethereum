@@ -144,6 +144,7 @@ export default class Shapeshift extends Component {
 
   renderPage () {
     const { error, stage } = this.state;
+    const { coins, coinSymbol, depositAddress, depositInfo, exchangeInfo, hasAccepted, price, refundAddress } = this.state;
 
     if (error.fatal) {
       return (
@@ -155,25 +156,35 @@ export default class Shapeshift extends Component {
       case 0:
         return (
           <OptionsStep
-            { ...this.state }
-            onChangeSymbol={ this.onChangeSymbol }
+            coins={ coins }
+            coinSymbol={ coinSymbol }
+            hasAccepted={ hasAccepted }
             onChangeRefund={ this.onChangeRefund }
-            onToggleAccept={ this.onToggleAccept } />
+            onChangeSymbol={ this.onChangeSymbol }
+            onToggleAccept={ this.onToggleAccept }
+            price={ price }
+            refundAddress={ refundAddress } />
         );
 
       case 1:
         return (
-          <AwaitingDepositStep { ...this.state } />
+          <AwaitingDepositStep
+            coinSymbol={ coinSymbol }
+            depositAddress={ depositAddress }
+            price={ price } />
         );
 
       case 2:
         return (
-          <AwaitingExchangeStep { ...this.state } />
+          <AwaitingExchangeStep
+            depositInfo={ depositInfo } />
         );
 
       case 3:
         return (
-          <CompletedStep { ...this.state } />
+          <CompletedStep
+            depositInfo={ depositInfo }
+            exchangeInfo={ exchangeInfo } />
         );
     }
   }
