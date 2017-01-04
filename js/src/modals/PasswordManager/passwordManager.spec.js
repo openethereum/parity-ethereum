@@ -20,25 +20,25 @@ import sinon from 'sinon';
 
 import PasswordManager from './';
 
-import { ACCOUNT, createApi } from './passwordManager.test.js';
+import { ACCOUNT, createApi, createRedux } from './passwordManager.test.js';
 
 let component;
+let instance;
 let onClose;
+let reduxStore;
 
 function render (props) {
   onClose = sinon.stub();
+  reduxStore = createRedux();
 
   component = shallow(
     <PasswordManager
       { ...props }
       account={ ACCOUNT }
       onClose={ onClose } />,
-    {
-      context: {
-        api: createApi()
-      }
-    }
-  );
+    { context: { store: reduxStore } }
+  ).find('PasswordManager').shallow({ context: { api: createApi() } });
+  instance = component.instance();
 
   return component;
 }
@@ -56,24 +56,53 @@ describe('modals/PasswordManager', () => {
     });
 
     describe('changePassword', () => {
-      it('calls store.changePassword & props.onClose', () => {
-        const instance = component.instance();
+      it('calls store.changePassword', () => {
         sinon.spy(instance.store, 'changePassword');
 
-        instance.changePassword().then(() => {
+        return instance.changePassword().then(() => {
           expect(instance.store.changePassword).to.have.been.called;
+          instance.store.changePassword.restore();
+        });
+      });
+
+      it('closes the dialog on success', () => {
+        return instance.changePassword().then(() => {
           expect(onClose).to.have.been.called;
+        });
+      });
+
+      it('shows snackbar on success', () => {
+        return instance.changePassword().then(() => {
+          expect(reduxStore.dispatch).to.have.been.calledWithMatch({ type: 'openSnackbar' });
+        });
+      });
+
+      it('adds newError on failure', () => {
+        sinon.stub(instance.store, 'changePassword').rejects('test');
+
+        return instance.changePassword().then(() => {
+          expect(reduxStore.dispatch).to.have.been.calledWith({ error: new Error('test'), type: 'newError' });
+          instance.store.changePassword.restore();
         });
       });
     });
 
     describe('testPassword', () => {
       it('calls store.testPassword', () => {
-        const instance = component.instance();
         sinon.spy(instance.store, 'testPassword');
 
-        instance.testPassword().then(() => {
+        return instance.testPassword().then(() => {
           expect(instance.store.testPassword).to.have.been.called;
+          instance.store.testPassword.restore();
+        });
+      });
+
+      it('adds newError on failure', () => {
+        sinon.stub(instance.store, 'testPassword').rejects('test');
+
+        return instance.testPassword().then(() => {
+          expect(reduxStore.dispatch).to.have.been.calledWith({ error: new Error('test'), type: 'newError' });
+          instance.store.testPassword.restore();
         });
       });
     });

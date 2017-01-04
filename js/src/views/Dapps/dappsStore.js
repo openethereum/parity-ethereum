@@ -48,17 +48,43 @@ export default class DappsStore {
 
     this.readDisplayApps();
     this.loadExternalOverlay();
-    this.loadApps();
     this.subscribeToChanges();
   }
 
-  loadApps () {
+  /**
+   * Try to find the app from the local (local or builtin)
+   * apps, else fetch from the node
+   */
+  loadApp (id) {
     const { dappReg } = Contracts.get();
 
-    Promise
+    return this
+      .loadLocalApps()
+      .then(() => {
+        const app = this.apps.find((app) => app.id === id);
+
+        if (app) {
+          return app;
+        }
+
+        return this.fetchRegistryApp(dappReg, id, true);
+      });
+  }
+
+  loadLocalApps () {
+    return Promise
       .all([
         this.fetchBuiltinApps().then((apps) => this.addApps(apps)),
-        this.fetchLocalApps().then((apps) => this.addApps(apps)),
+        this.fetchLocalApps().then((apps) => this.addApps(apps))
+      ]);
+  }
+
+  loadAllApps () {
+    const { dappReg } = Contracts.get();
+
+    return Promise
+      .all([
+        this.loadLocalApps(),
         this.fetchRegistryApps(dappReg).then((apps) => this.addApps(apps))
       ])
       .then(this.writeDisplayApps);
@@ -67,8 +93,6 @@ export default class DappsStore {
   static get (api) {
     if (!instance) {
       instance = new DappsStore(api);
-    } else {
-      instance.loadApps();
     }
 
     return instance;

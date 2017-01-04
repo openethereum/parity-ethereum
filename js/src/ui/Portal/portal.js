@@ -59,21 +59,26 @@ export default class Portal extends Component {
     const { children, className } = this.props;
 
     const classes = [ styles.overlay, className ];
+    const backClasses = [ styles.backOverlay ];
 
     if (expanded) {
       classes.push(styles.expanded);
+      backClasses.push(styles.expanded);
     }
 
     return (
       <ReactPortal isOpened onClose={ this.handleClose }>
-        <div
-          className={ classes.join(' ') }
-          onKeyDown={ this.handleKeyDown }
-        >
-          <ParityBackground className={ styles.parityBackground } />
+        <div className={ backClasses.join(' ') } onClick={ this.handleClose }>
+          <div
+            className={ classes.join(' ') }
+            onClick={ this.stopEvent }
+            onKeyDown={ this.handleKeyDown }
+          >
+            <ParityBackground className={ styles.parityBackground } />
 
-          { this.renderCloseIcon() }
-          { children }
+            { this.renderCloseIcon() }
+            { children }
+          </div>
         </div>
       </ReactPortal>
     );
@@ -91,6 +96,11 @@ export default class Portal extends Component {
         <CloseIcon />
       </div>
     );
+  }
+
+  stopEvent = (event) => {
+    event.preventDefault();
+    event.stopPropagation();
   }
 
   handleClose = () => {

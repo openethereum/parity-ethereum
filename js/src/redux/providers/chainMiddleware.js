@@ -14,18 +14,25 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-export const isAction = (ns, type, action) => {
-  return action.type.slice(0, ns.length + 1 + type.length) === `${ns} ${type}`;
-};
+import { showSnackbar } from './snackbarActions';
 
-export const isStage = (stage, action) => {
-  return (new RegExp(`${stage}$`)).test(action.type);
-};
+export default class ChainMiddleware {
+  toMiddleware () {
+    return (store) => (next) => (action) => {
+      if (action.type === 'statusCollection') {
+        const { collection } = action;
 
-export const addToQueue = (queue, action, name) => {
-  return queue.concat({ action, name });
-};
+        if (collection && collection.netChain) {
+          const chain = collection.netChain;
+          const { nodeStatus } = store.getState();
 
-export const removeFromQueue = (queue, action, name) => {
-  return queue.filter((e) => !(e.action === action && e.name === name));
-};
+          if (chain !== nodeStatus.netChain) {
+            store.dispatch(showSnackbar(`Switched to ${chain}. Please reload the page.`, 5000));
+          }
+        }
+      }
+
+      next(action);
+    };
+  }
+}

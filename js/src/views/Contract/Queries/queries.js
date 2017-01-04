@@ -14,12 +14,11 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import BigNumber from 'bignumber.js';
 import React, { Component, PropTypes } from 'react';
 import { Card, CardTitle, CardText } from 'material-ui/Card';
 
 import InputQuery from './inputQuery';
-import { Container, Input, InputAddress } from '~/ui';
+import { Container, TypedInput } from '~/ui';
 
 import styles from './queries.css';
 
@@ -29,6 +28,7 @@ export default class Queries extends Component {
   }
 
   static propTypes = {
+    accountsInfo: PropTypes.object.isRequired,
     contract: PropTypes.object,
     values: PropTypes.object
   }
@@ -74,11 +74,12 @@ export default class Queries extends Component {
 
   renderInputQuery (fn) {
     const { abi, name, signature } = fn;
-    const { contract } = this.props;
+    const { accountsInfo, contract } = this.props;
 
     return (
       <div className={ styles.container } key={ fn.signature }>
         <InputQuery
+          accountsInfo={ accountsInfo }
           className={ styles.method }
           inputs={ abi.inputs }
           outputs={ abi.outputs }
@@ -116,34 +117,23 @@ export default class Queries extends Component {
     }
 
     const { api } = this.context;
-    let valueToDisplay = null;
+    const { accountsInfo } = this.props;
 
-    if (api.util.isInstanceOf(value, BigNumber)) {
-      valueToDisplay = value.toFormat(0);
-    } else if (api.util.isArray(value)) {
+    let valueToDisplay = value;
+
+    if (api.util.isArray(value)) {
       valueToDisplay = api.util.bytesToHex(value);
     } else if (typeof value === 'boolean') {
       valueToDisplay = value ? 'true' : 'false';
-    } else {
-      valueToDisplay = value.toString();
     }
-
-    if (type === 'address') {
-      return (
-        <InputAddress
-          className={ styles.queryValue }
-          value={ valueToDisplay }
-          disabled
-        />
-      );
-    }
-
     return (
-      <Input
-        className={ styles.queryValue }
-        value={ valueToDisplay }
-        readOnly
+      <TypedInput
+        accounts={ accountsInfo }
         allowCopy
+        isEth={ false }
+        param={ type }
+        readOnly
+        value={ valueToDisplay }
       />
     );
   }
