@@ -289,6 +289,8 @@ mod tests {
 
 	#[test]
 	fn check_state_proof() {
+		use rlp::{RlpStream, Stream};
+
 		let mut root = H256::default();
 		let mut db = MemoryDB::new();
 		let mut header = Header::new();

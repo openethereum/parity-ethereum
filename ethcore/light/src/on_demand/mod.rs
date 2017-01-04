@@ -504,8 +504,7 @@ impl Handler for OnDemand {
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use on_demand::request;
-	use net::{BasicContext, ReqId, Error as LesError};
+	use net::{Announcement, BasicContext, ReqId, Error as LesError};
 	use request::{Request as LesRequest, Kind as LesRequestKind};
 	use network::{PeerId, NodeId};
 	use futures::Future;
