@@ -60,6 +60,12 @@ const SNAPSHOT_PERIOD: u64 = 10000;
 // how many blocks to wait before starting a periodic snapshot.
 const SNAPSHOT_HISTORY: u64 = 100;
 
+// Pops along with error message when an account address is not found.
+const CREATE_ACCOUNT_HINT: &'static str = "Please run `parity account new [-d current-d --chain current-chain --keys-path current-keys-path]`.";
+
+// Pops along with error messages when a password is missing or invalid.
+const VERIFY_PASSWORD_HINT: &'static str = "Make sure valid password is present in files passed using `--password` or in the configuration file.";
+
 #[derive(Debug, PartialEq)]
 pub struct RunCmd {
 	pub cache_config: CacheConfig,
@@ -234,17 +240,17 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 	if engine_signer != Default::default() {
 		// Check if engine signer exists
 		if !account_provider.has_account(engine_signer).unwrap_or(false) {
-			return Err("Consensus signer account not found for the current chain, please run `parity account new -d current-d --chain current-chain --keys-path current-keys-path`".to_owned());
+			return Err(format!("Consensus signer account not found for the current chain. {}", CREATE_ACCOUNT_HINT));
 		}
 
 		// Check if any passwords have been read from the password file(s)
 		if passwords.is_empty() {
-			return Err(format!("No password found for the consensus signer {}. Make sure valid password is present in files passed using `--password` or in the configuration file.", engine_signer));
+			return Err(format!("No password found for the consensus signer {}. {}", engine_signer, VERIFY_PASSWORD_HINT));
 		}
 
 		// Attempt to sign in the engine signer.
 		if !passwords.into_iter().any(|p| miner.set_engine_signer(engine_signer, p).is_ok()) {
-			return Err(format!("No valid password for the consensus signer {}. Make sure valid password is present in files passed using `--password` or in the configuration file.", engine_signer));
+			return Err(format!("No valid password for the consensus signer {}. {}", engine_signer, VERIFY_PASSWORD_HINT));
 		}
 	}
 
@@ -497,16 +503,16 @@ fn prepare_account_provider(dirs: &Directories, data_dir: &str, cfg: AccountsCon
 	for a in cfg.unlocked_accounts {
 		// Check if the account exists
 		if !account_provider.has_account(a).unwrap_or(false) {
-			return Err(format!("Account {} not found for the current chain, please run `parity account new -d current-d --chain current-chain --keys-path current-keys-path`", a));
+			return Err(format!("Account {} not found for the current chain. {}", a, CREATE_ACCOUNT_HINT));
 		}
 
 		// Check if any passwords have been read from the password file(s)
 		if passwords.is_empty() {
-			return Err(format!("No password found to unlock account {}. Make sure valid password is present in files passed using `--password` or in the configuration file.", a));
+			return Err(format!("No password found to unlock account {}. {}", a, VERIFY_PASSWORD_HINT));
 		}
 
 		if !passwords.iter().any(|p| account_provider.unlock_account_permanently(a, (*p).clone()).is_ok()) {
-			return Err(format!("No valid password to unlock account {}. Make sure valid password is present in files passed using `--password` or in the configuration file.", a));
+			return Err(format!("No valid password to unlock account {}. {}", a, VERIFY_PASSWORD_HINT));
 		}
 	}
 
