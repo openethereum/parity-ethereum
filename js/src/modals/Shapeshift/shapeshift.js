@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 
@@ -50,6 +51,7 @@ const ERROR_TITLE = (
     defaultMessage='exchange failed' />
 );
 
+@observer
 export default class Shapeshift extends Component {
   static contextTypes = {
     store: PropTypes.object.isRequired
