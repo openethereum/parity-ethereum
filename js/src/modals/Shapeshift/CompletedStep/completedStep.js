@@ -39,7 +39,7 @@ export default class CompletedStep extends Component {
             id='shapeshift.completedStep.completed'
             defaultMessage='{shapeshiftLink} has completed the funds exchange.'
             values={ {
-              shapeshiftLint: <a href='https://shapeshift.io' target='_blank'>ShapeShift.io</a>
+              shapeshiftLink: <a href='https://shapeshift.io' target='_blank'>ShapeShift.io</a>
             } } />
         </div>
         <div className={ styles.hero }>
