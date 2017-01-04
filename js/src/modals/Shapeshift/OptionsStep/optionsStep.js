@@ -76,7 +76,7 @@ export default class OptionsStep extends Component {
                 defaultMessage='(optional) {coinSymbol} return address'
                 values={ { coinSymbol } } />
             }
-            onSubmit={ this.onChangeRefund }
+            onSubmit={ this.onChangeRefundAddress }
             value={ refundAddress } />
           <Checkbox
             checked={ hasAccepted }
@@ -124,7 +124,7 @@ export default class OptionsStep extends Component {
     );
   }
 
-  onChangeAddress = (event, refundAddress) => {
+  onChangeRefundAddress = (event, refundAddress) => {
     this.props.store.setRefundAddress(refundAddress);
   }
 

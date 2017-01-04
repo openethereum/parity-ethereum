@@ -16,6 +16,7 @@
 
 import { shallow } from 'enzyme';
 import React from 'react';
+import sinon from 'sinon';
 
 import Store from '../store';
 
@@ -24,6 +25,7 @@ import OptionsStep from './';
 const ADDRESS = '0x1234567890123456789012345678901234567890';
 
 let component;
+let instance;
 let store;
 
 function render () {
@@ -31,6 +33,7 @@ function render () {
   component = shallow(
     <OptionsStep store={ store } />
   );
+  instance = component.instance();
 
   return component;
 }
@@ -38,5 +41,60 @@ function render () {
 describe('modals/Shapeshift/OptionsStep', () => {
   it('renders defaults', () => {
     expect(render()).to.be.ok;
+  });
+
+  it('renders no coins when none available', () => {
+    expect(render().find('FormattedMessage').props().id).to.equal('shapeshift.optionsStep.noPairs');
+  });
+
+  describe('events', () => {
+    beforeEach(() => {
+      render();
+    });
+
+    describe('onChangeRefundAddress', () => {
+      beforeEach(() => {
+        sinon.stub(store, 'setRefundAddress');
+      });
+
+      afterEach(() => {
+        store.setRefundAddress.restore();
+      });
+
+      it('sets the refundAddress on the store', () => {
+        instance.onChangeRefundAddress(null, 'refundAddress');
+        expect(store.setRefundAddress).to.have.been.calledWith('refundAddress');
+      });
+    });
+
+    describe('onSelectCoin', () => {
+      beforeEach(() => {
+        sinon.stub(store, 'setCoinSymbol');
+      });
+
+      afterEach(() => {
+        store.setCoinSymbol.restore();
+      });
+
+      it('sets the coinSymbol on the store', () => {
+        instance.onSelectCoin(null, 0, 'XMR');
+        expect(store.setCoinSymbol).to.have.been.calledWith('XMR');
+      });
+    });
+
+    describe('onToggleAcceptTerms', () => {
+      beforeEach(() => {
+        sinon.stub(store, 'toggleAcceptTerms');
+      });
+
+      afterEach(() => {
+        store.toggleAcceptTerms.restore();
+      });
+
+      it('toggles the terms on the store', () => {
+        instance.onToggleAcceptTerms();
+        expect(store.toggleAcceptTerms).to.have.been.called;
+      });
+    });
   });
 });
