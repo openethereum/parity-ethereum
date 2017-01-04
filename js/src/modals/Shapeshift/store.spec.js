@@ -14,26 +14,18 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { shallow } from 'enzyme';
-import React from 'react';
+import Store from './store';
 
-import AwaitingExchangeStep from './';
+const ADDRESS = '0xabcdeffdecbaabcdeffdecbaabcdeffdecbaabcdeffdecba';
 
-let component;
+describe('modals/Shapeshift/Store', () => {
+  let store;
 
-function render () {
-  component = shallow(
-    <AwaitingExchangeStep
-      store={ {
-        depositInfo: { incomingCoin: 0.01, incomingType: 'BTC' }
-      } } />
-  );
+  beforeEach(() => {
+    store = new Store(ADDRESS);
+  });
 
-  return component;
-}
-
-describe('modals/Shapeshift/AwaitingExchangeStep', () => {
-  it('renders defaults', () => {
-    expect(render()).to.be.ok;
+  it('stores the ETH address', () => {
+    expect(store.address).to.equal(ADDRESS);
   });
 });

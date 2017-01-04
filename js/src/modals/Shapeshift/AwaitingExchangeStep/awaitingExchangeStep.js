@@ -16,20 +16,19 @@
 
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
+import { observer } from 'mobx-react';
 
 import Value from '../Value';
 import styles from '../shapeshift.css';
 
+@observer
 export default class AwaitingExchangeStep extends Component {
   static propTypes = {
-    depositInfo: PropTypes.shape({
-      incomingCoin: PropTypes.number.isRequired,
-      incomingType: PropTypes.string.isRequired
-    }).isRequired
+    store: PropTypes.object.isRequired
   }
 
   render () {
-    const { depositInfo } = this.props;
+    const { depositInfo } = this.props.store;
     const { incomingCoin, incomingType } = depositInfo;
 
     return (

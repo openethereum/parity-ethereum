@@ -17,22 +17,19 @@
 import { shallow } from 'enzyme';
 import React from 'react';
 
-import AwaitingExchangeStep from './';
+import Value from './';
 
 let component;
 
-function render () {
+function render (props = {}) {
   component = shallow(
-    <AwaitingExchangeStep
-      store={ {
-        depositInfo: { incomingCoin: 0.01, incomingType: 'BTC' }
-      } } />
+    <Value { ...props } />
   );
 
   return component;
 }
 
-describe('modals/Shapeshift/AwaitingExchangeStep', () => {
+describe('modals/Shapeshift/Value', () => {
   it('renders defaults', () => {
     expect(render()).to.be.ok;
   });

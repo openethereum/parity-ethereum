@@ -17,22 +17,23 @@
 import { shallow } from 'enzyme';
 import React from 'react';
 
-import AwaitingExchangeStep from './';
+import CompletedStep from './';
 
 let component;
 
 function render () {
   component = shallow(
-    <AwaitingExchangeStep
+    <CompletedStep
       store={ {
-        depositInfo: { incomingCoin: 0.01, incomingType: 'BTC' }
+        depositInfo: { incomingCoin: 0.01, incomingType: 'BTC' },
+        exchangeInfo: { outgoingCoin: 0.1, outgoingType: 'ETH' }
       } } />
   );
 
   return component;
 }
 
-describe('modals/Shapeshift/AwaitingExchangeStep', () => {
+describe('modals/Shapeshift/CompletedStep', () => {
   it('renders defaults', () => {
     expect(render()).to.be.ok;
   });
