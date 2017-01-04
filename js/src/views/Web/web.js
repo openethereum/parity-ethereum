@@ -30,34 +30,28 @@ export default class Web extends Component {
     api: PropTypes.object.isRequired
   }
 
+  static propTypes = {
+    params: PropTypes.object.isRequired
+  }
+
   state = {
-    displayedUrl: this.lastAddress(),
+    displayedUrl: null,
     isLoading: true,
     token: null,
-    url: this.lastAddress()
+    url: null
   };
 
   componentDidMount () {
+    const url = this.props.params.url || store.get(LS_LAST_ADDRESS) || 'https://mkr.market';
+    this.setState({ url, displayedUrl: url });
+
     this.context.api.signer.generateWebProxyAccessToken().then(token => {
       this.setState({ token });
     });
   }
 
-  address () {
-    const { dappsUrl } = this.context.api;
-    const { url, token } = this.state;
-
-    const { protocol, host, path } = parseUrl(url);
-    return `${dappsUrl}/web/${token}/${protocol.slice(0, -1)}/${host}${path}`;
-  }
-
-  lastAddress () {
-    return store.get(LS_LAST_ADDRESS) || 'https://mkr.market';
-  }
-
   render () {
     const { displayedUrl, isLoading, token } = this.state;
-    const address = this.address();
 
     if (!token) {
       return (
@@ -68,6 +62,15 @@ export default class Web extends Component {
         </div>
       );
     }
+
+    const { dappsUrl } = this.context.api;
+    const { url } = this.state;
+    if (!url || !token) {
+      return null;
+    }
+
+    const { protocol, host, path } = parseUrl(url);
+    const address = `${dappsUrl}/web/${token}/${protocol.slice(0, -1)}/${host}${path}`;
 
     return (
       <div className={ styles.wrapper }>
