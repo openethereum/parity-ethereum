@@ -128,13 +128,8 @@ export default class Store {
       .shift(this.address, this.refundAddress, this.coinPair)
       .then((result) => {
         console.log('onShift', result);
-        const depositAddress = result.deposit;
 
-        if (this.depositAddress) {
-          this.unsubscribe();
-        }
-
-        this.setDepositAddress(depositAddress);
+        this.setDepositAddress(result.deposit);
         return this.subscribe();
       })
       .catch((error) => {

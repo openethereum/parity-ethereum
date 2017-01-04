@@ -16,7 +16,7 @@
 
 import sinon from 'sinon';
 
-import Store, { STAGE_COMPLETED, STAGE_OPTIONS, STAGE_WAIT_EXCHANGE } from './store';
+import Store, { STAGE_COMPLETED, STAGE_OPTIONS, STAGE_WAIT_DEPOSIT, STAGE_WAIT_EXCHANGE } from './store';
 
 const ADDRESS = '0xabcdeffdecbaabcdeffdecbaabcdeffdecbaabcdeffdecba';
 
@@ -204,6 +204,46 @@ describe('modals/Shapeshift/Store', () => {
       });
     });
 
+    describe('shift', () => {
+      beforeEach(() => {
+        sinon.stub(store, 'subscribe').resolves();
+        sinon.stub(store._shapeshiftApi, 'shift').resolves({ deposit: 'depositAddress' });
+        store.setRefundAddress('refundAddress');
+
+        return store.shift();
+      });
+
+      afterEach(() => {
+        store.subscribe.restore();
+        store._shapeshiftApi.shift.restore();
+      });
+
+      it('moves to stage STAGE_WAIT_DEPOSIT', () => {
+        expect(store.stage).to.equal(STAGE_WAIT_DEPOSIT);
+      });
+
+      it('calls ShapeShift with the correct parameters', () => {
+        expect(store._shapeshiftApi.shift).to.have.been.calledWith(ADDRESS, 'refundAddress', store.coinPair);
+      });
+
+      it('sets the depositAddress', () => {
+        expect(store.depositAddress).to.equal('depositAddress');
+      });
+
+      it('subscribes to updates', () => {
+        expect(store.subscribe).to.have.been.called;
+      });
+
+      it('sets error when shift fails', () => {
+        store._shapeshiftApi.shift.restore();
+        sinon.stub(store._shapeshiftApi, 'shift').rejects({ message: 'testingError' });
+
+        return store.shift().then(() => {
+          expect(store.error).to.match(/testingError/);
+        });
+      });
+    });
+
     describe('subscribe', () => {
       beforeEach(() => {
         sinon.stub(store._shapeshiftApi, 'subscribe');
@@ -217,6 +257,52 @@ describe('modals/Shapeshift/Store', () => {
 
       it('calls into the ShapeShift subscribe', () => {
         expect(store._shapeshiftApi.subscribe).to.have.been.calledWith('depositAddress', store.onExchangeInfo);
+      });
+
+      describe('onExchangeInfo', () => {
+        it('sets the error when fatal error retrieved', () => {
+          store.onExchangeInfo({ fatal: true, message: 'testing' });
+          expect(store.error.message).to.equal('testing');
+        });
+
+        it('does not set the error when non-fatal error retrieved', () => {
+          store.onExchangeInfo({ message: 'testing' });
+          expect(store.error).to.be.null;
+        });
+
+        describe('status received', () => {
+          const INFO = { status: 'received' };
+
+          beforeEach(() => {
+            store.onExchangeInfo(null, INFO);
+          });
+
+          it('sets the depositInfo', () => {
+            expect(store.depositInfo).to.deep.equal(INFO);
+          });
+
+          it('only advanced depositInfo once', () => {
+            store.onExchangeInfo(null, Object.assign({}, INFO, { state: 'secondTime' }));
+            expect(store.depositInfo).to.deep.equal(INFO);
+          });
+        });
+
+        describe('status completed', () => {
+          const INFO = { status: 'complete' };
+
+          beforeEach(() => {
+            store.onExchangeInfo(null, INFO);
+          });
+
+          it('sets the depositInfo', () => {
+            expect(store.exchangeInfo).to.deep.equal(INFO);
+          });
+
+          it('only advanced depositInfo once', () => {
+            store.onExchangeInfo(null, Object.assign({}, INFO, { state: 'secondTime' }));
+            expect(store.exchangeInfo).to.deep.equal(INFO);
+          });
+        });
       });
     });
 
