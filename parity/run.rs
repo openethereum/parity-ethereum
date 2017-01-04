@@ -234,7 +234,7 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 	if engine_signer != Default::default() {
 		// Check if engine signer exists
 		if !account_provider.has_account(engine_signer).unwrap_or(false) {
-			return Err(format!("Consensus signer account not found for the current chain, please run `parity account new -d current-d --chain current-chain`"));
+			return Err("Consensus signer account not found for the current chain, please run `parity account new -d current-d --chain current-chain --keys-path current-keys-path`".to_owned());
 		}
 
 		// Check if any passwords have been read from the password file(s)
@@ -244,7 +244,7 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 
 		// Attempt to sign in the engine signer.
 		if !passwords.into_iter().any(|p| miner.set_engine_signer(engine_signer, p).is_ok()) {
-			return Err(format!("Invalid password for consensus signer {}. Make sure valid password is present in files passed using `--password` or in the configuration file.", engine_signer));
+			return Err(format!("No valid password for the consensus signer {}. Make sure valid password is present in files passed using `--password` or in the configuration file.", engine_signer));
 		}
 	}
 
@@ -490,17 +490,27 @@ fn prepare_account_provider(dirs: &Directories, data_dir: &str, cfg: AccountsCon
 	let path = dirs.keys_path(data_dir);
 	upgrade_key_location(&dirs.legacy_keys_path(cfg.testnet), &path);
 	let dir = Box::new(DiskDirectory::create(&path).map_err(|e| format!("Could not open keys directory: {}", e))?);
-	let account_service = AccountProvider::new(Box::new(
+	let account_provider = AccountProvider::new(Box::new(
 		EthStore::open_with_iterations(dir, cfg.iterations).map_err(|e| format!("Could not open keys directory: {}", e))?
 	));
 
 	for a in cfg.unlocked_accounts {
-		if !passwords.iter().any(|p| account_service.unlock_account_permanently(a, (*p).clone()).is_ok()) {
-			return Err(format!("No password found to unlock account {}. Make sure valid password is present in files passed using `--password`.", a));
+		// Check if the account exists
+		if !account_provider.has_account(a).unwrap_or(false) {
+			return Err(format!("Account {} not found for the current chain, please run `parity account new -d current-d --chain current-chain --keys-path current-keys-path`", a));
+		}
+
+		// Check if any passwords have been read from the password file(s)
+		if passwords.is_empty() {
+			return Err(format!("No password found to unlock account {}. Make sure valid password is present in files passed using `--password` or in the configuration file.", a));
+		}
+
+		if !passwords.iter().any(|p| account_provider.unlock_account_permanently(a, (*p).clone()).is_ok()) {
+			return Err(format!("No valid password to unlock account {}. Make sure valid password is present in files passed using `--password` or in the configuration file.", a));
 		}
 	}
 
-	Ok(account_service)
+	Ok(account_provider)
 }
 
 fn wait_for_exit(
