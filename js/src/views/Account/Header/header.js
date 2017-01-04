@@ -73,7 +73,7 @@ export default class Header extends Component {
             <Balance
               account={ account }
               balance={ balance } />
-            <Certifications address={ account.address } />
+            <Certifications address={ address } />
           </div>
           { children }
         </Container>
