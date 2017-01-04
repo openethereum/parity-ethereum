@@ -79,7 +79,7 @@ export default class DappsStore {
       ]);
   }
 
-  loadApps () {
+  loadAllApps () {
     const { dappReg } = Contracts.get();
 
     return Promise

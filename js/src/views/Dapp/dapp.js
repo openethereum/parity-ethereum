@@ -16,6 +16,7 @@
 
 import React, { Component, PropTypes } from 'react';
 import { observer } from 'mobx-react';
+import { FormattedMessage } from 'react-intl';
 
 import DappsStore from '../Dapps/dappsStore';
 
@@ -70,19 +71,23 @@ export default class Dapp extends Component {
       return (
         <div className={ styles.full }>
           <div className={ styles.text }>
-            Loading
+            <FormattedMessage
+              id='dapp.loading'
+              defaultMessage='Loading'
+            />
           </div>
         </div>
       );
     }
 
     if (!app) {
-      const { id } = this.props.params;
-
       return (
         <div className={ styles.full }>
           <div className={ styles.text }>
-            The dapp <code title={ id }>{ id }</code> can't be reached
+            <FormattedMessage
+              id='dapp.unavailable'
+              defaultMessage='The dapp cannot be reached'
+            />
           </div>
         </div>
       );

@@ -46,7 +46,7 @@ class Dapps extends Component {
   permissionStore = new PermissionStore(this.context.api);
 
   componentWillMount () {
-    this.store.loadApps();
+    this.store.loadAllApps();
   }
 
   render () {
