@@ -373,7 +373,7 @@ impl Handler for OnDemand {
 					}
 				}
 
-				// attempt reassign.
+				self.dispatch_header_by_number(ctx.as_basic(), req, sender);
 			}
 			_ => panic!("Only header by number request fetches header proofs; qed"),
 		}
@@ -401,7 +401,7 @@ impl Handler for OnDemand {
 					}
 				}
 
-				// attempt reassign.
+				self.dispatch_header_by_hash(ctx.as_basic(), req, sender);
 			}
 			_ => panic!("Only header by hash request fetches headers; qed"),
 		}
@@ -429,7 +429,7 @@ impl Handler for OnDemand {
 					}
 				}
 
-				// attempt reassign.
+				self.dispatch_block(ctx.as_basic(), req, sender);
 			}
 			_ => panic!("Only block request fetches bodies; qed"),
 		}
@@ -457,7 +457,7 @@ impl Handler for OnDemand {
 					}
 				}
 
-				// attempt reassign.
+				self.dispatch_block_receipts(ctx.as_basic(), req, sender);
 			}
 			_ => panic!("Only receipts request fetches receipts; qed"),
 		}
@@ -485,7 +485,7 @@ impl Handler for OnDemand {
 					}
 				}
 
-				// attempt reassign.
+				self.dispatch_account(ctx.as_basic(), req, sender);
 			}
 			_ => panic!("Only account request fetches state proof; qed"),
 		}
