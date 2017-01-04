@@ -24,12 +24,6 @@ const postTx = (api, method, opt = {}, values = []) => {
     })
     .then((reqId) => {
       return api.pollMethod('parity_checkRequest', reqId);
-    })
-    .catch((err) => {
-      if (err && err.type === 'REQUEST_REJECTED') {
-        throw new Error('The request has been rejected.');
-      }
-      throw err;
     });
 };
 
