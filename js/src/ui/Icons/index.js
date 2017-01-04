@@ -23,6 +23,7 @@ import ComputerIcon from 'material-ui/svg-icons/hardware/desktop-mac';
 import ContractIcon from 'material-ui/svg-icons/action/code';
 import DashboardIcon from 'material-ui/svg-icons/action/dashboard';
 import DoneIcon from 'material-ui/svg-icons/action/done-all';
+import LinkIcon from 'material-ui/svg-icons/content/link';
 import LockedIcon from 'material-ui/svg-icons/action/lock-outline';
 import NextIcon from 'material-ui/svg-icons/navigation/arrow-forward';
 import PrevIcon from 'material-ui/svg-icons/navigation/arrow-back';
@@ -42,6 +43,7 @@ export {
   ContractIcon,
   DashboardIcon,
   DoneIcon,
+  LinkIcon,
   LockedIcon,
   NextIcon,
   PrevIcon,
