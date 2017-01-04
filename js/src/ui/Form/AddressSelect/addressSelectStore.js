@@ -43,7 +43,8 @@ export default class AddressSelectStore {
         this.regLookups.push((email) => {
           return emailVerification
             .instance
-            .reverse.call({}, [ sha3(email) ])
+            .reverse
+            .call({}, [ sha3(email) ])
             .then((address) => {
               return {
                 address,
@@ -66,8 +67,34 @@ export default class AddressSelectStore {
       .then((registryInstance) => {
         this.regLookups.push((name) => {
           return registryInstance
-            .getAddress.call({}, [ sha3(name), 'A' ])
+            .getAddress
+            .call({}, [ sha3(name), 'A' ])
             .then((address) => {
+              return {
+                address,
+                name,
+                description: (
+                  <FormattedMessage
+                    id='addressSelect.fromRegistry'
+                    defaultMessage='{name} (from registry)'
+                    values={ {
+                      name
+                    } }
+                  />
+                )
+              };
+            });
+        });
+
+        this.regLookups.push((address) => {
+          return registryInstance
+            .reverse
+            .call({}, [ address ])
+            .then((name) => {
+              if (!name) {
+                return null;
+              }
+
               return {
                 address,
                 name,
@@ -164,7 +191,7 @@ export default class AddressSelectStore {
       .all(lookups)
       .then((results) => {
         return results
-          .filter(({ address }) => !ZERO.test(address));
+          .filter((result) => result && !ZERO.test(result.address));
       })
       .then((results) => {
         this.registryValues = results

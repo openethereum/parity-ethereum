@@ -215,8 +215,9 @@ class AddressSelect extends Component {
     }
 
     const { address, addressError } = validateAddress(inputValue);
+    const { registryValues } = this.store;
 
-    if (addressError) {
+    if (addressError || registryValues.length > 0) {
       return null;
     }
 
