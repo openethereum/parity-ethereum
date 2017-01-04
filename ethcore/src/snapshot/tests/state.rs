@@ -16,8 +16,9 @@
 
 //! State snapshotting tests.
 
+use basic_account::BasicAccount;
+use snapshot::account;
 use snapshot::{chunk_state, Error as SnapshotError, Progress, StateRebuilder};
-use snapshot::account::Account;
 use snapshot::io::{PackedReader, PackedWriter, SnapshotReader, SnapshotWriter};
 use super::helpers::{compare_dbs, StateProducer};
 
@@ -113,22 +114,21 @@ fn get_code_from_prev_chunk() {
 	// first one will have code inlined,
 	// second will just have its hash.
 	let thin_rlp = acc_stream.out();
-	let acc1 = Account::from_thin_rlp(&thin_rlp);
-	let acc2 = Account::from_thin_rlp(&thin_rlp);
+	let acc: BasicAccount = ::rlp::decode(&thin_rlp);
 
-	let mut make_chunk = |acc: Account, hash| {
+	let mut make_chunk = |acc, hash| {
 		let mut db = MemoryDB::new();
 		AccountDBMut::from_hash(&mut db, hash).insert(&code[..]);
 
-		let fat_rlp = acc.to_fat_rlp(&AccountDB::from_hash(&db, hash), &mut used_code).unwrap();
+		let fat_rlp = account::to_fat_rlp(&acc, &AccountDB::from_hash(&db, hash), &mut used_code).unwrap();
 
 		let mut stream = RlpStream::new_list(1);
 		stream.begin_list(2).append(&hash).append_raw(&fat_rlp, 1);
 		stream.out()
 	};
 
-	let chunk1 = make_chunk(acc1, h1);
-	let chunk2 = make_chunk(acc2, h2);
+	let chunk1 = make_chunk(acc.clone(), h1);
+	let chunk2 = make_chunk(acc, h2);
 
 	let db_path = RandomTempPath::create_dir();
 	let db_cfg = DatabaseConfig::with_columns(::db::NUM_COLUMNS);
