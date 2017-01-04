@@ -17,12 +17,9 @@
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
-import ActionCompareArrows from 'material-ui/svg-icons/action/compare-arrows';
-import ActionDashboard from 'material-ui/svg-icons/action/dashboard';
-import HardwareDesktopMac from 'material-ui/svg-icons/hardware/desktop-mac';
-import NotificationVpnLock from 'material-ui/svg-icons/notification/vpn-lock';
 
 import { Input } from '~/ui';
+import { CompareIcon, ComputerIcon, DashboardIcon, VpnIcon } from '~/ui/Icons';
 
 import styles from './connection.css';
 
@@ -57,16 +54,16 @@ class Connection extends Component {
           <div className={ styles.body }>
             <div className={ styles.icons }>
               <div className={ styles.icon }>
-                <HardwareDesktopMac className={ styles.svg } />
+                <ComputerIcon className={ styles.svg } />
               </div>
               <div className={ styles.iconSmall }>
-                <ActionCompareArrows className={ `${styles.svg} ${styles.pulse}` } />
+                <CompareIcon className={ `${styles.svg} ${styles.pulse}` } />
               </div>
               <div className={ styles.icon }>
                 {
                   needsToken
-                    ? <NotificationVpnLock className={ styles.svg } />
-                    : <ActionDashboard className={ styles.svg } />
+                    ? <VpnIcon className={ styles.svg } />
+                    : <DashboardIcon className={ styles.svg } />
                 }
               </div>
             </div>
