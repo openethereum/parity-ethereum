@@ -48,7 +48,7 @@ pub struct Account {
 }
 
 /// Errors which can occur while trying to fulfill a request.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Error {
 	/// Request was canceled.
 	Canceled,
@@ -103,6 +103,15 @@ enum Pending {
 pub struct OnDemand {
 	peers: RwLock<HashMap<PeerId, Peer>>,
 	pending_requests: RwLock<HashMap<ReqId, Pending>>,
+}
+
+impl Default for OnDemand {
+	fn default() -> Self {
+		OnDemand {
+			peers: RwLock::new(HashMap::new()),
+			pending_requests: RwLock::new(HashMap::new()),
+		}
+	}
 }
 
 impl OnDemand {
@@ -489,5 +498,37 @@ impl Handler for OnDemand {
 			}
 			_ => panic!("Only account request fetches state proof; qed"),
 		}
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+	use on_demand::request;
+	use net::{BasicContext, ReqId, Error as LesError};
+	use request::{Request as LesRequest, Kind as LesRequestKind};
+	use network::{PeerId, NodeId};
+	use futures::Future;
+	use util::H256;
+
+	struct FakeContext;
+
+	impl BasicContext for FakeContext {
+		fn persistent_peer_id(&self, _: PeerId) -> Option<NodeId> { None }
+		fn request_from(&self, _: PeerId, _: LesRequest) -> Result<ReqId, LesError> {
+			unimplemented!()
+		}
+		fn make_announcement(&self, _: Announcement) { }
+		fn max_requests(&self, _: PeerId, _: LesRequestKind) -> usize { 0 }
+		fn disconnect_peer(&self, _: PeerId) { }
+		fn disable_peer(&self, _: PeerId) { }
+	}
+
+	#[test]
+	fn no_peers() {
+		let on_demand = OnDemand::default();
+		let result = on_demand.header_by_hash(&FakeContext, request::HeaderByHash(H256::default()));
+
+		assert_eq!(result.wait().unwrap_err(), Error::NoPeersAvailable);
 	}
 }
