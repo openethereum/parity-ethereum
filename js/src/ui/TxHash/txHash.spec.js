@@ -125,15 +125,7 @@ describe('ui/TxHash', () => {
       });
 
       it('renders confirmation text', () => {
-        expect(child.find('FormattedMessage').props().id).to.equal('ui.txHash.confirmation');
-      });
-
-      it('renders plural on multiple confirmations', () => {
-        return api.nextBlock().then(() => {
-          child = shallow(instance.renderConfirmations());
-
-          expect(child.find('FormattedMessage').props().id).to.equal('ui.txHash.confirmations');
-        });
+        expect(child.find('FormattedMessage').props().id).to.equal('ui.txHash.confirmations');
       });
     });
   });

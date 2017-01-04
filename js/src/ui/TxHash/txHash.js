@@ -127,17 +127,13 @@ class TxHash extends Component {
           mode='determinate' />
         <div className={ styles.progressinfo }>
           <abbr title={ `block #${blockNumber.toFormat(0)}` }>
-            {
-              value === 1
-                ? <FormattedMessage
-                  id='ui.txHash.confirmation'
-                  defaultMessage='{count} confirmation'
-                  values={ { count } } />
-                : <FormattedMessage
-                  id='ui.txHash.confirmations'
-                  defaultMessage='{count} confirmations'
-                  values={ { count } } />
-            }
+            <FormattedMessage
+              id='ui.txHash.confirmations'
+              defaultMessage='{count} {value, plural, one {confirmation} other {confirmations}}'
+              values={ {
+                count,
+                value
+              } } />
           </abbr>
         </div>
       </div>
