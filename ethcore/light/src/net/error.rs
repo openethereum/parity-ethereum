@@ -62,6 +62,8 @@ pub enum Error {
 	UnsupportedProtocolVersion(u8),
 	/// Bad protocol version.
 	BadProtocolVersion,
+	/// Peer is overburdened.
+	Overburdened,
 }
 
 impl Error {
@@ -79,6 +81,7 @@ impl Error {
 			Error::NotServer => Punishment::Disable,
 			Error::UnsupportedProtocolVersion(_) => Punishment::Disable,
 			Error::BadProtocolVersion => Punishment::Disable,
+			Error::Overburdened => Punishment::None,
 		}
 	}
 }
@@ -107,8 +110,9 @@ impl fmt::Display for Error {
 			Error::UnknownPeer => write!(f, "Unknown peer"),
 			Error::UnsolicitedResponse => write!(f, "Peer provided unsolicited data"),
 			Error::NotServer => write!(f, "Peer not a server."),
-			Error::UnsupportedProtocolVersion(pv) => write!(f, "Unsupported protocol version: {}", pv),	
+			Error::UnsupportedProtocolVersion(pv) => write!(f, "Unsupported protocol version: {}", pv),
 			Error::BadProtocolVersion => write!(f, "Bad protocol version in handshake"),
+			Error::Overburdened => write!(f, "Peer overburdened"),
 		}
 	}
 }

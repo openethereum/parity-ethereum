@@ -33,6 +33,8 @@ use ipc::{BinaryConvertable, BinaryConvertError, IpcConfig};
 use std::str::FromStr;
 use parking_lot::RwLock;
 use chain::{ETH_PACKET_COUNT, SNAPSHOT_SYNC_PACKET_COUNT};
+use light::client::LightChainClient;
+use light::Provider;
 use light::net::{LightProtocol, Params as LightParams, Capabilities, Handler as LightHandler, EventContext};
 
 /// Parity sync protocol
@@ -566,4 +568,102 @@ pub struct ServiceConfiguration {
 	pub net: NetworkConfiguration,
 	/// IPC path.
 	pub io_path: String,
+}
+
+/// Configuration for the light sync.
+pub struct LightSyncParams<L> {
+	/// Network configuration.
+	pub network_config: BasicNetworkConfiguration,
+	/// Light client to sync to.
+	pub client: Arc<L>,
+	/// Network ID.
+	pub network_id: u64,
+	/// Subprotocol name.
+	pub subprotocol_name: [u8; 3],
+}
+
+/// Service for light synchronization.
+pub struct LightSync {
+	proto: Arc<LightProtocol>,
+	network: NetworkService,
+	subprotocol_name: [u8; 3],
+}
+
+impl LightSync {
+	/// Create a new light sync service.
+	pub fn new<L>(params: LightSyncParams<L>) -> Result<Self, NetworkError>
+		where L: LightChainClient + Provider + 'static
+	{
+		use light_sync::LightSync as SyncHandler;
+
+		// initialize light protocol handler and attach sync module.
+		let light_proto = {
+			let light_params = LightParams {
+				network_id: params.network_id,
+				flow_params: Default::default(), // or `None`?
+				capabilities: Capabilities {
+					serve_headers: false,
+					serve_chain_since: None,
+					serve_state_since: None,
+					tx_relay: false,
+				},
+			};
+
+			let mut light_proto = LightProtocol::new(params.client.clone(), light_params);
+			let sync_handler = try!(SyncHandler::new(params.client.clone()));
+			light_proto.add_handler(Box::new(sync_handler));
+
+			Arc::new(light_proto)
+		};
+
+		let service = try!(NetworkService::new(params.network_config));
+
+		Ok(LightSync {
+			proto: light_proto,
+			network: service,
+			subprotocol_name: params.subprotocol_name,
+		})
+	}
+}
+
+impl ManageNetwork for LightSync {
+	fn accept_unreserved_peers(&self) {
+		self.network.set_non_reserved_mode(NonReservedPeerMode::Accept);
+	}
+
+	fn deny_unreserved_peers(&self) {
+		self.network.set_non_reserved_mode(NonReservedPeerMode::Deny);
+	}
+
+	fn remove_reserved_peer(&self, peer: String) -> Result<(), String> {
+		self.network.remove_reserved_peer(&peer).map_err(|e| format!("{:?}", e))
+	}
+
+	fn add_reserved_peer(&self, peer: String) -> Result<(), String> {
+		self.network.add_reserved_peer(&peer).map_err(|e| format!("{:?}", e))
+	}
+
+	fn start_network(&self) {
+		match self.network.start() {
+			Err(NetworkError::StdIo(ref e)) if  e.kind() == io::ErrorKind::AddrInUse => warn!("Network port {:?} is already in use, make sure that another instance of an Ethereum client is not running or change the port using the --port option.", self.network.config().listen_address.expect("Listen address is not set.")),
+			Err(err) => warn!("Error starting network: {}", err),
+			_ => {},
+		}
+
+		let light_proto = self.proto.clone();
+
+		self.network.register_protocol(light_proto, self.subprotocol_name, ::light::net::PACKET_COUNT, ::light::net::PROTOCOL_VERSIONS)
+			.unwrap_or_else(|e| warn!("Error registering light client protocol: {:?}", e));
+	}
+
+	fn stop_network(&self) {
+		self.proto.abort();
+		if let Err(e) = self.network.stop() {
+			warn!("Error stopping network: {}", e);
+		}
+	}
+
+	fn network_config(&self) -> NetworkConfiguration {
+		NetworkConfiguration::from(self.network.config().clone())
+	}
 }
