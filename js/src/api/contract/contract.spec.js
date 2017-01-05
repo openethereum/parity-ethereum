@@ -41,12 +41,25 @@ describe('api/contract/Contract', () => {
       type: 'function', name: 'test2',
       outputs: [{ type: 'uint' }, { type: 'uint' }]
     },
-    { type: 'constructor' },
+    {
+      type: 'constructor',
+      inputs: [{ name: 'boolin', type: 'bool' }, { name: 'stringin', type: 'string' }]
+    },
     { type: 'event', name: 'baz' },
     { type: 'event', name: 'foo' }
   ];
-  const VALUES = [true, 'jacogr'];
-  const ENCODED = '0x023562050000000000000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000000066a61636f67720000000000000000000000000000000000000000000000000000';
+
+  const VALUES = [ true, 'jacogr' ];
+  const CALLDATA = `
+    0000000000000000000000000000000000000000000000000000000000000001
+    0000000000000000000000000000000000000000000000000000000000000040
+    0000000000000000000000000000000000000000000000000000000000000006
+    6a61636f67720000000000000000000000000000000000000000000000000000
+  `.replace(/\s/g, '');
+  const SIGNATURE = '02356205';
+
+  const ENCODED = `0x${SIGNATURE}${CALLDATA}`;
+
   const RETURN1 = '0000000000000000000000000000000000000000000000000000000000123456';
   const RETURN2 = '0000000000000000000000000000000000000000000000000000000000456789';
   let scope;
@@ -252,7 +265,7 @@ describe('api/contract/Contract', () => {
           { method: 'eth_getCode', reply: { result: '0x456' } }
         ]);
 
-        return contract.deploy({ data: '0x123' }, []);
+        return contract.deploy({ data: '0x123' }, VALUES);
       });
 
       it('calls estimateGas, postTransaction, checkRequest, getTransactionReceipt & getCode in order', () => {
@@ -261,7 +274,7 @@ describe('api/contract/Contract', () => {
 
       it('passes the options through to postTransaction (incl. gas calculation)', () => {
         expect(scope.body.parity_postTransaction.params).to.deep.equal([
-          { data: '0x123', gas: '0x4b0' }
+          { data: `0x123${CALLDATA}`, gas: '0x4b0' }
         ]);
       });
 
@@ -280,7 +293,7 @@ describe('api/contract/Contract', () => {
         ]);
 
         return contract
-          .deploy({ data: '0x123' }, [])
+          .deploy({ data: '0x123' }, VALUES)
           .catch((error) => {
             expect(error.message).to.match(/not deployed, gasUsed/);
           });
@@ -296,7 +309,7 @@ describe('api/contract/Contract', () => {
         ]);
 
         return contract
-          .deploy({ data: '0x123' }, [])
+          .deploy({ data: '0x123' }, VALUES)
           .catch((error) => {
             expect(error.message).to.match(/not deployed, getCode/);
           });
