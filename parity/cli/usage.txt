@@ -336,7 +336,7 @@ Legacy Options:
                            testnet --keys-path $HOME/parity/testnet-keys.
                            Overrides the --keys-path option.
   --import-geth-keys       Attempt to import keys from Geth client.
-  --datadir PATH           Equivalent to --db-path PATH.
+  --datadir PATH           Equivalent to --base-path PATH.
   --networkid INDEX        Equivalent to --network-id INDEX.
   --peers NUM              Equivalent to --min-peers NUM.
   --nodekey KEY            Equivalent to --node-key KEY.
