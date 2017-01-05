@@ -170,6 +170,14 @@ class TransactionPendingFormConfirm extends Component {
   }
 
   onKeySelect = (event) => {
+    // Check that file have been selected
+    if (event.target.files.length === 0) {
+      return this.setState({
+        wallet: null,
+        walletError: null
+      });
+    }
+
     const fileReader = new FileReader();
 
     fileReader.onload = (e) => {
