@@ -17,7 +17,7 @@
 use std::io;
 use std::io::Read;
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use page::{LocalPageEndpoint, PageCache};
 use endpoint::{Endpoints, EndpointInfo};
 use apps::manifest::{MANIFEST_FILENAME, deserialize_manifest};
@@ -38,10 +38,10 @@ fn local_dapp(name: String, path: PathBuf) -> LocalDapp {
 	}
 }
 
-fn local_dapps(dapps_path: String) -> Vec<LocalDapp> {
-	let files = fs::read_dir(dapps_path.as_str());
+fn local_dapps(dapps_path: &Path) -> Vec<LocalDapp> {
+	let files = fs::read_dir(dapps_path);
 	if let Err(e) = files {
-		warn!(target: "dapps", "Unable to load local dapps from: {}. Reason: {:?}", dapps_path, e);
+		warn!(target: "dapps", "Unable to load local dapps from: {}. Reason: {:?}", dapps_path.display(), e);
 		return vec![];
 	}
 
@@ -99,8 +99,8 @@ fn read_manifest(name: &str, mut path: PathBuf) -> EndpointInfo {
 		})
 }
 
-pub fn local_endpoint(path: String, signer_address: Option<(String, u16)>) -> Option<(String, Box<LocalPageEndpoint>)> {
-	let path = PathBuf::from(path);
+pub fn local_endpoint<P: AsRef<Path>>(path: P, signer_address: Option<(String, u16)>) -> Option<(String, Box<LocalPageEndpoint>)> {
+	let path = path.as_ref().to_owned();
 	path.canonicalize().ok().and_then(|path| {
 		let name = path.file_name().and_then(|name| name.to_str());
 		name.map(|name| {
@@ -112,9 +112,9 @@ pub fn local_endpoint(path: String, signer_address: Option<(String, u16)>) -> Op
 	})
 }
 
-pub fn local_endpoints(dapps_path: String, signer_address: Option<(String, u16)>) -> Endpoints {
+pub fn local_endpoints<P: AsRef<Path>>(dapps_path: P, signer_address: Option<(String, u16)>) -> Endpoints {
 	let mut pages = Endpoints::new();
-	for dapp in local_dapps(dapps_path) {
+	for dapp in local_dapps(dapps_path.as_ref()) {
 		pages.insert(
 			dapp.id,
 			Box::new(LocalPageEndpoint::new(dapp.path, dapp.info, PageCache::Disabled, signer_address.clone()))

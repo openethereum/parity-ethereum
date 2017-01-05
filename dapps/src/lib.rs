@@ -88,6 +88,7 @@ mod web;
 #[cfg(test)]
 mod tests;
 
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::net::SocketAddr;
 use std::collections::HashMap;
@@ -123,8 +124,8 @@ impl<F> WebProxyTokens for F where F: Fn(String) -> bool + Send + Sync {
 
 /// Webapps HTTP+RPC server build.
 pub struct ServerBuilder<T: Fetch = FetchClient> {
-	dapps_path: String,
-	extra_dapps: Vec<String>,
+	dapps_path: PathBuf,
+	extra_dapps: Vec<PathBuf>,
 	handler: Arc<IoHandler>,
 	registrar: Arc<ContractClient>,
 	sync_status: Arc<SyncStatus>,
@@ -142,9 +143,9 @@ impl<T: Fetch> Extendable for ServerBuilder<T> {
 
 impl ServerBuilder {
 	/// Construct new dapps server
-	pub fn new(dapps_path: String, registrar: Arc<ContractClient>, remote: Remote) -> Self {
+	pub fn new<P: AsRef<Path>>(dapps_path: P, registrar: Arc<ContractClient>, remote: Remote) -> Self {
 		ServerBuilder {
-			dapps_path: dapps_path,
+			dapps_path: dapps_path.as_ref().to_owned(),
 			extra_dapps: vec![],
 			handler: Arc::new(IoHandler::new()),
 			registrar: registrar,
@@ -192,8 +193,8 @@ impl<T: Fetch> ServerBuilder<T> {
 	}
 
 	/// Change extra dapps paths (apart from `dapps_path`)
-	pub fn extra_dapps(mut self, extra_dapps: Vec<String>) -> Self {
-		self.extra_dapps = extra_dapps;
+	pub fn extra_dapps<P: AsRef<Path>>(mut self, extra_dapps: &[P]) -> Self {
+		self.extra_dapps = extra_dapps.iter().map(|p| p.as_ref().to_owned()).collect();
 		self
 	}
 
@@ -281,8 +282,8 @@ impl Server {
 		hosts: Option<Vec<String>>,
 		authorization: A,
 		handler: Arc<IoHandler>,
-		dapps_path: String,
-		extra_dapps: Vec<String>,
+		dapps_path: PathBuf,
+		extra_dapps: Vec<PathBuf>,
 		signer_address: Option<(String, u16)>,
 		registrar: Arc<ContractClient>,
 		sync_status: Arc<SyncStatus>,

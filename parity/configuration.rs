@@ -508,9 +508,9 @@ impl Configuration {
 			hosts: self.dapps_hosts(),
 			user: self.args.flag_dapps_user.clone(),
 			pass: self.args.flag_dapps_pass.clone(),
-			dapps_path: self.directories().dapps,
+			dapps_path: PathBuf::from(self.directories().dapps),
 			extra_dapps: if self.args.cmd_dapp {
-				self.args.arg_path.clone()
+				self.args.arg_path.iter().map(|path| PathBuf::from(path)).collect()
 			} else {
 				vec![]
 			},
@@ -1252,7 +1252,7 @@ mod tests {
 		// then
 		assert_eq!(conf0.dapp_to_open(), Ok(Some(name.into())));
 		let extra_dapps = conf0.dapps_config().extra_dapps;
-		assert_eq!(extra_dapps, vec![temp.to_str().unwrap().to_owned()]);
+		assert_eq!(extra_dapps, vec![temp.to_owned()]);
 	}
 
 	#[test]
