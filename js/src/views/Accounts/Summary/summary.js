@@ -197,7 +197,7 @@ export default class Summary extends Component {
     }
 
     return (
-      <Certifications account={ account.address } />
+      <Certifications address={ account.address } />
     );
   }
 }

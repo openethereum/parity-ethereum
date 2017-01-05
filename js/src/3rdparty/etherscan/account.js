@@ -49,17 +49,17 @@ function transactions (address, page, test = false) {
   // page offset from 0
   return _call('txlist', {
     address: address,
-    page: (page || 0) + 1,
     offset: PAGE_SIZE,
+    page: (page || 0) + 1,
     sort: 'desc'
   }, test).then((transactions) => {
     return transactions.map((tx) => {
       return {
+        blockNumber: new BigNumber(tx.blockNumber || 0),
         from: util.toChecksumAddress(tx.from),
-        to: util.toChecksumAddress(tx.to),
         hash: tx.hash,
-        blockNumber: new BigNumber(tx.blockNumber),
         timeStamp: tx.timeStamp,
+        to: util.toChecksumAddress(tx.to),
         value: tx.value
       };
     });
