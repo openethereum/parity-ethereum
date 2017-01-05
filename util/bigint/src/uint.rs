@@ -37,12 +37,12 @@
 //! implementations for even more speed, hidden behind the `x64_arithmetic`
 //! feature flag.
 
-use std::{mem, fmt};
+use std::{mem, fmt, cmp};
 use std::str::{FromStr};
 use std::hash::Hash;
 use std::ops::{Shr, Shl, BitAnd, BitOr, BitXor, Not, Div, Rem, Mul, Add, Sub};
 use std::cmp::Ordering;
-use rustc_serialize::hex::{FromHex, FromHexError};
+use rustc_serialize::hex::{ToHex, FromHex, FromHexError};
 
 /// Conversion from decimal string error
 #[derive(Debug, PartialEq)]
@@ -520,8 +520,10 @@ pub trait Uint: Sized + Default + FromStr + From<u64> + fmt::Debug + fmt::Displa
 	fn bit(&self, index: usize) -> bool;
 	/// Return single byte
 	fn byte(&self, index: usize) -> u8;
-	/// Convert U256 to the sequence of bytes with a big endian
+	/// Convert to the sequence of bytes with a big endian
 	fn to_big_endian(&self, bytes: &mut[u8]);
+	/// Convert to a non-zero-prefixed hex representation (not prefixed by `0x`). 
+	fn to_hex(&self) -> String;
 	/// Create `Uint(10**n)`
 	fn exp10(n: usize) -> Self;
 	/// Return eponentation `self**other`. Panic on overflow.
@@ -683,6 +685,17 @@ macro_rules! construct_uint {
  					bytes[i] = (arr[pos] >> ((rev % 8) * 8)) as u8;
 				}
 			}
+			#[inline]
+			fn to_hex(&self) -> String {
+				if self.is_zero() { return "0".to_owned(); }	// special case.
+				let mut bytes = [0u8; 8 * $n_words];
+				self.to_big_endian(&mut bytes);
+				let bp7 = self.bits() + 7;
+				let len = cmp::max(bp7 / 8, 1);
+				let bytes_hex = bytes[bytes.len() - len..].to_hex();
+				(&bytes_hex[1 - bp7 % 8 / 4..]).to_owned()
+			}
+
 			#[inline]
 			fn exp10(n: usize) -> Self {
 				match n {
@@ -1636,7 +1649,7 @@ mod tests {
 	}
 
 	#[test]
-	fn uint256_pow () {
+	fn uint256_pow() {
 		assert_eq!(U256::from(10).pow(U256::from(0)), U256::from(1));
 		assert_eq!(U256::from(10).pow(U256::from(1)), U256::from(10));
 		assert_eq!(U256::from(10).pow(U256::from(2)), U256::from(100));
@@ -1646,12 +1659,24 @@ mod tests {
 
 	#[test]
 	#[should_panic]
-	fn uint256_pow_overflow_panic () {
+	fn uint256_pow_overflow_panic() {
 		U256::from(2).pow(U256::from(0x100));
 	}
 
 	#[test]
-	fn uint256_overflowing_pow () {
+	fn should_format_hex_correctly() {
+		assert_eq!(&U256::from(0).to_hex(), &"0");
+		assert_eq!(&U256::from(0x1).to_hex(), &"1");
+		assert_eq!(&U256::from(0xf).to_hex(), &"f");
+		assert_eq!(&U256::from(0x10).to_hex(), &"10");
+		assert_eq!(&U256::from(0xff).to_hex(), &"ff");
+		assert_eq!(&U256::from(0x100).to_hex(), &"100");
+		assert_eq!(&U256::from(0xfff).to_hex(), &"fff");
+		assert_eq!(&U256::from(0x1000).to_hex(), &"1000");
+	}
+
+	#[test]
+	fn uint256_overflowing_pow() {
 		// assert_eq!(
 		// 	U256::from(2).overflowing_pow(U256::from(0xff)),
 		// 	(U256::from_str("8000000000000000000000000000000000000000000000000000000000000000").unwrap(), false)

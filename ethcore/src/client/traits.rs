@@ -229,7 +229,7 @@ pub trait BlockChainClient : Sync + Send {
 	}
 
 	/// Get the preferred network ID to sign on
-	fn signing_network_id(&self) -> Option<u8>;
+	fn signing_network_id(&self) -> Option<u64>;
 
 	/// Get the mode.
 	fn mode(&self) -> Mode;

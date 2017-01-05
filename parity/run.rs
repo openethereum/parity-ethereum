@@ -177,7 +177,7 @@ pub fn execute(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<(), String> {
 	let mut sync_config = SyncConfig::default();
 	sync_config.network_id = match cmd.network_id {
 		Some(id) => id,
-		None => spec.network_id(),
+		None => spec.network_id() as usize,
 	};
 	if spec.subprotocol_name().len() != 3 {
 		warn!("Your chain specification's subprotocol length is not 3. Ignoring.");

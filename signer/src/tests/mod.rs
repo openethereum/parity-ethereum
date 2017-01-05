@@ -15,7 +15,6 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::ops::{Deref, DerefMut};
-use std::thread;
 use std::time;
 use std::sync::Arc;
 use devtools::{http_client, RandomTempPath};
