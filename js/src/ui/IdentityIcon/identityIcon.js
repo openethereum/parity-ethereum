@@ -34,8 +34,8 @@ class IdentityIcon extends Component {
     button: PropTypes.bool,
     center: PropTypes.bool,
     className: PropTypes.string,
-    inline: PropTypes.bool,
     images: PropTypes.object.isRequired,
+    inline: PropTypes.bool,
     padded: PropTypes.bool,
     tiny: PropTypes.bool
   }

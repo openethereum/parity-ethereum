@@ -14,15 +14,18 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
+import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
-import etherscan from '~/3rdparty/etherscan';
 import { Container, TxList, Loading } from '~/ui';
 
+import Store from './store';
 import styles from './transactions.css';
 
+@observer
 class Transactions extends Component {
   static contextTypes = {
     api: PropTypes.object.isRequired
@@ -34,34 +37,35 @@ class Transactions extends Component {
     traceMode: PropTypes.bool
   }
 
-  state = {
-    hashes: [],
-    loading: true,
-    callInfo: {}
-  }
+  store = new Store(this.context.api);
 
-  componentDidMount () {
-    this.getTransactions(this.props);
+  componentWillMount () {
+    this.store.updateProps(this.props);
   }
 
   componentWillReceiveProps (newProps) {
     if (this.props.traceMode === undefined && newProps.traceMode !== undefined) {
-      this.getTransactions(newProps);
+      this.store.updateProps(newProps);
       return;
     }
 
-    const hasChanged = [ 'isTest', 'address' ]
+    const hasChanged = ['isTest', 'address']
       .map(key => newProps[key] !== this.props[key])
       .reduce((truth, keyTruth) => truth || keyTruth, false);
 
     if (hasChanged) {
-      this.getTransactions(newProps);
+      this.store.updateProps(newProps);
     }
   }
 
   render () {
     return (
-      <Container title='transactions'>
+      <Container
+        title={
+          <FormattedMessage
+            id='account.transactions.title'
+            defaultMessage='transactions' />
+        }>
         { this.renderTransactionList() }
         { this.renderEtherscanFooter() }
       </Container>
@@ -69,10 +73,9 @@ class Transactions extends Component {
   }
 
   renderTransactionList () {
-    const { address } = this.props;
-    const { hashes, loading } = this.state;
+    const { address, isLoading, txHashes } = this.store;
 
-    if (loading) {
+    if (isLoading) {
       return (
         <Loading />
       );
@@ -81,84 +84,28 @@ class Transactions extends Component {
     return (
       <TxList
         address={ address }
-        hashes={ hashes }
+        hashes={ txHashes }
       />
     );
   }
 
   renderEtherscanFooter () {
-    const { traceMode } = this.props;
+    const { isTracing } = this.store;
 
-    if (traceMode) {
+    if (isTracing) {
       return null;
     }
 
     return (
       <div className={ styles.etherscan }>
-        Transaction list powered by <a href='https://etherscan.io/' target='_blank'>etherscan.io</a>
+        <FormattedMessage
+          id='account.transactions.poweredBy'
+          defaultMessage='Transaction list powered by {etherscan}'
+          values={ {
+            etherscan: <a href='https://etherscan.io/' target='_blank'>etherscan.io</a>
+          } } />
       </div>
     );
-  }
-
-  getTransactions = (props) => {
-    const { isTest, address, traceMode } = props;
-
-    // Don't fetch the transactions if we don't know in which
-    // network we are yet...
-    if (isTest === undefined) {
-      return;
-    }
-
-    return this
-      .fetchTransactions(isTest, address, traceMode)
-      .then((transactions) => {
-        this.setState({
-          hashes: transactions.map((transaction) => transaction.hash),
-          loading: false
-        });
-      });
-  }
-
-  fetchTransactions = (isTest, address, traceMode) => {
-    // if (traceMode) {
-    //   return this.fetchTraceTransactions(address);
-    // }
-
-    return this.fetchEtherscanTransactions(isTest, address);
-  }
-
-  fetchEtherscanTransactions = (isTest, address) => {
-    return etherscan.account
-      .transactions(address, 0, isTest)
-      .catch((error) => {
-        console.error('getTransactions', error);
-      });
-  }
-
-  fetchTraceTransactions = (address) => {
-    return Promise
-      .all([
-        this.context.api.trace
-          .filter({
-            fromBlock: 0,
-            fromAddress: address
-          }),
-        this.context.api.trace
-          .filter({
-            fromBlock: 0,
-            toAddress: address
-          })
-      ])
-      .then(([fromTransactions, toTransactions]) => {
-        const transactions = [].concat(fromTransactions, toTransactions);
-
-        return transactions.map(transaction => ({
-          from: transaction.action.from,
-          to: transaction.action.to,
-          blockNumber: transaction.blockNumber,
-          hash: transaction.transactionHash
-        }));
-      });
   }
 }
 

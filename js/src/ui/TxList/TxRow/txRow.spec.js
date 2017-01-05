@@ -25,7 +25,7 @@ import TxRow from './txRow';
 
 const api = new Api({ execute: sinon.stub() });
 
-function renderShallow (props) {
+function render (props) {
   return shallow(
     <TxRow
       { ...props } />,
@@ -33,7 +33,7 @@ function renderShallow (props) {
   );
 }
 
-describe('ui/TxRow', () => {
+describe('ui/TxList/TxRow', () => {
   describe('rendering', () => {
     it('renders defaults', () => {
       const block = {
@@ -45,7 +45,7 @@ describe('ui/TxRow', () => {
         value: new BigNumber(1)
       };
 
-      expect(renderShallow({ block, tx })).to.be.ok;
+      expect(render({ address: '0x123', block, isTest: true, tx })).to.be.ok;
     });
   });
 });

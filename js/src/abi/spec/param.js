@@ -31,6 +31,12 @@ export default class Param {
   }
 
   static toParams (params) {
-    return params.map((param) => new Param(param.name, param.type));
+    return params.map((param) => {
+      if (param instanceof Param) {
+        return param;
+      }
+
+      return new Param(param.name, param.type);
+    });
   }
 }
