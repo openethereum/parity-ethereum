@@ -89,9 +89,7 @@ class Dapps extends Component {
               defaultMessage='Decentralized Applications' />
           }
           buttons={ [
-            <UrlButton
-              key='url'
-            />,
+            <UrlButton key='url' />,
             <Button
               icon={ <VisibleIcon /> }
               key='edit'

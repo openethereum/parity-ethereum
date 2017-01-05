@@ -24,6 +24,8 @@ import Input from '~/ui/Form/Input';
 
 import styles from './urlButton.css';
 
+const INPUT_STYLE = { display: 'inline-block', width: '20em' };
+
 class UrlButton extends Component {
   static propTypes = {
     router: PropTypes.object.isRequired // injected by withRouter
@@ -64,7 +66,7 @@ class UrlButton extends Component {
         onBlur={ this.hideInput }
         onFocus={ this.showInput }
         onSubmit={ this.inputOnSubmit }
-        style={ { display: 'inline-block', width: '20em' } }
+        style={ INPUT_STYLE }
       />
     );
   }

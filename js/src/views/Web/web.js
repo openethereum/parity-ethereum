@@ -18,6 +18,7 @@ import React, { Component, PropTypes } from 'react';
 import store from 'store';
 import { parse as parseUrl, format as formatUrl } from 'url';
 import { parse as parseQuery } from 'querystring';
+import { sep as pathSep } from 'path';
 
 import AddressBar from './AddressBar';
 
@@ -69,8 +70,16 @@ export default class Web extends Component {
       return null;
     }
 
-    const { protocol, host, path } = parseUrl(url);
-    const address = `${dappsUrl}/web/${token}/${protocol.slice(0, -1)}/${host}${path}`;
+    const parsed = parseUrl(url);
+    let host = parsed.host;
+    let path = parsed.path;
+    if (!host) {
+      host = parsed.path.split(pathSep).slice(0, 1)
+      path = parsed.path.split(pathSep).slice(1).join(pathSep)
+    }
+    const protocol = parsed.protocol ? parsed.protocol.slice(0, -1) : 'https';
+    const address = `${dappsUrl}/web/${token}/${protocol}/${host}${path}`;
+    console.error('address', address);
 
     return (
       <div className={ styles.wrapper }>
