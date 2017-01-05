@@ -24,9 +24,10 @@ import MenuItem from 'material-ui/MenuItem';
 import RaisedButton from 'material-ui/RaisedButton';
 import CheckIcon from 'material-ui/svg-icons/navigation/check';
 
+import { nullableProptype } from '~/util/proptypes';
 import { fromWei } from '../parity.js';
 
-import { reserve, drop } from './actions';
+import { clearError, reserve, drop } from './actions';
 import styles from './names.css';
 
 const useSignerText = (<p>Use the <a href='/#/signer' className={ styles.link } target='_blank'>Signer</a> to authenticate the following changes.</p>);
@@ -78,34 +79,20 @@ const renderQueue = (queue) => {
 class Names extends Component {
 
   static propTypes = {
+    error: nullableProptype(PropTypes.object.isRequired),
     fee: PropTypes.object.isRequired,
     pending: PropTypes.bool.isRequired,
     queue: PropTypes.array.isRequired,
 
+    clearError: PropTypes.func.isRequired,
     reserve: PropTypes.func.isRequired,
     drop: PropTypes.func.isRequired
-  }
+  };
 
   state = {
     action: 'reserve',
     name: ''
   };
-
-  componentWillReceiveProps (nextProps) {
-    const nextQueue = nextProps.queue;
-    const prevQueue = this.props.queue;
-
-    if (nextQueue.length > prevQueue.length) {
-      const newQueued = nextQueue[nextQueue.length - 1];
-      const newName = newQueued.name;
-
-      if (newName !== this.state.name) {
-        return;
-      }
-
-      this.setState({ name: '' });
-    }
-  }
 
   render () {
     const { action, name } = this.state;
@@ -122,6 +109,7 @@ class Names extends Component {
               : (<p className={ styles.noSpacing }>To drop a name, you have to be the owner.</p>)
             )
           }
+          { this.renderError() }
           <div className={ styles.box }>
             <TextField
               hintText='name'
@@ -154,23 +142,50 @@ class Names extends Component {
     );
   }
 
+  renderError () {
+    const { error } = this.props;
+
+    if (!error) {
+      return null;
+    }
+
+    return (
+      <div className={ styles.error }>
+        <code>{ error.message }</code>
+      </div>
+    );
+  }
+
   onNameChange = (e) => {
+    this.clearError();
     this.setState({ name: e.target.value });
   };
+
   onActionChange = (e, i, action) => {
+    this.clearError();
     this.setState({ action });
   };
+
   onSubmitClick = () => {
     const { action, name } = this.state;
+
     if (action === 'reserve') {
-      this.props.reserve(name);
-    } else if (action === 'drop') {
-      this.props.drop(name);
+      return this.props.reserve(name);
+    }
+
+    if (action === 'drop') {
+      return this.props.drop(name);
+    }
+  };
+
+  clearError = () => {
+    if (this.props.error) {
+      this.props.clearError();
     }
   };
 }
 
 const mapStateToProps = (state) => ({ ...state.names, fee: state.fee });
-const mapDispatchToProps = (dispatch) => bindActionCreators({ reserve, drop }, dispatch);
+const mapDispatchToProps = (dispatch) => bindActionCreators({ clearError, reserve, drop }, dispatch);
 
 export default connect(mapStateToProps, mapDispatchToProps)(Names);

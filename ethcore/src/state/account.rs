@@ -20,6 +20,7 @@ use util::*;
 use pod_account::*;
 use rlp::*;
 use lru_cache::LruCache;
+use basic_account::BasicAccount;
 
 use std::cell::{RefCell, Cell};
 
@@ -51,6 +52,23 @@ pub struct Account {
 	code_filth: Filth,
 	// Cached address hash.
 	address_hash: Cell<Option<H256>>,
+}
+
+impl From<BasicAccount> for Account {
+	fn from(basic: BasicAccount) -> Self {
+		Account {
+			balance: basic.balance,
+			nonce: basic.nonce,
+			storage_root: basic.storage_root,
+			storage_cache: Self::empty_storage_cache(),
+			storage_changes: HashMap::new(),
+			code_hash: basic.code_hash,
+			code_size: None,
+			code_cache: Arc::new(vec![]),
+			code_filth: Filth::Clean,
+			address_hash: Cell::new(None),
+		}
+	}
 }
 
 impl Account {
@@ -109,19 +127,8 @@ impl Account {
 
 	/// Create a new account from RLP.
 	pub fn from_rlp(rlp: &[u8]) -> Account {
-		let r: Rlp = Rlp::new(rlp);
-		Account {
-			nonce: r.val_at(0),
-			balance: r.val_at(1),
-			storage_root: r.val_at(2),
-			storage_cache: Self::empty_storage_cache(),
-			storage_changes: HashMap::new(),
-			code_hash: r.val_at(3),
-			code_cache: Arc::new(vec![]),
-			code_size: None,
-			code_filth: Filth::Clean,
-			address_hash: Cell::new(None),
-		}
+		let basic: BasicAccount = ::rlp::decode(rlp);
+		basic.into()
 	}
 
 	/// Create a new contract account.

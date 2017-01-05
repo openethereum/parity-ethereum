@@ -37,3 +37,4 @@ pub mod mode;
 pub mod pruning_info;
 pub mod security_level;
 pub mod encoded;
+pub mod basic_account;

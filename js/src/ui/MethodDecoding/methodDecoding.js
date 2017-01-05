@@ -14,12 +14,11 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import BigNumber from 'bignumber.js';
 import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import CircularProgress from 'material-ui/CircularProgress';
 
-import { Input, InputAddress } from '../Form';
+import { TypedInput, InputAddress } from '../Form';
 import MethodDecodingStore from './methodDecodingStore';
 
 import styles from './methodDecoding.css';
@@ -245,6 +244,7 @@ class MethodDecoding extends Component {
 
   renderDeploy () {
     const { historic, transaction } = this.props;
+    const { methodInputs } = this.state;
 
     if (!historic) {
       return (
@@ -261,6 +261,14 @@ class MethodDecoding extends Component {
         </div>
 
         { this.renderAddressName(transaction.creates, false) }
+
+        <div>
+          { methodInputs && methodInputs.length ? 'with the following parameters:' : ''}
+        </div>
+
+        <div className={ styles.inputs }>
+          { this.renderInputs() }
+        </div>
       </div>
     );
   }
@@ -364,39 +372,31 @@ class MethodDecoding extends Component {
   renderInputs () {
     const { methodInputs } = this.state;
 
-    return methodInputs.map((input, index) => {
-      switch (input.type) {
-        case 'address':
-          return (
-            <InputAddress
-              disabled
-              text
-              key={ index }
-              className={ styles.input }
-              value={ input.value }
-              label={ input.type } />
-          );
+    if (!methodInputs || methodInputs.length === 0) {
+      return null;
+    }
 
-        default:
-          return (
-            <Input
-              readOnly
-              allowCopy
-              key={ index }
-              className={ styles.input }
-              value={ this.renderValue(input.value) }
-              label={ input.type } />
-          );
-      }
+    const inputs = methodInputs.map((input, index) => {
+      return (
+        <TypedInput
+          allowCopy
+          className={ styles.input }
+          label={ input.type }
+          key={ index }
+          param={ input.type }
+          readOnly
+          value={ this.renderValue(input.value) }
+        />
+      );
     });
+
+    return inputs;
   }
 
   renderValue (value) {
     const { api } = this.context;
 
-    if (api.util.isInstanceOf(value, BigNumber)) {
-      return value.toFormat(0);
-    } else if (api.util.isArray(value)) {
+    if (api.util.isArray(value)) {
       return api.util.bytesToHex(value);
     }
 

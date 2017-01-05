@@ -36,7 +36,7 @@ const STORE = {
   }
 };
 
-function renderShallow (props) {
+function render (props) {
   return shallow(
     <TxList
       store={ STORE }
@@ -48,7 +48,7 @@ function renderShallow (props) {
 describe('ui/TxList', () => {
   describe('rendering', () => {
     it('renders defaults', () => {
-      expect(renderShallow()).to.be.ok;
+      expect(render({ address: '0x123', hashes: [] })).to.be.ok;
     });
   });
 });

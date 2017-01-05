@@ -18,28 +18,42 @@ import AddIcon from 'material-ui/svg-icons/content/add';
 import CancelIcon from 'material-ui/svg-icons/content/clear';
 import CheckIcon from 'material-ui/svg-icons/navigation/check';
 import CloseIcon from 'material-ui/svg-icons/navigation/close';
+import CompareIcon from 'material-ui/svg-icons/action/compare-arrows';
+import ComputerIcon from 'material-ui/svg-icons/hardware/desktop-mac';
 import ContractIcon from 'material-ui/svg-icons/action/code';
+import DashboardIcon from 'material-ui/svg-icons/action/dashboard';
+import DeleteIcon from 'material-ui/svg-icons/action/delete';
 import DoneIcon from 'material-ui/svg-icons/action/done-all';
-import LockedIcon from 'material-ui/svg-icons/action/lock-outline';
+import EditIcon from 'material-ui/svg-icons/content/create';
+import LockedIcon from 'material-ui/svg-icons/action/lock';
 import NextIcon from 'material-ui/svg-icons/navigation/arrow-forward';
 import PrevIcon from 'material-ui/svg-icons/navigation/arrow-back';
 import SaveIcon from 'material-ui/svg-icons/content/save';
 import SendIcon from 'material-ui/svg-icons/content/send';
 import SnoozeIcon from 'material-ui/svg-icons/av/snooze';
+import VerifyIcon from 'material-ui/svg-icons/action/verified-user';
 import VisibleIcon from 'material-ui/svg-icons/image/remove-red-eye';
+import VpnIcon from 'material-ui/svg-icons/notification/vpn-lock';
 
 export {
   AddIcon,
   CancelIcon,
   CheckIcon,
   CloseIcon,
+  CompareIcon,
+  ComputerIcon,
   ContractIcon,
+  DashboardIcon,
+  DeleteIcon,
   DoneIcon,
+  EditIcon,
   LockedIcon,
   NextIcon,
   PrevIcon,
   SaveIcon,
   SendIcon,
   SnoozeIcon,
-  VisibleIcon
+  VerifyIcon,
+  VisibleIcon,
+  VpnIcon
 };

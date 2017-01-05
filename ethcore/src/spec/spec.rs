@@ -58,7 +58,7 @@ pub struct CommonParams {
 impl From<ethjson::spec::Params> for CommonParams {
 	fn from(p: ethjson::spec::Params) -> Self {
 		CommonParams {
-			account_start_nonce: p.account_start_nonce.into(),
+			account_start_nonce: p.account_start_nonce.map_or_else(U256::zero, Into::into),
 			maximum_extra_data_size: p.maximum_extra_data_size.into(),
 			network_id: p.network_id.into(),
 			chain_id: if let Some(n) = p.chain_id { n.into() } else { p.network_id.into() },

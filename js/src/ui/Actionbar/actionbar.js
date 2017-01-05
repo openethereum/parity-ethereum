@@ -50,8 +50,7 @@ export default class Actionbar extends Component {
     }
 
     return (
-      <ToolbarGroup
-        className={ styles.toolbuttons }>
+      <ToolbarGroup className={ styles.toolbuttons }>
         { buttons }
       </ToolbarGroup>
     );

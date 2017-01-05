@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::{str, fs};
+use std::{str, fs, fmt};
 use std::time::Duration;
 use util::{Address, U256, version_data};
 use util::journaldb::Algorithm;
@@ -57,6 +57,21 @@ impl str::FromStr for SpecType {
 			other => SpecType::Custom(other.into()),
 		};
 		Ok(spec)
+	}
+}
+
+impl fmt::Display for SpecType {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		f.write_str(match *self {
+			SpecType::Mainnet => "homestead",
+			SpecType::Morden => "morden",
+			SpecType::Ropsten => "ropsten",
+			SpecType::Olympic => "olympic",
+			SpecType::Classic => "classic",
+			SpecType::Expanse => "expanse",
+			SpecType::Dev => "dev",
+			SpecType::Custom(ref custom) => custom,
+		})
 	}
 }
 
@@ -303,6 +318,18 @@ mod tests {
 	#[test]
 	fn test_spec_type_default() {
 		assert_eq!(SpecType::Mainnet, SpecType::default());
+	}
+
+	#[test]
+	fn test_spec_type_display() {
+		assert_eq!(format!("{}", SpecType::Mainnet), "homestead");
+		assert_eq!(format!("{}", SpecType::Ropsten), "ropsten");
+		assert_eq!(format!("{}", SpecType::Morden), "morden");
+		assert_eq!(format!("{}", SpecType::Olympic), "olympic");
+		assert_eq!(format!("{}", SpecType::Classic), "classic");
+		assert_eq!(format!("{}", SpecType::Expanse), "expanse");
+		assert_eq!(format!("{}", SpecType::Dev), "dev");
+		assert_eq!(format!("{}", SpecType::Custom("foo/bar".into())), "foo/bar");
 	}
 
 	#[test]

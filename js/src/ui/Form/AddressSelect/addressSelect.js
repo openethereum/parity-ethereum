@@ -60,6 +60,7 @@ class AddressSelect extends Component {
     // Optional props
     allowCopy: PropTypes.bool,
     allowInput: PropTypes.bool,
+    className: PropTypes.string,
     disabled: PropTypes.bool,
     error: nodeOrStringProptype(),
     hint: nodeOrStringProptype(),
@@ -123,13 +124,14 @@ class AddressSelect extends Component {
 
   renderInput () {
     const { focused } = this.state;
-    const { accountsInfo, allowCopy, disabled, error, hint, label, readOnly, value } = this.props;
+    const { accountsInfo, allowCopy, className, disabled, error, hint, label, readOnly, value } = this.props;
 
     const input = (
       <InputAddress
         accountsInfo={ accountsInfo }
         allowCopy={ allowCopy }
-        disabled={ disabled }
+        className={ className }
+        disabled={ disabled || readOnly }
         error={ error }
         hint={ hint }
         focused={ focused }
@@ -215,8 +217,9 @@ class AddressSelect extends Component {
     }
 
     const { address, addressError } = validateAddress(inputValue);
+    const { registryValues } = this.store;
 
-    if (addressError) {
+    if (addressError || registryValues.length > 0) {
       return null;
     }
 
