@@ -18,13 +18,14 @@ import React, { Component, PropTypes } from 'react';
 import store from 'store';
 import { parse as parseUrl, format as formatUrl } from 'url';
 import { parse as parseQuery } from 'querystring';
-import { sep as pathSep } from 'path';
 
 import AddressBar from './AddressBar';
 
 import styles from './web.css';
 
 const LS_LAST_ADDRESS = '_parity::webLastAddress';
+
+const hasProtocol = /^https?:\/\//;
 
 export default class Web extends Component {
   static contextTypes = {
@@ -43,13 +44,31 @@ export default class Web extends Component {
   };
 
   componentDidMount () {
-    const url = this.props.params.url || store.get(LS_LAST_ADDRESS) || 'https://mkr.market';
-    this.setState({ url, displayedUrl: url });
+    const { api } = this.context;
+    const { params } = this.props;
 
-    this.context.api.signer.generateWebProxyAccessToken().then(token => {
-      this.setState({ token });
-    });
+    api
+      .signer
+      .generateWebProxyAccessToken()
+      .then((token) => {
+        this.setState({ token });
+      });
+
+    this.setUrl(params.url);
   }
+
+  componentWillReceiveProps (props) {
+    this.setUrl(props.params.url);
+  }
+
+  setUrl = (url) => {
+    url = url || store.get(LS_LAST_ADDRESS) || 'https://mkr.market';
+    if (!hasProtocol.test(url)) {
+      url = `https://${url}`;
+    }
+
+    this.setState({ url, displayedUrl: url });
+  };
 
   render () {
     const { displayedUrl, isLoading, token } = this.state;
@@ -71,14 +90,8 @@ export default class Web extends Component {
     }
 
     const parsed = parseUrl(url);
-    let host = parsed.host;
-    let path = parsed.path;
-    if (!host) {
-      host = parsed.path.split(pathSep).slice(0, 1);
-      path = parsed.path.split(pathSep).slice(1).join(pathSep);
-    }
-    const protocol = parsed.protocol ? parsed.protocol.slice(0, -1) : 'https';
-    const address = `${dappsUrl}/web/${token}/${protocol}/${host}${path}`;
+    const { protocol, host, path } = parsed;
+    const address = `${dappsUrl}/web/${token}/${protocol.slice(0, -1)}/${host}${path}`;
 
     return (
       <div className={ styles.wrapper }>
@@ -102,6 +115,10 @@ export default class Web extends Component {
   }
 
   onUrlChange = (url) => {
+    if (!hasProtocol.test(url)) {
+      url = `https://${url}`;
+    }
+
     store.set(LS_LAST_ADDRESS, url);
 
     this.setState({
