@@ -78,11 +78,11 @@
 //!		- When it's removed from `future` - all `future` transactions heights are recalculated and then
 //!		  we check if the transactions should go to `current` (comparing state nonce)
 //!		- When it's removed from `current` - all transactions from this sender (`current` & `future`) are recalculated.
-//!	3. `remove_all` is used to inform the queue about client (state) nonce changes.
+//!	3. `cull` is used to inform the queue about client (state) nonce changes.
 //!     - It removes all transactions (either from `current` or `future`) with nonce < client nonce
 //!     - It moves matching `future` transactions to `current`
 //! 4. `remove_old` is used as convenient method to update the state nonce for all senders in the queue.
-//!		- Invokes `remove_all` with latest state nonce for all senders.
+//!		- Invokes `cull` with latest state nonce for all senders.
 
 use std::ops::Deref;
 use std::cmp::Ordering;
@@ -259,13 +259,13 @@ struct VerifiedTransaction {
 	/// Transaction origin.
 	origin: TransactionOrigin,
 	/// Insertion time
-	insertion_time: InsertionTime,
+	insertion_time: QueuingInstant,
 	/// Delay until specifid block.
 	min_block: Option<BlockNumber>,
 }
 
 impl VerifiedTransaction {
-	fn new(transaction: SignedTransaction, origin: TransactionOrigin, time: InsertionTime, min_block: Option<BlockNumber>) -> Result<Self, Error> {
+	fn new(transaction: SignedTransaction, origin: TransactionOrigin, time: QueuingInstant, min_block: Option<BlockNumber>) -> Result<Self, Error> {
 		transaction.sender()?;
 		Ok(VerifiedTransaction {
 			transaction: transaction,
@@ -496,9 +496,8 @@ pub enum PrioritizationStrategy {
 }
 
 /// Point in time when transaction was inserted.
-/// (implying block numbers)
-pub type InsertionTime = u64;
-const DEFAULT_MAX_TIME_IN_QUEUE: u64 = 128;
+pub type QueuingInstant = BlockNumber;
+const DEFAULT_QUEUING_PERIOD: BlockNumber = 128;
 
 /// `TransactionQueue` implementation
 pub struct TransactionQueue {
@@ -511,9 +510,9 @@ pub struct TransactionQueue {
 	/// Current gas limit (block gas limit * factor). Transactions above the limit will not be accepted (default to !0)
 	gas_limit: U256,
 	/// Maximal time transaction may occupy the queue.
-	/// When we reach MAX_TIME_IN_QUEUE / 2^3 we re-validate
+	/// When we reach `max_time_in_queue / 2^3` we re-validate
 	/// account balance.
-	max_time_in_queue: InsertionTime,
+	max_time_in_queue: QueuingInstant,
 	/// Priority queue for transactions that can go to block
 	current: TransactionSet,
 	/// Priority queue for transactions that has been received but are not yet valid to go to block
@@ -561,7 +560,7 @@ impl TransactionQueue {
 			minimal_gas_price: U256::zero(),
 			tx_gas_limit: tx_gas_limit,
 			gas_limit: !U256::zero(),
-			max_time_in_queue: DEFAULT_MAX_TIME_IN_QUEUE,
+			max_time_in_queue: DEFAULT_QUEUING_PERIOD,
 			current: current,
 			future: future,
 			by_hash: HashMap::new(),
@@ -641,7 +640,7 @@ impl TransactionQueue {
 		&mut self,
 		tx: SignedTransaction,
 		origin: TransactionOrigin,
-		time: InsertionTime,
+		time: QueuingInstant,
 		min_block: Option<BlockNumber>,
 		fetch_account: &F,
 		gas_estimator: &G,
@@ -683,7 +682,7 @@ impl TransactionQueue {
 		&mut self,
 		tx: SignedTransaction,
 		origin: TransactionOrigin,
-		time: InsertionTime,
+		time: QueuingInstant,
 		min_block: Option<BlockNumber>,
 		fetch_account: &F,
 		gas_estimator: &G,
@@ -778,7 +777,7 @@ impl TransactionQueue {
 
 	/// Removes all transactions from particular sender up to (excluding) given client (state) nonce.
 	/// Client (State) Nonce = next valid nonce for this sender.
-	pub fn remove_all(&mut self, sender: Address, client_nonce: U256) {
+	pub fn cull(&mut self, sender: Address, client_nonce: U256) {
 		// Check if there is anything in current...
 		let should_check_in_current = self.current.by_address.row(&sender)
 			// If nonce == client_nonce nothing is changed
@@ -794,11 +793,11 @@ impl TransactionQueue {
 			return;
 		}
 
-		self.remove_all_internal(sender, client_nonce);
+		self.cull_internal(sender, client_nonce);
 	}
 
 	/// Always updates future and moves transactions from current to future.
-	fn remove_all_internal(&mut self, sender: Address, client_nonce: U256) {
+	fn cull_internal(&mut self, sender: Address, client_nonce: U256) {
 		// We will either move transaction to future or remove it completely
 		// so there will be no transactions from this sender in current
 		self.last_nonces.remove(&sender);
@@ -813,7 +812,7 @@ impl TransactionQueue {
 	}
 
 	/// Checks the current nonce for all transactions' senders in the queue and removes the old transactions.
-	pub fn remove_old<F>(&mut self, fetch_account: &F, current_time: InsertionTime) where
+	pub fn remove_old<F>(&mut self, fetch_account: &F, current_time: QueuingInstant) where
 		F: Fn(&Address) -> AccountDetails,
 	{
 		let senders = self.current.by_address.keys()
@@ -822,7 +821,7 @@ impl TransactionQueue {
 			.collect::<HashMap<_, _>>();
 
 		for (sender, details) in senders.iter() {
-			self.remove_all(*sender, details.nonce);
+			self.cull(*sender, details.nonce);
 		}
 
 		let max_time = self.max_time_in_queue;
@@ -937,7 +936,7 @@ impl TransactionQueue {
 		if order.is_some() {
 			// This will keep consistency in queue
 			// Moves all to future and then promotes a batch from current:
-			self.remove_all_internal(sender, current_nonce);
+			self.cull_internal(sender, current_nonce);
 			assert_eq!(self.future.by_priority.len() + self.current.by_priority.len(), self.by_hash.len());
 			return;
 		}
@@ -2120,7 +2119,7 @@ mod test {
 		assert_eq!(txq.status().future, 2);
 
 		// when
-		txq.remove_all(tx.sender().unwrap(), next2_nonce);
+		txq.cull(tx.sender().unwrap(), next2_nonce);
 		// should remove both transactions since they are not valid
 
 		// then
@@ -2166,8 +2165,8 @@ mod test {
 		assert_eq!(txq2.status().future, 1);
 
 		// when
-		txq2.remove_all(tx.sender().unwrap(), tx.nonce + U256::one());
-		txq2.remove_all(tx2.sender().unwrap(), tx2.nonce + U256::one());
+		txq2.cull(tx.sender().unwrap(), tx.nonce + U256::one());
+		txq2.cull(tx2.sender().unwrap(), tx2.nonce + U256::one());
 
 
 		// then
@@ -2359,7 +2358,7 @@ mod test {
 
 		// when
 		let sender = tx.sender().unwrap();
-		txq.remove_all(sender, default_nonce() + U256::one());
+		txq.cull(sender, default_nonce() + U256::one());
 
 		// then
 		let stats = txq.status();
@@ -2478,14 +2477,14 @@ mod test {
 		txq.add(tx1, TransactionOrigin::External, 0, None, &details1, &gas_estimator).unwrap();
 
 		// when
-		txq.remove_all(tx2.sender().unwrap(), nonce2 + U256::one());
+		txq.cull(tx2.sender().unwrap(), nonce2 + U256::one());
 
 		// then
 		assert!(txq.top_transactions().is_empty());
 	}
 
 	#[test]
-	fn should_return_valid_last_nonce_after_remove_all() {
+	fn should_return_valid_last_nonce_after_cull() {
 		// given
 		let mut txq = TransactionQueue::default();
 		let (tx1, tx2) = new_tx_pair_default(4.into(), 0.into());
@@ -2499,7 +2498,7 @@ mod test {
 		// Second should go to future
 		assert_eq!(txq.add(tx2, TransactionOrigin::External, 0, None, &details1, &gas_estimator).unwrap(), TransactionImportResult::Future);
 		// Now block is imported
-		txq.remove_all(sender, nonce2 - U256::from(1));
+		txq.cull(sender, nonce2 - U256::from(1));
 		// tx2 should be not be promoted to current
 		assert_eq!(txq.status().pending, 0);
 		assert_eq!(txq.status().future, 1);
@@ -2633,7 +2632,7 @@ mod test {
 		assert_eq!(txq.future_transactions().len(), 1);
 
 		// when
-		txq.remove_old(&default_account_details, 9 + super::DEFAULT_MAX_TIME_IN_QUEUE);
+		txq.remove_old(&default_account_details, 9 + super::DEFAULT_QUEUING_PERIOD);
 
 		// then
 		assert_eq!(txq.top_transactions().len(), 1);

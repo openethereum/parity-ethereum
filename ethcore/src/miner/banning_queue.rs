@@ -23,7 +23,7 @@ use std::cell::Cell;
 use transaction::{SignedTransaction, Action};
 use transient_hashmap::TransientHashMap;
 use miner::{TransactionQueue, TransactionImportResult, TransactionOrigin, AccountDetails};
-use miner::transaction_queue::InsertionTime;
+use miner::transaction_queue::QueuingInstant;
 use error::{Error, TransactionError};
 use util::{Uint, U256, H256, Address, Hashable};
 
@@ -79,7 +79,7 @@ impl BanningTransactionQueue {
 	pub fn add_with_banlist<F, G>(
 		&mut self,
 		transaction: SignedTransaction,
-		time: InsertionTime,
+		time: QueuingInstant,
 		account_details: &F,
 		gas_estimator: &G,
 	) -> Result<TransactionImportResult, Error> where
@@ -160,7 +160,7 @@ impl BanningTransactionQueue {
 			Threshold::BanAfter(threshold) if count > threshold => {
 				// Banlist the sender.
 				// Remove all transactions from the queue.
-				self.remove_all(address, !U256::zero());
+				self.cull(address, !U256::zero());
 				true
 			},
 			_ => false
