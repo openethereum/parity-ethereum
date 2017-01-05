@@ -17,9 +17,12 @@
 import BigNumber from 'bignumber.js';
 
 import { NULL_ADDRESS } from './constants';
-import { ERRORS, isNullAddress, validateAddress, validateCode, validateName, validatePositiveNumber, validateUint } from './validation';
+import { ERRORS, isNullAddress, validateAbi, validateAddress, validateCode, validateName, validatePositiveNumber, validateUint } from './validation';
 
 describe.only('util/validation', () => {
+  describe('validateAbi', () => {
+  });
+
   describe('validateAddress', () => {
     it('validates address', () => {
       const address = '0x1234567890123456789012345678901234567890';
@@ -36,6 +39,22 @@ describe.only('util/validation', () => {
       expect(validateAddress(address.toLowerCase())).to.deep.equal({
         address,
         addressError: null
+      });
+    });
+
+    it('fails on null addresses', () => {
+      expect(validateAddress(null)).to.deep.equal({
+        address: null,
+        addressError: ERRORS.invalidAddress
+      });
+    });
+
+    it('fails on invalid addresses', () => {
+      const address = '0x12344567';
+
+      expect(validateAddress(address)).to.deep.equal({
+        address,
+        addressError: ERRORS.invalidAddress
       });
     });
   });
