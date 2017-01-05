@@ -24,7 +24,7 @@ const initialState = {
 export default handleActions({
   setWorker (state, action) {
     const { worker } = action;
-    return Object.assign({}, state, { worker });
+    return Object.assign({}, state, { worker: worker || null });
   },
 
   setError (state, action) {
