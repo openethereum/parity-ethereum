@@ -54,12 +54,18 @@ pub struct Transaction {
 	/// Public key of the signer.
 	#[serde(rename="publicKey")]
 	pub public_key: Option<H512>,
-	/// The V field of the signature.
-	pub v: u8,
+	/// The network id of the transaction, if any.
+	#[serde(rename="networkId")]
+	pub network_id: Option<u64>,
+	/// The standardised V field of the signature (0 or 1).
+	#[serde(rename="standardV")]
+	pub standard_v: U256,
+	/// The standardised V field of the signature.
+	pub v: U256,
 	/// The R field of the signature.
-	pub r: H256,
+	pub r: U256,
 	/// The S field of the signature.
-	pub s: H256,
+	pub s: U256,
 }
 
 impl From<LocalizedTransaction> for Transaction {
@@ -86,7 +92,9 @@ impl From<LocalizedTransaction> for Transaction {
 			},
 			raw: ::rlp::encode(&t.signed).to_vec().into(),
 			public_key: t.public_key().ok().map(Into::into),
-			v: signature.v(),
+			network_id: t.network_id(),
+			standard_v: t.standard_v().into(),
+			v: t.original_v().into(),
 			r: signature.r().into(),
 			s: signature.s().into(),
 		}
@@ -117,7 +125,9 @@ impl From<SignedTransaction> for Transaction {
 			},
 			raw: ::rlp::encode(&t).to_vec().into(),
 			public_key: t.public_key().ok().map(Into::into),
-			v: signature.v(),
+			network_id: t.network_id(),
+			standard_v: t.standard_v().into(),
+			v: t.original_v().into(),
 			r: signature.r().into(),
 			s: signature.s().into(),
 		}
@@ -133,7 +143,7 @@ mod tests {
 	fn test_transaction_serialize() {
 		let t = Transaction::default();
 		let serialized = serde_json::to_string(&t).unwrap();
-		assert_eq!(serialized, r#"{"hash":"0x0000000000000000000000000000000000000000000000000000000000000000","nonce":"0x0","blockHash":null,"blockNumber":null,"transactionIndex":null,"from":"0x0000000000000000000000000000000000000000","to":null,"value":"0x0","gasPrice":"0x0","gas":"0x0","input":"0x","creates":null,"raw":"0x","publicKey":null,"v":0,"r":"0x0000000000000000000000000000000000000000000000000000000000000000","s":"0x0000000000000000000000000000000000000000000000000000000000000000"}"#);
+		assert_eq!(serialized, r#"{"hash":"0x0000000000000000000000000000000000000000000000000000000000000000","nonce":"0x0","blockHash":null,"blockNumber":null,"transactionIndex":null,"from":"0x0000000000000000000000000000000000000000","to":null,"value":"0x0","gasPrice":"0x0","gas":"0x0","input":"0x","creates":null,"raw":"0x","publicKey":null,"networkId":null,"standardV":"0x0","v":"0x0","r":"0x0","s":"0x0"}"#);
 	}
 }
 
