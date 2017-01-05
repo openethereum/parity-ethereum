@@ -173,7 +173,7 @@ export default class Shapeshift extends Component {
 
     if (error) {
       return (
-        <ErrorStep error={ error } />
+        <ErrorStep store={ this.store } />
       );
     }
 

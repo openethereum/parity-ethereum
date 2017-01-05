@@ -18,6 +18,7 @@ import { shallow } from 'enzyme';
 import React from 'react';
 import sinon from 'sinon';
 
+import { STAGE_COMPLETED, STAGE_OPTIONS, STAGE_WAIT_DEPOSIT, STAGE_WAIT_EXCHANGE } from './store';
 import Shapeshift from './';
 
 const ADDRESS = '0x0123456789012345678901234567890123456789';
@@ -107,6 +108,52 @@ describe('modals/Shapeshift', () => {
         shallow(instance.renderDialogActions()[2]).simulate('touchTap');
         expect(instance.store.shift).to.have.been.called;
       });
+    });
+  });
+
+  describe('renderPage', () => {
+    beforeEach(() => {
+      render();
+    });
+
+    it('renders ErrorStep on error, passing the store', () => {
+      instance.store.setError('testError');
+      const page = instance.renderPage();
+
+      expect(page.type).to.match(/ErrorStep/);
+      expect(page.props.store).to.equal(instance.store);
+    });
+
+    it('renders OptionsStep with STAGE_OPTIONS, passing the store', () => {
+      instance.store.setStage(STAGE_OPTIONS);
+      const page = instance.renderPage();
+
+      expect(page.type).to.match(/OptionsStep/);
+      expect(page.props.store).to.equal(instance.store);
+    });
+
+    it('renders AwaitingDepositStep with STAGE_WAIT_DEPOSIT, passing the store', () => {
+      instance.store.setStage(STAGE_WAIT_DEPOSIT);
+      const page = instance.renderPage();
+
+      expect(page.type).to.match(/AwaitingDepositStep/);
+      expect(page.props.store).to.equal(instance.store);
+    });
+
+    it('renders AwaitingExchangeStep with STAGE_WAIT_EXCHANGE, passing the store', () => {
+      instance.store.setStage(STAGE_WAIT_EXCHANGE);
+      const page = instance.renderPage();
+
+      expect(page.type).to.match(/AwaitingExchangeStep/);
+      expect(page.props.store).to.equal(instance.store);
+    });
+
+    it('renders CompletedStep with STAGE_COMPLETED, passing the store', () => {
+      instance.store.setStage(STAGE_COMPLETED);
+      const page = instance.renderPage();
+
+      expect(page.type).to.match(/CompletedStep/);
+      expect(page.props.store).to.equal(instance.store);
     });
   });
 });
