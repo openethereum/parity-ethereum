@@ -2068,7 +2068,7 @@ impl ChainSync {
 	}
 
 	/// called when block is imported to chain - propagates the blocks and updates transactions sent to peers
-	pub fn chain_new_blocks(&mut self, io: &mut SyncIo, _imported: &[H256], invalid: &[H256], _enacted: &[H256], _retracted: &[H256], sealed: &[H256], proposed: &[Bytes]) {
+	pub fn chain_new_blocks(&mut self, io: &mut SyncIo, _imported: &[H256], invalid: &[H256], enacted: &[H256], _retracted: &[H256], sealed: &[H256], proposed: &[Bytes]) {
 		let queue_info = io.chain().queue_info();
 		if !self.status().is_syncing(queue_info) || !sealed.is_empty() {
 			trace!(target: "sync", "Propagating blocks, state={:?}", self.state);
@@ -2078,6 +2078,21 @@ impl ChainSync {
 		if !invalid.is_empty() {
 			trace!(target: "sync", "Bad blocks in the queue, restarting");
 			self.restart(io);
+		}
+
+		if !enacted.is_empty() {
+			// Select random peers to re-broadcast transactions to.
+			let mut random = random::new();
+			let len = self.peers.len();
+			let peers = random.gen_range(0, min(len, 3));
+			trace!(target: "sync", "Re-broadcasting transactions to {} random peers.", peers);
+
+			for _ in 0..peers {
+				let peer = random.gen_range(0, len);
+				self.peers.values_mut().nth(peer).map(|mut peer_info| {
+					peer_info.last_sent_transactions.clear()
+				});
+			}
 		}
 	}
 
