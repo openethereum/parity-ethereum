@@ -1995,9 +1995,6 @@ impl ChainSync {
 			trace!(target: "sync", "Bad blocks in the queue, restarting");
 			self.restart(io);
 		}
-		for peer_info in self.peers.values_mut() {
-			peer_info.last_sent_transactions.clear();
-		}
 	}
 }
 
