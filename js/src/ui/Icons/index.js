@@ -25,6 +25,7 @@ import DashboardIcon from 'material-ui/svg-icons/action/dashboard';
 import DeleteIcon from 'material-ui/svg-icons/action/delete';
 import DoneIcon from 'material-ui/svg-icons/action/done-all';
 import EditIcon from 'material-ui/svg-icons/content/create';
+import FingerprintIcon from 'material-ui/svg-icons/action/fingerprint';
 import LockedIcon from 'material-ui/svg-icons/action/lock';
 import NextIcon from 'material-ui/svg-icons/navigation/arrow-forward';
 import PrevIcon from 'material-ui/svg-icons/navigation/arrow-back';
@@ -47,6 +48,7 @@ export {
   DeleteIcon,
   DoneIcon,
   EditIcon,
+  FingerprintIcon,
   LockedIcon,
   NextIcon,
   PrevIcon,

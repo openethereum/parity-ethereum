@@ -15,20 +15,19 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import { FormattedMessage } from 'react-intl';
 import { Link } from 'react-router';
 import { connect } from 'react-redux';
-import { bindActionCreators } from 'redux';
-import ActionFingerprint from 'material-ui/svg-icons/action/fingerprint';
-import ContentClear from 'material-ui/svg-icons/content/clear';
 
+import imagesEthcoreBlock from '~/../assets/images/parity-logo-white-no-text.svg';
 import { Badge, Button, ContainerTitle, ParityBackground } from '~/ui';
+import { CancelIcon, FingerprintIcon } from '~/ui/Icons';
+
 import { Embedded as Signer } from '../Signer';
 
-import imagesEthcoreBlock from '../../../assets/images/parity-logo-white-no-text.svg';
 import styles from './parityBar.css';
 
 class ParityBar extends Component {
-
   static propTypes = {
     pending: PropTypes.array,
     dapp: PropTypes.bool
@@ -70,8 +69,8 @@ class ParityBar extends Component {
 
     const parityIcon = (
       <img
-        src={ imagesEthcoreBlock }
-        className={ styles.parityIcon } />
+        className={ styles.parityIcon }
+        src={ imagesEthcoreBlock } />
     );
 
     return (
@@ -82,11 +81,17 @@ class ParityBar extends Component {
               <Button
                 className={ styles.parityButton }
                 icon={ parityIcon }
-                label={ this.renderLabel('Parity') } />
+                label={
+                  this.renderLabel(
+                    <FormattedMessage
+                      id='parityBar.label.parity'
+                      defaultMessage='Parity' />
+                  )
+                } />
             </Link>
             <Button
               className={ styles.button }
-              icon={ <ActionFingerprint /> }
+              icon={ <FingerprintIcon /> }
               label={ this.renderSignerLabel() }
               onClick={ this.toggleDisplay } />
           </div>
@@ -101,12 +106,20 @@ class ParityBar extends Component {
         <ParityBackground className={ styles.expanded }>
           <div className={ styles.header }>
             <div className={ styles.title }>
-              <ContainerTitle title='Parity Signer: Pending' />
+              <ContainerTitle title={
+                <FormattedMessage
+                  id='parityBar.title.pending'
+                  defaultMessage='Parity Signer: Pending' />
+              } />
             </div>
             <div className={ styles.actions }>
               <Button
-                icon={ <ContentClear /> }
-                label='Close'
+                icon={ <CancelIcon /> }
+                label={
+                  <FormattedMessage
+                    id='parityBar.button.close'
+                    defaultMessage='Close' />
+                }
                 onClick={ this.toggleDisplay } />
             </div>
           </div>
@@ -131,18 +144,18 @@ class ParityBar extends Component {
 
   renderSignerLabel () {
     const { pending } = this.props;
-    let bubble = null;
 
-    if (pending && pending.length) {
-      bubble = (
-        <Badge
-          color='red'
+    return this.renderLabel(
+      <FormattedMessage
+        id='parityBar.label.signer'
+        defaultMessage='Signer' />,
+      pending && pending.length
+        ? <Badge
           className={ styles.labelBubble }
+          color='red'
           value={ pending.length } />
-      );
-    }
-
-    return this.renderLabel('Signer', bubble);
+        : null
+    );
   }
 
   toggleDisplay = () => {
@@ -162,11 +175,7 @@ function mapStateToProps (state) {
   };
 }
 
-function mapDispatchToProps (dispatch) {
-  return bindActionCreators({}, dispatch);
-}
-
 export default connect(
   mapStateToProps,
-  mapDispatchToProps
+  null
 )(ParityBar);
