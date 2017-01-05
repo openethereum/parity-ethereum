@@ -32,10 +32,23 @@ export default class AddressSelectStore {
   initValues = [];
   regLookups = [
     (address) => {
-      const name = this.reverse[address];
+      if (address.length === 0 || address === '0x') {
+        return null;
+      }
+
+      let name = this.reverse[address];
 
       if (!name) {
-        return null;
+        const addr = Object
+          .keys(this.reverse)
+          .find((addr) => addr.slice(0, address.length) === address);
+
+        if (addr) {
+          address = addr;
+          name = this.reverse[addr];
+        } else {
+          return null;
+        }
       }
 
       return {
