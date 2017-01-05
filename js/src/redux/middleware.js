@@ -23,6 +23,7 @@ import SignerMiddleware from './providers/signerMiddleware';
 import statusMiddleware from '~/views/Status/middleware';
 import CertificationsMiddleware from './providers/certifications/middleware';
 import ChainMiddleware from './providers/chainMiddleware';
+import RegistryMiddleware from './providers/registry/middleware';
 
 export default function (api, browserHistory) {
   const errors = new ErrorsMiddleware();
@@ -32,13 +33,15 @@ export default function (api, browserHistory) {
   const certifications = new CertificationsMiddleware();
   const routeMiddleware = routerMiddleware(browserHistory);
   const chain = new ChainMiddleware();
+  const registry = new RegistryMiddleware();
 
   const middleware = [
     settings.toMiddleware(),
     signer.toMiddleware(),
     errors.toMiddleware(),
     certifications.toMiddleware(),
-    chain.toMiddleware()
+    chain.toMiddleware(),
+    registry.toMiddleware()
   ];
 
   return middleware.concat(status, routeMiddleware, thunk);
