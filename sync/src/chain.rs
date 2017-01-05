@@ -2344,7 +2344,7 @@ mod tests {
 		// Try to propagate same transactions for the second time
 		let peer_count2 = sync.propagate_new_transactions(&mut io);
 
-		// 2 message should be send
+		// 1 message should be send
 		assert_eq!(1, io.queue.len());
 		// 1 peer should be updated only for the first time
 		assert_eq!(1, peer_count);
