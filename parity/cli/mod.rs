@@ -16,7 +16,7 @@
 
 #[macro_use]
 mod usage;
-use dir::default_data_path;
+use dir;
 
 usage! {
 	{
@@ -90,8 +90,8 @@ usage! {
 		flag_no_download: bool = false, or |c: &Config| otry!(c.parity).no_download.clone(),
 		flag_no_consensus: bool = false, or |c: &Config| otry!(c.parity).no_consensus.clone(),
 		flag_chain: String = "homestead", or |c: &Config| otry!(c.parity).chain.clone(),
-		flag_base_path: String = default_data_path(), or |c: &Config| otry!(c.parity).base_path.clone(),
-		flag_db_path: String = "$BASE/chains", or |c: &Config| otry!(c.parity).db_path.clone(),
+		flag_base_path: String = dir::default_data_path(), or |c: &Config| otry!(c.parity).base_path.clone(),
+		flag_db_path: String = dir::CHAINS_PATH, or |c: &Config| otry!(c.parity).db_path.clone(),
 		flag_keys_path: String = "$BASE/keys", or |c: &Config| otry!(c.parity).keys_path.clone(),
 		flag_identity: String = "", or |c: &Config| otry!(c.parity).identity.clone(),
 
