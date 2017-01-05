@@ -17,6 +17,7 @@
 import BigNumber from 'bignumber.js';
 import { handleActions } from 'redux-actions';
 
+const DEFAULT_NETCHAIN = '(unknown)';
 const initialState = {
   blockNumber: new BigNumber(0),
   blockTimestamp: new Date(),
@@ -32,7 +33,7 @@ const initialState = {
   gasLimit: new BigNumber(0),
   hashrate: new BigNumber(0),
   minGasPrice: new BigNumber(0),
-  netChain: 'ropsten',
+  netChain: DEFAULT_NETCHAIN,
   netPeers: {
     active: new BigNumber(0),
     connected: new BigNumber(0),
@@ -82,3 +83,8 @@ export default handleActions({
     return Object.assign({}, state, { refreshStatus });
   }
 }, initialState);
+
+export {
+  DEFAULT_NETCHAIN,
+  initialState
+};

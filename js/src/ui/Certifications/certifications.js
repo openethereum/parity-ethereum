@@ -25,7 +25,7 @@ import styles from './certifications.css';
 
 class Certifications extends Component {
   static propTypes = {
-    account: PropTypes.string.isRequired,
+    address: PropTypes.string.isRequired,
     certifications: PropTypes.array.isRequired,
     dappsUrl: PropTypes.string.isRequired
   }
@@ -60,10 +60,10 @@ class Certifications extends Component {
 }
 
 function mapStateToProps (_, initProps) {
-  const { account } = initProps;
+  const { address } = initProps;
 
   return (state) => {
-    const certifications = state.certifications[account] || [];
+    const certifications = state.certifications[address] || [];
     const dappsUrl = state.api.dappsUrl;
 
     return { certifications, dappsUrl };

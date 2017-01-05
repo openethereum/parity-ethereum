@@ -26,6 +26,7 @@ injectTapEventPlugin();
 import chai from 'chai';
 import chaiAsPromised from 'chai-as-promised';
 import chaiEnzyme from 'chai-enzyme';
+import 'sinon-as-promised';
 import sinonChai from 'sinon-chai';
 import { WebSocket } from 'mock-socket';
 import jsdom from 'jsdom';
