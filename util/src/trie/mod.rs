@@ -119,13 +119,13 @@ pub trait TrieMut {
 	/// What is the value of the given key in this trie?
 	fn get<'a, 'key>(&'a self, key: &'key [u8]) -> Result<Option<DBValue>> where 'a: 'key;
 
-	/// Insert a `key`/`value` pair into the trie. An `empty` value is equivalent to removing
-	/// `key` from the trie.
-	fn insert(&mut self, key: &[u8], value: &[u8]) -> Result<()>;
+	/// Insert a `key`/`value` pair into the trie. An empty value is equivalent to removing
+	/// `key` from the trie. Returns the old value associated with this key, if it existed.
+	fn insert(&mut self, key: &[u8], value: &[u8]) -> Result<Option<DBValue>>;
 
 	/// Remove a `key` from the trie. Equivalent to making it equal to the empty
-	/// value.
-	fn remove(&mut self, key: &[u8]) -> Result<()>;
+	/// value. Returns the old value associated with this key, if it existed.
+	fn remove(&mut self, key: &[u8]) -> Result<Option<DBValue>>;
 }
 
 /// A trie iterator that also supports random access.
