@@ -37,8 +37,8 @@ use provider::Provider;
 use request::{self, HashOrNumber, Request};
 
 use self::buffer_flow::{Buffer, FlowParams};
-use self::context::Ctx;
-use self::error::{Error, Punishment};
+use self::context::{Ctx, TickCtx};
+use self::error::Punishment;
 
 mod buffer_flow;
 mod context;
@@ -48,11 +48,15 @@ mod status;
 #[cfg(test)]
 mod tests;
 
-pub use self::context::{EventContext, IoContext};
+pub use self::error::Error;
+pub use self::context::{BasicContext, EventContext, IoContext};
 pub use self::status::{Status, Capabilities, Announcement};
 
 const TIMEOUT: TimerToken = 0;
 const TIMEOUT_INTERVAL_MS: u64 = 1000;
+
+const TICK_TIMEOUT: TimerToken = 1;
+const TICK_TIMEOUT_INTERVAL_MS: u64 = 5000;
 
 // minimum interval between updates.
 const UPDATE_INTERVAL_MS: i64 = 5000;
@@ -131,8 +135,9 @@ struct Peer {
 	status: Status,
 	capabilities: Capabilities,
 	remote_flow: Option<(Buffer, FlowParams)>,
-	sent_head: H256, // last head we've given them.
+	sent_head: H256, // last chain head we've given them.
 	last_update: SteadyTime,
+	idle: bool, // make into a current percentage of max buffer being requested?
 }
 
 impl Peer {
@@ -188,7 +193,11 @@ pub trait Handler: Send + Sync {
 	/// Called when a peer responds with header proofs. Each proof is a block header coupled
 	/// with a series of trie nodes is ascending order by distance from the root.
 	fn on_header_proofs(&self, _ctx: &EventContext, _req_id: ReqId, _proofs: &[(Bytes, Vec<Bytes>)]) { }
-	/// Called on abort.
+	/// Called to "tick" the handler periodically.
+	fn tick(&self, _ctx: &BasicContext) { }
+	/// Called on abort. This signals to handlers that they should clean up
+	/// and ignore peers.
+	// TODO: coreresponding `on_activate`?
 	fn on_abort(&self) { }
 }
 
@@ -253,18 +262,25 @@ impl LightProtocol {
 	}
 
 	/// Check the maximum amount of requests of a specific type
-	/// which a peer would be able to serve.
-	pub fn max_requests(&self, peer: PeerId, kind: request::Kind) -> Option<usize> {
+	/// which a peer would be able to serve. Returns zero if the
+	/// peer is unknown or has no buffer flow parameters.
+	fn max_requests(&self, peer: PeerId, kind: request::Kind) -> usize {
 		self.peers.read().get(&peer).and_then(|peer| {
 			let mut peer = peer.lock();
-			match peer.remote_flow.as_mut() {
-				Some(&mut (ref mut buf, ref flow)) => {
+			let idle = peer.idle;
+			match peer.remote_flow {
+				Some((ref mut buf, ref flow)) => {
 					flow.recharge(buf);
-					Some(flow.max_amount(&*buf, kind))
+
+					if !idle {
+						Some(0)
+					} else {
+						Some(flow.max_amount(&*buf, kind))
+					}
 				}
 				None => None,
 			}
-		})
+		}).unwrap_or(0)
 	}
 
 	/// Make a request to a peer.
@@ -278,8 +294,10 @@ impl LightProtocol {
 		let peer = peers.get(peer_id).ok_or_else(|| Error::UnknownPeer)?;
 		let mut peer = peer.lock();
 
-		match peer.remote_flow.as_mut() {
-			Some(&mut (ref mut buf, ref flow)) => {
+		if !peer.idle { return Err(Error::Overburdened) }
+
+		match peer.remote_flow {
+			Some((ref mut buf, ref flow)) => {
 				flow.recharge(buf);
 				let max = flow.compute_cost(request.kind(), request.amount());
 				buf.deduct_cost(max)?;
@@ -289,6 +307,8 @@ impl LightProtocol {
 
 		let req_id = self.req_id.fetch_add(1, Ordering::SeqCst);
 		let packet_data = encode_request(&request, req_id);
+
+		trace!(target: "les", "Dispatching request {} to peer {}", req_id, peer_id);
 
 		let packet_id = match request.kind() {
 			request::Kind::Headers => packet::GET_BLOCK_HEADERS,
@@ -301,6 +321,7 @@ impl LightProtocol {
 
 		io.send(*peer_id, packet_id, packet_data);
 
+		peer.idle = false;
 		self.pending_requests.write().insert(req_id, Requested {
 			request: request,
 			timestamp: SteadyTime::now(),
@@ -404,6 +425,8 @@ impl LightProtocol {
 		match peers.get(peer) {
 			Some(peer_info) => {
 				let mut peer_info = peer_info.lock();
+				peer_info.idle = true;
+
 				match peer_info.remote_flow.as_mut() {
 					Some(&mut (ref mut buf, ref mut flow)) => {
 						let actual_buffer = ::std::cmp::min(cur_buffer, *flow.limit());
@@ -505,6 +528,15 @@ impl LightProtocol {
 			}
 		}
 	}
+
+	fn tick_handlers(&self, io: &IoContext) {
+		for handler in &self.handlers {
+			handler.tick(&TickCtx {
+				io: io,
+				proto: self,
+			})
+		}
+	}
 }
 
 impl LightProtocol {
@@ -603,6 +635,7 @@ impl LightProtocol {
 			remote_flow: remote_flow,
 			sent_head: pending.sent_head,
 			last_update: pending.last_update,
+			idle: true,
 		}));
 
 		for handler in &self.handlers {
@@ -1123,7 +1156,10 @@ fn punish(peer: PeerId, io: &IoContext, e: Error) {
 
 impl NetworkProtocolHandler for LightProtocol {
 	fn initialize(&self, io: &NetworkContext) {
-		io.register_timer(TIMEOUT, TIMEOUT_INTERVAL_MS).expect("Error registering sync timer.");
+		io.register_timer(TIMEOUT, TIMEOUT_INTERVAL_MS)
+			.expect("Error registering sync timer.");
+		io.register_timer(TICK_TIMEOUT, TICK_TIMEOUT_INTERVAL_MS)
+			.expect("Error registering sync timer.");
 	}
 
 	fn read(&self, io: &NetworkContext, peer: &PeerId, packet_id: u8, data: &[u8]) {
@@ -1141,6 +1177,7 @@ impl NetworkProtocolHandler for LightProtocol {
 	fn timeout(&self, io: &NetworkContext, timer: TimerToken) {
 		match timer {
 			TIMEOUT => self.timeout_check(io),
+			TICK_TIMEOUT => self.tick_handlers(io),
 			_ => warn!(target: "les", "received timeout on unknown token {}", timer),
 		}
 	}

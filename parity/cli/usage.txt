@@ -36,15 +36,15 @@ Operating Options:
                            (default: {flag_mode_alarm}).
   --auto-update SET        Set a releases set to automatically update and
                            install.
-                           all - All updates in the our release track. 
+                           all - All updates in the our release track.
                            critical - Only consensus/security updates.
-                           none - No updates will be auto-installed. 
+                           none - No updates will be auto-installed.
                            (default: {flag_auto_update}).
   --release-track TRACK    Set which release track we should use for updates.
-                           stable - Stable releases. 
-                           beta - Beta releases. 
+                           stable - Stable releases.
+                           beta - Beta releases.
                            nightly - Nightly releases (unstable).
-                           testing - Testing releases (do not use). 
+                           testing - Testing releases (do not use).
                            current - Whatever track this executable was
                            released on (default: {flag_release_track}).
   --no-download            Normally new releases will be downloaded ready for
@@ -362,7 +362,7 @@ Legacy Options:
   --cache MB               Equivalent to --cache-size MB.
 
 Internal Options:
-  --can-restart            Executable will auto-restart if exiting with 69.  
+  --can-restart            Executable will auto-restart if exiting with 69.
 
 Miscellaneous Options:
   -c --config CONFIG       Specify a filename containing a configuration file.
