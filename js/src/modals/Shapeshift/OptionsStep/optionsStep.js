@@ -19,10 +19,19 @@ import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 
-import { Form, Input, Select } from '~/ui';
+import { Form, Input, Select, Warning } from '~/ui';
 
 import Price from '../Price';
+import { WARNING_NO_PRICE } from '../store';
 import styles from './optionsStep.css';
+
+const WARNING_LABELS = {
+  [WARNING_NO_PRICE]: (
+    <FormattedMessage
+      id='shapeshift.warning.noPrice'
+      defaultMessage='No price match if found for the selected coin' />
+  )
+};
 
 @observer
 export default class OptionsStep extends Component {
@@ -31,7 +40,7 @@ export default class OptionsStep extends Component {
   };
 
   render () {
-    const { coinSymbol, coins, hasAcceptedTerms, price, refundAddress } = this.props.store;
+    const { coinSymbol, coins, hasAcceptedTerms, price, refundAddress, warning } = this.props.store;
 
     if (!coins.length) {
       return (
@@ -88,6 +97,7 @@ export default class OptionsStep extends Component {
             }
             onCheck={ this.onToggleAcceptTerms } />
         </Form>
+        <Warning warning={ WARNING_LABELS[warning] } />
         <Price
           coinSymbol={ coinSymbol }
           price={ price } />

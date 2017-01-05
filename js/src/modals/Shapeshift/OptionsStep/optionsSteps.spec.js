@@ -18,7 +18,7 @@ import { shallow } from 'enzyme';
 import React from 'react';
 import sinon from 'sinon';
 
-import Store from '../store';
+import Store, { WARNING_NO_PRICE } from '../store';
 
 import OptionsStep from './';
 
@@ -60,6 +60,19 @@ describe('modals/Shapeshift/OptionsStep', () => {
     describe('terms Checkbox', () => {
       it('shows the state of store.hasAcceptedTerms', () => {
         expect(component.find('Checkbox').props().checked).to.be.true;
+      });
+    });
+
+    describe('warning', () => {
+      let warning;
+
+      beforeEach(() => {
+        store.setWarning(WARNING_NO_PRICE);
+        warning = component.find('Warning');
+      });
+
+      it('shows a warning message when available', () => {
+        expect(warning.props().warning.props.id).to.equal('shapeshift.warning.noPrice');
       });
     });
   });

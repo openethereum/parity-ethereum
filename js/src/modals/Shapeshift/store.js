@@ -18,10 +18,13 @@ import { action, observable, transaction } from 'mobx';
 
 import initShapeshift from '~/3rdparty/shapeshift';
 
-const STAGE_COMPLETED = 3;
 const STAGE_OPTIONS = 0;
 const STAGE_WAIT_DEPOSIT = 1;
 const STAGE_WAIT_EXCHANGE = 2;
+const STAGE_COMPLETED = 3;
+
+const WARNING_NONE = 0;
+const WARNING_NO_PRICE = -1;
 
 export default class Store {
   @observable address = null;
@@ -36,6 +39,7 @@ export default class Store {
   @observable price = null;
   @observable refundAddress = '';
   @observable stage = STAGE_OPTIONS;
+  @observable warning = 0;
 
   constructor (address) {
     this._shapeshiftApi = initShapeshift();
@@ -79,7 +83,10 @@ export default class Store {
   }
 
   @action setPrice = (price) => {
-    this.price = price;
+    transaction(() => {
+      this.price = price;
+      this.setWarning();
+    });
   }
 
   @action setRefundAddress = (refundAddress) => {
@@ -88,6 +95,10 @@ export default class Store {
 
   @action setStage = (stage) => {
     this.stage = stage;
+  }
+
+  @action setWarning = (warning = WARNING_NONE) => {
+    this.warning = warning;
   }
 
   @action toggleAcceptTerms = () => {
@@ -101,7 +112,9 @@ export default class Store {
         this.setPrice(price);
       })
       .catch((error) => {
-        console.error('getCoinPrice', error);
+        console.warn('getCoinPrice', error);
+
+        this.setWarning(WARNING_NO_PRICE);
       });
   }
 
@@ -180,5 +193,7 @@ export {
   STAGE_COMPLETED,
   STAGE_OPTIONS,
   STAGE_WAIT_DEPOSIT,
-  STAGE_WAIT_EXCHANGE
+  STAGE_WAIT_EXCHANGE,
+  WARNING_NONE,
+  WARNING_NO_PRICE
 };

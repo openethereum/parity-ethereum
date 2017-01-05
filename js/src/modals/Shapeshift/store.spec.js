@@ -16,7 +16,7 @@
 
 import sinon from 'sinon';
 
-import Store, { STAGE_COMPLETED, STAGE_OPTIONS, STAGE_WAIT_DEPOSIT, STAGE_WAIT_EXCHANGE } from './store';
+import Store, { STAGE_COMPLETED, STAGE_OPTIONS, STAGE_WAIT_DEPOSIT, STAGE_WAIT_EXCHANGE, WARNING_NONE, WARNING_NO_PRICE } from './store';
 
 const ADDRESS = '0xabcdeffdecbaabcdeffdecbaabcdeffdecbaabcdeffdecba';
 
@@ -128,6 +128,12 @@ describe('modals/Shapeshift/Store', () => {
         store.setPrice('testing');
         expect(store.price).to.equal('testing');
       });
+
+      it('clears any warnings once set', () => {
+        store.setWarning(-999);
+        store.setPrice('testing');
+        expect(store.warning).to.equal(WARNING_NONE);
+      });
     });
 
     describe('setRefundAddress', () => {
@@ -141,6 +147,21 @@ describe('modals/Shapeshift/Store', () => {
       it('sets the state', () => {
         store.setStage('testing');
         expect(store.stage).to.equal('testing');
+      });
+    });
+
+    describe('setWarning', () => {
+      it('sets the warning', () => {
+        store.setWarning(-999);
+
+        expect(store.warning).to.equal(-999);
+      });
+
+      it('clears the warning with no parameters', () => {
+        store.setWarning(-999);
+        store.setWarning();
+
+        expect(store.warning).to.equal(WARNING_NONE);
       });
     });
 
@@ -169,6 +190,15 @@ describe('modals/Shapeshift/Store', () => {
 
       it('stores the price retrieved', () => {
         expect(store.price).to.equal('testPrice');
+      });
+
+      it('sets a warning on failure', () => {
+        store._shapeshiftApi.getMarketInfo.restore();
+        sinon.stub(store._shapeshiftApi, 'getMarketInfo').rejects('someError');
+
+        return store.getCoinPrice().then(() => {
+          expect(store.warning).to.equal(WARNING_NO_PRICE);
+        });
       });
     });
 
