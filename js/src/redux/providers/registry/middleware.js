@@ -25,7 +25,7 @@ export default class RegistryMiddleware {
   toMiddleware () {
     return (store) => {
       const api = Contracts.get()._api;
-      let contract, confirmedEvents, removedEvents, interval;
+      let contract, confirmedEvents, removedEvents, timeout, interval;
 
       let addressesToCheck = {};
 
@@ -77,7 +77,8 @@ export default class RegistryMiddleware {
                 removedEvents = subscribeToEvent(_contract, 'ReverseRemoved');
                 removedEvents.on('log', onLog);
 
-                interval = setInterval(checkReverses, 2000);
+                timeout = setTimeout(checkReverses, 5000);
+                interval = setInterval(checkReverses, 20000);
               })
               .catch((err) => {
                 console.error('Failed to start caching reverses:', err);
@@ -95,6 +96,9 @@ export default class RegistryMiddleware {
             if (interval) {
               clearInterval(interval);
             }
+            if (timeout) {
+              clearTimeout(timeout);
+            }
 
             break;
           default:
@@ -103,4 +107,4 @@ export default class RegistryMiddleware {
       };
     };
   }
-};
+}
