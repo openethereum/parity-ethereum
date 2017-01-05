@@ -14,25 +14,21 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
+import { FormattedMessage } from 'react-intl';
 
 import Value from '../Value';
-
 import styles from '../shapeshift.css';
 
+@observer
 export default class AwaitingDepositStep extends Component {
   static propTypes = {
-    coinSymbol: PropTypes.string.isRequired,
-    depositAddress: PropTypes.string,
-    price: PropTypes.shape({
-      rate: PropTypes.number.isRequired,
-      minimum: PropTypes.number.isRequired,
-      limit: PropTypes.number.isRequired
-    }).isRequired
+    store: PropTypes.object.isRequired
   }
 
   render () {
-    const { coinSymbol, depositAddress, price } = this.props;
+    const { coinSymbol, depositAddress, price } = this.props.store;
     const typeSymbol = (
       <div className={ styles.symbol }>
         { coinSymbol }
@@ -43,22 +39,38 @@ export default class AwaitingDepositStep extends Component {
       return (
         <div className={ styles.center }>
           <div className={ styles.busy }>
-            Awaiting confirmation of the deposit address for your { typeSymbol } funds exchange
+            <FormattedMessage
+              id='shapeshift.awaitingDepositStep.awaitingConfirmation'
+              defaultMessage='Awaiting confirmation of the deposit address for your {typeSymbol} funds exchange'
+              values={ { typeSymbol } } />
           </div>
         </div>
       );
     }
+
     return (
       <div className={ styles.center }>
         <div className={ styles.info }>
-          <a href='https://shapeshift.io' target='_blank'>ShapeShift.io</a> is awaiting a { typeSymbol } deposit. Send the funds from your { typeSymbol } network client to -
+          <FormattedMessage
+            id='shapeshift.awaitingDepositStep.awaitingDeposit'
+            defaultMessage='{shapeshiftLink} is awaiting a {typeSymbol} deposit. Send the funds from your {typeSymbol} network client to -'
+            values={ {
+              shapeshiftLink: <a href='https://shapeshift.io' target='_blank'>ShapeShift.io</a>,
+              typeSymbol
+            } } />
         </div>
         <div className={ styles.hero }>
           { depositAddress }
         </div>
         <div className={ styles.price }>
           <div>
-            (<Value amount={ price.minimum } symbol={ coinSymbol } /> minimum, <Value amount={ price.limit } symbol={ coinSymbol } /> maximum)
+            <FormattedMessage
+              id='shapeshift.awaitingDepositStep.minimumMaximum'
+              defaultMessage='{minimum} minimum, {maximum} maximum'
+              values={ {
+                maximum: <Value amount={ price.limit } symbol={ coinSymbol } />,
+                minimum: <Value amount={ price.minimum } symbol={ coinSymbol } />
+              } } />
           </div>
         </div>
       </div>
