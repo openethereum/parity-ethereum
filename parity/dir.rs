@@ -18,7 +18,7 @@ use std::fs;
 use std::path::{PathBuf, Path};
 use util::{H64, H256};
 use util::journaldb::Algorithm;
-use helpers::replace_home;
+use helpers::{replace_home, replace_home_for_db};
 use app_dirs::{AppInfo, get_app_root, AppDataType};
 
 #[cfg(target_os = "macos")] const AUTHOR: &'static str = "Parity";
@@ -30,6 +30,9 @@ use app_dirs::{AppInfo, get_app_root, AppDataType};
 #[cfg(not(any(target_os = "windows", target_os = "macos")))] const AUTHOR: &'static str = "parity";
 #[cfg(not(any(target_os = "windows", target_os = "macos")))] const PRODUCT: &'static str = "io.parity.ethereum";
 #[cfg(not(any(target_os = "windows", target_os = "macos")))] const PRODUCT_HYPERVISOR: &'static str = "io.parity.ethereum-updates";
+
+#[cfg(target_os = "windows")] pub const CHAINS_PATH: &'static str = "$LOCAL/chains";
+#[cfg(not(target_os = "windows"))] pub const CHAINS_PATH: &'static str = "$BASE/chains";
 
 // this const is irrelevent cause we do have migrations now,
 // but we still use it for backwards compatibility
@@ -47,9 +50,10 @@ pub struct Directories {
 impl Default for Directories {
 	fn default() -> Self {
 		let data_dir = default_data_path();
+		let local_dir = default_local_path();
 		Directories {
 			base: replace_home(&data_dir, "$BASE"),
-			db: replace_home(&data_dir, "$BASE/chains"),
+			db: replace_home_for_db(&data_dir, &local_dir, CHAINS_PATH),
 			keys: replace_home(&data_dir, "$BASE/keys"),
 			signer: replace_home(&data_dir, "$BASE/signer"),
 			dapps: replace_home(&data_dir, "$BASE/dapps"),
@@ -209,6 +213,11 @@ pub fn default_data_path() -> String {
 	get_app_root(AppDataType::UserData, &app_info).map(|p| p.to_string_lossy().into_owned()).unwrap_or_else(|_| "$HOME/.parity".to_owned())
 }
 
+pub fn default_local_path() -> String {
+	let app_info = AppInfo { name: PRODUCT, author: AUTHOR };
+	get_app_root(AppDataType::UserCache, &app_info).map(|p| p.to_string_lossy().into_owned()).unwrap_or_else(|_| "$HOME/.parity".to_owned())
+}
+
 pub fn default_hypervisor_path() -> String {
 	let app_info = AppInfo { name: PRODUCT_HYPERVISOR, author: AUTHOR };
 	get_app_root(AppDataType::UserData, &app_info).map(|p| p.to_string_lossy().into_owned()).unwrap_or_else(|_| "$HOME/.parity-hypervisor".to_owned())
@@ -217,14 +226,18 @@ pub fn default_hypervisor_path() -> String {
 #[cfg(test)]
 mod tests {
 	use super::Directories;
-	use helpers::replace_home;
+	use helpers::{replace_home, replace_home_for_db};
 
 	#[test]
 	fn test_default_directories() {
 		let data_dir = super::default_data_path();
+		let local_dir = super::default_local_path();
 		let expected = Directories {
 			base: replace_home(&data_dir, "$BASE"),
-			db: replace_home(&data_dir, "$BASE/chains"),
+			db: replace_home_for_db(&data_dir, &local_dir,
+				if cfg!(target_os = "windows") { "$LOCAL/chains" }
+				else { "$BASE/chains" }
+			),
 			keys: replace_home(&data_dir, "$BASE/keys"),
 			signer: replace_home(&data_dir, "$BASE/signer"),
 			dapps: replace_home(&data_dir, "$BASE/dapps"),

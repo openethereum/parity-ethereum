@@ -30,11 +30,11 @@ use ethcore::verification::queue::VerifierSettings;
 use rpc::{IpcConfiguration, HttpConfiguration};
 use ethcore_rpc::NetworkSettings;
 use cache::CacheConfig;
-use helpers::{to_duration, to_mode, to_block_id, to_u256, to_pending_set, to_price, replace_home,
+use helpers::{to_duration, to_mode, to_block_id, to_u256, to_pending_set, to_price, replace_home, replace_home_for_db,
 geth_ipc_path, parity_ipc_path, to_bootnodes, to_addresses, to_address, to_gas_limit, to_queue_strategy};
 use params::{ResealPolicy, AccountsConfig, GasPricerConfig, MinerExtras};
 use ethcore_logger::Config as LogConfig;
-use dir::{Directories, default_hypervisor_path};
+use dir::{Directories, default_hypervisor_path, default_local_path};
 use dapps::Configuration as DappsConfiguration;
 use signer::{Configuration as SignerConfiguration};
 use updater::{UpdatePolicy, UpdateFilter, ReleaseTrack};
@@ -707,9 +707,14 @@ impl Configuration {
 	fn directories(&self) -> Directories {
 		use util::path;
 
+		let local_path = default_local_path();
 		let data_path = replace_home("", self.args.flag_datadir.as_ref().unwrap_or(&self.args.flag_base_path));
 
-		let db_path = replace_home(&data_path, &self.args.flag_db_path);
+		let db_path = if self.args.flag_datadir.is_some() {
+			replace_home(&data_path, &self.args.flag_db_path)
+		} else {
+			replace_home_for_db(&data_path, &local_path, &self.args.flag_db_path)
+		};
 		let keys_path = replace_home(&data_path, &self.args.flag_keys_path);
 		let dapps_path = replace_home(&data_path, &self.args.flag_dapps_path);
 		let ui_path = replace_home(&data_path, &self.args.flag_ui_path);
