@@ -30,7 +30,29 @@ export default class AddressSelectStore {
   @observable registryValues = [];
 
   initValues = [];
-  regLookups = [];
+  regLookups = [
+    (address) => {
+      const name = this.reverse[address];
+
+      if (!name) {
+        return null;
+      }
+
+      return {
+        address,
+        name,
+        description: (
+          <FormattedMessage
+            id='addressSelect.fromRegistry'
+            defaultMessage='{name} (from registry)'
+            values={ {
+              name
+            } }
+          />
+        )
+      };
+    }
+  ];
 
   constructor (api) {
     this.api = api;
@@ -114,7 +136,8 @@ export default class AddressSelectStore {
   }
 
   @action setValues (props) {
-    const { accounts = {}, contracts = {}, contacts = {} } = props;
+    const { accounts = {}, contracts = {}, contacts = {}, reverse = {} } = props;
+    this.reverse = reverse;
 
     const accountsN = Object.keys(accounts).length;
     const contractsN = Object.keys(contracts).length;
