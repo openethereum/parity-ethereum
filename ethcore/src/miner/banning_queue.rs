@@ -88,13 +88,14 @@ impl BanningTransactionQueue {
 			// NOTE In all checks use direct query to avoid increasing ban timeout.
 
 			// Check sender
-			if let Ok(sender) = transaction.sender() {
-				let count = self.senders_bans.direct().get(&sender).map(|v| v.get()).unwrap_or(0);
-				if count > threshold {
-					debug!(target: "txqueue", "Ignoring transaction {:?} because sender is banned.", transaction.hash());
-					return Err(Error::Transaction(TransactionError::SenderBanned));
-				}
-			}
+			// TODO [ToDr] This should be optimized?
+			// if let Ok(sender) = transaction.sender() {
+			// 	let count = self.senders_bans.direct().get(&sender).map(|v| v.get()).unwrap_or(0);
+			// 	if count > threshold {
+			// 		debug!(target: "txqueue", "Ignoring transaction {:?} because sender is banned.", transaction.hash());
+			// 		return Err(Error::Transaction(TransactionError::SenderBanned));
+			// 	}
+			// }
 
 			// Check recipient
 			if let Action::Call(recipient) = transaction.action {
@@ -126,7 +127,7 @@ impl BanningTransactionQueue {
 		let transaction = self.queue.find(hash);
 		match transaction {
 			Some(transaction) => {
-				let sender = transaction.sender().expect("Transaction is in queue, so the sender is already validated; qed");
+				let sender = transaction.sender();
 				// Ban sender
 				let sender_banned = self.ban_sender(sender);
 				// Ban recipient and codehash
@@ -245,7 +246,7 @@ mod tests {
 			gas: U256::from(100_000),
 			gas_price: U256::from(10),
 			nonce: U256::from(0),
-		}.sign(keypair.secret(), None)
+		}.sign(keypair.secret(), None).into()
 	}
 
 	fn unwrap_err(res: Result<TransactionImportResult, Error>) -> TransactionError {
@@ -276,14 +277,14 @@ mod tests {
 		let tx = transaction(Action::Create);
 		let mut txq = queue();
 		// Banlist once (threshold not reached)
-		let banlist1 = txq.ban_sender(tx.sender().unwrap());
+		let banlist1 = txq.ban_sender(tx.recover_sender().unwrap());
 		assert!(!banlist1, "Threshold not reached yet.");
 		// Insert once
 		let import1 = txq.add_with_banlist(tx.clone(), &default_account_details, &gas_required).unwrap();
 		assert_eq!(import1, TransactionImportResult::Current);
 
 		// when
-		let banlist2 = txq.ban_sender(tx.sender().unwrap());
+		let banlist2 = txq.ban_sender(tx.recover_sender().unwrap());
 		let import2 = txq.add_with_banlist(tx.clone(), &default_account_details, &gas_required);
 
 		// then

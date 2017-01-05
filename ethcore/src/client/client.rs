@@ -44,7 +44,7 @@ use env_info::LastHashes;
 use verification;
 use verification::{PreverifiedBlock, Verifier};
 use block::*;
-use transaction::{LocalizedTransaction, SignedTransaction, Transaction, PendingTransaction, Action};
+use transaction::{LocalizedTransaction, SignedTransaction, VerifiedSignedTransaction, Transaction, PendingTransaction, Action};
 use blockchain::extras::TransactionAddress;
 use types::filter::Filter;
 use types::mode::Mode as IpcMode;
@@ -838,7 +838,7 @@ impl snapshot::DatabaseRestore for Client {
 }
 
 impl BlockChainClient for Client {
-	fn call(&self, t: &SignedTransaction, block: BlockId, analytics: CallAnalytics) -> Result<Executed, CallError> {
+	fn call(&self, t: &VerifiedSignedTransaction, block: BlockId, analytics: CallAnalytics) -> Result<Executed, CallError> {
 		let header = self.block_header(block).ok_or(CallError::StatePruned)?;
 		let last_hashes = self.build_last_hashes(header.parent_hash());
 		let env_info = EnvInfo {
@@ -854,10 +854,7 @@ impl BlockChainClient for Client {
 		let mut state = self.state_at(block).ok_or(CallError::StatePruned)?;
 		let original_state = if analytics.state_diffing { Some(state.clone()) } else { None };
 
-		let sender = t.sender().map_err(|e| {
-			let message = format!("Transaction malformed: {:?}", e);
-			ExecutionError::TransactionMalformed(message)
-		})?;
+		let sender = t.sender();
 		let balance = state.balance(&sender);
 		let needed_balance = t.value + t.gas * t.gas_price;
 		if balance < needed_balance {
@@ -878,7 +875,7 @@ impl BlockChainClient for Client {
 		let header = self.block_header(BlockId::Hash(address.block_hash)).ok_or(CallError::StatePruned)?;
 		let body = self.block_body(BlockId::Hash(address.block_hash)).ok_or(CallError::StatePruned)?;
 		let mut state = self.state_at_beginning(BlockId::Hash(address.block_hash)).ok_or(CallError::StatePruned)?;
-		let txs = body.transactions();
+		let mut txs = body.transactions();
 
 		if address.index >= txs.len() {
 			return Err(CallError::TransactionNotFound);
@@ -895,16 +892,19 @@ impl BlockChainClient for Client {
 			gas_used: U256::default(),
 			gas_limit: header.gas_limit(),
 		};
-		for t in txs.iter().take(address.index) {
-			match Executive::new(&mut state, &env_info, &*self.engine, &self.factories.vm).transact(t, Default::default()) {
+		const PROOF: &'static str = "Transactions fetched from blockchain; blockchain transactions are valid; qed";
+		let rest = txs.split_off(address.index);
+		for t in txs {
+			let t = VerifiedSignedTransaction::new(t).expect(PROOF);
+			match Executive::new(&mut state, &env_info, &*self.engine, &self.factories.vm).transact(&t, Default::default()) {
 				Ok(x) => { env_info.gas_used = env_info.gas_used + x.gas_used; }
 				Err(ee) => { return Err(CallError::Execution(ee)) }
 			}
 		}
-		let t = &txs[address.index];
-
+		let first = rest.into_iter().next().expect("We split off < `address.index`; Length is checked earlier; qed");
+		let t = VerifiedSignedTransaction::new(first).expect(PROOF);
 		let original_state = if analytics.state_diffing { Some(state.clone()) } else { None };
-		let mut ret = Executive::new(&mut state, &env_info, &*self.engine, &self.factories.vm).transact(t, options)?;
+		let mut ret = Executive::new(&mut state, &env_info, &*self.engine, &self.factories.vm).transact(&t, options)?;
 		ret.state_diff = original_state.map(|original| state.diff_from(original));
 
 		Ok(ret)
@@ -1509,7 +1509,7 @@ impl Drop for Client {
 fn transaction_receipt(tx: LocalizedTransaction, mut receipts: Vec<Receipt>) -> LocalizedReceipt {
 	assert_eq!(receipts.len(), tx.transaction_index + 1, "All previous receipts are provided.");
 
-	let sender = tx.sender()
+	let sender = tx.recover_sender()
 		.expect("LocalizedTransaction is part of the blockchain; We have only valid transactions in chain; qed");
 	let receipt = receipts.pop().expect("Current receipt is provided; qed");
 	let prior_gas_used = match tx.transaction_index {
@@ -1610,7 +1610,7 @@ mod tests {
 		};
 		let tx1 = raw_tx.clone().sign(secret, None);
 		let transaction = LocalizedTransaction {
-			signed: tx1.clone(),
+			signed: tx1.clone().into(),
 			block_number: block_number,
 			block_hash: block_hash,
 			transaction_index: 1,

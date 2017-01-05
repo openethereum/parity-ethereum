@@ -290,11 +290,11 @@ impl Tendermint {
 	}
 
 	fn is_height(&self, message: &ConsensusMessage) -> bool {
-		message.is_height(self.height.load(AtomicOrdering::SeqCst)) 
+		message.is_height(self.height.load(AtomicOrdering::SeqCst))
 	}
 
 	fn is_round(&self, message: &ConsensusMessage) -> bool {
-		message.is_round(self.height.load(AtomicOrdering::SeqCst), self.round.load(AtomicOrdering::SeqCst)) 
+		message.is_round(self.height.load(AtomicOrdering::SeqCst), self.round.load(AtomicOrdering::SeqCst))
 	}
 
 	fn increment_round(&self, n: Round) {
@@ -302,7 +302,7 @@ impl Tendermint {
 		self.round.fetch_add(n, AtomicOrdering::SeqCst);
 	}
 
-	fn should_unlock(&self, lock_change_round: Round) -> bool { 
+	fn should_unlock(&self, lock_change_round: Round) -> bool {
 		self.last_lock.load(AtomicOrdering::SeqCst) < lock_change_round
 			&& lock_change_round < self.round.load(AtomicOrdering::SeqCst)
 	}
@@ -316,7 +316,7 @@ impl Tendermint {
 	fn has_enough_future_step_votes(&self, message: &ConsensusMessage) -> bool {
 		if message.round > self.round.load(AtomicOrdering::SeqCst) {
 			let step_votes = self.votes.count_step_votes(message.height, message.round, message.step);
-			self.is_above_threshold(step_votes)	
+			self.is_above_threshold(step_votes)
 		} else {
 			false
 		}
@@ -491,7 +491,7 @@ impl Engine for Tendermint {
 	}
 
 	fn verify_block_unordered(&self, header: &Header, _block: Option<&[u8]>) -> Result<(), Error> {
-		let proposal = ConsensusMessage::new_proposal(header)?;	
+		let proposal = ConsensusMessage::new_proposal(header)?;
 		let proposer = proposal.verify()?;
 		if !self.is_authority(&proposer) {
 			Err(EngineError::NotAuthorized(proposer))?
@@ -556,7 +556,9 @@ impl Engine for Tendermint {
 	}
 
 	fn verify_transaction(&self, t: &SignedTransaction, _header: &Header) -> Result<(), Error> {
-		t.sender().map(|_|()) // Perform EC recovery and cache sender
+		// TODO [ToDr]!!!!
+		// t.sender().map(|_|()) // Perform EC recovery and cache sender
+		Ok(())
 	}
 
 	fn set_signer(&self, address: Address, password: String) {
@@ -887,7 +889,7 @@ mod tests {
 	fn relays_messages() {
 		let (spec, tap) = setup();
 		let engine = spec.engine.clone();
-		
+
 		let v0 = insert_and_register(&tap, &engine, "0");
 		let v1 = insert_and_register(&tap, &engine, "1");
 
@@ -920,7 +922,7 @@ mod tests {
 	fn seal_submission() {
 		let (spec, tap) = setup();
 		let engine = spec.engine.clone();
-		
+
 		let v0 = insert_and_register(&tap, &engine, "0");
 		let v1 = insert_and_register(&tap, &engine, "1");
 

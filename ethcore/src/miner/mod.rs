@@ -62,7 +62,7 @@ use block::ClosedBlock;
 use header::BlockNumber;
 use receipt::{RichReceipt, Receipt};
 use error::{Error, CallError};
-use transaction::{SignedTransaction, PendingTransaction};
+use transaction::{SignedTransaction, PendingTransaction, VerifiedSignedTransaction};
 
 /// Miner client API
 pub trait MinerService : Send + Sync {
@@ -142,7 +142,7 @@ pub trait MinerService : Send + Sync {
 		where F: FnOnce(&ClosedBlock) -> T, Self: Sized;
 
 	/// Query pending transactions for hash.
-	fn transaction(&self, best_block: BlockNumber, hash: &H256) -> Option<SignedTransaction>;
+	fn transaction(&self, best_block: BlockNumber, hash: &H256) -> Option<VerifiedSignedTransaction>;
 
 	/// Get a list of all pending transactions in the queue.
 	fn pending_transactions(&self) -> Vec<PendingTransaction>;
@@ -178,7 +178,7 @@ pub trait MinerService : Send + Sync {
 	fn balance(&self, chain: &MiningBlockChainClient, address: &Address) -> U256;
 
 	/// Call into contract code using pending state.
-	fn call(&self, chain: &MiningBlockChainClient, t: &SignedTransaction, analytics: CallAnalytics) -> Result<Executed, CallError>;
+	fn call(&self, chain: &MiningBlockChainClient, t: &VerifiedSignedTransaction, analytics: CallAnalytics) -> Result<Executed, CallError>;
 
 	/// Get storage value in pending state.
 	fn storage_at(&self, chain: &MiningBlockChainClient, address: &Address, position: &H256) -> H256;

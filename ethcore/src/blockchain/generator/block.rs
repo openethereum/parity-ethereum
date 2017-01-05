@@ -18,7 +18,7 @@ use rlp::*;
 use util::{H256, H2048};
 use util::bytes::Bytes;
 use header::Header;
-use transaction::SignedTransaction;
+use transaction::{SignedTransaction, VerifiedSignedTransaction};
 
 use super::fork::Forkable;
 use super::bloom::WithBloom;
@@ -58,8 +58,8 @@ impl WithBloom for Block {
 }
 
 impl WithTransaction for Block {
-	fn with_transaction(mut self, transaction: SignedTransaction) -> Self where Self: Sized {
-		self.transactions.push(transaction);
+	fn with_transaction(mut self, transaction: VerifiedSignedTransaction) -> Self where Self: Sized {
+		self.transactions.push(transaction.into());
 		self
 	}
 }

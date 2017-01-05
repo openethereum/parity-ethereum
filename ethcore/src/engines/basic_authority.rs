@@ -176,7 +176,9 @@ impl Engine for BasicAuthority {
 	}
 
 	fn verify_transaction(&self, t: &SignedTransaction, _header: &Header) -> Result<(), Error> {
-		t.sender().map(|_|()) // Perform EC recovery and cache sender
+		// TODO [ToDr]!!!!
+		// t.sender().map(|_|()) // Perform EC recovery and cache sender
+		Ok(())
 	}
 
 	fn set_signer(&self, _address: Address, password: String) {

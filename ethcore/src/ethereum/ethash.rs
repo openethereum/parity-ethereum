@@ -185,7 +185,7 @@ impl Engine for Ethash {
 			} else if gas_limit > gas_ceil_target {
 				max(gas_ceil_target, lower_limit)
 			} else {
-				max(gas_floor_target, min(min(gas_ceil_target, upper_limit), 
+				max(gas_floor_target, min(min(gas_ceil_target, upper_limit),
 					lower_limit + (header.gas_used().clone() * 6.into() / 5.into()) / bound_divisor))
 			}
 		};
@@ -325,7 +325,9 @@ impl Engine for Ethash {
 	}
 
 	fn verify_transaction(&self, t: &SignedTransaction, _header: &Header) -> Result<(), Error> {
-		t.sender().map(|_|()) // Perform EC recovery and cache sender
+		// TODO [ToDr]!!!!
+		// t.sender().map(|_|()) // Perform EC recovery and cache sender
+		Ok(())
 	}
 
 	fn is_new_best_block(&self, best_total_difficulty: U256, _best_header: HeaderView, parent_details: &BlockDetails, new_header: &HeaderView) -> bool {

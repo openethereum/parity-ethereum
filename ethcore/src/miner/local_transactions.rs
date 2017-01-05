@@ -17,7 +17,7 @@
 //! Local Transactions List.
 
 use linked_hash_map::LinkedHashMap;
-use transaction::SignedTransaction;
+use transaction::{SignedTransaction, VerifiedSignedTransaction};
 use error::TransactionError;
 use util::{U256, H256};
 
@@ -31,11 +31,11 @@ pub enum Status {
 	/// The transaction is in future part of the queue.
 	Future,
 	/// Transaction is already mined.
-	Mined(SignedTransaction),
+	Mined(VerifiedSignedTransaction),
 	/// Transaction is dropped because of limit
-	Dropped(SignedTransaction),
+	Dropped(VerifiedSignedTransaction),
 	/// Replaced because of higher gas price of another transaction.
-	Replaced(SignedTransaction, U256, H256),
+	Replaced(VerifiedSignedTransaction, U256, H256),
 	/// Transaction was never accepted to the queue.
 	Rejected(SignedTransaction, TransactionError),
 	/// Transaction is invalid.
@@ -84,7 +84,7 @@ impl LocalTransactionsList {
 		self.clear_old();
 	}
 
-	pub fn mark_replaced(&mut self, tx: SignedTransaction, gas_price: U256, hash: H256) {
+	pub fn mark_replaced(&mut self, tx: VerifiedSignedTransaction, gas_price: U256, hash: H256) {
 		self.transactions.insert(tx.hash(), Status::Replaced(tx, gas_price, hash));
 		self.clear_old();
 	}
@@ -94,12 +94,12 @@ impl LocalTransactionsList {
 		self.clear_old();
 	}
 
-	pub fn mark_dropped(&mut self, tx: SignedTransaction) {
+	pub fn mark_dropped(&mut self, tx: VerifiedSignedTransaction) {
 		self.transactions.insert(tx.hash(), Status::Dropped(tx));
 		self.clear_old();
 	}
 
-	pub fn mark_mined(&mut self, tx: SignedTransaction) {
+	pub fn mark_mined(&mut self, tx: VerifiedSignedTransaction) {
 		self.transactions.insert(tx.hash(), Status::Mined(tx));
 		self.clear_old();
 	}
@@ -139,7 +139,7 @@ impl LocalTransactionsList {
 mod tests {
 	use util::U256;
 	use ethkey::{Random, Generator};
-	use transaction::{Action, Transaction, SignedTransaction};
+	use transaction::{Action, Transaction, SignedTransaction, VerifiedSignedTransaction};
 	use super::{LocalTransactionsList, Status};
 
 	#[test]
@@ -169,7 +169,7 @@ mod tests {
 
 		list.mark_pending(10.into());
 		list.mark_invalid(tx1);
-		list.mark_dropped(tx2);
+		list.mark_dropped(VerifiedSignedTransaction::new(tx2).unwrap());
 		assert!(list.contains(&tx2_hash));
 		assert!(!list.contains(&tx1_hash));
 		assert!(list.contains(&10.into()));
@@ -191,6 +191,6 @@ mod tests {
 			gas: U256::from(10),
 			gas_price: U256::from(1245),
 			nonce: nonce
-		}.sign(keypair.secret(), None)
+		}.sign(keypair.secret(), None).into()
 	}
 }

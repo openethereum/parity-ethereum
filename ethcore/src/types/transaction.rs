@@ -17,7 +17,6 @@
 //! Transaction data structure.
 
 use std::ops::Deref;
-use std::cell::*;
 use rlp::*;
 use util::sha3::Hashable;
 use util::{H256, Address, U256, Bytes, HeapSizeOf};
@@ -99,7 +98,7 @@ impl HeapSizeOf for Transaction {
 	}
 }
 
-impl From<ethjson::state::Transaction> for SignedTransaction {
+impl From<ethjson::state::Transaction> for VerifiedSignedTransaction {
 	fn from(t: ethjson::state::Transaction) -> Self {
 		let to: Option<ethjson::hash::Address> = t.to.into();
 		Transaction {
@@ -134,9 +133,8 @@ impl From<ethjson::transaction::Transaction> for SignedTransaction {
 			r: t.r.into(),
 			s: t.s.into(),
 			v: t.v.into(),
-			sender: Cell::new(None),
-			hash: Cell::new(None)
-		}
+			hash: 0.into(),
+		}.compute_hash()
 	}
 }
 
@@ -149,10 +147,11 @@ impl Transaction {
 	}
 
 	/// Signs the transaction as coming from `sender`.
-	pub fn sign(self, secret: &Secret, network_id: Option<u64>) -> SignedTransaction {
+	pub fn sign(self, secret: &Secret, network_id: Option<u64>) -> VerifiedSignedTransaction {
 		let sig = ::ethkey::sign(secret, &self.hash(network_id))
 			.expect("data is valid and context has signing capabilities; qed");
-		self.with_signature(sig, network_id)
+		VerifiedSignedTransaction::new(self.with_signature(sig, network_id))
+			.expect("secret is valid so it's recoverable")
 	}
 
 	/// Signs the transaction with signature.
@@ -162,9 +161,8 @@ impl Transaction {
 			r: sig.r().into(),
 			s: sig.s().into(),
 			v: sig.v() as u64 + if let Some(n) = network_id { 35 + n * 2 } else { 27 },
-			hash: Cell::new(None),
-			sender: Cell::new(None),
-		}
+			hash: 0.into(),
+		}.compute_hash()
 	}
 
 	/// Useful for test incorrectly signed transactions.
@@ -175,20 +173,21 @@ impl Transaction {
 			r: U256::default(),
 			s: U256::default(),
 			v: 0,
-			hash: Cell::new(None),
-			sender: Cell::new(None),
-		}
+			hash: 0.into(),
+		}.compute_hash()
 	}
 
 	/// Specify the sender; this won't survive the serialize/deserialize process, but can be cloned.
-	pub fn fake_sign(self, from: Address) -> SignedTransaction {
-		SignedTransaction {
-			unsigned: self,
-			r: U256::default(),
-			s: U256::default(),
-			v: 0,
-			hash: Cell::new(None),
-			sender: Cell::new(Some(from)),
+	pub fn fake_sign(self, from: Address) -> VerifiedSignedTransaction {
+		VerifiedSignedTransaction {
+			transaction: SignedTransaction {
+				unsigned: self,
+				r: U256::default(),
+				s: U256::default(),
+				v: 0,
+				hash: 0.into(),
+			}.compute_hash(),
+			sender: from,
 		}
 	}
 
@@ -207,7 +206,7 @@ impl Transaction {
 }
 
 /// Signed transaction information.
-#[derive(Debug, Clone, Eq)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 #[cfg_attr(feature = "ipc", binary)]
 pub struct SignedTransaction {
 	/// Plain Transaction.
@@ -219,16 +218,8 @@ pub struct SignedTransaction {
 	r: U256,
 	/// The S field of the signature; helps describe the point on the curve.
 	s: U256,
-	/// Cached hash.
-	hash: Cell<Option<H256>>,
-	/// Cached sender.
-	sender: Cell<Option<Address>>,
-}
-
-impl PartialEq for SignedTransaction {
-	fn eq(&self, other: &SignedTransaction) -> bool {
-		self.unsigned == other.unsigned && self.v == other.v && self.r == other.r && self.s == other.s
-	}
+	/// Hash of the transaction
+	hash: H256,
 }
 
 impl Deref for SignedTransaction {
@@ -245,6 +236,7 @@ impl Decodable for SignedTransaction {
 		if d.item_count() != 9 {
 			return Err(DecoderError::RlpIncorrectListLen);
 		}
+		let hash = decoder.as_raw().sha3();
 		Ok(SignedTransaction {
 			unsigned: Transaction {
 				nonce: d.val_at(0)?,
@@ -257,8 +249,7 @@ impl Decodable for SignedTransaction {
 			v: d.val_at(6)?,
 			r: d.val_at(7)?,
 			s: d.val_at(8)?,
-			hash: Cell::new(None),
-			sender: Cell::new(None),
+			hash: hash,
 		})
 	}
 }
@@ -274,6 +265,13 @@ impl HeapSizeOf for SignedTransaction {
 }
 
 impl SignedTransaction {
+	/// Used to compute hash of created transactions
+	fn compute_hash(mut self) -> SignedTransaction {
+		let hash = (&*self.rlp_bytes()).sha3();
+		self.hash = hash;
+		self
+	}
+
 	/// Append object with a signature into RLP stream
 	fn rlp_append_sealed_transaction(&self, s: &mut RlpStream) {
 		s.begin_list(9);
@@ -289,19 +287,6 @@ impl SignedTransaction {
 		s.append(&self.v);
 		s.append(&self.r);
 		s.append(&self.s);
-	}
-
-	/// Get the hash of this header (sha3 of the RLP).
-	pub fn hash(&self) -> H256 {
-		let hash = self.hash.get();
-		match hash {
-			Some(h) => h,
-			None => {
-				let h = (&*self.rlp_bytes()).sha3();
-				self.hash.set(Some(h));
-				h
-			}
-		}
 	}
 
 	/// 0 if `v` would have been 27 under "Electrum" notation, 1 if 28 or 4 if invalid.
@@ -332,17 +317,14 @@ impl SignedTransaction {
 		}
 	}
 
-	/// Returns transaction sender.
-	pub fn sender(&self) -> Result<Address, Error> {
-		let sender = self.sender.get();
-		match sender {
-			Some(s) => Ok(s),
-			None => {
-				let s = public_to_address(&self.public_key()?);
-				self.sender.set(Some(s));
-				Ok(s)
-			}
-		}
+	/// Get the hash of this header (sha3 of the RLP).
+	pub fn hash(&self) -> H256 {
+		self.hash
+	}
+
+	/// Recovers transaction sender.
+	pub fn recover_sender(&self) -> Result<Address, Error> {
+		Ok(public_to_address(&self.public_key()?))
 	}
 
 	/// Returns the public key of the sender.
@@ -363,12 +345,53 @@ impl SignedTransaction {
 			Some(1) if allow_network_id_of_one => {},
 			_ => return Err(TransactionError::InvalidNetworkId.into()),
 		}
-		self.sender()?;
+		self.public_key()?;
 		if self.gas < U256::from(self.gas_required(&schedule)) {
 			Err(TransactionError::InvalidGasLimit(::util::OutOfBounds{min: Some(U256::from(self.gas_required(&schedule))), max: None, found: self.gas}).into())
 		} else {
 			Ok(self)
 		}
+	}
+}
+
+/// A `SignedTransaction` with successfully recovered `sender`.
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub struct VerifiedSignedTransaction {
+	transaction: SignedTransaction,
+	sender: Address,
+}
+
+impl Encodable for VerifiedSignedTransaction {
+	fn rlp_append(&self, s: &mut RlpStream) { self.transaction.rlp_append_sealed_transaction(s) }
+}
+
+impl Deref for VerifiedSignedTransaction {
+	type Target = SignedTransaction;
+	fn deref(&self) -> &Self::Target {
+		&self.transaction
+	}
+}
+
+impl From<VerifiedSignedTransaction> for SignedTransaction {
+	fn from(tx: VerifiedSignedTransaction) -> Self {
+		tx.transaction
+	}
+}
+
+impl VerifiedSignedTransaction {
+	/// Try to verify transaction and recover sender.
+	pub fn new(transaction: SignedTransaction) -> Result<Self, Error> {
+		transaction.check_low_s()?;
+		let sender = transaction.recover_sender()?;
+		Ok(VerifiedSignedTransaction {
+			transaction: transaction,
+			sender: sender,
+		})
+	}
+
+	/// Returns transaction sender
+	pub fn sender(&self) -> Address {
+		self.sender
 	}
 }
 
@@ -399,14 +422,14 @@ impl Deref for LocalizedTransaction {
 #[cfg_attr(feature = "ipc", binary)]
 pub struct PendingTransaction {
 	/// Signed transaction data.
-	pub transaction: SignedTransaction,
+	pub transaction: VerifiedSignedTransaction,
 	/// To be activated at this block. `None` for immediately.
 	pub min_block: Option<BlockNumber>,
 }
 
 impl PendingTransaction {
 	/// Create a new pending transaction from signed transaction.
-	pub fn new(signed: SignedTransaction, min_block: Option<BlockNumber>) -> Self {
+	pub fn new(signed: VerifiedSignedTransaction, min_block: Option<BlockNumber>) -> Self {
 		PendingTransaction {
 			transaction: signed,
 			min_block: min_block,
@@ -414,8 +437,8 @@ impl PendingTransaction {
 	}
 }
 
-impl From<SignedTransaction> for PendingTransaction {
-	fn from(t: SignedTransaction) -> Self {
+impl From<VerifiedSignedTransaction> for PendingTransaction {
+	fn from(t: VerifiedSignedTransaction) -> Self {
 		PendingTransaction {
 			transaction: t,
 			min_block: None,
@@ -434,7 +457,7 @@ fn sender_test() {
 		assert_eq!(*to, "095e7baea6a6c7c4c2dfeb977efac326af552d87".into());
 	} else { panic!(); }
 	assert_eq!(t.value, U256::from(0x0au64));
-	assert_eq!(t.sender().unwrap(), "0f65fe9276bc9a24ae7083ae28e2660ef72df99e".into());
+	assert_eq!(t.recover_sender().unwrap(), "0f65fe9276bc9a24ae7083ae28e2660ef72df99e".into());
 	assert_eq!(t.network_id(), None);
 }
 
@@ -451,7 +474,7 @@ fn signing() {
 		value: U256::from(1),
 		data: b"Hello!".to_vec()
 	}.sign(&key.secret(), None);
-	assert_eq!(Address::from(key.public().sha3()), t.sender().unwrap());
+	assert_eq!(Address::from(key.public().sha3()), t.sender());
 	assert_eq!(t.network_id(), None);
 }
 
@@ -465,11 +488,11 @@ fn fake_signing() {
 		value: U256::from(1),
 		data: b"Hello!".to_vec()
 	}.fake_sign(Address::from(0x69));
-	assert_eq!(Address::from(0x69), t.sender().unwrap());
+	assert_eq!(Address::from(0x69), t.sender());
 	assert_eq!(t.network_id(), None);
 
 	let t = t.clone();
-	assert_eq!(Address::from(0x69), t.sender().unwrap());
+	assert_eq!(Address::from(0x69), t.sender());
 	assert_eq!(t.network_id(), None);
 }
 
@@ -485,7 +508,7 @@ fn should_recover_from_network_specific_signing() {
 		value: U256::from(1),
 		data: b"Hello!".to_vec()
 	}.sign(&key.secret(), Some(69));
-	assert_eq!(Address::from(key.public().sha3()), t.sender().unwrap());
+	assert_eq!(Address::from(key.public().sha3()), t.sender());
 	assert_eq!(t.network_id(), Some(69));
 }
 
@@ -496,7 +519,8 @@ fn should_agree_with_vitalik() {
 	let test_vector = |tx_data: &str, address: &'static str| {
 		let signed: SignedTransaction = decode(&FromHex::from_hex(tx_data).unwrap());
 		signed.check_low_s().unwrap();
-		assert_eq!(signed.sender().unwrap(), address.into());
+		let signed = VerifiedSignedTransaction::new(signed).unwrap();
+		assert_eq!(signed.sender(), address.into());
 		flushln!("networkid: {:?}", signed.network_id());
 	};
 

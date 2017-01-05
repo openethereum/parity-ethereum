@@ -21,7 +21,7 @@ use util::*;
 use rlp::*;
 use ethkey::{Generator, Random};
 use devtools::*;
-use transaction::{Transaction, LocalizedTransaction, SignedTransaction, PendingTransaction, Action};
+use transaction::{Transaction, LocalizedTransaction, SignedTransaction, PendingTransaction, VerifiedSignedTransaction, Action};
 use blockchain::TreeRoute;
 use client::{
 	BlockChainClient, MiningBlockChainClient, BlockChainInfo, BlockStatus, BlockId,
@@ -245,7 +245,7 @@ impl TestBlockChainClient {
 						gas_price: U256::one(),
 						nonce: U256::zero()
 					};
-					let signed_tx = tx.sign(keypair.secret(), None);
+					let signed_tx: SignedTransaction = tx.sign(keypair.secret(), None).into();
 					txs.append(&signed_tx);
 					txs.out()
 				},
@@ -312,8 +312,8 @@ impl TestBlockChainClient {
 			nonce: U256::zero()
 		};
 		let signed_tx = tx.sign(keypair.secret(), None);
-		self.set_balance(signed_tx.sender().unwrap(), 10_000_000.into());
-		let res = self.miner.import_external_transactions(self, vec![signed_tx]);
+		self.set_balance(signed_tx.sender(), 10_000_000.into());
+		let res = self.miner.import_external_transactions(self, vec![signed_tx.into()]);
 		let res = res.into_iter().next().unwrap().expect("Successful import");
 		assert_eq!(res, TransactionImportResult::Current);
 	}
@@ -385,7 +385,7 @@ impl MiningBlockChainClient for TestBlockChainClient {
 }
 
 impl BlockChainClient for TestBlockChainClient {
-	fn call(&self, _t: &SignedTransaction, _block: BlockId, _analytics: CallAnalytics) -> Result<Executed, CallError> {
+	fn call(&self, _t: &VerifiedSignedTransaction, _block: BlockId, _analytics: CallAnalytics) -> Result<Executed, CallError> {
 		self.execution_result.read().clone().unwrap()
 	}
 

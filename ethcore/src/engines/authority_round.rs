@@ -307,7 +307,9 @@ impl Engine for AuthorityRound {
 	}
 
 	fn verify_transaction(&self, t: &SignedTransaction, _header: &Header) -> Result<(), Error> {
-		t.sender().map(|_|()) // Perform EC recovery and cache sender
+		// TODO [ToDr]!!!!
+		// t.sender().map(|_|()) // Perform EC recovery and cache sender
+		Ok(())
 	}
 
 	fn is_new_best_block(&self, _best_total_difficulty: U256, best_header: HeaderView, _parent_details: &BlockDetails, new_header: &HeaderView) -> bool {
