@@ -51,7 +51,7 @@ describe('util/validation', () => {
       });
     });
 
-    it('fails on invalid JSON', () => {
+    it('sets error on invalid JSON', () => {
       const abi = 'this is not json';
 
       expect(validateAbi(abi)).to.deep.equal({
@@ -61,7 +61,7 @@ describe('util/validation', () => {
       });
     });
 
-    it('fails on non-array JSON', () => {
+    it('sets error on non-array JSON', () => {
       const abi = '{}';
 
       expect(validateAbi(abi)).to.deep.equal({
@@ -121,14 +121,14 @@ describe('util/validation', () => {
       });
     });
 
-    it('fails on null addresses', () => {
+    it('sets error on null addresses', () => {
       expect(validateAddress(null)).to.deep.equal({
         address: null,
         addressError: ERRORS.invalidAddress
       });
     });
 
-    it('fails on invalid addresses', () => {
+    it('sets error on invalid addresses', () => {
       const address = '0x12344567';
 
       expect(validateAddress(address)).to.deep.equal({
@@ -153,21 +153,21 @@ describe('util/validation', () => {
       });
     });
 
-    it('fails on invalid code', () => {
+    it('sets error on invalid code', () => {
       expect(validateCode(null)).to.deep.equal({
         code: null,
         codeError: ERRORS.invalidCode
       });
     });
 
-    it('fails on empty code', () => {
+    it('sets error on empty code', () => {
       expect(validateCode('')).to.deep.equal({
         code: '',
         codeError: ERRORS.invalidCode
       });
     });
 
-    it('fails on non-hex code', () => {
+    it('sets error on non-hex code', () => {
       expect(validateCode('123hfg')).to.deep.equal({
         code: '123hfg',
         codeError: ERRORS.invalidCode
@@ -183,14 +183,14 @@ describe('util/validation', () => {
       });
     });
 
-    it('fails on null names', () => {
+    it('sets error on null names', () => {
       expect(validateName(null)).to.deep.equal({
         name: null,
         nameError: ERRORS.invalidName
       });
     });
 
-    it('fails on short names', () => {
+    it('sets error on short names', () => {
       expect(validateName('  1  ')).to.deep.equal({
         name: '  1  ',
         nameError: ERRORS.invalidName
@@ -220,14 +220,14 @@ describe('util/validation', () => {
       });
     });
 
-    it('fails on invalid numbers', () => {
+    it('sets error on invalid numbers', () => {
       expect(validatePositiveNumber(null)).to.deep.equal({
         number: null,
         numberError: ERRORS.invalidAmount
       });
     });
 
-    it('fails on negative numbers', () => {
+    it('sets error on negative numbers', () => {
       expect(validatePositiveNumber(-1)).to.deep.equal({
         number: -1,
         numberError: ERRORS.invalidAmount
@@ -257,21 +257,21 @@ describe('util/validation', () => {
       });
     });
 
-    it('fails on invalid numbers', () => {
+    it('sets error on invalid numbers', () => {
       expect(validateUint(null)).to.deep.equal({
         value: null,
         valueError: ERRORS.invalidNumber
       });
     });
 
-    it('fails on negative numbers', () => {
+    it('sets error on negative numbers', () => {
       expect(validateUint(-1)).to.deep.equal({
         value: -1,
         valueError: ERRORS.negativeNumber
       });
     });
 
-    it('fails on decimal numbers', () => {
+    it('sets error on decimal numbers', () => {
       expect(validateUint(3.1415927)).to.deep.equal({
         value: 3.1415927,
         valueError: ERRORS.decimalNumber
@@ -284,19 +284,19 @@ describe('util/validation', () => {
       expect(isNullAddress(`0x${NULL_ADDRESS}`)).to.be.true;
     });
 
-    it('verifies an non-prefixed null address', () => {
+    it('verifies a non-prefixed null address', () => {
       expect(isNullAddress(NULL_ADDRESS)).to.be.true;
     });
 
-    it('fails on a null value', () => {
+    it('sets false on a null value', () => {
       expect(isNullAddress(null)).to.be.false;
     });
 
-    it('fails on a non-full length 00..00 value', () => {
-      expect(isNullAddress(NULL_ADDRESS.slice(-1 * (NULL_ADDRESS.length - 2)))).to.be.false;
+    it('sets false on a non-full length 00..00 value', () => {
+      expect(isNullAddress(NULL_ADDRESS.slice(2))).to.be.false;
     });
 
-    it('fails on a valid addess, non 00..00 value', () => {
+    it('sets false on a valid addess, non 00..00 value', () => {
       expect(isNullAddress('0x1234567890123456789012345678901234567890')).to.be.false;
     });
   });
