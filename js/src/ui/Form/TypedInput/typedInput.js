@@ -41,6 +41,7 @@ export default class TypedInput extends Component {
 
     accounts: PropTypes.object,
     allowCopy: PropTypes.bool,
+    className: PropTypes.string,
     error: PropTypes.any,
     hint: PropTypes.string,
     isEth: PropTypes.bool,
@@ -91,7 +92,7 @@ export default class TypedInput extends Component {
     const { type } = param;
 
     if (type === ABI_TYPES.ARRAY) {
-      const { accounts, label, value = param.default } = this.props;
+      const { accounts, className, label, value = param.default } = this.props;
       const { subtype, length } = param;
 
       const fixedLength = !!length;
@@ -107,6 +108,7 @@ export default class TypedInput extends Component {
           <TypedInput
             accounts={ accounts }
             allowCopy={ allowCopy }
+            className={ className }
             key={ `${subtype.type}_${index}` }
             onChange={ onChange }
             param={ subtype }
@@ -236,17 +238,34 @@ export default class TypedInput extends Component {
     );
   }
 
+  getNumberValue (value) {
+    if (!value) {
+      return value;
+    }
+
+    const { readOnly } = this.props;
+
+    const rawValue = typeof value === 'string'
+      ? value.replace(/,/g, '')
+      : value;
+
+    const bnValue = new BigNumber(rawValue);
+
+    return readOnly
+      ? bnValue.toFormat()
+      : bnValue.toNumber();
+  }
+
   renderInteger (value = this.props.value, onChange = this.onChange) {
-    const { allowCopy, label, error, hint, min, max, readOnly } = this.props;
+    const { allowCopy, className, label, error, hint, min, max, readOnly } = this.props;
     const param = this.getParam();
 
-    const realValue = value
-      ? (new BigNumber(value))[readOnly ? 'toFormat' : 'toNumber']()
-      : value;
+    const realValue = this.getNumberValue(value);
 
     return (
       <Input
         allowCopy={ allowCopy }
+        className={ className }
         label={ label }
         hint={ hint }
         value={ realValue }
@@ -269,16 +288,15 @@ export default class TypedInput extends Component {
    * @see https://github.com/facebook/react/issues/1549
    */
   renderFloat (value = this.props.value, onChange = this.onChange) {
-    const { allowCopy, label, error, hint, min, max, readOnly } = this.props;
+    const { allowCopy, className, label, error, hint, min, max, readOnly } = this.props;
     const param = this.getParam();
 
-    const realValue = value
-      ? (new BigNumber(value))[readOnly ? 'toFormat' : 'toNumber']()
-      : value;
+    const realValue = this.getNumberValue(value);
 
     return (
       <Input
         allowCopy={ allowCopy }
+        className={ className }
         label={ label }
         hint={ hint }
         value={ realValue }
@@ -293,11 +311,12 @@ export default class TypedInput extends Component {
   }
 
   renderDefault () {
-    const { allowCopy, label, value, error, hint, readOnly } = this.props;
+    const { allowCopy, className, label, value, error, hint, readOnly } = this.props;
 
     return (
       <Input
         allowCopy={ allowCopy }
+        className={ className }
         label={ label }
         hint={ hint }
         value={ value }
@@ -309,12 +328,13 @@ export default class TypedInput extends Component {
   }
 
   renderAddress () {
-    const { accounts, allowCopy, label, value, error, hint, readOnly } = this.props;
+    const { accounts, allowCopy, className, label, value, error, hint, readOnly } = this.props;
 
     return (
       <InputAddressSelect
         allowCopy={ allowCopy }
         accounts={ accounts }
+        className={ className }
         error={ error }
         hint={ hint }
         label={ label }
@@ -326,7 +346,7 @@ export default class TypedInput extends Component {
   }
 
   renderBoolean () {
-    const { allowCopy, label, value, error, hint, readOnly } = this.props;
+    const { allowCopy, className, label, value, error, hint, readOnly } = this.props;
 
     if (readOnly) {
       return this.renderDefault();
@@ -346,6 +366,7 @@ export default class TypedInput extends Component {
     return (
       <Select
         allowCopy={ allowCopy }
+        className={ className }
         error={ error }
         hint={ hint }
         label={ label }

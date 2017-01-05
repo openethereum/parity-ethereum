@@ -14,41 +14,18 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import React from 'react';
-import { shallow } from 'enzyme';
-import sinon from 'sinon';
+import { ADDRESS, createRedux } from '../account.test.js';
 
-import Api from '~/api';
-
-import TxList from './txList';
-
-const api = new Api({ execute: sinon.stub() });
-
-const STORE = {
-  dispatch: sinon.stub(),
-  subscribe: sinon.stub(),
-  getState: () => {
-    return {
-      nodeStatus: {
-        isTest: true
-      }
-    };
-  }
-};
-
-function render (props) {
-  return shallow(
-    <TxList
-      store={ STORE }
-      { ...props } />,
-    { context: { api } }
-  );
+function createApi () {
+  return {
+    trace: {
+      filter: (options) => Promise.resolve([{ transactionHash: options.fromAddress ? '123' : '098', action: {} }])
+    }
+  };
 }
 
-describe('ui/TxList', () => {
-  describe('rendering', () => {
-    it('renders defaults', () => {
-      expect(render({ address: '0x123', hashes: [] })).to.be.ok;
-    });
-  });
-});
+export {
+  ADDRESS,
+  createApi,
+  createRedux
+};

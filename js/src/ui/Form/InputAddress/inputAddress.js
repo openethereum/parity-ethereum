@@ -75,6 +75,12 @@ class InputAddress extends Component {
       containerClasses.push(styles.small);
     }
 
+    const props = {};
+
+    if (!readOnly && !disabled) {
+      props.focused = focused;
+    }
+
     return (
       <div className={ containerClasses.join(' ') }>
         <Input
@@ -82,7 +88,6 @@ class InputAddress extends Component {
           className={ classes.join(' ') }
           disabled={ disabled }
           error={ error }
-          focused={ focused }
           hideUnderline={ hideUnderline }
           hint={ hint }
           label={ label }
@@ -96,7 +101,9 @@ class InputAddress extends Component {
             text && account
               ? account.name
               : (nullName || value)
-          } />
+          }
+          { ...props }
+        />
         { icon }
       </div>
     );

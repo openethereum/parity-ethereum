@@ -16,6 +16,7 @@
 
 import BigNumber from 'bignumber.js';
 import React, { Component, PropTypes } from 'react';
+import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 import { LinearProgress } from 'material-ui';
@@ -33,8 +34,8 @@ class TxHash extends Component {
   static propTypes = {
     hash: PropTypes.string.isRequired,
     isTest: PropTypes.bool,
-    summary: PropTypes.bool,
-    maxConfirmations: PropTypes.number
+    maxConfirmations: PropTypes.number,
+    summary: PropTypes.bool
   }
 
   static defaultProps = {
@@ -43,14 +44,14 @@ class TxHash extends Component {
 
   state = {
     blockNumber: new BigNumber(0),
-    transaction: null,
-    subscriptionId: null
+    subscriptionId: null,
+    transaction: null
   }
 
   componentDidMount () {
     const { api } = this.context;
 
-    api.subscribe('eth_blockNumber', this.onBlockNumber).then((subscriptionId) => {
+    return api.subscribe('eth_blockNumber', this.onBlockNumber).then((subscriptionId) => {
       this.setState({ subscriptionId });
     });
   }
@@ -59,28 +60,28 @@ class TxHash extends Component {
     const { api } = this.context;
     const { subscriptionId } = this.state;
 
-    api.unsubscribe(subscriptionId);
+    return api.unsubscribe(subscriptionId);
   }
 
   render () {
     const { hash, isTest, summary } = this.props;
 
-    const link = (
+    const hashLink = (
       <a href={ txLink(hash, isTest) } target='_blank'>
         <ShortenedHash data={ hash } />
       </a>
     );
 
-    let header = (
-      <p>The transaction has been posted to the network, with a hash of { link }.</p>
-    );
-    if (summary) {
-      header = (<p>{ link }</p>);
-    }
-
     return (
       <div>
-        { header }
+        <p>{
+          summary
+            ? hashLink
+            : <FormattedMessage
+              id='ui.txHash.posted'
+              defaultMessage='The transaction has been posted to the network with a hash of {hashLink}'
+              values={ { hashLink } } />
+        }</p>
         { this.renderConfirmations() }
       </div>
     );
@@ -98,20 +99,22 @@ class TxHash extends Component {
             color='white'
             mode='indeterminate'
           />
-          <div className={ styles.progressinfo }>waiting for confirmations</div>
+          <div className={ styles.progressinfo }>
+            <FormattedMessage
+              id='ui.txHash.waiting'
+              defaultMessage='waiting for confirmations' />
+          </div>
         </div>
       );
     }
 
     const confirmations = blockNumber.minus(transaction.blockNumber).plus(1);
     const value = Math.min(confirmations.toNumber(), maxConfirmations);
-    let count;
-    if (confirmations.gt(maxConfirmations)) {
-      count = confirmations.toFormat(0);
-    } else {
-      count = confirmations.toFormat(0) + `/${maxConfirmations}`;
+
+    let count = confirmations.toFormat(0);
+    if (confirmations.lte(maxConfirmations)) {
+      count = `${count}/${maxConfirmations}`;
     }
-    const unit = value === 1 ? 'confirmation' : 'confirmations';
 
     return (
       <div className={ styles.confirm }>
@@ -121,10 +124,17 @@ class TxHash extends Component {
           max={ maxConfirmations }
           value={ value }
           color='white'
-          mode='determinate'
-        />
+          mode='determinate' />
         <div className={ styles.progressinfo }>
-          <abbr title={ `block #${blockNumber.toFormat(0)}` }>{ count } { unit }</abbr>
+          <abbr title={ `block #${blockNumber.toFormat(0)}` }>
+            <FormattedMessage
+              id='ui.txHash.confirmations'
+              defaultMessage='{count} {value, plural, one {confirmation} other {confirmations}}'
+              values={ {
+                count,
+                value
+              } } />
+          </abbr>
         </div>
       </div>
     );
@@ -138,15 +148,17 @@ class TxHash extends Component {
       return;
     }
 
-    this.setState({ blockNumber });
-
-    api.eth
+    return api.eth
       .getTransactionReceipt(hash)
       .then((transaction) => {
-        this.setState({ transaction });
+        this.setState({
+          blockNumber,
+          transaction
+        });
       })
       .catch((error) => {
         console.warn('onBlockNumber', error);
+        this.setState({ blockNumber });
       });
   }
 }

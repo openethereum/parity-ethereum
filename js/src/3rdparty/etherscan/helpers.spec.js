@@ -14,41 +14,25 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import React from 'react';
-import { shallow } from 'enzyme';
-import sinon from 'sinon';
+import nock from 'nock';
+import { stringify } from 'qs';
 
-import Api from '~/api';
+import { url } from './links';
 
-import TxList from './txList';
+function mockget (requests, test) {
+  let scope = nock(url(test));
 
-const api = new Api({ execute: sinon.stub() });
+  requests.forEach((request) => {
+    scope = scope
+      .get(`/api?${stringify(request.query)}`)
+      .reply(request.code || 200, () => {
+        return { result: request.reply };
+      });
+  });
 
-const STORE = {
-  dispatch: sinon.stub(),
-  subscribe: sinon.stub(),
-  getState: () => {
-    return {
-      nodeStatus: {
-        isTest: true
-      }
-    };
-  }
-};
-
-function render (props) {
-  return shallow(
-    <TxList
-      store={ STORE }
-      { ...props } />,
-    { context: { api } }
-  );
+  return scope;
 }
 
-describe('ui/TxList', () => {
-  describe('rendering', () => {
-    it('renders defaults', () => {
-      expect(render({ address: '0x123', hashes: [] })).to.be.ok;
-    });
-  });
-});
+export {
+  mockget
+};
