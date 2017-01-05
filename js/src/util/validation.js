@@ -46,7 +46,12 @@ export function validateAbi (abi) {
 
     if (!apiutil.isArray(abiParsed)) {
       abiError = ERRORS.invalidAbi;
-      return { abi, abiError, abiParsed };
+
+      return {
+        abi,
+        abiError,
+        abiParsed
+      };
     }
 
     // Validate each elements of the Array
@@ -56,8 +61,15 @@ export function validateAbi (abi) {
 
     if (invalidIndex !== -1) {
       const invalid = abiParsed[invalidIndex];
+
+      // TODO: Needs seperate error when using FormattedMessage (no concats)
       abiError = `${ERRORS.invalidAbi} (#${invalidIndex}: ${invalid.name || invalid.type})`;
-      return { abi, abiError, abiParsed };
+
+      return {
+        abi,
+        abiError,
+        abiParsed
+      };
     }
 
     abi = JSON.stringify(abiParsed);

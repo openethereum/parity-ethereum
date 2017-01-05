@@ -19,8 +19,87 @@ import BigNumber from 'bignumber.js';
 import { NULL_ADDRESS } from './constants';
 import { ERRORS, isNullAddress, validateAbi, validateAddress, validateCode, validateName, validatePositiveNumber, validateUint } from './validation';
 
-describe.only('util/validation', () => {
+describe('util/validation', () => {
   describe('validateAbi', () => {
+    it('passes on valid ABI', () => {
+      const abi = '[{"type":"function","name":"test","inputs":[],"outputs":[]}]';
+
+      expect(validateAbi(abi)).to.deep.equal({
+        abi,
+        abiError: null,
+        abiParsed: [{
+          type: 'function',
+          name: 'test',
+          inputs: [],
+          outputs: []
+        }]
+      });
+    });
+
+    it('passes on valid ABI & trims ABI', () => {
+      const abi = '[ { "type" : "function" , "name" : "test" , "inputs" : [] , "outputs" : [] } ]';
+
+      expect(validateAbi(abi)).to.deep.equal({
+        abi: '[{"type":"function","name":"test","inputs":[],"outputs":[]}]',
+        abiError: null,
+        abiParsed: [{
+          type: 'function',
+          name: 'test',
+          inputs: [],
+          outputs: []
+        }]
+      });
+    });
+
+    it('fails on invalid JSON', () => {
+      const abi = 'this is not json';
+
+      expect(validateAbi(abi)).to.deep.equal({
+        abi,
+        abiError: ERRORS.invalidAbi,
+        abiParsed: null
+      });
+    });
+
+    it('fails on non-array JSON', () => {
+      const abi = '{}';
+
+      expect(validateAbi(abi)).to.deep.equal({
+        abi,
+        abiError: ERRORS.invalidAbi,
+        abiParsed: {}
+      });
+    });
+
+    it('fails with invalid event', () => {
+      const abi = '[{ "type":"event" }]';
+
+      expect(validateAbi(abi)).to.deep.equal({
+        abi,
+        abiError: `${ERRORS.invalidAbi} (#0: event)`,
+        abiParsed: [{ type: 'event' }]
+      });
+    });
+
+    it('fails with invalid function', () => {
+      const abi = '[{ "type":"function" }]';
+
+      expect(validateAbi(abi)).to.deep.equal({
+        abi,
+        abiError: `${ERRORS.invalidAbi} (#0: function)`,
+        abiParsed: [{ type: 'function' }]
+      });
+    });
+
+    it('fails with unknown type', () => {
+      const abi = '[{ "type":"somethingElse" }]';
+
+      expect(validateAbi(abi)).to.deep.equal({
+        abi,
+        abiError: `${ERRORS.invalidAbi} (#0: somethingElse)`,
+        abiParsed: [{ type: 'somethingElse' }]
+      });
+    });
   });
 
   describe('validateAddress', () => {
