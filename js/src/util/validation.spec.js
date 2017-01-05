@@ -1,0 +1,205 @@
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// This file is part of Parity.
+
+// Parity is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// Parity is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+
+import BigNumber from 'bignumber.js';
+
+import { NULL_ADDRESS } from './constants';
+import { ERRORS, isNullAddress, validateAddress, validateCode, validateName, validatePositiveNumber, validateUint } from './validation';
+
+describe.only('util/validation', () => {
+  describe('validateAddress', () => {
+    it('validates address', () => {
+      const address = '0x1234567890123456789012345678901234567890';
+
+      expect(validateAddress(address)).to.deep.equal({
+        address,
+        addressError: null
+      });
+    });
+
+    it('validates address and converts to checksum', () => {
+      const address = '0x5A5eFF38DA95b0D58b6C616f2699168B480953C9';
+
+      expect(validateAddress(address.toLowerCase())).to.deep.equal({
+        address,
+        addressError: null
+      });
+    });
+  });
+
+  describe('validateCode', () => {
+    it('validates hex code', () => {
+      expect(validateCode('0x123abc')).to.deep.equal({
+        code: '0x123abc',
+        codeError: null
+      });
+    });
+
+    it('validates hex code (non-prefix)', () => {
+      expect(validateCode('123abc')).to.deep.equal({
+        code: '123abc',
+        codeError: null
+      });
+    });
+
+    it('fails on invalid code', () => {
+      expect(validateCode(null)).to.deep.equal({
+        code: null,
+        codeError: ERRORS.invalidCode
+      });
+    });
+
+    it('fails on empty code', () => {
+      expect(validateCode('')).to.deep.equal({
+        code: '',
+        codeError: ERRORS.invalidCode
+      });
+    });
+
+    it('fails on non-hex code', () => {
+      expect(validateCode('123hfg')).to.deep.equal({
+        code: '123hfg',
+        codeError: ERRORS.invalidCode
+      });
+    });
+  });
+
+  describe('validateName', () => {
+    it('validates names', () => {
+      expect(validateName('Joe Bloggs')).to.deep.equal({
+        name: 'Joe Bloggs',
+        nameError: null
+      });
+    });
+
+    it('fails on null names', () => {
+      expect(validateName(null)).to.deep.equal({
+        name: null,
+        nameError: ERRORS.invalidName
+      });
+    });
+
+    it('fails on short names', () => {
+      expect(validateName('  1  ')).to.deep.equal({
+        name: '  1  ',
+        nameError: ERRORS.invalidName
+      });
+    });
+  });
+
+  describe('validatePositiveNumber', () => {
+    it('validates numbers', () => {
+      expect(validatePositiveNumber(123)).to.deep.equal({
+        number: 123,
+        numberError: null
+      });
+    });
+
+    it('validates strings', () => {
+      expect(validatePositiveNumber('123')).to.deep.equal({
+        number: '123',
+        numberError: null
+      });
+    });
+
+    it('validates bignumbers', () => {
+      expect(validatePositiveNumber(new BigNumber(123))).to.deep.equal({
+        number: new BigNumber(123),
+        numberError: null
+      });
+    });
+
+    it('fails on invalid numbers', () => {
+      expect(validatePositiveNumber(null)).to.deep.equal({
+        number: null,
+        numberError: ERRORS.invalidAmount
+      });
+    });
+
+    it('fails on negative numbers', () => {
+      expect(validatePositiveNumber(-1)).to.deep.equal({
+        number: -1,
+        numberError: ERRORS.invalidAmount
+      });
+    });
+  });
+
+  describe('validateUint', () => {
+    it('validates numbers', () => {
+      expect(validateUint(123)).to.deep.equal({
+        value: 123,
+        valueError: null
+      });
+    });
+
+    it('validates strings', () => {
+      expect(validateUint('123')).to.deep.equal({
+        value: '123',
+        valueError: null
+      });
+    });
+
+    it('validates bignumbers', () => {
+      expect(validateUint(new BigNumber(123))).to.deep.equal({
+        value: new BigNumber(123),
+        valueError: null
+      });
+    });
+
+    it('fails on invalid numbers', () => {
+      expect(validateUint(null)).to.deep.equal({
+        value: null,
+        valueError: ERRORS.invalidNumber
+      });
+    });
+
+    it('fails on negative numbers', () => {
+      expect(validateUint(-1)).to.deep.equal({
+        value: -1,
+        valueError: ERRORS.negativeNumber
+      });
+    });
+
+    it('fails on decimal numbers', () => {
+      expect(validateUint(3.1415927)).to.deep.equal({
+        value: 3.1415927,
+        valueError: ERRORS.decimalNumber
+      });
+    });
+  });
+
+  describe('isNullAddress', () => {
+    it('verifies a prefixed null address', () => {
+      expect(isNullAddress(`0x${NULL_ADDRESS}`)).to.be.true;
+    });
+
+    it('verifies an non-prefixed null address', () => {
+      expect(isNullAddress(NULL_ADDRESS)).to.be.true;
+    });
+
+    it('fails on a null value', () => {
+      expect(isNullAddress(null)).to.be.false;
+    });
+
+    it('fails on a non-full length 00..00 value', () => {
+      expect(isNullAddress(NULL_ADDRESS.slice(-1 * (NULL_ADDRESS.length - 2)))).to.be.false;
+    });
+
+    it('fails on a valid addess, non 00..00 value', () => {
+      expect(isNullAddress('0x1234567890123456789012345678901234567890')).to.be.false;
+    });
+  });
+});
