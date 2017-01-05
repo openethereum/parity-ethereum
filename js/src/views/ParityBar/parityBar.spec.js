@@ -18,7 +18,7 @@ import { shallow } from 'enzyme';
 import React from 'react';
 import sinon from 'sinon';
 
-import ParityBar from './parityBar';
+import ParityBar from './';
 
 let component;
 let instance;
