@@ -89,6 +89,13 @@ pub struct EthashParams {
 	/// See main EthashParams docs.
 	#[serde(rename="maxCodeSize")]
 	pub max_code_size: Option<Uint>,
+
+	/// See main EthashParams docs.
+	#[serde(rename="ecip1010PauseTransition")]
+	pub ecip1010_pause_transition: Option<Uint>,
+	/// See main EthashParams docs.
+	#[serde(rename="ecip1010ContinueTransition")]
+	pub ecip1010_continue_transition: Option<Uint>,
 }
 
 /// Ethash engine deserialization.
