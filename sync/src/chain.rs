@@ -100,8 +100,8 @@ use sync_io::SyncIo;
 use time;
 use super::SyncConfig;
 use block_sync::{BlockDownloader, BlockRequest, BlockDownloaderImportError as DownloaderImportError, DownloadAction};
+use rand::Rng;
 use snapshot::{Snapshot, ChunkType};
-use rand::{thread_rng, Rng};
 use api::{PeerInfo as PeerInfoDigest, WARP_SYNC_PROTOCOL_ID};
 use transactions_stats::{TransactionsStats, Stats as TransactionStats};
 
@@ -327,6 +327,17 @@ impl PeerInfo {
 			self.expired = true;
 		}
 	}
+}
+
+#[cfg(not(test))]
+mod random {
+	use rand;
+	pub fn new() -> rand::ThreadRng { rand::thread_rng() }
+}
+#[cfg(test)]
+mod random {
+	use rand::{self, SeedableRng};
+	pub fn new() -> rand::XorShiftRng { rand::XorShiftRng::from_seed([0, 1, 2, 3]) }
 }
 
 /// Blockchain sync handler.
@@ -1120,7 +1131,7 @@ impl ChainSync {
 	fn continue_sync(&mut self, io: &mut SyncIo) {
 		let mut peers: Vec<(PeerId, U256, u8)> = self.peers.iter().filter_map(|(k, p)|
 			if p.can_sync() { Some((*k, p.difficulty.unwrap_or_else(U256::zero), p.protocol_version)) } else { None }).collect();
-		thread_rng().shuffle(&mut peers); //TODO: sort by rating
+		random::new().shuffle(&mut peers); //TODO: sort by rating
 		// prefer peers with higher protocol version
 		peers.sort_by(|&(_, _, ref v1), &(_, _, ref v2)| v1.cmp(v2));
 		trace!(target: "sync", "Syncing with peers: {} active, {} confirmed, {} total", self.active_peers.len(), peers.len(), self.peers.len());
@@ -1881,7 +1892,7 @@ impl ChainSync {
 		let mut count = (peers.len() as f64).powf(0.5).round() as usize;
 		count = min(count, MAX_PEERS_PROPAGATION);
 		count = max(count, MIN_PEERS_PROPAGATION);
-		::rand::thread_rng().shuffle(&mut peers);
+		random::new().shuffle(&mut peers);
 		peers.truncate(count);
 		peers
 	}
@@ -1961,10 +1972,11 @@ impl ChainSync {
 		let small = self.peers.len() < MIN_PEERS_PROPAGATION;
 		let block_number = io.chain().chain_info().best_block_number;
 
+		let mut random = random::new();
 		let lucky_peers = {
 			let stats = &mut self.transactions_stats;
 			self.peers.iter_mut()
-				.filter(|_| small || ::rand::random::<u32>() < fraction)
+				.filter(|_| small || random.next_u32() < fraction)
 				.take(MAX_PEERS_PROPAGATION)
 				.filter_map(|(peer_id, mut peer_info)| {
 					// Send all transactions
