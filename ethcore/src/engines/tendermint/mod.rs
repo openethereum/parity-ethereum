@@ -469,6 +469,20 @@ impl Engine for Tendermint {
 		Ok(())
 	}
 
+	/// Apply the block reward on finalisation of the block.
+	fn on_close_block(&self, block: &mut ExecutedBlock) {
+		let reward = self.our_params.block_reward;
+		let fields = block.fields_mut();
+
+		// Bestow block reward
+		fields.state.add_balance(fields.header.author(), &reward, CleanupMode::NoEmpty);
+
+		// Commit state so that we can actually figure out the state root.
+		if let Err(e) = fields.state.commit() {
+			warn!("Encountered error on state commit: {}", e);
+		}
+	}
+
 	fn verify_block_basic(&self, header: &Header, _block: Option<&[u8]>) -> Result<(), Error> {
 		let seal_length = header.seal().len();
 		if seal_length == self.seal_fields() {

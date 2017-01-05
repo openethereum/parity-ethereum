@@ -32,6 +32,8 @@ pub struct TendermintParams {
 	pub authority_n: usize,
 	/// Timeout durations for different steps.
 	pub timeouts: TendermintTimeouts,
+	/// Block reward.
+	pub block_reward: U256,
 }
 
 impl Default for TendermintParams {
@@ -42,6 +44,7 @@ impl Default for TendermintParams {
 			gas_limit_bound_divisor: 0x0400.into(),
 			authorities: authorities,
 			authority_n: val_n,
+			block_reward: p.block_reward.map_or(U256::zero, Into::into),
 			timeouts: TendermintTimeouts::default(),
 		}
 	}
