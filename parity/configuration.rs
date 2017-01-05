@@ -690,7 +690,7 @@ impl Configuration {
 				"none" => UpdateFilter::None,
 				"critical" => UpdateFilter::Critical,
 				"all" => UpdateFilter::All,
-				_ => return Err("Invalid value for `--auto-update`. See `--help` for more information.".into()), 
+				_ => return Err("Invalid value for `--auto-update`. See `--help` for more information.".into()),
 			},
 			track: match self.args.flag_release_track.as_ref() {
 				"stable" => ReleaseTrack::Stable,
@@ -698,7 +698,7 @@ impl Configuration {
 				"nightly" => ReleaseTrack::Nightly,
 				"testing" => ReleaseTrack::Testing,
 				"current" => ReleaseTrack::Unknown,
-				_ => return Err("Invalid value for `--releases-track`. See `--help` for more information.".into()), 
+				_ => return Err("Invalid value for `--releases-track`. See `--help` for more information.".into()),
 			},
 			path: default_hypervisor_path(),
 		})

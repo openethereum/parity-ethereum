@@ -522,6 +522,7 @@ dependencies = [
  "ethcore-util 1.5.0",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "rlp 0.1.0",
+ "smallvec 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "time 0.1.35 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -2001,6 +2002,11 @@ version = "0.1.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
+name = "smallvec"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[[package]]
 name = "solicit"
 version = "0.4.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2514,6 +2520,7 @@ dependencies = [
 "checksum slab 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)" = "6dbdd334bd28d328dad1c41b0ea662517883d8880d8533895ef96c8003dec9c4"
 "checksum slab 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)" = "17b4fcaed89ab08ef143da37bc52adbcc04d4a69014f4c1208d6b51f0c47bc23"
 "checksum smallvec 0.1.8 (registry+https://github.com/rust-lang/crates.io-index)" = "fcc8d19212aacecf95e4a7a2179b26f7aeb9732a915cf01f05b0d3e044865410"
+"checksum smallvec 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)" = "3a3c84984c278afe61a46e19868e8b23e2ee3be5b3cc6dea6edad4893bc6c841"
 "checksum solicit 0.4.4 (registry+https://github.com/rust-lang/crates.io-index)" = "172382bac9424588d7840732b250faeeef88942e37b6e35317dce98cafdd75b2"
 "checksum spmc 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)" = "93bdab61c1a413e591c4d17388ffa859eaff2df27f1e13a5ec8b716700605adf"
 "checksum stable-heap 0.1.0 (git+https://github.com/carllerche/stable-heap?rev=3c5cd1ca47)" = "<none>"

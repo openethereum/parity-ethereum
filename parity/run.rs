@@ -32,12 +32,10 @@ use ethcore::verification::queue::VerifierSettings;
 use ethsync::SyncConfig;
 use informant::Informant;
 use updater::{UpdatePolicy, Updater};
-use parity_reactor::{EventLoop, EventLoopHandle};
+use parity_reactor::EventLoop;
 use hash_fetch::fetch::{Fetch, Client as FetchClient};
 
-use rpc::{HttpServer, IpcServer, HttpConfiguration, IpcConfiguration};
-use signer::SignerServer;
-use dapps::WebappServer;
+use rpc::{HttpConfiguration, IpcConfiguration};
 use params::{
 	SpecType, Pruning, AccountsConfig, GasPricerConfig, MinerExtras, Switch,
 	tracing_switch_to_bool, fatdb_switch_to_bool, mode_switch_to_bool
@@ -444,16 +442,10 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 	}
 
 	// Handle exit
-	let restart = wait_for_exit(
-		panic_handler,
-		http_server,
-		ipc_server,
-		dapps_server,
-		signer_server,
-		event_loop.into(),
-		updater,
-		can_restart,
-	);
+	let restart = wait_for_exit(panic_handler, Some(updater), can_restart);
+
+	// drop this stuff as soon as exit detected.
+	drop((http_server, ipc_server, dapps_server, signer_server, event_loop));
 
 	info!("Finishing work, please wait...");
 
@@ -523,12 +515,7 @@ fn build_create_account_hint(spec: &SpecType, keys: &str) -> String {
 
 fn wait_for_exit(
 	panic_handler: Arc<PanicHandler>,
-	_http_server: Option<HttpServer>,
-	_ipc_server: Option<IpcServer>,
-	_dapps_server: Option<WebappServer>,
-	_signer_server: Option<SignerServer>,
-	_event_loop: EventLoopHandle,
-	updater: Arc<Updater>,
+	updater: Option<Arc<Updater>>,
 	can_restart: bool
 ) -> bool {
 	let exit = Arc::new((Mutex::new(false), Condvar::new()));
@@ -541,12 +528,14 @@ fn wait_for_exit(
 	let e = exit.clone();
 	panic_handler.on_panic(move |_reason| { e.1.notify_all(); });
 
-	// Handle updater wanting to restart us
-	if can_restart {
-		let e = exit.clone();
-		updater.set_exit_handler(move || { *e.0.lock() = true; e.1.notify_all(); });
-	} else {
-		updater.set_exit_handler(|| info!("Update installed; ready for restart."));
+	if let Some(updater) = updater {
+		// Handle updater wanting to restart us
+		if can_restart {
+			let e = exit.clone();
+			updater.set_exit_handler(move || { *e.0.lock() = true; e.1.notify_all(); });
+		} else {
+			updater.set_exit_handler(|| info!("Update installed; ready for restart."));
+		}
 	}
 
 	// Wait for signal
