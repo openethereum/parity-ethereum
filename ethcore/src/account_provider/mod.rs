@@ -150,6 +150,11 @@ impl AccountProvider {
 		Ok(Address::from(address).into())
 	}
 
+	/// Checks whether an account with a given address is present.
+	pub fn has_account(&self, address: Address) -> Result<bool, Error> {
+		Ok(self.accounts()?.iter().any(|&a| a == address))
+	}
+
 	/// Returns addresses of all accounts.
 	pub fn accounts(&self) -> Result<Vec<Address>, Error> {
 		let accounts = self.sstore.accounts()?;
