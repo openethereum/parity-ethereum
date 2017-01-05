@@ -20,6 +20,7 @@
 
 use std::collections::HashMap;
 
+use ethcore::basic_account::BasicAccount;
 use ethcore::encoded;
 use ethcore::receipt::Receipt;
 
@@ -28,24 +29,10 @@ use futures::sync::oneshot;
 use network::PeerId;
 
 use net::{Handler, Status, Capabilities, Announcement, EventContext, BasicContext, ReqId};
-use util::{Bytes, H256, U256, RwLock};
+use util::{Bytes, RwLock};
 use types::les_request::{self as les_request, Request as LesRequest};
 
 pub mod request;
-
-/// Basic account data.
-// TODO: [rob] unify with similar struct in `snapshot`.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Account {
-	/// Balance in Wei
-	pub balance: U256,
-	/// Storage trie root.
-	pub storage_root: H256,
-	/// Code hash
-	pub code_hash: H256,
-	/// Nonce
-	pub nonce: U256,
-}
 
 /// Errors which can occur while trying to fulfill a request.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -94,7 +81,7 @@ enum Pending {
 	HeaderByHash(request::HeaderByHash, Sender<encoded::Header>),
 	Block(request::Body, Sender<encoded::Block>),
 	BlockReceipts(request::BlockReceipts, Sender<Vec<Receipt>>),
-	Account(request::Account, Sender<Account>),
+	Account(request::Account, Sender<BasicAccount>),
 }
 
 /// On demand request service. See module docs for more details.
@@ -283,13 +270,13 @@ impl OnDemand {
 
 	/// Request an account by address and block header -- which gives a hash to query and a state root
 	/// to verify against.
-	pub fn account(&self, ctx: &BasicContext, req: request::Account) -> Response<Account> {
+	pub fn account(&self, ctx: &BasicContext, req: request::Account) -> Response<BasicAccount> {
 		let (sender, receiver) = oneshot::channel();
 		self.dispatch_account(ctx, req, sender);
 		Response(receiver)
 	}
 
-	fn dispatch_account(&self, ctx: &BasicContext, req: request::Account, sender: Sender<Account>) {
+	fn dispatch_account(&self, ctx: &BasicContext, req: request::Account, sender: Sender<BasicAccount>) {
 		let num = req.header.number();
 		let les_req = LesRequest::StateProofs(les_request::StateProofs {
 			requests: vec![les_request::StateProof {

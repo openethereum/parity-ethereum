@@ -16,6 +16,7 @@
 
 //! Request types, verification, and verification errors.
 
+use ethcore::basic_account::BasicAccount;
 use ethcore::encoded;
 use ethcore::receipt::Receipt;
 
@@ -24,8 +25,6 @@ use util::{Address, Bytes, HashDB, H256};
 use util::memorydb::MemoryDB;
 use util::sha3::Hashable;
 use util::trie::{Trie, TrieDB, TrieError};
-
-use super::Account as BasicAccount;
 
 /// Errors in verification.
 #[derive(Debug, PartialEq)]
