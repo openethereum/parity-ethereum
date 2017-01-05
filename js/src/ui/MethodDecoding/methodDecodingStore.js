@@ -18,6 +18,8 @@ import Contracts from '~/contracts';
 import Abi from '~/abi';
 import * as abis from '~/contracts/abi';
 
+import { decodeMethodInput } from '~/api/util/decode';
+
 const CONTRACT_CREATE = '0x60606040';
 
 let instance = null;
@@ -26,6 +28,8 @@ export default class MethodDecodingStore {
 
   api = null;
 
+  _bytecodes = {};
+  _contractsAbi = {};
   _isContract = {};
   _methods = {};
 
@@ -46,12 +50,17 @@ export default class MethodDecodingStore {
       if (!contract || !contract.meta || !contract.meta.abi) {
         return;
       }
-      this.loadFromAbi(contract.meta.abi);
+      this.loadFromAbi(contract.meta.abi, contract.address);
     });
   }
 
-  loadFromAbi (_abi) {
+  loadFromAbi (_abi, contractAddress) {
     const abi = new Abi(_abi);
+
+    if (contractAddress && abi) {
+      this._contractsAbi[contractAddress] = abi;
+    }
+
     abi
       .functions
       .map((f) => ({ sign: f.signature, abi: f.abi }))
@@ -111,6 +120,7 @@ export default class MethodDecodingStore {
     const contractAddress = isReceived ? transaction.from : transaction.to;
     const input = transaction.input || transaction.data;
 
+    result.input = input;
     result.received = isReceived;
 
     // No input, should be a ETH transfer
@@ -118,17 +128,20 @@ export default class MethodDecodingStore {
       return Promise.resolve(result);
     }
 
-    try {
-      const { signature } = this.api.util.decodeCallData(input);
+    let signature;
 
-      if (signature === CONTRACT_CREATE || transaction.creates) {
-        result.contract = true;
-        return Promise.resolve({ ...result, deploy: true });
-      }
+    try {
+      const decodeCallDataResult = this.api.util.decodeCallData(input);
+      signature = decodeCallDataResult.signature;
     } catch (e) {}
 
+    // Contract deployment
+    if (!signature || signature === CONTRACT_CREATE || transaction.creates) {
+      return this.decodeContractCreation(result, contractAddress || transaction.creates);
+    }
+
     return this
-      .isContract(contractAddress || transaction.creates)
+      .isContract(contractAddress)
       .then((isContract) => {
         result.contract = isContract;
 
@@ -139,11 +152,6 @@ export default class MethodDecodingStore {
         const { signature, paramdata } = this.api.util.decodeCallData(input);
         result.signature = signature;
         result.params = paramdata;
-
-        // Contract deployment
-        if (!signature) {
-          return Promise.resolve({ ...result, deploy: true });
-        }
 
         return this
           .fetchMethodAbi(signature)
@@ -170,6 +178,68 @@ export default class MethodDecodingStore {
       })
       .catch((error) => {
         console.warn('lookup', error);
+      });
+  }
+
+  decodeContractCreation (data, contractAddress) {
+    const result = {
+      ...data,
+      contract: true,
+      deploy: true
+    };
+
+    const { input } = data;
+    const abi = this._contractsAbi[contractAddress];
+
+    if (!input || !abi || !abi.constructors || abi.constructors.length === 0) {
+      return Promise.resolve(result);
+    }
+
+    const constructorAbi = abi.constructors[0];
+
+    const rawInput = /^(?:0x)?(.*)$/.exec(input)[1];
+
+    return this
+      .getCode(contractAddress)
+      .then((code) => {
+        if (!code || /^(0x)0*?$/.test(code)) {
+          return result;
+        }
+
+        const rawCode = /^(?:0x)?(.*)$/.exec(code)[1];
+        const codeOffset = rawInput.indexOf(rawCode);
+
+        if (codeOffset === -1) {
+          return result;
+        }
+
+        // Params are the last bytes of the transaction Input
+        // (minus the bytecode). It seems that they are repeated
+        // twice
+        const params = rawInput.slice(codeOffset + rawCode.length);
+        const paramsBis = params.slice(params.length / 2);
+
+        let decodedInputs;
+
+        try {
+          decodedInputs = decodeMethodInput(constructorAbi, params);
+        } catch (e) {}
+
+        try {
+          if (!decodedInputs) {
+            decodedInputs = decodeMethodInput(constructorAbi, paramsBis);
+          }
+        } catch (e) {}
+
+        if (decodedInputs && decodedInputs.length > 0) {
+          result.inputs = decodedInputs
+            .map((value, index) => {
+              const type = constructorAbi.inputs[index].kind.type;
+              return { type, value };
+            });
+        }
+
+        return result;
       });
   }
 
@@ -209,7 +279,7 @@ export default class MethodDecodingStore {
       return Promise.resolve(this._isContract[contractAddress]);
     }
 
-    this._isContract[contractAddress] = this.api.eth
+    this._isContract[contractAddress] = this
       .getCode(contractAddress)
       .then((bytecode) => {
         // Is a contract if the address contains *valid* bytecode
@@ -220,6 +290,26 @@ export default class MethodDecodingStore {
       });
 
     return Promise.resolve(this._isContract[contractAddress]);
+  }
+
+  getCode (contractAddress) {
+    // If zero address, resolve to '0x'
+    if (!contractAddress || /^(0x)?0*$/.test(contractAddress)) {
+      return Promise.resolve('0x');
+    }
+
+    if (this._bytecodes[contractAddress]) {
+      return Promise.resolve(this._bytecodes[contractAddress]);
+    }
+
+    this._bytecodes[contractAddress] = this.api.eth
+      .getCode(contractAddress)
+      .then((bytecode) => {
+        this._bytecodes[contractAddress] = bytecode;
+        return this._bytecodes[contractAddress];
+      });
+
+    return Promise.resolve(this._bytecodes[contractAddress]);
   }
 
 }
