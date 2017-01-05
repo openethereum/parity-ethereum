@@ -37,6 +37,7 @@ use service::ClientIoMessage;
 use transaction::SignedTransaction;
 use env_info::EnvInfo;
 use builtin::Builtin;
+use state::CleanupMode;
 
 /// `AuthorityRound` params.
 #[derive(Debug, PartialEq)]
@@ -62,7 +63,7 @@ impl From<ethjson::spec::AuthorityRoundParams> for AuthorityRoundParams {
 			step_duration: Duration::from_secs(p.step_duration.into()),
 			authority_n: p.authorities.len(),
 			authorities: p.authorities.into_iter().map(Into::into).collect::<Vec<_>>(),
-			block_reward: p.block_reward.map_or(U256::zero, Into::into),
+			block_reward: p.block_reward.map_or_else(U256::zero, Into::into),
 			start_step: p.start_step.map(Into::into),
 		}
 	}

@@ -45,6 +45,7 @@ use views::HeaderView;
 use evm::Schedule;
 use io::{IoService, IoChannel};
 use service::ClientIoMessage;
+use state::CleanupMode;
 use self::message::*;
 use self::transition::TransitionHandler;
 use self::params::TendermintParams;
