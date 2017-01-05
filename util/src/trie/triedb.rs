@@ -426,3 +426,23 @@ fn iterator_seek() {
 	iter.seek(b"C").unwrap();
 	assert_eq!(&d[4..], &iter.map(|x| x.unwrap().1).collect::<Vec<_>>()[..]);
 }
+
+#[test]
+fn get_len() {
+	use memorydb::*;
+	use super::TrieMut;
+	use super::triedbmut::*;
+
+	let mut memdb = MemoryDB::new();
+	let mut root = H256::new();
+	{
+		let mut t = TrieDBMut::new(&mut memdb, &mut root);
+		t.insert(b"A", b"ABC").unwrap();
+		t.insert(b"B", b"ABCBA").unwrap();
+	}
+
+	let t = TrieDB::new(&memdb, &root).unwrap();
+	assert_eq!(t.get_with(b"A", |x: &[u8]| x.len()), Ok(Some(3)));
+	assert_eq!(t.get_with(b"B", |x: &[u8]| x.len()), Ok(Some(5)));
+	assert_eq!(t.get_with(b"C", |x: &[u8]| x.len()), Ok(None));
+}

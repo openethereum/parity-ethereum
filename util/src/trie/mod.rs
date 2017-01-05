@@ -102,7 +102,7 @@ impl<'a> Query for &'a mut Recorder {
 	}
 }
 
-impl<F, T> Query for F where F: FnOnce(&[u8]) -> T {
+impl<F, T> Query for F where F: for<'a> FnOnce(&'a [u8]) -> T {
 	type Item = T;
 
 	fn decode(self, value: &[u8]) -> T { (self)(value) }
