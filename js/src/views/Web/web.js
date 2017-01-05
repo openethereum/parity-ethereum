@@ -74,12 +74,11 @@ export default class Web extends Component {
     let host = parsed.host;
     let path = parsed.path;
     if (!host) {
-      host = parsed.path.split(pathSep).slice(0, 1)
-      path = parsed.path.split(pathSep).slice(1).join(pathSep)
+      host = parsed.path.split(pathSep).slice(0, 1);
+      path = parsed.path.split(pathSep).slice(1).join(pathSep);
     }
     const protocol = parsed.protocol ? parsed.protocol.slice(0, -1) : 'https';
     const address = `${dappsUrl}/web/${token}/${protocol}/${host}${path}`;
-    console.error('address', address);
 
     return (
       <div className={ styles.wrapper }>
