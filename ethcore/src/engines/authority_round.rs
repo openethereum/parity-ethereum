@@ -36,7 +36,7 @@ use io::{IoContext, IoHandler, TimerToken, IoService};
 use transaction::SignedTransaction;
 use env_info::EnvInfo;
 use builtin::Builtin;
-use client::{Client, MiningBlockChainClient};
+use client::{Client, EngineClient};
 use super::validator_set::{ValidatorSet, new_validator_set};
 
 /// `AuthorityRound` params.
@@ -73,7 +73,7 @@ pub struct AuthorityRound {
 	transition_service: IoService<()>,
 	step: AtomicUsize,
 	proposed: AtomicBool,
-	client: RwLock<Weak<Client>>,
+	client: RwLock<Option<Weak<EngineClient>>>,
 	account_provider: Mutex<Arc<AccountProvider>>,
 	password: RwLock<Option<String>>,
 	validators: Box<ValidatorSet + Send + Sync>,
@@ -111,7 +111,7 @@ impl AuthorityRound {
 				transition_service: IoService::<()>::start()?,
 				step: AtomicUsize::new(initial_step),
 				proposed: AtomicBool::new(false),
-				client: RwLock::new(Weak::new()),
+				client: RwLock::new(None),
 				account_provider: Mutex::new(Arc::new(AccountProvider::transient_provider())),
 				password: RwLock::new(None),
 				validators: new_validator_set(our_params.validators),
@@ -184,8 +184,10 @@ impl Engine for AuthorityRound {
 	fn step(&self) {
 		self.step.fetch_add(1, AtomicOrdering::SeqCst);
 		self.proposed.store(false, AtomicOrdering::SeqCst);
-		if let Some(c) = self.client.read().upgrade() {
-			c.update_sealing();
+		if let Some(ref weak) = *self.client.read() {
+			if let Some(c) = weak.upgrade() {
+				c.update_sealing();
+			}
 		}
 	}
 
@@ -316,8 +318,7 @@ impl Engine for AuthorityRound {
 	}
 
 	fn register_client(&self, client: Weak<Client>) {
-		let mut guard = self.client.write();
-		guard.clone_from(&client);
+		*self.client.write() = Some(client.clone());
 		self.validators.register_call_contract(client);
 	}
 

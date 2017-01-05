@@ -30,7 +30,7 @@ mod vote_collector;
 use std::sync::Weak;
 use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
 use util::*;
-use client::{Client, BlockChainClient, MiningBlockChainClient};
+use client::{Client, EngineClient};
 use error::{Error, BlockError};
 use header::Header;
 use builtin::Builtin;
@@ -79,7 +79,7 @@ pub struct Tendermint {
 	gas_limit_bound_divisor: U256,
 	builtins: BTreeMap<Address, Builtin>,
 	step_service: IoService<Step>,
-	client: RwLock<Weak<Client>>,
+	client: RwLock<Option<Weak<EngineClient>>>,
 	/// Address to be used as authority.
 	authority: RwLock<Address>,
 	/// Password used for signing messages.
@@ -100,6 +100,7 @@ pub struct Tendermint {
 	last_lock: AtomicUsize,
 	/// Bare hash of the proposed block, used for seal submission.
 	proposal: RwLock<Option<H256>>,
+	/// Set used to determine the current validators.
 	validators: Box<ValidatorSet + Send + Sync>,
 }
 
@@ -111,7 +112,7 @@ impl Tendermint {
 				params: params,
 				gas_limit_bound_divisor: our_params.gas_limit_bound_divisor,
 				builtins: builtins,
-				client: RwLock::new(Weak::new()),
+				client: RwLock::new(None),
 				step_service: IoService::<Step>::start()?,
 				authority: RwLock::new(Address::default()),
 				password: RwLock::new(None),
@@ -131,20 +132,26 @@ impl Tendermint {
 	}
 
 	fn update_sealing(&self) {
-		if let Some(c) = self.client.read().upgrade() {
-			c.update_sealing();
+		if let Some(ref weak) = *self.client.read() {
+			if let Some(c) = weak.upgrade() {
+				c.update_sealing();
+			}
 		}
 	}
 
 	fn submit_seal(&self, block_hash: H256, seal: Vec<Bytes>) {
-		if let Some(c) = self.client.read().upgrade() {
-			c.submit_seal(block_hash, seal);
+		if let Some(ref weak) = *self.client.read() {
+			if let Some(c) = weak.upgrade() {
+				c.submit_seal(block_hash, seal);
+			}
 		}
 	}
 
 	fn broadcast_message(&self, message: Bytes) {
-		if let Some(c) = self.client.read().upgrade() {
-			c.broadcast_consensus_message(message);
+		if let Some(ref weak) = *self.client.read() {
+			if let Some(c) = weak.upgrade() {
+				c.broadcast_consensus_message(message);
+			}
 		}
 	}
 
@@ -634,8 +641,7 @@ impl Engine for Tendermint {
 	}
 
 	fn register_client(&self, client: Weak<Client>) {
-		let mut guard = self.client.write();
-		guard.clone_from(&client);
+		*self.client.write() = Some(client.clone());
 		self.validators.register_call_contract(client);
 	}
 
