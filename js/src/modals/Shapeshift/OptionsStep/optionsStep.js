@@ -29,7 +29,7 @@ const WARNING_LABELS = {
   [WARNING_NO_PRICE]: (
     <FormattedMessage
       id='shapeshift.warning.noPrice'
-      defaultMessage='No price match if found for the selected coin' />
+      defaultMessage='No price match was found for the selected type' />
   )
 };
 
