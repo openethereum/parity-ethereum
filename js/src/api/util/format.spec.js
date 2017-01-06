@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { bytesToHex } from './format';
+import { bytesToHex, hexToBytes, hexToAscii, bytesToAscii, asciiToHex } from './format';
 
 describe('api/util/format', () => {
   describe('bytesToHex', () => {
@@ -24,6 +24,48 @@ describe('api/util/format', () => {
 
     it('correctly converts a non-empty array', () => {
       expect(bytesToHex([0, 15, 16])).to.equal('0x000f10');
+    });
+  });
+
+  describe('hexToBytes', () => {
+    it('correctly converts an empty string', () => {
+      expect(hexToBytes('')).to.deep.equal([]);
+      expect(hexToBytes('0x')).to.deep.equal([]);
+    });
+
+    it('correctly converts a non-empty string', () => {
+      expect(hexToBytes('0x000f10')).to.deep.equal([0, 15, 16]);
+    });
+  });
+
+  describe('asciiToHex', () => {
+    it('correctly converts an empty string', () => {
+      expect(asciiToHex('')).to.equal('0x');
+    });
+
+    it('correctly converts a non-empty string', () => {
+      expect(asciiToHex('abc')).to.equal('0x616263');
+    });
+  });
+
+  describe('hexToAscii', () => {
+    it('correctly converts an empty string', () => {
+      expect(hexToAscii('')).to.equal('');
+      expect(hexToAscii('0x')).to.equal('');
+    });
+
+    it('correctly converts a non-empty string', () => {
+      expect(hexToAscii('0x616263')).to.equal('abc');
+    });
+  });
+
+  describe('bytesToAscii', () => {
+    it('correctly converts an empty string', () => {
+      expect(bytesToAscii([])).to.equal('');
+    });
+
+    it('correctly converts a non-empty string', () => {
+      expect(bytesToAscii([97, 98, 99])).to.equal('abc');
     });
   });
 });
