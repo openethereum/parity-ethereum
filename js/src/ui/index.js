@@ -30,6 +30,7 @@ import ContextProvider from './ContextProvider';
 import CopyToClipboard from './CopyToClipboard';
 import Editor from './Editor';
 import Errors from './Errors';
+import Features, { FEATURES, FeaturesStore } from './Features';
 import Form, { AddressSelect, FormWrap, TypedInput, Input, InputAddress, InputAddressSelect, InputChip, InputInline, Select, RadioButtons } from './Form';
 import GasPriceEditor from './GasPriceEditor';
 import GasPriceSelector from './GasPriceSelector';
@@ -70,6 +71,9 @@ export {
   CopyToClipboard,
   Editor,
   Errors,
+  FEATURES,
+  Features,
+  FeaturesStore,
   Form,
   FormWrap,
   GasPriceEditor,
