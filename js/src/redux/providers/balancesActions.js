@@ -31,10 +31,13 @@ const ETH = {
   image: imagesEthereum
 };
 
+let prevNetChain;
+
 function setBalances (_balances) {
   return (dispatch, getState) => {
     const state = getState();
 
+    const { netChain } = state.nodeStatus;
     const accounts = state.personal.accounts;
     const nextBalances = _balances;
     const prevBalances = state.balances.balances;
@@ -65,12 +68,12 @@ function setBalances (_balances) {
           const oldValue = nextTokens[tokenIndex].value;
 
           // If received a token/eth (old value < new value), notify
-          if (oldValue.lt(value) && accounts[address]) {
+          if (oldValue.lt(value) && accounts[address] && netChain === prevNetChain) {
             const account = accounts[address];
             const txValue = value.minus(oldValue);
 
             const redirectToAccount = () => {
-              const route = `/account/${account.address}`;
+              const route = `/accounts/${account.address}`;
               dispatch(push(route));
             };
 
@@ -84,6 +87,7 @@ function setBalances (_balances) {
       balances[address] = { txCount: txCount || new BigNumber(0), tokens: nextTokens };
     });
 
+    prevNetChain = netChain;
     dispatch(_setBalances(balances));
   };
 }

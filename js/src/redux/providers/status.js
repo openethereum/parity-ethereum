@@ -89,7 +89,7 @@ export default class Status {
     const gotConnected = !this._apiStatus.isConnected && apiStatus.isConnected;
 
     if (gotConnected) {
-      this._pollLongStatus();
+      this._pollLongStatus(gotConnected);
     }
 
     if (!isEqual(apiStatus, this._apiStatus)) {
@@ -172,17 +172,17 @@ export default class Status {
    * fetched every 30s just in case, and whenever
    * the client got reconnected.
    */
-  _pollLongStatus = () => {
+  _pollLongStatus = (gotConnected = false) => {
     if (!this._api.isConnected) {
       return;
     }
 
-    const nextTimeout = (timeout = 30000) => {
+    const nextTimeout = (timeout = 30000, gotConnected = false) => {
       if (this._longStatusTimeoutId) {
         clearTimeout(this._longStatusTimeoutId);
       }
 
-      this._longStatusTimeoutId = setTimeout(this._pollLongStatus, timeout);
+      this._longStatusTimeoutId = setTimeout(() => this._pollLongStatus(gotConnected), timeout);
     };
 
     // Poll Miner settings just in case
@@ -221,12 +221,25 @@ export default class Status {
           this._store.dispatch(statusCollection(longStatus));
           this._longStatus = longStatus;
         }
+
+        return true;
       })
       .catch((error) => {
-        console.error('_pollLongStatus', error);
-      });
+        // Try again soon if just got reconnected (network might take some time
+        // to boot up)
+        if (gotConnected) {
+          nextTimeout(500, true);
+          return false;
+        }
 
-    nextTimeout(60000);
+        console.error('_pollLongStatus', error);
+        return true;
+      })
+      .then((callNext) => {
+        if (callNext) {
+          nextTimeout(60000);
+        }
+      });
   }
 
   _pollLogs = () => {
