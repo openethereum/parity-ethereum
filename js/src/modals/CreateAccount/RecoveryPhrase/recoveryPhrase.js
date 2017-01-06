@@ -33,7 +33,7 @@ export default class RecoveryPhrase extends Component {
     accountNameError: ERRORS.noName,
     isValidPass: true,
     isValidName: false,
-    isValidPhrase: false,
+    isValidPhrase: true,
     passwordHint: '',
     password1: '',
     password1Error: null,
