@@ -461,7 +461,7 @@ class DeployContract extends Component {
       .deploy(options, params, this.onDeploymentState)
       .then((address) => {
         const blockNumber = contract._receipt
-          ? contract._receipt.blockNumber.toNumber()
+          ? contract.receipt.blockNumber.toNumber()
           : null;
 
         return Promise.all([

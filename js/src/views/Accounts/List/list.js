@@ -242,8 +242,8 @@ class List extends Component {
         const tags = account.meta.tags || [];
         const name = account.name || '';
 
-        const values = []
-          .concat(tags, name)
+        const values = tags
+          .concat(name)
           .map(v => v.toLowerCase());
 
         return searchValues

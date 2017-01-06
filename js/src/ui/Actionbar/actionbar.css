@@ -27,13 +27,14 @@
 }
 
 .toolbuttons {
-}
+  overflow: hidden;
 
-.toolbuttons button {
-  margin: 10px 0 10px 16px !important;
-  color: white !important;
-}
+  button {
+    margin: 10px 0 10px 16px !important;
+    color: white !important;
+  }
 
-.toolbuttons svg {
-  fill: white !important;
+  svg {
+    fill: white !important;
+  }
 }
