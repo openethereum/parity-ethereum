@@ -22,7 +22,7 @@ import ReactTooltip from 'react-tooltip';
 
 import { Balance, Container, ContainerTitle, IdentityIcon, IdentityName, Tags, Input } from '~/ui';
 import Certifications from '~/ui/Certifications';
-import { nullableProptype } from '~/util/proptypes';
+import { nodeOrStringProptype, nullableProptype } from '~/util/proptypes';
 
 import styles from '../accounts.css';
 
@@ -34,6 +34,7 @@ export default class Summary extends Component {
   static propTypes = {
     account: PropTypes.object.isRequired,
     balance: PropTypes.object,
+    description: nodeOrStringProptype(),
     link: PropTypes.string,
     name: PropTypes.string,
     noLink: PropTypes.bool,
@@ -89,7 +90,7 @@ export default class Summary extends Component {
   }
 
   render () {
-    const { account, handleAddSearchToken } = this.props;
+    const { account, description, handleAddSearchToken } = this.props;
     const { tags } = account.meta;
 
     if (!account) {
@@ -117,7 +118,7 @@ export default class Summary extends Component {
           <ContainerTitle
             byline={ addressComponent }
             className={ styles.main }
-            description={ account.description }
+            description={ description }
             title={ this.renderLink() }
           />
         </div>

@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import React, { Component, PropTypes } from 'react';
+import React, { createElement as createReactElement, Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
@@ -34,6 +34,7 @@ class List extends Component {
     order: PropTypes.string,
     orderFallback: PropTypes.string,
     search: PropTypes.array,
+    summary: PropTypes.func,
 
     fetchCertifiers: PropTypes.func.isRequired,
     fetchCertifications: PropTypes.func.isRequired,
@@ -57,7 +58,7 @@ class List extends Component {
   }
 
   renderAccounts () {
-    const { accounts, balances, empty, link, handleAddSearchToken } = this.props;
+    const { accounts, balances, empty } = this.props;
 
     if (empty) {
       return (
@@ -80,18 +81,29 @@ class List extends Component {
       return (
         <div
           className={ styles.item }
-          key={ address }>
-          <Summary
-            link={ link }
-            account={ account }
-            balance={ balance }
-            owners={ owners }
-            handleAddSearchToken={ handleAddSearchToken }
-            showCertifications
-          />
+          key={ address }
+        >
+          { this.renderSummary(account, balance, owners) }
         </div>
       );
     });
+  }
+
+  renderSummary (account, balance, owners) {
+    const { handleAddSearchToken, link, summary } = this.props;
+
+    const props = {
+      account, balance, handleAddSearchToken, link, owners,
+      showCertifications: true
+    };
+
+    if (summary) {
+      return createReactElement(summary, props);
+    }
+
+    return (
+      <Summary { ...props } />
+    );
   }
 
   getAddresses () {
