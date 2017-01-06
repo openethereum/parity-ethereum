@@ -134,7 +134,15 @@ class List extends Component {
     });
   }
 
-  compareAccounts (accountA, accountB, key) {
+  compareAccounts (accountA, accountB, key, _reverse = null) {
+    if (key && key.split(':')[1] === '-1') {
+      return this.compareAccounts(accountA, accountB, key.split(':')[0], true);
+    }
+
+    if (key === 'timestamp' && _reverse === null) {
+      return this.compareAccounts(accountA, accountB, key, true);
+    }
+
     if (key === 'name') {
       return accountA.name.localeCompare(accountB.name);
     }
@@ -189,7 +197,9 @@ class List extends Component {
       return tagsA.localeCompare(tagsB);
     }
 
-    const reverse = key === 'timestamp' ? -1 : 1;
+    const reverse = _reverse
+      ? -1
+      : 1;
 
     const metaA = accountA.meta[key];
     const metaB = accountB.meta[key];

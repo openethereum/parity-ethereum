@@ -113,7 +113,7 @@ class Contracts extends Component {
         order={ this.state.sortOrder }
         metas={ [
           { key: 'timestamp', label: 'date' },
-          { key: 'blockNumber', label: 'mined block' }
+          { key: 'blockNumber:-1', label: 'mined block' }
         ] }
         showDefault={ false }
         onChange={ onChange } />

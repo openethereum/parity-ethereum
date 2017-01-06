@@ -37,6 +37,11 @@
   }
 }
 
+.blockNumber {
+  color: rgba(255, 255, 255, 0.25);
+  margin-top: 1.5em;
+}
+
 .txhash {
   text-overflow: ellipsis;
   width: 20%;
