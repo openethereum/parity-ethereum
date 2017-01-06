@@ -53,7 +53,9 @@ export const setupWorker = (store) => {
   getWorker()
     .then((worker) => {
       if (worker) {
-        worker._worker.addEventListener('statechange', (e) => {
+        worker._worker.addEventListener('statechange', (event) => {
+          console.warn('worker state changed to', worker._worker.state);
+
           // Re-install the new Worker
           if (worker._worker.state === 'redundant') {
             setupWorker(store);
