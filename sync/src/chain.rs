@@ -1995,9 +1995,6 @@ impl ChainSync {
 			trace!(target: "sync", "Bad blocks in the queue, restarting");
 			self.restart(io);
 		}
-		for peer_info in self.peers.values_mut() {
-			peer_info.last_sent_transactions.clear();
-		}
 	}
 }
 
@@ -2334,7 +2331,7 @@ mod tests {
 	}
 
 	#[test]
-	fn propagates_transactions_again_after_new_block() {
+	fn should_not_propagate_transactions_again_after_new_block() {
 		let mut client = TestBlockChainClient::new();
 		client.add_blocks(100, EachBlockWith::Uncle);
 		client.insert_transaction_to_queue();
@@ -2347,14 +2344,13 @@ mod tests {
 		// Try to propagate same transactions for the second time
 		let peer_count2 = sync.propagate_new_transactions(&mut io);
 
-		// 2 message should be send
-		assert_eq!(2, io.queue.len());
-		// 1 peer should be updated twice
+		// 1 message should be send
+		assert_eq!(1, io.queue.len());
+		// 1 peer should be updated only for the first time
 		assert_eq!(1, peer_count);
-		assert_eq!(1, peer_count2);
+		assert_eq!(0, peer_count2);
 		// TRANSACTIONS_PACKET
 		assert_eq!(0x02, io.queue[0].packet_id);
-		assert_eq!(0x02, io.queue[1].packet_id);
 	}
 
 	#[test]
