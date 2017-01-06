@@ -38,6 +38,7 @@ pub mod recorder;
 
 mod fatdb;
 mod fatdbmut;
+mod lookup;
 
 pub use self::standardmap::{Alphabet, StandardMap, ValueMode};
 pub use self::triedbmut::TrieDBMut;
@@ -76,6 +77,46 @@ pub type Result<T> = ::std::result::Result<T, Box<TrieError>>;
 /// Trie-Item type.
 pub type TrieItem<'a> = Result<(Vec<u8>, DBValue)>;
 
+/// Description of what kind of query will be made to the trie.
+///
+/// This is implemented for any &mut recorder (where the query will return
+/// a DBValue), any function taking raw bytes (where no recording will be made),
+/// or any tuple of (&mut Recorder, FnOnce(&[u8]))
+pub trait Query {
+	/// Output item.
+	type Item;
+
+	/// Decode a byte-slice into the desired item.
+	fn decode(self, &[u8]) -> Self::Item;
+
+	/// Record that a node has been passed through.
+	fn record(&mut self, &H256, &[u8], u32) { }
+}
+
+impl<'a> Query for &'a mut Recorder {
+	type Item = DBValue;
+
+	fn decode(self, value: &[u8]) -> DBValue { DBValue::from_slice(value) }
+	fn record(&mut self, hash: &H256, data: &[u8], depth: u32) {
+		(&mut **self).record(hash, data, depth);
+	}
+}
+
+impl<F, T> Query for F where F: for<'a> FnOnce(&'a [u8]) -> T {
+	type Item = T;
+
+	fn decode(self, value: &[u8]) -> T { (self)(value) }
+}
+
+impl<'a, F, T> Query for (&'a mut Recorder, F) where F: FnOnce(&[u8]) -> T {
+	type Item = T;
+
+	fn decode(self, value: &[u8]) -> T { (self.1)(value) }
+	fn record(&mut self, hash: &H256, data: &[u8], depth: u32) {
+		self.0.record(hash, data, depth)
+	}
+}
+
 /// A key-value datastore implemented as a database-backed modified Merkle tree.
 pub trait Trie {
 	/// Return the root of the trie.
@@ -91,13 +132,13 @@ pub trait Trie {
 
 	/// What is the value of the given key in this trie?
 	fn get<'a, 'key>(&'a self, key: &'key [u8]) -> Result<Option<DBValue>> where 'a: 'key {
-		self.get_recorded(key, &mut recorder::NoOp)
+		self.get_with(key, DBValue::from_slice)
 	}
 
-	/// Query the value of the given key in this trie while recording visited nodes
-	/// to the given recorder. If the query encounters an error, the nodes passed to the recorder are unspecified.
-	fn get_recorded<'a, 'b, R: 'b>(&'a self, key: &'b [u8], rec: &'b mut R) -> Result<Option<DBValue>>
-		where 'a: 'b, R: Recorder;
+	/// Search for the key with the given query parameter. See the docs of the `Query`
+	/// trait for more details.
+	fn get_with<'a, 'key, Q: Query>(&'a self, key: &'key [u8], query: Q)
+		-> Result<Option<Q::Item>> where 'a: 'key;
 
 	/// Returns a depth-first iterator over the elements of trie.
 	fn iter<'a>(&'a self) -> Result<Box<TrieIterator<Item = TrieItem> + 'a>>;
@@ -192,9 +233,10 @@ impl<'db> Trie for TrieKinds<'db> {
 		wrapper!(self, contains, key)
 	}
 
-	fn get_recorded<'a, 'b, R: 'b>(&'a self, key: &'b [u8], r: &'b mut R) -> Result<Option<DBValue>>
-		where 'a: 'b, R: Recorder {
-		wrapper!(self, get_recorded, key, r)
+	fn get_with<'a, 'key, Q: Query>(&'a self, key: &'key [u8], query: Q) -> Result<Option<Q::Item>>
+		where 'a: 'key
+	{
+		wrapper!(self, get_with, key, query)
 	}
 
 	fn iter<'a>(&'a self) -> Result<Box<TrieIterator<Item = TrieItem> + 'a>> {
