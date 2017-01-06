@@ -20,11 +20,9 @@ import runtime from 'serviceworker-webpack-plugin/lib/runtime';
 import { setWorker } from './workerActions';
 
 function getWorker () {
-  let workerRegistration;
-
   // Setup the Service Worker
   if ('serviceWorker' in navigator) {
-    workerRegistration = runtime
+    return runtime
       .register()
       .then(() => navigator.serviceWorker.ready)
       .then((registration) => {
@@ -33,11 +31,9 @@ function getWorker () {
 
         return new PromiseWorker(worker);
       });
-  } else {
-    workerRegistration = Promise.reject('Service Worker is not available in your browser.');
   }
 
-  return workerRegistration;
+  return Promise.reject('Service Worker is not available in your browser.');
 }
 
 export const setupWorker = (store) => {

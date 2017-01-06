@@ -96,21 +96,19 @@ export default class SignerMiddleware {
 
       // NOTE: Derving the key takes significant amount of time,
       // make sure to display some kind of "in-progress" state.
-      return signerPromise
-        .then((signer) => {
-          return noncePromise
-            .then((nonce) => {
-              const txData = {
-                to: inHex(transaction.to),
-                nonce: inHex(transaction.nonce.isZero() ? nonce : transaction.nonce),
-                gasPrice: inHex(transaction.gasPrice),
-                gasLimit: inHex(transaction.gas),
-                value: inHex(transaction.value),
-                data: inHex(transaction.data)
-              };
+      return Promise
+        .all([ signerPromise, noncePromise ])
+        .then(([ signer, nonce ]) => {
+          const txData = {
+            to: inHex(transaction.to),
+            nonce: inHex(transaction.nonce.isZero() ? nonce : transaction.nonce),
+            gasPrice: inHex(transaction.gasPrice),
+            gasLimit: inHex(transaction.gas),
+            value: inHex(transaction.value),
+            data: inHex(transaction.data)
+          };
 
-              return signer.signTransaction(txData);
-            });
+          return signer.signTransaction(txData);
         })
         .then((rawTx) => {
           return handlePromise(this._api.signer.confirmRequestRaw(id, rawTx));
