@@ -14,64 +14,93 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import React, { Component, PropTypes } from 'react';
 import { Checkbox, MenuItem } from 'material-ui';
+import { observer } from 'mobx-react';
+import React, { Component, PropTypes } from 'react';
+import { FormattedMessage } from 'react-intl';
 
-import { Form, Input, Select } from '~/ui';
+import { Form, Input, Select, Warning } from '~/ui';
 
 import Price from '../Price';
-
+import { WARNING_NO_PRICE } from '../store';
 import styles from './optionsStep.css';
 
+const WARNING_LABELS = {
+  [WARNING_NO_PRICE]: (
+    <FormattedMessage
+      id='shapeshift.warning.noPrice'
+      defaultMessage='No price match was found for the selected type' />
+  )
+};
+
+@observer
 export default class OptionsStep extends Component {
   static propTypes = {
-    refundAddress: PropTypes.string.isRequired,
-    coinSymbol: PropTypes.string.isRequired,
-    coins: PropTypes.array.isRequired,
-    price: PropTypes.object,
-    hasAccepted: PropTypes.bool.isRequired,
-    onChangeSymbol: PropTypes.func.isRequired,
-    onChangeRefund: PropTypes.func.isRequired,
-    onToggleAccept: PropTypes.func.isRequired
+    store: PropTypes.object.isRequired
   };
 
   render () {
-    const { coinSymbol, coins, refundAddress, hasAccepted, onToggleAccept } = this.props;
-    const label = `(optional) ${coinSymbol} return address`;
+    const { coinSymbol, coins, hasAcceptedTerms, price, refundAddress, warning } = this.props.store;
 
     if (!coins.length) {
       return (
         <div className={ styles.empty }>
-          There are currently no exchange pairs/coins available to fund with.
+          <FormattedMessage
+            id='shapeshift.optionsStep.noPairs'
+            defaultMessage='There are currently no exchange pairs/coins available to fund with.' />
         </div>
       );
     }
-
-    const items = coins.map(this.renderCoinSelectItem);
 
     return (
       <div className={ styles.body }>
         <Form>
           <Select
             className={ styles.coinselector }
-            label='fund account from'
-            hint='the type of crypto conversion to do'
-            value={ coinSymbol }
-            onChange={ this.onSelectCoin }>
-            { items }
+            hint={
+              <FormattedMessage
+                id='shapeshift.optionsStep.typeSelect.hint'
+                defaultMessage='the type of crypto conversion to do' />
+            }
+            label={
+              <FormattedMessage
+                id='shapeshift.optionsStep.typeSelect.label'
+                defaultMessage='fund account from' />
+            }
+            onChange={ this.onSelectCoin }
+            value={ coinSymbol }>
+            {
+              coins.map(this.renderCoinSelectItem)
+            }
           </Select>
           <Input
-            label={ label }
-            hint='the return address for send failures'
-            value={ refundAddress }
-            onSubmit={ this.onChangeRefund } />
+            hint={
+              <FormattedMessage
+                id='shapeshift.optionsStep.returnAddr.hint'
+                defaultMessage='the return address for send failures' />
+            }
+            label={
+              <FormattedMessage
+                id='shapeshift.optionsStep.returnAddr.label'
+                defaultMessage='(optional) {coinSymbol} return address'
+                values={ { coinSymbol } } />
+            }
+            onSubmit={ this.onChangeRefundAddress }
+            value={ refundAddress } />
           <Checkbox
+            checked={ hasAcceptedTerms }
             className={ styles.accept }
-            label='I understand that ShapeShift.io is a 3rd-party service and by using the service any transfer of information and/or funds is completely out of the control of Parity'
-            checked={ hasAccepted }
-            onCheck={ onToggleAccept } />
+            label={
+              <FormattedMessage
+                id='shapeshift.optionsStep.terms.label'
+                defaultMessage='I understand that ShapeShift.io is a 3rd-party service and by using the service any transfer of information and/or funds is completely out of the control of Parity' />
+            }
+            onCheck={ this.onToggleAcceptTerms } />
         </Form>
-        <Price { ...this.props } />
+        <Warning warning={ WARNING_LABELS[warning] } />
+        <Price
+          coinSymbol={ coinSymbol }
+          price={ price } />
       </div>
     );
   }
@@ -81,7 +110,9 @@ export default class OptionsStep extends Component {
 
     const item = (
       <div className={ styles.coinselect }>
-        <img className={ styles.coinimage } src={ image } />
+        <img
+          className={ styles.coinimage }
+          src={ image } />
         <div className={ styles.coindetails }>
           <div className={ styles.coinsymbol }>
             { symbol }
@@ -103,11 +134,15 @@ export default class OptionsStep extends Component {
     );
   }
 
-  onSelectCoin = (event, idx, value) => {
-    this.props.onChangeSymbol(event, value);
+  onChangeRefundAddress = (event, refundAddress) => {
+    this.props.store.setRefundAddress(refundAddress);
   }
 
-  onChangeAddress = (event, value) => {
-    this.props.onChangeRefund(value);
+  onSelectCoin = (event, index, coinSymbol) => {
+    this.props.store.setCoinSymbol(coinSymbol);
+  }
+
+  onToggleAcceptTerms = () => {
+    this.props.store.toggleAcceptTerms();
   }
 }

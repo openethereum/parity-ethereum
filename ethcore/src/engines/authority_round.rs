@@ -37,6 +37,7 @@ use service::ClientIoMessage;
 use transaction::SignedTransaction;
 use env_info::EnvInfo;
 use builtin::Builtin;
+use state::CleanupMode;
 
 /// `AuthorityRound` params.
 #[derive(Debug, PartialEq)]
@@ -49,6 +50,8 @@ pub struct AuthorityRoundParams {
 	pub authorities: Vec<Address>,
 	/// Number of authorities.
 	pub authority_n: usize,
+	/// Block reward.
+	pub block_reward: U256,
 	/// Starting step,
 	pub start_step: Option<u64>,
 }
@@ -60,6 +63,7 @@ impl From<ethjson::spec::AuthorityRoundParams> for AuthorityRoundParams {
 			step_duration: Duration::from_secs(p.step_duration.into()),
 			authority_n: p.authorities.len(),
 			authorities: p.authorities.into_iter().map(Into::into).collect::<Vec<_>>(),
+			block_reward: p.block_reward.map_or_else(U256::zero, Into::into),
 			start_step: p.start_step.map(Into::into),
 		}
 	}
@@ -247,6 +251,20 @@ impl Engine for AuthorityRound {
 			trace!(target: "poa", "generate_seal: Not a proposer for step {}.", step);
 		}
 		Seal::None
+	}
+
+	/// Apply the block reward on finalisation of the block.
+	fn on_close_block(&self, block: &mut ExecutedBlock) {
+		let reward = self.our_params.block_reward;
+		let fields = block.fields_mut();
+
+		// Bestow block reward
+		fields.state.add_balance(fields.header.author(), &reward, CleanupMode::NoEmpty);
+
+		// Commit state so that we can actually figure out the state root.
+		if let Err(e) = fields.state.commit() {
+			warn!("Encountered error on state commit: {}", e);
+		}
 	}
 
 	/// Check the number of seal fields.

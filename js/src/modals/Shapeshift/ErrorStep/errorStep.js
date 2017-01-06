@@ -14,25 +14,30 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
+import { FormattedMessage } from 'react-intl';
 
 import styles from '../shapeshift.css';
 
+@observer
 export default class ErrorStep extends Component {
   static propTypes = {
-    error: PropTypes.shape({
-      fatal: PropTypes.bool,
-      message: PropTypes.string.isRequired
-    }).isRequired
+    store: PropTypes.object.isRequired
   }
 
   render () {
-    const { error } = this.props;
+    const { error } = this.props.store;
 
     return (
       <div className={ styles.body }>
         <div className={ styles.info }>
-          The funds shifting via <a href='https://shapeshift.io' target='_blank'>ShapeShift.io</a> failed with a fatal error on the exchange. The error message received from the exchange is as follow:
+          <FormattedMessage
+            id='shapeshift.errorStep.info'
+            defaultMessage='The funds shifting via {shapeshiftLink} failed with a fatal error on the exchange. The error message received from the exchange is as follow:'
+            values={ {
+              shapeshiftLink: <a href='https://shapeshift.io' target='_blank'>ShapeShift.io</a>
+            } } />
         </div>
         <div className={ styles.error }>
           { error.message }
