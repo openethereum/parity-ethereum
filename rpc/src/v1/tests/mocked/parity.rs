@@ -355,3 +355,4 @@ fn rpc_parity_next_nonce() {
 	assert_eq!(io1.handle_request_sync(&request), Some(response1.to_owned()));
 	assert_eq!(io2.handle_request_sync(&request), Some(response2.to_owned()));
 }
+
