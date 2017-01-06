@@ -29,12 +29,29 @@
 .event {
   td {
     vertical-align: top;
-    padding: 1em 0.5em;
+    padding: 0 0.5em 1.5em;
 
     div {
       white-space: nowrap;
     }
+
+    &.timestamp {
+      padding-right: 1.5em;
+      text-align: right;
+      line-height: 1.5em;
+      opacity: 0.5;
+      white-space: nowrap;
+    }
   }
+}
+
+.origin {
+  text-align: left;
+  padding-left: 32px;
+  text-indent: 1em;
+  color: rgba(255, 255, 255, 0.5);
+  text-transform: uppercase;
+  font-size: 0.9em;
 }
 
 .txhash {
@@ -52,14 +69,6 @@
 
 .pending {
   opacity: 0.5;
-}
-
-.timestamp {
-  padding-top: 1.5em;
-  text-align: right;
-  line-height: 1.5em;
-  opacity: 0.5;
-  white-space: nowrap;
 }
 
 .eventDetails {
