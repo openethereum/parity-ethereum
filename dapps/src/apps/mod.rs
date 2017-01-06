@@ -57,7 +57,7 @@ pub fn all_endpoints<F: Fetch>(
 		if let Some((id, endpoint)) = fs::local_endpoint(path.clone(), signer_address.clone()) {
 			pages.insert(id, endpoint);
 		} else {
-			warn!(target: "dapps", "Ingoring invalid dapp at {}", path.display());
+			warn!(target: "dapps", "Ignoring invalid dapp at {}", path.display());
 		}
 	}
 
