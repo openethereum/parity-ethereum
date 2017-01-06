@@ -18,7 +18,7 @@
 				"ecip1010ContinueTransition": 5000000,
 
 				"eip161abcTransition": "0x7fffffffffffffff",
-				"eip161dTransition": "0x7fffffffffffffff",
+				"eip161dTransition": "0x7fffffffffffffff"
 			}
 		}
 	},

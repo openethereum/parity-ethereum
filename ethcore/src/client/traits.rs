@@ -188,7 +188,7 @@ pub trait BlockChainClient : Sync + Send {
 	fn last_hashes(&self) -> LastHashes;
 
 	/// Queue transactions for importing.
-	fn queue_transactions(&self, transactions: Vec<Bytes>);
+	fn queue_transactions(&self, transactions: Vec<Bytes>, peer_id: usize);
 
 	/// list all transactions
 	fn pending_transactions(&self) -> Vec<SignedTransaction>;
@@ -267,3 +267,4 @@ pub trait MiningBlockChainClient : BlockChainClient {
 }
 
 impl IpcConfig for BlockChainClient { }
+
