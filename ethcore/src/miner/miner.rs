@@ -417,15 +417,12 @@ impl Miner {
 
 		let block = open_block.close();
 
-		let fetch_account = |a: &Address| AccountDetails {
-			nonce: chain.latest_nonce(a),
-			balance: chain.latest_balance(a),
-		};
+		let fetch_nonce = |a: &Address| chain.latest_nonce(a);
 
 		{
 			let mut queue = self.transaction_queue.lock();
 			for hash in invalid_transactions {
-				queue.remove_invalid(&hash, &fetch_account);
+				queue.remove_invalid(&hash, &fetch_nonce);
 			}
 			for hash in transactions_to_penalize {
 				queue.penalize(&hash);
@@ -597,6 +594,8 @@ impl Miner {
 		let schedule = chain.latest_schedule();
 		let gas_required = |tx: &SignedTransaction| tx.gas_required(&schedule).into();
 		let best_block_header = chain.best_block_header().decode();
+		let insertion_time = chain.chain_info().best_block_number;
+
 		transactions.into_iter()
 			.map(|tx| {
 				if chain.transaction_block(TransactionId::Hash(tx.hash())).is_some() {
@@ -618,10 +617,10 @@ impl Miner {
 
 						match origin {
 							TransactionOrigin::Local | TransactionOrigin::RetractedBlock => {
-								transaction_queue.add(tx, origin, min_block, &fetch_account, &gas_required)
+								transaction_queue.add(tx, origin, insertion_time, min_block, &fetch_account, &gas_required)
 							},
 							TransactionOrigin::External => {
-								transaction_queue.add_with_banlist(tx, &fetch_account, &gas_required)
+								transaction_queue.add_with_banlist(tx, insertion_time, &fetch_account, &gas_required)
 							}
 						}
 					},
@@ -1141,8 +1140,13 @@ impl MinerService for Miner {
 
 		// ...and at the end remove the old ones
 		{
+			let fetch_account = |a: &Address| AccountDetails {
+				nonce: chain.latest_nonce(a),
+				balance: chain.latest_balance(a),
+			};
+			let time = chain.chain_info().best_block_number;
 			let mut transaction_queue = self.transaction_queue.lock();
-			transaction_queue.remove_old(|sender| chain.latest_nonce(sender));
+			transaction_queue.remove_old(&fetch_account, time);
 		}
 
 		if enacted.len() > 0 {

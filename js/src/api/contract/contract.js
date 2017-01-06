@@ -218,14 +218,19 @@ export default class Contract {
   }
 
   _encodeOptions (func, options, values) {
-    options.data = this.getCallData(func, options, values);
-    return options;
+    const data = this.getCallData(func, options, values);
+
+    return {
+      ...options,
+      data
+    };
   }
 
   _addOptionsTo (options = {}) {
-    return Object.assign({
-      to: this._address
-    }, options);
+    return {
+      to: this._address,
+      ...options
+    };
   }
 
   _bindFunction = (func) => {
