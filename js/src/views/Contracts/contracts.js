@@ -21,6 +21,8 @@ import { bindActionCreators } from 'redux';
 import ContentAdd from 'material-ui/svg-icons/content/add';
 import FileIcon from 'material-ui/svg-icons/action/description';
 import { uniq, isEqual } from 'lodash';
+import { FormattedMessage } from 'react-intl';
+import BigNumber from 'bignumber.js';
 
 import { Actionbar, ActionbarSearch, ActionbarSort, Button, Page } from '~/ui';
 import { AddContract, DeployContract } from '~/modals';
@@ -218,6 +220,25 @@ class Contracts extends Component {
 function mapStateToProps (state) {
   const { accounts, contracts, hasContracts } = state.personal;
   const { balances } = state.balances;
+
+  Object.values(contracts).forEach((contract) => {
+    if (!contract.meta || !contract.meta.blockNumber) {
+      return;
+    }
+
+    const { blockNumber } = contract.meta;
+    const formattedBlockNumber = (new BigNumber(blockNumber)).toFormat();
+
+    contract.description = (
+      <FormattedMessage
+        id='contracts.minedBlock'
+        defaultMessage='Mined at block #{blockNumber}'
+        values={ {
+          blockNumber: formattedBlockNumber
+        } }
+      />
+    );
+  });
 
   return {
     accounts,

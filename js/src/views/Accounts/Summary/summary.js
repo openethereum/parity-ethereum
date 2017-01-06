@@ -110,11 +110,17 @@ export default class Summary extends Component {
     return (
       <Container>
         <Tags tags={ tags } handleAddSearchToken={ handleAddSearchToken } />
-        <IdentityIcon
-          address={ address } />
-        <ContainerTitle
-          title={ this.renderLink() }
-          byline={ addressComponent } />
+        <div className={ styles.heading }>
+          <IdentityIcon
+            address={ address }
+          />
+          <ContainerTitle
+            byline={ addressComponent }
+            className={ styles.main }
+            description={ account.description }
+            title={ this.renderLink() }
+          />
+        </div>
 
         { this.renderOwners() }
         { this.renderBalance() }
