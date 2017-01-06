@@ -139,6 +139,7 @@ export default class Contract {
             }
 
             setState({ state: 'hasReceipt', receipt });
+            this._receipt = receipt;
             this._address = receipt.contractAddress;
             return this._address;
           });

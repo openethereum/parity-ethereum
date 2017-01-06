@@ -457,10 +457,15 @@ class DeployContract extends Component {
 
     this.setState({ step: 'DEPLOYMENT' });
 
-    api
-      .newContract(abiParsed)
+    const contract = api.newContract(abiParsed);
+
+    contract
       .deploy(options, params, this.onDeploymentState)
       .then((address) => {
+        const blockNumber = contract._receipt
+          ? contract._receipt.blockNumber.toNumber()
+          : null;
+
         return Promise.all([
           api.parity.setAccountName(address, name),
           api.parity.setAccountMeta(address, {
@@ -468,8 +473,9 @@ class DeployContract extends Component {
             contract: true,
             timestamp: Date.now(),
             deleted: false,
-            source,
-            description
+            blockNumber,
+            description,
+            source
           })
         ])
         .then(() => {
