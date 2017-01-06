@@ -28,7 +28,7 @@ const DEFAULTS = {
   [FEATURES.LANGUAGE]: {
     mode: MODES.TESTING,
     name: 'Language Selection',
-    description: 'Allows the changing to the default interface language'
+    description: 'Allows changing the default interface language'
   }
 };
 
