@@ -4,13 +4,13 @@
 !define WND_TITLE "Parity"
 !define WAIT_MS 5000
 !define SYNC_TERM 0x00100001
-  
+
 !define APPNAME "Parity"
 !define COMPANYNAME "Ethcore"
 !define DESCRIPTION "Fast, light, robust Ethereum implementation"
 !define VERSIONMAJOR 1
 !define VERSIONMINOR 4
-!define VERSIONBUILD 7
+!define VERSIONBUILD 8
 !define ARGS "--warp"
 !define FIRST_START_ARGS "ui --warp --mode=passive"
 
@@ -90,7 +90,7 @@ section "install"
 	# Files added here should be removed by the uninstaller (see section "uninstall")
 	file /oname=parity.exe ..\target\release\parity.exe
 	file /oname=ptray.exe ..\windows\ptray\x64\Release\ptray.exe
-	
+
 	file "logo.ico"
 	file vc_redist.x64.exe
 

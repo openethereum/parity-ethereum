@@ -99,7 +99,7 @@ pub use stats::NetworkStats;
 pub use session::SessionInfo;
 
 use io::TimerToken;
-pub use node_table::{is_valid_node_url, NodeId};
+pub use node_table::is_valid_node_url;
 
 const PROTOCOL_VERSION: u32 = 4;
 
