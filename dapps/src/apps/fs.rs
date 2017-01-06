@@ -17,7 +17,7 @@
 use std::io;
 use std::io::Read;
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use page::{LocalPageEndpoint, PageCache};
 use endpoint::{Endpoints, EndpointInfo};
 use apps::manifest::{MANIFEST_FILENAME, deserialize_manifest};
@@ -28,10 +28,79 @@ struct LocalDapp {
 	info: EndpointInfo,
 }
 
-fn local_dapps(dapps_path: String) -> Vec<LocalDapp> {
-	let files = fs::read_dir(dapps_path.as_str());
+/// Tries to find and read manifest file in given `path` to extract `EndpointInfo`
+/// If manifest is not found sensible default `EndpointInfo` is returned based on given `name`.
+fn read_manifest(name: &str, mut path: PathBuf) -> EndpointInfo {
+	path.push(MANIFEST_FILENAME);
+
+	fs::File::open(path.clone())
+		.map_err(|e| format!("{:?}", e))
+		.and_then(|mut f| {
+			// Reat file
+			let mut s = String::new();
+			f.read_to_string(&mut s).map_err(|e| format!("{:?}", e))?;
+			// Try to deserialize manifest
+			deserialize_manifest(s)
+		})
+		.map(Into::into)
+		.unwrap_or_else(|e| {
+			warn!(target: "dapps", "Cannot read manifest file at: {:?}. Error: {:?}", path, e);
+
+			EndpointInfo {
+				name: name.into(),
+				description: name.into(),
+				version: "0.0.0".into(),
+				author: "?".into(),
+				icon_url: "icon.png".into(),
+			}
+		})
+}
+
+/// Returns Dapp Id and Local Dapp Endpoint for given filesystem path.
+/// Parses the path to extract last component (for name).
+/// `None` is returned when path is invalid or non-existent.
+pub fn local_endpoint<P: AsRef<Path>>(path: P, signer_address: Option<(String, u16)>) -> Option<(String, Box<LocalPageEndpoint>)> {
+	let path = path.as_ref().to_owned();
+	path.canonicalize().ok().and_then(|path| {
+		let name = path.file_name().and_then(|name| name.to_str());
+		name.map(|name| {
+			let dapp = local_dapp(name.into(), path.clone());
+			(dapp.id, Box::new(LocalPageEndpoint::new(
+				dapp.path, dapp.info, PageCache::Disabled, signer_address.clone())
+			))
+		})
+	})
+}
+
+
+fn local_dapp(name: String, path: PathBuf) -> LocalDapp {
+	// try to get manifest file
+	let info = read_manifest(&name, path.clone());
+	LocalDapp {
+		id: name,
+		path: path,
+		info: info,
+	}
+}
+
+/// Returns endpoints for Local Dapps found for given filesystem path.
+/// Scans the directory and collects `LocalPageEndpoints`.
+pub fn local_endpoints<P: AsRef<Path>>(dapps_path: P, signer_address: Option<(String, u16)>) -> Endpoints {
+	let mut pages = Endpoints::new();
+	for dapp in local_dapps(dapps_path.as_ref()) {
+		pages.insert(
+			dapp.id,
+			Box::new(LocalPageEndpoint::new(dapp.path, dapp.info, PageCache::Disabled, signer_address.clone()))
+		);
+	}
+	pages
+}
+
+
+fn local_dapps(dapps_path: &Path) -> Vec<LocalDapp> {
+	let files = fs::read_dir(dapps_path);
 	if let Err(e) = files {
-		warn!(target: "dapps", "Unable to load local dapps from: {}. Reason: {:?}", dapps_path, e);
+		warn!(target: "dapps", "Unable to load local dapps from: {}. Reason: {:?}", dapps_path.display(), e);
 		return vec![];
 	}
 
@@ -59,51 +128,6 @@ fn local_dapps(dapps_path: String) -> Vec<LocalDapp> {
 			}
 			m.ok()
 		})
-		.map(|(name, path)| {
-			// try to get manifest file
-			let info = read_manifest(&name, path.clone());
-			LocalDapp {
-				id: name,
-				path: path,
-				info: info,
-			}
-		})
+		.map(|(name, path)| local_dapp(name, path))
 		.collect()
-}
-
-fn read_manifest(name: &str, mut path: PathBuf) -> EndpointInfo {
-	path.push(MANIFEST_FILENAME);
-
-	fs::File::open(path.clone())
-		.map_err(|e| format!("{:?}", e))
-		.and_then(|mut f| {
-			// Reat file
-			let mut s = String::new();
-			f.read_to_string(&mut s).map_err(|e| format!("{:?}", e))?;
-			// Try to deserialize manifest
-			deserialize_manifest(s)
-		})
-		.map(Into::into)
-		.unwrap_or_else(|e| {
-			warn!(target: "dapps", "Cannot read manifest file at: {:?}. Error: {:?}", path, e);
-
-			EndpointInfo {
-				name: name.into(),
-				description: name.into(),
-				version: "0.0.0".into(),
-				author: "?".into(),
-				icon_url: "icon.png".into(),
-			}
-		})
-}
-
-pub fn local_endpoints(dapps_path: String, signer_address: Option<(String, u16)>) -> Endpoints {
-	let mut pages = Endpoints::new();
-	for dapp in local_dapps(dapps_path) {
-		pages.insert(
-			dapp.id,
-			Box::new(LocalPageEndpoint::new(dapp.path, dapp.info, PageCache::Disabled, signer_address.clone()))
-		);
-	}
-	pages
 }

@@ -5,6 +5,7 @@ Parity. Ethereum Client.
 Usage:
   parity [options]
   parity ui [options]
+  parity dapp <path> [options]
   parity daemon <pid-file> [options]
   parity account (new | list ) [options]
   parity account import <path>... [options]
