@@ -16,6 +16,7 @@
 
 import CryptoJS from 'crypto-js';
 import CryptoSha3 from 'crypto-js/sha3';
+// import { keecak_256 } from 'js-sha3';
 
 export function sha3 (value, options) {
   if (options && options.encoding === 'hex') {
