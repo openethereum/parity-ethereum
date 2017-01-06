@@ -14,25 +14,26 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import { MenuItem } from 'material-ui';
+import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
-import { MenuItem } from 'material-ui';
 
-import { Select, Container, LanguageSelector } from '~/ui';
+import { Select, Container, Features, LanguageSelector } from '~/ui';
 
+import Store from './store';
 import layout from '../layout.css';
 
+@observer
 export default class Parity extends Component {
   static contextTypes = {
     api: PropTypes.object.isRequired
   }
 
-  state = {
-    mode: 'active'
-  }
+  store = new Store(this.context.api);
 
   componentWillMount () {
-    this.loadMode();
+    return this.store.loadMode();
   }
 
   render () {
@@ -49,91 +50,77 @@ export default class Parity extends Component {
             </div>
           </div>
           <div className={ layout.details }>
-            <LanguageSelector />
             { this.renderModes() }
+            <LanguageSelector />
+            <Features />
           </div>
         </div>
       </Container>
     );
   }
 
-  renderModes () {
-    const { mode } = this.state;
+  renderItem (mode, label) {
+    return (
+      <MenuItem
+        key={ mode }
+        label={ label }
+        value={ mode }>
+        { label }
+      </MenuItem>
+    );
+  }
 
-    const renderItem = (mode, label) => {
-      return (
-        <MenuItem
-          key={ mode }
-          value={ mode }
-          label={ label }>
-          { label }
-        </MenuItem>
-      );
-    };
+  renderModes () {
+    const { mode } = this.store;
 
     return (
       <Select
-        label={
-          <FormattedMessage
-            id='settings.parity.modes.label'
-            defaultMessage='mode of operation' />
-        }
+        id='parityModeSelect'
         hint={
           <FormattedMessage
             id='settings.parity.modes.hint'
             defaultMessage='the syning mode for the Parity node' />
         }
-        value={ mode }
-        onChange={ this.onChangeMode }>
+        label={
+          <FormattedMessage
+            id='settings.parity.modes.label'
+            defaultMessage='mode of operation' />
+        }
+        onChange={ this.onChangeMode }
+        value={ mode }>
         {
-          renderItem('active', <FormattedMessage
-            id='settings.parity.modes.mode_active'
-            defaultMessage='Parity continuously syncs the chain' />)
+          this.renderItem('active', (
+            <FormattedMessage
+              id='settings.parity.modes.mode_active'
+              defaultMessage='Parity continuously syncs the chain' />
+          ))
         }
         {
-          renderItem('passive', <FormattedMessage
-            id='settings.parity.modes.mode_passive'
-            defaultMessage='Parity syncs initially, then sleeps and wakes regularly to resync' />)
+          this.renderItem('passive', (
+            <FormattedMessage
+              id='settings.parity.modes.mode_passive'
+              defaultMessage='Parity syncs initially, then sleeps and wakes regularly to resync' />
+          ))
         }
         {
-          renderItem('dark', <FormattedMessage
-            id='settings.parity.modes.mode_dark'
-            defaultMessage='Parity syncs only when the RPC is active' />)
+          this.renderItem('dark', (
+            <FormattedMessage
+              id='settings.parity.modes.mode_dark'
+              defaultMessage='Parity syncs only when the RPC is active' />
+          ))
         }
         {
-          renderItem('offline', <FormattedMessage
-            id='settings.parity.modes.mode_offline'
-            defaultMessage="Parity doesn't sync" />)
+          this.renderItem('offline', (
+            <FormattedMessage
+              id='settings.parity.modes.mode_offline'
+              defaultMessage="Parity doesn't sync" />
+          ))
         }
       </Select>
     );
   }
 
   onChangeMode = (event, index, mode) => {
-    const { api } = this.context;
-
-    api.parity
-      .setMode(mode)
-      .then((result) => {
-        if (result) {
-          this.setState({ mode });
-        }
-      })
-      .catch((error) => {
-        console.warn('onChangeMode', error);
-      });
-  }
-
-  loadMode () {
-    const { api } = this.context;
-
-    api.parity
-      .mode()
-      .then((mode) => {
-        this.setState({ mode });
-      })
-      .catch((error) => {
-        console.warn('loadMode', error);
-      });
+    this.store.changeMode(mode || event.target.value);
   }
 }
