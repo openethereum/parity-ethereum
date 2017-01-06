@@ -1422,7 +1422,7 @@ impl ChainSync {
 		}
 
 		let mut item_count = r.item_count();
-		trace!(target: "sync", "{} -> Transactions ({} entries)", peer_id, item_count);
+		trace!(target: "sync", "{:02} -> Transactions ({} entries)", peer_id, item_count);
 		item_count = min(item_count, MAX_TX_TO_IMPORT);
 		let mut transactions = Vec::with_capacity(item_count);
 		for i in 0 .. item_count {
@@ -1963,7 +1963,7 @@ impl ChainSync {
 			let mut max_sent = 0;
 			for (peer_id, sent, rlp) in lucky_peers {
 				self.send_packet(io, peer_id, TRANSACTIONS_PACKET, rlp);
-				trace!(target: "sync", "{} <- Transactions ({} entries)", peer_id, sent);
+				trace!(target: "sync", "{:02} <- Transactions ({} entries)", peer_id, sent);
 				max_sent = max(max_sent, sent);
 			}
 			debug!(target: "sync", "Sent up to {} transactions to {} peers.", max_sent, peers);
@@ -1988,7 +1988,6 @@ impl ChainSync {
 				trace!(target: "sync", "Sent sealed block to all peers");
 			};
 		}
-		self.propagate_new_transactions(io);
 		self.last_sent_block_number = chain_info.best_block_number;
 	}
 
@@ -2362,7 +2361,7 @@ mod tests {
 	}
 
 	#[test]
-	fn should_not_propagate_transactions_again_after_new_block() {
+	fn does_not_propagate_new_transactions_after_new_block() {
 		let mut client = TestBlockChainClient::new();
 		client.add_blocks(100, EachBlockWith::Uncle);
 		client.insert_transaction_to_queue();
@@ -2371,6 +2370,8 @@ mod tests {
 		let ss = TestSnapshotService::new();
 		let mut io = TestIo::new(&mut client, &ss, &mut queue, None);
 		let peer_count = sync.propagate_new_transactions(&mut io);
+		// New block import should not trigger propagation.
+		// (we only propagate on timeout)
 		sync.chain_new_blocks(&mut io, &[], &[], &[], &[], &[]);
 		// Try to propagate same transactions for the second time
 		let peer_count2 = sync.propagate_new_transactions(&mut io);
