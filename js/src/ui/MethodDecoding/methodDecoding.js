@@ -167,7 +167,7 @@ class MethodDecoding extends Component {
   getAscii () {
     const { api } = this.context;
     const { transaction } = this.props;
-    const ascii = api.util.hex2Ascii(transaction.input || transaction.data);
+    const ascii = api.util.hexToAscii(transaction.input || transaction.data);
 
     return { value: ascii, valid: ASCII_INPUT.test(ascii) };
   }
