@@ -19,10 +19,11 @@ import React, { Component, PropTypes } from 'react';
 import { Link } from 'react-router';
 import { isEqual } from 'lodash';
 import ReactTooltip from 'react-tooltip';
+import { FormattedMessage } from 'react-intl';
 
 import { Balance, Container, ContainerTitle, IdentityIcon, IdentityName, Tags, Input } from '~/ui';
 import Certifications from '~/ui/Certifications';
-import { nodeOrStringProptype, nullableProptype } from '~/util/proptypes';
+import { nullableProptype } from '~/util/proptypes';
 
 import styles from '../accounts.css';
 
@@ -34,7 +35,6 @@ export default class Summary extends Component {
   static propTypes = {
     account: PropTypes.object.isRequired,
     balance: PropTypes.object,
-    description: nodeOrStringProptype(),
     link: PropTypes.string,
     name: PropTypes.string,
     noLink: PropTypes.bool,
@@ -90,7 +90,7 @@ export default class Summary extends Component {
   }
 
   render () {
-    const { account, description, handleAddSearchToken } = this.props;
+    const { account, handleAddSearchToken } = this.props;
     const { tags } = account.meta;
 
     if (!account) {
@@ -107,6 +107,8 @@ export default class Summary extends Component {
         allowCopy={ address }
       />
     );
+
+    const description = this.getDescription(account.meta);
 
     return (
       <Container>
@@ -127,6 +129,26 @@ export default class Summary extends Component {
         { this.renderBalance() }
         { this.renderCertifications() }
       </Container>
+    );
+  }
+
+  getDescription (meta = {}) {
+    const { blockNumber } = meta;
+
+    if (!blockNumber) {
+      return null;
+    }
+
+    const formattedBlockNumber = (new BigNumber(blockNumber)).toFormat();
+
+    return (
+      <FormattedMessage
+        id='accounts.summary.minedBlock'
+        defaultMessage='Mined at block #{blockNumber}'
+        values={ {
+          blockNumber: formattedBlockNumber
+        } }
+      />
     );
   }
 

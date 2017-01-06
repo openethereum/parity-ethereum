@@ -34,7 +34,6 @@ class List extends Component {
     order: PropTypes.string,
     orderFallback: PropTypes.string,
     search: PropTypes.array,
-    summary: PropTypes.func,
 
     fetchCertifiers: PropTypes.func.isRequired,
     fetchCertifications: PropTypes.func.isRequired,
@@ -90,19 +89,17 @@ class List extends Component {
   }
 
   renderSummary (account, balance, owners) {
-    const { handleAddSearchToken, link, summary } = this.props;
-
-    const props = {
-      account, balance, handleAddSearchToken, link, owners,
-      showCertifications: true
-    };
-
-    if (summary) {
-      return createReactElement(summary, props);
-    }
+    const { handleAddSearchToken, link } = this.props;
 
     return (
-      <Summary { ...props } />
+      <Summary
+        account={ account }
+        balance={ balance }
+        handleAddSearchToken={ handleAddSearchToken }
+        link={ link }
+        owners={ owners }
+        showCertifications
+      />
     );
   }
 

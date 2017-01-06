@@ -27,7 +27,6 @@ import { AddContract, DeployContract } from '~/modals';
 import { setVisibleAccounts } from '~/redux/providers/personalActions';
 
 import List from '../Accounts/List';
-import Summary from './summary';
 
 class Contracts extends Component {
   static contextTypes = {
@@ -94,7 +93,6 @@ class Contracts extends Component {
             order={ sortOrder }
             orderFallback='name'
             handleAddSearchToken={ this.onAddSearchToken }
-            summary={ Summary }
           />
         </Page>
       </div>
