@@ -92,6 +92,7 @@ pub struct RunCmd {
 	pub net_settings: NetworkSettings,
 	pub dapps_conf: dapps::Configuration,
 	pub signer_conf: signer::Configuration,
+	pub dapp: Option<String>,
 	pub ui: bool,
 	pub name: String,
 	pub custom_bootnodes: bool,
@@ -117,6 +118,17 @@ pub fn open_ui(dapps_conf: &dapps::Configuration, signer_conf: &signer::Configur
 	println!("{}", token.message);
 	Ok(())
 }
+
+pub fn open_dapp(dapps_conf: &dapps::Configuration, dapp: &str) -> Result<(), String> {
+	if !dapps_conf.enabled {
+		return Err("Cannot use DAPP command with Dapps turned off.".into())
+	}
+
+	let url = format!("http://{}:{}/{}/", dapps_conf.interface, dapps_conf.port, dapp);
+	url::open(&url);
+	Ok(())
+}
+
 
 pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> Result<bool, String> {
 	if cmd.ui && cmd.dapps_conf.enabled {
@@ -439,6 +451,10 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 	// start ui
 	if cmd.ui {
 		open_ui(&cmd.dapps_conf, &cmd.signer_conf)?;
+	}
+
+	if let Some(dapp) = cmd.dapp {
+		open_dapp(&cmd.dapps_conf, &dapp)?;
 	}
 
 	// Handle exit

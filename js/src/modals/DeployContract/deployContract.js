@@ -441,9 +441,7 @@ class DeployContract extends Component {
   }
 
   onCodeChange = (code) => {
-    const { api } = this.context;
-
-    this.setState(validateCode(code, api), this.estimateGas);
+    this.setState(validateCode(code), this.estimateGas);
   }
 
   onDeployStart = () => {

@@ -458,20 +458,62 @@ class WriteContract extends Component {
     const { bytecode } = contract;
     const abi = contract.interface;
 
+    const metadata = contract.metadata
+      ? (
+        <Input
+          allowCopy
+          label='Metadata'
+          readOnly
+          value={ contract.metadata }
+        />
+      )
+      : null;
+
     return (
       <div>
         <Input
+          allowCopy
+          label='ABI Interface'
           readOnly
           value={ abi }
-          label='ABI Interface'
         />
 
         <Input
+          allowCopy
+          label='Bytecode'
           readOnly
           value={ `0x${bytecode}` }
-          label='Bytecode'
         />
+
+        { metadata }
+        { this.renderSwarmHash(contract) }
       </div>
+    );
+  }
+
+  renderSwarmHash (contract) {
+    if (!contract || !contract.metadata) {
+      return null;
+    }
+
+    const { bytecode } = contract;
+
+    // @see https://solidity.readthedocs.io/en/develop/miscellaneous.html#encoding-of-the-metadata-hash-in-the-bytecode
+    const hashRegex = /a165627a7a72305820([a-f0-9]{64})0029$/;
+
+    if (!hashRegex.test(bytecode)) {
+      return null;
+    }
+
+    const hash = hashRegex.exec(bytecode)[1];
+
+    return (
+      <Input
+        allowCopy
+        label='Swarm Metadata Hash'
+        readOnly
+        value={ `${hash}` }
+      />
     );
   }
 

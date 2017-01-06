@@ -14,39 +14,41 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
+import { FormattedMessage } from 'react-intl';
 
 import Value from '../Value';
-
 import styles from '../shapeshift.css';
 
+@observer
 export default class CompletedStep extends Component {
   static propTypes = {
-    depositInfo: PropTypes.shape({
-      incomingCoin: PropTypes.number.isRequired,
-      incomingType: PropTypes.string.isRequired
-    }).isRequired,
-    exchangeInfo: PropTypes.shape({
-      outgoingCoin: PropTypes.string.isRequired,
-      outgoingType: PropTypes.string.isRequired
-    }).isRequired
+    store: PropTypes.object.isRequired
   }
 
   render () {
-    const { depositInfo, exchangeInfo } = this.props;
+    const { depositInfo, exchangeInfo } = this.props.store;
     const { incomingCoin, incomingType } = depositInfo;
     const { outgoingCoin, outgoingType } = exchangeInfo;
 
     return (
       <div className={ styles.center }>
         <div className={ styles.info }>
-          <a href='https://shapeshift.io' target='_blank'>ShapeShift.io</a> has completed the funds exchange.
+          <FormattedMessage
+            id='shapeshift.completedStep.completed'
+            defaultMessage='{shapeshiftLink} has completed the funds exchange.'
+            values={ {
+              shapeshiftLink: <a href='https://shapeshift.io' target='_blank'>ShapeShift.io</a>
+            } } />
         </div>
         <div className={ styles.hero }>
           <Value amount={ incomingCoin } symbol={ incomingType } /> => <Value amount={ outgoingCoin } symbol={ outgoingType } />
         </div>
         <div className={ styles.info }>
-          The change in funds will be reflected in your Parity account shortly.
+          <FormattedMessage
+            id='shapeshift.completedStep.parityFunds'
+            defaultMessage='The change in funds will be reflected in your Parity account shortly.' />
         </div>
       </div>
     );

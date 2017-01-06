@@ -14,17 +14,23 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { keccak_256 } from 'js-sha3'; // eslint-disable-line
+import { shallow } from 'enzyme';
+import React from 'react';
 
-import { hexToBytes } from './format';
+import Value from './';
 
-export function sha3 (value, options) {
-  if (options && options.encoding === 'hex') {
-    const bytes = hexToBytes(value);
-    return sha3(bytes);
-  }
+let component;
 
-  const hash = keccak_256(value);
+function render (props = {}) {
+  component = shallow(
+    <Value { ...props } />
+  );
 
-  return `0x${hash}`;
+  return component;
 }
+
+describe('modals/Shapeshift/Value', () => {
+  it('renders defaults', () => {
+    expect(render()).to.be.ok;
+  });
+});

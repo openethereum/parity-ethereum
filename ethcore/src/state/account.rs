@@ -178,8 +178,8 @@ impl Account {
 			SecTrieDBMut would not set it to an invalid state root. Therefore the root is valid and DB creation \
 			using it will not fail.");
 
-		let item: U256 = match db.get(key){
-			Ok(x) => x.map_or_else(U256::zero, |v| decode(&*v)),
+		let item: U256 = match db.get_with(key, ::rlp::decode) {
+			Ok(x) => x.unwrap_or_else(U256::zero),
 			Err(e) => panic!("Encountered potential DB corruption: {}", e),
 		};
 		let value: H256 = item.into();
@@ -453,12 +453,12 @@ impl Account {
 	/// omitted.
 	pub fn prove_storage(&self, db: &HashDB, storage_key: H256, from_level: u32) -> Result<Vec<Bytes>, Box<TrieError>> {
 		use util::trie::{Trie, TrieDB};
-		use util::trie::recorder::{Recorder, BasicRecorder as TrieRecorder};
+		use util::trie::recorder::Recorder;
 
-		let mut recorder = TrieRecorder::with_depth(from_level);
+		let mut recorder = Recorder::with_depth(from_level);
 
 		let trie = TrieDB::new(db, &self.storage_root)?;
-		let _ = trie.get_recorded(&storage_key, &mut recorder)?;
+		let _ = trie.get_with(&storage_key, &mut recorder)?;
 
 		Ok(recorder.drain().into_iter().map(|r| r.data).collect())
 	}

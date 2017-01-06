@@ -68,11 +68,11 @@ impl<'db> TrieMut for SecTrieDBMut<'db> {
 		self.raw.get(&key.sha3())
 	}
 
-	fn insert(&mut self, key: &[u8], value: &[u8]) -> super::Result<()> {
+	fn insert(&mut self, key: &[u8], value: &[u8]) -> super::Result<Option<DBValue>> {
 		self.raw.insert(&key.sha3(), value)
 	}
 
-	fn remove(&mut self, key: &[u8]) -> super::Result<()> {
+	fn remove(&mut self, key: &[u8]) -> super::Result<Option<DBValue>> {
 		self.raw.remove(&key.sha3())
 	}
 }
