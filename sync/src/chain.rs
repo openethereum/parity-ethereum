@@ -1854,8 +1854,7 @@ impl ChainSync {
 			.collect::<Vec<_>>()
 	}
 
-	fn select_random_lagging_peers(&mut self, peers: &[PeerId]) -> Vec<PeerId> {
-		use rand::Rng;
+	fn select_random_peers(peers: &[PeerId]) -> Vec<PeerId> {
 		// take sqrt(x) peers
 		let mut peers = peers.to_vec();
 		let mut count = (self.peers.len() as f64).powf(0.5).round() as usize;
@@ -1984,7 +1983,7 @@ impl ChainSync {
 			let mut peers = self.get_lagging_peers(&chain_info, io);
 			if sealed.is_empty() {
 				let hashes = self.propagate_new_hashes(&chain_info, io, &peers);
-				peers = self.select_random_lagging_peers(&peers);
+				peers = ChainSync::select_random_peers(&peers);
 				let blocks = self.propagate_blocks(&chain_info, io, sealed, &peers);
 				if blocks != 0 || hashes != 0 {
 					trace!(target: "sync", "Sent latest {} blocks and {} hashes to peers.", blocks, hashes);
@@ -2020,7 +2019,7 @@ impl ChainSync {
 
 		if !is_syncing && !enacted.is_empty() {
 			// Select random peers to re-broadcast transactions to.
-			let peers = self.select_random_lagging_peers(&self.peers.keys().cloned().collect::<Vec<_>>());
+			let peers = ChainSync::select_random_peers(&self.peers.keys().cloned().collect::<Vec<_>>());
 			trace!(target: "sync", "Re-broadcasting transactions to random peers.");
 			for peer in peers.iter().take(3) {
 				self.peers.get_mut(peer).map(|mut peer_info|
