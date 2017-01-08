@@ -2020,16 +2020,12 @@ impl ChainSync {
 
 		if !is_syncing && !enacted.is_empty() {
 			// Select random peers to re-broadcast transactions to.
-			let mut random = random::new();
-			let len = self.peers.len();
-			let peers = random.gen_range(0, min(len, 3));
+			let peers: Vec<PeerId> = ChainSync::select_random_peers(self.peers.keys().collect()).iter().take(3).collect();
 			trace!(target: "sync", "Re-broadcasting transactions to {} random peers.", peers);
-
-			for _ in 0..peers {
-				let peer = random.gen_range(0, len);
-				self.peers.values_mut().nth(peer).map(|mut peer_info| {
+			for peer in peers {
+				self.peers.get_mut(peer).map(|mut peer_info|
 					peer_info.last_sent_transactions.clear()
-				});
+				);
 			}
 		}
 	}
