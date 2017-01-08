@@ -2082,13 +2082,10 @@ impl ChainSync {
 
 		if !enacted.is_empty() {
 			// Select random peers to re-broadcast transactions to.
-			let peers: Vec<PeerId> = ChainSync::select_random_peers(&self.peers.keys().cloned().collect::<Vec<PeerId>>())
-				.into_iter()
-				.take(3)
-				.collect();
-			trace!(target: "sync", "Re-broadcasting transactions to random peers: {:?}", peers);
-			for peer in peers {
-				self.peers.get_mut(&peer).map(|mut peer_info|
+			let peers: Vec<PeerId> = ChainSync::select_random_peers(&self.peers.keys().cloned().collect::<Vec<_>>());
+			trace!(target: "sync", "Re-broadcasting transactions to random peers.");
+			for peer in peers.iter().take(3) {
+				self.peers.get_mut(peer).map(|mut peer_info|
 					peer_info.last_sent_transactions.clear()
 				);
 			}
