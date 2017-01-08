@@ -1857,7 +1857,7 @@ impl ChainSync {
 	fn select_random_peers(peers: &[PeerId]) -> Vec<PeerId> {
 		// take sqrt(x) peers
 		let mut peers = peers.to_vec();
-		let mut count = (self.peers.len() as f64).powf(0.5).round() as usize;
+		let mut count = (peers.len() as f64).powf(0.5).round() as usize;
 		count = min(count, MAX_PEERS_PROPAGATION);
 		count = max(count, MIN_PEERS_PROPAGATION);
 		random::new().shuffle(&mut peers);
