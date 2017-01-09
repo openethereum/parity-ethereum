@@ -45,6 +45,11 @@
   }
 }
 
+.blockNumber {
+  color: rgba(255, 255, 255, 0.25);
+  margin-top: 1.5em;
+}
+
 .origin {
   text-align: left;
   padding-left: 32px;

@@ -40,7 +40,7 @@ export default class CreateAccount extends Component {
     accountNameError: ERRORS.noName,
     accounts: null,
     isValidName: false,
-    isValidPass: false,
+    isValidPass: true,
     passwordHint: '',
     password1: '',
     password1Error: null,

@@ -37,7 +37,7 @@ export default class NewImport extends Component {
     accountName: '',
     accountNameError: ERRORS.noName,
     isValidFile: false,
-    isValidPass: false,
+    isValidPass: true,
     isValidName: false,
     password: '',
     passwordError: null,

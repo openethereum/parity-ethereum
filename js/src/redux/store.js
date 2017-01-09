@@ -20,6 +20,7 @@ import initMiddleware from './middleware';
 import initReducers from './reducers';
 
 import { load as loadWallet } from './providers/walletActions';
+import { setupWorker } from './providers/worker';
 
 import {
   Balances as BalancesProvider,
@@ -43,6 +44,7 @@ export default function (api, browserHistory) {
   new StatusProvider(store, api).start();
 
   store.dispatch(loadWallet(api));
+  setupWorker(store);
 
   return store;
 }

@@ -75,6 +75,10 @@ export default class Contract {
     return this._functions;
   }
 
+  get receipt () {
+    return this._receipt;
+  }
+
   get instance () {
     this._instance.address = this._address;
     return this._instance;
@@ -139,6 +143,7 @@ export default class Contract {
             }
 
             setState({ state: 'hasReceipt', receipt });
+            this._receipt = receipt;
             this._address = receipt.contractAddress;
             return this._address;
           });

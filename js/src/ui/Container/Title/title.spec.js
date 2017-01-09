@@ -15,18 +15,12 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React from 'react';
-import { mount, shallow } from 'enzyme';
+import { shallow } from 'enzyme';
 
 import Title from './title';
 
-function renderShallow (props) {
+function render (props) {
   return shallow(
-    <Title { ...props } />
-  );
-}
-
-function renderMount (props) {
-  return mount(
     <Title { ...props } />
   );
 }
@@ -34,19 +28,19 @@ function renderMount (props) {
 describe('ui/Container/Title', () => {
   describe('rendering', () => {
     it('renders defaults', () => {
-      expect(renderShallow()).to.be.ok;
+      expect(render()).to.be.ok;
     });
 
     it('renders with the specified className', () => {
-      expect(renderShallow({ className: 'testClass' })).to.have.className('testClass');
+      expect(render({ className: 'testClass' })).to.have.className('testClass');
     });
 
     it('renders the specified title', () => {
-      expect(renderMount({ title: 'titleText' })).to.contain.text('titleText');
+      expect(render({ title: 'titleText' })).to.contain.text('titleText');
     });
 
     it('renders the specified byline', () => {
-      expect(renderMount({ byline: 'bylineText' })).to.contain.text('bylineText');
+      expect(render({ byline: 'bylineText' })).to.contain.text('bylineText');
     });
   });
 });
