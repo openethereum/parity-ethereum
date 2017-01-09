@@ -15,14 +15,14 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import Contracts from '~/contracts';
-import subscribeToEvent from '~/util/subscribe-to-event';
+import subscribeToEvents from '~/util/subscribe-to-events';
 
 import registryABI from '~/contracts/abi/registry.json';
 
 import { setReverse, startCachingReverses } from './actions';
 
 export default (api) => (store) => {
-  let contract, confirmedEvents, removedEvents, timeout, interval;
+  let contract, subscription, timeout, interval;
 
   let addressesToCheck = {};
 
@@ -68,11 +68,8 @@ export default (api) => (store) => {
           .then((_contract) => {
             contract = _contract;
 
-            confirmedEvents = subscribeToEvent(_contract, 'ReverseConfirmed');
-            confirmedEvents.on('log', onLog);
-
-            removedEvents = subscribeToEvent(_contract, 'ReverseRemoved');
-            removedEvents.on('log', onLog);
+            subscription = subscribeToEvents(_contract, ['ReverseConfirmed', 'ReverseRemoved']);
+            subscription.on('log', onLog);
 
             timeout = setTimeout(checkReverses, 5000);
             interval = setInterval(checkReverses, 20000);
@@ -84,11 +81,8 @@ export default (api) => (store) => {
 
         break;
       case 'stopCachingReverses':
-        if (confirmedEvents) {
-          confirmedEvents.unsubscribe();
-        }
-        if (removedEvents) {
-          removedEvents.unsubscribe();
+        if (subscription) {
+          subscription.unsubscribe();
         }
         if (interval) {
           clearInterval(interval);

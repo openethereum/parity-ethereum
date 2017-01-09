@@ -72,7 +72,7 @@ export const awaitPuzzle = (api, contract, account) => {
   return blockNumber(api)
     .then((block) => {
       return new Promise((resolve, reject) => {
-        const subscription = subscribeToEvents(contract, 'Puzzled', {
+        const subscription = subscribeToEvents(contract, ['Puzzled'], {
           from: block.toNumber(),
           filter: (log) => log.params.who.value === account
         });
