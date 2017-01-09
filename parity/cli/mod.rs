@@ -542,7 +542,7 @@ mod tests {
 			flag_mode: "last".into(),
 			flag_mode_timeout: 300u64,
 			flag_mode_alarm: 3600u64,
-			flag_auto_update: "critical".into(),
+			flag_auto_update: "none".into(),
 			flag_release_track: "current".into(),
 			flag_no_download: false,
 			flag_no_consensus: false,
