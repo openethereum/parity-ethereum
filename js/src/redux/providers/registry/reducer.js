@@ -20,6 +20,10 @@ const initialState = {
 
 export default (state = initialState, action) => {
   if (action.type === 'setReverse') {
+    if (state.reverse[action.address] === action.reverse) {
+      return state;
+    }
+
     return { ...state, reverse: {
       ...state.reverse, [ action.address ]: action.reverse
     } };

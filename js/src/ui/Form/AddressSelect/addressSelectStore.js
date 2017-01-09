@@ -36,6 +36,7 @@ export default class AddressSelectStore {
       if (query.length === 0 || query === '0x') {
         return null;
       }
+      const startsWithQuery = (s) => new RegExp('^' + query, 'i').test(s);
 
       let address;
       let name = this.reverse[query];
@@ -44,12 +45,8 @@ export default class AddressSelectStore {
         const addr = Object
           .keys(this.reverse)
           .find((addr) => {
-            if (addr.toLowerCase().slice(0, query.length) === query) {
-              return true;
-            }
-
             const name = this.reverse[addr];
-            return name.toLowerCase().slice(0, query.length) === query;
+            return startsWithQuery(addr) || (name && startsWithQuery(name));
           });
 
         if (addr) {
