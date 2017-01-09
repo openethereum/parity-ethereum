@@ -57,7 +57,7 @@ class List extends Component {
   }
 
   renderAccounts () {
-    const { accounts, balances, empty, link, handleAddSearchToken } = this.props;
+    const { accounts, balances, empty } = this.props;
 
     if (empty) {
       return (
@@ -80,18 +80,27 @@ class List extends Component {
       return (
         <div
           className={ styles.item }
-          key={ address }>
-          <Summary
-            link={ link }
-            account={ account }
-            balance={ balance }
-            owners={ owners }
-            handleAddSearchToken={ handleAddSearchToken }
-            showCertifications
-          />
+          key={ address }
+        >
+          { this.renderSummary(account, balance, owners) }
         </div>
       );
     });
+  }
+
+  renderSummary (account, balance, owners) {
+    const { handleAddSearchToken, link } = this.props;
+
+    return (
+      <Summary
+        account={ account }
+        balance={ balance }
+        handleAddSearchToken={ handleAddSearchToken }
+        link={ link }
+        owners={ owners }
+        showCertifications
+      />
+    );
   }
 
   getAddresses () {
@@ -122,7 +131,15 @@ class List extends Component {
     });
   }
 
-  compareAccounts (accountA, accountB, key) {
+  compareAccounts (accountA, accountB, key, _reverse = null) {
+    if (key && key.split(':')[1] === '-1') {
+      return this.compareAccounts(accountA, accountB, key.split(':')[0], true);
+    }
+
+    if (key === 'timestamp' && _reverse === null) {
+      return this.compareAccounts(accountA, accountB, key, true);
+    }
+
     if (key === 'name') {
       return accountA.name.localeCompare(accountB.name);
     }
@@ -177,7 +194,9 @@ class List extends Component {
       return tagsA.localeCompare(tagsB);
     }
 
-    const reverse = key === 'timestamp' ? -1 : 1;
+    const reverse = _reverse
+      ? -1
+      : 1;
 
     const metaA = accountA.meta[key];
     const metaB = accountB.meta[key];

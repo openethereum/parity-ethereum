@@ -19,6 +19,7 @@ import React, { Component, PropTypes } from 'react';
 import { Link } from 'react-router';
 import { isEqual } from 'lodash';
 import ReactTooltip from 'react-tooltip';
+import { FormattedMessage } from 'react-intl';
 
 import { Balance, Container, ContainerTitle, IdentityIcon, IdentityName, Tags, Input } from '~/ui';
 import Certifications from '~/ui/Certifications';
@@ -107,19 +108,47 @@ export default class Summary extends Component {
       />
     );
 
+    const description = this.getDescription(account.meta);
+
     return (
       <Container>
         <Tags tags={ tags } handleAddSearchToken={ handleAddSearchToken } />
-        <IdentityIcon
-          address={ address } />
-        <ContainerTitle
-          title={ this.renderLink() }
-          byline={ addressComponent } />
+        <div className={ styles.heading }>
+          <IdentityIcon
+            address={ address }
+          />
+          <ContainerTitle
+            byline={ addressComponent }
+            className={ styles.main }
+            description={ description }
+            title={ this.renderLink() }
+          />
+        </div>
 
         { this.renderOwners() }
         { this.renderBalance() }
         { this.renderCertifications() }
       </Container>
+    );
+  }
+
+  getDescription (meta = {}) {
+    const { blockNumber } = meta;
+
+    if (!blockNumber) {
+      return null;
+    }
+
+    const formattedBlockNumber = (new BigNumber(blockNumber)).toFormat();
+
+    return (
+      <FormattedMessage
+        id='accounts.summary.minedBlock'
+        defaultMessage='Mined at block #{blockNumber}'
+        values={ {
+          blockNumber: formattedBlockNumber
+        } }
+      />
     );
   }
 
