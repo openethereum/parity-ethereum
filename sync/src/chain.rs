@@ -2070,7 +2070,8 @@ impl ChainSync {
 	/// called when block is imported to chain - propagates the blocks and updates transactions sent to peers
 	pub fn chain_new_blocks(&mut self, io: &mut SyncIo, _imported: &[H256], invalid: &[H256], enacted: &[H256], _retracted: &[H256], sealed: &[H256], proposed: &[Bytes]) {
 		let queue_info = io.chain().queue_info();
-		if !self.status().is_syncing(queue_info) || !sealed.is_empty() {
+		let is_syncing = self.status().is_syncing(queue_info);
+		if !is_syncing || !sealed.is_empty() {
 			trace!(target: "sync", "Propagating blocks, state={:?}", self.state);
 			self.propagate_latest_blocks(io, sealed);
 			self.propagate_proposed_blocks(io, proposed);
@@ -2080,15 +2081,13 @@ impl ChainSync {
 			self.restart(io);
 		}
 
-		if !enacted.is_empty() {
-			// Select random peers to re-broadcast transactions to.
-			let peers: Vec<PeerId> = ChainSync::select_random_peers(&self.peers.keys().cloned().collect::<Vec<_>>());
-			trace!(target: "sync", "Re-broadcasting transactions to random peers.");
-			for peer in peers.iter().take(3) {
-				self.peers.get_mut(peer).map(|mut peer_info|
-					peer_info.last_sent_transactions.clear()
-				);
-			}
+		if !is_syncing && !enacted.is_empty() && !self.peers.is_empty() {
+			// Select random peer to re-broadcast transactions to.
+			let peer = random::new().get_rng(0, self.peers.len());
+			trace!(target: "sync", "Re-broadcasting transactions to random peer.");
+			self.peers.get_mut(peer).map(|mut peer_info|
+				peer_info.last_sent_transactions.clear()
+			);
 		}
 	}
 
