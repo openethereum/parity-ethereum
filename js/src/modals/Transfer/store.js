@@ -337,7 +337,6 @@ export default class TransferStore {
 
   @action recalculateGas = (redo = true) => {
     if (!this.isValid) {
-      this.gasStore.setGas('0');
       return this.recalculate(redo);
     }
 
@@ -364,7 +363,7 @@ export default class TransferStore {
   }
 
   getBalance (forceSender = false) {
-    if (this.isWallet && !this.forceSender) {
+    if (this.isWallet && !forceSender) {
       return this.balance;
     }
 
@@ -415,7 +414,13 @@ export default class TransferStore {
       ? new BigNumber(token.token.format || 1)
       : new BigNumber(1);
 
-    const _value = new BigNumber(value || 0);
+    let _value;
+
+    try {
+      _value = new BigNumber(value || 0);
+    } catch (error) {
+      _value = new BigNumber(0);
+    }
 
     if (token.token && token.token.tag.toLowerCase() === 'eth') {
       if (inverse) {
@@ -513,7 +518,7 @@ export default class TransferStore {
 
     let totalEth = gasTotal;
     let totalError = null;
-    let valueError = this.valueError;
+    let valueError = null;
 
     if (eth.gt(ethBalance)) {
       totalError = ERRORS.largeAmount;
@@ -540,7 +545,13 @@ export default class TransferStore {
       this.total = this.api.util.fromWei(eth).toFixed();
 
       const nextValue = this.getFormattedTokenValue(token);
-      const prevValue = new BigNumber(this.value || 0);
+      let prevValue;
+
+      try {
+        prevValue = new BigNumber(this.value || 0);
+      } catch (error) {
+        prevValue = new BigNumber(0);
+      }
 
       // Change the input only if necessary
       if (!nextValue.eq(prevValue)) {
