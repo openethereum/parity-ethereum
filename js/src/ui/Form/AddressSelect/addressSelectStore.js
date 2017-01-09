@@ -32,6 +32,7 @@ export default class AddressSelectStore {
   initValues = [];
   regLookups = [
     (address) => {
+      address = address.toLowerCase().trim();
       if (address.length === 0 || address === '0x') {
         return null;
       }
@@ -41,7 +42,7 @@ export default class AddressSelectStore {
       if (!name) {
         const addr = Object
           .keys(this.reverse)
-          .find((addr) => addr.slice(0, address.length) === address);
+          .find((addr) => addr.toLowerCase().slice(0, address.length) === address);
 
         if (addr) {
           address = addr;
