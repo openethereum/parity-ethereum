@@ -33,7 +33,7 @@ export default function (api, browserHistory) {
   const certifications = new CertificationsMiddleware();
   const routeMiddleware = routerMiddleware(browserHistory);
   const chain = new ChainMiddleware();
-  const registry = new RegistryMiddleware();
+  const registry = new RegistryMiddleware(api);
 
   const middleware = [
     settings.toMiddleware(),
@@ -41,7 +41,7 @@ export default function (api, browserHistory) {
     errors.toMiddleware(),
     certifications.toMiddleware(),
     chain.toMiddleware(),
-    registry.toMiddleware()
+    registry
   ];
 
   return middleware.concat(status, routeMiddleware, thunk);

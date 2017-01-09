@@ -21,90 +21,85 @@ import registryABI from '~/contracts/abi/registry.json';
 
 import { setReverse, startCachingReverses } from './actions';
 
-export default class RegistryMiddleware {
-  toMiddleware () {
-    return (store) => {
-      const api = Contracts.get()._api;
-      let contract, confirmedEvents, removedEvents, timeout, interval;
+export default (api) => (store) => {
+  let contract, confirmedEvents, removedEvents, timeout, interval;
 
-      let addressesToCheck = {};
+  let addressesToCheck = {};
 
-      const onLog = (log) => {
-        switch (log.event) {
-          case 'ReverseConfirmed':
-            addressesToCheck[log.params.reverse.value] = true;
+  const onLog = (log) => {
+    switch (log.event) {
+      case 'ReverseConfirmed':
+        addressesToCheck[log.params.reverse.value] = true;
 
-            break;
-          case 'ReverseRemoved':
-            delete addressesToCheck[log.params.reverse.value];
+        break;
+      case 'ReverseRemoved':
+        delete addressesToCheck[log.params.reverse.value];
 
-            break;
-        }
-      };
+        break;
+    }
+  };
 
-      const checkReverses = () => {
-        Object
-          .keys(addressesToCheck)
-          .forEach((address) => {
-            contract
-              .instance
-              .reverse
-              .call({}, [ address ])
-              .then((reverse) => store.dispatch(setReverse(address, reverse)));
+  const checkReverses = () => {
+    Object
+      .keys(addressesToCheck)
+      .forEach((address) => {
+        contract
+          .instance
+          .reverse
+          .call({}, [ address ])
+          .then((reverse) => store.dispatch(setReverse(address, reverse)));
+      });
+
+    addressesToCheck = {};
+  };
+
+  return (next) => (action) => {
+    switch (action.type) {
+      case 'initAll':
+        next(action);
+        store.dispatch(startCachingReverses());
+
+        break;
+      case 'startCachingReverses':
+        const { registry } = Contracts.get();
+
+        registry.getInstance()
+          .then((instance) => api.newContract(registryABI, instance.address))
+          .then((_contract) => {
+            contract = _contract;
+
+            confirmedEvents = subscribeToEvent(_contract, 'ReverseConfirmed');
+            confirmedEvents.on('log', onLog);
+
+            removedEvents = subscribeToEvent(_contract, 'ReverseRemoved');
+            removedEvents.on('log', onLog);
+
+            timeout = setTimeout(checkReverses, 5000);
+            interval = setInterval(checkReverses, 20000);
+          })
+          .catch((err) => {
+            console.error('Failed to start caching reverses:', err);
+            throw err;
           });
 
-        addressesToCheck = {};
-      };
-
-      return (next) => (action) => {
-        switch (action.type) {
-          case 'initAll':
-            next(action);
-            store.dispatch(startCachingReverses());
-
-            break;
-          case 'startCachingReverses':
-            const { registry } = Contracts.get();
-
-            registry.getInstance()
-              .then((instance) => api.newContract(registryABI, instance.address))
-              .then((_contract) => {
-                contract = _contract;
-
-                confirmedEvents = subscribeToEvent(_contract, 'ReverseConfirmed');
-                confirmedEvents.on('log', onLog);
-
-                removedEvents = subscribeToEvent(_contract, 'ReverseRemoved');
-                removedEvents.on('log', onLog);
-
-                timeout = setTimeout(checkReverses, 5000);
-                interval = setInterval(checkReverses, 20000);
-              })
-              .catch((err) => {
-                console.error('Failed to start caching reverses:', err);
-                throw err;
-              });
-
-            break;
-          case 'stopCachingReverses':
-            if (confirmedEvents) {
-              confirmedEvents.unsubscribe();
-            }
-            if (removedEvents) {
-              removedEvents.unsubscribe();
-            }
-            if (interval) {
-              clearInterval(interval);
-            }
-            if (timeout) {
-              clearTimeout(timeout);
-            }
-
-            break;
-          default:
-            next(action);
+        break;
+      case 'stopCachingReverses':
+        if (confirmedEvents) {
+          confirmedEvents.unsubscribe();
         }
-      };
-    };
-  }
-}
+        if (removedEvents) {
+          removedEvents.unsubscribe();
+        }
+        if (interval) {
+          clearInterval(interval);
+        }
+        if (timeout) {
+          clearTimeout(timeout);
+        }
+
+        break;
+      default:
+        next(action);
+    }
+  };
+};
