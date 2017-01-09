@@ -27,7 +27,7 @@ use network::{PeerId, NodeId};
 use net::buffer_flow::FlowParams;
 use net::context::IoContext;
 use net::status::{Capabilities, Status, write_handshake};
-use net::{encode_request, LightProtocol, Params, packet};
+use net::{encode_request, LightProtocol, Params, packet, Peer};
 use provider::Provider;
 use request::{self, Request, Headers};
 
@@ -483,4 +483,82 @@ fn get_contract_code() {
 
 	let expected = Expect::Respond(packet::CONTRACT_CODES, response);
 	proto.handle_packet(&expected, &1, packet::GET_CONTRACT_CODES, &request_body);
+}
+
+#[test]
+fn id_guard() {
+	use super::request_set::RequestSet;
+	use super::ReqId;
+
+	let flow_params = FlowParams::new(5_000_000.into(), Default::default(), 0.into());
+	let capabilities = capabilities();
+
+	let (provider, proto) = setup(flow_params.clone(), capabilities.clone());
+
+	let req_id_1 = ReqId(5143);
+	let req_id_2 = ReqId(1111);
+	let req = Request::Headers(request::Headers {
+		start: 5u64.into(),
+		max: 100,
+		skip: 0,
+		reverse: false,
+	});
+
+	let peer_id = 9876;
+
+	let mut pending_requests = RequestSet::default();
+
+	pending_requests.insert(req_id_1, req.clone(), ::time::SteadyTime::now());
+	pending_requests.insert(req_id_2, req, ::time::SteadyTime::now());
+
+	proto.peers.write().insert(peer_id, ::util::Mutex::new(Peer {
+		local_buffer: flow_params.create_buffer(),
+		status: status(provider.client.chain_info()),
+		capabilities: capabilities.clone(),
+		remote_flow: Some((flow_params.create_buffer(), flow_params)),
+		sent_head: provider.client.chain_info().best_block_hash,
+		last_update: ::time::SteadyTime::now(),
+		pending_requests: pending_requests,
+		failed_requests: Vec::new(),
+	}));
+
+	// first, supply wrong request type.
+	{
+		let mut stream = RlpStream::new_list(3);
+		stream.append(&req_id_1.0);
+		stream.append(&4_000_000usize);
+		stream.begin_list(0);
+
+		let packet = stream.out();
+		assert!(proto.block_bodies(&peer_id, &Expect::Nothing, UntrustedRlp::new(&packet)).is_err());
+	}
+
+	// next, do an unexpected response.
+	{
+		let mut stream = RlpStream::new_list(3);
+		stream.append(&10000usize);
+		stream.append(&3_000_000usize);
+		stream.begin_list(0);
+
+		let packet = stream.out();
+		assert!(proto.receipts(&peer_id, &Expect::Nothing, UntrustedRlp::new(&packet)).is_err());
+	}
+
+	// lastly, do a valid (but empty) response.
+	{
+		let mut stream = RlpStream::new_list(3);
+		stream.append(&req_id_2.0);
+		stream.append(&3_000_000usize);
+		stream.begin_list(0);
+
+		let packet = stream.out();
+		assert!(proto.block_headers(&peer_id, &Expect::Nothing, UntrustedRlp::new(&packet)).is_ok());
+	}
+
+	let peers = proto.peers.read();
+	if let Some(ref peer_info) = peers.get(&peer_id) {
+		let peer_info = peer_info.lock();
+		assert!(peer_info.pending_requests.collect_ids::<Vec<_>>().is_empty());
+		assert_eq!(peer_info.failed_requests, &[req_id_1]);
+	}
 }
