@@ -31,18 +31,26 @@ export default class AddressSelectStore {
 
   initValues = [];
   regLookups = [
-    (address) => {
-      address = address.toLowerCase().trim();
-      if (address.length === 0 || address === '0x') {
+    (query) => {
+      query = query.toLowerCase().trim();
+      if (query.length === 0 || query === '0x') {
         return null;
       }
 
-      let name = this.reverse[address];
+      let address;
+      let name = this.reverse[query];
 
       if (!name) {
         const addr = Object
           .keys(this.reverse)
-          .find((addr) => addr.toLowerCase().slice(0, address.length) === address);
+          .find((addr) => {
+            if (addr.toLowerCase().slice(0, query.length) === query) {
+              return true;
+            }
+
+            const name = this.reverse[addr];
+            return name.toLowerCase().slice(0, query.length) === query;
+          });
 
         if (addr) {
           address = addr;
