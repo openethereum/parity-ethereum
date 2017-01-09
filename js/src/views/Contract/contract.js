@@ -17,6 +17,9 @@
 import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
+import { FormattedMessage } from 'react-intl';
+import BigNumber from 'bignumber.js';
+
 import ActionDelete from 'material-ui/svg-icons/action/delete';
 import AvPlayArrow from 'material-ui/svg-icons/av/play-arrow';
 import ContentCreate from 'material-ui/svg-icons/content/create';
@@ -136,7 +139,9 @@ class Contract extends Component {
             account={ account }
             balance={ balance }
             isContract
-          />
+          >
+            { this.renderBlockNumber(account.meta) }
+          </Header>
 
           <Queries
             accountsInfo={ accountsInfo }
@@ -152,6 +157,28 @@ class Contract extends Component {
 
           { this.renderDetails(account) }
         </Page>
+      </div>
+    );
+  }
+
+  renderBlockNumber (meta = {}) {
+    const { blockNumber } = meta;
+
+    if (!blockNumber) {
+      return null;
+    }
+
+    const formattedBlockNumber = (new BigNumber(blockNumber)).toFormat();
+
+    return (
+      <div className={ styles.blockNumber }>
+        <FormattedMessage
+          id='contract.minedBlock'
+          defaultMessage='Mined at block #{blockNumber}'
+          values={ {
+            blockNumber: formattedBlockNumber
+          } }
+        />
       </div>
     );
   }
