@@ -22,8 +22,10 @@ const sysuiToken = window.localStorage.getItem('sysuiToken');
 
 export default class SecureApi extends Api {
   constructor (url, nextToken) {
-    super(new Api.Transport.Ws(url, sysuiToken, false));
+    const transport = new Api.Transport.Ws(url, sysuiToken, false);
+    super(transport);
 
+    this._transport = transport;
     this._url = url;
     this._isConnecting = true;
     this._needsToken = false;
@@ -38,6 +40,10 @@ export default class SecureApi extends Api {
       .map((token) => ({ value: token, tried: false }));
 
     this._tryNextToken();
+  }
+
+  get transport () {
+    return this._transport;
   }
 
   saveToken = () => {

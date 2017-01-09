@@ -31,13 +31,10 @@ const ETH = {
   image: imagesEthereum
 };
 
-let prevNetChain;
-
-function setBalances (_balances) {
+function setBalances (_balances, skipNotifications = false) {
   return (dispatch, getState) => {
     const state = getState();
 
-    const { netChain } = state.nodeStatus;
     const accounts = state.personal.accounts;
     const nextBalances = _balances;
     const prevBalances = state.balances.balances;
@@ -68,7 +65,7 @@ function setBalances (_balances) {
           const oldValue = nextTokens[tokenIndex].value;
 
           // If received a token/eth (old value < new value), notify
-          if (oldValue.lt(value) && accounts[address] && netChain === prevNetChain) {
+          if (oldValue.lt(value) && accounts[address] && !skipNotifications) {
             const account = accounts[address];
             const txValue = value.minus(oldValue);
 
@@ -87,7 +84,6 @@ function setBalances (_balances) {
       balances[address] = { txCount: txCount || new BigNumber(0), tokens: nextTokens };
     });
 
-    prevNetChain = netChain;
     dispatch(_setBalances(balances));
   };
 }
@@ -174,7 +170,7 @@ export function fetchTokens (_tokenIds) {
   };
 }
 
-export function fetchBalances (_addresses) {
+export function fetchBalances (_addresses, skipNotifications = false) {
   return (dispatch, getState) => {
     const { api, personal } = getState();
     const { visibleAccounts, accounts } = personal;
@@ -196,7 +192,7 @@ export function fetchBalances (_addresses) {
           balances[addr] = accountsBalances[idx];
         });
 
-        dispatch(setBalances(balances));
+        dispatch(setBalances(balances, skipNotifications));
         updateTokensFilter(addresses)(dispatch, getState);
       })
       .catch((error) => {
@@ -330,7 +326,7 @@ export function queryTokensFilter (tokensFilter) {
   };
 }
 
-export function fetchTokensBalances (_addresses = null, _tokens = null) {
+export function fetchTokensBalances (_addresses = null, _tokens = null, skipNotifications = false) {
   return (dispatch, getState) => {
     const { api, personal, balances } = getState();
     const { visibleAccounts, accounts } = personal;
@@ -352,7 +348,7 @@ export function fetchTokensBalances (_addresses = null, _tokens = null) {
           balances[addr] = tokensBalances[idx];
         });
 
-        dispatch(setBalances(balances));
+        dispatch(setBalances(balances, skipNotifications));
       })
       .catch((error) => {
         console.warn('balances::fetchTokensBalances', error);

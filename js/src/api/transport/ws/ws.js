@@ -131,6 +131,8 @@ export default class Ws extends JsonRpcBase {
     this._autoConnect = true;
     this._retries = 0;
 
+    this.emit('open');
+
     Object.keys(this._messages)
       .filter((id) => this._messages[id].queued)
       .forEach(this._send);
@@ -147,6 +149,8 @@ export default class Ws extends JsonRpcBase {
 
     event.timestamp = Date.now();
     this._lastError = event;
+
+    this.emit('close');
 
     if (this._autoConnect) {
       const timeout = this.retryTimeout;

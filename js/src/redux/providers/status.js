@@ -27,20 +27,49 @@ export default class Status {
     this._longStatus = {};
     this._minerSettings = {};
 
-    this._longStatusTimeoutId = null;
+    this._timeoutIds = {};
+    this._blockNumberSubscriptionId = null;
 
     this._timestamp = Date.now();
+
+    api.transport.on('close', () => {
+      this.stop();
+
+      const apiStatus = this.getApiStatus();
+      this._apiStatus = apiStatus;
+      this._store.dispatch(statusCollection(apiStatus));
+    });
+
+    api.transport.on('open', () => {
+      this.start();
+    });
   }
 
   start () {
+    this.stop();
+
     this._subscribeBlockNumber();
-    this._pollStatus();
-    this._pollLongStatus();
-    this._pollLogs();
+    this._pollLongStatus(true);
   }
 
-  _subscribeBlockNumber () {
-    this._api
+  startPolling () {
+    this._pollLogs();
+    this._pollStatus();
+  }
+
+  stop () {
+    if (this._blockNumberSubscriptionId) {
+      this._api.unsubscribe(this._blockNumberSubscriptionId);
+      this._blockNumberSubscriptionId = null;
+    }
+
+    Object.values(this._timeoutIds).forEach((timeoutId) => {
+      clearTimeout(timeoutId);
+    });
+  }
+
+  _subscribeBlockNumber = () => {
+    return this._api
       .subscribe('eth_blockNumber', (error, blockNumber) => {
         if (error) {
           return;
@@ -51,6 +80,10 @@ export default class Status {
         this._api.eth
           .getBlockByNumber(blockNumber)
           .then((block) => {
+            if (!block) {
+              return;
+            }
+
             this._store.dispatch(statusCollection({
               blockTimestamp: block.timestamp,
               gasLimit: block.gasLimit
@@ -59,6 +92,9 @@ export default class Status {
           .catch((error) => {
             console.warn('status._subscribeBlockNumber', 'getBlockByNumber', error);
           });
+      })
+      .then((blockNumberSubscriptionId) => {
+        this._blockNumberSubscriptionId = blockNumberSubscriptionId;
       });
   }
 
@@ -72,11 +108,7 @@ export default class Status {
       .catch(() => false);
   }
 
-  _pollStatus = () => {
-    const nextTimeout = (timeout = 1000) => {
-      setTimeout(() => this._pollStatus(), timeout);
-    };
-
+  getApiStatus = () => {
     const { isConnected, isConnecting, needsToken, secureToken } = this._api;
 
     const apiStatus = {
@@ -85,6 +117,21 @@ export default class Status {
       needsToken,
       secureToken
     };
+
+    return apiStatus;
+  }
+
+  _pollStatus = () => {
+    const nextTimeout = (timeout = 1000) => {
+      if (this._timeoutIds.status) {
+        clearTimeout(this._timeoutIds.status);
+      }
+
+      this._timeoutIds.status = setTimeout(() => this._pollStatus(), timeout);
+    };
+
+    const { isConnected } = this._api;
+    const apiStatus = this.getApiStatus();
 
     const gotConnected = !this._apiStatus.isConnected && apiStatus.isConnected;
 
@@ -110,7 +157,7 @@ export default class Status {
       statusPromises.push(this._api.eth.hashrate());
     }
 
-    Promise
+    return Promise
       .all(statusPromises)
       .then(([ syncing, ...statusResults ]) => {
         const status = statusResults.length === 0
@@ -125,12 +172,12 @@ export default class Status {
           this._store.dispatch(statusCollection(status));
           this._status = status;
         }
-
-        nextTimeout();
       })
       .catch((error) => {
         console.error('_pollStatus', error);
-        nextTimeout();
+      })
+      .then(() => {
+        return nextTimeout();
       });
   }
 
@@ -140,7 +187,7 @@ export default class Status {
    * from the UI
    */
   _pollMinerSettings = () => {
-    Promise
+    return Promise
       .all([
         this._api.eth.coinbase(),
         this._api.parity.extraData(),
@@ -179,17 +226,17 @@ export default class Status {
     }
 
     const nextTimeout = (timeout = 30000, gotConnected = false) => {
-      if (this._longStatusTimeoutId) {
-        clearTimeout(this._longStatusTimeoutId);
+      if (this._timeoutIds.longStatus) {
+        clearTimeout(this._timeoutIds.longStatus);
       }
 
-      this._longStatusTimeoutId = setTimeout(() => this._pollLongStatus(gotConnected), timeout);
+      this._timeoutIds.longStatus = setTimeout(() => this._pollLongStatus(gotConnected), timeout);
     };
 
     // Poll Miner settings just in case
-    this._pollMinerSettings();
+    const minerPromise = this._pollMinerSettings();
 
-    Promise
+    const mainPromise = Promise
       .all([
         this._api.parity.netPeers(),
         this._api.web3.clientVersion(),
@@ -223,36 +270,48 @@ export default class Status {
           this._longStatus = longStatus;
         }
 
-        return true;
+        if (gotConnected) {
+          this.startPolling();
+        }
+
+        return false;
       })
       .catch((error) => {
         // Try again soon if just got reconnected (network might take some time
         // to boot up)
         if (gotConnected) {
           nextTimeout(500, true);
-          return false;
+          return true;
         }
 
         console.error('_pollLongStatus', error);
-        return true;
+        return false;
       })
-      .then((callNext) => {
-        if (callNext) {
+      .then((called) => {
+        if (!called) {
           nextTimeout(60000);
         }
       });
+
+    return Promise.all([ minerPromise, mainPromise ]);
   }
 
   _pollLogs = () => {
-    const nextTimeout = (timeout = 1000) => setTimeout(this._pollLogs, timeout);
+    const nextTimeout = (timeout = 1000) => {
+      if (this._timeoutIds.logs) {
+        clearTimeout(this._timeoutIds.logs);
+      }
+
+      this._timeoutIds.logs = setTimeout(this._pollLogs, timeout);
+    };
+
     const { devLogsEnabled } = this._store.getState().nodeStatus;
 
     if (!devLogsEnabled) {
-      nextTimeout();
-      return;
+      return nextTimeout();
     }
 
-    Promise
+    return Promise
       .all([
         this._api.parity.devLogs(),
         this._api.parity.devLogsLevels()
@@ -262,11 +321,12 @@ export default class Status {
           devLogs: devLogs.slice(-1024),
           devLogsLevels
         }));
-        nextTimeout();
       })
       .catch((error) => {
         console.error('_pollLogs', error);
-        nextTimeout();
+      })
+      .then(() => {
+        return nextTimeout();
       });
   }
 }
