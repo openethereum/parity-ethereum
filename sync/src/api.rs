@@ -178,7 +178,7 @@ impl EthSync {
 				};
 
 				let mut light_proto = LightProtocol::new(params.provider, light_params);
-				light_proto.add_handler(Box::new(TxRelay(params.chain.clone())));
+				light_proto.add_handler(Arc::new(TxRelay(params.chain.clone())));
 
 				Arc::new(light_proto)
 			})
@@ -611,7 +611,7 @@ impl LightSync {
 
 			let mut light_proto = LightProtocol::new(params.client.clone(), light_params);
 			let sync_handler = try!(SyncHandler::new(params.client.clone()));
-			light_proto.add_handler(Box::new(sync_handler));
+			light_proto.add_handler(Arc::new(sync_handler));
 
 			Arc::new(light_proto)
 		};

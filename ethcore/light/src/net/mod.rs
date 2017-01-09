@@ -237,7 +237,7 @@ pub struct LightProtocol {
 	pending_requests: RwLock<HashMap<usize, Requested>>,
 	capabilities: RwLock<Capabilities>,
 	flow_params: FlowParams, // assumed static and same for every peer.
-	handlers: Vec<Box<Handler>>,
+	handlers: Vec<Arc<Handler>>,
 	req_id: AtomicUsize,
 }
 
@@ -376,11 +376,11 @@ impl LightProtocol {
 	}
 
 	/// Add an event handler.
-	/// Ownership will be transferred to the protocol structure,
-	/// and the handler will be kept alive as long as it is.
+	///
 	/// These are intended to be added when the protocol structure
-	/// is initialized as a means of customizing its behavior.
-	pub fn add_handler(&mut self, handler: Box<Handler>) {
+	/// is initialized as a means of customizing its behavior,
+	/// and dispatching requests immediately upon events.
+	pub fn add_handler(&mut self, handler: Arc<Handler>) {
 		self.handlers.push(handler);
 	}
 
