@@ -125,12 +125,13 @@ export default class Status {
           this._store.dispatch(statusCollection(status));
           this._status = status;
         }
+
+        nextTimeout();
       })
       .catch((error) => {
         console.error('_pollStatus', error);
+        nextTimeout();
       });
-
-    nextTimeout();
   }
 
   /**

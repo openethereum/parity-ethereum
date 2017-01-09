@@ -38,6 +38,7 @@ use env_info::EnvInfo;
 use builtin::Builtin;
 use client::{Client, EngineClient};
 use super::validator_set::{ValidatorSet, new_validator_set};
+use state::CleanupMode;
 
 /// `AuthorityRound` params.
 #[derive(Debug, PartialEq)]
@@ -46,6 +47,8 @@ pub struct AuthorityRoundParams {
 	pub gas_limit_bound_divisor: U256,
 	/// Time to wait before next block or authority switching.
 	pub step_duration: Duration,
+	/// Block reward.
+	pub block_reward: U256,
 	/// Starting step,
 	pub start_step: Option<u64>,
 	/// Valid validators.
@@ -58,6 +61,7 @@ impl From<ethjson::spec::AuthorityRoundParams> for AuthorityRoundParams {
 			gas_limit_bound_divisor: p.gas_limit_bound_divisor.into(),
 			step_duration: Duration::from_secs(p.step_duration.into()),
 			validators: p.validators,
+			block_reward: p.block_reward.map_or_else(U256::zero, Into::into),
 			start_step: p.start_step.map(Into::into),
 		}
 	}
@@ -68,6 +72,7 @@ impl From<ethjson::spec::AuthorityRoundParams> for AuthorityRoundParams {
 pub struct AuthorityRound {
 	params: CommonParams,
 	gas_limit_bound_divisor: U256,
+	block_reward: U256,
 	step_duration: Duration,
 	builtins: BTreeMap<Address, Builtin>,
 	transition_service: IoService<()>,
@@ -106,6 +111,7 @@ impl AuthorityRound {
 			AuthorityRound {
 				params: params,
 				gas_limit_bound_divisor: our_params.gas_limit_bound_divisor,
+				block_reward: our_params.block_reward,
 				step_duration: our_params.step_duration,
 				builtins: builtins,
 				transition_service: IoService::<()>::start()?,
@@ -241,6 +247,17 @@ impl Engine for AuthorityRound {
 			trace!(target: "poa", "generate_seal: Not a proposer for step {}.", step);
 		}
 		Seal::None
+	}
+
+	/// Apply the block reward on finalisation of the block.
+	fn on_close_block(&self, block: &mut ExecutedBlock) {
+		let fields = block.fields_mut();
+		// Bestow block reward
+		fields.state.add_balance(fields.header.author(), &self.block_reward, CleanupMode::NoEmpty);
+		// Commit state so that we can actually figure out the state root.
+		if let Err(e) = fields.state.commit() {
+			warn!("Encountered error on state commit: {}", e);
+		}
 	}
 
 	/// Check the number of seal fields.

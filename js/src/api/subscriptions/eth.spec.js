@@ -16,7 +16,6 @@
 
 import BigNumber from 'bignumber.js';
 import sinon from 'sinon';
-import 'sinon-as-promised';
 
 import Eth from './eth';
 

@@ -15,7 +15,6 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import sinon from 'sinon';
-import 'sinon-as-promised';
 
 import Personal from './personal';
 

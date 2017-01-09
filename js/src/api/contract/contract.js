@@ -75,6 +75,10 @@ export default class Contract {
     return this._functions;
   }
 
+  get receipt () {
+    return this._receipt;
+  }
+
   get instance () {
     this._instance.address = this._address;
     return this._instance;
@@ -139,6 +143,7 @@ export default class Contract {
             }
 
             setState({ state: 'hasReceipt', receipt });
+            this._receipt = receipt;
             this._address = receipt.contractAddress;
             return this._address;
           });
@@ -218,14 +223,19 @@ export default class Contract {
   }
 
   _encodeOptions (func, options, values) {
-    options.data = this.getCallData(func, options, values);
-    return options;
+    const data = this.getCallData(func, options, values);
+
+    return {
+      ...options,
+      data
+    };
   }
 
   _addOptionsTo (options = {}) {
-    return Object.assign({
-      to: this._address
-    }, options);
+    return {
+      to: this._address,
+      ...options
+    };
   }
 
   _bindFunction = (func) => {

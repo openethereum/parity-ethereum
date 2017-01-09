@@ -18,27 +18,26 @@
 //! An owning, nibble-oriented byte vector.
 
 use ::NibbleSlice;
+use elastic_array::ElasticArray36;
 
-#[derive(Default, PartialEq, Eq, PartialOrd, Ord, Debug)]
 /// Owning, nibble-oriented byte vector. Counterpart to `NibbleSlice`.
+#[derive(Clone, PartialEq, Eq, Debug)]
 pub struct NibbleVec {
-	inner: Vec<u8>,
+	inner: ElasticArray36<u8>,
 	len: usize,
+}
+
+impl Default for NibbleVec {
+	fn default() -> Self {
+		NibbleVec::new()
+	}
 }
 
 impl NibbleVec {
 	/// Make a new `NibbleVec`
 	pub fn new() -> Self {
 		NibbleVec {
-			inner: Vec::new(),
-			len: 0
-		}
-	}
-
-	/// Make a `NibbleVec` with capacity for `n` nibbles.
-	pub fn with_capacity(n: usize) -> Self {
-		NibbleVec {
-			inner: Vec::with_capacity((n / 2) + (n % 2)),
+			inner: ElasticArray36::new(),
 			len: 0
 		}
 	}
@@ -48,9 +47,6 @@ impl NibbleVec {
 
 	/// Retrurns true if `NibbleVec` has zero length
 	pub fn is_empty(&self) -> bool { self.len == 0 }
-
-	/// Capacity of the `NibbleVec`.
-	pub fn capacity(&self) -> usize { self.inner.capacity() * 2 }
 
 	/// Try to get the nibble at the given offset.
 	pub fn at(&self, idx: usize) -> u8 {
@@ -109,7 +105,7 @@ impl NibbleVec {
 
 impl<'a> From<NibbleSlice<'a>> for NibbleVec {
 	fn from(s: NibbleSlice<'a>) -> Self {
-		let mut v = NibbleVec::with_capacity(s.len());
+		let mut v = NibbleVec::new();
 		for i in 0..s.len() {
 			v.push(s.at(i));
 		}

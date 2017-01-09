@@ -45,6 +45,7 @@ use engines::{Engine, Seal, EngineError};
 use blockchain::extras::BlockDetails;
 use views::HeaderView;
 use evm::Schedule;
+use state::CleanupMode;
 use io::IoService;
 use super::validator_set::{ValidatorSet, new_validator_set};
 use self::message::*;
@@ -80,6 +81,7 @@ pub struct Tendermint {
 	builtins: BTreeMap<Address, Builtin>,
 	step_service: IoService<Step>,
 	client: RwLock<Option<Weak<EngineClient>>>,
+	block_reward: U256,
 	/// Address to be used as authority.
 	authority: RwLock<Address>,
 	/// Password used for signing messages.
@@ -114,6 +116,7 @@ impl Tendermint {
 				builtins: builtins,
 				client: RwLock::new(None),
 				step_service: IoService::<Step>::start()?,
+				block_reward: our_params.block_reward,
 				authority: RwLock::new(Address::default()),
 				password: RwLock::new(None),
 				height: AtomicUsize::new(1),
@@ -464,6 +467,17 @@ impl Engine for Tendermint {
 			self.handle_valid_message(&message);
 		}
 		Ok(())
+	}
+
+	/// Apply the block reward on finalisation of the block.
+	fn on_close_block(&self, block: &mut ExecutedBlock) {
+		let fields = block.fields_mut();
+		// Bestow block reward
+		fields.state.add_balance(fields.header.author(), &self.block_reward, CleanupMode::NoEmpty);
+		// Commit state so that we can actually figure out the state root.
+		if let Err(e) = fields.state.commit() {
+			warn!("Encountered error on state commit: {}", e);
+		}
 	}
 
 	fn verify_block_basic(&self, header: &Header, _block: Option<&[u8]>) -> Result<(), Error> {

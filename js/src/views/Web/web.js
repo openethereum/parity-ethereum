@@ -16,6 +16,8 @@
 
 import React, { Component, PropTypes } from 'react';
 import store from 'store';
+import { parse as parseUrl, format as formatUrl } from 'url';
+import { parse as parseQuery } from 'querystring';
 
 import AddressBar from './AddressBar';
 
@@ -23,39 +25,53 @@ import styles from './web.css';
 
 const LS_LAST_ADDRESS = '_parity::webLastAddress';
 
+const hasProtocol = /^https?:\/\//;
+
 export default class Web extends Component {
   static contextTypes = {
     api: PropTypes.object.isRequired
   }
 
+  static propTypes = {
+    params: PropTypes.object.isRequired
+  }
+
   state = {
-    displayedUrl: this.lastAddress(),
+    displayedUrl: null,
     isLoading: true,
     token: null,
-    url: this.lastAddress()
+    url: null
   };
 
   componentDidMount () {
-    this.context.api.signer.generateWebProxyAccessToken().then(token => {
-      this.setState({ token });
-    });
+    const { api } = this.context;
+    const { params } = this.props;
+
+    api
+      .signer
+      .generateWebProxyAccessToken()
+      .then((token) => {
+        this.setState({ token });
+      });
+
+    this.setUrl(params.url);
   }
 
-  address () {
-    const { dappsUrl } = this.context.api;
-    const { url, token } = this.state;
-    const path = url.replace(/:/g, '').replace(/\/\//g, '/');
-
-    return `${dappsUrl}/web/${token}/${path}/`;
+  componentWillReceiveProps (props) {
+    this.setUrl(props.params.url);
   }
 
-  lastAddress () {
-    return store.get(LS_LAST_ADDRESS) || 'https://mkr.market';
-  }
+  setUrl = (url) => {
+    url = url || store.get(LS_LAST_ADDRESS) || 'https://mkr.market';
+    if (!hasProtocol.test(url)) {
+      url = `https://${url}`;
+    }
+
+    this.setState({ url, displayedUrl: url });
+  };
 
   render () {
     const { displayedUrl, isLoading, token } = this.state;
-    const address = this.address();
 
     if (!token) {
       return (
@@ -67,20 +83,30 @@ export default class Web extends Component {
       );
     }
 
+    const { dappsUrl } = this.context.api;
+    const { url } = this.state;
+    if (!url || !token) {
+      return null;
+    }
+
+    const parsed = parseUrl(url);
+    const { protocol, host, path } = parsed;
+    const address = `${dappsUrl}/web/${token}/${protocol.slice(0, -1)}/${host}${path}`;
+
     return (
       <div className={ styles.wrapper }>
         <AddressBar
           className={ styles.url }
           isLoading={ isLoading }
-          onChange={ this.handleUpdateUrl }
-          onRefresh={ this.handleOnRefresh }
+          onChange={ this.onUrlChange }
+          onRefresh={ this.onRefresh }
           url={ displayedUrl }
         />
         <iframe
           className={ styles.frame }
           frameBorder={ 0 }
           name={ name }
-          onLoad={ this.handleIframeLoad }
+          onLoad={ this.iframeOnLoad }
           sandbox='allow-forms allow-same-origin allow-scripts'
           scrolling='auto'
           src={ address } />
@@ -88,7 +114,11 @@ export default class Web extends Component {
     );
   }
 
-  handleUpdateUrl = (url) => {
+  onUrlChange = (url) => {
+    if (!hasProtocol.test(url)) {
+      url = `https://${url}`;
+    }
+
     store.set(LS_LAST_ADDRESS, url);
 
     this.setState({
@@ -98,18 +128,23 @@ export default class Web extends Component {
     });
   };
 
-  handleOnRefresh = (ev) => {
+  onRefresh = () => {
     const { displayedUrl } = this.state;
-    const hasQuery = displayedUrl.indexOf('?') > 0;
-    const separator = hasQuery ? '&' : '?';
+
+    // Insert timestamp
+    // This is a hack to prevent caching.
+    const parsed = parseUrl(displayedUrl);
+    parsed.query = parseQuery(parsed.query);
+    parsed.query.t = Date.now().toString();
+    delete parsed.search;
 
     this.setState({
       isLoading: true,
-      url: `${displayedUrl}${separator}t=${Date.now()}`
+      url: formatUrl(parsed)
     });
   };
 
-  handleIframeLoad = (ev) => {
+  iframeOnLoad = () => {
     this.setState({
       isLoading: false
     });
