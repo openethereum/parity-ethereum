@@ -440,7 +440,9 @@ impl LightProtocol {
 		}
 	}
 
-	// Handle a packet using the given io context.
+	/// Handle an LES packet using the given io context.
+	/// Packet data is _untrusted_, which means that invalid data won't lead to
+	/// issues.
 	pub fn handle_packet(&self, io: &IoContext, peer: &PeerId, packet_id: u8, data: &[u8]) {
 		let rlp = UntrustedRlp::new(data);
 
