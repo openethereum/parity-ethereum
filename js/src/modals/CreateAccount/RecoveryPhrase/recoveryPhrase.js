@@ -31,9 +31,9 @@ export default class RecoveryPhrase extends Component {
   state = {
     accountName: '',
     accountNameError: ERRORS.noName,
-    isValidPass: false,
+    isValidPass: true,
     isValidName: false,
-    isValidPhrase: false,
+    isValidPhrase: true,
     passwordHint: '',
     password1: '',
     password1Error: null,

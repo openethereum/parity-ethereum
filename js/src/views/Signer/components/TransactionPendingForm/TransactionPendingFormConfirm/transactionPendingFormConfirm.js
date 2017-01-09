@@ -77,13 +77,28 @@ class TransactionPendingFormConfirm extends Component {
     }
   }
 
+  getPasswordHint () {
+    const { account } = this.props;
+    const accountHint = account && account.meta && account.meta.passwordHint;
+
+    if (accountHint) {
+      return accountHint;
+    }
+
+    const { wallet } = this.state;
+    const walletHint = wallet && wallet.meta && wallet.meta.passwordHint;
+
+    return walletHint || null;
+  }
+
   render () {
     const { account, address, isSending } = this.props;
     const { password, wallet, walletError } = this.state;
     const isExternal = !account.uuid;
 
-    const passwordHint = account.meta && account.meta.passwordHint
-      ? (<div><span>(hint) </span>{ account.meta.passwordHint }</div>)
+    const passwordHintText = this.getPasswordHint();
+    const passwordHint = passwordHintText
+      ? (<div><span>(hint) </span>{ passwordHintText }</div>)
       : null;
 
     const isWalletOk = !isExternal || (walletError === null && wallet !== null);
@@ -170,11 +185,25 @@ class TransactionPendingFormConfirm extends Component {
   }
 
   onKeySelect = (event) => {
+    // Check that file have been selected
+    if (event.target.files.length === 0) {
+      return this.setState({
+        wallet: null,
+        walletError: null
+      });
+    }
+
     const fileReader = new FileReader();
 
     fileReader.onload = (e) => {
       try {
         const wallet = JSON.parse(e.target.result);
+
+        try {
+          if (wallet && typeof wallet.meta === 'string') {
+            wallet.meta = JSON.parse(wallet.meta);
+          }
+        } catch (e) {}
 
         this.setState({
           wallet,

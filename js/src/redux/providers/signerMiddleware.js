@@ -17,7 +17,7 @@
 import * as actions from './signerActions';
 
 import { inHex } from '~/api/format/input';
-import { Wallet } from '../../util/wallet';
+import { Signer } from '../../util/signer';
 
 export default class SignerMiddleware {
   constructor (api) {
@@ -58,6 +58,7 @@ export default class SignerMiddleware {
       promise
         .then((txHash) => {
           console.log('confirmRequest', id, txHash);
+
           if (!txHash) {
             store.dispatch(actions.errorConfirmRequest({ id, err: 'Unable to confirm.' }));
             return;
@@ -73,33 +74,49 @@ export default class SignerMiddleware {
 
     // Sign request in-browser
     const transaction = payload.sendTransaction || payload.signTransaction;
+
     if (wallet && transaction) {
-      (transaction.nonce.isZero()
+      const noncePromise = transaction.nonce.isZero()
         ? this._api.parity.nextNonce(transaction.from)
-        : Promise.resolve(transaction.nonce)
-      ).then(nonce => {
-        let txData = {
-          to: inHex(transaction.to),
-          nonce: inHex(transaction.nonce.isZero() ? nonce : transaction.nonce),
-          gasPrice: inHex(transaction.gasPrice),
-          gasLimit: inHex(transaction.gas),
-          value: inHex(transaction.value),
-          data: inHex(transaction.data)
-        };
+        : Promise.resolve(transaction.nonce);
 
-        try {
-          // NOTE: Derving the key takes significant amount of time,
-          // make sure to display some kind of "in-progress" state.
-          const signer = Wallet.fromJson(wallet, password);
-          const rawTx = signer.signTransaction(txData);
+      const { worker } = store.getState().worker;
 
-          handlePromise(this._api.signer.confirmRequestRaw(id, rawTx));
-        } catch (error) {
-          console.error(error);
+      const signerPromise = worker && worker._worker.state === 'activated'
+        ? worker
+          .postMessage({
+            action: 'getSignerSeed',
+            data: { wallet, password }
+          })
+          .then((result) => {
+            const seed = Buffer.from(result.data);
+            return new Signer(seed);
+          })
+        : Signer.fromJson(wallet, password);
+
+      // NOTE: Derving the key takes significant amount of time,
+      // make sure to display some kind of "in-progress" state.
+      return Promise
+        .all([ signerPromise, noncePromise ])
+        .then(([ signer, nonce ]) => {
+          const txData = {
+            to: inHex(transaction.to),
+            nonce: inHex(transaction.nonce.isZero() ? nonce : transaction.nonce),
+            gasPrice: inHex(transaction.gasPrice),
+            gasLimit: inHex(transaction.gas),
+            value: inHex(transaction.value),
+            data: inHex(transaction.data)
+          };
+
+          return signer.signTransaction(txData);
+        })
+        .then((rawTx) => {
+          return handlePromise(this._api.signer.confirmRequestRaw(id, rawTx));
+        })
+        .catch((error) => {
+          console.error(error.message);
           store.dispatch(actions.errorConfirmRequest({ id, err: error.message }));
-        }
-      });
-      return;
+        });
     }
 
     handlePromise(this._api.signer.confirmRequest(id, { gas, gasPrice }, password));

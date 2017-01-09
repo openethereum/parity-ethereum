@@ -170,6 +170,10 @@ export default class InputChip extends Component {
       .filter(v => v !== value));
 
     this.handleTokensChange(newTokens);
+    this.focus();
+  }
+
+  focus = () => {
     this.refs.chipInput.focus();
   }
 

@@ -14,6 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+//! Trie query recorder.
+
 use sha3::Hashable;
 use {Bytes, H256};
 
@@ -30,63 +32,36 @@ pub struct Record {
 	pub hash: H256,
 }
 
-/// Trie node recorder.
-///
-/// These are used to record which nodes are visited during a trie query.
-/// Inline nodes are not to be recorded, as they are contained within their parent.
-pub trait Recorder {
-	/// Record that the given node has been visited.
-	///
-	/// The depth parameter is the depth of the visited node, with the root node having depth 0.
-	fn record(&mut self, hash: &H256, data: &[u8], depth: u32);
-
-	/// Drain all accepted records from the recorder in ascending order by depth.
-	fn drain(&mut self) -> Vec<Record> where Self: Sized;
-}
-
-/// A no-op trie recorder. This ignores everything which is thrown at it.
-pub struct NoOp;
-
-impl Recorder for NoOp {
-	#[inline]
-	fn record(&mut self, _hash: &H256, _data: &[u8], _depth: u32) {}
-
-	#[inline]
-	fn drain(&mut self) -> Vec<Record> { Vec::new() }
-}
-
-/// A simple recorder. Does nothing fancy but fulfills the `Recorder` interface
-/// properly.
+/// Records trie nodes as they pass it.
 #[derive(Debug)]
-pub struct BasicRecorder {
+pub struct Recorder {
 	nodes: Vec<Record>,
 	min_depth: u32,
 }
 
-impl Default for BasicRecorder {
+impl Default for Recorder {
 	fn default() -> Self {
-		BasicRecorder::new()
+		Recorder::new()
 	}
 }
 
-impl BasicRecorder {
-	/// Create a new `BasicRecorder` which records all given nodes.
+impl Recorder {
+	/// Create a new `Recorder` which records all given nodes.
 	#[inline]
 	pub fn new() -> Self {
-		BasicRecorder::with_depth(0)
+		Recorder::with_depth(0)
 	}
 
-	/// Create a `BasicRecorder` which only records nodes beyond a given depth.
+	/// Create a `Recorder` which only records nodes beyond a given depth.
 	pub fn with_depth(depth: u32) -> Self {
-		BasicRecorder {
+		Recorder {
 			nodes: Vec::new(),
 			min_depth: depth,
 		}
 	}
-}
 
-impl Recorder for BasicRecorder {
-	fn record(&mut self, hash: &H256, data: &[u8], depth: u32) {
+	/// Record a visited node, given its hash, data, and depth.
+	pub fn record(&mut self, hash: &H256, data: &[u8], depth: u32) {
 		debug_assert_eq!(data.sha3(), *hash);
 
 		if depth >= self.min_depth {
@@ -98,7 +73,8 @@ impl Recorder for BasicRecorder {
 		}
 	}
 
-	fn drain(&mut self) -> Vec<Record> {
+	/// Drain all visited records.
+	pub fn drain(&mut self) -> Vec<Record> {
 		::std::mem::replace(&mut self.nodes, Vec::new())
 	}
 }
@@ -110,19 +86,8 @@ mod tests {
 	use ::H256;
 
 	#[test]
-	fn no_op_does_nothing() {
-		let mut no_op = NoOp;
-		let (node1, node2) = (&[1], &[2]);
-		let (hash1, hash2) = (node1.sha3(), node2.sha3());
-		no_op.record(&hash1, node1, 1);
-		no_op.record(&hash2, node2, 2);
-
-		assert_eq!(no_op.drain(), Vec::new());
-	}
-
-	#[test]
 	fn basic_recorder() {
-		let mut basic = BasicRecorder::new();
+		let mut basic = Recorder::new();
 
 		let node1 = vec![1, 2, 3, 4];
 		let node2 = vec![4, 5, 6, 7, 8, 9, 10];
@@ -148,7 +113,7 @@ mod tests {
 
 	#[test]
 	fn basic_recorder_min_depth() {
-		let mut basic = BasicRecorder::with_depth(400);
+		let mut basic = Recorder::with_depth(400);
 
 		let node1 = vec![1, 2, 3, 4];
 		let node2 = vec![4, 5, 6, 7, 8, 9, 10];
@@ -192,9 +157,9 @@ mod tests {
 		}
 
 		let trie = TrieDB::new(&db, &root).unwrap();
-		let mut recorder = BasicRecorder::new();
+		let mut recorder = Recorder::new();
 
-		trie.get_recorded(b"pirate", &mut recorder).unwrap().unwrap();
+		trie.get_with(b"pirate", &mut recorder).unwrap().unwrap();
 
 		let nodes: Vec<_> = recorder.drain().into_iter().map(|r| r.data).collect();
 		assert_eq!(nodes, vec![
@@ -213,7 +178,7 @@ mod tests {
 			]
 		]);
 
-		trie.get_recorded(b"letter", &mut recorder).unwrap().unwrap();
+		trie.get_with(b"letter", &mut recorder).unwrap().unwrap();
 
 		let nodes: Vec<_> = recorder.drain().into_iter().map(|r| r.data).collect();
 		assert_eq!(nodes, vec![

@@ -14,4 +14,21 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-export default from './summary';
+import { handleActions } from 'redux-actions';
+
+const initialState = {
+  worker: undefined,
+  error: null
+};
+
+export default handleActions({
+  setWorker (state, action) {
+    const { worker } = action;
+    return Object.assign({}, state, { worker: worker || null });
+  },
+
+  setError (state, action) {
+    const { error } = action;
+    return Object.assign({}, state, { error });
+  }
+}, initialState);

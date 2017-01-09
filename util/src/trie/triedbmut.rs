@@ -17,6 +17,7 @@
 //! In-memory trie representation.
 
 use super::{TrieError, TrieMut};
+use super::lookup::Lookup;
 use super::node::Node as RlpNode;
 use super::node::NodeKey;
 
@@ -100,22 +101,22 @@ impl Node {
 	fn from_rlp(rlp: &[u8], db: &HashDB, storage: &mut NodeStorage) -> Self {
 		match RlpNode::decoded(rlp) {
 			RlpNode::Empty => Node::Empty,
-			RlpNode::Leaf(k, v) => Node::Leaf(k, v),
+			RlpNode::Leaf(k, v) => Node::Leaf(k.encoded(true), DBValue::from_slice(&v)),
 			RlpNode::Extension(key, cb) => {
-				Node::Extension(key, Self::inline_or_hash(&*cb, db, storage))
+				Node::Extension(key.encoded(false), Self::inline_or_hash(cb, db, storage))
 			}
 			RlpNode::Branch(children_rlp, val) => {
 				let mut children = empty_children();
 
 				for i in 0..16 {
-					let raw = &children_rlp[i];
-					let child_rlp = Rlp::new(&*raw);
+					let raw = children_rlp[i];
+					let child_rlp = Rlp::new(raw);
 					if !child_rlp.is_empty()  {
-						children[i] = Some(Self::inline_or_hash(&*raw, db, storage));
+						children[i] = Some(Self::inline_or_hash(raw, db, storage));
 					}
 				}
 
-				Node::Branch(children, val)
+				Node::Branch(children, val.map(DBValue::from_slice))
 			}
 		}
 	}
@@ -370,7 +371,11 @@ impl<'a> TrieDBMut<'a> {
 		where 'x: 'key
 	{
 		match *handle {
-			NodeHandle::Hash(ref hash) => self.do_db_lookup(hash, partial),
+			NodeHandle::Hash(ref hash) => Lookup {
+				db: &*self.db,
+				query: DBValue::from_slice,
+				hash: hash.clone(),
+			}.look_up(partial),
 			NodeHandle::InMemory(ref handle) => match self.storage[handle] {
 				Node::Empty => Ok(None),
 				Node::Leaf(ref key, ref value) => {
@@ -400,54 +405,6 @@ impl<'a> TrieDBMut<'a> {
 					}
 				}
 			}
-		}
-	}
-
-	/// Return optional data for a key given as a `NibbleSlice`. Returns `None` if no data exists.
-	fn do_db_lookup<'x, 'key>(&'x self, hash: &H256, key: NibbleSlice<'key>) -> super::Result<Option<DBValue>>
-		where 'x: 'key
-	{
-		self.db.get(hash).ok_or_else(|| Box::new(TrieError::IncompleteDatabase(*hash)))
-			.and_then(|node_rlp| self.get_from_db_node(&node_rlp, key))
-	}
-
-	/// Recursible function to retrieve the value given a `node` and a partial `key`. `None` if no
-	/// value exists for the key.
-	///
-	/// Note: Not a public API; use Trie trait functions.
-	fn get_from_db_node<'x, 'key>(&'x self, node: &'x [u8], key: NibbleSlice<'key>) -> super::Result<Option<DBValue>>
-		where 'x: 'key
-	{
-		match RlpNode::decoded(node) {
-			RlpNode::Leaf(ref slice, ref value) if NibbleSlice::from_encoded(slice).0 == key => Ok(Some(value.clone())),
-			RlpNode::Extension(ref slice, ref item) => {
-				let slice = &NibbleSlice::from_encoded(slice).0;
-				if key.starts_with(slice) {
-					self.get_from_db_node(&self.get_raw_or_lookup(&*item)?, key.mid(slice.len()))
-				} else {
-					Ok(None)
-				}
-			},
-			RlpNode::Branch(ref nodes, ref value) => match key.is_empty() {
-				true => Ok(value.clone()),
-				false => self.get_from_db_node(&self.get_raw_or_lookup(&*nodes[key.at(0) as usize])?, key.mid(1))
-			},
-			_ => Ok(None),
-		}
-	}
-
-	/// Given some node-describing data `node`, return the actual node RLP.
-	/// This could be a simple identity operation in the case that the node is sufficiently small, but
-	/// may require a database lookup.
-	fn get_raw_or_lookup<'x>(&'x self, node: &'x [u8]) -> super::Result<DBValue> {
-		// check if its sha3 + len
-		let r = Rlp::new(node);
-		match r.is_data() && r.size() == 32 {
-			true => {
-				let key = r.as_val::<H256>();
-				self.db.get(&key).ok_or_else(|| Box::new(TrieError::IncompleteDatabase(key)))
-			}
-			false => Ok(DBValue::from_slice(node))
 		}
 	}
 

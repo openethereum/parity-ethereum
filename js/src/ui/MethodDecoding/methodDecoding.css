@@ -38,6 +38,10 @@
   justify-content: center;
 }
 
+.details {
+  line-height: 1.75em;
+}
+
 .details,
 .gasDetails {
   color: #aaa;

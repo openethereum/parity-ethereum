@@ -36,7 +36,7 @@ export default class RawKey extends Component {
     accountNameError: ERRORS.noName,
     isValidKey: false,
     isValidName: false,
-    isValidPass: false,
+    isValidPass: true,
     passwordHint: '',
     password1: '',
     password1Error: null,
@@ -118,8 +118,6 @@ export default class RawKey extends Component {
     const { api } = this.context;
     const rawKey = event.target.value;
     let rawKeyError = null;
-
-    console.log(rawKey.length, rawKey);
 
     if (!rawKey || !rawKey.trim().length) {
       rawKeyError = ERRORS.noKey;

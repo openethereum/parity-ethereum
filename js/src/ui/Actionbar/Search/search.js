@@ -71,15 +71,15 @@ export default class ActionbarSearch extends Component {
         key='searchAccount'>
         <div className={ inputContainerClasses.join(' ') }>
           <InputChip
+            addOnBlur
             className={ styles.input }
             hint='Enter search input...'
+            ref='inputChip'
             tokens={ tokens }
 
             onBlur={ this.handleSearchBlur }
             onInputChange={ this.handleInputChange }
             onTokensChange={ this.handleTokensChange }
-
-            addOnBlur
           />
         </div>
 
@@ -117,6 +117,10 @@ export default class ActionbarSearch extends Component {
 
   handleSearchClick = () => {
     const { showSearch } = this.state;
+
+    if (!showSearch) {
+      this.refs.inputChip.focus();
+    }
 
     this.handleOpenSearch(!showSearch);
   }
