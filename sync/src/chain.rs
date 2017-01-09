@@ -125,6 +125,8 @@ const MAX_NEW_HASHES: usize = 64;
 const MAX_TX_TO_IMPORT: usize = 512;
 const MAX_NEW_BLOCK_AGE: BlockNumber = 20;
 const MAX_TRANSACTION_SIZE: usize = 300*1024;
+// Maximal number of transactions in sent in single packet.
+const MAX_TRANSACTIONS_TO_PROPAGATE: usize = 64;
 // Min number of blocks to be behind for a snapshot sync
 const SNAPSHOT_RESTORE_THRESHOLD: BlockNumber = 100000;
 const SNAPSHOT_MIN_PEERS: usize = 3;
@@ -1991,7 +1993,10 @@ impl ChainSync {
 					}
 
 					// Get hashes of all transactions to send to this peer
-					let to_send = all_transactions_hashes.difference(&peer_info.last_sent_transactions).cloned().collect::<HashSet<_>>();
+					let to_send = all_transactions_hashes.difference(&peer_info.last_sent_transactions)
+						.take(MAX_TRANSACTIONS_TO_PROPAGATE)
+						.cloned()
+						.collect::<HashSet<_>>();
 					if to_send.is_empty() {
 						return None;
 					}
@@ -2007,7 +2012,11 @@ impl ChainSync {
 						}
 					}
 
-					peer_info.last_sent_transactions = all_transactions_hashes.clone();
+					peer_info.last_sent_transactions = all_transactions_hashes
+						.intersection(&peer_info.last_sent_transactions)
+						.chain(&to_send)
+						.cloned()
+						.collect();
 					Some((*peer_id, to_send.len(), packet.out()))
 				})
 				.collect::<Vec<_>>()
