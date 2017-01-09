@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import subscribeToEvent from '../util/subscribe-to-event';
+import subscribeToEvents from '../util/subscribe-to-events';
 
 export const checkIfVerified = (contract, account) => {
   return contract.instance.certified.call({}, [account]);
@@ -72,7 +72,7 @@ export const awaitPuzzle = (api, contract, account) => {
   return blockNumber(api)
     .then((block) => {
       return new Promise((resolve, reject) => {
-        const subscription = subscribeToEvent(contract, 'Puzzled', {
+        const subscription = subscribeToEvents(contract, 'Puzzled', {
           from: block.toNumber(),
           filter: (log) => log.params.who.value === account
         });
