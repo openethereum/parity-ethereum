@@ -828,6 +828,7 @@ impl TransactionQueue {
 		let balance_check = max_time >> 3;
 		// Clear transactions occupying the queue too long
 		let invalid = self.by_hash.iter()
+			.filter(|&(_, ref tx)| !tx.origin.is_local())
 			.map(|(hash, tx)| (hash, tx, current_time.saturating_sub(tx.insertion_time)))
 			.filter_map(|(hash, tx, time_diff)| {
 				if time_diff > max_time {
@@ -2624,7 +2625,7 @@ mod test {
 		let (tx3, tx4) = new_tx_pair_default(2.into(), 0.into());
 
 		// Insert all transactions
-		txq.add(tx1, TransactionOrigin::External, 0, None, &default_account_details, &gas_estimator).unwrap();
+		txq.add(tx1.clone(), TransactionOrigin::Local, 0, None, &default_account_details, &gas_estimator).unwrap();
 		txq.add(tx2, TransactionOrigin::External, 5, None, &default_account_details, &gas_estimator).unwrap();
 		txq.add(tx3.clone(), TransactionOrigin::External, 10, None, &default_account_details, &gas_estimator).unwrap();
 		txq.add(tx4, TransactionOrigin::External, 0, None, &default_account_details, &gas_estimator).unwrap();
@@ -2635,9 +2636,9 @@ mod test {
 		txq.remove_old(&default_account_details, 9 + super::DEFAULT_QUEUING_PERIOD);
 
 		// then
-		assert_eq!(txq.top_transactions().len(), 1);
+		assert_eq!(txq.top_transactions().len(), 2);
 		assert_eq!(txq.future_transactions().len(), 0);
-		assert_eq!(txq.top_transactions(), vec![tx3]);
+		assert_eq!(txq.top_transactions(), vec![tx1, tx3]);
 	}
 
 }
