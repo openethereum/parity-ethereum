@@ -2092,19 +2092,13 @@ impl ChainSync {
 			self.restart(io);
 		}
 
-		if !is_syncing && !enacted.is_empty() {
-			// Select random peers to re-broadcast transactions to.
-			let mut random = random::new();
-			let len = self.peers.len();
-			let peers = random.gen_range(0, min(len, 3));
-			trace!(target: "sync", "Re-broadcasting transactions to {} random peers.", peers);
-
-			for _ in 0..peers {
-				let peer = random.gen_range(0, len);
-				self.peers.values_mut().nth(peer).map(|mut peer_info| {
-					peer_info.last_sent_transactions.clear()
-				});
-			}
+		if !is_syncing && !enacted.is_empty() && !self.peers.is_empty() {
+			// Select random peer to re-broadcast transactions to.
+			let peer = random::new().gen_range(0, self.peers.len());
+			trace!(target: "sync", "Re-broadcasting transactions to a random peer.");
+			self.peers.values_mut().nth(peer).map(|mut peer_info|
+				peer_info.last_sent_transactions.clear()
+			);
 		}
 	}
 
@@ -2563,6 +2557,26 @@ mod tests {
 		assert_eq!(1, peer_count);
 		// TRANSACTIONS_PACKET
 		assert_eq!(0x02, io.packets[0].packet_id);
+	}
+
+	#[test]
+	fn does_not_fail_for_no_peers() {
+		let mut client = TestBlockChainClient::new();
+		client.add_blocks(100, EachBlockWith::Uncle);
+		client.insert_transaction_to_queue();
+		// Sync with no peers
+		let mut sync = ChainSync::new(SyncConfig::default(), &client);
+		let queue = RwLock::new(VecDeque::new());
+		let ss = TestSnapshotService::new();
+		let mut io = TestIo::new(&mut client, &ss, &queue, None);
+		let peer_count = sync.propagate_new_transactions(&mut io);
+		sync.chain_new_blocks(&mut io, &[], &[], &[], &[], &[], &[]);
+		// Try to propagate same transactions for the second time
+		let peer_count2 = sync.propagate_new_transactions(&mut io);
+
+		assert_eq!(0, io.packets.len());
+		assert_eq!(0, peer_count);
+		assert_eq!(0, peer_count2);
 	}
 
 	#[test]
