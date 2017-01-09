@@ -14,24 +14,4 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import settingsReducer from './reducers';
-import { toggleView, updateBackground } from './actions';
-import SettingsAdvanced from './Advanced';
-import SettingsBackground from './Background';
-import SettingsParity from './Parity';
-import SettingsProxy from './Proxy';
-import SettingsViews, { defaultViews } from './Views';
-
-export default from './settings';
-
-export {
-  SettingsAdvanced,
-  SettingsBackground,
-  SettingsParity,
-  SettingsProxy,
-  SettingsViews,
-  defaultViews,
-  settingsReducer,
-  toggleView,
-  updateBackground
-};
+export default from './advanced';

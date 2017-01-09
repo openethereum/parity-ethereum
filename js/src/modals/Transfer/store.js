@@ -17,7 +17,6 @@
 import { observable, computed, action, transaction } from 'mobx';
 import BigNumber from 'bignumber.js';
 import { uniq } from 'lodash';
-import LogLevel from 'loglevel';
 
 import { wallet as walletAbi } from '~/contracts/abi';
 import { bytesToHex } from '~/api/util/format';
@@ -26,9 +25,9 @@ import ERRORS from './errors';
 import { ERROR_CODES } from '~/api/transport/error';
 import { DEFAULT_GAS, MAX_GAS_ESTIMATION } from '~/util/constants';
 import GasPriceStore from '~/ui/GasPriceEditor/store';
+import { getLogger, LOG_KEYS } from '~/config';
 
-const LOG_KEY = 'TransferModalStore';
-const log = LogLevel.getLogger(LOG_KEY);
+const log = getLogger(LOG_KEYS.TransferModalStore);
 
 const TITLES = {
   transfer: 'transfer details',
@@ -364,7 +363,11 @@ export default class TransferStore {
       });
   }
 
-  getBalance () {
+  getBalance (forceSender = false) {
+    if (this.isWallet && !this.forceSender) {
+      return this.balance;
+    }
+
     const balance = this.senders
       ? this.sendersBalances[this.sender]
       : this.balance;
@@ -372,8 +375,8 @@ export default class TransferStore {
     return balance;
   }
 
-  getToken (tag = this.tag) {
-    const balance = this.getBalance();
+  getToken (tag = this.tag, forceSender = false) {
+    const balance = this.getBalance(forceSender);
 
     if (!balance) {
       return null;
@@ -389,8 +392,8 @@ export default class TransferStore {
    * Return the balance of the selected token
    * (in WEI for ETH, without formating for other tokens)
    */
-  getTokenBalance (tag = this.tag) {
-    const token = this.getToken(tag);
+  getTokenBalance (tag = this.tag, forceSender = false) {
+    const token = this.getToken(tag, forceSender);
 
     if (!token) {
       return new BigNumber(0);
@@ -504,7 +507,7 @@ export default class TransferStore {
 
     const gasTotal = new BigNumber(this.gasStore.price || 0).mul(new BigNumber(this.gasStore.gas || 0));
 
-    const ethBalance = this.getTokenBalance('ETH');
+    const ethBalance = this.getTokenBalance('ETH', true);
     const tokenBalance = this.getTokenBalance();
     const { eth, token } = this.getValues(gasTotal);
 
@@ -520,7 +523,7 @@ export default class TransferStore {
       valueError = ERRORS.largeAmount;
     }
 
-    log.debug(LOG_KEY, '@recalculate', {
+    log.debug('@recalculate', {
       eth: eth.toFormat(),
       token: token.toFormat(),
       ethBalance: ethBalance.toFormat(),

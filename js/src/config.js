@@ -14,24 +14,15 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import settingsReducer from './reducers';
-import { toggleView, updateBackground } from './actions';
-import SettingsAdvanced from './Advanced';
-import SettingsBackground from './Background';
-import SettingsParity from './Parity';
-import SettingsProxy from './Proxy';
-import SettingsViews, { defaultViews } from './Views';
+import LogLevel from 'loglevel';
 
-export default from './settings';
+export const LOG_KEYS = {
+  TransferModalStore: {
+    path: 'modals/Transfer/store',
+    desc: 'Transfer Modal MobX Store'
+  }
+};
 
-export {
-  SettingsAdvanced,
-  SettingsBackground,
-  SettingsParity,
-  SettingsProxy,
-  SettingsViews,
-  defaultViews,
-  settingsReducer,
-  toggleView,
-  updateBackground
+export const getLogger = (LOG_KEY) => {
+  return LogLevel.getLogger(LOG_KEY.path);
 };
