@@ -1854,11 +1854,10 @@ impl ChainSync {
 			.collect::<Vec<_>>()
 	}
 
-	fn select_random_lagging_peers(&mut self, peers: &[PeerId]) -> Vec<PeerId> {
-		use rand::Rng;
+	fn select_random_peers(peers: &[PeerId]) -> Vec<PeerId> {
 		// take sqrt(x) peers
 		let mut peers = peers.to_vec();
-		let mut count = (self.peers.len() as f64).powf(0.5).round() as usize;
+		let mut count = (peers.len() as f64).powf(0.5).round() as usize;
 		count = min(count, MAX_PEERS_PROPAGATION);
 		count = max(count, MIN_PEERS_PROPAGATION);
 		random::new().shuffle(&mut peers);
@@ -1984,7 +1983,7 @@ impl ChainSync {
 			let mut peers = self.get_lagging_peers(&chain_info, io);
 			if sealed.is_empty() {
 				let hashes = self.propagate_new_hashes(&chain_info, io, &peers);
-				peers = self.select_random_lagging_peers(&peers);
+				peers = ChainSync::select_random_peers(&peers);
 				let blocks = self.propagate_blocks(&chain_info, io, sealed, &peers);
 				if blocks != 0 || hashes != 0 {
 					trace!(target: "sync", "Sent latest {} blocks and {} hashes to peers.", blocks, hashes);
@@ -2018,19 +2017,13 @@ impl ChainSync {
 			self.restart(io);
 		}
 
-		if !is_syncing && !enacted.is_empty() {
-			// Select random peers to re-broadcast transactions to.
-			let mut random = random::new();
-			let len = self.peers.len();
-			let peers = random.gen_range(0, min(len, 3));
-			trace!(target: "sync", "Re-broadcasting transactions to {} random peers.", peers);
-
-			for _ in 0..peers {
-				let peer = random.gen_range(0, len);
-				self.peers.values_mut().nth(peer).map(|mut peer_info| {
-					peer_info.last_sent_transactions.clear()
-				});
-			}
+		if !is_syncing && !enacted.is_empty() && !self.peers.is_empty() {
+			// Select random peer to re-broadcast transactions to.
+			let peer = random::new().gen_range(0, self.peers.len());
+			trace!(target: "sync", "Re-broadcasting transactions to a random peer.");
+			self.peers.values_mut().nth(peer).map(|mut peer_info|
+				peer_info.last_sent_transactions.clear()
+			);
 		}
 	}
 }
@@ -2390,6 +2383,26 @@ mod tests {
 		assert_eq!(0, peer_count2);
 		// TRANSACTIONS_PACKET
 		assert_eq!(0x02, io.queue[0].packet_id);
+	}
+
+	#[test]
+	fn does_not_fail_for_no_peers() {
+		let mut client = TestBlockChainClient::new();
+		client.add_blocks(100, EachBlockWith::Uncle);
+		client.insert_transaction_to_queue();
+		// Sync with no peers
+		let mut sync = ChainSync::new(SyncConfig::default(), &client);
+		let mut queue = VecDeque::new();
+		let ss = TestSnapshotService::new();
+		let mut io = TestIo::new(&mut client, &ss, &mut queue, None);
+		let peer_count = sync.propagate_new_transactions(&mut io);
+		sync.chain_new_blocks(&mut io, &[], &[], &[], &[], &[]);
+		// Try to propagate same transactions for the second time
+		let peer_count2 = sync.propagate_new_transactions(&mut io);
+
+		assert_eq!(0, io.queue.len());
+		assert_eq!(0, peer_count);
+		assert_eq!(0, peer_count2);
 	}
 
 	#[test]
