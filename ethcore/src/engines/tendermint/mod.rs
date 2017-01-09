@@ -459,9 +459,11 @@ impl Engine for Tendermint {
 			if !self.is_authority(&sender) {
 				Err(EngineError::NotAuthorized(sender))?;
 			}
-			self.broadcast_message(rlp.as_raw().to_vec());
+			if self.votes.vote(message.clone(), &sender).is_some() {
+				Err(EngineError::DoubleVote(sender))?
+			}
 			trace!(target: "poa", "Handling a valid {:?} from {}.", message, sender);
-			self.votes.vote(message.clone(), &sender);
+			self.broadcast_message(rlp.as_raw().to_vec());
 			self.handle_valid_message(&message);
 		}
 		Ok(())
