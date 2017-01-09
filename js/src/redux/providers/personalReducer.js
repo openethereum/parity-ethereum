@@ -47,7 +47,7 @@ export default handleActions({
   setVisibleAccounts (state, action) {
     const addresses = (action.addresses || []).sort();
 
-    if (isEqual(addresses, state.addresses)) {
+    if (isEqual(addresses, state.visibleAccounts)) {
       return state;
     }
 
