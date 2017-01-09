@@ -14,27 +14,26 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { mount } from 'enzyme';
+import { shallow } from 'enzyme';
 import React from 'react';
 import sinon from 'sinon';
 
-import { ContextProvider, muiTheme } from '~/ui';
 import { ABI_TYPES } from '~/util/abi';
 
 import TypedInput from './';
 
 let component;
+let select;
 let onChange;
 
 function render (props) {
   onChange = sinon.stub();
-  component = mount(
-    <ContextProvider api={ {} } muiTheme={ muiTheme } store={ {} }>
-      <TypedInput
-        { ...props }
-        onChange={ onChange } />
-    </ContextProvider>
+  component = shallow(
+    <TypedInput
+      { ...props }
+      onChange={ onChange } />
   );
+  select = component.find('Select');
 
   return component;
 }
@@ -50,19 +49,19 @@ describe('ui/Form/TypedInput', () => {
     });
 
     it('calls onChange when value changes', () => {
-      component.find('DropDownMenu').simulate('change', { target: { value: 'true' } });
+      select.shallow().simulate('change', { target: { value: 'true' } });
 
       expect(onChange).to.have.been.called;
     });
 
     it("calls onChange(true) when value changes to 'true'", () => {
-      component.find('DropDownMenu').simulate('change', { target: { value: 'true' } });
+      select.shallow().simulate('change', { target: { value: 'true' } });
 
       expect(onChange).to.have.been.calledWith(true);
     });
 
     it("calls onChange(false) when value changes to 'false'", () => {
-      component.find('DropDownMenu').simulate('change', { target: { value: 'false' } });
+      select.shallow().simulate('change', { target: { value: 'false' } });
 
       expect(onChange).to.have.been.calledWith(false);
     });
