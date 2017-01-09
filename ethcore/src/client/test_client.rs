@@ -26,6 +26,7 @@ use blockchain::TreeRoute;
 use client::{
 	BlockChainClient, MiningBlockChainClient, BlockChainInfo, BlockStatus, BlockId,
 	TransactionId, UncleId, TraceId, TraceFilter, LastHashes, CallAnalytics, BlockImportError,
+	ProvingBlockChainClient,
 };
 use db::{NUM_COLUMNS, COL_STATE};
 use header::{Header as BlockHeader, BlockNumber};
@@ -726,4 +727,18 @@ impl BlockChainClient for TestBlockChainClient {
 	fn registrar_address(&self) -> Option<Address> { None }
 
 	fn registry_address(&self, _name: String) -> Option<Address> { None }
+}
+
+impl ProvingBlockChainClient for TestBlockChainClient {
+	fn prove_storage(&self, _: H256, _: H256, _: u32, _: BlockId) -> Vec<Bytes> {
+		Vec::new()
+	}
+
+	fn prove_account(&self, _: H256, _: u32, _: BlockId) -> Vec<Bytes> {
+		Vec::new()
+	}
+
+	fn code_by_hash(&self, _: H256, _: BlockId) -> Bytes {
+		Vec::new()
+	}
 }
