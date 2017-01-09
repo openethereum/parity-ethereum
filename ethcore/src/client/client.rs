@@ -837,6 +837,10 @@ impl snapshot::DatabaseRestore for Client {
 	}
 }
 
+fn binary_chop<F>(min: U256, max: U256, cond: F) -> bool where F: Fn(U256) -> bool {
+	true
+}
+
 impl BlockChainClient for Client {
 	fn call(&self, t: &SignedTransaction, block: BlockId, analytics: CallAnalytics) -> Result<Executed, CallError> {
 		let header = self.block_header(block).ok_or(CallError::StatePruned)?;
@@ -871,6 +875,51 @@ impl BlockChainClient for Client {
 		ret.state_diff = original_state.map(|original| state.diff_from(original));
 
 		Ok(ret)
+	}
+
+	fn estimate_gas(&self, t: &SignedTransaction, block: BlockId) -> Result<U256, CallError> {
+		let header = self.block_header(block).ok_or(CallError::StatePruned)?;
+		let last_hashes = self.build_last_hashes(header.parent_hash());
+		let env_info = EnvInfo {
+			number: header.number(),
+			author: header.author(),
+			timestamp: header.timestamp(),
+			difficulty: header.difficulty(),
+			last_hashes: last_hashes,
+			gas_used: U256::zero(),
+			gas_limit: U256::max_value(),
+		};
+		// that's just a copy of the state.
+		let mut original_state = self.state_at(block).ok_or(CallError::StatePruned)?;
+		let sender = t.sender().map_err(|e| {
+			let message = format!("Transaction malformed: {:?}", e);
+			ExecutionError::TransactionMalformed(message)
+		})?;
+		let balance = original_state.balance(&sender);
+		let needed_balance = t.value + t.gas * t.gas_price;
+		if balance < needed_balance {
+			// give the sender a sufficient balance
+			original_state.add_balance(&sender, &(needed_balance - balance), CleanupMode::NoEmpty);
+		}
+		let options = TransactOptions { tracing: true, vm_tracing: false, check_nonce: false };
+
+		let cond = |gas| {
+			let mut state = original_state.clone();
+			let mut tx = t.clone();
+			tx.gas = gas;
+			Executive::new(&mut state, &env_info, &*self.engine, &self.factories.vm)
+				.transact(t, options)
+				.map(|r| r.trace[0].succeeded())
+				.unwrap_or(false)
+		};
+
+		if !cond(env_info.gas_limit) {
+			// impossible
+			return Err(CallError::Execution(ExecutionError::Internal))
+		}
+		// binary chop to non-excepting call with gas somewhere between 21000 and block gas limit
+
+		Ok(binary_chop(t.gas_required(self.engine.schedule(&env_info), env_info.gas_limit, cond)))
 	}
 
 	fn replay(&self, id: TransactionId, analytics: CallAnalytics) -> Result<Executed, CallError> {
