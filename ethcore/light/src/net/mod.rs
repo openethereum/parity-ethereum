@@ -440,8 +440,8 @@ impl LightProtocol {
 		}
 	}
 
-	// handle a packet using the given io context.
-	fn handle_packet(&self, io: &IoContext, peer: &PeerId, packet_id: u8, data: &[u8]) {
+	// Handle a packet using the given io context.
+	pub fn handle_packet(&self, io: &IoContext, peer: &PeerId, packet_id: u8, data: &[u8]) {
 		let rlp = UntrustedRlp::new(data);
 
 		trace!(target: "les", "Incoming packet {} from peer {}", packet_id, peer);
@@ -478,6 +478,71 @@ impl LightProtocol {
 
 		if let Err(e) = res {
 			punish(*peer, io, e);
+		}
+	}
+
+		/// called when a peer connects.
+	pub fn on_connect(&self, peer: &PeerId, io: &IoContext) {
+		let proto_version = match io.protocol_version(*peer).ok_or(Error::WrongNetwork) {
+			Ok(pv) => pv,
+			Err(e) => { punish(*peer, io, e); return }
+		};
+
+		if PROTOCOL_VERSIONS.iter().find(|x| **x == proto_version).is_none() {
+			punish(*peer, io, Error::UnsupportedProtocolVersion(proto_version));
+			return;
+		}
+
+		let chain_info = self.provider.chain_info();
+
+		let status = Status {
+			head_td: chain_info.total_difficulty,
+			head_hash: chain_info.best_block_hash,
+			head_num: chain_info.best_block_number,
+			genesis_hash: chain_info.genesis_hash,
+			protocol_version: proto_version as u32, // match peer proto version
+			network_id: self.network_id,
+			last_head: None,
+		};
+
+		let capabilities = self.capabilities.read().clone();
+		let status_packet = status::write_handshake(&status, &capabilities, Some(&self.flow_params));
+
+		self.pending_peers.write().insert(*peer, PendingPeer {
+			sent_head: chain_info.best_block_hash,
+			last_update: SteadyTime::now(),
+		});
+
+		io.send(*peer, packet::STATUS, status_packet);
+	}
+
+	/// called when a peer disconnects.
+	pub fn on_disconnect(&self, peer: PeerId, io: &IoContext) {
+		trace!(target: "les", "Peer {} disconnecting", peer);
+
+
+		self.pending_peers.write().remove(&peer);
+		if self.peers.write().remove(&peer).is_some() {
+			let unfulfilled: Vec<_> = self.pending_requests.read()
+				.iter()
+				.filter(|&(_, r)| r.peer_id == peer)
+				.map(|(&id, _)| ReqId(id))
+				.collect();
+
+			{
+				let mut pending = self.pending_requests.write();
+				for &ReqId(ref inner) in &unfulfilled {
+					pending.remove(inner);
+				}
+			}
+
+			for handler in &self.handlers {
+				handler.on_disconnect(&Ctx {
+					peer: peer,
+					io: io,
+					proto: self,
+				}, &unfulfilled)
+			}
 		}
 	}
 
@@ -540,71 +605,6 @@ impl LightProtocol {
 }
 
 impl LightProtocol {
-	// called when a peer connects.
-	fn on_connect(&self, peer: &PeerId, io: &IoContext) {
-		let proto_version = match io.protocol_version(*peer).ok_or(Error::WrongNetwork) {
-			Ok(pv) => pv,
-			Err(e) => { punish(*peer, io, e); return }
-		};
-
-		if PROTOCOL_VERSIONS.iter().find(|x| **x == proto_version).is_none() {
-			punish(*peer, io, Error::UnsupportedProtocolVersion(proto_version));
-			return;
-		}
-
-		let chain_info = self.provider.chain_info();
-
-		let status = Status {
-			head_td: chain_info.total_difficulty,
-			head_hash: chain_info.best_block_hash,
-			head_num: chain_info.best_block_number,
-			genesis_hash: chain_info.genesis_hash,
-			protocol_version: proto_version as u32, // match peer proto version
-			network_id: self.network_id,
-			last_head: None,
-		};
-
-		let capabilities = self.capabilities.read().clone();
-		let status_packet = status::write_handshake(&status, &capabilities, Some(&self.flow_params));
-
-		self.pending_peers.write().insert(*peer, PendingPeer {
-			sent_head: chain_info.best_block_hash,
-			last_update: SteadyTime::now(),
-		});
-
-		io.send(*peer, packet::STATUS, status_packet);
-	}
-
-	// called when a peer disconnects.
-	fn on_disconnect(&self, peer: PeerId, io: &IoContext) {
-		trace!(target: "les", "Peer {} disconnecting", peer);
-
-
-		self.pending_peers.write().remove(&peer);
-		if self.peers.write().remove(&peer).is_some() {
-			let unfulfilled: Vec<_> = self.pending_requests.read()
-				.iter()
-				.filter(|&(_, r)| r.peer_id == peer)
-				.map(|(&id, _)| ReqId(id))
-				.collect();
-
-			{
-				let mut pending = self.pending_requests.write();
-				for &ReqId(ref inner) in &unfulfilled {
-					pending.remove(inner);
-				}
-			}
-
-			for handler in &self.handlers {
-				handler.on_disconnect(&Ctx {
-					peer: peer,
-					io: io,
-					proto: self,
-				}, &unfulfilled)
-			}
-		}
-	}
-
 	// Handle status message from peer.
 	fn status(&self, peer: &PeerId, io: &IoContext, data: UntrustedRlp) -> Result<(), Error> {
 		let pending = match self.pending_peers.write().remove(peer) {
