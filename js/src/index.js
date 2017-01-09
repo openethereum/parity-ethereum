@@ -16,6 +16,9 @@
 
 import 'babel-polyfill';
 import 'whatwg-fetch';
+import log from 'loglevel';
+
+window._paritylog = log;
 
 import es6Promise from 'es6-promise';
 es6Promise.polyfill();

@@ -17,6 +17,7 @@
 import { observable, computed, action, transaction } from 'mobx';
 import BigNumber from 'bignumber.js';
 import { uniq } from 'lodash';
+import LogLevel from 'loglevel';
 
 import { wallet as walletAbi } from '~/contracts/abi';
 import { bytesToHex } from '~/api/util/format';
@@ -25,6 +26,9 @@ import ERRORS from './errors';
 import { ERROR_CODES } from '~/api/transport/error';
 import { DEFAULT_GAS, MAX_GAS_ESTIMATION } from '~/util/constants';
 import GasPriceStore from '~/ui/GasPriceEditor/store';
+
+const LOG_KEY = 'TransferModalStore';
+const log = LogLevel.getLogger(LOG_KEY);
 
 const TITLES = {
   transfer: 'transfer details',
@@ -332,13 +336,13 @@ export default class TransferStore {
     });
   }
 
-  @action recalculateGas = () => {
+  @action recalculateGas = (redo = true) => {
     if (!this.isValid) {
       this.gasStore.setGas('0');
-      return this.recalculate();
+      return this.recalculate(redo);
     }
 
-    this
+    return this
       .estimateGas()
       .then((gasEst) => {
         let gas = gasEst;
@@ -351,76 +355,199 @@ export default class TransferStore {
           this.gasStore.setEstimated(gasEst.toFixed(0));
           this.gasStore.setGas(gas.toFixed(0));
 
-          this.recalculate();
+          this.recalculate(redo);
         });
       })
       .catch((error) => {
         console.warn('etimateGas', error);
-        this.recalculate();
+        this.recalculate(redo);
       });
   }
 
-  @action recalculate = () => {
+  getBalance () {
+    const balance = this.senders
+      ? this.sendersBalances[this.sender]
+      : this.balance;
+
+    return balance;
+  }
+
+  getToken (tag = this.tag) {
+    const balance = this.getBalance();
+
+    if (!balance) {
+      return null;
+    }
+
+    const _tag = tag.toLowerCase();
+    const token = balance.tokens.find((b) => b.token.tag.toLowerCase() === _tag);
+
+    return token;
+  }
+
+  /**
+   * Return the balance of the selected token
+   * (in WEI for ETH, without formating for other tokens)
+   */
+  getTokenBalance (tag = this.tag) {
+    const token = this.getToken(tag);
+
+    if (!token) {
+      return new BigNumber(0);
+    }
+
+    const value = new BigNumber(token.value || 0);
+
+    return value;
+  }
+
+  getTokenValue (tag = this.tag, value = this.value, inverse = false) {
+    const token = this.getToken(tag);
+
+    if (!token) {
+      return new BigNumber(0);
+    }
+
+    const format = token.token
+      ? new BigNumber(token.token.format || 1)
+      : new BigNumber(1);
+
+    const _value = new BigNumber(value || 0);
+
+    if (token.token && token.token.tag.toLowerCase() === 'eth') {
+      if (inverse) {
+        return this.api.util.fromWei(_value);
+      }
+
+      return this.api.util.toWei(_value);
+    }
+
+    if (inverse) {
+      return _value.div(format);
+    }
+
+    return _value.mul(format);
+  }
+
+  getValues (_gasTotal) {
+    const gasTotal = new BigNumber(_gasTotal || 0);
+    const { valueAll, isEth, isWallet } = this;
+
+    if (!valueAll) {
+      const value = this.getTokenValue();
+
+      // If it's a token or a wallet, eth is the estimated gas,
+      // and value is the user input
+      if (!isEth || isWallet) {
+        return {
+          eth: gasTotal,
+          token: value
+        };
+      }
+
+      // Otherwise, eth is the sum of the gas and the user input
+      const totalEthValue = gasTotal.plus(value);
+
+      return {
+        eth: totalEthValue,
+        token: value
+      };
+    }
+
+    // If it's the total balance that needs to be sent, send the total balance
+    // if it's not a proper ETH transfer
+    if (!isEth || isWallet) {
+      const tokenBalance = this.getTokenBalance();
+
+      return {
+        eth: gasTotal,
+        token: tokenBalance
+      };
+    }
+
+    // Otherwise, substract the gas estimate
+    const availableEth = this.getTokenBalance('ETH');
+    const totalEthValue = availableEth.gt(gasTotal)
+      ? availableEth.minus(gasTotal)
+      : new BigNumber(0);
+
+    return {
+      eth: totalEthValue.plus(gasTotal),
+      token: totalEthValue
+    };
+  }
+
+  getFormattedTokenValue (tokenValue) {
+    const token = this.getToken();
+
+    if (!token) {
+      return new BigNumber(0);
+    }
+
+    const tag = token.token && token.token.tag || '';
+
+    return this.getTokenValue(tag, tokenValue, true);
+  }
+
+  @action recalculate = (redo = false) => {
     const { account } = this;
 
     if (!account || !this.balance) {
       return;
     }
 
-    const balance = this.senders
-      ? this.sendersBalances[this.sender]
-      : this.balance;
+    const balance = this.getBalance();
 
     if (!balance) {
       return;
     }
 
-    const { tag, valueAll, isEth, isWallet } = this;
-
     const gasTotal = new BigNumber(this.gasStore.price || 0).mul(new BigNumber(this.gasStore.gas || 0));
 
-    const availableEth = new BigNumber(balance.tokens[0].value);
+    const ethBalance = this.getTokenBalance('ETH');
+    const tokenBalance = this.getTokenBalance();
+    const { eth, token } = this.getValues(gasTotal);
 
-    const senderBalance = this.balance.tokens.find((b) => tag === b.token.tag);
-    const format = new BigNumber(senderBalance.token.format || 1);
-    const available = new BigNumber(senderBalance.value).div(format);
-
-    let { value, valueError } = this;
     let totalEth = gasTotal;
     let totalError = null;
+    let valueError = this.valueError;
 
-    if (valueAll) {
-      if (isEth && !isWallet) {
-        const bn = this.api.util.fromWei(availableEth.minus(gasTotal));
-        value = (bn.lt(0) ? new BigNumber(0.0) : bn).toString();
-      } else if (isEth) {
-        value = (available.lt(0) ? new BigNumber(0.0) : available).toString();
-      } else {
-        value = available.toString();
-      }
-    }
-
-    if (isEth && !isWallet) {
-      totalEth = totalEth.plus(this.api.util.toWei(value || 0));
-    }
-
-    if (new BigNumber(value || 0).gt(available)) {
-      valueError = ERRORS.largeAmount;
-    } else if (valueError === ERRORS.largeAmount) {
-      valueError = null;
-    }
-
-    if (totalEth.gt(availableEth)) {
+    if (eth.gt(ethBalance)) {
       totalError = ERRORS.largeAmount;
     }
 
+    if (token && token.gt(tokenBalance)) {
+      valueError = ERRORS.largeAmount;
+    }
+
+    log.debug(LOG_KEY, '@recalculate', {
+      eth: eth.toFormat(),
+      token: token.toFormat(),
+      ethBalance: ethBalance.toFormat(),
+      tokenBalance: tokenBalance.toFormat(),
+      gasTotal: gasTotal.toFormat()
+    });
+
     transaction(() => {
-      this.total = this.api.util.fromWei(totalEth).toFixed();
       this.totalError = totalError;
-      this.value = value;
       this.valueError = valueError;
       this.gasStore.setErrorTotal(totalError);
       this.gasStore.setEthValue(totalEth);
+
+      this.total = this.api.util.fromWei(eth).toFixed();
+
+      const nextValue = this.getFormattedTokenValue(token);
+      const prevValue = new BigNumber(this.value || 0);
+
+      // Change the input only if necessary
+      if (!nextValue.eq(prevValue)) {
+        this.value = nextValue.toString();
+      }
+
+      // Re Calculate gas once more to be sure
+      if (redo) {
+        return this.recalculateGas(false);
+      }
     });
   }
 
@@ -485,8 +612,10 @@ export default class TransferStore {
       options.gas = MAX_GAS_ESTIMATION;
     }
 
+    const { token } = this.getValues(options.gas);
+
     if (isEth && !isWallet && !forceToken) {
-      options.value = this.api.util.toWei(this.value || 0);
+      options.value = token;
       options.data = this._getData(gas);
 
       return { options, values: [] };
@@ -494,7 +623,7 @@ export default class TransferStore {
 
     if (isWallet && !forceToken) {
       const to = isEth ? this.recipient : this.token.contract.address;
-      const value = isEth ? this.api.util.toWei(this.value || 0) : new BigNumber(0);
+      const value = isEth ? token : new BigNumber(0);
 
       const values = [
         to, value,
@@ -506,7 +635,7 @@ export default class TransferStore {
 
     const values = [
       this.recipient,
-      new BigNumber(this.value || 0).mul(this.token.format).toFixed(0)
+      token.toFixed(0)
     ];
 
     return { options, values };

@@ -152,6 +152,7 @@
     "isomorphic-fetch": "2.2.1",
     "js-sha3": "0.5.5",
     "lodash": "4.17.2",
+    "loglevel": "1.4.1",
     "marked": "0.3.6",
     "material-ui": "0.16.5",
     "material-ui-chip-input": "0.11.1",
