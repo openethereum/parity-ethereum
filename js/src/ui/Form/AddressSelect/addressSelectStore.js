@@ -16,7 +16,7 @@
 
 import React from 'react';
 import { observable, action } from 'mobx';
-import { flatMap } from 'lodash';
+import { flatMap, uniqBy } from 'lodash';
 import { FormattedMessage } from 'react-intl';
 
 import Contracts from '~/contracts';
@@ -239,6 +239,8 @@ export default class AddressSelectStore {
           .filter((result) => result && !ZERO.test(result.address));
       })
       .then((results) => {
+        results = uniqBy(results, (result) => result.address);
+
         this.registryValues = results
           .map((result) => {
             const lowercaseAddress = result.address.toLowerCase();
