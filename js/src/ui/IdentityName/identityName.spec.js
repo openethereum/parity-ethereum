@@ -14,9 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { mount } from 'enzyme';
+import { shallow } from 'enzyme';
 import React from 'react';
-import { IntlProvider } from 'react-intl';
 
 import sinon from 'sinon';
 
@@ -45,13 +44,11 @@ const STORE = {
 };
 
 function render (props) {
-  return mount(
-    <IntlProvider locale='en'>
-      <IdentityName
-        store={ STORE }
-        { ...props } />
-    </IntlProvider>
-  );
+  return shallow(
+    <IdentityName
+      store={ STORE }
+      { ...props } />
+  ).find('IdentityName').shallow();
 }
 
 describe('ui/IdentityName', () => {
@@ -62,23 +59,33 @@ describe('ui/IdentityName', () => {
 
     describe('account not found', () => {
       it('renders null with empty', () => {
-        expect(render({ address: ADDR_C, empty: true }).html()).to.be.null;
+        expect(
+          render({ address: ADDR_C, empty: true }).html()
+        ).to.be.null;
       });
 
       it('renders address without empty', () => {
-        expect(render({ address: ADDR_C }).text()).to.equal(ADDR_C);
+        expect(
+          render({ address: ADDR_C }).text()
+        ).to.equal(ADDR_C);
       });
 
       it('renders short address with shorten', () => {
-        expect(render({ address: ADDR_C, shorten: true }).text()).to.equal('123456…56789c');
+        expect(
+          render({ address: ADDR_C, shorten: true }).find('ShortenedHash').props().data
+        ).to.equal(ADDR_C);
       });
 
       it('renders unknown with flag', () => {
-        expect(render({ address: ADDR_C, unknown: true }).text()).to.equal('UNNAMED');
+        expect(
+          render({ address: ADDR_C, unknown: true }
+        ).find('FormattedMessage').props().id).to.equal('ui.identityName.unnamed');
       });
 
       it('renders 0x000...000 as null', () => {
-        expect(render({ address: ADDR_NULL }).text()).to.equal('NULL');
+        expect(
+          render({ address: ADDR_NULL }).find('FormattedMessage').props().id
+        ).to.equal('ui.identityName.null');
       });
     });
   });
