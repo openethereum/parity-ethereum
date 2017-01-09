@@ -2017,15 +2017,13 @@ impl ChainSync {
 			self.restart(io);
 		}
 
-		if !is_syncing && !enacted.is_empty() {
-			// Select random peers to re-broadcast transactions to.
-			let peers = ChainSync::select_random_peers(&self.peers.keys().cloned().collect::<Vec<_>>());
-			trace!(target: "sync", "Re-broadcasting transactions to random peers.");
-			for peer in peers.iter().take(3) {
-				self.peers.get_mut(peer).map(|mut peer_info|
-					peer_info.last_sent_transactions.clear()
-				);
-			}
+		if !is_syncing && !enacted.is_empty() && self.peers.is_empty() {
+			// Select random peer to re-broadcast transactions to.
+			let peer = random::new().get_rng(0, self.peers.len());
+			trace!(target: "sync", "Re-broadcasting transactions to random peer.");
+			self.peers.get_mut(peer).map(|mut peer_info|
+				peer_info.last_sent_transactions.clear()
+			);
 		}
 	}
 }
