@@ -40,13 +40,14 @@ use self::buffer_flow::{Buffer, FlowParams};
 use self::context::{Ctx, TickCtx};
 use self::error::Punishment;
 
-mod buffer_flow;
 mod context;
 mod error;
 mod status;
 
 #[cfg(test)]
 mod tests;
+
+pub mod buffer_flow;
 
 pub use self::error::Error;
 pub use self::context::{BasicContext, EventContext, IoContext};
@@ -594,6 +595,16 @@ impl LightProtocol {
 				}
 			}
 		}
+	}
+
+	/// Execute the given closure with a basic context derived from the I/O context.
+	pub fn with_context<F, T>(&self, io: &IoContext, f: F) -> T
+		where F: FnOnce(&BasicContext) -> T
+	{
+		f(&TickCtx {
+			io: io,
+			proto: self,
+		})
 	}
 
 	fn tick_handlers(&self, io: &IoContext) {

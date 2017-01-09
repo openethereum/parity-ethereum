@@ -43,6 +43,9 @@ use self::sync_round::{AbortReason, SyncRound, ResponseContext};
 mod response;
 mod sync_round;
 
+#[cfg(test)]
+mod tests;
+
 /// Peer chain info.
 #[derive(Clone)]
 struct ChainInfo {
