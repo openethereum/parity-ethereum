@@ -227,41 +227,6 @@ linux-arm:
     - target/arm-unknown-linux-gnueabihf/release/parity
     name: "arm-unknown-linux-gnueabihf_parity"
   allow_failure: true
-linux-armv6:
-  stage: build
-  image: ethcore/rust-armv6:latest
-  only:
-    - beta
-    - tags
-    - stable
-    - triggers
-  script:
-    - export CC=arm-linux-gnueabi-gcc
-    - export CXX=arm-linux-gnueabi-g++
-    - export HOST_CC=gcc
-    - export HOST_CXX=g++
-    - rm -rf .cargo
-    - mkdir -p .cargo
-    - echo "[target.arm-unknown-linux-gnueabi]" >> .cargo/config
-    - echo "linker= \"arm-linux-gnueabi-gcc\"" >> .cargo/config
-    - cat .cargo/config
-    - cargo build --target arm-unknown-linux-gnueabi --release $CARGOFLAGS
-    - arm-linux-gnueabi-strip target/arm-unknown-linux-gnueabi/release/parity
-    - md5sum target/arm-unknown-linux-gnueabi/release/parity > parity.md5
-    - aws configure set aws_access_key_id $s3_key
-    - aws configure set aws_secret_access_key $s3_secret
-    - if [[ $CI_BUILD_REF_NAME =~ ^(master|beta|stable)$ ]]; then export S3_BUCKET=builds-parity-published; else export S3_BUCKET=builds-parity; fi
-    - aws s3 rm --recursive s3://$S3_BUCKET/$CI_BUILD_REF_NAME/arm-unknown-linux-gnueabi
-    - aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/arm-unknown-linux-gnueabi/parity --body target/arm-unknown-linux-gnueabi/release/parity
-    - aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/arm-unknown-linux-gnueabi/parity.md5 --body parity.md5
-  tags:
-    - rust
-    - rust-arm
-  artifacts:
-    paths:
-    - target/arm-unknown-linux-gnueabi/release/parity
-    name: "arm-unknown-linux-gnueabi_parity"
-  allow_failure: true
 linux-aarch64:
   stage: build
   image: ethcore/rust-aarch64:latest
