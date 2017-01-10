@@ -21,6 +21,37 @@ describe('api/transport/Ws', () => {
   let transport;
   let scope;
 
+  describe('transport emitter', () => {
+    const connect = () => {
+      const scope = mockWs();
+      const transport = new Ws(TEST_WS_URL);
+
+      return { transport, scope };
+    };
+
+    it('emits open', (done) => {
+      const { transport, scope } = connect();
+
+      transport.on('open', () => {
+        done();
+      });
+
+      scope.stop();
+    });
+
+    it('emits close', (done) => {
+      const { transport, scope } = connect();
+
+      transport.on('open', () => {
+        scope.server.close();
+      });
+
+      transport.on('close', () => {
+        done();
+      });
+    });
+  });
+
   describe('transport', () => {
     let result;
 

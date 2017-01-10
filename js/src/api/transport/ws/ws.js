@@ -124,8 +124,6 @@ export default class Ws extends JsonRpcBase {
   }
 
   _onOpen = (event) => {
-    console.log('ws:onOpen');
-
     this._connected = true;
     this._connecting = false;
     this._autoConnect = true;
