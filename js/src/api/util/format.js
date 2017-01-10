@@ -68,7 +68,3 @@ export function toHex (str) {
 
   return `0x${(str || '').toLowerCase()}`;
 }
-
-export function isHex(str) {
-  return (isString(str) && str.substr(0, 2) === '0x');
-}

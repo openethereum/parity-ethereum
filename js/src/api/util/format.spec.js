@@ -68,17 +68,4 @@ describe('api/util/format', () => {
       expect(bytesToAscii([97, 98, 99])).to.equal('abc');
     });
   });
-
-  describe('isHex', () => {
-    it('should return true for string starting with 0x', () => {
-      expect(isHex('0x123')).to.equal(true);
-    });
-
-    it('should return false for non-strings or strings without 0x', () => {
-      expect(isHex('120x3')).to.equal(false);
-      expect(isHex(false)).to.equal(false);
-      expect(isHex()).to.equal(false);
-      expect(isHex([1, 2, 3])).to.equal(false);
-    });
-  });
 });
