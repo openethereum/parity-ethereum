@@ -17,7 +17,7 @@
 //! Authority params deserialization.
 
 use uint::Uint;
-use hash::Address;
+use super::ValidatorSet;
 
 /// Authority params deserialization.
 #[derive(Debug, PartialEq, Deserialize)]
@@ -29,7 +29,7 @@ pub struct AuthorityRoundParams {
 	#[serde(rename="stepDuration")]
 	pub step_duration: Uint,
 	/// Valid authorities
-	pub authorities: Vec<Address>,
+	pub validators: ValidatorSet,
 	/// Block reward.
 	#[serde(rename="blockReward")]
 	pub block_reward: Option<Uint>,
@@ -57,7 +57,9 @@ mod tests {
 			"params": {
 				"gasLimitBoundDivisor": "0x0400",
 				"stepDuration": "0x02",
-				"authorities" : ["0xc6d9d2cd449a754c494264e1809c50e34d64562b"],
+				"validators": {
+					"list" : ["0xc6d9d2cd449a754c494264e1809c50e34d64562b"]
+				},
 				"blockReward": "0x50",
 				"startStep" : 24
 			}

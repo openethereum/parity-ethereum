@@ -20,7 +20,7 @@ use util::*;
 use io::*;
 use spec::Spec;
 use error::*;
-use client::{Client, BlockChainClient, MiningBlockChainClient, ClientConfig, ChainNotify};
+use client::{Client, ClientConfig, ChainNotify};
 use miner::Miner;
 use snapshot::ManifestData;
 use snapshot::service::{Service as SnapshotService, ServiceParams as SnapServiceParams};
@@ -46,12 +46,6 @@ pub enum ClientIoMessage {
 	FeedBlockChunk(H256, Bytes),
 	/// Take a snapshot for the block with given number.
 	TakeSnapshot(u64),
-	/// Trigger sealing update (useful for internal sealing).
-	UpdateSealing,
-	/// Submit seal (useful for internal sealing).
-	SubmitSeal(H256, Vec<Bytes>),
-	/// Broadcast a message to the network.
-	BroadcastMessage(Bytes),
 	/// New consensus message received.
 	NewMessage(Bytes)
 }
@@ -114,7 +108,7 @@ impl ClientService {
 		});
 		io_service.register_handler(client_io)?;
 
-		spec.engine.register_message_channel(io_service.channel());
+		spec.engine.register_client(Arc::downgrade(&client));
 
 		let stop_guard = ::devtools::StopGuard::new();
 		run_ipc(ipc_path, client.clone(), snapshot.clone(), stop_guard.share());
@@ -221,9 +215,6 @@ impl IoHandler<ClientIoMessage> for ClientIoHandler {
 					debug!(target: "snapshot", "Failed to initialize periodic snapshot thread: {:?}", e);
 				}
 			},
-			ClientIoMessage::UpdateSealing => self.client.update_sealing(),
-			ClientIoMessage::SubmitSeal(ref hash, ref seal) => self.client.submit_seal(*hash, seal.clone()),
-			ClientIoMessage::BroadcastMessage(ref message) => self.client.broadcast_consensus_message(message.clone()),
 			ClientIoMessage::NewMessage(ref message) => if let Err(e) = self.client.engine().handle_message(message) {
 				trace!(target: "poa", "Invalid message received: {}", e);
 			},
