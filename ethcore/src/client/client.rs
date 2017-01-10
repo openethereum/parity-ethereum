@@ -862,7 +862,7 @@ impl BlockChainClient for Client {
 			difficulty: header.difficulty(),
 			last_hashes: last_hashes,
 			gas_used: U256::zero(),
-			gas_limit: U256::max_value(),
+			gas_limit: header.gas_limit(),
 		};
 		// that's just a copy of the state.
 		let mut state = self.state_at(block).ok_or(CallError::StatePruned)?;
@@ -897,7 +897,7 @@ impl BlockChainClient for Client {
 			difficulty: header.difficulty(),
 			last_hashes: last_hashes,
 			gas_used: U256::zero(),
-			gas_limit: U256::max_value(),
+			gas_limit: header.gas_limit(),
 		};
 		// that's just a copy of the state.
 		let mut original_state = self.state_at(block).ok_or(CallError::StatePruned)?;

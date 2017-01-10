@@ -21,7 +21,7 @@ use util::*;
 use util::using_queue::{UsingQueue, GetAction};
 use account_provider::{AccountProvider, Error as AccountError};
 use state::{State, CleanupMode};
-use client::{MiningBlockChainClient, binary_chop, Executive, Executed, EnvInfo, TransactOptions, BlockId, CallAnalytics, TransactionId};
+use client::{MiningBlockChainClient, Executive, Executed, EnvInfo, TransactOptions, BlockId, CallAnalytics, TransactionId};
 use client::TransactionImportResult;
 use executive::contract_address;
 use block::{ClosedBlock, IsBlock, Block};
@@ -714,63 +714,6 @@ impl MinerService for Miner {
 				Ok(ret)
 			},
 			None => client.call(t, BlockId::Latest, analytics)
-		}
-	}
-
-	fn estimate_gas(&self, client: &MiningBlockChainClient, t: &SignedTransaction) -> Result<U256, CallError> {
-		let sealing_work = self.sealing_work.lock();
-		match sealing_work.queue.peek_last_ref() {
-			Some(work) => {
-				let block = work.block();
-
-				let header = block.header();
-				let last_hashes = Arc::new(client.last_hashes());
-				let env_info = EnvInfo {
-					number: header.number(),
-					author: *header.author(),
-					timestamp: header.timestamp(),
-					difficulty: *header.difficulty(),
-					last_hashes: last_hashes,
-					gas_used: U256::zero(),
-					gas_limit: U256::max_value(),
-				};
-				// that's just a copy of the state.
-				let mut original_state = block.state().clone();
-				let sender = t.sender().map_err(|e| {
-					let message = format!("Transaction malformed: {:?}", e);
-					ExecutionError::TransactionMalformed(message)
-				})?;
-				let balance = original_state.balance(&sender);
-				let needed_balance = t.value + t.gas * t.gas_price;
-				if balance < needed_balance {
-					// give the sender a sufficient balance
-					original_state.add_balance(&sender, &(needed_balance - balance), CleanupMode::NoEmpty);
-				}
-				let options = TransactOptions { tracing: true, vm_tracing: false, check_nonce: false };
-				let mut tx = t.clone();
-
-				let mut cond = |gas| {
-					let mut state = original_state.clone();
-					tx.gas = gas;
-					Executive::new(&mut state, &env_info, &*self.engine, client.vm_factory())
-						.transact(&tx, options.clone())
-						.map(|r| r.trace[0].result.succeeded())
-						.unwrap_or(false)
-				};
-
-				let upper = env_info.gas_limit;
-				if !cond(upper) {
-					// impossible
-					return Err(CallError::Execution(ExecutionError::Internal))
-				}
-				let lower = t.gas_required(&self.engine.schedule(&env_info)).into();
-				if cond(lower) {
-					return Ok(lower)
-				}
-				// binary chop to non-excepting call with gas somewhere between 21000 and block gas limit
-				Ok(binary_chop(lower, upper, cond))
-			}
-			None => client.estimate_gas(t, BlockId::Latest)
 		}
 	}
 

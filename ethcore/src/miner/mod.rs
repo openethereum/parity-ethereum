@@ -180,9 +180,6 @@ pub trait MinerService : Send + Sync {
 	/// Call into contract code using pending state.
 	fn call(&self, chain: &MiningBlockChainClient, t: &SignedTransaction, analytics: CallAnalytics) -> Result<Executed, CallError>;
 
-	/// Estimate the minimum amount of gas a particular call needs.
-	fn estimate_gas(&self, _client: &MiningBlockChainClient, _t: &SignedTransaction) -> Result<U256, CallError>;
-
 	/// Get storage value in pending state.
 	fn storage_at(&self, chain: &MiningBlockChainClient, address: &Address, position: &H256) -> H256;
 
