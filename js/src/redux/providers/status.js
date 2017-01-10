@@ -133,10 +133,10 @@ export default class Status {
     const { isConnected } = this._api;
     const apiStatus = this.getApiStatus();
 
-    const gotConnected = !this._apiStatus.isConnected && apiStatus.isConnected;
+    const hasConnected = !this._apiStatus.isConnected && apiStatus.isConnected;
 
-    if (gotConnected) {
-      this._pollLongStatus(gotConnected);
+    if (hasConnected) {
+      this._pollLongStatus(hasConnected);
     }
 
     if (!isEqual(apiStatus, this._apiStatus)) {
@@ -220,17 +220,17 @@ export default class Status {
    * fetched every 30s just in case, and whenever
    * the client got reconnected.
    */
-  _pollLongStatus = (gotConnected = false) => {
+  _pollLongStatus = (hasConnected = false) => {
     if (!this._api.isConnected) {
       return;
     }
 
-    const nextTimeout = (timeout = 30000, gotConnected = false) => {
+    const nextTimeout = (timeout = 30000, hasConnected = false) => {
       if (this._timeoutIds.longStatus) {
         clearTimeout(this._timeoutIds.longStatus);
       }
 
-      this._timeoutIds.longStatus = setTimeout(() => this._pollLongStatus(gotConnected), timeout);
+      this._timeoutIds.longStatus = setTimeout(() => this._pollLongStatus(hasConnected), timeout);
     };
 
     // Poll Miner settings just in case
@@ -270,7 +270,7 @@ export default class Status {
           this._longStatus = longStatus;
         }
 
-        if (gotConnected) {
+        if (hasConnected) {
           this.startPolling();
         }
 
@@ -279,7 +279,7 @@ export default class Status {
       .catch((error) => {
         // Try again soon if just got reconnected (network might take some time
         // to boot up)
-        if (gotConnected) {
+        if (hasConnected) {
           nextTimeout(500, true);
           return true;
         }
