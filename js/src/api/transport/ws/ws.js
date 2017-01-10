@@ -124,11 +124,9 @@ export default class Ws extends JsonRpcBase {
   }
 
   _onOpen = (event) => {
-    this._connected = true;
+    this._setConnected();
     this._connecting = false;
     this._retries = 0;
-
-    this.emit('open');
 
     Object.keys(this._messages)
       .filter((id) => this._messages[id].queued)
@@ -141,13 +139,11 @@ export default class Ws extends JsonRpcBase {
   }
 
   _onClose = (event) => {
-    this._connected = false;
+    this._setDisconnected();
     this._connecting = false;
 
     event.timestamp = Date.now();
     this._lastError = event;
-
-    this.emit('close');
 
     if (this._autoConnect) {
       const timeout = this.retryTimeout;

@@ -36,6 +36,20 @@ export default class JsonRpcBase extends EventEmitter {
     return json;
   }
 
+  _setConnected () {
+    if (!this._connected) {
+      this._connected = true;
+      this.emit('open');
+    }
+  }
+
+  _setDisconnected () {
+    if (this._connected) {
+      this._connected = false;
+      this.emit('close');
+    }
+  }
+
   get id () {
     return this._id;
   }

@@ -46,20 +46,6 @@ export default class Http extends JsonRpcBase {
     };
   }
 
-  _setConnected () {
-    if (!this._connected) {
-      this._connected = true;
-      this.emit('open');
-    }
-  }
-
-  _setDisconnected () {
-    if (this._connected) {
-      this._connected = false;
-      this.emit('close');
-    }
-  }
-
   execute (method, ...params) {
     const request = this._encodeOptions(method, params);
 
