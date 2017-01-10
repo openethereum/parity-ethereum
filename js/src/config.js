@@ -22,7 +22,7 @@ export const LOG_KEYS = {
     desc: 'Transfer Modal MobX Store'
   },
   Signer: {
-    path: 'secuerApi',
+    path: 'secureApi',
     desc: 'The Signer'
   }
 };

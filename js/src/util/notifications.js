@@ -36,7 +36,7 @@ export function notifyTransaction (account, token, _value, onClick) {
 
   Push
     .create(`${name}`, {
-      body: `You just received ${value.toFormat()} ${token.tag.toUpperCase()}`,
+      body: `You just received ${value.toFormat(3)} ${token.tag.toUpperCase()}`,
       icon: {
         x16: icon,
         x32: icon
