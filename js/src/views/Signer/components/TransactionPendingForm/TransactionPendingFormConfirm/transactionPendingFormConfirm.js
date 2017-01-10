@@ -247,13 +247,13 @@ class TransactionPendingFormConfirm extends Component {
   }
 }
 
-function mapStateToProps (initState, initProps) {
-  const { accounts } = initState.personal;
+function mapStateToProps (_, initProps) {
   const { address } = initProps;
 
-  const account = accounts[address] || {};
+  return (state) => {
+    const { accounts } = state.personal;
+    const account = accounts[address] || {};
 
-  return () => {
     return { account };
   };
 }
