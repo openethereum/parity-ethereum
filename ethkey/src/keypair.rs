@@ -60,6 +60,10 @@ impl KeyPair {
 		Ok(keypair)
 	}
 
+	pub fn from_secret_slice(slice: &[u8]) -> Result<KeyPair, Error> {
+		Self::from_secret(Secret::from_slice(slice)?)
+	}
+
 	pub fn from_keypair(sec: key::SecretKey, publ: key::PublicKey) -> Self {
 		let context = &SECP256K1;
 		let serialized = publ.serialize_vec(context, false);
