@@ -14,12 +14,31 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import { debounce } from 'lodash';
 import Contracts from '~/contracts';
 import subscribeToEvents from '~/util/subscribe-to-events';
 
 import registryABI from '~/contracts/abi/registry.json';
 
 import { setReverse, startCachingReverses } from './actions';
+
+const read = () => {
+  const data = window.localStorage.getItem('registry-reverse');
+  if (!data) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(data);
+  } catch (_) {
+    return null;
+  }
+};
+
+const write = debounce((getReverses) => {
+  const reverses = getReverses();
+  window.localStorage.setItem('registry-reverse', JSON.stringify(reverses));
+}, 20000);
 
 export default (api) => (store) => {
   let contract, subscription, timeout, interval;
@@ -47,7 +66,9 @@ export default (api) => (store) => {
           .instance
           .reverse
           .call({}, [ address ])
-          .then((reverse) => store.dispatch(setReverse(address, reverse)));
+          .then((reverse) => {
+            store.dispatch(setReverse(address, reverse));
+          });
       });
 
     addressesToCheck = {};
@@ -71,13 +92,20 @@ export default (api) => (store) => {
             subscription = subscribeToEvents(_contract, ['ReverseConfirmed', 'ReverseRemoved']);
             subscription.on('log', onLog);
 
-            timeout = setTimeout(checkReverses, 5000);
+            timeout = setTimeout(checkReverses, 10000);
             interval = setInterval(checkReverses, 20000);
           })
           .catch((err) => {
             console.error('Failed to start caching reverses:', err);
             throw err;
           });
+
+        const cached = read();
+        if (cached) {
+          Object
+            .values(cached)
+            .forEach(([ address, reverse ]) => store.dispatch(setReverse(address, reverse)));
+        }
 
         break;
       case 'stopCachingReverses':
@@ -91,7 +119,12 @@ export default (api) => (store) => {
           clearTimeout(timeout);
         }
 
+        write.flush();
+
         break;
+      case 'setReverse':
+        write(() => store.getState().registry.reverse);
+
       default:
         next(action);
     }
