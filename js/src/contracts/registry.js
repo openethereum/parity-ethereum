@@ -91,7 +91,7 @@ export default class Registry {
 
   lookupAddress (_name) {
     const name = _name.toLowerCase();
-    const sha3 = this._api.util.sha3(name);
+    const sha3 = this._api.util.sha3.text(name);
 
     return this.getInstance().then((instance) => {
       return instance.getAddress.call({}, [sha3, 'A']);
