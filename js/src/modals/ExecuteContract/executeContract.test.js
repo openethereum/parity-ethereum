@@ -59,6 +59,9 @@ const STORE = {
       },
       settings: {
         backgroundSeed: ''
+      },
+      registry: {
+        reverse: {}
       }
     };
   }

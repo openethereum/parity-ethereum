@@ -218,6 +218,7 @@ export default class CertificationsMiddleware {
             const _addresses = action.addresses || [];
             addresses = uniq(addresses.concat(_addresses));
             fetchConfirmedEvents();
+            next(action);
 
             break;
           default:

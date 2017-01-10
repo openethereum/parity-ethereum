@@ -18,36 +18,20 @@
 
 use ethjson;
 use super::transition::TendermintTimeouts;
-use util::{Address, Uint, U256};
+use util::{U256, Uint};
 use time::Duration;
 
 /// `Tendermint` params.
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct TendermintParams {
 	/// Gas limit divisor.
 	pub gas_limit_bound_divisor: U256,
-	/// List of authorities.
-	pub authorities: Vec<Address>,
-	/// Number of authorities.
-	pub authority_n: usize,
+	/// List of validators.
+	pub validators: ethjson::spec::ValidatorSet,
 	/// Timeout durations for different steps.
 	pub timeouts: TendermintTimeouts,
 	/// Block reward.
 	pub block_reward: U256,
-}
-
-impl Default for TendermintParams {
-	fn default() -> Self {
-		let authorities = vec!["0x7d577a597b2742b498cb5cf0c26cdcd726d39e6e".into(), "0x82a978b3f5962a5b0957d9ee9eef472ee55b42f1".into()];
-		let val_n = authorities.len();
-		TendermintParams {
-			gas_limit_bound_divisor: 0x0400.into(),
-			authorities: authorities,
-			authority_n: val_n,
-			block_reward: U256::zero(),
-			timeouts: TendermintTimeouts::default(),
-		}
-	}
 }
 
 fn to_duration(ms: ethjson::uint::Uint) -> Duration {
@@ -57,13 +41,10 @@ fn to_duration(ms: ethjson::uint::Uint) -> Duration {
 
 impl From<ethjson::spec::TendermintParams> for TendermintParams {
 	fn from(p: ethjson::spec::TendermintParams) -> Self {
-		let val: Vec<_> = p.authorities.into_iter().map(Into::into).collect();
-		let val_n = val.len();
 		let dt = TendermintTimeouts::default();
 		TendermintParams {
 			gas_limit_bound_divisor: p.gas_limit_bound_divisor.into(),
-			authorities: val,
-			authority_n: val_n,
+			validators: p.validators,
 			timeouts: TendermintTimeouts {
 				propose: p.timeout_propose.map_or(dt.propose, to_duration),
 				prevote: p.timeout_prevote.map_or(dt.prevote, to_duration),

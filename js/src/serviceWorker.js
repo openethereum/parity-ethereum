@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import registerPromiseWorker from 'promise-worker/register';
+import { Signer } from '~/util/signer';
 import SolidityUtils from '~/util/solidity';
 
 const CACHE_NAME = 'parity-cache-v1';
@@ -93,10 +94,19 @@ function handleMessage (message) {
     case 'setFiles':
       return setFiles(message.data);
 
+    case 'getSignerSeed':
+      return getSignerSeed(message.data);
+
     default:
       console.warn(`unknown action "${message.action}"`);
       return null;
   }
+}
+
+function getSignerSeed (data) {
+  console.log('deriving seed from service-worker');
+  const { wallet, password } = data;
+  return Signer.getSeed(wallet, password);
 }
 
 function compile (data) {

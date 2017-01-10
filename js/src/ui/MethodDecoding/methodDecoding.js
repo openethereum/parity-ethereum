@@ -196,7 +196,7 @@ class MethodDecoding extends Component {
       : text.slice(0, 50) + '...';
 
     return (
-      <div>
+      <div className={ styles.details }>
         <span>with the </span>
         <span
           onClick={ this.toggleInputType }

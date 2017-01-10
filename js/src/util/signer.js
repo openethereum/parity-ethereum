@@ -24,9 +24,26 @@ import { sha3 } from '~/api/util/sha3';
 
 // Adapted from https://github.com/kvhnuke/etherwallet/blob/mercury/app/scripts/myetherwallet.js
 
-export class Wallet {
+export class Signer {
 
   static fromJson (json, password) {
+    return Signer
+      .getSeed(json, password)
+      .then((seed) => {
+        return new Signer(seed);
+      });
+  }
+
+  static getSeed (json, password) {
+    try {
+      const seed = Signer.getSyncSeed(json, password);
+      return Promise.resolve(seed);
+    } catch (error) {
+      return Promise.reject(error);
+    }
+  }
+
+  static getSyncSeed (json, password) {
     if (json.version !== 3) {
       throw new Error('Only V3 wallets are supported');
     }
@@ -43,15 +60,17 @@ export class Wallet {
       if (kdfparams.prf !== 'hmac-sha256') {
         throw new Error('Unsupported parameters to PBKDF2');
       }
+
       derivedKey = pbkdf2Sync(pwd, salt, kdfparams.c, kdfparams.dklen, 'sha256');
     } else {
       throw new Error('Unsupported key derivation scheme');
     }
 
     const ciphertext = Buffer.from(json.crypto.ciphertext, 'hex');
-    let mac = sha3(Buffer.concat([derivedKey.slice(16, 32), ciphertext]));
+    const mac = sha3(Buffer.concat([derivedKey.slice(16, 32), ciphertext]));
+
     if (mac !== inHex(json.crypto.mac)) {
-      throw new Error('Key derivation failed - possibly wrong passphrase');
+      throw new Error('Key derivation failed - possibly wrong password');
     }
 
     const decipher = createDecipheriv(
@@ -59,6 +78,7 @@ export class Wallet {
       derivedKey.slice(0, 16),
       Buffer.from(json.crypto.cipherparams.iv, 'hex')
     );
+
     let seed = Buffer.concat([decipher.update(ciphertext), decipher.final()]);
 
     while (seed.length < 32) {
@@ -66,7 +86,7 @@ export class Wallet {
       seed = Buffer.concat([nullBuff, seed]);
     }
 
-    return new Wallet(seed);
+    return seed;
   }
 
   constructor (seed) {

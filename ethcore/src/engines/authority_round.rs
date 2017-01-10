@@ -32,11 +32,12 @@ use blockchain::extras::BlockDetails;
 use views::HeaderView;
 use evm::Schedule;
 use ethjson;
-use io::{IoContext, IoHandler, TimerToken, IoService, IoChannel};
-use service::ClientIoMessage;
+use io::{IoContext, IoHandler, TimerToken, IoService};
 use transaction::SignedTransaction;
 use env_info::EnvInfo;
 use builtin::Builtin;
+use client::{Client, EngineClient};
+use super::validator_set::{ValidatorSet, new_validator_set};
 use state::CleanupMode;
 
 /// `AuthorityRound` params.
@@ -46,14 +47,12 @@ pub struct AuthorityRoundParams {
 	pub gas_limit_bound_divisor: U256,
 	/// Time to wait before next block or authority switching.
 	pub step_duration: Duration,
-	/// Valid authorities.
-	pub authorities: Vec<Address>,
-	/// Number of authorities.
-	pub authority_n: usize,
 	/// Block reward.
 	pub block_reward: U256,
 	/// Starting step,
 	pub start_step: Option<u64>,
+	/// Valid validators.
+	pub validators: ethjson::spec::ValidatorSet,
 }
 
 impl From<ethjson::spec::AuthorityRoundParams> for AuthorityRoundParams {
@@ -61,8 +60,7 @@ impl From<ethjson::spec::AuthorityRoundParams> for AuthorityRoundParams {
 		AuthorityRoundParams {
 			gas_limit_bound_divisor: p.gas_limit_bound_divisor.into(),
 			step_duration: Duration::from_secs(p.step_duration.into()),
-			authority_n: p.authorities.len(),
-			authorities: p.authorities.into_iter().map(Into::into).collect::<Vec<_>>(),
+			validators: p.validators,
 			block_reward: p.block_reward.map_or_else(U256::zero, Into::into),
 			start_step: p.start_step.map(Into::into),
 		}
@@ -73,14 +71,17 @@ impl From<ethjson::spec::AuthorityRoundParams> for AuthorityRoundParams {
 /// mainnet chains in the Olympic, Frontier and Homestead eras.
 pub struct AuthorityRound {
 	params: CommonParams,
-	our_params: AuthorityRoundParams,
+	gas_limit_bound_divisor: U256,
+	block_reward: U256,
+	step_duration: Duration,
 	builtins: BTreeMap<Address, Builtin>,
 	transition_service: IoService<()>,
-	message_channel: Mutex<Option<IoChannel<ClientIoMessage>>>,
 	step: AtomicUsize,
 	proposed: AtomicBool,
-	account_provider: Mutex<Option<Arc<AccountProvider>>>,
+	client: RwLock<Option<Weak<EngineClient>>>,
+	account_provider: Mutex<Arc<AccountProvider>>,
 	password: RwLock<Option<String>>,
+	validators: Box<ValidatorSet + Send + Sync>,
 }
 
 fn header_step(header: &Header) -> Result<usize, ::rlp::DecoderError> {
@@ -109,14 +110,17 @@ impl AuthorityRound {
 		let engine = Arc::new(
 			AuthorityRound {
 				params: params,
-				our_params: our_params,
+				gas_limit_bound_divisor: our_params.gas_limit_bound_divisor,
+				block_reward: our_params.block_reward,
+				step_duration: our_params.step_duration,
 				builtins: builtins,
 				transition_service: IoService::<()>::start()?,
-				message_channel: Mutex::new(None),
 				step: AtomicUsize::new(initial_step),
 				proposed: AtomicBool::new(false),
-				account_provider: Mutex::new(None),
+				client: RwLock::new(None),
+				account_provider: Mutex::new(Arc::new(AccountProvider::transient_provider())),
 				password: RwLock::new(None),
+				validators: new_validator_set(our_params.validators),
 			});
 		// Do not initialize timeouts for tests.
 		if should_timeout {
@@ -128,7 +132,7 @@ impl AuthorityRound {
 
 	fn remaining_step_duration(&self) -> Duration {
 		let now = unix_now();
-		let step_end = self.our_params.step_duration * (self.step.load(AtomicOrdering::SeqCst) as u32 + 1);
+		let step_end = self.step_duration * (self.step.load(AtomicOrdering::SeqCst) as u32 + 1);
 		if step_end > now {
 			step_end - now
 		} else {
@@ -136,13 +140,12 @@ impl AuthorityRound {
 		}
 	}
 
-	fn step_proposer(&self, step: usize) -> &Address {
-		let p = &self.our_params;
-		p.authorities.get(step % p.authority_n).expect("There are authority_n authorities; taking number modulo authority_n gives number in authority_n range; qed")
+	fn step_proposer(&self, step: usize) -> Address {
+		self.validators.get(step)
 	}
 
 	fn is_step_proposer(&self, step: usize, address: &Address) -> bool {
-		self.step_proposer(step) == address
+		self.step_proposer(step) == *address
 	}
 }
 
@@ -187,10 +190,9 @@ impl Engine for AuthorityRound {
 	fn step(&self) {
 		self.step.fetch_add(1, AtomicOrdering::SeqCst);
 		self.proposed.store(false, AtomicOrdering::SeqCst);
-		if let Some(ref channel) = *self.message_channel.lock() {
-			match channel.send(ClientIoMessage::UpdateSealing) {
-				Ok(_) => trace!(target: "poa", "timeout: UpdateSealing message sent for step {}.", self.step.load(AtomicOrdering::Relaxed)),
-				Err(err) => trace!(target: "poa", "timeout: Could not send a sealing message {} for step {}.", err, self.step.load(AtomicOrdering::Relaxed)),
+		if let Some(ref weak) = *self.client.read() {
+			if let Some(c) = weak.upgrade() {
+				c.update_sealing();
 			}
 		}
 	}
@@ -211,7 +213,7 @@ impl Engine for AuthorityRound {
 		header.set_difficulty(parent.difficulty().clone());
 		header.set_gas_limit({
 			let gas_limit = parent.gas_limit().clone();
-			let bound_divisor = self.our_params.gas_limit_bound_divisor;
+			let bound_divisor = self.gas_limit_bound_divisor;
 			if gas_limit < gas_floor_target {
 				min(gas_floor_target, gas_limit + gas_limit / bound_divisor - 1.into())
 			} else {
@@ -221,8 +223,7 @@ impl Engine for AuthorityRound {
 	}
 
 	fn is_sealer(&self, author: &Address) -> Option<bool> {
-		let p = &self.our_params;
-		Some(p.authorities.contains(author))
+		Some(self.validators.contains(author))
 	}
 
 	/// Attempt to seal the block internally.
@@ -234,18 +235,13 @@ impl Engine for AuthorityRound {
 		let header = block.header();
 		let step = self.step.load(AtomicOrdering::SeqCst);
 		if self.is_step_proposer(step, header.author()) {
-			if let Some(ref ap) = *self.account_provider.lock() {
-				// Account should be permanently unlocked, otherwise sealing will fail.
-				if let Ok(signature) = ap.sign(*header.author(), self.password.read().clone(), header.bare_hash()) {
-					trace!(target: "poa", "generate_seal: Issuing a block for step {}.", step);
-					self.proposed.store(true, AtomicOrdering::SeqCst);
-					let rlps = vec![encode(&step).to_vec(), encode(&(&*signature as &[u8])).to_vec()];
-					return Seal::Regular(rlps);
-				} else {
-					warn!(target: "poa", "generate_seal: FAIL: Accounts secret key unavailable.");
-				}
+			let ref ap = *self.account_provider.lock();
+			if let Ok(signature) = ap.sign(*header.author(), self.password.read().clone(), header.bare_hash()) {
+				trace!(target: "poa", "generate_seal: Issuing a block for step {}.", step);
+				self.proposed.store(true, AtomicOrdering::SeqCst);
+				return Seal::Regular(vec![encode(&step).to_vec(), encode(&(&*signature as &[u8])).to_vec()]);
 			} else {
-				warn!(target: "poa", "generate_seal: FAIL: Accounts not provided.");
+				warn!(target: "poa", "generate_seal: FAIL: Accounts secret key unavailable.");
 			}
 		} else {
 			trace!(target: "poa", "generate_seal: Not a proposer for step {}.", step);
@@ -255,12 +251,9 @@ impl Engine for AuthorityRound {
 
 	/// Apply the block reward on finalisation of the block.
 	fn on_close_block(&self, block: &mut ExecutedBlock) {
-		let reward = self.our_params.block_reward;
 		let fields = block.fields_mut();
-
 		// Bestow block reward
-		fields.state.add_balance(fields.header.author(), &reward, CleanupMode::NoEmpty);
-
+		fields.state.add_balance(fields.header.author(), &self.block_reward, CleanupMode::NoEmpty);
 		// Commit state so that we can actually figure out the state root.
 		if let Err(e) = fields.state.commit() {
 			warn!("Encountered error on state commit: {}", e);
@@ -285,7 +278,7 @@ impl Engine for AuthorityRound {
 		// Give one step slack if step is lagging, double vote is still not possible.
 		if header_step <= self.step.load(AtomicOrdering::SeqCst) + 1 {
 			let proposer_signature = header_signature(header)?;
-			let ok_sig = verify_address(self.step_proposer(header_step), &proposer_signature, &header.bare_hash())?;
+			let ok_sig = verify_address(&self.step_proposer(header_step), &proposer_signature, &header.bare_hash())?;
 			if ok_sig {
 				Ok(())
 			} else {
@@ -310,7 +303,7 @@ impl Engine for AuthorityRound {
 			Err(EngineError::DoubleVote(header.author().clone()))?;
 		}
 
-		let gas_limit_divisor = self.our_params.gas_limit_bound_divisor;
+		let gas_limit_divisor = self.gas_limit_bound_divisor;
 		let min_gas = parent.gas_limit().clone() - parent.gas_limit().clone() / gas_limit_divisor;
 		let max_gas = parent.gas_limit().clone() + parent.gas_limit().clone() / gas_limit_divisor;
 		if header.gas_limit() <= &min_gas || header.gas_limit() >= &max_gas {
@@ -341,8 +334,9 @@ impl Engine for AuthorityRound {
 		}
 	}
 
-	fn register_message_channel(&self, message_channel: IoChannel<ClientIoMessage>) {
-		*self.message_channel.lock() = Some(message_channel);
+	fn register_client(&self, client: Weak<Client>) {
+		*self.client.write() = Some(client.clone());
+		self.validators.register_call_contract(client);
 	}
 
 	fn set_signer(&self, _address: Address, password: String) {
@@ -350,7 +344,7 @@ impl Engine for AuthorityRound {
 	}
 
 	fn register_account_provider(&self, account_provider: Arc<AccountProvider>) {
-		*self.account_provider.lock() = Some(account_provider);
+		*self.account_provider.lock() = account_provider;
 	}
 }
 
@@ -458,7 +452,7 @@ mod tests {
 		let engine = Spec::new_test_round().engine;
 
 		let signature = tap.sign(addr, Some("0".into()), header.bare_hash()).unwrap();
-		// Two authorities.
+		// Two validators.
 		// Spec starts with step 2.
 		header.set_seal(vec![encode(&2usize).to_vec(), encode(&(&*signature as &[u8])).to_vec()]);
 		assert!(engine.verify_block_seal(&header).is_err());
@@ -477,7 +471,7 @@ mod tests {
 		let engine = Spec::new_test_round().engine;
 
 		let signature = tap.sign(addr, Some("0".into()), header.bare_hash()).unwrap();
-		// Two authorities.
+		// Two validators.
 		// Spec starts with step 2.
 		header.set_seal(vec![encode(&1usize).to_vec(), encode(&(&*signature as &[u8])).to_vec()]);
 		assert!(engine.verify_block_seal(&header).is_ok());

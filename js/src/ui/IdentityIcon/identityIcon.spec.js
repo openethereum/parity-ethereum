@@ -14,11 +14,9 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { mount } from 'enzyme';
-import React, { PropTypes } from 'react';
+import { shallow } from 'enzyme';
+import React from 'react';
 import sinon from 'sinon';
-
-import muiTheme from '../Theme';
 
 import IdentityIcon from './';
 
@@ -27,6 +25,7 @@ const ADDRESS1 = '0x0123456789012345678901234567890123456789';
 const ADDRESS2 = '0x9876543210987654321098765432109876543210';
 
 let component;
+let instance;
 
 function createApi () {
   return {
@@ -53,20 +52,13 @@ function render (props = {}) {
     props.address = ADDRESS1;
   }
 
-  component = mount(
+  component = shallow(
     <IdentityIcon { ...props } />,
-    {
-      childContextTypes: {
-        api: PropTypes.object,
-        muiTheme: PropTypes.object
-      },
-      context: {
-        api: createApi(),
-        muiTheme,
-        store: createRedux()
-      }
-    }
-  );
+    { context: { store: createRedux() } }
+  ).find('IdentityIcon').shallow({ context: { api: createApi() } });
+
+  instance = component.instance();
+  instance.componentDidMount();
 
   return component;
 }

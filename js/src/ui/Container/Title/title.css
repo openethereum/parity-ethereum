@@ -14,7 +14,7 @@
 /* You should have received a copy of the GNU General Public License
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
-.byline {
+.byline, .description {
   overflow: hidden;
   position: relative;
   line-height: 1.2em;
@@ -29,6 +29,11 @@
   * {
     color: #aaa !important;
   }
+}
+
+.description {
+  font-size: 0.75em;
+  margin: 0.5em 0 0;
 }
 
 .title {

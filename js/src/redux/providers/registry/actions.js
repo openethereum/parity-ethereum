@@ -14,18 +14,15 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-export Balances from './balances';
-export Personal from './personal';
-export Signer from './signer';
-export Status from './status';
+export const setReverse = (address, reverse) => ({
+  type: 'setReverse',
+  address, reverse
+});
 
-export apiReducer from './apiReducer';
-export balancesReducer from './balancesReducer';
-export blockchainReducer from './blockchainReducer';
-export workerReducer from './workerReducer';
-export imagesReducer from './imagesReducer';
-export personalReducer from './personalReducer';
-export signerReducer from './signerReducer';
-export snackbarReducer from './snackbarReducer';
-export statusReducer from './statusReducer';
-export walletReducer from './walletReducer';
+export const startCachingReverses = () => ({
+  type: 'startCachingReverses'
+});
+
+export const stopCachingReverses = () => ({
+  type: 'stopCachingReverses'
+});
