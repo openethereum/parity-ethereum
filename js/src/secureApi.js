@@ -38,7 +38,30 @@ export default class SecureApi extends Api {
       .filter((token) => token)
       .map((token) => ({ value: token, tried: false }));
 
-    this._tryNextToken();
+    this.connect();
+  }
+
+  connect () {
+    if (this._connectPromise) {
+      return this._connectPromise;
+    }
+
+    this._resetTokens();
+    this._connectPromise = this
+      ._tryNextToken()
+      .then((connected) => {
+        this._connectPromise = null;
+        return connected;
+      });
+
+    return this._connectPromise;
+  }
+
+  _resetTokens () {
+    this._tokens = this._tokens.map((token) => ({
+      ...token,
+      tried: false
+    }));
   }
 
   saveToken () {
@@ -64,6 +87,8 @@ export default class SecureApi extends Api {
   _setManual () {
     this._needsToken = true;
     this._isConnecting = false;
+
+    return false;
   }
 
   _tryNextToken () {
@@ -76,7 +101,7 @@ export default class SecureApi extends Api {
     const nextToken = this._tokens[nextTokenIndex];
     nextToken.tried = true;
 
-    this.updateToken(nextToken.value);
+    return this.updateToken(nextToken.value);
   }
 
   _followConnection = () => {
@@ -92,14 +117,15 @@ export default class SecureApi extends Api {
             .then((token) => {
               return this.updateToken(token);
             })
-            .catch((e) => console.error(e));
+            .catch((e) => {
+              return this._tryNextToken();
+            });
         }
 
-        this.connectSuccess();
-        return true;
+        return this.connectSuccess().then(() => true);
       })
       .catch((e) => {
-        this
+        return this
           ._checkNodeUp()
           .then((isNodeUp) => {
             // Try again in a few...
@@ -107,15 +133,14 @@ export default class SecureApi extends Api {
               this._isConnecting = false;
               const timeout = this.transport.retryTimeout;
 
-              window.setTimeout(() => {
-                this._followConnection();
-              }, timeout);
-
-              return;
+              return new Promise((resolve, reject) => {
+                window.setTimeout(() => {
+                  this._followConnection().then(resolve).catch(reject);
+                }, timeout);
+              });
             }
 
-            this._tryNextToken();
-            return false;
+            return this._tryNextToken();
           });
       });
   }
@@ -125,8 +150,9 @@ export default class SecureApi extends Api {
     this._needsToken = false;
 
     this.saveToken();
+  console.warn('got connected', 'saving token', this._tranport.token);
 
-    Promise
+    return Promise
       .all([
         this.parity.dappsPort(),
         this.parity.dappsInterface(),

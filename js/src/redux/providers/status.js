@@ -32,6 +32,10 @@ export default class Status {
 
     this._timestamp = Date.now();
 
+    api.transport.on('open', () => {
+      this.start();
+    });
+
     api.transport.on('close', () => {
       this.stop();
 
@@ -39,17 +43,27 @@ export default class Status {
       this._apiStatus = apiStatus;
       this._store.dispatch(statusCollection(apiStatus));
     });
-
-    api.transport.on('open', () => {
-      this.start();
-    });
   }
 
   start () {
     this.stop();
 
-    this._subscribeBlockNumber();
-    this._pollLongStatus(true);
+    this._api
+      .connect()
+      .then((connected) => {
+        // Get the API status, set connected to false
+        // before the long status is ok
+        const apiStatus = this.getApiStatus();
+        apiStatus.isConnected = false;
+
+        this._apiStatus = apiStatus;
+        this._store.dispatch(statusCollection(apiStatus));
+
+        if (connected) {
+          this._subscribeBlockNumber();
+          this._pollLongStatus(true);
+        }
+      });
   }
 
   startPolling () {
