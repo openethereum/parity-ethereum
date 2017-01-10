@@ -299,6 +299,7 @@ impl Engine for AuthorityRound {
 		// Check if parent is from a previous step.
 		if step == header_step(parent)? {
 			trace!(target: "poa", "Multiple blocks proposed for step {}.", step);
+			self.validators.report_malicious(header.author());
 			Err(EngineError::DoubleVote(header.author().clone()))?;
 		}
 

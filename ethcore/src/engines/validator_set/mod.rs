@@ -41,6 +41,10 @@ pub trait ValidatorSet {
 	fn get(&self, nonce: usize) -> Address;
 	/// Returns the current number of validators.
 	fn count(&self) -> usize;
+	/// Notifies about malicious behaviour.
+	fn report_malicious(&self, _validator: &Address) {}
+	/// Notifies about benign misbehaviour.
+	fn report_benign(&self, _validator: &Address) {}
 	/// Allows blockchain state access.
 	fn register_call_contract(&self, _client: Weak<Client>) {}
 }
