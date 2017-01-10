@@ -68,6 +68,7 @@ pub struct RunCmd {
 	pub spec: SpecType,
 	pub pruning: Pruning,
 	pub pruning_history: u64,
+	pub pruning_memory: usize,
 	/// Some if execution should be daemonized. Contains pid_file path.
 	pub daemon: Option<String>,
 	pub logger_config: LogConfig,
@@ -273,6 +274,7 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 		cmd.name,
 		algorithm,
 		cmd.pruning_history,
+		cmd.pruning_memory,
 		cmd.check_seal,
 	);
 
