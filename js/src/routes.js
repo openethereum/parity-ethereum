@@ -22,8 +22,6 @@ import {
   Wallet, Web, WriteContract
 } from '~/views';
 
-import { SettingsAdvanced } from '~/views/Settings';
-
 function handleDeprecatedRoute (nextState, replace) {
   const { address } = nextState.params;
   const redirectMap = {
@@ -62,7 +60,6 @@ const contractsRoutes = [
 ];
 
 const settingsRoutes = [
-  { path: 'advanced', component: SettingsAdvanced },
   { path: 'background', component: SettingsBackground },
   { path: 'proxy', component: SettingsProxy },
   { path: 'views', component: SettingsViews },
