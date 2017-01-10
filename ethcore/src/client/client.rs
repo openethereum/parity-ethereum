@@ -839,14 +839,17 @@ impl snapshot::DatabaseRestore for Client {
 
 /// Find transition point between `lower` and `upper` where `cond` changes from `false` to `true`.
 /// Returns the lowest value between `lower` and `upper` for which `cond` returns true.
-/// We assert: `cond(lower) = true`, `cond(upper) = false`
+/// We assert: `cond(lower) = false`, `cond(upper) = true`
 pub fn binary_chop<F>(mut lower: U256, mut upper: U256, mut cond: F) -> U256 where F: FnMut(U256) -> bool {
-	while upper - lower <= 1.into() {
+	while upper - lower > 1.into() {
 		let mid = (lower + upper) / 2.into();
-		match cond(mid) {
+		trace!(target: "estimate_gas", "{} .. {} .. {}", lower, mid, upper);
+		let c = cond(mid);
+		match c {
 			true => upper = mid,
 			false => lower = mid,
 		};
+		trace!(target: "estimate_gas", "{} => {} .. {}", c, lower, upper);
 	}
 	upper
 }
@@ -926,13 +929,16 @@ impl BlockChainClient for Client {
 		let upper = env_info.gas_limit;
 		if !cond(upper) {
 			// impossible
+			trace!(target: "estimate_gas", "estimate_gas failed with {}", upper);
 			return Err(CallError::Execution(ExecutionError::Internal))
 		}
 		let lower = t.gas_required(&self.engine.schedule(&env_info)).into();
 		if cond(lower) {
+			trace!(target: "estimate_gas", "estimate_gas succeeded with {}", lower);
 			return Ok(lower)
 		}
 		// binary chop to non-excepting call with gas somewhere between 21000 and block gas limit
+		trace!(target: "estimate_gas", "estimate_gas chopping {} .. {}", lower, upper);
 		Ok(binary_chop(lower, upper, cond))
 	}
 
