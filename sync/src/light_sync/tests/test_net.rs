@@ -20,9 +20,11 @@ use std::collections::{HashSet, VecDeque};
 use std::sync::Arc;
 
 use light_sync::*;
-use tests::helpers::{Message, TestNet, Peer as PeerLike, TestPacket};
+use tests::helpers::{TestNet, Peer as PeerLike, TestPacket};
 
 use ethcore::client::TestBlockChainClient;
+use ethcore::spec::Spec;
+use io::IoChannel;
 use light::client::Client as LightClient;
 use light::net::{LightProtocol, IoContext, Capabilities, Params as LightParams};
 use light::net::buffer_flow::FlowParams;
@@ -64,7 +66,7 @@ impl<'a> IoContext for TestIoContext<'a> {
 
 // peer-specific data.
 enum PeerData {
-	Light(LightSync<LightClient>, Arc<LightClient>),
+	Light(Arc<LightSync<LightClient>>, Arc<LightClient>),
 	Full(Arc<TestBlockChainClient>)
 }
 
@@ -101,7 +103,7 @@ impl Peer {
 
 	// create a new light-client peer to sync to full peers.
 	pub fn new_light(chain: Arc<LightClient>) -> Self {
-		let sync = LightSync::new(chain.clone()).unwrap();
+		let sync = Arc::new(LightSync::new(chain.clone()).unwrap());
 		let params = LightParams {
 			network_id: NETWORK_ID,
 			flow_params: FlowParams::default(),
@@ -113,11 +115,28 @@ impl Peer {
 			},
 		};
 
-		let proto = LightProtocol::new(chain.clone(), params);
+		let mut proto = LightProtocol::new(chain.clone(), params);
+		proto.add_handler(sync.clone());
 		Peer {
 			proto: proto,
 			queue: RwLock::new(VecDeque::new()),
 			data: PeerData::Light(sync, chain),
+		}
+	}
+
+	// get the chain from the client, asserting that it is a full node.
+	pub fn chain(&self) -> &TestBlockChainClient {
+		match self.data {
+			PeerData::Full(ref chain) => &*chain,
+			_ => panic!("Attempted to access full chain on light peer."),
+		}
+	}
+
+	// get the light chain from the peer, asserting that it is a light node.
+	pub fn light_chain(&self) -> &LightClient {
+		match self.data {
+			PeerData::Light(_, ref chain) => &*chain,
+			_ => panic!("Attempted to access light chain on full peer."),
 		}
 	}
 
@@ -159,9 +178,9 @@ impl PeerLike for Peer {
 	}
 
 	fn sync_step(&self) {
-		if let PeerData::Light(ref sync, _) = self.data {
-			let io = self.io(None);
-			self.proto.with_context(&io, |ctx| sync.maintain_sync(ctx))
+		if let PeerData::Light(_, ref client) = self.data {
+			client.flush_queue();
+			client.import_verified();
 		}
 	}
 
@@ -170,16 +189,23 @@ impl PeerLike for Peer {
 
 impl TestNet<Peer> {
 	/// Create a new `TestNet` for testing light synchronization.
-	pub fn light() -> Self {
+	/// The first parameter is the number of light nodes,
+	/// the second is the number of full nodes.
+	pub fn light(n_light: usize, n_full: usize) -> Self {
+		let mut peers = Vec::with_capacity(n_light + n_full);
+		for _ in 0..n_light {
+			let client = LightClient::new(Default::default(), &Spec::new_test(), IoChannel::disconnected());
+			peers.push(Arc::new(Peer::new_light(Arc::new(client))))
+		}
+
+		for _ in 0..n_full {
+			peers.push(Arc::new(Peer::new_full(Arc::new(TestBlockChainClient::new()))))
+		}
+
 		TestNet {
-			peers: Vec::new(),
+			peers: peers,
 			started: false,
 			disconnect_events: Vec::new(),
 		}
-	}
-
-	/// Add a peer.
-	pub fn add_peer(&mut self, peer: Peer) {
-		self.peers.push(Arc::new(peer))
 	}
 }

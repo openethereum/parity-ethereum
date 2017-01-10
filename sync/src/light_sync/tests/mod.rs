@@ -14,8 +14,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use self::test_net::Peer;
-use tests::helpers::TestNet;
+#![allow(dead_code)]
 
 mod test_net;
-
