@@ -21,7 +21,8 @@ const MODES = {
 };
 
 const FEATURES = {
-  LANGUAGE: 'LANGUAGE'
+  LANGUAGE: 'LANGUAGE',
+  LOGLEVELS: 'LOGLEVELS'
 };
 
 const DEFAULTS = {
@@ -29,6 +30,11 @@ const DEFAULTS = {
     mode: MODES.TESTING,
     name: 'Language Selection',
     description: 'Allows changing the default interface language'
+  },
+  [FEATURES.LOGLEVELS]: {
+    mode: MODES.TESTING,
+    name: 'Logging Level Selection',
+    description: 'Allows changing of the log levels for various components'
   }
 };
 

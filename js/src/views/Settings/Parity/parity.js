@@ -18,18 +18,10 @@ import { MenuItem } from 'material-ui';
 import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
-<<<<<<< HEAD
-
-import { Select, Container, Features, LanguageSelector } from '~/ui';
-=======
-import { MenuItem } from 'material-ui';
-import LogLevel from 'loglevel';
-
-import { LOG_KEYS } from '~/config';
 import { Select, Container, LanguageSelector } from '~/ui';
->>>>>>> master
+import Features, { FeaturesStore, FEATURES } from '~/ui/Features';
 
-import Store from './store';
+import Store, { LOGLEVEL_OPTIONS } from './store';
 import layout from '../layout.css';
 
 @observer
@@ -38,59 +30,11 @@ export default class Parity extends Component {
     api: PropTypes.object.isRequired
   };
 
-<<<<<<< HEAD
   store = new Store(this.context.api);
+  features = FeaturesStore.get();
 
   componentWillMount () {
     return this.store.loadMode();
-=======
-  state = {
-    loglevels: {},
-    mode: 'active',
-    selectValues: []
-  };
-
-  componentWillMount () {
-    this.loadMode();
-    this.loadLogLevels();
-    this.setSelectValues();
-  }
-
-  loadLogLevels () {
-    if (process.env.NODE_ENV === 'production') {
-      return null;
-    }
-
-    const nextState = { ...this.state.logLevels };
-
-    Object.keys(LOG_KEYS).map((logKey) => {
-      const log = LOG_KEYS[logKey];
-
-      const logger = LogLevel.getLogger(log.path);
-      const level = logger.getLevel();
-
-      nextState[logKey] = { level, log };
-    });
-
-    this.setState({ logLevels: nextState });
-  }
-
-  setSelectValues () {
-    if (process.env.NODE_ENV === 'production') {
-      return null;
-    }
-
-    const selectValues = Object.keys(LogLevel.levels).map((levelName) => {
-      const value = LogLevel.levels[levelName];
-
-      return {
-        name: levelName,
-        value
-      };
-    });
-
-    this.setState({ selectValues });
->>>>>>> master
   }
 
   render () {
@@ -119,7 +63,6 @@ export default class Parity extends Component {
     );
   }
 
-<<<<<<< HEAD
   renderItem (mode, label) {
     return (
       <MenuItem
@@ -130,9 +73,9 @@ export default class Parity extends Component {
       </MenuItem>
     );
   }
-=======
+
   renderLogsConfig () {
-    if (process.env.NODE_ENV === 'production') {
+    if (!this.features.active[FEATURES.LANGUAGE]) {
       return null;
     }
 
@@ -154,38 +97,30 @@ export default class Parity extends Component {
   }
 
   renderLogsLevels () {
-    if (process.env.NODE_ENV === 'production') {
-      return null;
-    }
+    const { logLevels } = this.store;
 
-    const { logLevels, selectValues } = this.state;
+    return Object
+      .keys(logLevels)
+      .map((key) => {
+        const { level, log } = logLevels[key];
+        const { path, desc } = log;
 
-    return Object.keys(logLevels).map((logKey) => {
-      const { level, log } = logLevels[logKey];
-      const { path, desc } = log;
+        const onChange = (_, index) => {
+          this.store.updateLoggerLevel(path, Object.values(LOGLEVEL_OPTIONS)[index].value);
+        };
 
-      const onChange = (_, index) => {
-        const nextLevel = Object.values(selectValues)[index].value;
-        LogLevel.getLogger(path).setLevel(nextLevel);
-        this.loadLogLevels();
-      };
-
-      return (
-        <div key={ logKey }>
-          <p>{ desc }</p>
-          <Select
-            onChange={ onChange }
-            value={ level }
-            values={ selectValues }
-          />
-        </div>
-      );
-    });
+        return (
+          <div key={ key }>
+            <p>{ desc }</p>
+            <Select
+              onChange={ onChange }
+              value={ level }
+              values={ LOGLEVEL_OPTIONS }
+            />
+          </div>
+        );
+      });
   }
-
-  renderModes () {
-    const { mode } = this.state;
->>>>>>> master
 
   renderModes () {
     const { mode } = this.store;

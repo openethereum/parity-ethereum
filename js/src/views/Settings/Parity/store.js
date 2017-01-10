@@ -14,15 +14,37 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import LogLevel from 'loglevel';
 import { action, observable } from 'mobx';
 
+import { LOG_KEYS } from '~/config';
+
 const DEFAULT_MODE = 'active';
+const LOGLEVEL_OPTIONS = Object
+  .keys(LogLevel.levels)
+  .map((name) => {
+    return {
+      name,
+      value: LogLevel.levels[name]
+    };
+  });
 
 export default class Store {
+  @observable logLevels = {};
   @observable mode = DEFAULT_MODE;
 
   constructor (api) {
     this._api = api;
+
+    this.loadLogLevels();
+  }
+
+  @action setLogLevels = (logLevels) => {
+    this.logLevels = logLevels;
+  }
+
+  @action setLogLevelsSelect = (logLevelsSelect) => {
+    this.logLevelsSelect = logLevelsSelect;
   }
 
   @action setMode = (mode) => {
@@ -42,6 +64,30 @@ export default class Store {
       });
   }
 
+  loadLogLevels () {
+    this.setLogLevels(
+      Object
+        .keys(LOG_KEYS)
+        .reduce((state, logKey) => {
+          const log = LOG_KEYS[logKey];
+          const logger = LogLevel.getLogger(log.path);
+          const level = logger.getLevel();
+
+          state[logKey] = {
+            level,
+            log
+          };
+
+          return state;
+        }, this.logLevels)
+    );
+  }
+
+  updateLoggerLevel (path, level) {
+    LogLevel.getLogger(path).setLevel(level);
+    this.loadLogLevels();
+  }
+
   loadMode () {
     return this._api.parity
       .mode()
@@ -53,3 +99,7 @@ export default class Store {
       });
   }
 }
+
+export {
+  LOGLEVEL_OPTIONS
+};
