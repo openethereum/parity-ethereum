@@ -20,7 +20,7 @@ use network::{NetworkContext, PeerId, NodeId};
 
 use super::{Announcement, LightProtocol, ReqId};
 use super::error::Error;
-use request::Request;
+use request::{self, Request};
 
 /// An I/O context which allows sending and receiving packets as well as
 /// disconnecting peers. This is used as a generalization of the portions
@@ -77,12 +77,8 @@ impl<'a> IoContext for NetworkContext<'a> {
 	}
 }
 
-/// Context for a protocol event.
-pub trait EventContext {
-	/// Get the peer relevant to the event e.g. message sender,
-	/// disconnected/connected peer.
-	fn peer(&self) -> PeerId;
-
+/// Basic context for a the protocol.
+pub trait BasicContext {
 	/// Returns the relevant's peer persistent Id (aka NodeId).
 	fn persistent_peer_id(&self, peer: PeerId) -> Option<NodeId>;
 
@@ -93,11 +89,59 @@ pub trait EventContext {
 	// TODO: maybe just put this on a timer in LightProtocol?
 	fn make_announcement(&self, announcement: Announcement);
 
+	/// Find the maximum number of requests of a specific type which can be made from
+	/// supplied peer.
+	fn max_requests(&self, peer: PeerId, kind: request::Kind) -> usize;
+
 	/// Disconnect a peer.
 	fn disconnect_peer(&self, peer: PeerId);
 
 	/// Disable a peer.
 	fn disable_peer(&self, peer: PeerId);
+}
+
+/// Context for a protocol event which has a peer ID attached.
+pub trait EventContext: BasicContext {
+	/// Get the peer relevant to the event e.g. message sender,
+	/// disconnected/connected peer.
+	fn peer(&self) -> PeerId;
+
+	/// Treat the event context as a basic context.
+	fn as_basic(&self) -> &BasicContext;
+}
+
+/// Basic context.
+pub struct TickCtx<'a> {
+	/// Io context to enable dispatch.
+	pub io: &'a IoContext,
+	/// Protocol implementation.
+	pub proto: &'a LightProtocol,
+}
+
+impl<'a> BasicContext for TickCtx<'a> {
+	fn persistent_peer_id(&self, id: PeerId) -> Option<NodeId> {
+		self.io.persistent_peer_id(id)
+	}
+
+	fn request_from(&self, peer: PeerId, request: Request) -> Result<ReqId, Error> {
+		self.proto.request_from(self.io, &peer, request)
+	}
+
+	fn make_announcement(&self, announcement: Announcement) {
+		self.proto.make_announcement(self.io, announcement);
+	}
+
+	fn max_requests(&self, peer: PeerId, kind: request::Kind) -> usize {
+		self.proto.max_requests(peer, kind)
+	}
+
+	fn disconnect_peer(&self, peer: PeerId) {
+		self.io.disconnect_peer(peer);
+	}
+
+	fn disable_peer(&self, peer: PeerId) {
+		self.io.disable_peer(peer);
+	}
 }
 
 /// Concrete implementation of `EventContext` over the light protocol struct and
@@ -111,11 +155,7 @@ pub struct Ctx<'a> {
 	pub peer: PeerId,
 }
 
-impl<'a> EventContext for Ctx<'a> {
-	fn peer(&self) -> PeerId {
-		self.peer
-	}
-
+impl<'a> BasicContext for Ctx<'a> {
 	fn persistent_peer_id(&self, id: PeerId) -> Option<NodeId> {
 		self.io.persistent_peer_id(id)
 	}
@@ -128,11 +168,25 @@ impl<'a> EventContext for Ctx<'a> {
 		self.proto.make_announcement(self.io, announcement);
 	}
 
+	fn max_requests(&self, peer: PeerId, kind: request::Kind) -> usize {
+		self.proto.max_requests(peer, kind)
+	}
+
 	fn disconnect_peer(&self, peer: PeerId) {
 		self.io.disconnect_peer(peer);
 	}
 
 	fn disable_peer(&self, peer: PeerId) {
 		self.io.disable_peer(peer);
+	}
+}
+
+impl<'a> EventContext for Ctx<'a> {
+	fn peer(&self) -> PeerId {
+		self.peer
+	}
+
+	fn as_basic(&self) -> &BasicContext {
+		&*self
 	}
 }

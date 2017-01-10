@@ -19,7 +19,7 @@ import { routerReducer } from 'react-router-redux';
 
 import {
   apiReducer, balancesReducer, blockchainReducer,
-  compilerReducer, imagesReducer, personalReducer,
+  workerReducer, imagesReducer, personalReducer,
   signerReducer, statusReducer as nodeStatusReducer,
   snackbarReducer, walletReducer
 } from './providers';
@@ -40,12 +40,12 @@ export default function () {
     balances: balancesReducer,
     certifications: certificationsReducer,
     blockchain: blockchainReducer,
-    compiler: compilerReducer,
     images: imagesReducer,
     nodeStatus: nodeStatusReducer,
     personal: personalReducer,
     signer: signerReducer,
     snackbar: snackbarReducer,
-    wallet: walletReducer
+    wallet: walletReducer,
+    worker: workerReducer
   });
 }

@@ -18,7 +18,7 @@
 
 use ethjson;
 use super::transition::TendermintTimeouts;
-use util::U256;
+use util::{U256, Uint};
 use time::Duration;
 
 /// `Tendermint` params.
@@ -30,6 +30,8 @@ pub struct TendermintParams {
 	pub validators: ethjson::spec::ValidatorSet,
 	/// Timeout durations for different steps.
 	pub timeouts: TendermintTimeouts,
+	/// Block reward.
+	pub block_reward: U256,
 }
 
 fn to_duration(ms: ethjson::uint::Uint) -> Duration {
@@ -49,6 +51,7 @@ impl From<ethjson::spec::TendermintParams> for TendermintParams {
 				precommit: p.timeout_precommit.map_or(dt.precommit, to_duration),
 				commit: p.timeout_commit.map_or(dt.commit, to_duration),
 			},
+			block_reward: p.block_reward.map_or_else(U256::zero, Into::into),
 		}
 	}
 }

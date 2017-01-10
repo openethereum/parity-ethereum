@@ -75,14 +75,19 @@ class InputAddress extends Component {
       containerClasses.push(styles.small);
     }
 
+    const props = {};
+
+    if (!readOnly && !disabled) {
+      props.focused = focused;
+    }
+
     return (
       <div className={ containerClasses.join(' ') }>
         <Input
-          allowCopy={ allowCopy && (disabled ? value : false) }
+          allowCopy={ allowCopy && ((disabled || readOnly) ? value : false) }
           className={ classes.join(' ') }
           disabled={ disabled }
           error={ error }
-          focused={ focused }
           hideUnderline={ hideUnderline }
           hint={ hint }
           label={ label }
@@ -96,20 +101,22 @@ class InputAddress extends Component {
             text && account
               ? account.name
               : (nullName || value)
-          } />
+          }
+          { ...props }
+        />
         { icon }
       </div>
     );
   }
 
   renderIcon () {
-    const { value, disabled, label, allowCopy, hideUnderline } = this.props;
+    const { value, disabled, label, allowCopy, hideUnderline, readOnly } = this.props;
 
     if (!value || !value.length || !util.isAddressValid(value)) {
       return null;
     }
 
-    const classes = [disabled ? styles.iconDisabled : styles.icon];
+    const classes = [(disabled || readOnly) ? styles.iconDisabled : styles.icon];
 
     if (!label) {
       classes.push(styles.noLabel);

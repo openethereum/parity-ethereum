@@ -32,12 +32,10 @@ use ethcore::verification::queue::VerifierSettings;
 use ethsync::SyncConfig;
 use informant::Informant;
 use updater::{UpdatePolicy, Updater};
-use parity_reactor::{EventLoop, EventLoopHandle};
+use parity_reactor::EventLoop;
 use hash_fetch::fetch::{Fetch, Client as FetchClient};
 
-use rpc::{HttpServer, IpcServer, HttpConfiguration, IpcConfiguration};
-use signer::SignerServer;
-use dapps::WebappServer;
+use rpc::{HttpConfiguration, IpcConfiguration};
 use params::{
 	SpecType, Pruning, AccountsConfig, GasPricerConfig, MinerExtras, Switch,
 	tracing_switch_to_bool, fatdb_switch_to_bool, mode_switch_to_bool
@@ -59,6 +57,9 @@ const SNAPSHOT_PERIOD: u64 = 10000;
 
 // how many blocks to wait before starting a periodic snapshot.
 const SNAPSHOT_HISTORY: u64 = 100;
+
+// Pops along with error messages when a password is missing or invalid.
+const VERIFY_PASSWORD_HINT: &'static str = "Make sure valid password is present in files passed using `--password` or in the configuration file.";
 
 #[derive(Debug, PartialEq)]
 pub struct RunCmd {
@@ -91,6 +92,7 @@ pub struct RunCmd {
 	pub net_settings: NetworkSettings,
 	pub dapps_conf: dapps::Configuration,
 	pub signer_conf: signer::Configuration,
+	pub dapp: Option<String>,
 	pub ui: bool,
 	pub name: String,
 	pub custom_bootnodes: bool,
@@ -116,6 +118,17 @@ pub fn open_ui(dapps_conf: &dapps::Configuration, signer_conf: &signer::Configur
 	println!("{}", token.message);
 	Ok(())
 }
+
+pub fn open_dapp(dapps_conf: &dapps::Configuration, dapp: &str) -> Result<(), String> {
+	if !dapps_conf.enabled {
+		return Err("Cannot use DAPP command with Dapps turned off.".into())
+	}
+
+	let url = format!("http://{}:{}/{}/", dapps_conf.interface, dapps_conf.port, dapp);
+	url::open(&url);
+	Ok(())
+}
+
 
 pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> Result<bool, String> {
 	if cmd.ui && cmd.dapps_conf.enabled {
@@ -217,7 +230,7 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 	let passwords = passwords_from_files(&cmd.acc_conf.password_files)?;
 
 	// prepare account provider
-	let account_provider = Arc::new(prepare_account_provider(&cmd.dirs, &spec.data_dir, cmd.acc_conf, &passwords)?);
+	let account_provider = Arc::new(prepare_account_provider(&cmd.spec, &cmd.dirs, &spec.data_dir, cmd.acc_conf, &passwords)?);
 
 	// let the Engine access the accounts
 	spec.engine.register_account_provider(account_provider.clone());
@@ -230,9 +243,21 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 	miner.set_extra_data(cmd.miner_extras.extra_data);
 	miner.set_transactions_limit(cmd.miner_extras.transactions_limit);
 	let engine_signer = cmd.miner_extras.engine_signer;
+
 	if engine_signer != Default::default() {
+		// Check if engine signer exists
+		if !account_provider.has_account(engine_signer).unwrap_or(false) {
+			return Err(format!("Consensus signer account not found for the current chain. {}", build_create_account_hint(&cmd.spec, &cmd.dirs.keys)));
+		}
+
+		// Check if any passwords have been read from the password file(s)
+		if passwords.is_empty() {
+			return Err(format!("No password found for the consensus signer {}. {}", engine_signer, VERIFY_PASSWORD_HINT));
+		}
+
+		// Attempt to sign in the engine signer.
 		if !passwords.into_iter().any(|p| miner.set_engine_signer(engine_signer, p).is_ok()) {
-			return Err(format!("No password found for the consensus signer {}. Make sure valid password is present in files passed using `--password`.", engine_signer));
+			return Err(format!("No valid password for the consensus signer {}. {}", engine_signer, VERIFY_PASSWORD_HINT));
 		}
 	}
 
@@ -428,17 +453,15 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 		open_ui(&cmd.dapps_conf, &cmd.signer_conf)?;
 	}
 
+	if let Some(dapp) = cmd.dapp {
+		open_dapp(&cmd.dapps_conf, &dapp)?;
+	}
+
 	// Handle exit
-	let restart = wait_for_exit(
-		panic_handler,
-		http_server,
-		ipc_server,
-		dapps_server,
-		signer_server,
-		event_loop.into(),
-		updater,
-		can_restart,
-	);
+	let restart = wait_for_exit(panic_handler, Some(updater), can_restart);
+
+	// drop this stuff as soon as exit detected.
+	drop((http_server, ipc_server, dapps_server, signer_server, event_loop));
 
 	info!("Finishing work, please wait...");
 
@@ -471,34 +494,44 @@ fn daemonize(_pid_file: String) -> Result<(), String> {
 	Err("daemon is no supported on windows".into())
 }
 
-fn prepare_account_provider(dirs: &Directories, data_dir: &str, cfg: AccountsConfig, passwords: &[String]) -> Result<AccountProvider, String> {
+fn prepare_account_provider(spec: &SpecType, dirs: &Directories, data_dir: &str, cfg: AccountsConfig, passwords: &[String]) -> Result<AccountProvider, String> {
 	use ethcore::ethstore::EthStore;
 	use ethcore::ethstore::dir::DiskDirectory;
 
 	let path = dirs.keys_path(data_dir);
 	upgrade_key_location(&dirs.legacy_keys_path(cfg.testnet), &path);
 	let dir = Box::new(DiskDirectory::create(&path).map_err(|e| format!("Could not open keys directory: {}", e))?);
-	let account_service = AccountProvider::new(Box::new(
+	let account_provider = AccountProvider::new(Box::new(
 		EthStore::open_with_iterations(dir, cfg.iterations).map_err(|e| format!("Could not open keys directory: {}", e))?
 	));
 
 	for a in cfg.unlocked_accounts {
-		if !passwords.iter().any(|p| account_service.unlock_account_permanently(a, (*p).clone()).is_ok()) {
-			return Err(format!("No password found to unlock account {}. Make sure valid password is present in files passed using `--password`.", a));
+		// Check if the account exists
+		if !account_provider.has_account(a).unwrap_or(false) {
+			return Err(format!("Account {} not found for the current chain. {}", a, build_create_account_hint(spec, &dirs.keys)));
+		}
+
+		// Check if any passwords have been read from the password file(s)
+		if passwords.is_empty() {
+			return Err(format!("No password found to unlock account {}. {}", a, VERIFY_PASSWORD_HINT));
+		}
+
+		if !passwords.iter().any(|p| account_provider.unlock_account_permanently(a, (*p).clone()).is_ok()) {
+			return Err(format!("No valid password to unlock account {}. {}", a, VERIFY_PASSWORD_HINT));
 		}
 	}
 
-	Ok(account_service)
+	Ok(account_provider)
+}
+
+// Construct an error `String` with an adaptive hint on how to create an account.
+fn build_create_account_hint(spec: &SpecType, keys: &str) -> String {
+	format!("You can create an account via RPC, UI or `parity account new --chain {} --keys-path {}`.", spec, keys)
 }
 
 fn wait_for_exit(
 	panic_handler: Arc<PanicHandler>,
-	_http_server: Option<HttpServer>,
-	_ipc_server: Option<IpcServer>,
-	_dapps_server: Option<WebappServer>,
-	_signer_server: Option<SignerServer>,
-	_event_loop: EventLoopHandle,
-	updater: Arc<Updater>,
+	updater: Option<Arc<Updater>>,
 	can_restart: bool
 ) -> bool {
 	let exit = Arc::new((Mutex::new(false), Condvar::new()));
@@ -511,12 +544,14 @@ fn wait_for_exit(
 	let e = exit.clone();
 	panic_handler.on_panic(move |_reason| { e.1.notify_all(); });
 
-	// Handle updater wanting to restart us
-	if can_restart {
-		let e = exit.clone();
-		updater.set_exit_handler(move || { *e.0.lock() = true; e.1.notify_all(); });
-	} else {
-		updater.set_exit_handler(|| info!("Update installed; ready for restart."));
+	if let Some(updater) = updater {
+		// Handle updater wanting to restart us
+		if can_restart {
+			let e = exit.clone();
+			updater.set_exit_handler(move || { *e.0.lock() = true; e.1.notify_all(); });
+		} else {
+			updater.set_exit_handler(|| info!("Update installed; ready for restart."));
+		}
 	}
 
 	// Wait for signal

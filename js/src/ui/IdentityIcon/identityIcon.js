@@ -16,7 +16,6 @@
 
 import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
-import { bindActionCreators } from 'redux';
 
 import { createIdentityImg } from '~/api/util/identity';
 import { isNullAddress } from '~/util/validation';
@@ -34,8 +33,8 @@ class IdentityIcon extends Component {
     button: PropTypes.bool,
     center: PropTypes.bool,
     className: PropTypes.string,
-    inline: PropTypes.bool,
     images: PropTypes.object.isRequired,
+    inline: PropTypes.bool,
     padded: PropTypes.bool,
     tiny: PropTypes.bool
   }
@@ -145,11 +144,7 @@ function mapStateToProps (state) {
   return { images };
 }
 
-function mapDispatchToProps (dispatch) {
-  return bindActionCreators({}, dispatch);
-}
-
 export default connect(
   mapStateToProps,
-  mapDispatchToProps
+  null
 )(IdentityIcon);

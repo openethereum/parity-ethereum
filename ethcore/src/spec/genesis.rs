@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use util::{Address, H256, Uint, U256};
+use util::{Address, H256, Uint, U256, FixedHash};
 use util::sha3::SHA3_NULL_RLP;
 use ethjson;
 use super::seal::Seal;
@@ -50,9 +50,9 @@ impl From<ethjson::spec::Genesis> for Genesis {
 		Genesis {
 			seal: From::from(g.seal),
 			difficulty: g.difficulty.into(),
-			author: g.author.into(),
-			timestamp: g.timestamp.into(),
-			parent_hash: g.parent_hash.into(),
+			author: g.author.map_or_else(Address::zero, Into::into),
+			timestamp: g.timestamp.map_or(0, Into::into),
+			parent_hash: g.parent_hash.map_or_else(H256::zero, Into::into),
 			gas_limit: g.gas_limit.into(),
 			transactions_root: g.transactions_root.map_or_else(|| SHA3_NULL_RLP.clone(), Into::into),
 			receipts_root: g.receipts_root.map_or_else(|| SHA3_NULL_RLP.clone(), Into::into),

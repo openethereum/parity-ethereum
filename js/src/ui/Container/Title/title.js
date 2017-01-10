@@ -22,13 +22,14 @@ import styles from './title.css';
 
 export default class Title extends Component {
   static propTypes = {
+    byline: nodeOrStringProptype(),
     className: PropTypes.string,
-    title: nodeOrStringProptype(),
-    byline: nodeOrStringProptype()
+    description: nodeOrStringProptype(),
+    title: nodeOrStringProptype()
   }
 
   render () {
-    const { className, title, byline } = this.props;
+    const { byline, className, title } = this.props;
 
     const byLine = typeof byline === 'string'
       ? (
@@ -46,6 +47,29 @@ export default class Title extends Component {
         <div className={ styles.byline }>
           { byLine }
         </div>
+        { this.renderDescription() }
+      </div>
+    );
+  }
+
+  renderDescription () {
+    const { description } = this.props;
+
+    if (!description) {
+      return null;
+    }
+
+    const desc = typeof description === 'string'
+      ? (
+        <span title={ description }>
+          { description }
+        </span>
+      )
+      : description;
+
+    return (
+      <div className={ styles.description }>
+        { desc }
       </div>
     );
   }
