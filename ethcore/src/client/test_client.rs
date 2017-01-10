@@ -379,6 +379,10 @@ impl BlockChainClient for TestBlockChainClient {
 		self.execution_result.read().clone().unwrap()
 	}
 
+	fn estimate_gas(&self, _t: &SignedTransaction, _block: BlockId) -> Result<U256, CallError> {
+		Ok(21000.into())
+	}
+
 	fn replay(&self, _id: TransactionId, _analytics: CallAnalytics) -> Result<Executed, CallError> {
 		self.execution_result.read().clone().unwrap()
 	}

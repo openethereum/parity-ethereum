@@ -671,13 +671,8 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 
 		let request = CallRequest::into(request);
 		let signed = self.sign_call(request)?;
-		let result = match num.0 {
-			BlockNumber::Pending => take_weak!(self.miner).call(&*take_weak!(self.client), &signed, Default::default()),
-			num => take_weak!(self.client).call(&signed, num.into(), Default::default()),
-		};
-
-		result
-			.map(|res| (res.gas_used + res.refunded).into())
+		take_weak!(self.client).estimate_gas(&signed, num.0.into())
+			.map(Into::into)
 			.map_err(errors::from_call_error)
 	}
 
