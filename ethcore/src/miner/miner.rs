@@ -673,7 +673,7 @@ impl MinerService for Miner {
 		}
 	}
 
-	fn call(&self, chain: &MiningBlockChainClient, t: &SignedTransaction, analytics: CallAnalytics) -> Result<Executed, CallError> {
+	fn call(&self, client: &MiningBlockChainClient, t: &SignedTransaction, analytics: CallAnalytics) -> Result<Executed, CallError> {
 		let sealing_work = self.sealing_work.lock();
 		match sealing_work.queue.peek_last_ref() {
 			Some(work) => {
@@ -681,7 +681,7 @@ impl MinerService for Miner {
 
 				// TODO: merge this code with client.rs's fn call somwhow.
 				let header = block.header();
-				let last_hashes = Arc::new(chain.last_hashes());
+				let last_hashes = Arc::new(client.last_hashes());
 				let env_info = EnvInfo {
 					number: header.number(),
 					author: *header.author(),
@@ -706,16 +706,14 @@ impl MinerService for Miner {
 					state.add_balance(&sender, &(needed_balance - balance), CleanupMode::NoEmpty);
 				}
 				let options = TransactOptions { tracing: analytics.transaction_tracing, vm_tracing: analytics.vm_tracing, check_nonce: false };
-				let mut ret = Executive::new(&mut state, &env_info, &*self.engine, chain.vm_factory()).transact(t, options)?;
+				let mut ret = Executive::new(&mut state, &env_info, &*self.engine, client.vm_factory()).transact(t, options)?;
 
 				// TODO gav move this into Executive.
 				ret.state_diff = original_state.map(|original| state.diff_from(original));
 
 				Ok(ret)
 			},
-			None => {
-				chain.call(t, BlockId::Latest, analytics)
-			}
+			None => client.call(t, BlockId::Latest, analytics)
 		}
 	}
 
