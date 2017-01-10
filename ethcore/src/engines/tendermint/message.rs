@@ -23,6 +23,7 @@ use header::Header;
 use rlp::*;
 use ethkey::{recover, public_to_address};
 
+/// Message transmitted between consensus participants.
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub struct ConsensusMessage {
 	pub vote_step: VoteStep,
@@ -30,6 +31,7 @@ pub struct ConsensusMessage {
 	pub signature: H520,
 }
 
+/// Complete step of the consensus process.
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub struct VoteStep {
 	pub height: Height,
@@ -103,17 +105,6 @@ impl PartialOrd for VoteStep {
 	}
 }
 
-impl Step {
-	fn number(&self) -> u8 {
-		match *self {
-			Step::Propose => 0,
-			Step::Prevote => 1,
-			Step::Precommit => 2,
-			Step::Commit => 3,
-		}
-	}
-}
-
 impl Ord for VoteStep {
 	fn cmp(&self, m: &VoteStep) -> Ordering {
 		if self.height != m.height {
@@ -122,6 +113,17 @@ impl Ord for VoteStep {
 			self.round.cmp(&m.round)
 		} else {
 			self.step.number().cmp(&m.step.number())
+		}
+	}
+}
+
+impl Step {
+	fn number(&self) -> u8 {
+		match *self {
+			Step::Propose => 0,
+			Step::Prevote => 1,
+			Step::Precommit => 2,
+			Step::Commit => 3,
 		}
 	}
 }
@@ -143,7 +145,7 @@ impl Encodable for Step {
 	}
 }
 
-/// (signature, height, round, step, block_hash)
+/// (signature, (height, round, step, block_hash))
 impl Decodable for ConsensusMessage {
 	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
 		let rlp = decoder.as_rlp();

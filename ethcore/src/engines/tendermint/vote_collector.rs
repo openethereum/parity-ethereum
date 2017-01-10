@@ -34,6 +34,7 @@ struct StepCollector {
 }
 
 impl StepCollector {
+	/// Returns Some(&Address) when validator is double voting.
 	fn insert<'a>(&mut self, message: ConsensusMessage, address: &'a Address) -> Option<&'a Address> {
 		// Do nothing when message was seen.
 		if self.messages.insert(message.clone()) {
@@ -51,10 +52,12 @@ impl StepCollector {
 		None
 	}
 
+	/// Count all votes for the given block hash at this step.
 	fn count_block(&self, block_hash: &Option<BlockHash>) -> usize {
 		self.block_votes.get(block_hash).map_or(0, HashMap::len)
 	}
 
+	/// Count all votes collected for the given step.
 	fn count(&self) -> usize {
 		self.block_votes.values().map(HashMap::len).sum()
 	}
@@ -93,6 +96,7 @@ impl VoteCollector {
 			.insert(message, voter)
 	}
 
+	/// Checks if the message should be ignored.
 	pub fn is_old_or_known(&self, message: &ConsensusMessage) -> bool {
 		self
 			.votes
@@ -118,6 +122,7 @@ impl VoteCollector {
 		*guard = new_collector;
 	}
 
+	/// Collects the signatures used to seal a block.
 	pub fn seal_signatures(&self, height: Height, round: Round, block_hash: &H256) -> Option<SealSignatures> {
 		let ref bh = Some(*block_hash);
 		let precommit_step = VoteStep::new(height, round, Step::Precommit);
@@ -144,6 +149,7 @@ impl VoteCollector {
 		maybe_seal
 	}
 
+	/// Count votes which agree with the given message.
 	pub fn count_aligned_votes(&self, message: &ConsensusMessage) -> usize {
 		self
 			.votes
@@ -152,10 +158,12 @@ impl VoteCollector {
 			.map_or(0, |m| m.count_block(&message.block_hash))
 	}
 
+	/// Count all votes collected for a given step.
 	pub fn count_step_votes(&self, vote_step: &VoteStep) -> usize {
 		self.votes.read().get(vote_step).map_or(0, StepCollector::count)
 	}
 
+	/// Get all messages older than the height.
 	pub fn get_up_to(&self, height: Height) -> Vec<Bytes> {
 		let guard = self.votes.read();
 		guard
@@ -166,6 +174,7 @@ impl VoteCollector {
 			.fold(Vec::new(), |mut acc, mut messages| { acc.append(&mut messages); acc })
 	}
 
+	/// Retrieve address from which the message was sent from cache.
 	pub fn get(&self, message: &ConsensusMessage) -> Option<Address> {
 		let guard = self.votes.read();
 		guard.get(&message.vote_step).and_then(|c| c.block_votes.get(&message.block_hash)).and_then(|origins| origins.get(&message.signature).cloned())
@@ -289,7 +298,9 @@ mod tests {
 	fn malicious_authority() {
 		let collector = VoteCollector::new();	
 		let vote_step = VoteStep::new(3, 2, Step::Prevote);
+		// Vote is inserted fine.
 		assert!(full_vote(&collector, H520::random(), vote_step.clone(), Some("0".sha3()), &Address::default()).is_none());
+		// Returns the double voting address.
 		full_vote(&collector, H520::random(), vote_step.clone(), Some("1".sha3()), &Address::default()).unwrap();
 		assert_eq!(collector.count_step_votes(&vote_step), 1);
 	}
