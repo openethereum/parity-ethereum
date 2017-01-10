@@ -158,8 +158,8 @@ impl<Socket: GenericSocket> GenericConnection<Socket> {
 			}
 			if self.send_queue.is_empty() {
 				self.interest.remove(Ready::writable());
-				io.update_registration(self.token)?;
 			}
+			io.update_registration(self.token)?;
 			Ok(r)
 		})
 	}
