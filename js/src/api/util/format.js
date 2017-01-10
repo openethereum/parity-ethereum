@@ -15,7 +15,6 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import { range } from 'lodash';
-import { isString } from './types';
 
 export function bytesToHex (bytes) {
   return '0x' + bytes.map((b) => ('0' + b.toString(16)).slice(-2)).join('');
