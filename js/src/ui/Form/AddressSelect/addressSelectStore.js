@@ -44,7 +44,7 @@ export default class AddressSelectStore {
           return emailVerification
             .instance
             .reverse
-            .call({}, [ sha3(email) ])
+            .call({}, [ sha3.text(email) ])
             .then((address) => {
               return {
                 address,
@@ -68,7 +68,7 @@ export default class AddressSelectStore {
         this.regLookups.push((name) => {
           return registryInstance
             .getAddress
-            .call({}, [ sha3(name), 'A' ])
+            .call({}, [ sha3.text(name), 'A' ])
             .then((address) => {
               return {
                 address,

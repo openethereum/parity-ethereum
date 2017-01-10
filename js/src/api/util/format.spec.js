@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { bytesToHex, hexToBytes, hexToAscii, bytesToAscii, asciiToHex } from './format';
+import { bytesToHex, hexToBytes, hexToAscii, bytesToAscii, asciiToHex, isHex } from './format';
 
 describe('api/util/format', () => {
   describe('bytesToHex', () => {
@@ -66,6 +66,19 @@ describe('api/util/format', () => {
 
     it('correctly converts a non-empty string', () => {
       expect(bytesToAscii([97, 98, 99])).to.equal('abc');
+    });
+  });
+
+  describe('isHex', () => {
+    it('should return true for string starting with 0x', () => {
+      expect(isHex('0x123')).to.equal(true);
+    });
+
+    it('should return false for non-strings or strings without 0x', () => {
+      expect(isHex('120x3')).to.equal(false);
+      expect(isHex(false)).to.equal(false);
+      expect(isHex()).to.equal(false);
+      expect(isHex([1, 2, 3])).to.equal(false);
     });
   });
 });
