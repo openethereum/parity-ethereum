@@ -56,6 +56,7 @@ class AddressSelect extends Component {
     contacts: PropTypes.object,
     contracts: PropTypes.object,
     tokens: PropTypes.object,
+    reverse: PropTypes.object,
 
     // Optional props
     allowCopy: PropTypes.bool,
@@ -584,10 +585,12 @@ class AddressSelect extends Component {
 function mapStateToProps (state) {
   const { accountsInfo } = state.personal;
   const { balances } = state.balances;
+  const { reverse } = state.registry;
 
   return {
     accountsInfo,
-    balances
+    balances,
+    reverse
   };
 }
 
