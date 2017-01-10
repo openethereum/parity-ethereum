@@ -673,6 +673,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 		let signed = self.sign_call(request)?;
 		take_weak!(self.client).estimate_gas(&signed, num.0.into())
 			.map(Into::into)
+			.or_else(|_| Ok(0.into()))
 			.map_err(errors::from_call_error)
 	}
 
