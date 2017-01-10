@@ -209,6 +209,8 @@ impl Client {
 		if let (Some(earliest), Some(latest)) = (state_db.journal_db().earliest_era(), state_db.journal_db().latest_era()) {
 			if latest > earliest && latest - earliest > history {
 				for era in earliest..(latest - history + 1) {
+					if state_db.journal_db().mem_used() <= config.history_mem { break }
+
 					trace!("Removing era {}", era);
 					let mut batch = DBTransaction::new(&db);
 					state_db.mark_canonical(&mut batch, era, &chain.block_hash(era).expect("Old block not found in the database"))?;
@@ -554,12 +556,22 @@ impl Client {
 
 		state.journal_under(&mut batch, number, hash).expect("DB commit failed");
 
-		if number >= self.history {
-			let n = number - self.history;
-			if let Some(ancient_hash) = chain.block_hash(n) {
-				state.mark_canonical(&mut batch, n, &ancient_hash).expect("DB commit failed");
-			} else {
-				debug!(target: "client", "Missing expected hash for block {}", n);
+		// prune all ancient eras until we're below the memory target,
+		// but have at least the minimum number of states.
+		loop {
+			if state.journal_db().mem_used() <= self.config.history_mem { break }
+			match state.journal_db().earliest_era() {
+				Some(era) if era + self.history <= number => {
+					trace!(target: "client", "Pruning state for ancient era {}", era);
+					match chain.block_hash(era) {
+						Some(ancient_hash) => {
+							state.mark_canonical(&mut batch, era, &ancient_hash).expect("DB commit failed");
+						}
+						None =>
+							debug!(target: "client", "Missing expected hash for block {}", era),
+					}
+				}
+				_ => break, // means that every era is kept, no pruning necessary.
 			}
 		}
 
