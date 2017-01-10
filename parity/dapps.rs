@@ -100,6 +100,7 @@ pub use self::server::setup_dapps_server;
 mod server {
 	use super::Dependencies;
 	use std::net::SocketAddr;
+	use std::path::PathBuf;
 
 	pub struct WebappServer;
 	pub fn setup_dapps_server(

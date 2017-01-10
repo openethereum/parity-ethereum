@@ -125,6 +125,8 @@ const MAX_NEW_HASHES: usize = 64;
 const MAX_TX_TO_IMPORT: usize = 512;
 const MAX_NEW_BLOCK_AGE: BlockNumber = 20;
 const MAX_TRANSACTION_SIZE: usize = 300*1024;
+// Maximal number of transactions in sent in single packet.
+const MAX_TRANSACTIONS_TO_PROPAGATE: usize = 64;
 // Min number of blocks to be behind for a snapshot sync
 const SNAPSHOT_RESTORE_THRESHOLD: BlockNumber = 100000;
 const SNAPSHOT_MIN_PEERS: usize = 3;
@@ -581,7 +583,7 @@ impl ChainSync {
 			if let (Some(ancient_block_hash), Some(ancient_block_number)) = (chain.ancient_block_hash, chain.ancient_block_number) {
 
 				trace!(target: "sync", "Downloading old blocks from {:?} (#{}) till {:?} (#{:?})", ancient_block_hash, ancient_block_number, chain.first_block_hash, chain.first_block_number);
-				let mut downloader = BlockDownloader::new(true, &ancient_block_hash, ancient_block_number, pruning.state_history_size);
+				let mut downloader = BlockDownloader::new(true, &ancient_block_hash, ancient_block_number, None);
 				if let Some(hash) = chain.first_block_hash {
 					trace!(target: "sync", "Downloader target set to {:?}", hash);
 					downloader.set_target(&hash);
@@ -1991,7 +1993,10 @@ impl ChainSync {
 					}
 
 					// Get hashes of all transactions to send to this peer
-					let to_send = all_transactions_hashes.difference(&peer_info.last_sent_transactions).cloned().collect::<HashSet<_>>();
+					let to_send = all_transactions_hashes.difference(&peer_info.last_sent_transactions)
+						.take(MAX_TRANSACTIONS_TO_PROPAGATE)
+						.cloned()
+						.collect::<HashSet<_>>();
 					if to_send.is_empty() {
 						return None;
 					}
@@ -2007,7 +2012,11 @@ impl ChainSync {
 						}
 					}
 
-					peer_info.last_sent_transactions = all_transactions_hashes.clone();
+					peer_info.last_sent_transactions = all_transactions_hashes
+						.intersection(&peer_info.last_sent_transactions)
+						.chain(&to_send)
+						.cloned()
+						.collect();
 					Some((*peer_id, to_send.len(), packet.out()))
 				})
 				.collect::<Vec<_>>()
@@ -2083,19 +2092,13 @@ impl ChainSync {
 			self.restart(io);
 		}
 
-		if !is_syncing && !enacted.is_empty() {
-			// Select random peers to re-broadcast transactions to.
-			let mut random = random::new();
-			let len = self.peers.len();
-			let peers = random.gen_range(0, min(len, 3));
-			trace!(target: "sync", "Re-broadcasting transactions to {} random peers.", peers);
-
-			for _ in 0..peers {
-				let peer = random.gen_range(0, len);
-				self.peers.values_mut().nth(peer).map(|mut peer_info| {
-					peer_info.last_sent_transactions.clear()
-				});
-			}
+		if !is_syncing && !enacted.is_empty() && !self.peers.is_empty() {
+			// Select random peer to re-broadcast transactions to.
+			let peer = random::new().gen_range(0, self.peers.len());
+			trace!(target: "sync", "Re-broadcasting transactions to a random peer.");
+			self.peers.values_mut().nth(peer).map(|mut peer_info|
+				peer_info.last_sent_transactions.clear()
+			);
 		}
 	}
 
@@ -2554,6 +2557,26 @@ mod tests {
 		assert_eq!(1, peer_count);
 		// TRANSACTIONS_PACKET
 		assert_eq!(0x02, io.packets[0].packet_id);
+	}
+
+	#[test]
+	fn does_not_fail_for_no_peers() {
+		let mut client = TestBlockChainClient::new();
+		client.add_blocks(100, EachBlockWith::Uncle);
+		client.insert_transaction_to_queue();
+		// Sync with no peers
+		let mut sync = ChainSync::new(SyncConfig::default(), &client);
+		let queue = RwLock::new(VecDeque::new());
+		let ss = TestSnapshotService::new();
+		let mut io = TestIo::new(&mut client, &ss, &queue, None);
+		let peer_count = sync.propagate_new_transactions(&mut io);
+		sync.chain_new_blocks(&mut io, &[], &[], &[], &[], &[], &[]);
+		// Try to propagate same transactions for the second time
+		let peer_count2 = sync.propagate_new_transactions(&mut io);
+
+		assert_eq!(0, io.packets.len());
+		assert_eq!(0, peer_count);
+		assert_eq!(0, peer_count2);
 	}
 
 	#[test]

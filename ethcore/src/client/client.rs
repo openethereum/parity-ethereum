@@ -53,7 +53,7 @@ use verification::queue::BlockQueue;
 use blockchain::{BlockChain, BlockProvider, TreeRoute, ImportRoute};
 use client::{
 	BlockId, TransactionId, UncleId, TraceId, ClientConfig, BlockChainClient,
-	MiningBlockChainClient, TraceFilter, CallAnalytics, BlockImportError, Mode,
+	MiningBlockChainClient, EngineClient, TraceFilter, CallAnalytics, BlockImportError, Mode,
 	ChainNotify, PruningInfo,
 };
 use client::Error as ClientError;
@@ -1315,11 +1315,6 @@ impl BlockChainClient for Client {
 		}
 	}
 
-	fn broadcast_consensus_message(&self, message: Bytes) {
-		self.notify(|notify| notify.broadcast(message.clone()));
-	}
-
-
 	fn signing_network_id(&self) -> Option<u64> {
 		self.engine.signing_network_id(&self.latest_env_info())
 	}
@@ -1414,16 +1409,6 @@ impl MiningBlockChainClient for Client {
 		&self.factories.vm
 	}
 
-	fn update_sealing(&self) {
-		self.miner.update_sealing(self)
-	}
-
-	fn submit_seal(&self, block_hash: H256, seal: Vec<Bytes>) {
-		if self.miner.submit_seal(self, block_hash, seal).is_err() {
-			warn!(target: "poa", "Wrong internal seal submission!")
-		}
-	}
-
 	fn broadcast_proposal_block(&self, block: SealedBlock) {
 		self.notify(|notify| {
 			notify.new_blocks(
@@ -1468,6 +1453,22 @@ impl MiningBlockChainClient for Client {
 		});
 		self.db.read().flush().expect("DB flush failed.");
 		Ok(h)
+	}
+}
+
+impl EngineClient for Client {
+	fn update_sealing(&self) {
+		self.miner.update_sealing(self)
+	}
+
+	fn submit_seal(&self, block_hash: H256, seal: Vec<Bytes>) {
+		if self.miner.submit_seal(self, block_hash, seal).is_err() {
+			warn!(target: "poa", "Wrong internal seal submission!")
+		}
+	}
+
+	fn broadcast_consensus_message(&self, message: Bytes) {
+		self.notify(|notify| notify.broadcast(message.clone()));
 	}
 }
 

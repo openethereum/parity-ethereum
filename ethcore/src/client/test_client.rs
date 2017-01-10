@@ -24,7 +24,7 @@ use devtools::*;
 use transaction::{Transaction, LocalizedTransaction, SignedTransaction, PendingTransaction, Action};
 use blockchain::TreeRoute;
 use client::{
-	BlockChainClient, MiningBlockChainClient, BlockChainInfo, BlockStatus, BlockId,
+	BlockChainClient, MiningBlockChainClient, EngineClient, BlockChainInfo, BlockStatus, BlockId,
 	TransactionId, UncleId, TraceId, TraceFilter, LastHashes, CallAnalytics, BlockImportError,
 	ProvingBlockChainClient,
 };
@@ -380,16 +380,6 @@ impl MiningBlockChainClient for TestBlockChainClient {
 	}
 
 	fn broadcast_proposal_block(&self, _block: SealedBlock) {}
-
-	fn update_sealing(&self) {
-		self.miner.update_sealing(self)
-	}
-
-	fn submit_seal(&self, block_hash: H256, seal: Vec<Bytes>) {
-		if self.miner.submit_seal(self, block_hash, seal).is_err() {
-			warn!(target: "poa", "Wrong internal seal submission!")
-		}
-	}
 }
 
 impl BlockChainClient for TestBlockChainClient {
@@ -707,8 +697,6 @@ impl BlockChainClient for TestBlockChainClient {
 		self.spec.engine.handle_message(&message).unwrap();
 	}
 
-	fn broadcast_consensus_message(&self, _message: Bytes) {}
-
 	fn ready_transactions(&self) -> Vec<PendingTransaction> {
 		self.miner.ready_transactions(self.chain_info().best_block_number)
 	}
@@ -748,4 +736,18 @@ impl ProvingBlockChainClient for TestBlockChainClient {
 	fn code_by_hash(&self, _: H256, _: BlockId) -> Bytes {
 		Vec::new()
 	}
+}
+
+impl EngineClient for TestBlockChainClient {
+	fn update_sealing(&self) {
+		self.miner.update_sealing(self)
+	}
+
+	fn submit_seal(&self, block_hash: H256, seal: Vec<Bytes>) {
+		if self.miner.submit_seal(self, block_hash, seal).is_err() {
+			warn!(target: "poa", "Wrong internal seal submission!")
+		}
+	}
+
+	fn broadcast_consensus_message(&self, _message: Bytes) {}
 }

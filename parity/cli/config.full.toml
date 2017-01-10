@@ -2,7 +2,7 @@
 mode = "last"
 mode_timeout = 300
 mode_alarm = 3600
-auto_update = "critical"
+auto_update = "none"
 release_track = "current"
 no_download = false
 no_consensus = false
@@ -116,5 +116,3 @@ jit = false
 logging = "own_tx=trace"
 log_file = "/var/log/parity.log"
 color = true
-
-

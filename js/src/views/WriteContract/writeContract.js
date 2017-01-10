@@ -18,7 +18,6 @@ import React, { PropTypes, Component } from 'react';
 import { observer } from 'mobx-react';
 import { MenuItem, Toggle } from 'material-ui';
 import { connect } from 'react-redux';
-import { bindActionCreators } from 'redux';
 import CircularProgress from 'material-ui/CircularProgress';
 import moment from 'moment';
 import { throttle } from 'lodash';
@@ -32,8 +31,6 @@ import SendIcon from 'material-ui/svg-icons/content/send';
 import { Actionbar, ActionbarExport, ActionbarImport, Button, Editor, Page, Select, Input } from '~/ui';
 import { DeployContract, SaveContract, LoadContract } from '~/modals';
 
-import { setupWorker } from '~/redux/providers/compilerActions';
-
 import WriteContractStore from './writeContractStore';
 import styles from './writeContract.css';
 
@@ -42,7 +39,6 @@ class WriteContract extends Component {
 
   static propTypes = {
     accounts: PropTypes.object.isRequired,
-    setupWorker: PropTypes.func.isRequired,
     worker: PropTypes.object,
     workerError: PropTypes.any
   };
@@ -55,8 +51,7 @@ class WriteContract extends Component {
   };
 
   componentWillMount () {
-    const { setupWorker, worker } = this.props;
-    setupWorker();
+    const { worker } = this.props;
 
     if (worker !== undefined) {
       this.store.setWorker(worker);
@@ -575,17 +570,10 @@ class WriteContract extends Component {
 
 function mapStateToProps (state) {
   const { accounts } = state.personal;
-  const { worker, error } = state.compiler;
+  const { worker, error } = state.worker;
   return { accounts, worker, workerError: error };
 }
 
-function mapDispatchToProps (dispatch) {
-  return bindActionCreators({
-    setupWorker
-  }, dispatch);
-}
-
 export default connect(
-  mapStateToProps,
-  mapDispatchToProps
+  mapStateToProps
 )(WriteContract);

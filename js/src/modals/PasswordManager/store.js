@@ -133,7 +133,7 @@ export default class Store {
   }
 
   testPassword = (password) => {
-    this.setBusy(false);
+    this.setBusy(true);
 
     return this._api.parity
       .testPassword(this.address, password || this.validatePassword)
