@@ -59,7 +59,7 @@ export default class EmailVerificationStore extends VerificationStore {
     super(api, EmailVerificationABI, EMAIL_VERIFICATION, account, isTestnet);
   }
 
-  requestValues = () => [ sha3(this.email) ]
+  requestValues = () => [ sha3.text(this.email) ]
 
   @action setEmail = (email) => {
     this.email = email;

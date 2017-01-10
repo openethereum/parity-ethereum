@@ -68,13 +68,13 @@ const STORE = {
 };
 
 function createApi (result = true) {
+  const sha3 = sinon.stub().resolves('0x0000000000000000000000000000000000000000');
+  sha3.text = sha3;
   return {
     parity: {
       registryAddress: sinon.stub().resolves('0x0000000000000000000000000000000000000000')
     },
-    util: {
-      sha3: sinon.stub().resolves('0x0000000000000000000000000000000000000000')
-    }
+    util: { sha3 }
   };
 }
 
