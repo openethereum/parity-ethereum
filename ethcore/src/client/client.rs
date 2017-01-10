@@ -837,23 +837,6 @@ impl snapshot::DatabaseRestore for Client {
 	}
 }
 
-/// Find transition point between `lower` and `upper` where `cond` changes from `false` to `true`.
-/// Returns the lowest value between `lower` and `upper` for which `cond` returns true.
-/// We assert: `cond(lower) = false`, `cond(upper) = true`
-pub fn binary_chop<F>(mut lower: U256, mut upper: U256, mut cond: F) -> U256 where F: FnMut(U256) -> bool {
-	while upper - lower > 1.into() {
-		let mid = (lower + upper) / 2.into();
-		trace!(target: "estimate_gas", "{} .. {} .. {}", lower, mid, upper);
-		let c = cond(mid);
-		match c {
-			true => upper = mid,
-			false => lower = mid,
-		};
-		trace!(target: "estimate_gas", "{} => {} .. {}", c, lower, upper);
-	}
-	upper
-}
-
 impl BlockChainClient for Client {
 	fn call(&self, t: &SignedTransaction, block: BlockId, analytics: CallAnalytics) -> Result<Executed, CallError> {
 		let header = self.block_header(block).ok_or(CallError::StatePruned)?;
@@ -937,6 +920,24 @@ impl BlockChainClient for Client {
 			trace!(target: "estimate_gas", "estimate_gas succeeded with {}", lower);
 			return Ok(lower)
 		}
+
+		/// Find transition point between `lower` and `upper` where `cond` changes from `false` to `true`.
+		/// Returns the lowest value between `lower` and `upper` for which `cond` returns true.
+		/// We assert: `cond(lower) = false`, `cond(upper) = true`
+		fn binary_chop<F>(mut lower: U256, mut upper: U256, mut cond: F) -> U256 where F: FnMut(U256) -> bool {
+			while upper - lower > 1.into() {
+				let mid = (lower + upper) / 2.into();
+				trace!(target: "estimate_gas", "{} .. {} .. {}", lower, mid, upper);
+				let c = cond(mid);
+				match c {
+					true => upper = mid,
+					false => lower = mid,
+				};
+				trace!(target: "estimate_gas", "{} => {} .. {}", c, lower, upper);
+			}
+			upper
+		}
+
 		// binary chop to non-excepting call with gas somewhere between 21000 and block gas limit
 		trace!(target: "estimate_gas", "estimate_gas chopping {} .. {}", lower, upper);
 		Ok(binary_chop(lower, upper, cond))
