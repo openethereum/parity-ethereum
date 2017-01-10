@@ -394,7 +394,7 @@ impl Res {
 
 	/// Did this call fail?
 	pub fn succeeded(&self) -> bool {
-		match self {
+		match *self {
 			Res::Call(_) | Res::Create(_) => true,
 			_ => false,
 		}

@@ -837,8 +837,18 @@ impl snapshot::DatabaseRestore for Client {
 	}
 }
 
-fn binary_chop<F>(min: U256, max: U256, cond: F) -> bool where F: Fn(U256) -> bool {
-	true
+/// Find transition point between `lower` and `upper` where `cond` changes from `false` to `true`.
+/// Returns the lowest value between `lower` and `upper` for which `cond` returns true.
+/// We assert: `cond(lower) = true`, `cond(upper) = false`
+pub fn binary_chop<F>(mut lower: U256, mut upper: U256, mut cond: F) -> U256 where F: FnMut(U256) -> bool {
+	while upper - lower <= 1.into() {
+		let mid = (lower + upper) / 2.into();
+		match cond(mid) {
+			true => upper = mid,
+			false => lower = mid,
+		};
+	}
+	upper
 }
 
 impl BlockChainClient for Client {
@@ -902,24 +912,28 @@ impl BlockChainClient for Client {
 			original_state.add_balance(&sender, &(needed_balance - balance), CleanupMode::NoEmpty);
 		}
 		let options = TransactOptions { tracing: true, vm_tracing: false, check_nonce: false };
+		let mut tx = t.clone();
 
-		let cond = |gas| {
+		let mut cond = |gas| {
 			let mut state = original_state.clone();
-			let mut tx = t.clone();
 			tx.gas = gas;
 			Executive::new(&mut state, &env_info, &*self.engine, &self.factories.vm)
-				.transact(t, options)
-				.map(|r| r.trace[0].succeeded())
+				.transact(&tx, options.clone())
+				.map(|r| r.trace[0].result.succeeded())
 				.unwrap_or(false)
 		};
 
-		if !cond(env_info.gas_limit) {
+		let upper = env_info.gas_limit;
+		if !cond(upper) {
 			// impossible
 			return Err(CallError::Execution(ExecutionError::Internal))
 		}
+		let lower = t.gas_required(&self.engine.schedule(&env_info)).into();
+		if cond(lower) {
+			return Ok(lower)
+		}
 		// binary chop to non-excepting call with gas somewhere between 21000 and block gas limit
-
-		Ok(binary_chop(t.gas_required(self.engine.schedule(&env_info), env_info.gas_limit, cond)))
+		Ok(binary_chop(lower, upper, cond))
 	}
 
 	fn replay(&self, id: TransactionId, analytics: CallAnalytics) -> Result<Executed, CallError> {

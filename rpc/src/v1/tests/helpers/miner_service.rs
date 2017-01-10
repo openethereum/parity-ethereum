@@ -262,6 +262,10 @@ impl MinerService for TestMinerService {
 		unimplemented!();
 	}
 
+	fn estimate_gas(&self, _client: &MiningBlockChainClient, _t: &SignedTransaction) -> Result<U256, CallError> {
+		unimplemented!();
+	}
+
 	fn storage_at(&self, _chain: &MiningBlockChainClient, address: &Address, position: &H256) -> H256 {
 		self.latest_closed_block.lock().as_ref().map_or_else(H256::default, |b| b.block().fields().state.storage_at(address, position).clone())
 	}
