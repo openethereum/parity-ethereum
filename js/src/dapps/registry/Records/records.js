@@ -24,17 +24,20 @@ import MenuItem from 'material-ui/MenuItem';
 import RaisedButton from 'material-ui/RaisedButton';
 import SaveIcon from 'material-ui/svg-icons/content/save';
 
-import { update } from './actions';
+import { nullableProptype } from '~/util/proptypes';
+import { clearError, update } from './actions';
 import styles from './records.css';
 
 class Records extends Component {
 
   static propTypes = {
+    error: nullableProptype(PropTypes.object.isRequired),
     pending: PropTypes.bool.isRequired,
     name: PropTypes.string.isRequired,
     type: PropTypes.string.isRequired,
     value: PropTypes.string.isRequired,
 
+    clearError: PropTypes.func.isRequired,
     update: PropTypes.func.isRequired
   }
 
@@ -53,6 +56,7 @@ class Records extends Component {
           <p className={ styles.noSpacing }>
             You can only modify entries of names that you previously registered.
           </p>
+          { this.renderError() }
           <div className={ styles.box }>
             <TextField
               hintText='name'
@@ -88,22 +92,46 @@ class Records extends Component {
     );
   }
 
+  renderError () {
+    const { error } = this.props;
+
+    if (!error) {
+      return null;
+    }
+
+    return (
+      <div className={ styles.error }>
+        <code>{ error.message }</code>
+      </div>
+    );
+  }
+
   onNameChange = (e) => {
+    this.clearError();
     this.setState({ name: e.target.value });
   };
+
   onTypeChange = (e, i, type) => {
     this.setState({ type });
   };
+
   onValueChange = (e) => {
     this.setState({ value: e.target.value });
   };
+
   onSaveClick = () => {
     const { name, type, value } = this.state;
     this.props.update(name, type, value);
   };
+
+  clearError = () => {
+    if (this.props.error) {
+      this.props.clearError();
+    }
+  };
 }
 
 const mapStateToProps = (state) => state.records;
-const mapDispatchToProps = (dispatch) => bindActionCreators({ update }, dispatch);
+const mapDispatchToProps = (dispatch) => bindActionCreators({ clearError, update }, dispatch);
 
 export default connect(mapStateToProps, mapDispatchToProps)(Records);

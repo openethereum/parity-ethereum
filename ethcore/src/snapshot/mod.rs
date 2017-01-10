@@ -40,7 +40,6 @@ use util::sha3::SHA3_NULL_RLP;
 use rlp::{RlpStream, Stream, UntrustedRlp, View};
 use bloom_journal::Bloom;
 
-use self::account::Account;
 use self::block::AbridgedBlock;
 use self::io::SnapshotWriter;
 
@@ -368,12 +367,12 @@ pub fn chunk_state<'a>(db: &HashDB, root: &H256, writer: &Mutex<SnapshotWriter +
 	// account_key here is the address' hash.
 	for item in account_trie.iter()? {
 		let (account_key, account_data) = item?;
-		let account = Account::from_thin_rlp(&*account_data);
+		let account = ::rlp::decode(&*account_data);
 		let account_key_hash = H256::from_slice(&account_key);
 
 		let account_db = AccountDB::from_hash(db, account_key_hash);
 
-		let fat_rlp = account.to_fat_rlp(&account_db, &mut used_code)?;
+		let fat_rlp = account::to_fat_rlp(&account, &account_db, &mut used_code)?;
 		chunker.push(account_key, fat_rlp)?;
 	}
 
@@ -507,10 +506,10 @@ fn rebuild_accounts(
 			// fill out the storage trie and code while decoding.
 			let (acc, maybe_code) = {
 				let mut acct_db = AccountDBMut::from_hash(db, hash);
-				Account::from_fat_rlp(&mut acct_db, fat_rlp)?
+				account::from_fat_rlp(&mut acct_db, fat_rlp)?
 			};
 
-			let code_hash = acc.code_hash().clone();
+			let code_hash = acc.code_hash.clone();
 			match maybe_code {
 				// new inline code
 				Some(code) => status.new_code.push((code_hash, code, hash)),
@@ -534,7 +533,7 @@ fn rebuild_accounts(
 				}
 			}
 
-			acc.to_thin_rlp()
+			::rlp::encode(&acc).to_vec()
 		};
 
 		*out = (hash, thin_rlp);

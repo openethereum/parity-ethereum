@@ -33,9 +33,6 @@ export default class NewImport extends Component {
     store: PropTypes.object.isRequired
   }
 
-  componentWillMount () {
-  }
-
   render () {
     const { name, nameError, password, passwordHint, walletFile, walletFileError } = this.props.store;
 

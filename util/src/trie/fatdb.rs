@@ -16,8 +16,8 @@
 
 use hash::H256;
 use sha3::Hashable;
-use hashdb::{HashDB, DBValue};
-use super::{TrieDB, Trie, TrieDBIterator, TrieItem, Recorder, TrieIterator};
+use hashdb::HashDB;
+use super::{TrieDB, Trie, TrieDBIterator, TrieItem, TrieIterator, Query};
 
 /// A `Trie` implementation which hashes keys and uses a generic `HashDB` backing database.
 /// Additionaly it stores inserted hash-key mappings for later retrieval.
@@ -58,10 +58,10 @@ impl<'db> Trie for FatDB<'db> {
 		self.raw.contains(&key.sha3())
 	}
 
-	fn get_recorded<'a, 'b, R: 'b>(&'a self, key: &'b [u8], rec: &'b mut R) -> super::Result<Option<DBValue>>
-		where 'a: 'b, R: Recorder
+	fn get_with<'a, 'key, Q: Query>(&'a self, key: &'key [u8], query: Q) -> super::Result<Option<Q::Item>>
+		where 'a: 'key
 	{
-		self.raw.get_recorded(&key.sha3(), rec)
+		self.raw.get_with(&key.sha3(), query)
 	}
 }
 
@@ -104,6 +104,7 @@ impl<'db> Iterator for FatDBIterator<'db> {
 #[test]
 fn fatdb_to_trie() {
 	use memorydb::MemoryDB;
+	use hashdb::DBValue;
 	use trie::{FatDBMut, TrieMut};
 
 	let mut memdb = MemoryDB::new();

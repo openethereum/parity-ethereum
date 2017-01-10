@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import { FormattedMessage } from 'react-intl';
 
 import { Balance, Container, ContainerTitle, IdentityIcon, IdentityName, Tags } from '~/ui';
 import CopyToClipboard from '~/ui/CopyToClipboard';
@@ -26,50 +27,45 @@ export default class Header extends Component {
   static propTypes = {
     account: PropTypes.object,
     balance: PropTypes.object,
-    className: PropTypes.string,
     children: PropTypes.node,
-    isContract: PropTypes.bool,
-    hideName: PropTypes.bool
+    className: PropTypes.string,
+    hideName: PropTypes.bool,
+    isContract: PropTypes.bool
   };
 
   static defaultProps = {
-    className: '',
     children: null,
-    isContract: false,
-    hideName: false
+    className: '',
+    hideName: false,
+    isContract: false
   };
 
   render () {
-    const { account, balance, className, children, hideName } = this.props;
-    const { address, meta, uuid } = account;
+    const { account, balance, children, className, hideName } = this.props;
+
     if (!account) {
       return null;
     }
 
-    const uuidText = !uuid
-      ? null
-      : <div className={ styles.uuidline }>uuid: { uuid }</div>;
+    const { address } = account;
+    const meta = account.meta || {};
 
     return (
       <div className={ className }>
         <Container>
-          <IdentityIcon
-            address={ address } />
+          <IdentityIcon address={ address } />
           <div className={ styles.floatleft }>
-            { this.renderName(address) }
-
+            { this.renderName() }
             <div className={ [ hideName ? styles.bigaddress : '', styles.addressline ].join(' ') }>
               <CopyToClipboard data={ address } />
               <div className={ styles.address }>{ address }</div>
             </div>
-
-            { uuidText }
+            { this.renderUuid() }
             <div className={ styles.infoline }>
               { meta.description }
             </div>
             { this.renderTxCount() }
           </div>
-
           <div className={ styles.tags }>
             <Tags tags={ meta.tags } />
           </div>
@@ -77,9 +73,7 @@ export default class Header extends Component {
             <Balance
               account={ account }
               balance={ balance } />
-            <Certifications
-              account={ account.address }
-            />
+            <Certifications address={ address } />
           </div>
           { children }
         </Container>
@@ -87,15 +81,22 @@ export default class Header extends Component {
     );
   }
 
-  renderName (address) {
+  renderName () {
     const { hideName } = this.props;
 
     if (hideName) {
       return null;
     }
 
+    const { address } = this.props.account;
+
     return (
-      <ContainerTitle title={ <IdentityName address={ address } unknown /> } />
+      <ContainerTitle
+        title={
+          <IdentityName
+            address={ address }
+            unknown />
+        } />
     );
   }
 
@@ -114,7 +115,31 @@ export default class Header extends Component {
 
     return (
       <div className={ styles.infoline }>
-        { txCount.toFormat() } outgoing transactions
+        <FormattedMessage
+          id='account.header.outgoingTransactions'
+          defaultMessage='{count} outgoing transactions'
+          values={ {
+            count: txCount.toFormat()
+          } } />
+      </div>
+    );
+  }
+
+  renderUuid () {
+    const { uuid } = this.props.account;
+
+    if (!uuid) {
+      return null;
+    }
+
+    return (
+      <div className={ styles.uuidline }>
+        <FormattedMessage
+          id='account.header.uuid'
+          defaultMessage='uuid: {uuid}'
+          values={ {
+            uuid
+          } } />
       </div>
     );
   }

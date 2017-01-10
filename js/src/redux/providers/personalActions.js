@@ -122,7 +122,7 @@ export function setVisibleAccounts (addresses) {
       return;
     }
 
-    dispatch(fetchBalances(addresses));
     dispatch(_setVisibleAccounts(addresses));
+    dispatch(fetchBalances(addresses));
   };
 }

@@ -14,8 +14,17 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { keccak_256 } from 'js-sha3'; // eslint-disable-line camelcase
+import { keccak_256 } from 'js-sha3'; // eslint-disable-line
 
-export function sha3 (value) {
-  return `0x${keccak_256(value)}`;
+import { hexToBytes } from './format';
+
+export function sha3 (value, options) {
+  if (options && options.encoding === 'hex') {
+    const bytes = hexToBytes(value);
+    return sha3(bytes);
+  }
+
+  const hash = keccak_256(value);
+
+  return `0x${hash}`;
 }

@@ -88,6 +88,7 @@ mod web;
 #[cfg(test)]
 mod tests;
 
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::net::SocketAddr;
 use std::collections::HashMap;
@@ -123,7 +124,8 @@ impl<F> WebProxyTokens for F where F: Fn(String) -> bool + Send + Sync {
 
 /// Webapps HTTP+RPC server build.
 pub struct ServerBuilder<T: Fetch = FetchClient> {
-	dapps_path: String,
+	dapps_path: PathBuf,
+	extra_dapps: Vec<PathBuf>,
 	handler: Arc<IoHandler>,
 	registrar: Arc<ContractClient>,
 	sync_status: Arc<SyncStatus>,
@@ -141,9 +143,10 @@ impl<T: Fetch> Extendable for ServerBuilder<T> {
 
 impl ServerBuilder {
 	/// Construct new dapps server
-	pub fn new(dapps_path: String, registrar: Arc<ContractClient>, remote: Remote) -> Self {
+	pub fn new<P: AsRef<Path>>(dapps_path: P, registrar: Arc<ContractClient>, remote: Remote) -> Self {
 		ServerBuilder {
-			dapps_path: dapps_path,
+			dapps_path: dapps_path.as_ref().to_owned(),
+			extra_dapps: vec![],
 			handler: Arc::new(IoHandler::new()),
 			registrar: registrar,
 			sync_status: Arc::new(|| false),
@@ -160,6 +163,7 @@ impl<T: Fetch> ServerBuilder<T> {
 	pub fn fetch<X: Fetch>(self, fetch: X) -> ServerBuilder<X> {
 		ServerBuilder {
 			dapps_path: self.dapps_path,
+			extra_dapps: vec![],
 			handler: self.handler,
 			registrar: self.registrar,
 			sync_status: self.sync_status,
@@ -188,6 +192,12 @@ impl<T: Fetch> ServerBuilder<T> {
 		self
 	}
 
+	/// Change extra dapps paths (apart from `dapps_path`)
+	pub fn extra_dapps<P: AsRef<Path>>(mut self, extra_dapps: &[P]) -> Self {
+		self.extra_dapps = extra_dapps.iter().map(|p| p.as_ref().to_owned()).collect();
+		self
+	}
+
 	/// Asynchronously start server with no authentication,
 	/// returns result with `Server` handle on success or an error.
 	pub fn start_unsecured_http(self, addr: &SocketAddr, hosts: Option<Vec<String>>) -> Result<Server, ServerError> {
@@ -197,6 +207,7 @@ impl<T: Fetch> ServerBuilder<T> {
 			NoAuth,
 			self.handler.clone(),
 			self.dapps_path.clone(),
+			self.extra_dapps.clone(),
 			self.signer_address.clone(),
 			self.registrar.clone(),
 			self.sync_status.clone(),
@@ -215,6 +226,7 @@ impl<T: Fetch> ServerBuilder<T> {
 			HttpBasicAuth::single_user(username, password),
 			self.handler.clone(),
 			self.dapps_path.clone(),
+			self.extra_dapps.clone(),
 			self.signer_address.clone(),
 			self.registrar.clone(),
 			self.sync_status.clone(),
@@ -270,7 +282,8 @@ impl Server {
 		hosts: Option<Vec<String>>,
 		authorization: A,
 		handler: Arc<IoHandler>,
-		dapps_path: String,
+		dapps_path: PathBuf,
+		extra_dapps: Vec<PathBuf>,
 		signer_address: Option<(String, u16)>,
 		registrar: Arc<ContractClient>,
 		sync_status: Arc<SyncStatus>,
@@ -287,7 +300,14 @@ impl Server {
 			remote.clone(),
 			fetch.clone(),
 		));
-		let endpoints = Arc::new(apps::all_endpoints(dapps_path, signer_address.clone(), web_proxy_tokens, remote.clone(), fetch.clone()));
+		let endpoints = Arc::new(apps::all_endpoints(
+			dapps_path,
+			extra_dapps,
+			signer_address.clone(),
+			web_proxy_tokens,
+			remote.clone(),
+			fetch.clone(),
+		));
 		let cors_domains = Self::cors_domains(signer_address.clone());
 
 		let special = Arc::new({

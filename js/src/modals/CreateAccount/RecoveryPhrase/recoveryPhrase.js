@@ -29,9 +29,6 @@ export default class RecoveryPhrase extends Component {
     store: PropTypes.object.isRequired
   }
 
-  componentWillMount () {
-  }
-
   render () {
     const { isWindowsPhrase, name, nameError, password, passwordRepeat, passwordRepeatError, passwordHint, phrase } = this.props.store;
 

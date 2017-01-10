@@ -14,21 +14,24 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { handleActions } from 'redux-actions';
+export const getOwner = (contract, name) => {
+  const { address, api } = contract;
 
-const initialState = {
-  worker: undefined,
-  error: null
+  const key = api.util.sha3(name) + '0000000000000000000000000000000000000000000000000000000000000001';
+  const position = api.util.sha3(key, { encoding: 'hex' });
+
+  return api
+    .eth
+    .getStorageAt(address, position)
+    .then((result) => {
+      if (/^(0x)?0*$/.test(result)) {
+        return '';
+      }
+
+      return '0x' + result.slice(-40);
+    });
 };
 
-export default handleActions({
-  setWorker (state, action) {
-    const { worker } = action;
-    return Object.assign({}, state, { worker });
-  },
-
-  setError (state, action) {
-    const { error } = action;
-    return Object.assign({}, state, { error });
-  }
-}, initialState);
+export const isOwned = (contract, name) => {
+  return getOwner(contract, name).then((owner) => !!owner);
+};

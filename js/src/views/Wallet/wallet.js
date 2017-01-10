@@ -71,7 +71,7 @@ class Wallet extends Component {
     owned: PropTypes.bool.isRequired,
     setVisibleAccounts: PropTypes.func.isRequired,
     wallet: PropTypes.object.isRequired,
-    walletAccount: nullableProptype(PropTypes.object).isRequired
+    walletAccount: nullableProptype(PropTypes.object.isRequired)
   };
 
   state = {
@@ -180,7 +180,7 @@ class Wallet extends Component {
     const { address, isTest, wallet } = this.props;
     const { owners, require, confirmations, transactions } = wallet;
 
-    if (!isTest || !owners || !require) {
+    if (!owners || !require) {
       return (
         <div style={ { marginTop: '4em' } }>
           <Loading size={ 4 } />

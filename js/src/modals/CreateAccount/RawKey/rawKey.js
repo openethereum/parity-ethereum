@@ -32,9 +32,6 @@ export default class RawKey extends Component {
     store: PropTypes.object.isRequired
   }
 
-  componentWillMount () {
-  }
-
   render () {
     const { name, nameError, password, passwordRepeat, passwordRepeatError, passwordHint, rawKey, rawKeyError } = this.props.store;
 

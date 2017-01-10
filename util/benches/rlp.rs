@@ -24,12 +24,12 @@
 
 extern crate test;
 extern crate rlp;
-extern crate ethcore_bigint as bigint;
+extern crate ethcore_util as util;
 
 use test::Bencher;
 use std::str::FromStr;
 use rlp::*;
-use bigint::uint::U256;
+use util::U256;
 
 #[bench]
 fn bench_stream_u64_value(b: &mut Bencher) {

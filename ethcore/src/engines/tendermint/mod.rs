@@ -27,8 +27,10 @@ mod transition;
 mod params;
 mod vote_collector;
 
+use std::sync::Weak;
 use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
 use util::*;
+use client::{Client, EngineClient};
 use error::{Error, BlockError};
 use header::Header;
 use builtin::Builtin;
@@ -43,8 +45,9 @@ use engines::{Engine, Seal, EngineError};
 use blockchain::extras::BlockDetails;
 use views::HeaderView;
 use evm::Schedule;
-use io::{IoService, IoChannel};
-use service::ClientIoMessage;
+use state::CleanupMode;
+use io::IoService;
+use super::validator_set::{ValidatorSet, new_validator_set};
 use self::message::*;
 use self::transition::TransitionHandler;
 use self::params::TendermintParams;
@@ -74,9 +77,11 @@ pub type BlockHash = H256;
 /// Engine using `Tendermint` consensus algorithm, suitable for EVM chain.
 pub struct Tendermint {
 	params: CommonParams,
-	our_params: TendermintParams,
+	gas_limit_bound_divisor: U256,
 	builtins: BTreeMap<Address, Builtin>,
 	step_service: IoService<Step>,
+	client: RwLock<Option<Weak<EngineClient>>>,
+	block_reward: U256,
 	/// Address to be used as authority.
 	authority: RwLock<Address>,
 	/// Password used for signing messages.
@@ -89,8 +94,6 @@ pub struct Tendermint {
 	step: RwLock<Step>,
 	/// Vote accumulator.
 	votes: VoteCollector,
-	/// Channel for updating the sealing.
-	message_channel: Mutex<Option<IoChannel<ClientIoMessage>>>,
 	/// Used to sign messages and proposals.
 	account_provider: Mutex<Option<Arc<AccountProvider>>>,
 	/// Message for the last PoLC.
@@ -99,6 +102,8 @@ pub struct Tendermint {
 	last_lock: AtomicUsize,
 	/// Bare hash of the proposed block, used for seal submission.
 	proposal: RwLock<Option<H256>>,
+	/// Set used to determine the current validators.
+	validators: Box<ValidatorSet + Send + Sync>,
 }
 
 impl Tendermint {
@@ -107,53 +112,49 @@ impl Tendermint {
 		let engine = Arc::new(
 			Tendermint {
 				params: params,
-				our_params: our_params,
+				gas_limit_bound_divisor: our_params.gas_limit_bound_divisor,
 				builtins: builtins,
+				client: RwLock::new(None),
 				step_service: IoService::<Step>::start()?,
+				block_reward: our_params.block_reward,
 				authority: RwLock::new(Address::default()),
 				password: RwLock::new(None),
 				height: AtomicUsize::new(1),
 				round: AtomicUsize::new(0),
 				step: RwLock::new(Step::Propose),
 				votes: VoteCollector::new(),
-				message_channel: Mutex::new(None),
 				account_provider: Mutex::new(None),
 				lock_change: RwLock::new(None),
 				last_lock: AtomicUsize::new(0),
 				proposal: RwLock::new(None),
+				validators: new_validator_set(our_params.validators),
 			});
-		let handler = TransitionHandler { engine: Arc::downgrade(&engine) };
+		let handler = TransitionHandler::new(Arc::downgrade(&engine), our_params.timeouts);
 		engine.step_service.register_handler(Arc::new(handler))?;
 		Ok(engine)
 	}
 
 	fn update_sealing(&self) {
-		if let Some(ref channel) = *self.message_channel.lock() {
-			match channel.send(ClientIoMessage::UpdateSealing) {
-				Ok(_) => trace!(target: "poa", "UpdateSealing message sent."),
-				Err(err) => warn!(target: "poa", "Could not send a sealing message {}.", err),
+		if let Some(ref weak) = *self.client.read() {
+			if let Some(c) = weak.upgrade() {
+				c.update_sealing();
 			}
 		}
 	}
 
 	fn submit_seal(&self, block_hash: H256, seal: Vec<Bytes>) {
-		if let Some(ref channel) = *self.message_channel.lock() {
-			match channel.send(ClientIoMessage::SubmitSeal(block_hash, seal)) {
-				Ok(_) => trace!(target: "poa", "SubmitSeal message sent."),
-				Err(err) => warn!(target: "poa", "Could not send a sealing message {}.", err),
+		if let Some(ref weak) = *self.client.read() {
+			if let Some(c) = weak.upgrade() {
+				c.submit_seal(block_hash, seal);
 			}
 		}
 	}
 
 	fn broadcast_message(&self, message: Bytes) {
-		let channel = self.message_channel.lock().clone();
-		if let Some(ref channel) = channel {
-			match channel.send(ClientIoMessage::BroadcastMessage(message)) {
-				Ok(_) => trace!(target: "poa", "BroadcastMessage message sent."),
-				Err(err) => warn!(target: "poa", "broadcast_message: Could not send a sealing message {}.", err),
+		if let Some(ref weak) = *self.client.read() {
+			if let Some(c) = weak.upgrade() {
+				c.broadcast_consensus_message(message);
 			}
-		} else {
-			warn!(target: "poa", "broadcast_message: No IoChannel available.");
 		}
 	}
 
@@ -264,23 +265,22 @@ impl Tendermint {
 	}
 
 	fn is_authority(&self, address: &Address) -> bool {
-		self.our_params.authorities.contains(address)
+		self.validators.contains(address)
 	}
 
 	fn is_above_threshold(&self, n: usize) -> bool {
-		n > self.our_params.authority_n * 2/3
+		n > self.validators.count() * 2/3
 	}
 
 	/// Check if address is a proposer for given round.
 	fn is_round_proposer(&self, height: Height, round: Round, address: &Address) -> Result<(), EngineError> {
-		let ref p = self.our_params;
 		let proposer_nonce = height + round;
 		trace!(target: "poa", "is_proposer: Proposer nonce: {}", proposer_nonce);
-		let proposer = p.authorities.get(proposer_nonce % p.authority_n).expect("There are authority_n authorities; taking number modulo authority_n gives number in authority_n range; qed");
-		if proposer == address {
+		let proposer = self.validators.get(proposer_nonce);
+		if proposer == *address {
 			Ok(())
 		} else {
-			Err(EngineError::NotProposer(Mismatch { expected: proposer.clone(), found: address.clone() }))
+			Err(EngineError::NotProposer(Mismatch { expected: proposer, found: address.clone() }))
 		}
 	}
 
@@ -404,7 +404,7 @@ impl Engine for Tendermint {
 		header.set_difficulty(parent.difficulty().clone());
 		header.set_gas_limit({
 			let gas_limit = parent.gas_limit().clone();
-			let bound_divisor = self.our_params.gas_limit_bound_divisor;
+			let bound_divisor = self.gas_limit_bound_divisor;
 			if gas_limit < gas_floor_target {
 				min(gas_floor_target, gas_limit + gas_limit / bound_divisor - 1.into())
 			} else {
@@ -469,6 +469,17 @@ impl Engine for Tendermint {
 		Ok(())
 	}
 
+	/// Apply the block reward on finalisation of the block.
+	fn on_close_block(&self, block: &mut ExecutedBlock) {
+		let fields = block.fields_mut();
+		// Bestow block reward
+		fields.state.add_balance(fields.header.author(), &self.block_reward, CleanupMode::NoEmpty);
+		// Commit state so that we can actually figure out the state root.
+		if let Err(e) = fields.state.commit() {
+			warn!("Encountered error on state commit: {}", e);
+		}
+	}
+
 	fn verify_block_basic(&self, header: &Header, _block: Option<&[u8]>) -> Result<(), Error> {
 		let seal_length = header.seal().len();
 		if seal_length == self.seal_fields() {
@@ -507,7 +518,7 @@ impl Engine for Tendermint {
 				Some(a) => a,
 				None => public_to_address(&recover(&precommit.signature.into(), &precommit_hash)?),
 			};
-			if !self.our_params.authorities.contains(&address) {
+			if !self.validators.contains(&address) {
 				Err(EngineError::NotAuthorized(address.to_owned()))?
 			}
 
@@ -540,7 +551,7 @@ impl Engine for Tendermint {
 			Err(BlockError::RidiculousNumber(OutOfBounds { min: Some(1), max: None, found: header.number() }))?;
 		}
 
-		let gas_limit_divisor = self.our_params.gas_limit_bound_divisor;
+		let gas_limit_divisor = self.gas_limit_bound_divisor;
 		let min_gas = parent.gas_limit().clone() - parent.gas_limit().clone() / gas_limit_divisor;
 		let max_gas = parent.gas_limit().clone() + parent.gas_limit().clone() / gas_limit_divisor;
 		if header.gas_limit() <= &min_gas || header.gas_limit() >= &max_gas {
@@ -643,9 +654,9 @@ impl Engine for Tendermint {
 		self.to_step(next_step);
 	}
 
-	fn register_message_channel(&self, message_channel: IoChannel<ClientIoMessage>) {
-		trace!(target: "poa", "Register the IoChannel.");
-		*self.message_channel.lock() = Some(message_channel);
+	fn register_client(&self, client: Weak<Client>) {
+		*self.client.write() = Some(client.clone());
+		self.validators.register_call_contract(client);
 	}
 
 	fn register_account_provider(&self, account_provider: Arc<AccountProvider>) {
@@ -656,21 +667,20 @@ impl Engine for Tendermint {
 #[cfg(test)]
 mod tests {
 	use util::*;
-	use io::{IoContext, IoHandler};
 	use block::*;
 	use error::{Error, BlockError};
 	use header::Header;
-	use io::IoChannel;
 	use env_info::EnvInfo;
+	use client::chain_notify::ChainNotify;
+	use miner::MinerService;
 	use tests::helpers::*;
 	use account_provider::AccountProvider;
-	use service::ClientIoMessage;
 	use spec::Spec;
 	use engines::{Engine, EngineError, Seal};
 	use super::*;
 	use super::message::*;
 
-	/// Accounts inserted with "0" and "1" are authorities. First proposer is "0".
+	/// Accounts inserted with "0" and "1" are validators. First proposer is "0".
 	fn setup() -> (Spec, Arc<AccountProvider>) {
 		let tap = Arc::new(AccountProvider::transient_provider());
 		let spec = Spec::new_test_tendermint();
@@ -678,13 +688,13 @@ mod tests {
 		(spec, tap)
 	}
 
-	fn propose_default(spec: &Spec, proposer: Address) -> (LockedBlock, Vec<Bytes>) {
+	fn propose_default(spec: &Spec, proposer: Address) -> (ClosedBlock, Vec<Bytes>) {
 		let mut db_result = get_temp_state_db();
 		let db = spec.ensure_db_good(db_result.take(), &Default::default()).unwrap();
 		let genesis_header = spec.genesis_header();
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
 		let b = OpenBlock::new(spec.engine.as_ref(), Default::default(), false, db.boxed_clone(), &genesis_header, last_hashes, proposer, (3141562.into(), 31415620.into()), vec![]).unwrap();
-		let b = b.close_and_lock();
+		let b = b.close();
 		if let Seal::Proposal(seal) = spec.engine.generate_seal(b.block()) {
 			(b, seal)
 		} else {
@@ -692,7 +702,7 @@ mod tests {
 		}
 	}
 
-	fn vote<F>(engine: &Arc<Engine>, signer: F, height: usize, round: usize, step: Step, block_hash: Option<H256>) -> Bytes where F: FnOnce(H256) -> Result<H520, ::account_provider::Error> {
+	fn vote<F>(engine: &Engine, signer: F, height: usize, round: usize, step: Step, block_hash: Option<H256>) -> Bytes where F: FnOnce(H256) -> Result<H520, ::account_provider::Error> {
 		let mi = message_info_rlp(height, round, step, block_hash);
 		let m = message_full_rlp(&signer(mi.sha3()).unwrap().into(), &mi);
 		engine.handle_message(&m).unwrap();
@@ -710,37 +720,26 @@ mod tests {
 		]
 	}
 
-	fn precommit_signatures(tap: &Arc<AccountProvider>, height: Height, round: Round, bare_hash: Option<H256>, v1: H160, v2: H160) -> Bytes {
-		let vote_info = message_info_rlp(height, round, Step::Precommit, bare_hash);
-		::rlp::encode(&vec![
-			H520::from(tap.sign(v1, None, vote_info.sha3()).unwrap()),
-			H520::from(tap.sign(v2, None, vote_info.sha3()).unwrap())
-		]).to_vec()
-	}
-
 	fn insert_and_unlock(tap: &Arc<AccountProvider>, acc: &str) -> Address {
 		let addr = tap.insert_account(acc.sha3(), acc).unwrap();
 		tap.unlock_account_permanently(addr, acc.into()).unwrap();
 		addr
 	}
 
-	fn insert_and_register(tap: &Arc<AccountProvider>, engine: &Arc<Engine>, acc: &str) -> Address {
+	fn insert_and_register(tap: &Arc<AccountProvider>, engine: &Engine, acc: &str) -> Address {
 		let addr = insert_and_unlock(tap, acc);
 		engine.set_signer(addr.clone(), acc.into());
 		addr
 	}
 
-	struct TestIo {
-		received: RwLock<Vec<ClientIoMessage>>
+	#[derive(Default)]
+	struct TestNotify {
+		messages: RwLock<Vec<Bytes>>,
 	}
 
-	impl TestIo {
-		fn new() -> Arc<Self> { Arc::new(TestIo { received: RwLock::new(Vec::new()) }) }
-	}
-
-	impl IoHandler<ClientIoMessage> for TestIo {
-		fn message(&self, _io: &IoContext<ClientIoMessage>, net_message: &ClientIoMessage) {
-			self.received.write().push(net_message.clone());
+	impl ChainNotify for TestNotify {
+		fn broadcast(&self, data: Vec<u8>) {
+			self.messages.write().push(data);
 		}
 	}
 
@@ -864,10 +863,10 @@ mod tests {
 	fn can_generate_seal() {
 		let (spec, tap) = setup();
 
-		let proposer = insert_and_register(&tap, &spec.engine, "1");
+		let proposer = insert_and_register(&tap, spec.engine.as_ref(), "1");
 
 		let (b, seal) = propose_default(&spec, proposer);
-		assert!(b.try_seal(spec.engine.as_ref(), seal).is_ok());
+		assert!(b.lock().try_seal(spec.engine.as_ref(), seal).is_ok());
 		spec.engine.stop();
 	}
 
@@ -875,10 +874,10 @@ mod tests {
 	fn can_recognize_proposal() {
 		let (spec, tap) = setup();
 
-		let proposer = insert_and_register(&tap, &spec.engine, "1");
+		let proposer = insert_and_register(&tap, spec.engine.as_ref(), "1");
 
 		let (b, seal) = propose_default(&spec, proposer);
-		let sealed = b.seal(spec.engine.as_ref(), seal).unwrap();
+		let sealed = b.lock().seal(spec.engine.as_ref(), seal).unwrap();
 		assert!(spec.engine.is_proposal(sealed.header()));
 		spec.engine.stop();
 	}
@@ -888,8 +887,8 @@ mod tests {
 		let (spec, tap) = setup();
 		let engine = spec.engine.clone();
 		
-		let v0 = insert_and_register(&tap, &engine, "0");
-		let v1 = insert_and_register(&tap, &engine, "1");
+		let v0 = insert_and_register(&tap, engine.as_ref(), "0");
+		let v1 = insert_and_register(&tap, engine.as_ref(), "1");
 
 		let h = 0;
 		let r = 0;
@@ -898,57 +897,74 @@ mod tests {
 		let (b, _) = propose_default(&spec, v1.clone());
 		let proposal = Some(b.header().bare_hash());
 
-		// Register IoHandler remembers messages.
-		let test_io = TestIo::new();
-		let channel = IoChannel::to_handler(Arc::downgrade(&(test_io.clone() as Arc<IoHandler<ClientIoMessage>>)));
-		engine.register_message_channel(channel);
+		let client = generate_dummy_client(0);
+		let notify = Arc::new(TestNotify::default());
+		client.add_notify(notify.clone());
+		engine.register_client(Arc::downgrade(&client));
 
-		let prevote_current = vote(&engine, |mh| tap.sign(v0, None, mh).map(H520::from), h, r, Step::Prevote, proposal);
+		let prevote_current = vote(engine.as_ref(), |mh| tap.sign(v0, None, mh).map(H520::from), h, r, Step::Prevote, proposal);
 
-		let precommit_current = vote(&engine, |mh| tap.sign(v0, None, mh).map(H520::from), h, r, Step::Precommit, proposal);
+		let precommit_current = vote(engine.as_ref(), |mh| tap.sign(v0, None, mh).map(H520::from), h, r, Step::Precommit, proposal);
 
-		let prevote_future = vote(&engine, |mh| tap.sign(v0, None, mh).map(H520::from), h + 1, r, Step::Prevote, proposal);
+		let prevote_future = vote(engine.as_ref(), |mh| tap.sign(v0, None, mh).map(H520::from), h + 1, r, Step::Prevote, proposal);
 
 		// Relays all valid present and future messages.
-		assert!(test_io.received.read().contains(&ClientIoMessage::BroadcastMessage(prevote_current)));
-		assert!(test_io.received.read().contains(&ClientIoMessage::BroadcastMessage(precommit_current)));
-		assert!(test_io.received.read().contains(&ClientIoMessage::BroadcastMessage(prevote_future)));
+		assert!(notify.messages.read().contains(&prevote_current));
+		assert!(notify.messages.read().contains(&precommit_current));
+		assert!(notify.messages.read().contains(&prevote_future));
 		engine.stop();
 	}
 
 	#[test]
 	fn seal_submission() {
-		let (spec, tap) = setup();
-		let engine = spec.engine.clone();
-		
-		let v0 = insert_and_register(&tap, &engine, "0");
-		let v1 = insert_and_register(&tap, &engine, "1");
+		use ethkey::{Generator, Random};
+		use types::transaction::{Transaction, Action};
+		use client::BlockChainClient;
+
+		let client = generate_dummy_client_with_spec_and_data(Spec::new_test_tendermint, 0, 0, &[]);
+		let engine = client.engine();
+		let tap = Arc::new(AccountProvider::transient_provider());
+
+		// Accounts for signing votes.
+		let v0 = insert_and_unlock(&tap, "0");
+		let v1 = insert_and_unlock(&tap, "1");
+
+		let notify = Arc::new(TestNotify::default());
+		engine.register_account_provider(tap.clone());
+		client.add_notify(notify.clone());
+		engine.register_client(Arc::downgrade(&client));
+
+		let keypair = Random.generate().unwrap();
+		let transaction = Transaction {
+			action: Action::Create,
+			value: U256::zero(),
+			data: "3331600055".from_hex().unwrap(),
+			gas: U256::from(100_000),
+			gas_price: U256::zero(),
+			nonce: U256::zero(),
+		}.sign(keypair.secret(), None);
+		client.miner().import_own_transaction(client.as_ref(), transaction.into()).unwrap();
+
+		client.miner().set_engine_signer(v1.clone(), "1".into()).unwrap();
+
+		// Propose
+		let proposal = Some(client.miner().pending_block().unwrap().header.bare_hash());
+		// Propose timeout
+		engine.step();
 
 		let h = 1;
 		let r = 0;
 
-		// Register IoHandler remembers messages.
-		let test_io = TestIo::new();
-		let channel = IoChannel::to_handler(Arc::downgrade(&(test_io.clone() as Arc<IoHandler<ClientIoMessage>>)));
-		engine.register_message_channel(channel);
-
-		// Propose
-		let (b, mut seal) = propose_default(&spec, v1.clone());
-		let proposal = Some(b.header().bare_hash());
-		engine.step();
-
 		// Prevote.
-		vote(&engine, |mh| tap.sign(v1, None, mh).map(H520::from), h, r, Step::Prevote, proposal);
-		vote(&engine, |mh| tap.sign(v0, None, mh).map(H520::from), h, r, Step::Prevote, proposal);
-		vote(&engine, |mh| tap.sign(v1, None, mh).map(H520::from), h, r, Step::Precommit, proposal);
-		vote(&engine, |mh| tap.sign(v0, None, mh).map(H520::from), h, r, Step::Precommit, proposal);
+		vote(engine, |mh| tap.sign(v1, None, mh).map(H520::from), h, r, Step::Prevote, proposal);
+		vote(engine, |mh| tap.sign(v0, None, mh).map(H520::from), h, r, Step::Prevote, proposal);
+		vote(engine, |mh| tap.sign(v1, None, mh).map(H520::from), h, r, Step::Precommit, proposal);
 
-		seal[2] = precommit_signatures(&tap, h, r, Some(b.header().bare_hash()), v1, v0);
-		let first = test_io.received.read().contains(&ClientIoMessage::SubmitSeal(proposal.unwrap(), seal.clone()));
-		seal[2] = precommit_signatures(&tap, h, r, Some(b.header().bare_hash()), v0, v1);
-		let second = test_io.received.read().contains(&ClientIoMessage::SubmitSeal(proposal.unwrap(), seal));
+		assert_eq!(client.chain_info().best_block_number, 0);
+		// Last precommit.
+		vote(engine, |mh| tap.sign(v0, None, mh).map(H520::from), h, r, Step::Precommit, proposal);
+		assert_eq!(client.chain_info().best_block_number, 1);
 
-		assert!(first ^ second);
 		engine.stop();
 	}
 }

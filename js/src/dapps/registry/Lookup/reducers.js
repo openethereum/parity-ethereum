@@ -24,7 +24,7 @@ const initialState = {
 export default (state = initialState, action) => {
   const { type } = action;
 
-  if (type.slice(0, 7) !== 'lookup ' && type.slice(0, 14) !== 'reverseLookup ') {
+  if (!/^(lookup|reverseLookup|ownerLookup)/.test(type)) {
     return state;
   }
 

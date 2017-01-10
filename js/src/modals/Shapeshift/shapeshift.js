@@ -14,26 +14,44 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
-import ActionDoneAll from 'material-ui/svg-icons/action/done-all';
-import ContentClear from 'material-ui/svg-icons/content/clear';
+import { FormattedMessage } from 'react-intl';
 
+import shapeshiftLogo from '~/../assets/images/shapeshift-logo.png';
 import { Button, IdentityIcon, Modal } from '~/ui';
-import initShapeshift from '~/3rdparty/shapeshift';
-import shapeshiftLogo from '../../../assets/images/shapeshift-logo.png';
+import { CancelIcon, DoneIcon } from '~/ui/Icons';
 
 import AwaitingDepositStep from './AwaitingDepositStep';
 import AwaitingExchangeStep from './AwaitingExchangeStep';
 import CompletedStep from './CompletedStep';
 import ErrorStep from './ErrorStep';
 import OptionsStep from './OptionsStep';
+import Store, { STAGE_COMPLETED, STAGE_OPTIONS, STAGE_WAIT_DEPOSIT, STAGE_WAIT_EXCHANGE } from './store';
 
 import styles from './shapeshift.css';
 
-const shapeshift = initShapeshift();
+const STAGE_TITLES = [
+  <FormattedMessage
+    id='shapeshift.title.details'
+    defaultMessage='details' />,
+  <FormattedMessage
+    id='shapeshift.title.deposit'
+    defaultMessage='awaiting deposit' />,
+  <FormattedMessage
+    id='shapeshift.title.exchange'
+    defaultMessage='awaiting exchange' />,
+  <FormattedMessage
+    id='shapeshift.title.completed'
+    defaultMessage='completed' />
+];
+const ERROR_TITLE = (
+  <FormattedMessage
+    id='shapeshift.title.error'
+    defaultMessage='exchange failed' />
+);
 
-const STAGE_NAMES = ['details', 'awaiting deposit', 'awaiting exchange', 'completed'];
-
+@observer
 export default class Shapeshift extends Component {
   static contextTypes = {
     store: PropTypes.object.isRequired
@@ -44,46 +62,38 @@ export default class Shapeshift extends Component {
     onClose: PropTypes.func
   }
 
-  state = {
-    stage: 0,
-    coinSymbol: 'BTC',
-    coinPair: 'btc_eth',
-    coins: [],
-    depositAddress: '',
-    refundAddress: '',
-    price: null,
-    depositInfo: null,
-    exchangeInfo: null,
-    error: {},
-    hasAccepted: false,
-    shifting: false
-  }
+  store = new Store(this.props.address);
 
   componentDidMount () {
-    this.retrieveCoins();
+    this.store.retrieveCoins();
   }
 
   componentWillUnmount () {
-    this.unsubscribe();
-  }
-
-  unsubscribe () {
-    // Unsubscribe from Shapeshit
-    const { depositAddress } = this.state;
-    shapeshift.unsubscribe(depositAddress);
+    this.store.unsubscribe();
   }
 
   render () {
-    const { error, stage } = this.state;
+    const { error, stage } = this.store;
 
     return (
       <Modal
         actions={ this.renderDialogActions() }
         current={ stage }
-        steps={ error.fatal ? null : STAGE_NAMES }
-        title={ error.fatal ? 'exchange failed' : null }
-        waiting={ [1, 2] }
-        visible>
+        steps={
+          error
+            ? null
+            : STAGE_TITLES
+        }
+        title={
+          error
+            ? ERROR_TITLE
+            : null
+        }
+        visible
+        waiting={ [
+          STAGE_WAIT_DEPOSIT,
+          STAGE_WAIT_EXCHANGE
+        ] }>
         { this.renderPage() }
       </Modal>
     );
@@ -91,7 +101,7 @@ export default class Shapeshift extends Component {
 
   renderDialogActions () {
     const { address } = this.props;
-    const { coins, error, stage, hasAccepted, shifting } = this.state;
+    const { coins, error, hasAcceptedTerms, stage } = this.store;
 
     const logo = (
       <a href='http://shapeshift.io' target='_blank' className={ styles.shapeshift }>
@@ -100,12 +110,16 @@ export default class Shapeshift extends Component {
     );
     const cancelBtn = (
       <Button
-        icon={ <ContentClear /> }
-        label='Cancel'
+        icon={ <CancelIcon /> }
+        label={
+          <FormattedMessage
+            id='shapeshift.button.cancel'
+            defaultMessage='Cancel' />
+        }
         onClick={ this.onClose } />
     );
 
-    if (error.fatal) {
+    if (error) {
       return [
         logo,
         cancelBtn
@@ -113,208 +127,85 @@ export default class Shapeshift extends Component {
     }
 
     switch (stage) {
-      case 0:
+      case STAGE_OPTIONS:
         return [
           logo,
           cancelBtn,
           <Button
-            disabled={ !coins.length || !hasAccepted || shifting }
-            icon={ <IdentityIcon address={ address } button /> }
-            label='Shift Funds'
+            disabled={ !coins.length || !hasAcceptedTerms }
+            icon={
+              <IdentityIcon
+                address={ address }
+                button />
+            }
+            label={
+              <FormattedMessage
+                id='shapeshift.button.shift'
+                defaultMessage='Shift Funds' />
+            }
             onClick={ this.onShift } />
         ];
 
-      case 1:
-      case 2:
+      case STAGE_WAIT_DEPOSIT:
+      case STAGE_WAIT_EXCHANGE:
         return [
           logo,
           cancelBtn
         ];
 
-      case 3:
+      case STAGE_COMPLETED:
         return [
           logo,
           <Button
-            icon={ <ActionDoneAll /> }
-            label='Close'
+            icon={ <DoneIcon /> }
+            label={
+              <FormattedMessage
+                id='shapeshift.button.done'
+                defaultMessage='Close' />
+            }
             onClick={ this.onClose } />
         ];
     }
   }
 
   renderPage () {
-    const { error, stage } = this.state;
+    const { error, stage } = this.store;
 
-    if (error.fatal) {
+    if (error) {
       return (
-        <ErrorStep error={ error } />
+        <ErrorStep store={ this.store } />
       );
     }
 
     switch (stage) {
-      case 0:
+      case STAGE_OPTIONS:
         return (
-          <OptionsStep
-            { ...this.state }
-            onChangeSymbol={ this.onChangeSymbol }
-            onChangeRefund={ this.onChangeRefund }
-            onToggleAccept={ this.onToggleAccept } />
+          <OptionsStep store={ this.store } />
         );
 
-      case 1:
+      case STAGE_WAIT_DEPOSIT:
         return (
-          <AwaitingDepositStep { ...this.state } />
+          <AwaitingDepositStep store={ this.store } />
         );
 
-      case 2:
+      case STAGE_WAIT_EXCHANGE:
         return (
-          <AwaitingExchangeStep { ...this.state } />
+          <AwaitingExchangeStep store={ this.store } />
         );
 
-      case 3:
+      case STAGE_COMPLETED:
         return (
-          <CompletedStep { ...this.state } />
+          <CompletedStep store={ this.store } />
         );
     }
   }
 
-  setStage (stage) {
-    this.setState({
-      stage,
-      error: {}
-    });
-  }
-
-  setFatalError (message) {
-    this.setState({
-      stage: 0,
-      error: {
-        fatal: true,
-        message
-      }
-    });
-  }
-
   onClose = () => {
-    this.setStage(0);
+    this.store.setStage(STAGE_OPTIONS);
     this.props.onClose && this.props.onClose();
   }
 
   onShift = () => {
-    const { address } = this.props;
-    const { coinPair, refundAddress } = this.state;
-
-    this.setState({
-      stage: 1,
-      shifting: true
-    });
-
-    shapeshift
-      .shift(address, refundAddress, coinPair)
-      .then((result) => {
-        console.log('onShift', result);
-        const depositAddress = result.deposit;
-
-        if (this.state.depositAddress) {
-          this.unsubscribe();
-        }
-
-        shapeshift.subscribe(depositAddress, this.onExchangeInfo);
-        this.setState({ depositAddress });
-      })
-      .catch((error) => {
-        console.error('onShift', error);
-        const message = `Failed to start exchange: ${error.message}`;
-
-        this.newError(new Error(message));
-        this.setFatalError(message);
-      });
-  }
-
-  onChangeSymbol = (event, coinSymbol) => {
-    const coinPair = `${coinSymbol.toLowerCase()}_eth`;
-
-    this.setState({
-      coinPair,
-      coinSymbol,
-      price: null
-    });
-    this.getPrice(coinPair);
-  }
-
-  onChangeRefund = (event, refundAddress) => {
-    this.setState({ refundAddress });
-  }
-
-  onToggleAccept = () => {
-    const { hasAccepted } = this.state;
-
-    this.setState({
-      hasAccepted: !hasAccepted
-    });
-  }
-
-  onExchangeInfo = (error, result) => {
-    if (error) {
-      console.error('onExchangeInfo', error);
-
-      if (error.fatal) {
-        this.setFatalError(error.message);
-      }
-
-      this.newError(error);
-      return;
-    }
-
-    console.log('onExchangeInfo', result.status, result);
-
-    switch (result.status) {
-      case 'received':
-        this.setState({ depositInfo: result });
-        this.setStage(2);
-        return;
-
-      case 'complete':
-        this.setState({ exchangeInfo: result });
-        this.setStage(3);
-        return;
-    }
-  }
-
-  getPrice (coinPair) {
-    shapeshift
-      .getMarketInfo(coinPair)
-      .then((price) => {
-        this.setState({ price });
-      })
-      .catch((error) => {
-        console.error('getPrice', error);
-      });
-  }
-
-  retrieveCoins () {
-    const { coinPair } = this.state;
-
-    shapeshift
-      .getCoins()
-      .then((_coins) => {
-        const coins = Object.values(_coins).filter((coin) => coin.status === 'available');
-
-        this.getPrice(coinPair);
-        this.setState({ coins });
-      })
-      .catch((error) => {
-        console.error('retrieveCoins', error);
-        const message = `Failed to retrieve available coins from ShapeShift.io: ${error.message}`;
-
-        this.newError(new Error(message));
-        this.setFatalError(message);
-      });
-  }
-
-  newError (error) {
-    const { store } = this.context;
-
-    store.dispatch({ type: 'newError', error });
+    return this.store.shift();
   }
 }

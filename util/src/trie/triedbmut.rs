@@ -17,6 +17,7 @@
 //! In-memory trie representation.
 
 use super::{TrieError, TrieMut};
+use super::lookup::Lookup;
 use super::node::Node as RlpNode;
 use super::node::NodeKey;
 
@@ -100,22 +101,22 @@ impl Node {
 	fn from_rlp(rlp: &[u8], db: &HashDB, storage: &mut NodeStorage) -> Self {
 		match RlpNode::decoded(rlp) {
 			RlpNode::Empty => Node::Empty,
-			RlpNode::Leaf(k, v) => Node::Leaf(k, v),
+			RlpNode::Leaf(k, v) => Node::Leaf(k.encoded(true), DBValue::from_slice(&v)),
 			RlpNode::Extension(key, cb) => {
-				Node::Extension(key, Self::inline_or_hash(&*cb, db, storage))
+				Node::Extension(key.encoded(false), Self::inline_or_hash(cb, db, storage))
 			}
 			RlpNode::Branch(children_rlp, val) => {
 				let mut children = empty_children();
 
 				for i in 0..16 {
-					let raw = &children_rlp[i];
-					let child_rlp = Rlp::new(&*raw);
+					let raw = children_rlp[i];
+					let child_rlp = Rlp::new(raw);
 					if !child_rlp.is_empty()  {
-						children[i] = Some(Self::inline_or_hash(&*raw, db, storage));
+						children[i] = Some(Self::inline_or_hash(raw, db, storage));
 					}
 				}
 
-				Node::Branch(children, val)
+				Node::Branch(children, val.map(DBValue::from_slice))
 			}
 		}
 	}
@@ -370,7 +371,11 @@ impl<'a> TrieDBMut<'a> {
 		where 'x: 'key
 	{
 		match *handle {
-			NodeHandle::Hash(ref hash) => self.do_db_lookup(hash, partial),
+			NodeHandle::Hash(ref hash) => Lookup {
+				db: &*self.db,
+				query: DBValue::from_slice,
+				hash: hash.clone(),
+			}.look_up(partial),
 			NodeHandle::InMemory(ref handle) => match self.storage[handle] {
 				Node::Empty => Ok(None),
 				Node::Leaf(ref key, ref value) => {
@@ -403,63 +408,17 @@ impl<'a> TrieDBMut<'a> {
 		}
 	}
 
-	/// Return optional data for a key given as a `NibbleSlice`. Returns `None` if no data exists.
-	fn do_db_lookup<'x, 'key>(&'x self, hash: &H256, key: NibbleSlice<'key>) -> super::Result<Option<DBValue>>
-		where 'x: 'key
-	{
-		self.db.get(hash).ok_or_else(|| Box::new(TrieError::IncompleteDatabase(*hash)))
-			.and_then(|node_rlp| self.get_from_db_node(&node_rlp, key))
-	}
-
-	/// Recursible function to retrieve the value given a `node` and a partial `key`. `None` if no
-	/// value exists for the key.
-	///
-	/// Note: Not a public API; use Trie trait functions.
-	fn get_from_db_node<'x, 'key>(&'x self, node: &'x [u8], key: NibbleSlice<'key>) -> super::Result<Option<DBValue>>
-		where 'x: 'key
-	{
-		match RlpNode::decoded(node) {
-			RlpNode::Leaf(ref slice, ref value) if NibbleSlice::from_encoded(slice).0 == key => Ok(Some(value.clone())),
-			RlpNode::Extension(ref slice, ref item) => {
-				let slice = &NibbleSlice::from_encoded(slice).0;
-				if key.starts_with(slice) {
-					self.get_from_db_node(&self.get_raw_or_lookup(&*item)?, key.mid(slice.len()))
-				} else {
-					Ok(None)
-				}
-			},
-			RlpNode::Branch(ref nodes, ref value) => match key.is_empty() {
-				true => Ok(value.clone()),
-				false => self.get_from_db_node(&self.get_raw_or_lookup(&*nodes[key.at(0) as usize])?, key.mid(1))
-			},
-			_ => Ok(None),
-		}
-	}
-
-	/// Given some node-describing data `node`, return the actual node RLP.
-	/// This could be a simple identity operation in the case that the node is sufficiently small, but
-	/// may require a database lookup.
-	fn get_raw_or_lookup<'x>(&'x self, node: &'x [u8]) -> super::Result<DBValue> {
-		// check if its sha3 + len
-		let r = Rlp::new(node);
-		match r.is_data() && r.size() == 32 {
-			true => {
-				let key = r.as_val::<H256>();
-				self.db.get(&key).ok_or_else(|| Box::new(TrieError::IncompleteDatabase(key)))
-			}
-			false => Ok(DBValue::from_slice(node))
-		}
-	}
-
 	/// insert a key, value pair into the trie, creating new nodes if necessary.
-	fn insert_at(&mut self, handle: NodeHandle, partial: NibbleSlice, value: DBValue) -> super::Result<(StorageHandle, bool)> {
+	fn insert_at(&mut self, handle: NodeHandle, partial: NibbleSlice, value: DBValue, old_val: &mut Option<DBValue>)
+		-> super::Result<(StorageHandle, bool)>
+	{
 		let h = match handle {
 			NodeHandle::InMemory(h) => h,
 			NodeHandle::Hash(h) => self.cache(h)?,
 		};
 		let stored = self.storage.destroy(h);
 		let (new_stored, changed) = self.inspect(stored, move |trie, stored| {
-			trie.insert_inspector(stored, partial, value).map(|a| a.into_action())
+			trie.insert_inspector(stored, partial, value, old_val).map(|a| a.into_action())
 		})?.expect("Insertion never deletes.");
 
 		Ok((self.storage.alloc(new_stored), changed))
@@ -467,7 +426,9 @@ impl<'a> TrieDBMut<'a> {
 
 	/// the insertion inspector.
 	#[cfg_attr(feature = "dev", allow(cyclomatic_complexity))]
-	fn insert_inspector(&mut self, node: Node, partial: NibbleSlice, value: DBValue) -> super::Result<InsertAction> {
+	fn insert_inspector(&mut self, node: Node, partial: NibbleSlice, value: DBValue, old_val: &mut Option<DBValue>)
+		-> super::Result<InsertAction>
+	{
 		trace!(target: "trie", "augmented (partial: {:?}, value: {:?})", partial, value.pretty());
 
 		Ok(match node {
@@ -481,6 +442,8 @@ impl<'a> TrieDBMut<'a> {
 				if partial.is_empty() {
 					let unchanged = stored_value.as_ref() == Some(&value);
 					let branch = Node::Branch(children, Some(value));
+					*old_val = stored_value;
+
 					match unchanged {
 						true => InsertAction::Restore(branch),
 						false => InsertAction::Replace(branch),
@@ -490,7 +453,7 @@ impl<'a> TrieDBMut<'a> {
 					let partial = partial.mid(1);
 					if let Some(child) = children[idx].take() {
 						// original had something there. recurse down into it.
-						let (new_child, changed) = self.insert_at(child, partial, value)?;
+						let (new_child, changed) = self.insert_at(child, partial, value, old_val)?;
 						children[idx] = Some(new_child.into());
 						if !changed {
 							// the new node we composed didn't change. that means our branch is untouched too.
@@ -511,7 +474,10 @@ impl<'a> TrieDBMut<'a> {
 				if cp == existing_key.len() && cp == partial.len() {
 					trace!(target: "trie", "equivalent-leaf: REPLACE");
 					// equivalent leaf.
-					match stored_value == value {
+					let unchanged = stored_value == value;
+					*old_val = Some(stored_value);
+
+					match unchanged {
 						// unchanged. restore
 						true => InsertAction::Restore(Node::Leaf(encoded.clone(), value)),
 						false => InsertAction::Replace(Node::Leaf(encoded.clone(), value)),
@@ -533,7 +499,7 @@ impl<'a> TrieDBMut<'a> {
 					};
 
 					// always replace because whatever we get out here is not the branch we started with.
-					let branch_action = self.insert_inspector(branch, partial, value)?.unwrap_node();
+					let branch_action = self.insert_inspector(branch, partial, value, old_val)?.unwrap_node();
 					InsertAction::Replace(branch_action)
 				} else if cp == existing_key.len() {
 				    trace!(target: "trie", "complete-prefix (cp={:?}): AUGMENT-AT-END", cp);
@@ -542,7 +508,7 @@ impl<'a> TrieDBMut<'a> {
 					// make a stub branch and an extension.
 					let branch = Node::Branch(empty_children(), Some(stored_value));
 					// augment the new branch.
-					let branch = self.insert_inspector(branch, partial.mid(cp), value)?.unwrap_node();
+					let branch = self.insert_inspector(branch, partial.mid(cp), value, old_val)?.unwrap_node();
 
 					// always replace since we took a leaf and made an extension.
 					let branch_handle = self.storage.alloc(Stored::New(branch)).into();
@@ -553,9 +519,10 @@ impl<'a> TrieDBMut<'a> {
 					// partially-shared prefix for an extension.
 					// start by making a leaf.
 					let low = Node::Leaf(existing_key.mid(cp).encoded(true), stored_value);
+
 					// augment it. this will result in the Leaf -> cp == 0 routine,
 					// which creates a branch.
-					let augmented_low = self.insert_inspector(low, partial.mid(cp), value)?.unwrap_node();
+					let augmented_low = self.insert_inspector(low, partial.mid(cp), value, old_val)?.unwrap_node();
 
 					// make an extension using it. this is a replacement.
 					InsertAction::Replace(Node::Extension(
@@ -586,7 +553,7 @@ impl<'a> TrieDBMut<'a> {
 					};
 
 					// continue inserting.
-					let branch_action = self.insert_inspector(Node::Branch(children, None), partial, value)?.unwrap_node();
+					let branch_action = self.insert_inspector(Node::Branch(children, None), partial, value, old_val)?.unwrap_node();
 					InsertAction::Replace(branch_action)
 				} else if cp == existing_key.len() {
 					trace!(target: "trie", "complete-prefix (cp={:?}): AUGMENT-AT-END", cp);
@@ -594,7 +561,7 @@ impl<'a> TrieDBMut<'a> {
 					// fully-shared prefix.
 
 					// insert into the child node.
-					let (new_child, changed) = self.insert_at(child_branch, partial.mid(cp), value)?;
+					let (new_child, changed) = self.insert_at(child_branch, partial.mid(cp), value, old_val)?;
 					let new_ext = Node::Extension(existing_key.encoded(false), new_child.into());
 
 					// if the child branch wasn't changed, meaning this extension remains the same.
@@ -608,7 +575,7 @@ impl<'a> TrieDBMut<'a> {
 					// partially-shared.
 					let low = Node::Extension(existing_key.mid(cp).encoded(false), child_branch);
 					// augment the extension. this will take the cp == 0 path, creating a branch.
-					let augmented_low = self.insert_inspector(low, partial.mid(cp), value)?.unwrap_node();
+					let augmented_low = self.insert_inspector(low, partial.mid(cp), value, old_val)?.unwrap_node();
 
 					// always replace, since this extension is not the one we started with.
 					// this is known because the partial key is only the common prefix.
@@ -622,7 +589,9 @@ impl<'a> TrieDBMut<'a> {
 	}
 
 	/// Remove a node from the trie based on key.
-	fn remove_at(&mut self, handle: NodeHandle, partial: NibbleSlice) -> super::Result<Option<(StorageHandle, bool)>> {
+	fn remove_at(&mut self, handle: NodeHandle, partial: NibbleSlice, old_val: &mut Option<DBValue>)
+		-> super::Result<Option<(StorageHandle, bool)>>
+	{
 		let stored = match handle {
 			NodeHandle::InMemory(h) => self.storage.destroy(h),
 			NodeHandle::Hash(h) => {
@@ -631,17 +600,18 @@ impl<'a> TrieDBMut<'a> {
 			}
 		};
 
-		let opt = self.inspect(stored, move |trie, node| trie.remove_inspector(node, partial))?;
+		let opt = self.inspect(stored, move |trie, node| trie.remove_inspector(node, partial, old_val))?;
 
 		Ok(opt.map(|(new, changed)| (self.storage.alloc(new), changed)))
 	}
 
 	/// the removal inspector
-	fn remove_inspector(&mut self, node: Node, partial: NibbleSlice) -> super::Result<Action> {
+	fn remove_inspector(&mut self, node: Node, partial: NibbleSlice, old_val: &mut Option<DBValue>) -> super::Result<Action> {
 		Ok(match (node, partial.is_empty()) {
 			(Node::Empty, _) => Action::Delete,
 			(Node::Branch(c, None), true) => Action::Restore(Node::Branch(c, None)),
-			(Node::Branch(children, _), true) => {
+			(Node::Branch(children, Some(val)), true) => {
+				*old_val = Some(val);
 				// always replace since we took the value out.
 				Action::Replace(self.fix(Node::Branch(children, None))?)
 			}
@@ -649,7 +619,7 @@ impl<'a> TrieDBMut<'a> {
 				let idx = partial.at(0) as usize;
 				if let Some(child) = children[idx].take() {
 					trace!(target: "trie", "removing value out of branch child, partial={:?}", partial);
-					match self.remove_at(child, partial.mid(1))? {
+					match self.remove_at(child, partial.mid(1), old_val)? {
 						Some((new, changed)) => {
 							children[idx] = Some(new.into());
 							let branch = Node::Branch(children, value);
@@ -675,6 +645,7 @@ impl<'a> TrieDBMut<'a> {
 			(Node::Leaf(encoded, value), _) => {
 				if NibbleSlice::from_encoded(&encoded).0 == partial {
 					// this is the node we were looking for. Let's delete it.
+					*old_val = Some(value);
 					Action::Delete
 				} else {
 					// leaf the node alone.
@@ -690,7 +661,7 @@ impl<'a> TrieDBMut<'a> {
 				if cp == existing_len {
 					// try to remove from the child branch.
 					trace!(target: "trie", "removing from extension child, partial={:?}", partial);
-					match self.remove_at(child_branch, partial.mid(cp))? {
+					match self.remove_at(child_branch, partial.mid(cp), old_val)? {
 						Some((new_child, changed)) => {
 							let new_child = new_child.into();
 
@@ -907,28 +878,35 @@ impl<'a> TrieMut for TrieDBMut<'a> {
 	}
 
 
-	fn insert(&mut self, key: &[u8], value: &[u8]) -> super::Result<()> {
-		if value.is_empty() {
-			return self.remove(key);
-		}
+	fn insert(&mut self, key: &[u8], value: &[u8]) -> super::Result<Option<DBValue>> {
+		if value.is_empty() { return self.remove(key) }
+
+		let mut old_val = None;
 
 		trace!(target: "trie", "insert: key={:?}, value={:?}", key.pretty(), value.pretty());
 
 		let root_handle = self.root_handle();
-		let (new_handle, changed) = self.insert_at(root_handle, NibbleSlice::new(key), DBValue::from_slice(value))?;
+		let (new_handle, changed) = self.insert_at(
+			root_handle,
+			NibbleSlice::new(key),
+			DBValue::from_slice(value),
+			&mut old_val,
+		)?;
 
 		trace!(target: "trie", "insert: altered trie={}", changed);
 		self.root_handle = NodeHandle::InMemory(new_handle);
 
-		Ok(())
+		Ok(old_val)
 	}
 
-	fn remove(&mut self, key: &[u8]) -> super::Result<()> {
+	fn remove(&mut self, key: &[u8]) -> super::Result<Option<DBValue>> {
 		trace!(target: "trie", "remove: key={:?}", key.pretty());
 
 		let root_handle = self.root_handle();
 		let key = NibbleSlice::new(key);
-		match self.remove_at(root_handle, key)? {
+		let mut old_val = None;
+
+		match self.remove_at(root_handle, key, &mut old_val)? {
 			Some((handle, changed)) => {
 				trace!(target: "trie", "remove: altered trie={}", changed);
 				self.root_handle = NodeHandle::InMemory(handle);
@@ -938,9 +916,9 @@ impl<'a> TrieMut for TrieDBMut<'a> {
 				self.root_handle = NodeHandle::Hash(SHA3_NULL_RLP);
 				*self.root = SHA3_NULL_RLP;
 			}
-		};
+		}
 
-		Ok(())
+		Ok(old_val)
 	}
 }
 
@@ -1286,5 +1264,30 @@ mod tests {
 
 		assert!(t.is_empty());
 		assert_eq!(*t.root(), SHA3_NULL_RLP);
+	}
+
+	#[test]
+	fn return_old_values() {
+		let mut seed = H256::new();
+		let x = StandardMap {
+				alphabet: Alphabet::Custom(b"@QWERTYUIOPASDFGHJKLZXCVBNM[/]^_".to_vec()),
+				min_key: 5,
+				journal_key: 0,
+				value_mode: ValueMode::Index,
+				count: 4,
+		}.make_with(&mut seed);
+
+		let mut db = MemoryDB::new();
+		let mut root = H256::new();
+		let mut t = TrieDBMut::new(&mut db, &mut root);
+		for &(ref key, ref value) in &x {
+			assert!(t.insert(key, value).unwrap().is_none());
+			assert_eq!(t.insert(key, value).unwrap(), Some(DBValue::from_slice(value)));
+		}
+
+		for (key, value) in x {
+			assert_eq!(t.remove(&key).unwrap(), Some(DBValue::from_slice(&value)));
+			assert!(t.remove(&key).unwrap().is_none());
+		}
 	}
 }

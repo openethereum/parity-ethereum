@@ -19,7 +19,7 @@ import { shallow } from 'enzyme';
 
 import Container from './container';
 
-function renderShallow (props) {
+function render (props) {
   return shallow(
     <Container { ...props } />
   );
@@ -28,11 +28,24 @@ function renderShallow (props) {
 describe('ui/Container', () => {
   describe('rendering', () => {
     it('renders defaults', () => {
-      expect(renderShallow()).to.be.ok;
+      expect(render()).to.be.ok;
     });
 
     it('renders with the specified className', () => {
-      expect(renderShallow({ className: 'testClass' })).to.have.className('testClass');
+      expect(render({ className: 'testClass' })).to.have.className('testClass');
+    });
+  });
+
+  describe('sections', () => {
+    it('renders the Card', () => {
+      expect(render().find('Card')).to.have.length(1);
+    });
+
+    it('renders the Title', () => {
+      const title = render({ title: 'title' }).find('Title');
+
+      expect(title).to.have.length(1);
+      expect(title.props().title).to.equal('title');
     });
   });
 });

@@ -31,8 +31,19 @@ function createApi () {
   };
 }
 
+function createRedux () {
+  return {
+    dispatch: sinon.stub(),
+    subscribe: sinon.stub(),
+    getState: () => {
+      return {};
+    }
+  };
+}
+
 export {
   ABI,
   CONTRACTS,
-  createApi
+  createApi,
+  createRedux
 };
