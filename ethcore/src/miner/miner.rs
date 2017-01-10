@@ -764,9 +764,17 @@ impl MinerService for Miner {
 			if let Some(ref ap) = self.accounts {
 				ap.sign(address.clone(), Some(password.clone()), Default::default())?;
 			}
-			let mut sealing_work = self.sealing_work.lock();
-			sealing_work.enabled = self.engine.is_sealer(&address).unwrap_or(false);
-			*self.author.write() = address;
+			// Limit the scope of the locks.
+			{
+				let mut sealing_work = self.sealing_work.lock();
+				sealing_work.enabled = self.engine.is_sealer(&address).unwrap_or(false);
+				*self.author.write() = address;
+			}
+			// --------------------------------------------------------------------------
+			// | NOTE Code below may require author and sealing_work locks              |
+			// | (some `Engine`s call `EngineClient.update_sealing()`)                  |.
+			// | Make sure to release the locks before calling that method.             |
+			// --------------------------------------------------------------------------
 			self.engine.set_signer(address, password);
 		}
 		Ok(())

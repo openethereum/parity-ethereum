@@ -391,7 +391,7 @@ impl<Message> IoChannel<Message> where Message: Send + Clone + Sync + 'static {
 		}
 		Ok(())
 	}
-	/// Create a new channel to connected to event loop.
+	/// Create a new channel disconnected from an event loop.
 	pub fn disconnected() -> IoChannel<Message> {
 		IoChannel {
 			channel: None,
