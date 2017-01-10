@@ -909,11 +909,16 @@ impl BlockChainClient for Client {
 				.unwrap_or(false)
 		};
 
-		let upper = env_info.gas_limit;
+		let mut upper = env_info.gas_limit;
 		if !cond(upper) {
-			// impossible
-			trace!(target: "estimate_gas", "estimate_gas failed with {}", upper);
-			return Err(CallError::Execution(ExecutionError::Internal))
+			// impossible at block gas limit - try `UPPER_CEILING` instead.
+			// TODO: consider raising limit by powers of two.
+			const UPPER_CEILING: u64 = 1_000_000_000_000u64;
+			upper = UPPER_CEILING.into();
+			if !cond(upper) {
+				trace!(target: "estimate_gas", "estimate_gas failed with {}", upper);
+				return Err(CallError::Execution(ExecutionError::Internal))
+			}
 		}
 		let lower = t.gas_required(&self.engine.schedule(&env_info)).into();
 		if cond(lower) {
