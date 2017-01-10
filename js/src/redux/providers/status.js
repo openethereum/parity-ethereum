@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import BalancesProvider from './balances';
 import { statusBlockNumber, statusCollection, statusLogs } from './statusActions';
 import { isEqual } from 'lodash';
 
@@ -37,10 +38,7 @@ export default class Status {
     });
 
     api.transport.on('close', () => {
-      const apiStatus = this.getApiStatus();
-      this._apiStatus = apiStatus;
-      this._store.dispatch(statusCollection(apiStatus));
-
+      this.updateApiStatus();
       this.start();
     });
   }
@@ -51,24 +49,18 @@ export default class Status {
     this._api
       .connect()
       .then((connected) => {
-        // Get the API status, set connected to false
-        // before the long status is ok
-        const apiStatus = this.getApiStatus();
-        apiStatus.isConnected = false;
-
-        this._apiStatus = apiStatus;
-        this._store.dispatch(statusCollection(apiStatus));
+        // Update the API Status
+        this.updateApiStatus();
 
         if (connected) {
+          BalancesProvider.start();
           this._subscribeBlockNumber();
-          this._pollLongStatus(true);
+
+          this._pollLogs();
+          this._pollLongStatus();
+          this._pollStatus();
         }
       });
-  }
-
-  startPolling () {
-    this._pollLogs();
-    this._pollStatus();
   }
 
   stop () {
@@ -80,6 +72,17 @@ export default class Status {
     Object.values(this._timeoutIds).forEach((timeoutId) => {
       clearTimeout(timeoutId);
     });
+
+    BalancesProvider.stop();
+  }
+
+  updateApiStatus () {
+    const apiStatus = this.getApiStatus();
+
+    if (!isEqual(apiStatus, this._apiStatus)) {
+      this._store.dispatch(statusCollection(apiStatus));
+      this._apiStatus = apiStatus;
+    }
   }
 
   _subscribeBlockNumber = () => {
@@ -144,21 +147,9 @@ export default class Status {
       this._timeoutIds.status = setTimeout(() => this._pollStatus(), timeout);
     };
 
-    const { isConnected } = this._api;
-    const apiStatus = this.getApiStatus();
+    this.updateApiStatus();
 
-    const hasConnected = !this._apiStatus.isConnected && apiStatus.isConnected;
-
-    if (hasConnected) {
-      this._pollLongStatus(hasConnected);
-    }
-
-    if (!isEqual(apiStatus, this._apiStatus)) {
-      this._store.dispatch(statusCollection(apiStatus));
-      this._apiStatus = apiStatus;
-    }
-
-    if (!isConnected) {
+    if (!this._api.isConnected) {
       return nextTimeout(250);
     }
 
@@ -234,17 +225,17 @@ export default class Status {
    * fetched every 30s just in case, and whenever
    * the client got reconnected.
    */
-  _pollLongStatus = (hasConnected = false) => {
+  _pollLongStatus = () => {
     if (!this._api.isConnected) {
       return;
     }
 
-    const nextTimeout = (timeout = 30000, hasConnected = false) => {
+    const nextTimeout = (timeout = 30000) => {
       if (this._timeoutIds.longStatus) {
         clearTimeout(this._timeoutIds.longStatus);
       }
 
-      this._timeoutIds.longStatus = setTimeout(() => this._pollLongStatus(hasConnected), timeout);
+      this._timeoutIds.longStatus = setTimeout(() => this._pollLongStatus(), timeout);
     };
 
     // Poll Miner settings just in case
@@ -283,28 +274,12 @@ export default class Status {
           this._store.dispatch(statusCollection(longStatus));
           this._longStatus = longStatus;
         }
-
-        if (hasConnected) {
-          this.startPolling();
-        }
-
-        return false;
       })
       .catch((error) => {
-        // Try again soon if just got reconnected (network might take some time
-        // to boot up)
-        if (hasConnected) {
-          nextTimeout(500, true);
-          return true;
-        }
-
         console.error('_pollLongStatus', error);
-        return false;
       })
-      .then((called) => {
-        if (!called) {
-          nextTimeout(60000);
-        }
+      .then(() => {
+        nextTimeout(60000);
       });
 
     return Promise.all([ minerPromise, mainPromise ]);

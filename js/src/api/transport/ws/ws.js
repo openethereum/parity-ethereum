@@ -206,8 +206,8 @@ export default class Ws extends JsonRpcBase {
       if (result.error) {
         this.error(event.data);
 
-        // Don't print error if request rejected...
-        if (!/rejected/.test(result.error.message)) {
+        // Don't print error if request rejected or not is not yet up...
+        if (!/(rejected|not yet up)/.test(result.error.message)) {
           console.error(`${method}(${JSON.stringify(params)}): ${result.error.code}: ${result.error.message}`);
         }
 

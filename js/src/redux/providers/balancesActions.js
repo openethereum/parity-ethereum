@@ -162,7 +162,6 @@ export function fetchTokens (_tokenIds) {
           });
 
         dispatch(setTokens(tokens));
-        dispatch(fetchBalances());
       })
       .catch((error) => {
         console.warn('balances::fetchTokens', error);

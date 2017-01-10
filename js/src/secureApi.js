@@ -101,6 +101,36 @@ export default class SecureApi extends Api {
       .catch(() => false);
   }
 
+  /**
+   * Promise gets resolved when the node is up
+   * and running (it might take some time before
+   * the node is actually ready even when the client
+   * is connected).
+   *
+   * We check that the `parity_enode` RPC calls
+   * returns successfully
+   */
+  waitUntilNodeReady () {
+    return this
+      .parity.enode()
+      .then(() => true)
+      .catch((error) => {
+        if (!error) {
+          return true;
+        }
+
+        if (error.type !== 'NETWORK_DISABLED') {
+          return false;
+        }
+
+        return new Promise((resolve, reject) => {
+          window.setTimeout(() => {
+            this.waitUntilNodeReady().then(resolve).catch(reject);
+          }, 250);
+        });
+      });
+  }
+
   _setManual () {
     this._needsToken = true;
     this._isConnecting = false;
@@ -145,7 +175,9 @@ export default class SecureApi extends Api {
             });
         }
 
-        return this.connectSuccess(token).then(() => true, () => true);
+        return this.waitUntilNodeReady().then(() => {
+          return this.connectSuccess(token).then(() => true, () => true);
+        });
       })
       .catch((e) => {
         log.debug('did not connect ; error', e);

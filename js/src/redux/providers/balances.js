@@ -21,51 +21,139 @@ import { padRight } from '~/api/util/format';
 
 import Contracts from '~/contracts';
 
+let instance = null;
+
 export default class Balances {
   constructor (store, api) {
     this._api = api;
     this._store = store;
 
-    this._tokenregSubId = null;
-    this._tokenregMetaSubId = null;
+    this._tokenreg = null;
+    this._tokenregSID = null;
+    this._tokenMetaSID = null;
+
+    this._blockNumberSID = null;
+    this._accountsInfoSID = null;
 
     // Throttled `retrieveTokens` function
     // that gets called max once every 40s
     this.longThrottledFetch = throttle(
       this.fetchBalances,
       40 * 1000,
-      { trailing: true }
+      { leading: true }
     );
 
     this.shortThrottledFetch = throttle(
       this.fetchBalances,
       2 * 1000,
-      { trailing: true }
+      { leading: true }
     );
 
     // Fetch all tokens every 2 minutes
     this.throttledTokensFetch = throttle(
       this.fetchTokens,
       60 * 1000,
-      { trailing: true }
+      { leading: true }
     );
+
+    // Unsubscribe previous instance if it exists
+    if (instance) {
+      Balances.stop();
+    }
+
+    instance = this;
   }
 
-  start () {
-    this.subscribeBlockNumber();
-    this.subscribeAccountsInfo();
+  static instantiate (store, api) {
+    return new Balances(store, api);
+  }
 
-    this.loadTokens();
+  static start () {
+    if (!instance) {
+      return Promise.reject('BalancesProvider has not been intiated yet');
+    }
+
+    const self = instance;
+
+    // Unsubscribe from previous subscriptions
+    return Balances
+      .stop()
+      .then(() => {
+        const promises = [
+          self.subscribeBlockNumber(),
+          self.subscribeAccountsInfo(),
+
+          self.loadTokens()
+        ];
+
+        return Promise.all(promises);
+      });
+  }
+
+  static stop () {
+    if (!instance) {
+      return Promise.resolve();
+    }
+
+    const self = instance;
+    const promises = [];
+
+    if (self._blockNumberSID) {
+      const p = self._api
+        .unsubscribe(self._blockNumberSID)
+        .then(() => {
+          self._blockNumberSID = null;
+        });
+
+      promises.push(p);
+    }
+
+    if (self._accountsInfoSID) {
+      const p = self._api
+        .unsubscribe(self._accountsInfoSID)
+        .then(() => {
+          self._accountsInfoSID = null;
+        });
+
+      promises.push(p);
+    }
+
+    if (self._tokenreg) {
+      if (self._tokenregSID) {
+        const p = self._tokenreg
+          .unsubscribe(self._tokenregSID)
+          .then(() => {
+            self._tokenregSID = null;
+          });
+
+        promises.push(p);
+      }
+
+      if (self._tokenMetaSID) {
+        const p = self._tokenreg
+          .unsubscribe(self._tokenMetaSID)
+          .then(() => {
+            self._tokenMetaSID = null;
+          });
+
+        promises.push(p);
+      }
+    }
+
+    return Promise.all(promises);
   }
 
   subscribeAccountsInfo () {
-    this._api
+    return this._api
       .subscribe('parity_allAccountsInfo', (error, accountsInfo) => {
         if (error) {
           return;
         }
 
-        this.fetchBalances();
+        this.fetchAllBalances();
+      })
+      .then((accountsInfoSID) => {
+        this._accountsInfoSID = accountsInfoSID;
       })
       .catch((error) => {
         console.warn('_subscribeAccountsInfo', error);
@@ -73,29 +161,36 @@ export default class Balances {
   }
 
   subscribeBlockNumber () {
-    this._api
+    return this._api
       .subscribe('eth_blockNumber', (error) => {
         if (error) {
           return console.warn('_subscribeBlockNumber', error);
         }
 
-        const { syncing } = this._store.getState().nodeStatus;
-
-        this.throttledTokensFetch();
-
-        // If syncing, only retrieve balances once every
-        // few seconds
-        if (syncing) {
-          this.shortThrottledFetch.cancel();
-          return this.longThrottledFetch();
-        }
-
-        this.longThrottledFetch.cancel();
-        return this.shortThrottledFetch();
+        return this.fetchAllBalances();
+      })
+      .then((blockNumberSID) => {
+        this._blockNumberSID = blockNumberSID;
       })
       .catch((error) => {
         console.warn('_subscribeBlockNumber', error);
       });
+  }
+
+  fetchAllBalances () {
+    const { syncing } = this._store.getState().nodeStatus;
+
+    this.throttledTokensFetch();
+
+    // If syncing, only retrieve balances once every
+    // few seconds
+    if (syncing) {
+      this.shortThrottledFetch.cancel();
+      return this.longThrottledFetch();
+    }
+
+    this.longThrottledFetch.cancel();
+    return this.shortThrottledFetch();
   }
 
   fetchBalances () {
@@ -111,9 +206,11 @@ export default class Balances {
   }
 
   loadTokens () {
-    this
+    return this
       .getTokenRegistry()
       .then((tokenreg) => {
+        this._tokenreg = tokenreg;
+
         this._store.dispatch(setTokenReg(tokenreg));
         this._store.dispatch(loadTokens());
 
@@ -133,7 +230,7 @@ export default class Balances {
   }
 
   attachToNewToken (tokenreg) {
-    if (this._tokenregSubId) {
+    if (this._tokenregSID) {
       return Promise.resolve();
     }
 
@@ -149,13 +246,13 @@ export default class Balances {
 
         this.handleTokensLogs(logs);
       })
-      .then((tokenregSubId) => {
-        this._tokenregSubId = tokenregSubId;
+      .then((tokenregSID) => {
+        this._tokenregSID = tokenregSID;
       });
   }
 
   attachToTokenMetaChange (tokenreg) {
-    if (this._tokenregMetaSubId) {
+    if (this._tokenMetaSID) {
       return Promise.resolve();
     }
 
@@ -172,8 +269,8 @@ export default class Balances {
 
         this.handleTokensLogs(logs);
       })
-      .then((tokenregMetaSubId) => {
-        this._tokenregMetaSubId = tokenregMetaSubId;
+      .then((tokenMetaSID) => {
+        this._tokenMetaSID = tokenMetaSID;
       });
   }
 
