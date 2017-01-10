@@ -37,11 +37,11 @@ export default class Status {
     });
 
     api.transport.on('close', () => {
-      this.stop();
-
       const apiStatus = this.getApiStatus();
       this._apiStatus = apiStatus;
       this._store.dispatch(statusCollection(apiStatus));
+
+      this.start();
     });
   }
 

@@ -17,7 +17,9 @@
 import { uniq } from 'lodash';
 
 import Api from './api';
+import { LOG_KEYS, getLogger } from '~/config';
 
+const log = getLogger(LOG_KEYS.Signer);
 const sysuiToken = window.localStorage.getItem('sysuiToken');
 
 export default class SecureApi extends Api {
@@ -41,15 +43,30 @@ export default class SecureApi extends Api {
     this.connect();
   }
 
-  connect () {
+  connect (token) {
     if (this._connectPromise) {
-      return this._connectPromise;
+      return this
+        ._connectPromise
+        .then((connected) => {
+          if (!connected && token) {
+            return this._followConnection(token);
+          }
+
+          return connected;
+        });
     }
 
+    log.debug('trying to connect...');
+
     this._resetTokens();
-    this._connectPromise = this
-      ._tryNextToken()
+    const promise = token
+      ? this._followConnection(token)
+      : this._tryNextToken();
+
+    this._connectPromise = promise
       .then((connected) => {
+        log.debug('got connected?', connected);
+
         this._connectPromise = null;
         return connected;
       });
@@ -64,8 +81,8 @@ export default class SecureApi extends Api {
     }));
   }
 
-  saveToken () {
-    window.localStorage.setItem('sysuiToken', this._transport.token);
+  saveToken (token) {
+    window.localStorage.setItem('sysuiToken', token);
     // DEBUG: console.log('SecureApi:saveToken', this._transport.token);
   }
 
@@ -92,6 +109,8 @@ export default class SecureApi extends Api {
   }
 
   _tryNextToken () {
+    log.debug('trying next token');
+
     const nextTokenIndex = this._tokens.findIndex((t) => !t.tried);
 
     if (nextTokenIndex < 0) {
@@ -101,33 +120,41 @@ export default class SecureApi extends Api {
     const nextToken = this._tokens[nextTokenIndex];
     nextToken.tried = true;
 
-    return this.updateToken(nextToken.value);
+    return this._followConnection(nextToken.value);
   }
 
-  _followConnection = () => {
-    const token = this.transport.token;
+  _followConnection (_token) {
+    const token = this._sanitiseToken(_token);
+    this.transport.updateToken(token, false);
+    log.debug('connecting with token', token);
 
     return this
       .transport
       .connect()
       .then(() => {
+        log.debug('connected with', token);
+
         if (token === 'initial') {
           return this.signer
             .generateAuthorizationToken()
             .then((token) => {
-              return this.updateToken(token);
+              return this._followConnection(token);
             })
-            .catch((e) => {
-              return this._tryNextToken();
+            .catch(() => {
+              return false;
             });
         }
 
-        return this.connectSuccess().then(() => true);
+        return this.connectSuccess(token).then(() => true, () => true);
       })
       .catch((e) => {
+        log.debug('did not connect ; error', e);
+
         return this
           ._checkNodeUp()
           .then((isNodeUp) => {
+            log.debug('did not connect with', token, '; is node up?', isNodeUp ? 'yes' : 'no');
+
             // Try again in a few...
             if (!isNodeUp) {
               this._isConnecting = false;
@@ -135,7 +162,7 @@ export default class SecureApi extends Api {
 
               return new Promise((resolve, reject) => {
                 window.setTimeout(() => {
-                  this._followConnection().then(resolve).catch(reject);
+                  this._followConnection(token).then(resolve).catch(reject);
                 }, timeout);
               });
             }
@@ -145,12 +172,12 @@ export default class SecureApi extends Api {
       });
   }
 
-  connectSuccess () {
+  connectSuccess (token) {
     this._isConnecting = false;
     this._needsToken = false;
 
-    this.saveToken();
-  console.warn('got connected', 'saving token', this._tranport.token);
+    this.saveToken(token);
+    log.debug('got connected ; saving token', token);
 
     return Promise
       .all([
@@ -167,9 +194,18 @@ export default class SecureApi extends Api {
     // DEBUG: console.log('SecureApi:connectSuccess', this._transport.token);
   }
 
-  updateToken (token) {
-    this._transport.updateToken(token.replace(/[^a-zA-Z0-9]/g, ''), false);
-    return this._followConnection();
+  _sanitiseToken (token) {
+    return token.replace(/[^a-zA-Z0-9]/g, '');
+  }
+
+  updateToken (_token) {
+    const token = this._sanitiseToken(_token);
+    log.debug('updating token', token);
+
+    // Update the tokens list
+    this._tokens = this._tokens.concat([ { value: token, tried: false } ]);
+
+    return this.connect(token);
     // DEBUG: console.log('SecureApi:updateToken', this._transport.token, connectState);
   }
 
