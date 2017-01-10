@@ -29,24 +29,24 @@ describe('api/transport/Ws', () => {
       return { transport, scope };
     };
 
-    it('emits open', (done) => {
+    it('emits open event', (done) => {
       const { transport, scope } = connect();
 
-      transport.on('open', () => {
+      transport.once('open', () => {
         done();
       });
 
       scope.stop();
     });
 
-    it('emits close', (done) => {
+    it('emits close event', (done) => {
       const { transport, scope } = connect();
 
-      transport.on('open', () => {
+      transport.once('open', () => {
         scope.server.close();
       });
 
-      transport.on('close', () => {
+      transport.once('close', () => {
         done();
       });
     });
