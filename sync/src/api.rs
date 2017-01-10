@@ -23,6 +23,7 @@ use network::{NetworkProtocolHandler, NetworkService, NetworkContext, PeerId, Pr
 	AllowIP as NetworkAllowIP};
 use util::{U256, H256, H512};
 use io::{TimerToken};
+use ethcore::ethstore::ethkey::Secret;
 use ethcore::client::{BlockChainClient, ChainNotify};
 use ethcore::snapshot::SnapshotService;
 use ethcore::header::BlockNumber;
@@ -476,7 +477,7 @@ pub struct NetworkConfiguration {
 	/// List of initial node addresses
 	pub boot_nodes: Vec<String>,
 	/// Use provided node key instead of default
-	pub use_secret: Option<H256>,
+	pub use_secret: Option<Secret>,
 	/// Max number of connected peers to maintain
 	pub max_peers: u32,
 	/// Min number of connected peers to maintain
@@ -667,3 +668,4 @@ impl ManageNetwork for LightSync {
 		NetworkConfiguration::from(self.network.config().clone())
 	}
 }
+

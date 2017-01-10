@@ -165,7 +165,7 @@ impl Handshake {
 		self.id.clone_from_slice(remote_public);
 		self.remote_nonce.clone_from_slice(remote_nonce);
 		self.remote_version = remote_version;
-		let shared = ecdh::agree(host_secret, &self.id)?;
+		let shared = *ecdh::agree(host_secret, &self.id)?;
 		let signature = H520::from_slice(sig);
 		self.remote_ephemeral = recover(&signature.into(), &(&shared ^ &self.remote_nonce))?;
 		Ok(())
@@ -271,7 +271,7 @@ impl Handshake {
 			let (nonce, _) = rest.split_at_mut(32);
 
 			// E(remote-pubk, S(ecdhe-random, ecdh-shared-secret^nonce) || H(ecdhe-random-pubk) || pubk || nonce || 0x0)
-			let shared = ecdh::agree(secret, &self.id)?;
+			let shared = *ecdh::agree(secret, &self.id)?;
 			sig.copy_from_slice(&*sign(self.ecdhe.secret(), &(&shared ^ &self.nonce))?);
 			self.ecdhe.public().sha3_into(hepubk);
 			pubk.copy_from_slice(public);

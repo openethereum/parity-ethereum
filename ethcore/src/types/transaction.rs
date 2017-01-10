@@ -102,6 +102,7 @@ impl HeapSizeOf for Transaction {
 impl From<ethjson::state::Transaction> for SignedTransaction {
 	fn from(t: ethjson::state::Transaction) -> Self {
 		let to: Option<ethjson::hash::Address> = t.to.into();
+		let secret = Secret::from_slice(&t.secret.0).expect("Valid secret expected.");
 		Transaction {
 			nonce: t.nonce.into(),
 			gas_price: t.gas_price.into(),
@@ -112,7 +113,7 @@ impl From<ethjson::state::Transaction> for SignedTransaction {
 			},
 			value: t.value.into(),
 			data: t.data.into(),
-		}.sign(&t.secret.into(), None)
+		}.sign(&secret, None)
 	}
 }
 

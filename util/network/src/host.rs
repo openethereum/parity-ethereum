@@ -1222,3 +1222,4 @@ fn host_client_url() {
 	let host: Host = Host::new(config, Arc::new(NetworkStats::new())).unwrap();
 	assert!(host.local_url().starts_with("enode://101b3ef5a4ea7a1c7928e24c4c75fd053c235d7b80c22ae5c03d145d0ac7396e2a4ffff9adee3133a7b05044a5cee08115fd65145e5165d646bde371010d803c@"));
 }
+
