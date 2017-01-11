@@ -23,6 +23,14 @@
 //!
 //! This is written assuming that the client and sync service are running
 //! in the same binary; unlike a full node which might communicate via IPC.
+//!
+//!
+//! Sync strategy:
+//! - Find a common ancestor with peers.
+//! - Split the chain up into subchains, which are downloaded in parallel from various peers in rounds.
+//! - When within a certain distance of the head of the chain, aggressively download all
+//!   announced blocks.
+//! - On bad block/response, punish peer and reset.
 
 use std::collections::HashMap;
 use std::mem;
@@ -42,6 +50,9 @@ use self::sync_round::{AbortReason, SyncRound, ResponseContext};
 
 mod response;
 mod sync_round;
+
+#[cfg(test)]
+mod tests;
 
 /// Peer chain info.
 #[derive(Clone)]
@@ -64,6 +75,7 @@ impl Peer {
 	}
 }
 // search for a common ancestor with the best chain.
+#[derive(Debug)]
 enum AncestorSearch {
 	Queued(u64), // queued to search for blocks starting from here.
 	Awaiting(ReqId, u64, request::Headers), // awaiting response for this request.
@@ -125,6 +137,9 @@ impl AncestorSearch {
 
 		match self {
 			AncestorSearch::Queued(start) => {
+				trace!(target: "sync", "Requesting {} reverse headers from {} to find common ancestor",
+					BATCH_SIZE, start);
+
 				let req = request::Headers {
 					start: start.into(),
 					max: ::std::cmp::min(start as usize, BATCH_SIZE),
@@ -143,8 +158,9 @@ impl AncestorSearch {
 }
 
 // synchronization state machine.
+#[derive(Debug)]
 enum SyncState {
-	// Idle (waiting for peers)
+	// Idle (waiting for peers) or at chain head.
 	Idle,
 	// searching for common ancestor with best chain.
 	// queue should be cleared at this phase.
@@ -328,19 +344,19 @@ impl<L: LightChainClient> LightSync<L> {
 			return;
 		}
 
-		trace!(target: "sync", "Beginning search for common ancestor");
-		self.client.clear_queue();
+		self.client.flush_queue();
 		let chain_info = self.client.chain_info();
 
+		trace!(target: "sync", "Beginning search for common ancestor from {:?}",
+			(chain_info.best_block_number, chain_info.best_block_hash));
 		*state = SyncState::AncestorSearch(AncestorSearch::begin(chain_info.best_block_number));
 	}
 
 	fn maintain_sync(&self, ctx: &BasicContext) {
 		const DRAIN_AMOUNT: usize = 128;
 
-		debug!(target: "sync", "Maintaining sync.");
-
 		let mut state = self.state.lock();
+		debug!(target: "sync", "Maintaining sync ({:?})", &*state);
 
 		// drain any pending blocks into the queue.
 		{
@@ -358,6 +374,7 @@ impl<L: LightChainClient> LightSync<L> {
 				};
 
 				if sink.is_empty() { break }
+				trace!(target: "sync", "Drained {} headers to import", sink.len());
 
 				for header in sink.drain(..) {
 					if let Err(e) = self.client.queue_header(header) {
@@ -372,8 +389,12 @@ impl<L: LightChainClient> LightSync<L> {
 
 		// handle state transitions.
 		{
+			let chain_info = self.client.chain_info();
+			let best_td = chain_info.total_difficulty;
 			match mem::replace(&mut *state, SyncState::Idle) {
-				SyncState::Rounds(SyncRound::Abort(reason)) => {
+				_ if self.best_seen.lock().as_ref().map_or(true, |&(_, td)| best_td >= td)
+					=> *state = SyncState::Idle,
+				SyncState::Rounds(SyncRound::Abort(reason, _)) => {
 					match reason {
 						AbortReason::BadScaffold(bad_peers) => {
 							debug!(target: "sync", "Disabling peers responsible for bad scaffold");
@@ -394,7 +415,7 @@ impl<L: LightChainClient> LightSync<L> {
 				}
 				SyncState::AncestorSearch(AncestorSearch::Genesis) => {
 					// Same here.
-					let g_hash = self.client.chain_info().genesis_hash;
+					let g_hash = chain_info.genesis_hash;
 					*state = SyncState::Rounds(SyncRound::begin(0, g_hash));
 				}
 				SyncState::Idle => self.begin_search(&mut state),
