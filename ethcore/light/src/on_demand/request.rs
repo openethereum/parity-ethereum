@@ -192,7 +192,7 @@ mod tests {
 	use super::*;
 	use util::{MemoryDB, Address, H256, FixedHash};
 	use util::trie::{Trie, TrieMut, TrieDB, SecTrieDB, TrieDBMut, SecTrieDBMut};
-	use util::trie::recorder::{BasicRecorder, Recorder};
+	use util::trie::recorder::Recorder;
 
 	use ethcore::header::Header;
 	use ethcore::encoded;
@@ -221,9 +221,9 @@ mod tests {
 		let proof = {
 			let trie = TrieDB::new(&db, &root).unwrap();
 			let key = ::rlp::encode(&10_000u64);
-			let mut recorder = BasicRecorder::new();
+			let mut recorder = Recorder::new();
 
-			trie.get_recorded(&*key, &mut recorder).unwrap().unwrap();
+			trie.get_with(&*key, &mut recorder).unwrap().unwrap();
 
 			recorder.drain().into_iter().map(|r| r.data).collect::<Vec<_>>()
 		};
@@ -318,9 +318,9 @@ mod tests {
 
 		let proof = {
 			let trie = SecTrieDB::new(&db, &root).unwrap();
-			let mut recorder = BasicRecorder::new();
+			let mut recorder = Recorder::new();
 
-			trie.get_recorded(&*addr, &mut recorder).unwrap().unwrap();
+			trie.get_with(&*addr, &mut recorder).unwrap().unwrap();
 
 			recorder.drain().into_iter().map(|r| r.data).collect::<Vec<_>>()
 		};
