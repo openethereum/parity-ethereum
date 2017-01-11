@@ -610,6 +610,7 @@ mod tests {
 	use util::Address;
 	use util::hash::FixedHash;
 	use std::sync::Arc;
+	use transaction::SignedTransaction;
 
 	/// Enact the block given by `block_bytes` using `engine` on the database `db` with given `parent` block header
 	#[cfg_attr(feature="dev", allow(too_many_arguments))]

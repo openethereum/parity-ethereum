@@ -1170,7 +1170,7 @@ mod tests {
 	use ethkey::{Generator, Random};
 	use client::{BlockChainClient, TestBlockChainClient, EachBlockWith, TransactionImportResult};
 	use header::BlockNumber;
-	use types::transaction::{Transaction, PendingTransaction, Action};
+	use types::transaction::{SignedTransaction, Transaction, PendingTransaction, Action};
 	use spec::Spec;
 	use tests::helpers::{generate_dummy_client};
 

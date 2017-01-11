@@ -164,8 +164,8 @@ export default class MethodDecodingStore {
               methodInputs = this.api.util
                 .decodeMethodInput(abi, paramdata)
                 .map((value, index) => {
-                  const type = abi.inputs[index].type;
-                  return { type, value };
+                  const { name, type } = abi.inputs[index];
+                  return { name, type, value };
                 });
             }
 
