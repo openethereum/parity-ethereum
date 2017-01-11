@@ -135,7 +135,7 @@ export default class SecureApi extends Api {
         this.emit('disconnected');
         console.error('unhandled error in secureApi', error);
       });
-  }
+    }
 
   _resetTokens () {
     this._tokens = this._tokens.map((token) => ({
@@ -253,7 +253,7 @@ export default class SecureApi extends Api {
       .catch((error) => {
         // Log if it's not a close error (ie. wrong token)
         if (error && error.type !== 'close') {
-          log.debug('did not connect ; error', e);
+          log.debug('did not connect ; error', error);
         }
 
         // Check if the Node is up
