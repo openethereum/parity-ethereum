@@ -874,6 +874,7 @@ impl BlockChainClient for Client {
 	}
 
 	fn estimate_gas(&self, t: &SignedTransaction, block: BlockId) -> Result<U256, CallError> {
+		const UPPER_CEILING: u64 = 1_000_000_000_000u64;
 		let header = self.block_header(block).ok_or(CallError::StatePruned)?;
 		let last_hashes = self.build_last_hashes(header.parent_hash());
 		let env_info = EnvInfo {
@@ -883,7 +884,7 @@ impl BlockChainClient for Client {
 			difficulty: header.difficulty(),
 			last_hashes: last_hashes,
 			gas_used: U256::zero(),
-			gas_limit: U256::max_value(),
+			gas_limit: UPPER_CEILING.into(),
 		};
 		// that's just a copy of the state.
 		let mut original_state = self.state_at(block).ok_or(CallError::StatePruned)?;
@@ -899,6 +900,7 @@ impl BlockChainClient for Client {
 		}
 		let options = TransactOptions { tracing: true, vm_tracing: false, check_nonce: false };
 		let mut tx = t.clone();
+		tx.gas_price = 0.into();
 
 		let mut cond = |gas| {
 			let mut state = original_state.clone();
@@ -909,11 +911,10 @@ impl BlockChainClient for Client {
 				.unwrap_or(false)
 		};
 
-		let mut upper = env_info.gas_limit;
+		let mut upper = header.gas_limit();
 		if !cond(upper) {
 			// impossible at block gas limit - try `UPPER_CEILING` instead.
 			// TODO: consider raising limit by powers of two.
-			const UPPER_CEILING: u64 = 1_000_000_000_000u64;
 			upper = UPPER_CEILING.into();
 			if !cond(upper) {
 				trace!(target: "estimate_gas", "estimate_gas failed with {}", upper);
