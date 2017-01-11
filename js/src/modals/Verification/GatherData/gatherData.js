@@ -35,6 +35,7 @@ export default class GatherData extends Component {
     fee: React.PropTypes.instanceOf(BigNumber),
     method: PropTypes.string.isRequired,
     fields: PropTypes.array.isRequired,
+    isServerRunning: nullableProptype(PropTypes.bool.isRequired),
     isVerified: nullableProptype(PropTypes.bool.isRequired),
     hasRequested: nullableProptype(PropTypes.bool.isRequired),
     setConsentGiven: PropTypes.func.isRequired
@@ -48,6 +49,7 @@ export default class GatherData extends Component {
     return (
       <Form>
         { howItWorks }
+        { this.renderServerRunning() }
         { this.renderFee() }
         { this.renderCertified() }
         { this.renderRequested() }
@@ -60,6 +62,29 @@ export default class GatherData extends Component {
         />
         <div className={ styles.terms }>{ termsOfService }</div>
       </Form>
+    );
+  }
+
+  renderServerRunning () {
+    const { isServerRunning } = this.props;
+
+    if (isServerRunning) {
+      return (
+        <div className={ styles.container }>
+          <SuccessIcon />
+          <p className={ styles.message }>The verification server is running.</p>
+        </div>
+      );
+    } else if (isServerRunning === false) {
+      return (
+        <div className={ styles.container }>
+          <ErrorIcon />
+          <p className={ styles.message }>The verification server is not running.</p>
+        </div>
+      );
+    }
+    return (
+      <p className={ styles.message }>Checking if the verification server is running…</p>
     );
   }
 
