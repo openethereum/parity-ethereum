@@ -887,23 +887,25 @@ impl BlockChainClient for Client {
 			gas_limit: UPPER_CEILING.into(),
 		};
 		// that's just a copy of the state.
-		let mut original_state = self.state_at(block).ok_or(CallError::StatePruned)?;
+		let original_state = self.state_at(block).ok_or(CallError::StatePruned)?;
 		let sender = t.sender().map_err(|e| {
 			let message = format!("Transaction malformed: {:?}", e);
 			ExecutionError::TransactionMalformed(message)
 		})?;
 		let balance = original_state.balance(&sender);
-		let needed_balance = t.value + U256::from(UPPER_CEILING) * t.gas_price;
-		if balance < needed_balance {
-			// give the sender a sufficient balance
-			original_state.add_balance(&sender, &(needed_balance - balance), CleanupMode::NoEmpty);
-		}
 		let options = TransactOptions { tracing: true, vm_tracing: false, check_nonce: false };
 		let mut tx = t.clone();
 
 		let mut cond = |gas| {
-			let mut state = original_state.clone();
 			tx.gas = gas;
+
+			let mut state = original_state.clone();
+			let needed_balance = tx.value + tx.gas * tx.gas_price;
+			if balance < needed_balance {
+				// give the sender a sufficient balance
+				state.add_balance(&sender, &(needed_balance - balance), CleanupMode::NoEmpty);
+			}
+
 			Executive::new(&mut state, &env_info, &*self.engine, &self.factories.vm)
 				.transact(&tx, options.clone())
 				.map(|r| r.trace[0].result.succeeded())
