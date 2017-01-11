@@ -2124,7 +2124,7 @@ mod tests {
 	use std::collections::{HashSet, VecDeque};
 	use tests::helpers::*;
 	use tests::snapshot::TestSnapshotService;
-	use util::{U256, RwLock};
+	use util::{U256, Address, RwLock};
 	use util::sha3::Hashable;
 	use util::hash::{H256, FixedHash};
 	use util::bytes::Bytes;
