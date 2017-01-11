@@ -25,8 +25,9 @@ use std::ops::Drop;
 use std::sync::Arc;
 use std::net::SocketAddr;
 use io::{PanicHandler, OnPanicListener, MayPanic};
-use jsonrpc_core::{IoHandler, IoDelegate};
-use rpc::{Extendable, ConfirmationsQueue};
+use jsonrpc_core::Metadata;
+use jsonrpc_core::reactor::RpcHandler;
+use rpc::ConfirmationsQueue;
 
 mod session;
 
@@ -51,15 +52,8 @@ impl From<ws::Error> for ServerError {
 /// Builder for `WebSockets` server
 pub struct ServerBuilder {
 	queue: Arc<ConfirmationsQueue>,
-	handler: Arc<IoHandler>,
 	authcodes_path: PathBuf,
 	skip_origin_validation: bool,
-}
-
-impl Extendable for ServerBuilder {
-	fn add_delegate<D: Send + Sync + 'static>(&self, delegate: IoDelegate<D>) {
-		self.handler.add_delegate(delegate);
-	}
 }
 
 impl ServerBuilder {
@@ -67,7 +61,6 @@ impl ServerBuilder {
 	pub fn new(queue: Arc<ConfirmationsQueue>, authcodes_path: PathBuf) -> Self {
 		ServerBuilder {
 			queue: queue,
-			handler: Arc::new(IoHandler::new()),
 			authcodes_path: authcodes_path,
 			skip_origin_validation: false,
 		}
@@ -82,14 +75,14 @@ impl ServerBuilder {
 
 	/// Starts a new `WebSocket` server in separate thread.
 	/// Returns a `Server` handle which closes the server when droped.
-	pub fn start(self, addr: SocketAddr) -> Result<Server, ServerError> {
-		Server::start(addr, self.handler, self.queue, self.authcodes_path, self.skip_origin_validation)
+	pub fn start<M: Metadata>(self, addr: SocketAddr, handler: RpcHandler<M>) -> Result<Server, ServerError> {
+		Server::start(addr, handler, self.queue, self.authcodes_path, self.skip_origin_validation)
 	}
 }
 
 /// `WebSockets` server implementation.
 pub struct Server {
-	handle: Option<thread::JoinHandle<ws::WebSocket<session::Factory>>>,
+	handle: Option<thread::JoinHandle<()>>,
 	broadcaster_handle: Option<thread::JoinHandle<()>>,
 	queue: Arc<ConfirmationsQueue>,
 	panic_handler: Arc<PanicHandler>,
@@ -104,7 +97,7 @@ impl Server {
 
 	/// Starts a new `WebSocket` server in separate thread.
 	/// Returns a `Server` handle which closes the server when droped.
-	fn start(addr: SocketAddr, handler: Arc<IoHandler>, queue: Arc<ConfirmationsQueue>, authcodes_path: PathBuf, skip_origin_validation: bool) -> Result<Server, ServerError> {
+	fn start<M: Metadata>(addr: SocketAddr, handler: RpcHandler<M>, queue: Arc<ConfirmationsQueue>, authcodes_path: PathBuf, skip_origin_validation: bool) -> Result<Server, ServerError> {
 		let config = {
 			let mut config = ws::Settings::default();
 			// accept only handshakes beginning with GET
@@ -138,7 +131,7 @@ impl Server {
 					)),
 					Ok(server) => server,
 				}
-			}).unwrap()
+			}).unwrap();
 		});
 
 		// Spawn a thread for broadcasting

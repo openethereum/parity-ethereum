@@ -15,11 +15,10 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import BigNumber from 'bignumber.js';
+import { LinearProgress } from 'material-ui';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
-import { bindActionCreators } from 'redux';
-import { LinearProgress } from 'material-ui';
 
 import { txLink } from '~/3rdparty/etherscan/links';
 import ShortenedHash from '../ShortenedHash';
@@ -169,11 +168,7 @@ function mapStateToProps (state) {
   return { isTest };
 }
 
-function mapDispatchToProps (dispatch) {
-  return bindActionCreators({}, dispatch);
-}
-
 export default connect(
   mapStateToProps,
-  mapDispatchToProps
+  null
 )(TxHash);

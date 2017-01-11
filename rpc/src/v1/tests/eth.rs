@@ -18,6 +18,7 @@
 use std::sync::Arc;
 use std::time::Duration;
 
+use devtools::RandomTempPath;
 use ethcore::client::{BlockChainClient, Client, ClientConfig};
 use ethcore::ids::BlockId;
 use ethcore::spec::{Genesis, Spec};
@@ -26,18 +27,17 @@ use ethcore::views::BlockView;
 use ethcore::ethereum;
 use ethcore::miner::{MinerOptions, Banning, GasPricer, MinerService, ExternalMiner, Miner, PendingSet, PrioritizationStrategy, GasLimit};
 use ethcore::account_provider::AccountProvider;
-use devtools::RandomTempPath;
-use util::Hashable;
-use io::IoChannel;
-use util::{U256, H256, Uint, Address};
-use jsonrpc_core::{IoHandler, GenericIoHandler};
 use ethjson::blockchain::BlockChain;
+use io::IoChannel;
+use util::{U256, H256, Uint, Address, Hashable};
 
+use jsonrpc_core::IoHandler;
 use v1::impls::{EthClient, SigningUnsafeClient};
-use v1::types::U256 as NU256;
+use v1::metadata::Metadata;
+use v1::tests::helpers::{TestSnapshotService, TestSyncProvider, Config};
 use v1::traits::eth::Eth;
 use v1::traits::eth_signing::EthSigning;
-use v1::tests::helpers::{TestSnapshotService, TestSyncProvider, Config};
+use v1::types::U256 as NU256;
 
 fn account_provider() -> Arc<AccountProvider> {
 	Arc::new(AccountProvider::transient_provider())
@@ -92,7 +92,7 @@ struct EthTester {
 	_miner: Arc<MinerService>,
 	_snapshot: Arc<TestSnapshotService>,
 	accounts: Arc<AccountProvider>,
-	handler: IoHandler,
+	handler: IoHandler<Metadata>,
 }
 
 impl EthTester {
@@ -147,9 +147,9 @@ impl EthTester {
 			&miner_service
 		);
 
-		let handler = IoHandler::new();
-		handler.add_delegate(eth_client.to_delegate());
-		handler.add_delegate(eth_sign.to_delegate());
+		let mut handler = IoHandler::default();
+		handler.extend_with(eth_client.to_delegate());
+		handler.extend_with(eth_sign.to_delegate());
 
 		EthTester {
 			_miner: miner_service,

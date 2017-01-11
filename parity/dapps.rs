@@ -22,9 +22,9 @@ use ethcore::client::Client;
 use ethsync::SyncProvider;
 use helpers::replace_home;
 use dir::default_data_path;
+use jsonrpc_core::reactor::Remote;
 use rpc_apis::SignerService;
 use hash_fetch::fetch::Client as FetchClient;
-use parity_reactor::Remote;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Configuration {
@@ -130,6 +130,8 @@ mod server {
 	use rpc_apis;
 	use ethcore_rpc::is_major_importing;
 	use hash_fetch::urlhint::ContractClient;
+	use jsonrpc_core::reactor::RpcHandler;
+	use parity_reactor;
 
 	pub use ethcore_dapps::Server as WebappServer;
 
@@ -146,8 +148,9 @@ mod server {
 		let server = dapps::ServerBuilder::new(
 			&dapps_path,
 			Arc::new(Registrar { client: deps.client.clone() }),
-			deps.remote.clone(),
+			parity_reactor::Remote::new(deps.remote.clone()),
 		);
+
 		let sync = deps.sync.clone();
 		let client = deps.client.clone();
 		let signer = deps.signer.clone();
@@ -156,15 +159,17 @@ mod server {
 			.sync_status(Arc::new(move || is_major_importing(Some(sync.status().state), client.queue_info())))
 			.web_proxy_tokens(Arc::new(move |token| signer.is_valid_web_proxy_access_token(&token)))
 			.extra_dapps(&extra_dapps)
-			.signer_address(deps.signer.address());
+			.signer_address(deps.signer.address())
+			.allowed_hosts(allowed_hosts);
 
-		let server = rpc_apis::setup_rpc(server, deps.apis.clone(), rpc_apis::ApiSet::UnsafeContext);
+		let apis = rpc_apis::setup_rpc(Default::default(), deps.apis.clone(), rpc_apis::ApiSet::UnsafeContext);
+		let handler = RpcHandler::new(Arc::new(apis), deps.remote);
 		let start_result = match auth {
 			None => {
-				server.start_unsecured_http(url, allowed_hosts)
+				server.start_unsecured_http(url, handler)
 			},
 			Some((username, password)) => {
-				server.start_basic_auth_http(url, allowed_hosts, &username, &password)
+				server.start_basic_auth_http(url, &username, &password, handler)
 			},
 		};
 
@@ -175,8 +180,9 @@ mod server {
 			},
 			Err(e) => Err(format!("WebApps error: {:?}", e)),
 			Ok(server) => {
+				let ph = deps.panic_handler;
 				server.set_panic_handler(move || {
-					deps.panic_handler.notify_all("Panic in WebApp thread.".to_owned());
+					ph.notify_all("Panic in WebApp thread.".to_owned());
 				});
 				Ok(server)
 			},

@@ -18,7 +18,6 @@ import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
-import { bindActionCreators } from 'redux';
 
 import { Container, TxList, Loading } from '~/ui';
 
@@ -118,11 +117,7 @@ function mapStateToProps (state) {
   };
 }
 
-function mapDispatchToProps (dispatch) {
-  return bindActionCreators({}, dispatch);
-}
-
 export default connect(
   mapStateToProps,
-  mapDispatchToProps
+  null
 )(Transactions);

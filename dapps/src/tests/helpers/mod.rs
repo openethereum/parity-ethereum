@@ -16,8 +16,11 @@
 
 use std::env;
 use std::str;
+use std::ops::Deref;
 use std::sync::Arc;
 use env_logger::LogBuilder;
+use jsonrpc_core::MetaIoHandler;
+use jsonrpc_core::reactor::RpcEventLoop;
 
 use ServerBuilder;
 use Server;
@@ -42,7 +45,20 @@ fn init_logger() {
 	}
 }
 
-pub fn init_server<F, B>(hosts: Option<Vec<String>>, process: F, remote: Remote) -> (Server, Arc<FakeRegistrar>) where
+pub struct ServerLoop {
+	pub server: Server,
+	pub event_loop: RpcEventLoop,
+}
+
+impl Deref for ServerLoop {
+	type Target = Server;
+
+	fn deref(&self) -> &Self::Target {
+		&self.server
+	}
+}
+
+pub fn init_server<F, B>(process: F, remote: Remote) -> (ServerLoop, Arc<FakeRegistrar>) where
 	F: FnOnce(ServerBuilder) -> ServerBuilder<B>,
 	B: Fetch,
 {
@@ -50,60 +66,76 @@ pub fn init_server<F, B>(hosts: Option<Vec<String>>, process: F, remote: Remote)
 	let registrar = Arc::new(FakeRegistrar::new());
 	let mut dapps_path = env::temp_dir();
 	dapps_path.push("non-existent-dir-to-prevent-fs-files-from-loading");
+
+	// TODO [ToDr] When https://github.com/ethcore/jsonrpc/issues/26 is resolved
+	// this additional EventLoop wouldn't be needed, we should be able to re-use remote.
+	let event_loop = RpcEventLoop::spawn();
+	let handler = event_loop.handler(Arc::new(MetaIoHandler::default()));
 	let server = process(ServerBuilder::new(
 		&dapps_path, registrar.clone(), remote,
 	))
 		.signer_address(Some(("127.0.0.1".into(), SIGNER_PORT)))
-		.start_unsecured_http(&"127.0.0.1:0".parse().unwrap(), hosts).unwrap();
+		.start_unsecured_http(&"127.0.0.1:0".parse().unwrap(), handler).unwrap();
 	(
-		server,
+		ServerLoop { server: server, event_loop: event_loop },
 		registrar,
 	)
 }
 
-pub fn serve_with_auth(user: &str, pass: &str) -> Server {
+pub fn serve_with_auth(user: &str, pass: &str) -> ServerLoop {
 	init_logger();
 	let registrar = Arc::new(FakeRegistrar::new());
 	let mut dapps_path = env::temp_dir();
 	dapps_path.push("non-existent-dir-to-prevent-fs-files-from-loading");
-	ServerBuilder::new(&dapps_path, registrar.clone(), Remote::new_sync())
+
+	let event_loop = RpcEventLoop::spawn();
+	let handler = event_loop.handler(Arc::new(MetaIoHandler::default()));
+	let server = ServerBuilder::new(&dapps_path, registrar, Remote::new(event_loop.remote()))
 		.signer_address(Some(("127.0.0.1".into(), SIGNER_PORT)))
-		.start_basic_auth_http(&"127.0.0.1:0".parse().unwrap(), None, user, pass).unwrap()
+		.allowed_hosts(None)
+		.start_basic_auth_http(&"127.0.0.1:0".parse().unwrap(), user, pass, handler).unwrap();
+	ServerLoop {
+		server: server,
+		event_loop: event_loop,
+	}
 }
 
-pub fn serve_hosts(hosts: Option<Vec<String>>) -> Server {
-	init_server(hosts, |builder| builder, Remote::new_sync()).0
+pub fn serve_hosts(hosts: Option<Vec<String>>) -> ServerLoop {
+	init_server(|builder| builder.allowed_hosts(hosts), Remote::new_sync()).0
 }
 
-pub fn serve_with_registrar() -> (Server, Arc<FakeRegistrar>) {
-	init_server(None, |builder| builder, Remote::new_sync())
+pub fn serve_with_registrar() -> (ServerLoop, Arc<FakeRegistrar>) {
+	init_server(|builder| builder.allowed_hosts(None), Remote::new_sync())
 }
 
-pub fn serve_with_registrar_and_sync() -> (Server, Arc<FakeRegistrar>) {
-	init_server(None, |builder| {
-		builder.sync_status(Arc::new(|| true))
+pub fn serve_with_registrar_and_sync() -> (ServerLoop, Arc<FakeRegistrar>) {
+	init_server(|builder| {
+		builder
+			.sync_status(Arc::new(|| true))
+			.allowed_hosts(None)
 	}, Remote::new_sync())
 }
 
-pub fn serve_with_registrar_and_fetch() -> (Server, FakeFetch, Arc<FakeRegistrar>) {
+pub fn serve_with_registrar_and_fetch() -> (ServerLoop, FakeFetch, Arc<FakeRegistrar>) {
 	serve_with_registrar_and_fetch_and_threads(false)
 }
 
-pub fn serve_with_registrar_and_fetch_and_threads(multi_threaded: bool) -> (Server, FakeFetch, Arc<FakeRegistrar>) {
+pub fn serve_with_registrar_and_fetch_and_threads(multi_threaded: bool) -> (ServerLoop, FakeFetch, Arc<FakeRegistrar>) {
 	let fetch = FakeFetch::default();
 	let f = fetch.clone();
-	let (server, reg) = init_server(None, move |builder| {
-		builder.fetch(f.clone())
+	let (server, reg) = init_server(move |builder| {
+		builder.allowed_hosts(None).fetch(f.clone())
 	}, if multi_threaded { Remote::new_thread_per_future() } else { Remote::new_sync() });
 
 	(server, fetch, reg)
 }
 
-pub fn serve_with_fetch(web_token: &'static str) -> (Server, FakeFetch) {
+pub fn serve_with_fetch(web_token: &'static str) -> (ServerLoop, FakeFetch) {
 	let fetch = FakeFetch::default();
 	let f = fetch.clone();
-	let (server, _) = init_server(None, move |builder| {
+	let (server, _) = init_server(move |builder| {
 		builder
+			.allowed_hosts(None)
 			.fetch(f.clone())
 			.web_proxy_tokens(Arc::new(move |token| &token == web_token))
 	}, Remote::new_sync());
@@ -111,11 +143,11 @@ pub fn serve_with_fetch(web_token: &'static str) -> (Server, FakeFetch) {
 	(server, fetch)
 }
 
-pub fn serve() -> Server {
-	init_server(None, |builder| builder, Remote::new_sync()).0
+pub fn serve() -> ServerLoop {
+	init_server(|builder| builder.allowed_hosts(None), Remote::new_sync()).0
 }
 
-pub fn request(server: Server, request: &str) -> http_client::Response {
+pub fn request(server: ServerLoop, request: &str) -> http_client::Response {
 	http_client::request(server.addr(), request)
 }
 
