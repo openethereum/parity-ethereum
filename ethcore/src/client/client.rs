@@ -893,14 +893,13 @@ impl BlockChainClient for Client {
 			ExecutionError::TransactionMalformed(message)
 		})?;
 		let balance = original_state.balance(&sender);
-		let needed_balance = t.value + t.gas * t.gas_price;
+		let needed_balance = t.value + U256::from(UPPER_CEILING) * t.gas_price;
 		if balance < needed_balance {
 			// give the sender a sufficient balance
 			original_state.add_balance(&sender, &(needed_balance - balance), CleanupMode::NoEmpty);
 		}
 		let options = TransactOptions { tracing: true, vm_tracing: false, check_nonce: false };
 		let mut tx = t.clone();
-		tx.gas_price = 0.into();
 
 		let mut cond = |gas| {
 			let mut state = original_state.clone();
