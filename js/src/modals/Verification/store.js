@@ -120,7 +120,7 @@ export default class VerificationStore {
 
     const confirm = contract.functions.find((fn) => fn.name === 'confirm');
     const options = { from: account };
-    const values = [ sha3(code) ];
+    const values = [ sha3.text(code) ];
 
     this.code = code;
     this.isCodeValid = null;
@@ -192,7 +192,7 @@ export default class VerificationStore {
 
   @action sendConfirmation = () => {
     const { api, account, contract, code } = this;
-    const token = sha3(code);
+    const token = sha3.text(code);
 
     const confirm = contract.functions.find((fn) => fn.name === 'confirm');
     const options = { from: account };

@@ -62,7 +62,7 @@ export const reserve = (name) => (dispatch, getState) => {
         value: fee
       };
       const values = [
-        sha3(name)
+        sha3.text(name)
       ];
 
       return postTx(api, reserve, options, values);
@@ -116,7 +116,7 @@ export const drop = (name) => (dispatch, getState) => {
       };
 
       const values = [
-        sha3(name)
+        sha3.text(name)
       ];
 
       return postTx(api, drop, options, values);
