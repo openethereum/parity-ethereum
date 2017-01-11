@@ -166,7 +166,7 @@ impl Decodable for ConsensusMessage {
 			}
 		})
   }
-} 
+}
 
 impl Encodable for ConsensusMessage {
 	fn rlp_append(&self, s: &mut RlpStream) {
@@ -199,11 +199,12 @@ mod tests {
 	use super::*;
 	use account_provider::AccountProvider;
 	use header::Header;
+	use ethkey::Secret;
 
 	#[test]
 	fn encode_decode() {
 		let message = ConsensusMessage {
-			signature: H520::default(),	
+			signature: H520::default(),
 			height: 10,
 			round: 123,
 			step: Step::Precommit,
@@ -214,7 +215,7 @@ mod tests {
 		assert_eq!(message, rlp.as_val());
 
 		let message = ConsensusMessage {
-			signature: H520::default(),	
+			signature: H520::default(),
 			height: 1314,
 			round: 0,
 			step: Step::Prevote,
@@ -228,7 +229,7 @@ mod tests {
 	#[test]
 	fn generate_and_verify() {
 		let tap = Arc::new(AccountProvider::transient_provider());
-		let addr = tap.insert_account("0".sha3(), "0").unwrap();
+		let addr = tap.insert_account(Secret::from_slice(&"0".sha3()).unwrap(), "0").unwrap();
 		tap.unlock_account_permanently(addr, "0".into()).unwrap();
 
 		let mi = message_info_rlp(123, 2, Step::Precommit, Some(H256::default()));
