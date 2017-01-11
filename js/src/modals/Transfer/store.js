@@ -357,6 +357,7 @@ export default class TransferStore {
         });
       })
       .catch((error) => {
+        this.gasStore.setEstimatedError();
         console.warn('etimateGas', error);
         this.recalculate(redo);
       });

@@ -62,6 +62,10 @@ export default class GasPriceEditor {
     this.errorTotal = errorTotal;
   }
 
+  @action setEstimatedError = (errorEstimated = ERRORS.gasException) => {
+    this.errorEstimated = errorEstimated;
+  }
+
   @action setEstimated = (estimated) => {
     transaction(() => {
       const bn = new BigNumber(estimated);
@@ -69,11 +73,11 @@ export default class GasPriceEditor {
       this.estimated = estimated;
 
       if (bn.gte(MAX_GAS_ESTIMATION)) {
-        this.errorEstimated = ERRORS.gasException;
+        this.setEstimatedError(ERRORS.gasException);
       } else if (bn.gte(this.gasLimit)) {
-        this.errorEstimated = ERRORS.gasBlockLimit;
+        this.setEstimatedError(ERRORS.gasBlockLimit);
       } else {
-        this.errorEstimated = null;
+        this.setEstimatedError(null);
       }
     });
   }
