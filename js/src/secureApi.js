@@ -97,14 +97,13 @@ export default class SecureApi extends Api {
 
     this._isConnecting = true;
 
-    log.debug('emitting "connecting"');
     this.emit('connecting');
 
     // Reset the tested Tokens
     this._resetTokens();
 
-    // Try the next Token, ie. the first one
-    return this._tryNextToken()
+    // Try to connect
+    return this._connect()
       .then((connected) => {
         this._isConnecting = false;
 
@@ -117,7 +116,6 @@ export default class SecureApi extends Api {
           this._needsToken = false;
 
           // Emit the connected event
-          log.debug('emitting "connected"');
           return this.emit('connected');
         }
 
@@ -125,7 +123,6 @@ export default class SecureApi extends Api {
         log.debug('needs a token');
         this._needsToken = true;
 
-        log.debug('emitting "connected"');
         return this.emit('disconnected');
       })
       .catch((error) => {
@@ -135,17 +132,6 @@ export default class SecureApi extends Api {
         this.emit('disconnected');
         console.error('unhandled error in secureApi', error);
       });
-  }
-
-  _resetTokens () {
-    this._tokens = this._tokens.map((token) => ({
-      ...token,
-      tried: false
-    }));
-  }
-
-  _saveToken (token) {
-    window.localStorage.setItem('sysuiToken', token);
   }
 
   /**
@@ -164,72 +150,62 @@ export default class SecureApi extends Api {
   }
 
   /**
-   * Promise gets resolved when the node is up
-   * and running (it might take some time before
-   * the node is actually ready even when the client
-   * is connected).
-   *
-   * We check that the `parity_enode` RPC calls
-   * returns successfully
+   * Update the given token, ie. add it to the token
+   * list, and then try to connect (if not already connecting)
    */
-  waitUntilNodeReady () {
-    return this
-      .parity.enode()
-      .then(() => true)
-      .catch((error) => {
-        if (!error) {
-          return true;
-        }
+  updateToken (_token) {
+    const token = this._sanitiseToken(_token);
+    log.debug('updating token', token);
 
-        if (error.type !== 'NETWORK_DISABLED') {
-          throw error;
-        }
+    // Update the tokens list: put the new one on first position
+    this._tokens = [ { value: token, tried: false } ].concat(this._tokens);
 
-        // Timeout between 250ms and 750ms
-        const timeout = Math.floor(250 + (500 * Math.random()));
-
-        log.debug('waiting until node is ready', 'retry in', timeout, 'ms');
-
-        // Retry in a few...
-        return new Promise((resolve, reject) => {
-          window.setTimeout(() => {
-            this.waitUntilNodeReady().then(resolve).catch(reject);
-          }, timeout);
-        });
-      });
+    // Try to connect with the new token added
+    return this.connect();
   }
 
   /**
    * Try to connect to the Node with the next Token in
    * the list
    */
-  _tryNextToken () {
+  _connect () {
     log.debug('trying next token');
 
     // Get the first not-tried token
-    const nextTokenIndex = this._tokens.findIndex((t) => !t.tried);
+    const nextToken = this._getNextToken();
 
     // If no more tokens to try, user has to enter a new one
-    if (nextTokenIndex < 0) {
+    if (!nextToken) {
       return Promise.resolve(false);
     }
 
-    const nextToken = this._tokens[nextTokenIndex];
     nextToken.tried = true;
 
-    return this._connectWithToken(nextToken.value);
+    return this._connectWithToken(nextToken.value)
+      .then((validToken) => {
+        // If not valid, try again with the next token in the list
+        if (!validToken) {
+          return this._connect();
+        }
+
+        // If correct and valid token, wait until the Node is ready
+        // and resolve as connected
+        return this._waitUntilNodeReady()
+          .then(() => this._fetchSettings())
+          .then(() => true);
+      })
+      .catch((error) => {
+        log.error('unkown error in _connect', error);
+        return false;
+      });
   }
 
   /**
-   * Try to generate an Authorization Token.
-   * Then try to connect with the new token.
+   * Connect with the given token.
+   * It returns a Promise that gets resolved
+   * with `validToken` as argument, whether the given token
+   * is valid or not
    */
-  _generateAuthorizationToken () {
-    return this.signer
-      .generateAuthorizationToken()
-      .then((token) => this._connectWithToken(token));
-  }
-
   _connectWithToken (_token) {
     // Sanitize the token first
     const token = this._sanitiseToken(_token);
@@ -246,9 +222,8 @@ export default class SecureApi extends Api {
           return this._generateAuthorizationToken();
         }
 
-        return this.waitUntilNodeReady()
-          .then(() => this._connectSuccess())
-          .then(() => true);
+        // The token is valid !
+        return true;
       })
       .catch((error) => {
         // Log if it's not a close error (ie. wrong token)
@@ -272,14 +247,17 @@ export default class SecureApi extends Api {
               });
             }
 
+            // The token is invalid
             log.debug('tried with a wrong token', token);
-            return this._tryNextToken();
+            return false;
           });
       });
   }
 
-  _connectSuccess () {
-    // Retrieve the correct ports from the Node
+  /**
+   * Retrieve the correct ports from the Node
+   */
+  _fetchSettings () {
     return Promise
       .all([
         this.parity.dappsPort(),
@@ -293,18 +271,80 @@ export default class SecureApi extends Api {
       });
   }
 
+  /**
+   * Try to generate an Authorization Token.
+   * Then try to connect with the new token.
+   */
+  _generateAuthorizationToken () {
+    return this.signer
+      .generateAuthorizationToken()
+      .then((token) => this._connectWithToken(token));
+  }
+
+  /**
+   * Get the next token to try, if any left
+   */
+  _getNextToken () {
+    // Get the first not-tried token
+    const nextTokenIndex = this._tokens.findIndex((t) => !t.tried);
+
+    // If no more tokens to try, user has to enter a new one
+    if (nextTokenIndex < 0) {
+      return null;
+    }
+
+    const nextToken = this._tokens[nextTokenIndex];
+    return nextToken;
+  }
+
+  _resetTokens () {
+    this._tokens = this._tokens.map((token) => ({
+      ...token,
+      tried: false
+    }));
+  }
+
   _sanitiseToken (token) {
     return token.replace(/[^a-zA-Z0-9]/g, '');
   }
 
-  updateToken (_token) {
-    const token = this._sanitiseToken(_token);
-    log.debug('updating token', token);
+  _saveToken (token) {
+    window.localStorage.setItem('sysuiToken', token);
+  }
 
-    // Update the tokens list: put the new one on first position
-    this._tokens = [ { value: token, tried: false } ].concat(this._tokens);
+  /**
+   * Promise gets resolved when the node is up
+   * and running (it might take some time before
+   * the node is actually ready even when the client
+   * is connected).
+   *
+   * We check that the `parity_enode` RPC calls
+   * returns successfully
+   */
+  _waitUntilNodeReady () {
+    return this
+      .parity.enode()
+      .then(() => true)
+      .catch((error) => {
+        if (!error) {
+          return true;
+        }
 
-    // Try to connect with the new token added
-    return this.connect();
+        if (error.type !== 'NETWORK_DISABLED') {
+          throw error;
+        }
+
+        // Timeout between 250ms and 750ms
+        const timeout = Math.floor(250 + (500 * Math.random()));
+
+        log.debug('waiting until node is ready', 'retry in', timeout, 'ms');
+
+        // Retry in a few...
+        return new Promise((resolve, reject) => {
+          window.setTimeout(() => {
+            this._waitUntilNodeReady().then(resolve).catch(reject);
+          }, timeout);
+        });
+      });
   }
 }
