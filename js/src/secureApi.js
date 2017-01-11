@@ -23,55 +23,118 @@ const log = getLogger(LOG_KEYS.Signer);
 const sysuiToken = window.localStorage.getItem('sysuiToken');
 
 export default class SecureApi extends Api {
+
+  _isConnecting = false;
+  _needsToken = false;
+  _tokens = [];
+
+  _dappsInterface = null;
+  _dappsPort = 8080;
+  _signerPort = 8180;
+
   constructor (url, nextToken) {
     const transport = new Api.Transport.Ws(url, sysuiToken, false);
     super(transport);
 
     this._url = url;
-    this._isConnecting = true;
-    this._needsToken = false;
 
-    this._dappsPort = 8080;
-    this._dappsInterface = null;
-    this._signerPort = 8180;
-
-    // Try tokens from localstorage, then from hash
+    // Try tokens from localstorage, from hash and 'initial'
     this._tokens = uniq([sysuiToken, nextToken, 'initial'])
       .filter((token) => token)
       .map((token) => ({ value: token, tried: false }));
 
+    // When the transport is closed, try to reconnect
+    transport.on('close', this.connect, this);
     this.connect();
   }
 
-  connect (token) {
-    if (this._connectPromise) {
-      return this
-        ._connectPromise
-        .then((connected) => {
-          if (!connected && token) {
-            return this._followConnection(token);
-          }
+  get dappsPort () {
+    return this._dappsPort;
+  }
 
-          return connected;
-        });
+  get dappsUrl () {
+    return `http://${this.hostname}:${this.dappsPort}`;
+  }
+
+  get hostname () {
+    if (window.location.hostname === 'home.parity') {
+      return 'dapps.parity';
+    }
+
+    if (!this._dappsInterface || this._dappsInterface === '0.0.0.0') {
+      return window.location.hostname;
+    }
+
+    return this._dappsInterface;
+  }
+
+  get signerPort () {
+    return this._signerPort;
+  }
+
+  get isConnecting () {
+    return this._isConnecting;
+  }
+
+  get isConnected () {
+    return this._transport.isConnected;
+  }
+
+  get needsToken () {
+    return this._needsToken;
+  }
+
+  get secureToken () {
+    return this._transport.token;
+  }
+
+  connect () {
+    if (this._isConnecting) {
+      return;
     }
 
     log.debug('trying to connect...');
 
+    this._isConnecting = true;
+
+    log.debug('emitting "connecting"');
+    this.emit('connecting');
+
+    // Reset the tested Tokens
     this._resetTokens();
-    const promise = token
-      ? this._followConnection(token)
-      : this._tryNextToken();
 
-    this._connectPromise = promise
+    // Try the next Token, ie. the first one
+    return this._tryNextToken()
       .then((connected) => {
-        log.debug('got connected?', connected);
+        this._isConnecting = false;
 
-        this._connectPromise = null;
-        return connected;
+        if (connected) {
+          const token = this.secureToken;
+          log.debug('got connected ; saving token', token);
+
+          // Save the sucessful token
+          this._saveToken(token);
+          this._needsToken = false;
+
+          // Emit the connected event
+          log.debug('emitting "connected"');
+          return this.emit('connected');
+        }
+
+        // If not connected, we need a new token
+        log.debug('needs a token');
+        this._needsToken = true;
+
+        log.debug('emitting "connected"');
+        return this.emit('disconnected');
+      })
+      .catch((error) => {
+        this._isConnecting = false;
+
+        log.debug('emitting "disconnected"');
+        this.emit('disconnected');
+        console.error('unhandled error in secureApi', error);
       });
-
-    return this._connectPromise;
   }
 
   _resetTokens () {
@@ -81,15 +144,14 @@ export default class SecureApi extends Api {
     }));
   }
 
-  saveToken (token) {
+  _saveToken (token) {
     window.localStorage.setItem('sysuiToken', token);
-    // DEBUG: console.log('SecureApi:saveToken', this._transport.token);
   }
 
   /**
    * Returns a Promise that gets resolved with
    * a boolean: `true` if the node is up, `false`
-   * otherwise
+   * otherwise (HEAD request to the Node)
    */
   isNodeUp () {
     const url = this._url.replace(/wss?/, 'http');
@@ -120,99 +182,104 @@ export default class SecureApi extends Api {
         }
 
         if (error.type !== 'NETWORK_DISABLED') {
-          return false;
+          throw error;
         }
 
+        // Timeout between 250ms and 750ms
+        const timeout = Math.floor(250 + (500 * Math.random()));
+
+        log.debug('waiting until node is ready', 'retry in', timeout, 'ms');
+
+        // Retry in a few...
         return new Promise((resolve, reject) => {
           window.setTimeout(() => {
             this.waitUntilNodeReady().then(resolve).catch(reject);
-          }, 250);
+          }, timeout);
         });
       });
   }
 
-  _setManual () {
-    this._needsToken = true;
-    this._isConnecting = false;
-
-    return false;
-  }
-
+  /**
+   * Try to connect to the Node with the next Token in
+   * the list
+   */
   _tryNextToken () {
     log.debug('trying next token');
 
+    // Get the first not-tried token
     const nextTokenIndex = this._tokens.findIndex((t) => !t.tried);
 
+    // If no more tokens to try, user has to enter a new one
     if (nextTokenIndex < 0) {
-      return this._setManual();
+      return Promise.resolve(false);
     }
 
     const nextToken = this._tokens[nextTokenIndex];
     nextToken.tried = true;
 
-    return this._followConnection(nextToken.value);
+    return this._connectWithToken(nextToken.value);
   }
 
-  _followConnection (_token) {
+  /**
+   * Try to generate an Authorization Token.
+   * Then try to connect with the new token.
+   */
+  _generateAuthorizationToken () {
+    return this.signer
+      .generateAuthorizationToken()
+      .then((token) => this._connectWithToken(token));
+  }
+
+  _connectWithToken (_token) {
+    // Sanitize the token first
     const token = this._sanitiseToken(_token);
+
+    // Update the token in the transport layer
     this.transport.updateToken(token, false);
     log.debug('connecting with token', token);
 
-    return this
-      .transport
-      .connect()
+    return this.transport.connect()
       .then(() => {
         log.debug('connected with', token);
 
         if (token === 'initial') {
-          return this.signer
-            .generateAuthorizationToken()
-            .then((token) => {
-              return this._followConnection(token);
-            })
-            .catch(() => {
-              return false;
-            });
+          return this._generateAuthorizationToken();
         }
 
-        return this.waitUntilNodeReady().then(() => {
-          return this.connectSuccess(token).then(() => true, () => true);
-        });
+        return this.waitUntilNodeReady()
+          .then(() => this._connectSuccess())
+          .then(() => true);
       })
       .catch((error) => {
+        // Log if it's not a close error (ie. wrong token)
         if (error && error.type !== 'close') {
           log.debug('did not connect ; error', e);
         }
 
-        return this
-          .isNodeUp()
+        // Check if the Node is up
+        return this.isNodeUp()
           .then((isNodeUp) => {
-            log.debug('did not connect with', token, '; is node up?', isNodeUp ? 'yes' : 'no');
-
-            // Try again in a few...
+            // If it's not up, try again in a few...
             if (!isNodeUp) {
-              this._isConnecting = false;
               const timeout = this.transport.retryTimeout;
+
+              log.debug('node is not up ; will try again in', timeout, 'ms');
 
               return new Promise((resolve, reject) => {
                 window.setTimeout(() => {
-                  this._followConnection(token).then(resolve).catch(reject);
+                  this._connectWithToken(token).then(resolve).catch(reject);
                 }, timeout);
               });
             }
 
+            log.debug('tried with a wrong token', token);
             return this._tryNextToken();
           });
       });
   }
 
-  connectSuccess (token) {
-    this._isConnecting = false;
-    this._needsToken = false;
-
-    this.saveToken(token);
-    log.debug('got connected ; saving token', token);
-
+  _connectSuccess () {
+    // Retrieve the correct ports from the Node
     return Promise
       .all([
         this.parity.dappsPort(),
@@ -224,8 +291,6 @@ export default class SecureApi extends Api {
         this._dappsInterface = dappsInterface;
         this._signerPort = signerPort.toNumber();
       });
-
-    // DEBUG: console.log('SecureApi:connectSuccess', this._transport.token);
   }
 
   _sanitiseToken (token) {
@@ -236,48 +301,10 @@ export default class SecureApi extends Api {
     const token = this._sanitiseToken(_token);
     log.debug('updating token', token);
 
-    // Update the tokens list
-    this._tokens = this._tokens.concat([ { value: token, tried: false } ]);
+    // Update the tokens list: put the new one on first position
+    this._tokens = [ { value: token, tried: false } ].concat(this._tokens);
 
-    return this.connect(token);
-    // DEBUG: console.log('SecureApi:updateToken', this._transport.token, connectState);
-  }
-
-  get dappsPort () {
-    return this._dappsPort;
-  }
-
-  get dappsUrl () {
-    let hostname;
-
-    if (window.location.hostname === 'home.parity') {
-      hostname = 'dapps.parity';
-    } else if (!this._dappsInterface || this._dappsInterface === '0.0.0.0') {
-      hostname = window.location.hostname;
-    } else {
-      hostname = this._dappsInterface;
-    }
-
-    return `http://${hostname}:${this._dappsPort}`;
-  }
-
-  get signerPort () {
-    return this._signerPort;
-  }
-
-  get isConnecting () {
-    return this._isConnecting;
-  }
-
-  get isConnected () {
-    return this._transport.isConnected;
-  }
-
-  get needsToken () {
-    return this._needsToken;
-  }
-
-  get secureToken () {
-    return this._transport.token;
+    // Try to connect with the new token added
+    return this.connect();
   }
 }

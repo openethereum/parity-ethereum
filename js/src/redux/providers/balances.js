@@ -118,25 +118,32 @@ export default class Balances {
       promises.push(p);
     }
 
+    // Unsubscribe without adding the promises
+    // to the result, since it would have to wait for a
+    // reconnection to resolve if the Node is disconnected
     if (self._tokenreg) {
       if (self._tokenregSID) {
-        const p = self._tokenreg
-          .unsubscribe(self._tokenregSID)
-          .then(() => {
-            self._tokenregSID = null;
-          });
+        const tokenregSID = self._tokenregSID;
 
-        promises.push(p);
+        self._tokenreg
+          .unsubscribe(tokenregSID)
+          .then(() => {
+            if (self._tokenregSID === tokenregSID) {
+              self._tokenregSID = null;
+            }
+          });
       }
 
       if (self._tokenMetaSID) {
-        const p = self._tokenreg
-          .unsubscribe(self._tokenMetaSID)
-          .then(() => {
-            self._tokenMetaSID = null;
-          });
+        const tokenMetaSID = self._tokenMetaSID;
 
-        promises.push(p);
+        self._tokenreg
+          .unsubscribe(tokenMetaSID)
+          .then(() => {
+            if (self._tokenMetaSID === tokenMetaSID) {
+              self._tokenMetaSID = null;
+            }
+          });
       }
     }
 

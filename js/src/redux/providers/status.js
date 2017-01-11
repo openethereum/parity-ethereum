@@ -18,6 +18,11 @@ import BalancesProvider from './balances';
 import { statusBlockNumber, statusCollection, statusLogs } from './statusActions';
 import { isEqual } from 'lodash';
 
+import { LOG_KEYS, getLogger } from '~/config';
+
+const log = getLogger(LOG_KEYS.Signer);
+let instance = null;
+
 export default class Status {
   constructor (store, api) {
     this._api = api;
@@ -31,55 +36,42 @@ export default class Status {
     this._timeoutIds = {};
     this._blockNumberSubscriptionId = null;
 
-    this._isConnecting = false;
     this._timestamp = Date.now();
 
-    api.transport.on('open', () => {
-      this.start();
-    });
+    // On connecting, stop all subscriptions
+    api.on('connecting', this.stop, this);
 
-    api.transport.on('close', () => {
-      this.updateApiStatus();
-      this.start();
-    });
+    // On connected, start the subscriptions
+    api.on('connected', this.start, this);
+
+    // On disconnected, stop all subscriptions
+    api.on('disconnected', this.stop, this);
+
+    this.updateApiStatus();
+  }
+
+  static instantiate (store, api) {
+    if (!instance) {
+      instance = new Status(store, api);
+    }
+
+    return instance;
   }
 
   start () {
-    // Unsubscribe to everything first
-    this
-      .stop()
-      .then(() => {
-        // Don't try to connect twice
-        if (this._isConnecting) {
-          return;
-        }
+    log.debug('status::start');
 
-        this._isConnecting = true;
+    BalancesProvider.start();
+    this._subscribeBlockNumber();
 
-        this._api
-          .connect()
-          .then((connected) => {
-            this._isConnecting = false;
-
-            // Update the API Status
-            this.updateApiStatus();
-
-            if (connected) {
-              BalancesProvider.start();
-              this._subscribeBlockNumber();
-
-              this._pollLogs();
-              this._pollLongStatus();
-              this._pollStatus();
-            }
-          })
-          .catch(() => {
-            this._isConnecting = false;
-          });
-      });
+    this._pollLogs();
+    this._pollLongStatus();
+    this._pollStatus();
   }
 
   stop () {
+    log.debug('status::stop');
+
     const promises = [];
 
     if (this._blockNumberSubscriptionId) {
@@ -101,11 +93,16 @@ export default class Status {
 
     return Promise.all(promises)
       .then(() => true)
-      .catch(() => true);
+      .catch((error) => {
+        console.error('status::stop', error);
+        return true;
+      })
+      .then(() => this.updateApiStatus());
   }
 
   updateApiStatus () {
     const apiStatus = this.getApiStatus();
+    log.debug('status::updateApiStatus', apiStatus);
 
     if (!isEqual(apiStatus, this._apiStatus)) {
       this._store.dispatch(statusCollection(apiStatus));
