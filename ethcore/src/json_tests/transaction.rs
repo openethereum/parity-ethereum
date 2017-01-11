@@ -18,7 +18,8 @@ use super::test_common::*;
 use evm;
 use ethjson;
 use rlp::{UntrustedRlp, View};
-use transaction::{Action, UnverifiedTransaction, SignedTransaction};
+use transaction::{Action, UnverifiedTransaction};
+use ethstore::ethkey::public_to_address;
 
 fn do_json_test(json_data: &[u8]) -> Vec<String> {
 	let tests = ethjson::transaction::Test::load(json_data).unwrap();
@@ -44,8 +45,8 @@ fn do_json_test(json_data: &[u8]) -> Vec<String> {
 
 		fail_unless(test.transaction.is_none() == res.is_err(), "Validity different");
 		if let (Some(tx), Some(sender)) = (test.transaction, test.sender) {
-			let t = SignedTransaction::new(res.unwrap()).unwrap();
-			fail_unless(t.sender() == sender.into(), "sender mismatch");
+			let t = res.unwrap();
+			fail_unless(public_to_address(&t.recover_public().unwrap()) == sender.into(), "sender mismatch");
 			let is_acceptable_network_id = match t.network_id() {
 				None => true,
 				Some(1) if allow_network_id_of_one => true,

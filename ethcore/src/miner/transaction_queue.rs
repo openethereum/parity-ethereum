@@ -1820,34 +1820,6 @@ mod test {
 	}
 
 	#[test]
-	fn should_reject_incorectly_signed_transaction() {
-		use rlp::{self, RlpStream, Stream};
-
-		// given
-		let mut txq = TransactionQueue::default();
-		let tx = new_unsigned_tx(123.into(), 100.into(), 1.into());
-		let stx = {
-			let mut s = RlpStream::new_list(9);
-			s.append(&tx.nonce);
-			s.append(&tx.gas_price);
-			s.append(&tx.gas);
-			s.append_empty_data(); // action=create
-			s.append(&tx.value);
-			s.append(&tx.data);
-			s.append(&0u64); // v
-			s.append(&U256::zero()); // r
-			s.append(&U256::zero()); // s
-			rlp::decode(s.as_raw())
-		};
-		let stx = SignedTransaction::new(stx).unwrap();
-		// when
-		let res = txq.add(stx, TransactionOrigin::External, 0, None, &default_account_details, &gas_estimator);
-
-		// then
-		assert!(res.is_err());
-	}
-
-	#[test]
 	fn should_import_txs_from_same_sender() {
 		// given
 		let mut txq = TransactionQueue::default();

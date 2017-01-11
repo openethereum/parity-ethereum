@@ -103,8 +103,7 @@ mod frontier_era_tests {
 	declare_test!{BlockchainTests_bcForkUncle, "BlockchainTests/bcForkUncle"}
 	declare_test!{BlockchainTests_bcGasPricerTest, "BlockchainTests/bcGasPricerTest"}
 	declare_test!{BlockchainTests_bcInvalidHeaderTest, "BlockchainTests/bcInvalidHeaderTest"}
-	// TODO [ToDr] Ignored because of incorrect JSON (https://github.com/ethereum/tests/pull/113)
-	declare_test!{ignore => BlockchainTests_bcInvalidRLPTest, "BlockchainTests/bcInvalidRLPTest"}
+	declare_test!{BlockchainTests_bcInvalidRLPTest, "BlockchainTests/bcInvalidRLPTest"}
 	declare_test!{BlockchainTests_bcMultiChainTest, "BlockchainTests/bcMultiChainTest"}
 	declare_test!{BlockchainTests_bcRPC_API_Test, "BlockchainTests/bcRPC_API_Test"}
 	declare_test!{BlockchainTests_bcStateTest, "BlockchainTests/bcStateTest"}
