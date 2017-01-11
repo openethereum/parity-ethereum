@@ -16,7 +16,6 @@
 
 import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
-import { bindActionCreators } from 'redux';
 import { keccak_256 } from 'js-sha3'; // eslint-disable-line camelcase
 import ActionFingerprint from 'material-ui/svg-icons/action/fingerprint';
 
@@ -54,11 +53,7 @@ function mapStateToProps (state) {
   return { secureToken };
 }
 
-function mapDispatchToProps (dispatch) {
-  return bindActionCreators({}, dispatch);
-}
-
 export default connect(
   mapStateToProps,
-  mapDispatchToProps
+  null
 )(SignerIcon);

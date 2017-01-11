@@ -17,7 +17,6 @@
 import React, { Component, PropTypes } from 'react';
 import { Link } from 'react-router';
 import { connect } from 'react-redux';
-import { bindActionCreators } from 'redux';
 import ActionFingerprint from 'material-ui/svg-icons/action/fingerprint';
 import ContentClear from 'material-ui/svg-icons/content/clear';
 
@@ -162,11 +161,7 @@ function mapStateToProps (state) {
   };
 }
 
-function mapDispatchToProps (dispatch) {
-  return bindActionCreators({}, dispatch);
-}
-
 export default connect(
   mapStateToProps,
-  mapDispatchToProps
+  null
 )(ParityBar);
