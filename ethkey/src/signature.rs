@@ -16,7 +16,7 @@
 
 use std::ops::{Deref, DerefMut};
 use std::cmp::PartialEq;
-use std::{mem, fmt};
+use std::fmt;
 use std::str::FromStr;
 use std::hash::{Hash, Hasher};
 use secp256k1::{Message as SecpMessage, RecoverableSignature, RecoveryId, Error as SecpError};
@@ -169,9 +169,8 @@ impl DerefMut for Signature {
 
 pub fn sign(secret: &Secret, message: &Message) -> Result<Signature, Error> {
 	let context = &SECP256K1;
-	// no way to create from raw byte array.
-	let sec: &SecretKey = unsafe { mem::transmute(secret) };
-	let s = context.sign_recoverable(&SecpMessage::from_slice(&message[..])?, sec)?;
+	let sec = SecretKey::from_slice(context, &secret)?;
+	let s = context.sign_recoverable(&SecpMessage::from_slice(&message[..])?, &sec)?;
 	let (rec_id, data) = s.serialize_compact(context);
 	let mut data_arr = [0; 65];
 
