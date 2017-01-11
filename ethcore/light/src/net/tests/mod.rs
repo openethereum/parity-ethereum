@@ -18,7 +18,7 @@
 //! These don't test of the higher level logic on top of
 
 use ethcore::blockchain_info::BlockChainInfo;
-use ethcore::client::{BlockChainClient, EachBlockWith, TestBlockChainClient};
+use ethcore::client::{EachBlockWith, TestBlockChainClient};
 use ethcore::ids::BlockId;
 use ethcore::transaction::PendingTransaction;
 use ethcore::encoded;
@@ -88,7 +88,7 @@ impl Provider for TestProvider {
 	}
 
 	fn reorg_depth(&self, a: &H256, b: &H256) -> Option<u64> {
-		self.0.client.tree_route(a, b).map(|route| route.index as u64)
+		self.0.client.reorg_depth(a, b)
 	}
 
 	fn earliest_state(&self) -> Option<u64> {
@@ -305,7 +305,9 @@ fn get_block_bodies() {
 	}
 
 	let request = request::Bodies {
-		block_hashes: (0..10).map(|i| provider.client.block_hash(BlockId::Number(i)).unwrap()).collect(),
+		block_hashes: (0..10).map(|i|
+			provider.client.block_header(BlockId::Number(i)).unwrap().hash()
+		).collect()
 	};
 
 	let req_id = 111;
@@ -353,8 +355,9 @@ fn get_block_receipts() {
 
 	// find the first 10 block hashes starting with `f` because receipts are only provided
 	// by the test client in that case.
-	let block_hashes: Vec<_> = (0..1000).map(|i| provider.client.block_hash(BlockId::Number(i)).unwrap())
-		.filter(|hash| format!("{}", hash).starts_with("f")).take(10).collect();
+	let block_hashes: Vec<_> = (0..1000).map(|i|
+		provider.client.block_header(BlockId::Number(i)).unwrap().hash()
+	).filter(|hash| format!("{}", hash).starts_with("f")).take(10).collect();
 
 	let request = request::Receipts {
 		block_hashes: block_hashes.clone(),

@@ -165,7 +165,7 @@ impl Handshake {
 		self.id.clone_from_slice(remote_public);
 		self.remote_nonce.clone_from_slice(remote_nonce);
 		self.remote_version = remote_version;
-		let shared = ecdh::agree(host_secret, &self.id)?;
+		let shared = *ecdh::agree(host_secret, &self.id)?;
 		let signature = H520::from_slice(sig);
 		self.remote_ephemeral = recover(&signature.into(), &(&shared ^ &self.remote_nonce))?;
 		Ok(())
@@ -271,7 +271,7 @@ impl Handshake {
 			let (nonce, _) = rest.split_at_mut(32);
 
 			// E(remote-pubk, S(ecdhe-random, ecdh-shared-secret^nonce) || H(ecdhe-random-pubk) || pubk || nonce || 0x0)
-			let shared = ecdh::agree(secret, &self.id)?;
+			let shared = *ecdh::agree(secret, &self.id)?;
 			sig.copy_from_slice(&*sign(self.ecdhe.secret(), &(&shared ^ &self.nonce))?);
 			self.ecdhe.public().sha3_into(hepubk);
 			pubk.copy_from_slice(public);
@@ -366,7 +366,7 @@ mod test {
 	#[test]
 	fn test_handshake_auth_plain() {
 		let mut h = create_handshake(None);
-		let secret = "b71c71a67e1177ad4e901695e1b4b9ee17ae16c6668d313eac2f96dbcda3f291".into();
+		let secret = "b71c71a67e1177ad4e901695e1b4b9ee17ae16c6668d313eac2f96dbcda3f291".parse().unwrap();
 		let auth =
 			"\
 			048ca79ad18e4b0659fab4853fe5bc58eb83992980f4c9cc147d2aa31532efd29a3d3dc6a3d89eaf\
@@ -387,7 +387,7 @@ mod test {
 	#[test]
 	fn test_handshake_auth_eip8() {
 		let mut h = create_handshake(None);
-		let secret = "b71c71a67e1177ad4e901695e1b4b9ee17ae16c6668d313eac2f96dbcda3f291".into();
+		let secret = "b71c71a67e1177ad4e901695e1b4b9ee17ae16c6668d313eac2f96dbcda3f291".parse().unwrap();
 		let auth =
 			"\
 			01b304ab7578555167be8154d5cc456f567d5ba302662433674222360f08d5f1534499d3678b513b\
@@ -413,7 +413,7 @@ mod test {
 	#[test]
 	fn test_handshake_auth_eip8_2() {
 		let mut h = create_handshake(None);
-		let secret = "b71c71a67e1177ad4e901695e1b4b9ee17ae16c6668d313eac2f96dbcda3f291".into();
+		let secret = "b71c71a67e1177ad4e901695e1b4b9ee17ae16c6668d313eac2f96dbcda3f291".parse().unwrap();
 		let auth =
 			"\
 			01b8044c6c312173685d1edd268aa95e1d495474c6959bcdd10067ba4c9013df9e40ff45f5bfd6f7\
@@ -444,7 +444,7 @@ mod test {
 	fn test_handshake_ack_plain() {
 		let remote = "fda1cff674c90c9a197539fe3dfb53086ace64f83ed7c6eabec741f7f381cc803e52ab2cd55d5569bce4347107a310dfd5f88a010cd2ffd1005ca406f1842877".into();
 		let mut h = create_handshake(Some(&remote));
-		let secret = "49a7b37aa6f6645917e7b807e9d1c00d4fa71f18343b0d4122a4d2df64dd6fee".into();
+		let secret = "49a7b37aa6f6645917e7b807e9d1c00d4fa71f18343b0d4122a4d2df64dd6fee".parse().unwrap();
 		let ack =
 			"\
 			049f8abcfa9c0dc65b982e98af921bc0ba6e4243169348a236abe9df5f93aa69d99cadddaa387662\
@@ -464,7 +464,7 @@ mod test {
 	fn test_handshake_ack_eip8() {
 		let remote = "fda1cff674c90c9a197539fe3dfb53086ace64f83ed7c6eabec741f7f381cc803e52ab2cd55d5569bce4347107a310dfd5f88a010cd2ffd1005ca406f1842877".into();
 		let mut h = create_handshake(Some(&remote));
-		let secret = "49a7b37aa6f6645917e7b807e9d1c00d4fa71f18343b0d4122a4d2df64dd6fee".into();
+		let secret = "49a7b37aa6f6645917e7b807e9d1c00d4fa71f18343b0d4122a4d2df64dd6fee".parse().unwrap();
 		let ack =
 			"\
 			01ea0451958701280a56482929d3b0757da8f7fbe5286784beead59d95089c217c9b917788989470\
@@ -493,7 +493,7 @@ mod test {
 	fn test_handshake_ack_eip8_2() {
 		let remote = "fda1cff674c90c9a197539fe3dfb53086ace64f83ed7c6eabec741f7f381cc803e52ab2cd55d5569bce4347107a310dfd5f88a010cd2ffd1005ca406f1842877".into();
 		let mut h = create_handshake(Some(&remote));
-		let secret = "49a7b37aa6f6645917e7b807e9d1c00d4fa71f18343b0d4122a4d2df64dd6fee".into();
+		let secret = "49a7b37aa6f6645917e7b807e9d1c00d4fa71f18343b0d4122a4d2df64dd6fee".parse().unwrap();
 		let ack =
 			"\
 			01f004076e58aae772bb101ab1a8e64e01ee96e64857ce82b1113817c6cdd52c09d26f7b90981cd7\

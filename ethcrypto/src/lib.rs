@@ -166,7 +166,7 @@ pub mod aes {
 /// ECDH functions
 #[cfg_attr(feature="dev", allow(similar_names))]
 pub mod ecdh {
-	use secp256k1::{ecdh, key};
+	use secp256k1::{ecdh, key, Error as SecpError};
 	use ethkey::{Secret, Public, SECP256K1};
 	use Error;
 
@@ -180,13 +180,11 @@ pub mod ecdh {
 		};
 
 		let publ = key::PublicKey::from_slice(context, &pdata)?;
-		// no way to create SecretKey from raw byte array.
-		let sec: &key::SecretKey = unsafe { ::std::mem::transmute(secret) };
-		let shared = ecdh::SharedSecret::new_raw(context, &publ, sec);
+		let sec = key::SecretKey::from_slice(context, &secret)?;
+		let shared = ecdh::SharedSecret::new_raw(context, &publ, &sec);
 
-		let mut s = Secret::default();
-		s.copy_from_slice(&shared[0..32]);
-		Ok(s)
+		Secret::from_slice(&shared[0..32])
+			.map_err(|_| Error::Secp(SecpError::InvalidSecretKey))
 	}
 }
 
