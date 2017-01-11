@@ -27,7 +27,6 @@ use error::{BlockError, Error};
 use evm::Schedule;
 use ethjson;
 use header::Header;
-use transaction::SignedTransaction;
 
 use util::*;
 
@@ -167,17 +166,6 @@ impl Engine for BasicAuthority {
 		if header.gas_limit() <= &min_gas || header.gas_limit() >= &max_gas {
 			return Err(From::from(BlockError::InvalidGasLimit(OutOfBounds { min: Some(min_gas), max: Some(max_gas), found: header.gas_limit().clone() })));
 		}
-		Ok(())
-	}
-
-	fn verify_transaction_basic(&self, t: &SignedTransaction, _header: &Header) -> result::Result<(), Error> {
-		t.check_low_s()?;
-		Ok(())
-	}
-
-	fn verify_transaction(&self, t: &SignedTransaction, _header: &Header) -> Result<(), Error> {
-		// TODO [ToDr]!!!!
-		// t.sender().map(|_|()) // Perform EC recovery and cache sender
 		Ok(())
 	}
 

@@ -324,12 +324,6 @@ impl Engine for Ethash {
 		Ok(())
 	}
 
-	fn verify_transaction(&self, t: &SignedTransaction, _header: &Header) -> Result<(), Error> {
-		// TODO [ToDr]!!!!
-		// t.sender().map(|_|()) // Perform EC recovery and cache sender
-		Ok(())
-	}
-
 	fn is_new_best_block(&self, best_total_difficulty: U256, _best_header: HeaderView, parent_details: &BlockDetails, new_header: &HeaderView) -> bool {
 		is_new_best_block(best_total_difficulty, parent_details, new_header)
 	}

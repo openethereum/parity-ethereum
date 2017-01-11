@@ -33,7 +33,6 @@ use error::{Error, BlockError};
 use header::Header;
 use builtin::Builtin;
 use env_info::EnvInfo;
-use transaction::SignedTransaction;
 use rlp::{UntrustedRlp, View};
 use ethkey::{recover, public_to_address};
 use account_provider::AccountProvider;
@@ -547,17 +546,6 @@ impl Engine for Tendermint {
 			Err(BlockError::InvalidGasLimit(OutOfBounds { min: Some(min_gas), max: Some(max_gas), found: header.gas_limit().clone() }))?;
 		}
 
-		Ok(())
-	}
-
-	fn verify_transaction_basic(&self, t: &SignedTransaction, _header: &Header) -> Result<(), Error> {
-		t.check_low_s()?;
-		Ok(())
-	}
-
-	fn verify_transaction(&self, t: &SignedTransaction, _header: &Header) -> Result<(), Error> {
-		// TODO [ToDr]!!!!
-		// t.sender().map(|_|()) // Perform EC recovery and cache sender
 		Ok(())
 	}
 

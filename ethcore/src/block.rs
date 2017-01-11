@@ -519,7 +519,7 @@ impl IsBlock for SealedBlock {
 #[cfg_attr(feature="dev", allow(too_many_arguments))]
 pub fn enact(
 	header: &Header,
-	transactions: &[SignedTransaction],
+	transactions: &[VerifiedSignedTransaction],
 	uncles: &[Header],
 	engine: &Engine,
 	tracing: bool,
@@ -554,22 +554,22 @@ pub fn enact(
 
 #[inline]
 #[cfg(not(feature = "slow-blocks"))]
-fn push_transactions(block: &mut OpenBlock, transactions: &[SignedTransaction]) -> Result<(), Error> {
+fn push_transactions(block: &mut OpenBlock, transactions: &[VerifiedSignedTransaction]) -> Result<(), Error> {
 	for t in transactions {
-		block.push_transaction(VerifiedSignedTransaction::new(t.clone())?, None)?;
+		block.push_transaction(t.clone(), None)?;
 	}
 	Ok(())
 }
 
 #[cfg(feature = "slow-blocks")]
-fn push_transactions(block: &mut OpenBlock, transactions: &[SignedTransaction]) -> Result<(), Error> {
+fn push_transactions(block: &mut OpenBlock, transactions: &[VerifiedSignedTransaction]) -> Result<(), Error> {
 	use std::time;
 
 	let slow_tx = option_env!("SLOW_TX_DURATION").and_then(|v| v.parse().ok()).unwrap_or(100);
 	for t in transactions {
 		let hash = t.hash();
 		let start = time::Instant::now();
-		block.push_transaction(VerifiedSignedTransaction::new(t.clone())?, None)?;
+		block.push_transaction(t.clone(), None)?;
 		let took = start.elapsed();
 		if took > time::Duration::from_millis(slow_tx) {
 			warn!("Heavy transaction in block {:?}: {:?}", block.header().number(), hash);
@@ -578,6 +578,7 @@ fn push_transactions(block: &mut OpenBlock, transactions: &[SignedTransaction]) 
 	Ok(())
 }
 
+// TODO [ToDr] Pass `PreverifiedBlock` by move, this will avoid unecessary allocation
 /// Enact the block given by `block_bytes` using `engine` on the database `db` with given `parent` block header
 #[cfg_attr(feature="dev", allow(too_many_arguments))]
 pub fn enact_verified(
@@ -621,7 +622,9 @@ mod tests {
 	) -> Result<LockedBlock, Error> {
 		let block = BlockView::new(block_bytes);
 		let header = block.header();
-		enact(&header, &block.transactions(), &block.uncles(), engine, tracing, db, parent, last_hashes, factories)
+		let transactions: Result<Vec<_>, Error> = block.transactions().into_iter().map(VerifiedSignedTransaction::new).collect();
+		let transactions = transactions?;
+		enact(&header, &transactions, &block.uncles(), engine, tracing, db, parent, last_hashes, factories)
 	}
 
 	/// Enact the block given by `block_bytes` using `engine` on the database `db` with given `parent` block header. Seal the block aferwards

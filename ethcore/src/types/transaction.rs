@@ -361,6 +361,12 @@ pub struct VerifiedSignedTransaction {
 	sender: Address,
 }
 
+impl HeapSizeOf for VerifiedSignedTransaction {
+	fn heap_size_of_children(&self) -> usize {
+		self.transaction.unsigned.heap_size_of_children()
+	}
+}
+
 impl Encodable for VerifiedSignedTransaction {
 	fn rlp_append(&self, s: &mut RlpStream) { self.transaction.rlp_append_sealed_transaction(s) }
 }

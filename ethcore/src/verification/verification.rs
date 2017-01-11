@@ -27,7 +27,7 @@ use error::{BlockError, Error};
 use blockchain::*;
 use header::{BlockNumber, Header};
 use rlp::{UntrustedRlp, View};
-use transaction::SignedTransaction;
+use transaction::VerifiedSignedTransaction;
 use views::BlockView;
 use time::get_time;
 
@@ -36,7 +36,7 @@ pub struct PreverifiedBlock {
 	/// Populated block header
 	pub header: Header,
 	/// Populated block transactions
-	pub transactions: Vec<SignedTransaction>,
+	pub transactions: Vec<VerifiedSignedTransaction>,
 	/// Block bytes
 	pub bytes: Bytes,
 }
@@ -83,7 +83,7 @@ pub fn verify_block_unordered(header: Header, bytes: Bytes, engine: &Engine, che
 	{
 		let v = BlockView::new(&bytes);
 		for t in v.transactions() {
-			engine.verify_transaction(&t, &header)?;
+			let t = engine.verify_transaction(t, &header)?;
 			transactions.push(t);
 		}
 	}
