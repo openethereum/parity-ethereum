@@ -17,6 +17,7 @@
 /// Validator lists.
 
 mod simple_list;
+mod safe_contract;
 mod contract;
 
 use std::sync::Weak;
@@ -46,5 +47,5 @@ pub trait ValidatorSet {
 	/// Notifies about benign misbehaviour.
 	fn report_benign(&self, _validator: &Address) {}
 	/// Allows blockchain state access.
-	fn register_call_contract(&self, _client: Weak<Client>) {}
+	fn register_contract(&self, _client: Weak<Client>) {}
 }

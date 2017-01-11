@@ -650,7 +650,7 @@ impl Engine for Tendermint {
 
 	fn register_client(&self, client: Weak<Client>) {
 		*self.client.write() = Some(client.clone());
-		self.validators.register_call_contract(client);
+		self.validators.register_contract(client);
 	}
 
 	fn register_account_provider(&self, account_provider: Arc<AccountProvider>) {

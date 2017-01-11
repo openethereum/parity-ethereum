@@ -327,7 +327,7 @@ impl Engine for AuthorityRound {
 
 	fn register_client(&self, client: Weak<Client>) {
 		*self.client.write() = Some(client.clone());
-		self.validators.register_call_contract(client);
+		self.validators.register_contract(client);
 	}
 
 	fn set_signer(&self, _address: Address, password: String) {

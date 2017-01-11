@@ -171,7 +171,7 @@ impl Engine for BasicAuthority {
 	}
 
 	fn register_client(&self, client: Weak<Client>) {
-		self.validators.register_call_contract(client);
+		self.validators.register_contract(client);
 	}
 
 	fn set_signer(&self, _address: Address, password: String) {

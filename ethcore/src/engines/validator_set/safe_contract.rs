@@ -19,65 +19,81 @@
 use std::sync::Weak;
 use util::*;
 use client::{Client, BlockChainClient};
+use client::chain_notify::ChainNotify;
 use super::ValidatorSet;
-use super::safe_contract::ValidatorSafeContract;
+use super::simple_list::SimpleList;
 
 /// The validator contract should have the following interface:
 /// [{"constant":true,"inputs":[],"name":"getValidators","outputs":[{"name":"","type":"address[]"}],"payable":false,"type":"function"}]
-pub struct ValidatorContract {
+pub struct ValidatorSafeContract {
 	address: Address,
-	validators: Arc<ValidatorSafeContract>,
+	validators: RwLock<SimpleList>,
 	provider: RwLock<Option<provider::Contract>>,
 }
 
-impl ValidatorContract {
+impl ValidatorSafeContract {
 	pub fn new(contract_address: Address) -> Self {
-		ValidatorContract {
+		ValidatorSafeContract {
 			address: contract_address,
-			validators: Arc::new(ValidatorSafeContract::new(contract_address)),
+			validators: Default::default(),
 			provider: RwLock::new(None),
+		}
+	}
+
+	/// Queries the state and updates the set of validators.
+	pub fn update(&self) {
+		if let Some(ref provider) = *self.provider.read() {
+			match provider.get_validators() {
+				Ok(new) => {
+					debug!(target: "engine", "Set of validators obtained: {:?}", new);
+					*self.validators.write() = SimpleList::new(new);
+				},
+				Err(s) => warn!(target: "engine", "Set of validators could not be updated: {}", s),
+			}
+		} else {
+			warn!(target: "engine", "Set of validators could not be updated: no provider contract.")
 		}
 	}
 }
 
-impl ValidatorSet for Arc<ValidatorContract> {
+/// Checks validators on every block.
+impl ChainNotify for ValidatorSafeContract {
+	fn new_blocks(
+		&self,
+		_: Vec<H256>,
+		_: Vec<H256>,
+		enacted: Vec<H256>,
+		_: Vec<H256>,
+		_: Vec<H256>,
+		_: Vec<Bytes>,
+		_duration: u64) {
+		if !enacted.is_empty() {
+			self.update();
+		}
+	}
+}
+
+impl ValidatorSet for Arc<ValidatorSafeContract> {
 	fn contains(&self, address: &Address) -> bool {
-		self.validators.contains(address)
+		self.validators.read().contains(address)
 	}
 
 	fn get(&self, nonce: usize) -> Address {
-		self.validators.get(nonce)
+		self.validators.read().get(nonce)
 	}
 
 	fn count(&self) -> usize {
-		self.validators.count()
-	}
-
-	fn report_malicious(&self, address: &Address) {
-		if let Some(ref provider) = *self.provider.read() {
-			match provider.report_malicious(address) {
-				Ok(_) => debug!(target: "engine", "Reported malicious validator {}", address),
-				Err(s) => warn!(target: "engine", "Validator {} could not be reported {}", address, s),
-			}
-		} else {
-			warn!(target: "engine", "Malicious behaviour could not be reported: no provider contract.")
-		}
-	}
-
-	fn report_benign(&self, address: &Address) {
-		if let Some(ref provider) = *self.provider.read() {
-			match provider.report_benign(address) {
-				Ok(_) => debug!(target: "engine", "Reported benign validator misbehaviour {}", address),
-				Err(s) => warn!(target: "engine", "Validator {} could not be reported {}", address, s),
-			}
-		} else {
-			warn!(target: "engine", "Benign misbehaviour could not be reported: no provider contract.")
-		}
+		self.validators.read().count()
 	}
 
 	fn register_contract(&self, client: Weak<Client>) {
-		self.validators.register_contract(client.clone());
-		*self.provider.write() = Some(provider::Contract::new(self.address, move |a, d| client.upgrade().ok_or("No client!".into()).and_then(|c| c.call_contract(a, d))));
+		if let Some(c) = client.upgrade() {
+			c.add_notify(self.clone());
+		}
+		{
+			*self.provider.write() = Some(provider::Contract::new(self.address, move |a, d| client.upgrade().ok_or("No client!".into()).and_then(|c| c.call_contract(a, d))));
+		}
+		self.update();
 	}
 }
 
@@ -104,7 +120,7 @@ mod provider {
 			}
 		}
 		fn as_string<T: fmt::Debug>(e: T) -> String { format!("{:?}", e) }
-
+		
 		/// Auto-generated from: `{"constant":true,"inputs":[],"name":"getValidators","outputs":[{"name":"","type":"address[]"}],"payable":false,"type":"function"}`
 		#[allow(dead_code)]
 		pub fn get_validators(&self) -> Result<Vec<util::Address>, String> {
@@ -150,17 +166,17 @@ mod tests {
 	use account_provider::AccountProvider;
 	use transaction::{Transaction, Action};
 	use client::{BlockChainClient, EngineClient};
-	use ethkey::Secret;
 	use miner::MinerService;
 	use tests::helpers::generate_dummy_client_with_spec_and_data;
 	use super::super::ValidatorSet;
-	use super::ValidatorContract;
+	use super::ValidatorSafeContract;
 
 	#[test]
 	fn fetches_validators() {
 		let client = generate_dummy_client_with_spec_and_data(Spec::new_validator_contract, 0, 0, &[]);
-		let vc = Arc::new(ValidatorContract::new(Address::from_str("0000000000000000000000000000000000000005").unwrap()));
+		let vc = Arc::new(ValidatorSafeContract::new(Address::from_str("0000000000000000000000000000000000000005").unwrap()));
 		vc.register_contract(Arc::downgrade(&client));
+		vc.update();
 		assert!(vc.contains(&Address::from_str("7d577a597b2742b498cb5cf0c26cdcd726d39e6e").unwrap()));
 		assert!(vc.contains(&Address::from_str("82a978b3f5962a5b0957d9ee9eef472ee55b42f1").unwrap()));
 	}
@@ -168,9 +184,8 @@ mod tests {
 	#[test]
 	fn changes_validators() {
 		let tap = Arc::new(AccountProvider::transient_provider());
-		let s0 = Secret::from_slice(&"1".sha3()).unwrap();
-		let v0 = tap.insert_account(s0.clone(), "").unwrap();
-		let v1 = tap.insert_account(Secret::from_slice(&"0".sha3()).unwrap(), "").unwrap();
+		let v0 = tap.insert_account("1".sha3(), "").unwrap();
+		let v1 = tap.insert_account("0".sha3(), "").unwrap();
 		let spec_factory = || {
 			let spec = Spec::new_validator_contract();
 			spec.engine.register_account_provider(tap.clone());
@@ -189,7 +204,7 @@ mod tests {
 			action: Action::Call(validator_contract),
 			value: 0.into(),
 			data: "f94e18670000000000000000000000000000000000000000000000000000000000000001".from_hex().unwrap(),
-		}.sign(&s0, None);
+		}.sign(&"1".sha3(), None);
 		client.miner().import_own_transaction(client.as_ref(), tx.into()).unwrap();
 		client.update_sealing();
 		assert_eq!(client.chain_info().best_block_number, 1);
@@ -201,7 +216,7 @@ mod tests {
 			action: Action::Call(validator_contract),
 			value: 0.into(),
 			data: "4d238c8e00000000000000000000000082a978b3f5962a5b0957d9ee9eef472ee55b42f1".from_hex().unwrap(),
-		}.sign(&s0, None);
+		}.sign(&"1".sha3(), None);
 		client.miner().import_own_transaction(client.as_ref(), tx.into()).unwrap();
 		client.update_sealing();
 		// The transaction is not yet included so still unable to seal.
@@ -220,7 +235,7 @@ mod tests {
 			action: Action::Call(Address::default()),
 			value: 0.into(),
 			data: Vec::new(),
-		}.sign(&s0, None);
+		}.sign(&"1".sha3(), None);
 		client.miner().import_own_transaction(client.as_ref(), tx.into()).unwrap();
 		client.update_sealing();
 		// Able to seal again.
