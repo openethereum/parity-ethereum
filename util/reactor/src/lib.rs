@@ -57,6 +57,17 @@ impl EventLoop {
 		}
 	}
 
+	/// Returns this event loop raw remote.
+	///
+	/// Deprecated: Exists only to connect with current JSONRPC implementation.
+	pub fn raw_remote(&self) -> TokioRemote {
+		if let Mode::Tokio(ref remote) = self.remote.inner {
+			remote.clone()
+		} else {
+			panic!("Event loop is never initialized in other mode then Tokio.")
+		}
+	}
+
 	/// Returns event loop remote.
 	pub fn remote(&self) -> Remote {
 		self.remote.clone()
@@ -76,6 +87,15 @@ pub struct Remote {
 }
 
 impl Remote {
+	/// Remote for existing event loop.
+	///
+	/// Deprecated: Exists only to connect with current JSONRPC implementation.
+	pub fn new(remote: TokioRemote) -> Self {
+		Remote {
+			inner: Mode::Tokio(remote),
+		}
+	}
+
 	/// Synchronous remote, used mostly for tests.
 	pub fn new_sync() -> Self {
 		Remote {

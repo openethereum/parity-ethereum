@@ -23,13 +23,11 @@ use ethcore::client::MiningBlockChainClient;
 use ethcore::mode::Mode;
 use ethsync::ManageNetwork;
 use fetch::{self, Fetch};
-use futures::Future;
+use futures::{self, BoxFuture, Future};
 use util::sha3;
 use updater::{Service as UpdateService};
-use parity_reactor::Remote;
 
 use jsonrpc_core::Error;
-use jsonrpc_macros::Ready;
 use v1::helpers::errors;
 use v1::traits::ParitySet;
 use v1::types::{Bytes, H160, H256, U256, ReleaseInfo};
@@ -46,7 +44,6 @@ pub struct ParitySetClient<C, M, U, F=fetch::Client> where
 	updater: Weak<U>,
 	net: Weak<ManageNetwork>,
 	fetch: F,
-	remote: Remote,
 }
 
 impl<C, M, U, F> ParitySetClient<C, M, U, F> where
@@ -56,14 +53,13 @@ impl<C, M, U, F> ParitySetClient<C, M, U, F> where
 	F: Fetch,
 {
 	/// Creates new `ParitySetClient` with given `Fetch`.
-	pub fn new(client: &Arc<C>, miner: &Arc<M>, updater: &Arc<U>, net: &Arc<ManageNetwork>, fetch: F, remote: Remote) -> Self {
+	pub fn new(client: &Arc<C>, miner: &Arc<M>, updater: &Arc<U>, net: &Arc<ManageNetwork>, fetch: F) -> Self {
 		ParitySetClient {
 			client: Arc::downgrade(client),
 			miner: Arc::downgrade(miner),
 			updater: Arc::downgrade(updater),
 			net: Arc::downgrade(net),
 			fetch: fetch,
-			remote: remote,
 		}
 	}
 
@@ -189,28 +185,19 @@ impl<C, M, U, F> ParitySet for ParitySetClient<C, M, U, F> where
 		Ok(true)
 	}
 
-	fn hash_content(&self, ready: Ready<H256>, url: String) {
-		let res = self.active();
-
-		match res {
-			Err(e) => ready.ready(Err(e)),
-			Ok(()) => {
-				let task = self.fetch.fetch(&url).then(move |result| {
-					let result = result
-							.map_err(errors::from_fetch_error)
-							.and_then(|response| {
-								sha3(&mut io::BufReader::new(response)).map_err(errors::from_fetch_error)
-							})
-							.map(Into::into);
-
-					// Receive ready and invoke with result.
-					ready.ready(result);
-					Ok(()) as Result<(), ()>
-				});
-
-				self.remote.spawn(task);
-			}
+	fn hash_content(&self, url: String) -> BoxFuture<H256, Error> {
+		if let Err(e) = self.active() {
+			return futures::failed(e).boxed();
 		}
+
+		self.fetch.process(self.fetch.fetch(&url).then(move |result| {
+			result
+				.map_err(errors::from_fetch_error)
+				.and_then(|response| {
+					sha3(&mut io::BufReader::new(response)).map_err(errors::from_fetch_error)
+				})
+				.map(Into::into)
+		}))
 	}
 
 	fn upgrade_ready(&self) -> Result<Option<ReleaseInfo>, Error> {

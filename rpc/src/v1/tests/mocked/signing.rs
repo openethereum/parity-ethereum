@@ -15,10 +15,10 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::str::FromStr;
-use std::sync::{mpsc, Arc};
+use std::sync::Arc;
 use rlp;
 
-use jsonrpc_core::{IoHandler, Success, GenericIoHandler};
+use jsonrpc_core::{IoHandler, Success};
 use v1::impls::SigningQueueClient;
 use v1::traits::{EthSigning, ParitySigning, Parity};
 use v1::helpers::{SignerService, SigningQueue};
@@ -31,6 +31,7 @@ use ethcore::account_provider::AccountProvider;
 use ethcore::client::TestBlockChainClient;
 use ethcore::transaction::{Transaction, Action};
 use ethstore::ethkey::{Generator, Random};
+use futures::Future;
 use serde_json;
 
 struct SigningTester {
@@ -47,11 +48,11 @@ impl Default for SigningTester {
 		let client = Arc::new(TestBlockChainClient::default());
 		let miner = Arc::new(TestMinerService::default());
 		let accounts = Arc::new(AccountProvider::transient_provider());
-		let io = IoHandler::new();
+		let mut io = IoHandler::default();
 		let rpc = SigningQueueClient::new(&signer, &client, &miner, &accounts);
-		io.add_delegate(EthSigning::to_delegate(rpc));
+		io.extend_with(EthSigning::to_delegate(rpc));
 		let rpc = SigningQueueClient::new(&signer, &client, &miner, &accounts);
-		io.add_delegate(ParitySigning::to_delegate(rpc));
+		io.extend_with(ParitySigning::to_delegate(rpc));
 
 		SigningTester {
 			signer: signer,
@@ -87,15 +88,12 @@ fn should_add_sign_to_queue() {
 	let response = r#"{"jsonrpc":"2.0","result":"0x0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000","id":1}"#;
 
 	// then
-	let (tx, rx) = mpsc::channel();
-	tester.io.handle_request(&request, move |response| {
-		tx.send(response).unwrap();
-	});
+	let promise = tester.io.handle_request(&request);
 	assert_eq!(tester.signer.requests().len(), 1);
 	// respond
 	tester.signer.request_confirmed(1.into(), Ok(ConfirmationResponse::Signature(0.into())));
 
-	let res = rx.try_recv().unwrap();
+	let res = promise.wait().unwrap();
 	assert_eq!(res, Some(response.to_owned()));
 }
 
@@ -230,15 +228,12 @@ fn should_add_transaction_to_queue() {
 	let response = r#"{"jsonrpc":"2.0","result":"0x0000000000000000000000000000000000000000000000000000000000000000","id":1}"#;
 
 	// then
-	let (tx, rx) = mpsc::channel();
-	tester.io.handle_request(&request, move |response| {
-		tx.send(response).unwrap();
-	});
+	let promise = tester.io.handle_request(&request);
 	assert_eq!(tester.signer.requests().len(), 1);
 	// respond
 	tester.signer.request_confirmed(1.into(), Ok(ConfirmationResponse::SendTransaction(0.into())));
 
-	let res = rx.try_recv().unwrap();
+	let res = promise.wait().unwrap();
 	assert_eq!(res, Some(response.to_owned()));
 }
 
@@ -299,16 +294,13 @@ fn should_add_sign_transaction_to_the_queue() {
 		r#"}},"id":1}"#;
 
 	// then
-	let (tx, rx) = mpsc::channel();
 	tester.miner.last_nonces.write().insert(address.clone(), U256::zero());
-	tester.io.handle_request(&request, move |response| {
-		tx.send(response).unwrap();
-	});
+	let promise = tester.io.handle_request(&request);
 	assert_eq!(tester.signer.requests().len(), 1);
 	// respond
 	tester.signer.request_confirmed(1.into(), Ok(ConfirmationResponse::SignTransaction(t.into())));
 
-	let res = rx.try_recv().unwrap();
+	let res = promise.wait().unwrap();
 	assert_eq!(res, Some(response.to_owned()));
 }
 
@@ -352,9 +344,9 @@ fn should_dispatch_transaction_if_account_is_unlock() {
 #[test]
 fn should_decrypt_message_if_account_is_unlocked() {
 	// given
-	let tester = eth_signing();
+	let mut tester = eth_signing();
 	let parity = parity::Dependencies::new();
-	tester.io.add_delegate(parity.client(None).to_delegate());
+	tester.io.extend_with(parity.client(None).to_delegate());
 	let (address, public) = tester.accounts.new_account_and_public("test").unwrap();
 	tester.accounts.unlock_account_permanently(address, "test".into()).unwrap();
 
@@ -400,14 +392,11 @@ fn should_add_decryption_to_the_queue() {
 	let response = r#"{"jsonrpc":"2.0","result":"0x0102","id":1}"#;
 
 	// then
-	let (tx, rx) = mpsc::channel();
-	tester.io.handle_request(&request, move |response| {
-		tx.send(response).unwrap();
-	});
+	let promise = tester.io.handle_request(&request);
 	assert_eq!(tester.signer.requests().len(), 1);
 	// respond
 	tester.signer.request_confirmed(1.into(), Ok(ConfirmationResponse::Decrypt(vec![0x1, 0x2].into())));
 
-	let res = rx.try_recv().unwrap();
+	let res = promise.wait().unwrap();
 	assert_eq!(res, Some(response.to_owned()));
 }
