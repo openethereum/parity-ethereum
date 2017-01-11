@@ -908,7 +908,7 @@ impl BlockChainClient for Client {
 
 			Executive::new(&mut state, &env_info, &*self.engine, &self.factories.vm)
 				.transact(&tx, options.clone())
-				.map(|r| r.trace[0].result.succeeded())
+				.map(|r| r.exception.is_some())
 				.unwrap_or(false)
 		};
 
