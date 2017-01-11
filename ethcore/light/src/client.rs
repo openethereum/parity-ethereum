@@ -24,7 +24,7 @@ use ethcore::service::ClientIoMessage;
 use ethcore::block_import_error::BlockImportError;
 use ethcore::block_status::BlockStatus;
 use ethcore::verification::queue::{HeaderQueue, QueueInfo};
-use ethcore::transaction::{SignedTransaction, PendingTransaction};
+use ethcore::transaction::{UnverifiedTransaction, PendingTransaction};
 use ethcore::blockchain_info::BlockChainInfo;
 use ethcore::encoded;
 
@@ -40,7 +40,7 @@ pub struct Client {
 	_engine: Arc<Engine>,
 	header_queue: HeaderQueue,
 	_message_channel: Mutex<IoChannel<ClientIoMessage>>,
-	tx_pool: Mutex<H256FastMap<SignedTransaction>>,
+	tx_pool: Mutex<H256FastMap<UnverifiedTransaction>>,
 }
 
 impl Client {
@@ -57,12 +57,12 @@ impl Client {
 	}
 
 	/// Import a local transaction.
-	pub fn import_own_transaction(&self, tx: SignedTransaction) {
+	pub fn import_own_transaction(&self, tx: UnverifiedTransaction) {
 		self.tx_pool.lock().insert(tx.hash(), tx);
 	}
 
 	/// Fetch a vector of all pending transactions.
-	pub fn pending_transactions(&self) -> Vec<SignedTransaction> {
+	pub fn pending_transactions(&self) -> Vec<UnverifiedTransaction> {
 		self.tx_pool.lock().values().cloned().collect()
 	}
 

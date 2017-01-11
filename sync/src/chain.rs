@@ -2710,7 +2710,7 @@ mod tests {
 
 	#[test]
 	fn should_add_transactions_to_queue() {
-		fn sender(tx: &SignedTransaction) -> Address {
+		fn sender(tx: &UnverifiedTransaction) -> Address {
 			ethkey::public_to_address(tx.recover_public_key().unwrap())
 		}
 

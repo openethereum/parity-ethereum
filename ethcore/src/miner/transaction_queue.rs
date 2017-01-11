@@ -48,7 +48,7 @@
 //!			nonce: U256::from(10),
 //!			balance: U256::from(1_000_000),
 //!		};
-//!		let gas_estimator = |_tx: &VerifiedSignedTransaction| 2.into();
+//!		let gas_estimator = |_tx: &SignedTransaction| 2.into();
 //!
 //!		let mut txq = TransactionQueue::default();
 //!		txq.add(st2.clone(), TransactionOrigin::External, None, &default_account_details, &gas_estimator).unwrap();
@@ -255,7 +255,7 @@ impl Ord for TransactionOrder {
 #[derive(Debug)]
 struct VerifiedTransaction {
 	/// Transaction.
-	transaction: VerifiedSignedTransaction,
+	transaction: SignedTransaction,
 	/// Transaction origin.
 	origin: TransactionOrigin,
 	/// Delay until specifid block.
@@ -263,7 +263,7 @@ struct VerifiedTransaction {
 }
 
 impl VerifiedTransaction {
-	fn new(transaction: VerifiedSignedTransaction, origin: TransactionOrigin, min_block: Option<BlockNumber>) -> Self {
+	fn new(transaction: SignedTransaction, origin: TransactionOrigin, min_block: Option<BlockNumber>) -> Self {
 		VerifiedTransaction {
 			transaction: transaction,
 			origin: origin,
@@ -621,14 +621,14 @@ impl TransactionQueue {
 	/// otherwise it might open up an attack vector.
 	pub fn add<F, G>(
 		&mut self,
-		tx: VerifiedSignedTransaction,
+		tx: SignedTransaction,
 		origin: TransactionOrigin,
 		min_block: Option<BlockNumber>,
 		fetch_account: &F,
 		gas_estimator: &G,
 	) -> Result<TransactionImportResult, Error> where
 		F: Fn(&Address) -> AccountDetails,
-		G: Fn(&VerifiedSignedTransaction) -> U256,
+		G: Fn(&SignedTransaction) -> U256,
 	{
 		if origin == TransactionOrigin::Local {
 			let hash = tx.hash();
@@ -662,14 +662,14 @@ impl TransactionQueue {
 	/// Adds signed transaction to the queue.
 	fn add_internal<F, G>(
 		&mut self,
-		tx: VerifiedSignedTransaction,
+		tx: SignedTransaction,
 		origin: TransactionOrigin,
 		min_block: Option<BlockNumber>,
 		fetch_account: &F,
 		gas_estimator: &G,
 	) -> Result<TransactionImportResult, Error> where
 		F: Fn(&Address) -> AccountDetails,
-		G: Fn(&VerifiedSignedTransaction) -> U256,
+		G: Fn(&SignedTransaction) -> U256,
 	{
 
 		if tx.gas_price < self.minimal_gas_price && origin != TransactionOrigin::Local {
@@ -969,7 +969,7 @@ impl TransactionQueue {
 	}
 
 	/// Returns top transactions from the queue ordered by priority.
-	pub fn top_transactions(&self) -> Vec<VerifiedSignedTransaction> {
+	pub fn top_transactions(&self) -> Vec<SignedTransaction> {
 		self.top_transactions_at(BlockNumber::max_value())
 
 	}
@@ -993,7 +993,7 @@ impl TransactionQueue {
 	}
 
 	/// Returns top transactions from the queue ordered by priority.
-	pub fn top_transactions_at(&self, best_block: BlockNumber) -> Vec<VerifiedSignedTransaction> {
+	pub fn top_transactions_at(&self, best_block: BlockNumber) -> Vec<SignedTransaction> {
 		let mut r = Vec::new();
 		self.filter_pending_transaction(best_block, |tx| r.push(tx.transaction.clone()));
 		r
@@ -1034,7 +1034,7 @@ impl TransactionQueue {
 	}
 
 	/// Finds transaction in the queue by hash (if any)
-	pub fn find(&self, hash: &H256) -> Option<VerifiedSignedTransaction> {
+	pub fn find(&self, hash: &H256) -> Option<SignedTransaction> {
 		match self.by_hash.get(hash) { Some(transaction_ref) => Some(transaction_ref.transaction.clone()), None => None }
 	}
 
@@ -1284,7 +1284,7 @@ mod test {
 	use super::{TransactionSet, TransactionOrder, VerifiedTransaction};
 	use miner::local_transactions::LocalTransactionsList;
 	use client::TransactionImportResult;
-	use transaction::{VerifiedSignedTransaction, Transaction, Action};
+	use transaction::{SignedTransaction, Transaction, Action};
 
 	fn unwrap_tx_err(err: Result<TransactionImportResult, Error>) -> TransactionError {
 		match err.unwrap_err() {
@@ -1308,17 +1308,17 @@ mod test {
 		}
 	}
 
-	fn new_tx(nonce: U256, gas_price: U256) -> VerifiedSignedTransaction {
+	fn new_tx(nonce: U256, gas_price: U256) -> SignedTransaction {
 		let keypair = Random.generate().unwrap();
 		new_unsigned_tx(nonce, default_gas_val(), gas_price).sign(keypair.secret(), None)
 	}
 
-	fn new_tx_with_gas(gas: U256, gas_price: U256) -> VerifiedSignedTransaction {
+	fn new_tx_with_gas(gas: U256, gas_price: U256) -> SignedTransaction {
 		let keypair = Random.generate().unwrap();
 		new_unsigned_tx(default_nonce(), gas, gas_price).sign(keypair.secret(), None)
 	}
 
-	fn new_tx_default() -> VerifiedSignedTransaction {
+	fn new_tx_default() -> SignedTransaction {
 		new_tx(default_nonce(), default_gas_price())
 	}
 
@@ -1329,11 +1329,11 @@ mod test {
 		}
 	}
 
-	fn gas_estimator(_tx: &VerifiedSignedTransaction) -> U256 {
+	fn gas_estimator(_tx: &SignedTransaction) -> U256 {
 		U256::zero()
 	}
 
-	fn new_tx_pair(nonce: U256, gas_price: U256, nonce_increment: U256, gas_price_increment: U256) -> (VerifiedSignedTransaction, VerifiedSignedTransaction) {
+	fn new_tx_pair(nonce: U256, gas_price: U256, nonce_increment: U256, gas_price_increment: U256) -> (SignedTransaction, SignedTransaction) {
 		let tx1 = new_unsigned_tx(nonce, default_gas_val(), gas_price);
 		let tx2 = new_unsigned_tx(nonce + nonce_increment, default_gas_val(), gas_price + gas_price_increment);
 
@@ -1343,7 +1343,7 @@ mod test {
 	}
 
 	/// Returns two consecutive transactions, both with increased gas price
-	fn new_tx_pair_with_gas_price_increment(gas_price_increment: U256) -> (VerifiedSignedTransaction, VerifiedSignedTransaction) {
+	fn new_tx_pair_with_gas_price_increment(gas_price_increment: U256) -> (SignedTransaction, SignedTransaction) {
 		let gas = default_gas_price() + gas_price_increment;
 		let tx1 = new_unsigned_tx(default_nonce(), default_gas_val(), gas);
 		let tx2 = new_unsigned_tx(default_nonce() + 1.into(), default_gas_val(), gas);
@@ -1353,12 +1353,12 @@ mod test {
 		(tx1.sign(secret, None).into(), tx2.sign(secret, None).into())
 	}
 
-	fn new_tx_pair_default(nonce_increment: U256, gas_price_increment: U256) -> (VerifiedSignedTransaction, VerifiedSignedTransaction) {
+	fn new_tx_pair_default(nonce_increment: U256, gas_price_increment: U256) -> (SignedTransaction, SignedTransaction) {
 		new_tx_pair(default_nonce(), default_gas_price(), nonce_increment, gas_price_increment)
 	}
 
 	/// Returns two transactions with identical (sender, nonce) but different gas price/hash.
-	fn new_similar_tx_pair() -> (VerifiedSignedTransaction, VerifiedSignedTransaction) {
+	fn new_similar_tx_pair() -> (SignedTransaction, SignedTransaction) {
 		new_tx_pair_default(0.into(), 1.into())
 	}
 
@@ -1791,7 +1791,7 @@ mod test {
 			s.append(&U256::zero()); // s
 			rlp::decode(s.as_raw())
 		};
-		let stx = VerifiedSignedTransaction::new(stx).unwrap();
+		let stx = SignedTransaction::new(stx).unwrap();
 		// when
 		let res = txq.add(stx, TransactionOrigin::External, None, &default_account_details, &gas_estimator);
 
@@ -2534,7 +2534,7 @@ mod test {
 		// given
 		let mut txq = TransactionQueue::default();
 		let (tx1, tx2) = new_tx_pair_default(1.into(), 0.into());
-		let high_gas = |_: &VerifiedSignedTransaction| 100_001.into();
+		let high_gas = |_: &SignedTransaction| 100_001.into();
 
 		// when
 		let res1 = txq.add(tx1, TransactionOrigin::Local, None, &default_account_details, &gas_estimator);

@@ -22,7 +22,7 @@ use ethcore::error::{Error, CallError};
 use ethcore::client::{MiningBlockChainClient, Executed, CallAnalytics};
 use ethcore::block::{ClosedBlock, IsBlock};
 use ethcore::header::BlockNumber;
-use ethcore::transaction::{SignedTransaction, VerifiedSignedTransaction, PendingTransaction};
+use ethcore::transaction::{UnverifiedTransaction, SignedTransaction, PendingTransaction};
 use ethcore::receipt::{Receipt, RichReceipt};
 use ethcore::miner::{MinerService, MinerStatus, TransactionImportResult, LocalTransactionStatus};
 use ethcore::account_provider::Error as AccountError;
@@ -30,11 +30,11 @@ use ethcore::account_provider::Error as AccountError;
 /// Test miner service.
 pub struct TestMinerService {
 	/// Imported transactions.
-	pub imported_transactions: Mutex<Vec<VerifiedSignedTransaction>>,
+	pub imported_transactions: Mutex<Vec<SignedTransaction>>,
 	/// Latest closed block.
 	pub latest_closed_block: Mutex<Option<ClosedBlock>>,
 	/// Pre-existed pending transactions
-	pub pending_transactions: Mutex<HashMap<H256, VerifiedSignedTransaction>>,
+	pub pending_transactions: Mutex<HashMap<H256, SignedTransaction>>,
 	/// Pre-existed local transactions
 	pub local_transactions: Mutex<BTreeMap<H256, LocalTransactionStatus>>,
 	/// Pre-existed pending receipts
@@ -144,10 +144,10 @@ impl MinerService for TestMinerService {
 	}
 
 	/// Imports transactions to transaction queue.
-	fn import_external_transactions(&self, _chain: &MiningBlockChainClient, transactions: Vec<SignedTransaction>) ->
+	fn import_external_transactions(&self, _chain: &MiningBlockChainClient, transactions: Vec<UnverifiedTransaction>) ->
 		Vec<Result<TransactionImportResult, Error>> {
 		// lets assume that all txs are valid
-		let transactions: Vec<_> = transactions.into_iter().map(|tx| VerifiedSignedTransaction::new(tx).unwrap()).collect();
+		let transactions: Vec<_> = transactions.into_iter().map(|tx| SignedTransaction::new(tx).unwrap()).collect();
 		self.imported_transactions.lock().extend_from_slice(&transactions);
 
 		for sender in transactions.iter().map(|tx| tx.sender()) {
@@ -200,7 +200,7 @@ impl MinerService for TestMinerService {
 		Some(f(&open_block.close()))
 	}
 
-	fn transaction(&self, _best_block: BlockNumber, hash: &H256) -> Option<VerifiedSignedTransaction> {
+	fn transaction(&self, _best_block: BlockNumber, hash: &H256) -> Option<SignedTransaction> {
 		self.pending_transactions.lock().get(hash).cloned()
 	}
 
@@ -258,7 +258,7 @@ impl MinerService for TestMinerService {
 		self.latest_closed_block.lock().as_ref().map_or_else(U256::zero, |b| b.block().fields().state.balance(address).clone())
 	}
 
-	fn call(&self, _chain: &MiningBlockChainClient, _t: &VerifiedSignedTransaction, _analytics: CallAnalytics) -> Result<Executed, CallError> {
+	fn call(&self, _chain: &MiningBlockChainClient, _t: &SignedTransaction, _analytics: CallAnalytics) -> Result<Executed, CallError> {
 		unimplemented!();
 	}
 

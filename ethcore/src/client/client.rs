@@ -44,7 +44,7 @@ use env_info::LastHashes;
 use verification;
 use verification::{PreverifiedBlock, Verifier};
 use block::*;
-use transaction::{LocalizedTransaction, SignedTransaction, VerifiedSignedTransaction, Transaction, PendingTransaction, Action};
+use transaction::{LocalizedTransaction, UnverifiedTransaction, SignedTransaction, Transaction, PendingTransaction, Action};
 use blockchain::extras::TransactionAddress;
 use types::filter::Filter;
 use types::mode::Mode as IpcMode;
@@ -596,7 +596,7 @@ impl Client {
 		trace!(target: "external_tx", "Importing queued");
 		let _timer = PerfTimer::new("import_queued_transactions");
 		self.queue_transactions.fetch_sub(transactions.len(), AtomicOrdering::SeqCst);
-		let txs: Vec<SignedTransaction> = transactions.iter().filter_map(|bytes| UntrustedRlp::new(bytes).as_val().ok()).collect();
+		let txs: Vec<UnverifiedTransaction> = transactions.iter().filter_map(|bytes| UntrustedRlp::new(bytes).as_val().ok()).collect();
 		let hashes: Vec<_> = txs.iter().map(|tx| tx.hash()).collect();
 		self.notify(|notify| {
 			notify.transactions_received(hashes.clone(), peer_id);
@@ -838,7 +838,7 @@ impl snapshot::DatabaseRestore for Client {
 }
 
 impl BlockChainClient for Client {
-	fn call(&self, t: &VerifiedSignedTransaction, block: BlockId, analytics: CallAnalytics) -> Result<Executed, CallError> {
+	fn call(&self, t: &SignedTransaction, block: BlockId, analytics: CallAnalytics) -> Result<Executed, CallError> {
 		let header = self.block_header(block).ok_or(CallError::StatePruned)?;
 		let last_hashes = self.build_last_hashes(header.parent_hash());
 		let env_info = EnvInfo {
@@ -895,14 +895,14 @@ impl BlockChainClient for Client {
 		const PROOF: &'static str = "Transactions fetched from blockchain; blockchain transactions are valid; qed";
 		let rest = txs.split_off(address.index);
 		for t in txs {
-			let t = VerifiedSignedTransaction::new(t).expect(PROOF);
+			let t = SignedTransaction::new(t).expect(PROOF);
 			match Executive::new(&mut state, &env_info, &*self.engine, &self.factories.vm).transact(&t, Default::default()) {
 				Ok(x) => { env_info.gas_used = env_info.gas_used + x.gas_used; }
 				Err(ee) => { return Err(CallError::Execution(ee)) }
 			}
 		}
 		let first = rest.into_iter().next().expect("We split off < `address.index`; Length is checked earlier; qed");
-		let t = VerifiedSignedTransaction::new(first).expect(PROOF);
+		let t = SignedTransaction::new(first).expect(PROOF);
 		let original_state = if analytics.state_diffing { Some(state.clone()) } else { None };
 		let mut ret = Executive::new(&mut state, &env_info, &*self.engine, &self.factories.vm).transact(&t, options)?;
 		ret.state_diff = original_state.map(|original| state.diff_from(original));

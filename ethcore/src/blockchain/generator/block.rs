@@ -18,7 +18,7 @@ use rlp::*;
 use util::{H256, H2048};
 use util::bytes::Bytes;
 use header::Header;
-use transaction::VerifiedSignedTransaction;
+use transaction::SignedTransaction;
 
 use super::fork::Forkable;
 use super::bloom::WithBloom;
@@ -29,7 +29,7 @@ use super::transaction::WithTransaction;
 #[derive(Default)]
 pub struct Block {
 	pub header: Header,
-	pub transactions: Vec<VerifiedSignedTransaction>,
+	pub transactions: Vec<SignedTransaction>,
 	pub uncles: Vec<Header>
 }
 
@@ -58,7 +58,7 @@ impl WithBloom for Block {
 }
 
 impl WithTransaction for Block {
-	fn with_transaction(mut self, transaction: VerifiedSignedTransaction) -> Self where Self: Sized {
+	fn with_transaction(mut self, transaction: SignedTransaction) -> Self where Self: Sized {
 		self.transactions.push(transaction);
 		self
 	}

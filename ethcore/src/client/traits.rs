@@ -21,7 +21,7 @@ use blockchain::TreeRoute;
 use verification::queue::QueueInfo as BlockQueueInfo;
 use block::{OpenBlock, SealedBlock};
 use header::{BlockNumber};
-use transaction::{LocalizedTransaction, PendingTransaction, VerifiedSignedTransaction};
+use transaction::{LocalizedTransaction, PendingTransaction, SignedTransaction};
 use log_entry::LocalizedLogEntry;
 use filter::Filter;
 use error::{ImportResult, CallError};
@@ -182,7 +182,7 @@ pub trait BlockChainClient : Sync + Send {
 	fn logs(&self, filter: Filter) -> Vec<LocalizedLogEntry>;
 
 	/// Makes a non-persistent transaction call.
-	fn call(&self, t: &VerifiedSignedTransaction, block: BlockId, analytics: CallAnalytics) -> Result<Executed, CallError>;
+	fn call(&self, t: &SignedTransaction, block: BlockId, analytics: CallAnalytics) -> Result<Executed, CallError>;
 
 	/// Replays a given transaction for inspection.
 	fn replay(&self, t: TransactionId, analytics: CallAnalytics) -> Result<Executed, CallError>;

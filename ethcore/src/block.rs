@@ -33,7 +33,7 @@ use receipt::Receipt;
 use state::State;
 use state_db::StateDB;
 use trace::FlatTrace;
-use transaction::{SignedTransaction, VerifiedSignedTransaction};
+use transaction::{UnverifiedTransaction, SignedTransaction};
 use verification::PreverifiedBlock;
 use views::BlockView;
 
@@ -43,7 +43,7 @@ pub struct Block {
 	/// The header of this block.
 	pub header: Header,
 	/// The transactions in this block.
-	pub transactions: Vec<SignedTransaction>,
+	pub transactions: Vec<UnverifiedTransaction>,
 	/// The uncles of this block.
 	pub uncles: Vec<Header>,
 }
@@ -86,7 +86,7 @@ impl Decodable for Block {
 #[derive(Clone)]
 pub struct ExecutedBlock {
 	header: Header,
-	transactions: Vec<VerifiedSignedTransaction>,
+	transactions: Vec<SignedTransaction>,
 	uncles: Vec<Header>,
 	receipts: Vec<Receipt>,
 	transactions_set: HashSet<H256>,
@@ -99,7 +99,7 @@ pub struct BlockRefMut<'a> {
 	/// Block header.
 	pub header: &'a mut Header,
 	/// Block transactions.
-	pub transactions: &'a [VerifiedSignedTransaction],
+	pub transactions: &'a [SignedTransaction],
 	/// Block uncles.
 	pub uncles: &'a [Header],
 	/// Transaction receipts.
@@ -115,7 +115,7 @@ pub struct BlockRef<'a> {
 	/// Block header.
 	pub header: &'a Header,
 	/// Block transactions.
-	pub transactions: &'a [VerifiedSignedTransaction],
+	pub transactions: &'a [SignedTransaction],
 	/// Block uncles.
 	pub uncles: &'a [Header],
 	/// Transaction receipts.
@@ -186,7 +186,7 @@ pub trait IsBlock {
 	fn state(&self) -> &State { &self.block().state }
 
 	/// Get all information on transactions in this block.
-	fn transactions(&self) -> &[VerifiedSignedTransaction] { &self.block().transactions }
+	fn transactions(&self) -> &[SignedTransaction] { &self.block().transactions }
 
 	/// Get all information on receipts in this block.
 	fn receipts(&self) -> &[Receipt] { &self.block().receipts }
@@ -346,7 +346,7 @@ impl<'x> OpenBlock<'x> {
 	/// Push a transaction into the block.
 	///
 	/// If valid, it will be executed, and archived together with the receipt.
-	pub fn push_transaction(&mut self, t: VerifiedSignedTransaction, h: Option<H256>) -> Result<&Receipt, Error> {
+	pub fn push_transaction(&mut self, t: SignedTransaction, h: Option<H256>) -> Result<&Receipt, Error> {
 		if self.block.transactions_set.contains(&t.hash()) {
 			return Err(From::from(TransactionError::AlreadyImported));
 		}
@@ -519,7 +519,7 @@ impl IsBlock for SealedBlock {
 #[cfg_attr(feature="dev", allow(too_many_arguments))]
 pub fn enact(
 	header: &Header,
-	transactions: &[VerifiedSignedTransaction],
+	transactions: &[SignedTransaction],
 	uncles: &[Header],
 	engine: &Engine,
 	tracing: bool,
@@ -554,7 +554,7 @@ pub fn enact(
 
 #[inline]
 #[cfg(not(feature = "slow-blocks"))]
-fn push_transactions(block: &mut OpenBlock, transactions: &[VerifiedSignedTransaction]) -> Result<(), Error> {
+fn push_transactions(block: &mut OpenBlock, transactions: &[SignedTransaction]) -> Result<(), Error> {
 	for t in transactions {
 		block.push_transaction(t.clone(), None)?;
 	}
@@ -562,7 +562,7 @@ fn push_transactions(block: &mut OpenBlock, transactions: &[VerifiedSignedTransa
 }
 
 #[cfg(feature = "slow-blocks")]
-fn push_transactions(block: &mut OpenBlock, transactions: &[VerifiedSignedTransaction]) -> Result<(), Error> {
+fn push_transactions(block: &mut OpenBlock, transactions: &[SignedTransaction]) -> Result<(), Error> {
 	use std::time;
 
 	let slow_tx = option_env!("SLOW_TX_DURATION").and_then(|v| v.parse().ok()).unwrap_or(100);
@@ -622,7 +622,7 @@ mod tests {
 	) -> Result<LockedBlock, Error> {
 		let block = BlockView::new(block_bytes);
 		let header = block.header();
-		let transactions: Result<Vec<_>, Error> = block.transactions().into_iter().map(VerifiedSignedTransaction::new).collect();
+		let transactions: Result<Vec<_>, Error> = block.transactions().into_iter().map(SignedTransaction::new).collect();
 		let transactions = transactions?;
 		enact(&header, &transactions, &block.uncles(), engine, tracing, db, parent, last_hashes, factories)
 	}

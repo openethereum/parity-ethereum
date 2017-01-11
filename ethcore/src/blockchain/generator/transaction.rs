@@ -14,15 +14,15 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use transaction::VerifiedSignedTransaction;
+use transaction::SignedTransaction;
 
 pub trait WithTransaction {
-	fn with_transaction(self, transaction: VerifiedSignedTransaction) -> Self where Self: Sized;
+	fn with_transaction(self, transaction: SignedTransaction) -> Self where Self: Sized;
 }
 
 pub struct Transaction<'a, I> where I: 'a {
 	pub iter: &'a mut I,
-	pub transaction: VerifiedSignedTransaction,
+	pub transaction: SignedTransaction,
 }
 
 impl <'a, I> Iterator for Transaction<'a, I> where I: Iterator, <I as Iterator>::Item: WithTransaction {

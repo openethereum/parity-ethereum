@@ -25,7 +25,7 @@ use client::TransactionImportResult;
 use executive::contract_address;
 use block::{ClosedBlock, IsBlock, Block};
 use error::*;
-use transaction::{Action, SignedTransaction, PendingTransaction, VerifiedSignedTransaction};
+use transaction::{Action, UnverifiedTransaction, PendingTransaction, SignedTransaction};
 use receipt::{Receipt, RichReceipt};
 use spec::Spec;
 use engines::{Engine, Seal};
@@ -578,7 +578,7 @@ impl Miner {
 	fn add_transactions_to_queue(
 		&self,
 		chain: &MiningBlockChainClient,
-		transactions: Vec<SignedTransaction>,
+		transactions: Vec<UnverifiedTransaction>,
 		default_origin: TransactionOrigin,
 		min_block: Option<BlockNumber>,
 		transaction_queue: &mut BanningTransactionQueue)
@@ -594,7 +594,7 @@ impl Miner {
 			.map(|accounts| accounts.into_iter().collect::<HashSet<_>>());
 
 		let schedule = chain.latest_schedule();
-		let gas_required = |tx: &VerifiedSignedTransaction| tx.gas_required(&schedule).into();
+		let gas_required = |tx: &SignedTransaction| tx.gas_required(&schedule).into();
 		let best_block_header = chain.best_block_header().decode();
 		transactions.into_iter()
 			.map(|tx| {
@@ -674,7 +674,7 @@ impl MinerService for Miner {
 		}
 	}
 
-	fn call(&self, chain: &MiningBlockChainClient, t: &VerifiedSignedTransaction, analytics: CallAnalytics) -> Result<Executed, CallError> {
+	fn call(&self, chain: &MiningBlockChainClient, t: &SignedTransaction, analytics: CallAnalytics) -> Result<Executed, CallError> {
 		let sealing_work = self.sealing_work.lock();
 		match sealing_work.queue.peek_last_ref() {
 			Some(work) => {
@@ -835,7 +835,7 @@ impl MinerService for Miner {
 	fn import_external_transactions(
 		&self,
 		chain: &MiningBlockChainClient,
-		transactions: Vec<SignedTransaction>
+		transactions: Vec<UnverifiedTransaction>
 	) -> Vec<Result<TransactionImportResult, Error>> {
 		trace!(target: "external_tx", "Importing external transactions");
 		let results = {
@@ -964,7 +964,7 @@ impl MinerService for Miner {
 		}
 	}
 
-	fn transaction(&self, best_block: BlockNumber, hash: &H256) -> Option<VerifiedSignedTransaction> {
+	fn transaction(&self, best_block: BlockNumber, hash: &H256) -> Option<SignedTransaction> {
 		let queue = self.transaction_queue.lock();
 		match self.options.pending_set {
 			PendingSet::AlwaysQueue => queue.find(hash),
@@ -1217,7 +1217,7 @@ mod tests {
 		)).ok().expect("Miner was just created.")
 	}
 
-	fn transaction() -> VerifiedSignedTransaction {
+	fn transaction() -> SignedTransaction {
 		let keypair = Random.generate().unwrap();
 		Transaction {
 			action: Action::Create,

@@ -17,7 +17,7 @@
 //! Local Transactions List.
 
 use linked_hash_map::LinkedHashMap;
-use transaction::VerifiedSignedTransaction;
+use transaction::SignedTransaction;
 use error::TransactionError;
 use util::{U256, H256};
 
@@ -31,15 +31,15 @@ pub enum Status {
 	/// The transaction is in future part of the queue.
 	Future,
 	/// Transaction is already mined.
-	Mined(VerifiedSignedTransaction),
+	Mined(SignedTransaction),
 	/// Transaction is dropped because of limit
-	Dropped(VerifiedSignedTransaction),
+	Dropped(SignedTransaction),
 	/// Replaced because of higher gas price of another transaction.
-	Replaced(VerifiedSignedTransaction, U256, H256),
+	Replaced(SignedTransaction, U256, H256),
 	/// Transaction was never accepted to the queue.
-	Rejected(VerifiedSignedTransaction, TransactionError),
+	Rejected(SignedTransaction, TransactionError),
 	/// Transaction is invalid.
-	Invalid(VerifiedSignedTransaction),
+	Invalid(SignedTransaction),
 }
 
 impl Status {
@@ -79,27 +79,27 @@ impl LocalTransactionsList {
 		self.clear_old();
 	}
 
-	pub fn mark_rejected(&mut self, tx: VerifiedSignedTransaction, err: TransactionError) {
+	pub fn mark_rejected(&mut self, tx: SignedTransaction, err: TransactionError) {
 		self.transactions.insert(tx.hash(), Status::Rejected(tx, err));
 		self.clear_old();
 	}
 
-	pub fn mark_replaced(&mut self, tx: VerifiedSignedTransaction, gas_price: U256, hash: H256) {
+	pub fn mark_replaced(&mut self, tx: SignedTransaction, gas_price: U256, hash: H256) {
 		self.transactions.insert(tx.hash(), Status::Replaced(tx, gas_price, hash));
 		self.clear_old();
 	}
 
-	pub fn mark_invalid(&mut self, tx: VerifiedSignedTransaction) {
+	pub fn mark_invalid(&mut self, tx: SignedTransaction) {
 		self.transactions.insert(tx.hash(), Status::Invalid(tx));
 		self.clear_old();
 	}
 
-	pub fn mark_dropped(&mut self, tx: VerifiedSignedTransaction) {
+	pub fn mark_dropped(&mut self, tx: SignedTransaction) {
 		self.transactions.insert(tx.hash(), Status::Dropped(tx));
 		self.clear_old();
 	}
 
-	pub fn mark_mined(&mut self, tx: VerifiedSignedTransaction) {
+	pub fn mark_mined(&mut self, tx: SignedTransaction) {
 		self.transactions.insert(tx.hash(), Status::Mined(tx));
 		self.clear_old();
 	}
@@ -139,7 +139,7 @@ impl LocalTransactionsList {
 mod tests {
 	use util::U256;
 	use ethkey::{Random, Generator};
-	use transaction::{Action, Transaction, VerifiedSignedTransaction};
+	use transaction::{Action, Transaction, SignedTransaction};
 	use super::{LocalTransactionsList, Status};
 
 	#[test]
@@ -182,7 +182,7 @@ mod tests {
 		assert!(list.contains(&15.into()));
 	}
 
-	fn new_tx(nonce: U256) -> VerifiedSignedTransaction {
+	fn new_tx(nonce: U256) -> SignedTransaction {
 		let keypair = Random.generate().unwrap();
 		Transaction {
 			action: Action::Create,

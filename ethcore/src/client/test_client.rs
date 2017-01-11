@@ -21,7 +21,7 @@ use util::*;
 use rlp::*;
 use ethkey::{Generator, Random};
 use devtools::*;
-use transaction::{Transaction, LocalizedTransaction, PendingTransaction, VerifiedSignedTransaction, Action};
+use transaction::{Transaction, LocalizedTransaction, PendingTransaction, SignedTransaction, Action};
 use blockchain::TreeRoute;
 use client::{
 	BlockChainClient, MiningBlockChainClient, BlockChainInfo, BlockStatus, BlockId,
@@ -385,7 +385,7 @@ impl MiningBlockChainClient for TestBlockChainClient {
 }
 
 impl BlockChainClient for TestBlockChainClient {
-	fn call(&self, _t: &VerifiedSignedTransaction, _block: BlockId, _analytics: CallAnalytics) -> Result<Executed, CallError> {
+	fn call(&self, _t: &SignedTransaction, _block: BlockId, _analytics: CallAnalytics) -> Result<Executed, CallError> {
 		self.execution_result.read().clone().unwrap()
 	}
 

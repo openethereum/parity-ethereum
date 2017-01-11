@@ -27,7 +27,7 @@ use error::{BlockError, Error};
 use blockchain::*;
 use header::{BlockNumber, Header};
 use rlp::{UntrustedRlp, View};
-use transaction::VerifiedSignedTransaction;
+use transaction::SignedTransaction;
 use views::BlockView;
 use time::get_time;
 
@@ -36,7 +36,7 @@ pub struct PreverifiedBlock {
 	/// Populated block header
 	pub header: Header,
 	/// Populated block transactions
-	pub transactions: Vec<VerifiedSignedTransaction>,
+	pub transactions: Vec<SignedTransaction>,
 	/// Block bytes
 	pub bytes: Bytes,
 }
@@ -460,7 +460,7 @@ mod tests {
 		let mut uncles_rlp = RlpStream::new();
 		uncles_rlp.append(&good_uncles);
 		let good_uncles_hash = uncles_rlp.as_raw().sha3();
-		let good_transactions_root = ordered_trie_root(good_transactions.iter().map(|t| ::rlp::encode::<SignedTransaction>(t).to_vec()));
+		let good_transactions_root = ordered_trie_root(good_transactions.iter().map(|t| ::rlp::encode::<UnverifiedTransaction>(t).to_vec()));
 
 		let mut parent = good.clone();
 		parent.set_number(9);

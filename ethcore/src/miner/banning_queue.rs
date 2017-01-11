@@ -20,7 +20,7 @@
 use std::time::Duration;
 use std::ops::{Deref, DerefMut};
 use std::cell::Cell;
-use transaction::{VerifiedSignedTransaction, Action};
+use transaction::{SignedTransaction, Action};
 use transient_hashmap::TransientHashMap;
 use miner::{TransactionQueue, TransactionImportResult, TransactionOrigin, AccountDetails};
 use error::{Error, TransactionError};
@@ -77,12 +77,12 @@ impl BanningTransactionQueue {
 	/// May reject transaction because of the banlist.
 	pub fn add_with_banlist<F, G>(
 		&mut self,
-		transaction: VerifiedSignedTransaction,
+		transaction: SignedTransaction,
 		account_details: &F,
 		gas_estimator: &G,
 	) -> Result<TransactionImportResult, Error> where
 		F: Fn(&Address) -> AccountDetails,
-		G: Fn(&VerifiedSignedTransaction) -> U256,
+		G: Fn(&SignedTransaction) -> U256,
 	{
 		if let Threshold::BanAfter(threshold) = self.ban_threshold {
 			// NOTE In all checks use direct query to avoid increasing ban timeout.
@@ -216,7 +216,7 @@ mod tests {
 	use std::time::Duration;
 	use super::{BanningTransactionQueue, Threshold};
 	use ethkey::{Random, Generator};
-	use transaction::{Transaction, VerifiedSignedTransaction, Action};
+	use transaction::{Transaction, SignedTransaction, Action};
 	use error::{Error, TransactionError};
 	use client::TransactionImportResult;
 	use miner::{TransactionQueue, TransactionOrigin, AccountDetails};
@@ -233,11 +233,11 @@ mod tests {
 		}
 	}
 
-	fn gas_required(_tx: &VerifiedSignedTransaction) -> U256 {
+	fn gas_required(_tx: &SignedTransaction) -> U256 {
 		0.into()
 	}
 
-	fn transaction(action: Action) -> VerifiedSignedTransaction {
+	fn transaction(action: Action) -> SignedTransaction {
 		let keypair = Random.generate().unwrap();
 		Transaction {
 			action: action,

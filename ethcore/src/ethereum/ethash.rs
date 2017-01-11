@@ -24,7 +24,7 @@ use header::Header;
 use views::HeaderView;
 use state::CleanupMode;
 use spec::CommonParams;
-use transaction::SignedTransaction;
+use transaction::UnverifiedTransaction;
 use engines::Engine;
 use evm::Schedule;
 use ethjson;
@@ -310,7 +310,7 @@ impl Engine for Ethash {
 		Ok(())
 	}
 
-	fn verify_transaction_basic(&self, t: &SignedTransaction, header: &Header) -> result::Result<(), Error> {
+	fn verify_transaction_basic(&self, t: &UnverifiedTransaction, header: &Header) -> result::Result<(), Error> {
 		if header.number() >= self.ethash_params.homestead_transition {
 			t.check_low_s()?;
 		}

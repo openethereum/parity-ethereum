@@ -17,7 +17,7 @@
 use serde::{Serialize, Serializer};
 use ethcore::miner;
 use ethcore::contract_address;
-use ethcore::transaction::{LocalizedTransaction, Action, PendingTransaction, VerifiedSignedTransaction};
+use ethcore::transaction::{LocalizedTransaction, Action, PendingTransaction, SignedTransaction};
 use v1::helpers::errors;
 use v1::types::{Bytes, H160, H256, U256, H512, BlockNumber};
 
@@ -151,8 +151,8 @@ pub struct RichRawTransaction {
 	pub transaction: Transaction
 }
 
-impl From<VerifiedSignedTransaction> for RichRawTransaction {
-	fn from(t: VerifiedSignedTransaction) -> Self {
+impl From<SignedTransaction> for RichRawTransaction {
+	fn from(t: SignedTransaction) -> Self {
 		let tx: Transaction = t.into();
 		RichRawTransaction {
 			raw: tx.raw.clone(),
@@ -195,8 +195,8 @@ impl From<LocalizedTransaction> for Transaction {
 	}
 }
 
-impl From<VerifiedSignedTransaction> for Transaction {
-	fn from(t: VerifiedSignedTransaction) -> Transaction {
+impl From<SignedTransaction> for Transaction {
+	fn from(t: SignedTransaction) -> Transaction {
 		let signature = t.signature();
 		Transaction {
 			hash: t.hash().into(),

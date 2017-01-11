@@ -25,7 +25,7 @@
 
 use block::Block as FullBlock;
 use header::{BlockNumber, Header as FullHeader};
-use transaction::SignedTransaction;
+use transaction::UnverifiedTransaction;
 use views;
 
 use util::{Address, Hashable, H256, H2048, U256};
@@ -126,7 +126,7 @@ impl Body {
 	pub fn view(&self) -> views::BodyView { views::BodyView::new(&self.0) }
 
 	/// Fully decode this block body.
-	pub fn decode(&self) -> (Vec<SignedTransaction>, Vec<FullHeader>) {
+	pub fn decode(&self) -> (Vec<UnverifiedTransaction>, Vec<FullHeader>) {
 		(self.view().transactions(), self.view().uncles())
 	}
 
@@ -143,7 +143,7 @@ impl Body {
 // forwarders to borrowed view.
 impl Body {
 	/// Get a vector of all transactions.
-	pub fn transactions(&self) -> Vec<SignedTransaction> { self.view().transactions() }
+	pub fn transactions(&self) -> Vec<UnverifiedTransaction> { self.view().transactions() }
 
 	/// Number of transactions in the block.
 	pub fn transactions_count(&self) -> usize { self.view().transactions_count() }
@@ -248,7 +248,7 @@ impl Block {
 // forwarders to body view.
 impl Block {
 	/// Get a vector of all transactions.
-	pub fn transactions(&self) -> Vec<SignedTransaction> { self.view().transactions() }
+	pub fn transactions(&self) -> Vec<UnverifiedTransaction> { self.view().transactions() }
 
 	/// Number of transactions in the block.
 	pub fn transactions_count(&self) -> usize { self.view().transactions_count() }

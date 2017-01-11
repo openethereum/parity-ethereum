@@ -27,7 +27,7 @@ use trace::FlatTrace;
 use pod_account::*;
 use pod_state::{self, PodState};
 use types::state_diff::StateDiff;
-use transaction::VerifiedSignedTransaction;
+use transaction::SignedTransaction;
 use state_db::StateDB;
 
 use util::*;
@@ -510,7 +510,7 @@ impl State {
 
 	/// Execute a given transaction.
 	/// This will change the state accordingly.
-	pub fn apply(&mut self, env_info: &EnvInfo, engine: &Engine, t: &VerifiedSignedTransaction, tracing: bool) -> ApplyResult {
+	pub fn apply(&mut self, env_info: &EnvInfo, engine: &Engine, t: &SignedTransaction, tracing: bool) -> ApplyResult {
 //		let old = self.to_pod();
 
 		let options = TransactOptions { tracing: tracing, vm_tracing: false, check_nonce: true };

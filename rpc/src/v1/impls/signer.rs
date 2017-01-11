@@ -21,7 +21,7 @@ use std::sync::{Arc, Weak};
 use rlp::{UntrustedRlp, View};
 use ethcore::account_provider::AccountProvider;
 use ethcore::client::MiningBlockChainClient;
-use ethcore::transaction::{VerifiedSignedTransaction, PendingTransaction};
+use ethcore::transaction::{SignedTransaction, PendingTransaction};
 use ethcore::miner::MinerService;
 
 use jsonrpc_core::Error;
@@ -141,7 +141,7 @@ impl<C: 'static, M: 'static> Signer for SignerClient<C, M> where C: MiningBlockC
 			let result = match confirmation.payload {
 				ConfirmationPayload::SendTransaction(request) => {
 					let signed_transaction = UntrustedRlp::new(&bytes.0).as_val().map_err(errors::from_rlp_error)?;
-					let signed_transaction = VerifiedSignedTransaction::new(signed_transaction).map_err(|e| errors::invalid_params("Invalid signature.", e))?;
+					let signed_transaction = SignedTransaction::new(signed_transaction).map_err(|e| errors::invalid_params("Invalid signature.", e))?;
 					let sender = signed_transaction.sender();
 
 					// Verification

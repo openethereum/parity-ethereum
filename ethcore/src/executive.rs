@@ -25,7 +25,7 @@ use error::ExecutionError;
 use evm::{self, Ext, Factory, Finalize};
 use externalities::*;
 use trace::{FlatTrace, Tracer, NoopTracer, ExecutiveTracer, VMTrace, VMTracer, ExecutiveVMTracer, NoopVMTracer};
-use transaction::{Action, VerifiedSignedTransaction};
+use transaction::{Action, SignedTransaction};
 use crossbeam;
 pub use types::executed::{Executed, ExecutionResult};
 
@@ -100,7 +100,7 @@ impl<'a> Executive<'a> {
 	}
 
 	/// This function should be used to execute transaction.
-	pub fn transact(&'a mut self, t: &VerifiedSignedTransaction, options: TransactOptions) -> Result<Executed, ExecutionError> {
+	pub fn transact(&'a mut self, t: &SignedTransaction, options: TransactOptions) -> Result<Executed, ExecutionError> {
 		let check = options.check_nonce;
 		match options.tracing {
 			true => match options.vm_tracing {
@@ -117,7 +117,7 @@ impl<'a> Executive<'a> {
 	/// Execute transaction/call with tracing enabled
 	pub fn transact_with_tracer<T, V>(
 		&'a mut self,
-		t: &VerifiedSignedTransaction,
+		t: &SignedTransaction,
 		check_nonce: bool,
 		mut tracer: T,
 		mut vm_tracer: V
@@ -405,7 +405,7 @@ impl<'a> Executive<'a> {
 	/// Finalizes the transaction (does refunds and suicides).
 	fn finalize(
 		&mut self,
-		t: &VerifiedSignedTransaction,
+		t: &SignedTransaction,
 		mut substate: Substate,
 		result: evm::Result<U256>,
 		output: Bytes,
