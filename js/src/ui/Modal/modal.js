@@ -16,9 +16,8 @@
 
 import { Dialog } from 'material-ui';
 import React, { Component, PropTypes } from 'react';
-import { connect } from 'react-redux';
-import { bindActionCreators } from 'redux';
 import ReactDOM from 'react-dom';
+import { connect } from 'react-redux';
 
 import { nodeOrStringProptype } from '~/util/proptypes';
 
@@ -113,11 +112,7 @@ function mapStateToProps (state) {
   return { settings };
 }
 
-function mapDispatchToProps (dispatch) {
-  return bindActionCreators({}, dispatch);
-}
-
 export default connect(
   mapStateToProps,
-  mapDispatchToProps
+  null
 )(Modal);

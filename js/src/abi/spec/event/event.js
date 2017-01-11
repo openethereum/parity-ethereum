@@ -23,12 +23,12 @@ import { eventSignature } from '../../util/signature';
 
 export default class Event {
   constructor (abi) {
-    this._name = abi.name;
     this._inputs = EventParam.toEventParams(abi.inputs || []);
     this._anonymous = !!abi.anonymous;
 
-    const { id, signature } = eventSignature(this._name, this.inputParamTypes());
+    const { id, name, signature } = eventSignature(abi.name, this.inputParamTypes());
     this._id = id;
+    this._name = name;
     this._signature = signature;
   }
 

@@ -19,7 +19,7 @@ use std::sync::{Arc, Weak};
 use std::collections::BTreeMap;
 use util::{Address};
 
-use ethkey::{Brain, Generator};
+use ethkey::{Brain, Generator, Secret};
 use ethcore::account_provider::AccountProvider;
 use ethcore::client::MiningBlockChainClient;
 
@@ -73,7 +73,8 @@ impl<C: 'static> ParityAccounts for ParityAccountsClient<C> where C: MiningBlock
 		self.active()?;
 		let store = take_weak!(self.accounts);
 
-		store.insert_account(*Brain::new(phrase).generate().unwrap().secret(), &pass)
+		let brain = Brain::new(phrase).generate().unwrap();
+		store.insert_account(brain.secret().clone(), &pass)
 			.map(Into::into)
 			.map_err(|e| errors::account("Could not create account.", e))
 	}
@@ -92,7 +93,9 @@ impl<C: 'static> ParityAccounts for ParityAccountsClient<C> where C: MiningBlock
 		self.active()?;
 		let store = take_weak!(self.accounts);
 
-		store.insert_account(secret.into(), &pass)
+		let secret = Secret::from_slice(&secret.0)
+			.map_err(|e| errors::account("Could not create account.", e))?;
+		store.insert_account(secret, &pass)
 			.map(Into::into)
 			.map_err(|e| errors::account("Could not create account.", e))
 	}

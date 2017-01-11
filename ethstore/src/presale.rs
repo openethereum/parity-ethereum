@@ -47,7 +47,7 @@ impl PresaleWallet {
 		let len = crypto::aes::decrypt_cbc(&derived_key, &self.iv, &self.ciphertext, &mut key).map_err(|_| Error::InvalidPassword)?;
 		let unpadded = &key[..len];
 
-		let secret = Secret::from(unpadded.keccak256());
+		let secret = Secret::from_slice(&unpadded.keccak256())?;
 		if let Ok(kp) = KeyPair::from_secret(secret) {
 			if kp.address() == self.address {
 				return Ok(kp)

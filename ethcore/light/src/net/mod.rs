@@ -42,7 +42,6 @@ use self::error::Punishment;
 use self::request_set::RequestSet;
 use self::id_guard::IdGuard;
 
-mod buffer_flow;
 mod context;
 mod error;
 mod status;
@@ -50,6 +49,8 @@ mod request_set;
 
 #[cfg(test)]
 mod tests;
+
+pub mod buffer_flow;
 
 pub use self::error::Error;
 pub use self::context::{BasicContext, EventContext, IoContext};
@@ -285,7 +286,7 @@ pub struct LightProtocol {
 	peers: RwLock<PeerMap>,
 	capabilities: RwLock<Capabilities>,
 	flow_params: FlowParams, // assumed static and same for every peer.
-	handlers: Vec<Box<Handler>>,
+	handlers: Vec<Arc<Handler>>,
 	req_id: AtomicUsize,
 }
 
@@ -410,11 +411,11 @@ impl LightProtocol {
 	}
 
 	/// Add an event handler.
-	/// Ownership will be transferred to the protocol structure,
-	/// and the handler will be kept alive as long as it is.
+	///
 	/// These are intended to be added when the protocol structure
-	/// is initialized as a means of customizing its behavior.
-	pub fn add_handler(&mut self, handler: Box<Handler>) {
+	/// is initialized as a means of customizing its behavior,
+	/// and dispatching requests immediately upon events.
+	pub fn add_handler(&mut self, handler: Arc<Handler>) {
 		self.handlers.push(handler);
 	}
 
@@ -484,8 +485,10 @@ impl LightProtocol {
 		}
 	}
 
-	// handle a packet using the given io context.
-	fn handle_packet(&self, io: &IoContext, peer: &PeerId, packet_id: u8, data: &[u8]) {
+	/// Handle an LES packet using the given io context.
+	/// Packet data is _untrusted_, which means that invalid data won't lead to
+	/// issues.
+	pub fn handle_packet(&self, io: &IoContext, peer: &PeerId, packet_id: u8, data: &[u8]) {
 		let rlp = UntrustedRlp::new(data);
 
 		trace!(target: "les", "Incoming packet {} from peer {}", packet_id, peer);
@@ -557,19 +560,8 @@ impl LightProtocol {
 		}
 	}
 
-	fn tick_handlers(&self, io: &IoContext) {
-		for handler in &self.handlers {
-			handler.tick(&TickCtx {
-				io: io,
-				proto: self,
-			})
-		}
-	}
-}
-
-impl LightProtocol {
-	// called when a peer connects.
-	fn on_connect(&self, peer: &PeerId, io: &IoContext) {
+	/// called when a peer connects.
+	pub fn on_connect(&self, peer: &PeerId, io: &IoContext) {
 		let proto_version = match io.protocol_version(*peer).ok_or(Error::WrongNetwork) {
 			Ok(pv) => pv,
 			Err(e) => { punish(*peer, io, e); return }
@@ -603,8 +595,8 @@ impl LightProtocol {
 		io.send(*peer, packet::STATUS, status_packet);
 	}
 
-	// called when a peer disconnects.
-	fn on_disconnect(&self, peer: PeerId, io: &IoContext) {
+	/// called when a peer disconnects.
+	pub fn on_disconnect(&self, peer: PeerId, io: &IoContext) {
 		trace!(target: "les", "Peer {} disconnecting", peer);
 
 		self.pending_peers.write().remove(&peer);
@@ -623,6 +615,27 @@ impl LightProtocol {
 		}
 	}
 
+	/// Execute the given closure with a basic context derived from the I/O context.
+	pub fn with_context<F, T>(&self, io: &IoContext, f: F) -> T
+		where F: FnOnce(&BasicContext) -> T
+	{
+		f(&TickCtx {
+			io: io,
+			proto: self,
+		})
+	}
+
+	fn tick_handlers(&self, io: &IoContext) {
+		for handler in &self.handlers {
+			handler.tick(&TickCtx {
+				io: io,
+				proto: self,
+			})
+		}
+	}
+}
+
+impl LightProtocol {
 	// Handle status message from peer.
 	fn status(&self, peer: &PeerId, io: &IoContext, data: UntrustedRlp) -> Result<(), Error> {
 		let pending = match self.pending_peers.write().remove(peer) {
