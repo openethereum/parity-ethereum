@@ -660,7 +660,6 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 			num => take_weak!(self.client).call(&signed, num.into(), Default::default()),
 		};
 
-
 		result
 			.map(|b| b.output.into())
 			.map_err(errors::from_call_error)
