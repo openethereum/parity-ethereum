@@ -135,7 +135,7 @@ export default class SecureApi extends Api {
         this.emit('disconnected');
         console.error('unhandled error in secureApi', error);
       });
-    }
+  }
 
   _resetTokens () {
     this._tokens = this._tokens.map((token) => ({
