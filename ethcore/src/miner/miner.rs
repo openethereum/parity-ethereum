@@ -602,7 +602,9 @@ impl Miner {
 					debug!(target: "miner", "Rejected tx {:?}: already in the blockchain", hash);
 					return Err(Error::Transaction(TransactionError::AlreadyImported));
 				}
-				match self.engine.verify_transaction(tx, &best_block_header) {
+				match self.engine.verify_transaction_basic(&tx, &best_block_header)
+					.and_then(|_| self.engine.verify_transaction(tx, &best_block_header))
+				{
 					Err(e) => {
 						debug!(target: "miner", "Rejected tx {:?} with invalid signature: {:?}", hash, e);
 						Err(e)

@@ -763,7 +763,7 @@ impl TransactionQueue {
 				balance: client_account.balance
 			}));
 		}
-
+		tx.check_low_s()?;
 		// No invalid transactions beyond this point.
 		let vtx = VerifiedTransaction::new(tx, origin, time, min_block);
 		let r = self.import_tx(vtx, client_account.nonce).map_err(Error::Transaction);
