@@ -248,18 +248,32 @@ export default class Contract {
         .call(callParams)
         .then((encoded) => func.decodeOutput(encoded))
         .then((tokens) => tokens.map((token) => token.value))
-        .then((returns) => returns.length === 1 ? returns[0] : returns);
+        .then((returns) => returns.length === 1 ? returns[0] : returns)
+        .catch((error) => {
+          console.warn(`${func.name}.call`, values, error);
+          throw error;
+        });
     };
 
     if (!func.constant) {
       func.postTransaction = (options, values = []) => {
         const _options = this._encodeOptions(func, this._addOptionsTo(options), values);
-        return this._api.parity.postTransaction(_options);
+        return this._api.parity
+          .postTransaction(_options)
+          .catch((error) => {
+            console.warn(`${func.name}.postTransaction`, values, error);
+            throw error;
+          });
       };
 
       func.estimateGas = (options, values = []) => {
         const _options = this._encodeOptions(func, this._addOptionsTo(options), values);
-        return this._api.eth.estimateGas(_options);
+        return this._api.eth
+          .estimateGas(_options)
+          .catch((error) => {
+            console.warn(`${func.name}.estimateGas`, values, error);
+            throw error;
+          });
       };
     }
 
@@ -385,6 +399,10 @@ export default class Contract {
             this._subscribeToChanges();
             return subscriptionId;
           });
+      })
+      .catch((error) => {
+        console.warn('subscribe', event, _options, error);
+        throw error;
       });
   }
 
