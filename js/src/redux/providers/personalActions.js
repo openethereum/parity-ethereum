@@ -75,6 +75,9 @@ export function personalAccountsInfo (accountsInfo) {
             return wallet;
           });
       })
+      .catch(() => {
+        return [];
+      })
       .then((_wallets) => {
         _wallets.forEach((wallet) => {
           const owners = wallet.owners.map((o) => o.address);
@@ -96,6 +99,10 @@ export function personalAccountsInfo (accountsInfo) {
         dispatch(_personalAccountsInfo(data));
         dispatch(attachWallets(wallets));
         dispatch(fetchBalances());
+      })
+      .catch((error) => {
+        console.warn('personalAccountsInfo', error);
+        throw error;
       });
   };
 }
