@@ -594,7 +594,7 @@ impl Miner {
 			.map(|accounts| accounts.into_iter().collect::<HashSet<_>>());
 
 		let schedule = chain.latest_schedule();
-		let gas_required = |tx: &SignedTransaction| tx.gas_required(&schedule).into();
+		let gas_required = |tx: &VerifiedSignedTransaction| tx.gas_required(&schedule).into();
 		let best_block_header = chain.best_block_header().decode();
 		transactions.into_iter()
 			.map(|tx| {
@@ -603,26 +603,25 @@ impl Miner {
 					debug!(target: "miner", "Rejected tx {:?}: already in the blockchain", hash);
 					return Err(Error::Transaction(TransactionError::AlreadyImported));
 				}
-				match self.engine.verify_transaction_basic(&tx, &best_block_header) {
+				match self.engine.verify_transaction(tx, &best_block_header) {
 					Err(e) => {
 						debug!(target: "miner", "Rejected tx {:?} with invalid signature: {:?}", hash, e);
 						Err(e)
 					},
-					Ok(()) => {
-						// let origin = accounts.as_ref().and_then(|accounts| {
-						// 	match accounts.contains(&tx.sender()) {
-						// 		true => Some(TransactionOrigin::Local),
-						// 		false => None,
-						// 	}
-						// }).unwrap_or(default_origin);
-						let origin = default_origin;
+					Ok(transaction) => {
+						let origin = accounts.as_ref().and_then(|accounts| {
+							match accounts.contains(&transaction.sender()) {
+								true => Some(TransactionOrigin::Local),
+								false => None,
+							}
+						}).unwrap_or(default_origin);
 
 						match origin {
 							TransactionOrigin::Local | TransactionOrigin::RetractedBlock => {
-								transaction_queue.add(tx, origin, min_block, &fetch_account, &gas_required)
+								transaction_queue.add(transaction, origin, min_block, &fetch_account, &gas_required)
 							},
 							TransactionOrigin::External => {
-								transaction_queue.add_with_banlist(tx, &fetch_account, &gas_required)
+								transaction_queue.add_with_banlist(transaction, &fetch_account, &gas_required)
 							}
 						}
 					},

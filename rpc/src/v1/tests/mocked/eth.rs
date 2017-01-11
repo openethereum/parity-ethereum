@@ -495,12 +495,14 @@ fn rpc_eth_transaction_count_by_number_pending() {
 
 #[test]
 fn rpc_eth_pending_transaction_by_hash() {
-	use util::*;
-	use ethcore::transaction::*;
+	use util::{H256, FromHex};
+	use rlp;
+	use ethcore::transaction::VerifiedSignedTransaction;
 
 	let tester = EthTester::default();
 	{
-		let tx: SignedTransaction = ::rlp::decode(&FromHex::from_hex("f85f800182520894095e7baea6a6c7c4c2dfeb977efac326af552d870a801ba048b55bfa915ac795c431978d8a6a992b628d557da5ff759b307d495a36649353a0efffd310ac743f371de3b9f7f9cb56c0b28ad43601b4ab949f53faa07bd2c804").unwrap());
+		let tx = rlp::decode(&FromHex::from_hex("f85f800182520894095e7baea6a6c7c4c2dfeb977efac326af552d870a801ba048b55bfa915ac795c431978d8a6a992b628d557da5ff759b307d495a36649353a0efffd310ac743f371de3b9f7f9cb56c0b28ad43601b4ab949f53faa07bd2c804").unwrap());
+		let tx = VerifiedSignedTransaction::new(tx).unwrap();
 		tester.miner.pending_transactions.lock().insert(H256::zero(), tx);
 	}
 

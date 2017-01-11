@@ -21,7 +21,7 @@ use std::sync::{Weak, Arc};
 use rlp::{UntrustedRlp, View};
 use ethcore::client::{BlockChainClient, CallAnalytics, TransactionId, TraceId};
 use ethcore::miner::MinerService;
-use ethcore::transaction::{Transaction as EthTransaction, SignedTransaction, Action};
+use ethcore::transaction::{Transaction as EthTransaction, VerifiedSignedTransaction, Action};
 
 use jsonrpc_core::Error;
 use jsonrpc_macros::Trailing;
@@ -53,7 +53,7 @@ impl<C, M> TracesClient<C, M> where C: BlockChainClient, M: MinerService {
 	}
 
 	// TODO: share with eth.rs
-	fn sign_call(&self, request: CRequest) -> Result<SignedTransaction, Error> {
+	fn sign_call(&self, request: CRequest) -> Result<VerifiedSignedTransaction, Error> {
 		let client = take_weak!(self.client);
 		let miner = take_weak!(self.miner);
 		let from = request.from.unwrap_or(0.into());
@@ -130,14 +130,15 @@ impl<C, M> Traces for TracesClient<C, M> where C: BlockChainClient + 'static, M:
 		self.active()?;
 		let block = block.0;
 
-		let raw_transaction = Bytes::to_vec(raw_transaction);
-		match UntrustedRlp::new(&raw_transaction).as_val() {
-			Ok(signed) => Ok(match take_weak!(self.client).call(&signed, block.into(), to_call_analytics(flags)) {
-				Ok(e) => Some(TraceResults::from(e)),
-				_ => None,
-			}),
-			Err(e) => Err(errors::invalid_params("Transaction is not valid RLP", e)),
-		}
+		UntrustedRlp::new(&raw_transaction.into_vec()).as_val()
+			.map_err(|e| errors::invalid_params("Transaction is not valid RLP", e))
+			.and_then(|tx| VerifiedSignedTransaction::new(tx).map_err(errors::from_transaction_error))
+			.and_then(|signed| {
+				Ok(match take_weak!(self.client).call(&signed, block.into(), to_call_analytics(flags)) {
+					Ok(e) => Some(TraceResults::from(e)),
+					_ => None,
+				})
+			})
 	}
 
 	fn replay_transaction(&self, transaction_hash: H256, flags: Vec<String>) -> Result<Option<TraceResults>, Error> {

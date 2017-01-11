@@ -22,7 +22,7 @@ use ethcore::error::{Error, CallError};
 use ethcore::client::{MiningBlockChainClient, Executed, CallAnalytics};
 use ethcore::block::{ClosedBlock, IsBlock};
 use ethcore::header::BlockNumber;
-use ethcore::transaction::{SignedTransaction, PendingTransaction};
+use ethcore::transaction::{SignedTransaction, VerifiedSignedTransaction, PendingTransaction};
 use ethcore::receipt::{Receipt, RichReceipt};
 use ethcore::miner::{MinerService, MinerStatus, TransactionImportResult, LocalTransactionStatus};
 use ethcore::account_provider::Error as AccountError;
@@ -30,11 +30,11 @@ use ethcore::account_provider::Error as AccountError;
 /// Test miner service.
 pub struct TestMinerService {
 	/// Imported transactions.
-	pub imported_transactions: Mutex<Vec<SignedTransaction>>,
+	pub imported_transactions: Mutex<Vec<VerifiedSignedTransaction>>,
 	/// Latest closed block.
 	pub latest_closed_block: Mutex<Option<ClosedBlock>>,
 	/// Pre-existed pending transactions
-	pub pending_transactions: Mutex<HashMap<H256, SignedTransaction>>,
+	pub pending_transactions: Mutex<HashMap<H256, VerifiedSignedTransaction>>,
 	/// Pre-existed local transactions
 	pub local_transactions: Mutex<BTreeMap<H256, LocalTransactionStatus>>,
 	/// Pre-existed pending receipts
@@ -147,9 +147,10 @@ impl MinerService for TestMinerService {
 	fn import_external_transactions(&self, _chain: &MiningBlockChainClient, transactions: Vec<SignedTransaction>) ->
 		Vec<Result<TransactionImportResult, Error>> {
 		// lets assume that all txs are valid
+		let transactions: Vec<_> = transactions.into_iter().map(|tx| VerifiedSignedTransaction::new(tx).unwrap()).collect();
 		self.imported_transactions.lock().extend_from_slice(&transactions);
 
-		for sender in transactions.iter().filter_map(|t| t.sender().ok()) {
+		for sender in transactions.iter().map(|tx| tx.sender()) {
 			let nonce = self.last_nonce(&sender).expect("last_nonce must be populated in tests");
 			self.last_nonces.write().insert(sender, nonce + U256::from(1));
 		}
@@ -164,10 +165,9 @@ impl MinerService for TestMinerService {
 		Result<TransactionImportResult, Error> {
 
 		// keep the pending nonces up to date
-		if let Ok(ref sender) = pending.transaction.sender() {
-			let nonce = self.last_nonce(sender).unwrap_or(chain.latest_nonce(sender));
-			self.last_nonces.write().insert(sender.clone(), nonce + U256::from(1));
-		}
+		let sender = pending.transaction.sender();
+		let nonce = self.last_nonce(&sender).unwrap_or(chain.latest_nonce(&sender));
+		self.last_nonces.write().insert(sender, nonce + U256::from(1));
 
 		// lets assume that all txs are valid
 		self.imported_transactions.lock().push(pending.transaction);
@@ -200,7 +200,7 @@ impl MinerService for TestMinerService {
 		Some(f(&open_block.close()))
 	}
 
-	fn transaction(&self, _best_block: BlockNumber, hash: &H256) -> Option<SignedTransaction> {
+	fn transaction(&self, _best_block: BlockNumber, hash: &H256) -> Option<VerifiedSignedTransaction> {
 		self.pending_transactions.lock().get(hash).cloned()
 	}
 
@@ -258,7 +258,7 @@ impl MinerService for TestMinerService {
 		self.latest_closed_block.lock().as_ref().map_or_else(U256::zero, |b| b.block().fields().state.balance(address).clone())
 	}
 
-	fn call(&self, _chain: &MiningBlockChainClient, _t: &SignedTransaction, _analytics: CallAnalytics) -> Result<Executed, CallError> {
+	fn call(&self, _chain: &MiningBlockChainClient, _t: &VerifiedSignedTransaction, _analytics: CallAnalytics) -> Result<Executed, CallError> {
 		unimplemented!();
 	}
 

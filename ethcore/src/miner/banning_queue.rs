@@ -20,7 +20,7 @@
 use std::time::Duration;
 use std::ops::{Deref, DerefMut};
 use std::cell::Cell;
-use transaction::{SignedTransaction, Action};
+use transaction::{VerifiedSignedTransaction, Action};
 use transient_hashmap::TransientHashMap;
 use miner::{TransactionQueue, TransactionImportResult, TransactionOrigin, AccountDetails};
 use error::{Error, TransactionError};
@@ -77,12 +77,12 @@ impl BanningTransactionQueue {
 	/// May reject transaction because of the banlist.
 	pub fn add_with_banlist<F, G>(
 		&mut self,
-		transaction: SignedTransaction,
+		transaction: VerifiedSignedTransaction,
 		account_details: &F,
 		gas_estimator: &G,
 	) -> Result<TransactionImportResult, Error> where
 		F: Fn(&Address) -> AccountDetails,
-		G: Fn(&SignedTransaction) -> U256,
+		G: Fn(&VerifiedSignedTransaction) -> U256,
 	{
 		if let Threshold::BanAfter(threshold) = self.ban_threshold {
 			// NOTE In all checks use direct query to avoid increasing ban timeout.
@@ -216,7 +216,7 @@ mod tests {
 	use std::time::Duration;
 	use super::{BanningTransactionQueue, Threshold};
 	use ethkey::{Random, Generator};
-	use transaction::{Transaction, SignedTransaction, Action};
+	use transaction::{Transaction, VerifiedSignedTransaction, Action};
 	use error::{Error, TransactionError};
 	use client::TransactionImportResult;
 	use miner::{TransactionQueue, TransactionOrigin, AccountDetails};
@@ -233,11 +233,11 @@ mod tests {
 		}
 	}
 
-	fn gas_required(_tx: &SignedTransaction) -> U256 {
+	fn gas_required(_tx: &VerifiedSignedTransaction) -> U256 {
 		0.into()
 	}
 
-	fn transaction(action: Action) -> SignedTransaction {
+	fn transaction(action: Action) -> VerifiedSignedTransaction {
 		let keypair = Random.generate().unwrap();
 		Transaction {
 			action: action,
@@ -246,7 +246,7 @@ mod tests {
 			gas: U256::from(100_000),
 			gas_price: U256::from(10),
 			nonce: U256::from(0),
-		}.sign(keypair.secret(), None).into()
+		}.sign(keypair.secret(), None)
 	}
 
 	fn unwrap_err(res: Result<TransactionImportResult, Error>) -> TransactionError {
@@ -277,14 +277,14 @@ mod tests {
 		let tx = transaction(Action::Create);
 		let mut txq = queue();
 		// Banlist once (threshold not reached)
-		let banlist1 = txq.ban_sender(tx.recover_sender().unwrap());
+		let banlist1 = txq.ban_sender(tx.sender());
 		assert!(!banlist1, "Threshold not reached yet.");
 		// Insert once
 		let import1 = txq.add_with_banlist(tx.clone(), &default_account_details, &gas_required).unwrap();
 		assert_eq!(import1, TransactionImportResult::Current);
 
 		// when
-		let banlist2 = txq.ban_sender(tx.recover_sender().unwrap());
+		let banlist2 = txq.ban_sender(tx.sender());
 		let import2 = txq.add_with_banlist(tx.clone(), &default_account_details, &gas_required);
 
 		// then

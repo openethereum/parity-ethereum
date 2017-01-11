@@ -18,7 +18,7 @@ use super::test_common::*;
 use evm;
 use ethjson;
 use rlp::{UntrustedRlp, View};
-use transaction::{Action, SignedTransaction};
+use transaction::{Action, SignedTransaction, VerifiedSignedTransaction};
 
 fn do_json_test(json_data: &[u8]) -> Vec<String> {
 	let tests = ethjson::transaction::Test::load(json_data).unwrap();
@@ -34,7 +34,7 @@ fn do_json_test(json_data: &[u8]) -> Vec<String> {
 			Some(x) if x < 1_150_000 => &old_schedule,
 			Some(_) => &new_schedule
 		};
-		let allow_network_id_of_one = number.map_or(false, |n| n >= 2_675_000); 
+		let allow_network_id_of_one = number.map_or(false, |n| n >= 2_675_000);
 
 		let rlp: Vec<u8> = test.rlp.into();
 		let res = UntrustedRlp::new(&rlp)
@@ -44,8 +44,8 @@ fn do_json_test(json_data: &[u8]) -> Vec<String> {
 
 		fail_unless(test.transaction.is_none() == res.is_err(), "Validity different");
 		if let (Some(tx), Some(sender)) = (test.transaction, test.sender) {
-			let t = res.unwrap();
-			fail_unless(t.sender().unwrap() == sender.into(), "sender mismatch");
+			let t = VerifiedSignedTransaction::new(res.unwrap()).unwrap();
+			fail_unless(t.sender() == sender.into(), "sender mismatch");
 			let is_acceptable_network_id = match t.network_id() {
 				None => true,
 				Some(1) if allow_network_id_of_one => true,

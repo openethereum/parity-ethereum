@@ -33,7 +33,7 @@ use util::kvdb::*;
 // other
 use io::*;
 use views::BlockView;
-use error::{ImportError, ExecutionError, CallError, BlockError, ImportResult, Error as EthcoreError};
+use error::{ImportError, CallError, BlockError, ImportResult, Error as EthcoreError};
 use header::BlockNumber;
 use state::{State, CleanupMode};
 use spec::Spec;
@@ -1506,11 +1506,10 @@ impl Drop for Client {
 
 /// Returns `LocalizedReceipt` given `LocalizedTransaction`
 /// and a vector of receipts from given block up to transaction index.
-fn transaction_receipt(tx: LocalizedTransaction, mut receipts: Vec<Receipt>) -> LocalizedReceipt {
+fn transaction_receipt(mut tx: LocalizedTransaction, mut receipts: Vec<Receipt>) -> LocalizedReceipt {
 	assert_eq!(receipts.len(), tx.transaction_index + 1, "All previous receipts are provided.");
 
-	let sender = tx.recover_sender()
-		.expect("LocalizedTransaction is part of the blockchain; We have only valid transactions in chain; qed");
+	let sender = tx.sender();
 	let receipt = receipts.pop().expect("Current receipt is provided; qed");
 	let prior_gas_used = match tx.transaction_index {
 		0 => 0.into(),
@@ -1614,6 +1613,7 @@ mod tests {
 			block_number: block_number,
 			block_hash: block_hash,
 			transaction_index: 1,
+			cached_sender: Some(tx1.sender()),
 		};
 		let logs = vec![LogEntry {
 			address: 5.into(),

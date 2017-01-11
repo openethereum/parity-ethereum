@@ -188,6 +188,7 @@ impl Transaction {
 				hash: 0.into(),
 			}.compute_hash(),
 			sender: from,
+			public: Public::default(),
 		}
 	}
 
@@ -258,12 +259,6 @@ impl Encodable for SignedTransaction {
 	fn rlp_append(&self, s: &mut RlpStream) { self.rlp_append_sealed_transaction(s) }
 }
 
-impl HeapSizeOf for SignedTransaction {
-	fn heap_size_of_children(&self) -> usize {
-		self.unsigned.heap_size_of_children()
-	}
-}
-
 impl SignedTransaction {
 	/// Used to compute hash of created transactions
 	fn compute_hash(mut self) -> SignedTransaction {
@@ -322,13 +317,8 @@ impl SignedTransaction {
 		self.hash
 	}
 
-	/// Recovers transaction sender.
-	pub fn recover_sender(&self) -> Result<Address, Error> {
-		Ok(public_to_address(&self.public_key()?))
-	}
-
-	/// Returns the public key of the sender.
-	pub fn public_key(&self) -> Result<Public, Error> {
+	/// Recovers the public key of the sender.
+	pub fn recover_public(&self) -> Result<Public, Error> {
 		Ok(recover(&self.signature(), &self.unsigned.hash(self.network_id()))?)
 	}
 
@@ -359,6 +349,7 @@ impl SignedTransaction {
 pub struct VerifiedSignedTransaction {
 	transaction: SignedTransaction,
 	sender: Address,
+	public: Public,
 }
 
 impl HeapSizeOf for VerifiedSignedTransaction {
@@ -388,16 +379,23 @@ impl VerifiedSignedTransaction {
 	/// Try to verify transaction and recover sender.
 	pub fn new(transaction: SignedTransaction) -> Result<Self, Error> {
 		transaction.check_low_s()?;
-		let sender = transaction.recover_sender()?;
+		let public = transaction.recover_public()?;
+		let sender = public_to_address(&public);
 		Ok(VerifiedSignedTransaction {
 			transaction: transaction,
 			sender: sender,
+			public: public,
 		})
 	}
 
-	/// Returns transaction sender
+	/// Returns transaction sender.
 	pub fn sender(&self) -> Address {
 		self.sender
+	}
+
+	/// Returns a public key of the sender.
+	pub fn public_key(&self) -> Public {
+		self.public
 	}
 }
 
@@ -412,7 +410,23 @@ pub struct LocalizedTransaction {
 	/// Block hash.
 	pub block_hash: H256,
 	/// Transaction index within block.
-	pub transaction_index: usize
+	pub transaction_index: usize,
+	/// Cached sender
+	pub cached_sender: Option<Address>,
+}
+
+impl LocalizedTransaction {
+	/// Returns transaction sender.
+	/// Panics if `LocalizedTransaction` is constructed using invalid `SignedTransaction`.
+	pub fn sender(&mut self) -> Address {
+		if let Some(sender) = self.cached_sender {
+			return sender;
+		}
+		let sender = public_to_address(&self.recover_public()
+			.expect("LocalizedTransaction is always constructed from transaction from blockchain; Blockchain only stores verified transactions; qed"));
+		self.cached_sender = Some(sender);
+		sender
+	}
 }
 
 impl Deref for LocalizedTransaction {
@@ -463,7 +477,7 @@ fn sender_test() {
 		assert_eq!(*to, "095e7baea6a6c7c4c2dfeb977efac326af552d87".into());
 	} else { panic!(); }
 	assert_eq!(t.value, U256::from(0x0au64));
-	assert_eq!(t.recover_sender().unwrap(), "0f65fe9276bc9a24ae7083ae28e2660ef72df99e".into());
+	assert_eq!(public_to_address(t.recover_public().unwrap()), "0f65fe9276bc9a24ae7083ae28e2660ef72df99e".into());
 	assert_eq!(t.network_id(), None);
 }
 
@@ -523,8 +537,7 @@ fn should_agree_with_vitalik() {
 	use rustc_serialize::hex::FromHex;
 
 	let test_vector = |tx_data: &str, address: &'static str| {
-		let signed: SignedTransaction = decode(&FromHex::from_hex(tx_data).unwrap());
-		signed.check_low_s().unwrap();
+		let signed = decode(&FromHex::from_hex(tx_data).unwrap());
 		let signed = VerifiedSignedTransaction::new(signed).unwrap();
 		assert_eq!(signed.sender(), address.into());
 		flushln!("networkid: {:?}", signed.network_id());

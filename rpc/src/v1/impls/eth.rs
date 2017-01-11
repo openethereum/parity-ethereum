@@ -37,7 +37,7 @@ use ethcore::client::{MiningBlockChainClient, BlockId, TransactionId, UncleId};
 use ethcore::header::{Header as BlockHeader, BlockNumber as EthBlockNumber};
 use ethcore::block::IsBlock;
 use ethcore::ethereum::Ethash;
-use ethcore::transaction::{Transaction as EthTransaction, SignedTransaction, PendingTransaction, Action};
+use ethcore::transaction::{Transaction as EthTransaction, VerifiedSignedTransaction, PendingTransaction, Action};
 use ethcore::log_entry::LogEntry;
 use ethcore::filter::Filter as EthcoreFilter;
 use ethcore::snapshot::SnapshotService;
@@ -202,7 +202,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> EthClient<C, SN, S, M, EM> where
 		Ok(Some(block))
 	}
 
-	fn sign_call(&self, request: CRequest) -> Result<SignedTransaction, Error> {
+	fn sign_call(&self, request: CRequest) -> Result<VerifiedSignedTransaction, Error> {
 		let (client, miner) = (take_weak!(self.client), take_weak!(self.miner));
 		let from = request.from.unwrap_or(Address::zero());
 		Ok(EthTransaction {
@@ -638,11 +638,13 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 	fn send_raw_transaction(&self, raw: Bytes) -> Result<RpcH256, Error> {
 		self.active()?;
 
-		let raw_transaction = raw.to_vec();
-		match UntrustedRlp::new(&raw_transaction).as_val() {
-			Ok(signed_transaction) => dispatch_transaction(&*take_weak!(self.client), &*take_weak!(self.miner), PendingTransaction::new(signed_transaction, None)).map(Into::into),
-			Err(e) => Err(errors::from_rlp_error(e)),
-		}
+		UntrustedRlp::new(&raw.into_vec()).as_val()
+			.map_err(errors::from_rlp_error)
+			.and_then(|tx| VerifiedSignedTransaction::new(tx).map_err(errors::from_transaction_error))
+			.and_then(|signed_transaction| {
+				dispatch_transaction(&*take_weak!(self.client), &*take_weak!(self.miner), PendingTransaction::new(signed_transaction, None))
+			})
+			.map(Into::into)
 	}
 
 	fn submit_transaction(&self, raw: Bytes) -> Result<RpcH256, Error> {

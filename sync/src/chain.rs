@@ -2099,6 +2099,7 @@ mod tests {
 	use super::*;
 	use ::SyncConfig;
 	use super::{PeerInfo, PeerAsking};
+	use ethkey;
 	use ethcore::header::*;
 	use ethcore::client::*;
 	use ethcore::miner::MinerService;
@@ -2709,6 +2710,10 @@ mod tests {
 
 	#[test]
 	fn should_add_transactions_to_queue() {
+		fn sender(tx: &SignedTransaction) -> Address {
+			ethkey::public_to_address(tx.recover_public_key().unwrap())
+		}
+
 		// given
 		let mut client = TestBlockChainClient::new();
 		client.add_blocks(98, EachBlockWith::Uncle);
@@ -2722,8 +2727,9 @@ mod tests {
 		// Add some balance to clients and reset nonces
 		for h in &[good_blocks[0], retracted_blocks[0]] {
 			let block = client.block(BlockId::Hash(*h)).unwrap();
-			client.set_balance(block.transactions()[0].sender().unwrap(), U256::from(1_000_000_000));
-			client.set_nonce(block.transactions()[0].sender().unwrap(), U256::from(0));
+			let sender = sender(block.transactions()[0]);;
+			client.set_balance(sender, U256::from(1_000_000_000));
+			client.set_nonce(sender, U256::from(0));
 		}
 
 
@@ -2740,7 +2746,7 @@ mod tests {
 		// We need to update nonce status (because we say that the block has been imported)
 		for h in &[good_blocks[0]] {
 			let block = client.block(BlockId::Hash(*h)).unwrap();
-			client.set_nonce(block.transactions()[0].sender().unwrap(), U256::from(1));
+			client.set_nonce(sender(block.transactions()[0]), U256::from(1));
 		}
 		{
 			let queue = RwLock::new(VecDeque::new());

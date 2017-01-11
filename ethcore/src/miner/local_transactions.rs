@@ -17,7 +17,7 @@
 //! Local Transactions List.
 
 use linked_hash_map::LinkedHashMap;
-use transaction::{SignedTransaction, VerifiedSignedTransaction};
+use transaction::VerifiedSignedTransaction;
 use error::TransactionError;
 use util::{U256, H256};
 
@@ -37,9 +37,9 @@ pub enum Status {
 	/// Replaced because of higher gas price of another transaction.
 	Replaced(VerifiedSignedTransaction, U256, H256),
 	/// Transaction was never accepted to the queue.
-	Rejected(SignedTransaction, TransactionError),
+	Rejected(VerifiedSignedTransaction, TransactionError),
 	/// Transaction is invalid.
-	Invalid(SignedTransaction),
+	Invalid(VerifiedSignedTransaction),
 }
 
 impl Status {
@@ -79,7 +79,7 @@ impl LocalTransactionsList {
 		self.clear_old();
 	}
 
-	pub fn mark_rejected(&mut self, tx: SignedTransaction, err: TransactionError) {
+	pub fn mark_rejected(&mut self, tx: VerifiedSignedTransaction, err: TransactionError) {
 		self.transactions.insert(tx.hash(), Status::Rejected(tx, err));
 		self.clear_old();
 	}
@@ -89,7 +89,7 @@ impl LocalTransactionsList {
 		self.clear_old();
 	}
 
-	pub fn mark_invalid(&mut self, tx: SignedTransaction) {
+	pub fn mark_invalid(&mut self, tx: VerifiedSignedTransaction) {
 		self.transactions.insert(tx.hash(), Status::Invalid(tx));
 		self.clear_old();
 	}
@@ -139,7 +139,7 @@ impl LocalTransactionsList {
 mod tests {
 	use util::U256;
 	use ethkey::{Random, Generator};
-	use transaction::{Action, Transaction, SignedTransaction, VerifiedSignedTransaction};
+	use transaction::{Action, Transaction, VerifiedSignedTransaction};
 	use super::{LocalTransactionsList, Status};
 
 	#[test]
@@ -169,7 +169,7 @@ mod tests {
 
 		list.mark_pending(10.into());
 		list.mark_invalid(tx1);
-		list.mark_dropped(VerifiedSignedTransaction::new(tx2).unwrap());
+		list.mark_dropped(tx2);
 		assert!(list.contains(&tx2_hash));
 		assert!(!list.contains(&tx1_hash));
 		assert!(list.contains(&10.into()));
@@ -182,7 +182,7 @@ mod tests {
 		assert!(list.contains(&15.into()));
 	}
 
-	fn new_tx(nonce: U256) -> SignedTransaction {
+	fn new_tx(nonce: U256) -> VerifiedSignedTransaction {
 		let keypair = Random.generate().unwrap();
 		Transaction {
 			action: Action::Create,
@@ -191,6 +191,6 @@ mod tests {
 			gas: U256::from(10),
 			gas_price: U256::from(1245),
 			nonce: nonce
-		}.sign(keypair.secret(), None).into()
+		}.sign(keypair.secret(), None)
 	}
 }

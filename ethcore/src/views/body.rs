@@ -61,7 +61,8 @@ impl<'a> BodyView<'a> {
 				signed: t,
 				block_hash: block_hash.clone(),
 				block_number: block_number,
-				transaction_index: i
+				transaction_index: i,
+				cached_sender: None,
 			}).collect()
 	}
 
@@ -91,7 +92,8 @@ impl<'a> BodyView<'a> {
 			signed: t,
 			block_hash: block_hash.clone(),
 			block_number: block_number,
-			transaction_index: index
+			transaction_index: index,
+			cached_sender: None,
 		})
 	}
 

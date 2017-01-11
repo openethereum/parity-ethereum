@@ -23,7 +23,7 @@ use util::bytes::ToPretty;
 use ethkey::Signature;
 use ethcore::miner::MinerService;
 use ethcore::client::MiningBlockChainClient;
-use ethcore::transaction::{Action, SignedTransaction, PendingTransaction, Transaction};
+use ethcore::transaction::{Action, VerifiedSignedTransaction, PendingTransaction, Transaction};
 use ethcore::account_provider::AccountProvider;
 
 use jsonrpc_core::Error;
@@ -156,7 +156,7 @@ pub fn dispatch_transaction<C, M>(client: &C, miner: &M, signed_transaction: Pen
 		.map(|_| hash)
 }
 
-pub fn sign_no_dispatch<C, M>(client: &C, miner: &M, accounts: &AccountProvider, filled: FilledTransactionRequest, password: SignWith) -> Result<WithToken<SignedTransaction>, Error>
+pub fn sign_no_dispatch<C, M>(client: &C, miner: &M, accounts: &AccountProvider, filled: FilledTransactionRequest, password: SignWith) -> Result<WithToken<VerifiedSignedTransaction>, Error>
 	where C: MiningBlockChainClient, M: MinerService {
 
 	let network_id = client.signing_network_id();
@@ -179,7 +179,8 @@ pub fn sign_no_dispatch<C, M>(client: &C, miner: &M, accounts: &AccountProvider,
 		let hash = t.hash(network_id);
 		let signature = signature(accounts, address, hash, password)?;
 		signature.map(|sig| {
-			t.with_signature(sig, network_id)
+			VerifiedSignedTransaction::new(t.with_signature(sig, network_id))
+				.expect("Transaction was signed by AccountsProvider; it never produces invalid signatures; qed")
 		})
 	};
 	Ok(signed_transaction)
