@@ -578,8 +578,8 @@ impl Miner {
 		transactions: Vec<UnverifiedTransaction>,
 		default_origin: TransactionOrigin,
 		min_block: Option<BlockNumber>,
-		transaction_queue: &mut BanningTransactionQueue)
-		-> Vec<Result<TransactionImportResult, Error>> {
+		transaction_queue: &mut BanningTransactionQueue,
+	) -> Vec<Result<TransactionImportResult, Error>> {
 
 		let fetch_account = |a: &Address| AccountDetails {
 			nonce: chain.latest_nonce(a),
@@ -873,8 +873,8 @@ impl MinerService for Miner {
 		let imported = {
 			// Be sure to release the lock before we call prepare_work_sealing
 			let mut transaction_queue = self.transaction_queue.lock();
+			// We need to re-validate transactions
 			let import = self.add_transactions_to_queue(
-				// TODO [ToDr] Optimize
 				chain, vec![pending.transaction.into()], TransactionOrigin::Local, pending.min_block, &mut transaction_queue
 			).pop().expect("one result returned per added transaction; one added => one result; qed");
 

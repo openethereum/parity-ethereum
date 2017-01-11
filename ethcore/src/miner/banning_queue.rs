@@ -90,14 +90,12 @@ impl BanningTransactionQueue {
 			// NOTE In all checks use direct query to avoid increasing ban timeout.
 
 			// Check sender
-			// TODO [ToDr] This should be optimized?
-			// if let Ok(sender) = transaction.sender() {
-			// 	let count = self.senders_bans.direct().get(&sender).map(|v| v.get()).unwrap_or(0);
-			// 	if count > threshold {
-			// 		debug!(target: "txqueue", "Ignoring transaction {:?} because sender is banned.", transaction.hash());
-			// 		return Err(Error::Transaction(TransactionError::SenderBanned));
-			// 	}
-			// }
+			let sender = transaction.sender();
+			let count = self.senders_bans.direct().get(&sender).map(|v| v.get()).unwrap_or(0);
+			if count > threshold {
+				debug!(target: "txqueue", "Ignoring transaction {:?} because sender is banned.", transaction.hash());
+				return Err(Error::Transaction(TransactionError::SenderBanned));
+			}
 
 			// Check recipient
 			if let Action::Call(recipient) = transaction.action {
