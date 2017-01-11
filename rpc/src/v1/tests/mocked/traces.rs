@@ -51,7 +51,7 @@ fn io() -> Tester {
 		block_hash: 10.into(),
 	}]);
 	*client.execution_result.write() = Some(Ok(Executed {
-		exceptional: false,
+		exception: None,
 		gas: 20_000.into(),
 		gas_used: 10_000.into(),
 		refunded: 0.into(),
