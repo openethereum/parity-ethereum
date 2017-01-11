@@ -154,7 +154,7 @@ class InputAddress extends Component {
     }
   }
 
-  onSubmit = (event, _value) => {
+  onSubmit = (_value) => {
     const address = _value.trim();
 
     if (this.props.onSubmit) {
