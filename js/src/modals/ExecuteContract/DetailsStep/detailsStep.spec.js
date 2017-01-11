@@ -14,15 +14,13 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { mount } from 'enzyme';
+import { shallow } from 'enzyme';
 import React from 'react';
 import sinon from 'sinon';
 
-import { ContextProvider, muiTheme } from '~/ui';
-
 import DetailsStep from './';
 
-import { createApi, STORE, CONTRACT } from '../executeContract.test.js';
+import { CONTRACT } from '../executeContract.test.js';
 
 let component;
 let onAmountChange;
@@ -40,18 +38,16 @@ function render (props) {
   onGasEditClick = sinon.stub();
   onValueChange = sinon.stub();
 
-  component = mount(
-    <ContextProvider api={ createApi() } muiTheme={ muiTheme } store={ STORE }>
-      <DetailsStep
-        { ...props }
-        contract={ CONTRACT }
-        onAmountChange={ onAmountChange }
-        onClose={ onClose }
-        onFromAddressChange={ onFromAddressChange }
-        onFuncChange={ onFuncChange }
-        onGasEditClick={ onGasEditClick }
-        onValueChange={ onValueChange } />
-    </ContextProvider>
+  component = shallow(
+    <DetailsStep
+      { ...props }
+      contract={ CONTRACT }
+      onAmountChange={ onAmountChange }
+      onClose={ onClose }
+      onFromAddressChange={ onFromAddressChange }
+      onFuncChange={ onFuncChange }
+      onGasEditClick={ onGasEditClick }
+      onValueChange={ onValueChange } />
   );
 
   return component;
@@ -74,7 +70,7 @@ describe('modals/ExecuteContract/DetailsStep', () => {
 
     describe('bool parameters', () => {
       it('toggles from false to true', () => {
-        component.find('DropDownMenu').last().simulate('change', { target: { value: 'true' } });
+        component.find('TypedInput').last().shallow().simulate('change', { target: { value: 'true' } });
 
         expect(onValueChange).to.have.been.calledWith(null, 0, true);
       });

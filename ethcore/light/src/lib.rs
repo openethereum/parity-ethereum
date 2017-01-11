@@ -25,8 +25,10 @@
 //! low-latency applications, but perfectly suitable for simple everyday
 //! use-cases like sending transactions from a personal account.
 //!
-//! It starts by performing a header-only sync, verifying random samples
-//! of members of the chain to varying degrees.
+//! The light client performs a header-only sync, doing verification and pruning
+//! historical blocks. Upon pruning, batches of 2048 blocks have a number => hash
+//! mapping sealed into "canonical hash tries" which can later be used to verify
+//! historical block queries from peers.
 
 #![deny(missing_docs)]
 
@@ -60,6 +62,7 @@ extern crate ethcore_util as util;
 extern crate ethcore_network as network;
 extern crate ethcore_io as io;
 extern crate rlp;
+extern crate smallvec;
 extern crate time;
 
 #[cfg(feature = "ipc")]

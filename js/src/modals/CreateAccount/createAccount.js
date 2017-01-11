@@ -240,6 +240,7 @@ export default class CreateAccount extends Component {
 
     if (createType === 'fromNew' || createType === 'fromPhrase') {
       let phrase = this.state.phrase;
+
       if (createType === 'fromPhrase' && windowsPhrase) {
         phrase = phrase
           .split(' ') // get the words
@@ -271,7 +272,9 @@ export default class CreateAccount extends Component {
 
           this.newError(error);
         });
-    } else if (createType === 'fromRaw') {
+    }
+
+    if (createType === 'fromRaw') {
       return api.parity
         .newAccountFromSecret(this.state.rawKey, this.state.password)
         .then((address) => {
@@ -296,7 +299,9 @@ export default class CreateAccount extends Component {
 
           this.newError(error);
         });
-    } else if (createType === 'fromGeth') {
+    }
+
+    if (createType === 'fromGeth') {
       return api.parity
         .importGethAccounts(this.state.gethAddresses)
         .then((result) => {

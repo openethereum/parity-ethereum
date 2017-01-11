@@ -35,7 +35,12 @@
 .link {
   color: #00BCD4;
   text-decoration: none;
+
+  &:hover {
+    text-decoration: underline;
+  }
 }
-.link:hover {
-  text-decoration: underline;
+
+.error {
+  color: red;
 }

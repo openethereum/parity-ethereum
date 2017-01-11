@@ -17,7 +17,7 @@
 //! Tendermint params deserialization.
 
 use uint::Uint;
-use hash::Address;
+use super::ValidatorSet;
 
 /// Tendermint params deserialization.
 #[derive(Debug, PartialEq, Deserialize)]
@@ -25,8 +25,8 @@ pub struct TendermintParams {
 	/// Gas limit divisor.
 	#[serde(rename="gasLimitBoundDivisor")]
 	pub gas_limit_bound_divisor: Uint,
-	/// Valid authorities
-	pub authorities: Vec<Address>,
+	/// Valid validators.
+	pub validators: ValidatorSet,
 	/// Propose step timeout in milliseconds.
 	#[serde(rename="timeoutPropose")]
 	pub timeout_propose: Option<Uint>,
@@ -39,6 +39,9 @@ pub struct TendermintParams {
 	/// Commit step timeout in milliseconds.
 	#[serde(rename="timeoutCommit")]
 	pub timeout_commit: Option<Uint>,
+	/// Block reward.
+	#[serde(rename="blockReward")]
+	pub block_reward: Option<Uint>,
 }
 
 /// Tendermint engine deserialization.
@@ -54,11 +57,14 @@ mod tests {
 	use spec::tendermint::Tendermint;
 
 	#[test]
-	fn basic_authority_deserialization() {
+	fn tendermint_deserialization() {
 		let s = r#"{
 			"params": {
 				"gasLimitBoundDivisor": "0x0400",
-				"authorities" : ["0xc6d9d2cd449a754c494264e1809c50e34d64562b"]
+				"validators": {
+					"list": ["0xc6d9d2cd449a754c494264e1809c50e34d64562b"]
+				},
+				"blockReward": "0x50"
 			}
 		}"#;
 

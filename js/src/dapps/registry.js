@@ -34,3 +34,16 @@ ReactDOM.render(
   </Provider>,
   document.querySelector('#container')
 );
+
+if (module.hot) {
+  module.hot.accept('./registry/Container', () => {
+    require('./registry/Container');
+
+    ReactDOM.render(
+      <Provider store={ store }>
+        <Container />
+      </Provider>,
+      document.querySelector('#container')
+    );
+  });
+}

@@ -16,11 +16,13 @@
 
 import React from 'react';
 import { observable, action } from 'mobx';
-import { flatMap } from 'lodash';
+import { flatMap, uniqBy } from 'lodash';
 import { FormattedMessage } from 'react-intl';
 
 import Contracts from '~/contracts';
 import { sha3 } from '~/api/util/sha3';
+
+const ZERO = /^(0x)?0*$/;
 
 export default class AddressSelectStore {
 
@@ -28,7 +30,48 @@ export default class AddressSelectStore {
   @observable registryValues = [];
 
   initValues = [];
-  regLookups = [];
+  regLookups = [
+    (query) => {
+      query = query.toLowerCase().trim();
+      if (query.length === 0 || query === '0x') {
+        return null;
+      }
+      const startsWithQuery = (s) => new RegExp('^' + query, 'i').test(s);
+
+      let address;
+      let name = this.reverse[query];
+
+      if (!name) {
+        const addr = Object
+          .keys(this.reverse)
+          .find((addr) => {
+            const name = this.reverse[addr];
+            return startsWithQuery(addr) || (name && startsWithQuery(name));
+          });
+
+        if (addr) {
+          address = addr;
+          name = this.reverse[addr];
+        } else {
+          return null;
+        }
+      }
+
+      return {
+        address,
+        name,
+        description: (
+          <FormattedMessage
+            id='addressSelect.fromRegistry'
+            defaultMessage='{name} (from registry)'
+            values={ {
+              name
+            } }
+          />
+        )
+      };
+    }
+  ];
 
   constructor (api) {
     this.api = api;
@@ -38,47 +81,82 @@ export default class AddressSelectStore {
     registry
       .getContract('emailverification')
       .then((emailVerification) => {
-        this.regLookups.push({
-          lookup: (value) => {
-            return emailVerification
-              .instance
-              .reverse.call({}, [ sha3(value) ]);
-          },
-          describe: (value) => (
-            <FormattedMessage
-              id='addressSelect.fromEmail'
-              defaultMessage='Verified using email {value}'
-              values={ {
-                value
-              } }
-            />
-          )
+        this.regLookups.push((email) => {
+          return emailVerification
+            .instance
+            .reverse
+            .call({}, [ sha3.text(email) ])
+            .then((address) => {
+              return {
+                address,
+                description: (
+                  <FormattedMessage
+                    id='addressSelect.fromEmail'
+                    defaultMessage='Verified using email {email}'
+                    values={ {
+                      email
+                    } }
+                  />
+                )
+              };
+            });
         });
       });
 
     registry
       .getInstance()
       .then((registryInstance) => {
-        this.regLookups.push({
-          lookup: (value) => {
-            return registryInstance
-              .getAddress.call({}, [ sha3(value), 'A' ]);
-          },
-          describe: (value) => (
-            <FormattedMessage
-              id='addressSelect.fromRegistry'
-              defaultMessage='{value} (from registry)'
-              values={ {
-                value
-              } }
-            />
-          )
+        this.regLookups.push((name) => {
+          return registryInstance
+            .getAddress
+            .call({}, [ sha3.text(name), 'A' ])
+            .then((address) => {
+              return {
+                address,
+                name,
+                description: (
+                  <FormattedMessage
+                    id='addressSelect.fromRegistry'
+                    defaultMessage='{name} (from registry)'
+                    values={ {
+                      name
+                    } }
+                  />
+                )
+              };
+            });
+        });
+
+        this.regLookups.push((address) => {
+          return registryInstance
+            .reverse
+            .call({}, [ address ])
+            .then((name) => {
+              if (!name) {
+                return null;
+              }
+
+              return {
+                address,
+                name,
+                description: (
+                  <FormattedMessage
+                    id='addressSelect.fromRegistry'
+                    defaultMessage='{name} (from registry)'
+                    values={ {
+                      name
+                    } }
+                  />
+                )
+              };
+            });
         });
       });
   }
 
   @action setValues (props) {
-    const { accounts = {}, contracts = {}, contacts = {} } = props;
+    const { accounts = {}, contracts = {}, contacts = {}, reverse = {} } = props;
+    this.reverse = reverse;
 
     const accountsN = Object.keys(accounts).length;
     const contractsN = Object.keys(contracts).length;
@@ -149,32 +227,32 @@ export default class AddressSelectStore {
     // Registries Lookup
     this.registryValues = [];
 
-    const lookups = this.regLookups.map((regLookup) => regLookup.lookup(value));
+    const lookups = this.regLookups.map((regLookup) => regLookup(value));
 
     Promise
       .all(lookups)
       .then((results) => {
         return results
-          .map((result, index) => {
-            if (/^(0x)?0*$/.test(result)) {
-              return;
-            }
+          .filter((result) => result && !ZERO.test(result.address));
+      })
+      .then((results) => {
+        results = uniqBy(results, (result) => result.address);
 
-            const lowercaseResult = result.toLowerCase();
+        this.registryValues = results
+          .map((result) => {
+            const lowercaseAddress = result.address.toLowerCase();
 
             const account = flatMap(this.initValues, (cat) => cat.values)
-              .find((account) => account.address.toLowerCase() === lowercaseResult);
+              .find((account) => account.address.toLowerCase() === lowercaseAddress);
 
-            return {
-              description: this.regLookups[index].describe(value),
-              address: result,
-              name: account && account.name || value
-            };
-          })
-          .filter((data) => data);
-      })
-      .then((registryValues) => {
-        this.registryValues = registryValues;
+            if (account && account.name) {
+              result.name = account.name;
+            } else if (!result.name) {
+              result.name = value;
+            }
+
+            return result;
+          });
       });
   }
 

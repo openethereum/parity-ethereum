@@ -16,45 +16,57 @@
 
 import { sha3, api } from '../parity.js';
 import postTx from '../util/post-tx';
+import { getOwner } from '../util/registry';
+
+export const clearError = () => ({
+  type: 'clearError'
+});
 
 export const start = (name, key, value) => ({ type: 'records update start', name, key, value });
 
 export const success = () => ({ type: 'records update success' });
 
-export const fail = () => ({ type: 'records update error' });
+export const fail = (error) => ({ type: 'records update fail', error });
 
 export const update = (name, key, value) => (dispatch, getState) => {
   const state = getState();
   const account = state.accounts.selected;
   const contract = state.contract;
+
   if (!contract || !account) {
     return;
   }
 
   name = name.toLowerCase();
-
-  const fnName = key === 'A' ? 'setAddress' : 'set';
-  const setAddress = contract.functions.find((f) => f.name === fnName);
-
   dispatch(start(name, key, value));
 
-  const options = {
-    from: account.address
-  };
-  const values = [
-    sha3(name),
-    key,
-    value
-  ];
+  return getOwner(contract, name)
+    .then((owner) => {
+      if (owner.toLowerCase() !== account.address.toLowerCase()) {
+        throw new Error(`you are not the owner of "${name}"`);
+      }
 
-  postTx(api, setAddress, options, values)
+      const fnName = key === 'A' ? 'setAddress' : 'set';
+      const method = contract.instance[fnName];
+
+      const options = {
+        from: account.address
+      };
+
+      const values = [
+        sha3.text(name),
+        key,
+        value
+      ];
+
+      return postTx(api, method, options, values);
+    })
     .then((txHash) => {
       dispatch(success());
     }).catch((err) => {
-      console.error(`could not update ${key} record of ${name}`);
-
-      if (err) {
-        console.error(err.stack);
+      if (err.type !== 'REQUEST_REJECTED') {
+        console.error(`error updating ${name}`, err);
+        return dispatch(fail(err));
       }
 
       dispatch(fail());

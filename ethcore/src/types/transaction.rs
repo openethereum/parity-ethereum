@@ -101,6 +101,7 @@ impl HeapSizeOf for Transaction {
 impl From<ethjson::state::Transaction> for SignedTransaction {
 	fn from(t: ethjson::state::Transaction) -> Self {
 		let to: Option<ethjson::hash::Address> = t.to.into();
+		let secret = Secret::from_slice(&t.secret.0).expect("Valid secret expected.");
 		Transaction {
 			nonce: t.nonce.into(),
 			gas_price: t.gas_price.into(),
@@ -111,7 +112,7 @@ impl From<ethjson::state::Transaction> for SignedTransaction {
 			},
 			value: t.value.into(),
 			data: t.data.into(),
-		}.sign(&t.secret.into(), None)
+		}.sign(&secret, None)
 	}
 }
 
@@ -284,6 +285,11 @@ impl UnverifiedTransaction {
 		s.append(&self.s);
 	}
 
+	/// Clones unsigned part of this transaction.
+	pub fn to_unsigned(&self) -> Transaction {
+		self.unsigned.clone()
+	}
+
 	/// 0 if `v` would have been 27 under "Electrum" notation, 1 if 28 or 4 if invalid.
 	pub fn standard_v(&self) -> u8 { match self.v { v if v == 27 || v == 28 || v > 36 => ((v - 1) % 2) as u8, _ => 4 } }
 
@@ -335,7 +341,7 @@ impl UnverifiedTransaction {
 			Some(1) if allow_network_id_of_one => {},
 			_ => return Err(TransactionError::InvalidNetworkId.into()),
 		}
-		self.public_key()?;
+		self.recover_public()?;
 		if self.gas < U256::from(self.gas_required(&schedule)) {
 			Err(TransactionError::InvalidGasLimit(::util::OutOfBounds{min: Some(U256::from(self.gas_required(&schedule))), max: None, found: self.gas}).into())
 		} else {
@@ -477,7 +483,7 @@ fn sender_test() {
 		assert_eq!(*to, "095e7baea6a6c7c4c2dfeb977efac326af552d87".into());
 	} else { panic!(); }
 	assert_eq!(t.value, U256::from(0x0au64));
-	assert_eq!(public_to_address(t.recover_public().unwrap()), "0f65fe9276bc9a24ae7083ae28e2660ef72df99e".into());
+	assert_eq!(public_to_address(&t.recover_public().unwrap()), "0f65fe9276bc9a24ae7083ae28e2660ef72df99e".into());
 	assert_eq!(t.network_id(), None);
 }
 

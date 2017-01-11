@@ -17,9 +17,9 @@
 //! Snapshot test helpers. These are used to build blockchains and state tries
 //! which can be queried before and after a full snapshot/restore cycle.
 
+use basic_account::BasicAccount;
 use account_db::AccountDBMut;
 use rand::Rng;
-use snapshot::account::Account;
 
 use util::DBValue;
 use util::hash::{FixedHash, H256};
@@ -64,10 +64,10 @@ impl StateProducer {
 
 		// sweep once to alter storage tries.
 		for &mut (ref mut address_hash, ref mut account_data) in &mut accounts_to_modify {
-			let mut account = Account::from_thin_rlp(&*account_data);
+			let mut account: BasicAccount = ::rlp::decode(&*account_data);
 			let acct_db = AccountDBMut::from_hash(db, *address_hash);
-			fill_storage(acct_db, account.storage_root_mut(), &mut self.storage_seed);
-			*account_data = DBValue::from_vec(account.to_thin_rlp());
+			fill_storage(acct_db, &mut account.storage_root, &mut self.storage_seed);
+			*account_data = DBValue::from_vec(::rlp::encode(&account).to_vec());
 		}
 
 		// sweep again to alter account trie.

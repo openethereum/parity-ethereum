@@ -14,21 +14,18 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { handleActions } from 'redux-actions';
+import { ADDRESS, createRedux } from '../account.test.js';
 
-const initialState = {
-  worker: undefined,
-  error: null
+function createApi () {
+  return {
+    trace: {
+      filter: (options) => Promise.resolve([{ transactionHash: options.fromAddress ? '123' : '098', action: {} }])
+    }
+  };
+}
+
+export {
+  ADDRESS,
+  createApi,
+  createRedux
 };
-
-export default handleActions({
-  setWorker (state, action) {
-    const { worker } = action;
-    return Object.assign({}, state, { worker });
-  },
-
-  setError (state, action) {
-    const { error } = action;
-    return Object.assign({}, state, { error });
-  }
-}, initialState);

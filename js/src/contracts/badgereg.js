@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { bytesToHex, hex2Ascii } from '~/api/util/format';
+import { bytesToHex, hexToAscii } from '~/api/util/format';
 
 import ABI from './abi/certifier.json';
 
@@ -62,7 +62,7 @@ export default class BadgeReg {
         name = bytesToHex(name);
         name = name === ZERO32
           ? null
-          : hex2Ascii(name);
+          : hexToAscii(name);
 
         return this.fetchMeta(id)
           .then(({ title, icon }) => {
@@ -84,7 +84,7 @@ export default class BadgeReg {
       })
       .then(([ title, icon ]) => {
         title = bytesToHex(title);
-        title = title === ZERO32 ? null : hex2Ascii(title);
+        title = title === ZERO32 ? null : hexToAscii(title);
 
         if (bytesToHex(icon) === ZERO32) {
           icon = null;

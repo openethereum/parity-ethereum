@@ -118,7 +118,7 @@ export function attachInstances () {
         ]);
     })
     .then(([managerAddress, registryAddress, tokenregAddress]) => {
-      console.log(`contracts were found at basiccoinmgr=${managerAddress}, basiccoinreg=${registryAddress}, tokenreg=${registryAddress}`);
+      console.log(`contracts were found at basiccoinmgr=${managerAddress}, basiccoinreg=${registryAddress}, tokenreg=${tokenregAddress}`);
 
       managerInstance = api.newContract(abis.basiccoinmanager, managerAddress).instance;
       registryInstance = api.newContract(abis.tokenreg, registryAddress).instance;

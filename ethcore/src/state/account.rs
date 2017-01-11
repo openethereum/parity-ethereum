@@ -20,6 +20,7 @@ use util::*;
 use pod_account::*;
 use rlp::*;
 use lru_cache::LruCache;
+use basic_account::BasicAccount;
 
 use std::cell::{RefCell, Cell};
 
@@ -51,6 +52,23 @@ pub struct Account {
 	code_filth: Filth,
 	// Cached address hash.
 	address_hash: Cell<Option<H256>>,
+}
+
+impl From<BasicAccount> for Account {
+	fn from(basic: BasicAccount) -> Self {
+		Account {
+			balance: basic.balance,
+			nonce: basic.nonce,
+			storage_root: basic.storage_root,
+			storage_cache: Self::empty_storage_cache(),
+			storage_changes: HashMap::new(),
+			code_hash: basic.code_hash,
+			code_size: None,
+			code_cache: Arc::new(vec![]),
+			code_filth: Filth::Clean,
+			address_hash: Cell::new(None),
+		}
+	}
 }
 
 impl Account {
@@ -109,19 +127,8 @@ impl Account {
 
 	/// Create a new account from RLP.
 	pub fn from_rlp(rlp: &[u8]) -> Account {
-		let r: Rlp = Rlp::new(rlp);
-		Account {
-			nonce: r.val_at(0),
-			balance: r.val_at(1),
-			storage_root: r.val_at(2),
-			storage_cache: Self::empty_storage_cache(),
-			storage_changes: HashMap::new(),
-			code_hash: r.val_at(3),
-			code_cache: Arc::new(vec![]),
-			code_size: None,
-			code_filth: Filth::Clean,
-			address_hash: Cell::new(None),
-		}
+		let basic: BasicAccount = ::rlp::decode(rlp);
+		basic.into()
 	}
 
 	/// Create a new contract account.
@@ -171,8 +178,8 @@ impl Account {
 			SecTrieDBMut would not set it to an invalid state root. Therefore the root is valid and DB creation \
 			using it will not fail.");
 
-		let item: U256 = match db.get(key){
-			Ok(x) => x.map_or_else(U256::zero, |v| decode(&*v)),
+		let item: U256 = match db.get_with(key, ::rlp::decode) {
+			Ok(x) => x.unwrap_or_else(U256::zero),
 			Err(e) => panic!("Encountered potential DB corruption: {}", e),
 		};
 		let value: H256 = item.into();
@@ -446,12 +453,12 @@ impl Account {
 	/// omitted.
 	pub fn prove_storage(&self, db: &HashDB, storage_key: H256, from_level: u32) -> Result<Vec<Bytes>, Box<TrieError>> {
 		use util::trie::{Trie, TrieDB};
-		use util::trie::recorder::{Recorder, BasicRecorder as TrieRecorder};
+		use util::trie::recorder::Recorder;
 
-		let mut recorder = TrieRecorder::with_depth(from_level);
+		let mut recorder = Recorder::with_depth(from_level);
 
 		let trie = TrieDB::new(db, &self.storage_root)?;
-		let _ = trie.get_recorded(&storage_key, &mut recorder)?;
+		let _ = trie.get_with(&storage_key, &mut recorder)?;
 
 		Ok(recorder.drain().into_iter().map(|r| r.data).collect())
 	}

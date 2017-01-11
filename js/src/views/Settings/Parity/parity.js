@@ -17,7 +17,9 @@
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 import { MenuItem } from 'material-ui';
+import LogLevel from 'loglevel';
 
+import { LOG_KEYS } from '~/config';
 import { Select, Container, LanguageSelector } from '~/ui';
 
 import layout from '../layout.css';
@@ -25,14 +27,54 @@ import layout from '../layout.css';
 export default class Parity extends Component {
   static contextTypes = {
     api: PropTypes.object.isRequired
-  }
+  };
 
   state = {
-    mode: 'active'
-  }
+    loglevels: {},
+    mode: 'active',
+    selectValues: []
+  };
 
   componentWillMount () {
     this.loadMode();
+    this.loadLogLevels();
+    this.setSelectValues();
+  }
+
+  loadLogLevels () {
+    if (process.env.NODE_ENV === 'production') {
+      return null;
+    }
+
+    const nextState = { ...this.state.logLevels };
+
+    Object.keys(LOG_KEYS).map((logKey) => {
+      const log = LOG_KEYS[logKey];
+
+      const logger = LogLevel.getLogger(log.path);
+      const level = logger.getLevel();
+
+      nextState[logKey] = { level, log };
+    });
+
+    this.setState({ logLevels: nextState });
+  }
+
+  setSelectValues () {
+    if (process.env.NODE_ENV === 'production') {
+      return null;
+    }
+
+    const selectValues = Object.keys(LogLevel.levels).map((levelName) => {
+      const value = LogLevel.levels[levelName];
+
+      return {
+        name: levelName,
+        value
+      };
+    });
+
+    this.setState({ selectValues });
   }
 
   render () {
@@ -45,7 +87,8 @@ export default class Parity extends Component {
             <div>
               <FormattedMessage
                 id='settings.parity.overview_0'
-                defaultMessage='Control the Parity node settings and mode of operation via this interface.' />
+                defaultMessage='Control the Parity node settings and mode of operation via this interface.'
+              />
             </div>
           </div>
           <div className={ layout.details }>
@@ -53,8 +96,62 @@ export default class Parity extends Component {
             { this.renderModes() }
           </div>
         </div>
+
+        { this.renderLogsConfig() }
       </Container>
     );
+  }
+
+  renderLogsConfig () {
+    if (process.env.NODE_ENV === 'production') {
+      return null;
+    }
+
+    return (
+      <div className={ layout.layout }>
+        <div className={ layout.overview }>
+          <div>
+            <FormattedMessage
+              id='settings.parity.loglevels'
+              defaultMessage='Choose the different logs level.'
+            />
+          </div>
+        </div>
+        <div className={ layout.details }>
+          { this.renderLogsLevels() }
+        </div>
+      </div>
+    );
+  }
+
+  renderLogsLevels () {
+    if (process.env.NODE_ENV === 'production') {
+      return null;
+    }
+
+    const { logLevels, selectValues } = this.state;
+
+    return Object.keys(logLevels).map((logKey) => {
+      const { level, log } = logLevels[logKey];
+      const { path, desc } = log;
+
+      const onChange = (_, index) => {
+        const nextLevel = Object.values(selectValues)[index].value;
+        LogLevel.getLogger(path).setLevel(nextLevel);
+        this.loadLogLevels();
+      };
+
+      return (
+        <div key={ logKey }>
+          <p>{ desc }</p>
+          <Select
+            onChange={ onChange }
+            value={ level }
+            values={ selectValues }
+          />
+        </div>
+      );
+    });
   }
 
   renderModes () {

@@ -16,44 +16,58 @@
 
 import { api } from '../parity.js';
 import postTx from '../util/post-tx';
+import { getOwner } from '../util/registry';
+
+export const clearError = () => ({
+  type: 'clearError'
+});
 
 export const start = (action, name, address) => ({ type: `reverse ${action} start`, name, address });
 
 export const success = (action) => ({ type: `reverse ${action} success` });
 
-export const fail = (action) => ({ type: `reverse ${action} error` });
+export const fail = (action, error) => ({ type: `reverse ${action} fail`, error });
 
 export const propose = (name, address) => (dispatch, getState) => {
   const state = getState();
   const account = state.accounts.selected;
   const contract = state.contract;
+
   if (!contract || !account) {
     return;
   }
 
   name = name.toLowerCase();
-
-  const proposeReverse = contract.functions.find((f) => f.name === 'proposeReverse');
-
   dispatch(start('propose', name, address));
 
-  const options = {
-    from: account.address
-  };
-  const values = [
-    name,
-    address
-  ];
+  return getOwner(contract, name)
+    .then((owner) => {
+      if (owner.toLowerCase() !== account.address.toLowerCase()) {
+        throw new Error(`you are not the owner of "${name}"`);
+      }
 
-  postTx(api, proposeReverse, options, values)
+      const { proposeReverse } = contract.instance;
+
+      const options = {
+        from: account.address
+      };
+
+      const values = [
+        name,
+        address
+      ];
+
+      return postTx(api, proposeReverse, options, values);
+    })
     .then((txHash) => {
       dispatch(success('propose'));
     })
     .catch((err) => {
-      console.error(`could not propose reverse ${name} for address ${address}`);
-      if (err) {
-        console.error(err.stack);
+      if (err.type !== 'REQUEST_REJECTED') {
+        console.error(`error proposing ${name}`, err);
+        return dispatch(fail('propose', err));
       }
+
       dispatch(fail('propose'));
     });
 };
@@ -62,31 +76,42 @@ export const confirm = (name) => (dispatch, getState) => {
   const state = getState();
   const account = state.accounts.selected;
   const contract = state.contract;
+
   if (!contract || !account) {
     return;
   }
+
   name = name.toLowerCase();
-
-  const confirmReverse = contract.functions.find((f) => f.name === 'confirmReverse');
-
   dispatch(start('confirm', name));
 
-  const options = {
-    from: account.address
-  };
-  const values = [
-    name
-  ];
+  return getOwner(contract, name)
+    .then((owner) => {
+      if (owner.toLowerCase() !== account.address.toLowerCase()) {
+        throw new Error(`you are not the owner of "${name}"`);
+      }
 
-  postTx(api, confirmReverse, options, values)
+      const { confirmReverse } = contract.instance;
+
+      const options = {
+        from: account.address
+      };
+
+      const values = [
+        name
+      ];
+
+      return postTx(api, confirmReverse, options, values);
+    })
     .then((txHash) => {
       dispatch(success('confirm'));
     })
     .catch((err) => {
-      console.error(`could not confirm reverse ${name}`);
-      if (err) {
-        console.error(err.stack);
+      if (err.type !== 'REQUEST_REJECTED') {
+        console.error(`error confirming ${name}`, err);
+        return dispatch(fail('confirm', err));
       }
+
       dispatch(fail('confirm'));
     });
 };
+

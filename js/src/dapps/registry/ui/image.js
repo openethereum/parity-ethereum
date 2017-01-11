@@ -23,10 +23,20 @@ const styles = {
   border: '1px solid #777'
 };
 
-export default (address) => (
-  <img
-    src={ `${parityNode}/${address}/` }
-    alt={ address }
-    style={ styles }
-  />
-);
+export default (address) => {
+  if (!address || /^(0x)?0*$/.test(address)) {
+    return (
+      <code>
+        No image
+      </code>
+    );
+  }
+
+  return (
+    <img
+      src={ `${parityNode}/${address}/` }
+      alt={ address }
+      style={ styles }
+    />
+  );
+};

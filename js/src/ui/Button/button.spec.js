@@ -19,7 +19,11 @@ import { shallow } from 'enzyme';
 
 import Button from './button';
 
-function renderShallow (props) {
+function render (props = {}) {
+  if (props && props.label === undefined) {
+    props.label = 'test';
+  }
+
   return shallow(
     <Button { ...props } />
   );
@@ -28,11 +32,11 @@ function renderShallow (props) {
 describe('ui/Button', () => {
   describe('rendering', () => {
     it('renders defaults', () => {
-      expect(renderShallow()).to.be.ok;
+      expect(render()).to.be.ok;
     });
 
     it('renders with the specified className', () => {
-      expect(renderShallow({ className: 'testClass' })).to.have.className('testClass');
+      expect(render({ className: 'testClass' })).to.have.className('testClass');
     });
   });
 });
