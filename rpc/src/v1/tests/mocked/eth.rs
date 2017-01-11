@@ -691,7 +691,7 @@ fn rpc_eth_estimate_gas() {
 		"latest"],
 		"id": 1
 	}"#;
-	let response = r#"{"jsonrpc":"2.0","result":"0xff35","id":1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":"0x5208","id":1}"#;
 
 	assert_eq!(tester.io.handle_request_sync(request), Some(response.to_owned()));
 }
@@ -725,7 +725,7 @@ fn rpc_eth_estimate_gas_default_block() {
 		}],
 		"id": 1
 	}"#;
-	let response = r#"{"jsonrpc":"2.0","result":"0xff35","id":1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":"0x5208","id":1}"#;
 
 	assert_eq!(tester.io.handle_request_sync(request), Some(response.to_owned()));
 }

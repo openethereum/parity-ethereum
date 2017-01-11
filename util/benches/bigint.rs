@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! benchmarking for rlp
+//! benchmarking for bigint
 //! should be started with:
 //! ```bash
 //! multirust run nightly cargo bench
@@ -24,10 +24,10 @@
 #![feature(asm)]
 
 extern crate test;
-extern crate ethcore_bigint as bigint;
+extern crate ethcore_util;
 
 use test::{Bencher, black_box};
-use bigint::uint::{U256, U512, Uint, U128};
+use ethcore_util::{U256, U512, Uint, U128};
 
 #[bench]
 fn u256_add(b: &mut Bencher) {

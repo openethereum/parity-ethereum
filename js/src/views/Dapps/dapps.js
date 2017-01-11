@@ -27,6 +27,7 @@ import PermissionStore from '~/modals/DappPermissions/store';
 import { Actionbar, Button, Page } from '~/ui';
 import { LockedIcon, VisibleIcon } from '~/ui/Icons';
 
+import UrlButton from './UrlButton';
 import DappsStore from './dappsStore';
 import Summary from './Summary';
 
@@ -88,6 +89,7 @@ class Dapps extends Component {
               defaultMessage='Decentralized Applications' />
           }
           buttons={ [
+            <UrlButton key='url' />,
             <Button
               icon={ <VisibleIcon /> }
               key='edit'

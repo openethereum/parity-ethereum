@@ -54,7 +54,7 @@ export const update = (name, key, value) => (dispatch, getState) => {
       };
 
       const values = [
-        sha3(name),
+        sha3.text(name),
         key,
         value
       ];

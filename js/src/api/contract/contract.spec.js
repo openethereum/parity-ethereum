@@ -31,6 +31,7 @@ const eth = new Api(transport);
 
 describe('api/contract/Contract', () => {
   const ADDR = '0x0123456789';
+
   const ABI = [
     {
       type: 'function', name: 'test',
@@ -41,12 +42,42 @@ describe('api/contract/Contract', () => {
       type: 'function', name: 'test2',
       outputs: [{ type: 'uint' }, { type: 'uint' }]
     },
-    { type: 'constructor' },
+    {
+      type: 'constructor',
+      inputs: [{ name: 'boolin', type: 'bool' }, { name: 'stringin', type: 'string' }]
+    },
     { type: 'event', name: 'baz' },
     { type: 'event', name: 'foo' }
   ];
-  const VALUES = [true, 'jacogr'];
-  const ENCODED = '0x023562050000000000000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000000066a61636f67720000000000000000000000000000000000000000000000000000';
+
+  const ABI_NO_PARAMS = [
+    {
+      type: 'function', name: 'test',
+      inputs: [{ name: 'boolin', type: 'bool' }, { name: 'stringin', type: 'string' }],
+      outputs: [{ type: 'uint' }]
+    },
+    {
+      type: 'function', name: 'test2',
+      outputs: [{ type: 'uint' }, { type: 'uint' }]
+    },
+    {
+      type: 'constructor'
+    },
+    { type: 'event', name: 'baz' },
+    { type: 'event', name: 'foo' }
+  ];
+
+  const VALUES = [ true, 'jacogr' ];
+  const CALLDATA = `
+    0000000000000000000000000000000000000000000000000000000000000001
+    0000000000000000000000000000000000000000000000000000000000000040
+    0000000000000000000000000000000000000000000000000000000000000006
+    6a61636f67720000000000000000000000000000000000000000000000000000
+  `.replace(/\s/g, '');
+  const SIGNATURE = '02356205';
+
+  const ENCODED = `0x${SIGNATURE}${CALLDATA}`;
+
   const RETURN1 = '0000000000000000000000000000000000000000000000000000000000123456';
   const RETURN2 = '0000000000000000000000000000000000000000000000000000000000456789';
   let scope;
@@ -230,6 +261,33 @@ describe('api/contract/Contract', () => {
     });
   });
 
+  describe('deploy without parameters', () => {
+    const contract = new Contract(eth, ABI_NO_PARAMS);
+    const CODE = '0x123';
+    const ADDRESS = '0xD337e80eEdBdf86eDBba021797d7e4e00Bb78351';
+    const RECEIPT_DONE = { contractAddress: ADDRESS.toLowerCase(), gasUsed: 50, blockNumber: 2500 };
+
+    let scope;
+
+    describe('success', () => {
+      before(() => {
+        scope = mockHttp([
+          { method: 'eth_estimateGas', reply: { result: 1000 } },
+          { method: 'parity_postTransaction', reply: { result: '0x678' } },
+          { method: 'parity_checkRequest', reply: { result: '0x890' } },
+          { method: 'eth_getTransactionReceipt', reply: { result: RECEIPT_DONE } },
+          { method: 'eth_getCode', reply: { result: CODE } }
+        ]);
+
+        return contract.deploy({ data: CODE }, []);
+      });
+
+      it('passes the options through to postTransaction (incl. gas calculation)', () => {
+        expect(scope.body.parity_postTransaction.params[0].data).to.equal(CODE);
+      });
+    });
+  });
+
   describe('deploy', () => {
     const contract = new Contract(eth, ABI);
     const ADDRESS = '0xD337e80eEdBdf86eDBba021797d7e4e00Bb78351';
@@ -252,7 +310,7 @@ describe('api/contract/Contract', () => {
           { method: 'eth_getCode', reply: { result: '0x456' } }
         ]);
 
-        return contract.deploy({ data: '0x123' }, []);
+        return contract.deploy({ data: '0x123' }, VALUES);
       });
 
       it('calls estimateGas, postTransaction, checkRequest, getTransactionReceipt & getCode in order', () => {
@@ -261,7 +319,7 @@ describe('api/contract/Contract', () => {
 
       it('passes the options through to postTransaction (incl. gas calculation)', () => {
         expect(scope.body.parity_postTransaction.params).to.deep.equal([
-          { data: '0x123', gas: '0x4b0' }
+          { data: `0x123${CALLDATA}`, gas: '0x4b0' }
         ]);
       });
 
@@ -280,7 +338,7 @@ describe('api/contract/Contract', () => {
         ]);
 
         return contract
-          .deploy({ data: '0x123' }, [])
+          .deploy({ data: '0x123' }, VALUES)
           .catch((error) => {
             expect(error.message).to.match(/not deployed, gasUsed/);
           });
@@ -296,7 +354,7 @@ describe('api/contract/Contract', () => {
         ]);
 
         return contract
-          .deploy({ data: '0x123' }, [])
+          .deploy({ data: '0x123' }, VALUES)
           .catch((error) => {
             expect(error.message).to.match(/not deployed, getCode/);
           });

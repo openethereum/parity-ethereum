@@ -16,7 +16,7 @@
 
 //! Transaction data structure.
 
-use std::ops::Deref;
+use std::ops::{Deref, DerefMut};
 use std::cell::*;
 use rlp::*;
 use util::sha3::Hashable;
@@ -236,6 +236,12 @@ impl Deref for SignedTransaction {
 
 	fn deref(&self) -> &Self::Target {
 		&self.unsigned
+	}
+}
+
+impl DerefMut for SignedTransaction {
+	fn deref_mut(&mut self) -> &mut Self::Target {
+		&mut self.unsigned
 	}
 }
 

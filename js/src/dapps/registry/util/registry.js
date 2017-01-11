@@ -17,7 +17,7 @@
 export const getOwner = (contract, name) => {
   const { address, api } = contract;
 
-  const key = api.util.sha3(name) + '0000000000000000000000000000000000000000000000000000000000000001';
+  const key = api.util.sha3.text(name) + '0000000000000000000000000000000000000000000000000000000000000001';
   const position = api.util.sha3(key, { encoding: 'hex' });
 
   return api

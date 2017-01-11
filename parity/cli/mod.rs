@@ -16,7 +16,7 @@
 
 #[macro_use]
 mod usage;
-use dir::default_data_path;
+use dir;
 
 usage! {
 	{
@@ -37,6 +37,7 @@ usage! {
 		cmd_snapshot: bool,
 		cmd_restore: bool,
 		cmd_ui: bool,
+		cmd_dapp: bool,
 		cmd_tools: bool,
 		cmd_hash: bool,
 		cmd_kill: bool,
@@ -90,8 +91,8 @@ usage! {
 		flag_no_download: bool = false, or |c: &Config| otry!(c.parity).no_download.clone(),
 		flag_no_consensus: bool = false, or |c: &Config| otry!(c.parity).no_consensus.clone(),
 		flag_chain: String = "homestead", or |c: &Config| otry!(c.parity).chain.clone(),
-		flag_base_path: String = default_data_path(), or |c: &Config| otry!(c.parity).base_path.clone(),
-		flag_db_path: String = "$BASE/chains", or |c: &Config| otry!(c.parity).db_path.clone(),
+		flag_base_path: String = dir::default_data_path(), or |c: &Config| otry!(c.parity).base_path.clone(),
+		flag_db_path: String = dir::CHAINS_PATH, or |c: &Config| otry!(c.parity).db_path.clone(),
 		flag_keys_path: String = "$BASE/keys", or |c: &Config| otry!(c.parity).keys_path.clone(),
 		flag_identity: String = "", or |c: &Config| otry!(c.parity).identity.clone(),
 
@@ -525,6 +526,7 @@ mod tests {
 			cmd_snapshot: false,
 			cmd_restore: false,
 			cmd_ui: false,
+			cmd_dapp: false,
 			cmd_tools: false,
 			cmd_hash: false,
 			cmd_db: false,
@@ -540,7 +542,7 @@ mod tests {
 			flag_mode: "last".into(),
 			flag_mode_timeout: 300u64,
 			flag_mode_alarm: 3600u64,
-			flag_auto_update: "critical".into(),
+			flag_auto_update: "none".into(),
 			flag_release_track: "current".into(),
 			flag_no_download: false,
 			flag_no_consensus: false,

@@ -32,7 +32,7 @@ use state_db::StateDB;
 
 use util::*;
 
-use util::trie::recorder::{Recorder, BasicRecorder as TrieRecorder};
+use util::trie::recorder::Recorder;
 
 mod account;
 mod substate;
@@ -425,8 +425,8 @@ impl State {
 
 		// account is not found in the global cache, get from the DB and insert into local
 		let db = self.factories.trie.readonly(self.db.as_hashdb(), &self.root).expect(SEC_TRIE_DB_UNWRAP_STR);
-		let maybe_acc = match db.get(address) {
-			Ok(acc) => acc.map(|v| Account::from_rlp(&v)),
+		let maybe_acc = match db.get_with(address, Account::from_rlp) {
+			Ok(acc) => acc,
 			Err(e) => panic!("Potential DB corruption encountered: {}", e),
 		};
 		let r = maybe_acc.as_ref().map_or(H256::new(), |a| {
@@ -690,8 +690,8 @@ impl State {
 
 				// not found in the global cache, get from the DB and insert into local
 				let db = self.factories.trie.readonly(self.db.as_hashdb(), &self.root).expect(SEC_TRIE_DB_UNWRAP_STR);
-				let mut maybe_acc = match db.get(a) {
-					Ok(acc) => acc.map(|v| Account::from_rlp(&v)),
+				let mut maybe_acc = match db.get_with(a, Account::from_rlp) {
+					Ok(acc) => acc,
 					Err(e) => panic!("Potential DB corruption encountered: {}", e),
 				};
 				if let Some(ref mut account) = maybe_acc.as_mut() {
@@ -722,9 +722,8 @@ impl State {
 				None => {
 					let maybe_acc = if self.db.check_non_null_bloom(a) {
 						let db = self.factories.trie.readonly(self.db.as_hashdb(), &self.root).expect(SEC_TRIE_DB_UNWRAP_STR);
-						match db.get(a) {
-							Ok(Some(acc)) => AccountEntry::new_clean(Some(Account::from_rlp(&acc))),
-							Ok(None) => AccountEntry::new_clean(None),
+						match db.get_with(a, Account::from_rlp) {
+							Ok(acc) => AccountEntry::new_clean(acc),
 							Err(e) => panic!("Potential DB corruption encountered: {}", e),
 						}
 					} else {
@@ -770,9 +769,9 @@ impl State {
 	/// Requires a secure trie to be used for accurate results.
 	/// `account_key` == sha3(address)
 	pub fn prove_account(&self, account_key: H256, from_level: u32) -> Result<Vec<Bytes>, Box<TrieError>> {
-		let mut recorder = TrieRecorder::with_depth(from_level);
+		let mut recorder = Recorder::with_depth(from_level);
 		let trie = TrieDB::new(self.db.as_hashdb(), &self.root)?;
-		let _  = trie.get_recorded(&account_key, &mut recorder)?;
+		trie.get_with(&account_key, &mut recorder)?;
 
 		Ok(recorder.drain().into_iter().map(|r| r.data).collect())
 	}
@@ -786,8 +785,8 @@ impl State {
 		// TODO: probably could look into cache somehow but it's keyed by
 		// address, not sha3(address).
 		let trie = TrieDB::new(self.db.as_hashdb(), &self.root)?;
-		let acc = match trie.get(&account_key)? {
-			Some(rlp) => Account::from_rlp(&rlp),
+		let acc = match trie.get_with(&account_key, Account::from_rlp)? {
+			Some(acc) => acc,
 			None => return Ok(Vec::new()),
 		};
 
@@ -799,8 +798,8 @@ impl State {
 	/// Only works when backed by a secure trie.
 	pub fn code_by_address_hash(&self, account_key: H256) -> Result<Option<Bytes>, Box<TrieError>> {
 		let trie = TrieDB::new(self.db.as_hashdb(), &self.root)?;
-		let mut acc = match trie.get(&account_key)? {
-			Some(rlp) => Account::from_rlp(&rlp),
+		let mut acc = match trie.get_with(&account_key, Account::from_rlp)? {
+			Some(acc) => acc,
 			None => return Ok(None),
 		};
 

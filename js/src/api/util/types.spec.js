@@ -66,6 +66,12 @@ describe('api/util/types', () => {
     it('correctly identifies non-hex values', () => {
       expect(isHex('123j')).to.be.false;
     });
+
+    it('correctly indentifies non-string values', () => {
+      expect(isHex(false)).to.be.false;
+      expect(isHex()).to.be.false;
+      expect(isHex([1, 2, 3])).to.be.false;
+    });
   });
 
   describe('isInstanceOf', () => {
