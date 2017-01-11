@@ -64,6 +64,13 @@ module.exports = {
       }
     ]
   },
+
+  resolve: {
+    alias: {
+      '~': path.resolve(__dirname, '../src')
+    }
+  },
+
   output: {
     filename: '[name].js',
     path: path.resolve(__dirname, '../', `${DEST}/`),

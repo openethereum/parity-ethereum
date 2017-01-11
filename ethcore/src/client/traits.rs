@@ -184,6 +184,9 @@ pub trait BlockChainClient : Sync + Send {
 	/// Makes a non-persistent transaction call.
 	fn call(&self, t: &SignedTransaction, block: BlockId, analytics: CallAnalytics) -> Result<Executed, CallError>;
 
+	/// Estimates how much gas will be necessary for a call.
+	fn estimate_gas(&self, t: &SignedTransaction, block: BlockId) -> Result<U256, CallError>;
+
 	/// Replays a given transaction for inspection.
 	fn replay(&self, t: TransactionId, analytics: CallAnalytics) -> Result<Executed, CallError>;
 
@@ -207,9 +210,6 @@ pub trait BlockChainClient : Sync + Send {
 
 	/// Queue conensus engine message.
 	fn queue_consensus_message(&self, message: Bytes);
-
-	/// Used by PoA to communicate with peers.
-	fn broadcast_consensus_message(&self, message: Bytes);
 
 	/// List all transactions that are allowed into the next block.
 	fn ready_transactions(&self) -> Vec<PendingTransaction>;
@@ -294,12 +294,6 @@ pub trait MiningBlockChainClient: BlockChainClient {
 	/// Returns EvmFactory.
 	fn vm_factory(&self) -> &EvmFactory;
 
-	/// Used by PoA to try sealing on period change.
-	fn update_sealing(&self);
-
-	/// Used by PoA to submit gathered signatures.
-	fn submit_seal(&self, block_hash: H256, seal: Vec<Bytes>);
-
 	/// Broadcast a block proposal.
 	fn broadcast_proposal_block(&self, block: SealedBlock);
 
@@ -308,6 +302,18 @@ pub trait MiningBlockChainClient: BlockChainClient {
 
 	/// Returns latest schedule.
 	fn latest_schedule(&self) -> Schedule;
+}
+
+/// Client facilities used by internally sealing Engines.
+pub trait EngineClient: MiningBlockChainClient {
+	/// Make a new block and seal it.
+	fn update_sealing(&self);
+
+	/// Submit a seal for a block in the mining queue.
+	fn submit_seal(&self, block_hash: H256, seal: Vec<Bytes>);
+
+	/// Broadcast a consensus message to the network.
+	fn broadcast_consensus_message(&self, message: Bytes);
 }
 
 /// Extended client interface for providing proofs of the state.

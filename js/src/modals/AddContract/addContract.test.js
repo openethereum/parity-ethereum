@@ -14,4 +14,36 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-export default from './summary';
+import sinon from 'sinon';
+
+const ABI = '[{"constant":true,"inputs":[],"name":"totalDonated","outputs":[{"name":"","type":"uint256"}],"type":"function"}]';
+
+const CONTRACTS = {
+  '0x1234567890123456789012345678901234567890': {}
+};
+
+function createApi () {
+  return {
+    parity: {
+      setAccountMeta: sinon.stub().resolves(),
+      setAccountName: sinon.stub().resolves()
+    }
+  };
+}
+
+function createRedux () {
+  return {
+    dispatch: sinon.stub(),
+    subscribe: sinon.stub(),
+    getState: () => {
+      return {};
+    }
+  };
+}
+
+export {
+  ABI,
+  CONTRACTS,
+  createApi,
+  createRedux
+};

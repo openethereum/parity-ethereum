@@ -53,13 +53,13 @@ use verification::queue::BlockQueue;
 use blockchain::{BlockChain, BlockProvider, TreeRoute, ImportRoute};
 use client::{
 	BlockId, TransactionId, UncleId, TraceId, ClientConfig, BlockChainClient,
-	MiningBlockChainClient, TraceFilter, CallAnalytics, BlockImportError, Mode,
+	MiningBlockChainClient, EngineClient, TraceFilter, CallAnalytics, BlockImportError, Mode,
 	ChainNotify, PruningInfo,
 };
 use client::Error as ClientError;
 use env_info::EnvInfo;
 use executive::{Executive, Executed, TransactOptions, contract_address};
-use receipt::LocalizedReceipt;
+use receipt::{Receipt, LocalizedReceipt};
 use trace::{TraceDB, ImportRequest as TraceImportRequest, LocalizedTrace, Database as TraceDatabase};
 use trace;
 use trace::FlatTransactionTraces;
@@ -837,7 +837,6 @@ impl snapshot::DatabaseRestore for Client {
 	}
 }
 
-
 impl BlockChainClient for Client {
 	fn call(&self, t: &SignedTransaction, block: BlockId, analytics: CallAnalytics) -> Result<Executed, CallError> {
 		let header = self.block_header(block).ok_or(CallError::StatePruned)?;
@@ -849,7 +848,7 @@ impl BlockChainClient for Client {
 			difficulty: header.difficulty(),
 			last_hashes: last_hashes,
 			gas_used: U256::zero(),
-			gas_limit: U256::max_value(),
+			gas_limit: header.gas_limit(),
 		};
 		// that's just a copy of the state.
 		let mut state = self.state_at(block).ok_or(CallError::StatePruned)?;
@@ -872,6 +871,81 @@ impl BlockChainClient for Client {
 		ret.state_diff = original_state.map(|original| state.diff_from(original));
 
 		Ok(ret)
+	}
+
+	fn estimate_gas(&self, t: &SignedTransaction, block: BlockId) -> Result<U256, CallError> {
+		let header = self.block_header(block).ok_or(CallError::StatePruned)?;
+		let last_hashes = self.build_last_hashes(header.parent_hash());
+		let env_info = EnvInfo {
+			number: header.number(),
+			author: header.author(),
+			timestamp: header.timestamp(),
+			difficulty: header.difficulty(),
+			last_hashes: last_hashes,
+			gas_used: U256::zero(),
+			gas_limit: header.gas_limit(),
+		};
+		// that's just a copy of the state.
+		let mut original_state = self.state_at(block).ok_or(CallError::StatePruned)?;
+		let sender = t.sender().map_err(|e| {
+			let message = format!("Transaction malformed: {:?}", e);
+			ExecutionError::TransactionMalformed(message)
+		})?;
+		let balance = original_state.balance(&sender);
+		let needed_balance = t.value + t.gas * t.gas_price;
+		if balance < needed_balance {
+			// give the sender a sufficient balance
+			original_state.add_balance(&sender, &(needed_balance - balance), CleanupMode::NoEmpty);
+		}
+		let options = TransactOptions { tracing: true, vm_tracing: false, check_nonce: false };
+		let mut tx = t.clone();
+
+		let mut cond = |gas| {
+			let mut state = original_state.clone();
+			tx.gas = gas;
+			Executive::new(&mut state, &env_info, &*self.engine, &self.factories.vm)
+				.transact(&tx, options.clone())
+				.map(|r| r.trace[0].result.succeeded())
+				.unwrap_or(false)
+		};
+
+		let mut upper = env_info.gas_limit;
+		if !cond(upper) {
+			// impossible at block gas limit - try `UPPER_CEILING` instead.
+			// TODO: consider raising limit by powers of two.
+			const UPPER_CEILING: u64 = 1_000_000_000_000u64;
+			upper = UPPER_CEILING.into();
+			if !cond(upper) {
+				trace!(target: "estimate_gas", "estimate_gas failed with {}", upper);
+				return Err(CallError::Execution(ExecutionError::Internal))
+			}
+		}
+		let lower = t.gas_required(&self.engine.schedule(&env_info)).into();
+		if cond(lower) {
+			trace!(target: "estimate_gas", "estimate_gas succeeded with {}", lower);
+			return Ok(lower)
+		}
+
+		/// Find transition point between `lower` and `upper` where `cond` changes from `false` to `true`.
+		/// Returns the lowest value between `lower` and `upper` for which `cond` returns true.
+		/// We assert: `cond(lower) = false`, `cond(upper) = true`
+		fn binary_chop<F>(mut lower: U256, mut upper: U256, mut cond: F) -> U256 where F: FnMut(U256) -> bool {
+			while upper - lower > 1.into() {
+				let mid = (lower + upper) / 2.into();
+				trace!(target: "estimate_gas", "{} .. {} .. {}", lower, mid, upper);
+				let c = cond(mid);
+				match c {
+					true => upper = mid,
+					false => lower = mid,
+				};
+				trace!(target: "estimate_gas", "{} => {} .. {}", c, lower, upper);
+			}
+			upper
+		}
+
+		// binary chop to non-excepting call with gas somewhere between 21000 and block gas limit
+		trace!(target: "estimate_gas", "estimate_gas chopping {} .. {}", lower, upper);
+		Ok(binary_chop(lower, upper, cond))
 	}
 
 	fn replay(&self, id: TransactionId, analytics: CallAnalytics) -> Result<Executed, CallError> {
@@ -1134,53 +1208,23 @@ impl BlockChainClient for Client {
 		let chain = self.chain.read();
 		self.transaction_address(id)
 			.and_then(|address| chain.block_number(&address.block_hash).and_then(|block_number| {
-			let t = chain.block_body(&address.block_hash)
-				.and_then(|body| {
-					body.view().localized_transaction_at(&address.block_hash, block_number, address.index)
-				});
+				let transaction = chain.block_body(&address.block_hash)
+					.and_then(|body| body.view().localized_transaction_at(&address.block_hash, block_number, address.index));
 
-			let tx_and_sender = t.and_then(|tx| tx.sender().ok().map(|sender| (tx, sender)));
-
-			match (tx_and_sender, chain.transaction_receipt(&address)) {
-				(Some((tx, sender)), Some(receipt)) => {
-					let block_hash = tx.block_hash.clone();
-					let block_number = tx.block_number.clone();
-					let transaction_hash = tx.hash();
-					let transaction_index = tx.transaction_index;
-					let prior_gas_used = match tx.transaction_index {
-						0 => U256::zero(),
-						i => {
-							let prior_address = TransactionAddress { block_hash: address.block_hash, index: i - 1 };
-							let prior_receipt = chain.transaction_receipt(&prior_address).expect("Transaction receipt at `address` exists; `prior_address` has lower index in same block; qed");
-							prior_receipt.gas_used
-						}
-					};
-					Some(LocalizedReceipt {
-						transaction_hash: tx.hash(),
-						transaction_index: tx.transaction_index,
-						block_hash: tx.block_hash,
-						block_number: tx.block_number,
-						cumulative_gas_used: receipt.gas_used,
-						gas_used: receipt.gas_used - prior_gas_used,
-						contract_address: match tx.action {
-							Action::Call(_) => None,
-							Action::Create => Some(contract_address(&sender, &tx.nonce))
-						},
-						logs: receipt.logs.into_iter().enumerate().map(|(i, log)| LocalizedLogEntry {
-							entry: log,
-							block_hash: block_hash.clone(),
-							block_number: block_number,
-							transaction_hash: transaction_hash.clone(),
-							transaction_index: transaction_index,
-							log_index: i
-						}).collect(),
-						log_bloom: receipt.log_bloom,
-						state_root: receipt.state_root,
+				let previous_receipts = (0..address.index + 1)
+					.map(|index| {
+						let mut address = address.clone();
+						address.index = index;
+						chain.transaction_receipt(&address)
 					})
-				},
-				_ => None
-			}
-		}))
+					.collect();
+				match (transaction, previous_receipts) {
+					(Some(transaction), Some(previous_receipts)) => {
+						Some(transaction_receipt(transaction, previous_receipts))
+					},
+					_ => None,
+				}
+			}))
 	}
 
 	fn tree_route(&self, from: &H256, to: &H256) -> Option<TreeRoute> {
@@ -1346,11 +1390,6 @@ impl BlockChainClient for Client {
 		}
 	}
 
-	fn broadcast_consensus_message(&self, message: Bytes) {
-		self.notify(|notify| notify.broadcast(message.clone()));
-	}
-
-
 	fn signing_network_id(&self) -> Option<u64> {
 		self.engine.signing_network_id(&self.latest_env_info())
 	}
@@ -1445,16 +1484,6 @@ impl MiningBlockChainClient for Client {
 		&self.factories.vm
 	}
 
-	fn update_sealing(&self) {
-		self.miner.update_sealing(self)
-	}
-
-	fn submit_seal(&self, block_hash: H256, seal: Vec<Bytes>) {
-		if self.miner.submit_seal(self, block_hash, seal).is_err() {
-			warn!(target: "poa", "Wrong internal seal submission!")
-		}
-	}
-
 	fn broadcast_proposal_block(&self, block: SealedBlock) {
 		self.notify(|notify| {
 			notify.new_blocks(
@@ -1502,6 +1531,22 @@ impl MiningBlockChainClient for Client {
 	}
 }
 
+impl EngineClient for Client {
+	fn update_sealing(&self) {
+		self.miner.update_sealing(self)
+	}
+
+	fn submit_seal(&self, block_hash: H256, seal: Vec<Bytes>) {
+		if self.miner.submit_seal(self, block_hash, seal).is_err() {
+			warn!(target: "poa", "Wrong internal seal submission!")
+		}
+	}
+
+	fn broadcast_consensus_message(&self, message: Bytes) {
+		self.notify(|notify| notify.broadcast(message.clone()));
+	}
+}
+
 impl MayPanic for Client {
 	fn on_panic<F>(&self, closure: F) where F: OnPanicListener {
 		self.panic_handler.on_panic(closure);
@@ -1532,6 +1577,49 @@ impl ::client::ProvingBlockChainClient for Client {
 impl Drop for Client {
 	fn drop(&mut self) {
 		self.engine.stop();
+	}
+}
+
+/// Returns `LocalizedReceipt` given `LocalizedTransaction`
+/// and a vector of receipts from given block up to transaction index.
+fn transaction_receipt(tx: LocalizedTransaction, mut receipts: Vec<Receipt>) -> LocalizedReceipt {
+	assert_eq!(receipts.len(), tx.transaction_index + 1, "All previous receipts are provided.");
+
+	let sender = tx.sender()
+		.expect("LocalizedTransaction is part of the blockchain; We have only valid transactions in chain; qed");
+	let receipt = receipts.pop().expect("Current receipt is provided; qed");
+	let prior_gas_used = match tx.transaction_index {
+		0 => 0.into(),
+		i => receipts.get(i - 1).expect("All previous receipts are provided; qed").gas_used,
+	};
+	let no_of_logs = receipts.into_iter().map(|receipt| receipt.logs.len()).sum::<usize>();
+	let transaction_hash = tx.hash();
+	let block_hash = tx.block_hash;
+	let block_number = tx.block_number;
+	let transaction_index = tx.transaction_index;
+
+	LocalizedReceipt {
+		transaction_hash: transaction_hash,
+		transaction_index: transaction_index,
+		block_hash: block_hash,
+		block_number:block_number,
+		cumulative_gas_used: receipt.gas_used,
+		gas_used: receipt.gas_used - prior_gas_used,
+		contract_address: match tx.action {
+			Action::Call(_) => None,
+			Action::Create => Some(contract_address(&sender, &tx.nonce))
+		},
+		logs: receipt.logs.into_iter().enumerate().map(|(i, log)| LocalizedLogEntry {
+			entry: log,
+			block_hash: block_hash,
+			block_number: block_number,
+			transaction_hash: transaction_hash,
+			transaction_index: transaction_index,
+			transaction_log_index: i,
+			log_index: no_of_logs + i,
+		}).collect(),
+		log_bloom: receipt.log_bloom,
+		state_root: receipt.state_root,
 	}
 }
 
@@ -1569,5 +1657,92 @@ mod tests {
 		while !go.load(Ordering::SeqCst) { thread::park_timeout(Duration::from_millis(5)); }
 
 		assert!(client.tree_route(&genesis, &new_hash).is_none());
+	}
+
+	#[test]
+	fn should_return_correct_log_index() {
+		use super::transaction_receipt;
+		use ethkey::KeyPair;
+		use log_entry::{LogEntry, LocalizedLogEntry};
+		use receipt::{Receipt, LocalizedReceipt};
+		use transaction::{Transaction, LocalizedTransaction, Action};
+		use util::Hashable;
+
+		// given
+		let key = KeyPair::from_secret("test".sha3()).unwrap();
+		let secret = key.secret();
+
+		let block_number = 1;
+		let block_hash = 5.into();
+		let state_root = 99.into();
+		let gas_used = 10.into();
+		let raw_tx = Transaction {
+			nonce: 0.into(),
+			gas_price: 0.into(),
+			gas: 21000.into(),
+			action: Action::Call(10.into()),
+			value: 0.into(),
+			data: vec![],
+		};
+		let tx1 = raw_tx.clone().sign(secret, None);
+		let transaction = LocalizedTransaction {
+			signed: tx1.clone(),
+			block_number: block_number,
+			block_hash: block_hash,
+			transaction_index: 1,
+		};
+		let logs = vec![LogEntry {
+			address: 5.into(),
+			topics: vec![],
+			data: vec![],
+		}, LogEntry {
+			address: 15.into(),
+			topics: vec![],
+			data: vec![],
+		}];
+		let receipts = vec![Receipt {
+			state_root: state_root,
+			gas_used: 5.into(),
+			log_bloom: Default::default(),
+			logs: vec![logs[0].clone()],
+		}, Receipt {
+			state_root: state_root,
+			gas_used: gas_used,
+			log_bloom: Default::default(),
+			logs: logs.clone(),
+		}];
+
+		// when
+		let receipt = transaction_receipt(transaction, receipts);
+
+		// then
+		assert_eq!(receipt, LocalizedReceipt {
+			transaction_hash: tx1.hash(),
+			transaction_index: 1,
+			block_hash: block_hash,
+			block_number: block_number,
+			cumulative_gas_used: gas_used,
+			gas_used: gas_used - 5.into(),
+			contract_address: None,
+			logs: vec![LocalizedLogEntry {
+				entry: logs[0].clone(),
+				block_hash: block_hash,
+				block_number: block_number,
+				transaction_hash: tx1.hash(),
+				transaction_index: 1,
+				transaction_log_index: 0,
+				log_index: 1,
+			}, LocalizedLogEntry {
+				entry: logs[1].clone(),
+				block_hash: block_hash,
+				block_number: block_number,
+				transaction_hash: tx1.hash(),
+				transaction_index: 1,
+				transaction_log_index: 1,
+				log_index: 2,
+			}],
+			log_bloom: Default::default(),
+			state_root: state_root,
+		});
 	}
 }

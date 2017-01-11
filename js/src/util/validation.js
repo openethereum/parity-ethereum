@@ -16,10 +16,12 @@
 
 import BigNumber from 'bignumber.js';
 
-import util from '~/api/util';
+import apiutil from '~/api/util';
 
 import { NULL_ADDRESS } from './constants';
 
+// TODO: Convert to FormattedMessages as soon as comfortable with the impact, i.e. errors
+// not being concatted into strings in components, all supporting a non-string format
 export const ERRORS = {
   invalidAddress: 'address is an invalid network address',
   invalidAmount: 'the supplied amount should be a valid positive number',
@@ -35,27 +37,39 @@ export const ERRORS = {
   gasBlockLimit: 'the transaction execution will exceed the block gas limit'
 };
 
-export function validateAbi (abi, api) {
+export function validateAbi (abi) {
   let abiError = null;
   let abiParsed = null;
 
   try {
     abiParsed = JSON.parse(abi);
 
-    if (!api.util.isArray(abiParsed)) {
+    if (!apiutil.isArray(abiParsed)) {
       abiError = ERRORS.invalidAbi;
-      return { abi, abiError, abiParsed };
+
+      return {
+        abi,
+        abiError,
+        abiParsed
+      };
     }
 
     // Validate each elements of the Array
     const invalidIndex = abiParsed
-      .map((o) => isValidAbiEvent(o, api) || isValidAbiFunction(o, api) || isAbiFallback(o))
+      .map((o) => isValidAbiEvent(o) || isValidAbiFunction(o) || isAbiFallback(o))
       .findIndex((valid) => !valid);
 
     if (invalidIndex !== -1) {
       const invalid = abiParsed[invalidIndex];
+
+      // TODO: Needs seperate error when using FormattedMessage (no concats)
       abiError = `${ERRORS.invalidAbi} (#${invalidIndex}: ${invalid.name || invalid.type})`;
-      return { abi, abiError, abiParsed };
+
+      return {
+        abi,
+        abiError,
+        abiParsed
+      };
     }
 
     abi = JSON.stringify(abiParsed);
@@ -70,13 +84,13 @@ export function validateAbi (abi, api) {
   };
 }
 
-function isValidAbiFunction (object, api) {
+function isValidAbiFunction (object) {
   if (!object) {
     return false;
   }
 
   return ((object.type === 'function' && object.name) || object.type === 'constructor') &&
-    (object.inputs && api.util.isArray(object.inputs));
+    (object.inputs && apiutil.isArray(object.inputs));
 }
 
 function isAbiFallback (object) {
@@ -87,14 +101,14 @@ function isAbiFallback (object) {
   return object.type === 'fallback';
 }
 
-function isValidAbiEvent (object, api) {
+function isValidAbiEvent (object) {
   if (!object) {
     return false;
   }
 
   return (object.type === 'event') &&
     (object.name) &&
-    (object.inputs && api.util.isArray(object.inputs));
+    (object.inputs && apiutil.isArray(object.inputs));
 }
 
 export function validateAddress (address) {
@@ -102,10 +116,10 @@ export function validateAddress (address) {
 
   if (!address) {
     addressError = ERRORS.invalidAddress;
-  } else if (!util.isAddressValid(address)) {
+  } else if (!apiutil.isAddressValid(address)) {
     addressError = ERRORS.invalidAddress;
   } else {
-    address = util.toChecksumAddress(address);
+    address = apiutil.toChecksumAddress(address);
   }
 
   return {
@@ -114,12 +128,12 @@ export function validateAddress (address) {
   };
 }
 
-export function validateCode (code, api) {
+export function validateCode (code) {
   let codeError = null;
 
-  if (!code.length) {
+  if (!code || !code.length) {
     codeError = ERRORS.invalidCode;
-  } else if (!api.util.isHex(code)) {
+  } else if (!apiutil.isHex(code)) {
     codeError = ERRORS.invalidCode;
   }
 
@@ -130,7 +144,9 @@ export function validateCode (code, api) {
 }
 
 export function validateName (name) {
-  const nameError = !name || name.trim().length < 2 ? ERRORS.invalidName : null;
+  const nameError = !name || name.trim().length < 2
+    ? ERRORS.invalidName
+    : null;
 
   return {
     name,
@@ -162,6 +178,7 @@ export function validateUint (value) {
 
   try {
     const bn = new BigNumber(value);
+
     if (bn.lt(0)) {
       valueError = ERRORS.negativeNumber;
     } else if (!bn.isInteger()) {

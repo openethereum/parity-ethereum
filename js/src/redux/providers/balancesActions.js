@@ -177,12 +177,10 @@ export function fetchBalances (_addresses) {
 
     const addresses = uniq(_addresses || visibleAccounts || []);
 
-    if (addresses.length === 0) {
-      return Promise.resolve();
-    }
-
+    // With only a single account, more info will be displayed.
     const fullFetch = addresses.length === 1;
 
+    // Add accounts addresses (for notifications, accounts selection, etc.)
     const addressesToFetch = uniq(addresses.concat(Object.keys(accounts)));
 
     return Promise

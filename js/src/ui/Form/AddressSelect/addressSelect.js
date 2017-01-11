@@ -19,14 +19,17 @@ import ReactDOM from 'react-dom';
 import { connect } from 'react-redux';
 import keycode, { codes } from 'keycode';
 import { FormattedMessage } from 'react-intl';
+import { observer } from 'mobx-react';
 
 import TextFieldUnderline from 'material-ui/TextField/TextFieldUnderline';
 
 import AccountCard from '~/ui/AccountCard';
 import InputAddress from '~/ui/Form/InputAddress';
 import Portal from '~/ui/Portal';
+import { nodeOrStringProptype } from '~/util/proptypes';
 import { validateAddress } from '~/util/validation';
 
+import AddressSelectStore from './addressSelectStore';
 import styles from './addressSelect.css';
 
 const BOTTOM_BORDER_STYLE = { borderBottom: 'solid 3px' };
@@ -34,8 +37,11 @@ const BOTTOM_BORDER_STYLE = { borderBottom: 'solid 3px' };
 // Current Form ID
 let currentId = 1;
 
+@observer
 class AddressSelect extends Component {
   static contextTypes = {
+    intl: React.PropTypes.object.isRequired,
+    api: PropTypes.object.isRequired,
     muiTheme: PropTypes.object.isRequired
   };
 
@@ -50,20 +56,25 @@ class AddressSelect extends Component {
     contacts: PropTypes.object,
     contracts: PropTypes.object,
     tokens: PropTypes.object,
-    wallets: PropTypes.object,
+    reverse: PropTypes.object,
 
     // Optional props
+    allowCopy: PropTypes.bool,
     allowInput: PropTypes.bool,
+    className: PropTypes.string,
     disabled: PropTypes.bool,
-    error: PropTypes.string,
-    hint: PropTypes.string,
-    label: PropTypes.string,
-    value: PropTypes.string
+    error: nodeOrStringProptype(),
+    hint: nodeOrStringProptype(),
+    label: nodeOrStringProptype(),
+    readOnly: PropTypes.bool,
+    value: nodeOrStringProptype()
   };
 
   static defaultProps = {
     value: ''
   };
+
+  store = new AddressSelectStore(this.context.api);
 
   state = {
     expanded: false,
@@ -71,8 +82,7 @@ class AddressSelect extends Component {
     focusedCat: null,
     focusedItem: null,
     inputFocused: false,
-    inputValue: '',
-    values: []
+    inputValue: ''
   };
 
   componentWillMount () {
@@ -80,7 +90,7 @@ class AddressSelect extends Component {
   }
 
   componentWillReceiveProps (nextProps) {
-    if (this.values && this.values.length > 0) {
+    if (this.store.values && this.store.values.length > 0) {
       return;
     }
 
@@ -88,36 +98,7 @@ class AddressSelect extends Component {
   }
 
   setValues (props = this.props) {
-    const { accounts = {}, contracts = {}, contacts = {}, wallets = {} } = props;
-
-    const accountsN = Object.keys(accounts).length;
-    const contractsN = Object.keys(contracts).length;
-    const contactsN = Object.keys(contacts).length;
-    const walletsN = Object.keys(wallets).length;
-
-    if (accountsN + contractsN + contactsN + walletsN === 0) {
-      return;
-    }
-
-    this.values = [
-      {
-        label: 'accounts',
-        values: [].concat(
-          Object.values(wallets),
-          Object.values(accounts)
-        )
-      },
-      {
-        label: 'contacts',
-        values: Object.values(contacts)
-      },
-      {
-        label: 'contracts',
-        values: Object.values(contracts)
-      }
-    ].filter((cat) => cat.values.length > 0);
-
-    this.handleChange();
+    this.store.setValues(props);
   }
 
   render () {
@@ -144,13 +125,14 @@ class AddressSelect extends Component {
 
   renderInput () {
     const { focused } = this.state;
-    const { accountsInfo, disabled, error, hint, label, value } = this.props;
+    const { accountsInfo, allowCopy, className, disabled, error, hint, label, readOnly, value } = this.props;
 
     const input = (
       <InputAddress
         accountsInfo={ accountsInfo }
-        allowCopy={ false }
-        disabled={ disabled }
+        allowCopy={ allowCopy }
+        className={ className }
+        disabled={ disabled || readOnly }
         error={ error }
         hint={ hint }
         focused={ focused }
@@ -162,7 +144,7 @@ class AddressSelect extends Component {
       />
     );
 
-    if (disabled) {
+    if (disabled || readOnly) {
       return input;
     }
 
@@ -175,14 +157,20 @@ class AddressSelect extends Component {
 
   renderContent () {
     const { muiTheme } = this.context;
-    const { hint, disabled, label } = this.props;
+    const { hint, disabled, label, readOnly } = this.props;
     const { expanded, inputFocused } = this.state;
 
-    if (disabled) {
+    if (disabled || readOnly) {
       return null;
     }
 
     const id = `addressSelect_${++currentId}`;
+    const ilHint = typeof hint === 'string' || !(hint && hint.props)
+      ? (hint || '')
+      : this.context.intl.formatMessage(
+        hint.props,
+        hint.props.values || {}
+      );
 
     return (
       <Portal
@@ -197,7 +185,7 @@ class AddressSelect extends Component {
         <input
           id={ id }
           className={ styles.input }
-          placeholder={ hint }
+          placeholder={ ilHint }
 
           onBlur={ this.handleInputBlur }
           onFocus={ this.handleInputFocus }
@@ -216,6 +204,7 @@ class AddressSelect extends Component {
         </div>
 
         { this.renderCurrentInput() }
+        { this.renderRegistryValues() }
         { this.renderAccounts() }
       </Portal>
     );
@@ -229,8 +218,9 @@ class AddressSelect extends Component {
     }
 
     const { address, addressError } = validateAddress(inputValue);
+    const { registryValues } = this.store;
 
-    if (addressError) {
+    if (addressError || registryValues.length > 0) {
       return null;
     }
 
@@ -241,8 +231,28 @@ class AddressSelect extends Component {
     );
   }
 
+  renderRegistryValues () {
+    const { registryValues } = this.store;
+
+    if (registryValues.length === 0) {
+      return null;
+    }
+
+    const accounts = registryValues
+      .map((registryValue, index) => {
+        const account = { ...registryValue, index: `${registryValue.address}_${index}` };
+        return this.renderAccountCard(account);
+      });
+
+    return (
+      <div>
+        { accounts }
+      </div>
+    );
+  }
+
   renderAccounts () {
-    const { values } = this.state;
+    const { values } = this.store;
 
     if (values.length === 0) {
       return (
@@ -257,8 +267,8 @@ class AddressSelect extends Component {
       );
     }
 
-    const categories = values.map((category) => {
-      return this.renderCategory(category.label, category.values);
+    const categories = values.map((category, index) => {
+      return this.renderCategory(category, index);
     });
 
     return (
@@ -268,7 +278,8 @@ class AddressSelect extends Component {
     );
   }
 
-  renderCategory (name, values = []) {
+  renderCategory (category, index) {
+    const { label, key, values = [] } = category;
     let content;
 
     if (values.length === 0) {
@@ -292,8 +303,8 @@ class AddressSelect extends Component {
     }
 
     return (
-      <div className={ styles.category } key={ name }>
-        <div className={ styles.title }>{ name }</div>
+      <div className={ styles.category } key={ `${key}_${index}` }>
+        <div className={ styles.title }>{ label }</div>
         { content }
       </div>
     );
@@ -306,7 +317,7 @@ class AddressSelect extends Component {
     const balance = balances[address];
     const account = {
       ...accountsInfo[address],
-      address, index
+      ..._account
     };
 
     return (
@@ -325,9 +336,10 @@ class AddressSelect extends Component {
     this.inputRef = refId;
   }
 
-  handleCustomInput = () => {
+  validateCustomInput = () => {
     const { allowInput } = this.props;
-    const { inputValue, values } = this.state;
+    const { inputValue } = this.store;
+    const { values } = this.store;
 
     // If input is HEX and allowInput === true, send it
     if (allowInput && inputValue && /^(0x)?([0-9a-f])+$/i.test(inputValue)) {
@@ -335,8 +347,8 @@ class AddressSelect extends Component {
     }
 
     // If only one value, select it
-    if (values.length === 1 && values[0].values.length === 1) {
-      const value = values[0].values[0];
+    if (values.reduce((cur, cat) => cur + cat.values.length, 0) === 1) {
+      const value = values.find((cat) => cat.values.length > 0).values[0];
       return this.handleClick(value.address);
     }
   }
@@ -361,7 +373,7 @@ class AddressSelect extends Component {
       case 'enter':
         const index = this.state.focusedItem;
         if (!index) {
-          return this.handleCustomInput();
+          return this.validateCustomInput();
         }
 
         return this.handleDOMAction(`account_${index}`, 'click');
@@ -408,10 +420,11 @@ class AddressSelect extends Component {
   }
 
   handleNavigation = (direction, event) => {
-    const { focusedItem, focusedCat, values } = this.state;
+    const { focusedItem, focusedCat } = this.state;
+    const { values } = this.store;
 
     // Don't do anything if no values
-    if (values.length === 0) {
+    if (values.reduce((cur, cat) => cur + cat.values.length, 0) === 0) {
       return event;
     }
 
@@ -423,7 +436,12 @@ class AddressSelect extends Component {
 
       event.preventDefault();
 
-      const nextValues = values[focusedCat || 0];
+      const firstCat = values.findIndex((cat) => cat.values.length > 0);
+      const nextCat = focusedCat && values[focusedCat].values.length > 0
+        ? focusedCat
+        : firstCat;
+
+      const nextValues = values[nextCat];
       const nextFocus = nextValues ? nextValues.values[0] : null;
       return this.focusItem(nextFocus && nextFocus.index || 1);
     }
@@ -457,12 +475,21 @@ class AddressSelect extends Component {
 
     // If right: next category
     if (direction === 'right') {
-      nextCategory = Math.min(prevCategoryIndex + 1, values.length - 1);
+      const categoryShift = values
+        .slice(prevCategoryIndex + 1, values.length)
+        .findIndex((cat) => cat.values.length > 0) + 1;
+
+      nextCategory = Math.min(prevCategoryIndex + categoryShift, values.length - 1);
     }
 
     // If right: previous category
     if (direction === 'left') {
-      nextCategory = Math.max(prevCategoryIndex - 1, 0);
+      const categoryShift = values
+        .slice(0, prevCategoryIndex)
+        .reverse()
+        .findIndex((cat) => cat.values.length > 0) + 1;
+
+      nextCategory = Math.max(prevCategoryIndex - categoryShift, 0);
     }
 
     // If left or right: try to keep the horizontal index
@@ -486,6 +513,10 @@ class AddressSelect extends Component {
   }
 
   handleMainBlur = () => {
+    if (this.props.readOnly) {
+      return;
+    }
+
     if (window.document.hasFocus() && !this.state.expanded) {
       this.closing = false;
       this.setState({ focused: false });
@@ -493,7 +524,7 @@ class AddressSelect extends Component {
   }
 
   handleMainFocus = () => {
-    if (this.state.focused) {
+    if (this.state.focused || this.props.readOnly) {
       return;
     }
 
@@ -508,6 +539,12 @@ class AddressSelect extends Component {
   }
 
   handleFocus = () => {
+    const { disabled, readOnly } = this.props;
+
+    if (disabled || readOnly) {
+      return;
+    }
+
     this.setState({ expanded: true, focusedItem: null, focusedCat: null }, () => {
       window.setTimeout(() => {
         this.handleDOMAction(this.inputRef, 'focus');
@@ -525,43 +562,6 @@ class AddressSelect extends Component {
     this.setState({ expanded: false });
   }
 
-  /**
-   * Filter the given values based on the given
-   * filter
-   */
-  filterValues = (values = [], _filter = '') => {
-    const filter = _filter.toLowerCase();
-
-    return values
-      // Remove empty accounts
-      .filter((a) => a)
-      .filter((account) => {
-        const address = account.address.toLowerCase();
-        const inAddress = address.includes(filter);
-
-        if (!account.name || inAddress) {
-          return inAddress;
-        }
-
-        const name = account.name.toLowerCase();
-        const inName = name.includes(filter);
-        const { meta = {} } = account;
-
-        if (!meta.tags || inName) {
-          return inName;
-        }
-
-        const tags = (meta.tags || []).join('');
-        return tags.includes(filter);
-      })
-      .sort((accA, accB) => {
-        const nameA = accA.name || accA.address;
-        const nameB = accB.name || accB.address;
-
-        return nameA.localeCompare(nameB);
-      });
-  }
-
   handleInputBlur = () => {
     this.setState({ inputFocused: false });
   }
@@ -572,25 +572,10 @@ class AddressSelect extends Component {
 
   handleChange = (event = { target: {} }) => {
     const { value = '' } = event.target;
-    let index = 0;
 
-    const values = this.values
-      .map((category) => {
-        const filteredValues = this
-          .filterValues(category.values, value)
-          .map((value) => {
-            index++;
-            return { ...value, index: parseInt(index) };
-          });
-
-        return {
-          label: category.label,
-          values: filteredValues
-        };
-      });
+    this.store.handleChange(value);
 
     this.setState({
-      values,
       focusedItem: null,
       inputValue: value
     });
@@ -600,10 +585,12 @@ class AddressSelect extends Component {
 function mapStateToProps (state) {
   const { accountsInfo } = state.personal;
   const { balances } = state.balances;
+  const { reverse } = state.registry;
 
   return {
     accountsInfo,
-    balances
+    balances,
+    reverse
   };
 }
 

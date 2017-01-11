@@ -17,11 +17,20 @@
 import { isAction, isStage } from '../util/actions';
 
 const initialState = {
+  error: null,
   pending: false,
   name: '', type: '', value: ''
 };
 
 export default (state = initialState, action) => {
+  switch (action.type) {
+    case 'clearError':
+      return {
+        ...state,
+        error: null
+      };
+  }
+
   if (!isAction('records', 'update', action)) {
     return state;
   }
@@ -29,11 +38,15 @@ export default (state = initialState, action) => {
   if (isStage('start', action)) {
     return {
       ...state, pending: true,
-      name: action.name, type: action.entry, value: action.value
+      error: null,
+      name: action.name, type: action.key, value: action.value
     };
-  } else if (isStage('success', action) || isStage('fail', action)) {
+  }
+
+  if (isStage('success', action) || isStage('fail', action)) {
     return {
       ...state, pending: false,
+      error: action.error || null,
       name: initialState.name, type: initialState.type, value: initialState.value
     };
   }

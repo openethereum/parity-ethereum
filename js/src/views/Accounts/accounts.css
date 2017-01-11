@@ -56,3 +56,12 @@
     }
   }
 }
+
+.heading {
+  display: flex;
+  flex-direction: row;
+
+  .main {
+    flex: 1;
+  }
+}

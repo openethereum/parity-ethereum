@@ -15,11 +15,13 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import { sha3 } from '../parity.js';
+import { getOwner } from '../util/registry';
 
 export const clear = () => ({ type: 'lookup clear' });
 
 export const lookupStart = (name, key) => ({ type: 'lookup start', name, key });
 export const reverseLookupStart = (address) => ({ type: 'reverseLookup start', address });
+export const ownerLookupStart = (name) => ({ type: 'ownerLookup start', name });
 
 export const success = (action, result) => ({ type: `${action} success`, result: result });
 
@@ -37,7 +39,7 @@ export const lookup = (name, key) => (dispatch, getState) => {
   name = name.toLowerCase();
   dispatch(lookupStart(name, key));
 
-  getAddress.call({}, [ sha3(name), key ])
+  getAddress.call({}, [ sha3.text(name), key ])
     .then((address) => dispatch(success('lookup', address)))
     .catch((err) => {
       console.error(`could not lookup ${key} for ${name}`);
@@ -48,24 +50,50 @@ export const lookup = (name, key) => (dispatch, getState) => {
     });
 };
 
-export const reverseLookup = (address) => (dispatch, getState) => {
+export const reverseLookup = (lookupAddress) => (dispatch, getState) => {
   const { contract } = getState();
+
   if (!contract) {
     return;
   }
 
-  const reverse = contract.functions
-    .find((f) => f.name === 'reverse');
+  dispatch(reverseLookupStart(lookupAddress));
 
-  dispatch(reverseLookupStart(address));
-
-  reverse.call({}, [ address ])
-    .then((address) => dispatch(success('reverseLookup', address)))
+  contract.instance
+    .reverse
+    .call({}, [ lookupAddress ])
+    .then((address) => {
+      dispatch(success('reverseLookup', address));
+    })
     .catch((err) => {
-      console.error(`could not lookup reverse for ${address}`);
+      console.error(`could not lookup reverse for ${lookupAddress}`);
       if (err) {
         console.error(err.stack);
       }
       dispatch(fail('reverseLookup'));
+    });
+};
+
+export const ownerLookup = (name) => (dispatch, getState) => {
+  const { contract } = getState();
+
+  if (!contract) {
+    return;
+  }
+
+  dispatch(ownerLookupStart(name));
+
+  return getOwner(contract, name)
+    .then((owner) => {
+      dispatch(success('ownerLookup', owner));
+    })
+    .catch((err) => {
+      console.error(`could not lookup owner for ${name}`);
+
+      if (err) {
+        console.error(err.stack);
+      }
+
+      dispatch(fail('ownerLookup'));
     });
 };

@@ -26,7 +26,9 @@ export function decodeCallData (data) {
 
   if (data.substr(0, 2) === '0x') {
     return decodeCallData(data.slice(2));
-  } else if (data.length < 8) {
+  }
+
+  if (data.length < 8) {
     throw new Error('Input to decodeCallData should be method signature + data');
   }
 
@@ -42,13 +44,15 @@ export function decodeCallData (data) {
 export function decodeMethodInput (methodAbi, paramdata) {
   if (!methodAbi) {
     throw new Error('decodeMethodInput should receive valid method-specific ABI');
-  } else if (paramdata && paramdata.length) {
+  }
+
+  if (paramdata && paramdata.length) {
     if (!isHex(paramdata)) {
       throw new Error('Input to decodeMethodInput should be a hex value');
-    } else if (paramdata.substr(0, 2) === '0x') {
+    }
+
+    if (paramdata.substr(0, 2) === '0x') {
       return decodeMethodInput(methodAbi, paramdata.slice(2));
-    } else if (paramdata.length % 64 !== 0) {
-      throw new Error('Parameter length in decodeMethodInput not a multiple of 64 characters');
     }
   }
 

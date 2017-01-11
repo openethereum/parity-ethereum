@@ -16,6 +16,7 @@
 
 import React, { Component, PropTypes } from 'react';
 import { observer } from 'mobx-react';
+import { FormattedMessage } from 'react-intl';
 
 import DappsStore from '../Dapps/dappsStore';
 
@@ -25,21 +26,71 @@ import styles from './dapp.css';
 export default class Dapp extends Component {
   static contextTypes = {
     api: PropTypes.object.isRequired
-  }
+  };
 
   static propTypes = {
     params: PropTypes.object
   };
 
+  state = {
+    app: null,
+    loading: true
+  };
+
   store = DappsStore.get(this.context.api);
+
+  componentWillMount () {
+    const { id } = this.props.params;
+    this.loadApp(id);
+  }
+
+  componentWillReceiveProps (nextProps) {
+    if (nextProps.params.id !== this.props.params.id) {
+      this.loadApp(nextProps.params.id);
+    }
+  }
+
+  loadApp (id) {
+    this.setState({ loading: true });
+
+    this.store
+      .loadApp(id)
+      .then((app) => {
+        this.setState({ loading: false, app });
+      })
+      .catch(() => {
+        this.setState({ loading: false });
+      });
+  }
 
   render () {
     const { dappsUrl } = this.context.api;
-    const { id } = this.props.params;
-    const app = this.store.apps.find((app) => app.id === id);
+    const { app, loading } = this.state;
+
+    if (loading) {
+      return (
+        <div className={ styles.full }>
+          <div className={ styles.text }>
+            <FormattedMessage
+              id='dapp.loading'
+              defaultMessage='Loading'
+            />
+          </div>
+        </div>
+      );
+    }
 
     if (!app) {
-      return null;
+      return (
+        <div className={ styles.full }>
+          <div className={ styles.text }>
+            <FormattedMessage
+              id='dapp.unavailable'
+              defaultMessage='The dapp cannot be reached'
+            />
+          </div>
+        </div>
+      );
     }
 
     let src = null;

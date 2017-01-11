@@ -58,7 +58,7 @@ pub struct CommonParams {
 impl From<ethjson::spec::Params> for CommonParams {
 	fn from(p: ethjson::spec::Params) -> Self {
 		CommonParams {
-			account_start_nonce: p.account_start_nonce.into(),
+			account_start_nonce: p.account_start_nonce.map_or_else(U256::zero, Into::into),
 			maximum_extra_data_size: p.maximum_extra_data_size.into(),
 			network_id: p.network_id.into(),
 			chain_id: if let Some(n) = p.chain_id { n.into() } else { p.network_id.into() },
@@ -337,8 +337,13 @@ impl Spec {
 	pub fn new_instant() -> Spec { load_bundled!("instant_seal") }
 
 	/// Create a new Spec with AuthorityRound consensus which does internal sealing (not requiring work).
-	/// Accounts with secrets "0".sha3() and "1".sha3() are the authorities.
+	/// Accounts with secrets "0".sha3() and "1".sha3() are the validators.
 	pub fn new_test_round() -> Self { load_bundled!("authority_round") }
+
+	/// Create a new Spec with BasicAuthority which uses a contract at address 5 to determine the current validators.
+	/// Accounts with secrets "0".sha3() and "1".sha3() are initially the validators.
+	/// Second validator can be removed with "0xf94e18670000000000000000000000000000000000000000000000000000000000000001" and added back in using "0x4d238c8e00000000000000000000000082a978b3f5962a5b0957d9ee9eef472ee55b42f1".
+	pub fn new_validator_contract() -> Self { load_bundled!("validator_contract") }
 
 	/// Create a new Spec with Tendermint consensus which does internal sealing (not requiring work).
 	/// Account "0".sha3() and "1".sha3() are a authorities.

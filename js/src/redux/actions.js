@@ -16,6 +16,7 @@
 
 import { newError } from '~/ui/Errors/actions';
 import { setAddressImage } from './providers/imagesActions';
+import { openSnackbar, showSnackbar } from './providers/snackbarActions';
 import { clearStatusLogs, toggleStatusLogs, toggleStatusRefresh } from './providers/statusActions';
 import { toggleView } from '~/views/Settings/actions';
 
@@ -23,6 +24,8 @@ export {
   newError,
   clearStatusLogs,
   setAddressImage,
+  openSnackbar,
+  showSnackbar,
   toggleStatusLogs,
   toggleStatusRefresh,
   toggleView

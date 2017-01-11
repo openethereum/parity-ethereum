@@ -45,7 +45,7 @@ class Contracts extends Component {
   state = {
     addContract: false,
     deployContract: false,
-    sortOrder: 'timestamp',
+    sortOrder: 'blockNumber',
     searchValues: [],
     searchTokens: []
   }
@@ -92,7 +92,8 @@ class Contracts extends Component {
             empty={ !hasContracts }
             order={ sortOrder }
             orderFallback='name'
-            handleAddSearchToken={ this.onAddSearchToken } />
+            handleAddSearchToken={ this.onAddSearchToken }
+          />
         </Page>
       </div>
     );
@@ -109,7 +110,8 @@ class Contracts extends Component {
         id='sortContracts'
         order={ this.state.sortOrder }
         metas={ [
-          { key: 'timestamp', label: 'date' }
+          { key: 'timestamp', label: 'date' },
+          { key: 'blockNumber:-1', label: 'mined block' }
         ] }
         showDefault={ false }
         onChange={ onChange } />

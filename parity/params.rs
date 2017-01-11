@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::{str, fs};
+use std::{str, fs, fmt};
 use std::time::Duration;
 use util::{Address, U256, version_data};
 use util::journaldb::Algorithm;
@@ -27,7 +27,7 @@ use user_defaults::UserDefaults;
 #[derive(Debug, PartialEq)]
 pub enum SpecType {
 	Mainnet,
-	Testnet,
+	Morden,
 	Ropsten,
 	Olympic,
 	Classic,
@@ -49,8 +49,8 @@ impl str::FromStr for SpecType {
 		let spec = match s {
 			"frontier" | "homestead" | "mainnet" => SpecType::Mainnet,
 			"frontier-dogmatic" | "homestead-dogmatic" | "classic" => SpecType::Classic,
-			"morden" | "testnet" | "classic-testnet" => SpecType::Testnet,
-			"ropsten" => SpecType::Ropsten,
+			"morden" | "classic-testnet" => SpecType::Morden,
+			"ropsten" | "testnet" => SpecType::Ropsten,
 			"olympic" => SpecType::Olympic,
 			"expanse" => SpecType::Expanse,
 			"dev" => SpecType::Dev,
@@ -60,11 +60,26 @@ impl str::FromStr for SpecType {
 	}
 }
 
+impl fmt::Display for SpecType {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		f.write_str(match *self {
+			SpecType::Mainnet => "homestead",
+			SpecType::Morden => "morden",
+			SpecType::Ropsten => "ropsten",
+			SpecType::Olympic => "olympic",
+			SpecType::Classic => "classic",
+			SpecType::Expanse => "expanse",
+			SpecType::Dev => "dev",
+			SpecType::Custom(ref custom) => custom,
+		})
+	}
+}
+
 impl SpecType {
 	pub fn spec(&self) -> Result<Spec, String> {
 		match *self {
 			SpecType::Mainnet => Ok(ethereum::new_frontier()),
-			SpecType::Testnet => Ok(ethereum::new_morden()),
+			SpecType::Morden => Ok(ethereum::new_morden()),
 			SpecType::Ropsten => Ok(ethereum::new_ropsten()),
 			SpecType::Olympic => Ok(ethereum::new_olympic()),
 			SpecType::Classic => Ok(ethereum::new_classic()),
@@ -292,17 +307,29 @@ mod tests {
 		assert_eq!(SpecType::Mainnet, "frontier".parse().unwrap());
 		assert_eq!(SpecType::Mainnet, "homestead".parse().unwrap());
 		assert_eq!(SpecType::Mainnet, "mainnet".parse().unwrap());
-		assert_eq!(SpecType::Testnet, "testnet".parse().unwrap());
-		assert_eq!(SpecType::Testnet, "morden".parse().unwrap());
+		assert_eq!(SpecType::Ropsten, "testnet".parse().unwrap());
+		assert_eq!(SpecType::Morden, "morden".parse().unwrap());
 		assert_eq!(SpecType::Ropsten, "ropsten".parse().unwrap());
 		assert_eq!(SpecType::Olympic, "olympic".parse().unwrap());
 		assert_eq!(SpecType::Classic, "classic".parse().unwrap());
-		assert_eq!(SpecType::Testnet, "classic-testnet".parse().unwrap());
+		assert_eq!(SpecType::Morden, "classic-testnet".parse().unwrap());
 	}
 
 	#[test]
 	fn test_spec_type_default() {
 		assert_eq!(SpecType::Mainnet, SpecType::default());
+	}
+
+	#[test]
+	fn test_spec_type_display() {
+		assert_eq!(format!("{}", SpecType::Mainnet), "homestead");
+		assert_eq!(format!("{}", SpecType::Ropsten), "ropsten");
+		assert_eq!(format!("{}", SpecType::Morden), "morden");
+		assert_eq!(format!("{}", SpecType::Olympic), "olympic");
+		assert_eq!(format!("{}", SpecType::Classic), "classic");
+		assert_eq!(format!("{}", SpecType::Expanse), "expanse");
+		assert_eq!(format!("{}", SpecType::Dev), "dev");
+		assert_eq!(format!("{}", SpecType::Custom("foo/bar".into())), "foo/bar");
 	}
 
 	#[test]

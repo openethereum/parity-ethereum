@@ -17,6 +17,9 @@
 import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
+import { FormattedMessage } from 'react-intl';
+import BigNumber from 'bignumber.js';
+
 import ActionDelete from 'material-ui/svg-icons/action/delete';
 import AvPlayArrow from 'material-ui/svg-icons/av/play-arrow';
 import ContentCreate from 'material-ui/svg-icons/content/create';
@@ -46,6 +49,7 @@ class Contract extends Component {
     setVisibleAccounts: PropTypes.func.isRequired,
 
     accounts: PropTypes.object,
+    accountsInfo: PropTypes.object,
     balances: PropTypes.object,
     contracts: PropTypes.object,
     isTest: PropTypes.bool,
@@ -115,7 +119,7 @@ class Contract extends Component {
   }
 
   render () {
-    const { balances, contracts, params, isTest } = this.props;
+    const { accountsInfo, balances, contracts, params, isTest } = this.props;
     const { allEvents, contract, queryValues, loadingEvents } = this.state;
     const account = contracts[params.address];
     const balance = balances[params.address];
@@ -135,9 +139,12 @@ class Contract extends Component {
             account={ account }
             balance={ balance }
             isContract
-          />
+          >
+            { this.renderBlockNumber(account.meta) }
+          </Header>
 
           <Queries
+            accountsInfo={ accountsInfo }
             contract={ contract }
             values={ queryValues }
           />
@@ -150,6 +157,28 @@ class Contract extends Component {
 
           { this.renderDetails(account) }
         </Page>
+      </div>
+    );
+  }
+
+  renderBlockNumber (meta = {}) {
+    const { blockNumber } = meta;
+
+    if (!blockNumber) {
+      return null;
+    }
+
+    const formattedBlockNumber = (new BigNumber(blockNumber)).toFormat();
+
+    return (
+      <div className={ styles.blockNumber }>
+        <FormattedMessage
+          id='contract.minedBlock'
+          defaultMessage='Mined at block #{blockNumber}'
+          values={ {
+            blockNumber: formattedBlockNumber
+          } }
+        />
       </div>
     );
   }
@@ -447,13 +476,14 @@ class Contract extends Component {
 }
 
 function mapStateToProps (state) {
-  const { accounts, contracts } = state.personal;
+  const { accounts, accountsInfo, contracts } = state.personal;
   const { balances } = state.balances;
   const { isTest } = state.nodeStatus;
 
   return {
     isTest,
     accounts,
+    accountsInfo,
     contracts,
     balances
   };

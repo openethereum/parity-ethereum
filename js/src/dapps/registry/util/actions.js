@@ -19,7 +19,7 @@ export const isAction = (ns, type, action) => {
 };
 
 export const isStage = (stage, action) => {
-  return action.type.slice(-1 - stage.length) === ` ${stage}`;
+  return (new RegExp(`${stage}$`)).test(action.type);
 };
 
 export const addToQueue = (queue, action, name) => {
@@ -27,5 +27,5 @@ export const addToQueue = (queue, action, name) => {
 };
 
 export const removeFromQueue = (queue, action, name) => {
-  return queue.filter((e) => e.action === action && e.name === name);
+  return queue.filter((e) => !(e.action === action && e.name === name));
 };

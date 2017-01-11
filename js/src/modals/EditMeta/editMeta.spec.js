@@ -20,30 +20,27 @@ import sinon from 'sinon';
 
 import EditMeta from './';
 
-import { ACCOUNT } from './editMeta.test.js';
+import { ACCOUNT, createApi, createRedux } from './editMeta.test.js';
 
+let api;
 let component;
+let instance;
 let onClose;
+let reduxStore;
 
 function render (props) {
+  api = createApi();
   onClose = sinon.stub();
+  reduxStore = createRedux();
 
   component = shallow(
     <EditMeta
       { ...props }
       account={ ACCOUNT }
       onClose={ onClose } />,
-    {
-      context: {
-        api: {
-          parity: {
-            setAccountName: sinon.stub().resolves(),
-            setAccountMeta: sinon.stub().resolves()
-          }
-        }
-      }
-    }
-  );
+    { context: { store: reduxStore } }
+  ).find('EditMeta').shallow({ context: { api } });
+  instance = component.instance();
 
   return component;
 }
@@ -61,13 +58,27 @@ describe('modals/EditMeta', () => {
     });
 
     describe('onSave', () => {
-      it('calls store.save() & props.onClose', () => {
-        const instance = component.instance();
+      it('calls store.save', () => {
         sinon.spy(instance.store, 'save');
 
-        instance.onSave().then(() => {
+        return instance.onSave().then(() => {
           expect(instance.store.save).to.have.been.called;
+          instance.store.save.restore();
+        });
+      });
+
+      it('closes the dialog on success', () => {
+        return instance.onSave().then(() => {
           expect(onClose).to.have.been.called;
+        });
+      });
+
+      it('adds newError on failure', () => {
+        sinon.stub(instance.store, 'save').rejects('test');
+
+        return instance.onSave().then(() => {
+          expect(reduxStore.dispatch).to.have.been.calledWith({ error: new Error('test'), type: 'newError' });
+          instance.store.save.restore();
         });
       });
     });

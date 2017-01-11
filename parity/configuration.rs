@@ -17,7 +17,7 @@
 use std::time::Duration;
 use std::io::Read;
 use std::net::SocketAddr;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::cmp::max;
 use cli::{Args, ArgsError};
 use util::{Hashable, U256, Uint, Bytes, version_data, Secret, Address};
@@ -30,11 +30,11 @@ use ethcore::verification::queue::VerifierSettings;
 use rpc::{IpcConfiguration, HttpConfiguration};
 use ethcore_rpc::NetworkSettings;
 use cache::CacheConfig;
-use helpers::{to_duration, to_mode, to_block_id, to_u256, to_pending_set, to_price, replace_home,
+use helpers::{to_duration, to_mode, to_block_id, to_u256, to_pending_set, to_price, replace_home, replace_home_for_db,
 geth_ipc_path, parity_ipc_path, to_bootnodes, to_addresses, to_address, to_gas_limit, to_queue_strategy};
 use params::{ResealPolicy, AccountsConfig, GasPricerConfig, MinerExtras};
 use ethcore_logger::Config as LogConfig;
-use dir::{Directories, default_hypervisor_path};
+use dir::{Directories, default_hypervisor_path, default_local_path};
 use dapps::Configuration as DappsConfiguration;
 use signer::{Configuration as SignerConfiguration};
 use updater::{UpdatePolicy, UpdateFilter, ReleaseTrack};
@@ -335,6 +335,7 @@ impl Configuration {
 				net_settings: self.network_settings(),
 				dapps_conf: dapps_conf,
 				signer_conf: signer_conf,
+				dapp: self.dapp_to_open()?,
 				ui: self.args.cmd_ui,
 				name: self.args.flag_identity,
 				custom_bootnodes: self.args.flag_bootnodes.is_some(),
@@ -507,8 +508,26 @@ impl Configuration {
 			hosts: self.dapps_hosts(),
 			user: self.args.flag_dapps_user.clone(),
 			pass: self.args.flag_dapps_pass.clone(),
-			dapps_path: self.directories().dapps,
+			dapps_path: PathBuf::from(self.directories().dapps),
+			extra_dapps: if self.args.cmd_dapp {
+				self.args.arg_path.iter().map(|path| PathBuf::from(path)).collect()
+			} else {
+				vec![]
+			},
 		}
+	}
+
+	fn dapp_to_open(&self) -> Result<Option<String>, String> {
+		if !self.args.cmd_dapp {
+			return Ok(None);
+		}
+		let path = self.args.arg_path.get(0).map(String::as_str).unwrap_or(".");
+		let path = Path::new(path).canonicalize()
+			.map_err(|e| format!("Invalid path: {}. Error: {:?}", path, e))?;
+		let name = path.file_name()
+			.and_then(|name| name.to_str())
+			.ok_or_else(|| "Root path is not supported.".to_owned())?;
+		Ok(Some(name.into()))
 	}
 
 	fn gas_pricer_config(&self) -> Result<GasPricerConfig, String> {
@@ -707,9 +726,14 @@ impl Configuration {
 	fn directories(&self) -> Directories {
 		use util::path;
 
+		let local_path = default_local_path();
 		let data_path = replace_home("", self.args.flag_datadir.as_ref().unwrap_or(&self.args.flag_base_path));
 
-		let db_path = replace_home(&data_path, &self.args.flag_db_path);
+		let db_path = if self.args.flag_datadir.is_some() {
+			replace_home(&data_path, &self.args.flag_db_path)
+		} else {
+			replace_home_for_db(&data_path, &local_path, &self.args.flag_db_path)
+		};
 		let keys_path = replace_home(&data_path, &self.args.flag_keys_path);
 		let dapps_path = replace_home(&data_path, &self.args.flag_dapps_path);
 		let ui_path = replace_home(&data_path, &self.args.flag_ui_path);
@@ -1025,6 +1049,7 @@ mod tests {
 			dapps_conf: Default::default(),
 			signer_conf: Default::default(),
 			ui: false,
+			dapp: None,
 			name: "".into(),
 			custom_bootnodes: false,
 			fat_db: Default::default(),
@@ -1217,6 +1242,22 @@ mod tests {
 			signer_path: "signer".into(),
 			skip_origin_validation: false,
 		});
+	}
+
+	#[test]
+	fn should_parse_dapp_opening() {
+		// given
+		let temp = RandomTempPath::new();
+		let name = temp.file_name().unwrap().to_str().unwrap();
+		create_dir(temp.as_str().to_owned()).unwrap();
+
+		// when
+		let conf0 = parse(&["parity", "dapp", temp.to_str().unwrap()]);
+
+		// then
+		assert_eq!(conf0.dapp_to_open(), Ok(Some(name.into())));
+		let extra_dapps = conf0.dapps_config().extra_dapps;
+		assert_eq!(extra_dapps, vec![temp.to_owned()]);
 	}
 
 	#[test]

@@ -29,6 +29,7 @@ const api = {
 
 const store = {
   estimated: '123',
+  histogram: {},
   priceDefault: '456',
   totalValue: '789',
   setGas: sinon.stub(),

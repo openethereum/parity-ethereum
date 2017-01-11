@@ -74,6 +74,14 @@ export default class Events extends Component {
     return (
       <Container title='events'>
         <table className={ styles.events }>
+          <thead>
+            <tr>
+              <th />
+              <th className={ styles.origin }>
+                origin
+              </th>
+            </tr>
+          </thead>
           <tbody>{ list }</tbody>
         </table>
       </Container>

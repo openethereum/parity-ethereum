@@ -16,7 +16,7 @@
 
 //! Transaction data structure.
 
-use std::ops::Deref;
+use std::ops::{Deref, DerefMut};
 use std::cell::*;
 use rlp::*;
 use util::sha3::Hashable;
@@ -239,6 +239,12 @@ impl Deref for SignedTransaction {
 	}
 }
 
+impl DerefMut for SignedTransaction {
+	fn deref_mut(&mut self) -> &mut Self::Target {
+		&mut self.unsigned
+	}
+}
+
 impl Decodable for SignedTransaction {
 	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
 		let d = decoder.as_rlp();
@@ -373,7 +379,7 @@ impl SignedTransaction {
 }
 
 /// Signed Transaction that is a part of canon blockchain.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "ipc", binary)]
 pub struct LocalizedTransaction {
 	/// Signed part.

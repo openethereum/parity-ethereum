@@ -113,6 +113,7 @@ const routes = [
       { path: 'apps', component: Dapps },
       { path: 'app/:id', component: Dapp },
       { path: 'web', component: Web },
+      { path: 'web/:url', component: Web },
       { path: 'signer', component: Signer }
     ]
   }

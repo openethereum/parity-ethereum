@@ -21,7 +21,7 @@ const TEST_ENV = process.env.NODE_ENV === 'test';
 
 export function createIdentityImg (address, scale = 8) {
   return TEST_ENV
-    ? ''
+    ? 'test-createIdentityImg'
     : blockies({
       seed: (address || '').toLowerCase(),
       size: 8,

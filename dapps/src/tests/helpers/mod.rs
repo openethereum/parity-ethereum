@@ -51,7 +51,7 @@ pub fn init_server<F, B>(hosts: Option<Vec<String>>, process: F, remote: Remote)
 	let mut dapps_path = env::temp_dir();
 	dapps_path.push("non-existent-dir-to-prevent-fs-files-from-loading");
 	let server = process(ServerBuilder::new(
-		dapps_path.to_str().unwrap().into(), registrar.clone(), remote,
+		&dapps_path, registrar.clone(), remote,
 	))
 		.signer_address(Some(("127.0.0.1".into(), SIGNER_PORT)))
 		.start_unsecured_http(&"127.0.0.1:0".parse().unwrap(), hosts).unwrap();
@@ -66,7 +66,7 @@ pub fn serve_with_auth(user: &str, pass: &str) -> Server {
 	let registrar = Arc::new(FakeRegistrar::new());
 	let mut dapps_path = env::temp_dir();
 	dapps_path.push("non-existent-dir-to-prevent-fs-files-from-loading");
-	ServerBuilder::new(dapps_path.to_str().unwrap().into(), registrar.clone(), Remote::new_sync())
+	ServerBuilder::new(&dapps_path, registrar.clone(), Remote::new_sync())
 		.signer_address(Some(("127.0.0.1".into(), SIGNER_PORT)))
 		.start_basic_auth_http(&"127.0.0.1:0".parse().unwrap(), None, user, pass).unwrap()
 }

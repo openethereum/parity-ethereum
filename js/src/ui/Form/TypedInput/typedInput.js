@@ -17,6 +17,7 @@
 import React, { Component, PropTypes } from 'react';
 import { MenuItem, Toggle } from 'material-ui';
 import { range } from 'lodash';
+import BigNumber from 'bignumber.js';
 
 import IconButton from 'material-ui/IconButton';
 import AddIcon from 'material-ui/svg-icons/content/add';
@@ -33,26 +34,32 @@ import styles from './typedInput.css';
 export default class TypedInput extends Component {
 
   static propTypes = {
-    onChange: PropTypes.func.isRequired,
+    param: PropTypes.oneOfType([
+      PropTypes.object,
+      PropTypes.string
+    ]).isRequired,
 
     accounts: PropTypes.object,
+    allowCopy: PropTypes.bool,
+    className: PropTypes.string,
     error: PropTypes.any,
     hint: PropTypes.string,
     isEth: PropTypes.bool,
     label: PropTypes.string,
     max: PropTypes.number,
     min: PropTypes.number,
-    param: PropTypes.oneOfType([
-      PropTypes.object,
-      PropTypes.string
-    ]).isRequired,
+    onChange: PropTypes.func,
+    readOnly: PropTypes.bool,
     value: PropTypes.any
   };
 
   static defaultProps = {
+    allowCopy: false,
+    isEth: null,
     min: null,
     max: null,
-    isEth: null
+    onChange: () => {},
+    readOnly: false
   };
 
   state = {
@@ -61,21 +68,16 @@ export default class TypedInput extends Component {
   };
 
   componentWillMount () {
-    if (this.props.isEth && this.props.value) {
-      this.setState({ isEth: true, ethValue: fromWei(this.props.value) });
+    const { isEth, value } = this.props;
+
+    if (typeof isEth === 'boolean' && value) {
+      const ethValue = isEth ? fromWei(value) : value;
+      this.setState({ isEth, ethValue });
     }
   }
 
   render () {
-    const { param } = this.props;
-
-    if (typeof param === 'string') {
-      const parsedParam = parseAbiType(param);
-
-      if (parsedParam) {
-        return this.renderParam(parsedParam);
-      }
-    }
+    const param = this.getParam();
 
     if (param) {
       return this.renderParam(param);
@@ -86,11 +88,11 @@ export default class TypedInput extends Component {
   }
 
   renderParam (param) {
-    const { isEth } = this.props;
+    const { allowCopy, isEth, readOnly } = this.props;
     const { type } = param;
 
     if (type === ABI_TYPES.ARRAY) {
-      const { accounts, label, value = param.default } = this.props;
+      const { accounts, className, label, value = param.default } = this.props;
       const { subtype, length } = param;
 
       const fixedLength = !!length;
@@ -104,10 +106,13 @@ export default class TypedInput extends Component {
 
         return (
           <TypedInput
+            accounts={ accounts }
+            allowCopy={ allowCopy }
+            className={ className }
             key={ `${subtype.type}_${index}` }
             onChange={ onChange }
-            accounts={ accounts }
             param={ subtype }
+            readOnly={ readOnly }
             value={ value[index] }
           />
         );
@@ -233,21 +238,41 @@ export default class TypedInput extends Component {
     );
   }
 
-  renderInteger (value = this.props.value, onChange = this.onChange) {
-    const { label, error, param, hint, min, max } = this.props;
+  getNumberValue (value) {
+    if (!value) {
+      return value;
+    }
 
-    const realValue = value && typeof value.toNumber === 'function'
-      ? value.toNumber()
+    const { readOnly } = this.props;
+
+    const rawValue = typeof value === 'string'
+      ? value.replace(/,/g, '')
       : value;
+
+    const bnValue = new BigNumber(rawValue);
+
+    return readOnly
+      ? bnValue.toFormat()
+      : bnValue.toNumber();
+  }
+
+  renderInteger (value = this.props.value, onChange = this.onChange) {
+    const { allowCopy, className, label, error, hint, min, max, readOnly } = this.props;
+    const param = this.getParam();
+
+    const realValue = this.getNumberValue(value);
 
     return (
       <Input
+        allowCopy={ allowCopy }
+        className={ className }
         label={ label }
         hint={ hint }
         value={ realValue }
         error={ error }
         onChange={ onChange }
-        type='number'
+        readOnly={ readOnly }
+        type={ readOnly ? 'text' : 'number' }
         step={ 1 }
         min={ min !== null ? min : (param.signed ? null : 0) }
         max={ max !== null ? max : null }
@@ -263,19 +288,21 @@ export default class TypedInput extends Component {
    * @see https://github.com/facebook/react/issues/1549
    */
   renderFloat (value = this.props.value, onChange = this.onChange) {
-    const { label, error, param, hint, min, max } = this.props;
+    const { allowCopy, className, label, error, hint, min, max, readOnly } = this.props;
+    const param = this.getParam();
 
-    const realValue = value && typeof value.toNumber === 'function'
-      ? value.toNumber()
-      : value;
+    const realValue = this.getNumberValue(value);
 
     return (
       <Input
+        allowCopy={ allowCopy }
+        className={ className }
         label={ label }
         hint={ hint }
         value={ realValue }
         error={ error }
         onChange={ onChange }
+        readOnly={ readOnly }
         type='text'
         min={ min !== null ? min : (param.signed ? null : 0) }
         max={ max !== null ? max : null }
@@ -284,37 +311,46 @@ export default class TypedInput extends Component {
   }
 
   renderDefault () {
-    const { label, value, error, hint } = this.props;
+    const { allowCopy, className, label, value, error, hint, readOnly } = this.props;
 
     return (
       <Input
+        allowCopy={ allowCopy }
+        className={ className }
         label={ label }
         hint={ hint }
         value={ value }
         error={ error }
         onSubmit={ this.onSubmit }
+        readOnly={ readOnly }
       />
     );
   }
 
   renderAddress () {
-    const { accounts, label, value, error, hint } = this.props;
+    const { accounts, allowCopy, className, label, value, error, hint, readOnly } = this.props;
 
     return (
       <InputAddressSelect
+        allowCopy={ allowCopy }
         accounts={ accounts }
-        label={ label }
-        hint={ hint }
-        value={ value }
+        className={ className }
         error={ error }
+        hint={ hint }
+        label={ label }
         onChange={ this.onChange }
-        editing
+        readOnly={ readOnly }
+        value={ value }
       />
     );
   }
 
   renderBoolean () {
-    const { label, value, error, hint } = this.props;
+    const { allowCopy, className, label, value, error, hint, readOnly } = this.props;
+
+    if (readOnly) {
+      return this.renderDefault();
+    }
 
     const boolitems = ['false', 'true'].map((bool) => {
       return (
@@ -329,6 +365,8 @@ export default class TypedInput extends Component {
 
     return (
       <Select
+        allowCopy={ allowCopy }
+        className={ className }
         error={ error }
         hint={ hint }
         label={ label }
@@ -379,7 +417,9 @@ export default class TypedInput extends Component {
   }
 
   onAddField = () => {
-    const { value, onChange, param } = this.props;
+    const { value, onChange } = this.props;
+    const param = this.getParam();
+
     const newValues = [].concat(value, param.subtype.default);
 
     onChange(newValues);
@@ -390,6 +430,16 @@ export default class TypedInput extends Component {
     const newValues = value.slice(0, -1);
 
     onChange(newValues);
+  }
+
+  getParam = () => {
+    const { param } = this.props;
+
+    if (typeof param === 'string') {
+      return parseAbiType(param);
+    }
+
+    return param;
   }
 
 }

@@ -114,7 +114,11 @@ export default class Api {
             }
           })
           .catch((error) => {
-            console.error('pollMethod', error);
+            // Don't print if the request is rejected: that's ok
+            if (error.type !== 'REQUEST_REJECTED') {
+              console.error('pollMethod', error);
+            }
+
             reject(error);
           });
       };

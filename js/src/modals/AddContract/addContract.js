@@ -14,264 +14,255 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
-import ContentAdd from 'material-ui/svg-icons/content/add';
-import ContentClear from 'material-ui/svg-icons/content/clear';
-import NavigationArrowForward from 'material-ui/svg-icons/navigation/arrow-forward';
-import NavigationArrowBack from 'material-ui/svg-icons/navigation/arrow-back';
+import { FormattedMessage } from 'react-intl';
+import { connect } from 'react-redux';
+import { bindActionCreators } from 'redux';
 
+import { newError } from '~/redux/actions';
 import { Button, Modal, Form, Input, InputAddress, RadioButtons } from '~/ui';
-import { ERRORS, validateAbi, validateAddress, validateName } from '~/util/validation';
+import { AddIcon, CancelIcon, NextIcon, PrevIcon } from '~/ui/Icons';
 
-import { eip20, wallet } from '~/contracts/abi';
+import Store from './store';
 
-const ABI_TYPES = [
-  {
-    label: 'Token', readOnly: true, value: JSON.stringify(eip20),
-    type: 'token',
-    description: (<span>A standard <a href='https://github.com/ethereum/EIPs/issues/20' target='_blank'>ERC 20</a> token</span>)
-  },
-  {
-    label: 'Multisig Wallet', readOnly: true,
-    type: 'multisig',
-    value: JSON.stringify(wallet),
-    description: (<span>Official Multisig contract: <a href='https://github.com/ethereum/dapp-bin/blob/master/wallet/wallet.sol' target='_blank'>see contract code</a></span>)
-  },
-  {
-    label: 'Custom Contract', value: '',
-    type: 'custom',
-    description: 'Contract created from custom ABI'
-  }
-];
-
-const STEPS = [ 'choose a contract type', 'enter contract details' ];
-
-export default class AddContract extends Component {
+@observer
+class AddContract extends Component {
   static contextTypes = {
     api: PropTypes.object.isRequired
   }
 
   static propTypes = {
     contracts: PropTypes.object.isRequired,
+    newError: PropTypes.func.isRequired,
     onClose: PropTypes.func
   };
 
-  state = {
-    abi: '',
-    abiError: ERRORS.invalidAbi,
-    abiType: ABI_TYPES[2],
-    abiTypeIndex: 2,
-    abiParsed: null,
-    address: '',
-    addressError: ERRORS.invalidAddress,
-    name: '',
-    nameError: ERRORS.invalidName,
-    description: '',
-    step: 0
-  };
-
-  componentDidMount () {
-    this.onChangeABIType(null, this.state.abiTypeIndex);
-  }
+  store = new Store(this.context.api, this.props.contracts);
 
   render () {
-    const { step } = this.state;
+    const { step } = this.store;
 
     return (
       <Modal
-        visible
         actions={ this.renderDialogActions() }
-        steps={ STEPS }
         current={ step }
-      >
-        { this.renderStep(step) }
+        steps={ [
+          <FormattedMessage
+            id='addContract.title.type'
+            defaultMessage='choose a contract type'
+            key='type' />,
+          <FormattedMessage
+            id='addContract.title.details'
+            defaultMessage='enter contract details'
+            key='details' />
+        ] }
+        visible>
+        { this.renderStep() }
       </Modal>
     );
   }
 
-  renderStep (step) {
+  renderStep () {
+    const { step } = this.store;
+
     switch (step) {
       case 0:
         return this.renderContractTypeSelector();
+
       default:
         return this.renderFields();
     }
   }
 
   renderContractTypeSelector () {
-    const { abiTypeIndex } = this.state;
+    const { abiTypeIndex, abiTypes } = this.store;
 
     return (
       <RadioButtons
         name='contractType'
         value={ abiTypeIndex }
-        values={ this.getAbiTypes() }
+        values={ abiTypes }
         onChange={ this.onChangeABIType }
       />
     );
   }
 
   renderDialogActions () {
-    const { addressError, nameError, step } = this.state;
-    const hasError = !!(addressError || nameError);
+    const { step } = this.store;
 
     const cancelBtn = (
       <Button
-        icon={ <ContentClear /> }
-        label='Cancel'
+        icon={ <CancelIcon /> }
+        key='cancel'
+        label={
+          <FormattedMessage
+            id='addContract.button.cancel'
+            defaultMessage='Cancel' />
+        }
         onClick={ this.onClose } />
     );
 
     if (step === 0) {
-      const nextBtn = (
+      return [
+        cancelBtn,
         <Button
-          icon={ <NavigationArrowForward /> }
-          label='Next'
+          icon={ <NextIcon /> }
+          key='next'
+          label={
+            <FormattedMessage
+              id='addContract.button.next'
+              defaultMessage='Next' />
+          }
           onClick={ this.onNext } />
-      );
-
-      return [ cancelBtn, nextBtn ];
+      ];
     }
 
-    const prevBtn = (
+    return [
+      cancelBtn,
       <Button
-        icon={ <NavigationArrowBack /> }
-        label='Back'
-        onClick={ this.onPrev } />
-    );
-
-    const addBtn = (
+        icon={ <PrevIcon /> }
+        key='prev'
+        label={
+          <FormattedMessage
+            id='addContract.button.prev'
+            defaultMessage='Back' />
+        }
+        onClick={ this.onPrev } />,
       <Button
-        icon={ <ContentAdd /> }
-        label='Add Contract'
-        disabled={ hasError }
+        icon={ <AddIcon /> }
+        key='add'
+        label={
+          <FormattedMessage
+            id='addContract.button.add'
+            defaultMessage='Add Contract' />
+        }
+        disabled={ this.store.hasError }
         onClick={ this.onAdd } />
-    );
-
-    return [ cancelBtn, prevBtn, addBtn ];
+    ];
   }
 
   renderFields () {
-    const { abi, abiError, address, addressError, description, name, nameError, abiType } = this.state;
+    const { abi, abiError, abiType, address, addressError, description, name, nameError } = this.store;
 
     return (
       <Form>
         <InputAddress
-          label='network address'
-          hint='the network address for the contract'
           error={ addressError }
-          value={ address }
-          onSubmit={ this.onEditAddress }
+          hint={
+            <FormattedMessage
+              id='addContract.address.hint'
+              defaultMessage='the network address for the contract' />
+          }
+          label={
+            <FormattedMessage
+              id='addContract.address.label'
+              defaultMessage='network address' />
+          }
           onChange={ this.onChangeAddress }
-        />
+          onSubmit={ this.onEditAddress }
+          value={ address } />
         <Input
-          label='contract name'
-          hint='a descriptive name for the contract'
           error={ nameError }
-          value={ name }
-          onSubmit={ this.onEditName } />
+          hint={
+            <FormattedMessage
+              id='addContract.name.hint'
+              defaultMessage='a descriptive name for the contract' />
+          }
+          label={
+            <FormattedMessage
+              id='addContract.name.label'
+              defaultMessage='contract name' />
+          }
+          onSubmit={ this.onEditName }
+          value={ name } />
         <Input
-          multiLine
-          rows={ 1 }
-          label='(optional) contract description'
-          hint='an expanded description for the entry'
-          value={ description }
-          onSubmit={ this.onEditDescription } />
-
+          hint={
+            <FormattedMessage
+              id='addContract.description.hint'
+              defaultMessage='an expanded description for the entry' />
+          }
+          label={
+            <FormattedMessage
+              id='addContract.description.label'
+              defaultMessage='(optional) contract description' />
+          }
+          onSubmit={ this.onEditDescription }
+          value={ description } />
         <Input
-          label='contract abi'
-          hint='the abi for the contract'
           error={ abiError }
-          value={ abi }
-          readOnly={ abiType.readOnly }
+          hint={
+            <FormattedMessage
+              id='addContract.abi.hint'
+              defaultMessage='the abi for the contract' />
+          }
+          label={
+            <FormattedMessage
+              id='addContract.abi.label'
+              defaultMessage='contract abi' />
+          }
           onSubmit={ this.onEditAbi }
-        />
+          readOnly={ abiType.readOnly }
+          value={ abi } />
       </Form>
     );
   }
 
-  getAbiTypes () {
-    return ABI_TYPES.map((type, index) => ({
-      label: type.label,
-      description: type.description,
-      key: index,
-      ...type
-    }));
-  }
-
   onNext = () => {
-    this.setState({ step: this.state.step + 1 });
+    this.store.nextStep();
   }
 
   onPrev = () => {
-    this.setState({ step: this.state.step - 1 });
+    this.store.prevStep();
   }
 
   onChangeABIType = (value, index) => {
-    const abiType = value || ABI_TYPES[index];
-    this.setState({ abiTypeIndex: index, abiType });
-    this.onEditAbi(abiType.value);
+    this.store.setAbiTypeIndex(index);
   }
 
-  onEditAbi = (abiIn) => {
-    const { api } = this.context;
-    const { abi, abiError, abiParsed } = validateAbi(abiIn, api);
-
-    this.setState({ abi, abiError, abiParsed });
+  onEditAbi = (abi) => {
+    this.store.setAbi(abi);
   }
 
-  onChangeAddress = (event, value) => {
-    this.onEditAddress(value);
+  onChangeAddress = (event, address) => {
+    this.onEditAddress(address);
   }
 
-  onEditAddress = (_address) => {
-    const { contracts } = this.props;
-    let { address, addressError } = validateAddress(_address);
-
-    if (!addressError) {
-      const contract = contracts[address];
-
-      if (contract) {
-        addressError = ERRORS.duplicateAddress;
-      }
-    }
-
-    this.setState({
-      address,
-      addressError
-    });
+  onEditAddress = (address) => {
+    this.store.setAddress(address);
   }
 
   onEditDescription = (description) => {
-    this.setState({ description });
+    this.store.setDescription(description);
   }
 
   onEditName = (name) => {
-    this.setState(validateName(name));
+    this.store.setName(name);
   }
 
   onAdd = () => {
-    const { api } = this.context;
-    const { abiParsed, address, name, description, abiType } = this.state;
-
-    Promise.all([
-      api.parity.setAccountName(address, name),
-      api.parity.setAccountMeta(address, {
-        contract: true,
-        deleted: false,
-        timestamp: Date.now(),
-        abi: abiParsed,
-        type: abiType.type,
-        description
+    return this.store
+      .addContract()
+      .then(() => {
+        this.onClose();
       })
-    ]).catch((error) => {
-      console.error('onAdd', error);
-    });
-
-    this.props.onClose();
+      .catch((error) => {
+        this.props.newError(error);
+      });
   }
 
   onClose = () => {
     this.props.onClose();
   }
 }
+
+function mapDispatchToProps (dispatch) {
+  return bindActionCreators({
+    newError
+  }, dispatch);
+}
+
+export default connect(
+  null,
+  mapDispatchToProps
+)(AddContract);
