@@ -14,13 +14,12 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import { omitBy } from 'lodash';
 import { Checkbox } from 'material-ui';
 import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
-import { bindActionCreators } from 'redux';
-import { omitBy } from 'lodash';
 
 import { AddDapps, DappPermissions } from '~/modals';
 import PermissionStore from '~/modals/DappPermissions/store';
@@ -169,11 +168,7 @@ function mapStateToProps (state) {
   };
 }
 
-function mapDispatchToProps (dispatch) {
-  return bindActionCreators({}, dispatch);
-}
-
 export default connect(
   mapStateToProps,
-  mapDispatchToProps
+  null
 )(Dapps);
