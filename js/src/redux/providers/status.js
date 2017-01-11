@@ -31,6 +31,7 @@ export default class Status {
     this._timeoutIds = {};
     this._blockNumberSubscriptionId = null;
 
+    this._isConnecting = false;
     this._timestamp = Date.now();
 
     api.transport.on('open', () => {
@@ -44,36 +45,63 @@ export default class Status {
   }
 
   start () {
-    this.stop();
-
-    this._api
-      .connect()
-      .then((connected) => {
-        // Update the API Status
-        this.updateApiStatus();
-
-        if (connected) {
-          BalancesProvider.start();
-          this._subscribeBlockNumber();
-
-          this._pollLogs();
-          this._pollLongStatus();
-          this._pollStatus();
+    // Unsubscribe to everything first
+    this
+      .stop()
+      .then(() => {
+        // Don't try to connect twice
+        if (this._isConnecting) {
+          return;
         }
+
+        this._isConnecting = true;
+
+        this._api
+          .connect()
+          .then((connected) => {
+            this._isConnecting = false;
+
+            // Update the API Status
+            this.updateApiStatus();
+
+            if (connected) {
+              BalancesProvider.start();
+              this._subscribeBlockNumber();
+
+              this._pollLogs();
+              this._pollLongStatus();
+              this._pollStatus();
+            }
+          })
+          .catch(() => {
+            this._isConnecting = false;
+          });
       });
   }
 
   stop () {
+    const promises = [];
+
     if (this._blockNumberSubscriptionId) {
-      this._api.unsubscribe(this._blockNumberSubscriptionId);
-      this._blockNumberSubscriptionId = null;
+      const promise = this._api
+        .unsubscribe(this._blockNumberSubscriptionId)
+        .then(() => {
+          this._blockNumberSubscriptionId = null;
+        });
+
+      promises.push(promise);
     }
 
     Object.values(this._timeoutIds).forEach((timeoutId) => {
       clearTimeout(timeoutId);
     });
 
-    BalancesProvider.stop();
+    const promise = BalancesProvider.stop();
+    promises.push(promise);
+
+    return Promise.all(promises)
+      .then(() => true)
+      .catch(() => true);
   }
 
   updateApiStatus () {

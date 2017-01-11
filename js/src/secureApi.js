@@ -91,7 +91,7 @@ export default class SecureApi extends Api {
    * a boolean: `true` if the node is up, `false`
    * otherwise
    */
-  _checkNodeUp () {
+  isNodeUp () {
     const url = this._url.replace(/wss?/, 'http');
     return fetch(url, { method: 'HEAD' })
       .then(
@@ -179,11 +179,13 @@ export default class SecureApi extends Api {
           return this.connectSuccess(token).then(() => true, () => true);
         });
       })
-      .catch((e) => {
-        log.debug('did not connect ; error', e);
+      .catch((error) => {
+        if (error && error.type !== 'close') {
+          log.debug('did not connect ; error', e);
+        }
 
         return this
-          ._checkNodeUp()
+          .isNodeUp()
           .then((isNodeUp) => {
             log.debug('did not connect with', token, '; is node up?', isNodeUp ? 'yes' : 'no');
 
