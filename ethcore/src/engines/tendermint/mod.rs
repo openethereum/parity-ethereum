@@ -302,7 +302,7 @@ impl Tendermint {
 		self.round.fetch_add(n, AtomicOrdering::SeqCst);
 	}
 
-	fn should_unlock(&self, lock_change_round: Round) -> bool { 
+	fn should_unlock(&self, lock_change_round: Round) -> bool {
 		self.last_lock.load(AtomicOrdering::SeqCst) < lock_change_round
 			&& lock_change_round < self.round.load(AtomicOrdering::SeqCst)
 	}
@@ -505,7 +505,7 @@ impl Engine for Tendermint {
 	}
 
 	fn verify_block_unordered(&self, header: &Header, _block: Option<&[u8]>) -> Result<(), Error> {
-		let proposal = ConsensusMessage::new_proposal(header)?;	
+		let proposal = ConsensusMessage::new_proposal(header)?;
 		let proposer = proposal.verify()?;
 		if !self.is_authority(&proposer) {
 			Err(EngineError::NotAuthorized(proposer))?
@@ -674,6 +674,7 @@ mod tests {
 	use error::{Error, BlockError};
 	use header::Header;
 	use env_info::EnvInfo;
+	use ethkey::Secret;
 	use client::chain_notify::ChainNotify;
 	use miner::MinerService;
 	use tests::helpers::*;
@@ -724,7 +725,7 @@ mod tests {
 	}
 
 	fn insert_and_unlock(tap: &Arc<AccountProvider>, acc: &str) -> Address {
-		let addr = tap.insert_account(acc.sha3(), acc).unwrap();
+		let addr = tap.insert_account(Secret::from_slice(&acc.sha3()).unwrap(), acc).unwrap();
 		tap.unlock_account_permanently(addr, acc.into()).unwrap();
 		addr
 	}
@@ -889,7 +890,7 @@ mod tests {
 	fn relays_messages() {
 		let (spec, tap) = setup();
 		let engine = spec.engine.clone();
-		
+
 		let v0 = insert_and_register(&tap, engine.as_ref(), "0");
 		let v1 = insert_and_register(&tap, engine.as_ref(), "1");
 

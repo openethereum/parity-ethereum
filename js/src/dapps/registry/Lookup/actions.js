@@ -39,7 +39,7 @@ export const lookup = (name, key) => (dispatch, getState) => {
   name = name.toLowerCase();
   dispatch(lookupStart(name, key));
 
-  getAddress.call({}, [ sha3(name), key ])
+  getAddress.call({}, [ sha3.text(name), key ])
     .then((address) => dispatch(success('lookup', address)))
     .catch((err) => {
       console.error(`could not lookup ${key} for ${name}`);

@@ -60,11 +60,14 @@ impl KeyPair {
 		Ok(keypair)
 	}
 
+	pub fn from_secret_slice(slice: &[u8]) -> Result<KeyPair, Error> {
+		Self::from_secret(Secret::from_slice(slice)?)
+	}
+
 	pub fn from_keypair(sec: key::SecretKey, publ: key::PublicKey) -> Self {
 		let context = &SECP256K1;
 		let serialized = publ.serialize_vec(context, false);
-		let mut secret = Secret::default();
-		secret.copy_from_slice(&sec[0..32]);
+		let secret = Secret::from(sec);
 		let mut public = Public::default();
 		public.copy_from_slice(&serialized[1..65]);
 
