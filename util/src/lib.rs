@@ -164,6 +164,3 @@ pub use timer::*;
 
 /// 160-bit integer representing account address
 pub type Address = H160;
-
-/// Secret
-pub type Secret = H256;

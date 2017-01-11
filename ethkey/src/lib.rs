@@ -29,6 +29,7 @@ mod keccak;
 mod prefix;
 mod random;
 mod signature;
+mod secret;
 
 lazy_static! {
 	pub static ref SECP256K1: secp256k1::Secp256k1 = secp256k1::Secp256k1::new();
@@ -46,10 +47,10 @@ pub use self::keypair::{KeyPair, public_to_address};
 pub use self::prefix::Prefix;
 pub use self::random::Random;
 pub use self::signature::{sign, verify_public, verify_address, recover, Signature};
+pub use self::secret::Secret;
 
 use bigint::hash::{H160, H256, H512};
 
 pub type Address = H160;
-pub type Secret = H256;
 pub type Message = H256;
 pub type Public = H512;

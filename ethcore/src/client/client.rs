@@ -1669,7 +1669,7 @@ mod tests {
 		use util::Hashable;
 
 		// given
-		let key = KeyPair::from_secret("test".sha3()).unwrap();
+		let key = KeyPair::from_secret_slice(&"test".sha3()).unwrap();
 		let secret = key.secret();
 
 		let block_number = 1;
