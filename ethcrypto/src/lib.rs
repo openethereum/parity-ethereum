@@ -158,7 +158,7 @@ pub mod aes {
 		let mut encryptor = CbcDecryptor::new(AesSafe128Decryptor::new(k), PkcsPadding, iv.to_vec());
 		let len = dest.len();
 		let mut buffer = RefWriteBuffer::new(dest);
-		try!(encryptor.decrypt(&mut RefReadBuffer::new(encrypted), &mut buffer, true));
+		encryptor.decrypt(&mut RefReadBuffer::new(encrypted), &mut buffer, true)?;
 		Ok(len - buffer.remaining())
 	}
 }
@@ -166,7 +166,7 @@ pub mod aes {
 /// ECDH functions
 #[cfg_attr(feature="dev", allow(similar_names))]
 pub mod ecdh {
-	use secp256k1::{ecdh, key};
+	use secp256k1::{ecdh, key, Error as SecpError};
 	use ethkey::{Secret, Public, SECP256K1};
 	use Error;
 
@@ -179,14 +179,12 @@ pub mod ecdh {
 			temp
 		};
 
-		let publ = try!(key::PublicKey::from_slice(context, &pdata));
-		// no way to create SecretKey from raw byte array.
-		let sec: &key::SecretKey = unsafe { ::std::mem::transmute(secret) };
-		let shared = ecdh::SharedSecret::new_raw(context, &publ, sec);
+		let publ = key::PublicKey::from_slice(context, &pdata)?;
+		let sec = key::SecretKey::from_slice(context, &secret)?;
+		let shared = ecdh::SharedSecret::new_raw(context, &publ, &sec);
 
-		let mut s = Secret::default();
-		s.copy_from_slice(&shared[0..32]);
-		Ok(s)
+		Secret::from_slice(&shared[0..32])
+			.map_err(|_| Error::Secp(SecpError::InvalidSecretKey))
 	}
 }
 
@@ -206,7 +204,7 @@ pub mod ecies {
 		let r = Random.generate()
 			.expect("context known to have key-generation capabilities; qed");
 
-		let z = try!(ecdh::agree(r.secret(), public));
+		let z = ecdh::agree(r.secret(), public)?;
 		let mut key = [0u8; 32];
 		let mut mkey = [0u8; 32];
 		kdf(&z, &[0u8; 0], &mut key);
@@ -243,7 +241,7 @@ pub mod ecies {
 		let r = Random.generate()
 			.expect("context known to have key-generation capabilities");
 
-		let z = try!(ecdh::agree(r.secret(), public));
+		let z = ecdh::agree(r.secret(), public)?;
 		let mut key = [0u8; 32];
 		let mut mkey = [0u8; 32];
 		kdf(&z, &[0u8; 0], &mut key);
@@ -274,7 +272,7 @@ pub mod ecies {
 
 		let e = &encrypted[1..];
 		let p = Public::from_slice(&e[0..64]);
-		let z = try!(ecdh::agree(secret, &p));
+		let z = ecdh::agree(secret, &p)?;
 		let mut key = [0u8; 32];
 		kdf(&z, &[0u8; 0], &mut key);
 		let ekey = &key[0..16];
@@ -314,7 +312,7 @@ pub mod ecies {
 
 		let e = encrypted;
 		let p = Public::from_slice(&e[0..64]);
-		let z = try!(ecdh::agree(secret, &p));
+		let z = ecdh::agree(secret, &p)?;
 		let mut key = [0u8; 32];
 		kdf(&z, &[0u8; 0], &mut key);
 		let ekey = &key[0..16];

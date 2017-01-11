@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::path::PathBuf;
 use std::sync::Arc;
 use io::PanicHandler;
 use rpc_apis;
@@ -22,6 +23,7 @@ use ethsync::SyncProvider;
 use helpers::replace_home;
 use dir::default_data_path;
 use jsonrpc_core::reactor::Remote;
+use rpc_apis::SignerService;
 use hash_fetch::fetch::Client as FetchClient;
 
 #[derive(Debug, PartialEq, Clone)]
@@ -32,7 +34,8 @@ pub struct Configuration {
 	pub hosts: Option<Vec<String>>,
 	pub user: Option<String>,
 	pub pass: Option<String>,
-	pub dapps_path: String,
+	pub dapps_path: PathBuf,
+	pub extra_dapps: Vec<PathBuf>,
 }
 
 impl Default for Configuration {
@@ -45,7 +48,8 @@ impl Default for Configuration {
 			hosts: Some(Vec::new()),
 			user: None,
 			pass: None,
-			dapps_path: replace_home(&data_dir, "$BASE/dapps"),
+			dapps_path: replace_home(&data_dir, "$BASE/dapps").into(),
+			extra_dapps: vec![],
 		}
 	}
 }
@@ -57,6 +61,7 @@ pub struct Dependencies {
 	pub sync: Arc<SyncProvider>,
 	pub remote: Remote,
 	pub fetch: FetchClient,
+	pub signer: Arc<SignerService>,
 }
 
 pub fn new(configuration: Configuration, deps: Dependencies) -> Result<Option<WebappServer>, String> {
@@ -64,9 +69,8 @@ pub fn new(configuration: Configuration, deps: Dependencies) -> Result<Option<We
 		return Ok(None);
 	}
 
-	let signer_address = deps.apis.signer_service.address();
 	let url = format!("{}:{}", configuration.interface, configuration.port);
-	let addr = try!(url.parse().map_err(|_| format!("Invalid Webapps listen host/port given: {}", url)));
+	let addr = url.parse().map_err(|_| format!("Invalid Webapps listen host/port given: {}", url))?;
 
 	let auth = configuration.user.as_ref().map(|username| {
 		let password = configuration.pass.as_ref().map_or_else(|| {
@@ -79,7 +83,14 @@ pub fn new(configuration: Configuration, deps: Dependencies) -> Result<Option<We
 		(username.to_owned(), password)
 	});
 
-	Ok(Some(try!(setup_dapps_server(deps, configuration.dapps_path, &addr, configuration.hosts, auth, signer_address))))
+	Ok(Some(setup_dapps_server(
+		deps,
+		configuration.dapps_path,
+		configuration.extra_dapps,
+		&addr,
+		configuration.hosts,
+		auth
+	)?))
 }
 
 pub use self::server::WebappServer;
@@ -89,15 +100,16 @@ pub use self::server::setup_dapps_server;
 mod server {
 	use super::Dependencies;
 	use std::net::SocketAddr;
+	use std::path::PathBuf;
 
 	pub struct WebappServer;
 	pub fn setup_dapps_server(
 		_deps: Dependencies,
-		_dapps_path: String,
+		_dapps_path: PathBuf,
+		_extra_dapps: Vec<PathBuf>,
 		_url: &SocketAddr,
 		_allowed_hosts: Option<Vec<String>>,
 		_auth: Option<(String, String)>,
-		_signer_address: Option<(String, u16)>,
 	) -> Result<WebappServer, String> {
 		Err("Your Parity version has been compiled without WebApps support.".into())
 	}
@@ -106,6 +118,7 @@ mod server {
 #[cfg(feature = "dapps")]
 mod server {
 	use super::Dependencies;
+	use std::path::PathBuf;
 	use std::sync::Arc;
 	use std::net::SocketAddr;
 	use std::io;
@@ -124,26 +137,29 @@ mod server {
 
 	pub fn setup_dapps_server(
 		deps: Dependencies,
-		dapps_path: String,
+		dapps_path: PathBuf,
+		extra_dapps: Vec<PathBuf>,
 		url: &SocketAddr,
 		allowed_hosts: Option<Vec<String>>,
 		auth: Option<(String, String)>,
-		signer_address: Option<(String, u16)>,
 	) -> Result<WebappServer, String> {
 		use ethcore_dapps as dapps;
 
-		let sync = deps.sync.clone();
-		let client = deps.client.clone();
 		let server = dapps::ServerBuilder::new(
-			dapps_path,
+			&dapps_path,
 			Arc::new(Registrar { client: deps.client.clone() }),
 			parity_reactor::Remote::new(deps.remote.clone()),
 		);
 
+		let sync = deps.sync.clone();
+		let client = deps.client.clone();
+		let signer = deps.signer.clone();
 		let server = server
 			.fetch(deps.fetch.clone())
 			.sync_status(Arc::new(move || is_major_importing(Some(sync.status().state), client.queue_info())))
-			.signer_address(signer_address)
+			.web_proxy_tokens(Arc::new(move |token| signer.is_valid_web_proxy_access_token(&token)))
+			.extra_dapps(&extra_dapps)
+			.signer_address(deps.signer.address())
 			.allowed_hosts(allowed_hosts);
 
 		let apis = rpc_apis::setup_rpc(Default::default(), deps.apis.clone(), rpc_apis::ApiSet::UnsafeContext);

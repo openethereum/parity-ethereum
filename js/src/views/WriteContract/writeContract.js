@@ -18,7 +18,6 @@ import React, { PropTypes, Component } from 'react';
 import { observer } from 'mobx-react';
 import { MenuItem, Toggle } from 'material-ui';
 import { connect } from 'react-redux';
-import { bindActionCreators } from 'redux';
 import CircularProgress from 'material-ui/CircularProgress';
 import moment from 'moment';
 import { throttle } from 'lodash';
@@ -32,8 +31,6 @@ import SendIcon from 'material-ui/svg-icons/content/send';
 import { Actionbar, ActionbarExport, ActionbarImport, Button, Editor, Page, Select, Input } from '~/ui';
 import { DeployContract, SaveContract, LoadContract } from '~/modals';
 
-import { setupWorker } from '~/redux/providers/compilerActions';
-
 import WriteContractStore from './writeContractStore';
 import styles from './writeContract.css';
 
@@ -42,7 +39,6 @@ class WriteContract extends Component {
 
   static propTypes = {
     accounts: PropTypes.object.isRequired,
-    setupWorker: PropTypes.func.isRequired,
     worker: PropTypes.object,
     workerError: PropTypes.any
   };
@@ -55,8 +51,7 @@ class WriteContract extends Component {
   };
 
   componentWillMount () {
-    const { setupWorker, worker } = this.props;
-    setupWorker();
+    const { worker } = this.props;
 
     if (worker !== undefined) {
       this.store.setWorker(worker);
@@ -458,20 +453,62 @@ class WriteContract extends Component {
     const { bytecode } = contract;
     const abi = contract.interface;
 
+    const metadata = contract.metadata
+      ? (
+        <Input
+          allowCopy
+          label='Metadata'
+          readOnly
+          value={ contract.metadata }
+        />
+      )
+      : null;
+
     return (
       <div>
         <Input
+          allowCopy
+          label='ABI Interface'
           readOnly
           value={ abi }
-          label='ABI Interface'
         />
 
         <Input
+          allowCopy
+          label='Bytecode'
           readOnly
           value={ `0x${bytecode}` }
-          label='Bytecode'
         />
+
+        { metadata }
+        { this.renderSwarmHash(contract) }
       </div>
+    );
+  }
+
+  renderSwarmHash (contract) {
+    if (!contract || !contract.metadata) {
+      return null;
+    }
+
+    const { bytecode } = contract;
+
+    // @see https://solidity.readthedocs.io/en/develop/miscellaneous.html#encoding-of-the-metadata-hash-in-the-bytecode
+    const hashRegex = /a165627a7a72305820([a-f0-9]{64})0029$/;
+
+    if (!hashRegex.test(bytecode)) {
+      return null;
+    }
+
+    const hash = hashRegex.exec(bytecode)[1];
+
+    return (
+      <Input
+        allowCopy
+        label='Swarm Metadata Hash'
+        readOnly
+        value={ `${hash}` }
+      />
     );
   }
 
@@ -533,17 +570,10 @@ class WriteContract extends Component {
 
 function mapStateToProps (state) {
   const { accounts } = state.personal;
-  const { worker, error } = state.compiler;
+  const { worker, error } = state.worker;
   return { accounts, worker, workerError: error };
 }
 
-function mapDispatchToProps (dispatch) {
-  return bindActionCreators({
-    setupWorker
-  }, dispatch);
-}
-
 export default connect(
-  mapStateToProps,
-  mapDispatchToProps
+  mapStateToProps
 )(WriteContract);

@@ -2,7 +2,7 @@
 mode = "last"
 mode_timeout = 300
 mode_alarm = 3600
-auto_update = "critical"
+auto_update = "none"
 release_track = "current"
 no_download = false
 no_consensus = false
@@ -12,6 +12,7 @@ base_path = "$HOME/.parity"
 db_path = "$HOME/.parity/chains"
 keys_path = "$HOME/.parity/keys"
 identity = ""
+light = false
 
 [account]
 unlock = ["0xdeadbeefcafe0000000000000000000000000000"]
@@ -115,5 +116,3 @@ jit = false
 logging = "own_tx=trace"
 log_file = "/var/log/parity.log"
 color = true
-
-

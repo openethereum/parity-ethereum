@@ -23,6 +23,20 @@
   margin-top: 0;
 }
 
+.box {
+  display: flex;
+  align-items: baseline;
+}
+
 .spacing {
   margin-left: 1em;
+}
+
+.button {
+  flex-grow: 0;
+  flex-shrink: 0;
+}
+
+.error {
+  color: red;
 }

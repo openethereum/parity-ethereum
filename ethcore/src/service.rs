@@ -20,7 +20,7 @@ use util::*;
 use io::*;
 use spec::Spec;
 use error::*;
-use client::{Client, BlockChainClient, MiningBlockChainClient, ClientConfig, ChainNotify};
+use client::{Client, ClientConfig, ChainNotify};
 use miner::Miner;
 use snapshot::ManifestData;
 use snapshot::service::{Service as SnapshotService, ServiceParams as SnapServiceParams};
@@ -46,12 +46,6 @@ pub enum ClientIoMessage {
 	FeedBlockChunk(H256, Bytes),
 	/// Take a snapshot for the block with given number.
 	TakeSnapshot(u64),
-	/// Trigger sealing update (useful for internal sealing).
-	UpdateSealing,
-	/// Submit seal (useful for internal sealing).
-	SubmitSeal(H256, Vec<Bytes>),
-	/// Broadcast a message to the network.
-	BroadcastMessage(Bytes),
 	/// New consensus message received.
 	NewMessage(Bytes)
 }
@@ -77,7 +71,7 @@ impl ClientService {
 		) -> Result<ClientService, Error>
 	{
 		let panic_handler = PanicHandler::new_in_arc();
-		let io_service = try!(IoService::<ClientIoMessage>::start());
+		let io_service = IoService::<ClientIoMessage>::start()?;
 		panic_handler.forward_from(&io_service);
 
 		info!("Configured for {} using {} engine", Colour::White.bold().paint(spec.name.clone()), Colour::Yellow.bold().paint(spec.engine.name()));
@@ -94,7 +88,7 @@ impl ClientService {
 		db_config.wal = config.db_wal;
 
 		let pruning = config.pruning;
-		let client = try!(Client::new(config, &spec, client_path, miner, io_service.channel(), &db_config));
+		let client = Client::new(config, &spec, client_path, miner, io_service.channel(), &db_config)?;
 
 		let snapshot_params = SnapServiceParams {
 			engine: spec.engine.clone(),
@@ -105,16 +99,16 @@ impl ClientService {
 			snapshot_root: snapshot_path.into(),
 			db_restore: client.clone(),
 		};
-		let snapshot = Arc::new(try!(SnapshotService::new(snapshot_params)));
+		let snapshot = Arc::new(SnapshotService::new(snapshot_params)?);
 
 		panic_handler.forward_from(&*client);
 		let client_io = Arc::new(ClientIoHandler {
 			client: client.clone(),
 			snapshot: snapshot.clone(),
 		});
-		try!(io_service.register_handler(client_io));
+		io_service.register_handler(client_io)?;
 
-		spec.engine.register_message_channel(io_service.channel());
+		spec.engine.register_client(Arc::downgrade(&client));
 
 		let stop_guard = ::devtools::StopGuard::new();
 		run_ipc(ipc_path, client.clone(), snapshot.clone(), stop_guard.share());
@@ -221,9 +215,6 @@ impl IoHandler<ClientIoMessage> for ClientIoHandler {
 					debug!(target: "snapshot", "Failed to initialize periodic snapshot thread: {:?}", e);
 				}
 			},
-			ClientIoMessage::UpdateSealing => self.client.update_sealing(),
-			ClientIoMessage::SubmitSeal(ref hash, ref seal) => self.client.submit_seal(*hash, seal.clone()),
-			ClientIoMessage::BroadcastMessage(ref message) => self.client.broadcast_consensus_message(message.clone()),
 			ClientIoMessage::NewMessage(ref message) => if let Err(e) = self.client.engine().handle_message(message) {
 				trace!(target: "poa", "Invalid message received: {}", e);
 			},

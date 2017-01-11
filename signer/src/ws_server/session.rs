@@ -208,7 +208,7 @@ impl<M: Metadata> ws::Handler for Session<M> {
 	}
 
 	fn on_message(&mut self, msg: ws::Message) -> ws::Result<()> {
-		let req = try!(msg.as_text());
+		let req = msg.as_text()?;
 		let out = self.out.clone();
 		// TODO [ToDr] Extract metadata for PubSub/Session
 		let metadata = Default::default();

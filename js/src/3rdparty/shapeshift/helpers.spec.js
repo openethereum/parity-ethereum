@@ -16,16 +16,10 @@
 
 const nock = require('nock');
 
-const ShapeShift = require('./');
-const initShapeshift = (ShapeShift.default || ShapeShift);
-
 const APIKEY = '0x123454321';
 
-const shapeshift = initShapeshift(APIKEY);
-const rpc = shapeshift.getRpc();
-
-function mockget (requests) {
-  let scope = nock(rpc.ENDPOINT);
+function mockget (shapeshift, requests) {
+  let scope = nock(shapeshift.getRpc().ENDPOINT);
 
   requests.forEach((request) => {
     scope = scope
@@ -38,8 +32,8 @@ function mockget (requests) {
   return scope;
 }
 
-function mockpost (requests) {
-  let scope = nock(rpc.ENDPOINT);
+function mockpost (shapeshift, requests) {
+  let scope = nock(shapeshift.getRpc().ENDPOINT);
 
   requests.forEach((request) => {
     scope = scope
@@ -58,7 +52,5 @@ function mockpost (requests) {
 module.exports = {
   APIKEY,
   mockget,
-  mockpost,
-  shapeshift,
-  rpc
+  mockpost
 };

@@ -132,8 +132,8 @@ use dir::default_hypervisor_path;
 
 fn print_hash_of(maybe_file: Option<String>) -> Result<String, String> {
 	if let Some(file) = maybe_file {
-		let mut f = BufReader::new(try!(File::open(&file).map_err(|_| "Unable to open file".to_owned())));
-		let hash = try!(sha3(&mut f).map_err(|_| "Unable to read from file".to_owned()));
+		let mut f = BufReader::new(File::open(&file).map_err(|_| "Unable to open file".to_owned())?);
+		let hash = sha3(&mut f).map_err(|_| "Unable to read from file".to_owned())?;
 		Ok(hash.hex())
 	} else {
 		Err("Streaming from standard input not yet supported. Specify a file.".to_owned())
@@ -176,7 +176,7 @@ fn start(can_restart: bool) -> Result<PostExecutionAction, String> {
 		println!("{}", d);
 	}
 
-	let cmd = try!(conf.into_command());
+	let cmd = conf.into_command()?;
 	execute(cmd, can_restart)
 }
 

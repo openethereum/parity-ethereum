@@ -96,7 +96,7 @@ pub fn start_http<M: jsonrpc_core::Metadata>(
 
 /// Start ipc server asynchronously and returns result with `Server` handle on success or an error.
 pub fn start_ipc<M: jsonrpc_core::Metadata>(addr: &str, handler: RpcHandler<M>) -> Result<ipc::Server<M>, ipc::Error> {
-	let server = try!(ipc::Server::with_rpc_handler(addr, handler));
-	try!(server.run_async());
+	let server = ipc::Server::with_rpc_handler(addr, handler)?;
+	server.run_async()?;
 	Ok(server)
 }

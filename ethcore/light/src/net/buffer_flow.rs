@@ -23,7 +23,7 @@
 //! This module provides an interface for configuration of buffer
 //! flow costs and recharge rates.
 //!
-//! Current default costs are picked completely arbitrarily, not based 
+//! Current default costs are picked completely arbitrarily, not based
 //! on any empirical timings or mathematical models.
 
 use request;
@@ -135,10 +135,10 @@ impl RlpDecodable for CostTable {
 		let mut header_proofs = None;
 
 		for row in rlp.iter() {
-			let msg_id: u8 = try!(row.val_at(0));
+			let msg_id: u8 = row.val_at(0)?;
 			let cost = {
-				let base = try!(row.val_at(1));
-				let per = try!(row.val_at(2));
+				let base = row.val_at(1)?;
+				let per = row.val_at(2)?;
 
 				Cost(base, per)
 			};
@@ -155,12 +155,12 @@ impl RlpDecodable for CostTable {
 		}
 
 		Ok(CostTable {
-			headers: try!(headers.ok_or(DecoderError::Custom("No headers cost specified"))),
-			bodies: try!(bodies.ok_or(DecoderError::Custom("No bodies cost specified"))),
-			receipts: try!(receipts.ok_or(DecoderError::Custom("No receipts cost specified"))),
-			state_proofs: try!(state_proofs.ok_or(DecoderError::Custom("No proofs cost specified"))),
-			contract_codes: try!(contract_codes.ok_or(DecoderError::Custom("No contract codes specified"))),
-			header_proofs: try!(header_proofs.ok_or(DecoderError::Custom("No header proofs cost specified"))),
+			headers: headers.ok_or(DecoderError::Custom("No headers cost specified"))?,
+			bodies: bodies.ok_or(DecoderError::Custom("No bodies cost specified"))?,
+			receipts: receipts.ok_or(DecoderError::Custom("No receipts cost specified"))?,
+			state_proofs: state_proofs.ok_or(DecoderError::Custom("No proofs cost specified"))?,
+			contract_codes: contract_codes.ok_or(DecoderError::Custom("No contract codes specified"))?,
+			header_proofs: header_proofs.ok_or(DecoderError::Custom("No header proofs cost specified"))?,
 		})
 	}
 }
@@ -181,6 +181,23 @@ impl FlowParams {
 			costs: costs,
 			limit: limit,
 			recharge: recharge,
+		}
+	}
+
+	/// Create effectively infinite flow params.
+	pub fn free() -> Self {
+		let free_cost = Cost(0.into(), 0.into());
+		FlowParams {
+			limit: (!0u64).into(),
+			recharge: 1.into(),
+			costs: CostTable {
+				headers: free_cost.clone(),
+				bodies: free_cost.clone(),
+				receipts: free_cost.clone(),
+				state_proofs: free_cost.clone(),
+				contract_codes: free_cost.clone(),
+				header_proofs: free_cost.clone(),
+			}
 		}
 	}
 
@@ -209,7 +226,7 @@ impl FlowParams {
 		cost.0 + (amount * cost.1)
 	}
 
-	/// Compute the maximum number of costs of a specific kind which can be made 
+	/// Compute the maximum number of costs of a specific kind which can be made
 	/// with the given buffer.
 	/// Saturates at `usize::max()`. This is not a problem in practice because
 	/// this amount of requests is already prohibitively large.

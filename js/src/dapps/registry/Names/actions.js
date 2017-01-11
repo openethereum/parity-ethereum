@@ -15,6 +15,12 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import { sha3, api } from '../parity.js';
+import { getOwner, isOwned } from '../util/registry';
+import postTx from '../util/post-tx';
+
+export const clearError = () => ({
+  type: 'clearError'
+});
 
 const alreadyQueued = (queue, action, name) =>
   !!queue.find((entry) => entry.action === action && entry.name === name);
@@ -23,7 +29,7 @@ export const reserveStart = (name) => ({ type: 'names reserve start', name });
 
 export const reserveSuccess = (name) => ({ type: 'names reserve success', name });
 
-export const reserveFail = (name) => ({ type: 'names reserve fail', name });
+export const reserveFail = (name, error) => ({ type: 'names reserve fail', name, error });
 
 export const reserve = (name) => (dispatch, getState) => {
   const state = getState();
@@ -35,41 +41,39 @@ export const reserve = (name) => (dispatch, getState) => {
     return;
   }
 
+  name = name.toLowerCase();
+
   if (alreadyQueued(state.names.queue, 'reserve', name)) {
     return;
   }
 
-  const reserve = contract.functions.find((f) => f.name === 'reserve');
-
-  name = name.toLowerCase();
-  const options = {
-    from: account.address,
-    value: fee
-  };
-  const values = [ sha3(name) ];
-
   dispatch(reserveStart(name));
 
-  reserve.estimateGas(options, values)
-    .then((gas) => {
-      options.gas = gas.mul(1.2).toFixed(0);
-      return reserve.postTransaction(options, values);
+  return isOwned(contract, name)
+    .then((owned) => {
+      if (owned) {
+        throw new Error(`"${name}" has already been reserved`);
+      }
+
+      const { reserve } = contract.instance;
+
+      const options = {
+        from: account.address,
+        value: fee
+      };
+      const values = [
+        sha3.text(name)
+      ];
+
+      return postTx(api, reserve, options, values);
     })
-    .then((requestId) => {
-      return api.pollMethod('parity_checkRequest', requestId);
-    })
-    .then((txhash) => {
+    .then((txHash) => {
       dispatch(reserveSuccess(name));
     })
     .catch((err) => {
-      if (err && err.type === 'REQUEST_REJECTED') {
-        return dispatch(reserveFail(name));
-      }
-
-      console.error(`could not reserve ${name}`);
-
-      if (err) {
-        console.error(err.stack);
+      if (err.type !== 'REQUEST_REJECTED') {
+        console.error(`error rerserving ${name}`, err);
+        return dispatch(reserveFail(name, err));
       }
 
       dispatch(reserveFail(name));
@@ -80,7 +84,7 @@ export const dropStart = (name) => ({ type: 'names drop start', name });
 
 export const dropSuccess = (name) => ({ type: 'names drop success', name });
 
-export const dropFail = (name) => ({ type: 'names drop fail', name });
+export const dropFail = (name, error) => ({ type: 'names drop fail', name, error });
 
 export const drop = (name) => (dispatch, getState) => {
   const state = getState();
@@ -91,39 +95,41 @@ export const drop = (name) => (dispatch, getState) => {
     return;
   }
 
+  name = name.toLowerCase();
+
   if (alreadyQueued(state.names.queue, 'drop', name)) {
     return;
   }
 
-  const drop = contract.functions.find((f) => f.name === 'drop');
-
-  name = name.toLowerCase();
-  const options = { from: account.address };
-  const values = [ sha3(name) ];
-
   dispatch(dropStart(name));
-  drop.estimateGas(options, values)
-    .then((gas) => {
-      options.gas = gas.mul(1.2).toFixed(0);
-      return drop.postTransaction(options, values);
-    })
-    .then((requestId) => {
-      return api.pollMethod('parity_checkRequest', requestId);
+
+  return getOwner(contract, name)
+    .then((owner) => {
+      if (owner.toLowerCase() !== account.address.toLowerCase()) {
+        throw new Error(`you are not the owner of "${name}"`);
+      }
+
+      const { drop } = contract.instance;
+
+      const options = {
+        from: account.address
+      };
+
+      const values = [
+        sha3.text(name)
+      ];
+
+      return postTx(api, drop, options, values);
     })
     .then((txhash) => {
       dispatch(dropSuccess(name));
     })
     .catch((err) => {
-      if (err && err.type === 'REQUEST_REJECTED') {
-        dispatch(reserveFail(name));
+      if (err.type !== 'REQUEST_REJECTED') {
+        console.error(`error dropping ${name}`, err);
+        return dispatch(dropFail(name, err));
       }
 
-      console.error(`could not drop ${name}`);
-
-      if (err) {
-        console.error(err.stack);
-      }
-
-      dispatch(reserveFail(name));
+      dispatch(dropFail(name));
     });
 };

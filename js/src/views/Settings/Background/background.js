@@ -95,7 +95,6 @@ class Background extends Component {
   renderBackgrounds () {
     const { settings } = this.props;
     const { seeds } = this.state;
-    const { muiTheme } = this.context;
 
     return seeds.map((seed, index) => {
       return (
@@ -105,7 +104,6 @@ class Background extends Component {
               className={ settings.backgroundSeed === seed ? styles.seedactive : styles.seed }
               seed={ seed }
               onClick={ this.onSelect(seed) }
-              muiTheme={ muiTheme }
             />
           </div>
         </div>
@@ -143,7 +141,7 @@ class Background extends Component {
   generateSeed () {
     const { api, muiTheme } = this.context;
 
-    return api.util.sha3(`${muiTheme.backgroundSeed}${Math.random()}${counter++}`);
+    return api.util.sha3.text(`${muiTheme.backgroundSeed}${Math.random()}${counter++}`);
   }
 }
 

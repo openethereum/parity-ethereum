@@ -32,7 +32,7 @@ use state_db::StateDB;
 
 use util::*;
 
-use util::trie::recorder::{Recorder, BasicRecorder as TrieRecorder};
+use util::trie::recorder::Recorder;
 
 mod account;
 mod substate;
@@ -425,8 +425,8 @@ impl State {
 
 		// account is not found in the global cache, get from the DB and insert into local
 		let db = self.factories.trie.readonly(self.db.as_hashdb(), &self.root).expect(SEC_TRIE_DB_UNWRAP_STR);
-		let maybe_acc = match db.get(address) {
-			Ok(acc) => acc.map(|v| Account::from_rlp(&v)),
+		let maybe_acc = match db.get_with(address, Account::from_rlp) {
+			Ok(acc) => acc,
 			Err(e) => panic!("Potential DB corruption encountered: {}", e),
 		};
 		let r = maybe_acc.as_ref().map_or(H256::new(), |a| {
@@ -515,11 +515,11 @@ impl State {
 
 		let options = TransactOptions { tracing: tracing, vm_tracing: false, check_nonce: true };
 		let vm_factory = self.factories.vm.clone();
-		let e = try!(Executive::new(self, env_info, engine, &vm_factory).transact(t, options));
+		let e = Executive::new(self, env_info, engine, &vm_factory).transact(t, options)?;
 
 		// TODO uncomment once to_pod() works correctly.
 //		trace!("Applied transaction. Diff:\n{}\n", state_diff::diff_pod(&old, &self.to_pod()));
-		try!(self.commit());
+		self.commit()?;
 		let receipt = Receipt::new(self.root().clone(), e.cumulative_gas_used, e.logs);
 		trace!(target: "state", "Transaction receipt: {:?}", receipt);
 		Ok(ApplyOutcome{receipt: receipt, trace: e.trace})
@@ -551,15 +551,15 @@ impl State {
 		}
 
 		{
-			let mut trie = try!(factories.trie.from_existing(db.as_hashdb_mut(), root));
+			let mut trie = factories.trie.from_existing(db.as_hashdb_mut(), root)?;
 			for (address, ref mut a) in accounts.iter_mut().filter(|&(_, ref a)| a.is_dirty()) {
 				a.state = AccountState::Committed;
 				match a.account {
 					Some(ref mut account) => {
-						try!(trie.insert(address, &account.rlp()));
+						trie.insert(address, &account.rlp())?;
 					},
 					None => {
-						try!(trie.remove(address));
+						trie.remove(address)?;
 					},
 				}
 			}
@@ -690,8 +690,8 @@ impl State {
 
 				// not found in the global cache, get from the DB and insert into local
 				let db = self.factories.trie.readonly(self.db.as_hashdb(), &self.root).expect(SEC_TRIE_DB_UNWRAP_STR);
-				let mut maybe_acc = match db.get(a) {
-					Ok(acc) => acc.map(|v| Account::from_rlp(&v)),
+				let mut maybe_acc = match db.get_with(a, Account::from_rlp) {
+					Ok(acc) => acc,
 					Err(e) => panic!("Potential DB corruption encountered: {}", e),
 				};
 				if let Some(ref mut account) = maybe_acc.as_mut() {
@@ -722,9 +722,8 @@ impl State {
 				None => {
 					let maybe_acc = if self.db.check_non_null_bloom(a) {
 						let db = self.factories.trie.readonly(self.db.as_hashdb(), &self.root).expect(SEC_TRIE_DB_UNWRAP_STR);
-						match db.get(a) {
-							Ok(Some(acc)) => AccountEntry::new_clean(Some(Account::from_rlp(&acc))),
-							Ok(None) => AccountEntry::new_clean(None),
+						match db.get_with(a, Account::from_rlp) {
+							Ok(acc) => AccountEntry::new_clean(acc),
 							Err(e) => panic!("Potential DB corruption encountered: {}", e),
 						}
 					} else {
@@ -770,9 +769,9 @@ impl State {
 	/// Requires a secure trie to be used for accurate results.
 	/// `account_key` == sha3(address)
 	pub fn prove_account(&self, account_key: H256, from_level: u32) -> Result<Vec<Bytes>, Box<TrieError>> {
-		let mut recorder = TrieRecorder::with_depth(from_level);
-		let trie = try!(TrieDB::new(self.db.as_hashdb(), &self.root));
-		let _  = try!(trie.get_recorded(&account_key, &mut recorder));
+		let mut recorder = Recorder::with_depth(from_level);
+		let trie = TrieDB::new(self.db.as_hashdb(), &self.root)?;
+		trie.get_with(&account_key, &mut recorder)?;
 
 		Ok(recorder.drain().into_iter().map(|r| r.data).collect())
 	}
@@ -785,9 +784,9 @@ impl State {
 	pub fn prove_storage(&self, account_key: H256, storage_key: H256, from_level: u32) -> Result<Vec<Bytes>, Box<TrieError>> {
 		// TODO: probably could look into cache somehow but it's keyed by
 		// address, not sha3(address).
-		let trie = try!(TrieDB::new(self.db.as_hashdb(), &self.root));
-		let acc = match try!(trie.get(&account_key)) {
-			Some(rlp) => Account::from_rlp(&rlp),
+		let trie = TrieDB::new(self.db.as_hashdb(), &self.root)?;
+		let acc = match trie.get_with(&account_key, Account::from_rlp)? {
+			Some(acc) => acc,
 			None => return Ok(Vec::new()),
 		};
 
@@ -798,9 +797,9 @@ impl State {
 	/// Get code by address hash.
 	/// Only works when backed by a secure trie.
 	pub fn code_by_address_hash(&self, account_key: H256) -> Result<Option<Bytes>, Box<TrieError>> {
-		let trie = try!(TrieDB::new(self.db.as_hashdb(), &self.root));
-		let mut acc = match try!(trie.get(&account_key)) {
-			Some(rlp) => Account::from_rlp(&rlp),
+		let trie = TrieDB::new(self.db.as_hashdb(), &self.root)?;
+		let mut acc = match trie.get_with(&account_key, Account::from_rlp)? {
+			Some(acc) => acc,
 			None => return Ok(None),
 		};
 
@@ -845,6 +844,7 @@ mod tests {
 	use std::str::FromStr;
 	use rustc_serialize::hex::FromHex;
 	use super::*;
+	use ethkey::Secret;
 	use util::{U256, H256, FixedHash, Address, Hashable};
 	use tests::helpers::*;
 	use devtools::*;
@@ -854,6 +854,10 @@ mod tests {
 	use util::log::init_log;
 	use trace::{FlatTrace, TraceError, trace};
 	use types::executed::CallType;
+
+	fn secret() -> Secret {
+		Secret::from_slice(&"".sha3()).unwrap()
+	}
 
 	#[test]
 	fn should_apply_create_transaction() {
@@ -873,7 +877,7 @@ mod tests {
 			action: Action::Create,
 			value: 100.into(),
 			data: FromHex::from_hex("601080600c6000396000f3006000355415600957005b60203560003555").unwrap(),
-		}.sign(&"".sha3(), None);
+		}.sign(&secret(), None);
 
 		state.add_balance(t.sender().as_ref().unwrap(), &(100.into()), CleanupMode::NoEmpty);
 		let result = state.apply(&info, &engine, &t, true).unwrap();
@@ -933,7 +937,7 @@ mod tests {
 			action: Action::Create,
 			value: 100.into(),
 			data: FromHex::from_hex("5b600056").unwrap(),
-		}.sign(&"".sha3(), None);
+		}.sign(&secret(), None);
 
 		state.add_balance(t.sender().as_ref().unwrap(), &(100.into()), CleanupMode::NoEmpty);
 		let result = state.apply(&info, &engine, &t, true).unwrap();
@@ -970,7 +974,7 @@ mod tests {
 			action: Action::Call(0xa.into()),
 			value: 100.into(),
 			data: vec![],
-		}.sign(&"".sha3(), None);
+		}.sign(&secret(), None);
 
 		state.init_code(&0xa.into(), FromHex::from_hex("6000").unwrap());
 		state.add_balance(t.sender().as_ref().unwrap(), &(100.into()), CleanupMode::NoEmpty);
@@ -1013,7 +1017,7 @@ mod tests {
 			action: Action::Call(0xa.into()),
 			value: 100.into(),
 			data: vec![],
-		}.sign(&"".sha3(), None);
+		}.sign(&secret(), None);
 
 		state.add_balance(t.sender().as_ref().unwrap(), &(100.into()), CleanupMode::NoEmpty);
 		let result = state.apply(&info, &engine, &t, true).unwrap();
@@ -1055,7 +1059,7 @@ mod tests {
 			action: Action::Call(0x1.into()),
 			value: 0.into(),
 			data: vec![],
-		}.sign(&"".sha3(), None);
+		}.sign(&secret(), None);
 
 		let result = state.apply(&info, engine, &t, true).unwrap();
 
@@ -1097,7 +1101,7 @@ mod tests {
 			action: Action::Call(0xa.into()),
 			value: 0.into(),
 			data: vec![],
-		}.sign(&"".sha3(), None);
+		}.sign(&secret(), None);
 
 		state.init_code(&0xa.into(), FromHex::from_hex("600060006000600060006001610be0f1").unwrap());
 		let result = state.apply(&info, engine, &t, true).unwrap();
@@ -1140,7 +1144,7 @@ mod tests {
 			action: Action::Call(0xa.into()),
 			value: 0.into(),
 			data: vec![],
-		}.sign(&"".sha3(), None);
+		}.sign(&secret(), None);
 
 		state.init_code(&0xa.into(), FromHex::from_hex("60006000600060006000600b611000f2").unwrap());
 		state.init_code(&0xb.into(), FromHex::from_hex("6000").unwrap());
@@ -1202,7 +1206,7 @@ mod tests {
 			action: Action::Call(0xa.into()),
 			value: 0.into(),
 			data: vec![],
-		}.sign(&"".sha3(), None);
+		}.sign(&secret(), None);
 
 		state.init_code(&0xa.into(), FromHex::from_hex("6000600060006000600b618000f4").unwrap());
 		state.init_code(&0xb.into(), FromHex::from_hex("6000").unwrap());
@@ -1261,7 +1265,7 @@ mod tests {
 			action: Action::Call(0xa.into()),
 			value: 100.into(),
 			data: vec![],
-		}.sign(&"".sha3(), None);
+		}.sign(&secret(), None);
 
 		state.init_code(&0xa.into(), FromHex::from_hex("5b600056").unwrap());
 		state.add_balance(t.sender().as_ref().unwrap(), &(100.into()), CleanupMode::NoEmpty);
@@ -1301,7 +1305,7 @@ mod tests {
 			action: Action::Call(0xa.into()),
 			value: 100.into(),
 			data: vec![],
-		}.sign(&"".sha3(), None);
+		}.sign(&secret(), None);
 
 		state.init_code(&0xa.into(), FromHex::from_hex("60006000600060006000600b602b5a03f1").unwrap());
 		state.init_code(&0xb.into(), FromHex::from_hex("6000").unwrap());
@@ -1361,7 +1365,7 @@ mod tests {
 			action: Action::Call(0xa.into()),
 			value: 100.into(),
 			data: vec![],
-		}.sign(&"".sha3(), None);
+		}.sign(&secret(), None);
 
 		state.init_code(&0xa.into(), FromHex::from_hex("60006000600060006045600b6000f1").unwrap());
 		state.add_balance(t.sender().as_ref().unwrap(), &(100.into()), CleanupMode::NoEmpty);
@@ -1416,7 +1420,7 @@ mod tests {
 			action: Action::Call(0xa.into()),
 			value: 100.into(),
 			data: vec![],
-		}.sign(&"".sha3(), None);
+		}.sign(&secret(), None);
 
 		state.init_code(&0xa.into(), FromHex::from_hex("600060006000600060ff600b6000f1").unwrap());	// not enough funds.
 		state.add_balance(t.sender().as_ref().unwrap(), &(100.into()), CleanupMode::NoEmpty);
@@ -1459,7 +1463,7 @@ mod tests {
 			action: Action::Call(0xa.into()),
 			value: 100.into(),
 			data: vec![],//600480600b6000396000f35b600056
-		}.sign(&"".sha3(), None);
+		}.sign(&secret(), None);
 
 		state.init_code(&0xa.into(), FromHex::from_hex("60006000600060006000600b602b5a03f1").unwrap());
 		state.init_code(&0xb.into(), FromHex::from_hex("5b600056").unwrap());
@@ -1515,7 +1519,7 @@ mod tests {
 			action: Action::Call(0xa.into()),
 			value: 100.into(),
 			data: vec![],
-		}.sign(&"".sha3(), None);
+		}.sign(&secret(), None);
 
 		state.init_code(&0xa.into(), FromHex::from_hex("60006000600060006000600b602b5a03f1").unwrap());
 		state.init_code(&0xb.into(), FromHex::from_hex("60006000600060006000600c602b5a03f1").unwrap());
@@ -1590,7 +1594,7 @@ mod tests {
 			action: Action::Call(0xa.into()),
 			value: 100.into(),
 			data: vec![],//600480600b6000396000f35b600056
-		}.sign(&"".sha3(), None);
+		}.sign(&secret(), None);
 
 		state.init_code(&0xa.into(), FromHex::from_hex("60006000600060006000600b602b5a03f1").unwrap());
 		state.init_code(&0xb.into(), FromHex::from_hex("60006000600060006000600c602b5a03f1505b601256").unwrap());
@@ -1663,7 +1667,7 @@ mod tests {
 			action: Action::Call(0xa.into()),
 			value: 100.into(),
 			data: vec![],
-		}.sign(&"".sha3(), None);
+		}.sign(&secret(), None);
 
 		state.init_code(&0xa.into(), FromHex::from_hex("73000000000000000000000000000000000000000bff").unwrap());
 		state.add_balance(&0xa.into(), &50.into(), CleanupMode::NoEmpty);

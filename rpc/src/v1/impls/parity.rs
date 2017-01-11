@@ -114,18 +114,18 @@ impl<C, M, S: ?Sized, U> Parity for ParityClient<C, M, S, U> where
 	U: UpdateService + 'static,
 {
 	fn accounts_info(&self, dapp: Trailing<DappId>) -> Result<BTreeMap<String, BTreeMap<String, String>>, Error> {
-		try!(self.active());
+		self.active()?;
 
 		let dapp = dapp.0;
 
 		let store = take_weak!(self.accounts);
-		let dapp_accounts = try!(store
+		let dapp_accounts = store
 			.note_dapp_used(dapp.clone().into())
 			.and_then(|_| store.dapps_addresses(dapp.into()))
-			.map_err(|e| errors::internal("Could not fetch accounts.", e))
-		).into_iter().collect::<HashSet<_>>();
+			.map_err(|e| errors::internal("Could not fetch accounts.", e))?
+			.into_iter().collect::<HashSet<_>>();
 
-		let info = try!(store.accounts_info().map_err(|e| errors::account("Could not fetch account info.", e)));
+		let info = store.accounts_info().map_err(|e| errors::account("Could not fetch account info.", e))?;
 		let other = store.addresses_info().expect("addresses_info always returns Ok; qed");
 
 		Ok(info
@@ -143,56 +143,56 @@ impl<C, M, S: ?Sized, U> Parity for ParityClient<C, M, S, U> where
 	}
 
 	fn transactions_limit(&self) -> Result<usize, Error> {
-		try!(self.active());
+		self.active()?;
 
 		Ok(take_weak!(self.miner).transactions_limit())
 	}
 
 	fn min_gas_price(&self) -> Result<U256, Error> {
-		try!(self.active());
+		self.active()?;
 
 		Ok(U256::from(take_weak!(self.miner).minimal_gas_price()))
 	}
 
 	fn extra_data(&self) -> Result<Bytes, Error> {
-		try!(self.active());
+		self.active()?;
 
 		Ok(Bytes::new(take_weak!(self.miner).extra_data()))
 	}
 
 	fn gas_floor_target(&self) -> Result<U256, Error> {
-		try!(self.active());
+		self.active()?;
 
 		Ok(U256::from(take_weak!(self.miner).gas_floor_target()))
 	}
 
 	fn gas_ceil_target(&self) -> Result<U256, Error> {
-		try!(self.active());
+		self.active()?;
 
 		Ok(U256::from(take_weak!(self.miner).gas_ceil_target()))
 	}
 
 	fn dev_logs(&self) -> Result<Vec<String>, Error> {
-		try!(self.active());
+		self.active()?;
 
 		let logs = self.logger.logs();
 		Ok(logs.as_slice().to_owned())
 	}
 
 	fn dev_logs_levels(&self) -> Result<String, Error> {
-		try!(self.active());
+		self.active()?;
 
 		Ok(self.logger.levels().to_owned())
 	}
 
 	fn net_chain(&self) -> Result<String, Error> {
-		try!(self.active());
+		self.active()?;
 
 		Ok(self.settings.chain.clone())
 	}
 
 	fn net_peers(&self) -> Result<Peers, Error> {
-		try!(self.active());
+		self.active()?;
 
 		let sync = take_weak!(self.sync);
 		let sync_status = sync.status();
@@ -208,19 +208,19 @@ impl<C, M, S: ?Sized, U> Parity for ParityClient<C, M, S, U> where
 	}
 
 	fn net_port(&self) -> Result<u16, Error> {
-		try!(self.active());
+		self.active()?;
 
 		Ok(self.settings.network_port)
 	}
 
 	fn node_name(&self) -> Result<String, Error> {
-		try!(self.active());
+		self.active()?;
 
 		Ok(self.settings.name.clone())
 	}
 
 	fn registry_address(&self) -> Result<Option<H160>, Error> {
-		try!(self.active());
+		self.active()?;
 
 		Ok(
 			take_weak!(self.client)
@@ -232,7 +232,7 @@ impl<C, M, S: ?Sized, U> Parity for ParityClient<C, M, S, U> where
 	}
 
 	fn rpc_settings(&self) -> Result<RpcSettings, Error> {
-		try!(self.active());
+		self.active()?;
 		Ok(RpcSettings {
 			enabled: self.settings.rpc_enabled,
 			interface: self.settings.rpc_interface.clone(),
@@ -241,18 +241,18 @@ impl<C, M, S: ?Sized, U> Parity for ParityClient<C, M, S, U> where
 	}
 
 	fn default_extra_data(&self) -> Result<Bytes, Error> {
-		try!(self.active());
+		self.active()?;
 
 		Ok(Bytes::new(version_data()))
 	}
 
 	fn gas_price_histogram(&self) -> Result<Histogram, Error> {
-		try!(self.active());
+		self.active()?;
 		take_weak!(self.client).gas_price_histogram(100, 10).ok_or_else(errors::not_enough_data).map(Into::into)
 	}
 
 	fn unsigned_transactions_count(&self) -> Result<usize, Error> {
-		try!(self.active());
+		self.active()?;
 
 		match self.signer {
 			None => Err(errors::signer_disabled()),
@@ -261,19 +261,19 @@ impl<C, M, S: ?Sized, U> Parity for ParityClient<C, M, S, U> where
 	}
 
 	fn generate_secret_phrase(&self) -> Result<String, Error> {
-		try!(self.active());
+		self.active()?;
 
 		Ok(random_phrase(12))
 	}
 
 	fn phrase_to_address(&self, phrase: String) -> Result<H160, Error> {
-		try!(self.active());
+		self.active()?;
 
 		Ok(Brain::new(phrase).generate().unwrap().address().into())
 	}
 
 	fn list_accounts(&self, count: u64, after: Option<H160>, block_number: Trailing<BlockNumber>) -> Result<Option<Vec<H160>>, Error> {
-		try!(self.active());
+		self.active()?;
 
 		Ok(take_weak!(self.client)
 			.list_accounts(block_number.0.into(), after.map(Into::into).as_ref(), count)
@@ -281,7 +281,7 @@ impl<C, M, S: ?Sized, U> Parity for ParityClient<C, M, S, U> where
 	}
 
 	fn list_storage_keys(&self, address: H160, count: u64, after: Option<H256>, block_number: Trailing<BlockNumber>) -> Result<Option<Vec<H256>>, Error> {
-		try!(self.active());
+		self.active()?;
 
 		Ok(take_weak!(self.client)
 			.list_storage(block_number.0.into(), &address.into(), after.map(Into::into).as_ref(), count)
@@ -289,7 +289,7 @@ impl<C, M, S: ?Sized, U> Parity for ParityClient<C, M, S, U> where
 	}
 
 	fn encrypt_message(&self, key: H512, phrase: Bytes) -> Result<Bytes, Error> {
-		try!(self.active());
+		self.active()?;
 
 		ecies::encrypt(&key.into(), &DEFAULT_MAC, &phrase.0)
 			.map_err(errors::encryption_error)
@@ -297,19 +297,19 @@ impl<C, M, S: ?Sized, U> Parity for ParityClient<C, M, S, U> where
 	}
 
 	fn pending_transactions(&self) -> Result<Vec<Transaction>, Error> {
-		try!(self.active());
+		self.active()?;
 
 		Ok(take_weak!(self.miner).pending_transactions().into_iter().map(Into::into).collect::<Vec<_>>())
 	}
 
 	fn future_transactions(&self) -> Result<Vec<Transaction>, Error> {
-		try!(self.active());
+		self.active()?;
 
 		Ok(take_weak!(self.miner).future_transactions().into_iter().map(Into::into).collect::<Vec<_>>())
 	}
 
 	fn pending_transactions_stats(&self) -> Result<BTreeMap<H256, TransactionStats>, Error> {
-		try!(self.active());
+		self.active()?;
 
 		let stats = take_weak!(self.sync).transactions_stats();
 		Ok(stats.into_iter()
@@ -319,7 +319,7 @@ impl<C, M, S: ?Sized, U> Parity for ParityClient<C, M, S, U> where
 	}
 
 	fn local_transactions(&self) -> Result<BTreeMap<H256, LocalTransactionStatus>, Error> {
-		try!(self.active());
+		self.active()?;
 
 		let transactions = take_weak!(self.miner).local_transactions();
 		Ok(transactions
@@ -330,7 +330,7 @@ impl<C, M, S: ?Sized, U> Parity for ParityClient<C, M, S, U> where
 	}
 
 	fn signer_port(&self) -> Result<u16, Error> {
-		try!(self.active());
+		self.active()?;
 
 		self.signer
 			.clone()
@@ -340,21 +340,21 @@ impl<C, M, S: ?Sized, U> Parity for ParityClient<C, M, S, U> where
 	}
 
 	fn dapps_port(&self) -> Result<u16, Error> {
-		try!(self.active());
+		self.active()?;
 
 		self.dapps_port
 			.ok_or_else(|| errors::dapps_disabled())
 	}
 
 	fn dapps_interface(&self) -> Result<String, Error> {
-		try!(self.active());
+		self.active()?;
 
 		self.dapps_interface.clone()
 			.ok_or_else(|| errors::dapps_disabled())
 	}
 
 	fn next_nonce(&self, address: H160) -> Result<U256, Error> {
-		try!(self.active());
+		self.active()?;
 		let address: Address = address.into();
 		let miner = take_weak!(self.miner);
 		let client = take_weak!(self.client);
@@ -380,25 +380,25 @@ impl<C, M, S: ?Sized, U> Parity for ParityClient<C, M, S, U> where
 	}
 
 	fn consensus_capability(&self) -> Result<ConsensusCapability, Error> {
-		try!(self.active());
+		self.active()?;
 		let updater = take_weak!(self.updater);
 		Ok(updater.capability().into())
 	}
 
 	fn version_info(&self) -> Result<VersionInfo, Error> {
-		try!(self.active());
+		self.active()?;
 		let updater = take_weak!(self.updater);
 		Ok(updater.version_info().into())
 	}
 
 	fn releases_info(&self) -> Result<Option<OperationsInfo>, Error> {
-		try!(self.active());
+		self.active()?;
 		let updater = take_weak!(self.updater);
 		Ok(updater.info().map(Into::into))
 	}
 
 	fn chain_status(&self) -> Result<ChainStatus, Error> {
-		try!(self.active());
+		self.active()?;
 
 		let chain_info = take_weak!(self.client).chain_info();
 

@@ -163,7 +163,7 @@ pub fn generate_dummy_client_with_spec_and_data<F>(get_test_spec: F, block_numbe
 	let mut last_hashes = vec![];
 	let mut last_header = genesis_header.clone();
 
-	let kp = KeyPair::from_secret("".sha3()).unwrap();
+	let kp = KeyPair::from_secret_slice(&"".sha3()).unwrap();
 	let author = kp.address();
 
 	let mut n = 0;

@@ -30,13 +30,19 @@ export default class SignRequest extends Component {
     address: PropTypes.string.isRequired,
     hash: PropTypes.string.isRequired,
     isFinished: PropTypes.bool.isRequired,
+    isTest: PropTypes.bool.isRequired,
+    store: PropTypes.object.isRequired,
+
+    className: PropTypes.string,
+    focus: PropTypes.bool,
     isSending: PropTypes.bool,
     onConfirm: PropTypes.func,
     onReject: PropTypes.func,
-    status: PropTypes.string,
-    className: PropTypes.string,
-    isTest: PropTypes.bool.isRequired,
-    store: PropTypes.object.isRequired
+    status: PropTypes.string
+  };
+
+  static defaultProps = {
+    focus: false
   };
 
   componentWillMount () {
@@ -81,7 +87,7 @@ export default class SignRequest extends Component {
   }
 
   renderActions () {
-    const { address, isFinished, status } = this.props;
+    const { address, focus, isFinished, status } = this.props;
 
     if (isFinished) {
       if (status === 'confirmed') {
@@ -111,6 +117,7 @@ export default class SignRequest extends Component {
     return (
       <TransactionPendingForm
         address={ address }
+        focus={ focus }
         isSending={ this.props.isSending }
         onConfirm={ this.onConfirm }
         onReject={ this.onReject }

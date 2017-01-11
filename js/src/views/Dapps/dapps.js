@@ -14,29 +14,41 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import React, { Component, PropTypes } from 'react';
-import { FormattedMessage } from 'react-intl';
 import { Checkbox } from 'material-ui';
 import { observer } from 'mobx-react';
+import React, { Component, PropTypes } from 'react';
+import { FormattedMessage } from 'react-intl';
+import { connect } from 'react-redux';
+import { bindActionCreators } from 'redux';
+import { omitBy } from 'lodash';
 
-import { Actionbar, Page } from '~/ui';
-import FlatButton from 'material-ui/FlatButton';
-import EyeIcon from 'material-ui/svg-icons/image/remove-red-eye';
+import { AddDapps, DappPermissions } from '~/modals';
+import PermissionStore from '~/modals/DappPermissions/store';
+import { Actionbar, Button, Page } from '~/ui';
+import { LockedIcon, VisibleIcon } from '~/ui/Icons';
 
+import UrlButton from './UrlButton';
 import DappsStore from './dappsStore';
-
-import AddDapps from './AddDapps';
 import Summary from './Summary';
 
 import styles from './dapps.css';
 
 @observer
-export default class Dapps extends Component {
+class Dapps extends Component {
   static contextTypes = {
     api: PropTypes.object.isRequired
   }
 
+  static propTypes = {
+    accounts: PropTypes.object.isRequired
+  };
+
   store = DappsStore.get(this.context.api);
+  permissionStore = new PermissionStore(this.context.api);
+
+  componentWillMount () {
+    this.store.loadAllApps();
+  }
 
   render () {
     let externalOverlay = null;
@@ -68,6 +80,7 @@ export default class Dapps extends Component {
     return (
       <div>
         <AddDapps store={ this.store } />
+        <DappPermissions store={ this.permissionStore } />
         <Actionbar
           className={ styles.toolbar }
           title={
@@ -76,30 +89,32 @@ export default class Dapps extends Component {
               defaultMessage='Decentralized Applications' />
           }
           buttons={ [
-            <FlatButton
+            <UrlButton key='url' />,
+            <Button
+              icon={ <VisibleIcon /> }
+              key='edit'
               label={
                 <FormattedMessage
                   id='dapps.button.edit'
                   defaultMessage='edit' />
               }
-              key='edit'
-              icon={ <EyeIcon /> }
-              onTouchTap={ this.store.openModal }
-            />
+              onClick={ this.store.openModal }
+            />,
+            <Button
+              icon={ <LockedIcon /> }
+              key='permissions'
+              label={
+                <FormattedMessage
+                  id='dapps.button.permissions'
+                  defaultMessage='permissions' />
+              }
+              onClick={ this.openPermissionsModal } />
           ] }
         />
         <Page>
-          <div>
-            { this.renderList(this.store.visibleLocal) }
-          </div>
-
-          <div>
-            { this.renderList(this.store.visibleBuiltin) }
-          </div>
-
-          <div>
-            { this.renderList(this.store.visibleNetwork, externalOverlay) }
-          </div>
+          <div>{ this.renderList(this.store.visibleLocal) }</div>
+          <div>{ this.renderList(this.store.visibleBuiltin) }</div>
+          <div>{ this.renderList(this.store.visibleNetwork, externalOverlay) }</div>
         </Page>
       </div>
     );
@@ -131,4 +146,34 @@ export default class Dapps extends Component {
   onClickAcceptExternal = () => {
     this.store.closeExternalOverlay();
   }
+
+  openPermissionsModal = () => {
+    const { accounts } = this.props;
+
+    this.permissionStore.openModal(accounts);
+  }
 }
+
+function mapStateToProps (state) {
+  const { accounts } = state.personal;
+
+  /**
+   * Do not show the Wallet Accounts in the Dapps
+   * Permissions Modal. This will come in v1.6, but
+   * for now it would break dApps using Web3...
+   */
+  const _accounts = omitBy(accounts, (account) => account.wallet);
+
+  return {
+    accounts: _accounts
+  };
+}
+
+function mapDispatchToProps (dispatch) {
+  return bindActionCreators({}, dispatch);
+}
+
+export default connect(
+  mapStateToProps,
+  mapDispatchToProps
+)(Dapps);

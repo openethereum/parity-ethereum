@@ -24,11 +24,11 @@ use types::filter::Filter;
 use util::*;
 use devtools::*;
 use miner::Miner;
-use rlp::{Rlp, View};
+use rlp::View;
 use spec::Spec;
 use views::BlockView;
 use util::stats::Histogram;
-use ethkey::KeyPair;
+use ethkey::{KeyPair, Secret};
 use transaction::{PendingTransaction, Transaction, Action};
 use miner::MinerService;
 
@@ -103,7 +103,7 @@ fn imports_good_block() {
 	client.import_verified_blocks();
 
 	let block = client.block_header(BlockId::Number(1)).unwrap();
-	assert!(!block.is_empty());
+	assert!(!block.into_inner().is_empty());
 }
 
 #[test]
@@ -128,7 +128,7 @@ fn query_none_block() {
 fn query_bad_block() {
 	let client_result = get_test_client_with_blocks(vec![get_bad_state_dummy_block()]);
 	let client = client_result.reference();
-	let bad_block:Option<Bytes> = client.block_header(BlockId::Number(1));
+	let bad_block: Option<_> = client.block_header(BlockId::Number(1));
 
 	assert!(bad_block.is_none());
 }
@@ -180,7 +180,7 @@ fn returns_block_body() {
 	let client = client_result.reference();
 	let block = BlockView::new(&dummy_block);
 	let body = client.block_body(BlockId::Hash(block.header().hash())).unwrap();
-	let body = Rlp::new(&body);
+	let body = body.rlp();
 	assert_eq!(body.item_count(), 2);
 	assert_eq!(body.at(0).as_raw()[..], block.rlp().at(1).as_raw()[..]);
 	assert_eq!(body.at(1).as_raw()[..], block.rlp().at(2).as_raw()[..]);
@@ -192,7 +192,7 @@ fn imports_block_sequence() {
 	let client = client_result.reference();
 	let block = client.block_header(BlockId::Number(5)).unwrap();
 
-	assert!(!block.is_empty());
+	assert!(!block.into_inner().is_empty());
 }
 
 #[test]
@@ -290,7 +290,7 @@ fn change_history_size() {
 
 #[test]
 fn does_not_propagate_delayed_transactions() {
-	let key = KeyPair::from_secret("test".sha3()).unwrap();
+	let key = KeyPair::from_secret(Secret::from_slice(&"test".sha3()).unwrap()).unwrap();
 	let secret = key.secret();
 	let tx0 = PendingTransaction::new(Transaction {
 		nonce: 0.into(),
@@ -320,4 +320,3 @@ fn does_not_propagate_delayed_transactions() {
 	assert_eq!(2, client.ready_transactions().len());
 	assert_eq!(2, client.miner().pending_transactions().len());
 }
-

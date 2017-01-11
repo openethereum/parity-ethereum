@@ -23,6 +23,7 @@ use ethcore::client::TestBlockChainClient;
 use ethcore::transaction::{Transaction, Action};
 use rlp::encode;
 
+use serde_json;
 use jsonrpc_core::IoHandler;
 use v1::{SignerClient, Signer};
 use v1::tests::helpers::TestMinerService;
@@ -371,4 +372,30 @@ fn should_generate_new_token() {
 
 	// then
 	assert_eq!(tester.io.handle_request_sync(&request), Some(response.to_owned()));
+}
+
+#[test]
+fn should_generate_new_web_proxy_token() {
+	use jsonrpc_core::{Response, Output, Value};
+	// given
+	let tester = signer_tester();
+
+	// when
+	let request = r#"{
+		"jsonrpc":"2.0",
+		"method":"signer_generateWebProxyAccessToken",
+		"params":[],
+		"id":1
+	}"#;
+	let response = tester.io.handle_request_sync(&request).unwrap();
+	let result = serde_json::from_str(&response).unwrap();
+
+	if let Response::Single(Output::Success(ref success)) = result {
+		if let Value::String(ref token) = success.result {
+			assert!(tester.signer.is_valid_web_proxy_access_token(&token), "It should return valid web proxy token.");
+			return;
+		}
+	}
+
+	assert!(false, "Expected successful response, got: {:?}", result);
 }

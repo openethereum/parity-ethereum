@@ -15,10 +15,12 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import ReactDOM from 'react-dom';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 import RaisedButton from 'material-ui/RaisedButton';
 import ReactTooltip from 'react-tooltip';
+import keycode from 'keycode';
 
 import { Form, Input, IdentityIcon } from '~/ui';
 
@@ -26,11 +28,16 @@ import styles from './transactionPendingFormConfirm.css';
 
 class TransactionPendingFormConfirm extends Component {
   static propTypes = {
-    accounts: PropTypes.object.isRequired,
+    account: PropTypes.object.isRequired,
     address: PropTypes.string.isRequired,
     isSending: PropTypes.bool.isRequired,
-    onConfirm: PropTypes.func.isRequired
-  }
+    onConfirm: PropTypes.func.isRequired,
+    focus: PropTypes.bool
+  };
+
+  static defaultProps = {
+    focus: false
+  };
 
   id = Math.random(); // for tooltip
 
@@ -40,14 +47,58 @@ class TransactionPendingFormConfirm extends Component {
     walletError: null
   }
 
+  componentDidMount () {
+    this.focus();
+  }
+
+  componentWillReceiveProps (nextProps) {
+    if (!this.props.focus && nextProps.focus) {
+      this.focus(nextProps);
+    }
+  }
+
+  /**
+   * Properly focus on the input element when needed.
+   * This might be fixed some day in MaterialUI with
+   * an autoFocus prop.
+   *
+   * @see https://github.com/callemall/material-ui/issues/5632
+   */
+  focus (props = this.props) {
+    if (props.focus) {
+      const textNode = ReactDOM.findDOMNode(this.refs.input);
+
+      if (!textNode) {
+        return;
+      }
+
+      const inputNode = textNode.querySelector('input');
+      inputNode && inputNode.focus();
+    }
+  }
+
+  getPasswordHint () {
+    const { account } = this.props;
+    const accountHint = account && account.meta && account.meta.passwordHint;
+
+    if (accountHint) {
+      return accountHint;
+    }
+
+    const { wallet } = this.state;
+    const walletHint = wallet && wallet.meta && wallet.meta.passwordHint;
+
+    return walletHint || null;
+  }
+
   render () {
-    const { accounts, address, isSending } = this.props;
+    const { account, address, isSending } = this.props;
     const { password, wallet, walletError } = this.state;
-    const account = accounts[address] || {};
     const isExternal = !account.uuid;
 
-    const passwordHint = account.meta && account.meta.passwordHint
-      ? (<div><span>(hint) </span>{ account.meta.passwordHint }</div>)
+    const passwordHintText = this.getPasswordHint();
+    const passwordHint = passwordHintText
+      ? (<div><span>(hint) </span>{ passwordHintText }</div>)
       : null;
 
     const isWalletOk = !isExternal || (walletError === null && wallet !== null);
@@ -72,8 +123,10 @@ class TransactionPendingFormConfirm extends Component {
             }
             onChange={ this.onModifyPassword }
             onKeyDown={ this.onKeyDown }
+            ref='input'
             type='password'
-            value={ password } />
+            value={ password }
+          />
           <div className={ styles.passwordHint }>
             { passwordHint }
           </div>
@@ -132,11 +185,25 @@ class TransactionPendingFormConfirm extends Component {
   }
 
   onKeySelect = (event) => {
+    // Check that file have been selected
+    if (event.target.files.length === 0) {
+      return this.setState({
+        wallet: null,
+        walletError: null
+      });
+    }
+
     const fileReader = new FileReader();
 
     fileReader.onload = (e) => {
       try {
         const wallet = JSON.parse(e.target.result);
+
+        try {
+          if (wallet && typeof wallet.meta === 'string') {
+            wallet.meta = JSON.parse(wallet.meta);
+          }
+        } catch (e) {}
 
         this.setState({
           wallet,
@@ -170,7 +237,9 @@ class TransactionPendingFormConfirm extends Component {
   }
 
   onKeyDown = (event) => {
-    if (event.which !== 13) {
+    const codeName = keycode(event);
+
+    if (codeName !== 'enter') {
       return;
     }
 
@@ -178,11 +247,14 @@ class TransactionPendingFormConfirm extends Component {
   }
 }
 
-function mapStateToProps (state) {
-  const { accounts } = state.personal;
+function mapStateToProps (_, initProps) {
+  const { address } = initProps;
 
-  return {
-    accounts
+  return (state) => {
+    const { accounts } = state.personal;
+    const account = accounts[address] || {};
+
+    return { account };
   };
 }
 

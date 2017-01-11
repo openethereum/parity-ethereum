@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { pick } from 'lodash';
+import { pick, omitBy } from 'lodash';
 import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
@@ -34,29 +34,33 @@ import { ERROR_CODES } from '~/api/transport/error';
 
 const STEPS = {
   CONTRACT_DETAILS: {
-    title:
+    title: (
       <FormattedMessage
         id='deployContract.title.details'
         defaultMessage='contract details' />
+    )
   },
   CONTRACT_PARAMETERS: {
-    title:
+    title: (
       <FormattedMessage
         id='deployContract.title.parameters'
         defaultMessage='contract parameters' />
+    )
   },
   DEPLOYMENT: {
     waiting: true,
-    title:
+    title: (
       <FormattedMessage
         id='deployContract.title.deployment'
         defaultMessage='deployment' />
+    )
   },
   COMPLETED: {
-    title:
+    title: (
       <FormattedMessage
         id='deployContract.title.completed'
         defaultMessage='completed' />
+    )
   }
 };
 
@@ -437,9 +441,7 @@ class DeployContract extends Component {
   }
 
   onCodeChange = (code) => {
-    const { api } = this.context;
-
-    this.setState(validateCode(code, api), this.estimateGas);
+    this.setState(validateCode(code), this.estimateGas);
   }
 
   onDeployStart = () => {
@@ -453,10 +455,15 @@ class DeployContract extends Component {
 
     this.setState({ step: 'DEPLOYMENT' });
 
-    api
-      .newContract(abiParsed)
+    const contract = api.newContract(abiParsed);
+
+    contract
       .deploy(options, params, this.onDeploymentState)
       .then((address) => {
+        const blockNumber = contract._receipt
+          ? contract.receipt.blockNumber.toNumber()
+          : null;
+
         return Promise.all([
           api.parity.setAccountName(address, name),
           api.parity.setAccountMeta(address, {
@@ -464,8 +471,9 @@ class DeployContract extends Component {
             contract: true,
             timestamp: Date.now(),
             deleted: false,
-            source,
-            description
+            blockNumber,
+            description,
+            source
           })
         ])
         .then(() => {
@@ -495,48 +503,53 @@ class DeployContract extends Component {
       case 'estimateGas':
       case 'postTransaction':
         this.setState({
-          deployState:
+          deployState: (
             <FormattedMessage
               id='deployContract.state.preparing'
               defaultMessage='Preparing transaction for network transmission' />
+          )
         });
         return;
 
       case 'checkRequest':
         this.setState({
-          deployState:
+          deployState: (
             <FormattedMessage
               id='deployContract.state.waitSigner'
               defaultMessage='Waiting for confirmation of the transaction in the Parity Secure Signer' />
+          )
         });
         return;
 
       case 'getTransactionReceipt':
         this.setState({
           txhash: data.txhash,
-          deployState:
+          deployState: (
             <FormattedMessage
               id='deployContract.state.waitReceipt'
               defaultMessage='Waiting for the contract deployment transaction receipt' />
+          )
         });
         return;
 
       case 'hasReceipt':
       case 'getCode':
         this.setState({
-          deployState:
+          deployState: (
             <FormattedMessage
               id='deployContract.state.validatingCode'
               defaultMessage='Validating the deployed contract code' />
+          )
         });
         return;
 
       case 'completed':
         this.setState({
-          deployState:
+          deployState: (
             <FormattedMessage
               id='deployContract.state.completed'
               defaultMessage='The contract deployment has been completed' />
+          )
         });
         return;
 
@@ -552,13 +565,19 @@ class DeployContract extends Component {
 }
 
 function mapStateToProps (initState, initProps) {
-  const fromAddresses = Object.keys(initProps.accounts);
+  const { accounts } = initProps;
+
+  // Skip Wallet accounts : they can't create Contracts
+  const _accounts = omitBy(accounts, (a) => a.wallet);
+
+  const fromAddresses = Object.keys(_accounts);
 
   return (state) => {
     const balances = pick(state.balances.balances, fromAddresses);
     const { gasLimit } = state.nodeStatus;
 
     return {
+      accounts: _accounts,
       balances,
       gasLimit
     };

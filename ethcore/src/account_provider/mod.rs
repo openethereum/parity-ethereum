@@ -127,32 +127,37 @@ impl AccountProvider {
 		let acc = Random.generate().expect("secp context has generation capabilities; qed");
 		let public = acc.public().clone();
 		let secret = acc.secret().clone();
-		let address = try!(self.sstore.insert_account(secret, password));
+		let address = self.sstore.insert_account(secret, password)?;
 		Ok((address, public))
 	}
 
 	/// Inserts new account into underlying store.
 	/// Does not unlock account!
 	pub fn insert_account(&self, secret: Secret, password: &str) -> Result<Address, Error> {
-		let address = try!(self.sstore.insert_account(secret, password));
+		let address = self.sstore.insert_account(secret, password)?;
 		Ok(address)
 	}
 
 	/// Import a new presale wallet.
 	pub fn import_presale(&self, presale_json: &[u8], password: &str) -> Result<Address, Error> {
-		let address = try!(self.sstore.import_presale(presale_json, password));
+		let address = self.sstore.import_presale(presale_json, password)?;
 		Ok(Address::from(address).into())
 	}
 
 	/// Import a new presale wallet.
 	pub fn import_wallet(&self, json: &[u8], password: &str) -> Result<Address, Error> {
-		let address = try!(self.sstore.import_wallet(json, password));
+		let address = self.sstore.import_wallet(json, password)?;
 		Ok(Address::from(address).into())
+	}
+
+	/// Checks whether an account with a given address is present.
+	pub fn has_account(&self, address: Address) -> Result<bool, Error> {
+		Ok(self.accounts()?.iter().any(|&a| a == address))
 	}
 
 	/// Returns addresses of all accounts.
 	pub fn accounts(&self) -> Result<Vec<Address>, Error> {
-		let accounts = try!(self.sstore.accounts());
+		let accounts = self.sstore.accounts()?;
 		Ok(accounts)
 	}
 
@@ -229,7 +234,7 @@ impl AccountProvider {
 
 	/// Returns each account along with name and meta.
 	pub fn accounts_info(&self) -> Result<HashMap<Address, AccountMeta>, Error> {
-		let r: HashMap<Address, AccountMeta> = try!(self.sstore.accounts())
+		let r: HashMap<Address, AccountMeta> = self.sstore.accounts()?
 			.into_iter()
 			.map(|a| (a.clone(), self.account_meta(a).ok().unwrap_or_default()))
 			.collect();
@@ -239,21 +244,21 @@ impl AccountProvider {
 	/// Returns each account along with name and meta.
 	pub fn account_meta(&self, account: Address) -> Result<AccountMeta, Error> {
 		Ok(AccountMeta {
-			name: try!(self.sstore.name(&account)),
-			meta: try!(self.sstore.meta(&account)),
+			name: self.sstore.name(&account)?,
+			meta: self.sstore.meta(&account)?,
 			uuid: self.sstore.uuid(&account).ok().map(Into::into),	// allowed to not have a Uuid
 		})
 	}
 
 	/// Returns each account along with name and meta.
 	pub fn set_account_name(&self, account: Address, name: String) -> Result<(), Error> {
-		try!(self.sstore.set_name(&account, name));
+		self.sstore.set_name(&account, name)?;
 		Ok(())
 	}
 
 	/// Returns each account along with name and meta.
 	pub fn set_account_meta(&self, account: Address, meta: String) -> Result<(), Error> {
-		try!(self.sstore.set_meta(&account, meta));
+		self.sstore.set_meta(&account, meta)?;
 		Ok(())
 	}
 
@@ -265,7 +270,7 @@ impl AccountProvider {
 
 	/// Permanently removes an account.
 	pub fn kill_account(&self, account: &Address, password: &str) -> Result<(), Error> {
-		try!(self.sstore.remove_account(account, &password));
+		self.sstore.remove_account(account, &password)?;
 		Ok(())
 	}
 
@@ -278,7 +283,7 @@ impl AccountProvider {
 	fn unlock_account(&self, account: Address, password: String, unlock: Unlock) -> Result<(), Error> {
 		// verify password by signing dump message
 		// result may be discarded
-		let _ = try!(self.sstore.sign(&account, &password, &Default::default()));
+		let _ = self.sstore.sign(&account, &password, &Default::default())?;
 
 		// check if account is already unlocked pernamently, if it is, do nothing
 		let mut unlocked = self.unlocked.write();
@@ -299,7 +304,7 @@ impl AccountProvider {
 
 	fn password(&self, account: &Address) -> Result<String, Error> {
 		let mut unlocked = self.unlocked.write();
-		let data = try!(unlocked.get(account).ok_or(Error::NotUnlocked)).clone();
+		let data = unlocked.get(account).ok_or(Error::NotUnlocked)?.clone();
 		if let Unlock::Temp = data.unlock {
 			unlocked.remove(account).expect("data exists: so key must exist: qed");
 		}
@@ -335,25 +340,25 @@ impl AccountProvider {
 
 	/// Signs the message. If password is not provided the account must be unlocked.
 	pub fn sign(&self, account: Address, password: Option<String>, message: Message) -> Result<Signature, Error> {
-		let password = try!(password.map(Ok).unwrap_or_else(|| self.password(&account)));
-		Ok(try!(self.sstore.sign(&account, &password, &message)))
+		let password = password.map(Ok).unwrap_or_else(|| self.password(&account))?;
+		Ok(self.sstore.sign(&account, &password, &message)?)
 	}
 
 	/// Signs given message with supplied token. Returns a token to use in next signing within this session.
 	pub fn sign_with_token(&self, account: Address, token: AccountToken, message: Message) -> Result<(Signature, AccountToken), Error> {
-		let is_std_password = try!(self.sstore.test_password(&account, &token));
+		let is_std_password = self.sstore.test_password(&account, &token)?;
 
 		let new_token = random_string(16);
 		let signature = if is_std_password {
 			// Insert to transient store
-			try!(self.sstore.copy_account(&self.transient_sstore, &account, &token, &new_token));
+			self.sstore.copy_account(&self.transient_sstore, &account, &token, &new_token)?;
 			// sign
-			try!(self.sstore.sign(&account, &token, &message))
+			self.sstore.sign(&account, &token, &message)?
 		} else {
 			// check transient store
-			try!(self.transient_sstore.change_password(&account, &token, &new_token));
+			self.transient_sstore.change_password(&account, &token, &new_token)?;
 			// and sign
-			try!(self.transient_sstore.sign(&account, &new_token, &message))
+			self.transient_sstore.sign(&account, &new_token, &message)?
 		};
 
 		Ok((signature, new_token))
@@ -363,19 +368,19 @@ impl AccountProvider {
 	pub fn decrypt_with_token(&self, account: Address, token: AccountToken, shared_mac: &[u8], message: &[u8])
 		-> Result<(Vec<u8>, AccountToken), Error>
 	{
-		let is_std_password = try!(self.sstore.test_password(&account, &token));
+		let is_std_password = self.sstore.test_password(&account, &token)?;
 
 		let new_token = random_string(16);
 		let message = if is_std_password {
 			// Insert to transient store
-			try!(self.sstore.copy_account(&self.transient_sstore, &account, &token, &new_token));
+			self.sstore.copy_account(&self.transient_sstore, &account, &token, &new_token)?;
 			// decrypt
-			try!(self.sstore.decrypt(&account, &token, shared_mac, message))
+			self.sstore.decrypt(&account, &token, shared_mac, message)?
 		} else {
 			// check transient store
-			try!(self.transient_sstore.change_password(&account, &token, &new_token));
+			self.transient_sstore.change_password(&account, &token, &new_token)?;
 			// and decrypt
-			try!(self.transient_sstore.decrypt(&account, &token, shared_mac, message))
+			self.transient_sstore.decrypt(&account, &token, shared_mac, message)?
 		};
 
 		Ok((message, new_token))
@@ -383,8 +388,8 @@ impl AccountProvider {
 
 	/// Decrypts a message. If password is not provided the account must be unlocked.
 	pub fn decrypt(&self, account: Address, password: Option<String>, shared_mac: &[u8], message: &[u8]) -> Result<Vec<u8>, Error> {
-		let password = try!(password.map(Ok).unwrap_or_else(|| self.password(&account)));
-		Ok(try!(self.sstore.decrypt(&account, &password, shared_mac, message)))
+		let password = password.map(Ok).unwrap_or_else(|| self.password(&account))?;
+		Ok(self.sstore.decrypt(&account, &password, shared_mac, message)?)
 	}
 
 	/// Returns the underlying `SecretStore` reference if one exists.

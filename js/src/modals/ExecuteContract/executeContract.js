@@ -39,26 +39,31 @@ const STEP_BUSY_OR_ADVANCED = 1;
 const STEP_BUSY = 2;
 
 const TITLES = {
-  transfer:
+  transfer: (
     <FormattedMessage
       id='executeContract.steps.transfer'
-      defaultMessage='function details' />,
-  sending:
+      defaultMessage='function details' />
+  ),
+  sending: (
     <FormattedMessage
       id='executeContract.steps.sending'
-      defaultMessage='sending' />,
-  complete:
+      defaultMessage='sending' />
+  ),
+  complete: (
     <FormattedMessage
       id='executeContract.steps.complete'
-      defaultMessage='complete' />,
-  advanced:
+      defaultMessage='complete' />
+  ),
+  advanced: (
     <FormattedMessage
       id='executeContract.steps.advanced'
-      defaultMessage='advanced options' />,
-  rejected:
+      defaultMessage='advanced options' />
+  ),
+  rejected: (
     <FormattedMessage
       id='executeContract.steps.rejected'
       defaultMessage='rejected' />
+  )
 };
 const STAGES_BASIC = [TITLES.transfer, TITLES.sending, TITLES.complete];
 const STAGES_ADVANCED = [TITLES.transfer, TITLES.advanced, TITLES.sending, TITLES.complete];
@@ -384,6 +389,7 @@ class ExecuteContract extends Component {
     const { advancedOptions, amount, func, minBlock, values } = this.state;
     const steps = advancedOptions ? STAGES_ADVANCED : STAGES_BASIC;
     const finalstep = steps.length - 1;
+
     const options = {
       gas: this.gasStore.gas,
       gasPrice: this.gasStore.price,
@@ -398,10 +404,11 @@ class ExecuteContract extends Component {
       .postTransaction(options, values)
       .then((requestId) => {
         this.setState({
-          busyState:
+          busyState: (
             <FormattedMessage
               id='executeContract.busy.waitAuth'
               defaultMessage='Waiting for authorization in the Parity Signer' />
+          )
         });
 
         return api
@@ -420,10 +427,11 @@ class ExecuteContract extends Component {
           sending: false,
           step: finalstep,
           txhash,
-          busyState:
+          busyState: (
             <FormattedMessage
               id='executeContract.busy.posted'
               defaultMessage='Your transaction has been posted to the network' />
+          )
         });
       })
       .catch((error) => {

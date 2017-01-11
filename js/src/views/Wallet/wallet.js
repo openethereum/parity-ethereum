@@ -64,13 +64,14 @@ class Wallet extends Component {
   };
 
   static propTypes = {
-    setVisibleAccounts: PropTypes.func.isRequired,
+    address: PropTypes.string.isRequired,
     balance: nullableProptype(PropTypes.object.isRequired),
     images: PropTypes.object.isRequired,
-    address: PropTypes.string.isRequired,
-    wallets: PropTypes.object.isRequired,
+    isTest: PropTypes.bool.isRequired,
+    owned: PropTypes.bool.isRequired,
+    setVisibleAccounts: PropTypes.func.isRequired,
     wallet: PropTypes.object.isRequired,
-    isTest: PropTypes.bool.isRequired
+    walletAccount: nullableProptype(PropTypes.object.isRequired)
   };
 
   state = {
@@ -104,28 +105,26 @@ class Wallet extends Component {
   }
 
   render () {
-    const { wallets, balance, address } = this.props;
+    const { walletAccount, balance, wallet } = this.props;
 
-    const wallet = (wallets || {})[address];
-
-    if (!wallet) {
+    if (!walletAccount) {
       return null;
     }
 
-    const { owners, require, dailylimit } = this.props.wallet;
+    const { owners, require, dailylimit } = wallet;
 
     return (
       <div className={ styles.wallet }>
-        { this.renderEditDialog(wallet) }
+        { this.renderEditDialog(walletAccount) }
         { this.renderSettingsDialog() }
         { this.renderTransferDialog() }
-        { this.renderDeleteDialog(wallet) }
+        { this.renderDeleteDialog(walletAccount) }
         { this.renderActionbar() }
         <Page>
           <div className={ styles.info }>
             <Header
               className={ styles.header }
-              account={ wallet }
+              account={ walletAccount }
               balance={ balance }
               isContract
             >
@@ -181,7 +180,7 @@ class Wallet extends Component {
     const { address, isTest, wallet } = this.props;
     const { owners, require, confirmations, transactions } = wallet;
 
-    if (!isTest || !owners || !require) {
+    if (!owners || !require) {
       return (
         <div style={ { marginTop: '4em' } }>
           <Loading size={ 4 } />
@@ -209,32 +208,47 @@ class Wallet extends Component {
   }
 
   renderActionbar () {
-    const { balance } = this.props;
+    const { balance, owned } = this.props;
     const showTransferButton = !!(balance && balance.tokens);
 
-    const buttons = [
-      <Button
-        key='transferFunds'
-        icon={ <ContentSend /> }
-        label='transfer'
-        disabled={ !showTransferButton }
-        onClick={ this.onTransferClick } />,
+    const buttons = [];
+
+    if (owned) {
+      buttons.push(
+        <Button
+          key='transferFunds'
+          icon={ <ContentSend /> }
+          label='transfer'
+          disabled={ !showTransferButton }
+          onClick={ this.onTransferClick } />
+      );
+    }
+
+    buttons.push(
       <Button
         key='delete'
         icon={ <ActionDelete /> }
         label='delete'
-        onClick={ this.showDeleteDialog } />,
+        onClick={ this.showDeleteDialog } />
+    );
+
+    buttons.push(
       <Button
         key='editmeta'
         icon={ <ContentCreate /> }
         label='edit'
-        onClick={ this.onEditClick } />,
-      <Button
-        key='settings'
-        icon={ <SettingsIcon /> }
-        label='settings'
-        onClick={ this.onSettingsClick } />
-    ];
+        onClick={ this.onEditClick } />
+    );
+
+    if (owned) {
+      buttons.push(
+        <Button
+          key='settings'
+          icon={ <SettingsIcon /> }
+          label='settings'
+          onClick={ this.onSettingsClick } />
+      );
+    }
 
     return (
       <Actionbar
@@ -293,12 +307,11 @@ class Wallet extends Component {
       return null;
     }
 
-    const { wallets, balance, images, address } = this.props;
-    const wallet = wallets[address];
+    const { walletAccount, balance, images } = this.props;
 
     return (
       <Transfer
-        account={ wallet }
+        account={ walletAccount }
         balance={ balance }
         images={ images }
         onClose={ this.onTransferClose }
@@ -342,20 +355,27 @@ function mapStateToProps (_, initProps) {
 
   return (state) => {
     const { isTest } = state.nodeStatus;
-    const { wallets } = state.personal;
+    const { accountsInfo = {}, accounts = {} } = state.personal;
     const { balances } = state.balances;
     const { images } = state;
+    const walletAccount = accounts[address] || accountsInfo[address] || null;
+
+    if (walletAccount) {
+      walletAccount.address = address;
+    }
 
     const wallet = state.wallet.wallets[address] || {};
     const balance = balances[address] || null;
+    const owned = !!accounts[address];
 
     return {
-      isTest,
-      wallets,
+      address,
       balance,
       images,
-      address,
-      wallet
+      isTest,
+      owned,
+      wallet,
+      walletAccount
     };
   };
 }

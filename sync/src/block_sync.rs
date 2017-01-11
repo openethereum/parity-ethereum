@@ -208,10 +208,10 @@ impl BlockDownloader {
 		let mut valid_response = item_count == 0; //empty response is valid
 		let mut any_known = false;
 		for i in 0..item_count {
-			let info: BlockHeader = try!(r.val_at(i).map_err(|e| {
+			let info: BlockHeader = r.val_at(i).map_err(|e| {
 				trace!(target: "sync", "Error decoding block header RLP: {:?}", e);
 				BlockDownloaderImportError::Invalid
-			}));
+			})?;
 			let number = BlockNumber::from(info.number());
 			// Check if any of the headers matches the hash we requested
 			if !valid_response {
@@ -229,10 +229,10 @@ impl BlockDownloader {
 				self.highest_block = Some(number);
 			}
 			let hash = info.hash();
-			let hdr = try!(r.at(i).map_err(|e| {
+			let hdr = r.at(i).map_err(|e| {
 				trace!(target: "sync", "Error decoding block header RLP: {:?}", e);
 				BlockDownloaderImportError::Invalid
-			}));
+			})?;
 			match io.chain().block_status(BlockId::Hash(hash.clone())) {
 				BlockStatus::InChain | BlockStatus::Queued => {
 					match self.state {
@@ -302,10 +302,10 @@ impl BlockDownloader {
 		else {
 			let mut bodies = Vec::with_capacity(item_count);
 			for i in 0..item_count {
-				let body = try!(r.at(i).map_err(|e| {
+				let body = r.at(i).map_err(|e| {
 					trace!(target: "sync", "Error decoding block boides RLP: {:?}", e);
 					BlockDownloaderImportError::Invalid
-				}));
+				})?;
 				bodies.push(body.as_raw().to_vec());
 			}
 			if self.blocks.insert_bodies(bodies) != item_count {
@@ -328,10 +328,10 @@ impl BlockDownloader {
 		else {
 			let mut receipts = Vec::with_capacity(item_count);
 			for i in 0..item_count {
-				let receipt = try!(r.at(i).map_err(|e| {
+				let receipt = r.at(i).map_err(|e| {
 					trace!(target: "sync", "Error decoding block receipts RLP: {:?}", e);
 					BlockDownloaderImportError::Invalid
-				}));
+				})?;
 				receipts.push(receipt.as_raw().to_vec());
 			}
 			if self.blocks.insert_receipts(receipts) != item_count {

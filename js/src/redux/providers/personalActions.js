@@ -14,14 +14,18 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { isEqual } from 'lodash';
+import { isEqual, intersection } from 'lodash';
 
 import { fetchBalances } from './balancesActions';
 import { attachWallets } from './walletActions';
 
+import Contract from '~/api/contract';
 import MethodDecodingStore from '~/ui/MethodDecoding/methodDecodingStore';
+import WalletsUtils from '~/util/wallets';
+import { wallet as WalletAbi } from '~/contracts/abi';
 
 export function personalAccountsInfo (accountsInfo) {
+  const addresses = [];
   const accounts = {};
   const contacts = {};
   const contracts = {};
@@ -32,6 +36,7 @@ export function personalAccountsInfo (accountsInfo) {
     .filter((account) => account.uuid || !account.meta.deleted)
     .forEach((account) => {
       if (account.uuid) {
+        addresses.push(account.address);
         accounts[account.address] = account;
       } else if (account.meta.wallet) {
         account.wallet = true;
@@ -46,14 +51,52 @@ export function personalAccountsInfo (accountsInfo) {
   // Load user contracts for Method Decoding
   MethodDecodingStore.loadContracts(contracts);
 
-  return (dispatch) => {
-    const data = {
-      accountsInfo,
-      accounts, contacts, contracts, wallets
-    };
+  return (dispatch, getState) => {
+    const { api } = getState();
 
-    dispatch(_personalAccountsInfo(data));
-    dispatch(attachWallets(wallets));
+    const _fetchOwners = Object
+      .values(wallets)
+      .map((wallet) => {
+        const walletContract = new Contract(api, WalletAbi);
+        return WalletsUtils.fetchOwners(walletContract.at(wallet.address));
+      });
+
+    Promise
+      .all(_fetchOwners)
+      .then((walletsOwners) => {
+        return Object
+          .values(wallets)
+          .map((wallet, index) => {
+            wallet.owners = walletsOwners[index].map((owner) => ({
+              address: owner,
+              name: accountsInfo[owner] && accountsInfo[owner].name || owner
+            }));
+
+            return wallet;
+          });
+      })
+      .then((_wallets) => {
+        _wallets.forEach((wallet) => {
+          const owners = wallet.owners.map((o) => o.address);
+
+          // Owners ∩ Addresses not null : Wallet is owned
+          // by one of the accounts
+          if (intersection(owners, addresses).length > 0) {
+            accounts[wallet.address] = wallet;
+          } else {
+            contacts[wallet.address] = wallet;
+          }
+        });
+
+        const data = {
+          accountsInfo,
+          accounts, contacts, contracts
+        };
+
+        dispatch(_personalAccountsInfo(data));
+        dispatch(attachWallets(wallets));
+        dispatch(fetchBalances());
+      });
   };
 }
 
@@ -79,7 +122,7 @@ export function setVisibleAccounts (addresses) {
       return;
     }
 
-    dispatch(fetchBalances(addresses));
     dispatch(_setVisibleAccounts(addresses));
+    dispatch(fetchBalances(addresses));
   };
 }

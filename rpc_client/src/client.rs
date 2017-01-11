@@ -68,9 +68,9 @@ impl Handler for RpcHandler {
 	fn build_request(&mut self, url: &Url) -> WsResult<Request> {
 		match Request::from_url(url) {
 			Ok(mut r) => {
-				let timestamp = try!(time::UNIX_EPOCH.elapsed().map_err(|err| {
+				let timestamp = time::UNIX_EPOCH.elapsed().map_err(|err| {
 					WsError::new(WsErrorKind::Internal, format!("{}", err))
-				}));
+				})?;
 				let secs = timestamp.as_secs();
 				let hashed = format!("{}:{}", self.auth_code, secs).sha3();
 				let proto = format!("{:?}_{}", hashed, secs);
@@ -195,7 +195,7 @@ pub struct Rpc {
 impl Rpc {
 	/// Blocking, returns a new initialized connection or RpcError
 	pub fn new(url: &str, authpath: &PathBuf) -> Result<Self, RpcError> {
-		let rpc = try!(Self::connect(url, authpath).map(|rpc| rpc).wait());
+		let rpc = Self::connect(url, authpath).map(|rpc| rpc).wait()?;
 		rpc
 	}
 	/// Non-blocking, returns a future
@@ -260,7 +260,7 @@ impl Rpc {
 		p.map(|result| {
 			match result {
 				Ok(json) => {
-					let t: T = try!(json::from_value(json));
+					let t: T = json::from_value(json)?;
 					Ok(t)
 				},
 				Err(err) => Err(err)

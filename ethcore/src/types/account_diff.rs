@@ -80,9 +80,9 @@ pub enum Existance {
 impl fmt::Display for Existance {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		match *self {
-			Existance::Born => try!(write!(f, "+++")),
-			Existance::Alive => try!(write!(f, "***")),
-			Existance::Died => try!(write!(f, "XXX")),
+			Existance::Born => write!(f, "+++")?,
+			Existance::Alive => write!(f, "***")?,
+			Existance::Died => write!(f, "XXX")?,
 		}
 		Ok(())
 	}
@@ -117,24 +117,24 @@ impl fmt::Display for AccountDiff {
 		use util::bytes::ToPretty;
 
 		match self.nonce {
-			Diff::Born(ref x) => try!(write!(f, "  non {}", x)),
-			Diff::Changed(ref pre, ref post) => try!(write!(f, "#{} ({} {} {})", post, pre, if pre > post {"-"} else {"+"}, *max(pre, post) - *	min(pre, post))),
+			Diff::Born(ref x) => write!(f, "  non {}", x)?,
+			Diff::Changed(ref pre, ref post) => write!(f, "#{} ({} {} {})", post, pre, if pre > post {"-"} else {"+"}, *max(pre, post) - *	min(pre, post))?,
 			_ => {},
 		}
 		match self.balance {
-			Diff::Born(ref x) => try!(write!(f, "  bal {}", x)),
-			Diff::Changed(ref pre, ref post) => try!(write!(f, "${} ({} {} {})", post, pre, if pre > post {"-"} else {"+"}, *max(pre, post) - *min(pre, post))),
+			Diff::Born(ref x) => write!(f, "  bal {}", x)?,
+			Diff::Changed(ref pre, ref post) => write!(f, "${} ({} {} {})", post, pre, if pre > post {"-"} else {"+"}, *max(pre, post) - *min(pre, post))?,
 			_ => {},
 		}
 		if let Diff::Born(ref x) = self.code {
-			try!(write!(f, "  code {}", x.pretty()));
+			write!(f, "  code {}", x.pretty())?;
 		}
-		try!(write!(f, "\n"));
+		write!(f, "\n")?;
 		for (k, dv) in &self.storage {
 			match *dv {
-				Diff::Born(ref v) => try!(write!(f, "    +  {} => {}\n", interpreted_hash(k), interpreted_hash(v))),
-				Diff::Changed(ref pre, ref post) => try!(write!(f, "    *  {} => {} (was {})\n", interpreted_hash(k), interpreted_hash(post), interpreted_hash(pre))),
-				Diff::Died(_) => try!(write!(f, "    X  {}\n", interpreted_hash(k))),
+				Diff::Born(ref v) => write!(f, "    +  {} => {}\n", interpreted_hash(k), interpreted_hash(v))?,
+				Diff::Changed(ref pre, ref post) => write!(f, "    *  {} => {} (was {})\n", interpreted_hash(k), interpreted_hash(post), interpreted_hash(pre))?,
+				Diff::Died(_) => write!(f, "    X  {}\n", interpreted_hash(k))?,
 				_ => {},
 			}
 		}

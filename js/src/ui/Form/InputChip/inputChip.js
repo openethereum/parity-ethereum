@@ -20,19 +20,24 @@ import ChipInput from 'material-ui-chip-input';
 import { blue300 } from 'material-ui/styles/colors';
 import { uniq } from 'lodash';
 
+import { nodeOrStringProptype } from '~/util/proptypes';
+
 import styles from './inputChip.css';
 
 export default class InputChip extends Component {
   static propTypes = {
-    tokens: PropTypes.array.isRequired,
+    addOnBlur: PropTypes.bool,
+    clearOnBlur: PropTypes.bool,
     className: PropTypes.string,
-    hint: PropTypes.string,
-    label: PropTypes.string,
+    hint: nodeOrStringProptype(),
+    label: nodeOrStringProptype(),
     onTokensChange: PropTypes.func,
     onInputChange: PropTypes.func,
     onBlur: PropTypes.func,
-    addOnBlur: PropTypes.bool,
-    clearOnBlur: PropTypes.bool
+    tokens: PropTypes.oneOfType([
+      PropTypes.array,
+      PropTypes.object
+    ]).isRequired
   }
 
   static defaultProps = {
@@ -165,6 +170,10 @@ export default class InputChip extends Component {
       .filter(v => v !== value));
 
     this.handleTokensChange(newTokens);
+    this.focus();
+  }
+
+  focus = () => {
     this.refs.chipInput.focus();
   }
 

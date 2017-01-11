@@ -35,8 +35,8 @@ pub struct KeyPair {
 
 impl fmt::Display for KeyPair {
 	fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-		try!(writeln!(f, "secret:  {}", self.secret.to_hex()));
-		try!(writeln!(f, "public:  {}", self.public.to_hex()));
+		writeln!(f, "secret:  {}", self.secret.to_hex())?;
+		writeln!(f, "public:  {}", self.public.to_hex())?;
 		write!(f, "address: {}", self.address().to_hex())
 	}
 }
@@ -45,8 +45,8 @@ impl KeyPair {
 	/// Create a pair from secret key
 	pub fn from_secret(secret: Secret) -> Result<KeyPair, Error> {
 		let context = &SECP256K1;
-		let s: key::SecretKey = try!(key::SecretKey::from_slice(context, &secret[..]));
-		let pub_key = try!(key::PublicKey::from_secret_key(context, &s));
+		let s: key::SecretKey = key::SecretKey::from_slice(context, &secret[..])?;
+		let pub_key = key::PublicKey::from_secret_key(context, &s)?;
 		let serialized = pub_key.serialize_vec(context, false);
 
 		let mut public = Public::default();
@@ -60,11 +60,14 @@ impl KeyPair {
 		Ok(keypair)
 	}
 
+	pub fn from_secret_slice(slice: &[u8]) -> Result<KeyPair, Error> {
+		Self::from_secret(Secret::from_slice(slice)?)
+	}
+
 	pub fn from_keypair(sec: key::SecretKey, publ: key::PublicKey) -> Self {
 		let context = &SECP256K1;
 		let serialized = publ.serialize_vec(context, false);
-		let mut secret = Secret::default();
-		secret.copy_from_slice(&sec[0..32]);
+		let secret = Secret::from(sec);
 		let mut public = Public::default();
 		public.copy_from_slice(&serialized[1..65]);
 

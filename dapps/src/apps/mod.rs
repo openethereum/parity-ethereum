@@ -14,6 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::path::PathBuf;
+use std::sync::Arc;
 use endpoint::{Endpoints, Endpoint};
 use page::PageEndpoint;
 use proxypac::ProxyPac;
@@ -21,6 +23,7 @@ use web::Web;
 use fetch::Fetch;
 use parity_dapps::WebApp;
 use parity_reactor::Remote;
+use {WebProxyTokens};
 
 mod cache;
 mod fs;
@@ -40,14 +43,28 @@ pub fn utils() -> Box<Endpoint> {
 	Box::new(PageEndpoint::with_prefix(parity_ui::App::default(), UTILS_PATH.to_owned()))
 }
 
-pub fn all_endpoints<F: Fetch>(dapps_path: String, signer_address: Option<(String, u16)>, remote: Remote, fetch: F) -> Endpoints {
+pub fn all_endpoints<F: Fetch>(
+	dapps_path: PathBuf,
+	extra_dapps: Vec<PathBuf>,
+	signer_address: Option<(String, u16)>,
+	web_proxy_tokens: Arc<WebProxyTokens>,
+	remote: Remote,
+	fetch: F,
+) -> Endpoints {
 	// fetch fs dapps at first to avoid overwriting builtins
 	let mut pages = fs::local_endpoints(dapps_path, signer_address.clone());
+	for path in extra_dapps {
+		if let Some((id, endpoint)) = fs::local_endpoint(path.clone(), signer_address.clone()) {
+			pages.insert(id, endpoint);
+		} else {
+			warn!(target: "dapps", "Ignoring invalid dapp at {}", path.display());
+		}
+	}
 
 	// NOTE [ToDr] Dapps will be currently embeded on 8180
 	insert::<parity_ui::App>(&mut pages, "ui", Embeddable::Yes(signer_address.clone()));
-	pages.insert("proxy".into(), ProxyPac::boxed(signer_address));
-	pages.insert(WEB_PATH.into(), Web::boxed(remote, fetch));
+	pages.insert("proxy".into(), ProxyPac::boxed(signer_address.clone()));
+	pages.insert(WEB_PATH.into(), Web::boxed(signer_address.clone(), web_proxy_tokens.clone(), remote.clone(), fetch.clone()));
 
 	pages
 }

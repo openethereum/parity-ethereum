@@ -16,9 +16,10 @@
 
 import {
   Accounts, Account, Addresses, Address, Application,
-  Contract, Contracts, WriteContract, Wallet, Dapp, Dapps,
+  Contract, Contracts, Dapp, Dapps,
   Settings, SettingsBackground, SettingsParity, SettingsProxy,
-  SettingsViews, Signer, Status
+  SettingsViews, Signer, Status,
+  Wallet, Web, WriteContract
 } from '~/views';
 
 function handleDeprecatedRoute (nextState, replace) {
@@ -111,6 +112,8 @@ const routes = [
 
       { path: 'apps', component: Dapps },
       { path: 'app/:id', component: Dapp },
+      { path: 'web', component: Web },
+      { path: 'web/:url', component: Web },
       { path: 'signer', component: Signer }
     ]
   }

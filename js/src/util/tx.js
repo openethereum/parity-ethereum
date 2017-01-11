@@ -14,9 +14,92 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import WalletsUtils from '~/util/wallets';
+
 const isValidReceipt = (receipt) => {
   return receipt && receipt.blockNumber && receipt.blockNumber.gt(0);
 };
+
+function getTxArgs (func, options, values = []) {
+  const { contract } = func;
+  const { api } = contract;
+  const address = options.from;
+
+  if (!address) {
+    return Promise.resolve({ func, options, values });
+  }
+
+  return WalletsUtils
+    .isWallet(api, address)
+    .then((isWallet) => {
+      if (!isWallet) {
+        return { func, options, values };
+      }
+
+      options.data = contract.getCallData(func, options, values);
+      options.to = options.to || contract.address;
+
+      if (!options.to) {
+        return { func, options, values };
+      }
+
+      return WalletsUtils
+        .getCallArgs(api, options, values)
+        .then((callArgs) => {
+          if (!callArgs) {
+            return { func, options, values };
+          }
+
+          return callArgs;
+        });
+    });
+}
+
+export function estimateGas (_func, _options, _values = []) {
+  return getTxArgs(_func, _options, _values)
+    .then((callArgs) => {
+      const { func, options, values } = callArgs;
+      return func._estimateGas(options, values);
+    })
+    .then((gas) => {
+      return WalletsUtils
+        .isWallet(_func.contract.api, _options.from)
+        .then((isWallet) => {
+          if (isWallet) {
+            return gas.mul(1.5);
+          }
+
+          return gas;
+        });
+    });
+}
+
+export function postTransaction (_func, _options, _values = []) {
+  return getTxArgs(_func, _options, _values)
+    .then((callArgs) => {
+      const { func, options, values } = callArgs;
+      return func._postTransaction(options, values);
+    });
+}
+
+export function patchApi (api) {
+  api.patch = {
+    ...api.patch,
+    contract: patchContract
+  };
+}
+
+export function patchContract (contract) {
+  contract._functions.forEach((func) => {
+    if (!func.constant) {
+      func._postTransaction = func.postTransaction;
+      func._estimateGas = func.estimateGas;
+
+      func.postTransaction = postTransaction.bind(contract, func);
+      func.estimateGas = estimateGas.bind(contract, func);
+    }
+  });
+}
 
 export function checkIfTxFailed (api, tx, gasSent) {
   return api.pollMethod('eth_getTransactionReceipt', tx)

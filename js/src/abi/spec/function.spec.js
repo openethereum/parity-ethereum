@@ -35,6 +35,18 @@ describe('abi/spec/Function', () => {
   });
 
   describe('constructor', () => {
+    it('returns signature correctly if name already contains it', () => {
+      const func = new Func({
+        name: 'test(bool,string)',
+        inputs: inputsArr,
+        outputs: outputsArr
+      });
+
+      expect(func.name).to.equal('test');
+      expect(func.id).to.equal('test(bool,string)');
+      expect(func.signature).to.equal('02356205');
+    });
+
     it('stores the parameters as received', () => {
       expect(func.name).to.equal('test');
       expect(func.constant).to.be.false;

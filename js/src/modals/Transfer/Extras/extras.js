@@ -44,12 +44,12 @@ export default class Extras extends Component {
           error={ minBlockError }
           hint={
             <FormattedMessage
-              id='executeContract.advanced.minBlock.hint'
+              id='transferModal.minBlock.hint'
               defaultMessage='Only post the transaction after this block' />
           }
           label={
             <FormattedMessage
-              id='executeContract.advanced.minBlock.label'
+              id='transferModal.minBlock.label'
               defaultMessage='BlockNumber to send from' />
           }
           value={ minBlock }

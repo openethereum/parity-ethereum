@@ -56,7 +56,7 @@ class Application extends Component {
 
   render () {
     const [root] = (window.location.hash || '').replace('#/', '').split('/');
-    const isDapp = root === 'app';
+    const isMinimized = root === 'app' || root === 'web';
 
     if (inFrame) {
       return (
@@ -66,9 +66,9 @@ class Application extends Component {
 
     return (
       <div>
-        { isDapp ? this.renderDapp() : this.renderApp() }
+        { isMinimized ? this.renderMinimized() : this.renderApp() }
         <Connection />
-        <ParityBar dapp={ isDapp } />
+        <ParityBar dapp={ isMinimized } />
       </div>
     );
   }
@@ -98,7 +98,7 @@ class Application extends Component {
     );
   }
 
-  renderDapp () {
+  renderMinimized () {
     const { children } = this.props;
 
     return (

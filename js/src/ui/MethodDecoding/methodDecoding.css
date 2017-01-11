@@ -38,6 +38,10 @@
   justify-content: center;
 }
 
+.details {
+  line-height: 1.75em;
+}
+
 .details,
 .gasDetails {
   color: #aaa;
@@ -75,7 +79,7 @@
   font-family: inherit !important;
 }
 
-.inputs img {
+.inputs [data-address-img] {
   position: absolute;
   top: -16px;
 }

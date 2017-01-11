@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import Abi from '../../abi';
+import Abi from '~/abi';
 
 let nextSubscriptionId = 0;
 
@@ -53,6 +53,10 @@ export default class Contract {
 
     this._subscribedToBlock = false;
     this._blockSubscriptionId = null;
+
+    if (api && api.patch && api.patch.contract) {
+      api.patch.contract(this);
+    }
   }
 
   get address () {
@@ -69,6 +73,10 @@ export default class Contract {
 
   get functions () {
     return this._functions;
+  }
+
+  get receipt () {
+    return this._receipt;
   }
 
   get instance () {
@@ -90,8 +98,10 @@ export default class Contract {
   }
 
   deployEstimateGas (options, values) {
+    const _options = this._encodeOptions(this.constructors[0], options, values);
+
     return this._api.eth
-      .estimateGas(this._encodeOptions(this.constructors[0], options, values))
+      .estimateGas(_options)
       .then((gasEst) => {
         return [gasEst, gasEst.mul(1.2)];
       });
@@ -115,8 +125,10 @@ export default class Contract {
 
         setState({ state: 'postTransaction', gas });
 
+        const _options = this._encodeOptions(this.constructors[0], options, values);
+
         return this._api.parity
-          .postTransaction(this._encodeOptions(this.constructors[0], options, values))
+          .postTransaction(_options)
           .then((requestId) => {
             setState({ state: 'checkRequest', requestId });
             return this._pollCheckRequest(requestId);
@@ -131,6 +143,7 @@ export default class Contract {
             }
 
             setState({ state: 'hasReceipt', receipt });
+            this._receipt = receipt;
             this._address = receipt.contractAddress;
             return this._address;
           });
@@ -199,7 +212,7 @@ export default class Contract {
   getCallData = (func, options, values) => {
     let data = options.data;
 
-    const tokens = func ? this._abi.encodeTokens(func.inputParamTypes(), values) : null;
+    const tokens = func ? Abi.encodeTokens(func.inputParamTypes(), values) : null;
     const call = tokens ? func.encodeCall(tokens) : null;
 
     if (data && data.substr(0, 2) === '0x') {
@@ -210,17 +223,24 @@ export default class Contract {
   }
 
   _encodeOptions (func, options, values) {
-    options.data = this.getCallData(func, options, values);
-    return options;
+    const data = this.getCallData(func, options, values);
+
+    return {
+      ...options,
+      data
+    };
   }
 
   _addOptionsTo (options = {}) {
-    return Object.assign({
-      to: this._address
-    }, options);
+    return {
+      to: this._address,
+      ...options
+    };
   }
 
   _bindFunction = (func) => {
+    func.contract = this;
+
     func.call = (options, values = []) => {
       const callParams = this._encodeOptions(func, this._addOptionsTo(options), values);
 
@@ -233,13 +253,13 @@ export default class Contract {
 
     if (!func.constant) {
       func.postTransaction = (options, values = []) => {
-        return this._api.parity
-          .postTransaction(this._encodeOptions(func, this._addOptionsTo(options), values));
+        const _options = this._encodeOptions(func, this._addOptionsTo(options), values);
+        return this._api.parity.postTransaction(_options);
       };
 
       func.estimateGas = (options, values = []) => {
-        return this._api.eth
-          .estimateGas(this._encodeOptions(func, this._addOptionsTo(options), values));
+        const _options = this._encodeOptions(func, this._addOptionsTo(options), values);
+        return this._api.eth.estimateGas(_options);
       };
     }
 

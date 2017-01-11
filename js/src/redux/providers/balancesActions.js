@@ -48,7 +48,7 @@ function setBalances (_balances) {
 
       const balance = Object.assign({}, balances[address]);
       const { tokens, txCount = balance.txCount } = nextBalances[address];
-      const nextTokens = [].concat(balance.tokens);
+      const nextTokens = balance.tokens.slice();
 
       tokens.forEach((t) => {
         const { token, value } = t;
@@ -177,12 +177,10 @@ export function fetchBalances (_addresses) {
 
     const addresses = uniq(_addresses || visibleAccounts || []);
 
-    if (addresses.length === 0) {
-      return Promise.resolve();
-    }
-
+    // With only a single account, more info will be displayed.
     const fullFetch = addresses.length === 1;
 
+    // Add accounts addresses (for notifications, accounts selection, etc.)
     const addressesToFetch = uniq(addresses.concat(Object.keys(accounts)));
 
     return Promise

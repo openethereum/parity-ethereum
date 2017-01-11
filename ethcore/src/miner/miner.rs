@@ -20,8 +20,6 @@ use std::time::{Instant, Duration};
 use util::*;
 use util::using_queue::{UsingQueue, GetAction};
 use account_provider::{AccountProvider, Error as AccountError};
-use views::{BlockView, HeaderView};
-use header::Header;
 use state::{State, CleanupMode};
 use client::{MiningBlockChainClient, Executive, Executed, EnvInfo, TransactOptions, BlockId, CallAnalytics, TransactionId};
 use client::TransactionImportResult;
@@ -419,15 +417,12 @@ impl Miner {
 
 		let block = open_block.close();
 
-		let fetch_account = |a: &Address| AccountDetails {
-			nonce: chain.latest_nonce(a),
-			balance: chain.latest_balance(a),
-		};
+		let fetch_nonce = |a: &Address| chain.latest_nonce(a);
 
 		{
 			let mut queue = self.transaction_queue.lock();
 			for hash in invalid_transactions {
-				queue.remove_invalid(&hash, &fetch_account);
+				queue.remove_invalid(&hash, &fetch_nonce);
 			}
 			for hash in transactions_to_penalize {
 				queue.penalize(&hash);
@@ -536,7 +531,7 @@ impl Miner {
 	}
 
 	fn update_gas_limit(&self, chain: &MiningBlockChainClient) {
-		let gas_limit = HeaderView::new(&chain.best_block_header()).gas_limit();
+		let gas_limit = chain.best_block_header().gas_limit();
 		let mut queue = self.transaction_queue.lock();
 		queue.set_gas_limit(gas_limit);
 		if let GasLimit::Auto = self.options.tx_queue_gas_limit {
@@ -598,7 +593,9 @@ impl Miner {
 
 		let schedule = chain.latest_schedule();
 		let gas_required = |tx: &SignedTransaction| tx.gas_required(&schedule).into();
-		let best_block_header: Header = ::rlp::decode(&chain.best_block_header());
+		let best_block_header = chain.best_block_header().decode();
+		let insertion_time = chain.chain_info().best_block_number;
+
 		transactions.into_iter()
 			.map(|tx| {
 				if chain.transaction_block(TransactionId::Hash(tx.hash())).is_some() {
@@ -620,10 +617,10 @@ impl Miner {
 
 						match origin {
 							TransactionOrigin::Local | TransactionOrigin::RetractedBlock => {
-								transaction_queue.add(tx, origin, min_block, &fetch_account, &gas_required)
+								transaction_queue.add(tx, origin, insertion_time, min_block, &fetch_account, &gas_required)
 							},
 							TransactionOrigin::External => {
-								transaction_queue.add_with_banlist(tx, &fetch_account, &gas_required)
+								transaction_queue.add_with_banlist(tx, insertion_time, &fetch_account, &gas_required)
 							}
 						}
 					},
@@ -676,7 +673,7 @@ impl MinerService for Miner {
 		}
 	}
 
-	fn call(&self, chain: &MiningBlockChainClient, t: &SignedTransaction, analytics: CallAnalytics) -> Result<Executed, CallError> {
+	fn call(&self, client: &MiningBlockChainClient, t: &SignedTransaction, analytics: CallAnalytics) -> Result<Executed, CallError> {
 		let sealing_work = self.sealing_work.lock();
 		match sealing_work.queue.peek_last_ref() {
 			Some(work) => {
@@ -684,7 +681,7 @@ impl MinerService for Miner {
 
 				// TODO: merge this code with client.rs's fn call somwhow.
 				let header = block.header();
-				let last_hashes = Arc::new(chain.last_hashes());
+				let last_hashes = Arc::new(client.last_hashes());
 				let env_info = EnvInfo {
 					number: header.number(),
 					author: *header.author(),
@@ -698,10 +695,10 @@ impl MinerService for Miner {
 				let mut state = block.state().clone();
 				let original_state = if analytics.state_diffing { Some(state.clone()) } else { None };
 
-				let sender = try!(t.sender().map_err(|e| {
+				let sender = t.sender().map_err(|e| {
 					let message = format!("Transaction malformed: {:?}", e);
 					ExecutionError::TransactionMalformed(message)
-				}));
+				})?;
 				let balance = state.balance(&sender);
 				let needed_balance = t.value + t.gas * t.gas_price;
 				if balance < needed_balance {
@@ -709,16 +706,14 @@ impl MinerService for Miner {
 					state.add_balance(&sender, &(needed_balance - balance), CleanupMode::NoEmpty);
 				}
 				let options = TransactOptions { tracing: analytics.transaction_tracing, vm_tracing: analytics.vm_tracing, check_nonce: false };
-				let mut ret = try!(Executive::new(&mut state, &env_info, &*self.engine, chain.vm_factory()).transact(t, options));
+				let mut ret = Executive::new(&mut state, &env_info, &*self.engine, client.vm_factory()).transact(t, options)?;
 
 				// TODO gav move this into Executive.
 				ret.state_diff = original_state.map(|original| state.diff_from(original));
 
 				Ok(ret)
 			},
-			None => {
-				chain.call(t, BlockId::Latest, analytics)
-			}
+			None => client.call(t, BlockId::Latest, analytics)
 		}
 	}
 
@@ -765,11 +760,19 @@ impl MinerService for Miner {
 	fn set_engine_signer(&self, address: Address, password: String) -> Result<(), AccountError> {
 		if self.seals_internally {
 			if let Some(ref ap) = self.accounts {
-				try!(ap.sign(address.clone(), Some(password.clone()), Default::default()));
+				ap.sign(address.clone(), Some(password.clone()), Default::default())?;
 			}
-			let mut sealing_work = self.sealing_work.lock();
-			sealing_work.enabled = self.engine.is_sealer(&address).unwrap_or(false);
-			*self.author.write() = address;
+			// Limit the scope of the locks.
+			{
+				let mut sealing_work = self.sealing_work.lock();
+				sealing_work.enabled = self.engine.is_sealer(&address).unwrap_or(false);
+				*self.author.write() = address;
+			}
+			// --------------------------------------------------------------------------
+			// | NOTE Code below may require author and sealing_work locks              |
+			// | (some `Engine`s call `EngineClient.update_sealing()`)                  |.
+			// | Make sure to release the locks before calling that method.             |
+			// --------------------------------------------------------------------------
 			self.engine.set_signer(address, password);
 		}
 		Ok(())
@@ -1104,7 +1107,7 @@ impl MinerService for Miner {
 		result.and_then(|sealed| {
 			let n = sealed.header().number();
 			let h = sealed.header().hash();
-			try!(chain.import_sealed_block(sealed));
+			chain.import_sealed_block(sealed)?;
 			info!(target: "miner", "Submitted block imported OK. #{}: {}", Colour::White.bold().paint(format!("{}", n)), Colour::White.bold().paint(h.hex()));
 			Ok(())
 		})
@@ -1127,7 +1130,6 @@ impl MinerService for Miner {
 				.map(|hash| {
 					let block = chain.block(BlockId::Hash(*hash))
 						.expect("Client is sending message after commit to db and inserting to chain; the block is available; qed");
-					let block = BlockView::new(&block);
 					let txs = block.transactions();
 					// populate sender
 					for tx in &txs {
@@ -1144,8 +1146,13 @@ impl MinerService for Miner {
 
 		// ...and at the end remove the old ones
 		{
+			let fetch_account = |a: &Address| AccountDetails {
+				nonce: chain.latest_nonce(a),
+				balance: chain.latest_balance(a),
+			};
+			let time = chain.chain_info().best_block_number;
 			let mut transaction_queue = self.transaction_queue.lock();
-			transaction_queue.remove_old(|sender| chain.latest_nonce(sender));
+			transaction_queue.remove_old(&fetch_account, time);
 		}
 
 		if enacted.len() > 0 {

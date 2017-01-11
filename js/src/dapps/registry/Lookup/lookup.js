@@ -15,85 +15,166 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import { connect } from 'react-redux';
+import { bindActionCreators } from 'redux';
 import { Card, CardHeader, CardText } from 'material-ui/Card';
 import TextField from 'material-ui/TextField';
+import DropDownMenu from 'material-ui/DropDownMenu';
+import MenuItem from 'material-ui/MenuItem';
 import RaisedButton from 'material-ui/RaisedButton';
 import SearchIcon from 'material-ui/svg-icons/action/search';
+import keycode from 'keycode';
 
 import { nullableProptype } from '~/util/proptypes';
 
-import renderAddress from '../ui/address.js';
+import Address from '../ui/address.js';
 import renderImage from '../ui/image.js';
 
-import recordTypeSelect from '../ui/record-type-select.js';
+import { clear, lookup, ownerLookup, reverseLookup } from './actions';
 import styles from './lookup.css';
 
-export default class Lookup extends Component {
+class Lookup extends Component {
 
   static propTypes = {
-    actions: PropTypes.object.isRequired,
-    name: PropTypes.string.isRequired,
-    type: PropTypes.string.isRequired,
     result: nullableProptype(PropTypes.string.isRequired),
-    accounts: PropTypes.object.isRequired,
-    contacts: PropTypes.object.isRequired
+
+    clear: PropTypes.func.isRequired,
+    lookup: PropTypes.func.isRequired,
+    ownerLookup: PropTypes.func.isRequired,
+    reverseLookup: PropTypes.func.isRequired
   }
 
-  state = { name: '', type: 'A' };
+  state = {
+    input: '', type: 'A'
+  };
 
   render () {
-    const name = this.state.name || this.props.name;
-    const type = this.state.type || this.props.type;
-    const { result, accounts, contacts } = this.props;
-
-    let output = '';
-    if (result) {
-      if (type === 'A') {
-        output = (<code>{ renderAddress(result, accounts, contacts, false) }</code>);
-      } else if (type === 'IMG') {
-        output = renderImage(result);
-      } else if (type === 'CONTENT') {
-        output = (<div>
-          <code>{ result }</code>
-          <p>This is most likely just the hash of the content you are looking for</p>
-        </div>);
-      } else {
-        output = (<code>{ result }</code>);
-      }
-    }
+    const { input, type } = this.state;
+    const { result } = this.props;
 
     return (
       <Card className={ styles.lookup }>
         <CardHeader title={ 'Query the Registry' } />
         <div className={ styles.box }>
           <TextField
-            className={ styles.spacing }
-            hintText='name'
-            value={ name }
-            onChange={ this.onNameChange }
+            hintText={ type === 'reverse' ? 'address' : 'name' }
+            value={ input }
+            onChange={ this.onInputChange }
+            onKeyDown={ this.onKeyDown }
           />
-          { recordTypeSelect(type, this.onTypeChange, styles.spacing) }
+          <DropDownMenu
+            value={ type }
+            onChange={ this.onTypeChange }
+          >
+            <MenuItem value='A' primaryText='A – Ethereum address' />
+            <MenuItem value='IMG' primaryText='IMG – hash of a picture in the blockchain' />
+            <MenuItem value='CONTENT' primaryText='CONTENT – hash of a data in the blockchain' />
+            <MenuItem value='reverse' primaryText='reverse – find a name for an address' />
+            <MenuItem value='owner' primaryText='owner – find a the owner' />
+          </DropDownMenu>
           <RaisedButton
-            className={ styles.spacing }
             label='Lookup'
             primary
             icon={ <SearchIcon /> }
             onTouchTap={ this.onLookupClick }
           />
         </div>
-        <CardText>{ output }</CardText>
+        <CardText>
+          { this.renderOutput(type, result) }
+        </CardText>
       </Card>
     );
   }
 
-  onNameChange = (e) => {
-    this.setState({ name: e.target.value });
-  };
+  renderOutput (type, result) {
+    if (result === null) {
+      return null;
+    }
+
+    if (type === 'A') {
+      return (
+        <code>
+          <Address
+            address={ result }
+            shortenHash={ false }
+          />
+        </code>
+      );
+    }
+
+    if (type === 'owner') {
+      if (!result) {
+        return (
+          <code>Not reserved yet</code>
+        );
+      }
+
+      return (
+        <code>
+          <Address
+            address={ result }
+            shortenHash={ false }
+          />
+        </code>
+      );
+    }
+
+    if (type === 'IMG') {
+      return renderImage(result);
+    }
+
+    if (type === 'CONTENT') {
+      return (
+        <div>
+          <code>{ result }</code>
+          <p>Keep in mind that this is most likely the hash of the content you are looking for.</p>
+        </div>
+      );
+    }
+
+    return (
+      <code>{ result || 'No data' }</code>
+    );
+  }
+
+  onInputChange = (e) => {
+    this.setState({ input: e.target.value });
+  }
+
+  onKeyDown = (event) => {
+    const codeName = keycode(event);
+
+    if (codeName !== 'enter') {
+      return;
+    }
+
+    this.onLookupClick();
+  }
+
   onTypeChange = (e, i, type) => {
     this.setState({ type });
-    this.props.actions.clear();
-  };
+    this.props.clear();
+  }
+
   onLookupClick = () => {
-    this.props.actions.lookup(this.state.name, this.state.type);
-  };
+    const { input, type } = this.state;
+
+    if (type === 'reverse') {
+      return this.props.reverseLookup(input);
+    }
+
+    if (type === 'owner') {
+      return this.props.ownerLookup(input);
+    }
+
+    return this.props.lookup(input, type);
+  }
 }
+
+const mapStateToProps = (state) => state.lookup;
+const mapDispatchToProps = (dispatch) =>
+  bindActionCreators({
+    clear, lookup, ownerLookup, reverseLookup
+  }, dispatch);
+
+export default connect(mapStateToProps, mapDispatchToProps)(Lookup);

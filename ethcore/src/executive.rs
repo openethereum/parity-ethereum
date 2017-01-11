@@ -45,7 +45,7 @@ pub fn contract_address(address: &Address, nonce: &U256) -> Address {
 }
 
 /// Transaction execution options.
-#[derive(Default)]
+#[derive(Default, Copy, Clone, PartialEq)]
 pub struct TransactOptions {
 	/// Enable call tracing.
 	pub tracing: bool,
@@ -122,10 +122,10 @@ impl<'a> Executive<'a> {
 		mut tracer: T,
 		mut vm_tracer: V
 	) -> Result<Executed, ExecutionError> where T: Tracer, V: VMTracer {
-		let sender = try!(t.sender().map_err(|e| {
+		let sender = t.sender().map_err(|e| {
 			let message = format!("Transaction malformed: {:?}", e);
 			ExecutionError::TransactionMalformed(message)
-		}));
+		})?;
 		let nonce = self.state.nonce(&sender);
 
 		let schedule = self.engine.schedule(self.info);
@@ -206,7 +206,7 @@ impl<'a> Executive<'a> {
 		};
 
 		// finalize here!
-		Ok(try!(self.finalize(t, substate, gas_left, output, tracer.traces(), vm_tracer.drain())))
+		Ok(self.finalize(t, substate, gas_left, output, tracer.traces(), vm_tracer.drain())?)
 	}
 
 	fn exec_vm<T, V>(

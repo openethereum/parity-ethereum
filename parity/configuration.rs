@@ -17,12 +17,13 @@
 use std::time::Duration;
 use std::io::Read;
 use std::net::SocketAddr;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::cmp::max;
 use cli::{Args, ArgsError};
-use util::{Hashable, U256, Uint, Bytes, version_data, Secret, Address};
+use util::{Hashable, U256, Uint, Bytes, version_data, Address};
 use util::log::Colour;
 use ethsync::{NetworkConfiguration, is_valid_node_url, AllowIP};
+use ethcore::ethstore::ethkey::Secret;
 use ethcore::client::{VMType};
 use ethcore::miner::{MinerOptions, Banning};
 use ethcore::verification::queue::VerifierSettings;
@@ -30,11 +31,11 @@ use ethcore::verification::queue::VerifierSettings;
 use rpc::{IpcConfiguration, HttpConfiguration};
 use ethcore_rpc::NetworkSettings;
 use cache::CacheConfig;
-use helpers::{to_duration, to_mode, to_block_id, to_u256, to_pending_set, to_price, replace_home,
+use helpers::{to_duration, to_mode, to_block_id, to_u256, to_pending_set, to_price, replace_home, replace_home_for_db,
 geth_ipc_path, parity_ipc_path, to_bootnodes, to_addresses, to_address, to_gas_limit, to_queue_strategy};
 use params::{ResealPolicy, AccountsConfig, GasPricerConfig, MinerExtras};
 use ethcore_logger::Config as LogConfig;
-use dir::{Directories, default_hypervisor_path};
+use dir::{Directories, default_hypervisor_path, default_local_path};
 use dapps::Configuration as DappsConfiguration;
 use signer::{Configuration as SignerConfiguration};
 use updater::{UpdatePolicy, UpdateFilter, ReleaseTrack};
@@ -85,7 +86,7 @@ pub struct Configuration {
 
 impl Configuration {
 	pub fn parse<S: AsRef<str>>(command: &[S]) -> Result<Self, ArgsError> {
-		let args = try!(Args::parse(command));
+		let args = Args::parse(command)?;
 
 		let config = Configuration {
 			args: args,
@@ -96,29 +97,29 @@ impl Configuration {
 
 	pub fn into_command(self) -> Result<Execute, String> {
 		let dirs = self.directories();
-		let pruning = try!(self.args.flag_pruning.parse());
+		let pruning = self.args.flag_pruning.parse()?;
 		let pruning_history = self.args.flag_pruning_history;
-		let vm_type = try!(self.vm_type());
-		let mode = match self.args.flag_mode.as_ref() { "last" => None, mode => Some(try!(to_mode(&mode, self.args.flag_mode_timeout, self.args.flag_mode_alarm))), };
-		let update_policy = try!(self.update_policy());
-		let miner_options = try!(self.miner_options());
+		let vm_type = self.vm_type()?;
+		let mode = match self.args.flag_mode.as_ref() { "last" => None, mode => Some(to_mode(&mode, self.args.flag_mode_timeout, self.args.flag_mode_alarm)?), };
+		let update_policy = self.update_policy()?;
+		let miner_options = self.miner_options()?;
 		let logger_config = self.logger_config();
-		let http_conf = try!(self.http_config());
-		let ipc_conf = try!(self.ipc_config());
-		let net_conf = try!(self.net_config());
+		let http_conf = self.http_config()?;
+		let ipc_conf = self.ipc_config()?;
+		let net_conf = self.net_config()?;
 		let network_id = self.network_id();
 		let cache_config = self.cache_config();
-		let spec = try!(self.chain().parse());
-		let tracing = try!(self.args.flag_tracing.parse());
-		let fat_db = try!(self.args.flag_fat_db.parse());
-		let compaction = try!(self.args.flag_db_compaction.parse());
+		let spec = self.chain().parse()?;
+		let tracing = self.args.flag_tracing.parse()?;
+		let fat_db = self.args.flag_fat_db.parse()?;
+		let compaction = self.args.flag_db_compaction.parse()?;
 		let wal = !self.args.flag_fast_and_loose;
 		let warp_sync = self.args.flag_warp;
 		let geth_compatibility = self.args.flag_geth;
 		let ui_address = self.ui_port().map(|port| (self.ui_interface(), port));
 		let dapps_conf = self.dapps_config();
 		let signer_conf = self.signer_config();
-		let format = try!(self.format());
+		let format = self.format()?;
 
 		let cmd = if self.args.flag_version {
 			Cmd::Version
@@ -237,8 +238,8 @@ impl Configuration {
 					wal: wal,
 					tracing: tracing,
 					fat_db: fat_db,
-					from_block: try!(to_block_id(&self.args.flag_from)),
-					to_block: try!(to_block_id(&self.args.flag_to)),
+					from_block: to_block_id(&self.args.flag_from)?,
+					to_block: to_block_id(&self.args.flag_to)?,
 					check_seal: !self.args.flag_no_seal_check,
 				};
 				Cmd::Blockchain(BlockchainCmd::Export(export_cmd))
@@ -255,7 +256,7 @@ impl Configuration {
 					wal: wal,
 					tracing: tracing,
 					fat_db: fat_db,
-					at: try!(to_block_id(&self.args.flag_at)),
+					at: to_block_id(&self.args.flag_at)?,
 					storage: !self.args.flag_no_storage,
 					code: !self.args.flag_no_code,
 					min_balance: self.args.flag_min_balance.and_then(|s| to_u256(&s).ok()),
@@ -278,7 +279,7 @@ impl Configuration {
 				file_path: self.args.arg_file.clone(),
 				wal: wal,
 				kind: snapshot::Kind::Take,
-				block_at: try!(to_block_id(&self.args.flag_at)),
+				block_at: to_block_id(&self.args.flag_at)?,
 			};
 			Cmd::Snapshot(snapshot_cmd)
 		} else if self.args.cmd_restore {
@@ -294,7 +295,7 @@ impl Configuration {
 				file_path: self.args.arg_file.clone(),
 				wal: wal,
 				kind: snapshot::Kind::Restore,
-				block_at: try!(to_block_id("latest")), // unimportant.
+				block_at: to_block_id("latest")?, // unimportant.
 			};
 			Cmd::Snapshot(restore_cmd)
 		} else {
@@ -319,9 +320,9 @@ impl Configuration {
 				ipc_conf: ipc_conf,
 				net_conf: net_conf,
 				network_id: network_id,
-				acc_conf: try!(self.accounts_config()),
-				gas_pricer: try!(self.gas_pricer_config()),
-				miner_extras: try!(self.miner_extras()),
+				acc_conf: self.accounts_config()?,
+				gas_pricer: self.gas_pricer_config()?,
+				miner_extras: self.miner_extras()?,
 				update_policy: update_policy,
 				mode: mode,
 				tracing: tracing,
@@ -335,6 +336,7 @@ impl Configuration {
 				net_settings: self.network_settings(),
 				dapps_conf: dapps_conf,
 				signer_conf: signer_conf,
+				dapp: self.dapp_to_open()?,
 				ui: self.args.cmd_ui,
 				name: self.args.flag_identity,
 				custom_bootnodes: self.args.flag_bootnodes.is_some(),
@@ -362,12 +364,12 @@ impl Configuration {
 
 	fn miner_extras(&self) -> Result<MinerExtras, String> {
 		let extras = MinerExtras {
-			author: try!(self.author()),
-			extra_data: try!(self.extra_data()),
-			gas_floor_target: try!(to_u256(&self.args.flag_gas_floor_target)),
-			gas_ceil_target: try!(to_u256(&self.args.flag_gas_cap)),
+			author: self.author()?,
+			extra_data: self.extra_data()?,
+			gas_floor_target: to_u256(&self.args.flag_gas_floor_target)?,
+			gas_ceil_target: to_u256(&self.args.flag_gas_cap)?,
 			transactions_limit: self.args.flag_tx_queue_size,
-			engine_signer: try!(self.engine_signer()),
+			engine_signer: self.engine_signer()?,
 		};
 
 		Ok(extras)
@@ -383,7 +385,7 @@ impl Configuration {
 
 	fn format(&self) -> Result<Option<DataFormat>, String> {
 		match self.args.flag_format {
-			Some(ref f) => Ok(Some(try!(f.parse()))),
+			Some(ref f) => Ok(Some(f.parse()?)),
 			None => Ok(None),
 		}
 	}
@@ -451,14 +453,14 @@ impl Configuration {
 			iterations: self.args.flag_keys_iterations,
 			testnet: self.args.flag_testnet,
 			password_files: self.args.flag_password.clone(),
-			unlocked_accounts: try!(to_addresses(&self.args.flag_unlock)),
+			unlocked_accounts: to_addresses(&self.args.flag_unlock)?,
 		};
 
 		Ok(cfg)
 	}
 
 	fn miner_options(&self) -> Result<MinerOptions, String> {
-		let reseal = try!(self.args.flag_reseal_on_txs.parse::<ResealPolicy>());
+		let reseal = self.args.flag_reseal_on_txs.parse::<ResealPolicy>()?;
 
 		let options = MinerOptions {
 			new_work_notify: self.work_notify(),
@@ -466,13 +468,13 @@ impl Configuration {
 			reseal_on_external_tx: reseal.external,
 			reseal_on_own_tx: reseal.own,
 			tx_gas_limit: match self.args.flag_tx_gas_limit {
-				Some(ref d) => try!(to_u256(d)),
+				Some(ref d) => to_u256(d)?,
 				None => U256::max_value(),
 			},
 			tx_queue_size: self.args.flag_tx_queue_size,
-			tx_queue_gas_limit: try!(to_gas_limit(&self.args.flag_tx_queue_gas)),
-			tx_queue_strategy: try!(to_queue_strategy(&self.args.flag_tx_queue_strategy)),
-			pending_set: try!(to_pending_set(&self.args.flag_relay_set)),
+			tx_queue_gas_limit: to_gas_limit(&self.args.flag_tx_queue_gas)?,
+			tx_queue_strategy: to_queue_strategy(&self.args.flag_tx_queue_strategy)?,
+			pending_set: to_pending_set(&self.args.flag_relay_set)?,
 			reseal_min_period: Duration::from_millis(self.args.flag_reseal_min_period),
 			work_queue_size: self.args.flag_work_queue_size,
 			enable_resubmission: !self.args.flag_remove_solved,
@@ -507,24 +509,42 @@ impl Configuration {
 			hosts: self.dapps_hosts(),
 			user: self.args.flag_dapps_user.clone(),
 			pass: self.args.flag_dapps_pass.clone(),
-			dapps_path: self.directories().dapps,
+			dapps_path: PathBuf::from(self.directories().dapps),
+			extra_dapps: if self.args.cmd_dapp {
+				self.args.arg_path.iter().map(|path| PathBuf::from(path)).collect()
+			} else {
+				vec![]
+			},
 		}
+	}
+
+	fn dapp_to_open(&self) -> Result<Option<String>, String> {
+		if !self.args.cmd_dapp {
+			return Ok(None);
+		}
+		let path = self.args.arg_path.get(0).map(String::as_str).unwrap_or(".");
+		let path = Path::new(path).canonicalize()
+			.map_err(|e| format!("Invalid path: {}. Error: {:?}", path, e))?;
+		let name = path.file_name()
+			.and_then(|name| name.to_str())
+			.ok_or_else(|| "Root path is not supported.".to_owned())?;
+		Ok(Some(name.into()))
 	}
 
 	fn gas_pricer_config(&self) -> Result<GasPricerConfig, String> {
 		if let Some(d) = self.args.flag_gasprice.as_ref() {
-			return Ok(GasPricerConfig::Fixed(try!(to_u256(d))));
+			return Ok(GasPricerConfig::Fixed(to_u256(d)?));
 		}
 
-		let usd_per_tx = try!(to_price(&self.args.flag_usd_per_tx));
+		let usd_per_tx = to_price(&self.args.flag_usd_per_tx)?;
 		if "auto" == self.args.flag_usd_per_eth.as_str() {
 			return Ok(GasPricerConfig::Calibrated {
 				usd_per_tx: usd_per_tx,
-				recalibration_period: try!(to_duration(self.args.flag_price_update_period.as_str())),
+				recalibration_period: to_duration(self.args.flag_price_update_period.as_str())?,
 			});
 		}
 
-		let usd_per_eth = try!(to_price(&self.args.flag_usd_per_eth));
+		let usd_per_eth = to_price(&self.args.flag_usd_per_eth)?;
 		let wei_per_usd: f32 = 1.0e18 / usd_per_eth;
 		let gas_per_tx: f32 = 21000.0;
 		let wei_per_gas: f32 = wei_per_usd * usd_per_tx / gas_per_tx;
@@ -552,8 +572,8 @@ impl Configuration {
 		match self.args.flag_reserved_peers {
 			Some(ref path) => {
 				let mut buffer = String::new();
-				let mut node_file = try!(File::open(path).map_err(|e| format!("Error opening reserved nodes file: {}", e)));
-				try!(node_file.read_to_string(&mut buffer).map_err(|_| "Error reading reserved node file"));
+				let mut node_file = File::open(path).map_err(|e| format!("Error opening reserved nodes file: {}", e))?;
+				node_file.read_to_string(&mut buffer).map_err(|_| "Error reading reserved node file")?;
 				let lines = buffer.lines().map(|s| s.trim().to_owned()).filter(|s| !s.is_empty()).collect::<Vec<_>>();
 				if let Some(invalid) = lines.iter().find(|s| !is_valid_node_url(s)) {
 					return Err(format!("Invalid node address format given for a boot node: {}", invalid));
@@ -569,7 +589,7 @@ impl Configuration {
 		let listen_address = Some(SocketAddr::new("0.0.0.0".parse().unwrap(), port));
 		let public_address = if self.args.flag_nat.starts_with("extip:") {
 			let host = &self.args.flag_nat[6..];
-			let host = try!(host.parse().map_err(|_| format!("Invalid host given with `--nat extip:{}`", host)));
+			let host = host.parse().map_err(|_| format!("Invalid host given with `--nat extip:{}`", host))?;
 			Some(SocketAddr::new(host, port))
 		} else {
 			None
@@ -580,21 +600,27 @@ impl Configuration {
 	fn net_config(&self) -> Result<NetworkConfiguration, String> {
 		let mut ret = NetworkConfiguration::new();
 		ret.nat_enabled = self.args.flag_nat == "any" || self.args.flag_nat == "upnp";
-		ret.boot_nodes = try!(to_bootnodes(&self.args.flag_bootnodes));
-		let (listen, public) = try!(self.net_addresses());
+		ret.boot_nodes = to_bootnodes(&self.args.flag_bootnodes)?;
+		let (listen, public) = self.net_addresses()?;
 		ret.listen_address = listen.map(|l| format!("{}", l));
 		ret.public_address = public.map(|p| format!("{}", p));
-		ret.use_secret = self.args.flag_node_key.as_ref().map(|s| s.parse::<Secret>().unwrap_or_else(|_| s.sha3()));
+		ret.use_secret = match self.args.flag_node_key.as_ref()
+			.map(|s| s.parse::<Secret>().or_else(|_| Secret::from_slice(&s.sha3())).map_err(|e| format!("Invalid key: {:?}", e))
+			) {
+			None => None,
+			Some(Ok(key)) => Some(key),
+			Some(Err(err)) => return Err(err),
+		};
 		ret.discovery_enabled = !self.args.flag_no_discovery && !self.args.flag_nodiscover;
 		ret.max_peers = self.max_peers();
 		ret.min_peers = self.min_peers();
 		ret.snapshot_peers = self.snapshot_peers();
-		ret.allow_ips = try!(self.allow_ips());
+		ret.allow_ips = self.allow_ips()?;
 		ret.max_pending_peers = self.max_pending_peers();
 		let mut net_path = PathBuf::from(self.directories().base);
 		net_path.push("network");
 		ret.config_path = Some(net_path.to_str().unwrap().to_owned());
-		ret.reserved_nodes = try!(self.init_reserved_nodes());
+		ret.reserved_nodes = self.init_reserved_nodes()?;
 		ret.allow_non_reserved = !self.args.flag_reserved_only;
 		Ok(ret)
 	}
@@ -651,7 +677,7 @@ impl Configuration {
  					}
 					apis.push_str("personal");
 				}
-				try!(apis.parse())
+				apis.parse()?
 			},
 		};
 
@@ -663,7 +689,7 @@ impl Configuration {
 			enabled: !self.args.flag_jsonrpc_off && !self.args.flag_no_jsonrpc,
 			interface: self.rpc_interface(),
 			port: self.args.flag_rpcport.unwrap_or(self.args.flag_jsonrpc_port),
-			apis: try!(self.rpc_apis().parse()),
+			apis: self.rpc_apis().parse()?,
 			hosts: self.rpc_hosts(),
 			cors: self.rpc_cors(),
 		};
@@ -690,7 +716,7 @@ impl Configuration {
 				"none" => UpdateFilter::None,
 				"critical" => UpdateFilter::Critical,
 				"all" => UpdateFilter::All,
-				_ => return Err("Invalid value for `--auto-update`. See `--help` for more information.".into()), 
+				_ => return Err("Invalid value for `--auto-update`. See `--help` for more information.".into()),
 			},
 			track: match self.args.flag_release_track.as_ref() {
 				"stable" => ReleaseTrack::Stable,
@@ -698,7 +724,7 @@ impl Configuration {
 				"nightly" => ReleaseTrack::Nightly,
 				"testing" => ReleaseTrack::Testing,
 				"current" => ReleaseTrack::Unknown,
-				_ => return Err("Invalid value for `--releases-track`. See `--help` for more information.".into()), 
+				_ => return Err("Invalid value for `--releases-track`. See `--help` for more information.".into()),
 			},
 			path: default_hypervisor_path(),
 		})
@@ -707,9 +733,14 @@ impl Configuration {
 	fn directories(&self) -> Directories {
 		use util::path;
 
+		let local_path = default_local_path();
 		let data_path = replace_home("", self.args.flag_datadir.as_ref().unwrap_or(&self.args.flag_base_path));
 
-		let db_path = replace_home(&data_path, &self.args.flag_db_path);
+		let db_path = if self.args.flag_datadir.is_some() {
+			replace_home(&data_path, &self.args.flag_db_path)
+		} else {
+			replace_home_for_db(&data_path, &local_path, &self.args.flag_db_path)
+		};
 		let keys_path = replace_home(&data_path, &self.args.flag_keys_path);
 		let dapps_path = replace_home(&data_path, &self.args.flag_dapps_path);
 		let ui_path = replace_home(&data_path, &self.args.flag_ui_path);
@@ -1025,6 +1056,7 @@ mod tests {
 			dapps_conf: Default::default(),
 			signer_conf: Default::default(),
 			ui: false,
+			dapp: None,
 			name: "".into(),
 			custom_bootnodes: false,
 			fat_db: Default::default(),
@@ -1217,6 +1249,22 @@ mod tests {
 			signer_path: "signer".into(),
 			skip_origin_validation: false,
 		});
+	}
+
+	#[test]
+	fn should_parse_dapp_opening() {
+		// given
+		let temp = RandomTempPath::new();
+		let name = temp.file_name().unwrap().to_str().unwrap();
+		create_dir(temp.as_str().to_owned()).unwrap();
+
+		// when
+		let conf0 = parse(&["parity", "dapp", temp.to_str().unwrap()]);
+
+		// then
+		assert_eq!(conf0.dapp_to_open(), Ok(Some(name.into())));
+		let extra_dapps = conf0.dapps_config().extra_dapps;
+		assert_eq!(extra_dapps, vec![temp.to_owned()]);
 	}
 
 	#[test]
