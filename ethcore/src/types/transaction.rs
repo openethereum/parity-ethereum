@@ -285,9 +285,9 @@ impl UnverifiedTransaction {
 		s.append(&self.s);
 	}
 
-	/// Clones unsigned part of this transaction.
-	pub fn to_unsigned(&self) -> Transaction {
-		self.unsigned.clone()
+	///	Reference to unsigned part of this transaction.
+	pub fn as_unsigned(&self) -> &Transaction {
+		&self.unsigned
 	}
 
 	/// 0 if `v` would have been 27 under "Electrum" notation, 1 if 28 or 4 if invalid.

@@ -894,7 +894,7 @@ impl BlockChainClient for Client {
 		let options = TransactOptions { tracing: true, vm_tracing: false, check_nonce: false };
 
 		let cond = |gas| {
-			let mut tx = t.to_unsigned();
+			let mut tx = t.as_unsigned().clone();
 			tx.gas = gas;
 			let tx = tx.fake_sign(t.sender());
 
