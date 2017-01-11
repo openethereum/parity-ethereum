@@ -23,7 +23,7 @@ import { bytesToHex } from '~/api/util/format';
 import Contract from '~/api/contract';
 import ERRORS from './errors';
 import { ERROR_CODES } from '~/api/transport/error';
-import { DEFAULT_GAS, MAX_GAS_ESTIMATION } from '~/util/constants';
+import { DEFAULT_GAS, DEFAULT_GASPRICE, MAX_GAS_ESTIMATION } from '~/util/constants';
 import GasPriceStore from '~/ui/GasPriceEditor/store';
 import { getLogger, LOG_KEYS } from '~/config';
 
@@ -441,6 +441,8 @@ export default class TransferStore {
     const gasTotal = new BigNumber(_gasTotal || 0);
     const { valueAll, isEth, isWallet } = this;
 
+    log.debug('@getValues', 'gas', gasTotal.toFormat());
+
     if (!valueAll) {
       const value = this.getTokenValue();
 
@@ -568,6 +570,7 @@ export default class TransferStore {
   send () {
     const { options, values } = this._getTransferParams();
     options.minBlock = new BigNumber(this.minBlock || 0).gt(0) ? this.minBlock : null;
+    log.debug('@send', 'transfer value', options.value && options.value.toFormat());
 
     return this._getTransferMethod().postTransaction(options, values);
   }
@@ -626,7 +629,8 @@ export default class TransferStore {
       options.gas = MAX_GAS_ESTIMATION;
     }
 
-    const { token } = this.getValues(options.gas);
+    const gasTotal = new BigNumber(options.gas || DEFAULT_GAS).mul(options.gasPrice || DEFAULT_GASPRICE);
+    const { token } = this.getValues(gasTotal);
 
     if (isEth && !isWallet && !forceToken) {
       options.value = token;
