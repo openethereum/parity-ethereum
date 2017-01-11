@@ -23,15 +23,35 @@ use header::Header;
 use rlp::*;
 use ethkey::{recover, public_to_address};
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+/// Message transmitted between consensus participants.
+#[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub struct ConsensusMessage {
+	pub vote_step: VoteStep,
+	pub block_hash: Option<BlockHash>,
 	pub signature: H520,
+}
+
+/// Complete step of the consensus process.
+#[derive(Debug, PartialEq, Eq, Clone, Hash)]
+pub struct VoteStep {
 	pub height: Height,
 	pub round: Round,
 	pub step: Step,
-	pub block_hash: Option<BlockHash>,
 }
 
+impl VoteStep {
+	pub fn new(height: Height, round: Round, step: Step) -> Self {
+		VoteStep { height: height, round: round, step: step }
+	}
+
+	pub fn is_height(&self, height: Height) -> bool {
+		self.height == height
+	}
+
+	pub fn is_round(&self, height: Height, round: Round) -> bool {
+		self.height == height && self.round == round
+	}
+}
 
 fn consensus_round(header: &Header) -> Result<Round, ::rlp::DecoderError> {
 	let round_rlp = header.seal().get(0).expect("seal passed basic verification; seal has 3 fields; qed");
@@ -42,51 +62,27 @@ impl ConsensusMessage {
 	pub fn new(signature: H520, height: Height, round: Round, step: Step, block_hash: Option<BlockHash>) -> Self {
 		ConsensusMessage {
 			signature: signature,
-			height: height,
-			round: round,
-			step: step,
 			block_hash: block_hash,
+			vote_step: VoteStep::new(height, round, step),
 		}
 	}
 
 	pub fn new_proposal(header: &Header) -> Result<Self, ::rlp::DecoderError> {
 		Ok(ConsensusMessage {
+			vote_step: VoteStep::new(header.number() as Height, consensus_round(header)?, Step::Propose),
 			signature: UntrustedRlp::new(header.seal().get(1).expect("seal passed basic verification; seal has 3 fields; qed").as_slice()).as_val()?,
-			height: header.number() as Height,
-			round: consensus_round(header)?,
-			step: Step::Propose,
 			block_hash: Some(header.bare_hash()),
 		})
 	}
 
 	pub fn new_commit(proposal: &ConsensusMessage, signature: H520) -> Self {
+		let mut vote_step = proposal.vote_step.clone();
+		vote_step.step = Step::Precommit;
 		ConsensusMessage {
-			signature: signature,
-			height: proposal.height,
-			round: proposal.round,
-			step: Step::Precommit,
+			vote_step: vote_step,
 			block_hash: proposal.block_hash,
+			signature: signature,
 		}
-	}
-
-	pub fn is_height(&self, height: Height) -> bool {
-		self.height == height
-	}
-
-	pub fn is_round(&self, height: Height, round: Round) -> bool {
-		self.height == height && self.round == round
-	}
-
-	pub fn is_step(&self, height: Height, round: Round, step: Step) -> bool {
-		self.height == height && self.round == round && self.step == step
-	}
-
-	pub fn is_block_hash(&self, h: Height, r: Round, s: Step, block_hash: Option<BlockHash>) -> bool {
-		self.height == h && self.round == r && self.step == s && self.block_hash == block_hash
-	}
-
-	pub fn is_aligned(&self, m: &ConsensusMessage) -> bool {
-		self.is_block_hash(m.height, m.round, m.step, m.block_hash)
 	}
 
 	pub fn verify(&self) -> Result<Address, Error> {
@@ -97,13 +93,27 @@ impl ConsensusMessage {
 	}
 
 	pub fn precommit_hash(&self) -> H256 {
-		message_info_rlp(self.height, self.round, Step::Precommit, self.block_hash).sha3()
+		let mut vote_step = self.vote_step.clone();
+		vote_step.step = Step::Precommit;
+		message_info_rlp(&vote_step, self.block_hash).sha3()
 	}
 }
 
-impl PartialOrd for ConsensusMessage {
-	fn partial_cmp(&self, m: &ConsensusMessage) -> Option<Ordering> {
+impl PartialOrd for VoteStep {
+	fn partial_cmp(&self, m: &VoteStep) -> Option<Ordering> {
 		Some(self.cmp(m))
+	}
+}
+
+impl Ord for VoteStep {
+	fn cmp(&self, m: &VoteStep) -> Ordering {
+		if self.height != m.height {
+			self.height.cmp(&m.height)
+		} else if self.round != m.round {
+			self.round.cmp(&m.round)
+		} else {
+			self.step.number().cmp(&m.step.number())
+		}
 	}
 }
 
@@ -114,20 +124,6 @@ impl Step {
 			Step::Prevote => 1,
 			Step::Precommit => 2,
 			Step::Commit => 3,
-		}
-	}
-}
-
-impl Ord for ConsensusMessage {
-	fn cmp(&self, m: &ConsensusMessage) -> Ordering {
-		if self.height != m.height {
-			self.height.cmp(&m.height)
-		} else if self.round != m.round {
-			self.round.cmp(&m.round)
-		} else if self.step != m.step {
-			self.step.number().cmp(&m.step.number())
-		} else {
-			self.signature.cmp(&m.signature)
 		}
 	}
 }
@@ -149,41 +145,38 @@ impl Encodable for Step {
 	}
 }
 
-/// (signature, height, round, step, block_hash)
+/// (signature, (height, round, step, block_hash))
 impl Decodable for ConsensusMessage {
 	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
 		let rlp = decoder.as_rlp();
 		let m = rlp.at(1)?;
 		let block_message: H256 = m.val_at(3)?;
 		Ok(ConsensusMessage {
-			signature: rlp.val_at(0)?,
-			height: m.val_at(0)?,
-			round: m.val_at(1)?,
-			step: m.val_at(2)?,
+			vote_step: VoteStep::new(m.val_at(0)?, m.val_at(1)?, m.val_at(2)?),
 			block_hash: match block_message.is_zero() {
 				true => None,
 				false => Some(block_message),
-			}
+			},
+			signature: rlp.val_at(0)?,
 		})
   }
 }
 
 impl Encodable for ConsensusMessage {
 	fn rlp_append(&self, s: &mut RlpStream) {
-		let info = message_info_rlp(self.height, self.round, self.step, self.block_hash);
+		let info = message_info_rlp(&self.vote_step, self.block_hash);
 		s.begin_list(2)
 			.append(&self.signature)
 			.append_raw(&info, 1);
 	}
 }
 
-pub fn message_info_rlp(height: Height, round: Round, step: Step, block_hash: Option<BlockHash>) -> Bytes {
+pub fn message_info_rlp(vote_step: &VoteStep, block_hash: Option<BlockHash>) -> Bytes {
 	// TODO: figure out whats wrong with nested list encoding
 	let mut s = RlpStream::new_list(5);
-	s.append(&height).append(&round).append(&step).append(&block_hash.unwrap_or_else(H256::zero));
+	s.append(&vote_step.height).append(&vote_step.round).append(&vote_step.step).append(&block_hash.unwrap_or_else(H256::zero));
 	s.out()
 }
-
 
 pub fn message_full_rlp(signature: &H520, vote_info: &Bytes) -> Bytes {
 	let mut s = RlpStream::new_list(2);
@@ -204,10 +197,12 @@ mod tests {
 	#[test]
 	fn encode_decode() {
 		let message = ConsensusMessage {
-			signature: H520::default(),
-			height: 10,
-			round: 123,
-			step: Step::Precommit,
+			signature: H520::default(),	
+			vote_step: VoteStep {
+				height: 10,
+				round: 123,
+				step: Step::Precommit,
+			},
 			block_hash: Some("1".sha3())
 		};
 		let raw_rlp = ::rlp::encode(&message).to_vec();
@@ -215,10 +210,12 @@ mod tests {
 		assert_eq!(message, rlp.as_val());
 
 		let message = ConsensusMessage {
-			signature: H520::default(),
-			height: 1314,
-			round: 0,
-			step: Step::Prevote,
+			signature: H520::default(),	
+			vote_step: VoteStep {
+				height: 1314,
+				round: 0,
+				step: Step::Prevote,
+			},
 			block_hash: None
 		};
 		let raw_rlp = ::rlp::encode(&message);
@@ -232,7 +229,7 @@ mod tests {
 		let addr = tap.insert_account(Secret::from_slice(&"0".sha3()).unwrap(), "0").unwrap();
 		tap.unlock_account_permanently(addr, "0".into()).unwrap();
 
-		let mi = message_info_rlp(123, 2, Step::Precommit, Some(H256::default()));
+		let mi = message_info_rlp(&VoteStep::new(123, 2, Step::Precommit), Some(H256::default()));
 
 		let raw_rlp = message_full_rlp(&tap.sign(addr, None, mi.sha3()).unwrap().into(), &mi);
 
@@ -255,9 +252,11 @@ mod tests {
 			message,
 			ConsensusMessage {
 				signature: Default::default(),
-				height: 0,
-				round: 0,
-				step: Step::Propose,
+				vote_step: VoteStep {
+					height: 0,
+					round: 0,
+					step: Step::Propose,
+				},
 				block_hash: Some(header.bare_hash())
 			}
 		);
@@ -268,12 +267,10 @@ mod tests {
 		let header = Header::default();
 		let pro = ConsensusMessage {
 			signature: Default::default(),
-			height: 0,
-			round: 0,
-			step: Step::Propose,
+			vote_step: VoteStep::new(0, 0, Step::Propose),
 			block_hash: Some(header.bare_hash())
 		};
-		let pre = message_info_rlp(0, 0, Step::Precommit, Some(header.bare_hash()));
+		let pre = message_info_rlp(&VoteStep::new(0, 0, Step::Precommit), Some(header.bare_hash()));
 
 		assert_eq!(pro.precommit_hash(), pre.sha3());
 	}
