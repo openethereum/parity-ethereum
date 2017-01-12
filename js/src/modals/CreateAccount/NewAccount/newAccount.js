@@ -19,7 +19,7 @@ import { IconButton } from 'material-ui';
 import { RadioButton, RadioButtonGroup } from 'material-ui/RadioButton';
 import ActionAutorenew from 'material-ui/svg-icons/action/autorenew';
 
-import { Form, Input, IdentityIcon, PasswordStrength } from '~/ui';
+import { Form, Input, IdentityIcon } from '~/ui';
 
 import ERRORS from '../errors';
 
@@ -90,7 +90,6 @@ export default class CreateAccount extends Component {
               onChange={ this.onEditPassword2 } />
           </div>
         </div>
-        <PasswordStrength input={ password1 } />
         { this.renderIdentitySelector() }
         { this.renderIdentities() }
       </Form>

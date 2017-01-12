@@ -17,7 +17,7 @@
 import React, { Component, PropTypes } from 'react';
 import { Checkbox } from 'material-ui';
 
-import { Form, Input, PasswordStrength } from '~/ui';
+import { Form, Input } from '~/ui';
 
 import styles from '../createAccount.css';
 
@@ -89,7 +89,6 @@ export default class RecoveryPhrase extends Component {
               onChange={ this.onEditPassword2 } />
           </div>
         </div>
-        <PasswordStrength input={ password1 } />
         <Checkbox
           className={ styles.checkbox }
           label='Key was created with Parity <1.4.5 on Windows'

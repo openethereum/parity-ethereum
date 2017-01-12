@@ -16,7 +16,7 @@
 
 import React, { Component, PropTypes } from 'react';
 
-import { Form, Input, PasswordStrength } from '~/ui';
+import { Form, Input } from '~/ui';
 
 import styles from '../createAccount.css';
 
@@ -92,7 +92,6 @@ export default class RawKey extends Component {
               onChange={ this.onEditPassword2 } />
           </div>
         </div>
-        <PasswordStrength input={ password1 } />
       </Form>
     );
   }

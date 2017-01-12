@@ -29,7 +29,6 @@ const BAR_STYLE = {
 };
 
 export default class PasswordStrength extends Component {
-
   static propTypes = {
     input: PropTypes.string.isRequired
   };
@@ -41,7 +40,7 @@ export default class PasswordStrength extends Component {
   constructor (props) {
     super(props);
 
-    this.updateStrength = debounce(this._updateStrength, 500, { leading: true });
+    this.updateStrength = debounce(this._updateStrength, 50, { leading: true });
   }
 
   componentWillMount () {
@@ -76,7 +75,7 @@ export default class PasswordStrength extends Component {
       <div className={ styles.strength }>
         <label className={ styles.label }>
           <FormattedMessage
-            id='passwordStrength.label'
+            id='ui.passwordStrength.label'
             defaultMessage='password strength'
           />
         </label>
@@ -96,14 +95,12 @@ export default class PasswordStrength extends Component {
   // Note that the suggestions are in english, thus it wouldn't
   // make sense to add translations to surrounding words
   renderFeedback (feedback = {}) {
-    const { crack_times_display } = this.state.strength;
     const { suggestions = [] } = feedback;
 
     return (
       <div>
         <p>
-          It would take { crack_times_display.offline_slow_hashing_1e4_per_second } to crack this password.
-          &nbsp;{ suggestions.join(' ') }
+          { suggestions.join(' ') }
         </p>
       </div>
     );
@@ -122,7 +119,6 @@ export default class PasswordStrength extends Component {
         return 'orange';
 
       default:
-      case 0:
         return 'red';
     }
   }

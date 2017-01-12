@@ -33,6 +33,9 @@ describe('ui/Form/PasswordStrength', () => {
   describe('rendering', () => {
     it('renders', () => {
       expect(render({ input: INPUT_A })).to.be.ok;
+    });
+
+    it('renders a linear progress', () => {
       expect(render({ input: INPUT_A }).find('LinearProgress')).to.be.ok;
     });
 
