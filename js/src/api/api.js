@@ -14,6 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import EventEmitter from 'eventemitter3';
+
 import { Http, Ws } from './transport';
 import Contract from './contract';
 
@@ -22,8 +24,10 @@ import Subscriptions from './subscriptions';
 import util from './util';
 import { isFunction } from './util/types';
 
-export default class Api {
+export default class Api extends EventEmitter {
   constructor (transport) {
+    super();
+
     if (!transport || !isFunction(transport.execute)) {
       throw new Error('EthApi needs transport with execute() function defined');
     }

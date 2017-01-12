@@ -14,8 +14,14 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import BalancesProvider from './balances';
 import { statusBlockNumber, statusCollection, statusLogs } from './statusActions';
 import { isEqual } from 'lodash';
+
+import { LOG_KEYS, getLogger } from '~/config';
+
+const log = getLogger(LOG_KEYS.Signer);
+let instance = null;
 
 export default class Status {
   constructor (store, api) {
@@ -27,20 +33,90 @@ export default class Status {
     this._longStatus = {};
     this._minerSettings = {};
 
-    this._longStatusTimeoutId = null;
+    this._timeoutIds = {};
+    this._blockNumberSubscriptionId = null;
 
     this._timestamp = Date.now();
+
+    // On connecting, stop all subscriptions
+    api.on('connecting', this.stop, this);
+
+    // On connected, start the subscriptions
+    api.on('connected', this.start, this);
+
+    // On disconnected, stop all subscriptions
+    api.on('disconnected', this.stop, this);
+
+    this.updateApiStatus();
+  }
+
+  static instantiate (store, api) {
+    if (!instance) {
+      instance = new Status(store, api);
+    }
+
+    return instance;
   }
 
   start () {
-    this._subscribeBlockNumber();
-    this._pollStatus();
-    this._pollLongStatus();
-    this._pollLogs();
+    log.debug('status::start');
+
+    Promise
+      .all([
+        this._subscribeBlockNumber(),
+
+        this._pollLogs(),
+        this._pollLongStatus(),
+        this._pollStatus()
+      ])
+      .then(() => {
+        return BalancesProvider.start();
+      });
   }
 
-  _subscribeBlockNumber () {
-    this._api
+  stop () {
+    log.debug('status::stop');
+
+    const promises = [];
+
+    if (this._blockNumberSubscriptionId) {
+      const promise = this._api
+        .unsubscribe(this._blockNumberSubscriptionId)
+        .then(() => {
+          this._blockNumberSubscriptionId = null;
+        });
+
+      promises.push(promise);
+    }
+
+    Object.values(this._timeoutIds).forEach((timeoutId) => {
+      clearTimeout(timeoutId);
+    });
+
+    const promise = BalancesProvider.stop();
+    promises.push(promise);
+
+    return Promise.all(promises)
+      .then(() => true)
+      .catch((error) => {
+        console.error('status::stop', error);
+        return true;
+      })
+      .then(() => this.updateApiStatus());
+  }
+
+  updateApiStatus () {
+    const apiStatus = this.getApiStatus();
+    log.debug('status::updateApiStatus', apiStatus);
+
+    if (!isEqual(apiStatus, this._apiStatus)) {
+      this._store.dispatch(statusCollection(apiStatus));
+      this._apiStatus = apiStatus;
+    }
+  }
+
+  _subscribeBlockNumber = () => {
+    return this._api
       .subscribe('eth_blockNumber', (error, blockNumber) => {
         if (error) {
           return;
@@ -51,6 +127,10 @@ export default class Status {
         this._api.eth
           .getBlockByNumber(blockNumber)
           .then((block) => {
+            if (!block) {
+              return;
+            }
+
             this._store.dispatch(statusCollection({
               blockTimestamp: block.timestamp,
               gasLimit: block.gasLimit
@@ -59,6 +139,9 @@ export default class Status {
           .catch((error) => {
             console.warn('status._subscribeBlockNumber', 'getBlockByNumber', error);
           });
+      })
+      .then((blockNumberSubscriptionId) => {
+        this._blockNumberSubscriptionId = blockNumberSubscriptionId;
       });
   }
 
@@ -72,11 +155,7 @@ export default class Status {
       .catch(() => false);
   }
 
-  _pollStatus = () => {
-    const nextTimeout = (timeout = 1000) => {
-      setTimeout(() => this._pollStatus(), timeout);
-    };
-
+  getApiStatus = () => {
     const { isConnected, isConnecting, needsToken, secureToken } = this._api;
 
     const apiStatus = {
@@ -86,19 +165,23 @@ export default class Status {
       secureToken
     };
 
-    const gotConnected = !this._apiStatus.isConnected && apiStatus.isConnected;
+    return apiStatus;
+  }
 
-    if (gotConnected) {
-      this._pollLongStatus();
-    }
+  _pollStatus = () => {
+    const nextTimeout = (timeout = 1000) => {
+      if (this._timeoutIds.status) {
+        clearTimeout(this._timeoutIds.status);
+      }
 
-    if (!isEqual(apiStatus, this._apiStatus)) {
-      this._store.dispatch(statusCollection(apiStatus));
-      this._apiStatus = apiStatus;
-    }
+      this._timeoutIds.status = setTimeout(() => this._pollStatus(), timeout);
+    };
 
-    if (!isConnected) {
-      return nextTimeout(250);
+    this.updateApiStatus();
+
+    if (!this._api.isConnected) {
+      nextTimeout(250);
+      return Promise.resolve();
     }
 
     const { refreshStatus } = this._store.getState().nodeStatus;
@@ -110,7 +193,7 @@ export default class Status {
       statusPromises.push(this._api.eth.hashrate());
     }
 
-    Promise
+    return Promise
       .all(statusPromises)
       .then(([ syncing, ...statusResults ]) => {
         const status = statusResults.length === 0
@@ -125,11 +208,11 @@ export default class Status {
           this._store.dispatch(statusCollection(status));
           this._status = status;
         }
-
-        nextTimeout();
       })
       .catch((error) => {
         console.error('_pollStatus', error);
+      })
+      .then(() => {
         nextTimeout();
       });
   }
@@ -140,7 +223,7 @@ export default class Status {
    * from the UI
    */
   _pollMinerSettings = () => {
-    Promise
+    return Promise
       .all([
         this._api.eth.coinbase(),
         this._api.parity.extraData(),
@@ -175,21 +258,21 @@ export default class Status {
    */
   _pollLongStatus = () => {
     if (!this._api.isConnected) {
-      return;
+      return Promise.resolve();
     }
 
     const nextTimeout = (timeout = 30000) => {
-      if (this._longStatusTimeoutId) {
-        clearTimeout(this._longStatusTimeoutId);
+      if (this._timeoutIds.longStatus) {
+        clearTimeout(this._timeoutIds.longStatus);
       }
 
-      this._longStatusTimeoutId = setTimeout(this._pollLongStatus, timeout);
+      this._timeoutIds.longStatus = setTimeout(() => this._pollLongStatus(), timeout);
     };
 
     // Poll Miner settings just in case
-    this._pollMinerSettings();
+    const minerPromise = this._pollMinerSettings();
 
-    Promise
+    const mainPromise = Promise
       .all([
         this._api.parity.netPeers(),
         this._api.web3.clientVersion(),
@@ -225,21 +308,31 @@ export default class Status {
       })
       .catch((error) => {
         console.error('_pollLongStatus', error);
+      })
+      .then(() => {
+        nextTimeout(60000);
       });
 
-    nextTimeout(60000);
+    return Promise.all([ minerPromise, mainPromise ]);
   }
 
   _pollLogs = () => {
-    const nextTimeout = (timeout = 1000) => setTimeout(this._pollLogs, timeout);
+    const nextTimeout = (timeout = 1000) => {
+      if (this._timeoutIds.logs) {
+        clearTimeout(this._timeoutIds.logs);
+      }
+
+      this._timeoutIds.logs = setTimeout(this._pollLogs, timeout);
+    };
+
     const { devLogsEnabled } = this._store.getState().nodeStatus;
 
     if (!devLogsEnabled) {
       nextTimeout();
-      return;
+      return Promise.resolve();
     }
 
-    Promise
+    return Promise
       .all([
         this._api.parity.devLogs(),
         this._api.parity.devLogsLevels()
@@ -249,11 +342,12 @@ export default class Status {
           devLogs: devLogs.slice(-1024),
           devLogsLevels
         }));
-        nextTimeout();
       })
       .catch((error) => {
         console.error('_pollLogs', error);
-        nextTimeout();
+      })
+      .then(() => {
+        return nextTimeout();
       });
   }
 }
