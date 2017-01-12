@@ -38,7 +38,6 @@ export default class DappsStore {
 
   _api = null;
   _subscriptions = {};
-
   _cachedApps = {};
   _manifests = {};
   _registryAppsIds = null;
@@ -281,3 +280,7 @@ export default class DappsStore {
     });
   }
 }
+
+export {
+  LS_KEY_DISPLAY
+};
