@@ -195,7 +195,7 @@ export default class GatherData extends Component {
           <SuccessIcon />
           <p className={ styles.message }>
             <FormattedMessage
-              id='ui.verification.gatherData.hasRequested.true'
+              id='ui.verification.gatherData.hasRequested.false'
               defaultMessage='You did not request verification yet.'
             />
           </p>
