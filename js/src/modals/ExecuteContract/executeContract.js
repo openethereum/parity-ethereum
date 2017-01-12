@@ -155,8 +155,7 @@ class ExecuteContract extends Component {
     }
 
     return (
-      <Warning
-        warning={ errorEstimated } />
+      <Warning warning={ errorEstimated } />
     );
   }
 
@@ -378,6 +377,7 @@ class ExecuteContract extends Component {
         this.gasStore.setGas(gas.toFixed(0));
       })
       .catch((error) => {
+        this.gasStore.setEstimatedError();
         console.warn('estimateGas', error);
       });
   }

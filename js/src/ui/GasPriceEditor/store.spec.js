@@ -82,6 +82,24 @@ describe('ui/GasPriceEditor/store', () => {
       });
     });
 
+    describe('setEstimatedError', () => {
+      it('sets the value as provided', () => {
+        store.setEstimatedError('errorTest');
+        expect(store.errorEstimated).to.equal('errorTest');
+      });
+
+      it('sets the null value as provided', () => {
+        store.setEstimatedError('errorTest');
+        store.setEstimatedError(null);
+        expect(store.errorEstimated).to.be.null;
+      });
+
+      it('sets a default error when none provided', () => {
+        store.setEstimatedError();
+        expect(store.errorEstimated).to.equal(ERRORS.gasException);
+      });
+    });
+
     describe('setEstimated', () => {
       it('sets the value', () => {
         store.setEstimated('789');
