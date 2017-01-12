@@ -75,7 +75,6 @@ let store;
 
 function create () {
   api = {};
-
   store = new Store(api);
 
   return store;
