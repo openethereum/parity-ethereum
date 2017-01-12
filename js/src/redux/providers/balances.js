@@ -70,7 +70,12 @@ export default class Balances {
     }
   }
 
-  static get () {
+  static get (store = {}) {
+    if (!instance && store) {
+      const { api } = store.getState();
+      return Balances.instantiate(store, api);
+    }
+
     return instance;
   }
 

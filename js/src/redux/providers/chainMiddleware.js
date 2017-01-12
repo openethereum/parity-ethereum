@@ -32,7 +32,7 @@ export default class ChainMiddleware {
             store.dispatch(showSnackbar(`Switched to ${newChain}. Please reload the page.`, 60000));
 
             // Fetch the new balances without notifying the user of any change
-            BalancesProvider.get().fetchAllBalances({
+            BalancesProvider.get(store).fetchAllBalances({
               changedNetwork: true
             });
           }
