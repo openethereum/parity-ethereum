@@ -176,8 +176,6 @@ class PasswordManager extends Component {
                     defaultMessage='current password' />
                 }
                 onChange={ this.onEditCurrentPassword }
-                onSubmit={ this.changePassword }
-                submitOnBlur={ false }
                 type='password' />
               <Input
                 disabled={ busy }
