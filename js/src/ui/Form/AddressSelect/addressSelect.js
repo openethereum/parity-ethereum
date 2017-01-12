@@ -25,6 +25,7 @@ import TextFieldUnderline from 'material-ui/TextField/TextFieldUnderline';
 
 import AccountCard from '~/ui/AccountCard';
 import InputAddress from '~/ui/Form/InputAddress';
+import Loading from '~/ui/Loading';
 import Portal from '~/ui/Portal';
 import { nodeOrStringProptype } from '~/util/proptypes';
 import { validateAddress } from '~/util/validation';
@@ -130,7 +131,7 @@ class AddressSelect extends Component {
     const input = (
       <InputAddress
         accountsInfo={ accountsInfo }
-        allowCopy={ allowCopy }
+        allowCopy={ (disabled || readOnly) && allowCopy ? allowCopy : false }
         className={ className }
         disabled={ disabled || readOnly }
         error={ error }
@@ -182,17 +183,20 @@ class AddressSelect extends Component {
         <label className={ styles.label } htmlFor={ id }>
           { label }
         </label>
-        <input
-          id={ id }
-          className={ styles.input }
-          placeholder={ ilHint }
+        <div className={ styles.outerInput }>
+          <input
+            id={ id }
+            className={ styles.input }
+            placeholder={ ilHint }
 
-          onBlur={ this.handleInputBlur }
-          onFocus={ this.handleInputFocus }
-          onChange={ this.handleChange }
+            onBlur={ this.handleInputBlur }
+            onFocus={ this.handleInputFocus }
+            onChange={ this.handleChange }
 
-          ref={ this.setInputRef }
-        />
+            ref={ this.setInputRef }
+          />
+          { this.renderLoader() }
+        </div>
 
         <div className={ styles.underline }>
           <TextFieldUnderline
@@ -207,6 +211,19 @@ class AddressSelect extends Component {
         { this.renderRegistryValues() }
         { this.renderAccounts() }
       </Portal>
+    );
+  }
+
+  renderLoader () {
+    if (!this.store.loading) {
+      return null;
+    }
+
+    return (
+      <Loading
+        className={ styles.loader }
+        size={ 0.5 }
+      />
     );
   }
 

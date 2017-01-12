@@ -15,6 +15,22 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+.outerInput {
+  display: flex;
+  flex-direction: row;
+  position: relative;
+
+  .input {
+    flex: 1;
+  }
+
+  .loader {
+    position: absolute;
+    bottom: 1rem;
+    right: 9rem;
+  }
+}
+
 .input {
   box-sizing: border-box;
   appearance: textfield;

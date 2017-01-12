@@ -83,6 +83,7 @@ $top: 20vh;
   top: 0.5rem;
   right: 1rem;
   font-size: 4em;
+  z-index: 100;
 
   transition-property: opacity;
   transition-duration: 0.25s;

@@ -76,7 +76,7 @@ class InputAddress extends Component {
 
     const props = {};
 
-    if (!readOnly && !disabled) {
+    if (!disabled) {
       props.focused = focused;
     }
 

@@ -220,13 +220,27 @@ export default class TransferStore {
   }
 
   @action _attachWalletOperation = (txhash) => {
+    if (!txhash || /^(0x)?0*$/.test(txhash)) {
+      return;
+    }
+
     let ethSubscriptionId = null;
+
+    // Number of blocks left to look-up (unsub after 15 blocks if nothing)
+    let nBlocksLeft = 15;
 
     return this.api.subscribe('eth_blockNumber', () => {
       this.api.eth
         .getTransactionReceipt(txhash)
         .then((tx) => {
+          if (nBlocksLeft <= 0) {
+            this.api.unsubscribe(ethSubscriptionId);
+            ethSubscriptionId = null;
+            return;
+          }
+
           if (!tx) {
+            nBlocksLeft--;
             return;
           }
 
@@ -239,6 +253,10 @@ export default class TransferStore {
             this.operation = operations[0];
           }
 
+          this.api.unsubscribe(ethSubscriptionId);
+          ethSubscriptionId = null;
+        })
+        .catch(() => {
           this.api.unsubscribe(ethSubscriptionId);
           ethSubscriptionId = null;
         });
