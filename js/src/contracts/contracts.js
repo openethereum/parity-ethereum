@@ -42,7 +42,7 @@ export default class Contracts {
   }
 
   get badgeReg () {
-    return this._badgereg;
+    return this._badgeReg;
   }
 
   get dappReg () {
