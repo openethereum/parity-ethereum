@@ -37,6 +37,26 @@ describe('api/transport/Http', () => {
     });
   });
 
+  describe('transport emitter', () => {
+    it('emits close event', (done) => {
+      transport.once('close', () => {
+        done();
+      });
+
+      transport.execute('eth_call');
+    });
+
+    it('emits open event', (done) => {
+      mockHttp([{ method: 'eth_call', reply: { result: '' } }]);
+
+      transport.once('open', () => {
+        done();
+      });
+
+      transport.execute('eth_call');
+    });
+  });
+
   describe('transport', () => {
     const RESULT = ['this is some result'];
 
