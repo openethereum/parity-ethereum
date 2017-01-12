@@ -1329,6 +1329,7 @@ mod tests {
 	use transaction::{Transaction, Action};
 	use log_entry::{LogEntry, LocalizedLogEntry};
 	use spec::Spec;
+	use ethkey::Secret;
 
 	fn new_db(path: &str) -> Arc<Database> {
 		Arc::new(Database::open(&DatabaseConfig::with_columns(::db::NUM_COLUMNS), path).unwrap())
@@ -1467,6 +1468,10 @@ mod tests {
 		// TODO: insert block that already includes one of them as an uncle to check it's not allowed.
 	}
 
+	fn secret() -> Secret {
+		Secret::from_slice(&"".sha3()).unwrap()
+	}
+
 	#[test]
 	fn test_fork_transaction_addresses() {
 		let mut canon_chain = ChainGenerator::default();
@@ -1482,7 +1487,7 @@ mod tests {
 			action: Action::Create,
 			value: 100.into(),
 			data: "601080600c6000396000f3006000355415600957005b60203560003555".from_hex().unwrap(),
-		}.sign(&"".sha3(), None);
+		}.sign(&secret(), None);
 
 
 		let b1a = canon_chain
@@ -1546,7 +1551,7 @@ mod tests {
 			action: Action::Create,
 			value: 100.into(),
 			data: "601080600c6000396000f3006000355415600957005b60203560003555".from_hex().unwrap(),
-		}.sign(&"".sha3(), None);
+		}.sign(&secret(), None);
 
 		let t2 = Transaction {
 			nonce: 1.into(),
@@ -1555,7 +1560,7 @@ mod tests {
 			action: Action::Create,
 			value: 100.into(),
 			data: "601080600c6000396000f3006000355415600957005b60203560003555".from_hex().unwrap(),
-		}.sign(&"".sha3(), None);
+		}.sign(&secret(), None);
 
 		let t3 = Transaction {
 			nonce: 2.into(),
@@ -1564,7 +1569,7 @@ mod tests {
 			action: Action::Create,
 			value: 100.into(),
 			data: "601080600c6000396000f3006000355415600957005b60203560003555".from_hex().unwrap(),
-		}.sign(&"".sha3(), None);
+		}.sign(&secret(), None);
 
 		let b1a = canon_chain
 			.with_transaction(t1.clone())
@@ -1870,7 +1875,7 @@ mod tests {
 			action: Action::Create,
 			value: 101.into(),
 			data: "601080600c6000396000f3006000355415600957005b60203560003555".from_hex().unwrap(),
-		}.sign(&"".sha3(), None);
+		}.sign(&secret(), None);
 		let t2 = Transaction {
 			nonce: 0.into(),
 			gas_price: 0.into(),
@@ -1878,7 +1883,7 @@ mod tests {
 			action: Action::Create,
 			value: 102.into(),
 			data: "601080600c6000396000f3006000355415600957005b60203560003555".from_hex().unwrap(),
-		}.sign(&"".sha3(), None);
+		}.sign(&secret(), None);
 		let t3 = Transaction {
 			nonce: 0.into(),
 			gas_price: 0.into(),
@@ -1886,7 +1891,7 @@ mod tests {
 			action: Action::Create,
 			value: 103.into(),
 			data: "601080600c6000396000f3006000355415600957005b60203560003555".from_hex().unwrap(),
-		}.sign(&"".sha3(), None);
+		}.sign(&secret(), None);
 		let tx_hash1 = t1.hash();
 		let tx_hash2 = t2.hash();
 		let tx_hash3 = t3.hash();

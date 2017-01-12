@@ -29,6 +29,10 @@ export function isFunction (test) {
 }
 
 export function isHex (_test) {
+  if (!isString(_test)) {
+    return false;
+  }
+
   if (_test.substr(0, 2) === '0x') {
     return isHex(_test.slice(2));
   }

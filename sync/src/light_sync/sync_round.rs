@@ -18,6 +18,7 @@
 
 use std::cmp::Ordering;
 use std::collections::{BinaryHeap, HashMap, HashSet, VecDeque};
+use std::fmt;
 
 use ethcore::header::Header;
 
@@ -29,9 +30,9 @@ use util::{Bytes, H256};
 
 use super::response;
 
-// amount of blocks between each scaffold entry.
+/// amount of blocks between each scaffold entry.
 // TODO: move these into parameters for `RoundStart::new`?
-const ROUND_SKIP: u64 = 255;
+pub const ROUND_SKIP: u64 = 255;
 
 // amount of scaffold frames: these are the blank spaces in "X___X___X"
 const ROUND_FRAMES: usize = 255;
@@ -132,7 +133,7 @@ impl Fetcher {
 
 		let end = match sparse_headers.last().map(|h| (h.number(), h.hash())) {
 			Some(end) => end,
-			None => return SyncRound::abort(AbortReason::BadScaffold(contributors)),
+			None => return SyncRound::abort(AbortReason::BadScaffold(contributors), VecDeque::new()),
 		};
 
 		SyncRound::Fetch(Fetcher {
@@ -217,10 +218,11 @@ impl Fetcher {
 
 				let subchain_parent = request.subchain_parent.1;
 
+				// check if the subchain portion has been completely filled.
 				if request.headers_request.max == 0 {
 					if parent_hash.map_or(true, |hash| hash != subchain_parent) {
 						let abort = AbortReason::BadScaffold(self.scaffold_contributors);
-						return SyncRound::Abort(abort);
+						return SyncRound::abort(abort, self.ready);
 					}
 
 					self.complete_requests.insert(subchain_parent, request);
@@ -271,6 +273,7 @@ impl Fetcher {
 		headers.extend(self.ready.drain(0..max));
 
 		if self.sparse.is_empty() && self.ready.is_empty() {
+			trace!(target: "sync", "sync round complete. Starting anew from {:?}", self.end);
 			SyncRound::Start(RoundStart::new(self.end))
 		} else {
 			SyncRound::Fetch(self)
@@ -309,7 +312,7 @@ impl RoundStart {
 			if self.sparse_headers.len() > 1 {
 				Fetcher::new(self.sparse_headers, self.contributors.into_iter().collect())
 			} else {
-				SyncRound::Abort(AbortReason::NoResponses)
+				SyncRound::Abort(AbortReason::NoResponses, self.sparse_headers.into())
 			}
 		} else {
 			SyncRound::Start(self)
@@ -375,14 +378,19 @@ impl RoundStart {
 			let start = (self.start_block.0 + 1)
 				+ self.sparse_headers.len() as u64 * (ROUND_SKIP + 1);
 
+			let max = (ROUND_FRAMES - 1) - self.sparse_headers.len();
+
 			let headers_request = HeadersRequest {
 				start: start.into(),
-				max: (ROUND_FRAMES - 1) - self.sparse_headers.len(),
+				max: max,
 				skip: ROUND_SKIP,
 				reverse: false,
 			};
 
 			if let Some(req_id) = dispatcher(headers_request.clone()) {
+				trace!(target: "sync", "Requesting scaffold: {} headers forward from {}, skip={}",
+					max, start, ROUND_SKIP);
+
 				self.pending_req = Some((req_id, headers_request));
 			}
 		}
@@ -397,15 +405,15 @@ pub enum SyncRound {
 	Start(RoundStart),
 	/// Fetching intermediate blocks during a sync round.
 	Fetch(Fetcher),
-	/// Aborted.
-	Abort(AbortReason),
+	/// Aborted + Sequential headers
+	Abort(AbortReason, VecDeque<Header>),
 }
 
 impl SyncRound {
-	fn abort(reason: AbortReason) -> Self {
-		trace!(target: "sync", "Aborting sync round: {:?}", reason);
+	fn abort(reason: AbortReason, remaining: VecDeque<Header>) -> Self {
+		trace!(target: "sync", "Aborting sync round: {:?}. To drain: {:?}", reason, remaining);
 
-		SyncRound::Abort(reason)
+		SyncRound::Abort(reason, remaining)
 	}
 
 	/// Begin sync rounds from a starting block.
@@ -450,7 +458,23 @@ impl SyncRound {
 	pub fn drain(self, v: &mut Vec<Header>, max: Option<usize>) -> Self {
 		match self {
 			SyncRound::Fetch(fetcher) => fetcher.drain(v, max),
+			SyncRound::Abort(reason, mut remaining) => {
+				let len = ::std::cmp::min(max.unwrap_or(usize::max_value()), remaining.len());
+				v.extend(remaining.drain(..len));
+				SyncRound::Abort(reason, remaining)
+			}
 			other => other,
+		}
+	}
+}
+
+impl fmt::Debug for SyncRound {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		match *self {
+			SyncRound::Start(ref state) => write!(f, "Scaffolding from {:?}", state.start_block),
+			SyncRound::Fetch(ref fetcher) => write!(f, "Filling scaffold up to {:?}", fetcher.end),
+			SyncRound::Abort(ref reason, ref remaining) =>
+				write!(f, "Aborted: {:?}, {} remain", reason, remaining.len()),
 		}
 	}
 }

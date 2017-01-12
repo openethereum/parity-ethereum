@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::collections::BTreeMap;
-use jsonrpc_core::{IoHandler, GenericIoHandler};
+use jsonrpc_core::IoHandler;
 use v1::{Rpc, RpcClient};
 
 
@@ -30,8 +30,8 @@ fn rpc_client() -> RpcClient {
 #[test]
 fn modules() {
 	let rpc = rpc_client().to_delegate();
-	let io = IoHandler::new();
-	io.add_delegate(rpc);
+	let mut io = IoHandler::new();
+	io.extend_with(rpc);
 
 	let request = r#"{"jsonrpc": "2.0", "method": "modules", "params": [], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":{"rpc":"1.0","web3":"1.0"},"id":1}"#;
@@ -42,8 +42,8 @@ fn modules() {
 #[test]
 fn rpc_modules() {
 	let rpc = rpc_client().to_delegate();
-	let io = IoHandler::new();
-	io.add_delegate(rpc);
+	let mut io = IoHandler::new();
+	io.extend_with(rpc);
 
 	let request = r#"{"jsonrpc": "2.0", "method": "rpc_modules", "params": [], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":{"ethcore":"1.0","rpc":"1.0","web3":"1.0"},"id":1}"#;

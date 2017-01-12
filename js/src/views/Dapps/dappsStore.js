@@ -256,7 +256,7 @@ export default class DappsStore {
     store.set(LS_KEY_DISPLAY, this.displayApps);
   }
 
-  @action addApps = (_apps) => {
+  @action addApps = (_apps = []) => {
     transaction(() => {
       const apps = _apps.filter((app) => app);
 

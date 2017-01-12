@@ -349,7 +349,6 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 	);
 	service.add_notify(updater.clone());
 
-
 	// set up dependencies for rpc servers
 	let signer_path = cmd.signer_conf.signer_path.clone();
 	let deps_for_rpc_apis = Arc::new(rpc_apis::Dependencies {
@@ -377,12 +376,12 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 			false => None,
 		},
 		fetch: fetch.clone(),
-		remote: event_loop.remote(),
 	});
 
 	let dependencies = rpc::Dependencies {
 		panic_handler: panic_handler.clone(),
 		apis: deps_for_rpc_apis.clone(),
+		remote: event_loop.raw_remote(),
 	};
 
 	// start rpc servers
@@ -395,7 +394,7 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 		apis: deps_for_rpc_apis.clone(),
 		client: client.clone(),
 		sync: sync_provider.clone(),
-		remote: event_loop.remote(),
+		remote: event_loop.raw_remote(),
 		fetch: fetch.clone(),
 		signer: deps_for_rpc_apis.signer_service.clone(),
 	};
@@ -405,6 +404,7 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 	let signer_deps = signer::Dependencies {
 		panic_handler: panic_handler.clone(),
 		apis: deps_for_rpc_apis.clone(),
+		remote: event_loop.raw_remote(),
 	};
 	let signer_server = signer::start(cmd.signer_conf.clone(), signer_deps)?;
 

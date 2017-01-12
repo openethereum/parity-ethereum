@@ -17,7 +17,7 @@
 //! Parity-specific rpc interface for operations altering the settings.
 
 use jsonrpc_core::Error;
-use jsonrpc_macros::Ready;
+use futures::BoxFuture;
 
 use v1::types::{Bytes, H160, H256, U256, ReleaseInfo};
 
@@ -90,7 +90,7 @@ build_rpc_trait! {
 
 		/// Hash a file content under given URL.
 		#[rpc(async, name = "parity_hashContent")]
-		fn hash_content(&self, Ready<H256>, String);
+		fn hash_content(&self, String) -> BoxFuture<H256, Error>;
 
 		/// Is there a release ready for install?
 		#[rpc(name = "parity_upgradeReady")]

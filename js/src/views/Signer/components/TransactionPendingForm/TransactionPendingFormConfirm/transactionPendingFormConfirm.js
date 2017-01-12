@@ -14,13 +14,12 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import keycode from 'keycode';
+import RaisedButton from 'material-ui/RaisedButton';
 import React, { Component, PropTypes } from 'react';
 import ReactDOM from 'react-dom';
 import { connect } from 'react-redux';
-import { bindActionCreators } from 'redux';
-import RaisedButton from 'material-ui/RaisedButton';
 import ReactTooltip from 'react-tooltip';
-import keycode from 'keycode';
 
 import { Form, Input, IdentityIcon } from '~/ui';
 
@@ -247,22 +246,18 @@ class TransactionPendingFormConfirm extends Component {
   }
 }
 
-function mapStateToProps (initState, initProps) {
-  const { accounts } = initState.personal;
+function mapStateToProps (_, initProps) {
   const { address } = initProps;
 
-  const account = accounts[address] || {};
+  return (state) => {
+    const { accounts } = state.personal;
+    const account = accounts[address] || {};
 
-  return () => {
     return { account };
   };
 }
 
-function mapDispatchToProps (dispatch) {
-  return bindActionCreators({}, dispatch);
-}
-
 export default connect(
   mapStateToProps,
-  mapDispatchToProps
+  null
 )(TransactionPendingFormConfirm);
