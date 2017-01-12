@@ -1,0 +1,221 @@
+#full-screen {
+}
+
+textarea:focus, input:focus{
+    outline: none;
+}
+
+* { padding: 0; margin: 0; }
+
+html, body, #full-screen {
+	height: 100%;
+}
+
+body {
+	margin: 0;
+}
+
+#full-screen {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  
+  overflow: hidden;
+}
+
+#history-wrap {
+  overflow: auto;
+}
+
+#history {
+  flex: 1 1 auto;
+  
+  display: flex;
+  min-height: min-content;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+
+.entry, #input {
+  margin: 0;
+  padding: 0.25em;
+
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  width: 100%;
+}
+
+.type {
+  color: #ccc;
+  font-weight: bold;
+  font-family: "Lucida Console", Monaco, monospace;
+  font-size: 11pt;
+  padding: 0 0.5em 0 0.25em;
+}
+
+.command .type {
+  color: #aaa;
+}
+
+.result .type {
+  color: #ccc;
+}
+
+#input .type {
+  color: #59f;
+}
+
+.addwatch {
+  background-color: #cfc;
+  border-top: 1px solid  #6e6;
+}
+.addwatch .type {
+  color: #040;
+}
+.addwatch .text {
+  color: #080;
+}
+
+.log.logLevel .type {
+  color: blue;
+}
+.log.debugLevel .text {
+  color: blue;
+}
+.log.infoLevel .type {
+  color: #00c;
+}
+.log.warnLevel {
+  background-color: #fff8dd;
+  border-top: 1px solid  #fe8;
+  border-bottom: 1px solid #fe8;
+}
+.log.warnLevel .text {
+  color: #440;
+}
+.log.warnLevel .type {
+  color: #880;
+}
+.log.errorLevel, .error {
+  background-color: #fee;
+  border-top: 1px solid #fbb;
+  border-bottom: 1px solid #fbb;
+}
+.log.errorLevel .text, .error .text {
+  color: #c00;
+}
+.log.errorLevel .type, .error .type {
+  color: #800;
+}
+
+
+span.text {
+  color: black;
+}
+.text {
+  border: 0;
+  margin: 0;
+  padding: 0;
+
+  color: black;
+  font-weight: 1000;
+  font-family: "Lucida Console", Monaco, monospace;
+  font-size: 11pt;
+
+  flex-grow: 1;
+}
+div.error {
+  background-color: #fee;
+  border-top: 1px solid #fbb;
+  color: red;
+}
+div.command {
+  border-top: 1px solid #eee;
+}
+div#input {
+  border-top: 1px solid #eee;
+}
+
+#status {
+  background: #eee;
+  padding: 0.25em;
+  font-family: "Lucida Console", Monaco, monospace;
+  font-size: 8pt;
+  color: #888;
+  flex: 0 0 auto;
+}
+
+#input {
+  flex: 0 0 auto;
+}
+
+#status {
+  display: flex;
+}
+.watch {
+  padding-left: 1em;
+  padding-right: 1em;
+}
+.watch:not(:first-child) {
+  border-left: 1px solid #ccc;
+}
+.expr {
+  color: #888;
+  margin-right: 0.5em;
+}
+.res {
+  font-weight: bold;
+  color: black;
+}
+
+.stringType {
+  color: #c00;
+}
+.numberType {
+  color: #00f;
+}
+.eObject {
+  color: #00f;
+}
+.objectType {
+  font-style: italic;
+}
+.fieldType {
+  color: #808;
+}
+.undefinedType {
+  color: #888;
+}
+.functionType {
+  color: #666;
+  font-style: italic;
+}
+
+#autocomplete-anchor {
+  position: relative;
+}
+#autocomplete {
+  position: absolute;
+  left: 1.5em;
+  bottom: 0;
+  background: #f8f8f8;
+  box-shadow: 0 0.125em 0.25em rgba(0, 0, 0, 0.5);
+  max-height: 20em;
+  overflow: scroll;
+}
+#autocomplete div {
+  font-size: small;
+  font-family: "Lucida Console", Monaco, monospace;
+  padding: 0.1em 1em 0.1em 0;
+  border-top: 1px solid #eee;
+}
+.ac-already {
+  font-weight: bold;
+}
+.ac-new {
+  color: #666;
+}
+.ac-selected {
+  background-color: #ccddff;
+}
