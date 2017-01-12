@@ -15,11 +15,12 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import ReactDOM from 'react-dom';
 import { Link } from 'react-router';
 import { connect } from 'react-redux';
-import ActionFingerprint from 'material-ui/svg-icons/action/fingerprint';
-import ContentClear from 'material-ui/svg-icons/content/clear';
+import { debounce } from 'lodash';
 
+import { CancelIcon, FingerprintIcon, MoveIcon } from '~/ui/Icons';
 import { Badge, Button, ContainerTitle, ParityBackground } from '~/ui';
 import { Embedded as Signer } from '../Signer';
 
@@ -27,14 +28,25 @@ import imagesEthcoreBlock from '../../../assets/images/parity-logo-white-no-text
 import styles from './parityBar.css';
 
 class ParityBar extends Component {
+  moving = false;
+  offset = null;
 
   static propTypes = {
     pending: PropTypes.array,
     dapp: PropTypes.bool
-  }
+  };
 
   state = {
-    opened: false
+    moving: false,
+    opened: false,
+    x: 0,
+    y: 0
+  };
+
+  constructor (props) {
+    super(props);
+
+    this.debouncedMouseMove = debounce(this._onMouseMove, 40, { leading: true });
   }
 
   componentWillReceiveProps (nextProps) {
@@ -60,6 +72,38 @@ class ParityBar extends Component {
       : this.renderBar();
   }
 
+  getPosition (_x, _y) {
+    if (!this.offset) {
+      return { x: 0, y: 0 };
+    }
+
+    const { pageWidth = 0, pageHeight = 0, width = 0, height = 0 } = this.offset;
+
+    const maxX = pageWidth - width;
+    const maxY = pageHeight - height;
+
+    const x = Math.min(maxX, Math.max(0, _x));
+    const y = Math.min(maxY, Math.max(0, _y));
+
+    if (y < 25) {
+      return { x, y: 0 };
+    }
+
+    if (maxY - y < 25) {
+      return { x, y: maxY };
+    }
+
+    if (x < 25) {
+      return { x: 0, y };
+    }
+
+    if (maxX - x < 25) {
+      return { x: maxX, y };
+    }
+
+    return { x, y };
+  }
+
   renderBar () {
     const { dapp } = this.props;
 
@@ -67,15 +111,38 @@ class ParityBar extends Component {
       return null;
     }
 
+    const { moving, x, y } = this.state;
+    const position = this.getPosition(x, y);
+
     const parityIcon = (
       <img
         src={ imagesEthcoreBlock }
         className={ styles.parityIcon } />
     );
 
+    const style = {
+      left: position.x,
+      top: position.y
+    };
+
+    const classNames = [ styles.bar ];
+
+    if (moving) {
+      classNames.push(styles.moving);
+    }
+
     return (
-      <div className={ styles.bar }>
-        <ParityBackground className={ styles.corner }>
+      <div
+        className={ classNames.join(' ') }
+        onMouseMove={ this.onMouseMove }
+        onMouseLeave={ this.onMouseUp }
+        onMouseUp={ this.onMouseUp }
+      >
+        <ParityBackground
+          className={ styles.corner }
+          ref='container'
+          style={ style }
+        >
           <div className={ styles.cornercolor }>
             <Link to='/apps'>
               <Button
@@ -85,9 +152,16 @@ class ParityBar extends Component {
             </Link>
             <Button
               className={ styles.button }
-              icon={ <ActionFingerprint /> }
+              icon={ <FingerprintIcon /> }
               label={ this.renderSignerLabel() }
               onClick={ this.toggleDisplay } />
+
+            <div
+              className={ styles.moveIcon }
+              onMouseDown={ this.onMouseDown }
+            >
+              <MoveIcon />
+            </div>
           </div>
         </ParityBackground>
       </div>
@@ -104,7 +178,7 @@ class ParityBar extends Component {
             </div>
             <div className={ styles.actions }>
               <Button
-                icon={ <ContentClear /> }
+                icon={ <CancelIcon /> }
                 label='Close'
                 onClick={ this.toggleDisplay } />
             </div>
@@ -142,6 +216,53 @@ class ParityBar extends Component {
     }
 
     return this.renderLabel('Signer', bubble);
+  }
+
+  onMouseDown = (event) => {
+    const container = ReactDOM.findDOMNode(this.refs.container);
+
+    if (!container) {
+      return;
+    }
+
+    const { left, top, width, height } = container.getBoundingClientRect();
+    const { clientX, clientY } = event;
+    const bodyRect = document.body.getBoundingClientRect();
+
+    const pageHeight = bodyRect.height;
+    const pageWidth = bodyRect.width;
+
+    this.moving = true;
+    this.offset = { x: clientX - left, y: clientY - top, pageWidth, pageHeight, width, height };
+
+    this.setState({ moving: true });
+  }
+
+  onMouseMove = (event) => {
+    const { pageX, pageY } = event;
+    this._onMouseMove({ pageX, pageY });
+    // this.debouncedMouseMove({ pageX, pageY });
+  }
+
+  _onMouseMove = (event) => {
+    if (!this.moving) {
+      return;
+    }
+
+    const { pageX, pageY } = event;
+    const { x = 0, y = 0 } = this.offset;
+
+    this.setState({ x: pageX - x, y: pageY - y });
+  }
+
+  onMouseUp = (event) => {
+    if (!this.moving) {
+      return;
+    }
+
+    this.moving = false;
+
+    this.setState({ moving: false });
   }
 
   toggleDisplay = () => {

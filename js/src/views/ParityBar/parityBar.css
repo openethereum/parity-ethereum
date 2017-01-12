@@ -15,15 +15,6 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-.bar, .expanded {
-  position: fixed;
-  bottom: 0;
-  right: 0;
-  font-size: 16px;
-  font-family: 'Roboto', sans-serif;
-  z-index: 10001;
-}
-
 .overlay {
   position: fixed;
   top: 0;
@@ -34,11 +25,25 @@
   z-index: 10000;
 }
 
+.bar, .expanded {
+  position: fixed;
+  top: 0;
+  left: 0;
+  font-size: 16px;
+  font-family: 'Roboto', sans-serif;
+  z-index: 10001;
+}
+
 .bar {
   vertical-align: middle;
   display: flex;
   flex-wrap: wrap;
   width: 100%;
+
+  &.moving {
+    bottom: 0;
+    right: 0;
+  }
 }
 
 .expanded {
@@ -47,27 +52,31 @@
   display: flex;
   flex-direction: column;
   max-height: 50vh;
-}
 
-.expanded .content {
-  flex: 1;
-  overflow-y: auto;
-  overflow-x: hidden;
-  display: flex;
-  background: rgba(0, 0, 0, 0.8);
-  min-height: 16em;
+  .content {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    display: flex;
+    background: rgba(0, 0, 0, 0.8);
+    min-height: 16em;
+  }
 }
 
 .corner {
   position: absolute;
-  bottom: 0;
-  right: 1em;
   border-radius: 4px 4px 0 0;
+
+  transition-property: left, top;
+  transition-duration: 0.1s;
+  transition-timing-function: ease-in-out;
 }
 
 .cornercolor {
   background: rgba(0, 0, 0, 0.5);
   padding: 0.5em 1em;
+  display: flex;
+  align-items: center;
 }
 
 .link {
@@ -76,12 +85,12 @@
   outline: none !important;
   color: white !important;
   display: inline-block;
-}
 
-.link img, .link svg {
-  height: 24px !important;
-  width: 24px !important;
-  margin: 2px 0.5em 0 0;
+  img, svg {
+    height: 24px !important;
+    width: 24px !important;
+    margin: 2px 0.5em 0 0;
+  }
 }
 
 .link+.link {
@@ -123,20 +132,20 @@
   padding: 0.5em 1em;
   background: rgba(0, 0, 0, 0.25);
   margin-bottom: 0;
+
+  &:after {
+    clear: both;
+  }
 }
 
-.header:after {
-  clear: both;
-}
+.header, .corner {
+  button {
+    color: white !important;
+  }
 
-.header button,
-.corner button {
-  color: white !important;
-}
-
-.header svg,
-.coner svg {
-  fill: white !important;
+  svg {
+    fill: white !important;
+  }
 }
 
 .body {
@@ -150,12 +159,12 @@
 .actions {
   float: right;
   margin-top: -2px;
-}
 
-.actions div {
-  margin-left: 1em;
-  display: inline-block;
-  cursor: pointer;
+  div {
+    margin-left: 1em;
+    display: inline-block;
+    cursor: pointer;
+  }
 }
 
 .parityIcon, .signerIcon {
@@ -163,4 +172,13 @@
   height: 24px;
   vertical-align: middle;
   margin-left: 12px;
+}
+
+.moveIcon {
+  display: flex;
+  align-items: center;
+
+  &:hover {
+    cursor: pointer;
+  }
 }
