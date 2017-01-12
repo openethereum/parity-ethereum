@@ -39,6 +39,7 @@ class ParityBar extends Component {
   state = {
     moving: false,
     opened: false,
+    top: false,
     x: 0,
     y: 0
   };
@@ -65,16 +66,56 @@ class ParityBar extends Component {
   }
 
   render () {
-    const { opened } = this.state;
+    const { moving, opened, top, x, y } = this.state;
+    const position = this.getPosition(x, y);
 
-    return opened
+    const content = opened
       ? this.renderExpanded()
       : this.renderBar();
+
+    const containerClassNames = opened
+      ? [ styles.overlay ]
+      : [ styles.bar ];
+
+    if (!opened && moving) {
+      containerClassNames.push(styles.moving);
+    }
+
+    const parityBgClassName = opened
+      ? styles.expanded
+      : styles.corner;
+
+    const parityBgStyle = opened
+      ? {
+        top: top ? 0 : undefined,
+        bottom: top ? undefined : 0
+      }
+      : {
+        left: position.x,
+        top: position.y
+      };
+
+    return (
+      <div
+        className={ containerClassNames.join(' ') }
+        onMouseEnter={ this.onMouseEnter }
+        onMouseMove={ this.onMouseMove }
+        onMouseUp={ this.onMouseUp }
+      >
+        <ParityBackground
+          className={ [ parityBgClassName, styles.parityBg ].join(' ') }
+          ref='container'
+          style={ parityBgStyle }
+        >
+          { content }
+        </ParityBackground>
+      </div>
+    );
   }
 
   getPosition (_x, _y) {
-    if (!this.offset) {
-      return { x: 0, y: 0 };
+    if (!this.moving || !this.offset) {
+      return { x: _x, y: _y };
     }
 
     const { pageWidth = 0, pageHeight = 0, width = 0, height = 0 } = this.offset;
@@ -85,20 +126,12 @@ class ParityBar extends Component {
     const x = Math.min(maxX, Math.max(0, _x));
     const y = Math.min(maxY, Math.max(0, _y));
 
-    if (y < 25) {
+    if (y < 75) {
       return { x, y: 0 };
     }
 
-    if (maxY - y < 25) {
+    if (maxY - y < 75) {
       return { x, y: maxY };
-    }
-
-    if (x < 25) {
-      return { x: 0, y };
-    }
-
-    if (maxX - x < 25) {
-      return { x: maxX, y };
     }
 
     return { x, y };
@@ -111,82 +144,53 @@ class ParityBar extends Component {
       return null;
     }
 
-    const { moving, x, y } = this.state;
-    const position = this.getPosition(x, y);
-
     const parityIcon = (
       <img
         src={ imagesEthcoreBlock }
         className={ styles.parityIcon } />
     );
 
-    const style = {
-      left: position.x,
-      top: position.y
-    };
-
-    const classNames = [ styles.bar ];
-
-    if (moving) {
-      classNames.push(styles.moving);
-    }
-
     return (
-      <div
-        className={ classNames.join(' ') }
-        onMouseMove={ this.onMouseMove }
-        onMouseLeave={ this.onMouseUp }
-        onMouseUp={ this.onMouseUp }
-      >
-        <ParityBackground
-          className={ styles.corner }
-          ref='container'
-          style={ style }
-        >
-          <div className={ styles.cornercolor }>
-            <Link to='/apps'>
-              <Button
-                className={ styles.parityButton }
-                icon={ parityIcon }
-                label={ this.renderLabel('Parity') } />
-            </Link>
-            <Button
-              className={ styles.button }
-              icon={ <FingerprintIcon /> }
-              label={ this.renderSignerLabel() }
-              onClick={ this.toggleDisplay } />
+      <div className={ styles.cornercolor }>
+        <Link to='/apps'>
+          <Button
+            className={ styles.parityButton }
+            icon={ parityIcon }
+            label={ this.renderLabel('Parity') } />
+        </Link>
+        <Button
+          className={ styles.button }
+          icon={ <FingerprintIcon /> }
+          label={ this.renderSignerLabel() }
+          onClick={ this.toggleDisplay } />
 
-            <div
-              className={ styles.moveIcon }
-              onMouseDown={ this.onMouseDown }
-            >
-              <MoveIcon />
-            </div>
-          </div>
-        </ParityBackground>
+        <div
+          className={ styles.moveIcon }
+          onMouseDown={ this.onMouseDown }
+        >
+          <MoveIcon />
+        </div>
       </div>
     );
   }
 
   renderExpanded () {
     return (
-      <div className={ styles.overlay }>
-        <ParityBackground className={ styles.expanded }>
-          <div className={ styles.header }>
-            <div className={ styles.title }>
-              <ContainerTitle title='Parity Signer: Pending' />
-            </div>
-            <div className={ styles.actions }>
-              <Button
-                icon={ <CancelIcon /> }
-                label='Close'
-                onClick={ this.toggleDisplay } />
-            </div>
+      <div>
+        <div className={ styles.header }>
+          <div className={ styles.title }>
+            <ContainerTitle title='Parity Signer: Pending' />
           </div>
-          <div className={ styles.content }>
-            <Signer />
+          <div className={ styles.actions }>
+            <Button
+              icon={ <CancelIcon /> }
+              label='Close'
+              onClick={ this.toggleDisplay } />
           </div>
-        </ParityBackground>
+        </div>
+        <div className={ styles.content }>
+          <Signer />
+        </div>
       </div>
     );
   }
@@ -238,10 +242,26 @@ class ParityBar extends Component {
     this.setState({ moving: true });
   }
 
+  onMouseEnter = (event) => {
+    if (!this.moving) {
+      return;
+    }
+
+    const { buttons } = event;
+
+    // If no left-click, stop move
+    if (buttons !== 1) {
+      this.onMouseUp();
+    }
+  }
+
   onMouseMove = (event) => {
     const { pageX, pageY } = event;
     this._onMouseMove({ pageX, pageY });
     // this.debouncedMouseMove({ pageX, pageY });
+
+    event.stopPropagation();
+    event.preventDefault();
   }
 
   _onMouseMove = (event) => {
@@ -260,9 +280,22 @@ class ParityBar extends Component {
       return;
     }
 
-    this.moving = false;
+    const { height, width, pageHeight, pageWidth } = this.offset;
+    const { x } = this.getPosition(this.state.x, this.state.y);
+    const { y } = this.state;
 
-    this.setState({ moving: false });
+    const top = y < (pageHeight / 2);
+
+    const nextX = x < 25
+      ? 25
+      : x > (pageWidth - width - 25) ? x - 25 : x;
+
+    const nextY = top
+      ? 0
+      : (pageHeight - height);
+
+    this.moving = false;
+    this.setState({ moving: false, top, x: nextX, y: nextY });
   }
 
   toggleDisplay = () => {

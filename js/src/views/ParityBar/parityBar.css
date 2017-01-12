@@ -23,15 +23,15 @@
   left: 0;
   background: rgba(255, 255, 255, 0.5);
   z-index: 10000;
+  user-select: none;
 }
 
 .bar, .expanded {
   position: fixed;
-  top: 0;
-  left: 0;
   font-size: 16px;
   font-family: 'Roboto', sans-serif;
   z-index: 10001;
+  user-select: none;
 }
 
 .bar {
@@ -39,11 +39,25 @@
   display: flex;
   flex-wrap: wrap;
   width: 100%;
+  top: 0;
+  left: 0;
 
   &.moving {
     bottom: 0;
     right: 0;
+
+    &:hover {
+      cursor: pointer;
+    }
   }
+}
+
+.parityBg {
+  position: fixed;
+
+  transition-property: left, top, right, bottom;
+  transition-duration: 0.1s;
+  transition-timing-function: ease-in-out;
 }
 
 .expanded {
@@ -64,12 +78,7 @@
 }
 
 .corner {
-  position: absolute;
   border-radius: 4px 4px 0 0;
-
-  transition-property: left, top;
-  transition-duration: 0.1s;
-  transition-timing-function: ease-in-out;
 }
 
 .cornercolor {
