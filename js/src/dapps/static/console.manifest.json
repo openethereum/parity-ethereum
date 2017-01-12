@@ -1,8 +1,0 @@
-{
-	"id": "console",
-	"name": "Parity/Web3 console",
-	"description": "A Javascript development console complete with web3 and parity objects.",
-	"version": "0.3",
-	"author": "Gav Wood <gavin@ethcore.io>",
-	"iconUrl": "console.jpeg"
-}
