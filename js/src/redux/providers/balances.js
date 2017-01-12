@@ -35,37 +35,51 @@ export default class Balances {
     this._blockNumberSID = null;
     this._accountsInfoSID = null;
 
-    // Throttled `retrieveTokens` function
+    // Throtthled load tokens (no more than once
+    // every minute)
+    this.loadTokens = throttle(
+      this._loadTokens,
+      60 * 1000,
+      { leading: true, trailing: true }
+    );
+
+    // Throttled `_fetchBalances` function
     // that gets called max once every 40s
     this.longThrottledFetch = throttle(
-      this.fetchBalances,
+      this._fetchBalances,
       40 * 1000,
-      { leading: true }
+      { leading: false, trailing: true }
     );
 
     this.shortThrottledFetch = throttle(
-      this.fetchBalances,
+      this._fetchBalances,
       2 * 1000,
-      { leading: true }
+      { leading: false, trailing: true }
     );
 
     // Fetch all tokens every 2 minutes
     this.throttledTokensFetch = throttle(
-      this.fetchTokens,
-      60 * 1000,
-      { leading: true }
+      this._fetchTokens,
+      2 * 60 * 1000,
+      { leading: false, trailing: true }
     );
 
     // Unsubscribe previous instance if it exists
     if (instance) {
       Balances.stop();
     }
+  }
 
-    instance = this;
+  static get () {
+    return instance;
   }
 
   static instantiate (store, api) {
-    return new Balances(store, api);
+    if (!instance) {
+      instance = new Balances(store, api);
+    }
+
+    return instance;
   }
 
   static start () {
@@ -78,12 +92,11 @@ export default class Balances {
     // Unsubscribe from previous subscriptions
     return Balances
       .stop()
+      .then(() => self.loadTokens())
       .then(() => {
         const promises = [
           self.subscribeBlockNumber(),
-          self.subscribeAccountsInfo(),
-
-          self.loadTokens()
+          self.subscribeAccountsInfo()
         ];
 
         return Promise.all(promises);
@@ -184,42 +197,81 @@ export default class Balances {
       });
   }
 
-  fetchAllBalances () {
-    const { syncing } = this._store.getState().nodeStatus;
+  fetchAllBalances (options = {}) {
+    // If it's a network change, reload the tokens
+    // ( and then fetch the tokens balances ) and fetch
+    // the accounts balances
+    if (options.changedNetwork) {
+      this.loadTokens({ skipNotifications: true });
+      this.loadTokens.flush();
 
-    this.throttledTokensFetch();
+      this.fetchBalances({
+        force: true,
+        skipNotifications: true
+      });
+
+      return;
+    }
+
+    this.fetchTokensBalances(options);
+    this.fetchBalances(options);
+  }
+
+  fetchTokensBalances (options) {
+    const { skipNotifications = false, force = false } = options;
+
+    this.throttledTokensFetch(skipNotifications);
+
+    if (force) {
+      this.throttledTokensFetch.flush();
+    }
+  }
+
+  fetchBalances (options) {
+    const { skipNotifications = false, force = false } = options;
+    const { syncing } = this._store.getState().nodeStatus;
 
     // If syncing, only retrieve balances once every
     // few seconds
     if (syncing) {
       this.shortThrottledFetch.cancel();
-      return this.longThrottledFetch();
+      this.longThrottledFetch(skipNotifications);
+
+      if (force) {
+        this.longThrottledFetch.flush();
+      }
+
+      return;
     }
 
     this.longThrottledFetch.cancel();
-    return this.shortThrottledFetch();
+    this.shortThrottledFetch(skipNotifications);
+
+    if (force) {
+      this.shortThrottledFetch.flush();
+    }
   }
 
-  fetchBalances () {
-    this._store.dispatch(fetchBalances());
+  _fetchBalances (skipNotifications = false) {
+    this._store.dispatch(fetchBalances(null, skipNotifications));
   }
 
-  fetchTokens () {
-    this._store.dispatch(fetchTokensBalances());
+  _fetchTokens (skipNotifications = false) {
+    this._store.dispatch(fetchTokensBalances(null, null, skipNotifications));
   }
 
   getTokenRegistry () {
     return Contracts.get().tokenReg.getContract();
   }
 
-  loadTokens () {
+  _loadTokens (options = {}) {
     return this
       .getTokenRegistry()
       .then((tokenreg) => {
         this._tokenreg = tokenreg;
 
         this._store.dispatch(setTokenReg(tokenreg));
-        this._store.dispatch(loadTokens());
+        this._store.dispatch(loadTokens(options));
 
         return this.attachToTokens(tokenreg);
       })

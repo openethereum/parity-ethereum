@@ -61,12 +61,17 @@ export default class Status {
   start () {
     log.debug('status::start');
 
-    BalancesProvider.start();
-    this._subscribeBlockNumber();
+    Promise
+      .all([
+        this._subscribeBlockNumber(),
 
-    this._pollLogs();
-    this._pollLongStatus();
-    this._pollStatus();
+        this._pollLogs(),
+        this._pollLongStatus(),
+        this._pollStatus()
+      ])
+      .then(() => {
+        return BalancesProvider.start();
+      });
   }
 
   stop () {
@@ -175,7 +180,8 @@ export default class Status {
     this.updateApiStatus();
 
     if (!this._api.isConnected) {
-      return nextTimeout(250);
+      nextTimeout(250);
+      return Promise.resolve();
     }
 
     const { refreshStatus } = this._store.getState().nodeStatus;
@@ -207,7 +213,7 @@ export default class Status {
         console.error('_pollStatus', error);
       })
       .then(() => {
-        return nextTimeout();
+        nextTimeout();
       });
   }
 
@@ -252,7 +258,7 @@ export default class Status {
    */
   _pollLongStatus = () => {
     if (!this._api.isConnected) {
-      return;
+      return Promise.resolve();
     }
 
     const nextTimeout = (timeout = 30000) => {
@@ -322,7 +328,8 @@ export default class Status {
     const { devLogsEnabled } = this._store.getState().nodeStatus;
 
     if (!devLogsEnabled) {
-      return nextTimeout();
+      nextTimeout();
+      return Promise.resolve();
     }
 
     return Promise
