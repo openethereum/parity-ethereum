@@ -151,6 +151,8 @@ module.exports = {
 
     const plugins = Shared.getPlugins().concat(
       new CopyWebpackPlugin([{ from: './error_pages.css', to: 'styles.css' }], {}),
+      new CopyWebpackPlugin([{ from: './dapps/static/*' }], {}),
+
       new WebpackErrorNotificationPlugin(),
 
       new webpack.DllReferencePlugin({
