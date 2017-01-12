@@ -321,7 +321,20 @@ export default class SecureApi extends Api {
    * We check that the `parity_enode` RPC calls
    * returns successfully
    */
-  _waitUntilNodeReady () {
+  _waitUntilNodeReady (_timeleft) {
+    // Default timeout to 30 seconds
+    const timeleft = Number.isFinite(_timeleft)
+      ? _timeleft
+      : 30 * 1000;
+
+    // After timeout, just resolve the promise...
+    if (timeleft <= 0) {
+      console.warn('node is still not ready after 30 seconds...');
+      return Promise.resolve(true);
+    }
+
+    const start = Date.now();
+
     return this
       .parity.enode()
       .then(() => true)
@@ -342,7 +355,9 @@ export default class SecureApi extends Api {
         // Retry in a few...
         return new Promise((resolve, reject) => {
           window.setTimeout(() => {
-            this._waitUntilNodeReady().then(resolve).catch(reject);
+            const duration = Date.now() - start;
+
+            this._waitUntilNodeReady(timeleft - duration).then(resolve).catch(reject);
           }, timeout);
         });
       });
