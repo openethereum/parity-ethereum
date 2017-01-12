@@ -16,7 +16,6 @@
 
 import Push from 'push.js';
 import BigNumber from 'bignumber.js';
-import { noop } from 'lodash';
 
 import { fromWei } from '~/api/util/wei';
 
@@ -33,13 +32,34 @@ export function notifyTransaction (account, token, _value, onClick) {
     ? ethereumIcon
     : (token.image || unkownIcon);
 
-  Push.create(`${name}`, {
-    body: `You just received ${value.toFormat()} ${token.tag.toUpperCase()}`,
-    icon: {
-      x16: icon,
-      x32: icon
-    },
-    timeout: 20000,
-    onClick: onClick || noop
-  });
+  let _notification = null;
+
+  Push
+    .create(`${name}`, {
+      body: `You just received ${value.toFormat(3)} ${token.tag.toUpperCase()}`,
+      icon: {
+        x16: icon,
+        x32: icon
+      },
+      timeout: 20000,
+      onClick: () => {
+        // Focus on the UI
+        try {
+          window.focus();
+        } catch (e) {}
+
+        if (onClick && typeof onClick === 'function') {
+          onClick();
+        }
+
+        // Close the notification
+        if (_notification) {
+          _notification.close();
+          _notification = null;
+        }
+      }
+    })
+    .then((notification) => {
+      _notification = notification;
+    });
 }

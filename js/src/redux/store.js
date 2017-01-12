@@ -38,10 +38,10 @@ export default function (api, browserHistory) {
   const middleware = initMiddleware(api, browserHistory);
   const store = applyMiddleware(...middleware)(storeCreation)(reducers);
 
-  new BalancesProvider(store, api).start();
+  BalancesProvider.instantiate(store, api);
+  StatusProvider.instantiate(store, api);
   new PersonalProvider(store, api).start();
   new SignerProvider(store, api).start();
-  new StatusProvider(store, api).start();
 
   store.dispatch(loadWallet(api));
   setupWorker(store);

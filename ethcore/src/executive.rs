@@ -463,8 +463,9 @@ impl<'a> Executive<'a> {
 
 		match result {
 			Err(evm::Error::Internal) => Err(ExecutionError::Internal),
-			Err(_) => {
+			Err(exception) => {
 				Ok(Executed {
+					exception: Some(exception),
 					gas: t.gas,
 					gas_used: t.gas,
 					refunded: U256::zero(),
@@ -479,6 +480,7 @@ impl<'a> Executive<'a> {
 			},
 			_ => {
 				Ok(Executed {
+					exception: None,
 					gas: t.gas,
 					gas_used: gas_used,
 					refunded: refunded,

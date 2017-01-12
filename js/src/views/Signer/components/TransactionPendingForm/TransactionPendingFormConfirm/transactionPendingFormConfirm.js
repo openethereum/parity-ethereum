@@ -14,13 +14,12 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import keycode from 'keycode';
+import RaisedButton from 'material-ui/RaisedButton';
 import React, { Component, PropTypes } from 'react';
 import ReactDOM from 'react-dom';
 import { connect } from 'react-redux';
-import { bindActionCreators } from 'redux';
-import RaisedButton from 'material-ui/RaisedButton';
 import ReactTooltip from 'react-tooltip';
-import keycode from 'keycode';
 
 import { Form, Input, IdentityIcon } from '~/ui';
 
@@ -258,11 +257,7 @@ function mapStateToProps (_, initProps) {
   };
 }
 
-function mapDispatchToProps (dispatch) {
-  return bindActionCreators({}, dispatch);
-}
-
 export default connect(
   mapStateToProps,
-  mapDispatchToProps
+  null
 )(TransactionPendingFormConfirm);

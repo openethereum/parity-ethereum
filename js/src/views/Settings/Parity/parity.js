@@ -51,7 +51,7 @@ export default class Parity extends Component {
     Object.keys(LOG_KEYS).map((logKey) => {
       const log = LOG_KEYS[logKey];
 
-      const logger = LogLevel.getLogger(log.path);
+      const logger = LogLevel.getLogger(log.key);
       const level = logger.getLevel();
 
       nextState[logKey] = { level, log };
@@ -133,11 +133,11 @@ export default class Parity extends Component {
 
     return Object.keys(logLevels).map((logKey) => {
       const { level, log } = logLevels[logKey];
-      const { path, desc } = log;
+      const { key, desc } = log;
 
       const onChange = (_, index) => {
         const nextLevel = Object.values(selectValues)[index].value;
-        LogLevel.getLogger(path).setLevel(nextLevel);
+        LogLevel.getLogger(key).setLevel(nextLevel);
         this.loadLogLevels();
       };
 

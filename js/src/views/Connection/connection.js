@@ -41,9 +41,9 @@ class Connection extends Component {
   }
 
   render () {
-    const { isConnected, needsToken } = this.props;
+    const { isConnecting, isConnected, needsToken } = this.props;
 
-    if (isConnected) {
+    if (!isConnecting && isConnected) {
       return null;
     }
 
