@@ -18,6 +18,7 @@
 
 extern crate jsonrpc_tcp_server;
 extern crate jsonrpc_core;
+extern crate jsonrpc_macros;
 #[macro_use] extern crate log;
 extern crate ethcore_util as util;
 extern crate ethcore_ipc as ipc;
@@ -45,16 +46,33 @@ pub use traits::{
 };
 
 use jsonrpc_tcp_server::Server as JsonRpcServer;
-use jsonrpc_core::{IoHandler, Params, IoDelegate, to_value, from_params};
+use jsonrpc_core::{IoHandler, Params, to_value};
+use jsonrpc_macros::IoDelegate;
 use std::sync::Arc;
 
 use std::net::SocketAddr;
 use std::collections::{HashSet, HashMap};
 use util::{H256, Hashable, RwLock, RwLockReadGuard};
 
+type RpcResult = Result<jsonrpc_core::Value, jsonrpc_core::Error>;
+
+struct StratumRpc {
+	stratum: RwLock<Option<Arc<Stratum>>>,
+}
+impl StratumRpc {
+	fn subscribe(&self, params: Params) -> RpcResult {
+		self.stratum.read().as_ref().expect("RPC methods are called after stratum is set.")
+			.subscribe(params)
+	}
+
+	fn authorize(&self, params: Params) -> RpcResult {
+		self.stratum.read().as_ref().expect("RPC methods are called after stratum is set.")
+			.authorize(params)
+	}
+}
+
 pub struct Stratum {
-	rpc_server: JsonRpcServer,
-	handler: Arc<IoHandler>,
+	rpc_server: JsonRpcServer<()>,
 	/// Subscribed clients
 	subscribers: RwLock<Vec<SocketAddr>>,
 	/// List of workers supposed to receive job update
@@ -73,29 +91,32 @@ impl Stratum {
 		dispatcher: Arc<JobDispatcher>,
 		secret: Option<H256>,
 	) -> Result<Arc<Stratum>, jsonrpc_tcp_server::Error> {
-		let handler = Arc::new(IoHandler::new());
-		let server = JsonRpcServer::new(addr, &handler)?;
+		let rpc = Arc::new(StratumRpc {
+			stratum: RwLock::new(None),
+		});
+		let mut delegate = IoDelegate::<StratumRpc>::new(rpc.clone());
+		delegate.add_method("miner.subscribe", StratumRpc::subscribe);
+		delegate.add_method("miner.authorize", StratumRpc::authorize);
+
+		let mut handler = IoHandler::default();
+		handler.extend_with(delegate);
+		let server = JsonRpcServer::new(addr, handler)?;
 		let stratum = Arc::new(Stratum {
 			rpc_server: server,
-			handler: handler,
 			subscribers: RwLock::new(Vec::new()),
 			job_que: RwLock::new(HashSet::new()),
 			dispatcher: dispatcher,
 			workers: Arc::new(RwLock::new(HashMap::new())),
 			secret: secret,
 		});
-
-		let mut delegate = IoDelegate::<Stratum>::new(stratum.clone());
-		delegate.add_method("miner.subscribe", Stratum::subscribe);
-		delegate.add_method("miner.authorize", Stratum::authorize);
-		stratum.handler.add_delegate(delegate);
+		*rpc.stratum.write() = Some(stratum.clone());
 
 		stratum.rpc_server.run_async()?;
 
 		Ok(stratum)
 	}
 
-	fn subscribe(&self, _params: Params) -> std::result::Result<jsonrpc_core::Value, jsonrpc_core::Error> {
+	fn subscribe(&self, _params: Params) -> RpcResult {
 		use std::str::FromStr;
 
 		if let Some(context) = self.rpc_server.request_context() {
@@ -115,8 +136,8 @@ impl Stratum {
 		})
 	}
 
-	fn authorize(&self, params: Params) -> std::result::Result<jsonrpc_core::Value, jsonrpc_core::Error> {
-		from_params::<(String, String)>(params).map(|(worker_id, secret)|{
+	fn authorize(&self, params: Params) -> RpcResult {
+		params.parse::<(String, String)>().map(|(worker_id, secret)|{
 			if let Some(valid_secret) = self.secret {
 				let hash = secret.sha3();
 				if hash != valid_secret {

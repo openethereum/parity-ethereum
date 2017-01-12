@@ -24,8 +24,8 @@ use ethcore::account_provider::AccountProvider;
 use ethcore::miner::MinerService;
 use ethcore::client::MiningBlockChainClient;
 
+use futures::{self, BoxFuture, Future};
 use jsonrpc_core::Error;
-use jsonrpc_macros::Ready;
 use v1::helpers::{
 	errors, dispatch,
 	SigningQueue, ConfirmationPromise, ConfirmationResult, ConfirmationPayload, SignerService
@@ -164,17 +164,21 @@ impl<C: 'static, M: 'static> ParitySigning for SigningQueueClient<C, M> where
 		res
 	}
 
-	fn decrypt_message(&self, ready: Ready<RpcBytes>, address: RpcH160, data: RpcBytes) {
+	fn decrypt_message(&self, address: RpcH160, data: RpcBytes) -> BoxFuture<RpcBytes, Error> {
 		let res = self.active()
 			.and_then(|_| self.dispatch(RpcConfirmationPayload::Decrypt((address, data).into())));
+
+		let (ready, p) = futures::oneshot();
 		// TODO [todr] typed handle_dispatch
 		self.handle_dispatch(res, |response| {
 			match response {
-				Ok(RpcConfirmationResponse::Decrypt(data)) => ready.ready(Ok(data)),
-				Err(e) => ready.ready(Err(e)),
-				e => ready.ready(Err(errors::internal("Unexpected result.", e))),
+				Ok(RpcConfirmationResponse::Decrypt(data)) => ready.complete(Ok(data)),
+				Err(e) => ready.complete(Err(e)),
+				e => ready.complete(Err(errors::internal("Unexpected result.", e))),
 			}
 		});
+
+		p.then(|result| futures::done(result.expect("Ready is never dropped nor canceled."))).boxed()
 	}
 }
 
@@ -182,37 +186,49 @@ impl<C: 'static, M: 'static> EthSigning for SigningQueueClient<C, M> where
 	C: MiningBlockChainClient,
 	M: MinerService,
 {
-	fn sign(&self, ready: Ready<RpcH520>, address: RpcH160, data: RpcBytes) {
+	fn sign(&self, address: RpcH160, data: RpcBytes) -> BoxFuture<RpcH520, Error> {
 		let hash = data.0.sha3().into();
 		let res = self.active().and_then(|_| self.dispatch(RpcConfirmationPayload::Signature((address, hash).into())));
+
+		let (ready, p) = futures::oneshot();
 		self.handle_dispatch(res, |response| {
 			match response {
-				Ok(RpcConfirmationResponse::Signature(signature)) => ready.ready(Ok(signature)),
-				Err(e) => ready.ready(Err(e)),
-				e => ready.ready(Err(errors::internal("Unexpected result.", e))),
+				Ok(RpcConfirmationResponse::Signature(signature)) => ready.complete(Ok(signature)),
+				Err(e) => ready.complete(Err(e)),
+				e => ready.complete(Err(errors::internal("Unexpected result.", e))),
 			}
 		});
+
+		p.then(|result| futures::done(result.expect("Ready is never dropped nor canceled."))).boxed()
 	}
 
-	fn send_transaction(&self, ready: Ready<RpcH256>, request: RpcTransactionRequest) {
+	fn send_transaction(&self, request: RpcTransactionRequest) -> BoxFuture<RpcH256, Error> {
 		let res = self.active().and_then(|_| self.dispatch(RpcConfirmationPayload::SendTransaction(request)));
+
+		let (ready, p) = futures::oneshot();
 		self.handle_dispatch(res, |response| {
 			match response {
-				Ok(RpcConfirmationResponse::SendTransaction(hash)) => ready.ready(Ok(hash)),
-				Err(e) => ready.ready(Err(e)),
-				e => ready.ready(Err(errors::internal("Unexpected result.", e))),
+				Ok(RpcConfirmationResponse::SendTransaction(hash)) => ready.complete(Ok(hash)),
+				Err(e) => ready.complete(Err(e)),
+				e => ready.complete(Err(errors::internal("Unexpected result.", e))),
 			}
 		});
+
+		p.then(|result| futures::done(result.expect("Ready is never dropped nor canceled."))).boxed()
 	}
 
-	fn sign_transaction(&self, ready: Ready<RpcRichRawTransaction>, request: RpcTransactionRequest) {
+	fn sign_transaction(&self, request: RpcTransactionRequest) -> BoxFuture<RpcRichRawTransaction, Error> {
 		let res = self.active().and_then(|_| self.dispatch(RpcConfirmationPayload::SignTransaction(request)));
+
+		let (ready, p) = futures::oneshot();
 		self.handle_dispatch(res, |response| {
 			match response {
-				Ok(RpcConfirmationResponse::SignTransaction(tx)) => ready.ready(Ok(tx)),
-				Err(e) => ready.ready(Err(e)),
-				e => ready.ready(Err(errors::internal("Unexpected result.", e))),
+				Ok(RpcConfirmationResponse::SignTransaction(tx)) => ready.complete(Ok(tx)),
+				Err(e) => ready.complete(Err(e)),
+				e => ready.complete(Err(errors::internal("Unexpected result.", e))),
 			}
 		});
+
+		p.then(|result| futures::done(result.expect("Ready is never dropped nor canceled."))).boxed()
 	}
 }

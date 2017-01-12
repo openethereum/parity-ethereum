@@ -21,7 +21,7 @@ use ethcore::trace::trace::{Action, Res, Call};
 use ethcore::trace::LocalizedTrace;
 use ethcore::client::{TestBlockChainClient};
 
-use jsonrpc_core::{IoHandler, GenericIoHandler};
+use jsonrpc_core::IoHandler;
 use v1::tests::helpers::{TestMinerService};
 use v1::{Traces, TracesClient};
 
@@ -64,8 +64,8 @@ fn io() -> Tester {
 	}));
 	let miner = Arc::new(TestMinerService::default());
 	let traces = TracesClient::new(&client, &miner);
-	let io = IoHandler::new();
-	io.add_delegate(traces.to_delegate());
+	let mut io = IoHandler::new();
+	io.extend_with(traces.to_delegate());
 
 	Tester {
 		_client: client,

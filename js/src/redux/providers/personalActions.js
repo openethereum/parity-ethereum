@@ -76,6 +76,9 @@ export function personalAccountsInfo (accountsInfo) {
             return wallet;
           });
       })
+      .catch(() => {
+        return [];
+      })
       .then((_wallets) => {
         _wallets.forEach((wallet) => {
           const owners = wallet.owners.map((o) => o.address);
@@ -100,6 +103,10 @@ export function personalAccountsInfo (accountsInfo) {
         BalancesProvider.get().fetchAllBalances({
           force: true
         });
+      })
+      .catch((error) => {
+        console.warn('personalAccountsInfo', error);
+        throw error;
       });
   };
 }

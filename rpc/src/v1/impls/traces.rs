@@ -77,7 +77,6 @@ impl<C, M> TracesClient<C, M> where C: BlockChainClient, M: MinerService {
 impl<C, M> Traces for TracesClient<C, M> where C: BlockChainClient + 'static, M: MinerService + 'static {
 	fn filter(&self, filter: TraceFilter) -> Result<Vec<LocalizedTrace>, Error> {
 		self.active()?;
-
 		let client = take_weak!(self.client);
 		let traces = client.filter_traces(filter.into());
 		let traces = traces.map_or_else(Vec::new, |traces| traces.into_iter().map(LocalizedTrace::from).collect());
@@ -94,7 +93,6 @@ impl<C, M> Traces for TracesClient<C, M> where C: BlockChainClient + 'static, M:
 
 	fn transaction_traces(&self, transaction_hash: H256) -> Result<Vec<LocalizedTrace>, Error> {
 		self.active()?;
-
 		let client = take_weak!(self.client);
 		let traces = client.transaction_traces(TransactionId::Hash(transaction_hash.into()));
 		let traces = traces.map_or_else(Vec::new, |traces| traces.into_iter().map(LocalizedTrace::from).collect());
