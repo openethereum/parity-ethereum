@@ -561,6 +561,7 @@ fn rpc_eth_code() {
 fn rpc_eth_call_latest() {
 	let tester = EthTester::default();
 	tester.client.set_execution_result(Ok(Executed {
+		exception: None,
 		gas: U256::zero(),
 		gas_used: U256::from(0xff30),
 		refunded: U256::from(0x5),
@@ -596,6 +597,7 @@ fn rpc_eth_call_latest() {
 fn rpc_eth_call() {
 	let tester = EthTester::default();
 	tester.client.set_execution_result(Ok(Executed {
+		exception: None,
 		gas: U256::zero(),
 		gas_used: U256::from(0xff30),
 		refunded: U256::from(0x5),
@@ -631,6 +633,7 @@ fn rpc_eth_call() {
 fn rpc_eth_call_default_block() {
 	let tester = EthTester::default();
 	tester.client.set_execution_result(Ok(Executed {
+		exception: None,
 		gas: U256::zero(),
 		gas_used: U256::from(0xff30),
 		refunded: U256::from(0x5),
@@ -665,6 +668,7 @@ fn rpc_eth_call_default_block() {
 fn rpc_eth_estimate_gas() {
 	let tester = EthTester::default();
 	tester.client.set_execution_result(Ok(Executed {
+		exception: None,
 		gas: U256::zero(),
 		gas_used: U256::from(0xff30),
 		refunded: U256::from(0x5),
@@ -700,6 +704,7 @@ fn rpc_eth_estimate_gas() {
 fn rpc_eth_estimate_gas_default_block() {
 	let tester = EthTester::default();
 	tester.client.set_execution_result(Ok(Executed {
+		exception: None,
 		gas: U256::zero(),
 		gas_used: U256::from(0xff30),
 		refunded: U256::from(0x5),

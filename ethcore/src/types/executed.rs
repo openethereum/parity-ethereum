@@ -18,6 +18,7 @@
 
 use util::{Bytes, U256, Address, U512};
 use rlp::*;
+use evm;
 use trace::{VMTrace, FlatTrace};
 use types::log_entry::LogEntry;
 use types::state_diff::StateDiff;
@@ -65,6 +66,9 @@ impl Decodable for CallType {
 #[derive(Debug, PartialEq, Clone)]
 #[cfg_attr(feature = "ipc", binary)]
 pub struct Executed {
+	/// True if the outer call/create resulted in an exceptional exit.
+	pub exception: Option<evm::Error>,
+
 	/// Gas paid up front for execution of transaction.
 	pub gas: U256,
 
@@ -178,6 +182,8 @@ pub enum CallError {
 	TransactionNotFound,
 	/// Couldn't find requested block's state in the chain.
 	StatePruned,
+	/// Couldn't find an amount of gas that didn't result in an exception.
+	Exceptional,
 	/// Error executing.
 	Execution(ExecutionError),
 }
@@ -195,6 +201,7 @@ impl fmt::Display for CallError {
 		let msg = match *self {
 			TransactionNotFound => "Transaction couldn't be found in the chain".into(),
 			StatePruned => "Couldn't find the transaction block's state in the chain".into(),
+			Exceptional => "An exception happened in the execution".into(),
 			Execution(ref e) => format!("{}", e),
 		};
 
