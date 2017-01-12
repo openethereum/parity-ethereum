@@ -23,7 +23,6 @@ const log = getLogger(LOG_KEYS.Signer);
 const sysuiToken = window.localStorage.getItem('sysuiToken');
 
 export default class SecureApi extends Api {
-
   _isConnecting = false;
   _needsToken = false;
   _tokens = [];
