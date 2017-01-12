@@ -32,11 +32,11 @@ export default class Loading extends Component {
 
   render () {
     const { className, size } = this.props;
-    const _size = size * 60;
+    const computedSize = size * 60;
 
     return (
       <div className={ [ styles.loading, className ].join(' ') }>
-        <CircularProgress size={ _size } />
+        <CircularProgress size={ computedSize } />
       </div>
     );
   }

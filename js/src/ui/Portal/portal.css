@@ -68,6 +68,9 @@ $top: 20vh;
   opacity: 0;
   z-index: -10;
 
+  padding: 1em;
+  box-sizing: border-box;
+
   * {
     min-width: 0;
   }

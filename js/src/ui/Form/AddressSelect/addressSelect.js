@@ -188,11 +188,9 @@ class AddressSelect extends Component {
             id={ id }
             className={ styles.input }
             placeholder={ ilHint }
-
             onBlur={ this.handleInputBlur }
             onFocus={ this.handleInputFocus }
             onChange={ this.handleChange }
-
             ref={ this.setInputRef }
           />
           { this.renderLoader() }
@@ -321,7 +319,9 @@ class AddressSelect extends Component {
 
     return (
       <div className={ styles.category } key={ `${key}_${index}` }>
-        <div className={ styles.title }>{ label }</div>
+        <div className={ styles.title }>
+          <h3>{ label }</h3>
+        </div>
         { content }
       </div>
     );
