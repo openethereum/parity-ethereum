@@ -844,6 +844,7 @@ mod tests {
 	use std::str::FromStr;
 	use rustc_serialize::hex::FromHex;
 	use super::*;
+	use ethkey::Secret;
 	use util::{U256, H256, FixedHash, Address, Hashable};
 	use tests::helpers::*;
 	use devtools::*;
@@ -853,6 +854,10 @@ mod tests {
 	use util::log::init_log;
 	use trace::{FlatTrace, TraceError, trace};
 	use types::executed::CallType;
+
+	fn secret() -> Secret {
+		Secret::from_slice(&"".sha3()).unwrap()
+	}
 
 	#[test]
 	fn should_apply_create_transaction() {
@@ -872,7 +877,7 @@ mod tests {
 			action: Action::Create,
 			value: 100.into(),
 			data: FromHex::from_hex("601080600c6000396000f3006000355415600957005b60203560003555").unwrap(),
-		}.sign(&"".sha3(), None);
+		}.sign(&secret(), None);
 
 		state.add_balance(t.sender().as_ref().unwrap(), &(100.into()), CleanupMode::NoEmpty);
 		let result = state.apply(&info, &engine, &t, true).unwrap();
@@ -932,7 +937,7 @@ mod tests {
 			action: Action::Create,
 			value: 100.into(),
 			data: FromHex::from_hex("5b600056").unwrap(),
-		}.sign(&"".sha3(), None);
+		}.sign(&secret(), None);
 
 		state.add_balance(t.sender().as_ref().unwrap(), &(100.into()), CleanupMode::NoEmpty);
 		let result = state.apply(&info, &engine, &t, true).unwrap();
@@ -969,7 +974,7 @@ mod tests {
 			action: Action::Call(0xa.into()),
 			value: 100.into(),
 			data: vec![],
-		}.sign(&"".sha3(), None);
+		}.sign(&secret(), None);
 
 		state.init_code(&0xa.into(), FromHex::from_hex("6000").unwrap());
 		state.add_balance(t.sender().as_ref().unwrap(), &(100.into()), CleanupMode::NoEmpty);
@@ -1012,7 +1017,7 @@ mod tests {
 			action: Action::Call(0xa.into()),
 			value: 100.into(),
 			data: vec![],
-		}.sign(&"".sha3(), None);
+		}.sign(&secret(), None);
 
 		state.add_balance(t.sender().as_ref().unwrap(), &(100.into()), CleanupMode::NoEmpty);
 		let result = state.apply(&info, &engine, &t, true).unwrap();
@@ -1054,7 +1059,7 @@ mod tests {
 			action: Action::Call(0x1.into()),
 			value: 0.into(),
 			data: vec![],
-		}.sign(&"".sha3(), None);
+		}.sign(&secret(), None);
 
 		let result = state.apply(&info, engine, &t, true).unwrap();
 
@@ -1096,7 +1101,7 @@ mod tests {
 			action: Action::Call(0xa.into()),
 			value: 0.into(),
 			data: vec![],
-		}.sign(&"".sha3(), None);
+		}.sign(&secret(), None);
 
 		state.init_code(&0xa.into(), FromHex::from_hex("600060006000600060006001610be0f1").unwrap());
 		let result = state.apply(&info, engine, &t, true).unwrap();
@@ -1139,7 +1144,7 @@ mod tests {
 			action: Action::Call(0xa.into()),
 			value: 0.into(),
 			data: vec![],
-		}.sign(&"".sha3(), None);
+		}.sign(&secret(), None);
 
 		state.init_code(&0xa.into(), FromHex::from_hex("60006000600060006000600b611000f2").unwrap());
 		state.init_code(&0xb.into(), FromHex::from_hex("6000").unwrap());
@@ -1201,7 +1206,7 @@ mod tests {
 			action: Action::Call(0xa.into()),
 			value: 0.into(),
 			data: vec![],
-		}.sign(&"".sha3(), None);
+		}.sign(&secret(), None);
 
 		state.init_code(&0xa.into(), FromHex::from_hex("6000600060006000600b618000f4").unwrap());
 		state.init_code(&0xb.into(), FromHex::from_hex("6000").unwrap());
@@ -1260,7 +1265,7 @@ mod tests {
 			action: Action::Call(0xa.into()),
 			value: 100.into(),
 			data: vec![],
-		}.sign(&"".sha3(), None);
+		}.sign(&secret(), None);
 
 		state.init_code(&0xa.into(), FromHex::from_hex("5b600056").unwrap());
 		state.add_balance(t.sender().as_ref().unwrap(), &(100.into()), CleanupMode::NoEmpty);
@@ -1300,7 +1305,7 @@ mod tests {
 			action: Action::Call(0xa.into()),
 			value: 100.into(),
 			data: vec![],
-		}.sign(&"".sha3(), None);
+		}.sign(&secret(), None);
 
 		state.init_code(&0xa.into(), FromHex::from_hex("60006000600060006000600b602b5a03f1").unwrap());
 		state.init_code(&0xb.into(), FromHex::from_hex("6000").unwrap());
@@ -1360,7 +1365,7 @@ mod tests {
 			action: Action::Call(0xa.into()),
 			value: 100.into(),
 			data: vec![],
-		}.sign(&"".sha3(), None);
+		}.sign(&secret(), None);
 
 		state.init_code(&0xa.into(), FromHex::from_hex("60006000600060006045600b6000f1").unwrap());
 		state.add_balance(t.sender().as_ref().unwrap(), &(100.into()), CleanupMode::NoEmpty);
@@ -1415,7 +1420,7 @@ mod tests {
 			action: Action::Call(0xa.into()),
 			value: 100.into(),
 			data: vec![],
-		}.sign(&"".sha3(), None);
+		}.sign(&secret(), None);
 
 		state.init_code(&0xa.into(), FromHex::from_hex("600060006000600060ff600b6000f1").unwrap());	// not enough funds.
 		state.add_balance(t.sender().as_ref().unwrap(), &(100.into()), CleanupMode::NoEmpty);
@@ -1458,7 +1463,7 @@ mod tests {
 			action: Action::Call(0xa.into()),
 			value: 100.into(),
 			data: vec![],//600480600b6000396000f35b600056
-		}.sign(&"".sha3(), None);
+		}.sign(&secret(), None);
 
 		state.init_code(&0xa.into(), FromHex::from_hex("60006000600060006000600b602b5a03f1").unwrap());
 		state.init_code(&0xb.into(), FromHex::from_hex("5b600056").unwrap());
@@ -1514,7 +1519,7 @@ mod tests {
 			action: Action::Call(0xa.into()),
 			value: 100.into(),
 			data: vec![],
-		}.sign(&"".sha3(), None);
+		}.sign(&secret(), None);
 
 		state.init_code(&0xa.into(), FromHex::from_hex("60006000600060006000600b602b5a03f1").unwrap());
 		state.init_code(&0xb.into(), FromHex::from_hex("60006000600060006000600c602b5a03f1").unwrap());
@@ -1589,7 +1594,7 @@ mod tests {
 			action: Action::Call(0xa.into()),
 			value: 100.into(),
 			data: vec![],//600480600b6000396000f35b600056
-		}.sign(&"".sha3(), None);
+		}.sign(&secret(), None);
 
 		state.init_code(&0xa.into(), FromHex::from_hex("60006000600060006000600b602b5a03f1").unwrap());
 		state.init_code(&0xb.into(), FromHex::from_hex("60006000600060006000600c602b5a03f1505b601256").unwrap());
@@ -1662,7 +1667,7 @@ mod tests {
 			action: Action::Call(0xa.into()),
 			value: 100.into(),
 			data: vec![],
-		}.sign(&"".sha3(), None);
+		}.sign(&secret(), None);
 
 		state.init_code(&0xa.into(), FromHex::from_hex("73000000000000000000000000000000000000000bff").unwrap());
 		state.add_balance(&0xa.into(), &50.into(), CleanupMode::NoEmpty);

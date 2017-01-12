@@ -391,6 +391,14 @@ impl Res {
 			Res::Call(_) | Res::FailedCall(_) | Res::FailedCreate(_) | Res::None => Default::default(),
 		}
 	}
+
+	/// Did this call fail?
+	pub fn succeeded(&self) -> bool {
+		match *self {
+			Res::Call(_) | Res::Create(_) => true,
+			_ => false,
+		}
+	}
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -561,4 +569,3 @@ impl Decodable for VMTrace {
 		Ok(res)
 	}
 }
-

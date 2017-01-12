@@ -21,7 +21,8 @@ use authcode_store::AuthCodes;
 use std::path::{PathBuf, Path};
 use std::sync::Arc;
 use std::str::FromStr;
-use jsonrpc_core::{IoHandler, GenericIoHandler};
+use jsonrpc_core::{Metadata};
+use jsonrpc_core::reactor::RpcHandler;
 use util::{H256, version};
 
 #[cfg(feature = "parity-ui")]
@@ -129,16 +130,16 @@ fn add_headers(mut response: ws::Response, mime: &str) -> ws::Response {
 	response
 }
 
-pub struct Session {
+pub struct Session<M: Metadata> {
 	out: ws::Sender,
 	skip_origin_validation: bool,
 	self_origin: String,
 	authcodes_path: PathBuf,
-	handler: Arc<IoHandler>,
+	handler: RpcHandler<M>,
 	file_handler: Arc<ui::Handler>,
 }
 
-impl ws::Handler for Session {
+impl<M: Metadata> ws::Handler for Session<M> {
 	#[cfg_attr(feature="dev", allow(collapsible_if))]
 	fn on_request(&mut self, req: &ws::Request) -> ws::Result<(ws::Response)> {
 		trace!(target: "signer", "Handling request: {:?}", req);
@@ -209,7 +210,10 @@ impl ws::Handler for Session {
 	fn on_message(&mut self, msg: ws::Message) -> ws::Result<()> {
 		let req = msg.as_text()?;
 		let out = self.out.clone();
-		self.handler.handle_request(req, move |response| {
+		// TODO [ToDr] Extract metadata for PubSub/Session
+		let metadata = Default::default();
+
+		self.handler.handle_request(req, metadata, move |response| {
 			if let Some(result) = response {
 				let res = out.send(result);
 				if let Err(e) = res {
@@ -221,16 +225,16 @@ impl ws::Handler for Session {
 	}
 }
 
-pub struct Factory {
-	handler: Arc<IoHandler>,
+pub struct Factory<M: Metadata> {
+	handler: RpcHandler<M>,
 	skip_origin_validation: bool,
 	self_origin: String,
 	authcodes_path: PathBuf,
 	file_handler: Arc<ui::Handler>,
 }
 
-impl Factory {
-	pub fn new(handler: Arc<IoHandler>, self_origin: String, authcodes_path: PathBuf, skip_origin_validation: bool) -> Self {
+impl<M: Metadata> Factory<M> {
+	pub fn new(handler: RpcHandler<M>, self_origin: String, authcodes_path: PathBuf, skip_origin_validation: bool) -> Self {
 		Factory {
 			handler: handler,
 			skip_origin_validation: skip_origin_validation,
@@ -241,8 +245,8 @@ impl Factory {
 	}
 }
 
-impl ws::Factory for Factory {
-	type Handler = Session;
+impl<M: Metadata> ws::Factory for Factory<M> {
+	type Handler = Session<M>;
 
 	fn connection_made(&mut self, sender: ws::Sender) -> Self::Handler {
 		Session {

@@ -22,7 +22,7 @@ import TransportError from '../error';
 
 /* global WebSocket */
 export default class Ws extends JsonRpcBase {
-  constructor (url, token, connect = true) {
+  constructor (url, token, autoconnect = true) {
     super();
 
     this._url = url;
@@ -32,14 +32,14 @@ export default class Ws extends JsonRpcBase {
     this._connecting = false;
     this._connected = false;
     this._lastError = null;
-    this._autoConnect = false;
+    this._autoConnect = autoconnect;
     this._retries = 0;
     this._reconnectTimeoutId = null;
 
     this._connectPromise = null;
     this._connectPromiseFunctions = {};
 
-    if (connect) {
+    if (autoconnect) {
       this.connect();
     }
   }
@@ -124,11 +124,8 @@ export default class Ws extends JsonRpcBase {
   }
 
   _onOpen = (event) => {
-    console.log('ws:onOpen');
-
-    this._connected = true;
+    this._setConnected();
     this._connecting = false;
-    this._autoConnect = true;
     this._retries = 0;
 
     Object.keys(this._messages)
@@ -142,7 +139,7 @@ export default class Ws extends JsonRpcBase {
   }
 
   _onClose = (event) => {
-    this._connected = false;
+    this._setDisconnected();
     this._connecting = false;
 
     event.timestamp = Date.now();
@@ -209,8 +206,8 @@ export default class Ws extends JsonRpcBase {
       if (result.error) {
         this.error(event.data);
 
-        // Don't print error if request rejected...
-        if (!/rejected/.test(result.error.message)) {
+        // Don't print error if request rejected or not is not yet up...
+        if (!/(rejected|not yet up)/.test(result.error.message)) {
           console.error(`${method}(${JSON.stringify(params)}): ${result.error.code}: ${result.error.message}`);
         }
 

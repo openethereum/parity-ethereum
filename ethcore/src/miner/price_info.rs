@@ -82,7 +82,7 @@ impl PriceInfo {
 	}
 }
 
-#[test]
+#[test] #[ignore]
 fn should_get_price_info() {
 	use std::sync::Arc;
 	use std::time::Duration;

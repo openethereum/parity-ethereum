@@ -15,30 +15,6 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Ethcore Webapplications for Parity
-//! ```
-//! extern crate jsonrpc_core;
-//! extern crate ethcore_dapps;
-//!
-//! use std::sync::Arc;
-//! use jsonrpc_core::IoHandler;
-//! use ethcore_dapps::*;
-//!
-//! struct SayHello;
-//! impl MethodCommand for SayHello {
-//! 	fn execute(&self, _params: Params) -> Result<Value, Error> {
-//! 		Ok(Value::String("hello".to_string()))
-//! 	}
-//! }
-//!
-//! fn main() {
-//! 	let io = IoHandler::new();
-//! 	io.add_method("say_hello", SayHello);
-//! 	let _server = Server::start_unsecure_http(
-//! 		&"127.0.0.1:3030".parse().unwrap(),
-//! 		Arc::new(io)
-//! 	);
-//! }
-//! ```
 //!
 #![warn(missing_docs)]
 #![cfg_attr(feature="nightly", plugin(clippy))]
@@ -93,11 +69,11 @@ use std::sync::{Arc, Mutex};
 use std::net::SocketAddr;
 use std::collections::HashMap;
 
-use hash_fetch::urlhint::ContractClient;
+use ethcore_rpc::Metadata;
 use fetch::{Fetch, Client as FetchClient};
-use jsonrpc_core::{IoHandler, IoDelegate};
+use hash_fetch::urlhint::ContractClient;
+use jsonrpc_core::reactor::RpcHandler;
 use router::auth::{Authorization, NoAuth, HttpBasicAuth};
-use ethcore_rpc::Extendable;
 use parity_reactor::Remote;
 
 use self::apps::{HOME_PAGE, DAPPS_DOMAIN};
@@ -126,19 +102,13 @@ impl<F> WebProxyTokens for F where F: Fn(String) -> bool + Send + Sync {
 pub struct ServerBuilder<T: Fetch = FetchClient> {
 	dapps_path: PathBuf,
 	extra_dapps: Vec<PathBuf>,
-	handler: Arc<IoHandler>,
 	registrar: Arc<ContractClient>,
 	sync_status: Arc<SyncStatus>,
 	web_proxy_tokens: Arc<WebProxyTokens>,
 	signer_address: Option<(String, u16)>,
+	allowed_hosts: Option<Vec<String>>,
 	remote: Remote,
 	fetch: Option<T>,
-}
-
-impl<T: Fetch> Extendable for ServerBuilder<T> {
-	fn add_delegate<D: Send + Sync + 'static>(&self, delegate: IoDelegate<D>) {
-		self.handler.add_delegate(delegate);
-	}
 }
 
 impl ServerBuilder {
@@ -147,11 +117,11 @@ impl ServerBuilder {
 		ServerBuilder {
 			dapps_path: dapps_path.as_ref().to_owned(),
 			extra_dapps: vec![],
-			handler: Arc::new(IoHandler::new()),
 			registrar: registrar,
 			sync_status: Arc::new(|| false),
 			web_proxy_tokens: Arc::new(|_| false),
 			signer_address: None,
+			allowed_hosts: Some(vec![]),
 			remote: remote,
 			fetch: None,
 		}
@@ -164,11 +134,11 @@ impl<T: Fetch> ServerBuilder<T> {
 		ServerBuilder {
 			dapps_path: self.dapps_path,
 			extra_dapps: vec![],
-			handler: self.handler,
 			registrar: self.registrar,
 			sync_status: self.sync_status,
 			web_proxy_tokens: self.web_proxy_tokens,
 			signer_address: self.signer_address,
+			allowed_hosts: self.allowed_hosts,
 			remote: self.remote,
 			fetch: Some(fetch),
 		}
@@ -192,6 +162,14 @@ impl<T: Fetch> ServerBuilder<T> {
 		self
 	}
 
+	/// Change allowed hosts.
+	/// `None` - All hosts are allowed
+	/// `Some(whitelist)` - Allow only whitelisted hosts (+ listen address)
+	pub fn allowed_hosts(mut self, allowed_hosts: Option<Vec<String>>) -> Self {
+		self.allowed_hosts = allowed_hosts;
+		self
+	}
+
 	/// Change extra dapps paths (apart from `dapps_path`)
 	pub fn extra_dapps<P: AsRef<Path>>(mut self, extra_dapps: &[P]) -> Self {
 		self.extra_dapps = extra_dapps.iter().map(|p| p.as_ref().to_owned()).collect();
@@ -200,39 +178,41 @@ impl<T: Fetch> ServerBuilder<T> {
 
 	/// Asynchronously start server with no authentication,
 	/// returns result with `Server` handle on success or an error.
-	pub fn start_unsecured_http(self, addr: &SocketAddr, hosts: Option<Vec<String>>) -> Result<Server, ServerError> {
+	pub fn start_unsecured_http(self, addr: &SocketAddr, handler: RpcHandler<Metadata>) -> Result<Server, ServerError> {
+		let fetch = self.fetch_client()?;
 		Server::start_http(
 			addr,
-			hosts,
+			self.allowed_hosts,
 			NoAuth,
-			self.handler.clone(),
-			self.dapps_path.clone(),
-			self.extra_dapps.clone(),
-			self.signer_address.clone(),
-			self.registrar.clone(),
-			self.sync_status.clone(),
-			self.web_proxy_tokens.clone(),
-			self.remote.clone(),
-			self.fetch_client()?,
+			handler,
+			self.dapps_path,
+			self.extra_dapps,
+			self.signer_address,
+			self.registrar,
+			self.sync_status,
+			self.web_proxy_tokens,
+			self.remote,
+			fetch,
 		)
 	}
 
 	/// Asynchronously start server with `HTTP Basic Authentication`,
 	/// return result with `Server` handle on success or an error.
-	pub fn start_basic_auth_http(self, addr: &SocketAddr, hosts: Option<Vec<String>>, username: &str, password: &str) -> Result<Server, ServerError> {
+	pub fn start_basic_auth_http(self, addr: &SocketAddr, username: &str, password: &str, handler: RpcHandler<Metadata>) -> Result<Server, ServerError> {
+		let fetch = self.fetch_client()?;
 		Server::start_http(
 			addr,
-			hosts,
+			self.allowed_hosts,
 			HttpBasicAuth::single_user(username, password),
-			self.handler.clone(),
-			self.dapps_path.clone(),
-			self.extra_dapps.clone(),
-			self.signer_address.clone(),
-			self.registrar.clone(),
-			self.sync_status.clone(),
-			self.web_proxy_tokens.clone(),
-			self.remote.clone(),
-			self.fetch_client()?,
+			handler,
+			self.dapps_path,
+			self.extra_dapps,
+			self.signer_address,
+			self.registrar,
+			self.sync_status,
+			self.web_proxy_tokens,
+			self.remote,
+			fetch,
 		)
 	}
 
@@ -281,7 +261,7 @@ impl Server {
 		addr: &SocketAddr,
 		hosts: Option<Vec<String>>,
 		authorization: A,
-		handler: Arc<IoHandler>,
+		handler: RpcHandler<Metadata>,
 		dapps_path: PathBuf,
 		extra_dapps: Vec<PathBuf>,
 		signer_address: Option<(String, u16)>,

@@ -17,13 +17,15 @@
 use std::sync::{Arc, Mutex};
 use hyper;
 
-use jsonrpc_core::{IoHandler, ResponseHandler, Request, Response};
-use jsonrpc_http_server::{ServerHandler, PanicHandler, AccessControlAllowOrigin, RpcHandler};
+use ethcore_rpc::{Metadata, Origin};
+use jsonrpc_core::reactor::RpcHandler;
+use jsonrpc_http_server::{Rpc, ServerHandler, PanicHandler, AccessControlAllowOrigin, HttpMetaExtractor};
 use endpoint::{Endpoint, EndpointPath, Handler};
 
-pub fn rpc(handler: Arc<IoHandler>, panic_handler: Arc<Mutex<Option<Box<Fn() -> () + Send>>>>) -> Box<Endpoint> {
+pub fn rpc(handler: RpcHandler<Metadata>, panic_handler: Arc<Mutex<Option<Box<Fn() -> () + Send>>>>) -> Box<Endpoint> {
 	Box::new(RpcEndpoint {
-		handler: Arc::new(RpcMiddleware::new(handler)),
+		handler: handler,
+		meta_extractor: Arc::new(MetadataExtractor),
 		panic_handler: panic_handler,
 		cors_domain: None,
 		// NOTE [ToDr] We don't need to do any hosts validation here. It's already done in router.
@@ -32,7 +34,8 @@ pub fn rpc(handler: Arc<IoHandler>, panic_handler: Arc<Mutex<Option<Box<Fn() -> 
 }
 
 struct RpcEndpoint {
-	handler: Arc<RpcMiddleware>,
+	handler: RpcHandler<Metadata>,
+	meta_extractor: Arc<HttpMetaExtractor<Metadata>>,
 	panic_handler: Arc<Mutex<Option<Box<Fn() -> () + Send>>>>,
 	cors_domain: Option<Vec<AccessControlAllowOrigin>>,
 	allowed_hosts: Option<Vec<String>>,
@@ -42,7 +45,7 @@ impl Endpoint for RpcEndpoint {
 	fn to_async_handler(&self, _path: EndpointPath, control: hyper::Control) -> Box<Handler> {
 		let panic_handler = PanicHandler { handler: self.panic_handler.clone() };
 		Box::new(ServerHandler::new(
-				self.handler.clone(),
+				Rpc::new(self.handler.clone(), self.meta_extractor.clone()),
 				self.cors_domain.clone(),
 				self.allowed_hosts.clone(),
 				panic_handler,
@@ -51,85 +54,19 @@ impl Endpoint for RpcEndpoint {
 	}
 }
 
-struct RpcMiddleware {
-	handler: Arc<IoHandler>,
-	methods: Vec<String>,
-}
-
-impl RpcMiddleware {
-	fn new(handler: Arc<IoHandler>) -> Self {
-		RpcMiddleware {
-			handler: handler,
-			methods: vec!["eth_accounts".into(), "parity_accountsInfo".into()],
-		}
-	}
-
-	/// Appends additional parameter for specific calls.
-	fn augment_request(&self, request: &mut Request, meta: Option<Meta>) {
-		use jsonrpc_core::{Call, Params, to_value};
-
-		fn augment_call(call: &mut Call, meta: Option<&Meta>, methods: &Vec<String>) {
-			match (call, meta) {
-				(&mut Call::MethodCall(ref mut method_call), Some(meta)) if methods.contains(&method_call.method) => {
-					let session = to_value(&meta.app_id);
-
-					let params = match method_call.params {
-						Some(Params::Array(ref vec)) if vec.len() == 0 => Some(Params::Array(vec![session])),
-						// invalid params otherwise
-						_ => None,
-					};
-
-					method_call.params = params;
-				},
-				_ => {}
-			}
-		}
-
-		match *request {
-			Request::Single(ref mut call) => augment_call(call, meta.as_ref(), &self.methods),
-			Request::Batch(ref mut vec) => {
-				for mut call in vec {
-					augment_call(call, meta.as_ref(), &self.methods)
-				}
-			},
-		}
-	}
-}
-
-#[derive(Debug)]
-struct Meta {
-	app_id: String,
-}
-
-impl RpcHandler for RpcMiddleware {
-	type Metadata = Meta;
-
-	fn read_metadata(&self, request: &hyper::server::Request<hyper::net::HttpStream>) -> Option<Self::Metadata> {
-		request.headers().get::<hyper::header::Referer>()
+struct MetadataExtractor;
+impl HttpMetaExtractor<Metadata> for MetadataExtractor {
+	fn read_metadata(&self, request: &hyper::server::Request<hyper::net::HttpStream>) -> Metadata {
+		let dapp_id = request.headers().get::<hyper::header::Referer>()
 			.and_then(|referer| hyper::Url::parse(referer).ok())
 			.and_then(|url| {
 				url.path_segments()
 					.and_then(|mut split| split.next())
-					.map(|app_id| Meta {
-						app_id: app_id.to_owned(),
-					})
-			})
-	}
-
-	fn handle_request<H>(&self, request_str: &str, response_handler: H, meta: Option<Self::Metadata>) where
-		H: ResponseHandler<Option<String>, Option<String>> + 'static
-	{
-		let handler = IoHandler::convert_handler(response_handler);
-		let request = IoHandler::read_request(request_str);
-		trace!(target: "rpc", "Request metadata: {:?}", meta);
-
-		match request {
-			Ok(mut request) => {
-				self.augment_request(&mut request, meta);
-				self.handler.request_handler().handle_request(request, handler, None)
-			},
-			Err(error) => handler.send(Some(Response::from(error))),
+					.map(|app_id| app_id.to_owned())
+			});
+		Metadata {
+			dapp_id: dapp_id,
+			origin: Origin::Dapps,
 		}
 	}
 }
-

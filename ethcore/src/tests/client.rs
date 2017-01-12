@@ -28,7 +28,7 @@ use rlp::View;
 use spec::Spec;
 use views::BlockView;
 use util::stats::Histogram;
-use ethkey::KeyPair;
+use ethkey::{KeyPair, Secret};
 use transaction::{PendingTransaction, Transaction, Action};
 use miner::MinerService;
 
@@ -290,7 +290,7 @@ fn change_history_size() {
 
 #[test]
 fn does_not_propagate_delayed_transactions() {
-	let key = KeyPair::from_secret("test".sha3()).unwrap();
+	let key = KeyPair::from_secret(Secret::from_slice(&"test".sha3()).unwrap()).unwrap();
 	let secret = key.secret();
 	let tx0 = PendingTransaction::new(Transaction {
 		nonce: 0.into(),

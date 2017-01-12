@@ -16,12 +16,17 @@
 
 import sinon from 'sinon';
 
+import Contracts from '~/contracts';
 import { initialState as defaultNodeStatusState } from './statusReducer';
 import ChainMiddleware from './chainMiddleware';
+import { createWsApi } from '~/../test/e2e/ethapi';
 
 let middleware;
 let next;
 let store;
+
+const api = createWsApi();
+Contracts.create(api);
 
 function createMiddleware (collection = {}) {
   middleware = new ChainMiddleware().toMiddleware();
@@ -30,6 +35,7 @@ function createMiddleware (collection = {}) {
     dispatch: sinon.stub(),
     getState: () => {
       return {
+        api: api,
         nodeStatus: Object.assign({}, defaultNodeStatusState, collection)
       };
     }
