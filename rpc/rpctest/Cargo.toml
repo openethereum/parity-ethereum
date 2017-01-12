@@ -14,4 +14,4 @@ ethcore-devtools = { path = "../../devtools" }
 ethcore-rpc = { path = ".." }
 ethcore-util = { path = "../../util" }
 ethjson = { path = "../../json" }
-serde_json = "0.7.0"
+serde_json = "0.8"

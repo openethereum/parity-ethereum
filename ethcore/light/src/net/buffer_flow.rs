@@ -23,7 +23,7 @@
 //! This module provides an interface for configuration of buffer
 //! flow costs and recharge rates.
 //!
-//! Current default costs are picked completely arbitrarily, not based 
+//! Current default costs are picked completely arbitrarily, not based
 //! on any empirical timings or mathematical models.
 
 use request;
@@ -184,6 +184,23 @@ impl FlowParams {
 		}
 	}
 
+	/// Create effectively infinite flow params.
+	pub fn free() -> Self {
+		let free_cost = Cost(0.into(), 0.into());
+		FlowParams {
+			limit: (!0u64).into(),
+			recharge: 1.into(),
+			costs: CostTable {
+				headers: free_cost.clone(),
+				bodies: free_cost.clone(),
+				receipts: free_cost.clone(),
+				state_proofs: free_cost.clone(),
+				contract_codes: free_cost.clone(),
+				header_proofs: free_cost.clone(),
+			}
+		}
+	}
+
 	/// Get a reference to the buffer limit.
 	pub fn limit(&self) -> &U256 { &self.limit }
 
@@ -209,7 +226,7 @@ impl FlowParams {
 		cost.0 + (amount * cost.1)
 	}
 
-	/// Compute the maximum number of costs of a specific kind which can be made 
+	/// Compute the maximum number of costs of a specific kind which can be made
 	/// with the given buffer.
 	/// Saturates at `usize::max()`. This is not a problem in practice because
 	/// this amount of requests is already prohibitively large.

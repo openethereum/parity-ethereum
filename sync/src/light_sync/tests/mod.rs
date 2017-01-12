@@ -14,20 +14,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Ethcore rpc v1.
-//!
-//! Compliant with ethereum rpc.
+#![allow(dead_code)]
 
-#[macro_use]
-mod helpers;
-mod impls;
-mod metadata;
-
-pub mod traits;
-pub mod tests;
-pub mod types;
-
-pub use self::traits::{Web3, Eth, EthFilter, EthSigning, Net, Parity, ParityAccounts, ParitySet, ParitySigning, Signer, Personal, Traces, Rpc};
-pub use self::impls::*;
-pub use self::helpers::{SigningQueue, SignerService, ConfirmationsQueue, NetworkSettings, block_import};
-pub use self::metadata::{Metadata, Origin};
+mod test_net;

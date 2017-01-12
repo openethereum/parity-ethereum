@@ -40,6 +40,6 @@ pub fn execute(cmd: ImportWallet) -> Result<String, String> {
 	let acc_provider = AccountProvider::new(secret_store);
 	let wallet = PresaleWallet::open(cmd.wallet_path).map_err(|_| "Unable to open presale wallet.")?;
 	let kp = wallet.decrypt(&password).map_err(|_| "Invalid password.")?;
-	let address = acc_provider.insert_account(*kp.secret(), &password).unwrap();
+	let address = acc_provider.insert_account(kp.secret().clone(), &password).unwrap();
 	Ok(format!("{:?}", address))
 }

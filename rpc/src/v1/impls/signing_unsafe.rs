@@ -23,8 +23,8 @@ use ethcore::account_provider::AccountProvider;
 use ethcore::miner::MinerService;
 use ethcore::client::MiningBlockChainClient;
 
+use futures::{self, BoxFuture, Future};
 use jsonrpc_core::Error;
-use jsonrpc_macros::Ready;
 use v1::helpers::errors;
 use v1::helpers::dispatch;
 use v1::traits::{EthSigning, ParitySigning};
@@ -85,32 +85,35 @@ impl<C: 'static, M: 'static> EthSigning for SigningUnsafeClient<C, M> where
 	C: MiningBlockChainClient,
 	M: MinerService,
 {
-	fn sign(&self, ready: Ready<RpcH520>, address: RpcH160, data: RpcBytes) {
+	fn sign(&self, address: RpcH160, data: RpcBytes) -> BoxFuture<RpcH520, Error> {
 		let hash = data.0.sha3().into();
 		let result = match self.handle(RpcConfirmationPayload::Signature((address, hash).into())) {
 			Ok(RpcConfirmationResponse::Signature(signature)) => Ok(signature),
 			Err(e) => Err(e),
 			e => Err(errors::internal("Unexpected result", e)),
 		};
-		ready.ready(result);
+
+		futures::done(result).boxed()
 	}
 
-	fn send_transaction(&self, ready: Ready<RpcH256>, request: RpcTransactionRequest) {
+	fn send_transaction(&self, request: RpcTransactionRequest) -> BoxFuture<RpcH256, Error> {
 		let result = match self.handle(RpcConfirmationPayload::SendTransaction(request)) {
 			Ok(RpcConfirmationResponse::SendTransaction(hash)) => Ok(hash),
 			Err(e) => Err(e),
 			e => Err(errors::internal("Unexpected result", e)),
 		};
-		ready.ready(result);
+
+		futures::done(result).boxed()
 	}
 
-	fn sign_transaction(&self, ready: Ready<RpcRichRawTransaction>, request: RpcTransactionRequest) {
+	fn sign_transaction(&self, request: RpcTransactionRequest) -> BoxFuture<RpcRichRawTransaction, Error> {
 		let result = match self.handle(RpcConfirmationPayload::SignTransaction(request)) {
 			Ok(RpcConfirmationResponse::SignTransaction(tx)) => Ok(tx),
 			Err(e) => Err(e),
 			e => Err(errors::internal("Unexpected result", e)),
 		};
-		ready.ready(result);
+
+		futures::done(result).boxed()
 	}
 }
 
@@ -118,13 +121,14 @@ impl<C: 'static, M: 'static> ParitySigning for SigningUnsafeClient<C, M> where
 	C: MiningBlockChainClient,
 	M: MinerService,
 {
-	fn decrypt_message(&self, ready: Ready<RpcBytes>, address: RpcH160, data: RpcBytes) {
+	fn decrypt_message(&self, address: RpcH160, data: RpcBytes) -> BoxFuture<RpcBytes, Error> {
 		let result = match self.handle(RpcConfirmationPayload::Decrypt((address, data).into())) {
 			Ok(RpcConfirmationResponse::Decrypt(data)) => Ok(data),
 			Err(e) => Err(e),
 			e => Err(errors::internal("Unexpected result", e)),
 		};
-		ready.ready(result);
+
+		futures::done(result).boxed()
 	}
 
 	fn post_sign(&self, _: RpcH160, _: RpcH256) -> Result<RpcEither<RpcU256, RpcConfirmationResponse>, Error> {

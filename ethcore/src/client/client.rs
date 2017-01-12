@@ -848,7 +848,7 @@ impl BlockChainClient for Client {
 			difficulty: header.difficulty(),
 			last_hashes: last_hashes,
 			gas_used: U256::zero(),
-			gas_limit: header.gas_limit(),
+			gas_limit: U256::max_value(),
 		};
 		// that's just a copy of the state.
 		let mut state = self.state_at(block).ok_or(CallError::StatePruned)?;
@@ -874,6 +874,7 @@ impl BlockChainClient for Client {
 	}
 
 	fn estimate_gas(&self, t: &SignedTransaction, block: BlockId) -> Result<U256, CallError> {
+		const UPPER_CEILING: u64 = 1_000_000_000_000u64;
 		let header = self.block_header(block).ok_or(CallError::StatePruned)?;
 		let last_hashes = self.build_last_hashes(header.parent_hash());
 		let env_info = EnvInfo {
@@ -883,37 +884,38 @@ impl BlockChainClient for Client {
 			difficulty: header.difficulty(),
 			last_hashes: last_hashes,
 			gas_used: U256::zero(),
-			gas_limit: header.gas_limit(),
+			gas_limit: UPPER_CEILING.into(),
 		};
 		// that's just a copy of the state.
-		let mut original_state = self.state_at(block).ok_or(CallError::StatePruned)?;
+		let original_state = self.state_at(block).ok_or(CallError::StatePruned)?;
 		let sender = t.sender().map_err(|e| {
 			let message = format!("Transaction malformed: {:?}", e);
 			ExecutionError::TransactionMalformed(message)
 		})?;
 		let balance = original_state.balance(&sender);
-		let needed_balance = t.value + t.gas * t.gas_price;
-		if balance < needed_balance {
-			// give the sender a sufficient balance
-			original_state.add_balance(&sender, &(needed_balance - balance), CleanupMode::NoEmpty);
-		}
 		let options = TransactOptions { tracing: true, vm_tracing: false, check_nonce: false };
 		let mut tx = t.clone();
 
 		let mut cond = |gas| {
-			let mut state = original_state.clone();
 			tx.gas = gas;
+
+			let mut state = original_state.clone();
+			let needed_balance = tx.value + tx.gas * tx.gas_price;
+			if balance < needed_balance {
+				// give the sender a sufficient balance
+				state.add_balance(&sender, &(needed_balance - balance), CleanupMode::NoEmpty);
+			}
+
 			Executive::new(&mut state, &env_info, &*self.engine, &self.factories.vm)
 				.transact(&tx, options.clone())
-				.map(|r| r.trace[0].result.succeeded())
+				.map(|r| r.exception.is_some())
 				.unwrap_or(false)
 		};
 
-		let mut upper = env_info.gas_limit;
+		let mut upper = header.gas_limit();
 		if !cond(upper) {
 			// impossible at block gas limit - try `UPPER_CEILING` instead.
 			// TODO: consider raising limit by powers of two.
-			const UPPER_CEILING: u64 = 1_000_000_000_000u64;
 			upper = UPPER_CEILING.into();
 			if !cond(upper) {
 				trace!(target: "estimate_gas", "estimate_gas failed with {}", upper);
@@ -1669,7 +1671,7 @@ mod tests {
 		use util::Hashable;
 
 		// given
-		let key = KeyPair::from_secret("test".sha3()).unwrap();
+		let key = KeyPair::from_secret_slice(&"test".sha3()).unwrap();
 		let secret = key.secret();
 
 		let block_number = 1;

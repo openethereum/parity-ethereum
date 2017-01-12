@@ -20,9 +20,10 @@ use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
 use std::cmp::max;
 use cli::{Args, ArgsError};
-use util::{Hashable, U256, Uint, Bytes, version_data, Secret, Address};
+use util::{Hashable, U256, Uint, Bytes, version_data, Address};
 use util::log::Colour;
 use ethsync::{NetworkConfiguration, is_valid_node_url, AllowIP};
+use ethcore::ethstore::ethkey::Secret;
 use ethcore::client::{VMType};
 use ethcore::miner::{MinerOptions, Banning};
 use ethcore::verification::queue::VerifierSettings;
@@ -603,7 +604,13 @@ impl Configuration {
 		let (listen, public) = self.net_addresses()?;
 		ret.listen_address = listen.map(|l| format!("{}", l));
 		ret.public_address = public.map(|p| format!("{}", p));
-		ret.use_secret = self.args.flag_node_key.as_ref().map(|s| s.parse::<Secret>().unwrap_or_else(|_| s.sha3()));
+		ret.use_secret = match self.args.flag_node_key.as_ref()
+			.map(|s| s.parse::<Secret>().or_else(|_| Secret::from_slice(&s.sha3())).map_err(|e| format!("Invalid key: {:?}", e))
+			) {
+			None => None,
+			Some(Ok(key)) => Some(key),
+			Some(Err(err)) => return Err(err),
+		};
 		ret.discovery_enabled = !self.args.flag_no_discovery && !self.args.flag_nodiscover;
 		ret.max_peers = self.max_peers();
 		ret.min_peers = self.min_peers();

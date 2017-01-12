@@ -11,18 +11,18 @@ build = "build.rs"
 [dependencies]
 futures = "0.1"
 log = "0.3"
-rustc-serialize = "0.3"
+semver = "0.5"
 serde = "0.8"
 serde_json = "0.8"
+rustc-serialize = "0.3"
 time = "0.1"
-rand = "0.3"
-semver = "0.5"
 transient-hashmap = "0.1"
 jsonrpc-core = { git = "https://github.com/ethcore/jsonrpc.git" }
 jsonrpc-http-server = { git = "https://github.com/ethcore/jsonrpc.git" }
 jsonrpc-ipc-server = { git = "https://github.com/ethcore/jsonrpc.git" }
 jsonrpc-macros = { git = "https://github.com/ethcore/jsonrpc.git" }
 ethcore-io = { path = "../util/io" }
+ethcore-ipc = { path = "../ipc/rpc" }
 ethcore-util = { path = "../util" }
 ethcore = { path = "../ethcore" }
 ethcrypto = { path = "../ethcrypto" }
@@ -36,12 +36,11 @@ parity-updater = { path = "../updater" }
 rlp = { path = "../util/rlp" }
 fetch = { path = "../util/fetch" }
 parity-reactor = { path = "../util/reactor" }
-serde_macros = { version = "0.8.0", optional = true }
+serde_macros = { version = "0.8", optional = true }
 clippy = { version = "0.0.103", optional = true}
-ethcore-ipc = { path = "../ipc/rpc" }
 
 [build-dependencies]
-serde_codegen = { version = "0.8.0", optional = true }
+serde_codegen = { version = "0.8", optional = true }
 
 [features]
 default = ["serde_codegen"]

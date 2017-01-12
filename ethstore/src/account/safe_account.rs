@@ -122,16 +122,14 @@ impl Crypto {
 			return Err(Error::InvalidPassword);
 		}
 
-		let mut secret = Secret::default();
-
 		match self.cipher {
 			Cipher::Aes128Ctr(ref params) => {
 				let from = 32 - self.ciphertext.len();
-				crypto::aes::decrypt(&derived_left_bits, &params.iv, &self.ciphertext, &mut (&mut *secret)[from..])
+				let mut secret = [0; 32];
+				crypto::aes::decrypt(&derived_left_bits, &params.iv, &self.ciphertext, &mut secret[from..]);
+				Ok(Secret::from_slice(&secret)?)
 			},
 		}
-
-		Ok(secret)
 	}
 }
 

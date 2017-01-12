@@ -23,7 +23,7 @@ use ethcore::client::{TestBlockChainClient};
 use ethcore::miner::LocalTransactionStatus;
 use ethstore::ethkey::{Generator, Random};
 
-use jsonrpc_core::{IoHandler, GenericIoHandler};
+use jsonrpc_core::IoHandler;
 use v1::{Parity, ParityClient};
 use v1::helpers::{SignerService, NetworkSettings};
 use v1::tests::helpers::{TestSyncProvider, Config, TestMinerService, TestUpdater};
@@ -87,14 +87,14 @@ impl Dependencies {
 	}
 
 	fn default_client(&self) -> IoHandler {
-		let io = IoHandler::new();
-		io.add_delegate(self.client(None).to_delegate());
+		let mut io = IoHandler::default();
+		io.extend_with(self.client(None).to_delegate());
 		io
 	}
 
 	fn with_signer(&self, signer: SignerService) -> IoHandler {
-		let io = IoHandler::new();
-		io.add_delegate(self.client(Some(Arc::new(signer))).to_delegate());
+		let mut io = IoHandler::default();
+		io.extend_with(self.client(Some(Arc::new(signer))).to_delegate());
 		io
 	}
 }

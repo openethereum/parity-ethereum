@@ -1207,7 +1207,7 @@ fn load_key(path: &Path) -> Option<Secret> {
 fn key_save_load() {
 	use ::devtools::RandomTempPath;
 	let temp_path = RandomTempPath::create_dir();
-	let key = H256::random();
+	let key = Secret::from_slice(&H256::random()).unwrap();
 	save_key(temp_path.as_path(), &key);
 	let r = load_key(temp_path.as_path());
 	assert_eq!(key, r.unwrap());
@@ -1217,8 +1217,9 @@ fn key_save_load() {
 #[test]
 fn host_client_url() {
 	let mut config = NetworkConfiguration::new_local();
-	let key = "6f7b0d801bc7b5ce7bbd930b84fd0369b3eb25d09be58d64ba811091046f3aa2".into();
+	let key = "6f7b0d801bc7b5ce7bbd930b84fd0369b3eb25d09be58d64ba811091046f3aa2".parse().unwrap();
 	config.use_secret = Some(key);
 	let host: Host = Host::new(config, Arc::new(NetworkStats::new())).unwrap();
 	assert!(host.local_url().starts_with("enode://101b3ef5a4ea7a1c7928e24c4c75fd053c235d7b80c22ae5c03d145d0ac7396e2a4ffff9adee3133a7b05044a5cee08115fd65145e5165d646bde371010d803c@"));
 }
+
