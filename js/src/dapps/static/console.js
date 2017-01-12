@@ -1,3 +1,22 @@
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// This file is part of Parity.
+
+// Parity is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// Parity is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+
+/* eslint disable */
+// TODO: Fix linting issues
+
 if (typeof(window.parity) == 'object')
   window.parity.api.subscribe('eth_blockNumber', function (error, blockNumber) {
     if (error) {
@@ -38,9 +57,9 @@ function evaluate(x) {
 
 function displayReady(x) {
   if (x === undefined)
-    return '<span class="undefinedType">undefined</span>';  
+    return '<span class="undefinedType">undefined</span>';
   if (x === null)
-    return '<span class="undefinedType">null</span>';  
+    return '<span class="undefinedType">null</span>';
   if (typeof(x) == "string")
     return `"<span class="${typeof(x)}Type">${escapeHtml(x)}</span>"`;
   if (Object.prototype.toString.call(x) === '[object Array]')
@@ -103,13 +122,13 @@ function newLog(level, text) {
     error: "✖",
     info: "ℹ"
   };
-  pushLine('<div class="entry log ' + level + 'Level"><span class="type">' + icon[level] + '</span><span class="text">' + escapeHtml(text) + '</span></div>');  
+  pushLine('<div class="entry log ' + level + 'Level"><span class="type">' + icon[level] + '</span><span class="text">' + escapeHtml(text) + '</span></div>');
 }
 
 function exec() {
   let command = document.getElementById("command");
   let c = command.value;
-  
+
   if (c != '') {
     command.value = "";
     window.historyData.push(c);
@@ -158,7 +177,7 @@ function exec() {
 function pushLine(l) {
   document.getElementById("history").innerHTML += l
   var h = document.getElementById("history-wrap");
-  h.scrollTop = h.scrollHeight;  
+  h.scrollTop = h.scrollHeight;
 }
 
 var autocompletes = [];
@@ -184,7 +203,7 @@ function updateAutocomplete() {
   currentPots = autocompletes.filter(n => n.startsWith(last));
   if (currentPots.length > 0) {
     if (currentPots.indexOf(currentAuto) == -1)
-      currentAuto = currentPots[0]; 
+      currentAuto = currentPots[0];
     dl.innerHTML = currentPots
 //    .map(n => `${tj != '' ? tj + '.' : ''}${n}`)
       .map((n, i) => `<div id="pot${i}" class="${currentAuto == n ? 'ac-selected' : 'ac-unselected'}"><span class="ac-already">${escapeHtml(last)}</span><span class="ac-new">${escapeHtml(n.substr(last.length))}</div>`)
@@ -199,7 +218,7 @@ function enactAutocomplete() {
   if (currentAuto != null) {
     document.getElementById("command").value = (currentStem != '' ? currentStem + '.' : '') + currentAuto;
     cancelAutocomplete();
-  }  
+  }
 }
 
 function cancelAutocomplete() {
@@ -228,7 +247,7 @@ document.getElementById("command").addEventListener("focusout", cancelAutocomple
 document.getElementById("command").addEventListener("blur", cancelAutocomplete);
 
 document.getElementById("command").addEventListener("keydown", function(event) {
-  let el = document.getElementById("command"); 
+  let el = document.getElementById("command");
   if (currentAuto != null) {
     if (event.keyCode == 38 || event.keyCode == 40) {
       event.preventDefault();
