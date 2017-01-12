@@ -60,6 +60,10 @@ class Status extends Component {
   renderConsensus () {
     const { upgradeStore } = this.props;
 
+    if (!upgradeStore || !upgradeStore.consensusCapability) {
+      return null;
+    }
+
     if (upgradeStore.consensusCapability === 'capable') {
       return (
         <div>
@@ -68,7 +72,9 @@ class Status extends Component {
             defaultMessage='Capable' />
         </div>
       );
-    } else if (upgradeStore.consensusCapability.capableUntil) {
+    }
+
+    if (upgradeStore.consensusCapability.capableUntil) {
       return (
         <div>
           <FormattedMessage
@@ -79,7 +85,9 @@ class Status extends Component {
             } } />
         </div>
       );
-    } else if (upgradeStore.consensusCapability.incapableSince) {
+    }
+
+    if (upgradeStore.consensusCapability.incapableSince) {
       return (
         <div>
           <FormattedMessage

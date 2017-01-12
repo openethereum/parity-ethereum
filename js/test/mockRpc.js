@@ -47,8 +47,8 @@ export function mockHttp (requests) {
 }
 
 export function mockWs (requests) {
-  const scope = { requests: 0, body: {} };
   let mockServer = new MockWsServer(TEST_WS_URL);
+  const scope = { requests: 0, body: {}, server: mockServer };
 
   scope.isDone = () => scope.requests === requests.length;
   scope.stop = () => {

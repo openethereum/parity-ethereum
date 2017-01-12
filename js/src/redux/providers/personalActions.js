@@ -16,7 +16,8 @@
 
 import { isEqual, intersection } from 'lodash';
 
-import { fetchBalances } from './balancesActions';
+import BalancesProvider from './balances';
+import { updateTokensFilter } from './balancesActions';
 import { attachWallets } from './walletActions';
 
 import Contract from '~/api/contract';
@@ -98,7 +99,10 @@ export function personalAccountsInfo (accountsInfo) {
 
         dispatch(_personalAccountsInfo(data));
         dispatch(attachWallets(wallets));
-        dispatch(fetchBalances());
+
+        BalancesProvider.get().fetchAllBalances({
+          force: true
+        });
       })
       .catch((error) => {
         console.warn('personalAccountsInfo', error);
@@ -130,6 +134,18 @@ export function setVisibleAccounts (addresses) {
     }
 
     dispatch(_setVisibleAccounts(addresses));
-    dispatch(fetchBalances(addresses));
+
+    // Don't update the balances if no new addresses displayed
+    if (addresses.length === 0) {
+      return;
+    }
+
+    // Update the Tokens filter to take into account the new
+    // addresses
+    dispatch(updateTokensFilter());
+
+    BalancesProvider.get().fetchBalances({
+      force: true
+    });
   };
 }
