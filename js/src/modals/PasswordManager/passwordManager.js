@@ -190,8 +190,6 @@ class PasswordManager extends Component {
                     defaultMessage='(optional) new password hint' />
                 }
                 onChange={ this.onEditNewPasswordHint }
-                onSubmit={ this.changePassword }
-                submitOnBlur={ false }
                 value={ passwordHint } />
               <div className={ styles.passwords }>
                 <div className={ styles.password }>
