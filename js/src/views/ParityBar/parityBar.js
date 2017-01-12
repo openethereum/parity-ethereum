@@ -18,9 +18,9 @@ import React, { Component, PropTypes } from 'react';
 import ReactDOM from 'react-dom';
 import { Link } from 'react-router';
 import { connect } from 'react-redux';
-import { debounce } from 'lodash';
+import { throttle } from 'lodash';
 
-import { CancelIcon, FingerprintIcon, MoveIcon } from '~/ui/Icons';
+import { CancelIcon, FingerprintIcon } from '~/ui/Icons';
 import { Badge, Button, ContainerTitle, ParityBackground } from '~/ui';
 import { Embedded as Signer } from '../Signer';
 
@@ -28,8 +28,8 @@ import imagesEthcoreBlock from '../../../assets/images/parity-logo-white-no-text
 import styles from './parityBar.css';
 
 class ParityBar extends Component {
+  measures = null;
   moving = false;
-  offset = null;
 
   static propTypes = {
     pending: PropTypes.array,
@@ -39,15 +39,17 @@ class ParityBar extends Component {
   state = {
     moving: false,
     opened: false,
-    top: false,
-    x: 0,
-    y: 0
+    position: { right: '1em', bottom: 0 }
   };
 
   constructor (props) {
     super(props);
 
-    this.debouncedMouseMove = debounce(this._onMouseMove, 40, { leading: true });
+    this.debouncedMouseMove = throttle(
+      this._onMouseMove,
+      40,
+      { leading: true, trailing: true }
+    );
   }
 
   componentWillReceiveProps (nextProps) {
@@ -66,8 +68,7 @@ class ParityBar extends Component {
   }
 
   render () {
-    const { moving, opened, top, x, y } = this.state;
-    const position = this.getPosition(x, y);
+    const { moving, opened, position } = this.state;
 
     const content = opened
       ? this.renderExpanded()
@@ -85,25 +86,40 @@ class ParityBar extends Component {
       ? styles.expanded
       : styles.corner;
 
-    const parityBgStyle = opened
-      ? {
-        top: top ? 0 : undefined,
-        bottom: top ? undefined : 0
+    const parityBgClassNames = [ parityBgClassName, styles.parityBg ];
+
+    if (moving) {
+      parityBgClassNames.push(styles.moving);
+    }
+
+    const parityBgStyle = {
+      ...position
+    };
+
+    if (opened) {
+      if (position.top !== undefined) {
+        parityBgStyle.top = 0;
+      } else {
+        parityBgStyle.bottom = 0;
       }
-      : {
-        left: position.x,
-        top: position.y
-      };
+
+      if (position.left !== undefined) {
+        parityBgStyle.left = '1em';
+      } else {
+        parityBgStyle.right = '1em';
+      }
+    }
 
     return (
       <div
         className={ containerClassNames.join(' ') }
         onMouseEnter={ this.onMouseEnter }
+        onMouseLeave={ this.onMouseLeave }
         onMouseMove={ this.onMouseMove }
         onMouseUp={ this.onMouseUp }
       >
         <ParityBackground
-          className={ [ parityBgClassName, styles.parityBg ].join(' ') }
+          className={ parityBgClassNames.join(' ') }
           ref='container'
           style={ parityBgStyle }
         >
@@ -111,30 +127,6 @@ class ParityBar extends Component {
         </ParityBackground>
       </div>
     );
-  }
-
-  getPosition (_x, _y) {
-    if (!this.moving || !this.offset) {
-      return { x: _x, y: _y };
-    }
-
-    const { pageWidth = 0, pageHeight = 0, width = 0, height = 0 } = this.offset;
-
-    const maxX = pageWidth - width;
-    const maxY = pageHeight - height;
-
-    const x = Math.min(maxX, Math.max(0, _x));
-    const y = Math.min(maxY, Math.max(0, _y));
-
-    if (y < 75) {
-      return { x, y: 0 };
-    }
-
-    if (maxY - y < 75) {
-      return { x, y: maxY };
-    }
-
-    return { x, y };
   }
 
   renderBar () {
@@ -149,6 +141,12 @@ class ParityBar extends Component {
         src={ imagesEthcoreBlock }
         className={ styles.parityIcon } />
     );
+
+    const dragButtonClasses = [ styles.dragButton ];
+
+    if (this.state.moving) {
+      dragButtonClasses.push(styles.moving);
+    }
 
     return (
       <div className={ styles.cornercolor }>
@@ -168,7 +166,10 @@ class ParityBar extends Component {
           className={ styles.moveIcon }
           onMouseDown={ this.onMouseDown }
         >
-          <MoveIcon />
+          <div
+            className={ dragButtonClasses.join(' ') }
+            ref='dragButton'
+          />
         </div>
       </div>
     );
@@ -222,22 +223,106 @@ class ParityBar extends Component {
     return this.renderLabel('Signer', bubble);
   }
 
-  onMouseDown = (event) => {
-    const container = ReactDOM.findDOMNode(this.refs.container);
+  getHorizontal (x) {
+    const { page, button, container } = this.measures;
 
-    if (!container) {
+    const left = x - button.offset.left;
+    const centerX = left + container.width / 2;
+
+    // left part of the screen
+    if (centerX < page.width / 2) {
+      return { left: Math.max(0, left) };
+    }
+
+    const right = page.width - x - button.offset.right;
+    return { right: Math.max(0, right) };
+  }
+
+  getVertical (y) {
+    const STICKY_SIZE = 75;
+    const { page, button, container } = this.measures;
+
+    const top = y - button.offset.top;
+    const centerY = top + container.height / 2;
+
+    // top part of the screen
+    if (centerY < page.height / 2) {
+      // Add Sticky edges
+      const stickyTop = top < STICKY_SIZE
+        ? 0
+        : top;
+
+      return { top: Math.max(0, stickyTop) };
+    }
+
+    const bottom = page.height - y - button.offset.bottom;
+    // Add Sticky edges
+    const stickyBottom = bottom < STICKY_SIZE
+      ? 0
+      : bottom;
+
+    return { bottom: Math.max(0, stickyBottom) };
+  }
+
+  getPosition (x, y) {
+    if (!this.moving || !this.measures) {
+      return {};
+    }
+
+    const horizontal = this.getHorizontal(x);
+    const vertical = this.getVertical(y);
+
+    const position = {
+      ...horizontal,
+      ...vertical
+    };
+
+    return position;
+  }
+
+  onMouseDown = (event) => {
+    const containerElt = ReactDOM.findDOMNode(this.refs.container);
+    const dragButtonElt = ReactDOM.findDOMNode(this.refs.dragButton);
+
+    if (!containerElt || !dragButtonElt) {
+      console.warn(containerElt ? 'drag button' : 'container', 'not found...');
       return;
     }
 
-    const { left, top, width, height } = container.getBoundingClientRect();
-    const { clientX, clientY } = event;
     const bodyRect = document.body.getBoundingClientRect();
+    const containerRect = containerElt.getBoundingClientRect();
+    const buttonRect = dragButtonElt.getBoundingClientRect();
 
-    const pageHeight = bodyRect.height;
-    const pageWidth = bodyRect.width;
+    const buttonOffset = {
+      top: (buttonRect.top + buttonRect.height / 2) - containerRect.top,
+      left: (buttonRect.left + buttonRect.width / 2) - containerRect.left
+    };
+
+    buttonOffset.bottom = containerRect.height - buttonOffset.top;
+    buttonOffset.right = containerRect.width - buttonOffset.left;
+
+    const button = {
+      offset: buttonOffset,
+      height: buttonRect.height,
+      width: buttonRect.width
+    };
+
+    const container = {
+      height: containerRect.height,
+      width: containerRect.width
+    };
+
+    const page = {
+      height: bodyRect.height,
+      width: bodyRect.width
+    };
 
     this.moving = true;
-    this.offset = { x: clientX - left, y: clientY - top, pageWidth, pageHeight, width, height };
+    this.measures = {
+      button,
+      container,
+      page
+    };
 
     this.setState({ moving: true });
   }
@@ -251,14 +336,23 @@ class ParityBar extends Component {
 
     // If no left-click, stop move
     if (buttons !== 1) {
-      this.onMouseUp();
+      this.onMouseUp(event);
     }
+  }
+
+  onMouseLeave = (event) => {
+    if (!this.moving) {
+      return;
+    }
+
+    event.stopPropagation();
+    event.preventDefault();
   }
 
   onMouseMove = (event) => {
     const { pageX, pageY } = event;
-    this._onMouseMove({ pageX, pageY });
-    // this.debouncedMouseMove({ pageX, pageY });
+    // this._onMouseMove({ pageX, pageY });
+    this.debouncedMouseMove({ pageX, pageY });
 
     event.stopPropagation();
     event.preventDefault();
@@ -270,9 +364,8 @@ class ParityBar extends Component {
     }
 
     const { pageX, pageY } = event;
-    const { x = 0, y = 0 } = this.offset;
-
-    this.setState({ x: pageX - x, y: pageY - y });
+    const position = this.getPosition(pageX, pageY);
+    this.setState({ position });
   }
 
   onMouseUp = (event) => {
@@ -280,22 +373,18 @@ class ParityBar extends Component {
       return;
     }
 
-    const { height, width, pageHeight, pageWidth } = this.offset;
-    const { x } = this.getPosition(this.state.x, this.state.y);
-    const { y } = this.state;
+    const { pageX, pageY } = event;
+    const position = this.getPosition(pageX, pageY);
 
-    const top = y < (pageHeight / 2);
-
-    const nextX = x < 25
-      ? 25
-      : x > (pageWidth - width - 25) ? x - 25 : x;
-
-    const nextY = top
-      ? 0
-      : (pageHeight - height);
+    // Stick to bottom or top
+    if (position.top !== undefined) {
+      position.top = 0;
+    } else {
+      position.bottom = 0;
+    }
 
     this.moving = false;
-    this.setState({ moving: false, top, x: nextX, y: nextY });
+    this.setState({ moving: false, position });
   }
 
   toggleDisplay = () => {

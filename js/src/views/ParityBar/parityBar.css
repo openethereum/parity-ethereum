@@ -47,7 +47,7 @@
     right: 0;
 
     &:hover {
-      cursor: pointer;
+      cursor: move;
     }
   }
 }
@@ -56,12 +56,16 @@
   position: fixed;
 
   transition-property: left, top, right, bottom;
-  transition-duration: 0.1s;
-  transition-timing-function: ease-in-out;
+  transition-duration: 0.25s;
+  transition-timing-function: ease;
+
+  &.moving {
+    transition-duration: 0.05s;
+    transition-timing-function: ease-in-out;
+  }
 }
 
 .expanded {
-  right: 1em;
   border-radius: 4px 4px 0 0;
   display: flex;
   flex-direction: column;
@@ -188,6 +192,28 @@
   align-items: center;
 
   &:hover {
-    cursor: pointer;
+    cursor: move;
+  }
+}
+
+.dragButton {
+  width: 1em;
+  height: 1em;
+  margin-left: 0.5em;
+
+  background-color: white;
+  opacity: 0.25;
+  border-radius: 50%;
+
+  transition-property: opacity;
+  transition-duration: 0.1s;
+  transition-timing-function: ease-in-out;
+
+  &:hover {
+    opacity: 0.5;
+  }
+
+  &.moving {
+    opacity: 0.75;
   }
 }
