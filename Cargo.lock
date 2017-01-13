@@ -879,7 +879,7 @@ dependencies = [
 [[package]]
 name = "hyper"
 version = "0.10.0-a.0"
-source = "git+https://github.com/ethcore/hyper#7d4f7fa0baddcb2b0c523f7c05855d67de94fe88"
+source = "git+https://github.com/ethcore/hyper#7aac2e08c857fe7530c7666dc5cb9820a9fb06ff"
 dependencies = [
  "cookie 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "httparse 1.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
