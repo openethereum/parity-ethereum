@@ -16,6 +16,7 @@
 
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
+
 import ActionDone from 'material-ui/svg-icons/action/done';
 import ActionDoneAll from 'material-ui/svg-icons/action/done-all';
 import ContentClear from 'material-ui/svg-icons/content/clear';
@@ -100,44 +101,45 @@ export default class CreateAccount extends Component {
     switch (stage) {
       case 0:
         return (
-          <CreationType
-            onChange={ this.onChangeType } />
+          <CreationType onChange={ this.onChangeType } />
         );
 
       case 1:
         if (createType === 'fromNew') {
           return (
-            <NewAccount
-              onChange={ this.onChangeDetails } />
+            <NewAccount onChange={ this.onChangeDetails } />
           );
-        } else if (createType === 'fromGeth') {
+        }
+
+        if (createType === 'fromGeth') {
           return (
             <NewGeth
               accounts={ accounts }
-              onChange={ this.onChangeGeth } />
+              onChange={ this.onChangeGeth }
+            />
           );
-        } else if (createType === 'fromPhrase') {
+        }
+
+        if (createType === 'fromPhrase') {
           return (
-            <RecoveryPhrase
-              onChange={ this.onChangeDetails } />
+            <RecoveryPhrase onChange={ this.onChangeDetails } />
           );
-        } else if (createType === 'fromRaw') {
+        }
+
+        if (createType === 'fromRaw') {
           return (
-            <RawKey
-              onChange={ this.onChangeDetails } />
+            <RawKey onChange={ this.onChangeDetails } />
           );
         }
 
         return (
-          <NewImport
-            onChange={ this.onChangeWallet } />
+          <NewImport onChange={ this.onChangeWallet } />
         );
 
       case 2:
         if (createType === 'fromGeth') {
           return (
-            <AccountDetailsGeth
-              addresses={ this.state.gethAddresses } />
+            <AccountDetailsGeth addresses={ this.state.gethAddresses } />
           );
         }
 
@@ -145,7 +147,8 @@ export default class CreateAccount extends Component {
           <AccountDetails
             address={ this.state.address }
             name={ this.state.name }
-            phrase={ this.state.phrase } />
+            phrase={ this.state.phrase }
+          />
         );
     }
   }
@@ -210,11 +213,14 @@ export default class CreateAccount extends Component {
     }
 
     return (
-      <Warning warning={
-        <FormattedMessage
-          id='createAccount.warning.insecurePassword'
-          defaultMessage='It is recommended that a strong password be used to secure your accounts. Empty and trivial passwords are a security risk.' />
-      } />
+      <Warning
+        warning={
+          <FormattedMessage
+            id='createAccount.warning.insecurePassword'
+            defaultMessage='It is recommended that a strong password be used to secure your accounts. Empty and trivial passwords are a security risk.'
+          />
+        }
+      />
     );
   }
 
@@ -371,7 +377,7 @@ export default class CreateAccount extends Component {
   }
 
   onChangeDetails = (canCreate, { name, passwordHint, address, password, phrase, rawKey, windowsPhrase }) => {
-    this.setState({
+    const nextState = {
       canCreate,
       name,
       passwordHint,
@@ -380,7 +386,9 @@ export default class CreateAccount extends Component {
       phrase,
       windowsPhrase: windowsPhrase || false,
       rawKey
-    });
+    };
+
+    this.setState(nextState);
   }
 
   onChangeRaw = (canCreate, rawKey) => {
