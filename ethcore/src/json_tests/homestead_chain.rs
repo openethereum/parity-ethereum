@@ -26,8 +26,7 @@ declare_test!{BlockchainTests_Homestead_bcBlockGasLimitTest, "BlockchainTests/Ho
 declare_test!{BlockchainTests_Homestead_bcForkStressTest, "BlockchainTests/Homestead/bcForkStressTest"}
 declare_test!{BlockchainTests_Homestead_bcGasPricerTest, "BlockchainTests/Homestead/bcGasPricerTest"}
 declare_test!{BlockchainTests_Homestead_bcInvalidHeaderTest, "BlockchainTests/Homestead/bcInvalidHeaderTest"}
-// TODO [ToDr] Ignored because of incorrect JSON (https://github.com/ethereum/tests/pull/113)
-declare_test!{ignore => BlockchainTests_Homestead_bcInvalidRLPTest, "BlockchainTests/Homestead/bcInvalidRLPTest"}
+declare_test!{BlockchainTests_Homestead_bcInvalidRLPTest, "BlockchainTests/Homestead/bcInvalidRLPTest"}
 declare_test!{BlockchainTests_Homestead_bcMultiChainTest, "BlockchainTests/Homestead/bcMultiChainTest"}
 declare_test!{BlockchainTests_Homestead_bcRPC_API_Test, "BlockchainTests/Homestead/bcRPC_API_Test"}
 declare_test!{BlockchainTests_Homestead_bcStateTest, "BlockchainTests/Homestead/bcStateTest"}

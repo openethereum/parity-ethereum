@@ -18,7 +18,8 @@ use super::test_common::*;
 use evm;
 use ethjson;
 use rlp::{UntrustedRlp, View};
-use transaction::{Action, SignedTransaction};
+use transaction::{Action, UnverifiedTransaction};
+use ethstore::ethkey::public_to_address;
 
 fn do_json_test(json_data: &[u8]) -> Vec<String> {
 	let tests = ethjson::transaction::Test::load(json_data).unwrap();
@@ -34,18 +35,18 @@ fn do_json_test(json_data: &[u8]) -> Vec<String> {
 			Some(x) if x < 1_150_000 => &old_schedule,
 			Some(_) => &new_schedule
 		};
-		let allow_network_id_of_one = number.map_or(false, |n| n >= 2_675_000); 
+		let allow_network_id_of_one = number.map_or(false, |n| n >= 2_675_000);
 
 		let rlp: Vec<u8> = test.rlp.into();
 		let res = UntrustedRlp::new(&rlp)
 			.as_val()
 			.map_err(From::from)
-			.and_then(|t: SignedTransaction| t.validate(schedule, schedule.have_delegate_call, allow_network_id_of_one));
+			.and_then(|t: UnverifiedTransaction| t.validate(schedule, schedule.have_delegate_call, allow_network_id_of_one));
 
 		fail_unless(test.transaction.is_none() == res.is_err(), "Validity different");
 		if let (Some(tx), Some(sender)) = (test.transaction, test.sender) {
 			let t = res.unwrap();
-			fail_unless(t.sender().unwrap() == sender.into(), "sender mismatch");
+			fail_unless(public_to_address(&t.recover_public().unwrap()) == sender.into(), "sender mismatch");
 			let is_acceptable_network_id = match t.network_id() {
 				None => true,
 				Some(1) if allow_network_id_of_one => true,

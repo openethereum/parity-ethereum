@@ -62,7 +62,7 @@ use block::ClosedBlock;
 use header::BlockNumber;
 use receipt::{RichReceipt, Receipt};
 use error::{Error, CallError};
-use transaction::{SignedTransaction, PendingTransaction};
+use transaction::{UnverifiedTransaction, PendingTransaction, SignedTransaction};
 
 /// Miner client API
 pub trait MinerService : Send + Sync {
@@ -114,7 +114,7 @@ pub trait MinerService : Send + Sync {
 	fn set_tx_gas_limit(&self, limit: U256);
 
 	/// Imports transactions to transaction queue.
-	fn import_external_transactions(&self, chain: &MiningBlockChainClient, transactions: Vec<SignedTransaction>) ->
+	fn import_external_transactions(&self, chain: &MiningBlockChainClient, transactions: Vec<UnverifiedTransaction>) ->
 		Vec<Result<TransactionImportResult, Error>>;
 
 	/// Imports own (node owner) transaction to queue.

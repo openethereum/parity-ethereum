@@ -90,12 +90,11 @@ impl BanningTransactionQueue {
 			// NOTE In all checks use direct query to avoid increasing ban timeout.
 
 			// Check sender
-			if let Ok(sender) = transaction.sender() {
-				let count = self.senders_bans.direct().get(&sender).map(|v| v.get()).unwrap_or(0);
-				if count > threshold {
-					debug!(target: "txqueue", "Ignoring transaction {:?} because sender is banned.", transaction.hash());
-					return Err(Error::Transaction(TransactionError::SenderBanned));
-				}
+			let sender = transaction.sender();
+			let count = self.senders_bans.direct().get(&sender).map(|v| v.get()).unwrap_or(0);
+			if count > threshold {
+				debug!(target: "txqueue", "Ignoring transaction {:?} because sender is banned.", transaction.hash());
+				return Err(Error::Transaction(TransactionError::SenderBanned));
 			}
 
 			// Check recipient
@@ -128,7 +127,7 @@ impl BanningTransactionQueue {
 		let transaction = self.queue.find(hash);
 		match transaction {
 			Some(transaction) => {
-				let sender = transaction.sender().expect("Transaction is in queue, so the sender is already validated; qed");
+				let sender = transaction.sender();
 				// Ban sender
 				let sender_banned = self.ban_sender(sender);
 				// Ban recipient and codehash
@@ -278,14 +277,14 @@ mod tests {
 		let tx = transaction(Action::Create);
 		let mut txq = queue();
 		// Banlist once (threshold not reached)
-		let banlist1 = txq.ban_sender(tx.sender().unwrap());
+		let banlist1 = txq.ban_sender(tx.sender());
 		assert!(!banlist1, "Threshold not reached yet.");
 		// Insert once
 		let import1 = txq.add_with_banlist(tx.clone(), 0, &default_account_details, &gas_required).unwrap();
 		assert_eq!(import1, TransactionImportResult::Current);
 
 		// when
-		let banlist2 = txq.ban_sender(tx.sender().unwrap());
+		let banlist2 = txq.ban_sender(tx.sender());
 		let import2 = txq.add_with_banlist(tx.clone(), 0, &default_account_details, &gas_required);
 
 		// then

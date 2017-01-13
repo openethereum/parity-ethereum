@@ -122,10 +122,7 @@ impl<'a> Executive<'a> {
 		mut tracer: T,
 		mut vm_tracer: V
 	) -> Result<Executed, ExecutionError> where T: Tracer, V: VMTracer {
-		let sender = t.sender().map_err(|e| {
-			let message = format!("Transaction malformed: {:?}", e);
-			ExecutionError::TransactionMalformed(message)
-		})?;
+		let sender = t.sender();
 		let nonce = self.state.nonce(&sender);
 
 		let schedule = self.engine.schedule(self.info);
@@ -435,14 +432,7 @@ impl<'a> Executive<'a> {
 		trace!("exec::finalize: t.gas={}, sstore_refunds={}, suicide_refunds={}, refunds_bound={}, gas_left_prerefund={}, refunded={}, gas_left={}, gas_used={}, refund_value={}, fees_value={}\n",
 			t.gas, sstore_refunds, suicide_refunds, refunds_bound, gas_left_prerefund, refunded, gas_left, gas_used, refund_value, fees_value);
 
-		let sender = match t.sender() {
-			Ok(sender) => sender,
-			Err(e) => {
-				debug!(target: "executive", "attempted to finalize transaction without sender: {}", e);
-				return Err(ExecutionError::Internal);
-			}
-		};
-
+		let sender = t.sender();
 		trace!("exec::finalize: Refunding refund_value={}, sender={}\n", refund_value, sender);
 		// Below: NoEmpty is safe since the sender must already be non-null to have sent this transaction
 		self.state.add_balance(&sender, &refund_value, CleanupMode::NoEmpty);
@@ -1057,7 +1047,7 @@ mod tests {
 			gas_price: U256::zero(),
 			nonce: U256::zero()
 		}.sign(keypair.secret(), None);
-		let sender = t.sender().unwrap();
+		let sender = t.sender();
 		let contract = contract_address(&sender, &U256::zero());
 
 		let mut state_result = get_temp_state();
@@ -1085,34 +1075,6 @@ mod tests {
 		assert_eq!(state.storage_at(&contract, &H256::new()), H256::from(&U256::from(1)));
 	}
 
-	evm_test!{test_transact_invalid_sender: test_transact_invalid_sender_jit, test_transact_invalid_sender_int}
-	fn test_transact_invalid_sender(factory: Factory) {
-		let t = Transaction {
-			action: Action::Create,
-			value: U256::from(17),
-			data: "3331600055".from_hex().unwrap(),
-			gas: U256::from(100_000),
-			gas_price: U256::zero(),
-			nonce: U256::zero()
-		}.invalid_sign();
-		let mut state_result = get_temp_state();
-		let mut state = state_result.reference_mut();
-		let mut info = EnvInfo::default();
-		info.gas_limit = U256::from(100_000);
-		let engine = TestEngine::new(0);
-
-		let res = {
-			let mut ex = Executive::new(&mut state, &info, &engine, &factory);
-			let opts = TransactOptions { check_nonce: true, tracing: false, vm_tracing: false };
-			ex.transact(&t, opts)
-		};
-
-		match res {
-			Err(ExecutionError::TransactionMalformed(_)) => (),
-			_ => assert!(false, "Expected an invalid transaction error.")
-		}
-	}
-
 	evm_test!{test_transact_invalid_nonce: test_transact_invalid_nonce_jit, test_transact_invalid_nonce_int}
 	fn test_transact_invalid_nonce(factory: Factory) {
 		let keypair = Random.generate().unwrap();
@@ -1124,7 +1086,7 @@ mod tests {
 			gas_price: U256::zero(),
 			nonce: U256::one()
 		}.sign(keypair.secret(), None);
-		let sender = t.sender().unwrap();
+		let sender = t.sender();
 
 		let mut state_result = get_temp_state();
 		let mut state = state_result.reference_mut();
@@ -1157,7 +1119,7 @@ mod tests {
 			gas_price: U256::zero(),
 			nonce: U256::zero()
 		}.sign(keypair.secret(), None);
-		let sender = t.sender().unwrap();
+		let sender = t.sender();
 
 		let mut state_result = get_temp_state();
 		let mut state = state_result.reference_mut();
@@ -1192,7 +1154,7 @@ mod tests {
 			gas_price: U256::one(),
 			nonce: U256::zero()
 		}.sign(keypair.secret(), None);
-		let sender = t.sender().unwrap();
+		let sender = t.sender();
 
 		let mut state_result = get_temp_state();
 		let mut state = state_result.reference_mut();

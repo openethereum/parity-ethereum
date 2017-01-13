@@ -21,7 +21,7 @@ import SMSVerificationABI from '~/contracts/abi/sms-verification.json';
 import VerificationStore, {
   LOADING, QUERY_DATA, QUERY_CODE, POSTED_CONFIRMATION, DONE
 } from './store';
-import { postToServer } from '../../3rdparty/sms-verification';
+import { isServerRunning, postToServer } from '../../3rdparty/sms-verification';
 
 const SMS_VERIFICATION = 0; // id in the `BadgeReg.sol` contract
 
@@ -56,6 +56,10 @@ export default class SMSVerificationStore extends VerificationStore {
 
   constructor (api, account, isTestnet) {
     super(api, SMSVerificationABI, SMS_VERIFICATION, account, isTestnet);
+  }
+
+  isServerRunning = () => {
+    return isServerRunning(this.isTestnet);
   }
 
   @action setNumber = (number) => {
