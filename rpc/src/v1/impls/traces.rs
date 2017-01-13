@@ -77,7 +77,6 @@ impl<C, M> TracesClient<C, M> where C: BlockChainClient, M: MinerService {
 impl<C, M> Traces for TracesClient<C, M> where C: BlockChainClient + 'static, M: MinerService + 'static {
 	fn filter(&self, filter: TraceFilter) -> Result<Vec<LocalizedTrace>, Error> {
 		self.active()?;
-
 		let client = take_weak!(self.client);
 		let traces = client.filter_traces(filter.into());
 		let traces = traces.map_or_else(Vec::new, |traces| traces.into_iter().map(LocalizedTrace::from).collect());
@@ -94,7 +93,6 @@ impl<C, M> Traces for TracesClient<C, M> where C: BlockChainClient + 'static, M:
 
 	fn transaction_traces(&self, transaction_hash: H256) -> Result<Vec<LocalizedTrace>, Error> {
 		self.active()?;
-
 		let client = take_weak!(self.client);
 		let traces = client.transaction_traces(TransactionId::Hash(transaction_hash.into()));
 		let traces = traces.map_or_else(Vec::new, |traces| traces.into_iter().map(LocalizedTrace::from).collect());
@@ -130,14 +128,15 @@ impl<C, M> Traces for TracesClient<C, M> where C: BlockChainClient + 'static, M:
 		self.active()?;
 		let block = block.0;
 
-		let raw_transaction = Bytes::to_vec(raw_transaction);
-		match UntrustedRlp::new(&raw_transaction).as_val() {
-			Ok(signed) => Ok(match take_weak!(self.client).call(&signed, block.into(), to_call_analytics(flags)) {
-				Ok(e) => Some(TraceResults::from(e)),
-				_ => None,
-			}),
-			Err(e) => Err(errors::invalid_params("Transaction is not valid RLP", e)),
-		}
+		UntrustedRlp::new(&raw_transaction.into_vec()).as_val()
+			.map_err(|e| errors::invalid_params("Transaction is not valid RLP", e))
+			.and_then(|tx| SignedTransaction::new(tx).map_err(errors::from_transaction_error))
+			.and_then(|signed| {
+				Ok(match take_weak!(self.client).call(&signed, block.into(), to_call_analytics(flags)) {
+					Ok(e) => Some(TraceResults::from(e)),
+					_ => None,
+				})
+			})
 	}
 
 	fn replay_transaction(&self, transaction_hash: H256, flags: Vec<String>) -> Result<Option<TraceResults>, Error> {

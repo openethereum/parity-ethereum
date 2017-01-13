@@ -18,6 +18,7 @@ import { MenuItem } from 'material-ui';
 import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
+
 import { Select, Container, LanguageSelector } from '~/ui';
 import Features, { FeaturesStore, FEATURES } from '~/ui/Features';
 
@@ -131,12 +132,14 @@ export default class Parity extends Component {
         hint={
           <FormattedMessage
             id='settings.parity.modes.hint'
-            defaultMessage='the syning mode for the Parity node' />
+            defaultMessage='the syning mode for the Parity node'
+          />
         }
         label={
           <FormattedMessage
             id='settings.parity.modes.label'
-            defaultMessage='mode of operation' />
+            defaultMessage='mode of operation'
+          />
         }
         onChange={ this.onChangeMode }
         value={ mode }>
@@ -144,28 +147,32 @@ export default class Parity extends Component {
           this.renderItem('active', (
             <FormattedMessage
               id='settings.parity.modes.mode_active'
-              defaultMessage='Parity continuously syncs the chain' />
+              defaultMessage='Parity continuously syncs the chain'
+            />
           ))
         }
         {
           this.renderItem('passive', (
             <FormattedMessage
               id='settings.parity.modes.mode_passive'
-              defaultMessage='Parity syncs initially, then sleeps and wakes regularly to resync' />
+              defaultMessage='Parity syncs initially, then sleeps and wakes regularly to resync'
+            />
           ))
         }
         {
           this.renderItem('dark', (
             <FormattedMessage
               id='settings.parity.modes.mode_dark'
-              defaultMessage='Parity syncs only when the RPC is active' />
+              defaultMessage='Parity syncs only when the RPC is active'
+            />
           ))
         }
         {
           this.renderItem('offline', (
             <FormattedMessage
               id='settings.parity.modes.mode_offline'
-              defaultMessage="Parity doesn't sync" />
+              defaultMessage="Parity doesn't sync"
+            />
           ))
         }
       </Select>

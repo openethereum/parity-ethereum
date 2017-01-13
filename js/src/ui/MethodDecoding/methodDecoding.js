@@ -377,11 +377,15 @@ class MethodDecoding extends Component {
     }
 
     const inputs = methodInputs.map((input, index) => {
+      const label = input.name
+        ? `${input.name}: ${input.type}`
+        : input.type;
+
       return (
         <TypedInput
           allowCopy
           className={ styles.input }
-          label={ input.type }
+          label={ label }
           key={ index }
           param={ input.type }
           readOnly

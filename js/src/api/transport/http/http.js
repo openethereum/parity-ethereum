@@ -51,14 +51,14 @@ export default class Http extends JsonRpcBase {
 
     return fetch(this._url, request)
       .catch((error) => {
-        this._connected = false;
+        this._setDisconnected();
         throw error;
       })
       .then((response) => {
-        this._connected = true;
+        this._setConnected();
 
         if (response.status !== 200) {
-          this._connected = false;
+          this._setDisconnected();
           this.error(JSON.stringify({ status: response.status, statusText: response.statusText }));
           console.error(`${method}(${JSON.stringify(params)}): ${response.status}: ${response.statusText}`);
 

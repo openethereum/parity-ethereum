@@ -141,7 +141,7 @@ class Background extends Component {
   generateSeed () {
     const { api, muiTheme } = this.context;
 
-    return api.util.sha3(`${muiTheme.backgroundSeed}${Math.random()}${counter++}`);
+    return api.util.sha3.text(`${muiTheme.backgroundSeed}${Math.random()}${counter++}`);
   }
 }
 

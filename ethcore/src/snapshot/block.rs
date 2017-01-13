@@ -183,8 +183,8 @@ mod tests {
 			data: "Eep!".into(),
 		}.fake_sign(Address::from(0x55));
 
-		b.transactions.push(t1);
-		b.transactions.push(t2);
+		b.transactions.push(t1.into());
+		b.transactions.push(t2.into());
 
 		let receipts_root = b.header.receipts_root().clone();
 		b.header.set_transactions_root(::util::triehash::ordered_trie_root(

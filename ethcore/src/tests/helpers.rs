@@ -32,7 +32,7 @@ use ethereum::ethash::EthashParams;
 use devtools::*;
 use miner::Miner;
 use header::Header;
-use transaction::{Action, SignedTransaction, Transaction};
+use transaction::{Action, Transaction, SignedTransaction};
 use rlp::{self, RlpStream, Stream};
 use views::BlockView;
 
@@ -126,7 +126,7 @@ pub fn create_test_block_with_data(header: &Header, transactions: &[SignedTransa
 	rlp.append(header);
 	rlp.begin_list(transactions.len());
 	for t in transactions {
-		rlp.append_raw(&rlp::encode::<SignedTransaction>(t).to_vec(), 1);
+		rlp.append_raw(&rlp::encode(t).to_vec(), 1);
 	}
 	rlp.append(&uncles);
 	rlp.out()
@@ -163,7 +163,7 @@ pub fn generate_dummy_client_with_spec_and_data<F>(get_test_spec: F, block_numbe
 	let mut last_hashes = vec![];
 	let mut last_header = genesis_header.clone();
 
-	let kp = KeyPair::from_secret("".sha3()).unwrap();
+	let kp = KeyPair::from_secret_slice(&"".sha3()).unwrap();
 	let author = kp.address();
 
 	let mut n = 0;

@@ -20,7 +20,6 @@ import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
-import { bindActionCreators } from 'redux';
 
 import { toWei } from '~/api/util/wei';
 import { BusyStep, Button, CompletedStep, GasPriceEditor, IdentityIcon, Modal, TxHash, Warning } from '~/ui';
@@ -156,8 +155,7 @@ class ExecuteContract extends Component {
     }
 
     return (
-      <Warning
-        warning={ errorEstimated } />
+      <Warning warning={ errorEstimated } />
     );
   }
 
@@ -379,6 +377,7 @@ class ExecuteContract extends Component {
         this.gasStore.setGas(gas.toFixed(0));
       })
       .catch((error) => {
+        this.gasStore.setEstimatedError();
         console.warn('estimateGas', error);
       });
   }
@@ -470,11 +469,7 @@ function mapStateToProps (initState, initProps) {
   };
 }
 
-function mapDispatchToProps (dispatch) {
-  return bindActionCreators({}, dispatch);
-}
-
 export default connect(
   mapStateToProps,
-  mapDispatchToProps
+  null
 )(ExecuteContract);

@@ -44,7 +44,7 @@ use env_info::LastHashes;
 use verification;
 use verification::{PreverifiedBlock, Verifier};
 use block::*;
-use transaction::{LocalizedTransaction, SignedTransaction, Transaction, PendingTransaction, Action};
+use transaction::{LocalizedTransaction, UnverifiedTransaction, SignedTransaction, Transaction, PendingTransaction, Action};
 use blockchain::extras::TransactionAddress;
 use types::filter::Filter;
 use types::mode::Mode as IpcMode;
@@ -596,7 +596,7 @@ impl Client {
 		trace!(target: "external_tx", "Importing queued");
 		let _timer = PerfTimer::new("import_queued_transactions");
 		self.queue_transactions.fetch_sub(transactions.len(), AtomicOrdering::SeqCst);
-		let txs: Vec<SignedTransaction> = transactions.iter().filter_map(|bytes| UntrustedRlp::new(bytes).as_val().ok()).collect();
+		let txs: Vec<UnverifiedTransaction> = transactions.iter().filter_map(|bytes| UntrustedRlp::new(bytes).as_val().ok()).collect();
 		let hashes: Vec<_> = txs.iter().map(|tx| tx.hash()).collect();
 		self.notify(|notify| {
 			notify.transactions_received(hashes.clone(), peer_id);
@@ -854,10 +854,7 @@ impl BlockChainClient for Client {
 		let mut state = self.state_at(block).ok_or(CallError::StatePruned)?;
 		let original_state = if analytics.state_diffing { Some(state.clone()) } else { None };
 
-		let sender = t.sender().map_err(|e| {
-			let message = format!("Transaction malformed: {:?}", e);
-			ExecutionError::TransactionMalformed(message)
-		})?;
+		let sender = t.sender();
 		let balance = state.balance(&sender);
 		let needed_balance = t.value + t.gas * t.gas_price;
 		if balance < needed_balance {
@@ -873,12 +870,87 @@ impl BlockChainClient for Client {
 		Ok(ret)
 	}
 
+	fn estimate_gas(&self, t: &SignedTransaction, block: BlockId) -> Result<U256, CallError> {
+		const UPPER_CEILING: u64 = 1_000_000_000_000u64;
+		let header = self.block_header(block).ok_or(CallError::StatePruned)?;
+		let last_hashes = self.build_last_hashes(header.parent_hash());
+		let env_info = EnvInfo {
+			number: header.number(),
+			author: header.author(),
+			timestamp: header.timestamp(),
+			difficulty: header.difficulty(),
+			last_hashes: last_hashes,
+			gas_used: U256::zero(),
+			gas_limit: UPPER_CEILING.into(),
+		};
+		// that's just a copy of the state.
+		let original_state = self.state_at(block).ok_or(CallError::StatePruned)?;
+		let sender = t.sender();
+		let balance = original_state.balance(&sender);
+		let options = TransactOptions { tracing: true, vm_tracing: false, check_nonce: false };
+
+		let cond = |gas| {
+			let mut tx = t.as_unsigned().clone();
+			tx.gas = gas;
+			let tx = tx.fake_sign(sender);
+
+			let mut state = original_state.clone();
+			let needed_balance = tx.value + tx.gas * tx.gas_price;
+			if balance < needed_balance {
+				// give the sender a sufficient balance
+				state.add_balance(&sender, &(needed_balance - balance), CleanupMode::NoEmpty);
+			}
+
+			Executive::new(&mut state, &env_info, &*self.engine, &self.factories.vm)
+				.transact(&tx, options.clone())
+				.map(|r| r.exception.is_some())
+				.unwrap_or(false)
+		};
+
+		let mut upper = header.gas_limit();
+		if !cond(upper) {
+			// impossible at block gas limit - try `UPPER_CEILING` instead.
+			// TODO: consider raising limit by powers of two.
+			upper = UPPER_CEILING.into();
+			if !cond(upper) {
+				trace!(target: "estimate_gas", "estimate_gas failed with {}", upper);
+				return Err(CallError::Execution(ExecutionError::Internal))
+			}
+		}
+		let lower = t.gas_required(&self.engine.schedule(&env_info)).into();
+		if cond(lower) {
+			trace!(target: "estimate_gas", "estimate_gas succeeded with {}", lower);
+			return Ok(lower)
+		}
+
+		/// Find transition point between `lower` and `upper` where `cond` changes from `false` to `true`.
+		/// Returns the lowest value between `lower` and `upper` for which `cond` returns true.
+		/// We assert: `cond(lower) = false`, `cond(upper) = true`
+		fn binary_chop<F>(mut lower: U256, mut upper: U256, mut cond: F) -> U256 where F: FnMut(U256) -> bool {
+			while upper - lower > 1.into() {
+				let mid = (lower + upper) / 2.into();
+				trace!(target: "estimate_gas", "{} .. {} .. {}", lower, mid, upper);
+				let c = cond(mid);
+				match c {
+					true => upper = mid,
+					false => lower = mid,
+				};
+				trace!(target: "estimate_gas", "{} => {} .. {}", c, lower, upper);
+			}
+			upper
+		}
+
+		// binary chop to non-excepting call with gas somewhere between 21000 and block gas limit
+		trace!(target: "estimate_gas", "estimate_gas chopping {} .. {}", lower, upper);
+		Ok(binary_chop(lower, upper, cond))
+	}
+
 	fn replay(&self, id: TransactionId, analytics: CallAnalytics) -> Result<Executed, CallError> {
 		let address = self.transaction_address(id).ok_or(CallError::TransactionNotFound)?;
 		let header = self.block_header(BlockId::Hash(address.block_hash)).ok_or(CallError::StatePruned)?;
 		let body = self.block_body(BlockId::Hash(address.block_hash)).ok_or(CallError::StatePruned)?;
 		let mut state = self.state_at_beginning(BlockId::Hash(address.block_hash)).ok_or(CallError::StatePruned)?;
-		let txs = body.transactions();
+		let mut txs = body.transactions();
 
 		if address.index >= txs.len() {
 			return Err(CallError::TransactionNotFound);
@@ -895,16 +967,19 @@ impl BlockChainClient for Client {
 			gas_used: U256::default(),
 			gas_limit: header.gas_limit(),
 		};
-		for t in txs.iter().take(address.index) {
-			match Executive::new(&mut state, &env_info, &*self.engine, &self.factories.vm).transact(t, Default::default()) {
+		const PROOF: &'static str = "Transactions fetched from blockchain; blockchain transactions are valid; qed";
+		let rest = txs.split_off(address.index);
+		for t in txs {
+			let t = SignedTransaction::new(t).expect(PROOF);
+			match Executive::new(&mut state, &env_info, &*self.engine, &self.factories.vm).transact(&t, Default::default()) {
 				Ok(x) => { env_info.gas_used = env_info.gas_used + x.gas_used; }
 				Err(ee) => { return Err(CallError::Execution(ee)) }
 			}
 		}
-		let t = &txs[address.index];
-
+		let first = rest.into_iter().next().expect("We split off < `address.index`; Length is checked earlier; qed");
+		let t = SignedTransaction::new(first).expect(PROOF);
 		let original_state = if analytics.state_diffing { Some(state.clone()) } else { None };
-		let mut ret = Executive::new(&mut state, &env_info, &*self.engine, &self.factories.vm).transact(t, options)?;
+		let mut ret = Executive::new(&mut state, &env_info, &*self.engine, &self.factories.vm).transact(&t, options)?;
 		ret.state_diff = original_state.map(|original| state.diff_from(original));
 
 		Ok(ret)
@@ -1507,11 +1582,10 @@ impl Drop for Client {
 
 /// Returns `LocalizedReceipt` given `LocalizedTransaction`
 /// and a vector of receipts from given block up to transaction index.
-fn transaction_receipt(tx: LocalizedTransaction, mut receipts: Vec<Receipt>) -> LocalizedReceipt {
+fn transaction_receipt(mut tx: LocalizedTransaction, mut receipts: Vec<Receipt>) -> LocalizedReceipt {
 	assert_eq!(receipts.len(), tx.transaction_index + 1, "All previous receipts are provided.");
 
-	let sender = tx.sender()
-		.expect("LocalizedTransaction is part of the blockchain; We have only valid transactions in chain; qed");
+	let sender = tx.sender();
 	let receipt = receipts.pop().expect("Current receipt is provided; qed");
 	let prior_gas_used = match tx.transaction_index {
 		0 => 0.into(),
@@ -1594,7 +1668,7 @@ mod tests {
 		use util::Hashable;
 
 		// given
-		let key = KeyPair::from_secret("test".sha3()).unwrap();
+		let key = KeyPair::from_secret_slice(&"test".sha3()).unwrap();
 		let secret = key.secret();
 
 		let block_number = 1;
@@ -1611,10 +1685,11 @@ mod tests {
 		};
 		let tx1 = raw_tx.clone().sign(secret, None);
 		let transaction = LocalizedTransaction {
-			signed: tx1.clone(),
+			signed: tx1.clone().into(),
 			block_number: block_number,
 			block_hash: block_hash,
 			transaction_index: 1,
+			cached_sender: Some(tx1.sender()),
 		};
 		let logs = vec![LogEntry {
 			address: 5.into(),

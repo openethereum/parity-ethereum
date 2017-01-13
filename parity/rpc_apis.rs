@@ -20,16 +20,16 @@ use std::cmp::PartialEq;
 use std::str::FromStr;
 use std::sync::Arc;
 use util::RotatingLogger;
+use jsonrpc_core::{MetaIoHandler};
 use ethcore::miner::{Miner, ExternalMiner};
 use ethcore::client::Client;
 use ethcore::account_provider::AccountProvider;
 use ethcore::snapshot::SnapshotService;
 use ethsync::{ManageNetwork, SyncProvider};
-use ethcore_rpc::{Extendable, NetworkSettings};
+use ethcore_rpc::{Metadata, NetworkSettings};
 pub use ethcore_rpc::SignerService;
 use updater::Updater;
 use hash_fetch::fetch::Client as FetchClient;
-use parity_reactor::Remote;
 
 #[derive(Debug, PartialEq, Clone, Eq, Hash)]
 pub enum Api {
@@ -125,7 +125,6 @@ pub struct Dependencies {
 	pub dapps_interface: Option<String>,
 	pub dapps_port: Option<u16>,
 	pub fetch: FetchClient,
-	pub remote: Remote,
 }
 
 fn to_modules(apis: &[Api]) -> BTreeMap<String, String> {
@@ -170,18 +169,20 @@ impl ApiSet {
 }
 
 macro_rules! add_signing_methods {
-	($namespace:ident, $server:expr, $deps:expr) => {
-		let server = &$server;
-		let deps = &$deps;
-		if deps.signer_service.is_enabled() {
-			server.add_delegate($namespace::to_delegate(SigningQueueClient::new(&deps.signer_service, &deps.client, &deps.miner, &deps.secret_store)))
-		} else {
-			server.add_delegate($namespace::to_delegate(SigningUnsafeClient::new(&deps.client, &deps.secret_store, &deps.miner)))
+	($namespace:ident, $handler:expr, $deps:expr) => {
+		{
+			let handler = &mut $handler;
+			let deps = &$deps;
+			if deps.signer_service.is_enabled() {
+				handler.extend_with($namespace::to_delegate(SigningQueueClient::new(&deps.signer_service, &deps.client, &deps.miner, &deps.secret_store)))
+			} else {
+				handler.extend_with($namespace::to_delegate(SigningUnsafeClient::new(&deps.client, &deps.secret_store, &deps.miner)))
+			}
 		}
 	}
 }
 
-pub fn setup_rpc<T: Extendable>(server: T, deps: Arc<Dependencies>, apis: ApiSet) -> T {
+pub fn setup_rpc(mut handler: MetaIoHandler<Metadata>, deps: Arc<Dependencies>, apis: ApiSet) -> MetaIoHandler<Metadata> {
 	use ethcore_rpc::v1::*;
 
 	// it's turned into vector, cause ont of the cases requires &[]
@@ -189,10 +190,10 @@ pub fn setup_rpc<T: Extendable>(server: T, deps: Arc<Dependencies>, apis: ApiSet
 	for api in &apis {
 		match *api {
 			Api::Web3 => {
-				server.add_delegate(Web3Client::new().to_delegate());
+				handler.extend_with(Web3Client::new().to_delegate());
 			},
 			Api::Net => {
-				server.add_delegate(NetClient::new(&deps.sync).to_delegate());
+				handler.extend_with(NetClient::new(&deps.sync).to_delegate());
 			},
 			Api::Eth => {
 				let client = EthClient::new(
@@ -207,25 +208,25 @@ pub fn setup_rpc<T: Extendable>(server: T, deps: Arc<Dependencies>, apis: ApiSet
 						send_block_number_in_get_work: !deps.geth_compatibility,
 					}
 				);
-				server.add_delegate(client.to_delegate());
+				handler.extend_with(client.to_delegate());
 
 				let filter_client = EthFilterClient::new(&deps.client, &deps.miner);
-				server.add_delegate(filter_client.to_delegate());
+				handler.extend_with(filter_client.to_delegate());
 
-				add_signing_methods!(EthSigning, server, deps);
+				add_signing_methods!(EthSigning, handler, deps);
 			},
 			Api::Personal => {
-				server.add_delegate(PersonalClient::new(&deps.secret_store, &deps.client, &deps.miner, deps.geth_compatibility).to_delegate());
+				handler.extend_with(PersonalClient::new(&deps.secret_store, &deps.client, &deps.miner, deps.geth_compatibility).to_delegate());
 			},
 			Api::Signer => {
-				server.add_delegate(SignerClient::new(&deps.secret_store, &deps.client, &deps.miner, &deps.signer_service).to_delegate());
+				handler.extend_with(SignerClient::new(&deps.secret_store, &deps.client, &deps.miner, &deps.signer_service).to_delegate());
 			},
 			Api::Parity => {
 				let signer = match deps.signer_service.is_enabled() {
 					true => Some(deps.signer_service.clone()),
 					false => None,
 				};
-				server.add_delegate(ParityClient::new(
+				handler.extend_with(ParityClient::new(
 					&deps.client,
 					&deps.miner,
 					&deps.sync,
@@ -239,32 +240,31 @@ pub fn setup_rpc<T: Extendable>(server: T, deps: Arc<Dependencies>, apis: ApiSet
 					deps.dapps_port,
 				).to_delegate());
 
-				add_signing_methods!(EthSigning, server, deps);
-				add_signing_methods!(ParitySigning, server, deps);
+				add_signing_methods!(EthSigning, handler, deps);
+				add_signing_methods!(ParitySigning, handler, deps);
 			},
 			Api::ParityAccounts => {
-				server.add_delegate(ParityAccountsClient::new(&deps.secret_store, &deps.client).to_delegate());
+				handler.extend_with(ParityAccountsClient::new(&deps.secret_store, &deps.client).to_delegate());
 			},
 			Api::ParitySet => {
-				server.add_delegate(ParitySetClient::new(
+				handler.extend_with(ParitySetClient::new(
 					&deps.client,
 					&deps.miner,
 					&deps.updater,
 					&deps.net_service,
 					deps.fetch.clone(),
-					deps.remote.clone(),
 				).to_delegate())
 			},
 			Api::Traces => {
-				server.add_delegate(TracesClient::new(&deps.client, &deps.miner).to_delegate())
+				handler.extend_with(TracesClient::new(&deps.client, &deps.miner).to_delegate())
 			},
 			Api::Rpc => {
 				let modules = to_modules(&apis);
-				server.add_delegate(RpcClient::new(modules).to_delegate());
+				handler.extend_with(RpcClient::new(modules).to_delegate());
 			}
 		}
 	}
-	server
+	handler
 }
 
 #[cfg(test)]

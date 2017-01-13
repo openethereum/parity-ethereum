@@ -33,7 +33,6 @@ use views::HeaderView;
 use evm::Schedule;
 use ethjson;
 use io::{IoContext, IoHandler, TimerToken, IoService};
-use transaction::SignedTransaction;
 use env_info::EnvInfo;
 use builtin::Builtin;
 use client::{Client, EngineClient};
@@ -312,15 +311,6 @@ impl Engine for AuthorityRound {
 		Ok(())
 	}
 
-	fn verify_transaction_basic(&self, t: &SignedTransaction, _header: &Header) -> Result<(), Error> {
-		t.check_low_s()?;
-		Ok(())
-	}
-
-	fn verify_transaction(&self, t: &SignedTransaction, _header: &Header) -> Result<(), Error> {
-		t.sender().map(|_|()) // Perform EC recovery and cache sender
-	}
-
 	fn is_new_best_block(&self, _best_total_difficulty: U256, best_header: HeaderView, _parent_details: &BlockDetails, new_header: &HeaderView) -> bool {
 		let new_number = new_header.number();
 		let best_number = best_header.number();
@@ -354,6 +344,7 @@ mod tests {
 	use env_info::EnvInfo;
 	use header::Header;
 	use error::{Error, BlockError};
+	use ethkey::Secret;
 	use rlp::encode;
 	use block::*;
 	use tests::helpers::*;
@@ -411,8 +402,8 @@ mod tests {
 	#[test]
 	fn generates_seal_and_does_not_double_propose() {
 		let tap = AccountProvider::transient_provider();
-		let addr1 = tap.insert_account("1".sha3(), "1").unwrap();
-		let addr2 = tap.insert_account("2".sha3(), "2").unwrap();
+		let addr1 = tap.insert_account(Secret::from_slice(&"1".sha3()).unwrap(), "1").unwrap();
+		let addr2 = tap.insert_account(Secret::from_slice(&"2".sha3()).unwrap(), "2").unwrap();
 
 		let spec = Spec::new_test_round();
 		let engine = &*spec.engine;
@@ -445,7 +436,7 @@ mod tests {
 	fn proposer_switching() {
 		let mut header: Header = Header::default();
 		let tap = AccountProvider::transient_provider();
-		let addr = tap.insert_account("0".sha3(), "0").unwrap();
+		let addr = tap.insert_account(Secret::from_slice(&"0".sha3()).unwrap(), "0").unwrap();
 
 		header.set_author(addr);
 
@@ -464,7 +455,7 @@ mod tests {
 	fn rejects_future_block() {
 		let mut header: Header = Header::default();
 		let tap = AccountProvider::transient_provider();
-		let addr = tap.insert_account("0".sha3(), "0").unwrap();
+		let addr = tap.insert_account(Secret::from_slice(&"0".sha3()).unwrap(), "0").unwrap();
 
 		header.set_author(addr);
 

@@ -29,7 +29,6 @@ use error::{BlockError, Error};
 use evm::Schedule;
 use ethjson;
 use header::Header;
-use transaction::SignedTransaction;
 use client::Client;
 use super::validator_set::{ValidatorSet, new_validator_set};
 
@@ -171,15 +170,6 @@ impl Engine for BasicAuthority {
 		Ok(())
 	}
 
-	fn verify_transaction_basic(&self, t: &SignedTransaction, _header: &Header) -> result::Result<(), Error> {
-		t.check_low_s()?;
-		Ok(())
-	}
-
-	fn verify_transaction(&self, t: &SignedTransaction, _header: &Header) -> Result<(), Error> {
-		t.sender().map(|_|()) // Perform EC recovery and cache sender
-	}
-
 	fn register_client(&self, client: Weak<Client>) {
 		self.validators.register_call_contract(client);
 	}
@@ -201,6 +191,7 @@ mod tests {
 	use error::{BlockError, Error};
 	use tests::helpers::*;
 	use account_provider::AccountProvider;
+	use ethkey::Secret;
 	use header::Header;
 	use spec::Spec;
 	use engines::Seal;
@@ -261,7 +252,7 @@ mod tests {
 	#[test]
 	fn can_generate_seal() {
 		let tap = AccountProvider::transient_provider();
-		let addr = tap.insert_account("".sha3(), "").unwrap();
+		let addr = tap.insert_account(Secret::from_slice(&"".sha3()).unwrap(), "").unwrap();
 
 		let spec = new_test_authority();
 		let engine = &*spec.engine;
@@ -281,7 +272,7 @@ mod tests {
 	#[test]
 	fn seals_internally() {
 		let tap = AccountProvider::transient_provider();
-		let authority = tap.insert_account("".sha3(), "").unwrap();
+		let authority = tap.insert_account(Secret::from_slice(&"".sha3()).unwrap(), "").unwrap();
 
 		let engine = new_test_authority().engine;
 		assert!(!engine.is_sealer(&Address::default()).unwrap());

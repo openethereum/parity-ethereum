@@ -19,7 +19,7 @@
 //! This uses a "Provider" to answer requests.
 //! See https://github.com/ethcore/parity/wiki/Light-Ethereum-Subprotocol-(LES)
 
-use ethcore::transaction::SignedTransaction;
+use ethcore::transaction::UnverifiedTransaction;
 use ethcore::receipt::Receipt;
 
 use io::TimerToken;
@@ -30,6 +30,7 @@ use util::{Bytes, Mutex, RwLock, U256};
 use time::{Duration, SteadyTime};
 
 use std::collections::HashMap;
+use std::fmt;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
@@ -40,13 +41,14 @@ use self::buffer_flow::{Buffer, FlowParams};
 use self::context::{Ctx, TickCtx};
 use self::error::Punishment;
 
-mod buffer_flow;
 mod context;
 mod error;
 mod status;
 
 #[cfg(test)]
 mod tests;
+
+pub mod buffer_flow;
 
 pub use self::error::Error;
 pub use self::context::{BasicContext, EventContext, IoContext};
@@ -122,6 +124,12 @@ mod timeout {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct ReqId(usize);
 
+impl fmt::Display for ReqId {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		write!(f, "Request #{}", self.0)
+	}
+}
+
 // A pending peer: one we've sent our status to but
 // may not have received one for.
 struct PendingPeer {
@@ -178,19 +186,19 @@ pub trait Handler: Send + Sync {
 	/// Called when a peer makes an announcement.
 	fn on_announcement(&self, _ctx: &EventContext, _announcement: &Announcement) { }
 	/// Called when a peer requests relay of some transactions.
-	fn on_transactions(&self, _ctx: &EventContext, _relay: &[SignedTransaction]) { }
+	fn on_transactions(&self, _ctx: &EventContext, _relay: &[UnverifiedTransaction]) { }
 	/// Called when a peer responds with block bodies.
 	fn on_block_bodies(&self, _ctx: &EventContext, _req_id: ReqId, _bodies: &[Bytes]) { }
 	/// Called when a peer responds with block headers.
 	fn on_block_headers(&self, _ctx: &EventContext, _req_id: ReqId, _headers: &[Bytes]) { }
 	/// Called when a peer responds with block receipts.
 	fn on_receipts(&self, _ctx: &EventContext, _req_id: ReqId, _receipts: &[Vec<Receipt>]) { }
-	/// Called when a peer responds with state proofs. Each proof is a series of trie
+	/// Called when a peer responds with state proofs. Each proof should be a series of trie
 	/// nodes in ascending order by distance from the root.
 	fn on_state_proofs(&self, _ctx: &EventContext, _req_id: ReqId, _proofs: &[Vec<Bytes>]) { }
 	/// Called when a peer responds with contract code.
 	fn on_code(&self, _ctx: &EventContext, _req_id: ReqId, _codes: &[Bytes]) { }
-	/// Called when a peer responds with header proofs. Each proof is a block header coupled
+	/// Called when a peer responds with header proofs. Each proof should be a block header coupled
 	/// with a series of trie nodes is ascending order by distance from the root.
 	fn on_header_proofs(&self, _ctx: &EventContext, _req_id: ReqId, _proofs: &[(Bytes, Vec<Bytes>)]) { }
 	/// Called to "tick" the handler periodically.
@@ -237,7 +245,7 @@ pub struct LightProtocol {
 	pending_requests: RwLock<HashMap<usize, Requested>>,
 	capabilities: RwLock<Capabilities>,
 	flow_params: FlowParams, // assumed static and same for every peer.
-	handlers: Vec<Box<Handler>>,
+	handlers: Vec<Arc<Handler>>,
 	req_id: AtomicUsize,
 }
 
@@ -376,11 +384,11 @@ impl LightProtocol {
 	}
 
 	/// Add an event handler.
-	/// Ownership will be transferred to the protocol structure,
-	/// and the handler will be kept alive as long as it is.
+	///
 	/// These are intended to be added when the protocol structure
-	/// is initialized as a means of customizing its behavior.
-	pub fn add_handler(&mut self, handler: Box<Handler>) {
+	/// is initialized as a means of customizing its behavior,
+	/// and dispatching requests immediately upon events.
+	pub fn add_handler(&mut self, handler: Arc<Handler>) {
 		self.handlers.push(handler);
 	}
 
@@ -440,8 +448,10 @@ impl LightProtocol {
 		}
 	}
 
-	// handle a packet using the given io context.
-	fn handle_packet(&self, io: &IoContext, peer: &PeerId, packet_id: u8, data: &[u8]) {
+	/// Handle an LES packet using the given io context.
+	/// Packet data is _untrusted_, which means that invalid data won't lead to
+	/// issues.
+	pub fn handle_packet(&self, io: &IoContext, peer: &PeerId, packet_id: u8, data: &[u8]) {
 		let rlp = UntrustedRlp::new(data);
 
 		trace!(target: "les", "Incoming packet {} from peer {}", packet_id, peer);
@@ -478,6 +488,71 @@ impl LightProtocol {
 
 		if let Err(e) = res {
 			punish(*peer, io, e);
+		}
+	}
+
+		/// called when a peer connects.
+	pub fn on_connect(&self, peer: &PeerId, io: &IoContext) {
+		let proto_version = match io.protocol_version(*peer).ok_or(Error::WrongNetwork) {
+			Ok(pv) => pv,
+			Err(e) => { punish(*peer, io, e); return }
+		};
+
+		if PROTOCOL_VERSIONS.iter().find(|x| **x == proto_version).is_none() {
+			punish(*peer, io, Error::UnsupportedProtocolVersion(proto_version));
+			return;
+		}
+
+		let chain_info = self.provider.chain_info();
+
+		let status = Status {
+			head_td: chain_info.total_difficulty,
+			head_hash: chain_info.best_block_hash,
+			head_num: chain_info.best_block_number,
+			genesis_hash: chain_info.genesis_hash,
+			protocol_version: proto_version as u32, // match peer proto version
+			network_id: self.network_id,
+			last_head: None,
+		};
+
+		let capabilities = self.capabilities.read().clone();
+		let status_packet = status::write_handshake(&status, &capabilities, Some(&self.flow_params));
+
+		self.pending_peers.write().insert(*peer, PendingPeer {
+			sent_head: chain_info.best_block_hash,
+			last_update: SteadyTime::now(),
+		});
+
+		io.send(*peer, packet::STATUS, status_packet);
+	}
+
+	/// called when a peer disconnects.
+	pub fn on_disconnect(&self, peer: PeerId, io: &IoContext) {
+		trace!(target: "les", "Peer {} disconnecting", peer);
+
+
+		self.pending_peers.write().remove(&peer);
+		if self.peers.write().remove(&peer).is_some() {
+			let unfulfilled: Vec<_> = self.pending_requests.read()
+				.iter()
+				.filter(|&(_, r)| r.peer_id == peer)
+				.map(|(&id, _)| ReqId(id))
+				.collect();
+
+			{
+				let mut pending = self.pending_requests.write();
+				for &ReqId(ref inner) in &unfulfilled {
+					pending.remove(inner);
+				}
+			}
+
+			for handler in &self.handlers {
+				handler.on_disconnect(&Ctx {
+					peer: peer,
+					io: io,
+					proto: self,
+				}, &unfulfilled)
+			}
 		}
 	}
 
@@ -529,6 +604,16 @@ impl LightProtocol {
 		}
 	}
 
+	/// Execute the given closure with a basic context derived from the I/O context.
+	pub fn with_context<F, T>(&self, io: &IoContext, f: F) -> T
+		where F: FnOnce(&BasicContext) -> T
+	{
+		f(&TickCtx {
+			io: io,
+			proto: self,
+		})
+	}
+
 	fn tick_handlers(&self, io: &IoContext) {
 		for handler in &self.handlers {
 			handler.tick(&TickCtx {
@@ -540,71 +625,6 @@ impl LightProtocol {
 }
 
 impl LightProtocol {
-	// called when a peer connects.
-	fn on_connect(&self, peer: &PeerId, io: &IoContext) {
-		let proto_version = match io.protocol_version(*peer).ok_or(Error::WrongNetwork) {
-			Ok(pv) => pv,
-			Err(e) => { punish(*peer, io, e); return }
-		};
-
-		if PROTOCOL_VERSIONS.iter().find(|x| **x == proto_version).is_none() {
-			punish(*peer, io, Error::UnsupportedProtocolVersion(proto_version));
-			return;
-		}
-
-		let chain_info = self.provider.chain_info();
-
-		let status = Status {
-			head_td: chain_info.total_difficulty,
-			head_hash: chain_info.best_block_hash,
-			head_num: chain_info.best_block_number,
-			genesis_hash: chain_info.genesis_hash,
-			protocol_version: proto_version as u32, // match peer proto version
-			network_id: self.network_id,
-			last_head: None,
-		};
-
-		let capabilities = self.capabilities.read().clone();
-		let status_packet = status::write_handshake(&status, &capabilities, Some(&self.flow_params));
-
-		self.pending_peers.write().insert(*peer, PendingPeer {
-			sent_head: chain_info.best_block_hash,
-			last_update: SteadyTime::now(),
-		});
-
-		io.send(*peer, packet::STATUS, status_packet);
-	}
-
-	// called when a peer disconnects.
-	fn on_disconnect(&self, peer: PeerId, io: &IoContext) {
-		trace!(target: "les", "Peer {} disconnecting", peer);
-
-
-		self.pending_peers.write().remove(&peer);
-		if self.peers.write().remove(&peer).is_some() {
-			let unfulfilled: Vec<_> = self.pending_requests.read()
-				.iter()
-				.filter(|&(_, r)| r.peer_id == peer)
-				.map(|(&id, _)| ReqId(id))
-				.collect();
-
-			{
-				let mut pending = self.pending_requests.write();
-				for &ReqId(ref inner) in &unfulfilled {
-					pending.remove(inner);
-				}
-			}
-
-			for handler in &self.handlers {
-				handler.on_disconnect(&Ctx {
-					peer: peer,
-					io: io,
-					proto: self,
-				}, &unfulfilled)
-			}
-		}
-	}
-
 	// Handle status message from peer.
 	fn status(&self, peer: &PeerId, io: &IoContext, data: UntrustedRlp) -> Result<(), Error> {
 		let pending = match self.pending_peers.write().remove(peer) {
@@ -1122,7 +1142,7 @@ impl LightProtocol {
 
 		let txs: Vec<_> = data.iter()
 			.take(MAX_TRANSACTIONS)
-			.map(|x| x.as_val::<SignedTransaction>())
+			.map(|x| x.as_val::<UnverifiedTransaction>())
 			.collect::<Result<_,_>>()?;
 
 		debug!(target: "les", "Received {} transactions to relay from peer {}", txs.len(), peer);

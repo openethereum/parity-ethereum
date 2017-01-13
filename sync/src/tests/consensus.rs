@@ -22,7 +22,7 @@ use ethcore::spec::Spec;
 use ethcore::miner::MinerService;
 use ethcore::transaction::*;
 use ethcore::account_provider::AccountProvider;
-use ethkey::KeyPair;
+use ethkey::{KeyPair, Secret};
 use super::helpers::*;
 use SyncConfig;
 
@@ -41,7 +41,7 @@ impl IoHandler<ClientIoMessage> for TestIoHandler {
 	}
 }
 
-fn new_tx(secret: &H256, nonce: U256) -> PendingTransaction {
+fn new_tx(secret: &Secret, nonce: U256) -> PendingTransaction {
 	let signed = Transaction {
 		nonce: nonce.into(),
 		gas_price: 0.into(),
@@ -55,8 +55,8 @@ fn new_tx(secret: &H256, nonce: U256) -> PendingTransaction {
 
 #[test]
 fn authority_round() {
-	let s0 = KeyPair::from_secret("1".sha3()).unwrap();
-	let s1 = KeyPair::from_secret("0".sha3()).unwrap();
+	let s0 = KeyPair::from_secret_slice(&"1".sha3()).unwrap();
+	let s1 = KeyPair::from_secret_slice(&"0".sha3()).unwrap();
 	let spec_factory = || {
 		let spec = Spec::new_test_round();
 		let account_provider = AccountProvider::transient_provider();
@@ -118,8 +118,8 @@ fn authority_round() {
 
 #[test]
 fn tendermint() {
-	let s0 = KeyPair::from_secret("1".sha3()).unwrap();
-	let s1 = KeyPair::from_secret("0".sha3()).unwrap();
+	let s0 = KeyPair::from_secret_slice(&"1".sha3()).unwrap();
+	let s1 = KeyPair::from_secret_slice(&"0".sha3()).unwrap();
 	let spec_factory = || {
 		let spec = Spec::new_test_tendermint();
 		let account_provider = AccountProvider::transient_provider();

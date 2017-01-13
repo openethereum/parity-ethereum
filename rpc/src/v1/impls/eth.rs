@@ -16,41 +16,45 @@
 
 //! Eth rpc implementation.
 
-extern crate ethash;
-
 use std::io::{Write};
 use std::process::{Command, Stdio};
 use std::thread;
 use std::time::{Instant, Duration};
 use std::sync::{Arc, Weak};
-use time::get_time;
-use ethsync::{SyncProvider};
-use ethcore::miner::{MinerService, ExternalMinerService};
-use jsonrpc_core::*;
-use jsonrpc_macros::Trailing;
-use util::{H256, Address, FixedHash, U256, H64, Uint};
-use util::sha3::*;
-use util::{FromHex, Mutex};
+
+use futures::{self, BoxFuture, Future};
 use rlp::{self, UntrustedRlp, View};
+use time::get_time;
+use util::{H256, Address, FixedHash, U256, H64, Uint};
+use util::sha3::Hashable;
+use util::{FromHex, Mutex};
+
+use ethash::SeedHashCompute;
 use ethcore::account_provider::AccountProvider;
-use ethcore::client::{MiningBlockChainClient, BlockId, TransactionId, UncleId};
-use ethcore::header::{Header as BlockHeader, BlockNumber as EthBlockNumber};
 use ethcore::block::IsBlock;
+use ethcore::client::{MiningBlockChainClient, BlockId, TransactionId, UncleId};
 use ethcore::ethereum::Ethash;
-use ethcore::transaction::{Transaction as EthTransaction, SignedTransaction, PendingTransaction, Action};
-use ethcore::log_entry::LogEntry;
 use ethcore::filter::Filter as EthcoreFilter;
+use ethcore::header::{Header as BlockHeader, BlockNumber as EthBlockNumber};
+use ethcore::log_entry::LogEntry;
+use ethcore::miner::{MinerService, ExternalMinerService};
+use ethcore::transaction::{Transaction as EthTransaction, SignedTransaction, PendingTransaction, Action};
 use ethcore::snapshot::SnapshotService;
-use self::ethash::SeedHashCompute;
+use ethsync::{SyncProvider};
+
+use jsonrpc_core::Error;
+use jsonrpc_macros::Trailing;
+
 use v1::traits::Eth;
 use v1::types::{
 	RichBlock, Block, BlockTransactions, BlockNumber, Bytes, SyncStatus, SyncInfo,
-	Transaction, CallRequest, Index, Filter, Log, Receipt, Work, DappId,
+	Transaction, CallRequest, Index, Filter, Log, Receipt, Work,
 	H64 as RpcH64, H256 as RpcH256, H160 as RpcH160, U256 as RpcU256,
 };
 use v1::helpers::{CallRequest as CRequest, errors, limit_logs};
 use v1::helpers::dispatch::{dispatch_transaction, default_gas_price};
 use v1::helpers::block_import::is_major_importing;
+use v1::metadata::Metadata;
 
 const EXTRA_INFO_PROOF: &'static str = "Object exists in in blockchain (fetched earlier), extra_info is always available if object exists; qed";
 
@@ -271,7 +275,9 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 	SN: SnapshotService + 'static,
 	S: SyncProvider + 'static,
 	M: MinerService + 'static,
-	EM: ExternalMinerService + 'static {
+	EM: ExternalMinerService + 'static,
+{
+	type Metadata = Metadata;
 
 	fn protocol_version(&self) -> Result<String, Error> {
 		self.active()?;
@@ -338,18 +344,21 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 		Ok(RpcU256::from(default_gas_price(&*client, &*miner)))
 	}
 
-	fn accounts(&self, id: Trailing<DappId>) -> Result<Vec<RpcH160>, Error> {
-		self.active()?;
+	fn accounts(&self, meta: Metadata) -> BoxFuture<Vec<RpcH160>, Error> {
+		let dapp = meta.dapp_id.unwrap_or_default();
 
-		let dapp = id.0;
+		let accounts = move || {
+			self.active()?;
 
-		let store = take_weak!(self.accounts);
-		let accounts = store
-			.note_dapp_used(dapp.clone().into())
-			.and_then(|_| store.dapps_addresses(dapp.into()))
-			.map_err(|e| errors::internal("Could not fetch accounts.", e))?;
+			let store = take_weak!(self.accounts);
+			let accounts = store
+				.note_dapp_used(dapp.clone().into())
+				.and_then(|_| store.dapps_addresses(dapp.into()))
+				.map_err(|e| errors::internal("Could not fetch accounts.", e))?;
+			Ok(accounts.into_iter().map(Into::into).collect())
+		};
 
-		Ok(accounts.into_iter().map(Into::into).collect())
+		futures::done(accounts()).boxed()
 	}
 
 	fn block_number(&self) -> Result<RpcU256, Error> {
@@ -638,11 +647,13 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 	fn send_raw_transaction(&self, raw: Bytes) -> Result<RpcH256, Error> {
 		self.active()?;
 
-		let raw_transaction = raw.to_vec();
-		match UntrustedRlp::new(&raw_transaction).as_val() {
-			Ok(signed_transaction) => dispatch_transaction(&*take_weak!(self.client), &*take_weak!(self.miner), PendingTransaction::new(signed_transaction, None)).map(Into::into),
-			Err(e) => Err(errors::from_rlp_error(e)),
-		}
+		UntrustedRlp::new(&raw.into_vec()).as_val()
+			.map_err(errors::from_rlp_error)
+			.and_then(|tx| SignedTransaction::new(tx).map_err(errors::from_transaction_error))
+			.and_then(|signed_transaction| {
+				dispatch_transaction(&*take_weak!(self.client), &*take_weak!(self.miner), PendingTransaction::new(signed_transaction, None))
+			})
+			.map(Into::into)
 	}
 
 	fn submit_transaction(&self, raw: Bytes) -> Result<RpcH256, Error> {
@@ -660,7 +671,6 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 			num => take_weak!(self.client).call(&signed, num.into(), Default::default()),
 		};
 
-
 		result
 			.map(|b| b.output.into())
 			.map_err(errors::from_call_error)
@@ -671,13 +681,8 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 
 		let request = CallRequest::into(request);
 		let signed = self.sign_call(request)?;
-		let result = match num.0 {
-			BlockNumber::Pending => take_weak!(self.miner).call(&*take_weak!(self.client), &signed, Default::default()),
-			num => take_weak!(self.client).call(&signed, num.into(), Default::default()),
-		};
-
-		result
-			.map(|res| (res.gas_used + res.refunded).into())
+		take_weak!(self.client).estimate_gas(&signed, num.0.into())
+			.map(Into::into)
 			.map_err(errors::from_call_error)
 	}
 

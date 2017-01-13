@@ -44,6 +44,7 @@ import Modal, { Busy as BusyStep, Completed as CompletedStep } from './Modal';
 import muiTheme from './Theme';
 import Page from './Page';
 import ParityBackground from './ParityBackground';
+import PasswordStrength from './Form/PasswordStrength';
 import ShortenedHash from './ShortenedHash';
 import SignerIcon from './SignerIcon';
 import Tags from './Tags';
@@ -95,6 +96,7 @@ export {
   muiTheme,
   Page,
   ParityBackground,
+  PasswordStrength,
   RadioButtons,
   ShortenedHash,
   Select,
