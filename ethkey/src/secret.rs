@@ -45,10 +45,6 @@ impl Secret {
 		let secret = key::SecretKey::from_slice(&super::SECP256K1, key)?;
 		Ok(secret.into())
 	}
-
-	pub fn from_hash(key: &H256) -> Result<Self, Error> {
-		Self::from_slice(&**key)
-	}
 }
 
 impl FromStr for Secret {
