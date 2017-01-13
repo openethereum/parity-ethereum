@@ -95,6 +95,33 @@ describe('views/Dapps/DappStore', () => {
       [APPID_DAPPREG]: { visible: true }
     };
 
+    describe('setDisplayApps', () => {
+      beforeEach(() => {
+        create();
+        store.setDisplayApps(defaultViews);
+      });
+
+      it('sets from empty start', () => {
+        expect(store.displayApps).to.deep.equal(defaultViews);
+      });
+
+      it('overrides single keys, keeping existing', () => {
+        store.setDisplayApps({ [APPID_BASICCOIN]: { visible: true } });
+
+        expect(store.displayApps).to.deep.equal(
+          Object.assign({}, defaultViews, { [APPID_BASICCOIN]: { visible: true } })
+        );
+      });
+
+      it('extends with new keys, keeping existing', () => {
+        store.setDisplayApps({ 'test': { visible: true } });
+
+        expect(store.displayApps).to.deep.equal(
+          Object.assign({}, defaultViews, { 'test': { visible: true } })
+        );
+      });
+    });
+
     describe('hideApp/showApp', () => {
       beforeEach(() => {
         localStore.set(LS_KEY_DISPLAY, defaultViews);
