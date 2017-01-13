@@ -93,13 +93,13 @@ export default class RecoveryPhrase extends Component {
               onChange={ this.onEditPassword2 }
             />
           </div>
-          <Checkbox
-            className={ styles.checkbox }
-            label='Key was created with Parity <1.4.5 on Windows'
-            checked={ windowsPhrase }
-            onCheck={ this.onToggleWindowsPhrase }
-          />
         </div>
+        <Checkbox
+          className={ styles.checkbox }
+          label='Key was created with Parity <1.4.5 on Windows'
+          checked={ windowsPhrase }
+          onCheck={ this.onToggleWindowsPhrase }
+        />
       </Form>
     );
   }
