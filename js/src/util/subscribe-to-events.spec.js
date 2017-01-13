@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { spy, stub, useFakeTimers } from 'sinon';
+import { spy, stub } from 'sinon';
 
 import subscribeToEvents from './subscribe-to-events';
 import {
@@ -25,7 +25,7 @@ const delay = (t) => new Promise((resolve) => {
   setTimeout(resolve, t);
 });
 
-describe.only('util/subscribe-to-events', () => {
+describe('util/subscribe-to-events', () => {
   beforeEach(function () {
     this.api = createApi();
     this.contract = createContract(this.api);
@@ -95,25 +95,21 @@ describe.only('util/subscribe-to-events', () => {
     expect(api.eth.uninstallFilter.firstCall.args).to.eql([ 123 ]);
   });
 
-  it.only('checks for new events regularly', function () {
-    const clock = useFakeTimers(Date.now());
-
+  it('checks for new events regularly', async function () {
     const api = createApi();
     const contract = createContract(api);
     api.eth.getFilterLogs = stub().resolves([]);
 
     const onLog = spy();
     const onBar = spy();
-    const s = subscribeToEvents(contract, [ 'Bar' ], { interval: 5 })
+    subscribeToEvents(contract, [ 'Bar' ], { interval: 5 })
       .on('log', onLog)
       .on('Bar', onBar);
-    clock.tick(10000);
+    await delay(10);
 
-    expect(onLog.callCount).to.equal(1);
+    expect(onLog.callCount).to.be.at.least(1);
     expect(onLog.firstCall.args).to.eql([ liveLogs[0] ]);
-    expect(onBar.callCount).to.equal(1);
+    expect(onBar.callCount).to.be.at.least(1);
     expect(onBar.firstCall.args).to.eql([ liveLogs[0] ]);
-
-    clock.restore();
   });
 });
