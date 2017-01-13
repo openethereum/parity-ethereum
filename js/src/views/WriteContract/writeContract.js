@@ -276,7 +276,7 @@ class WriteContract extends Component {
               label='Deploy'
               onClick={ this.store.handleOpenDeployModal }
               primary={ false }
-            />
+              />
             : null
           }
         </div>
