@@ -140,8 +140,9 @@ impl<C: 'static, M: 'static> Signer for SignerClient<C, M> where C: MiningBlockC
 		signer.peek(&id).map(|confirmation| {
 			let result = match confirmation.payload {
 				ConfirmationPayload::SendTransaction(request) => {
-					let signed_transaction: SignedTransaction = UntrustedRlp::new(&bytes.0).as_val().map_err(errors::from_rlp_error)?;
-					let sender = signed_transaction.sender().map_err(|e| errors::invalid_params("Invalid signature.", e))?;
+					let signed_transaction = UntrustedRlp::new(&bytes.0).as_val().map_err(errors::from_rlp_error)?;
+					let signed_transaction = SignedTransaction::new(signed_transaction).map_err(|e| errors::invalid_params("Invalid signature.", e))?;
+					let sender = signed_transaction.sender();
 
 					// Verification
 					let sender_matches = sender == request.from;

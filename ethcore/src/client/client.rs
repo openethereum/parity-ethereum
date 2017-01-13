@@ -44,7 +44,7 @@ use env_info::LastHashes;
 use verification;
 use verification::{PreverifiedBlock, Verifier};
 use block::*;
-use transaction::{LocalizedTransaction, SignedTransaction, Transaction, PendingTransaction, Action};
+use transaction::{LocalizedTransaction, UnverifiedTransaction, SignedTransaction, Transaction, PendingTransaction, Action};
 use blockchain::extras::TransactionAddress;
 use types::filter::Filter;
 use types::mode::Mode as IpcMode;
@@ -596,7 +596,7 @@ impl Client {
 		trace!(target: "external_tx", "Importing queued");
 		let _timer = PerfTimer::new("import_queued_transactions");
 		self.queue_transactions.fetch_sub(transactions.len(), AtomicOrdering::SeqCst);
-		let txs: Vec<SignedTransaction> = transactions.iter().filter_map(|bytes| UntrustedRlp::new(bytes).as_val().ok()).collect();
+		let txs: Vec<UnverifiedTransaction> = transactions.iter().filter_map(|bytes| UntrustedRlp::new(bytes).as_val().ok()).collect();
 		let hashes: Vec<_> = txs.iter().map(|tx| tx.hash()).collect();
 		self.notify(|notify| {
 			notify.transactions_received(hashes.clone(), peer_id);
@@ -854,10 +854,7 @@ impl BlockChainClient for Client {
 		let mut state = self.state_at(block).ok_or(CallError::StatePruned)?;
 		let original_state = if analytics.state_diffing { Some(state.clone()) } else { None };
 
-		let sender = t.sender().map_err(|e| {
-			let message = format!("Transaction malformed: {:?}", e);
-			ExecutionError::TransactionMalformed(message)
-		})?;
+		let sender = t.sender();
 		let balance = state.balance(&sender);
 		let needed_balance = t.value + t.gas * t.gas_price;
 		if balance < needed_balance {
@@ -888,16 +885,14 @@ impl BlockChainClient for Client {
 		};
 		// that's just a copy of the state.
 		let original_state = self.state_at(block).ok_or(CallError::StatePruned)?;
-		let sender = t.sender().map_err(|e| {
-			let message = format!("Transaction malformed: {:?}", e);
-			ExecutionError::TransactionMalformed(message)
-		})?;
+		let sender = t.sender();
 		let balance = original_state.balance(&sender);
 		let options = TransactOptions { tracing: true, vm_tracing: false, check_nonce: false };
-		let mut tx = t.clone();
 
-		let mut cond = |gas| {
+		let cond = |gas| {
+			let mut tx = t.as_unsigned().clone();
 			tx.gas = gas;
+			let tx = tx.fake_sign(sender);
 
 			let mut state = original_state.clone();
 			let needed_balance = tx.value + tx.gas * tx.gas_price;
@@ -955,7 +950,7 @@ impl BlockChainClient for Client {
 		let header = self.block_header(BlockId::Hash(address.block_hash)).ok_or(CallError::StatePruned)?;
 		let body = self.block_body(BlockId::Hash(address.block_hash)).ok_or(CallError::StatePruned)?;
 		let mut state = self.state_at_beginning(BlockId::Hash(address.block_hash)).ok_or(CallError::StatePruned)?;
-		let txs = body.transactions();
+		let mut txs = body.transactions();
 
 		if address.index >= txs.len() {
 			return Err(CallError::TransactionNotFound);
@@ -972,16 +967,19 @@ impl BlockChainClient for Client {
 			gas_used: U256::default(),
 			gas_limit: header.gas_limit(),
 		};
-		for t in txs.iter().take(address.index) {
-			match Executive::new(&mut state, &env_info, &*self.engine, &self.factories.vm).transact(t, Default::default()) {
+		const PROOF: &'static str = "Transactions fetched from blockchain; blockchain transactions are valid; qed";
+		let rest = txs.split_off(address.index);
+		for t in txs {
+			let t = SignedTransaction::new(t).expect(PROOF);
+			match Executive::new(&mut state, &env_info, &*self.engine, &self.factories.vm).transact(&t, Default::default()) {
 				Ok(x) => { env_info.gas_used = env_info.gas_used + x.gas_used; }
 				Err(ee) => { return Err(CallError::Execution(ee)) }
 			}
 		}
-		let t = &txs[address.index];
-
+		let first = rest.into_iter().next().expect("We split off < `address.index`; Length is checked earlier; qed");
+		let t = SignedTransaction::new(first).expect(PROOF);
 		let original_state = if analytics.state_diffing { Some(state.clone()) } else { None };
-		let mut ret = Executive::new(&mut state, &env_info, &*self.engine, &self.factories.vm).transact(t, options)?;
+		let mut ret = Executive::new(&mut state, &env_info, &*self.engine, &self.factories.vm).transact(&t, options)?;
 		ret.state_diff = original_state.map(|original| state.diff_from(original));
 
 		Ok(ret)
@@ -1584,11 +1582,10 @@ impl Drop for Client {
 
 /// Returns `LocalizedReceipt` given `LocalizedTransaction`
 /// and a vector of receipts from given block up to transaction index.
-fn transaction_receipt(tx: LocalizedTransaction, mut receipts: Vec<Receipt>) -> LocalizedReceipt {
+fn transaction_receipt(mut tx: LocalizedTransaction, mut receipts: Vec<Receipt>) -> LocalizedReceipt {
 	assert_eq!(receipts.len(), tx.transaction_index + 1, "All previous receipts are provided.");
 
-	let sender = tx.sender()
-		.expect("LocalizedTransaction is part of the blockchain; We have only valid transactions in chain; qed");
+	let sender = tx.sender();
 	let receipt = receipts.pop().expect("Current receipt is provided; qed");
 	let prior_gas_used = match tx.transaction_index {
 		0 => 0.into(),
@@ -1688,10 +1685,11 @@ mod tests {
 		};
 		let tx1 = raw_tx.clone().sign(secret, None);
 		let transaction = LocalizedTransaction {
-			signed: tx1.clone(),
+			signed: tx1.clone().into(),
 			block_number: block_number,
 			block_hash: block_hash,
 			transaction_index: 1,
+			cached_sender: Some(tx1.sender()),
 		};
 		let logs = vec![LogEntry {
 			address: 5.into(),

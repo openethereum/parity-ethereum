@@ -364,7 +364,7 @@ impl ChainNotify for EthSync {
 struct TxRelay(Arc<BlockChainClient>);
 
 impl LightHandler for TxRelay {
-	fn on_transactions(&self, ctx: &EventContext, relay: &[::ethcore::transaction::SignedTransaction]) {
+	fn on_transactions(&self, ctx: &EventContext, relay: &[::ethcore::transaction::UnverifiedTransaction]) {
 		trace!(target: "les", "Relaying {} transactions from peer {}", relay.len(), ctx.peer());
 		self.0.queue_transactions(relay.iter().map(|tx| ::rlp::encode(tx).to_vec()).collect(), ctx.peer())
 	}

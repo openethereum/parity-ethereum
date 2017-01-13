@@ -19,7 +19,7 @@
 //! This uses a "Provider" to answer requests.
 //! See https://github.com/ethcore/parity/wiki/Light-Ethereum-Subprotocol-(LES)
 
-use ethcore::transaction::SignedTransaction;
+use ethcore::transaction::UnverifiedTransaction;
 use ethcore::receipt::Receipt;
 
 use io::TimerToken;
@@ -179,7 +179,7 @@ pub trait Handler: Send + Sync {
 	/// Called when a peer makes an announcement.
 	fn on_announcement(&self, _ctx: &EventContext, _announcement: &Announcement) { }
 	/// Called when a peer requests relay of some transactions.
-	fn on_transactions(&self, _ctx: &EventContext, _relay: &[SignedTransaction]) { }
+	fn on_transactions(&self, _ctx: &EventContext, _relay: &[UnverifiedTransaction]) { }
 	/// Called when a peer responds with block bodies.
 	fn on_block_bodies(&self, _ctx: &EventContext, _req_id: ReqId, _bodies: &[Bytes]) { }
 	/// Called when a peer responds with block headers.
@@ -1135,7 +1135,7 @@ impl LightProtocol {
 
 		let txs: Vec<_> = data.iter()
 			.take(MAX_TRANSACTIONS)
-			.map(|x| x.as_val::<SignedTransaction>())
+			.map(|x| x.as_val::<UnverifiedTransaction>())
 			.collect::<Result<_,_>>()?;
 
 		debug!(target: "les", "Received {} transactions to relay from peer {}", txs.len(), peer);
