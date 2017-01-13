@@ -96,8 +96,7 @@ describe('util/subscribe-to-events', () => {
   });
 
   it('checks for new events regularly', async function () {
-    const api = createApi();
-    const contract = createContract(api);
+    const { api, contract } = this;
     api.eth.getFilterLogs = stub().resolves([]);
 
     const onLog = spy();
