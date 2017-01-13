@@ -17,6 +17,11 @@
     "no-debugger": "error",
     "object-curly-spacing": ["error", "always"],
     "object-property-newline": 0,
+    "padded-blocks": ["error", {
+      "blocks": "never",
+      "classes": "never",
+      "switches": "never"
+    }],
     "react/jsx-curly-spacing": ["error", "always"]
   }
 }
