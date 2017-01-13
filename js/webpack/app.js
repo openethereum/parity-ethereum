@@ -43,7 +43,7 @@ module.exports = {
     index: './index.js'
   }),
   output: {
-    publicPath: '/',
+    // publicPath: '/',
     path: path.join(__dirname, '../', DEST),
     filename: '[name].[hash:10].js'
   },
