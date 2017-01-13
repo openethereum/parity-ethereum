@@ -23,7 +23,7 @@ class InputTextContainer extends Component {
   render () {
     return (<InputText
       { ...this.props }
-    />);
+            />);
   }
 }
 

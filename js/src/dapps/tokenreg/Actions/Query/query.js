@@ -55,7 +55,8 @@ export default class QueryAction extends Component {
         open={ this.props.show }
         className={ styles.dialog }
         onRequestClose={ this.onClose }
-        actions={ this.renderActions() } >
+        actions={ this.renderActions() }
+      >
         { this.renderContent() }
       </Dialog>
     );
@@ -69,7 +70,8 @@ export default class QueryAction extends Component {
         <FlatButton
           label='Loading...'
           primary
-          disabled />
+          disabled
+        />
       );
     }
 
@@ -80,7 +82,8 @@ export default class QueryAction extends Component {
         <FlatButton
           label='Close'
           primary
-          onTouchTap={ this.onClose } />
+          onTouchTap={ this.onClose }
+        />
       ]);
     }
 
@@ -90,12 +93,14 @@ export default class QueryAction extends Component {
       <FlatButton
         label='Cancel'
         primary
-        onTouchTap={ this.onClose } />,
+        onTouchTap={ this.onClose }
+      />,
       <FlatButton
         label='Query'
         primary
         disabled={ !isValid }
-        onTouchTap={ this.onQuery } />
+        onTouchTap={ this.onQuery }
+      />
     ]);
   }
 
@@ -139,7 +144,8 @@ export default class QueryAction extends Component {
           floatingLabelText='Select which field to query'
           fullWidth
           value={ this.state.queryKey }
-          onChange={ this.onQueryKeyChange }>
+          onChange={ this.onQueryKeyChange }
+        >
           <MenuItem value='tla' label='TLA' primaryText='TLA' />
           <MenuItem value='address' label='Address' primaryText='Address' />
         </SelectField>
@@ -154,7 +160,8 @@ export default class QueryAction extends Component {
 
             validationType={ SIMPLE_TOKEN_ADDRESS_TYPE }
             onChange={ this.onChange }
-            onEnter={ this.onQuery } />)
+            onEnter={ this.onQuery }
+             />)
           : (<InputText
             key={ 1 }
 
@@ -163,7 +170,8 @@ export default class QueryAction extends Component {
 
             validationType={ SIMPLE_TLA_TYPE }
             onChange={ this.onChange }
-            onEnter={ this.onQuery } />)
+            onEnter={ this.onQuery }
+             />)
         }
       </div>
     );

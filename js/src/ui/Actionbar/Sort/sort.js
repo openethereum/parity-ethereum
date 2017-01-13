@@ -60,7 +60,7 @@ export default class ActionbarSort extends Component {
             label=''
             icon={ <SortIcon /> }
             onClick={ this.store.handleMenuOpen }
-            />
+          />
         }
         open={ this.store.menuOpen }
         onRequestChange={ this.store.handleMenuChange }

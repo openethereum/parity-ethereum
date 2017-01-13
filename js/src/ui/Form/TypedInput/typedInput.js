@@ -356,7 +356,8 @@ export default class TypedInput extends Component {
         <MenuItem
           key={ bool }
           label={ bool }
-          value={ bool }>
+          value={ bool }
+        >
           { bool }
         </MenuItem>
       );
@@ -374,7 +375,8 @@ export default class TypedInput extends Component {
           value
             ? 'true'
             : 'false'
-        }>
+        }
+      >
         { boolitems }
       </Select>
     );

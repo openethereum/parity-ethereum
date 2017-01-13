@@ -86,7 +86,8 @@ export default class CreateAccount extends Component {
         visible
         actions={ this.renderDialogActions() }
         current={ stage }
-        steps={ steps }>
+        steps={ steps }
+      >
         { this.renderWarning() }
         { this.renderPage() }
       </Modal>
@@ -101,43 +102,50 @@ export default class CreateAccount extends Component {
       case 0:
         return (
           <CreationType
-            onChange={ this.onChangeType } />
+            onChange={ this.onChangeType }
+          />
         );
 
       case 1:
         if (createType === 'fromNew') {
           return (
             <NewAccount
-              onChange={ this.onChangeDetails } />
+              onChange={ this.onChangeDetails }
+            />
           );
         } else if (createType === 'fromGeth') {
           return (
             <NewGeth
               accounts={ accounts }
-              onChange={ this.onChangeGeth } />
+              onChange={ this.onChangeGeth }
+            />
           );
         } else if (createType === 'fromPhrase') {
           return (
             <RecoveryPhrase
-              onChange={ this.onChangeDetails } />
+              onChange={ this.onChangeDetails }
+            />
           );
         } else if (createType === 'fromRaw') {
           return (
             <RawKey
-              onChange={ this.onChangeDetails } />
+              onChange={ this.onChangeDetails }
+            />
           );
         }
 
         return (
           <NewImport
-            onChange={ this.onChangeWallet } />
+            onChange={ this.onChangeWallet }
+          />
         );
 
       case 2:
         if (createType === 'fromGeth') {
           return (
             <AccountDetailsGeth
-              addresses={ this.state.gethAddresses } />
+              addresses={ this.state.gethAddresses }
+            />
           );
         }
 
@@ -145,7 +153,8 @@ export default class CreateAccount extends Component {
           <AccountDetails
             address={ this.state.address }
             name={ this.state.name }
-            phrase={ this.state.phrase } />
+            phrase={ this.state.phrase }
+          />
         );
     }
   }
@@ -159,11 +168,13 @@ export default class CreateAccount extends Component {
           <Button
             icon={ <ContentClear /> }
             label='Cancel'
-            onClick={ this.onClose } />,
+            onClick={ this.onClose }
+          />,
           <Button
             icon={ <NavigationArrowForward /> }
             label='Next'
-            onClick={ this.onNext } />
+            onClick={ this.onNext }
+          />
         ];
       case 1:
         const createLabel = createType === 'fromNew'
@@ -174,16 +185,19 @@ export default class CreateAccount extends Component {
           <Button
             icon={ <ContentClear /> }
             label='Cancel'
-            onClick={ this.onClose } />,
+            onClick={ this.onClose }
+          />,
           <Button
             icon={ <NavigationArrowBack /> }
             label='Back'
-            onClick={ this.onPrev } />,
+            onClick={ this.onPrev }
+          />,
           <Button
             icon={ <ActionDone /> }
             label={ createLabel }
             disabled={ !this.state.canCreate }
-            onClick={ this.onCreate } />
+            onClick={ this.onCreate }
+          />
         ];
 
       case 2:
@@ -192,12 +206,14 @@ export default class CreateAccount extends Component {
             <Button
               icon={ <PrintIcon /> }
               label='Print Phrase'
-              onClick={ this.printPhrase } />
+              onClick={ this.printPhrase }
+            />
           ) : null,
           <Button
             icon={ <ActionDoneAll /> }
             label='Close'
-            onClick={ this.onClose } />
+            onClick={ this.onClose }
+          />
         ];
     }
   }
@@ -213,8 +229,10 @@ export default class CreateAccount extends Component {
       <Warning warning={
         <FormattedMessage
           id='createAccount.warning.insecurePassword'
-          defaultMessage='It is recommended that a strong password be used to secure your accounts. Empty and trivial passwords are a security risk.' />
-      } />
+          defaultMessage='It is recommended that a strong password be used to secure your accounts. Empty and trivial passwords are a security risk.'
+        />
+      }
+      />
     );
   }
 

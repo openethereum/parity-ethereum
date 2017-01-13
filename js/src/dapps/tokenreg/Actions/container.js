@@ -25,7 +25,7 @@ class TokensContainer extends Component {
   render () {
     return (<Actions
       { ...this.props }
-    />);
+            />);
   }
 }
 

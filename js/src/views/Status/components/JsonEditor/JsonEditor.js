@@ -51,7 +51,7 @@ export default class JsonEditor extends Component {
           onChange={ this.onChange }
           className={ `${styles.editor} ${errorClass}` }
           value={ this.state.value }
-          />
+        />
         { this.renderError() }
       </div>
     );

@@ -59,7 +59,7 @@ export default class Calls extends Component {
         title='Clear RPC calls history'
         onClick={ this.clearHistory }
         className={ styles.removeIcon }
-        >
+      >
         <i className='icon-trash' />
       </a>
     );

@@ -37,12 +37,14 @@ export default class ButtonBar extends Component {
           key='cancel'
           label='Cancel'
           warning
-          onClick={ this.onCancelClick } />,
+          onClick={ this.onCancelClick }
+        />,
         <Button
           key='save'
           label={ this.dappsStore.isNew ? 'Register' : 'Update' }
           disabled={ !this.dappsStore.canSave }
-          onClick={ this.onSaveClick } />
+          onClick={ this.onSaveClick }
+        />
       ];
     } else {
       buttons = [
@@ -51,16 +53,19 @@ export default class ButtonBar extends Component {
           label='Delete'
           warning
           disabled={ !this.dappsStore.currentApp || (!this.dappsStore.currentApp.isOwner && !this.dappsStore.isContractOwner) }
-          onClick={ this.onDeleteClick } />,
+          onClick={ this.onDeleteClick }
+        />,
         <Button
           key='edit'
           label='Edit'
           disabled={ !this.dappsStore.currentApp || !this.dappsStore.currentApp.isOwner }
-          onClick={ this.onEditClick } />,
+          onClick={ this.onEditClick }
+        />,
         <Button
           key='new'
           label='New'
-          onClick={ this.onNewClick } />
+          onClick={ this.onNewClick }
+        />
       ];
     }
 

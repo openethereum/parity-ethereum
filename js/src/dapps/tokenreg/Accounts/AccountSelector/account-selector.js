@@ -38,7 +38,8 @@ class AccountSelectorItem extends Component {
 
     const icon = (<IdentityIcon
       inline center
-      address={ account.address } />
+      address={ account.address }
+                  />
     );
 
     const avatar = (<Avatar
@@ -54,7 +55,8 @@ class AccountSelectorItem extends Component {
         primaryText={ account.name }
         secondaryText={ account.address }
         leftAvatar={ avatar }
-        { ...props } />
+        { ...props }
+      />
     );
   }
 
@@ -84,7 +86,8 @@ export default class AccountSelector extends Component {
         open={ this.state.open }
         onSelectAccount={ this.onToggleOpen }
         autoGenerateNestedIndicator={ false }
-        nestedListStyle={ { maxHeight: '14em', overflow: 'auto' } } />
+        nestedListStyle={ { maxHeight: '14em', overflow: 'auto' } }
+      />
     );
 
     return (
@@ -103,7 +106,8 @@ export default class AccountSelector extends Component {
         <AccountSelectorItem
           account={ account }
           onSelectAccount={ this.onSelectAccount }
-          key={ index } />
+          key={ index }
+        />
       ));
   }
 

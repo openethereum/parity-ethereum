@@ -33,7 +33,8 @@ export default class TxHashLink extends Component {
       <a
         className={ className }
         href={ txLink(txHash, isTest) }
-        target='_blank'>
+        target='_blank'
+      >
         { children || txHash }
       </a>
     );

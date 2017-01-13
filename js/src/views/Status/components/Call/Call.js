@@ -29,7 +29,7 @@ export default class Call extends Component {
         ref={ this.setElement }
         className={ styles.call }
         { ...this._test(`call-${callNo}`) }
-        >
+      >
         <span className={ styles.callNo } { ...this._test('callNo') }>#{ callNo }</span>
         <pre { ...this._test('name') }>{ name }({ params })</pre>
         <Response response={ response } />

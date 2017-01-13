@@ -23,7 +23,7 @@
       "classes": "never",
       "switches": "never"
     }],
-    "react/jsx-closing-bracket-location": "warn",
+    "react/jsx-closing-bracket-location": "error",
     "react/jsx-curly-spacing": ["error", "always"]
   }
 }

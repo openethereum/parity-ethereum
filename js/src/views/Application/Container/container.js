@@ -36,7 +36,8 @@ export default class Container extends Component {
       <ParityBackground className={ styles.container }>
         <FirstRun
           onClose={ onCloseFirstRun }
-          visible={ showFirstRun } />
+          visible={ showFirstRun }
+        />
         <Tooltips />
         <UpgradeParity store={ upgradeStore } />
         <Errors />

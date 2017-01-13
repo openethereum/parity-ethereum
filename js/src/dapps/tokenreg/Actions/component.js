@@ -61,26 +61,30 @@ export default class Actions extends Component {
           icon={ <ContentSendIcon /> }
           label='Register Token'
           primary
-          onTouchTap={ this.onShowRegister } />
+          onTouchTap={ this.onShowRegister }
+        />
 
         <RaisedButton
           className={ styles.button }
           icon={ <ActionSearchIcon /> }
           label='Search Token'
           primary
-          onTouchTap={ this.onShowQuery } />
+          onTouchTap={ this.onShowQuery }
+        />
 
         <Register
           show={ this.state.show[ REGISTER_ACTION ] }
           onClose={ this.onRegisterClose }
           handleRegisterToken={ this.props.handleRegisterToken }
-          { ...this.props.register } />
+          { ...this.props.register }
+        />
 
         <Query
           show={ this.state.show[ QUERY_ACTION ] }
           onClose={ this.onQueryClose }
           handleQueryToken={ this.props.handleQueryToken }
-          { ...this.props.query } />
+          { ...this.props.query }
+        />
       </div>
     );
   }

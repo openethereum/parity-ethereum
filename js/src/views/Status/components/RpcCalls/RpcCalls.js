@@ -276,7 +276,7 @@ export default class RpcCalls extends Component {
         className={ 'dapp-block-button' }
         disabled={ this.state.jsonEditorError }
         onClick={ this.onRpcFire }
-        >
+      >
         Fire!
       </button>
     );

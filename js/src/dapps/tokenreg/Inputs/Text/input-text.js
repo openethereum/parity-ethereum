@@ -63,7 +63,8 @@ export default class InputText extends Component {
           disabled={ disabled }
           errorText={ error }
           onChange={ this.onChange }
-          onKeyDown={ this.onKeyDown } />
+          onKeyDown={ this.onKeyDown }
+        />
 
         { this.renderLoading() }
         { this.renderIsValid() }

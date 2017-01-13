@@ -64,12 +64,14 @@ export default class CreateAccount extends Component {
           hint='a descriptive name for the account'
           error={ accountNameError }
           value={ accountName }
-          onChange={ this.onEditAccountName } />
+          onChange={ this.onEditAccountName }
+        />
         <Input
           label='password hint'
           hint='(optional) a hint to help with remembering the password'
           value={ passwordHint }
-          onChange={ this.onEditPasswordHint } />
+          onChange={ this.onEditPasswordHint }
+        />
         <div className={ styles.passwords }>
           <div className={ styles.password }>
             <Input
@@ -78,7 +80,8 @@ export default class CreateAccount extends Component {
               type='password'
               error={ password1Error }
               value={ password1 }
-              onChange={ this.onEditPassword1 } />
+              onChange={ this.onEditPassword1 }
+            />
           </div>
           <div className={ styles.password }>
             <Input
@@ -87,7 +90,8 @@ export default class CreateAccount extends Component {
               type='password'
               error={ password2Error }
               value={ password2 }
-              onChange={ this.onEditPassword2 } />
+              onChange={ this.onEditPassword2 }
+            />
           </div>
         </div>
         { this.renderIdentitySelector() }
@@ -108,7 +112,8 @@ export default class CreateAccount extends Component {
         <RadioButton
           className={ styles.button }
           key={ address }
-          value={ address } />
+          value={ address }
+        />
       );
     });
 
@@ -117,7 +122,8 @@ export default class CreateAccount extends Component {
         valueSelected={ selectedAddress }
         className={ styles.selector }
         name='identitySelector'
-        onChange={ this.onChangeIdentity }>
+        onChange={ this.onChangeIdentity }
+      >
         { buttons }
       </RadioButtonGroup>
     );
@@ -135,10 +141,12 @@ export default class CreateAccount extends Component {
         <div
           className={ styles.identity }
           key={ address }
-          onTouchTap={ this.onChangeIdentity }>
+          onTouchTap={ this.onChangeIdentity }
+        >
           <IdentityIcon
             address={ address }
-            center />
+            center
+          />
         </div>
       );
     });
@@ -148,9 +156,11 @@ export default class CreateAccount extends Component {
         { identities }
         <div className={ styles.refresh }>
           <IconButton
-            onTouchTap={ this.createIdentities }>
+            onTouchTap={ this.createIdentities }
+          >
             <ActionAutorenew
-              color='rgb(0, 151, 167)' />
+              color='rgb(0, 151, 167)'
+            />
           </IconButton>
         </div>
       </div>

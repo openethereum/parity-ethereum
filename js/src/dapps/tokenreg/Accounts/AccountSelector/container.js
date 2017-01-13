@@ -25,7 +25,7 @@ class AccountSelectorContainer extends Component {
   render () {
     return (<AccountSelector
       { ...this.props }
-    />);
+            />);
   }
 }
 

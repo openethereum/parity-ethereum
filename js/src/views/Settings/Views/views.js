@@ -35,94 +35,114 @@ class Views extends Component {
 
   render () {
     return (
-      <Container title={
-        <FormattedMessage id='settings.views.label' />
-      }>
+      <Container
+        title={
+          <FormattedMessage id='settings.views.label' />
+        }
+      >
         <div className={ layout.layout }>
           <div className={ layout.overview }>
             <div>
               <FormattedMessage
                 id='settings.views.overview_0'
-                defaultMessage='Manage the available application views, using only the parts of the application that is applicable to you.' />
+                defaultMessage='Manage the available application views, using only the parts of the application that is applicable to you.'
+              />
             </div>
             <div>
               <FormattedMessage
                 id='settings.views.overview_1'
-                defaultMessage='Are you an end-user? The defaults are setups for both beginner and advanced users alike.' />
+                defaultMessage='Are you an end-user? The defaults are setups for both beginner and advanced users alike.'
+              />
             </div>
             <div>
               <FormattedMessage
                 id='settings.views.overview_2'
-                defaultMessage='Are you a developer? Add some features to manage contracts are interact with application deployments.' />
+                defaultMessage='Are you a developer? Add some features to manage contracts are interact with application deployments.'
+              />
             </div>
             <div>
               <FormattedMessage
                 id='settings.views.overview_3'
-                defaultMessage='Are you a miner or run a large-scale node? Add the features to give you all the information needed to watch the node operation.' />
+                defaultMessage='Are you a miner or run a large-scale node? Add the features to give you all the information needed to watch the node operation.'
+              />
             </div>
           </div>
           <div className={ layout.details }>
             {
               this.renderView('accounts',
                 <FormattedMessage
-                  id='settings.views.accounts.label' />,
+                  id='settings.views.accounts.label'
+                />,
                 <FormattedMessage
                   id='settings.views.accounts.description'
-                  defaultMessage='A list of all the accounts associated to and imported into this Parity instance. Send transactions, receive incoming values, manage your balances and fund your accounts.' />
+                  defaultMessage='A list of all the accounts associated to and imported into this Parity instance. Send transactions, receive incoming values, manage your balances and fund your accounts.'
+                />
               )
             }
             {
               this.renderView('addresses',
                 <FormattedMessage
-                  id='settings.views.addresses.label' />,
+                  id='settings.views.addresses.label'
+                />,
                 <FormattedMessage
                   id='settings.views.addresses.description'
-                  defaultMessage='A list of all contacts and address book entries that is managed by this Parity instance. Watch accounts and have the details available at the click of a button when transacting.' />
+                  defaultMessage='A list of all contacts and address book entries that is managed by this Parity instance. Watch accounts and have the details available at the click of a button when transacting.'
+                />
               )
             }
             {
               this.renderView('apps',
                 <FormattedMessage
-                  id='settings.views.apps.label' />,
+                  id='settings.views.apps.label'
+                />,
                 <FormattedMessage
                   id='settings.views.apps.description'
-                  defaultMessage='Distributed applications that interact with the underlying network. Add applications, manage you application portfolio and interact with application from around the network.' />
+                  defaultMessage='Distributed applications that interact with the underlying network. Add applications, manage you application portfolio and interact with application from around the network.'
+                />
               )
             }
             {
               this.renderView('contracts',
                 <FormattedMessage
-                  id='settings.views.contracts.label' />,
+                  id='settings.views.contracts.label'
+                />,
                 <FormattedMessage
                   id='settings.views.contracts.description'
-                  defaultMessage='Watch and interact with specific contracts that have been deployed on the network. This is a more technically-focused environment, specifically for advanced users that understand the inner working of certain contracts.' />
+                  defaultMessage='Watch and interact with specific contracts that have been deployed on the network. This is a more technically-focused environment, specifically for advanced users that understand the inner working of certain contracts.'
+                />
               )
             }
             {
               this.renderView('status',
                 <FormattedMessage
-                  id='settings.views.status.label' />,
+                  id='settings.views.status.label'
+                />,
                 <FormattedMessage
                   id='settings.views.status.description'
-                  defaultMessage='See how the Parity node is performing in terms of connections to the network, logs from the actual running instance and details of mining (if enabled and configured).' />
+                  defaultMessage='See how the Parity node is performing in terms of connections to the network, logs from the actual running instance and details of mining (if enabled and configured).'
+                />
               )
             }
             {
               this.renderView('signer',
                 <FormattedMessage
-                  id='settings.views.signer.label' />,
+                  id='settings.views.signer.label'
+                />,
                 <FormattedMessage
                   id='settings.views.signer.description'
-                  defaultMessage='The secure transaction management area of the application where you can approve any outgoing transactions made from the application as well as those placed into the queue by distributed applications.' />
+                  defaultMessage='The secure transaction management area of the application where you can approve any outgoing transactions made from the application as well as those placed into the queue by distributed applications.'
+                />
               )
             }
             {
               this.renderView('settings',
                 <FormattedMessage
-                  id='settings.views.settings.label' />,
+                  id='settings.views.settings.label'
+                />,
                 <FormattedMessage
                   id='settings.views.settings.description'
-                  defaultMessage='This view. Allows you to customize the application in term of options, operation and look and feel.' />
+                  defaultMessage='This view. Allows you to customize the application in term of options, operation and look and feel.'
+                />
               )
             }
           </div>
@@ -164,7 +184,8 @@ class Views extends Component {
           }
           onCheck={ toggle }
           checked={ view.active }
-          value={ view.active } />
+          value={ view.active }
+        />
         <div className={ styles.info }>
           { description }
         </div>

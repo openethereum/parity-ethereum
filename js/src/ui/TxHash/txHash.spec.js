@@ -72,7 +72,8 @@ function render (props) {
   const baseComponent = shallow(
     <TxHash
       hash={ TXHASH }
-      { ...props } />,
+      { ...props }
+    />,
     { context: { store: createRedux() } }
   );
   component = baseComponent.find('TxHash').shallow({ context: { api: createApi() } });

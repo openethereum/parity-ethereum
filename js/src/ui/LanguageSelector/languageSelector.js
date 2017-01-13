@@ -36,15 +36,18 @@ export default class LanguageSelector extends Component {
         hint={
           <FormattedMessage
             id='settings.parity.languages.hint'
-            defaultMessage='the language this interface is displayed with' />
+            defaultMessage='the language this interface is displayed with'
+          />
         }
         label={
           <FormattedMessage
             id='settings.parity.languages.label'
-            defaultMessage='UI language' />
+            defaultMessage='UI language'
+          />
         }
         value={ this.store.locale }
-        onChange={ this.onChange }>
+        onChange={ this.onChange }
+      >
         { this.renderOptions() }
       </Select>
     );
@@ -58,7 +61,8 @@ export default class LanguageSelector extends Component {
         <MenuItem
           key={ locale }
           value={ locale }
-          label={ label }>
+          label={ label }
+        >
           { label }
         </MenuItem>
       );

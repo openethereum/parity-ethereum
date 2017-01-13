@@ -39,7 +39,7 @@ class Container extends Component {
     return (<Application
       isLoading={ isLoading }
       contract={ contract }
-    />);
+            />);
   }
 }
 

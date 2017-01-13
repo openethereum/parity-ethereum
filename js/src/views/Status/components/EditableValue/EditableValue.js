@@ -76,7 +76,7 @@ export default class EditableValue extends Component {
         className={ `${valueStyles.valueContainer} ${styles.container}` }
         onSubmit={ this.onSubmit }
         { ...this._testInherit() }
-        >
+      >
         { this.renderResetButton() }
         <div className={ this.state.inEditMode ? styles.iconsVisible : styles.icons }>
           { this.props.children }
@@ -103,7 +103,7 @@ export default class EditableValue extends Component {
           ref={ setInput }
           onChange={ onChange }
           readOnly={ !inEditMode }
-          />
+        />
       );
     }
 
@@ -138,7 +138,7 @@ export default class EditableValue extends Component {
         onClick={ this.onResetToDefault }
         title={ `Reset to ${this.props.defaultValue}` }
         { ...this._testInherit('reset') }
-        >
+      >
         <i className='icon-anchor' />
       </a>
     );
@@ -152,7 +152,7 @@ export default class EditableValue extends Component {
           className={ styles.iconSuccess }
           onClick={ this.onSubmit }
           { ...this._testInherit('submit') }
-          >
+        >
           <i className='icon-check' />
         </a>,
         <a
@@ -160,7 +160,7 @@ export default class EditableValue extends Component {
           className={ styles.icon }
           onClick={ this.onCancel }
           { ...this._testInherit('cancel') }
-          >
+        >
           <i className='icon-close' />
         </a>
       ];
@@ -173,7 +173,7 @@ export default class EditableValue extends Component {
         onClick={ this.onOpenEdit }
         title='Edit'
         { ...this._testInherit('edit') }
-        >
+      >
         <i className='icon-pencil' />
       </a>
     );

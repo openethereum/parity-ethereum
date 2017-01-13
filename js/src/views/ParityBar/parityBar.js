@@ -69,7 +69,8 @@ class ParityBar extends Component {
     const parityIcon = (
       <img
         src={ imagesEthcoreBlock }
-        className={ styles.parityIcon } />
+        className={ styles.parityIcon }
+      />
     );
 
     return (
@@ -80,13 +81,15 @@ class ParityBar extends Component {
               <Button
                 className={ styles.parityButton }
                 icon={ parityIcon }
-                label={ this.renderLabel('Parity') } />
+                label={ this.renderLabel('Parity') }
+              />
             </Link>
             <Button
               className={ styles.button }
               icon={ <ActionFingerprint /> }
               label={ this.renderSignerLabel() }
-              onClick={ this.toggleDisplay } />
+              onClick={ this.toggleDisplay }
+            />
           </div>
         </ParityBackground>
       </div>
@@ -105,7 +108,8 @@ class ParityBar extends Component {
               <Button
                 icon={ <ContentClear /> }
                 label='Close'
-                onClick={ this.toggleDisplay } />
+                onClick={ this.toggleDisplay }
+              />
             </div>
           </div>
           <div className={ styles.content }>
@@ -136,7 +140,8 @@ class ParityBar extends Component {
         <Badge
           color='red'
           className={ styles.labelBubble }
-          value={ pending.length } />
+          value={ pending.length }
+        />
       );
     }
 

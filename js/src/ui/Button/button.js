@@ -45,7 +45,8 @@ export default class Button extends Component {
         icon={ icon }
         label={ label }
         primary={ primary }
-        onTouchTap={ onClick } />
+        onTouchTap={ onClick }
+      />
     );
   }
 }

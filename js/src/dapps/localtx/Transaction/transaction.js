@@ -46,7 +46,7 @@ class BaseTransaction extends Component {
       <div title={ transaction.from } className={ styles.from }>
         <IdentityIcon
           address={ transaction.from }
-          />
+        />
       </div>
     );
   }
@@ -358,12 +358,12 @@ export class LocalTransaction extends BaseTransaction {
             type='text'
             value={ gasPrice }
             onChange={ this.setGasPrice }
-            />
+          />
           <input
             type='text'
             value={ gas }
             onChange={ this.setGas }
-            />
+          />
         </td>
         <td colSpan='2'>
           <a href='javascript:void' onClick={ this.sendTransaction }>

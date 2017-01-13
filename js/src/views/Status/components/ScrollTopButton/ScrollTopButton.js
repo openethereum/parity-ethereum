@@ -44,7 +44,8 @@ export default class ScrollTopButton extends Component {
     return (
       <IconButton
         className={ `${styles.scrollButton} ${hiddenClass}` }
-        onTouchTap={ this._scrollToTop }>
+        onTouchTap={ this._scrollToTop }
+      >
         <ArrowUpwardIcon />
       </IconButton>
     );

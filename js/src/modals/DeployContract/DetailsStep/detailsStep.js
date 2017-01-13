@@ -99,12 +99,14 @@ export default class DetailsStep extends Component {
           hint={
             <FormattedMessage
               id='deployContract.details.address.hint'
-              defaultMessage='the owner account for this contract' />
+              defaultMessage='the owner account for this contract'
+            />
           }
           label={
             <FormattedMessage
               id='deployContract.details.address.label'
-              defaultMessage='from account (contract owner)' />
+              defaultMessage='from account (contract owner)'
+            />
           }
           onChange={ this.onFromAddressChange }
           value={ fromAddress }
@@ -115,12 +117,14 @@ export default class DetailsStep extends Component {
           hint={
             <FormattedMessage
               id='deployContract.details.name.hint'
-              defaultMessage='a name for the deployed contract' />
+              defaultMessage='a name for the deployed contract'
+            />
           }
           label={
             <FormattedMessage
               id='deployContract.details.name.label'
-              defaultMessage='contract name' />
+              defaultMessage='contract name'
+            />
           }
           onChange={ this.onNameChange }
           value={ name || '' }
@@ -131,12 +135,14 @@ export default class DetailsStep extends Component {
           hint={
             <FormattedMessage
               id='deployContract.details.description.hint'
-              defaultMessage='a description for the contract' />
+              defaultMessage='a description for the contract'
+            />
           }
           label={
             <FormattedMessage
               id='deployContract.details.description.label'
-              defaultMessage='contract description (optional)' />
+              defaultMessage='contract description (optional)'
+            />
           }
           onChange={ this.onDescriptionChange }
           value={ description }
@@ -149,12 +155,14 @@ export default class DetailsStep extends Component {
           hint={
             <FormattedMessage
               id='deployContract.details.abi.hint'
-              defaultMessage='the abi of the contract to deploy or solc combined-output' />
+              defaultMessage='the abi of the contract to deploy or solc combined-output'
+            />
           }
           label={
             <FormattedMessage
               id='deployContract.details.abi.label'
-              defaultMessage='abi / solc combined-output' />
+              defaultMessage='abi / solc combined-output'
+            />
           }
           onChange={ this.onSolcChange }
           onSubmit={ this.onSolcSubmit }
@@ -166,12 +174,14 @@ export default class DetailsStep extends Component {
           hint={
             <FormattedMessage
               id='deployContract.details.code.hint'
-              defaultMessage='the compiled code of the contract to deploy' />
+              defaultMessage='the compiled code of the contract to deploy'
+            />
           }
           label={
             <FormattedMessage
               id='deployContract.details.code.label'
-              defaultMessage='code' />
+              defaultMessage='code'
+            />
           }
           onSubmit={ this.onCodeChange }
           readOnly={ readOnly || solc }
@@ -196,7 +206,8 @@ export default class DetailsStep extends Component {
         <MenuItem
           key={ index }
           label={ name }
-          value={ index }>
+          value={ index }
+        >
           { name }
         </MenuItem>
       ));
@@ -206,10 +217,12 @@ export default class DetailsStep extends Component {
         label={
           <FormattedMessage
             id='deployContract.details.contract.label'
-            defaultMessage='select a contract' />
+            defaultMessage='select a contract'
+          />
         }
         onChange={ this.onContractChange }
-        value={ selectedContractIndex }>
+        value={ selectedContractIndex }
+      >
         { contractsItems }
       </Select>
     );
