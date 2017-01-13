@@ -73,5 +73,14 @@
     "author": "Parity Team <admin@ethcore.io>",
     "version": "1.0.0",
     "visible": true
+  },
+  {
+    "id": "0xa635a9326814bded464190eddf0bdb90ce92d40ea2359cf553ea80e3c5a4076c",
+    "url": "console",
+    "name": "Parity/Web3 console",
+    "description": "A Javascript development console complete with web3 and parity objects.",
+    "version": "0.3",
+    "author": "Gav Wood <gavin@ethcore.io>",
+    "visible": true
   }
 ]
