@@ -46,7 +46,7 @@ pub use traits::{
 };
 
 use jsonrpc_tcp_server::Server as JsonRpcServer;
-use jsonrpc_core::{IoHandler, Params, to_value};
+use jsonrpc_core::{IoHandler, Params, to_value, Value};
 use jsonrpc_macros::IoDelegate;
 use std::sync::Arc;
 
@@ -68,6 +68,11 @@ impl StratumRpc {
 	fn authorize(&self, params: Params) -> RpcResult {
 		self.stratum.read().as_ref().expect("RPC methods are called after stratum is set.")
 			.authorize(params)
+	}
+
+	fn submit(&self, params: Params) -> RpcResult {
+		self.stratum.read().as_ref().expect("RPC methods are called after stratum is set.")
+			.submit(params)
 	}
 }
 
@@ -101,6 +106,7 @@ impl Stratum {
 		let mut delegate = IoDelegate::<StratumRpc>::new(rpc.clone());
 		delegate.add_method("miner.subscribe", StratumRpc::subscribe);
 		delegate.add_method("miner.authorize", StratumRpc::authorize);
+		delegate.add_method("miner.sumbit", StratumRpc::submit);
 
 		let mut handler = IoHandler::default();
 		handler.extend_with(delegate);
@@ -116,22 +122,11 @@ impl Stratum {
 		});
 		*rpc.stratum.write() = Some(stratum.clone());
 
-<<<<<<< HEAD
-		let mut delegate = IoDelegate::<Stratum>::new(stratum.clone());
-		delegate.add_method("mining.subscribe", Stratum::subscribe);
-		delegate.add_method("mining.authorize", Stratum::authorize);
-		delegate.add_method("mining.submit", Stratum::submit);
-		stratum.handler.add_delegate(delegate);
-
 		try!(stratum.rpc_server.run_async());
-=======
-		stratum.rpc_server.run_async()?;
->>>>>>> master
 
 		Ok(stratum)
 	}
 
-<<<<<<< HEAD
 	fn submit(&self, params: Params) -> std::result::Result<jsonrpc_core::Value, jsonrpc_core::Error> {
 		Ok(match params {
 			Params::Array(vals) => {
@@ -148,11 +143,8 @@ impl Stratum {
 		})
 	}
 
-
 	fn subscribe(&self, _params: Params) -> std::result::Result<jsonrpc_core::Value, jsonrpc_core::Error> {
-=======
-	fn subscribe(&self, _params: Params) -> RpcResult {
->>>>>>> master
+
 		use std::str::FromStr;
 
 		if let Some(context) = self.rpc_server.request_context() {

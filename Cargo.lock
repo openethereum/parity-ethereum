@@ -355,6 +355,7 @@ dependencies = [
  "ethcore-ipc 1.6.0",
  "ethcore-ipc-codegen 1.6.0",
  "ethcore-ipc-nano 1.6.0",
+ "ethcore-stratum 1.6.0",
  "ethcore-util 1.6.0",
  "ethjson 0.1.0",
  "ethkey 0.2.0",

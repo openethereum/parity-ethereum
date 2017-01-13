@@ -48,14 +48,11 @@ mod miner;
 mod price_info;
 mod transaction_queue;
 mod work_notify;
-mod price_info;
 #[cfg(feature="stratum")]
 pub mod stratum;
 
-pub use self::transaction_queue::{TransactionQueue, PrioritizationStrategy, AccountDetails, TransactionOrigin};
-pub use self::miner::{Miner, MinerOptions, StratumOptions, Banning, PendingSet, GasPricer, GasPriceCalibratorOptions, GasLimit};
 pub use self::external::{ExternalMiner, ExternalMinerService};
-pub use self::miner::{Miner, MinerOptions, Banning, PendingSet, GasPricer, GasPriceCalibratorOptions, GasLimit};
+pub use self::miner::{Miner, MinerOptions, Banning, PendingSet, GasPricer, GasPriceCalibratorOptions, GasLimit, StratumOptions};
 pub use self::transaction_queue::{TransactionQueue, PrioritizationStrategy, AccountDetails, TransactionOrigin};
 pub use self::local_transactions::{Status as LocalTransactionStatus};
 pub use client::TransactionImportResult;

@@ -175,6 +175,7 @@ impl ClientService {
 	}
 
 	#[cfg(not(feature="stratum"))]
+	/// Runs stratum if feature is on	
 	pub fn stratum_notifier(_cfg: &StratumOptions, _miner: Weak<Miner>, _client: Weak<Client>) -> Result<Box<miner::NotifyWork>, ()> {
 		// Option is not compiled, but error should have been reported already
 		Err(())

@@ -20,7 +20,7 @@ use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
 use std::cmp::max;
 use cli::{Args, ArgsError};
-use util::{Hashable, U256, Uint, Bytes, version_data, Address};
+use util::{Hashable, H256, U256, Uint, Bytes, version_data, Address};
 use util::log::Colour;
 use ethsync::{NetworkConfiguration, is_valid_node_url, AllowIP};
 use ethcore::ethstore::ethkey::Secret;
@@ -320,17 +320,11 @@ impl Configuration {
 				ipc_conf: ipc_conf,
 				net_conf: net_conf,
 				network_id: network_id,
-<<<<<<< HEAD
-				acc_conf: try!(self.accounts_config()),
-				gas_pricer: try!(self.gas_pricer_config()),
-				miner_extras: try!(self.miner_extras()),
-				stratum: try!(self.stratum_options()),
-=======
 				acc_conf: self.accounts_config()?,
 				gas_pricer: self.gas_pricer_config()?,
 				miner_extras: self.miner_extras()?,
+				stratum: self.stratum_options()?,
 				update_policy: update_policy,
->>>>>>> master
 				mode: mode,
 				tracing: tracing,
 				fat_db: fat_db,
@@ -472,7 +466,7 @@ impl Configuration {
 				io_path: self.directories().db,
 				listen_addr: self.stratum_interface(),
 				port: self.args.flag_stratum_port,
-				secret: self.args.flag_stratum_secret.as_ref().map(|s| s.parse::<Secret>().unwrap_or_else(|_| s.sha3())),
+				secret: self.args.flag_stratum_secret.as_ref().map(|s| s.parse::<H256>().unwrap_or_else(|_| s.sha3())),
 			}))
 		}
 		else

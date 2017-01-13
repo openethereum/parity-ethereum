@@ -33,7 +33,6 @@ use engines::{Engine, Seal};
 use miner::{MinerService, MinerStatus, TransactionQueue, PrioritizationStrategy, AccountDetails, TransactionOrigin};
 use miner::banning_queue::{BanningTransactionQueue, Threshold};
 use miner::work_notify::{WorkPoster, NotifyWork};
-use client::TransactionImportResult;
 use miner::price_info::PriceInfo;
 use miner::local_transactions::{Status as LocalTransactionStatus};
 use header::BlockNumber;
@@ -249,7 +248,6 @@ impl Miner {
 
 	/// Creates new instance of miner Arc.
 	pub fn new(options: MinerOptions, gas_pricer: GasPricer, spec: &Spec, accounts: Option<Arc<AccountProvider>>) -> Arc<Miner> {
-		let txq = Arc::new(Mutex::new(TransactionQueue::with_limits(options.tx_queue_size, options.tx_gas_limit)));
 		let miner = Arc::new(Miner::new_raw(options, gas_pricer, spec, accounts));
 
 		if !miner.options.new_work_notify.is_empty() {
@@ -262,10 +260,6 @@ impl Miner {
 
 	/// Creates new instance of miner.
 	fn new_raw(options: MinerOptions, gas_pricer: GasPricer, spec: &Spec, accounts: Option<Arc<AccountProvider>>) -> Miner {
-		let work_poster = match options.new_work_notify.is_empty() {
-			true => None,
-			false => Some(WorkPoster::new(&options.new_work_notify))
-		};
 		let gas_limit = match options.tx_queue_gas_limit {
 			GasLimit::Fixed(ref limit) => *limit,
 			_ => !U256::zero(),
@@ -280,7 +274,16 @@ impl Miner {
 				ban_duration,
 			),
 		};
-		Miner {
+
+		let mut notifiers = Vec::new();
+		if !options.new_work_notify.is_empty() {}
+		{
+			notifiers.push(
+				Box::new(WorkPoster::new(&options.new_work_notify)) as Box<NotifyWork>
+			);
+		}
+
+		let miner = Miner {
 			transaction_queue: Arc::new(Mutex::new(txq)),
 			next_allowed_reseal: Mutex::new(Instant::now()),
 			sealing_block_last_request: Mutex::new(0),
@@ -297,9 +300,11 @@ impl Miner {
 			options: options,
 			accounts: accounts,
 			engine: spec.engine.clone(),
-			notifiers: RwLock::new(Vec::new()),
+			notifiers: RwLock::new(notifiers),
 			gas_pricer: Mutex::new(gas_pricer),
-		}
+		};
+
+		miner
 	}
 
 	/// Creates new instance of miner with accounts and with given spec.

@@ -23,12 +23,8 @@ use ethsync::NetworkConfiguration;
 use util::{Colour, version, RotatingLogger, Mutex, Condvar};
 use io::{MayPanic, ForwardPanic, PanicHandler};
 use ethcore_logger::{Config as LogConfig};
-<<<<<<< HEAD
-use ethcore::client::{Mode, Switch, DatabaseCompactionProfile, VMType, ChainNotify};
 use ethcore::miner::StratumOptions;
-=======
 use ethcore::client::{Mode, DatabaseCompactionProfile, VMType, BlockChainClient};
->>>>>>> master
 use ethcore::service::ClientService;
 use ethcore::account_provider::AccountProvider;
 use ethcore::miner::{Miner, MinerService, ExternalMiner, MinerOptions};
