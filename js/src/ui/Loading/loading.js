@@ -21,15 +21,22 @@ import styles from './loading.css';
 
 export default class Loading extends Component {
   static propTypes = {
+    className: PropTypes.string,
     size: PropTypes.number
   };
 
+  static defaultProps = {
+    className: '',
+    size: 2
+  };
+
   render () {
-    const size = (this.props.size || 2) * 60;
+    const { className, size } = this.props;
+    const computedSize = size * 60;
 
     return (
-      <div className={ styles.loading }>
-        <CircularProgress size={ size } />
+      <div className={ [ styles.loading, className ].join(' ') }>
+        <CircularProgress size={ computedSize } />
       </div>
     );
   }
