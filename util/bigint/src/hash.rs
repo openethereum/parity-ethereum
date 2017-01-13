@@ -26,6 +26,7 @@ use rand::Rng;
 use rand::os::OsRng;
 use rustc_serialize::hex::{FromHex, FromHexError};
 use bigint::{Uint, U256};
+use libc::{c_void, memcmp};
 
 /// Trait for a fixed-size byte array to be used as the output of hash functions.
 pub trait FixedHash: Sized {
@@ -214,25 +215,16 @@ macro_rules! impl_hash {
 
 		impl PartialEq for $from {
 			fn eq(&self, other: &Self) -> bool {
-				for i in 0..$size {
-					if self.0[i] != other.0[i] {
-						return false;
-					}
-				}
-				true
+				unsafe { memcmp(self.0.as_ptr() as *const c_void, other.0.as_ptr() as *const c_void, $size) == 0 }
 			}
 		}
 
 		impl Ord for $from {
 			fn cmp(&self, other: &Self) -> Ordering {
-				for i in 0..$size {
-					if self.0[i] > other.0[i] {
-						return Ordering::Greater;
-					} else if self.0[i] < other.0[i] {
-						return Ordering::Less;
-					}
-				}
-				Ordering::Equal
+				let r = unsafe { memcmp(self.0.as_ptr() as *const c_void, other.0.as_ptr() as *const c_void, $size) };
+				if r < 0 { return Ordering::Less }
+				if r > 0 { return Ordering::Greater }
+				return Ordering::Equal;
 			}
 		}
 
