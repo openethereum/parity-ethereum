@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -18,8 +18,9 @@ import BigNumber from 'bignumber.js';
 import moment from 'moment';
 import React, { Component, PropTypes } from 'react';
 
-import { IdentityIcon, IdentityName, Input, InputAddress } from '../../../../ui';
-import { txLink } from '../../../../3rdparty/etherscan/links';
+import { IdentityIcon, IdentityName, Input, InputAddress } from '~/ui';
+import ShortenedHash from '~/ui/ShortenedHash';
+import { txLink } from '~/3rdparty/etherscan/links';
 
 import styles from '../../contract.css';
 
@@ -71,7 +72,7 @@ export default class Event extends Component {
           <div className={ styles.eventType }>
             { event.type }({ keys })
           </div>
-          <a href={ url } target='_blank'>{ this.formatHash(event.transactionHash) }</a>
+          <a href={ url } target='_blank'><ShortenedHash data={ event.transactionHash } /></a>
         </td>
         <td className={ styles.eventDetails }>
           <div className={ styles.eventParams }>
@@ -80,14 +81,6 @@ export default class Event extends Component {
         </td>
       </tr>
     );
-  }
-
-  formatHash (hash) {
-    if (!hash || hash.length <= 16) {
-      return hash;
-    }
-
-    return `${hash.substr(2, 6)}...${hash.slice(-6)}`;
   }
 
   renderAddressName (address, withName = true) {

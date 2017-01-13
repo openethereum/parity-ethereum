@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -56,7 +56,7 @@ impl NetworkService {
 	pub fn new(config: NetworkConfiguration) -> Result<NetworkService, NetworkError> {
 		let host_handler = Arc::new(HostHandler { public_url: RwLock::new(None) });
 		let panic_handler = PanicHandler::new_in_arc();
-		let io_service = try!(IoService::<NetworkIoMessage>::start());
+		let io_service = IoService::<NetworkIoMessage>::start()?;
 		panic_handler.forward_from(&io_service);
 
 		let stats = Arc::new(NetworkStats::new());
@@ -74,12 +74,12 @@ impl NetworkService {
 
 	/// Regiter a new protocol handler with the event loop.
 	pub fn register_protocol(&self, handler: Arc<NetworkProtocolHandler + Send + Sync>, protocol: ProtocolId, packet_count: u8, versions: &[u8]) -> Result<(), NetworkError> {
-		try!(self.io_service.send_message(NetworkIoMessage::AddHandler {
+		self.io_service.send_message(NetworkIoMessage::AddHandler {
 			handler: handler,
 			protocol: protocol,
 			versions: versions.to_vec(),
 			packet_count: packet_count,
-		}));
+		})?;
 		Ok(())
 	}
 
@@ -119,13 +119,13 @@ impl NetworkService {
 	pub fn start(&self) -> Result<(), NetworkError> {
 		let mut host = self.host.write();
 		if host.is_none() {
-			let h = Arc::new(try!(Host::new(self.config.clone(), self.stats.clone())));
-			try!(self.io_service.register_handler(h.clone()));
+			let h = Arc::new(Host::new(self.config.clone(), self.stats.clone())?);
+			self.io_service.register_handler(h.clone())?;
 			*host = Some(h);
 		}
 
 		if self.host_handler.public_url.read().is_none() {
-			try!(self.io_service.register_handler(self.host_handler.clone()));
+			self.io_service.register_handler(self.host_handler.clone())?;
 		}
 
 		Ok(())
@@ -136,7 +136,7 @@ impl NetworkService {
 		let mut host = self.host.write();
 		if let Some(ref host) = *host {
 			let io = IoContext::new(self.io_service.channel(), 0); //TODO: take token id from host
-			try!(host.stop(&io));
+			host.stop(&io)?;
 		}
 		*host = None;
 		Ok(())

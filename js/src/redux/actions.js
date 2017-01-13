@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -14,15 +14,19 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { newError } from '../ui/Errors/actions';
+import { newError } from '~/ui/Errors/actions';
 import { setAddressImage } from './providers/imagesActions';
-import { clearStatusLogs, toggleStatusLogs } from './providers/statusActions';
-import { toggleView } from '../views/Settings';
+import { openSnackbar, showSnackbar } from './providers/snackbarActions';
+import { clearStatusLogs, toggleStatusLogs, toggleStatusRefresh } from './providers/statusActions';
+import { toggleView } from '~/views/Settings/actions';
 
 export {
   newError,
   clearStatusLogs,
   setAddressImage,
+  openSnackbar,
+  showSnackbar,
   toggleStatusLogs,
+  toggleStatusRefresh,
   toggleView
 };

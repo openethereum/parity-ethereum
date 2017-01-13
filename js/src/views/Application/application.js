@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -14,24 +14,28 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
-import { bindActionCreators } from 'redux';
+
+import UpgradeStore from '~/modals/UpgradeParity/store';
 
 import Connection from '../Connection';
 import ParityBar from '../ParityBar';
 
+import Snackbar from './Snackbar';
 import Container from './Container';
 import DappContainer from './DappContainer';
 import FrameError from './FrameError';
 import Status from './Status';
+import Store from './store';
 import TabBar from './TabBar';
 
 import styles from './application.css';
 
 const inFrame = window.parent !== window && window.parent.frames.length !== 0;
-const showFirstRun = window.localStorage.getItem('showFirstRun') === '1';
 
+@observer
 class Application extends Component {
   static contextTypes = {
     api: PropTypes.object.isRequired,
@@ -39,24 +43,19 @@ class Application extends Component {
   }
 
   static propTypes = {
+    blockNumber: PropTypes.object,
     children: PropTypes.node,
-    netChain: PropTypes.string,
     isTest: PropTypes.bool,
-    pending: PropTypes.array,
-    blockNumber: PropTypes.object
+    netChain: PropTypes.string,
+    pending: PropTypes.array
   }
 
-  state = {
-    showFirstRun: false
-  }
-
-  componentWillMount () {
-    this.checkAccounts();
-  }
+  store = new Store(this.context.api);
+  upgradeStore = new UpgradeStore(this.context.api);
 
   render () {
     const [root] = (window.location.hash || '').replace('#/', '').split('/');
-    const isDapp = root === 'app';
+    const isMinimized = root === 'app' || root === 'web';
 
     if (inFrame) {
       return (
@@ -65,33 +64,40 @@ class Application extends Component {
     }
 
     return (
-      <div className={ styles.outer }>
-        { isDapp ? this.renderDapp() : this.renderApp() }
+      <div>
+        { isMinimized ? this.renderMinimized() : this.renderApp() }
         <Connection />
-        <ParityBar dapp={ isDapp } />
+        <ParityBar dapp={ isMinimized } />
       </div>
     );
   }
 
   renderApp () {
-    const { children, pending, netChain, isTest, blockNumber } = this.props;
-    const { showFirstRun } = this.state;
+    const { blockNumber, children, pending, netChain, isTest } = this.props;
 
     return (
       <Container
-        showFirstRun={ showFirstRun }
-        onCloseFirstRun={ this.onCloseFirstRun }>
+        upgradeStore={ this.upgradeStore }
+        onCloseFirstRun={ this.store.closeFirstrun }
+        showFirstRun={ this.store.firstrunVisible }>
         <TabBar
           netChain={ netChain }
           isTest={ isTest }
           pending={ pending } />
-        { children }
-        { blockNumber ? (<Status />) : null }
+        <div className={ styles.content }>
+          { children }
+        </div>
+        {
+          blockNumber
+            ? <Status upgradeStore={ this.upgradeStore } />
+            : null
+        }
+        <Snackbar />
       </Container>
     );
   }
 
-  renderDapp () {
+  renderMinimized () {
     const { children } = this.props;
 
     return (
@@ -100,49 +106,23 @@ class Application extends Component {
       </DappContainer>
     );
   }
-
-  checkAccounts () {
-    const { api } = this.context;
-
-    api.eth
-      .accounts()
-      .then((accounts) => {
-        this.setState({
-          showFirstRun: showFirstRun || accounts.length === 0
-        });
-      })
-      .catch((error) => {
-        console.error('checkAccounts', error);
-      });
-  }
-
-  onCloseFirstRun = () => {
-    window.localStorage.setItem('showFirstRun', '0');
-    this.setState({
-      showFirstRun: false
-    });
-  }
 }
 
 function mapStateToProps (state) {
-  const { netChain, isTest, blockNumber } = state.nodeStatus;
+  const { blockNumber, netChain, isTest } = state.nodeStatus;
   const { hasAccounts } = state.personal;
   const { pending } = state.signer;
 
   return {
+    blockNumber,
     hasAccounts,
-    netChain,
     isTest,
-    pending,
-    blockNumber
+    netChain,
+    pending
   };
-}
-
-function mapDispatchToProps (dispatch) {
-  return bindActionCreators({}, dispatch);
 }
 
 export default connect(
   mapStateToProps,
-  mapDispatchToProps
+  null
 )(Application);

@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -195,9 +195,9 @@ impl StateDB {
 	pub fn journal_under(&mut self, batch: &mut DBTransaction, now: u64, id: &H256) -> Result<u32, UtilError> {
 		{
  			let mut bloom_lock = self.account_bloom.lock();
- 			try!(Self::commit_bloom(batch, bloom_lock.drain_journal()));
+ 			Self::commit_bloom(batch, bloom_lock.drain_journal())?;
  		}
-		let records = try!(self.db.journal_under(batch, now, id));
+		let records = self.db.journal_under(batch, now, id)?;
 		self.commit_hash = Some(id.clone());
 		self.commit_number = Some(now);
 		Ok(records)
@@ -397,6 +397,7 @@ impl StateDB {
 	}
 
 	/// Get cached code based on hash.
+	#[cfg_attr(feature="dev", allow(map_clone))]
 	pub fn get_cached_code(&self, hash: &H256) -> Option<Arc<Vec<u8>>> {
 		let mut cache = self.code_cache.lock();
 
@@ -456,7 +457,6 @@ impl StateDB {
 
 #[cfg(test)]
 mod tests {
-
 	use util::{U256, H256, FixedHash, Address, DBTransaction};
 	use tests::helpers::*;
 	use state::Account;
@@ -530,4 +530,3 @@ mod tests {
 		assert!(s.get_cached_account(&address).is_none());
 	}
 }
-

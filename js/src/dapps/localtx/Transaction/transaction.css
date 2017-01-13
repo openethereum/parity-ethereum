@@ -1,0 +1,31 @@
+.from {
+  white-space: nowrap;
+
+  img {
+    vertical-align: middle;
+  }
+}
+
+.transaction {
+  td {
+    padding: 7px 15px;
+  }
+
+  td:first-child {
+    padding: 7px 0;
+  }
+
+  &.local {
+    background: #8bc34a;
+  }
+}
+
+.nowrap {
+  white-space: nowrap;
+}
+
+.edit {
+  label, input {
+    display: block;
+  }
+}

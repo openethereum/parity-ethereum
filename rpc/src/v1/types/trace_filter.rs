@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -16,12 +16,13 @@
 
 //! Trace filter deserialization.
 
-use ethcore::client::BlockID;
+use ethcore::client::BlockId;
 use ethcore::client;
 use v1::types::{BlockNumber, H160};
 
 /// Trace filter
 #[derive(Debug, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct TraceFilter {
 	/// From block
 	#[serde(rename="fromBlock")]
@@ -39,8 +40,8 @@ pub struct TraceFilter {
 
 impl Into<client::TraceFilter> for TraceFilter {
 	fn into(self) -> client::TraceFilter {
-		let start = self.from_block.map_or(BlockID::Latest, Into::into);
-		let end = self.to_block.map_or(BlockID::Latest, Into::into);
+		let start = self.from_block.map_or(BlockId::Latest, Into::into);
+		let end = self.to_block.map_or(BlockId::Latest, Into::into);
 		client::TraceFilter {
 			range: start..end,
 			from_address: self.from_address.map_or_else(Vec::new, |x| x.into_iter().map(Into::into).collect()),

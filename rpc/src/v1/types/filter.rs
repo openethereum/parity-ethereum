@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -18,7 +18,7 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer, Error};
 use serde_json::value;
 use jsonrpc_core::Value;
 use ethcore::filter::Filter as EthFilter;
-use ethcore::client::BlockID;
+use ethcore::client::BlockId;
 use v1::types::{BlockNumber, H160, H256, Log};
 
 /// Variadic value
@@ -35,7 +35,7 @@ pub enum VariadicValue<T> where T: Deserialize {
 impl<T> Deserialize for VariadicValue<T> where T: Deserialize {
 	fn deserialize<D>(deserializer: &mut D) -> Result<VariadicValue<T>, D::Error>
 	where D: Deserializer {
-		let v = try!(Value::deserialize(deserializer));
+		let v = Value::deserialize(deserializer)?;
 
 		if v.is_null() {
 			return Ok(VariadicValue::Null);
@@ -73,8 +73,8 @@ pub struct Filter {
 impl Into<EthFilter> for Filter {
 	fn into(self) -> EthFilter {
 		EthFilter {
-			from_block: self.from_block.map_or_else(|| BlockID::Latest, Into::into),
-			to_block: self.to_block.map_or_else(|| BlockID::Latest, Into::into),
+			from_block: self.from_block.map_or_else(|| BlockId::Latest, Into::into),
+			to_block: self.to_block.map_or_else(|| BlockId::Latest, Into::into),
 			address: self.address.and_then(|address| match address {
 				VariadicValue::Null => None,
 				VariadicValue::Single(a) => Some(vec![a.into()]),
@@ -124,11 +124,11 @@ impl Serialize for FilterChanges {
 mod tests {
 	use serde_json;
 	use std::str::FromStr;
-	use util::hash::*;
-	use super::*;
+	use util::hash::H256;
+	use super::{VariadicValue, Topic, Filter};
 	use v1::types::BlockNumber;
 	use ethcore::filter::Filter as EthFilter;
-	use ethcore::client::BlockID;
+	use ethcore::client::BlockId;
 
 	#[test]
 	fn topic_deserialization() {
@@ -173,8 +173,8 @@ mod tests {
 
 		let eth_filter: EthFilter = filter.into();
 		assert_eq!(eth_filter, EthFilter {
-			from_block: BlockID::Earliest,
-			to_block: BlockID::Latest,
+			from_block: BlockId::Earliest,
+			to_block: BlockId::Latest,
 			address: Some(vec![]),
 			topics: vec![
 				None,

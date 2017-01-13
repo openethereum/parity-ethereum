@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -46,10 +46,6 @@ describe('api/util/decode', () => {
 
     it('expect valid hex parameter data', () => {
       expect(() => decodeMethodInput({}, 'invalid')).to.throw(/should be a hex value/);
-    });
-
-    it('throws on invalid lengths', () => {
-      expect(() => decodeMethodInput({}, DATA.slice(-32))).to.throw(/not a multiple of/);
     });
 
     it('correctly decodes valid inputs', () => {

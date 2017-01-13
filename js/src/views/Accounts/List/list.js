@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -15,21 +15,28 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import { connect } from 'react-redux';
+import { bindActionCreators } from 'redux';
 
-import { Container } from '../../../ui';
+import { Container } from '~/ui';
+import { fetchCertifiers, fetchCertifications } from '~/redux/providers/certifications/actions';
 
 import Summary from '../Summary';
 import styles from './list.css';
 
-export default class List extends Component {
+class List extends Component {
   static propTypes = {
     accounts: PropTypes.object,
     balances: PropTypes.object,
-    link: PropTypes.string,
-    search: PropTypes.array,
+    certifications: PropTypes.object.isRequired,
     empty: PropTypes.bool,
+    link: PropTypes.string,
     order: PropTypes.string,
     orderFallback: PropTypes.string,
+    search: PropTypes.array,
+
+    fetchCertifiers: PropTypes.func.isRequired,
+    fetchCertifications: PropTypes.func.isRequired,
     handleAddSearchToken: PropTypes.func
   };
 
@@ -41,8 +48,16 @@ export default class List extends Component {
     );
   }
 
+  componentWillMount () {
+    const { accounts, fetchCertifiers, fetchCertifications } = this.props;
+    fetchCertifiers();
+    for (let address in accounts) {
+      fetchCertifications(address);
+    }
+  }
+
   renderAccounts () {
-    const { accounts, balances, link, empty, handleAddSearchToken } = this.props;
+    const { accounts, balances, empty } = this.props;
 
     if (empty) {
       return (
@@ -60,18 +75,32 @@ export default class List extends Component {
       const account = accounts[address] || {};
       const balance = balances[address] || {};
 
+      const owners = account.owners || null;
+
       return (
         <div
           className={ styles.item }
-          key={ address }>
-          <Summary
-            link={ link }
-            account={ account }
-            balance={ balance }
-            handleAddSearchToken={ handleAddSearchToken } />
+          key={ address }
+        >
+          { this.renderSummary(account, balance, owners) }
         </div>
       );
     });
+  }
+
+  renderSummary (account, balance, owners) {
+    const { handleAddSearchToken, link } = this.props;
+
+    return (
+      <Summary
+        account={ account }
+        balance={ balance }
+        handleAddSearchToken={ handleAddSearchToken }
+        link={ link }
+        owners={ owners }
+        showCertifications
+      />
+    );
   }
 
   getAddresses () {
@@ -102,7 +131,15 @@ export default class List extends Component {
     });
   }
 
-  compareAccounts (accountA, accountB, key) {
+  compareAccounts (accountA, accountB, key, _reverse = null) {
+    if (key && key.split(':')[1] === '-1') {
+      return this.compareAccounts(accountA, accountB, key.split(':')[0], true);
+    }
+
+    if (key === 'timestamp' && _reverse === null) {
+      return this.compareAccounts(accountA, accountB, key, true);
+    }
+
     if (key === 'name') {
       return accountA.name.localeCompare(accountB.name);
     }
@@ -113,18 +150,26 @@ export default class List extends Component {
       const balanceA = balances[accountA.address];
       const balanceB = balances[accountB.address];
 
-      if (!balanceA && !balanceB) return 0;
-      if (balanceA && !balanceB) return -1;
-      if (!balanceA && balanceB) return 1;
+      if (!balanceA && !balanceB) {
+        return 0;
+      } else if (balanceA && !balanceB) {
+        return -1;
+      } else if (!balanceA && balanceB) {
+        return 1;
+      }
 
-      const ethA = balanceA.tokens
-        .find(token => token.token.tag.toLowerCase() === 'eth')
-        .value;
-      const ethB = balanceB.tokens
-        .find(token => token.token.tag.toLowerCase() === 'eth')
-        .value;
+      const ethA = balanceA.tokens.find(token => token.token.tag.toLowerCase() === 'eth');
+      const ethB = balanceB.tokens.find(token => token.token.tag.toLowerCase() === 'eth');
 
-      return -1 * ethA.comparedTo(ethB);
+      if (!ethA && !ethB) {
+        return 0;
+      } else if (ethA && !ethB) {
+        return -1;
+      } else if (!ethA && ethB) {
+        return 1;
+      }
+
+      return -1 * ethA.value.comparedTo(ethB.value);
     }
 
     if (key === 'tags') {
@@ -138,14 +183,20 @@ export default class List extends Component {
         .sort()
         .join('');
 
-      if (!tagsA && !tagsB) return 0;
-      if (tagsA && !tagsB) return -1;
-      if (!tagsA && tagsB) return 1;
+      if (!tagsA && !tagsB) {
+        return 0;
+      } else if (tagsA && !tagsB) {
+        return -1;
+      } else if (!tagsA && tagsB) {
+        return 1;
+      }
 
       return tagsA.localeCompare(tagsB);
     }
 
-    const reverse = key === 'timestamp' ? -1 : 1;
+    const reverse = _reverse
+      ? -1
+      : 1;
 
     const metaA = accountA.meta[key];
     const metaB = accountB.meta[key];
@@ -188,8 +239,8 @@ export default class List extends Component {
         const tags = account.meta.tags || [];
         const name = account.name || '';
 
-        const values = []
-          .concat(tags, name)
+        const values = tags
+          .concat(name)
           .map(v => v.toLowerCase());
 
         return searchValues
@@ -203,3 +254,20 @@ export default class List extends Component {
       });
   }
 }
+
+function mapStateToProps (state) {
+  const { certifications } = state;
+  return { certifications };
+}
+
+function mapDispatchToProps (dispatch) {
+  return bindActionCreators({
+    fetchCertifiers,
+    fetchCertifications
+  }, dispatch);
+}
+
+export default connect(
+  mapStateToProps,
+  mapDispatchToProps
+)(List);

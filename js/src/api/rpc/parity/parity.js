@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -14,8 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { inAddress, inData, inHex, inNumber16, inOptions } from '../../format/input';
-import { outAccountInfo, outAddress, outHistogram, outNumber, outPeers } from '../../format/output';
+import { inAddress, inAddresses, inData, inHex, inNumber16, inOptions } from '../../format/input';
+import { outAccountInfo, outAddress, outAddresses, outChainStatus, outHistogram, outNumber, outPeers, outTransaction } from '../../format/output';
 
 export default class Parity {
   constructor (transport) {
@@ -27,21 +27,27 @@ export default class Parity {
       .execute('parity_acceptNonReservedPeers');
   }
 
-  accounts () {
-    return this._transport
-      .execute('parity_accounts')
-      .then(outAccountInfo);
-  }
-
   accountsInfo () {
     return this._transport
       .execute('parity_accountsInfo')
       .then(outAccountInfo);
   }
 
+  allAccountsInfo () {
+    return this._transport
+      .execute('parity_allAccountsInfo')
+      .then(outAccountInfo);
+  }
+
   addReservedPeer (encode) {
     return this._transport
       .execute('parity_addReservedPeer', encode);
+  }
+
+  chainStatus () {
+    return this._transport
+      .execute('parity_chainStatus')
+      .then(outChainStatus);
   }
 
   changePassword (account, password, newPassword) {
@@ -52,6 +58,11 @@ export default class Parity {
   checkRequest (requestId) {
     return this._transport
       .execute('parity_checkRequest', inNumber16(requestId));
+  }
+
+  consensusCapability () {
+    return this._transport
+      .execute('parity_consensusCapability');
   }
 
   dappsPort () {
@@ -90,6 +101,11 @@ export default class Parity {
       .execute('parity_enode');
   }
 
+  executeUpgrade () {
+    return this._transport
+      .execute('parity_executeUpgrade');
+  }
+
   extraData () {
     return this._transport
       .execute('parity_extraData');
@@ -112,21 +128,61 @@ export default class Parity {
       .execute('parity_generateSecretPhrase');
   }
 
+  getDappsAddresses (dappId) {
+    return this._transport
+      .execute('parity_getDappsAddresses', dappId)
+      .then(outAddresses);
+  }
+
+  getNewDappsWhitelist () {
+    return this._transport
+      .execute('parity_getNewDappsWhitelist')
+      .then((addresses) => addresses ? addresses.map(outAddress) : null);
+  }
+
   hashContent (url) {
     return this._transport
       .execute('parity_hashContent', url);
   }
 
+  importGethAccounts (accounts) {
+    return this._transport
+      .execute('parity_importGethAccounts', inAddresses)
+      .then(outAddresses);
+  }
+
+  killAccount (account, password) {
+    return this._transport
+      .execute('parity_killAccount', inAddress(account), password);
+  }
+
+  listRecentDapps () {
+    return this._transport
+      .execute('parity_listRecentDapps');
+  }
+
+  removeAddress (address) {
+    return this._transport
+      .execute('parity_removeAddress', inAddress(address));
+  }
+
   listGethAccounts () {
     return this._transport
       .execute('parity_listGethAccounts')
-      .then((accounts) => (accounts || []).map(outAddress));
+      .then(outAddresses);
   }
 
-  importGethAccounts (accounts) {
+  localTransactions () {
     return this._transport
-      .execute('parity_importGethAccounts', (accounts || []).map(inAddress))
-      .then((accounts) => (accounts || []).map(outAddress));
+      .execute('parity_localTransactions')
+      .then(transactions => {
+        Object.values(transactions)
+          .filter(tx => tx.transaction)
+          .map(tx => {
+            tx.transaction = outTransaction(tx.transaction);
+          });
+        return transactions;
+      });
   }
 
   minGasPrice () {
@@ -192,6 +248,17 @@ export default class Parity {
       .execute('parity_nodeName');
   }
 
+  pendingTransactions () {
+    return this._transport
+      .execute('parity_pendingTransactions')
+      .then(data => data.map(outTransaction));
+  }
+
+  pendingTransactionsStats () {
+    return this._transport
+      .execute('parity_pendingTransactionsStats');
+  }
+
   phraseToAddress (phrase) {
     return this._transport
       .execute('parity_phraseToAddress', phrase)
@@ -207,6 +274,11 @@ export default class Parity {
     return this._transport
       .execute('parity_registryAddress')
       .then(outAddress);
+  }
+
+  releasesInfo () {
+    return this._transport
+      .execute('parity_releasesInfo');
   }
 
   removeReservedPeer (encode) {
@@ -234,6 +306,11 @@ export default class Parity {
       .execute('parity_setAuthor', inAddress(address));
   }
 
+  setDappsAddresses (dappId, addresses) {
+    return this._transport
+      .execute('parity_setDappsAddresses', dappId, inAddresses(addresses));
+  }
+
   setExtraData (data) {
     return this._transport
       .execute('parity_setExtraData', inData(data));
@@ -252,6 +329,11 @@ export default class Parity {
   setMode (mode) {
     return this._transport
       .execute('parity_setMode', mode);
+  }
+
+  setNewDappsWhitelist (addresses) {
+    return this._transport
+      .execute('parity_setNewDappsWhitelist', addresses ? inAddresses(addresses) : null);
   }
 
   setTransactionsLimit (quantity) {
@@ -280,5 +362,15 @@ export default class Parity {
     return this._transport
       .execute('parity_unsignedTransactionsCount')
       .then(outNumber);
+  }
+
+  upgradeReady () {
+    return this._transport
+      .execute('parity_upgradeReady');
+  }
+
+  versionInfo () {
+    return this._transport
+      .execute('parity_versionInfo');
   }
 }

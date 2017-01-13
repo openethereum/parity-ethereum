@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -28,13 +28,13 @@ pub struct Genesis {
 	pub seal: Seal,
 	/// Difficulty.
 	pub difficulty: Uint,
-	/// Block author.
-	pub author: Address,
-	/// Block timestamp.
-	pub timestamp: Uint,
-	/// Parent hash.
+	/// Block author, defaults to 0.
+	pub author: Option<Address>,
+	/// Block timestamp, defaults to 0.
+	pub timestamp: Option<Uint>,
+	/// Parent hash, defaults to 0.
 	#[serde(rename="parentHash")]
-	pub parent_hash: H256,
+	pub parent_hash: Option<H256>,
 	/// Gas limit.
 	#[serde(rename="gasLimit")]
 	pub gas_limit: Uint,

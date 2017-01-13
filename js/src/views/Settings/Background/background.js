@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -15,11 +15,12 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 import NavigationRefresh from 'material-ui/svg-icons/navigation/refresh';
 
-import { Button, Container, ContainerTitle, ParityBackground } from '../../../ui';
+import { Button, Container, ParityBackground } from '~/ui';
 
 import { updateBackground } from '../actions';
 
@@ -55,16 +56,29 @@ class Background extends Component {
 
   render () {
     return (
-      <Container>
-        <ContainerTitle title='Background Pattern' />
+      <Container title={
+        <FormattedMessage id='settings.background.label' />
+      }>
         <div className={ layout.layout }>
           <div className={ layout.overview }>
-            <div>The background pattern you can see right now is unique to your Parity installation. It will change every time you create a new Signer token. This is so that decentralized applications cannot pretend to be trustworthy.</div>
-            <div>Pick a pattern you like and memorize it. This Pattern will always be shown from now on, unless you clear your browser cache or use a new Signer token.</div>
+            <div>
+              <FormattedMessage
+                id='settings.background.overview_0'
+                defaultMessage='The background pattern you can see right now is unique to your Parity installation. It will change every time you create a new Signer token. This is so that decentralized applications cannot pretend to be trustworthy.' />
+            </div>
+            <div>
+              <FormattedMessage
+                id='settings.background.overview_1'
+                defaultMessage='Pick a pattern you like and memorize it. This Pattern will always be shown from now on, unless you clear your browser cache or use a new Signer token.' />
+            </div>
             <div>
               <Button
                 icon={ <NavigationRefresh /> }
-                label='generate more'
+                label={
+                  <FormattedMessage
+                    id='settings.background.button_more'
+                    defaultMessage='generate more' />
+                }
                 onClick={ this.generateSeeds } />
             </div>
           </div>
@@ -89,7 +103,8 @@ class Background extends Component {
             <ParityBackground
               className={ settings.backgroundSeed === seed ? styles.seedactive : styles.seed }
               seed={ seed }
-              onClick={ this.onSelect(seed) } />
+              onClick={ this.onSelect(seed) }
+            />
           </div>
         </div>
       );
@@ -126,7 +141,7 @@ class Background extends Component {
   generateSeed () {
     const { api, muiTheme } = this.context;
 
-    return api.util.sha3(`${muiTheme.backgroundSeed}${Math.random()}${counter++}`);
+    return api.util.sha3.text(`${muiTheme.backgroundSeed}${Math.random()}${counter++}`);
   }
 }
 

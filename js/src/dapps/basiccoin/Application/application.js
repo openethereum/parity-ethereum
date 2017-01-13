@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -83,7 +83,7 @@ export default class Application extends Component {
     Promise
       .all([
         attachInstances(),
-        api.parity.accounts()
+        api.parity.accountsInfo()
       ])
       .then(([{ managerInstance, registryInstance, tokenregInstance }, accountsInfo]) => {
         accountsInfo = accountsInfo || {};
@@ -94,9 +94,8 @@ export default class Application extends Component {
           tokenregInstance,
           accounts: Object
             .keys(accountsInfo)
-            .filter((address) => !accountsInfo[address].meta.deleted)
             .sort((a, b) => {
-              return (accountsInfo[b].uuid || '').localeCompare(accountsInfo[a].uuid || '');
+              return (accountsInfo[b].name || '').localeCompare(accountsInfo[a].name || '');
             })
             .reduce((accounts, address) => {
               accounts[address] = Object.assign(accountsInfo[address], { address });

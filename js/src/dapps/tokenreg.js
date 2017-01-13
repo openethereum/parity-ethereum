@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -27,13 +27,12 @@ import Container from './tokenreg/Container';
 import '../../assets/fonts/Roboto/font.css';
 import '../../assets/fonts/RobotoMono/font.css';
 import './style.css';
-import './tokenreg.html';
 
 ReactDOM.render(
   (
-  <Provider store={ store }>
-    <Container />
-  </Provider>
+    <Provider store={ store }>
+      <Container />
+    </Provider>
   ),
   document.querySelector('#container')
 );

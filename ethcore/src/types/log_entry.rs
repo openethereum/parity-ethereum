@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -26,7 +26,8 @@ use header::BlockNumber;
 use ethjson;
 
 /// A record of execution for a `LOG` operation.
-#[derive(Default, Debug, Clone, PartialEq, Eq, Binary)]
+#[derive(Default, Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "ipc", binary)]
 pub struct LogEntry {
 	/// The address of the contract executing at the point of the `LOG` operation.
 	pub address: Address,
@@ -49,9 +50,9 @@ impl Decodable for LogEntry {
 	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
 		let d = decoder.as_rlp();
 		let entry = LogEntry {
-			address: try!(d.val_at(0)),
-			topics: try!(d.val_at(1)),
-			data: try!(d.val_at(2)),
+			address: d.val_at(0)?,
+			topics: d.val_at(1)?,
+			data: d.val_at(2)?,
 		};
 		Ok(entry)
 	}
@@ -81,7 +82,8 @@ impl From<ethjson::state::Log> for LogEntry {
 }
 
 /// Log localized in a blockchain.
-#[derive(Default, Debug, PartialEq, Clone, Binary)]
+#[derive(Default, Debug, PartialEq, Clone)]
+#[cfg_attr(feature = "ipc", binary)]
 pub struct LocalizedLogEntry {
 	/// Plain log entry.
 	pub entry: LogEntry,
@@ -95,6 +97,8 @@ pub struct LocalizedLogEntry {
 	pub transaction_index: usize,
 	/// Log position in the block.
 	pub log_index: usize,
+	/// Log position in the transaction.
+	pub transaction_log_index: usize,
 }
 
 impl Deref for LocalizedLogEntry {

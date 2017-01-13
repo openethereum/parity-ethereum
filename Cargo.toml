@@ -1,9 +1,9 @@
 [package]
-description = "Ethcore client."
+description = "Parity Ethereum client"
 name = "parity"
-version = "1.5.0"
+version = "1.6.0"
 license = "GPL-3.0"
-authors = ["Ethcore <admin@ethcore.io>"]
+authors = ["Parity Technologies <admin@parity.io>"]
 build = "build.rs"
 
 [build-dependencies]
@@ -20,33 +20,40 @@ time = "0.1"
 num_cpus = "0.2"
 number_prefix = "0.2"
 rpassword = "0.2.1"
-semver = "0.2"
+semver = "0.5"
 ansi_term = "0.7"
 lazy_static = "0.2"
 regex = "0.1"
 isatty = "0.1"
 toml = "0.2"
-serde = "0.8.0"
-serde_json = "0.8.0"
+serde = "0.8"
+serde_json = "0.8"
+app_dirs = "1.1.1"
+fdlimit = "0.1"
 hyper = { version = "0.9", default-features = false }
 ctrlc = { git = "https://github.com/ethcore/rust-ctrlc.git" }
-json-ipc-server = { git = "https://github.com/ethcore/json-ipc-server.git" }
-fdlimit = { path = "util/fdlimit" }
+jsonrpc-core = { git = "https://github.com/ethcore/jsonrpc.git" }
+ethsync = { path = "sync" }
 ethcore = { path = "ethcore" }
 ethcore-util = { path = "util" }
-ethsync = { path = "sync" }
 ethcore-io = { path = "util/io" }
 ethcore-devtools = { path = "devtools" }
 ethcore-rpc = { path = "rpc" }
 ethcore-signer = { path = "signer" }
-ethcore-ipc-nano = { path = "ipc/nano" }
 ethcore-ipc = { path = "ipc/rpc" }
+ethcore-ipc-nano = { path = "ipc/nano" }
 ethcore-ipc-hypervisor = { path = "ipc/hypervisor" }
+ethcore-light = { path = "ethcore/light" }
 ethcore-logger = { path = "logger" }
-rlp = { path = "util/rlp" }
 ethcore-stratum = { path = "stratum" }
+rlp = { path = "util/rlp" }
+rpc-cli = { path = "rpc_cli" }
+parity-rpc-client = { path = "rpc_client" }
+parity-hash-fetch = { path = "hash-fetch" }
+parity-updater = { path = "updater" }
+parity-reactor = { path = "util/reactor" }
 ethcore-dapps = { path = "dapps", optional = true }
-clippy = { version = "0.0.96", optional = true}
+clippy = { version = "0.0.103", optional = true}
 
 [target.'cfg(windows)'.dependencies]
 winapi = "0.2"
@@ -56,7 +63,6 @@ daemonize = "0.2"
 
 [features]
 default = ["ui-precompiled"]
-
 ui = [
 	"dapps",
 	"ethcore-dapps/ui",
@@ -67,7 +73,6 @@ ui-precompiled = [
 	"ethcore-signer/ui-precompiled",
 	"ethcore-dapps/ui-precompiled",
 ]
-
 dapps = ["ethcore-dapps"]
 ipc = ["ethcore/ipc", "ethsync/ipc"]
 jit = ["ethcore/jit"]
@@ -80,6 +85,7 @@ ethstore-cli = ["ethcore/ethstore-cli"]
 evm-debug = ["ethcore/evm-debug"]
 evm-debug-tests = ["ethcore/evm-debug-tests"]
 slow-blocks = ["ethcore/slow-blocks"]
+final = ["ethcore-util/final"]
 
 [[bin]]
 path = "parity/main.rs"
@@ -88,4 +94,4 @@ name = "parity"
 [profile.release]
 debug = false
 lto = false
-
+panic = "abort"

@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -201,8 +201,8 @@ impl<'a> fmt::Debug for NibbleSlice<'a> {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		for i in 0..self.len() {
 			match i {
-				0 => try!(write!(f, "{:01x}", self.at(i))),
-				_ => try!(write!(f, "'{:01x}", self.at(i))),
+				0 => write!(f, "{:01x}", self.at(i))?,
+				_ => write!(f, "'{:01x}", self.at(i))?,
 			}
 		}
 		Ok(())

@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -21,5 +21,5 @@ mod handler;
 
 pub use self::local::LocalPageEndpoint;
 pub use self::builtin::PageEndpoint;
-pub use self::handler::PageCache;
+pub use self::handler::{PageCache, PageHandlerWaiting};
 

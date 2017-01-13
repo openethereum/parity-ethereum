@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -21,7 +21,7 @@ use std::collections::HashSet;
 use jsonrpc_core::*;
 use ethcore::miner::MinerService;
 use ethcore::filter::Filter as EthcoreFilter;
-use ethcore::client::{BlockChainClient, BlockID};
+use ethcore::client::{BlockChainClient, BlockId};
 use util::Mutex;
 use v1::traits::EthFilter;
 use v1::types::{BlockNumber, Index, Filter, FilterChanges, Log, H256 as RpcH256, U256 as RpcU256};
@@ -62,7 +62,7 @@ impl<C, M> EthFilter for EthFilterClient<C, M>
 	where C: BlockChainClient + 'static, M: MinerService + 'static
 {
 	fn new_filter(&self, filter: Filter) -> Result<RpcU256, Error> {
-		try!(self.active());
+		self.active()?;
 		let mut polls = self.polls.lock();
 		let block_number = take_weak!(self.client).chain_info().best_block_number;
 		let id = polls.create_poll(PollFilter::Logs(block_number, Default::default(), filter));
@@ -70,7 +70,7 @@ impl<C, M> EthFilter for EthFilterClient<C, M>
 	}
 
 	fn new_block_filter(&self) -> Result<RpcU256, Error> {
-		try!(self.active());
+		self.active()?;
 
 		let mut polls = self.polls.lock();
 		let id = polls.create_poll(PollFilter::Block(take_weak!(self.client).chain_info().best_block_number));
@@ -78,7 +78,7 @@ impl<C, M> EthFilter for EthFilterClient<C, M>
 	}
 
 	fn new_pending_transaction_filter(&self) -> Result<RpcU256, Error> {
-		try!(self.active());
+		self.active()?;
 
 		let mut polls = self.polls.lock();
 		let best_block = take_weak!(self.client).chain_info().best_block_number;
@@ -88,7 +88,7 @@ impl<C, M> EthFilter for EthFilterClient<C, M>
 	}
 
 	fn filter_changes(&self, index: Index) -> Result<FilterChanges, Error> {
-		try!(self.active());
+		self.active()?;
 		let client = take_weak!(self.client);
 		let mut polls = self.polls.lock();
 		match polls.poll_mut(&index.value()) {
@@ -98,7 +98,7 @@ impl<C, M> EthFilter for EthFilterClient<C, M>
 					// + 1, cause we want to return hashes including current block hash.
 					let current_number = client.chain_info().best_block_number + 1;
 					let hashes = (*block_number..current_number).into_iter()
-						.map(BlockID::Number)
+						.map(BlockId::Number)
 						.filter_map(|id| client.block_hash(id))
 						.map(Into::into)
 						.collect::<Vec<RpcH256>>();
@@ -140,10 +140,10 @@ impl<C, M> EthFilter for EthFilterClient<C, M>
 
 					// build appropriate filter
 					let mut filter: EthcoreFilter = filter.clone().into();
-					filter.from_block = BlockID::Number(*block_number);
-					filter.to_block = BlockID::Latest;
+					filter.from_block = BlockId::Number(*block_number);
+					filter.to_block = BlockId::Latest;
 
-					// retrieve logs in range from_block..min(BlockID::Latest..to_block)
+					// retrieve logs in range from_block..min(BlockId::Latest..to_block)
 					let mut logs = client.logs(filter.clone())
 						.into_iter()
 						.map(From::from)
@@ -180,7 +180,7 @@ impl<C, M> EthFilter for EthFilterClient<C, M>
 	}
 
 	fn filter_logs(&self, index: Index) -> Result<Vec<Log>, Error> {
-		try!(self.active());
+		self.active()?;
 
 		let mut polls = self.polls.lock();
 		match polls.poll(&index.value()) {
@@ -207,7 +207,7 @@ impl<C, M> EthFilter for EthFilterClient<C, M>
 	}
 
 	fn uninstall_filter(&self, index: Index) -> Result<bool, Error> {
-		try!(self.active());
+		self.active()?;
 
 		self.polls.lock().remove_poll(&index.value());
 		Ok(true)

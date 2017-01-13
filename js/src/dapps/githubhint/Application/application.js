@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -19,6 +19,7 @@ import React, { Component } from 'react';
 import { api } from '../parity';
 import { attachInterface } from '../services';
 import Button from '../Button';
+import Events from '../Events';
 import IdentityIcon from '../IdentityIcon';
 import Loading from '../Loading';
 
@@ -26,6 +27,8 @@ import styles from './application.css';
 
 const INVALID_URL_HASH = '0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470';
 const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
+
+let nextEventId = 0;
 
 export default class Application extends Component {
   state = {
@@ -43,7 +46,9 @@ export default class Application extends Component {
     registerState: '',
     registerType: 'file',
     repo: '',
-    repoError: null
+    repoError: null,
+    events: {},
+    eventIds: []
   }
 
   componentDidMount () {
@@ -75,7 +80,7 @@ export default class Application extends Component {
     let hashClass = null;
     if (contentHashError) {
       hashClass = contentHashOwner !== fromAddress ? styles.hashError : styles.hashWarning;
-    } else {
+    } else if (contentHash) {
       hashClass = styles.hashOk;
     }
 
@@ -116,29 +121,34 @@ export default class Application extends Component {
     }
 
     return (
-      <div className={ styles.container }>
-        <div className={ styles.form }>
-          <div className={ styles.typeButtons }>
-            <Button
-              disabled={ registerBusy }
-              invert={ registerType !== 'file' }
-              onClick={ this.onClickTypeNormal }>File Link</Button>
-            <Button
-              disabled={ registerBusy }
-              invert={ registerType !== 'content' }
-              onClick={ this.onClickTypeContent }>Content Bundle</Button>
-          </div>
-          <div className={ styles.box }>
-            <div className={ styles.description }>
-              Provide a valid URL to register. The content information can be used in other contracts that allows for reverse lookups, e.g. image registries, dapp registries, etc.
+      <div className={ styles.body }>
+        <div className={ styles.container }>
+          <div className={ styles.form }>
+            <div className={ styles.typeButtons }>
+              <Button
+                disabled={ registerBusy }
+                invert={ registerType !== 'file' }
+                onClick={ this.onClickTypeNormal }>File Link</Button>
+              <Button
+                disabled={ registerBusy }
+                invert={ registerType !== 'content' }
+                onClick={ this.onClickTypeContent }>Content Bundle</Button>
             </div>
-            { valueInputs }
-            <div className={ hashClass }>
-              { contentHashError || contentHash }
+            <div className={ styles.box }>
+              <div className={ styles.description }>
+                Provide a valid URL to register. The content information can be used in other contracts that allows for reverse lookups, e.g. image registries, dapp registries, etc.
+              </div>
+              { valueInputs }
+              <div className={ hashClass }>
+                { contentHashError || contentHash }
+              </div>
+              { registerBusy ? this.renderProgress() : this.renderButtons() }
             </div>
-            { registerBusy ? this.renderProgress() : this.renderButtons() }
           </div>
         </div>
+        <Events
+          eventIds={ this.state.eventIds }
+          events={ this.state.events } />
       </div>
     );
   }
@@ -285,15 +295,29 @@ export default class Application extends Component {
     }
   }
 
-  trackRequest (promise) {
+  trackRequest (eventId, promise) {
     return promise
       .then((signerRequestId) => {
-        this.setState({ signerRequestId, registerState: 'Transaction posted, Waiting for transaction authorization' });
+        this.setState({
+          events: Object.assign({}, this.state.events, {
+            [eventId]: Object.assign({}, this.state.events[eventId], {
+              signerRequestId,
+              registerState: 'Transaction posted, Waiting for transaction authorization'
+            })
+          })
+        });
 
         return api.pollMethod('parity_checkRequest', signerRequestId);
       })
       .then((txHash) => {
-        this.setState({ txHash, registerState: 'Transaction authorized, Waiting for network confirmations' });
+        this.setState({
+          events: Object.assign({}, this.state.events, {
+            [eventId]: Object.assign({}, this.state.events[eventId], {
+              txHash,
+              registerState: 'Transaction authorized, Waiting for network confirmations'
+            })
+          })
+        });
 
         return api.pollMethod('eth_getTransactionReceipt', txHash, (receipt) => {
           if (!receipt || !receipt.blockNumber || receipt.blockNumber.eq(0)) {
@@ -304,27 +328,72 @@ export default class Application extends Component {
         });
       })
       .then((txReceipt) => {
-        this.setState({ txReceipt, registerBusy: false, registerState: 'Network confirmed, Received transaction receipt', url: '', commit: '', repo: '', commitError: null, contentHash: '', contentHashOwner: null, contentHashError: null });
+        this.setState({
+          events: Object.assign({}, this.state.events, {
+            [eventId]: Object.assign({}, this.state.events[eventId], {
+              txReceipt,
+              registerBusy: false,
+              registerState: 'Network confirmed, Received transaction receipt'
+            })
+          })
+        });
       })
       .catch((error) => {
         console.error('onSend', error);
-        this.setState({ registerError: error.message });
+
+        this.setState({
+          events: Object.assign({}, this.state.events, {
+            [eventId]: Object.assign({}, this.state.events[eventId], {
+              registerState: error.message,
+              registerError: true,
+              registerBusy: false
+            })
+          })
+        });
       });
   }
 
-  registerContent (repo, commit) {
+  registerContent (contentRepo, contentCommit) {
     const { contentHash, fromAddress, instance } = this.state;
+    contentCommit = contentCommit.substr(0, 2) === '0x' ? contentCommit : `0x${contentCommit}`;
 
-    this.setState({ registerBusy: true, registerState: 'Estimating gas for the transaction' });
-
-    const values = [contentHash, repo, commit.substr(0, 2) === '0x' ? commit : `0x${commit}`];
+    const eventId = nextEventId++;
+    const values = [contentHash, contentRepo, contentCommit];
     const options = { from: fromAddress };
 
+    this.setState({
+      eventIds: [eventId].concat(this.state.eventIds),
+      events: Object.assign({}, this.state.events, {
+        [eventId]: {
+          contentHash,
+          contentRepo,
+          contentCommit,
+          fromAddress,
+          registerBusy: true,
+          registerState: 'Estimating gas for the transaction',
+          timestamp: new Date()
+        }
+      }),
+      url: '',
+      commit: '',
+      repo: '',
+      commitError: null,
+      contentHash: '',
+      contentHashOwner: null,
+      contentHashError: null
+    });
+
     this.trackRequest(
-      instance
+      eventId, instance
         .hint.estimateGas(options, values)
         .then((gas) => {
-          this.setState({ registerState: 'Gas estimated, Posting transaction to the network' });
+          this.setState({
+            events: Object.assign({}, this.state.events, {
+              [eventId]: Object.assign({}, this.state.events[eventId], {
+                registerState: 'Gas estimated, Posting transaction to the network'
+              })
+            })
+          });
 
           const gasPassed = gas.mul(1.2);
           options.gas = gasPassed.toFixed(0);
@@ -335,19 +404,45 @@ export default class Application extends Component {
     );
   }
 
-  registerUrl (url) {
+  registerUrl (contentUrl) {
     const { contentHash, fromAddress, instance } = this.state;
 
-    this.setState({ registerBusy: true, registerState: 'Estimating gas for the transaction' });
-
-    const values = [contentHash, url];
+    const eventId = nextEventId++;
+    const values = [contentHash, contentUrl];
     const options = { from: fromAddress };
 
+    this.setState({
+      eventIds: [eventId].concat(this.state.eventIds),
+      events: Object.assign({}, this.state.events, {
+        [eventId]: {
+          contentHash,
+          contentUrl,
+          fromAddress,
+          registerBusy: true,
+          registerState: 'Estimating gas for the transaction',
+          timestamp: new Date()
+        }
+      }),
+      url: '',
+      commit: '',
+      repo: '',
+      commitError: null,
+      contentHash: '',
+      contentHashOwner: null,
+      contentHashError: null
+    });
+
     this.trackRequest(
-      instance
+      eventId, instance
         .hintURL.estimateGas(options, values)
         .then((gas) => {
-          this.setState({ registerState: 'Gas estimated, Posting transaction to the network' });
+          this.setState({
+            events: Object.assign({}, this.state.events, {
+              [eventId]: Object.assign({}, this.state.events[eventId], {
+                registerState: 'Gas estimated, Posting transaction to the network'
+              })
+            })
+          });
 
           const gasPassed = gas.mul(1.2);
           options.gas = gasPassed.toFixed(0);

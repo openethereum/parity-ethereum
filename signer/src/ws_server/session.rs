@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -21,8 +21,9 @@ use authcode_store::AuthCodes;
 use std::path::{PathBuf, Path};
 use std::sync::Arc;
 use std::str::FromStr;
-use jsonrpc_core::IoHandler;
-use util::{H256, Mutex, version};
+use jsonrpc_core::{Metadata};
+use jsonrpc_core::reactor::RpcHandler;
+use util::{H256, version};
 
 #[cfg(feature = "parity-ui")]
 mod ui {
@@ -99,7 +100,7 @@ fn auth_is_valid(codes_path: &Path, protocols: ws::Result<Vec<&str>>) -> bool {
 
 							let res = codes.is_valid(&auth, time);
 							// make sure to save back authcodes - it might have been modified
-							if let Err(_) = codes.to_file(codes_path) {
+							if codes.to_file(codes_path).is_err() {
 								warn!(target: "signer", "Couldn't save authorization codes to file.");
 							}
 							res
@@ -129,16 +130,16 @@ fn add_headers(mut response: ws::Response, mime: &str) -> ws::Response {
 	response
 }
 
-pub struct Session {
-	out: Arc<Mutex<ws::Sender>>,
+pub struct Session<M: Metadata> {
+	out: ws::Sender,
 	skip_origin_validation: bool,
 	self_origin: String,
 	authcodes_path: PathBuf,
-	handler: Arc<IoHandler>,
+	handler: RpcHandler<M>,
 	file_handler: Arc<ui::Handler>,
 }
 
-impl ws::Handler for Session {
+impl<M: Metadata> ws::Handler for Session<M> {
 	#[cfg_attr(feature="dev", allow(collapsible_if))]
 	fn on_request(&mut self, req: &ws::Request) -> ws::Result<(ws::Response)> {
 		trace!(target: "signer", "Handling request: {:?}", req);
@@ -207,30 +208,33 @@ impl ws::Handler for Session {
 	}
 
 	fn on_message(&mut self, msg: ws::Message) -> ws::Result<()> {
-		let req = try!(msg.as_text());
-		if let Some(async) = self.handler.handle_request(req) {
-			let out = self.out.clone();
-			async.on_result(move |result| {
-				let res = out.lock().send(result);
+		let req = msg.as_text()?;
+		let out = self.out.clone();
+		// TODO [ToDr] Extract metadata for PubSub/Session
+		let metadata = Default::default();
+
+		self.handler.handle_request(req, metadata, move |response| {
+			if let Some(result) = response {
+				let res = out.send(result);
 				if let Err(e) = res {
 					warn!(target: "signer", "Error while sending response: {:?}", e);
 				}
-			});
-		}
+			}
+		});
 		Ok(())
 	}
 }
 
-pub struct Factory {
-	handler: Arc<IoHandler>,
+pub struct Factory<M: Metadata> {
+	handler: RpcHandler<M>,
 	skip_origin_validation: bool,
 	self_origin: String,
 	authcodes_path: PathBuf,
 	file_handler: Arc<ui::Handler>,
 }
 
-impl Factory {
-	pub fn new(handler: Arc<IoHandler>, self_origin: String, authcodes_path: PathBuf, skip_origin_validation: bool) -> Self {
+impl<M: Metadata> Factory<M> {
+	pub fn new(handler: RpcHandler<M>, self_origin: String, authcodes_path: PathBuf, skip_origin_validation: bool) -> Self {
 		Factory {
 			handler: handler,
 			skip_origin_validation: skip_origin_validation,
@@ -241,12 +245,12 @@ impl Factory {
 	}
 }
 
-impl ws::Factory for Factory {
-	type Handler = Session;
+impl<M: Metadata> ws::Factory for Factory<M> {
+	type Handler = Session<M>;
 
 	fn connection_made(&mut self, sender: ws::Sender) -> Self::Handler {
 		Session {
-			out: Arc::new(Mutex::new(sender)),
+			out: sender,
 			handler: self.handler.clone(),
 			skip_origin_validation: self.skip_origin_validation,
 			self_origin: self.self_origin.clone(),

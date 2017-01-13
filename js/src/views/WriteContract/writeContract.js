@@ -1,4 +1,4 @@
-  // Copyright 2015, 2016 Ethcore (UK) Ltd.
+  // Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -16,11 +16,11 @@
 
 import React, { PropTypes, Component } from 'react';
 import { observer } from 'mobx-react';
-import { MenuItem } from 'material-ui';
+import { MenuItem, Toggle } from 'material-ui';
 import { connect } from 'react-redux';
-import { bindActionCreators } from 'redux';
 import CircularProgress from 'material-ui/CircularProgress';
 import moment from 'moment';
+import { throttle } from 'lodash';
 
 import ContentClear from 'material-ui/svg-icons/content/clear';
 import SaveIcon from 'material-ui/svg-icons/content/save';
@@ -28,10 +28,8 @@ import ListIcon from 'material-ui/svg-icons/action/view-list';
 import SettingsIcon from 'material-ui/svg-icons/action/settings';
 import SendIcon from 'material-ui/svg-icons/content/send';
 
-import { Actionbar, ActionbarExport, ActionbarImport, Button, Editor, Page, Select, Input } from '../../ui';
-import { DeployContract, SaveContract, LoadContract } from '../../modals';
-
-import { setupWorker } from '../../redux/providers/compilerActions';
+import { Actionbar, ActionbarExport, ActionbarImport, Button, Editor, Page, Select, Input } from '~/ui';
+import { DeployContract, SaveContract, LoadContract } from '~/modals';
 
 import WriteContractStore from './writeContractStore';
 import styles from './writeContract.css';
@@ -41,11 +39,11 @@ class WriteContract extends Component {
 
   static propTypes = {
     accounts: PropTypes.object.isRequired,
-    setupWorker: PropTypes.func.isRequired,
-    worker: PropTypes.object
+    worker: PropTypes.object,
+    workerError: PropTypes.any
   };
 
-  store = new WriteContractStore();
+  store = WriteContractStore.get();
 
   state = {
     resizing: false,
@@ -53,16 +51,21 @@ class WriteContract extends Component {
   };
 
   componentWillMount () {
-    const { setupWorker, worker } = this.props;
-    setupWorker();
+    const { worker } = this.props;
 
-    if (worker) {
-      this.store.setCompiler(worker);
+    if (worker !== undefined) {
+      this.store.setWorker(worker);
     }
+
+    this.throttledResize = throttle(this.applyResize, 100, { leading: true });
   }
 
   componentDidMount () {
     this.store.setEditor(this.refs.editor);
+
+    if (this.props.workerError) {
+      this.store.setWorkerError(this.props.workerError);
+    }
 
     // Wait for editor to be loaded
     window.setTimeout(() => {
@@ -70,9 +73,14 @@ class WriteContract extends Component {
     }, 2000);
   }
 
+  // Set the worker if not set before (eg. first page loading)
   componentWillReceiveProps (nextProps) {
-    if (!this.props.worker && nextProps.worker) {
-      this.store.setCompiler(nextProps.worker);
+    if (this.props.worker === undefined && nextProps.worker !== undefined) {
+      this.store.setWorker(nextProps.worker);
+    }
+
+    if (this.props.workerError !== nextProps.workerError) {
+      this.store.setWorkerError(nextProps.workerError);
     }
   }
 
@@ -118,8 +126,7 @@ class WriteContract extends Component {
               <span
                 className={ styles.slider }
                 onMouseDown={ this.handleStartResize }
-              >
-              </span>
+              />
             </div>
 
             <div
@@ -218,7 +225,18 @@ class WriteContract extends Component {
   }
 
   renderParameters () {
-    const { compiling, contract, selectedBuild, loading } = this.store;
+    const { compiling, contract, selectedBuild, loading, workerError } = this.store;
+
+    if (workerError) {
+      return (
+        <div className={ styles.panel }>
+          <div className={ styles.centeredMessage }>
+            <p>Unfortuantely, an error occurred...</p>
+            <div className={ styles.error }>{ workerError.toString() }</div>
+          </div>
+        </div>
+      );
+    }
 
     if (selectedBuild < 0) {
       return (
@@ -262,6 +280,24 @@ class WriteContract extends Component {
             />
             : null
           }
+        </div>
+        <div className={ styles.toggles }>
+          <div>
+            <Toggle
+              label='Optimize'
+              labelPosition='right'
+              onToggle={ this.store.handleOptimizeToggle }
+              toggled={ this.store.optimize }
+            />
+          </div>
+          <div>
+            <Toggle
+              label='Auto-Compile'
+              labelPosition='right'
+              onToggle={ this.store.handleAutocompileToggle }
+              toggled={ this.store.autocompile }
+            />
+          </div>
         </div>
         { this.renderSolidityVersions() }
         { this.renderCompilation() }
@@ -417,20 +453,62 @@ class WriteContract extends Component {
     const { bytecode } = contract;
     const abi = contract.interface;
 
+    const metadata = contract.metadata
+      ? (
+        <Input
+          allowCopy
+          label='Metadata'
+          readOnly
+          value={ contract.metadata }
+        />
+      )
+      : null;
+
     return (
       <div>
         <Input
+          allowCopy
+          label='ABI Interface'
           readOnly
           value={ abi }
-          label='ABI Interface'
         />
 
         <Input
+          allowCopy
+          label='Bytecode'
           readOnly
           value={ `0x${bytecode}` }
-          label='Bytecode'
         />
+
+        { metadata }
+        { this.renderSwarmHash(contract) }
       </div>
+    );
+  }
+
+  renderSwarmHash (contract) {
+    if (!contract || !contract.metadata) {
+      return null;
+    }
+
+    const { bytecode } = contract;
+
+    // @see https://solidity.readthedocs.io/en/develop/miscellaneous.html#encoding-of-the-metadata-hash-in-the-bytecode
+    const hashRegex = /a165627a7a72305820([a-f0-9]{64})0029$/;
+
+    if (!hashRegex.test(bytecode)) {
+      return null;
+    }
+
+    const hash = hashRegex.exec(bytecode)[1];
+
+    return (
+      <Input
+        allowCopy
+        label='Swarm Metadata Hash'
+        readOnly
+        value={ `${hash}` }
+      />
     );
   }
 
@@ -478,25 +556,24 @@ class WriteContract extends Component {
 
     const x = pageX - left;
 
-    this.setState({ size: 100 * x / width });
+    this.size = 100 * x / width;
+    this.throttledResize();
+
     event.stopPropagation();
+  }
+
+  applyResize = () => {
+    this.setState({ size: this.size });
   }
 
 }
 
 function mapStateToProps (state) {
   const { accounts } = state.personal;
-  const { worker } = state.compiler;
-  return { accounts, worker };
-}
-
-function mapDispatchToProps (dispatch) {
-  return bindActionCreators({
-    setupWorker
-  }, dispatch);
+  const { worker, error } = state.worker;
+  return { accounts, worker, workerError: error };
 }
 
 export default connect(
-  mapStateToProps,
-  mapDispatchToProps
+  mapStateToProps
 )(WriteContract);

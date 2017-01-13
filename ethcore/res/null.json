@@ -1,7 +1,7 @@
 {
 	"name": "Morden",
 	"engine": {
-		"Null": null
+		"null": null
 	},
 	"params": {
 		"accountStartNonce": "0x0",

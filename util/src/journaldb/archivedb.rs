@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -25,10 +25,6 @@ use super::traits::JournalDB;
 use kvdb::{Database, DBTransaction};
 #[cfg(test)]
 use std::env;
-
-/// Suffix appended to auxiliary keys to distinguish them from normal keys.
-/// Would be nich to use rocksdb columns for this eventually.
-const AUX_FLAG: u8 = 255;
 
 /// Implementation of the `HashDB` trait for a disk-backed database with a memory overlay
 /// and latent-removal semantics.
@@ -108,26 +104,6 @@ impl HashDB for ArchiveDB {
 	fn remove(&mut self, key: &H256) {
 		self.overlay.remove(key);
 	}
-
-	fn insert_aux(&mut self, hash: Vec<u8>, value: Vec<u8>) {
-		self.overlay.insert_aux(hash, value);
-	}
-
-	fn get_aux(&self, hash: &[u8]) -> Option<DBValue> {
-		if let Some(res) = self.overlay.get_aux(hash) {
-			return Some(res)
-		}
-
-		let mut db_hash = hash.to_vec();
-		db_hash.push(AUX_FLAG);
-
-		self.backing.get(self.column, &db_hash)
-			.expect("Low-level database error. Some issue with your hard disk?")
-	}
-
-	fn remove_aux(&mut self, hash: &[u8]) {
-		self.overlay.remove_aux(hash);
-	}
 }
 
 impl JournalDB for ArchiveDB {
@@ -164,11 +140,6 @@ impl JournalDB for ArchiveDB {
 			}
 		}
 
-		for (mut key, value) in self.overlay.drain_aux() {
-			key.push(AUX_FLAG);
-			batch.put(self.column, &key, &value);
-		}
-
 		if self.latest_era.map_or(true, |e| now > e) {
 			batch.put(self.column, &LATEST_ERA_KEY, &encode(&now));
 			self.latest_era = Some(now);
@@ -188,7 +159,7 @@ impl JournalDB for ArchiveDB {
 		for i in self.overlay.drain() {
 			let (key, (value, rc)) = i;
 			if rc > 0 {
-				if try!(self.backing.get(self.column, &key)).is_some() {
+				if self.backing.get(self.column, &key)?.is_some() {
 					return Err(BaseDataError::AlreadyExists(key).into());
 				}
 				batch.put(self.column, &key, &value);
@@ -196,17 +167,12 @@ impl JournalDB for ArchiveDB {
 			}
 			if rc < 0 {
 				assert!(rc == -1);
-				if try!(self.backing.get(self.column, &key)).is_none() {
+				if self.backing.get(self.column, &key)?.is_none() {
 					return Err(BaseDataError::NegativelyReferencedHash(key).into());
 				}
 				batch.delete(self.column, &key);
 				deletes += 1;
 			}
-		}
-
-		for (mut key, value) in self.overlay.drain_aux() {
-			key.push(AUX_FLAG);
-			batch.put(self.column, &key, &value);
 		}
 
 		Ok((inserts + deletes) as u32)
@@ -235,8 +201,8 @@ mod tests {
 	#![cfg_attr(feature="dev", allow(similar_names))]
 
 	use common::*;
+	use hashdb::{HashDB, DBValue};
 	use super::*;
-	use hashdb::*;
 	use journaldb::traits::JournalDB;
 	use kvdb::Database;
 

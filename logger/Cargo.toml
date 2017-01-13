@@ -1,9 +1,9 @@
 [package]
 description = "Ethcore client."
 name = "ethcore-logger"
-version = "1.5.0"
+version = "1.6.0"
 license = "GPL-3.0"
-authors = ["Ethcore <admin@ethcore.io>"]
+authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
 log = "0.3"

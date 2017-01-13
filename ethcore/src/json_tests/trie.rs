@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -33,7 +33,7 @@ fn test_trie(json: &[u8], trie: TrieSpec) -> Vec<String> {
 			let key: Vec<u8> = key.into();
 			let value: Vec<u8> = value.map_or_else(Vec::new, Into::into);
 			t.insert(&key, &value)
-				.expect(&format!("Trie test '{:?}' failed due to internal error", name))
+				.expect(&format!("Trie test '{:?}' failed due to internal error", name));
 		}
 
 		if *t.root() != test.root.into() {

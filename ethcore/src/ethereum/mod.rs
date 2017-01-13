@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -28,6 +28,12 @@ pub use self::ethash::{Ethash};
 pub use self::denominations::*;
 
 use super::spec::*;
+
+/// Most recent fork block that we support on Mainnet.
+pub const FORK_SUPPORTED_FRONTIER: u64 = 2675000;
+
+/// Most recent fork block that we support on Ropsten.
+pub const FORK_SUPPORTED_ROPSTEN: u64 = 10;
 
 fn load(b: &[u8]) -> Spec {
 	Spec::load(b).expect("chain spec is invalid")
@@ -63,6 +69,9 @@ pub fn new_transition_test() -> Spec { load(include_bytes!("../../res/ethereum/t
 /// Create a new Frontier main net chain spec without genesis accounts.
 pub fn new_mainnet_like() -> Spec { load(include_bytes!("../../res/ethereum/frontier_like_test.json")) }
 
+/// Create a new Ropsten chain spec.
+pub fn new_ropsten() -> Spec { load(include_bytes!("../../res/ethereum/ropsten.json")) }
+
 /// Create a new Morden chain spec.
 pub fn new_morden() -> Spec { load(include_bytes!("../../res/ethereum/morden.json")) }
 
@@ -80,8 +89,7 @@ mod tests {
 		let engine = &spec.engine;
 		let genesis_header = spec.genesis_header();
 		let mut db_result = get_temp_state_db();
-		let mut db = db_result.take();
-		spec.ensure_db_good(&mut db).unwrap();
+		let db = spec.ensure_db_good(db_result.take(), &Default::default()).unwrap();
 		let s = State::from_existing(db, genesis_header.state_root().clone(), engine.account_start_nonce(), Default::default()).unwrap();
 		assert_eq!(s.balance(&"0000000000000000000000000000000000000001".into()), 1u64.into());
 		assert_eq!(s.balance(&"0000000000000000000000000000000000000002".into()), 1u64.into());

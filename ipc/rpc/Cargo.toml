@@ -1,7 +1,7 @@
 [package]
 name = "ethcore-ipc"
-version = "1.4.0"
-authors = ["Nikolay Volf <nikvolf@gmail.com>"]
+version = "1.6.0"
+authors = ["Parity Technologies <admin@parity.io>"]
 license = "GPL-3.0"
 
 [features]
@@ -10,4 +10,4 @@ license = "GPL-3.0"
 ethcore-devtools = { path = "../../devtools" }
 nanomsg = { git = "https://github.com/ethcore/nanomsg.rs.git" }
 ethcore-util = { path = "../../util" }
-semver = "0.2"
+semver = "0.5"

@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -14,137 +14,148 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
-import ContentClear from 'material-ui/svg-icons/content/clear';
-import ContentSave from 'material-ui/svg-icons/content/save';
+import { FormattedMessage } from 'react-intl';
+import { connect } from 'react-redux';
+import { bindActionCreators } from 'redux';
 
-import { Button, Form, Input, InputChip, Modal } from '../../ui';
-import { validateName } from '../../util/validation';
+import { newError } from '~/redux/actions';
+import { Button, Form, Input, InputChip, Modal } from '~/ui';
+import { CancelIcon, SaveIcon } from '~/ui/Icons';
 
-export default class EditMeta extends Component {
+import Store from './store';
+
+@observer
+class EditMeta extends Component {
   static contextTypes = {
-    api: PropTypes.object.isRequired,
-    store: PropTypes.object.isRequired
+    api: PropTypes.object.isRequired
   }
 
   static propTypes = {
-    keys: PropTypes.array.isRequired,
     account: PropTypes.object.isRequired,
+    newError: PropTypes.func.isRequired,
     onClose: PropTypes.func.isRequired
   }
 
-  state = {
-    meta: Object.assign({}, this.props.account.meta),
-    metaErrors: {},
-    name: this.props.account.name,
-    nameError: null
-  }
+  store = new Store(this.context.api, this.props.account);
 
   render () {
-    const { name, nameError } = this.state;
+    const { description, name, nameError, tags } = this.store;
 
     return (
       <Modal
-        visible
         actions={ this.renderActions() }
-        title='edit metadata'>
+        title={
+          <FormattedMessage
+            id='editMeta.title'
+            defaultMessage='edit metadata' />
+        }
+        visible>
         <Form>
           <Input
-            label='name'
-            value={ name }
             error={ nameError }
-            onSubmit={ this.onNameChange } />
-          { this.renderMetaFields() }
-          { this.renderTags() }
+            label={
+              <FormattedMessage
+                id='editMeta.name.label'
+                defaultMessage='name' />
+            }
+            onSubmit={ this.store.setName }
+            value={ name } />
+          <Input
+            hint={
+              <FormattedMessage
+                id='editMeta.description.hint'
+                defaultMessage='description for this address' />
+            }
+            label={
+              <FormattedMessage
+                id='editMeta.description.label'
+                defaultMessage='address description' />
+            }
+            value={ description }
+            onSubmit={ this.store.setDescription } />
+          { this.renderAccountFields() }
+          <InputChip
+            addOnBlur
+            hint={
+              <FormattedMessage
+                id='editMeta.tags.hint'
+                defaultMessage='press <Enter> to add a tag' />
+            }
+            label={
+              <FormattedMessage
+                id='editMeta.tags.label'
+                defaultMessage='(optional) tags' />
+            }
+            onTokensChange={ this.store.setTags }
+            tokens={ tags.slice() } />
         </Form>
       </Modal>
     );
   }
 
   renderActions () {
-    const { nameError } = this.state;
+    const { hasError } = this.store;
 
     return [
       <Button
         label='Cancel'
-        icon={ <ContentClear /> }
+        icon={ <CancelIcon /> }
         onClick={ this.props.onClose } />,
       <Button
-        disabled={ !!nameError }
+        disabled={ hasError }
         label='Save'
-        icon={ <ContentSave /> }
+        icon={ <SaveIcon /> }
         onClick={ this.onSave } />
     ];
   }
 
-  renderMetaFields () {
-    const { keys } = this.props;
-    const { meta } = this.state;
+  renderAccountFields () {
+    const { isAccount, passwordHint } = this.store;
 
-    return keys.map((key) => {
-      const onSubmit = (value) => this.onMetaChange(key, value);
-      const label = `(optional) ${key}`;
-      const hint = `the optional ${key} metadata`;
-
-      return (
-        <Input
-          key={ key }
-          label={ label }
-          hint={ hint }
-          value={ meta[key] || '' }
-          onSubmit={ onSubmit } />
-      );
-    });
-  }
-
-  renderTags () {
-    const { meta } = this.state;
+    if (!isAccount) {
+      return null;
+    }
 
     return (
-      <InputChip
-        tokens={ meta.tags || [] }
-        onTokensChange={ this.onTagsChange }
-        label='(optional) tags'
-        hint='press <Enter> to add a tag'
-        addOnBlur
-      />
+      <Input
+        hint={
+          <FormattedMessage
+            id='editMeta.passwordHint.hint'
+            defaultMessage='a hint to allow password recovery' />
+        }
+        label={
+          <FormattedMessage
+            id='editMeta.passwordHint.label'
+            defaultMessage='(optional) password hint' />
+        }
+        value={ passwordHint }
+        onSubmit={ this.store.setPasswordHint } />
     );
   }
 
-  onTagsChange = (newTags) => {
-    this.onMetaChange('tags', newTags);
-  }
-
-  onNameChange = (name) => {
-    this.setState(validateName(name));
-  }
-
-  onMetaChange = (key, value) => {
-    const { meta } = this.state;
-
-    this.setState({
-      meta: Object.assign(meta, { [key]: value })
-    });
-  }
-
   onSave = () => {
-    const { api, store } = this.context;
-    const { account } = this.props;
-    const { name, nameError, meta } = this.state;
-
-    if (nameError) {
+    if (this.store.hasError) {
       return;
     }
 
-    Promise
-      .all([
-        api.parity.setAccountName(account.address, name),
-        api.parity.setAccountMeta(account.address, Object.assign({}, account.meta, meta))
-      ])
+    return this.store
+      .save()
       .then(() => this.props.onClose())
       .catch((error) => {
-        console.error('onSave', error);
-        store.dispatch({ type: 'newError', error });
+        this.props.newError(error);
       });
   }
 }
+
+function mapDispatchToProps (dispatch) {
+  return bindActionCreators({
+    newError
+  }, dispatch);
+}
+
+export default connect(
+  null,
+  mapDispatchToProps
+)(EditMeta);

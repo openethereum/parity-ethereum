@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -16,9 +16,9 @@
 
 use hash::H256;
 use sha3::Hashable;
-use hashdb::{HashDB, DBValue};
+use hashdb::HashDB;
 use super::triedb::TrieDB;
-use super::{Trie, TrieItem, Recorder};
+use super::{Trie, TrieItem, TrieIterator, Query};
 
 /// A `Trie` implementation which hashes keys and uses a generic `HashDB` backing database.
 ///
@@ -34,7 +34,7 @@ impl<'db> SecTrieDB<'db> {
 	/// This guarantees the trie is built correctly.
 	/// Returns an error if root does not exist.
 	pub fn new(db: &'db HashDB, root: &'db H256) -> super::Result<Self> {
-		Ok(SecTrieDB { raw: try!(TrieDB::new(db, root)) })
+		Ok(SecTrieDB { raw: TrieDB::new(db, root)? })
 	}
 
 	/// Get a reference to the underlying raw `TrieDB` struct.
@@ -49,7 +49,7 @@ impl<'db> SecTrieDB<'db> {
 }
 
 impl<'db> Trie for SecTrieDB<'db> {
-	fn iter<'a>(&'a self) -> super::Result<Box<Iterator<Item = TrieItem> + 'a>> {
+	fn iter<'a>(&'a self) -> super::Result<Box<TrieIterator<Item = TrieItem> + 'a>> {
 		TrieDB::iter(&self.raw)
 	}
 
@@ -59,16 +59,17 @@ impl<'db> Trie for SecTrieDB<'db> {
 		self.raw.contains(&key.sha3())
 	}
 
-	fn get_recorded<'a, 'b, R: 'b>(&'a self, key: &'b [u8], rec: &'b mut R) -> super::Result<Option<DBValue>>
-		where 'a: 'b, R: Recorder
+	fn get_with<'a, 'key, Q: Query>(&'a self, key: &'key [u8], query: Q) -> super::Result<Option<Q::Item>>
+		where 'a: 'key
 	{
-		self.raw.get_recorded(&key.sha3(), rec)
+		self.raw.get_with(&key.sha3(), query)
 	}
 }
 
 #[test]
 fn trie_to_sectrie() {
 	use memorydb::MemoryDB;
+	use hashdb::DBValue;
 	use super::triedbmut::TrieDBMut;
 	use super::super::TrieMut;
 

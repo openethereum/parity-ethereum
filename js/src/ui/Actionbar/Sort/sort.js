@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -22,7 +22,7 @@ import MenuItem from 'material-ui/MenuItem';
 
 import SortIcon from 'material-ui/svg-icons/content/sort';
 
-import { Button } from '../../';
+import Button from '../../Button';
 
 import SortStore from './sortStore';
 import styles from './sort.css';

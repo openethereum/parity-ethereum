@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -14,39 +14,34 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import { isStage } from '../util/actions';
+
 const initialState = {
   pending: false,
-  name: '', type: '',
   result: null
 };
 
 export default (state = initialState, action) => {
-  if (action.type === 'lookup clear') {
-    return { ...state, result: null };
+  const { type } = action;
+
+  if (!/^(lookup|reverseLookup|ownerLookup)/.test(type)) {
+    return state;
   }
 
-  if (action.type === 'lookup start') {
-    return {
-      pending: true,
-      name: action.name, type: action.entry,
-      result: null
-    };
+  if (isStage('clear', action)) {
+    return { pending: state.pending, result: null };
   }
 
-  if (action.type === 'lookup error') {
-    return {
-      pending: false,
-      name: initialState.name, type: initialState.type,
-      result: null
-    };
+  if (isStage('start', action)) {
+    return { pending: true, result: null };
   }
 
-  if (action.type === 'lookup success') {
-    return {
-      pending: false,
-      name: initialState.name, type: initialState.type,
-      result: action.result
-    };
+  if (isStage('error', action)) {
+    return { pending: false, result: null };
+  }
+
+  if (isStage('success', action)) {
+    return { pending: false, result: action.result };
   }
 
   return state;

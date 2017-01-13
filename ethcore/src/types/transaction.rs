@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -16,7 +16,7 @@
 
 //! Transaction data structure.
 
-use std::ops::Deref;
+use std::ops::{Deref, DerefMut};
 use std::cell::*;
 use rlp::*;
 use util::sha3::Hashable;
@@ -27,7 +27,8 @@ use evm::Schedule;
 use header::BlockNumber;
 use ethjson;
 
-#[derive(Debug, Clone, PartialEq, Eq, Binary)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "ipc", binary)]
 /// Transaction action type.
 pub enum Action {
 	/// Create creates new contract.
@@ -47,14 +48,15 @@ impl Decodable for Action {
 		if rlp.is_empty() {
 			Ok(Action::Create)
 		} else {
-			Ok(Action::Call(try!(rlp.as_val())))
+			Ok(Action::Call(rlp.as_val()?))
 		}
 	}
 }
 
 /// A set of information describing an externally-originating message call
 /// or contract creation operation.
-#[derive(Default, Debug, Clone, PartialEq, Eq, Binary)]
+#[derive(Default, Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "ipc", binary)]
 pub struct Transaction {
 	/// Nonce.
 	pub nonce: U256,
@@ -72,8 +74,8 @@ pub struct Transaction {
 
 impl Transaction {
 	/// Append object with a without signature into RLP stream
-	pub fn rlp_append_unsigned_transaction(&self, s: &mut RlpStream, network_id: Option<u8>) {
-		s.begin_list(if let None = network_id { 6 } else { 9 });
+	pub fn rlp_append_unsigned_transaction(&self, s: &mut RlpStream, network_id: Option<u64>) {
+		s.begin_list(if network_id.is_none() { 6 } else { 9 });
 		s.append(&self.nonce);
 		s.append(&self.gas_price);
 		s.append(&self.gas);
@@ -100,6 +102,7 @@ impl HeapSizeOf for Transaction {
 impl From<ethjson::state::Transaction> for SignedTransaction {
 	fn from(t: ethjson::state::Transaction) -> Self {
 		let to: Option<ethjson::hash::Address> = t.to.into();
+		let secret = Secret::from_slice(&t.secret.0).expect("Valid secret expected.");
 		Transaction {
 			nonce: t.nonce.into(),
 			gas_price: t.gas_price.into(),
@@ -110,7 +113,7 @@ impl From<ethjson::state::Transaction> for SignedTransaction {
 			},
 			value: t.value.into(),
 			data: t.data.into(),
-		}.sign(&t.secret.into(), None)
+		}.sign(&secret, None)
 	}
 }
 
@@ -140,26 +143,26 @@ impl From<ethjson::transaction::Transaction> for SignedTransaction {
 
 impl Transaction {
 	/// The message hash of the transaction.
-	pub fn hash(&self, network_id: Option<u8>) -> H256 {
+	pub fn hash(&self, network_id: Option<u64>) -> H256 {
 		let mut stream = RlpStream::new();
 		self.rlp_append_unsigned_transaction(&mut stream, network_id);
 		stream.out().sha3()
 	}
 
 	/// Signs the transaction as coming from `sender`.
-	pub fn sign(self, secret: &Secret, network_id: Option<u8>) -> SignedTransaction {
+	pub fn sign(self, secret: &Secret, network_id: Option<u64>) -> SignedTransaction {
 		let sig = ::ethkey::sign(secret, &self.hash(network_id))
 			.expect("data is valid and context has signing capabilities; qed");
 		self.with_signature(sig, network_id)
 	}
 
 	/// Signs the transaction with signature.
-	pub fn with_signature(self, sig: Signature, network_id: Option<u8>) -> SignedTransaction {
+	pub fn with_signature(self, sig: Signature, network_id: Option<u64>) -> SignedTransaction {
 		SignedTransaction {
 			unsigned: self,
 			r: sig.r().into(),
 			s: sig.s().into(),
-			v: sig.v() + if let Some(n) = network_id { 35 + n * 2 } else { 27 },
+			v: sig.v() as u64 + if let Some(n) = network_id { 35 + n * 2 } else { 27 },
 			hash: Cell::new(None),
 			sender: Cell::new(None),
 		}
@@ -205,13 +208,14 @@ impl Transaction {
 }
 
 /// Signed transaction information.
-#[derive(Debug, Clone, Eq, Binary)]
+#[derive(Debug, Clone, Eq)]
+#[cfg_attr(feature = "ipc", binary)]
 pub struct SignedTransaction {
 	/// Plain Transaction.
 	unsigned: Transaction,
 	/// The V field of the signature; the LS bit described which half of the curve our point falls
-	/// in. The MS bits describe which network this transaction is for. If 27/28, its for all networks.  
-	v: u8,
+	/// in. The MS bits describe which network this transaction is for. If 27/28, its for all networks.
+	v: u64,
 	/// The R field of the signature; helps describe the point on the curve.
 	r: U256,
 	/// The S field of the signature; helps describe the point on the curve.
@@ -236,6 +240,12 @@ impl Deref for SignedTransaction {
 	}
 }
 
+impl DerefMut for SignedTransaction {
+	fn deref_mut(&mut self) -> &mut Self::Target {
+		&mut self.unsigned
+	}
+}
+
 impl Decodable for SignedTransaction {
 	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
 		let d = decoder.as_rlp();
@@ -244,16 +254,16 @@ impl Decodable for SignedTransaction {
 		}
 		Ok(SignedTransaction {
 			unsigned: Transaction {
-				nonce: try!(d.val_at(0)),
-				gas_price: try!(d.val_at(1)),
-				gas: try!(d.val_at(2)),
-				action: try!(d.val_at(3)),
-				value: try!(d.val_at(4)),
-				data: try!(d.val_at(5)),
+				nonce: d.val_at(0)?,
+				gas_price: d.val_at(1)?,
+				gas: d.val_at(2)?,
+				action: d.val_at(3)?,
+				value: d.val_at(4)?,
+				data: d.val_at(5)?,
 			},
-			v: try!(d.val_at(6)),
-			r: try!(d.val_at(7)),
-			s: try!(d.val_at(8)),
+			v: d.val_at(6)?,
+			r: d.val_at(7)?,
+			s: d.val_at(8)?,
 			hash: Cell::new(None),
 			sender: Cell::new(None),
 		})
@@ -302,10 +312,13 @@ impl SignedTransaction {
 	}
 
 	/// 0 if `v` would have been 27 under "Electrum" notation, 1 if 28 or 4 if invalid.
-	pub fn standard_v(&self) -> u8 { match self.v { v if v == 27 || v == 28 || v > 36 => (v - 1) % 2, _ => 4 } }
+	pub fn standard_v(&self) -> u8 { match self.v { v if v == 27 || v == 28 || v > 36 => ((v - 1) % 2) as u8, _ => 4 } }
 
-	/// The network ID, or `None` if this is a global transaction. 
-	pub fn network_id(&self) -> Option<u8> {
+	/// The `v` value that appears in the RLP.
+	pub fn original_v(&self) -> u64 { self.v }
+
+	/// The network ID, or `None` if this is a global transaction.
+	pub fn network_id(&self) -> Option<u64> {
 		match self.v {
 			v if v > 36 => Some((v - 35) / 2),
 			_ => None,
@@ -332,7 +345,7 @@ impl SignedTransaction {
 		match sender {
 			Some(s) => Ok(s),
 			None => {
-				let s = public_to_address(&try!(self.public_key()));
+				let s = public_to_address(&self.public_key()?);
 				self.sender.set(Some(s));
 				Ok(s)
 			}
@@ -341,7 +354,7 @@ impl SignedTransaction {
 
 	/// Returns the public key of the sender.
 	pub fn public_key(&self) -> Result<Public, Error> {
-		Ok(try!(recover(&self.signature(), &self.unsigned.hash(self.network_id()))))
+		Ok(recover(&self.signature(), &self.unsigned.hash(self.network_id()))?)
 	}
 
 	/// Do basic validation, checking for valid signature and minimum gas,
@@ -357,7 +370,7 @@ impl SignedTransaction {
 			Some(1) if allow_network_id_of_one => {},
 			_ => return Err(TransactionError::InvalidNetworkId.into()),
 		}
-		try!(self.sender());
+		self.sender()?;
 		if self.gas < U256::from(self.gas_required(&schedule)) {
 			Err(TransactionError::InvalidGasLimit(::util::OutOfBounds{min: Some(U256::from(self.gas_required(&schedule))), max: None, found: self.gas}).into())
 		} else {
@@ -367,7 +380,8 @@ impl SignedTransaction {
 }
 
 /// Signed Transaction that is a part of canon blockchain.
-#[derive(Debug, PartialEq, Eq, Binary)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "ipc", binary)]
 pub struct LocalizedTransaction {
 	/// Signed part.
 	pub signed: SignedTransaction,
@@ -384,6 +398,35 @@ impl Deref for LocalizedTransaction {
 
 	fn deref(&self) -> &Self::Target {
 		&self.signed
+	}
+}
+
+/// Queued transaction with additional information.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "ipc", binary)]
+pub struct PendingTransaction {
+	/// Signed transaction data.
+	pub transaction: SignedTransaction,
+	/// To be activated at this block. `None` for immediately.
+	pub min_block: Option<BlockNumber>,
+}
+
+impl PendingTransaction {
+	/// Create a new pending transaction from signed transaction.
+	pub fn new(signed: SignedTransaction, min_block: Option<BlockNumber>) -> Self {
+		PendingTransaction {
+			transaction: signed,
+			min_block: min_block,
+		}
+	}
+}
+
+impl From<SignedTransaction> for PendingTransaction {
+	fn from(t: SignedTransaction) -> Self {
+		PendingTransaction {
+			transaction: t,
+			min_block: None,
+		}
 	}
 }
 
@@ -461,17 +504,17 @@ fn should_agree_with_vitalik() {
 		let signed: SignedTransaction = decode(&FromHex::from_hex(tx_data).unwrap());
 		signed.check_low_s().unwrap();
 		assert_eq!(signed.sender().unwrap(), address.into());
-		flushln!("networkid: {:?}", signed.network_id()); 
+		flushln!("networkid: {:?}", signed.network_id());
 	};
 
-	test_vector("f864808504a817c800825208943535353535353535353535353535353535353535808025a0044852b2a670ade5407e78fb2863c51de9fcb96542a07186fe3aeda6bb8a116da0044852b2a670ade5407e78fb2863c51de9fcb96542a07186fe3aeda6bb8a116d", "0xf0f6f18bca1b28cd68e4357452947e021241e9ce")
-	test_vector("f864018504a817c80182a410943535353535353535353535353535353535353535018025a0489efdaa54c0f20c7adf612882df0950f5a951637e0307cdcb4c672f298b8bcaa0489efdaa54c0f20c7adf612882df0950f5a951637e0307cdcb4c672f298b8bc6", "0x23ef145a395ea3fa3deb533b8a9e1b4c6c25d112")
-	test_vector("f864028504a817c80282f618943535353535353535353535353535353535353535088025a02d7c5bef027816a800da1736444fb58a807ef4c9603b7848673f7e3a68eb14a5a02d7c5bef027816a800da1736444fb58a807ef4c9603b7848673f7e3a68eb14a5", "0x2e485e0c23b4c3c542628a5f672eeab0ad4888be")
-	test_vector("f865038504a817c803830148209435353535353535353535353535353535353535351b8025a02a80e1ef1d7842f27f2e6be0972bb708b9a135c38860dbe73c27c3486c34f4e0a02a80e1ef1d7842f27f2e6be0972bb708b9a135c38860dbe73c27c3486c34f4de", "0x82a88539669a3fd524d669e858935de5e5410cf0")
-	test_vector("f865048504a817c80483019a28943535353535353535353535353535353535353535408025a013600b294191fc92924bb3ce4b969c1e7e2bab8f4c93c3fc6d0a51733df3c063a013600b294191fc92924bb3ce4b969c1e7e2bab8f4c93c3fc6d0a51733df3c060", "0xf9358f2538fd5ccfeb848b64a96b743fcc930554")
-	test_vector("f865058504a817c8058301ec309435353535353535353535353535353535353535357d8025a04eebf77a833b30520287ddd9478ff51abbdffa30aa90a8d655dba0e8a79ce0c1a04eebf77a833b30520287ddd9478ff51abbdffa30aa90a8d655dba0e8a79ce0c1", "0xa8f7aba377317440bc5b26198a363ad22af1f3a4")
-	test_vector("f866068504a817c80683023e3894353535353535353535353535353535353535353581d88025a06455bf8ea6e7463a1046a0b52804526e119b4bf5136279614e0b1e8e296a4e2fa06455bf8ea6e7463a1046a0b52804526e119b4bf5136279614e0b1e8e296a4e2d", "0xf1f571dc362a0e5b2696b8e775f8491d3e50de35")
-	test_vector("f867078504a817c807830290409435353535353535353535353535353535353535358201578025a052f1a9b320cab38e5da8a8f97989383aab0a49165fc91c737310e4f7e9821021a052f1a9b320cab38e5da8a8f97989383aab0a49165fc91c737310e4f7e9821021", "0xd37922162ab7cea97c97a87551ed02c9a38b7332")
-	test_vector("f867088504a817c8088302e2489435353535353535353535353535353535353535358202008025a064b1702d9298fee62dfeccc57d322a463ad55ca201256d01f62b45b2e1c21c12a064b1702d9298fee62dfeccc57d322a463ad55ca201256d01f62b45b2e1c21c10", "0x9bddad43f934d313c2b79ca28a432dd2b7281029")
-	test_vector("f867098504a817c809830334509435353535353535353535353535353535353535358202d98025a052f8f61201b2b11a78d6e866abc9c3db2ae8631fa656bfe5cb53668255367afba052f8f61201b2b11a78d6e866abc9c3db2ae8631fa656bfe5cb53668255367afb", "0x3c24d7329e92f84f08556ceb6df1cdb0104ca49f")
+	test_vector("f864808504a817c800825208943535353535353535353535353535353535353535808025a0044852b2a670ade5407e78fb2863c51de9fcb96542a07186fe3aeda6bb8a116da0044852b2a670ade5407e78fb2863c51de9fcb96542a07186fe3aeda6bb8a116d", "0xf0f6f18bca1b28cd68e4357452947e021241e9ce");
+	test_vector("f864018504a817c80182a410943535353535353535353535353535353535353535018025a0489efdaa54c0f20c7adf612882df0950f5a951637e0307cdcb4c672f298b8bcaa0489efdaa54c0f20c7adf612882df0950f5a951637e0307cdcb4c672f298b8bc6", "0x23ef145a395ea3fa3deb533b8a9e1b4c6c25d112");
+	test_vector("f864028504a817c80282f618943535353535353535353535353535353535353535088025a02d7c5bef027816a800da1736444fb58a807ef4c9603b7848673f7e3a68eb14a5a02d7c5bef027816a800da1736444fb58a807ef4c9603b7848673f7e3a68eb14a5", "0x2e485e0c23b4c3c542628a5f672eeab0ad4888be");
+	test_vector("f865038504a817c803830148209435353535353535353535353535353535353535351b8025a02a80e1ef1d7842f27f2e6be0972bb708b9a135c38860dbe73c27c3486c34f4e0a02a80e1ef1d7842f27f2e6be0972bb708b9a135c38860dbe73c27c3486c34f4de", "0x82a88539669a3fd524d669e858935de5e5410cf0");
+	test_vector("f865048504a817c80483019a28943535353535353535353535353535353535353535408025a013600b294191fc92924bb3ce4b969c1e7e2bab8f4c93c3fc6d0a51733df3c063a013600b294191fc92924bb3ce4b969c1e7e2bab8f4c93c3fc6d0a51733df3c060", "0xf9358f2538fd5ccfeb848b64a96b743fcc930554");
+	test_vector("f865058504a817c8058301ec309435353535353535353535353535353535353535357d8025a04eebf77a833b30520287ddd9478ff51abbdffa30aa90a8d655dba0e8a79ce0c1a04eebf77a833b30520287ddd9478ff51abbdffa30aa90a8d655dba0e8a79ce0c1", "0xa8f7aba377317440bc5b26198a363ad22af1f3a4");
+	test_vector("f866068504a817c80683023e3894353535353535353535353535353535353535353581d88025a06455bf8ea6e7463a1046a0b52804526e119b4bf5136279614e0b1e8e296a4e2fa06455bf8ea6e7463a1046a0b52804526e119b4bf5136279614e0b1e8e296a4e2d", "0xf1f571dc362a0e5b2696b8e775f8491d3e50de35");
+	test_vector("f867078504a817c807830290409435353535353535353535353535353535353535358201578025a052f1a9b320cab38e5da8a8f97989383aab0a49165fc91c737310e4f7e9821021a052f1a9b320cab38e5da8a8f97989383aab0a49165fc91c737310e4f7e9821021", "0xd37922162ab7cea97c97a87551ed02c9a38b7332");
+	test_vector("f867088504a817c8088302e2489435353535353535353535353535353535353535358202008025a064b1702d9298fee62dfeccc57d322a463ad55ca201256d01f62b45b2e1c21c12a064b1702d9298fee62dfeccc57d322a463ad55ca201256d01f62b45b2e1c21c10", "0x9bddad43f934d313c2b79ca28a432dd2b7281029");
+	test_vector("f867098504a817c809830334509435353535353535353535353535353535353535358202d98025a052f8f61201b2b11a78d6e866abc9c3db2ae8631fa656bfe5cb53668255367afba052f8f61201b2b11a78d6e866abc9c3db2ae8631fa656bfe5cb53668255367afb", "0x3c24d7329e92f84f08556ceb6df1cdb0104ca49f");
 }

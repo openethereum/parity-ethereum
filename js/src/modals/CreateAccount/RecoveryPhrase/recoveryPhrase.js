@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -15,12 +15,13 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import { Checkbox } from 'material-ui';
 
-import { Form, Input } from '../../../ui';
+import { Form, Input } from '~/ui';
 
 import styles from '../createAccount.css';
 
-import { ERRORS } from '../NewAccount';
+import ERRORS from '../errors';
 
 export default class RecoveryPhrase extends Component {
   static propTypes = {
@@ -28,18 +29,19 @@ export default class RecoveryPhrase extends Component {
   }
 
   state = {
-    recoveryPhrase: '',
-    recoveryPhraseError: ERRORS.noPhrase,
     accountName: '',
     accountNameError: ERRORS.noName,
+    isValidPass: true,
+    isValidName: false,
+    isValidPhrase: true,
     passwordHint: '',
     password1: '',
-    password1Error: ERRORS.invalidPassword,
+    password1Error: null,
     password2: '',
-    password2Error: ERRORS.noMatchPassword,
-    isValidPass: false,
-    isValidName: false,
-    isValidPhrase: false
+    password2Error: null,
+    recoveryPhrase: '',
+    recoveryPhraseError: null,
+    windowsPhrase: false
   }
 
   componentWillMount () {
@@ -47,15 +49,13 @@ export default class RecoveryPhrase extends Component {
   }
 
   render () {
-    const { accountName, accountNameError, passwordHint, password1, password1Error, password2, password2Error, recoveryPhrase } = this.state;
+    const { accountName, accountNameError, passwordHint, password1, password1Error, password2, password2Error, recoveryPhrase, windowsPhrase } = this.state;
 
     return (
       <Form>
         <Input
           hint='the account recovery phrase'
           label='account recovery phrase'
-          multiLine
-          rows={ 1 }
           value={ recoveryPhrase }
           onChange={ this.onEditPhrase } />
         <Input
@@ -88,20 +88,26 @@ export default class RecoveryPhrase extends Component {
               value={ password2 }
               onChange={ this.onEditPassword2 } />
           </div>
+          <Checkbox
+            className={ styles.checkbox }
+            label='Key was created with Parity <1.4.5 on Windows'
+            checked={ windowsPhrase }
+            onCheck={ this.onToggleWindowsPhrase } />
         </div>
       </Form>
     );
   }
 
   updateParent = () => {
-    const { isValidName, isValidPass, isValidPhrase, accountName, passwordHint, password1, recoveryPhrase } = this.state;
+    const { accountName, isValidName, isValidPass, isValidPhrase, password1, passwordHint, recoveryPhrase, windowsPhrase } = this.state;
     const isValid = isValidName && isValidPass && isValidPhrase;
 
     this.props.onChange(isValid, {
       name: accountName,
-      passwordHint,
       password: password1,
-      phrase: recoveryPhrase
+      passwordHint,
+      phrase: recoveryPhrase,
+      windowsPhrase
     });
   }
 
@@ -111,69 +117,74 @@ export default class RecoveryPhrase extends Component {
     });
   }
 
-  onEditPhrase = (event) => {
-    const value = event.target.value;
-    let error = null;
+  onToggleWindowsPhrase = (event) => {
+    this.setState({
+      windowsPhrase: !this.state.windowsPhrase
+    }, this.updateParent);
+  }
 
-    if (!value || value.trim().length < 25) {
-      error = ERRORS.noPhrase;
-    }
+  onEditPhrase = (event) => {
+    const recoveryPhrase = event.target.value
+      .toLowerCase() // wordlists are lowercase
+      .trim() // remove whitespace at both ends
+      .replace(/\s/g, ' ') // replace any whitespace with single space
+      .replace(/ +/g, ' '); // replace multiple spaces with a single space
+
+    const phraseParts = recoveryPhrase
+      .split(' ')
+      .map((part) => part.trim())
+      .filter((part) => part.length);
 
     this.setState({
-      recoveryPhrase: value,
-      recoveryPhraseError: error,
-      isValidPhrase: !error
+      recoveryPhrase: phraseParts.join(' '),
+      recoveryPhraseError: null,
+      isValidPhrase: true
     }, this.updateParent);
   }
 
   onEditAccountName = (event) => {
-    const value = event.target.value;
-    let error = null;
+    const accountName = event.target.value;
+    let accountNameError = null;
 
-    if (!value || value.trim().length < 2) {
-      error = ERRORS.noName;
+    if (!accountName || !accountName.trim().length) {
+      accountNameError = ERRORS.noName;
     }
 
     this.setState({
-      accountName: value,
-      accountNameError: error,
-      isValidName: !error
+      accountName,
+      accountNameError,
+      isValidName: !accountNameError
     }, this.updateParent);
   }
 
   onEditPassword1 = (event) => {
-    const value = event.target.value;
-    let error1 = null;
-    let error2 = null;
+    const password1 = event.target.value;
+    let password2Error = null;
 
-    if (!value || value.trim().length < 8) {
-      error1 = ERRORS.invalidPassword;
-    }
-
-    if (value !== this.state.password2) {
-      error2 = ERRORS.noMatchPassword;
+    if (password1 !== this.state.password2) {
+      password2Error = ERRORS.noMatchPassword;
     }
 
     this.setState({
-      password1: value,
-      password1Error: error1,
-      password2Error: error2,
-      isValidPass: !error1 && !error2
+      password1,
+      password1Error: null,
+      password2Error,
+      isValidPass: !password2Error
     }, this.updateParent);
   }
 
   onEditPassword2 = (event) => {
-    const value = event.target.value;
-    let error2 = null;
+    const password2 = event.target.value;
+    let password2Error = null;
 
-    if (value !== this.state.password1) {
-      error2 = ERRORS.noMatchPassword;
+    if (password2 !== this.state.password1) {
+      password2Error = ERRORS.noMatchPassword;
     }
 
     this.setState({
-      password2: value,
-      password2Error: error2,
-      isValidPass: !error2
+      password2,
+      password2Error,
+      isValidPass: !password2Error
     }, this.updateParent);
   }
 }

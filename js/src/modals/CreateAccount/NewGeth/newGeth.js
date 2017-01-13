@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -17,7 +17,7 @@
 import React, { Component, PropTypes } from 'react';
 import { Checkbox } from 'material-ui';
 
-import { IdentityIcon } from '../../../ui';
+import { IdentityIcon } from '~/ui';
 
 import styles from './newGeth.css';
 
@@ -47,6 +47,7 @@ export default class NewGeth extends Component {
         <div className={ styles.list }>There are currently no importable keys available from the Geth keystore, which are not already available on your Parity instance</div>
       );
     }
+
     const checkboxes = available.map((account) => {
       const label = (
         <div className={ styles.selection }>

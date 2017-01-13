@@ -2,7 +2,7 @@
 name = "evm"
 description = "Parity's EVM implementation"
 version = "0.1.0"
-authors = ["Ethcore <admin@ethcore.io>"]
+authors = ["Parity Technologies <admin@parity.io>"]
 
 [lib]
 name = "evm"

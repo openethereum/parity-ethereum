@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -18,9 +18,11 @@
 
 use util::{U256, H256};
 use header::BlockNumber;
+use types::security_level::SecurityLevel;
 
 /// Information about the blockchain gathered together.
-#[derive(Clone, Debug, Binary)]
+#[derive(Clone, Debug)]
+#[cfg_attr(feature = "ipc", binary)]
 pub struct BlockChainInfo {
 	/// Blockchain difficulty.
 	pub total_difficulty: U256,
@@ -40,4 +42,16 @@ pub struct BlockChainInfo {
 	pub first_block_hash: Option<H256>,
 	/// Number of the first block on the best sequence.
 	pub first_block_number: Option<BlockNumber>,
+}
+
+impl BlockChainInfo {
+	/// Determine the security model for the current state.
+	pub fn security_level(&self) -> SecurityLevel {
+		// TODO: Detect SecurityLevel::FullState : https://github.com/ethcore/parity/issues/3834
+		if self.ancient_block_number.is_none() || self.first_block_number.is_none() {
+			SecurityLevel::FullProofOfWork
+		} else {
+			SecurityLevel::PartialProofOfWork(self.best_block_number - self.first_block_number.expect("Guard condition means this is not none"))
+		}
+	}
 }

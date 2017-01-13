@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -73,7 +73,9 @@ export default class InputText extends Component {
   }
 
   renderLoading () {
-    if (!this.state.loading) return;
+    if (!this.state.loading) {
+      return;
+    }
 
     return (
       <div className={ styles['input-loading'] }>
@@ -83,7 +85,9 @@ export default class InputText extends Component {
   }
 
   renderIsValid () {
-    if (this.state.loading || !this.state.valid) return;
+    if (this.state.loading || !this.state.valid) {
+      return;
+    }
 
     return (
       <div className={ styles['input-icon'] }>
@@ -120,8 +124,13 @@ export default class InputText extends Component {
   }
 
   onKeyDown = (event) => {
-    if (!this.props.onEnter) return;
-    if (event.keyCode !== 13) return;
+    if (!this.props.onEnter) {
+      return;
+    }
+
+    if (event.keyCode !== 13) {
+      return;
+    }
 
     this.props.onEnter();
   }

@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -19,14 +19,16 @@ use std::sync::Arc;
 use std::net::SocketAddr;
 use std::io;
 use io::PanicHandler;
-use ethcore_rpc::{RpcServerError, RpcServer as Server};
-use jsonipc;
+
+use dir::default_data_path;
+use ethcore_rpc::{self as rpc, RpcServerError, IpcServerError, Metadata};
+use helpers::parity_ipc_path;
+use jsonrpc_core::MetaIoHandler;
+use jsonrpc_core::reactor::{RpcHandler, Remote};
 use rpc_apis;
 use rpc_apis::ApiSet;
-use helpers::parity_ipc_path;
 
-pub use jsonipc::Server as IpcServer;
-pub use ethcore_rpc::Server as HttpServer;
+pub use ethcore_rpc::{IpcServer, Server as HttpServer};
 
 #[derive(Debug, PartialEq)]
 pub struct HttpConfiguration {
@@ -60,9 +62,10 @@ pub struct IpcConfiguration {
 
 impl Default for IpcConfiguration {
 	fn default() -> Self {
+		let data_dir = default_data_path();
 		IpcConfiguration {
 			enabled: true,
-			socket_addr: parity_ipc_path("$HOME/.parity/jsonrpc.ipc"),
+			socket_addr: parity_ipc_path(&data_dir, "$BASE/jsonrpc.ipc"),
 			apis: ApiSet::IpcContext,
 		}
 	}
@@ -81,6 +84,7 @@ impl fmt::Display for IpcConfiguration {
 pub struct Dependencies {
 	pub panic_handler: Arc<PanicHandler>,
 	pub apis: Arc<rpc_apis::Dependencies>,
+	pub remote: Remote,
 }
 
 pub fn new_http(conf: HttpConfiguration, deps: &Dependencies) -> Result<Option<HttpServer>, String> {
@@ -89,13 +93,12 @@ pub fn new_http(conf: HttpConfiguration, deps: &Dependencies) -> Result<Option<H
 	}
 
 	let url = format!("{}:{}", conf.interface, conf.port);
-	let addr = try!(url.parse().map_err(|_| format!("Invalid JSONRPC listen host/port given: {}", url)));
-	Ok(Some(try!(setup_http_rpc_server(deps, &addr, conf.cors, conf.hosts, conf.apis))))
+	let addr = url.parse().map_err(|_| format!("Invalid JSONRPC listen host/port given: {}", url))?;
+	Ok(Some(setup_http_rpc_server(deps, &addr, conf.cors, conf.hosts, conf.apis)?))
 }
 
-fn setup_rpc_server(apis: ApiSet, deps: &Dependencies) -> Result<Server, String> {
-	let server = Server::new();
-	Ok(rpc_apis::setup_rpc(server, deps.apis.clone(), apis))
+fn setup_apis(apis: ApiSet, deps: &Dependencies) -> MetaIoHandler<Metadata> {
+	rpc_apis::setup_rpc(MetaIoHandler::default(), deps.apis.clone(), apis)
 }
 
 pub fn setup_http_rpc_server(
@@ -105,9 +108,10 @@ pub fn setup_http_rpc_server(
 	allowed_hosts: Option<Vec<String>>,
 	apis: ApiSet
 ) -> Result<HttpServer, String> {
-	let server = try!(setup_rpc_server(apis, dependencies));
+	let apis = setup_apis(apis, dependencies);
+	let handler = RpcHandler::new(Arc::new(apis), dependencies.remote.clone());
 	let ph = dependencies.panic_handler.clone();
-	let start_result = server.start_http(url, cors_domains, allowed_hosts, ph);
+	let start_result = rpc::start_http(url, cors_domains, allowed_hosts, ph, handler);
 	match start_result {
 		Err(RpcServerError::IoError(err)) => match err.kind() {
 			io::ErrorKind::AddrInUse => Err(format!("RPC address {} is already in use, make sure that another instance of an Ethereum client is not running or change the address using the --jsonrpc-port and --jsonrpc-interface options.", url)),
@@ -118,15 +122,16 @@ pub fn setup_http_rpc_server(
 	}
 }
 
-pub fn new_ipc(conf: IpcConfiguration, deps: &Dependencies) -> Result<Option<IpcServer>, String> {
+pub fn new_ipc(conf: IpcConfiguration, deps: &Dependencies) -> Result<Option<IpcServer<Metadata>>, String> {
 	if !conf.enabled { return Ok(None); }
-	Ok(Some(try!(setup_ipc_rpc_server(deps, &conf.socket_addr, conf.apis))))
+	Ok(Some(setup_ipc_rpc_server(deps, &conf.socket_addr, conf.apis)?))
 }
 
-pub fn setup_ipc_rpc_server(dependencies: &Dependencies, addr: &str, apis: ApiSet) -> Result<IpcServer, String> {
-	let server = try!(setup_rpc_server(apis, dependencies));
-	match server.start_ipc(addr) {
-		Err(jsonipc::Error::Io(io_error)) => Err(format!("RPC io error: {}", io_error)),
+pub fn setup_ipc_rpc_server(dependencies: &Dependencies, addr: &str, apis: ApiSet) -> Result<IpcServer<Metadata>, String> {
+	let apis = setup_apis(apis, dependencies);
+	let handler = RpcHandler::new(Arc::new(apis), dependencies.remote.clone());
+	match rpc::start_ipc(addr, handler) {
+		Err(IpcServerError::Io(io_error)) => Err(format!("RPC io error: {}", io_error)),
 		Err(any_error) => Err(format!("Rpc error: {:?}", any_error)),
 		Ok(server) => Ok(server)
 	}

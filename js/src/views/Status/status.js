@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -16,22 +16,16 @@
 
 import React, { Component } from 'react';
 
-import { Actionbar, Page } from '../../ui';
+import { Page } from '~/ui';
 
 import StatusPage from './containers/StatusPage';
-
-import styles from './status.css';
 
 export default class Status extends Component {
   render () {
     return (
-      <div className={ styles.container }>
-        <Actionbar
-          title='status' />
-        <Page>
-          <StatusPage />
-        </Page>
-      </div>
+      <Page title='status'>
+        <StatusPage />
+      </Page>
     );
   }
 }

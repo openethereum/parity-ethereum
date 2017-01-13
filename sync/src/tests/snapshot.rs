@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -129,7 +129,7 @@ fn snapshot_sync() {
 	let snapshot_service = Arc::new(TestSnapshotService::new_with_snapshot(16, H256::new(), 500000));
 	for i in 0..4 {
 		net.peer_mut(i).snapshot_service = snapshot_service.clone();
-		net.peer_mut(i).chain.add_blocks(1, EachBlockWith::Nothing);
+		net.peer(i).chain.add_blocks(1, EachBlockWith::Nothing);
 	}
 	net.sync_steps(50);
 	assert_eq!(net.peer(4).snapshot_service.state_restoration_chunks.lock().len(), net.peer(0).snapshot_service.manifest.as_ref().unwrap().state_hashes.len());

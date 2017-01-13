@@ -1,0 +1,116 @@
+/* Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+/* This file is part of Parity.
+/*
+/* Parity is free software: you can redistribute it and/or modify
+/* it under the terms of the GNU General Public License as published by
+/* the Free Software Foundation, either version 3 of the License, or
+/* (at your option) any later version.
+/*
+/* Parity is distributed in the hope that it will be useful,
+/* but WITHOUT ANY WARRANTY; without even the implied warranty of
+/* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+/* GNU General Public License for more details.
+/*
+/* You should have received a copy of the GNU General Public License
+/* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
+.modal {
+  .body {
+    bottom: 0;
+    left: 0;
+    position: fixed;
+    right: 0;
+    top: 0;
+    text-align: center;
+    z-index: 50;
+
+    .dialog {
+      background: #fff;
+      border-radius: 0 0 0.25em 0.25em;
+      margin: 0 auto;
+      max-width: 840px;
+      text-align: left;
+
+      .content {
+        line-height: 1.5em;
+        padding: 2em;
+        text-align: center;
+
+        .section {
+          margin: 0;
+          padding: 0;
+
+          &.error {
+            color: #f44;
+          }
+        }
+
+        .section+.section {
+          margin-top: 1em;
+        }
+      }
+
+      .footer {
+        padding: 0.5em 1.625em;
+        text-align: right;
+      }
+
+      .header {
+        background: #44e;
+        color: #fff;
+        opacity: 0.85;
+        padding: 1em;
+
+        &.error {
+          background: #e44;
+        }
+      }
+    }
+  }
+
+  .overlay {
+    background: rgba(204, 204, 204, 0.7);
+    bottom: 0;
+    left: 0;
+    position: fixed;
+    right: 0;
+    top: 0;
+    z-index: 49;
+  }
+}
+
+.account {
+  div {
+    display: inline-block;
+    vertical-align: top;
+  }
+
+  img {
+    border-radius: 50%;
+    margin-right: 0.5em;
+  }
+}
+
+.hint {
+  display: block !important;
+  color: #888;
+  font-size: 0.75em;
+  margin-top: -0.5em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.center {
+  text-align: center;
+}
+
+.heading {
+  color: #888;
+  font-size: 0.75em;
+}
+
+.light {
+  color: #888;
+}

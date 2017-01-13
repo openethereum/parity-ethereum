@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -34,6 +34,8 @@ use blockchain::update::ExtrasUpdate;
 use blockchain::{CacheSize, ImportRoute, Config};
 use db::{self, Writable, Readable, CacheUpdatePolicy};
 use cache_manager::CacheManager;
+use engines::Engine;
+use encoded;
 
 const LOG_BLOOMS_LEVELS: usize = 3;
 const LOG_BLOOMS_ELEMENTS_PER_INDEX: usize = 16;
@@ -63,7 +65,7 @@ pub trait BlockProvider {
 		self.best_ancient_block().map(|h| self.block_number(&h).expect("Ancient block is always set to an existing block or `None`. Existing block always has a number; qed"))
 	}
 	/// Get raw block data
-	fn block(&self, hash: &H256) -> Option<Bytes>;
+	fn block(&self, hash: &H256) -> Option<encoded::Block>;
 
 	/// Get the familial details concerning a block.
 	fn block_details(&self, hash: &H256) -> Option<BlockDetails>;
@@ -79,25 +81,25 @@ pub trait BlockProvider {
 
 	/// Get the partial-header of a block.
 	fn block_header(&self, hash: &H256) -> Option<Header> {
-		self.block_header_data(hash).map(|header| decode(&header))
+		self.block_header_data(hash).map(|header| header.decode())
 	}
 
 	/// Get the header RLP of a block.
-	fn block_header_data(&self, hash: &H256) -> Option<Bytes>;
+	fn block_header_data(&self, hash: &H256) -> Option<encoded::Header>;
 
 	/// Get the block body (uncles and transactions).
-	fn block_body(&self, hash: &H256) -> Option<Bytes>;
+	fn block_body(&self, hash: &H256) -> Option<encoded::Body>;
 
 	/// Get a list of uncles for a given block.
 	/// Returns None if block does not exist.
 	fn uncles(&self, hash: &H256) -> Option<Vec<Header>> {
-		self.block_body(hash).map(|bytes| BodyView::new(&bytes).uncles())
+		self.block_body(hash).map(|body| body.uncles())
 	}
 
 	/// Get a list of uncle hashes for a given block.
 	/// Returns None if block does not exist.
 	fn uncle_hashes(&self, hash: &H256) -> Option<Vec<H256>> {
-		self.block_body(hash).map(|bytes| BodyView::new(&bytes).uncle_hashes())
+		self.block_body(hash).map(|body| body.uncle_hashes())
 	}
 
 	/// Get the number of given block's hash.
@@ -108,8 +110,8 @@ pub trait BlockProvider {
 	/// Get transaction with given transaction hash.
 	fn transaction(&self, address: &TransactionAddress) -> Option<LocalizedTransaction> {
 		self.block_body(&address.block_hash)
-			.and_then(|bytes| self.block_number(&address.block_hash)
-			.and_then(|n| BodyView::new(&bytes).localized_transaction_at(&address.block_hash, n, address.index)))
+			.and_then(|body| self.block_number(&address.block_hash)
+			.and_then(|n| body.view().localized_transaction_at(&address.block_hash, n, address.index)))
 	}
 
 	/// Get transaction receipt.
@@ -121,8 +123,8 @@ pub trait BlockProvider {
 	/// Returns None if block does not exist.
 	fn transactions(&self, hash: &H256) -> Option<Vec<LocalizedTransaction>> {
 		self.block_body(hash)
-			.and_then(|bytes| self.block_number(hash)
-			.map(|n| BodyView::new(&bytes).localized_transactions(hash, n)))
+			.and_then(|body| self.block_number(hash)
+			.map(|n| body.view().localized_transactions(hash, n)))
 	}
 
 	/// Returns reference to genesis hash.
@@ -140,12 +142,12 @@ pub trait BlockProvider {
 	fn blocks_with_bloom(&self, bloom: &H2048, from_block: BlockNumber, to_block: BlockNumber) -> Vec<BlockNumber>;
 
 	/// Returns logs matching given filter.
-	fn logs<F>(&self, mut blocks: Vec<BlockNumber>, matches: F, limit: Option<usize>) -> Vec<LocalizedLogEntry>
+	fn logs<F>(&self, blocks: Vec<BlockNumber>, matches: F, limit: Option<usize>) -> Vec<LocalizedLogEntry>
 		where F: Fn(&LogEntry) -> bool, Self: Sized;
 }
 
 #[derive(Debug, Hash, Eq, PartialEq, Clone)]
-enum CacheID {
+enum CacheId {
 	BlockHeader(H256),
 	BlockBody(H256),
 	BlockDetails(H256),
@@ -159,7 +161,7 @@ impl bc::group::BloomGroupDatabase for BlockChain {
 	fn blooms_at(&self, position: &bc::group::GroupPosition) -> Option<bc::group::BloomGroup> {
 		let position = LogGroupPosition::from(position.clone());
 		let result = self.db.read_with_cache(db::COL_EXTRA, &self.blocks_blooms, &position).map(Into::into);
-		self.cache_man.lock().note_used(CacheID::BlocksBlooms(position));
+		self.cache_man.lock().note_used(CacheId::BlocksBlooms(position));
 		result
 	}
 }
@@ -192,12 +194,15 @@ pub struct BlockChain {
 
 	db: Arc<Database>,
 
-	cache_man: Mutex<CacheManager<CacheID>>,
+	cache_man: Mutex<CacheManager<CacheId>>,
 
 	pending_best_block: RwLock<Option<BestBlock>>,
 	pending_block_hashes: RwLock<HashMap<BlockNumber, H256>>,
 	pending_block_details: RwLock<HashMap<H256, BlockDetails>>,
 	pending_transaction_addresses: RwLock<HashMap<H256, Option<TransactionAddress>>>,
+
+	// Used for block ordering.
+	engine: Arc<Engine>,
 }
 
 impl BlockProvider for BlockChain {
@@ -220,27 +225,27 @@ impl BlockProvider for BlockChain {
 	}
 
 	/// Get raw block data
-	fn block(&self, hash: &H256) -> Option<Bytes> {
+	fn block(&self, hash: &H256) -> Option<encoded::Block> {
 		match (self.block_header_data(hash), self.block_body(hash)) {
 			(Some(header), Some(body)) => {
 				let mut block = RlpStream::new_list(3);
-				let body_rlp = Rlp::new(&body);
-				block.append_raw(&header, 1);
+				let body_rlp = body.rlp();
+				block.append_raw(header.rlp().as_raw(), 1);
 				block.append_raw(body_rlp.at(0).as_raw(), 1);
 				block.append_raw(body_rlp.at(1).as_raw(), 1);
-				Some(block.out())
+				Some(encoded::Block::new(block.out()))
 			},
 			_ => None,
 		}
 	}
 
 	/// Get block header data
-	fn block_header_data(&self, hash: &H256) -> Option<Bytes> {
+	fn block_header_data(&self, hash: &H256) -> Option<encoded::Header> {
 		// Check cache first
 		{
 			let read = self.block_headers.read();
 			if let Some(v) = read.get(hash) {
-				return Some(v.clone());
+				return Some(encoded::Header::new(v.clone()));
 			}
 		}
 
@@ -248,7 +253,9 @@ impl BlockProvider for BlockChain {
 		{
 			let best_block = self.best_block.read();
 			if &best_block.hash == hash {
-				return Some(Rlp::new(&best_block.block).at(0).as_raw().to_vec());
+				return Some(encoded::Header::new(
+					Rlp::new(&best_block.block).at(0).as_raw().to_vec()
+				))
 			}
 		}
 
@@ -261,22 +268,22 @@ impl BlockProvider for BlockChain {
 				let bytes: Bytes = UntrustedRlp::new(&b).decompress(RlpType::Blocks).to_vec();
 				let mut write = self.block_headers.write();
 				write.insert(hash.clone(), bytes.clone());
-				Some(bytes)
+				Some(encoded::Header::new(bytes))
 			},
 			None => None
 		};
 
-		self.cache_man.lock().note_used(CacheID::BlockHeader(hash.clone()));
+		self.cache_man.lock().note_used(CacheId::BlockHeader(hash.clone()));
 		result
 	}
 
 	/// Get block body data
-	fn block_body(&self, hash: &H256) -> Option<Bytes> {
+	fn block_body(&self, hash: &H256) -> Option<encoded::Body> {
 		// Check cache first
 		{
 			let read = self.block_bodies.read();
 			if let Some(v) = read.get(hash) {
-				return Some(v.clone());
+				return Some(encoded::Body::new(v.clone()));
 			}
 		}
 
@@ -284,7 +291,7 @@ impl BlockProvider for BlockChain {
 		{
 			let best_block = self.best_block.read();
 			if &best_block.hash == hash {
-				return Some(Self::block_to_body(&best_block.block));
+				return Some(encoded::Body::new(Self::block_to_body(&best_block.block)));
 			}
 		}
 
@@ -297,12 +304,12 @@ impl BlockProvider for BlockChain {
 				let bytes: Bytes = UntrustedRlp::new(&b).decompress(RlpType::Blocks).to_vec();
 				let mut write = self.block_bodies.write();
 				write.insert(hash.clone(), bytes.clone());
-				Some(bytes)
+				Some(encoded::Body::new(bytes))
 			},
 			None => None
 		};
 
-		self.cache_man.lock().note_used(CacheID::BlockBody(hash.clone()));
+		self.cache_man.lock().note_used(CacheId::BlockBody(hash.clone()));
 
 		result
 	}
@@ -310,28 +317,28 @@ impl BlockProvider for BlockChain {
 	/// Get the familial details concerning a block.
 	fn block_details(&self, hash: &H256) -> Option<BlockDetails> {
 		let result = self.db.read_with_cache(db::COL_EXTRA, &self.block_details, hash);
-		self.cache_man.lock().note_used(CacheID::BlockDetails(hash.clone()));
+		self.cache_man.lock().note_used(CacheId::BlockDetails(hash.clone()));
 		result
 	}
 
 	/// Get the hash of given block's number.
 	fn block_hash(&self, index: BlockNumber) -> Option<H256> {
 		let result = self.db.read_with_cache(db::COL_EXTRA, &self.block_hashes, &index);
-		self.cache_man.lock().note_used(CacheID::BlockHashes(index));
+		self.cache_man.lock().note_used(CacheId::BlockHashes(index));
 		result
 	}
 
 	/// Get the address of transaction with given hash.
 	fn transaction_address(&self, hash: &H256) -> Option<TransactionAddress> {
 		let result = self.db.read_with_cache(db::COL_EXTRA, &self.transaction_addresses, hash);
-		self.cache_man.lock().note_used(CacheID::TransactionAddresses(hash.clone()));
+		self.cache_man.lock().note_used(CacheId::TransactionAddresses(hash.clone()));
 		result
 	}
 
 	/// Get receipts of block with given hash.
 	fn block_receipts(&self, hash: &H256) -> Option<BlockReceipts> {
 		let result = self.db.read_with_cache(db::COL_EXTRA, &self.block_receipts, hash);
-		self.cache_man.lock().note_used(CacheID::BlockReceipts(hash.clone()));
+		self.cache_man.lock().note_used(CacheId::BlockReceipts(hash.clone()));
 		result
 	}
 
@@ -354,7 +361,7 @@ impl BlockProvider for BlockChain {
 		let mut logs = blocks.into_iter()
 			.filter_map(|number| self.block_hash(number).map(|hash| (number, hash)))
 			.filter_map(|(number, hash)| self.block_receipts(&hash).map(|r| (number, hash, r.receipts)))
-			.filter_map(|(number, hash, receipts)| self.block_body(&hash).map(|ref b| (number, hash, receipts, BodyView::new(b).transaction_hashes())))
+			.filter_map(|(number, hash, receipts)| self.block_body(&hash).map(|ref b| (number, hash, receipts, b.transaction_hashes())))
 			.flat_map(|(number, hash, mut receipts, mut hashes)| {
 				if receipts.len() != hashes.len() {
 					warn!("Block {} ({}) has different number of receipts ({}) to transactions ({}). Database corrupt?", number, hash, receipts.len(), hashes.len());
@@ -371,7 +378,8 @@ impl BlockProvider for BlockChain {
 					.enumerate()
 					.flat_map(move |(index, (mut logs, tx_hash))| {
 						let current_log_index = log_index;
-						log_index -= logs.len();
+						let no_of_logs = logs.len();
+						log_index -= no_of_logs;
 
 						logs.reverse();
 						logs.into_iter()
@@ -383,6 +391,7 @@ impl BlockProvider for BlockChain {
 								transaction_hash: tx_hash,
 								// iterating in reverse order
 								transaction_index: receipts_len - index - 1,
+								transaction_log_index: no_of_logs - i - 1,
 								log_index: current_log_index - i - 1,
 							})
 					})
@@ -415,9 +424,8 @@ impl<'a> Iterator for AncestryIter<'a> {
 }
 
 impl BlockChain {
-	#[cfg_attr(feature="dev", allow(useless_let_if_seq))]
-	/// Create new instance of blockchain from given Genesis
-	pub fn new(config: Config, genesis: &[u8], db: Arc<Database>) -> BlockChain {
+	/// Create new instance of blockchain from given Genesis and block picking rules of Engine.
+	pub fn new(config: Config, genesis: &[u8], db: Arc<Database>, engine: Arc<Engine>) -> BlockChain {
 		// 400 is the avarage size of the key
 		let cache_man = CacheManager::new(config.pref_cache_size, config.max_cache_size, 400);
 
@@ -442,6 +450,7 @@ impl BlockChain {
 			pending_block_hashes: RwLock::new(HashMap::new()),
 			pending_block_details: RwLock::new(HashMap::new()),
 			pending_transaction_addresses: RwLock::new(HashMap::new()),
+			engine: engine,
 		};
 
 		// load best block
@@ -480,7 +489,7 @@ impl BlockChain {
 			// Fetch best block details
 			let best_block_number = bc.block_number(&best_block_hash).unwrap();
 			let best_block_total_difficulty = bc.block_details(&best_block_hash).unwrap().total_difficulty;
-			let best_block_rlp = bc.block(&best_block_hash).unwrap();
+			let best_block_rlp = bc.block(&best_block_hash).unwrap().into_inner();
 
 			let raw_first = bc.db.get(db::COL_EXTRA, b"first").unwrap().map(|v| v.to_vec());
 			let mut best_ancient = bc.db.get(db::COL_EXTRA, b"ancient").unwrap().map(|h| H256::from_slice(&h));
@@ -574,7 +583,7 @@ impl BlockChain {
 				batch.put(db::COL_EXTRA, b"best", &hash);
 
 				let best_block_total_difficulty = self.block_details(&hash).unwrap().total_difficulty;
-				let best_block_rlp = self.block(&hash).unwrap();
+				let best_block_rlp = self.block(&hash).unwrap().into_inner();
 
 				let mut best_block = self.best_block.write();
 				*best_block = BestBlock {
@@ -805,7 +814,7 @@ impl BlockChain {
 		let mut write_details = self.block_details.write();
 		batch.extend_with_cache(db::COL_EXTRA, &mut *write_details, update, CacheUpdatePolicy::Overwrite);
 
-		self.cache_man.lock().note_used(CacheID::BlockDetails(block_hash));
+		self.cache_man.lock().note_used(CacheId::BlockDetails(block_hash));
 	}
 
 	#[cfg_attr(feature="dev", allow(similar_names))]
@@ -858,13 +867,12 @@ impl BlockChain {
 		let number = header.number();
 		let parent_hash = header.parent_hash();
 		let parent_details = self.block_details(&parent_hash).unwrap_or_else(|| panic!("Invalid parent hash: {:?}", parent_hash));
-		let total_difficulty = parent_details.total_difficulty + header.difficulty();
-		let is_new_best = total_difficulty > self.best_block_total_difficulty();
+		let is_new_best = self.engine.is_new_best_block(self.best_block_total_difficulty(), self.best_block_header().view(), &parent_details, header);
 
 		BlockInfo {
 			hash: hash,
 			number: number,
-			total_difficulty: total_difficulty,
+			total_difficulty: parent_details.total_difficulty + header.difficulty(),
 			location: if is_new_best {
 				// on new best block we need to make sure that all ancestors
 				// are moved to "canon chain"
@@ -965,15 +973,15 @@ impl BlockChain {
 
 		let mut cache_man = self.cache_man.lock();
 		for n in pending_hashes_keys {
-			cache_man.note_used(CacheID::BlockHashes(n));
+			cache_man.note_used(CacheId::BlockHashes(n));
 		}
 
 		for hash in enacted_txs_keys {
-			cache_man.note_used(CacheID::TransactionAddresses(hash));
+			cache_man.note_used(CacheId::TransactionAddresses(hash));
 		}
 
 		for hash in pending_block_hashes {
-			cache_man.note_used(CacheID::BlockDetails(hash));
+			cache_man.note_used(CacheId::BlockDetails(hash));
 		}
 	}
 
@@ -1105,8 +1113,8 @@ impl BlockChain {
 			BlockLocation::BranchBecomingCanonChain(ref data) => {
 				let addresses = data.enacted.iter()
 					.flat_map(|hash| {
-						let bytes = self.block_body(hash).expect("Enacted block must be in database.");
-						let hashes = BodyView::new(&bytes).transaction_hashes();
+						let body = self.block_body(hash).expect("Enacted block must be in database.");
+						let hashes = body.transaction_hashes();
 						hashes.into_iter()
 							.enumerate()
 							.map(|(i, tx_hash)| (tx_hash, Some(TransactionAddress {
@@ -1126,8 +1134,8 @@ impl BlockChain {
 					});
 
 				let retracted = data.retracted.iter().flat_map(|hash| {
-					let bytes = self.block_body(hash).expect("Retracted block must be in database.");
-					let hashes = BodyView::new(&bytes).transaction_hashes();
+					let body = self.block_body(hash).expect("Retracted block must be in database.");
+					let hashes = body.transaction_hashes();
 					hashes.into_iter().map(|hash| (hash, None)).collect::<HashMap<H256, Option<TransactionAddress>>>()
 				});
 
@@ -1176,7 +1184,7 @@ impl BlockChain {
 
 				let mut blooms: Vec<bc::Bloom> = data.enacted.iter()
 					.map(|hash| self.block_header_data(hash).unwrap())
-					.map(|bytes| HeaderView::new(&bytes).log_bloom())
+					.map(|h| h.log_bloom())
 					.map(Bloom::from)
 					.map(Into::into)
 					.collect();
@@ -1209,9 +1217,10 @@ impl BlockChain {
 	}
 
 	/// Get best block header
-	pub fn best_block_header(&self) -> Bytes {
+	pub fn best_block_header(&self) -> encoded::Header {
 		let block = self.best_block.read();
-		BlockView::new(&block.block).header_view().rlp().as_raw().to_vec()
+		let raw = BlockView::new(&block.block).header_view().rlp().as_raw().to_vec();
+		encoded::Header::new(raw)
 	}
 
 	/// Get current cache size.
@@ -1241,13 +1250,13 @@ impl BlockChain {
 		cache_man.collect_garbage(current_size, | ids | {
 			for id in &ids {
 				match *id {
-					CacheID::BlockHeader(ref h) => { block_headers.remove(h); },
-					CacheID::BlockBody(ref h) => { block_bodies.remove(h); },
-					CacheID::BlockDetails(ref h) => { block_details.remove(h); }
-					CacheID::BlockHashes(ref h) => { block_hashes.remove(h); }
-					CacheID::TransactionAddresses(ref h) => { transaction_addresses.remove(h); }
-					CacheID::BlocksBlooms(ref h) => { blocks_blooms.remove(h); }
-					CacheID::BlockReceipts(ref h) => { block_receipts.remove(h); }
+					CacheId::BlockHeader(ref h) => { block_headers.remove(h); },
+					CacheId::BlockBody(ref h) => { block_bodies.remove(h); },
+					CacheId::BlockDetails(ref h) => { block_details.remove(h); }
+					CacheId::BlockHashes(ref h) => { block_hashes.remove(h); }
+					CacheId::TransactionAddresses(ref h) => { transaction_addresses.remove(h); }
+					CacheId::BlocksBlooms(ref h) => { blocks_blooms.remove(h); }
+					CacheId::BlockReceipts(ref h) => { block_receipts.remove(h); }
 				}
 			}
 
@@ -1319,9 +1328,15 @@ mod tests {
 	use views::BlockView;
 	use transaction::{Transaction, Action};
 	use log_entry::{LogEntry, LocalizedLogEntry};
+	use spec::Spec;
+	use ethkey::Secret;
 
 	fn new_db(path: &str) -> Arc<Database> {
 		Arc::new(Database::open(&DatabaseConfig::with_columns(::db::NUM_COLUMNS), path).unwrap())
+	}
+
+	fn new_chain(genesis: &[u8], db: Arc<Database>) -> BlockChain {
+		BlockChain::new(Config::default(), genesis, db, Spec::new_null().engine)
 	}
 
 	#[test]
@@ -1334,7 +1349,7 @@ mod tests {
 
 		let temp = RandomTempPath::new();
 		let db = new_db(temp.as_str());
-		let bc = BlockChain::new(Config::default(), &genesis, db.clone());
+		let bc = new_chain(&genesis, db.clone());
 		assert_eq!(bc.best_block_number(), 0);
 
 		// when
@@ -1360,7 +1375,7 @@ mod tests {
 
 		let temp = RandomTempPath::new();
 		let db = new_db(temp.as_str());
-		let bc = BlockChain::new(Config::default(), &genesis, db.clone());
+		let bc = new_chain(&genesis, db.clone());
 
 		assert_eq!(bc.genesis_hash(), genesis_hash.clone());
 		assert_eq!(bc.best_block_hash(), genesis_hash.clone());
@@ -1391,7 +1406,7 @@ mod tests {
 
 		let temp = RandomTempPath::new();
 		let db = new_db(temp.as_str());
-		let bc = BlockChain::new(Config::default(), &genesis, db.clone());
+		let bc = new_chain(&genesis, db.clone());
 
 		let mut block_hashes = vec![genesis_hash.clone()];
 		let mut batch = db.transaction();
@@ -1427,7 +1442,7 @@ mod tests {
 
 		let temp = RandomTempPath::new();
 		let db = new_db(temp.as_str());
-		let bc = BlockChain::new(Config::default(), &genesis, db.clone());
+		let bc = new_chain(&genesis, db.clone());
 
 		let mut batch =db.transaction();
 		for b in &[&b1a, &b1b, &b2a, &b2b, &b3a, &b3b, &b4a, &b4b, &b5a, &b5b] {
@@ -1453,6 +1468,10 @@ mod tests {
 		// TODO: insert block that already includes one of them as an uncle to check it's not allowed.
 	}
 
+	fn secret() -> Secret {
+		Secret::from_slice(&"".sha3()).unwrap()
+	}
+
 	#[test]
 	fn test_fork_transaction_addresses() {
 		let mut canon_chain = ChainGenerator::default();
@@ -1468,7 +1487,7 @@ mod tests {
 			action: Action::Create,
 			value: 100.into(),
 			data: "601080600c6000396000f3006000355415600957005b60203560003555".from_hex().unwrap(),
-		}.sign(&"".sha3(), None);
+		}.sign(&secret(), None);
 
 
 		let b1a = canon_chain
@@ -1489,7 +1508,7 @@ mod tests {
 
 		let temp = RandomTempPath::new();
 		let db = new_db(temp.as_str());
-		let bc = BlockChain::new(Config::default(), &genesis, db.clone());
+		let bc = new_chain(&genesis, db.clone());
 
 		let mut batch = db.transaction();
 		let _ = bc.insert_block(&mut batch, &b1a, vec![]);
@@ -1532,7 +1551,7 @@ mod tests {
 			action: Action::Create,
 			value: 100.into(),
 			data: "601080600c6000396000f3006000355415600957005b60203560003555".from_hex().unwrap(),
-		}.sign(&"".sha3(), None);
+		}.sign(&secret(), None);
 
 		let t2 = Transaction {
 			nonce: 1.into(),
@@ -1541,7 +1560,7 @@ mod tests {
 			action: Action::Create,
 			value: 100.into(),
 			data: "601080600c6000396000f3006000355415600957005b60203560003555".from_hex().unwrap(),
-		}.sign(&"".sha3(), None);
+		}.sign(&secret(), None);
 
 		let t3 = Transaction {
 			nonce: 2.into(),
@@ -1550,7 +1569,7 @@ mod tests {
 			action: Action::Create,
 			value: 100.into(),
 			data: "601080600c6000396000f3006000355415600957005b60203560003555".from_hex().unwrap(),
-		}.sign(&"".sha3(), None);
+		}.sign(&secret(), None);
 
 		let b1a = canon_chain
 			.with_transaction(t1.clone())
@@ -1577,7 +1596,7 @@ mod tests {
 
 		let temp = RandomTempPath::new();
 		let db = new_db(temp.as_str());
-		let bc = BlockChain::new(Config::default(), &genesis, db.clone());
+		let bc = new_chain(&genesis, db.clone());
 
 		let mut batch = db.transaction();
 		let _ = bc.insert_block(&mut batch, &b1a, vec![]);
@@ -1639,7 +1658,7 @@ mod tests {
 
 		let temp = RandomTempPath::new();
 		let db = new_db(temp.as_str());
-		let bc = BlockChain::new(Config::default(), &genesis, db.clone());
+		let bc = new_chain(&genesis, db.clone());
 
 		let mut batch = db.transaction();
 		let ir1 = bc.insert_block(&mut batch, &b1, vec![]);
@@ -1755,7 +1774,7 @@ mod tests {
 		let temp = RandomTempPath::new();
 		{
 			let db = new_db(temp.as_str());
-			let bc = BlockChain::new(Config::default(), &genesis, db.clone());
+			let bc = new_chain(&genesis, db.clone());
 			assert_eq!(bc.best_block_hash(), genesis_hash);
 			let mut batch =db.transaction();
 			bc.insert_block(&mut batch, &first, vec![]);
@@ -1766,7 +1785,7 @@ mod tests {
 
 		{
 			let db = new_db(temp.as_str());
-			let bc = BlockChain::new(Config::default(), &genesis, db.clone());
+			let bc = new_chain(&genesis, db.clone());
 
 			assert_eq!(bc.best_block_hash(), first_hash);
 		}
@@ -1821,7 +1840,7 @@ mod tests {
 
 		let temp = RandomTempPath::new();
 		let db = new_db(temp.as_str());
-		let bc = BlockChain::new(Config::default(), &genesis, db.clone());
+		let bc = new_chain(&genesis, db.clone());
 		let mut batch =db.transaction();
 		bc.insert_block(&mut batch, &b1, vec![]);
 		db.write(batch).unwrap();
@@ -1856,7 +1875,7 @@ mod tests {
 			action: Action::Create,
 			value: 101.into(),
 			data: "601080600c6000396000f3006000355415600957005b60203560003555".from_hex().unwrap(),
-		}.sign(&"".sha3(), None);
+		}.sign(&secret(), None);
 		let t2 = Transaction {
 			nonce: 0.into(),
 			gas_price: 0.into(),
@@ -1864,7 +1883,7 @@ mod tests {
 			action: Action::Create,
 			value: 102.into(),
 			data: "601080600c6000396000f3006000355415600957005b60203560003555".from_hex().unwrap(),
-		}.sign(&"".sha3(), None);
+		}.sign(&secret(), None);
 		let t3 = Transaction {
 			nonce: 0.into(),
 			gas_price: 0.into(),
@@ -1872,7 +1891,7 @@ mod tests {
 			action: Action::Create,
 			value: 103.into(),
 			data: "601080600c6000396000f3006000355415600957005b60203560003555".from_hex().unwrap(),
-		}.sign(&"".sha3(), None);
+		}.sign(&secret(), None);
 		let tx_hash1 = t1.hash();
 		let tx_hash2 = t2.hash();
 		let tx_hash3 = t3.hash();
@@ -1881,7 +1900,7 @@ mod tests {
 
 		let temp = RandomTempPath::new();
 		let db = new_db(temp.as_str());
-		let bc = BlockChain::new(Config::default(), &genesis, db.clone());
+		let bc = new_chain(&genesis, db.clone());
 		insert_block(&db, &bc, &b1, vec![Receipt {
 			state_root: H256::default(),
 			gas_used: 10_000.into(),
@@ -1924,6 +1943,7 @@ mod tests {
 				block_number: block1.header().number(),
 				transaction_hash: tx_hash1.clone(),
 				transaction_index: 0,
+				transaction_log_index: 0,
 				log_index: 0,
 			},
 			LocalizedLogEntry {
@@ -1932,6 +1952,7 @@ mod tests {
 				block_number: block1.header().number(),
 				transaction_hash: tx_hash1.clone(),
 				transaction_index: 0,
+				transaction_log_index: 1,
 				log_index: 1,
 			},
 			LocalizedLogEntry {
@@ -1940,6 +1961,7 @@ mod tests {
 				block_number: block1.header().number(),
 				transaction_hash: tx_hash2.clone(),
 				transaction_index: 1,
+				transaction_log_index: 0,
 				log_index: 2,
 			},
 			LocalizedLogEntry {
@@ -1948,6 +1970,7 @@ mod tests {
 				block_number: block2.header().number(),
 				transaction_hash: tx_hash3.clone(),
 				transaction_index: 0,
+				transaction_log_index: 0,
 				log_index: 0,
 			}
 		]);
@@ -1958,6 +1981,7 @@ mod tests {
 				block_number: block2.header().number(),
 				transaction_hash: tx_hash3.clone(),
 				transaction_index: 0,
+				transaction_log_index: 0,
 				log_index: 0,
 			}
 		]);
@@ -1985,7 +2009,7 @@ mod tests {
 
 		let temp = RandomTempPath::new();
 		let db = new_db(temp.as_str());
-		let bc = BlockChain::new(Config::default(), &genesis, db.clone());
+		let bc = new_chain(&genesis, db.clone());
 
 		let blocks_b1 = bc.blocks_with_bloom(&bloom_b1, 0, 5);
 		let blocks_b2 = bc.blocks_with_bloom(&bloom_b2, 0, 5);
@@ -2042,7 +2066,7 @@ mod tests {
 
 		{
 			let db = new_db(temp.as_str());
-			let bc = BlockChain::new(Config::default(), &genesis, db.clone());
+			let bc = new_chain(&genesis, db.clone());
 			let uncle = canon_chain.fork(1).generate(&mut finalizer.fork()).unwrap();
 
 			let mut batch =db.transaction();
@@ -2061,7 +2085,7 @@ mod tests {
 
 		// re-loading the blockchain should load the correct best block.
 		let db = new_db(temp.as_str());
-		let bc = BlockChain::new(Config::default(), &genesis, db.clone());
+		let bc = new_chain(&genesis, db.clone());
 		assert_eq!(bc.best_block_number(), 5);
 	}
 
@@ -2078,7 +2102,7 @@ mod tests {
 
 		let temp = RandomTempPath::new();
 		let db = new_db(temp.as_str());
-		let bc = BlockChain::new(Config::default(), &genesis, db.clone());
+		let bc = new_chain(&genesis, db.clone());
 
 		let mut batch =db.transaction();
 		bc.insert_block(&mut batch, &first, vec![]);

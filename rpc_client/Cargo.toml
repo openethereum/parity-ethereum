@@ -1,0 +1,23 @@
+[package]
+authors = ["Ethcore <admin@ethcore.io>"]
+description = "Parity Rpc Client"
+homepage = "http://ethcore.io"
+license = "GPL-3.0"
+name = "parity-rpc-client"
+version = "1.4.0"
+
+[dependencies]
+futures = "0.1"
+lazy_static = "0.2.1"
+log = "0.3.6"
+matches = "0.1.2"
+rand = "0.3.14"
+serde = "0.8"
+serde_json = "0.8"
+tempdir = "0.3.5"
+url = "1.2.0"
+jsonrpc-core = { git = "https://github.com/ethcore/jsonrpc.git" }
+ws = { git = "https://github.com/ethcore/ws-rs.git", branch = "mio-upstream-stable" }
+ethcore-rpc = { path = "../rpc" }
+ethcore-signer = { path = "../signer" }
+ethcore-util = { path = "../util" }

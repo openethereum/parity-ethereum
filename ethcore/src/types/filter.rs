@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -18,17 +18,18 @@
 
 use util::{Address, H256, Hashable, H2048};
 use util::bloom::Bloomable;
-use client::BlockID;
+use client::BlockId;
 use log_entry::LogEntry;
 
 /// Blockchain Filter.
-#[derive(Binary, Debug, PartialEq)]
+#[derive(Debug, PartialEq)]
+#[cfg_attr(feature = "ipc", binary)]
 pub struct Filter {
 	/// Blockchain will be searched from this block.
-	pub from_block: BlockID,
+	pub from_block: BlockId,
 
 	/// Till this block.
-	pub to_block: BlockID,
+	pub to_block: BlockId,
 
 	/// Search addresses.
 	///
@@ -114,14 +115,14 @@ impl Filter {
 mod tests {
 	use util::FixedHash;
 	use filter::Filter;
-	use client::BlockID;
+	use client::BlockId;
 	use log_entry::LogEntry;
 
 	#[test]
 	fn test_bloom_possibilities_none() {
 		let none_filter = Filter {
-			from_block: BlockID::Earliest,
-			to_block: BlockID::Latest,
+			from_block: BlockId::Earliest,
+			to_block: BlockId::Latest,
 			address: None,
 			topics: vec![None, None, None, None],
 			limit: None,
@@ -136,8 +137,8 @@ mod tests {
 	#[test]
 	fn test_bloom_possibilities_single_address_and_topic() {
 		let filter = Filter {
-			from_block: BlockID::Earliest,
-			to_block: BlockID::Latest,
+			from_block: BlockId::Earliest,
+			to_block: BlockId::Latest,
 			address: Some(vec!["b372018f3be9e171df0581136b59d2faf73a7d5d".into()]),
 			topics: vec![
 				Some(vec!["ff74e91598aed6ae5d2fdcf8b24cd2c7be49a0808112a305069355b7160f23f9".into()]),
@@ -155,8 +156,8 @@ mod tests {
 	#[test]
 	fn test_bloom_possibilities_single_address_and_many_topics() {
 		let filter = Filter {
-			from_block: BlockID::Earliest,
-			to_block: BlockID::Latest,
+			from_block: BlockId::Earliest,
+			to_block: BlockId::Latest,
 			address: Some(vec!["b372018f3be9e171df0581136b59d2faf73a7d5d".into()]),
 			topics: vec![
 				Some(vec!["ff74e91598aed6ae5d2fdcf8b24cd2c7be49a0808112a305069355b7160f23f9".into()]),
@@ -174,8 +175,8 @@ mod tests {
 	#[test]
 	fn test_bloom_possibilites_multiple_addresses_and_topics() {
 		let filter = Filter {
-			from_block: BlockID::Earliest,
-			to_block: BlockID::Latest,
+			from_block: BlockId::Earliest,
+			to_block: BlockId::Latest,
 			address: Some(vec![
 						  "b372018f3be9e171df0581136b59d2faf73a7d5d".into(),
 						  "b372018f3be9e171df0581136b59d2faf73a7d5d".into(),
@@ -204,8 +205,8 @@ mod tests {
 	#[test]
 	fn test_filter_matches() {
 		let filter = Filter {
-			from_block: BlockID::Earliest,
-			to_block: BlockID::Latest,
+			from_block: BlockId::Earliest,
+			to_block: BlockId::Latest,
 			address: Some(vec!["b372018f3be9e171df0581136b59d2faf73a7d5d".into()]),
 			topics: vec![
 				Some(vec!["ff74e91598aed6ae5d2fdcf8b24cd2c7be49a0808112a305069355b7160f23f9".into()]),

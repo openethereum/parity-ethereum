@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import { handleActions } from 'redux-actions';
-import { bytesToHex } from '../../api/util/format';
+import { bytesToHex } from '~/api/util/format';
 
 const ZERO = '0x0000000000000000000000000000000000000000000000000000000000000000';
 
@@ -31,10 +31,12 @@ export function hashToImageUrl (hashArray) {
 
 export default handleActions({
   setAddressImage (state, action) {
-    const { address, hashArray } = action;
+    const { address, hashArray, converted } = action;
+
+    const image = converted ? hashArray : hashToImageUrl(hashArray);
 
     return Object.assign({}, state, {
-      [address]: hashToImageUrl(hashArray)
+      [address]: image
     });
   }
 }, initialState);

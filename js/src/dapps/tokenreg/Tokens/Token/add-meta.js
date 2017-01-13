@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -46,7 +46,9 @@ export default class AddMeta extends Component {
   state = initState;
 
   render () {
-    if (!this.props.isTokenOwner) return null;
+    if (!this.props.isTokenOwner) {
+      return null;
+    }
 
     return (<div className={ styles['add-meta'] }>
       <RaisedButton
@@ -98,7 +100,10 @@ export default class AddMeta extends Component {
   renderContent () {
     const { complete } = this.state;
 
-    if (complete) return this.renderComplete();
+    if (complete) {
+      return this.renderComplete();
+    }
+
     return this.renderForm();
   }
 

@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -25,7 +25,7 @@ use util::{H64 as Eth64, H160 as Eth160, H256 as Eth256, H520 as Eth520, H512 as
 macro_rules! impl_hash {
 	($name: ident, $other: ident, $size: expr) => {
 		/// Hash serialization
-		pub struct $name([u8; $size]);
+		pub struct $name(pub [u8; $size]);
 
 		impl Eq for $name { }
 

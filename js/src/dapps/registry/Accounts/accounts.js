@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -15,22 +15,26 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import { connect } from 'react-redux';
+import { bindActionCreators } from 'redux';
 import IconMenu from 'material-ui/IconMenu';
 import IconButton from 'material-ui/IconButton/IconButton';
 import AccountIcon from 'material-ui/svg-icons/action/account-circle';
 import MenuItem from 'material-ui/MenuItem';
 
 import IdentityIcon from '../IdentityIcon';
-import renderAddress from '../ui/address';
+import Address from '../ui/address';
 
+import { select } from './actions';
 import styles from './accounts.css';
 
-export default class Accounts extends Component {
+class Accounts extends Component {
 
   static propTypes = {
-    actions: PropTypes.object.isRequired,
     all: PropTypes.object.isRequired,
-    selected: PropTypes.object
+    selected: PropTypes.object,
+
+    select: PropTypes.func.isRequired
   }
 
   render () {
@@ -41,8 +45,17 @@ export default class Accounts extends Component {
     const accountsButton = (
       <IconButton className={ styles.button }>
         { selected
-          ? (<IdentityIcon className={ styles.icon } address={ selected.address } />)
-          : (<AccountIcon className={ styles.icon } color='white' />)
+          ? (
+            <IdentityIcon
+              className={ styles.icon }
+              address={ selected.address }
+            />
+          ) : (
+            <AccountIcon
+              className={ styles.icon }
+              color='white'
+            />
+          )
         }
       </IconButton>);
 
@@ -61,20 +74,27 @@ export default class Accounts extends Component {
   }
 
   renderAccount = (account) => {
-    const { all, selected } = this.props;
+    const { selected } = this.props;
     const isSelected = selected && selected.address === account.address;
 
     return (
       <MenuItem
-        key={ account.address } value={ account.address }
-        checked={ isSelected } insetChildren={ !isSelected }
+        key={ account.address }
+        value={ account.address }
+        checked={ isSelected }
+        insetChildren={ !isSelected }
       >
-        { renderAddress(account.address, all, {}) }
+        <Address address={ account.address } />
       </MenuItem>
     );
   };
 
   onAccountSelect = (e, address) => {
-    this.props.actions.select(address);
+    this.props.select(address);
   };
 }
+
+const mapStateToProps = (state) => state.accounts;
+const mapDispatchToProps = (dispatch) => bindActionCreators({ select }, dispatch);
+
+export default connect(mapStateToProps, mapDispatchToProps)(Accounts);

@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -19,7 +19,7 @@ import React, { Component, PropTypes } from 'react';
 import FileSaver from 'file-saver';
 import FileDownloadIcon from 'material-ui/svg-icons/file/file-download';
 
-import { Button } from '../../';
+import Button from '../../Button';
 
 class ActionbarExport extends Component {
   static propTypes = {

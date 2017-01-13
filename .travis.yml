@@ -16,7 +16,7 @@ git:
 matrix:
   include:
   - rust: stable
-    env: RUN_TESTS="true" TEST_OPTIONS="--no-release"
+    env: RUN_TESTS="true" TEST_OPTIONS=""
   - rust: stable
     env: RUN_COVERAGE="true"
   - rust: stable
@@ -71,8 +71,7 @@ install:
 script:
   - if [ "$RUN_TESTS" = "true" ]; then
       ./js/scripts/lint.sh &&
-      ./js/scripts/test.sh &&
-      ./test.sh $TEST_OPTIONS --verbose;
+      travis_wait 40 ./test.sh $TEST_OPTIONS;
     fi
   - if [ "$RUN_COVERAGE" = "true" ]; then ./scripts/cov.sh "$KCOV_CMD"; fi
 

@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -17,6 +17,10 @@
 import React, { Component, PropTypes } from 'react';
 import { Card } from 'material-ui/Card';
 
+import { nodeOrStringProptype } from '~/util/proptypes';
+
+import Title from './Title';
+
 import styles from './container.css';
 
 export default class Container extends Component {
@@ -25,19 +29,40 @@ export default class Container extends Component {
     className: PropTypes.string,
     compact: PropTypes.bool,
     light: PropTypes.bool,
-    style: PropTypes.object
+    style: PropTypes.object,
+    tabIndex: PropTypes.number,
+    title: nodeOrStringProptype()
   }
 
   render () {
-    const { children, className, compact, light, style } = this.props;
+    const { children, className, compact, light, style, tabIndex } = this.props;
     const classes = `${styles.container} ${light ? styles.light : ''} ${className}`;
 
+    const props = {};
+
+    if (Number.isInteger(tabIndex)) {
+      props.tabIndex = tabIndex;
+    }
+
     return (
-      <div className={ classes } style={ style }>
+      <div className={ classes } style={ style } { ...props }>
         <Card className={ compact ? styles.compact : styles.padded }>
+          { this.renderTitle() }
           { children }
         </Card>
       </div>
+    );
+  }
+
+  renderTitle () {
+    const { title } = this.props;
+
+    if (!title) {
+      return null;
+    }
+
+    return (
+      <Title title={ title } />
     );
   }
 }

@@ -1,10 +1,11 @@
 [package]
 name = "ethstore"
 version = "0.1.0"
-authors = ["debris <marek.kotewicz@gmail.com>"]
+authors = ["Parity Technologies <admin@parity.io>"]
 build = "build.rs"
 
 [dependencies]
+log = "0.3"
 libc = "0.2.11"
 rand = "0.3.14"
 ethkey = { path = "../ethkey" }

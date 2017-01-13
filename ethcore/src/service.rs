@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -30,18 +30,16 @@ use std::sync::Weak;
 
 #[cfg(feature="ipc")]
 use nanoipc;
-#[cfg(feature="ipc")]
-use client::BlockChainClient;
 
 /// Message type for external and internal events
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq, Debug)]
 pub enum ClientIoMessage {
 	/// Best Block Hash in chain has been changed
 	NewChainHead,
 	/// A block is ready
 	BlockVerified,
 	/// New transaction RLPs are ready to be imported
-	NewTransactions(Vec<Bytes>),
+	NewTransactions(Vec<Bytes>, usize),
 	/// Begin snapshot restoration
 	BeginRestoration(ManifestData),
 	/// Feed a state chunk to the snapshot service
@@ -50,8 +48,8 @@ pub enum ClientIoMessage {
 	FeedBlockChunk(H256, Bytes),
 	/// Take a snapshot for the block with given number.
 	TakeSnapshot(u64),
-	/// Trigger sealing update (useful for internal sealing).
-	UpdateSealing,
+	/// New consensus message received.
+	NewMessage(Bytes)
 }
 
 /// Client service setup. Creates and registers client and network services with the IO subsystem.
@@ -75,13 +73,10 @@ impl ClientService {
 		) -> Result<ClientService, Error>
 	{
 		let panic_handler = PanicHandler::new_in_arc();
-		let io_service = try!(IoService::<ClientIoMessage>::start());
+		let io_service = IoService::<ClientIoMessage>::start()?;
 		panic_handler.forward_from(&io_service);
 
 		info!("Configured for {} using {} engine", Colour::White.bold().paint(spec.name.clone()), Colour::Yellow.bold().paint(spec.engine.name()));
-		if spec.fork_name.is_some() {
-			warn!("Your chain is an alternative fork. {}", Colour::Red.bold().paint("TRANSACTIONS MAY BE REPLAYED ON THE MAINNET!"));
-		}
 
 		let mut db_config = DatabaseConfig::with_columns(::db::NUM_COLUMNS);
 
@@ -95,7 +90,7 @@ impl ClientService {
 		db_config.wal = config.db_wal;
 
 		let pruning = config.pruning;
-		let client = try!(Client::new(config, &spec, client_path, miner, io_service.channel(), &db_config));
+		let client = Client::new(config, &spec, client_path, miner, io_service.channel(), &db_config)?;
 
 		let snapshot_params = SnapServiceParams {
 			engine: spec.engine.clone(),
@@ -106,16 +101,16 @@ impl ClientService {
 			snapshot_root: snapshot_path.into(),
 			db_restore: client.clone(),
 		};
-		let snapshot = Arc::new(try!(SnapshotService::new(snapshot_params)));
+		let snapshot = Arc::new(SnapshotService::new(snapshot_params)?);
 
 		panic_handler.forward_from(&*client);
 		let client_io = Arc::new(ClientIoHandler {
 			client: client.clone(),
 			snapshot: snapshot.clone(),
 		});
-		try!(io_service.register_handler(client_io));
+		io_service.register_handler(client_io)?;
 
-		spec.engine.register_message_channel(io_service.channel());
+		spec.engine.register_client(Arc::downgrade(&client));
 
 		let stop_guard = ::devtools::StopGuard::new();
 		run_ipc(ipc_path, client.clone(), snapshot.clone(), stop_guard.share());
@@ -224,7 +219,9 @@ impl IoHandler<ClientIoMessage> for ClientIoHandler {
 
 		match *net_message {
 			ClientIoMessage::BlockVerified => { self.client.import_verified_blocks(); }
-			ClientIoMessage::NewTransactions(ref transactions) => { self.client.import_queued_transactions(transactions); }
+			ClientIoMessage::NewTransactions(ref transactions, peer_id) => {
+				self.client.import_queued_transactions(transactions, peer_id);
+			}
 			ClientIoMessage::BeginRestoration(ref manifest) => {
 				if let Err(e) = self.snapshot.init_restore(manifest.clone(), true) {
 					warn!("Failed to initialize snapshot restoration: {}", e);
@@ -246,9 +243,8 @@ impl IoHandler<ClientIoMessage> for ClientIoHandler {
 					debug!(target: "snapshot", "Failed to initialize periodic snapshot thread: {:?}", e);
 				}
 			},
-			ClientIoMessage::UpdateSealing => {
-				trace!(target: "authorityround", "message: UpdateSealing");
-				self.client.update_sealing()
+			ClientIoMessage::NewMessage(ref message) => if let Err(e) = self.client.engine().handle_message(message) {
+				trace!(target: "poa", "Invalid message received: {}", e);
 			},
 			_ => {} // ignore other messages
 		}

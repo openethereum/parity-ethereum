@@ -1,4 +1,4 @@
-/* Copyright 2015, 2016 Ethcore (UK) Ltd.
+/* Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 /* This file is part of Parity.
 /*
 /* Parity is free software: you can redistribute it and/or modify
@@ -29,6 +29,8 @@
   border-radius: 16px;
   margin: 0.75em 0.5em 0 0;
   padding: 0.25em 1em;
+  opacity: 1;
+  transition: opacity 0.2s ease-out;
 }
 
 .tagClickable:hover {

@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -41,6 +41,10 @@ export default class Interface {
   }
 
   encodeTokens (paramTypes, values) {
+    return Interface.encodeTokens(paramTypes, values);
+  }
+
+  static encodeTokens (paramTypes, values) {
     const createToken = function (paramType, value) {
       if (paramType.subtype) {
         return new Token(paramType.type, value.map((entry) => createToken(paramType.subtype, entry)));

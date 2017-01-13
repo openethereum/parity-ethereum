@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -17,8 +17,10 @@
 import BigNumber from 'bignumber.js';
 import { handleActions } from 'redux-actions';
 
+const DEFAULT_NETCHAIN = '(unknown)';
 const initialState = {
   blockNumber: new BigNumber(0),
+  blockTimestamp: new Date(),
   devLogs: [],
   devLogsLevels: null,
   devLogsEnabled: false,
@@ -28,21 +30,22 @@ const initialState = {
   enode: '',
   extraData: '',
   gasFloorTarget: new BigNumber(0),
+  gasLimit: new BigNumber(0),
   hashrate: new BigNumber(0),
   minGasPrice: new BigNumber(0),
-  netChain: 'morden',
+  netChain: DEFAULT_NETCHAIN,
   netPeers: {
     active: new BigNumber(0),
     connected: new BigNumber(0),
     max: new BigNumber(0)
   },
   netPort: new BigNumber(0),
-  nodeName: '',
   rpcSettings: {},
-  syncing: false,
-  isApiConnected: true,
-  isPingConnected: true,
-  isTest: false,
+  syncing: true,
+  isConnected: false,
+  isConnecting: false,
+  isTest: undefined,
+  refreshStatus: false,
   traceMode: undefined
 };
 
@@ -73,5 +76,15 @@ export default handleActions({
 
   clearStatusLogs (state, action) {
     return Object.assign({}, state, { devLogs: [] });
+  },
+
+  toggleStatusRefresh (state, action) {
+    const { refreshStatus } = action;
+    return Object.assign({}, state, { refreshStatus });
   }
 }, initialState);
+
+export {
+  DEFAULT_NETCHAIN,
+  initialState
+};

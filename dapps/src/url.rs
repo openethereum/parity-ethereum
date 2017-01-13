@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -36,6 +36,9 @@ pub struct Url {
 	/// A *non-empty* vector encoding the parts of the URL path.
 	/// Empty entries of `""` correspond to trailing slashes.
 	pub path: Vec<String>,
+
+	/// The URL query.
+	pub query: Option<String>,
 
 	/// The URL username field, from the userinfo section of the URL.
 	///
@@ -82,15 +85,17 @@ impl Url {
 			_ => None,
 		};
 
-		let port = try!(raw_url.port_or_known_default().ok_or_else(|| format!("Unknown port for scheme: `{}`", raw_url.scheme())));
-		let host = try!(raw_url.host().ok_or_else(|| "Valid host, because only data:, mailto: protocols does not have host.".to_owned())).to_owned();
-		let path = try!(raw_url.path_segments().ok_or_else(|| "Valid path segments. In HTTP we won't get cannot-be-a-base URLs".to_owned()))
+		let port = raw_url.port_or_known_default().ok_or_else(|| format!("Unknown port for scheme: `{}`", raw_url.scheme()))?;
+		let host = raw_url.host().ok_or_else(|| "Valid host, because only data:, mailto: protocols does not have host.".to_owned())?.to_owned();
+		let path = raw_url.path_segments().ok_or_else(|| "Valid path segments. In HTTP we won't get cannot-be-a-base URLs".to_owned())?
 					.map(|part| part.to_owned()).collect();
+		let query = raw_url.query().map(|x| x.to_owned());
 
 		Ok(Url {
 			port: port,
 			host: host,
 			path: path,
+			query: query,
 			raw: raw_url,
 			username: username,
 			password: password,

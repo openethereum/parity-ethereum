@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -17,16 +17,18 @@
 //! Hyper handlers implementations.
 
 mod auth;
-mod echo;
 mod content;
-mod redirect;
+mod echo;
 mod fetch;
+mod redirect;
+mod streaming;
 
 pub use self::auth::AuthRequiredHandler;
-pub use self::echo::EchoHandler;
 pub use self::content::ContentHandler;
+pub use self::echo::EchoHandler;
+pub use self::fetch::{ContentFetcherHandler, ContentValidator, FetchControl, ValidatorResponse};
 pub use self::redirect::Redirection;
-pub use self::fetch::{ContentFetcherHandler, ContentValidator, FetchControl};
+pub use self::streaming::StreamingHandler;
 
 use url::Url;
 use hyper::{server, header, net, uri};
@@ -49,20 +51,30 @@ pub fn add_security_headers(headers: &mut header::Headers, embeddable_on: Option
 	}
 }
 
+
 /// Extracts URL part from the Request.
 pub fn extract_url(req: &server::Request<net::HttpStream>) -> Option<Url> {
-	match *req.uri() {
+	convert_uri_to_url(req.uri(), req.headers().get::<header::Host>())
+}
+
+/// Extracts URL given URI and Host header.
+pub fn convert_uri_to_url(uri: &uri::RequestUri, host: Option<&header::Host>) -> Option<Url> {
+	match *uri {
 		uri::RequestUri::AbsoluteUri(ref url) => {
 			match Url::from_generic_url(url.clone()) {
 				Ok(url) => Some(url),
 				_ => None,
 			}
 		},
-		uri::RequestUri::AbsolutePath(ref path) => {
+		uri::RequestUri::AbsolutePath { ref path, ref query } => {
+			let query = match *query {
+				Some(ref query) => format!("?{}", query),
+				None => "".into(),
+			};
 			// Attempt to prepend the Host header (mandatory in HTTP/1.1)
-			let url_string = match req.headers().get::<header::Host>() {
+			let url_string = match host {
 				Some(ref host) => {
-					format!("http://{}:{}{}", host.hostname, host.port.unwrap_or(80), path)
+					format!("http://{}:{}{}{}", host.hostname, host.port.unwrap_or(80), path, query)
 				},
 				None => return None,
 			};

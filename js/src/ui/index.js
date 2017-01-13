@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -23,24 +23,33 @@ import Badge from './Badge';
 import Balance from './Balance';
 import BlockStatus from './BlockStatus';
 import Button from './Button';
+import Certifications from './Certifications';
 import ConfirmDialog from './ConfirmDialog';
 import Container, { Title as ContainerTitle } from './Container';
 import ContextProvider from './ContextProvider';
 import CopyToClipboard from './CopyToClipboard';
 import Editor from './Editor';
 import Errors from './Errors';
-import Form, { AddressSelect, FormWrap, TypedInput, Input, InputAddress, InputAddressSelect, InputChip, InputInline, Select } from './Form';
+import Form, { AddressSelect, FormWrap, TypedInput, Input, InputAddress, InputAddressSelect, InputChip, InputInline, Select, RadioButtons } from './Form';
+import GasPriceEditor from './GasPriceEditor';
+import GasPriceSelector from './GasPriceSelector';
+import Icons from './Icons';
 import IdentityIcon from './IdentityIcon';
 import IdentityName from './IdentityName';
+import LanguageSelector from './LanguageSelector';
+import Loading from './Loading';
 import MethodDecoding from './MethodDecoding';
 import Modal, { Busy as BusyStep, Completed as CompletedStep } from './Modal';
 import muiTheme from './Theme';
 import Page from './Page';
 import ParityBackground from './ParityBackground';
+import ShortenedHash from './ShortenedHash';
 import SignerIcon from './SignerIcon';
 import Tags from './Tags';
 import Tooltips, { Tooltip } from './Tooltips';
 import TxHash from './TxHash';
+import TxList from './TxList';
+import Warning from './Warning';
 
 export {
   Actionbar,
@@ -53,6 +62,7 @@ export {
   Balance,
   BlockStatus,
   Button,
+  Certifications,
   ConfirmDialog,
   Container,
   ContainerTitle,
@@ -62,15 +72,18 @@ export {
   Errors,
   Form,
   FormWrap,
-  TypedInput,
+  GasPriceEditor,
+  GasPriceSelector,
+  Icons,
   Input,
   InputAddress,
   InputAddressSelect,
   InputChip,
   InputInline,
-  Select,
   IdentityIcon,
   IdentityName,
+  LanguageSelector,
+  Loading,
   MethodDecoding,
   Modal,
   BusyStep,
@@ -78,9 +91,15 @@ export {
   muiTheme,
   Page,
   ParityBackground,
+  RadioButtons,
+  ShortenedHash,
+  Select,
   SignerIcon,
   Tags,
   Tooltip,
   Tooltips,
-  TxHash
+  TxHash,
+  TxList,
+  TypedInput,
+  Warning
 };

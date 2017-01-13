@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -21,8 +21,7 @@ use std::mem;
 use std::fmt;
 use std::cmp::Ordering;
 use std::error::Error as StdError;
-use bigint::uint::{Uint, U128, U256};
-use bigint::hash::{H64, H128, H160, H256, H512, H520, H2048};
+use bigint::prelude::{Uint, U128, U256, H64, H128, H160, H256, H512, H520, H2048};
 use elastic_array::*;
 
 /// Vector like object

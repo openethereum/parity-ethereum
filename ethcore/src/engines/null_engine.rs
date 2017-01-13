@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -35,6 +35,12 @@ impl NullEngine {
 			params: params,
 			builtins: builtins,
 		}
+	}
+}
+
+impl Default for NullEngine {
+	fn default() -> Self {
+		Self::new(Default::default(), Default::default())
 	}
 }
 

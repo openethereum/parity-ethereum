@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -25,7 +25,6 @@ import Application from './signaturereg/Application';
 import '../../assets/fonts/Roboto/font.css';
 import '../../assets/fonts/RobotoMono/font.css';
 import './style.css';
-import './signaturereg.html';
 
 ReactDOM.render(
   <Application />,

@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -26,29 +26,6 @@ export default {
     }
   },
 
-  accounts: {
-    desc: 'returns a map of accounts as an object',
-    params: [],
-    returns: {
-      type: Array,
-      desc: 'Account metadata',
-      details: {
-        name: {
-          type: String,
-          desc: 'Account name'
-        },
-        meta: {
-          type: String,
-          desc: 'Encoded JSON string the defines additional account metadata'
-        },
-        uuid: {
-          type: String,
-          desc: 'The account UUID, or null if not available/unknown/not applicable.'
-        }
-      }
-    }
-  },
-
   accountsInfo: {
     desc: 'returns a map of accounts as an object',
     params: [],
@@ -59,6 +36,21 @@ export default {
         name: {
           type: String,
           desc: 'Account name'
+        }
+      }
+    }
+  },
+
+  allAccountsInfo: {
+    desc: 'returns a map of accounts as an object',
+    params: [],
+    returns: {
+      type: Array,
+      desc: 'Account metadata',
+      details: {
+        name: {
+          type: String,
+          desc: 'Account name'
         },
         meta: {
           type: String,
@@ -66,7 +58,7 @@ export default {
         },
         uuid: {
           type: String,
-          desc: 'The account UUID, or null if not available/unknown/not applicable.'
+          desc: 'The account Uuid, or null if not available/unknown/not applicable.'
         }
       }
     }
@@ -86,6 +78,22 @@ export default {
     }
   },
 
+  chainStatus: {
+    desc: 'Returns the information on warp sync blocks',
+    params: [],
+    returns: {
+      type: Object,
+      desc: 'The status object',
+      details: {
+        blockGap: {
+          type: Array,
+          desc: 'Describes the gap in the blockchain, if there is one: (first, last)',
+          optional: true
+        }
+      }
+    }
+  },
+
   checkRequest: {
     desc: 'Returns the transactionhash of the requestId (received from parity_postTransaction) if the request was confirmed',
     params: [
@@ -97,6 +105,15 @@ export default {
     returns: {
       type: Hash,
       desc: '32 Bytes - the transaction hash, or the zero hash if the transaction is not yet available'
+    }
+  },
+
+  consensusCapability: {
+    desc: 'Returns an object or string detailing the state of parity capability of maintaining consensus',
+    params: [],
+    returns: {
+      type: Object,
+      desc: 'Either "capable", {"capableUntil":N}, {"incapableSince":N} or "unknown" (N is a block number)'
     }
   },
 
@@ -163,6 +180,15 @@ export default {
     }
   },
 
+  executeUpgrade: {
+    desc: 'Performs an upgrade',
+    params: [],
+    returns: {
+      type: Boolean,
+      desc: 'returns true if the upgrade to the release specified in parity_upgradeReady was successfully executed, false if not'
+    }
+  },
+
   extraData: {
     desc: 'Returns currently set extra data',
     params: [],
@@ -210,6 +236,29 @@ export default {
     }
   },
 
+  getDappsAddresses: {
+    desc: 'Returns the list of accounts available to a specific dapp',
+    params: [
+      {
+        type: String,
+        desc: 'Dapp Id'
+      }
+    ],
+    returns: {
+      type: Array,
+      desc: 'The list of available accounts'
+    }
+  },
+
+  getNewDappsWhitelist: {
+    desc: 'Returns the list of accounts available to a new dapps',
+    params: [],
+    returns: {
+      type: Array,
+      desc: 'The list of available accounts'
+    }
+  },
+
   hashContent: {
     desc: 'Creates a hash of the file as retrieved',
     params: [
@@ -224,15 +273,6 @@ export default {
     }
   },
 
-  listGethAccounts: {
-    desc: 'Returns a list of the accounts available from Geth',
-    params: [],
-    returns: {
-      type: Array,
-      desc: '20 Bytes addresses owned by the client.'
-    }
-  },
-
   importGethAccounts: {
     desc: 'Imports a list of accounts from geth',
     params: [
@@ -244,6 +284,65 @@ export default {
     returns: {
       type: Array,
       desc: 'Array of the imported addresses'
+    }
+  },
+
+  killAccount: {
+    desc: 'Deletes an account',
+    params: [
+      {
+        type: Address,
+        desc: 'The account to remove'
+      },
+      {
+        type: String,
+        desc: 'Account password'
+      }
+    ],
+    returns: {
+      type: Boolean,
+      desc: 'true on success'
+    }
+  },
+
+  listRecentDapps: {
+    desc: 'Returns a list of the most recent active dapps',
+    params: [],
+    returns: {
+      type: Array,
+      desc: 'Array of Dapp Ids'
+    }
+  },
+
+  removeAddress: {
+    desc: 'Removes an address from the addressbook',
+    params: [
+      {
+        type: Address,
+        desc: 'The address to remove'
+      }
+    ],
+    returns: {
+      type: Boolean,
+      desc: 'true on success'
+    }
+  },
+
+  listGethAccounts: {
+    desc: 'Returns a list of the accounts available from Geth',
+    params: [],
+    returns: {
+      type: Array,
+      desc: '20 Bytes addresses owned by the client.'
+    }
+  },
+
+  localTransactions: {
+    desc: 'Returns an object of current and past local transactions.',
+    params: [],
+    returns: {
+      type: Object,
+      desc: 'Mapping of `tx hash` into status object.'
     }
   },
 
@@ -379,6 +478,24 @@ export default {
     }
   },
 
+  pendingTransactions: {
+    desc: 'Returns a list of transactions currently in the queue.',
+    params: [],
+    returns: {
+      type: Array,
+      desc: 'Transactions ordered by priority'
+    }
+  },
+
+  pendingTransactionsStats: {
+    desc: 'Returns propagation stats for transactions in the queue',
+    params: [],
+    returns: {
+      type: Object,
+      desc: 'mapping of `tx hash` into `stats`'
+    }
+  },
+
   phraseToAddress: {
     desc: 'Converts a secret phrase into the corresponting address',
     params: [
@@ -406,6 +523,15 @@ export default {
       type: Quantity,
       desc: 'The id of the actual transaction',
       format: 'utils.toDecimal'
+    }
+  },
+
+  releasesInfo: {
+    desc: 'returns a ReleasesInfo object describing the current status of releases',
+    params: [],
+    returns: {
+      type: Object,
+      desc: '"fork":N,"minor":null,"this_fork":MN,"track":R} (N is a block number representing the latest known fork of this chain which may be in the future, MN is a block number representing the latest known fork that the currently running binary can sync past or null if not known, R is a ReleaseInfo object describing the latest release in this release track)'
     }
   },
 
@@ -492,6 +618,24 @@ export default {
     }
   },
 
+  setDappsAddresses: {
+    desc: 'Sets the available addresses for a dapp',
+    params: [
+      {
+        type: String,
+        desc: 'Dapp Id'
+      },
+      {
+        type: Array,
+        desc: 'Array of available accounts available to the dapp'
+      }
+    ],
+    returns: {
+      type: Boolean,
+      desc: 'True if the call succeeded'
+    }
+  },
+
   setExtraData: {
     desc: 'Changes extra data for newly mined blocks',
     params: [
@@ -551,6 +695,20 @@ export default {
     }
   },
 
+  setNewDappsWhitelist: {
+    desc: 'Sets the list of accounts available to new dapps',
+    params: [
+      {
+        type: Array,
+        desc: 'List of accounts available by default'
+      }
+    ],
+    returns: {
+      type: Boolean,
+      desc: 'True if the call succeeded'
+    }
+  },
+
   setTransactionsLimit: {
     desc: 'Changes limit for transactions in queue.',
     params: [
@@ -591,6 +749,24 @@ export default {
     returns: {
       type: Quantity,
       desc: 'Number of unsigned transactions'
+    }
+  },
+
+  upgradeReady: {
+    desc: 'returns a ReleaseInfo object describing the release which is available for upgrade or null if none is available',
+    params: [],
+    returns: {
+      type: Object,
+      desc: '{"binary":H,"fork":15100,"is_critical":true,"version":V} where H is the Keccak-256 checksum of the release parity binary and V is a VersionInfo object describing the release'
+    }
+  },
+
+  versionInfo: {
+    desc: 'returns a VersionInfo object describing our current version',
+    params: [],
+    returns: {
+      type: Object,
+      desc: '{"hash":H,"track":T,"version":{"major":N,"minor":N,"patch":N}} (H is a 160-bit Git commit hash, T is a ReleaseTrack, either "stable", "beta", "nightly" or "unknown" and N is a version number)'
     }
   }
 };

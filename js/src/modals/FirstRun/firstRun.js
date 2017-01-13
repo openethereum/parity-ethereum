@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -15,11 +15,13 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import { connect } from 'react-redux';
 import ActionDone from 'material-ui/svg-icons/action/done';
 import ActionDoneAll from 'material-ui/svg-icons/action/done-all';
 import NavigationArrowForward from 'material-ui/svg-icons/navigation/arrow-forward';
+import PrintIcon from 'material-ui/svg-icons/action/print';
 
-import { Button, Modal } from '../../ui';
+import { Button, Modal } from '~/ui';
 
 import { NewAccount, AccountDetails } from '../CreateAccount';
 
@@ -27,16 +29,22 @@ import Completed from './Completed';
 import TnC from './TnC';
 import Welcome from './Welcome';
 
+import { createIdentityImg } from '~/api/util/identity';
+import print from '../CreateAccount/print';
+import recoveryPage from '../CreateAccount/recovery-page.ejs';
+import ParityLogo from '../../../assets/images/parity-logo-black-no-text.svg';
+
 const STAGE_NAMES = ['welcome', 'terms', 'new account', 'recovery', 'completed'];
 
-export default class FirstRun extends Component {
+class FirstRun extends Component {
   static contextTypes = {
     api: PropTypes.object.isRequired,
     store: PropTypes.object.isRequired
   }
 
   static propTypes = {
-    visible: PropTypes.bool,
+    hasAccounts: PropTypes.bool.isRequired,
+    visible: PropTypes.bool.isRequired,
     onClose: PropTypes.func.isRequired
   }
 
@@ -103,11 +111,11 @@ export default class FirstRun extends Component {
   }
 
   renderDialogActions () {
+    const { hasAccounts } = this.props;
     const { canCreate, stage, hasAcceptedTnc } = this.state;
 
     switch (stage) {
       case 0:
-      case 3:
         return (
           <Button
             icon={ <NavigationArrowForward /> }
@@ -125,13 +133,40 @@ export default class FirstRun extends Component {
         );
 
       case 2:
-        return (
+        const buttons = [
           <Button
             icon={ <ActionDone /> }
             label='Create'
+            key='create'
             disabled={ !canCreate }
-            onClick={ this.onCreate } />
-        );
+            onClick={ this.onCreate }
+          />
+        ];
+        if (hasAccounts) {
+          buttons.unshift(
+            <Button
+              icon={ <NavigationArrowForward /> }
+              label='Skip'
+              key='skip'
+              onClick={ this.skipAccountCreation }
+            />
+          );
+        }
+        return buttons;
+
+      case 3:
+        return [
+          <Button
+            icon={ <PrintIcon /> }
+            label='Print Phrase'
+            onClick={ this.printPhrase }
+          />,
+          <Button
+            icon={ <NavigationArrowForward /> }
+            label='Next'
+            onClick={ this.onNext }
+          />
+        ];
 
       case 4:
         return (
@@ -200,9 +235,26 @@ export default class FirstRun extends Component {
       });
   }
 
+  skipAccountCreation = () => {
+    this.setState({ stage: this.state.stage + 2 });
+  }
+
   newError = (error) => {
     const { store } = this.context;
 
     store.dispatch({ type: 'newError', error });
   }
+
+  printPhrase = () => {
+    const { address, phrase, name } = this.state;
+    const identity = createIdentityImg(address);
+
+    print(recoveryPage({ phrase, name, identity, address, logo: ParityLogo }));
+  }
 }
+
+function mapStateToProps (state) {
+  return { hasAccounts: state.personal.hasAccounts };
+}
+
+export default connect(mapStateToProps, null)(FirstRun);

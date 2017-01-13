@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -16,11 +16,11 @@
 
 import React, { Component, PropTypes } from 'react';
 
-import { Form, Input } from '../../../ui';
+import { Form, Input } from '~/ui';
 
 import styles from '../createAccount.css';
 
-import { ERRORS } from '../NewAccount';
+import ERRORS from '../errors';
 
 export default class RawKey extends Component {
   static contextTypes = {
@@ -32,18 +32,18 @@ export default class RawKey extends Component {
   }
 
   state = {
-    rawKey: '',
-    rawKeyError: ERRORS.noKey,
     accountName: '',
     accountNameError: ERRORS.noName,
+    isValidKey: false,
+    isValidName: false,
+    isValidPass: true,
     passwordHint: '',
     password1: '',
-    password1Error: ERRORS.invalidPassword,
+    password1Error: null,
     password2: '',
-    password2Error: ERRORS.noMatchPassword,
-    isValidPass: false,
-    isValidName: false,
-    isValidKey: false
+    password2Error: null,
+    rawKey: '',
+    rawKeyError: ERRORS.noKey
   }
 
   componentWillMount () {
@@ -119,8 +119,6 @@ export default class RawKey extends Component {
     const rawKey = event.target.value;
     let rawKeyError = null;
 
-    console.log(rawKey.length, rawKey);
-
     if (!rawKey || !rawKey.trim().length) {
       rawKeyError = ERRORS.noKey;
     } else if (rawKey.substr(0, 2) !== '0x' || rawKey.substr(2).length !== 64 || !api.util.isHex(rawKey)) {
@@ -138,7 +136,7 @@ export default class RawKey extends Component {
     const accountName = event.target.value;
     let accountNameError = null;
 
-    if (!accountName || accountName.trim().length < 2) {
+    if (!accountName || !accountName.trim().length) {
       accountNameError = ERRORS.noName;
     }
 
@@ -150,38 +148,33 @@ export default class RawKey extends Component {
   }
 
   onEditPassword1 = (event) => {
-    const value = event.target.value;
-    let error1 = null;
-    let error2 = null;
+    const password1 = event.target.value;
+    let password2Error = null;
 
-    if (!value || value.trim().length < 8) {
-      error1 = ERRORS.invalidPassword;
-    }
-
-    if (value !== this.state.password2) {
-      error2 = ERRORS.noMatchPassword;
+    if (password1 !== this.state.password2) {
+      password2Error = ERRORS.noMatchPassword;
     }
 
     this.setState({
-      password1: value,
-      password1Error: error1,
-      password2Error: error2,
-      isValidPass: !error1 && !error2
+      password1,
+      password1Error: null,
+      password2Error,
+      isValidPass: !password2Error
     }, this.updateParent);
   }
 
   onEditPassword2 = (event) => {
-    const value = event.target.value;
-    let error2 = null;
+    const password2 = event.target.value;
+    let password2Error = null;
 
-    if (value !== this.state.password1) {
-      error2 = ERRORS.noMatchPassword;
+    if (password2 !== this.state.password1) {
+      password2Error = ERRORS.noMatchPassword;
     }
 
     this.setState({
-      password2: value,
-      password2Error: error2,
-      isValidPass: !error2
+      password2,
+      password2Error,
+      isValidPass: !password2Error
     }, this.updateParent);
   }
 }

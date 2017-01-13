@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -16,52 +16,92 @@
 
 import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
-import { bindActionCreators } from 'redux';
 
-import Input from '../Input';
+import util from '~/api/util';
+import { nodeOrStringProptype } from '~/util/proptypes';
+import { isNullAddress } from '~/util/validation';
+
 import IdentityIcon from '../../IdentityIcon';
-import util from '../../../api/util';
+import Input from '../Input';
 
 import styles from './inputAddress.css';
 
 class InputAddress extends Component {
   static propTypes = {
+    accountsInfo: PropTypes.object,
+    allowCopy: PropTypes.bool,
     className: PropTypes.string,
     disabled: PropTypes.bool,
     error: PropTypes.string,
-    label: PropTypes.string,
-    hint: PropTypes.string,
-    value: PropTypes.string,
-    accountsInfo: PropTypes.object,
-    tokens: PropTypes.object,
-    text: PropTypes.bool,
+    focused: PropTypes.bool,
+    hideUnderline: PropTypes.bool,
+    hint: nodeOrStringProptype(),
+    label: nodeOrStringProptype(),
     onChange: PropTypes.func,
-    onSubmit: PropTypes.func
+    onClick: PropTypes.func,
+    onFocus: PropTypes.func,
+    onSubmit: PropTypes.func,
+    readOnly: PropTypes.bool,
+    small: PropTypes.bool,
+    tabIndex: PropTypes.number,
+    text: PropTypes.bool,
+    tokens: PropTypes.object,
+    value: PropTypes.string
+  };
+
+  static defaultProps = {
+    allowCopy: true,
+    hideUnderline: false,
+    small: false
   };
 
   render () {
-    const { className, disabled, error, label, hint, value, text, onSubmit, accountsInfo, tokens } = this.props;
+    const { accountsInfo, allowCopy, className, disabled, error, focused, hint } = this.props;
+    const { hideUnderline, label, onClick, onFocus, onSubmit, readOnly, small } = this.props;
+    const { tabIndex, text, tokens, value } = this.props;
 
-    const account = accountsInfo[value] || tokens[value];
-    const hasAccount = account && (!account.meta || !account.meta.deleted);
+    const account = value && (accountsInfo[value] || tokens[value]);
 
     const icon = this.renderIcon();
 
     const classes = [ className ];
     classes.push(!icon ? styles.inputEmpty : styles.input);
 
+    const containerClasses = [ styles.container ];
+    const nullName = (disabled || readOnly) && isNullAddress(value) ? 'null' : null;
+
+    if (small) {
+      containerClasses.push(styles.small);
+    }
+
+    const props = {};
+
+    if (!readOnly && !disabled) {
+      props.focused = focused;
+    }
+
     return (
-      <div className={ styles.container }>
+      <div className={ containerClasses.join(' ') }>
         <Input
+          allowCopy={ allowCopy && ((disabled || readOnly) ? value : false) }
           className={ classes.join(' ') }
           disabled={ disabled }
-          label={ label }
-          hint={ hint }
           error={ error }
-          value={ text && hasAccount ? account.name : value }
+          hideUnderline={ hideUnderline }
+          hint={ hint }
+          label={ label }
           onChange={ this.handleInputChange }
+          onClick={ onClick }
+          onFocus={ onFocus }
           onSubmit={ onSubmit }
-          allowCopy={ disabled ? value : false }
+          readOnly={ readOnly }
+          tabIndex={ tabIndex }
+          value={
+            text && account
+              ? account.name
+              : (nullName || value)
+          }
+          { ...props }
         />
         { icon }
       </div>
@@ -69,16 +109,24 @@ class InputAddress extends Component {
   }
 
   renderIcon () {
-    const { value, disabled, label } = this.props;
+    const { value, disabled, label, allowCopy, hideUnderline, readOnly } = this.props;
 
     if (!value || !value.length || !util.isAddressValid(value)) {
       return null;
     }
 
-    const classes = [disabled ? styles.iconDisabled : styles.icon];
+    const classes = [(disabled || readOnly) ? styles.iconDisabled : styles.icon];
 
     if (!label) {
       classes.push(styles.noLabel);
+    }
+
+    if (!allowCopy) {
+      classes.push(styles.noCopy);
+    }
+
+    if (hideUnderline) {
+      classes.push(styles.noUnderline);
     }
 
     return (
@@ -104,8 +152,8 @@ class InputAddress extends Component {
 }
 
 function mapStateToProps (state) {
-  const { accountsInfo } = state.personal;
   const { tokens } = state.balances;
+  const { accountsInfo } = state.personal;
 
   return {
     accountsInfo,
@@ -113,11 +161,7 @@ function mapStateToProps (state) {
   };
 }
 
-function mapDispatchToProps (dispatch) {
-  return bindActionCreators({}, dispatch);
-}
-
 export default connect(
   mapStateToProps,
-  mapDispatchToProps
+  null
 )(InputAddress);

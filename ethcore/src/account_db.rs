@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -121,10 +121,6 @@ impl<'db> HashDB for AccountDB<'db>{
 	fn remove(&mut self, _key: &H256) {
 		unimplemented!()
 	}
-
-	fn get_aux(&self, hash: &[u8]) -> Option<DBValue> {
-		self.db.get_aux(hash)
-	}
 }
 
 /// DB backend wrapper for Account trie
@@ -196,18 +192,6 @@ impl<'db> HashDB for AccountDBMut<'db>{
 		}
 		let key = combine_key(&self.address_hash, key);
 		self.db.remove(&key)
-	}
-
-	fn insert_aux(&mut self, hash: Vec<u8>, value: Vec<u8>) {
-		self.db.insert_aux(hash, value);
-	}
-
-	fn get_aux(&self, hash: &[u8]) -> Option<DBValue> {
-		self.db.get_aux(hash)
-	}
-
-	fn remove_aux(&mut self, hash: &[u8]) {
-		self.db.remove_aux(hash);
 	}
 }
 

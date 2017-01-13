@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -25,7 +25,8 @@ use super::trace::{Action, Res};
 /// Trace localized in vector of traces produced by a single transaction.
 ///
 /// Parent and children indexes refer to positions in this vector.
-#[derive(Debug, PartialEq, Clone, Binary)]
+#[derive(Debug, PartialEq, Clone)]
+#[cfg_attr(feature = "ipc", binary)]
 pub struct FlatTrace {
 	/// Type of action performed by a transaction.
 	pub action: Action,
@@ -65,11 +66,11 @@ impl Encodable for FlatTrace {
 impl Decodable for FlatTrace {
 	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
 		let d = decoder.as_rlp();
-		let v: Vec<usize> = try!(d.val_at(3));
+		let v: Vec<usize> = d.val_at(3)?;
 		let res = FlatTrace {
-			action: try!(d.val_at(0)),
-			result: try!(d.val_at(1)),
-			subtraces: try!(d.val_at(2)),
+			action: d.val_at(0)?,
+			result: d.val_at(1)?,
+			subtraces: d.val_at(2)?,
 			trace_address: v.into_iter().collect(),
 		};
 
@@ -108,7 +109,7 @@ impl Encodable for FlatTransactionTraces {
 
 impl Decodable for FlatTransactionTraces {
 	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
-		Ok(FlatTransactionTraces(try!(Decodable::decode(decoder))))
+		Ok(FlatTransactionTraces(Decodable::decode(decoder)?))
 	}
 }
 
@@ -119,7 +120,7 @@ impl Into<Vec<FlatTrace>> for FlatTransactionTraces {
 }
 
 /// Represents all traces produced by transactions in a single block.
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Default)]
 pub struct FlatBlockTraces(Vec<FlatTransactionTraces>);
 
 impl HeapSizeOf for FlatBlockTraces {
@@ -149,7 +150,7 @@ impl Encodable for FlatBlockTraces {
 
 impl Decodable for FlatBlockTraces {
 	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
-		Ok(FlatBlockTraces(try!(Decodable::decode(decoder))))
+		Ok(FlatBlockTraces(Decodable::decode(decoder)?))
 	}
 }
 

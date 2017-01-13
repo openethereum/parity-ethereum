@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -16,7 +16,7 @@
 
 //! Statistical functions.
 
-use bigint::uint::*;
+use bigint::prelude::*;
 
 /// Discretised histogram.
 #[derive(Debug, PartialEq)]
@@ -62,12 +62,12 @@ impl Histogram {
 
 #[cfg(test)]
 mod tests {
-	use bigint::uint::U256;
+	use bigint::prelude::U256;
 	use super::Histogram;
 
 	#[test]
 	fn check_histogram() {
-		let hist = Histogram::new(&vec_into![643,689,1408,2000,2296,2512,4250,4320,4842,4958,5804,6065,6098,6354,7002,7145,7845,8589,8593,8895], 5).unwrap();
+		let hist = Histogram::new(slice_into![643,689,1408,2000,2296,2512,4250,4320,4842,4958,5804,6065,6098,6354,7002,7145,7845,8589,8593,8895], 5).unwrap();
 		let correct_bounds: Vec<U256> = vec_into![643, 2294, 3945, 5596, 7247, 8898];
 		assert_eq!(Histogram { bucket_bounds: correct_bounds, counts: vec![4,2,4,6,4] }, hist);
 	}
@@ -75,7 +75,7 @@ mod tests {
 	#[test]
 	fn smaller_data_range_than_bucket_range() {
 		assert_eq!(
-			Histogram::new(&vec_into![1, 2, 2], 3),
+			Histogram::new(slice_into![1, 2, 2], 3),
 			Some(Histogram { bucket_bounds: vec_into![1, 2, 3, 4], counts: vec![1, 2, 0] })
 		);
 	}
@@ -83,7 +83,7 @@ mod tests {
 	#[test]
 	fn data_range_is_not_multiple_of_bucket_range() {
 		assert_eq!(
-			Histogram::new(&vec_into![1, 2, 5], 2),
+			Histogram::new(slice_into![1, 2, 5], 2),
 			Some(Histogram { bucket_bounds: vec_into![1, 4, 7], counts: vec![2, 1] })
 		);
 	}
@@ -91,13 +91,13 @@ mod tests {
 	#[test]
 	fn data_range_is_multiple_of_bucket_range() {
 		assert_eq!(
-			Histogram::new(&vec_into![1, 2, 6], 2),
+			Histogram::new(slice_into![1, 2, 6], 2),
 			Some(Histogram { bucket_bounds: vec_into![1, 4, 7], counts: vec![2, 1] })
 		);
 	}
 
 	#[test]
 	fn none_when_too_few_data() {
-		assert!(Histogram::new(&vec_into![], 1).is_none());
+		assert!(Histogram::new(slice_into![], 1).is_none());
 	}
 }

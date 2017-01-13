@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -16,13 +16,16 @@
 
 use std::sync::{Arc, Mutex};
 use hyper;
-use jsonrpc_core::IoHandler;
-use jsonrpc_http_server::{ServerHandler, PanicHandler, AccessControlAllowOrigin};
+
+use ethcore_rpc::{Metadata, Origin};
+use jsonrpc_core::reactor::RpcHandler;
+use jsonrpc_http_server::{Rpc, ServerHandler, PanicHandler, AccessControlAllowOrigin, HttpMetaExtractor};
 use endpoint::{Endpoint, EndpointPath, Handler};
 
-pub fn rpc(handler: Arc<IoHandler>, panic_handler: Arc<Mutex<Option<Box<Fn() -> () + Send>>>>) -> Box<Endpoint> {
+pub fn rpc(handler: RpcHandler<Metadata>, panic_handler: Arc<Mutex<Option<Box<Fn() -> () + Send>>>>) -> Box<Endpoint> {
 	Box::new(RpcEndpoint {
 		handler: handler,
+		meta_extractor: Arc::new(MetadataExtractor),
 		panic_handler: panic_handler,
 		cors_domain: None,
 		// NOTE [ToDr] We don't need to do any hosts validation here. It's already done in router.
@@ -31,7 +34,8 @@ pub fn rpc(handler: Arc<IoHandler>, panic_handler: Arc<Mutex<Option<Box<Fn() -> 
 }
 
 struct RpcEndpoint {
-	handler: Arc<IoHandler>,
+	handler: RpcHandler<Metadata>,
+	meta_extractor: Arc<HttpMetaExtractor<Metadata>>,
 	panic_handler: Arc<Mutex<Option<Box<Fn() -> () + Send>>>>,
 	cors_domain: Option<Vec<AccessControlAllowOrigin>>,
 	allowed_hosts: Option<Vec<String>>,
@@ -41,11 +45,28 @@ impl Endpoint for RpcEndpoint {
 	fn to_async_handler(&self, _path: EndpointPath, control: hyper::Control) -> Box<Handler> {
 		let panic_handler = PanicHandler { handler: self.panic_handler.clone() };
 		Box::new(ServerHandler::new(
-				self.handler.clone(),
+				Rpc::new(self.handler.clone(), self.meta_extractor.clone()),
 				self.cors_domain.clone(),
 				self.allowed_hosts.clone(),
 				panic_handler,
 				control,
 		))
+	}
+}
+
+struct MetadataExtractor;
+impl HttpMetaExtractor<Metadata> for MetadataExtractor {
+	fn read_metadata(&self, request: &hyper::server::Request<hyper::net::HttpStream>) -> Metadata {
+		let dapp_id = request.headers().get::<hyper::header::Referer>()
+			.and_then(|referer| hyper::Url::parse(referer).ok())
+			.and_then(|url| {
+				url.path_segments()
+					.and_then(|mut split| split.next())
+					.map(|app_id| app_id.to_owned())
+			});
+		Metadata {
+			dapp_id: dapp_id,
+			origin: Origin::Dapps,
+		}
 	}
 }

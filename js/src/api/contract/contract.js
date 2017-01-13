@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -14,17 +14,17 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import Abi from '../../abi';
-import Api from '../api';
-import { isInstanceOf } from '../util/types';
+import Abi from '~/abi';
 
 let nextSubscriptionId = 0;
 
 export default class Contract {
   constructor (api, abi) {
-    if (!isInstanceOf(api, Api)) {
+    if (!api) {
       throw new Error('API instance needs to be provided to Contract');
-    } else if (!abi) {
+    }
+
+    if (!abi) {
       throw new Error('ABI needs to be provided to Contract instance');
     }
 
@@ -48,7 +48,15 @@ export default class Contract {
       this._instance[fn.signature] = fn;
     });
 
-    this._sendSubscriptionChanges();
+    this._subscribedToPendings = false;
+    this._pendingsSubscriptionId = null;
+
+    this._subscribedToBlock = false;
+    this._blockSubscriptionId = null;
+
+    if (api && api.patch && api.patch.contract) {
+      api.patch.contract(this);
+    }
   }
 
   get address () {
@@ -65,6 +73,10 @@ export default class Contract {
 
   get functions () {
     return this._functions;
+  }
+
+  get receipt () {
+    return this._receipt;
   }
 
   get instance () {
@@ -85,9 +97,17 @@ export default class Contract {
     return this;
   }
 
-  deploy (options, values, statecb) {
-    let gas;
+  deployEstimateGas (options, values) {
+    const _options = this._encodeOptions(this.constructors[0], options, values);
 
+    return this._api.eth
+      .estimateGas(_options)
+      .then((gasEst) => {
+        return [gasEst, gasEst.mul(1.2)];
+      });
+  }
+
+  deploy (options, values, statecb) {
     const setState = (state) => {
       if (!statecb) {
         return;
@@ -98,31 +118,35 @@ export default class Contract {
 
     setState({ state: 'estimateGas' });
 
-    return this._api.eth
-      .estimateGas(this._encodeOptions(this.constructors[0], options, values))
-      .then((_gas) => {
-        gas = _gas.mul(1.2);
+    return this
+      .deployEstimateGas(options, values)
+      .then(([gasEst, gas]) => {
         options.gas = gas.toFixed(0);
 
         setState({ state: 'postTransaction', gas });
-        return this._api.parity.postTransaction(this._encodeOptions(this.constructors[0], options, values));
-      })
-      .then((requestId) => {
-        setState({ state: 'checkRequest', requestId });
-        return this._pollCheckRequest(requestId);
-      })
-      .then((txhash) => {
-        setState({ state: 'getTransactionReceipt', txhash });
-        return this._pollTransactionReceipt(txhash, gas);
-      })
-      .then((receipt) => {
-        if (receipt.gasUsed.eq(gas)) {
-          throw new Error(`Contract not deployed, gasUsed == ${gas.toFixed(0)}`);
-        }
 
-        setState({ state: 'hasReceipt', receipt });
-        this._address = receipt.contractAddress;
-        return this._address;
+        const _options = this._encodeOptions(this.constructors[0], options, values);
+
+        return this._api.parity
+          .postTransaction(_options)
+          .then((requestId) => {
+            setState({ state: 'checkRequest', requestId });
+            return this._pollCheckRequest(requestId);
+          })
+          .then((txhash) => {
+            setState({ state: 'getTransactionReceipt', txhash });
+            return this._pollTransactionReceipt(txhash, gas);
+          })
+          .then((receipt) => {
+            if (receipt.gasUsed.eq(gas)) {
+              throw new Error(`Contract not deployed, gasUsed == ${gas.toFixed(0)}`);
+            }
+
+            setState({ state: 'hasReceipt', receipt });
+            this._receipt = receipt;
+            this._address = receipt.contractAddress;
+            return this._address;
+          });
       })
       .then((address) => {
         setState({ state: 'getCode' });
@@ -185,42 +209,71 @@ export default class Contract {
     });
   }
 
-  _encodeOptions (func, options, values) {
-    const tokens = func ? this._abi.encodeTokens(func.inputParamTypes(), values) : null;
+  getCallData = (func, options, values) => {
+    let data = options.data;
+
+    const tokens = func ? Abi.encodeTokens(func.inputParamTypes(), values) : null;
     const call = tokens ? func.encodeCall(tokens) : null;
 
-    if (options.data && options.data.substr(0, 2) === '0x') {
-      options.data = options.data.substr(2);
+    if (data && data.substr(0, 2) === '0x') {
+      data = data.substr(2);
     }
-    options.data = `0x${options.data || ''}${call || ''}`;
 
-    return options;
+    return `0x${data || ''}${call || ''}`;
+  }
+
+  _encodeOptions (func, options, values) {
+    const data = this.getCallData(func, options, values);
+
+    return {
+      ...options,
+      data
+    };
   }
 
   _addOptionsTo (options = {}) {
-    return Object.assign({
-      to: this._address
-    }, options);
+    return {
+      to: this._address,
+      ...options
+    };
   }
 
   _bindFunction = (func) => {
+    func.contract = this;
+
     func.call = (options, values = []) => {
+      const callParams = this._encodeOptions(func, this._addOptionsTo(options), values);
+
       return this._api.eth
-        .call(this._encodeOptions(func, this._addOptionsTo(options), values))
+        .call(callParams)
         .then((encoded) => func.decodeOutput(encoded))
         .then((tokens) => tokens.map((token) => token.value))
-        .then((returns) => returns.length === 1 ? returns[0] : returns);
+        .then((returns) => returns.length === 1 ? returns[0] : returns)
+        .catch((error) => {
+          console.warn(`${func.name}.call`, values, error);
+          throw error;
+        });
     };
 
     if (!func.constant) {
       func.postTransaction = (options, values = []) => {
+        const _options = this._encodeOptions(func, this._addOptionsTo(options), values);
         return this._api.parity
-          .postTransaction(this._encodeOptions(func, this._addOptionsTo(options), values));
+          .postTransaction(_options)
+          .catch((error) => {
+            console.warn(`${func.name}.postTransaction`, values, error);
+            throw error;
+          });
       };
 
       func.estimateGas = (options, values = []) => {
+        const _options = this._encodeOptions(func, this._addOptionsTo(options), values);
         return this._api.eth
-          .estimateGas(this._encodeOptions(func, this._addOptionsTo(options), values));
+          .estimateGas(_options)
+          .catch((error) => {
+            console.warn(`${func.name}.estimateGas`, values, error);
+            throw error;
+          });
       };
     }
 
@@ -228,99 +281,237 @@ export default class Contract {
   }
 
   _bindEvent = (event) => {
-    event.subscribe = (options = {}, callback) => {
-      return this._subscribe(event, options, callback);
+    event.subscribe = (options = {}, callback, autoRemove) => {
+      return this._subscribe(event, options, callback, autoRemove);
     };
 
     event.unsubscribe = (subscriptionId) => {
       return this.unsubscribe(subscriptionId);
     };
 
+    event.getAllLogs = (options = {}) => {
+      return this.getAllLogs(event);
+    };
+
     return event;
   }
 
-  subscribe (eventName = null, options = {}, callback) {
-    return new Promise((resolve, reject) => {
-      let event = null;
+  getAllLogs (event, _options) {
+    // Options as first parameter
+    if (!_options && event && event.topics) {
+      return this.getAllLogs(null, event);
+    }
 
-      if (eventName) {
-        event = this._events.find((evt) => evt.name === eventName);
-
-        if (!event) {
-          const events = this._events.map((evt) => evt.name).join(', ');
-          reject(new Error(`${eventName} is not a valid eventName, subscribe using one of ${events} (or null to include all)`));
-          return;
-        }
-      }
-
-      return this._subscribe(event, options, callback).then(resolve).catch(reject);
-    });
-  }
-
-  _subscribe (event = null, _options, callback) {
-    const subscriptionId = nextSubscriptionId++;
-    const options = Object.assign({}, _options, {
-      address: this._address,
-      topics: [event ? event.signature : null]
-    });
+    const options = this._getFilterOptions(event, _options);
+    options.fromBlock = 0;
+    options.toBlock = 'latest';
 
     return this._api.eth
-      .newFilter(options)
+      .getLogs(options)
+      .then((logs) => this.parseEventLogs(logs));
+  }
+
+  _findEvent (eventName = null) {
+    const event = eventName
+      ? this._events.find((evt) => evt.name === eventName)
+      : null;
+
+    if (eventName && !event) {
+      const events = this._events.map((evt) => evt.name).join(', ');
+      throw new Error(`${eventName} is not a valid eventName, subscribe using one of ${events} (or null to include all)`);
+    }
+
+    return event;
+  }
+
+  _getFilterOptions (event = null, _options = {}) {
+    const optionTopics = _options.topics || [];
+    const signature = event && event.signature || null;
+
+    // If event provided, remove the potential event signature
+    // as the first element of the topics
+    const topics = signature
+      ? [ signature ].concat(optionTopics.filter((t, idx) => idx > 0 || t !== signature))
+      : optionTopics;
+
+    const options = Object.assign({}, _options, {
+      address: this._address,
+      topics
+    });
+
+    return options;
+  }
+
+  _createEthFilter (event = null, _options) {
+    const options = this._getFilterOptions(event, _options);
+    return this._api.eth.newFilter(options);
+  }
+
+  subscribe (eventName = null, options = {}, callback, autoRemove) {
+    try {
+      const event = this._findEvent(eventName);
+      return this._subscribe(event, options, callback, autoRemove);
+    } catch (e) {
+      return Promise.reject(e);
+    }
+  }
+
+  _sendData (subscriptionId, error, logs) {
+    const { autoRemove, callback } = this._subscriptions[subscriptionId];
+    let result = true;
+
+    try {
+      result = callback(error, logs);
+    } catch (error) {
+      console.warn('_sendData', subscriptionId, error);
+    }
+
+    if (autoRemove && result && typeof result === 'boolean') {
+      this.unsubscribe(subscriptionId);
+    }
+  }
+
+  _subscribe (event = null, _options, callback, autoRemove = false) {
+    const subscriptionId = nextSubscriptionId++;
+    const { skipInitFetch } = _options;
+    delete _options['skipInitFetch'];
+
+    return this
+      ._createEthFilter(event, _options)
       .then((filterId) => {
+        this._subscriptions[subscriptionId] = {
+          options: _options,
+          autoRemove,
+          callback,
+          filterId,
+          id: subscriptionId
+        };
+
+        if (skipInitFetch) {
+          this._subscribeToChanges();
+          return subscriptionId;
+        }
+
         return this._api.eth
           .getFilterLogs(filterId)
           .then((logs) => {
-            callback(null, this.parseEventLogs(logs));
-            this._subscriptions[subscriptionId] = {
-              options,
-              callback,
-              filterId
-            };
-
+            this._sendData(subscriptionId, null, this.parseEventLogs(logs));
+            this._subscribeToChanges();
             return subscriptionId;
           });
+      })
+      .catch((error) => {
+        console.warn('subscribe', event, _options, error);
+        throw error;
       });
   }
 
   unsubscribe (subscriptionId) {
     return this._api.eth
       .uninstallFilter(this._subscriptions[subscriptionId].filterId)
-      .then(() => {
-        delete this._subscriptions[subscriptionId];
-      })
       .catch((error) => {
         console.error('unsubscribe', error);
+      })
+      .then(() => {
+        delete this._subscriptions[subscriptionId];
+        this._unsubscribeFromChanges();
       });
   }
 
-  _sendSubscriptionChanges = () => {
+  _subscribeToChanges = () => {
     const subscriptions = Object.values(this._subscriptions);
-    const timeout = () => setTimeout(this._sendSubscriptionChanges, 1000);
 
-    Promise
+    const pendingSubscriptions = subscriptions
+      .filter((s) => s.options.toBlock && s.options.toBlock === 'pending');
+
+    const otherSubscriptions = subscriptions
+      .filter((s) => !(s.options.toBlock && s.options.toBlock === 'pending'));
+
+    if (pendingSubscriptions.length > 0 && !this._subscribedToPendings) {
+      this._subscribedToPendings = true;
+      this._subscribeToPendings();
+    }
+
+    if (otherSubscriptions.length > 0 && !this._subscribedToBlock) {
+      this._subscribedToBlock = true;
+      this._subscribeToBlock();
+    }
+  }
+
+  _unsubscribeFromChanges = () => {
+    const subscriptions = Object.values(this._subscriptions);
+
+    const pendingSubscriptions = subscriptions
+      .filter((s) => s.options.toBlock && s.options.toBlock === 'pending');
+
+    const otherSubscriptions = subscriptions
+      .filter((s) => !(s.options.toBlock && s.options.toBlock === 'pending'));
+
+    if (pendingSubscriptions.length === 0 && this._subscribedToPendings) {
+      this._subscribedToPendings = false;
+      clearTimeout(this._pendingsSubscriptionId);
+    }
+
+    if (otherSubscriptions.length === 0 && this._subscribedToBlock) {
+      this._subscribedToBlock = false;
+      this._api.unsubscribe(this._blockSubscriptionId);
+    }
+  }
+
+  _subscribeToBlock = () => {
+    this._api
+      .subscribe('eth_blockNumber', (error) => {
+        if (error) {
+          console.error('::_subscribeToBlock', error, error && error.stack);
+        }
+
+        const subscriptions = Object.values(this._subscriptions)
+          .filter((s) => !(s.options.toBlock && s.options.toBlock === 'pending'));
+
+        this._sendSubscriptionChanges(subscriptions);
+      })
+      .then((blockSubId) => {
+        this._blockSubscriptionId = blockSubId;
+      })
+      .catch((e) => {
+        console.error('::_subscribeToBlock', e, e && e.stack);
+      });
+  }
+
+  _subscribeToPendings = () => {
+    const subscriptions = Object.values(this._subscriptions)
+      .filter((s) => s.options.toBlock && s.options.toBlock === 'pending');
+
+    const timeout = () => setTimeout(() => this._subscribeToPendings(), 1000);
+
+    this._sendSubscriptionChanges(subscriptions)
+      .then(() => {
+        this._pendingsSubscriptionId = timeout();
+      });
+  }
+
+  _sendSubscriptionChanges = (subscriptions) => {
+    return Promise
       .all(
         subscriptions.map((subscription) => {
           return this._api.eth.getFilterChanges(subscription.filterId);
         })
       )
       .then((logsArray) => {
-        logsArray.forEach((logs, idx) => {
+        logsArray.forEach((logs, index) => {
           if (!logs || !logs.length) {
             return;
           }
 
           try {
-            subscriptions[idx].callback(null, this.parseEventLogs(logs));
+            this._sendData(subscriptions[index].id, null, this.parseEventLogs(logs));
           } catch (error) {
             console.error('_sendSubscriptionChanges', error);
           }
         });
-
-        timeout();
       })
       .catch((error) => {
         console.error('_sendSubscriptionChanges', error);
-        timeout();
       });
   }
 }

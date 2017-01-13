@@ -58,18 +58,18 @@ Parity is fully compatible with Stable Rust.
 
 We recommend installing Rust through [rustup](https://www.rustup.rs/). If you don't already have rustup, you can install it like this:
 
-- Linux and OSX:
+- Linux:
 	```bash
 	$ curl https://sh.rustup.rs -sSf | sh
 	```
 	
-	Parity also requires `gcc`, `g++` and `make` packages to be installed.
+	Parity also requires `gcc`, `g++`, `libssl-dev`/`openssl` and `pkg-config` packages to be installed.
 - OSX:
 	```bash
 	$ curl https://sh.rustup.rs -sSf | sh
 	```
 
-	`clang` and `make` are required. These come with Xcode command line tools or can be installed with homebrew.
+	`clang` is required. It comes with Xcode command line tools or can be installed with homebrew.
 - Windows
 
     Make sure you have Visual Studio 2015 with C++ support installed. Next, download and run the rustup installer from
@@ -102,6 +102,14 @@ $ cargo build --release
 ```
 
 This will produce an executable in the `./target/release` subdirectory.
+
+----
+
+## Simple one-line installer for Mac and Ubuntu
+
+```bash
+bash <(curl https://get.parity.io -Lk)
+```
 
 ## Start Parity
 ### Manually

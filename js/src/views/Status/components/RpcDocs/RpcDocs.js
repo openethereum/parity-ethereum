@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -46,7 +46,7 @@ class RpcDocs extends Component {
               </div>
             </div>
           </div>
-          <div style={ { clear: 'both' } }></div>
+          <div style={ { clear: 'both' } } />
           <div className='dapp-container'>
             <div className='row'>
               <div className='col col-12'>

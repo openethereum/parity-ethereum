@@ -1,6 +1,6 @@
 {
 	"name": "Expanse",
-	"forkName": "expanse",
+	"dataDir": "expanse",
 	"engine": {
 		"Ethash": {
 			"params": {

@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -16,32 +16,63 @@
 
 import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
-import { bindActionCreators } from 'redux';
 
 class ParityBackground extends Component {
   static contextTypes = {
     muiTheme: PropTypes.object.isRequired
-  }
+  };
 
   static propTypes = {
+    backgroundSeed: PropTypes.string,
     children: PropTypes.node,
     className: PropTypes.string,
-    gradient: PropTypes.string,
-    seed: PropTypes.any,
-    settings: PropTypes.object.isRequired,
     onClick: PropTypes.func
+  };
+
+  state = {
+    style: {}
+  };
+
+  _seed = null;
+
+  componentWillMount () {
+    this.setStyle();
+  }
+
+  componentWillReceiveProps (nextProps) {
+    this.setStyle(nextProps);
+  }
+
+  shouldComponentUpdate (_, nextState) {
+    return nextState.style !== this.state.style;
+  }
+
+  setStyle (props = this.props) {
+    const { seed, gradient, backgroundSeed } = props;
+
+    const _seed = seed || backgroundSeed;
+
+    // Don't update if it's the same seed...
+    if (this._seed === _seed) {
+      return;
+    }
+
+    const { muiTheme } = this.context;
+
+    const style = muiTheme.parity.getBackgroundStyle(gradient, _seed);
+    this.setState({ style });
   }
 
   render () {
-    const { muiTheme } = this.context;
-    const { children, className, gradient, seed, settings, onClick } = this.props;
-    const style = muiTheme.parity.getBackgroundStyle(gradient, seed || settings.backgroundSeed);
+    const { children, className, onClick } = this.props;
+    const { style } = this.state;
 
     return (
       <div
         className={ className }
         style={ style }
-        onTouchTap={ onClick }>
+        onTouchTap={ onClick }
+      >
         { children }
       </div>
     );
@@ -49,16 +80,10 @@ class ParityBackground extends Component {
 }
 
 function mapStateToProps (state) {
-  const { settings } = state;
-
-  return { settings };
-}
-
-function mapDispatchToProps (dispatch) {
-  return bindActionCreators({}, dispatch);
+  const { backgroundSeed } = state.settings;
+  return { backgroundSeed };
 }
 
 export default connect(
-  mapStateToProps,
-  mapDispatchToProps
+  mapStateToProps
 )(ParityBackground);

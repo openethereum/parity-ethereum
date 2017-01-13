@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -102,6 +102,7 @@ extern crate rlp;
 extern crate ethcore_bloom_journal as bloom_journal;
 extern crate byteorder;
 extern crate transient_hashmap;
+extern crate linked_hash_map;
 
 #[macro_use]
 extern crate log;
@@ -115,8 +116,11 @@ extern crate heapsize;
 extern crate ethcore_ipc as ipc;
 extern crate lru_cache;
 
-#[cfg(feature = "jit" )] extern crate evmjit;
-#[cfg(feature = "stratum")] extern crate ethcore_stratum;
+#[cfg(feature = "stratum")]
+extern crate ethcore_stratum;
+#[cfg(feature = "jit" )]
+extern crate evmjit;
+extern crate ethabi;
 
 pub extern crate ethstore;
 

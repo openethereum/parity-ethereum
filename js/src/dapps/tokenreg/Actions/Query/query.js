@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -173,20 +173,26 @@ export default class QueryAction extends Component {
   onQueryKeyChange = (event, index, queryKey) => {
     this.setState({
       queryKey,
-      form: { valid: false, value: '' }
+      form: {
+        valid: false,
+        value: ''
+      }
     });
   }
 
   onChange = (valid, value) => {
     this.setState({
       form: {
-        valid, value
+        valid,
+        value
       }
     });
   }
 
   onQuery = () => {
-    if (!this.state.form.valid) return;
+    if (!this.state.form.valid) {
+      return;
+    }
 
     const { queryKey, form } = this.state;
 

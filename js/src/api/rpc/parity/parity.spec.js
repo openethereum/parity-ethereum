@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import BigNumber from 'bignumber.js';
 import { TEST_HTTP_URL, mockHttp } from '../../../../test/mockRpc';
 import { isBigNumber } from '../../../../test/types';
 
@@ -40,6 +41,22 @@ describe('api/rpc/parity', () => {
               data: 'data'
             }
           }
+        });
+      });
+    });
+  });
+
+  describe('chainStatus', () => {
+    it('retrieves the chain status', () => {
+      mockHttp([{ method: 'parity_chainStatus', reply: {
+        result: {
+          'blockGap': [0x123, 0x456]
+        }
+      } }]);
+
+      return instance.chainStatus().then((result) => {
+        expect(result).to.deep.equal({
+          'blockGap': [new BigNumber(0x123), new BigNumber(0x456)]
         });
       });
     });
@@ -80,7 +97,7 @@ describe('api/rpc/parity', () => {
 
   describe('newPeers', () => {
     it('returns the peer structure, formatted', () => {
-      mockHttp([{ method: 'parity_netPeers', reply: { result: { active: 123, connected: 456, max: 789 } } }]);
+      mockHttp([{ method: 'parity_netPeers', reply: { result: { active: 123, connected: 456, max: 789, peers: [] } } }]);
 
       return instance.netPeers().then((peers) => {
         expect(peers.active.eq(123)).to.be.true;

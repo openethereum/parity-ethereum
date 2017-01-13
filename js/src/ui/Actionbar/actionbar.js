@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -17,11 +17,13 @@
 import React, { Component, PropTypes } from 'react';
 import { Toolbar, ToolbarGroup } from 'material-ui/Toolbar';
 
+import { nodeOrStringProptype } from '~/util/proptypes';
+
 import styles from './actionbar.css';
 
 export default class Actionbar extends Component {
   static propTypes = {
-    title: PropTypes.string,
+    title: nodeOrStringProptype(),
     buttons: PropTypes.array,
     children: PropTypes.node,
     className: PropTypes.string
@@ -48,8 +50,7 @@ export default class Actionbar extends Component {
     }
 
     return (
-      <ToolbarGroup
-        className={ styles.toolbuttons }>
+      <ToolbarGroup className={ styles.toolbuttons }>
         { buttons }
       </ToolbarGroup>
     );

@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -19,6 +19,7 @@ mod block;
 mod block_number;
 mod call_request;
 mod confirmations;
+mod dapp_id;
 mod filter;
 mod hash;
 mod index;
@@ -33,23 +34,32 @@ mod trace_filter;
 mod uint;
 mod work;
 mod histogram;
+mod consensus_status;
 
 pub use self::bytes::Bytes;
 pub use self::block::{RichBlock, Block, BlockTransactions};
 pub use self::block_number::BlockNumber;
 pub use self::call_request::CallRequest;
-pub use self::confirmations::{ConfirmationPayload, ConfirmationRequest, ConfirmationResponse, TransactionModification, SignRequest, DecryptRequest, Either};
+pub use self::confirmations::{
+	ConfirmationPayload, ConfirmationRequest, ConfirmationResponse, ConfirmationResponseWithToken,
+	TransactionModification, SignRequest, DecryptRequest, Either
+};
+pub use self::dapp_id::DappId;
 pub use self::filter::{Filter, FilterChanges};
 pub use self::hash::{H64, H160, H256, H512, H520, H2048};
 pub use self::index::Index;
 pub use self::log::Log;
-pub use self::sync::{SyncStatus, SyncInfo, Peers, PeerInfo, PeerNetworkInfo, PeerProtocolsInfo, PeerEthereumProtocolInfo};
-pub use self::transaction::Transaction;
+pub use self::sync::{
+	SyncStatus, SyncInfo, Peers, PeerInfo, PeerNetworkInfo, PeerProtocolsInfo, PeerEthereumProtocolInfo,
+	TransactionStats, ChainStatus
+};
+pub use self::transaction::{Transaction, RichRawTransaction, LocalTransactionStatus};
 pub use self::transaction_request::TransactionRequest;
 pub use self::receipt::Receipt;
 pub use self::rpc_settings::RpcSettings;
 pub use self::trace::{LocalizedTrace, TraceResults};
 pub use self::trace_filter::TraceFilter;
-pub use self::uint::U256;
+pub use self::uint::{U128, U256};
 pub use self::work::Work;
 pub use self::histogram::Histogram;
+pub use self::consensus_status::*;

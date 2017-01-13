@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -14,10 +14,18 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import BigNumber from 'bignumber.js';
 import React, { Component, PropTypes } from 'react';
 import { Link } from 'react-router';
+import { isEqual } from 'lodash';
+import ReactTooltip from 'react-tooltip';
+import { FormattedMessage } from 'react-intl';
 
-import { Balance, Container, ContainerTitle, IdentityIcon, IdentityName, Tags, Input } from '../../../ui';
+import { Balance, Container, ContainerTitle, IdentityIcon, IdentityName, Tags, Input } from '~/ui';
+import Certifications from '~/ui/Certifications';
+import { nullableProptype } from '~/util/proptypes';
+
+import styles from '../accounts.css';
 
 export default class Summary extends Component {
   static contextTypes = {
@@ -30,20 +38,59 @@ export default class Summary extends Component {
     link: PropTypes.string,
     name: PropTypes.string,
     noLink: PropTypes.bool,
-    children: PropTypes.node,
-    handleAddSearchToken: PropTypes.func
+    showCertifications: PropTypes.bool,
+    handleAddSearchToken: PropTypes.func,
+    owners: nullableProptype(PropTypes.array)
   };
 
   static defaultProps = {
-    noLink: false
+    noLink: false,
+    showCertifications: false
   };
 
-  state = {
-    name: 'Unnamed'
-  };
+  shouldComponentUpdate (nextProps) {
+    const prev = {
+      link: this.props.link, name: this.props.name,
+      noLink: this.props.noLink,
+      meta: this.props.account.meta, address: this.props.account.address
+    };
+
+    const next = {
+      link: nextProps.link, name: nextProps.name,
+      noLink: nextProps.noLink,
+      meta: nextProps.account.meta, address: nextProps.account.address
+    };
+
+    if (!isEqual(next, prev)) {
+      return true;
+    }
+
+    const prevTokens = this.props.balance.tokens || [];
+    const nextTokens = nextProps.balance.tokens || [];
+
+    if (prevTokens.length !== nextTokens.length) {
+      return true;
+    }
+
+    const prevValues = prevTokens.map((t) => ({ value: t.value.toNumber(), image: t.token.image }));
+    const nextValues = nextTokens.map((t) => ({ value: t.value.toNumber(), image: t.token.image }));
+
+    if (!isEqual(prevValues, nextValues)) {
+      return true;
+    }
+
+    const prevOwners = this.props.owners;
+    const nextOwners = nextProps.owners;
+
+    if (!isEqual(prevOwners, nextOwners)) {
+      return true;
+    }
+
+    return false;
+  }
 
   render () {
-    const { account, children, handleAddSearchToken } = this.props;
+    const { account, handleAddSearchToken } = this.props;
     const { tags } = account.meta;
 
     if (!account) {
@@ -61,18 +108,77 @@ export default class Summary extends Component {
       />
     );
 
+    const description = this.getDescription(account.meta);
+
     return (
       <Container>
         <Tags tags={ tags } handleAddSearchToken={ handleAddSearchToken } />
-        <IdentityIcon
-          address={ address } />
-        <ContainerTitle
-          title={ this.renderLink() }
-          byline={ addressComponent } />
+        <div className={ styles.heading }>
+          <IdentityIcon
+            address={ address }
+          />
+          <ContainerTitle
+            byline={ addressComponent }
+            className={ styles.main }
+            description={ description }
+            title={ this.renderLink() }
+          />
+        </div>
 
+        { this.renderOwners() }
         { this.renderBalance() }
-        { children }
+        { this.renderCertifications() }
       </Container>
+    );
+  }
+
+  getDescription (meta = {}) {
+    const { blockNumber } = meta;
+
+    if (!blockNumber) {
+      return null;
+    }
+
+    const formattedBlockNumber = (new BigNumber(blockNumber)).toFormat();
+
+    return (
+      <FormattedMessage
+        id='accounts.summary.minedBlock'
+        defaultMessage='Mined at block #{blockNumber}'
+        values={ {
+          blockNumber: formattedBlockNumber
+        } }
+      />
+    );
+  }
+
+  renderOwners () {
+    const { owners } = this.props;
+    const ownersValid = (owners || []).filter((owner) => owner.address && new BigNumber(owner.address).gt(0));
+
+    if (!ownersValid || ownersValid.length === 0) {
+      return null;
+    }
+
+    return (
+      <div className={ styles.owners }>
+        {
+          ownersValid.map((owner, index) => (
+            <div key={ `${index}_${owner.address}` }>
+              <div
+                data-tip
+                data-for={ `owner_${owner.address}` }
+                data-effect='solid'
+              >
+                <IdentityIcon address={ owner.address } button />
+              </div>
+              <ReactTooltip id={ `owner_${owner.address}` }>
+                <strong>{ owner.name } </strong><small> (owner)</small>
+              </ReactTooltip>
+            </div>
+          ))
+        }
+      </div>
     );
   }
 
@@ -80,7 +186,11 @@ export default class Summary extends Component {
     const { link, noLink, account, name } = this.props;
 
     const { address } = account;
-    const viewLink = `/${link || 'account'}/${address}`;
+    const baseLink = account.wallet
+      ? 'wallet'
+      : link || 'accounts';
+
+    const viewLink = `/${baseLink}/${address}`;
 
     const content = (
       <IdentityName address={ address } name={ name } unknown />
@@ -106,6 +216,17 @@ export default class Summary extends Component {
 
     return (
       <Balance balance={ balance } />
+    );
+  }
+
+  renderCertifications () {
+    const { showCertifications, account } = this.props;
+    if (!showCertifications) {
+      return null;
+    }
+
+    return (
+      <Certifications address={ account.address } />
     );
   }
 }

@@ -32,3 +32,5 @@
 out/
 
 .vscode
+
+/parity.*

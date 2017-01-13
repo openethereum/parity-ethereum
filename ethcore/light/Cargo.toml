@@ -1,16 +1,26 @@
 [package]
 description = "Parity LES primitives"
-homepage = "https://ethcore.io"
+homepage = "http://parity.io"
 license = "GPL-3.0"
 name = "ethcore-light"
-version = "1.5.0"
-authors = ["Ethcore <admin@ethcore.io>"]
+version = "1.6.0"
+authors = ["Parity Technologies <admin@parity.io>"]
+build = "build.rs"
+
+[build-dependencies]
+"ethcore-ipc-codegen" = { path = "../../ipc/codegen", optional = true }
 
 [dependencies]
 log = "0.3"
-ethcore = { path = ".." }
+ethcore = { path = ".."}
 ethcore-util = { path = "../../util" }
 ethcore-network = { path = "../../util/network" }
 ethcore-io = { path = "../../util/io" }
+ethcore-ipc = { path = "../../ipc/rpc", optional = true }
 rlp = { path = "../../util/rlp" }
 time = "0.1"
+smallvec = "0.3.1"
+
+[features]
+default = []
+ipc = ["ethcore-ipc", "ethcore-ipc-codegen"]

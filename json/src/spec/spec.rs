@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -27,8 +27,8 @@ pub struct Spec {
 	/// Spec name.
 	pub name: String,
 	/// Special fork name.
-	#[serde(rename="forkName")]
-	pub fork_name: Option<String>,
+	#[serde(rename="dataDir")]
+	pub data_dir: Option<String>,
 	/// Engine.
 	pub engine: Engine,
 	/// Spec params.
@@ -57,6 +57,7 @@ mod tests {
 	fn spec_deserialization() {
 		let s = r#"{
 	"name": "Morden",
+	"dataDir": "morden",
 	"engine": {
 		"Ethash": {
 			"params": {

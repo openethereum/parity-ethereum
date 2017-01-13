@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -73,10 +73,10 @@ impl WriteCache {
 
 				match *cache_entry {
 					WriteCacheEntry::Write(ref val) => {
-						try!(batch.put(&key, val));
+						batch.put(&key, val)?;
 					},
 					WriteCacheEntry::Remove => {
-						try!(batch.delete(&key));
+						batch.delete(&key)?;
 					},
 				}
 				key.clone()
@@ -87,14 +87,14 @@ impl WriteCache {
 			removed_so_far = removed_so_far + 1;
 		}
 		if removed_so_far > 0 {
-			try!(db.write(batch));
+			db.write(batch)?;
 		}
 		Ok(())
 	}
 
 	/// flushes until cache is empty
 	fn flush_all(&mut self, db: &DB) -> Result<(), Error> {
-		while !self.is_empty() { try!(self.flush(db, FLUSH_BATCH_SIZE)); }
+		while !self.is_empty() { self.flush(db, FLUSH_BATCH_SIZE)?; }
 		Ok(())
 	}
 
@@ -104,7 +104,7 @@ impl WriteCache {
 
 	fn try_shrink(&mut self, db: &DB) -> Result<(), Error> {
 		if self.entries.len() > self.preferred_len {
-			try!(self.flush(db, FLUSH_BATCH_SIZE));
+			self.flush(db, FLUSH_BATCH_SIZE)?;
 		}
 		Ok(())
 	}
@@ -135,7 +135,7 @@ impl Database {
 		if db_lock.is_none() { return Ok(()); }
 		let db = db_lock.as_ref().unwrap();
 
-		try!(cache_lock.try_shrink(&db));
+		cache_lock.try_shrink(&db)?;
 		Ok(())
 	}
 
@@ -145,7 +145,7 @@ impl Database {
 		if db_lock.is_none() { return Ok(()); }
 		let db = db_lock.as_ref().expect("we should have exited with Ok(()) on the previous step");
 
-		try!(cache_lock.flush_all(&db));
+		cache_lock.flush_all(&db)?;
 		Ok(())
 
 	}
@@ -174,7 +174,7 @@ impl DatabaseService for Database {
 			opts.set_block_based_table_factory(&block_opts);
 			opts.set_prefix_extractor_fixed_size(size);
 		}
-		*db = Some(try!(DB::open(&opts, &path)));
+		*db = Some(DB::open(&opts, &path)?);
 
 		Ok(())
 	}
@@ -185,7 +185,7 @@ impl DatabaseService for Database {
 	}
 
 	fn close(&self) -> Result<(), Error> {
-		try!(self.flush_all());
+		self.flush_all()?;
 
 		let mut db = self.db.write();
 		if db.is_none() { return Err(Error::IsClosed); }
@@ -231,9 +231,9 @@ impl DatabaseService for Database {
 			}
 		}
 		let db_lock = self.db.read();
-		let db = try!(db_lock.as_ref().ok_or(Error::IsClosed));
+		let db = db_lock.as_ref().ok_or(Error::IsClosed)?;
 
-		match try!(db.get(key)) {
+		match db.get(key)? {
 			Some(db_vec) => {
 				Ok(Some(db_vec.to_vec()))
 			},
@@ -243,7 +243,7 @@ impl DatabaseService for Database {
 
 	fn get_by_prefix(&self, prefix: &[u8]) -> Result<Option<Vec<u8>>, Error> {
 		let db_lock = self.db.read();
-		let db = try!(db_lock.as_ref().ok_or(Error::IsClosed));
+		let db = db_lock.as_ref().ok_or(Error::IsClosed)?;
 
 		let mut iter = db.iterator(IteratorMode::From(prefix, Direction::Forward));
 		match iter.next() {
@@ -255,14 +255,14 @@ impl DatabaseService for Database {
 
 	fn is_empty(&self) -> Result<bool, Error> {
 		let db_lock = self.db.read();
-		let db = try!(db_lock.as_ref().ok_or(Error::IsClosed));
+		let db = db_lock.as_ref().ok_or(Error::IsClosed)?;
 
 		Ok(db.iterator(IteratorMode::Start).next().is_none())
 	}
 
 	fn iter(&self) -> Result<IteratorHandle, Error> {
 		let db_lock = self.db.read();
-		let db = try!(db_lock.as_ref().ok_or(Error::IsClosed));
+		let db = db_lock.as_ref().ok_or(Error::IsClosed)?;
 
 		let mut iterators = self.iterators.write();
 		let next_iterator = iterators.keys().last().unwrap_or(&0) + 1;
@@ -270,8 +270,7 @@ impl DatabaseService for Database {
 		Ok(next_iterator)
 	}
 
-	fn iter_next(&self, handle: IteratorHandle) -> Option<KeyValue>
-	{
+	fn iter_next(&self, handle: IteratorHandle) -> Option<KeyValue> {
 		let mut iterators = self.iterators.write();
 		let mut iterator = match iterators.get_mut(&handle) {
 			Some(some_iterator) => some_iterator,

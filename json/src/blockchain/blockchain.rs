@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -59,9 +59,9 @@ impl BlockChain {
 				mix_hash: self.genesis_block.mix_hash.clone(),
 			}),
 			difficulty: self.genesis_block.difficulty,
-			author: self.genesis_block.author.clone(),
-			timestamp: self.genesis_block.timestamp,
-			parent_hash: self.genesis_block.parent_hash.clone(),
+			author: Some(self.genesis_block.author.clone()),
+			timestamp: Some(self.genesis_block.timestamp),
+			parent_hash: Some(self.genesis_block.parent_hash.clone()),
 			gas_limit: self.genesis_block.gas_limit,
 			transactions_root: Some(self.genesis_block.transactions_root.clone()),
 			receipts_root: Some(self.genesis_block.receipts_root.clone()),

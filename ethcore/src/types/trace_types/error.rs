@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -21,7 +21,8 @@ use rlp::{Encodable, RlpStream, Decodable, Decoder, DecoderError, Stream, View};
 use evm::Error as EvmError;
 
 /// Trace evm errors.
-#[derive(Debug, PartialEq, Clone, Binary)]
+#[derive(Debug, PartialEq, Clone)]
+#[cfg_attr(feature = "ipc", binary)]
 pub enum Error {
 	/// `OutOfGas` is returned when transaction execution runs out of gas.
 	OutOfGas,
@@ -85,7 +86,7 @@ impl Encodable for Error {
 impl Decodable for Error {
 	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
 		use self::Error::*;
-		let value: u8 = try!(decoder.as_rlp().as_val());
+		let value: u8 = decoder.as_rlp().as_val()?;
 		match value {
 			0 => Ok(OutOfGas),
 			1 => Ok(BadJumpDestination),

@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -19,6 +19,9 @@ import { applyMiddleware, createStore } from 'redux';
 import initMiddleware from './middleware';
 import initReducers from './reducers';
 
+import { load as loadWallet } from './providers/walletActions';
+import { setupWorker } from './providers/worker';
+
 import {
   Balances as BalancesProvider,
   Personal as PersonalProvider,
@@ -30,15 +33,18 @@ const storeCreation = window.devToolsExtension
   ? window.devToolsExtension()(createStore)
   : createStore;
 
-export default function (api) {
+export default function (api, browserHistory) {
   const reducers = initReducers();
-  const middleware = initMiddleware(api);
+  const middleware = initMiddleware(api, browserHistory);
   const store = applyMiddleware(...middleware)(storeCreation)(reducers);
 
   new BalancesProvider(store, api).start();
   new PersonalProvider(store, api).start();
   new SignerProvider(store, api).start();
   new StatusProvider(store, api).start();
+
+  store.dispatch(loadWallet(api));
+  setupWorker(store);
 
   return store;
 }

@@ -3,7 +3,7 @@ description = "Parity built-in dapps."
 name = "parity-ui-precompiled"
 version = "1.4.0"
 license = "GPL-3.0"
-authors = ["Ethcore <admin@ethcore.io>"]
+authors = ["Parity Technologies <admin@parity.io>"]
 build = "build.rs"
 
 [features]

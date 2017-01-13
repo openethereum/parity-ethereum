@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -29,6 +29,15 @@ describe('abi/spec/Param', () => {
   describe('toParams', () => {
     it('maps an array of params', () => {
       const params = Param.toParams([{ name: 'foo', type: 'uint' }]);
+
+      expect(params.length).to.equal(1);
+      expect(params[0].name).to.equal('foo');
+      expect(params[0].kind.type).to.equal('uint');
+    });
+
+    it('converts only if needed', () => {
+      const _params = Param.toParams([{ name: 'foo', type: 'uint' }]);
+      const params = Param.toParams(_params);
 
       expect(params.length).to.equal(1);
       expect(params[0].name).to.equal('foo');

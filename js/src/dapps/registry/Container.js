@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -18,25 +18,26 @@ import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
+import { nullableProptype } from '~/util/proptypes';
+
 import Application from './Application';
 import * as actions from './actions';
-
-const nullable = (type) => React.PropTypes.oneOfType([ React.PropTypes.oneOf([ null ]), type ]);
 
 class Container extends Component {
   static propTypes = {
     actions: PropTypes.object.isRequired,
     accounts: PropTypes.object.isRequired,
     contacts: PropTypes.object.isRequired,
-    contract: nullable(PropTypes.object.isRequired),
-    owner: nullable(PropTypes.string.isRequired),
-    fee: nullable(PropTypes.object.isRequired),
+    contract: nullableProptype(PropTypes.object.isRequired),
+    owner: nullableProptype(PropTypes.string.isRequired),
+    fee: nullableProptype(PropTypes.object.isRequired),
     lookup: PropTypes.object.isRequired,
     events: PropTypes.object.isRequired
   };
 
   componentDidMount () {
     Promise.all([
+      this.props.actions.fetchIsTestnet(),
       this.props.actions.addresses.fetch(),
       this.props.actions.fetchContract()
     ]).then(() => {

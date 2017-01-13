@@ -1,4 +1,4 @@
-/* Copyright 2015, 2016 Ethcore (UK) Ltd.
+/* Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 /* This file is part of Parity.
 /*
 /* Parity is free software: you can redistribute it and/or modify
@@ -15,9 +15,12 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-.outer,
 .container {
-  min-height: 100vh;
   display: flex;
   flex-direction: column;
+  min-height: 100vh;
+}
+
+.content {
+  padding-bottom: 1.25em;
 }

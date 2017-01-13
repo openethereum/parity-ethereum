@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -199,7 +199,7 @@ impl ConfirmationsQueue {
 		let recv = recv.expect("Check for none is done earlier.");
 
 		loop {
-			let message = try!(recv.recv().map_err(|e| QueueError::ReceiverError(e)));
+			let message = recv.recv().map_err(|e| QueueError::ReceiverError(e))?;
 			if let QueueEvent::Finish = message {
 				return Ok(());
 			}
@@ -328,6 +328,7 @@ mod test {
 			value: 10_000_000.into(),
 			data: vec![],
 			nonce: None,
+			min_block: None,
 		})
 	}
 

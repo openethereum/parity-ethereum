@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -16,7 +16,7 @@
 
 import BigNumber from 'bignumber.js';
 
-import { inAddress, inBlockNumber, inData, inFilter, inHex, inNumber10, inNumber16, inOptions } from './input';
+import { inAddress, inBlockNumber, inData, inFilter, inHex, inNumber10, inNumber16, inOptions, inTraceType } from './input';
 import { isAddress } from '../../../test/types';
 
 describe('api/format/input', () => {
@@ -204,7 +204,7 @@ describe('api/format/input', () => {
       });
     });
 
-    ['gas', 'gasPrice', 'value', 'nonce'].forEach((input) => {
+    ['gas', 'gasPrice', 'value', 'minBlock', 'nonce'].forEach((input) => {
       it(`formats ${input} number as hexnumber`, () => {
         const block = {};
         block[input] = 0x123;
@@ -212,6 +212,10 @@ describe('api/format/input', () => {
 
         expect(formatted).to.equal('0x123');
       });
+    });
+
+    it('passes minBlock as null when specified as such', () => {
+      expect(inOptions({ minBlock: null })).to.deep.equal({ minBlock: null });
     });
 
     it('ignores and passes through unknown keys', () => {
@@ -240,6 +244,18 @@ describe('api/format/input', () => {
         data: '0x0123456789',
         extraData: 'someExtraStuffInHere'
       });
+    });
+  });
+
+  describe('inTraceType', () => {
+    it('returns array of types as is', () => {
+      const types = ['vmTrace', 'trace', 'stateDiff'];
+      expect(inTraceType(types)).to.deep.equal(types);
+    });
+
+    it('formats single string type into array', () => {
+      const type = 'vmTrace';
+      expect(inTraceType(type)).to.deep.equal([type]);
     });
   });
 });

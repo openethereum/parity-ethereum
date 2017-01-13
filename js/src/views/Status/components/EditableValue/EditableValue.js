@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -140,7 +140,7 @@ export default class EditableValue extends Component {
         title={ `Reset to ${this.props.defaultValue}` }
         { ...this._testInherit('reset') }
         >
-        <i className='icon-anchor'></i>
+        <i className='icon-anchor' />
       </a>
     );
   }
@@ -154,7 +154,7 @@ export default class EditableValue extends Component {
           onClick={ this.onSubmit }
           { ...this._testInherit('submit') }
           >
-          <i className='icon-check'></i>
+          <i className='icon-check' />
         </a>,
         <a
           key={ 'cancel' }
@@ -162,7 +162,7 @@ export default class EditableValue extends Component {
           onClick={ this.onCancel }
           { ...this._testInherit('cancel') }
           >
-          <i className='icon-close'></i>
+          <i className='icon-close' />
         </a>
       ];
     }
@@ -175,7 +175,7 @@ export default class EditableValue extends Component {
         title='Edit'
         { ...this._testInherit('edit') }
         >
-        <i className='icon-pencil'></i>
+        <i className='icon-pencil' />
       </a>
     );
   }

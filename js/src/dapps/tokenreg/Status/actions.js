@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import Contracts from '../../../contracts';
+import Contracts from '~/contracts';
 
 import { loadToken, setTokenPending, deleteToken, setTokenData } from '../Tokens/actions';
 
@@ -119,7 +119,9 @@ export const subscribeEvents = () => (dispatch, getState) => {
         return;
       }
 
-      if (!logs || logs.length === 0) return;
+      if (!logs || logs.length === 0) {
+        return;
+      }
 
       logs.forEach(log => {
         const event = log.event;
@@ -127,7 +129,7 @@ export const subscribeEvents = () => (dispatch, getState) => {
         const params = log.params;
 
         if (event === 'Registered' && type === 'pending') {
-          return dispatch(setTokenData(params.id.toNumber(), {
+          return dispatch(setTokenData(params.id.value.toNumber(), {
             tla: '...',
             base: -1,
             address: params.addr.value,

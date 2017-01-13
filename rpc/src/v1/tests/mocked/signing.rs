@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -26,11 +26,12 @@ use v1::types::ConfirmationResponse;
 use v1::tests::helpers::TestMinerService;
 use v1::tests::mocked::parity;
 
-use util::{Address, FixedHash, Uint, U256, H256, ToPretty};
+use util::{Address, FixedHash, Uint, U256, ToPretty, Hashable};
 use ethcore::account_provider::AccountProvider;
 use ethcore::client::TestBlockChainClient;
 use ethcore::transaction::{Transaction, Action};
 use ethstore::ethkey::{Generator, Random};
+use futures::Future;
 use serde_json;
 
 struct SigningTester {
@@ -47,11 +48,11 @@ impl Default for SigningTester {
 		let client = Arc::new(TestBlockChainClient::default());
 		let miner = Arc::new(TestMinerService::default());
 		let accounts = Arc::new(AccountProvider::transient_provider());
-		let io = IoHandler::new();
+		let mut io = IoHandler::default();
 		let rpc = SigningQueueClient::new(&signer, &client, &miner, &accounts);
-		io.add_delegate(EthSigning::to_delegate(rpc));
+		io.extend_with(EthSigning::to_delegate(rpc));
 		let rpc = SigningQueueClient::new(&signer, &client, &miner, &accounts);
-		io.add_delegate(ParitySigning::to_delegate(rpc));
+		io.extend_with(ParitySigning::to_delegate(rpc));
 
 		SigningTester {
 			signer: signer,
@@ -87,13 +88,13 @@ fn should_add_sign_to_queue() {
 	let response = r#"{"jsonrpc":"2.0","result":"0x0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000","id":1}"#;
 
 	// then
-	let async_result = tester.io.handle_request(&request).unwrap();
+	let promise = tester.io.handle_request(&request);
 	assert_eq!(tester.signer.requests().len(), 1);
 	// respond
 	tester.signer.request_confirmed(1.into(), Ok(ConfirmationResponse::Signature(0.into())));
-	assert!(async_result.on_result(move |res| {
-		assert_eq!(res, response.to_owned());
-	}));
+
+	let res = promise.wait().unwrap();
+	assert_eq!(res, Some(response.to_owned()));
 }
 
 #[test]
@@ -183,11 +184,11 @@ fn should_check_status_of_request_when_its_resolved() {
 fn should_sign_if_account_is_unlocked() {
 	// given
 	let tester = eth_signing();
-	let hash: H256 = 5.into();
+	let data = vec![5u8];
 	let acc = tester.accounts.new_account("test").unwrap();
 	tester.accounts.unlock_account_permanently(acc, "test".into()).unwrap();
 
-	let signature = tester.accounts.sign(acc, None, hash).unwrap();
+	let signature = tester.accounts.sign(acc, None, data.sha3()).unwrap();
 
 	// when
 	let request = r#"{
@@ -195,7 +196,7 @@ fn should_sign_if_account_is_unlocked() {
 		"method": "eth_sign",
 		"params": [
 			""#.to_owned() + format!("0x{:?}", acc).as_ref() + r#"",
-			""# + format!("0x{:?}", hash).as_ref() + r#""
+			""# + format!("0x{}", data.to_hex()).as_ref() + r#""
 		],
 		"id": 1
 	}"#;
@@ -227,13 +228,13 @@ fn should_add_transaction_to_queue() {
 	let response = r#"{"jsonrpc":"2.0","result":"0x0000000000000000000000000000000000000000000000000000000000000000","id":1}"#;
 
 	// then
-	let async_result = tester.io.handle_request(&request).unwrap();
+	let promise = tester.io.handle_request(&request);
 	assert_eq!(tester.signer.requests().len(), 1);
 	// respond
 	tester.signer.request_confirmed(1.into(), Ok(ConfirmationResponse::SendTransaction(0.into())));
-	assert!(async_result.on_result(move |res| {
-		assert_eq!(res, response.to_owned());
-	}));
+
+	let res = promise.wait().unwrap();
+	assert_eq!(res, Some(response.to_owned()));
 }
 
 #[test]
@@ -268,19 +269,39 @@ fn should_add_sign_transaction_to_the_queue() {
 	};
 	let signature = tester.accounts.sign(address, Some("test".into()), t.hash(None)).unwrap();
 	let t = t.with_signature(signature, None);
+	let signature = t.signature();
 	let rlp = rlp::encode(&t);
 
-	let response = r#"{"jsonrpc":"2.0","result":"0x"#.to_owned() + &rlp.to_hex() + r#"","id":1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":{"#.to_owned() +
+		r#""raw":"0x"# + &rlp.to_hex() + r#"","# +
+		r#""tx":{"# +
+		r#""blockHash":null,"blockNumber":null,"creates":null,"# +
+		&format!("\"from\":\"0x{:?}\",", &address) +
+		r#""gas":"0x76c0","gasPrice":"0x9184e72a000","# +
+		&format!("\"hash\":\"0x{:?}\",", t.hash()) +
+		r#""input":"0x","# +
+		r#""minBlock":null,"# +
+		&format!("\"networkId\":{},", t.network_id().map_or("null".to_owned(), |n| format!("{}", n))) +
+		r#""nonce":"0x1","# +
+		&format!("\"publicKey\":\"0x{:?}\",", t.public_key().unwrap()) +
+		&format!("\"r\":\"0x{}\",", U256::from(signature.r()).to_hex()) +
+		&format!("\"raw\":\"0x{}\",", rlp.to_hex()) +
+		&format!("\"s\":\"0x{}\",", U256::from(signature.s()).to_hex()) +
+		&format!("\"standardV\":\"0x{}\",", U256::from(t.standard_v()).to_hex()) +
+		r#""to":"0xd46e8dd67c5d32be8058bb8eb970870f07244567","transactionIndex":null,"# +
+		&format!("\"v\":\"0x{}\",", U256::from(t.original_v()).to_hex()) +
+		r#""value":"0x9184e72a""# +
+		r#"}},"id":1}"#;
 
 	// then
 	tester.miner.last_nonces.write().insert(address.clone(), U256::zero());
-	let async_result = tester.io.handle_request(&request).unwrap();
+	let promise = tester.io.handle_request(&request);
 	assert_eq!(tester.signer.requests().len(), 1);
 	// respond
-	tester.signer.request_confirmed(1.into(), Ok(ConfirmationResponse::SignTransaction(rlp.to_vec().into())));
-	assert!(async_result.on_result(move |res| {
-		assert_eq!(res, response.to_owned());
-	}));
+	tester.signer.request_confirmed(1.into(), Ok(ConfirmationResponse::SignTransaction(t.into())));
+
+	let res = promise.wait().unwrap();
+	assert_eq!(res, Some(response.to_owned()));
 }
 
 #[test]
@@ -323,9 +344,9 @@ fn should_dispatch_transaction_if_account_is_unlock() {
 #[test]
 fn should_decrypt_message_if_account_is_unlocked() {
 	// given
-	let tester = eth_signing();
+	let mut tester = eth_signing();
 	let parity = parity::Dependencies::new();
-	tester.io.add_delegate(parity.client(None).to_delegate());
+	tester.io.extend_with(parity.client(None).to_delegate());
 	let (address, public) = tester.accounts.new_account_and_public("test").unwrap();
 	tester.accounts.unlock_account_permanently(address, "test".into()).unwrap();
 
@@ -371,11 +392,11 @@ fn should_add_decryption_to_the_queue() {
 	let response = r#"{"jsonrpc":"2.0","result":"0x0102","id":1}"#;
 
 	// then
-	let async_result = tester.io.handle_request(&request).unwrap();
+	let promise = tester.io.handle_request(&request);
 	assert_eq!(tester.signer.requests().len(), 1);
 	// respond
 	tester.signer.request_confirmed(1.into(), Ok(ConfirmationResponse::Decrypt(vec![0x1, 0x2].into())));
-	assert!(async_result.on_result(move |res| {
-		assert_eq!(res, response.to_owned());
-	}));
+
+	let res = promise.wait().unwrap();
+	assert_eq!(res, Some(response.to_owned()));
 }

@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -128,8 +128,12 @@ export default class RegisterAction extends Component {
   renderContent () {
     const { error, complete } = this.props;
 
-    if (error) return this.renderError();
-    if (complete) return this.renderComplete();
+    if (error) {
+      return this.renderError();
+    } else if (complete) {
+      return this.renderComplete();
+    }
+
     return this.renderForm();
   }
 

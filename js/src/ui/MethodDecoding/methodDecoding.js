@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -14,19 +14,16 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import BigNumber from 'bignumber.js';
 import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
-import { bindActionCreators } from 'redux';
 import CircularProgress from 'material-ui/CircularProgress';
 
-import Contracts from '../../contracts';
-import { Input, InputAddress } from '../Form';
+import { TypedInput, InputAddress } from '../Form';
+import MethodDecodingStore from './methodDecodingStore';
 
 import styles from './methodDecoding.css';
 
 const ASCII_INPUT = /^[a-z0-9\s,?;.:/!()-_@'"#]+$/i;
-const CONTRACT_CREATE = '0x60606040';
 const TOKEN_METHODS = {
   '0xa9059cbb': 'transfer(to,value)'
 };
@@ -38,33 +35,48 @@ class MethodDecoding extends Component {
 
   static propTypes = {
     address: PropTypes.string.isRequired,
-    tokens: PropTypes.object,
+    token: PropTypes.object,
     transaction: PropTypes.object,
     historic: PropTypes.bool
   }
 
   state = {
     contractAddress: null,
-    method: null,
     methodName: null,
     methodInputs: null,
     methodParams: null,
     methodSignature: null,
-    token: null,
     isContract: false,
     isDeploy: false,
     isReceived: false,
-    isLoading: true
+    isLoading: true,
+    expandInput: false,
+    inputType: 'auto'
   }
 
-  componentWillMount () {
-    const lookupResult = this.lookup();
+  methodDecodingStore = MethodDecodingStore.get(this.context.api);
 
-    if (typeof lookupResult === 'object' && typeof lookupResult.then === 'function') {
-      lookupResult.then(() => this.setState({ isLoading: false }));
-    } else {
-      this.setState({ isLoading: false });
-    }
+  componentWillMount () {
+    const { address, transaction } = this.props;
+
+    this
+      .methodDecodingStore
+      .lookup(address, transaction)
+      .then((lookup) => {
+        const newState = {
+          methodName: lookup.name,
+          methodInputs: lookup.inputs,
+          methodParams: lookup.params,
+          methodSignature: lookup.signature,
+
+          isContract: lookup.contract,
+          isDeploy: lookup.deploy,
+          isLoading: false,
+          isReceived: lookup.received
+        };
+
+        this.setState(newState);
+      });
   }
 
   render () {
@@ -94,6 +106,11 @@ class MethodDecoding extends Component {
   renderGas () {
     const { historic, transaction } = this.props;
     const { gas, gasPrice } = transaction;
+
+    if (!gas || !gasPrice) {
+      return null;
+    }
+
     const gasValue = gas.mul(gasPrice);
 
     return (
@@ -104,12 +121,27 @@ class MethodDecoding extends Component {
         </span>
         <span> for a total transaction value of </span>
         <span className={ styles.highlight }>{ this.renderEtherValue(gasValue) }</span>
+        { this.renderMinBlock() }
       </div>
     );
   }
 
+  renderMinBlock () {
+    const { historic, transaction } = this.props;
+    const { minBlock } = transaction;
+
+    if (!minBlock || minBlock.eq(0)) {
+      return null;
+    }
+
+    return (
+      <span>, { historic ? 'Submitted' : 'Submission' } at block <span className={ styles.highlight }>#{ minBlock.toFormat(0) }</span></span>
+    );
+  }
+
   renderAction () {
-    const { methodName, methodInputs, methodSignature, token, isDeploy, isReceived, isContract } = this.state;
+    const { token } = this.props;
+    const { methodName, methodInputs, methodSignature, isDeploy, isReceived, isContract } = this.state;
 
     if (isDeploy) {
       return this.renderDeploy();
@@ -132,24 +164,55 @@ class MethodDecoding extends Component {
       : this.renderValueTransfer();
   }
 
-  renderInputValue () {
+  getAscii () {
     const { api } = this.context;
     const { transaction } = this.props;
+    const ascii = api.util.hexToAscii(transaction.input || transaction.data);
 
-    if (!/^(0x)?([0]*[1-9a-f]+[0]*)+$/.test(transaction.input)) {
+    return { value: ascii, valid: ASCII_INPUT.test(ascii) };
+  }
+
+  renderInputValue () {
+    const { transaction } = this.props;
+    const { expandInput, inputType } = this.state;
+    const input = transaction.input || transaction.data;
+
+    if (!/^(0x)?([0]*[1-9a-f]+[0]*)+$/.test(input)) {
       return null;
     }
 
-    const ascii = api.util.hex2Ascii(transaction.input);
+    const ascii = this.getAscii();
+    const type = inputType === 'auto'
+      ? (ascii.valid ? 'ascii' : 'raw')
+      : inputType;
 
-    const text = ASCII_INPUT.test(ascii)
-      ? ascii
-      : transaction.input;
+    const text = type === 'ascii'
+      ? ascii.value
+      : input;
+
+    const expandable = text.length > 50;
+    const textToShow = expandInput || !expandable
+      ? text
+      : text.slice(0, 50) + '...';
 
     return (
-      <div>
-        <span>with the input &nbsp;</span>
-        <code className={ styles.inputData }>{ text }</code>
+      <div className={ styles.details }>
+        <span>with the </span>
+        <span
+          onClick={ this.toggleInputType }
+          className={ [ styles.clickable, styles.noSelect ].join(' ') }
+        >
+          { type === 'ascii' ? 'input' : 'data' }
+        </span>
+        <span> &nbsp; </span>
+        <span
+          onClick={ this.toggleInputExpand }
+          className={ expandable ? styles.clickable : '' }
+        >
+          <code className={ styles.inputData }>
+            { textToShow }
+          </code>
+        </span>
       </div>
     );
   }
@@ -181,6 +244,7 @@ class MethodDecoding extends Component {
 
   renderDeploy () {
     const { historic, transaction } = this.props;
+    const { methodInputs } = this.state;
 
     if (!historic) {
       return (
@@ -197,6 +261,14 @@ class MethodDecoding extends Component {
         </div>
 
         { this.renderAddressName(transaction.creates, false) }
+
+        <div>
+          { methodInputs && methodInputs.length ? 'with the following parameters:' : ''}
+        </div>
+
+        <div className={ styles.inputs }>
+          { this.renderInputs() }
+        </div>
       </div>
     );
   }
@@ -300,39 +372,35 @@ class MethodDecoding extends Component {
   renderInputs () {
     const { methodInputs } = this.state;
 
-    return methodInputs.map((input, index) => {
-      switch (input.type) {
-        case 'address':
-          return (
-            <InputAddress
-              disabled
-              text
-              key={ index }
-              className={ styles.input }
-              value={ input.value }
-              label={ input.type } />
-          );
+    if (!methodInputs || methodInputs.length === 0) {
+      return null;
+    }
 
-        default:
-          return (
-            <Input
-              readOnly
-              allowCopy
-              key={ index }
-              className={ styles.input }
-              value={ this.renderValue(input.value) }
-              label={ input.type } />
-          );
-      }
+    const inputs = methodInputs.map((input, index) => {
+      const label = input.name
+        ? `${input.name}: ${input.type}`
+        : input.type;
+
+      return (
+        <TypedInput
+          allowCopy
+          className={ styles.input }
+          label={ label }
+          key={ index }
+          param={ input.type }
+          readOnly
+          value={ this.renderValue(input.value) }
+        />
+      );
     });
+
+    return inputs;
   }
 
   renderValue (value) {
     const { api } = this.context;
 
-    if (api.util.isInstanceOf(value, BigNumber)) {
-      return value.toFormat(0);
-    } else if (api.util.isArray(value)) {
+    if (api.util.isArray(value)) {
       return api.util.bytesToHex(value);
     }
 
@@ -340,7 +408,7 @@ class MethodDecoding extends Component {
   }
 
   renderTokenValue (value) {
-    const { token } = this.state;
+    const { token } = this.props;
 
     return (
       <span className={ styles.tokenValue }>
@@ -373,95 +441,43 @@ class MethodDecoding extends Component {
     );
   }
 
-  lookup () {
-    const { transaction } = this.props;
-
-    if (!transaction) {
+  toggleInputExpand = () => {
+    if (window.getSelection && window.getSelection().type === 'Range') {
       return;
     }
 
-    const { api } = this.context;
-    const { address, tokens } = this.props;
-
-    const isReceived = transaction.to === address;
-    const contractAddress = isReceived ? transaction.from : transaction.to;
-
-    const token = (tokens || {})[contractAddress];
-    this.setState({ token, isReceived, contractAddress });
-
-    if (!transaction.input || transaction.input === '0x') {
-      return;
-    }
-
-    if (contractAddress === '0x') {
-      return;
-    }
-
-    return api.eth
-      .getCode(contractAddress || transaction.creates)
-      .then((bytecode) => {
-        const isContract = bytecode && /^(0x)?([0]*[1-9a-f]+[0]*)+$/.test(bytecode);
-
-        this.setState({ isContract });
-
-        if (!isContract) {
-          return;
-        }
-
-        const { signature, paramdata } = api.util.decodeCallData(transaction.input);
-        this.setState({ methodSignature: signature, methodParams: paramdata });
-
-        if (!signature || signature === CONTRACT_CREATE || transaction.creates) {
-          this.setState({ isDeploy: true });
-          return;
-        }
-
-        return Contracts.get()
-          .signatureReg
-          .lookup(signature)
-          .then((method) => {
-            let methodInputs = null;
-            let methodName = null;
-
-            if (method && method.length) {
-              const { methodParams } = this.state;
-              const abi = api.util.methodToAbi(method);
-
-              methodName = abi.name;
-              methodInputs = api.util
-                .decodeMethodInput(abi, methodParams)
-                .map((value, index) => {
-                  const type = abi.inputs[index].type;
-
-                  return { type, value };
-                });
-            }
-
-            this.setState({
-              method,
-              methodName,
-              methodInputs,
-              bytecode
-            });
-          });
-      })
-      .catch((error) => {
-        console.warn('lookup', error);
-      });
+    this.setState({
+      expandInput: !this.state.expandInput
+    });
   }
+
+  toggleInputType = () => {
+    const { inputType } = this.state;
+
+    if (inputType !== 'auto') {
+      return this.setState({
+        inputType: this.state.inputType === 'raw' ? 'ascii' : 'raw'
+      });
+    }
+
+    const ascii = this.getAscii();
+    return this.setState({
+      inputType: ascii.valid ? 'raw' : 'ascii'
+    });
+  }
+
 }
 
-function mapStateToProps (state) {
-  const { tokens } = state.balances;
+function mapStateToProps (initState, initProps) {
+  const { tokens } = initState.balances;
+  const { address } = initProps;
 
-  return { tokens };
+  const token = (tokens || {})[address];
+
+  return () => {
+    return { token };
+  };
 }
-
-function mapDispatchToProps (dispatch) {
-  return bindActionCreators({}, dispatch);
-}
-
 export default connect(
-  mapStateToProps,
-  mapDispatchToProps
+  mapStateToProps
 )(MethodDecoding);

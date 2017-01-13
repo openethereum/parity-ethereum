@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -17,7 +17,7 @@
 import React, { Component, PropTypes } from 'react';
 import { Link } from 'react-router';
 
-import { Container, ContainerTitle } from '../../../ui';
+import { Container, ContainerTitle, Tags } from '~/ui';
 
 import styles from './summary.css';
 
@@ -39,24 +39,17 @@ export default class Summary extends Component {
       return null;
     }
 
-    let image = <div className={ styles.image }>&nbsp;</div>;
-    if (app.type === 'local') {
-      image = <img src={ `${dappsUrl}/${app.id}/${app.iconUrl}` } className={ styles.image } />;
-    } else {
-      image = <img src={ `${dappsUrl}${app.image}` } className={ styles.image } />;
-    }
+    const image = this.renderImage(dappsUrl, app);
+    const link = this.renderLink(app);
 
     return (
       <Container className={ styles.container }>
         { image }
+        <Tags tags={ [app.type] } />
         <div className={ styles.description }>
           <ContainerTitle
             className={ styles.title }
-            title={
-              <Link to={ `/app/${app.id}` }>
-                { app.name }
-              </Link>
-            }
+            title={ link }
             byline={ app.description }
           />
           <div className={ styles.author }>
@@ -65,6 +58,35 @@ export default class Summary extends Component {
           { this.props.children }
         </div>
       </Container>
+    );
+  }
+
+  renderImage (dappsUrl, app) {
+    if (app.type === 'local') {
+      return (
+        <img src={ `${dappsUrl}/${app.id}/${app.iconUrl}` } className={ styles.image } />
+      );
+    }
+
+    return (
+      <img src={ `${dappsUrl}${app.image}` } className={ styles.image } />
+    );
+  }
+
+  renderLink (app) {
+    // Special case for web dapp
+    if (app.url === 'web') {
+      return (
+        <Link to={ `/web` }>
+          { app.name }
+        </Link>
+      );
+    }
+
+    return (
+      <Link to={ `/app/${app.id}` }>
+        { app.name }
+      </Link>
     );
   }
 }

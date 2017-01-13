@@ -1,4 +1,4 @@
-/* Copyright 2015, 2016 Ethcore (UK) Ltd.
+/* Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 /* This file is part of Parity.
 /*
 /* Parity is free software: you can redistribute it and/or modify
@@ -14,6 +14,19 @@
 /* You should have received a copy of the GNU General Public License
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
+
+.funcparams {
+  padding-left: 3em;
+}
+
+.gaseditor {
+  margin-top: 1em;
+}
+
+.paramname {
+  color: #aaa;
+}
+
 .modalbody,
 .modalcenter {
 }
@@ -22,14 +35,27 @@
   text-align: center;
 }
 
-.funcparams {
-  padding-left: 3em;
-}
-
-.paramname {
-  color: #aaa;
-}
-
 .txhash {
   word-break: break-all;
+}
+
+.warning {
+  border-radius: 0.5em;
+  background: #f80;
+  color: white;
+  font-size: 0.75em;
+  padding: 0.75em;
+  text-align: center;
+}
+
+.columns {
+  display: flex;
+  flex-wrap: wrap;
+  position: relative;
+
+  &>div {
+    flex: 0 1 50%;
+    width: 50%;
+    position: relative;
+  }
 }

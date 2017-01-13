@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -15,11 +15,13 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import BigNumber from 'bignumber.js';
-import React, { Component, PropTypes } from 'react';
-import { connect } from 'react-redux';
-import { bindActionCreators } from 'redux';
 import { LinearProgress } from 'material-ui';
-import { txLink } from '../../3rdparty/etherscan/links';
+import React, { Component, PropTypes } from 'react';
+import { FormattedMessage } from 'react-intl';
+import { connect } from 'react-redux';
+
+import { txLink } from '~/3rdparty/etherscan/links';
+import ShortenedHash from '../ShortenedHash';
 
 import styles from './txHash.css';
 
@@ -31,19 +33,24 @@ class TxHash extends Component {
   static propTypes = {
     hash: PropTypes.string.isRequired,
     isTest: PropTypes.bool,
+    maxConfirmations: PropTypes.number,
     summary: PropTypes.bool
   }
 
+  static defaultProps = {
+    maxConfirmations: 10
+  };
+
   state = {
     blockNumber: new BigNumber(0),
-    transaction: null,
-    subscriptionId: null
+    subscriptionId: null,
+    transaction: null
   }
 
   componentDidMount () {
     const { api } = this.context;
 
-    api.subscribe('eth_blockNumber', this.onBlockNumber).then((subscriptionId) => {
+    return api.subscribe('eth_blockNumber', this.onBlockNumber).then((subscriptionId) => {
       this.setState({ subscriptionId });
     });
   }
@@ -52,55 +59,81 @@ class TxHash extends Component {
     const { api } = this.context;
     const { subscriptionId } = this.state;
 
-    api.unsubscribe(subscriptionId);
+    return api.unsubscribe(subscriptionId);
   }
 
   render () {
     const { hash, isTest, summary } = this.props;
-    let header = null;
 
-    if (!summary) {
-      header = (
-        <div className={ styles.header }>
-          The transaction has been posted to the network with a transaction hash of
-        </div>
-      );
-    }
+    const hashLink = (
+      <a href={ txLink(hash, isTest) } target='_blank'>
+        <ShortenedHash data={ hash } />
+      </a>
+    );
 
     return (
-      <div className={ styles.details }>
-        { header }
-        <div className={ styles.hash }>
-          <a href={ txLink(hash, isTest) } target='_blank'>{ hash }</a>
-        </div>
+      <div>
+        <p>{
+          summary
+            ? hashLink
+            : <FormattedMessage
+              id='ui.txHash.posted'
+              defaultMessage='The transaction has been posted to the network with a hash of {hashLink}'
+              values={ { hashLink } } />
+        }</p>
         { this.renderConfirmations() }
       </div>
     );
   }
 
   renderConfirmations () {
+    const { maxConfirmations } = this.props;
     const { blockNumber, transaction } = this.state;
 
-    let txBlock = 'Pending';
-    let confirmations = 'No';
-    let value = 0;
+    if (!(transaction && transaction.blockNumber && transaction.blockNumber.gt(0))) {
+      return (
+        <div className={ styles.confirm }>
+          <LinearProgress
+            className={ styles.progressbar }
+            color='white'
+            mode='indeterminate'
+          />
+          <div className={ styles.progressinfo }>
+            <FormattedMessage
+              id='ui.txHash.waiting'
+              defaultMessage='waiting for confirmations' />
+          </div>
+        </div>
+      );
+    }
 
-    if (transaction && transaction.blockNumber && transaction.blockNumber.gt(0)) {
-      const num = blockNumber.minus(transaction.blockNumber).plus(1);
-      txBlock = `#${transaction.blockNumber.toFormat(0)}`;
-      confirmations = num.toFormat(0);
-      value = num.gt(10) ? 10 : num.toNumber();
+    const confirmations = blockNumber.minus(transaction.blockNumber).plus(1);
+    const value = Math.min(confirmations.toNumber(), maxConfirmations);
+
+    let count = confirmations.toFormat(0);
+    if (confirmations.lte(maxConfirmations)) {
+      count = `${count}/${maxConfirmations}`;
     }
 
     return (
       <div className={ styles.confirm }>
         <LinearProgress
           className={ styles.progressbar }
-          min={ 0 } max={ 10 } value={ value }
+          min={ 0 }
+          max={ maxConfirmations }
+          value={ value }
           color='white'
           mode='determinate' />
         <div className={ styles.progressinfo }>
-          { txBlock } / { confirmations } confirmations
+          <abbr title={ `block #${blockNumber.toFormat(0)}` }>
+            <FormattedMessage
+              id='ui.txHash.confirmations'
+              defaultMessage='{count} {value, plural, one {confirmation} other {confirmations}}'
+              values={ {
+                count,
+                value
+              } } />
+          </abbr>
         </div>
       </div>
     );
@@ -110,19 +143,21 @@ class TxHash extends Component {
     const { api } = this.context;
     const { hash } = this.props;
 
-    if (error) {
+    if (error || !hash || /^(0x)?0*$/.test(hash)) {
       return;
     }
 
-    this.setState({ blockNumber });
-
-    api.eth
+    return api.eth
       .getTransactionReceipt(hash)
       .then((transaction) => {
-        this.setState({ transaction });
+        this.setState({
+          blockNumber,
+          transaction
+        });
       })
       .catch((error) => {
         console.warn('onBlockNumber', error);
+        this.setState({ blockNumber });
       });
   }
 }
@@ -133,11 +168,7 @@ function mapStateToProps (state) {
   return { isTest };
 }
 
-function mapDispatchToProps (dispatch) {
-  return bindActionCreators({}, dispatch);
-}
-
 export default connect(
   mapStateToProps,
-  mapDispatchToProps
+  null
 )(TxHash);

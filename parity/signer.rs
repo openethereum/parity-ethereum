@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -22,7 +22,9 @@ use io::{ForwardPanic, PanicHandler};
 use util::path::restrict_permissions_owner;
 use rpc_apis;
 use ethcore_signer as signer;
+use dir::default_data_path;
 use helpers::replace_home;
+use jsonrpc_core::reactor::{RpcHandler, Remote};
 pub use ethcore_signer::Server as SignerServer;
 
 const CODES_FILENAME: &'static str = "authcodes";
@@ -38,11 +40,12 @@ pub struct Configuration {
 
 impl Default for Configuration {
 	fn default() -> Self {
+		let data_dir = default_data_path();
 		Configuration {
 			enabled: true,
 			port: 8180,
 			interface: "127.0.0.1".into(),
-			signer_path: replace_home("$HOME/.parity/signer"),
+			signer_path: replace_home(&data_dir, "$BASE/signer"),
 			skip_origin_validation: false,
 		}
 	}
@@ -51,6 +54,7 @@ impl Default for Configuration {
 pub struct Dependencies {
 	pub panic_handler: Arc<PanicHandler>,
 	pub apis: Arc<rpc_apis::Dependencies>,
+	pub remote: Remote,
 }
 
 pub struct NewToken {
@@ -63,23 +67,23 @@ pub fn start(conf: Configuration, deps: Dependencies) -> Result<Option<SignerSer
 	if !conf.enabled {
 		Ok(None)
 	} else {
-		Ok(Some(try!(do_start(conf, deps))))
+		Ok(Some(do_start(conf, deps)?))
 	}
 }
 
 fn codes_path(path: String) -> PathBuf {
 	let mut p = PathBuf::from(path);
 	p.push(CODES_FILENAME);
-	let _ = restrict_permissions_owner(&p);
+	let _ = restrict_permissions_owner(&p, true, false);
 	p
 }
 
 pub fn execute(cmd: Configuration) -> Result<String, String> {
-	Ok(try!(generate_token_and_url(&cmd)).message)
+	Ok(generate_token_and_url(&cmd)?.message)
 }
 
 pub fn generate_token_and_url(conf: &Configuration) -> Result<NewToken, String> {
-	let code = try!(generate_new_token(conf.signer_path.clone()).map_err(|err| format!("Error generating token: {:?}", err)));
+	let code = generate_new_token(conf.signer_path.clone()).map_err(|err| format!("Error generating token: {:?}", err))?;
 	let auth_url = format!("http://{}:{}/#/auth?token={}", conf.interface, conf.port, code);
 	// And print in to the console
 	Ok(NewToken {
@@ -99,18 +103,18 @@ Or use the generated token:
 
 pub fn generate_new_token(path: String) -> io::Result<String> {
 	let path = codes_path(path);
-	let mut codes = try!(signer::AuthCodes::from_file(&path));
+	let mut codes = signer::AuthCodes::from_file(&path)?;
 	codes.clear_garbage();
-	let code = try!(codes.generate_new());
-	try!(codes.to_file(&path));
+	let code = codes.generate_new()?;
+	codes.to_file(&path)?;
 	trace!("New key code created: {}", Colour::White.bold().paint(&code[..]));
 	Ok(code)
 }
 
 fn do_start(conf: Configuration, deps: Dependencies) -> Result<SignerServer, String> {
-	let addr = try!(format!("{}:{}", conf.interface, conf.port)
+	let addr = format!("{}:{}", conf.interface, conf.port)
 		.parse()
-		.map_err(|_| format!("Invalid port specified: {}", conf.port)));
+		.map_err(|_| format!("Invalid port specified: {}", conf.port))?;
 
 	let start_result = {
 		let server = signer::ServerBuilder::new(
@@ -122,8 +126,9 @@ fn do_start(conf: Configuration, deps: Dependencies) -> Result<SignerServer, Str
 			info!("If you do not intend this, exit now.");
 		}
 		let server = server.skip_origin_validation(conf.skip_origin_validation);
-		let server = rpc_apis::setup_rpc(server, deps.apis, rpc_apis::ApiSet::SafeContext);
-		server.start(addr)
+		let apis = rpc_apis::setup_rpc(Default::default(), deps.apis, rpc_apis::ApiSet::SafeContext);
+		let handler = RpcHandler::new(Arc::new(apis), deps.remote);
+		server.start(addr, handler)
 	};
 
 	match start_result {

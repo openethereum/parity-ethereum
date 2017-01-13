@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -29,16 +29,22 @@
 //! the transaction for you.
 //!
 //! ```
+//! extern crate jsonrpc_core;
 //! extern crate ethcore_signer;
 //! extern crate ethcore_rpc;
 //!
 //! use std::sync::Arc;
+//! use jsonrpc_core::IoHandler;
+//! use jsonrpc_core::reactor::RpcEventLoop;
 //! use ethcore_signer::ServerBuilder;
 //! use ethcore_rpc::ConfirmationsQueue;
 //!
 //!	fn main() {
 //!	 let queue = Arc::new(ConfirmationsQueue::default());
-//!	 let _server = ServerBuilder::new(queue, "/tmp/authcodes".into()).start("127.0.0.1:8084".parse().unwrap());
+//!	 let io = Arc::new(IoHandler::new().into());
+//!	 let event_loop = RpcEventLoop::spawn();
+//!	 let _server = ServerBuilder::new(queue, "/tmp/authcodes".into())
+//!		.start("127.0.0.1:8084".parse().unwrap(), event_loop.handler(io));
 //!	}
 //! ```
 
@@ -48,17 +54,17 @@ extern crate env_logger;
 extern crate rand;
 
 extern crate ethcore_util as util;
-extern crate ethcore_io as io;
 extern crate ethcore_rpc as rpc;
+extern crate ethcore_io as io;
 extern crate jsonrpc_core;
 extern crate ws;
-#[cfg(test)]
+
 extern crate ethcore_devtools as devtools;
 
 mod authcode_store;
 mod ws_server;
-#[cfg(test)]
-mod tests;
 
+/// Exported tests for use in signer RPC client testing
+pub mod tests;
 pub use authcode_store::*;
 pub use ws_server::*;

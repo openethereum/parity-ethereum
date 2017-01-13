@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -19,7 +19,8 @@ use std::error::Error as StdError;
 use util::H256;
 use ipc::IpcConfig;
 
-#[derive(Debug, Clone, Binary)]
+#[derive(Debug, Clone)]
+#[binary]
 pub enum Error {
 	NoWork,
 	NoWorkers,
@@ -55,7 +56,7 @@ pub trait PushWorkHandler: Send + Sync {
 	fn push_work(&self, payloads: Vec<String>) -> Result<(), Error>;
 }
 
-#[derive(Binary)]
+#[binary]
 pub struct ServiceConfiguration {
 	pub io_path: String,
 	pub listen_addr: String,

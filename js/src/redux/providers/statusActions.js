@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -45,5 +45,12 @@ export function toggleStatusLogs (devLogsEnabled) {
 export function clearStatusLogs () {
   return {
     type: 'clearStatusLogs'
+  };
+}
+
+export function toggleStatusRefresh (refreshStatus) {
+  return {
+    type: 'toggleStatusRefresh',
+    refreshStatus
   };
 }

@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -14,9 +14,10 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use ethsync::PeerInfo as SyncPeerInfo;
+use std::collections::BTreeMap;
+use ethsync::{PeerInfo as SyncPeerInfo, TransactionStats as SyncTransactionStats};
 use serde::{Serialize, Serializer};
-use v1::types::U256;
+use v1::types::{U256, H512};
 
 /// Sync info
 #[derive(Default, Debug, Serialize, PartialEq)]
@@ -36,9 +37,6 @@ pub struct SyncInfo {
 	/// Warp sync snpashot chunks processed.
 	#[serde(rename="warpChunksProcessed")]
 	pub warp_chunks_processed: Option<U256>,
-	/// Describes the gap in the blockchain, if there is one: (first, last)
-	#[serde(rename="blockGap")]
-	pub block_gap: Option<(U256, U256)>,
 }
 
 /// Peers info
@@ -117,8 +115,19 @@ impl Serialize for SyncStatus {
 	}
 }
 
+/// Propagation statistics for pending transaction.
+#[derive(Default, Debug, Serialize)]
+pub struct TransactionStats {
+	/// Block no this transaction was first seen.
+	#[serde(rename="firstSeen")]
+	pub first_seen: u64,
+	/// Peers this transaction was propagated to with count.
+	#[serde(rename="propagatedTo")]
+	pub propagated_to: BTreeMap<H512, usize>,
+}
+
 impl From<SyncPeerInfo> for PeerInfo {
-	fn from(p: SyncPeerInfo) -> PeerInfo {
+	fn from(p: SyncPeerInfo) -> Self {
 		PeerInfo {
 			id: p.id,
 			name: p.client_version,
@@ -138,16 +147,37 @@ impl From<SyncPeerInfo> for PeerInfo {
 	}
 }
 
+impl From<SyncTransactionStats> for TransactionStats {
+	fn from(s: SyncTransactionStats) -> Self {
+		TransactionStats {
+			first_seen: s.first_seen,
+			propagated_to: s.propagated_to
+				.into_iter()
+				.map(|(id, count)| (id.into(), count))
+				.collect(),
+		}
+	}
+}
+
+/// Chain status.
+#[derive(Default, Debug, Serialize)]
+pub struct ChainStatus {
+	/// Describes the gap in the blockchain, if there is one: (first, last)
+	#[serde(rename="blockGap")]
+	pub block_gap: Option<(U256, U256)>,
+}
+
 #[cfg(test)]
 mod tests {
 	use serde_json;
-	use super::{SyncInfo, SyncStatus, Peers};
+	use std::collections::BTreeMap;
+	use super::{SyncInfo, SyncStatus, Peers, TransactionStats, ChainStatus};
 
 	#[test]
 	fn test_serialize_sync_info() {
 		let t = SyncInfo::default();
 		let serialized = serde_json::to_string(&t).unwrap();
-		assert_eq!(serialized, r#"{"startingBlock":"0x0","currentBlock":"0x0","highestBlock":"0x0","warpChunksAmount":null,"warpChunksProcessed":null,"blockGap":null}"#);
+		assert_eq!(serialized, r#"{"startingBlock":"0x0","currentBlock":"0x0","highestBlock":"0x0","warpChunksAmount":null,"warpChunksProcessed":null}"#);
 	}
 
 	#[test]
@@ -165,15 +195,31 @@ mod tests {
 
 		let t = SyncStatus::Info(SyncInfo::default());
 		let serialized = serde_json::to_string(&t).unwrap();
-		assert_eq!(serialized, r#"{"startingBlock":"0x0","currentBlock":"0x0","highestBlock":"0x0","warpChunksAmount":null,"warpChunksProcessed":null,"blockGap":null}"#);
+		assert_eq!(serialized, r#"{"startingBlock":"0x0","currentBlock":"0x0","highestBlock":"0x0","warpChunksAmount":null,"warpChunksProcessed":null}"#);
 	}
 
 	#[test]
 	fn test_serialize_block_gap() {
-		let mut t = SyncInfo::default();
+		let mut t = ChainStatus::default();
+		let serialized = serde_json::to_string(&t).unwrap();
+		assert_eq!(serialized, r#"{"blockGap":null}"#);
+
 		t.block_gap = Some((1.into(), 5.into()));
 
 		let serialized = serde_json::to_string(&t).unwrap();
-		assert_eq!(serialized, r#"{"startingBlock":"0x0","currentBlock":"0x0","highestBlock":"0x0","warpChunksAmount":null,"warpChunksProcessed":null,"blockGap":["0x1","0x5"]}"#)
+		assert_eq!(serialized, r#"{"blockGap":["0x1","0x5"]}"#);
+	}
+
+	#[test]
+	fn test_serialize_transaction_stats() {
+		let stats = TransactionStats {
+			first_seen: 100,
+			propagated_to: map![
+				10.into() => 50
+			],
+		};
+
+		let serialized = serde_json::to_string(&stats).unwrap();
+		assert_eq!(serialized, r#"{"firstSeen":100,"propagatedTo":{"0x0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000a":50}}"#)
 	}
 }

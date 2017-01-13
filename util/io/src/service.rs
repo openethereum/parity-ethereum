@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -95,65 +95,65 @@ impl<Message> IoContext<Message> where Message: Send + Clone + Sync + 'static {
 
 	/// Register a new recurring IO timer. 'IoHandler::timeout' will be called with the token.
 	pub fn register_timer(&self, token: TimerToken, ms: u64) -> Result<(), IoError> {
-		try!(self.channel.send_io(IoMessage::AddTimer {
+		self.channel.send_io(IoMessage::AddTimer {
 			token: token,
 			delay: ms,
 			handler_id: self.handler,
 			once: false,
-		}));
+		})?;
 		Ok(())
 	}
 
 	/// Register a new IO timer once. 'IoHandler::timeout' will be called with the token.
 	pub fn register_timer_once(&self, token: TimerToken, ms: u64) -> Result<(), IoError> {
-		try!(self.channel.send_io(IoMessage::AddTimer {
+		self.channel.send_io(IoMessage::AddTimer {
 			token: token,
 			delay: ms,
 			handler_id: self.handler,
 			once: true,
-		}));
+		})?;
 		Ok(())
 	}
 
 	/// Delete a timer.
 	pub fn clear_timer(&self, token: TimerToken) -> Result<(), IoError> {
-		try!(self.channel.send_io(IoMessage::RemoveTimer {
+		self.channel.send_io(IoMessage::RemoveTimer {
 			token: token,
 			handler_id: self.handler,
-		}));
+		})?;
 		Ok(())
 	}
 
 	/// Register a new IO stream.
 	pub fn register_stream(&self, token: StreamToken) -> Result<(), IoError> {
-		try!(self.channel.send_io(IoMessage::RegisterStream {
+		self.channel.send_io(IoMessage::RegisterStream {
 			token: token,
 			handler_id: self.handler,
-		}));
+		})?;
 		Ok(())
 	}
 
 	/// Deregister an IO stream.
 	pub fn deregister_stream(&self, token: StreamToken) -> Result<(), IoError> {
-		try!(self.channel.send_io(IoMessage::DeregisterStream {
+		self.channel.send_io(IoMessage::DeregisterStream {
 			token: token,
 			handler_id: self.handler,
-		}));
+		})?;
 		Ok(())
 	}
 
 	/// Reregister an IO stream.
 	pub fn update_registration(&self, token: StreamToken) -> Result<(), IoError> {
-		try!(self.channel.send_io(IoMessage::UpdateStreamRegistration {
+		self.channel.send_io(IoMessage::UpdateStreamRegistration {
 			token: token,
 			handler_id: self.handler,
-		}));
+		})?;
 		Ok(())
 	}
 
 	/// Broadcast a message to other IO clients
 	pub fn message(&self, message: Message) -> Result<(), IoError> {
-		try!(self.channel.send(message));
+		self.channel.send(message)?;
 		Ok(())
 	}
 
@@ -164,9 +164,9 @@ impl<Message> IoContext<Message> where Message: Send + Clone + Sync + 'static {
 
 	/// Unregister current IO handler.
 	pub fn unregister_handler(&self) -> Result<(), IoError> {
-		try!(self.channel.send_io(IoMessage::RemoveHandler {
+		self.channel.send_io(IoMessage::RemoveHandler {
 			handler_id: self.handler,
-		}));
+		})?;
 		Ok(())
 	}
 
@@ -217,7 +217,7 @@ impl<Message> IoManager<Message> where Message: Send + Sync + Clone + 'static {
 			workers: workers,
 			work_ready: work_ready,
 		};
-		try!(event_loop.run(&mut io));
+		event_loop.run(&mut io)?;
 		Ok(())
 	}
 }
@@ -329,11 +329,18 @@ impl<Message> Handler for IoManager<Message> where Message: Send + Clone + Sync 
 	}
 }
 
+#[derive(Clone)]
+enum Handlers<Message> where Message: Send + Clone {
+	SharedCollection(Weak<RwLock<Slab<Arc<IoHandler<Message>>, HandlerId>>>),
+	Single(Weak<IoHandler<Message>>),
+}
+
 /// Allows sending messages into the event loop. All the IO handlers will get the message
 /// in the `message` callback.
 pub struct IoChannel<Message> where Message: Send + Clone{
 	channel: Option<Sender<IoMessage<Message>>>,
-	handlers: Weak<RwLock<Slab<Arc<IoHandler<Message>>, HandlerId>>>,
+	handlers: Handlers<Message>,
+
 }
 
 impl<Message> Clone for IoChannel<Message> where Message: Send + Clone + Sync + 'static {
@@ -348,19 +355,29 @@ impl<Message> Clone for IoChannel<Message> where Message: Send + Clone + Sync + 
 impl<Message> IoChannel<Message> where Message: Send + Clone + Sync + 'static {
 	/// Send a message through the channel
 	pub fn send(&self, message: Message) -> Result<(), IoError> {
-		if let Some(ref channel) = self.channel {
-			try!(channel.send(IoMessage::UserMessage(message)));
+		match self.channel {
+			Some(ref channel) => channel.send(IoMessage::UserMessage(message))?,
+			None => self.send_sync(message)?
 		}
 		Ok(())
 	}
 
 	/// Send a message through the channel and handle it synchronously
 	pub fn send_sync(&self, message: Message) -> Result<(), IoError> {
-		if let Some(handlers) = self.handlers.upgrade() {
-			for id in 0 .. MAX_HANDLERS {
-				if let Some(h) = handlers.read().get(id) {
-					let handler = h.clone();
-					handler.message(&IoContext::new(self.clone(), id), &message);
+		match self.handlers {
+			Handlers::SharedCollection(ref handlers) => {
+				if let Some(handlers) = handlers.upgrade() {
+					for id in 0 .. MAX_HANDLERS {
+						if let Some(h) = handlers.read().get(id) {
+							let handler = h.clone();
+							handler.message(&IoContext::new(self.clone(), id), &message);
+						}
+					}
+				}
+			},
+			Handlers::Single(ref handler) => {
+				if let Some(handler) = handler.upgrade() {
+					handler.message(&IoContext::new(self.clone(), 0), &message);
 				}
 			}
 		}
@@ -370,22 +387,29 @@ impl<Message> IoChannel<Message> where Message: Send + Clone + Sync + 'static {
 	/// Send low level io message
 	pub fn send_io(&self, message: IoMessage<Message>) -> Result<(), IoError> {
 		if let Some(ref channel) = self.channel {
-			try!(channel.send(message))
+			channel.send(message)?
 		}
 		Ok(())
 	}
-	/// Create a new channel to connected to event loop.
+	/// Create a new channel disconnected from an event loop.
 	pub fn disconnected() -> IoChannel<Message> {
 		IoChannel {
 			channel: None,
-			handlers: Weak::default(),
+			handlers: Handlers::SharedCollection(Weak::default()),
 		}
 	}
 
+	/// Create a new synchronous channel to a given handler.
+	pub fn to_handler(handler: Weak<IoHandler<Message>>) -> IoChannel<Message> {
+		IoChannel {
+			channel: None,
+			handlers: Handlers::Single(handler),
+		}
+	}
 	fn new(channel: Sender<IoMessage<Message>>, handlers: Weak<RwLock<Slab<Arc<IoHandler<Message>>, HandlerId>>>) -> IoChannel<Message> {
 		IoChannel {
 			channel: Some(channel),
-			handlers: handlers,
+			handlers: Handlers::SharedCollection(handlers),
 		}
 	}
 }
@@ -394,7 +418,7 @@ impl<Message> IoChannel<Message> where Message: Send + Clone + Sync + 'static {
 /// 'Message' is a notification message type
 pub struct IoService<Message> where Message: Send + Sync + Clone + 'static {
 	panic_handler: Arc<PanicHandler>,
-	thread: Option<JoinHandle<()>>,
+	thread: Mutex<Option<JoinHandle<()>>>,
 	host_channel: Mutex<Sender<IoMessage<Message>>>,
 	handlers: Arc<RwLock<Slab<Arc<IoHandler<Message>>, HandlerId>>>,
 }
@@ -424,23 +448,37 @@ impl<Message> IoService<Message> where Message: Send + Sync + Clone + 'static {
 		});
 		Ok(IoService {
 			panic_handler: panic_handler,
-			thread: Some(thread),
+			thread: Mutex::new(Some(thread)),
 			host_channel: Mutex::new(channel),
 			handlers: handlers,
 		})
 	}
 
+	pub fn stop(&self) {
+		trace!(target: "shutdown", "[IoService] Closing...");
+		// Clear handlers so that shared pointers are not stuck on stack
+		// in Channel::send_sync
+		self.handlers.write().clear();
+		self.host_channel.lock().send(IoMessage::Shutdown).unwrap_or_else(|e| warn!("Error on IO service shutdown: {:?}", e));
+		if let Some(thread) = self.thread.lock().take() {
+			thread.join().unwrap_or_else(|e| {
+				debug!(target: "shutdown", "Error joining IO service event loop thread: {:?}", e);
+			});
+		}
+		trace!(target: "shutdown", "[IoService] Closed.");
+	}
+
 	/// Regiter an IO handler with the event loop.
 	pub fn register_handler(&self, handler: Arc<IoHandler<Message>+Send>) -> Result<(), IoError> {
-		try!(self.host_channel.lock().send(IoMessage::AddHandler {
+		self.host_channel.lock().send(IoMessage::AddHandler {
 			handler: handler,
-		}));
+		})?;
 		Ok(())
 	}
 
 	/// Send a message over the network. Normaly `HostIo::send` should be used. This can be used from non-io threads.
 	pub fn send_message(&self, message: Message) -> Result<(), IoError> {
-		try!(self.host_channel.lock().send(IoMessage::UserMessage(message)));
+		self.host_channel.lock().send(IoMessage::UserMessage(message))?;
 		Ok(())
 	}
 
@@ -452,17 +490,7 @@ impl<Message> IoService<Message> where Message: Send + Sync + Clone + 'static {
 
 impl<Message> Drop for IoService<Message> where Message: Send + Sync + Clone {
 	fn drop(&mut self) {
-		trace!(target: "shutdown", "[IoService] Closing...");
-		// Clear handlers so that shared pointers are not stuck on stack
-		// in Channel::send_sync
-		self.handlers.write().clear();
-		self.host_channel.lock().send(IoMessage::Shutdown).unwrap_or_else(|e| warn!("Error on IO service shutdown: {:?}", e));
-		if let Some(thread) = self.thread.take() {
-			thread.join().unwrap_or_else(|e| {
-				debug!(target: "shutdown", "Error joining IO service event loop thread: {:?}", e);
-			});
-		}
-		trace!(target: "shutdown", "[IoService] Closed.");
+		self.stop()
 	}
 }
 

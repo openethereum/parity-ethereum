@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -15,43 +15,40 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Traces specific rpc interface.
-use std::sync::Arc;
-use jsonrpc_core::*;
 
-/// Traces specific rpc interface.
-pub trait Traces: Sized + Send + Sync + 'static {
-	/// Returns traces matching given filter.
-	fn filter(&self, _: Params) -> Result<Value, Error>;
+use jsonrpc_core::Error;
+use jsonrpc_macros::Trailing;
+use v1::types::{TraceFilter, LocalizedTrace, BlockNumber, Index, CallRequest, Bytes, TraceResults, H256};
 
-	/// Returns transaction trace at given index.
-	fn trace(&self, _: Params) -> Result<Value, Error>;
+build_rpc_trait! {
+	/// Traces specific rpc interface.
+	pub trait Traces {
+		/// Returns traces matching given filter.
+		#[rpc(name = "trace_filter")]
+		fn filter(&self, TraceFilter) -> Result<Vec<LocalizedTrace>, Error>;
 
-	/// Returns all traces of given transaction.
-	fn transaction_traces(&self, _: Params) -> Result<Value, Error>;
+		/// Returns transaction trace at given index.
+		#[rpc(name = "trace_get")]
+		fn trace(&self, H256, Vec<Index>) -> Result<Option<LocalizedTrace>, Error>;
 
-	/// Returns all traces produced at given block.
-	fn block_traces(&self, _: Params) -> Result<Value, Error>;
+		/// Returns all traces of given transaction.
+		#[rpc(name = "trace_transaction")]
+		fn transaction_traces(&self, H256) -> Result<Vec<LocalizedTrace>, Error>;
 
-	/// Executes the given call and returns a number of possible traces for it.
-	fn call(&self, _: Params) -> Result<Value, Error>;
+		/// Returns all traces produced at given block.
+		#[rpc(name = "trace_block")]
+		fn block_traces(&self, BlockNumber) -> Result<Vec<LocalizedTrace>, Error>;
 
-	/// Executes the given raw transaction and returns a number of possible traces for it.
-	fn raw_transaction(&self, _: Params) -> Result<Value, Error>;
+		/// Executes the given call and returns a number of possible traces for it.
+		#[rpc(name = "trace_call")]
+		fn call(&self, CallRequest, Vec<String>, Trailing<BlockNumber>) -> Result<Option<TraceResults>, Error>;
 
-	/// Executes the transaction with the given hash and returns a number of possible traces for it.
-	fn replay_transaction(&self, _: Params) -> Result<Value, Error>;
+		/// Executes the given raw transaction and returns a number of possible traces for it.
+		#[rpc(name = "trace_rawTransaction")]
+		fn raw_transaction(&self, Bytes, Vec<String>, Trailing<BlockNumber>) -> Result<Option<TraceResults>, Error>;
 
-	/// Should be used to convert object to io delegate.
-	fn to_delegate(self) -> IoDelegate<Self> {
-		let mut delegate = IoDelegate::new(Arc::new(self));
-		delegate.add_method("trace_filter", Traces::filter);
-		delegate.add_method("trace_get", Traces::trace);
-		delegate.add_method("trace_transaction", Traces::transaction_traces);
-		delegate.add_method("trace_block", Traces::block_traces);
-		delegate.add_method("trace_call", Traces::call);
-		delegate.add_method("trace_rawTransaction", Traces::raw_transaction);
-		delegate.add_method("trace_replayTransaction", Traces::replay_transaction);
-
-		delegate
+		/// Executes the transaction with the given hash and returns a number of possible traces for it.
+		#[rpc(name = "trace_replayTransaction")]
+		fn replay_transaction(&self, H256, Vec<String>) -> Result<Option<TraceResults>, Error>;
 	}
 }

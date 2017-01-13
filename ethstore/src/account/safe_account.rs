@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -113,7 +113,7 @@ impl Crypto {
 
 		let (derived_left_bits, derived_right_bits) = match self.kdf {
 			Kdf::Pbkdf2(ref params) => crypto::derive_key_iterations(password, &params.salt, params.c),
-			Kdf::Scrypt(ref params) => crypto::derive_key_scrypt(password, &params.salt, params.n, params.p, params.r),
+			Kdf::Scrypt(ref params) => crypto::derive_key_scrypt(password, &params.salt, params.n, params.p, params.r)?,
 		};
 
 		let mac = crypto::derive_mac(&derived_right_bits, &self.ciphertext).keccak256();
@@ -122,16 +122,14 @@ impl Crypto {
 			return Err(Error::InvalidPassword);
 		}
 
-		let mut secret = Secret::default();
-
 		match self.cipher {
 			Cipher::Aes128Ctr(ref params) => {
 				let from = 32 - self.ciphertext.len();
-				crypto::aes::decrypt(&derived_left_bits, &params.iv, &self.ciphertext, &mut (&mut *secret)[from..])
+				let mut secret = [0; 32];
+				crypto::aes::decrypt(&derived_left_bits, &params.iv, &self.ciphertext, &mut secret[from..]);
+				Ok(Secret::from_slice(&secret)?)
 			},
 		}
-
-		Ok(secret)
 	}
 }
 
@@ -171,22 +169,22 @@ impl SafeAccount {
 	}
 
 	pub fn sign(&self, password: &str, message: &Message) -> Result<Signature, Error> {
-		let secret = try!(self.crypto.secret(password));
+		let secret = self.crypto.secret(password)?;
 		sign(&secret, message).map_err(From::from)
 	}
 
 	pub fn decrypt(&self, password: &str, shared_mac: &[u8], message: &[u8]) -> Result<Vec<u8>, Error> {
-		let secret = try!(self.crypto.secret(password));
+		let secret = self.crypto.secret(password)?;
 		crypto::ecies::decrypt(&secret, shared_mac, message).map_err(From::from)
 	}
 
 	pub fn public(&self, password: &str) -> Result<Public, Error> {
-		let secret = try!(self.crypto.secret(password));
-		Ok(try!(KeyPair::from_secret(secret)).public().clone())
+		let secret = self.crypto.secret(password)?;
+		Ok(KeyPair::from_secret(secret)?.public().clone())
 	}
 
 	pub fn change_password(&self, old_password: &str, new_password: &str, iterations: u32) -> Result<Self, Error> {
-		let secret = try!(self.crypto.secret(old_password));
+		let secret = self.crypto.secret(old_password)?;
 		let result = SafeAccount {
 			id: self.id.clone(),
 			version: self.version.clone(),

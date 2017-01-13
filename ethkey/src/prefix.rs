@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -34,7 +34,7 @@ impl Prefix {
 impl Generator for Prefix {
 	fn generate(self) -> Result<KeyPair, Error> {
 		for _ in 0..self.iterations {
-			let keypair = try!(Random.generate());
+			let keypair = Random.generate()?;
 			if keypair.address().starts_with(&self.prefix) {
 				return Ok(keypair)
 			}

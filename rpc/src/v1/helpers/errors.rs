@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -22,9 +22,8 @@ macro_rules! rpc_unimplemented {
 
 use std::fmt;
 use rlp::DecoderError;
-use ethcore::error::{Error as EthcoreError, CallError};
+use ethcore::error::{Error as EthcoreError, CallError, TransactionError};
 use ethcore::account_provider::{Error as AccountError};
-use fetch::FetchError;
 use jsonrpc_core::{Error, ErrorCode, Value};
 
 mod codes {
@@ -37,6 +36,7 @@ mod codes {
 	pub const UNKNOWN_ERROR: i64 = -32009;
 	pub const TRANSACTION_ERROR: i64 = -32010;
 	pub const EXECUTION_ERROR: i64 = -32015;
+	pub const EXCEPTION_ERROR: i64 = -32016;
 	pub const ACCOUNT_LOCKED: i64 = -32020;
 	pub const PASSWORD_INVALID: i64 = -32021;
 	pub const ACCOUNT_ERROR: i64 = -32023;
@@ -131,6 +131,14 @@ pub fn state_pruned() -> Error {
 	}
 }
 
+pub fn exceptional() -> Error {
+	Error {
+		code: ErrorCode::ServerError(codes::EXCEPTION_ERROR),
+		message: "The execution failed due to an exception.".into(),
+		data: None
+	}
+}
+
 pub fn no_work() -> Error {
 	Error {
 		code: ErrorCode::ServerError(codes::NO_WORK),
@@ -203,7 +211,7 @@ pub fn encryption_error<T: fmt::Debug>(error: T) -> Error {
 	}
 }
 
-pub fn from_fetch_error(error: FetchError) -> Error {
+pub fn from_fetch_error<T: fmt::Debug>(error: T) -> Error {
 	Error {
 		code: ErrorCode::ServerError(codes::FETCH_ERROR),
 		message: "Error while fetching content.".into(),
@@ -227,40 +235,44 @@ pub fn from_password_error(error: AccountError) -> Error {
 	}
 }
 
-pub fn from_transaction_error(error: EthcoreError) -> Error {
+pub fn transaction_message(error: TransactionError) -> String {
 	use ethcore::error::TransactionError::*;
 
+	match error {
+		AlreadyImported => "Transaction with the same hash was already imported.".into(),
+		Old => "Transaction nonce is too low. Try incrementing the nonce.".into(),
+		TooCheapToReplace => {
+			"Transaction gas price is too low. There is another transaction with same nonce in the queue. Try increasing the gas price or incrementing the nonce.".into()
+		},
+		LimitReached => {
+			"There are too many transactions in the queue. Your transaction was dropped due to limit. Try increasing the fee.".into()
+		},
+		InsufficientGas { minimal, got } => {
+			format!("Transaction gas is too low. There is not enough gas to cover minimal cost of the transaction (minimal: {}, got: {}). Try increasing supplied gas.", minimal, got)
+		},
+		InsufficientGasPrice { minimal, got } => {
+			format!("Transaction gas price is too low. It does not satisfy your node's minimal gas price (minimal: {}, got: {}). Try increasing the gas price.", minimal, got)
+		},
+		InsufficientBalance { balance, cost } => {
+			format!("Insufficient funds. The account you tried to send transaction from does not have enough funds. Required {} and got: {}.", cost, balance)
+		},
+		GasLimitExceeded { limit, got } => {
+			format!("Transaction cost exceeds current gas limit. Limit: {}, got: {}. Try decreasing supplied gas.", limit, got)
+		},
+		InvalidNetworkId => "Invalid network id.".into(),
+		InvalidGasLimit(_) => "Supplied gas is beyond limit.".into(),
+		SenderBanned => "Sender is banned in local queue.".into(),
+		RecipientBanned => "Recipient is banned in local queue.".into(),
+		CodeBanned => "Code is banned in local queue.".into(),
+	}
+}
+
+pub fn from_transaction_error(error: EthcoreError) -> Error {
+
 	if let EthcoreError::Transaction(e) = error {
-		let msg = match e {
-			AlreadyImported => "Transaction with the same hash was already imported.".into(),
-			Old => "Transaction nonce is too low. Try incrementing the nonce.".into(),
-			TooCheapToReplace => {
-				"Transaction gas price is too low. There is another transaction with same nonce in the queue. Try increasing the gas price or incrementing the nonce.".into()
-			},
-			LimitReached => {
-				"There are too many transactions in the queue. Your transaction was dropped due to limit. Try increasing the fee.".into()
-			},
-			InsufficientGas { minimal, got } => {
-				format!("Transaction gas is too low. There is not enough gas to cover minimal cost of the transaction (minimal: {}, got: {}). Try increasing supplied gas.", minimal, got)
-			},
-			InsufficientGasPrice { minimal, got } => {
-				format!("Transaction gas price is too low. It does not satisfy your node's minimal gas price (minimal: {}, got: {}). Try increasing the gas price.", minimal, got)
-			},
-			InsufficientBalance { balance, cost } => {
-				format!("Insufficient funds. Account you try to send transaction from does not have enough funds. Required {} and got: {}.", cost, balance)
-			},
-			GasLimitExceeded { limit, got } => {
-				format!("Transaction cost exceeds current gas limit. Limit: {}, got: {}. Try decreasing supplied gas.", limit, got)
-			},
-			InvalidGasLimit(_) => "Supplied gas is beyond limit.".into(),
-			SenderBanned => "Sender is banned in local queue.".into(),
-			RecipientBanned => "Recipient is banned in local queue.".into(),
-			CodeBanned => "Code is banned in local queue.".into(),
-			e => format!("{}", e).into(),
-		};
 		Error {
 			code: ErrorCode::ServerError(codes::TRANSACTION_ERROR),
-			message: msg,
+			message: transaction_message(e),
 			data: None,
 		}
 	} else {
@@ -283,7 +295,16 @@ pub fn from_rlp_error(error: DecoderError) -> Error {
 pub fn from_call_error(error: CallError) -> Error {
 	match error {
 		CallError::StatePruned => state_pruned(),
+		CallError::Exceptional => exceptional(),
 		CallError::Execution(e) => execution(e),
 		CallError::TransactionNotFound => internal("{}, this should not be the case with eth_call, most likely a bug.", CallError::TransactionNotFound),
+	}
+}
+
+pub fn unknown_block() -> Error {
+	Error {
+		code: ErrorCode::ServerError(codes::UNSUPPORTED_REQUEST),
+		message: "Unknown block number".into(),
+		data: None,
 	}
 }

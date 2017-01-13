@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -16,6 +16,7 @@
 
 import React, { Component, PropTypes } from 'react';
 import { observer } from 'mobx-react';
+import { FormattedMessage } from 'react-intl';
 
 import DappsStore from '../Dapps/dappsStore';
 
@@ -25,21 +26,71 @@ import styles from './dapp.css';
 export default class Dapp extends Component {
   static contextTypes = {
     api: PropTypes.object.isRequired
-  }
+  };
 
   static propTypes = {
     params: PropTypes.object
   };
 
-  store = new DappsStore(this.context.api);
+  state = {
+    app: null,
+    loading: true
+  };
+
+  store = DappsStore.get(this.context.api);
+
+  componentWillMount () {
+    const { id } = this.props.params;
+    this.loadApp(id);
+  }
+
+  componentWillReceiveProps (nextProps) {
+    if (nextProps.params.id !== this.props.params.id) {
+      this.loadApp(nextProps.params.id);
+    }
+  }
+
+  loadApp (id) {
+    this.setState({ loading: true });
+
+    this.store
+      .loadApp(id)
+      .then((app) => {
+        this.setState({ loading: false, app });
+      })
+      .catch(() => {
+        this.setState({ loading: false });
+      });
+  }
 
   render () {
     const { dappsUrl } = this.context.api;
-    const { id } = this.props.params;
-    const app = this.store.apps.find((app) => app.id === id);
+    const { app, loading } = this.state;
+
+    if (loading) {
+      return (
+        <div className={ styles.full }>
+          <div className={ styles.text }>
+            <FormattedMessage
+              id='dapp.loading'
+              defaultMessage='Loading'
+            />
+          </div>
+        </div>
+      );
+    }
 
     if (!app) {
-      return null;
+      return (
+        <div className={ styles.full }>
+          <div className={ styles.text }>
+            <FormattedMessage
+              id='dapp.unavailable'
+              defaultMessage='The dapp cannot be reached'
+            />
+          </div>
+        </div>
+      );
     }
 
     let src = null;
@@ -51,9 +102,16 @@ export default class Dapp extends Component {
         src = `${dappsUrl}/${app.contentHash}/`;
         break;
       default:
-        const dapphost = process.env.NODE_ENV === 'production' && !app.secure
-          ? `${dappsUrl}/ui`
-          : '';
+        let dapphost = process.env.DAPPS_URL || (
+          process.env.NODE_ENV === 'production' && !app.secure
+            ? `${dappsUrl}/ui`
+            : ''
+        );
+
+        if (dapphost === '/') {
+          dapphost = '';
+        }
+
         src = `${dapphost}/${app.url}.html`;
         break;
     }
@@ -63,10 +121,9 @@ export default class Dapp extends Component {
         className={ styles.frame }
         frameBorder={ 0 }
         name={ name }
-        sandbox='allow-same-origin allow-scripts'
+        sandbox='allow-forms allow-popups allow-same-origin allow-scripts'
         scrolling='auto'
-        src={ src }>
-      </iframe>
+        src={ src } />
     );
   }
 }

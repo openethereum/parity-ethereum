@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -27,7 +27,6 @@ import Container from './registry/Container';
 import '../../assets/fonts/Roboto/font.css';
 import '../../assets/fonts/RobotoMono/font.css';
 import './style.css';
-import './registry.html';
 
 ReactDOM.render(
   <Provider store={ store }>
@@ -35,3 +34,16 @@ ReactDOM.render(
   </Provider>,
   document.querySelector('#container')
 );
+
+if (module.hot) {
+  module.hot.accept('./registry/Container', () => {
+    require('./registry/Container');
+
+    ReactDOM.render(
+      <Provider store={ store }>
+        <Container />
+      </Provider>,
+      document.querySelector('#container')
+    );
+  });
+}

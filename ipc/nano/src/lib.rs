@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -65,17 +65,17 @@ impl<S> Deref for GuardedSocket<S> where S: WithSocket<Socket> {
 /// creates socket and connects endpoint to it
 /// for duplex (paired) connections with the service
 pub fn init_duplex_client<S>(socket_addr: &str) -> Result<GuardedSocket<S>, SocketError> where S: WithSocket<Socket> {
-	let mut socket = try!(Socket::new(Protocol::Pair).map_err(|e| {
+	let mut socket = Socket::new(Protocol::Pair).map_err(|e| {
 		warn!(target: "ipc", "Failed to create ipc socket: {:?}", e);
 		SocketError::DuplexLink
-	}));
+	})?;
 
 	socket.set_receive_timeout(DEFAULT_CONNECTION_TIMEOUT).unwrap();
 
-	let endpoint = try!(socket.connect(socket_addr).map_err(|e| {
+	let endpoint = socket.connect(socket_addr).map_err(|e| {
 		warn!(target: "ipc", "Failed to bind socket to address '{}': {:?}", socket_addr, e);
 		SocketError::DuplexLink
-	}));
+	})?;
 
 	Ok(GuardedSocket {
 		client: Arc::new(S::init(socket)),
@@ -87,19 +87,19 @@ pub fn init_duplex_client<S>(socket_addr: &str) -> Result<GuardedSocket<S>, Sock
 /// creates socket and connects endpoint to it
 /// for request-reply connections to the service
 pub fn client<S>(socket_addr: &str, receive_timeout: Option<isize>) -> Result<GuardedSocket<S>, SocketError> where S: WithSocket<Socket> {
-	let mut socket = try!(Socket::new(Protocol::Req).map_err(|e| {
+	let mut socket = Socket::new(Protocol::Req).map_err(|e| {
 		warn!(target: "ipc", "Failed to create ipc socket: {:?}", e);
 		SocketError::RequestLink
-	}));
+	})?;
 
 	if let Some(timeout) = receive_timeout {
 		socket.set_receive_timeout(timeout).unwrap();
 	}
 
-	let endpoint = try!(socket.connect(socket_addr).map_err(|e| {
+	let endpoint = socket.connect(socket_addr).map_err(|e| {
 		warn!(target: "ipc", "Failed to bind socket to address '{}': {:?}", socket_addr, e);
 		SocketError::RequestLink
-	}));
+	})?;
 
 	trace!(target: "ipc", "Created client for {}", socket_addr);
 	Ok(GuardedSocket {
@@ -210,15 +210,15 @@ impl<S: ?Sized> Worker<S> where S: IpcInterface {
 	/// Add exclusive socket for paired client
 	/// Only one connection over this address is allowed
 	pub fn add_duplex(&mut self, addr: &str) -> Result<(), SocketError>  {
-		let mut socket = try!(Socket::new(Protocol::Pair).map_err(|e| {
+		let mut socket = Socket::new(Protocol::Pair).map_err(|e| {
 			warn!(target: "ipc", "Failed to create ipc socket: {:?}", e);
 			SocketError::DuplexLink
-		}));
+		})?;
 
-		let endpoint = try!(socket.bind(addr).map_err(|e| {
+		let endpoint = socket.bind(addr).map_err(|e| {
 			warn!(target: "ipc", "Failed to bind socket to address '{}': {:?}", addr, e);
 			SocketError::DuplexLink
-		}));
+		})?;
 
 		self.sockets.push((socket, endpoint));
 
@@ -232,16 +232,16 @@ impl<S: ?Sized> Worker<S> where S: IpcInterface {
 	/// Add generic socket for request-reply style communications
 	/// with multiple clients
 	pub fn add_reqrep(&mut self, addr: &str) -> Result<(), SocketError>  {
-		let mut socket = try!(Socket::new(Protocol::Rep).map_err(|e| {
+		let mut socket = Socket::new(Protocol::Rep).map_err(|e| {
 			warn!(target: "ipc", "Failed to create ipc socket: {:?}", e);
 			SocketError::DuplexLink
-		}));
+		})?;
 
 
-		let endpoint = try!(socket.bind(addr).map_err(|e| {
+		let endpoint = socket.bind(addr).map_err(|e| {
 			warn!(target: "ipc", "Failed to bind socket to address '{}': {:?}", addr, e);
 			SocketError::DuplexLink
-		}));
+		})?;
 
 		self.sockets.push((socket, endpoint));
 

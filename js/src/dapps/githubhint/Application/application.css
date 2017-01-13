@@ -1,4 +1,4 @@
-/* Copyright 2015, 2016 Ethcore (UK) Ltd.
+/* Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 /* This file is part of Parity.
 /*
 /* Parity is free software: you can redistribute it and/or modify
@@ -15,12 +15,17 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-.container {
+.body {
+  text-align: center;
   background: #333;
+  color: #fff;
+}
+
+.container {
   font-family: 'Roboto';
   vertical-align: middle;
   padding: 4em 0;
-  text-align: center;
+  margin: 0 0 2em 0;
 }
 
 .form {
@@ -98,7 +103,7 @@
   color: #333;
   background: #eee;
   border: none;
-  border-radius: 5px;
+  border-radius: 0.5em;
   width: 100%;
   font-size: 1em;
   text-align: center;
@@ -113,20 +118,29 @@
 }
 
 .hashError, .hashWarning, .hashOk {
-  padding-top: 0.5em;
+  margin: 0.5em 0;
   text-align: center;
+  padding: 1em 0;
+  border: 0.25em solid #333;
+  border-radius: 0.5em;
 }
 
 .hashError {
+  border-color: #f66;
   color: #f66;
+  background: rgba(255, 102, 102, 0.25);
 }
 
 .hashWarning {
+  border-color: #f80;
   color: #f80;
+  background: rgba(255, 236, 0, 0.25);
 }
 
 .hashOk {
-  opacity: 0.5;
+  border-color: #6f6;
+  color: #6f6;
+  background: rgba(102, 255, 102, 0.25);
 }
 
 .typeButtons {

@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import { hashToImageUrl } from './providers/imagesReducer';
-import { withError } from '../ui/Errors/middleware';
+import { withError } from '~/ui/Errors/middleware';
 
 export {
   hashToImageUrl,

@@ -1,10 +1,10 @@
 [package]
 description = "Ethcore development/test/build tools"
-homepage = "http://ethcore.io"
+homepage = "http://parity.io"
 license = "GPL-3.0"
 name = "ethcore-devtools"
-version = "1.4.0"
-authors = ["Ethcore <admin@ethcore.io>"]
+version = "1.6.0"
+authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
 rand = "0.3"

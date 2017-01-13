@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -15,8 +15,8 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
-import { bindActionCreators } from 'redux';
 
 import styles from './blockStatus.css';
 
@@ -39,32 +39,64 @@ class BlockStatus extends Component {
     if (!syncing) {
       return (
         <div className={ styles.blockNumber }>
-          { blockNumber.toFormat() } best block
+          <FormattedMessage
+            id='ui.blockStatus.bestBlock'
+            defaultMessage='{blockNumber} best block'
+            values={ {
+              blockNumber: blockNumber.toFormat()
+            } } />
         </div>
       );
     }
 
-    if (!syncing.warpChunksAmount.eq(syncing.warpChunksProcessed)) {
+    if (syncing.warpChunksAmount && syncing.warpChunksProcessed && !syncing.warpChunksAmount.eq(syncing.warpChunksProcessed)) {
       return (
         <div className={ styles.syncStatus }>
-          { syncing.warpChunksProcessed.mul(100).div(syncing.warpChunksAmount).toFormat(2) }% warp restore
+          <FormattedMessage
+            id='ui.blockStatus.warpRestore'
+            defaultMessage='{percentage}% warp restore'
+            values={ {
+              percentage: syncing.warpChunksProcessed.mul(100).div(syncing.warpChunksAmount).toFormat(2)
+            } } />
         </div>
       );
     }
 
+    let syncStatus = null;
     let warpStatus = null;
+
+    if (syncing.currentBlock && syncing.highestBlock) {
+      syncStatus = (
+        <span>
+          <FormattedMessage
+            id='ui.blockStatus.syncStatus'
+            defaultMessage='{currentBlock}/{highestBlock} syncing'
+            values={ {
+              currentBlock: syncing.currentBlock.toFormat(),
+              highestBlock: syncing.highestBlock.toFormat()
+            } } />
+        </span>
+      );
+    }
 
     if (syncing.blockGap) {
       const [first, last] = syncing.blockGap;
 
       warpStatus = (
-        <span>, { first.mul(100).div(last).toFormat(2) }% historic</span>
+        <span>
+          <FormattedMessage
+            id='ui.blockStatus.warpStatus'
+            defaultMessage=', {percentage}% historic'
+            values={ {
+              percentage: first.mul(100).div(last).toFormat(2)
+            } } />
+        </span>
       );
     }
 
     return (
       <div className={ styles.syncStatus }>
-        <span>{ syncing.currentBlock.toFormat() }/{ syncing.highestBlock.toFormat() } syncing</span>
+        { syncStatus }
         { warpStatus }
       </div>
     );
@@ -80,11 +112,7 @@ function mapStateToProps (state) {
   };
 }
 
-function mapDispatchToProps (dispatch) {
-  return bindActionCreators({}, dispatch);
-}
-
 export default connect(
   mapStateToProps,
-  mapDispatchToProps
+  null
 )(BlockStatus);

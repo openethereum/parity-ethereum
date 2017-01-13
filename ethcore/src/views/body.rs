@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -71,7 +71,7 @@ impl<'a> BodyView<'a> {
 	}
 
 	/// Return List of transactions in given block.
-	pub fn transaction_views(&self) -> Vec<TransactionView> {
+	pub fn transaction_views(&self) -> Vec<TransactionView<'a>> {
 		self.rlp.at(0).iter().map(TransactionView::new_from_rlp).collect()
 	}
 
@@ -106,7 +106,7 @@ impl<'a> BodyView<'a> {
 	}
 
 	/// Return List of transactions in given block.
-	pub fn uncle_views(&self) -> Vec<HeaderView> {
+	pub fn uncle_views(&self) -> Vec<HeaderView<'a>> {
 		self.rlp.at(1).iter().map(HeaderView::new_from_rlp).collect()
 	}
 

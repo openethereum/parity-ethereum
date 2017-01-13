@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -14,7 +14,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::io::Write;
 use time::{self, Duration};
 
 use hyper::header;
@@ -84,13 +83,19 @@ impl Default for PageCache {
 	}
 }
 
+/// A generic type for `PageHandler` allowing to set the URL.
+/// Used by dapps fetching to set the URL after the content was downloaded.
+pub trait PageHandlerWaiting: server::Handler<HttpStream> + Send {
+	fn set_uri(&mut self, uri: &RequestUri);
+}
+
 /// A handler for a single webapp.
 /// Resolves correct paths and serves as a plumbing code between
 /// hyper server and dapp.
 pub struct PageHandler<T: Dapp> {
 	/// A Dapp.
 	pub app: T,
-	/// File currently being served (or `None` if file does not exist).
+	/// File currently being served
 	pub file: ServedFile<T>,
 	/// Optional prefix to strip from path.
 	pub prefix: Option<String>,
@@ -100,6 +105,21 @@ pub struct PageHandler<T: Dapp> {
 	pub safe_to_embed_on: Option<(String, u16)>,
 	/// Cache settings for this page.
 	pub cache: PageCache,
+}
+
+impl<T: Dapp> PageHandlerWaiting for PageHandler<T> {
+	fn set_uri(&mut self, uri: &RequestUri) {
+		trace!(target: "dapps", "Setting URI: {:?}", uri);
+		self.file = match *uri {
+			RequestUri::AbsolutePath { ref path, .. } => {
+				self.app.file(&self.extract_path(path))
+			},
+			RequestUri::AbsoluteUri(ref url) => {
+				self.app.file(&self.extract_path(url.path()))
+			},
+			_ => None,
+		}.map_or_else(|| ServedFile::new(self.safe_to_embed_on.clone()), |f| ServedFile::File(f));
+	}
 }
 
 impl<T: Dapp> PageHandler<T> {
@@ -125,15 +145,7 @@ impl<T: Dapp> PageHandler<T> {
 
 impl<T: Dapp> server::Handler<HttpStream> for PageHandler<T> {
 	fn on_request(&mut self, req: server::Request<HttpStream>) -> Next {
-		self.file = match *req.uri() {
-			RequestUri::AbsolutePath(ref path) => {
-				self.app.file(&self.extract_path(path))
-			},
-			RequestUri::AbsoluteUri(ref url) => {
-				self.app.file(&self.extract_path(url.path()))
-			},
-			_ => None,
-		}.map_or_else(|| ServedFile::new(self.safe_to_embed_on.clone()), |f| ServedFile::File(f));
+		self.set_uri(req.uri());
 		Next::write()
 	}
 

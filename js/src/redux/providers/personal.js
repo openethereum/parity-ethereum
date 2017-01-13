@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -23,21 +23,44 @@ export default class Personal {
   }
 
   start () {
+    this._removeDeleted();
     this._subscribeAccountsInfo();
   }
 
   _subscribeAccountsInfo () {
     this._api
-      .subscribe('parity_accountsInfo', (error, accountsInfo) => {
+      .subscribe('parity_allAccountsInfo', (error, accountsInfo) => {
         if (error) {
-          console.error('parity_accountsInfo', error);
+          console.error('parity_allAccountsInfo', error);
           return;
         }
 
         this._store.dispatch(personalAccountsInfo(accountsInfo));
+      });
+  }
+
+  _removeDeleted () {
+    this._api.parity
+      .allAccountsInfo()
+      .then((accountsInfo) => {
+        return Promise.all(
+          Object
+            .keys(accountsInfo)
+            .filter((address) => {
+              const account = accountsInfo[address];
+
+              return !account.uuid && account.meta.deleted;
+            })
+            .map((address) => this._api.parity.removeAddress(address))
+        );
       })
-      .then((subscriptionId) => {
-        console.log('personal._subscribeAccountsInfo', 'subscriptionId', subscriptionId);
+      .then((results) => {
+        if (results.length) {
+          console.log(`Removed ${results.length} previously marked addresses`);
+        }
+      })
+      .catch((error) => {
+        console.warn('removeDeleted', error);
       });
   }
 }

@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -17,9 +17,7 @@
 //! Parity Signer-related rpc interface.
 use jsonrpc_core::Error;
 
-use v1::helpers::auto_args::Wrap;
-use v1::types::{U256, Bytes, TransactionModification, ConfirmationRequest, ConfirmationResponse};
-
+use v1::types::{U256, Bytes, TransactionModification, ConfirmationRequest, ConfirmationResponse, ConfirmationResponseWithToken};
 
 build_rpc_trait! {
 	/// Signer extension for confirmations rpc interface.
@@ -33,6 +31,10 @@ build_rpc_trait! {
 		#[rpc(name = "signer_confirmRequest")]
 		fn confirm_request(&self, U256, TransactionModification, String) -> Result<ConfirmationResponse, Error>;
 
+		/// Confirm specific request with token.
+		#[rpc(name = "signer_confirmRequestWithToken")]
+		fn confirm_request_with_token(&self, U256, TransactionModification, String) -> Result<ConfirmationResponseWithToken, Error>;
+
 		/// Confirm specific request with already signed data.
 		#[rpc(name = "signer_confirmRequestRaw")]
 		fn confirm_request_raw(&self, U256, Bytes) -> Result<ConfirmationResponse, Error>;
@@ -44,5 +46,9 @@ build_rpc_trait! {
 		/// Generates new authorization token.
 		#[rpc(name = "signer_generateAuthorizationToken")]
 		fn generate_token(&self) -> Result<String, Error>;
+
+		/// Generates new web proxy access token.
+		#[rpc(name = "signer_generateWebProxyAccessToken")]
+		fn generate_web_proxy_token(&self) -> Result<String, Error>;
 	}
 }

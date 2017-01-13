@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -53,9 +53,7 @@ pub fn payload<B: ipc::BinaryConvertable>() -> Result<B, BootError> {
 	use std::io::Read;
 
 	let mut buffer = Vec::new();
-	try!(
-		io::stdin().read_to_end(&mut buffer).map_err(BootError::ReadArgs)
-	);
+	io::stdin().read_to_end(&mut buffer).map_err(BootError::ReadArgs)?;
 
 	ipc::binary::deserialize::<B>(&buffer).map_err(BootError::DecodeArgs)
 }

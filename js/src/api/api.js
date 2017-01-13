@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -114,7 +114,11 @@ export default class Api {
             }
           })
           .catch((error) => {
-            console.error('pollMethod', error);
+            // Don't print if the request is rejected: that's ok
+            if (error.type !== 'REQUEST_REJECTED') {
+              console.error('pollMethod', error);
+            }
+
             reject(error);
           });
       };

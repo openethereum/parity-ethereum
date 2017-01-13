@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -22,28 +22,51 @@ import TransportError from '../error';
 
 /* global WebSocket */
 export default class Ws extends JsonRpcBase {
-  constructor (url, token) {
+  constructor (url, token, connect = true) {
     super();
 
     this._url = url;
     this._token = token;
     this._messages = {};
 
-    this._connecting = true;
+    this._connecting = false;
+    this._connected = false;
     this._lastError = null;
     this._autoConnect = false;
+    this._retries = 0;
+    this._reconnectTimeoutId = null;
 
-    this._connect();
+    this._connectPromise = null;
+    this._connectPromiseFunctions = {};
+
+    if (connect) {
+      this.connect();
+    }
   }
 
-  updateToken (token) {
+  updateToken (token, connect = true) {
     this._token = token;
-    this._autoConnect = false;
+    // this._autoConnect = true;
 
-    this._connect();
+    if (connect) {
+      this.connect();
+    }
   }
 
-  _connect () {
+  connect () {
+    if (this._connected) {
+      return Promise.resolve();
+    }
+
+    if (this._connecting) {
+      return this._connectPromise || Promise.resolve();
+    }
+
+    if (this._reconnectTimeoutId) {
+      window.clearTimeout(this._reconnectTimeoutId);
+      this._reconnectTimeoutId = null;
+    }
+
     const time = parseInt(new Date().getTime() / 1000, 10);
     const sha3 = keccak_256(`${this._token}:${time}`);
     const hash = `${sha3}_${time}`;
@@ -53,6 +76,7 @@ export default class Ws extends JsonRpcBase {
       this._ws.onopen = null;
       this._ws.onclose = null;
       this._ws.onmessage = null;
+      this._ws.close();
       this._ws = null;
     }
 
@@ -65,32 +89,109 @@ export default class Ws extends JsonRpcBase {
     this._ws.onopen = this._onOpen;
     this._ws.onclose = this._onClose;
     this._ws.onmessage = this._onMessage;
+
+    // Get counts in dev mode only
+    if (process.env.NODE_ENV === 'development') {
+      this._count = 0;
+      this._lastCount = {
+        timestamp: Date.now(),
+        count: 0
+      };
+
+      window.setInterval(() => {
+        const n = this._count - this._lastCount.count;
+        const t = (Date.now() - this._lastCount.timestamp) / 1000;
+        const s = Math.round(1000 * n / t) / 1000;
+
+        if (this._debug) {
+          console.log('::parityWS', `speed: ${s} req/s`, `count: ${this._count}`, `(+${n})`);
+        }
+
+        this._lastCount = {
+          timestamp: Date.now(),
+          count: this._count
+        };
+      }, 5000);
+
+      window._parityWS = this;
+    }
+
+    this._connectPromise = new Promise((resolve, reject) => {
+      this._connectPromiseFunctions = { resolve, reject };
+    });
+
+    return this._connectPromise;
   }
 
   _onOpen = (event) => {
-    console.log('ws:onOpen', event);
+    console.log('ws:onOpen');
+
     this._connected = true;
     this._connecting = false;
     this._autoConnect = true;
+    this._retries = 0;
 
     Object.keys(this._messages)
       .filter((id) => this._messages[id].queued)
       .forEach(this._send);
+
+    this._connectPromiseFunctions.resolve();
+
+    this._connectPromise = null;
+    this._connectPromiseFunctions = {};
   }
 
   _onClose = (event) => {
-    console.log('ws:onClose', event);
     this._connected = false;
     this._connecting = false;
 
+    event.timestamp = Date.now();
+    this._lastError = event;
+
     if (this._autoConnect) {
-      this._connect();
+      const timeout = this.retryTimeout;
+
+      const time = timeout < 1000
+        ? Math.round(timeout) + 'ms'
+        : (Math.round(timeout / 10) / 100) + 's';
+
+      console.log('ws:onClose', `trying again in ${time}...`);
+
+      this._reconnectTimeoutId = setTimeout(() => {
+        this.connect();
+      }, timeout);
+
+      return;
     }
+
+    if (this._connectPromise) {
+      this._connectPromiseFunctions.reject(event);
+
+      this._connectPromise = null;
+      this._connectPromiseFunctions = {};
+    }
+
+    console.log('ws:onClose');
   }
 
   _onError = (event) => {
-    console.error('ws:onError', event);
-    this._lastError = event;
+    // Only print error if the WS is connected
+    // ie. don't print if error == closed
+    window.setTimeout(() => {
+      if (this._connected) {
+        console.error('ws:onError');
+
+        event.timestamp = Date.now();
+        this._lastError = event;
+
+        if (this._connectPromise) {
+          this._connectPromiseFunctions.reject(event);
+
+          this._connectPromise = null;
+          this._connectPromiseFunctions = {};
+        }
+      }
+    }, 50);
   }
 
   _onMessage = (event) => {
@@ -108,7 +209,10 @@ export default class Ws extends JsonRpcBase {
       if (result.error) {
         this.error(event.data);
 
-        console.error(`${method}(${JSON.stringify(params)}): ${result.error.code}: ${result.error.message}`);
+        // Don't print error if request rejected...
+        if (!/rejected/.test(result.error.message)) {
+          console.error(`${method}(${JSON.stringify(params)}): ${result.error.code}: ${result.error.message}`);
+        }
 
         const error = new TransportError(method, result.error.code, result.error.message);
         reject(error);
@@ -127,11 +231,16 @@ export default class Ws extends JsonRpcBase {
   _send = (id) => {
     const message = this._messages[id];
 
-    message.queued = !this._connected;
-
     if (this._connected) {
-      this._ws.send(message.json);
+      if (process.env.NODE_ENV === 'development') {
+        this._count++;
+      }
+
+      return this._ws.send(message.json);
     }
+
+    message.queued = !this._connected;
+    message.timestamp = Date.now();
   }
 
   execute (method, ...params) {
@@ -158,5 +267,28 @@ export default class Ws extends JsonRpcBase {
 
   get lastError () {
     return this._lastError;
+  }
+
+  /**
+   * Exponential Timeout for Retries
+   *
+   * @see http://dthain.blogspot.de/2009/02/exponential-backoff-in-distributed.html
+   */
+  get retryTimeout () {
+    // R between 1 and 2
+    const R = Math.random() + 1;
+    // Initial timeout (100ms)
+    const T = 100;
+    // Exponential Factor
+    const F = 2;
+    // Max timeout (4s)
+    const M = 4000;
+    // Current number of retries
+    const N = this._retries;
+
+    // Increase retries number
+    this._retries++;
+
+    return Math.min(R * T * Math.pow(F, N), M);
   }
 }

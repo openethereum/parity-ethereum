@@ -1,0 +1,19 @@
+[package]
+description = "Fetching hash-addressed content."
+homepage = "http://parity.io"
+license = "GPL-3.0"
+name = "parity-hash-fetch"
+version = "1.6.0"
+authors = ["Parity Technologies <admin@parity.io>"]
+
+[dependencies]
+ethabi = "0.2.2"
+futures = "0.1"
+log = "0.3"
+mime = "0.2"
+mime_guess = "1.6.1"
+rand = "0.3"
+rustc-serialize = "0.3"
+fetch = { path = "../util/fetch" }
+ethcore-util = { path = "../util" }
+parity-reactor = { path = "../util/reactor" }

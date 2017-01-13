@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -35,15 +35,42 @@ pub const KEY_ITERATIONS: usize = 10240;
 pub const KEY_LENGTH_AES: usize = KEY_LENGTH / 2;
 
 #[derive(PartialEq, Debug)]
+pub enum ScryptError {
+	// log(N) < r / 16
+	InvalidN,
+	// p <= (2^31-1 * 32)/(128 * r)
+	InvalidP,
+}
+
+impl fmt::Display for ScryptError {
+	fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+		let s = match *self {
+			ScryptError::InvalidN => "Invalid N argument of the scrypt encryption" ,
+			ScryptError::InvalidP => "Invalid p argument of the scrypt encryption",
+		};
+
+		write!(f, "{}", s)
+	}
+}
+
+#[derive(PartialEq, Debug)]
 pub enum Error {
 	Secp(SecpError),
+	Scrypt(ScryptError),
 	InvalidMessage,
+}
+
+impl From<ScryptError> for Error {
+	fn from(err: ScryptError) -> Self {
+		Error::Scrypt(err)
+	}
 }
 
 impl fmt::Display for Error {
 	fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
 		let s = match *self {
 			Error::Secp(ref err) => err.to_string(),
+			Error::Scrypt(ref err) => err.to_string(),
 			Error::InvalidMessage => "Invalid message".into(),
 		};
 
@@ -80,13 +107,23 @@ pub fn derive_key_iterations(password: &str, salt: &[u8; 32], c: u32) -> (Vec<u8
 	(derived_right_bits.to_vec(), derived_left_bits.to_vec())
 }
 
-pub fn derive_key_scrypt(password: &str, salt: &[u8; 32], n: u32, p: u32, r: u32) -> (Vec<u8>, Vec<u8>) {
+pub fn derive_key_scrypt(password: &str, salt: &[u8; 32], n: u32, p: u32, r: u32) -> Result<(Vec<u8>, Vec<u8>), Error> {
+	// sanity checks
+	let log_n = (32 - n.leading_zeros() - 1) as u8;
+	if log_n as u32 >= r * 16 {
+		return Err(Error::Scrypt(ScryptError::InvalidN));
+	}
+
+	if p as u64 > ((u32::max_value() as u64 - 1) * 32)/(128 * (r as u64)) {
+		return Err(Error::Scrypt(ScryptError::InvalidP));
+	}
+
 	let mut derived_key = vec![0u8; KEY_LENGTH];
-	let scrypt_params = ScryptParams::new(n.trailing_zeros() as u8, r, p);
+	let scrypt_params = ScryptParams::new(log_n, r, p);
 	scrypt(password.as_bytes(), salt, &scrypt_params, &mut derived_key);
 	let derived_right_bits = &derived_key[0..KEY_LENGTH_AES];
 	let derived_left_bits = &derived_key[KEY_LENGTH_AES..KEY_LENGTH];
-	(derived_right_bits.to_vec(), derived_left_bits.to_vec())
+	Ok((derived_right_bits.to_vec(), derived_left_bits.to_vec()))
 }
 
 pub fn derive_mac(derived_left_bits: &[u8], cipher_text: &[u8]) -> Vec<u8> {
@@ -121,7 +158,7 @@ pub mod aes {
 		let mut encryptor = CbcDecryptor::new(AesSafe128Decryptor::new(k), PkcsPadding, iv.to_vec());
 		let len = dest.len();
 		let mut buffer = RefWriteBuffer::new(dest);
-		try!(encryptor.decrypt(&mut RefReadBuffer::new(encrypted), &mut buffer, true));
+		encryptor.decrypt(&mut RefReadBuffer::new(encrypted), &mut buffer, true)?;
 		Ok(len - buffer.remaining())
 	}
 }
@@ -129,7 +166,7 @@ pub mod aes {
 /// ECDH functions
 #[cfg_attr(feature="dev", allow(similar_names))]
 pub mod ecdh {
-	use secp256k1::{ecdh, key};
+	use secp256k1::{ecdh, key, Error as SecpError};
 	use ethkey::{Secret, Public, SECP256K1};
 	use Error;
 
@@ -142,14 +179,12 @@ pub mod ecdh {
 			temp
 		};
 
-		let publ = try!(key::PublicKey::from_slice(context, &pdata));
-		// no way to create SecretKey from raw byte array.
-		let sec: &key::SecretKey = unsafe { ::std::mem::transmute(secret) };
-		let shared = ecdh::SharedSecret::new_raw(context, &publ, sec);
+		let publ = key::PublicKey::from_slice(context, &pdata)?;
+		let sec = key::SecretKey::from_slice(context, &secret)?;
+		let shared = ecdh::SharedSecret::new_raw(context, &publ, &sec);
 
-		let mut s = Secret::default();
-		s.copy_from_slice(&shared[0..32]);
-		Ok(s)
+		Secret::from_slice(&shared[0..32])
+			.map_err(|_| Error::Secp(SecpError::InvalidSecretKey))
 	}
 }
 
@@ -169,7 +204,7 @@ pub mod ecies {
 		let r = Random.generate()
 			.expect("context known to have key-generation capabilities; qed");
 
-		let z = try!(ecdh::agree(r.secret(), public));
+		let z = ecdh::agree(r.secret(), public)?;
 		let mut key = [0u8; 32];
 		let mut mkey = [0u8; 32];
 		kdf(&z, &[0u8; 0], &mut key);
@@ -206,7 +241,7 @@ pub mod ecies {
 		let r = Random.generate()
 			.expect("context known to have key-generation capabilities");
 
-		let z = try!(ecdh::agree(r.secret(), public));
+		let z = ecdh::agree(r.secret(), public)?;
 		let mut key = [0u8; 32];
 		let mut mkey = [0u8; 32];
 		kdf(&z, &[0u8; 0], &mut key);
@@ -237,7 +272,7 @@ pub mod ecies {
 
 		let e = &encrypted[1..];
 		let p = Public::from_slice(&e[0..64]);
-		let z = try!(ecdh::agree(secret, &p));
+		let z = ecdh::agree(secret, &p)?;
 		let mut key = [0u8; 32];
 		kdf(&z, &[0u8; 0], &mut key);
 		let ekey = &key[0..16];
@@ -277,7 +312,7 @@ pub mod ecies {
 
 		let e = encrypted;
 		let p = Public::from_slice(&e[0..64]);
-		let z = try!(ecdh::agree(secret, &p));
+		let z = ecdh::agree(secret, &p)?;
 		let mut key = [0u8; 32];
 		kdf(&z, &[0u8; 0], &mut key);
 		let ekey = &key[0..16];

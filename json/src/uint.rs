@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -69,12 +69,12 @@ impl Visitor for UintVisitor {
 		let value = match value.len() {
 			0 => U256::from(0),
 			2 if value.starts_with("0x") => U256::from(0),
-			_ if value.starts_with("0x") => try!(U256::from_str(&value[2..]).map_err(|_| {
+			_ if value.starts_with("0x") => U256::from_str(&value[2..]).map_err(|_| {
 				Error::custom(format!("Invalid hex value {}.", value).as_str())
-			})),
-			_ => try!(U256::from_dec_str(value).map_err(|_| {
+			})?,
+			_ => U256::from_dec_str(value).map_err(|_| {
 				Error::custom(format!("Invalid decimal value {}.", value).as_str())
-			}))
+			})?
 		};
 
 		Ok(Uint(value))

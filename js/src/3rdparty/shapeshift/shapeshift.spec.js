@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -14,9 +14,29 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { mockget, mockpost, shapeshift } from './helpers.spec.js';
+const sinon = require('sinon');
+
+const ShapeShift = require('./');
+const initShapeshift = (ShapeShift.default || ShapeShift);
+
+const helpers = require('./helpers.spec.js');
+
+const mockget = helpers.mockget;
+const mockpost = helpers.mockpost;
 
 describe('shapeshift/calls', () => {
+  let clock;
+  let shapeshift;
+
+  beforeEach(() => {
+    clock = sinon.useFakeTimers();
+    shapeshift = initShapeshift(helpers.APIKEY);
+  });
+
+  afterEach(() => {
+    clock.restore();
+  });
+
   describe('getCoins', () => {
     const REPLY = {
       BTC: {
@@ -35,8 +55,8 @@ describe('shapeshift/calls', () => {
 
     let scope;
 
-    before(() => {
-      scope = mockget([{ path: 'getcoins', reply: REPLY }]);
+    beforeEach(() => {
+      scope = mockget(shapeshift, [{ path: 'getcoins', reply: REPLY }]);
 
       return shapeshift.getCoins();
     });
@@ -57,8 +77,8 @@ describe('shapeshift/calls', () => {
 
     let scope;
 
-    before(() => {
-      scope = mockget([{ path: 'marketinfo/btc_ltc', reply: REPLY }]);
+    beforeEach(() => {
+      scope = mockget(shapeshift, [{ path: 'marketinfo/btc_ltc', reply: REPLY }]);
 
       return shapeshift.getMarketInfo('btc_ltc');
     });
@@ -76,8 +96,8 @@ describe('shapeshift/calls', () => {
 
     let scope;
 
-    before(() => {
-      scope = mockget([{ path: 'txStat/0x123', reply: REPLY }]);
+    beforeEach(() => {
+      scope = mockget(shapeshift, [{ path: 'txStat/0x123', reply: REPLY }]);
 
       return shapeshift.getStatus('0x123');
     });
@@ -97,8 +117,8 @@ describe('shapeshift/calls', () => {
 
     let scope;
 
-    before(() => {
-      scope = mockpost([{ path: 'shift', reply: REPLY }]);
+    beforeEach(() => {
+      scope = mockpost(shapeshift, [{ path: 'shift', reply: REPLY }]);
 
       return shapeshift.shift('0x456', '1BTC', 'btc_eth');
     });
@@ -118,6 +138,82 @@ describe('shapeshift/calls', () => {
 
       it('has pair set', () => {
         expect(scope.body.shift.pair).to.equal('btc_eth');
+      });
+    });
+  });
+
+  describe('subscriptions', () => {
+    const ADDRESS = '0123456789abcdef';
+    const REPLY = {
+      status: 'complete',
+      address: ADDRESS
+    };
+
+    let callback;
+
+    beforeEach(() => {
+      mockget(shapeshift, [{ path: `txStat/${ADDRESS}`, reply: REPLY }]);
+      callback = sinon.stub();
+      shapeshift.subscribe(ADDRESS, callback);
+    });
+
+    describe('subscribe', () => {
+      it('adds the depositAddress to the list', () => {
+        const subscriptions = shapeshift._getSubscriptions();
+
+        expect(subscriptions.length).to.equal(1);
+        expect(subscriptions[0].depositAddress).to.equal(ADDRESS);
+      });
+
+      it('starts the polling timer', () => {
+        expect(shapeshift._isPolling()).to.be.true;
+      });
+
+      it('calls the callback once the timer has elapsed', () => {
+        clock.tick(2222);
+
+        return shapeshift._getSubscriptionPromises().then(() => {
+          expect(callback).to.have.been.calledWith(null, REPLY);
+        });
+      });
+
+      it('auto-unsubscribes on completed', () => {
+        clock.tick(2222);
+
+        return shapeshift._getSubscriptionPromises().then(() => {
+          expect(shapeshift._getSubscriptions().length).to.equal(0);
+        });
+      });
+    });
+
+    describe('unsubscribe', () => {
+      it('unbsubscribes when requested', () => {
+        expect(shapeshift._getSubscriptions().length).to.equal(1);
+        shapeshift.unsubscribe(ADDRESS);
+        expect(shapeshift._getSubscriptions().length).to.equal(0);
+      });
+
+      it('clears the polling on no subscriptions', () => {
+        shapeshift.unsubscribe(ADDRESS);
+        expect(shapeshift._isPolling()).to.be.false;
+      });
+
+      it('handles unsubscribe of auto-unsubscribe', () => {
+        clock.tick(2222);
+
+        return shapeshift._getSubscriptionPromises().then(() => {
+          expect(shapeshift.unsubscribe(ADDRESS)).to.be.true;
+        });
+      });
+
+      it('handles unsubscribe when multiples listed', () => {
+        const ADDRESS2 = 'abcdef0123456789';
+
+        shapeshift.subscribe(ADDRESS2, sinon.stub());
+        expect(shapeshift._getSubscriptions().length).to.equal(2);
+        expect(shapeshift._getSubscriptions()[0].depositAddress).to.equal(ADDRESS);
+        shapeshift.unsubscribe(ADDRESS);
+        expect(shapeshift._getSubscriptions()[0].depositAddress).to.equal(ADDRESS2);
       });
     });
   });

@@ -1,4 +1,4 @@
-/* Copyright 2015, 2016 Ethcore (UK) Ltd.
+/* Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 /* This file is part of Parity.
 /*
 /* Parity is free software: you can redistribute it and/or modify
@@ -14,9 +14,6 @@
 /* You should have received a copy of the GNU General Public License
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
-
-.layout {
-}
 
 .menu {
   display: inline-block;
@@ -35,31 +32,24 @@
   padding: 16px 2em !important;
   line-height: 24px !important;
   width: auto !important;
-}
 
-.tabactive {
-}
+  &>div {
+    height: 24px !important;
 
-.tab>div,
-.tabactive>div {
-  height: 24px !important;
-}
+    &>div {
+      display: inline-block !important;
+    }
+  }
 
-.tab>div>div,
-.tabactive>div>div {
-  display: inline-block !important;
-}
+  svg {
+    margin-right: 0.5em;
+    margin-bottom: 0 !important;
+  }
 
-.tab svg,
-.tabactive svg {
-  margin-right: 0.5em;
-  margin-bottom: 0 !important;
-}
-
-.tab .menu,
-.tabactive .menu {
-  vertical-align: top;
-  display: inline-block;
+  .menu {
+    vertical-align: top;
+    display: inline-block;
+  }
 }
 
 .imageIcon {
@@ -68,6 +58,8 @@
   opacity: 0.5;
 }
 
-.tabactive .imageIcon {
-  opacity: 1;
+.tabactive {
+  .imageIcon {
+    opacity: 1;
+  }
 }

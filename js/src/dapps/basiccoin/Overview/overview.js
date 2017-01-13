@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -94,10 +94,7 @@ export default class Overview extends Component {
 
   loadOwners () {
     const { accounts } = this.context;
-    const addresses = Object
-      .values(accounts)
-      .filter((account) => account.uuid)
-      .map((account) => account.address);
+    const addresses = Object.keys(accounts);
 
     loadOwnedTokens(addresses)
       .then(({ tokens, total }) => {

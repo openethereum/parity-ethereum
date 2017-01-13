@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -18,12 +18,13 @@ import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 import ContentAdd from 'material-ui/svg-icons/content/add';
-import { uniq } from 'lodash';
+import { uniq, isEqual } from 'lodash';
 
 import List from '../Accounts/List';
 import Summary from '../Accounts/Summary';
-import { AddAddress } from '../../modals';
-import { Actionbar, ActionbarExport, ActionbarImport, ActionbarSearch, ActionbarSort, Button, Page } from '../../ui';
+import { AddAddress } from '~/modals';
+import { Actionbar, ActionbarExport, ActionbarImport, ActionbarSearch, ActionbarSort, Button, Page, Loading } from '~/ui';
+import { setVisibleAccounts } from '~/redux/providers/personalActions';
 
 import styles from './addresses.css';
 
@@ -33,6 +34,8 @@ class Addresses extends Component {
   }
 
   static propTypes = {
+    setVisibleAccounts: PropTypes.func.isRequired,
+
     balances: PropTypes.object,
     contacts: PropTypes.object,
     hasContacts: PropTypes.bool
@@ -45,25 +48,61 @@ class Addresses extends Component {
     searchTokens: []
   }
 
-  render () {
-    const { balances, contacts, hasContacts } = this.props;
-    const { searchValues, sortOrder } = this.state;
+  componentWillMount () {
+    this.setVisibleAccounts();
+  }
 
+  componentWillReceiveProps (nextProps) {
+    const prevAddresses = Object.keys(this.props.contacts);
+    const nextAddresses = Object.keys(nextProps.contacts);
+
+    if (prevAddresses.length !== nextAddresses.length || !isEqual(prevAddresses.sort(), nextAddresses.sort())) {
+      this.setVisibleAccounts(nextProps);
+    }
+  }
+
+  componentWillUnmount () {
+    this.props.setVisibleAccounts([]);
+  }
+
+  setVisibleAccounts (props = this.props) {
+    const { contacts, setVisibleAccounts } = props;
+    const addresses = Object.keys(contacts);
+    setVisibleAccounts(addresses);
+  }
+
+  render () {
     return (
-      <div className={ styles.addresses }>
+      <div>
         { this.renderActionbar() }
         { this.renderAddAddress() }
         <Page>
-          <List
-            link='address'
-            search={ searchValues }
-            accounts={ contacts }
-            balances={ balances }
-            empty={ !hasContacts }
-            order={ sortOrder }
-            handleAddSearchToken={ this.onAddSearchToken } />
+          { this.renderAccountsList() }
         </Page>
       </div>
+    );
+  }
+
+  renderAccountsList () {
+    const { balances, contacts, hasContacts } = this.props;
+    const { searchValues, sortOrder } = this.state;
+
+    if (hasContacts && Object.keys(balances).length === 0) {
+      return (
+        <Loading />
+      );
+    }
+
+    return (
+      <List
+        link='addresses'
+        search={ searchValues }
+        accounts={ contacts }
+        balances={ balances }
+        empty={ !hasContacts }
+        order={ sortOrder }
+        handleAddSearchToken={ this.onAddSearchToken }
+      />
     );
   }
 
@@ -231,7 +270,9 @@ function mapStateToProps (state) {
 }
 
 function mapDispatchToProps (dispatch) {
-  return bindActionCreators({}, dispatch);
+  return bindActionCreators({
+    setVisibleAccounts
+  }, dispatch);
 }
 
 export default connect(

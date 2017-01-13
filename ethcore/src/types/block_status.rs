@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -18,7 +18,8 @@
 use verification::queue::Status as QueueStatus;
 
 /// General block status
-#[derive(Debug, Eq, PartialEq, Binary)]
+#[derive(Debug, Eq, PartialEq)]
+#[cfg_attr(feature = "ipc", binary)]
 pub enum BlockStatus {
 	/// Part of the blockchain.
 	InChain,

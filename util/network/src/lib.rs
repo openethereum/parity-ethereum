@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -45,8 +45,8 @@
 //!
 //! fn main () {
 //! 	let mut service = NetworkService::new(NetworkConfiguration::new_local()).expect("Error creating network service");
-//! 	service.register_protocol(Arc::new(MyHandler), *b"myp", 1, &[1u8]);
 //! 	service.start().expect("Error starting service");
+//! 	service.register_protocol(Arc::new(MyHandler), *b"myp", 1, &[1u8]);
 //!
 //! 	// Wait for quit condition
 //! 	// ...
@@ -99,7 +99,7 @@ pub use stats::NetworkStats;
 pub use session::SessionInfo;
 
 use io::TimerToken;
-pub use node_table::is_valid_node_url;
+pub use node_table::{is_valid_node_url, NodeId};
 
 const PROTOCOL_VERSION: u32 = 4;
 

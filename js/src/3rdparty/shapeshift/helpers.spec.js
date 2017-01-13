@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -14,25 +14,12 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import chai from 'chai';
-import nock from 'nock';
-
-global.expect = chai.expect; // eslint-disable-line no-undef
-
-import 'isomorphic-fetch';
-import es6Promise from 'es6-promise';
-es6Promise.polyfill();
-
-import initShapeshift from './';
-import initRpc from './rpc';
+const nock = require('nock');
 
 const APIKEY = '0x123454321';
 
-const shapeshift = initShapeshift(APIKEY);
-const rpc = initRpc(APIKEY);
-
-function mockget (requests) {
-  let scope = nock(rpc.ENDPOINT);
+function mockget (shapeshift, requests) {
+  let scope = nock(shapeshift.getRpc().ENDPOINT);
 
   requests.forEach((request) => {
     scope = scope
@@ -45,8 +32,8 @@ function mockget (requests) {
   return scope;
 }
 
-function mockpost (requests) {
-  let scope = nock(rpc.ENDPOINT);
+function mockpost (shapeshift, requests) {
+  let scope = nock(shapeshift.getRpc().ENDPOINT);
 
   requests.forEach((request) => {
     scope = scope
@@ -62,10 +49,8 @@ function mockpost (requests) {
   return scope;
 }
 
-export {
+module.exports = {
   APIKEY,
   mockget,
-  mockpost,
-  shapeshift,
-  rpc
+  mockpost
 };

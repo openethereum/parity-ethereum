@@ -1,4 +1,4 @@
-/* Copyright 2015, 2016 Ethcore (UK) Ltd.
+/* Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 /* This file is part of Parity.
 /*
 /* Parity is free software: you can redistribute it and/or modify
@@ -14,6 +14,7 @@
 /* You should have received a copy of the GNU General Public License
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
+
 .bar, .expanded {
   position: fixed;
   bottom: 0;
@@ -41,26 +42,26 @@
 }
 
 .expanded {
-  right: 16px;
-  width: 964px;
-  height: 300px;
+  right: 1em;
   border-radius: 4px 4px 0 0;
-  overflow-y: auto;
   display: flex;
   flex-direction: column;
+  max-height: 50vh;
 }
 
 .expanded .content {
   flex: 1;
-  overflow: auto;
+  overflow-y: auto;
+  overflow-x: hidden;
   display: flex;
   background: rgba(0, 0, 0, 0.8);
+  min-height: 16em;
 }
 
 .corner {
   position: absolute;
   bottom: 0;
-  right: 16px;
+  right: 1em;
   border-radius: 4px 4px 0 0;
 }
 
@@ -118,7 +119,7 @@
 }
 
 .header {
-  height: 36px;
+  height: 2em;
   padding: 0.5em 1em;
   background: rgba(0, 0, 0, 0.25);
   margin-bottom: 0;
@@ -148,6 +149,7 @@
 
 .actions {
   float: right;
+  margin-top: -2px;
 }
 
 .actions div {

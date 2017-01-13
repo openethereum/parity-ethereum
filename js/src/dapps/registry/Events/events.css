@@ -1,4 +1,4 @@
-/* Copyright 2015, 2016 Ethcore (UK) Ltd.
+/* Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 /* This file is part of Parity.
 /*
 /* Parity is free software: you can redistribute it and/or modify
@@ -48,4 +48,10 @@
 
 .eventsList td {
   padding: 0.25em 0.5em;
+}
+
+.inline {
+  display: inline-block;
+  width: auto;
+  margin-right: 1em;
 }

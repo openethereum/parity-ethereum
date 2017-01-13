@@ -1,4 +1,4 @@
-/* Copyright 2015, 2016 Ethcore (UK) Ltd.
+/* Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 /* This file is part of Parity.
 /*
 /* Parity is free software: you can redistribute it and/or modify
@@ -14,65 +14,52 @@
 /* You should have received a copy of the GNU General Public License
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
+
 .status {
-  padding: 0.5em;
-  font-size: x-small;
+  align-items: center;
+  background-color: rgba(0, 0, 0, 0.8);
+  bottom: 0;
   color: #ccc;
-  background-color: rgba(0, 0, 0, 0.2)
-}
-
-.title {
-  margin: 0 0.5em 0 2em;
-}
-
-.enode {
-  word-wrap: break-word;
-  float: right;
-}
-
-.enode > * {
-  display: inline-block;
-  margin: 0.25em 0.5em;
-  vertical-align: top;
-}
-
-.block {
+  display: flex;
+  font-size: 0.75em;
+  left: 0;
+  padding: .4em .5em;
+  position: fixed;
+  right: 0;
+  z-index: 1000;
 }
 
 .netinfo {
-  display: flex;
-  align-items: center;
-  color: #ddd;  
-}
+  color: #ddd;
+  flex-grow: 1;
+  text-align: right;
+  vertical-align: middle;
+  text-align: right;
 
-.netinfo > * {
-  display: inline-block;
-  margin-left: 1em;
+  div {
+    display: inline-block;
+    margin-left: 1em;
+  }
 }
 
 .network {
-  padding: 0.25em 0.5em;
-  display: inline-block;
-  border-radius: 4px;
+  border-radius: 0.4em;
   line-height: 1.2;
-  text-transform: uppercase;
-}
-
-.networklive {
-  background: rgb(0, 136, 0);
-}
-
-.networktest {
-  background: rgb(136, 0, 0);
-}
-
-.peers {
-}
-
-.version {
   padding: 0.25em 0.5em;
-  float: left;
+  text-transform: uppercase;
+
+  &.live {
+    background: rgb(0, 136, 0);
+  }
+
+  &.test {
+    background: rgb(136, 0, 0);
+  }
 }
 
-.syncing {
+.upgrade {
+  div {
+    display: inline-block;
+    margin-left: 1em;
+  }
 }

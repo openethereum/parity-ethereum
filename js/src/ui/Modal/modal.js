@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -14,10 +14,12 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import React, { Component, PropTypes } from 'react';
-import { connect } from 'react-redux';
-import { bindActionCreators } from 'redux';
 import { Dialog } from 'material-ui';
+import React, { Component, PropTypes } from 'react';
+import ReactDOM from 'react-dom';
+import { connect } from 'react-redux';
+
+import { nodeOrStringProptype } from '~/util/proptypes';
 
 import Container from '../Container';
 import Title from './Title';
@@ -40,39 +42,44 @@ class Modal extends Component {
     className: PropTypes.string,
     compact: PropTypes.bool,
     current: PropTypes.number,
-    waiting: PropTypes.array,
-    scroll: PropTypes.bool,
+    settings: PropTypes.object.isRequired,
     steps: PropTypes.array,
-    title: React.PropTypes.oneOfType([
-      PropTypes.node, PropTypes.string
-    ]),
+    title: nodeOrStringProptype(),
     visible: PropTypes.bool.isRequired,
-    settings: PropTypes.object.isRequired
+    waiting: PropTypes.array
+  }
+
+  componentDidMount () {
+    const element = ReactDOM.findDOMNode(this.refs.dialog);
+
+    if (element) {
+      element.focus();
+    }
   }
 
   render () {
     const { muiTheme } = this.context;
-    const { actions, busy, className, current, children, compact, scroll, steps, waiting, title, visible, settings } = this.props;
+    const { actions, busy, children, className, current, compact, settings, steps, title, visible, waiting } = this.props;
     const contentStyle = muiTheme.parity.getBackgroundStyle(null, settings.backgroundSeed);
     const header = (
       <Title
-        current={ current }
         busy={ busy }
-        waiting={ waiting }
+        current={ current }
         steps={ steps }
-        title={ title } />
+        title={ title }
+        waiting={ waiting } />
     );
     const classes = `${styles.dialog} ${className}`;
 
     return (
       <Dialog
-        className={ classes }
         actions={ actions }
+        actionsContainerClassName={ styles.actions }
         actionsContainerStyle={ ACTIONS_STYLE }
         autoDetectWindowHeight={ false }
-        autoScrollBodyContent={ !!scroll }
-        actionsContainerClassName={ styles.actions }
+        autoScrollBodyContent
         bodyClassName={ styles.body }
+        className={ classes }
         contentClassName={ styles.content }
         contentStyle={ contentStyle }
         modal
@@ -83,7 +90,15 @@ class Modal extends Component {
         style={ DIALOG_STYLE }
         title={ header }
         titleStyle={ TITLE_STYLE }>
-        <Container light compact={ compact } style={ { transition: 'none' } }>
+        <Container
+          compact={ compact }
+          light
+          ref='dialog'
+          style={
+            { transition: 'none' }
+          }
+          tabIndex={ 0 }
+        >
           { children }
         </Container>
       </Dialog>
@@ -97,11 +112,7 @@ function mapStateToProps (state) {
   return { settings };
 }
 
-function mapDispatchToProps (dispatch) {
-  return bindActionCreators({}, dispatch);
-}
-
 export default connect(
   mapStateToProps,
-  mapDispatchToProps
+  null
 )(Modal);

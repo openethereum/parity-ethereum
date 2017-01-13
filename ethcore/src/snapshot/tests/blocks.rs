@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -37,13 +37,14 @@ fn chunk_and_restore(amount: u64) {
 	let genesis = canon_chain.generate(&mut finalizer).unwrap();
 	let db_cfg = DatabaseConfig::with_columns(::db::NUM_COLUMNS);
 
+	let engine = Arc::new(::engines::NullEngine::default());
 	let orig_path = RandomTempPath::create_dir();
 	let new_path = RandomTempPath::create_dir();
 	let mut snapshot_path = new_path.as_path().to_owned();
 	snapshot_path.push("SNAP");
 
 	let old_db = Arc::new(Database::open(&db_cfg, orig_path.as_str()).unwrap());
-	let bc = BlockChain::new(Default::default(), &genesis, old_db.clone());
+	let bc = BlockChain::new(Default::default(), &genesis, old_db.clone(), engine.clone());
 
 	// build the blockchain.
 	let mut batch = old_db.transaction();
@@ -73,21 +74,20 @@ fn chunk_and_restore(amount: u64) {
 
 	// restore it.
 	let new_db = Arc::new(Database::open(&db_cfg, new_path.as_str()).unwrap());
-	let new_chain = BlockChain::new(Default::default(), &genesis, new_db.clone());
+	let new_chain = BlockChain::new(Default::default(), &genesis, new_db.clone(), engine.clone());
 	let mut rebuilder = BlockRebuilder::new(new_chain, new_db.clone(), &manifest).unwrap();
 	let reader = PackedReader::new(&snapshot_path).unwrap().unwrap();
-	let engine = ::engines::NullEngine::new(Default::default(), Default::default());
 	let flag = AtomicBool::new(true);
 	for chunk_hash in &reader.manifest().block_hashes {
 		let compressed = reader.chunk(*chunk_hash).unwrap();
 		let chunk = snappy::decompress(&compressed).unwrap();
-		rebuilder.feed(&chunk, &engine, &flag).unwrap();
+		rebuilder.feed(&chunk, engine.as_ref(), &flag).unwrap();
 	}
 
 	rebuilder.finalize(HashMap::new()).unwrap();
 
 	// and test it.
-	let new_chain = BlockChain::new(Default::default(), &genesis, new_db);
+	let new_chain = BlockChain::new(Default::default(), &genesis, new_db, engine);
 	assert_eq!(new_chain.best_block_hash(), best_hash);
 }
 
@@ -121,8 +121,8 @@ fn checks_flag() {
 
 	let db_cfg = DatabaseConfig::with_columns(::db::NUM_COLUMNS);
 	let db = Arc::new(Database::open(&db_cfg, path.as_str()).unwrap());
-	let chain = BlockChain::new(Default::default(), &genesis, db.clone());
-	let engine = ::engines::NullEngine::new(Default::default(), Default::default());
+	let engine = Arc::new(::engines::NullEngine::default());
+	let chain = BlockChain::new(Default::default(), &genesis, db.clone(), engine.clone());
 
 	let manifest = ::snapshot::ManifestData {
 		state_hashes: Vec::new(),
@@ -134,7 +134,7 @@ fn checks_flag() {
 
 	let mut rebuilder = BlockRebuilder::new(chain, db.clone(), &manifest).unwrap();
 
-	match rebuilder.feed(&chunk, &engine, &AtomicBool::new(false)) {
+	match rebuilder.feed(&chunk, engine.as_ref(), &AtomicBool::new(false)) {
 		Err(Error::Snapshot(SnapshotError::RestorationAborted)) => {}
 		_ => panic!("Wrong result on abort flag set")
 	}

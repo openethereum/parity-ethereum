@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -19,6 +19,8 @@ import Registry from './registry';
 import SignatureReg from './signaturereg';
 import TokenReg from './tokenreg';
 import GithubHint from './githubhint';
+import * as verification from './verification';
+import BadgeReg from './badgereg';
 
 let instance = null;
 
@@ -32,6 +34,7 @@ export default class Contracts {
     this._signaturereg = new SignatureReg(api, this._registry);
     this._tokenreg = new TokenReg(api, this._registry);
     this._githubhint = new GithubHint(api, this._registry);
+    this.badgeReg = new BadgeReg(api, this._registry);
   }
 
   get registry () {
@@ -54,7 +57,19 @@ export default class Contracts {
     return this._githubhint;
   }
 
+  get smsVerification () {
+    return verification;
+  }
+
+  get emailVerification () {
+    return verification;
+  }
+
   static create (api) {
+    if (instance) {
+      return instance;
+    }
+
     return new Contracts(api);
   }
 

@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -122,7 +122,7 @@ impl Serialize for RichBlock {
 			// join two objects
 			block.extend(extras);
 			// and serialize
-			try!(block.serialize(serializer));
+			block.serialize(serializer)?;
 		}
 		Ok(())
 	}
@@ -139,7 +139,7 @@ mod tests {
 	fn test_serialize_block_transactions() {
 		let t = BlockTransactions::Full(vec![Transaction::default()]);
 		let serialized = serde_json::to_string(&t).unwrap();
-		assert_eq!(serialized, r#"[{"hash":"0x0000000000000000000000000000000000000000000000000000000000000000","nonce":"0x0","blockHash":null,"blockNumber":null,"transactionIndex":null,"from":"0x0000000000000000000000000000000000000000","to":null,"value":"0x0","gasPrice":"0x0","gas":"0x0","input":"0x","creates":null,"raw":"0x","publicKey":null,"v":0,"r":"0x0000000000000000000000000000000000000000000000000000000000000000","s":"0x0000000000000000000000000000000000000000000000000000000000000000"}]"#);
+		assert_eq!(serialized, r#"[{"hash":"0x0000000000000000000000000000000000000000000000000000000000000000","nonce":"0x0","blockHash":null,"blockNumber":null,"transactionIndex":null,"from":"0x0000000000000000000000000000000000000000","to":null,"value":"0x0","gasPrice":"0x0","gas":"0x0","input":"0x","creates":null,"raw":"0x","publicKey":null,"networkId":null,"standardV":"0x0","v":"0x0","r":"0x0","s":"0x0","minBlock":null}]"#);
 
 		let t = BlockTransactions::Hashes(vec![H256::default().into()]);
 		let serialized = serde_json::to_string(&t).unwrap();

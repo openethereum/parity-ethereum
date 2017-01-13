@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -15,193 +15,585 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
-import { MenuItem } from 'material-ui';
-import { isEqual } from 'lodash';
+import ReactDOM from 'react-dom';
+import { connect } from 'react-redux';
+import keycode, { codes } from 'keycode';
+import { FormattedMessage } from 'react-intl';
+import { observer } from 'mobx-react';
 
-import AutoComplete from '../AutoComplete';
-import IdentityIcon from '../../IdentityIcon';
-import IdentityName from '../../IdentityName';
+import TextFieldUnderline from 'material-ui/TextField/TextFieldUnderline';
 
+import AccountCard from '~/ui/AccountCard';
+import InputAddress from '~/ui/Form/InputAddress';
+import Portal from '~/ui/Portal';
+import { nodeOrStringProptype } from '~/util/proptypes';
+import { validateAddress } from '~/util/validation';
+
+import AddressSelectStore from './addressSelectStore';
 import styles from './addressSelect.css';
 
-export default class AddressSelect extends Component {
+const BOTTOM_BORDER_STYLE = { borderBottom: 'solid 3px' };
+
+// Current Form ID
+let currentId = 1;
+
+@observer
+class AddressSelect extends Component {
   static contextTypes = {
-    api: PropTypes.object.isRequired
-  }
+    intl: React.PropTypes.object.isRequired,
+    api: PropTypes.object.isRequired,
+    muiTheme: PropTypes.object.isRequired
+  };
 
   static propTypes = {
-    disabled: PropTypes.bool,
+    // Required props
+    onChange: PropTypes.func.isRequired,
+
+    // Redux props
+    accountsInfo: PropTypes.object,
     accounts: PropTypes.object,
+    balances: PropTypes.object,
     contacts: PropTypes.object,
     contracts: PropTypes.object,
-    label: PropTypes.string,
-    hint: PropTypes.string,
-    error: PropTypes.string,
-    value: PropTypes.string,
     tokens: PropTypes.object,
-    onChange: PropTypes.func.isRequired,
-    allowInput: PropTypes.bool
-  }
+    reverse: PropTypes.object,
+
+    // Optional props
+    allowCopy: PropTypes.bool,
+    allowInput: PropTypes.bool,
+    className: PropTypes.string,
+    disabled: PropTypes.bool,
+    error: nodeOrStringProptype(),
+    hint: nodeOrStringProptype(),
+    label: nodeOrStringProptype(),
+    readOnly: PropTypes.bool,
+    value: nodeOrStringProptype()
+  };
+
+  static defaultProps = {
+    value: ''
+  };
+
+  store = new AddressSelectStore(this.context.api);
 
   state = {
-    entries: {},
-    addresses: [],
-    value: ''
-  }
-
-  entriesFromProps (props = this.props) {
-    const { accounts, contacts, contracts } = props;
-    const entries = Object.assign({}, accounts || {}, contacts || {}, contracts || {});
-    return entries;
-  }
+    expanded: false,
+    focused: false,
+    focusedCat: null,
+    focusedItem: null,
+    inputFocused: false,
+    inputValue: ''
+  };
 
   componentWillMount () {
-    const { value } = this.props;
-    const entries = this.entriesFromProps();
-    const addresses = Object.keys(entries).sort();
-
-    this.setState({ entries, addresses, value });
+    this.setValues();
   }
 
-  componentWillReceiveProps (newProps) {
-    const entries = this.entriesFromProps();
-    const addresses = Object.keys(entries).sort();
-
-    if (!isEqual(addresses, this.state.addresses)) {
-      this.setState({ entries, addresses });
+  componentWillReceiveProps (nextProps) {
+    if (this.store.values && this.store.values.length > 0) {
+      return;
     }
 
-    if (newProps.value !== this.props.value) {
-      this.setState({ value: newProps.value });
-    }
+    this.setValues(nextProps);
+  }
+
+  setValues (props = this.props) {
+    this.store.setValues(props);
   }
 
   render () {
-    const { allowInput, disabled, error, hint, label } = this.props;
-    const { entries, value } = this.state;
+    const input = this.renderInput();
+    const content = this.renderContent();
 
-    const searchText = this.getSearchText();
-    const icon = this.renderIdentityIcon(value);
+    const classes = [ styles.main ];
 
     return (
-      <div className={ styles.container }>
-        <AutoComplete
-          className={ !icon ? '' : styles.paddedInput }
-          disabled={ disabled }
-          label={ label }
-          hint={ hint ? `search for ${hint}` : 'search for an address' }
-          error={ error }
-          onChange={ this.onChange }
-          onBlur={ this.onBlur }
-          onUpdateInput={ allowInput && this.onUpdateInput }
-          value={ searchText }
-          filter={ this.handleFilter }
-          entries={ entries }
-          entry={ this.getEntry() || {} }
-          renderItem={ this.renderItem }
-        />
-        { icon }
+      <div
+        className={ classes.join(' ') }
+        onBlur={ this.handleMainBlur }
+        onClick={ this.handleFocus }
+        onFocus={ this.handleMainFocus }
+        onKeyDown={ this.handleInputAddresKeydown }
+        ref='inputAddress'
+        tabIndex={ 0 }
+      >
+        { input }
+        { content }
       </div>
     );
   }
 
-  renderIdentityIcon (inputValue) {
-    const { error, value, label } = this.props;
+  renderInput () {
+    const { focused } = this.state;
+    const { accountsInfo, allowCopy, className, disabled, error, hint, label, readOnly, value } = this.props;
 
-    if (error || !inputValue || value.length !== 42) {
+    const input = (
+      <InputAddress
+        accountsInfo={ accountsInfo }
+        allowCopy={ allowCopy }
+        className={ className }
+        disabled={ disabled || readOnly }
+        error={ error }
+        hint={ hint }
+        focused={ focused }
+        label={ label }
+        readOnly
+        tabIndex={ -1 }
+        text
+        value={ value }
+      />
+    );
+
+    if (disabled || readOnly) {
+      return input;
+    }
+
+    return (
+      <div className={ styles.inputAddress }>
+        { input }
+      </div>
+    );
+  }
+
+  renderContent () {
+    const { muiTheme } = this.context;
+    const { hint, disabled, label, readOnly } = this.props;
+    const { expanded, inputFocused } = this.state;
+
+    if (disabled || readOnly) {
       return null;
     }
 
-    const classes = [ styles.icon ];
-
-    if (!label) {
-      classes.push(styles.noLabel);
-    }
+    const id = `addressSelect_${++currentId}`;
+    const ilHint = typeof hint === 'string' || !(hint && hint.props)
+      ? (hint || '')
+      : this.context.intl.formatMessage(
+        hint.props,
+        hint.props.values || {}
+      );
 
     return (
-      <IdentityIcon
-        className={ classes.join(' ') }
-        inline center
-        address={ value } />
+      <Portal
+        className={ styles.inputContainer }
+        onClose={ this.handleClose }
+        onKeyDown={ this.handleKeyDown }
+        open={ expanded }
+      >
+        <label className={ styles.label } htmlFor={ id }>
+          { label }
+        </label>
+        <input
+          id={ id }
+          className={ styles.input }
+          placeholder={ ilHint }
+
+          onBlur={ this.handleInputBlur }
+          onFocus={ this.handleInputFocus }
+          onChange={ this.handleChange }
+
+          ref={ this.setInputRef }
+        />
+
+        <div className={ styles.underline }>
+          <TextFieldUnderline
+            focus={ inputFocused }
+            focusStyle={ BOTTOM_BORDER_STYLE }
+            muiTheme={ muiTheme }
+            style={ BOTTOM_BORDER_STYLE }
+          />
+        </div>
+
+        { this.renderCurrentInput() }
+        { this.renderRegistryValues() }
+        { this.renderAccounts() }
+      </Portal>
     );
   }
 
-  renderItem = (entry) => {
-    return {
-      text: entry.name && entry.name.toUpperCase() || entry.address,
-      value: this.renderSelectEntry(entry),
-      address: entry.address
-    };
-  }
+  renderCurrentInput () {
+    const { inputValue } = this.state;
 
-  renderSelectEntry = (entry) => {
-    const item = (
-      <div className={ styles.account }>
-        <IdentityIcon
-          className={ styles.image }
-          inline center
-          address={ entry.address } />
-        <IdentityName
-          className={ styles.name }
-          address={ entry.address } />
+    if (!this.props.allowInput || !inputValue) {
+      return null;
+    }
+
+    const { address, addressError } = validateAddress(inputValue);
+    const { registryValues } = this.store;
+
+    if (addressError || registryValues.length > 0) {
+      return null;
+    }
+
+    return (
+      <div>
+        { this.renderAccountCard({ address }) }
       </div>
     );
+  }
+
+  renderRegistryValues () {
+    const { registryValues } = this.store;
+
+    if (registryValues.length === 0) {
+      return null;
+    }
+
+    const accounts = registryValues
+      .map((registryValue, index) => {
+        const account = { ...registryValue, index: `${registryValue.address}_${index}` };
+        return this.renderAccountCard(account);
+      });
 
     return (
-      <MenuItem
-        className={ styles.menuItem }
-        key={ entry.address }
-        value={ entry.address }
-        label={ item }>
-        { item }
-      </MenuItem>
+      <div>
+        { accounts }
+      </div>
     );
   }
 
-  getSearchText () {
-    const entry = this.getEntry();
-    const { value } = this.state;
+  renderAccounts () {
+    const { values } = this.store;
 
-    return entry && entry.name
-      ? entry.name.toUpperCase()
-      : value;
+    if (values.length === 0) {
+      return (
+        <div className={ styles.categories }>
+          <div className={ styles.empty }>
+            <FormattedMessage
+              id='addressSelect.noAccount'
+              defaultMessage='No account matches this query...'
+            />
+          </div>
+        </div>
+      );
+    }
+
+    const categories = values.map((category, index) => {
+      return this.renderCategory(category, index);
+    });
+
+    return (
+      <div className={ styles.categories }>
+        { categories }
+      </div>
+    );
   }
 
-  getEntry () {
-    const { entries, value } = this.state;
-    return value ? entries[value] : null;
+  renderCategory (category, index) {
+    const { label, key, values = [] } = category;
+    let content;
+
+    if (values.length === 0) {
+      content = (
+        <p>
+          <FormattedMessage
+            id='addressSelect.noAccount'
+            defaultMessage='No account matches this query...'
+          />
+        </p>
+      );
+    } else {
+      const cards = values
+        .map((account) => this.renderAccountCard(account));
+
+      content = (
+        <div className={ styles.cards }>
+          <div>{ cards }</div>
+        </div>
+      );
+    }
+
+    return (
+      <div className={ styles.category } key={ `${key}_${index}` }>
+        <div className={ styles.title }>{ label }</div>
+        { content }
+      </div>
+    );
   }
 
-  handleFilter = (searchText, name, item) => {
-    const { address } = item;
-    const entry = this.state.entries[address];
-    const lowCaseSearch = searchText.toLowerCase();
+  renderAccountCard (_account) {
+    const { balances, accountsInfo } = this.props;
+    const { address, index = null } = _account;
 
-    return [entry.name, entry.address]
-      .some(text => text.toLowerCase().indexOf(lowCaseSearch) !== -1);
+    const balance = balances[address];
+    const account = {
+      ...accountsInfo[address],
+      ..._account
+    };
+
+    return (
+      <AccountCard
+        account={ account }
+        balance={ balance }
+        key={ `account_${index}` }
+        onClick={ this.handleClick }
+        onFocus={ this.focusItem }
+        ref={ `account_${index}` }
+      />
+    );
   }
 
-  onChange = (entry, empty) => {
+  setInputRef = (refId) => {
+    this.inputRef = refId;
+  }
+
+  validateCustomInput = () => {
     const { allowInput } = this.props;
-    const { value } = this.state;
+    const { inputValue } = this.store;
+    const { values } = this.store;
 
-    const address = entry && entry.address
-      ? entry.address
-      : ((empty && !allowInput) ? '' : value);
+    // If input is HEX and allowInput === true, send it
+    if (allowInput && inputValue && /^(0x)?([0-9a-f])+$/i.test(inputValue)) {
+      return this.handleClick(inputValue);
+    }
 
-    this.props.onChange(null, address);
+    // If only one value, select it
+    if (values.reduce((cur, cat) => cur + cat.values.length, 0) === 1) {
+      const value = values.find((cat) => cat.values.length > 0).values[0];
+      return this.handleClick(value.address);
+    }
   }
 
-  onUpdateInput = (query, choices) => {
-    const { api } = this.context;
+  handleInputAddresKeydown = (event) => {
+    const code = keycode(event);
 
-    const address = query.trim();
+    // Simulate click on input address if enter is pressed
+    if (code === 'enter') {
+      return this.handleDOMAction('inputAddress', 'click');
+    }
+  }
 
-    if (!/^0x/.test(address) && api.util.isAddressValid(`0x${address}`)) {
-      const checksumed = api.util.toChecksumAddress(`0x${address}`);
-      return this.props.onChange(null, checksumed);
+  handleKeyDown = (event) => {
+    const codeName = keycode(event);
+
+    if (event.ctrlKey) {
+      return event;
+    }
+
+    switch (codeName) {
+      case 'enter':
+        const index = this.state.focusedItem;
+        if (!index) {
+          return this.validateCustomInput();
+        }
+
+        return this.handleDOMAction(`account_${index}`, 'click');
+
+      case 'left':
+      case 'right':
+      case 'up':
+      case 'down':
+        return this.handleNavigation(codeName, event);
+
+      default:
+        const code = codes[codeName];
+
+        // @see https://github.com/timoxley/keycode/blob/master/index.js
+        // lower case chars
+        if (code >= (97 - 32) && code <= (122 - 32)) {
+          return this.handleDOMAction(this.inputRef, 'focus');
+        }
+
+        // numbers
+        if (code >= 48 && code <= 57) {
+          return this.handleDOMAction(this.inputRef, 'focus');
+        }
+
+        return event;
+    }
+  }
+
+  handleDOMAction = (ref, method) => {
+    const refItem = typeof ref === 'string' ? this.refs[ref] : ref;
+    const element = ReactDOM.findDOMNode(refItem);
+
+    if (!element || typeof element[method] !== 'function') {
+      console.warn('could not find', ref, 'or method', method);
+      return;
+    }
+
+    return element[method]();
+  }
+
+  focusItem = (index) => {
+    this.setState({ focusedItem: index });
+    return this.handleDOMAction(`account_${index}`, 'focus');
+  }
+
+  handleNavigation = (direction, event) => {
+    const { focusedItem, focusedCat } = this.state;
+    const { values } = this.store;
+
+    // Don't do anything if no values
+    if (values.reduce((cur, cat) => cur + cat.values.length, 0) === 0) {
+      return event;
+    }
+
+    // Focus on the first element if none selected yet if going down
+    if (!focusedItem) {
+      if (direction !== 'down') {
+        return event;
+      }
+
+      event.preventDefault();
+
+      const firstCat = values.findIndex((cat) => cat.values.length > 0);
+      const nextCat = focusedCat && values[focusedCat].values.length > 0
+        ? focusedCat
+        : firstCat;
+
+      const nextValues = values[nextCat];
+      const nextFocus = nextValues ? nextValues.values[0] : null;
+      return this.focusItem(nextFocus && nextFocus.index || 1);
+    }
+
+    event.preventDefault();
+
+    // Find the previous focused category
+    const prevCategoryIndex = values.findIndex((category) => {
+      return category.values.find((value) => value.index === focusedItem);
+    });
+    const prevFocusIndex = values[prevCategoryIndex].values.findIndex((a) => a.index === focusedItem);
+
+    let nextCategory = prevCategoryIndex;
+    let nextFocusIndex;
+
+    // If down: increase index if possible
+    if (direction === 'down') {
+      const prevN = values[prevCategoryIndex].values.length;
+      nextFocusIndex = Math.min(prevFocusIndex + 1, prevN - 1);
+    }
+
+    // If up: decrease index if possible
+    if (direction === 'up') {
+      // Focus on search if at the top
+      if (prevFocusIndex === 0) {
+        return this.handleDOMAction(this.inputRef, 'focus');
+      }
+
+      nextFocusIndex = prevFocusIndex - 1;
+    }
+
+    // If right: next category
+    if (direction === 'right') {
+      const categoryShift = values
+        .slice(prevCategoryIndex + 1, values.length)
+        .findIndex((cat) => cat.values.length > 0) + 1;
+
+      nextCategory = Math.min(prevCategoryIndex + categoryShift, values.length - 1);
+    }
+
+    // If right: previous category
+    if (direction === 'left') {
+      const categoryShift = values
+        .slice(0, prevCategoryIndex)
+        .reverse()
+        .findIndex((cat) => cat.values.length > 0) + 1;
+
+      nextCategory = Math.max(prevCategoryIndex - categoryShift, 0);
+    }
+
+    // If left or right: try to keep the horizontal index
+    if (direction === 'left' || direction === 'right') {
+      this.setState({ focusedCat: nextCategory });
+      nextFocusIndex = Math.min(prevFocusIndex, values[nextCategory].values.length - 1);
+    }
+
+    const nextFocus = values[nextCategory].values[nextFocusIndex].index;
+    return this.focusItem(nextFocus);
+  }
+
+  handleClick = (address) => {
+    // Don't do anything if it's only text-selection
+    if (window.getSelection && window.getSelection().type === 'Range') {
+      return;
     }
 
     this.props.onChange(null, address);
+    this.handleClose();
+  }
+
+  handleMainBlur = () => {
+    if (this.props.readOnly) {
+      return;
+    }
+
+    if (window.document.hasFocus() && !this.state.expanded) {
+      this.closing = false;
+      this.setState({ focused: false });
+    }
+  }
+
+  handleMainFocus = () => {
+    if (this.state.focused || this.props.readOnly) {
+      return;
+    }
+
+    this.setState({ focused: true }, () => {
+      if (this.closing) {
+        this.closing = false;
+        return;
+      }
+
+      this.handleFocus();
+    });
+  }
+
+  handleFocus = () => {
+    const { disabled, readOnly } = this.props;
+
+    if (disabled || readOnly) {
+      return;
+    }
+
+    this.setState({ expanded: true, focusedItem: null, focusedCat: null }, () => {
+      window.setTimeout(() => {
+        this.handleDOMAction(this.inputRef, 'focus');
+      });
+    });
+  }
+
+  handleClose = () => {
+    this.closing = true;
+
+    if (this.refs.inputAddress) {
+      this.handleDOMAction('inputAddress', 'focus');
+    }
+
+    this.setState({ expanded: false });
+  }
+
+  handleInputBlur = () => {
+    this.setState({ inputFocused: false });
+  }
+
+  handleInputFocus = () => {
+    this.setState({ focusedItem: null, inputFocused: true });
+  }
+
+  handleChange = (event = { target: {} }) => {
+    const { value = '' } = event.target;
+
+    this.store.handleChange(value);
+
+    this.setState({
+      focusedItem: null,
+      inputValue: value
+    });
+  }
+}
+
+function mapStateToProps (state) {
+  const { accountsInfo } = state.personal;
+  const { balances } = state.balances;
+  const { reverse } = state.registry;
+
+  return {
+    accountsInfo,
+    balances,
+    reverse
   };
 }
+
+export default connect(
+  mapStateToProps
+)(AddressSelect);

@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -15,15 +15,27 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Parity-specific rpc interface.
-use jsonrpc_core::Error;
 
 use std::collections::BTreeMap;
-use v1::helpers::auto_args::Wrap;
-use v1::types::{H160, H256, H512, U256, Bytes, Peers, Transaction, RpcSettings, Histogram};
+
+use jsonrpc_core::Error;
+use jsonrpc_macros::Trailing;
+
+use v1::types::{
+	H160, H256, H512, U256, Bytes,
+	Peers, Transaction, RpcSettings, Histogram,
+	TransactionStats, LocalTransactionStatus,
+	BlockNumber, ConsensusCapability, VersionInfo,
+	OperationsInfo, DappId, ChainStatus,
+};
 
 build_rpc_trait! {
 	/// Parity-specific rpc interface.
 	pub trait Parity {
+		/// Returns accounts information.
+		#[rpc(name = "parity_accountsInfo")]
+		fn accounts_info(&self, Trailing<DappId>) -> Result<BTreeMap<String, BTreeMap<String, String>>, Error>;
+
 		/// Returns current transactions limit.
 		#[rpc(name = "parity_transactionsLimit")]
 		fn transactions_limit(&self) -> Result<usize, Error>;
@@ -99,12 +111,12 @@ build_rpc_trait! {
 
 		/// Returns all addresses if Fat DB is enabled (`--fat-db`), or null if not.
 		#[rpc(name = "parity_listAccounts")]
-		fn list_accounts(&self) -> Result<Option<Vec<H160>>, Error>;
+		fn list_accounts(&self, u64, Option<H160>, Trailing<BlockNumber>) -> Result<Option<Vec<H160>>, Error>;
 
 		/// Returns all storage keys of the given address (first parameter) if Fat DB is enabled (`--fat-db`),
 		/// or null if not.
 		#[rpc(name = "parity_listStorageKeys")]
-		fn list_storage_keys(&self, H160) -> Result<Option<Vec<H256>>, Error>;
+		fn list_storage_keys(&self, H160, u64, Option<H256>, Trailing<BlockNumber>) -> Result<Option<Vec<H256>>, Error>;
 
 		/// Encrypt some data with a public key under ECIES.
 		/// First parameter is the 512-byte destination public key, second is the message.
@@ -114,6 +126,18 @@ build_rpc_trait! {
 		/// Returns all pending transactions from transaction queue.
 		#[rpc(name = "parity_pendingTransactions")]
 		fn pending_transactions(&self) -> Result<Vec<Transaction>, Error>;
+
+		/// Returns all future transactions from transaction queue.
+		#[rpc(name = "parity_futureTransactions")]
+		fn future_transactions(&self) -> Result<Vec<Transaction>, Error>;
+
+		/// Returns propagation statistics on transactions pending in the queue.
+		#[rpc(name = "parity_pendingTransactionsStats")]
+		fn pending_transactions_stats(&self) -> Result<BTreeMap<H256, TransactionStats>, Error>;
+
+		/// Returns a list of current and past local transactions with status details.
+		#[rpc(name = "parity_localTransactions")]
+		fn local_transactions(&self) -> Result<BTreeMap<H256, LocalTransactionStatus>, Error>;
 
 		/// Returns current Trusted Signer port or an error if signer is disabled.
 		#[rpc(name = "parity_signerPort")]
@@ -139,8 +163,20 @@ build_rpc_trait! {
 		#[rpc(name = "parity_enode")]
 		fn enode(&self) -> Result<String, Error>;
 
-		/// Returns accounts information.
-		#[rpc(name = "parity_accounts")]
-		fn accounts(&self) -> Result<BTreeMap<String, BTreeMap<String, String>>, Error>;
+		/// Returns information on current consensus capability.
+		#[rpc(name = "parity_consensusCapability")]
+		fn consensus_capability(&self) -> Result<ConsensusCapability, Error>;
+
+		/// Get our version information in a nice object.
+		#[rpc(name = "parity_versionInfo")]
+		fn version_info(&self) -> Result<VersionInfo, Error>;
+
+		/// Get information concerning the latest releases if available.
+		#[rpc(name = "parity_releasesInfo")]
+		fn releases_info(&self) -> Result<Option<OperationsInfo>, Error>;
+
+		/// Get the current chain status.
+		#[rpc(name = "parity_chainStatus")]
+		fn chain_status(&self) -> Result<ChainStatus, Error>;
 	}
 }

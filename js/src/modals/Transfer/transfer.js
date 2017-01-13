@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -14,97 +14,80 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import BigNumber from 'bignumber.js';
 import React, { Component, PropTypes } from 'react';
-import ActionDoneAll from 'material-ui/svg-icons/action/done-all';
-import ContentClear from 'material-ui/svg-icons/content/clear';
-import NavigationArrowBack from 'material-ui/svg-icons/navigation/arrow-back';
-import NavigationArrowForward from 'material-ui/svg-icons/navigation/arrow-forward';
+import { connect } from 'react-redux';
+import { bindActionCreators } from 'redux';
+import { observer } from 'mobx-react';
+import { pick } from 'lodash';
 
-import { BusyStep, CompletedStep, Button, IdentityIcon, Modal, TxHash } from '../../ui';
+import { BusyStep, CompletedStep, Button, IdentityIcon, Input, Modal, TxHash, Warning } from '~/ui';
+import { newError } from '~/ui/Errors/actions';
+import { CancelIcon, DoneIcon, NextIcon, PrevIcon } from '~/ui/Icons';
+import { nullableProptype } from '~/util/proptypes';
 
 import Details from './Details';
 import Extras from './Extras';
-import ERRORS from './errors';
+
+import TransferStore from './store';
 import styles from './transfer.css';
 
-import { ERROR_CODES } from '../../api/transport/error';
+const STEP_DETAILS = 0;
+const STEP_ADVANCED_OR_BUSY = 1;
+const STEP_BUSY = 2;
 
-const DEFAULT_GAS = '21000';
-const DEFAULT_GASPRICE = '20000000000';
-const TITLES = {
-  transfer: 'transfer details',
-  sending: 'sending',
-  complete: 'complete',
-  extras: 'extra information',
-  rejected: 'rejected'
-};
-const STAGES_BASIC = [TITLES.transfer, TITLES.sending, TITLES.complete];
-const STAGES_EXTRA = [TITLES.transfer, TITLES.extras, TITLES.sending, TITLES.complete];
-
-export default class Transfer extends Component {
+@observer
+class Transfer extends Component {
   static contextTypes = {
-    api: PropTypes.object.isRequired,
-    store: PropTypes.object.isRequired
+    api: PropTypes.object.isRequired
   }
 
   static propTypes = {
+    newError: PropTypes.func.isRequired,
+    gasLimit: PropTypes.object.isRequired,
+    images: PropTypes.object.isRequired,
+
+    senders: nullableProptype(PropTypes.object),
+    sendersBalances: nullableProptype(PropTypes.object),
     account: PropTypes.object,
     balance: PropTypes.object,
-    balances: PropTypes.object,
-    images: PropTypes.object.isRequired,
+    wallet: PropTypes.object,
     onClose: PropTypes.func
   }
 
-  state = {
-    stage: 0,
-    data: '',
-    dataError: null,
-    extras: false,
-    gas: DEFAULT_GAS,
-    gasEst: '0',
-    gasError: null,
-    gasPrice: DEFAULT_GASPRICE,
-    gasPriceHistogram: {},
-    gasPriceError: null,
-    recipient: '',
-    recipientError: ERRORS.requireRecipient,
-    sending: false,
-    tag: 'ETH',
-    total: '0.0',
-    totalError: null,
-    value: '0.0',
-    valueAll: false,
-    valueError: null,
-    isEth: true,
-    busyState: null,
-    rejected: false
-  }
-
-  componentDidMount () {
-    this.getDefaults();
-  }
+  store = new TransferStore(this.context.api, this.props);
 
   render () {
-    const { stage, extras, rejected } = this.state;
-
-    const steps = [].concat(extras ? STAGES_EXTRA : STAGES_BASIC);
-
-    if (rejected) {
-      steps[steps.length - 1] = TITLES.rejected;
-    }
+    const { stage, extras, steps } = this.store;
 
     return (
       <Modal
         actions={ this.renderDialogActions() }
         current={ stage }
         steps={ steps }
-        waiting={ extras ? [2] : [1] }
+        waiting={
+          extras
+            ? [STEP_BUSY]
+            : [STEP_ADVANCED_OR_BUSY]
+        }
         visible
-        scroll
       >
+        { this.renderExceptionWarning() }
         { this.renderPage() }
       </Modal>
+    );
+  }
+
+  renderExceptionWarning () {
+    const { extras, stage } = this.store;
+    const { errorEstimated } = this.store.gasStore;
+
+    if (!errorEstimated || stage >= (extras ? STEP_BUSY : STEP_ADVANCED_OR_BUSY)) {
+      return null;
+    }
+
+    return (
+      <Warning
+        warning={ errorEstimated } />
     );
   }
 
@@ -115,8 +98,9 @@ export default class Transfer extends Component {
       <div className={ styles.hdraccount }>
         <div className={ styles.hdrimage }>
           <IdentityIcon
-            inline center
-            address={ account.address } />
+            address={ account.address }
+            center
+            inline />
         </div>
         <div className={ styles.hdrdetails }>
           <div className={ styles.hdrname }>
@@ -131,11 +115,11 @@ export default class Transfer extends Component {
   }
 
   renderPage () {
-    const { extras, stage } = this.state;
+    const { extras, stage } = this.store;
 
-    if (stage === 0) {
+    if (stage === STEP_DETAILS) {
       return this.renderDetailsPage();
-    } else if (stage === 1 && extras) {
+    } else if (stage === STEP_ADVANCED_OR_BUSY && extras) {
       return this.renderExtrasPage();
     }
 
@@ -143,7 +127,7 @@ export default class Transfer extends Component {
   }
 
   renderCompletePage () {
-    const { sending, txhash, busyState, rejected } = this.state;
+    const { sending, txhash, busyState, rejected } = this.store;
 
     if (rejected) {
       return (
@@ -165,89 +149,114 @@ export default class Transfer extends Component {
     return (
       <CompletedStep>
         <TxHash hash={ txhash } />
+        {
+          this.store.operation
+          ? (
+            <div>
+              <br />
+              <div>
+                <p>This transaction needs confirmation from other owners.</p>
+                <Input
+                  style={ { width: '50%', margin: '0 auto' } }
+                  value={ this.store.operation }
+                  label='operation hash'
+                  readOnly
+                  allowCopy
+                />
+              </div>
+            </div>
+          )
+          : null
+        }
       </CompletedStep>
     );
   }
 
   renderDetailsPage () {
-    const { account, balance, images } = this.props;
+    const { account, balance, images, senders } = this.props;
+    const { recipient, recipientError, sender, senderError, sendersBalances } = this.store;
+    const { valueAll, extras, tag, total, totalError, value, valueError } = this.store;
 
     return (
       <Details
         address={ account.address }
-        all={ this.state.valueAll }
+        all={ valueAll }
         balance={ balance }
-        extras={ this.state.extras }
+        extras={ extras }
         images={ images }
-        recipient={ this.state.recipient }
-        recipientError={ this.state.recipientError }
-        tag={ this.state.tag }
-        total={ this.state.total }
-        totalError={ this.state.totalError }
-        value={ this.state.value }
-        valueError={ this.state.valueError }
-        onChange={ this.onUpdateDetails } />
+        onChange={ this.store.onUpdateDetails }
+        recipient={ recipient }
+        recipientError={ recipientError }
+        sender={ sender }
+        senderError={ senderError }
+        senders={ senders }
+        sendersBalances={ sendersBalances }
+        tag={ tag }
+        total={ total }
+        totalError={ totalError }
+        value={ value }
+        valueError={ valueError }
+        wallet={ account.wallet && this.props.wallet }
+      />
     );
   }
 
   renderExtrasPage () {
-    if (!this.state.gasPriceHistogram) {
+    if (!this.store.gasStore.histogram) {
       return null;
     }
 
+    const { isEth, data, dataError, minBlock, minBlockError, total, totalError } = this.store;
+
     return (
       <Extras
-        isEth={ this.state.isEth }
-        data={ this.state.data }
-        dataError={ this.state.dataError }
-        gas={ this.state.gas }
-        gasEst={ this.state.gasEst }
-        gasError={ this.state.gasError }
-        gasPrice={ this.state.gasPrice }
-        gasPriceDefault={ this.state.gasPriceDefault }
-        gasPriceError={ this.state.gasPriceError }
-        gasPriceHistogram={ this.state.gasPriceHistogram }
-        total={ this.state.total }
-        totalError={ this.state.totalError }
-        onChange={ this.onUpdateDetails } />
+        data={ data }
+        dataError={ dataError }
+        gasStore={ this.store.gasStore }
+        isEth={ isEth }
+        minBlock={ minBlock }
+        minBlockError={ minBlockError }
+        onChange={ this.store.onUpdateDetails }
+        total={ total }
+        totalError={ totalError } />
     );
   }
 
   renderDialogActions () {
     const { account } = this.props;
-    const { extras, sending, stage } = this.state;
+    const { extras, sending, stage } = this.store;
 
     const cancelBtn = (
       <Button
-        icon={ <ContentClear /> }
+        icon={ <CancelIcon /> }
         label='Cancel'
-        onClick={ this.onClose } />
+        onClick={ this.handleClose } />
     );
     const nextBtn = (
       <Button
-        disabled={ !this.isValid() }
-        icon={ <NavigationArrowForward /> }
+        disabled={ !this.store.isValid }
+        icon={ <NextIcon /> }
         label='Next'
-        onClick={ this.onNext } />
+        onClick={ this.store.onNext } />
     );
     const prevBtn = (
       <Button
-        icon={ <NavigationArrowBack /> }
+        icon={ <PrevIcon /> }
         label='Back'
-        onClick={ this.onPrev } />
+        onClick={ this.store.onPrev } />
     );
     const sendBtn = (
       <Button
-        disabled={ !this.isValid() || sending }
+        disabled={ !this.store.isValid || sending }
         icon={ <IdentityIcon address={ account.address } button /> }
         label='Send'
-        onClick={ this.onSend } />
+        onClick={ this.store.onSend } />
     );
     const doneBtn = (
       <Button
-        icon={ <ActionDoneAll /> }
+        icon={ <DoneIcon /> }
         label='Close'
-        onClick={ this.onClose } />
+        onClick={ this.handleClose } />
     );
 
     switch (stage) {
@@ -264,388 +273,46 @@ export default class Transfer extends Component {
     }
   }
 
-  isValid () {
-    const detailsValid = !this.state.recipientError && !this.state.valueError && !this.state.totalError;
-    const extrasValid = !this.state.gasError && !this.state.gasPriceError && !this.state.totalError;
-    const verifyValid = !this.state.passwordError;
-
-    switch (this.state.stage) {
-      case 0:
-        return detailsValid;
-
-      case 1:
-        return this.state.extras ? extrasValid : verifyValid;
-
-      case 2:
-        return verifyValid;
-    }
-  }
-
-  onNext = () => {
-    this.setState({
-      stage: this.state.stage + 1
-    });
-  }
-
-  onPrev = () => {
-    this.setState({
-      stage: this.state.stage - 1
-    });
-  }
-
-  _onUpdateAll (valueAll) {
-    this.setState({
-      valueAll
-    }, this.recalculateGas);
-  }
-
-  _onUpdateExtras (extras) {
-    this.setState({
-      extras
-    });
-  }
-
-  _onUpdateData (data) {
-    this.setState({
-      data
-    }, this.recalculateGas);
-  }
-
-  validatePositiveNumber (num) {
-    try {
-      const v = new BigNumber(num);
-      if (v.lt(0)) {
-        return ERRORS.invalidAmount;
-      }
-    } catch (e) {
-      return ERRORS.invalidAmount;
-    }
-
-    return null;
-  }
-
-  validateDecimals (num) {
-    const { balance } = this.props;
-    const { tag } = this.state;
-
-    if (tag === 'ETH') {
-      return null;
-    }
-
-    const token = balance.tokens.find((balance) => balance.token.tag === tag).token;
-    const s = new BigNumber(num).mul(token.format || 1).toFixed();
-
-    if (s.indexOf('.') !== -1) {
-      return ERRORS.invalidDecimals;
-    }
-
-    return null;
-  }
-
-  _onUpdateGas (gas) {
-    const gasError = this.validatePositiveNumber(gas);
-
-    this.setState({
-      gas,
-      gasError
-    }, this.recalculate);
-  }
-
-  _onUpdateGasPrice (gasPrice) {
-    const gasPriceError = this.validatePositiveNumber(gasPrice);
-
-    this.setState({
-      gasPrice,
-      gasPriceError
-    }, this.recalculate);
-  }
-
-  _onUpdateRecipient (recipient) {
-    const { api } = this.context;
-    let recipientError = null;
-
-    if (!recipient || !recipient.length) {
-      recipientError = ERRORS.requireRecipient;
-    } else if (!api.util.isAddressValid(recipient)) {
-      recipientError = ERRORS.invalidAddress;
-    }
-
-    this.setState({
-      recipient,
-      recipientError
-    }, this.recalculateGas);
-  }
-
-  _onUpdateTag (tag) {
-    const { balance } = this.props;
-
-    this.setState({
-      tag,
-      isEth: tag === balance.tokens[0].token.tag
-    }, this.recalculateGas);
-  }
-
-  _onUpdateValue (value) {
-    let valueError = this.validatePositiveNumber(value);
-
-    if (!valueError) {
-      valueError = this.validateDecimals(value);
-    }
-
-    this.setState({
-      value,
-      valueError
-    }, this.recalculateGas);
-  }
-
-  onUpdateDetails = (type, value) => {
-    switch (type) {
-      case 'all':
-        return this._onUpdateAll(value);
-
-      case 'extras':
-        return this._onUpdateExtras(value);
-
-      case 'data':
-        return this._onUpdateData(value);
-
-      case 'gas':
-        return this._onUpdateGas(value);
-
-      case 'gasPrice':
-        return this._onUpdateGasPrice(value);
-
-      case 'recipient':
-        return this._onUpdateRecipient(value);
-
-      case 'tag':
-        return this._onUpdateTag(value);
-
-      case 'value':
-        return this._onUpdateValue(value);
-    }
-  }
-
-  _sendEth () {
-    const { api } = this.context;
-    const { account } = this.props;
-    const { data, gas, gasPrice, recipient, value } = this.state;
-
-    const options = {
-      from: account.address,
-      to: recipient,
-      gas,
-      gasPrice,
-      value: api.util.toWei(value || 0)
-    };
-
-    if (data && data.length) {
-      options.data = data;
-    }
-
-    return api.parity.postTransaction(options);
-  }
-
-  _sendToken () {
-    const { account, balance } = this.props;
-    const { gas, gasPrice, recipient, value, tag } = this.state;
-    const token = balance.tokens.find((balance) => balance.token.tag === tag).token;
-
-    return token.contract.instance.transfer
-      .postTransaction({
-        from: account.address,
-        to: token.address,
-        gas,
-        gasPrice
-      }, [
-        recipient,
-        new BigNumber(value).mul(token.format).toFixed(0)
-      ]);
-  }
-
-  onSend = () => {
-    const { api } = this.context;
-
-    this.onNext();
-
-    this.setState({ sending: true }, () => {
-      (this.state.isEth
-        ? this._sendEth()
-        : this._sendToken()
-      ).then((requestId) => {
-        this.setState({ busyState: 'Waiting for authorization in the Parity Signer' });
-
-        return api
-          .pollMethod('parity_checkRequest', requestId)
-          .catch((e) => {
-            if (e.code === ERROR_CODES.REQUEST_REJECTED) {
-              this.setState({ rejected: true });
-              return false;
-            }
-
-            throw e;
-          });
-      })
-      .then((txhash) => {
-        this.onNext();
-        this.setState({
-          sending: false,
-          txhash,
-          busyState: 'Your transaction has been posted to the network'
-        });
-      })
-      .catch((error) => {
-        console.log('send', error);
-
-        this.setState({
-          sending: false
-        });
-
-        this.newError(error);
-      });
-    });
-  }
-
-  onClose = () => {
-    this.setState({ stage: 0 }, () => {
-      this.props.onClose && this.props.onClose();
-    });
-  }
-
-  _estimateGasToken () {
-    const { account, balance } = this.props;
-    const { recipient, value, tag } = this.state;
-    const token = balance.tokens.find((balance) => balance.token.tag === tag).token;
-
-    return token.contract.instance.transfer
-      .estimateGas({
-        from: account.address,
-        to: token.address
-      }, [
-        recipient,
-        new BigNumber(value || 0).mul(token.format).toFixed(0)
-      ]);
-  }
-
-  _estimateGasEth () {
-    const { api } = this.context;
-    const { account } = this.props;
-    const { data, recipient, value } = this.state;
-    const options = {
-      from: account.address,
-      to: recipient,
-      value: api.util.toWei(value || 0)
-    };
-
-    if (data && data.length) {
-      options.data = data;
-    }
-
-    return api.eth.estimateGas(options);
-  }
-
-  recalculateGas = () => {
-    if (!this.isValid()) {
-      this.setState({
-        gas: '0'
-      }, this.recalculate);
-      return;
-    }
-
-    (this.state.isEth
-      ? this._estimateGasEth()
-      : this._estimateGasToken()
-    ).then((_value) => {
-      let gas = _value;
-
-      if (gas.gt(DEFAULT_GAS)) {
-        gas = gas.mul(1.2);
-      }
-
-      this.setState({
-        gas: gas.toFixed(0),
-        gasEst: _value.toFormat()
-      }, this.recalculate);
-    })
-    .catch((error) => {
-      console.error('etimateGas', error);
-      this.recalculate();
-    });
-  }
-
-  recalculate = () => {
-    const { api } = this.context;
-    const { account, balance } = this.props;
-
-    if (!account || !balance) {
-      return;
-    }
-
-    const { gas, gasPrice, tag, valueAll, isEth } = this.state;
-    const gasTotal = new BigNumber(gasPrice || 0).mul(new BigNumber(gas || 0));
-    const balance_ = balance.tokens.find((b) => tag === b.token.tag);
-    const availableEth = new BigNumber(balance.tokens[0].value);
-    const available = new BigNumber(balance_.value);
-    const format = new BigNumber(balance_.token.format || 1);
-
-    let { value, valueError } = this.state;
-    let totalEth = gasTotal;
-    let totalError = null;
-
-    if (valueAll) {
-      if (isEth) {
-        const bn = api.util.fromWei(availableEth.minus(gasTotal));
-        value = (bn.lt(0) ? new BigNumber(0.0) : bn).toString();
-      } else {
-        value = available.div(format).toString();
-      }
-    }
-
-    if (isEth) {
-      totalEth = totalEth.plus(api.util.toWei(value || 0));
-    }
-
-    if (new BigNumber(value || 0).gt(available.div(format))) {
-      valueError = ERRORS.largeAmount;
-    } else if (valueError === ERRORS.largeAmount) {
-      valueError = null;
-    }
-
-    if (totalEth.gt(availableEth)) {
-      totalError = ERRORS.largeAmount;
-    }
-
-    this.setState({
-      total: api.util.fromWei(totalEth).toString(),
-      totalError,
-      value,
-      valueError
-    });
-  }
-
-  getDefaults = () => {
-    const { api } = this.context;
-
-    Promise
-      .all([
-        api.parity.gasPriceHistogram(),
-        api.eth.gasPrice()
-      ])
-      .then(([gasPriceHistogram, gasPrice]) => {
-        this.setState({
-          gasPrice: gasPrice.toString(),
-          gasPriceDefault: gasPrice.toFormat(),
-          gasPriceHistogram
-        }, this.recalculate);
-      })
-      .catch((error) => {
-        console.warn('getDefaults', error);
-      });
-  }
-
-  newError = (error) => {
-    const { store } = this.context;
-
-    store.dispatch({ type: 'newError', error });
+  handleClose = () => {
+    const { onClose } = this.props;
+
+    this.store.handleClose();
+    typeof onClose === 'function' && onClose();
   }
 }
+
+function mapStateToProps (initState, initProps) {
+  const { address } = initProps.account;
+
+  const isWallet = initProps.account && initProps.account.wallet;
+  const wallet = isWallet
+    ? initState.wallet.wallets[address]
+    : null;
+
+  const senders = isWallet
+    ? Object
+      .values(initState.personal.accounts)
+      .filter((account) => wallet.owners.includes(account.address))
+      .reduce((accounts, account) => {
+        accounts[account.address] = account;
+        return accounts;
+      }, {})
+    : null;
+
+  return (state) => {
+    const { gasLimit } = state.nodeStatus;
+    const sendersBalances = senders ? pick(state.balances.balances, Object.keys(senders)) : null;
+    return { gasLimit, wallet, senders, sendersBalances };
+  };
+}
+
+function mapDispatchToProps (dispatch) {
+  return bindActionCreators({
+    newError
+  }, dispatch);
+}
+
+export default connect(
+  mapStateToProps,
+  mapDispatchToProps
+)(Transfer);

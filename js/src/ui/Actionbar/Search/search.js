@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -17,7 +17,8 @@
 import React, { Component, PropTypes } from 'react';
 import ActionSearch from 'material-ui/svg-icons/action/search';
 
-import { Button, InputChip } from '../../';
+import Button from '../../Button';
+import InputChip from '../../Form/InputChip';
 
 import styles from './search.css';
 
@@ -70,15 +71,15 @@ export default class ActionbarSearch extends Component {
         key='searchAccount'>
         <div className={ inputContainerClasses.join(' ') }>
           <InputChip
+            addOnBlur
             className={ styles.input }
             hint='Enter search input...'
+            ref='inputChip'
             tokens={ tokens }
 
             onBlur={ this.handleSearchBlur }
             onInputChange={ this.handleInputChange }
             onTokensChange={ this.handleTokensChange }
-
-            addOnBlur
           />
         </div>
 
@@ -116,6 +117,10 @@ export default class ActionbarSearch extends Component {
 
   handleSearchClick = () => {
     const { showSearch } = this.state;
+
+    if (!showSearch) {
+      this.refs.inputChip.focus();
+    }
 
     this.handleOpenSearch(!showSearch);
   }

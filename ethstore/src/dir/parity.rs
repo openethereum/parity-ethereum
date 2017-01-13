@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -16,7 +16,6 @@
 
 use std::env;
 use std::path::PathBuf;
-use ethkey::Address;
 use {SafeAccount, Error};
 use super::{KeyDirectory, DiskDirectory, DirectoryType};
 
@@ -46,7 +45,7 @@ pub struct ParityDirectory {
 impl ParityDirectory {
 	pub fn create(t: DirectoryType) -> Result<Self, Error> {
 		let result = ParityDirectory {
-			dir: try!(DiskDirectory::create(parity_keystore(t))),
+			dir: DiskDirectory::create(parity_keystore(t))?,
 		};
 
 		Ok(result)
@@ -68,7 +67,11 @@ impl KeyDirectory for ParityDirectory {
 		self.dir.insert(account)
 	}
 
-	fn remove(&self, address: &Address) -> Result<(), Error> {
-		self.dir.remove(address)
+	fn update(&self, account: SafeAccount) -> Result<SafeAccount, Error> {
+		self.dir.update(account)
+	}
+
+	fn remove(&self, account: &SafeAccount) -> Result<(), Error> {
+		self.dir.remove(account)
 	}
 }

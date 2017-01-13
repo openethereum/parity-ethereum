@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -156,15 +156,14 @@ pub fn generate_dummy_client_with_spec_and_data<F>(get_test_spec: F, block_numbe
 	let test_engine = &*test_spec.engine;
 
 	let mut db_result = get_temp_state_db();
-	let mut db = db_result.take();
-	test_spec.ensure_db_good(&mut db).unwrap();
+	let mut db = test_spec.ensure_db_good(db_result.take(), &Default::default()).unwrap();
 	let genesis_header = test_spec.genesis_header();
 
 	let mut rolling_timestamp = 40;
 	let mut last_hashes = vec![];
 	let mut last_header = genesis_header.clone();
 
-	let kp = KeyPair::from_secret("".sha3()).unwrap();
+	let kp = KeyPair::from_secret_slice(&"".sha3()).unwrap();
 	let author = kp.address();
 
 	let mut n = 0;
@@ -262,7 +261,7 @@ pub fn get_test_client_with_blocks(blocks: Vec<Bytes>) -> GuardedTempResult<Arc<
 	).unwrap();
 
 	for block in &blocks {
-		if let Err(_) = client.import_block(block.clone()) {
+		if client.import_block(block.clone()).is_err() {
 			panic!("panic importing block which is well-formed");
 		}
 	}
@@ -285,7 +284,7 @@ fn new_db(path: &str) -> Arc<Database> {
 pub fn generate_dummy_blockchain(block_number: u32) -> GuardedTempResult<BlockChain> {
 	let temp = RandomTempPath::new();
 	let db = new_db(temp.as_str());
-	let bc = BlockChain::new(BlockChainConfig::default(), &create_unverifiable_block(0, H256::zero()), db.clone());
+	let bc = BlockChain::new(BlockChainConfig::default(), &create_unverifiable_block(0, H256::zero()), db.clone(), Spec::new_null().engine);
 
 	let mut batch = db.transaction();
 	for block_order in 1..block_number {
@@ -303,7 +302,7 @@ pub fn generate_dummy_blockchain(block_number: u32) -> GuardedTempResult<BlockCh
 pub fn generate_dummy_blockchain_with_extra(block_number: u32) -> GuardedTempResult<BlockChain> {
 	let temp = RandomTempPath::new();
 	let db = new_db(temp.as_str());
-	let bc = BlockChain::new(BlockChainConfig::default(), &create_unverifiable_block(0, H256::zero()), db.clone());
+	let bc = BlockChain::new(BlockChainConfig::default(), &create_unverifiable_block(0, H256::zero()), db.clone(), Spec::new_null().engine);
 
 
 	let mut batch = db.transaction();
@@ -322,7 +321,7 @@ pub fn generate_dummy_blockchain_with_extra(block_number: u32) -> GuardedTempRes
 pub fn generate_dummy_empty_blockchain() -> GuardedTempResult<BlockChain> {
 	let temp = RandomTempPath::new();
 	let db = new_db(temp.as_str());
-	let bc = BlockChain::new(BlockChainConfig::default(), &create_unverifiable_block(0, H256::zero()), db.clone());
+	let bc = BlockChain::new(BlockChainConfig::default(), &create_unverifiable_block(0, H256::zero()), db.clone(), Spec::new_null().engine);
 
 	GuardedTempResult::<BlockChain> {
 		_temp: temp,

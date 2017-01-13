@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -18,13 +18,15 @@
 
 use util::{Bytes, U256, Address, U512};
 use rlp::*;
+use evm;
 use trace::{VMTrace, FlatTrace};
 use types::log_entry::LogEntry;
 use types::state_diff::StateDiff;
 use std::fmt;
 
 /// The type of the call-like instruction.
-#[derive(Debug, PartialEq, Clone, Binary)]
+#[derive(Debug, PartialEq, Clone)]
+#[cfg_attr(feature = "ipc", binary)]
 pub enum CallType {
 	/// Not a CALL.
 	None,
@@ -61,8 +63,12 @@ impl Decodable for CallType {
 }
 
 /// Transaction execution receipt.
-#[derive(Debug, PartialEq, Clone, Binary)]
+#[derive(Debug, PartialEq, Clone)]
+#[cfg_attr(feature = "ipc", binary)]
 pub struct Executed {
+	/// True if the outer call/create resulted in an exceptional exit.
+	pub exception: Option<evm::Error>,
+
 	/// Gas paid up front for execution of transaction.
 	pub gas: U256,
 
@@ -101,7 +107,8 @@ pub struct Executed {
 }
 
 /// Result of executing the transaction.
-#[derive(PartialEq, Debug, Clone, Binary)]
+#[derive(PartialEq, Debug, Clone)]
+#[cfg_attr(feature = "ipc", binary)]
 pub enum ExecutionError {
 	/// Returned when there gas paid for transaction execution is
 	/// lower than base gas required.
@@ -168,12 +175,15 @@ impl fmt::Display for ExecutionError {
 }
 
 /// Result of executing the transaction.
-#[derive(PartialEq, Debug, Clone, Binary)]
+#[derive(PartialEq, Debug, Clone)]
+#[cfg_attr(feature = "ipc", binary)]
 pub enum CallError {
 	/// Couldn't find the transaction in the chain.
 	TransactionNotFound,
 	/// Couldn't find requested block's state in the chain.
 	StatePruned,
+	/// Couldn't find an amount of gas that didn't result in an exception.
+	Exceptional,
 	/// Error executing.
 	Execution(ExecutionError),
 }
@@ -191,6 +201,7 @@ impl fmt::Display for CallError {
 		let msg = match *self {
 			TransactionNotFound => "Transaction couldn't be found in the chain".into(),
 			StatePruned => "Couldn't find the transaction block's state in the chain".into(),
+			Exceptional => "An exception happened in the execution".into(),
 			Execution(ref e) => format!("{}", e),
 		};
 

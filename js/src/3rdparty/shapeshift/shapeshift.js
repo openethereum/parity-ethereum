@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -15,7 +15,9 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 export default function (rpc) {
-  const subscriptions = [];
+  let _subscriptions = [];
+  let _pollStatusIntervalId = null;
+  let _subscriptionPromises = null;
 
   function getCoins () {
     return rpc.get('getcoins');
@@ -25,69 +27,109 @@ export default function (rpc) {
     return rpc.get(`marketinfo/${pair}`);
   }
 
+  function getRpc () {
+    return rpc;
+  }
+
   function getStatus (depositAddress) {
     return rpc.get(`txStat/${depositAddress}`);
   }
 
   function shift (toAddress, returnAddress, pair) {
     return rpc.post('shift', {
-      withdrawal: toAddress,
-      pair: pair,
-      returnAddress: returnAddress
+      pair,
+      returnAddress,
+      withdrawal: toAddress
     });
   }
 
   function subscribe (depositAddress, callback) {
-    const idx = subscriptions.length;
+    if (!depositAddress || !callback) {
+      return;
+    }
 
-    subscriptions.push({
-      depositAddress,
+    const index = _subscriptions.length;
+
+    _subscriptions.push({
       callback,
-      idx
+      depositAddress,
+      index
     });
+
+    if (_pollStatusIntervalId === null) {
+      _pollStatusIntervalId = setInterval(_pollStatus, 2000);
+    }
+  }
+
+  function unsubscribe (depositAddress) {
+    _subscriptions = _subscriptions.filter((sub) => sub.depositAddress !== depositAddress);
+
+    if (_subscriptions.length === 0) {
+      clearInterval(_pollStatusIntervalId);
+      _pollStatusIntervalId = null;
+    }
+
+    return true;
   }
 
   function _getSubscriptionStatus (subscription) {
     if (!subscription) {
-      return;
+      return Promise.resolve();
     }
 
-    getStatus(subscription.depositAddress)
+    return getStatus(subscription.depositAddress)
       .then((result) => {
         switch (result.status) {
           case 'no_deposits':
           case 'received':
             subscription.callback(null, result);
-            return;
+            return true;
 
           case 'complete':
             subscription.callback(null, result);
-            subscriptions[subscription.idx] = null;
-            return;
+            unsubscribe(subscription.depositAddress);
+            return true;
 
           case 'failed':
             subscription.callback({
               message: status.error,
               fatal: true
             });
-            subscriptions[subscription.idx] = null;
-            return;
+            unsubscribe(subscription.depositAddress);
+            return true;
         }
       })
-      .catch(subscription.callback);
+      .catch(() => {
+        return true;
+      });
   }
 
   function _pollStatus () {
-    subscriptions.forEach(_getSubscriptionStatus);
+    _subscriptionPromises = Promise.all(_subscriptions.map(_getSubscriptionStatus));
   }
 
-  setInterval(_pollStatus, 2000);
+  function _getSubscriptions () {
+    return _subscriptions;
+  }
+
+  function _getSubscriptionPromises () {
+    return _subscriptionPromises;
+  }
+
+  function _isPolling () {
+    return _pollStatusIntervalId !== null;
+  }
 
   return {
+    _getSubscriptions,
+    _getSubscriptionPromises,
+    _isPolling,
     getCoins,
     getMarketInfo,
+    getRpc,
     getStatus,
     shift,
-    subscribe
+    subscribe,
+    unsubscribe
   };
 }

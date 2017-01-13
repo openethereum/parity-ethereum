@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -18,13 +18,13 @@
 
 use std::ops::Range;
 use util::{Address};
-use types::ids::BlockID;
+use types::ids::BlockId;
 
 /// Easy to use trace filter.
-#[derive(Binary)]
+#[cfg_attr(feature = "ipc", binary)]
 pub struct Filter {
 	/// Range of filtering.
-	pub range: Range<BlockID>,
+	pub range: Range<BlockId>,
 	/// From address.
 	pub from_address: Vec<Address>,
 	/// To address.

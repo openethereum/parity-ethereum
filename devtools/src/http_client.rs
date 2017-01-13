@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -25,6 +25,21 @@ pub struct Response {
 	pub headers: Vec<String>,
 	pub headers_raw: String,
 	pub body: String,
+}
+
+impl Response {
+	pub fn assert_header(&self, header: &str, value: &str) {
+		let header = format!("{}: {}", header, value);
+		assert!(self.headers.iter().find(|h| *h == &header).is_some(), "Couldn't find header {} in {:?}", header, &self.headers)
+	}
+
+	pub fn assert_status(&self, status: &str) {
+		assert_eq!(self.status, status.to_owned(), "Got unexpected code. Body: {:?}", self.body);
+	}
+
+	pub fn assert_security_headers_present(&self, port: Option<u16>) {
+		assert_security_headers_present(&self.headers, port)
+	}
 }
 
 pub fn read_block(lines: &mut Lines, all: bool) -> String {
@@ -65,7 +80,7 @@ fn connect(address: &SocketAddr) -> TcpStream {
 
 pub fn request(address: &SocketAddr, request: &str) -> Response {
 	let mut req = connect(address);
-	req.set_read_timeout(Some(Duration::from_secs(1))).unwrap();
+	req.set_read_timeout(Some(Duration::from_secs(2))).unwrap();
 	req.write_all(request.as_bytes()).unwrap();
 
 	let mut response = String::new();

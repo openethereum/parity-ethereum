@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -80,11 +80,12 @@ pub struct AuthCodes<T: TimeProvider = DefaultTimeProvider> {
 impl AuthCodes<DefaultTimeProvider> {
 
 	/// Reads `AuthCodes` from file and creates new instance using `DefaultTimeProvider`.
+	#[cfg_attr(feature="dev", allow(single_char_pattern))]
 	pub fn from_file(file: &Path) -> io::Result<AuthCodes> {
 		let content = {
 			if let Ok(mut file) = fs::File::open(file) {
 				let mut s = String::new();
-				let _ = try!(file.read_to_string(&mut s));
+				let _ = file.read_to_string(&mut s)?;
 				s
 			} else {
 				"".into()
@@ -125,10 +126,10 @@ impl<T: TimeProvider> AuthCodes<T> {
 
 	/// Writes all `AuthCodes` to a disk.
 	pub fn to_file(&self, file: &Path) -> io::Result<()> {
-		let mut file = try!(fs::File::create(file));
+		let mut file = fs::File::create(file)?;
 		let content = self.codes.iter().map(|code| {
 			let mut data = vec![code.code.clone(), encode_time(code.created_at.clone())];
-			if let Some(used_at) = code.last_used_at.clone() {
+			if let Some(used_at) = code.last_used_at {
 				data.push(encode_time(used_at));
 			}
 			data.join(SEPARATOR)
@@ -184,7 +185,7 @@ impl<T: TimeProvider> AuthCodes<T> {
 
 	/// Generates and returns a new code that can be used by `SignerUIs`
 	pub fn generate_new(&mut self) -> io::Result<String> {
-		let mut rng = try!(OsRng::new());
+		let mut rng = OsRng::new()?;
 		let code = rng.gen_ascii_chars().take(TOKEN_LENGTH).collect::<String>();
 		let readable_code = code.as_bytes()
 			.chunks(4)

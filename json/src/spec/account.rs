@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -32,8 +32,10 @@ pub struct Account {
 	pub nonce: Option<Uint>,
 	/// Code.
 	pub code: Option<Bytes>,
-	/// Storage
+	/// Storage.
 	pub storage: Option<BTreeMap<Uint, Uint>>,
+	/// Constructor.
+	pub constructor: Option<Bytes>,
 }
 
 impl Account {

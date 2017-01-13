@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -58,7 +58,7 @@ impl OverlayDB {
 	#[cfg(test)]
 	pub fn commit(&mut self) -> Result<u32, UtilError> {
 		let mut batch = self.backing.transaction();
-		let res = try!(self.commit_to_batch(&mut batch));
+		let res = self.commit_to_batch(&mut batch)?;
 		self.backing.write(batch).map(|_| res).map_err(|e| e.into())
 	}
 

@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -25,23 +25,45 @@
 //! low-latency applications, but perfectly suitable for simple everyday
 //! use-cases like sending transactions from a personal account.
 //!
-//! It starts by performing a header-only sync, verifying random samples
-//! of members of the chain to varying degrees.
+//! The light client performs a header-only sync, doing verification and pruning
+//! historical blocks. Upon pruning, batches of 2048 blocks have a number => hash
+//! mapping sealed into "canonical hash tries" which can later be used to verify
+//! historical block queries from peers.
 
-// TODO: remove when integrating with parity.
-#![allow(dead_code)]
+#![deny(missing_docs)]
 
 pub mod client;
 pub mod net;
-pub mod provider;
-pub mod request;
 
-extern crate ethcore_util as util;
-extern crate ethcore_network as network;
-extern crate ethcore_io as io;
-extern crate ethcore;
-extern crate rlp;
-extern crate time;
+#[cfg(not(feature = "ipc"))]
+pub mod provider;
+
+#[cfg(feature = "ipc")]
+pub mod provider {
+    #![allow(dead_code, unused_assignments, unused_variables, missing_docs)] // codegen issues
+	include!(concat!(env!("OUT_DIR"), "/provider.rs"));
+}
+
+#[cfg(feature = "ipc")]
+pub mod remote {
+    pub use provider::LightProviderClient;
+}
+
+mod types;
+
+pub use self::provider::Provider;
+pub use types::les_request as request;
 
 #[macro_use]
 extern crate log;
+
+extern crate ethcore;
+extern crate ethcore_util as util;
+extern crate ethcore_network as network;
+extern crate ethcore_io as io;
+extern crate rlp;
+extern crate smallvec;
+extern crate time;
+
+#[cfg(feature = "ipc")]
+extern crate ethcore_ipc as ipc;

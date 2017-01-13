@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -20,7 +20,8 @@ use error::{ImportError, BlockError, Error};
 use std::convert::From;
 
 /// Error dedicated to import block function
-#[derive(Binary, Debug)]
+#[derive(Debug)]
+#[cfg_attr(feature = "ipc", binary)]
 pub enum BlockImportError {
 	/// Import error
 	Import(ImportError),

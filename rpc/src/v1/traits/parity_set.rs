@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -17,9 +17,9 @@
 //! Parity-specific rpc interface for operations altering the settings.
 
 use jsonrpc_core::Error;
+use futures::BoxFuture;
 
-use v1::helpers::auto_args::{Wrap, WrapAsync, Ready};
-use v1::types::{Bytes, H160, H256, U256};
+use v1::types::{Bytes, H160, H256, U256, ReleaseInfo};
 
 build_rpc_trait! {
 	/// Parity-specific rpc interface for operations altering the settings.
@@ -43,6 +43,10 @@ build_rpc_trait! {
 		/// Sets new author for mined block.
 		#[rpc(name = "parity_setAuthor")]
 		fn set_author(&self, H160) -> Result<bool, Error>;
+
+		/// Sets account for signing consensus messages.
+		#[rpc(name = "parity_setEngineSigner")]
+		fn set_engine_signer(&self, H160, String) -> Result<bool, Error>;
 
 		/// Sets the limits for transaction queue.
 		#[rpc(name = "parity_setTransactionsLimit")]
@@ -86,6 +90,14 @@ build_rpc_trait! {
 
 		/// Hash a file content under given URL.
 		#[rpc(async, name = "parity_hashContent")]
-		fn hash_content(&self, Ready<H256>, String);
+		fn hash_content(&self, String) -> BoxFuture<H256, Error>;
+
+		/// Is there a release ready for install?
+		#[rpc(name = "parity_upgradeReady")]
+		fn upgrade_ready(&self) -> Result<Option<ReleaseInfo>, Error>;
+
+		/// Execute a release which is ready according to upgrade_ready().
+		#[rpc(name = "parity_executeUpgrade")]
+		fn execute_upgrade(&self) -> Result<bool, Error>;
 	}
 }

@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -64,7 +64,7 @@ fn calculate_payload_info(header_bytes: &[u8], len_of_len: usize) -> Result<Payl
 		_ => (),
 	}
 	if header_bytes.len() < header_len { return Err(DecoderError::RlpIsTooShort); }
-	let value_len = try!(usize::from_bytes(&header_bytes[1..header_len]));
+	let value_len = usize::from_bytes(&header_bytes[1..header_len])?;
 	Ok(PayloadInfo::new(header_len, value_len))
 }
 
@@ -129,11 +129,11 @@ impl<'a> fmt::Display for UntrustedRlp<'a> {
 			Ok(Prototype::Null) => write!(f, "null"),
 			Ok(Prototype::Data(_)) => write!(f, "\"0x{}\"", self.data().unwrap().to_hex()),
 			Ok(Prototype::List(len)) => {
-				try!(write!(f, "["));
+				write!(f, "[")?;
 				for i in 0..len-1 {
-					try!(write!(f, "{}, ", self.at(i).unwrap()));
+					write!(f, "{}, ", self.at(i).unwrap())?;
 				}
-				try!(write!(f, "{}", self.at(len - 1).unwrap()));
+				write!(f, "{}", self.at(len - 1).unwrap())?;
 				write!(f, "]")
 			},
 			Err(err) => write!(f, "{:?}", err)
@@ -177,7 +177,7 @@ impl<'a, 'view> View<'a, 'view> for UntrustedRlp<'a> where 'a: 'view {
 	}
 
 	fn data(&'view self) -> Self::Data {
-		let pi = try!(BasicDecoder::payload_info(self.bytes));
+		let pi = BasicDecoder::payload_info(self.bytes)?;
 		Ok(&self.bytes[pi.header_len..(pi.header_len + pi.value_len)])
 	}
 
@@ -212,18 +212,18 @@ impl<'a, 'view> View<'a, 'view> for UntrustedRlp<'a> where 'a: 'view {
 		// current search index, otherwise move to beginning of list
 		let c = self.offset_cache.get();
 		let (mut bytes, to_skip) = match c.index <= index {
-			true => (try!(UntrustedRlp::consume(self.bytes, c.offset)), index - c.index),
-			false => (try!(self.consume_list_prefix()), index),
+			true => (UntrustedRlp::consume(self.bytes, c.offset)?, index - c.index),
+			false => (self.consume_list_prefix()?, index),
 		};
 
 		// skip up to x items
-		bytes = try!(UntrustedRlp::consume_items(bytes, to_skip));
+		bytes = UntrustedRlp::consume_items(bytes, to_skip)?;
 
 		// update the cache
 		self.offset_cache.set(OffsetCache::new(index, self.bytes.len() - bytes.len()));
 
 		// construct new rlp
-		let found = try!(BasicDecoder::payload_info(bytes));
+		let found = BasicDecoder::payload_info(bytes)?;
 		Ok(UntrustedRlp::new(&bytes[0..found.header_len + found.value_len]))
 	}
 
@@ -266,15 +266,15 @@ impl<'a, 'view> View<'a, 'view> for UntrustedRlp<'a> where 'a: 'view {
 	}
 
 	fn val_at<T>(&self, index: usize) -> Result<T, DecoderError> where T: RlpDecodable {
-		try!(self.at(index)).as_val()
+		self.at(index)?.as_val()
 	}
 }
 
 impl<'a> UntrustedRlp<'a> {
 	/// consumes first found prefix
 	fn consume_list_prefix(&self) -> Result<&'a [u8], DecoderError> {
-		let item = try!(BasicDecoder::payload_info(self.bytes));
-		let bytes = try!(UntrustedRlp::consume(self.bytes, item.header_len));
+		let item = BasicDecoder::payload_info(self.bytes)?;
+		let bytes = UntrustedRlp::consume(self.bytes, item.header_len)?;
 		Ok(bytes)
 	}
 
@@ -282,8 +282,8 @@ impl<'a> UntrustedRlp<'a> {
 	fn consume_items(bytes: &'a [u8], items: usize) -> Result<&'a [u8], DecoderError> {
 		let mut result = bytes;
 		for _ in 0..items {
-			let i = try!(BasicDecoder::payload_info(result));
-			result = try!(UntrustedRlp::consume(result, (i.header_len + i.value_len)));
+			let i = BasicDecoder::payload_info(result)?;
+			result = UntrustedRlp::consume(result, (i.header_len + i.value_len))?;
 		}
 		Ok(result)
 	}
@@ -340,7 +340,7 @@ impl<'a> BasicDecoder<'a> {
 
 	/// Return first item info.
 	fn payload_info(bytes: &[u8]) -> Result<PayloadInfo, DecoderError> {
-		let item = try!(PayloadInfo::from(bytes));
+		let item = PayloadInfo::from(bytes)?;
 		match item.header_len.checked_add(item.value_len) {
 			Some(x) if x <= bytes.len() => Ok(item),
 			_ => Err(DecoderError::RlpIsTooShort),
@@ -358,7 +358,7 @@ impl<'a> Decoder for BasicDecoder<'a> {
 			// RLP is too short.
 			None => Err(DecoderError::RlpIsTooShort),
 			// Single byte value.
-			Some(l @ 0...0x7f) => Ok(try!(f(&[l]))),
+			Some(l @ 0...0x7f) => Ok(f(&[l])?),
 			// 0-55 bytes
 			Some(l @ 0x80...0xb7) => {
 				let last_index_of = 1 + l as usize - 0x80;
@@ -369,7 +369,7 @@ impl<'a> Decoder for BasicDecoder<'a> {
 				if l == 0x81 && d[0] < 0x80 {
 					return Err(DecoderError::RlpInvalidIndirection);
 				}
-				Ok(try!(f(d)))
+				Ok(f(d)?)
 			},
 			// Longer than 55 bytes.
 			Some(l @ 0xb8...0xbf) => {
@@ -378,13 +378,13 @@ impl<'a> Decoder for BasicDecoder<'a> {
 				if bytes.len() < begin_of_value {
 					return Err(DecoderError::RlpInconsistentLengthAndData);
 				}
-				let len = try!(usize::from_bytes(&bytes[1..begin_of_value]));
+				let len = usize::from_bytes(&bytes[1..begin_of_value])?;
 
 				let last_index_of_value = begin_of_value + len;
 				if bytes.len() < last_index_of_value {
 					return Err(DecoderError::RlpInconsistentLengthAndData);
 				}
-				Ok(try!(f(&bytes[begin_of_value..last_index_of_value])))
+				Ok(f(&bytes[begin_of_value..last_index_of_value])?)
 			}
 			// We are reading value, not a list!
 			_ => Err(DecoderError::RlpExpectedToBeData)
@@ -402,7 +402,7 @@ impl<'a> Decoder for BasicDecoder<'a> {
 
 impl<T> Decodable for T where T: FromBytes {
 	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
-		decoder.read_value(&|bytes: &[u8]| Ok(try!(T::from_bytes(bytes))))
+		decoder.read_value(&|bytes: &[u8]| Ok(T::from_bytes(bytes)?))
 	}
 }
 
@@ -436,7 +436,7 @@ macro_rules! impl_array_decodable {
 				}
 
 				for i in 0..decoders.item_count() {
-					result[i] = try!(T::decode(&BasicDecoder::new(try!(decoders.at(i)))));
+					result[i] = T::decode(&BasicDecoder::new(decoders.at(i)?))?;
 				}
 
 				Ok(result)
@@ -484,7 +484,7 @@ impl FromBytes for DecodableU8 {
 
 impl RlpDecodable for u8 {
 	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
-		let u: DecodableU8 = try!(Decodable::decode(decoder));
+		let u: DecodableU8 = Decodable::decode(decoder)?;
 		Ok(u.0)
 	}
 }

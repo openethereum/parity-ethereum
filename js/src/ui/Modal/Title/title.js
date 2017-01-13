@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -18,6 +18,8 @@ import React, { Component, PropTypes } from 'react';
 import { LinearProgress } from 'material-ui';
 import { Step, Stepper, StepLabel } from 'material-ui/Stepper';
 
+import { nodeOrStringProptype } from '~/util/proptypes';
+
 import styles from '../modal.css';
 
 export default class Title extends Component {
@@ -26,9 +28,7 @@ export default class Title extends Component {
     current: PropTypes.number,
     steps: PropTypes.array,
     waiting: PropTypes.array,
-    title: React.PropTypes.oneOfType([
-      PropTypes.node, PropTypes.string
-    ])
+    title: nodeOrStringProptype()
   }
 
   render () {
@@ -36,7 +36,13 @@ export default class Title extends Component {
 
     return (
       <div className={ styles.title }>
-        <h3>{ steps ? steps[current] : title }</h3>
+        <h3>
+          {
+            steps
+              ? steps[current]
+              : title
+          }
+        </h3>
         { this.renderSteps() }
         { this.renderWaiting() }
       </div>
@@ -63,10 +69,10 @@ export default class Title extends Component {
   renderTimeline () {
     const { steps } = this.props;
 
-    return steps.map((label) => {
+    return steps.map((label, index) => {
       return (
         <Step
-          key={ label }>
+          key={ label.key || index }>
           <StepLabel>
             { label }
           </StepLabel>

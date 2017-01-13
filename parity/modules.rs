@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -15,16 +15,22 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::sync::Arc;
+use std::path::Path;
+
 use ethcore::client::BlockChainClient;
 use hypervisor::Hypervisor;
-use ethsync::{SyncConfig, NetworkConfiguration, NetworkError};
+use ethsync::{SyncConfig, NetworkConfiguration, NetworkError, Params};
 use ethcore::snapshot::SnapshotService;
+use light::Provider;
+
 #[cfg(not(feature="ipc"))]
 use self::no_ipc_deps::*;
+
+#[cfg(not(feature="ipc"))]
+use ethcore_logger::Config as LogConfig;
+
 #[cfg(feature="ipc")]
 use self::ipc_deps::*;
-use ethcore_logger::Config as LogConfig;
-use std::path::Path;
 
 #[cfg(feature="ipc")]
 pub mod service_urls {
@@ -36,6 +42,8 @@ pub mod service_urls {
 	pub const SYNC_NOTIFY: &'static str = "parity-sync-notify.ipc";
 	pub const NETWORK_MANAGER: &'static str = "parity-manage-net.ipc";
 	pub const SYNC_CONTROL: &'static str = "parity-sync-control.ipc";
+	pub const LIGHT_PROVIDER: &'static str = "parity-light-provider.ipc";
+
 	#[cfg(feature="stratum")]
 	pub const STRATUM_CONTROL: &'static str = "parity-stratum-control.ipc";
 
@@ -72,6 +80,7 @@ mod ipc_deps {
 	pub use nanoipc::{GuardedSocket, NanoSocket, generic_client, fast_client};
 	pub use ipc::IpcSocket;
 	pub use ipc::binary::serialize;
+	pub use light::remote::LightProviderClient;
 }
 
 #[cfg(feature="ipc")]
@@ -148,6 +157,7 @@ pub fn sync
 		net_cfg: NetworkConfiguration,
 		_client: Arc<BlockChainClient>,
 		_snapshot_service: Arc<SnapshotService>,
+		_provider: Arc<Provider>,		
 		log_settings: &LogConfig,
 	)
 	-> Result<SyncModules, NetworkError>
@@ -165,7 +175,9 @@ pub fn sync
 		&service_urls::with_base(&hypervisor.io_path, service_urls::SYNC_NOTIFY)).unwrap();
 	let manage_client = generic_client::<NetworkManagerClient<_>>(
 		&service_urls::with_base(&hypervisor.io_path, service_urls::NETWORK_MANAGER)).unwrap();
-
+	let provider_client = generic_client::<LightProviderClient<_>>(
+		&service_urls::with_base(&hypervisor.io_path, service_urls::LIGHT_PROVIDER)).unwrap();
+		
 	*hypervisor_ref = Some(hypervisor);
 	Ok((sync_client, manage_client, notify_client))
 }
@@ -178,10 +190,18 @@ pub fn sync
 		net_cfg: NetworkConfiguration,
 		client: Arc<BlockChainClient>,
 		snapshot_service: Arc<SnapshotService>,
+		provider: Arc<Provider>,		
 		_log_settings: &LogConfig,
 	)
 	-> Result<SyncModules, NetworkError>
 {
-	let eth_sync = try!(EthSync::new(sync_cfg, client, snapshot_service, net_cfg));
+	let eth_sync = EthSync::new(Params {
+		config: sync_cfg, 
+		chain: client,
+		provider: provider,
+		snapshot_service: snapshot_service, 
+		network_config: net_cfg,
+	})?;
+
 	Ok((eth_sync.clone() as Arc<SyncProvider>, eth_sync.clone() as Arc<ManageNetwork>, eth_sync.clone() as Arc<ChainNotify>))
 }

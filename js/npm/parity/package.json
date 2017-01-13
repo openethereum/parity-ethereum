@@ -1,0 +1,33 @@
+{
+  "name": "@parity/parity.js",
+  "description": "The Parity Promise-based API & ABI library for interfacing with Ethereum over RPC",
+  "version": "0.0.0",
+  "main": "library.js",
+  "author": "Parity Team <admin@parity.io>",
+  "maintainers": [
+    "Jaco Greeff"
+  ],
+  "contributors": [],
+  "license": "GPL-3.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ethcore/parity.git"
+  },
+  "keywords": [
+    "Ethereum",
+    "ABI",
+    "API",
+    "RPC",
+    "Parity",
+    "Promise"
+  ],
+  "scripts": {
+  },
+  "devDependencies": {
+  },
+  "dependencies": {
+    "bignumber.js": "~2.3.0",
+    "js-sha3": "~0.5.2",
+    "node-fetch": "~1.6.3"
+  }
+}

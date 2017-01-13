@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -22,6 +22,7 @@ use hypervisor::{SYNC_MODULE_ID, HYPERVISOR_IPC_URL, ControlService};
 use ethcore::client::ChainNotify;
 use ethcore::client::remote::RemoteClient;
 use ethcore::snapshot::remote::RemoteSnapshotService;
+use light::remote::LightProviderClient;
 use ethsync::{SyncProvider, EthSync, ManageNetwork, ServiceConfiguration};
 use modules::service_urls;
 use boot;
@@ -48,8 +49,15 @@ pub fn main() {
 
 	let remote_client = dependency!(RemoteClient, &service_urls::with_base(&service_config.io_path, service_urls::CLIENT));
 	let remote_snapshot = dependency!(RemoteSnapshotService, &service_urls::with_base(&service_config.io_path, service_urls::SNAPSHOT));
+	let remote_provider = dependency!(LightProviderClient, &service_urls::with_base(&service_config.io_path, service_urls::LIGHT_PROVIDER));
 
-	let sync = EthSync::new(service_config.sync, remote_client.service().clone(), remote_snapshot.service().clone(), service_config.net).unwrap();
+	let sync = EthSync::new(Params {
+		config: service_config.sync, 
+		chain: remote_client.service().clone(), 
+		snapshot_service: remote_snapshot.service().clone(), 
+		provider: remote_provider.service().clone(),
+		network_config: service_config.net
+	}).unwrap();
 
 	let _ = boot::main_thread();
 	let service_stop = Arc::new(AtomicBool::new(false));

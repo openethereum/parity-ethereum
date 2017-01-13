@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import { FormattedMessage } from 'react-intl';
 
 import Value from '../Value';
 import styles from '../shapeshift.css';
@@ -42,7 +43,13 @@ export default class Price extends Component {
           <Value amount={ 1 } symbol={ coinSymbol } /> = <Value amount={ price.rate } />
         </div>
         <div>
-          (<Value amount={ price.minimum } symbol={ coinSymbol } /> minimum, <Value amount={ price.limit } symbol={ coinSymbol } /> maximum)
+          <FormattedMessage
+            id='shapeshift.price.minMax'
+            defaultMessage='({minimum} minimum, {maximum} maximum)'
+            values={ {
+              maximum: <Value amount={ price.limit } symbol={ coinSymbol } />,
+              minimum: <Value amount={ price.minimum } symbol={ coinSymbol } />
+            } } />
         </div>
       </div>
     );

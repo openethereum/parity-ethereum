@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -52,8 +52,8 @@ fn setup() -> PersonalTester {
 	let miner = miner_service();
 	let personal = PersonalClient::new(&accounts, &client, &miner, false);
 
-	let io = IoHandler::new();
-	io.add_delegate(personal.to_delegate());
+	let mut io = IoHandler::default();
+	io.extend_with(personal.to_delegate());
 
 	let tester = PersonalTester {
 		accounts: accounts,
@@ -164,3 +164,45 @@ fn sign_and_send_transaction() {
 
 	assert_eq!(tester.io.handle_request_sync(request.as_ref()), Some(response));
 }
+
+#[test]
+fn should_unlock_account_temporarily() {
+	let tester = setup();
+	let address = tester.accounts.new_account("password123").unwrap();
+
+	let request = r#"{
+		"jsonrpc": "2.0",
+		"method": "personal_unlockAccount",
+		"params": [
+			""#.to_owned() + &format!("0x{:?}", address) + r#"",
+			"password123",
+			"0x100"
+		],
+		"id": 1
+	}"#;
+	let response = r#"{"jsonrpc":"2.0","result":true,"id":1}"#;
+	assert_eq!(tester.io.handle_request_sync(&request), Some(response.into()));
+
+	assert!(tester.accounts.sign(address, None, Default::default()).is_ok(), "Should unlock account.");
+}
+
+#[test]
+fn should_unlock_account_permanently() {
+	let tester = setup();
+	let address = tester.accounts.new_account("password123").unwrap();
+
+	let request = r#"{
+		"jsonrpc": "2.0",
+		"method": "personal_unlockAccount",
+		"params": [
+			""#.to_owned() + &format!("0x{:?}", address) + r#"",
+			"password123",
+			null
+		],
+		"id": 1
+	}"#;
+	let response = r#"{"jsonrpc":"2.0","result":true,"id":1}"#;
+	assert_eq!(tester.io.handle_request_sync(&request), Some(response.into()));
+	assert!(tester.accounts.sign(address, None, Default::default()).is_ok(), "Should unlock account.");
+}
+

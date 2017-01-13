@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -16,21 +16,28 @@
 
 use ethkey::{Address, Message, Signature, Secret, Public};
 use Error;
-use json::UUID;
+use json::Uuid;
 
-pub trait SecretStore: Send + Sync {
+pub trait SimpleSecretStore: Send + Sync {
 	fn insert_account(&self, secret: Secret, password: &str) -> Result<Address, Error>;
-	fn import_presale(&self, json: &[u8], password: &str) -> Result<Address, Error>;
-	fn import_wallet(&self, json: &[u8], password: &str) -> Result<Address, Error>;
 	fn change_password(&self, account: &Address, old_password: &str, new_password: &str) -> Result<(), Error>;
 	fn remove_account(&self, account: &Address, password: &str) -> Result<(), Error>;
 
 	fn sign(&self, account: &Address, password: &str, message: &Message) -> Result<Signature, Error>;
 	fn decrypt(&self, account: &Address, password: &str, shared_mac: &[u8], message: &[u8]) -> Result<Vec<u8>, Error>;
-	fn public(&self, account: &Address, password: &str) -> Result<Public, Error>;
 
 	fn accounts(&self) -> Result<Vec<Address>, Error>;
-	fn uuid(&self, account: &Address) -> Result<UUID, Error>;
+}
+
+pub trait SecretStore: SimpleSecretStore {
+	fn import_presale(&self, json: &[u8], password: &str) -> Result<Address, Error>;
+	fn import_wallet(&self, json: &[u8], password: &str) -> Result<Address, Error>;
+	fn copy_account(&self, new_store: &SimpleSecretStore, account: &Address, password: &str, new_password: &str) -> Result<(), Error>;
+	fn test_password(&self, account: &Address, password: &str) -> Result<bool, Error>;
+
+	fn public(&self, account: &Address, password: &str) -> Result<Public, Error>;
+
+	fn uuid(&self, account: &Address) -> Result<Uuid, Error>;
 	fn name(&self, account: &Address) -> Result<String, Error>;
 	fn meta(&self, account: &Address) -> Result<String, Error>;
 

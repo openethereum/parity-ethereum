@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -16,8 +16,9 @@
 
 //! Stratum protocol implementation for parity ethereum/bitcoin clients
 
-extern crate json_tcp_server;
+extern crate jsonrpc_tcp_server;
 extern crate jsonrpc_core;
+extern crate jsonrpc_macros;
 #[macro_use] extern crate log;
 extern crate ethcore_util as util;
 extern crate ethcore_ipc as ipc;
@@ -44,17 +45,34 @@ pub use traits::{
 	RemoteWorkHandler, RemoteJobDispatcher,
 };
 
-use json_tcp_server::Server as JsonRpcServer;
-use jsonrpc_core::{IoHandler, Params, IoDelegate, to_value, from_params, Value};
+use jsonrpc_tcp_server::Server as JsonRpcServer;
+use jsonrpc_core::{IoHandler, Params, to_value};
+use jsonrpc_macros::IoDelegate;
 use std::sync::Arc;
 
 use std::net::SocketAddr;
 use std::collections::{HashSet, HashMap};
 use util::{H256, Hashable, RwLock, RwLockReadGuard};
 
+type RpcResult = Result<jsonrpc_core::Value, jsonrpc_core::Error>;
+
+struct StratumRpc {
+	stratum: RwLock<Option<Arc<Stratum>>>,
+}
+impl StratumRpc {
+	fn subscribe(&self, params: Params) -> RpcResult {
+		self.stratum.read().as_ref().expect("RPC methods are called after stratum is set.")
+			.subscribe(params)
+	}
+
+	fn authorize(&self, params: Params) -> RpcResult {
+		self.stratum.read().as_ref().expect("RPC methods are called after stratum is set.")
+			.authorize(params)
+	}
+}
+
 pub struct Stratum {
-	rpc_server: JsonRpcServer,
-	handler: Arc<IoHandler>,
+	rpc_server: JsonRpcServer<()>,
 	/// Subscribed clients
 	subscribers: RwLock<Vec<SocketAddr>>,
 	/// List of workers supposed to receive job update
@@ -76,12 +94,19 @@ impl Stratum {
 		addr: &SocketAddr,
 		dispatcher: Arc<JobDispatcher>,
 		secret: Option<H256>,
-	) -> Result<Arc<Stratum>, json_tcp_server::Error> {
-		let handler = Arc::new(IoHandler::new());
-		let server = try!(JsonRpcServer::new(addr, &handler));
+	) -> Result<Arc<Stratum>, jsonrpc_tcp_server::Error> {
+		let rpc = Arc::new(StratumRpc {
+			stratum: RwLock::new(None),
+		});
+		let mut delegate = IoDelegate::<StratumRpc>::new(rpc.clone());
+		delegate.add_method("miner.subscribe", StratumRpc::subscribe);
+		delegate.add_method("miner.authorize", StratumRpc::authorize);
+
+		let mut handler = IoHandler::default();
+		handler.extend_with(delegate);
+		let server = JsonRpcServer::new(addr, handler)?;
 		let stratum = Arc::new(Stratum {
 			rpc_server: server,
-			handler: handler,
 			subscribers: RwLock::new(Vec::new()),
 			job_que: RwLock::new(HashSet::new()),
 			dispatcher: dispatcher,
@@ -89,7 +114,9 @@ impl Stratum {
 			secret: secret,
 			notify_counter: RwLock::new(NOTIFY_CONTER_INITIAL),
 		});
+		*rpc.stratum.write() = Some(stratum.clone());
 
+<<<<<<< HEAD
 		let mut delegate = IoDelegate::<Stratum>::new(stratum.clone());
 		delegate.add_method("mining.subscribe", Stratum::subscribe);
 		delegate.add_method("mining.authorize", Stratum::authorize);
@@ -97,10 +124,14 @@ impl Stratum {
 		stratum.handler.add_delegate(delegate);
 
 		try!(stratum.rpc_server.run_async());
+=======
+		stratum.rpc_server.run_async()?;
+>>>>>>> master
 
 		Ok(stratum)
 	}
 
+<<<<<<< HEAD
 	fn submit(&self, params: Params) -> std::result::Result<jsonrpc_core::Value, jsonrpc_core::Error> {
 		Ok(match params {
 			Params::Array(vals) => {
@@ -119,6 +150,9 @@ impl Stratum {
 
 
 	fn subscribe(&self, _params: Params) -> std::result::Result<jsonrpc_core::Value, jsonrpc_core::Error> {
+=======
+	fn subscribe(&self, _params: Params) -> RpcResult {
+>>>>>>> master
 		use std::str::FromStr;
 
 		if let Some(context) = self.rpc_server.request_context() {
@@ -138,8 +172,8 @@ impl Stratum {
 		})
 	}
 
-	fn authorize(&self, params: Params) -> std::result::Result<jsonrpc_core::Value, jsonrpc_core::Error> {
-		from_params::<(String, String)>(params).map(|(worker_id, secret)|{
+	fn authorize(&self, params: Params) -> RpcResult {
+		params.parse::<(String, String)>().map(|(worker_id, secret)|{
 			if let Some(valid_secret) = self.secret {
 				let hash = secret.sha3();
 				if hash != valid_secret {
@@ -204,12 +238,10 @@ impl PushWorkHandler for Stratum {
 		while que.len() > 0 {
 			let next_worker = addrs[addr_index];
 			let mut next_payload = que.drain(0..1);
-			try!(
-				self.rpc_server.push_message(
+			self.rpc_server.push_message(
 					next_worker,
 					next_payload.nth(0).expect("drained successfully of 0..1, so 0-th element should exist").as_bytes()
-				)
-			);
+				)?;
 			addr_index = addr_index + 1;
 		}
 		Ok(())

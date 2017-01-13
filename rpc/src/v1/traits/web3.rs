@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -17,9 +17,7 @@
 //! Web3 rpc interface.
 use jsonrpc_core::Error;
 
-use v1::helpers::auto_args::Wrap;
 use v1::types::{H256, Bytes};
-
 
 build_rpc_trait! {
 	/// Web3 rpc interface.

@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -23,6 +23,15 @@ export default {
     returns: {
       type: String,
       desc: 'The new authorization token'
+    }
+  },
+
+  generateWebProxyAccessToken: {
+    desc: 'Generates a new web proxy access token',
+    params: [],
+    returns: {
+      type: String,
+      desc: 'The new web proxy access token'
     }
   },
 

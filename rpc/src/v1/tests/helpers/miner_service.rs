@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -22,9 +22,10 @@ use ethcore::error::{Error, CallError};
 use ethcore::client::{MiningBlockChainClient, Executed, CallAnalytics};
 use ethcore::block::{ClosedBlock, IsBlock};
 use ethcore::header::BlockNumber;
-use ethcore::transaction::SignedTransaction;
+use ethcore::transaction::{SignedTransaction, PendingTransaction};
 use ethcore::receipt::{Receipt, RichReceipt};
-use ethcore::miner::{MinerService, MinerStatus, TransactionImportResult};
+use ethcore::miner::{MinerService, MinerStatus, TransactionImportResult, LocalTransactionStatus};
+use ethcore::account_provider::Error as AccountError;
 
 /// Test miner service.
 pub struct TestMinerService {
@@ -34,10 +35,14 @@ pub struct TestMinerService {
 	pub latest_closed_block: Mutex<Option<ClosedBlock>>,
 	/// Pre-existed pending transactions
 	pub pending_transactions: Mutex<HashMap<H256, SignedTransaction>>,
+	/// Pre-existed local transactions
+	pub local_transactions: Mutex<BTreeMap<H256, LocalTransactionStatus>>,
 	/// Pre-existed pending receipts
 	pub pending_receipts: Mutex<BTreeMap<H256, Receipt>>,
 	/// Last nonces.
 	pub last_nonces: RwLock<HashMap<Address, U256>>,
+	/// Password held by Engine.
+	pub password: RwLock<String>,
 
 	min_gas_price: RwLock<U256>,
 	gas_range_target: RwLock<(U256, U256)>,
@@ -53,11 +58,13 @@ impl Default for TestMinerService {
 			imported_transactions: Mutex::new(Vec::new()),
 			latest_closed_block: Mutex::new(None),
 			pending_transactions: Mutex::new(HashMap::new()),
+			local_transactions: Mutex::new(BTreeMap::new()),
 			pending_receipts: Mutex::new(BTreeMap::new()),
 			last_nonces: RwLock::new(HashMap::new()),
 			min_gas_price: RwLock::new(U256::from(20_000_000)),
 			gas_range_target: RwLock::new((U256::from(12345), U256::from(54321))),
 			author: RwLock::new(Address::zero()),
+			password: RwLock::new(String::new()),
 			extra_data: RwLock::new(vec![1, 2, 3, 4]),
 			limit: RwLock::new(1024),
 			tx_gas_limit: RwLock::new(!U256::zero()),
@@ -78,6 +85,12 @@ impl MinerService for TestMinerService {
 
 	fn set_author(&self, author: Address) {
 		*self.author.write() = author;
+	}
+
+	fn set_engine_signer(&self, address: Address, password: String) -> Result<(), AccountError> {
+		*self.author.write() = address;
+		*self.password.write() = password;
+		Ok(())
 	}
 
 	fn set_extra_data(&self, extra_data: Bytes) {
@@ -147,17 +160,17 @@ impl MinerService for TestMinerService {
 	}
 
 	/// Imports transactions to transaction queue.
-	fn import_own_transaction(&self, chain: &MiningBlockChainClient, transaction: SignedTransaction) ->
+	fn import_own_transaction(&self, chain: &MiningBlockChainClient, pending: PendingTransaction) ->
 		Result<TransactionImportResult, Error> {
 
 		// keep the pending nonces up to date
-		if let Ok(ref sender) = transaction.sender() {
+		if let Ok(ref sender) = pending.transaction.sender() {
 			let nonce = self.last_nonce(sender).unwrap_or(chain.latest_nonce(sender));
 			self.last_nonces.write().insert(sender.clone(), nonce + U256::from(1));
 		}
 
 		// lets assume that all txs are valid
-		self.imported_transactions.lock().push(transaction);
+		self.imported_transactions.lock().push(pending.transaction);
 
 		Ok(TransactionImportResult::Current)
 	}
@@ -191,12 +204,20 @@ impl MinerService for TestMinerService {
 		self.pending_transactions.lock().get(hash).cloned()
 	}
 
-	fn all_transactions(&self) -> Vec<SignedTransaction> {
-		self.pending_transactions.lock().values().cloned().collect()
+	fn pending_transactions(&self) -> Vec<PendingTransaction> {
+		self.pending_transactions.lock().values().cloned().map(Into::into).collect()
 	}
 
-	fn pending_transactions(&self, _best_block: BlockNumber) -> Vec<SignedTransaction> {
-		self.pending_transactions.lock().values().cloned().collect()
+	fn local_transactions(&self) -> BTreeMap<H256, LocalTransactionStatus> {
+		self.local_transactions.lock().iter().map(|(hash, stats)| (*hash, stats.clone())).collect()
+	}
+
+	fn ready_transactions(&self, _best_block: BlockNumber) -> Vec<PendingTransaction> {
+		self.pending_transactions.lock().values().cloned().map(Into::into).collect()
+	}
+
+	fn future_transactions(&self) -> Vec<PendingTransaction> {
+		vec![]
 	}
 
 	fn pending_receipt(&self, _best_block: BlockNumber, hash: &H256) -> Option<RichReceipt> {

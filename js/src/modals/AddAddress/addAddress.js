@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -14,135 +14,146 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import React, { Component, PropTypes } from 'react';
 import ContentAdd from 'material-ui/svg-icons/content/add';
 import ContentClear from 'material-ui/svg-icons/content/clear';
+import { observer } from 'mobx-react';
+import React, { Component, PropTypes } from 'react';
+import { FormattedMessage } from 'react-intl';
 
-import { Button, Modal, Form, Input, InputAddress } from '../../ui';
-import { ERRORS, validateAddress, validateName } from '../../util/validation';
+import { Button, Form, Input, InputAddress, Modal } from '~/ui';
 
+import Store from './store';
+
+@observer
 export default class AddAddress extends Component {
   static contextTypes = {
     api: PropTypes.object.isRequired
   }
 
   static propTypes = {
+    address: PropTypes.string,
     contacts: PropTypes.object.isRequired,
-    onClose: PropTypes.func
+    onClose: PropTypes.func.isRequired
   };
 
-  state = {
-    address: '',
-    addressError: ERRORS.invalidAddress,
-    name: '',
-    nameError: ERRORS.invalidName,
-    description: ''
-  };
+  store = new Store(this.context.api, this.props.contacts);
+
+  componentWillMount () {
+    if (this.props.address) {
+      this.onEditAddress(null, this.props.address);
+    }
+  }
 
   render () {
     return (
       <Modal
-        visible
         actions={ this.renderDialogActions() }
-        title='add saved address'>
+        title={
+          <FormattedMessage
+            id='addAddress.label'
+            defaultMessage='add saved address' />
+        }
+        visible>
         { this.renderFields() }
       </Modal>
     );
   }
 
   renderDialogActions () {
-    const { addressError, nameError } = this.state;
-    const hasError = !!(addressError || nameError);
+    const { hasError } = this.store;
 
     return ([
       <Button
         icon={ <ContentClear /> }
-        label='Cancel'
-        onClick={ this.onClose } />,
+        label={
+          <FormattedMessage
+            id='addAddress.button.close'
+            defaultMessage='Cancel' />
+        }
+        onClick={ this.onClose }
+        ref='closeButton' />,
       <Button
-        icon={ <ContentAdd /> }
-        label='Save Address'
         disabled={ hasError }
-        onClick={ this.onAdd } />
+        icon={ <ContentAdd /> }
+        label={
+          <FormattedMessage
+            id='addAddress.button.add'
+            defaultMessage='Save Address' />
+        }
+        onClick={ this.onAdd }
+        ref='addButton' />
     ]);
   }
 
   renderFields () {
-    const { address, addressError, description, name, nameError } = this.state;
+    const { address, addressError, description, name, nameError } = this.store;
 
     return (
       <Form>
         <InputAddress
-          label='network address'
-          hint='the network address for the entry'
+          allowCopy={ false }
+          disabled={ !!this.props.address }
           error={ addressError }
-          value={ address }
-          onChange={ this.onEditAddress } />
+          hint={
+            <FormattedMessage
+              id='addAddress.input.address.hint'
+              defaultMessage='the network address for the entry' />
+          }
+          label={
+            <FormattedMessage
+              id='addAddress.input.address.label'
+              defaultMessage='network address' />
+          }
+          onChange={ this.onEditAddress }
+          ref='inputAddress'
+          value={ address } />
         <Input
-          label='address name'
-          hint='a descriptive name for the entry'
           error={ nameError }
-          value={ name }
-          onChange={ this.onEditName } />
+          hint={
+            <FormattedMessage
+              id='addAddress.input.name.hint'
+              defaultMessage='a descriptive name for the entry' />
+          }
+          label={
+            <FormattedMessage
+              id='addAddress.input.name.label'
+              defaultMessage='address name' />
+          }
+          onChange={ this.onEditName }
+          ref='inputName'
+          value={ name } />
         <Input
-          multiLine
-          rows={ 1 }
-          label='(optional) address description'
-          hint='an expanded description for the entry'
-          value={ description }
-          onChange={ this.onEditDescription } />
+          hint={
+            <FormattedMessage
+              id='addAddress.input.description.hint'
+              defaultMessage='an expanded description for the entry' />
+          }
+          label={
+            <FormattedMessage
+              id='addAddress.input.description.label'
+              defaultMessage='(optional) address description' />
+          }
+          onChange={ this.onEditDescription }
+          ref='inputDescription'
+          value={ description } />
       </Form>
     );
   }
 
-  onEditAddress = (event, _address) => {
-    const { contacts } = this.props;
-    let { address, addressError } = validateAddress(_address);
-
-    if (!addressError) {
-      const contact = contacts[address];
-
-      if (contact && !contact.meta.deleted) {
-        addressError = ERRORS.duplicateAddress;
-      }
-    }
-
-    this.setState({
-      address,
-      addressError
-    });
+  onEditAddress = (event, address) => {
+    this.store.setAddress(address);
   }
 
   onEditDescription = (event, description) => {
-    this.setState({
-      description
-    });
+    this.store.setDescription(description);
   }
 
-  onEditName = (event, _name) => {
-    const { name, nameError } = validateName(_name);
-
-    this.setState({
-      name,
-      nameError
-    });
+  onEditName = (event, name) => {
+    this.store.setName(name);
   }
 
   onAdd = () => {
-    const { api } = this.context;
-    const { address, name, description } = this.state;
-
-    Promise.all([
-      api.parity.setAccountName(address, name),
-      api.parity.setAccountMeta(address, {
-        description,
-        timestamp: Date.now(),
-        deleted: false
-      })
-    ]).catch((error) => {
-      console.error('onAdd', error);
-    });
-
+    this.store.add();
     this.props.onClose();
   }
 

@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -16,7 +16,6 @@
 
 //! Simple Content Handler
 
-use std::io::Write;
 use hyper::{header, server, Decoder, Encoder, Next};
 use hyper::net::HttpStream;
 use hyper::mime::Mime;

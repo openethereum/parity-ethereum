@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -39,7 +39,7 @@ impl<'db> FatDBMut<'db> {
 	///
 	/// Returns an error if root does not exist.
 	pub fn from_existing(db: &'db mut HashDB, root: &'db mut H256) -> super::Result<Self> {
-		Ok(FatDBMut { raw: try!(TrieDBMut::from_existing(db, root)) })
+		Ok(FatDBMut { raw: TrieDBMut::from_existing(db, root)? })
 	}
 
 	/// Get the backing database.
@@ -50,6 +50,10 @@ impl<'db> FatDBMut<'db> {
 	/// Get the backing database.
 	pub fn db_mut(&mut self) -> &mut HashDB {
 		self.raw.db_mut()
+	}
+
+	fn to_aux_key(key: &[u8]) -> H256 {
+		key.sha3()
 	}
 }
 
@@ -72,16 +76,28 @@ impl<'db> TrieMut for FatDBMut<'db> {
 		self.raw.get(&key.sha3())
 	}
 
-	fn insert(&mut self, key: &[u8], value: &[u8]) -> super::Result<()> {
+	fn insert(&mut self, key: &[u8], value: &[u8]) -> super::Result<Option<DBValue>> {
 		let hash = key.sha3();
-		try!(self.raw.insert(&hash, value));
+		let out = self.raw.insert(&hash, value)?;
 		let db = self.raw.db_mut();
-		db.insert_aux(hash.to_vec(), key.to_vec());
-		Ok(())
+
+		// don't insert if it doesn't exist.
+		if out.is_none() {
+			db.emplace(Self::to_aux_key(&hash), DBValue::from_slice(key));
+		}
+		Ok(out)
 	}
 
-	fn remove(&mut self, key: &[u8]) -> super::Result<()> {
-		self.raw.remove(&key.sha3())
+	fn remove(&mut self, key: &[u8]) -> super::Result<Option<DBValue>> {
+		let hash = key.sha3();
+		let out = self.raw.remove(&hash)?;
+
+		// don't remove if it already exists.
+		if out.is_some() {
+			self.raw.db_mut().remove(&Self::to_aux_key(&hash));
+		}
+
+		Ok(out)
 	}
 }
 

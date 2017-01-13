@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -16,7 +16,7 @@
 
 import BigNumber from 'bignumber.js';
 
-import * as abis from '../../contracts/abi';
+import * as abis from '~/contracts/abi';
 import { api } from './parity';
 
 let managerInstance;
@@ -105,7 +105,7 @@ export function attachInstances () {
     ])
     .then(([registryAddress, netChain]) => {
       const registry = api.newContract(abis.registry, registryAddress).instance;
-      isTest = netChain === 'morden' || netChain === 'testnet';
+      isTest = ['morden', 'ropsten', 'testnet'].includes(netChain);
 
       console.log(`contract was found at registry=${registryAddress}`);
       console.log(`running on ${netChain}, isTest=${isTest}`);
@@ -118,7 +118,7 @@ export function attachInstances () {
         ]);
     })
     .then(([managerAddress, registryAddress, tokenregAddress]) => {
-      console.log(`contracts were found at basiccoinmgr=${managerAddress}, basiccoinreg=${registryAddress}, tokenreg=${registryAddress}`);
+      console.log(`contracts were found at basiccoinmgr=${managerAddress}, basiccoinreg=${registryAddress}, tokenreg=${tokenregAddress}`);
 
       managerInstance = api.newContract(abis.basiccoinmanager, managerAddress).instance;
       registryInstance = api.newContract(abis.tokenreg, registryAddress).instance;

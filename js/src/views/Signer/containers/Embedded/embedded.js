@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -19,24 +19,33 @@ import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
-import * as RequestsActions from '../../../../redux/providers/signerActions';
-import { Container } from '../../../../ui';
+import Store from '../../store';
+import * as RequestsActions from '~/redux/providers/signerActions';
+import { Container } from '~/ui';
 
-import { RequestPendingWeb3 } from '../../components';
+import RequestPending from '../../components/RequestPending';
 
 import styles from './embedded.css';
 
 class Embedded extends Component {
+  static contextTypes = {
+    api: PropTypes.object.isRequired
+  };
+
   static propTypes = {
-    signer: PropTypes.shape({
-      pending: PropTypes.array.isRequired,
-      finished: PropTypes.array.isRequired
-    }).isRequired,
     actions: PropTypes.shape({
       startConfirmRequest: PropTypes.func.isRequired,
       startRejectRequest: PropTypes.func.isRequired
+    }).isRequired,
+    gasLimit: PropTypes.object.isRequired,
+    isTest: PropTypes.bool.isRequired,
+    signer: PropTypes.shape({
+      finished: PropTypes.array.isRequired,
+      pending: PropTypes.array.isRequired
     }).isRequired
   };
+
+  store = new Store(this.context.api);
 
   render () {
     return (
@@ -63,26 +72,30 @@ class Embedded extends Component {
     const items = pending.sort(this._sortRequests).map(this.renderPending);
 
     return (
-      <div className={ styles.pending }>
+      <div>
         { items }
       </div>
     );
   }
 
-  renderPending = (data) => {
-    const { actions } = this.props;
-    const { payload, id, isSending, date } = data;
+  renderPending = (data, index) => {
+    const { actions, gasLimit, isTest } = this.props;
+    const { date, id, isSending, payload } = data;
 
     return (
-      <RequestPendingWeb3
+      <RequestPending
         className={ styles.request }
+        date={ date }
+        focus={ index === 0 }
+        gasLimit={ gasLimit }
+        id={ id }
+        isSending={ isSending }
+        isTest={ isTest }
+        key={ id }
         onConfirm={ actions.startConfirmRequest }
         onReject={ actions.startRejectRequest }
-        isSending={ isSending || false }
-        key={ id }
-        id={ id }
         payload={ payload }
-        date={ date }
+        store={ this.store }
       />
     );
   }
@@ -93,10 +106,13 @@ class Embedded extends Component {
 }
 
 function mapStateToProps (state) {
+  const { gasLimit, isTest } = state.nodeStatus;
   const { actions, signer } = state;
 
   return {
     actions,
+    gasLimit,
+    isTest,
     signer
   };
 }

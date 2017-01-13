@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use io::IoChannel;
-use client::{BlockChainClient, MiningBlockChainClient, Client, ClientConfig, BlockID};
+use client::{BlockChainClient, MiningBlockChainClient, Client, ClientConfig, BlockId};
 use state::CleanupMode;
 use ethereum;
 use block::IsBlock;
@@ -24,10 +24,13 @@ use types::filter::Filter;
 use util::*;
 use devtools::*;
 use miner::Miner;
-use rlp::{Rlp, View};
+use rlp::View;
 use spec::Spec;
 use views::BlockView;
 use util::stats::Histogram;
+use ethkey::{KeyPair, Secret};
+use transaction::{PendingTransaction, Transaction, Action};
+use miner::MinerService;
 
 #[test]
 fn imports_from_empty() {
@@ -62,7 +65,7 @@ fn should_return_registrar() {
 		&db_config
 	).unwrap();
 	let params = client.additional_params();
-	let address = params.get("registrar").unwrap();
+	let address = &params["registrar"];
 
 	assert_eq!(address.len(), 40);
 	assert!(U256::from_str(address).is_ok());
@@ -93,14 +96,14 @@ fn imports_good_block() {
 		&db_config
 	).unwrap();
 	let good_block = get_good_dummy_block();
-	if let Err(_) = client.import_block(good_block) {
+	if client.import_block(good_block).is_err() {
 		panic!("error importing block being good by definition");
 	}
 	client.flush_queue();
 	client.import_verified_blocks();
 
-	let block = client.block_header(BlockID::Number(1)).unwrap();
-	assert!(!block.is_empty());
+	let block = client.block_header(BlockId::Number(1)).unwrap();
+	assert!(!block.into_inner().is_empty());
 }
 
 #[test]
@@ -117,7 +120,7 @@ fn query_none_block() {
 		IoChannel::disconnected(),
 		&db_config
 	).unwrap();
-    let non_existant = client.block_header(BlockID::Number(188));
+    let non_existant = client.block_header(BlockId::Number(188));
 	assert!(non_existant.is_none());
 }
 
@@ -125,7 +128,7 @@ fn query_none_block() {
 fn query_bad_block() {
 	let client_result = get_test_client_with_blocks(vec![get_bad_state_dummy_block()]);
 	let client = client_result.reference();
-	let bad_block:Option<Bytes> = client.block_header(BlockID::Number(1));
+	let bad_block: Option<_> = client.block_header(BlockId::Number(1));
 
 	assert!(bad_block.is_none());
 }
@@ -146,8 +149,8 @@ fn returns_logs() {
 	let client_result = get_test_client_with_blocks(vec![dummy_block.clone()]);
 	let client = client_result.reference();
 	let logs = client.logs(Filter {
-		from_block: BlockID::Earliest,
-		to_block: BlockID::Latest,
+		from_block: BlockId::Earliest,
+		to_block: BlockId::Latest,
 		address: None,
 		topics: vec![],
 		limit: None,
@@ -161,8 +164,8 @@ fn returns_logs_with_limit() {
 	let client_result = get_test_client_with_blocks(vec![dummy_block.clone()]);
 	let client = client_result.reference();
 	let logs = client.logs(Filter {
-		from_block: BlockID::Earliest,
-		to_block: BlockID::Latest,
+		from_block: BlockId::Earliest,
+		to_block: BlockId::Latest,
 		address: None,
 		topics: vec![],
 		limit: Some(2),
@@ -176,8 +179,8 @@ fn returns_block_body() {
 	let client_result = get_test_client_with_blocks(vec![dummy_block.clone()]);
 	let client = client_result.reference();
 	let block = BlockView::new(&dummy_block);
-	let body = client.block_body(BlockID::Hash(block.header().hash())).unwrap();
-	let body = Rlp::new(&body);
+	let body = client.block_body(BlockId::Hash(block.header().hash())).unwrap();
+	let body = body.rlp();
 	assert_eq!(body.item_count(), 2);
 	assert_eq!(body.at(0).as_raw()[..], block.rlp().at(1).as_raw()[..]);
 	assert_eq!(body.at(1).as_raw()[..], block.rlp().at(2).as_raw()[..]);
@@ -187,9 +190,9 @@ fn returns_block_body() {
 fn imports_block_sequence() {
 	let client_result = generate_dummy_client(6);
 	let client = client_result.reference();
-	let block = client.block_header(BlockID::Number(5)).unwrap();
+	let block = client.block_header(BlockId::Number(5)).unwrap();
 
-	assert!(!block.is_empty());
+	assert!(!block.into_inner().is_empty());
 }
 
 #[test]
@@ -203,18 +206,18 @@ fn can_collect_garbage() {
 
 #[test]
 fn can_generate_gas_price_median() {
-	let client_result = generate_dummy_client_with_data(3, 1, &vec_into![1, 2, 3]);
+	let client_result = generate_dummy_client_with_data(3, 1, slice_into![1, 2, 3]);
 	let client = client_result.reference();
 	assert_eq!(Some(U256::from(2)), client.gas_price_median(3));
 
-	let client_result = generate_dummy_client_with_data(4, 1, &vec_into![1, 4, 3, 2]);
+	let client_result = generate_dummy_client_with_data(4, 1, slice_into![1, 4, 3, 2]);
 	let client = client_result.reference();
 	assert_eq!(Some(U256::from(3)), client.gas_price_median(4));
 }
 
 #[test]
 fn can_generate_gas_price_histogram() {
-	let client_result = generate_dummy_client_with_data(20, 1, &vec_into![6354,8593,6065,4842,7845,7002,689,4958,4250,6098,5804,4320,643,8895,2296,8589,7145,2000,2512,1408]);
+	let client_result = generate_dummy_client_with_data(20, 1, slice_into![6354,8593,6065,4842,7845,7002,689,4958,4250,6098,5804,4320,643,8895,2296,8589,7145,2000,2512,1408]);
 	let client = client_result.reference();
 
 	let hist = client.gas_price_histogram(20, 5).unwrap();
@@ -224,7 +227,7 @@ fn can_generate_gas_price_histogram() {
 
 #[test]
 fn empty_gas_price_histogram() {
-	let client_result = generate_dummy_client_with_data(20, 0, &vec_into![]);
+	let client_result = generate_dummy_client_with_data(20, 0, slice_into![]);
 	let client = client_result.reference();
 
 	assert!(client.gas_price_histogram(20, 5).is_none());
@@ -283,4 +286,37 @@ fn change_history_size() {
 	config.history = 10;
 	let client = Client::new(config, &test_spec, dir.as_path(), Arc::new(Miner::with_spec(&test_spec)), IoChannel::disconnected(), &db_config).unwrap();
 	assert_eq!(client.state().balance(&address), 100.into());
+}
+
+#[test]
+fn does_not_propagate_delayed_transactions() {
+	let key = KeyPair::from_secret(Secret::from_slice(&"test".sha3()).unwrap()).unwrap();
+	let secret = key.secret();
+	let tx0 = PendingTransaction::new(Transaction {
+		nonce: 0.into(),
+		gas_price: 0.into(),
+		gas: 21000.into(),
+		action: Action::Call(Address::default()),
+		value: 0.into(),
+		data: Vec::new(),
+	}.sign(secret, None), Some(2));
+	let tx1 = PendingTransaction::new(Transaction {
+		nonce: 1.into(),
+		gas_price: 0.into(),
+		gas: 21000.into(),
+		action: Action::Call(Address::default()),
+		value: 0.into(),
+		data: Vec::new(),
+	}.sign(secret, None), None);
+	let client_result = generate_dummy_client(1);
+	let client = client_result.reference();
+
+	client.miner().import_own_transaction(&**client, tx0).unwrap();
+	client.miner().import_own_transaction(&**client, tx1).unwrap();
+	assert_eq!(0, client.ready_transactions().len());
+	assert_eq!(2, client.miner().pending_transactions().len());
+	push_blocks_to_client(client, 53, 2, 2);
+	client.flush_queue();
+	assert_eq!(2, client.ready_transactions().len());
+	assert_eq!(2, client.miner().pending_transactions().len());
 }

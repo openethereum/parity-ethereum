@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -20,10 +20,6 @@ describe('abi/util/slice', () => {
   describe('sliceData', () => {
     const slice1 = '131a3afc00d1b1e3461b955e53fc866dcf303b3eb9f4c16f89e388930f48134b';
     const slice2 = '2124768576358735263578356373526387638357635873563586353756358763';
-
-    it('throws an error on mod 64 != 0', () => {
-      expect(() => sliceData('123')).to.throw(/sliceData/);
-    });
 
     it('returns an empty array when length === 0', () => {
       expect(sliceData('')).to.deep.equal([]);

@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -18,12 +18,11 @@
 
 use util::Mutex;
 use client::{BlockChainClient, Client, ChainNotify};
-use ids::BlockID;
+use ids::BlockId;
 use service::ClientIoMessage;
-use views::HeaderView;
 
 use io::IoChannel;
-use util::hash::H256;
+use util::{H256, Bytes};
 
 use std::sync::Arc;
 
@@ -43,7 +42,7 @@ impl<F> Oracle for StandardOracle<F>
 	where F: Send + Sync + Fn() -> bool
 {
 	fn to_number(&self, hash: H256) -> Option<u64> {
-		self.client.block_header(BlockID::Hash(hash)).map(|h| HeaderView::new(&h).number())
+		self.client.block_header(BlockId::Hash(hash)).map(|h| h.number())
 	}
 
 	fn is_major_importing(&self) -> bool {
@@ -107,6 +106,7 @@ impl ChainNotify for Watcher {
 		_: Vec<H256>,
 		_: Vec<H256>,
 		_: Vec<H256>,
+		_: Vec<Bytes>,
 		_duration: u64)
 	{
 		if self.oracle.is_major_importing() { return }
@@ -170,6 +170,7 @@ mod tests {
 
 		watcher.new_blocks(
 			hashes,
+			vec![],
 			vec![],
 			vec![],
 			vec![],

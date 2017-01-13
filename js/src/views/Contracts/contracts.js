@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -20,14 +20,13 @@ import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 import ContentAdd from 'material-ui/svg-icons/content/add';
 import FileIcon from 'material-ui/svg-icons/action/description';
-import { uniq } from 'lodash';
+import { uniq, isEqual } from 'lodash';
 
-import { Actionbar, ActionbarSearch, ActionbarSort, Button, Page } from '../../ui';
-import { AddContract, DeployContract } from '../../modals';
+import { Actionbar, ActionbarSearch, ActionbarSort, Button, Page } from '~/ui';
+import { AddContract, DeployContract } from '~/modals';
+import { setVisibleAccounts } from '~/redux/providers/personalActions';
 
 import List from '../Accounts/List';
-
-import styles from './contracts.css';
 
 class Contracts extends Component {
   static contextTypes = {
@@ -35,6 +34,8 @@ class Contracts extends Component {
   }
 
   static propTypes = {
+    setVisibleAccounts: PropTypes.func.isRequired,
+
     balances: PropTypes.object,
     accounts: PropTypes.object,
     contracts: PropTypes.object,
@@ -44,9 +45,32 @@ class Contracts extends Component {
   state = {
     addContract: false,
     deployContract: false,
-    sortOrder: 'timestamp',
+    sortOrder: 'blockNumber',
     searchValues: [],
     searchTokens: []
+  }
+
+  componentWillMount () {
+    this.setVisibleAccounts();
+  }
+
+  componentWillReceiveProps (nextProps) {
+    const prevAddresses = Object.keys(this.props.contracts);
+    const nextAddresses = Object.keys(nextProps.contracts);
+
+    if (prevAddresses.length !== nextAddresses.length || !isEqual(prevAddresses.sort(), nextAddresses.sort())) {
+      this.setVisibleAccounts(nextProps);
+    }
+  }
+
+  componentWillUnmount () {
+    this.props.setVisibleAccounts([]);
+  }
+
+  setVisibleAccounts (props = this.props) {
+    const { contracts, setVisibleAccounts } = props;
+    const addresses = Object.keys(contracts);
+    setVisibleAccounts(addresses);
   }
 
   render () {
@@ -54,21 +78,22 @@ class Contracts extends Component {
     const { searchValues, sortOrder } = this.state;
 
     return (
-      <div className={ styles.contracts }>
+      <div>
         { this.renderActionbar() }
         { this.renderAddContract() }
         { this.renderAddContract() }
         { this.renderDeployContract() }
         <Page>
           <List
-            link='contract'
+            link='contracts'
             search={ searchValues }
             accounts={ contracts }
             balances={ balances }
             empty={ !hasContracts }
             order={ sortOrder }
             orderFallback='name'
-            handleAddSearchToken={ this.onAddSearchToken } />
+            handleAddSearchToken={ this.onAddSearchToken }
+          />
         </Page>
       </div>
     );
@@ -85,7 +110,8 @@ class Contracts extends Component {
         id='sortContracts'
         order={ this.state.sortOrder }
         metas={ [
-          { key: 'timestamp', label: 'date' }
+          { key: 'timestamp', label: 'date' },
+          { key: 'blockNumber:-1', label: 'mined block' }
         ] }
         showDefault={ false }
         onChange={ onChange } />
@@ -118,12 +144,12 @@ class Contracts extends Component {
         label='deploy contract'
         onClick={ this.onDeployContract } />,
       <Link
-        to='/contracts/write'
+        to='/contracts/develop'
         key='writeContract'
       >
         <Button
           icon={ <FileIcon /> }
-          label='write contract'
+          label='develop contract'
         />
       </Link>,
 
@@ -133,7 +159,6 @@ class Contracts extends Component {
 
     return (
       <Actionbar
-        className={ styles.toolbar }
         title='Contracts'
         buttons={ buttons } />
     );
@@ -205,7 +230,9 @@ function mapStateToProps (state) {
 }
 
 function mapDispatchToProps (dispatch) {
-  return bindActionCreators({}, dispatch);
+  return bindActionCreators({
+    setVisibleAccounts
+  }, dispatch);
 }
 
 export default connect(

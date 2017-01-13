@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -22,9 +22,9 @@ use hash::H256;
 /// Spec params.
 #[derive(Debug, PartialEq, Deserialize)]
 pub struct Params {
-	/// Account start nonce.
+	/// Account start nonce, defaults to 0.
 	#[serde(rename="accountStartNonce")]
-	pub account_start_nonce: Uint,
+	pub account_start_nonce: Option<Uint>,
 	/// Maximum size of extra data.
 	#[serde(rename="maximumExtraDataSize")]
 	pub maximum_extra_data_size: Uint,
@@ -35,6 +35,10 @@ pub struct Params {
 	/// Network id.
 	#[serde(rename="networkID")]
 	pub network_id: Uint,
+	/// Chain id.
+	#[serde(rename="chainID")]
+	pub chain_id: Option<Uint>,
+
 	/// Name of the main ("eth") subprotocol.
 	#[serde(rename="subprotocolName")]
 	pub subprotocol_name: Option<String>,
@@ -58,6 +62,7 @@ mod tests {
 			"homesteadTransition": "0x118c30",
 			"maximumExtraDataSize": "0x20",
 			"networkID" : "0x1",
+			"chainID" : "0x15",
 			"subprotocolName" : "exp",
 			"minGasLimit": "0x1388",
 			"accountStartNonce": "0x00"

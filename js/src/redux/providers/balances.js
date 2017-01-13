@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -14,187 +14,171 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { getBalances, getTokens } from './balancesActions';
-import { setAddressImage } from './imagesActions';
+import { throttle } from 'lodash';
 
-import * as abis from '../../contracts/abi';
+import { loadTokens, setTokenReg, fetchBalances, fetchTokens, fetchTokensBalances } from './balancesActions';
+import { padRight } from '~/api/util/format';
 
-import imagesEthereum from '../../../assets/images/contracts/ethereum-black-64x64.png';
-
-const ETH = {
-  name: 'Ethereum',
-  tag: 'ETH',
-  image: imagesEthereum
-};
+import Contracts from '~/contracts';
 
 export default class Balances {
   constructor (store, api) {
     this._api = api;
     this._store = store;
-    this._accountsInfo = null;
-    this._tokens = [];
+
+    this._tokenregSubId = null;
+    this._tokenregMetaSubId = null;
+
+    // Throttled `retrieveTokens` function
+    // that gets called max once every 40s
+    this.longThrottledFetch = throttle(
+      this.fetchBalances,
+      40 * 1000,
+      { trailing: true }
+    );
+
+    this.shortThrottledFetch = throttle(
+      this.fetchBalances,
+      2 * 1000,
+      { trailing: true }
+    );
+
+    // Fetch all tokens every 2 minutes
+    this.throttledTokensFetch = throttle(
+      this.fetchTokens,
+      60 * 1000,
+      { trailing: true }
+    );
   }
 
   start () {
-    this._subscribeBlockNumber();
-    this._subscribeAccountsInfo();
+    this.subscribeBlockNumber();
+    this.subscribeAccountsInfo();
+
+    this.loadTokens();
   }
 
-  _subscribeAccountsInfo () {
+  subscribeAccountsInfo () {
     this._api
-      .subscribe('parity_accountsInfo', (error, accountsInfo) => {
+      .subscribe('parity_allAccountsInfo', (error, accountsInfo) => {
         if (error) {
           return;
         }
 
-        this._accountsInfo = accountsInfo;
-        this._retrieveBalances();
-      })
-      .then((subscriptionId) => {
-        console.log('_subscribeAccountsInfo', 'subscriptionId', subscriptionId);
+        this.fetchBalances();
       })
       .catch((error) => {
         console.warn('_subscribeAccountsInfo', error);
       });
   }
 
-  _subscribeBlockNumber () {
+  subscribeBlockNumber () {
     this._api
       .subscribe('eth_blockNumber', (error) => {
         if (error) {
-          return;
+          return console.warn('_subscribeBlockNumber', error);
         }
 
-        this._retrieveTokens();
-      })
-      .then((subscriptionId) => {
-        console.log('_subscribeBlockNumber', 'subscriptionId', subscriptionId);
+        const { syncing } = this._store.getState().nodeStatus;
+
+        this.throttledTokensFetch();
+
+        // If syncing, only retrieve balances once every
+        // few seconds
+        if (syncing) {
+          this.shortThrottledFetch.cancel();
+          return this.longThrottledFetch();
+        }
+
+        this.longThrottledFetch.cancel();
+        return this.shortThrottledFetch();
       })
       .catch((error) => {
         console.warn('_subscribeBlockNumber', error);
       });
   }
 
-  _retrieveTokens () {
-    this._api.parity
-      .registryAddress()
-      .then((registryAddress) => {
-        const registry = this._api.newContract(abis.registry, registryAddress);
+  fetchBalances () {
+    this._store.dispatch(fetchBalances());
+  }
 
-        return registry.instance.getAddress.call({}, [this._api.util.sha3('tokenreg'), 'A']);
-      })
-      .then((tokenregAddress) => {
-        const tokenreg = this._api.newContract(abis.tokenreg, tokenregAddress);
+  fetchTokens () {
+    this._store.dispatch(fetchTokensBalances());
+  }
 
-        return tokenreg.instance.tokenCount
-          .call()
-          .then((numTokens) => {
-            const promisesTokens = [];
-            const promisesImages = [];
+  getTokenRegistry () {
+    return Contracts.get().tokenReg.getContract();
+  }
 
-            while (promisesTokens.length < numTokens.toNumber()) {
-              const index = promisesTokens.length;
+  loadTokens () {
+    this
+      .getTokenRegistry()
+      .then((tokenreg) => {
+        this._store.dispatch(setTokenReg(tokenreg));
+        this._store.dispatch(loadTokens());
 
-              promisesTokens.push(tokenreg.instance.token.call({}, [index]));
-              promisesImages.push(tokenreg.instance.meta.call({}, [index, 'IMG']));
-            }
-
-            return Promise.all([
-              Promise.all(promisesTokens),
-              Promise.all(promisesImages)
-            ]);
-          });
-      })
-      .then(([_tokens, images]) => {
-        const tokens = {};
-        this._tokens = _tokens
-          .map((_token, index) => {
-            const [address, tag, format, name] = _token;
-
-            const token = {
-              address,
-              name,
-              tag,
-              format: format.toString(),
-              contract: this._api.newContract(abis.eip20, address)
-            };
-            tokens[address] = token;
-            this._store.dispatch(setAddressImage(address, images[index]));
-
-            return token;
-          })
-          .sort((a, b) => {
-            if (a.tag < b.tag) {
-              return -1;
-            } else if (a.tag > b.tag) {
-              return 1;
-            }
-
-            return 0;
-          });
-
-        this._store.dispatch(getTokens(tokens));
-        this._retrieveBalances();
+        return this.attachToTokens(tokenreg);
       })
       .catch((error) => {
-        console.warn('_retrieveTokens', error);
-        this._retrieveBalances();
+        console.warn('balances::loadTokens', error);
       });
   }
 
-  _retrieveBalances () {
-    if (!this._accountsInfo) {
-      return;
+  attachToTokens (tokenreg) {
+    return Promise
+      .all([
+        this.attachToTokenMetaChange(tokenreg),
+        this.attachToNewToken(tokenreg)
+      ]);
+  }
+
+  attachToNewToken (tokenreg) {
+    if (this._tokenregSubId) {
+      return Promise.resolve();
     }
 
-    const addresses = Object.keys(this._accountsInfo);
-    this._balances = {};
+    return tokenreg.instance.Registered
+      .subscribe({
+        fromBlock: 0,
+        toBlock: 'latest',
+        skipInitFetch: true
+      }, (error, logs) => {
+        if (error) {
+          return console.error('balances::attachToNewToken', 'failed to attach to tokenreg Registered', error.toString(), error.stack);
+        }
 
-    Promise
-      .all(
-        addresses.map((address) => Promise.all([
-          this._api.eth.getBalance(address),
-          this._api.eth.getTransactionCount(address)
-        ]))
-      )
-      .then((balanceTxCount) => {
-        return Promise.all(
-          balanceTxCount.map(([value, txCount], idx) => {
-            const address = addresses[idx];
-
-            this._balances[address] = {
-              txCount,
-              tokens: [{
-                token: ETH,
-                value
-              }]
-            };
-
-            return Promise.all(
-              this._tokens.map((token) => {
-                return token.contract.instance.balanceOf.call({}, [address]);
-              })
-            );
-          })
-        );
+        this.handleTokensLogs(logs);
       })
-      .then((tokenBalances) => {
-        addresses.forEach((address, idx) => {
-          const balanceOf = tokenBalances[idx];
-          const balance = this._balances[address];
-
-          this._tokens.forEach((token, tidx) => {
-            balance.tokens.push({
-              token,
-              value: balanceOf[tidx]
-            });
-          });
-        });
-
-        this._store.dispatch(getBalances(this._balances));
-      })
-      .catch((error) => {
-        console.warn('_retrieveBalances', error);
+      .then((tokenregSubId) => {
+        this._tokenregSubId = tokenregSubId;
       });
+  }
+
+  attachToTokenMetaChange (tokenreg) {
+    if (this._tokenregMetaSubId) {
+      return Promise.resolve();
+    }
+
+    return tokenreg.instance.MetaChanged
+      .subscribe({
+        fromBlock: 0,
+        toBlock: 'latest',
+        topics: [ null, padRight(this._api.util.asciiToHex('IMG'), 32) ],
+        skipInitFetch: true
+      }, (error, logs) => {
+        if (error) {
+          return console.error('balances::attachToTokenMetaChange', 'failed to attach to tokenreg MetaChanged', error.toString(), error.stack);
+        }
+
+        this.handleTokensLogs(logs);
+      })
+      .then((tokenregMetaSubId) => {
+        this._tokenregMetaSubId = tokenregMetaSubId;
+      });
+  }
+
+  handleTokensLogs (logs) {
+    const tokenIds = logs.map((log) => log.params.id.value.toNumber());
+    this._store.dispatch(fetchTokens(tokenIds));
   }
 }

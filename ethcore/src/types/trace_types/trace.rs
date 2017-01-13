@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -27,7 +27,8 @@ use types::executed::CallType;
 use super::error::Error;
 
 /// `Call` result.
-#[derive(Debug, Clone, PartialEq, Default, Binary)]
+#[derive(Debug, Clone, PartialEq, Default)]
+#[cfg_attr(feature = "ipc", binary)]
 pub struct CallResult {
 	/// Gas used by call.
 	pub gas_used: U256,
@@ -47,8 +48,8 @@ impl Decodable for CallResult {
 	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
 		let d = decoder.as_rlp();
 		let res = CallResult {
-			gas_used: try!(d.val_at(0)),
-			output: try!(d.val_at(1)),
+			gas_used: d.val_at(0)?,
+			output: d.val_at(1)?,
 		};
 
 		Ok(res)
@@ -56,7 +57,8 @@ impl Decodable for CallResult {
 }
 
 /// `Create` result.
-#[derive(Debug, Clone, PartialEq, Binary)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "ipc", binary)]
 pub struct CreateResult {
 	/// Gas used by create.
 	pub gas_used: U256,
@@ -79,9 +81,9 @@ impl Decodable for CreateResult {
 	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
 		let d = decoder.as_rlp();
 		let res = CreateResult {
-			gas_used: try!(d.val_at(0)),
-			code: try!(d.val_at(1)),
-			address: try!(d.val_at(2)),
+			gas_used: d.val_at(0)?,
+			code: d.val_at(1)?,
+			address: d.val_at(2)?,
 		};
 
 		Ok(res)
@@ -96,7 +98,8 @@ impl CreateResult {
 }
 
 /// Description of a _call_ action, either a `CALL` operation or a message transction.
-#[derive(Debug, Clone, PartialEq, Binary)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "ipc", binary)]
 pub struct Call {
 	/// The sending account.
 	pub from: Address,
@@ -141,12 +144,12 @@ impl Decodable for Call {
 	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
 		let d = decoder.as_rlp();
 		let res = Call {
-			from: try!(d.val_at(0)),
-			to: try!(d.val_at(1)),
-			value: try!(d.val_at(2)),
-			gas: try!(d.val_at(3)),
-			input: try!(d.val_at(4)),
-			call_type: try!(d.val_at(5)),
+			from: d.val_at(0)?,
+			to: d.val_at(1)?,
+			value: d.val_at(2)?,
+			gas: d.val_at(3)?,
+			input: d.val_at(4)?,
+			call_type: d.val_at(5)?,
 		};
 
 		Ok(res)
@@ -163,7 +166,8 @@ impl Call {
 }
 
 /// Description of a _create_ action, either a `CREATE` operation or a create transction.
-#[derive(Debug, Clone, PartialEq, Binary)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "ipc", binary)]
 pub struct Create {
 	/// The address of the creator.
 	pub from: Address,
@@ -200,10 +204,10 @@ impl Decodable for Create {
 	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
 		let d = decoder.as_rlp();
 		let res = Create {
-			from: try!(d.val_at(0)),
-			value: try!(d.val_at(1)),
-			gas: try!(d.val_at(2)),
-			init: try!(d.val_at(3)),
+			from: d.val_at(0)?,
+			value: d.val_at(1)?,
+			gas: d.val_at(2)?,
+			init: d.val_at(3)?,
 		};
 
 		Ok(res)
@@ -219,7 +223,8 @@ impl Create {
 }
 
 /// Suicide action.
-#[derive(Debug, Clone, PartialEq, Binary)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "ipc", binary)]
 pub struct Suicide {
 	/// Suicided address.
 	pub address: Address,
@@ -250,9 +255,9 @@ impl Decodable for Suicide {
 	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
 		let d = decoder.as_rlp();
 		let res = Suicide {
-			address: try!(d.val_at(0)),
-			refund_address: try!(d.val_at(1)),
-			balance: try!(d.val_at(2)),
+			address: d.val_at(0)?,
+			refund_address: d.val_at(1)?,
+			balance: d.val_at(2)?,
 		};
 
 		Ok(res)
@@ -261,7 +266,8 @@ impl Decodable for Suicide {
 
 
 /// Description of an action that we trace; will be either a call or a create.
-#[derive(Debug, Clone, PartialEq, Binary)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "ipc", binary)]
 pub enum Action {
 	/// It's a call action.
 	Call(Call),
@@ -294,7 +300,7 @@ impl Encodable for Action {
 impl Decodable for Action {
 	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
 		let d = decoder.as_rlp();
-		let action_type: u8 = try!(d.val_at(0));
+		let action_type: u8 = d.val_at(0)?;
 		match action_type {
 			0 => d.val_at(1).map(Action::Call),
 			1 => d.val_at(1).map(Action::Create),
@@ -316,7 +322,8 @@ impl Action {
 }
 
 /// The result of the performed action.
-#[derive(Debug, Clone, PartialEq, Binary)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "ipc", binary)]
 pub enum Res {
 	/// Successful call action result.
 	Call(CallResult),
@@ -364,7 +371,7 @@ impl Encodable for Res {
 impl Decodable for Res {
 	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
 		let d = decoder.as_rlp();
-		let action_type: u8 = try!(d.val_at(0));
+		let action_type: u8 = d.val_at(0)?;
 		match action_type {
 			0 => d.val_at(1).map(Res::Call),
 			1 => d.val_at(1).map(Res::Create),
@@ -384,9 +391,18 @@ impl Res {
 			Res::Call(_) | Res::FailedCall(_) | Res::FailedCreate(_) | Res::None => Default::default(),
 		}
 	}
+
+	/// Did this call fail?
+	pub fn succeeded(&self) -> bool {
+		match *self {
+			Res::Call(_) | Res::Create(_) => true,
+			_ => false,
+		}
+	}
 }
 
-#[derive(Debug, Clone, PartialEq, Binary)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "ipc", binary)]
 /// A diff of some chunk of memory.
 pub struct MemoryDiff {
 	/// Offset into memory the change begins.
@@ -407,13 +423,14 @@ impl Decodable for MemoryDiff {
 	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
 		let d = decoder.as_rlp();
 		Ok(MemoryDiff {
-			offset: try!(d.val_at(0)),
-			data: try!(d.val_at(1)),
+			offset: d.val_at(0)?,
+			data: d.val_at(1)?,
 		})
 	}
 }
 
-#[derive(Debug, Clone, PartialEq, Binary)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "ipc", binary)]
 /// A diff of some storage value.
 pub struct StorageDiff {
 	/// Which key in storage is changed.
@@ -434,13 +451,14 @@ impl Decodable for StorageDiff {
 	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
 		let d = decoder.as_rlp();
 		Ok(StorageDiff {
-			location: try!(d.val_at(0)),
-			value: try!(d.val_at(1)),
+			location: d.val_at(0)?,
+			value: d.val_at(1)?,
 		})
 	}
 }
 
-#[derive(Debug, Clone, PartialEq, Binary)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "ipc", binary)]
 /// A record of an executed VM operation.
 pub struct VMExecutedOperation {
 	/// The total gas used.
@@ -467,15 +485,16 @@ impl Decodable for VMExecutedOperation {
 	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
 		let d = decoder.as_rlp();
 		Ok(VMExecutedOperation {
-			gas_used: try!(d.val_at(0)),
-			stack_push: try!(d.val_at(1)),
-			mem_diff: try!(d.val_at(2)),
-			store_diff: try!(d.val_at(3)),
+			gas_used: d.val_at(0)?,
+			stack_push: d.val_at(1)?,
+			mem_diff: d.val_at(2)?,
+			store_diff: d.val_at(3)?,
 		})
 	}
 }
 
-#[derive(Debug, Clone, PartialEq, Binary, Default)]
+#[derive(Debug, Clone, PartialEq, Default)]
+#[cfg_attr(feature = "ipc", binary)]
 /// A record of the execution of a single VM operation.
 pub struct VMOperation {
 	/// The program counter.
@@ -502,17 +521,18 @@ impl Decodable for VMOperation {
 	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
 		let d = decoder.as_rlp();
 		let res = VMOperation {
-			pc: try!(d.val_at(0)),
-			instruction: try!(d.val_at(1)),
-			gas_cost: try!(d.val_at(2)),
-			executed: try!(d.val_at(3)),
+			pc: d.val_at(0)?,
+			instruction: d.val_at(1)?,
+			gas_cost: d.val_at(2)?,
+			executed: d.val_at(3)?,
 		};
 
 		Ok(res)
 	}
 }
 
-#[derive(Debug, Clone, PartialEq, Binary, Default)]
+#[derive(Debug, Clone, PartialEq, Default)]
+#[cfg_attr(feature = "ipc", binary)]
 /// A record of a full VM trace for a CALL/CREATE.
 pub struct VMTrace {
 	/// The step (i.e. index into operations) at which this trace corresponds.
@@ -540,13 +560,12 @@ impl Decodable for VMTrace {
 	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
 		let d = decoder.as_rlp();
 		let res = VMTrace {
-			parent_step: try!(d.val_at(0)),
-			code: try!(d.val_at(1)),
-			operations: try!(d.val_at(2)),
-			subs: try!(d.val_at(3)),
+			parent_step: d.val_at(0)?,
+			code: d.val_at(1)?,
+			operations: d.val_at(2)?,
+			subs: d.val_at(3)?,
 		};
 
 		Ok(res)
 	}
 }
-

@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -19,46 +19,68 @@ import * as abis from './abi';
 export default class Registry {
   constructor (api) {
     this._api = api;
-    this._contracts = [];
+
+    this._contracts = {};
+    this._pendingContracts = {};
+
     this._instance = null;
+    this._fetching = false;
+    this._queue = [];
 
     this.getInstance();
   }
 
   getInstance () {
-    return new Promise((resolve, reject) => {
-      if (this._instance) {
-        resolve(this._instance);
-        return;
-      }
+    if (this._instance) {
+      return Promise.resolve(this._instance);
+    }
 
-      this._api.parity
-        .registryAddress()
-        .then((address) => {
-          this._instance = this._api.newContract(abis.registry, address).instance;
-          resolve(this._instance);
-        })
-        .catch(reject);
-    });
+    if (this._fetching) {
+      return new Promise((resolve) => {
+        this._queue.push({ resolve });
+      });
+    }
+
+    this._fetching = true;
+
+    return this._api.parity
+      .registryAddress()
+      .then((address) => {
+        this._fetching = false;
+        this._instance = this._api.newContract(abis.registry, address).instance;
+
+        this._queue.forEach((queued) => {
+          queued.resolve(this._instance);
+        });
+
+        this._queue = [];
+
+        return this._instance;
+      });
   }
 
   getContract (_name) {
     const name = _name.toLowerCase();
 
-    return new Promise((resolve, reject) => {
-      if (this._contracts[name]) {
-        resolve(this._contracts[name]);
-        return;
-      }
+    if (this._contracts[name]) {
+      return Promise.resolve(this._contracts[name]);
+    }
 
-      this
-        .lookupAddress(name)
-        .then((address) => {
-          this._contracts[name] = this._api.newContract(abis[name], address);
-          resolve(this._contracts[name]);
-        })
-        .catch(reject);
-    });
+    if (this._pendingContracts[name]) {
+      return this._pendingContracts[name];
+    }
+
+    const promise = this
+      .lookupAddress(name)
+      .then((address) => {
+        this._contracts[name] = this._api.newContract(abis[name], address);
+        delete this._pendingContracts[name];
+        return this._contracts[name];
+      });
+
+    this._pendingContracts[name] = promise;
+
+    return promise;
   }
 
   getContractInstance (_name) {
@@ -69,13 +91,13 @@ export default class Registry {
 
   lookupAddress (_name) {
     const name = _name.toLowerCase();
-    const sha3 = this._api.util.sha3(name);
+    const sha3 = this._api.util.sha3.text(name);
 
     return this.getInstance().then((instance) => {
       return instance.getAddress.call({}, [sha3, 'A']);
     })
     .then((address) => {
-      console.log('lookupAddress', name, sha3, address);
+      console.log('[lookupAddress]', `(${sha3}) ${name}: ${address}`);
       return address;
     });
   }

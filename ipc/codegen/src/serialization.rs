@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -263,7 +263,7 @@ fn binary_expr_struct(
 		let range_ident = builder.id(format!("r{}", index));
 
 		let error_message = "Error serializing member: ".to_owned() + &::syntax::print::pprust::expr_to_string(&member_expr);
-		let error_message_literal = builder.expr().lit().str::<&str>(&error_message);
+		let _error_message_literal = builder.expr().lit().str::<&str>(&error_message);
 
 		match raw_ident.as_ref() {
 			"u8" => {
@@ -286,7 +286,6 @@ fn binary_expr_struct(
 				post_write_stmts.push(quote_stmt!(cx,
 						if $range_ident.end - $range_ident.start > 0 {
 							if let Err(e) = $member_expr .to_bytes(&mut buffer[$range_ident], length_stack) {
-								warn!(target: "ipc", $error_message_literal);
 								return Err(e)
 							};
 						}
@@ -389,8 +388,7 @@ fn binary_expr_enum(
 	span: Span,
 	enum_def: &ast::EnumDef,
 ) -> Result<BinaryExpressions, Error> {
-	let arms: Vec<_> = try!(
-		enum_def.variants.iter()
+	let arms: Vec<_> = try!(enum_def.variants.iter()
 			.enumerate()
 			.map(|(variant_index, variant)| {
 				binary_expr_variant(
@@ -404,8 +402,7 @@ fn binary_expr_enum(
 					variant_index,
 				)
 			})
-			.collect()
-	);
+			.collect());
 
 	let (size_arms, write_arms, mut read_arms) = (
 		arms.iter().map(|x| x.size.clone()).collect::<Vec<ast::Arm>>(),

@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -24,12 +24,12 @@
 
 extern crate test;
 extern crate rlp;
-extern crate ethcore_bigint as bigint;
+extern crate ethcore_util as util;
 
 use test::Bencher;
 use std::str::FromStr;
 use rlp::*;
-use bigint::uint::U256;
+use util::U256;
 
 #[bench]
 fn bench_stream_u64_value(b: &mut Bencher) {

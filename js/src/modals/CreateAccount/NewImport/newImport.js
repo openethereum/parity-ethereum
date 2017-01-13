@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -19,18 +19,14 @@ import ReactDOM from 'react-dom';
 import { FloatingActionButton } from 'material-ui';
 import EditorAttachFile from 'material-ui/svg-icons/editor/attach-file';
 
-import { Form, Input } from '../../../ui';
+import { Form, Input } from '~/ui';
+
+import ERRORS from '../errors';
 
 import styles from '../createAccount.css';
 
 const FAKEPATH = 'C:\\fakepath\\';
 const STYLE_HIDDEN = { display: 'none' };
-
-const ERRORS = {
-  noName: 'you need to specify a valid name for the account',
-  noPassword: 'supply a valid password to confirm the transaction',
-  noFile: 'select a valid wallet file to import'
-};
 
 export default class NewImport extends Component {
   static propTypes = {
@@ -40,15 +36,15 @@ export default class NewImport extends Component {
   state = {
     accountName: '',
     accountNameError: ERRORS.noName,
-    passwordHint: '',
+    isValidFile: false,
+    isValidPass: true,
+    isValidName: false,
     password: '',
-    passwordError: ERRORS.noPassword,
+    passwordError: null,
+    passwordHint: '',
     walletFile: '',
     walletFileError: ERRORS.noFile,
-    walletJson: '',
-    isValidPass: false,
-    isValidName: false,
-    isValidFile: false
+    walletJson: ''
   }
 
   componentWillMount () {
@@ -143,39 +139,34 @@ export default class NewImport extends Component {
     });
   }
 
-  onEditPasswordHint = (event, value) => {
+  onEditPasswordHint = (event, passwordHint) => {
     this.setState({
-      passwordHint: value
+      passwordHint
     });
   }
 
   onEditAccountName = (event) => {
-    const value = event.target.value;
-    let error = null;
+    const accountName = event.target.value;
+    let accountNameError = null;
 
-    if (!value || value.trim().length < 2) {
-      error = ERRORS.noName;
+    if (!accountName || !accountName.trim().length) {
+      accountNameError = ERRORS.noName;
     }
 
     this.setState({
-      accountName: value,
-      accountNameError: error,
-      isValidName: !error
+      accountName,
+      accountNameError,
+      isValidName: !accountNameError
     }, this.updateParent);
   }
 
   onEditPassword = (event) => {
-    let error = null;
-    const value = event.target.value;
-
-    if (!value || !value.length) {
-      error = ERRORS.noPassword;
-    }
+    const password = event.target.value;
 
     this.setState({
-      password: value,
-      passwordError: error,
-      isValidPass: !error
+      password,
+      passwordError: null,
+      isValidPass: true
     }, this.updateParent);
   }
 }

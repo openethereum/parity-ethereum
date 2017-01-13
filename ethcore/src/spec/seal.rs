@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -17,7 +17,7 @@
 //! Spec seal.
 
 use rlp::*;
-use util::hash::{H64, H256};
+use util::hash::{H64, H256, H520};
 use ethjson;
 
 /// Classic ethereum seal.
@@ -30,29 +30,57 @@ pub struct Ethereum {
 
 impl Into<Generic> for Ethereum {
 	fn into(self) -> Generic {
-		let mut s = RlpStream::new();
-		s.append(&self.mix_hash);
-		s.append(&self.nonce);
-		Generic {
-			fields: 2,
-			rlp: s.out()
-		}
+		let mut s = RlpStream::new_list(2);
+		s.append(&self.mix_hash).append(&self.nonce);
+		Generic(s.out())
 	}
 }
 
-/// Generic seal.
-pub struct Generic {
-	/// Number of seal fields.
-	pub fields: usize,
-	/// Seal rlp.
-	pub rlp: Vec<u8>,
+/// AuthorityRound seal.
+pub struct AuthorityRound {
+	/// Seal step.
+	pub step: usize,
+	/// Seal signature.
+	pub signature: H520,
 }
+
+/// Tendermint seal.
+pub struct Tendermint {
+	/// Seal round.
+	pub round: usize,
+	/// Proposal seal signature.
+	pub proposal: H520,
+	/// Precommit seal signatures.
+	pub precommits: Vec<H520>,
+}
+
+impl Into<Generic> for AuthorityRound {
+	fn into(self) -> Generic {
+		let mut s = RlpStream::new_list(2);
+		s.append(&self.step).append(&self.signature);
+		Generic(s.out())
+	}
+}
+
+impl Into<Generic> for Tendermint {
+	fn into(self) -> Generic {
+		let mut s = RlpStream::new_list(3);
+		s.append(&self.round).append(&self.proposal).append(&self.precommits);
+		Generic(s.out())
+	}
+}
+
+pub struct Generic(pub Vec<u8>);
 
 /// Genesis seal type.
 pub enum Seal {
 	/// Classic ethereum seal.
 	Ethereum(Ethereum),
-	/// Generic seal.
+	/// AuthorityRound seal.
+	AuthorityRound(AuthorityRound),
+	/// Tendermint seal.
+	Tendermint(Tendermint),
+	/// Generic RLP seal.
 	Generic(Generic),
 }
 
@@ -63,10 +91,16 @@ impl From<ethjson::spec::Seal> for Seal {
 				nonce: eth.nonce.into(),
 				mix_hash: eth.mix_hash.into()
 			}),
-			ethjson::spec::Seal::Generic(g) => Seal::Generic(Generic {
-				fields: g.fields,
-				rlp: g.rlp.into()
-			})
+			ethjson::spec::Seal::AuthorityRound(ar) => Seal::AuthorityRound(AuthorityRound {
+				step: ar.step.into(),
+				signature: ar.signature.into()
+			}),
+			ethjson::spec::Seal::Tendermint(tender) => Seal::Tendermint(Tendermint {
+				round: tender.round.into(),
+				proposal: tender.proposal.into(),
+				precommits: tender.precommits.into_iter().map(Into::into).collect()
+			}),
+			ethjson::spec::Seal::Generic(g) => Seal::Generic(Generic(g.into())),
 		}
 	}
 }
@@ -75,7 +109,9 @@ impl Into<Generic> for Seal {
 	fn into(self) -> Generic {
 		match self {
 			Seal::Generic(generic) => generic,
-			Seal::Ethereum(eth) => eth.into()
+			Seal::Ethereum(eth) => eth.into(),
+			Seal::AuthorityRound(ar) => ar.into(),
+			Seal::Tendermint(tender) => tender.into(),
 		}
 	}
 }

@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -16,17 +16,19 @@
 
 import React, { Component, PropTypes } from 'react';
 
+import { nodeOrStringProptype } from '~/util/proptypes';
+
 import styles from './busy.css';
 
 export default class Busy extends Component {
   static propTypes = {
-    title: PropTypes.string,
-    state: PropTypes.string,
-    children: PropTypes.node
+    children: PropTypes.node,
+    state: nodeOrStringProptype(),
+    title: nodeOrStringProptype()
   }
 
   render () {
-    const { children, title, state } = this.props;
+    const { children, state, title } = this.props;
 
     return (
       <div className={ styles.center }>

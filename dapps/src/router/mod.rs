@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -21,15 +21,16 @@ pub mod auth;
 mod host_validation;
 
 use address;
+use std::cmp;
 use std::sync::Arc;
 use std::collections::HashMap;
 use url::{Url, Host};
-use hyper::{self, server, Next, Encoder, Decoder, Control, StatusCode};
+use hyper::{self, server, header, Next, Encoder, Decoder, Control, StatusCode};
 use hyper::net::HttpStream;
 use apps::{self, DAPPS_DOMAIN};
-use apps::fetcher::ContentFetcher;
+use apps::fetcher::Fetcher;
 use endpoint::{Endpoint, Endpoints, EndpointPath};
-use handlers::{Redirection, extract_url, ContentHandler};
+use handlers::{self, Redirection, ContentHandler};
 use self::auth::{Authorization, Authorized};
 
 /// Special endpoints are accessible on every domain (every dapp)
@@ -45,7 +46,7 @@ pub struct Router<A: Authorization + 'static> {
 	control: Option<Control>,
 	signer_address: Option<(String, u16)>,
 	endpoints: Arc<Endpoints>,
-	fetch: Arc<ContentFetcher>,
+	fetch: Arc<Fetcher>,
 	special: Arc<HashMap<SpecialEndpoint, Box<Endpoint>>>,
 	authorization: Arc<A>,
 	allowed_hosts: Option<Vec<String>>,
@@ -57,9 +58,11 @@ impl<A: Authorization + 'static> server::Handler<HttpStream> for Router<A> {
 	fn on_request(&mut self, req: server::Request<HttpStream>) -> Next {
 
 		// Choose proper handler depending on path / domain
-		let url = extract_url(&req);
+		let url = handlers::extract_url(&req);
 		let endpoint = extract_endpoint(&url);
+		let referer = extract_referer_endpoint(&req);
 		let is_utils = endpoint.1 == SpecialEndpoint::Utils;
+		let is_get_request = *req.method() == hyper::Method::Get;
 
 		trace!(target: "dapps", "Routing request to {:?}. Details: {:?}", url, req);
 
@@ -83,25 +86,42 @@ impl<A: Authorization + 'static> server::Handler<HttpStream> for Router<A> {
 			return self.handler.on_request(req);
 		}
 
+
 		let control = self.control.take().expect("on_request is called only once; control is always defined at start; qed");
 		debug!(target: "dapps", "Handling endpoint request: {:?}", endpoint);
-		self.handler = match endpoint {
+		self.handler = match (endpoint.0, endpoint.1, referer) {
+			// Handle invalid web requests that we can recover from
+			(ref path, SpecialEndpoint::None, Some((ref referer, ref referer_url)))
+				if is_get_request
+					&& referer.app_id == apps::WEB_PATH
+					&& self.endpoints.contains_key(apps::WEB_PATH)
+					&& !is_web_endpoint(path)
+				=>
+			{
+				trace!(target: "dapps", "Redirecting to correct web request: {:?}", referer_url);
+				// TODO [ToDr] Some nice util for this!
+				let using_domain = if referer.using_dapps_domains { 0 } else { 1 };
+				let len = cmp::min(referer_url.path.len(), using_domain + 3); // token + protocol + hostname
+				let base = referer_url.path[..len].join("/");
+				let requested = url.map(|u| u.path.join("/")).unwrap_or_default();
+				Redirection::boxed(&format!("/{}/{}", base, requested))
+			},
 			// First check special endpoints
-			(ref path, ref endpoint) if self.special.contains_key(endpoint) => {
+			(ref path, ref endpoint, _) if self.special.contains_key(endpoint) => {
 				trace!(target: "dapps", "Resolving to special endpoint.");
 				self.special.get(endpoint)
 					.expect("special known to contain key; qed")
 					.to_async_handler(path.clone().unwrap_or_default(), control)
 			},
 			// Then delegate to dapp
-			(Some(ref path), _) if self.endpoints.contains_key(&path.app_id) => {
+			(Some(ref path), _, _) if self.endpoints.contains_key(&path.app_id) => {
 				trace!(target: "dapps", "Resolving to local/builtin dapp.");
 				self.endpoints.get(&path.app_id)
-					.expect("special known to contain key; qed")
+					.expect("endpoints known to contain key; qed")
 					.to_async_handler(path.clone(), control)
 			},
 			// Try to resolve and fetch the dapp
-			(Some(ref path), _) if self.fetch.contains(&path.app_id) => {
+			(Some(ref path), _, _) if self.fetch.contains(&path.app_id) => {
 				trace!(target: "dapps", "Resolving to fetchable content.");
 				self.fetch.to_async_handler(path.clone(), control)
 			},
@@ -110,7 +130,7 @@ impl<A: Authorization + 'static> server::Handler<HttpStream> for Router<A> {
 			// It should be safe to remove it in (near) future.
 			//
 			// 404 for non-existent content
-			(Some(ref path), _) if *req.method() == hyper::Method::Get && path.app_id != "home" => {
+			(Some(ref path), _, _) if is_get_request && path.app_id != "home" => {
 				trace!(target: "dapps", "Resolving to 404.");
 				Box::new(ContentHandler::error(
 					StatusCode::NotFound,
@@ -121,7 +141,7 @@ impl<A: Authorization + 'static> server::Handler<HttpStream> for Router<A> {
 				))
 			},
 			// Redirect any other GET request to signer.
-			_ if *req.method() == hyper::Method::Get => {
+			_ if is_get_request => {
 				if let Some(signer_address) = self.signer_address.clone() {
 					trace!(target: "dapps", "Redirecting to signer interface.");
 					Redirection::boxed(&format!("http://{}", address(signer_address)))
@@ -169,7 +189,7 @@ impl<A: Authorization> Router<A> {
 	pub fn new(
 		control: Control,
 		signer_address: Option<(String, u16)>,
-		content_fetcher: Arc<ContentFetcher>,
+		content_fetcher: Arc<Fetcher>,
 		endpoints: Arc<Endpoints>,
 		special: Arc<HashMap<SpecialEndpoint, Box<Endpoint>>>,
 		authorization: Arc<A>,
@@ -190,6 +210,23 @@ impl<A: Authorization> Router<A> {
 			handler: handler,
 		}
 	}
+}
+
+fn is_web_endpoint(path: &Option<EndpointPath>) -> bool {
+	match *path {
+		Some(ref path) if path.app_id == apps::WEB_PATH => true,
+		_ => false,
+	}
+}
+
+fn extract_referer_endpoint(req: &server::Request<HttpStream>) -> Option<(EndpointPath, Url)> {
+	let referer = req.headers().get::<header::Referer>();
+
+	let url = referer.and_then(|referer| Url::parse(&referer.0).ok());
+	url.and_then(|url| {
+		let option = Some(url);
+		extract_endpoint(&option).0.map(|endpoint| (endpoint, option.expect("Just wrapped; qed")))
+	})
 }
 
 fn extract_endpoint(url: &Option<Url>) -> (Option<EndpointPath>, SpecialEndpoint) {

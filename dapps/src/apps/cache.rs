@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -17,14 +17,13 @@
 //! Fetchable Dapps support.
 
 use std::fs;
-use std::sync::{Arc};
 
 use linked_hash_map::LinkedHashMap;
 use page::LocalPageEndpoint;
 use handlers::FetchControl;
 
 pub enum ContentStatus {
-	Fetching(Arc<FetchControl>),
+	Fetching(FetchControl),
 	Ready(LocalPageEndpoint),
 }
 

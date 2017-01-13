@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -20,11 +20,11 @@ use std::time::Duration;
 use std::fs::File;
 use util::{clean_0x, U256, Uint, Address, path, CompactionProfile};
 use util::journaldb::Algorithm;
-use ethcore::client::{Mode, BlockID, VMType, DatabaseCompactionProfile, ClientConfig, VerifierType};
+use ethcore::client::{Mode, BlockId, VMType, DatabaseCompactionProfile, ClientConfig, VerifierType};
 use ethcore::miner::{PendingSet, GasLimit, PrioritizationStrategy};
 use cache::CacheConfig;
 use dir::DatabaseDirectories;
-use upgrade::upgrade;
+use upgrade::{upgrade, upgrade_data_paths};
 use migration::migrate;
 use ethsync::is_valid_node_url;
 
@@ -62,13 +62,13 @@ pub fn to_mode(s: &str, timeout: u64, alarm: u64) -> Result<Mode, String> {
 	}
 }
 
-pub fn to_block_id(s: &str) -> Result<BlockID, String> {
+pub fn to_block_id(s: &str) -> Result<BlockId, String> {
 	if s == "latest" {
-		Ok(BlockID::Latest)
+		Ok(BlockId::Latest)
 	} else if let Ok(num) = s.parse() {
-		Ok(BlockID::Number(num))
+		Ok(BlockId::Number(num))
 	} else if let Ok(hash) = s.parse() {
-		Ok(BlockID::Hash(hash))
+		Ok(BlockId::Hash(hash))
 	} else {
 		Err("Invalid block.".into())
 	}
@@ -97,7 +97,7 @@ pub fn to_gas_limit(s: &str) -> Result<GasLimit, String> {
 	match s {
 		"auto" => Ok(GasLimit::Auto),
 		"off" => Ok(GasLimit::None),
-		other => Ok(GasLimit::Fixed(try!(to_u256(other)))),
+		other => Ok(GasLimit::Fixed(to_u256(other)?)),
 	}
 }
 
@@ -132,10 +132,16 @@ pub fn to_price(s: &str) -> Result<f32, String> {
 }
 
 /// Replaces `$HOME` str with home directory path.
-pub fn replace_home(arg: &str) -> String {
+pub fn replace_home(base: &str, arg: &str) -> String {
 	// the $HOME directory on mac os should be `~/Library` or `~/Library/Application Support`
 	let r = arg.replace("$HOME", env::home_dir().unwrap().to_str().unwrap());
-	r.replace("/", &::std::path::MAIN_SEPARATOR.to_string()	)
+	let r = r.replace("$BASE", base);
+	r.replace("/", &::std::path::MAIN_SEPARATOR.to_string())
+}
+
+pub fn replace_home_for_db(base: &str, local: &str, arg: &str) -> String {
+	let r = replace_home(base, arg);
+	r.replace("$LOCAL", local)
 }
 
 /// Flush output buffer.
@@ -159,13 +165,13 @@ pub fn geth_ipc_path(testnet: bool) -> String {
 }
 
 /// Formats and returns parity ipc path.
-pub fn parity_ipc_path(s: &str) -> String {
+pub fn parity_ipc_path(base: &str, s: &str) -> String {
 	// Windows path should not be hardcoded here.
 	if cfg!(windows) {
 		return r"\\.\pipe\parity.jsonrpc".to_owned();
 	}
 
-	replace_home(s)
+	replace_home(base, s)
 }
 
 /// Validates and formats bootnodes option.
@@ -187,7 +193,7 @@ pub fn to_bootnodes(bootnodes: &Option<String>) -> Result<Vec<String>, String> {
 pub fn default_network_config() -> ::ethsync::NetworkConfiguration {
 	use ethsync::{NetworkConfiguration, AllowIP};
 	NetworkConfiguration {
-		config_path: Some(replace_home("$HOME/.parity/network")),
+		config_path: Some(replace_home(&::dir::default_data_path(), "$BASE/network")),
 		net_config_path: None,
 		listen_address: Some("0.0.0.0:30303".into()),
 		public_address: None,
@@ -256,10 +262,13 @@ pub fn to_client_config(
 }
 
 pub fn execute_upgrades(
+	base_path: &str,
 	dirs: &DatabaseDirectories,
 	pruning: Algorithm,
 	compaction_profile: CompactionProfile
 ) -> Result<(), String> {
+
+	upgrade_data_paths(base_path, dirs, pruning);
 
 	match upgrade(Some(&dirs.path)) {
 		Ok(upgrades_applied) if upgrades_applied > 0 => {
@@ -271,7 +280,7 @@ pub fn execute_upgrades(
 		_ => {},
 	}
 
-	let client_path = dirs.version_path(pruning);
+	let client_path = dirs.db_path(pruning);
 	migrate(&client_path, pruning, compaction_profile).map_err(|e| format!("{}", e))
 }
 
@@ -284,12 +293,12 @@ pub fn password_prompt() -> Result<String, String> {
 	print!("Type password: ");
 	flush_stdout();
 
-	let password = try!(read_password().map_err(|_| STDIN_ERROR.to_owned()));
+	let password = read_password().map_err(|_| STDIN_ERROR.to_owned())?;
 
 	print!("Repeat password: ");
 	flush_stdout();
 
-	let password_repeat = try!(read_password().map_err(|_| STDIN_ERROR.to_owned()));
+	let password_repeat = read_password().map_err(|_| STDIN_ERROR.to_owned())?;
 
 	if password != password_repeat {
 		return Err("Passwords do not match!".into());
@@ -300,16 +309,16 @@ pub fn password_prompt() -> Result<String, String> {
 
 /// Read a password from password file.
 pub fn password_from_file(path: String) -> Result<String, String> {
-	let passwords = try!(passwords_from_files(vec![path]));
+	let passwords = passwords_from_files(&[path])?;
 	// use only first password from the file
 	passwords.get(0).map(String::to_owned)
 		.ok_or_else(|| "Password file seems to be empty.".to_owned())
 }
 
 /// Reads passwords from files. Treats each line as a separate password.
-pub fn passwords_from_files(files: Vec<String>) -> Result<Vec<String>, String> {
+pub fn passwords_from_files(files: &[String]) -> Result<Vec<String>, String> {
 	let passwords = files.iter().map(|filename| {
-		let file = try!(File::open(filename).map_err(|_| format!("{} Unable to read password file. Ensure it exists and permissions are correct.", filename)));
+		let file = File::open(filename).map_err(|_| format!("{} Unable to read password file. Ensure it exists and permissions are correct.", filename))?;
 		let reader = BufReader::new(&file);
 		let lines = reader.lines()
 			.filter_map(|l| l.ok())
@@ -317,7 +326,7 @@ pub fn passwords_from_files(files: Vec<String>) -> Result<Vec<String>, String> {
 			.collect::<Vec<String>>();
 		Ok(lines)
 	}).collect::<Result<Vec<Vec<String>>, String>>();
-	Ok(try!(passwords).into_iter().flat_map(|x| x).collect())
+	Ok(passwords?.into_iter().flat_map(|x| x).collect())
 }
 
 #[cfg(test)]
@@ -327,7 +336,7 @@ mod tests {
 	use std::io::Write;
 	use devtools::RandomTempPath;
 	use util::{U256};
-	use ethcore::client::{Mode, BlockID};
+	use ethcore::client::{Mode, BlockId};
 	use ethcore::miner::PendingSet;
 	use super::{to_duration, to_mode, to_block_id, to_u256, to_pending_set, to_address, to_addresses, to_price, geth_ipc_path, to_bootnodes, password_from_file};
 
@@ -361,13 +370,13 @@ mod tests {
 
 	#[test]
 	fn test_to_block_id() {
-		assert_eq!(to_block_id("latest").unwrap(), BlockID::Latest);
-		assert_eq!(to_block_id("0").unwrap(), BlockID::Number(0));
-		assert_eq!(to_block_id("2").unwrap(), BlockID::Number(2));
-		assert_eq!(to_block_id("15").unwrap(), BlockID::Number(15));
+		assert_eq!(to_block_id("latest").unwrap(), BlockId::Latest);
+		assert_eq!(to_block_id("0").unwrap(), BlockId::Number(0));
+		assert_eq!(to_block_id("2").unwrap(), BlockId::Number(2));
+		assert_eq!(to_block_id("15").unwrap(), BlockId::Number(15));
 		assert_eq!(
 			to_block_id("9fc84d84f6a785dc1bd5abacfcf9cbdd3b6afb80c0f799bfb2fd42c44a0c224e").unwrap(),
-			BlockID::Hash("9fc84d84f6a785dc1bd5abacfcf9cbdd3b6afb80c0f799bfb2fd42c44a0c224e".parse().unwrap())
+			BlockId::Hash("9fc84d84f6a785dc1bd5abacfcf9cbdd3b6afb80c0f799bfb2fd42c44a0c224e".parse().unwrap())
 		);
 	}
 

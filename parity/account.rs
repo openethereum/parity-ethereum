@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -14,23 +14,32 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::path::PathBuf;
 use ethcore::ethstore::{EthStore, SecretStore, import_accounts, read_geth_accounts};
 use ethcore::ethstore::dir::DiskDirectory;
 use ethcore::account_provider::AccountProvider;
 use helpers::{password_prompt, password_from_file};
+use params::SpecType;
 
 #[derive(Debug, PartialEq)]
 pub enum AccountCmd {
 	New(NewAccount),
-	List(String),
+	List(ListAccounts),
 	Import(ImportAccounts),
 	ImportFromGeth(ImportFromGethAccounts)
+}
+
+#[derive(Debug, PartialEq)]
+pub struct ListAccounts {
+	pub path: String,
+	pub spec: SpecType,
 }
 
 #[derive(Debug, PartialEq)]
 pub struct NewAccount {
 	pub iterations: u32,
 	pub path: String,
+	pub spec: SpecType,
 	pub password_file: Option<String>,
 }
 
@@ -38,6 +47,7 @@ pub struct NewAccount {
 pub struct ImportAccounts {
 	pub from: Vec<String>,
 	pub to: String,
+	pub spec: SpecType,
 }
 
 /// Parameters for geth accounts' import 
@@ -47,18 +57,22 @@ pub struct ImportFromGethAccounts {
 	pub testnet: bool,
 	/// directory to import accounts to
 	pub to: String,
+	pub spec: SpecType,
 }
 
 pub fn execute(cmd: AccountCmd) -> Result<String, String> {
 	match cmd {
 		AccountCmd::New(new_cmd) => new(new_cmd),
-		AccountCmd::List(path) => list(path),
+		AccountCmd::List(list_cmd) => list(list_cmd),
 		AccountCmd::Import(import_cmd) => import(import_cmd),
 		AccountCmd::ImportFromGeth(import_geth_cmd) => import_geth(import_geth_cmd)
 	}
 }
 
-fn keys_dir(path: String) -> Result<DiskDirectory, String> {
+fn keys_dir(path: String, spec: SpecType) -> Result<DiskDirectory, String> {
+	let spec = spec.spec()?;
+	let mut path = PathBuf::from(&path);
+	path.push(spec.data_dir);
 	DiskDirectory::create(path).map_err(|e| format!("Could not open keys directory: {}", e))
 }
 
@@ -71,20 +85,20 @@ fn secret_store(dir: Box<DiskDirectory>, iterations: Option<u32>) -> Result<EthS
 
 fn new(n: NewAccount) -> Result<String, String> {
 	let password: String = match n.password_file {
-		Some(file) => try!(password_from_file(file)),
-		None => try!(password_prompt()),
+		Some(file) => password_from_file(file)?,
+		None => password_prompt()?,
 	};
 
-	let dir = Box::new(try!(keys_dir(n.path)));
-	let secret_store = Box::new(try!(secret_store(dir, Some(n.iterations))));
+	let dir = Box::new(keys_dir(n.path, n.spec)?);
+	let secret_store = Box::new(secret_store(dir, Some(n.iterations))?);
 	let acc_provider = AccountProvider::new(secret_store);
-	let new_account = try!(acc_provider.new_account(&password).map_err(|e| format!("Could not create new account: {}", e)));
+	let new_account = acc_provider.new_account(&password).map_err(|e| format!("Could not create new account: {}", e))?;
 	Ok(format!("{:?}", new_account))
 }
 
-fn list(path: String) -> Result<String, String> {
-	let dir = Box::new(try!(keys_dir(path)));
-	let secret_store = Box::new(try!(secret_store(dir, None)));
+fn list(list_cmd: ListAccounts) -> Result<String, String> {
+	let dir = Box::new(keys_dir(list_cmd.path, list_cmd.spec)?);
+	let secret_store = Box::new(secret_store(dir, None)?);
 	let acc_provider = AccountProvider::new(secret_store);
 	let accounts = acc_provider.accounts();
 	let result = accounts.into_iter()
@@ -96,21 +110,21 @@ fn list(path: String) -> Result<String, String> {
 }
 
 fn import(i: ImportAccounts) -> Result<String, String> {
-	let to = try!(keys_dir(i.to));
+	let to = keys_dir(i.to, i.spec)?;
 	let mut imported = 0;
 	for path in &i.from {
 		let from = DiskDirectory::at(path);
-		imported += try!(import_accounts(&from, &to).map_err(|_| "Importing accounts failed.")).len();
+		imported += import_accounts(&from, &to).map_err(|_| "Importing accounts failed.")?.len();
 	}
-	Ok(format!("{}", imported))
+	Ok(format!("{} account(s) imported", imported))
 }
 
 fn import_geth(i: ImportFromGethAccounts) -> Result<String, String> {
 	use std::io::ErrorKind;
 	use ethcore::ethstore::Error;
 
-	let dir = Box::new(try!(keys_dir(i.to)));
-	let secret_store = Box::new(try!(secret_store(dir, None)));
+	let dir = Box::new(keys_dir(i.to, i.spec)?);
+	let secret_store = Box::new(secret_store(dir, None)?);
 	let geth_accounts = read_geth_accounts(i.testnet);
 	match secret_store.import_geth_accounts(geth_accounts, i.testnet) {
 		Ok(v) => Ok(format!("Successfully imported {} account(s) from geth.", v.len())),

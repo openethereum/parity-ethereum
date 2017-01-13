@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -25,7 +25,7 @@ pub use ansi_term::{Colour, Style};
 use parking_lot::{RwLock, RwLockReadGuard};
 
 lazy_static! {
-	static ref LOG_DUMMY: bool = {
+	static ref LOG_DUMMY: () = {
 		let mut builder = LogBuilder::new();
 		builder.filter(None, LogLevelFilter::Info);
 
@@ -36,13 +36,12 @@ lazy_static! {
 		if builder.init().is_ok() {
 			println!("logger initialized");
 		}
-		true
 	};
 }
 
 /// Intialize log with default settings
 pub fn init_log() {
-	let _ = *LOG_DUMMY;
+	*LOG_DUMMY
 }
 
 const LOG_SIZE : usize = 128;

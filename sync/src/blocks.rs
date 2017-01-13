@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -17,7 +17,7 @@
 use util::*;
 use rlp::*;
 use network::NetworkError;
-use ethcore::header::{ Header as BlockHeader};
+use ethcore::header::Header as BlockHeader;
 
 known_heap_size!(0, HeaderId);
 
@@ -301,9 +301,14 @@ impl BlockCollection {
 		self.heads.len() == 0 || (self.heads.len() == 1 && self.head.map_or(false, |h| h == self.heads[0]))
 	}
 
-	/// Chech is collection contains a block header.
+	/// Check if collection contains a block header.
 	pub fn contains(&self, hash: &H256) -> bool {
 		self.blocks.contains_key(hash)
+	}
+
+	/// Check if collection contains a block header.
+	pub fn contains_head(&self, hash: &H256) -> bool {
+		self.heads.contains(hash)
 	}
 
 	/// Return used heap size.
@@ -324,9 +329,9 @@ impl BlockCollection {
 	fn insert_body(&mut self, b: Bytes) -> Result<(), NetworkError> {
 		let header_id = {
 			let body = UntrustedRlp::new(&b);
-			let tx = try!(body.at(0));
+			let tx = body.at(0)?;
 			let tx_root = ordered_trie_root(tx.iter().map(|r| r.as_raw().to_vec())); //TODO: get rid of vectors here
-			let uncles = try!(body.at(1)).as_raw().sha3();
+			let uncles = body.at(1)?.as_raw().sha3();
 			HeaderId {
 				transactions_root: tx_root,
 				uncles: uncles
@@ -385,7 +390,7 @@ impl BlockCollection {
 	}
 
 	fn insert_header(&mut self, header: Bytes) -> Result<H256, UtilError> {
-		let info: BlockHeader = try!(UntrustedRlp::new(&header).as_val());
+		let info: BlockHeader = UntrustedRlp::new(&header).as_val()?;
 		let hash = info.hash();
 		if self.blocks.contains_key(&hash) {
 			return Ok(hash);
@@ -470,7 +475,7 @@ impl BlockCollection {
 #[cfg(test)]
 mod test {
 	use super::BlockCollection;
-	use ethcore::client::{TestBlockChainClient, EachBlockWith, BlockID, BlockChainClient};
+	use ethcore::client::{TestBlockChainClient, EachBlockWith, BlockId, BlockChainClient};
 	use ethcore::views::HeaderView;
 	use ethcore::header::BlockNumber;
 	use util::*;
@@ -492,7 +497,7 @@ mod test {
 		assert!(is_empty(&bc));
 		let client = TestBlockChainClient::new();
 		client.add_blocks(100, EachBlockWith::Nothing);
-		let hashes = (0 .. 100).map(|i| (&client as &BlockChainClient).block_hash(BlockID::Number(i)).unwrap()).collect();
+		let hashes = (0 .. 100).map(|i| (&client as &BlockChainClient).block_hash(BlockId::Number(i)).unwrap()).collect();
 		bc.reset_to(hashes);
 		assert!(!is_empty(&bc));
 		bc.clear();
@@ -506,7 +511,9 @@ mod test {
 		let client = TestBlockChainClient::new();
 		let nblocks = 200;
 		client.add_blocks(nblocks, EachBlockWith::Nothing);
-		let blocks: Vec<_> = (0 .. nblocks).map(|i| (&client as &BlockChainClient).block(BlockID::Number(i as BlockNumber)).unwrap()).collect();
+		let blocks: Vec<_> = (0..nblocks)
+			.map(|i| (&client as &BlockChainClient).block(BlockId::Number(i as BlockNumber)).unwrap().into_inner())
+			.collect();
 		let headers: Vec<_> = blocks.iter().map(|b| Rlp::new(b).at(0).as_raw().to_vec()).collect();
 		let hashes: Vec<_> = headers.iter().map(|h| HeaderView::new(h).sha3()).collect();
 		let heads: Vec<_> = hashes.iter().enumerate().filter_map(|(i, h)| if i % 20 == 0 { Some(h.clone()) } else { None }).collect();
@@ -559,7 +566,9 @@ mod test {
 		let client = TestBlockChainClient::new();
 		let nblocks = 200;
 		client.add_blocks(nblocks, EachBlockWith::Nothing);
-		let blocks: Vec<_> = (0 .. nblocks).map(|i| (&client as &BlockChainClient).block(BlockID::Number(i as BlockNumber)).unwrap()).collect();
+		let blocks: Vec<_> = (0..nblocks)
+			.map(|i| (&client as &BlockChainClient).block(BlockId::Number(i as BlockNumber)).unwrap().into_inner())
+			.collect();
 		let headers: Vec<_> = blocks.iter().map(|b| Rlp::new(b).at(0).as_raw().to_vec()).collect();
 		let hashes: Vec<_> = headers.iter().map(|h| HeaderView::new(h).sha3()).collect();
 		let heads: Vec<_> = hashes.iter().enumerate().filter_map(|(i, h)| if i % 20 == 0 { Some(h.clone()) } else { None }).collect();
@@ -581,7 +590,9 @@ mod test {
 		let client = TestBlockChainClient::new();
 		let nblocks = 200;
 		client.add_blocks(nblocks, EachBlockWith::Nothing);
-		let blocks: Vec<_> = (0 .. nblocks).map(|i| (&client as &BlockChainClient).block(BlockID::Number(i as BlockNumber)).unwrap()).collect();
+		let blocks: Vec<_> = (0..nblocks)
+			.map(|i| (&client as &BlockChainClient).block(BlockId::Number(i as BlockNumber)).unwrap().into_inner())
+			.collect();
 		let headers: Vec<_> = blocks.iter().map(|b| Rlp::new(b).at(0).as_raw().to_vec()).collect();
 		let hashes: Vec<_> = headers.iter().map(|h| HeaderView::new(h).sha3()).collect();
 		let heads: Vec<_> = hashes.iter().enumerate().filter_map(|(i, h)| if i % 20 == 0 { Some(h.clone()) } else { None }).collect();

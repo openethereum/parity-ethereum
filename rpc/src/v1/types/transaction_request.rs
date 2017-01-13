@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -16,11 +16,15 @@
 
 //! `TransactionRequest` type
 
-use v1::types::{Bytes, H160, U256};
+use v1::types::{Bytes, H160, U256, BlockNumber};
 use v1::helpers;
+use util::log::Colour;
+
+use std::fmt;
 
 /// Transaction request coming from RPC
 #[derive(Debug, Clone, Default, Eq, PartialEq, Hash, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct TransactionRequest {
 	/// Sender
 	pub from: H160,
@@ -37,6 +41,46 @@ pub struct TransactionRequest {
 	pub data: Option<Bytes>,
 	/// Transaction's nonce
 	pub nonce: Option<U256>,
+	/// Delay until this block if specified.
+	#[serde(rename="minBlock")]
+	pub min_block: Option<BlockNumber>,
+}
+
+pub fn format_ether(i: U256) -> String {
+	let mut string = format!("{}", i);
+	let idx = string.len() as isize - 18;
+	if idx <= 0 {
+		let mut prefix = String::from("0.");
+		for _ in 0..idx.abs() {
+			prefix.push('0');
+		}
+		string = prefix + &string;
+	} else {
+		string.insert(idx as usize, '.');
+	}
+	String::from(string.trim_right_matches('0')
+		.trim_right_matches('.'))
+}
+
+impl fmt::Display for TransactionRequest {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		let eth = self.value.unwrap_or(U256::from(0));
+		match self.to {
+			Some(ref to) => write!(
+				f,
+				"{} ETH from {} to 0x{:?}",
+				Colour::White.bold().paint(format_ether(eth)),
+				Colour::White.bold().paint(format!("0x{:?}", self.from)),
+				to
+			),
+			None => write!(
+				f,
+				"{} ETH from {} for contract creation",
+				Colour::White.bold().paint(format_ether(eth)),
+				Colour::White.bold().paint(format!("0x{:?}", self.from)),
+			),
+		}
+	}
 }
 
 impl From<helpers::TransactionRequest> for TransactionRequest {
@@ -49,6 +93,7 @@ impl From<helpers::TransactionRequest> for TransactionRequest {
 			value: r.value.map(Into::into),
 			data: r.data.map(Into::into),
 			nonce: r.nonce.map(Into::into),
+			min_block: r.min_block.map(|b| BlockNumber::Num(b)),
 		}
 	}
 }
@@ -63,6 +108,7 @@ impl From<helpers::FilledTransactionRequest> for TransactionRequest {
 			value: Some(r.value.into()),
 			data: Some(r.data.into()),
 			nonce: r.nonce.map(Into::into),
+			min_block: r.min_block.map(|b| BlockNumber::Num(b)),
 		}
 	}
 }
@@ -77,6 +123,7 @@ impl Into<helpers::TransactionRequest> for TransactionRequest {
 			value: self.value.map(Into::into),
 			data: self.data.map(Into::into),
 			nonce: self.nonce.map(Into::into),
+			min_block: self.min_block.and_then(|b| b.to_min_block_num()),
 		}
 	}
 }
@@ -87,7 +134,7 @@ mod tests {
 	use std::str::FromStr;
 	use rustc_serialize::hex::FromHex;
 	use serde_json;
-	use v1::types::{U256, H160};
+	use v1::types::{U256, H160, BlockNumber};
 	use super::*;
 
 	#[test]
@@ -99,7 +146,8 @@ mod tests {
 			"gas":"0x2",
 			"value":"0x3",
 			"data":"0x123456",
-			"nonce":"0x4"
+			"nonce":"0x4",
+			"minBlock":"0x13"
 		}"#;
 		let deserialized: TransactionRequest = serde_json::from_str(s).unwrap();
 
@@ -111,6 +159,7 @@ mod tests {
 			value: Some(U256::from(3)),
 			data: Some(vec![0x12, 0x34, 0x56].into()),
 			nonce: Some(U256::from(4)),
+			min_block: Some(BlockNumber::Num(0x13)),
 		});
 	}
 
@@ -133,7 +182,8 @@ mod tests {
 			gas: Some(U256::from_str("76c0").unwrap()),
 			value: Some(U256::from_str("9184e72a").unwrap()),
 			data: Some("d46e8dd67c5d32be8d46e8dd67c5d32be8058bb8eb970870f072445675058bb8eb970870f072445675".from_hex().unwrap().into()),
-			nonce: None
+			nonce: None,
+			min_block: None,
 		});
 	}
 
@@ -150,6 +200,7 @@ mod tests {
 			value: None,
 			data: None,
 			nonce: None,
+			min_block: None,
 		});
 	}
 
@@ -173,6 +224,7 @@ mod tests {
 			value: None,
 			data: Some(vec![0x85, 0x95, 0xba, 0xb1].into()),
 			nonce: None,
+			min_block: None,
 		});
 	}
 
@@ -190,5 +242,15 @@ mod tests {
 
 		assert!(deserialized.is_err(), "Should be error because to is empty");
 	}
-}
 
+	#[test]
+	fn test_format_ether() {
+		assert_eq!(&format_ether(U256::from(1000000000000000000u64)), "1");
+		assert_eq!(&format_ether(U256::from(500000000000000000u64)), "0.5");
+		assert_eq!(&format_ether(U256::from(50000000000000000u64)), "0.05");
+		assert_eq!(&format_ether(U256::from(5000000000000000u64)), "0.005");
+		assert_eq!(&format_ether(U256::from(2000000000000000000u64)), "2");
+		assert_eq!(&format_ether(U256::from(2500000000000000000u64)), "2.5");
+		assert_eq!(&format_ether(U256::from(10000000000000000000u64)), "10");
+	}
+}

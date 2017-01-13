@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -159,57 +159,55 @@ impl<Gas: CostType> Gasometer<Gas> {
 				Request::Gas(gas)
 			},
 			instructions::MSTORE | instructions::MLOAD => {
-				Request::GasMem(default_gas, try!(mem_needed_const(stack.peek(0), 32)))
+				Request::GasMem(default_gas, mem_needed_const(stack.peek(0), 32)?)
 			},
 			instructions::MSTORE8 => {
-				Request::GasMem(default_gas, try!(mem_needed_const(stack.peek(0), 1)))
+				Request::GasMem(default_gas, mem_needed_const(stack.peek(0), 1)?)
 			},
 			instructions::RETURN => {
-				Request::GasMem(default_gas, try!(mem_needed(stack.peek(0), stack.peek(1))))
+				Request::GasMem(default_gas, mem_needed(stack.peek(0), stack.peek(1))?)
 			},
 			instructions::SHA3 => {
-				let w = overflowing!(add_gas_usize(try!(Gas::from_u256(*stack.peek(1))), 31));
+				let w = overflowing!(add_gas_usize(Gas::from_u256(*stack.peek(1))?, 31));
 				let words = w >> 5;
 				let gas = Gas::from(schedule.sha3_gas) + (Gas::from(schedule.sha3_word_gas) * words);
-				Request::GasMem(gas, try!(mem_needed(stack.peek(0), stack.peek(1))))
+				Request::GasMem(gas, mem_needed(stack.peek(0), stack.peek(1))?)
 			},
 			instructions::CALLDATACOPY | instructions::CODECOPY => {
-				Request::GasMemCopy(default_gas, try!(mem_needed(stack.peek(0), stack.peek(2))), try!(Gas::from_u256(*stack.peek(2))))
+				Request::GasMemCopy(default_gas, mem_needed(stack.peek(0), stack.peek(2))?, Gas::from_u256(*stack.peek(2))?)
 			},
 			instructions::EXTCODECOPY => {
-				Request::GasMemCopy(schedule.extcodecopy_base_gas.into(), try!(mem_needed(stack.peek(1), stack.peek(3))), try!(Gas::from_u256(*stack.peek(3))))
+				Request::GasMemCopy(schedule.extcodecopy_base_gas.into(), mem_needed(stack.peek(1), stack.peek(3))?, Gas::from_u256(*stack.peek(3))?)
 			},
 			instructions::LOG0...instructions::LOG4 => {
 				let no_of_topics = instructions::get_log_topics(instruction);
 				let log_gas = schedule.log_gas + schedule.log_topic_gas * no_of_topics;
 
-				let data_gas = overflowing!(try!(Gas::from_u256(*stack.peek(1))).overflow_mul(Gas::from(schedule.log_data_gas)));
+				let data_gas = overflowing!(Gas::from_u256(*stack.peek(1))?.overflow_mul(Gas::from(schedule.log_data_gas)));
 				let gas = overflowing!(data_gas.overflow_add(Gas::from(log_gas)));
-				Request::GasMem(gas, try!(mem_needed(stack.peek(0), stack.peek(1))))
+				Request::GasMem(gas, mem_needed(stack.peek(0), stack.peek(1))?)
 			},
 			instructions::CALL | instructions::CALLCODE => {
 				let mut gas = Gas::from(schedule.call_gas);
 				let mem = cmp::max(
-					try!(mem_needed(stack.peek(5), stack.peek(6))),
-					try!(mem_needed(stack.peek(3), stack.peek(4)))
+					mem_needed(stack.peek(5), stack.peek(6))?,
+					mem_needed(stack.peek(3), stack.peek(4))?
 				);
 
 				let address = u256_to_address(stack.peek(1));
 				let is_value_transfer = !stack.peek(2).is_zero();
 
-				if instruction == instructions::CALL {
-					if (
-						!schedule.no_empty && !ext.exists(&address)
-					) || (
-						schedule.no_empty && is_value_transfer && !ext.exists_and_not_null(&address)
-					) {
-						gas = overflowing!(gas.overflow_add(schedule.call_new_account_gas.into()));
-					}
-				};
+				if instruction == instructions::CALL && (
+					(!schedule.no_empty && !ext.exists(&address))
+					||
+					(schedule.no_empty && is_value_transfer && !ext.exists_and_not_null(&address))
+				) {
+					gas = overflowing!(gas.overflow_add(schedule.call_new_account_gas.into()));
+				}
 
 				if is_value_transfer {
 					gas = overflowing!(gas.overflow_add(schedule.call_value_transfer_gas.into()));
-				};
+				}
 
 				let requested = *stack.peek(0);
 
@@ -218,8 +216,8 @@ impl<Gas: CostType> Gasometer<Gas> {
 			instructions::DELEGATECALL => {
 				let gas = Gas::from(schedule.call_gas);
 				let mem = cmp::max(
-					try!(mem_needed(stack.peek(4), stack.peek(5))),
-					try!(mem_needed(stack.peek(2), stack.peek(3)))
+					mem_needed(stack.peek(4), stack.peek(5))?,
+					mem_needed(stack.peek(2), stack.peek(3))?
 				);
 				let requested = *stack.peek(0);
 
@@ -227,7 +225,7 @@ impl<Gas: CostType> Gasometer<Gas> {
 			},
 			instructions::CREATE => {
 				let gas = Gas::from(schedule.create_gas);
-				let mem = try!(mem_needed(stack.peek(1), stack.peek(2)));
+				let mem = mem_needed(stack.peek(1), stack.peek(2))?;
 
 				Request::GasMemProvide(gas, mem, None)
 			},
@@ -250,7 +248,7 @@ impl<Gas: CostType> Gasometer<Gas> {
 				}
 			},
 			Request::GasMem(gas, mem_size) => {
-				let (mem_gas_cost, new_mem_gas, new_mem_size) = try!(self.mem_gas_cost(schedule, current_mem_size, &mem_size));
+				let (mem_gas_cost, new_mem_gas, new_mem_size) = self.mem_gas_cost(schedule, current_mem_size, &mem_size)?;
 				let gas = overflowing!(gas.overflow_add(mem_gas_cost));
 				InstructionRequirements {
 					gas_cost: gas,
@@ -260,9 +258,9 @@ impl<Gas: CostType> Gasometer<Gas> {
 				}
 			},
 			Request::GasMemProvide(gas, mem_size, requested) => {
-				let (mem_gas_cost, new_mem_gas, new_mem_size) = try!(self.mem_gas_cost(schedule, current_mem_size, &mem_size));
+				let (mem_gas_cost, new_mem_gas, new_mem_size) = self.mem_gas_cost(schedule, current_mem_size, &mem_size)?;
 				let gas = overflowing!(gas.overflow_add(mem_gas_cost));
-				let provided = try!(self.gas_provided(schedule, gas, requested));
+				let provided = self.gas_provided(schedule, gas, requested)?;
 				let total_gas = overflowing!(gas.overflow_add(provided));
 
 				InstructionRequirements {
@@ -273,7 +271,7 @@ impl<Gas: CostType> Gasometer<Gas> {
 				}
 			},
 			Request::GasMemCopy(gas, mem_size, copy) => {
-				let (mem_gas_cost, new_mem_gas, new_mem_size) = try!(self.mem_gas_cost(schedule, current_mem_size, &mem_size));
+				let (mem_gas_cost, new_mem_gas, new_mem_size) = self.mem_gas_cost(schedule, current_mem_size, &mem_size)?;
 				let copy = overflowing!(add_gas_usize(copy, 31)) >> 5;
 				let copy_gas = Gas::from(schedule.copy_gas) * copy;
 				let gas = overflowing!(gas.overflow_add(copy_gas));
@@ -305,7 +303,7 @@ impl<Gas: CostType> Gasometer<Gas> {
 		let req_mem_size_rounded = (overflowing!(mem_size.overflow_add(Gas::from(31 as usize))) >> 5) << 5;
 
 		let (mem_gas_cost, new_mem_gas) = if req_mem_size_rounded > current_mem_size {
-			let new_mem_gas = try!(gas_for_mem(req_mem_size_rounded));
+			let new_mem_gas = gas_for_mem(req_mem_size_rounded)?;
 			(new_mem_gas - self.current_mem_gas, new_mem_gas)
 		} else {
 			(Gas::from(0), self.current_mem_gas)
@@ -347,7 +345,7 @@ fn test_mem_gas_cost() {
 	let result = gasometer.mem_gas_cost(&schedule, current_mem_size, &mem_size);
 
 	// then
-	if let Ok(_) = result {
+	if result.is_ok() {
 		assert!(false, "Should fail with OutOfGas");
 	}
 }

@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -14,43 +14,67 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
+import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
-import ContentCreate from 'material-ui/svg-icons/content/create';
-import ContentSend from 'material-ui/svg-icons/content/send';
-import LockIcon from 'material-ui/svg-icons/action/lock';
 
-import { EditMeta, Shapeshift, Transfer, PasswordManager } from '../../modals';
-import { Actionbar, Button, Page } from '../../ui';
-
-import shapeshiftBtn from '../../../assets/images/shapeshift-btn.png';
+import shapeshiftBtn from '~/../assets/images/shapeshift-btn.png';
+import { EditMeta, DeleteAccount, Shapeshift, Verification, Transfer, PasswordManager } from '~/modals';
+import { setVisibleAccounts } from '~/redux/providers/personalActions';
+import { fetchCertifiers, fetchCertifications } from '~/redux/providers/certifications/actions';
+import { Actionbar, Button, Page } from '~/ui';
+import { DeleteIcon, EditIcon, LockedIcon, SendIcon, VerifyIcon } from '~/ui/Icons';
 
 import Header from './Header';
+import Store from './store';
 import Transactions from './Transactions';
-
 import styles from './account.css';
 
+@observer
 class Account extends Component {
   static propTypes = {
-    params: PropTypes.object,
+    fetchCertifiers: PropTypes.func.isRequired,
+    fetchCertifications: PropTypes.func.isRequired,
+    images: PropTypes.object.isRequired,
+    setVisibleAccounts: PropTypes.func.isRequired,
+
     accounts: PropTypes.object,
     balances: PropTypes.object,
-    images: PropTypes.object.isRequired,
-    isTest: PropTypes.bool
+    params: PropTypes.object
   }
 
-  propName = null
+  store = new Store();
 
-  state = {
-    showEditDialog: false,
-    showFundDialog: false,
-    showTransferDialog: false,
-    showPasswordDialog: false
+  componentDidMount () {
+    this.props.fetchCertifiers();
+    this.setVisibleAccounts();
+  }
+
+  componentWillReceiveProps (nextProps) {
+    const prevAddress = this.props.params.address;
+    const nextAddress = nextProps.params.address;
+
+    if (prevAddress !== nextAddress) {
+      this.setVisibleAccounts(nextProps);
+    }
+  }
+
+  componentWillUnmount () {
+    this.props.setVisibleAccounts([]);
+  }
+
+  setVisibleAccounts (props = this.props) {
+    const { params, setVisibleAccounts, fetchCertifications } = props;
+    const addresses = [params.address];
+
+    setVisibleAccounts(addresses);
+    fetchCertifications(params.address);
   }
 
   render () {
-    const { accounts, balances, isTest } = this.props;
+    const { accounts, balances } = this.props;
     const { address } = this.props.params;
 
     const account = (accounts || {})[address];
@@ -61,15 +85,16 @@ class Account extends Component {
     }
 
     return (
-      <div className={ styles.account }>
+      <div>
+        { this.renderDeleteDialog(account) }
         { this.renderEditDialog(account) }
         { this.renderFundDialog() }
-        { this.renderTransferDialog() }
-        { this.renderPasswordDialog() }
-        { this.renderActionbar() }
+        { this.renderPasswordDialog(account) }
+        { this.renderTransferDialog(account, balance) }
+        { this.renderVerificationDialog() }
+        { this.renderActionbar(balance) }
         <Page>
           <Header
-            isTest={ isTest }
             account={ account }
             balance={ balance } />
           <Transactions
@@ -80,63 +105,108 @@ class Account extends Component {
     );
   }
 
-  renderActionbar () {
-    const { address } = this.props.params;
-    const { balances } = this.props;
-    const balance = balances[address];
-
+  renderActionbar (balance) {
     const showTransferButton = !!(balance && balance.tokens);
 
     const buttons = [
       <Button
-        key='transferFunds'
-        icon={ <ContentSend /> }
-        label='transfer'
         disabled={ !showTransferButton }
-        onClick={ this.onTransferClick } />,
+        icon={ <SendIcon /> }
+        key='transferFunds'
+        label={
+          <FormattedMessage
+            id='account.button.transfer'
+            defaultMessage='transfer' />
+        }
+        onClick={ this.store.toggleTransferDialog } />,
       <Button
+        icon={
+          <img
+            className={ styles.btnicon }
+            src={ shapeshiftBtn } />
+        }
         key='shapeshift'
-        icon={ <img src={ shapeshiftBtn } className={ styles.btnicon } /> }
-        label='shapeshift'
-        onClick={ this.onShapeshiftAccountClick } />,
+        label={
+          <FormattedMessage
+            id='account.button.shapeshift'
+            defaultMessage='shapeshift' />
+        }
+        onClick={ this.store.toggleFundDialog } />,
       <Button
+        icon={ <VerifyIcon /> }
+        key='sms-verification'
+        label={
+          <FormattedMessage
+            id='account.button.verify'
+            defaultMessage='verify' />
+        }
+        onClick={ this.store.toggleVerificationDialog } />,
+      <Button
+        icon={ <EditIcon /> }
         key='editmeta'
-        icon={ <ContentCreate /> }
-        label='edit'
-        onClick={ this.onEditClick } />,
+        label={
+          <FormattedMessage
+            id='account.button.edit'
+            defaultMessage='edit' />
+        }
+        onClick={ this.store.toggleEditDialog } />,
       <Button
+        icon={ <LockedIcon /> }
         key='passwordManager'
-        icon={ <LockIcon /> }
-        label='password'
-        onClick={ this.onPasswordClick } />
+        label={
+          <FormattedMessage
+            id='account.button.password'
+            defaultMessage='password' />
+        }
+        onClick={ this.store.togglePasswordDialog } />,
+      <Button
+        icon={ <DeleteIcon /> }
+        key='delete'
+        label={
+          <FormattedMessage
+            id='account.button.delete'
+            defaultMessage='delete account' />
+        }
+        onClick={ this.store.toggleDeleteDialog } />
     ];
 
     return (
       <Actionbar
-        title='Account Management'
-        buttons={ buttons } />
+        buttons={ buttons }
+        title={
+          <FormattedMessage
+            id='account.title'
+            defaultMessage='Account Management' />
+        } />
+    );
+  }
+
+  renderDeleteDialog (account) {
+    if (!this.store.isDeleteVisible) {
+      return null;
+    }
+
+    return (
+      <DeleteAccount
+        account={ account }
+        onClose={ this.store.toggleDeleteDialog } />
     );
   }
 
   renderEditDialog (account) {
-    const { showEditDialog } = this.state;
-
-    if (!showEditDialog) {
+    if (!this.store.isEditVisible) {
       return null;
     }
 
     return (
       <EditMeta
         account={ account }
-        keys={ ['description', 'passwordHint'] }
-        onClose={ this.onEditClick } />
+        onClose={ this.store.toggleEditDialog } />
     );
   }
 
   renderFundDialog () {
-    const { showFundDialog } = this.state;
-
-    if (!showFundDialog) {
+    if (!this.store.isFundVisible) {
       return null;
     }
 
@@ -145,21 +215,28 @@ class Account extends Component {
     return (
       <Shapeshift
         address={ address }
-        onClose={ this.onShapeshiftAccountClose } />
+        onClose={ this.store.toggleFundDialog } />
     );
   }
 
-  renderTransferDialog () {
-    const { showTransferDialog } = this.state;
-
-    if (!showTransferDialog) {
+  renderPasswordDialog (account) {
+    if (!this.store.isPasswordVisible) {
       return null;
     }
 
-    const { address } = this.props.params;
-    const { accounts, balances, images } = this.props;
-    const account = accounts[address];
-    const balance = balances[address];
+    return (
+      <PasswordManager
+        account={ account }
+        onClose={ this.store.togglePasswordDialog } />
+    );
+  }
+
+  renderTransferDialog (account, balance) {
+    if (!this.store.isTransferVisible) {
+      return null;
+    }
+
+    const { balances, images } = this.props;
 
     return (
       <Transfer
@@ -167,62 +244,22 @@ class Account extends Component {
         balance={ balance }
         balances={ balances }
         images={ images }
-        onClose={ this.onTransferClose } />
+        onClose={ this.store.toggleTransferDialog } />
     );
   }
 
-  renderPasswordDialog () {
-    const { showPasswordDialog } = this.state;
-
-    if (!showPasswordDialog) {
+  renderVerificationDialog () {
+    if (!this.store.isVerificationVisible) {
       return null;
     }
 
     const { address } = this.props.params;
-    const { accounts } = this.props;
-    const account = accounts[address];
 
     return (
-      <PasswordManager
-        account={ account }
-        onClose={ this.onPasswordClose } />
+      <Verification
+        account={ address }
+        onClose={ this.store.toggleVerificationDialog } />
     );
-  }
-
-  onEditClick = () => {
-    this.setState({
-      showEditDialog: !this.state.showEditDialog
-    });
-  }
-
-  onShapeshiftAccountClick = () => {
-    this.setState({
-      showFundDialog: !this.state.showFundDialog
-    });
-  }
-
-  onShapeshiftAccountClose = () => {
-    this.onShapeshiftAccountClick();
-  }
-
-  onTransferClick = () => {
-    this.setState({
-      showTransferDialog: !this.state.showTransferDialog
-    });
-  }
-
-  onTransferClose = () => {
-    this.onTransferClick();
-  }
-
-  onPasswordClick = () => {
-    this.setState({
-      showPasswordDialog: !this.state.showPasswordDialog
-    });
-  }
-
-  onPasswordClose = () => {
-    this.onPasswordClick();
   }
 }
 
@@ -230,10 +267,8 @@ function mapStateToProps (state) {
   const { accounts } = state.personal;
   const { balances } = state.balances;
   const { images } = state;
-  const { isTest } = state.nodeStatus;
 
   return {
-    isTest,
     accounts,
     balances,
     images
@@ -241,7 +276,11 @@ function mapStateToProps (state) {
 }
 
 function mapDispatchToProps (dispatch) {
-  return bindActionCreators({}, dispatch);
+  return bindActionCreators({
+    fetchCertifiers,
+    fetchCertifications,
+    setVisibleAccounts
+  }, dispatch);
 }
 
 export default connect(

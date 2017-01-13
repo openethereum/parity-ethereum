@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -14,9 +14,12 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { action, observable } from 'mobx';
+import { action, observable, transaction } from 'mobx';
 import store from 'store';
 import { debounce } from 'lodash';
+
+import { sha3 } from '~/api/util/sha3';
+import SolidityUtils from '~/util/solidity';
 
 const WRITE_CONTRACT_STORE_KEY = '_parity::writeContractStore';
 
@@ -24,19 +27,26 @@ const SNIPPETS = {
   snippet0: {
     name: 'Token.sol',
     description: 'Standard ERP20 Token Contract',
-    id: 'snippet0', sourcecode: require('raw!../../contracts/snippets/token.sol')
+    id: 'snippet0', sourcecode: require('raw-loader!../../contracts/snippets/token.sol')
   },
   snippet1: {
     name: 'StandardToken.sol',
     description: 'Implementation of ERP20 Token Contract',
-    id: 'snippet1', sourcecode: require('raw!../../contracts/snippets/standard-token.sol')
+    id: 'snippet1', sourcecode: require('raw-loader!../../contracts/snippets/standard-token.sol')
   },
   snippet2: {
     name: 'HumanStandardToken.sol',
     description: 'Implementation of the Human Token Contract',
-    id: 'snippet2', sourcecode: require('raw!../../contracts/snippets/human-standard-token.sol')
+    id: 'snippet2', sourcecode: require('raw-loader!../../contracts/snippets/human-standard-token.sol')
+  },
+  snippet3: {
+    name: 'Wallet.sol',
+    description: 'Implementation of a multisig Wallet',
+    id: 'snippet3', sourcecode: require('raw-loader!../../contracts/snippets/wallet.sol')
   }
 };
+
+let instance = null;
 
 export default class WriteContractStore {
 
@@ -56,6 +66,9 @@ export default class WriteContractStore {
   @observable builds = [];
   @observable selectedBuild = -1;
 
+  @observable autocompile = false;
+  @observable optimize = false;
+
   @observable showDeployModal = false;
   @observable showSaveModal = false;
   @observable showLoadModal = false;
@@ -63,45 +76,55 @@ export default class WriteContractStore {
   @observable savedContracts = {};
   @observable selectedContract = {};
 
+  @observable workerError = null;
+
+  loadingSolidity = false;
+  lastCompilation = {};
   snippets = SNIPPETS;
+  worker = undefined;
+
+  useWorker = true;
+  solc = {};
 
   constructor () {
-    this.reloadContracts();
-    this.fetchSolidityVersions();
-
     this.debouncedCompile = debounce(this.handleCompile, 1000);
+  }
+
+  static get () {
+    if (!instance) {
+      instance = new WriteContractStore();
+    }
+
+    return instance;
+  }
+
+  @action setWorkerError (error) {
+    this.workerError = error;
   }
 
   @action setEditor (editor) {
     this.editor = editor;
   }
 
-  @action setCompiler (compiler) {
-    this.compiler = compiler;
+  @action setWorker (worker) {
+    if (this.worker !== undefined) {
+      return;
+    }
 
-    this.compiler.onmessage = (event) => {
-      const message = JSON.parse(event.data);
+    this.worker = worker;
 
-      switch (message.event) {
-        case 'compiled':
-          this.parseCompiled(message.data);
-          break;
-        case 'loading':
-          this.parseLoading(message.data);
-          break;
-        case 'try-again':
-          this.handleCompile();
-          break;
-      }
-    };
+    this
+      .fetchSolidityVersions()
+      .then(() => this.reloadContracts());
   }
 
   fetchSolidityVersions () {
-    fetch('https://raw.githubusercontent.com/ethereum/solc-bin/gh-pages/bin/list.json')
+    return fetch('https://raw.githubusercontent.com/ethereum/solc-bin/gh-pages/bin/list.json')
       .then((r) => r.json())
       .then((data) => {
         const { builds, releases, latestRelease } = data;
         let latestIndex = -1;
+        let promise = Promise.resolve();
 
         this.builds = builds.reverse().map((build, index) => {
           if (releases[build.version] === build.path) {
@@ -109,7 +132,7 @@ export default class WriteContractStore {
 
             if (build.version === latestRelease) {
               build.latest = true;
-              this.loadSolidityVersion(build);
+              promise = promise.then(() => this.loadSolidityVersion(build));
               latestIndex = index;
             }
           }
@@ -118,13 +141,11 @@ export default class WriteContractStore {
         });
 
         this.selectedBuild = latestIndex;
+        return promise;
+      })
+      .catch((error) => {
+        this.setWorkerError(error);
       });
-  }
-
-  @action closeWorker = () => {
-    this.compiler.postMessage(JSON.stringify({
-      action: 'close'
-    }));
   }
 
   @action handleImport = (sourcecode) => {
@@ -133,14 +154,80 @@ export default class WriteContractStore {
 
   @action handleSelectBuild = (_, index, value) => {
     this.selectedBuild = value;
-    this.loadSolidityVersion(this.builds[value]);
+    return this
+      .loadSolidityVersion(this.builds[value])
+      .then(() => this.handleCompile());
+  }
+
+  getCompiler (build) {
+    const { longVersion } = build;
+
+    if (!this.solc[longVersion]) {
+      this.solc[longVersion] = SolidityUtils
+        .getCompiler(build)
+        .then((compiler) => {
+          this.solc[longVersion] = compiler;
+          return compiler;
+        })
+        .catch((error) => {
+          this.setWorkerError(error);
+        });
+    }
+
+    return Promise.resolve(this.solc[longVersion]);
   }
 
   @action loadSolidityVersion = (build) => {
-    this.compiler.postMessage(JSON.stringify({
-      action: 'load',
-      data: build
-    }));
+    if (this.worker === undefined) {
+      return;
+    } else if (this.worker === null) {
+      this.useWorker = false;
+    }
+
+    if (this.loadingSolidity) {
+      return this.loadingSolidity;
+    }
+
+    this.loading = true;
+
+    if (this.useWorker) {
+      this.loadingSolidity = this.worker
+        .postMessage({
+          action: 'load',
+          data: build
+        })
+        .then((result) => {
+          if (result !== 'ok') {
+            throw new Error('error while loading solidity: ' + result);
+          }
+
+          this.loadingSolidity = false;
+          this.loading = false;
+        })
+        .catch((error) => {
+          console.warn('error while loading solidity', error);
+          this.useWorker = false;
+          this.loadingSolidity = null;
+
+          return this.loadSolidityVersion(build);
+        });
+    } else {
+      this.loadingSolidity = this
+        .getCompiler(build)
+        .then(() => {
+          this.loadingSolidity = false;
+          this.loading = false;
+
+          return 'ok';
+        })
+        .catch((error) => {
+          this.setWorkerError(error);
+          this.loadingSolidity = false;
+          this.loading = false;
+        });
+    }
+
+    return this.loadingSolidity;
   }
 
   @action handleOpenDeployModal = () => {
@@ -172,23 +259,120 @@ export default class WriteContractStore {
     this.contract = this.contracts[Object.keys(this.contracts)[value]];
   }
 
+  compile = (data) => {
+    if (this.useWorker) {
+      return this.worker.postMessage({
+        action: 'compile',
+        data
+      });
+    }
+
+    return new Promise((resolve, reject) => {
+      window.setTimeout(() => {
+        this
+          .getCompiler(data.build)
+          .then((compiler) => {
+            return SolidityUtils.compile(data, compiler);
+          })
+          .then(resolve)
+          .catch(reject);
+      }, 0);
+    });
+  }
+
   @action handleCompile = () => {
-    this.compiled = false;
-    this.compiling = true;
+    transaction(() => {
+      this.compiled = false;
+      this.compiling = true;
+    });
 
     const build = this.builds[this.selectedBuild];
+    const version = build.longVersion;
+    const sourcecode = this.sourcecode.replace(/\s+/g, ' ');
+    const hash = sha3(JSON.stringify({ version, sourcecode, optimize: this.optimize }));
 
-    if (this.compiler && typeof this.compiler.postMessage === 'function') {
-      this.sendFilesToWorker();
+    let promise = Promise.resolve(null);
 
-      this.compiler.postMessage(JSON.stringify({
-        action: 'compile',
-        data: {
+    if (hash === this.lastCompilation.hash) {
+      promise = new Promise((resolve) => {
+        window.setTimeout(() => {
+          resolve(this.lastCompilation);
+        }, 500);
+      });
+    } else {
+      promise = this
+        .compile({
           sourcecode: this.sourcecode,
-          build: build
-        }
-      }));
+          build: build,
+          optimize: this.optimize,
+          files: this.files
+        })
+        .then((data) => {
+          const result = this.parseCompiled(data);
+
+          this.lastCompilation = {
+            result: result,
+            date: new Date(),
+            version: data.version,
+            hash
+          };
+
+          return this.lastCompilation;
+        })
+        .catch((error) => {
+          this.setWorkerError(error);
+        });
     }
+
+    return promise.then((data = null) => {
+      if (data) {
+        const {
+          contract, contractIndex,
+          annotations, contracts, errors
+        } = data.result;
+
+        this.contract = contract;
+        this.contractIndex = contractIndex;
+
+        this.annotations = annotations;
+        this.contracts = contracts;
+        this.errors = errors;
+      }
+
+      this.compiled = true;
+      this.compiling = false;
+    });
+  }
+
+  @action handleAutocompileToggle = () => {
+    this.autocompile = !this.autocompile;
+  }
+
+  @action handleOptimizeToggle = () => {
+    this.optimize = !this.optimize;
+  }
+
+  @action parseCompiled = (data) => {
+    const { contracts } = data;
+
+    const { errors = [] } = data;
+    const errorAnnotations = this.parseErrors(errors);
+    const formalAnnotations = this.parseErrors(data.formal && data.formal.errors, true);
+
+    const annotations = [].concat(
+      errorAnnotations,
+      formalAnnotations
+    );
+
+    const contractKeys = Object.keys(contracts || {});
+
+    const contract = contractKeys.length ? contracts[contractKeys[0]] : null;
+    const contractIndex = contractKeys.length ? 0 : -1;
+
+    return {
+      contract, contractIndex,
+      contracts, errors, annotations
+    };
   }
 
   parseErrors = (data, formal = false) => {
@@ -215,43 +399,6 @@ export default class WriteContractStore {
       });
   }
 
-  @action parseCompiled = (data) => {
-    const { contracts } = data;
-
-    const { errors = [] } = data;
-    const errorAnnotations = this.parseErrors(errors);
-    const formalAnnotations = this.parseErrors(data.formal && data.formal.errors, true);
-
-    const annotations = [].concat(
-      errorAnnotations,
-      formalAnnotations
-    );
-
-    if (annotations.findIndex((a) => /__parity_tryAgain/.test(a.text)) > -1) {
-      return;
-    }
-
-    const contractKeys = Object.keys(contracts || {});
-
-    this.contract = contractKeys.length ? contracts[contractKeys[0]] : null;
-    this.contractIndex = contractKeys.length ? 0 : -1;
-
-    this.contracts = contracts;
-    this.errors = errors;
-    this.annotations = annotations;
-
-    this.compiled = true;
-    this.compiling = false;
-  }
-
-  @action parseLoading = (isLoading) => {
-    this.loading = isLoading;
-
-    if (!isLoading) {
-      this.handleCompile();
-    }
-  }
-
   @action handleEditSourcecode = (value, compile = false) => {
     this.sourcecode = value;
 
@@ -263,7 +410,7 @@ export default class WriteContractStore {
 
     if (compile) {
       this.handleCompile();
-    } else {
+    } else if (this.autocompile) {
       this.debouncedCompile();
     }
   }
@@ -322,8 +469,9 @@ export default class WriteContractStore {
       current: this.sourcecode
     });
 
-    this.handleCompile();
     this.resizeEditor();
+
+    return this.handleCompile();
   }
 
   @action handleLoadContract = (contract) => {
@@ -358,16 +506,13 @@ export default class WriteContractStore {
     } catch (e) {}
   }
 
-  sendFilesToWorker = () => {
+  get files () {
     const files = [].concat(
       Object.values(this.snippets),
       Object.values(this.savedContracts)
     );
 
-    this.compiler.postMessage(JSON.stringify({
-      action: 'setFiles',
-      data: files
-    }));
+    return files;
   }
 
 }

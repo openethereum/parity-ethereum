@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -18,13 +18,14 @@
 //! method calls properly.
 
 mod eth;
+mod manage_network;
 mod net;
-mod web3;
-mod personal;
 mod parity;
 mod parity_accounts;
 mod parity_set;
+mod personal;
 mod rpc;
 mod signer;
 mod signing;
-mod manage_network;
+mod traces;
+mod web3;

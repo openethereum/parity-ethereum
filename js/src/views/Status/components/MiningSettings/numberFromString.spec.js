@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -16,7 +16,7 @@
 
 import { numberFromString } from './numberFromString';
 
-describe('NUMBER FROM STRING', () => {
+describe('views/Status/components/MiningSettings/numberFromString', () => {
   it('should convert string to number', () => {
     expect(numberFromString('12345'), 12345);
   });

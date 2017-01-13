@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -16,31 +16,26 @@
 
 import React, { Component, PropTypes } from 'react';
 
+import { nodeOrStringProptype } from '~/util/proptypes';
+
 import styles from './title.css';
 
 export default class Title extends Component {
   static propTypes = {
+    byline: nodeOrStringProptype(),
     className: PropTypes.string,
-    title: PropTypes.oneOfType([
-      PropTypes.string, PropTypes.node
-    ]),
-    byline: PropTypes.oneOfType([
-      PropTypes.string, PropTypes.node
-    ])
-  }
-
-  state = {
-    name: 'Unnamed'
+    description: nodeOrStringProptype(),
+    title: nodeOrStringProptype()
   }
 
   render () {
-    const { className, title, byline } = this.props;
+    const { byline, className, title } = this.props;
 
     const byLine = typeof byline === 'string'
       ? (
-      <span title={ byline }>
-        { byline }
-      </span>
+        <span title={ byline }>
+          { byline }
+        </span>
       )
       : byline;
 
@@ -52,6 +47,29 @@ export default class Title extends Component {
         <div className={ styles.byline }>
           { byLine }
         </div>
+        { this.renderDescription() }
+      </div>
+    );
+  }
+
+  renderDescription () {
+    const { description } = this.props;
+
+    if (!description) {
+      return null;
+    }
+
+    const desc = typeof description === 'string'
+      ? (
+        <span title={ description }>
+          { description }
+        </span>
+      )
+      : description;
+
+    return (
+      <div className={ styles.description }>
+        { desc }
       </div>
     );
   }

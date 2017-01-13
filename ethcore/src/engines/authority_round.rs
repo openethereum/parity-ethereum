@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -21,20 +21,24 @@ use std::sync::Weak;
 use std::time::{UNIX_EPOCH, Duration};
 use util::*;
 use ethkey::{verify_address, Signature};
-use rlp::{UntrustedRlp, View, encode};
+use rlp::{UntrustedRlp, Rlp, View, encode};
 use account_provider::AccountProvider;
 use block::*;
 use spec::CommonParams;
-use engines::Engine;
+use engines::{Engine, Seal, EngineError};
 use header::Header;
 use error::{Error, BlockError};
+use blockchain::extras::BlockDetails;
+use views::HeaderView;
 use evm::Schedule;
 use ethjson;
-use io::{IoContext, IoHandler, TimerToken, IoService, IoChannel};
-use service::ClientIoMessage;
+use io::{IoContext, IoHandler, TimerToken, IoService};
 use transaction::SignedTransaction;
 use env_info::EnvInfo;
 use builtin::Builtin;
+use client::{Client, EngineClient};
+use super::validator_set::{ValidatorSet, new_validator_set};
+use state::CleanupMode;
 
 /// `AuthorityRound` params.
 #[derive(Debug, PartialEq)]
@@ -43,10 +47,12 @@ pub struct AuthorityRoundParams {
 	pub gas_limit_bound_divisor: U256,
 	/// Time to wait before next block or authority switching.
 	pub step_duration: Duration,
-	/// Valid authorities.
-	pub authorities: Vec<Address>,
-	/// Number of authorities.
-	pub authority_n: usize,
+	/// Block reward.
+	pub block_reward: U256,
+	/// Starting step,
+	pub start_step: Option<u64>,
+	/// Valid validators.
+	pub validators: ethjson::spec::ValidatorSet,
 }
 
 impl From<ethjson::spec::AuthorityRoundParams> for AuthorityRoundParams {
@@ -54,8 +60,9 @@ impl From<ethjson::spec::AuthorityRoundParams> for AuthorityRoundParams {
 		AuthorityRoundParams {
 			gas_limit_bound_divisor: p.gas_limit_bound_divisor.into(),
 			step_duration: Duration::from_secs(p.step_duration.into()),
-			authority_n: p.authorities.len(),
-			authorities: p.authorities.into_iter().map(Into::into).collect::<Vec<_>>(),
+			validators: p.validators,
+			block_reward: p.block_reward.map_or_else(U256::zero, Into::into),
+			start_step: p.start_step.map(Into::into),
 		}
 	}
 }
@@ -64,20 +71,25 @@ impl From<ethjson::spec::AuthorityRoundParams> for AuthorityRoundParams {
 /// mainnet chains in the Olympic, Frontier and Homestead eras.
 pub struct AuthorityRound {
 	params: CommonParams,
-	our_params: AuthorityRoundParams,
+	gas_limit_bound_divisor: U256,
+	block_reward: U256,
+	step_duration: Duration,
 	builtins: BTreeMap<Address, Builtin>,
-	transition_service: IoService<BlockArrived>,
-	message_channel: Mutex<Option<IoChannel<ClientIoMessage>>>,
+	transition_service: IoService<()>,
 	step: AtomicUsize,
 	proposed: AtomicBool,
+	client: RwLock<Option<Weak<EngineClient>>>,
+	account_provider: Mutex<Arc<AccountProvider>>,
+	password: RwLock<Option<String>>,
+	validators: Box<ValidatorSet + Send + Sync>,
 }
 
 fn header_step(header: &Header) -> Result<usize, ::rlp::DecoderError> {
-	UntrustedRlp::new(&header.seal()[0]).as_val()
+	UntrustedRlp::new(&header.seal().get(0).expect("was either checked with verify_block_basic or is genesis; has 2 fields; qed (Make sure the spec file has a correct genesis seal)")).as_val()
 }
 
 fn header_signature(header: &Header) -> Result<Signature, ::rlp::DecoderError> {
-	UntrustedRlp::new(&header.seal()[1]).as_val::<H520>().map(Into::into)
+	UntrustedRlp::new(&header.seal().get(1).expect("was checked with verify_block_basic; has 2 fields; qed")).as_val::<H520>().map(Into::into)
 }
 
 trait AsMillis {
@@ -93,29 +105,34 @@ impl AsMillis for Duration {
 impl AuthorityRound {
 	/// Create a new instance of AuthorityRound engine.
 	pub fn new(params: CommonParams, our_params: AuthorityRoundParams, builtins: BTreeMap<Address, Builtin>) -> Result<Arc<Self>, Error> {
-		let initial_step = (unix_now().as_secs() / our_params.step_duration.as_secs()) as usize;
+		let should_timeout = our_params.start_step.is_none();
+		let initial_step = our_params.start_step.unwrap_or_else(|| (unix_now().as_secs() / our_params.step_duration.as_secs())) as usize;
 		let engine = Arc::new(
 			AuthorityRound {
 				params: params,
-				our_params: our_params,
+				gas_limit_bound_divisor: our_params.gas_limit_bound_divisor,
+				block_reward: our_params.block_reward,
+				step_duration: our_params.step_duration,
 				builtins: builtins,
-				transition_service: try!(IoService::<BlockArrived>::start()),
-				message_channel: Mutex::new(None),
+				transition_service: IoService::<()>::start()?,
 				step: AtomicUsize::new(initial_step),
-				proposed: AtomicBool::new(false)
+				proposed: AtomicBool::new(false),
+				client: RwLock::new(None),
+				account_provider: Mutex::new(Arc::new(AccountProvider::transient_provider())),
+				password: RwLock::new(None),
+				validators: new_validator_set(our_params.validators),
 			});
-		let handler = TransitionHandler { engine: Arc::downgrade(&engine) };
-		try!(engine.transition_service.register_handler(Arc::new(handler)));
+		// Do not initialize timeouts for tests.
+		if should_timeout {
+			let handler = TransitionHandler { engine: Arc::downgrade(&engine) };
+			engine.transition_service.register_handler(Arc::new(handler))?;
+		}
 		Ok(engine)
-	}
-
-	fn step(&self) -> usize {
-		self.step.load(AtomicOrdering::SeqCst)
 	}
 
 	fn remaining_step_duration(&self) -> Duration {
 		let now = unix_now();
-		let step_end = self.our_params.step_duration * (self.step() as u32 + 1);
+		let step_end = self.step_duration * (self.step.load(AtomicOrdering::SeqCst) as u32 + 1);
 		if step_end > now {
 			step_end - now
 		} else {
@@ -123,13 +140,12 @@ impl AuthorityRound {
 		}
 	}
 
-	fn step_proposer(&self, step: usize) -> &Address {
-		let ref p = self.our_params;
-		p.authorities.get(step % p.authority_n).expect("There are authority_n authorities; taking number modulo authority_n gives number in authority_n range; qed")
+	fn step_proposer(&self, step: usize) -> Address {
+		self.validators.get(step)
 	}
 
 	fn is_step_proposer(&self, step: usize, address: &Address) -> bool {
-		self.step_proposer(step) == address
+		self.step_proposer(step) == *address
 	}
 }
 
@@ -141,30 +157,20 @@ struct TransitionHandler {
 	engine: Weak<AuthorityRound>,
 }
 
-#[derive(Clone)]
-struct BlockArrived;
-
 const ENGINE_TIMEOUT_TOKEN: TimerToken = 23;
 
-impl IoHandler<BlockArrived> for TransitionHandler {
-	fn initialize(&self, io: &IoContext<BlockArrived>) {
+impl IoHandler<()> for TransitionHandler {
+	fn initialize(&self, io: &IoContext<()>) {
 		if let Some(engine) = self.engine.upgrade() {
 			io.register_timer_once(ENGINE_TIMEOUT_TOKEN, engine.remaining_step_duration().as_millis())
 				.unwrap_or_else(|e| warn!(target: "poa", "Failed to start consensus step timer: {}.", e))
 		}
 	}
 
-	fn timeout(&self, io: &IoContext<BlockArrived>, timer: TimerToken) {
+	fn timeout(&self, io: &IoContext<()>, timer: TimerToken) {
 		if timer == ENGINE_TIMEOUT_TOKEN {
 			if let Some(engine) = self.engine.upgrade() {
-				engine.step.fetch_add(1, AtomicOrdering::SeqCst);
-				engine.proposed.store(false, AtomicOrdering::SeqCst);
-				if let Some(ref channel) = *engine.message_channel.lock() {
-					match channel.send(ClientIoMessage::UpdateSealing) {
-						Ok(_) => trace!(target: "poa", "timeout: UpdateSealing message sent for step {}.", engine.step.load(AtomicOrdering::Relaxed)),
-						Err(err) => trace!(target: "poa", "timeout: Could not send a sealing message {} for step {}.", err, engine.step.load(AtomicOrdering::Relaxed)),
-					}
-				}
+				engine.step();
 				io.register_timer_once(ENGINE_TIMEOUT_TOKEN, engine.remaining_step_duration().as_millis())
 					.unwrap_or_else(|e| warn!(target: "poa", "Failed to restart consensus step timer: {}.", e))
 			}
@@ -180,6 +186,16 @@ impl Engine for AuthorityRound {
 
 	fn params(&self) -> &CommonParams { &self.params }
 	fn builtins(&self) -> &BTreeMap<Address, Builtin> { &self.builtins }
+
+	fn step(&self) {
+		self.step.fetch_add(1, AtomicOrdering::SeqCst);
+		self.proposed.store(false, AtomicOrdering::SeqCst);
+		if let Some(ref weak) = *self.client.read() {
+			if let Some(c) = weak.upgrade() {
+				c.update_sealing();
+			}
+		}
+	}
 
 	/// Additional engine-specific information for the user/developer concerning `header`.
 	fn extra_info(&self, header: &Header) -> BTreeMap<String, String> {
@@ -197,7 +213,7 @@ impl Engine for AuthorityRound {
 		header.set_difficulty(parent.difficulty().clone());
 		header.set_gas_limit({
 			let gas_limit = parent.gas_limit().clone();
-			let bound_divisor = self.our_params.gas_limit_bound_divisor;
+			let bound_divisor = self.gas_limit_bound_divisor;
 			if gas_limit < gas_floor_target {
 				min(gas_floor_target, gas_limit + gas_limit / bound_divisor - 1.into())
 			} else {
@@ -206,38 +222,42 @@ impl Engine for AuthorityRound {
 		});
 	}
 
-	/// Apply the block reward on finalisation of the block.
-	/// This assumes that all uncles are valid uncles (i.e. of at least one generation before the current).
-	fn on_close_block(&self, _block: &mut ExecutedBlock) {}
-
 	fn is_sealer(&self, author: &Address) -> Option<bool> {
-		let ref p = self.our_params;
-		Some(p.authorities.contains(author))
+		Some(self.validators.contains(author))
 	}
 
 	/// Attempt to seal the block internally.
 	///
 	/// This operation is synchronous and may (quite reasonably) not be available, in which `false` will
 	/// be returned.
-	fn generate_seal(&self, block: &ExecutedBlock, accounts: Option<&AccountProvider>) -> Option<Vec<Bytes>> {
-		if self.proposed.load(AtomicOrdering::SeqCst) { return None; }
+	fn generate_seal(&self, block: &ExecutedBlock) -> Seal {
+		if self.proposed.load(AtomicOrdering::SeqCst) { return Seal::None; }
 		let header = block.header();
-		let step = self.step();
+		let step = self.step.load(AtomicOrdering::SeqCst);
 		if self.is_step_proposer(step, header.author()) {
-			if let Some(ap) = accounts {
-				// Account should be permanently unlocked, otherwise sealing will fail.
-				if let Ok(signature) = ap.sign(*header.author(), None, header.bare_hash()) {
-					trace!(target: "poa", "generate_seal: Issuing a block for step {}.", step);
-					self.proposed.store(true, AtomicOrdering::SeqCst);
-					return Some(vec![encode(&step).to_vec(), encode(&(&*signature as &[u8])).to_vec()]);
-				} else {
-					warn!(target: "poa", "generate_seal: FAIL: Accounts secret key unavailable.");
-				}
+			let ref ap = *self.account_provider.lock();
+			if let Ok(signature) = ap.sign(*header.author(), self.password.read().clone(), header.bare_hash()) {
+				trace!(target: "poa", "generate_seal: Issuing a block for step {}.", step);
+				self.proposed.store(true, AtomicOrdering::SeqCst);
+				return Seal::Regular(vec![encode(&step).to_vec(), encode(&(&*signature as &[u8])).to_vec()]);
 			} else {
-				warn!(target: "poa", "generate_seal: FAIL: Accounts not provided.");
+				warn!(target: "poa", "generate_seal: FAIL: Accounts secret key unavailable.");
 			}
+		} else {
+			trace!(target: "poa", "generate_seal: Not a proposer for step {}.", step);
 		}
-		None
+		Seal::None
+	}
+
+	/// Apply the block reward on finalisation of the block.
+	fn on_close_block(&self, block: &mut ExecutedBlock) {
+		let fields = block.fields_mut();
+		// Bestow block reward
+		fields.state.add_balance(fields.header.author(), &self.block_reward, CleanupMode::NoEmpty);
+		// Commit state so that we can actually figure out the state root.
+		if let Err(e) = fields.state.commit() {
+			warn!("Encountered error on state commit: {}", e);
+		}
 	}
 
 	/// Check the number of seal fields.
@@ -254,41 +274,36 @@ impl Engine for AuthorityRound {
 
 	/// Check if the signature belongs to the correct proposer.
 	fn verify_block_unordered(&self, header: &Header, _block: Option<&[u8]>) -> Result<(), Error> {
-        let header_step = try!(header_step(header));
-        // Give one step slack if step is lagging, double vote is still not possible.
-		if header_step <= self.step() + 1 {
-			let proposer_signature = try!(header_signature(header));
-			let ok_sig = try!(verify_address(self.step_proposer(header_step), &proposer_signature, &header.bare_hash()));
+		let header_step = header_step(header)?;
+		// Give one step slack if step is lagging, double vote is still not possible.
+		if header_step <= self.step.load(AtomicOrdering::SeqCst) + 1 {
+			let proposer_signature = header_signature(header)?;
+			let ok_sig = verify_address(&self.step_proposer(header_step), &proposer_signature, &header.bare_hash())?;
 			if ok_sig {
 				Ok(())
 			} else {
 				trace!(target: "poa", "verify_block_unordered: invalid seal signature");
-				try!(Err(BlockError::InvalidSeal))
+				Err(BlockError::InvalidSeal)?
 			}
 		} else {
 			trace!(target: "poa", "verify_block_unordered: block from the future");
-			try!(Err(BlockError::InvalidSeal))
+			Err(BlockError::InvalidSeal)?
 		}
 	}
 
 	fn verify_block_family(&self, header: &Header, parent: &Header, _block: Option<&[u8]>) -> Result<(), Error> {
-		// Don't calculate difficulty for genesis blocks.
 		if header.number() == 0 {
 			return Err(From::from(BlockError::RidiculousNumber(OutOfBounds { min: Some(1), max: None, found: header.number() })));
 		}
 
-		let step = try!(header_step(header));
+		let step = header_step(header)?;
 		// Check if parent is from a previous step.
-		if step == try!(header_step(parent)) { 
+		if step == header_step(parent)? {
 			trace!(target: "poa", "Multiple blocks proposed for step {}.", step);
-			try!(Err(BlockError::DoubleVote(header.author().clone())));
+			Err(EngineError::DoubleVote(header.author().clone()))?;
 		}
 
-		// Check difficulty is correct given the two timestamps.
-		if header.difficulty() != parent.difficulty() {
-			return Err(From::from(BlockError::InvalidDifficulty(Mismatch { expected: *parent.difficulty(), found: *header.difficulty() })))
-		}
-		let gas_limit_divisor = self.our_params.gas_limit_bound_divisor;
+		let gas_limit_divisor = self.gas_limit_bound_divisor;
 		let min_gas = parent.gas_limit().clone() - parent.gas_limit().clone() / gas_limit_divisor;
 		let max_gas = parent.gas_limit().clone() + parent.gas_limit().clone() / gas_limit_divisor;
 		if header.gas_limit() <= &min_gas || header.gas_limit() >= &max_gas {
@@ -298,7 +313,7 @@ impl Engine for AuthorityRound {
 	}
 
 	fn verify_transaction_basic(&self, t: &SignedTransaction, _header: &Header) -> Result<(), Error> {
-		try!(t.check_low_s());
+		t.check_low_s()?;
 		Ok(())
 	}
 
@@ -306,9 +321,30 @@ impl Engine for AuthorityRound {
 		t.sender().map(|_|()) // Perform EC recovery and cache sender
 	}
 
-	fn register_message_channel(&self, message_channel: IoChannel<ClientIoMessage>) {
-		let mut guard = self.message_channel.lock();
-		*guard = Some(message_channel);
+	fn is_new_best_block(&self, _best_total_difficulty: U256, best_header: HeaderView, _parent_details: &BlockDetails, new_header: &HeaderView) -> bool {
+		let new_number = new_header.number();
+		let best_number = best_header.number();
+		if new_number != best_number {
+			new_number > best_number
+		} else {
+ 			// Take the oldest step at given height.
+ 			let new_step: usize = Rlp::new(&new_header.seal()[0]).as_val();
+			let best_step: usize = Rlp::new(&best_header.seal()[0]).as_val();
+			new_step < best_step
+		}
+	}
+
+	fn register_client(&self, client: Weak<Client>) {
+		*self.client.write() = Some(client.clone());
+		self.validators.register_call_contract(client);
+	}
+
+	fn set_signer(&self, _address: Address, password: String) {
+		*self.password.write() = Some(password);
+	}
+
+	fn register_account_provider(&self, account_provider: Arc<AccountProvider>) {
+		*self.account_provider.lock() = account_provider;
 	}
 }
 
@@ -318,12 +354,13 @@ mod tests {
 	use env_info::EnvInfo;
 	use header::Header;
 	use error::{Error, BlockError};
+	use ethkey::Secret;
 	use rlp::encode;
 	use block::*;
 	use tests::helpers::*;
 	use account_provider::AccountProvider;
 	use spec::Spec;
-	use std::time::UNIX_EPOCH;
+	use engines::Seal;
 
 	#[test]
 	fn has_valid_metadata() {
@@ -375,34 +412,33 @@ mod tests {
 	#[test]
 	fn generates_seal_and_does_not_double_propose() {
 		let tap = AccountProvider::transient_provider();
-		let addr1 = tap.insert_account("1".sha3(), "1").unwrap();
-		tap.unlock_account_permanently(addr1, "1".into()).unwrap();
-		let addr2 = tap.insert_account("2".sha3(), "2").unwrap();
-		tap.unlock_account_permanently(addr2, "2".into()).unwrap();
+		let addr1 = tap.insert_account(Secret::from_slice(&"1".sha3()).unwrap(), "1").unwrap();
+		let addr2 = tap.insert_account(Secret::from_slice(&"2".sha3()).unwrap(), "2").unwrap();
 
 		let spec = Spec::new_test_round();
 		let engine = &*spec.engine;
+		engine.register_account_provider(Arc::new(tap));
 		let genesis_header = spec.genesis_header();
-		let mut db1 = get_temp_state_db().take();
-		spec.ensure_db_good(&mut db1).unwrap();
-		let mut db2 = get_temp_state_db().take();
-		spec.ensure_db_good(&mut db2).unwrap();
+		let db1 = spec.ensure_db_good(get_temp_state_db().take(), &Default::default()).unwrap();
+		let db2 = spec.ensure_db_good(get_temp_state_db().take(), &Default::default()).unwrap();
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
 		let b1 = OpenBlock::new(engine, Default::default(), false, db1, &genesis_header, last_hashes.clone(), addr1, (3141562.into(), 31415620.into()), vec![]).unwrap();
 		let b1 = b1.close_and_lock();
 		let b2 = OpenBlock::new(engine, Default::default(), false, db2, &genesis_header, last_hashes, addr2, (3141562.into(), 31415620.into()), vec![]).unwrap();
 		let b2 = b2.close_and_lock();
 
-		if let Some(seal) = engine.generate_seal(b1.block(), Some(&tap)) {
+		engine.set_signer(addr1, "1".into());
+		if let Seal::Regular(seal) = engine.generate_seal(b1.block()) {
 			assert!(b1.clone().try_seal(engine, seal).is_ok());
 			// Second proposal is forbidden.
-			assert!(engine.generate_seal(b1.block(), Some(&tap)).is_none());
+			assert!(engine.generate_seal(b1.block()) == Seal::None);
 		}
 
-		if let Some(seal) = engine.generate_seal(b2.block(), Some(&tap)) {
+		engine.set_signer(addr2, "2".into());
+		if let Seal::Regular(seal) = engine.generate_seal(b2.block()) {
 			assert!(b2.clone().try_seal(engine, seal).is_ok());
 			// Second proposal is forbidden.
-			assert!(engine.generate_seal(b2.block(), Some(&tap)).is_none());
+			assert!(engine.generate_seal(b2.block()) == Seal::None);
 		}
 	}
 
@@ -410,20 +446,37 @@ mod tests {
 	fn proposer_switching() {
 		let mut header: Header = Header::default();
 		let tap = AccountProvider::transient_provider();
-		let addr = tap.insert_account("0".sha3(), "0").unwrap();
+		let addr = tap.insert_account(Secret::from_slice(&"0".sha3()).unwrap(), "0").unwrap();
 
 		header.set_author(addr);
 
 		let engine = Spec::new_test_round().engine;
 
 		let signature = tap.sign(addr, Some("0".into()), header.bare_hash()).unwrap();
-		let mut step = UNIX_EPOCH.elapsed().unwrap().as_secs();
-		header.set_seal(vec![encode(&step).to_vec(), encode(&(&*signature as &[u8])).to_vec()]);
-		let first_ok = engine.verify_block_seal(&header).is_ok();
-		step = step + 1;
-		header.set_seal(vec![encode(&step).to_vec(), encode(&(&*signature as &[u8])).to_vec()]);
-		let second_ok = engine.verify_block_seal(&header).is_ok();
+		// Two validators.
+		// Spec starts with step 2.
+		header.set_seal(vec![encode(&2usize).to_vec(), encode(&(&*signature as &[u8])).to_vec()]);
+		assert!(engine.verify_block_seal(&header).is_err());
+		header.set_seal(vec![encode(&1usize).to_vec(), encode(&(&*signature as &[u8])).to_vec()]);
+		assert!(engine.verify_block_seal(&header).is_ok());
+	}
 
-		assert!(first_ok ^ second_ok);
+	#[test]
+	fn rejects_future_block() {
+		let mut header: Header = Header::default();
+		let tap = AccountProvider::transient_provider();
+		let addr = tap.insert_account(Secret::from_slice(&"0".sha3()).unwrap(), "0").unwrap();
+
+		header.set_author(addr);
+
+		let engine = Spec::new_test_round().engine;
+
+		let signature = tap.sign(addr, Some("0".into()), header.bare_hash()).unwrap();
+		// Two validators.
+		// Spec starts with step 2.
+		header.set_seal(vec![encode(&1usize).to_vec(), encode(&(&*signature as &[u8])).to_vec()]);
+		assert!(engine.verify_block_seal(&header).is_ok());
+		header.set_seal(vec![encode(&5usize).to_vec(), encode(&(&*signature as &[u8])).to_vec()]);
+		assert!(engine.verify_block_seal(&header).is_err());
 	}
 }

@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -17,11 +17,18 @@
 import { combineReducers } from 'redux';
 import { routerReducer } from 'react-router-redux';
 
-import { apiReducer, balancesReducer, blockchainReducer, compilerReducer, imagesReducer, personalReducer, signerReducer, statusReducer as nodeStatusReducer } from './providers';
+import {
+  apiReducer, balancesReducer, blockchainReducer,
+  workerReducer, imagesReducer, personalReducer,
+  signerReducer, statusReducer as nodeStatusReducer,
+  snackbarReducer, walletReducer
+} from './providers';
+import certificationsReducer from './providers/certifications/reducer';
+import registryReducer from './providers/registry/reducer';
 
-import { errorReducer } from '../ui/Errors';
-import { settingsReducer } from '../views/Settings';
-import { tooltipReducer } from '../ui/Tooltips';
+import errorReducer from '~/ui/Errors/reducers';
+import settingsReducer from '~/views/Settings/reducers';
+import tooltipReducer from '~/ui/Tooltips/reducers';
 
 export default function () {
   return combineReducers({
@@ -32,11 +39,15 @@ export default function () {
     settings: settingsReducer,
 
     balances: balancesReducer,
+    certifications: certificationsReducer,
     blockchain: blockchainReducer,
-    compiler: compilerReducer,
     images: imagesReducer,
     nodeStatus: nodeStatusReducer,
     personal: personalReducer,
-    signer: signerReducer
+    registry: registryReducer,
+    signer: signerReducer,
+    snackbar: snackbarReducer,
+    wallet: walletReducer,
+    worker: workerReducer
   });
 }

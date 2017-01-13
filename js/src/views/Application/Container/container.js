@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -16,27 +16,30 @@
 
 import React, { Component, PropTypes } from 'react';
 
-import { FirstRun } from '../../../modals';
-import { Errors, ParityBackground, Tooltips } from '../../../ui';
+import { FirstRun, UpgradeParity } from '~/modals';
+import { Errors, ParityBackground, Tooltips } from '~/ui';
 
 import styles from '../application.css';
 
 export default class Container extends Component {
+
   static propTypes = {
     children: PropTypes.node.isRequired,
+    onCloseFirstRun: PropTypes.func,
     showFirstRun: PropTypes.bool,
-    onCloseFirstRun: PropTypes.func
+    upgradeStore: PropTypes.object.isRequired
   };
 
   render () {
-    const { children, showFirstRun, onCloseFirstRun } = this.props;
+    const { children, onCloseFirstRun, showFirstRun, upgradeStore } = this.props;
 
     return (
       <ParityBackground className={ styles.container }>
         <FirstRun
-          visible={ showFirstRun }
-          onClose={ onCloseFirstRun } />
+          onClose={ onCloseFirstRun }
+          visible={ showFirstRun } />
         <Tooltips />
+        <UpgradeParity store={ upgradeStore } />
         <Errors />
         { children }
       </ParityBackground>

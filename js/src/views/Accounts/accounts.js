@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -18,11 +18,12 @@ import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 import ContentAdd from 'material-ui/svg-icons/content/add';
-import { uniq } from 'lodash';
+import { uniq, isEqual, pickBy, omitBy } from 'lodash';
 
 import List from './List';
-import { CreateAccount } from '../../modals';
-import { Actionbar, ActionbarExport, ActionbarSearch, ActionbarSort, Button, Page, Tooltip } from '../../ui';
+import { CreateAccount, CreateWallet } from '~/modals';
+import { Actionbar, ActionbarExport, ActionbarSearch, ActionbarSort, Button, Page, Tooltip } from '~/ui';
+import { setVisibleAccounts } from '~/redux/providers/personalActions';
 
 import styles from './accounts.css';
 
@@ -32,40 +33,133 @@ class Accounts extends Component {
   }
 
   static propTypes = {
-    accounts: PropTypes.object,
-    hasAccounts: PropTypes.bool,
+    setVisibleAccounts: PropTypes.func.isRequired,
+    accounts: PropTypes.object.isRequired,
+    hasAccounts: PropTypes.bool.isRequired,
+
     balances: PropTypes.object
   }
 
   state = {
     addressBook: false,
     newDialog: false,
+    newWalletDialog: false,
     sortOrder: '',
     searchValues: [],
-    searchTokens: []
+    searchTokens: [],
+    show: false
+  }
+
+  componentWillMount () {
+    window.setTimeout(() => {
+      this.setState({ show: true });
+    }, 100);
+
+    this.setVisibleAccounts();
+  }
+
+  componentWillReceiveProps (nextProps) {
+    const prevAddresses = Object.keys(this.props.accounts);
+    const nextAddresses = Object.keys(nextProps.accounts);
+
+    if (prevAddresses.length !== nextAddresses.length || !isEqual(prevAddresses.sort(), nextAddresses.sort())) {
+      this.setVisibleAccounts(nextProps);
+    }
+  }
+
+  componentWillUnmount () {
+    this.props.setVisibleAccounts([]);
+  }
+
+  setVisibleAccounts (props = this.props) {
+    const { accounts, setVisibleAccounts } = props;
+    const addresses = Object.keys(accounts);
+    setVisibleAccounts(addresses);
   }
 
   render () {
-    const { accounts, hasAccounts, balances } = this.props;
+    return (
+      <div>
+        { this.renderNewDialog() }
+        { this.renderNewWalletDialog() }
+        { this.renderActionbar() }
+
+        <Page>
+          <Tooltip
+            className={ styles.accountTooltip }
+            text='your accounts are visible for easy access, allowing you to edit the meta information, make transfers, view transactions and fund the account'
+          />
+
+          { this.renderWallets() }
+          { this.renderAccounts() }
+        </Page>
+      </div>
+    );
+  }
+
+  renderLoading (object) {
+    const loadings = ((object && Object.keys(object)) || []).map((_, idx) => (
+      <div key={ idx } className={ styles.loading }>
+        <div />
+      </div>
+    ));
+
+    return (
+      <div className={ styles.loadings }>
+        { loadings }
+      </div>
+    );
+  }
+
+  renderAccounts () {
+    const { accounts, balances } = this.props;
+
+    const _accounts = omitBy(accounts, (a) => a.wallet);
+    const _hasAccounts = Object.keys(_accounts).length > 0;
+
+    if (!this.state.show) {
+      return this.renderLoading(_accounts);
+    }
+
     const { searchValues, sortOrder } = this.state;
 
     return (
-      <div className={ styles.accounts }>
-        { this.renderNewDialog() }
-        { this.renderActionbar() }
-        <Page>
-          <List
-            search={ searchValues }
-            accounts={ accounts }
-            balances={ balances }
-            empty={ !hasAccounts }
-            order={ sortOrder }
-            handleAddSearchToken={ this.onAddSearchToken } />
-          <Tooltip
-            className={ styles.accountTooltip }
-            text='your accounts are visible for easy access, allowing you to edit the meta information, make transfers, view transactions and fund the account' />
-        </Page>
-      </div>
+      <List
+        search={ searchValues }
+        accounts={ _accounts }
+        balances={ balances }
+        empty={ !_hasAccounts }
+        order={ sortOrder }
+        handleAddSearchToken={ this.onAddSearchToken } />
+    );
+  }
+
+  renderWallets () {
+    const { accounts, balances } = this.props;
+
+    const wallets = pickBy(accounts, (a) => a.wallet);
+    const hasWallets = Object.keys(wallets).length > 0;
+
+    if (!this.state.show) {
+      return this.renderLoading(wallets);
+    }
+
+    const { searchValues, sortOrder } = this.state;
+
+    if (!wallets || Object.keys(wallets).length === 0) {
+      return null;
+    }
+
+    return (
+      <List
+        link='wallet'
+        search={ searchValues }
+        accounts={ wallets }
+        balances={ balances }
+        empty={ !hasWallets }
+        order={ sortOrder }
+        handleAddSearchToken={ this.onAddSearchToken }
+      />
     );
   }
 
@@ -106,6 +200,12 @@ class Accounts extends Component {
         label='new account'
         onClick={ this.onNewAccountClick } />,
 
+      <Button
+        key='newWallet'
+        icon={ <ContentAdd /> }
+        label='new wallet'
+        onClick={ this.onNewWalletClick } />,
+
       <ActionbarExport
         key='exportAccounts'
         content={ accounts }
@@ -144,6 +244,22 @@ class Accounts extends Component {
     );
   }
 
+  renderNewWalletDialog () {
+    const { accounts } = this.props;
+    const { newWalletDialog } = this.state;
+
+    if (!newWalletDialog) {
+      return null;
+    }
+
+    return (
+      <CreateWallet
+        accounts={ accounts }
+        onClose={ this.onNewWalletClose }
+      />
+    );
+  }
+
   onAddSearchToken = (token) => {
     const { searchTokens } = this.state;
     const newSearchTokens = uniq([].concat(searchTokens, token));
@@ -156,8 +272,18 @@ class Accounts extends Component {
     });
   }
 
+  onNewWalletClick = () => {
+    this.setState({
+      newWalletDialog: !this.state.newWalletDialog
+    });
+  }
+
   onNewAccountClose = () => {
     this.onNewAccountClick();
+  }
+
+  onNewWalletClose = () => {
+    this.onNewWalletClick();
   }
 
   onNewAccountUpdate = () => {
@@ -169,14 +295,16 @@ function mapStateToProps (state) {
   const { balances } = state.balances;
 
   return {
-    accounts,
-    hasAccounts,
+    accounts: accounts,
+    hasAccounts: hasAccounts,
     balances
   };
 }
 
 function mapDispatchToProps (dispatch) {
-  return bindActionCreators({}, dispatch);
+  return bindActionCreators({
+    setVisibleAccounts
+  }, dispatch);
 }
 
 export default connect(

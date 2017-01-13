@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -17,10 +17,15 @@
 import BigNumber from 'bignumber.js';
 
 import { isArray, isHex, isInstanceOf, isString } from '../util/types';
+import { padLeft, toHex } from '../util/format';
 
 export function inAddress (address) {
   // TODO: address validation if we have upper-lower addresses
   return inHex(address);
+}
+
+export function inAddresses (addresses) {
+  return (addresses || []).map(inAddress);
 }
 
 export function inBlockNumber (blockNumber) {
@@ -52,12 +57,18 @@ export function inHash (hash) {
 
 export function inTopics (_topics) {
   let topics = (_topics || [])
-    .filter((topic) => topic)
-    .map(inHex);
+    .filter((topic) => topic === null || topic)
+    .map((topic) => {
+      if (topic === null) {
+        return null;
+      }
 
-  while (topics.length < 4) {
-    topics.push(null);
-  }
+      if (Array.isArray(topic)) {
+        return inTopics(topic);
+      }
+
+      return padLeft(topic, 32);
+    });
 
   return topics;
 }
@@ -93,15 +104,7 @@ export function inFilter (options) {
 }
 
 export function inHex (str) {
-  if (str && str.toString) {
-    str = str.toString(16);
-  }
-
-  if (str && str.substr(0, 2) === '0x') {
-    return str.toLowerCase();
-  }
-
-  return `0x${(str || '').toLowerCase()}`;
+  return toHex(str);
 }
 
 export function inNumber10 (number) {
@@ -113,11 +116,15 @@ export function inNumber10 (number) {
 }
 
 export function inNumber16 (number) {
-  if (isInstanceOf(number, BigNumber)) {
-    return inHex(number.toString(16));
+  const bn = isInstanceOf(number, BigNumber)
+    ? number
+    : (new BigNumber(number || 0));
+
+  if (!bn.isInteger()) {
+    throw new Error(`[format/input::inNumber16] the given number is not an integer: ${bn.toFormat()}`);
   }
 
-  return inHex((new BigNumber(number || 0)).toString(16));
+  return inHex(bn.toString(16));
 }
 
 export function inOptions (options) {
@@ -131,6 +138,13 @@ export function inOptions (options) {
 
         case 'gas':
         case 'gasPrice':
+          options[key] = inNumber16((new BigNumber(options[key])).round());
+          break;
+
+        case 'minBlock':
+          options[key] = options[key] ? inNumber16(options[key]) : null;
+          break;
+
         case 'value':
         case 'nonce':
           options[key] = inNumber16(options[key]);
@@ -165,4 +179,12 @@ export function inTraceFilter (filterObject) {
   }
 
   return filterObject;
+}
+
+export function inTraceType (whatTrace) {
+  if (isString(whatTrace)) {
+    return [whatTrace];
+  }
+
+  return whatTrace;
 }

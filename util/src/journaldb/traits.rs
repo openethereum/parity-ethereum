@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -74,10 +74,10 @@ pub trait JournalDB: HashDB {
 	#[cfg(test)]
 	fn commit_batch(&mut self, now: u64, id: &H256, end: Option<(u64, H256)>) -> Result<u32, UtilError> {
 		let mut batch = self.backing().transaction();
-		let mut ops = try!(self.journal_under(&mut batch, now, id));
+		let mut ops = self.journal_under(&mut batch, now, id)?;
 
 		if let Some((end_era, canon_id)) = end {
-			ops += try!(self.mark_canonical(&mut batch, end_era, &canon_id));
+			ops += self.mark_canonical(&mut batch, end_era, &canon_id)?;
 		}
 
 		let result = self.backing().write(batch).map(|_| ops).map_err(Into::into);
@@ -89,7 +89,7 @@ pub trait JournalDB: HashDB {
 	#[cfg(test)]
 	fn inject_batch(&mut self) -> Result<u32, UtilError> {
 		let mut batch = self.backing().transaction();
-		let res = try!(self.inject(&mut batch));
+		let res = self.inject(&mut batch)?;
 		self.backing().write(batch).map(|_| res).map_err(Into::into)
 	}
 }

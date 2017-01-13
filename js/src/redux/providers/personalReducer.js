@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import { handleActions } from 'redux-actions';
+import { isEqual } from 'lodash';
 
 const initialState = {
   accountsInfo: {},
@@ -23,28 +24,14 @@ const initialState = {
   contacts: {},
   hasContacts: false,
   contracts: {},
-  hasContracts: false
+  hasContracts: false,
+  visibleAccounts: []
 };
 
 export default handleActions({
   personalAccountsInfo (state, action) {
-    const { accountsInfo } = action;
-    const accounts = {};
-    const contacts = {};
-    const contracts = {};
-
-    Object.keys(accountsInfo || {})
-      .map((address) => Object.assign({}, accountsInfo[address], { address }))
-      .filter((account) => !account.meta.deleted)
-      .forEach((account) => {
-        if (account.uuid) {
-          accounts[account.address] = account;
-        } else if (account.meta.contract) {
-          contracts[account.address] = account;
-        } else {
-          contacts[account.address] = account;
-        }
-      });
+    const accountsInfo = action.accountsInfo || state.accountsInfo;
+    const { accounts, contacts, contracts } = action;
 
     return Object.assign({}, state, {
       accountsInfo,
@@ -54,6 +41,18 @@ export default handleActions({
       hasContacts: Object.keys(contacts).length !== 0,
       contracts,
       hasContracts: Object.keys(contracts).length !== 0
+    });
+  },
+
+  setVisibleAccounts (state, action) {
+    const addresses = (action.addresses || []).sort();
+
+    if (isEqual(addresses, state.visibleAccounts)) {
+      return state;
+    }
+
+    return Object.assign({}, state, {
+      visibleAccounts: addresses
     });
   }
 }, initialState);

@@ -11,10 +11,12 @@
     "FileReader": true
   },
   "rules": {
-    "object-curly-spacing": ["error", "always"],
-    "no-debugger": "error",
-    "no-alert": "error",
+    "curly": ["error", "all"],
     "jsx-quotes": ["error", "prefer-single"],
+    "no-alert": "error",
+    "no-debugger": "error",
+    "object-curly-spacing": ["error", "always"],
+    "object-property-newline": 0,
     "react/jsx-curly-spacing": ["error", "always"]
   }
 }

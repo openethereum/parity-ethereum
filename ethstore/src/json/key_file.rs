@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -18,11 +18,11 @@ use std::io::{Read, Write};
 use serde::{Deserialize, Deserializer, Error};
 use serde::de::{Visitor, MapVisitor};
 use serde_json;
-use super::{UUID, Version, Crypto, H160};
+use super::{Uuid, Version, Crypto, H160};
 
 #[derive(Debug, PartialEq, Serialize)]
 pub struct KeyFile {
-	pub id: UUID,
+	pub id: Uuid,
 	pub version: Version,
 	pub crypto: Crypto,
 	pub address: H160,
@@ -31,7 +31,7 @@ pub struct KeyFile {
 }
 
 enum KeyFileField {
-	ID,
+	Id,
 	Version,
 	Crypto,
 	Address,
@@ -56,7 +56,7 @@ impl Visitor for KeyFileFieldVisitor {
 		where E: Error
 	{
 		match value {
-			"id" => Ok(KeyFileField::ID),
+			"id" => Ok(KeyFileField::Id),
 			"version" => Ok(KeyFileField::Version),
 			"crypto" => Ok(KeyFileField::Crypto),
 			"Crypto" => Ok(KeyFileField::Crypto),
@@ -93,11 +93,11 @@ impl Visitor for KeyFileVisitor {
 		let mut meta = None;
 
 		loop {
-			match try!(visitor.visit_key()) {
-				Some(KeyFileField::ID) => { id = Some(try!(visitor.visit_value())); }
-				Some(KeyFileField::Version) => { version = Some(try!(visitor.visit_value())); }
-				Some(KeyFileField::Crypto) => { crypto = Some(try!(visitor.visit_value())); }
-				Some(KeyFileField::Address) => { address = Some(try!(visitor.visit_value())); }
+			match visitor.visit_key()? {
+				Some(KeyFileField::Id) => { id = Some(visitor.visit_value()?); }
+				Some(KeyFileField::Version) => { version = Some(visitor.visit_value()?); }
+				Some(KeyFileField::Crypto) => { crypto = Some(visitor.visit_value()?); }
+				Some(KeyFileField::Address) => { address = Some(visitor.visit_value()?); }
 				Some(KeyFileField::Name) => { name = visitor.visit_value().ok(); }	// ignore anyhing that is not a string to be permissive.
 				Some(KeyFileField::Meta) => { meta = visitor.visit_value().ok(); }	// ignore anyhing that is not a string to be permissive.
 				None => { break; }
@@ -106,25 +106,25 @@ impl Visitor for KeyFileVisitor {
 
 		let id = match id {
 			Some(id) => id,
-			None => try!(visitor.missing_field("id")),
+			None => visitor.missing_field("id")?,
 		};
 
 		let version = match version {
 			Some(version) => version,
-			None => try!(visitor.missing_field("version")),
+			None => visitor.missing_field("version")?,
 		};
 
 		let crypto = match crypto {
 			Some(crypto) => crypto,
-			None => try!(visitor.missing_field("crypto")),
+			None => visitor.missing_field("crypto")?,
 		};
 
 		let address = match address {
 			Some(address) => address,
-			None => try!(visitor.missing_field("address")),
+			None => visitor.missing_field("address")?,
 		};
 
-		try!(visitor.end());
+		visitor.end()?;
 
 		let result = KeyFile {
 			id: id,
@@ -153,7 +153,7 @@ impl KeyFile {
 mod tests {
 	use std::str::FromStr;
 	use serde_json;
-	use json::{KeyFile, UUID, Version, Crypto, Cipher, Aes128Ctr, Kdf, Scrypt};
+	use json::{KeyFile, Uuid, Version, Crypto, Cipher, Aes128Ctr, Kdf, Scrypt};
 
 	#[test]
 	fn basic_keyfile() {
@@ -183,7 +183,7 @@ mod tests {
 		}"#;
 
 		let expected = KeyFile {
-			id: UUID::from_str("8777d9f6-7860-4b9b-88b7-0b57ee6b3a73").unwrap(),
+			id: Uuid::from_str("8777d9f6-7860-4b9b-88b7-0b57ee6b3a73").unwrap(),
 			version: Version::V3,
 			address: "6edddfc6349aff20bc6467ccf276c5b52487f7a8".into(),
 			crypto: Crypto {

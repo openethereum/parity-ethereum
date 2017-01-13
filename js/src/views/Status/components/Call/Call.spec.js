@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -22,7 +22,7 @@ import '../../../../environment/tests';
 
 import Call from './Call';
 
-describe('components/Call', () => {
+describe('views/Status/components/Call', () => {
   const call = { callIdx: 123, callNo: 456, name: 'eth_call', params: [{ name: '123' }], response: '' };
   const element = 'dummyElement';
 

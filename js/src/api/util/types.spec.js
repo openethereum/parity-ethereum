@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -65,6 +65,12 @@ describe('api/util/types', () => {
 
     it('correctly identifies non-hex values', () => {
       expect(isHex('123j')).to.be.false;
+    });
+
+    it('correctly indentifies non-string values', () => {
+      expect(isHex(false)).to.be.false;
+      expect(isHex()).to.be.false;
+      expect(isHex([1, 2, 3])).to.be.false;
     });
   });
 

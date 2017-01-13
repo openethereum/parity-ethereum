@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -32,7 +32,7 @@ use util::{Database, DBTransaction};
 /// Can be called on upgraded database with no issues (will do nothing).
 pub fn generate_bloom(source: Arc<Database>, dest: &mut Database) -> Result<(), Error> {
 	trace!(target: "migration", "Account bloom upgrade started");
-	let best_block_hash = match try!(source.get(COL_EXTRA, b"best")) {
+	let best_block_hash = match source.get(COL_EXTRA, b"best")? {
 		// no migration needed
 		None => {
 			trace!(target: "migration", "No best block hash, skipping");
@@ -40,7 +40,7 @@ pub fn generate_bloom(source: Arc<Database>, dest: &mut Database) -> Result<(), 
 		},
 		Some(hash) => hash,
 	};
-	let best_block_header = match try!(source.get(COL_HEADERS, &best_block_hash)) {
+	let best_block_header = match source.get(COL_HEADERS, &best_block_hash)? {
 		// no best block, nothing to do
 		None => {
 			trace!(target: "migration", "No best block header, skipping");
@@ -58,9 +58,9 @@ pub fn generate_bloom(source: Arc<Database>, dest: &mut Database) -> Result<(), 
 			source.clone(),
 			journaldb::Algorithm::OverlayRecent,
 			COL_STATE);
-		let account_trie = try!(TrieDB::new(state_db.as_hashdb(), &state_root).map_err(|e| Error::Custom(format!("Cannot open trie: {:?}", e))));
-		for item in try!(account_trie.iter().map_err(|_| Error::MigrationImpossible)) {
-			let (ref account_key, _) = try!(item.map_err(|_| Error::MigrationImpossible));
+		let account_trie = TrieDB::new(state_db.as_hashdb(), &state_root).map_err(|e| Error::Custom(format!("Cannot open trie: {:?}", e)))?;
+		for item in account_trie.iter().map_err(|_| Error::MigrationImpossible)? {
+			let (ref account_key, _) = item.map_err(|_| Error::MigrationImpossible)?;
 			let account_key_hash = H256::from_slice(account_key);
 			bloom.set(&*account_key_hash);
 		}
@@ -71,8 +71,8 @@ pub fn generate_bloom(source: Arc<Database>, dest: &mut Database) -> Result<(), 
 	trace!(target: "migration", "Generated {} bloom updates", bloom_journal.entries.len());
 
 	let mut batch = DBTransaction::new(dest);
-	try!(StateDB::commit_bloom(&mut batch, bloom_journal).map_err(|_| Error::Custom("Failed to commit bloom".to_owned())));
-	try!(dest.write(batch));
+	StateDB::commit_bloom(&mut batch, bloom_journal).map_err(|_| Error::Custom("Failed to commit bloom".to_owned()))?;
+	dest.write(batch)?;
 
 	trace!(target: "migration", "Finished bloom update");
 
@@ -104,12 +104,12 @@ impl Migration for ToV10 {
 		let mut batch = Batch::new(config, col);
 		for (key, value) in source.iter(col) {
 			self.progress.tick();
-			try!(batch.insert(key.to_vec(), value.to_vec(), dest));
+			batch.insert(key.to_vec(), value.to_vec(), dest)?;
 		}
-		try!(batch.commit(dest));
+		batch.commit(dest)?;
 
 		if col == COL_STATE {
-			try!(generate_bloom(source, dest));
+			generate_bloom(source, dest)?;
 		}
 
 		Ok(())

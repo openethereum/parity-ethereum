@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -57,6 +57,7 @@ impl Substate {
 	}
 
 	/// Get the cleanup mode object from this.
+	#[cfg_attr(feature="dev", allow(wrong_self_convention))]
 	pub fn to_cleanup_mode(&mut self, schedule: &Schedule) -> CleanupMode {
 		match (schedule.no_empty, schedule.kill_empty) {
 			(false, _) => CleanupMode::ForceCreate,

@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -30,8 +30,8 @@ impl<'a> fmt::Debug for PrettySlice<'a> {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		for i in 0..self.0.len() {
 			match i > 0 {
-				true => { try!(write!(f, "·{:02x}", self.0[i])); },
-				false => { try!(write!(f, "{:02x}", self.0[i])); },
+				true => { write!(f, "·{:02x}", self.0[i])?; },
+				false => { write!(f, "{:02x}", self.0[i])?; },
 			}
 		}
 		Ok(())
@@ -41,7 +41,7 @@ impl<'a> fmt::Debug for PrettySlice<'a> {
 impl<'a> fmt::Display for PrettySlice<'a> {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		for i in 0..self.0.len() {
-			try!(write!(f, "{:02x}", self.0[i]));
+			write!(f, "{:02x}", self.0[i])?;
 		}
 		Ok(())
 	}

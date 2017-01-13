@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -18,13 +18,14 @@ use mime_guess;
 use std::io::{Seek, Read, SeekFrom};
 use std::fs;
 use std::path::{Path, PathBuf};
-use page::handler::{self, PageCache};
+use page::handler::{self, PageCache, PageHandlerWaiting};
 use endpoint::{Endpoint, EndpointInfo, EndpointPath, Handler};
+use mime::Mime;
 
 #[derive(Debug, Clone)]
 pub struct LocalPageEndpoint {
 	path: PathBuf,
-	mime: Option<String>,
+	mime: Option<Mime>,
 	info: Option<EndpointInfo>,
 	cache: PageCache,
 	embeddable_on: Option<(String, u16)>,
@@ -41,7 +42,7 @@ impl LocalPageEndpoint {
 		}
 	}
 
-	pub fn single_file(path: PathBuf, mime: String, cache: PageCache) -> Self {
+	pub fn single_file(path: PathBuf, mime: Mime, cache: PageCache) -> Self {
 		LocalPageEndpoint {
 			path: path,
 			mime: Some(mime),
@@ -54,6 +55,36 @@ impl LocalPageEndpoint {
 	pub fn path(&self) -> PathBuf {
 		self.path.clone()
 	}
+
+	fn page_handler_with_mime(&self, path: EndpointPath, mime: &Mime) -> handler::PageHandler<LocalSingleFile> {
+		handler::PageHandler {
+			app: LocalSingleFile { path: self.path.clone(), mime: format!("{}", mime) },
+			prefix: None,
+			path: path,
+			file: handler::ServedFile::new(None),
+			safe_to_embed_on: self.embeddable_on.clone(),
+			cache: self.cache,
+		}
+	}
+
+	fn page_handler(&self, path: EndpointPath) -> handler::PageHandler<LocalDapp> {
+		handler::PageHandler {
+			app: LocalDapp { path: self.path.clone() },
+			prefix: None,
+			path: path,
+			file: handler::ServedFile::new(None),
+			safe_to_embed_on: self.embeddable_on.clone(),
+			cache: self.cache,
+		}
+	}
+
+	pub fn to_page_handler(&self, path: EndpointPath) -> Box<PageHandlerWaiting> {
+		if let Some(ref mime) = self.mime {
+			Box::new(self.page_handler_with_mime(path, mime))
+		} else {
+			Box::new(self.page_handler(path))
+		}
+	}
 }
 
 impl Endpoint for LocalPageEndpoint {
@@ -63,23 +94,9 @@ impl Endpoint for LocalPageEndpoint {
 
 	fn to_handler(&self, path: EndpointPath) -> Box<Handler> {
 		if let Some(ref mime) = self.mime {
-			Box::new(handler::PageHandler {
-				app: LocalSingleFile { path: self.path.clone(), mime: mime.clone() },
-				prefix: None,
-				path: path,
-				file: handler::ServedFile::new(None),
-				safe_to_embed_on: self.embeddable_on.clone(),
-				cache: self.cache,
-			})
+			Box::new(self.page_handler_with_mime(path, mime))
 		} else {
-			Box::new(handler::PageHandler {
-				app: LocalDapp { path: self.path.clone() },
-				prefix: None,
-				path: path,
-				file: handler::ServedFile::new(None),
-				safe_to_embed_on: self.embeddable_on.clone(),
-				cache: self.cache,
-			})
+			Box::new(self.page_handler(path))
 		}
 	}
 }

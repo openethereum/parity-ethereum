@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -37,6 +37,11 @@ extern crate semver;
 extern crate parking_lot;
 extern crate rlp;
 
+extern crate ethcore_light as light;
+
+#[cfg(test)] extern crate ethcore_devtools as devtools;
+#[cfg(test)] extern crate ethkey;
+
 #[macro_use]
 extern crate log;
 #[macro_use]
@@ -51,17 +56,27 @@ mod blocks;
 mod block_sync;
 mod sync_io;
 mod snapshot;
+mod transactions_stats;
+
+pub mod light_sync;
 
 #[cfg(test)]
 mod tests;
 
+#[cfg(feature = "ipc")]
 mod api {
 	#![allow(dead_code, unused_assignments, unused_variables, missing_docs)] // codegen issues
 	include!(concat!(env!("OUT_DIR"), "/api.rs"));
 }
 
-pub use api::{EthSync, SyncProvider, SyncClient, NetworkManagerClient, ManageNetwork, SyncConfig,
-	ServiceConfiguration, NetworkConfiguration, PeerInfo, AllowIP};
+#[cfg(not(feature = "ipc"))]
+mod api;
+
+pub use api::{
+	EthSync, Params, SyncProvider, ManageNetwork, SyncConfig,
+	ServiceConfiguration, NetworkConfiguration, PeerInfo, AllowIP, TransactionStats,
+	LightSync, LightSyncParams,
+};
 pub use chain::{SyncStatus, SyncState};
 pub use network::{is_valid_node_url, NonReservedPeerMode, NetworkError};
 

@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -21,6 +21,7 @@ use util::stats;
 
 /// Values of RPC settings.
 #[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct Histogram {
 	/// Gas prices for bucket edges.
 	#[serde(rename="bucketBounds")]

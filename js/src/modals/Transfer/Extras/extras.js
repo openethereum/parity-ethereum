@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -15,97 +15,50 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import { FormattedMessage } from 'react-intl';
 
-import Form, { Input } from '../../../ui/Form';
-import GasPriceSelector from '../GasPriceSelector';
+import { GasPriceEditor, Form, Input } from '~/ui';
 
 import styles from '../transfer.css';
 
 export default class Extras extends Component {
   static propTypes = {
-    isEth: PropTypes.bool,
     data: PropTypes.string,
     dataError: PropTypes.string,
-    gas: PropTypes.string,
-    gasEst: PropTypes.string,
-    gasError: PropTypes.string,
-    gasPrice: PropTypes.oneOfType([
-      PropTypes.string,
-      PropTypes.object
-    ]),
-    gasPriceDefault: PropTypes.string,
-    gasPriceError: PropTypes.string,
-    gasPriceHistogram: PropTypes.object,
+    gasStore: PropTypes.object.isRequired,
+    isEth: PropTypes.bool,
+    minBlock: PropTypes.string,
+    minBlockError: PropTypes.string,
+    onChange: PropTypes.func.isRequired,
     total: PropTypes.string,
-    totalError: PropTypes.string,
-    onChange: PropTypes.func.isRequired
+    totalError: PropTypes.string
   }
 
   render () {
-    const { gas, gasPrice, gasError, gasEst, gasPriceDefault, gasPriceError, gasPriceHistogram, total, totalError } = this.props;
-
-    const gasLabel = `gas amount (estimated: ${gasEst})`;
-    const priceLabel = `gas price (current: ${gasPriceDefault})`;
+    const { gasStore, minBlock, minBlockError, onChange } = this.props;
 
     return (
       <Form>
-
         { this.renderData() }
-
-        <div className={ styles.columns }>
-          <div style={ { flex: 65 } }>
-            <GasPriceSelector
-              gasPriceHistogram={ gasPriceHistogram }
-              gasPrice={ gasPrice }
-              onChange={ this.onEditGasPrice }
-            />
-          </div>
-
-          <div
-            className={ styles.row }
-            style={ {
-              flex: 35, paddingLeft: '1rem',
-              justifyContent: 'space-around',
-              paddingBottom: 12
-            } }
-          >
-            <div className={ styles.row }>
-              <Input
-                label={ gasLabel }
-                hint='the amount of gas to use for the transaction'
-                error={ gasError }
-                value={ gas }
-                onChange={ this.onEditGas } />
-
-              <Input
-                label={ priceLabel }
-                hint='the price of gas to use for the transaction'
-                error={ gasPriceError }
-                value={ (gasPrice || '').toString() }
-                onChange={ this.onEditGasPrice } />
-            </div>
-
-            <div className={ styles.row }>
-              <Input
-                disabled
-                label='total transaction amount'
-                hint='the total amount of the transaction'
-                error={ totalError }
-                value={ `${total} ETH` } />
-            </div>
-          </div>
+        <Input
+          error={ minBlockError }
+          hint={
+            <FormattedMessage
+              id='transferModal.minBlock.hint'
+              defaultMessage='Only post the transaction after this block' />
+          }
+          label={
+            <FormattedMessage
+              id='transferModal.minBlock.label'
+              defaultMessage='BlockNumber to send from' />
+          }
+          value={ minBlock }
+          onChange={ this.onEditMinBlock } />
+        <div className={ styles.gaseditor }>
+          <GasPriceEditor
+            store={ gasStore }
+            onChange={ onChange } />
         </div>
-
-        <div>
-          <p className={ styles.gasPriceDesc }>
-            You can choose the gas price based on the
-            distribution of recent included transactions' gas prices.
-            The lower the gas price is, the cheaper the transaction will
-            be. The higher the gas price is, the faster it should
-            get mined by the network.
-          </p>
-        </div>
-
       </Form>
     );
   }
@@ -118,26 +71,28 @@ export default class Extras extends Component {
     }
 
     return (
-      <div>
-        <Input
-          hint='the data to pass through with the transaction'
-          label='transaction data'
-          value={ data }
-          error={ dataError }
-          onChange={ this.onEditData } />
-      </div>
+      <Input
+        error={ dataError }
+        hint={
+          <FormattedMessage
+            id='transfer.advanced.data.hint'
+            defaultMessage='the data to pass through with the transaction' />
+        }
+        label={
+          <FormattedMessage
+            id='transfer.advanced.data.label'
+            defaultMessage='transaction data' />
+        }
+        onChange={ this.onEditData }
+        value={ data } />
     );
-  }
-
-  onEditGas = (event) => {
-    this.props.onChange('gas', event.target.value);
-  }
-
-  onEditGasPrice = (event, value) => {
-    this.props.onChange('gasPrice', value);
   }
 
   onEditData = (event) => {
     this.props.onChange('data', event.target.value);
+  }
+
+  onEditMinBlock = (event) => {
+    this.props.onChange('minBlock', event.target.value);
   }
 }

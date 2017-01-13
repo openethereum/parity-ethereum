@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -14,28 +14,34 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import badgereg from './badgereg.json';
 import basiccoin from './basiccoin.json';
 import basiccoinmanager from './basiccoinmanager.json';
 import dappreg from './dappreg.json';
 import eip20 from './eip20.json';
+import emailverification from './email-verification.json';
 import gavcoin from './gavcoin.json';
 import githubhint from './githubhint.json';
 import owned from './owned.json';
 import registry from './registry.json';
 import signaturereg from './signaturereg.json';
+import smsverification from './sms-verification.json';
 import tokenreg from './tokenreg.json';
 import wallet from './wallet.json';
 
 export {
+  badgereg,
   basiccoin,
   basiccoinmanager,
   dappreg,
   eip20,
+  emailverification,
   gavcoin,
   githubhint,
   owned,
   registry,
   signaturereg,
+  smsverification,
   tokenreg,
   wallet
 };

@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -348,13 +348,13 @@ impl JournalDB for OverlayRecentDB {
 			match rc {
 				0 => {}
 				1 => {
-					if cfg!(debug_assertions) && try!(self.backing.get(self.column, &key)).is_some() {
+					if cfg!(debug_assertions) && self.backing.get(self.column, &key)?.is_some() {
 						return Err(BaseDataError::AlreadyExists(key).into());
 					}
 					batch.put(self.column, &key, &value)
 				}
 				-1 => {
-					if cfg!(debug_assertions) && try!(self.backing.get(self.column, &key)).is_none() {
+					if cfg!(debug_assertions) && self.backing.get(self.column, &key)?.is_none() {
 						return Err(BaseDataError::NegativelyReferencedHash(key).into());
 					}
 					batch.delete(self.column, &key)
@@ -422,7 +422,7 @@ mod tests {
 
 	use common::*;
 	use super::*;
-	use hashdb::*;
+	use hashdb::{HashDB, DBValue};
 	use log::init_log;
 	use journaldb::JournalDB;
 	use kvdb::Database;

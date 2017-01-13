@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -36,7 +36,8 @@ export const ERROR_CODES = {
   REQUEST_NOT_FOUND: -32042,
   COMPILATION_ERROR: -32050,
   ENCRYPTION_ERROR: -32055,
-  FETCH_ERROR: -32060
+  FETCH_ERROR: -32060,
+  INVALID_PARAMS: -32602
 };
 
 export default class TransportError extends ExtendableError {

@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -28,7 +28,8 @@ use types::trace_types::trace::{Action, Res};
 /// Addresses filter.
 ///
 /// Used to create bloom possibilities and match filters.
-#[derive(Debug, Binary)]
+#[derive(Debug)]
+#[cfg_attr(feature = "ipc", binary)]
 pub struct AddressesFilter {
 	list: Vec<Address>
 }
@@ -74,7 +75,8 @@ impl AddressesFilter {
 	}
 }
 
-#[derive(Debug, Binary)]
+#[derive(Debug)]
+#[cfg_attr(feature = "ipc", binary)]
 /// Traces filter.
 pub struct Filter {
 	/// Block range.

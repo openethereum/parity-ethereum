@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -23,9 +23,10 @@ export const TEST_HTTP_URL = 'http://localhost:6688';
 export const TEST_WS_URL = 'ws://localhost:8866';
 
 export function mockHttp (requests) {
+  nock.cleanAll();
   let scope = nock(TEST_HTTP_URL);
 
-  requests.forEach((request) => {
+  requests.forEach((request, index) => {
     scope = scope
       .post('/')
       .reply(request.code || 200, (uri, body) => {

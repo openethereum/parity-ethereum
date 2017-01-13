@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -15,6 +15,8 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+
+import { nodeOrStringProptype } from '~/util/proptypes';
 
 import Input from '../Input';
 
@@ -33,9 +35,7 @@ export default class InputInline extends Component {
     value: PropTypes.oneOfType([
       PropTypes.number, PropTypes.string
     ]),
-    static: PropTypes.oneOfType([
-      PropTypes.node, PropTypes.string
-    ])
+    static: nodeOrStringProptype()
   }
 
   state = {

@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -15,44 +15,88 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
-import { bindActionCreators } from 'redux';
+import { Link } from 'react-router';
 import { Toolbar, ToolbarGroup } from 'material-ui/Toolbar';
-import { Tabs, Tab } from 'material-ui/Tabs';
+import { Tab as MUITab } from 'material-ui/Tabs';
+import { isEqual } from 'lodash';
 
-import { Badge, Tooltip } from '../../../ui';
+import { Badge, Tooltip } from '~/ui';
+
+import imagesEthcoreBlock from '~/../assets/images/parity-logo-white-no-text.svg';
 
 import styles from './tabBar.css';
-import imagesEthcoreBlock from '../../../../assets/images/parity-logo-white-no-text.svg';
 
-const TABMAP = {
-  accounts: 'account',
-  addresses: 'address',
-  apps: 'app',
-  contracts: 'contract',
-  deploy: 'contract'
-};
+class Tab extends Component {
+  static propTypes = {
+    children: PropTypes.node,
+    pendings: PropTypes.number,
+    view: PropTypes.object
+  };
+
+  render () {
+    const { view, children } = this.props;
+
+    return (
+      <MUITab
+        icon={ view.icon }
+        label={
+          view.id === 'signer'
+            ? this.renderSignerLabel(view.id)
+            : this.renderLabel(view.id)
+        }>
+        { children }
+      </MUITab>
+    );
+  }
+
+  renderLabel (id, bubble) {
+    return (
+      <div className={ styles.label }>
+        <FormattedMessage
+          id={ `settings.views.${id}.label` } />
+        { bubble }
+      </div>
+    );
+  }
+
+  renderSignerLabel (id) {
+    const { pendings } = this.props;
+    let bubble;
+
+    if (pendings) {
+      bubble = (
+        <Badge
+          color='red'
+          className={ styles.labelBubble }
+          value={ pendings } />
+      );
+    }
+
+    return this.renderLabel(id, bubble);
+  }
+}
 
 class TabBar extends Component {
   static contextTypes = {
     router: PropTypes.object.isRequired
-  }
+  };
 
   static propTypes = {
-    pending: PropTypes.array,
     isTest: PropTypes.bool,
     netChain: PropTypes.string,
-    settings: PropTypes.object.isRequired
-  }
+    pending: PropTypes.array,
+    views: PropTypes.array.isRequired
+  };
 
-  state = {
-    activeRoute: '/accounts'
-  }
+  static defaultProps = {
+    pending: []
+  };
 
   render () {
     return (
-      <Toolbar
-        className={ styles.toolbar }>
+      <Toolbar className={ styles.toolbar }>
         { this.renderLogo() }
         { this.renderTabs() }
         { this.renderLast() }
@@ -64,7 +108,7 @@ class TabBar extends Component {
     return (
       <ToolbarGroup>
         <div className={ styles.logo }>
-          <img src={ imagesEthcoreBlock } />
+          <img src={ imagesEthcoreBlock } height={ 28 } />
         </div>
       </ToolbarGroup>
     );
@@ -74,114 +118,80 @@ class TabBar extends Component {
     return (
       <ToolbarGroup>
         <div className={ styles.last }>
-          <div></div>
+          <div />
         </div>
       </ToolbarGroup>
     );
   }
 
   renderTabs () {
-    const { settings } = this.props;
-    const windowHash = (window.location.hash || '').split('?')[0].split('/')[1];
-    const hash = TABMAP[windowHash] || windowHash;
+    const { views, pending } = this.props;
 
-    const items = Object.keys(settings.views)
-      .filter((id) => settings.views[id].fixed || settings.views[id].active)
-      .map((id) => {
-        const view = settings.views[id];
-        let label = this.renderLabel(view.label);
-        let body = null;
-
-        if (id === 'accounts') {
-          body = (
-            <Tooltip className={ styles.tabbarTooltip } text='navigate between the different parts and views of the application, switching between an account view, token view and distributed application view' />
-          );
-        } else if (id === 'signer') {
-          label = this.renderSignerLabel(label);
-        } else if (id === 'status') {
-          label = this.renderStatusLabel(label);
-        }
+    const items = views
+      .map((view, index) => {
+        const body = (view.id === 'accounts')
+          ? (
+            <Tooltip
+              className={ styles.tabbarTooltip }
+              text='navigate between the different parts and views of the application, switching between an account view, token view and distributed application view' />
+          )
+          : null;
 
         return (
-          <Tab
-            className={ hash === view.value ? styles.tabactive : '' }
-            value={ view.value }
-            icon={ view.icon }
-            key={ id }
-            label={ label }
-            onActive={ this.onActivate(view.route) }>
-            { body }
-          </Tab>
+          <Link
+            activeClassName={ styles.tabactive }
+            className={ styles.tabLink }key={ view.id }
+            to={ view.route }>
+            <Tab
+              pendings={ pending.length }
+              view={ view }>
+              { body }
+            </Tab>
+          </Link>
         );
       });
 
     return (
-      <Tabs
-        className={ styles.tabs }
-        value={ hash }>
+      <div className={ styles.tabs }>
         { items }
-      </Tabs>
-    );
-  }
-
-  renderLabel = (name, bubble) => {
-    return (
-      <div className={ styles.label }>
-        { name }
-        { bubble }
       </div>
     );
   }
+}
 
-  renderSignerLabel = (label) => {
-    const { pending } = this.props;
-    let bubble = null;
+function mapStateToProps (initState) {
+  const { views } = initState.settings;
 
-    if (pending && pending.length) {
-      bubble = (
-        <Badge
-          color='red'
-          className={ styles.labelBubble }
-          value={ pending.length } />
-      );
+  let filteredViewIds = Object
+    .keys(views)
+    .filter((id) => views[id].fixed || views[id].active);
+
+  let filteredViews = filteredViewIds.map((id) => ({
+    ...views[id],
+    id
+  }));
+
+  return (state) => {
+    const { views } = state.settings;
+
+    const viewIds = Object
+      .keys(views)
+      .filter((id) => views[id].fixed || views[id].active);
+
+    if (isEqual(viewIds, filteredViewIds)) {
+      return { views: filteredViews };
     }
 
-    return this.renderLabel(label, bubble);
-  }
+    filteredViewIds = viewIds;
+    filteredViews = viewIds.map((id) => ({
+      ...views[id],
+      id
+    }));
 
-  renderStatusLabel = (label) => {
-    // const { isTest, netChain } = this.props;
-    // const bubble = (
-    //   <Badge
-    //     color={ isTest ? 'red' : 'default' }
-    //     className={ styles.labelBubble }
-    //     value={ isTest ? 'TEST' : netChain } />
-    //   );
-
-    return this.renderLabel(label, null);
-  }
-
-  onActivate = (activeRoute) => {
-    const { router } = this.context;
-
-    return (event) => {
-      router.push(activeRoute);
-      this.setState({ activeRoute });
-    };
-  }
-}
-
-function mapStateToProps (state) {
-  const { settings } = state;
-
-  return { settings };
-}
-
-function mapDispatchToProps (dispatch) {
-  return bindActionCreators({}, dispatch);
+    return { views: filteredViews };
+  };
 }
 
 export default connect(
-  mapStateToProps,
-  mapDispatchToProps
+  mapStateToProps
 )(TabBar);

@@ -1,4 +1,4 @@
-/* Copyright 2015, 2016 Ethcore (UK) Ltd.
+/* Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 /* This file is part of Parity.
 /*
 /* Parity is free software: you can redistribute it and/or modify
@@ -18,10 +18,28 @@
 .container {
 }
 
+.clickable {
+  border: 1px dashed rgba(255, 255, 255, 0.4);
+  padding: 0.1em 0.3em;
+  margin: 0.1em 0.1em;
+
+  &:hover {
+    cursor: pointer;
+  }
+
+  &.noSelect {
+    user-select: none;
+  }
+}
+
 .loading {
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+.details {
+  line-height: 1.75em;
 }
 
 .details,
@@ -30,9 +48,9 @@
 }
 
 .gasDetails {
-  padding-top: 1em;
+  padding-top: 0.75em;
   font-size: 0.75em;
-  line-height: 2em;
+  line-height: 1.5em;
   opacity: 0.5;
 }
 
@@ -61,7 +79,7 @@
   font-family: inherit !important;
 }
 
-.inputs img {
+.inputs [data-address-img] {
   position: absolute;
   top: -16px;
 }

@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -52,6 +52,18 @@ pub enum Error {
 	UnexpectedHandshake,
 	/// Peer on wrong network (wrong NetworkId or genesis hash)
 	WrongNetwork,
+	/// Unknown peer.
+	UnknownPeer,
+	/// Unsolicited response.
+	UnsolicitedResponse,
+	/// Not a server.
+	NotServer,
+	/// Unsupported protocol version.
+	UnsupportedProtocolVersion(u8),
+	/// Bad protocol version.
+	BadProtocolVersion,
+	/// Peer is overburdened.
+	Overburdened,
 }
 
 impl Error {
@@ -64,6 +76,12 @@ impl Error {
 			Error::UnrecognizedPacket(_) => Punishment::Disconnect,
 			Error::UnexpectedHandshake => Punishment::Disconnect,
 			Error::WrongNetwork => Punishment::Disable,
+			Error::UnknownPeer => Punishment::Disconnect,
+			Error::UnsolicitedResponse => Punishment::Disable,
+			Error::NotServer => Punishment::Disable,
+			Error::UnsupportedProtocolVersion(_) => Punishment::Disable,
+			Error::BadProtocolVersion => Punishment::Disable,
+			Error::Overburdened => Punishment::None,
 		}
 	}
 }
@@ -89,6 +107,12 @@ impl fmt::Display for Error {
 			Error::UnrecognizedPacket(code) => write!(f, "Unrecognized packet: 0x{:x}", code),
 			Error::UnexpectedHandshake => write!(f, "Unexpected handshake"),
 			Error::WrongNetwork => write!(f, "Wrong network"),
+			Error::UnknownPeer => write!(f, "Unknown peer"),
+			Error::UnsolicitedResponse => write!(f, "Peer provided unsolicited data"),
+			Error::NotServer => write!(f, "Peer not a server."),
+			Error::UnsupportedProtocolVersion(pv) => write!(f, "Unsupported protocol version: {}", pv),
+			Error::BadProtocolVersion => write!(f, "Bad protocol version in handshake"),
+			Error::Overburdened => write!(f, "Peer overburdened"),
 		}
 	}
 }

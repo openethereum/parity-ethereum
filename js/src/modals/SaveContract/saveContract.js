@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -19,8 +19,8 @@ import React, { Component, PropTypes } from 'react';
 import SaveIcon from 'material-ui/svg-icons/content/save';
 import ContentClear from 'material-ui/svg-icons/content/clear';
 
-import { Button, Modal, Editor, Form, Input } from '../../ui';
-import { ERRORS, validateName } from '../../util/validation';
+import { Button, Modal, Editor, Form, Input } from '~/ui';
+import { ERRORS, validateName } from '~/util/validation';
 
 import styles from './saveContract.css';
 

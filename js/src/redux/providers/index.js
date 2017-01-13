@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -21,9 +21,11 @@ export Status from './status';
 
 export apiReducer from './apiReducer';
 export balancesReducer from './balancesReducer';
+export blockchainReducer from './blockchainReducer';
+export workerReducer from './workerReducer';
 export imagesReducer from './imagesReducer';
 export personalReducer from './personalReducer';
 export signerReducer from './signerReducer';
+export snackbarReducer from './snackbarReducer';
 export statusReducer from './statusReducer';
-export blockchainReducer from './blockchainReducer';
-export compilerReducer from './compilerReducer';
+export walletReducer from './walletReducer';

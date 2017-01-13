@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -17,7 +17,8 @@
 //! Call analytics related types
 
 /// Options concerning what analytics we run on the call.
-#[derive(Eq, PartialEq, Default, Clone, Copy, Debug, Binary)]
+#[derive(Eq, PartialEq, Default, Clone, Copy, Debug)]
+#[cfg_attr(feature = "ipc", binary)]
 pub struct CallAnalytics {
 	/// Make a transaction trace.
 	pub transaction_tracing: bool,

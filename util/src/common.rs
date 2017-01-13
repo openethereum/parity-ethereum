@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -22,14 +22,20 @@ pub use error::*;
 pub use bytes::*;
 pub use vector::*;
 pub use sha3::*;
-pub use bigint::hash::*;
-pub use bigint::uint::*;
+pub use bigint::prelude::*;
 pub use bigint::hash;
 
 #[macro_export]
 macro_rules! vec_into {
 	( $( $x:expr ),* ) => {
 		vec![ $( $x.into() ),* ]
+	}
+}
+
+#[macro_export]
+macro_rules! slice_into {
+	( $( $x:expr ),* ) => {
+		&[ $( $x.into() ),* ]
 	}
 }
 

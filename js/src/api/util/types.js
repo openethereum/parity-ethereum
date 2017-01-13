@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -29,6 +29,10 @@ export function isFunction (test) {
 }
 
 export function isHex (_test) {
+  if (!isString(_test)) {
+    return false;
+  }
+
   if (_test.substr(0, 2) === '0x') {
     return isHex(_test.slice(2));
   }

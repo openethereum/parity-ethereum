@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -15,59 +15,52 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import { FormattedMessage } from 'react-intl';
 
-import { Balance, Container, ContainerTitle, IdentityIcon, IdentityName, Tags } from '../../../ui';
-import CopyToClipboard from '../../../ui/CopyToClipboard';
+import { Balance, Container, ContainerTitle, IdentityIcon, IdentityName, Tags } from '~/ui';
+import CopyToClipboard from '~/ui/CopyToClipboard';
+import Certifications from '~/ui/Certifications';
 
 import styles from './header.css';
 
 export default class Header extends Component {
-  static contextTypes = {
-    api: PropTypes.object
-  }
-
   static propTypes = {
     account: PropTypes.object,
     balance: PropTypes.object,
-    isTest: PropTypes.bool
-  }
+    children: PropTypes.node,
+    className: PropTypes.string,
+    hideName: PropTypes.bool,
+    isContract: PropTypes.bool
+  };
 
-  state = {
-    name: null
-  }
-
-  componentWillMount () {
-    this.setName();
-  }
-
-  componentWillReceiveProps () {
-    this.setName();
-  }
+  static defaultProps = {
+    children: null,
+    className: '',
+    hideName: false,
+    isContract: false
+  };
 
   render () {
-    const { account, balance } = this.props;
-    const { address, meta, uuid } = account;
+    const { account, balance, children, className, hideName } = this.props;
 
     if (!account) {
       return null;
     }
 
-    const uuidText = !uuid
-      ? null
-      : <div className={ styles.uuidline }>uuid: { uuid }</div>;
+    const { address } = account;
+    const meta = account.meta || {};
 
     return (
-      <div>
+      <div className={ className }>
         <Container>
-          <IdentityIcon
-            address={ address } />
+          <IdentityIcon address={ address } />
           <div className={ styles.floatleft }>
-            <ContainerTitle title={ <IdentityName address={ address } unknown /> } />
-            <div className={ styles.addressline }>
+            { this.renderName() }
+            <div className={ [ hideName ? styles.bigaddress : '', styles.addressline ].join(' ') }>
               <CopyToClipboard data={ address } />
               <div className={ styles.address }>{ address }</div>
             </div>
-            { uuidText }
+            { this.renderUuid() }
             <div className={ styles.infoline }>
               { meta.description }
             </div>
@@ -80,49 +73,74 @@ export default class Header extends Component {
             <Balance
               account={ account }
               balance={ balance } />
+            <Certifications address={ address } />
           </div>
+          { children }
         </Container>
       </div>
     );
   }
 
-  renderTxCount () {
-    const { isTest, balance } = this.props;
+  renderName () {
+    const { hideName } = this.props;
 
-    if (!balance) {
+    if (hideName) {
       return null;
     }
 
-    const txCount = balance.txCount.sub(isTest ? 0x100000 : 0);
+    const { address } = this.props.account;
+
+    return (
+      <ContainerTitle
+        title={
+          <IdentityName
+            address={ address }
+            unknown />
+        } />
+    );
+  }
+
+  renderTxCount () {
+    const { balance, isContract } = this.props;
+
+    if (!balance || isContract) {
+      return null;
+    }
+
+    const { txCount } = balance;
+
+    if (!txCount) {
+      return null;
+    }
 
     return (
       <div className={ styles.infoline }>
-        { txCount.toFormat() } outgoing transactions
+        <FormattedMessage
+          id='account.header.outgoingTransactions'
+          defaultMessage='{count} outgoing transactions'
+          values={ {
+            count: txCount.toFormat()
+          } } />
       </div>
     );
   }
 
-  onSubmitName = (name) => {
-    const { api } = this.context;
-    const { account } = this.props;
+  renderUuid () {
+    const { uuid } = this.props.account;
 
-    this.setState({ name }, () => {
-      api.parity
-        .setAccountName(account.address, name)
-        .catch((error) => {
-          console.error(error);
-        });
-    });
-  }
-
-  setName () {
-    const { account } = this.props;
-
-    if (account && account.name !== this.propName) {
-      this.propName = account.name;
-      this.setState({
-        name: account.name
-      });
+    if (!uuid) {
+      return null;
     }
+
+    return (
+      <div className={ styles.uuidline }>
+        <FormattedMessage
+          id='account.header.uuid'
+          defaultMessage='uuid: {uuid}'
+          values={ {
+            uuid
+          } } />
+      </div>
+    );
   }
 }

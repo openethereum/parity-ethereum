@@ -1,4 +1,4 @@
-/* Copyright 2015, 2016 Ethcore (UK) Ltd.
+/* Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 /* This file is part of Parity.
 /*
 /* Parity is free software: you can redistribute it and/or modify
@@ -15,26 +15,48 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-.contract {
-}
-
 .events {
   width: 100%;
   border: none;
   border-spacing: 0;
-}
 
-.events tr {
-  line-height: 32px;
-  vertical-align: top;
+  tr {
+    line-height: 32px;
+    vertical-align: top;
+  }
 }
 
 .event {
+  td {
+    vertical-align: top;
+    padding: 0 0.5em 1.5em;
+
+    div {
+      white-space: nowrap;
+    }
+
+    &.timestamp {
+      padding-right: 1.5em;
+      text-align: right;
+      line-height: 1.5em;
+      opacity: 0.5;
+      white-space: nowrap;
+    }
+  }
 }
 
-.event td {
-  vertical-align: top;
-  padding: 1em 0.5em;
+.blockNumber {
+  color: rgba(255, 255, 255, 0.25);
+  margin-top: 1.5em;
+}
+
+.origin {
+  text-align: left;
+  padding-left: 32px;
+  text-indent: 1em;
+  color: rgba(255, 255, 255, 0.5);
+  text-transform: uppercase;
+  font-size: 0.9em;
 }
 
 .txhash {
@@ -47,23 +69,11 @@
   color: #aaa;
 }
 
-.event td div {
-  white-space: nowrap;
-}
-
 .mined {
 }
 
 .pending {
   opacity: 0.5;
-}
-
-.timestamp {
-  padding-top: 1.5em;
-  text-align: right;
-  line-height: 1.5em;
-  opacity: 0.5;
-  white-space: nowrap;
 }
 
 .eventDetails {

@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -33,6 +33,8 @@ pub struct TransactionRequest {
 	pub data: Option<Bytes>,
 	/// Transaction's nonce
 	pub nonce: Option<U256>,
+	/// Delay until this block if specified.
+	pub min_block: Option<u64>,
 }
 
 /// Transaction request coming from RPC with default values filled in.
@@ -52,6 +54,8 @@ pub struct FilledTransactionRequest {
 	pub data: Bytes,
 	/// Transaction's nonce
 	pub nonce: Option<U256>,
+	/// Delay until this block if specified.
+	pub min_block: Option<u64>,
 }
 
 impl From<FilledTransactionRequest> for TransactionRequest {
@@ -64,6 +68,7 @@ impl From<FilledTransactionRequest> for TransactionRequest {
 			value: Some(r.value),
 			data: Some(r.data),
 			nonce: r.nonce,
+			min_block: r.min_block,
 		}
 	}
 }

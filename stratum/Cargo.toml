@@ -1,9 +1,13 @@
 [package]
 description = "Ethcore stratum lib"
 name = "ethcore-stratum"
+<<<<<<< HEAD
 version = "1.5.0"
+=======
+version = "1.6.0"
+>>>>>>> master
 license = "GPL-3.0"
-authors = ["Ethcore <admin@ethcore.io>"]
+authors = ["Parity Technologies <admin@parity.io>"]
 build = "build.rs"
 
 [build-dependencies]
@@ -11,15 +15,16 @@ ethcore-ipc-codegen = { path = "../ipc/codegen" }
 
 [dependencies]
 log = "0.3"
-json-tcp-server = { git = "https://github.com/ethcore/json-tcp-server" }
-jsonrpc-core = "3.0"
+jsonrpc-core = { git = "https://github.com/ethcore/jsonrpc.git" }
+jsonrpc-macros = { git = "https://github.com/ethcore/jsonrpc.git" }
+jsonrpc-tcp-server = { git = "https://github.com/ethcore/jsonrpc.git" }
 mio = { git = "https://github.com/ethcore/mio", branch = "v0.5.x" }
 ethcore-util = { path = "../util" }
 ethcore-devtools = { path = "../devtools" }
 lazy_static = "0.2"
 env_logger = "0.3"
 ethcore-ipc = { path = "../ipc/rpc" }
-semver = "0.2"
+semver = "0.5"
 ethcore-ipc-nano = { path = "../ipc/nano" }
 
 [profile.release]

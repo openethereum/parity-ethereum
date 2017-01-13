@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -19,16 +19,17 @@
 pub use std::time::Duration;
 use client::Mode as ClientMode;
 
-/// IPC-capable shadow-type for client::config::Mode
-#[derive(Clone, Binary, Debug)]
+/// IPC-capable shadow-type for `client::config::Mode`
+#[derive(Clone, Debug)]
+#[cfg_attr(feature = "ipc", binary)]
 pub enum Mode {
-	/// Same as ClientMode::Off.
+	/// Same as `ClientMode::Off`.
 	Off,
-	/// Same as ClientMode::Dark; values in seconds.
+	/// Same as `ClientMode::Dark`; values in seconds.
 	Dark(u64),
-	/// Same as ClientMode::Passive; values in seconds.
+	/// Same as `ClientMode::Passive`; values in seconds.
 	Passive(u64, u64),
-	/// Same as ClientMode::Active.
+	/// Same as `ClientMode::Active`.
 	Active,
 }
 

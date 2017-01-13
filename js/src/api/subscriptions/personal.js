@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -46,9 +46,9 @@ export default class Personal {
 
   _accountsInfo = () => {
     return this._api.parity
-      .accountsInfo()
+      .allAccountsInfo()
       .then((info) => {
-        this._updateSubscriptions('parity_accountsInfo', null, info);
+        this._updateSubscriptions('parity_allAccountsInfo', null, info);
       });
   }
 
@@ -59,6 +59,7 @@ export default class Personal {
       }
 
       switch (data.method) {
+        case 'parity_killAccount':
         case 'parity_importGethAccounts':
         case 'personal_newAccount':
         case 'parity_newAccountFromPhrase':
@@ -67,6 +68,7 @@ export default class Personal {
           this._accountsInfo();
           return;
 
+        case 'parity_removeAddress':
         case 'parity_setAccountName':
         case 'parity_setAccountMeta':
           this._accountsInfo();

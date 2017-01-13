@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -35,6 +35,18 @@ describe('abi/spec/Function', () => {
   });
 
   describe('constructor', () => {
+    it('returns signature correctly if name already contains it', () => {
+      const func = new Func({
+        name: 'test(bool,string)',
+        inputs: inputsArr,
+        outputs: outputsArr
+      });
+
+      expect(func.name).to.equal('test');
+      expect(func.id).to.equal('test(bool,string)');
+      expect(func.signature).to.equal('02356205');
+    });
+
     it('stores the parameters as received', () => {
       expect(func.name).to.equal('test');
       expect(func.constant).to.be.false;

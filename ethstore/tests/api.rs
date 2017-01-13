@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -19,7 +19,7 @@ extern crate ethstore;
 
 mod util;
 
-use ethstore::{SecretStore, EthStore};
+use ethstore::{EthStore, SimpleSecretStore};
 use ethstore::ethkey::{Random, Generator, Secret, KeyPair, verify_address};
 use ethstore::dir::DiskDirectory;
 use util::TransientDir;
@@ -133,9 +133,9 @@ fn secret_store_load_pat_files() {
 #[test]
 fn test_decrypting_files_with_short_ciphertext() {
 	// 31e9d1e6d844bd3a536800ef8d8be6a9975db509, 30
-	let kp1 = KeyPair::from_secret("000081c29e8142bb6a81bef5a92bda7a8328a5c85bb2f9542e76f9b0f94fc018".into()).unwrap();
+	let kp1 = KeyPair::from_secret("000081c29e8142bb6a81bef5a92bda7a8328a5c85bb2f9542e76f9b0f94fc018".parse().unwrap()).unwrap();
 	// d1e64e5480bfaf733ba7d48712decb8227797a4e , 31
-	let kp2 = KeyPair::from_secret("00fa7b3db73dc7dfdf8c5fbdb796d741e4488628c41fc4febd9160a866ba0f35".into()).unwrap();
+	let kp2 = KeyPair::from_secret("00fa7b3db73dc7dfdf8c5fbdb796d741e4488628c41fc4febd9160a866ba0f35".parse().unwrap()).unwrap();
 	let dir = DiskDirectory::at(ciphertext_path());
 	let store = EthStore::open(Box::new(dir)).unwrap();
 	let accounts = store.accounts().unwrap();

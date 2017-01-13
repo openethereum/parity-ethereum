@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -73,7 +73,7 @@ export default class Import extends Component {
           Provide the ABI (Contract Interface) in the space provided below. Only non-constant functions (names &amp; types) will be imported, while constant functions and existing signatures will be ignored.
         </div>
         <div className={ styles.info }>
-          <textarea rows='8' className={ styles.error } onChange={ this.onAbiEdit }></textarea>
+          <textarea rows='8' className={ styles.error } onChange={ this.onAbiEdit } />
           <div className={ styles.error }>
             { abiError }
           </div>

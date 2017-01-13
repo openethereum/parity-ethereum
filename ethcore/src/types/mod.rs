@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -16,5 +16,10 @@
 
 //! Types used in the public api
 
-#![allow(dead_code, unused_assignments, unused_variables)] // codegen issues
+#![cfg_attr(feature = "ipc", allow(dead_code, unused_assignments, unused_variables))] // codegen issues
+
+#[cfg(feature = "ipc")]
 include!(concat!(env!("OUT_DIR"), "/mod.rs.in"));
+
+#[cfg(not(feature = "ipc"))]
+include!("mod.rs.in");

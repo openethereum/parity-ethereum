@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -20,15 +20,14 @@ export const set = (addresses) => ({ type: 'addresses set', addresses });
 
 export const fetch = () => (dispatch) => {
   return api.parity
-    .accounts()
+    .accountsInfo()
     .then((accountsInfo) => {
       const addresses = Object
         .keys(accountsInfo)
-        .filter((address) => accountsInfo[address] && !accountsInfo[address].meta.deleted)
         .map((address) => ({
           ...accountsInfo[address],
           address,
-          isAccount: !!accountsInfo[address].uuid
+          isAccount: true
         }));
       dispatch(set(addresses));
     })

@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -15,15 +15,11 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
-import { bindActionCreators } from 'redux';
-import ActionCompareArrows from 'material-ui/svg-icons/action/compare-arrows';
-import ActionDashboard from 'material-ui/svg-icons/action/dashboard';
-// import CommunicationVpnKey from 'material-ui/svg-icons/communication/vpn-key';
-import HardwareDesktopMac from 'material-ui/svg-icons/hardware/desktop-mac';
-import NotificationVpnLock from 'material-ui/svg-icons/notification/vpn-lock';
 
-import { Input } from '../../ui';
+import { Input } from '~/ui';
+import { CompareIcon, ComputerIcon, DashboardIcon, VpnIcon } from '~/ui/Icons';
 
 import styles from './connection.css';
 
@@ -35,29 +31,21 @@ class Connection extends Component {
   static propTypes = {
     isConnected: PropTypes.bool,
     isConnecting: PropTypes.bool,
-    isPingable: PropTypes.bool,
     needsToken: PropTypes.bool
   }
 
   state = {
+    loading: false,
     token: '',
     validToken: false
   }
 
   render () {
-    const { isConnected, isConnecting, isPingable } = this.props;
-    const isOk = !isConnecting && isConnected && isPingable;
+    const { isConnected, needsToken } = this.props;
 
-    if (isOk) {
+    if (isConnected) {
       return null;
     }
-
-    const typeIcon = isPingable
-      ? <NotificationVpnLock className={ styles.svg } />
-      : <ActionDashboard className={ styles.svg } />;
-    const description = isPingable
-      ? this.renderSigner()
-      : this.renderPing();
 
     return (
       <div>
@@ -66,16 +54,24 @@ class Connection extends Component {
           <div className={ styles.body }>
             <div className={ styles.icons }>
               <div className={ styles.icon }>
-                <HardwareDesktopMac className={ styles.svg } />
+                <ComputerIcon className={ styles.svg } />
               </div>
               <div className={ styles.iconSmall }>
-                <ActionCompareArrows className={ styles.svg + ' ' + styles.pulse } />
+                <CompareIcon className={ `${styles.svg} ${styles.pulse}` } />
               </div>
               <div className={ styles.icon }>
-                { typeIcon }
+                {
+                  needsToken
+                    ? <VpnIcon className={ styles.svg } />
+                    : <DashboardIcon className={ styles.svg } />
+                }
               </div>
             </div>
-            { description }
+            {
+              needsToken
+                ? this.renderSigner()
+                : this.renderPing()
+            }
           </div>
         </div>
       </div>
@@ -83,20 +79,44 @@ class Connection extends Component {
   }
 
   renderSigner () {
-    const { token, validToken } = this.state;
+    const { loading, token, validToken } = this.state;
     const { isConnecting, needsToken } = this.props;
 
     if (needsToken && !isConnecting) {
       return (
         <div className={ styles.info }>
-          <div>Unable to make a connection to the Parity Secure API. To update your secure token or to generate a new one, run <span className={ styles.console }>parity signer new-token</span> and supply the token below</div>
+          <div>
+            <FormattedMessage
+              id='connection.noConnection'
+              defaultMessage='Unable to make a connection to the Parity Secure API. To update your secure token or to generate a new one, run {newToken} and supply the token below'
+              values={ {
+                newToken: <span className={ styles.console }>parity signer new-token</span>
+              } } />
+          </div>
           <div className={ styles.form }>
             <Input
-              label='secure token'
-              hint='a generated token from Parity'
-              error={ validToken || (!token || !token.length) ? null : 'invalid signer token' }
-              value={ token }
-              onChange={ this.onChangeToken } />
+              disabled={ loading }
+              error={
+                validToken || (!token || !token.length)
+                  ? null
+                  : (
+                    <FormattedMessage
+                      id='connection.invalidToken'
+                      defaultMessage='invalid signer token' />
+                  )
+              }
+              hint={
+                <FormattedMessage
+                  id='connection.token.hint'
+                  defaultMessage='a generated token from Parity' />
+              }
+              label={
+                <FormattedMessage
+                  id='connection.token.label'
+                  defaultMessage='secure token' />
+              }
+              onChange={ this.onChangeToken }
+              value={ token } />
           </div>
         </div>
       );
@@ -104,7 +124,9 @@ class Connection extends Component {
 
     return (
       <div className={ styles.info }>
-        Connecting to the Parity Secure API.
+        <FormattedMessage
+          id='connection.connectingAPI'
+          defaultMessage='Connecting to the Parity Secure API.' />
       </div>
     );
   }
@@ -112,13 +134,26 @@ class Connection extends Component {
   renderPing () {
     return (
       <div className={ styles.info }>
-        Connecting to the Parity Node. If this informational message persists, please ensure that your Parity node is running and reachable on the network.
+        <FormattedMessage
+          id='connection.connectingNode'
+          defaultMessage='Connecting to the Parity Node. If this informational message persists, please ensure that your Parity node is running and reachable on the network.' />
       </div>
     );
   }
 
-  onChangeToken = (event, token) => {
-    const validToken = /[a-zA-Z0-9]{4}-[a-zA-Z0-9]{4}-[a-zA-Z0-9]{4}-[a-zA-Z0-9]{4}/.test(token);
+  validateToken = (_token) => {
+    const token = _token.trim();
+    const validToken = /^[a-zA-Z0-9]{4}(-)?[a-zA-Z0-9]{4}(-)?[a-zA-Z0-9]{4}(-)?[a-zA-Z0-9]{4}$/.test(token);
+
+    return {
+      token,
+      validToken
+    };
+  }
+
+  onChangeToken = (event, _token) => {
+    const { token, validToken } = this.validateToken(_token || event.target.value);
+
     this.setState({ token, validToken }, () => {
       validToken && this.setToken();
     });
@@ -128,22 +163,30 @@ class Connection extends Component {
     const { api } = this.context;
     const { token } = this.state;
 
-    api.updateToken(token, 0);
-    this.setState({ token: '', validToken: false });
+    this.setState({ loading: true });
+
+    return api
+      .updateToken(token, 0)
+      .then((isValid) => {
+        this.setState({
+          loading: isValid || false,
+          validToken: isValid
+        });
+      });
   }
 }
 
 function mapStateToProps (state) {
-  const { isConnected, isConnecting, isPingable, needsToken } = state.nodeStatus;
+  const { isConnected, isConnecting, needsToken } = state.nodeStatus;
 
-  return { isConnected, isConnecting, isPingable, needsToken };
-}
-
-function mapDispatchToProps (dispatch) {
-  return bindActionCreators({}, dispatch);
+  return {
+    isConnected,
+    isConnecting,
+    needsToken
+  };
 }
 
 export default connect(
   mapStateToProps,
-  mapDispatchToProps
+  null
 )(Connection);

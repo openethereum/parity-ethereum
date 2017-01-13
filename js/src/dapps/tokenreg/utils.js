@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -16,7 +16,7 @@
 
 import { api } from './parity';
 
-import { eip20 as eip20Abi } from '../../contracts/abi';
+import { eip20 as eip20Abi } from '~/contracts/abi';
 
 export const getTokenTotalSupply = (tokenAddress) => {
   return api

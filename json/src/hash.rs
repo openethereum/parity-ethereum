@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -20,7 +20,7 @@ use std::str::FromStr;
 use serde::{Deserialize, Deserializer, Serialize, Serializer, Error};
 use serde::de::Visitor;
 use rustc_serialize::hex::ToHex;
-use util::hash::{H64 as Hash64, H160 as Hash160, H256 as Hash256, H2048 as Hash2048};
+use util::hash::{H64 as Hash64, H160 as Hash160, H256 as Hash256, H520 as Hash520, H2048 as Hash2048};
 
 
 macro_rules! impl_hash {
@@ -54,12 +54,12 @@ macro_rules! impl_hash {
 						let value = match value.len() {
 							0 => $inner::from(0),
 							2 if value == "0x" => $inner::from(0),
-							_ if value.starts_with("0x") => try!($inner::from_str(&value[2..]).map_err(|_| {
+							_ if value.starts_with("0x") => $inner::from_str(&value[2..]).map_err(|_| {
 								Error::custom(format!("Invalid hex value {}.", value).as_str())
-							})),
-							_ => try!($inner::from_str(value).map_err(|_| {
+							})?,
+							_ => $inner::from_str(value).map_err(|_| {
 								Error::custom(format!("Invalid hex value {}.", value).as_str())
-							}))
+							})?,
 						};
 
 						Ok($name(value))
@@ -87,6 +87,7 @@ macro_rules! impl_hash {
 impl_hash!(H64, Hash64);
 impl_hash!(Address, Hash160);
 impl_hash!(H256, Hash256);
+impl_hash!(H520, Hash520);
 impl_hash!(Bloom, Hash2048);
 
 #[cfg(test)]

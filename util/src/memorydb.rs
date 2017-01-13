@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -17,7 +17,6 @@
 //! Reference-counted memory-based `HashDB` implementation.
 
 use hash::*;
-use bytes::*;
 use rlp::*;
 use sha3::*;
 use hashdb::*;
@@ -72,7 +71,6 @@ use std::collections::hash_map::Entry;
 #[derive(Default, Clone, PartialEq)]
 pub struct MemoryDB {
 	data: H256FastMap<(DBValue, i32)>,
-	aux: HashMap<Bytes, DBValue>,
 }
 
 impl MemoryDB {
@@ -80,7 +78,6 @@ impl MemoryDB {
 	pub fn new() -> MemoryDB {
 		MemoryDB {
 			data: H256FastMap::default(),
-			aux: HashMap::new(),
 		}
 	}
 
@@ -118,11 +115,6 @@ impl MemoryDB {
 		mem::replace(&mut self.data, H256FastMap::default())
 	}
 
-	/// Return the internal map of auxiliary data, clearing the current state.
-	pub fn drain_aux(&mut self) -> HashMap<Bytes, DBValue> {
-		mem::replace(&mut self.aux, HashMap::new())
-	}
-
 	/// Grab the raw information associated with a key. Returns None if the key
 	/// doesn't exist.
 	///
@@ -138,7 +130,6 @@ impl MemoryDB {
 	/// Returns the size of allocated heap memory
 	pub fn mem_used(&self) -> usize {
 		self.data.heap_size_of_children()
-		+ self.aux.heap_size_of_children()
 	}
 
 	/// Remove an element and delete it from storage if reference count reaches zero.
@@ -255,18 +246,6 @@ impl HashDB for MemoryDB {
 		}{	// ... None falls through into...
 			self.data.insert(key.clone(), (DBValue::new(), -1));
 		}
-	}
-
-	fn insert_aux(&mut self, hash: Vec<u8>, value: Vec<u8>) {
-		self.aux.insert(hash, DBValue::from_vec(value));
-	}
-
-	fn get_aux(&self, hash: &[u8]) -> Option<DBValue> {
-		self.aux.get(hash).cloned()
-	}
-
-	fn remove_aux(&mut self, hash: &[u8]) {
-		self.aux.remove(hash);
 	}
 }
 

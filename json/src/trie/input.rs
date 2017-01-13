@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -46,16 +46,16 @@ impl Visitor for InputVisitor {
 		let mut result = BTreeMap::new();
 
 		loop {
-			let key_str: Option<String> = try!(visitor.visit_key());
+			let key_str: Option<String> = visitor.visit_key()?;
 			let key = match key_str {
-				Some(ref k) if k.starts_with("0x") => try!(Bytes::from_str(k).map_err(Error::custom)),
+				Some(ref k) if k.starts_with("0x") => Bytes::from_str(k).map_err(Error::custom)?,
 				Some(k) => Bytes::new(k.into_bytes()),
 				None => { break; }
 			};
 
-			let val_str: Option<String> = try!(visitor.visit_value());
+			let val_str: Option<String> = visitor.visit_value()?;
 			let val = match val_str {
-				Some(ref v) if v.starts_with("0x") => Some(try!(Bytes::from_str(v).map_err(Error::custom))),
+				Some(ref v) if v.starts_with("0x") => Some(Bytes::from_str(v).map_err(Error::custom)?),
 				Some(v) => Some(Bytes::new(v.into_bytes())),
 				None => None,
 			};
@@ -63,7 +63,7 @@ impl Visitor for InputVisitor {
 			result.insert(key, val);
 		}
 
-		try!(visitor.end());
+		visitor.end()?;
 
 		let input = Input {
 			data: result
@@ -76,7 +76,7 @@ impl Visitor for InputVisitor {
 		let mut result = BTreeMap::new();
 
 		loop {
-			let keyval: Option<Vec<Option<String>>> = try!(visitor.visit());
+			let keyval: Option<Vec<Option<String>>> = visitor.visit()?;
 			let keyval = match keyval {
 				Some(k) => k,
 				_ => { break; },
@@ -90,13 +90,13 @@ impl Visitor for InputVisitor {
 			let ref val_str: Option<String> = keyval[1];
 
 			let key = match *key_str {
-				Some(ref k) if k.starts_with("0x") => try!(Bytes::from_str(k).map_err(Error::custom)),
+				Some(ref k) if k.starts_with("0x") => Bytes::from_str(k).map_err(Error::custom)?,
 				Some(ref k) => Bytes::new(k.clone().into_bytes()),
 				None => { break; }
 			};
 
 			let val = match *val_str {
-				Some(ref v) if v.starts_with("0x") => Some(try!(Bytes::from_str(v).map_err(Error::custom))),
+				Some(ref v) if v.starts_with("0x") => Some(Bytes::from_str(v).map_err(Error::custom)?),
 				Some(ref v) => Some(Bytes::new(v.clone().into_bytes())),
 				None => None,
 			};
@@ -104,7 +104,7 @@ impl Visitor for InputVisitor {
 			result.insert(key, val);
 		}
 
-		try!(visitor.end());
+		visitor.end()?;
 
 		let input = Input {
 			data: result

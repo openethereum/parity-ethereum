@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -16,28 +16,42 @@
 
 import AddAddress from './AddAddress';
 import AddContract from './AddContract';
+import AddDapps from './AddDapps';
 import CreateAccount from './CreateAccount';
+import CreateWallet from './CreateWallet';
+import DappPermissions from './DappPermissions';
+import DeleteAccount from './DeleteAccount';
 import DeployContract from './DeployContract';
 import EditMeta from './EditMeta';
 import ExecuteContract from './ExecuteContract';
 import FirstRun from './FirstRun';
+import LoadContract from './LoadContract';
+import SaveContract from './SaveContract';
 import Shapeshift from './Shapeshift';
+import Verification from './Verification';
 import Transfer from './Transfer';
 import PasswordManager from './PasswordManager';
-import SaveContract from './SaveContract';
-import LoadContract from './LoadContract';
+import UpgradeParity from './UpgradeParity';
+import WalletSettings from './WalletSettings';
 
 export {
   AddAddress,
   AddContract,
+  AddDapps,
   CreateAccount,
+  CreateWallet,
+  DappPermissions,
+  DeleteAccount,
   DeployContract,
   EditMeta,
   ExecuteContract,
   FirstRun,
+  LoadContract,
+  SaveContract,
   Shapeshift,
+  Verification,
   Transfer,
   PasswordManager,
-  LoadContract,
-  SaveContract
+  UpgradeParity,
+  WalletSettings
 };

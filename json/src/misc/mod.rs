@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -17,5 +17,7 @@
 //! Misc deserialization.
 
 mod account_meta;
+mod dapps_settings;
 
+pub use self::dapps_settings::{DappsSettings, NewDappsPolicy};
 pub use self::account_meta::AccountMeta;

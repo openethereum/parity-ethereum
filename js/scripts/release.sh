@@ -3,7 +3,7 @@ set -e
 
 # variables
 UTCDATE=`date -u "+%Y%m%d-%H%M%S"`
-PACKAGES=( "parity.js" )
+PACKAGES=( "parity" "etherscan" "shapeshift" )
 BRANCH=$CI_BUILD_REF_NAME
 GIT_JS_PRECOMPILED="https://${GITHUB_JS_PRECOMPILED}:@github.com/ethcore/js-precompiled.git"
 GIT_PARITY="https://${GITHUB_JS_PRECOMPILED}:@github.com/ethcore/parity.git"
@@ -34,11 +34,18 @@ git fetch origin 2>$GITLOG
 git checkout -b $BRANCH
 
 echo "*** Committing compiled files for $UTCDATE"
+mv build ../build.new
 git add .
-git commit -m "$UTCDATE"
+git commit -m "$UTCDATE [update]"
+git merge origin/$BRANCH -X ours --commit -m "$UTCDATE [merge]"
+git rm -r build
+rm -rf build
+git commit -m "$UTCDATE [cleanup]"
+mv ../build.new build
+git add .
+git commit -m "$UTCDATE [release]"
 
 echo "*** Merging remote"
-git merge origin/$BRANCH -X ours --commit -m "$UTCDATE [release]"
 git push origin HEAD:refs/heads/$BRANCH 2>$GITLOG
 PRECOMPILED_HASH=`git rev-parse HEAD`
 
@@ -52,27 +59,37 @@ git reset --hard origin/$BRANCH 2>$GITLOG
 
 if [ "$BRANCH" == "master" ]; then
   cd js
+
   echo "*** Bumping package.json patch version"
   npm --no-git-tag-version version
   npm version patch
 
   echo "*** Building packages for npmjs"
-  # echo -e "$NPM_USERNAME\n$NPM_PASSWORD\n$NPM_EMAIL" | npm login
   echo "$NPM_TOKEN" >> ~/.npmrc
-  npm run ci:build:npm
 
-  echo "*** Publishing $PACKAGE to npmjs"
-  cd .npmjs
-  npm publish --access public || true
-  cd ../..
+  for PACKAGE in ${PACKAGES[@]}
+  do
+    echo "*** Building $PACKAGE"
+    LIBRARY=$PACKAGE npm run ci:build:npm
+    DIRECTORY=.npmjs/$PACKAGE
+
+    echo "*** Publishing $PACKAGE from $DIRECTORY"
+    cd $DIRECTORY
+    npm publish --access public || true
+    cd ../..
+  done
+
+  cd ..
 fi
 
 echo "*** Updating cargo parity-ui-precompiled#$PRECOMPILED_HASH"
+git submodule update
 cargo update -p parity-ui-precompiled
 # --precise "$PRECOMPILED_HASH"
 
 echo "*** Committing updated files"
-git add .
+git add js
+git add Cargo.lock
 git commit -m "[ci skip] js-precompiled $UTCDATE"
 git push origin HEAD:refs/heads/$BRANCH 2>$GITLOG
 

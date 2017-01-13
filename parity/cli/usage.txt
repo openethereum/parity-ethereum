@@ -5,16 +5,21 @@ Parity. Ethereum Client.
 Usage:
   parity [options]
   parity ui [options]
+  parity dapp <path> [options]
   parity daemon <pid-file> [options]
   parity account (new | list ) [options]
   parity account import <path>... [options]
   parity wallet import <path> --password FILE [options]
   parity import [ <file> ] [options]
-  parity export [ <file> ] [options]
+  parity export (blocks | state) [ <file> ] [options]
   parity signer new-token [options]
+  parity signer list [options]
+  parity signer sign [ <id> ] [ --password FILE ] [options]
+  parity signer reject <id> [options]
   parity snapshot <file> [options]
   parity restore [ <file> ] [options]
   parity tools hash <file>
+  parity db kill [options]
 
 Operating Options:
   --mode MODE              Set the operating mode. MODE can be one of:
@@ -30,11 +35,34 @@ Operating Options:
   --mode-alarm SECS        Specify the number of seconds before auto sleep
                            reawake timeout occurs when mode is passive
                            (default: {flag_mode_alarm}).
+  --auto-update SET        Set a releases set to automatically update and
+                           install.
+                           all - All updates in the our release track.
+                           critical - Only consensus/security updates.
+                           none - No updates will be auto-installed.
+                           (default: {flag_auto_update}).
+  --release-track TRACK    Set which release track we should use for updates.
+                           stable - Stable releases.
+                           beta - Beta releases.
+                           nightly - Nightly releases (unstable).
+                           testing - Testing releases (do not use).
+                           current - Whatever track this executable was
+                           released on (default: {flag_release_track}).
+  --no-download            Normally new releases will be downloaded ready for
+                           updating. This disables it. Not recommended.
+                           (default: {flag_no_download}).
+  --no-consensus           Force the binary to run even if there are known
+                           issues regarding consensus. Not recommended.
+                           (default: {flag_no_consensus}).
+  --force-direct           Run the originally installed version of Parity,
+                           ignoring any updates that have since been installed.
   --chain CHAIN            Specify the blockchain type. CHAIN may be either a
                            JSON chain specification file or olympic, frontier,
-                           homestead, mainnet, morden, classic, expanse,
+                           homestead, mainnet, morden, ropsten, classic, expanse,
                            testnet or dev (default: {flag_chain}).
-  -d --db-path PATH        Specify the database & configuration directory path
+  -d --base-path PATH      Specify the base data storage path.
+                           (default: {flag_base_path}).
+  --db-path PATH           Specify the database directory path
                            (default: {flag_db_path}).
   --keys-path PATH         Specify the path for JSON key files to be found
                            (default: {flag_keys_path}).
@@ -95,6 +123,8 @@ Networking Options:
                            all - connect to any IP address.
                            (default: {flag_allow_ips})
   --max-pending-peers NUM  Allow up to NUM pending connections. (default: {flag_max_pending_peers})
+  --no-ancient-blocks      Disable downloading old blocks after snapshot restoration
+                           or warp sync. (default: {flag_no_ancient_blocks})
 
 API and Console Options:
   --no-jsonrpc             Disable the JSON-RPC API server. (default: {flag_no_jsonrpc})
@@ -147,6 +177,10 @@ Sealing/Mining Options:
                            for sending block rewards from sealed blocks.
                            NOTE: MINING WILL NOT WORK WITHOUT THIS OPTION.
                            (default: {flag_author:?})
+  --engine-signer ADDRESS  Specify the address which should be used to
+                           sign consensus messages and issue blocks.
+                           Relevant only to non-PoW chains.
+                           (default: {flag_engine_signer:?})
   --force-sealing          Force the node to author new blocks as if it were
                            always sealing/mining.
                            (default: {flag_force_sealing})
@@ -252,7 +286,7 @@ Footprint Options:
                            the state cache (default: {flag_cache_size_state}).
   --cache-size MB          Set total amount of discretionary memory to use for
                            the entire system, overrides other cache and queue
-                           options.a (default: {flag_cache_size:?})
+                           options. (default: {flag_cache_size:?})
   --fast-and-loose         Disables DB WAL, which gives a significant speed up
                            but means an unclean exit is unrecoverable. (default: {flag_fast_and_loose})
   --db-compaction TYPE     Database compaction type. TYPE may be one of:
@@ -263,6 +297,11 @@ Footprint Options:
                            of all accounts and storage keys. Doubles the size
                            of the state database. BOOL may be one of on, off
                            or auto. (default: {flag_fat_db})
+  --scale-verifiers        Automatically scale amount of verifier threads based on
+                           workload. Not guaranteed to be faster.
+                           (default: {flag_scale_verifiers})
+  --num-verifiers INT      Amount of verifier threads to use or to begin with, if verifier
+                           auto-scaling is enabled. (default: {flag_num_verifiers:?})
 
 Import/Export Options:
   --from BLOCK             Export from block BLOCK, which may be an index or
@@ -273,6 +312,14 @@ Import/Export Options:
                            one of 'hex' and 'binary'.
                            (default: {flag_format:?} = Import: auto, Export: binary)
   --no-seal-check          Skip block seal check. (default: {flag_no_seal_check})
+  --at BLOCK               Export state at the given block, which may be an
+                           index, hash, or 'latest'. (default: {flag_at})
+  --no-storage             Don't export account storage. (default: {flag_no_storage})
+  --no-code                Don't export account code. (default: {flag_no_code})
+  --min-balance WEI        Don't export accounts with balance less than specified.
+                           (default: {flag_min_balance:?})
+  --max-balance WEI        Don't export accounts with balance greater than specified.
+                           (default: {flag_max_balance:?})
 
 Snapshot Options:
   --at BLOCK               Take a snapshot at the given block, which may be an
@@ -294,7 +341,7 @@ Legacy Options:
                            testnet --keys-path $HOME/parity/testnet-keys.
                            Overrides the --keys-path option.
   --import-geth-keys       Attempt to import keys from Geth client.
-  --datadir PATH           Equivalent to --db-path PATH.
+  --datadir PATH           Equivalent to --base-path PATH.
   --networkid INDEX        Equivalent to --network-id INDEX.
   --peers NUM              Equivalent to --min-peers NUM.
   --nodekey KEY            Equivalent to --node-key KEY.
@@ -319,13 +366,16 @@ Legacy Options:
   --extradata STRING       Equivalent to --extra-data STRING.
   --cache MB               Equivalent to --cache-size MB.
 
+Internal Options:
+  --can-restart            Executable will auto-restart if exiting with 69.
+
 Miscellaneous Options:
   -c --config CONFIG       Specify a filename containing a configuration file.
                            (default: {flag_config})
   -l --logging LOGGING     Specify the logging level. Must conform to the same
                            format as RUST_LOG. (default: {flag_logging:?})
   --log-file FILENAME      Specify a filename into which logging should be
-                           directed. (default: {flag_log_file:?})
+                           appended. (default: {flag_log_file:?})
   --no-config              Don't load a configuration file.
   --no-color               Don't use terminal color codes in output. (default: {flag_no_color})
   -v --version             Show information about version.

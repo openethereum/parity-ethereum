@@ -1,14 +1,17 @@
 {
 	"name": "TestAuthorityRound",
 	"engine": {
-		"AuthorityRound": {
+		"authorityRound": {
 			"params": {
 				"gasLimitBoundDivisor": "0x0400",
-				"stepDuration": "1",
-				"authorities" : [
-					"0x7d577a597b2742b498cb5cf0c26cdcd726d39e6e",
-					"0x82a978b3f5962a5b0957d9ee9eef472ee55b42f1"
-				]
+				"stepDuration": 1,
+				"startStep": 2,
+				"validators": {
+					"list": [
+						"0x7d577a597b2742b498cb5cf0c26cdcd726d39e6e",
+						"0x82a978b3f5962a5b0957d9ee9eef472ee55b42f1"
+					]
+				}
 			}
 		}
 	},
@@ -20,9 +23,9 @@
 	},
 	"genesis": {
 		"seal": {
-			"generic": {
-				"fields": 1,
-				"rlp": "0x11bbe8db4e347b4e8c937c1c8370e4b5ed33adb3db69cbdb7a38e1e50b1b82fa"
+			"authorityRound": {
+				"step": "0x0",
+				"signature": "0x0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
 			}
 		},
 		"difficulty": "0x20000",

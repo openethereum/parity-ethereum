@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -14,94 +14,116 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import { uniq } from 'lodash';
+
 import Api from './api';
 
 const sysuiToken = window.localStorage.getItem('sysuiToken');
 
 export default class SecureApi extends Api {
   constructor (url, nextToken) {
-    super(new Api.Transport.Ws(url, sysuiToken));
+    super(new Api.Transport.Ws(url, sysuiToken, false));
 
+    this._url = url;
     this._isConnecting = true;
-    this._connectState = sysuiToken === 'initial' ? 1 : 0;
     this._needsToken = false;
-    this._nextToken = nextToken;
+
     this._dappsPort = 8080;
     this._dappsInterface = null;
     this._signerPort = 8180;
 
-    console.log('SecureApi:constructor', sysuiToken);
+    // Try tokens from localstorage, then from hash
+    this._tokens = uniq([sysuiToken, nextToken, 'initial'])
+      .filter((token) => token)
+      .map((token) => ({ value: token, tried: false }));
 
-    this._followConnection();
+    this._tryNextToken();
   }
 
-  setToken = () => {
+  saveToken = () => {
     window.localStorage.setItem('sysuiToken', this._transport.token);
-    console.log('SecureApi:setToken', this._transport.token);
+    // DEBUG: console.log('SecureApi:saveToken', this._transport.token);
+  }
+
+  /**
+   * Returns a Promise that gets resolved with
+   * a boolean: `true` if the node is up, `false`
+   * otherwise
+   */
+  _checkNodeUp () {
+    const url = this._url.replace(/wss?/, 'http');
+    return fetch(url, { method: 'HEAD' })
+      .then(
+        (r) => r.status === 200,
+        () => false
+      )
+      .catch(() => false);
+  }
+
+  _setManual () {
+    this._needsToken = true;
+    this._isConnecting = false;
+  }
+
+  _tryNextToken () {
+    const nextTokenIndex = this._tokens.findIndex((t) => !t.tried);
+
+    if (nextTokenIndex < 0) {
+      return this._setManual();
+    }
+
+    const nextToken = this._tokens[nextTokenIndex];
+    nextToken.tried = true;
+
+    this.updateToken(nextToken.value);
   }
 
   _followConnection = () => {
-    const nextTick = () => {
-      setTimeout(() => this._followConnection(), 250);
-    };
-    const setManual = () => {
-      this._connectState = 100;
-      this._needsToken = true;
-      this._isConnecting = false;
-    };
-    const lastError = this._transport.lastError;
-    const isConnected = this._transport.isConnected;
+    const token = this.transport.token;
 
-    switch (this._connectState) {
-      // token = <passed via constructor>
-      case 0:
-        if (isConnected) {
-          return this.connectSuccess();
-        } else if (lastError) {
-          const nextToken = this._nextToken || 'initial';
-          const nextState = this._nextToken ? 0 : 1;
-
-          this._nextToken = null;
-          this.updateToken(nextToken, nextState);
-        }
-        break;
-
-      // token = 'initial'
-      case 1:
-        if (isConnected) {
-          this.signer
+    return this
+      .transport
+      .connect()
+      .then(() => {
+        if (token === 'initial') {
+          return this.signer
             .generateAuthorizationToken()
             .then((token) => {
-              this.updateToken(token, 2);
+              return this.updateToken(token);
             })
-            .catch((error) => {
-              console.error('SecureApi:generateAuthorizationToken', error);
-              setManual();
-            });
-          return;
-        } else if (lastError) {
-          return setManual();
+            .catch((e) => console.error(e));
         }
-        break;
 
-      // token = <personal_generateAuthorizationToken>
-      case 2:
-        if (isConnected) {
-          return this.connectSuccess();
-        } else if (lastError) {
-          return setManual();
-        }
-        break;
-    }
+        this.connectSuccess();
+        return true;
+      })
+      .catch((e) => {
+        this
+          ._checkNodeUp()
+          .then((isNodeUp) => {
+            // Try again in a few...
+            if (!isNodeUp) {
+              this._isConnecting = false;
+              const timeout = this.transport.retryTimeout;
 
-    nextTick();
+              window.setTimeout(() => {
+                this._followConnection();
+              }, timeout);
+
+              return;
+            }
+
+            this._tryNextToken();
+            return false;
+          });
+      });
   }
 
   connectSuccess () {
     this._isConnecting = false;
     this._needsToken = false;
 
-    this.setToken();
+    this.saveToken();
 
     Promise
       .all([
@@ -115,14 +137,13 @@ export default class SecureApi extends Api {
         this._signerPort = signerPort.toNumber();
       });
 
-    console.log('SecureApi:connectSuccess', this._transport.token);
+    // DEBUG: console.log('SecureApi:connectSuccess', this._transport.token);
   }
 
-  updateToken (token, connectState = 0) {
-    this._connectState = connectState;
-    this._transport.updateToken(token.replace(/[^a-zA-Z0-9]/g, ''));
-    this._followConnection();
-    console.log('SecureApi:updateToken', this._transport.token, connectState);
+  updateToken (token) {
+    this._transport.updateToken(token.replace(/[^a-zA-Z0-9]/g, ''), false);
+    return this._followConnection();
+    // DEBUG: console.log('SecureApi:updateToken', this._transport.token, connectState);
   }
 
   get dappsPort () {

@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -89,21 +89,21 @@ impl AbridgedBlock {
 
 		let mut header: Header = Default::default();
 		header.set_parent_hash(parent_hash);
-		header.set_author(try!(rlp.val_at(0)));
-		header.set_state_root(try!(rlp.val_at(1)));
-		header.set_log_bloom(try!(rlp.val_at(2)));
-		header.set_difficulty(try!(rlp.val_at(3)));
+		header.set_author(rlp.val_at(0)?);
+		header.set_state_root(rlp.val_at(1)?);
+		header.set_log_bloom(rlp.val_at(2)?);
+		header.set_difficulty(rlp.val_at(3)?);
 		header.set_number(number);
-		header.set_gas_limit(try!(rlp.val_at(4)));
-		header.set_gas_used(try!(rlp.val_at(5)));
-		header.set_timestamp(try!(rlp.val_at(6)));
-		header.set_extra_data(try!(rlp.val_at(7)));
+		header.set_gas_limit(rlp.val_at(4)?);
+		header.set_gas_used(rlp.val_at(5)?);
+		header.set_timestamp(rlp.val_at(6)?);
+		header.set_extra_data(rlp.val_at(7)?);
 
-		let transactions = try!(rlp.val_at(8));
-		let uncles: Vec<Header> = try!(rlp.val_at(9));
+		let transactions = rlp.val_at(8)?;
+		let uncles: Vec<Header> = rlp.val_at(9)?;
 
 		header.set_transactions_root(ordered_trie_root(
-			try!(rlp.at(8)).iter().map(|r| r.as_raw().to_owned())
+			rlp.at(8)?.iter().map(|r| r.as_raw().to_owned())
 		));
 		header.set_receipts_root(receipts_root);
 
@@ -113,7 +113,7 @@ impl AbridgedBlock {
 
 		let mut seal_fields = Vec::new();
 		for i in (HEADER_FIELDS + BLOCK_FIELDS)..rlp.item_count() {
-			let seal_rlp = try!(rlp.at(i));
+			let seal_rlp = rlp.at(i)?;
 			seal_fields.push(seal_rlp.as_raw().to_owned());
 		}
 

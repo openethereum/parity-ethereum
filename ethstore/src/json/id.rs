@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -23,15 +23,15 @@ use super::Error;
 
 /// Universaly unique identifier.
 #[derive(Debug, PartialEq)]
-pub struct UUID([u8; 16]);
+pub struct Uuid([u8; 16]);
 
-impl From<[u8; 16]> for UUID {
+impl From<[u8; 16]> for Uuid {
 	fn from(uuid: [u8; 16]) -> Self {
-		UUID(uuid)
+		Uuid(uuid)
 	}
 }
 
-impl<'a> Into<String> for &'a UUID {
+impl<'a> Into<String> for &'a Uuid {
 	fn into(self) -> String {
 		let d1 = &self.0[0..4];
 		let d2 = &self.0[4..6];
@@ -42,65 +42,65 @@ impl<'a> Into<String> for &'a UUID {
 	}
 }
 
-impl Into<String> for UUID {
+impl Into<String> for Uuid {
 	fn into(self) -> String {
 		Into::into(&self)
 	}
 }
 
-impl Into<[u8; 16]> for UUID {
+impl Into<[u8; 16]> for Uuid {
 	fn into(self) -> [u8; 16] {
 		self.0
 	}
 }
 
-impl fmt::Display for UUID {
+impl fmt::Display for Uuid {
 	fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-		let s: String = (self as &UUID).into();
+		let s: String = (self as &Uuid).into();
 		write!(f, "{}", s)
 	}
 }
 
 fn copy_into(from: &str, into: &mut [u8]) -> Result<(), Error> {
-	let from = try!(from.from_hex().map_err(|_| Error::InvalidUUID));
+	let from = from.from_hex().map_err(|_| Error::InvalidUuid)?;
 
 	if from.len() != into.len() {
-		return Err(Error::InvalidUUID);
+		return Err(Error::InvalidUuid);
 	}
 
 	into.copy_from_slice(&from);
 	Ok(())
 }
 
-impl str::FromStr for UUID {
+impl str::FromStr for Uuid {
 	type Err = Error;
 
 	fn from_str(s: &str) -> Result<Self, Self::Err> {
 		let parts: Vec<&str> = s.split("-").collect();
 
 		if parts.len() != 5 {
-			return Err(Error::InvalidUUID);
+			return Err(Error::InvalidUuid);
 		}
 
 		let mut uuid = [0u8; 16];
 
-		try!(copy_into(parts[0], &mut uuid[0..4]));
-		try!(copy_into(parts[1], &mut uuid[4..6]));
-		try!(copy_into(parts[2], &mut uuid[6..8]));
-		try!(copy_into(parts[3], &mut uuid[8..10]));
-		try!(copy_into(parts[4], &mut uuid[10..16]));
+		copy_into(parts[0], &mut uuid[0..4])?;
+		copy_into(parts[1], &mut uuid[4..6])?;
+		copy_into(parts[2], &mut uuid[6..8])?;
+		copy_into(parts[3], &mut uuid[8..10])?;
+		copy_into(parts[4], &mut uuid[10..16])?;
 
-		Ok(UUID(uuid))
+		Ok(Uuid(uuid))
 	}
 }
 
-impl From<&'static str> for UUID {
+impl From<&'static str> for Uuid {
 	fn from(s: &'static str) -> Self {
 		s.parse().expect(&format!("invalid string literal for {}: '{}'", stringify!(Self), s))
 	}
 }
 
-impl Serialize for UUID {
+impl Serialize for Uuid {
 	fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Error>
 	where S: Serializer {
 		let s: String = self.into();
@@ -108,17 +108,17 @@ impl Serialize for UUID {
 	}
 }
 
-impl Deserialize for UUID {
+impl Deserialize for Uuid {
 	fn deserialize<D>(deserializer: &mut D) -> Result<Self, D::Error>
 	where D: Deserializer {
-		deserializer.deserialize(UUIDVisitor)
+		deserializer.deserialize(UuidVisitor)
 	}
 }
 
-struct UUIDVisitor;
+struct UuidVisitor;
 
-impl Visitor for UUIDVisitor {
-	type Value = UUID;
+impl Visitor for UuidVisitor {
+	type Value = Uuid;
 
 	fn visit_str<E>(&mut self, value: &str) -> Result<Self::Value, E> where E: SerdeError {
 		value.parse().map_err(SerdeError::custom)
@@ -131,18 +131,18 @@ impl Visitor for UUIDVisitor {
 
 #[cfg(test)]
 mod tests {
-	use super::UUID;
+	use super::Uuid;
 
 	#[test]
 	fn uuid_from_str() {
-		let uuid: UUID = "3198bc9c-6672-5ab3-d995-4942343ae5b6".into();
-		assert_eq!(uuid, UUID::from([0x31, 0x98, 0xbc, 0x9c, 0x66, 0x72, 0x5a, 0xb3, 0xd9, 0x95, 0x49, 0x42, 0x34, 0x3a, 0xe5, 0xb6]));
+		let uuid: Uuid = "3198bc9c-6672-5ab3-d995-4942343ae5b6".into();
+		assert_eq!(uuid, Uuid::from([0x31, 0x98, 0xbc, 0x9c, 0x66, 0x72, 0x5a, 0xb3, 0xd9, 0x95, 0x49, 0x42, 0x34, 0x3a, 0xe5, 0xb6]));
 	}
 
 	#[test]
 	fn uuid_from_and_to_str() {
 		let from = "3198bc9c-6672-5ab3-d995-4942343ae5b6";
-		let uuid: UUID = from.into();
+		let uuid: Uuid = from.into();
 		let to: String = uuid.into();
 		assert_eq!(from, &to);
 	}

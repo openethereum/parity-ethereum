@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -15,53 +15,62 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
-import { bindActionCreators } from 'redux';
 
-const defaultName = 'UNNAMED';
+import { isNullAddress } from '~/util/validation';
+import ShortenedHash from '../ShortenedHash';
+
+const defaultName = (
+  <FormattedMessage
+    id='ui.identityName.unnamed'
+    defaultMessage='UNNAMED' />
+);
+const defaultNameNull = (
+  <FormattedMessage
+    id='ui.identityName.null'
+    defaultMessage='NULL' />
+);
 
 class IdentityName extends Component {
   static propTypes = {
-    className: PropTypes.string,
-    address: PropTypes.string,
     accountsInfo: PropTypes.object,
-    tokens: PropTypes.object,
+    address: PropTypes.string,
+    className: PropTypes.string,
     empty: PropTypes.bool,
+    name: PropTypes.string,
     shorten: PropTypes.bool,
-    unknown: PropTypes.bool,
-    name: PropTypes.string
+    tokens: PropTypes.object,
+    unknown: PropTypes.bool
   }
 
   render () {
-    const { address, accountsInfo, tokens, empty, name, shorten, unknown, className } = this.props;
+    const { address, accountsInfo, className, empty, name, shorten, tokens, unknown } = this.props;
     const account = accountsInfo[address] || tokens[address];
-    const hasAccount = account && (!account.meta || !account.meta.deleted);
 
-    if (!hasAccount && empty) {
+    if (!account && empty) {
       return null;
     }
 
-    const addressFallback = shorten ? this.formatHash(address) : address;
+    const nullName = isNullAddress(address) ? defaultNameNull : null;
+    const addressFallback = nullName || (shorten ? (<ShortenedHash data={ address } />) : address);
     const fallback = unknown ? defaultName : addressFallback;
-    const isUuid = hasAccount && account.name === account.uuid;
+    const isUuid = account && account.name === account.uuid;
     const displayName = (name && name.toUpperCase().trim()) ||
-      (hasAccount && !isUuid
-      ? account.name.toUpperCase().trim()
-      : fallback);
+      (account && !isUuid
+        ? account.name.toUpperCase().trim()
+        : fallback
+      );
 
     return (
       <span className={ className }>
-        { displayName && displayName.length ? displayName : fallback }
+        {
+          displayName && displayName.length
+            ? displayName
+            : fallback
+        }
       </span>
     );
-  }
-
-  formatHash (hash) {
-    if (!hash || hash.length <= 16) {
-      return hash;
-    }
-
-    return `${hash.substr(2, 6)}...${hash.slice(-6)}`;
   }
 }
 
@@ -75,11 +84,7 @@ function mapStateToProps (state) {
   };
 }
 
-function mapDispatchToProps (dispatch) {
-  return bindActionCreators({}, dispatch);
-}
-
 export default connect(
   mapStateToProps,
-  mapDispatchToProps
+  null
 )(IdentityName);

@@ -1,0 +1,19 @@
+.container {
+  padding: 1rem 2rem;
+  text-align: center;
+
+  h1 {
+    margin-top: 3rem;
+    margin-bottom: 1rem;
+  }
+
+  table {
+    text-align: left;
+    margin: auto;
+    max-width: 90vw;
+
+    th {
+      text-align: center;
+    }
+  }
+}

@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -162,7 +162,10 @@ export default class Token extends Component {
   }
 
   renderBase (base) {
-    if (!base || base < 0) return null;
+    if (!base || base < 0) {
+      return null;
+    }
+
     return (
       <Chip
         value={ Math.log10(base).toString() }
@@ -171,7 +174,10 @@ export default class Token extends Component {
   }
 
   renderAddress (address) {
-    if (!address) return null;
+    if (!address) {
+      return null;
+    }
+
     return (
       <Chip
         isAddress
@@ -191,7 +197,9 @@ export default class Token extends Component {
   }
 
   renderOwner (owner) {
-    if (!owner) return null;
+    if (!owner) {
+      return null;
+    }
 
     const ownerInfo = this.props.ownerAccountInfo;
 
@@ -258,85 +266,107 @@ export default class Token extends Component {
     }
 
     if (isMetaLoading) {
-      return (<div>
-        <Loading size={ 0.5 } />
-      </div>);
+      return (
+        <div>
+          <Loading size={ 0.5 } />
+        </div>
+      );
     }
 
-    if (!meta) return;
+    if (!meta) {
+      return null;
+    }
 
     const metaData = metaDataKeys.find(m => m.value === meta.query);
 
     if (!meta.value) {
-      return (<div>
-        <p className={ styles['meta-query'] }>
-          No <span className={ styles['meta-key'] }>
-            { metaData.label.toLowerCase() }
-          </span> meta-data...
-        </p>
-      </div>);
+      return (
+        <div>
+          <p className={ styles['meta-query'] }>
+            No <span className={ styles['meta-key'] }>
+              { metaData.label.toLowerCase() }
+            </span> meta-data...
+          </p>
+        </div>
+      );
     }
 
     if (meta.query === 'IMG') {
       const imageHash = meta.value.replace(/^0x/, '');
 
-      return (<div>
-        <p className={ styles['meta-query'] }>
-          <span className={ styles['meta-key'] }>
-            { metaData.label }
-          </span> meta-data:
-        </p>
-        <div className={ styles['meta-image'] }>
-          <img src={ `${parityNode}/api/content/${imageHash}/` } />
+      return (
+        <div>
+          <p className={ styles['meta-query'] }>
+            <span className={ styles['meta-key'] }>
+              { metaData.label }
+            </span> meta-data:
+          </p>
+          <div className={ styles['meta-image'] }>
+            <img src={ `${parityNode}/api/content/${imageHash}/` } />
+          </div>
         </div>
-      </div>);
+      );
     }
 
     if (meta.query === 'A') {
       const address = meta.value.slice(0, 42);
 
-      return (<div>
+      return (
+        <div>
+          <p className={ styles['meta-query'] }>
+            <span className={ styles['meta-key'] }>
+              { metaData.label }
+            </span> meta-data:
+          </p>
+          <p className={ styles['meta-value'] }>
+            { api.util.toChecksumAddress(address) }
+          </p>
+        </div>
+      );
+    }
+
+    return (
+      <div>
         <p className={ styles['meta-query'] }>
           <span className={ styles['meta-key'] }>
             { metaData.label }
           </span> meta-data:
         </p>
-        <p className={ styles['meta-value'] }>
-          { api.util.toChecksumAddress(address) }
-        </p>
-      </div>);
-    }
-
-    return (<div>
-      <p className={ styles['meta-query'] }>
-        <span className={ styles['meta-key'] }>
-          { metaData.label }
-        </span> meta-data:
-      </p>
-      <p className={ styles['meta-value'] }>{ meta.value }</p>
-    </div>);
+        <p className={ styles['meta-value'] }>{ meta.value }</p>
+      </div>
+    );
   }
 
   renderMetaPending () {
     const isMetaPending = this.props.metaPending;
-    if (!isMetaPending) return;
 
-    return (<div>
-      <p className={ styles['meta-info'] }>
-        Meta-Data pending...
-      </p>
-    </div>);
+    if (!isMetaPending) {
+      return null;
+    }
+
+    return (
+      <div>
+        <p className={ styles['meta-info'] }>
+          Meta-Data pending...
+        </p>
+      </div>
+    );
   }
 
   renderMetaMined () {
     const isMetaMined = this.props.metaMined;
-    if (!isMetaMined) return;
 
-    return (<div>
-      <p className={ styles['meta-info'] }>
-        Meta-Data saved on the blockchain!
-      </p>
-    </div>);
+    if (!isMetaMined) {
+      return null;
+    }
+
+    return (
+      <div>
+        <p className={ styles['meta-info'] }>
+          Meta-Data saved on the blockchain!
+        </p>
+      </div>
+    );
   }
 
   onUnregister = () => {

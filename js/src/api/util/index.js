@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -16,7 +16,7 @@
 
 import { isAddress as isAddressValid, toChecksumAddress } from '../../abi/util/address';
 import { decodeCallData, decodeMethodInput, methodToAbi } from './decode';
-import { bytesToHex, hex2Ascii } from './format';
+import { bytesToHex, hexToAscii, asciiToHex } from './format';
 import { fromWei, toWei } from './wei';
 import { sha3 } from './sha3';
 import { isArray, isFunction, isHex, isInstanceOf, isString } from './types';
@@ -30,7 +30,8 @@ export default {
   isInstanceOf,
   isString,
   bytesToHex,
-  hex2Ascii,
+  hexToAscii,
+  asciiToHex,
   createIdentityImg,
   decodeCallData,
   decodeMethodInput,

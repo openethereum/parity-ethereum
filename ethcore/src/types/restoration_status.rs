@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -17,7 +17,8 @@
 //! Restoration status type definition
 
 /// Statuses for restorations.
-#[derive(PartialEq, Eq, Clone, Copy, Debug, Binary)]
+#[derive(PartialEq, Eq, Clone, Copy, Debug)]
+#[cfg_attr(feature = "ipc", binary)]
 pub enum RestorationStatus {
 	///	No restoration.
 	Inactive,

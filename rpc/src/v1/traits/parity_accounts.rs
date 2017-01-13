@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -16,17 +16,16 @@
 
 //! Parity Accounts-related rpc interface.
 use std::collections::BTreeMap;
-use jsonrpc_core::{Value, Error};
 
-use v1::helpers::auto_args::Wrap;
-use v1::types::{H160, H256};
+use jsonrpc_core::Error;
+use v1::types::{H160, H256, DappId};
 
 build_rpc_trait! {
 	/// Personal Parity rpc interface.
 	pub trait ParityAccounts {
 		/// Returns accounts information.
-		#[rpc(name = "parity_accountsInfo")]
-		fn accounts_info(&self) -> Result<BTreeMap<String, Value>, Error>;
+		#[rpc(name = "parity_allAccountsInfo")]
+		fn all_accounts_info(&self) -> Result<BTreeMap<String, BTreeMap<String, String>>, Error>;
 
 		/// Creates new account from the given phrase using standard brainwallet mechanism.
 		/// Second parameter is password for the new account.
@@ -53,6 +52,16 @@ build_rpc_trait! {
 		#[rpc(name = "parity_changePassword")]
 		fn change_password(&self, H160, String, String) -> Result<bool, Error>;
 
+		/// Permanently deletes an account.
+		/// Arguments: `account`, `password`.
+		#[rpc(name = "parity_killAccount")]
+		fn kill_account(&self, H160, String) -> Result<bool, Error>;
+
+		/// Permanently deletes an address from the addressbook
+		/// Arguments: `address`
+		#[rpc(name = "parity_removeAddress")]
+		fn remove_address(&self, H160) -> Result<bool, Error>;
+
 		/// Set an account's name.
 		#[rpc(name = "parity_setAccountName")]
 		fn set_account_name(&self, H160, String) -> Result<bool, Error>;
@@ -61,9 +70,31 @@ build_rpc_trait! {
 		#[rpc(name = "parity_setAccountMeta")]
 		fn set_account_meta(&self, H160, String) -> Result<bool, Error>;
 
-		/// Returns accounts information.
+		/// Sets account visibility
 		#[rpc(name = "parity_setAccountVisiblity")]
 		fn set_account_visibility(&self, H160, H256, bool) -> Result<bool, Error>;
+
+		/// Sets accounts exposed for particular dapp.
+		#[rpc(name = "parity_setDappsAddresses")]
+		fn set_dapps_addresses(&self, DappId, Vec<H160>) -> Result<bool, Error>;
+
+		/// Gets accounts exposed for particular dapp.
+		#[rpc(name = "parity_getDappsAddresses")]
+		fn dapps_addresses(&self, DappId) -> Result<Vec<H160>, Error>;
+
+		/// Sets accounts exposed for new dapps.
+		/// `None` means that all accounts will be exposed.
+		#[rpc(name = "parity_setNewDappsWhitelist")]
+		fn set_new_dapps_whitelist(&self, Option<Vec<H160>>) -> Result<bool, Error>;
+
+		/// Gets accounts exposed for new dapps.
+		/// `None` means that all accounts will be exposed.
+		#[rpc(name = "parity_getNewDappsWhitelist")]
+		fn new_dapps_whitelist(&self) -> Result<Option<Vec<H160>>, Error>;
+
+		/// Sets accounts exposed for particular dapp.
+		#[rpc(name = "parity_listRecentDapps")]
+		fn recent_dapps(&self) -> Result<Vec<DappId>, Error>;
 
 		/// Imports a number of Geth accounts, with the list provided as the argument.
 		#[rpc(name = "parity_importGethAccounts")]
@@ -74,4 +105,3 @@ build_rpc_trait! {
 		fn geth_accounts(&self) -> Result<Vec<H160>, Error>;
 	}
 }
-

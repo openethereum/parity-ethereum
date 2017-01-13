@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -45,7 +45,7 @@ pub fn contract_address(address: &Address, nonce: &U256) -> Address {
 }
 
 /// Transaction execution options.
-#[derive(Default)]
+#[derive(Default, Copy, Clone, PartialEq)]
 pub struct TransactOptions {
 	/// Enable call tracing.
 	pub tracing: bool,
@@ -122,10 +122,10 @@ impl<'a> Executive<'a> {
 		mut tracer: T,
 		mut vm_tracer: V
 	) -> Result<Executed, ExecutionError> where T: Tracer, V: VMTracer {
-		let sender = try!(t.sender().map_err(|e| {
+		let sender = t.sender().map_err(|e| {
 			let message = format!("Transaction malformed: {:?}", e);
 			ExecutionError::TransactionMalformed(message)
-		}));
+		})?;
 		let nonce = self.state.nonce(&sender);
 
 		let schedule = self.engine.schedule(self.info);
@@ -206,7 +206,7 @@ impl<'a> Executive<'a> {
 		};
 
 		// finalize here!
-		Ok(try!(self.finalize(t, substate, gas_left, output, tracer.traces(), vm_tracer.drain())))
+		Ok(self.finalize(t, substate, gas_left, output, tracer.traces(), vm_tracer.drain())?)
 	}
 
 	fn exec_vm<T, V>(
@@ -445,7 +445,7 @@ impl<'a> Executive<'a> {
 
 		trace!("exec::finalize: Refunding refund_value={}, sender={}\n", refund_value, sender);
 		// Below: NoEmpty is safe since the sender must already be non-null to have sent this transaction
-		self.state.add_balance(&sender, &refund_value, CleanupMode::NoEmpty);  
+		self.state.add_balance(&sender, &refund_value, CleanupMode::NoEmpty);
 		trace!("exec::finalize: Compensating author: fees_value={}, author={}\n", fees_value, &self.info.author);
 		self.state.add_balance(&self.info.author, &fees_value, substate.to_cleanup_mode(&schedule));
 
@@ -463,8 +463,9 @@ impl<'a> Executive<'a> {
 
 		match result {
 			Err(evm::Error::Internal) => Err(ExecutionError::Internal),
-			Err(_) => {
+			Err(exception) => {
 				Ok(Executed {
+					exception: Some(exception),
 					gas: t.gas,
 					gas_used: t.gas,
 					refunded: U256::zero(),
@@ -479,6 +480,7 @@ impl<'a> Executive<'a> {
 			},
 			_ => {
 				Ok(Executed {
+					exception: None,
 					gas: t.gas,
 					gas_used: gas_used,
 					refunded: refunded,
@@ -514,9 +516,11 @@ impl<'a> Executive<'a> {
 #[cfg(test)]
 #[allow(dead_code)]
 mod tests {
+	use std::sync::Arc;
 	use ethkey::{Generator, Random};
 	use super::*;
-	use util::*;
+	use util::{H256, U256, U512, Address, Uint, FixedHash, FromHex, FromStr};
+	use util::bytes::BytesRef;
 	use action_params::{ActionParams, ActionValue};
 	use env_info::EnvInfo;
 	use evm::{Factory, VMType};

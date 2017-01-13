@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -95,7 +95,7 @@ impl Ext for FakeExt {
 	}
 
 	fn exists_and_not_null(&self, address: &Address) -> bool {
-		self.balances.get(address).map_or(false, |b| !b.is_zero()) 
+		self.balances.get(address).map_or(false, |b| !b.is_zero())
 	}
 
 	fn origin_balance(&self) -> U256 {
@@ -103,7 +103,7 @@ impl Ext for FakeExt {
 	}
 
 	fn balance(&self, address: &Address) -> U256 {
-		*self.balances.get(address).unwrap()
+		self.balances[address]
 	}
 
 	fn blockhash(&self, number: &U256) -> H256 {

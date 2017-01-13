@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -16,20 +16,15 @@
 
 import React, { Component } from 'react';
 
-import { Actionbar, Page } from '../../ui';
+import { Actionbar } from '~/ui';
 import RequestsPage from './containers/RequestsPage';
-
-import styles from './signer.css';
 
 export default class Signer extends Component {
   render () {
     return (
-      <div className={ styles.signer }>
-        <Actionbar
-          title='Trusted Signer' />
-        <Page>
-          <RequestsPage />
-        </Page>
+      <div>
+        <Actionbar title='Trusted Signer' />
+        <RequestsPage />
       </div>
     );
   }

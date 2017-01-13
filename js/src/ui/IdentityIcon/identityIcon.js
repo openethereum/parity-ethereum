@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -16,8 +16,10 @@
 
 import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
-import { bindActionCreators } from 'redux';
-import ContractIcon from 'material-ui/svg-icons/action/code';
+
+import { createIdentityImg } from '~/api/util/identity';
+import { isNullAddress } from '~/util/validation';
+import { CancelIcon, ContractIcon } from '../Icons';
 
 import styles from './identityIcon.css';
 
@@ -29,12 +31,12 @@ class IdentityIcon extends Component {
   static propTypes = {
     address: PropTypes.string,
     button: PropTypes.bool,
-    className: PropTypes.string,
     center: PropTypes.bool,
-    padded: PropTypes.bool,
+    className: PropTypes.string,
+    images: PropTypes.object.isRequired,
     inline: PropTypes.bool,
-    tiny: PropTypes.bool,
-    images: PropTypes.object.isRequired
+    padded: PropTypes.bool,
+    tiny: PropTypes.bool
   }
 
   state = {
@@ -75,7 +77,7 @@ class IdentityIcon extends Component {
     }
 
     this.setState({
-      iconsrc: api.util.createIdentityImg(_address, scale)
+      iconsrc: createIdentityImg(_address, scale)
     });
   }
 
@@ -105,16 +107,33 @@ class IdentityIcon extends Component {
       return (
         <ContractIcon
           className={ classes }
-          style={ { width: size, height: size, background: '#eee' } } />
+          data-address-img
+          style={ {
+            background: '#eee',
+            height: size,
+            width: size
+          } } />
+      );
+    } else if (isNullAddress(address)) {
+      return (
+        <CancelIcon
+          className={ classes }
+          data-address-img
+          style={ {
+            background: '#333',
+            height: size,
+            width: size
+          } } />
       );
     }
 
     return (
       <img
         className={ classes }
-        src={ iconsrc }
+        data-address-img
+        height={ size }
         width={ size }
-        height={ size } />
+        src={ iconsrc } />
     );
   }
 }
@@ -125,11 +144,7 @@ function mapStateToProps (state) {
   return { images };
 }
 
-function mapDispatchToProps (dispatch) {
-  return bindActionCreators({}, dispatch);
-}
-
 export default connect(
   mapStateToProps,
-  mapDispatchToProps
+  null
 )(IdentityIcon);

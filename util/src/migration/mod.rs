@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -65,7 +65,7 @@ impl Batch {
 	pub fn insert(&mut self, key: Vec<u8>, value: Vec<u8>, dest: &mut Database) -> Result<(), Error> {
 		self.inner.insert(key, value);
 		if self.inner.len() == self.batch_size {
-			try!(self.commit(dest));
+			self.commit(dest)?;
 		}
 		Ok(())
 	}
@@ -154,7 +154,7 @@ impl<T: SimpleMigration> Migration for T {
 
 		for (key, value) in source.iter(col) {
 			if let Some((key, value)) = self.simple_migrate(key.to_vec(), value.to_vec()) {
-				try!(batch.insert(key, value, dest));
+				batch.insert(key, value, dest)?;
 			}
 		}
 
@@ -247,8 +247,8 @@ impl Manager {
 		let mut temp_path = temp_idx.path(&db_root);
 
 		// start with the old db.
-		let old_path_str = try!(old_path.to_str().ok_or(Error::MigrationImpossible));
-		let mut cur_db = Arc::new(try!(Database::open(&db_config, old_path_str).map_err(Error::Custom)));
+		let old_path_str = old_path.to_str().ok_or(Error::MigrationImpossible)?;
+		let mut cur_db = Arc::new(Database::open(&db_config, old_path_str).map_err(Error::Custom)?);
 
 		for migration in migrations {
 			trace!(target: "migration", "starting migration to version {}", migration.version());
@@ -258,17 +258,17 @@ impl Manager {
 
 			// open the target temporary database.
 			temp_path = temp_idx.path(&db_root);
-			let temp_path_str = try!(temp_path.to_str().ok_or(Error::MigrationImpossible));
-			let mut new_db = try!(Database::open(&db_config, temp_path_str).map_err(Error::Custom));
+			let temp_path_str = temp_path.to_str().ok_or(Error::MigrationImpossible)?;
+			let mut new_db = Database::open(&db_config, temp_path_str).map_err(Error::Custom)?;
 
 			// perform the migration from cur_db to new_db.
 			match current_columns {
 				// migrate only default column
-				None => try!(migration.migrate(cur_db.clone(), &config, &mut new_db, None)),
+				None => migration.migrate(cur_db.clone(), &config, &mut new_db, None)?,
 				Some(v) => {
 					// Migrate all columns in previous DB
 					for col in 0..v {
-						try!(migration.migrate(cur_db.clone(), &config, &mut new_db, Some(col)))
+						migration.migrate(cur_db.clone(), &config, &mut new_db, Some(col))?
 					}
 				}
 			}

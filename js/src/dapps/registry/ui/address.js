@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -14,34 +14,107 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import React from 'react';
-import renderHash from './hash';
+import React, { Component, PropTypes } from 'react';
+import { connect } from 'react-redux';
+
+import Hash from './hash';
+import etherscanUrl from '../util/etherscan-url';
 import IdentityIcon from '../IdentityIcon';
+import { nullableProptype } from '~/util/proptypes';
 
-const container = {
-  display: 'inline-block',
-  verticalAlign: 'middle',
-  height: '24px'
-};
-const align = {
-  display: 'inline-block',
-  verticalAlign: 'top',
-  lineHeight: '24px'
-};
+import styles from './address.css';
 
-export default (address, accounts, contacts, shortenHash = true) => {
-  let caption;
-  if (accounts[address]) {
-    caption = (<abbr title={ address } style={ align }>{ accounts[address].name || address }</abbr>);
-  } else if (contacts[address]) {
-    caption = (<abbr title={ address } style={ align }>{ contacts[address].name || address }</abbr>);
-  } else {
-    caption = (<code style={ align }>{ shortenHash ? renderHash(address) : address }</code>);
+class Address extends Component {
+  static propTypes = {
+    address: PropTypes.string.isRequired,
+    account: nullableProptype(PropTypes.object.isRequired),
+    isTestnet: PropTypes.bool.isRequired,
+    key: PropTypes.string,
+    shortenHash: PropTypes.bool
+  };
+
+  static defaultProps = {
+    key: 'address',
+    shortenHash: true
+  };
+
+  render () {
+    const { address, key } = this.props;
+
+    return (
+      <div
+        key={ key }
+        className={ styles.container }
+      >
+        <IdentityIcon
+          address={ address }
+          className={ styles.align }
+        />
+        { this.renderCaption() }
+      </div>
+    );
   }
-  return (
-    <div style={ container }>
-      <IdentityIcon address={ address } style={ align } />
-      { caption }
-    </div>
-  );
-};
+
+  renderCaption () {
+    const { address, account, isTestnet, shortenHash } = this.props;
+
+    if (account) {
+      const { name } = account;
+
+      return (
+        <a
+          className={ styles.link }
+          href={ etherscanUrl(address, isTestnet) }
+          target='_blank'
+        >
+          <abbr
+            title={ address }
+            className={ styles.align }
+          >
+            { name || address }
+          </abbr>
+        </a>
+      );
+    }
+
+    return (
+      <code className={ styles.align }>
+        { shortenHash ? (
+          <Hash
+            hash={ address }
+            linked
+          />
+        ) : address }
+      </code>
+    );
+  }
+}
+
+function mapStateToProps (initState, initProps) {
+  const { accounts, contacts } = initState;
+
+  const allAccounts = Object.assign({}, accounts.all, contacts);
+
+  // Add lower case addresses to map
+  Object
+    .keys(allAccounts)
+    .forEach((address) => {
+      allAccounts[address.toLowerCase()] = allAccounts[address];
+    });
+
+  return (state, props) => {
+    const { isTestnet } = state;
+    const { address = '' } = props;
+
+    const account = allAccounts[address] || null;
+
+    return {
+      account,
+      isTestnet
+    };
+  };
+}
+
+export default connect(
+  mapStateToProps
+)(Address);

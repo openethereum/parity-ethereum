@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -19,21 +19,21 @@ use self::ansi_term::Colour::{White, Yellow, Green, Cyan, Blue};
 use self::ansi_term::Style;
 
 use std::sync::{Arc};
-use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
+use std::sync::atomic::{AtomicUsize, AtomicBool, Ordering as AtomicOrdering};
 use std::time::{Instant, Duration};
+use io::{TimerToken, IoContext, IoHandler};
 use isatty::{stdout_isatty};
 use ethsync::{SyncProvider, ManageNetwork};
-use util::{Uint, RwLock, Mutex, H256, Colour};
+use util::{Uint, RwLock, Mutex, H256, Colour, Bytes};
 use ethcore::client::*;
-use ethcore::views::BlockView;
+use ethcore::service::ClientIoMessage;
 use ethcore::snapshot::service::Service as SnapshotService;
 use ethcore::snapshot::{RestorationStatus, SnapshotService as SS};
 use number_prefix::{binary_prefix, Standalone, Prefixed};
 use ethcore_rpc::is_major_importing;
+use rlp::View;
 
 pub struct Informant {
-	chain_info: RwLock<Option<BlockChainInfo>>,
-	cache_info: RwLock<Option<BlockChainCacheSize>>,
 	report: RwLock<Option<ClientReport>>,
 	last_tick: RwLock<Instant>,
 	with_color: bool,
@@ -44,6 +44,7 @@ pub struct Informant {
 	last_import: Mutex<Instant>,
 	skipped: AtomicUsize,
 	skipped_txs: AtomicUsize,
+	in_shutdown: AtomicBool,
 }
 
 /// Format byte counts to standard denominations.
@@ -70,8 +71,6 @@ impl Informant {
 	/// Make a new instance potentially `with_color` output.
 	pub fn new(client: Arc<Client>, sync: Option<Arc<SyncProvider>>, net: Option<Arc<ManageNetwork>>, snapshot: Option<Arc<SnapshotService>>, with_color: bool) -> Self {
 		Informant {
-			chain_info: RwLock::new(None),
-			cache_info: RwLock::new(None),
 			report: RwLock::new(None),
 			last_tick: RwLock::new(Instant::now()),
 			with_color: with_color,
@@ -82,9 +81,14 @@ impl Informant {
 			last_import: Mutex::new(Instant::now()),
 			skipped: AtomicUsize::new(0),
 			skipped_txs: AtomicUsize::new(0),
+			in_shutdown: AtomicBool::new(false),
 		}
 	}
 
+	/// Signal that we're shutting down; no more output necessary.
+	pub fn shutdown(&self) {
+		self.in_shutdown.store(true, ::std::sync::atomic::Ordering::SeqCst);
+	}
 
 	#[cfg_attr(feature="dev", allow(match_bool))]
 	pub fn tick(&self) {
@@ -169,37 +173,32 @@ impl Informant {
 			)
 		);
 
-		*self.chain_info.write() = Some(chain_info);
-		*self.cache_info.write() = Some(cache_info);
 		*write_report = Some(report);
 	}
 }
 
 impl ChainNotify for Informant {
-	fn new_blocks(&self, imported: Vec<H256>, _invalid: Vec<H256>, _enacted: Vec<H256>, _retracted: Vec<H256>, _sealed: Vec<H256>, duration: u64) {
+	fn new_blocks(&self, imported: Vec<H256>, _invalid: Vec<H256>, _enacted: Vec<H256>, _retracted: Vec<H256>, _sealed: Vec<H256>, _proposed: Vec<Bytes>, duration: u64) {
 		let mut last_import = self.last_import.lock();
 		let sync_state = self.sync.as_ref().map(|s| s.status().state);
 		let importing = is_major_importing(sync_state, self.client.queue_info());
-
 		let ripe = Instant::now() > *last_import + Duration::from_secs(1) && !importing;
 		let txs_imported = imported.iter()
-			.take(imported.len() - if ripe {1} else {0})
-			.filter_map(|h| self.client.block(BlockID::Hash(*h)))
-			.map(|b| BlockView::new(&b).transactions_count())
+			.take(imported.len().saturating_sub(if ripe { 1 } else { 0 }))
+			.filter_map(|h| self.client.block(BlockId::Hash(*h)))
+			.map(|b| b.transactions_count())
 			.sum();
 
 		if ripe {
-			if let Some(block) = imported.last().and_then(|h| self.client.block(BlockID::Hash(*h))) {
-				let view = BlockView::new(&block);
-				let header = view.header();
-				let tx_count = view.transactions_count();
-				let size = block.len();
+			if let Some(block) = imported.last().and_then(|h| self.client.block(BlockId::Hash(*h))) {
+				let header_view = block.header_view();
+				let size = block.rlp().as_raw().len();
 				let (skipped, skipped_txs) = (self.skipped.load(AtomicOrdering::Relaxed) + imported.len() - 1, self.skipped_txs.load(AtomicOrdering::Relaxed) + txs_imported);
 				info!(target: "import", "Imported {} {} ({} txs, {} Mgas, {} ms, {} KiB){}",
-					Colour::White.bold().paint(format!("#{}", header.number())),
-					Colour::White.bold().paint(format!("{}", header.hash())),
-					Colour::Yellow.bold().paint(format!("{}", tx_count)),
-					Colour::Yellow.bold().paint(format!("{:.2}", header.gas_used().low_u64() as f32 / 1000000f32)),
+					Colour::White.bold().paint(format!("#{}", header_view.number())),
+					Colour::White.bold().paint(format!("{}", header_view.hash())),
+					Colour::Yellow.bold().paint(format!("{}", block.transactions_count())),
+					Colour::Yellow.bold().paint(format!("{:.2}", header_view.gas_used().low_u64() as f32 / 1000000f32)),
 					Colour::Purple.bold().paint(format!("{:.2}", duration as f32 / 1000000f32)),
 					Colour::Blue.bold().paint(format!("{:.2}", size as f32 / 1024f32)),
 					if skipped > 0 {
@@ -222,3 +221,16 @@ impl ChainNotify for Informant {
 	}
 }
 
+const INFO_TIMER: TimerToken = 0;
+
+impl IoHandler<ClientIoMessage> for Informant {
+	fn initialize(&self, io: &IoContext<ClientIoMessage>) {
+		io.register_timer(INFO_TIMER, 5000).expect("Error registering timer");
+	}
+
+	fn timeout(&self, _io: &IoContext<ClientIoMessage>, timer: TimerToken) {
+		if timer == INFO_TIMER && !self.in_shutdown.load(AtomicOrdering::SeqCst) {
+			self.tick();
+		}
+	}
+}

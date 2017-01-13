@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -76,7 +76,7 @@ pub fn sha3(r: &mut io::BufRead) -> Result<H256, io::Error> {
 
 	// read file
 	loop {
-		let some = try!(r.read(&mut input));
+		let some = r.read(&mut input)?;
 		if some == 0 {
 			break;
 		}

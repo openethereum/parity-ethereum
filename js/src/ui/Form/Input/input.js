@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -17,6 +17,8 @@
 import React, { Component, PropTypes } from 'react';
 import { TextField } from 'material-ui';
 import { noop } from 'lodash';
+
+import { nodeOrStringProptype } from '~/util/proptypes';
 
 import CopyToClipboard from '../../CopyToClipboard';
 
@@ -37,59 +39,82 @@ const UNDERLINE_NORMAL = {
   borderBottom: 'solid 2px'
 };
 
+const UNDERLINE_FOCUSED = {
+  transform: 'scaleX(1.0)'
+};
+
 const NAME_ID = ' ';
 
 export default class Input extends Component {
   static propTypes = {
-    children: PropTypes.node,
-    className: PropTypes.string,
-    disabled: PropTypes.bool,
-    readOnly: PropTypes.bool,
     allowCopy: PropTypes.oneOfType([
       PropTypes.string,
       PropTypes.bool
     ]),
+    autoFocus: PropTypes.bool,
+    children: PropTypes.node,
+    className: PropTypes.string,
+    disabled: PropTypes.bool,
+    error: nodeOrStringProptype(),
+    focused: PropTypes.bool,
+    readOnly: PropTypes.bool,
     floatCopy: PropTypes.bool,
-    error: PropTypes.string,
-    hint: PropTypes.string,
-    label: PropTypes.string,
+    hint: nodeOrStringProptype(),
+    hideUnderline: PropTypes.bool,
+    label: nodeOrStringProptype(),
+    max: PropTypes.any,
+    min: PropTypes.any,
     multiLine: PropTypes.bool,
     onBlur: PropTypes.func,
     onChange: PropTypes.func,
+    onClick: PropTypes.func,
+    onFocus: PropTypes.func,
     onKeyDown: PropTypes.func,
     onSubmit: PropTypes.func,
     rows: PropTypes.number,
+    tabIndex: PropTypes.number,
     type: PropTypes.string,
     submitOnBlur: PropTypes.bool,
-    hideUnderline: PropTypes.bool,
+    style: PropTypes.object,
     value: PropTypes.oneOfType([
-      PropTypes.number, PropTypes.string
-    ]),
-    min: PropTypes.any,
-    max: PropTypes.any
+      PropTypes.number,
+      PropTypes.string
+    ])
   };
 
   static defaultProps = {
-    submitOnBlur: true,
-    readOnly: false,
     allowCopy: false,
     hideUnderline: false,
-    floatCopy: false
+    floatCopy: false,
+    readOnly: false,
+    submitOnBlur: true,
+    style: {}
   }
 
   state = {
-    value: this.props.value || ''
+    value: typeof this.props.value === 'undefined'
+      ? ''
+      : this.props.value
   }
 
   componentWillReceiveProps (newProps) {
     if ((newProps.value !== this.props.value) && (newProps.value !== this.state.value)) {
       this.setValue(newProps.value);
     }
+
+    if (newProps.focused && !this.props.focused) {
+      this.refs.input.setState({ isFocused: true });
+    }
+
+    if (!newProps.focused && this.props.focused) {
+      this.refs.input.setState({ isFocused: false });
+    }
   }
 
   render () {
     const { value } = this.state;
-    const { children, className, hideUnderline, disabled, error, label, hint, multiLine, rows, type, min, max } = this.props;
+    const { autoFocus, children, className, hideUnderline, disabled, error, focused, label } = this.props;
+    const { hint, onClick, onFocus, multiLine, rows, type, min, max, style, tabIndex } = this.props;
 
     const readOnly = this.props.readOnly || disabled;
 
@@ -104,39 +129,46 @@ export default class Input extends Component {
       textFieldStyle.height = 'initial';
     }
 
+    const underlineStyle = readOnly ? UNDERLINE_READONLY : UNDERLINE_NORMAL;
+    const underlineFocusStyle = focused
+      ? UNDERLINE_FOCUSED
+      : readOnly && typeof focused !== 'boolean' ? { display: 'none' } : null;
+
     return (
-      <div className={ styles.container }>
+      <div className={ styles.container } style={ style }>
         { this.renderCopyButton() }
         <TextField
           autoComplete='off'
+          autoFocus={ autoFocus }
           className={ className }
-          style={ textFieldStyle }
-
-          readOnly={ readOnly }
-
           errorText={ error }
           floatingLabelFixed
           floatingLabelText={ label }
           fullWidth
           hintText={ hint }
+          id={ NAME_ID }
+          inputStyle={ inputStyle }
+          max={ max }
+          min={ min }
           multiLine={ multiLine }
           name={ NAME_ID }
-          id={ NAME_ID }
-          rows={ rows }
-          type={ type || 'text' }
-          underlineDisabledStyle={ UNDERLINE_DISABLED }
-          underlineStyle={ readOnly ? UNDERLINE_READONLY : UNDERLINE_NORMAL }
-          underlineFocusStyle={ readOnly ? { display: 'none' } : null }
-          underlineShow={ !hideUnderline }
-          value={ value }
           onBlur={ this.onBlur }
           onChange={ this.onChange }
+          onClick={ onClick }
           onKeyDown={ this.onKeyDown }
+          onFocus={ onFocus }
           onPaste={ this.onPaste }
-          inputStyle={ inputStyle }
-          min={ min }
-          max={ max }
-        >
+          readOnly={ readOnly }
+          ref='input'
+          rows={ rows }
+          style={ textFieldStyle }
+          tabIndex={ tabIndex }
+          type={ type || 'text' }
+          underlineDisabledStyle={ UNDERLINE_DISABLED }
+          underlineStyle={ underlineStyle }
+          underlineFocusStyle={ underlineFocusStyle }
+          underlineShow={ !hideUnderline }
+          value={ value }>
           { children }
         </TextField>
       </div>
@@ -144,35 +176,20 @@ export default class Input extends Component {
   }
 
   renderCopyButton () {
-    const { allowCopy, label, hint, floatCopy } = this.props;
+    const { allowCopy, hideUnderline } = this.props;
     const { value } = this.state;
 
     if (!allowCopy) {
       return null;
     }
 
-    const style = {
-      marginBottom: 13
-    };
-
     const text = typeof allowCopy === 'string'
       ? allowCopy
-      : value;
+      : value.toString();
 
-    if (!label) {
-      style.marginBottom = 2;
-    } else if (label && !hint) {
-      style.marginBottom = 4;
-    } else if (label && hint) {
-      style.marginBottom = 10;
-    }
-
-    if (floatCopy) {
-      style.position = 'absolute';
-      style.left = -24;
-      style.bottom = style.marginBottom;
-      style.marginBottom = 0;
-    }
+    const style = hideUnderline
+      ? {}
+      : { position: 'relative', top: '2px' };
 
     return (
       <div className={ styles.copy } style={ style }>

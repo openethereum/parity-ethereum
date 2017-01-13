@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -14,9 +14,23 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { APIKEY, mockget, mockpost, rpc } from './helpers.spec.js';
+const helpers = require('./helpers.spec.js');
+
+const ShapeShift = require('./');
+const initShapeshift = (ShapeShift.default || ShapeShift);
+
+const mockget = helpers.mockget;
+const mockpost = helpers.mockpost;
 
 describe('shapeshift/rpc', () => {
+  let rpc;
+  let shapeshift;
+
+  beforeEach(() => {
+    shapeshift = initShapeshift(helpers.APIKEY);
+    rpc = shapeshift.getRpc();
+  });
+
   describe('GET', () => {
     const REPLY = { test: 'this is some result' };
 
@@ -24,7 +38,7 @@ describe('shapeshift/rpc', () => {
     let result;
 
     beforeEach(() => {
-      scope = mockget([{ path: 'test', reply: REPLY }]);
+      scope = mockget(shapeshift, [{ path: 'test', reply: REPLY }]);
 
       return rpc
         .get('test')
@@ -49,7 +63,7 @@ describe('shapeshift/rpc', () => {
     let result;
 
     beforeEach(() => {
-      scope = mockpost([{ path: 'test', reply: REPLY }]);
+      scope = mockpost(shapeshift, [{ path: 'test', reply: REPLY }]);
 
       return rpc
         .post('test', { input: 'stuff' })
@@ -71,7 +85,7 @@ describe('shapeshift/rpc', () => {
     });
 
     it('passes the apikey specified', () => {
-      expect(scope.body.test.apiKey).to.equal(APIKEY);
+      expect(scope.body.test.apiKey).to.equal(helpers.APIKEY);
     });
   });
 });

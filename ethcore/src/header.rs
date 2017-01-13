@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -265,26 +265,26 @@ impl Decodable for Header {
 		let r = decoder.as_rlp();
 
 		let mut blockheader = Header {
-			parent_hash: try!(r.val_at(0)),
-			uncles_hash: try!(r.val_at(1)),
-			author: try!(r.val_at(2)),
-			state_root: try!(r.val_at(3)),
-			transactions_root: try!(r.val_at(4)),
-			receipts_root: try!(r.val_at(5)),
-			log_bloom: try!(r.val_at(6)),
-			difficulty: try!(r.val_at(7)),
-			number: try!(r.val_at(8)),
-			gas_limit: try!(r.val_at(9)),
-			gas_used: try!(r.val_at(10)),
-			timestamp: try!(r.val_at(11)),
-			extra_data: try!(r.val_at(12)),
+			parent_hash: r.val_at(0)?,
+			uncles_hash: r.val_at(1)?,
+			author: r.val_at(2)?,
+			state_root: r.val_at(3)?,
+			transactions_root: r.val_at(4)?,
+			receipts_root: r.val_at(5)?,
+			log_bloom: r.val_at(6)?,
+			difficulty: r.val_at(7)?,
+			number: r.val_at(8)?,
+			gas_limit: r.val_at(9)?,
+			gas_used: r.val_at(10)?,
+			timestamp: r.val_at(11)?,
+			extra_data: r.val_at(12)?,
 			seal: vec![],
 			hash: RefCell::new(Some(r.as_raw().sha3())),
 			bare_hash: RefCell::new(None),
 		};
 
 		for i in 13..r.item_count() {
-			blockheader.seal.push(try!(r.at(i)).as_raw().to_vec())
+			blockheader.seal.push(r.at(i)?.as_raw().to_vec())
 		}
 
 		Ok(blockheader)

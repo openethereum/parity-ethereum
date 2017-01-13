@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -134,7 +134,7 @@ impl Serialize for KdfSerParams {
 impl Deserialize for KdfSerParams {
 	fn deserialize<D>(deserializer: &mut D) -> Result<Self, D::Error>
 	where D: Deserializer {
-		let v = try!(Value::deserialize(deserializer));
+		let v = Value::deserialize(deserializer)?;
 
 		Deserialize::deserialize(&mut value::Deserializer::new(v.clone())).map(KdfSerParams::Pbkdf2)
 			.or_else(|_| Deserialize::deserialize(&mut value::Deserializer::new(v)).map(KdfSerParams::Scrypt))

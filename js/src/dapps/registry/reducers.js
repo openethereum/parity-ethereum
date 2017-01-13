@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -20,6 +20,10 @@ import lookupReducer from './Lookup/reducers.js';
 import eventsReducer from './Events/reducers.js';
 import namesReducer from './Names/reducers.js';
 import recordsReducer from './Records/reducers.js';
+import reverseReducer from './Reverse/reducers.js';
+
+const isTestnetReducer = (state = null, action) =>
+  action.type === 'set isTestnet' ? action.isTestnet : state;
 
 const contractReducer = (state = null, action) =>
   action.type === 'set contract' ? action.contract : state;
@@ -31,6 +35,7 @@ const ownerReducer = (state = null, action) =>
   action.type === 'set owner' ? action.owner : state;
 
 const initialState = {
+  isTestnet: isTestnetReducer(undefined, { type: '' }),
   accounts: accountsReducer(undefined, { type: '' }),
   contacts: contactsReducer(undefined, { type: '' }),
   contract: contractReducer(undefined, { type: '' }),
@@ -39,10 +44,12 @@ const initialState = {
   lookup: lookupReducer(undefined, { type: '' }),
   events: eventsReducer(undefined, { type: '' }),
   names: namesReducer(undefined, { type: '' }),
-  records: recordsReducer(undefined, { type: '' })
+  records: recordsReducer(undefined, { type: '' }),
+  reverse: reverseReducer(undefined, { type: '' })
 };
 
 export default (state = initialState, action) => ({
+  isTestnet: isTestnetReducer(state.isTestnet, action),
   accounts: accountsReducer(state.accounts, action),
   contacts: contactsReducer(state.contacts, action),
   contract: contractReducer(state.contract, action),
@@ -51,5 +58,6 @@ export default (state = initialState, action) => ({
   lookup: lookupReducer(state.lookup, action),
   events: eventsReducer(state.events, action),
   names: namesReducer(state.names, action),
-  records: recordsReducer(state.records, action)
+  records: recordsReducer(state.records, action),
+  reverse: reverseReducer(state.reverse, action)
 });

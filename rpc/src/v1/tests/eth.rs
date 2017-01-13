@@ -18,26 +18,26 @@
 use std::sync::Arc;
 use std::time::Duration;
 
+use devtools::RandomTempPath;
 use ethcore::client::{BlockChainClient, Client, ClientConfig};
-use ethcore::ids::BlockID;
+use ethcore::ids::BlockId;
 use ethcore::spec::{Genesis, Spec};
 use ethcore::block::Block;
 use ethcore::views::BlockView;
 use ethcore::ethereum;
 use ethcore::miner::{MinerOptions, Banning, GasPricer, MinerService, ExternalMiner, Miner, PendingSet, PrioritizationStrategy, GasLimit};
 use ethcore::account_provider::AccountProvider;
-use devtools::RandomTempPath;
-use util::Hashable;
-use io::IoChannel;
-use util::{U256, H256, Uint, Address};
-use jsonrpc_core::IoHandler;
 use ethjson::blockchain::BlockChain;
+use io::IoChannel;
+use util::{U256, H256, Uint, Address, Hashable};
 
+use jsonrpc_core::IoHandler;
 use v1::impls::{EthClient, SigningUnsafeClient};
-use v1::types::U256 as NU256;
+use v1::metadata::Metadata;
+use v1::tests::helpers::{TestSnapshotService, TestSyncProvider, Config};
 use v1::traits::eth::Eth;
 use v1::traits::eth_signing::EthSigning;
-use v1::tests::helpers::{TestSnapshotService, TestSyncProvider, Config};
+use v1::types::U256 as NU256;
 
 fn account_provider() -> Arc<AccountProvider> {
 	Arc::new(AccountProvider::transient_provider())
@@ -92,7 +92,7 @@ struct EthTester {
 	_miner: Arc<MinerService>,
 	_snapshot: Arc<TestSnapshotService>,
 	accounts: Arc<AccountProvider>,
-	handler: IoHandler,
+	handler: IoHandler<Metadata>,
 }
 
 impl EthTester {
@@ -116,6 +116,7 @@ impl EthTester {
 	fn from_spec(spec: Spec) -> Self {
 		let dir = RandomTempPath::new();
 		let account_provider = account_provider();
+		spec.engine.register_account_provider(account_provider.clone());
 		let miner_service = miner_service(&spec, account_provider.clone());
 		let snapshot_service = snapshot_service();
 
@@ -146,9 +147,9 @@ impl EthTester {
 			&miner_service
 		);
 
-		let handler = IoHandler::new();
-		handler.add_delegate(eth_client.to_delegate());
-		handler.add_delegate(eth_sign.to_delegate());
+		let mut handler = IoHandler::default();
+		handler.extend_with(eth_client.to_delegate());
+		handler.extend_with(eth_sign.to_delegate());
 
 		EthTester {
 			_miner: miner_service,
@@ -306,7 +307,7 @@ const POSITIVE_NONCE_SPEC: &'static [u8] = br#"{
 
 #[test]
 fn eth_transaction_count() {
-	let secret = "8a283037bb19c4fed7b1c569e40c7dcff366165eb869110a1b11532963eb9cb2".into();
+	let secret = "8a283037bb19c4fed7b1c569e40c7dcff366165eb869110a1b11532963eb9cb2".parse().unwrap();
 	let tester = EthTester::from_spec(Spec::load(TRANSACTION_COUNT_SPEC).expect("invalid chain spec"));
 	let address = tester.accounts.insert_account(secret, "").unwrap();
 	tester.accounts.unlock_account_permanently(address, "".into()).unwrap();
@@ -424,7 +425,7 @@ fn verify_transaction_counts(name: String, chain: BlockChain) {
 		assert_eq!(tester.handler.handle_request_sync(&req), Some(res));
 
 		// uncles can share block numbers, so skip them.
-		if tester.client.block_hash(BlockID::Number(number)) == Some(hash) {
+		if tester.client.block_hash(BlockId::Number(number)) == Some(hash) {
 			let (req, res) = by_number(number, count, &mut id);
 			assert_eq!(tester.handler.handle_request_sync(&req), Some(res));
 		}

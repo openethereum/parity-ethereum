@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -17,15 +17,20 @@
 import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
+import { FormattedMessage } from 'react-intl';
+import BigNumber from 'bignumber.js';
+
 import ActionDelete from 'material-ui/svg-icons/action/delete';
 import AvPlayArrow from 'material-ui/svg-icons/av/play-arrow';
 import ContentCreate from 'material-ui/svg-icons/content/create';
 import EyeIcon from 'material-ui/svg-icons/image/remove-red-eye';
 import ContentClear from 'material-ui/svg-icons/content/clear';
 
-import { newError } from '../../redux/actions';
-import { EditMeta, ExecuteContract } from '../../modals';
-import { Actionbar, Button, Page, Modal, Editor } from '../../ui';
+import { newError } from '~/redux/actions';
+import { setVisibleAccounts } from '~/redux/providers/personalActions';
+
+import { EditMeta, ExecuteContract } from '~/modals';
+import { Actionbar, Button, Page, Modal, Editor } from '~/ui';
 
 import Header from '../Account/Header';
 import Delete from '../Address/Delete';
@@ -38,15 +43,18 @@ import styles from './contract.css';
 class Contract extends Component {
   static contextTypes = {
     api: React.PropTypes.object.isRequired
-  }
+  };
 
   static propTypes = {
+    setVisibleAccounts: PropTypes.func.isRequired,
+
     accounts: PropTypes.object,
+    accountsInfo: PropTypes.object,
     balances: PropTypes.object,
     contracts: PropTypes.object,
     isTest: PropTypes.bool,
     params: PropTypes.object
-  }
+  };
 
   state = {
     contract: null,
@@ -60,29 +68,38 @@ class Contract extends Component {
     allEvents: [],
     minedEvents: [],
     pendingEvents: [],
-    queryValues: {}
-  }
+    queryValues: {},
+    loadingEvents: true
+  };
 
   componentDidMount () {
     const { api } = this.context;
 
     this.attachContract(this.props);
     this.setBaseAccount(this.props);
+    this.setVisibleAccounts();
 
     api
       .subscribe('eth_blockNumber', this.queryContract)
       .then(blockSubscriptionId => this.setState({ blockSubscriptionId }));
   }
 
-  componentWillReceiveProps (newProps) {
-    const { accounts, contracts } = newProps;
+  componentWillReceiveProps (nextProps) {
+    const { accounts, contracts } = nextProps;
 
     if (Object.keys(contracts).length !== Object.keys(this.props.contracts).length) {
-      this.attachContract(newProps);
+      this.attachContract(nextProps);
     }
 
     if (Object.keys(accounts).length !== Object.keys(this.props.accounts).length) {
-      this.setBaseAccount(newProps);
+      this.setBaseAccount(nextProps);
+    }
+
+    const prevAddress = this.props.params.address;
+    const nextAddress = nextProps.params.address;
+
+    if (prevAddress !== nextAddress) {
+      this.setVisibleAccounts(nextProps);
     }
   }
 
@@ -92,11 +109,18 @@ class Contract extends Component {
 
     api.unsubscribe(blockSubscriptionId);
     contract.unsubscribe(subscriptionId);
+    this.props.setVisibleAccounts([]);
+  }
+
+  setVisibleAccounts (props = this.props) {
+    const { params, setVisibleAccounts } = props;
+    const addresses = [ params.address ];
+    setVisibleAccounts(addresses);
   }
 
   render () {
-    const { balances, contracts, params, isTest } = this.props;
-    const { allEvents, contract, queryValues } = this.state;
+    const { accountsInfo, balances, contracts, params, isTest } = this.props;
+    const { allEvents, contract, queryValues, loadingEvents } = this.state;
     const account = contracts[params.address];
     const balance = balances[params.address];
 
@@ -105,25 +129,56 @@ class Contract extends Component {
     }
 
     return (
-      <div className={ styles.contract }>
+      <div>
         { this.renderActionbar(account) }
         { this.renderDeleteDialog(account) }
         { this.renderEditDialog(account) }
         { this.renderExecuteDialog() }
         <Page>
           <Header
-            isTest={ isTest }
             account={ account }
-            balance={ balance } />
+            balance={ balance }
+            isContract
+          >
+            { this.renderBlockNumber(account.meta) }
+          </Header>
+
           <Queries
+            accountsInfo={ accountsInfo }
             contract={ contract }
-            values={ queryValues } />
+            values={ queryValues }
+          />
+
           <Events
             isTest={ isTest }
-            events={ allEvents } />
+            isLoading={ loadingEvents }
+            events={ allEvents }
+          />
 
           { this.renderDetails(account) }
         </Page>
+      </div>
+    );
+  }
+
+  renderBlockNumber (meta = {}) {
+    const { blockNumber } = meta;
+
+    if (!blockNumber) {
+      return null;
+    }
+
+    const formattedBlockNumber = (new BigNumber(blockNumber)).toFormat();
+
+    return (
+      <div className={ styles.blockNumber }>
+        <FormattedMessage
+          id='contract.minedBlock'
+          defaultMessage='Mined at block #{blockNumber}'
+          values={ {
+            blockNumber: formattedBlockNumber
+          } }
+        />
       </div>
     );
   }
@@ -147,7 +202,6 @@ class Contract extends Component {
         actions={ [ cancelBtn ] }
         title={ 'contract details' }
         visible
-        scroll
       >
         <div className={ styles.details }>
           { this.renderSource(contract) }
@@ -195,7 +249,7 @@ class Contract extends Component {
         key='editmeta'
         icon={ <ContentCreate /> }
         label='edit'
-        onClick={ this.onEditClick } />,
+        onClick={ this.showEditDialog } />,
       <Button
         key='delete'
         icon={ <ActionDelete /> }
@@ -211,7 +265,7 @@ class Contract extends Component {
     return (
       <Actionbar
         title='Contract Information'
-        buttons={ !account || account.meta.deleted ? [] : buttons } />
+        buttons={ !account ? [] : buttons } />
     );
   }
 
@@ -237,8 +291,7 @@ class Contract extends Component {
     return (
       <EditMeta
         account={ account }
-        keys={ ['description'] }
-        onClose={ this.onEditClick } />
+        onClose={ this.closeEditDialog } />
     );
   }
 
@@ -287,10 +340,12 @@ class Contract extends Component {
       });
   }
 
-  onEditClick = () => {
-    this.setState({
-      showEditDialog: !this.state.showEditDialog
-    });
+  closeEditDialog = () => {
+    this.setState({ showEditDialog: false });
+  }
+
+  showEditDialog = () => {
+    this.setState({ showEditDialog: true });
   }
 
   closeDeleteDialog = () => {
@@ -340,6 +395,10 @@ class Contract extends Component {
   }
 
   _receiveEvents = (error, logs) => {
+    if (this.state.loadingEvents) {
+      this.setState({ loadingEvents: false });
+    }
+
     if (error) {
       console.error('_receiveEvents', error);
       return;
@@ -417,20 +476,24 @@ class Contract extends Component {
 }
 
 function mapStateToProps (state) {
-  const { accounts, contracts } = state.personal;
+  const { accounts, accountsInfo, contracts } = state.personal;
   const { balances } = state.balances;
   const { isTest } = state.nodeStatus;
 
   return {
     isTest,
     accounts,
+    accountsInfo,
     contracts,
     balances
   };
 }
 
 function mapDispatchToProps (dispatch) {
-  return bindActionCreators({ newError }, dispatch);
+  return bindActionCreators({
+    newError,
+    setVisibleAccounts
+  }, dispatch);
 }
 
 export default connect(

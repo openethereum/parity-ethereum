@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use util::*;
-use ethcore::client::{TestBlockChainClient, BlockChainClient, BlockID, EachBlockWith};
+use ethcore::client::{TestBlockChainClient, BlockChainClient, BlockId, EachBlockWith};
 use chain::{SyncState};
 use super::helpers::*;
 use SyncConfig;
@@ -24,10 +24,10 @@ use SyncConfig;
 fn two_peers() {
 	::env_logger::init().ok();
 	let mut net = TestNet::new(3);
-	net.peer_mut(1).chain.add_blocks(1000, EachBlockWith::Uncle);
-	net.peer_mut(2).chain.add_blocks(1000, EachBlockWith::Uncle);
+	net.peer(1).chain.add_blocks(1000, EachBlockWith::Uncle);
+	net.peer(2).chain.add_blocks(1000, EachBlockWith::Uncle);
 	net.sync();
-	assert!(net.peer(0).chain.block(BlockID::Number(1000)).is_some());
+	assert!(net.peer(0).chain.block(BlockId::Number(1000)).is_some());
 	assert_eq!(*net.peer(0).chain.blocks.read(), *net.peer(1).chain.blocks.read());
 }
 
@@ -35,9 +35,9 @@ fn two_peers() {
 fn long_chain() {
 	::env_logger::init().ok();
 	let mut net = TestNet::new(2);
-	net.peer_mut(1).chain.add_blocks(50000, EachBlockWith::Nothing);
+	net.peer(1).chain.add_blocks(50000, EachBlockWith::Nothing);
 	net.sync();
-	assert!(net.peer(0).chain.block(BlockID::Number(50000)).is_some());
+	assert!(net.peer(0).chain.block(BlockId::Number(50000)).is_some());
 	assert_eq!(*net.peer(0).chain.blocks.read(), *net.peer(1).chain.blocks.read());
 }
 
@@ -45,8 +45,8 @@ fn long_chain() {
 fn status_after_sync() {
 	::env_logger::init().ok();
 	let mut net = TestNet::new(3);
-	net.peer_mut(1).chain.add_blocks(1000, EachBlockWith::Uncle);
-	net.peer_mut(2).chain.add_blocks(1000, EachBlockWith::Uncle);
+	net.peer(1).chain.add_blocks(1000, EachBlockWith::Uncle);
+	net.peer(2).chain.add_blocks(1000, EachBlockWith::Uncle);
 	net.sync();
 	let status = net.peer(0).sync.read().status();
 	assert_eq!(status.state, SyncState::Idle);
@@ -55,8 +55,8 @@ fn status_after_sync() {
 #[test]
 fn takes_few_steps() {
 	let mut net = TestNet::new(3);
-	net.peer_mut(1).chain.add_blocks(100, EachBlockWith::Uncle);
-	net.peer_mut(2).chain.add_blocks(100, EachBlockWith::Uncle);
+	net.peer(1).chain.add_blocks(100, EachBlockWith::Uncle);
+	net.peer(2).chain.add_blocks(100, EachBlockWith::Uncle);
 	let total_steps = net.sync();
 	assert!(total_steps < 20);
 }
@@ -67,11 +67,11 @@ fn empty_blocks() {
 	let mut net = TestNet::new(3);
 	for n in 0..200 {
 		let with = if n % 2 == 0 { EachBlockWith::Nothing } else { EachBlockWith::Uncle };
-		net.peer_mut(1).chain.add_blocks(5, with.clone());
-		net.peer_mut(2).chain.add_blocks(5, with);
+		net.peer(1).chain.add_blocks(5, with.clone());
+		net.peer(2).chain.add_blocks(5, with);
 	}
 	net.sync();
-	assert!(net.peer(0).chain.block(BlockID::Number(1000)).is_some());
+	assert!(net.peer(0).chain.block(BlockId::Number(1000)).is_some());
 	assert_eq!(*net.peer(0).chain.blocks.read(), *net.peer(1).chain.blocks.read());
 }
 
@@ -79,14 +79,14 @@ fn empty_blocks() {
 fn forked() {
 	::env_logger::init().ok();
 	let mut net = TestNet::new(3);
-	net.peer_mut(0).chain.add_blocks(300, EachBlockWith::Uncle);
-	net.peer_mut(1).chain.add_blocks(300, EachBlockWith::Uncle);
-	net.peer_mut(2).chain.add_blocks(300, EachBlockWith::Uncle);
-	net.peer_mut(0).chain.add_blocks(100, EachBlockWith::Nothing); //fork
-	net.peer_mut(1).chain.add_blocks(200, EachBlockWith::Uncle);
-	net.peer_mut(2).chain.add_blocks(200, EachBlockWith::Uncle);
-	net.peer_mut(1).chain.add_blocks(100, EachBlockWith::Uncle); //fork between 1 and 2
-	net.peer_mut(2).chain.add_blocks(10, EachBlockWith::Nothing);
+	net.peer(0).chain.add_blocks(30, EachBlockWith::Uncle);
+	net.peer(1).chain.add_blocks(30, EachBlockWith::Uncle);
+	net.peer(2).chain.add_blocks(30, EachBlockWith::Uncle);
+	net.peer(0).chain.add_blocks(10, EachBlockWith::Nothing); //fork
+	net.peer(1).chain.add_blocks(20, EachBlockWith::Uncle);
+	net.peer(2).chain.add_blocks(20, EachBlockWith::Uncle);
+	net.peer(1).chain.add_blocks(10, EachBlockWith::Uncle); //fork between 1 and 2
+	net.peer(2).chain.add_blocks(1, EachBlockWith::Nothing);
 	// peer 1 has the best chain of 601 blocks
 	let peer1_chain = net.peer(1).chain.numbers.read().clone();
 	net.sync();
@@ -100,14 +100,17 @@ fn forked() {
 fn forked_with_misbehaving_peer() {
 	::env_logger::init().ok();
 	let mut net = TestNet::new(3);
-	// peer 0 is on a totally different chain with higher total difficulty
-	net.peer_mut(0).chain = TestBlockChainClient::new_with_extra_data(b"fork".to_vec());
-	net.peer_mut(0).chain.add_blocks(500, EachBlockWith::Nothing);
-	net.peer_mut(1).chain.add_blocks(100, EachBlockWith::Nothing);
-	net.peer_mut(2).chain.add_blocks(100, EachBlockWith::Nothing);
 
-	net.peer_mut(1).chain.add_blocks(100, EachBlockWith::Nothing);
-	net.peer_mut(2).chain.add_blocks(200, EachBlockWith::Uncle);
+	let mut alt_spec = ::ethcore::spec::Spec::new_test();
+	alt_spec.extra_data = b"fork".to_vec();
+	// peer 0 is on a totally different chain with higher total difficulty
+	net.peer_mut(0).chain = Arc::new(TestBlockChainClient::new_with_spec(alt_spec));
+	net.peer(0).chain.add_blocks(50, EachBlockWith::Nothing);
+	net.peer(1).chain.add_blocks(10, EachBlockWith::Nothing);
+	net.peer(2).chain.add_blocks(10, EachBlockWith::Nothing);
+
+	net.peer(1).chain.add_blocks(10, EachBlockWith::Nothing);
+	net.peer(2).chain.add_blocks(20, EachBlockWith::Uncle);
 	// peer 1 should sync to peer 2, others should not change
 	let peer0_chain = net.peer(0).chain.numbers.read().clone();
 	let peer2_chain = net.peer(2).chain.numbers.read().clone();
@@ -123,14 +126,14 @@ fn net_hard_fork() {
 	let ref_client = TestBlockChainClient::new();
 	ref_client.add_blocks(50, EachBlockWith::Uncle);
 	{
-		let mut net = TestNet::new_with_fork(2, Some((50, ref_client.block_hash(BlockID::Number(50)).unwrap())));
-		net.peer_mut(0).chain.add_blocks(100, EachBlockWith::Uncle);
+		let mut net = TestNet::new_with_fork(2, Some((50, ref_client.block_hash(BlockId::Number(50)).unwrap())));
+		net.peer(0).chain.add_blocks(100, EachBlockWith::Uncle);
 		net.sync();
 		assert_eq!(net.peer(1).chain.chain_info().best_block_number, 100);
 	}
 	{
-		let mut net = TestNet::new_with_fork(2, Some((50, ref_client.block_hash(BlockID::Number(50)).unwrap())));
-		net.peer_mut(0).chain.add_blocks(100, EachBlockWith::Nothing);
+		let mut net = TestNet::new_with_fork(2, Some((50, ref_client.block_hash(BlockId::Number(50)).unwrap())));
+		net.peer(0).chain.add_blocks(100, EachBlockWith::Nothing);
 		net.sync();
 		assert_eq!(net.peer(1).chain.chain_info().best_block_number, 0);
 	}
@@ -140,8 +143,8 @@ fn net_hard_fork() {
 fn restart() {
 	::env_logger::init().ok();
 	let mut net = TestNet::new(3);
-	net.peer_mut(1).chain.add_blocks(1000, EachBlockWith::Uncle);
-	net.peer_mut(2).chain.add_blocks(1000, EachBlockWith::Uncle);
+	net.peer(1).chain.add_blocks(1000, EachBlockWith::Uncle);
+	net.peer(2).chain.add_blocks(1000, EachBlockWith::Uncle);
 
 	net.sync();
 
@@ -166,37 +169,37 @@ fn status_empty() {
 #[test]
 fn status_packet() {
 	let mut net = TestNet::new(2);
-	net.peer_mut(0).chain.add_blocks(100, EachBlockWith::Uncle);
-	net.peer_mut(1).chain.add_blocks(1, EachBlockWith::Uncle);
+	net.peer(0).chain.add_blocks(100, EachBlockWith::Uncle);
+	net.peer(1).chain.add_blocks(1, EachBlockWith::Uncle);
 
 	net.start();
 
 	net.sync_step_peer(0);
 
-	assert_eq!(1, net.peer(0).queue.len());
-	assert_eq!(0x00, net.peer(0).queue[0].packet_id);
+	assert_eq!(1, net.peer(0).queue.read().len());
+	assert_eq!(0x00, net.peer(0).queue.read()[0].packet_id);
 }
 
 #[test]
 fn propagate_hashes() {
 	let mut net = TestNet::new(6);
-	net.peer_mut(1).chain.add_blocks(10, EachBlockWith::Uncle);
+	net.peer(1).chain.add_blocks(10, EachBlockWith::Uncle);
 	net.sync();
 
-	net.peer_mut(0).chain.add_blocks(10, EachBlockWith::Uncle);
+	net.peer(0).chain.add_blocks(10, EachBlockWith::Uncle);
 	net.sync();
 	net.trigger_chain_new_blocks(0); //first event just sets the marker
 	net.trigger_chain_new_blocks(0);
 
 	// 5 peers with NewHahses, 4 with blocks
-	assert_eq!(9, net.peer(0).queue.len());
+	assert_eq!(9, net.peer(0).queue.read().len());
 	let mut hashes = 0;
 	let mut blocks = 0;
-	for i in 0..net.peer(0).queue.len() {
-		if net.peer(0).queue[i].packet_id == 0x1 {
+	for i in 0..net.peer(0).queue.read().len() {
+		if net.peer(0).queue.read()[i].packet_id == 0x1 {
 			hashes += 1;
 		}
-		if net.peer(0).queue[i].packet_id == 0x7 {
+		if net.peer(0).queue.read()[i].packet_id == 0x7 {
 			blocks += 1;
 		}
 	}
@@ -207,24 +210,24 @@ fn propagate_hashes() {
 #[test]
 fn propagate_blocks() {
 	let mut net = TestNet::new(20);
-	net.peer_mut(1).chain.add_blocks(10, EachBlockWith::Uncle);
+	net.peer(1).chain.add_blocks(10, EachBlockWith::Uncle);
 	net.sync();
 
-	net.peer_mut(0).chain.add_blocks(10, EachBlockWith::Uncle);
+	net.peer(0).chain.add_blocks(10, EachBlockWith::Uncle);
 	net.trigger_chain_new_blocks(0); //first event just sets the marker
 	net.trigger_chain_new_blocks(0);
 
-	assert!(!net.peer(0).queue.is_empty());
+	assert!(!net.peer(0).queue.read().is_empty());
 	// NEW_BLOCK_PACKET
-	let blocks = net.peer(0).queue.iter().filter(|p| p.packet_id == 0x7).count();
+	let blocks = net.peer(0).queue.read().iter().filter(|p| p.packet_id == 0x7).count();
 	assert!(blocks > 0);
 }
 
 #[test]
 fn restart_on_malformed_block() {
 	let mut net = TestNet::new(2);
-	net.peer_mut(1).chain.add_blocks(10, EachBlockWith::Uncle);
-	net.peer_mut(1).chain.corrupt_block(6);
+	net.peer(1).chain.add_blocks(10, EachBlockWith::Uncle);
+	net.peer(1).chain.corrupt_block(6);
 	net.sync_steps(20);
 
 	assert_eq!(net.peer(0).chain.chain_info().best_block_number, 5);
@@ -233,8 +236,8 @@ fn restart_on_malformed_block() {
 #[test]
 fn restart_on_broken_chain() {
 	let mut net = TestNet::new(2);
-	net.peer_mut(1).chain.add_blocks(10, EachBlockWith::Uncle);
-	net.peer_mut(1).chain.corrupt_block_parent(6);
+	net.peer(1).chain.add_blocks(10, EachBlockWith::Uncle);
+	net.peer(1).chain.corrupt_block_parent(6);
 	net.sync_steps(20);
 
 	assert_eq!(net.peer(0).chain.chain_info().best_block_number, 5);
@@ -243,10 +246,25 @@ fn restart_on_broken_chain() {
 #[test]
 fn high_td_attach() {
 	let mut net = TestNet::new(2);
-	net.peer_mut(1).chain.add_blocks(10, EachBlockWith::Uncle);
-	net.peer_mut(1).chain.corrupt_block_parent(6);
+	net.peer(1).chain.add_blocks(10, EachBlockWith::Uncle);
+	net.peer(1).chain.corrupt_block_parent(6);
 	net.sync_steps(20);
 
 	assert_eq!(net.peer(0).chain.chain_info().best_block_number, 5);
+}
+
+
+#[test]
+fn disconnect_on_unrelated_chain() {
+	::env_logger::init().ok();
+	let mut net = TestNet::new(2);
+	net.peer(0).chain.set_history(Some(20));
+	net.peer(1).chain.set_history(Some(20));
+	net.restart_peer(0);
+	net.restart_peer(1);
+	net.peer(0).chain.add_blocks(500, EachBlockWith::Uncle);
+	net.peer(1).chain.add_blocks(300, EachBlockWith::Nothing);
+	net.sync();
+	assert_eq!(net.disconnect_events, vec![(0, 0)]);
 }
 

@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -16,6 +16,7 @@
 
 //! Blockchain database client.
 
+mod registry;
 mod config;
 mod error;
 mod test_client;
@@ -25,18 +26,23 @@ mod client;
 pub use self::client::*;
 pub use self::config::{Mode, ClientConfig, DatabaseCompactionProfile, BlockChainConfig, VMType};
 pub use self::error::Error;
-pub use types::ids::*;
 pub use self::test_client::{TestBlockChainClient, EachBlockWith};
+pub use self::chain_notify::ChainNotify;
+pub use self::traits::{BlockChainClient, MiningBlockChainClient, EngineClient};
+
+pub use self::traits::ProvingBlockChainClient;
+
+pub use types::ids::*;
 pub use types::trace_filter::Filter as TraceFilter;
+pub use types::pruning_info::PruningInfo;
+pub use types::call_analytics::CallAnalytics;
+
 pub use executive::{Executed, Executive, TransactOptions};
 pub use env_info::{LastHashes, EnvInfo};
-pub use self::chain_notify::ChainNotify;
 
-pub use types::call_analytics::CallAnalytics;
 pub use block_import_error::BlockImportError;
 pub use transaction_import::TransactionImportResult;
 pub use transaction_import::TransactionImportError;
-pub use self::traits::{BlockChainClient, MiningBlockChainClient};
 pub use verification::VerifierType;
 
 /// IPC interfaces

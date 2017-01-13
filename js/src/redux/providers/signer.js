@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -34,9 +34,6 @@ export default class Signer {
         }
 
         this._store.dispatch(signerRequestsToConfirm(pending || []));
-      })
-      .then((subscriptionId) => {
-        console.log('signer._subscribeRequestsToConfirm', 'subscriptionId', subscriptionId);
       });
   }
 }

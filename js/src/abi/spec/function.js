@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -22,14 +22,14 @@ import { methodSignature } from '../util/signature';
 export default class Func {
   constructor (abi) {
     this._abi = abi;
-    this._name = abi.name;
     this._constant = !!abi.constant;
     this._payable = abi.payable;
     this._inputs = Param.toParams(abi.inputs || []);
     this._outputs = Param.toParams(abi.outputs || []);
 
-    const { id, signature } = methodSignature(this._name, this.inputParamTypes());
+    const { id, name, signature } = methodSignature(abi.name, this.inputParamTypes());
     this._id = id;
+    this._name = name;
     this._signature = signature;
   }
 

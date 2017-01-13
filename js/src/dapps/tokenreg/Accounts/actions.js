@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -36,11 +36,10 @@ export const setSelectedAccount = (address) => ({
 
 export const loadAccounts = () => (dispatch) => {
   api.parity
-    .accounts()
+    .accountsInfo()
     .then((accountsInfo) => {
       const accountsList = Object
         .keys(accountsInfo)
-        .filter((address) => accountsInfo[address].uuid)
         .map((address) => ({
           ...accountsInfo[address],
           address

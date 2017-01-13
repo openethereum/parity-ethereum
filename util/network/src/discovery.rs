@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -375,7 +375,7 @@ impl Discovery {
 
 		let signed = &packet[(32 + 65)..];
 		let signature = H520::from_slice(&packet[32..(32 + 65)]);
-		let node_id = try!(recover(&signature.into(), &signed.sha3()));
+		let node_id = recover(&signature.into(), &signed.sha3())?;
 
 		let packet_id = signed[0];
 		let rlp = UntrustedRlp::new(&signed[1..]);
@@ -405,10 +405,10 @@ impl Discovery {
 
 	fn on_ping(&mut self, rlp: &UntrustedRlp, node: &NodeId, from: &SocketAddr) -> Result<Option<TableUpdates>, NetworkError> {
 		trace!(target: "discovery", "Got Ping from {:?}", &from);
-		let source = try!(NodeEndpoint::from_rlp(&try!(rlp.at(1))));
-		let dest = try!(NodeEndpoint::from_rlp(&try!(rlp.at(2))));
-		let timestamp: u64 = try!(rlp.val_at(3));
-		try!(self.check_timestamp(timestamp));
+		let source = NodeEndpoint::from_rlp(&rlp.at(1)?)?;
+		let dest = NodeEndpoint::from_rlp(&rlp.at(2)?)?;
+		let timestamp: u64 = rlp.val_at(3)?;
+		self.check_timestamp(timestamp)?;
 		let mut added_map = HashMap::new();
 		let entry = NodeEntry { id: node.clone(), endpoint: source.clone() };
 		if !entry.endpoint.is_valid() {
@@ -431,9 +431,9 @@ impl Discovery {
 	fn on_pong(&mut self, rlp: &UntrustedRlp, node: &NodeId, from: &SocketAddr) -> Result<Option<TableUpdates>, NetworkError> {
 		trace!(target: "discovery", "Got Pong from {:?}", &from);
 		// TODO: validate pong packet
-		let dest = try!(NodeEndpoint::from_rlp(&try!(rlp.at(0))));
-		let timestamp: u64 = try!(rlp.val_at(2));
-		try!(self.check_timestamp(timestamp));
+		let dest = NodeEndpoint::from_rlp(&rlp.at(0)?)?;
+		let timestamp: u64 = rlp.val_at(2)?;
+		self.check_timestamp(timestamp)?;
 		let mut entry = NodeEntry { id: node.clone(), endpoint: dest };
 		if !entry.endpoint.is_valid() {
 			debug!(target: "discovery", "Bad address: {:?}", entry);
@@ -447,9 +447,9 @@ impl Discovery {
 
 	fn on_find_node(&mut self, rlp: &UntrustedRlp, _node: &NodeId, from: &SocketAddr) -> Result<Option<TableUpdates>, NetworkError> {
 		trace!(target: "discovery", "Got FindNode from {:?}", &from);
-		let target: NodeId = try!(rlp.val_at(0));
-		let timestamp: u64 = try!(rlp.val_at(1));
-		try!(self.check_timestamp(timestamp));
+		let target: NodeId = rlp.val_at(0)?;
+		let timestamp: u64 = rlp.val_at(1)?;
+		self.check_timestamp(timestamp)?;
 		let nearest = Discovery::nearest_node_entries(&target, &self.node_buckets);
 		if nearest.is_empty() {
 			return Ok(None);
@@ -481,14 +481,14 @@ impl Discovery {
 	fn on_neighbours(&mut self, rlp: &UntrustedRlp, _node: &NodeId, from: &SocketAddr) -> Result<Option<TableUpdates>, NetworkError> {
 		// TODO: validate packet
 		let mut added = HashMap::new();
-		trace!(target: "discovery", "Got {} Neighbours from {:?}", try!(rlp.at(0)).item_count(), &from);
-		for r in try!(rlp.at(0)).iter() {
-			let endpoint = try!(NodeEndpoint::from_rlp(&r));
+		trace!(target: "discovery", "Got {} Neighbours from {:?}", rlp.at(0)?.item_count(), &from);
+		for r in rlp.at(0)?.iter() {
+			let endpoint = NodeEndpoint::from_rlp(&r)?;
 			if !endpoint.is_valid() {
 				debug!(target: "discovery", "Bad address: {:?}", endpoint);
 				continue;
 			}
-			let node_id: NodeId = try!(r.val_at(3));
+			let node_id: NodeId = r.val_at(3)?;
 			if node_id == self.id {
 				continue;
 			}
@@ -555,10 +555,11 @@ impl Discovery {
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use util::hash::*;
-	use util::sha3::*;
-	use std::net::*;
-	use node_table::*;
+	use std::net::{SocketAddr};
+	use util::sha3::Hashable;
+	use util::FixedHash;
+	use node_table::{Node, NodeId, NodeEndpoint};
+
 	use std::str::FromStr;
 	use rustc_serialize::hex::FromHex;
 	use ethkey::{Random, Generator};

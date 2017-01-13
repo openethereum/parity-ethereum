@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -18,8 +18,8 @@ import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
-import { ConfirmDialog, IdentityIcon, IdentityName } from '../../../ui';
-import { newError } from '../../../redux/actions';
+import { ConfirmDialog, IdentityIcon, IdentityName } from '~/ui';
+import { newError } from '~/redux/actions';
 
 import styles from '../address.css';
 
@@ -27,16 +27,17 @@ class Delete extends Component {
   static contextTypes = {
     api: PropTypes.object.isRequired,
     router: PropTypes.object
-  }
+  };
 
   static propTypes = {
+    route: PropTypes.string.isRequired,
+
     address: PropTypes.string,
     account: PropTypes.object,
-    route: PropTypes.string.isRequired,
     visible: PropTypes.bool,
     onClose: PropTypes.func,
     newError: PropTypes.func
-  }
+  };
 
   render () {
     const { account, visible } = this.props;
@@ -79,10 +80,8 @@ class Delete extends Component {
     const { api, router } = this.context;
     const { account, route, newError } = this.props;
 
-    account.meta.deleted = true;
-
     api.parity
-      .setAccountMeta(account.address, account.meta)
+      .removeAddress(account.address)
       .then(() => {
         router.push(route);
         this.closeDeleteDialog();

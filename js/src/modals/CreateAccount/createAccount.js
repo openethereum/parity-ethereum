@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -15,13 +15,15 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import { FormattedMessage } from 'react-intl';
 import ActionDone from 'material-ui/svg-icons/action/done';
 import ActionDoneAll from 'material-ui/svg-icons/action/done-all';
 import ContentClear from 'material-ui/svg-icons/content/clear';
 import NavigationArrowBack from 'material-ui/svg-icons/navigation/arrow-back';
 import NavigationArrowForward from 'material-ui/svg-icons/navigation/arrow-forward';
+import PrintIcon from 'material-ui/svg-icons/action/print';
 
-import { Button, Modal } from '../../ui';
+import { Button, Modal, Warning } from '~/ui';
 
 import AccountDetails from './AccountDetails';
 import AccountDetailsGeth from './AccountDetailsGeth';
@@ -31,6 +33,11 @@ import NewGeth from './NewGeth';
 import NewImport from './NewImport';
 import RawKey from './RawKey';
 import RecoveryPhrase from './RecoveryPhrase';
+
+import { createIdentityImg } from '~/api/util/identity';
+import print from './print';
+import recoveryPage from './recovery-page.ejs';
+import ParityLogo from '../../../assets/images/parity-logo-black-no-text.svg';
 
 const TITLES = {
   type: 'creation type',
@@ -59,6 +66,7 @@ export default class CreateAccount extends Component {
     passwordHint: null,
     password: null,
     phrase: null,
+    windowsPhrase: false,
     rawKey: null,
     json: null,
     canCreate: false,
@@ -79,6 +87,7 @@ export default class CreateAccount extends Component {
         actions={ this.renderDialogActions() }
         current={ stage }
         steps={ steps }>
+        { this.renderWarning() }
         { this.renderPage() }
       </Modal>
     );
@@ -178,13 +187,35 @@ export default class CreateAccount extends Component {
         ];
 
       case 2:
-        return (
+        return [
+          createType === 'fromNew' || createType === 'fromPhrase' ? (
+            <Button
+              icon={ <PrintIcon /> }
+              label='Print Phrase'
+              onClick={ this.printPhrase } />
+          ) : null,
           <Button
             icon={ <ActionDoneAll /> }
             label='Close'
             onClick={ this.onClose } />
-        );
+        ];
     }
+  }
+
+  renderWarning () {
+    const { createType, stage } = this.state;
+
+    if (stage !== 1 || ['fromJSON', 'fromPresale'].includes(createType)) {
+      return null;
+    }
+
+    return (
+      <Warning warning={
+        <FormattedMessage
+          id='createAccount.warning.insecurePassword'
+          defaultMessage='It is recommended that a strong password be used to secure your accounts. Empty and trivial passwords are a security risk.' />
+      } />
+    );
   }
 
   onNext = () => {
@@ -200,7 +231,7 @@ export default class CreateAccount extends Component {
   }
 
   onCreate = () => {
-    const { createType } = this.state;
+    const { createType, windowsPhrase } = this.state;
     const { api } = this.context;
 
     this.setState({
@@ -208,8 +239,17 @@ export default class CreateAccount extends Component {
     });
 
     if (createType === 'fromNew' || createType === 'fromPhrase') {
+      let phrase = this.state.phrase;
+
+      if (createType === 'fromPhrase' && windowsPhrase) {
+        phrase = phrase
+          .split(' ') // get the words
+          .map((word) => word === 'misjudged' ? word : `${word}\r`) // add \r after each (except last in dict)
+          .join(' '); // re-create string
+      }
+
       return api.parity
-        .newAccountFromPhrase(this.state.phrase, this.state.password)
+        .newAccountFromPhrase(phrase, this.state.password)
         .then((address) => {
           this.setState({ address });
           return api.parity
@@ -232,7 +272,9 @@ export default class CreateAccount extends Component {
 
           this.newError(error);
         });
-    } else if (createType === 'fromRaw') {
+    }
+
+    if (createType === 'fromRaw') {
       return api.parity
         .newAccountFromSecret(this.state.rawKey, this.state.password)
         .then((address) => {
@@ -257,7 +299,9 @@ export default class CreateAccount extends Component {
 
           this.newError(error);
         });
-    } else if (createType === 'fromGeth') {
+    }
+
+    if (createType === 'fromGeth') {
       return api.parity
         .importGethAccounts(this.state.gethAddresses)
         .then((result) => {
@@ -326,7 +370,7 @@ export default class CreateAccount extends Component {
     });
   }
 
-  onChangeDetails = (canCreate, { name, passwordHint, address, password, phrase, rawKey }) => {
+  onChangeDetails = (canCreate, { name, passwordHint, address, password, phrase, rawKey, windowsPhrase }) => {
     this.setState({
       canCreate,
       name,
@@ -334,6 +378,7 @@ export default class CreateAccount extends Component {
       address,
       password,
       phrase,
+      windowsPhrase: windowsPhrase || false,
       rawKey
     });
   }
@@ -366,5 +411,12 @@ export default class CreateAccount extends Component {
     const { store } = this.context;
 
     store.dispatch({ type: 'newError', error });
+  }
+
+  printPhrase = () => {
+    const { address, phrase, name } = this.state;
+    const identity = createIdentityImg(address);
+
+    print(recoveryPage({ phrase, name, identity, address, logo: ParityLogo }));
   }
 }

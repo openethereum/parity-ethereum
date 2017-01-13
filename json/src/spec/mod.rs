@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -25,17 +25,21 @@ pub mod seal;
 pub mod engine;
 pub mod state;
 pub mod ethash;
+pub mod validator_set;
 pub mod basic_authority;
 pub mod authority_round;
+pub mod tendermint;
 
 pub use self::account::Account;
 pub use self::builtin::{Builtin, Pricing, Linear};
 pub use self::genesis::Genesis;
 pub use self::params::Params;
 pub use self::spec::Spec;
-pub use self::seal::{Seal, Ethereum, Generic};
+pub use self::seal::{Seal, Ethereum, AuthorityRoundSeal, TendermintSeal};
 pub use self::engine::Engine;
 pub use self::state::State;
 pub use self::ethash::{Ethash, EthashParams};
+pub use self::validator_set::ValidatorSet;
 pub use self::basic_authority::{BasicAuthority, BasicAuthorityParams};
 pub use self::authority_round::{AuthorityRound, AuthorityRoundParams};
+pub use self::tendermint::{Tendermint, TendermintParams};

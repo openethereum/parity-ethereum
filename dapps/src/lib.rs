@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -15,30 +15,6 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Ethcore Webapplications for Parity
-//! ```
-//! extern crate jsonrpc_core;
-//! extern crate ethcore_dapps;
-//!
-//! use std::sync::Arc;
-//! use jsonrpc_core::IoHandler;
-//! use ethcore_dapps::*;
-//!
-//! struct SayHello;
-//! impl MethodCommand for SayHello {
-//! 	fn execute(&self, _params: Params) -> Result<Value, Error> {
-//! 		Ok(Value::String("hello".to_string()))
-//! 	}
-//! }
-//!
-//! fn main() {
-//! 	let io = IoHandler::new();
-//! 	io.add_method("say_hello", SayHello);
-//! 	let _server = Server::start_unsecure_http(
-//! 		&"127.0.0.1:3030".parse().unwrap(),
-//! 		Arc::new(io)
-//! 	);
-//! }
-//! ```
 //!
 #![warn(missing_docs)]
 #![cfg_attr(feature="nightly", plugin(clippy))]
@@ -51,16 +27,19 @@ extern crate serde;
 extern crate serde_json;
 extern crate zip;
 extern crate rand;
-extern crate ethabi;
 extern crate jsonrpc_core;
 extern crate jsonrpc_http_server;
 extern crate mime_guess;
 extern crate rustc_serialize;
 extern crate ethcore_rpc;
 extern crate ethcore_util as util;
+extern crate parity_hash_fetch as hash_fetch;
 extern crate linked_hash_map;
 extern crate fetch;
 extern crate parity_dapps_glue as parity_dapps;
+extern crate futures;
+extern crate parity_reactor;
+
 #[macro_use]
 extern crate log;
 #[macro_use]
@@ -81,18 +60,21 @@ mod rpc;
 mod api;
 mod proxypac;
 mod url;
+mod web;
 #[cfg(test)]
 mod tests;
 
-pub use self::apps::urlhint::ContractClient;
-
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::net::SocketAddr;
 use std::collections::HashMap;
 
-use jsonrpc_core::{IoHandler, IoDelegate};
+use ethcore_rpc::Metadata;
+use fetch::{Fetch, Client as FetchClient};
+use hash_fetch::urlhint::ContractClient;
+use jsonrpc_core::reactor::RpcHandler;
 use router::auth::{Authorization, NoAuth, HttpBasicAuth};
-use ethcore_rpc::Extendable;
+use parity_reactor::Remote;
 
 use self::apps::{HOME_PAGE, DAPPS_DOMAIN};
 
@@ -106,71 +88,139 @@ impl<F> SyncStatus for F where F: Fn() -> bool + Send + Sync {
 	fn is_major_importing(&self) -> bool { self() }
 }
 
-/// Webapps HTTP+RPC server build.
-pub struct ServerBuilder {
-	dapps_path: String,
-	handler: Arc<IoHandler>,
-	registrar: Arc<ContractClient>,
-	sync_status: Arc<SyncStatus>,
-	signer_address: Option<(String, u16)>,
+/// Validates Web Proxy tokens
+pub trait WebProxyTokens: Send + Sync {
+	/// Should return true if token is a valid web proxy access token.
+	fn is_web_proxy_token_valid(&self, token: &String) -> bool;
 }
 
-impl Extendable for ServerBuilder {
-	fn add_delegate<D: Send + Sync + 'static>(&self, delegate: IoDelegate<D>) {
-		self.handler.add_delegate(delegate);
-	}
+impl<F> WebProxyTokens for F where F: Fn(String) -> bool + Send + Sync {
+	fn is_web_proxy_token_valid(&self, token: &String) -> bool { self(token.to_owned()) }
+}
+
+/// Webapps HTTP+RPC server build.
+pub struct ServerBuilder<T: Fetch = FetchClient> {
+	dapps_path: PathBuf,
+	extra_dapps: Vec<PathBuf>,
+	registrar: Arc<ContractClient>,
+	sync_status: Arc<SyncStatus>,
+	web_proxy_tokens: Arc<WebProxyTokens>,
+	signer_address: Option<(String, u16)>,
+	allowed_hosts: Option<Vec<String>>,
+	remote: Remote,
+	fetch: Option<T>,
 }
 
 impl ServerBuilder {
 	/// Construct new dapps server
-	pub fn new(dapps_path: String, registrar: Arc<ContractClient>) -> Self {
+	pub fn new<P: AsRef<Path>>(dapps_path: P, registrar: Arc<ContractClient>, remote: Remote) -> Self {
 		ServerBuilder {
-			dapps_path: dapps_path,
-			handler: Arc::new(IoHandler::new()),
+			dapps_path: dapps_path.as_ref().to_owned(),
+			extra_dapps: vec![],
 			registrar: registrar,
 			sync_status: Arc::new(|| false),
+			web_proxy_tokens: Arc::new(|_| false),
 			signer_address: None,
+			allowed_hosts: Some(vec![]),
+			remote: remote,
+			fetch: None,
+		}
+	}
+}
+
+impl<T: Fetch> ServerBuilder<T> {
+	/// Set a fetch client to use.
+	pub fn fetch<X: Fetch>(self, fetch: X) -> ServerBuilder<X> {
+		ServerBuilder {
+			dapps_path: self.dapps_path,
+			extra_dapps: vec![],
+			registrar: self.registrar,
+			sync_status: self.sync_status,
+			web_proxy_tokens: self.web_proxy_tokens,
+			signer_address: self.signer_address,
+			allowed_hosts: self.allowed_hosts,
+			remote: self.remote,
+			fetch: Some(fetch),
 		}
 	}
 
 	/// Change default sync status.
-	pub fn with_sync_status(&mut self, status: Arc<SyncStatus>) {
+	pub fn sync_status(mut self, status: Arc<SyncStatus>) -> Self {
 		self.sync_status = status;
+		self
+	}
+
+	/// Change default web proxy tokens validator.
+	pub fn web_proxy_tokens(mut self, tokens: Arc<WebProxyTokens>) -> Self {
+		self.web_proxy_tokens = tokens;
+		self
 	}
 
 	/// Change default signer port.
-	pub fn with_signer_address(&mut self, signer_address: Option<(String, u16)>) {
+	pub fn signer_address(mut self, signer_address: Option<(String, u16)>) -> Self {
 		self.signer_address = signer_address;
+		self
+	}
+
+	/// Change allowed hosts.
+	/// `None` - All hosts are allowed
+	/// `Some(whitelist)` - Allow only whitelisted hosts (+ listen address)
+	pub fn allowed_hosts(mut self, allowed_hosts: Option<Vec<String>>) -> Self {
+		self.allowed_hosts = allowed_hosts;
+		self
+	}
+
+	/// Change extra dapps paths (apart from `dapps_path`)
+	pub fn extra_dapps<P: AsRef<Path>>(mut self, extra_dapps: &[P]) -> Self {
+		self.extra_dapps = extra_dapps.iter().map(|p| p.as_ref().to_owned()).collect();
+		self
 	}
 
 	/// Asynchronously start server with no authentication,
 	/// returns result with `Server` handle on success or an error.
-	pub fn start_unsecured_http(&self, addr: &SocketAddr, hosts: Option<Vec<String>>) -> Result<Server, ServerError> {
+	pub fn start_unsecured_http(self, addr: &SocketAddr, handler: RpcHandler<Metadata>) -> Result<Server, ServerError> {
+		let fetch = self.fetch_client()?;
 		Server::start_http(
 			addr,
-			hosts,
+			self.allowed_hosts,
 			NoAuth,
-			self.handler.clone(),
-			self.dapps_path.clone(),
-			self.signer_address.clone(),
-			self.registrar.clone(),
-			self.sync_status.clone(),
+			handler,
+			self.dapps_path,
+			self.extra_dapps,
+			self.signer_address,
+			self.registrar,
+			self.sync_status,
+			self.web_proxy_tokens,
+			self.remote,
+			fetch,
 		)
 	}
 
 	/// Asynchronously start server with `HTTP Basic Authentication`,
 	/// return result with `Server` handle on success or an error.
-	pub fn start_basic_auth_http(&self, addr: &SocketAddr, hosts: Option<Vec<String>>, username: &str, password: &str) -> Result<Server, ServerError> {
+	pub fn start_basic_auth_http(self, addr: &SocketAddr, username: &str, password: &str, handler: RpcHandler<Metadata>) -> Result<Server, ServerError> {
+		let fetch = self.fetch_client()?;
 		Server::start_http(
 			addr,
-			hosts,
+			self.allowed_hosts,
 			HttpBasicAuth::single_user(username, password),
-			self.handler.clone(),
-			self.dapps_path.clone(),
-			self.signer_address.clone(),
-			self.registrar.clone(),
-			self.sync_status.clone(),
+			handler,
+			self.dapps_path,
+			self.extra_dapps,
+			self.signer_address,
+			self.registrar,
+			self.sync_status,
+			self.web_proxy_tokens,
+			self.remote,
+			fetch,
 		)
+	}
+
+	fn fetch_client(&self) -> Result<T, ServerError> {
+		match self.fetch.clone() {
+			Some(fetch) => Ok(fetch),
+			None => T::new().map_err(|_| ServerError::FetchInitialization),
+		}
 	}
 }
 
@@ -207,20 +257,37 @@ impl Server {
 		}
 	}
 
-	fn start_http<A: Authorization + 'static>(
+	fn start_http<A: Authorization + 'static, F: Fetch>(
 		addr: &SocketAddr,
 		hosts: Option<Vec<String>>,
 		authorization: A,
-		handler: Arc<IoHandler>,
-		dapps_path: String,
+		handler: RpcHandler<Metadata>,
+		dapps_path: PathBuf,
+		extra_dapps: Vec<PathBuf>,
 		signer_address: Option<(String, u16)>,
 		registrar: Arc<ContractClient>,
 		sync_status: Arc<SyncStatus>,
+		web_proxy_tokens: Arc<WebProxyTokens>,
+		remote: Remote,
+		fetch: F,
 	) -> Result<Server, ServerError> {
 		let panic_handler = Arc::new(Mutex::new(None));
 		let authorization = Arc::new(authorization);
-		let content_fetcher = Arc::new(apps::fetcher::ContentFetcher::new(apps::urlhint::URLHintContract::new(registrar), sync_status, signer_address.clone()));
-		let endpoints = Arc::new(apps::all_endpoints(dapps_path, signer_address.clone()));
+		let content_fetcher = Arc::new(apps::fetcher::ContentFetcher::new(
+			hash_fetch::urlhint::URLHintContract::new(registrar),
+			sync_status,
+			signer_address.clone(),
+			remote.clone(),
+			fetch.clone(),
+		));
+		let endpoints = Arc::new(apps::all_endpoints(
+			dapps_path,
+			extra_dapps,
+			signer_address.clone(),
+			web_proxy_tokens,
+			remote.clone(),
+			fetch.clone(),
+		));
 		let cors_domains = Self::cors_domains(signer_address.clone());
 
 		let special = Arc::new({
@@ -235,7 +302,7 @@ impl Server {
 		});
 		let hosts = Self::allowed_hosts(hosts, format!("{}", addr));
 
-		try!(hyper::Server::http(addr))
+		hyper::Server::http(addr)?
 			.handle(move |ctrl| router::Router::new(
 				ctrl,
 				signer_address.clone(),
@@ -267,7 +334,11 @@ impl Server {
 	#[cfg(test)]
 	/// Returns address that this server is bound to.
 	pub fn addr(&self) -> &SocketAddr {
-		self.server.as_ref().expect("server is always Some at the start; it's consumed only when object is dropped; qed").addr()
+		self.server.as_ref()
+			.expect("server is always Some at the start; it's consumed only when object is dropped; qed")
+			.addrs()
+			.first()
+			.expect("You cannot start the server without binding to at least one address; qed")
 	}
 }
 
@@ -284,6 +355,8 @@ pub enum ServerError {
 	IoError(std::io::Error),
 	/// Other `hyper` error
 	Other(hyper::error::Error),
+	/// Fetch service initialization error
+	FetchInitialization,
 }
 
 impl From<hyper::error::Error> for ServerError {
@@ -296,7 +369,7 @@ impl From<hyper::error::Error> for ServerError {
 }
 
 /// Random filename
-pub fn random_filename() -> String {
+fn random_filename() -> String {
 	use ::rand::Rng;
 	let mut rng = ::rand::OsRng::new().unwrap();
 	rng.gen_ascii_chars().take(12).collect()

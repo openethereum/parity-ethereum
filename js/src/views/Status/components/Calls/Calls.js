@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -15,7 +15,6 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
-import AnimateChildren from '../../components-compositors/Animated/children';
 import Call from '../Call';
 import CallsToolbar from '../CallsToolbar';
 import styles from './Calls.css';
@@ -62,7 +61,7 @@ export default class Calls extends Component {
         onClick={ this.clearHistory }
         className={ styles.removeIcon }
         >
-        <i className='icon-trash'></i>
+        <i className='icon-trash' />
       </a>
     );
   }
@@ -73,13 +72,11 @@ export default class Calls extends Component {
     }
 
     return (
-      <AnimateChildren>
-        <div { ...this._test('empty-wrapper') }>
-          <h3 className={ styles.historyInfo } { ...this._test('empty') }>
-            Fire up some calls and the results will be here.
-          </h3>
-        </div>
-      </AnimateChildren>
+      <div { ...this._test('empty-wrapper') }>
+        <h3 className={ styles.historyInfo } { ...this._test('empty') }>
+          Fire up some calls and the results will be here.
+        </h3>
+      </div>
     );
   }
 
@@ -90,17 +87,13 @@ export default class Calls extends Component {
       return;
     }
 
-    return (
-      <AnimateChildren>
-        { calls.map((call, idx) => (
-          <Call
-            key={ calls.length - idx }
-            call={ call }
-            setActiveCall={ this.setActiveCall }
-          />
-        )) }
-      </AnimateChildren>
-    );
+    return calls.map((call, idx) => (
+      <Call
+        key={ calls.length - idx }
+        call={ call }
+        setActiveCall={ this.setActiveCall }
+      />
+    ));
   }
 
   clearActiveCall = () => {

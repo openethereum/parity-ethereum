@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -16,8 +16,8 @@
 
 //! ParitySigning rpc interface.
 use jsonrpc_core::Error;
+use futures::BoxFuture;
 
-use v1::helpers::auto_args::{Wrap, WrapAsync, Ready};
 use v1::types::{U256, H160, H256, Bytes, ConfirmationResponse, TransactionRequest, Either};
 
 build_rpc_trait! {
@@ -41,6 +41,6 @@ build_rpc_trait! {
 		/// Decrypt some ECIES-encrypted message.
 		/// First parameter is the address with which it is encrypted, second is the ciphertext.
 		#[rpc(async, name = "parity_decryptMessage")]
-		fn decrypt_message(&self, Ready<Bytes>, H160, Bytes);
+		fn decrypt_message(&self, H160, Bytes) -> BoxFuture<Bytes, Error>;
 	}
 }

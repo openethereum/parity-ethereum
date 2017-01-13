@@ -1,7 +1,7 @@
 [package]
 name = "ethkey"
 version = "0.2.0"
-authors = ["Ethcore <admin@ethcore.io>"]
+authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
 rand = "0.3.14"

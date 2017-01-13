@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -21,6 +21,7 @@ use builtin::Builtin;
 use env_info::EnvInfo;
 use error::{BlockError, TransactionError, Error};
 use header::Header;
+use views::HeaderView;
 use state::CleanupMode;
 use spec::CommonParams;
 use transaction::SignedTransaction;
@@ -28,6 +29,7 @@ use engines::Engine;
 use evm::Schedule;
 use ethjson;
 use rlp::{self, UntrustedRlp, View};
+use blockchain::extras::BlockDetails;
 
 /// Ethash params.
 #[derive(Debug, PartialEq)]
@@ -163,9 +165,9 @@ impl Engine for Ethash {
 		}
 	}
 
-	fn signing_network_id(&self, env_info: &EnvInfo) -> Option<u8> {
-		if env_info.number >= self.ethash_params.eip155_transition && self.params().network_id < 127 {
-			Some(self.params().network_id as u8)
+	fn signing_network_id(&self, env_info: &EnvInfo) -> Option<u64> {
+		if env_info.number >= self.ethash_params.eip155_transition {
+			Some(self.params().chain_id)
 		} else {
 			None
 		}
@@ -176,15 +178,15 @@ impl Engine for Ethash {
 		let gas_limit = {
 			let gas_limit = parent.gas_limit().clone();
 			let bound_divisor = self.ethash_params.gas_limit_bound_divisor;
+			let lower_limit = gas_limit - gas_limit / bound_divisor + 1.into();
+			let upper_limit = gas_limit + gas_limit / bound_divisor - 1.into();
 			if gas_limit < gas_floor_target {
-				min(gas_floor_target, gas_limit + gas_limit / bound_divisor - 1.into())
+				min(gas_floor_target, upper_limit)
 			} else if gas_limit > gas_ceil_target {
-				max(gas_ceil_target, gas_limit - gas_limit / bound_divisor + 1.into())
+				max(gas_ceil_target, lower_limit)
 			} else {
-				min(gas_ceil_target,
-					max(gas_floor_target,
-						gas_limit - gas_limit / bound_divisor + 1.into() +
-							(header.gas_used().clone() * 6.into() / 5.into()) / bound_divisor))
+				max(gas_floor_target, min(min(gas_ceil_target, upper_limit), 
+					lower_limit + (header.gas_used().clone() * 6.into() / 5.into()) / bound_divisor))
 			}
 		};
 		header.set_difficulty(difficulty);
@@ -238,8 +240,8 @@ impl Engine for Ethash {
 				Mismatch { expected: self.seal_fields(), found: header.seal().len() }
 			)));
 		}
-		try!(UntrustedRlp::new(&header.seal()[0]).as_val::<H256>());
-		try!(UntrustedRlp::new(&header.seal()[1]).as_val::<H64>());
+		UntrustedRlp::new(&header.seal()[0]).as_val::<H256>()?;
+		UntrustedRlp::new(&header.seal()[1]).as_val::<H64>()?;
 
 		// TODO: consider removing these lines.
 		let min_difficulty = self.ethash_params.minimum_difficulty;
@@ -310,11 +312,11 @@ impl Engine for Ethash {
 
 	fn verify_transaction_basic(&self, t: &SignedTransaction, header: &Header) -> result::Result<(), Error> {
 		if header.number() >= self.ethash_params.homestead_transition {
-			try!(t.check_low_s());
+			t.check_low_s()?;
 		}
 
 		if let Some(n) = t.network_id() {
-			if header.number() < self.ethash_params.eip155_transition || n as usize != self.params().network_id {
+			if header.number() < self.ethash_params.eip155_transition || n != self.params().chain_id {
 				return Err(TransactionError::InvalidNetworkId.into())
 			}
 		}
@@ -325,6 +327,15 @@ impl Engine for Ethash {
 	fn verify_transaction(&self, t: &SignedTransaction, _header: &Header) -> Result<(), Error> {
 		t.sender().map(|_|()) // Perform EC recovery and cache sender
 	}
+
+	fn is_new_best_block(&self, best_total_difficulty: U256, _best_header: HeaderView, parent_details: &BlockDetails, new_header: &HeaderView) -> bool {
+		is_new_best_block(best_total_difficulty, parent_details, new_header)
+	}
+}
+
+/// Check if a new block should replace the best blockchain block.
+pub fn is_new_best_block(best_total_difficulty: U256, parent_details: &BlockDetails, new_header: &HeaderView) -> bool {
+	parent_details.total_difficulty + new_header.difficulty() > best_total_difficulty
 }
 
 #[cfg_attr(feature="dev", allow(wrong_self_convention))]
@@ -437,8 +448,7 @@ mod tests {
 		let engine = &*spec.engine;
 		let genesis_header = spec.genesis_header();
 		let mut db_result = get_temp_state_db();
-		let mut db = db_result.take();
-		spec.ensure_db_good(&mut db).unwrap();
+		let db = spec.ensure_db_good(db_result.take(), &Default::default()).unwrap();
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
 		let b = OpenBlock::new(engine, Default::default(), false, db, &genesis_header, last_hashes, Address::zero(), (3141562.into(), 31415620.into()), vec![]).unwrap();
 		let b = b.close();
@@ -451,8 +461,7 @@ mod tests {
 		let engine = &*spec.engine;
 		let genesis_header = spec.genesis_header();
 		let mut db_result = get_temp_state_db();
-		let mut db = db_result.take();
-		spec.ensure_db_good(&mut db).unwrap();
+		let db = spec.ensure_db_good(db_result.take(), &Default::default()).unwrap();
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
 		let mut b = OpenBlock::new(engine, Default::default(), false, db, &genesis_header, last_hashes, Address::zero(), (3141562.into(), 31415620.into()), vec![]).unwrap();
 		let mut uncle = Header::new();

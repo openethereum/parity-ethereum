@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -16,8 +16,8 @@
 
 use hash::H256;
 use sha3::Hashable;
-use hashdb::{HashDB, DBValue};
-use super::{TrieDB, Trie, TrieDBIterator, TrieItem, Recorder};
+use hashdb::HashDB;
+use super::{TrieDB, Trie, TrieDBIterator, TrieItem, TrieIterator, Query};
 
 /// A `Trie` implementation which hashes keys and uses a generic `HashDB` backing database.
 /// Additionaly it stores inserted hash-key mappings for later retrieval.
@@ -33,7 +33,7 @@ impl<'db> FatDB<'db> {
 	/// This guarantees the trie is built correctly.
 	pub fn new(db: &'db HashDB, root: &'db H256) -> super::Result<Self> {
 		let fatdb = FatDB {
-			raw: try!(TrieDB::new(db, root))
+			raw: TrieDB::new(db, root)?
 		};
 
 		Ok(fatdb)
@@ -46,7 +46,7 @@ impl<'db> FatDB<'db> {
 }
 
 impl<'db> Trie for FatDB<'db> {
-	fn iter<'a>(&'a self) -> super::Result<Box<Iterator<Item = TrieItem> + 'a>> {
+	fn iter<'a>(&'a self) -> super::Result<Box<TrieIterator<Item = TrieItem> + 'a>> {
 		FatDBIterator::new(&self.raw).map(|iter| Box::new(iter) as Box<_>)
 	}
 
@@ -58,10 +58,10 @@ impl<'db> Trie for FatDB<'db> {
 		self.raw.contains(&key.sha3())
 	}
 
-	fn get_recorded<'a, 'b, R: 'b>(&'a self, key: &'b [u8], rec: &'b mut R) -> super::Result<Option<DBValue>>
-		where 'a: 'b, R: Recorder
+	fn get_with<'a, 'key, Q: Query>(&'a self, key: &'key [u8], query: Q) -> super::Result<Option<Q::Item>>
+		where 'a: 'key
 	{
-		self.raw.get_recorded(&key.sha3(), rec)
+		self.raw.get_with(&key.sha3(), query)
 	}
 }
 
@@ -75,9 +75,15 @@ impl<'db> FatDBIterator<'db> {
 	/// Creates new iterator.
 	pub fn new(trie: &'db TrieDB) -> super::Result<Self> {
 		Ok(FatDBIterator {
-			trie_iterator: try!(TrieDBIterator::new(trie)),
+			trie_iterator: TrieDBIterator::new(trie)?,
 			trie: trie,
 		})
+	}
+}
+
+impl<'db> TrieIterator for FatDBIterator<'db> {
+	fn seek(&mut self, key: &[u8]) -> super::Result<()> {
+		self.trie_iterator.seek(&key.sha3())
 	}
 }
 
@@ -88,7 +94,8 @@ impl<'db> Iterator for FatDBIterator<'db> {
 		self.trie_iterator.next()
 			.map(|res|
 				res.map(|(hash, value)| {
-					(self.trie.db().get_aux(&hash).expect("Missing fatdb hash").to_vec(), value)
+					let aux_hash = hash.sha3();
+					(self.trie.db().get(&aux_hash).expect("Missing fatdb hash").to_vec(), value)
 				})
 			)
 	}
@@ -97,6 +104,7 @@ impl<'db> Iterator for FatDBIterator<'db> {
 #[test]
 fn fatdb_to_trie() {
 	use memorydb::MemoryDB;
+	use hashdb::DBValue;
 	use trie::{FatDBMut, TrieMut};
 
 	let mut memdb = MemoryDB::new();

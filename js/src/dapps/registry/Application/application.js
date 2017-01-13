@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -21,14 +21,16 @@ const muiTheme = getMuiTheme(lightBaseTheme);
 
 import CircularProgress from 'material-ui/CircularProgress';
 import { Card, CardText } from 'material-ui/Card';
+
+import { nullableProptype } from '~/util/proptypes';
+
 import styles from './application.css';
 import Accounts from '../Accounts';
 import Events from '../Events';
 import Lookup from '../Lookup';
 import Names from '../Names';
 import Records from '../Records';
-
-const nullable = (type) => React.PropTypes.oneOfType([ React.PropTypes.oneOf([ null ]), type ]);
+import Reverse from '../Reverse';
 
 export default class Application extends Component {
   static childContextTypes = {
@@ -41,26 +43,14 @@ export default class Application extends Component {
   }
 
   static propTypes = {
-    actions: PropTypes.object.isRequired,
     accounts: PropTypes.object.isRequired,
-    contacts: PropTypes.object.isRequired,
-    contract: nullable(PropTypes.object.isRequired),
-    fee: nullable(PropTypes.object.isRequired),
-    lookup: PropTypes.object.isRequired,
-    events: PropTypes.object.isRequired,
-    names: PropTypes.object.isRequired,
-    records: PropTypes.object.isRequired
+    contract: nullableProptype(PropTypes.object.isRequired),
+    fee: nullableProptype(PropTypes.object.isRequired)
   };
 
   render () {
     const { api } = window.parity;
-    const {
-      actions,
-      accounts, contacts,
-      contract, fee,
-      lookup,
-      events
-    } = this.props;
+    const { contract, fee } = this.props;
     let warning = null;
 
     return (
@@ -68,13 +58,13 @@ export default class Application extends Component {
         { warning }
         <div className={ styles.header }>
           <h1>RΞgistry</h1>
-          <Accounts { ...accounts } actions={ actions.accounts } />
+          <Accounts />
         </div>
         { contract && fee ? (
           <div>
-            <Lookup { ...lookup } accounts={ accounts.all } contacts={ contacts } actions={ actions.lookup } />
+            <Lookup />
             { this.renderActions() }
-            <Events { ...events } accounts={ accounts.all } contacts={ contacts } actions={ actions.events } />
+            <Events />
             <div className={ styles.warning }>
               WARNING: The name registry is experimental. Please ensure that you understand the risks, benefits & consequences of registering a name before doing so. A non-refundable fee of { api.util.fromWei(fee).toFormat(3) }<small>ETH</small> is required for all registrations.
             </div>
@@ -87,15 +77,7 @@ export default class Application extends Component {
   }
 
   renderActions () {
-    const {
-      actions,
-      accounts,
-      fee,
-      names,
-      records
-    } = this.props;
-
-    const hasAccount = !!accounts.selected;
+    const hasAccount = !!this.props.accounts.selected;
 
     if (!hasAccount) {
       return (
@@ -110,8 +92,9 @@ export default class Application extends Component {
 
     return (
       <div>
-        <Names { ...names } fee={ fee } actions={ actions.names } />
-        <Records { ...records } actions={ actions.records } />
+        <Names />
+        <Records />
+        <Reverse />
       </div>
     );
   }

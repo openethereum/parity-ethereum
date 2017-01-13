@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -17,7 +17,7 @@
 import BigNumber from 'bignumber.js';
 import React, { Component, PropTypes } from 'react';
 
-import { eip20 } from '../../../../contracts/abi';
+import { eip20 } from '~/contracts/abi';
 
 import { api } from '../../parity';
 import { loadBalances } from '../../services';
@@ -303,12 +303,9 @@ export default class Send extends Component {
 
   loadBalances () {
     const { accounts } = this.context;
-    const myAccounts = Object
-      .values(accounts)
-      .filter((account) => account.uuid)
-      .map((account) => account.address);
+    const addresses = Object.keys(accounts);
 
-    loadBalances(myAccounts)
+    loadBalances(addresses)
       .then((_tokens) => {
         const tokens = _tokens.filter((token) => {
           for (let index = 0; index < token.balances.length; index++) {

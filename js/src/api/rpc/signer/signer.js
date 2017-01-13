@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { inNumber16, inData } from '../../format/input';
+import { inData, inNumber16, inOptions } from '../../format/input';
 import { outSignerRequest } from '../../format/output';
 
 export default class Signer {
@@ -24,7 +24,7 @@ export default class Signer {
 
   confirmRequest (requestId, options, password) {
     return this._transport
-      .execute('signer_confirmRequest', inNumber16(requestId), options, password);
+      .execute('signer_confirmRequest', inNumber16(requestId), inOptions(options), password);
   }
 
   confirmRequestRaw (requestId, data) {
@@ -35,6 +35,11 @@ export default class Signer {
   generateAuthorizationToken () {
     return this._transport
       .execute('signer_generateAuthorizationToken');
+  }
+
+  generateWebProxyAccessToken () {
+    return this._transport
+      .execute('signer_generateWebProxyAccessToken');
   }
 
   rejectRequest (requestId) {

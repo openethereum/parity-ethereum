@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -126,7 +126,7 @@ export default class Deployment extends Component {
     const { baseText, name, nameError, tla, tlaError, totalSupply, totalSupplyError } = this.state;
     const hasError = !!(nameError || tlaError || totalSupplyError);
     const error = `${styles.input} ${styles.error}`;
-    const addresses = Object.keys(accounts).filter((address) => accounts[address].uuid);
+    const addresses = Object.keys(accounts);
 
     // <div className={ styles.input }>
     //   <label>global registration</label>

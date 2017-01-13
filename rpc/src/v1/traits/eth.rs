@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -16,16 +16,19 @@
 
 //! Eth rpc interface.
 use jsonrpc_core::Error;
+use jsonrpc_macros::Trailing;
+
+use futures::BoxFuture;
 
 use v1::types::{RichBlock, BlockNumber, Bytes, CallRequest, Filter, FilterChanges, Index};
 use v1::types::{Log, Receipt, SyncStatus, Transaction, Work};
 use v1::types::{H64, H160, H256, U256};
 
-use v1::helpers::auto_args::{Trailing, Wrap};
-
 build_rpc_trait! {
 	/// Eth rpc interface.
 	pub trait Eth {
+		type Metadata;
+
 		/// Returns protocol version encoded as a string (quotes are necessary).
 		#[rpc(name = "eth_protocolVersion")]
 		fn protocol_version(&self) -> Result<String, Error>;
@@ -51,8 +54,8 @@ build_rpc_trait! {
 		fn gas_price(&self) -> Result<U256, Error>;
 
 		/// Returns accounts list.
-		#[rpc(name = "eth_accounts")]
-		fn accounts(&self) -> Result<Vec<H160>, Error>;
+		#[rpc(meta, name = "eth_accounts")]
+		fn accounts(&self, Self::Metadata) -> BoxFuture<Vec<H160>, Error>;
 
 		/// Returns highest block number.
 		#[rpc(name = "eth_blockNumber")]
@@ -101,6 +104,10 @@ build_rpc_trait! {
 		/// Sends signed transaction, returning its hash.
 		#[rpc(name = "eth_sendRawTransaction")]
 		fn send_raw_transaction(&self, Bytes) -> Result<H256, Error>;
+
+		/// Alias of `eth_sendRawTransaction`.
+		#[rpc(name = "eth_submitTransaction")]
+		fn submit_transaction(&self, Bytes) -> Result<H256, Error>;
 
 		/// Call contract, returning the output data.
 		#[rpc(name = "eth_call")]

@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -22,6 +22,9 @@
 //!
 //! This module provides an interface for configuration of buffer
 //! flow costs and recharge rates.
+//!
+//! Current default costs are picked completely arbitrarily, not based
+//! on any empirical timings or mathematical models.
 
 use request;
 use super::packet;
@@ -132,10 +135,10 @@ impl RlpDecodable for CostTable {
 		let mut header_proofs = None;
 
 		for row in rlp.iter() {
-			let msg_id: u8 = try!(row.val_at(0));
+			let msg_id: u8 = row.val_at(0)?;
 			let cost = {
-				let base = try!(row.val_at(1));
-				let per = try!(row.val_at(2));
+				let base = row.val_at(1)?;
+				let per = row.val_at(2)?;
 
 				Cost(base, per)
 			};
@@ -152,12 +155,12 @@ impl RlpDecodable for CostTable {
 		}
 
 		Ok(CostTable {
-			headers: try!(headers.ok_or(DecoderError::Custom("No headers cost specified"))),
-			bodies: try!(bodies.ok_or(DecoderError::Custom("No bodies cost specified"))),
-			receipts: try!(receipts.ok_or(DecoderError::Custom("No receipts cost specified"))),
-			state_proofs: try!(state_proofs.ok_or(DecoderError::Custom("No proofs cost specified"))),
-			contract_codes: try!(contract_codes.ok_or(DecoderError::Custom("No contract codes specified"))),
-			header_proofs: try!(header_proofs.ok_or(DecoderError::Custom("No header proofs cost specified"))),
+			headers: headers.ok_or(DecoderError::Custom("No headers cost specified"))?,
+			bodies: bodies.ok_or(DecoderError::Custom("No bodies cost specified"))?,
+			receipts: receipts.ok_or(DecoderError::Custom("No receipts cost specified"))?,
+			state_proofs: state_proofs.ok_or(DecoderError::Custom("No proofs cost specified"))?,
+			contract_codes: contract_codes.ok_or(DecoderError::Custom("No contract codes specified"))?,
+			header_proofs: header_proofs.ok_or(DecoderError::Custom("No header proofs cost specified"))?,
 		})
 	}
 }
@@ -178,6 +181,23 @@ impl FlowParams {
 			costs: costs,
 			limit: limit,
 			recharge: recharge,
+		}
+	}
+
+	/// Create effectively infinite flow params.
+	pub fn free() -> Self {
+		let free_cost = Cost(0.into(), 0.into());
+		FlowParams {
+			limit: (!0u64).into(),
+			recharge: 1.into(),
+			costs: CostTable {
+				headers: free_cost.clone(),
+				bodies: free_cost.clone(),
+				receipts: free_cost.clone(),
+				state_proofs: free_cost.clone(),
+				contract_codes: free_cost.clone(),
+				header_proofs: free_cost.clone(),
+			}
 		}
 	}
 
@@ -206,6 +226,39 @@ impl FlowParams {
 		cost.0 + (amount * cost.1)
 	}
 
+	/// Compute the maximum number of costs of a specific kind which can be made
+	/// with the given buffer.
+	/// Saturates at `usize::max()`. This is not a problem in practice because
+	/// this amount of requests is already prohibitively large.
+	pub fn max_amount(&self, buffer: &Buffer, kind: request::Kind) -> usize {
+		use util::Uint;
+		use std::usize;
+
+		let cost = match kind {
+			request::Kind::Headers => &self.costs.headers,
+			request::Kind::Bodies => &self.costs.bodies,
+			request::Kind::Receipts => &self.costs.receipts,
+			request::Kind::StateProofs => &self.costs.state_proofs,
+			request::Kind::Codes => &self.costs.contract_codes,
+			request::Kind::HeaderProofs => &self.costs.header_proofs,
+		};
+
+		let start = buffer.current();
+
+		if start <= cost.0 {
+			return 0;
+		} else if cost.1 == U256::zero() {
+			return usize::MAX;
+		}
+
+		let max = (start - cost.0) / cost.1;
+		if max >= usize::MAX.into() {
+			usize::MAX
+		} else {
+			max.as_u64() as usize
+		}
+	}
+
 	/// Create initial buffer parameter.
 	pub fn create_buffer(&self) -> Buffer {
 		Buffer {
@@ -227,6 +280,26 @@ impl FlowParams {
 		let elapsed: U256 = elapsed.into();
 
 		buf.estimate = ::std::cmp::min(self.limit, buf.estimate + (elapsed * self.recharge));
+	}
+
+	/// Refund some buffer which was previously deducted.
+	/// Does not update the recharge timestamp.
+	pub fn refund(&self, buf: &mut Buffer, refund_amount: U256) {
+		buf.estimate = buf.estimate + refund_amount;
+
+		if buf.estimate > self.limit {
+			buf.estimate = self.limit
+		}
+	}
+}
+
+impl Default for FlowParams {
+	fn default() -> Self {
+		FlowParams {
+			limit: 50_000_000.into(),
+			costs: CostTable::default(),
+			recharge: 100_000.into(),
+		}
 	}
 }
 

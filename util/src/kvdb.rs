@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -295,10 +295,10 @@ impl Database {
 
 		let mut opts = Options::new();
 		if let Some(rate_limit) = config.compaction.write_rate_limit {
-			try!(opts.set_parsed_options(&format!("rate_limiter_bytes_per_sec={}", rate_limit)));
+			opts.set_parsed_options(&format!("rate_limiter_bytes_per_sec={}", rate_limit))?;
 		}
-		try!(opts.set_parsed_options(&format!("max_total_wal_size={}", 64 * 1024 * 1024)));
-		try!(opts.set_parsed_options("verify_checksums_in_compaction=0"));
+		opts.set_parsed_options(&format!("max_total_wal_size={}", 64 * 1024 * 1024))?;
+		opts.set_parsed_options("verify_checksums_in_compaction=0")?;
 		opts.set_max_open_files(config.max_open_files);
 		opts.create_if_missing(true);
 		opts.set_use_fsync(false);
@@ -355,7 +355,7 @@ impl Database {
 						// retry and create CFs
 						match DB::open_cf(&opts, path, &[], &[]) {
 							Ok(mut db) => {
-								cfs = try!(cfnames.iter().enumerate().map(|(i, n)| db.create_cf(n, &cf_options[i])).collect());
+								cfs = cfnames.iter().enumerate().map(|(i, n)| db.create_cf(n, &cf_options[i])).collect::<Result<_, _>>()?;
 								Ok(db)
 							},
 							err @ Err(_) => err,
@@ -371,11 +371,11 @@ impl Database {
 			Err(ref s) if s.starts_with("Corruption:") => {
 				info!("{}", s);
 				info!("Attempting DB repair for {}", path);
-				try!(DB::repair(&opts, path));
+				DB::repair(&opts, path)?;
 
 				match cfnames.is_empty() {
-					true => try!(DB::open(&opts, path)),
-					false => try!(DB::open_cf(&opts, path, &cfnames, &cf_options))
+					true => DB::open(&opts, path)?,
+					false => DB::open_cf(&opts, path, &cfnames, &cf_options)?
 				}
 			},
 			Err(s) => { return Err(s); }
@@ -437,31 +437,31 @@ impl Database {
 							match **state {
 								KeyState::Delete => {
 									if c > 0 {
-										try!(batch.delete_cf(cfs[c - 1], &key));
+										batch.delete_cf(cfs[c - 1], &key)?;
 									} else {
-										try!(batch.delete(&key));
+										batch.delete(&key)?;
 									}
 								},
 								KeyState::Insert(ref value) => {
 									if c > 0 {
-										try!(batch.put_cf(cfs[c - 1], &key, value));
+										batch.put_cf(cfs[c - 1], &key, value)?;
 									} else {
-										try!(batch.put(&key, &value));
+										batch.put(&key, &value)?;
 									}
 								},
 								KeyState::InsertCompressed(ref value) => {
 									let compressed = UntrustedRlp::new(&value).compress(RlpType::Blocks);
 									if c > 0 {
-										try!(batch.put_cf(cfs[c - 1], &key, &compressed));
+										batch.put_cf(cfs[c - 1], &key, &compressed)?;
 									} else {
-										try!(batch.put(&key, &value));
+										batch.put(&key, &value)?;
 									}
 								}
 							}
 						}
 					}
 				}
-				try!(db.write_opt(batch, &self.write_opts));
+				db.write_opt(batch, &self.write_opts)?;
 				for column in self.flushing.write().iter_mut() {
 					column.clear();
 					column.shrink_to_fit();
@@ -496,14 +496,14 @@ impl Database {
 				for op in ops {
 					match op {
 						DBOp::Insert { col, key, value } => {
-							try!(col.map_or_else(|| batch.put(&key, &value), |c| batch.put_cf(cfs[c as usize], &key, &value)))
+							col.map_or_else(|| batch.put(&key, &value), |c| batch.put_cf(cfs[c as usize], &key, &value))?
 						},
 						DBOp::InsertCompressed { col, key, value } => {
 							let compressed = UntrustedRlp::new(&value).compress(RlpType::Blocks);
-							try!(col.map_or_else(|| batch.put(&key, &compressed), |c| batch.put_cf(cfs[c as usize], &key, &compressed)))
+							col.map_or_else(|| batch.put(&key, &compressed), |c| batch.put_cf(cfs[c as usize], &key, &compressed))?
 						},
 						DBOp::Delete { col, key } => {
-							try!(col.map_or_else(|| batch.delete(&key), |c| batch.delete_cf(cfs[c as usize], &key)))
+							col.map_or_else(|| batch.delete(&key), |c| batch.delete_cf(cfs[c as usize], &key))?
 						},
 					}
 				}
@@ -598,20 +598,20 @@ impl Database {
 			Ok(_) => {
 				// clean up the backup.
 				if existed {
-					try!(fs::remove_dir_all(&backup_db));
+					fs::remove_dir_all(&backup_db)?;
 				}
 			}
 			Err(e) => {
 				// restore the backup.
 				if existed {
-					try!(fs::rename(&backup_db, &self.path));
+					fs::rename(&backup_db, &self.path)?;
 				}
 				return Err(e.into())
 			}
 		}
 
 		// reopen the database and steal handles into self
-		let db = try!(Self::open(&self.config, &self.path));
+		let db = Self::open(&self.config, &self.path)?;
 		*self.db.write() = mem::replace(&mut *db.db.write(), None);
 		*self.overlay.write() = mem::replace(&mut *db.overlay.write(), Vec::new());
 		*self.flushing.write() = mem::replace(&mut *db.flushing.write(), Vec::new());
@@ -628,7 +628,7 @@ impl Drop for Database {
 
 #[cfg(test)]
 mod tests {
-	use hash::*;
+	use hash::H256;
 	use super::*;
 	use devtools::*;
 	use std::str::FromStr;

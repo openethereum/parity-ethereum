@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -95,12 +95,12 @@ impl Migration for AddsColumn {
 		let mut batch = Batch::new(config, col);
 
 		for (key, value) in source.iter(col) {
-			try!(batch.insert(key.to_vec(), value.to_vec(), dest));
+			batch.insert(key.to_vec(), value.to_vec(), dest)?;
 		}
 
 
 		if col == Some(1) {
-			try!(batch.insert(vec![1, 2, 3], vec![4, 5, 6], dest));
+			batch.insert(vec![1, 2, 3], vec![4, 5, 6], dest)?;
 		}
 
 		batch.commit(dest)

@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -23,11 +23,13 @@ import Contract from './Contract';
 import Contracts from './Contracts';
 import WriteContract from './WriteContract';
 import Dapp from './Dapp';
+import Web from './Web';
 import Dapps from './Dapps';
 import ParityBar from './ParityBar';
 import Settings, { SettingsBackground, SettingsParity, SettingsProxy, SettingsViews } from './Settings';
 import Signer from './Signer';
 import Status from './Status';
+import Wallet from './Wallet';
 
 export {
   Account,
@@ -47,5 +49,7 @@ export {
   SettingsProxy,
   SettingsViews,
   Signer,
-  Status
+  Status,
+  Wallet,
+  Web
 };

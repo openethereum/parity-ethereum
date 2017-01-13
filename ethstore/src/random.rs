@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -47,16 +47,33 @@ impl Random for [u8; 32] {
 pub fn random_phrase(words: usize) -> String {
 	lazy_static! {
 		static ref WORDS: Vec<String> = String::from_utf8_lossy(include_bytes!("../res/wordlist.txt"))
-			.split("\n")
+			.lines()
 			.map(|s| s.to_owned())
 			.collect();
 	}
-	let mut rng = OsRng::new().unwrap();
+	let mut rng = OsRng::new().expect("Not able to operate without random source.");
 	(0..words).map(|_| rng.choose(&WORDS).unwrap()).join(" ")
 }
 
-#[test]
-fn should_produce_right_number_of_words() {
-	let p = random_phrase(10);
-	assert_eq!(p.split(" ").count(), 10);
+/// Generate a random string of given length.
+pub fn random_string(length: usize) -> String {
+	let mut rng = OsRng::new().expect("Not able to operate without random source.");
+	rng.gen_ascii_chars().take(length).collect()
+}
+
+#[cfg(test)]
+mod tests {
+	use super::random_phrase;
+
+	#[test]
+	fn should_produce_right_number_of_words() {
+		let p = random_phrase(10);
+		assert_eq!(p.split(" ").count(), 10);
+	}
+
+	#[test]
+	fn should_not_include_carriage_return() {
+		let p = random_phrase(10);
+		assert!(!p.contains('\r'), "Carriage return should be trimmed.");
+	}
 }

@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -19,6 +19,7 @@ use v1::types::{Bytes, H160, U256};
 
 /// Call request
 #[derive(Debug, Default, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct CallRequest {
 	/// From
 	pub from: Option<H160>,

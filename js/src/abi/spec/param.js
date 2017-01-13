@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -31,6 +31,12 @@ export default class Param {
   }
 
   static toParams (params) {
-    return params.map((param) => new Param(param.name, param.type));
+    return params.map((param) => {
+      if (param instanceof Param) {
+        return param;
+      }
+
+      return new Param(param.name, param.type);
+    });
   }
 }

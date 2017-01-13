@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -30,7 +30,7 @@ pub trait DBWriter {
 
 impl IpcConfig for DBWriter {}
 
-#[derive(Binary)]
+#[binary]
 pub enum DBError { Write, Read }
 
 #[ipc]

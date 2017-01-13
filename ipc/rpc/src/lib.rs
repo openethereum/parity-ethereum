@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -24,4 +24,4 @@ extern crate ethcore_util as util;
 pub mod interface;
 pub mod binary;
 pub use interface::{IpcInterface, IpcSocket, invoke, IpcConfig, Handshake, Error, WithSocket};
-pub use binary::{BinaryConvertable, BinaryConvertError, BinHandshake};
+pub use binary::{BinaryConvertable, BinaryConvertError, BinVersion, BinHandshake};

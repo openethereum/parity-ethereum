@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -18,6 +18,7 @@
 
 use std::collections::BTreeMap;
 use hash::Address;
+use bytes::Bytes;
 use spec::{Account, Builtin};
 
 /// Blockchain test state deserializer.
@@ -29,7 +30,15 @@ impl State {
 	pub fn builtins(&self) -> BTreeMap<Address, Builtin> {
 		self.0
 			.iter()
-			.filter_map(|ref pair| pair.1.builtin.clone().map(|b| (pair.0.clone(), b.clone())))
+			.filter_map(|(add, ref acc)| acc.builtin.clone().map(|b| (add.clone(), b)))
+			.collect()
+	}
+
+	/// Returns all constructors.
+	pub fn constructors(&self) -> BTreeMap<Address, Bytes> {
+		self.0
+			.iter()
+			.filter_map(|(add, ref acc)| acc.constructor.clone().map(|b| (add.clone(), b)))
 			.collect()
 	}
 }

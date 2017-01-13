@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -22,7 +22,7 @@ use util::*;
 use rlp::*;
 use ethcore::views::{BlockView};
 use ethcore::header::{BlockNumber, Header as BlockHeader};
-use ethcore::client::{BlockStatus, BlockID, BlockImportError};
+use ethcore::client::{BlockStatus, BlockId, BlockImportError};
 use ethcore::block::Block;
 use ethcore::error::{ImportError, BlockError};
 use sync_io::SyncIo;
@@ -32,7 +32,8 @@ const MAX_HEADERS_TO_REQUEST: usize = 128;
 const MAX_BODIES_TO_REQUEST: usize = 64;
 const MAX_RECEPITS_TO_REQUEST: usize = 128;
 const SUBCHAIN_SIZE: u64 = 256;
-const MAX_ROUND_PARENTS: usize = 32;
+const MAX_ROUND_PARENTS: usize = 16;
+const MAX_PARALLEL_SUBCHAIN_DOWNLOAD: usize = 5;
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
 /// Downloader state
@@ -62,6 +63,14 @@ pub enum BlockRequest {
 	},
 }
 
+/// Indicates sync action
+pub enum DownloadAction {
+	/// Do nothing
+	None,
+	/// Reset downloads for all peers
+	Reset
+}
+
 #[derive(Eq, PartialEq, Debug)]
 pub enum BlockDownloaderImportError {
 	/// Imported data is rejected as invalid.
@@ -85,27 +94,38 @@ pub struct BlockDownloader {
 	last_imported_hash: H256,
 	/// Number of blocks imported this round
 	imported_this_round: Option<usize>,
+	/// Block number the last round started with.
+	last_round_start: BlockNumber,
+	last_round_start_hash: H256,
 	/// Block parents imported this round (hash, parent)
 	round_parents: VecDeque<(H256, H256)>,
 	/// Do we need to download block recetips.
 	download_receipts: bool,
 	/// Sync up to the block with this hash.
 	target_hash: Option<H256>,
+	/// Reorganize up to this many blocks. Up to genesis if `None`,
+	max_reorg_blocks: Option<BlockNumber>,
+	/// Probing range for seeking common best block.
+	retract_step: u64,
 }
 
 impl BlockDownloader {
 	/// Create a new instance of syncing strategy.
-	pub fn new(sync_receipts: bool, start_hash: &H256, start_number: BlockNumber) -> BlockDownloader {
+	pub fn new(sync_receipts: bool, start_hash: &H256, start_number: BlockNumber, max_reorg: Option<BlockNumber>) -> BlockDownloader {
 		BlockDownloader {
 			state: State::Idle,
 			highest_block: None,
 			last_imported_block: start_number,
 			last_imported_hash: start_hash.clone(),
+			last_round_start: start_number,
+			last_round_start_hash: start_hash.clone(),
 			blocks: BlockCollection::new(sync_receipts),
 			imported_this_round: None,
 			round_parents: VecDeque::new(),
 			download_receipts: sync_receipts,
 			target_hash: None,
+			max_reorg_blocks: max_reorg,
+			retract_step: 1,
 		}
 	}
 
@@ -117,9 +137,12 @@ impl BlockDownloader {
 
 	/// Mark a block as known in the chain
 	pub fn mark_as_known(&mut self, hash: &H256, number: BlockNumber) {
-		if number == self.last_imported_block + 1 {
+		if number >= self.last_imported_block + 1 {
 			self.last_imported_block = number;
 			self.last_imported_hash = hash.clone();
+			self.imported_this_round = Some(self.imported_this_round.unwrap_or(0) + 1);
+			self.last_round_start = number;
+			self.last_round_start_hash = hash.clone();
 		}
 	}
 
@@ -136,12 +159,6 @@ impl BlockDownloader {
 	/// Set starting sync block
 	pub fn set_target(&mut self, hash: &H256) {
 		self.target_hash = Some(hash.clone());
-	}
-
-	/// Set starting sync block
-	pub fn _set_start(&mut self, hash: &H256, number: BlockNumber) {
-		self.last_imported_hash = hash.clone();
-		self.last_imported_block = number;
 	}
 
 	/// Unmark header as being downloaded.
@@ -162,6 +179,7 @@ impl BlockDownloader {
 	pub fn reset_to(&mut self, hashes: Vec<H256>) {
 		self.reset();
 		self.blocks.reset_to(hashes);
+		self.state = State::Blocks;
 	}
 
 	/// Returns used heap memory size.
@@ -175,11 +193,11 @@ impl BlockDownloader {
 	}
 
 	/// Add new block headers.
-	pub fn import_headers(&mut self, io: &mut SyncIo, r: &UntrustedRlp, expected_hash: Option<H256>) -> Result<(), BlockDownloaderImportError> {
+	pub fn import_headers(&mut self, io: &mut SyncIo, r: &UntrustedRlp, expected_hash: Option<H256>) -> Result<DownloadAction, BlockDownloaderImportError> {
 		let item_count = r.item_count();
 		if self.state == State::Idle {
 			trace!(target: "sync", "Ignored unexpected block headers");
-			return Ok(())
+			return Ok(DownloadAction::None)
 		}
 		if item_count == 0 && (self.state == State::Blocks) {
 			return Err(BlockDownloaderImportError::Invalid);
@@ -188,11 +206,12 @@ impl BlockDownloader {
 		let mut headers = Vec::new();
 		let mut hashes = Vec::new();
 		let mut valid_response = item_count == 0; //empty response is valid
+		let mut any_known = false;
 		for i in 0..item_count {
-			let info: BlockHeader = try!(r.val_at(i).map_err(|e| {
+			let info: BlockHeader = r.val_at(i).map_err(|e| {
 				trace!(target: "sync", "Error decoding block header RLP: {:?}", e);
 				BlockDownloaderImportError::Invalid
-			}));
+			})?;
 			let number = BlockNumber::from(info.number());
 			// Check if any of the headers matches the hash we requested
 			if !valid_response {
@@ -200,6 +219,7 @@ impl BlockDownloader {
 					valid_response = expected == info.hash()
 				}
 			}
+			any_known = any_known || self.blocks.contains_head(&info.hash());
 			if self.blocks.contains(&info.hash()) {
 				trace!(target: "sync", "Skipping existing block header {} ({:?})", number, info.hash());
 				continue;
@@ -209,11 +229,11 @@ impl BlockDownloader {
 				self.highest_block = Some(number);
 			}
 			let hash = info.hash();
-			let hdr = try!(r.at(i).map_err(|e| {
+			let hdr = r.at(i).map_err(|e| {
 				trace!(target: "sync", "Error decoding block header RLP: {:?}", e);
 				BlockDownloaderImportError::Invalid
-			}));
-			match io.chain().block_status(BlockID::Hash(hash.clone())) {
+			})?;
+			match io.chain().block_status(BlockId::Hash(hash.clone())) {
 				BlockStatus::InChain | BlockStatus::Queued => {
 					match self.state {
 						State::Blocks => trace!(target: "sync", "Header already in chain {} ({})", number, hash),
@@ -245,17 +265,29 @@ impl BlockDownloader {
 					trace!(target: "sync", "Received {} subchain heads, proceeding to download", headers.len());
 					self.blocks.reset_to(hashes);
 					self.state = State::Blocks;
+					return Ok(DownloadAction::Reset);
+				} else {
+					let best = io.chain().chain_info().best_block_number;
+					if best > self.last_imported_block && (self.last_imported_block == 0 || best - self.last_imported_block > self.max_reorg_blocks.unwrap_or(u64::max_value())) {
+						trace!(target: "sync", "No common block, disabling peer");
+						return Err(BlockDownloaderImportError::Invalid);
+					}
 				}
 			},
 			State::Blocks => {
 				let count = headers.len();
+				// At least one of the heades must advance the subchain. Otherwise they are all useless.
+				if count == 0 || !any_known {
+					trace!(target: "sync", "No useful headers");
+					return Err(BlockDownloaderImportError::Useless);
+				}
 				self.blocks.insert_headers(headers);
 				trace!(target: "sync", "Inserted {} headers", count);
 			},
 			_ => trace!(target: "sync", "Unexpected headers({})", headers.len()),
 		}
 
-		Ok(())
+		Ok(DownloadAction::None)
 	}
 
 	/// Called by peer once it has new block bodies
@@ -270,10 +302,10 @@ impl BlockDownloader {
 		else {
 			let mut bodies = Vec::with_capacity(item_count);
 			for i in 0..item_count {
-				let body = try!(r.at(i).map_err(|e| {
+				let body = r.at(i).map_err(|e| {
 					trace!(target: "sync", "Error decoding block boides RLP: {:?}", e);
 					BlockDownloaderImportError::Invalid
-				}));
+				})?;
 				bodies.push(body.as_raw().to_vec());
 			}
 			if self.blocks.insert_bodies(bodies) != item_count {
@@ -296,10 +328,10 @@ impl BlockDownloader {
 		else {
 			let mut receipts = Vec::with_capacity(item_count);
 			for i in 0..item_count {
-				let receipt = try!(r.at(i).map_err(|e| {
+				let receipt = r.at(i).map_err(|e| {
 					trace!(target: "sync", "Error decoding block receipts RLP: {:?}", e);
 					BlockDownloaderImportError::Invalid
-				}));
+				})?;
 				receipts.push(receipt.as_raw().to_vec());
 			}
 			if self.blocks.insert_receipts(receipts) != item_count {
@@ -312,52 +344,71 @@ impl BlockDownloader {
 
 	fn start_sync_round(&mut self, io: &mut SyncIo) {
 		self.state = State::ChainHead;
-		trace!(target: "sync", "Starting round (last imported count = {:?}, block = {:?}", self.imported_this_round, self.last_imported_block);
+		trace!(target: "sync", "Starting round (last imported count = {:?}, last started = {}, block = {:?}", self.imported_this_round, self.last_round_start, self.last_imported_block);
 		// Check if need to retract to find the common block. The problem is that the peers still return headers by hash even
 		// from the non-canonical part of the tree. So we also retract if nothing has been imported last round.
+		let start = self.last_round_start;
+		let start_hash = self.last_round_start_hash;
 		match self.imported_this_round {
-			Some(n) if n == 0 && self.last_imported_block > 0 => {
+			Some(n) if n == 0 && start > 0 => {
 				// nothing was imported last round, step back to a previous block
 				// search parent in last round known parents first
-				if let Some(&(_, p)) = self.round_parents.iter().find(|&&(h, _)| h == self.last_imported_hash) {
-					self.last_imported_block -= 1;
+				if let Some(&(_, p)) = self.round_parents.iter().find(|&&(h, _)| h == start_hash) {
+					self.last_imported_block = start - 1;
 					self.last_imported_hash = p.clone();
 					trace!(target: "sync", "Searching common header from the last round {} ({})", self.last_imported_block, self.last_imported_hash);
 				} else {
-					match io.chain().block_hash(BlockID::Number(self.last_imported_block - 1)) {
-						Some(h) => {
-							self.last_imported_block -= 1;
-							self.last_imported_hash = h;
-							trace!(target: "sync", "Searching common header in the blockchain {} ({})", self.last_imported_block, self.last_imported_hash);
-						}
-						None => {
-							debug!(target: "sync", "Could not revert to previous block, last: {} ({})", self.last_imported_block, self.last_imported_hash);
+					let best = io.chain().chain_info().best_block_number;
+					if best > start && (start == 0 || best - start > self.max_reorg_blocks.unwrap_or(u64::max_value())) {
+						debug!(target: "sync", "Could not revert to previous ancient block, last: {} ({})", start, start_hash);
+						self.reset();
+					} else {
+						let n = start - min(self.retract_step, start);
+						self.retract_step *= 2;
+						match io.chain().block_hash(BlockId::Number(n)) {
+							Some(h) => {
+								self.last_imported_block = n;
+								self.last_imported_hash = h;
+								trace!(target: "sync", "Searching common header in the blockchain {} ({})", start, self.last_imported_hash);
+							}
+							None => {
+								debug!(target: "sync", "Could not revert to previous block, last: {} ({})", start, self.last_imported_hash);
+								self.reset();
+							}
 						}
 					}
 				}
 			},
-			_ => (),
+			_ => {
+				self.retract_step = 1;
+			},
 		}
+		self.last_round_start = self.last_imported_block;
+		self.last_round_start_hash = self.last_imported_hash;
 		self.imported_this_round = None;
 	}
 
 	/// Find some headers or blocks to download for a peer.
-	pub fn request_blocks(&mut self, io: &mut SyncIo) -> Option<BlockRequest> {
+	pub fn request_blocks(&mut self, io: &mut SyncIo, num_active_peers: usize) -> Option<BlockRequest> {
 		match self.state {
 			State::Idle => {
 				self.start_sync_round(io);
-				return self.request_blocks(io);
+				if self.state == State::ChainHead {
+					return self.request_blocks(io, num_active_peers);
+				}
 			},
 			State::ChainHead => {
-				// Request subchain headers
-				trace!(target: "sync", "Starting sync with better chain");
-				// Request MAX_HEADERS_TO_REQUEST - 2 headers apart so that
-				// MAX_HEADERS_TO_REQUEST would include headers for neighbouring subchains
-				return Some(BlockRequest::Headers {
-					start: self.last_imported_hash.clone(),
-					count: SUBCHAIN_SIZE,
-					skip: (MAX_HEADERS_TO_REQUEST - 2) as u64,
-				});
+				if num_active_peers < MAX_PARALLEL_SUBCHAIN_DOWNLOAD {
+					// Request subchain headers
+					trace!(target: "sync", "Starting sync with better chain");
+					// Request MAX_HEADERS_TO_REQUEST - 2 headers apart so that
+					// MAX_HEADERS_TO_REQUEST would include headers for neighbouring subchains
+					return Some(BlockRequest::Headers {
+						start: self.last_imported_hash.clone(),
+						count: SUBCHAIN_SIZE,
+						skip: (MAX_HEADERS_TO_REQUEST - 2) as u64,
+					});
+				}
 			},
 			State::Blocks => {
 				// check to see if we need to download any block bodies first
@@ -439,6 +490,9 @@ impl BlockDownloader {
 					self.block_imported(&h, number, &parent);
 				},
 				Err(BlockImportError::Block(BlockError::UnknownParent(_))) if allow_out_of_order => {
+					break;
+				},
+				Err(BlockImportError::Block(BlockError::UnknownParent(_))) => {
 					trace!(target: "sync", "Unknown new block parent, restarting sync");
 					break;
 				},

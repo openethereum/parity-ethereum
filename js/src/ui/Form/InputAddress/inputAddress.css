@@ -1,4 +1,4 @@
-/* Copyright 2015, 2016 Ethcore (UK) Ltd.
+/* Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 /* This file is part of Parity.
 /*
 /* Parity is free software: you can redistribute it and/or modify
@@ -21,10 +21,28 @@
 .input input {
   padding-left: 48px !important;
   box-sizing: border-box;
+
+  &.small {
+    padding-left: 40px !important;
+  }
 }
 
 .inputEmpty input {
   padding-left: 0 !important;
+}
+
+.small {
+  .input input {
+    padding-left: 40px !important;
+  }
+
+  .icon,
+  .iconDisabled {
+    img {
+      height: 24px;
+      width: 24px;
+    }
+  }
 }
 
 .icon,
@@ -34,6 +52,14 @@
 
   &.noLabel {
     top: 10px;
+  }
+
+  &.noCopy {
+    left: 5px;
+  }
+
+  &.noUnderline {
+    top: 0;
   }
 }
 

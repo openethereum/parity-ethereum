@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -17,8 +17,7 @@
 //! Personal rpc interface.
 use jsonrpc_core::Error;
 
-use v1::helpers::auto_args::Wrap;
-use v1::types::{H160, H256, TransactionRequest};
+use v1::types::{U128, H160, H256, TransactionRequest};
 
 build_rpc_trait! {
 	/// Personal rpc interface. Safe (read-only) functions.
@@ -34,7 +33,7 @@ build_rpc_trait! {
 
 		/// Unlocks specified account for use (can only be one unlocked account at one moment)
 		#[rpc(name = "personal_unlockAccount")]
-		fn unlock_account(&self, H160, String, Option<u64>) -> Result<bool, Error>;
+		fn unlock_account(&self, H160, String, Option<U128>) -> Result<bool, Error>;
 
 		/// Sends transaction and signs it in single call. The account is not unlocked in such case.
 		#[rpc(name = "personal_signAndSendTransaction")]

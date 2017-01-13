@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -16,8 +16,7 @@
 
 import ReactDOM from 'react-dom';
 import React from 'react';
-import { createHashHistory } from 'history';
-import { Redirect, Router, Route, useRouterHistory } from 'react-router';
+import { Redirect, Router, Route, hashHistory } from 'react-router';
 
 import injectTapEventPlugin from 'react-tap-event-plugin';
 injectTapEventPlugin();
@@ -27,15 +26,12 @@ import Application from './basiccoin/Application';
 import Overview from './basiccoin/Overview';
 import Transfer from './basiccoin/Transfer';
 
-const routerHistory = useRouterHistory(createHashHistory)({});
-
 import '../../assets/fonts/Roboto/font.css';
 import '../../assets/fonts/RobotoMono/font.css';
 import './style.css';
-import './basiccoin.html';
 
 ReactDOM.render(
-  <Router history={ routerHistory }>
+  <Router history={ hashHistory }>
     <Redirect from='/' to='/overview' />
     <Route path='/' component={ Application }>
       <Route path='deploy' component={ Deploy } />
