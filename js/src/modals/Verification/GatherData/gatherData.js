@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import { FormattedMessage } from 'react-intl';
 import BigNumber from 'bignumber.js';
 import { Checkbox } from 'material-ui';
 import InfoIcon from 'material-ui/svg-icons/action/info-outline';
@@ -33,10 +34,11 @@ import styles from './gatherData.css';
 export default class GatherData extends Component {
   static propTypes = {
     fee: React.PropTypes.instanceOf(BigNumber),
-    method: PropTypes.string.isRequired,
     fields: PropTypes.array.isRequired,
-    isVerified: nullableProptype(PropTypes.bool.isRequired),
     hasRequested: nullableProptype(PropTypes.bool.isRequired),
+    isServerRunning: nullableProptype(PropTypes.bool.isRequired),
+    isVerified: nullableProptype(PropTypes.bool.isRequired),
+    method: PropTypes.string.isRequired,
     setConsentGiven: PropTypes.func.isRequired
   }
 
@@ -48,18 +50,62 @@ export default class GatherData extends Component {
     return (
       <Form>
         { howItWorks }
+        { this.renderServerRunning() }
         { this.renderFee() }
         { this.renderCertified() }
         { this.renderRequested() }
         { this.renderFields() }
         <Checkbox
           className={ styles.spacing }
-          label={ 'I agree to the terms and conditions below.' }
+          label={
+            <FormattedMessage
+              id='ui.verification.gatherData.termsOfService'
+              defaultMessage='I agree to the terms and conditions below.'
+            />
+          }
           disabled={ isVerified }
           onCheck={ this.consentOnChange }
         />
         <div className={ styles.terms }>{ termsOfService }</div>
       </Form>
+    );
+  }
+
+  renderServerRunning () {
+    const { isServerRunning } = this.props;
+
+    if (isServerRunning) {
+      return (
+        <div className={ styles.container }>
+          <SuccessIcon />
+          <p className={ styles.message }>
+            <FormattedMessage
+              id='ui.verification.gatherData.isServerRunning.true'
+              defaultMessage='The verification server is running.'
+            />
+          </p>
+        </div>
+      );
+    } else if (isServerRunning === false) {
+      return (
+        <div className={ styles.container }>
+          <ErrorIcon />
+          <p className={ styles.message }>
+            <FormattedMessage
+              id='ui.verification.gatherData.isServerRunning.false'
+              defaultMessage='The verification server is not running.'
+            />
+          </p>
+        </div>
+      );
+    }
+    return (
+      <p className={ styles.message }>
+        <FormattedMessage
+          id='ui.verification.gatherData.isServerRunning.pending'
+          defaultMessage='Checking if the verification server is running…'
+        />
+      </p>
     );
   }
 
@@ -72,7 +118,15 @@ export default class GatherData extends Component {
     return (
       <div className={ styles.container }>
         <InfoIcon />
-        <p className={ styles.message }>The fee is { fromWei(fee).toFixed(3) } ETH.</p>
+        <p className={ styles.message }>
+          <FormattedMessage
+            id='ui.verification.gatherData.fee'
+            defaultMessage='The fee is {amount} ETH.'
+            values={ {
+              amount: fromWei(fee).toFixed(3)
+            } }
+          />
+        </p>
       </div>
     );
   }
@@ -84,19 +138,34 @@ export default class GatherData extends Component {
       return (
         <div className={ styles.container }>
           <ErrorIcon />
-          <p className={ styles.message }>Your account is already verified.</p>
+          <p className={ styles.message }>
+            <FormattedMessage
+              id='ui.verification.gatherData.isVerified.true'
+              defaultMessage='Your account is already verified.'
+            />
+          </p>
         </div>
       );
     } else if (isVerified === false) {
       return (
         <div className={ styles.container }>
           <SuccessIcon />
-          <p className={ styles.message }>Your account is not verified yet.</p>
+          <p className={ styles.message }>
+            <FormattedMessage
+              id='ui.verification.gatherData.isVerified.false'
+              defaultMessage='Your account is not verified yet.'
+            />
+          </p>
         </div>
       );
     }
     return (
-      <p className={ styles.message }>Checking if your account is verified…</p>
+      <p className={ styles.message }>
+        <FormattedMessage
+          id='ui.verification.gatherData.isVerified.pending'
+          defaultMessage='Checking if your account is verified…'
+        />
+      </p>
     );
   }
 
@@ -112,19 +181,34 @@ export default class GatherData extends Component {
       return (
         <div className={ styles.container }>
           <InfoIcon />
-          <p className={ styles.message }>You already requested verification.</p>
+          <p className={ styles.message }>
+            <FormattedMessage
+              id='ui.verification.gatherData.hasRequested.true'
+              defaultMessage='You already requested verification.'
+            />
+          </p>
         </div>
       );
     } else if (hasRequested === false) {
       return (
         <div className={ styles.container }>
           <SuccessIcon />
-          <p className={ styles.message }>You did not request verification yet.</p>
+          <p className={ styles.message }>
+            <FormattedMessage
+              id='ui.verification.gatherData.hasRequested.false'
+              defaultMessage='You did not request verification yet.'
+            />
+          </p>
         </div>
       );
     }
     return (
-      <p className={ styles.message }>Checking if you requested verification…</p>
+      <p className={ styles.message }>
+        <FormattedMessage
+          id='ui.verification.gatherData.hasRequested.pending'
+          defaultMessage='Checking if you requested verification…'
+        />
+      </p>
     );
   }
 

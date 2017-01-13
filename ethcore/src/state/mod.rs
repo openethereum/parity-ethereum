@@ -879,7 +879,7 @@ mod tests {
 			data: FromHex::from_hex("601080600c6000396000f3006000355415600957005b60203560003555").unwrap(),
 		}.sign(&secret(), None);
 
-		state.add_balance(t.sender().as_ref().unwrap(), &(100.into()), CleanupMode::NoEmpty);
+		state.add_balance(&t.sender(), &(100.into()), CleanupMode::NoEmpty);
 		let result = state.apply(&info, &engine, &t, true).unwrap();
 		let expected_trace = vec![FlatTrace {
 			trace_address: Default::default(),
@@ -939,7 +939,7 @@ mod tests {
 			data: FromHex::from_hex("5b600056").unwrap(),
 		}.sign(&secret(), None);
 
-		state.add_balance(t.sender().as_ref().unwrap(), &(100.into()), CleanupMode::NoEmpty);
+		state.add_balance(&t.sender(), &(100.into()), CleanupMode::NoEmpty);
 		let result = state.apply(&info, &engine, &t, true).unwrap();
 		let expected_trace = vec![FlatTrace {
 			trace_address: Default::default(),
@@ -977,7 +977,7 @@ mod tests {
 		}.sign(&secret(), None);
 
 		state.init_code(&0xa.into(), FromHex::from_hex("6000").unwrap());
-		state.add_balance(t.sender().as_ref().unwrap(), &(100.into()), CleanupMode::NoEmpty);
+		state.add_balance(&t.sender(), &(100.into()), CleanupMode::NoEmpty);
 		let result = state.apply(&info, &engine, &t, true).unwrap();
 		let expected_trace = vec![FlatTrace {
 			trace_address: Default::default(),
@@ -1019,7 +1019,7 @@ mod tests {
 			data: vec![],
 		}.sign(&secret(), None);
 
-		state.add_balance(t.sender().as_ref().unwrap(), &(100.into()), CleanupMode::NoEmpty);
+		state.add_balance(&t.sender(), &(100.into()), CleanupMode::NoEmpty);
 		let result = state.apply(&info, &engine, &t, true).unwrap();
 		let expected_trace = vec![FlatTrace {
 			trace_address: Default::default(),
@@ -1268,7 +1268,7 @@ mod tests {
 		}.sign(&secret(), None);
 
 		state.init_code(&0xa.into(), FromHex::from_hex("5b600056").unwrap());
-		state.add_balance(t.sender().as_ref().unwrap(), &(100.into()), CleanupMode::NoEmpty);
+		state.add_balance(&t.sender(), &(100.into()), CleanupMode::NoEmpty);
 		let result = state.apply(&info, &engine, &t, true).unwrap();
 		let expected_trace = vec![FlatTrace {
 			trace_address: Default::default(),
@@ -1309,7 +1309,7 @@ mod tests {
 
 		state.init_code(&0xa.into(), FromHex::from_hex("60006000600060006000600b602b5a03f1").unwrap());
 		state.init_code(&0xb.into(), FromHex::from_hex("6000").unwrap());
-		state.add_balance(t.sender().as_ref().unwrap(), &(100.into()), CleanupMode::NoEmpty);
+		state.add_balance(&t.sender(), &(100.into()), CleanupMode::NoEmpty);
 		let result = state.apply(&info, &engine, &t, true).unwrap();
 
 		let expected_trace = vec![FlatTrace {
@@ -1368,7 +1368,7 @@ mod tests {
 		}.sign(&secret(), None);
 
 		state.init_code(&0xa.into(), FromHex::from_hex("60006000600060006045600b6000f1").unwrap());
-		state.add_balance(t.sender().as_ref().unwrap(), &(100.into()), CleanupMode::NoEmpty);
+		state.add_balance(&t.sender(), &(100.into()), CleanupMode::NoEmpty);
 		let result = state.apply(&info, &engine, &t, true).unwrap();
 		let expected_trace = vec![FlatTrace {
 			trace_address: Default::default(),
@@ -1423,7 +1423,7 @@ mod tests {
 		}.sign(&secret(), None);
 
 		state.init_code(&0xa.into(), FromHex::from_hex("600060006000600060ff600b6000f1").unwrap());	// not enough funds.
-		state.add_balance(t.sender().as_ref().unwrap(), &(100.into()), CleanupMode::NoEmpty);
+		state.add_balance(&t.sender(), &(100.into()), CleanupMode::NoEmpty);
 		let result = state.apply(&info, &engine, &t, true).unwrap();
 		let expected_trace = vec![FlatTrace {
 			trace_address: Default::default(),
@@ -1467,7 +1467,7 @@ mod tests {
 
 		state.init_code(&0xa.into(), FromHex::from_hex("60006000600060006000600b602b5a03f1").unwrap());
 		state.init_code(&0xb.into(), FromHex::from_hex("5b600056").unwrap());
-		state.add_balance(t.sender().as_ref().unwrap(), &(100.into()), CleanupMode::NoEmpty);
+		state.add_balance(&t.sender(), &(100.into()), CleanupMode::NoEmpty);
 		let result = state.apply(&info, &engine, &t, true).unwrap();
 		let expected_trace = vec![FlatTrace {
 			trace_address: Default::default(),
@@ -1524,7 +1524,7 @@ mod tests {
 		state.init_code(&0xa.into(), FromHex::from_hex("60006000600060006000600b602b5a03f1").unwrap());
 		state.init_code(&0xb.into(), FromHex::from_hex("60006000600060006000600c602b5a03f1").unwrap());
 		state.init_code(&0xc.into(), FromHex::from_hex("6000").unwrap());
-		state.add_balance(t.sender().as_ref().unwrap(), &(100.into()), CleanupMode::NoEmpty);
+		state.add_balance(&t.sender(), &(100.into()), CleanupMode::NoEmpty);
 		let result = state.apply(&info, &engine, &t, true).unwrap();
 		let expected_trace = vec![FlatTrace {
 			trace_address: Default::default(),
@@ -1599,7 +1599,7 @@ mod tests {
 		state.init_code(&0xa.into(), FromHex::from_hex("60006000600060006000600b602b5a03f1").unwrap());
 		state.init_code(&0xb.into(), FromHex::from_hex("60006000600060006000600c602b5a03f1505b601256").unwrap());
 		state.init_code(&0xc.into(), FromHex::from_hex("6000").unwrap());
-		state.add_balance(t.sender().as_ref().unwrap(), &(100.into()), CleanupMode::NoEmpty);
+		state.add_balance(&t.sender(), &(100.into()), CleanupMode::NoEmpty);
 		let result = state.apply(&info, &engine, &t, true).unwrap();
 
 		let expected_trace = vec![FlatTrace {
@@ -1671,7 +1671,7 @@ mod tests {
 
 		state.init_code(&0xa.into(), FromHex::from_hex("73000000000000000000000000000000000000000bff").unwrap());
 		state.add_balance(&0xa.into(), &50.into(), CleanupMode::NoEmpty);
-		state.add_balance(t.sender().as_ref().unwrap(), &100.into(), CleanupMode::NoEmpty);
+		state.add_balance(&t.sender(), &100.into(), CleanupMode::NoEmpty);
 		let result = state.apply(&info, &engine, &t, true).unwrap();
 		let expected_trace = vec![FlatTrace {
 			trace_address: Default::default(),

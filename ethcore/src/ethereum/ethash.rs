@@ -24,7 +24,7 @@ use header::Header;
 use views::HeaderView;
 use state::CleanupMode;
 use spec::CommonParams;
-use transaction::SignedTransaction;
+use transaction::UnverifiedTransaction;
 use engines::Engine;
 use evm::Schedule;
 use ethjson;
@@ -191,7 +191,7 @@ impl Engine for Ethash {
 				gas_limit + (PARITY_GAS_LIMIT_DETERMINANT - gas_limit % PARITY_GAS_LIMIT_DETERMINANT)
 			} else {
 				let total_upper_limit = min(gas_ceil_target, upper_limit);
-				let gas_limit = max(gas_floor_target, min(total_upper_limit, 
+				let gas_limit = max(gas_floor_target, min(total_upper_limit,
 					lower_limit + (header.gas_used().clone() * 6.into() / 5.into()) / bound_divisor));
 				let increased_gas_limit = gas_limit + (PARITY_GAS_LIMIT_DETERMINANT - gas_limit % PARITY_GAS_LIMIT_DETERMINANT);
 				if increased_gas_limit > total_upper_limit {
@@ -328,7 +328,7 @@ impl Engine for Ethash {
 		Ok(())
 	}
 
-	fn verify_transaction_basic(&self, t: &SignedTransaction, header: &Header) -> result::Result<(), Error> {
+	fn verify_transaction_basic(&self, t: &UnverifiedTransaction, header: &Header) -> result::Result<(), Error> {
 		if header.number() >= self.ethash_params.homestead_transition {
 			t.check_low_s()?;
 		}
@@ -340,10 +340,6 @@ impl Engine for Ethash {
 		}
 
 		Ok(())
-	}
-
-	fn verify_transaction(&self, t: &SignedTransaction, _header: &Header) -> Result<(), Error> {
-		t.sender().map(|_|()) // Perform EC recovery and cache sender
 	}
 
 	fn is_new_best_block(&self, best_total_difficulty: U256, _best_header: HeaderView, parent_details: &BlockDetails, new_header: &HeaderView) -> bool {

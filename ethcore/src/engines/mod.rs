@@ -39,7 +39,7 @@ use error::Error;
 use spec::CommonParams;
 use evm::Schedule;
 use header::Header;
-use transaction::SignedTransaction;
+use transaction::{UnverifiedTransaction, SignedTransaction};
 use ethereum::ethash;
 use blockchain::extras::BlockDetails;
 use views::HeaderView;
@@ -155,9 +155,15 @@ pub trait Engine : Sync + Send {
 	/// Additional verification for transactions in blocks.
 	// TODO: Add flags for which bits of the transaction to check.
 	// TODO: consider including State in the params.
-	fn verify_transaction_basic(&self, _t: &SignedTransaction, _header: &Header) -> Result<(), Error> { Ok(()) }
+	fn verify_transaction_basic(&self, t: &UnverifiedTransaction, _header: &Header) -> Result<(), Error> {
+		t.check_low_s()?;
+		Ok(())
+	}
+
 	/// Verify a particular transaction is valid.
-	fn verify_transaction(&self, _t: &SignedTransaction, _header: &Header) -> Result<(), Error> { Ok(()) }
+	fn verify_transaction(&self, t: UnverifiedTransaction, _header: &Header) -> Result<SignedTransaction, Error> {
+		SignedTransaction::new(t)
+	}
 
 	/// The network ID that transactions should be signed with.
 	fn signing_network_id(&self, _env_info: &EnvInfo) -> Option<u64> { None }

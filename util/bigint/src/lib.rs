@@ -21,6 +21,7 @@
 extern crate rand;
 extern crate rustc_serialize;
 extern crate bigint;
+extern crate libc;
 #[macro_use] extern crate heapsize;
 
 pub mod hash;

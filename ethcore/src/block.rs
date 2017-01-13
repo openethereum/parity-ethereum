@@ -34,7 +34,7 @@ use receipt::Receipt;
 use state::State;
 use state_db::StateDB;
 use trace::FlatTrace;
-use transaction::SignedTransaction;
+use transaction::{UnverifiedTransaction, SignedTransaction};
 use verification::PreverifiedBlock;
 use views::BlockView;
 
@@ -44,7 +44,7 @@ pub struct Block {
 	/// The header of this block.
 	pub header: Header,
 	/// The transactions in this block.
-	pub transactions: Vec<SignedTransaction>,
+	pub transactions: Vec<UnverifiedTransaction>,
 	/// The uncles of this block.
 	pub uncles: Vec<Header>,
 }
@@ -86,8 +86,9 @@ impl Decodable for Block {
 /// An internal type for a block's common elements.
 #[derive(Clone)]
 pub struct ExecutedBlock {
-	base: Block,
-
+	header: Header,
+	transactions: Vec<SignedTransaction>,
+	uncles: Vec<Header>,
 	receipts: Vec<Receipt>,
 	transactions_set: HashSet<H256>,
 	state: State,
@@ -130,7 +131,9 @@ impl ExecutedBlock {
 	/// Create a new block from the given `state`.
 	fn new(state: State, tracing: bool) -> ExecutedBlock {
 		ExecutedBlock {
-			base: Default::default(),
+			header: Default::default(),
+			transactions: Default::default(),
+			uncles: Default::default(),
 			receipts: Default::default(),
 			transactions_set: Default::default(),
 			state: state,
@@ -141,9 +144,9 @@ impl ExecutedBlock {
 	/// Get a structure containing individual references to all public fields.
 	pub fn fields_mut(&mut self) -> BlockRefMut {
 		BlockRefMut {
-			header: &mut self.base.header,
-			transactions: &self.base.transactions,
-			uncles: &self.base.uncles,
+			header: &mut self.header,
+			transactions: &self.transactions,
+			uncles: &self.uncles,
 			state: &mut self.state,
 			receipts: &self.receipts,
 			traces: &self.traces,
@@ -153,9 +156,9 @@ impl ExecutedBlock {
 	/// Get a structure containing individual references to all public fields.
 	pub fn fields(&self) -> BlockRef {
 		BlockRef {
-			header: &self.base.header,
-			transactions: &self.base.transactions,
-			uncles: &self.base.uncles,
+			header: &self.header,
+			transactions: &self.transactions,
+			uncles: &self.uncles,
 			state: &self.state,
 			receipts: &self.receipts,
 			traces: &self.traces,
@@ -169,16 +172,22 @@ pub trait IsBlock {
 	fn block(&self) -> &ExecutedBlock;
 
 	/// Get the base `Block` object associated with this.
-	fn base(&self) -> &Block { &self.block().base }
+	fn to_base(&self) -> Block {
+		Block {
+			header: self.header().clone(),
+			transactions: self.transactions().iter().cloned().map(Into::into).collect(),
+			uncles: self.uncles().to_vec(),
+		}
+	}
 
 	/// Get the header associated with this object's block.
-	fn header(&self) -> &Header { &self.block().base.header }
+	fn header(&self) -> &Header { &self.block().header }
 
 	/// Get the final state associated with this object's block.
 	fn state(&self) -> &State { &self.block().state }
 
 	/// Get all information on transactions in this block.
-	fn transactions(&self) -> &[SignedTransaction] { &self.block().base.transactions }
+	fn transactions(&self) -> &[SignedTransaction] { &self.block().transactions }
 
 	/// Get all information on receipts in this block.
 	fn receipts(&self) -> &[Receipt] { &self.block().receipts }
@@ -187,7 +196,7 @@ pub trait IsBlock {
 	fn traces(&self) -> &Option<Vec<Vec<FlatTrace>>> { &self.block().traces }
 
 	/// Get all uncles in this block.
-	fn uncles(&self) -> &[Header] { &self.block().base.uncles }
+	fn uncles(&self) -> &[Header] { &self.block().uncles }
 }
 
 /// Trait for a object that has a state database.
@@ -260,50 +269,50 @@ impl<'x> OpenBlock<'x> {
 			last_hashes: last_hashes,
 		};
 
-		r.block.base.header.set_parent_hash(parent.hash());
-		r.block.base.header.set_number(parent.number() + 1);
-		r.block.base.header.set_author(author);
-		r.block.base.header.set_timestamp_now(parent.timestamp());
-		r.block.base.header.set_extra_data(extra_data);
-		r.block.base.header.note_dirty();
+		r.block.header.set_parent_hash(parent.hash());
+		r.block.header.set_number(parent.number() + 1);
+		r.block.header.set_author(author);
+		r.block.header.set_timestamp_now(parent.timestamp());
+		r.block.header.set_extra_data(extra_data);
+		r.block.header.note_dirty();
 
 		let gas_floor_target = cmp::max(gas_range_target.0, engine.params().min_gas_limit);
 		let gas_ceil_target = cmp::max(gas_range_target.1, gas_floor_target);
-		engine.populate_from_parent(&mut r.block.base.header, parent, gas_floor_target, gas_ceil_target);
+		engine.populate_from_parent(&mut r.block.header, parent, gas_floor_target, gas_ceil_target);
 		engine.on_new_block(&mut r.block);
 		Ok(r)
 	}
 
 	/// Alter the author for the block.
-	pub fn set_author(&mut self, author: Address) { self.block.base.header.set_author(author); }
+	pub fn set_author(&mut self, author: Address) { self.block.header.set_author(author); }
 
 	/// Alter the timestamp of the block.
-	pub fn set_timestamp(&mut self, timestamp: u64) { self.block.base.header.set_timestamp(timestamp); }
+	pub fn set_timestamp(&mut self, timestamp: u64) { self.block.header.set_timestamp(timestamp); }
 
 	/// Alter the difficulty for the block.
-	pub fn set_difficulty(&mut self, a: U256) { self.block.base.header.set_difficulty(a); }
+	pub fn set_difficulty(&mut self, a: U256) { self.block.header.set_difficulty(a); }
 
 	/// Alter the gas limit for the block.
-	pub fn set_gas_limit(&mut self, a: U256) { self.block.base.header.set_gas_limit(a); }
+	pub fn set_gas_limit(&mut self, a: U256) { self.block.header.set_gas_limit(a); }
 
 	/// Alter the gas limit for the block.
-	pub fn set_gas_used(&mut self, a: U256) { self.block.base.header.set_gas_used(a); }
+	pub fn set_gas_used(&mut self, a: U256) { self.block.header.set_gas_used(a); }
 
 	/// Alter the uncles hash the block.
-	pub fn set_uncles_hash(&mut self, h: H256) { self.block.base.header.set_uncles_hash(h); }
+	pub fn set_uncles_hash(&mut self, h: H256) { self.block.header.set_uncles_hash(h); }
 
 	/// Alter transactions root for the block.
-	pub fn set_transactions_root(&mut self, h: H256) { self.block.base.header.set_transactions_root(h); }
+	pub fn set_transactions_root(&mut self, h: H256) { self.block.header.set_transactions_root(h); }
 
 	/// Alter the receipts root for the block.
-	pub fn set_receipts_root(&mut self, h: H256) { self.block.base.header.set_receipts_root(h); }
+	pub fn set_receipts_root(&mut self, h: H256) { self.block.header.set_receipts_root(h); }
 
 	/// Alter the extra_data for the block.
 	pub fn set_extra_data(&mut self, extra_data: Bytes) -> Result<(), BlockError> {
 		if extra_data.len() > self.engine.maximum_extra_data_size() {
 			Err(BlockError::ExtraDataOutOfBounds(OutOfBounds{min: None, max: Some(self.engine.maximum_extra_data_size()), found: extra_data.len()}))
 		} else {
-			self.block.base.header.set_extra_data(extra_data);
+			self.block.header.set_extra_data(extra_data);
 			Ok(())
 		}
 	}
@@ -313,12 +322,12 @@ impl<'x> OpenBlock<'x> {
 	/// NOTE Will check chain constraints and the uncle number but will NOT check
 	/// that the header itself is actually valid.
 	pub fn push_uncle(&mut self, valid_uncle_header: Header) -> Result<(), BlockError> {
-		if self.block.base.uncles.len() + 1 > self.engine.maximum_uncle_count() {
-			return Err(BlockError::TooManyUncles(OutOfBounds{min: None, max: Some(self.engine.maximum_uncle_count()), found: self.block.base.uncles.len() + 1}));
+		if self.block.uncles.len() + 1 > self.engine.maximum_uncle_count() {
+			return Err(BlockError::TooManyUncles(OutOfBounds{min: None, max: Some(self.engine.maximum_uncle_count()), found: self.block.uncles.len() + 1}));
 		}
 		// TODO: check number
 		// TODO: check not a direct ancestor (use last_hashes for that)
-		self.block.base.uncles.push(valid_uncle_header);
+		self.block.uncles.push(valid_uncle_header);
 		Ok(())
 	}
 
@@ -326,13 +335,13 @@ impl<'x> OpenBlock<'x> {
 	pub fn env_info(&self) -> EnvInfo {
 		// TODO: memoise.
 		EnvInfo {
-			number: self.block.base.header.number(),
-			author: self.block.base.header.author().clone(),
-			timestamp: self.block.base.header.timestamp(),
-			difficulty: self.block.base.header.difficulty().clone(),
+			number: self.block.header.number(),
+			author: self.block.header.author().clone(),
+			timestamp: self.block.header.timestamp(),
+			difficulty: self.block.header.difficulty().clone(),
 			last_hashes: self.last_hashes.clone(),
 			gas_used: self.block.receipts.last().map_or(U256::zero(), |r| r.gas_used),
-			gas_limit: self.block.base.header.gas_limit().clone(),
+			gas_limit: self.block.header.gas_limit().clone(),
 		}
 	}
 
@@ -349,7 +358,7 @@ impl<'x> OpenBlock<'x> {
 		match self.block.state.apply(&env_info, self.engine, &t, self.block.traces.is_some()) {
 			Ok(outcome) => {
 				self.block.transactions_set.insert(h.unwrap_or_else(||t.hash()));
-				self.block.base.transactions.push(t);
+				self.block.transactions.push(t.into());
 				let t = outcome.trace;
 				self.block.traces.as_mut().map(|traces| traces.push(t));
 				self.block.receipts.push(outcome.receipt);
@@ -366,13 +375,13 @@ impl<'x> OpenBlock<'x> {
 		let unclosed_state = s.block.state.clone();
 
 		s.engine.on_close_block(&mut s.block);
-		s.block.base.header.set_transactions_root(ordered_trie_root(s.block.base.transactions.iter().map(|e| e.rlp_bytes().to_vec())));
-		let uncle_bytes = s.block.base.uncles.iter().fold(RlpStream::new_list(s.block.base.uncles.len()), |mut s, u| {s.append_raw(&u.rlp(Seal::With), 1); s} ).out();
-		s.block.base.header.set_uncles_hash(uncle_bytes.sha3());
-		s.block.base.header.set_state_root(s.block.state.root().clone());
-		s.block.base.header.set_receipts_root(ordered_trie_root(s.block.receipts.iter().map(|r| r.rlp_bytes().to_vec())));
-		s.block.base.header.set_log_bloom(s.block.receipts.iter().fold(LogBloom::zero(), |mut b, r| {b = &b | &r.log_bloom; b})); //TODO: use |= operator
-		s.block.base.header.set_gas_used(s.block.receipts.last().map_or(U256::zero(), |r| r.gas_used));
+		s.block.header.set_transactions_root(ordered_trie_root(s.block.transactions.iter().map(|e| e.rlp_bytes().to_vec())));
+		let uncle_bytes = s.block.uncles.iter().fold(RlpStream::new_list(s.block.uncles.len()), |mut s, u| {s.append_raw(&u.rlp(Seal::With), 1); s} ).out();
+		s.block.header.set_uncles_hash(uncle_bytes.sha3());
+		s.block.header.set_state_root(s.block.state.root().clone());
+		s.block.header.set_receipts_root(ordered_trie_root(s.block.receipts.iter().map(|r| r.rlp_bytes().to_vec())));
+		s.block.header.set_log_bloom(s.block.receipts.iter().fold(LogBloom::zero(), |mut b, r| {b = &b | &r.log_bloom; b})); //TODO: use |= operator
+		s.block.header.set_gas_used(s.block.receipts.last().map_or(U256::zero(), |r| r.gas_used));
 
 		ClosedBlock {
 			block: s.block,
@@ -387,20 +396,20 @@ impl<'x> OpenBlock<'x> {
 		let mut s = self;
 
 		s.engine.on_close_block(&mut s.block);
-		if s.block.base.header.transactions_root().is_zero() || s.block.base.header.transactions_root() == &SHA3_NULL_RLP {
-			s.block.base.header.set_transactions_root(ordered_trie_root(s.block.base.transactions.iter().map(|e| e.rlp_bytes().to_vec())));
+		if s.block.header.transactions_root().is_zero() || s.block.header.transactions_root() == &SHA3_NULL_RLP {
+			s.block.header.set_transactions_root(ordered_trie_root(s.block.transactions.iter().map(|e| e.rlp_bytes().to_vec())));
 		}
-		let uncle_bytes = s.block.base.uncles.iter().fold(RlpStream::new_list(s.block.base.uncles.len()), |mut s, u| {s.append_raw(&u.rlp(Seal::With), 1); s} ).out();
-		if s.block.base.header.uncles_hash().is_zero() {
-			s.block.base.header.set_uncles_hash(uncle_bytes.sha3());
+		let uncle_bytes = s.block.uncles.iter().fold(RlpStream::new_list(s.block.uncles.len()), |mut s, u| {s.append_raw(&u.rlp(Seal::With), 1); s} ).out();
+		if s.block.header.uncles_hash().is_zero() {
+			s.block.header.set_uncles_hash(uncle_bytes.sha3());
 		}
-		if s.block.base.header.receipts_root().is_zero() || s.block.base.header.receipts_root() == &SHA3_NULL_RLP {
-			s.block.base.header.set_receipts_root(ordered_trie_root(s.block.receipts.iter().map(|r| r.rlp_bytes().to_vec())));
+		if s.block.header.receipts_root().is_zero() || s.block.header.receipts_root() == &SHA3_NULL_RLP {
+			s.block.header.set_receipts_root(ordered_trie_root(s.block.receipts.iter().map(|r| r.rlp_bytes().to_vec())));
 		}
 
-		s.block.base.header.set_state_root(s.block.state.root().clone());
-		s.block.base.header.set_log_bloom(s.block.receipts.iter().fold(LogBloom::zero(), |mut b, r| {b = &b | &r.log_bloom; b})); //TODO: use |= operator
-		s.block.base.header.set_gas_used(s.block.receipts.last().map_or(U256::zero(), |r| r.gas_used));
+		s.block.header.set_state_root(s.block.state.root().clone());
+		s.block.header.set_log_bloom(s.block.receipts.iter().fold(LogBloom::zero(), |mut b, r| {b = &b | &r.log_bloom; b})); //TODO: use |= operator
+		s.block.header.set_gas_used(s.block.receipts.last().map_or(U256::zero(), |r| r.gas_used));
 
 		LockedBlock {
 			block: s.block,
@@ -462,7 +471,7 @@ impl LockedBlock {
 		if seal.len() != engine.seal_fields() {
 			return Err(BlockError::InvalidSealArity(Mismatch{expected: engine.seal_fields(), found: seal.len()}));
 		}
-		s.block.base.header.set_seal(seal);
+		s.block.header.set_seal(seal);
 		Ok(SealedBlock { block: s.block, uncle_bytes: s.uncle_bytes })
 	}
 
@@ -471,8 +480,8 @@ impl LockedBlock {
 	/// Returns the `ClosedBlock` back again if the seal is no good.
 	pub fn try_seal(self, engine: &Engine, seal: Vec<Bytes>) -> Result<SealedBlock, (Error, LockedBlock)> {
 		let mut s = self;
-		s.block.base.header.set_seal(seal);
-		match engine.verify_block_seal(&s.block.base.header) {
+		s.block.header.set_seal(seal);
+		match engine.verify_block_seal(&s.block.header) {
 			Err(e) => Err((e, s)),
 			_ => Ok(SealedBlock { block: s.block, uncle_bytes: s.uncle_bytes }),
 		}
@@ -490,8 +499,8 @@ impl SealedBlock {
 	/// Get the RLP-encoding of the block.
 	pub fn rlp_bytes(&self) -> Bytes {
 		let mut block_rlp = RlpStream::new_list(3);
-		self.block.base.header.stream_rlp(&mut block_rlp, Seal::With);
-		block_rlp.append(&self.block.base.transactions);
+		self.block.header.stream_rlp(&mut block_rlp, Seal::With);
+		block_rlp.append(&self.block.transactions);
 		block_rlp.append_raw(&self.uncle_bytes, 1);
 		block_rlp.out()
 	}
@@ -571,6 +580,7 @@ fn push_transactions(block: &mut OpenBlock, transactions: &[SignedTransaction]) 
 	Ok(())
 }
 
+// TODO [ToDr] Pass `PreverifiedBlock` by move, this will avoid unecessary allocation
 /// Enact the block given by `block_bytes` using `engine` on the database `db` with given `parent` block header
 #[cfg_attr(feature="dev", allow(too_many_arguments))]
 pub fn enact_verified(
@@ -600,6 +610,7 @@ mod tests {
 	use util::Address;
 	use util::hash::FixedHash;
 	use std::sync::Arc;
+	use transaction::SignedTransaction;
 
 	/// Enact the block given by `block_bytes` using `engine` on the database `db` with given `parent` block header
 	#[cfg_attr(feature="dev", allow(too_many_arguments))]
@@ -614,7 +625,9 @@ mod tests {
 	) -> Result<LockedBlock, Error> {
 		let block = BlockView::new(block_bytes);
 		let header = block.header();
-		enact(&header, &block.transactions(), &block.uncles(), engine, tracing, db, parent, last_hashes, factories)
+		let transactions: Result<Vec<_>, Error> = block.transactions().into_iter().map(SignedTransaction::new).collect();
+		let transactions = transactions?;
+		enact(&header, &transactions, &block.uncles(), engine, tracing, db, parent, last_hashes, factories)
 	}
 
 	/// Enact the block given by `block_bytes` using `engine` on the database `db` with given `parent` block header. Seal the block aferwards

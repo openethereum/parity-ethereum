@@ -647,11 +647,13 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 	fn send_raw_transaction(&self, raw: Bytes) -> Result<RpcH256, Error> {
 		self.active()?;
 
-		let raw_transaction = raw.to_vec();
-		match UntrustedRlp::new(&raw_transaction).as_val() {
-			Ok(signed_transaction) => dispatch_transaction(&*take_weak!(self.client), &*take_weak!(self.miner), PendingTransaction::new(signed_transaction, None)).map(Into::into),
-			Err(e) => Err(errors::from_rlp_error(e)),
-		}
+		UntrustedRlp::new(&raw.into_vec()).as_val()
+			.map_err(errors::from_rlp_error)
+			.and_then(|tx| SignedTransaction::new(tx).map_err(errors::from_transaction_error))
+			.and_then(|signed_transaction| {
+				dispatch_transaction(&*take_weak!(self.client), &*take_weak!(self.miner), PendingTransaction::new(signed_transaction, None))
+			})
+			.map(Into::into)
 	}
 
 	fn submit_transaction(&self, raw: Bytes) -> Result<RpcH256, Error> {
