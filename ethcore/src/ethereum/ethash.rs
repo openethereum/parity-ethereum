@@ -32,7 +32,7 @@ use rlp::{self, UntrustedRlp, View};
 use blockchain::extras::BlockDetails;
 
 /// Parity tries to round block.gas_limit to multiplier of this constant
-pub const PARITY_GAS_LIMIT_DETERMINANT: U256 = U256([13, 0, 0, 0]);
+pub const PARITY_GAS_LIMIT_DETERMINANT: U256 = U256([37, 0, 0, 0]);
 
 /// Ethash params.
 #[derive(Debug, PartialEq)]
@@ -802,30 +802,30 @@ mod tests {
 		header.set_number(1);
 
 		// this test will work for this constant only
-		assert_eq!(PARITY_GAS_LIMIT_DETERMINANT, U256::from(13));
+		assert_eq!(PARITY_GAS_LIMIT_DETERMINANT, U256::from(37));
 
 		// when parent.gas_limit < gas_floor_target:
 		parent.set_gas_limit(U256::from(50_000));
 		ethash.populate_from_parent(&mut header, &parent, U256::from(100_000), U256::from(200_000));
-		assert_eq!(*header.gas_limit(), U256::from(50_037));
+		assert_eq!(*header.gas_limit(), U256::from(50_024));
 
 		// when parent.gas_limit > gas_ceil_target:
 		parent.set_gas_limit(U256::from(250_000));
 		ethash.populate_from_parent(&mut header, &parent, U256::from(100_000), U256::from(200_000));
-		assert_eq!(*header.gas_limit(), U256::from(249_769));
+		assert_eq!(*header.gas_limit(), U256::from(249_787));
 
 		// when parent.gas_limit is in miner's range
 		header.set_gas_used(U256::from(150_000));
 		parent.set_gas_limit(U256::from(150_000));
 		ethash.populate_from_parent(&mut header, &parent, U256::from(100_000), U256::from(200_000));
-		assert_eq!(*header.gas_limit(), U256::from(150_033));
+		assert_eq!(*header.gas_limit(), U256::from(150_035));
 
 		// when parent.gas_limit is in miner's range
 		// && we can NOT increase it to be multiplier of constant
 		header.set_gas_used(U256::from(150_000));
 		parent.set_gas_limit(U256::from(150_000));
 		ethash.populate_from_parent(&mut header, &parent, U256::from(100_000), U256::from(150_002));
-		assert_eq!(*header.gas_limit(), U256::from(149_994));
+		assert_eq!(*header.gas_limit(), U256::from(149_998));
 
 		// when parent.gas_limit is in miner's range
 		// && we can NOT increase it to be multiplier of constant
@@ -834,6 +834,5 @@ mod tests {
 		parent.set_gas_limit(U256::from(150_000));
 		ethash.populate_from_parent(&mut header, &parent, U256::from(150_000), U256::from(150_002));
 		assert_eq!(*header.gas_limit(), U256::from(150_002));
-
 	}
 }
