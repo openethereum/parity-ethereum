@@ -40,6 +40,7 @@ export default class VerificationStore {
   @observable fee = null;
   @observable isVerified = null;
   @observable hasRequested = null;
+  @observable isServerRunning = null;
   @observable consentGiven = false;
   @observable requestTx = null;
   @observable code = '';
@@ -73,6 +74,14 @@ export default class VerificationStore {
     const { contract, account } = this;
     this.step = LOADING;
 
+    const isServerRunning = this.isServerRunning()
+      .then((isRunning) => {
+        this.isServerRunning = isRunning;
+      })
+      .catch((err) => {
+        this.error = 'Failed to check if server is running: ' + err.message;
+      });
+
     const fee = contract.instance.fee.call()
       .then((fee) => {
         this.fee = fee;
@@ -101,7 +110,7 @@ export default class VerificationStore {
       });
 
     Promise
-      .all([ fee, isVerified, hasRequested ])
+      .all([ isServerRunning, fee, isVerified, hasRequested ])
       .then(() => {
         this.step = QUERY_DATA;
       });

@@ -94,10 +94,10 @@ class Verification extends Component {
     return (
       <Modal
         actions={ this.renderDialogActions(phase, error, isStepValid) }
-        title='verify your account'
-        visible
         current={ phase }
         steps={ ['Method', 'Enter Data', 'Request', 'Enter Code', 'Confirm', 'Done!'] }
+        title='verify your account'
+        visible
         waiting={ error ? [] : [ 2, 4 ] }
       >
         { this.renderStep(phase, error) }
@@ -111,8 +111,9 @@ class Verification extends Component {
 
     const cancel = (
       <Button
-        key='cancel' label='Cancel'
         icon={ <CancelIcon /> }
+        key='cancel'
+        label='Cancel'
         onClick={ onClose }
       />
     );
@@ -125,9 +126,10 @@ class Verification extends Component {
         <div>
           { cancel }
           <Button
-            key='done' label='Done'
             disabled={ !isStepValid }
             icon={ <DoneIcon /> }
+            key='done'
+            label='Done'
             onClick={ onClose }
           />
         </div>
@@ -160,9 +162,15 @@ class Verification extends Component {
       <div>
         { cancel }
         <Button
-          key='next' label='Next'
           disabled={ !isStepValid }
-          icon={ <IdentityIcon address={ account } button /> }
+          icon={
+            <IdentityIcon
+              address={ account }
+              button
+            />
+          }
+          key='next'
+          label='Next'
           onClick={ action }
         />
       </div>
@@ -180,16 +188,16 @@ class Verification extends Component {
       const value = values.findIndex((v) => v.value === method);
       return (
         <RadioButtons
+          onChange={ this.selectMethod }
           value={ value < 0 ? 0 : value }
           values={ values }
-          onChange={ this.selectMethod }
         />
       );
     }
 
     const {
       step,
-      fee, isVerified, hasRequested,
+      isServerRunning, fee, isVerified, hasRequested,
       requestTx, isCodeValid, confirmationTx,
       setCode
     } = this.store;
@@ -223,15 +231,21 @@ class Verification extends Component {
 
         return (
           <GatherData
+            fee={ fee }
+            hasRequested={ hasRequested }
+            isServerRunning={ isServerRunning }
+            isVerified={ isVerified }
             method={ method } fields={ fields }
-            fee={ fee } isVerified={ isVerified } hasRequested={ hasRequested }
             setConsentGiven={ setConsentGiven }
           />
         );
 
       case 2:
         return (
-          <SendRequest step={ step } tx={ requestTx } />
+          <SendRequest
+            step={ step }
+            tx={ requestTx }
+          />
         );
 
       case 3:
@@ -245,16 +259,19 @@ class Verification extends Component {
         }
         return (
           <QueryCode
-            receiver={ receiver }
             hint={ hint }
             isCodeValid={ isCodeValid }
+            receiver={ receiver }
             setCode={ setCode }
           />
         );
 
       case 4:
         return (
-          <SendConfirmation step={ step } tx={ confirmationTx } />
+          <SendConfirmation
+            step={ step }
+            tx={ confirmationTx }
+          />
         );
 
       case 5:
