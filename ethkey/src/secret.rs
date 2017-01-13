@@ -59,6 +59,12 @@ impl From<key::SecretKey> for Secret {
 	}
 }
 
+impl From<H256> for Secret {
+	fn from(hash: H256) -> Self {
+		Secret { inner: hash }
+	}
+}
+
 impl Deref for Secret {
 	type Target = H256;
 
@@ -66,4 +72,3 @@ impl Deref for Secret {
 		&self.inner
 	}
 }
-
