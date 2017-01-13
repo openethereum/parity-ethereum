@@ -185,16 +185,16 @@ impl Engine for Ethash {
 			let upper_limit = gas_limit + gas_limit / bound_divisor - 1.into();
 			let gas_limit = if gas_limit < gas_floor_target {
 				let gas_limit = min(gas_floor_target, upper_limit);
-				self.round_block_gas_limit(gas_limit, lower_limit, upper_limit)
+				Ethash::round_block_gas_limit(gas_limit, lower_limit, upper_limit)
 			} else if gas_limit > gas_ceil_target {
 				let gas_limit = max(gas_ceil_target, lower_limit);
-				self.round_block_gas_limit(gas_limit, lower_limit, upper_limit)
+				Ethash::round_block_gas_limit(gas_limit, lower_limit, upper_limit)
 			} else {
 				let total_lower_limit = max(lower_limit, gas_floor_target);
 				let total_upper_limit = min(upper_limit, gas_ceil_target);
 				let gas_limit = max(gas_floor_target, min(total_upper_limit,
 					lower_limit + (header.gas_used().clone() * 6.into() / 5.into()) / bound_divisor));
-				self.round_block_gas_limit(gas_limit, total_lower_limit, total_upper_limit)
+				Ethash::round_block_gas_limit(gas_limit, total_lower_limit, total_upper_limit)
 			};
 			// ensure that we are not violating protocol limits
 			debug_assert!(gas_limit >= lower_limit);
@@ -423,7 +423,7 @@ impl Ethash {
 	// Try to round gas_limit a bit so that:
 	// 1) it will still be in desired range
 	// 2) it will be a nearest (with tendency to increase) multiplier of PARITY_GAS_LIMIT_DETERMINANT
-	fn round_block_gas_limit(&self, gas_limit: U256, lower_limit: U256, upper_limit: U256) -> U256 {
+	fn round_block_gas_limit(gas_limit: U256, lower_limit: U256, upper_limit: U256) -> U256 {
 		let increased_gas_limit = gas_limit + (PARITY_GAS_LIMIT_DETERMINANT - gas_limit % PARITY_GAS_LIMIT_DETERMINANT);
 		if increased_gas_limit > upper_limit {
 			let decreased_gas_limit = increased_gas_limit - PARITY_GAS_LIMIT_DETERMINANT;
