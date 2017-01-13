@@ -20,7 +20,6 @@ import Response from '../Response';
 import styles from './Call.css';
 
 export default class Call extends Component {
-
   render () {
     let { callNo, name, params, response } = this.props.call;
     params = this.formatParams(params);
@@ -65,5 +64,4 @@ export default class Call extends Component {
     call: PropTypes.object.isRequired,
     setActiveCall: PropTypes.func.isRequired
   }
-
 }

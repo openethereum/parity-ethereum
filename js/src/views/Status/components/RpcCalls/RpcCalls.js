@@ -32,7 +32,6 @@ import RpcNav from '../RpcNav';
 const rpcMethods = _.sortBy(rpcData.methods, 'name');
 
 export default class RpcCalls extends Component {
-
   state = {};
 
   componentWillReceiveProps (nextProps) {
@@ -333,5 +332,4 @@ export default class RpcCalls extends Component {
       resetRpcPrevCalls: PropTypes.func.isRequired
     }).isRequired
   }
-
 }

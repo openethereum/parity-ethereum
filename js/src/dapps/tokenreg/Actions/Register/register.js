@@ -57,7 +57,6 @@ const initState = {
 };
 
 export default class RegisterAction extends Component {
-
   static propTypes = {
     show: PropTypes.bool.isRequired,
     sending: PropTypes.bool.isRequired,
@@ -227,5 +226,4 @@ export default class RegisterAction extends Component {
     this.setState(initState);
     this.props.onClose();
   }
-
 }

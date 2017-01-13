@@ -27,7 +27,6 @@ import imagesEthcoreBlock from '../../../assets/images/parity-logo-white-no-text
 import styles from './parityBar.css';
 
 class ParityBar extends Component {
-
   static propTypes = {
     pending: PropTypes.array,
     dapp: PropTypes.bool

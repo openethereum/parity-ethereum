@@ -29,7 +29,6 @@ const REGISTER_ACTION = 'REGISTER_ACTION';
 const QUERY_ACTION = 'QUERY_ACTION';
 
 export default class Actions extends Component {
-
   static propTypes = {
     handleRegisterToken: PropTypes.func.isRequired,
     handleRegisterClose: PropTypes.func.isRequired,
@@ -113,5 +112,4 @@ export default class Actions extends Component {
       }
     });
   }
-
 }

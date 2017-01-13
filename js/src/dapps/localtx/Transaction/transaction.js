@@ -25,7 +25,6 @@ import styles from './transaction.css';
 import IdentityIcon from '../../githubhint/IdentityIcon';
 
 class BaseTransaction extends Component {
-
   shortHash (hash) {
     return `${hash.substr(0, 5)}..${hash.substr(hash.length - 3)}`;
   }
@@ -89,7 +88,6 @@ class BaseTransaction extends Component {
 }
 
 export class Transaction extends BaseTransaction {
-
   static propTypes = {
     idx: PropTypes.number.isRequired,
     transaction: PropTypes.object.isRequired,
@@ -180,7 +178,6 @@ export class Transaction extends BaseTransaction {
 }
 
 export class LocalTransaction extends BaseTransaction {
-
   static propTypes = {
     hash: PropTypes.string.isRequired,
     status: PropTypes.string.isRequired,
@@ -376,5 +373,4 @@ export class LocalTransaction extends BaseTransaction {
       </tr>
     );
   }
-
 }

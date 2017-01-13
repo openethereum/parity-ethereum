@@ -24,7 +24,6 @@ import IdentityIcon from '../../IdentityIcon';
 import styles from './account-selector.css';
 
 class AccountSelectorItem extends Component {
-
   static propTypes = {
     onSelectAccount: PropTypes.func.isRequired,
     account: PropTypes.object.isRequired
@@ -62,11 +61,9 @@ class AccountSelectorItem extends Component {
   onSelectAccount = () => {
     this.props.onSelectAccount(this.props.account.address);
   }
-
 }
 
 export default class AccountSelector extends Component {
-
   static propTypes = {
     list: PropTypes.array.isRequired,
     selected: PropTypes.object.isRequired,
@@ -122,5 +119,4 @@ export default class AccountSelector extends Component {
     this.props.handleSetSelected(address);
     this.onToggleOpen();
   }
-
 }

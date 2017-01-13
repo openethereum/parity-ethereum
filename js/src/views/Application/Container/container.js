@@ -22,7 +22,6 @@ import { Errors, ParityBackground, Tooltips } from '~/ui';
 import styles from '../application.css';
 
 export default class Container extends Component {
-
   static propTypes = {
     children: PropTypes.node.isRequired,
     onCloseFirstRun: PropTypes.func,

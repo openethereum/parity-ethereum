@@ -30,7 +30,6 @@ import rpcData from '../../data/rpc.json';
 const rpcMethods = sortBy(rpcData.methods, 'name');
 
 export default class CallsToolbar extends Component {
-
   render () {
     const { call, callEl, containerEl } = this.props;
 

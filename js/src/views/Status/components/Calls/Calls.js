@@ -20,7 +20,6 @@ import CallsToolbar from '../CallsToolbar';
 import styles from './Calls.css';
 
 export default class Calls extends Component {
-
   state = {
     activeCall: null,
     activeChild: null
@@ -121,5 +120,4 @@ export default class Calls extends Component {
     }).isRequired,
     reset: PropTypes.func
   }
-
 }

@@ -204,7 +204,6 @@ export default class CreateWallet extends Component {
       default:
       case 'TYPE':
         return [ cancelBtn, nextBtn ];
-
     }
   }
 

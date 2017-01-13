@@ -21,7 +21,6 @@ import RaisedButton from 'material-ui/RaisedButton';
 import styles from './transactionPendingFormReject.css';
 
 export default class TransactionPendingFormReject extends Component {
-
   static propTypes = {
     onReject: PropTypes.func.isRequired,
     className: PropTypes.string

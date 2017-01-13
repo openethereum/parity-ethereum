@@ -35,7 +35,6 @@ const initState = {
 };
 
 export default class QueryAction extends Component {
-
   static propTypes = {
     show: PropTypes.bool.isRequired,
     loading: PropTypes.bool.isRequired,
@@ -203,5 +202,4 @@ export default class QueryAction extends Component {
     this.setState(initState);
     this.props.onClose();
   }
-
 }

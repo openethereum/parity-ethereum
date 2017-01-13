@@ -194,5 +194,4 @@ export default class AddMeta extends Component {
       value: ''
     } });
   }
-
 }

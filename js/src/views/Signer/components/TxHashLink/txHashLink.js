@@ -38,5 +38,4 @@ export default class TxHashLink extends Component {
       </a>
     );
   }
-
 }

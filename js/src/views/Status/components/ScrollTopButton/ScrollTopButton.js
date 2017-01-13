@@ -24,7 +24,6 @@ import styles from './ScrollTopButton.css';
 const scrollTopThreshold = 600;
 
 export default class ScrollTopButton extends Component {
-
   state = {}
 
   componentDidMount () {
@@ -67,5 +66,4 @@ export default class ScrollTopButton extends Component {
       });
     }
   }
-
 }

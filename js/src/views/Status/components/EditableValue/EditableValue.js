@@ -21,7 +21,6 @@ import styles from './EditableValue.css';
 import valueStyles from '../Value/Value.css';
 
 export default class EditableValue extends Component {
-
   state = {
     value: this.props.value,
     inEditMode: false
@@ -188,5 +187,4 @@ export default class EditableValue extends Component {
     autocomplete: PropTypes.bool,
     dataSource: PropTypes.arrayOf(PropTypes.string)
   }
-
 }

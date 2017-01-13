@@ -32,7 +32,6 @@ import { ABI_TYPES, parseAbiType } from '~/util/abi';
 import styles from './typedInput.css';
 
 export default class TypedInput extends Component {
-
   static propTypes = {
     param: PropTypes.oneOfType([
       PropTypes.object,
@@ -441,5 +440,4 @@ export default class TypedInput extends Component {
 
     return param;
   }
-
 }

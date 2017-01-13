@@ -36,7 +36,6 @@ import styles from './writeContract.css';
 
 @observer
 class WriteContract extends Component {
-
   static propTypes = {
     accounts: PropTypes.object.isRequired,
     worker: PropTypes.object,
@@ -565,7 +564,6 @@ class WriteContract extends Component {
   applyResize = () => {
     this.setState({ size: this.size });
   }
-
 }
 
 function mapStateToProps (state) {
