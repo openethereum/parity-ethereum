@@ -176,8 +176,6 @@ class PasswordManager extends Component {
                     defaultMessage='current password' />
                 }
                 onChange={ this.onEditCurrentPassword }
-                onSubmit={ this.changePassword }
-                submitOnBlur={ false }
                 type='password' />
               <Input
                 disabled={ busy }
@@ -192,8 +190,6 @@ class PasswordManager extends Component {
                     defaultMessage='(optional) new password hint' />
                 }
                 onChange={ this.onEditNewPasswordHint }
-                onSubmit={ this.changePassword }
-                submitOnBlur={ false }
                 value={ passwordHint } />
               <div className={ styles.passwords }>
                 <div className={ styles.password }>
