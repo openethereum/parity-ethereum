@@ -183,7 +183,7 @@ impl Engine for Ethash {
 			let bound_divisor = self.ethash_params.gas_limit_bound_divisor;
 			let lower_limit = gas_limit - gas_limit / bound_divisor + 1.into();
 			let upper_limit = gas_limit + gas_limit / bound_divisor - 1.into();
-			if gas_limit < gas_floor_target {
+			let gas_limit = if gas_limit < gas_floor_target {
 				let gas_limit = min(gas_floor_target, upper_limit);
 				self.round_block_gas_limit(gas_limit, lower_limit, upper_limit)
 			} else if gas_limit > gas_ceil_target {
@@ -195,7 +195,11 @@ impl Engine for Ethash {
 				let gas_limit = max(gas_floor_target, min(total_upper_limit,
 					lower_limit + (header.gas_used().clone() * 6.into() / 5.into()) / bound_divisor));
 				self.round_block_gas_limit(gas_limit, total_lower_limit, total_upper_limit)
-			}
+			};
+			// ensure that we are not violating protocol limits
+			debug_assert!(gas_limit >= lower_limit);
+			debug_assert!(gas_limit <= upper_limit);
+			gas_limit
 		};
 		header.set_difficulty(difficulty);
 		header.set_gas_limit(gas_limit);
