@@ -89,6 +89,78 @@ describe('views/Dapps/DappStore', () => {
     restoreGlobals();
   });
 
+  describe('@action', () => {
+    const defaultViews = {
+      [APPID_BASICCOIN]: { visible: false },
+      [APPID_DAPPREG]: { visible: true }
+    };
+
+    describe('hideApp/showApp', () => {
+      beforeEach(() => {
+        localStore.set(LS_KEY_DISPLAY, defaultViews);
+
+        create().readDisplayApps();
+      });
+
+      afterEach(() => {
+        localStore.set(LS_KEY_DISPLAY, {});
+      });
+
+      it('disables visibility', () => {
+        store.hideApp(APPID_DAPPREG);
+        store.writeDisplayApps();
+
+        expect(store.displayApps[APPID_DAPPREG].visible).to.be.false;
+        expect(localStore.get(LS_KEY_DISPLAY)).to.deep.equal(
+          Object.assign({}, defaultViews, { [APPID_DAPPREG]: { visible: false } })
+        );
+      });
+
+      it('enables visibility', () => {
+        store.showApp(APPID_BASICCOIN);
+
+        expect(store.displayApps[APPID_BASICCOIN].visible).to.be.true;
+        expect(localStore.get(LS_KEY_DISPLAY)).to.deep.equal(
+          Object.assign({}, defaultViews, { [APPID_BASICCOIN]: { visible: true } })
+        );
+      });
+
+      it('keeps visibility state', () => {
+        store.hideApp(APPID_BASICCOIN);
+        store.showApp(APPID_DAPPREG);
+
+        expect(store.displayApps[APPID_BASICCOIN].visible).to.be.false;
+        expect(store.displayApps[APPID_DAPPREG].visible).to.be.true;
+        expect(localStore.get(LS_KEY_DISPLAY)).to.deep.equal(defaultViews);
+      });
+    });
+
+    describe('readDisplayApps/writeDisplayApps', () => {
+      beforeEach(() => {
+        localStore.set(LS_KEY_DISPLAY, defaultViews);
+
+        create().readDisplayApps();
+      });
+
+      afterEach(() => {
+        localStore.set(LS_KEY_DISPLAY, {});
+      });
+
+      it('loads visibility from storage', () => {
+        expect(store.displayApps).to.deep.equal(defaultViews);
+      });
+
+      it('saves visibility to storage', () => {
+        store.setDisplayApps({ [APPID_BASICCOIN]: { visible: true } });
+        store.writeDisplayApps();
+
+        expect(localStore.get(LS_KEY_DISPLAY)).to.deep.equal(
+          Object.assign({}, defaultViews, { [APPID_BASICCOIN]: { visible: true } })
+        );
+      });
+    });
+  });
+
   describe('saved views', () => {
     beforeEach(() => {
       localStore.set(LS_KEY_DISPLAY, {

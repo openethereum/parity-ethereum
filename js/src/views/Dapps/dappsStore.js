@@ -238,12 +238,12 @@ export default class DappsStore {
   }
 
   @action hideApp = (id) => {
-    this.displayApps = Object.assign({}, this.displayApps, { [id]: { visible: false } });
+    this.setDisplayApps({ [id]: { visible: false } });
     this.writeDisplayApps();
   }
 
   @action showApp = (id) => {
-    this.displayApps = Object.assign({}, this.displayApps, { [id]: { visible: true } });
+    this.setDisplayApps({ [id]: { visible: true } });
     this.writeDisplayApps();
   }
 
@@ -254,6 +254,10 @@ export default class DappsStore {
   @action writeDisplayApps = () => {
     store.set(LS_KEY_DISPLAY, this.displayApps);
   }
+
+  @action setDisplayApps = (displayApps) => {
+    this.displayApps = Object.assign({}, this.displayApps, displayApps);
+  };
 
   @action addApps = (_apps = []) => {
     transaction(() => {
@@ -276,7 +280,7 @@ export default class DappsStore {
         }
       });
 
-      this.displayApps = Object.assign({}, this.displayApps, visibility);
+      this.setDisplayApps(visibility);
     });
   }
 }
