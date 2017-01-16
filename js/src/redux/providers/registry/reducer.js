@@ -24,7 +24,7 @@ export default (state = initialState, action) => {
       return state;
     }
 
-    return { ...state, reverse: {
+    return { reverse: {
       ...state.reverse, [ action.address ]: action.reverse
     } };
   }

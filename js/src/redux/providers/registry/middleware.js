@@ -23,21 +23,28 @@ import registryABI from '~/contracts/abi/registry.json';
 import { setReverse, startCachingReverses } from './actions';
 
 const read = () => {
-  const data = window.localStorage.getItem('registry-reverses');
-  if (!data) {
+  const reverses = window.localStorage.getItem('registry-reverses');
+  const lastBlock = window.localStorage.getItem('registry-reverses-last-block');
+  if (!reverses || !lastBlock) {
     return null;
   }
 
   try {
-    return JSON.parse(data);
+    return {
+      reverses: JSON.parse(reverses),
+      lastBlock: JSON.parse(lastBlock)
+    };
   } catch (_) {
     return null;
   }
 };
 
-const write = debounce((getReverses) => {
+const write = debounce((getReverses, getLastBlock) => {
   const reverses = getReverses();
+  const lastBlock = getLastBlock();
+
   window.localStorage.setItem('registry-reverses', JSON.stringify(reverses));
+  window.localStorage.setItem('registry-reverses-last-block', JSON.stringify(lastBlock));
 }, 20000);
 
 export default (api) => (store) => {
@@ -84,12 +91,23 @@ export default (api) => (store) => {
       case 'startCachingReverses':
         const { registry } = Contracts.get();
 
+        const cached = read();
+        if (cached) {
+          Object
+            .entries(cached.reverses)
+            .forEach(([ address, reverse ]) => store.dispatch(setReverse(address, reverse)));
+        }
+
         registry.getInstance()
           .then((instance) => api.newContract(registryABI, instance.address))
           .then((_contract) => {
             contract = _contract;
 
-            subscription = subscribeToEvents(_contract, ['ReverseConfirmed', 'ReverseRemoved']);
+            subscription = subscribeToEvents(_contract, [
+              'ReverseConfirmed', 'ReverseRemoved'
+            ], {
+              from: cached ? cached.lastBlock : 0
+            });
             subscription.on('log', onLog);
 
             timeout = setTimeout(checkReverses, 10000);
@@ -99,13 +117,6 @@ export default (api) => (store) => {
             console.error('Failed to start caching reverses:', err);
             throw err;
           });
-
-        const cached = read();
-        if (cached) {
-          Object
-            .entries(cached)
-            .forEach(([ address, reverse ]) => store.dispatch(setReverse(address, reverse)));
-        }
 
         break;
       case 'stopCachingReverses':
@@ -123,7 +134,10 @@ export default (api) => (store) => {
 
         break;
       case 'setReverse':
-        write(() => store.getState().registry.reverse);
+        write(
+          () => store.getState().registry.reverse,
+          () => +store.getState().nodeStatus.blockNumber
+        );
         next(action);
 
         break;
