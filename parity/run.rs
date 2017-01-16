@@ -323,9 +323,7 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 
 	// start stratum
 	if let Some(ref stratum_config) = cmd.stratum {
-		let _ = ClientService::stratum_notifier(stratum_config, Arc::downgrade(&miner), Arc::downgrade(&client)).map(|stratum_notifier| {
-			miner.push_notifier(stratum_notifier)
-		});
+		ClientService::register_stratum(stratum_config, miner.clone(), Arc::downgrade(&client));
 	}
 
 	// create sync object

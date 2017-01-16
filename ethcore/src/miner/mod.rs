@@ -59,6 +59,7 @@ pub use client::TransactionImportResult;
 pub use self::work_notify::NotifyWork;
 
 #[cfg(feature="stratum")] pub use self::stratum::Stratum;
+#[cfg(feature="stratum")] pub use self::stratum::Error as StratumError;
 
 use std::collections::BTreeMap;
 use util::{H256, U256, Address, Bytes};

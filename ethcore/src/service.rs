@@ -22,7 +22,7 @@ use spec::Spec;
 use error::*;
 use client::{Client, ClientConfig, ChainNotify};
 use miner;
-use miner::{Miner, StratumOptions};
+use miner::{Miner, StratumOptions, StratumError};
 use snapshot::ManifestData;
 use snapshot::service::{Service as SnapshotService, ServiceParams as SnapServiceParams};
 use std::sync::atomic::AtomicBool;
@@ -156,29 +156,18 @@ impl ClientService {
 
 	#[cfg(feature="stratum")]
 	/// Runs stratum if feature is on
-	pub fn stratum_notifier(cfg: &StratumOptions, miner: Weak<Miner>, client: Weak<Client>) -> Result<Box<miner::NotifyWork>, ()> {
-		use miner::Stratum;
-		use miner::NotifyWork;
-
-		Stratum::new(cfg, miner, client).or_else(|e|
-		{
-			warn!(target: "stratum", "Cannot start stratum server: {:?}", e);
-			Err(e)
-		})
-		.map(|stratum|
-		{
-			stratum.run_async();
-			Box::new(stratum) as Box<NotifyWork>
-		})
-		// Warnings produced upstream, this is just conditional compilation workaround
-		.map_err(|_|())
+	pub fn register_stratum(cfg: &StratumOptions, miner: Arc<Miner>, client: Weak<Client>) -> Result<(), StratumError> {
+		let stratum = miner::Stratum::new(cfg, Arc::downgrade(&miner.clone()), client)?;
+		stratum.run_async();
+		miner.push_notifier(Box::new(stratum) as Box<miner::NotifyWork>);
+		Ok(())
 	}
 
 	#[cfg(not(feature="stratum"))]
 	/// Runs stratum if feature is on
-	pub fn stratum_notifier(_cfg: &StratumOptions, _miner: Weak<Miner>, _client: Weak<Client>) -> Result<Box<miner::NotifyWork>, ()> {
-		// Option is not compiled, but error should have been reported already
-		Err(())
+	pub fn register_stratum(_cfg: &StratumOptions, _miner: Weak<Miner>, _client: Weak<Client>) -> Result<(), StratumError> {
+		// Does nothing (feature is off)
+		Ok(())
 	}
 }
 
