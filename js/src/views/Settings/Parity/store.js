@@ -70,7 +70,7 @@ export default class Store {
         .keys(LOG_KEYS)
         .reduce((state, logKey) => {
           const log = LOG_KEYS[logKey];
-          const logger = LogLevel.getLogger(log.path);
+          const logger = LogLevel.getLogger(log.key);
           const level = logger.getLevel();
 
           state[logKey] = {
