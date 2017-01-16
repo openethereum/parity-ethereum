@@ -68,6 +68,7 @@ impl<F: Fetch> Endpoint for Web<F> {
 
 struct WebInstaller {
 	embeddable_on: Embeddable,
+	referer: String,
 }
 
 impl ContentValidator for WebInstaller {
@@ -84,7 +85,12 @@ impl ContentValidator for WebInstaller {
 			self.embeddable_on.clone(),
 		);
 		if is_html {
-			handler.set_initial_content(&format!(r#"<script src="/{}/inject.js"></script>"#, apps::UTILS_PATH));
+			handler.set_initial_content(&format!(
+				r#"<script src="/{}/inject.js"></script><script>history.replaceState({{}}, "", "/?{}{}")</script>"#,
+				apps::UTILS_PATH,
+				apps::URL_REFERER,
+				&self.referer,
+			));
 		}
 		Ok(ValidatorResponse::Streaming(handler))
 	}
@@ -108,7 +114,7 @@ struct WebHandler<F: Fetch> {
 }
 
 impl<F: Fetch> WebHandler<F> {
-	fn extract_target_url(&self, url: Option<Url>) -> Result<String, State<F>> {
+	fn extract_target_url(&self, url: Option<Url>) -> Result<(String, String), State<F>> {
 		let (path, query) = match url {
 			Some(url) => (url.path, url.query),
 			None => {
@@ -157,7 +163,7 @@ impl<F: Fetch> WebHandler<F> {
 			None => "".into(),
 		};
 
-		Ok(format!("{}://{}{}", protocol, path[idx + 2..].join("/"), query))
+		Ok((format!("{}://{}{}", protocol, path[idx + 2..].join("/"), query), path[0..].join("/")))
 	}
 }
 
@@ -166,7 +172,7 @@ impl<F: Fetch> server::Handler<net::HttpStream> for WebHandler<F> {
 		let url = extract_url(&request);
 
 		// First extract the URL (reject invalid URLs)
-		let target_url = match self.extract_target_url(url) {
+		let (target_url, referer) = match self.extract_target_url(url) {
 			Ok(url) => url,
 			Err(error) => {
 				self.state = error;
@@ -180,6 +186,7 @@ impl<F: Fetch> server::Handler<net::HttpStream> for WebHandler<F> {
 			self.control.clone(),
 			WebInstaller {
 				embeddable_on: self.embeddable_on.clone(),
+				referer: referer,
 			},
 			self.embeddable_on.clone(),
 			self.remote.clone(),
