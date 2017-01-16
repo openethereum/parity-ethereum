@@ -24,6 +24,7 @@ use super::StratumOptions;
 
 use std::sync::{Arc, Weak};
 use std::net::{SocketAddr, AddrParseError};
+use std::fmt;
 
 use util::{H256, U256, FixedHash, H64, clean_0x};
 use ethereum::ethash::Ethash;
@@ -34,6 +35,64 @@ use client::Client;
 use block::IsBlock;
 use std::str::FromStr;
 use rlp::encode;
+
+struct SubmitPayload {
+	nonce: H64,
+	pow_hash: H256,
+	mix_hash: H256,
+}
+
+#[derive(Debug)]
+enum PayloadError {
+	NotEnoughArguments(usize),
+	InvalidNonce(String),
+	InvalidPowHash(String),
+	InvalidMixHash(String),
+}
+
+impl fmt::Display for PayloadError {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		fmt::Debug::fmt(&self, f)
+	}
+}
+
+impl SubmitPayload {
+	fn from_args(payload: Vec<String>) -> Result<Self, PayloadError> {
+		if arg.len() != 3 {
+			return Err(PayloadError::NotEnoughArguments);
+		}
+
+		let nonce = match H64::from_str(clean_0x(&payload[0])) {
+			Ok(nonce) => nonce,
+			Err(e) => {
+				warn!(target: "stratum", "submit_work ({}): invalid nonce ({:?})", &payload[0], e);
+				return Err(Error::InvalidNonce(payload[0]))
+			}
+		};
+
+		let pow_hash = match H256::from_str(clean_0x(&payload[1])) {
+			Ok(pow_hash) => pow_hash,
+			Err(e) => {
+				warn!(target: "stratum", "submit_work ({}): invalid hash ({:?})", &payload[1], e);
+				return Err(Error::InvalidPowHash(payload[1]));
+			}
+		};
+
+		let mix_hash = match H256::from_str(clean_0x(&payload[2])) {
+			Ok(mix_hash) => mix_hash,
+			Err(e) => {
+				warn!(target: "stratum", "submit_work ({}): invalid mix-hash ({:?})",  &payload[2], e);
+				return Err(Error::InvalidMixHash(payload[2]));
+			}
+		};
+
+		Ok(SubmitPayload {
+			nonce: nonce,
+			pow_hash: pow_hash,
+			mix_hash: mix_hash,
+		})
+	}
+}
 
 /// Job dispatcher for stratum service
 pub struct StratumJobDispatcher {
@@ -62,46 +121,21 @@ impl JobDispatcher for StratumJobDispatcher {
 		})
 	}
 
-	fn submit(&self, payload: Vec<String>) {
-		if payload.len() != 3 {
-			warn!(target: "stratum", "submit_work: invalid work submit request({:?})", payload);
-		}
-		else {
-			trace!(target: "stratum", "submit_work: {} {} {}", &payload[0], &payload[1], &payload[2]);
-		}
-
-		let nonce = match H64::from_str(clean_0x(&payload[0])) {
-			Ok(nonce) => nonce,
-			Err(e) => {
-				warn!(target: "stratum", "submit_work ({}): invalid nonce ({:?})", &payload[0], e);
-				return;
-			}
-		};
-
-		let pow_hash = match H256::from_str(clean_0x(&payload[1])) {
-			Ok(pow_hash) => pow_hash,
-			Err(e) => {
-				warn!(target: "stratum", "submit_work ({}): invalid hash ({:?})", &payload[1], e);
-				return;
-			}
-		};
-
-		let mix_hash = match H256::from_str(clean_0x(&payload[2])) {
-			Ok(mix_hash) => mix_hash,
-			Err(e) => {
-				warn!(target: "stratum", "submit_work ({}): invalid mix-hash ({:?})",  &payload[2], e);
-				return;
-			}
-		};
+	fn submit(&self, payload: Vec<String>) -> Result<(), StratumServiceError> {
+		let payload = SubmitPayload::from_args(payload).map_err(|e|
+			StratumServiceError::Dispatch(format!("{}", e))
+		)?;
 
 		trace!(target: "stratum", "submit_work: Decoded: nonce={}, pow_hash={}, mix_hash={}", nonce, pow_hash, mix_hash);
-		let client = self.client.upgrade().unwrap();
-		let miner = self.miner.upgrade().unwrap();
 
-		let seal = vec![encode(&mix_hash).to_vec(), encode(&nonce).to_vec()];
-		if let Err(e) = miner.submit_seal(&*client, pow_hash, seal) {
-			warn!(target: "stratum", "submit_work error: {:?}", e);
-		};
+		self.with_core(|client, miner| {
+			let seal = vec![encode(&mix_hash).to_vec(), encode(&nonce).to_vec()];
+			if let Err(e) = miner.submit_seal(&*client, pow_hash, seal) {
+				warn!(target: "stratum", "submit_work error: {:?}", e);
+			};
+		});
+
+		Ok(())
 	}
 }
 

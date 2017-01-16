@@ -132,10 +132,17 @@ impl Stratum {
 		Ok(match params {
 			Params::Array(vals) => {
 				// first two elements are service messages (worker_id & job_id)
-				self.dispatcher.submit(vals.iter().skip(2)
+				match self.dispatcher.submit(vals.iter().skip(2)
 					.filter_map(|val| match val { &Value::String(ref str) => Some(str.to_owned()), _ => None })
-					.collect::<Vec<String>>());
-				to_value(true)
+					.collect::<Vec<String>>()) {
+						Ok(()) => {
+							to_value(true)
+						},
+						Err(submit_err) => {
+							warn!("Error while submitting share: {:?}", submit_err);
+							to_value(false)
+						}
+					}
 			},
 			_ => {
 				trace!(target: "stratum", "Invalid submit work format {:?}", params);
@@ -190,9 +197,9 @@ impl Stratum {
 
 	pub fn maintain(&self) {
 		let mut job_que = self.job_que.write();
+		let job_payload = self.dispatcher.job();
 		for socket_addr in job_que.drain() {
-			let job_payload = self.dispatcher.job();
-			job_payload.map(
+			job_payload.as_ref().map(
 				|json| self.rpc_server.push_message(&socket_addr, json.as_bytes())
 			);
 		}
@@ -251,7 +258,11 @@ mod tests {
 
 	pub struct VoidManager;
 
-	impl JobDispatcher for VoidManager { }
+	impl JobDispatcher for VoidManager {
+		fn submit(&self, _payload: Vec<String>) -> Result<(), Error> {
+			Ok(())
+		}
+	}
 
 	lazy_static! {
 		static ref LOG_DUMMY: bool = {
@@ -376,6 +387,10 @@ mod tests {
 	impl JobDispatcher for DummyManager {
 		fn initial(&self) -> Option<String> {
 			Some(self.initial_payload.clone())
+		}
+
+		fn submit(&self, _payload: Vec<String>) -> Result<(), Error> {
+			Ok(())
 		}
 	}
 

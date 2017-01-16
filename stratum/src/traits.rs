@@ -26,6 +26,7 @@ pub enum Error {
 	NoWorkers,
 	Io(String),
 	Tcp(String),
+	Dispatch(String),
 }
 
 impl From<std::io::Error> for Error {
@@ -50,7 +51,7 @@ pub trait JobDispatcher: Send + Sync {
 	// json for job update given worker_id (payload manager should split job!)
 	fn job(&self) -> Option<String> { None }
 	// miner job result
-	fn submit(&self, payload: Vec<String>);
+	fn submit(&self, payload: Vec<String>) -> Result<(), Error>;
 }
 
 #[ipc(client_ident="RemoteWorkHandler")]
