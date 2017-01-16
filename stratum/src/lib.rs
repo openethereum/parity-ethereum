@@ -101,6 +101,7 @@ impl Stratum {
 		dispatcher: Arc<JobDispatcher>,
 		secret: Option<H256>,
 	) -> Result<Arc<Stratum>, Error> {
+
 		let rpc = Arc::new(StratumRpc {
 			stratum: RwLock::new(None),
 		});
@@ -108,10 +109,10 @@ impl Stratum {
 		delegate.add_method("miner.subscribe", StratumRpc::subscribe);
 		delegate.add_method("miner.authorize", StratumRpc::authorize);
 		delegate.add_method("miner.sumbit", StratumRpc::submit);
-
 		let mut handler = IoHandler::default();
 		handler.extend_with(delegate);
 		let server = JsonRpcServer::new(addr, handler)?;
+
 		let stratum = Arc::new(Stratum {
 			rpc_server: server,
 			subscribers: RwLock::new(Vec::new()),

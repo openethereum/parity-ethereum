@@ -131,7 +131,7 @@ impl JobDispatcher for StratumJobDispatcher {
 		self.with_core(|client, miner| {
 			let seal = vec![encode(&mix_hash).to_vec(), encode(&nonce).to_vec()];
 			if let Err(e) = miner.submit_seal(&*client, pow_hash, seal) {
-				warn!(target: "stratum", "submit_work error: {:?}", e);
+				warn!(target: "stratum", "submit_seal error: {:?}", e);
 			};
 		});
 
