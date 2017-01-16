@@ -101,15 +101,14 @@ describe('util/subscribe-to-events', () => {
 
     const onLog = spy();
     const onBar = spy();
-    const s = subscribeToEvents(contract, [ 'Bar' ], { interval: 5 })
+    subscribeToEvents(contract, [ 'Bar' ], { interval: 5 })
       .on('log', onLog)
       .on('Bar', onBar);
-    await delay(9);
-    s.unsubscribe();
+    await delay(10);
 
-    expect(onLog.callCount).to.equal(1);
+    expect(onLog.callCount).to.be.at.least(1);
     expect(onLog.firstCall.args).to.eql([ liveLogs[0] ]);
-    expect(onBar.callCount).to.equal(1);
+    expect(onBar.callCount).to.be.at.least(1);
     expect(onBar.firstCall.args).to.eql([ liveLogs[0] ]);
   });
 });

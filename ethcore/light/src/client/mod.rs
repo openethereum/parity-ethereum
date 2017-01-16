@@ -66,6 +66,9 @@ pub trait LightChainClient: Send + Sync {
 	/// Clear the queue.
 	fn clear_queue(&self);
 
+	/// Flush the queue.
+	fn flush_queue(&self);
+
 	/// Get queue info.
 	fn queue_info(&self) -> queue::QueueInfo;
 
@@ -130,7 +133,7 @@ impl Client {
 
 		BlockChainInfo {
 			total_difficulty: best_block.total_difficulty,
-			pending_total_difficulty: best_block.total_difficulty,
+			pending_total_difficulty: best_block.total_difficulty + self.queue.total_difficulty(),
 			genesis_hash: genesis_hash,
 			best_block_hash: best_block.hash,
 			best_block_number: best_block.number,
@@ -149,6 +152,11 @@ impl Client {
 	/// Get a block header by Id.
 	pub fn get_header(&self, id: BlockId) -> Option<Bytes> {
 		self.chain.get_header(id)
+	}
+
+	/// Flush the header queue.
+	pub fn flush_queue(&self) {
+		self.queue.flush()
 	}
 
 	/// Get the `i`th CHT root.
@@ -209,6 +217,10 @@ impl LightChainClient for Client {
 
 	fn clear_queue(&self) {
 		self.queue.clear()
+	}
+
+	fn flush_queue(&self) {
+		Client::flush_queue(self);
 	}
 
 	fn queue_info(&self) -> queue::QueueInfo {

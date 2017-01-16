@@ -26,14 +26,13 @@ lazy_static = "0.2"
 regex = "0.1"
 isatty = "0.1"
 toml = "0.2"
-serde = "0.8.0"
-serde_json = "0.8.0"
+serde = "0.8"
+serde_json = "0.8"
 app_dirs = "1.1.1"
+fdlimit = "0.1"
 hyper = { version = "0.9", default-features = false }
 ctrlc = { git = "https://github.com/ethcore/rust-ctrlc.git" }
-fdlimit = "0.1"
-clippy = { version = "0.0.103", optional = true}
-rlp = { path = "util/rlp" }
+jsonrpc-core = { git = "https://github.com/ethcore/jsonrpc.git" }
 ethsync = { path = "sync" }
 ethcore = { path = "ethcore" }
 ethcore-util = { path = "util" }
@@ -44,15 +43,17 @@ ethcore-signer = { path = "signer" }
 ethcore-ipc = { path = "ipc/rpc" }
 ethcore-ipc-nano = { path = "ipc/nano" }
 ethcore-ipc-hypervisor = { path = "ipc/hypervisor" }
+ethcore-light = { path = "ethcore/light" }
 ethcore-logger = { path = "logger" }
 ethcore-stratum = { path = "stratum" }
-ethcore-dapps = { path = "dapps", optional = true }
+rlp = { path = "util/rlp" }
 rpc-cli = { path = "rpc_cli" }
 parity-rpc-client = { path = "rpc_client" }
-ethcore-light = { path = "ethcore/light" }
 parity-hash-fetch = { path = "hash-fetch" }
 parity-updater = { path = "updater" }
 parity-reactor = { path = "util/reactor" }
+ethcore-dapps = { path = "dapps", optional = true }
+clippy = { version = "0.0.103", optional = true}
 
 [target.'cfg(windows)'.dependencies]
 winapi = "0.2"

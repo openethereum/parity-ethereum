@@ -17,12 +17,20 @@
 import LogLevel from 'loglevel';
 
 export const LOG_KEYS = {
+  Balances: {
+    key: 'balances',
+    desc: 'Balances fetching'
+  },
   TransferModalStore: {
-    path: 'modals/Transfer/store',
-    desc: 'Transfer Modal MobX Store'
+    key: 'modalsTransferStore',
+    desc: 'Transfer modal MobX store'
+  },
+  Signer: {
+    key: 'secureApi',
+    desc: 'The Signer and the Secure API'
   }
 };
 
 export const getLogger = (LOG_KEY) => {
-  return LogLevel.getLogger(LOG_KEY.path);
+  return LogLevel.getLogger(LOG_KEY.key);
 };

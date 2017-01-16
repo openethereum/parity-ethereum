@@ -23,7 +23,7 @@ import { bytesToHex } from '~/api/util/format';
 import Contract from '~/api/contract';
 import ERRORS from './errors';
 import { ERROR_CODES } from '~/api/transport/error';
-import { DEFAULT_GAS, MAX_GAS_ESTIMATION } from '~/util/constants';
+import { DEFAULT_GAS, DEFAULT_GASPRICE, MAX_GAS_ESTIMATION } from '~/util/constants';
 import GasPriceStore from '~/ui/GasPriceEditor/store';
 import { getLogger, LOG_KEYS } from '~/config';
 
@@ -220,13 +220,27 @@ export default class TransferStore {
   }
 
   @action _attachWalletOperation = (txhash) => {
+    if (!txhash || /^(0x)?0*$/.test(txhash)) {
+      return;
+    }
+
     let ethSubscriptionId = null;
+
+    // Number of blocks left to look-up (unsub after 15 blocks if nothing)
+    let nBlocksLeft = 15;
 
     return this.api.subscribe('eth_blockNumber', () => {
       this.api.eth
         .getTransactionReceipt(txhash)
         .then((tx) => {
+          if (nBlocksLeft <= 0) {
+            this.api.unsubscribe(ethSubscriptionId);
+            ethSubscriptionId = null;
+            return;
+          }
+
           if (!tx) {
+            nBlocksLeft--;
             return;
           }
 
@@ -239,6 +253,10 @@ export default class TransferStore {
             this.operation = operations[0];
           }
 
+          this.api.unsubscribe(ethSubscriptionId);
+          ethSubscriptionId = null;
+        })
+        .catch(() => {
           this.api.unsubscribe(ethSubscriptionId);
           ethSubscriptionId = null;
         });
@@ -357,6 +375,7 @@ export default class TransferStore {
         });
       })
       .catch((error) => {
+        this.gasStore.setEstimatedError();
         console.warn('etimateGas', error);
         this.recalculate(redo);
       });
@@ -440,6 +459,8 @@ export default class TransferStore {
   getValues (_gasTotal) {
     const gasTotal = new BigNumber(_gasTotal || 0);
     const { valueAll, isEth, isWallet } = this;
+
+    log.debug('@getValues', 'gas', gasTotal.toFormat());
 
     if (!valueAll) {
       const value = this.getTokenValue();
@@ -568,6 +589,7 @@ export default class TransferStore {
   send () {
     const { options, values } = this._getTransferParams();
     options.minBlock = new BigNumber(this.minBlock || 0).gt(0) ? this.minBlock : null;
+    log.debug('@send', 'transfer value', options.value && options.value.toFormat());
 
     return this._getTransferMethod().postTransaction(options, values);
   }
@@ -626,7 +648,8 @@ export default class TransferStore {
       options.gas = MAX_GAS_ESTIMATION;
     }
 
-    const { token } = this.getValues(options.gas);
+    const gasTotal = new BigNumber(options.gas || DEFAULT_GAS).mul(options.gasPrice || DEFAULT_GASPRICE);
+    const { token } = this.getValues(gasTotal);
 
     if (isEth && !isWallet && !forceToken) {
       options.value = token;

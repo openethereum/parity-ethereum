@@ -36,6 +36,7 @@ mod codes {
 	pub const UNKNOWN_ERROR: i64 = -32009;
 	pub const TRANSACTION_ERROR: i64 = -32010;
 	pub const EXECUTION_ERROR: i64 = -32015;
+	pub const EXCEPTION_ERROR: i64 = -32016;
 	pub const ACCOUNT_LOCKED: i64 = -32020;
 	pub const PASSWORD_INVALID: i64 = -32021;
 	pub const ACCOUNT_ERROR: i64 = -32023;
@@ -126,6 +127,14 @@ pub fn state_pruned() -> Error {
 	Error {
 		code: ErrorCode::ServerError(codes::UNSUPPORTED_REQUEST),
 		message: "This request is not supported because your node is running with state pruning. Run with --pruning=archive.".into(),
+		data: None
+	}
+}
+
+pub fn exceptional() -> Error {
+	Error {
+		code: ErrorCode::ServerError(codes::EXCEPTION_ERROR),
+		message: "The execution failed due to an exception.".into(),
 		data: None
 	}
 }
@@ -286,6 +295,7 @@ pub fn from_rlp_error(error: DecoderError) -> Error {
 pub fn from_call_error(error: CallError) -> Error {
 	match error {
 		CallError::StatePruned => state_pruned(),
+		CallError::Exceptional => exceptional(),
 		CallError::Execution(e) => execution(e),
 		CallError::TransactionNotFound => internal("{}, this should not be the case with eth_call, most likely a bug.", CallError::TransactionNotFound),
 	}

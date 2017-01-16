@@ -17,7 +17,6 @@
 import BigNumber from 'bignumber.js';
 import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
-import { bindActionCreators } from 'redux';
 
 import unknownImage from '../../../assets/images/contracts/unknown-64x64.png';
 import styles from './balance.css';
@@ -63,11 +62,15 @@ class Balance extends Component {
           value = api.util.fromWei(balance.value).toFormat(3);
         }
 
-        let imagesrc = token.image;
-        if (!imagesrc) {
-          imagesrc = images[token.address]
-            ? `${api.dappsUrl}${images[token.address]}`
-            : unknownImage;
+        const imageurl = token.image || images[token.address];
+        let imagesrc = unknownImage;
+
+        if (imageurl) {
+          const host = /^(\/)?api/.test(imageurl)
+            ? api.dappsUrl
+            : '';
+
+          imagesrc = `${host}${imageurl}`;
         }
 
         return (
@@ -107,11 +110,7 @@ function mapStateToProps (state) {
   return { images };
 }
 
-function mapDispatchToProps (dispatch) {
-  return bindActionCreators({}, dispatch);
-}
-
 export default connect(
   mapStateToProps,
-  mapDispatchToProps
+  null
 )(Balance);

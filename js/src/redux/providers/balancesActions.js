@@ -23,7 +23,10 @@ import { setAddressImage } from './imagesActions';
 
 import * as ABIS from '~/contracts/abi';
 import { notifyTransaction } from '~/util/notifications';
+import { LOG_KEYS, getLogger } from '~/config';
 import imagesEthereum from '../../../assets/images/contracts/ethereum-black-64x64.png';
+
+const log = getLogger(LOG_KEYS.Balances);
 
 const ETH = {
   name: 'Ethereum',
@@ -31,9 +34,15 @@ const ETH = {
   image: imagesEthereum
 };
 
-function setBalances (_balances) {
+function setBalances (_balances, skipNotifications = false) {
   return (dispatch, getState) => {
     const state = getState();
+
+    const currentTokens = Object.values(state.balances.tokens || {});
+    const currentTags = [ 'eth' ]
+      .concat(currentTokens.map((token) => token.tag))
+      .filter((tag) => tag)
+      .map((tag) => tag.toLowerCase());
 
     const accounts = state.personal.accounts;
     const nextBalances = _balances;
@@ -48,38 +57,55 @@ function setBalances (_balances) {
 
       const balance = Object.assign({}, balances[address]);
       const { tokens, txCount = balance.txCount } = nextBalances[address];
-      const nextTokens = balance.tokens.slice();
 
-      tokens.forEach((t) => {
-        const { token, value } = t;
-        const { tag } = token;
+      const prevTokens = balance.tokens.slice();
+      const nextTokens = [];
 
-        const tokenIndex = nextTokens.findIndex((tok) => tok.token.tag === tag);
+      currentTags
+        .forEach((tag) => {
+          const prevToken = prevTokens.find((tok) => tok.token.tag.toLowerCase() === tag);
+          const nextToken = tokens.find((tok) => tok.token.tag.toLowerCase() === tag);
 
-        if (tokenIndex === -1) {
-          nextTokens.push({
-            token,
-            value
-          });
-        } else {
-          const oldValue = nextTokens[tokenIndex].value;
+          // If the given token is not in the current tokens, skip
+          if (!nextToken && !prevToken) {
+            return false;
+          }
+
+          // No updates
+          if (!nextToken) {
+            return nextTokens.push(prevToken);
+          }
+
+          const { token, value } = nextToken;
+
+          // If it's a new token, push it
+          if (!prevToken) {
+            return nextTokens.push({
+              token, value
+            });
+          }
+
+          // Otherwise, update the value
+          const prevValue = prevToken.value;
 
           // If received a token/eth (old value < new value), notify
-          if (oldValue.lt(value) && accounts[address]) {
+          if (prevValue.lt(value) && accounts[address] && !skipNotifications) {
             const account = accounts[address];
-            const txValue = value.minus(oldValue);
+            const txValue = value.minus(prevValue);
 
             const redirectToAccount = () => {
-              const route = `/account/${account.address}`;
+              const route = `/accounts/${account.address}`;
               dispatch(push(route));
             };
 
             notifyTransaction(account, token, txValue, redirectToAccount);
           }
 
-          nextTokens[tokenIndex] = { token, value };
-        }
-      });
+          return nextTokens.push({
+            ...prevToken,
+            value
+          });
+        });
 
       balances[address] = { txCount: txCount || new BigNumber(0), tokens: nextTokens };
     });
@@ -123,7 +149,9 @@ export function setTokenImage (tokenAddress, image) {
   };
 }
 
-export function loadTokens () {
+export function loadTokens (options = {}) {
+  log.debug('loading tokens', Object.keys(options).length ? options : '');
+
   return (dispatch, getState) => {
     const { tokenreg } = getState().balances;
 
@@ -131,7 +159,7 @@ export function loadTokens () {
       .call()
       .then((numTokens) => {
         const tokenIds = range(numTokens.toNumber());
-        dispatch(fetchTokens(tokenIds));
+        dispatch(fetchTokens(tokenIds, options));
       })
       .catch((error) => {
         console.warn('balances::loadTokens', error);
@@ -139,8 +167,9 @@ export function loadTokens () {
   };
 }
 
-export function fetchTokens (_tokenIds) {
+export function fetchTokens (_tokenIds, options = {}) {
   const tokenIds = uniq(_tokenIds || []);
+
   return (dispatch, getState) => {
     const { api, images, balances } = getState();
     const { tokenreg } = balances;
@@ -161,8 +190,9 @@ export function fetchTokens (_tokenIds) {
             dispatch(setAddressImage(address, image, true));
           });
 
+        log.debug('fetched token', tokens);
         dispatch(setTokens(tokens));
-        dispatch(fetchBalances());
+        dispatch(updateTokensFilter(null, null, options));
       })
       .catch((error) => {
         console.warn('balances::fetchTokens', error);
@@ -170,7 +200,7 @@ export function fetchTokens (_tokenIds) {
   };
 }
 
-export function fetchBalances (_addresses) {
+export function fetchBalances (_addresses, skipNotifications = false) {
   return (dispatch, getState) => {
     const { api, personal } = getState();
     const { visibleAccounts, accounts } = personal;
@@ -192,8 +222,7 @@ export function fetchBalances (_addresses) {
           balances[addr] = accountsBalances[idx];
         });
 
-        dispatch(setBalances(balances));
-        updateTokensFilter(addresses)(dispatch, getState);
+        dispatch(setBalances(balances, skipNotifications));
       })
       .catch((error) => {
         console.warn('balances::fetchBalances', error);
@@ -201,7 +230,7 @@ export function fetchBalances (_addresses) {
   };
 }
 
-export function updateTokensFilter (_addresses, _tokens) {
+export function updateTokensFilter (_addresses, _tokens, options = {}) {
   return (dispatch, getState) => {
     const { api, balances, personal } = getState();
     const { visibleAccounts, accounts } = personal;
@@ -214,27 +243,32 @@ export function updateTokensFilter (_addresses, _tokens) {
     const tokenAddresses = tokens.map((t) => t.address).sort();
 
     if (tokensFilter.filterFromId || tokensFilter.filterToId) {
+      // Has the tokens addresses changed (eg. a network change)
       const sameTokens = isEqual(tokenAddresses, tokensFilter.tokenAddresses);
-      const sameAddresses = isEqual(addresses, tokensFilter.addresses);
 
-      if (sameTokens && sameAddresses) {
+      // Addresses that are not in the current filter (omit those
+      // that the filter includes)
+      const newAddresses = addresses.filter((address) => !tokensFilter.addresses.includes(address));
+
+      // If no new addresses and the same tokens, don't change the filter
+      if (sameTokens && newAddresses.length === 0) {
+        log.debug('no need to update token filter', addresses, tokenAddresses, tokensFilter);
         return queryTokensFilter(tokensFilter)(dispatch, getState);
       }
     }
 
-    let promise = Promise.resolve();
+    log.debug('updating the token filter', addresses, tokenAddresses);
+    const promises = [];
 
     if (tokensFilter.filterFromId) {
-      promise = promise.then(() => api.eth.uninstallFilter(tokensFilter.filterFromId));
+      promises.push(api.eth.uninstallFilter(tokensFilter.filterFromId));
     }
 
     if (tokensFilter.filterToId) {
-      promise = promise.then(() => api.eth.uninstallFilter(tokensFilter.filterToId));
+      promises.push(api.eth.uninstallFilter(tokensFilter.filterToId));
     }
 
-    if (tokenAddresses.length === 0 || addresses.length === 0) {
-      return promise;
-    }
+    const promise = Promise.all(promises);
 
     const TRANSFER_SIGNATURE = api.util.sha3('Transfer(address,address,uint256)');
     const topicsFrom = [ TRANSFER_SIGNATURE, addresses, null ];
@@ -269,8 +303,10 @@ export function updateTokensFilter (_addresses, _tokens) {
           addresses, tokenAddresses
         };
 
+        const { skipNotifications } = options;
+
         dispatch(setTokensFilter(nextTokensFilter));
-        fetchTokensBalances(addresses, tokens)(dispatch, getState);
+        fetchTokensBalances(addresses, tokens, skipNotifications)(dispatch, getState);
       })
       .catch((error) => {
         console.warn('balances::updateTokensFilter', error);
@@ -326,7 +362,7 @@ export function queryTokensFilter (tokensFilter) {
   };
 }
 
-export function fetchTokensBalances (_addresses = null, _tokens = null) {
+export function fetchTokensBalances (_addresses = null, _tokens = null, skipNotifications = false) {
   return (dispatch, getState) => {
     const { api, personal, balances } = getState();
     const { visibleAccounts, accounts } = personal;
@@ -348,7 +384,7 @@ export function fetchTokensBalances (_addresses = null, _tokens = null) {
           balances[addr] = tokensBalances[idx];
         });
 
-        dispatch(setBalances(balances));
+        dispatch(setBalances(balances, skipNotifications));
       })
       .catch((error) => {
         console.warn('balances::fetchTokensBalances', error);

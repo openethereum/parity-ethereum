@@ -47,8 +47,10 @@ pub trait Fetch: Clone + Send + Sync + 'static {
 
 	/// Spawn the future in context of this `Fetch` thread pool.
 	/// Implementation is optional.
-	fn process<F>(&self, f: F) -> BoxFuture<(), ()> where
-		F: Future<Item=(), Error=()> + Send + 'static,
+	fn process<F, I, E>(&self, f: F) -> BoxFuture<I, E> where
+		F: Future<Item=I, Error=E> + Send + 'static,
+		I: Send + 'static,
+		E: Send + 'static,
 	{
 		f.boxed()
 	}
@@ -99,8 +101,10 @@ impl Fetch for Client {
 		Self::with_limit(Some(50*1024*1024))
 	}
 
-	fn process<F>(&self, f: F) -> BoxFuture<(), ()> where
-		F: Future<Item=(), Error=()> + Send + 'static,
+	fn process<F, I, E>(&self, f: F) -> BoxFuture<I, E> where
+		F: Future<Item=I, Error=E> + Send + 'static,
+		I: Send + 'static,
+		E: Send + 'static,
 	{
 		self.pool.spawn(f).boxed()
 	}

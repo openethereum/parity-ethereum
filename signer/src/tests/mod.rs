@@ -21,6 +21,8 @@ use devtools::http_client;
 use devtools::RandomTempPath;
 
 use rpc::ConfirmationsQueue;
+use jsonrpc_core::IoHandler;
+use jsonrpc_core::reactor::RpcEventLoop;
 use rand;
 
 use ServerBuilder;
@@ -45,14 +47,36 @@ impl DerefMut for GuardedAuthCodes {
 	}
 }
 
-/// Setup a mock signer for testsp
-pub fn serve() -> (Server, usize, GuardedAuthCodes) {
+/// Server with event loop
+pub struct ServerLoop {
+	/// Signer Server
+	pub server: Server,
+	/// RPC Event Loop
+	pub event_loop: RpcEventLoop,
+}
+
+impl Deref for ServerLoop {
+	type Target = Server;
+
+	fn deref(&self) -> &Self::Target {
+		&self.server
+	}
+}
+
+/// Setup a mock signer for tests
+pub fn serve() -> (ServerLoop, usize, GuardedAuthCodes) {
 	let mut path = RandomTempPath::new();
 	path.panic_on_drop_failure = false;
 	let queue = Arc::new(ConfirmationsQueue::default());
 	let builder = ServerBuilder::new(queue, path.to_path_buf());
 	let port = 35000 + rand::random::<usize>() % 10000;
-	let res = builder.start(format!("127.0.0.1:{}", port).parse().unwrap()).unwrap();
+	let event_loop = RpcEventLoop::spawn();
+	let handler = event_loop.handler(Arc::new(IoHandler::default().into()));
+	let server = builder.start(format!("127.0.0.1:{}", port).parse().unwrap(), handler).unwrap();
+	let res = ServerLoop {
+		server: server,
+		event_loop: event_loop,
+	};
 
 	(res, port, GuardedAuthCodes {
 		authcodes: AuthCodes::from_file(&path).unwrap(),
@@ -61,8 +85,8 @@ pub fn serve() -> (Server, usize, GuardedAuthCodes) {
 }
 
 /// Test a single request to running server
-pub fn request(server: Server, request: &str) -> http_client::Response {
-	http_client::request(server.addr(), request)
+pub fn request(server: ServerLoop, request: &str) -> http_client::Response {
+	http_client::request(server.server.addr(), request)
 }
 
 #[cfg(test)]

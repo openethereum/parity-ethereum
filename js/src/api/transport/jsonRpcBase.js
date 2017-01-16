@@ -14,8 +14,12 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-export default class JsonRpcBase {
+import EventEmitter from 'eventemitter3';
+
+export default class JsonRpcBase extends EventEmitter {
   constructor () {
+    super();
+
     this._id = 1;
     this._debug = false;
     this._connected = false;
@@ -30,6 +34,20 @@ export default class JsonRpcBase {
     });
 
     return json;
+  }
+
+  _setConnected () {
+    if (!this._connected) {
+      this._connected = true;
+      this.emit('open');
+    }
+  }
+
+  _setDisconnected () {
+    if (this._connected) {
+      this._connected = false;
+      this.emit('close');
+    }
   }
 
   get id () {

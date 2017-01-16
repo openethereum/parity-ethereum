@@ -34,7 +34,7 @@ use endpoint::EndpointPath;
 use handlers::{ContentHandler, StreamingHandler};
 use page::{LocalPageEndpoint, PageHandlerWaiting};
 
-const FETCH_TIMEOUT: u64 = 30;
+const FETCH_TIMEOUT: u64 = 300;
 
 pub enum ValidatorResponse {
 	Local(LocalPageEndpoint),

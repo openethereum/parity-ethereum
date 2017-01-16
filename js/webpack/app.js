@@ -43,7 +43,7 @@ module.exports = {
     index: './index.js'
   }),
   output: {
-    publicPath: '/',
+    // publicPath: '/',
     path: path.join(__dirname, '../', DEST),
     filename: '[name].[hash:10].js'
   },
@@ -150,7 +150,11 @@ module.exports = {
     });
 
     const plugins = Shared.getPlugins().concat(
-      new CopyWebpackPlugin([{ from: './error_pages.css', to: 'styles.css' }], {}),
+      new CopyWebpackPlugin([
+        { from: './error_pages.css', to: 'styles.css' },
+        { from: 'dapps/static' }
+      ], {}),
+
       new WebpackErrorNotificationPlugin(),
 
       new webpack.DllReferencePlugin({

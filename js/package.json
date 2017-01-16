@@ -1,6 +1,6 @@
 {
   "name": "parity.js",
-  "version": "0.2.182",
+  "version": "0.2.195",
   "main": "release/index.js",
   "jsnext:main": "src/index.js",
   "author": "Parity Team <admin@parity.io>",
@@ -189,6 +189,7 @@
     "valid-url": "1.0.9",
     "validator": "6.2.0",
     "web3": "0.17.0-beta",
-    "whatwg-fetch": "2.0.1"
+    "whatwg-fetch": "2.0.1",
+    "zxcvbn": "4.4.1"
   }
 }
