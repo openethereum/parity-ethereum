@@ -874,7 +874,7 @@ mod tests {
 		let v0 = insert_and_register(&tap, engine.as_ref(), "0");
 		let v1 = insert_and_register(&tap, engine.as_ref(), "1");
 
-		let h = 0;
+		let h = 1;
 		let r = 0;
 
 		// Propose
@@ -905,13 +905,14 @@ mod tests {
 		use types::transaction::{Transaction, Action};
 		use client::BlockChainClient;
 
-		let client = generate_dummy_client_with_spec_and_data(Spec::new_test_tendermint, 0, 0, &[]);
-		let engine = client.engine();
 		let tap = Arc::new(AccountProvider::transient_provider());
-
 		// Accounts for signing votes.
 		let v0 = insert_and_unlock(&tap, "0");
 		let v1 = insert_and_unlock(&tap, "1");
+		let client = generate_dummy_client_with_spec_and_accounts(Spec::new_test_tendermint, Some(tap.clone()));
+		let engine = client.engine();
+
+		client.miner().set_engine_signer(v1.clone(), "1".into()).unwrap();
 
 		let notify = Arc::new(TestNotify::default());
 		client.add_notify(notify.clone());
@@ -927,8 +928,6 @@ mod tests {
 			nonce: U256::zero(),
 		}.sign(keypair.secret(), None);
 		client.miner().import_own_transaction(client.as_ref(), transaction.into()).unwrap();
-
-		client.engine().set_signer(tap.clone(), v1.clone(), "1".into());
 
 		// Propose
 		let proposal = Some(client.miner().pending_block().unwrap().header.bare_hash());

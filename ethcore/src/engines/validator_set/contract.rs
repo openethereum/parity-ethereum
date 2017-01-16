@@ -142,13 +142,13 @@ mod tests {
 	use client::{BlockChainClient, EngineClient};
 	use ethkey::Secret;
 	use miner::MinerService;
-	use tests::helpers::generate_dummy_client_with_spec_and_data;
+	use tests::helpers::generate_dummy_client_with_spec_and_accounts;
 	use super::super::ValidatorSet;
 	use super::ValidatorContract;
 
 	#[test]
 	fn fetches_validators() {
-		let client = generate_dummy_client_with_spec_and_data(Spec::new_validator_contract, 0, 0, &[]);
+		let client = generate_dummy_client_with_spec_and_accounts(Spec::new_validator_contract, None);
 		let vc = Arc::new(ValidatorContract::new(Address::from_str("0000000000000000000000000000000000000005").unwrap()));
 		vc.register_call_contract(Arc::downgrade(&client));
 		vc.update();
@@ -162,11 +162,11 @@ mod tests {
 		let s0 = Secret::from_slice(&"1".sha3()).unwrap();
 		let v0 = tap.insert_account(s0.clone(), "").unwrap();
 		let v1 = tap.insert_account(Secret::from_slice(&"0".sha3()).unwrap(), "").unwrap();
-		let client = generate_dummy_client_with_spec_and_data(Spec::new_validator_contract, 0, 0, &[]);
+		let client = generate_dummy_client_with_spec_and_accounts(Spec::new_validator_contract, Some(tap));
 		client.engine().register_client(Arc::downgrade(&client));
 		let validator_contract = Address::from_str("0000000000000000000000000000000000000005").unwrap();
 
-		client.engine().set_signer(tap.clone(), v1, "".into());
+		client.miner().set_engine_signer(v1, "".into()).unwrap();
 		// Remove "1" validator.
 		let tx = Transaction {
 			nonce: 0.into(),
@@ -194,11 +194,11 @@ mod tests {
 		assert_eq!(client.chain_info().best_block_number, 1);
 
 		// Switch to the validator that is still there.
-		client.engine().set_signer(tap.clone(), v0, "".into());
+		client.miner().set_engine_signer(v0, "".into()).unwrap();
 		client.update_sealing();
 		assert_eq!(client.chain_info().best_block_number, 2);
 		// Switch back to the added validator, since the state is updated.
-		client.engine().set_signer(tap.clone(), v1, "".into());
+		client.miner().set_engine_signer(v1, "".into()).unwrap();
 		let tx = Transaction {
 			nonce: 2.into(),
 			gas_price: 0.into(),
