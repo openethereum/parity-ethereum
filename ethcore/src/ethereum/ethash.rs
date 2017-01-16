@@ -29,6 +29,9 @@ use evm::Schedule;
 use ethjson;
 use rlp::{self, UntrustedRlp, View};
 
+/// Parity tries to round block.gas_limit to multiple of this constant
+pub const PARITY_GAS_LIMIT_DETERMINANT: U256 = U256([37, 0, 0, 0]);
+
 /// Ethash params.
 #[derive(Debug, PartialEq)]
 pub struct EthashParams {
@@ -176,16 +179,25 @@ impl Engine for Ethash {
 		let gas_limit = {
 			let gas_limit = parent.gas_limit().clone();
 			let bound_divisor = self.ethash_params.gas_limit_bound_divisor;
-			if gas_limit < gas_floor_target {
-				min(gas_floor_target, gas_limit + gas_limit / bound_divisor - 1.into())
+			let lower_limit = gas_limit - gas_limit / bound_divisor + 1.into();
+			let upper_limit = gas_limit + gas_limit / bound_divisor - 1.into();
+			let gas_limit = if gas_limit < gas_floor_target {
+				let gas_limit = min(gas_floor_target, upper_limit);
+				round_block_gas_limit(gas_limit, lower_limit, upper_limit)
 			} else if gas_limit > gas_ceil_target {
-				max(gas_ceil_target, gas_limit - gas_limit / bound_divisor + 1.into())
+				let gas_limit = max(gas_ceil_target, lower_limit);
+				round_block_gas_limit(gas_limit, lower_limit, upper_limit)
 			} else {
-				min(gas_ceil_target,
-					max(gas_floor_target,
-						gas_limit - gas_limit / bound_divisor + 1.into() +
-							(header.gas_used().clone() * 6.into() / 5.into()) / bound_divisor))
-			}
+				let total_lower_limit = max(lower_limit, gas_floor_target);
+				let total_upper_limit = min(upper_limit, gas_ceil_target);
+				let gas_limit = max(gas_floor_target, min(total_upper_limit,
+					lower_limit + (header.gas_used().clone() * 6.into() / 5.into()) / bound_divisor));
+				round_block_gas_limit(gas_limit, total_lower_limit, total_upper_limit)
+			};
+			// ensure that we are not violating protocol limits
+			debug_assert!(gas_limit >= lower_limit);
+			debug_assert!(gas_limit <= upper_limit);
+			gas_limit
 		};
 		header.set_difficulty(difficulty);
 		header.set_gas_limit(gas_limit);
@@ -327,7 +339,24 @@ impl Engine for Ethash {
 	}
 }
 
-#[cfg_attr(feature="dev", allow(wrong_self_convention))] // to_ethash should take self
+// Try to round gas_limit a bit so that:
+// 1) it will still be in desired range
+// 2) it will be a nearest (with tendency to increase) multiple of PARITY_GAS_LIMIT_DETERMINANT
+fn round_block_gas_limit(gas_limit: U256, lower_limit: U256, upper_limit: U256) -> U256 {
+	let increased_gas_limit = gas_limit + (PARITY_GAS_LIMIT_DETERMINANT - gas_limit % PARITY_GAS_LIMIT_DETERMINANT);
+	if increased_gas_limit > upper_limit {
+		let decreased_gas_limit = increased_gas_limit - PARITY_GAS_LIMIT_DETERMINANT;
+		if decreased_gas_limit < lower_limit {
+			gas_limit
+		} else {
+			decreased_gas_limit
+		}
+	} else {
+		increased_gas_limit
+	}
+}
+
+#[cfg_attr(feature="dev", allow(wrong_self_convention))]
 impl Ethash {
 	fn calculate_difficulty(&self, header: &Header, parent: &Header) -> U256 {
 		const EXP_DIFF_PERIOD: u64 = 100000;
@@ -432,11 +461,12 @@ mod tests {
 	use util::*;
 	use block::*;
 	use tests::helpers::*;
+	use engines::Engine;
 	use env_info::EnvInfo;
 	use error::{BlockError, Error};
 	use header::Header;
 	use super::super::{new_morden, new_homestead_test};
-	use super::{Ethash, EthashParams};
+	use super::{Ethash, EthashParams, PARITY_GAS_LIMIT_DETERMINANT};
 	use rlp;
 
 	#[test]
@@ -775,5 +805,48 @@ mod tests {
 			U256::from_str("5126FFD5BCBB9E7").unwrap(),
 			ethash.calculate_difficulty(&header, &parent_header)
 		);
+	}
+
+	#[test]
+	fn gas_limit_is_multiple_of_determinant() {
+		let spec = new_homestead_test();
+		let ethash = Ethash::new(spec.params, get_default_ethash_params(), BTreeMap::new());
+		let mut parent = Header::new();
+		let mut header = Header::new();
+		header.set_number(1);
+
+		// this test will work for this constant only
+		assert_eq!(PARITY_GAS_LIMIT_DETERMINANT, U256::from(37));
+
+		// when parent.gas_limit < gas_floor_target:
+		parent.set_gas_limit(U256::from(50_000));
+		ethash.populate_from_parent(&mut header, &parent, U256::from(100_000), U256::from(200_000));
+		assert_eq!(*header.gas_limit(), U256::from(50_024));
+
+		// when parent.gas_limit > gas_ceil_target:
+		parent.set_gas_limit(U256::from(250_000));
+		ethash.populate_from_parent(&mut header, &parent, U256::from(100_000), U256::from(200_000));
+		assert_eq!(*header.gas_limit(), U256::from(249_787));
+
+		// when parent.gas_limit is in miner's range
+		header.set_gas_used(U256::from(150_000));
+		parent.set_gas_limit(U256::from(150_000));
+		ethash.populate_from_parent(&mut header, &parent, U256::from(100_000), U256::from(200_000));
+		assert_eq!(*header.gas_limit(), U256::from(150_035));
+
+		// when parent.gas_limit is in miner's range
+		// && we can NOT increase it to be multiple of constant
+		header.set_gas_used(U256::from(150_000));
+		parent.set_gas_limit(U256::from(150_000));
+		ethash.populate_from_parent(&mut header, &parent, U256::from(100_000), U256::from(150_002));
+		assert_eq!(*header.gas_limit(), U256::from(149_998));
+
+		// when parent.gas_limit is in miner's range
+		// && we can NOT increase it to be multiple of constant
+		// && we can NOT decrease it to be multiple of constant
+		header.set_gas_used(U256::from(150_000));
+		parent.set_gas_limit(U256::from(150_000));
+		ethash.populate_from_parent(&mut header, &parent, U256::from(150_000), U256::from(150_002));
+		assert_eq!(*header.gas_limit(), U256::from(150_002));
 	}
 }
