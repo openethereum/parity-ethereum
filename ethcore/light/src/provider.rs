@@ -230,7 +230,7 @@ impl<T: ProvingBlockChainClient + ?Sized> Provider for T {
 		use util::MemoryDB;
 		use util::trie::{Trie, TrieMut, TrieDB, TrieDBMut, Recorder};
 
-		if req.cht_number != ::cht::block_to_cht_number(req.block_number) {
+		if Some(req.cht_number) != ::cht::block_to_cht_number(req.block_number) {
 			debug!(target: "les_provider", "Requested CHT number mismatch with block number.");
 			return None;
 		}
@@ -257,7 +257,7 @@ impl<T: ProvingBlockChainClient + ?Sized> Provider for T {
 		}
 		let needed_hdr = needed_hdr.expect("`needed_hdr` always set in loop, number checked before; qed");
 
-		let mut recorder = Recorder::new();
+		let mut recorder = Recorder::with_depth(req.from_level);
 		let t = TrieDB::new(&memdb, &root)
 			.expect("Same DB and root as just produced by TrieDBMut; qed");
 
@@ -273,5 +273,29 @@ impl<T: ProvingBlockChainClient + ?Sized> Provider for T {
 
 	fn ready_transactions(&self) -> Vec<PendingTransaction> {
 		BlockChainClient::ready_transactions(self)
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use ethcore::client::{EachBlockWith, TestBlockChainClient};
+	use super::Provider;
+
+	#[test]
+	fn cht_proof() {
+		let client = TestBlockChainClient::new();
+		client.add_blocks(2000, EachBlockWith::Nothing);
+
+		let req = ::request::HeaderProof {
+			cht_number: 0,
+			block_number: 1500,
+			from_level: 0,
+		};
+
+		assert!(client.header_proof(req.clone()).is_none());
+
+		client.add_blocks(48, EachBlockWith::Nothing);
+
+		assert!(client.header_proof(req.clone()).is_some());
 	}
 }

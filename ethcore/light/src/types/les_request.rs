@@ -120,7 +120,7 @@ pub struct ContractCodes {
 pub struct HeaderProof {
 	/// Number of the CHT.
 	pub cht_number: u64,
-	/// Block number requested.
+	/// Block number requested. May not be 0: genesis isn't included in any CHT.
 	pub block_number: u64,
 	/// If greater than zero, trie nodes beyond this level may be omitted.
 	pub from_level: u32,
