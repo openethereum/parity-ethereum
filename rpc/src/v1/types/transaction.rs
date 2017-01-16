@@ -162,7 +162,7 @@ impl From<SignedTransaction> for RichRawTransaction {
 }
 
 impl From<LocalizedTransaction> for Transaction {
-	fn from(t: LocalizedTransaction) -> Transaction {
+	fn from(mut t: LocalizedTransaction) -> Transaction {
 		let signature = t.signature();
 		Transaction {
 			hash: t.hash().into(),
@@ -170,7 +170,7 @@ impl From<LocalizedTransaction> for Transaction {
 			block_hash: Some(t.block_hash.clone().into()),
 			block_number: Some(t.block_number.into()),
 			transaction_index: Some(t.transaction_index.into()),
-			from: t.sender().unwrap().into(),
+			from: t.sender().into(),
 			to: match t.action {
 				Action::Create => None,
 				Action::Call(ref address) => Some(address.clone().into())
@@ -180,11 +180,11 @@ impl From<LocalizedTransaction> for Transaction {
 			gas: t.gas.into(),
 			input: Bytes::new(t.data.clone()),
 			creates: match t.action {
-				Action::Create => Some(contract_address(&t.sender().unwrap(), &t.nonce).into()),
+				Action::Create => Some(contract_address(&t.sender(), &t.nonce).into()),
 				Action::Call(_) => None,
 			},
 			raw: ::rlp::encode(&t.signed).to_vec().into(),
-			public_key: t.public_key().ok().map(Into::into),
+			public_key: t.recover_public().ok().map(Into::into),
 			network_id: t.network_id(),
 			standard_v: t.standard_v().into(),
 			v: t.original_v().into(),
@@ -204,7 +204,7 @@ impl From<SignedTransaction> for Transaction {
 			block_hash: None,
 			block_number: None,
 			transaction_index: None,
-			from: t.sender().unwrap().into(),
+			from: t.sender().into(),
 			to: match t.action {
 				Action::Create => None,
 				Action::Call(ref address) => Some(address.clone().into())
@@ -214,11 +214,11 @@ impl From<SignedTransaction> for Transaction {
 			gas: t.gas.into(),
 			input: Bytes::new(t.data.clone()),
 			creates: match t.action {
-				Action::Create => Some(contract_address(&t.sender().unwrap(), &t.nonce).into()),
+				Action::Create => Some(contract_address(&t.sender(), &t.nonce).into()),
 				Action::Call(_) => None,
 			},
 			raw: ::rlp::encode(&t).to_vec().into(),
-			public_key: t.public_key().ok().map(Into::into),
+			public_key: Some(t.public_key().into()),
 			network_id: t.network_id(),
 			standard_v: t.standard_v().into(),
 			v: t.original_v().into(),

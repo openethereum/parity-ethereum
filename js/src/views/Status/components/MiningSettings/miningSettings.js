@@ -37,6 +37,14 @@ export default class MiningSettings extends Component {
     const { nodeStatus } = this.props;
     const { coinbase, defaultExtraData, extraData, gasFloorTarget, minGasPrice } = nodeStatus;
 
+    const extradata = extraData
+      ? decodeExtraData(extraData)
+      : '';
+
+    const defaultExtradata = defaultExtraData
+      ? decodeExtraData(defaultExtraData)
+      : '';
+
     return (
       <div { ...this._testInherit() }>
         <ContainerTitle title='mining settings' />
@@ -53,9 +61,9 @@ export default class MiningSettings extends Component {
         <Input
           label='extradata'
           hint='extra data for mined blocks'
-          value={ decodeExtraData(extraData) }
+          value={ extradata }
           onSubmit={ this.onExtraDataChange }
-          defaultValue={ decodeExtraData(defaultExtraData) }
+          defaultValue={ defaultExtradata }
           allowCopy
           floatCopy
           { ...this._test('extra-data') }

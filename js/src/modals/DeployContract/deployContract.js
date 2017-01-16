@@ -391,6 +391,10 @@ class DeployContract extends Component {
       .then(([gasEst, gas]) => {
         this.gasStore.setEstimated(gasEst.toFixed(0));
         this.gasStore.setGas(gas.toFixed(0));
+      })
+      .catch((error) => {
+        this.gasStore.setEstimatedError();
+        console.warn('estimateGas', error);
       });
   }
 

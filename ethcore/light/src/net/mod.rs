@@ -19,7 +19,7 @@
 //! This uses a "Provider" to answer requests.
 //! See https://github.com/ethcore/parity/wiki/Light-Ethereum-Subprotocol-(LES)
 
-use ethcore::transaction::SignedTransaction;
+use ethcore::transaction::UnverifiedTransaction;
 use ethcore::receipt::Receipt;
 
 use io::TimerToken;
@@ -30,6 +30,7 @@ use util::{Bytes, Mutex, RwLock, U256};
 use time::{Duration, SteadyTime};
 
 use std::collections::HashMap;
+use std::fmt;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
@@ -123,6 +124,12 @@ mod timeout {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct ReqId(usize);
 
+impl fmt::Display for ReqId {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		write!(f, "Request #{}", self.0)
+	}
+}
+
 // A pending peer: one we've sent our status to but
 // may not have received one for.
 struct PendingPeer {
@@ -179,19 +186,19 @@ pub trait Handler: Send + Sync {
 	/// Called when a peer makes an announcement.
 	fn on_announcement(&self, _ctx: &EventContext, _announcement: &Announcement) { }
 	/// Called when a peer requests relay of some transactions.
-	fn on_transactions(&self, _ctx: &EventContext, _relay: &[SignedTransaction]) { }
+	fn on_transactions(&self, _ctx: &EventContext, _relay: &[UnverifiedTransaction]) { }
 	/// Called when a peer responds with block bodies.
 	fn on_block_bodies(&self, _ctx: &EventContext, _req_id: ReqId, _bodies: &[Bytes]) { }
 	/// Called when a peer responds with block headers.
 	fn on_block_headers(&self, _ctx: &EventContext, _req_id: ReqId, _headers: &[Bytes]) { }
 	/// Called when a peer responds with block receipts.
 	fn on_receipts(&self, _ctx: &EventContext, _req_id: ReqId, _receipts: &[Vec<Receipt>]) { }
-	/// Called when a peer responds with state proofs. Each proof is a series of trie
+	/// Called when a peer responds with state proofs. Each proof should be a series of trie
 	/// nodes in ascending order by distance from the root.
 	fn on_state_proofs(&self, _ctx: &EventContext, _req_id: ReqId, _proofs: &[Vec<Bytes>]) { }
 	/// Called when a peer responds with contract code.
 	fn on_code(&self, _ctx: &EventContext, _req_id: ReqId, _codes: &[Bytes]) { }
-	/// Called when a peer responds with header proofs. Each proof is a block header coupled
+	/// Called when a peer responds with header proofs. Each proof should be a block header coupled
 	/// with a series of trie nodes is ascending order by distance from the root.
 	fn on_header_proofs(&self, _ctx: &EventContext, _req_id: ReqId, _proofs: &[(Bytes, Vec<Bytes>)]) { }
 	/// Called to "tick" the handler periodically.
@@ -1135,7 +1142,7 @@ impl LightProtocol {
 
 		let txs: Vec<_> = data.iter()
 			.take(MAX_TRANSACTIONS)
-			.map(|x| x.as_val::<SignedTransaction>())
+			.map(|x| x.as_val::<UnverifiedTransaction>())
 			.collect::<Result<_,_>>()?;
 
 		debug!(target: "les", "Received {} transactions to relay from peer {}", txs.len(), peer);

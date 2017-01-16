@@ -89,7 +89,6 @@ extern crate num_cpus;
 extern crate crossbeam;
 extern crate ethjson;
 extern crate bloomchain;
-extern crate rayon;
 extern crate hyper;
 extern crate ethash;
 extern crate ethkey;

@@ -21,51 +21,164 @@ import { padRight } from '~/api/util/format';
 
 import Contracts from '~/contracts';
 
+let instance = null;
+
 export default class Balances {
   constructor (store, api) {
     this._api = api;
     this._store = store;
 
-    this._tokenregSubId = null;
-    this._tokenregMetaSubId = null;
+    this._tokenreg = null;
+    this._tokenregSID = null;
+    this._tokenMetaSID = null;
 
-    // Throttled `retrieveTokens` function
+    this._blockNumberSID = null;
+    this._accountsInfoSID = null;
+
+    // Throtthled load tokens (no more than once
+    // every minute)
+    this.loadTokens = throttle(
+      this._loadTokens,
+      60 * 1000,
+      { leading: true, trailing: true }
+    );
+
+    // Throttled `_fetchBalances` function
     // that gets called max once every 40s
     this.longThrottledFetch = throttle(
-      this.fetchBalances,
+      this._fetchBalances,
       40 * 1000,
-      { trailing: true }
+      { leading: false, trailing: true }
     );
 
     this.shortThrottledFetch = throttle(
-      this.fetchBalances,
+      this._fetchBalances,
       2 * 1000,
-      { trailing: true }
+      { leading: false, trailing: true }
     );
 
     // Fetch all tokens every 2 minutes
     this.throttledTokensFetch = throttle(
-      this.fetchTokens,
-      60 * 1000,
-      { trailing: true }
+      this._fetchTokens,
+      2 * 60 * 1000,
+      { leading: false, trailing: true }
     );
+
+    // Unsubscribe previous instance if it exists
+    if (instance) {
+      Balances.stop();
+    }
   }
 
-  start () {
-    this.subscribeBlockNumber();
-    this.subscribeAccountsInfo();
+  static get (store = {}) {
+    if (!instance && store) {
+      const { api } = store.getState();
+      return Balances.instantiate(store, api);
+    }
 
-    this.loadTokens();
+    return instance;
+  }
+
+  static instantiate (store, api) {
+    if (!instance) {
+      instance = new Balances(store, api);
+    }
+
+    return instance;
+  }
+
+  static start () {
+    if (!instance) {
+      return Promise.reject('BalancesProvider has not been intiated yet');
+    }
+
+    const self = instance;
+
+    // Unsubscribe from previous subscriptions
+    return Balances
+      .stop()
+      .then(() => self.loadTokens())
+      .then(() => {
+        const promises = [
+          self.subscribeBlockNumber(),
+          self.subscribeAccountsInfo()
+        ];
+
+        return Promise.all(promises);
+      });
+  }
+
+  static stop () {
+    if (!instance) {
+      return Promise.resolve();
+    }
+
+    const self = instance;
+    const promises = [];
+
+    if (self._blockNumberSID) {
+      const p = self._api
+        .unsubscribe(self._blockNumberSID)
+        .then(() => {
+          self._blockNumberSID = null;
+        });
+
+      promises.push(p);
+    }
+
+    if (self._accountsInfoSID) {
+      const p = self._api
+        .unsubscribe(self._accountsInfoSID)
+        .then(() => {
+          self._accountsInfoSID = null;
+        });
+
+      promises.push(p);
+    }
+
+    // Unsubscribe without adding the promises
+    // to the result, since it would have to wait for a
+    // reconnection to resolve if the Node is disconnected
+    if (self._tokenreg) {
+      if (self._tokenregSID) {
+        const tokenregSID = self._tokenregSID;
+
+        self._tokenreg
+          .unsubscribe(tokenregSID)
+          .then(() => {
+            if (self._tokenregSID === tokenregSID) {
+              self._tokenregSID = null;
+            }
+          });
+      }
+
+      if (self._tokenMetaSID) {
+        const tokenMetaSID = self._tokenMetaSID;
+
+        self._tokenreg
+          .unsubscribe(tokenMetaSID)
+          .then(() => {
+            if (self._tokenMetaSID === tokenMetaSID) {
+              self._tokenMetaSID = null;
+            }
+          });
+      }
+    }
+
+    return Promise.all(promises);
   }
 
   subscribeAccountsInfo () {
-    this._api
+    return this._api
       .subscribe('parity_allAccountsInfo', (error, accountsInfo) => {
         if (error) {
           return;
         }
 
-        this.fetchBalances();
+        this.fetchAllBalances();
+      })
+      .then((accountsInfoSID) => {
+        this._accountsInfoSID = accountsInfoSID;
       })
       .catch((error) => {
         console.warn('_subscribeAccountsInfo', error);
@@ -73,49 +186,97 @@ export default class Balances {
   }
 
   subscribeBlockNumber () {
-    this._api
+    return this._api
       .subscribe('eth_blockNumber', (error) => {
         if (error) {
           return console.warn('_subscribeBlockNumber', error);
         }
 
-        const { syncing } = this._store.getState().nodeStatus;
-
-        this.throttledTokensFetch();
-
-        // If syncing, only retrieve balances once every
-        // few seconds
-        if (syncing) {
-          this.shortThrottledFetch.cancel();
-          return this.longThrottledFetch();
-        }
-
-        this.longThrottledFetch.cancel();
-        return this.shortThrottledFetch();
+        return this.fetchAllBalances();
+      })
+      .then((blockNumberSID) => {
+        this._blockNumberSID = blockNumberSID;
       })
       .catch((error) => {
         console.warn('_subscribeBlockNumber', error);
       });
   }
 
-  fetchBalances () {
-    this._store.dispatch(fetchBalances());
+  fetchAllBalances (options = {}) {
+    // If it's a network change, reload the tokens
+    // ( and then fetch the tokens balances ) and fetch
+    // the accounts balances
+    if (options.changedNetwork) {
+      this.loadTokens({ skipNotifications: true });
+      this.loadTokens.flush();
+
+      this.fetchBalances({
+        force: true,
+        skipNotifications: true
+      });
+
+      return;
+    }
+
+    this.fetchTokensBalances(options);
+    this.fetchBalances(options);
   }
 
-  fetchTokens () {
-    this._store.dispatch(fetchTokensBalances());
+  fetchTokensBalances (options) {
+    const { skipNotifications = false, force = false } = options;
+
+    this.throttledTokensFetch(skipNotifications);
+
+    if (force) {
+      this.throttledTokensFetch.flush();
+    }
+  }
+
+  fetchBalances (options) {
+    const { skipNotifications = false, force = false } = options;
+    const { syncing } = this._store.getState().nodeStatus;
+
+    // If syncing, only retrieve balances once every
+    // few seconds
+    if (syncing) {
+      this.shortThrottledFetch.cancel();
+      this.longThrottledFetch(skipNotifications);
+
+      if (force) {
+        this.longThrottledFetch.flush();
+      }
+
+      return;
+    }
+
+    this.longThrottledFetch.cancel();
+    this.shortThrottledFetch(skipNotifications);
+
+    if (force) {
+      this.shortThrottledFetch.flush();
+    }
+  }
+
+  _fetchBalances (skipNotifications = false) {
+    this._store.dispatch(fetchBalances(null, skipNotifications));
+  }
+
+  _fetchTokens (skipNotifications = false) {
+    this._store.dispatch(fetchTokensBalances(null, null, skipNotifications));
   }
 
   getTokenRegistry () {
     return Contracts.get().tokenReg.getContract();
   }
 
-  loadTokens () {
-    this
+  _loadTokens (options = {}) {
+    return this
       .getTokenRegistry()
       .then((tokenreg) => {
+        this._tokenreg = tokenreg;
+
         this._store.dispatch(setTokenReg(tokenreg));
-        this._store.dispatch(loadTokens());
+        this._store.dispatch(loadTokens(options));
 
         return this.attachToTokens(tokenreg);
       })
@@ -133,7 +294,7 @@ export default class Balances {
   }
 
   attachToNewToken (tokenreg) {
-    if (this._tokenregSubId) {
+    if (this._tokenregSID) {
       return Promise.resolve();
     }
 
@@ -149,13 +310,13 @@ export default class Balances {
 
         this.handleTokensLogs(logs);
       })
-      .then((tokenregSubId) => {
-        this._tokenregSubId = tokenregSubId;
+      .then((tokenregSID) => {
+        this._tokenregSID = tokenregSID;
       });
   }
 
   attachToTokenMetaChange (tokenreg) {
-    if (this._tokenregMetaSubId) {
+    if (this._tokenMetaSID) {
       return Promise.resolve();
     }
 
@@ -172,8 +333,8 @@ export default class Balances {
 
         this.handleTokensLogs(logs);
       })
-      .then((tokenregMetaSubId) => {
-        this._tokenregMetaSubId = tokenregMetaSubId;
+      .then((tokenMetaSID) => {
+        this._tokenMetaSID = tokenMetaSID;
       });
   }
 

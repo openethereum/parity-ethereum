@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React from 'react';
-import { observable, action } from 'mobx';
+import { observable, action, transaction } from 'mobx';
 import { flatMap, uniqBy } from 'lodash';
 import { FormattedMessage } from 'react-intl';
 
@@ -26,6 +26,7 @@ const ZERO = /^(0x)?0*$/;
 
 export default class AddressSelectStore {
 
+  @observable loading = false;
   @observable values = [];
   @observable registryValues = [];
 
@@ -224,21 +225,28 @@ export default class AddressSelectStore {
         };
       });
 
-    // Registries Lookup
-    this.registryValues = [];
+    // Clear the previous results after 50ms
+    // if still fetching
+    const timeoutId = setTimeout(() => {
+      transaction(() => {
+        this.registryValues = [];
+        this.loading = true;
+      });
+    }, 50);
 
     const lookups = this.regLookups.map((regLookup) => regLookup(value));
 
-    Promise
+    // Registries Lookup
+    return Promise
       .all(lookups)
       .then((results) => {
         return results
           .filter((result) => result && !ZERO.test(result.address));
       })
       .then((results) => {
-        results = uniqBy(results, (result) => result.address);
+        clearTimeout(timeoutId);
 
-        this.registryValues = results
+        const registryValues = uniqBy(results, (result) => result.address)
           .map((result) => {
             const lowercaseAddress = result.address.toLowerCase();
 
@@ -253,6 +261,11 @@ export default class AddressSelectStore {
 
             return result;
           });
+
+        transaction(() => {
+          this.loading = false;
+          this.registryValues = registryValues;
+        });
       });
   }
 

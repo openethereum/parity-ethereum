@@ -95,8 +95,14 @@ export default class Status extends Component {
 
   renderSettings () {
     const { nodeStatus } = this.props;
-    const { rpcSettings, netPeers } = nodeStatus;
+    const { rpcSettings, netPeers, netPort = '' } = nodeStatus;
     const peers = `${netPeers.active}/${netPeers.connected}/${netPeers.max}`;
+
+    if (!rpcSettings) {
+      return null;
+    }
+
+    const rpcPort = rpcSettings.port || '';
 
     return (
       <div { ...this._test('settings') }>
@@ -121,7 +127,7 @@ export default class Status extends Component {
               allowCopy
               readOnly
               label='network port'
-              value={ nodeStatus.netPort.toString() }
+              value={ netPort.toString() }
               { ...this._test('network-port') } />
           </div>
         </div>
@@ -146,7 +152,7 @@ export default class Status extends Component {
               allowCopy
               readOnly
               label='rpc port'
-              value={ rpcSettings.port.toString() }
+              value={ rpcPort.toString() }
               { ...this._test('rpc-port') } />
           </div>
         </div>
