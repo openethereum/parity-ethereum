@@ -14,15 +14,29 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import sinon from 'sinon';
+
 import Store from './store';
 
+const TEST_TOKEN = 'testing-123';
 const TEST_URL = 'http://some.test.domain.com';
 const TEST_URL2 = 'http://something.different.com';
 
+let api;
 let store;
 
+function createApi () {
+  api = {
+    parity: {
+      generateWebProxyAccessToken: sinon.stub().resolved(TEST_TOKEN)
+    }
+  };
+
+  return api;
+}
+
 function create () {
-  store = new Store();
+  store = new Store(createApi());
 
   return store;
 }
@@ -58,10 +72,33 @@ describe('views/Home/Store', () => {
       });
     });
 
+    describe('setToken', () => {
+      it('sets the token', () => {
+        store.setToken(TEST_TOKEN);
+        expect(store.token).to.equal(TEST_TOKEN);
+      });
+    });
+
     describe('setUrl', () => {
       it('sets the url', () => {
         store.setUrl(TEST_URL);
         expect(store.url).to.equal(TEST_URL);
+      });
+    });
+  });
+
+  describe('operations', () => {
+    describe('generateToken', () => {
+      beforeEach(() => {
+        return store.generateToken();
+      });
+
+      it('calls parity_generateWebProxyAccessToken', () => {
+        expect(api.parity.generateWebProxyAccessToken).to.have.been.calledOnce;
+      });
+
+      it('sets the token as retrieved', () => {
+        expect(store.token).to.equal(TEST_TOKEN);
       });
     });
   });

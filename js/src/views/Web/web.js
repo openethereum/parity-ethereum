@@ -15,17 +15,11 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
-import store from 'store';
-import { parse as parseUrl, format as formatUrl } from 'url';
-import { parse as parseQuery } from 'querystring';
 
 import AddressBar from './AddressBar';
+import Store from './Store';
 
 import styles from './web.css';
-
-const LS_LAST_ADDRESS = '_parity::webLastAddress';
-
-const hasProtocol = /^https?:\/\//;
 
 export default class Web extends Component {
   static contextTypes = {
@@ -36,6 +30,8 @@ export default class Web extends Component {
     params: PropTypes.object.isRequired
   }
 
+  store = Store.get(this.context.api);
+
   state = {
     displayedUrl: null,
     isLoading: true,
@@ -44,34 +40,16 @@ export default class Web extends Component {
   };
 
   componentDidMount () {
-    const { api } = this.context;
-    const { params } = this.props;
-
-    api
-      .signer
-      .generateWebProxyAccessToken()
-      .then((token) => {
-        this.setState({ token });
-      });
-
-    this.setUrl(params.url);
+    this.store.generateToken();
+    this.store.setUrl(this.props.params.url);
   }
 
   componentWillReceiveProps (props) {
-    this.setUrl(props.params.url);
+    this.store.setUrl(props.params.url);
   }
 
-  setUrl = (url) => {
-    url = url || store.get(LS_LAST_ADDRESS) || 'https://mkr.market';
-    if (!hasProtocol.test(url)) {
-      url = `https://${url}`;
-    }
-
-    this.setState({ url, displayedUrl: url });
-  };
-
   render () {
-    const { displayedUrl, isLoading, token } = this.state;
+    const { displayedUrl, parsedUrl, token, url } = this.store;
 
     if (!token) {
       return (
@@ -83,14 +61,12 @@ export default class Web extends Component {
       );
     }
 
-    const { dappsUrl } = this.context.api;
-    const { url } = this.state;
-    if (!url || !token) {
+    if (!url) {
       return null;
     }
 
-    const parsed = parseUrl(url);
-    const { protocol, host, path } = parsed;
+    const { dappsUrl } = this.context.api;
+    const { protocol, host, path } = parsedUrl;
     const address = `${dappsUrl}/web/${token}/${protocol.slice(0, -1)}/${host}${path}`;
 
     return (
@@ -150,4 +126,3 @@ export default class Web extends Component {
     });
   };
 }
-
