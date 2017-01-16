@@ -234,7 +234,7 @@ impl Engine for AuthorityRound {
 		let header = block.header();
 		let step = self.step.load(AtomicOrdering::SeqCst);
 		if self.is_step_proposer(step, header.author()) {
-			let ref ap = *self.account_provider.lock();
+			let ap = self.account_provider.lock();
 			if let Ok(signature) = ap.sign(*header.author(), self.password.read().clone(), header.bare_hash()) {
 				trace!(target: "poa", "generate_seal: Issuing a block for step {}.", step);
 				self.proposed.store(true, AtomicOrdering::SeqCst);
@@ -329,12 +329,10 @@ impl Engine for AuthorityRound {
 		self.validators.register_call_contract(client);
 	}
 
-	fn set_signer(&self, _address: Address, password: String) {
+	fn set_signer(&self, ap: Arc<AccountProvider>, address: Address, password: String) {
+		*self.account_provider.lock() = ap;	
 		*self.password.write() = Some(password);
-	}
-
-	fn register_account_provider(&self, account_provider: Arc<AccountProvider>) {
-		*self.account_provider.lock() = account_provider;
+		debug!(target: "poa", "Setting Engine signer to {}", address);
 	}
 }
 
@@ -401,13 +399,12 @@ mod tests {
 
 	#[test]
 	fn generates_seal_and_does_not_double_propose() {
-		let tap = AccountProvider::transient_provider();
+		let tap = Arc::new(AccountProvider::transient_provider());
 		let addr1 = tap.insert_account(Secret::from_slice(&"1".sha3()).unwrap(), "1").unwrap();
 		let addr2 = tap.insert_account(Secret::from_slice(&"2".sha3()).unwrap(), "2").unwrap();
 
 		let spec = Spec::new_test_round();
 		let engine = &*spec.engine;
-		engine.register_account_provider(Arc::new(tap));
 		let genesis_header = spec.genesis_header();
 		let db1 = spec.ensure_db_good(get_temp_state_db().take(), &Default::default()).unwrap();
 		let db2 = spec.ensure_db_good(get_temp_state_db().take(), &Default::default()).unwrap();
@@ -417,14 +414,14 @@ mod tests {
 		let b2 = OpenBlock::new(engine, Default::default(), false, db2, &genesis_header, last_hashes, addr2, (3141562.into(), 31415620.into()), vec![]).unwrap();
 		let b2 = b2.close_and_lock();
 
-		engine.set_signer(addr1, "1".into());
+		engine.set_signer(tap.clone(), addr1, "1".into());
 		if let Seal::Regular(seal) = engine.generate_seal(b1.block()) {
 			assert!(b1.clone().try_seal(engine, seal).is_ok());
 			// Second proposal is forbidden.
 			assert!(engine.generate_seal(b1.block()) == Seal::None);
 		}
 
-		engine.set_signer(addr2, "2".into());
+		engine.set_signer(tap, addr2, "2".into());
 		if let Seal::Regular(seal) = engine.generate_seal(b2.block()) {
 			assert!(b2.clone().try_seal(engine, seal).is_ok());
 			// Second proposal is forbidden.

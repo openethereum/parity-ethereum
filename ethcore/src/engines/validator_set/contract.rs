@@ -162,16 +162,11 @@ mod tests {
 		let s0 = Secret::from_slice(&"1".sha3()).unwrap();
 		let v0 = tap.insert_account(s0.clone(), "").unwrap();
 		let v1 = tap.insert_account(Secret::from_slice(&"0".sha3()).unwrap(), "").unwrap();
-		let spec_factory = || {
-			let spec = Spec::new_validator_contract();
-			spec.engine.register_account_provider(tap.clone());
-			spec
-		};
-		let client = generate_dummy_client_with_spec_and_data(spec_factory, 0, 0, &[]);
+		let client = generate_dummy_client_with_spec_and_data(Spec::new_validator_contract, 0, 0, &[]);
 		client.engine().register_client(Arc::downgrade(&client));
 		let validator_contract = Address::from_str("0000000000000000000000000000000000000005").unwrap();
 
-		client.miner().set_engine_signer(v1, "".into()).unwrap();
+		client.engine().set_signer(tap.clone(), v1, "".into());
 		// Remove "1" validator.
 		let tx = Transaction {
 			nonce: 0.into(),
@@ -199,11 +194,11 @@ mod tests {
 		assert_eq!(client.chain_info().best_block_number, 1);
 
 		// Switch to the validator that is still there.
-		client.miner().set_engine_signer(v0, "".into()).unwrap();
+		client.engine().set_signer(tap.clone(), v0, "".into());
 		client.update_sealing();
 		assert_eq!(client.chain_info().best_block_number, 2);
 		// Switch back to the added validator, since the state is updated.
-		client.miner().set_engine_signer(v1, "".into()).unwrap();
+		client.engine().set_signer(tap.clone(), v1, "".into());
 		let tx = Transaction {
 			nonce: 2.into(),
 			gas_price: 0.into(),
