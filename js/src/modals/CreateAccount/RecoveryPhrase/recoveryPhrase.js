@@ -108,16 +108,16 @@ export default class RecoveryPhrase extends Component {
               type='password'
               value={ passwordRepeat } />
           </div>
-          <Checkbox
-            checked={ isWindowsPhrase }
-            className={ styles.checkbox }
-            label={
-              <FormattedMessage
-                id='createAccount.recoveryPhrase.windowsKey.label'
-                defaultMessage='Key was created with Parity <1.4.5 on Windows' />
-            }
-            onCheck={ this.onToggleWindowsPhrase } />
         </div>
+        <Checkbox
+          checked={ isWindowsPhrase }
+          className={ styles.checkbox }
+          label={
+            <FormattedMessage
+              id='createAccount.recoveryPhrase.windowsKey.label'
+              defaultMessage='Key was created with Parity <1.4.5 on Windows' />
+          }
+          onCheck={ this.onToggleWindowsPhrase } />
       </Form>
     );
   }

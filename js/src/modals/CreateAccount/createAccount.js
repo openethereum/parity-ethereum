@@ -113,15 +113,21 @@ class CreateAccount extends Component {
               newError={ this.props.newError }
               store={ this.store } />
           );
-        } else if (createType === 'fromGeth') {
+        }
+
+        if (createType === 'fromGeth') {
           return (
             <NewGeth store={ this.store } />
           );
-        } else if (createType === 'fromPhrase') {
+        }
+
+        if (createType === 'fromPhrase') {
           return (
             <RecoveryPhrase store={ this.store } />
           );
-        } else if (createType === 'fromRaw') {
+        }
+
+        if (createType === 'fromRaw') {
           return (
             <RawKey store={ this.store } />
           );
@@ -236,11 +242,14 @@ class CreateAccount extends Component {
     }
 
     return (
-      <Warning warning={
-        <FormattedMessage
-          id='createAccount.warning.insecurePassword'
-          defaultMessage='It is recommended that a strong password be used to secure your accounts. Empty and trivial passwords are a security risk.' />
-      } />
+      <Warning
+        warning={
+          <FormattedMessage
+            id='createAccount.warning.insecurePassword'
+            defaultMessage='It is recommended that a strong password be used to secure your accounts. Empty and trivial passwords are a security risk.'
+          />
+        }
+      />
     );
   }
 
@@ -278,10 +287,6 @@ class CreateAccount extends Component {
   }
 }
 
-function mapStateToProps (state) {
-  return {};
-}
-
 function mapDispatchToProps (dispatch) {
   return bindActionCreators({
     newError
@@ -289,6 +294,6 @@ function mapDispatchToProps (dispatch) {
 }
 
 export default connect(
-  mapStateToProps,
+  null,
   mapDispatchToProps
 )(CreateAccount);

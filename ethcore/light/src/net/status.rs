@@ -158,6 +158,16 @@ pub struct Status {
 	pub last_head: Option<(H256, u64)>,
 }
 
+impl Status {
+	/// Update the status from an announcement.
+	pub fn update_from(&mut self, announcement: &Announcement) {
+		self.last_head = Some((self.head_hash, announcement.reorg_depth));
+		self.head_td = announcement.head_td;
+		self.head_hash = announcement.head_hash;
+		self.head_num = announcement.head_num;
+	}
+}
+
 /// Peer capabilities.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Capabilities {

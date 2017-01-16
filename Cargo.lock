@@ -368,7 +368,6 @@ dependencies = [
  "lru-cache 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "num_cpus 0.2.11 (registry+https://github.com/rust-lang/crates.io-index)",
  "rand 0.3.14 (registry+https://github.com/rust-lang/crates.io-index)",
- "rayon 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "rlp 0.1.0",
  "rust-crypto 0.2.36 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc-serialize 0.3.19 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -383,6 +382,7 @@ version = "0.1.2"
 dependencies = [
  "bigint 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "heapsize 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc 0.2.16 (registry+https://github.com/rust-lang/crates.io-index)",
  "rand 0.3.14 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc-serialize 0.3.19 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -513,7 +513,9 @@ dependencies = [
  "ethcore-ipc-codegen 1.6.0",
  "ethcore-network 1.6.0",
  "ethcore-util 1.6.0",
+ "futures 0.1.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rand 0.3.14 (registry+https://github.com/rust-lang/crates.io-index)",
  "rlp 0.1.0",
  "smallvec 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "time 0.1.35 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -872,7 +874,7 @@ dependencies = [
 [[package]]
 name = "hyper"
 version = "0.10.0-a.0"
-source = "git+https://github.com/ethcore/hyper#7d4f7fa0baddcb2b0c523f7c05855d67de94fe88"
+source = "git+https://github.com/ethcore/hyper#6baea9d444dd1652220ee9b4aeadaebb3de6a955"
 dependencies = [
  "cookie 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "httparse 1.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1500,7 +1502,7 @@ dependencies = [
 [[package]]
 name = "parity-ui-precompiled"
 version = "1.4.0"
-source = "git+https://github.com/ethcore/js-precompiled.git#7c838e0f9310a6434543e275c9c43aed6f2de41f"
+source = "git+https://github.com/ethcore/js-precompiled.git#3b0decf22fb962cff866006c9fc58069b0558fac"
 dependencies = [
  "parity-dapps-glue 1.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]

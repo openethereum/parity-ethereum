@@ -22,7 +22,7 @@ use ethcore::error::{Error, CallError};
 use ethcore::client::{MiningBlockChainClient, Executed, CallAnalytics};
 use ethcore::block::{ClosedBlock, IsBlock};
 use ethcore::header::BlockNumber;
-use ethcore::transaction::{SignedTransaction, PendingTransaction};
+use ethcore::transaction::{UnverifiedTransaction, SignedTransaction, PendingTransaction};
 use ethcore::receipt::{Receipt, RichReceipt};
 use ethcore::miner::{MinerService, MinerStatus, TransactionImportResult, LocalTransactionStatus};
 use ethcore::account_provider::Error as AccountError;
@@ -144,12 +144,13 @@ impl MinerService for TestMinerService {
 	}
 
 	/// Imports transactions to transaction queue.
-	fn import_external_transactions(&self, _chain: &MiningBlockChainClient, transactions: Vec<SignedTransaction>) ->
+	fn import_external_transactions(&self, _chain: &MiningBlockChainClient, transactions: Vec<UnverifiedTransaction>) ->
 		Vec<Result<TransactionImportResult, Error>> {
 		// lets assume that all txs are valid
+		let transactions: Vec<_> = transactions.into_iter().map(|tx| SignedTransaction::new(tx).unwrap()).collect();
 		self.imported_transactions.lock().extend_from_slice(&transactions);
 
-		for sender in transactions.iter().filter_map(|t| t.sender().ok()) {
+		for sender in transactions.iter().map(|tx| tx.sender()) {
 			let nonce = self.last_nonce(&sender).expect("last_nonce must be populated in tests");
 			self.last_nonces.write().insert(sender, nonce + U256::from(1));
 		}
@@ -164,10 +165,9 @@ impl MinerService for TestMinerService {
 		Result<TransactionImportResult, Error> {
 
 		// keep the pending nonces up to date
-		if let Ok(ref sender) = pending.transaction.sender() {
-			let nonce = self.last_nonce(sender).unwrap_or(chain.latest_nonce(sender));
-			self.last_nonces.write().insert(sender.clone(), nonce + U256::from(1));
-		}
+		let sender = pending.transaction.sender();
+		let nonce = self.last_nonce(&sender).unwrap_or(chain.latest_nonce(&sender));
+		self.last_nonces.write().insert(sender, nonce + U256::from(1));
 
 		// lets assume that all txs are valid
 		self.imported_transactions.lock().push(pending.transaction);
