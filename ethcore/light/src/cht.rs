@@ -20,3 +20,8 @@ pub const SIZE: u64 = 2048;
 pub fn block_to_cht_number(block_num: u64) -> u64 {
 	(block_num + 1) / SIZE
 }
+
+/// Get the starting block of a given CHT.
+pub fn start_number(cht_num: u64) -> u64 {
+	(cht_num * SIZE) + 1
+}

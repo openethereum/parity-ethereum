@@ -39,8 +39,6 @@ use self::header_chain::HeaderChain;
 
 pub use self::service::Service;
 
-pub mod cht;
-
 mod header_chain;
 mod service;
 
