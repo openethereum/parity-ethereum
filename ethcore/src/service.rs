@@ -23,6 +23,7 @@ use error::*;
 use client::{Client, ClientConfig, ChainNotify};
 use miner;
 use miner::{Miner, StratumOptions, StratumError};
+
 use snapshot::ManifestData;
 use snapshot::service::{Service as SnapshotService, ServiceParams as SnapServiceParams};
 use std::sync::atomic::AtomicBool;
@@ -154,19 +155,11 @@ impl ClientService {
 		self.client.add_notify(notify);
 	}
 
-	#[cfg(feature="stratum")]
-	/// Runs stratum if feature is on
+	/// Start STRATUM job dispatcher and register it in the miner
 	pub fn register_stratum(cfg: &StratumOptions, miner: Arc<Miner>, client: Weak<Client>) -> Result<(), StratumError> {
 		let stratum = miner::Stratum::new(cfg, Arc::downgrade(&miner.clone()), client)?;
 		stratum.run_async();
 		miner.push_notifier(Box::new(stratum) as Box<miner::NotifyWork>);
-		Ok(())
-	}
-
-	#[cfg(not(feature="stratum"))]
-	/// Runs stratum if feature is on
-	pub fn register_stratum(_cfg: &StratumOptions, _miner: Weak<Miner>, _client: Weak<Client>) -> Result<(), StratumError> {
-		// Does nothing (feature is off)
 		Ok(())
 	}
 }

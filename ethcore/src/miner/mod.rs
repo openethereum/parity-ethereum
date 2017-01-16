@@ -48,8 +48,7 @@ mod miner;
 mod price_info;
 mod transaction_queue;
 mod work_notify;
-#[cfg(feature="stratum")]
-pub mod stratum;
+mod stratum;
 
 pub use self::external::{ExternalMiner, ExternalMinerService};
 pub use self::miner::{Miner, MinerOptions, Banning, PendingSet, GasPricer, GasPriceCalibratorOptions, GasLimit, StratumOptions};
@@ -57,9 +56,7 @@ pub use self::transaction_queue::{TransactionQueue, PrioritizationStrategy, Acco
 pub use self::local_transactions::{Status as LocalTransactionStatus};
 pub use client::TransactionImportResult;
 pub use self::work_notify::NotifyWork;
-
-#[cfg(feature="stratum")] pub use self::stratum::Stratum;
-#[cfg(feature="stratum")] pub use self::stratum::Error as StratumError;
+pub use self::stratum::{Stratum, Error as StratumError};
 
 use std::collections::BTreeMap;
 use util::{H256, U256, Address, Bytes};
