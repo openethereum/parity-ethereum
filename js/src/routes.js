@@ -16,7 +16,7 @@
 
 import {
   Accounts, Account, Addresses, Address, Application,
-  Contract, Contracts, Dapp, Dapps,
+  Contract, Contracts, Dapp, Dapps, Home,
   Settings, SettingsBackground, SettingsParity, SettingsProxy,
   SettingsViews, Signer, Status,
   Wallet, Web, WriteContract
@@ -76,8 +76,8 @@ const routes = [
   { path: '/address/:address', onEnter: handleDeprecatedRoute },
   { path: '/contract/:address', onEnter: handleDeprecatedRoute },
 
-  { path: '/', onEnter: redirectTo('/accounts') },
-  { path: '/auth', onEnter: redirectTo('/accounts') },
+  { path: '/', onEnter: redirectTo('/home') },
+  { path: '/auth', onEnter: redirectTo('/home') },
   { path: '/settings', onEnter: redirectTo('/settings/views') },
 
   {
@@ -109,9 +109,9 @@ const routes = [
         component: Settings,
         childRoutes: settingsRoutes
       },
-
       { path: 'apps', component: Dapps },
       { path: 'app/:id', component: Dapp },
+      { path: 'home', component: Home },
       { path: 'web', component: Web },
       { path: 'web/:url', component: Web },
       { path: 'signer', component: Signer }
