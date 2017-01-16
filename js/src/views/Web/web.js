@@ -14,13 +14,15 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
 
 import AddressBar from './AddressBar';
-import Store from './Store';
+import Store from './store';
 
 import styles from './web.css';
 
+@observer
 export default class Web extends Component {
   static contextTypes = {
     api: PropTypes.object.isRequired
@@ -32,24 +34,17 @@ export default class Web extends Component {
 
   store = Store.get(this.context.api);
 
-  state = {
-    displayedUrl: null,
-    isLoading: true,
-    token: null,
-    url: null
-  };
-
   componentDidMount () {
     this.store.generateToken();
-    this.store.setUrl(this.props.params.url);
+    this.store.setCurrentUrl(this.props.params.url);
   }
 
   componentWillReceiveProps (props) {
-    this.store.setUrl(props.params.url);
+    this.store.setCurrentUrl(props.params.url);
   }
 
   render () {
-    const { displayedUrl, parsedUrl, token, url } = this.store;
+    const { currentUrl, frameId, parsedUrl, token } = this.store;
 
     if (!token) {
       return (
@@ -61,7 +56,7 @@ export default class Web extends Component {
       );
     }
 
-    if (!url) {
+    if (!currentUrl) {
       return null;
     }
 
@@ -73,15 +68,13 @@ export default class Web extends Component {
       <div className={ styles.wrapper }>
         <AddressBar
           className={ styles.url }
-          isLoading={ isLoading }
-          onChange={ this.onUrlChange }
-          onRefresh={ this.onRefresh }
-          url={ displayedUrl }
+          store={ this.store }
         />
         <iframe
           className={ styles.frame }
           frameBorder={ 0 }
-          name={ name }
+          id={ frameId }
+          name={ frameId }
           onLoad={ this.iframeOnLoad }
           sandbox='allow-forms allow-same-origin allow-scripts'
           scrolling='auto'
@@ -90,39 +83,7 @@ export default class Web extends Component {
     );
   }
 
-  onUrlChange = (url) => {
-    if (!hasProtocol.test(url)) {
-      url = `https://${url}`;
-    }
-
-    store.set(LS_LAST_ADDRESS, url);
-
-    this.setState({
-      isLoading: true,
-      displayedUrl: url,
-      url: url
-    });
-  };
-
-  onRefresh = () => {
-    const { displayedUrl } = this.state;
-
-    // Insert timestamp
-    // This is a hack to prevent caching.
-    const parsed = parseUrl(displayedUrl);
-    parsed.query = parseQuery(parsed.query);
-    parsed.query.t = Date.now().toString();
-    delete parsed.search;
-
-    this.setState({
-      isLoading: true,
-      url: formatUrl(parsed)
-    });
-  };
-
   iframeOnLoad = () => {
-    this.setState({
-      isLoading: false
-    });
+    this.store.setLoading(false);
   };
 }

@@ -14,10 +14,9 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { action, observable, transaction } from 'mobx';
-import { parse as parseQuery } from 'querystring';
+import { action, computed, observable, transaction } from 'mobx';
 import localStore from 'store';
-import { parse as parseUrl, format as formatUrl } from 'url';
+import { parse as parseUrl } from 'url';
 
 const DEFAULT_URL = 'https://mkr.market';
 const LS_LAST_ADDRESS = '_parity::webLastAddress';
@@ -28,42 +27,68 @@ const hasProtocol = /^https?:\/\//;
 let instance = null;
 
 export default class Store {
+  @observable counter = 1;
+  @observable currentUrl = null;
   @observable displayedUrl = null;
   @observable history = [];
+  @observable isLoading = false;
   @observable parsedUrl = null;
+  @observable nextUrl = null;
   @observable token = null;
-  @observable url = null;
 
   constructor (api) {
     this._api = api;
+    this.nextUrl = this.currentUrl = this.loadLastUrl();
+  }
+
+  @computed get frameId () {
+    return `_web_iframe_${this.counter}`;
+  }
+
+  @computed get isPristine () {
+    return this.currentUrl === this.nextUrl;
   }
 
   @action addHistoryUrl = (url) => {
-    const timestamp = Date.now();
-    this.urlhistory = [{ url, timestamp }].concat(this.urlhistory.filter((h) => h.url !== url));
+    this.history = [{
+      timestamp: Date.now(),
+      url
+    }].concat(this.history.filter((h) => h.url !== url));
+  }
+
+  @action reload () {
+    this.counter++;
+  }
+
+  @action setLoading = (isLoading) => {
+    this.isLoading = isLoading;
   }
 
   @action setToken = (token) => {
     this.token = token;
   }
 
-  @action setUrl = (url) => {
-    url = url || this.retrieveStored();
+  @action setCurrentUrl = (_url) => {
+    const url = _url || this.currentUrl;
+
+    transaction(() => {
+      this.currentUrl = url;
+      this.parsedUrl = parseUrl(url);
+    });
+  }
+
+  @action setNextUrl = (_url) => {
+    let url = (_url || this.currentUrl).trim();
 
     if (!hasProtocol.test(url)) {
       url = `https://${url}`;
     }
 
-    transaction(() => {
-      this.displayedUrl = url;
-      this.parsedUrl = parseUrl(url);
-      this.url = url;
-    });
+    this.nextUrl = url;
   }
 
   generateToken = () => {
-    return this._api
-      .signer
+    return this._api.signer
       .generateWebProxyAccessToken()
       .then((token) => {
         this.setToken(token);
@@ -74,11 +99,26 @@ export default class Store {
   }
 
   gotoUrl = () => {
-    this.addHistoryUrl();
+    transaction(() => {
+      this.currentUrl = this.nextUrl;
+
+      this.addHistoryUrl();
+      this.saveLastUrl();
+
+      this.reload();
+    });
   }
 
-  retrieveStored = () => {
+  restoreUrl = () => {
+    this.setNextUrl(this.currentUrl);
+  }
+
+  loadLastUrl = () => {
     return localStore.get(LS_LAST_ADDRESS) || DEFAULT_URL;
+  }
+
+  saveLastUrl = () => {
+    return localStore.set(LS_LAST_ADDRESS, this.url || DEFAULT_URL);
   }
 
   static get (api) {

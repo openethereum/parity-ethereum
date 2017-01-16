@@ -27,8 +27,8 @@ let store;
 
 function createApi () {
   api = {
-    parity: {
-      generateWebProxyAccessToken: sinon.stub().resolved(TEST_TOKEN)
+    signer: {
+      generateWebProxyAccessToken: sinon.stub().resolves(TEST_TOKEN)
     }
   };
 
@@ -50,25 +50,63 @@ describe('views/Home/Store', () => {
     describe('addHistoryUrl', () => {
       it('adds the url to the list (front)', () => {
         store.addHistoryUrl(TEST_URL);
-        expect(store.urlhistory[0].url).to.equal(TEST_URL);
+        expect(store.history[0].url).to.equal(TEST_URL);
       });
 
       it('adds multiples to the list', () => {
         store.addHistoryUrl(TEST_URL);
         store.addHistoryUrl(TEST_URL2);
 
-        expect(store.urlhistory.length).to.equal(2);
-        expect(store.urlhistory[0].url).to.equal(TEST_URL2);
-        expect(store.urlhistory[1].url).to.equal(TEST_URL);
+        expect(store.history.length).to.equal(2);
+        expect(store.history[0].url).to.equal(TEST_URL2);
+        expect(store.history[1].url).to.equal(TEST_URL);
       });
 
       it('does not add duplicates', () => {
         store.addHistoryUrl(TEST_URL2);
         store.addHistoryUrl(TEST_URL);
 
-        expect(store.urlhistory.length).to.equal(2);
-        expect(store.urlhistory[0].url).to.equal(TEST_URL);
-        expect(store.urlhistory[1].url).to.equal(TEST_URL2);
+        expect(store.history.length).to.equal(2);
+        expect(store.history[0].url).to.equal(TEST_URL);
+        expect(store.history[1].url).to.equal(TEST_URL2);
+      });
+    });
+
+    describe('reload', () => {
+      it('generates a new frame Id', () => {
+        const originalId = store.frameId;
+        store.reload();
+
+        expect(store.frameId).to.not.equal(originalId);
+      });
+    });
+
+    describe('setCurrentUrl', () => {
+      it('sets the url', () => {
+        store.setCurrentUrl(TEST_URL);
+        expect(store.currentUrl).to.equal(TEST_URL);
+      });
+    });
+
+    describe('setLoading', () => {
+      beforeEach(() => {
+        store.setLoading(true);
+      });
+
+      it('sets the loading state (true)', () => {
+        expect(store.isLoading).to.be.true;
+      });
+
+      it('sets the loading state (false)', () => {
+        store.setLoading(false);
+        expect(store.isLoading).to.be.false;
+      });
+    });
+
+    describe('setNextUrl', () => {
+      it('sets the url', () => {
+        store.setNextUrl(TEST_URL);
+        expect(store.nextUrl).to.equal(TEST_URL);
       });
     });
 
@@ -76,13 +114,6 @@ describe('views/Home/Store', () => {
       it('sets the token', () => {
         store.setToken(TEST_TOKEN);
         expect(store.token).to.equal(TEST_TOKEN);
-      });
-    });
-
-    describe('setUrl', () => {
-      it('sets the url', () => {
-        store.setUrl(TEST_URL);
-        expect(store.url).to.equal(TEST_URL);
       });
     });
   });
@@ -94,7 +125,7 @@ describe('views/Home/Store', () => {
       });
 
       it('calls parity_generateWebProxyAccessToken', () => {
-        expect(api.parity.generateWebProxyAccessToken).to.have.been.calledOnce;
+        expect(api.signer.generateWebProxyAccessToken).to.have.been.calledOnce;
       });
 
       it('sets the token as retrieved', () => {

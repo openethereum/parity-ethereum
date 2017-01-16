@@ -19,20 +19,27 @@ import moment from 'moment';
 import React, { Component } from 'react';
 import { FormattedMessage } from 'react-intl';
 
-import Store from './store';
+import { DappUrlInput } from '~/ui';
+
+import WebStore from '../Web/store';
 import styles from './home.css';
 
 @observer
 export default class Home extends Component {
-  store = Store.get();
+  webstore = WebStore.get();
 
   render () {
-    const { url } = this.store;
+    const { url } = this.webstore;
 
     return (
       <div className={ styles.body }>
         <div className={ styles.url }>
-          <input value={ url } />
+          <DappUrlInput
+            className={ styles.input }
+            onChange={ this.onChangeUrl }
+            onGoto={ this.onGotoUrl }
+            onRestore={ this.onRestoreUrl }
+            url={ url } />
         </div>
         { this.renderUrlHistory() }
       </div>
@@ -40,20 +47,20 @@ export default class Home extends Component {
   }
 
   renderUrlHistory () {
-    const { urlhistory } = this.store;
+    const { history } = this.webstore;
 
-    if (!urlhistory.length) {
+    if (!history.length) {
       return null;
     }
 
-    const rows = urlhistory.map((history) => {
+    const rows = history.map((entry) => {
       return (
-        <tr>
+        <tr key={ entry.timestamp }>
           <td className={ styles.timestamp }>
-            { moment(history.timestamp).fromNow() }
+            { moment(entry.timestamp).fromNow() }
           </td>
           <td className={ styles.url }>
-            { history.url }
+            { entry.url }
           </td>
         </tr>
       );
@@ -74,5 +81,17 @@ export default class Home extends Component {
         </table>
       </div>
     );
+  }
+
+  onChangeUrl = (url) => {
+    this.webstore.setNextUrl(url);
+  }
+
+  onGotoUrl = () => {
+    this.webstore.gotoUrl();
+  }
+
+  onRestoreUrl = () => {
+    this.webstore.restoreUrl();
   }
 }

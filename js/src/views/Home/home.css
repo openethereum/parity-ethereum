@@ -32,12 +32,13 @@
 .url {
   margin: 1.5em;
 
-  input {
+  .input {
     background: rgba(0, 0, 0, 0.1);
     border: 1px solid rgba(255, 255, 255, 0.25);
     border-radius: 0.25em;
     color: white;
     font-size: 1.25em;
     padding: 0.5em;
+    width: 100%;
   }
 }
