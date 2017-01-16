@@ -14,27 +14,4 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Efficient large, fixed-size big integers and hashes.
-
-#![cfg_attr(asm_available, feature(asm))]
-
-extern crate rand;
-extern crate rustc_serialize;
-extern crate bigint;
-extern crate libc;
-#[macro_use] extern crate heapsize;
-
-pub mod hash;
-
-/// A prelude module for re-exporting all the types defined in this crate.
-///
-/// ```rust
-/// use ethcore_bigint::prelude::*;
-///
-/// let x: U256 = U256::zero();
-/// let y = x + 1.into();
-/// ```
-pub mod prelude {
-	pub use ::bigint::*;
-	pub use ::hash::*;
-}
+export default from './passwordStrength';
