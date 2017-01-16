@@ -14,29 +14,24 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import AddressSelect from './AddressSelect';
-import DappUrlInput from './DappUrlInput';
-import FormWrap from './FormWrap';
-import TypedInput from './TypedInput';
-import Input from './Input';
-import InputAddress from './InputAddress';
-import InputAddressSelect from './InputAddressSelect';
-import InputChip from './InputChip';
-import InputInline from './InputInline';
-import Select from './Select';
-import RadioButtons from './RadioButtons';
+import { shallow } from 'enzyme';
+import React from 'react';
 
-export default from './form';
-export {
-  AddressSelect,
-  DappUrlInput,
-  FormWrap,
-  TypedInput,
-  Input,
-  InputAddress,
-  InputAddressSelect,
-  InputChip,
-  InputInline,
-  Select,
-  RadioButtons
-};
+import DappUrlInput from './';
+
+let component;
+
+function render (props = {}) {
+  component = shallow(
+    <DappUrlInput { ...props } />
+  );
+  console.log(component);
+
+  return component;
+}
+
+describe.only('ui/Form/DappUrlInput', () => {
+  it('renders defaults', () => {
+    expect(render()).to.be.ok;
+  });
+});

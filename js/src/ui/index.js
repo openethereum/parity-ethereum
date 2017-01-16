@@ -30,7 +30,7 @@ import ContextProvider from './ContextProvider';
 import CopyToClipboard from './CopyToClipboard';
 import Editor from './Editor';
 import Errors from './Errors';
-import Form, { AddressSelect, FormWrap, TypedInput, Input, InputAddress, InputAddressSelect, InputChip, InputInline, Select, RadioButtons } from './Form';
+import Form, { AddressSelect, DappUrlInput, FormWrap, TypedInput, Input, InputAddress, InputAddressSelect, InputChip, InputInline, RadioButtons, Select } from './Form';
 import GasPriceEditor from './GasPriceEditor';
 import GasPriceSelector from './GasPriceSelector';
 import Icons from './Icons';
@@ -69,6 +69,7 @@ export {
   ContainerTitle,
   ContextProvider,
   CopyToClipboard,
+  DappUrlInput,
   Editor,
   Errors,
   Form,

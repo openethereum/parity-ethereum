@@ -29,6 +29,7 @@ import LinkIcon from 'material-ui/svg-icons/content/link';
 import LockedIcon from 'material-ui/svg-icons/action/lock';
 import NextIcon from 'material-ui/svg-icons/navigation/arrow-forward';
 import PrevIcon from 'material-ui/svg-icons/navigation/arrow-back';
+import RefreshIcon from 'material-ui/svg-icons/navigation/refresh';
 import SaveIcon from 'material-ui/svg-icons/content/save';
 import SendIcon from 'material-ui/svg-icons/content/send';
 import SnoozeIcon from 'material-ui/svg-icons/av/snooze';
@@ -52,6 +53,7 @@ export {
   LockedIcon,
   NextIcon,
   PrevIcon,
+  RefreshIcon,
   SaveIcon,
   SendIcon,
   SnoozeIcon,
