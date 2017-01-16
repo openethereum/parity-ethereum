@@ -36,15 +36,15 @@ export default class Web extends Component {
 
   componentDidMount () {
     this.store.generateToken();
-    this.store.setCurrentUrl(this.props.params.url);
+    this.store.gotoUrl(this.props.params.url);
   }
 
   componentWillReceiveProps (props) {
-    this.store.setCurrentUrl(props.params.url);
+    this.store.gotoUrl(props.params.url);
   }
 
   render () {
-    const { currentUrl, frameId, parsedUrl, token } = this.store;
+    const { counter, currentUrl, frameId, parsedUrl, token } = this.store;
 
     if (!token) {
       return (
@@ -62,7 +62,7 @@ export default class Web extends Component {
 
     const { dappsUrl } = this.context.api;
     const { protocol, host, path } = parsedUrl;
-    const address = `${dappsUrl}/web/${token}/${protocol.slice(0, -1)}/${host}${path}`;
+    const address = `${dappsUrl}/web/${token}/${protocol.slice(0, -1)}/${host}${path}?_cache=${counter}`;
 
     return (
       <div className={ styles.wrapper }>

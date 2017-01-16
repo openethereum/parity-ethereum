@@ -57,7 +57,10 @@ export default class Store {
   }
 
   @action reload () {
-    this.counter++;
+    transaction(() => {
+      this.setLoading(true);
+      this.counter++;
+    });
   }
 
   @action setLoading = (isLoading) => {
@@ -74,6 +77,11 @@ export default class Store {
     transaction(() => {
       this.currentUrl = url;
       this.parsedUrl = parseUrl(url);
+
+      this.addHistoryUrl();
+      this.saveLastUrl();
+
+      this.reload();
     });
   }
 
@@ -98,14 +106,10 @@ export default class Store {
       });
   }
 
-  gotoUrl = () => {
+  gotoUrl = (url) => {
     transaction(() => {
-      this.currentUrl = this.nextUrl;
-
-      this.addHistoryUrl();
-      this.saveLastUrl();
-
-      this.reload();
+      this.setNextUrl(url || this.nextUrl);
+      this.setCurrentUrl(this.nextUrl);
     });
   }
 
@@ -118,7 +122,7 @@ export default class Store {
   }
 
   saveLastUrl = () => {
-    return localStore.set(LS_LAST_ADDRESS, this.url || DEFAULT_URL);
+    return localStore.set(LS_LAST_ADDRESS, this.currentUrl);
   }
 
   static get (api) {

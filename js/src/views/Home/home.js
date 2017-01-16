@@ -19,7 +19,7 @@ import moment from 'moment';
 import React, { Component } from 'react';
 import { FormattedMessage } from 'react-intl';
 
-import { DappUrlInput } from '~/ui';
+import { DappUrlInput, Page } from '~/ui';
 
 import WebStore from '../Web/store';
 import styles from './home.css';
@@ -29,20 +29,28 @@ export default class Home extends Component {
   webstore = WebStore.get();
 
   render () {
-    const { url } = this.webstore;
+    const { currentUrl } = this.webstore;
 
     return (
-      <div className={ styles.body }>
+      <Page
+        className={ styles.body }
+        title={
+          <FormattedMessage
+            id='home.title'
+            defaultMessage='Parity Home'
+          />
+        }
+      >
         <div className={ styles.url }>
           <DappUrlInput
             className={ styles.input }
             onChange={ this.onChangeUrl }
             onGoto={ this.onGotoUrl }
             onRestore={ this.onRestoreUrl }
-            url={ url } />
+            url={ currentUrl } />
         </div>
         { this.renderUrlHistory() }
-      </div>
+      </Page>
     );
   }
 
