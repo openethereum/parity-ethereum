@@ -59,6 +59,7 @@ type RpcResult = Result<jsonrpc_core::Value, jsonrpc_core::Error>;
 struct StratumRpc {
 	stratum: RwLock<Option<Arc<Stratum>>>,
 }
+
 impl StratumRpc {
 	fn subscribe(&self, params: Params) -> RpcResult {
 		self.stratum.read().as_ref().expect("RPC methods are called after stratum is set.")
@@ -99,7 +100,7 @@ impl Stratum {
 		addr: &SocketAddr,
 		dispatcher: Arc<JobDispatcher>,
 		secret: Option<H256>,
-	) -> Result<Arc<Stratum>, jsonrpc_tcp_server::Error> {
+	) -> Result<Arc<Stratum>, Error> {
 		let rpc = Arc::new(StratumRpc {
 			stratum: RwLock::new(None),
 		});

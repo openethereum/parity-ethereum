@@ -25,11 +25,18 @@ pub enum Error {
 	NoWork,
 	NoWorkers,
 	Io(String),
+	Tcp(String),
 }
 
 impl From<std::io::Error> for Error {
 	fn from(err: std::io::Error) -> Self {
 		Error::Io(err.description().to_owned())
+	}
+}
+
+impl From<::jsonrpc_tcp_server::Error> for Error {
+	fn from(tcp_err: ::jsonrpc_tcp_server::Error) -> Self {
+		Error::Tcp(format!("{:?}", tcp_err))
 	}
 }
 

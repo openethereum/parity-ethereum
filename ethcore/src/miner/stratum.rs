@@ -16,29 +16,27 @@
 
 //! Client-side stratum job dispatcher and mining notifier handler
 
-use ethcore_stratum::{JobDispatcher, RemoteWorkHandler, PushWorkHandler};
+use ethcore_stratum::{
+	JobDispatcher, PushWorkHandler,
+	Stratum as EthcoreStratum, Error as StratumServiceError,
+};
+use super::StratumOptions;
+
 use std::sync::{Arc, Weak};
-use std::sync::atomic::Ordering;
-use std::thread;
-use nanoipc;
+use std::net::{SocketAddr, AddrParseError};
+
 use util::{H256, U256, FixedHash, H64, clean_0x};
 use ethereum::ethash::Ethash;
 use ethash::SeedHashCompute;
-use util::{Mutex, RwLock};
+use util::Mutex;
 use miner::{Miner, MinerService};
 use client::Client;
 use block::IsBlock;
 use std::str::FromStr;
 use rlp::encode;
 
-/// IPC socket dedicated to stratum
-pub const STRATUM_SOCKET_NAME: &'static str = "parity-stratum.ipc";
-/// IPC socket for job dispatcher
-pub const JOB_DISPATCHER_SOCKET_NAME: &'static str = "parity-mining-jobs.ipc";
-
 /// Job dispatcher for stratum service
 pub struct StratumJobDispatcher {
-	last_work: RwLock<Option<(H256, U256, u64)>>,
 	seed_compute: Mutex<SeedHashCompute>,
 	client: Weak<Client>,
 	miner: Weak<Miner>,
@@ -59,7 +57,6 @@ impl JobDispatcher for StratumJobDispatcher {
 
 				(pow_hash, *difficulty, number)
 			}) {
-				*self.last_work.write() = Some((pow_hash, difficulty, number));
 				Some(self.payload(pow_hash, difficulty, number))
 			} else { None }
 		})
@@ -113,7 +110,6 @@ impl StratumJobDispatcher {
 	fn new(miner: Weak<Miner>, client: Weak<Client>) -> StratumJobDispatcher {
 		StratumJobDispatcher {
 			seed_compute: Mutex::new(SeedHashCompute::new()),
-			last_work: RwLock::new(None),
 			client: client,
 			miner: miner,
 		}
@@ -139,60 +135,55 @@ impl StratumJobDispatcher {
 /// Wrapper for dedicated stratum service
 pub struct Stratum {
 	dispatcher: Arc<StratumJobDispatcher>,
-	base_dir: String,
-	stop: ::devtools::StopGuard,
+	service: Arc<EthcoreStratum>,
 }
 
 #[derive(Debug)]
 /// Stratum error
 pub enum Error {
 	/// IPC sockets error
-	Nano(nanoipc::SocketError),
+	Service(StratumServiceError),
+	/// Invalid network address
+	Address(AddrParseError),
 }
 
-impl From<nanoipc::SocketError> for Error {
-	fn from(socket_err: nanoipc::SocketError) -> Error { Error::Nano(socket_err) }
+impl From<StratumServiceError> for Error {
+	fn from(service_err: StratumServiceError) -> Error { Error::Service(service_err) }
+}
+
+impl From<AddrParseError> for Error {
+	fn from(err: AddrParseError) -> Error { Error::Address(err) }
 }
 
 impl super::work_notify::NotifyWork for Stratum {
-	#[allow(unused_must_use)]
 	fn notify(&self, pow_hash: H256, difficulty: U256, number: u64) {
-		nanoipc::generic_client::<RemoteWorkHandler<_>>(&format!("ipc://{}/ipc/{}", self.base_dir, STRATUM_SOCKET_NAME))
-			.and_then(|client| {
-				client.push_work_all(
-					self.dispatcher.payload(pow_hash, difficulty, number)
-				).unwrap_or_else(
-					|e| warn!(target: "stratum", "Error while pushing work: {:?}", e)
-				);
-				*self.dispatcher.last_work.write() = Some((pow_hash, difficulty, number));
-				Ok(client)
-			})
-			.map_err(|e| warn!(target: "stratum", "Can't connect to stratum service: {:?}", e));
+		self.service.push_work_all(
+			self.dispatcher.payload(pow_hash, difficulty, number)
+		).unwrap_or_else(
+			|e| warn!(target: "stratum", "Error while pushing work: {:?}", e)
+		);
 	}
 }
 
 impl Stratum {
+
 	/// New stratum job dispatcher, given the miner, client and dedicated stratum service
-	pub fn new(base_dir: &str, miner: Weak<Miner>, client: Weak<Client>) -> Result<Stratum, Error> {
+	pub fn new(options: &StratumOptions, miner: Weak<Miner>, client: Weak<Client>) -> Result<Stratum, Error> {
+		let dispatcher = Arc::new(StratumJobDispatcher::new(miner, client));
+
+		let stratum_svc = EthcoreStratum::start(
+			&SocketAddr::from_str(&options.listen_addr)?,
+			dispatcher.clone(),
+			options.secret.clone(),
+		)?;
+
 		Ok(Stratum {
-			dispatcher: Arc::new(StratumJobDispatcher::new(miner, client)),
-			base_dir: base_dir.to_owned(),
-			stop: ::devtools::StopGuard::new(),
+			dispatcher: dispatcher,
+			service: stratum_svc,
 		})
 	}
 
 	/// Run stratum job dispatcher in separate thread
 	pub fn run_async(&self) {
-		let socket_url = format!("ipc://{}/ipc/{}", &self.base_dir, JOB_DISPATCHER_SOCKET_NAME);
-		let stop = self.stop.share();
-		let service = self.dispatcher.clone() as Arc<JobDispatcher>;
-		thread::spawn(move || {
-			let mut worker = nanoipc::Worker::<JobDispatcher>::new(&service);
-			worker.add_reqrep(&socket_url).unwrap();
-
-			while !stop.load(Ordering::Relaxed) {
-				worker.poll();
-			}
-		});
 	}
 }
