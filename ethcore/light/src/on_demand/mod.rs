@@ -112,7 +112,7 @@ impl OnDemand {
 	// dispatch the request, completing the request if no peers available.
 	fn dispatch_header_by_number(&self, ctx: &BasicContext, req: request::HeaderByNumber, sender: Sender<encoded::Header>) {
 		let num = req.num;
-		let cht_num = ::client::cht::block_to_cht_number(req.num);
+		let cht_num = ::cht::block_to_cht_number(req.num);
 		let les_req = LesRequest::HeaderProofs(les_request::HeaderProofs {
 			requests: vec![les_request::HeaderProof {
 				cht_number: cht_num,
