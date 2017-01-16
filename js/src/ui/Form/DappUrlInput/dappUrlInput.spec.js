@@ -16,22 +16,55 @@
 
 import { shallow } from 'enzyme';
 import React from 'react';
+import sinon from 'sinon';
 
 import DappUrlInput from './';
 
 let component;
+let onChange;
+let onGoto;
+let onRestore;
 
-function render (props = {}) {
+function render (props = { url: 'http://some.url' }) {
+  onChange = sinon.stub();
+  onGoto = sinon.stub();
+  onRestore = sinon.stub();
+
   component = shallow(
-    <DappUrlInput { ...props } />
+    <DappUrlInput
+      onChange={ onChange }
+      onGoto={ onGoto }
+      onRestore={ onRestore }
+      { ...props }
+    />
   );
-  console.log(component);
 
   return component;
 }
 
-describe.only('ui/Form/DappUrlInput', () => {
+describe('ui/Form/DappUrlInput', () => {
   it('renders defaults', () => {
     expect(render()).to.be.ok;
+  });
+
+  describe('events', () => {
+    describe('onChange', () => {
+      it('calls the onChange callback as provided', () => {
+        component.simulate('change', { target: { value: 'testing' } });
+        expect(onChange).to.have.been.calledWith('testing');
+      });
+    });
+
+    describe('onKeyDown', () => {
+      it('calls the onGoto callback on enter', () => {
+        component.simulate('keyDown', { keyCode: 13 });
+        expect(onGoto).to.have.been.called;
+      });
+
+      it('calls the onRestor callback on esc', () => {
+        component.simulate('keyDown', { keyCode: 27 });
+        expect(onRestore).to.have.been.called;
+      });
+    });
   });
 });
