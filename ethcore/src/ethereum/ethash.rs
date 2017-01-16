@@ -31,7 +31,7 @@ use ethjson;
 use rlp::{self, UntrustedRlp, View};
 use blockchain::extras::BlockDetails;
 
-/// Parity tries to round block.gas_limit to multiplier of this constant
+/// Parity tries to round block.gas_limit to multiple of this constant
 pub const PARITY_GAS_LIMIT_DETERMINANT: U256 = U256([37, 0, 0, 0]);
 
 /// Ethash params.
@@ -348,7 +348,7 @@ pub fn is_new_best_block(best_total_difficulty: U256, parent_details: &BlockDeta
 
 // Try to round gas_limit a bit so that:
 // 1) it will still be in desired range
-// 2) it will be a nearest (with tendency to increase) multiplier of PARITY_GAS_LIMIT_DETERMINANT
+// 2) it will be a nearest (with tendency to increase) multiple of PARITY_GAS_LIMIT_DETERMINANT
 fn round_block_gas_limit(gas_limit: U256, lower_limit: U256, upper_limit: U256) -> U256 {
 	let increased_gas_limit = gas_limit + (PARITY_GAS_LIMIT_DETERMINANT - gas_limit % PARITY_GAS_LIMIT_DETERMINANT);
 	if increased_gas_limit > upper_limit {
@@ -805,7 +805,7 @@ mod tests {
 	}
 
 	#[test]
-	fn gas_limit_is_multiplier_of_determinant() {
+	fn gas_limit_is_multiple_of_determinant() {
 		let spec = new_homestead_test();
 		let ethash = Ethash::new(spec.params, get_default_ethash_params(), BTreeMap::new());
 		let mut parent = Header::new();
@@ -832,15 +832,15 @@ mod tests {
 		assert_eq!(*header.gas_limit(), U256::from(150_035));
 
 		// when parent.gas_limit is in miner's range
-		// && we can NOT increase it to be multiplier of constant
+		// && we can NOT increase it to be multiple of constant
 		header.set_gas_used(U256::from(150_000));
 		parent.set_gas_limit(U256::from(150_000));
 		ethash.populate_from_parent(&mut header, &parent, U256::from(100_000), U256::from(150_002));
 		assert_eq!(*header.gas_limit(), U256::from(149_998));
 
 		// when parent.gas_limit is in miner's range
-		// && we can NOT increase it to be multiplier of constant
-		// && we can NOT decrease it to be multiplier of constant
+		// && we can NOT increase it to be multiple of constant
+		// && we can NOT decrease it to be multiple of constant
 		header.set_gas_used(U256::from(150_000));
 		parent.set_gas_limit(U256::from(150_000));
 		ethash.populate_from_parent(&mut header, &parent, U256::from(150_000), U256::from(150_002));
