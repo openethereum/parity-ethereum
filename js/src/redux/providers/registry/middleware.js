@@ -23,7 +23,7 @@ import registryABI from '~/contracts/abi/registry.json';
 import { setReverse, startCachingReverses } from './actions';
 
 const read = () => {
-  const data = window.localStorage.getItem('registry-reverse');
+  const data = window.localStorage.getItem('registry-reverses');
   if (!data) {
     return null;
   }
@@ -37,7 +37,7 @@ const read = () => {
 
 const write = debounce((getReverses) => {
   const reverses = getReverses();
-  window.localStorage.setItem('registry-reverse', JSON.stringify(reverses));
+  window.localStorage.setItem('registry-reverses', JSON.stringify(reverses));
 }, 20000);
 
 export default (api) => (store) => {
@@ -103,7 +103,7 @@ export default (api) => (store) => {
         const cached = read();
         if (cached) {
           Object
-            .values(cached)
+            .entries(cached)
             .forEach(([ address, reverse ]) => store.dispatch(setReverse(address, reverse)));
         }
 
@@ -124,7 +124,9 @@ export default (api) => (store) => {
         break;
       case 'setReverse':
         write(() => store.getState().registry.reverse);
+        next(action);
 
+        break;
       default:
         next(action);
     }
