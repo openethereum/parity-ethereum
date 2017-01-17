@@ -271,13 +271,17 @@ fn main() {
 	let have_update = latest_exe.as_ref().map_or(false, |p| p.exists());
 	let is_non_updated_current = exe.map_or(false, |exe| latest_exe.as_ref().map_or(false, |lexe| exe.canonicalize().ok() != lexe.canonicalize().ok()));
 	trace_main!("Starting up {} (force-direct: {}, development: {}, same-name: {}, have-update: {}, non-updated-current: {})", std::env::current_exe().map(|x| format!("{}", x.display())).unwrap_or("<unknown>".to_owned()), force_direct, development, same_name, have_update, is_non_updated_current);
-	if !force_direct && !development && same_name && have_update && is_non_updated_current {
+	if !force_direct && !development && same_name {
 		// looks like we're not running ~/.parity-updates/parity when the user is expecting otherwise.
 		// Everything run inside a loop, so we'll be able to restart from the child into a new version seamlessly.
 		loop {
 			// If we fail to run the updated parity then fallback to local version.
 			trace_main!("Attempting to run latest update ({})...", latest_exe.as_ref().expect("guarded by have_update; latest_exe must exist for have_update; qed").display());
-			let exit_code = run_parity().unwrap_or_else(|| { trace_main!("Falling back to local..."); main_direct(true) });
+			let exit_code = if have_update && is_non_updated_current {
+				run_parity().unwrap_or_else(|| { trace_main!("Falling back to local..."); main_direct(true) })
+			} else {
+				main_direct(true)
+			};
 			trace_main!("Latest exited with {}", exit_code);
 			if exit_code != PLEASE_RESTART_EXIT_CODE {
 				trace_main!("Quitting...");
