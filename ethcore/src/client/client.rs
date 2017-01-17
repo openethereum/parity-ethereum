@@ -1441,7 +1441,7 @@ impl BlockChainClient for Client {
 			data: data,
 		};
 		let network_id = self.engine.signing_network_id(&env_info);
-		let signature = self.engine.sign(transaction.hash(network_id));
+		let signature = self.engine.sign(transaction.hash(network_id))?;
 		let signed = SignedTransaction::new(transaction.with_signature(signature, network_id))?;
 		self.miner.import_own_transaction(self, signed.into())
 	}

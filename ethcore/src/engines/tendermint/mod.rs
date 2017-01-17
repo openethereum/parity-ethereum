@@ -36,7 +36,7 @@ use header::Header;
 use builtin::Builtin;
 use env_info::EnvInfo;
 use rlp::{UntrustedRlp, View};
-use ethkey::{recover, public_to_address};
+use ethkey::{recover, public_to_address, Signature};
 use account_provider::AccountProvider;
 use block::*;
 use spec::CommonParams;
@@ -564,6 +564,10 @@ impl Engine for Tendermint {
 			self.signer.set(ap, address, password);
 		}
 		self.to_step(Step::Propose);
+	}
+
+	fn sign(&self, hash: H256) -> Result<Signature, Error> {
+		self.signer.sign(hash).map_err(Into::into)
 	}
 
 	fn stop(&self) {

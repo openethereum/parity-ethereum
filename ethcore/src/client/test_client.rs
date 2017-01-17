@@ -733,7 +733,7 @@ impl BlockChainClient for TestBlockChainClient {
 			data: data,
 		};
 		let network_id = Some(self.spec.params.network_id);
-		let sig = self.spec.engine.sign(transaction.hash(network_id));
+		let sig = self.spec.engine.sign(transaction.hash(network_id)).unwrap();
 		let signed = SignedTransaction::new(transaction.with_signature(sig, network_id)).unwrap();
 		self.miner.import_own_transaction(self, signed.into())
 	}

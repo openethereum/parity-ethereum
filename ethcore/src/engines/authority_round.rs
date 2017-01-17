@@ -331,6 +331,10 @@ impl Engine for AuthorityRound {
 	fn set_signer(&self, ap: Arc<AccountProvider>, address: Address, password: String) {
 		self.signer.set(ap, address, password);
 	}
+
+	fn sign(&self, hash: H256) -> Result<Signature, Error> {
+		self.signer.sign(hash).map_err(Into::into)
+	}
 }
 
 #[cfg(test)]
