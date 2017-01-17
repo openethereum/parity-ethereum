@@ -62,11 +62,15 @@ class Balance extends Component {
           value = api.util.fromWei(balance.value).toFormat(3);
         }
 
-        let imagesrc = token.image;
-        if (!imagesrc) {
-          imagesrc = images[token.address]
-            ? `${api.dappsUrl}${images[token.address]}`
-            : unknownImage;
+        const imageurl = token.image || images[token.address];
+        let imagesrc = unknownImage;
+
+        if (imageurl) {
+          const host = /^(\/)?api/.test(imageurl)
+            ? api.dappsUrl
+            : '';
+
+          imagesrc = `${host}${imageurl}`;
         }
 
         return (
