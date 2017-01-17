@@ -44,18 +44,14 @@ class TabBar extends Component {
   render () {
     return (
       <Toolbar className={ styles.toolbar }>
-        <ToolbarGroup>
-          <div className={ styles.first }>
-            <div />
-          </div>
+        <ToolbarGroup className={ styles.first }>
+          <div />
         </ToolbarGroup>
         <div className={ styles.tabs }>
           { this.renderTabItems() }
         </div>
-        <ToolbarGroup>
-          <div className={ styles.last }>
-            <div />
-          </div>
+        <ToolbarGroup className={ styles.last }>
+          <div />
         </ToolbarGroup>
       </Toolbar>
     );
