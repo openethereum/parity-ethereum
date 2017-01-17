@@ -97,9 +97,7 @@ impl<A: Authorization + 'static> server::Handler<HttpStream> for Router<A> {
 				=>
 			{
 				trace!(target: "dapps", "Redirecting to correct web request: {:?}", referer_url);
-				// TODO [ToDr] Some nice util for this!
-				let using_domain = if referer.using_dapps_domains { 0 } else { 1 };
-				let len = cmp::min(referer_url.path.len(), using_domain + 3); // token + protocol + hostname
+				let len = cmp::min(referer_url.path.len(), 2); // /web/<encoded>/
 				let base = referer_url.path[..len].join("/");
 				let requested = url.map(|u| u.path.join("/")).unwrap_or_default();
 				Redirection::boxed(&format!("/{}/{}", base, requested))

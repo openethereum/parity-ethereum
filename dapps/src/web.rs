@@ -154,17 +154,18 @@ impl<F: Fetch> WebHandler<F> {
 			target_url = format!("{}/", target_url);
 		}
 
-		let (path, query) = match url {
-			Some(url) => (url.path, url.query),
-			None => {
+		let (path, query) = match (&url, self.path.using_dapps_domains) {
+			(&Some(ref url), true) => (&url.path[..], &url.query),
+			(&Some(ref url), false) => (&url.path[2..], &url.query),
+			_ => {
 				return Err(State::Error(ContentHandler::error(
 					StatusCode::BadRequest, "Invalid URL", "Couldn't parse URL", None, self.embeddable_on.clone()
 				)));
 			}
 		};
 
-		let query = match query {
-			Some(query) => format!("?{}", query),
+		let query = match *query {
+			Some(ref query) => format!("?{}", query),
 			None => "".into(),
 		};
 
