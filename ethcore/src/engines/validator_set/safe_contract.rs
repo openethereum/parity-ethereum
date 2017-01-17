@@ -26,7 +26,7 @@ use super::simple_list::SimpleList;
 /// The validator contract should have the following interface:
 /// [{"constant":true,"inputs":[],"name":"getValidators","outputs":[{"name":"","type":"address[]"}],"payable":false,"type":"function"}]
 pub struct ValidatorSafeContract {
-	address: Address,
+	pub address: Address,
 	validators: RwLock<SimpleList>,
 	provider: RwLock<Option<provider::Contract>>,
 }

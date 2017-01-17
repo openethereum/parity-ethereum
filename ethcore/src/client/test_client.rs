@@ -723,6 +723,21 @@ impl BlockChainClient for TestBlockChainClient {
 
 	fn call_contract(&self, _address: Address, _data: Bytes) -> Result<Bytes, String> { Ok(vec![]) }
 
+	fn transact_contract(&self, address: Address, data: Bytes) -> Result<TransactionImportResult, EthcoreError> {
+		let transaction = Transaction {
+			nonce: self.latest_nonce(&self.miner.author()),
+			action: Action::Call(address),
+			gas: self.spec.gas_limit,
+			gas_price: U256::zero(),
+			value: U256::default(),
+			data: data,
+		};
+		let network_id = Some(self.spec.params.network_id);
+		let sig = self.spec.engine.sign(transaction.hash(network_id));
+		let signed = transaction.with_signature(sig, network_id);
+		self.miner.import_own_transaction(self, signed.into())
+	}
+
 	fn registrar_address(&self) -> Option<Address> { None }
 
 	fn registry_address(&self, _name: String) -> Option<Address> { None }

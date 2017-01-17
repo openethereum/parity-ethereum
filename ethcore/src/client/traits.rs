@@ -273,6 +273,9 @@ pub trait BlockChainClient : Sync + Send {
 	/// Like `call`, but with various defaults. Designed to be used for calling contracts.
 	fn call_contract(&self, address: Address, data: Bytes) -> Result<Bytes, String>;
 
+	/// Import a transaction: used for misbehaviour reporting.
+	fn transact_contract(&self, address: Address, data: Bytes) -> Result<TransactionImportResult, EthcoreError>;
+
 	/// Get the address of the registry itself.
 	fn registrar_address(&self) -> Option<Address>;
 

@@ -25,7 +25,6 @@ use super::safe_contract::ValidatorSafeContract;
 /// The validator contract should have the following interface:
 /// [{"constant":true,"inputs":[],"name":"getValidators","outputs":[{"name":"","type":"address[]"}],"payable":false,"type":"function"}]
 pub struct ValidatorContract {
-	address: Address,
 	validators: Arc<ValidatorSafeContract>,
 	provider: RwLock<Option<provider::Contract>>,
 }
@@ -33,7 +32,6 @@ pub struct ValidatorContract {
 impl ValidatorContract {
 	pub fn new(contract_address: Address) -> Self {
 		ValidatorContract {
-			address: contract_address,
 			validators: Arc::new(ValidatorSafeContract::new(contract_address)),
 			provider: RwLock::new(None),
 		}
@@ -56,7 +54,7 @@ impl ValidatorSet for Arc<ValidatorContract> {
 	fn report_malicious(&self, address: &Address) {
 		if let Some(ref provider) = *self.provider.read() {
 			match provider.report_malicious(address) {
-				Ok(_) => debug!(target: "engine", "Reported malicious validator {}", address),
+				Ok(_) => warn!(target: "engine", "Reported malicious validator {}", address),
 				Err(s) => warn!(target: "engine", "Validator {} could not be reported {}", address, s),
 			}
 		} else {
@@ -67,7 +65,7 @@ impl ValidatorSet for Arc<ValidatorContract> {
 	fn report_benign(&self, address: &Address) {
 		if let Some(ref provider) = *self.provider.read() {
 			match provider.report_benign(address) {
-				Ok(_) => debug!(target: "engine", "Reported benign validator misbehaviour {}", address),
+				Ok(_) => warn!(target: "engine", "Reported benign validator misbehaviour {}", address),
 				Err(s) => warn!(target: "engine", "Validator {} could not be reported {}", address, s),
 			}
 		} else {
@@ -77,7 +75,12 @@ impl ValidatorSet for Arc<ValidatorContract> {
 
 	fn register_contract(&self, client: Weak<Client>) {
 		self.validators.register_contract(client.clone());
-		*self.provider.write() = Some(provider::Contract::new(self.address, move |a, d| client.upgrade().ok_or("No client!".into()).and_then(|c| c.call_contract(a, d))));
+		let transact = move |a, d| client
+			.upgrade()
+			.ok_or("No client!".into())
+			.and_then(|c| c.transact_contract(a, d).map_err(|e| format!("Transaction import error: {}", e)))
+			.map(|_| Default::default());
+		*self.provider.write() = Some(provider::Contract::new(self.validators.address, transact));
 	}
 }
 

@@ -1430,6 +1430,22 @@ impl BlockChainClient for Client {
 			})
 	}
 
+	fn transact_contract(&self, address: Address, data: Bytes) -> Result<TransactionImportResult, EthcoreError> {
+		let env_info = self.latest_env_info();
+		let transaction = Transaction {
+			nonce: self.latest_nonce(&self.miner.author()),
+			action: Action::Call(address),
+			gas: env_info.gas_limit,
+			gas_price: self.miner.sensible_gas_price(),
+			value: U256::zero(),
+			data: data,
+		};
+		let network_id = self.engine.signing_network_id(&env_info);
+		let signature = self.engine.sign(transaction.hash(network_id));
+		let signed = transaction.with_signature(signature, network_id);
+		self.miner.import_own_transaction(self, signed.into())
+	}
+
 	fn registrar_address(&self) -> Option<Address> {
 		self.registrar.lock().as_ref().map(|r| r.address.clone())
 	}
