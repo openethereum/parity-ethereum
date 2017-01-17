@@ -14,6 +14,7 @@
 /* You should have received a copy of the GNU General Public License
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
+
 .toolbar {
   background: none !important;
   height: 72px !important;
@@ -53,7 +54,7 @@
 
 .tabLink,
 .settings,
-.logo,
+.first,
 .last {
   background: rgba(0, 0, 0, 0.5) !important; /* rgba(0, 0, 0, 0.25) !important; */
 }
@@ -73,27 +74,17 @@
   right: -12px;
 }
 
-.logo {
-  margin: 0 0 0 -24px;
-  padding: 20px 24px;
+.first,
+.last {
+  margin: 0;
+  padding: 36px 12px;
   white-space: nowrap;
 }
 
-.logo img {
-  height: 28px;
-  margin-right: 0.75em;
-}
-
-.logo div {
-  display: inline-block;
-  text-transform: uppercase;
-  line-height: 32px;
-  vertical-align: top;
-  letter-spacing: 0.2em;
+.first {
+  margin-left: -24px;
 }
 
 .last {
-  margin: 0 -24px 0 0;
-  padding: 36px 12px;
-  white-space: nowrap;
+  margin-right: -24px;
 }

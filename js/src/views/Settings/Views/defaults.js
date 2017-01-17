@@ -23,7 +23,24 @@ import CommunicationContacts from 'material-ui/svg-icons/communication/contacts'
 import ImageGridOn from 'material-ui/svg-icons/image/grid-on';
 import NavigationApps from 'material-ui/svg-icons/navigation/apps';
 
+import imagesEthcoreBlock from '~/../assets/images/parity-logo-white-no-text.svg';
+
+import styles from './views.css';
+
 const defaultViews = {
+  home: {
+    active: true,
+    fixed: true,
+    icon: (
+      <img
+        className={ styles.logoIcon }
+        src={ imagesEthcoreBlock }
+      />
+    ),
+    route: '/home',
+    value: 'home'
+  },
+
   accounts: {
     active: true,
     fixed: true,
