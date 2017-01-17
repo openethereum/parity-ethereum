@@ -276,10 +276,11 @@ fn main() {
 		// Everything run inside a loop, so we'll be able to restart from the child into a new version seamlessly.
 		loop {
 			// If we fail to run the updated parity then fallback to local version.
-			trace_main!("Attempting to run latest update ({})...", latest_exe.as_ref().expect("guarded by have_update; latest_exe must exist for have_update; qed").display());
 			let exit_code = if have_update && is_non_updated_current {
+				trace_main!("Attempting to run latest update ({})...", latest_exe.as_ref().expect("guarded by have_update; latest_exe must exist for have_update; qed").display());
 				run_parity().unwrap_or_else(|| { trace_main!("Falling back to local..."); main_direct(true) })
 			} else {
+				trace_main!("No latest update. Attempting to direct...");
 				main_direct(true)
 			};
 			trace_main!("Latest exited with {}", exit_code);
