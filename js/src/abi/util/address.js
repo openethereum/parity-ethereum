@@ -22,8 +22,8 @@ export function isChecksumValid (_address) {
 
   for (let n = 0; n < 40; n++) {
     const char = address[n];
-    const isLower = char != char.toUpperCase();
-    const isUpper = char != char.toLowerCase();
+    const isLower = char !== char.toUpperCase();
+    const isUpper = char !== char.toLowerCase();
     const hashval = parseInt(hash[n], 16);
 
     if ((hashval > 7 && isLower) || (hashval <= 7 && isUpper)) {
