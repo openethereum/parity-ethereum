@@ -19,7 +19,6 @@
   background: rgba(0, 0, 0, 0.25);
   min-height: 100vh;
   padding: 1.5em;
-  text-align: center;
 }
 
 .history {
@@ -28,6 +27,10 @@
   h3 {
     margin: 0;
     text-transform: uppercase;
+  }
+
+  .timestamp {
+    opacity: 0.5;
   }
 }
 

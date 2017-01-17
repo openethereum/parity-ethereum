@@ -16,21 +16,104 @@
 
 import { shallow } from 'enzyme';
 import React from 'react';
+import sinon from 'sinon';
 
 import Home from './';
 
+let api;
 let component;
+let instance;
+let router;
+
+function createApi () {
+  api = {
+    __id: 'testApi'
+  };
+
+  return api;
+}
+
+function createRouter () {
+  router = {
+    push: sinon.stub()
+  };
+
+  return router;
+}
 
 function render (props = {}) {
   component = shallow(
-    <Home { ...props } />
+    <Home { ...props } />,
+    {
+      context: {
+        api: createApi(),
+        router: createRouter()
+      }
+    }
   );
+  instance = component.instance();
 
   return component;
 }
 
 describe('views/Home', () => {
+  beforeEach(() => {
+    render();
+  });
+
   it('renders defaults', () => {
-    expect(render()).to.be.ok;
+    expect(component).to.be.ok;
+  });
+
+  describe('stores', () => {
+    describe('webstore', () => {
+      it('attaches to a webstore', () => {
+        expect(instance.webstore).to.be.ok;
+      });
+
+      it('attaches to webstore with context api', () => {
+        expect(instance.webstore._api.__id).to.equal(api.__id);
+      });
+    });
+  });
+
+  describe('events', () => {
+    beforeEach(() => {
+      sinon.spy(instance.webstore, 'gotoUrl');
+      sinon.spy(instance.webstore, 'restoreUrl');
+      sinon.spy(instance.webstore, 'setNextUrl');
+    });
+
+    afterEach(() => {
+      instance.webstore.gotoUrl.restore();
+      instance.webstore.restoreUrl.restore();
+      instance.webstore.setNextUrl.restore();
+    });
+
+    describe('onChangeUrl', () => {
+      it('performs setNextUrl on store', () => {
+        instance.onChangeUrl('123');
+        expect(instance.webstore.setNextUrl).to.have.been.calledWith('123');
+      });
+    });
+
+    describe('onGotoUrl', () => {
+      it('performs gotoUrl on store', () => {
+        instance.onGotoUrl();
+        expect(instance.webstore.gotoUrl).to.have.been.called;
+      });
+
+      it('does route navigation when executed', () => {
+        instance.onGotoUrl();
+        expect(router.push).to.have.been.calledWith('/web');
+      });
+    });
+
+    describe('onRestoreUrl', () => {
+      it('performs restoreUrl on store', () => {
+        instance.onRestoreUrl();
+        expect(instance.webstore.restoreUrl).to.have.been.called;
+      });
+    });
   });
 });

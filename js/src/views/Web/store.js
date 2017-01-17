@@ -49,18 +49,31 @@ export default class Store {
     return this.currentUrl === this.nextUrl;
   }
 
-  @action addHistoryUrl = (url) => {
+  @action addHistoryUrl = (_url) => {
+    const url = _url || this.currentUrl;
+
     this.history = [{
       timestamp: Date.now(),
       url
     }].concat(this.history.filter((h) => h.url !== url));
   }
 
-  @action reload () {
+  @action gotoUrl = (url) => {
+    transaction(() => {
+      this.setNextUrl(url || this.nextUrl);
+      this.setCurrentUrl(this.nextUrl);
+    });
+  }
+
+  @action reload = () => {
     transaction(() => {
       this.setLoading(true);
       this.counter++;
     });
+  }
+
+  @action restoreUrl = () => {
+    this.setNextUrl(this.currentUrl);
   }
 
   @action setLoading = (isLoading) => {
@@ -104,17 +117,6 @@ export default class Store {
       .catch((error) => {
         console.warn('generateToken', error);
       });
-  }
-
-  gotoUrl = (url) => {
-    transaction(() => {
-      this.setNextUrl(url || this.nextUrl);
-      this.setCurrentUrl(this.nextUrl);
-    });
-  }
-
-  restoreUrl = () => {
-    this.setNextUrl(this.currentUrl);
   }
 
   loadLastUrl = () => {

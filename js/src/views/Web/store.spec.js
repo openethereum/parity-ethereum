@@ -19,8 +19,9 @@ import sinon from 'sinon';
 import Store from './store';
 
 const TEST_TOKEN = 'testing-123';
-const TEST_URL = 'http://some.test.domain.com';
+const TEST_URL1 = 'http://some.test.domain.com';
 const TEST_URL2 = 'http://something.different.com';
+const TEST_URL3 = 'https://world.wonders.xyz';
 
 let api;
 let store;
@@ -49,26 +50,33 @@ describe('views/Home/Store', () => {
   describe('@action', () => {
     describe('addHistoryUrl', () => {
       it('adds the url to the list (front)', () => {
-        store.addHistoryUrl(TEST_URL);
-        expect(store.history[0].url).to.equal(TEST_URL);
+        store.addHistoryUrl(TEST_URL1);
+        expect(store.history[0].url).to.equal(TEST_URL1);
       });
 
       it('adds multiples to the list', () => {
-        store.addHistoryUrl(TEST_URL);
+        store.addHistoryUrl(TEST_URL1);
         store.addHistoryUrl(TEST_URL2);
 
         expect(store.history.length).to.equal(2);
         expect(store.history[0].url).to.equal(TEST_URL2);
-        expect(store.history[1].url).to.equal(TEST_URL);
+        expect(store.history[1].url).to.equal(TEST_URL1);
       });
 
       it('does not add duplicates', () => {
         store.addHistoryUrl(TEST_URL2);
-        store.addHistoryUrl(TEST_URL);
+        store.addHistoryUrl(TEST_URL1);
 
         expect(store.history.length).to.equal(2);
-        expect(store.history[0].url).to.equal(TEST_URL);
+        expect(store.history[0].url).to.equal(TEST_URL1);
         expect(store.history[1].url).to.equal(TEST_URL2);
+      });
+
+      it('adds the current when none specified', () => {
+        store.setCurrentUrl(TEST_URL3);
+        store.addHistoryUrl();
+
+        expect(store.history[0].url).to.equal(TEST_URL3);
       });
     });
 
@@ -81,10 +89,21 @@ describe('views/Home/Store', () => {
       });
     });
 
+    describe('restoreUrl', () => {
+      it('sets the nextUrl to the currentUrl', () => {
+        store.setCurrentUrl(TEST_URL1);
+        store.setNextUrl(TEST_URL2);
+        store.restoreUrl();
+
+        expect(store.nextUrl).to.equal(TEST_URL1);
+      });
+    });
+
     describe('setCurrentUrl', () => {
       it('sets the url', () => {
-        store.setCurrentUrl(TEST_URL);
-        expect(store.currentUrl).to.equal(TEST_URL);
+        store.setCurrentUrl(TEST_URL1);
+
+        expect(store.currentUrl).to.equal(TEST_URL1);
       });
     });
 
@@ -99,21 +118,61 @@ describe('views/Home/Store', () => {
 
       it('sets the loading state (false)', () => {
         store.setLoading(false);
+
         expect(store.isLoading).to.be.false;
       });
     });
 
     describe('setNextUrl', () => {
       it('sets the url', () => {
-        store.setNextUrl(TEST_URL);
-        expect(store.nextUrl).to.equal(TEST_URL);
+        store.setNextUrl(TEST_URL1);
+
+        expect(store.nextUrl).to.equal(TEST_URL1);
+      });
+
+      it('adds https when no protocol', () => {
+        store.setNextUrl('google.com');
+
+        expect(store.nextUrl).to.equal('https://google.com');
+      });
+
+      it('sets the currentUrl when none specified', () => {
+        store.setCurrentUrl(TEST_URL3);
+        store.setNextUrl();
+
+        expect(store.nextUrl).to.equal(TEST_URL3);
       });
     });
 
     describe('setToken', () => {
       it('sets the token', () => {
         store.setToken(TEST_TOKEN);
+
         expect(store.token).to.equal(TEST_TOKEN);
+      });
+    });
+  });
+
+  describe('@computed', () => {
+    describe('frameId', () => {
+      it('creates an id', () => {
+        expect(store.frameId).to.be.ok;
+      });
+    });
+
+    describe('isPristine', () => {
+      it('is true when current === next', () => {
+        store.setCurrentUrl(TEST_URL1);
+        store.setNextUrl(TEST_URL1);
+
+        expect(store.isPristine).to.be.true;
+      });
+
+      it('is false when current !== next', () => {
+        store.setCurrentUrl(TEST_URL1);
+        store.setNextUrl(TEST_URL2);
+
+        expect(store.isPristine).to.be.false;
       });
     });
   });

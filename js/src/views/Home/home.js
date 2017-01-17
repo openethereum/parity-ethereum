@@ -16,7 +16,7 @@
 
 import { observer } from 'mobx-react';
 import moment from 'moment';
-import React, { Component } from 'react';
+import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 
 import { DappUrlInput, Page } from '~/ui';
@@ -26,7 +26,12 @@ import styles from './home.css';
 
 @observer
 export default class Home extends Component {
-  webstore = WebStore.get();
+  static contextTypes = {
+    api: PropTypes.object.isRequired,
+    router: PropTypes.object.isRequired
+  };
+
+  webstore = WebStore.get(this.context.api);
 
   render () {
     const { currentUrl } = this.webstore;
@@ -47,7 +52,8 @@ export default class Home extends Component {
             onChange={ this.onChangeUrl }
             onGoto={ this.onGotoUrl }
             onRestore={ this.onRestoreUrl }
-            url={ currentUrl } />
+            url={ currentUrl }
+          />
         </div>
         { this.renderUrlHistory() }
       </Page>
@@ -96,7 +102,10 @@ export default class Home extends Component {
   }
 
   onGotoUrl = () => {
+    const { router } = this.context;
+
     this.webstore.gotoUrl();
+    router.push('/web');
   }
 
   onRestoreUrl = () => {
