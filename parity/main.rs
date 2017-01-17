@@ -275,7 +275,7 @@ fn main() {
 			// If we fail to run the updated parity then fallback to local version.
 			let latest_exe = latest_exe_path();
 			let have_update = latest_exe.as_ref().map_or(false, |p| p.exists());
-			let is_non_updated_current = exe.map_or(false, |exe| latest_exe.as_ref().map_or(false, |lexe| exe.canonicalize().ok() != lexe.canonicalize().ok()));
+			let is_non_updated_current = exe.as_ref().map_or(false, |exe| latest_exe.as_ref().map_or(false, |lexe| exe.canonicalize().ok() != lexe.canonicalize().ok()));
 			trace_main!("Starting... (have-update: {}, non-updated-current: {})", have_update, is_non_updated_current);
 			let exit_code = if have_update && is_non_updated_current {
 				trace_main!("Attempting to run latest update ({})...", latest_exe.as_ref().expect("guarded by have_update; latest_exe must exist for have_update; qed").display());
