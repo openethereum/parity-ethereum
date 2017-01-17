@@ -34,7 +34,7 @@ use filter::Filter;
 use log_entry::LocalizedLogEntry;
 use receipt::{Receipt, LocalizedReceipt};
 use blockchain::extras::BlockReceipts;
-use error::{ImportResult};
+use error::{ImportResult, Error as EthcoreError};
 use evm::{Factory as EvmFactory, VMType, Schedule};
 use miner::{Miner, MinerService, TransactionImportResult};
 use spec::Spec;
@@ -734,7 +734,7 @@ impl BlockChainClient for TestBlockChainClient {
 		};
 		let network_id = Some(self.spec.params.network_id);
 		let sig = self.spec.engine.sign(transaction.hash(network_id));
-		let signed = transaction.with_signature(sig, network_id);
+		let signed = SignedTransaction::new(transaction.with_signature(sig, network_id)).unwrap();
 		self.miner.import_own_transaction(self, signed.into())
 	}
 

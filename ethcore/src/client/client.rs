@@ -64,7 +64,7 @@ use trace::{TraceDB, ImportRequest as TraceImportRequest, LocalizedTrace, Databa
 use trace;
 use trace::FlatTransactionTraces;
 use evm::{Factory as EvmFactory, Schedule};
-use miner::{Miner, MinerService};
+use miner::{Miner, MinerService, TransactionImportResult};
 use snapshot::{self, io as snapshot_io};
 use factory::Factories;
 use rlp::{View, UntrustedRlp};
@@ -1442,7 +1442,7 @@ impl BlockChainClient for Client {
 		};
 		let network_id = self.engine.signing_network_id(&env_info);
 		let signature = self.engine.sign(transaction.hash(network_id));
-		let signed = transaction.with_signature(signature, network_id);
+		let signed = SignedTransaction::new(transaction.with_signature(signature, network_id))?;
 		self.miner.import_own_transaction(self, signed.into())
 	}
 

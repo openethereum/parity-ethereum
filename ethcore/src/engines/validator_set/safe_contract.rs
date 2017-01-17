@@ -166,6 +166,7 @@ mod tests {
 	use account_provider::AccountProvider;
 	use transaction::{Transaction, Action};
 	use client::{BlockChainClient, EngineClient};
+	use ethkey::Secret;
 	use miner::MinerService;
 	use tests::helpers::generate_dummy_client_with_spec_and_data;
 	use super::super::ValidatorSet;
@@ -184,8 +185,9 @@ mod tests {
 	#[test]
 	fn changes_validators() {
 		let tap = Arc::new(AccountProvider::transient_provider());
-		let v0 = tap.insert_account("1".sha3(), "").unwrap();
-		let v1 = tap.insert_account("0".sha3(), "").unwrap();
+		let s0 = Secret::from_slice(&"1".sha3()).unwrap();
+		let v0 = tap.insert_account(s0.clone(), "").unwrap();
+		let v1 = tap.insert_account(Secret::from_slice(&"0".sha3()).unwrap(), "").unwrap();
 		let spec_factory = || {
 			let spec = Spec::new_validator_contract();
 			spec.engine.register_account_provider(tap.clone());
@@ -204,7 +206,7 @@ mod tests {
 			action: Action::Call(validator_contract),
 			value: 0.into(),
 			data: "f94e18670000000000000000000000000000000000000000000000000000000000000001".from_hex().unwrap(),
-		}.sign(&"1".sha3(), None);
+		}.sign(&s0, None);
 		client.miner().import_own_transaction(client.as_ref(), tx.into()).unwrap();
 		client.update_sealing();
 		assert_eq!(client.chain_info().best_block_number, 1);
@@ -216,7 +218,7 @@ mod tests {
 			action: Action::Call(validator_contract),
 			value: 0.into(),
 			data: "4d238c8e00000000000000000000000082a978b3f5962a5b0957d9ee9eef472ee55b42f1".from_hex().unwrap(),
-		}.sign(&"1".sha3(), None);
+		}.sign(&s0, None);
 		client.miner().import_own_transaction(client.as_ref(), tx.into()).unwrap();
 		client.update_sealing();
 		// The transaction is not yet included so still unable to seal.
@@ -235,7 +237,7 @@ mod tests {
 			action: Action::Call(Address::default()),
 			value: 0.into(),
 			data: Vec::new(),
-		}.sign(&"1".sha3(), None);
+		}.sign(&s0, None);
 		client.miner().import_own_transaction(client.as_ref(), tx.into()).unwrap();
 		client.update_sealing();
 		// Able to seal again.
