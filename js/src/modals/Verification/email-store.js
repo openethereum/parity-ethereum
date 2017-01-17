@@ -23,7 +23,9 @@ import VerificationStore, {
 } from './store';
 import { isServerRunning, postToServer } from '../../3rdparty/email-verification';
 
-const EMAIL_VERIFICATION = 7; // id in the `BadgeReg.sol` contract
+// ids in the `BadgeReg.sol` contract
+const TESTNET_EMAIL_VERIFICATION = 7;
+const MAINNET_EMAIL_VERIFICATION = 0;
 
 export default class EmailVerificationStore extends VerificationStore {
   @observable email = '';
@@ -56,7 +58,8 @@ export default class EmailVerificationStore extends VerificationStore {
   }
 
   constructor (api, account, isTestnet) {
-    super(api, EmailVerificationABI, EMAIL_VERIFICATION, account, isTestnet);
+    const id = isTestnet ? TESTNET_EMAIL_VERIFICATION : MAINNET_EMAIL_VERIFICATION;
+    super(api, EmailVerificationABI, id, account, isTestnet);
   }
 
   isServerRunning = () => {
