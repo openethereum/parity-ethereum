@@ -49,7 +49,7 @@
     "id": "0xae74ad174b95cdbd01c88ac5b73a296d33e9088fc2a200e76bcedf3a94a7815d",
     "url": "localtx",
     "name": "TxQueue Viewer",
-    "description": "Have a peak on internals of transaction queue of your node.",
+    "description": "Have a peek at the internals of your node's transaction queue.",
     "author": "Parity Team <admin@ethcore.io>",
     "version": "1.0.0",
     "visible": true,

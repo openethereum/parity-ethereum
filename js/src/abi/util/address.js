@@ -18,12 +18,13 @@ import { keccak_256 } from 'js-sha3'; // eslint-disable-line camelcase
 
 export function isChecksumValid (_address) {
   const address = _address.replace('0x', '');
-  const hash = keccak_256(address.toLowerCase(address));
+  const hash = keccak_256(address.toLowerCase());
 
   for (let n = 0; n < 40; n++) {
+    const char = address[n];
+    const isLower = char !== char.toUpperCase();
+    const isUpper = char !== char.toLowerCase();
     const hashval = parseInt(hash[n], 16);
-    const isLower = address[n].toUpperCase() !== address[n];
-    const isUpper = address[n].toLowerCase() !== address[n];
 
     if ((hashval > 7 && isLower) || (hashval <= 7 && isUpper)) {
       return false;
