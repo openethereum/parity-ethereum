@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! A signer which is used by Engines which need to sign messages.
+//! A signer used by Engines which need to sign messages.
 
 use util::*;
 use account_provider::{self, AccountProvider};
@@ -44,7 +44,7 @@ impl EngineSigner {
 	}
 
 	pub fn sign(&self, hash: H256) -> Result<H520, account_provider::Error> {
-		self.account_provider.lock().sign(*self.address.read(), self.password.read().clone(), hash).map(H520::from)
+		self.account_provider.lock().sign(*self.address.read(), self.password.read().clone(), hash).map(Into::into)
 	}
 
 	pub fn address(&self) -> Address {
