@@ -154,6 +154,13 @@ describe('views/Home/Store', () => {
   });
 
   describe('@computed', () => {
+    describe('encodedUrl', () => {
+      it('encodes current', () => {
+        store.setCurrentUrl(TEST_URL1);
+        expect(store.encodedUrl).to.equal('8SBhQkTMcQpPUHVGJQQCfw7TBTaFpmYK96XfY7GNt2MS.web.ethlink.io');
+      });
+    });
+
     describe('frameId', () => {
       it('creates an id', () => {
         expect(store.frameId).to.be.ok;

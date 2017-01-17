@@ -18,6 +18,8 @@ import { action, computed, observable, transaction } from 'mobx';
 import localStore from 'store';
 import { parse as parseUrl } from 'url';
 
+import { encode as encodeEthlink } from '~/util/ethlink';
+
 const DEFAULT_URL = 'https://mkr.market';
 const LS_LAST_ADDRESS = '_parity::webLastAddress';
 const LS_HISTORY = '_parity::webHistory';
@@ -29,7 +31,6 @@ let instance = null;
 export default class Store {
   @observable counter = 1;
   @observable currentUrl = null;
-  @observable displayedUrl = null;
   @observable history = [];
   @observable isLoading = false;
   @observable parsedUrl = null;
@@ -39,6 +40,10 @@ export default class Store {
   constructor (api) {
     this._api = api;
     this.nextUrl = this.currentUrl = this.loadLastUrl();
+  }
+
+  @computed get encodedUrl () {
+    return encodeEthlink(this.token, this.currentUrl);
   }
 
   @computed get frameId () {
