@@ -211,7 +211,7 @@ fn latest_exe_path() -> Option<PathBuf> {
 fn run_parity() -> Option<i32> {
 	use ::std::ffi::OsString;
 	let prefix = vec![OsString::from("--can-restart"), OsString::from("--force-direct")];
-	latest_exe_path().and_then(|exe| process::Command::new(exe)
+	latest_exe_path().or_else(|| std::env::current_exe().ok()).and_then(|exe| process::Command::new(exe)
 		.args(&(env::args_os().skip(1).chain(prefix.into_iter()).collect::<Vec<_>>()))
 		.status()
 		.map(|es| es.code().unwrap_or(128))
@@ -277,13 +277,12 @@ fn main() {
 			let have_update = latest_exe.as_ref().map_or(false, |p| p.exists());
 			let is_non_updated_current = exe.as_ref().map_or(false, |exe| latest_exe.as_ref().map_or(false, |lexe| exe.canonicalize().ok() != lexe.canonicalize().ok()));
 			trace_main!("Starting... (have-update: {}, non-updated-current: {})", have_update, is_non_updated_current);
-			let exit_code = if have_update && is_non_updated_current {
+			if have_update && is_non_updated_current {
 				trace_main!("Attempting to run latest update ({})...", latest_exe.as_ref().expect("guarded by have_update; latest_exe must exist for have_update; qed").display());
-				run_parity().unwrap_or_else(|| { trace_main!("Falling back to local..."); main_direct(true) })
 			} else {
 				trace_main!("No latest update. Attempting to direct...");
-				main_direct(true)
-			};
+			}
+			let exit_code = run_parity().unwrap_or_else(|| { trace_main!("Falling back to local..."); main_direct(true) });
 			trace_main!("Latest exited with {}", exit_code);
 			if exit_code != PLEASE_RESTART_EXIT_CODE {
 				trace_main!("Quitting...");
