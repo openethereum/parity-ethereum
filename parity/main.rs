@@ -207,8 +207,23 @@ fn latest_exe_path() -> Option<PathBuf> {
 		.and_then(|mut f| { let mut exe = String::new(); f.read_to_string(&mut exe).ok().map(|_| updates_path(&exe)) })
 }
 
+#[cfg(windows)]
+fn global_cleanup() {
+	extern "system" { pub fn WSACleanup() -> i32; }
+	// We need to cleanup all sockets before spawning another Parity process. This makes shure everything is cleaned up.
+	// The loop is required because of internal refernce counter for winsock dll. We don't know how many crates we use do 
+	// initialize it. There's at least 2 now.
+	for _ in 0.. 10 {
+		unsafe { WSACleanup(); }
+	}
+}
+
+#[cfg(not(windows))]
+fn global_cleanup() {}
+
 // Starts ~/.parity-updates/parity and returns the code it exits with.
 fn run_parity() -> Option<i32> {
+	global_cleanup();
 	use ::std::ffi::OsString;
 	let prefix = vec![OsString::from("--can-restart"), OsString::from("--force-direct")];
 	latest_exe_path().and_then(|exe| process::Command::new(exe)
