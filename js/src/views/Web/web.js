@@ -44,7 +44,7 @@ export default class Web extends Component {
   }
 
   render () {
-    const { counter, currentUrl, frameId, parsedUrl, token } = this.store;
+    const { currentUrl, token } = this.store;
 
     if (!token) {
       return (
@@ -56,13 +56,13 @@ export default class Web extends Component {
       );
     }
 
-    if (!currentUrl) {
-      return null;
-    }
+    return currentUrl
+      ? this.renderFrame()
+      : null;
+  }
 
-    const { dappsUrl } = this.context.api;
-    const { protocol, host, path } = parsedUrl;
-    const address = `${dappsUrl}/web/${token}/${protocol.slice(0, -1)}/${host}${path}?_cache=${counter}`;
+  renderFrame () {
+    const { encodedUrl, frameId } = this.store;
 
     return (
       <div className={ styles.wrapper }>
@@ -78,7 +78,8 @@ export default class Web extends Component {
           onLoad={ this.iframeOnLoad }
           sandbox='allow-forms allow-same-origin allow-scripts'
           scrolling='auto'
-          src={ address } />
+          src={ encodedUrl }
+        />
       </div>
     );
   }

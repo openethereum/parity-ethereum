@@ -29,7 +29,7 @@ const hasProtocol = /^https?:\/\//;
 let instance = null;
 
 export default class Store {
-  @observable counter = 1;
+  @observable counter = Date.now();
   @observable currentUrl = null;
   @observable history = [];
   @observable isLoading = false;
@@ -43,7 +43,7 @@ export default class Store {
   }
 
   @computed get encodedUrl () {
-    return encodeEthlink(this.token, this.currentUrl);
+    return `http://${encodeEthlink(this.token, this.currentUrl)}:${this._api.dappsPort}?t=${this.counter}`;
   }
 
   @computed get frameId () {
@@ -73,7 +73,7 @@ export default class Store {
   @action reload = () => {
     transaction(() => {
       this.setLoading(true);
-      this.counter++;
+      this.counter = Date.now();
     });
   }
 

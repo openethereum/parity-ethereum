@@ -28,6 +28,7 @@ let store;
 
 function createApi () {
   api = {
+    dappsPort: 8080,
     signer: {
       generateWebProxyAccessToken: sinon.stub().resolves(TEST_TOKEN)
     }
@@ -157,7 +158,7 @@ describe('views/Home/Store', () => {
     describe('encodedUrl', () => {
       it('encodes current', () => {
         store.setCurrentUrl(TEST_URL1);
-        expect(store.encodedUrl).to.equal('8SBhQkTMcQpPUHVGJQQCfw7TBTaFpmYK96XfY7GNt2MS.web.ethlink.io');
+        expect(store.encodedUrl).to.match(/8SBhQkTMcQpPUHVGJQQCfw7TBTaFpmYK96XfY7GNt2MS/);
       });
     });
 
