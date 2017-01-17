@@ -236,7 +236,7 @@ impl Engine for AuthorityRound {
 			if let Ok(signature) = self.signer.sign(header.bare_hash()) {
 				trace!(target: "poa", "generate_seal: Issuing a block for step {}.", step);
 				self.proposed.store(true, AtomicOrdering::SeqCst);
-				return Seal::Regular(vec![encode(&step).to_vec(), encode(&(&*signature as &[u8])).to_vec()]);
+				return Seal::Regular(vec![encode(&step).to_vec(), encode(&(&H520::from(signature) as &[u8])).to_vec()]);
 			} else {
 				warn!(target: "poa", "generate_seal: FAIL: Accounts secret key unavailable.");
 			}
