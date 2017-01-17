@@ -152,26 +152,30 @@ export default class QueryAction extends Component {
 
         {
           this.state.queryKey !== 'tla'
-          ? (<InputText
-            key={ 0 }
+          ? (
+            <InputText
+              key={ 0 }
 
-            floatingLabelText="Token's address"
-            hintText='0xdeadbeef...'
+              floatingLabelText="Token's address"
+              hintText='0xdeadbeef...'
 
-            validationType={ SIMPLE_TOKEN_ADDRESS_TYPE }
-            onChange={ this.onChange }
-            onEnter={ this.onQuery }
-             />)
-          : (<InputText
-            key={ 1 }
+              validationType={ SIMPLE_TOKEN_ADDRESS_TYPE }
+              onChange={ this.onChange }
+              onEnter={ this.onQuery }
+            />
+          )
+          : (
+            <InputText
+              key={ 1 }
 
-            floatingLabelText="Token's TLA"
-            hintText='GAV'
+              floatingLabelText="Token's TLA"
+              hintText='GAV'
 
-            validationType={ SIMPLE_TLA_TYPE }
-            onChange={ this.onChange }
-            onEnter={ this.onQuery }
-             />)
+              validationType={ SIMPLE_TLA_TYPE }
+              onChange={ this.onChange }
+              onEnter={ this.onQuery }
+            />
+          )
         }
       </div>
     );

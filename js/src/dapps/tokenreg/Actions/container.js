@@ -23,9 +23,11 @@ import { registerToken, registerReset, queryToken, queryReset } from './actions'
 
 class TokensContainer extends Component {
   render () {
-    return (<Actions
-      { ...this.props }
-            />);
+    return (
+      <Actions
+        { ...this.props }
+      />
+    );
   }
 }
 

@@ -36,16 +36,19 @@ class AccountSelectorItem extends Component {
     delete props.account;
     delete props.onSelectAccount;
 
-    const icon = (<IdentityIcon
-      inline center
-      address={ account.address }
-                  />
+    const icon = (
+      <IdentityIcon
+        inline center
+        address={ account.address }
+      />
     );
 
-    const avatar = (<Avatar
-      className={ styles.avatar }
-      backgroundColor='none'
-      icon={ icon } />
+    const avatar = (
+      <Avatar
+        className={ styles.avatar }
+        backgroundColor='none'
+        icon={ icon }
+      />
     );
 
     return (

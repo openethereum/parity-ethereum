@@ -132,12 +132,16 @@ export default class Application extends Component {
                 disabled={ registerBusy }
                 invert={ registerType !== 'file' }
                 onClick={ this.onClickTypeNormal }
-              >File Link</Button>
+              >
+                File Link
+              </Button>
               <Button
                 disabled={ registerBusy }
                 invert={ registerType !== 'content' }
                 onClick={ this.onClickTypeContent }
-              >Content Bundle</Button>
+              >
+                Content Bundle
+              </Button>
             </div>
             <div className={ styles.box }>
               <div className={ styles.description }>

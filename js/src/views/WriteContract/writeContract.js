@@ -271,12 +271,14 @@ class WriteContract extends Component {
           />
           {
             contract
-            ? <Button
-              icon={ <SendIcon /> }
-              label='Deploy'
-              onClick={ this.store.handleOpenDeployModal }
-              primary={ false }
+            ? (
+              <Button
+                icon={ <SendIcon /> }
+                label='Deploy'
+                onClick={ this.store.handleOpenDeployModal }
+                primary={ false }
               />
+            )
             : null
           }
         </div>
