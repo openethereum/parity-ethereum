@@ -14,18 +14,28 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { decode as decodeBase58, encode as encodeBase58 } from 'bs58';
+// Using base-x since we started with base-58 originally. This one allows the
+// very slight advantage of using custom dictionaries (useful in the case of
+// base-32 where there are multiples available)
+import base32 from 'base32.js';
 
+// base32 alphabet should match the Rust implementation
+// https://github.com/andreasots/base32/blob/master/src/base32.rs
+// const ALPHABET = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
 const BASE_URL = 'web.ethlink.io';
 
 export function encode (token, url) {
-  const chars = new Buffer(`${token}+${url}`);
+  const encoder = new base32.Encoder({ type: 'crockford' });
+  const chars = `${token}+${url}`.split('').map((char) => char.charCodeAt(0));
 
-  return `${encodeBase58(chars)}.${BASE_URL}`;
+  return `${encoder.write(chars).finalize()}.${BASE_URL}`;
 }
 
 export function decode (encoded) {
-  return decodeBase58(encoded.replace('.web.ethlink.io', '')).toString();
+  const decoder = new base32.Decoder({ type: 'crockford' });
+  const chars = decoder.write(encoded.replace(`.${BASE_URL}`, '')).finalize();
+
+  return chars.toString();
 }
 
 export {

@@ -71,8 +71,6 @@
     "babel-preset-stage-0": "6.16.0",
     "babel-register": "6.18.0",
     "babel-runtime": "6.20.0",
-    "base-x": "2.0.3",
-    "bs58": "4.0.0",
     "chai": "3.5.0",
     "chai-as-promised": "6.0.0",
     "chai-enzyme": "0.6.1",
@@ -137,6 +135,7 @@
     "websocket": "1.0.24"
   },
   "dependencies": {
+    "base32.js": "0.1.0",
     "bignumber.js": "3.0.1",
     "blockies": "0.0.2",
     "brace": "0.9.0",

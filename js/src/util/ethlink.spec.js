@@ -18,7 +18,7 @@ import { BASE_URL, decode, encode } from './ethlink';
 
 const TEST_TOKEN = 'token';
 const TEST_URL = 'https://parity.io';
-const TEST_PREFIX = '3QV4aqJWSWgzrbvoiQh1JNco4ioD4DTc';
+const TEST_PREFIX = 'EHQPPSBE5DM78X3GECX2YBVGC5S6JX3S5SMPY';
 const TEST_RESULT = `${TEST_PREFIX}.${BASE_URL}`;
 const TEST_ENCODED = `${TEST_TOKEN}+${TEST_URL}`;
 
