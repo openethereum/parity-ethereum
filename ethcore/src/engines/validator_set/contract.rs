@@ -150,13 +150,13 @@ mod provider {
 mod tests {
 	use util::*;
 	use spec::Spec;
-	use tests::helpers::generate_dummy_client_with_spec_and_data;
+	use tests::helpers::generate_dummy_client_with_spec_and_accounts;
 	use super::super::ValidatorSet;
 	use super::ValidatorContract;
 
 	#[test]
 	fn fetches_validators() {
-		let client = generate_dummy_client_with_spec_and_data(Spec::new_validator_contract, 0, 0, &[]);
+		let client = generate_dummy_client_with_spec_and_accounts(Spec::new_validator_contract, None);
 		let vc = Arc::new(ValidatorContract::new(Address::from_str("0000000000000000000000000000000000000005").unwrap()));
 		vc.register_contract(Arc::downgrade(&client));
 		assert!(vc.contains(&Address::from_str("7d577a597b2742b498cb5cf0c26cdcd726d39e6e").unwrap()));

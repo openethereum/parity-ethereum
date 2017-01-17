@@ -21,6 +21,7 @@ use ethcore::client::{TestBlockChainClient, BlockChainClient, Client as EthcoreC
 use ethcore::header::BlockNumber;
 use ethcore::snapshot::SnapshotService;
 use ethcore::spec::Spec;
+use ethcore::account_provider::AccountProvider;
 use ethcore::miner::Miner;
 use ethcore::db::NUM_COLUMNS;
 use sync_io::SyncIo;
@@ -262,7 +263,7 @@ impl TestNet<EthPeer<TestBlockChainClient>> {
 }
 
 impl TestNet<EthPeer<EthcoreClient>> {
-	pub fn with_spec<F>(n: usize, config: SyncConfig, spec_factory: F) -> GuardedTempResult<Self>
+	pub fn with_spec_and_accounts<F>(n: usize, config: SyncConfig, spec_factory: F, accounts: Option<Arc<AccountProvider>>) -> GuardedTempResult<Self>
 		where F: Fn() -> Spec
 	{
 		let mut net = TestNet {
@@ -282,7 +283,7 @@ impl TestNet<EthPeer<EthcoreClient>> {
 				ClientConfig::default(),
 				&spec,
 				client_dir.as_path(),
-				Arc::new(Miner::with_spec(&spec)),
+				Arc::new(Miner::with_spec_and_accounts(&spec, accounts.clone())),
 				IoChannel::disconnected(),
 				&db_config
 			).unwrap();
