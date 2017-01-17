@@ -212,7 +212,7 @@ fn run_parity() -> Option<i32> {
 	use ::std::ffi::OsString;
 	let prefix = vec![OsString::from("--can-restart"), OsString::from("--force-direct")];
 	latest_exe_path().and_then(|exe| process::Command::new(exe)
-		.args(&(env::args_os().chain(prefix.into_iter()).collect::<Vec<_>>()))
+		.args(&(env::args_os().skip(1).chain(prefix.into_iter()).collect::<Vec<_>>()))
 		.status()
 		.map(|es| es.code().unwrap_or(128))
 		.ok()
