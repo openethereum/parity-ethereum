@@ -87,7 +87,7 @@ pub fn request(address: &SocketAddr, request: &str) -> Response {
 	let _ = req.read_to_string(&mut response);
 
 	let mut lines = response.lines();
-	let status = lines.next().unwrap().to_owned();
+	let status = lines.next().expect("Expected a response").to_owned();
 	let headers_raw = read_block(&mut lines, false);
 	let headers = headers_raw.split('\n').map(|v| v.to_owned()).collect();
 	let body = read_block(&mut lines, true);

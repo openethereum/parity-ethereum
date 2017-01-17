@@ -22,6 +22,7 @@ use std::collections::BTreeMap;
 #[derive(Debug, PartialEq, Default, Clone)]
 pub struct EndpointPath {
 	pub app_id: String,
+	pub app_params: Vec<String>,
 	pub host: String,
 	pub port: u16,
 	pub using_dapps_domains: bool,
