@@ -114,7 +114,7 @@ impl Engine for BasicAuthority {
 		if self.validators.contains(author) {
 			// account should be pernamently unlocked, otherwise sealing will fail
 			if let Ok(signature) = self.signer.sign(header.bare_hash()) {
-				return Seal::Regular(vec![::rlp::encode(&(&*signature as &[u8])).to_vec()]);
+				return Seal::Regular(vec![::rlp::encode(&(&H520::from(signature) as &[u8])).to_vec()]);
 			} else {
 				trace!(target: "basicauthority", "generate_seal: FAIL: accounts secret key unavailable");
 			}

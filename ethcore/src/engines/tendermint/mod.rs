@@ -157,7 +157,7 @@ impl Tendermint {
 		let r = self.round.load(AtomicOrdering::SeqCst);
 		let s = self.step.read();
 		let vote_info = message_info_rlp(&VoteStep::new(h, r, *s), block_hash);
-		match self.signer.sign(vote_info.sha3()) {
+		match self.signer.sign(vote_info.sha3()).map(Into::into) {
 			Ok(signature) => {
 				let message_rlp = message_full_rlp(&signature, &vote_info);
 				let message = ConsensusMessage::new(signature, h, r, *s, block_hash);
@@ -427,7 +427,7 @@ impl Engine for Tendermint {
 		let round = self.round.load(AtomicOrdering::SeqCst);
 		let bh = Some(header.bare_hash());
 		let vote_info = message_info_rlp(&VoteStep::new(height, round, Step::Propose), bh.clone());
-		if let Ok(signature) = self.signer.sign(vote_info.sha3()) {
+		if let Ok(signature) = self.signer.sign(vote_info.sha3()).map(Into::into) {
 			// Insert Propose vote.
 			debug!(target: "poa", "Submitting proposal {} at height {} round {}.", header.bare_hash(), height, round);
 			self.votes.vote(ConsensusMessage::new(signature, height, round, Step::Propose, bh), author);
