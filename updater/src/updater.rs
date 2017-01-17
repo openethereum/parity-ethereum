@@ -18,7 +18,6 @@ use std::sync::{Arc, Weak};
 use std::fs;
 use std::io::Write;
 use std::path::{PathBuf};
-use std::mem::drop;
 use target_info::Target;
 use util::misc;
 use ipc_common_types::{VersionInfo, ReleaseTrack};
