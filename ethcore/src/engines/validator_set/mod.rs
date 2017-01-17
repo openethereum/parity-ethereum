@@ -26,11 +26,13 @@ use ethjson::spec::ValidatorSet as ValidatorSpec;
 use client::Client;
 use self::simple_list::SimpleList;
 use self::contract::ValidatorContract;
+use self::safe_contract::ValidatorSafeContract;
 
 /// Creates a validator set from spec.
 pub fn new_validator_set(spec: ValidatorSpec) -> Box<ValidatorSet + Send + Sync> {
 	match spec {
 		ValidatorSpec::List(list) => Box::new(SimpleList::new(list.into_iter().map(Into::into).collect())),
+		ValidatorSpec::SafeContract(address) => Box::new(Arc::new(ValidatorSafeContract::new(address.into()))),
 		ValidatorSpec::Contract(address) => Box::new(Arc::new(ValidatorContract::new(address.into()))),
 	}
 }

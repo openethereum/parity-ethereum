@@ -25,6 +25,9 @@ pub enum ValidatorSet {
 	#[serde(rename="list")]
 	List(Vec<Address>),
 	/// Address of a contract that indicates the list of authorities.
+	#[serde(rename="safeContract")]
+	SafeContract(Address),
+	/// Address of a contract that indicates the list of authorities and enables reporting of theor misbehaviour using transactions.
 	#[serde(rename="contract")]
 	Contract(Address),
 }
@@ -38,6 +41,8 @@ mod tests {
 	fn validator_set_deserialization() {
 		let s = r#"[{
 			"list" : ["0xc6d9d2cd449a754c494264e1809c50e34d64562b"]
+		}, {
+			"safeContract" : "0xc6d9d2cd449a754c494264e1809c50e34d64562b"
 		}, {
 			"contract" : "0xc6d9d2cd449a754c494264e1809c50e34d64562b"
 		}]"#;
