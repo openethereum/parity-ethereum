@@ -311,7 +311,7 @@ impl Updater {
 impl ChainNotify for Updater {
 	fn new_blocks(&self, _imported: Vec<H256>, _invalid: Vec<H256>, _enacted: Vec<H256>, _retracted: Vec<H256>, _sealed: Vec<H256>, _proposed: Vec<Bytes>, _duration: u64) {
 		match (self.client.upgrade(), self.sync.upgrade()) {
-			(Some(ref c), Some(ref s)) if s.status().is_syncing(c.queue_info()) => self.poll(),
+			(Some(ref c), Some(ref s)) if !s.status().is_syncing(c.queue_info()) => self.poll(),
 			_ => {},
 		}
 	}

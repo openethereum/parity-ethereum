@@ -38,6 +38,7 @@ pub const RPC_PATH: &'static str =  "rpc";
 pub const API_PATH: &'static str =  "api";
 pub const UTILS_PATH: &'static str =  "parity-utils";
 pub const WEB_PATH: &'static str = "web";
+pub const URL_REFERER: &'static str = "__referer=";
 
 pub fn utils() -> Box<Endpoint> {
 	Box::new(PageEndpoint::with_prefix(parity_ui::App::default(), UTILS_PATH.to_owned()))
