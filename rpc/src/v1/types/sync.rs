@@ -83,6 +83,8 @@ pub struct PeerNetworkInfo {
 pub struct PeerProtocolsInfo {
 	/// Ethereum protocol information
 	pub eth: Option<PeerEthereumProtocolInfo>,
+	/// LES protocol information.
+	pub les: Option<PeerEthereumProtocolInfo>,
 }
 
 /// Peer Ethereum protocol information
