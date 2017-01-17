@@ -14,15 +14,26 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { BASE_URL, encode } from './ethlink';
+import { BASE_URL, decode, encode } from './ethlink';
+
+const TEST_TOKEN = 'token';
+const TEST_URL = 'https://parity.io';
+const TEST_PREFIX = '3QV4aqJWSWgzrbvoiQh1JNco4ioD4DTc';
+const TEST_RESULT = `${TEST_PREFIX}.${BASE_URL}`;
+const TEST_ENCODED = `${TEST_TOKEN}+${TEST_URL}`;
 
 describe('util/ethlink', () => {
-  describe('encode', () => {
-    const TEST_TOKEN = 'test-token';
-    const TEST_URL = 'https://something.somewhere.example.com';
-    const TEST_PREFIX = '2SBURwQRc7NtVRPWnqd5bYaDN72Bb84Ru2x2Z8oFChqzwJktPcU52KQ6LJxqXEHwuEWfv';
-    const TEST_RESULT = `${TEST_PREFIX}.${BASE_URL}`;
+  describe('decode', () => {
+    it('decodes into encoded url', () => {
+      expect(decode(TEST_PREFIX)).to.equal(TEST_ENCODED);
+    });
 
+    it('decodes full into encoded url', () => {
+      expect(decode(TEST_RESULT)).to.equal(TEST_ENCODED);
+    });
+  });
+
+  describe('encode', () => {
     it('encodes a url/token combination', () => {
       expect(encode(TEST_TOKEN, TEST_URL)).to.equal(TEST_RESULT);
     });

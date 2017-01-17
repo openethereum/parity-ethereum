@@ -14,16 +14,18 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { encode as encodeBase58 } from 'bs58';
+import { decode as decodeBase58, encode as encodeBase58 } from 'bs58';
 
 const BASE_URL = 'web.ethlink.io';
 
 export function encode (token, url) {
-  const chars = `${token}+${url}`
-    .split('')
-    .map((char) => char.charCodeAt(0));
+  const chars = new Buffer(`${token}+${url}`);
 
   return `${encodeBase58(chars)}.${BASE_URL}`;
+}
+
+export function decode (encoded) {
+  return decodeBase58(encoded.replace('.web.ethlink.io', '')).toString();
 }
 
 export {
