@@ -20,7 +20,6 @@ import { isArray, isPlainObject } from 'lodash';
 import styles from './Response.css';
 
 export default class Response extends Component {
-
   render () {
     let { response } = this.props;
     let formatted;
@@ -61,5 +60,4 @@ export default class Response extends Component {
   static propTypes = {
     response: PropTypes.any.isRequired
   }
-
 }

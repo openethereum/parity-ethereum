@@ -67,7 +67,8 @@ export default class AddressSelect extends Component {
       <select
         className={ styles.iconMenu }
         style={ style }
-        onChange={ this.onChange }>
+        onChange={ this.onChange }
+      >
         { addresses.map(this.renderOption) }
       </select>
     );
@@ -80,7 +81,8 @@ export default class AddressSelect extends Component {
     return (
       <option
         key={ account.address }
-        value={ account.address }>
+        value={ account.address }
+      >
         { account.name }
       </option>
     );

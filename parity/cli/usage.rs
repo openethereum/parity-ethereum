@@ -43,6 +43,11 @@ macro_rules! usage {
 				$field:ident : $typ:ty = $default:expr, or $from_config:expr,
 			)*
 		}
+		{
+			$(
+				$field_s:ident : $typ_s:ty, display $default_s:expr, or $from_config_s:expr,
+			)*
+		}
 	) => {
 		use toml;
 		use std::{fs, io, process};
@@ -108,6 +113,10 @@ macro_rules! usage {
 			$(
 				pub $field: $typ,
 			)*
+
+			$(
+				pub $field_s: $typ_s,
+			)*
 		}
 
 		impl Default for Args {
@@ -120,6 +129,10 @@ macro_rules! usage {
 					$(
 						$field: $default.into(),
 					)*
+
+					$(
+						$field_s: Default::default(),
+					)*
 				}
 			}
 		}
@@ -131,6 +144,9 @@ macro_rules! usage {
 			)*
 			$(
 				$field: Option<$typ>,
+			)*
+			$(
+				$field_s: Option<$typ_s>,
 			)*
 		}
 
@@ -206,6 +222,9 @@ macro_rules! usage {
 				$(
 					args.$field = self.$field.or_else(|| $from_config(&config)).unwrap_or_else(|| $default.into());
 				)*
+				$(
+					args.$field_s = self.$field_s.or_else(|| $from_config_s(&config)).unwrap_or(None);
+				)*
 				args
 			}
 
@@ -221,6 +240,9 @@ macro_rules! usage {
 						// Uncomment this to debug
 						// "named argument never used" error
 						// $field = $default,
+					)*
+					$(
+						$field_s = $default_s,
 					)*
 				)
 			}

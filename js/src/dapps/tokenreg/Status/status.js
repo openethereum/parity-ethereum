@@ -38,7 +38,8 @@ export default class Status extends Component {
         <Chip
           isAddress={ false }
           value={ api.util.fromWei(fee).toFixed(3) + 'ETH' }
-          label='Fee' />
+          label='Fee'
+        />
       </div>
     );
   }

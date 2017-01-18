@@ -52,14 +52,16 @@ class Delete extends Component {
         title='confirm removal'
         visible
         onDeny={ this.closeDeleteDialog }
-        onConfirm={ this.onDeleteConfirmed }>
+        onConfirm={ this.onDeleteConfirmed }
+      >
         <div className={ styles.hero }>
           Are you sure you want to remove the following address from your addressbook?
         </div>
         <div className={ styles.info }>
           <IdentityIcon
             className={ styles.icon }
-            address={ account.address } />
+            address={ account.address }
+          />
           <div className={ styles.nameinfo }>
             <div className={ styles.header }>
               <IdentityName address={ account.address } unknown />

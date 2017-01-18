@@ -41,7 +41,8 @@ function renderShallow () {
     <DeployContract
       accounts={ {} }
       store={ STORE }
-      onClose={ sinon.stub() } />
+      onClose={ sinon.stub() }
+    />
   );
 }
 

@@ -112,7 +112,8 @@ class IdentityIcon extends Component {
             background: '#eee',
             height: size,
             width: size
-          } } />
+          } }
+        />
       );
     } else if (isNullAddress(address)) {
       return (
@@ -123,7 +124,8 @@ class IdentityIcon extends Component {
             background: '#333',
             height: size,
             width: size
-          } } />
+          } }
+        />
       );
     }
 
@@ -133,7 +135,8 @@ class IdentityIcon extends Component {
         data-address-img
         height={ size }
         width={ size }
-        src={ iconsrc } />
+        src={ iconsrc }
+      />
     );
   }
 }

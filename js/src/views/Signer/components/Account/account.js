@@ -57,10 +57,12 @@ export default class Account extends Component {
       <div className={ `${styles.acc} ${className}` }>
         <AccountLink
           address={ address }
-          isTest={ isTest }>
+          isTest={ isTest }
+        >
           <IdentityIcon
             center
-            address={ address } />
+            address={ address }
+          />
         </AccountLink>
         { this.renderName() }
         { this.renderBalance() }
@@ -83,7 +85,8 @@ export default class Account extends Component {
       return (
         <AccountLink
           address={ address }
-          isTest={ isTest }>
+          isTest={ isTest }
+        >
           [{ this.shortAddress(address) }]
         </AccountLink>
       );
@@ -92,7 +95,8 @@ export default class Account extends Component {
     return (
       <AccountLink
         address={ address }
-        isTest={ isTest } >
+        isTest={ isTest }
+      >
         <span>
           <span className={ styles.name }>{ name }</span>
           <span className={ styles.address }>[{ this.tinyAddress(address) }]</span>

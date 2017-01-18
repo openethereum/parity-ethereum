@@ -25,7 +25,6 @@ import WalletAbi from '~/contracts/abi/wallet.json';
 const _cachedWalletLookup = {};
 
 export default class WalletsUtils {
-
   static getCallArgs (api, options, values = []) {
     const walletContract = new Contract(api, WalletAbi);
 
@@ -255,5 +254,4 @@ export default class WalletsUtils {
         return transactions;
       });
   }
-
 }

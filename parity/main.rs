@@ -207,12 +207,27 @@ fn latest_exe_path() -> Option<PathBuf> {
 		.and_then(|mut f| { let mut exe = String::new(); f.read_to_string(&mut exe).ok().map(|_| updates_path(&exe)) })
 }
 
+#[cfg(windows)]
+fn global_cleanup() {
+	extern "system" { pub fn WSACleanup() -> i32; }
+	// We need to cleanup all sockets before spawning another Parity process. This makes shure everything is cleaned up.
+	// The loop is required because of internal refernce counter for winsock dll. We don't know how many crates we use do 
+	// initialize it. There's at least 2 now.
+	for _ in 0.. 10 {
+		unsafe { WSACleanup(); }
+	}
+}
+
+#[cfg(not(windows))]
+fn global_cleanup() {}
+
 // Starts ~/.parity-updates/parity and returns the code it exits with.
 fn run_parity() -> Option<i32> {
+	global_cleanup();
 	use ::std::ffi::OsString;
 	let prefix = vec![OsString::from("--can-restart"), OsString::from("--force-direct")];
 	latest_exe_path().and_then(|exe| process::Command::new(exe)
-		.args(&(env::args_os().chain(prefix.into_iter()).collect::<Vec<_>>()))
+		.args(&(env::args_os().skip(1).chain(prefix.into_iter()).collect::<Vec<_>>()))
 		.status()
 		.map(|es| es.code().unwrap_or(128))
 		.ok()
@@ -267,17 +282,23 @@ fn main() {
 	let exe = std::env::current_exe().ok();
 	let development = exe.as_ref().and_then(|p| p.parent().and_then(|p| p.parent()).and_then(|p| p.file_name()).map(|n| n == "target")).unwrap_or(false);
 	let same_name = exe.as_ref().map(|p| p.file_stem().map_or(false, |s| s == "parity") && p.extension().map_or(true, |x| x == "exe")).unwrap_or(false);
-	let latest_exe = latest_exe_path();
-	let have_update = latest_exe.as_ref().map_or(false, |p| p.exists());
-	let is_non_updated_current = exe.map_or(false, |exe| latest_exe.as_ref().map_or(false, |lexe| exe.canonicalize().ok() != lexe.canonicalize().ok()));
-	trace_main!("Starting up {} (force-direct: {}, development: {}, same-name: {}, have-update: {}, non-updated-current: {})", std::env::current_exe().map(|x| format!("{}", x.display())).unwrap_or("<unknown>".to_owned()), force_direct, development, same_name, have_update, is_non_updated_current);
-	if !force_direct && !development && same_name && have_update && is_non_updated_current {
+	trace_main!("Starting up {} (force-direct: {}, development: {}, same-name: {})", std::env::current_exe().map(|x| format!("{}", x.display())).unwrap_or("<unknown>".to_owned()), force_direct, development, same_name);
+	if !force_direct && !development && same_name {
 		// looks like we're not running ~/.parity-updates/parity when the user is expecting otherwise.
 		// Everything run inside a loop, so we'll be able to restart from the child into a new version seamlessly.
 		loop {
 			// If we fail to run the updated parity then fallback to local version.
-			trace_main!("Attempting to run latest update ({})...", latest_exe.as_ref().expect("guarded by have_update; latest_exe must exist for have_update; qed").display());
-			let exit_code = run_parity().unwrap_or_else(|| { trace_main!("Falling back to local..."); main_direct(true) });
+			let latest_exe = latest_exe_path();
+			let have_update = latest_exe.as_ref().map_or(false, |p| p.exists());
+			let is_non_updated_current = exe.as_ref().map_or(false, |exe| latest_exe.as_ref().map_or(false, |lexe| exe.canonicalize().ok() != lexe.canonicalize().ok()));
+			trace_main!("Starting... (have-update: {}, non-updated-current: {})", have_update, is_non_updated_current);
+			let exit_code = if have_update && is_non_updated_current {
+				trace_main!("Attempting to run latest update ({})...", latest_exe.as_ref().expect("guarded by have_update; latest_exe must exist for have_update; qed").display());
+				run_parity().unwrap_or_else(|| { trace_main!("Falling back to local..."); main_direct(true) })
+			} else {
+				trace_main!("No latest update. Attempting to direct...");
+				main_direct(true)
+			};
 			trace_main!("Latest exited with {}", exit_code);
 			if exit_code != PLEASE_RESTART_EXIT_CODE {
 				trace_main!("Quitting...");

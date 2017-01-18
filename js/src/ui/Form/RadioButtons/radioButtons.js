@@ -48,7 +48,8 @@ export default class RadioButtons extends Component {
       <RadioButtonGroup
         name={ name }
         onChange={ this.onChange }
-        valueSelected={ key } >
+        valueSelected={ key }
+      >
         { this.renderContent() }
       </RadioButtonGroup>
     );
@@ -78,7 +79,8 @@ export default class RadioButtons extends Component {
               }
             </div>
           }
-          value={ key } />
+          value={ key }
+        />
       );
     });
   }

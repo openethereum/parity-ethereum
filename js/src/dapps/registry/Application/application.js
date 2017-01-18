@@ -98,5 +98,4 @@ export default class Application extends Component {
       </div>
     );
   }
-
 }
