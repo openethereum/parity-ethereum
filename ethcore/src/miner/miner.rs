@@ -148,7 +148,8 @@ impl GasPriceCalibrator {
 		if Instant::now() >= self.next_calibration {
 			let usd_per_tx = self.options.usd_per_tx;
 			trace!(target: "miner", "Getting price info");
-			let price_info = PriceInfo::get(move |price: PriceInfo| {
+
+			PriceInfo::get(move |price: PriceInfo| {
 				trace!(target: "miner", "Price info arrived: {:?}", price);
 				let usd_per_eth = price.ethusd;
 				let wei_per_usd: f32 = 1.0e18 / usd_per_eth;
@@ -158,11 +159,7 @@ impl GasPriceCalibrator {
 				set_price(U256::from(wei_per_gas as u64));
 			});
 
-			if price_info.is_ok() {
-				self.next_calibration = Instant::now() + self.options.recalibration_period;
-			} else {
-				warn!(target: "miner", "Unable to update Ether price.");
-			}
+			self.next_calibration = Instant::now() + self.options.recalibration_period;
 		}
 	}
 }
