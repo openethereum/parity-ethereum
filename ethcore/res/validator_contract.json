@@ -1,13 +1,15 @@
 {
 	"name": "TestValidatorContract",
 	"engine": {
-		"basicAuthority": {
+		"authorityRound": {
 			"params": {
 				"gasLimitBoundDivisor": "0x0400",
-				"durationLimit": "0x0d",
+				"stepDuration": 1,
+				"startStep": 2,
 				"validators": {
 					"contract": "0x0000000000000000000000000000000000000005"
 				}
+
 			}
 		}
 	},
