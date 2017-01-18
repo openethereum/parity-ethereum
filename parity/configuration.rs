@@ -35,7 +35,7 @@ use helpers::{to_duration, to_mode, to_block_id, to_u256, to_pending_set, to_pri
 geth_ipc_path, parity_ipc_path, to_bootnodes, to_addresses, to_address, to_gas_limit, to_queue_strategy};
 use params::{ResealPolicy, AccountsConfig, GasPricerConfig, MinerExtras};
 use ethcore_logger::Config as LogConfig;
-use dir::{Directories, default_hypervisor_path, default_local_path};
+use dir::{self, Directories, default_hypervisor_path, default_local_path, default_data_path};
 use dapps::Configuration as DappsConfiguration;
 use signer::{Configuration as SignerConfiguration};
 use updater::{UpdatePolicy, UpdateFilter, ReleaseTrack};
@@ -734,13 +734,16 @@ impl Configuration {
 		use util::path;
 
 		let local_path = default_local_path();
-		let data_path = replace_home("", self.args.flag_datadir.as_ref().unwrap_or(&self.args.flag_base_path));
-
-		let db_path = if self.args.flag_datadir.is_some() {
-			replace_home(&data_path, &self.args.flag_db_path)
+		let base_path = self.args.flag_base_path.as_ref().map_or_else(|| default_data_path(), |s| s.clone());
+		let data_path = replace_home("", self.args.flag_datadir.as_ref().unwrap_or(&base_path));
+		let base_db_path = if self.args.flag_base_path.is_some() && self.args.flag_db_path.is_none() {
+			// If base_path is set and db_path is not we default to base path subdir instead of LOCAL.
+			"$BASE/chains"
 		} else {
-			replace_home_for_db(&data_path, &local_path, &self.args.flag_db_path)
+			self.args.flag_db_path.as_ref().map_or(dir::CHAINS_PATH, |s| &s)
 		};
+
+		let db_path = replace_home_for_db(&data_path, &local_path, &base_db_path);
 		let keys_path = replace_home(&data_path, &self.args.flag_keys_path);
 		let dapps_path = replace_home(&data_path, &self.args.flag_dapps_path);
 		let ui_path = replace_home(&data_path, &self.args.flag_ui_path);
