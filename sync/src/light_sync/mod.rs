@@ -55,7 +55,7 @@ mod sync_round;
 mod tests;
 
 /// Peer chain info.
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 struct ChainInfo {
 	head_td: U256,
 	head_hash: H256,
@@ -86,6 +86,7 @@ impl Peer {
 		}
 	}
 }
+
 // search for a common ancestor with the best chain.
 #[derive(Debug)]
 enum AncestorSearch {
@@ -119,13 +120,18 @@ impl AncestorSearch {
 									return AncestorSearch::FoundCommon(header.number(), header.hash());
 								}
 
-								if header.number() <= first_num {
+								if header.number() < first_num {
 									debug!(target: "sync", "Prehistoric common ancestor with best chain.");
 									return AncestorSearch::Prehistoric;
 								}
 							}
 
-							AncestorSearch::Queued(start - headers.len() as u64)
+							let probe = start - headers.len() as u64;
+							if probe == 0 {
+								AncestorSearch::Genesis
+							} else {
+								AncestorSearch::Queued(probe)
+							}
 						}
 						Err(e) => {
 							trace!(target: "sync", "Bad headers response from {}: {}", ctx.responder(), e);
@@ -149,12 +155,13 @@ impl AncestorSearch {
 
 		match self {
 			AncestorSearch::Queued(start) => {
+				let batch_size = ::std::cmp::min(start as usize, BATCH_SIZE);
 				trace!(target: "sync", "Requesting {} reverse headers from {} to find common ancestor",
-					BATCH_SIZE, start);
+					batch_size, start);
 
 				let req = request::Headers {
 					start: start.into(),
-					max: ::std::cmp::min(start as usize, BATCH_SIZE),
+					max: batch_size,
 					skip: 0,
 					reverse: true,
 				};
@@ -206,9 +213,7 @@ pub struct LightSync<L: LightChainClient> {
 
 impl<L: LightChainClient> Handler for LightSync<L> {
 	fn on_connect(&self, ctx: &EventContext, status: &Status, capabilities: &Capabilities) {
-		let our_best = self.client.chain_info().best_block_number;
-
-		if !capabilities.serve_headers || status.head_num <= our_best {
+		if !capabilities.serve_headers {
 			trace!(target: "sync", "Disconnecting irrelevant peer: {}", ctx.peer());
 			ctx.disconnect_peer(ctx.peer());
 			return;
@@ -396,9 +401,10 @@ impl<L: LightChainClient> LightSync<L> {
 		// handle state transitions.
 		{
 			let best_td = chain_info.pending_total_difficulty;
-			let sync_target = match self.best_seen.lock().clone() {
+			let sync_target = match *self.best_seen.lock() {
 				Some(ref target) if target.head_td > best_td => (target.head_num, target.head_hash),
 				_ => {
+					trace!(target: "sync", "No target to sync to.");
 					*state = SyncState::Idle;
 					return;
 				}
@@ -446,7 +452,7 @@ impl<L: LightChainClient> LightSync<L> {
 		{
 			let peers = self.peers.read();
 			let mut peer_ids: Vec<_> = peers.iter().filter_map(|(id, p)| {
-				if p.lock().status.head_td >= chain_info.pending_total_difficulty {
+				if p.lock().status.head_td > chain_info.pending_total_difficulty {
 					Some(*id)
 				} else {
 					None

@@ -178,6 +178,7 @@ impl PeerLike for Peer {
 			PeerData::Light(_, ref client) => {
 				// should create a test light client which just imports
 				// headers directly and doesn't have a queue to drain.
+				client.import_verified();
 				client.queue_info().is_empty()
 			}
 			_ => true,
