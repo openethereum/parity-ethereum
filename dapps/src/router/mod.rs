@@ -321,11 +321,11 @@ fn should_extract_endpoint() {
 	);
 
 	assert_eq!(
-		extract_endpoint(&Url::parse("http://my.status.ethlink.io/parity-utils/inject.js").ok()),
+		extract_endpoint(&Url::parse("http://my.status.web3.site/parity-utils/inject.js").ok()),
 		(Some(EndpointPath {
 			app_id: "status".to_owned(),
 			app_params: vec!["my".to_owned(), "parity-utils".into(), "inject.js".into()],
-			host: "my.status.ethlink.io".to_owned(),
+			host: "my.status.web3.site".to_owned(),
 			port: 80,
 			using_dapps_domains: true,
 		}), SpecialEndpoint::Utils)
@@ -333,11 +333,11 @@ fn should_extract_endpoint() {
 
 	// By Subdomain
 	assert_eq!(
-		extract_endpoint(&Url::parse("http://status.ethlink.io/test.html").ok()),
+		extract_endpoint(&Url::parse("http://status.web3.site/test.html").ok()),
 		(Some(EndpointPath {
 			app_id: "status".to_owned(),
 			app_params: vec!["test.html".to_owned()],
-			host: "status.ethlink.io".to_owned(),
+			host: "status.web3.site".to_owned(),
 			port: 80,
 			using_dapps_domains: true,
 		}), SpecialEndpoint::None)
@@ -345,11 +345,11 @@ fn should_extract_endpoint() {
 
 	// RPC by subdomain
 	assert_eq!(
-		extract_endpoint(&Url::parse("http://my.status.ethlink.io/rpc/").ok()),
+		extract_endpoint(&Url::parse("http://my.status.web3.site/rpc/").ok()),
 		(Some(EndpointPath {
 			app_id: "status".to_owned(),
 			app_params: vec!["my".to_owned(), "rpc".into(), "".into()],
-			host: "my.status.ethlink.io".to_owned(),
+			host: "my.status.web3.site".to_owned(),
 			port: 80,
 			using_dapps_domains: true,
 		}), SpecialEndpoint::Rpc)
@@ -357,11 +357,11 @@ fn should_extract_endpoint() {
 
 	// API by subdomain
 	assert_eq!(
-		extract_endpoint(&Url::parse("http://my.status.ethlink.io/api/").ok()),
+		extract_endpoint(&Url::parse("http://my.status.web3.site/api/").ok()),
 		(Some(EndpointPath {
 			app_id: "status".to_owned(),
 			app_params: vec!["my".to_owned(), "api".into(), "".into()],
-			host: "my.status.ethlink.io".to_owned(),
+			host: "my.status.web3.site".to_owned(),
 			port: 80,
 			using_dapps_domains: true,
 		}), SpecialEndpoint::Api)

@@ -31,7 +31,7 @@ fn should_resolve_dapp() {
 	let response = request(server,
 		"\
 			GET / HTTP/1.1\r\n\
-			Host: 1472a9e190620cdf6b31f383373e45efcfe869a820c91f9ccd7eb9fb45e4985d.ethlink.io\r\n\
+			Host: 1472a9e190620cdf6b31f383373e45efcfe869a820c91f9ccd7eb9fb45e4985d.web3.site\r\n\
 			Connection: close\r\n\
 			\r\n\
 		"
@@ -52,7 +52,7 @@ fn should_return_503_when_syncing_but_should_make_the_calls() {
 	let response = request(server,
 		"\
 			GET / HTTP/1.1\r\n\
-			Host: 1472a9e190620cdf6b31f383373e45efcfe869a820c91f9ccd7eb9fb45e4985d.ethlink.io\r\n\
+			Host: 1472a9e190620cdf6b31f383373e45efcfe869a820c91f9ccd7eb9fb45e4985d.web3.site\r\n\
 			Connection: close\r\n\
 			\r\n\
 		"
@@ -81,7 +81,7 @@ fn should_return_502_on_hash_mismatch() {
 	let response = request(server,
 		"\
 			GET / HTTP/1.1\r\n\
-			Host: 94f093625c06887d94d9fee0d5f9cc4aaa46f33d24d1c7e4b5237e7c37d547dd.ethlink.io\r\n\
+			Host: 94f093625c06887d94d9fee0d5f9cc4aaa46f33d24d1c7e4b5237e7c37d547dd.web3.site\r\n\
 			Connection: close\r\n\
 			\r\n\
 		"
@@ -112,7 +112,7 @@ fn should_return_error_for_invalid_dapp_zip() {
 	let response = request(server,
 		"\
 			GET / HTTP/1.1\r\n\
-			Host: 2be00befcf008bc0e7d9cdefc194db9c75352e8632f48498b5a6bfce9f02c88e.ethlink.io\r\n\
+			Host: 2be00befcf008bc0e7d9cdefc194db9c75352e8632f48498b5a6bfce9f02c88e.web3.site\r\n\
 			Connection: close\r\n\
 			\r\n\
 		"
@@ -144,7 +144,7 @@ fn should_return_fetched_dapp_content() {
 	let response1 = http_client::request(server.addr(),
 		"\
 			GET /index.html HTTP/1.1\r\n\
-			Host: 9c94e154dab8acf859b30ee80fc828fb1d38359d938751b65db71d460588d82a.ethlink.io\r\n\
+			Host: 9c94e154dab8acf859b30ee80fc828fb1d38359d938751b65db71d460588d82a.web3.site\r\n\
 			Connection: close\r\n\
 			\r\n\
 		"
@@ -152,7 +152,7 @@ fn should_return_fetched_dapp_content() {
 	let response2 = http_client::request(server.addr(),
 		"\
 			GET /manifest.json HTTP/1.1\r\n\
-			Host: 9c94e154dab8acf859b30ee80fc828fb1d38359d938751b65db71d460588d82a.ethlink.io\r\n\
+			Host: 9c94e154dab8acf859b30ee80fc828fb1d38359d938751b65db71d460588d82a.web3.site\r\n\
 			Connection: close\r\n\
 			\r\n\
 		"
@@ -207,7 +207,7 @@ fn should_return_fetched_content() {
 	let response = request(server,
 		"\
 			GET / HTTP/1.1\r\n\
-			Host: 2be00befcf008bc0e7d9cdefc194db9c75352e8632f48498b5a6bfce9f02c88e.ethlink.io\r\n\
+			Host: 2be00befcf008bc0e7d9cdefc194db9c75352e8632f48498b5a6bfce9f02c88e.web3.site\r\n\
 			Connection: close\r\n\
 			\r\n\
 		"
@@ -234,7 +234,7 @@ fn should_cache_content() {
 	);
 	let request_str = "\
 		GET / HTTP/1.1\r\n\
-		Host: 2be00befcf008bc0e7d9cdefc194db9c75352e8632f48498b5a6bfce9f02c88e.ethlink.io\r\n\
+		Host: 2be00befcf008bc0e7d9cdefc194db9c75352e8632f48498b5a6bfce9f02c88e.web3.site\r\n\
 		Connection: close\r\n\
 		\r\n\
 	";
@@ -265,7 +265,7 @@ fn should_not_request_content_twice() {
 	);
 	let request_str = "\
 		GET / HTTP/1.1\r\n\
-		Host: 2be00befcf008bc0e7d9cdefc194db9c75352e8632f48498b5a6bfce9f02c88e.ethlink.io\r\n\
+		Host: 2be00befcf008bc0e7d9cdefc194db9c75352e8632f48498b5a6bfce9f02c88e.web3.site\r\n\
 		Connection: close\r\n\
 		\r\n\
 	";
@@ -318,7 +318,7 @@ fn should_stream_web_content() {
 	let response = request(server,
 		"\
 			GET / HTTP/1.1\r\n\
-			Host: EHQPPSBE5DM78X3GECX2YBVGC5S6JX3S5SMPY.web.ethlink.io\r\n\
+			Host: EHQPPSBE5DM78X3GECX2YBVGC5S6JX3S5SMPY.web.web3.site\r\n\
 			Connection: close\r\n\
 			\r\n\
 		"
@@ -341,7 +341,7 @@ fn should_support_base32_encoded_web_urls() {
 	let response = request(server,
 		"\
 			GET /styles.css?test=123 HTTP/1.1\r\n\
-			Host: EHQPPSBE5DM78X3GECX2YBVGC5S6JX3S5SMPY.web.ethlink.io\r\n\
+			Host: EHQPPSBE5DM78X3GECX2YBVGC5S6JX3S5SMPY.web.web3.site\r\n\
 			Connection: close\r\n\
 			\r\n\
 		"
@@ -364,7 +364,7 @@ fn should_correctly_handle_long_label_when_splitted() {
 	let response = request(server,
 		"\
 			GET /styles.css?test=123 HTTP/1.1\r\n\
-			Host: f1qprwk775k6am35a5wmpk3e9gnpgx3me1sk.mbsfcdqpwx3jd5h7ax39dxq2wvb5dhqpww3fe9t2wrvfdm.web.ethlink.io\r\n\
+			Host: f1qprwk775k6am35a5wmpk3e9gnpgx3me1sk.mbsfcdqpwx3jd5h7ax39dxq2wvb5dhqpww3fe9t2wrvfdm.web.web3.site\r\n\
 			Connection: close\r\n\
 			\r\n\
 		"
@@ -411,7 +411,7 @@ fn should_return_error_on_invalid_token() {
 	let response = request(server,
 		"\
 			GET / HTTP/1.1\r\n\
-			Host: EHQPPSBE5DM78X3GECX2YBVGC5S6JX3S5SMPY.web.ethlink.io\r\n\
+			Host: EHQPPSBE5DM78X3GECX2YBVGC5S6JX3S5SMPY.web.web3.site\r\n\
 			Connection: close\r\n\
 			\r\n\
 		"
@@ -455,7 +455,7 @@ fn should_disallow_non_get_requests() {
 	let response = request(server,
 		"\
 			POST / HTTP/1.1\r\n\
-			Host: EHQPPSBE5DM78X3GECX2YBVGC5S6JX3S5SMPY.web.ethlink.io\r\n\
+			Host: EHQPPSBE5DM78X3GECX2YBVGC5S6JX3S5SMPY.web.web3.site\r\n\
 			Content-Type: application/json\r\n\
 			Connection: close\r\n\
 			\r\n\

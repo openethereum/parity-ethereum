@@ -143,7 +143,7 @@ fn should_return_signer_port_cors_headers_for_home_parity() {
 		"\
 			POST /api/ping HTTP/1.1\r\n\
 			Host: localhost:8080\r\n\
-			Origin: http://home.ethlink.io\r\n\
+			Origin: http://home.web3.site\r\n\
 			Connection: close\r\n\
 			\r\n\
 			{}
@@ -153,8 +153,8 @@ fn should_return_signer_port_cors_headers_for_home_parity() {
 	// then
 	assert_eq!(response.status, "HTTP/1.1 200 OK".to_owned());
 	assert!(
-		response.headers_raw.contains("Access-Control-Allow-Origin: http://home.ethlink.io"),
-		"CORS header for home.ethlink.io missing: {:?}",
+		response.headers_raw.contains("Access-Control-Allow-Origin: http://home.web3.site"),
+		"CORS header for home.web3.site missing: {:?}",
 		response.headers
 	);
 }

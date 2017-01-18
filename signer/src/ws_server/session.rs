@@ -64,7 +64,7 @@ mod ui {
 	}
 }
 
-const HOME_DOMAIN: &'static str = "home.ethlink.io";
+const HOME_DOMAIN: &'static str = "home.web3.site";
 
 fn origin_is_allowed(self_origin: &str, header: Option<&[u8]>) -> bool {
 	match header {

@@ -33,7 +33,7 @@ pub mod manifest;
 extern crate parity_ui;
 
 pub const HOME_PAGE: &'static str = "home";
-pub const DAPPS_DOMAIN: &'static str = ".ethlink.io";
+pub const DAPPS_DOMAIN: &'static str = ".web3.site";
 pub const RPC_PATH: &'static str =  "rpc";
 pub const API_PATH: &'static str =  "api";
 pub const UTILS_PATH: &'static str =  "parity-utils";
