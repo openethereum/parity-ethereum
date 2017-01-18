@@ -54,7 +54,7 @@ class Application extends Component {
   upgradeStore = new UpgradeStore(this.context.api);
 
   render () {
-    const [root] = (window.location.hash || '').replace('#/', '').split('/');
+    const [root, hash = ''] = (window.location.hash || '').replace('#/', '').split('/');
     const isMinimized = root === 'app' || root === 'web';
 
     if (inFrame) {
@@ -67,7 +67,7 @@ class Application extends Component {
       <div>
         { isMinimized ? this.renderMinimized() : this.renderApp() }
         <Connection />
-        <ParityBar dapp={ isMinimized } />
+        <ParityBar dapp={ isMinimized } hash={ hash || root } />
       </div>
     );
   }

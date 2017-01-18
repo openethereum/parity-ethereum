@@ -19,6 +19,7 @@ import ReactDOM from 'react-dom';
 import { Link } from 'react-router';
 import { connect } from 'react-redux';
 import { throttle } from 'lodash';
+import store from 'store';
 
 import { CancelIcon, FingerprintIcon } from '~/ui/Icons';
 import { Badge, Button, ContainerTitle, ParityBackground } from '~/ui';
@@ -27,20 +28,31 @@ import { Embedded as Signer } from '../Signer';
 import imagesEthcoreBlock from '../../../assets/images/parity-logo-white-no-text.svg';
 import styles from './parityBar.css';
 
+const LS_STORE_KEY = '_parity::parityBar';
+const DEFAULT_POSITION = { right: '1em', bottom: 0 };
+
 class ParityBar extends Component {
   measures = null;
   moving = false;
 
   static propTypes = {
+    dapp: PropTypes.bool,
+    hash: PropTypes.string,
     pending: PropTypes.array,
-    dapp: PropTypes.bool
+    root: PropTypes.string
   };
 
   state = {
     moving: false,
     opened: false,
-    position: { right: '1em', bottom: 0 }
+    position: DEFAULT_POSITION
   };
+
+  getAppId (props = this.props) {
+    const { hash = '-1' } = props;
+
+    return hash;
+  }
 
   constructor (props) {
     super(props);
@@ -52,9 +64,19 @@ class ParityBar extends Component {
     );
   }
 
+  componentWillMount () {
+    // Load the saved position of the Parity Bar
+    this.loadPosition();
+  }
+
   componentWillReceiveProps (nextProps) {
     const count = this.props.pending.length;
     const newCount = nextProps.pending.length;
+
+    // Reload the Bar position when changing dapps
+    if (nextProps.dapp && nextProps.hash !== this.props.hash) {
+      this.loadPosition(nextProps);
+    }
 
     if (count === newCount) {
       return;
@@ -96,13 +118,17 @@ class ParityBar extends Component {
       ...position
     };
 
+    // Open the Signer at one of the four corners
+    // of the screen
     if (opened) {
+      // Set at top or bottom of the screen
       if (position.top !== undefined) {
         parityBgStyle.top = 0;
       } else {
         parityBgStyle.bottom = 0;
       }
 
+      // Set at left or right of the screen
       if (position.left !== undefined) {
         parityBgStyle.left = '1em';
       } else {
@@ -385,6 +411,7 @@ class ParityBar extends Component {
 
     this.moving = false;
     this.setState({ moving: false, position });
+    this.savePosition(position);
   }
 
   toggleDisplay = () => {
@@ -393,6 +420,35 @@ class ParityBar extends Component {
     this.setState({
       opened: !opened
     });
+  }
+
+  get config () {
+    let config;
+
+    try {
+      config = JSON.parse(store.get(LS_STORE_KEY));
+    } catch (error) {
+      config = {};
+    }
+
+    return config;
+  }
+
+  loadPosition (props = this.props) {
+    const { config } = this;
+    const appId = this.getAppId(props);
+
+    const position = config[appId] || { ...DEFAULT_POSITION };
+    this.setState({ position });
+  }
+
+  savePosition (position) {
+    const { config } = this;
+    const appId = this.getAppId();
+
+    config[appId] = position;
+
+    store.set(LS_STORE_KEY, JSON.stringify(config));
   }
 }
 
