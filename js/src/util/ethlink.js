@@ -16,7 +16,7 @@
 
 import base32 from 'base32.js';
 
-const BASE_URL = 'web.ethlink.io';
+const BASE_URL = '.web.ethlink.io';
 const ENCODER_OPTS = { type: 'crockford' };
 
 export function encode (token, url) {
@@ -25,12 +25,11 @@ export function encode (token, url) {
     .split('')
     .map((char) => char.charCodeAt(0));
   const encoded = encoder
-    .write(chars) // add our characters to the encoder
-    .finalize() // create the encoded string
+    .write(chars).finalize() // create the encoded string
     .match(/.{1,63}/g) // split into 63-character chunks, max length is 64 for URLs parts
     .join('.'); // add '.' between URL parts
 
-  return `${encoded}.${BASE_URL}`;
+  return `${encoded}${BASE_URL}`;
 }
 
 // TODO: This export is really more a helper along the way of verifying the actual
@@ -40,7 +39,7 @@ export function encode (token, url) {
 export function decode (encoded) {
   const decoder = new base32.Decoder(ENCODER_OPTS);
   const sanitized = encoded
-    .replace(`.${BASE_URL}`, '') // remove the BASE URL
+    .replace(BASE_URL, '') // remove the BASE URL
     .split('.') // split the string on the '.' (63-char boundaries)
     .join(''); // combine without the '.'
 

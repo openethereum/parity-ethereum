@@ -23,7 +23,7 @@ const TEST_PREFIX = 'EHQPPSBE5DM78X3GECX2YBVGC5S6JX3S5SMPY';
 const TEST_PREFIX_LONG = [
   'EHQPPSBE5DM78X3G78QJYWVFDNJJWXK5E9WJWXK5E9WJWXK5E9WJWV3FDSKJWV3', 'FDSKJWV3FDSKJWS3FDNGPJVHECNW62VBGDHJJWRVFDM'
 ].join('.');
-const TEST_RESULT = `${TEST_PREFIX}.${BASE_URL}`;
+const TEST_RESULT = `${TEST_PREFIX}${BASE_URL}`;
 const TEST_ENCODED = `${TEST_TOKEN}+${TEST_URL}`;
 
 describe('util/ethlink', () => {
@@ -58,7 +58,7 @@ describe('util/ethlink', () => {
       });
 
       it('splits long values into boundary parts', () => {
-        expect(encoded).to.equal(`${TEST_PREFIX_LONG}.${BASE_URL}`);
+        expect(encoded).to.equal(`${TEST_PREFIX_LONG}${BASE_URL}`);
       });
 
       it('first part 63 characters', () => {
