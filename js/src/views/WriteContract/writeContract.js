@@ -36,7 +36,6 @@ import styles from './writeContract.css';
 
 @observer
 class WriteContract extends Component {
-
   static propTypes = {
     accounts: PropTypes.object.isRequired,
     worker: PropTypes.object,
@@ -241,7 +240,10 @@ class WriteContract extends Component {
     if (selectedBuild < 0) {
       return (
         <div className={ `${styles.panel} ${styles.centeredMessage}` }>
-          <CircularProgress size={ 80 } thickness={ 5 } />
+          <CircularProgress
+            size={ 80 }
+            thickness={ 5 }
+          />
           <p>Loading...</p>
         </div>
       );
@@ -253,7 +255,10 @@ class WriteContract extends Component {
       return (
         <div className={ styles.panel }>
           <div className={ styles.centeredMessage }>
-            <CircularProgress size={ 80 } thickness={ 5 } />
+            <CircularProgress
+              size={ 80 }
+              thickness={ 5 }
+            />
             <p>Loading Solidity { longVersion }</p>
           </div>
         </div>
@@ -272,13 +277,15 @@ class WriteContract extends Component {
           />
           {
             contract
-            ? <Button
-              icon={ <SendIcon /> }
-              label='Deploy'
-              onClick={ this.store.handleOpenDeployModal }
-              primary={ false }
-            />
-            : null
+              ? (
+                <Button
+                  icon={ <SendIcon /> }
+                  label='Deploy'
+                  onClick={ this.store.handleOpenDeployModal }
+                  primary={ false }
+                />
+              )
+              : null
           }
         </div>
         <div className={ styles.toggles }>
@@ -316,8 +323,8 @@ class WriteContract extends Component {
       >
         {
           build.release
-          ? (<span className={ styles.big }>{ build.version }</span>)
-          : build.longVersion
+            ? (<span className={ styles.big }>{ build.version }</span>)
+            : build.longVersion
         }
       </MenuItem>
     ));
@@ -394,7 +401,10 @@ class WriteContract extends Component {
     if (compiling) {
       return (
         <div className={ styles.centeredMessage }>
-          <CircularProgress size={ 80 } thickness={ 5 } />
+          <CircularProgress
+            size={ 80 }
+            thickness={ 5 }
+          />
           <p>Compiling...</p>
         </div>
       );
@@ -565,15 +575,20 @@ class WriteContract extends Component {
   applyResize = () => {
     this.setState({ size: this.size });
   }
-
 }
 
 function mapStateToProps (state) {
   const { accounts } = state.personal;
   const { worker, error } = state.worker;
-  return { accounts, worker, workerError: error };
+
+  return {
+    accounts,
+    worker,
+    workerError: error
+  };
 }
 
 export default connect(
-  mapStateToProps
+  mapStateToProps,
+  null
 )(WriteContract);

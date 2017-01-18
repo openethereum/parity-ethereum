@@ -24,7 +24,6 @@ import IdentityIcon from '../../IdentityIcon';
 import styles from './account-selector.css';
 
 class AccountSelectorItem extends Component {
-
   static propTypes = {
     onSelectAccount: PropTypes.func.isRequired,
     account: PropTypes.object.isRequired
@@ -37,15 +36,19 @@ class AccountSelectorItem extends Component {
     delete props.account;
     delete props.onSelectAccount;
 
-    const icon = (<IdentityIcon
-      inline center
-      address={ account.address } />
+    const icon = (
+      <IdentityIcon
+        inline center
+        address={ account.address }
+      />
     );
 
-    const avatar = (<Avatar
-      className={ styles.avatar }
-      backgroundColor='none'
-      icon={ icon } />
+    const avatar = (
+      <Avatar
+        className={ styles.avatar }
+        backgroundColor='none'
+        icon={ icon }
+      />
     );
 
     return (
@@ -55,18 +58,17 @@ class AccountSelectorItem extends Component {
         primaryText={ account.name }
         secondaryText={ account.address }
         leftAvatar={ avatar }
-        { ...props } />
+        { ...props }
+      />
     );
   }
 
   onSelectAccount = () => {
     this.props.onSelectAccount(this.props.account.address);
   }
-
 }
 
 export default class AccountSelector extends Component {
-
   static propTypes = {
     list: PropTypes.array.isRequired,
     selected: PropTypes.object.isRequired,
@@ -87,7 +89,8 @@ export default class AccountSelector extends Component {
         open={ this.state.open }
         onSelectAccount={ this.onToggleOpen }
         autoGenerateNestedIndicator={ false }
-        nestedListStyle={ { maxHeight: '14em', overflow: 'auto' } } />
+        nestedListStyle={ { maxHeight: '14em', overflow: 'auto' } }
+      />
     );
 
     return (
@@ -106,7 +109,8 @@ export default class AccountSelector extends Component {
         <AccountSelectorItem
           account={ account }
           onSelectAccount={ this.onSelectAccount }
-          key={ index } />
+          key={ index }
+        />
       ));
   }
 
@@ -122,5 +126,4 @@ export default class AccountSelector extends Component {
     this.props.handleSetSelected(address);
     this.onToggleOpen();
   }
-
 }

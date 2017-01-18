@@ -317,7 +317,6 @@ class WalletSettings extends Component {
       default:
       case 'TYPE':
         return [ cancelBtn, nextBtn ];
-
     }
   }
 }
@@ -333,4 +332,7 @@ function mapStateToProps (initState, initProps) {
   };
 }
 
-export default connect(mapStateToProps)(WalletSettings);
+export default connect(
+  mapStateToProps,
+  null
+)(WalletSettings);

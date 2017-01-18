@@ -134,7 +134,8 @@ class InputAddress extends Component {
         <IdentityIcon
           address={ value }
           center
-          inline />
+          inline
+        />
       </div>
     );
   }

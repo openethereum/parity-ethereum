@@ -62,15 +62,18 @@ export default class DetailsStep extends Component {
           hint={
             <FormattedMessage
               id='executeContract.details.address.label'
-              defaultMessage='the account to transact with' />
+              defaultMessage='the account to transact with'
+            />
           }
           label={
             <FormattedMessage
               id='executeContract.details.address.hint'
-              defaultMessage='from account' />
+              defaultMessage='from account'
+            />
            }
           onChange={ onFromAddressChange }
-          value={ fromAddress } />
+          value={ fromAddress }
+        />
         { this.renderFunctionSelect() }
         { this.renderParameters() }
         <div className={ styles.columns }>
@@ -80,15 +83,18 @@ export default class DetailsStep extends Component {
               hint={
                 <FormattedMessage
                   id='executeContract.details.amount.hint'
-                  defaultMessage='the amount to send to with the transaction' />
+                  defaultMessage='the amount to send to with the transaction'
+                />
               }
               label={
                 <FormattedMessage
                   id='executeContract.details.amount.label'
-                  defaultMessage='transaction value (in ETH)' />
+                  defaultMessage='transaction value (in ETH)'
+                />
               }
               onSubmit={ onAmountChange }
-              value={ amount } />
+              value={ amount }
+            />
           </div>
           <div>
             <Checkbox
@@ -96,10 +102,12 @@ export default class DetailsStep extends Component {
               label={
                 <FormattedMessage
                   id='executeContract.details.advancedCheck.label'
-                  defaultMessage='advanced sending options' />
+                  defaultMessage='advanced sending options'
+                />
               }
               onCheck={ onAdvancedClick }
-              style={ CHECK_STYLE } />
+              style={ CHECK_STYLE }
+            />
           </div>
         </div>
       </Form>
@@ -140,7 +148,8 @@ export default class DetailsStep extends Component {
           <MenuItem
             key={ func.signature }
             value={ func.signature }
-            label={ func.name || '()' }>
+            label={ func.name || '()' }
+          >
             { name }
           </MenuItem>
         );
@@ -152,15 +161,18 @@ export default class DetailsStep extends Component {
         hint={
           <FormattedMessage
             id='executeContract.details.function.hint'
-            defaultMessage='the function to call on the contract' />
+            defaultMessage='the function to call on the contract'
+          />
         }
         label={
           <FormattedMessage
             id='executeContract.details.function.label'
-            defaultMessage='function to execute' />
+            defaultMessage='function to execute'
+          />
         }
         onChange={ this.onFuncChange }
-        value={ func.signature }>
+        value={ func.signature }
+      >
         { functions }
       </Select>
     );

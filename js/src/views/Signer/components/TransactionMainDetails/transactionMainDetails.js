@@ -59,7 +59,8 @@ export default class TransactionMainDetails extends Component {
             <Account
               address={ from }
               balance={ fromBalance }
-              isTest={ isTest } />
+              isTest={ isTest }
+            />
           </div>
         </div>
         <div className={ styles.method }>
@@ -70,7 +71,8 @@ export default class TransactionMainDetails extends Component {
               gasStore
                 ? gasStore.overrideTransaction(transaction)
                 : transaction
-            } />
+            }
+          />
           { this.renderEditGas() }
         </div>
         { children }
@@ -90,7 +92,8 @@ export default class TransactionMainDetails extends Component {
         <Button
           icon={ <MapsLocalGasStation /> }
           label='Edit gas/gasPrice'
-          onClick={ this.toggleGasEditor } />
+          onClick={ this.toggleGasEditor }
+        />
       </div>
     );
   }
@@ -107,7 +110,8 @@ export default class TransactionMainDetails extends Component {
           data-effect='solid'
           data-for={ labelId }
           data-place='bottom'
-          data-tip>
+          data-tip
+        >
           { totalValueDisplay } <small>ETH</small>
         </div>
         <ReactTooltip id={ labelId }>
@@ -128,7 +132,8 @@ export default class TransactionMainDetails extends Component {
         <div
           data-effect='solid'
           data-for={ labelId }
-          data-tip>
+          data-tip
+        >
           <strong>{ valueDisplay } </strong>
           <small>ETH</small>
         </div>

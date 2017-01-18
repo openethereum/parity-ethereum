@@ -34,7 +34,6 @@ import { clear, lookup, ownerLookup, reverseLookup } from './actions';
 import styles from './lookup.css';
 
 class Lookup extends Component {
-
   static propTypes = {
     result: nullableProptype(PropTypes.string.isRequired),
 

@@ -38,7 +38,8 @@ export default class Page extends Component {
       actionbar = (
         <Actionbar
           buttons={ buttons }
-          title={ title } />
+          title={ title }
+        />
       );
     }
 

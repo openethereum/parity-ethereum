@@ -31,7 +31,8 @@ function render (props) {
   component = shallow(
     <TypedInput
       { ...props }
-      onChange={ onChange } />
+      onChange={ onChange }
+    />
   );
   select = component.find('Select');
 

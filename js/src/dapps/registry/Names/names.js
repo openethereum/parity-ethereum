@@ -77,7 +77,6 @@ const renderQueue = (queue) => {
 };
 
 class Names extends Component {
-
   static propTypes = {
     error: nullableProptype(PropTypes.object.isRequired),
     fee: PropTypes.object.isRequired,

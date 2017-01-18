@@ -87,7 +87,8 @@ export default class CreateAccount extends Component {
         visible
         actions={ this.renderDialogActions() }
         current={ stage }
-        steps={ steps }>
+        steps={ steps }
+      >
         { this.renderWarning() }
         { this.renderPage() }
       </Modal>
@@ -162,11 +163,13 @@ export default class CreateAccount extends Component {
           <Button
             icon={ <ContentClear /> }
             label='Cancel'
-            onClick={ this.onClose } />,
+            onClick={ this.onClose }
+          />,
           <Button
             icon={ <NavigationArrowForward /> }
             label='Next'
-            onClick={ this.onNext } />
+            onClick={ this.onNext }
+          />
         ];
       case 1:
         const createLabel = createType === 'fromNew'
@@ -177,16 +180,19 @@ export default class CreateAccount extends Component {
           <Button
             icon={ <ContentClear /> }
             label='Cancel'
-            onClick={ this.onClose } />,
+            onClick={ this.onClose }
+          />,
           <Button
             icon={ <NavigationArrowBack /> }
             label='Back'
-            onClick={ this.onPrev } />,
+            onClick={ this.onPrev }
+          />,
           <Button
             icon={ <ActionDone /> }
             label={ createLabel }
             disabled={ !this.state.canCreate }
-            onClick={ this.onCreate } />
+            onClick={ this.onCreate }
+          />
         ];
 
       case 2:
@@ -195,12 +201,14 @@ export default class CreateAccount extends Component {
             <Button
               icon={ <PrintIcon /> }
               label='Print Phrase'
-              onClick={ this.printPhrase } />
+              onClick={ this.printPhrase }
+            />
           ) : null,
           <Button
             icon={ <ActionDoneAll /> }
             label='Close'
-            onClick={ this.onClose } />
+            onClick={ this.onClose }
+          />
         ];
     }
   }

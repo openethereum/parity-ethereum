@@ -60,20 +60,24 @@ export default class AddressBar extends Component {
       <div className={ this.props.className }>
         <Button
           disabled={ isLoading }
+          icon={
+            isLoading
+              ? <Close />
+              : <Refresh />
+          }
           onClick={ this.onGo }
-          icon={ isLoading ? <Close /> : <Refresh /> }
-          />
+        />
         <input
           onChange={ this.onUpdateUrl }
           onKeyDown={ this.onKey }
           type='text'
           value={ currentUrl }
-          />
+        />
         <Button
           disabled={ isPristine }
-          onClick={ this.onGo }
           icon={ <Subdirectory /> }
-          />
+          onClick={ this.onGo }
+        />
       </div>
     );
   }
