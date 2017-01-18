@@ -15,13 +15,23 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-@import '../../_list.css';
+.list {
+  display: flex;
+  flex-wrap: wrap;
 
-.empty {
-  width: 100%;
-  display: block;
-}
+  .item {
+    flex: 0 1 50%;
+    width: 50%;
+    position: relative;
+    padding-bottom: 0.25em;
+    box-sizing: border-box;
 
-.empty div {
-  color: #aaa;
+    &:nth-child(odd) {
+      padding-right: 0.125em;
+    }
+
+    &:nth-child(even) {
+      padding-left: 0.125em;
+    }
+  }
 }

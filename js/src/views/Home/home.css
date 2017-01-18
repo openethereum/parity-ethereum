@@ -15,19 +15,10 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-.body {
-  background: rgba(0, 0, 0, 0.25);
-  min-height: 100vh;
-  padding: 0 1.5em;
-}
+@import '../_list.css';
 
 .history {
-  margin: 1.5em;
-
-  h3 {
-    margin: 0;
-    text-transform: uppercase;
-  }
+  margin-top: 1.5em;
 
   .timestamp {
     opacity: 0.5;
@@ -36,9 +27,11 @@
   }
 }
 
-.url {
-  margin: 0 1.5em 1.5em 1.5em;
+.accounts, .dapps, .urls {
+  margin-top: 1.5em;
+}
 
+.urls {
   .input {
     background: rgba(255, 255, 255, 0.1);
     border: 1px solid rgba(255, 255, 255, 0.25);

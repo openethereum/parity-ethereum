@@ -34,8 +34,6 @@ export default class Home extends Component {
   webstore = WebStore.get(this.context.api);
 
   render () {
-    const { nextUrl } = this.webstore;
-
     return (
       <Page
         className={ styles.body }
@@ -46,7 +44,68 @@ export default class Home extends Component {
           />
         }
       >
-        <div className={ styles.url }>
+        <div className={ styles.list }>
+          <div className={ styles.item }>
+            { this.renderUrl() }
+          </div>
+          <div className={ styles.item }>
+            { this.renderDapps() }
+          </div>
+          <div className={ styles.item }>
+            { this.renderAccounts() }
+          </div>
+        </div>
+      </Page>
+    );
+  }
+
+  renderAccounts () {
+    return (
+      <Container
+        title={
+          <FormattedMessage
+            id='home.accounts.title'
+            defaultMessage='Recent Accounts'
+          />
+        }
+      >
+        <div className={ styles.accounts }>
+          Something goes in here
+        </div>
+      </Container>
+    );
+  }
+
+  renderDapps () {
+    return (
+      <Container
+        title={
+          <FormattedMessage
+            id='home.dapps.title'
+            defaultMessage='Recent Dapps'
+          />
+        }
+      >
+        <div className={ styles.dapps }>
+          Something goes in here
+        </div>
+      </Container>
+    );
+  }
+
+  renderUrl () {
+    const { nextUrl } = this.webstore;
+
+    return (
+      <Container
+        title={
+          <FormattedMessage
+            id='home.url.title'
+            defaultMessage='Web URLs'
+          />
+        }
+      >
+        <div className={ styles.urls }>
           <DappUrlInput
             className={ styles.input }
             onChange={ this.onChangeUrl }
@@ -54,9 +113,9 @@ export default class Home extends Component {
             onRestore={ this.onRestoreUrl }
             url={ nextUrl }
           />
+          { this.renderUrlHistory() }
         </div>
-        { this.renderUrlHistory() }
-      </Page>
+      </Container>
     );
   }
 
@@ -88,22 +147,11 @@ export default class Home extends Component {
     });
 
     return (
-      <div className={ styles.history }>
-        <Container
-          title={
-            <FormattedMessage
-              id='home.url.recent'
-              defaultMessage='Recently opened URLs'
-            />
-          }
-        >
-          <table>
-            <tbody>
-              { rows }
-            </tbody>
-          </table>
-        </Container>
-      </div>
+      <table className={ styles.history }>
+        <tbody>
+          { rows }
+        </tbody>
+      </table>
     );
   }
 
