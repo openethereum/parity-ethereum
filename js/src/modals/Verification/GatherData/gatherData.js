@@ -122,7 +122,7 @@ export default class GatherData extends Component {
           <p className={ styles.message }>
             <FormattedMessage
               id='ui.verification.gatherData.nofee'
-              defaultMessage='There is not additional fee.'
+              defaultMessage='There is no additional fee.'
             />
           </p>
         </div>
