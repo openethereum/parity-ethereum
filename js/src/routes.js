@@ -76,8 +76,8 @@ const routes = [
   { path: '/address/:address', onEnter: handleDeprecatedRoute },
   { path: '/contract/:address', onEnter: handleDeprecatedRoute },
 
-  { path: '/', onEnter: redirectTo('/home') },
-  { path: '/auth', onEnter: redirectTo('/home') },
+  { path: '/', onEnter: redirectTo('/accounts') },
+  { path: '/auth', onEnter: redirectTo('/accounts') },
   { path: '/settings', onEnter: redirectTo('/settings/views') },
 
   {
