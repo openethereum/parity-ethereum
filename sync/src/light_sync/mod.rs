@@ -371,8 +371,7 @@ impl<L: LightChainClient> LightSync<L> {
 
 			'a:
 			loop {
-				let queue_info = self.client.queue_info();
-				if queue_info.is_full() { break }
+				if self.client.queue_info().is_full() { break }
 
 				*state = match mem::replace(&mut *state, SyncState::Idle) {
 					SyncState::Rounds(round)
@@ -406,7 +405,12 @@ impl<L: LightChainClient> LightSync<L> {
 			};
 
 			match mem::replace(&mut *state, SyncState::Idle) {
-				SyncState::Rounds(SyncRound::Abort(reason, _)) => {
+				SyncState::Rounds(SyncRound::Abort(reason, remaining)) => {
+					if remaining.len() > 0 {
+						*state = SyncState::Rounds(SyncRound::Abort(reason, remaining));
+						return;
+					}
+
 					match reason {
 						AbortReason::BadScaffold(bad_peers) => {
 							debug!(target: "sync", "Disabling peers responsible for bad scaffold");
@@ -416,7 +420,9 @@ impl<L: LightChainClient> LightSync<L> {
 						}
 						AbortReason::NoResponses => {}
 						AbortReason::TargetReached => {
-							debug!(target: "sync", "Sync target reached.");
+							debug!(target: "sync", "Sync target reached. Going idle");
+							*state = SyncState::Idle;
+							return;
 						}
 					}
 

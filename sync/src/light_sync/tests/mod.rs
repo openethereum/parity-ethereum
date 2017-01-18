@@ -25,9 +25,10 @@ fn basic_sync() {
 	::env_logger::init().ok();
 
 	let mut net = TestNet::light(1, 2);
-	net.peer(1).chain().add_blocks(10000, EachBlockWith::Uncle);
-	net.peer(2).chain().add_blocks(12000, EachBlockWith::Uncle);
+	net.peer(1).chain().add_blocks(5000, EachBlockWith::Nothing);
+	net.peer(2).chain().add_blocks(6000, EachBlockWith::Nothing);
 
 	net.sync();
+
 	assert!(net.peer(0).light_chain().get_header(BlockId::Number(12000)).is_some())
 }

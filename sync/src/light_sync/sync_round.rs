@@ -285,29 +285,32 @@ impl Fetcher {
 	}
 }
 
-// Compute scaffold parameters from distance between start and target block: (skip, frames).
+// Compute scaffold parameters from non-zero distance between start and target block: (skip, pivots).
 fn scaffold_params(diff: u64) -> (u64, usize) {
 	// default parameters.
-	// amount of blocks between each scaffold entry.
+	// amount of blocks between each scaffold pivot.
 	const ROUND_SKIP: u64 = 255;
-	// amount of scaffold frames: these are the blank spaces in "X___X___X"
-	const ROUND_FRAMES: usize = 255;
+	// amount of scaffold pivots: these are the Xs in "X___X___X"
+	const ROUND_PIVOTS: usize = 256;
 
+	let rem = diff % (ROUND_SKIP + 1);
 	if diff <= ROUND_SKIP {
 		// just request headers from the start to the target.
-		(0, diff as usize)
+		(0, rem as usize)
 	} else {
-		let num_frames = ::std::cmp::min(diff / (ROUND_SKIP + 1), ROUND_FRAMES as u64) as usize;
-		(ROUND_SKIP, num_frames)
+		// the number of pivots necessary to exactly hit or overshoot the target.
+		let pivots_to_target = (diff / (ROUND_SKIP + 1)) + if rem == 0 { 0 } else { 1 };
+		let num_pivots = ::std::cmp::min(pivots_to_target, ROUND_PIVOTS as u64) as usize;
+		(ROUND_SKIP, num_pivots)
 	}
 }
 
 /// Round started: get stepped header chain.
-/// from a start block with number X we request ROUND_FRAMES headers stepped by ROUND_SKIP from
+/// from a start block with number X we request ROUND_PIVOTS headers stepped by ROUND_SKIP from
 /// block X + 1 to a target >= X + 1.
 /// If the sync target is within ROUND_SKIP of the start, we request
-/// only those blocks. If the sync target is within (ROUND_SKIP + 1) * ROUND_FRAMES of
-/// the start, we reduce the number of frames until the target is outside it.
+/// only those blocks. If the sync target is within (ROUND_SKIP + 1) * (ROUND_PIVOTS - 1) of
+/// the start, we reduce the number of pivots so the target is outside it.
 pub struct RoundStart {
 	start_block: (u64, H256),
 	target: (u64, H256),
@@ -316,15 +319,15 @@ pub struct RoundStart {
 	contributors: HashSet<PeerId>,
 	attempt: usize,
 	skip: u64,
-	frames: usize,
+	pivots: usize,
 }
 
 impl RoundStart {
 	fn new(start: (u64, H256), target: (u64, H256)) -> Self {
-		let (skip, frames) = scaffold_params(target.0 - start.0);
+		let (skip, pivots) = scaffold_params(target.0 - start.0);
 
-		trace!(target: "sync", "Beginning sync round: {} frames and {} skip from block {}",
-			frames, skip, start.0);
+		trace!(target: "sync", "Beginning sync round: {} pivots and {} skip from block {}",
+			pivots, skip, start.0);
 
 		RoundStart {
 			start_block: start,
@@ -334,7 +337,7 @@ impl RoundStart {
 			contributors: HashSet::new(),
 			attempt: 0,
 			skip: skip,
-			frames: frames,
+			pivots: pivots,
 		}
 	}
 
@@ -380,7 +383,7 @@ impl RoundStart {
 				self.contributors.insert(ctx.responder());
 				self.sparse_headers.extend(headers);
 
-				if self.sparse_headers.len() == self.frames + 1 {
+				if self.sparse_headers.len() == self.pivots {
 					return if self.skip == 0 {
 						SyncRound::abort(AbortReason::TargetReached, self.sparse_headers.into())
 					} else {
@@ -426,7 +429,7 @@ impl RoundStart {
 			let start = (self.start_block.0 + 1)
 				+ self.sparse_headers.len() as u64 * (self.skip + 1);
 
-			let max = self.frames + 1 - self.sparse_headers.len();
+			let max = self.pivots - self.sparse_headers.len();
 
 			let headers_request = HeadersRequest {
 				start: start.into(),
@@ -459,7 +462,7 @@ pub enum SyncRound {
 
 impl SyncRound {
 	fn abort(reason: AbortReason, remaining: VecDeque<Header>) -> Self {
-		trace!(target: "sync", "Aborting sync round: {:?}. To drain: {:?}", reason, remaining);
+		trace!(target: "sync", "Aborting sync round: {:?}. To drain: {}", reason, remaining.len());
 
 		SyncRound::Abort(reason, remaining)
 	}
@@ -528,5 +531,23 @@ impl fmt::Debug for SyncRound {
 			SyncRound::Abort(ref reason, ref remaining) =>
 				write!(f, "Aborted: {:?}, {} remain", reason, remaining.len()),
 		}
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use super::scaffold_params;
+
+	#[test]
+	fn scaffold_config() {
+		// within a certain distance of the head, we download
+		// sequentially.
+		assert_eq!(scaffold_params(1), (0, 1));
+		assert_eq!(scaffold_params(6), (0, 6));
+
+		// when scaffolds are useful, download enough frames to get
+		// within a close distance of the goal.
+		assert_eq!(scaffold_params(1000), (255, 4));
+		assert_eq!(scaffold_params(1024), (255, 4));
 	}
 }
