@@ -20,9 +20,10 @@ import { parse as parseUrl } from 'url';
 
 import { encode as encodeEthlink } from '~/util/dapplink';
 
+import HistoryStore from '../historyStore';
+
 const DEFAULT_URL = 'https://mkr.market';
 const LS_LAST_ADDRESS = '_parity::webLastAddress';
-const LS_HISTORY = '_parity::webHistory';
 
 const hasProtocol = /^https?:\/\//;
 
@@ -31,7 +32,7 @@ let instance = null;
 export default class Store {
   @observable counter = Date.now();
   @observable currentUrl = null;
-  @observable history = null;
+  @observable historyStore = HistoryStore.get('web');
   @observable isLoading = false;
   @observable parsedUrl = null;
   @observable nextUrl = null;
@@ -41,7 +42,6 @@ export default class Store {
     this._api = api;
 
     this.nextUrl = this.currentUrl = this.loadLastUrl();
-    this.history = this.loadHistory();
   }
 
   @computed get encodedUrl () {
@@ -54,16 +54,6 @@ export default class Store {
 
   @computed get isPristine () {
     return this.currentUrl === this.nextUrl;
-  }
-
-  @action addHistoryUrl = (_url) => {
-    const url = _url || this.currentUrl;
-
-    this.history = [{
-      timestamp: Date.now(),
-      url
-    }].concat(this.history.filter((h) => h.url !== url)).slice(0, 10);
-    this.saveHistory();
   }
 
   @action gotoUrl = (_url) => {
@@ -101,7 +91,6 @@ export default class Store {
       this.currentUrl = url;
       this.parsedUrl = parseUrl(url);
 
-      this.addHistoryUrl();
       this.saveLastUrl();
 
       this.reload();
@@ -131,19 +120,12 @@ export default class Store {
       });
   }
 
-  saveHistory = () => {
-    return localStore.set(LS_HISTORY, this.history);
-  }
-
-  loadHistory = () => {
-    return localStore.get(LS_HISTORY) || [];
-  }
-
   loadLastUrl = () => {
     return localStore.get(LS_LAST_ADDRESS) || DEFAULT_URL;
   }
 
   saveLastUrl = () => {
+    this.historyStore.add(this.currentUrl);
     return localStore.set(LS_LAST_ADDRESS, this.currentUrl);
   }
 
@@ -158,6 +140,5 @@ export default class Store {
 
 export {
   DEFAULT_URL,
-  LS_LAST_ADDRESS,
-  LS_HISTORY
+  LS_LAST_ADDRESS
 };

@@ -15,9 +15,8 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import sinon from 'sinon';
-import localStore from 'store';
 
-import Store, { LS_HISTORY } from './store';
+import Store from './store';
 
 const TEST_TOKEN = 'testing-123';
 const TEST_URL1 = 'http://some.test.domain.com';
@@ -39,7 +38,6 @@ function createApi () {
 }
 
 function create () {
-  localStore.set(LS_HISTORY, []);
   store = new Store(createApi());
 
   return store;
@@ -48,41 +46,14 @@ function create () {
 describe('views/Web/Store', () => {
   beforeEach(() => {
     create();
+    sinon.spy(store.historyStore, 'add');
+  });
+
+  afterEach(() => {
+    store.historyStore.add.restore();
   });
 
   describe('@action', () => {
-    describe('addHistoryUrl', () => {
-      it('adds the url to the list (front)', () => {
-        store.addHistoryUrl(TEST_URL1);
-        expect(store.history[0].url).to.equal(TEST_URL1);
-      });
-
-      it('adds multiples to the list', () => {
-        store.addHistoryUrl(TEST_URL1);
-        store.addHistoryUrl(TEST_URL2);
-
-        expect(store.history.length).to.equal(2);
-        expect(store.history[0].url).to.equal(TEST_URL2);
-        expect(store.history[1].url).to.equal(TEST_URL1);
-      });
-
-      it('does not add duplicates', () => {
-        store.addHistoryUrl(TEST_URL2);
-        store.addHistoryUrl(TEST_URL1);
-
-        expect(store.history.length).to.equal(2);
-        expect(store.history[0].url).to.equal(TEST_URL1);
-        expect(store.history[1].url).to.equal(TEST_URL2);
-      });
-
-      it('adds the current when none specified', () => {
-        store.setCurrentUrl(TEST_URL3);
-        store.addHistoryUrl();
-
-        expect(store.history[0].url).to.equal(TEST_URL3);
-      });
-    });
-
     describe('restoreUrl', () => {
       it('sets the nextUrl to the currentUrl', () => {
         store.setCurrentUrl(TEST_URL1);
@@ -94,10 +65,16 @@ describe('views/Web/Store', () => {
     });
 
     describe('setCurrentUrl', () => {
-      it('sets the url', () => {
+      beforeEach(() => {
         store.setCurrentUrl(TEST_URL1);
+      });
 
+      it('sets the url', () => {
         expect(store.currentUrl).to.equal(TEST_URL1);
+      });
+
+      it('saves the url in the history', () => {
+        expect(store.historyStore.add).to.have.been.calledWith(TEST_URL1);
       });
     });
 

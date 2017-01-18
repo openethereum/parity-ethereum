@@ -16,11 +16,14 @@
 
 import {
   Accounts, Account, Addresses, Address, Application,
-  Contract, Contracts, Dapp, Dapps, Home,
+  Contract, Contracts, Dapp, Dapps, HistoryStore, Home,
   Settings, SettingsBackground, SettingsParity, SettingsProxy,
   SettingsViews, Signer, Status,
   Wallet, Web, WriteContract
 } from '~/views';
+
+const accountsHistory = HistoryStore.get('accounts');
+const dappsHistory = HistoryStore.get('dapps');
 
 function handleDeprecatedRoute (nextState, replace) {
   const { address } = nextState.params;
@@ -46,7 +49,11 @@ function redirectTo (path) {
 }
 
 const accountsRoutes = [
-  { path: ':address', component: Account },
+  {
+    path: ':address',
+    component: Account,
+    onEnter: ({ params }) => accountsHistory.add(params.address)
+  },
   { path: '/wallet/:address', component: Wallet }
 ];
 
@@ -110,7 +117,11 @@ const routes = [
         childRoutes: settingsRoutes
       },
       { path: 'apps', component: Dapps },
-      { path: 'app/:id', component: Dapp },
+      {
+        path: 'app/:id',
+        component: Dapp,
+        onEnter: ({ params }) => dappsHistory.add(params.id)
+      },
       { path: 'home', component: Home },
       { path: 'web', component: Web },
       { path: 'web/:url', component: Web },

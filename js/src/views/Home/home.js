@@ -21,6 +21,7 @@ import { FormattedMessage } from 'react-intl';
 
 import { Container, DappUrlInput, Page } from '~/ui';
 
+import HistoryStore from '../historyStore';
 import WebStore from '../Web/store';
 import styles from './home.css';
 
@@ -32,6 +33,7 @@ export default class Home extends Component {
   };
 
   webstore = WebStore.get(this.context.api);
+  webHistory = HistoryStore.get('web');
 
   render () {
     return (
@@ -120,26 +122,26 @@ export default class Home extends Component {
   }
 
   renderUrlHistory () {
-    const { history } = this.webstore;
+    const { history } = this.webHistory;
 
     if (!history.length) {
       return null;
     }
 
-    const rows = history.map((entry) => {
-      const onNavigate = () => this.onGotoUrl(entry.url);
+    const rows = history.map((h) => {
+      const onNavigate = () => this.onGotoUrl(h.entry);
 
       return (
-        <tr key={ entry.timestamp }>
+        <tr key={ h.timestamp }>
           <td className={ styles.timestamp }>
-            { moment(entry.timestamp).fromNow() }
+            { moment(h.timestamp).fromNow() }
           </td>
-          <td className={ styles.url }>
+          <td className={ h.entry }>
             <a
               href='javascript:void(0)'
               onClick={ onNavigate }
             >
-              { entry.url }
+              { h.entry }
             </a>
           </td>
         </tr>
