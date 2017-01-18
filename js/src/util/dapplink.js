@@ -16,7 +16,7 @@
 
 import base32 from 'base32.js';
 
-const BASE_URL = '.web.ethlink.io';
+const BASE_URL = '.web.web3.site';
 const ENCODER_OPTS = { type: 'crockford' };
 
 export function encode (token, url) {
