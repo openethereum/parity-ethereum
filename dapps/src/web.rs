@@ -116,13 +116,14 @@ struct WebHandler<F: Fetch> {
 impl<F: Fetch> WebHandler<F> {
 	fn extract_target_url(&self, url: Option<Url>) -> Result<String, State<F>> {
 		let token_and_url = self.path.app_params.get(0)
+			.map(|encoded| encoded.replace('.', ""))
 			.and_then(|encoded| base32::decode(base32::Alphabet::Crockford, &encoded.to_uppercase()))
 			.and_then(|data| String::from_utf8(data).ok())
 			.ok_or_else(|| State::Error(ContentHandler::error(
 				StatusCode::BadRequest,
 				"Invalid parameter",
-				"Couldn't parse given parameter.",
-				None,
+				"Couldn't parse given parameter:",
+				self.path.app_params.get(0).map(String::as_str),
 				self.embeddable_on.clone()
 			)))?;
 
@@ -154,6 +155,7 @@ impl<F: Fetch> WebHandler<F> {
 			target_url = format!("{}/", target_url);
 		}
 
+		// TODO [ToDr] Should just use `path.app_params`
 		let (path, query) = match (&url, self.path.using_dapps_domains) {
 			(&Some(ref url), true) => (&url.path[..], &url.query),
 			(&Some(ref url), false) => (&url.path[2..], &url.query),
@@ -176,7 +178,6 @@ impl<F: Fetch> WebHandler<F> {
 impl<F: Fetch> server::Handler<net::HttpStream> for WebHandler<F> {
 	fn on_request(&mut self, request: server::Request<net::HttpStream>) -> Next {
 		let url = extract_url(&request);
-
 		// First extract the URL (reject invalid URLs)
 		let target_url = match self.extract_target_url(url) {
 			Ok(url) => url,

@@ -356,6 +356,30 @@ fn should_support_base32_encoded_web_urls() {
 }
 
 #[test]
+fn should_correctly_handle_long_label_when_splitted() {
+	// given
+	let (server, fetch) = serve_with_fetch("xolrg9fePeQyKLnL");
+
+	// when
+	let response = request(server,
+		"\
+			GET /styles.css?test=123 HTTP/1.1\r\n\
+			Host: f1qprwk775k6am35a5wmpk3e9gnpgx3me1sk.mbsfcdqpwx3jd5h7ax39dxq2wvb5dhqpww3fe9t2wrvfdm.web.ethlink.io\r\n\
+			Connection: close\r\n\
+			\r\n\
+		"
+	);
+
+	// then
+	response.assert_status("HTTP/1.1 200 OK");
+	assert_security_headers_for_embed(&response.headers);
+
+	fetch.assert_requested("https://contribution.melonport.com/styles.css?test=123");
+	fetch.assert_no_more_requests();
+}
+
+
+#[test]
 fn should_support_base32_encoded_web_urls_as_path() {
 	// given
 	let (server, fetch) = serve_with_fetch("token");
@@ -492,4 +516,3 @@ fn should_fix_absolute_requests_based_on_referer_in_url() {
 
 	fetch.assert_no_more_requests();
 }
-

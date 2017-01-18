@@ -263,9 +263,9 @@ fn extract_endpoint(url: &Option<Url>) -> (Option<EndpointPath>, SpecialEndpoint
 				let id = &domain[0..(domain.len() - DAPPS_DOMAIN.len())];
 				let (id, params) = if let Some(split) = id.rfind('.') {
 					let (params, id) = id.split_at(split);
-					(id[1..].to_owned(), vec![params.to_owned()])
+					(id[1..].to_owned(), [params.to_owned()].into_iter().chain(&url.path).cloned().collect())
 				} else {
-					(id.to_owned(), vec![])
+					(id.to_owned(), url.path.clone())
 				};
 
 				(Some(EndpointPath {
@@ -324,7 +324,7 @@ fn should_extract_endpoint() {
 		extract_endpoint(&Url::parse("http://my.status.ethlink.io/parity-utils/inject.js").ok()),
 		(Some(EndpointPath {
 			app_id: "status".to_owned(),
-			app_params: vec!["my".to_owned()],
+			app_params: vec!["my".to_owned(), "parity-utils".into(), "inject.js".into()],
 			host: "my.status.ethlink.io".to_owned(),
 			port: 80,
 			using_dapps_domains: true,
@@ -333,11 +333,11 @@ fn should_extract_endpoint() {
 
 	// By Subdomain
 	assert_eq!(
-		extract_endpoint(&Url::parse("http://my.status.ethlink.io/test.html").ok()),
+		extract_endpoint(&Url::parse("http://status.ethlink.io/test.html").ok()),
 		(Some(EndpointPath {
 			app_id: "status".to_owned(),
-			app_params: vec!["my".to_owned()],
-			host: "my.status.ethlink.io".to_owned(),
+			app_params: vec!["test.html".to_owned()],
+			host: "status.ethlink.io".to_owned(),
 			port: 80,
 			using_dapps_domains: true,
 		}), SpecialEndpoint::None)
@@ -348,7 +348,7 @@ fn should_extract_endpoint() {
 		extract_endpoint(&Url::parse("http://my.status.ethlink.io/rpc/").ok()),
 		(Some(EndpointPath {
 			app_id: "status".to_owned(),
-			app_params: vec!["my".to_owned()],
+			app_params: vec!["my".to_owned(), "rpc".into(), "".into()],
 			host: "my.status.ethlink.io".to_owned(),
 			port: 80,
 			using_dapps_domains: true,
@@ -360,7 +360,7 @@ fn should_extract_endpoint() {
 		extract_endpoint(&Url::parse("http://my.status.ethlink.io/api/").ok()),
 		(Some(EndpointPath {
 			app_id: "status".to_owned(),
-			app_params: vec!["my".to_owned()],
+			app_params: vec!["my".to_owned(), "api".into(), "".into()],
 			host: "my.status.ethlink.io".to_owned(),
 			port: 80,
 			using_dapps_domains: true,
