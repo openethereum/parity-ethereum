@@ -242,7 +242,7 @@ impl TestBlockChainClient {
 						value: U256::from(100),
 						data: "3331600055".from_hex().unwrap(),
 						gas: U256::from(100_000),
-						gas_price: U256::one(),
+						gas_price: U256::from(200_000_000_000u64),
 						nonce: U256::zero()
 					};
 					let signed_tx = tx.sign(keypair.secret(), None);
@@ -308,11 +308,11 @@ impl TestBlockChainClient {
 			value: U256::from(100),
 			data: "3331600055".from_hex().unwrap(),
 			gas: U256::from(100_000),
-			gas_price: U256::one(),
+			gas_price: U256::from(20_000_000_000u64),
 			nonce: U256::zero()
 		};
 		let signed_tx = tx.sign(keypair.secret(), None);
-		self.set_balance(signed_tx.sender().unwrap(), 10_000_000.into());
+		self.set_balance(signed_tx.sender().unwrap(), 10_000_000_000_000_000_000u64.into());
 		let res = self.miner.import_external_transactions(self, vec![signed_tx]);
 		let res = res.into_iter().next().unwrap().expect("Successful import");
 		assert_eq!(res, TransactionImportResult::Current);
