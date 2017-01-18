@@ -47,16 +47,23 @@ impl<F: Fn(PriceInfo) + Sync + Send + 'static> Handler<HttpStream> for SetPriceH
 
 	fn on_response_readable(&mut self, r: &mut Decoder<HttpStream>) -> Next {
 		let mut body = String::new();
-		let _ = r.read_to_string(&mut body).ok()
+		let info = r.read_to_string(&mut body).ok()
 			.and_then(|_| Json::from_str(&body).ok())
-			.and_then(|json| json.find_path(&["result", "ethusd"])
-				.and_then(|obj| match *obj {
-					Json::String(ref s) => Some((self.set_price)(PriceInfo {
-						ethusd: FromStr::from_str(s)
-							.expect("Etherscan API will always return properly formatted price; qed")
-					})),
-					_ => None,
-				}));
+			.and_then(|json| {
+				json.find_path(&["result", "ethusd"])
+					.and_then(|obj| match *obj {
+						Json::String(ref s) => FromStr::from_str(s).ok(),
+						_ => None,
+					})
+			})
+			.map(|ethusd| {
+				(self.set_price)(PriceInfo {
+					ethusd: ethusd,
+				})
+			});
+		if info.is_none() {
+			warn!("Failed to auto-update latest ETH price");
+		}
 		Next::end()
 	}
 
@@ -70,12 +77,16 @@ impl PriceInfo {
 			let (tx, rx) = mpsc::channel();
 			let url = FromStr::from_str("http://api.etherscan.io/api?module=stats&action=ethprice")
 				.expect("string known to be a valid URL; qed");
-			let _ = client.request(
+			let ok = client.request(
 				url,
 				SetPriceHandler {
 					set_price: set_price,
 					channel: tx,
-				}).ok().and_then(|_| rx.recv().ok());
+				},
+			).ok().and_then(|_| rx.recv().ok());
+			if ok.is_none() {
+				warn!("Failed to auto-update latest ETH price.");
+			}
 			client.close();
 		});
 		Ok(())
