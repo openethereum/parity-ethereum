@@ -14,6 +14,20 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-#![allow(dead_code)]
+use tests::helpers::TestNet;
+
+use ethcore::client::{BlockId, EachBlockWith};
 
 mod test_net;
+
+#[test]
+fn basic_sync() {
+	::env_logger::init().ok();
+
+	let mut net = TestNet::light(1, 2);
+	net.peer(1).chain().add_blocks(10000, EachBlockWith::Uncle);
+	net.peer(2).chain().add_blocks(12000, EachBlockWith::Uncle);
+
+	net.sync();
+	assert!(net.peer(0).light_chain().get_header(BlockId::Number(12000)).is_some())
+}
