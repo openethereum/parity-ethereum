@@ -15,8 +15,9 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import sinon from 'sinon';
+import localStore from 'store';
 
-import Store from './store';
+import Store, { LS_HISTORY } from './store';
 
 const TEST_TOKEN = 'testing-123';
 const TEST_URL1 = 'http://some.test.domain.com';
@@ -38,6 +39,7 @@ function createApi () {
 }
 
 function create () {
+  localStore.set(LS_HISTORY, []);
   store = new Store(createApi());
 
   return store;

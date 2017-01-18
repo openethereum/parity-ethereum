@@ -31,6 +31,8 @@
 
   .timestamp {
     opacity: 0.5;
+    padding: 0.25em 1em;
+    text-align: right;
   }
 }
 
@@ -41,6 +43,7 @@
     background: rgba(255, 255, 255, 0.1);
     border: 1px solid rgba(255, 255, 255, 0.25);
     border-radius: 0.25em;
+    box-sizing: border-box;
     color: white;
     font-size: 1.25em;
     padding: 0.5em;

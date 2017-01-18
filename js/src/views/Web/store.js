@@ -18,7 +18,7 @@ import { action, computed, observable, transaction } from 'mobx';
 import localStore from 'store';
 import { parse as parseUrl } from 'url';
 
-import { encode as encodeEthlink } from '~/util/ethlink';
+import { encode as encodeEthlink } from '~/util/dapplink';
 
 const DEFAULT_URL = 'https://mkr.market';
 const LS_LAST_ADDRESS = '_parity::webLastAddress';
@@ -31,7 +31,7 @@ let instance = null;
 export default class Store {
   @observable counter = Date.now();
   @observable currentUrl = null;
-  @observable history = [];
+  @observable history = null;
   @observable isLoading = false;
   @observable parsedUrl = null;
   @observable nextUrl = null;
@@ -39,7 +39,9 @@ export default class Store {
 
   constructor (api) {
     this._api = api;
+
     this.nextUrl = this.currentUrl = this.loadLastUrl();
+    this.history = this.loadHistory();
   }
 
   @computed get encodedUrl () {
@@ -60,12 +62,15 @@ export default class Store {
     this.history = [{
       timestamp: Date.now(),
       url
-    }].concat(this.history.filter((h) => h.url !== url));
+    }].concat(this.history.filter((h) => h.url !== url)).slice(0, 10);
+    this.saveHistory();
   }
 
-  @action gotoUrl = (url) => {
+  @action gotoUrl = (_url) => {
     transaction(() => {
-      this.setNextUrl(url || this.nextUrl);
+      const url = (_url || this.nextUrl).replace(/\/+$/, '');
+
+      this.setNextUrl(url);
       this.setCurrentUrl(this.nextUrl);
     });
   }
@@ -114,6 +119,8 @@ export default class Store {
   }
 
   generateToken = () => {
+    this.setToken(null);
+
     return this._api.signer
       .generateWebProxyAccessToken()
       .then((token) => {
@@ -122,6 +129,14 @@ export default class Store {
       .catch((error) => {
         console.warn('generateToken', error);
       });
+  }
+
+  saveHistory = () => {
+    return localStore.set(LS_HISTORY, this.history);
+  }
+
+  loadHistory = () => {
+    return localStore.get(LS_HISTORY) || [];
   }
 
   loadLastUrl = () => {

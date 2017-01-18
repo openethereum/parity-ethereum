@@ -19,7 +19,7 @@ import moment from 'moment';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 
-import { DappUrlInput, Page } from '~/ui';
+import { Container, DappUrlInput, Page } from '~/ui';
 
 import WebStore from '../Web/store';
 import styles from './home.css';
@@ -34,7 +34,7 @@ export default class Home extends Component {
   webstore = WebStore.get(this.context.api);
 
   render () {
-    const { currentUrl } = this.webstore;
+    const { nextUrl } = this.webstore;
 
     return (
       <Page
@@ -52,7 +52,7 @@ export default class Home extends Component {
             onChange={ this.onChangeUrl }
             onGoto={ this.onGotoUrl }
             onRestore={ this.onRestoreUrl }
-            url={ currentUrl }
+            url={ nextUrl }
           />
         </div>
         { this.renderUrlHistory() }
@@ -68,13 +68,20 @@ export default class Home extends Component {
     }
 
     const rows = history.map((entry) => {
+      const onNavigate = () => this.onGotoUrl(entry.url);
+
       return (
         <tr key={ entry.timestamp }>
           <td className={ styles.timestamp }>
             { moment(entry.timestamp).fromNow() }
           </td>
           <td className={ styles.url }>
-            { entry.url }
+            <a
+              href='javascript:void(0)'
+              onClick={ onNavigate }
+            >
+              { entry.url }
+            </a>
           </td>
         </tr>
       );
@@ -82,17 +89,20 @@ export default class Home extends Component {
 
     return (
       <div className={ styles.history }>
-        <h3>
-          <FormattedMessage
-            id='home.url.recent'
-            defaultMessage='Recently opened URLs'
-          />
-        </h3>
-        <table>
-          <tbody>
-            { rows }
-          </tbody>
-        </table>
+        <Container
+          title={
+            <FormattedMessage
+              id='home.url.recent'
+              defaultMessage='Recently opened URLs'
+            />
+          }
+        >
+          <table>
+            <tbody>
+              { rows }
+            </tbody>
+          </table>
+        </Container>
       </div>
     );
   }
@@ -101,10 +111,10 @@ export default class Home extends Component {
     this.webstore.setNextUrl(url);
   }
 
-  onGotoUrl = () => {
+  onGotoUrl = (url) => {
     const { router } = this.context;
 
-    this.webstore.gotoUrl();
+    this.webstore.gotoUrl(url);
     router.push('/web');
   }
 

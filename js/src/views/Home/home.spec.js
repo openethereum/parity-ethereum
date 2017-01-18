@@ -103,6 +103,11 @@ describe('views/Home', () => {
         expect(instance.webstore.gotoUrl).to.have.been.called;
       });
 
+      it('passed the URL when provided', () => {
+        instance.onGotoUrl('http://example.com');
+        expect(instance.webstore.gotoUrl).to.have.been.calledWith('http://example.com');
+      });
+
       it('does route navigation when executed', () => {
         instance.onGotoUrl();
         expect(router.push).to.have.been.calledWith('/web');
