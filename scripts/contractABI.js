@@ -17,6 +17,8 @@
 // Rust/Parity ABI struct autogenerator.
 // By Gav Wood, 2016.
 
+"use strict"
+
 String.prototype.replaceAll = function(f, t) { return this.split(f).join(t); }
 String.prototype.toSnake = function(){
 	return this.replace(/([A-Z])/g, function($1){return "_"+$1.toLowerCase();});
@@ -223,7 +225,7 @@ function convertFunction(json, _prefs) {
 	}`;
 }
 
-let jsonabi = [{"constant":true,"inputs":[],"name":"getValidators","outputs":[{"name":"","type":"address[]"}],"payable":false,"type":"function"},{"constant":false,"inputs":[{"name":"validator","type":"address"}],"name":"reportMalicious","outputs":[],"payable":false,"type":"function"},{"constant":false,"inputs":[{"name":"validator","type":"address"}],"name":"reportBenign","outputs":[],"payable":false,"type":"function"},{"inputs":[],"payable":false,"type":"constructor"}];
+let jsonabi = [{"constant":false,"inputs":[{"name":"validator","type":"address"}],"name":"reportMalicious","outputs":[],"payable":false,"type":"function"},{"constant":false,"inputs":[{"name":"validator","type":"address"}],"name":"reportBenign","outputs":[],"payable":false,"type":"function"}];
 
 let out = makeContractFile("Contract", jsonabi, {"_pub": true, "_": {"_client": {"string": true}, "_platform": {"string": true}}, "_sync": true});
 console.log(`${out}`);
