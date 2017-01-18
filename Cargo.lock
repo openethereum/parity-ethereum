@@ -414,8 +414,8 @@ dependencies = [
  "fetch 0.1.0",
  "futures 0.1.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "hyper 0.10.0-a.0 (git+https://github.com/ethcore/hyper)",
- "jsonrpc-core 4.0.0 (git+https://github.com/ethcore/jsonrpc.git)",
- "jsonrpc-http-server 6.1.1 (git+https://github.com/ethcore/jsonrpc.git)",
+ "jsonrpc-core 4.0.0 (git+https://github.com/ethcore/jsonrpc.git?branch=mio-old)",
+ "jsonrpc-http-server 6.1.1 (git+https://github.com/ethcore/jsonrpc.git?branch=mio-old)",
  "linked-hash-map 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "mime 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -583,10 +583,10 @@ dependencies = [
  "ethsync 1.5.0",
  "fetch 0.1.0",
  "futures 0.1.6 (registry+https://github.com/rust-lang/crates.io-index)",
- "jsonrpc-core 4.0.0 (git+https://github.com/ethcore/jsonrpc.git)",
- "jsonrpc-http-server 6.1.1 (git+https://github.com/ethcore/jsonrpc.git)",
- "jsonrpc-ipc-server 0.2.4 (git+https://github.com/ethcore/jsonrpc.git)",
- "jsonrpc-macros 0.1.0 (git+https://github.com/ethcore/jsonrpc.git)",
+ "jsonrpc-core 4.0.0 (git+https://github.com/ethcore/jsonrpc.git?branch=mio-old)",
+ "jsonrpc-http-server 6.1.1 (git+https://github.com/ethcore/jsonrpc.git?branch=mio-old)",
+ "jsonrpc-ipc-server 0.2.4 (git+https://github.com/ethcore/jsonrpc.git?branch=mio-old)",
+ "jsonrpc-macros 0.1.0 (git+https://github.com/ethcore/jsonrpc.git?branch=mio-old)",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "parity-reactor 0.1.0",
  "parity-updater 1.5.0",
@@ -611,7 +611,7 @@ dependencies = [
  "ethcore-io 1.5.0",
  "ethcore-rpc 1.5.0",
  "ethcore-util 1.5.0",
- "jsonrpc-core 4.0.0 (git+https://github.com/ethcore/jsonrpc.git)",
+ "jsonrpc-core 4.0.0 (git+https://github.com/ethcore/jsonrpc.git?branch=mio-old)",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "parity-dapps-glue 1.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "parity-ui 1.5.0",
@@ -630,8 +630,8 @@ dependencies = [
  "ethcore-ipc-codegen 1.5.0",
  "ethcore-ipc-nano 1.5.0",
  "ethcore-util 1.5.0",
- "jsonrpc-core 4.0.0 (git+https://github.com/ethcore/jsonrpc.git)",
- "jsonrpc-tcp-server 0.1.0 (git+https://github.com/ethcore/jsonrpc.git)",
+ "jsonrpc-core 4.0.0 (git+https://github.com/ethcore/jsonrpc.git?branch=mio-old)",
+ "jsonrpc-tcp-server 0.1.0 (git+https://github.com/ethcore/jsonrpc.git?branch=mio-old)",
  "lazy_static 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "mio 0.5.1 (git+https://github.com/ethcore/mio?branch=v0.5.x)",
@@ -952,7 +952,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "jsonrpc-core"
 version = "4.0.0"
-source = "git+https://github.com/ethcore/jsonrpc.git#33262d626a294a00c20435dec331058ba65e224a"
+source = "git+https://github.com/ethcore/jsonrpc.git?branch=mio-old#057cc58a849d18933a9cce60a33559c7505bd7ce"
 dependencies = [
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "parking_lot 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -964,10 +964,10 @@ dependencies = [
 [[package]]
 name = "jsonrpc-http-server"
 version = "6.1.1"
-source = "git+https://github.com/ethcore/jsonrpc.git#33262d626a294a00c20435dec331058ba65e224a"
+source = "git+https://github.com/ethcore/jsonrpc.git?branch=mio-old#057cc58a849d18933a9cce60a33559c7505bd7ce"
 dependencies = [
  "hyper 0.10.0-a.0 (git+https://github.com/ethcore/hyper)",
- "jsonrpc-core 4.0.0 (git+https://github.com/ethcore/jsonrpc.git)",
+ "jsonrpc-core 4.0.0 (git+https://github.com/ethcore/jsonrpc.git?branch=mio-old)",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "unicase 1.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -975,11 +975,11 @@ dependencies = [
 [[package]]
 name = "jsonrpc-ipc-server"
 version = "0.2.4"
-source = "git+https://github.com/ethcore/jsonrpc.git#33262d626a294a00c20435dec331058ba65e224a"
+source = "git+https://github.com/ethcore/jsonrpc.git?branch=mio-old#057cc58a849d18933a9cce60a33559c7505bd7ce"
 dependencies = [
  "bytes 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "env_logger 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)",
- "jsonrpc-core 4.0.0 (git+https://github.com/ethcore/jsonrpc.git)",
+ "jsonrpc-core 4.0.0 (git+https://github.com/ethcore/jsonrpc.git?branch=mio-old)",
  "lazy_static 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "mio 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -990,20 +990,20 @@ dependencies = [
 [[package]]
 name = "jsonrpc-macros"
 version = "0.1.0"
-source = "git+https://github.com/ethcore/jsonrpc.git#33262d626a294a00c20435dec331058ba65e224a"
+source = "git+https://github.com/ethcore/jsonrpc.git?branch=mio-old#057cc58a849d18933a9cce60a33559c7505bd7ce"
 dependencies = [
- "jsonrpc-core 4.0.0 (git+https://github.com/ethcore/jsonrpc.git)",
+ "jsonrpc-core 4.0.0 (git+https://github.com/ethcore/jsonrpc.git?branch=mio-old)",
  "serde 0.8.19 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
 name = "jsonrpc-tcp-server"
 version = "0.1.0"
-source = "git+https://github.com/ethcore/jsonrpc.git#33262d626a294a00c20435dec331058ba65e224a"
+source = "git+https://github.com/ethcore/jsonrpc.git?branch=mio-old#057cc58a849d18933a9cce60a33559c7505bd7ce"
 dependencies = [
  "bytes 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "env_logger 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)",
- "jsonrpc-core 4.0.0 (git+https://github.com/ethcore/jsonrpc.git)",
+ "jsonrpc-core 4.0.0 (git+https://github.com/ethcore/jsonrpc.git?branch=mio-old)",
  "lazy_static 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "mio 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1471,7 +1471,7 @@ dependencies = [
  "ethcore-signer 1.5.0",
  "ethcore-util 1.5.0",
  "futures 0.1.6 (registry+https://github.com/rust-lang/crates.io-index)",
- "jsonrpc-core 4.0.0 (git+https://github.com/ethcore/jsonrpc.git)",
+ "jsonrpc-core 4.0.0 (git+https://github.com/ethcore/jsonrpc.git?branch=mio-old)",
  "lazy_static 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "matches 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -2415,11 +2415,11 @@ dependencies = [
 "checksum isatty 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)" = "7408a548dc0e406b7912d9f84c261cc533c1866e047644a811c133c56041ac0c"
 "checksum itertools 0.4.13 (registry+https://github.com/rust-lang/crates.io-index)" = "086e1fa5fe48840b1cfdef3a20c7e3115599f8d5c4c87ef32a794a7cdd184d76"
 "checksum itoa 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)" = "ae3088ea4baeceb0284ee9eea42f591226e6beaecf65373e41b38d95a1b8e7a1"
-"checksum jsonrpc-core 4.0.0 (git+https://github.com/ethcore/jsonrpc.git)" = "<none>"
-"checksum jsonrpc-http-server 6.1.1 (git+https://github.com/ethcore/jsonrpc.git)" = "<none>"
-"checksum jsonrpc-ipc-server 0.2.4 (git+https://github.com/ethcore/jsonrpc.git)" = "<none>"
-"checksum jsonrpc-macros 0.1.0 (git+https://github.com/ethcore/jsonrpc.git)" = "<none>"
-"checksum jsonrpc-tcp-server 0.1.0 (git+https://github.com/ethcore/jsonrpc.git)" = "<none>"
+"checksum jsonrpc-core 4.0.0 (git+https://github.com/ethcore/jsonrpc.git?branch=mio-old)" = "<none>"
+"checksum jsonrpc-http-server 6.1.1 (git+https://github.com/ethcore/jsonrpc.git?branch=mio-old)" = "<none>"
+"checksum jsonrpc-ipc-server 0.2.4 (git+https://github.com/ethcore/jsonrpc.git?branch=mio-old)" = "<none>"
+"checksum jsonrpc-macros 0.1.0 (git+https://github.com/ethcore/jsonrpc.git?branch=mio-old)" = "<none>"
+"checksum jsonrpc-tcp-server 0.1.0 (git+https://github.com/ethcore/jsonrpc.git?branch=mio-old)" = "<none>"
 "checksum kernel32-sys 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)" = "7507624b29483431c0ba2d82aece8ca6cdba9382bff4ddd0f7490560c056098d"
 "checksum language-tags 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)" = "a91d884b6667cd606bb5a69aa0c99ba811a115fc68915e7056ec08a46e93199a"
 "checksum lazy_static 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)" = "49247ec2a285bb3dcb23cbd9c35193c025e7251bfce77c1d5da97e6362dffe7f"

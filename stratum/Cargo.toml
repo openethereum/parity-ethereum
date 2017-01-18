@@ -11,8 +11,8 @@ ethcore-ipc-codegen = { path = "../ipc/codegen" }
 
 [dependencies]
 log = "0.3"
-jsonrpc-core = { git = "https://github.com/ethcore/jsonrpc.git" }
-jsonrpc-tcp-server = { git = "https://github.com/ethcore/jsonrpc.git" }
+jsonrpc-core = { git = "https://github.com/ethcore/jsonrpc.git", branch="mio-old" }
+jsonrpc-tcp-server = { git = "https://github.com/ethcore/jsonrpc.git", branch="mio-old" }
 mio = { git = "https://github.com/ethcore/mio", branch = "v0.5.x" }
 ethcore-util = { path = "../util" }
 ethcore-devtools = { path = "../devtools" }
