@@ -53,7 +53,8 @@ impl VoteStep {
 	}
 }
 
-fn consensus_round(header: &Header) -> Result<Round, ::rlp::DecoderError> {
+/// Header consensus round.
+pub fn consensus_round(header: &Header) -> Result<Round, ::rlp::DecoderError> {
 	let round_rlp = header.seal().get(0).expect("seal passed basic verification; seal has 3 fields; qed");
 	UntrustedRlp::new(round_rlp.as_slice()).as_val()
 }
