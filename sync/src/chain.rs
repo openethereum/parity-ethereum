@@ -2172,11 +2172,7 @@ fn accepts_zgp_transaction(client_id: &str) -> bool {
 		.take(2)
 		.filter_map(|s| s.parse().ok())
 		.collect();
-	if ver.len() != 2 || ver[0] < ZGP_VERSION.0 || (ver[0] == ZGP_VERSION.0 && ver[1] < ZGP_VERSION.1) {
-		return false;
-	}
-
-	return true;
+	ver.len() == 2 && (ver[0] > ZGP_VERSION.0 || (ver[0] == ZGP_VERSION.0 && ver[1] >= ZGP_VERSION.1))
 }
 
 #[cfg(test)]
@@ -2185,7 +2181,7 @@ mod tests {
 	use network::PeerId;
 	use tests::helpers::*;
 	use tests::snapshot::TestSnapshotService;
-	use util::{U256, Address, RwLock};
+	use util::{Uint, U256, Address, RwLock};
 	use util::sha3::Hashable;
 	use util::hash::{H256, FixedHash};
 	use util::bytes::Bytes;
@@ -2701,7 +2697,7 @@ mod tests {
 	#[test]
 	fn should_propagate_zgp_transaction_to_selected_peers_only() {
 		let mut client = TestBlockChainClient::new();
-		client.insert_zgp_transaction_to_queue();
+		client.insert_transaction_with_gas_price_to_queue(U256::zero());
 		let block_hash = client.block_hash_delta_minus(1);
 		let mut sync = ChainSync::new(SyncConfig::default(), &client);
 		let queue = RwLock::new(VecDeque::new());
@@ -2734,7 +2730,7 @@ mod tests {
 	fn should_propagate_zgp_transaction_is_sent_as_separate_message() {
 		let mut client = TestBlockChainClient::new();
 		let tx1_hash = client.insert_transaction_to_queue();
-		let tx2_hash = client.insert_zgp_transaction_to_queue();
+		let tx2_hash = client.insert_transaction_with_gas_price_to_queue(U256::zero());
 		let block_hash = client.block_hash_delta_minus(1);
 		let mut sync = ChainSync::new(SyncConfig::default(), &client);
 		let queue = RwLock::new(VecDeque::new());
