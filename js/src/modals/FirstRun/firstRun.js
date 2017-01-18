@@ -71,7 +71,8 @@ class FirstRun extends Component {
         actions={ this.renderDialogActions() }
         current={ stage }
         steps={ STAGE_NAMES }
-        visible>
+        visible
+      >
         { this.renderStage() }
       </Modal>
     );
@@ -89,19 +90,22 @@ class FirstRun extends Component {
         return (
           <TnC
             hasAccepted={ hasAcceptedTnc }
-            onAccept={ this.onAcceptTnC } />
+            onAccept={ this.onAcceptTnC }
+          />
         );
       case 2:
         return (
           <NewAccount
-            onChange={ this.onChangeDetails } />
+            onChange={ this.onChangeDetails }
+          />
         );
       case 3:
         return (
           <AccountDetails
             address={ address }
             name={ name }
-            phrase={ phrase } />
+            phrase={ phrase }
+          />
         );
       case 4:
         return (
@@ -120,7 +124,8 @@ class FirstRun extends Component {
           <Button
             icon={ <NavigationArrowForward /> }
             label='Next'
-            onClick={ this.onNext } />
+            onClick={ this.onNext }
+          />
         );
 
       case 1:
@@ -129,7 +134,8 @@ class FirstRun extends Component {
             disabled={ !hasAcceptedTnc }
             icon={ <NavigationArrowForward /> }
             label='Next'
-            onClick={ this.onNext } />
+            onClick={ this.onNext }
+          />
         );
 
       case 2:
@@ -173,7 +179,8 @@ class FirstRun extends Component {
           <Button
             icon={ <ActionDoneAll /> }
             label='Close'
-            onClick={ this.onClose } />
+            onClick={ this.onClose }
+          />
         );
     }
   }

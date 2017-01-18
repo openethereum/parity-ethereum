@@ -232,9 +232,6 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 	// prepare account provider
 	let account_provider = Arc::new(prepare_account_provider(&cmd.spec, &cmd.dirs, &spec.data_dir, cmd.acc_conf, &passwords)?);
 
-	// let the Engine access the accounts
-	spec.engine.register_account_provider(account_provider.clone());
-
 	// create miner
 	let miner = Miner::new(cmd.miner_options, cmd.gas_pricer.into(), &spec, Some(account_provider.clone()));
 	miner.set_author(cmd.miner_extras.author);

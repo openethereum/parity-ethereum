@@ -465,7 +465,6 @@ class MethodDecoding extends Component {
       inputType: ascii.valid ? 'raw' : 'ascii'
     });
   }
-
 }
 
 function mapStateToProps (initState, initProps) {
@@ -478,6 +477,8 @@ function mapStateToProps (initState, initProps) {
     return { token };
   };
 }
+
 export default connect(
-  mapStateToProps
+  mapStateToProps,
+  null
 )(MethodDecoding);

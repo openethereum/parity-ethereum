@@ -49,7 +49,6 @@ const SNIPPETS = {
 let instance = null;
 
 export default class WriteContractStore {
-
   @observable sourcecode = '';
 
   @observable compiled = false;
@@ -514,5 +513,4 @@ export default class WriteContractStore {
 
     return files;
   }
-
 }

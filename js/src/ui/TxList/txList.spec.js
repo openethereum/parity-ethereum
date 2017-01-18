@@ -40,7 +40,8 @@ function render (props) {
   return shallow(
     <TxList
       store={ STORE }
-      { ...props } />,
+      { ...props }
+    />,
     { context: { api } }
   );
 }

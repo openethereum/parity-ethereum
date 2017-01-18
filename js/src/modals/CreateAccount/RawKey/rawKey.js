@@ -60,18 +60,21 @@ export default class RawKey extends Component {
           label='private key'
           error={ rawKeyError }
           value={ rawKey }
-          onChange={ this.onEditKey } />
+          onChange={ this.onEditKey }
+        />
         <Input
           label='account name'
           hint='a descriptive name for the account'
           error={ accountNameError }
           value={ accountName }
-          onChange={ this.onEditAccountName } />
+          onChange={ this.onEditAccountName }
+        />
         <Input
           label='password hint'
           hint='(optional) a hint to help with remembering the password'
           value={ passwordHint }
-          onChange={ this.onEditPasswordHint } />
+          onChange={ this.onEditPasswordHint }
+        />
         <div className={ styles.passwords }>
           <div className={ styles.password }>
             <Input
@@ -80,7 +83,8 @@ export default class RawKey extends Component {
               type='password'
               error={ password1Error }
               value={ password1 }
-              onChange={ this.onEditPassword1 } />
+              onChange={ this.onEditPassword1 }
+            />
           </div>
           <div className={ styles.password }>
             <Input
@@ -89,7 +93,8 @@ export default class RawKey extends Component {
               type='password'
               error={ password2Error }
               value={ password2 }
-              onChange={ this.onEditPassword2 } />
+              onChange={ this.onEditPassword2 }
+            />
           </div>
         </div>
       </Form>

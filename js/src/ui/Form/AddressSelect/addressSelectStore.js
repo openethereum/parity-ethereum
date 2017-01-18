@@ -25,7 +25,6 @@ import { sha3 } from '~/api/util/sha3';
 const ZERO = /^(0x)?0*$/;
 
 export default class AddressSelectStore {
-
   @observable loading = false;
   @observable values = [];
   @observable registryValues = [];
@@ -305,5 +304,4 @@ export default class AddressSelectStore {
         return nameA.localeCompare(nameB);
       });
   }
-
 }

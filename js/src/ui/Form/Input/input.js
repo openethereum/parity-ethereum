@@ -168,7 +168,8 @@ export default class Input extends Component {
           underlineStyle={ underlineStyle }
           underlineFocusStyle={ underlineFocusStyle }
           underlineShow={ !hideUnderline }
-          value={ value }>
+          value={ value }
+        >
           { children }
         </TextField>
       </div>

@@ -45,19 +45,23 @@ export default class Extras extends Component {
           hint={
             <FormattedMessage
               id='transferModal.minBlock.hint'
-              defaultMessage='Only post the transaction after this block' />
+              defaultMessage='Only post the transaction after this block'
+            />
           }
           label={
             <FormattedMessage
               id='transferModal.minBlock.label'
-              defaultMessage='BlockNumber to send from' />
+              defaultMessage='BlockNumber to send from'
+            />
           }
           value={ minBlock }
-          onChange={ this.onEditMinBlock } />
+          onChange={ this.onEditMinBlock }
+        />
         <div className={ styles.gaseditor }>
           <GasPriceEditor
             store={ gasStore }
-            onChange={ onChange } />
+            onChange={ onChange }
+          />
         </div>
       </Form>
     );
@@ -76,15 +80,18 @@ export default class Extras extends Component {
         hint={
           <FormattedMessage
             id='transfer.advanced.data.hint'
-            defaultMessage='the data to pass through with the transaction' />
+            defaultMessage='the data to pass through with the transaction'
+          />
         }
         label={
           <FormattedMessage
             id='transfer.advanced.data.label'
-            defaultMessage='transaction data' />
+            defaultMessage='transaction data'
+          />
         }
         onChange={ this.onEditData }
-        value={ data } />
+        value={ data }
+      />
     );
   }
 

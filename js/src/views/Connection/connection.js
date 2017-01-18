@@ -91,7 +91,8 @@ class Connection extends Component {
               defaultMessage='Unable to make a connection to the Parity Secure API. To update your secure token or to generate a new one, run {newToken} and supply the token below'
               values={ {
                 newToken: <span className={ styles.console }>parity signer new-token</span>
-              } } />
+              } }
+            />
           </div>
           <div className={ styles.form }>
             <Input
@@ -102,21 +103,25 @@ class Connection extends Component {
                   : (
                     <FormattedMessage
                       id='connection.invalidToken'
-                      defaultMessage='invalid signer token' />
+                      defaultMessage='invalid signer token'
+                    />
                   )
               }
               hint={
                 <FormattedMessage
                   id='connection.token.hint'
-                  defaultMessage='a generated token from Parity' />
+                  defaultMessage='a generated token from Parity'
+                />
               }
               label={
                 <FormattedMessage
                   id='connection.token.label'
-                  defaultMessage='secure token' />
+                  defaultMessage='secure token'
+                />
               }
               onChange={ this.onChangeToken }
-              value={ token } />
+              value={ token }
+            />
           </div>
         </div>
       );
@@ -126,7 +131,8 @@ class Connection extends Component {
       <div className={ styles.info }>
         <FormattedMessage
           id='connection.connectingAPI'
-          defaultMessage='Connecting to the Parity Secure API.' />
+          defaultMessage='Connecting to the Parity Secure API.'
+        />
       </div>
     );
   }
@@ -136,7 +142,8 @@ class Connection extends Component {
       <div className={ styles.info }>
         <FormattedMessage
           id='connection.connectingNode'
-          defaultMessage='Connecting to the Parity Node. If this informational message persists, please ensure that your Parity node is running and reachable on the network.' />
+          defaultMessage='Connecting to the Parity Node. If this informational message persists, please ensure that your Parity node is running and reachable on the network.'
+        />
       </div>
     );
   }

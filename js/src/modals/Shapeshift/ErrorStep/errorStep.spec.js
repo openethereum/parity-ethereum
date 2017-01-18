@@ -26,7 +26,8 @@ function render () {
     <ErrorStep
       store={ {
         error: new Error('testing')
-      } } />
+      } }
+    />
   );
 
   return component;
