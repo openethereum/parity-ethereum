@@ -43,7 +43,7 @@ function create () {
   return store;
 }
 
-describe('views/Home/Store', () => {
+describe('views/Web/Store', () => {
   beforeEach(() => {
     create();
   });
@@ -158,7 +158,7 @@ describe('views/Home/Store', () => {
     describe('encodedUrl', () => {
       it('encodes current', () => {
         store.setCurrentUrl(TEST_URL1);
-        expect(store.encodedUrl).to.match(/8SBhQkTMcQpPUHVGJQQCfw7TBTaFpmYK96XfY7GNt2MS/);
+        expect(store.encodedUrl).to.match(/DSTPRV1BD1T78W1T5WQQ6VVDCMQ78SBKEGQ68VVDC5MPWBK3DXPG/);
       });
     });
 
