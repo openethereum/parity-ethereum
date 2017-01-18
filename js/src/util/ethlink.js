@@ -14,28 +14,37 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-// Using base-x since we started with base-58 originally. This one allows the
-// very slight advantage of using custom dictionaries (useful in the case of
-// base-32 where there are multiples available)
 import base32 from 'base32.js';
 
-// base32 alphabet should match the Rust implementation
-// https://github.com/andreasots/base32/blob/master/src/base32.rs
-// const ALPHABET = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
 const BASE_URL = 'web.ethlink.io';
+const ENCODER_OPTS = { type: 'crockford' };
 
 export function encode (token, url) {
-  const encoder = new base32.Encoder({ type: 'crockford' });
-  const chars = `${token}+${url}`.split('').map((char) => char.charCodeAt(0));
+  const encoder = new base32.Encoder(ENCODER_OPTS);
+  const chars = `${token}+${url}`
+    .split('')
+    .map((char) => char.charCodeAt(0));
+  const encoded = encoder
+    .write(chars) // add our characters to the encoder
+    .finalize() // create the encoded string
+    .match(/.{1,63}/g) // split into 63-character chunks, max length is 64 for URLs parts
+    .join('.'); // add '.' between URL parts
 
-  return `${encoder.write(chars).finalize()}.${BASE_URL}`;
+  return `${encoded}.${BASE_URL}`;
 }
 
+// TODO: This export is really more a helper along the way of verifying the actual
+// encoding (being able to decode test values from the node layer), than meant to
+// be used as-is. Should the need arrise to decode URLs as well (instead of just
+// producing), it would make sense to further split the output into the token/URL
 export function decode (encoded) {
-  const decoder = new base32.Decoder({ type: 'crockford' });
-  const chars = decoder.write(encoded.replace(`.${BASE_URL}`, '')).finalize();
+  const decoder = new base32.Decoder(ENCODER_OPTS);
+  const sanitized = encoded
+    .replace(`.${BASE_URL}`, '') // remove the BASE URL
+    .split('.') // split the string on the '.' (63-char boundaries)
+    .join(''); // combine without the '.'
 
-  return chars.toString();
+  return decoder.write(sanitized).finalize().toString();
 }
 
 export {
