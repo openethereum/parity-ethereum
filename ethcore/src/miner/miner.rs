@@ -34,6 +34,7 @@ use miner::banning_queue::{BanningTransactionQueue, Threshold};
 use miner::work_notify::WorkPoster;
 use miner::price_info::PriceInfo;
 use miner::local_transactions::{Status as LocalTransactionStatus};
+use miner::zero_gas_price_checker::OnChainZeroGasPriceChecker;
 use header::BlockNumber;
 
 /// Different possible definitions for pending transaction set.
@@ -617,12 +618,19 @@ impl Miner {
 							}
 						}).unwrap_or(default_origin);
 
+						// try to install zgp-checker before appending transactions
+						if !transaction_queue.is_zero_gas_price_checker_set() {
+							if let Some(zgp_checker) = OnChainZeroGasPriceChecker::from_chain(chain) {
+								transaction_queue.set_zero_gas_price_checker(Box::new(zgp_checker));
+							}
+						}
+
 						match origin {
 							TransactionOrigin::Local | TransactionOrigin::RetractedBlock => {
-								transaction_queue.add(transaction, origin, insertion_time, min_block, &fetch_account, &gas_required)
+								transaction_queue.add(Some(chain), transaction, origin, insertion_time, min_block, &fetch_account, &gas_required)
 							},
 							TransactionOrigin::External => {
-								transaction_queue.add_with_banlist(transaction, insertion_time, &fetch_account, &gas_required)
+								transaction_queue.add_with_banlist(Some(chain), transaction, insertion_time, &fetch_account, &gas_required)
 							}
 						}
 					},

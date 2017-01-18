@@ -48,11 +48,13 @@ mod miner;
 mod price_info;
 mod transaction_queue;
 mod work_notify;
+mod zero_gas_price_checker;
 
 pub use self::external::{ExternalMiner, ExternalMinerService};
 pub use self::miner::{Miner, MinerOptions, Banning, PendingSet, GasPricer, GasPriceCalibratorOptions, GasLimit};
 pub use self::transaction_queue::{TransactionQueue, PrioritizationStrategy, AccountDetails, TransactionOrigin};
 pub use self::local_transactions::{Status as LocalTransactionStatus};
+pub use self::zero_gas_price_checker::ZeroGasPriceChecker;
 pub use client::TransactionImportResult;
 
 use std::collections::BTreeMap;

@@ -309,7 +309,7 @@ impl TestBlockChainClient {
 	}
 
 	/// Inserts a transaction to miners transactions queue.
-	pub fn insert_transaction_to_queue(&self) {
+	pub fn insert_transaction_to_queue(&self) -> H256 {
 		let keypair = Random.generate().unwrap();
 		let tx = Transaction {
 			action: Action::Create,
@@ -321,9 +321,31 @@ impl TestBlockChainClient {
 		};
 		let signed_tx = tx.sign(keypair.secret(), None);
 		self.set_balance(signed_tx.sender(), 10_000_000.into());
+		let hash = signed_tx.hash();
 		let res = self.miner.import_external_transactions(self, vec![signed_tx.into()]);
 		let res = res.into_iter().next().unwrap().expect("Successful import");
 		assert_eq!(res, TransactionImportResult::Current);
+		hash
+	}
+
+	/// Inserts a transaction to miners transactions queue.
+	pub fn insert_zgp_transaction_to_queue(&self) -> H256 {
+		let keypair = Random.generate().unwrap();
+		let tx = Transaction {
+			action: Action::Create,
+			value: U256::from(100),
+			data: "3331600055".from_hex().unwrap(),
+			gas: U256::from(100_000),
+			gas_price: U256::zero(),
+			nonce: U256::zero()
+		};
+		let signed_tx = tx.sign(keypair.secret(), None);
+		let hash = signed_tx.hash();
+		self.set_balance(signed_tx.sender(), 10_000_000.into());
+		let res = self.miner.import_external_transactions(self, vec![signed_tx.into()]);
+		let res = res.into_iter().next().unwrap().expect("Successful import");
+		assert_eq!(res, TransactionImportResult::Current);
+		hash
 	}
 
 	/// Set reported history size.
