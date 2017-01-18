@@ -33,7 +33,8 @@ function render (props = {}) {
     <Shapeshift
       address={ ADDRESS }
       onClose={ onClose }
-      { ...props } />,
+      { ...props }
+    />,
     { context: { store: {} } }
   );
   instance = component.instance();

@@ -61,14 +61,16 @@ export default class Dapp extends Component {
     const overlayImage = (
       <img
         className={ styles.overlayImage }
-        src={ api.util.createIdentityImg(this.dappsStore.currentAccount.address, 4) } />
+        src={ api.util.createIdentityImg(this.dappsStore.currentAccount.address, 4) }
+      />
     );
 
     return (
       <Input
         hint={ this.dappsStore.currentAccount.address }
         label='Owner, select the application owner and editor'
-        overlay={ overlayImage }>
+        overlay={ overlayImage }
+      >
         <SelectAccount />
       </Input>
     );
@@ -78,14 +80,16 @@ export default class Dapp extends Component {
     const overlayImage = (
       <img
         className={ styles.overlayImage }
-        src={ api.util.createIdentityImg(app.owner, 4) } />
+        src={ api.util.createIdentityImg(app.owner, 4) }
+      />
     );
 
     return (
       <Input
         hint={ app.owner }
         label='Owner, the application owner and editor'
-        overlay={ overlayImage }>
+        overlay={ overlayImage }
+      >
         <input value={ app.ownerName } readOnly />
       </Input>
     );
@@ -100,7 +104,8 @@ export default class Dapp extends Component {
       overlayImage = (
         <img
           className={ styles.overlayImage }
-          src={ `/api/content/${hash.substr(2)}` } />
+          src={ `/api/content/${hash.substr(2)}` }
+        />
       );
     }
 
@@ -109,13 +114,15 @@ export default class Dapp extends Component {
         hint={ app[`${type}Error`] || app[`${type}Url`] || '...' }
         label={ label }
         key={ `${type}Edit` }
-        overlay={ overlayImage }>
+        overlay={ overlayImage }
+      >
         <input
           value={ app[`${type}Hash`] || '' }
           data-dirty={ app[`${type}Changed`] }
           data-error={ !!app[`${type}Error`] }
           readOnly={ !this.dappsStore.isEditing && !this.dappsStore.isNew }
-          onChange={ onChange } />
+          onChange={ onChange }
+        />
       </Input>
     );
   }

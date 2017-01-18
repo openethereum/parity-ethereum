@@ -68,7 +68,8 @@ export default class ActionbarSearch extends Component {
     return (
       <div
         className={ styles.searchcontainer }
-        key='searchAccount'>
+        key='searchAccount'
+      >
         <div className={ inputContainerClasses.join(' ') }>
           <InputChip
             addOnBlur
@@ -87,7 +88,8 @@ export default class ActionbarSearch extends Component {
           className={ styles.searchButton }
           icon={ <ActionSearch /> }
           label=''
-          onClick={ this.handleSearchClick } />
+          onClick={ this.handleSearchClick }
+        />
       </div>
     );
   }

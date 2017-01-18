@@ -57,7 +57,6 @@ const initState = {
 };
 
 export default class RegisterAction extends Component {
-
   static propTypes = {
     show: PropTypes.bool.isRequired,
     sending: PropTypes.bool.isRequired,
@@ -97,7 +96,8 @@ export default class RegisterAction extends Component {
         <FlatButton
           label='Close'
           primary
-          onTouchTap={ this.onClose } />
+          onTouchTap={ this.onClose }
+        />
       );
     }
 
@@ -106,7 +106,8 @@ export default class RegisterAction extends Component {
         <FlatButton
           label='Done'
           primary
-          onTouchTap={ this.onClose } />
+          onTouchTap={ this.onClose }
+        />
       );
     }
 
@@ -116,12 +117,14 @@ export default class RegisterAction extends Component {
       <FlatButton
         label='Cancel'
         primary
-        onTouchTap={ this.onClose } />,
+        onTouchTap={ this.onClose }
+      />,
       <FlatButton
         label={ sending ? 'Sending...' : 'Register' }
         primary
         disabled={ !isValid || sending }
-        onTouchTap={ this.onRegister } />
+        onTouchTap={ this.onRegister }
+      />
     ]);
   }
 
@@ -177,7 +180,8 @@ export default class RegisterAction extends Component {
           hintText={ field.hintText }
 
           validationType={ field.type }
-          onChange={ onChange } />
+          onChange={ onChange }
+        />
       );
     });
   }
@@ -227,5 +231,4 @@ export default class RegisterAction extends Component {
     this.setState(initState);
     this.props.onClose();
   }
-
 }

@@ -149,7 +149,8 @@ export default class Send extends Component {
             <label>transfer from</label>
             <AddressSelect
               addresses={ fromAddresses }
-              onChange={ this.onSelectFrom } />
+              onChange={ this.onSelectFrom }
+            />
             <div className={ styles.hint }>
               account to transfer from
             </div>
@@ -179,7 +180,8 @@ export default class Send extends Component {
               step='0.1'
               value={ amount }
               max={ fromBalance ? fromBalance.balance.div(1000000).toFixed(6) : 1 }
-              onChange={ this.onAmountChange } />
+              onChange={ this.onAmountChange }
+            />
             <div className={ styles.hint }>
               { amountError || maxAmountHint }
             </div>
@@ -190,7 +192,8 @@ export default class Send extends Component {
               <div
                 className={ styles.button }
                 disabled={ hasError }
-                onClick={ this.onSend }>
+                onClick={ this.onSend }
+              >
                 Transfer Tokens
               </div>
             </div>
@@ -206,7 +209,8 @@ export default class Send extends Component {
     return tokens.map((token) => (
       <option
         key={ token.address }
-        value={ token.address }>
+        value={ token.address }
+      >
         { token.coin.tla } / { token.coin.name }
       </option>
     ));

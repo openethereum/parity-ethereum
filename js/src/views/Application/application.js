@@ -51,7 +51,7 @@ class Application extends Component {
   }
 
   store = new Store(this.context.api);
-  upgradeStore = new UpgradeStore(this.context.api);
+  upgradeStore = UpgradeStore.get(this.context.api);
 
   render () {
     const [root] = (window.location.hash || '').replace('#/', '').split('/');
@@ -65,7 +65,11 @@ class Application extends Component {
 
     return (
       <div>
-        { isMinimized ? this.renderMinimized() : this.renderApp() }
+        {
+          isMinimized
+            ? this.renderMinimized()
+            : this.renderApp()
+        }
         <Connection />
         <ParityBar dapp={ isMinimized } />
       </div>
@@ -79,11 +83,13 @@ class Application extends Component {
       <Container
         upgradeStore={ this.upgradeStore }
         onCloseFirstRun={ this.store.closeFirstrun }
-        showFirstRun={ this.store.firstrunVisible }>
+        showFirstRun={ this.store.firstrunVisible }
+      >
         <TabBar
           netChain={ netChain }
           isTest={ isTest }
-          pending={ pending } />
+          pending={ pending }
+        />
         <div className={ styles.content }>
           { children }
         </div>

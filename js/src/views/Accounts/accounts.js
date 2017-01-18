@@ -130,7 +130,8 @@ class Accounts extends Component {
         balances={ balances }
         empty={ !_hasAccounts }
         order={ sortOrder }
-        handleAddSearchToken={ this.onAddSearchToken } />
+        handleAddSearchToken={ this.onAddSearchToken }
+      />
     );
   }
 
@@ -172,7 +173,8 @@ class Accounts extends Component {
       <ActionbarSearch
         key='searchAccount'
         tokens={ this.state.searchTokens }
-        onChange={ onChange } />
+        onChange={ onChange }
+      />
     );
   }
 
@@ -186,7 +188,8 @@ class Accounts extends Component {
         key='sortAccounts'
         id='sortAccounts'
         order={ this.state.sortOrder }
-        onChange={ onChange } />
+        onChange={ onChange }
+      />
     );
   }
 
@@ -198,19 +201,19 @@ class Accounts extends Component {
         key='newAccount'
         icon={ <ContentAdd /> }
         label='new account'
-        onClick={ this.onNewAccountClick } />,
-
+        onClick={ this.onNewAccountClick }
+      />,
       <Button
         key='newWallet'
         icon={ <ContentAdd /> }
         label='new wallet'
-        onClick={ this.onNewWalletClick } />,
-
+        onClick={ this.onNewWalletClick }
+      />,
       <ActionbarExport
         key='exportAccounts'
         content={ accounts }
-        filename='accounts' />,
-
+        filename='accounts'
+      />,
       this.renderSearchButton(),
       this.renderSortButton()
     ];
@@ -219,11 +222,13 @@ class Accounts extends Component {
       <Actionbar
         className={ styles.toolbar }
         title='Accounts Overview'
-        buttons={ buttons }>
+        buttons={ buttons }
+      >
         <Tooltip
           className={ styles.toolbarTooltip }
           right
-          text='actions relating to the current view are available on the toolbar for quick access, be it for performing actions or creating a new item' />
+          text='actions relating to the current view are available on the toolbar for quick access, be it for performing actions or creating a new item'
+        />
       </Actionbar>
     );
   }
@@ -240,7 +245,8 @@ class Accounts extends Component {
       <CreateAccount
         accounts={ accounts }
         onClose={ this.onNewAccountClose }
-        onUpdate={ this.onNewAccountUpdate } />
+        onUpdate={ this.onNewAccountUpdate }
+      />
     );
   }
 

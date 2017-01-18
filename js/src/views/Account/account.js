@@ -96,10 +96,12 @@ class Account extends Component {
         <Page>
           <Header
             account={ account }
-            balance={ balance } />
+            balance={ balance }
+          />
           <Transactions
             accounts={ accounts }
-            address={ address } />
+            address={ address }
+          />
         </Page>
       </div>
     );
@@ -116,58 +118,71 @@ class Account extends Component {
         label={
           <FormattedMessage
             id='account.button.transfer'
-            defaultMessage='transfer' />
+            defaultMessage='transfer'
+          />
         }
-        onClick={ this.store.toggleTransferDialog } />,
+        onClick={ this.store.toggleTransferDialog }
+      />,
       <Button
         icon={
           <img
             className={ styles.btnicon }
-            src={ shapeshiftBtn } />
+            src={ shapeshiftBtn }
+          />
         }
         key='shapeshift'
         label={
           <FormattedMessage
             id='account.button.shapeshift'
-            defaultMessage='shapeshift' />
+            defaultMessage='shapeshift'
+          />
         }
-        onClick={ this.store.toggleFundDialog } />,
+        onClick={ this.store.toggleFundDialog }
+      />,
       <Button
         icon={ <VerifyIcon /> }
         key='sms-verification'
         label={
           <FormattedMessage
             id='account.button.verify'
-            defaultMessage='verify' />
+            defaultMessage='verify'
+          />
         }
-        onClick={ this.store.toggleVerificationDialog } />,
+        onClick={ this.store.toggleVerificationDialog }
+      />,
       <Button
         icon={ <EditIcon /> }
         key='editmeta'
         label={
           <FormattedMessage
             id='account.button.edit'
-            defaultMessage='edit' />
+            defaultMessage='edit'
+          />
         }
-        onClick={ this.store.toggleEditDialog } />,
+        onClick={ this.store.toggleEditDialog }
+      />,
       <Button
         icon={ <LockedIcon /> }
         key='passwordManager'
         label={
           <FormattedMessage
             id='account.button.password'
-            defaultMessage='password' />
+            defaultMessage='password'
+          />
         }
-        onClick={ this.store.togglePasswordDialog } />,
+        onClick={ this.store.togglePasswordDialog }
+      />,
       <Button
         icon={ <DeleteIcon /> }
         key='delete'
         label={
           <FormattedMessage
             id='account.button.delete'
-            defaultMessage='delete account' />
+            defaultMessage='delete account'
+          />
         }
-        onClick={ this.store.toggleDeleteDialog } />
+        onClick={ this.store.toggleDeleteDialog }
+      />
     ];
 
     return (
@@ -176,8 +191,10 @@ class Account extends Component {
         title={
           <FormattedMessage
             id='account.title'
-            defaultMessage='Account Management' />
-        } />
+            defaultMessage='Account Management'
+          />
+        }
+      />
     );
   }
 
@@ -189,7 +206,8 @@ class Account extends Component {
     return (
       <DeleteAccount
         account={ account }
-        onClose={ this.store.toggleDeleteDialog } />
+        onClose={ this.store.toggleDeleteDialog }
+      />
     );
   }
 
@@ -201,7 +219,8 @@ class Account extends Component {
     return (
       <EditMeta
         account={ account }
-        onClose={ this.store.toggleEditDialog } />
+        onClose={ this.store.toggleEditDialog }
+      />
     );
   }
 
@@ -215,7 +234,8 @@ class Account extends Component {
     return (
       <Shapeshift
         address={ address }
-        onClose={ this.store.toggleFundDialog } />
+        onClose={ this.store.toggleFundDialog }
+      />
     );
   }
 
@@ -227,7 +247,8 @@ class Account extends Component {
     return (
       <PasswordManager
         account={ account }
-        onClose={ this.store.togglePasswordDialog } />
+        onClose={ this.store.togglePasswordDialog }
+      />
     );
   }
 
@@ -244,7 +265,8 @@ class Account extends Component {
         balance={ balance }
         balances={ balances }
         images={ images }
-        onClose={ this.store.toggleTransferDialog } />
+        onClose={ this.store.toggleTransferDialog }
+      />
     );
   }
 
@@ -258,7 +280,8 @@ class Account extends Component {
     return (
       <Verification
         account={ address }
-        onClose={ this.store.toggleVerificationDialog } />
+        onClose={ this.store.toggleVerificationDialog }
+      />
     );
   }
 }

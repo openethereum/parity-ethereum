@@ -56,7 +56,8 @@ export default class Application extends Component {
       <div className={ styles.application }>
         <Status
           address={ contract.address }
-          fee={ contract.fee } />
+          fee={ contract.fee }
+        />
 
         <Actions />
 
@@ -73,5 +74,4 @@ export default class Application extends Component {
       muiTheme
     };
   }
-
 }

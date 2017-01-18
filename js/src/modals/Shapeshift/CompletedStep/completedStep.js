@@ -40,7 +40,8 @@ export default class CompletedStep extends Component {
             defaultMessage='{shapeshiftLink} has completed the funds exchange.'
             values={ {
               shapeshiftLink: <a href='https://shapeshift.io' target='_blank'>ShapeShift.io</a>
-            } } />
+            } }
+          />
         </div>
         <div className={ styles.hero }>
           <Value amount={ incomingCoin } symbol={ incomingType } /> => <Value amount={ outgoingCoin } symbol={ outgoingType } />
@@ -48,7 +49,8 @@ export default class CompletedStep extends Component {
         <div className={ styles.info }>
           <FormattedMessage
             id='shapeshift.completedStep.parityFunds'
-            defaultMessage='The change in funds will be reflected in your Parity account shortly.' />
+            defaultMessage='The change in funds will be reflected in your Parity account shortly.'
+          />
         </div>
       </div>
     );

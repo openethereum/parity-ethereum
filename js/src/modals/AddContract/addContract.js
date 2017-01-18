@@ -51,13 +51,16 @@ class AddContract extends Component {
           <FormattedMessage
             id='addContract.title.type'
             defaultMessage='choose a contract type'
-            key='type' />,
+            key='type'
+          />,
           <FormattedMessage
             id='addContract.title.details'
             defaultMessage='enter contract details'
-            key='details' />
+            key='details'
+          />
         ] }
-        visible>
+        visible
+      >
         { this.renderStep() }
       </Modal>
     );
@@ -98,9 +101,11 @@ class AddContract extends Component {
         label={
           <FormattedMessage
             id='addContract.button.cancel'
-            defaultMessage='Cancel' />
+            defaultMessage='Cancel'
+          />
         }
-        onClick={ this.onClose } />
+        onClick={ this.onClose }
+      />
     );
 
     if (step === 0) {
@@ -112,9 +117,11 @@ class AddContract extends Component {
           label={
             <FormattedMessage
               id='addContract.button.next'
-              defaultMessage='Next' />
+              defaultMessage='Next'
+            />
           }
-          onClick={ this.onNext } />
+          onClick={ this.onNext }
+        />
       ];
     }
 
@@ -126,19 +133,23 @@ class AddContract extends Component {
         label={
           <FormattedMessage
             id='addContract.button.prev'
-            defaultMessage='Back' />
+            defaultMessage='Back'
+          />
         }
-        onClick={ this.onPrev } />,
+        onClick={ this.onPrev }
+      />,
       <Button
         icon={ <AddIcon /> }
         key='add'
         label={
           <FormattedMessage
             id='addContract.button.add'
-            defaultMessage='Add Contract' />
+            defaultMessage='Add Contract'
+          />
         }
         disabled={ this.store.hasError }
-        onClick={ this.onAdd } />
+        onClick={ this.onAdd }
+      />
     ];
   }
 
@@ -152,58 +163,70 @@ class AddContract extends Component {
           hint={
             <FormattedMessage
               id='addContract.address.hint'
-              defaultMessage='the network address for the contract' />
+              defaultMessage='the network address for the contract'
+            />
           }
           label={
             <FormattedMessage
               id='addContract.address.label'
-              defaultMessage='network address' />
+              defaultMessage='network address'
+            />
           }
           onChange={ this.onChangeAddress }
           onSubmit={ this.onEditAddress }
-          value={ address } />
+          value={ address }
+        />
         <Input
           error={ nameError }
           hint={
             <FormattedMessage
               id='addContract.name.hint'
-              defaultMessage='a descriptive name for the contract' />
+              defaultMessage='a descriptive name for the contract'
+            />
           }
           label={
             <FormattedMessage
               id='addContract.name.label'
-              defaultMessage='contract name' />
+              defaultMessage='contract name'
+            />
           }
           onSubmit={ this.onEditName }
-          value={ name } />
+          value={ name }
+        />
         <Input
           hint={
             <FormattedMessage
               id='addContract.description.hint'
-              defaultMessage='an expanded description for the entry' />
+              defaultMessage='an expanded description for the entry'
+            />
           }
           label={
             <FormattedMessage
               id='addContract.description.label'
-              defaultMessage='(optional) contract description' />
+              defaultMessage='(optional) contract description'
+            />
           }
           onSubmit={ this.onEditDescription }
-          value={ description } />
+          value={ description }
+        />
         <Input
           error={ abiError }
           hint={
             <FormattedMessage
               id='addContract.abi.hint'
-              defaultMessage='the abi for the contract' />
+              defaultMessage='the abi for the contract'
+            />
           }
           label={
             <FormattedMessage
               id='addContract.abi.label'
-              defaultMessage='contract abi' />
+              defaultMessage='contract abi'
+            />
           }
           onSubmit={ this.onEditAbi }
           readOnly={ abiType.readOnly }
-          value={ abi } />
+          value={ abi }
+        />
       </Form>
     );
   }

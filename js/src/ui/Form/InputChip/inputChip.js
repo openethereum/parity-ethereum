@@ -203,5 +203,4 @@ export default class InputChip extends Component {
 
     onTokensChange(tokens.filter(token => token && token.length > 0));
   }
-
 }

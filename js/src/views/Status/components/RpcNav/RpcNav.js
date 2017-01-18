@@ -19,7 +19,6 @@ import { Link } from 'react-router';
 import styles from './RpcNav.css';
 
 export default class RpcNav extends Component {
-
   render () {
     return (
       <div className={ styles.nav }>

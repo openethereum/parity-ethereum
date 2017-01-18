@@ -88,7 +88,8 @@ export default class Overview extends Component {
       <Owner
         key={ address }
         tokens={ tokens[address] }
-        address={ address } />
+        address={ address }
+      />
     ));
   }
 

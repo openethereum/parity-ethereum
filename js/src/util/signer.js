@@ -25,7 +25,6 @@ import { sha3 } from '~/api/util/sha3';
 // Adapted from https://github.com/kvhnuke/etherwallet/blob/mercury/app/scripts/myetherwallet.js
 
 export class Signer {
-
   static fromJson (json, password) {
     return Signer
       .getSeed(json, password)
@@ -98,5 +97,4 @@ export class Signer {
     tx.sign(this.seed);
     return inHex(tx.serialize().toString('hex'));
   }
-
 }

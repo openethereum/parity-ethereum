@@ -123,7 +123,8 @@ export default class Dapp extends Component {
         name={ name }
         sandbox='allow-forms allow-popups allow-same-origin allow-scripts'
         scrolling='auto'
-        src={ src } />
+        src={ src }
+      />
     );
   }
 }

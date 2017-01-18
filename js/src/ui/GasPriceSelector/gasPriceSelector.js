@@ -111,17 +111,22 @@ export default class GasPriceSelector extends Component {
                   ] }
                   isAnimationActive={ false }
                   line
-                  shape={ <CustomShape showValue={ selectedCount } /> } />
+                  shape={
+                    <CustomShape showValue={ selectedCount } />
+                  }
+                />
                 <XAxis
                   dataKey='x'
                   domain={ [0, 1] }
                   hide
-                  height={ 0 } />
+                  height={ 0 }
+                />
                 <YAxis
                   dataKey='y'
                   domain={ chartData.yDomain }
                   hide
-                  width={ 0 } />
+                  width={ 0 }
+                />
               </ScatterChart>
             </ResponsiveContainer>
           </div>
@@ -132,24 +137,29 @@ export default class GasPriceSelector extends Component {
                 barCategoryGap={ 1 }
                 data={ chartData.values }
                 margin={ { top: 0, right: 0, left: 0, bottom: 0 } }
-                ref='barChart'>
+                ref='barChart'
+              >
                 <Bar
                   dataKey='value'
                   onClick={ this.onClickprice }
-                  shape={ <CustomBar selected={ selectedIndex } onClick={ this.onClickprice } /> }stroke={ COLORS.line } />
+                  shape={ <CustomBar selected={ selectedIndex } onClick={ this.onClickprice } /> }stroke={ COLORS.line }
+                />
                 <Tooltip
                   content={ <CustomTooltip histogram={ histogram } /> }
                   cursor={ this.renderCustomCursor() }
-                  wrapperStyle={ TOOL_STYLE } />
+                  wrapperStyle={ TOOL_STYLE }
+                />
                 <XAxis
                   dataKey='index'
                   domain={ chartData.xDomain }
                   hide
-                  type='category' />
+                  type='category'
+                />
                 <YAxis
                   domain={ chartData.yDomain }
                   hide
-                  type='number' />
+                  type='number'
+                />
               </BarChart>
             </ResponsiveContainer>
           </div>

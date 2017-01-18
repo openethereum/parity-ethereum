@@ -47,7 +47,8 @@ function render (props) {
       onFromAddressChange={ onFromAddressChange }
       onFuncChange={ onFuncChange }
       onGasEditClick={ onGasEditClick }
-      onValueChange={ onValueChange } />
+      onValueChange={ onValueChange }
+    />
   );
 
   return component;
