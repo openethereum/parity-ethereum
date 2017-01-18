@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { BASE_URL, decode, encode } from './ethlink';
+import { BASE_URL, decode, encode } from './dapplink';
 
 const TEST_TOKEN = 'token';
 const TEST_URL = 'https://parity.io';
