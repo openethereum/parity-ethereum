@@ -212,13 +212,10 @@ pub trait Engine : Sync + Send {
 	fn is_proposal(&self, _verified_header: &Header) -> bool { false }
 
 	/// Register an account which signs consensus messages.
-	fn set_signer(&self, _address: Address, _password: String) {}
+	fn set_signer(&self, _account_provider: Arc<AccountProvider>, _address: Address, _password: String) {}
 
 	/// Add Client which can be used for sealing, querying the state and sending messages.
 	fn register_client(&self, _client: Weak<Client>) {}
-
-	/// Add an account provider useful for Engines that sign stuff.
-	fn register_account_provider(&self, _account_provider: Arc<AccountProvider>) {}
 
 	/// Trigger next step of the consensus engine.
 	fn step(&self) {}
