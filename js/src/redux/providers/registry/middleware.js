@@ -22,9 +22,9 @@ import registryABI from '~/contracts/abi/registry.json';
 
 import { setReverse, startCachingReverses } from './actions';
 
-const read = () => {
-  const reverses = window.localStorage.getItem('registry-reverses');
-  const lastBlock = window.localStorage.getItem('registry-reverses-last-block');
+const read = (chain) => {
+  const reverses = window.localStorage.getItem(`${chain}-registry-reverses`);
+  const lastBlock = window.localStorage.getItem(`${chain}-registry-reverses-last-block`);
   if (!reverses || !lastBlock) {
     return null;
   }
@@ -39,12 +39,13 @@ const read = () => {
   }
 };
 
-const write = debounce((getReverses, getLastBlock) => {
+const write = debounce((getChain, getReverses, getLastBlock) => {
+  const chain = getChain();
   const reverses = getReverses();
   const lastBlock = getLastBlock();
 
-  window.localStorage.setItem('registry-reverses', JSON.stringify(reverses));
-  window.localStorage.setItem('registry-reverses-last-block', JSON.stringify(lastBlock));
+  window.localStorage.setItem(`${chain}-registry-reverses`, JSON.stringify(reverses));
+  window.localStorage.setItem(`${chain}-registry-reverses-last-block`, JSON.stringify(lastBlock));
 }, 20000);
 
 export default (api) => (store) => {
@@ -91,7 +92,7 @@ export default (api) => (store) => {
       case 'startCachingReverses':
         const { registry } = Contracts.get();
 
-        const cached = read();
+        const cached = read(store.getState().nodeStatus.netChain);
         if (cached) {
           Object
             .entries(cached.reverses)
@@ -135,6 +136,7 @@ export default (api) => (store) => {
         break;
       case 'setReverse':
         write(
+          () => store.getState().nodeStatus.netChain,
           () => store.getState().registry.reverse,
           () => +store.getState().nodeStatus.blockNumber
         );
