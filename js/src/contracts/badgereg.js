@@ -73,6 +73,26 @@ export default class BadgeReg {
       });
   }
 
+  fetchCertifierByName (name) {
+    return this
+      .getContract()
+      .then((badgeReg) => {
+        return badgeReg.instance.fromName.call({}, [ name ]);
+      })
+      .then(([ id, address, owner ]) => {
+        if (address === ZERO20) {
+          throw new Error(`Certifier ${name} does not exist.`);
+        }
+
+        return this.fetchMeta(id)
+          .then(({ title, icon }) => {
+            const data = { address, id, name, title, icon };
+            this.certifiers[id] = data;
+            return data;
+          });
+      });
+  }
+
   fetchMeta (id) {
     return this
       .getContract()
