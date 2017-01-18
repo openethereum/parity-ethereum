@@ -56,7 +56,8 @@ export default class Header extends Component {
         style={ { background } }
         colSpan={ position ? 1 : 2 }
         rowSpan={ position ? 1 : 2 }
-        onClick={ this.onNavigate(page.path) }>
+        onClick={ this.onNavigate(page.path) }
+      >
         <div className={ styles.title }>
           { page.title }
         </div>

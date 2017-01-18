@@ -114,7 +114,8 @@ class Contracts extends Component {
           { key: 'blockNumber:-1', label: 'mined block' }
         ] }
         showDefault={ false }
-        onChange={ onChange } />
+        onChange={ onChange }
+      />
     );
   }
 
@@ -127,7 +128,8 @@ class Contracts extends Component {
       <ActionbarSearch
         key='searchContract'
         tokens={ this.state.searchTokens }
-        onChange={ onChange } />
+        onChange={ onChange }
+      />
     );
   }
 
@@ -137,12 +139,14 @@ class Contracts extends Component {
         key='addContract'
         icon={ <ContentAdd /> }
         label='watch contract'
-        onClick={ this.onAddContract } />,
+        onClick={ this.onAddContract }
+      />,
       <Button
         key='deployContract'
         icon={ <ContentAdd /> }
         label='deploy contract'
-        onClick={ this.onDeployContract } />,
+        onClick={ this.onDeployContract }
+      />,
       <Link
         to='/contracts/develop'
         key='writeContract'
@@ -160,7 +164,8 @@ class Contracts extends Component {
     return (
       <Actionbar
         title='Contracts'
-        buttons={ buttons } />
+        buttons={ buttons }
+      />
     );
   }
 
@@ -175,7 +180,8 @@ class Contracts extends Component {
     return (
       <AddContract
         contracts={ contracts }
-        onClose={ this.onAddContractClose } />
+        onClose={ this.onAddContractClose }
+      />
     );
   }
 
@@ -190,7 +196,8 @@ class Contracts extends Component {
     return (
       <DeployContract
         accounts={ accounts }
-        onClose={ this.onDeployContractClose } />
+        onClose={ this.onDeployContractClose }
+      />
     );
   }
 

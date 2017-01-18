@@ -24,12 +24,14 @@ import ShortenedHash from '../ShortenedHash';
 const defaultName = (
   <FormattedMessage
     id='ui.identityName.unnamed'
-    defaultMessage='UNNAMED' />
+    defaultMessage='UNNAMED'
+  />
 );
 const defaultNameNull = (
   <FormattedMessage
     id='ui.identityName.null'
-    defaultMessage='NULL' />
+    defaultMessage='NULL'
+  />
 );
 
 class IdentityName extends Component {

@@ -39,7 +39,8 @@ export default class Tab extends Component {
           view.id === 'signer'
             ? this.renderSignerLabel(view.id)
             : this.renderLabel(view.id)
-        }>
+        }
+      >
         { children }
       </MUITab>
     );
@@ -49,7 +50,8 @@ export default class Tab extends Component {
     return (
       <div className={ styles.label }>
         <FormattedMessage
-          id={ `settings.views.${id}.label` } />
+          id={ `settings.views.${id}.label` }
+        />
         { bubble }
       </div>
     );
@@ -64,7 +66,8 @@ export default class Tab extends Component {
         <Badge
           color='red'
           className={ styles.labelBubble }
-          value={ pendings } />
+          value={ pendings }
+        />
       );
     }
 

@@ -49,7 +49,8 @@ export default class Price extends Component {
             values={ {
               maximum: <Value amount={ price.limit } symbol={ coinSymbol } />,
               minimum: <Value amount={ price.minimum } symbol={ coinSymbol } />
-            } } />
+            } }
+          />
         </div>
       </div>
     );

@@ -27,7 +27,8 @@ function render () {
       store={ {
         depositInfo: { incomingCoin: 0.01, incomingType: 'BTC' },
         exchangeInfo: { outgoingCoin: 0.1, outgoingType: 'ETH' }
-      } } />
+      } }
+    />
   );
 
   return component;

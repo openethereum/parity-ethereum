@@ -147,7 +147,6 @@ const eventTypes = {
 };
 
 class Events extends Component {
-
   static propTypes = {
     events: PropTypes.array.isRequired,
     pending: PropTypes.object.isRequired,

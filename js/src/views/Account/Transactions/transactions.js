@@ -63,8 +63,10 @@ class Transactions extends Component {
         title={
           <FormattedMessage
             id='account.transactions.title'
-            defaultMessage='transactions' />
-        }>
+            defaultMessage='transactions'
+          />
+        }
+      >
         { this.renderTransactionList() }
         { this.renderEtherscanFooter() }
       </Container>
@@ -102,7 +104,8 @@ class Transactions extends Component {
           defaultMessage='Transaction list powered by {etherscan}'
           values={ {
             etherscan: <a href='https://etherscan.io/' target='_blank'>etherscan.io</a>
-          } } />
+          } }
+        />
       </div>
     );
   }

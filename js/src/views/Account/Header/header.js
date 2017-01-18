@@ -72,7 +72,8 @@ export default class Header extends Component {
           <div className={ styles.balances }>
             <Balance
               account={ account }
-              balance={ balance } />
+              balance={ balance }
+            />
             <Certifications address={ address } />
           </div>
           { children }
@@ -95,8 +96,10 @@ export default class Header extends Component {
         title={
           <IdentityName
             address={ address }
-            unknown />
-        } />
+            unknown
+          />
+        }
+      />
     );
   }
 
@@ -120,7 +123,8 @@ export default class Header extends Component {
           defaultMessage='{count} outgoing transactions'
           values={ {
             count: txCount.toFormat()
-          } } />
+          } }
+        />
       </div>
     );
   }
@@ -139,7 +143,8 @@ export default class Header extends Component {
           defaultMessage='uuid: {uuid}'
           values={ {
             uuid
-          } } />
+          } }
+        />
       </div>
     );
   }

@@ -29,7 +29,8 @@ function render (props) {
   component = shallow(
     <Account
       params={ { address: ADDRESS } }
-      { ...props } />,
+      { ...props }
+    />,
     { context: { store: createRedux() } }
   ).find('Account').shallow();
   instance = component.instance();

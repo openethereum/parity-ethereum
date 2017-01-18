@@ -47,7 +47,8 @@ class UrlButton extends Component {
           label={
             <FormattedMessage
               id='dapps.button.url.label'
-              defaultMessage='URL' />
+              defaultMessage='URL'
+            />
           }
           onClick={ this.toggleInput }
         />
@@ -61,7 +62,8 @@ class UrlButton extends Component {
         hint={
           <FormattedMessage
             id='dapps.button.url.input'
-            defaultMessage='https://mkr.market' />
+            defaultMessage='https://mkr.market'
+          />
         }
         onBlur={ this.hideInput }
         onFocus={ this.showInput }

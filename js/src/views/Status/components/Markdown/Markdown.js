@@ -19,7 +19,6 @@ import React, { Component, PropTypes } from 'react';
 import styles from './Markdown.css';
 
 export default class Marked extends Component {
-
   state = {}
 
   render () {
@@ -54,5 +53,4 @@ export default class Marked extends Component {
     val: PropTypes.any,
     style: PropTypes.object
   }
-
 }

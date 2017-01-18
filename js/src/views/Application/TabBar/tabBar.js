@@ -65,7 +65,8 @@ class TabBar extends Component {
         ? (
           <Tooltip
             className={ styles.tabbarTooltip }
-            text='navigate between the different parts and views of the application, switching between an account view, token view and distributed application view' />
+            text='navigate between the different parts and views of the application, switching between an account view, token view and distributed application view'
+          />
         )
         : null;
 

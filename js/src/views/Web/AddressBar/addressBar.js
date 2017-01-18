@@ -46,7 +46,8 @@ export default class AddressBar extends Component {
           onChange={ this.onChangeUrl }
           onGoto={ this.onGotoUrl }
           onRestore={ this.onRestoreUrl }
-          url={ nextUrl } />
+          url={ nextUrl }
+        />
         <Button
           disabled={ isPristine }
           onClick={ this.onGotoUrl }

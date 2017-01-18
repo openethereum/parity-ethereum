@@ -65,9 +65,11 @@ class PasswordManager extends Component {
         title={
           <FormattedMessage
             id='passwordChange.title'
-            defaultMessage='Password Manager' />
+            defaultMessage='Password Manager'
+          />
         }
-        visible>
+        visible
+      >
         { this.renderAccount() }
         { this.renderPage() }
         { this.renderMessage() }
@@ -90,7 +92,8 @@ class PasswordManager extends Component {
             ? MSG_SUCCESS_STYLE
             : MSG_FAILURE_STYLE
         }
-        zDepth={ 1 }>
+        zDepth={ 1 }
+      >
         { infoMessage.value }
       </Paper>
     );
@@ -106,7 +109,8 @@ class PasswordManager extends Component {
           <IdentityName
             address={ address }
             className={ styles.accountName }
-            unknown />
+            unknown
+          />
           <span className={ styles.accountAddress }>
             { address }
           </span>
@@ -125,14 +129,17 @@ class PasswordManager extends Component {
     return (
       <Tabs
         inkBarStyle={ TABS_INKBAR_STYLE }
-        tabItemContainerStyle={ TABS_ITEM_STYLE }>
+        tabItemContainerStyle={ TABS_ITEM_STYLE }
+      >
         <Tab
           label={
             <FormattedMessage
               id='passwordChange.tabTest.label'
-              defaultMessage='Test Password' />
+              defaultMessage='Test Password'
+            />
           }
-          onActive={ this.onActivateTestTab }>
+          onActive={ this.onActivateTestTab }
+        >
           <Form className={ styles.form }>
             <div>
               <Input
@@ -140,17 +147,20 @@ class PasswordManager extends Component {
                 hint={
                   <FormattedMessage
                     id='passwordChange.testPassword.hint'
-                    defaultMessage='your account password' />
+                    defaultMessage='your account password'
+                  />
                 }
                 label={
                   <FormattedMessage
                     id='passwordChange.testPassword.label'
-                    defaultMessage='password' />
+                    defaultMessage='password'
+                  />
                 }
                 onChange={ this.onEditTestPassword }
                 onSubmit={ this.testPassword }
                 submitOnBlur={ false }
-                type='password' />
+                type='password'
+              />
             </div>
           </Form>
         </Tab>
@@ -158,9 +168,11 @@ class PasswordManager extends Component {
           label={
             <FormattedMessage
               id='passwordChange.tabChange.label'
-              defaultMessage='Change Password' />
+              defaultMessage='Change Password'
+            />
           }
-          onActive={ this.onActivateChangeTab }>
+          onActive={ this.onActivateChangeTab }
+        >
           <Form className={ styles.form }>
             <div>
               <Input
@@ -168,29 +180,35 @@ class PasswordManager extends Component {
                 hint={
                   <FormattedMessage
                     id='passwordChange.currentPassword.hint'
-                    defaultMessage='your current password for this account' />
+                    defaultMessage='your current password for this account'
+                  />
                 }
                 label={
                   <FormattedMessage
                     id='passwordChange.currentPassword.label'
-                    defaultMessage='current password' />
+                    defaultMessage='current password'
+                  />
                 }
                 onChange={ this.onEditCurrentPassword }
-                type='password' />
+                type='password'
+              />
               <Input
                 disabled={ busy }
                 hint={
                   <FormattedMessage
                     id='passwordChange.passwordHint.hint'
-                    defaultMessage='hint for the new password' />
+                    defaultMessage='hint for the new password'
+                  />
                 }
                 label={
                   <FormattedMessage
                     id='passwordChange.passwordHint.label'
-                    defaultMessage='(optional) new password hint' />
+                    defaultMessage='(optional) new password hint'
+                  />
                 }
                 onChange={ this.onEditNewPasswordHint }
-                value={ passwordHint } />
+                value={ passwordHint }
+              />
               <div className={ styles.passwords }>
                 <div className={ styles.password }>
                   <Input
@@ -198,17 +216,20 @@ class PasswordManager extends Component {
                     hint={
                       <FormattedMessage
                         id='passwordChange.newPassword.hint'
-                        defaultMessage='the new password for this account' />
+                        defaultMessage='the new password for this account'
+                      />
                     }
                     label={
                       <FormattedMessage
                         id='passwordChange.newPassword.label'
-                        defaultMessage='new password' />
+                        defaultMessage='new password'
+                      />
                     }
                     onChange={ this.onEditNewPassword }
                     onSubmit={ this.changePassword }
                     submitOnBlur={ false }
-                    type='password' />
+                    type='password'
+                  />
                 </div>
                 <div className={ styles.password }>
                   <Input
@@ -218,22 +239,26 @@ class PasswordManager extends Component {
                         ? null
                         : <FormattedMessage
                           id='passwordChange.repeatPassword.error'
-                          defaultMessage='the supplied passwords do not match' />
+                          defaultMessage='the supplied passwords do not match'
+                          />
                     }
                     hint={
                       <FormattedMessage
                         id='passwordChange.repeatPassword.hint'
-                        defaultMessage='repeat the new password for this account' />
+                        defaultMessage='repeat the new password for this account'
+                      />
                     }
                     label={
                       <FormattedMessage
                         id='passwordChange.repeatPassword.label'
-                        defaultMessage='repeat new password' />
+                        defaultMessage='repeat new password'
+                      />
                     }
                     onChange={ this.onEditNewPasswordRepeat }
                     onSubmit={ this.changePassword }
                     submitOnBlur={ false }
-                    type='password' />
+                    type='password'
+                  />
                 </div>
               </div>
 
@@ -256,9 +281,11 @@ class PasswordManager extends Component {
         label={
           <FormattedMessage
             id='passwordChange.button.cancel'
-            defaultMessage='Cancel' />
+            defaultMessage='Cancel'
+          />
         }
-        onClick={ onClose } />
+        onClick={ onClose }
+      />
     );
 
     if (busy) {
@@ -270,8 +297,10 @@ class PasswordManager extends Component {
           label={
             <FormattedMessage
               id='passwordChange.button.wait'
-              defaultMessage='Wait...' />
-          } />
+              defaultMessage='Wait...'
+            />
+          }
+        />
       ];
     }
 
@@ -284,9 +313,11 @@ class PasswordManager extends Component {
           label={
             <FormattedMessage
               id='passwordChange.button.test'
-              defaultMessage='Test' />
+              defaultMessage='Test'
+            />
           }
-          onClick={ this.testPassword } />
+          onClick={ this.testPassword }
+        />
       ];
     }
 
@@ -299,9 +330,11 @@ class PasswordManager extends Component {
         label={
           <FormattedMessage
             id='passwordChange.button.change'
-            defaultMessage='Change' />
+            defaultMessage='Change'
+          />
         }
-        onClick={ this.changePassword } />
+        onClick={ this.changePassword }
+      />
     ];
   }
 
@@ -342,7 +375,8 @@ class PasswordManager extends Component {
             <div>
               <FormattedMessage
                 id='passwordChange.success'
-                defaultMessage='Your password has been successfully changed' />
+                defaultMessage='Your password has been successfully changed'
+              />
             </div>
           );
           this.props.onClose();

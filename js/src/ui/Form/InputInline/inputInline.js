@@ -50,7 +50,8 @@ export default class InputInline extends Component {
       return (
         <div
           className={ styles.inlineedit }
-          onClick={ this.onToggle }>
+          onClick={ this.onToggle }
+        >
           { this.props.static || value }
         </div>
       );
@@ -66,7 +67,8 @@ export default class InputInline extends Component {
         onBlur={ this.onBlur }
         onChange={ this.props.onChange }
         onKeyDown={ this.onKeyDown }
-        onSubmit={ this.props.onSubmit } />
+        onSubmit={ this.props.onSubmit }
+      />
     );
   }
 
