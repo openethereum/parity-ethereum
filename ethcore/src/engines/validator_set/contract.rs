@@ -166,6 +166,9 @@ mod tests {
 		client.engine().register_client(Arc::downgrade(&client));
 		let validator_contract = Address::from_str("0000000000000000000000000000000000000005").unwrap();
 
+		// Make sure reporting can be done.
+		client.miner().set_gas_floor_target(1_000_000.into());
+
 		client.miner().set_engine_signer(v1, "".into()).unwrap();
 		let mut header = Header::default();
 		let seal = encode(&vec!(5u8)).to_vec();	
