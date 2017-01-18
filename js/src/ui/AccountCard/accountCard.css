@@ -27,6 +27,7 @@
 
   transition: transform ease-out 0.1s;
   transform: scale(1);
+  overflow: hidden;
 
   &.copied {
     animation-duration: 0.25s;

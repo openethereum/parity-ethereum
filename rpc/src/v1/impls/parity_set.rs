@@ -101,7 +101,7 @@ impl<C, M, U, F> ParitySet for ParitySetClient<C, M, U, F> where
 	fn set_extra_data(&self, extra_data: Bytes) -> Result<bool, Error> {
 		self.active()?;
 
-		take_weak!(self.miner).set_extra_data(extra_data.to_vec());
+		take_weak!(self.miner).set_extra_data(extra_data.into_vec());
 		Ok(true)
 	}
 

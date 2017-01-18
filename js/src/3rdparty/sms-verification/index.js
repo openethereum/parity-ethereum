@@ -16,6 +16,19 @@
 
 import { stringify } from 'querystring';
 
+export const isServerRunning = (isTestnet = false) => {
+  const port = isTestnet ? 8443 : 443;
+  return fetch(`https://sms-verification.parity.io:${port}/health`, {
+    mode: 'cors', cache: 'no-store'
+  })
+    .then((res) => {
+      return res.ok;
+    })
+    .catch(() => {
+      return false;
+    });
+};
+
 export const postToServer = (query, isTestnet = false) => {
   const port = isTestnet ? 8443 : 443;
   query = stringify(query);

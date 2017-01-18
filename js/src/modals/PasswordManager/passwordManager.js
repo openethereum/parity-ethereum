@@ -23,7 +23,7 @@ import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
 import { newError, openSnackbar } from '~/redux/actions';
-import { Button, Modal, IdentityName, IdentityIcon } from '~/ui';
+import { Button, Modal, IdentityName, IdentityIcon, PasswordStrength } from '~/ui';
 import Form, { Input } from '~/ui/Form';
 import { CancelIcon, CheckIcon, SendIcon } from '~/ui/Icons';
 
@@ -120,7 +120,7 @@ class PasswordManager extends Component {
   }
 
   renderPage () {
-    const { busy, isRepeatValid, passwordHint } = this.store;
+    const { busy, isRepeatValid, newPassword, passwordHint } = this.store;
 
     return (
       <Tabs
@@ -176,8 +176,6 @@ class PasswordManager extends Component {
                     defaultMessage='current password' />
                 }
                 onChange={ this.onEditCurrentPassword }
-                onSubmit={ this.changePassword }
-                submitOnBlur={ false }
                 type='password' />
               <Input
                 disabled={ busy }
@@ -192,8 +190,6 @@ class PasswordManager extends Component {
                     defaultMessage='(optional) new password hint' />
                 }
                 onChange={ this.onEditNewPasswordHint }
-                onSubmit={ this.changePassword }
-                submitOnBlur={ false }
                 value={ passwordHint } />
               <div className={ styles.passwords }>
                 <div className={ styles.password }>
@@ -240,6 +236,8 @@ class PasswordManager extends Component {
                     type='password' />
                 </div>
               </div>
+
+              <PasswordStrength input={ newPassword } />
             </div>
           </Form>
         </Tab>

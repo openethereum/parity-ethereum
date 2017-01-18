@@ -20,6 +20,8 @@ ethcore-ipc = { path = "../../ipc/rpc", optional = true }
 rlp = { path = "../../util/rlp" }
 time = "0.1"
 smallvec = "0.3.1"
+futures = "0.1"
+rand = "0.3"
 
 [features]
 default = []
