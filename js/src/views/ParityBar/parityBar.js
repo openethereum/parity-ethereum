@@ -24,6 +24,7 @@ import store from 'store';
 import { CancelIcon, FingerprintIcon } from '~/ui/Icons';
 import { Badge, Button, ContainerTitle, ParityBackground } from '~/ui';
 import { Embedded as Signer } from '../Signer';
+import DappsStore from '~/views/Dapps/dappsStore';
 
 import imagesEthcoreBlock from '../../../assets/images/parity-logo-white-no-text.svg';
 import styles from './parityBar.css';
@@ -32,14 +33,13 @@ const LS_STORE_KEY = '_parity::parityBar';
 const DEFAULT_POSITION = { right: '1em', bottom: 0 };
 
 class ParityBar extends Component {
+  app = null;
   measures = null;
   moving = false;
 
   static propTypes = {
     dapp: PropTypes.bool,
-    hash: PropTypes.string,
-    pending: PropTypes.array,
-    root: PropTypes.string
+    pending: PropTypes.array
   };
 
   state = {
@@ -47,12 +47,6 @@ class ParityBar extends Component {
     opened: false,
     position: DEFAULT_POSITION
   };
-
-  getAppId (props = this.props) {
-    const { hash = '-1' } = props;
-
-    return hash;
-  }
 
   constructor (props) {
     super(props);
@@ -62,21 +56,18 @@ class ParityBar extends Component {
       40,
       { leading: true, trailing: true }
     );
-  }
 
-  componentWillMount () {
-    // Load the saved position of the Parity Bar
-    this.loadPosition();
+    // Hook to the dapp loaded event to position the
+    // Parity Bar accordingly
+    DappsStore.get().on('loaded', (app) => {
+      this.app = app;
+      this.loadPosition();
+    });
   }
 
   componentWillReceiveProps (nextProps) {
     const count = this.props.pending.length;
     const newCount = nextProps.pending.length;
-
-    // Reload the Bar position when changing dapps
-    if (nextProps.dapp && nextProps.hash !== this.props.hash) {
-      this.loadPosition(nextProps);
-    }
 
     if (count === newCount) {
       return;
@@ -435,20 +426,42 @@ class ParityBar extends Component {
   }
 
   loadPosition (props = this.props) {
-    const { config } = this;
-    const appId = this.getAppId(props);
+    const { app, config } = this;
 
-    const position = config[appId] || { ...DEFAULT_POSITION };
+    if (!app) {
+      return this.setState({ position: DEFAULT_POSITION });
+    }
+
+    if (config[app.id]) {
+      return this.setState({ position: config[app.id] });
+    }
+
+    const position = this.stringToPosition(app.position);
     this.setState({ position });
   }
 
   savePosition (position) {
-    const { config } = this;
-    const appId = this.getAppId();
-
-    config[appId] = position;
+    const { app, config } = this;
+    config[app.id] = position;
 
     store.set(LS_STORE_KEY, JSON.stringify(config));
+  }
+
+  stringToPosition (value) {
+    switch (value) {
+      case 'top-left':
+        return { top: 0, left: '1em' };
+
+      case 'top-right':
+        return { top: 0, right: '1em' };
+
+      case 'bottom-left':
+        return { bottom: 0, left: '1em' };
+
+      case 'bottom-right':
+      default:
+        return DEFAULT_POSITION;
+    }
   }
 }
 
