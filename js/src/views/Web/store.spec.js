@@ -83,15 +83,6 @@ describe('views/Web/Store', () => {
       });
     });
 
-    describe('reload', () => {
-      it('generates a new frame Id', () => {
-        const originalId = store.frameId;
-        store.reload();
-
-        expect(store.frameId).to.not.equal(originalId);
-      });
-    });
-
     describe('restoreUrl', () => {
       it('sets the nextUrl to the currentUrl', () => {
         store.setCurrentUrl(TEST_URL1);
