@@ -352,10 +352,12 @@ impl<L: LightChainClient> LightSync<L> {
 		*state = SyncState::AncestorSearch(AncestorSearch::begin(chain_info.best_block_number));
 	}
 
+	// handles request dispatch, block import, and state machine transitions.
 	fn maintain_sync(&self, ctx: &BasicContext) {
 		const DRAIN_AMOUNT: usize = 128;
 
 		let mut state = self.state.lock();
+		let chain_info = self.client.chain_info();
 		debug!(target: "sync", "Maintaining sync ({:?})", &*state);
 
 		// drain any pending blocks into the queue.
@@ -389,7 +391,6 @@ impl<L: LightChainClient> LightSync<L> {
 
 		// handle state transitions.
 		{
-			let chain_info = self.client.chain_info();
 			let best_td = chain_info.total_difficulty;
 			match mem::replace(&mut *state, SyncState::Idle) {
 				_ if self.best_seen.lock().as_ref().map_or(true, |&(_, td)| best_td >= td)
@@ -424,11 +425,15 @@ impl<L: LightChainClient> LightSync<L> {
 		}
 
 		// allow dispatching of requests.
-		// TODO: maybe wait until the amount of cumulative requests remaining is high enough
-		// to avoid pumping the failure rate.
 		{
 			let peers = self.peers.read();
-			let mut peer_ids: Vec<_> = peers.keys().cloned().collect();
+			let mut peer_ids: Vec<_> = peers.iter().filter_map(|(id, p)| {
+				if p.lock().status.head_td >= chain_info.pending_total_difficulty {
+					Some(*id)
+				} else {
+					None
+				}
+			}).collect();
 			let mut rng = self.rng.lock();
 
 			// naive request dispatcher: just give to any peer which says it will
