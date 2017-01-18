@@ -24,7 +24,7 @@ import VerificationStore, {
 import { isServerRunning, postToServer } from '../../3rdparty/email-verification';
 
 // name in the `BadgeReg.sol` contract
-const EMAIL_VERIFICATION = '0x92ba1c9b48af87f408e2a11d6e919d1391b8100a264621fa89c0c0b5447cbc35';
+const EMAIL_VERIFICATION = 'emailverification';
 
 export default class EmailVerificationStore extends VerificationStore {
   @observable email = '';
