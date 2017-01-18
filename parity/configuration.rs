@@ -734,10 +734,14 @@ impl Configuration {
 		use util::path;
 
 		let local_path = default_local_path();
-		let data_path = replace_home("", self.args.flag_datadir.as_ref().unwrap_or(&self.args.flag_base_path));
-
-		//TODO: refactor this for better detection if base_path is custom.
-		let base_db_path = if data_path != default_data_path() && self.args.flag_db_path == dir::CHAINS_PATH { "$BASE/chains".to_owned() } else { self.args.flag_db_path.clone() };
+		let base_path = self.args.flag_base_path.as_ref().map_or_else(|| default_data_path(), |s| s.clone());
+		let data_path = replace_home("", self.args.flag_datadir.as_ref().unwrap_or(&base_path));
+		let base_db_path = if self.args.flag_base_path.is_some() && self.args.flag_db_path.is_none() {
+			// If base_path is set and db_path is not we default to base path subdir instead of LOCAL.
+			"$BASE/chains"
+		} else {
+			self.args.flag_db_path.as_ref().map_or(dir::CHAINS_PATH, |s| &s)
+		};
 
 		let db_path = replace_home_for_db(&data_path, &local_path, &base_db_path);
 		let keys_path = replace_home(&data_path, &self.args.flag_keys_path);
