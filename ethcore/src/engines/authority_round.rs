@@ -275,15 +275,18 @@ impl Engine for AuthorityRound {
 		// Give one step slack if step is lagging, double vote is still not possible.
 		if header_step <= self.step.load(AtomicOrdering::SeqCst) + 1 {
 			let proposer_signature = header_signature(header)?;
-			let ok_sig = verify_address(&self.step_proposer(header_step), &proposer_signature, &header.bare_hash())?;
+			let correct_proposer = self.step_proposer(header_step);
+			let ok_sig = verify_address(&correct_proposer, &proposer_signature, &header.bare_hash())?;
 			if ok_sig {
 				Ok(())
 			} else {
-				trace!(target: "poa", "verify_block_unordered: invalid seal signature");
-				Err(BlockError::InvalidSeal)?
+				trace!(target: "poa", "verify_block_unordered: bad proposer for step: {}", header_step);
+				self.validators.report_malicious(header.author());
+				Err(EngineError::NotProposer(Mismatch { expected: correct_proposer, found: header.author().clone() }))?
 			}
 		} else {
 			trace!(target: "poa", "verify_block_unordered: block from the future");
+			self.validators.report_benign(header.author());
 			Err(BlockError::InvalidSeal)?
 		}
 	}
