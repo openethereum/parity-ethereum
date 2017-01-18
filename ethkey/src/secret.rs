@@ -33,14 +33,17 @@ impl fmt::Debug for Secret {
 }
 
 impl Secret {
-	pub fn from_slice(key: &[u8]) -> Result<Self, Error> {
-		if key.len() != 32 {
-			return Err(Error::InvalidSecret);
-		}
+	fn from_slice_unchecked(key: &[u8]) -> Self {
+		assert_eq!(32, key.len(), "Caller should provide 32-byte length slice");
 
 		let mut h = H256::default();
 		h.copy_from_slice(&key[0..32]);
-		Ok(Secret { inner: h })
+		Secret { inner: h }
+	}
+
+	pub fn from_slice(key: &[u8]) -> Result<Self, Error> {
+		let secret = key::SecretKey::from_slice(&super::SECP256K1, key)?;
+		Ok(secret.into())
 	}
 }
 
@@ -54,8 +57,7 @@ impl FromStr for Secret {
 
 impl From<key::SecretKey> for Secret {
 	fn from(key: key::SecretKey) -> Self {
-		Self::from_slice(&key[0..32])
-			.expect("`key::SecretKey` is valid (no way to construct invalid one); qed")
+		Self::from_slice_unchecked(&key[0..32])
 	}
 }
 
@@ -66,4 +68,3 @@ impl Deref for Secret {
 		&self.inner
 	}
 }
-
