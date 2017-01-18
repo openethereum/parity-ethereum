@@ -25,7 +25,6 @@ const CONTRACT_CREATE = '0x60606040';
 let instance = null;
 
 export default class MethodDecodingStore {
-
   api = null;
 
   _bytecodes = {};
@@ -311,5 +310,4 @@ export default class MethodDecodingStore {
 
     return Promise.resolve(this._bytecodes[contractAddress]);
   }
-
 }

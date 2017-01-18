@@ -28,7 +28,8 @@ const api = new Api({ execute: sinon.stub() });
 function render (props) {
   return shallow(
     <TxRow
-      { ...props } />,
+      { ...props }
+    />,
     { context: { api } }
   );
 }

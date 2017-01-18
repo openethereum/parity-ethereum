@@ -58,7 +58,8 @@ class Dapps extends Component {
             <div>
               <FormattedMessage
                 id='dapps.external.warning'
-                defaultMessage='Applications made available on the network by 3rd-party authors are not affiliated with Parity nor are they published by Parity. Each remain under the control of their respective authors. Please ensure that you understand the goals for each before interacting.' />
+                defaultMessage='Applications made available on the network by 3rd-party authors are not affiliated with Parity nor are they published by Parity. Each remain under the control of their respective authors. Please ensure that you understand the goals for each before interacting.'
+              />
             </div>
             <div>
               <Checkbox
@@ -66,10 +67,12 @@ class Dapps extends Component {
                 label={
                   <FormattedMessage
                     id='dapps.external.accept'
-                    defaultMessage='I understand that these applications are not affiliated with Parity' />
+                    defaultMessage='I understand that these applications are not affiliated with Parity'
+                  />
                 }
                 checked={ false }
-                onCheck={ this.onClickAcceptExternal } />
+                onCheck={ this.onClickAcceptExternal }
+              />
             </div>
           </div>
         </div>
@@ -85,7 +88,8 @@ class Dapps extends Component {
           title={
             <FormattedMessage
               id='dapps.label'
-              defaultMessage='Decentralized Applications' />
+              defaultMessage='Decentralized Applications'
+            />
           }
           buttons={ [
             <UrlButton key='url' />,
@@ -95,7 +99,8 @@ class Dapps extends Component {
               label={
                 <FormattedMessage
                   id='dapps.button.edit'
-                  defaultMessage='edit' />
+                  defaultMessage='edit'
+                />
               }
               onClick={ this.store.openModal }
             />,
@@ -105,9 +110,11 @@ class Dapps extends Component {
               label={
                 <FormattedMessage
                   id='dapps.button.permissions'
-                  defaultMessage='permissions' />
+                  defaultMessage='permissions'
+                />
               }
-              onClick={ this.openPermissionsModal } />
+              onClick={ this.openPermissionsModal }
+            />
           ] }
         />
         <Page>
@@ -136,7 +143,8 @@ class Dapps extends Component {
     return (
       <div
         className={ styles.item }
-        key={ app.id }>
+        key={ app.id }
+      >
         <Summary app={ app } />
       </div>
     );

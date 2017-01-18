@@ -34,25 +34,32 @@ export default class CreationType extends Component {
         <RadioButtonGroup
           defaultSelected='fromNew'
           name='creationType'
-          onChange={ this.onChange }>
+          onChange={ this.onChange }
+        >
           <RadioButton
             label='Create new account manually'
-            value='fromNew' />
+            value='fromNew'
+          />
           <RadioButton
             label='Recover account from recovery phrase'
-            value='fromPhrase' />
+            value='fromPhrase'
+          />
           <RadioButton
             label='Import accounts from Geth keystore'
-            value='fromGeth' />
+            value='fromGeth'
+          />
           <RadioButton
             label='Import account from a backup JSON file'
-            value='fromJSON' />
+            value='fromJSON'
+          />
           <RadioButton
             label='Import account from an Ethereum pre-sale wallet'
-            value='fromPresale' />
+            value='fromPresale'
+          />
           <RadioButton
             label='Import raw private key'
-            value='fromRaw' />
+            value='fromRaw'
+          />
         </RadioButtonGroup>
       </div>
     );

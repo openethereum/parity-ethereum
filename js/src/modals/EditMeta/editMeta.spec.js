@@ -37,7 +37,8 @@ function render (props) {
     <EditMeta
       { ...props }
       account={ ACCOUNT }
-      onClose={ onClose } />,
+      onClose={ onClose }
+    />,
     { context: { store: reduxStore } }
   ).find('EditMeta').shallow({ context: { api } });
   instance = component.instance();

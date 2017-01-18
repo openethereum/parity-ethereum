@@ -142,19 +142,16 @@ class Contract extends Component {
           >
             { this.renderBlockNumber(account.meta) }
           </Header>
-
           <Queries
             accountsInfo={ accountsInfo }
             contract={ contract }
             values={ queryValues }
           />
-
           <Events
             isTest={ isTest }
             isLoading={ loadingEvents }
             events={ allEvents }
           />
-
           { this.renderDetails(account) }
         </Page>
       </div>
@@ -194,7 +191,8 @@ class Contract extends Component {
       <Button
         icon={ <ContentClear /> }
         label='Close'
-        onClick={ this.closeDetailsDialog } />
+        onClick={ this.closeDetailsDialog }
+      />
     );
 
     return (
@@ -244,28 +242,33 @@ class Contract extends Component {
         key='execute'
         icon={ <AvPlayArrow /> }
         label='execute'
-        onClick={ this.showExecuteDialog } />,
+        onClick={ this.showExecuteDialog }
+      />,
       <Button
         key='editmeta'
         icon={ <ContentCreate /> }
         label='edit'
-        onClick={ this.showEditDialog } />,
+        onClick={ this.showEditDialog }
+      />,
       <Button
         key='delete'
         icon={ <ActionDelete /> }
         label='delete contract'
-        onClick={ this.showDeleteDialog } />,
+        onClick={ this.showDeleteDialog }
+      />,
       <Button
         key='viewDetails'
         icon={ <EyeIcon /> }
         label='view details'
-        onClick={ this.showDetailsDialog } />
+        onClick={ this.showDetailsDialog }
+      />
     ];
 
     return (
       <Actionbar
         title='Contract Information'
-        buttons={ !account ? [] : buttons } />
+        buttons={ !account ? [] : buttons }
+      />
     );
   }
 
@@ -277,7 +280,8 @@ class Contract extends Component {
         account={ account }
         visible={ showDeleteDialog }
         route='/contracts'
-        onClose={ this.closeDeleteDialog } />
+        onClose={ this.closeDeleteDialog }
+      />
     );
   }
 
@@ -291,7 +295,8 @@ class Contract extends Component {
     return (
       <EditMeta
         account={ account }
-        onClose={ this.closeEditDialog } />
+        onClose={ this.closeEditDialog }
+      />
     );
   }
 
@@ -309,7 +314,8 @@ class Contract extends Component {
         contract={ contract }
         fromAddress={ fromAddress }
         onClose={ this.closeExecuteDialog }
-        onFromAddressChange={ this.onFromAddressChange } />
+        onFromAddressChange={ this.onFromAddressChange }
+      />
     );
   }
 

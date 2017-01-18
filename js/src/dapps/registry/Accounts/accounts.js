@@ -29,7 +29,6 @@ import { select } from './actions';
 import styles from './accounts.css';
 
 class Accounts extends Component {
-
   static propTypes = {
     all: PropTypes.object.isRequired,
     selected: PropTypes.object,

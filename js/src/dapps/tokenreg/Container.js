@@ -36,10 +36,12 @@ class Container extends Component {
   render () {
     const { isLoading, contract } = this.props;
 
-    return (<Application
-      isLoading={ isLoading }
-      contract={ contract }
-    />);
+    return (
+      <Application
+        isLoading={ isLoading }
+        contract={ contract }
+      />
+    );
   }
 }
 

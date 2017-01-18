@@ -273,6 +273,7 @@ impl Updater {
 					if s.fetching.is_none() {
 						info!(target: "updater", "Attempting to get parity binary {}", b);
 						s.fetching = Some(latest.track.clone());
+						drop(s);
 						let weak_self = self.weak_self.lock().clone();
 						let f = move |r: Result<PathBuf, fetch::Error>| if let Some(this) = weak_self.upgrade() { this.fetch_done(r) };
 						self.fetcher.lock().as_ref().expect("Created on `new`; qed").fetch(b, Box::new(f));
@@ -311,7 +312,7 @@ impl Updater {
 impl ChainNotify for Updater {
 	fn new_blocks(&self, _imported: Vec<H256>, _invalid: Vec<H256>, _enacted: Vec<H256>, _retracted: Vec<H256>, _sealed: Vec<H256>, _proposed: Vec<Bytes>, _duration: u64) {
 		match (self.client.upgrade(), self.sync.upgrade()) {
-			(Some(ref c), Some(ref s)) if s.status().is_syncing(c.queue_info()) => self.poll(),
+			(Some(ref c), Some(ref s)) if !s.status().is_syncing(c.queue_info()) => self.poll(),
 			_ => {},
 		}
 	}

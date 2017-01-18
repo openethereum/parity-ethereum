@@ -35,12 +35,14 @@ export default class AccountDetails extends Component {
           allowCopy
           hint='a descriptive name for the account'
           label='account name'
-          value={ name } />
+          value={ name }
+        />
         <InputAddress
           disabled
           hint='the network address for the account'
           label='address'
-          value={ address } />
+          value={ address }
+        />
         { this.renderPhrase() }
       </Form>
     );
@@ -59,7 +61,8 @@ export default class AccountDetails extends Component {
         allowCopy
         hint='the account recovery phrase'
         label='owner recovery phrase (keep private and secure, it allows full and unlimited access to the account)'
-        value={ phrase } />
+        value={ phrase }
+      />
     );
   }
 }

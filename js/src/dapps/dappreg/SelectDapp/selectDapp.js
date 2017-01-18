@@ -30,7 +30,8 @@ export default class SelectDapp extends Component {
       return (
         <Input
           hint='...'
-          label='Application Id, the unique assigned identifier'>
+          label='Application Id, the unique assigned identifier'
+        >
           <input value={ this.dappsStore.wipApp.id } readOnly />
         </Input>
       );
@@ -51,11 +52,13 @@ export default class SelectDapp extends Component {
       <Input
         hint={ this.dappsStore.currentApp.id }
         label='Application, the actual application details to show below'
-        overlay={ overlayImg }>
+        overlay={ overlayImg }
+      >
         <select
           disabled={ this.dappsStore.isEditing }
           value={ this.dappsStore.currentApp.id }
-          onChange={ this.onSelect }>
+          onChange={ this.onSelect }
+        >
           { this.renderOptions() }
         </select>
       </Input>
@@ -67,7 +70,8 @@ export default class SelectDapp extends Component {
       return (
         <option
           value={ app.id }
-          key={ app.id }>
+          key={ app.id }
+        >
           { app.name }
         </option>
       );

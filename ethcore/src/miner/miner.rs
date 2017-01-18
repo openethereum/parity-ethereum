@@ -161,7 +161,8 @@ impl GasPriceCalibrator {
 		if Instant::now() >= self.next_calibration {
 			let usd_per_tx = self.options.usd_per_tx;
 			trace!(target: "miner", "Getting price info");
-			let price_info = PriceInfo::get(move |price: PriceInfo| {
+
+			PriceInfo::get(move |price: PriceInfo| {
 				trace!(target: "miner", "Price info arrived: {:?}", price);
 				let usd_per_eth = price.ethusd;
 				let wei_per_usd: f32 = 1.0e18 / usd_per_eth;
@@ -171,11 +172,7 @@ impl GasPriceCalibrator {
 				set_price(U256::from(wei_per_gas as u64));
 			});
 
-			if price_info.is_ok() {
-				self.next_calibration = Instant::now() + self.options.recalibration_period;
-			} else {
-				warn!(target: "miner", "Unable to update Ether price.");
-			}
+			self.next_calibration = Instant::now() + self.options.recalibration_period;
 		}
 	}
 }
@@ -338,16 +335,6 @@ impl Miner {
 	#[cfg_attr(feature="dev", allow(match_same_arms))]
 	/// Prepares new block for sealing including top transactions from queue.
 	fn prepare_block(&self, chain: &MiningBlockChainClient) -> (ClosedBlock, Option<H256>) {
-		{
-			trace!(target: "miner", "prepare_block: recalibrating...");
-			let txq = self.transaction_queue.clone();
-			self.gas_pricer.lock().recalibrate(move |price| {
-				trace!(target: "miner", "prepare_block: Got gas price! {}", price);
-				txq.lock().set_minimal_gas_price(price);
-			});
-			trace!(target: "miner", "prepare_block: done recalibration.");
-		}
-
 		let _timer = PerfTimer::new("prepare_block");
 		let chain_info = chain.chain_info();
 		let (transactions, mut open_block, original_work_hash) = {
@@ -460,6 +447,16 @@ impl Miner {
 			}
 		}
 		(block, original_work_hash)
+	}
+
+	/// Asynchronously updates minimal gas price for transaction queue
+	pub fn recalibrate_minimal_gas_price(&self) {
+		debug!(target: "miner", "minimal_gas_price: recalibrating...");
+		let txq = self.transaction_queue.clone();
+		self.gas_pricer.lock().recalibrate(move |price| {
+			debug!(target: "miner", "minimal_gas_price: Got gas price! {}", price);
+			txq.lock().set_minimal_gas_price(price);
+		});
 	}
 
 	/// Check is reseal is allowed and necessary.
@@ -796,19 +793,19 @@ impl MinerService for Miner {
 		if self.seals_internally {
 			if let Some(ref ap) = self.accounts {
 				ap.sign(address.clone(), Some(password.clone()), Default::default())?;
+				// Limit the scope of the locks.
+				{
+					let mut sealing_work = self.sealing_work.lock();
+					sealing_work.enabled = self.engine.is_sealer(&address).unwrap_or(false);
+					*self.author.write() = address;
+				}
+				// --------------------------------------------------------------------------
+				// | NOTE Code below may require author and sealing_work locks              |
+				// | (some `Engine`s call `EngineClient.update_sealing()`)                  |.
+				// | Make sure to release the locks before calling that method.             |
+				// --------------------------------------------------------------------------
+				self.engine.set_signer(ap.clone(), address, password);
 			}
-			// Limit the scope of the locks.
-			{
-				let mut sealing_work = self.sealing_work.lock();
-				sealing_work.enabled = self.engine.is_sealer(&address).unwrap_or(false);
-				*self.author.write() = address;
-			}
-			// --------------------------------------------------------------------------
-			// | NOTE Code below may require author and sealing_work locks              |
-			// | (some `Engine`s call `EngineClient.update_sealing()`)                  |.
-			// | Make sure to release the locks before calling that method.             |
-			// --------------------------------------------------------------------------
-			self.engine.set_signer(address, password);
 		}
 		Ok(())
 	}
@@ -1158,6 +1155,9 @@ impl MinerService for Miner {
 
 		// First update gas limit in transaction queue
 		self.update_gas_limit(chain);
+
+		// Update minimal gas price
+		self.recalibrate_minimal_gas_price();
 
 		// Then import all transactions...
 		{

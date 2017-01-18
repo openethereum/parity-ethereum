@@ -17,7 +17,6 @@
 import React, { Component, PropTypes } from 'react';
 
 export default class Box extends Component {
-
   renderValue () {
     if (!this.props.value) {
       return;
@@ -43,5 +42,4 @@ export default class Box extends Component {
     value: PropTypes.string,
     children: PropTypes.element
   }
-
 }

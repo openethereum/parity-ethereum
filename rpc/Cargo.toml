@@ -17,10 +17,10 @@ serde_json = "0.8"
 rustc-serialize = "0.3"
 time = "0.1"
 transient-hashmap = "0.1"
-jsonrpc-core = { git = "https://github.com/ethcore/jsonrpc.git" }
-jsonrpc-http-server = { git = "https://github.com/ethcore/jsonrpc.git" }
-jsonrpc-ipc-server = { git = "https://github.com/ethcore/jsonrpc.git" }
-jsonrpc-macros = { git = "https://github.com/ethcore/jsonrpc.git" }
+jsonrpc-core = { git = "https://github.com/ethcore/jsonrpc.git", branch="mio" }
+jsonrpc-http-server = { git = "https://github.com/ethcore/jsonrpc.git", branch="mio" }
+jsonrpc-ipc-server = { git = "https://github.com/ethcore/jsonrpc.git", branch="mio" }
+jsonrpc-macros = { git = "https://github.com/ethcore/jsonrpc.git", branch="mio" }
 ethcore-io = { path = "../util/io" }
 ethcore-ipc = { path = "../ipc/rpc" }
 ethcore-util = { path = "../util" }

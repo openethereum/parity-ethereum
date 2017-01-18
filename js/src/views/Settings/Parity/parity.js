@@ -79,9 +79,11 @@ export default class Parity extends Component {
 
   render () {
     return (
-      <Container title={
-        <FormattedMessage id='settings.parity.label' />
-      }>
+      <Container
+        title={
+          <FormattedMessage id='settings.parity.label' />
+        }
+      >
         <div className={ layout.layout }>
           <div className={ layout.overview }>
             <div>
@@ -162,7 +164,8 @@ export default class Parity extends Component {
         <MenuItem
           key={ mode }
           value={ mode }
-          label={ label }>
+          label={ label }
+        >
           { label }
         </MenuItem>
       );
@@ -173,34 +176,49 @@ export default class Parity extends Component {
         label={
           <FormattedMessage
             id='settings.parity.modes.label'
-            defaultMessage='mode of operation' />
+            defaultMessage='mode of operation'
+          />
         }
         hint={
           <FormattedMessage
             id='settings.parity.modes.hint'
-            defaultMessage='the syning mode for the Parity node' />
+            defaultMessage='the syning mode for the Parity node'
+          />
         }
         value={ mode }
-        onChange={ this.onChangeMode }>
+        onChange={ this.onChangeMode }
+      >
         {
-          renderItem('active', <FormattedMessage
-            id='settings.parity.modes.mode_active'
-            defaultMessage='Parity continuously syncs the chain' />)
+          renderItem('active',
+            <FormattedMessage
+              id='settings.parity.modes.mode_active'
+              defaultMessage='Parity continuously syncs the chain'
+            />
+          )
         }
         {
-          renderItem('passive', <FormattedMessage
-            id='settings.parity.modes.mode_passive'
-            defaultMessage='Parity syncs initially, then sleeps and wakes regularly to resync' />)
+          renderItem('passive',
+            <FormattedMessage
+              id='settings.parity.modes.mode_passive'
+              defaultMessage='Parity syncs initially, then sleeps and wakes regularly to resync'
+            />
+          )
         }
         {
-          renderItem('dark', <FormattedMessage
-            id='settings.parity.modes.mode_dark'
-            defaultMessage='Parity syncs only when the RPC is active' />)
+          renderItem('dark',
+            <FormattedMessage
+              id='settings.parity.modes.mode_dark'
+              defaultMessage='Parity syncs only when the RPC is active'
+            />
+          )
         }
         {
-          renderItem('offline', <FormattedMessage
-            id='settings.parity.modes.mode_offline'
-            defaultMessage="Parity doesn't sync" />)
+          renderItem('offline',
+            <FormattedMessage
+              id='settings.parity.modes.mode_offline'
+              defaultMessage="Parity doesn't sync"
+            />
+          )
         }
       </Select>
     );

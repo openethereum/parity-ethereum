@@ -35,7 +35,8 @@ function render (props) {
     <PasswordManager
       { ...props }
       account={ ACCOUNT }
-      onClose={ onClose } />,
+      onClose={ onClose }
+    />,
     { context: { store: reduxStore } }
   ).find('PasswordManager').shallow({ context: { api: createApi() } });
   instance = component.instance();

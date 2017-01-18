@@ -44,7 +44,8 @@ export default class CustomChip extends Component {
           background: '#27ae60',
           display: 'flex',
           flexDirection: 'column'
-        } }>
+        } }
+      >
         { this.renderIcon(isAddress, value) }
         <span className={ styles.value } title={ value }>
           { displayValue }
@@ -64,7 +65,8 @@ export default class CustomChip extends Component {
     return (
       <IdentityIcon
         inline center
-        address={ address } />
+        address={ address }
+      />
     );
   }
 }

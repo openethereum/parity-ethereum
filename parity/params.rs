@@ -192,14 +192,25 @@ impl Default for AccountsConfig {
 pub enum GasPricerConfig {
 	Fixed(U256),
 	Calibrated {
+		initial_minimum: U256,
 		usd_per_tx: f32,
 		recalibration_period: Duration,
+	}
+}
+
+impl GasPricerConfig {
+	pub fn initial_min(&self) -> U256 {
+		match *self {
+			GasPricerConfig::Fixed(ref min) => min.clone(),
+			GasPricerConfig::Calibrated { ref initial_minimum, .. } => initial_minimum.clone(),
+		}
 	}
 }
 
 impl Default for GasPricerConfig {
 	fn default() -> Self {
 		GasPricerConfig::Calibrated {
+			initial_minimum: 11904761856u64.into(),
 			usd_per_tx: 0.0025f32,
 			recalibration_period: Duration::from_secs(3600),
 		}
@@ -210,7 +221,7 @@ impl Into<GasPricer> for GasPricerConfig {
 	fn into(self) -> GasPricer {
 		match self {
 			GasPricerConfig::Fixed(u) => GasPricer::Fixed(u),
-			GasPricerConfig::Calibrated { usd_per_tx, recalibration_period } => {
+			GasPricerConfig::Calibrated { usd_per_tx, recalibration_period, .. } => {
 				GasPricer::new_calibrated(GasPriceCalibratorOptions {
 					usd_per_tx: usd_per_tx,
 					recalibration_period: recalibration_period,

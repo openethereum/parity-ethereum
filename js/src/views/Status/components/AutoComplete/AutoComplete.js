@@ -18,7 +18,6 @@ import React, { Component, PropTypes } from 'react';
 import AutoComplete from 'material-ui/AutoComplete';
 
 export default class WrappedAutoComplete extends Component {
-
   render () {
     return (
       <AutoComplete { ...this.props } />
@@ -40,5 +39,4 @@ export default class WrappedAutoComplete extends Component {
   static contextTypes = {
     muiTheme: PropTypes.object.isRequired
   }
-
 }
