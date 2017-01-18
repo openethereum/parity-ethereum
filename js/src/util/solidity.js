@@ -17,7 +17,6 @@
 import solc from 'solc/browser-wrapper';
 
 export default class SolidityUtils {
-
   static compile (data, compiler) {
     const { sourcecode, build, optimize, files } = data;
 

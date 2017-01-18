@@ -35,7 +35,8 @@ function render (props) {
       { ...props }
       contract={ CONTRACT }
       onClose={ onClose }
-      onFromAddressChange={ onFromAddressChange } />,
+      onFromAddressChange={ onFromAddressChange }
+    />,
       { context: { api: createApi(), store: STORE } }
   ).find('ExecuteContract').shallow();
 

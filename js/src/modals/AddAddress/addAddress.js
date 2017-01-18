@@ -51,9 +51,11 @@ export default class AddAddress extends Component {
         title={
           <FormattedMessage
             id='addAddress.label'
-            defaultMessage='add saved address' />
+            defaultMessage='add saved address'
+          />
         }
-        visible>
+        visible
+      >
         { this.renderFields() }
       </Modal>
     );
@@ -68,20 +70,24 @@ export default class AddAddress extends Component {
         label={
           <FormattedMessage
             id='addAddress.button.close'
-            defaultMessage='Cancel' />
+            defaultMessage='Cancel'
+          />
         }
         onClick={ this.onClose }
-        ref='closeButton' />,
+        ref='closeButton'
+      />,
       <Button
         disabled={ hasError }
         icon={ <ContentAdd /> }
         label={
           <FormattedMessage
             id='addAddress.button.add'
-            defaultMessage='Save Address' />
+            defaultMessage='Save Address'
+          />
         }
         onClick={ this.onAdd }
-        ref='addButton' />
+        ref='addButton'
+      />
     ]);
   }
 
@@ -97,45 +103,54 @@ export default class AddAddress extends Component {
           hint={
             <FormattedMessage
               id='addAddress.input.address.hint'
-              defaultMessage='the network address for the entry' />
+              defaultMessage='the network address for the entry'
+            />
           }
           label={
             <FormattedMessage
               id='addAddress.input.address.label'
-              defaultMessage='network address' />
+              defaultMessage='network address'
+            />
           }
           onChange={ this.onEditAddress }
           ref='inputAddress'
-          value={ address } />
+          value={ address }
+        />
         <Input
           error={ nameError }
           hint={
             <FormattedMessage
               id='addAddress.input.name.hint'
-              defaultMessage='a descriptive name for the entry' />
+              defaultMessage='a descriptive name for the entry'
+            />
           }
           label={
             <FormattedMessage
               id='addAddress.input.name.label'
-              defaultMessage='address name' />
+              defaultMessage='address name'
+            />
           }
           onChange={ this.onEditName }
           ref='inputName'
-          value={ name } />
+          value={ name }
+        />
         <Input
           hint={
             <FormattedMessage
               id='addAddress.input.description.hint'
-              defaultMessage='an expanded description for the entry' />
+              defaultMessage='an expanded description for the entry'
+            />
           }
           label={
             <FormattedMessage
               id='addAddress.input.description.label'
-              defaultMessage='(optional) address description' />
+              defaultMessage='(optional) address description'
+            />
           }
           onChange={ this.onEditDescription }
           ref='inputDescription'
-          value={ description } />
+          value={ description }
+        />
       </Form>
     );
   }

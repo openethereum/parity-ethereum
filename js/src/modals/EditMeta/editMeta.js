@@ -49,47 +49,57 @@ class EditMeta extends Component {
         title={
           <FormattedMessage
             id='editMeta.title'
-            defaultMessage='edit metadata' />
+            defaultMessage='edit metadata'
+          />
         }
-        visible>
+        visible
+      >
         <Form>
           <Input
             error={ nameError }
             label={
               <FormattedMessage
                 id='editMeta.name.label'
-                defaultMessage='name' />
+                defaultMessage='name'
+              />
             }
             onSubmit={ this.store.setName }
-            value={ name } />
+            value={ name }
+          />
           <Input
             hint={
               <FormattedMessage
                 id='editMeta.description.hint'
-                defaultMessage='description for this address' />
+                defaultMessage='description for this address'
+              />
             }
             label={
               <FormattedMessage
                 id='editMeta.description.label'
-                defaultMessage='address description' />
+                defaultMessage='address description'
+              />
             }
             value={ description }
-            onSubmit={ this.store.setDescription } />
+            onSubmit={ this.store.setDescription }
+          />
           { this.renderAccountFields() }
           <InputChip
             addOnBlur
             hint={
               <FormattedMessage
                 id='editMeta.tags.hint'
-                defaultMessage='press <Enter> to add a tag' />
+                defaultMessage='press <Enter> to add a tag'
+              />
             }
             label={
               <FormattedMessage
                 id='editMeta.tags.label'
-                defaultMessage='(optional) tags' />
+                defaultMessage='(optional) tags'
+              />
             }
             onTokensChange={ this.store.setTags }
-            tokens={ tags.slice() } />
+            tokens={ tags.slice() }
+          />
         </Form>
       </Modal>
     );
@@ -102,12 +112,14 @@ class EditMeta extends Component {
       <Button
         label='Cancel'
         icon={ <CancelIcon /> }
-        onClick={ this.props.onClose } />,
+        onClick={ this.props.onClose }
+      />,
       <Button
         disabled={ hasError }
         label='Save'
         icon={ <SaveIcon /> }
-        onClick={ this.onSave } />
+        onClick={ this.onSave }
+      />
     ];
   }
 
@@ -123,15 +135,18 @@ class EditMeta extends Component {
         hint={
           <FormattedMessage
             id='editMeta.passwordHint.hint'
-            defaultMessage='a hint to allow password recovery' />
+            defaultMessage='a hint to allow password recovery'
+          />
         }
         label={
           <FormattedMessage
             id='editMeta.passwordHint.label'
-            defaultMessage='(optional) password hint' />
+            defaultMessage='(optional) password hint'
+          />
         }
         value={ passwordHint }
-        onSubmit={ this.store.setPasswordHint } />
+        onSubmit={ this.store.setPasswordHint }
+      />
     );
   }
 

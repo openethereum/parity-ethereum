@@ -67,7 +67,8 @@ class Modal extends Component {
         current={ current }
         steps={ steps }
         title={ title }
-        waiting={ waiting } />
+        waiting={ waiting }
+      />
     );
     const classes = `${styles.dialog} ${className}`;
 
@@ -89,7 +90,8 @@ class Modal extends Component {
         repositionOnUpdate={ false }
         style={ DIALOG_STYLE }
         title={ header }
-        titleStyle={ TITLE_STYLE }>
+        titleStyle={ TITLE_STYLE }
+      >
         <Container
           compact={ compact }
           light

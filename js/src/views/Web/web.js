@@ -109,7 +109,8 @@ export default class Web extends Component {
           onLoad={ this.iframeOnLoad }
           sandbox='allow-forms allow-same-origin allow-scripts'
           scrolling='auto'
-          src={ address } />
+          src={ address }
+        />
       </div>
     );
   }
@@ -150,4 +151,3 @@ export default class Web extends Component {
     });
   };
 }
-

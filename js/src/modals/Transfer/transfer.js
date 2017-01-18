@@ -86,8 +86,7 @@ class Transfer extends Component {
     }
 
     return (
-      <Warning
-        warning={ errorEstimated } />
+      <Warning warning={ errorEstimated } />
     );
   }
 
@@ -100,7 +99,8 @@ class Transfer extends Component {
           <IdentityIcon
             address={ account.address }
             center
-            inline />
+            inline
+          />
         </div>
         <div className={ styles.hdrdetails }>
           <div className={ styles.hdrname }>
@@ -142,7 +142,8 @@ class Transfer extends Component {
       return (
         <BusyStep
           title='The transaction is in progress'
-          state={ busyState } />
+          state={ busyState }
+        />
       );
     }
 
@@ -218,7 +219,8 @@ class Transfer extends Component {
         minBlockError={ minBlockError }
         onChange={ this.store.onUpdateDetails }
         total={ total }
-        totalError={ totalError } />
+        totalError={ totalError }
+      />
     );
   }
 
@@ -230,33 +232,38 @@ class Transfer extends Component {
       <Button
         icon={ <CancelIcon /> }
         label='Cancel'
-        onClick={ this.handleClose } />
+        onClick={ this.handleClose }
+      />
     );
     const nextBtn = (
       <Button
         disabled={ !this.store.isValid }
         icon={ <NextIcon /> }
         label='Next'
-        onClick={ this.store.onNext } />
+        onClick={ this.store.onNext }
+      />
     );
     const prevBtn = (
       <Button
         icon={ <PrevIcon /> }
         label='Back'
-        onClick={ this.store.onPrev } />
+        onClick={ this.store.onPrev }
+      />
     );
     const sendBtn = (
       <Button
         disabled={ !this.store.isValid || sending }
         icon={ <IdentityIcon address={ account.address } button /> }
         label='Send'
-        onClick={ this.store.onSend } />
+        onClick={ this.store.onSend }
+      />
     );
     const doneBtn = (
       <Button
         icon={ <DoneIcon /> }
         label='Close'
-        onClick={ this.handleClose } />
+        onClick={ this.handleClose }
+      />
     );
 
     switch (stage) {

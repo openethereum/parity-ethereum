@@ -146,7 +146,8 @@ export default class Deployment extends Component {
             <label>deployment account</label>
             <AddressSelect
               addresses={ addresses }
-              onChange={ this.onChangeFrom } />
+              onChange={ this.onChangeFrom }
+            />
             <div className={ styles.hint }>
               the owner account to deploy from
             </div>
@@ -156,7 +157,8 @@ export default class Deployment extends Component {
             <input
               value={ name }
               name='name'
-              onChange={ this.onChangeName } />
+              onChange={ this.onChangeName }
+            />
             <div className={ styles.hint }>
               { nameError || 'an identifying name for the token' }
             </div>
@@ -167,7 +169,8 @@ export default class Deployment extends Component {
               className={ styles.small }
               name='tla'
               value={ tla }
-              onChange={ this.onChangeTla } />
+              onChange={ this.onChangeTla }
+            />
             <div className={ styles.hint }>
               { tlaError || 'unique network acronym for this token' }
             </div>
@@ -180,7 +183,8 @@ export default class Deployment extends Component {
               max='999999999999'
               name='totalSupply'
               value={ totalSupply }
-              onChange={ this.onChangeSupply } />
+              onChange={ this.onChangeSupply }
+            />
             <div className={ styles.hint }>
               { totalSupplyError || `number of tokens (base: ${baseText})` }
             </div>
@@ -191,7 +195,8 @@ export default class Deployment extends Component {
               <div
                 className={ styles.button }
                 disabled={ hasError }
-                onClick={ this.onDeploy }>
+                onClick={ this.onDeploy }
+              >
                 Deploy Token
               </div>
             </div>

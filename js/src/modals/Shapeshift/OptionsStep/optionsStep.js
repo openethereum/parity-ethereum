@@ -29,7 +29,8 @@ const WARNING_LABELS = {
   [WARNING_NO_PRICE]: (
     <FormattedMessage
       id='shapeshift.warning.noPrice'
-      defaultMessage='No price match was found for the selected type' />
+      defaultMessage='No price match was found for the selected type'
+    />
   )
 };
 
@@ -47,7 +48,8 @@ export default class OptionsStep extends Component {
         <div className={ styles.empty }>
           <FormattedMessage
             id='shapeshift.optionsStep.noPairs'
-            defaultMessage='There are currently no exchange pairs/coins available to fund with.' />
+            defaultMessage='There are currently no exchange pairs/coins available to fund with.'
+          />
         </div>
       );
     }
@@ -60,15 +62,18 @@ export default class OptionsStep extends Component {
             hint={
               <FormattedMessage
                 id='shapeshift.optionsStep.typeSelect.hint'
-                defaultMessage='the type of crypto conversion to do' />
+                defaultMessage='the type of crypto conversion to do'
+              />
             }
             label={
               <FormattedMessage
                 id='shapeshift.optionsStep.typeSelect.label'
-                defaultMessage='fund account from' />
+                defaultMessage='fund account from'
+              />
             }
             onChange={ this.onSelectCoin }
-            value={ coinSymbol }>
+            value={ coinSymbol }
+          >
             {
               coins.map(this.renderCoinSelectItem)
             }
@@ -77,30 +82,36 @@ export default class OptionsStep extends Component {
             hint={
               <FormattedMessage
                 id='shapeshift.optionsStep.returnAddr.hint'
-                defaultMessage='the return address for send failures' />
+                defaultMessage='the return address for send failures'
+              />
             }
             label={
               <FormattedMessage
                 id='shapeshift.optionsStep.returnAddr.label'
                 defaultMessage='(optional) {coinSymbol} return address'
-                values={ { coinSymbol } } />
+                values={ { coinSymbol } }
+              />
             }
             onSubmit={ this.onChangeRefundAddress }
-            value={ refundAddress } />
+            value={ refundAddress }
+          />
           <Checkbox
             checked={ hasAcceptedTerms }
             className={ styles.accept }
             label={
               <FormattedMessage
                 id='shapeshift.optionsStep.terms.label'
-                defaultMessage='I understand that ShapeShift.io is a 3rd-party service and by using the service any transfer of information and/or funds is completely out of the control of Parity' />
+                defaultMessage='I understand that ShapeShift.io is a 3rd-party service and by using the service any transfer of information and/or funds is completely out of the control of Parity'
+              />
             }
-            onCheck={ this.onToggleAcceptTerms } />
+            onCheck={ this.onToggleAcceptTerms }
+          />
         </Form>
         <Warning warning={ WARNING_LABELS[warning] } />
         <Price
           coinSymbol={ coinSymbol }
-          price={ price } />
+          price={ price }
+        />
       </div>
     );
   }
@@ -112,7 +123,8 @@ export default class OptionsStep extends Component {
       <div className={ styles.coinselect }>
         <img
           className={ styles.coinimage }
-          src={ image } />
+          src={ image }
+        />
         <div className={ styles.coindetails }>
           <div className={ styles.coinsymbol }>
             { symbol }
@@ -128,7 +140,8 @@ export default class OptionsStep extends Component {
       <MenuItem
         key={ symbol }
         value={ symbol }
-        label={ item }>
+        label={ item }
+      >
         { item }
       </MenuItem>
     );
