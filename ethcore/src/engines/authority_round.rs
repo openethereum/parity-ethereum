@@ -281,7 +281,6 @@ impl Engine for AuthorityRound {
 				Ok(())
 			} else {
 				trace!(target: "poa", "verify_block_unordered: bad proposer for step: {}", header_step);
-				self.validators.report_malicious(header.author());
 				Err(EngineError::NotProposer(Mismatch { expected: correct_proposer, found: header.author().clone() }))?
 			}
 		} else {

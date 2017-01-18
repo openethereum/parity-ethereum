@@ -367,10 +367,6 @@ impl Tendermint {
 			}
 		}
 	}
-
-	fn report_malicious(&self, address: &Address) {
-		self.validators.report_malicious(address);
-	}
 }
 
 impl Engine for Tendermint {
@@ -458,7 +454,7 @@ impl Engine for Tendermint {
 			}
 			self.broadcast_message(rlp.as_raw().to_vec());
 			if self.votes.vote(message.clone(), &sender).is_some() {
-				self.report_malicious(&sender);
+				self.validators.report_malicious(&sender);
 				Err(EngineError::DoubleVote(sender))?
 			}
 			trace!(target: "poa", "Handling a valid {:?} from {}.", message, sender);

@@ -14,7 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-/// Validator set maintained in a contract.
+/// Validator set maintained in a contract, updated using `getValidators` method.
+/// It can also report validators for misbehaviour with two levels: `reportMalicious` and `reportBenign`.
 
 use std::sync::Weak;
 use util::*;
@@ -137,7 +138,13 @@ mod provider {
 #[cfg(test)]
 mod tests {
 	use util::*;
+	use rlp::encode;
+	use ethkey::Secret;
 	use spec::Spec;
+	use header::Header;
+	use account_provider::AccountProvider;
+	use miner::MinerService;
+	use client::BlockChainClient;
 	use tests::helpers::generate_dummy_client_with_spec_and_accounts;
 	use super::super::ValidatorSet;
 	use super::ValidatorContract;
@@ -149,5 +156,40 @@ mod tests {
 		vc.register_contract(Arc::downgrade(&client));
 		assert!(vc.contains(&Address::from_str("7d577a597b2742b498cb5cf0c26cdcd726d39e6e").unwrap()));
 		assert!(vc.contains(&Address::from_str("82a978b3f5962a5b0957d9ee9eef472ee55b42f1").unwrap()));
+	}
+	
+	#[test]
+	fn reports_validators() {
+		let tap = Arc::new(AccountProvider::transient_provider());
+		let v1 = tap.insert_account(Secret::from_slice(&"1".sha3()).unwrap(), "").unwrap();
+		let client = generate_dummy_client_with_spec_and_accounts(Spec::new_validator_contract, Some(tap.clone()));
+		client.engine().register_client(Arc::downgrade(&client));
+		let validator_contract = Address::from_str("0000000000000000000000000000000000000005").unwrap();
+
+		client.miner().set_engine_signer(v1, "".into()).unwrap();
+		let mut header = Header::default();
+		let seal = encode(&vec!(5u8)).to_vec();	
+		header.set_seal(vec!(seal));
+		header.set_author(v1);
+		header.set_number(1);
+		// `reportBenign` when the designated proposer releases block from the future (bad clock).
+		assert!(client.engine().verify_block_unordered(&header, None).is_err());
+		// Seal a block.
+		client.engine().step();
+		assert_eq!(client.chain_info().best_block_number, 1);
+		// Check if the unresponsive validator is `disliked`.
+		assert_eq!(client.call_contract(validator_contract, "d8f2e0bf".from_hex().unwrap()).unwrap().to_hex(), "0000000000000000000000007d577a597b2742b498cb5cf0c26cdcd726d39e6e");
+		// Simulate a misbehaving validator by handling a double proposal.
+		assert!(client.engine().verify_block_family(&header, &header, None).is_err());
+		// Seal a block.
+		client.engine().step();
+		client.engine().step();
+		assert_eq!(client.chain_info().best_block_number, 2);
+
+		// Check if misbehaving validator was removed.
+		client.transact_contract(Default::default(), Default::default()).unwrap();
+		client.engine().step();
+		client.engine().step();
+		assert_eq!(client.chain_info().best_block_number, 2);
 	}
 }

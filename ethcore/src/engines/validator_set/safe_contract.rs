@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-/// Validator set maintained in a contract.
+/// Validator set maintained in a contract, updated using `getValidators` method.
 
 use std::sync::Weak;
 use util::*;
@@ -150,7 +150,7 @@ mod tests {
 
 	#[test]
 	fn fetches_validators() {
-		let client = generate_dummy_client_with_spec_and_accounts(Spec::new_validator_contract, None);
+		let client = generate_dummy_client_with_spec_and_accounts(Spec::new_validator_safe_contract, None);
 		let vc = Arc::new(ValidatorSafeContract::new(Address::from_str("0000000000000000000000000000000000000005").unwrap()));
 		vc.register_contract(Arc::downgrade(&client));
 		assert!(vc.contains(&Address::from_str("7d577a597b2742b498cb5cf0c26cdcd726d39e6e").unwrap()));
@@ -158,12 +158,12 @@ mod tests {
 	}
 
 	#[test]
-	fn changes_validators() {
+	fn updates_validators() {
 		let tap = Arc::new(AccountProvider::transient_provider());
 		let s0 = Secret::from_slice(&"1".sha3()).unwrap();
 		let v0 = tap.insert_account(s0.clone(), "").unwrap();
 		let v1 = tap.insert_account(Secret::from_slice(&"0".sha3()).unwrap(), "").unwrap();
-		let client = generate_dummy_client_with_spec_and_accounts(Spec::new_validator_contract, Some(tap));
+		let client = generate_dummy_client_with_spec_and_accounts(Spec::new_validator_safe_contract, Some(tap));
 		client.engine().register_client(Arc::downgrade(&client));
 		let validator_contract = Address::from_str("0000000000000000000000000000000000000005").unwrap();
 
@@ -175,7 +175,7 @@ mod tests {
 			gas: 500_000.into(),
 			action: Action::Call(validator_contract),
 			value: 0.into(),
-			data: "f94e18670000000000000000000000000000000000000000000000000000000000000001".from_hex().unwrap(),
+			data: "bfc708a000000000000000000000000082a978b3f5962a5b0957d9ee9eef472ee55b42f1".from_hex().unwrap(),
 		}.sign(&s0, None);
 		client.miner().import_own_transaction(client.as_ref(), tx.into()).unwrap();
 		client.update_sealing();

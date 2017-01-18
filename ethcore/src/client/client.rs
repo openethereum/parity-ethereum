@@ -1435,7 +1435,7 @@ impl BlockChainClient for Client {
 		let transaction = Transaction {
 			nonce: self.latest_nonce(&self.miner.author()),
 			action: Action::Call(address),
-			gas: env_info.gas_limit,
+			gas: env_info.gas_limit/2.into(),
 			gas_price: self.miner.sensible_gas_price(),
 			value: U256::zero(),
 			data: data,

@@ -352,7 +352,7 @@ impl Spec {
 
 	/// The same as the `safeContract`, but allows reporting and uses AuthorityRound.
 	/// Account is marked with `reportBenign` it can be checked as disliked with "0xd8f2e0bf".
-	/// Once second validator is removed with `reportMalicious`, it can be added back in using "0x4d238c8e00000000000000000000000082a978b3f5962a5b0957d9ee9eef472ee55b42f1".
+	/// Validator can be removed with `reportMalicious`.
 	pub fn new_validator_contract() -> Self { load_bundled!("validator_contract") }
 }
 
