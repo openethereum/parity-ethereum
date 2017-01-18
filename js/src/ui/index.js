@@ -28,6 +28,7 @@ import ConfirmDialog from './ConfirmDialog';
 import Container, { Title as ContainerTitle } from './Container';
 import ContextProvider from './ContextProvider';
 import CopyToClipboard from './CopyToClipboard';
+import DappIcon from './DappIcon';
 import Editor from './Editor';
 import Errors from './Errors';
 import Form, { AddressSelect, DappUrlInput, FormWrap, TypedInput, Input, InputAddress, InputAddressSelect, InputChip, InputInline, RadioButtons, Select } from './Form';
@@ -69,6 +70,7 @@ export {
   ContainerTitle,
   ContextProvider,
   CopyToClipboard,
+  DappIcon,
   DappUrlInput,
   Editor,
   Errors,
