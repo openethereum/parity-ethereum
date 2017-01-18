@@ -91,8 +91,6 @@ usage! {
 		flag_no_download: bool = false, or |c: &Config| otry!(c.parity).no_download.clone(),
 		flag_no_consensus: bool = false, or |c: &Config| otry!(c.parity).no_consensus.clone(),
 		flag_chain: String = "homestead", or |c: &Config| otry!(c.parity).chain.clone(),
-		flag_base_path: String = dir::default_data_path(), or |c: &Config| otry!(c.parity).base_path.clone(),
-		flag_db_path: String = dir::CHAINS_PATH, or |c: &Config| otry!(c.parity).db_path.clone(),
 		flag_keys_path: String = "$BASE/keys", or |c: &Config| otry!(c.parity).keys_path.clone(),
 		flag_identity: String = "", or |c: &Config| otry!(c.parity).identity.clone(),
 
@@ -288,6 +286,11 @@ usage! {
 			or |c: &Config| otry!(c.misc).log_file.clone().map(Some),
 		flag_no_color: bool = false,
 			or |c: &Config| otry!(c.misc).color.map(|c| !c).clone(),
+	}
+	{
+		// Values with optional default value.
+		flag_base_path: Option<String>, display dir::default_data_path(), or |c: &Config| otry!(c.parity).base_path.clone().map(Some),
+		flag_db_path: Option<String>, display dir::CHAINS_PATH, or |c: &Config| otry!(c.parity).db_path.clone().map(Some),
 	}
 }
 
@@ -547,8 +550,8 @@ mod tests {
 			flag_no_download: false,
 			flag_no_consensus: false,
 			flag_chain: "xyz".into(),
-			flag_base_path: "$HOME/.parity".into(),
-			flag_db_path: "$HOME/.parity/chains".into(),
+			flag_base_path: Some("$HOME/.parity".into()),
+			flag_db_path: Some("$HOME/.parity/chains".into()),
 			flag_keys_path: "$HOME/.parity/keys".into(),
 			flag_identity: "".into(),
 
