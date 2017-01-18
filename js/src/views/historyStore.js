@@ -18,6 +18,7 @@ import { action, observable } from 'mobx';
 import localStore from 'store';
 
 const LS_KEY = '_parity::history';
+const MAX_ENTRIES = 5;
 
 const instance = {};
 
@@ -33,7 +34,7 @@ export default class Store {
     this.history = [{
       timestamp: Date.now(),
       entry
-    }].concat(this.history.filter((h) => h.entry !== entry)).slice(0, 10);
+    }].concat(this.history.filter((h) => h.entry !== entry)).slice(0, MAX_ENTRIES);
     this.save();
   }
 

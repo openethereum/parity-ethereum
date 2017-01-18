@@ -18,9 +18,11 @@ import { observer } from 'mobx-react';
 import moment from 'moment';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
+import { Link } from 'react-router';
 
-import { Container, DappUrlInput, Page } from '~/ui';
+import { Container, DappUrlInput, IdentityName, IdentityIcon, Page } from '~/ui';
 
+import DappsStore from '../Dapps/dappsStore';
 import HistoryStore from '../historyStore';
 import WebStore from '../Web/store';
 import styles from './home.css';
@@ -32,8 +34,16 @@ export default class Home extends Component {
     router: PropTypes.object.isRequired
   };
 
-  webstore = WebStore.get(this.context.api);
+  dappsStore = DappsStore.get(this.context.api);
+  webStore = WebStore.get(this.context.api);
+
+  accountsHistory = HistoryStore.get('accounts');
+  dappsHistory = HistoryStore.get('dapps');
   webHistory = HistoryStore.get('web');
+
+  state = {
+    dapps: {}
+  };
 
   render () {
     return (
@@ -72,9 +82,53 @@ export default class Home extends Component {
         }
       >
         <div className={ styles.accounts }>
-          Something goes in here
+          { this.renderAccountsHistory() }
         </div>
       </Container>
+    );
+  }
+
+  renderAccountsHistory () {
+    const { history } = this.accountsHistory;
+
+    if (!history.length) {
+      return (
+        <div className={ styles.empty }>
+          No recent accounts retrieved
+        </div>
+      );
+    }
+
+    const rows = history.map((h) => {
+      return (
+        <tr key={ h.timestamp }>
+          <td className={ styles.timestamp }>
+            { moment(h.timestamp).fromNow() }
+          </td>
+          <td className={ styles.entry }>
+            <Link to={ `/accounts/${h.entry}` }>
+              <IdentityIcon
+                address={ h.entry }
+                center
+                className={ styles.identityIcon }
+                inline
+              />
+              <IdentityName
+                address={ h.entry }
+                unknown
+              />
+            </Link>
+          </td>
+        </tr>
+      );
+    });
+
+    return (
+      <table className={ styles.history }>
+        <tbody>
+          { rows }
+        </tbody>
+      </table>
     );
   }
 
@@ -89,14 +143,66 @@ export default class Home extends Component {
         }
       >
         <div className={ styles.dapps }>
-          Something goes in here
+          { this.renderDappsHistory() }
         </div>
       </Container>
     );
   }
 
+  renderDappsHistory () {
+    const { dapps } = this.state;
+    const { history } = this.dappsHistory;
+
+    if (!history.length) {
+      return (
+        <div className={ styles.empty }>
+          No recent applications retrieved
+        </div>
+      );
+    }
+
+    const rows = history.map((h) => {
+      const dapp = dapps[h.entry];
+
+      if (typeof dapp === 'undefined') {
+        this.loadApp(h.entry);
+      }
+
+      if (!dapp) {
+        return null;
+      }
+
+      return (
+        <tr key={ h.timestamp }>
+          <td className={ styles.timestamp }>
+            { moment(h.timestamp).fromNow() }
+          </td>
+          <td className={ styles.entry }>
+            <Link to={ `/app/${h.entry}` }>
+              <img
+                className={ styles.dappIcon }
+                src={ '' }
+              />
+              <span>
+                { dapp.name || h.entry }
+              </span>
+            </Link>
+          </td>
+        </tr>
+      );
+    });
+
+    return (
+      <table className={ styles.history }>
+        <tbody>
+          { rows }
+        </tbody>
+      </table>
+    );
+  }
+
   renderUrl () {
-    const { nextUrl } = this.webstore;
+    const { nextUrl } = this.webStore;
 
     return (
       <Container
@@ -125,7 +231,11 @@ export default class Home extends Component {
     const { history } = this.webHistory;
 
     if (!history.length) {
-      return null;
+      return (
+        <div className={ styles.empty }>
+          No recent URLs available
+        </div>
+      );
     }
 
     const rows = history.map((h) => {
@@ -136,7 +246,7 @@ export default class Home extends Component {
           <td className={ styles.timestamp }>
             { moment(h.timestamp).fromNow() }
           </td>
-          <td className={ h.entry }>
+          <td className={ styles.entry }>
             <a
               href='javascript:void(0)'
               onClick={ onNavigate }
@@ -158,17 +268,37 @@ export default class Home extends Component {
   }
 
   onChangeUrl = (url) => {
-    this.webstore.setNextUrl(url);
+    this.webStore.setNextUrl(url);
   }
 
   onGotoUrl = (url) => {
     const { router } = this.context;
 
-    this.webstore.gotoUrl(url);
+    this.webStore.gotoUrl(url);
     router.push('/web');
   }
 
   onRestoreUrl = () => {
-    this.webstore.restoreUrl();
+    this.webStore.restoreUrl();
+  }
+
+  loadApp = (id) => {
+    const { dapps } = this.state;
+
+    if (dapps[id]) {
+      return;
+    }
+
+    this.dappsStore
+      .loadApp(id)
+      .then((app) => {
+        console.log(id, app);
+        this.setState({
+          dapps: Object.assign({ ...this.state.dapps }, { [id]: app })
+        });
+      })
+      .catch((error) => {
+        console.warn(`Unable to load ${id}`, error);
+      });
   }
 }

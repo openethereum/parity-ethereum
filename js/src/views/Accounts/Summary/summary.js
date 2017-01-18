@@ -193,7 +193,11 @@ export default class Summary extends Component {
     const viewLink = `/${baseLink}/${address}`;
 
     const content = (
-      <IdentityName address={ address } name={ name } unknown />
+      <IdentityName
+        address={ address }
+        name={ name }
+        unknown
+      />
     );
 
     if (noLink) {

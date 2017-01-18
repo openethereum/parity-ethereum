@@ -17,12 +17,34 @@
 
 @import '../_list.css';
 
-.history {
+.empty {
   margin-top: 1.5em;
+  opacity: 0.5;
+}
+
+.history {
+  line-height: 2em;
+  margin-top: 1.5em;
+  vertical-align: middle;
+
+  .entry {
+    padding: 0;
+
+    .identityIcon {
+      margin-bottom: -10px;
+    }
+
+    .dappIcon {
+      border-radius: 50%;
+      height: 32px;
+      margin-right: 0.75em;
+      width: 32px;
+    }
+  }
 
   .timestamp {
     opacity: 0.5;
-    padding: 0.25em 1em;
+    padding: 0 1em;
     text-align: right;
   }
 }
