@@ -51,7 +51,7 @@ class Application extends Component {
   }
 
   store = new Store(this.context.api);
-  upgradeStore = new UpgradeStore(this.context.api);
+  upgradeStore = UpgradeStore.get(this.context.api);
 
   render () {
     const [root] = (window.location.hash || '').replace('#/', '').split('/');
@@ -65,7 +65,11 @@ class Application extends Component {
 
     return (
       <div>
-        { isMinimized ? this.renderMinimized() : this.renderApp() }
+        {
+          isMinimized
+            ? this.renderMinimized()
+            : this.renderApp()
+        }
         <Connection />
         <ParityBar dapp={ isMinimized } />
       </div>
