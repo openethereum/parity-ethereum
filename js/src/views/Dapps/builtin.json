@@ -81,6 +81,7 @@
     "description": "A Javascript development console complete with web3 and parity objects.",
     "version": "0.3",
     "author": "Gav Wood <gavin@ethcore.io>",
-    "visible": true
+    "visible": true,
+    "secure": true
   }
 ]
