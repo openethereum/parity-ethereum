@@ -104,8 +104,10 @@ pub struct MinerOptions {
 	pub enable_resubmission: bool,
 	/// Global gas limit for all transaction in the queue except for local and retracted.
 	pub tx_queue_gas_limit: GasLimit,
-	/// Banning settings
+	/// Banning settings.
 	pub tx_queue_banning: Banning,
+	/// Do we refuse to accept service transactions even if sender is certified.
+	pub refuse_service_transactions: bool,
 }
 
 impl Default for MinerOptions {
@@ -124,6 +126,7 @@ impl Default for MinerOptions {
 			work_queue_size: 20,
 			enable_resubmission: true,
 			tx_queue_banning: Banning::Disabled,
+			refuse_service_transactions: false,
 		}
 	}
 }
@@ -223,7 +226,7 @@ pub struct Miner {
 	accounts: Option<Arc<AccountProvider>>,
 	work_poster: Option<WorkPoster>,
 	gas_pricer: Mutex<GasPricer>,
-	service_transaction_checker: Arc<ServiceTransactionChecker>,
+	service_transaction_action: ServiceTransactionAction,
 }
 
 impl Miner {
@@ -247,6 +250,10 @@ impl Miner {
 				ban_duration,
 			),
 		};
+		let service_transaction_action = match options.refuse_service_transactions {
+			true => ServiceTransactionAction::Refuse,
+			false => ServiceTransactionAction::Check(ServiceTransactionChecker::default()),
+		};
 		Miner {
 			transaction_queue: Arc::new(Mutex::new(txq)),
 			next_allowed_reseal: Mutex::new(Instant::now()),
@@ -266,7 +273,7 @@ impl Miner {
 			engine: spec.engine.clone(),
 			work_poster: work_poster,
 			gas_pricer: Mutex::new(gas_pricer),
-			service_transaction_checker: Arc::new(ServiceTransactionChecker::default()),
+			service_transaction_action: service_transaction_action,
 		}
 	}
 
@@ -611,9 +618,9 @@ impl Miner {
 						}).unwrap_or(default_origin);
 
 						// try to install service transaction checker before appending transactions
-						self.service_transaction_checker.update_from_chain_client(client);
+						self.service_transaction_action.update_from_chain_client(client);
 
-						let details_provider = TransactionDetailsProvider::new(client, self.service_transaction_checker.clone());
+						let details_provider = TransactionDetailsProvider::new(client, &self.service_transaction_action);
 						match origin {
 							TransactionOrigin::Local | TransactionOrigin::RetractedBlock => {
 								transaction_queue.add(transaction, origin, insertion_time, min_block, &details_provider)
@@ -1158,16 +1165,39 @@ impl MinerService for Miner {
 	}
 }
 
+/// Action when service transaction is received
+enum ServiceTransactionAction {
+	/// Refuse service transaction immediately
+	Refuse,
+	/// Accept if sender is certified to send service transactions
+	Check(ServiceTransactionChecker),
+}
+
+impl ServiceTransactionAction {
+	pub fn update_from_chain_client(&self, client: &MiningBlockChainClient) {
+		if let ServiceTransactionAction::Check(ref checker) = *self {
+			checker.update_from_chain_client(client);
+		}
+	}
+
+	pub fn check(&self, client: &MiningBlockChainClient, tx: &SignedTransaction) -> Result<bool, String> {
+		match *self {
+			ServiceTransactionAction::Refuse => Err("configured to refuse service transactions".to_owned()),
+			ServiceTransactionAction::Check(ref checker) => checker.check(client, tx),
+		}
+	}
+}
+
 struct TransactionDetailsProvider<'a> {
 	client: &'a MiningBlockChainClient,
-	service_transaction_checker: Arc<ServiceTransactionChecker>,
+	service_transaction_action: &'a ServiceTransactionAction,
 }
 
 impl<'a> TransactionDetailsProvider<'a> {
-	pub fn new(client: &'a MiningBlockChainClient, service_transaction_checker: Arc<ServiceTransactionChecker>) -> Self {
+	pub fn new(client: &'a MiningBlockChainClient, service_transaction_action: &'a ServiceTransactionAction) -> Self {
 		TransactionDetailsProvider {
 			client: client,
-			service_transaction_checker: service_transaction_checker,
+			service_transaction_action: service_transaction_action,
 		}
 	}
 }
@@ -1185,7 +1215,7 @@ impl<'a> TransactionQueueDetailsProvider for TransactionDetailsProvider<'a> {
 	}
 
 	fn is_service_transaction_acceptable(&self, tx: &SignedTransaction) -> Result<bool, String> {
-		self.service_transaction_checker.check(self.client, tx)
+		self.service_transaction_action.check(self.client, tx)
 	}
 }
 
@@ -1253,6 +1283,7 @@ mod tests {
 				work_queue_size: 5,
 				enable_resubmission: true,
 				tx_queue_banning: Banning::Disabled,
+				refuse_service_transactions: false,
 			},
 			GasPricer::new_fixed(0u64.into()),
 			&Spec::new_test(),
