@@ -20,6 +20,8 @@ import sinon from 'sinon';
 
 import Urls from './';
 
+const NEXT_URL = 'http://somewhere.next';
+
 let component;
 let history;
 let instance;
@@ -41,7 +43,12 @@ function createHistory () {
 }
 
 function createStore () {
-  store = {};
+  store = {
+    gotoUrl: sinon.stub(),
+    restoreUrl: sinon.stub(),
+    setNextUrl: sinon.stub(),
+    nextUrl: NEXT_URL
+  };
 
   return store;
 }
@@ -63,40 +70,48 @@ function render () {
   return component;
 }
 
-describe.only('views/Home/Urls', () => {
+describe('views/Home/Urls', () => {
+  beforeEach(() => {
+    render();
+  });
+
   it('renders defaults', () => {
-    expect(render()).to.be.ok;
+    expect(component).to.be.ok;
+  });
+
+  describe('input', () => {
+    let input;
+
+    beforeEach(() => {
+      input = component.find('DappUrlInput');
+    });
+
+    it('renders the input cmponent', () => {
+      expect(input.length).to.equal(1);
+    });
+
+    it('passes nextUrl as url', () => {
+      expect(input.props().url).to.equal(NEXT_URL);
+    });
   });
 
   describe('events', () => {
-    beforeEach(() => {
-      sinon.spy(instance.webstore, 'gotoUrl');
-      sinon.spy(instance.webstore, 'restoreUrl');
-      sinon.spy(instance.webstore, 'setNextUrl');
-    });
-
-    afterEach(() => {
-      instance.webstore.gotoUrl.restore();
-      instance.webstore.restoreUrl.restore();
-      instance.webstore.setNextUrl.restore();
-    });
-
     describe('onChangeUrl', () => {
       it('performs setNextUrl on store', () => {
         instance.onChangeUrl('123');
-        expect(instance.webstore.setNextUrl).to.have.been.calledWith('123');
+        expect(store.setNextUrl).to.have.been.calledWith('123');
       });
     });
 
     describe('onGotoUrl', () => {
       it('performs gotoUrl on store', () => {
         instance.onGotoUrl();
-        expect(instance.webstore.gotoUrl).to.have.been.called;
+        expect(store.gotoUrl).to.have.been.called;
       });
 
       it('passed the URL when provided', () => {
         instance.onGotoUrl('http://example.com');
-        expect(instance.webstore.gotoUrl).to.have.been.calledWith('http://example.com');
+        expect(store.gotoUrl).to.have.been.calledWith('http://example.com');
       });
 
       it('does route navigation when executed', () => {
@@ -108,7 +123,7 @@ describe.only('views/Home/Urls', () => {
     describe('onRestoreUrl', () => {
       it('performs restoreUrl on store', () => {
         instance.onRestoreUrl();
-        expect(instance.webstore.restoreUrl).to.have.been.called;
+        expect(store.restoreUrl).to.have.been.called;
       });
     });
   });

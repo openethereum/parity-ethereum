@@ -17,50 +17,43 @@
 import { shallow } from 'enzyme';
 import React from 'react';
 
-import Home from './';
+import Dapp from './dapp';
 
-let api;
+import { createStore } from './dapps.test.js';
+
 let component;
-
-function createApi () {
-  api = {};
-
-  return api;
-}
+let instance;
+let store;
 
 function render () {
+  store = createStore();
   component = shallow(
-    <Home />,
-    {
-      context: {
-        api: createApi()
-      }
-    }
+    <Dapp
+      id='testId'
+      store={ store }
+      timestamp={ Date.now() }
+    />
   );
+  instance = component.instance();
 
   return component;
 }
 
-describe('views/Home', () => {
+describe('views/Home/Dapp', () => {
   beforeEach(() => {
     render();
+    return instance.componentWillMount();
   });
 
   it('renders defaults', () => {
     expect(component).to.be.ok;
   });
 
-  describe('components', () => {
-    it('renders Accounts', () => {
-      expect(component.find('Accounts').length).to.equal(1);
-    });
+  it('loads the dapp on mount', () => {
+    expect(store.loadApp).to.have.been.calledWith('testId');
+  });
 
-    it('renders Dapps', () => {
-      expect(component.find('Dapps').length).to.equal(1);
-    });
-
-    it('renders Urls', () => {
-      expect(component.find('Urls').length).to.equal(1);
-    });
+  it('renders link with app id', () => {
+    expect(component.find('Link').props().to).to.equal('/app/testId');
   });
 });

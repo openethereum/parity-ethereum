@@ -34,7 +34,7 @@ export default class Dapp extends Component {
   }
 
   componentWillMount () {
-    this.loadApp();
+    return this.loadApp();
   }
 
   render () {
@@ -72,11 +72,7 @@ export default class Dapp extends Component {
     return store
       .loadApp(id)
       .then((dapp) => {
-        console.log(id, dapp);
         this.setState({ dapp });
-      })
-      .catch((error) => {
-        console.warn(`Unable to load ${id}`, error);
       });
   }
 }

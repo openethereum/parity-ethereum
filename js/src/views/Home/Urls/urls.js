@@ -67,7 +67,10 @@ export default class Urls extends Component {
     if (!history.length) {
       return (
         <div className={ styles.empty }>
-          No recent URLs available
+          <FormattedMessage
+            id='home.url.none'
+            defaultMessage='No recent URLs available'
+          />
         </div>
       );
     }

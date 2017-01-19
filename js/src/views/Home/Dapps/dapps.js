@@ -52,7 +52,10 @@ export default class Dapps extends Component {
     if (!history.length) {
       return (
         <div className={ styles.empty }>
-          No recent URLs retrieved
+          <FormattedMessage
+            id='home.dapps.none'
+            defaultMessage='No recent URLs retrieved'
+          />
         </div>
       );
     }

@@ -17,21 +17,26 @@
 import { shallow } from 'enzyme';
 import React from 'react';
 
-import Accounts from './';
+import Dapps from './';
+
+import { createStore } from './dapps.test.js';
 
 let component;
+let store;
 
 function render (history = []) {
+  store = createStore();
   component = shallow(
-    <Accounts
+    <Dapps
       history={ history }
+      store={ store }
     />
   );
 
   return component;
 }
 
-describe('views/Home/Accounts', () => {
+describe('views/Home/Dapps', () => {
   it('renders defaults', () => {
     expect(render()).to.be.ok;
   });
@@ -42,7 +47,7 @@ describe('views/Home/Accounts', () => {
     });
 
     it('renders empty message', () => {
-      expect(component.find('FormattedMessage').props().id).to.equal('home.accounts.none');
+      expect(component.find('FormattedMessage').props().id).to.equal('home.dapps.none');
     });
   });
 
@@ -56,16 +61,16 @@ describe('views/Home/Accounts', () => {
       render(HISTORY);
     });
 
-    it('renders table rows', () => {
-      expect(component.find('tr').length).to.equal(HISTORY.length);
+    it('renders dapps', () => {
+      expect(component.find('Dapp').length).to.equal(HISTORY.length);
     });
 
-    it('renders links', () => {
-      expect(component.find('Link').length).to.equal(HISTORY.length);
+    it('has Dapp with dapp id', () => {
+      expect(component.find('Dapp').at(0).props().id).to.equal(HISTORY[0].entry);
     });
 
-    it('has links with account id', () => {
-      expect(component.find('Link').at(0).props().to).to.equal(`/accounts/${HISTORY[0].entry}`);
+    it('has Dapp with dapp timestamp', () => {
+      expect(component.find('Dapp').at(1).props().timestamp).to.equal(HISTORY[1].timestamp);
     });
   });
 });
