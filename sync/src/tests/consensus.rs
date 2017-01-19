@@ -57,15 +57,11 @@ fn new_tx(secret: &Secret, nonce: U256) -> PendingTransaction {
 fn authority_round() {
 	let s0 = KeyPair::from_secret_slice(&"1".sha3()).unwrap();
 	let s1 = KeyPair::from_secret_slice(&"0".sha3()).unwrap();
-	let spec_factory = || {
-		let spec = Spec::new_test_round();
-		let account_provider = AccountProvider::transient_provider();
-		account_provider.insert_account(s0.secret().clone(), "").unwrap();
-		account_provider.insert_account(s1.secret().clone(), "").unwrap();
-		spec.engine.register_account_provider(Arc::new(account_provider));
-		spec
-	};
-	let mut net = TestNet::with_spec(2, SyncConfig::default(), spec_factory);
+	let ap = Arc::new(AccountProvider::transient_provider());
+	ap.insert_account(s0.secret().clone(), "").unwrap();
+	ap.insert_account(s1.secret().clone(), "").unwrap();
+
+	let mut net = TestNet::with_spec_and_accounts(2, SyncConfig::default(), Spec::new_test_round, Some(ap));
 	let mut net = &mut *net;
 	let io_handler0: Arc<IoHandler<ClientIoMessage>> = Arc::new(TestIoHandler { client: net.peer(0).chain.clone() });
 	let io_handler1: Arc<IoHandler<ClientIoMessage>> = Arc::new(TestIoHandler { client: net.peer(1).chain.clone() });
@@ -120,15 +116,11 @@ fn authority_round() {
 fn tendermint() {
 	let s0 = KeyPair::from_secret_slice(&"1".sha3()).unwrap();
 	let s1 = KeyPair::from_secret_slice(&"0".sha3()).unwrap();
-	let spec_factory = || {
-		let spec = Spec::new_test_tendermint();
-		let account_provider = AccountProvider::transient_provider();
-		account_provider.insert_account(s0.secret().clone(), "").unwrap();
-		account_provider.insert_account(s1.secret().clone(), "").unwrap();
-		spec.engine.register_account_provider(Arc::new(account_provider));
-		spec
-	};
-	let mut net = TestNet::with_spec(2, SyncConfig::default(), spec_factory);
+	let ap = Arc::new(AccountProvider::transient_provider());
+	ap.insert_account(s0.secret().clone(), "").unwrap();
+	ap.insert_account(s1.secret().clone(), "").unwrap();
+
+	let mut net = TestNet::with_spec_and_accounts(2, SyncConfig::default(), Spec::new_test_tendermint, Some(ap));
 	let mut net = &mut *net;
 	let io_handler0: Arc<IoHandler<ClientIoMessage>> = Arc::new(TestIoHandler { client: net.peer(0).chain.clone() });
 	let io_handler1: Arc<IoHandler<ClientIoMessage>> = Arc::new(TestIoHandler { client: net.peer(1).chain.clone() });

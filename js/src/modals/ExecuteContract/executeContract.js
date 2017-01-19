@@ -41,27 +41,32 @@ const TITLES = {
   transfer: (
     <FormattedMessage
       id='executeContract.steps.transfer'
-      defaultMessage='function details' />
+      defaultMessage='function details'
+    />
   ),
   sending: (
     <FormattedMessage
       id='executeContract.steps.sending'
-      defaultMessage='sending' />
+      defaultMessage='sending'
+    />
   ),
   complete: (
     <FormattedMessage
       id='executeContract.steps.complete'
-      defaultMessage='complete' />
+      defaultMessage='complete'
+    />
   ),
   advanced: (
     <FormattedMessage
       id='executeContract.steps.advanced'
-      defaultMessage='advanced options' />
+      defaultMessage='advanced options'
+    />
   ),
   rejected: (
     <FormattedMessage
       id='executeContract.steps.rejected'
-      defaultMessage='rejected' />
+      defaultMessage='rejected'
+    />
   )
 };
 const STAGES_BASIC = [TITLES.transfer, TITLES.sending, TITLES.complete];
@@ -139,7 +144,8 @@ class ExecuteContract extends Component {
           advancedOptions
             ? [STEP_BUSY]
             : [STEP_BUSY_OR_ADVANCED]
-        }>
+        }
+      >
         { this.renderExceptionWarning() }
         { this.renderStep() }
       </Modal>
@@ -170,10 +176,12 @@ class ExecuteContract extends Component {
         label={
           <FormattedMessage
             id='executeContract.button.cancel'
-            defaultMessage='cancel' />
+            defaultMessage='cancel'
+          />
         }
         icon={ <CancelIcon /> }
-        onClick={ onClose } />
+        onClick={ onClose }
+      />
     );
     const postBtn = (
       <Button
@@ -181,11 +189,13 @@ class ExecuteContract extends Component {
         label={
           <FormattedMessage
             id='executeContract.button.post'
-            defaultMessage='post transaction' />
+            defaultMessage='post transaction'
+          />
         }
         disabled={ !!(sending || hasError) }
         icon={ <IdentityIcon address={ fromAddress } button /> }
-        onClick={ this.postTransaction } />
+        onClick={ this.postTransaction }
+      />
     );
     const nextBtn = (
       <Button
@@ -193,10 +203,12 @@ class ExecuteContract extends Component {
         label={
           <FormattedMessage
             id='executeContract.button.next'
-            defaultMessage='next' />
+            defaultMessage='next'
+          />
         }
         icon={ <NextIcon /> }
-        onClick={ this.onNextClick } />
+        onClick={ this.onNextClick }
+      />
     );
     const prevBtn = (
       <Button
@@ -204,10 +216,12 @@ class ExecuteContract extends Component {
         label={
           <FormattedMessage
             id='executeContract.button.prev'
-            defaultMessage='prev' />
+            defaultMessage='prev'
+          />
         }
         icon={ <PrevIcon /> }
-        onClick={ this.onPrevClick } />
+        onClick={ this.onPrevClick }
+      />
     );
 
     if (step === STEP_DETAILS) {
@@ -233,10 +247,12 @@ class ExecuteContract extends Component {
         label={
           <FormattedMessage
             id='executeContract.button.done'
-            defaultMessage='done' />
+            defaultMessage='done'
+          />
         }
         icon={ <DoneIcon /> }
-        onClick={ onClose } />
+        onClick={ onClose }
+      />
     ];
   }
 
@@ -250,13 +266,16 @@ class ExecuteContract extends Component {
           title={
             <FormattedMessage
               id='executeContract.rejected.title'
-              defaultMessage='The execution has been rejected' />
+              defaultMessage='The execution has been rejected'
+            />
           }
           state={
             <FormattedMessage
               id='executeContract.rejected.state'
-              defaultMessage='You can safely close this window, the function execution will not occur.' />
-          } />
+              defaultMessage='You can safely close this window, the function execution will not occur.'
+            />
+          }
+        />
       );
     }
 
@@ -269,7 +288,8 @@ class ExecuteContract extends Component {
           onFromAddressChange={ onFromAddressChange }
           onFuncChange={ this.onFuncChange }
           onAdvancedClick={ this.onAdvancedClick }
-          onValueChange={ this.onValueChange } />
+          onValueChange={ this.onValueChange }
+        />
       );
     } else if (step === (advancedOptions ? STEP_BUSY : STEP_BUSY_OR_ADVANCED)) {
       return (
@@ -277,9 +297,11 @@ class ExecuteContract extends Component {
           title={
             <FormattedMessage
               id='executeContract.busy.title'
-              defaultMessage='The function execution is in progress' />
+              defaultMessage='The function execution is in progress'
+            />
           }
-          state={ busyState } />
+          state={ busyState }
+        />
       );
     } else if (advancedOptions && (step === STEP_BUSY_OR_ADVANCED)) {
       return (
@@ -287,7 +309,8 @@ class ExecuteContract extends Component {
           gasStore={ this.gasStore }
           minBlock={ minBlock }
           minBlockError={ minBlockError }
-          onMinBlockChange={ this.onMinBlockChange } />
+          onMinBlockChange={ this.onMinBlockChange }
+        />
       );
     }
 
@@ -406,7 +429,8 @@ class ExecuteContract extends Component {
           busyState: (
             <FormattedMessage
               id='executeContract.busy.waitAuth'
-              defaultMessage='Waiting for authorization in the Parity Signer' />
+              defaultMessage='Waiting for authorization in the Parity Signer'
+            />
           )
         });
 
@@ -429,7 +453,8 @@ class ExecuteContract extends Component {
           busyState: (
             <FormattedMessage
               id='executeContract.busy.posted'
-              defaultMessage='Your transaction has been posted to the network' />
+              defaultMessage='Your transaction has been posted to the network'
+            />
           )
         });
       })

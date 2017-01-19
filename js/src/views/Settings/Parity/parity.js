@@ -40,9 +40,11 @@ export default class Parity extends Component {
 
   render () {
     return (
-      <Container title={
-        <FormattedMessage id='settings.parity.label' />
-      }>
+      <Container
+        title={
+          <FormattedMessage id='settings.parity.label' />
+        }
+      >
         <div className={ layout.layout }>
           <div className={ layout.overview }>
             <div>
@@ -58,7 +60,6 @@ export default class Parity extends Component {
             <Features />
           </div>
         </div>
-
         { this.renderLogsConfig() }
       </Container>
     );
@@ -69,7 +70,8 @@ export default class Parity extends Component {
       <MenuItem
         key={ mode }
         label={ label }
-        value={ mode }>
+        value={ mode }
+      >
         { label }
       </MenuItem>
     );
@@ -142,7 +144,8 @@ export default class Parity extends Component {
           />
         }
         onChange={ this.onChangeMode }
-        value={ mode }>
+        value={ mode }
+      >
         {
           this.renderItem('active', (
             <FormattedMessage

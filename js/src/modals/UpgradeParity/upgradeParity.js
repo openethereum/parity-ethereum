@@ -50,22 +50,27 @@ export default class UpgradeParity extends Component {
           <FormattedMessage
             id='upgradeParity.step.info'
             key='info'
-            defaultMessage='upgrade available' />,
+            defaultMessage='upgrade available'
+          />,
           <FormattedMessage
             key='updating'
             id='upgradeParity.step.updating'
-            defaultMessage='upgrading parity' />,
+            defaultMessage='upgrading parity'
+          />,
           store.step === STEP_ERROR
             ? <FormattedMessage
               id='upgradeParity.step.error'
               key='error'
-              defaultMessage='error' />
+              defaultMessage='error'
+              />
             : <FormattedMessage
               id='upgradeParity.step.completed'
               key='completed'
-              defaultMessage='upgrade completed' />
+              defaultMessage='upgrade completed'
+              />
         ] }
-        visible>
+        visible
+      >
         { this.renderStep() }
       </Modal>
     );
@@ -81,9 +86,11 @@ export default class UpgradeParity extends Component {
         label={
           <FormattedMessage
             id='upgradeParity.button.close'
-            defaultMessage='close' />
+            defaultMessage='close'
+          />
         }
-        onClick={ store.closeModal } />;
+        onClick={ store.closeModal }
+      />;
     const doneButton =
       <Button
         icon={ <DoneIcon /> }
@@ -91,9 +98,11 @@ export default class UpgradeParity extends Component {
         label={
           <FormattedMessage
             id='upgradeParity.button.done'
-            defaultMessage='done' />
+            defaultMessage='done'
+          />
         }
-        onClick={ store.closeModal } />;
+        onClick={ store.closeModal }
+      />;
 
     switch (store.step) {
       case STEP_INFO:
@@ -104,9 +113,11 @@ export default class UpgradeParity extends Component {
             label={
               <FormattedMessage
                 id='upgradeParity.button.upgrade'
-                defaultMessage='upgrade now' />
+                defaultMessage='upgrade now'
+              />
             }
-            onClick={ store.upgradeNow } />,
+            onClick={ store.upgradeNow }
+          />,
           closeButton
         ];
 
@@ -142,7 +153,8 @@ export default class UpgradeParity extends Component {
                 values={ {
                   currentversion: <div className={ styles.version }>{ currentversion }</div>,
                   newversion: <div className={ styles.version }>{ newversion }</div>
-                } } />
+                } }
+              />
             </div>
             { this.renderConsensusInfo() }
           </div>
@@ -157,8 +169,10 @@ export default class UpgradeParity extends Component {
                 defaultMessage='Your upgrade to Parity {newversion} is currently in progress'
                 values={ {
                   newversion: <div className={ styles.version }>{ newversion }</div>
-                } } />
-            } />
+                } }
+              />
+            }
+          />
         );
 
       case STEP_COMPLETED:
@@ -172,7 +186,8 @@ export default class UpgradeParity extends Component {
                   defaultMessage='Your upgrade to Parity {newversion} has failed with an error.'
                   values={ {
                     newversion: <div className={ styles.version }>{ newversion }</div>
-                  } } />
+                  } }
+                />
               </div>
               <div className={ styles.error }>
                 { store.error.message }
@@ -188,7 +203,8 @@ export default class UpgradeParity extends Component {
               defaultMessage='Your upgrade to Parity {newversion} has been successfully completed.'
               values={ {
                 newversion: <div className={ styles.version }>{ newversion }</div>
-              } } />
+              } }
+            />
           </Completed>
         );
     }
@@ -204,7 +220,8 @@ export default class UpgradeParity extends Component {
           <div>
             <FormattedMessage
               id='upgradeParity.consensus.capable'
-              defaultMessage='Your current Parity version is capable of handling the network requirements.' />
+              defaultMessage='Your current Parity version is capable of handling the network requirements.'
+            />
           </div>
         );
       } else if (consensusCapability.capableUntil) {
@@ -215,7 +232,8 @@ export default class UpgradeParity extends Component {
               defaultMessage='Your current Parity version is capable of handling the network requirements until block {blockNumber}'
               values={ {
                 blockNumber: consensusCapability.capableUntil
-              } } />
+              } }
+            />
           </div>
         );
       } else if (consensusCapability.incapableSince) {
@@ -226,7 +244,8 @@ export default class UpgradeParity extends Component {
               defaultMessage='Your current Parity version is incapable of handling the network requirements since block {blockNumber}'
               values={ {
                 blockNumber: consensusCapability.incapableSince
-              } } />
+              } }
+            />
           </div>
         );
       }
@@ -236,7 +255,8 @@ export default class UpgradeParity extends Component {
       <div>
         <FormattedMessage
           id='upgradeParity.consensus.unknown'
-          defaultMessage='Your current Parity version is capable of handling the network requirements.' />
+          defaultMessage='Your current Parity version is capable of handling the network requirements.'
+        />
       </div>
     );
   }
@@ -246,7 +266,8 @@ export default class UpgradeParity extends Component {
       return (
         <FormattedMessage
           id='upgradeParity.version.unknown'
-          defaultMessage='unknown' />
+          defaultMessage='unknown'
+        />
       );
     }
 

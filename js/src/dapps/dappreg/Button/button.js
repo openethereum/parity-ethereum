@@ -36,7 +36,8 @@ export default class Button extends Component {
         className={ classes }
         data-warning={ warning }
         disabled={ disabled }
-        onClick={ this.onClick }>
+        onClick={ this.onClick }
+      >
         { label }
       </button>
     );

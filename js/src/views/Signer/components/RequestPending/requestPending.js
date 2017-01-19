@@ -68,7 +68,8 @@ export default class RequestPending extends Component {
           isTest={ isTest }
           onConfirm={ this.onConfirm }
           onReject={ onReject }
-          store={ store } />
+          store={ store }
+        />
       );
     }
 
@@ -86,7 +87,8 @@ export default class RequestPending extends Component {
           onConfirm={ this.onConfirm }
           onReject={ onReject }
           store={ store }
-          transaction={ transaction } />
+          transaction={ transaction }
+        />
       );
     }
 

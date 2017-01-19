@@ -15,8 +15,17 @@
     "jsx-quotes": ["error", "prefer-single"],
     "no-alert": "error",
     "no-debugger": "error",
+    "no-duplicate-imports": ["error", {
+      "includeExports": true
+    }],
     "object-curly-spacing": ["error", "always"],
     "object-property-newline": 0,
+    "padded-blocks": ["error", {
+      "blocks": "never",
+      "classes": "never",
+      "switches": "never"
+    }],
+    "react/jsx-closing-bracket-location": "error",
     "react/jsx-curly-spacing": ["error", "always"]
   }
 }

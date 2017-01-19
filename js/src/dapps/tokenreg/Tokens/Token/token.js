@@ -99,7 +99,8 @@ export default class Token extends Component {
     return (<div>
       <Paper zDepth={ 1 } className={ styles.token } style={ {
         backgroundColor: 'none'
-      } }>
+      } }
+      >
         <div className={ styles['token-bg'] } />
         { this.renderContent() }
       </Paper>
@@ -128,7 +129,8 @@ export default class Token extends Component {
             floatingLabelText='Choose the meta-data to look-up'
             fullWidth
             value={ this.state.metaKeyIndex }
-            onChange={ this.onMetaKeyChange }>
+            onChange={ this.onMetaKeyChange }
+          >
 
             { this.renderMetaKeyItems() }
 
@@ -139,7 +141,8 @@ export default class Token extends Component {
             icon={ <FindIcon /> }
             primary
             fullWidth
-            onTouchTap={ this.onMetaLookup } />
+            onTouchTap={ this.onMetaLookup }
+          />
         </div>
 
         { this.renderMeta(meta) }
@@ -157,7 +160,8 @@ export default class Token extends Component {
       <MenuItem
         value={ index }
         key={ index }
-        label={ key.label } primaryText={ key.label } />
+        label={ key.label } primaryText={ key.label }
+      />
     ));
   }
 
@@ -169,7 +173,8 @@ export default class Token extends Component {
     return (
       <Chip
         value={ Math.log10(base).toString() }
-        label='Decimals' />
+        label='Decimals'
+      />
     );
   }
 
@@ -182,7 +187,8 @@ export default class Token extends Component {
       <Chip
         isAddress
         value={ address }
-        label='Address' />
+        label='Address'
+      />
     );
   }
 
@@ -192,7 +198,8 @@ export default class Token extends Component {
     return (
       <Chip
         value={ `${balance.toString()} ${tla}` }
-        label='Total' />
+        label='Total'
+      />
     );
   }
 
@@ -212,7 +219,8 @@ export default class Token extends Component {
         isAddress
         displayValue={ displayValue }
         value={ owner }
-        label='Owner' />
+        label='Owner'
+      />
     );
   }
 
@@ -237,7 +245,8 @@ export default class Token extends Component {
       <AddMeta
         handleAddMeta={ this.props.handleAddMeta }
         isTokenOwner={ this.props.isTokenOwner }
-        index={ this.props.index } />
+        index={ this.props.index }
+      />
     );
   }
 
@@ -253,7 +262,8 @@ export default class Token extends Component {
         icon={ <DeleteIcon /> }
         secondary
         fullWidth
-        onTouchTap={ this.onUnregister } />
+        onTouchTap={ this.onUnregister }
+      />
     );
   }
 

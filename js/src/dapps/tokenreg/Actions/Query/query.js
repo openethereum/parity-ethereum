@@ -35,7 +35,6 @@ const initState = {
 };
 
 export default class QueryAction extends Component {
-
   static propTypes = {
     show: PropTypes.bool.isRequired,
     loading: PropTypes.bool.isRequired,
@@ -56,7 +55,8 @@ export default class QueryAction extends Component {
         open={ this.props.show }
         className={ styles.dialog }
         onRequestClose={ this.onClose }
-        actions={ this.renderActions() } >
+        actions={ this.renderActions() }
+      >
         { this.renderContent() }
       </Dialog>
     );
@@ -70,7 +70,8 @@ export default class QueryAction extends Component {
         <FlatButton
           label='Loading...'
           primary
-          disabled />
+          disabled
+        />
       );
     }
 
@@ -81,7 +82,8 @@ export default class QueryAction extends Component {
         <FlatButton
           label='Close'
           primary
-          onTouchTap={ this.onClose } />
+          onTouchTap={ this.onClose }
+        />
       ]);
     }
 
@@ -91,12 +93,14 @@ export default class QueryAction extends Component {
       <FlatButton
         label='Cancel'
         primary
-        onTouchTap={ this.onClose } />,
+        onTouchTap={ this.onClose }
+      />,
       <FlatButton
         label='Query'
         primary
         disabled={ !isValid }
-        onTouchTap={ this.onQuery } />
+        onTouchTap={ this.onQuery }
+      />
     ]);
   }
 
@@ -140,31 +144,38 @@ export default class QueryAction extends Component {
           floatingLabelText='Select which field to query'
           fullWidth
           value={ this.state.queryKey }
-          onChange={ this.onQueryKeyChange }>
+          onChange={ this.onQueryKeyChange }
+        >
           <MenuItem value='tla' label='TLA' primaryText='TLA' />
           <MenuItem value='address' label='Address' primaryText='Address' />
         </SelectField>
 
         {
           this.state.queryKey !== 'tla'
-          ? (<InputText
-            key={ 0 }
+          ? (
+            <InputText
+              key={ 0 }
 
-            floatingLabelText="Token's address"
-            hintText='0xdeadbeef...'
+              floatingLabelText="Token's address"
+              hintText='0xdeadbeef...'
 
-            validationType={ SIMPLE_TOKEN_ADDRESS_TYPE }
-            onChange={ this.onChange }
-            onEnter={ this.onQuery } />)
-          : (<InputText
-            key={ 1 }
+              validationType={ SIMPLE_TOKEN_ADDRESS_TYPE }
+              onChange={ this.onChange }
+              onEnter={ this.onQuery }
+            />
+          )
+          : (
+            <InputText
+              key={ 1 }
 
-            floatingLabelText="Token's TLA"
-            hintText='GAV'
+              floatingLabelText="Token's TLA"
+              hintText='GAV'
 
-            validationType={ SIMPLE_TLA_TYPE }
-            onChange={ this.onChange }
-            onEnter={ this.onQuery } />)
+              validationType={ SIMPLE_TLA_TYPE }
+              onChange={ this.onChange }
+              onEnter={ this.onQuery }
+            />
+          )
         }
       </div>
     );
@@ -203,5 +214,4 @@ export default class QueryAction extends Component {
     this.setState(initState);
     this.props.onClose();
   }
-
 }

@@ -84,7 +84,8 @@ export default class ParametersStep extends Component {
             label={ label }
             onChange={ onChange }
             param={ param }
-            value={ value } />
+            value={ value }
+          />
         </div>
       );
     });
@@ -94,7 +95,8 @@ export default class ParametersStep extends Component {
         <p>
           <FormattedMessage
             id='deployContract.parameters.choose'
-            defaultMessage='Choose the contract parameters' />
+            defaultMessage='Choose the contract parameters'
+          />
         </p>
         { inputsComponents }
       </div>

@@ -94,7 +94,8 @@ export default class Application extends Component {
             disabled={ registerBusy }
             value={ repo }
             className={ repoError ? styles.error : null }
-            onChange={ this.onChangeRepo } />
+            onChange={ this.onChangeRepo }
+          />
         </div>,
         <div className={ styles.capture } key='hash'>
           <input
@@ -103,7 +104,8 @@ export default class Application extends Component {
             disabled={ registerBusy }
             value={ commit }
             className={ commitError ? styles.error : null }
-            onChange={ this.onChangeCommit } />
+            onChange={ this.onChangeCommit }
+          />
         </div>
       ];
     } else {
@@ -115,7 +117,8 @@ export default class Application extends Component {
             disabled={ registerBusy }
             value={ url }
             className={ urlError ? styles.error : null }
-            onChange={ this.onChangeUrl } />
+            onChange={ this.onChangeUrl }
+          />
         </div>
       );
     }
@@ -128,11 +131,17 @@ export default class Application extends Component {
               <Button
                 disabled={ registerBusy }
                 invert={ registerType !== 'file' }
-                onClick={ this.onClickTypeNormal }>File Link</Button>
+                onClick={ this.onClickTypeNormal }
+              >
+                File Link
+              </Button>
               <Button
                 disabled={ registerBusy }
                 invert={ registerType !== 'content' }
-                onClick={ this.onClickTypeContent }>Content Bundle</Button>
+                onClick={ this.onClickTypeContent }
+              >
+                Content Bundle
+              </Button>
             </div>
             <div className={ styles.box }>
               <div className={ styles.description }>
@@ -148,7 +157,8 @@ export default class Application extends Component {
         </div>
         <Events
           eventIds={ this.state.eventIds }
-          events={ this.state.events } />
+          events={ this.state.events }
+        />
       </div>
     );
   }
@@ -167,7 +177,8 @@ export default class Application extends Component {
         </div>
         <Button
           onClick={ this.onClickRegister }
-          disabled={ (contentHashError && contentHashOwner !== fromAddress) || urlError || repoError || commitError }>register url</Button>
+          disabled={ (contentHashError && contentHashOwner !== fromAddress) || urlError || repoError || commitError }
+        >register url</Button>
       </div>
     );
   }

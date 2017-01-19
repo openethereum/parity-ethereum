@@ -70,7 +70,8 @@ class ParityBar extends Component {
     const parityIcon = (
       <img
         className={ styles.parityIcon }
-        src={ imagesEthcoreBlock } />
+        src={ imagesEthcoreBlock }
+      />
     );
 
     return (
@@ -85,15 +86,18 @@ class ParityBar extends Component {
                   this.renderLabel(
                     <FormattedMessage
                       id='parityBar.label.parity'
-                      defaultMessage='Parity' />
+                      defaultMessage='Parity'
+                    />
                   )
-                } />
+                }
+              />
             </Link>
             <Button
               className={ styles.button }
               icon={ <FingerprintIcon /> }
               label={ this.renderSignerLabel() }
-              onClick={ this.toggleDisplay } />
+              onClick={ this.toggleDisplay }
+            />
           </div>
         </ParityBackground>
       </div>
@@ -106,11 +110,14 @@ class ParityBar extends Component {
         <ParityBackground className={ styles.expanded }>
           <div className={ styles.header }>
             <div className={ styles.title }>
-              <ContainerTitle title={
-                <FormattedMessage
-                  id='parityBar.title.pending'
-                  defaultMessage='Parity Signer: Pending' />
-              } />
+              <ContainerTitle
+                title={
+                  <FormattedMessage
+                    id='parityBar.title.pending'
+                    defaultMessage='Parity Signer: Pending'
+                  />
+                }
+              />
             </div>
             <div className={ styles.actions }>
               <Button
@@ -118,9 +125,11 @@ class ParityBar extends Component {
                 label={
                   <FormattedMessage
                     id='parityBar.button.close'
-                    defaultMessage='Close' />
+                    defaultMessage='Close'
+                  />
                 }
-                onClick={ this.toggleDisplay } />
+                onClick={ this.toggleDisplay }
+              />
             </div>
           </div>
           <div className={ styles.content }>
@@ -148,12 +157,16 @@ class ParityBar extends Component {
     return this.renderLabel(
       <FormattedMessage
         id='parityBar.label.signer'
-        defaultMessage='Signer' />,
+        defaultMessage='Signer'
+      />,
       pending && pending.length
-        ? <Badge
-          className={ styles.labelBubble }
-          color='red'
-          value={ pending.length } />
+        ? (
+          <Badge
+            className={ styles.labelBubble }
+            color='red'
+            value={ pending.length }
+          />
+        )
         : null
     );
   }

@@ -67,7 +67,8 @@ export default class Events extends Component {
         <Event
           key={ event.key }
           event={ event }
-          isTest={ isTest } />
+          isTest={ isTest }
+        />
       );
     });
 

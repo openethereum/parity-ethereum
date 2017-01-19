@@ -39,15 +39,18 @@ export default class AdvancedStep extends Component {
           hint={
             <FormattedMessage
               id='executeContract.advanced.minBlock.hint'
-              defaultMessage='Only post the transaction after this block' />
+              defaultMessage='Only post the transaction after this block'
+            />
           }
           label={
             <FormattedMessage
               id='executeContract.advanced.minBlock.label'
-              defaultMessage='BlockNumber to send from' />
+              defaultMessage='BlockNumber to send from'
+            />
           }
           value={ minBlock }
-          onSubmit={ onMinBlockChange } />
+          onSubmit={ onMinBlockChange }
+        />
         <div className={ styles.gaseditor }>
           <GasPriceEditor store={ gasStore } />
         </div>

@@ -247,7 +247,7 @@ impl Rpc {
 		self.pending.insert(id, c);
 
 		let request = MethodCall {
-			jsonrpc: Version::V2,
+			jsonrpc: Some(Version::V2),
 			method: method.to_owned(),
 			params: Some(Params::Array(params)),
 			id: Id::Num(id as u64),

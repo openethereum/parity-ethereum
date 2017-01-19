@@ -50,7 +50,7 @@ export default class AccountLink extends Component {
         href={ this.state.link }
         target='_blank'
         className={ `${styles.container} ${className}` }
-        >
+      >
         { children || address }
       </a>
     );

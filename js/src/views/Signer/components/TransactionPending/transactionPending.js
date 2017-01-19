@@ -102,13 +102,15 @@ export default class TransactionPending extends Component {
           isTest={ isTest }
           totalValue={ totalValue }
           transaction={ transaction }
-          value={ value } />
+          value={ value }
+        />
         <TransactionPendingForm
           address={ from }
           focus={ focus }
           isSending={ isSending }
           onConfirm={ this.onConfirm }
-          onReject={ this.onReject } />
+          onReject={ this.onReject }
+        />
       </div>
     );
   }
@@ -118,11 +120,11 @@ export default class TransactionPending extends Component {
 
     return (
       <div className={ `${styles.container} ${className}` }>
-        <GasPriceEditor
-          store={ this.gasStore }>
+        <GasPriceEditor store={ this.gasStore }>
           <Button
             label='view transaction'
-            onClick={ this.toggleGasEditor } />
+            onClick={ this.toggleGasEditor }
+          />
         </GasPriceEditor>
       </div>
     );
