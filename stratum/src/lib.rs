@@ -282,17 +282,15 @@ impl PushWorkHandler for Stratum {
 
 #[cfg(test)]
 mod tests {
-	use std;
 	use super::*;
 	use std::str::FromStr;
 	use std::net::SocketAddr;
-	use std::sync::{Arc, RwLock};
-	use std::thread;
+	use std::sync::Arc;
 
 	use tokio_core::reactor::{Core, Timeout};
 	use tokio_core::net::TcpStream;
 	use tokio_core::io;
-	use futures::{Future, future, BoxFuture};
+	use futures::{Future, future};
 
 	pub struct VoidManager;
 
@@ -396,6 +394,13 @@ mod tests {
 		}
 	}
 
+	fn terminated_str(origin: &'static str) -> String {
+		let mut s = String::new();
+		s.push_str(origin);
+		s.push_str("\n");
+		s
+	}
+
 	#[test]
 	fn receives_initial_paylaod() {
 		let addr = SocketAddr::from_str("127.0.0.1:19975").unwrap();
@@ -404,7 +409,7 @@ mod tests {
 
 		let response = String::from_utf8(dummy_request(&addr, request)).unwrap();
 
-		assert_eq!(r#"{"jsonrpc":"2.0","result":["dummy payload"],"id":2}"#, response);
+		assert_eq!(terminated_str(r#"{"jsonrpc":"2.0","result":["dummy payload"],"id":2}"#), response);
 	}
 
 	#[test]
@@ -419,7 +424,7 @@ mod tests {
 		let request = r#"{"jsonrpc": "2.0", "method": "mining.authorize", "params": ["miner1", ""], "id": 1}"#;
 		let response = String::from_utf8(dummy_request(&addr, request)).unwrap();
 
-		assert_eq!(r#"{"jsonrpc":"2.0","result":true,"id":1}"#, response);
+		assert_eq!(terminated_str(r#"{"jsonrpc":"2.0","result":true,"id":1}"#), response);
 		assert_eq!(1, stratum.workers.read().len());
 	}
 
@@ -480,31 +485,4 @@ mod tests {
 			"{ \"id\": 17, \"method\": \"mining.notify\", \"params\": { \"00040008\", \"100500\" } }\n",
 			response);
 	}
-
-	// #[test]
-	// fn can_push_work() {
-	// 	init_log();
-	//
-	// 	let addr = SocketAddr::from_str("0.0.0.0:19965").unwrap();
-	// 	let stratum = Stratum::start(
-	// 		&addr,
-	// 		Arc::new(DummyManager::build().of_initial(r#"["dummy push request payload"]"#)),
-	// 		None
-	// 	).unwrap();
-	//
-	// 	let result = Arc::new(RwLock::new(Vec::<String>::new()));
-	// 	let _stop = dummy_async_waiter(
-	// 		&addr,
-	// 		vec![
-	// 			r#"{"jsonrpc": "2.0", "method": "mining.authorize", "params": ["miner1", ""], "id": 1}"#.to_owned(),
-	// 		],
-	// 		result.clone(),
-	// 	);
-	// 	::std::thread::park_timeout(::std::time::Duration::from_millis(150));
-	//
-	// 	stratum.push_work_all(r#"{ "00040008", "100500" }"#.to_owned()).unwrap();
-	// 	::std::thread::park_timeout(::std::time::Duration::from_millis(150));
-	//
-	// 	assert_eq!(2, result.read().unwrap().len());
-	// }
 }
