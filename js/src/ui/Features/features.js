@@ -57,14 +57,16 @@ export default class Features extends Component {
                     <Checkbox
                       checked={ this.store.active[key] }
                       disabled={ feature.mode === MODES.TESTING }
-                      onCheck={ onCheck } />
+                      onCheck={ onCheck }
+                    />
                   }
                   primaryText={ feature.name }
                   secondaryText={
                     <div className={ styles.description }>
                       { feature.description }
                     </div>
-                  } />
+                  }
+                />
               );
             })
         }
