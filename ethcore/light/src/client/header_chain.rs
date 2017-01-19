@@ -28,7 +28,7 @@
 
 use std::collections::{BTreeMap, HashMap};
 
-use client::cht;
+use cht;
 
 use ethcore::block_status::BlockStatus;
 use ethcore::error::BlockError;
