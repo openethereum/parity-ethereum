@@ -16,16 +16,34 @@
 
 import React, { Component, PropTypes } from 'react';
 
-import styles from './.css';
+import styles from './dappIcon.css';
 
 export default class DappIcon extends Component {
+  static contextTypes = {
+    api: PropTypes.object.isRequired
+  };
+
   static propTypes = {
-    app: PropTypes.object.isRequired
-  }
+    app: PropTypes.object.isRequired,
+    className: PropTypes.string,
+    small: PropTypes.bool
+  };
 
   render () {
+    const { className, small } = this.props;
+
     return (
-      <div className={ styles.body }>hello</div>
+      <img
+        className={
+          [
+            styles.icon,
+            small
+              ? styles.small
+              : styles.normal,
+            className
+          ].join(' ')
+        }
+      />
     );
   }
 }

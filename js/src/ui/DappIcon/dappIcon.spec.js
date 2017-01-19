@@ -14,6 +14,31 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-describe('ui/DappIcon', () => {
+import { shallow } from 'enzyme';
+import React from 'react';
 
+import DappIcon from './';
+
+let api;
+let component;
+
+function createApi () {
+  api = {};
+
+  return api;
+}
+
+function render (app) {
+  component = shallow(
+    <DappIcon app={ app } />,
+    { context: { api: createApi() } }
+  );
+
+  return component;
+}
+
+describe('ui/DappIcon', () => {
+  it('renders defaults', () => {
+    expect(render()).to.be.ok;
+  });
 });

@@ -20,7 +20,7 @@ import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 import { Link } from 'react-router';
 
-import { Container, DappUrlInput, IdentityName, IdentityIcon, Page } from '~/ui';
+import { Container, DappIcon, DappUrlInput, IdentityName, IdentityIcon, Page } from '~/ui';
 
 import DappsStore from '../Dapps/dappsStore';
 import HistoryStore from '../historyStore';
@@ -179,12 +179,9 @@ export default class Home extends Component {
           </td>
           <td className={ styles.entry }>
             <Link to={ `/app/${h.entry}` }>
-              <img
-                className={ styles.dappIcon }
-                src={ '' }
-              />
+              <DappIcon app={ dapp } />
               <span>
-                { dapp.name || h.entry }
+                { dapp.name }
               </span>
             </Link>
           </td>
