@@ -250,7 +250,7 @@ impl TestBlockChainClient {
 						value: U256::from(100),
 						data: "3331600055".from_hex().unwrap(),
 						gas: U256::from(100_000),
-						gas_price: U256::one(),
+						gas_price: U256::from(200_000_000_000u64),
 						nonce: U256::zero()
 					};
 					let signed_tx = tx.sign(keypair.secret(), None);
@@ -320,7 +320,7 @@ impl TestBlockChainClient {
 			nonce: U256::zero()
 		};
 		let signed_tx = tx.sign(keypair.secret(), None);
-		self.set_balance(signed_tx.sender(), 10_000_000.into());
+		self.set_balance(signed_tx.sender(), 10_000_000_000_000_000_000u64.into());
 		let hash = signed_tx.hash();
 		let res = self.miner.import_external_transactions(self, vec![signed_tx.into()]);
 		let res = res.into_iter().next().unwrap().expect("Successful import");
@@ -330,7 +330,7 @@ impl TestBlockChainClient {
 
 	/// Inserts a transaction to miners transactions queue.
 	pub fn insert_transaction_to_queue(&self) -> H256 {
-		self.insert_transaction_with_gas_price_to_queue(U256::one())
+		self.insert_transaction_with_gas_price_to_queue(U256::from(20_000_000_000u64))
 	}
 
 	/// Set reported history size.
