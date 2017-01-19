@@ -81,7 +81,7 @@ linux-stable-debian:
   artifacts:
     paths:
     - target/release/parity
-name: "stable-x86_64-unknown-debian-gnu_parity"
+    name: "stable-x86_64-unknown-debian-gnu_parity"
 linux-beta:
   stage: build
   image: ethcore/rust:beta
