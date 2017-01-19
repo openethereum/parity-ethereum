@@ -27,6 +27,12 @@ export default class GithubHint {
   }
 
   getInstance () {
-    return this.getContract().instance;
+    return this.getContract().then((contract) => contract.instance);
+  }
+
+  getEntry (entryId) {
+    return this.getInstance().then((instance) => {
+      return instance.entries.call({}, [entryId]);
+    });
   }
 }
