@@ -19,7 +19,7 @@
 
 if (typeof(window.parity) == 'object')
   window.api = window.parent.secureApi;
-  window.parity.api.subscribe('eth_blockNumber', function (error, blockNumber) {
+  window.api.subscribe('eth_blockNumber', function (error, blockNumber) {
     if (error) {
       console.log('error', error);
       return;
