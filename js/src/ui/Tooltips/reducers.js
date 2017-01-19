@@ -14,13 +14,15 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import storage from '~/util/storage';
+
 const LS_KEY = 'tooltips';
 
 let currentId = -1;
 let maxId = 0;
 
 function closeTooltips (state, action) {
-  window.localStorage.setItem(LS_KEY, '{"state":"off"}');
+  storage.setItem(LS_KEY, '{"state":"off"}');
 
   currentId = -1;
 
@@ -41,7 +43,7 @@ function newTooltip (state, action) {
 }
 
 function nextTooltip (state, action) {
-  const hideTips = window.localStorage.getItem(LS_KEY);
+  const hideTips = storage.getItem(LS_KEY);
 
   currentId = hideTips
     ? -1

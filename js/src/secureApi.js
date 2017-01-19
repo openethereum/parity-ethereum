@@ -18,9 +18,9 @@ import { uniq } from 'lodash';
 
 import Api from './api';
 import { LOG_KEYS, getLogger } from '~/config';
+import storage from '~/util/storage';
 
 const log = getLogger(LOG_KEYS.Signer);
-const sysuiToken = window.localStorage.getItem('sysuiToken');
 
 export default class SecureApi extends Api {
   _isConnecting = false;
@@ -31,8 +31,14 @@ export default class SecureApi extends Api {
   _dappsPort = 8080;
   _signerPort = 8180;
 
-  constructor (url, nextToken) {
-    const transport = new Api.Transport.Ws(url, sysuiToken, false);
+  static getTransport (url, sysuiToken) {
+    return new Api.Transport.Ws(url, sysuiToken, false);
+  }
+
+  constructor (url, nextToken, getTransport = SecureApi.getTransport) {
+    let sysuiToken = storage.getItem('sysuiToken');
+
+    const transport = getTransport(url, sysuiToken);
     super(transport);
 
     this._url = url;
@@ -56,8 +62,8 @@ export default class SecureApi extends Api {
   }
 
   get hostname () {
-    if (window.location.hostname === 'home.parity') {
-      return 'dapps.parity';
+    if (window.location.hostname === 'home.ethlink.io') {
+      return 'dapps.ethlink.io';
     }
 
     if (!this._dappsInterface || this._dappsInterface === '0.0.0.0') {
@@ -308,7 +314,7 @@ export default class SecureApi extends Api {
   }
 
   _saveToken (token) {
-    window.localStorage.setItem('sysuiToken', token);
+    storage.setItem('sysuiToken', token);
   }
 
   /**

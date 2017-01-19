@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import { action, observable } from 'mobx';
+import storage from '~/util/storage';
 
 export default class Store {
   @observable firstrunVisible = false;
@@ -22,7 +23,7 @@ export default class Store {
   constructor (api) {
     this._api = api;
 
-    const value = window.localStorage.getItem('showFirstRun');
+    const value = storage.getItem('showFirstRun');
     if (value) {
       this.firstrunVisible = JSON.parse(value);
     }
@@ -36,7 +37,7 @@ export default class Store {
 
   @action toggleFirstrun = (visible = false) => {
     this.firstrunVisible = visible;
-    window.localStorage.setItem('showFirstRun', JSON.stringify(!!visible));
+    storage.setItem('showFirstRun', JSON.stringify(!!visible));
   }
 
   _checkAccounts () {

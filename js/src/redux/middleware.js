@@ -25,24 +25,38 @@ import CertificationsMiddleware from './providers/certifications/middleware';
 import ChainMiddleware from './providers/chainMiddleware';
 import RegistryMiddleware from './providers/registry/middleware';
 
-export default function (api, browserHistory) {
-  const errors = new ErrorsMiddleware();
-  const signer = new SignerMiddleware(api);
-  const settings = new SettingsMiddleware();
+export default function (api, browserHistory, forEmbed = false) {
+  let middleware;
+  if (forEmbed) {
+    const errors = new ErrorsMiddleware();
+    const signer = new SignerMiddleware(api);
+    const settings = new SettingsMiddleware();
+    const chain = new ChainMiddleware();
+    middleware = [
+      settings.toMiddleware(),
+      signer.toMiddleware(),
+      errors.toMiddleware(),
+      chain.toMiddleware()
+    ];
+  } else {
+    const errors = new ErrorsMiddleware();
+    const signer = new SignerMiddleware(api);
+    const settings = new SettingsMiddleware();
+    const certifications = new CertificationsMiddleware();
+    const chain = new ChainMiddleware();
+    const registry = new RegistryMiddleware(api);
+
+    middleware = [
+      settings.toMiddleware(),
+      signer.toMiddleware(),
+      errors.toMiddleware(),
+      certifications.toMiddleware(),
+      chain.toMiddleware(),
+      registry
+    ];
+  }
+
   const status = statusMiddleware();
-  const certifications = new CertificationsMiddleware();
-  const routeMiddleware = routerMiddleware(browserHistory);
-  const chain = new ChainMiddleware();
-  const registry = new RegistryMiddleware(api);
-
-  const middleware = [
-    settings.toMiddleware(),
-    signer.toMiddleware(),
-    errors.toMiddleware(),
-    certifications.toMiddleware(),
-    chain.toMiddleware(),
-    registry
-  ];
-
+  const routeMiddleware = browserHistory ? routerMiddleware(browserHistory) : [];
   return middleware.concat(status, routeMiddleware, thunk);
 }

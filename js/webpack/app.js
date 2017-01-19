@@ -40,7 +40,8 @@ module.exports = {
 
   context: path.join(__dirname, '../src'),
   entry: Object.assign({}, Shared.dappsEntry, {
-    index: './index.js'
+    index: './index.js',
+    embed: './embed.js'
   }),
   output: {
     // publicPath: '/',
@@ -170,6 +171,17 @@ module.exports = {
         chunks: [
           isProd ? null : 'commons',
           'index'
+        ]
+      }),
+
+      new HtmlWebpackPlugin({
+        title: 'Parity Bar',
+        filename: 'embed.html',
+        template: './index.ejs',
+        favicon: FAVICON,
+        chunks: [
+          isProd ? null : 'commons',
+          'embed'
         ]
       }),
 

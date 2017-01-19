@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import defaultViews from './Views/defaults';
+import storage from '~/util/storage';
 
 function initBackground (store, api) {
   const backgroundSeed = loadBackground() || api.util.sha3(`${Date.now()}`);
@@ -26,11 +27,11 @@ function initBackground (store, api) {
 }
 
 function loadBackground () {
-  return window.localStorage.getItem('backgroundSeed');
+  return storage.getItem('backgroundSeed');
 }
 
 function saveBackground (backgroundSeed) {
-  window.localStorage.setItem('backgroundSeed', backgroundSeed);
+  storage.setItem('backgroundSeed', backgroundSeed);
 }
 
 function initViews (store) {
@@ -75,7 +76,7 @@ function loadViews () {
   let data;
 
   try {
-    const json = window.localStorage.getItem('views') || '{}';
+    const json = storage.getItem('views') || '{}';
 
     data = Object.assign(defaults, JSON.parse(json), fixed);
   } catch (e) {
@@ -86,7 +87,7 @@ function loadViews () {
 }
 
 function saveViews (store) {
-  window.localStorage.setItem('views', JSON.stringify(getDefaultViews()));
+  storage.setItem('views', JSON.stringify(getDefaultViews()));
 }
 
 function toggleViews (store, viewIds) {
