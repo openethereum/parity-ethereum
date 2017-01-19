@@ -30,18 +30,18 @@ export default class DappIcon extends Component {
   };
 
   render () {
-    const { className, small } = this.props;
+    const { dappsUrl } = this.context.api;
+    const { app, className, small } = this.props;
 
     return (
       <img
         className={
-          [
-            styles.icon,
-            small
-              ? styles.small
-              : styles.normal,
-            className
-          ].join(' ')
+          [styles.icon, styles[small ? 'small' : 'normal'], className].join(' ')
+        }
+        src={
+          app.type === 'local'
+            ? `${dappsUrl}/${app.id}/${app.iconUrl}`
+            : `${dappsUrl}${app.image}`
         }
       />
     );

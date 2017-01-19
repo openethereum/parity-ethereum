@@ -19,19 +19,29 @@ import React from 'react';
 
 import DappIcon from './';
 
+const DAPPS_URL = 'http://test';
+
 let api;
 let component;
 
 function createApi () {
-  api = {};
+  api = {
+    dappsUrl: DAPPS_URL
+  };
 
   return api;
 }
 
-function render (app) {
+function render (props = {}) {
+  if (!props.app) {
+    props.app = {};
+  }
+
   component = shallow(
-    <DappIcon app={ app } />,
-    { context: { api: createApi() } }
+    <DappIcon { ...props } />,
+    {
+      context: { api: createApi() }
+    }
   );
 
   return component;
@@ -40,5 +50,21 @@ function render (app) {
 describe('ui/DappIcon', () => {
   it('renders defaults', () => {
     expect(render()).to.be.ok;
+  });
+
+  it('adds specified className', () => {
+    expect(render({ className: 'testClass' }).hasClass('testClass')).to.be.true;
+  });
+
+  it('renders local apps with correct URL', () => {
+    expect(render({ app: { id: 'test', type: 'local', iconUrl: 'test.img' } }).props().src).to.equal(
+      `${DAPPS_URL}/test/test.img`
+    );
+  });
+
+  it('renders other apps with correct URL', () => {
+    expect(render({ app: { id: 'test', image: '/test.img' } }).props().src).to.equal(
+      `${DAPPS_URL}/test.img`
+    );
   });
 });
