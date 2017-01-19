@@ -15,16 +15,18 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import { observer } from 'mobx-react';
-import moment from 'moment';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
-import { Link } from 'react-router';
 
-import { Container, DappIcon, DappUrlInput, IdentityName, IdentityIcon, Page } from '~/ui';
+import { Page } from '~/ui';
 
 import DappsStore from '../Dapps/dappsStore';
 import HistoryStore from '../historyStore';
 import WebStore from '../Web/store';
+
+import Accounts from './Accounts';
+import Dapps from './Dapps';
+import Urls from './Urls';
 import styles from './home.css';
 
 @observer
@@ -41,10 +43,6 @@ export default class Home extends Component {
   dappsHistory = HistoryStore.get('dapps');
   webHistory = HistoryStore.get('web');
 
-  state = {
-    dapps: {}
-  };
-
   render () {
     return (
       <Page
@@ -58,225 +56,24 @@ export default class Home extends Component {
       >
         <div className={ styles.list }>
           <div className={ styles.item }>
-            { this.renderUrl() }
+            <Urls
+              history={ this.webHistory.history }
+              store={ this.webStore }
+            />
           </div>
           <div className={ styles.item }>
-            { this.renderDapps() }
+            <Dapps history={ this.dappsHistory.history } />
           </div>
           <div className={ styles.item }>
-            { this.renderAccounts() }
+            <Accounts history={ this.accountsHistory.history } />
           </div>
         </div>
       </Page>
     );
   }
 
-  renderAccounts () {
-    return (
-      <Container
-        title={
-          <FormattedMessage
-            id='home.accounts.title'
-            defaultMessage='Recent Accounts'
-          />
-        }
-      >
-        <div className={ styles.accounts }>
-          { this.renderAccountsHistory() }
-        </div>
-      </Container>
-    );
-  }
-
-  renderAccountsHistory () {
-    const { history } = this.accountsHistory;
-
-    if (!history.length) {
-      return (
-        <div className={ styles.empty }>
-          No recent accounts retrieved
-        </div>
-      );
-    }
-
-    const rows = history.map((h) => {
-      return (
-        <tr key={ h.timestamp }>
-          <td className={ styles.timestamp }>
-            { moment(h.timestamp).fromNow() }
-          </td>
-          <td className={ styles.entry }>
-            <Link to={ `/accounts/${h.entry}` }>
-              <IdentityIcon
-                address={ h.entry }
-                center
-                className={ styles.identityIcon }
-                inline
-              />
-              <IdentityName
-                address={ h.entry }
-                unknown
-              />
-            </Link>
-          </td>
-        </tr>
-      );
-    });
-
-    return (
-      <table className={ styles.history }>
-        <tbody>
-          { rows }
-        </tbody>
-      </table>
-    );
-  }
-
-  renderDapps () {
-    return (
-      <Container
-        title={
-          <FormattedMessage
-            id='home.dapps.title'
-            defaultMessage='Recent Dapps'
-          />
-        }
-      >
-        <div className={ styles.dapps }>
-          { this.renderDappsHistory() }
-        </div>
-      </Container>
-    );
-  }
-
-  renderDappsHistory () {
-    const { dapps } = this.state;
-    const { history } = this.dappsHistory;
-
-    if (!history.length) {
-      return (
-        <div className={ styles.empty }>
-          No recent applications retrieved
-        </div>
-      );
-    }
-
-    const rows = history.map((h) => {
-      const dapp = dapps[h.entry];
-
-      if (typeof dapp === 'undefined') {
-        this.loadApp(h.entry);
-      }
-
-      if (!dapp) {
-        return null;
-      }
-
-      return (
-        <tr key={ h.timestamp }>
-          <td className={ styles.timestamp }>
-            { moment(h.timestamp).fromNow() }
-          </td>
-          <td className={ styles.entry }>
-            <Link to={ `/app/${h.entry}` }>
-              <DappIcon app={ dapp } />
-              <span>
-                { dapp.name }
-              </span>
-            </Link>
-          </td>
-        </tr>
-      );
-    });
-
-    return (
-      <table className={ styles.history }>
-        <tbody>
-          { rows }
-        </tbody>
-      </table>
-    );
-  }
-
-  renderUrl () {
-    const { nextUrl } = this.webStore;
-
-    return (
-      <Container
-        title={
-          <FormattedMessage
-            id='home.url.title'
-            defaultMessage='Web URLs'
-          />
-        }
-      >
-        <div className={ styles.urls }>
-          <DappUrlInput
-            className={ styles.input }
-            onChange={ this.onChangeUrl }
-            onGoto={ this.onGotoUrl }
-            onRestore={ this.onRestoreUrl }
-            url={ nextUrl }
-          />
-          { this.renderUrlHistory() }
-        </div>
-      </Container>
-    );
-  }
-
   renderUrlHistory () {
-    const { history } = this.webHistory;
 
-    if (!history.length) {
-      return (
-        <div className={ styles.empty }>
-          No recent URLs available
-        </div>
-      );
-    }
-
-    const rows = history.map((h) => {
-      const onNavigate = () => this.onGotoUrl(h.entry);
-
-      return (
-        <tr key={ h.timestamp }>
-          <td className={ styles.timestamp }>
-            { moment(h.timestamp).fromNow() }
-          </td>
-          <td className={ styles.entry }>
-            <a
-              href='javascript:void(0)'
-              onClick={ onNavigate }
-            >
-              { h.entry }
-            </a>
-          </td>
-        </tr>
-      );
-    });
-
-    return (
-      <table className={ styles.history }>
-        <tbody>
-          { rows }
-        </tbody>
-      </table>
-    );
-  }
-
-  onChangeUrl = (url) => {
-    this.webStore.setNextUrl(url);
-  }
-
-  onGotoUrl = (url) => {
-    const { router } = this.context;
-
-    this.webStore.gotoUrl(url);
-    router.push('/web');
-  }
-
-  onRestoreUrl = () => {
-    this.webStore.restoreUrl();
   }
 
   loadApp = (id) => {
