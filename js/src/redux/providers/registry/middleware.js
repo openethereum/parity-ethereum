@@ -27,7 +27,7 @@ const STORE_KEY = '_parity::reverses';
 
 const read = (chain) => {
   const reverses = store.get(`${STORE_KEY}::${chain}::data`);
-  const lastBlock = store.get(`${STORE_KEY}::${chain}::last-block`);
+  const lastBlock = store.get(`${STORE_KEY}::${chain}::lastBlock`);
 
   if (!reverses || !lastBlock) {
     return null;
@@ -41,7 +41,7 @@ const write = debounce((getChain, getReverses, getLastBlock) => {
   const lastBlock = getLastBlock();
 
   store.set(`${STORE_KEY}::${chain}::data`, reverses);
-  store.set(`${STORE_KEY}::${chain}::last-block`, lastBlock);
+  store.set(`${STORE_KEY}::${chain}::lastBlock`, lastBlock);
 }, 20000);
 
 export default (api) => (store) => {
@@ -128,8 +128,8 @@ export default (api) => (store) => {
         }
 
         write.flush();
-
         break;
+
       case 'setReverse':
         write(
           () => store.getState().nodeStatus.netChain,
@@ -137,8 +137,8 @@ export default (api) => (store) => {
           () => +store.getState().nodeStatus.blockNumber
         );
         next(action);
-
         break;
+
       default:
         next(action);
     }
