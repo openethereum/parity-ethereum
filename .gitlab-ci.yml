@@ -529,9 +529,7 @@ js-release:
 push-release:
   stage: push-release
   only:
-    - beta
     - tags
-    - stable
     - triggers
   image: ethcore/rust:stable
   script:
