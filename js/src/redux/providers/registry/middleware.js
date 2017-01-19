@@ -28,10 +28,10 @@ const STORE_KEY = '_parity::reverses';
 const read = (chain) => {
   const reverses = store.get(`${STORE_KEY}::${chain}::data`);
   const lastBlock = store.get(`${STORE_KEY}::${chain}::last-block`);
+
   if (!reverses || !lastBlock) {
     return null;
   }
-
   return { reverses, lastBlock };
 };
 
