@@ -18,6 +18,7 @@ export default class GithubHint {
   constructor (api, registry) {
     this._api = api;
     this._registry = registry;
+    this._instance = null;
 
     this.getInstance();
   }
@@ -27,7 +28,14 @@ export default class GithubHint {
   }
 
   getInstance () {
-    return this.getContract().then((contract) => contract.instance);
+    if (this._instance) {
+      return Promise.resolve(this._instance);
+    }
+
+    return this.getContract().then((contract) => {
+      this._instance = contract.instance;
+      return this._instance;
+    });
   }
 
   getEntry (entryId) {

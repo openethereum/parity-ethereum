@@ -18,16 +18,21 @@ import sinon from 'sinon';
 
 import GithubHint from './githubhint';
 
-let entries;
 let githubHint;
+let instance;
 let registry;
 
 function create () {
-  entries = {
-    call: sinon.stub().resolves('testValue')
+  instance = {
+    instance: {
+      __id: 'testInstance',
+      entries: {
+        call: sinon.stub().resolves('testValue')
+      }
+    }
   };
   registry = {
-    getContract: sinon.stub().resolves({ instance: { entries } })
+    getContract: sinon.stub().resolves({ instance })
   };
   githubHint = new GithubHint({}, registry);
 
@@ -37,10 +42,16 @@ function create () {
 describe('contracts/GithubHint', () => {
   beforeEach(() => {
     create();
+
+    return githubHint.getInstance();
   });
 
-  it('retrieves the contract via registry', () => {
-    expect(registry.getContract).to.have.been.calledWith('githubhint');
+  it('instantiates successfully', () => {
+    expect(githubHint).to.be.ok;
+  });
+
+  it('attaches the instance on create', () => {
+    expect(githubHint._instance.__id).to.equal('testInstance');
   });
 
   describe('interface', () => {
@@ -50,7 +61,7 @@ describe('contracts/GithubHint', () => {
       });
 
       it('calls entries on the instance', () => {
-        expect(entries.call).to.have.been.calledWith({}, ['testId']);
+        expect(instance.entries.call).to.have.been.calledWith({}, ['testId']);
       });
     });
   });
