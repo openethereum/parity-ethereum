@@ -141,11 +141,13 @@ impl Stratum {
 		let mut delegate = IoDelegate::<StratumRpc, SocketMetadata>::new(rpc.clone());
 		delegate.add_method_with_meta("mining.subscribe", StratumRpc::subscribe);
 		delegate.add_method_with_meta("mining.authorize", StratumRpc::authorize);
-		delegate.add_method_with_meta("mining.authorize", StratumRpc::submit);
+		delegate.add_method_with_meta("mining.submit", StratumRpc::submit);
 		let mut handler = MetaIoHandler::<SocketMetadata>::default();
 		handler.extend_with(delegate);
 
-		let server = JsonRpcServer::new(addr.clone(), Arc::new(handler));
+		let server = JsonRpcServer::new(addr.clone(), Arc::new(handler))
+			.extractor(Arc::new(PeerMetaExtractor) as Arc<MetaExtractor<SocketMetadata>>);
+
 		let stratum = Arc::new(Stratum {
 			tcp_dispatcher: server.dispatcher(),
 			rpc_server: server,
@@ -214,6 +216,7 @@ impl Stratum {
 					return to_value(&false);
 				}
 			}
+			trace!(target: "stratum", "New worker #{} registered", worker_id);
 			self.workers.write().insert(meta.addr().clone(), worker_id);
 			to_value(true)
 		})).boxed()
@@ -244,9 +247,10 @@ impl PushWorkHandler for Stratum {
 			*counter
 		};
 
-		let workers_msg = format!("{{ \"id\": {}, \"method\": \"mining.notify\", \"params\": {} }}\n", next_request_id, payload);
+		let workers_msg = format!("{{ \"id\": {}, \"method\": \"mining.notify\", \"params\": {} }}", next_request_id, payload);
 		trace!(target: "stratum", "pushing work for {} workers (payload: '{}')", workers.len(), &workers_msg);
 		for (ref addr, _) in workers.iter() {
+			trace!(target: "stratum", "pusing work to {}", addr);
 			try!(self.tcp_dispatcher.push_message(addr, workers_msg.clone()));
 		}
 		Ok(())
@@ -278,6 +282,7 @@ impl PushWorkHandler for Stratum {
 
 #[cfg(test)]
 mod tests {
+	use std;
 	use super::*;
 	use std::str::FromStr;
 	use std::net::SocketAddr;
@@ -287,7 +292,7 @@ mod tests {
 	use tokio_core::reactor::{Core, Timeout};
 	use tokio_core::net::TcpStream;
 	use tokio_core::io;
-	use futures::{Future, future};
+	use futures::{Future, future, BoxFuture};
 
 	pub struct VoidManager;
 
@@ -345,48 +350,6 @@ mod tests {
 	    result
 	}
 
-	// pub fn dummy_async_waiter(addr: &SocketAddr, initial: Vec<String>, result: Arc<RwLock<Vec<String>>>) -> ::devtools::StopGuard {
-	// 	use std::io::{Read, Write};
-	// 	use mio::*;
-	// 	use mio::tcp::*;
-	// 	use std::sync::atomic::Ordering;
-	//
-	// 	let stop_guard = ::devtools::StopGuard::new();
-	// 	let collector = result.clone();
-	// 	let thread_stop = stop_guard.share();
-	// 	let socket_addr = addr.clone();
-	// 	thread::spawn(move || {
-	// 		let mut poll = Poll::new().unwrap();
-	// 		let mut sock = TcpStream::connect(&socket_addr).unwrap();
-	// 		poll.register(&sock, Token(0), EventSet::writable(), PollOpt::edge() | PollOpt::oneshot()).unwrap();
-	//
-	// 		for initial_req in initial {
-	// 			poll.poll(Some(120)).unwrap();
-	// 			sock.write_all(initial_req.as_bytes()).unwrap();
-	// 			poll.reregister(&sock, Token(0), EventSet::readable(), PollOpt::edge() | PollOpt::oneshot()).unwrap();
-	// 			poll.poll(Some(120)).unwrap();
-	//
-	// 			let mut buf = Vec::new();
-	// 			sock.read_to_end(&mut buf).unwrap_or_else(|_| { 0 });
-	// 			collector.write().unwrap().push(String::from_utf8(buf).unwrap());
-	// 			poll.reregister(&sock, Token(0), EventSet::writable(), PollOpt::edge() | PollOpt::oneshot()).unwrap();
-	// 		}
-	//
-	// 		while !thread_stop.load(Ordering::Relaxed) {
-	// 			poll.reregister(&sock, Token(0), EventSet::readable(), PollOpt::edge() | PollOpt::oneshot()).unwrap();
-	// 			poll.poll(Some(120)).unwrap();
-	//
-	// 			let mut buf = Vec::new();
-	// 			sock.read_to_end(&mut buf).unwrap_or_else(|_| { 0 });
-	// 			if buf.len() > 0 {
-	// 				collector.write().unwrap().push(String::from_utf8(buf).unwrap());
-	// 			}
-	// 		}
-	// 	});
-	//
-	// 	stop_guard
-	// }
-
 	#[test]
 	fn can_be_started() {
 		let stratum = Stratum::start(&SocketAddr::from_str("127.0.0.1:19980").unwrap(), Arc::new(VoidManager), None);
@@ -436,7 +399,7 @@ mod tests {
 	#[test]
 	fn receives_initial_paylaod() {
 		let addr = SocketAddr::from_str("127.0.0.1:19975").unwrap();
-		Stratum::start(&addr, DummyManager::new(), None).unwrap();
+		Stratum::start(&addr, DummyManager::new(), None).expect("There should be no error starting stratum");
 		let request = r#"{"jsonrpc": "2.0", "method": "mining.subscribe", "params": [], "id": 2}"#;
 
 		let response = String::from_utf8(dummy_request(&addr, request)).unwrap();
@@ -451,13 +414,71 @@ mod tests {
 			&addr,
 			Arc::new(DummyManager::build().of_initial(r#"["dummy autorize payload"]"#)),
 			None
-		).unwrap();
+		).expect("There should be no error starting stratum");
 
 		let request = r#"{"jsonrpc": "2.0", "method": "mining.authorize", "params": ["miner1", ""], "id": 1}"#;
 		let response = String::from_utf8(dummy_request(&addr, request)).unwrap();
 
 		assert_eq!(r#"{"jsonrpc":"2.0","result":true,"id":1}"#, response);
 		assert_eq!(1, stratum.workers.read().len());
+	}
+
+	#[test]
+	fn can_push_work() {
+		init_log();
+
+		let addr = SocketAddr::from_str("127.0.0.1:19995").unwrap();
+		let stratum = Stratum::start(
+			&addr,
+			Arc::new(DummyManager::build().of_initial(r#"["dummy autorize payload"]"#)),
+			None
+		).expect("There should be no error starting stratum");
+
+		let mut auth_request =
+			r#"{"jsonrpc": "2.0", "method": "mining.authorize", "params": ["miner1", ""], "id": 1}"#
+			.as_bytes()
+			.to_vec();
+		auth_request.extend(b"\n");
+
+		let mut core = Core::new().expect("Tokio Core should be created with no errors");
+		let timeout1 = Timeout::new(::std::time::Duration::from_millis(100), &core.handle())
+			.expect("There should be a timeout produced in message test");
+		let timeout2 = Timeout::new(::std::time::Duration::from_millis(100), &core.handle())
+			.expect("There should be a timeout produced in message test");
+	    let mut buffer = vec![0u8; 2048];
+		let mut buffer2 = vec![0u8; 2048];
+	    let stream = TcpStream::connect(&addr, &core.handle())
+	        .and_then(|stream| {
+	            io::write_all(stream, &auth_request)
+	        })
+	        .and_then(|(stream, _)| {
+	            io::read(stream, &mut buffer)
+	        })
+	        .and_then(|(stream, _, _)| {
+				trace!(target: "stratum", "Received authorization confirmation");
+				timeout1.join(future::ok(stream))
+	        })
+			.and_then(|(_, stream)| {
+				trace!(target: "stratum", "Pusing work to peers");
+				stratum.push_work_all(r#"{ "00040008", "100500" }"#.to_owned())
+					.expect("Pushing work should produce no errors");
+				timeout2.join(future::ok(stream))
+			})
+			.and_then(|(_, stream)| {
+				trace!(target: "stratum", "Ready to read work from server");
+	            io::read(stream, &mut buffer2)
+	        })
+			.and_then(|(_, read_buf, len)| {
+				trace!(target: "stratum", "Received work from server");
+	            future::ok(read_buf[0..len].to_vec())
+	        });
+		let response = String::from_utf8(
+			core.run(stream).expect("Core should run with no errors")
+		).expect("Response should be utf-8");
+
+		assert_eq!(
+			"{ \"id\": 17, \"method\": \"mining.notify\", \"params\": { \"00040008\", \"100500\" } }\n",
+			response);
 	}
 
 	// #[test]
