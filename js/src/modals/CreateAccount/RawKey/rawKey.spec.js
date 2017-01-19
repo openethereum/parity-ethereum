@@ -27,7 +27,9 @@ let store;
 function render () {
   store = createStore();
   component = shallow(
-    <RawKey store={ store } />
+    <RawKey
+      store={ store }
+    />
   );
 
   return component;

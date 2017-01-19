@@ -27,7 +27,8 @@ function render (props = {}) {
       coinSymbol='BTC'
       price={ { rate: 0.1, minimum: 0.1, limit: 0.9 } }
       error={ new Error('testing') }
-      { ...props } />
+      { ...props }
+    />
   );
 
   return component;

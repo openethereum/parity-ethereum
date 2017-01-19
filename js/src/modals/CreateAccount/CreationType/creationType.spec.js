@@ -27,7 +27,9 @@ let store;
 function render () {
   store = createStore();
   component = shallow(
-    <CreationType store={ store } />
+    <CreationType
+      store={ store }
+    />
   );
 
   return component;

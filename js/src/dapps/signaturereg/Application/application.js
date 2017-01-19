@@ -80,7 +80,8 @@ export default class Application extends Component {
     return (
       <Header
         blockNumber={ blockNumber }
-        totalSignatures={ totalSignatures } />
+        totalSignatures={ totalSignatures }
+      />
     );
   }
 
@@ -95,7 +96,8 @@ export default class Application extends Component {
           instance={ instance }
           visible={ showImport }
           onClose={ this.toggleImport }
-          onSetFromAddress={ this.setFromAddress } />
+          onSetFromAddress={ this.setFromAddress }
+        />
       );
     }
 
@@ -112,7 +114,8 @@ export default class Application extends Component {
     return (
       <Events
         accountsInfo={ accountsInfo }
-        contract={ contract } />
+        contract={ contract }
+      />
     );
   }
 

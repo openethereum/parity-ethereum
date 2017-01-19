@@ -43,44 +43,53 @@ export default class NewImport extends Component {
           hint={
             <FormattedMessage
               id='createAccount.newImport.name.hint'
-              defaultMessage='a descriptive name for the account' />
+              defaultMessage='a descriptive name for the account'
+            />
           }
           label={
             <FormattedMessage
               id='createAccount.newImport.name.label'
-              defaultMessage='account name' />
+              defaultMessage='account name'
+            />
           }
           onChange={ this.onEditName }
-          value={ name } />
+          value={ name }
+        />
         <Input
           hint={
             <FormattedMessage
               id='createAccount.newImport.hint.hint'
-              defaultMessage='(optional) a hint to help with remembering the password' />
+              defaultMessage='(optional) a hint to help with remembering the password'
+            />
           }
           label={
             <FormattedMessage
               id='createAccount.newImport.hint.label'
-              defaultMessage='password hint' />
+              defaultMessage='password hint'
+            />
           }
           onChange={ this.onEditpasswordHint }
-          value={ passwordHint } />
+          value={ passwordHint }
+        />
         <div className={ styles.passwords }>
           <div className={ styles.password }>
             <Input
               hint={
                 <FormattedMessage
                   id='createAccount.newImport.password.hint'
-                  defaultMessage='the password to unlock the wallet' />
+                  defaultMessage='the password to unlock the wallet'
+                />
               }
               label={
                 <FormattedMessage
                   id='createAccount.newImport.password.label'
-                  defaultMessage='password' />
+                  defaultMessage='password'
+                />
               }
               type='password'
               onChange={ this.onEditPassword }
-              value={ password } />
+              value={ password }
+            />
           </div>
         </div>
         <div>
@@ -90,25 +99,30 @@ export default class NewImport extends Component {
             hint={
               <FormattedMessage
                 id='createAccount.newImport.file.hint'
-                defaultMessage='the wallet file for import' />
+                defaultMessage='the wallet file for import'
+              />
             }
             label={
               <FormattedMessage
                 id='createAccount.newImport.file.label'
-                defaultMessage='wallet file' />
+                defaultMessage='wallet file'
+              />
             }
-            value={ walletFile } />
+            value={ walletFile }
+          />
           <div className={ styles.upload }>
             <FloatingActionButton
               mini
-              onTouchTap={ this.openFileDialog }>
+              onTouchTap={ this.openFileDialog }
+            >
               <AttachFileIcon />
             </FloatingActionButton>
             <input
               onChange={ this.onFileChange }
               ref='fileUpload'
               style={ STYLE_HIDDEN }
-              type='file' />
+              type='file'
+            />
           </div>
         </div>
       </Form>

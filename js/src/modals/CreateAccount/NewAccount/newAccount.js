@@ -51,44 +51,53 @@ export default class CreateAccount extends Component {
           hint={
             <FormattedMessage
               id='createAccount.newAccount.name.hint'
-              defaultMessage='a descriptive name for the account' />
+              defaultMessage='a descriptive name for the account'
+            />
           }
           label={
             <FormattedMessage
               id='createAccount.newAccount.name.label'
-              defaultMessage='account name' />
+              defaultMessage='account name'
+            />
           }
           onChange={ this.onEditName }
-          value={ name } />
+          value={ name }
+        />
         <Input
           hint={
             <FormattedMessage
               id='createAccount.newAccount.hint.hint'
-              defaultMessage='(optional) a hint to help with remembering the password' />
+              defaultMessage='(optional) a hint to help with remembering the password'
+            />
           }
           label={
             <FormattedMessage
               id='createAccount.newAccount.hint.label'
-              defaultMessage='password hint' />
+              defaultMessage='password hint'
+            />
           }
           onChange={ this.onEditPasswordHint }
-          value={ passwordHint } />
+          value={ passwordHint }
+        />
         <div className={ styles.passwords }>
           <div className={ styles.password }>
             <Input
               hint={
                 <FormattedMessage
                   id='createAccount.newAccount.password.hint'
-                  defaultMessage='a strong, unique password' />
+                  defaultMessage='a strong, unique password'
+                />
               }
               label={
                 <FormattedMessage
                   id='createAccount.newAccount.password.label'
-                  defaultMessage='password' />
+                  defaultMessage='password'
+                />
               }
               onChange={ this.onEditPassword }
               type='password'
-              value={ password } />
+              value={ password }
+            />
           </div>
           <div className={ styles.password }>
             <Input
@@ -96,16 +105,19 @@ export default class CreateAccount extends Component {
               hint={
                 <FormattedMessage
                   id='createAccount.newAccount.password2.hint'
-                  defaultMessage='verify your password' />
+                  defaultMessage='verify your password'
+                />
               }
               label={
                 <FormattedMessage
                   id='createAccount.newAccount.password2.label'
-                  defaultMessage='password (repeat)' />
+                  defaultMessage='password (repeat)'
+                />
               }
               onChange={ this.onEditPasswordRepeat }
               type='password'
-              value={ passwordRepeat } />
+              value={ passwordRepeat }
+            />
           </div>
         </div>
         { this.renderIdentitySelector() }
@@ -128,7 +140,8 @@ export default class CreateAccount extends Component {
           <RadioButton
             className={ styles.button }
             key={ address }
-            value={ address } />
+            value={ address }
+          />
         );
       });
 
@@ -137,7 +150,8 @@ export default class CreateAccount extends Component {
         className={ styles.selector }
         name='identitySelector'
         onChange={ this.onChangeIdentity }
-        valueSelected={ selectedAddress }>
+        valueSelected={ selectedAddress }
+      >
         { buttons }
       </RadioButtonGroup>
     );
@@ -157,10 +171,12 @@ export default class CreateAccount extends Component {
           <div
             className={ styles.identity }
             key={ address }
-            onTouchTap={ this.onChangeIdentity }>
+            onTouchTap={ this.onChangeIdentity }
+          >
             <IdentityIcon
               address={ address }
-              center />
+              center
+            />
           </div>
         );
       });
@@ -169,8 +185,7 @@ export default class CreateAccount extends Component {
       <div className={ styles.identities }>
         { identities }
         <div className={ styles.refresh }>
-          <IconButton
-            onTouchTap={ this.createIdentities }>
+          <IconButton onTouchTap={ this.createIdentities }>
             <RefreshIcon color='rgb(0, 151, 167)' />
           </IconButton>
         </div>

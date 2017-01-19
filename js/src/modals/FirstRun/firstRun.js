@@ -38,24 +38,30 @@ import Welcome from './Welcome';
 const STAGE_NAMES = [
   <FormattedMessage
     id='firstRun.title.welcome'
-    defaultMessage='welcome' />,
+    defaultMessage='welcome'
+  />,
   <FormattedMessage
     id='firstRun.title.terms'
-    defaultMessage='terms' />,
+    defaultMessage='terms'
+  />,
   <FormattedMessage
     id='firstRun.title.newAccount'
-    defaultMessage='new account' />,
+    defaultMessage='new account'
+  />,
   <FormattedMessage
     id='firstRun.title.recovery'
-    defaultMessage='recovery' />,
+    defaultMessage='recovery'
+  />,
   <FormattedMessage
     id='firstRun.title.completed'
-    defaultMessage='completed' />
+    defaultMessage='completed'
+  />
 ];
 const BUTTON_LABEL_NEXT = (
   <FormattedMessage
     id='firstRun.button.next'
-    defaultMessage='Next' />
+    defaultMessage='Next'
+  />
 );
 
 @observer
@@ -91,7 +97,8 @@ class FirstRun extends Component {
         actions={ this.renderDialogActions() }
         current={ stage }
         steps={ STAGE_NAMES }
-        visible>
+        visible
+      >
         { this.renderStage() }
       </Modal>
     );
@@ -109,13 +116,15 @@ class FirstRun extends Component {
         return (
           <TnC
             hasAccepted={ hasAcceptedTnc }
-            onAccept={ this.onAcceptTnC } />
+            onAccept={ this.onAcceptTnC }
+          />
         );
       case 2:
         return (
           <NewAccount
             newError={ this.props.newError }
-            store={ this.createStore } />
+            store={ this.createStore }
+          />
         );
       case 3:
         return (
@@ -140,7 +149,8 @@ class FirstRun extends Component {
             icon={ <NextIcon /> }
             key='next'
             label={ BUTTON_LABEL_NEXT }
-            onClick={ this.onNext } />
+            onClick={ this.onNext }
+          />
         );
 
       case 1:
@@ -150,7 +160,8 @@ class FirstRun extends Component {
             icon={ <NextIcon /> }
             key='next'
             label={ BUTTON_LABEL_NEXT }
-            onClick={ this.onNext } />
+            onClick={ this.onNext }
+          />
         );
 
       case 2:
@@ -162,7 +173,8 @@ class FirstRun extends Component {
             label={
               <FormattedMessage
                 id='firstRun.button.create'
-                defaultMessage='Create' />
+                defaultMessage='Create'
+              />
             }
             onClick={ this.onCreate }
           />
@@ -175,7 +187,8 @@ class FirstRun extends Component {
               label={
                 <FormattedMessage
                   id='firstRun.button.skip'
-                  defaultMessage='Skip' />
+                  defaultMessage='Skip'
+                />
               }
               onClick={ this.skipAccountCreation }
             />
@@ -191,7 +204,8 @@ class FirstRun extends Component {
             label={
               <FormattedMessage
                 id='firstRun.button.print'
-                defaultMessage='Print Phrase' />
+                defaultMessage='Print Phrase'
+              />
             }
             onClick={ this.printPhrase }
           />,
@@ -211,9 +225,11 @@ class FirstRun extends Component {
             label={
               <FormattedMessage
                 id='firstRun.button.close'
-                defaultMessage='Close' />
+                defaultMessage='Close'
+              />
             }
-            onClick={ this.onClose } />
+            onClick={ this.onClose }
+          />
         );
     }
   }

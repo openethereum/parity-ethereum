@@ -54,7 +54,8 @@ function render (props = {}) {
       { ...props }
       title='test title'
       onConfirm={ onConfirm }
-      onDeny={ onDeny }>
+      onDeny={ onDeny }
+    >
       <div id='testContent'>
         some test content
       </div>

@@ -167,7 +167,8 @@ export default class TnC extends Component {
           className={ styles.accept }
           label='I accept these terms and conditions'
           checked={ hasAccepted }
-          onCheck={ onAccept } />
+          onCheck={ onAccept }
+        />
       </div>
     );
   }

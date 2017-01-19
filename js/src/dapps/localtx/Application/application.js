@@ -167,7 +167,7 @@ export default class Application extends Component {
                 transaction={ tx.transaction }
                 stats={ tx.stats }
                 blockNumber={ blockNumber }
-                />
+              />
             ))
           }
         </tbody>
@@ -198,7 +198,7 @@ export default class Application extends Component {
                 status={ tx.status }
                 stats={ tx.stats }
                 details={ tx }
-                />
+              />
             ))
           }
         </tbody>

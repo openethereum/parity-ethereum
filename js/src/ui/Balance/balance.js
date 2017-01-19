@@ -76,10 +76,12 @@ class Balance extends Component {
         return (
           <div
             className={ styles.balance }
-            key={ token.tag }>
+            key={ token.tag }
+          >
             <img
               src={ imagesrc }
-              alt={ token.name } />
+              alt={ token.name }
+            />
             <div className={ styles.balanceValue }>
               <span title={ value }> { value } </span>
             </div>

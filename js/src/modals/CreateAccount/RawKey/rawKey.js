@@ -42,58 +42,70 @@ export default class RawKey extends Component {
           hint={
             <FormattedMessage
               id='createAccount.rawKey.private.hint'
-              defaultMessage='the raw hex encoded private key' />
+              defaultMessage='the raw hex encoded private key'
+            />
           }
           label={
             <FormattedMessage
               id='createAccount.rawKey.private.label'
-              defaultMessage='private key' />
+              defaultMessage='private key'
+            />
           }
           onChange={ this.onEditKey }
-          value={ rawKey } />
+          value={ rawKey }
+        />
         <Input
           error={ nameError }
           hint={
             <FormattedMessage
               id='createAccount.rawKey.name.hint'
-              defaultMessage='a descriptive name for the account' />
+              defaultMessage='a descriptive name for the account'
+            />
           }
           label={
             <FormattedMessage
               id='createAccount.rawKey.name.label'
-              defaultMessage='account name' />
+              defaultMessage='account name'
+            />
           }
           onChange={ this.onEditName }
-          value={ name } />
+          value={ name }
+        />
         <Input
           hint={
             <FormattedMessage
               id='createAccount.rawKey.hint.hint'
-              defaultMessage='(optional) a hint to help with remembering the password' />
+              defaultMessage='(optional) a hint to help with remembering the password'
+            />
           }
           label={
             <FormattedMessage
               id='createAccount.rawKey.hint.label'
-              defaultMessage='password hint' />
+              defaultMessage='password hint'
+            />
           }
           onChange={ this.onEditPasswordHint }
-          value={ passwordHint } />
+          value={ passwordHint }
+        />
         <div className={ styles.passwords }>
           <div className={ styles.password }>
             <Input
               hint={
                 <FormattedMessage
                   id='createAccount.rawKey.password.hint'
-                  defaultMessage='a strong, unique password' />
+                  defaultMessage='a strong, unique password'
+                />
               }
               label={
                 <FormattedMessage
                   id='createAccount.rawKey.password.label'
-                  defaultMessage='password' />
+                  defaultMessage='password'
+                />
               }
               onChange={ this.onEditPassword }
               type='password'
-              value={ password } />
+              value={ password }
+            />
           </div>
           <div className={ styles.password }>
             <Input
@@ -101,16 +113,19 @@ export default class RawKey extends Component {
               hint={
                 <FormattedMessage
                   id='createAccount.rawKey.password2.hint'
-                  defaultMessage='verify your password' />
+                  defaultMessage='verify your password'
+                />
               }
               label={
                 <FormattedMessage
                   id='createAccount.rawKey.password2.label'
-                  defaultMessage='password (repeat)' />
+                  defaultMessage='password (repeat)'
+                />
               }
               onChange={ this.onEditPasswordRepeat }
               type='password'
-              value={ passwordRepeat } />
+              value={ passwordRepeat }
+            />
           </div>
         </div>
       </Form>

@@ -46,9 +46,18 @@ function render (props = { visible: true }) {
   component = shallow(
     <FirstRun
       { ...props }
-      onClose={ onClose } />,
-    { context: { store: createRedux() } }
-  ).find('FirstRun').shallow({ context: { api: createApi() } });
+      onClose={ onClose }
+    />,
+    {
+      context: {
+        store: createRedux()
+      }
+    }
+  ).find('FirstRun').shallow({
+    context: {
+      api: createApi()
+    }
+  });
 
   return component;
 }

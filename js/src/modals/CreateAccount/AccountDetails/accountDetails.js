@@ -36,28 +36,34 @@ export default class AccountDetails extends Component {
           hint={
             <FormattedMessage
               id='createAccount.accountDetails.name.hint'
-              defaultMessage='a descriptive name for the account' />
+              defaultMessage='a descriptive name for the account'
+            />
           }
           label={
             <FormattedMessage
               id='createAccount.accountDetails.name.label'
-              defaultMessage='account name' />
+              defaultMessage='account name'
+            />
           }
           readOnly
-          value={ name } />
+          value={ name }
+        />
         <InputAddress
           disabled
           hint={
             <FormattedMessage
               id='createAccount.accountDetails.address.hint'
-              defaultMessage='the network address for the account' />
+              defaultMessage='the network address for the account'
+            />
           }
           label={
             <FormattedMessage
               id='createAccount.accountDetails.address.label'
-              defaultMessage='address' />
+              defaultMessage='address'
+            />
           }
-          value={ address } />
+          value={ address }
+        />
         { this.renderPhrase() }
       </Form>
     );
@@ -76,15 +82,18 @@ export default class AccountDetails extends Component {
         hint={
           <FormattedMessage
             id='createAccount.accountDetails.phrase.hint'
-            defaultMessage='the account recovery phrase' />
+            defaultMessage='the account recovery phrase'
+          />
         }
         label={
           <FormattedMessage
             id='createAccount.accountDetails.phrase.label'
-            defaultMessage='owner recovery phrase (keep private and secure, it allows full and unlimited access to the account)' />
+            defaultMessage='owner recovery phrase (keep private and secure, it allows full and unlimited access to the account)'
+          />
         }
         readOnly
-        value={ phrase } />
+        value={ phrase }
+      />
     );
   }
 }

@@ -23,7 +23,8 @@ import VerificationStore, {
 } from './store';
 import { isServerRunning, postToServer } from '../../3rdparty/sms-verification';
 
-const SMS_VERIFICATION = 0; // id in the `BadgeReg.sol` contract
+// name in the `BadgeReg.sol` contract
+const SMS_VERIFICATION = 'smsverification';
 
 export default class SMSVerificationStore extends VerificationStore {
   @observable number = '';

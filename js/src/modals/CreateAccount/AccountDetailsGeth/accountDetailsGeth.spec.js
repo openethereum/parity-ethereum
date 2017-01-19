@@ -27,7 +27,9 @@ let store;
 function render () {
   store = createStore();
   component = shallow(
-    <AccountDetailsGeth store={ store } />
+    <AccountDetailsGeth
+      store={ store }
+    />
   );
 
   return component;

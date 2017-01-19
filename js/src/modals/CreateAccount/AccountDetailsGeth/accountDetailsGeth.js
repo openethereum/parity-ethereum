@@ -37,7 +37,8 @@ export default class AccountDetailsGeth extends Component {
             defaultMessage='You have imported {number} addresses from the Geth keystore:'
             values={ {
               number: gethAddresses.length
-            } } />
+            } }
+          />
         </div>
         <div className={ styles.address }>
           { this.formatAddresses(gethAddresses) }

@@ -41,7 +41,8 @@ export default class NewGeth extends Component {
         <div className={ styles.list }>
           <FormattedMessage
             id='createAccount.newGeth.noKeys'
-            defaultMessage='There are currently no importable keys available from the Geth keystore, which are not already available on your Parity instance' />
+            defaultMessage='There are currently no importable keys available from the Geth keystore, which are not already available on your Parity instance'
+          />
         </div>
       );
     }
@@ -55,7 +56,8 @@ export default class NewGeth extends Component {
             <IdentityIcon
               address={ account.address }
               center
-              inline />
+              inline
+            />
           </div>
           <div className={ styles.detail }>
             <div className={ styles.address }>
@@ -73,7 +75,8 @@ export default class NewGeth extends Component {
           checked={ gethAddresses.includes(account.address) }
           key={ account.address }
           label={ label }
-          onCheck={ onSelect } />
+          onCheck={ onSelect }
+        />
       );
     });
 

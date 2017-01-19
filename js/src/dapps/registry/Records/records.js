@@ -29,7 +29,6 @@ import { clearError, update } from './actions';
 import styles from './records.css';
 
 class Records extends Component {
-
   static propTypes = {
     error: nullableProptype(PropTypes.object.isRequired),
     pending: PropTypes.bool.isRequired,

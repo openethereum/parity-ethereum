@@ -77,7 +77,8 @@ class RequestsPage extends Component {
       <Container title='Local Transactions'>
         <TxList
           address=''
-          hashes={ localHashes } />
+          hashes={ localHashes }
+        />
       </Container>
     );
   }

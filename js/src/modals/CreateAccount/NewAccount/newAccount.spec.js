@@ -29,8 +29,12 @@ function render () {
   api = createApi();
   store = createStore();
   component = shallow(
-    <NewAccount store={ store } />,
-    { context: { api } }
+    <NewAccount
+      store={ store }
+    />,
+    {
+      context: { api }
+    }
   );
 
   return component;

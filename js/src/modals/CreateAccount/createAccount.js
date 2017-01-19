@@ -42,22 +42,26 @@ const TITLES = {
   type: (
     <FormattedMessage
       id='createAccount.title.createType'
-      defaultMessage='creation type' />
+      defaultMessage='creation type'
+    />
   ),
   create: (
     <FormattedMessage
       id='createAccount.title.createAccount'
-      defaultMessage='create account' />
+      defaultMessage='create account'
+    />
   ),
   info: (
     <FormattedMessage
       id='createAccount.title.accountInfo'
-      defaultMessage='account information' />
+      defaultMessage='account information'
+    />
   ),
   import: (
     <FormattedMessage
       id='createAccount.title.importWallet'
-      defaultMessage='import wallet' />
+      defaultMessage='import wallet'
+    />
   )
 };
 const STAGE_NAMES = [TITLES.type, TITLES.create, TITLES.info];
@@ -90,7 +94,8 @@ class CreateAccount extends Component {
           createType === 'fromNew'
             ? STAGE_NAMES
             : STAGE_IMPORT
-        }>
+        }
+      >
         { this.renderWarning() }
         { this.renderPage() }
       </Modal>
@@ -111,7 +116,8 @@ class CreateAccount extends Component {
           return (
             <NewAccount
               newError={ this.props.newError }
-              store={ this.store } />
+              store={ this.store }
+            />
           );
         }
 
@@ -160,9 +166,11 @@ class CreateAccount extends Component {
         label={
           <FormattedMessage
             id='createAccount.button.cancel'
-            defaultMessage='Cancel' />
+            defaultMessage='Cancel'
+          />
         }
-        onClick={ this.onClose } />
+        onClick={ this.onClose }
+      />
     );
 
     switch (stage) {
@@ -175,9 +183,11 @@ class CreateAccount extends Component {
             label={
               <FormattedMessage
                 id='createAccount.button.next'
-                defaultMessage='Next' />
+                defaultMessage='Next'
+              />
             }
-            onClick={ this.store.nextStage } />
+            onClick={ this.store.nextStage }
+          />
         ];
 
       case STAGE_CREATE:
@@ -189,37 +199,50 @@ class CreateAccount extends Component {
             label={
               <FormattedMessage
                 id='createAccount.button.back'
-                defaultMessage='Back' />
+                defaultMessage='Back'
+              />
             }
-            onClick={ this.store.prevStage } />,
+            onClick={ this.store.prevStage }
+          />,
           <Button
             disabled={ !canCreate || isBusy }
             icon={ <CheckIcon /> }
             key='create'
             label={
               createType === 'fromNew'
-                ? <FormattedMessage
-                  id='createAccount.button.create'
-                  defaultMessage='Create' />
-                : <FormattedMessage
-                  id='createAccount.button.import'
-                  defaultMessage='Import' />
+                ? (
+                  <FormattedMessage
+                    id='createAccount.button.create'
+                    defaultMessage='Create'
+                  />
+                )
+                : (
+                  <FormattedMessage
+                    id='createAccount.button.import'
+                    defaultMessage='Import'
+                  />
+                )
             }
-            onClick={ this.onCreate } />
+            onClick={ this.onCreate }
+          />
         ];
 
       case STAGE_INFO:
         return [
           ['fromNew', 'fromPhrase'].includes(createType)
-            ? <Button
-              icon={ <PrintIcon /> }
-              key='print'
-              label={
-                <FormattedMessage
-                  id='createAccount.button.print'
-                  defaultMessage='Print Phrase' />
-              }
-              onClick={ this.printPhrase } />
+            ? (
+              <Button
+                icon={ <PrintIcon /> }
+                key='print'
+                label={
+                  <FormattedMessage
+                    id='createAccount.button.print'
+                    defaultMessage='Print Phrase'
+                  />
+                }
+                onClick={ this.printPhrase }
+              />
+            )
             : null,
           <Button
             icon={ <DoneIcon /> }
@@ -227,9 +250,11 @@ class CreateAccount extends Component {
             label={
               <FormattedMessage
                 id='createAccount.button.close'
-                defaultMessage='Close' />
+                defaultMessage='Close'
+              />
             }
-            onClick={ this.onClose } />
+            onClick={ this.onClose }
+          />
         ];
     }
   }

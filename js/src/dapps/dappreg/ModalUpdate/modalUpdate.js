@@ -52,7 +52,8 @@ export default class ModalUpdate extends Component {
       <Modal
         buttons={ this.renderButtons() }
         error={ this.modalStore.errorUpdate }
-        header={ HEADERS[this.modalStore.stepUpdate] }>
+        header={ HEADERS[this.modalStore.stepUpdate] }
+      >
         { this.renderStep() }
       </Modal>
     );
@@ -66,19 +67,22 @@ export default class ModalUpdate extends Component {
           <Button
             key='close'
             label='Close'
-            onClick={ this.onClickClose } />
+            onClick={ this.onClickClose }
+          />
         ];
       case STEP_CONFIRM:
         return [
           <Button
             key='cancel'
             label='No, Cancel'
-            onClick={ this.onClickClose } />,
+            onClick={ this.onClickClose }
+          />,
           <Button
             key='delete'
             label='Yes, Update'
             warning
-            onClick={ this.onClickYes } />
+            onClick={ this.onClickYes }
+          />
         ];
       default:
         return null;

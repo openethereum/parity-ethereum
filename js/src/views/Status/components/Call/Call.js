@@ -20,7 +20,6 @@ import Response from '../Response';
 import styles from './Call.css';
 
 export default class Call extends Component {
-
   render () {
     let { callNo, name, params, response } = this.props.call;
     params = this.formatParams(params);
@@ -30,7 +29,7 @@ export default class Call extends Component {
         ref={ this.setElement }
         className={ styles.call }
         { ...this._test(`call-${callNo}`) }
-        >
+      >
         <span className={ styles.callNo } { ...this._test('callNo') }>#{ callNo }</span>
         <pre { ...this._test('name') }>{ name }({ params })</pre>
         <Response response={ response } />
@@ -65,5 +64,4 @@ export default class Call extends Component {
     call: PropTypes.object.isRequired,
     setActiveCall: PropTypes.func.isRequired
   }
-
 }

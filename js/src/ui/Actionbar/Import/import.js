@@ -36,7 +36,6 @@ const initialState = {
 };
 
 export default class ActionbarImport extends Component {
-
   static propTypes = {
     onConfirm: PropTypes.func.isRequired,
     renderValidation: PropTypes.func,
@@ -219,5 +218,4 @@ export default class ActionbarImport extends Component {
   onCloseModal = () => {
     this.setState(initialState);
   }
-
 }

@@ -47,17 +47,21 @@ export default class DappPermissions extends Component {
             label={
               <FormattedMessage
                 id='dapps.permissions.button.done'
-                defaultMessage='Done' />
+                defaultMessage='Done'
+              />
             }
-            onClick={ store.closeModal } />
+            onClick={ store.closeModal }
+          />
         ] }
         compact
         title={
           <FormattedMessage
             id='dapps.permissions.label'
-            defaultMessage='visible dapp accounts' />
+            defaultMessage='visible dapp accounts'
+          />
         }
-        visible>
+        visible
+      >
         <List>
           { this.renderListItems() }
         </List>
@@ -105,7 +109,8 @@ export default class DappPermissions extends Component {
                 </div>
               </div>
             </div>
-          } />
+          }
+        />
       );
     });
   }

@@ -27,9 +27,17 @@ let component;
 function render () {
   api = createApi();
   component = shallow(
-    <CreateAccount accounts={ ACCOUNTS } />,
-    { context: { store: createRedux() } }
-  ).find('CreateAccount').shallow({ context: { api } });
+    <CreateAccount
+      accounts={ ACCOUNTS }
+    />,
+    {
+      context: {
+        store: createRedux()
+      }
+    }
+  ).find('CreateAccount').shallow({
+    context: { api }
+  });
 
   return component;
 }

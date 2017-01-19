@@ -27,7 +27,9 @@ let store;
 function render () {
   store = createStore();
   component = shallow(
-    <RecoveryPhrase store={ store } />
+    <RecoveryPhrase
+      store={ store }
+    />
   );
 
   return component;

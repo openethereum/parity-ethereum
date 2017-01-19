@@ -33,49 +33,62 @@ export default class CreationType extends Component {
         <RadioButtonGroup
           defaultSelected='fromNew'
           name='creationType'
-          onChange={ this.onChange }>
+          onChange={ this.onChange }
+        >
           <RadioButton
             label={
               <FormattedMessage
                 id='createAccount.creationType.fromNew.label'
-                defaultMessage='Create new account manually' />
+                defaultMessage='Create new account manually'
+              />
             }
-            value='fromNew' />
+            value='fromNew'
+          />
           <RadioButton
             label={
               <FormattedMessage
                 id='createAccount.creationType.fromPhrase.label'
-                defaultMessage='Recover account from recovery phrase' />
+                defaultMessage='Recover account from recovery phrase'
+              />
             }
-            value='fromPhrase' />
+            value='fromPhrase'
+          />
           <RadioButton
             label={
               <FormattedMessage
                 id='createAccount.creationType.fromGeth.label'
-                defaultMessage='Import accounts from Geth keystore' />
+                defaultMessage='Import accounts from Geth keystore'
+              />
             }
-            value='fromGeth' />
+            value='fromGeth'
+          />
           <RadioButton
             label={
               <FormattedMessage
                 id='createAccount.creationType.fromJSON.label'
-                defaultMessage='Import account from a backup JSON file' />
+                defaultMessage='Import account from a backup JSON file'
+              />
             }
-            value='fromJSON' />
+            value='fromJSON'
+          />
           <RadioButton
             label={
               <FormattedMessage
                 id='createAccount.creationType.fromPresale.label'
-                defaultMessage='Import account from an Ethereum pre-sale wallet' />
+                defaultMessage='Import account from an Ethereum pre-sale wallet'
+              />
             }
-            value='fromPresale' />
+            value='fromPresale'
+          />
           <RadioButton
             label={
               <FormattedMessage
                 id='createAccount.creationType.fromRaw.label'
-                defaultMessage='Import raw private key' />
+                defaultMessage='Import raw private key'
+              />
             }
-            value='fromRaw' />
+            value='fromRaw'
+          />
         </RadioButtonGroup>
       </div>
     );

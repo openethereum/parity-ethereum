@@ -37,7 +37,8 @@ function render (props = {}) {
     <AddContract
       { ...props }
       contracts={ CONTRACTS }
-      onClose={ onClose } />,
+      onClose={ onClose }
+    />,
     { context: { store: reduxStore } }
   ).find('AddContract').shallow({ context: { api } });
   instance = component.instance();

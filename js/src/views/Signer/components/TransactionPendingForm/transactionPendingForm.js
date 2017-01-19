@@ -56,8 +56,7 @@ export default class TransactionPendingForm extends Component {
 
     if (this.state.isRejectOpen) {
       return (
-        <TransactionPendingFormReject
-          onReject={ onReject } />
+        <TransactionPendingFormReject onReject={ onReject } />
       );
     }
 
@@ -84,7 +83,8 @@ export default class TransactionPendingForm extends Component {
     return (
       <a
         className={ styles.rejectToggle }
-        onClick={ this.onToggleReject }>
+        onClick={ this.onToggleReject }
+      >
         { html }
       </a>
     );

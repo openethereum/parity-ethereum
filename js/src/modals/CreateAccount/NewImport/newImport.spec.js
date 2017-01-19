@@ -27,7 +27,9 @@ let store;
 function render () {
   store = createStore();
   component = shallow(
-    <NewImport store={ store } />
+    <NewImport
+      store={ store }
+    />
   );
 
   return component;
