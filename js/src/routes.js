@@ -83,8 +83,8 @@ const routes = [
   { path: '/address/:address', onEnter: handleDeprecatedRoute },
   { path: '/contract/:address', onEnter: handleDeprecatedRoute },
 
-  { path: '/', onEnter: redirectTo('/accounts') },
-  { path: '/auth', onEnter: redirectTo('/accounts') },
+  { path: '/', onEnter: redirectTo('/home') },
+  { path: '/auth', onEnter: redirectTo('/home') },
   { path: '/settings', onEnter: redirectTo('/settings/views') },
 
   {
