@@ -25,7 +25,6 @@ import 'brace/mode/json';
 import './mode-solidity';
 
 export default class Editor extends Component {
-
   static propTypes = {
     className: PropTypes.string,
     value: PropTypes.string,
@@ -99,5 +98,4 @@ export default class Editor extends Component {
   handleOnChange = (value) => {
     this.props.onChange(value);
   }
-
 }

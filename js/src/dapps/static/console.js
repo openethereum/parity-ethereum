@@ -18,6 +18,7 @@
 // TODO: Fix linting issues
 
 if (typeof(window.parity) == 'object')
+  window.api = window.parent.secureApi;
   window.parity.api.subscribe('eth_blockNumber', function (error, blockNumber) {
     if (error) {
       console.log('error', error);

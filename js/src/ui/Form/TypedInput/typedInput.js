@@ -32,7 +32,6 @@ import { ABI_TYPES, parseAbiType } from '~/util/abi';
 import styles from './typedInput.css';
 
 export default class TypedInput extends Component {
-
   static propTypes = {
     param: PropTypes.oneOfType([
       PropTypes.object,
@@ -359,7 +358,8 @@ export default class TypedInput extends Component {
         <MenuItem
           key={ bool }
           label={ bool }
-          value={ bool }>
+          value={ bool }
+        >
           { bool }
         </MenuItem>
       );
@@ -377,7 +377,8 @@ export default class TypedInput extends Component {
           value
             ? 'true'
             : 'false'
-        }>
+        }
+      >
         { boolitems }
       </Select>
     );
@@ -445,5 +446,4 @@ export default class TypedInput extends Component {
 
     return param;
   }
-
 }

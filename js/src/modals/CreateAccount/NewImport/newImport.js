@@ -59,12 +59,14 @@ export default class NewImport extends Component {
           hint='a descriptive name for the account'
           error={ this.state.accountNameError }
           value={ this.state.accountName }
-          onChange={ this.onEditAccountName } />
+          onChange={ this.onEditAccountName }
+        />
         <Input
           label='password hint'
           hint='(optional) a hint to help with remembering the password'
           value={ this.state.passwordHint }
-          onChange={ this.onEditpasswordHint } />
+          onChange={ this.onEditpasswordHint }
+        />
         <div className={ styles.passwords }>
           <div className={ styles.password }>
             <Input
@@ -73,7 +75,8 @@ export default class NewImport extends Component {
               type='password'
               error={ this.state.passwordError }
               value={ this.state.password }
-              onChange={ this.onEditPassword } />
+              onChange={ this.onEditPassword }
+            />
           </div>
         </div>
         <div>
@@ -82,18 +85,21 @@ export default class NewImport extends Component {
             label='wallet file'
             hint='the wallet file for import'
             error={ this.state.walletFileError }
-            value={ this.state.walletFile } />
+            value={ this.state.walletFile }
+          />
           <div className={ styles.upload }>
             <FloatingActionButton
               mini
-              onTouchTap={ this.openFileDialog }>
+              onTouchTap={ this.openFileDialog }
+            >
               <EditorAttachFile />
             </FloatingActionButton>
             <input
               ref='fileUpload'
               type='file'
               style={ STYLE_HIDDEN }
-              onChange={ this.onFileChange } />
+              onChange={ this.onFileChange }
+            />
           </div>
         </div>
       </Form>

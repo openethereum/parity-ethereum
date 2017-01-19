@@ -83,11 +83,13 @@ class Application extends Component {
       <Container
         upgradeStore={ this.upgradeStore }
         onCloseFirstRun={ this.store.closeFirstrun }
-        showFirstRun={ this.store.firstrunVisible }>
+        showFirstRun={ this.store.firstrunVisible }
+      >
         <TabBar
           netChain={ netChain }
           isTest={ isTest }
-          pending={ pending } />
+          pending={ pending }
+        />
         <div className={ styles.content }>
           { children }
         </div>

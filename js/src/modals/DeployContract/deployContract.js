@@ -37,14 +37,16 @@ const STEPS = {
     title: (
       <FormattedMessage
         id='deployContract.title.details'
-        defaultMessage='contract details' />
+        defaultMessage='contract details'
+      />
     )
   },
   CONTRACT_PARAMETERS: {
     title: (
       <FormattedMessage
         id='deployContract.title.parameters'
-        defaultMessage='contract parameters' />
+        defaultMessage='contract parameters'
+      />
     )
   },
   DEPLOYMENT: {
@@ -52,14 +54,16 @@ const STEPS = {
     title: (
       <FormattedMessage
         id='deployContract.title.deployment'
-        defaultMessage='deployment' />
+        defaultMessage='deployment'
+      />
     )
   },
   COMPLETED: {
     title: (
       <FormattedMessage
         id='deployContract.title.completed'
-        defaultMessage='completed' />
+        defaultMessage='completed'
+      />
     )
   }
 };
@@ -149,10 +153,12 @@ class DeployContract extends Component {
       : (deployError
           ? <FormattedMessage
             id='deployContract.title.failed'
-            defaultMessage='deployment failed' />
+            defaultMessage='deployment failed'
+            />
           : <FormattedMessage
             id='deployContract.title.rejected'
-            defaultMessage='rejected' />
+            defaultMessage='rejected'
+            />
       );
 
     const waiting = realSteps
@@ -170,7 +176,8 @@ class DeployContract extends Component {
         }
         title={ title }
         visible
-        waiting={ waiting }>
+        waiting={ waiting }
+      >
         { this.renderExceptionWarning() }
         { this.renderStep() }
       </Modal>
@@ -188,7 +195,8 @@ class DeployContract extends Component {
 
     return (
       <Warning
-        warning={ errorEstimated } />
+        warning={ errorEstimated }
+      />
     );
   }
 
@@ -202,9 +210,11 @@ class DeployContract extends Component {
         label={
           <FormattedMessage
             id='deployContract.button.cancel'
-            defaultMessage='Cancel' />
+            defaultMessage='Cancel'
+          />
         }
-        onClick={ this.onClose } />
+        onClick={ this.onClose }
+      />
     );
 
     const closeBtn = (
@@ -213,9 +223,11 @@ class DeployContract extends Component {
         label={
           <FormattedMessage
             id='deployContract.button.close'
-            defaultMessage='Close' />
+            defaultMessage='Close'
+          />
         }
-        onClick={ this.onClose } />
+        onClick={ this.onClose }
+      />
     );
 
     const closeBtnOk = (
@@ -224,9 +236,11 @@ class DeployContract extends Component {
         label={
           <FormattedMessage
             id='deployContract.button.done'
-            defaultMessage='Done' />
+            defaultMessage='Done'
+          />
         }
-        onClick={ this.onClose } />
+        onClick={ this.onClose }
+      />
     );
 
     if (deployError) {
@@ -242,14 +256,17 @@ class DeployContract extends Component {
             icon={
               <IdentityIcon
                 address={ fromAddress }
-                button />
+                button
+              />
             }
             label={
               <FormattedMessage
                 id='deployContract.button.next'
-                defaultMessage='Next' />
+                defaultMessage='Next'
+              />
             }
-            onClick={ this.onParametersStep } />
+            onClick={ this.onParametersStep }
+          />
         ];
 
       case 'CONTRACT_PARAMETERS':
@@ -259,14 +276,17 @@ class DeployContract extends Component {
             icon={
               <IdentityIcon
                 address={ fromAddress }
-                button />
+                button
+              />
             }
             label={
               <FormattedMessage
                 id='deployContract.button.create'
-                defaultMessage='Create' />
+                defaultMessage='Create'
+              />
             }
-            onClick={ this.onDeployStart } />
+            onClick={ this.onDeployStart }
+          />
         ];
 
       case 'DEPLOYMENT':
@@ -293,13 +313,16 @@ class DeployContract extends Component {
           title={
             <FormattedMessage
               id='deployContract.rejected.title'
-              defaultMessage='The deployment has been rejected' />
+              defaultMessage='The deployment has been rejected'
+            />
           }
           state={
             <FormattedMessage
               id='deployContract.rejected.description'
-              defaultMessage='You can safely close this window, the contract deployment will not occur.' />
-          } />
+              defaultMessage='You can safely close this window, the contract deployment will not occur.'
+            />
+          }
+        />
       );
     }
 
@@ -340,9 +363,11 @@ class DeployContract extends Component {
             title={
               <FormattedMessage
                 id='deployContract.busy.title'
-                defaultMessage='The deployment is currently in progress' />
+                defaultMessage='The deployment is currently in progress'
+              />
             }
-            state={ deployState }>
+            state={ deployState }
+          >
             { body }
           </BusyStep>
         );
@@ -353,7 +378,8 @@ class DeployContract extends Component {
             <div>
               <FormattedMessage
                 id='deployContract.completed.description'
-                defaultMessage='Your contract has been deployed at' />
+                defaultMessage='Your contract has been deployed at'
+              />
             </div>
             <div>
               <CopyToClipboard data={ address } />
@@ -361,7 +387,8 @@ class DeployContract extends Component {
                 address={ address }
                 center
                 className={ styles.identityicon }
-                inline />
+                inline
+              />
               <div className={ styles.address }>
                 { address }
               </div>
@@ -420,7 +447,8 @@ class DeployContract extends Component {
       : (
         <FormattedMessage
           id='deployContract.owner.noneSelected'
-          defaultMessage='a valid account as the contract owner needs to be selected' />
+          defaultMessage='a valid account as the contract owner needs to be selected'
+        />
       );
 
     this.setState({ fromAddress, fromAddressError }, this.estimateGas);
@@ -510,7 +538,8 @@ class DeployContract extends Component {
           deployState: (
             <FormattedMessage
               id='deployContract.state.preparing'
-              defaultMessage='Preparing transaction for network transmission' />
+              defaultMessage='Preparing transaction for network transmission'
+            />
           )
         });
         return;
@@ -520,7 +549,8 @@ class DeployContract extends Component {
           deployState: (
             <FormattedMessage
               id='deployContract.state.waitSigner'
-              defaultMessage='Waiting for confirmation of the transaction in the Parity Secure Signer' />
+              defaultMessage='Waiting for confirmation of the transaction in the Parity Secure Signer'
+            />
           )
         });
         return;
@@ -531,7 +561,8 @@ class DeployContract extends Component {
           deployState: (
             <FormattedMessage
               id='deployContract.state.waitReceipt'
-              defaultMessage='Waiting for the contract deployment transaction receipt' />
+              defaultMessage='Waiting for the contract deployment transaction receipt'
+            />
           )
         });
         return;
@@ -542,7 +573,8 @@ class DeployContract extends Component {
           deployState: (
             <FormattedMessage
               id='deployContract.state.validatingCode'
-              defaultMessage='Validating the deployed contract code' />
+              defaultMessage='Validating the deployed contract code'
+            />
           )
         });
         return;
@@ -552,7 +584,8 @@ class DeployContract extends Component {
           deployState: (
             <FormattedMessage
               id='deployContract.state.completed'
-              defaultMessage='The contract deployment has been completed' />
+              defaultMessage='The contract deployment has been completed'
+            />
           )
         });
         return;

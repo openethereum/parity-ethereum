@@ -26,7 +26,6 @@ import { fromWei } from '~/api/util/wei';
 import styles from './accountCard.css';
 
 export default class AccountCard extends Component {
-
   static propTypes = {
     account: PropTypes.object.isRequired,
     onClick: PropTypes.func.isRequired,

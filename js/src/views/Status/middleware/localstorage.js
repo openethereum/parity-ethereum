@@ -19,7 +19,6 @@ import { syncRpcStateFromLocalStorage } from '../actions/localstorage';
 import rpcMetods from '../data/rpc.json';
 
 export default class localStorageMiddleware {
-
   toMiddleware () {
     return store => next => action => {
       let delegate;
@@ -70,5 +69,4 @@ export default class localStorageMiddleware {
     const newArr = [value].concat(localStore.get(key) || []);
     localStore.set(key, newArr);
   }
-
 }

@@ -50,7 +50,8 @@ export default class Owner extends Component {
             <span>{ accounts[address].name }</span>
             <IdentityIcon
               className={ styles.icon }
-              address={ address } />
+              address={ address }
+            />
           </div>
         </td>
         <td className={ styles.tokens }>
@@ -67,7 +68,8 @@ export default class Owner extends Component {
       <div key={ token.address }>
         <Token
           address={ token.address }
-          tokenreg={ token.tokenreg } />
+          tokenreg={ token.tokenreg }
+        />
         <div className={ styles.byline }>
           { token.address }
         </div>

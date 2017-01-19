@@ -29,7 +29,6 @@ const REGISTER_ACTION = 'REGISTER_ACTION';
 const QUERY_ACTION = 'QUERY_ACTION';
 
 export default class Actions extends Component {
-
   static propTypes = {
     handleRegisterToken: PropTypes.func.isRequired,
     handleRegisterClose: PropTypes.func.isRequired,
@@ -62,26 +61,30 @@ export default class Actions extends Component {
           icon={ <ContentSendIcon /> }
           label='Register Token'
           primary
-          onTouchTap={ this.onShowRegister } />
+          onTouchTap={ this.onShowRegister }
+        />
 
         <RaisedButton
           className={ styles.button }
           icon={ <ActionSearchIcon /> }
           label='Search Token'
           primary
-          onTouchTap={ this.onShowQuery } />
+          onTouchTap={ this.onShowQuery }
+        />
 
         <Register
           show={ this.state.show[ REGISTER_ACTION ] }
           onClose={ this.onRegisterClose }
           handleRegisterToken={ this.props.handleRegisterToken }
-          { ...this.props.register } />
+          { ...this.props.register }
+        />
 
         <Query
           show={ this.state.show[ QUERY_ACTION ] }
           onClose={ this.onQueryClose }
           handleQueryToken={ this.props.handleQueryToken }
-          { ...this.props.query } />
+          { ...this.props.query }
+        />
       </div>
     );
   }
@@ -113,5 +116,4 @@ export default class Actions extends Component {
       }
     });
   }
-
 }

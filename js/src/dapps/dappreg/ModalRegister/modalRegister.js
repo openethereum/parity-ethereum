@@ -53,7 +53,8 @@ export default class ModalRegister extends Component {
       <Modal
         buttons={ this.renderButtons() }
         error={ this.modalStore.errorRegister }
-        header={ HEADERS[this.modalStore.stepRegister] }>
+        header={ HEADERS[this.modalStore.stepRegister] }
+      >
         { this.renderStep() }
       </Modal>
     );
@@ -67,19 +68,22 @@ export default class ModalRegister extends Component {
           <Button
             key='close'
             label='Close'
-            onClick={ this.onClickClose } />
+            onClick={ this.onClickClose }
+          />
         ];
       case STEP_CONFIRM:
         return [
           <Button
             key='cancel'
             label='No, Cancel'
-            onClick={ this.onClickClose } />,
+            onClick={ this.onClickClose }
+          />,
           <Button
             key='register'
             label='Yes, Register'
             warning
-            onClick={ this.onClickConfirmYes } />
+            onClick={ this.onClickConfirmYes }
+          />
         ];
       default:
         return null;

@@ -56,7 +56,8 @@ export default class AddMeta extends Component {
         icon={ <AddIcon /> }
         primary
         fullWidth
-        onTouchTap={ this.onShowDialog } />
+        onTouchTap={ this.onShowDialog }
+      />
 
       <Dialog
         title='add meta data'
@@ -64,7 +65,8 @@ export default class AddMeta extends Component {
         modal={ this.state.complete }
         className={ styles.dialog }
         onRequestClose={ this.onClose }
-        actions={ this.renderActions() } >
+        actions={ this.renderActions() }
+      >
         { this.renderContent() }
       </Dialog>
     </div>);
@@ -78,7 +80,8 @@ export default class AddMeta extends Component {
         <FlatButton
           label='Done'
           primary
-          onTouchTap={ this.onClose } />
+          onTouchTap={ this.onClose }
+        />
       );
     }
 
@@ -88,12 +91,14 @@ export default class AddMeta extends Component {
       <FlatButton
         label='Cancel'
         primary
-        onTouchTap={ this.onClose } />,
+        onTouchTap={ this.onClose }
+      />,
       <FlatButton
         label='Add'
         primary
         disabled={ !isValid }
-        onTouchTap={ this.onAdd } />
+        onTouchTap={ this.onAdd }
+      />
     ]);
   }
 
@@ -130,7 +135,8 @@ export default class AddMeta extends Component {
           floatingLabelText='Choose the meta-data to add'
           fullWidth
           value={ this.state.metaKeyIndex }
-          onChange={ this.onMetaKeyChange }>
+          onChange={ this.onMetaKeyChange }
+        >
 
           { this.renderMetaKeyItems() }
 
@@ -142,7 +148,8 @@ export default class AddMeta extends Component {
           hintText={ `The value of the ${selectedMeta.label.toLowerCase()} (${selectedMeta.validation === ADDRESS_TYPE ? 'Address' : 'Url Hint'})` }
 
           validationType={ selectedMeta.validation }
-          onChange={ this.onChange } />
+          onChange={ this.onChange }
+        />
       </div>
     );
   }
@@ -152,7 +159,8 @@ export default class AddMeta extends Component {
       <MenuItem
         value={ index }
         key={ index }
-        label={ key.label } primaryText={ key.label } />
+        label={ key.label } primaryText={ key.label }
+      />
     ));
   }
 
@@ -194,5 +202,4 @@ export default class AddMeta extends Component {
       value: ''
     } });
   }
-
 }

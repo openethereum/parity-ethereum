@@ -27,7 +27,8 @@ function render () {
       store={ {
         coinSymbol: 'BTC',
         price: { rate: 0.001, minimum: 0, limit: 1.999 }
-      } } />
+      } }
+    />
   );
 
   return component;

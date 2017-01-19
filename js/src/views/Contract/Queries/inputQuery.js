@@ -49,9 +49,7 @@ export default class InputQuery extends Component {
     const { name, className } = this.props;
 
     return (
-      <Card
-        className={ className }
-        >
+      <Card className={ className }>
         <CardTitle
           className={ styles.methodTitle }
           title={ name }
@@ -71,9 +69,7 @@ export default class InputQuery extends Component {
 
     return (
       <div>
-        <CardText
-          className={ styles.methodContent }
-        >
+        <CardText className={ styles.methodContent }>
           <div className={ styles.methodResults }>
             { this.renderResults() }
           </div>
@@ -83,7 +79,8 @@ export default class InputQuery extends Component {
           <Button
             label='Query'
             disabled={ !isValid }
-            onClick={ this.onClick } />
+            onClick={ this.onClick }
+          />
         </CardActions>
       </div>
     );

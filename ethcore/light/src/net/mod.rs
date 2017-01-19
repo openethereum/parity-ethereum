@@ -40,10 +40,13 @@ use request::{self, HashOrNumber, Request};
 use self::buffer_flow::{Buffer, FlowParams};
 use self::context::{Ctx, TickCtx};
 use self::error::Punishment;
+use self::request_set::RequestSet;
+use self::id_guard::IdGuard;
 
 mod context;
 mod error;
 mod status;
+mod request_set;
 
 #[cfg(test)]
 mod tests;
@@ -121,7 +124,7 @@ mod timeout {
 }
 
 /// A request id.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd, Hash)]
 pub struct ReqId(usize);
 
 impl fmt::Display for ReqId {
@@ -137,15 +140,17 @@ struct PendingPeer {
 	last_update: SteadyTime,
 }
 
-// data about each peer.
-struct Peer {
+/// Relevant data to each peer. Not accessible publicly, only `pub` due to
+/// limitations of the privacy system.
+pub struct Peer {
 	local_buffer: Buffer, // their buffer relative to us
 	status: Status,
 	capabilities: Capabilities,
 	remote_flow: Option<(Buffer, FlowParams)>,
 	sent_head: H256, // last chain head we've given them.
 	last_update: SteadyTime,
-	idle: bool, // make into a current percentage of max buffer being requested?
+	pending_requests: RequestSet,
+	failed_requests: Vec<ReqId>,
 }
 
 impl Peer {
@@ -209,13 +214,6 @@ pub trait Handler: Send + Sync {
 	fn on_abort(&self) { }
 }
 
-// a request, the peer who it was made to, and the time it was made.
-struct Requested {
-	request: Request,
-	timestamp: SteadyTime,
-	peer_id: PeerId,
-}
-
 /// Protocol parameters.
 pub struct Params {
 	/// Network id.
@@ -224,6 +222,57 @@ pub struct Params {
 	pub flow_params: FlowParams,
 	/// Initial capabilities.
 	pub capabilities: Capabilities,
+}
+
+/// Type alias for convenience.
+pub type PeerMap = HashMap<PeerId, Mutex<Peer>>;
+
+mod id_guard {
+
+	use network::PeerId;
+	use util::RwLockReadGuard;
+
+	use super::{PeerMap, ReqId};
+
+	// Guards success or failure of given request.
+	// On drop, inserts the req_id into the "failed requests"
+	// set for the peer unless defused. In separate module to enforce correct usage.
+	pub struct IdGuard<'a> {
+		peers: RwLockReadGuard<'a, PeerMap>,
+		peer_id: PeerId,
+		req_id: ReqId,
+		active: bool,
+	}
+
+	impl<'a> IdGuard<'a> {
+		/// Create a new `IdGuard`, which will prevent access of the inner ReqId
+		/// (for forming responses, triggering handlers) until defused
+		pub fn new(peers: RwLockReadGuard<'a, PeerMap>, peer_id: PeerId, req_id: ReqId) -> Self {
+			IdGuard {
+				peers: peers,
+				peer_id: peer_id,
+				req_id: req_id,
+				active: true,
+			}
+		}
+
+		/// Defuse the guard, signalling that the request has been successfully decoded.
+		pub fn defuse(mut self) -> ReqId {
+			// can't use the mem::forget trick here since we need the
+			// read guard to drop.
+			self.active = false;
+			self.req_id
+		}
+	}
+
+	impl<'a> Drop for IdGuard<'a> {
+		fn drop(&mut self) {
+			if !self.active { return }
+			if let Some(p) = self.peers.get(&self.peer_id) {
+				p.lock().failed_requests.push(self.req_id);
+			}
+		}
+	}
 }
 
 /// This is an implementation of the light ethereum network protocol, abstracted
@@ -241,8 +290,7 @@ pub struct LightProtocol {
 	genesis_hash: H256,
 	network_id: u64,
 	pending_peers: RwLock<HashMap<PeerId, PendingPeer>>,
-	peers: RwLock<HashMap<PeerId, Mutex<Peer>>>,
-	pending_requests: RwLock<HashMap<usize, Requested>>,
+	peers: RwLock<PeerMap>,
 	capabilities: RwLock<Capabilities>,
 	flow_params: FlowParams, // assumed static and same for every peer.
 	handlers: Vec<Arc<Handler>>,
@@ -261,7 +309,6 @@ impl LightProtocol {
 			network_id: params.network_id,
 			pending_peers: RwLock::new(HashMap::new()),
 			peers: RwLock::new(HashMap::new()),
-			pending_requests: RwLock::new(HashMap::new()),
 			capabilities: RwLock::new(params.capabilities),
 			flow_params: params.flow_params,
 			handlers: Vec::new(),
@@ -275,16 +322,10 @@ impl LightProtocol {
 	fn max_requests(&self, peer: PeerId, kind: request::Kind) -> usize {
 		self.peers.read().get(&peer).and_then(|peer| {
 			let mut peer = peer.lock();
-			let idle = peer.idle;
 			match peer.remote_flow {
 				Some((ref mut buf, ref flow)) => {
 					flow.recharge(buf);
-
-					if !idle {
-						Some(0)
-					} else {
-						Some(flow.max_amount(&*buf, kind))
-					}
+					Some(flow.max_amount(&*buf, kind))
 				}
 				None => None,
 			}
@@ -301,8 +342,6 @@ impl LightProtocol {
 		let peers = self.peers.read();
 		let peer = peers.get(peer_id).ok_or_else(|| Error::UnknownPeer)?;
 		let mut peer = peer.lock();
-
-		if !peer.idle { return Err(Error::Overburdened) }
 
 		match peer.remote_flow {
 			Some((ref mut buf, ref flow)) => {
@@ -329,12 +368,7 @@ impl LightProtocol {
 
 		io.send(*peer_id, packet_id, packet_data);
 
-		peer.idle = false;
-		self.pending_requests.write().insert(req_id, Requested {
-			request: request,
-			timestamp: SteadyTime::now(),
-			peer_id: *peer_id,
-		});
+		peer.pending_requests.insert(ReqId(req_id), request, SteadyTime::now());
 
 		Ok(ReqId(req_id))
 	}
@@ -402,11 +436,9 @@ impl LightProtocol {
 		// acquire in order and hold.
 		let mut pending_peers = self.pending_peers.write();
 		let mut peers = self.peers.write();
-		let mut pending_requests = self.pending_requests.write();
 
 		pending_peers.clear();
 		peers.clear();
-		pending_requests.clear();
 	}
 
 	// Does the common pre-verification of responses before the response itself
@@ -414,37 +446,49 @@ impl LightProtocol {
 	//   - check whether peer exists
 	//   - check whether request was made
 	//   - check whether request kinds match
-	fn pre_verify_response(&self, peer: &PeerId, kind: request::Kind, raw: &UntrustedRlp) -> Result<ReqId, Error> {
-		let req_id: usize = raw.val_at(0)?;
+	fn pre_verify_response(&self, peer: &PeerId, kind: request::Kind, raw: &UntrustedRlp) -> Result<IdGuard, Error> {
+		let req_id = ReqId(raw.val_at(0)?);
 		let cur_buffer: U256 = raw.val_at(1)?;
 
 		trace!(target: "les", "pre-verifying response from peer {}, kind={:?}", peer, kind);
 
-		match self.pending_requests.write().remove(&req_id) {
-			None => return Err(Error::UnsolicitedResponse),
-			Some(requested) => {
-				if requested.peer_id != *peer || requested.request.kind() != kind {
-					return Err(Error::UnsolicitedResponse)
-				}
-			}
-		}
-
+		let mut had_req = false;
 		let peers = self.peers.read();
-		match peers.get(peer) {
+		let maybe_err = match peers.get(peer) {
 			Some(peer_info) => {
 				let mut peer_info = peer_info.lock();
-				peer_info.idle = true;
+				let req_info = peer_info.pending_requests.remove(&req_id, SteadyTime::now());
+				let flow_info = peer_info.remote_flow.as_mut();
 
-				match peer_info.remote_flow.as_mut() {
-					Some(&mut (ref mut buf, ref mut flow)) => {
+				match (req_info, flow_info) {
+					(Some(request), Some(flow_info)) => {
+						had_req = true;
+
+						let &mut (ref mut buf, ref mut flow) = flow_info;
 						let actual_buffer = ::std::cmp::min(cur_buffer, *flow.limit());
-						buf.update_to(actual_buffer)
+						buf.update_to(actual_buffer);
+
+						if request.kind() != kind {
+							Some(Error::UnsolicitedResponse)
+						} else {
+							None
+						}
 					}
-					None => return Err(Error::NotServer), // this really should be impossible.
+					(None, _) => Some(Error::UnsolicitedResponse),
+					(_, None) => Some(Error::NotServer), // really should be impossible.
 				}
-				Ok(ReqId(req_id))
 			}
-			None => Err(Error::UnknownPeer), // probably only occurs in a race of some kind.
+			None => Some(Error::UnknownPeer), // probably only occurs in a race of some kind.
+		};
+
+		if had_req {
+			let id_guard = IdGuard::new(peers, *peer, req_id);
+			match maybe_err {
+				Some(err) => Err(err),
+				None => Ok(id_guard)
+			}
+		} else {
+			Err(maybe_err.expect("every branch without a request leads to error; qed"))
 		}
 	}
 
@@ -491,7 +535,39 @@ impl LightProtocol {
 		}
 	}
 
-		/// called when a peer connects.
+	// check timeouts and punish peers.
+	fn timeout_check(&self, io: &IoContext) {
+		let now = SteadyTime::now();
+
+		// handshake timeout
+		{
+			let mut pending = self.pending_peers.write();
+			let slowpokes: Vec<_> = pending.iter()
+				.filter(|&(_, ref peer)| {
+					peer.last_update + Duration::milliseconds(timeout::HANDSHAKE) <= now
+				})
+				.map(|(&p, _)| p)
+				.collect();
+
+			for slowpoke in slowpokes {
+				debug!(target: "les", "Peer {} handshake timed out", slowpoke);
+				pending.remove(&slowpoke);
+				io.disconnect_peer(slowpoke);
+			}
+		}
+
+		// request timeouts
+		{
+			for (peer_id, peer) in self.peers.read().iter() {
+				if peer.lock().pending_requests.check_timeout(now) {
+					debug!(target: "les", "Peer {} request timeout", peer_id);
+					io.disconnect_peer(*peer_id);
+				}
+			}
+		}
+	}
+
+	/// called when a peer connects.
 	pub fn on_connect(&self, peer: &PeerId, io: &IoContext) {
 		let proto_version = match io.protocol_version(*peer).ok_or(Error::WrongNetwork) {
 			Ok(pv) => pv,
@@ -530,21 +606,11 @@ impl LightProtocol {
 	pub fn on_disconnect(&self, peer: PeerId, io: &IoContext) {
 		trace!(target: "les", "Peer {} disconnecting", peer);
 
-
 		self.pending_peers.write().remove(&peer);
-		if self.peers.write().remove(&peer).is_some() {
-			let unfulfilled: Vec<_> = self.pending_requests.read()
-				.iter()
-				.filter(|&(_, r)| r.peer_id == peer)
-				.map(|(&id, _)| ReqId(id))
-				.collect();
-
-			{
-				let mut pending = self.pending_requests.write();
-				for &ReqId(ref inner) in &unfulfilled {
-					pending.remove(inner);
-				}
-			}
+		if let Some(peer_info) = self.peers.write().remove(&peer) {
+			let peer_info = peer_info.into_inner();
+			let mut unfulfilled: Vec<_> = peer_info.pending_requests.collect_ids();
+			unfulfilled.extend(peer_info.failed_requests);
 
 			for handler in &self.handlers {
 				handler.on_disconnect(&Ctx {
@@ -552,54 +618,6 @@ impl LightProtocol {
 					io: io,
 					proto: self,
 				}, &unfulfilled)
-			}
-		}
-	}
-
-	// check timeouts and punish peers.
-	fn timeout_check(&self, io: &IoContext) {
-		let now = SteadyTime::now();
-
-		// handshake timeout
-		{
-			let mut pending = self.pending_peers.write();
-			let slowpokes: Vec<_> = pending.iter()
-				.filter(|&(_, ref peer)| {
-					peer.last_update + Duration::milliseconds(timeout::HANDSHAKE) <= now
-				})
-				.map(|(&p, _)| p)
-				.collect();
-
-			for slowpoke in slowpokes {
-				debug!(target: "les", "Peer {} handshake timed out", slowpoke);
-				pending.remove(&slowpoke);
-				io.disconnect_peer(slowpoke);
-			}
-		}
-
-		// request timeouts
-		{
-			for r in self.pending_requests.read().values() {
-				let kind_timeout = match r.request.kind() {
-					request::Kind::Headers => timeout::HEADERS,
-					request::Kind::Bodies => timeout::BODIES,
-					request::Kind::Receipts => timeout::RECEIPTS,
-					request::Kind::StateProofs => timeout::PROOFS,
-					request::Kind::Codes => timeout::CONTRACT_CODES,
-					request::Kind::HeaderProofs => timeout::HEADER_PROOFS,
-				};
-
-				if r.timestamp + Duration::milliseconds(kind_timeout) <= now {
-					debug!(target: "les", "Request for {:?} from peer {} timed out",
-						r.request.kind(), r.peer_id);
-
-					// keep the request in the `pending` set for now so
-					// on_disconnect will pass unfulfilled ReqIds to handlers.
-					// in the case that a response is received after this, the
-					// disconnect won't be cancelled but the ReqId won't be
-					// marked as abandoned.
-					io.disconnect_peer(r.peer_id);
-				}
 			}
 		}
 	}
@@ -655,7 +673,8 @@ impl LightProtocol {
 			remote_flow: remote_flow,
 			sent_head: pending.sent_head,
 			last_update: pending.last_update,
-			idle: true,
+			pending_requests: RequestSet::default(),
+			failed_requests: Vec::new(),
 		}));
 
 		for handler in &self.handlers {
@@ -770,9 +789,10 @@ impl LightProtocol {
 
 	// Receive a response for block headers.
 	fn block_headers(&self, peer: &PeerId, io: &IoContext, raw: UntrustedRlp) -> Result<(), Error> {
-		let req_id = self.pre_verify_response(peer, request::Kind::Headers, &raw)?;
+		let id_guard = self.pre_verify_response(peer, request::Kind::Headers, &raw)?;
 		let raw_headers: Vec<_> = raw.at(2)?.iter().map(|x| x.as_raw().to_owned()).collect();
 
+		let req_id = id_guard.defuse();
 		for handler in &self.handlers {
 			handler.on_block_headers(&Ctx {
 				peer: *peer,
@@ -835,9 +855,10 @@ impl LightProtocol {
 
 	// Receive a response for block bodies.
 	fn block_bodies(&self, peer: &PeerId, io: &IoContext, raw: UntrustedRlp) -> Result<(), Error> {
-		let req_id = self.pre_verify_response(peer, request::Kind::Bodies, &raw)?;
+		let id_guard = self.pre_verify_response(peer, request::Kind::Bodies, &raw)?;
 		let raw_bodies: Vec<Bytes> = raw.at(2)?.iter().map(|x| x.as_raw().to_owned()).collect();
 
+		let req_id = id_guard.defuse();
 		for handler in &self.handlers {
 			handler.on_block_bodies(&Ctx {
 				peer: *peer,
@@ -897,12 +918,13 @@ impl LightProtocol {
 
 	// Receive a response for receipts.
 	fn receipts(&self, peer: &PeerId, io: &IoContext, raw: UntrustedRlp) -> Result<(), Error> {
-		let req_id = self.pre_verify_response(peer, request::Kind::Receipts, &raw)?;
+		let id_guard = self.pre_verify_response(peer, request::Kind::Receipts, &raw)?;
 		let raw_receipts: Vec<Vec<Receipt>> = raw.at(2)?
 			.iter()
 			.map(|x| x.as_val())
 			.collect::<Result<_,_>>()?;
 
+		let req_id = id_guard.defuse();
 		for handler in &self.handlers {
 			handler.on_receipts(&Ctx {
 				peer: *peer,
@@ -970,12 +992,13 @@ impl LightProtocol {
 
 	// Receive a response for proofs.
 	fn proofs(&self, peer: &PeerId, io: &IoContext, raw: UntrustedRlp) -> Result<(), Error> {
-		let req_id = self.pre_verify_response(peer, request::Kind::StateProofs, &raw)?;
+		let id_guard = self.pre_verify_response(peer, request::Kind::StateProofs, &raw)?;
 
 		let raw_proofs: Vec<Vec<Bytes>> = raw.at(2)?.iter()
 			.map(|x| x.iter().map(|node| node.as_raw().to_owned()).collect())
 			.collect();
 
+		let req_id = id_guard.defuse();
 		for handler in &self.handlers {
 			handler.on_state_proofs(&Ctx {
 				peer: *peer,
@@ -1041,12 +1064,13 @@ impl LightProtocol {
 
 	// Receive a response for contract code.
 	fn contract_code(&self, peer: &PeerId, io: &IoContext, raw: UntrustedRlp) -> Result<(), Error> {
-		let req_id = self.pre_verify_response(peer, request::Kind::Codes, &raw)?;
+		let id_guard = self.pre_verify_response(peer, request::Kind::Codes, &raw)?;
 
 		let raw_code: Vec<Bytes> = raw.at(2)?.iter()
 			.map(|x| x.as_val())
 			.collect::<Result<_,_>>()?;
 
+		let req_id = id_guard.defuse();
 		for handler in &self.handlers {
 			handler.on_code(&Ctx {
 				peer: *peer,
@@ -1120,11 +1144,12 @@ impl LightProtocol {
 			))
 		}
 
-		let req_id = self.pre_verify_response(peer, request::Kind::HeaderProofs, &raw)?;
+		let id_guard = self.pre_verify_response(peer, request::Kind::HeaderProofs, &raw)?;
 		let raw_proofs: Vec<_> = raw.at(2)?.iter()
 			.map(decode_res)
 			.collect::<Result<_,_>>()?;
 
+		let req_id = id_guard.defuse();
 		for handler in &self.handlers {
 			handler.on_header_proofs(&Ctx {
 				peer: *peer,

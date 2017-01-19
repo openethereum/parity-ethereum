@@ -30,15 +30,18 @@ const ABI_TYPES = [
             <a href='https://github.com/ethereum/EIPs/issues/20' target='_blank'>
               <FormattedMessage
                 id='addContract.abiType.token.erc20'
-                defaultMessage='ERC 20' />
+                defaultMessage='ERC 20'
+              />
             </a>
           )
-        } } />
+        } }
+      />
     ),
     label: (
       <FormattedMessage
         id='addContract.abiType.token.label'
-        defaultMessage='Token' />
+        defaultMessage='Token'
+      />
     ),
     readOnly: true,
     type: 'token',
@@ -54,15 +57,18 @@ const ABI_TYPES = [
             <a href='https://github.com/ethereum/dapp-bin/blob/master/wallet/wallet.sol' target='_blank'>
               <FormattedMessage
                 id='addContract.abiType.multisigWallet.link'
-                defaultMessage='see contract code' />
+                defaultMessage='see contract code'
+              />
             </a>
           )
-        } } />
+        } }
+      />
     ),
     label: (
       <FormattedMessage
         id='addContract.abiType.multisigWallet.label'
-        defaultMessage='Multisig Wallet' />
+        defaultMessage='Multisig Wallet'
+      />
     ),
     readOnly: true,
     type: 'multisig',
@@ -72,12 +78,14 @@ const ABI_TYPES = [
     description: (
       <FormattedMessage
         id='addContract.abiType.custom.description'
-        defaultMessage='Contract created from custom ABI' />
+        defaultMessage='Contract created from custom ABI'
+      />
     ),
     label: (
       <FormattedMessage
         id='addContract.abiType.custom.label'
-        defaultMessage='Custom Contract' />
+        defaultMessage='Custom Contract'
+      />
     ),
     type: 'custom',
     value: ''

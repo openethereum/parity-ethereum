@@ -40,9 +40,10 @@ class SignerIcon extends Component {
 
     return (
       <IdentityIcon
+        address={ signerSha }
         center
         className={ className }
-        address={ signerSha } />
+      />
     );
   }
 }

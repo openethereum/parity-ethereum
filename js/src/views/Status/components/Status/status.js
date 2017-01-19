@@ -72,7 +72,8 @@ export default class Status extends Component {
               <MiningSettings
                 { ...this._test('mining') }
                 nodeStatus={ nodeStatus }
-                actions={ this.props.actions } />
+                actions={ this.props.actions }
+              />
             </div>
             <div className={ styles.col4_5 }>
               { this.renderSettings() }
@@ -112,7 +113,8 @@ export default class Status extends Component {
           readOnly
           label='chain'
           value={ nodeStatus.netChain }
-          { ...this._test('chain') } />
+          { ...this._test('chain') }
+        />
         <div className={ styles.row }>
           <div className={ styles.col6 }>
             <Input
@@ -120,7 +122,8 @@ export default class Status extends Component {
               readOnly
               label='peers'
               value={ peers }
-              { ...this._test('peers') } />
+              { ...this._test('peers') }
+            />
           </div>
           <div className={ styles.col6 }>
             <Input
@@ -128,7 +131,8 @@ export default class Status extends Component {
               readOnly
               label='network port'
               value={ netPort.toString() }
-              { ...this._test('network-port') } />
+              { ...this._test('network-port') }
+            />
           </div>
         </div>
 
@@ -136,8 +140,13 @@ export default class Status extends Component {
           allowCopy
           readOnly
           label='rpc enabled'
-          value={ rpcSettings.enabled ? 'yes' : 'no' }
-          { ...this._test('rpc-enabled') } />
+          value={
+            rpcSettings.enabled
+              ? 'yes'
+              : 'no'
+          }
+          { ...this._test('rpc-enabled') }
+        />
         <div className={ styles.row }>
           <div className={ styles.col6 }>
             <Input
@@ -145,7 +154,8 @@ export default class Status extends Component {
               readOnly
               label='rpc interface'
               value={ rpcSettings.interface }
-              { ...this._test('rpc-interface') } />
+              { ...this._test('rpc-interface') }
+            />
           </div>
           <div className={ styles.col6 }>
             <Input
@@ -153,7 +163,8 @@ export default class Status extends Component {
               readOnly
               label='rpc port'
               value={ rpcPort.toString() }
-              { ...this._test('rpc-port') } />
+              { ...this._test('rpc-port') }
+            />
           </div>
         </div>
 
@@ -164,7 +175,8 @@ export default class Status extends Component {
               readOnly
               label='enode'
               value={ nodeStatus.enode }
-              { ...this._test('node-enode') } />
+              { ...this._test('node-enode') }
+            />
           </div>
         </div>
       </div>

@@ -35,7 +35,6 @@ const initState = {
 };
 
 export default class InputText extends Component {
-
   static propTypes = {
     validationType: PropTypes.string.isRequired,
     onChange: PropTypes.func.isRequired,
@@ -64,7 +63,8 @@ export default class InputText extends Component {
           disabled={ disabled }
           errorText={ error }
           onChange={ this.onChange }
-          onKeyDown={ this.onKeyDown } />
+          onKeyDown={ this.onKeyDown }
+        />
 
         { this.renderLoading() }
         { this.renderIsValid() }
@@ -146,5 +146,4 @@ export default class InputText extends Component {
 
     return this.props.onChange(false, value);
   }
-
 }
