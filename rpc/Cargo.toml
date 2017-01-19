@@ -18,10 +18,10 @@ time = "0.1"
 rand = "0.3"
 semver = "0.5"
 transient-hashmap = "0.1"
-jsonrpc-core = { git = "https://github.com/ethcore/jsonrpc.git" }
-jsonrpc-http-server = { git = "https://github.com/ethcore/jsonrpc.git" }
-jsonrpc-ipc-server = { git = "https://github.com/ethcore/jsonrpc.git" }
-jsonrpc-macros = { git = "https://github.com/ethcore/jsonrpc.git" }
+jsonrpc-core = { git = "https://github.com/ethcore/jsonrpc.git", branch="mio-old" }
+jsonrpc-http-server = { git = "https://github.com/ethcore/jsonrpc.git", branch="mio-old" }
+jsonrpc-ipc-server = { git = "https://github.com/ethcore/jsonrpc.git", branch="mio-old" }
+jsonrpc-macros = { git = "https://github.com/ethcore/jsonrpc.git", branch="mio-old" }
 ethcore-io = { path = "../util/io" }
 ethcore-util = { path = "../util" }
 ethcore = { path = "../ethcore" }

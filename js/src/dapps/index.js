@@ -16,7 +16,7 @@
 
 module.exports = [
   { name: 'basiccoin', entry: 'basiccoin.js', title: 'Basic Token Deployment' },
-  { name: 'dappreg', entry: 'dappreg.js', title: 'Dapp Registry', secure: true },
+  { name: 'dappreg', entry: 'dappreg.js', title: 'Dapp Registry' },
   { name: 'githubhint', entry: 'githubhint.js', title: 'GitHub Hint', secure: true },
   { name: 'localtx', entry: 'localtx.js', title: 'Local transactions Viewer', secure: true },
   { name: 'registry', entry: 'registry.js', title: 'Registry' },
