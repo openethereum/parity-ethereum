@@ -122,7 +122,7 @@ fn sync_arguments(io_path: &str, sync_cfg: SyncConfig, net_cfg: NetworkConfigura
 	BootArgs::new().stdin(service_payload).cli(cli_args)
 }
 
-#[cfg(feature="stratum")]
+#[cfg(feature="ipc")]
 pub fn stratum (hypervisor_ref: &mut Option<Hypervisor>, config: &::ethcore::miner::StratumOptions)
 {
 	use ethcore_stratum;
@@ -140,15 +140,6 @@ pub fn stratum (hypervisor_ref: &mut Option<Hypervisor>, config: &::ethcore::min
 	*hypervisor_ref = Some(hypervisor);
 }
 
-#[cfg(not(feature="stratum"))]
-pub fn stratum (_hypervisor_ref: &mut Option<Hypervisor>, _config: &::ethcore::miner::StratumOptions)
-{
-	warn!(
-		"Stratum arguments ignored: parity should be recompiled with --features=\"stratum\"\n
-		 Use \"cargo build --features=\"stratum\"\""
-	);
-}
-
 #[cfg(feature="ipc")]
 pub fn sync
 	(
@@ -157,7 +148,7 @@ pub fn sync
 		net_cfg: NetworkConfiguration,
 		_client: Arc<BlockChainClient>,
 		_snapshot_service: Arc<SnapshotService>,
-		_provider: Arc<Provider>,		
+		_provider: Arc<Provider>,
 		log_settings: &LogConfig,
 	)
 	-> Result<SyncModules, NetworkError>
@@ -177,7 +168,7 @@ pub fn sync
 		&service_urls::with_base(&hypervisor.io_path, service_urls::NETWORK_MANAGER)).unwrap();
 	let provider_client = generic_client::<LightProviderClient<_>>(
 		&service_urls::with_base(&hypervisor.io_path, service_urls::LIGHT_PROVIDER)).unwrap();
-		
+
 	*hypervisor_ref = Some(hypervisor);
 	Ok((sync_client, manage_client, notify_client))
 }
@@ -190,16 +181,16 @@ pub fn sync
 		net_cfg: NetworkConfiguration,
 		client: Arc<BlockChainClient>,
 		snapshot_service: Arc<SnapshotService>,
-		provider: Arc<Provider>,		
+		provider: Arc<Provider>,
 		_log_settings: &LogConfig,
 	)
 	-> Result<SyncModules, NetworkError>
 {
 	let eth_sync = EthSync::new(Params {
-		config: sync_cfg, 
+		config: sync_cfg,
 		chain: client,
 		provider: provider,
-		snapshot_service: snapshot_service, 
+		snapshot_service: snapshot_service,
 		network_config: net_cfg,
 	})?;
 

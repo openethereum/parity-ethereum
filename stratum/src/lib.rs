@@ -44,7 +44,7 @@ pub use traits::{
 };
 
 use jsonrpc_tcp_server::{Server as JsonRpcServer, RequestContext, MetaExtractor, Dispatcher};
-use jsonrpc_core::{MetaIoHandler, Params, to_value, Value, Metadata};
+use jsonrpc_core::{MetaIoHandler, Params, to_value, Value, Metadata, Compatibility};
 use jsonrpc_macros::IoDelegate;
 use std::sync::Arc;
 
@@ -142,7 +142,7 @@ impl Stratum {
 		delegate.add_method_with_meta("mining.subscribe", StratumRpc::subscribe);
 		delegate.add_method_with_meta("mining.authorize", StratumRpc::authorize);
 		delegate.add_method_with_meta("mining.submit", StratumRpc::submit);
-		let mut handler = MetaIoHandler::<SocketMetadata>::default();
+		let mut handler = MetaIoHandler::<SocketMetadata>::with_compatibility(Compatibility::V1);
 		handler.extend_with(delegate);
 
 		let server = JsonRpcServer::new(addr.clone(), Arc::new(handler))

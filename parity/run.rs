@@ -234,8 +234,6 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 	// prepare account provider
 	let account_provider = Arc::new(prepare_account_provider(&cmd.spec, &cmd.dirs, &spec.data_dir, cmd.acc_conf, &passwords)?);
 
-	spec.engine.register_account_provider(account_provider.clone());
-
 	// create miner
 	let initial_min_gas_price = cmd.gas_pricer.initial_min();
 	let miner = Miner::new(cmd.miner_options, cmd.gas_pricer.into(), &spec, Some(account_provider.clone()));
@@ -319,7 +317,8 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 
 	// start stratum
 	if let Some(ref stratum_config) = cmd.stratum {
-		ClientService::register_stratum(stratum_config, miner.clone(), Arc::downgrade(&client));
+		ClientService::register_stratum(stratum_config, miner.clone(), Arc::downgrade(&client))
+			.map_err(|e| format!("Stratum start error: {:?}", e))?;
 	}
 
 	// create sync object

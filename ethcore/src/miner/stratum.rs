@@ -216,7 +216,7 @@ impl Stratum {
 		let dispatcher = Arc::new(StratumJobDispatcher::new(miner, client));
 
 		let stratum_svc = EthcoreStratum::start(
-			&SocketAddr::from_str(&options.listen_addr)?,
+			&SocketAddr::from_str(&format!("{}:{}", options.listen_addr, options.port))?,
 			dispatcher.clone(),
 			options.secret.clone(),
 		)?;
