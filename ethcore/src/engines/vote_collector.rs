@@ -17,9 +17,20 @@
 //! Collects votes on hashes at each Message::Round.
 
 use std::fmt::Debug;
-use rlp::Encodable;
 use util::*;
-use super::super::message::Message;
+use rlp::Encodable;
+
+pub trait Message: Clone + PartialEq + Eq + Hash + Encodable + Debug {
+	type Round: Clone + PartialEq + Eq + Hash + Default + Debug + Ord;
+
+	fn signature(&self) -> H520;
+
+	fn block_hash(&self) -> Option<H256>;
+
+	fn round(&self) -> &Self::Round;
+
+	fn is_broadcastable(&self) -> bool;
+}
 
 /// Storing all Proposals, Prevotes and Precommits.
 #[derive(Debug)]
@@ -180,129 +191,9 @@ impl <M: Message + Default + Encodable + Debug> VoteCollector<M> {
 		let guard = self.votes.read();
 		guard.get(&message.round()).and_then(|c| c.block_votes.get(&message.block_hash())).and_then(|origins| origins.get(&message.signature()).cloned())
 	}
-}
 
-#[cfg(test)]
-mod tests {
-	use util::*;
-	use super::*;
-	use super::super::{BlockHash, Step};
-	use super::super::message::*;
-
-	fn random_vote(collector: &VoteCollector<ConsensusMessage>, signature: H520, vote_step: VoteStep, block_hash: Option<BlockHash>) -> bool {
-		full_vote(collector, signature, vote_step, block_hash, &H160::random()).is_none()
-	}
-
-	fn full_vote<'a>(collector: &VoteCollector<ConsensusMessage>, signature: H520, vote_step: VoteStep, block_hash: Option<BlockHash>, address: &'a Address) -> Option<&'a Address> {
-		collector.vote(ConsensusMessage { signature: signature, vote_step: vote_step, block_hash: block_hash }, address)
-	}
-
-	#[test]
-	fn seal_retrieval() {
-		let collector = VoteCollector::default();	
-		let bh = Some("1".sha3());
-		let h = 1;
-		let r = 2;
-		let mut signatures = Vec::new();
-		for _ in 0..5 {
-			signatures.push(H520::random());
-		}
-		let propose_step = VoteStep::new(h, r, Step::Propose);
-		let prevote_step = VoteStep::new(h, r, Step::Prevote);
-		let precommit_step = VoteStep::new(h, r, Step::Precommit);
-		// Wrong height proposal.
-		random_vote(&collector, signatures[4].clone(), VoteStep::new(h - 1, r, Step::Propose), bh.clone());
-		// Good proposal
-		random_vote(&collector, signatures[0].clone(), propose_step.clone(), bh.clone());
-		// Wrong block proposal.
-		random_vote(&collector, signatures[0].clone(), propose_step.clone(), Some("0".sha3()));
-		// Wrong block precommit.
-		random_vote(&collector, signatures[3].clone(), precommit_step.clone(), Some("0".sha3()));
-		// Wrong view proposal.
-		random_vote(&collector, signatures[0].clone(), VoteStep::new(h, r - 1, Step::Propose), bh.clone());
-		// Prevote.
-		random_vote(&collector, signatures[0].clone(), prevote_step.clone(), bh.clone());
-		// Relevant precommit.
-		random_vote(&collector, signatures[2].clone(), precommit_step.clone(), bh.clone());
-		// Replcated vote.
-		random_vote(&collector, signatures[2].clone(), precommit_step.clone(), bh.clone());
-		// Wrong view precommit.
-		random_vote(&collector, signatures[4].clone(), VoteStep::new(h, r + 1, Step::Precommit), bh.clone());
-		// Wrong height precommit.
-		random_vote(&collector, signatures[3].clone(), VoteStep::new(h + 1, r, Step::Precommit), bh.clone());
-		// Relevant precommit.
-		random_vote(&collector, signatures[1].clone(), precommit_step.clone(), bh.clone());
-		// Wrong view precommit, same signature.
-		random_vote(&collector, signatures[1].clone(), VoteStep::new(h, r + 1, Step::Precommit), bh.clone());
-		// Wrong view precommit.
-		random_vote(&collector, signatures[4].clone(), VoteStep::new(h, r - 1, Step::Precommit), bh.clone());
-		let seal = SealSignatures {
-			proposal: signatures[0],
-			votes: signatures[1..3].to_vec()
-		};
-		assert_eq!(seal, collector.seal_signatures(VoteStep::new(h, r, Step::Propose), VoteStep::new(h, r, Step::Precommit), &bh.unwrap()).unwrap());
-	}
-
-	#[test]
-	fn count_votes() {
-		let collector = VoteCollector::default();	
-		let prevote_step = VoteStep::new(3, 2, Step::Prevote);
-		let precommit_step = VoteStep::new(3, 2, Step::Precommit);
-		// good prevote
-		random_vote(&collector, H520::random(), prevote_step.clone(), Some("0".sha3()));
-		random_vote(&collector, H520::random(), VoteStep::new(3, 1, Step::Prevote), Some("0".sha3()));
-		// good precommit
-		random_vote(&collector, H520::random(), precommit_step.clone(), Some("0".sha3()));
-		random_vote(&collector, H520::random(), VoteStep::new(3, 3, Step::Precommit), Some("0".sha3()));
-		// good prevote
-		random_vote(&collector, H520::random(), prevote_step.clone(), Some("1".sha3()));
-		// good prevote
-		let same_sig = H520::random();
-		random_vote(&collector, same_sig.clone(), prevote_step.clone(), Some("1".sha3()));
-		random_vote(&collector, same_sig, prevote_step.clone(), Some("1".sha3()));
-		// good precommit
-		random_vote(&collector, H520::random(), precommit_step.clone(), Some("1".sha3()));
-		// good prevote
-		random_vote(&collector, H520::random(), prevote_step.clone(), Some("0".sha3()));
-		random_vote(&collector, H520::random(), VoteStep::new(2, 2, Step::Precommit), Some("2".sha3()));
-
-		assert_eq!(collector.count_round_votes(&prevote_step), 4);
-		assert_eq!(collector.count_round_votes(&precommit_step), 2);
-
-		let message = ConsensusMessage {
-			signature: H520::default(),
-			vote_step: prevote_step,
-			block_hash: Some("1".sha3())
-		};
-		assert_eq!(collector.count_aligned_votes(&message), 2);
-	}
-
-	#[test]
-	fn remove_old() {
-		let collector = VoteCollector::default();	
-		let vote = |height, view, step, hash| {
-			random_vote(&collector, H520::random(), VoteStep::new(height, view, step), hash);
-		};
-		vote(3, 2, Step::Prevote, Some("0".sha3()));
-		vote(3, 1, Step::Prevote, Some("0".sha3()));
-		vote(3, 3, Step::Precommit, Some("0".sha3()));
-		vote(3, 2, Step::Prevote, Some("1".sha3()));
-		vote(3, 2, Step::Prevote, Some("1".sha3()));
-		vote(3, 2, Step::Prevote, Some("0".sha3()));
-		vote(2, 2, Step::Precommit, Some("2".sha3()));
-
-		collector.throw_out_old(&VoteStep::new(3, 2, Step::Precommit));
-		assert_eq!(collector.votes.read().len(), 1);
-	}
-
-	#[test]
-	fn malicious_authority() {
-		let collector = VoteCollector::default();	
-		let vote_step = VoteStep::new(3, 2, Step::Prevote);
-		// Vote is inserted fine.
-		assert!(full_vote(&collector, H520::random(), vote_step.clone(), Some("0".sha3()), &Address::default()).is_none());
-		// Returns the double voting address.
-		full_vote(&collector, H520::random(), vote_step.clone(), Some("1".sha3()), &Address::default()).unwrap();
-		assert_eq!(collector.count_round_votes(&vote_step), 1);
+	/// Count the number of total rounds kept track of.
+	pub fn len(&self) -> usize {
+		self.votes.read().len()
 	}
 }

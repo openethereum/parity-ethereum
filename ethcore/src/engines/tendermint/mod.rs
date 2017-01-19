@@ -25,7 +25,6 @@
 mod message;
 mod transition;
 mod params;
-mod vote_collector;
 
 use std::sync::Weak;
 use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
@@ -47,10 +46,10 @@ use evm::Schedule;
 use state::CleanupMode;
 use io::IoService;
 use super::validator_set::{ValidatorSet, new_validator_set};
+use super::vote_collector::VoteCollector;
 use self::message::*;
 use self::transition::TransitionHandler;
 use self::params::TendermintParams;
-use self::vote_collector::VoteCollector;
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
 pub enum Step {

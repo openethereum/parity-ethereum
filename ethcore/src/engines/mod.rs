@@ -16,7 +16,7 @@
 
 //! Consensus engine specification and basic implementations.
 
-mod message;
+mod vote_collector;
 mod null_engine;
 mod instant_seal;
 mod basic_authority;
