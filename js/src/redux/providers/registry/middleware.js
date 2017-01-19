@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import { debounce } from 'lodash';
+import store from 'store';
 import Contracts from '~/contracts';
 import subscribeToEvents from '~/util/subscribe-to-events';
 
@@ -22,21 +23,16 @@ import registryABI from '~/contracts/abi/registry.json';
 
 import { setReverse, startCachingReverses } from './actions';
 
+const STORE_KEY = '_parity::reverses';
+
 const read = (chain) => {
-  const reverses = window.localStorage.getItem(`${chain}-registry-reverses`);
-  const lastBlock = window.localStorage.getItem(`${chain}-registry-reverses-last-block`);
+  const reverses = store.get(`${STORE_KEY}::${chain}::data`);
+  const lastBlock = store.get(`${STORE_KEY}::${chain}::last-block`);
   if (!reverses || !lastBlock) {
     return null;
   }
 
-  try {
-    return {
-      reverses: JSON.parse(reverses),
-      lastBlock: JSON.parse(lastBlock)
-    };
-  } catch (_) {
-    return null;
-  }
+  return { reverses, lastBlock };
 };
 
 const write = debounce((getChain, getReverses, getLastBlock) => {
@@ -44,8 +40,8 @@ const write = debounce((getChain, getReverses, getLastBlock) => {
   const reverses = getReverses();
   const lastBlock = getLastBlock();
 
-  window.localStorage.setItem(`${chain}-registry-reverses`, JSON.stringify(reverses));
-  window.localStorage.setItem(`${chain}-registry-reverses-last-block`, JSON.stringify(lastBlock));
+  store.set(`${STORE_KEY}::${chain}::data`, reverses);
+  store.set(`${STORE_KEY}::${chain}::last-block`, lastBlock);
 }, 20000);
 
 export default (api) => (store) => {
