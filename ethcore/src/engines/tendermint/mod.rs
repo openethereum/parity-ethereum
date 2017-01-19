@@ -396,7 +396,7 @@ impl Engine for Tendermint {
 
 	fn populate_from_parent(&self, header: &mut Header, parent: &Header, gas_floor_target: U256, _gas_ceil_target: U256) {
 		// Chain scoring: total weight is sqrt(U256::max_value())*height - round
-		let new_difficulty = U256::from(U128::max_value()) + consensus_round(parent).expect("Header has been verified; qed").into() - consensus_round(header).expect("Header has been verified; qed").into();
+		let new_difficulty = U256::from(U128::max_value()) + consensus_round(parent).expect("Header has been verified; qed").into() - self.round.load(AtomicOrdering::SeqCst).into();
 		header.set_difficulty(new_difficulty);
 		header.set_gas_limit({
 			let gas_limit = parent.gas_limit().clone();
