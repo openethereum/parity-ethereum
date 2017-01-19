@@ -155,10 +155,10 @@ function getPlugins (_isProd = isProd) {
 }
 
 function getDappsEntry () {
-  const DAPPS = require('../src/dapps');
+  const DAPPS = require('../src/views/Dapps/builtin.json');
 
-  return DAPPS.reduce((_entry, dapp) => {
-    _entry[dapp.name] = './dapps/' + dapp.entry;
+  return DAPPS.filter((dapp) => !dapp.skipBuild).reduce((_entry, dapp) => {
+    _entry[dapp.url] = './dapps/' + dapp.url + '.js';
     return _entry;
   }, {});
 }
