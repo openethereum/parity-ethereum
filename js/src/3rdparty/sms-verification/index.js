@@ -29,6 +29,20 @@ export const isServerRunning = (isTestnet = false) => {
     });
 };
 
+export const hasReceivedCode = (number, address, isTestnet = false) => {
+  const port = isTestnet ? 8443 : 443;
+  const query = stringify({ number, address });
+  return fetch(`https://sms-verification.parity.io:${port}/?` + query, {
+    mode: 'cors', cache: 'no-store'
+  })
+    .then((res) => {
+      return res.ok;
+    })
+    .catch(() => {
+      return false; // todo: check for 404
+    });
+};
+
 export const postToServer = (query, isTestnet = false) => {
   const port = isTestnet ? 8443 : 443;
   query = stringify(query);
