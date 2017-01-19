@@ -24,11 +24,9 @@ let registry;
 
 function create () {
   instance = {
-    instance: {
-      __id: 'testInstance',
-      entries: {
-        call: sinon.stub().resolves('testValue')
-      }
+    __id: 'testInstance',
+    entries: {
+      call: sinon.stub().resolves('testValue')
     }
   };
   registry = {
