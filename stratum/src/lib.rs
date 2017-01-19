@@ -151,8 +151,8 @@ impl Stratum {
 		handler.extend_with(delegate);
 
 		let server = JsonRpcServer::new(addr.clone(), Arc::new(handler));
-
 		let stratum = Arc::new(Stratum {
+			tcp_dispatcher: server.dispatcher(),
 			rpc_server: server,
 			subscribers: RwLock::new(Vec::new()),
 			job_que: RwLock::new(HashSet::new()),
@@ -160,16 +160,16 @@ impl Stratum {
 			workers: Arc::new(RwLock::new(HashMap::new())),
 			secret: secret,
 			notify_counter: RwLock::new(NOTIFY_CONTER_INITIAL),
-			tcp_dispatcher: server.dispatcher(),
 		});
 		*rpc.stratum.write() = Some(stratum.clone());
 
-		::std::thread::spawn(|| stratum.rpc_server.run());
+		let running_stratum = stratum.clone();
+		::std::thread::spawn(move || running_stratum.rpc_server.run());
 
 		Ok(stratum)
 	}
 
-	fn submit(&self, params: Params, meta: SocketMetadata) -> RpcResult {
+	fn submit(&self, params: Params, _meta: SocketMetadata) -> RpcResult {
 		future::ok(match params {
 			Params::Array(vals) => {
 				// first two elements are service messages (worker_id & job_id)
@@ -252,7 +252,7 @@ impl PushWorkHandler for Stratum {
 		let workers_msg = format!("{{ \"id\": {}, \"method\": \"mining.notify\", \"params\": {} }}\n", next_request_id, payload);
 		trace!(target: "stratum", "pushing work for {} workers (payload: '{}')", workers.len(), &workers_msg);
 		for (ref addr, _) in workers.iter() {
-			try!(self.tcp_dispatcher.push_message(addr, workers_msg));
+			try!(self.tcp_dispatcher.push_message(addr, workers_msg.clone()));
 		}
 		Ok(())
 	}
