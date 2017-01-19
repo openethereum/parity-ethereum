@@ -583,7 +583,7 @@ impl Client {
 		// but have at least the minimum number of states.
 		loop {
 			let needs_pruning = state_db.journal_db().is_pruned() &&
-				state_db.journal_db().mem_used() >= self.config.history_mem;
+				state_db.journal_db().journal_size() >= self.config.history_mem;
 
 			if !needs_pruning { break }
 			match state_db.journal_db().earliest_era() {
