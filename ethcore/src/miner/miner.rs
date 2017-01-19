@@ -29,12 +29,13 @@ use transaction::{Action, UnverifiedTransaction, PendingTransaction, SignedTrans
 use receipt::{Receipt, RichReceipt};
 use spec::Spec;
 use engines::{Engine, Seal};
-use miner::{MinerService, MinerStatus, TransactionQueue, PrioritizationStrategy, AccountDetails, TransactionOrigin};
+use miner::{MinerService, MinerStatus, TransactionQueue, TransactionQueueDetailsProvider, PrioritizationStrategy,
+	AccountDetails, TransactionOrigin};
 use miner::banning_queue::{BanningTransactionQueue, Threshold};
 use miner::work_notify::WorkPoster;
 use miner::price_info::PriceInfo;
 use miner::local_transactions::{Status as LocalTransactionStatus};
-use miner::zero_gas_price_checker::OnChainZeroGasPriceChecker;
+use miner::service_transaction_checker::ServiceTransactionChecker;
 use header::BlockNumber;
 
 /// Different possible definitions for pending transaction set.
@@ -222,6 +223,7 @@ pub struct Miner {
 	accounts: Option<Arc<AccountProvider>>,
 	work_poster: Option<WorkPoster>,
 	gas_pricer: Mutex<GasPricer>,
+	service_transaction_checker: Arc<ServiceTransactionChecker>,
 }
 
 impl Miner {
@@ -264,6 +266,7 @@ impl Miner {
 			engine: spec.engine.clone(),
 			work_poster: work_poster,
 			gas_pricer: Mutex::new(gas_pricer),
+			service_transaction_checker: Arc::new(ServiceTransactionChecker::default()),
 		}
 	}
 
@@ -527,8 +530,8 @@ impl Miner {
 		}
 	}
 
-	fn update_gas_limit(&self, chain: &MiningBlockChainClient) {
-		let gas_limit = chain.best_block_header().gas_limit();
+	fn update_gas_limit(&self, client: &MiningBlockChainClient) {
+		let gas_limit = client.best_block_header().gas_limit();
 		let mut queue = self.transaction_queue.lock();
 		queue.set_gas_limit(gas_limit);
 		if let GasLimit::Auto = self.options.tx_queue_gas_limit {
@@ -538,7 +541,7 @@ impl Miner {
 	}
 
 	/// Returns true if we had to prepare new pending block.
-	fn prepare_work_sealing(&self, chain: &MiningBlockChainClient) -> bool {
+	fn prepare_work_sealing(&self, client: &MiningBlockChainClient) -> bool {
 		trace!(target: "miner", "prepare_work_sealing: entering");
 		let prepare_new = {
 			let mut sealing_work = self.sealing_work.lock();
@@ -556,11 +559,11 @@ impl Miner {
 			// | NOTE Code below requires transaction_queue and sealing_work locks.     |
 			// | Make sure to release the locks before calling that method.             |
 			// --------------------------------------------------------------------------
-			let (block, original_work_hash) = self.prepare_block(chain);
+			let (block, original_work_hash) = self.prepare_block(client);
 			self.prepare_work(block, original_work_hash);
 		}
 		let mut sealing_block_last_request = self.sealing_block_last_request.lock();
-		let best_number = chain.chain_info().best_block_number;
+		let best_number = client.chain_info().best_block_number;
 		if *sealing_block_last_request != best_number {
 			trace!(target: "miner", "prepare_work_sealing: Miner received request (was {}, now {}) - waking up.", *sealing_block_last_request, best_number);
 			*sealing_block_last_request = best_number;
@@ -572,31 +575,23 @@ impl Miner {
 
 	fn add_transactions_to_queue(
 		&self,
-		chain: &MiningBlockChainClient,
+		client: &MiningBlockChainClient,
 		transactions: Vec<UnverifiedTransaction>,
 		default_origin: TransactionOrigin,
 		min_block: Option<BlockNumber>,
 		transaction_queue: &mut BanningTransactionQueue,
 	) -> Vec<Result<TransactionImportResult, Error>> {
-
-		let fetch_account = |a: &Address| AccountDetails {
-			nonce: chain.latest_nonce(a),
-			balance: chain.latest_balance(a),
-		};
-
 		let accounts = self.accounts.as_ref()
 			.and_then(|provider| provider.accounts().ok())
 			.map(|accounts| accounts.into_iter().collect::<HashSet<_>>());
 
-		let schedule = chain.latest_schedule();
-		let gas_required = |tx: &SignedTransaction| tx.gas_required(&schedule).into();
-		let best_block_header = chain.best_block_header().decode();
-		let insertion_time = chain.chain_info().best_block_number;
+		let best_block_header = client.best_block_header().decode();
+		let insertion_time = client.chain_info().best_block_number;
 
 		transactions.into_iter()
 			.map(|tx| {
 				let hash = tx.hash();
-				if chain.transaction_block(TransactionId::Hash(hash)).is_some() {
+				if client.transaction_block(TransactionId::Hash(hash)).is_some() {
 					debug!(target: "miner", "Rejected tx {:?}: already in the blockchain", hash);
 					return Err(Error::Transaction(TransactionError::AlreadyImported));
 				}
@@ -615,20 +610,17 @@ impl Miner {
 							}
 						}).unwrap_or(default_origin);
 
-						// try to install zgp-checker before appending transactions
-						if !transaction_queue.is_zero_gas_price_checker_set() {
-							if let Some(zgp_checker) = OnChainZeroGasPriceChecker::from_chain(chain) {
-								transaction_queue.set_zero_gas_price_checker(Box::new(zgp_checker));
-							}
-						}
+						// try to install service transaction checker before appending transactions
+						self.service_transaction_checker.update_from_chain_client(client);
 
+						let details_provider = TransactionDetailsProvider::new(client, self.service_transaction_checker.clone());
 						match origin {
 							TransactionOrigin::Local | TransactionOrigin::RetractedBlock => {
-								transaction_queue.add(Some(chain), transaction, origin, insertion_time, min_block, &fetch_account, &gas_required)
+								transaction_queue.add(transaction, origin, insertion_time, min_block, &details_provider)
 							},
 							TransactionOrigin::External => {
-								transaction_queue.add_with_banlist(Some(chain), transaction, insertion_time, &fetch_account, &gas_required)
-							}
+								transaction_queue.add_with_banlist(transaction, insertion_time, &details_provider)
+							},
 						}
 					},
 				}
@@ -1163,6 +1155,37 @@ impl MinerService for Miner {
 			// --------------------------------------------------------------------------
 			self.update_sealing(chain);
 		}
+	}
+}
+
+struct TransactionDetailsProvider<'a> {
+	client: &'a MiningBlockChainClient,
+	service_transaction_checker: Arc<ServiceTransactionChecker>,
+}
+
+impl<'a> TransactionDetailsProvider<'a> {
+	pub fn new(client: &'a MiningBlockChainClient, service_transaction_checker: Arc<ServiceTransactionChecker>) -> Self {
+		TransactionDetailsProvider {
+			client: client,
+			service_transaction_checker: service_transaction_checker,
+		}
+	}
+}
+
+impl<'a> TransactionQueueDetailsProvider for TransactionDetailsProvider<'a> {
+	fn fetch_account(&self, address: &Address) -> AccountDetails {
+		AccountDetails {
+			nonce: self.client.latest_nonce(address),
+			balance: self.client.latest_balance(address),
+		}
+	}
+
+	fn estimate_gas_required(&self, tx: &SignedTransaction) -> U256 {
+		tx.gas_required(&self.client.latest_schedule()).into()
+	}
+
+	fn is_service_transaction_acceptable(&self, tx: &SignedTransaction) -> Result<bool, String> {
+		self.service_transaction_checker.check(self.client, tx)
 	}
 }
 

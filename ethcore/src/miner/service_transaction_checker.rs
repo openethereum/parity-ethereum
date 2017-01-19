@@ -16,64 +16,39 @@
 
 use client::MiningBlockChainClient;
 use transaction::SignedTransaction;
-use util::{U256, Uint};
+use util::{U256, Uint, Mutex};
 
-const ZGP_CONTRACT_REGISTRY_NAME: &'static str = "zgp_checker";
+const SERVICE_TRANSACTION_CONTRACT_REGISTRY_NAME: &'static str = "service_transaction_checker";
 
-/// Zero gas price transactions checker.
-pub trait ZeroGasPriceChecker: Send {
-	/// Checks if zgp-transaction can be appended to the transaction queue.
-	fn check(&self, chain: Option<&MiningBlockChainClient>, tx: &SignedTransaction) -> Result<bool, String>;
+/// Service transactions checker.
+#[derive(Default)]
+pub struct ServiceTransactionChecker {
+	contract: Mutex<Option<provider::Contract>>,
 }
 
-/// Implementation of `ZeroGasPriceChecker`, based on on-chain deployed contract.
-pub struct OnChainZeroGasPriceChecker {
-	contract: provider::Contract,
-}
+impl ServiceTransactionChecker {
+	/// Try to create instance, reading contract address from given chain client.
+	pub fn update_from_chain_client(&self, client: &MiningBlockChainClient) {
+		let mut contract = self.contract.lock();
+		if contract.is_none() {
+			*contract = client.registry_address(SERVICE_TRANSACTION_CONTRACT_REGISTRY_NAME.to_owned())
+				.and_then(|contract_addr| {
+					trace!(target: "txqueue", "Configuring for service transaction checker contract from {}", contract_addr);
 
-impl OnChainZeroGasPriceChecker {
-	/// Try to create instance, reading contract address from given chain.
-	pub fn from_chain(chain: &MiningBlockChainClient) -> Option<Self> {
-		chain.registry_address(ZGP_CONTRACT_REGISTRY_NAME.to_owned())
-			.and_then(|contract_addr| {
-				trace!(target: "txqueue", "Configuring for zgp-contract from {}", contract_addr);
-
-				Some(OnChainZeroGasPriceChecker {
-					contract: provider::Contract::new(contract_addr),
+					Some(provider::Contract::new(contract_addr))
 				})
-			})
+		}
 	}
-}
 
-impl ZeroGasPriceChecker for OnChainZeroGasPriceChecker {
-	/// Check if we can append zgp-transaction to the transaction queue
-	fn check(&self, chain: Option<&MiningBlockChainClient>, tx: &SignedTransaction) -> Result<bool, String> {
+	/// Checks if service transaction can be appended to the transaction queue.
+	pub fn check(&self, client: &MiningBlockChainClient, tx: &SignedTransaction) -> Result<bool, String> {
 		debug_assert_eq!(tx.gas_price, U256::zero());
 
-		chain.ok_or("Client not set".to_owned())
-			.and_then(|chain| {
-				let do_call = |a, d| chain.call_contract(a, d);
-				self.contract.certified(&do_call, &tx.sender())
-			})
-	}
-}
-
-#[cfg(test)]
-pub mod tests {
-	use std::collections::HashMap;
-	use client::MiningBlockChainClient;
-	use transaction::SignedTransaction;
-	use util::H256;
-	use super::ZeroGasPriceChecker;
-
-	#[derive(Debug, Default)]
-	pub struct DummyZeroGasPriceChecker {
-		pub check_results: HashMap<H256, Result<bool, String>>,
-	}
-
-	impl ZeroGasPriceChecker for DummyZeroGasPriceChecker {
-		fn check(&self, _chain: Option<&MiningBlockChainClient>, tx: &SignedTransaction) -> Result<bool, String> {
-			self.check_results.get(&tx.hash()).cloned().unwrap_or(Ok(true))
+		if let Some(ref contract) = *self.contract.lock() {
+			let do_call = |a, d| client.call_contract(a, d);
+			contract.certified(&do_call, &tx.sender())
+		} else {
+			Err("contract is not configured".to_owned())
 		}
 	}
 }

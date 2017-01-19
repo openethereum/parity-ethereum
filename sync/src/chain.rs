@@ -1960,22 +1960,22 @@ impl ChainSync {
 			return 0;
 		}
 
-		let (transactions, zgp_transactions): (Vec<_>, Vec<_>) = transactions.into_iter()
+		let (transactions, service_transactions): (Vec<_>, Vec<_>) = transactions.into_iter()
 			.partition(|tx| !tx.transaction.gas_price.is_zero());
 
-		// non-zgp-transactions could be propagated to all peers
+		// usual transactions could be propagated to all peers
 		let mut affected_peers = HashSet::new();
 		if !transactions.is_empty() {
 			let peers = self.select_peers_for_transactions(|_| true);
 			affected_peers = self.propagate_transactions_to_peers(io, peers, transactions);
 		}
 
-		// most of times zgp_transactions will be empty
+		// most of times service_transactions will be empty
 		// => there's no need to merge packets
-		if !zgp_transactions.is_empty() {
-			let zgp_peers = self.select_peers_for_transactions(|peer_id| accepts_zgp_transaction(&io.peer_info(*peer_id)));
-			let zgp_affected_peers = self.propagate_transactions_to_peers(io, zgp_peers, zgp_transactions);
-			affected_peers.extend(&zgp_affected_peers);
+		if !service_transactions.is_empty() {
+			let service_transactions_peers = self.select_peers_for_transactions(|peer_id| accepts_service_transaction(&io.peer_info(*peer_id)));
+			let service_transactions_affected_peers = self.propagate_transactions_to_peers(io, service_transactions_peers, service_transactions);
+			affected_peers.extend(&service_transactions_affected_peers);
 		}
 
 		affected_peers.len()
@@ -2160,19 +2160,21 @@ impl ChainSync {
 	}
 }
 
-/// Checks if peer is able to process zgp-transactions
-fn accepts_zgp_transaction(client_id: &str) -> bool {
-	// Parity versions starting from this will accept zgp-transactions
-	const ZGP_VERSION: (u32, u32) = (1u32, 6u32);
+/// Checks if peer is able to process service transactions
+fn accepts_service_transaction(client_id: &str) -> bool {
+	// Parity versions starting from this will accept service-transactions
+	const SERVICE_TRANSACTIONS_VERSION: (u32, u32) = (1u32, 6u32);
+	// Parity client string prefix
+	const PARITY_CLIENT_ID_PREFIX: &'static str = "Parity/v";
 
-	if !client_id.starts_with("Parity/v") {
+	if !client_id.starts_with(PARITY_CLIENT_ID_PREFIX) {
 		return false;
 	}
-	let ver: Vec<u32> = client_id[8..].split('.')
+	let ver: Vec<u32> = client_id[PARITY_CLIENT_ID_PREFIX.len()..].split('.')
 		.take(2)
 		.filter_map(|s| s.parse().ok())
 		.collect();
-	ver.len() == 2 && (ver[0] > ZGP_VERSION.0 || (ver[0] == ZGP_VERSION.0 && ver[1] >= ZGP_VERSION.1))
+	ver.len() == 2 && (ver[0] > SERVICE_TRANSACTIONS_VERSION.0 || (ver[0] == SERVICE_TRANSACTIONS_VERSION.0 && ver[1] >= SERVICE_TRANSACTIONS_VERSION.1))
 }
 
 #[cfg(test)]
@@ -2695,7 +2697,7 @@ mod tests {
 	}
 
 	#[test]
-	fn should_propagate_zgp_transaction_to_selected_peers_only() {
+	fn should_propagate_service_transaction_to_selected_peers_only() {
 		let mut client = TestBlockChainClient::new();
 		client.insert_transaction_with_gas_price_to_queue(U256::zero());
 		let block_hash = client.block_hash_delta_minus(1);
@@ -2707,27 +2709,27 @@ mod tests {
 		// when peer#1 is Geth
 		insert_dummy_peer(&mut sync, 1, block_hash);
 		io.peers_info.insert(1, "Geth".to_owned());
-		// and peer#2 is Parity, accepting zgp-transactions
+		// and peer#2 is Parity, accepting service transactions
 		insert_dummy_peer(&mut sync, 2, block_hash);
 		io.peers_info.insert(2, "Parity/v1.6".to_owned());
-		// and peer#3 is Parity, discarding zgp-transactions
+		// and peer#3 is Parity, discarding service transactions
 		insert_dummy_peer(&mut sync, 3, block_hash);
 		io.peers_info.insert(3, "Parity/v1.5".to_owned());
-		// and peer#4 is Parity, accepting zgp-transactions
+		// and peer#4 is Parity, accepting service transactions
 		insert_dummy_peer(&mut sync, 4, block_hash);
 		io.peers_info.insert(4, "Parity/v1.7.3-ABCDEFGH".to_owned());
 
-		// and new zgp-transaction is propagated to peers
+		// and new service transaction is propagated to peers
 		sync.propagate_new_transactions(&mut io);
 
-		// peer#2 && peer#4 are receiving zgp transaction
+		// peer#2 && peer#4 are receiving service transaction
 		assert!(io.packets.iter().any(|p| p.packet_id == 0x02 && p.recipient == 2)); // TRANSACTIONS_PACKET
 		assert!(io.packets.iter().any(|p| p.packet_id == 0x02 && p.recipient == 4)); // TRANSACTIONS_PACKET
 		assert_eq!(io.packets.len(), 2);
 	}
 
 	#[test]
-	fn should_propagate_zgp_transaction_is_sent_as_separate_message() {
+	fn should_propagate_service_transaction_is_sent_as_separate_message() {
 		let mut client = TestBlockChainClient::new();
 		let tx1_hash = client.insert_transaction_to_queue();
 		let tx2_hash = client.insert_transaction_with_gas_price_to_queue(U256::zero());
@@ -2737,16 +2739,16 @@ mod tests {
 		let ss = TestSnapshotService::new();
 		let mut io = TestIo::new(&mut client, &ss, &queue, None);
 
-		// when peer#1 is Parity, accepting zgp-transactions
+		// when peer#1 is Parity, accepting service transactions
 		insert_dummy_peer(&mut sync, 1, block_hash);
 		io.peers_info.insert(1, "Parity/v1.6".to_owned());
 
-		// and zgp + non-zgp transactions are propagated to peers
+		// and service + non-service transactions are propagated to peers
 		sync.propagate_new_transactions(&mut io);
 
 		// two separate packets for peer are queued:
-		// 1) with non-zgp-transaction
-		// 2) with zgp-transaction
+		// 1) with non-service-transaction
+		// 2) with service transaction
 		let sent_transactions: Vec<UnverifiedTransaction> = io.packets.iter()
 			.filter_map(|p| {
 				if p.packet_id != 0x02 || p.recipient != 1 { // TRANSACTIONS_PACKET
