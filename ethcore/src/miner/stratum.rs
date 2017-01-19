@@ -58,15 +58,15 @@ impl fmt::Display for PayloadError {
 
 impl SubmitPayload {
 	fn from_args(payload: Vec<String>) -> Result<Self, PayloadError> {
-		if arg.len() != 3 {
-			return Err(PayloadError::NotEnoughArguments);
+		if payload.len() != 3 {
+			return Err(PayloadError::NotEnoughArguments(payload.len()));
 		}
 
 		let nonce = match H64::from_str(clean_0x(&payload[0])) {
 			Ok(nonce) => nonce,
 			Err(e) => {
 				warn!(target: "stratum", "submit_work ({}): invalid nonce ({:?})", &payload[0], e);
-				return Err(Error::InvalidNonce(payload[0]))
+				return Err(PayloadError::InvalidNonce(payload[0].clone()))
 			}
 		};
 
@@ -74,7 +74,7 @@ impl SubmitPayload {
 			Ok(pow_hash) => pow_hash,
 			Err(e) => {
 				warn!(target: "stratum", "submit_work ({}): invalid hash ({:?})", &payload[1], e);
-				return Err(Error::InvalidPowHash(payload[1]));
+				return Err(PayloadError::InvalidPowHash(payload[1].clone()));
 			}
 		};
 
@@ -82,7 +82,7 @@ impl SubmitPayload {
 			Ok(mix_hash) => mix_hash,
 			Err(e) => {
 				warn!(target: "stratum", "submit_work ({}): invalid mix-hash ({:?})",  &payload[2], e);
-				return Err(Error::InvalidMixHash(payload[2]));
+				return Err(PayloadError::InvalidMixHash(payload[2].clone()));
 			}
 		};
 
@@ -126,11 +126,17 @@ impl JobDispatcher for StratumJobDispatcher {
 			StratumServiceError::Dispatch(format!("{}", e))
 		)?;
 
-		trace!(target: "stratum", "submit_work: Decoded: nonce={}, pow_hash={}, mix_hash={}", nonce, pow_hash, mix_hash);
+		trace!(
+			target: "stratum",
+			"submit_work: Decoded: nonce={}, pow_hash={}, mix_hash={}",
+			payload.nonce,
+			payload.pow_hash,
+			payload.mix_hash,
+		);
 
-		self.with_core(|client, miner| {
-			let seal = vec![encode(&mix_hash).to_vec(), encode(&nonce).to_vec()];
-			if let Err(e) = miner.submit_seal(&*client, pow_hash, seal) {
+		self.with_core_void(|client, miner| {
+			let seal = vec![encode(&payload.mix_hash).to_vec(), encode(&payload.nonce).to_vec()];
+			if let Err(e) = miner.submit_seal(&*client, payload.pow_hash, seal) {
 				warn!(target: "stratum", "submit_seal error: {:?}", e);
 			};
 		});
@@ -163,6 +169,10 @@ impl StratumJobDispatcher {
 
 	fn with_core<F, R>(&self, f: F) -> Option<R> where F: Fn(Arc<Client>, Arc<Miner>) -> Option<R> {
 		self.client.upgrade().and_then(|client| self.miner.upgrade().and_then(|miner| (f)(client, miner)))
+	}
+
+	fn with_core_void<F>(&self, f: F) where F: Fn(Arc<Client>, Arc<Miner>) {
+		self.client.upgrade().map(|client| self.miner.upgrade().map(|miner| (f)(client, miner)));
 	}
 }
 
