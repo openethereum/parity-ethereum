@@ -811,7 +811,7 @@ mod tests {
 				extra_data: None,
 				remove_solved: None,
 				notify_work: None,
-				refuse_service_transactions: false,
+				refuse_service_transactions: None,
 			}),
 			footprint: Some(Footprint {
 				tracing: Some("on".into()),
