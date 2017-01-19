@@ -23,6 +23,7 @@ extern crate jsonrpc_macros;
 extern crate ethcore_util as util;
 extern crate ethcore_ipc as ipc;
 extern crate semver;
+extern crate futures;
 
 #[cfg(test)]
 extern crate mio;
@@ -33,6 +34,8 @@ extern crate env_logger;
 #[cfg(test)]
 #[macro_use]
 extern crate lazy_static;
+
+use futures::{future, BoxFuture, Future};
 
 mod traits {
 	//! Stratum ipc interfaces specification
@@ -45,8 +48,8 @@ pub use traits::{
 	RemoteWorkHandler, RemoteJobDispatcher,
 };
 
-use jsonrpc_tcp_server::Server as JsonRpcServer;
-use jsonrpc_core::{IoHandler, Params, to_value, Value};
+use jsonrpc_tcp_server::{Server as JsonRpcServer, RequestContext, MetaExtractor, Dispatcher};
+use jsonrpc_core::{MetaIoHandler, Params, to_value, Value, Metadata};
 use jsonrpc_macros::IoDelegate;
 use std::sync::Arc;
 
@@ -54,31 +57,64 @@ use std::net::SocketAddr;
 use std::collections::{HashSet, HashMap};
 use util::{H256, Hashable, RwLock, RwLockReadGuard};
 
-type RpcResult = Result<jsonrpc_core::Value, jsonrpc_core::Error>;
+type RpcResult = BoxFuture<jsonrpc_core::Value, jsonrpc_core::Error>;
 
 struct StratumRpc {
 	stratum: RwLock<Option<Arc<Stratum>>>,
 }
 
 impl StratumRpc {
-	fn subscribe(&self, params: Params) -> RpcResult {
+	fn subscribe(&self, params: Params, meta: SocketMetadata) -> RpcResult {
 		self.stratum.read().as_ref().expect("RPC methods are called after stratum is set.")
-			.subscribe(params)
+			.subscribe(params, meta)
 	}
 
-	fn authorize(&self, params: Params) -> RpcResult {
+	fn authorize(&self, params: Params, meta: SocketMetadata) -> RpcResult {
 		self.stratum.read().as_ref().expect("RPC methods are called after stratum is set.")
-			.authorize(params)
+			.authorize(params, meta)
 	}
 
-	fn submit(&self, params: Params) -> RpcResult {
+	fn submit(&self, params: Params, meta: SocketMetadata) -> RpcResult {
 		self.stratum.read().as_ref().expect("RPC methods are called after stratum is set.")
-			.submit(params)
+			.submit(params, meta)
 	}
 }
 
+#[derive(Clone)]
+pub struct SocketMetadata {
+    addr: SocketAddr,
+}
+
+impl Default for SocketMetadata {
+    fn default() -> Self {
+        SocketMetadata { addr: "0.0.0.0:0".parse().unwrap() }
+    }
+}
+
+impl SocketMetadata {
+    pub fn addr(&self) -> &SocketAddr {
+        &self.addr
+    }
+}
+
+impl Metadata for SocketMetadata { }
+
+impl From<SocketAddr> for SocketMetadata {
+    fn from(addr: SocketAddr) -> SocketMetadata {
+        SocketMetadata { addr: addr }
+    }
+}
+
+pub struct PeerMetaExtractor;
+
+impl MetaExtractor<SocketMetadata> for PeerMetaExtractor {
+    fn extract(&self, context: &RequestContext) -> SocketMetadata {
+        context.peer_addr.into()
+    }
+}
+
 pub struct Stratum {
-	rpc_server: JsonRpcServer<()>,
+	rpc_server: JsonRpcServer<SocketMetadata>,
 	/// Subscribed clients
 	subscribers: RwLock<Vec<SocketAddr>>,
 	/// List of workers supposed to receive job update
@@ -91,6 +127,8 @@ pub struct Stratum {
 	secret: Option<H256>,
 	/// Dispatch notify couinter
 	notify_counter: RwLock<u32>,
+	/// Message dispatcher (tcp/ip service)
+	tcp_dispatcher: Dispatcher,
 }
 
 const NOTIFY_CONTER_INITIAL: u32 = 16;
@@ -105,13 +143,14 @@ impl Stratum {
 		let rpc = Arc::new(StratumRpc {
 			stratum: RwLock::new(None),
 		});
-		let mut delegate = IoDelegate::<StratumRpc>::new(rpc.clone());
-		delegate.add_method("miner.subscribe", StratumRpc::subscribe);
-		delegate.add_method("miner.authorize", StratumRpc::authorize);
-		delegate.add_method("miner.sumbit", StratumRpc::submit);
-		let mut handler = IoHandler::default();
+		let mut delegate = IoDelegate::<StratumRpc, SocketMetadata>::new(rpc.clone());
+		delegate.add_method_with_meta("miner.subscribe", StratumRpc::subscribe);
+		delegate.add_method_with_meta("miner.authorize", StratumRpc::authorize);
+		delegate.add_method_with_meta("miner.authorize", StratumRpc::submit);
+		let mut handler = MetaIoHandler::<SocketMetadata>::default();
 		handler.extend_with(delegate);
-		let server = JsonRpcServer::new(addr, handler)?;
+
+		let server = JsonRpcServer::new(addr.clone(), Arc::new(handler));
 
 		let stratum = Arc::new(Stratum {
 			rpc_server: server,
@@ -121,16 +160,17 @@ impl Stratum {
 			workers: Arc::new(RwLock::new(HashMap::new())),
 			secret: secret,
 			notify_counter: RwLock::new(NOTIFY_CONTER_INITIAL),
+			tcp_dispatcher: server.dispatcher(),
 		});
 		*rpc.stratum.write() = Some(stratum.clone());
 
-		try!(stratum.rpc_server.run_async());
+		::std::thread::spawn(|| stratum.rpc_server.run());
 
 		Ok(stratum)
 	}
 
-	fn submit(&self, params: Params) -> std::result::Result<jsonrpc_core::Value, jsonrpc_core::Error> {
-		Ok(match params {
+	fn submit(&self, params: Params, meta: SocketMetadata) -> RpcResult {
+		future::ok(match params {
 			Params::Array(vals) => {
 				// first two elements are service messages (worker_id & job_id)
 				match self.dispatcher.submit(vals.iter().skip(2)
@@ -149,19 +189,17 @@ impl Stratum {
 				trace!(target: "stratum", "Invalid submit work format {:?}", params);
 				to_value(false)
 			}
-		})
+		}).boxed()
 	}
 
-	fn subscribe(&self, _params: Params) -> std::result::Result<jsonrpc_core::Value, jsonrpc_core::Error> {
-
+	fn subscribe(&self, _params: Params, meta: SocketMetadata) -> RpcResult {
 		use std::str::FromStr;
 
-		if let Some(context) = self.rpc_server.request_context() {
-			self.subscribers.write().push(context.socket_addr);
-			self.job_que.write().insert(context.socket_addr);
-			trace!(target: "stratum", "Subscription request from {:?}", context.socket_addr);
-		}
-		Ok(match self.dispatcher.initial() {
+		self.subscribers.write().push(meta.addr().clone());
+		self.job_que.write().insert(meta.addr().clone());
+		trace!(target: "stratum", "Subscription request from {:?}", meta.addr());
+
+		future::ok(match self.dispatcher.initial() {
 			Some(initial) => match jsonrpc_core::Value::from_str(&initial) {
 				Ok(val) => val,
 				Err(e) => {
@@ -170,26 +208,20 @@ impl Stratum {
 				},
 			},
 			None => to_value(&[0u8; 0]),
-		})
+		}).boxed()
 	}
 
-	fn authorize(&self, params: Params) -> RpcResult {
-		params.parse::<(String, String)>().map(|(worker_id, secret)|{
+	fn authorize(&self, params: Params, meta: SocketMetadata) -> RpcResult {
+		future::result(params.parse::<(String, String)>().map(|(worker_id, secret)|{
 			if let Some(valid_secret) = self.secret {
 				let hash = secret.sha3();
 				if hash != valid_secret {
 					return to_value(&false);
 				}
 			}
-			if let Some(context) = self.rpc_server.request_context() {
-				self.workers.write().insert(context.socket_addr, worker_id);
-				to_value(true)
-			}
-			else {
-				warn!(target: "stratum", "Authorize without valid context received!");
-				to_value(false)
-			}
-		})
+			self.workers.write().insert(meta.addr().clone(), worker_id);
+			to_value(true)
+		})).boxed()
 	}
 
 	pub fn subscribers(&self) -> RwLockReadGuard<Vec<SocketAddr>> {
@@ -201,7 +233,7 @@ impl Stratum {
 		let job_payload = self.dispatcher.job();
 		for socket_addr in job_que.drain() {
 			job_payload.as_ref().map(
-				|json| self.rpc_server.push_message(&socket_addr, json.as_bytes())
+				|json| self.tcp_dispatcher.push_message(&socket_addr, json.to_owned())
 			);
 		}
 	}
@@ -220,7 +252,7 @@ impl PushWorkHandler for Stratum {
 		let workers_msg = format!("{{ \"id\": {}, \"method\": \"mining.notify\", \"params\": {} }}\n", next_request_id, payload);
 		trace!(target: "stratum", "pushing work for {} workers (payload: '{}')", workers.len(), &workers_msg);
 		for (ref addr, _) in workers.iter() {
-			try!(self.rpc_server.push_message(addr, workers_msg.as_bytes()));
+			try!(self.tcp_dispatcher.push_message(addr, workers_msg));
 		}
 		Ok(())
 	}
@@ -239,9 +271,9 @@ impl PushWorkHandler for Stratum {
 		while que.len() > 0 {
 			let next_worker = addrs[addr_index];
 			let mut next_payload = que.drain(0..1);
-			self.rpc_server.push_message(
+			self.tcp_dispatcher.push_message(
 					next_worker,
-					next_payload.nth(0).expect("drained successfully of 0..1, so 0-th element should exist").as_bytes()
+					next_payload.nth(0).expect("drained successfully of 0..1, so 0-th element should exist")
 				)?;
 			addr_index = addr_index + 1;
 		}

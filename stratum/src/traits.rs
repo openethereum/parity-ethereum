@@ -18,6 +18,7 @@ use std;
 use std::error::Error as StdError;
 use util::H256;
 use ipc::IpcConfig;
+use jsonrpc_tcp_server::PushMessageError;
 
 #[derive(Debug, Clone)]
 #[binary]
@@ -35,9 +36,9 @@ impl From<std::io::Error> for Error {
 	}
 }
 
-impl From<::jsonrpc_tcp_server::Error> for Error {
-	fn from(tcp_err: ::jsonrpc_tcp_server::Error) -> Self {
-		Error::Tcp(format!("{:?}", tcp_err))
+impl From<PushMessageError> for Error {
+	fn from(err: PushMessageError) -> Self {
+		Error::Tcp(format!("Push message error: {:?}", err))
 	}
 }
 
