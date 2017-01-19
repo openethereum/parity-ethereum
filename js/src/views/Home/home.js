@@ -26,6 +26,7 @@ import WebStore from '../Web/store';
 
 import Accounts from './Accounts';
 import Dapps from './Dapps';
+import News from './News';
 import Urls from './Urls';
 import styles from './home.css';
 
@@ -68,6 +69,9 @@ export default class Home extends Component {
           </div>
           <div className={ styles.item }>
             <Accounts history={ this.accountsHistory.history } />
+          </div>
+          <div className={ styles.item }>
+            <News />
           </div>
         </div>
       </Page>

@@ -59,6 +59,10 @@ describe('views/Home', () => {
       expect(component.find('Dapps').length).to.equal(1);
     });
 
+    it('renders News', () => {
+      expect(component.find('News').length).to.equal(1);
+    });
+
     it('renders Urls', () => {
       expect(component.find('Urls').length).to.equal(1);
     });

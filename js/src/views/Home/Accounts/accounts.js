@@ -54,7 +54,7 @@ export default class Accounts extends Component {
         <div className={ styles.empty }>
           <FormattedMessage
             id='home.accounts.none'
-            defaultMessage='No recent accounts retrieved'
+            defaultMessage='No recent accounts history available'
           />
         </div>
       );

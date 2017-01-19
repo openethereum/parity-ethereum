@@ -54,7 +54,7 @@ export default class Dapps extends Component {
         <div className={ styles.empty }>
           <FormattedMessage
             id='home.dapps.none'
-            defaultMessage='No recent URLs retrieved'
+            defaultMessage='No recent Applications history available'
           />
         </div>
       );
