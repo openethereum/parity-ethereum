@@ -40,7 +40,11 @@ serde_macros = { version = "0.8", optional = true }
 clippy = { version = "0.0.103", optional = true}
 
 [build-dependencies]
+regex = "*"
+lazy_static = "*"
 serde_codegen = { version = "0.8", optional = true }
+
+[dev-]
 
 [features]
 default = ["serde_codegen"]

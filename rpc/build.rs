@@ -14,6 +14,11 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+#[macro_use] extern crate lazy_static;
+extern crate regex;
+
+mod docgen;
+
 #[cfg(not(feature = "serde_macros"))]
 mod inner {
     extern crate serde_codegen;
@@ -22,6 +27,8 @@ mod inner {
     use std::path::Path;
 
     pub fn main() {
+        super::docgen::build();
+
         let out_dir = env::var_os("OUT_DIR").unwrap();
 
         let src = Path::new("src/v1/types/mod.rs.in");
@@ -33,7 +40,9 @@ mod inner {
 
 #[cfg(feature = "serde_macros")]
 mod inner {
-    pub fn main() {}
+    pub fn main() {
+        super::docgen::build();
+    }
 }
 
 fn main() {
