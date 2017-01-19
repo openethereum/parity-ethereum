@@ -18,8 +18,10 @@ import { stringify } from 'querystring';
 
 export const isServerRunning = (isTestnet = false) => {
   const port = isTestnet ? 28443 : 18443;
+
   return fetch(`https://email-verification.parity.io:${port}/health`, {
-    mode: 'cors', cache: 'no-store'
+    mode: 'cors',
+    cache: 'no-store'
   })
     .then((res) => {
       return res.ok;
@@ -32,8 +34,10 @@ export const isServerRunning = (isTestnet = false) => {
 export const hasReceivedCode = (email, address, isTestnet = false) => {
   const port = isTestnet ? 28443 : 18443;
   const query = stringify({ email, address });
-  return fetch(`https://email-verification.parity.io:${port}/?` + query, {
-    mode: 'cors', cache: 'no-store'
+
+  return fetch(`https://email-verification.parity.io:${port}/?${query}`, {
+    mode: 'cors',
+    cache: 'no-store'
   })
     .then((res) => {
       return res.ok;
@@ -46,8 +50,11 @@ export const hasReceivedCode = (email, address, isTestnet = false) => {
 export const postToServer = (query, isTestnet = false) => {
   const port = isTestnet ? 28443 : 18443;
   query = stringify(query);
-  return fetch(`https://email-verification.parity.io:${port}/?` + query, {
-    method: 'POST', mode: 'cors', cache: 'no-store'
+
+  return fetch(`https://email-verification.parity.io:${port}/?${query}`, {
+    method: 'POST',
+    mode: 'cors',
+    cache: 'no-store'
   })
   .then((res) => {
     return res.json().then((data) => {

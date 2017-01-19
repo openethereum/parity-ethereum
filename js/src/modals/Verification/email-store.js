@@ -21,7 +21,7 @@ import EmailVerificationABI from '~/contracts/abi/email-verification.json';
 import VerificationStore, {
   LOADING, QUERY_DATA, QUERY_CODE, POSTED_CONFIRMATION, DONE
 } from './store';
-import { isServerRunning, hasReceivedCode, postToServer } from '../../3rdparty/email-verification';
+import { isServerRunning, hasReceivedCode, postToServer } from '~/3rdparty/email-verification';
 
 // name in the `BadgeReg.sol` contract
 const EMAIL_VERIFICATION = 'emailverification';
