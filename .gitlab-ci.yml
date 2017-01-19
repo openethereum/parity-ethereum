@@ -49,7 +49,7 @@ linux-stable:
     name: "stable-x86_64-unknown-linux-gnu_parity"
 linux-stable-debian:
   stage: build
-  image: ethcore/rust:debian
+  image: ethcore/rust-debian:latest
   only:
     - beta
     - tags
