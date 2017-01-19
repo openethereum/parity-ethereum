@@ -15,17 +15,18 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import moment from 'moment';
-import React, { Component, PropTypes } from 'react';
+import React, { Component } from 'react';
 import { FormattedMessage } from 'react-intl';
 import { Link } from 'react-router';
 
 import { Container, IdentityName, IdentityIcon } from '~/ui';
+import { arrayOrObjectProptype } from '~/util/proptypes';
 
 import styles from '../home.css';
 
 export default class Accounts extends Component {
   static propTypes = {
-    history: PropTypes.object.isRequired
+    history: arrayOrObjectProptype().isRequired
   }
 
   render () {

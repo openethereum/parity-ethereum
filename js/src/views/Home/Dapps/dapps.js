@@ -14,18 +14,19 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import moment from 'moment';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
-import { Link } from 'react-router';
 
-import { Container, DappIcon } from '~/ui';
+import { Container } from '~/ui';
+import { arrayOrObjectProptype } from '~/util/proptypes';
 
+import Dapp from './dapp';
 import styles from '../home.css';
 
-export default class Accounts extends Component {
+export default class Dapps extends Component {
   static propTypes = {
-    history: PropTypes.object.isRequired
+    history: arrayOrObjectProptype().isRequired,
+    store: PropTypes.object.isRequired
   }
 
   render () {
@@ -46,49 +47,31 @@ export default class Accounts extends Component {
   }
 
   renderHistory () {
-    const { dapps } = this.state;
-    const { history } = this.props;
+    const { history, store } = this.props;
 
     if (!history.length) {
       return (
         <div className={ styles.empty }>
-          No recent applications retrieved
+          No recent URLs retrieved
         </div>
       );
     }
 
-    const rows = history.map((h) => {
-      const dapp = dapps[h.entry];
-
-      if (typeof dapp === 'undefined') {
-        this.loadApp(h.entry);
-      }
-
-      if (!dapp) {
-        return null;
-      }
-
-      return (
-        <tr key={ h.timestamp }>
-          <td className={ styles.timestamp }>
-            { moment(h.timestamp).fromNow() }
-          </td>
-          <td className={ styles.entry }>
-            <Link to={ `/app/${h.entry}` }>
-              <DappIcon app={ dapp } />
-              <span>
-                { dapp.name }
-              </span>
-            </Link>
-          </td>
-        </tr>
-      );
-    });
-
     return (
       <table className={ styles.history }>
         <tbody>
-          { rows }
+          {
+            history.map((h) => {
+              return (
+                <Dapp
+                  id={ h.entry }
+                  key={ h.timestamp }
+                  store={ store }
+                  timestamp={ h.timestamp }
+                />
+              );
+            })
+          }
         </tbody>
       </table>
     );

@@ -30,15 +30,8 @@
   .entry {
     padding: 0;
 
-    .identityIcon {
+    .identityIcon, .dappIcon {
       margin-bottom: -10px;
-    }
-
-    .dappIcon {
-      border-radius: 50%;
-      height: 32px;
-      margin-right: 0.75em;
-      width: 32px;
     }
   }
 

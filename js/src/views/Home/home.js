@@ -32,8 +32,7 @@ import styles from './home.css';
 @observer
 export default class Home extends Component {
   static contextTypes = {
-    api: PropTypes.object.isRequired,
-    router: PropTypes.object.isRequired
+    api: PropTypes.object.isRequired
   };
 
   dappsStore = DappsStore.get(this.context.api);
@@ -62,7 +61,10 @@ export default class Home extends Component {
             />
           </div>
           <div className={ styles.item }>
-            <Dapps history={ this.dappsHistory.history } />
+            <Dapps
+              history={ this.dappsHistory.history }
+              store={ this.dappsStore }
+            />
           </div>
           <div className={ styles.item }>
             <Accounts history={ this.accountsHistory.history } />
@@ -70,29 +72,5 @@ export default class Home extends Component {
         </div>
       </Page>
     );
-  }
-
-  renderUrlHistory () {
-
-  }
-
-  loadApp = (id) => {
-    const { dapps } = this.state;
-
-    if (dapps[id]) {
-      return;
-    }
-
-    this.dappsStore
-      .loadApp(id)
-      .then((app) => {
-        console.log(id, app);
-        this.setState({
-          dapps: Object.assign({ ...this.state.dapps }, { [id]: app })
-        });
-      })
-      .catch((error) => {
-        console.warn(`Unable to load ${id}`, error);
-      });
   }
 }

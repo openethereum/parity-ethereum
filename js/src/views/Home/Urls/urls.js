@@ -20,6 +20,7 @@ import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 
 import { Container, DappUrlInput } from '~/ui';
+import { arrayOrObjectProptype } from '~/util/proptypes';
 
 import styles from '../home.css';
 
@@ -30,7 +31,7 @@ export default class Urls extends Component {
   };
 
   static propTypes = {
-    history: PropTypes.object.isRequired,
+    history: arrayOrObjectProptype().isRequired,
     store: PropTypes.object.isRequired
   }
 
