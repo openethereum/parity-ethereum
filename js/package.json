@@ -163,6 +163,7 @@
     "phoneformat.js": "1.0.3",
     "promise-worker": "1.1.1",
     "push.js": "0.0.11",
+    "qrcode-npm": "0.0.3",
     "qs": "6.3.0",
     "react": "15.4.1",
     "react-ace": "4.1.0",
