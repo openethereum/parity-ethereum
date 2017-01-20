@@ -72,23 +72,31 @@ describe('modals/CreateAccount/NewAccount', () => {
 
   describe('event handlers', () => {
     describe('onChangeIdentity', () => {
-      const ADDR = '0x123_testAddr';
+      let address;
 
       beforeEach(() => {
+        address = Object.keys(instance.state.accounts)[3];
+
         sinon.spy(store, 'setAddress');
-        instance.onChangeIdentity({ target: { value: ADDR } });
+        sinon.spy(store, 'setPhrase');
+        instance.onChangeIdentity({ target: { value: address } });
       });
 
       afterEach(() => {
         store.setAddress.restore();
+        store.setPhrase.restore();
       });
 
       it('sets the state with the new value', () => {
-        expect(instance.state.selectedAddress).to.equal(ADDR);
+        expect(instance.state.selectedAddress).to.equal(address);
       });
 
       it('sets the new address on the store', () => {
-        expect(store.setAddress).to.have.been.calledWith(ADDR);
+        expect(store.setAddress).to.have.been.calledWith(address);
+      });
+
+      it('sets the new phrase on the store', () => {
+        expect(store.setPhrase).to.have.been.calledWith(instance.state.accounts[address].phrase);
       });
     });
 

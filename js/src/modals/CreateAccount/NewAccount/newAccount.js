@@ -60,7 +60,7 @@ export default class CreateAccount extends Component {
               defaultMessage='account name'
             />
           }
-          onChange={ this.onEditName }
+          onChange={ this.onEditAccountName }
           value={ name }
         />
         <Input
@@ -199,9 +199,15 @@ export default class CreateAccount extends Component {
     return store
       .createIdentities()
       .then((accounts) => {
+        const selectedAddress = Object.keys(accounts)[0];
+        const { phrase } = accounts[selectedAddress];
+
+        store.setAddress(selectedAddress);
+        store.setPhrase(phrase);
+
         this.setState({
           accounts,
-          selectedAddress: Object.keys(accounts)[0]
+          selectedAddress
         });
       })
       .catch((error) => {
@@ -218,7 +224,10 @@ export default class CreateAccount extends Component {
     }
 
     this.setState({ selectedAddress }, () => {
+      const { phrase } = this.state.accounts[selectedAddress];
+
       store.setAddress(selectedAddress);
+      store.setPhrase(phrase);
     });
   }
 
