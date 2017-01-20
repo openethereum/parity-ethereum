@@ -198,3 +198,148 @@ impl <M: Message + Default + Encodable + Debug> VoteCollector<M> {
 		self.votes.read().len()
 	}
 }
+
+#[cfg(test)]
+mod tests {
+	use util::*;
+	use rlp::*;
+	use super::*;
+
+	#[derive(Debug, PartialEq, Eq, Clone, Hash, Default)]
+	struct TestMessage {
+		step: TestStep,
+		block_hash: Option<H256>,
+		signature: H520,
+	}
+
+	type TestStep = u64;
+
+	impl Message for TestMessage {
+		type Round = TestStep;
+
+		fn signature(&self) -> H520 { self.signature }
+
+		fn block_hash(&self) -> Option<H256> { self.block_hash }
+
+		fn round(&self) -> &TestStep { &self.step }
+
+		fn is_broadcastable(&self) -> bool { true }
+	}
+
+	impl Encodable for TestMessage {
+		fn rlp_append(&self, s: &mut RlpStream) {
+			s.begin_list(3)
+				.append(&self.signature)
+				.append(&self.step)
+				.append(&self.block_hash.unwrap_or_else(H256::zero));
+		}
+	}
+
+	fn random_vote(collector: &VoteCollector<TestMessage>, signature: H520, step: TestStep, block_hash: Option<H256>) -> bool {
+		full_vote(collector, signature, step, block_hash, &H160::random()).is_none()
+	}
+
+	fn full_vote<'a>(collector: &VoteCollector<TestMessage>, signature: H520, step: TestStep, block_hash: Option<H256>, address: &'a Address) -> Option<&'a Address> {
+		collector.vote(TestMessage { signature: signature, step: step, block_hash: block_hash }, address)
+	}
+
+	#[test]
+	fn seal_retrieval() {
+		let collector = VoteCollector::default();	
+		let bh = Some("1".sha3());
+		let mut signatures = Vec::new();
+		for _ in 0..5 {
+			signatures.push(H520::random());
+		}
+		let propose_round = 3;
+		let commit_round = 5;
+		// Wrong round.
+		random_vote(&collector, signatures[4].clone(), 1, bh.clone());
+		// Good proposal
+		random_vote(&collector, signatures[0].clone(), propose_round.clone(), bh.clone());
+		// Wrong block proposal.
+		random_vote(&collector, signatures[0].clone(), propose_round.clone(), Some("0".sha3()));
+		// Wrong block commit.
+		random_vote(&collector, signatures[3].clone(), commit_round.clone(), Some("0".sha3()));
+		// Wrong round.
+		random_vote(&collector, signatures[0].clone(), 6, bh.clone());
+		// Wrong round.
+		random_vote(&collector, signatures[0].clone(), 4, bh.clone());
+		// Relevant commit.
+		random_vote(&collector, signatures[2].clone(), commit_round.clone(), bh.clone());
+		// Replicated vote.
+		random_vote(&collector, signatures[2].clone(), commit_round.clone(), bh.clone());
+		// Wrong round.
+		random_vote(&collector, signatures[4].clone(), 6, bh.clone());
+		// Relevant precommit.
+		random_vote(&collector, signatures[1].clone(), commit_round.clone(), bh.clone());
+		// Wrong round, same signature.
+		random_vote(&collector, signatures[1].clone(), 7, bh.clone());
+		let seal = SealSignatures {
+			proposal: signatures[0],
+			votes: signatures[1..3].to_vec()
+		};
+		assert_eq!(seal, collector.seal_signatures(propose_round, commit_round, &bh.unwrap()).unwrap());
+	}
+
+	#[test]
+	fn count_votes() {
+		let collector = VoteCollector::default();	
+		let round1 = 1;
+		let round3 = 3;
+		// good 1
+		random_vote(&collector, H520::random(), round1, Some("0".sha3()));
+		random_vote(&collector, H520::random(), 0, Some("0".sha3()));
+		// good 3
+		random_vote(&collector, H520::random(), round3, Some("0".sha3()));
+		random_vote(&collector, H520::random(), 2, Some("0".sha3()));
+		// good prevote
+		random_vote(&collector, H520::random(), round1, Some("1".sha3()));
+		// good prevote
+		let same_sig = H520::random();
+		random_vote(&collector, same_sig.clone(), round1, Some("1".sha3()));
+		random_vote(&collector, same_sig, round1, Some("1".sha3()));
+		// good precommit
+		random_vote(&collector, H520::random(), round3, Some("1".sha3()));
+		// good prevote
+		random_vote(&collector, H520::random(), round1, Some("0".sha3()));
+		random_vote(&collector, H520::random(), 4, Some("2".sha3()));
+
+		assert_eq!(collector.count_round_votes(&round1), 4);
+		assert_eq!(collector.count_round_votes(&round3), 2);
+
+		let message = TestMessage {
+			signature: H520::default(),
+			step: round1,
+			block_hash: Some("1".sha3())
+		};
+		assert_eq!(collector.count_aligned_votes(&message), 2);
+	}
+
+	#[test]
+	fn remove_old() {
+		let collector = VoteCollector::default();	
+		let vote = |round, hash| {
+			random_vote(&collector, H520::random(), round, hash);
+		};
+		vote(6, Some("0".sha3()));
+		vote(3, Some("0".sha3()));
+		vote(7, Some("0".sha3()));
+		vote(8, Some("1".sha3()));
+		vote(1, Some("1".sha3()));
+
+		collector.throw_out_old(&7);
+		assert_eq!(collector.len(), 2);
+	}
+
+	#[test]
+	fn malicious_authority() {
+		let collector = VoteCollector::default();	
+		let round = 3;
+		// Vote is inserted fine.
+		assert!(full_vote(&collector, H520::random(), round, Some("0".sha3()), &Address::default()).is_none());
+		// Returns the double voting address.
+		full_vote(&collector, H520::random(), round, Some("1".sha3()), &Address::default()).unwrap();
+		assert_eq!(collector.count_round_votes(&round), 1);
+	}
+}
