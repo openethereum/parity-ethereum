@@ -36,7 +36,7 @@ use parking_lot::RwLock;
 use chain::{ETH_PACKET_COUNT, SNAPSHOT_SYNC_PACKET_COUNT};
 use light::client::LightChainClient;
 use light::Provider;
-use light::net::{LightProtocol, Params as LightParams, Capabilities, Handler as LightHandler, EventContext};
+use light::net::{self as light_net, LightProtocol, Params as LightParams, Capabilities, Handler as LightHandler, EventContext};
 
 /// Parity sync protocol
 pub const WARP_SYNC_PROTOCOL_ID: ProtocolId = *b"par";
@@ -123,12 +123,44 @@ pub struct PeerInfo {
 	pub remote_address: String,
 	/// Local endpoint address
 	pub local_address: String,
-	/// Ethereum protocol version
-	pub eth_version: u32,
+	/// Eth protocol info.
+	pub eth_info: Option<EthProtocolInfo>,
+	/// Light protocol info.
+	pub les_info: Option<LesProtocolInfo>,
+}
+
+/// Ethereum protocol info.
+#[derive(Debug)]
+#[cfg_attr(feature = "ipc", derive(Binary))]
+pub struct EthProtocolInfo {
+	/// Protocol version
+	pub version: u32,
 	/// SHA3 of peer best block hash
-	pub eth_head: H256,
+	pub head: H256,
 	/// Peer total difficulty if known
-	pub eth_difficulty: Option<U256>,
+	pub difficulty: Option<U256>,
+}
+
+/// LES protocol info.
+#[derive(Debug)]
+#[cfg_attr(feature = "ipc", derive(Binary))]
+pub struct LesProtocolInfo {
+	/// Protocol version
+	pub version: u32,
+	/// SHA3 of peer best block hash
+	pub head: H256,
+	/// Peer total difficulty if known
+	pub difficulty: U256,
+}
+
+impl From<light_net::Status> for LesProtocolInfo {
+	fn from(status: light_net::Status) -> Self {
+		LesProtocolInfo {
+			version: status.protocol_version,
+			head: status.head_hash,
+			difficulty: status.head_td,
+		}
+	}
 }
 
 /// EthSync initialization parameters.
@@ -214,11 +246,28 @@ impl SyncProvider for EthSync {
 
 	/// Get sync peers
 	fn peers(&self) -> Vec<PeerInfo> {
-		// TODO: [rob] LES peers/peer info
-		self.network.with_context_eval(self.subprotocol_name, |context| {
-			let sync_io = NetSyncIo::new(context, &*self.eth_handler.chain, &*self.eth_handler.snapshot_service, &self.eth_handler.overlay);
-			self.eth_handler.sync.write().peers(&sync_io)
-		}).unwrap_or(Vec::new())
+		self.network.with_context_eval(self.subprotocol_name, |ctx| {
+			let peer_ids = self.network.connected_peers();
+			let eth_sync = self.eth_handler.sync.read();
+			let light_proto = self.light_proto.as_ref();
+
+			peer_ids.into_iter().filter_map(|peer_id| {
+				let session_info = match ctx.session_info(peer_id) {
+					None => return None,
+					Some(info) => info,
+				};
+
+				Some(PeerInfo {
+					id: session_info.id.map(|id| id.hex()),
+					client_version: session_info.client_version,
+					capabilities: session_info.peer_capabilities.into_iter().map(|c| c.to_string()).collect(),
+					remote_address: session_info.remote_address,
+					local_address: session_info.local_address,
+					eth_info: eth_sync.peer_info(&peer_id),
+					les_info: light_proto.as_ref().and_then(|lp| lp.peer_status(&peer_id)).map(Into::into),
+				})
+			}).collect()
+		}).unwrap_or_else(Vec::new)
 	}
 
 	fn enode(&self) -> Option<String> {

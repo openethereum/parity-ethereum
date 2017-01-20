@@ -29,6 +29,11 @@ pub trait JournalDB: HashDB {
 	/// Returns heap memory size used
 	fn mem_used(&self) -> usize;
 
+	/// Returns the size of journalled state in memory.
+	/// This function has a considerable speed requirement --
+	/// it must be fast enough to call several times per block imported.
+	fn journal_size(&self) -> usize { 0 }
+
 	/// Check if this database has any commits
 	fn is_empty(&self) -> bool;
 

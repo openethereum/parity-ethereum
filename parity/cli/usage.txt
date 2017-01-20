@@ -271,8 +271,12 @@ Footprint Options:
                            fast - maintain journal overlay. Fast but 50MB used.
                            auto - use the method most recently synced or
                            default to fast if none synced (default: {flag_pruning}).
-  --pruning-history NUM    Set a number of recent states to keep when pruning
+  --pruning-history NUM    Set a minimum number of recent states to keep when pruning
                            is active. (default: {flag_pruning_history}).
+  --pruning-memory MB      The ideal amount of memory in megabytes to use to store
+                           recent states. As many states as possible will be kept
+                           within this limit, and at least --pruning-history states
+                           will always be kept. (default: {flag_pruning_memory})
   --cache-size-db MB       Override database cache size (default: {flag_cache_size_db}).
   --cache-size-blocks MB   Specify the prefered size of the blockchain cache in
                            megabytes (default: {flag_cache_size_blocks}).

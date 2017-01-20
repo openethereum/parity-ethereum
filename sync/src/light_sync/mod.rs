@@ -55,11 +55,23 @@ mod sync_round;
 mod tests;
 
 /// Peer chain info.
-#[derive(Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 struct ChainInfo {
 	head_td: U256,
 	head_hash: H256,
 	head_num: u64,
+}
+
+impl PartialOrd for ChainInfo {
+	fn partial_cmp(&self, other: &Self) -> Option<::std::cmp::Ordering> {
+		self.head_td.partial_cmp(&other.head_td)
+	}
+}
+
+impl Ord for ChainInfo {
+	fn cmp(&self, other: &Self) -> ::std::cmp::Ordering {
+		self.head_td.cmp(&other.head_td)
+	}
 }
 
 struct Peer {
@@ -74,6 +86,7 @@ impl Peer {
 		}
 	}
 }
+
 // search for a common ancestor with the best chain.
 #[derive(Debug)]
 enum AncestorSearch {
@@ -107,13 +120,18 @@ impl AncestorSearch {
 									return AncestorSearch::FoundCommon(header.number(), header.hash());
 								}
 
-								if header.number() <= first_num {
+								if header.number() < first_num {
 									debug!(target: "sync", "Prehistoric common ancestor with best chain.");
 									return AncestorSearch::Prehistoric;
 								}
 							}
 
-							AncestorSearch::Queued(start - headers.len() as u64)
+							let probe = start - headers.len() as u64;
+							if probe == 0 {
+								AncestorSearch::Genesis
+							} else {
+								AncestorSearch::Queued(probe)
+							}
 						}
 						Err(e) => {
 							trace!(target: "sync", "Bad headers response from {}: {}", ctx.responder(), e);
@@ -137,12 +155,13 @@ impl AncestorSearch {
 
 		match self {
 			AncestorSearch::Queued(start) => {
+				let batch_size = ::std::cmp::min(start as usize, BATCH_SIZE);
 				trace!(target: "sync", "Requesting {} reverse headers from {} to find common ancestor",
-					BATCH_SIZE, start);
+					batch_size, start);
 
 				let req = request::Headers {
 					start: start.into(),
-					max: ::std::cmp::min(start as usize, BATCH_SIZE),
+					max: batch_size,
 					skip: 0,
 					reverse: true,
 				};
@@ -185,7 +204,7 @@ impl<'a> ResponseContext for ResponseCtx<'a> {
 
 /// Light client synchronization manager. See module docs for more details.
 pub struct LightSync<L: LightChainClient> {
-	best_seen: Mutex<Option<(H256, U256)>>, // best seen block on the network.
+	best_seen: Mutex<Option<ChainInfo>>, // best seen block on the network.
 	peers: RwLock<HashMap<PeerId, Mutex<Peer>>>, // peers which are relevant to synchronization.
 	client: Arc<L>,
 	rng: Mutex<OsRng>,
@@ -194,9 +213,7 @@ pub struct LightSync<L: LightChainClient> {
 
 impl<L: LightChainClient> Handler for LightSync<L> {
 	fn on_connect(&self, ctx: &EventContext, status: &Status, capabilities: &Capabilities) {
-		let our_best = self.client.chain_info().best_block_number;
-
-		if !capabilities.serve_headers || status.head_num <= our_best {
+		if !capabilities.serve_headers {
 			trace!(target: "sync", "Disconnecting irrelevant peer: {}", ctx.peer());
 			ctx.disconnect_peer(ctx.peer());
 			return;
@@ -210,9 +227,7 @@ impl<L: LightChainClient> Handler for LightSync<L> {
 
 		{
 			let mut best = self.best_seen.lock();
-			if best.as_ref().map_or(true, |b| status.head_td > b.1) {
-				*best = Some((status.head_hash, status.head_td));
-			}
+			*best = ::std::cmp::max(best.clone(), Some(chain_info.clone()));
 		}
 
 		self.peers.write().insert(ctx.peer(), Mutex::new(Peer::new(chain_info)));
@@ -231,17 +246,13 @@ impl<L: LightChainClient> Handler for LightSync<L> {
 
 		let new_best = {
 			let mut best = self.best_seen.lock();
-			let peer_best = (peer.status.head_hash, peer.status.head_td);
 
-			if best.as_ref().map_or(false, |b| b == &peer_best) {
+			if best.as_ref().map_or(false, |b| b == &peer.status) {
 				// search for next-best block.
-				let next_best: Option<(H256, U256)> = self.peers.read().values()
-					.map(|p| p.lock())
-					.map(|p| (p.status.head_hash, p.status.head_td))
-					.fold(None, |acc, x| match acc {
-						Some(acc) => if x.1 > acc.1 { Some(x) } else { Some(acc) },
-						None => Some(x),
-					});
+				let next_best: Option<ChainInfo> = self.peers.read().values()
+					.map(|p| p.lock().status.clone())
+					.map(Some)
+					.fold(None, ::std::cmp::max);
 
 				*best = next_best;
 			}
@@ -266,7 +277,7 @@ impl<L: LightChainClient> Handler for LightSync<L> {
 	}
 
 	fn on_announcement(&self, ctx: &EventContext, announcement: &Announcement) {
-		let last_td = {
+		let (last_td, chain_info) = {
 			let peers = self.peers.read();
 			match peers.get(&ctx.peer()) {
 				None => return,
@@ -278,7 +289,7 @@ impl<L: LightChainClient> Handler for LightSync<L> {
 						head_hash: announcement.head_hash,
 						head_num: announcement.head_num,
 					};
-					last_td
+					(last_td, peer.status.clone())
 				}
 			}
 		};
@@ -290,13 +301,12 @@ impl<L: LightChainClient> Handler for LightSync<L> {
 			trace!(target: "sync", "Peer {} moved backwards.", ctx.peer());
 			self.peers.write().remove(&ctx.peer());
 			ctx.disconnect_peer(ctx.peer());
+			return
 		}
 
 		{
 			let mut best = self.best_seen.lock();
-			if best.as_ref().map_or(true, |b| announcement.head_td > b.1) {
-				*best = Some((announcement.head_hash, announcement.head_td));
-			}
+			*best = ::std::cmp::max(best.clone(), Some(chain_info));
 		}
 
 		self.maintain_sync(ctx.as_basic());
@@ -352,10 +362,12 @@ impl<L: LightChainClient> LightSync<L> {
 		*state = SyncState::AncestorSearch(AncestorSearch::begin(chain_info.best_block_number));
 	}
 
+	// handles request dispatch, block import, and state machine transitions.
 	fn maintain_sync(&self, ctx: &BasicContext) {
 		const DRAIN_AMOUNT: usize = 128;
 
 		let mut state = self.state.lock();
+		let chain_info = self.client.chain_info();
 		debug!(target: "sync", "Maintaining sync ({:?})", &*state);
 
 		// drain any pending blocks into the queue.
@@ -364,8 +376,7 @@ impl<L: LightChainClient> LightSync<L> {
 
 			'a:
 			loop {
-				let queue_info = self.client.queue_info();
-				if queue_info.is_full() { break }
+				if self.client.queue_info().is_full() { break }
 
 				*state = match mem::replace(&mut *state, SyncState::Idle) {
 					SyncState::Rounds(round)
@@ -389,12 +400,23 @@ impl<L: LightChainClient> LightSync<L> {
 
 		// handle state transitions.
 		{
-			let chain_info = self.client.chain_info();
-			let best_td = chain_info.total_difficulty;
+			let best_td = chain_info.pending_total_difficulty;
+			let sync_target = match *self.best_seen.lock() {
+				Some(ref target) if target.head_td > best_td => (target.head_num, target.head_hash),
+				_ => {
+					trace!(target: "sync", "No target to sync to.");
+					*state = SyncState::Idle;
+					return;
+				}
+			};
+
 			match mem::replace(&mut *state, SyncState::Idle) {
-				_ if self.best_seen.lock().as_ref().map_or(true, |&(_, td)| best_td >= td)
-					=> *state = SyncState::Idle,
-				SyncState::Rounds(SyncRound::Abort(reason, _)) => {
+				SyncState::Rounds(SyncRound::Abort(reason, remaining)) => {
+					if remaining.len() > 0 {
+						*state = SyncState::Rounds(SyncRound::Abort(reason, remaining));
+						return;
+					}
+
 					match reason {
 						AbortReason::BadScaffold(bad_peers) => {
 							debug!(target: "sync", "Disabling peers responsible for bad scaffold");
@@ -403,20 +425,23 @@ impl<L: LightChainClient> LightSync<L> {
 							}
 						}
 						AbortReason::NoResponses => {}
+						AbortReason::TargetReached => {
+							debug!(target: "sync", "Sync target reached. Going idle");
+							*state = SyncState::Idle;
+							return;
+						}
 					}
 
 					debug!(target: "sync", "Beginning search after aborted sync round");
 					self.begin_search(&mut state);
 				}
 				SyncState::AncestorSearch(AncestorSearch::FoundCommon(num, hash)) => {
-					// TODO: compare to best block and switch to another downloading
-					// method when close.
-					*state = SyncState::Rounds(SyncRound::begin(num, hash));
+					*state = SyncState::Rounds(SyncRound::begin((num, hash), sync_target));
 				}
 				SyncState::AncestorSearch(AncestorSearch::Genesis) => {
 					// Same here.
 					let g_hash = chain_info.genesis_hash;
-					*state = SyncState::Rounds(SyncRound::begin(0, g_hash));
+					*state = SyncState::Rounds(SyncRound::begin((0, g_hash), sync_target));
 				}
 				SyncState::Idle => self.begin_search(&mut state),
 				other => *state = other, // restore displaced state.
@@ -424,11 +449,15 @@ impl<L: LightChainClient> LightSync<L> {
 		}
 
 		// allow dispatching of requests.
-		// TODO: maybe wait until the amount of cumulative requests remaining is high enough
-		// to avoid pumping the failure rate.
 		{
 			let peers = self.peers.read();
-			let mut peer_ids: Vec<_> = peers.keys().cloned().collect();
+			let mut peer_ids: Vec<_> = peers.iter().filter_map(|(id, p)| {
+				if p.lock().status.head_td > chain_info.pending_total_difficulty {
+					Some(*id)
+				} else {
+					None
+				}
+			}).collect();
 			let mut rng = self.rng.lock();
 
 			// naive request dispatcher: just give to any peer which says it will

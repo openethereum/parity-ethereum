@@ -47,13 +47,13 @@ export default class VerificationStore {
   @observable isCodeValid = null;
   @observable confirmationTx = null;
 
-  constructor (api, abi, certifierId, account, isTestnet) {
+  constructor (api, abi, certifierName, account, isTestnet) {
     this.api = api;
     this.account = account;
     this.isTestnet = isTestnet;
 
     this.step = LOADING;
-    Contracts.get().badgeReg.fetchCertifier(certifierId)
+    Contracts.get().badgeReg.fetchCertifierByName(certifierName)
       .then(({ address }) => {
         this.contract = new Contract(api, abi).at(address);
         this.load();
@@ -182,11 +182,17 @@ export default class VerificationStore {
     }
 
     chain
-      .then(() => {
+      .then(() => this.checkIfReceivedCode())
+      .then((hasReceived) => {
+        if (hasReceived) {
+          return;
+        }
+
         this.step = REQUESTING_CODE;
-        return this.requestCode();
+        return this
+          .requestCode()
+          .then(() => awaitPuzzle(api, contract, account));
       })
-      .then(() => awaitPuzzle(api, contract, account))
       .then(() => {
         this.step = QUERY_CODE;
       })

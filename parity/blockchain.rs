@@ -85,6 +85,7 @@ pub struct ImportBlockchain {
 	pub format: Option<DataFormat>,
 	pub pruning: Pruning,
 	pub pruning_history: u64,
+	pub pruning_memory: usize,
 	pub compaction: DatabaseCompactionProfile,
 	pub wal: bool,
 	pub tracing: Switch,
@@ -104,6 +105,7 @@ pub struct ExportBlockchain {
 	pub format: Option<DataFormat>,
 	pub pruning: Pruning,
 	pub pruning_history: u64,
+	pub pruning_memory: usize,
 	pub compaction: DatabaseCompactionProfile,
 	pub wal: bool,
 	pub fat_db: Switch,
@@ -122,6 +124,7 @@ pub struct ExportState {
 	pub format: Option<DataFormat>,
 	pub pruning: Pruning,
 	pub pruning_history: u64,
+	pub pruning_memory: usize,
 	pub compaction: DatabaseCompactionProfile,
 	pub wal: bool,
 	pub fat_db: Switch,
@@ -196,6 +199,7 @@ fn execute_import(cmd: ImportBlockchain) -> Result<(), String> {
 		"".into(),
 		algorithm,
 		cmd.pruning_history,
+		cmd.pruning_memory,
 		cmd.check_seal
 	);
 
@@ -310,6 +314,7 @@ fn start_client(
 	spec: SpecType,
 	pruning: Pruning,
 	pruning_history: u64,
+	pruning_memory: usize,
 	tracing: Switch,
 	fat_db: Switch,
 	compaction: DatabaseCompactionProfile,
@@ -354,7 +359,20 @@ fn start_client(
 	dirs.create_dirs(false, false)?;
 
 	// prepare client config
-	let client_config = to_client_config(&cache_config, Mode::Active, tracing, fat_db, compaction, wal, VMType::default(), "".into(), algorithm, pruning_history, true);
+	let client_config = to_client_config(
+		&cache_config,
+		Mode::Active,
+		tracing,
+		fat_db,
+		compaction,
+		wal,
+		VMType::default(),
+		"".into(),
+		algorithm,
+		pruning_history,
+		pruning_memory,
+		true,
+	);
 
 	let service = ClientService::start(
 		client_config,
@@ -371,7 +389,18 @@ fn start_client(
 
 fn execute_export(cmd: ExportBlockchain) -> Result<(), String> {
 	// Setup panic handler
-	let service = start_client(cmd.dirs, cmd.spec, cmd.pruning, cmd.pruning_history, cmd.tracing, cmd.fat_db, cmd.compaction, cmd.wal, cmd.cache_config)?;
+	let service = start_client(
+		cmd.dirs,
+		cmd.spec,
+		cmd.pruning,
+		cmd.pruning_history,
+		cmd.pruning_memory,
+		cmd.tracing,
+		cmd.fat_db,
+		cmd.compaction,
+		cmd.wal,
+		cmd.cache_config
+	)?;
 	let panic_handler = PanicHandler::new_in_arc();
 	let format = cmd.format.unwrap_or_default();
 
@@ -403,7 +432,19 @@ fn execute_export(cmd: ExportBlockchain) -> Result<(), String> {
 
 fn execute_export_state(cmd: ExportState) -> Result<(), String> {
 	// Setup panic handler
-	let service = start_client(cmd.dirs, cmd.spec, cmd.pruning, cmd.pruning_history, cmd.tracing, cmd.fat_db, cmd.compaction, cmd.wal, cmd.cache_config)?;
+	let service = start_client(
+		cmd.dirs,
+		cmd.spec,
+		cmd.pruning,
+		cmd.pruning_history,
+		cmd.pruning_memory,
+		cmd.tracing,
+		cmd.fat_db,
+		cmd.compaction,
+		cmd.wal,
+		cmd.cache_config
+	)?;
+
 	let panic_handler = PanicHandler::new_in_arc();
 
 	panic_handler.forward_from(&service);
