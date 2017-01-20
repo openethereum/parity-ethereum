@@ -23,6 +23,7 @@ export default class Store {
     this._api = api;
 
     const value = window.localStorage.getItem('showFirstRun');
+
     if (value) {
       this.firstrunVisible = JSON.parse(value);
     }

@@ -72,6 +72,7 @@ class TransactionPendingFormConfirm extends Component {
       }
 
       const inputNode = textNode.querySelector('input');
+
       inputNode && inputNode.focus();
     }
   }

@@ -91,6 +91,7 @@ export default class NewGeth extends Component {
 
     const { available } = this.state;
     const account = available.find((_account) => _account.address === address);
+
     account.checked = checked;
     const selected = available.filter((_account) => _account.checked);
 

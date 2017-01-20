@@ -67,6 +67,7 @@ describe('util/subscribe-to-events', () => {
     const onLog = spy();
     const onFoo = spy();
     const onBar = spy();
+
     subscribeToEvents(contract, [ 'Foo', 'Bar' ])
       .on('log', onLog)
       .on('Foo', onFoo)
@@ -87,6 +88,7 @@ describe('util/subscribe-to-events', () => {
     const { api, contract } = this;
 
     const s = subscribeToEvents(contract, [ 'Foo', 'Bar' ]);
+
     await delay(0);
     s.unsubscribe();
     await delay(0);
@@ -97,10 +99,12 @@ describe('util/subscribe-to-events', () => {
 
   it('checks for new events regularly', async function () {
     const { api, contract } = this;
+
     api.eth.getFilterLogs = stub().resolves([]);
 
     const onLog = spy();
     const onBar = spy();
+
     subscribeToEvents(contract, [ 'Bar' ], { interval: 5 })
       .on('log', onLog)
       .on('Bar', onBar);

@@ -71,6 +71,7 @@ export default class AutoComplete extends Component {
 
   componentWillMount () {
     const dataSource = this.getDataSource();
+
     this.setState({ dataSource });
   }
 
@@ -80,6 +81,7 @@ export default class AutoComplete extends Component {
 
     if (!isEqual(prevEntries, nextEntries)) {
       const dataSource = this.getDataSource(nextProps);
+
       this.setState({ dataSource });
     }
   }
@@ -152,6 +154,7 @@ export default class AutoComplete extends Component {
 
         // Add the item class to the entry
         const classNames = [ styles.item ].concat(item.value.props.className);
+
         item.value = React.cloneElement(item.value, { className: classNames.join(' ') });
       } else {
         item = {
@@ -205,6 +208,7 @@ export default class AutoComplete extends Component {
     switch (keycode(event)) {
       case 'down':
         const { menu } = muiAutocomplete.refs;
+
         menu && menu.handleKeyDown(event);
         break;
 
@@ -215,6 +219,7 @@ export default class AutoComplete extends Component {
         event.which = 'useless';
 
         const e = new CustomEvent('down');
+
         e.which = 40;
 
         muiAutocomplete && muiAutocomplete.handleKeyDown(e);
@@ -239,6 +244,7 @@ export default class AutoComplete extends Component {
 
     if (!onUpdateInput) {
       const { entry } = this.state;
+
       this.handleOnChange(entry);
     }
   }

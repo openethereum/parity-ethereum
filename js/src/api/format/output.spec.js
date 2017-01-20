@@ -59,6 +59,7 @@ describe('api/format/output', () => {
     ['author', 'miner'].forEach((input) => {
       it(`formats ${input} address as address`, () => {
         const block = {};
+
         block[input] = address;
         const formatted = outBlock(block)[input];
 
@@ -70,6 +71,7 @@ describe('api/format/output', () => {
     ['difficulty', 'gasLimit', 'gasUsed', 'number', 'nonce', 'totalDifficulty'].forEach((input) => {
       it(`formats ${input} number as hexnumber`, () => {
         const block = {};
+
         block[input] = 0x123;
         const formatted = outBlock(block)[input];
 
@@ -81,6 +83,7 @@ describe('api/format/output', () => {
     ['timestamp'].forEach((input) => {
       it(`formats ${input} number as Date`, () => {
         const block = {};
+
         block[input] = 0x57513668;
         const formatted = outBlock(block)[input];
 
@@ -219,6 +222,7 @@ describe('api/format/output', () => {
     ['contractAddress'].forEach((input) => {
       it(`formats ${input} address as address`, () => {
         const block = {};
+
         block[input] = address;
         const formatted = outReceipt(block)[input];
 
@@ -230,6 +234,7 @@ describe('api/format/output', () => {
     ['blockNumber', 'cumulativeGasUsed', 'cumulativeGasUsed', 'gasUsed', 'transactionIndex'].forEach((input) => {
       it(`formats ${input} number as hexnumber`, () => {
         const block = {};
+
         block[input] = 0x123;
         const formatted = outReceipt(block)[input];
 
@@ -283,6 +288,7 @@ describe('api/format/output', () => {
     ['from', 'to'].forEach((input) => {
       it(`formats ${input} address as address`, () => {
         const block = {};
+
         block[input] = address;
         const formatted = outTransaction(block)[input];
 
@@ -294,6 +300,7 @@ describe('api/format/output', () => {
     ['blockNumber', 'gasPrice', 'gas', 'minBlock', 'nonce', 'transactionIndex', 'value'].forEach((input) => {
       it(`formats ${input} number as hexnumber`, () => {
         const block = {};
+
         block[input] = 0x123;
         const formatted = outTransaction(block)[input];
 

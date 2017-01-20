@@ -105,6 +105,7 @@ export default class MiningSettings extends Component {
     // In case of resetting to default we are just using raw bytes from defaultExtraData
     // When user sets new value we can safely send a string that will be converted to hex by formatter.
     const val = isResetToDefault ? nodeStatus.defaultExtraData : newVal;
+
     api.parity.setExtraData(val);
   };
 

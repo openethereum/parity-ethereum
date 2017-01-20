@@ -75,6 +75,7 @@ class UrlButton extends Component {
 
   toggleInput = () => {
     const { inputShown } = this.state;
+
     this.setState({
       inputShown: !inputShown
     });

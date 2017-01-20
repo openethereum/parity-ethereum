@@ -23,6 +23,7 @@ export default class Marked extends Component {
 
   render () {
     let { parsed } = this.state;
+
     if (!parsed) {
       return null;
     }

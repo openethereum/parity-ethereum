@@ -75,6 +75,7 @@ export default class Http extends JsonRpcBase {
           console.error(`${method}(${JSON.stringify(params)}): ${response.error.code}: ${response.error.message}`);
 
           const error = new TransportError(method, response.error.code, response.error.message);
+
           throw error;
         }
 

@@ -65,6 +65,7 @@ export default class MethodDecodingStore {
       .map((f) => ({ sign: f.signature, abi: f.abi }))
       .forEach((mapping) => {
         const sign = (/^0x/.test(mapping.sign) ? '' : '0x') + mapping.sign;
+
         this._methods[sign] = mapping.abi;
       });
   }
@@ -131,6 +132,7 @@ export default class MethodDecodingStore {
 
     try {
       const decodeCallDataResult = this.api.util.decodeCallData(input);
+
       signature = decodeCallDataResult.signature;
     } catch (e) {}
 
@@ -149,6 +151,7 @@ export default class MethodDecodingStore {
         }
 
         const { signature, paramdata } = this.api.util.decodeCallData(input);
+
         result.signature = signature;
         result.params = paramdata;
 
@@ -164,6 +167,7 @@ export default class MethodDecodingStore {
                 .decodeMethodInput(abi, paramdata)
                 .map((value, index) => {
                   const { name, type } = abi.inputs[index];
+
                   return { name, type, value };
                 });
             }
@@ -234,6 +238,7 @@ export default class MethodDecodingStore {
           result.inputs = decodedInputs
             .map((value, index) => {
               const type = constructorAbi.inputs[index].kind.type;
+
               return { type, value };
             });
         }

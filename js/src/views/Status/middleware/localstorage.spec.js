@@ -43,6 +43,7 @@ describe('views/Status/middleware/localstorage', () => {
     const next = sinon.spy();
     const middleware = cut.toMiddleware()(store)(next);
     const action = { type: 'add rpcResponse', payload: {} };
+
     expect(middleware).to.be.a('function');
     expect(action).to.be.an('object');
 
@@ -59,6 +60,7 @@ describe('views/Status/middleware/localstorage', () => {
     const next = sinon.spy();
     const middleware = cut.toMiddleware()(store)(next);
     const action = { type: 'reset rpcPrevCalls', payload: {} };
+
     expect(middleware).to.be.a('function');
     expect(action).to.be.an('object');
 
@@ -75,6 +77,7 @@ describe('views/Status/middleware/localstorage', () => {
     const next = sinon.spy();
     const middleware = cut.toMiddleware()(store)(next);
     const action = { type: 'init app' };
+
     cut.onInitApp = sinon.spy();
     expect(middleware).to.be.a('function');
     expect(action).to.be.an('object');
@@ -92,6 +95,7 @@ describe('views/Status/middleware/localstorage', () => {
     const next = sinon.spy();
     const middleware = cut.toMiddleware()(store)(next);
     const action = { type: 'testAction' };
+
     expect(middleware).to.be.a('function');
     expect(action).to.be.an('object');
 
@@ -112,6 +116,7 @@ describe('views/Status/middleware/localstorage', () => {
       const action = {};
       const key = 'rpcPrevCalls';
       const prevCalls = [rpcData.methods[0]];
+
       prevCalls[0].callNo = 1;
       localStore.remove(key);
       localStore.set(key, prevCalls);
@@ -133,6 +138,7 @@ describe('views/Status/middleware/localstorage', () => {
       const store = { dispatch: sinon.spy() };
       const next = sinon.spy();
       const action = {};
+
       localStore.remove('rpcPrevCalls');
 
       // when
@@ -165,6 +171,7 @@ describe('views/Status/middleware/localstorage', () => {
       // given
       const key = 'foo';
       const val = 'bar';
+
       localStore.remove(key);
 
       // when
@@ -181,6 +188,7 @@ describe('views/Status/middleware/localstorage', () => {
       const key = 'foo';
       const val = 'bar';
       const newVal = 'bazz';
+
       localStore.remove(key);
       localStore.set(key, [val]);
       expect(localStore.get(key)).to.be.defined;

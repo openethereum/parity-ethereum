@@ -36,6 +36,7 @@ export default class Response extends Component {
 
   renderArray () {
     let { response } = this.props;
+
     return response.map((r, idx) => (
       <span key={ idx }>
         { idx === 0 ? '[' : ',' }
@@ -49,6 +50,7 @@ export default class Response extends Component {
   renderObject () {
     let { response } = this.props;
     const arr = JSON.stringify(response, null, 1).split('\n');
+
     return arr.map((any, idx) => (
       <span key={ idx }>
         { any }

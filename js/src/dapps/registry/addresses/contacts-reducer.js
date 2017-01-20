@@ -24,6 +24,7 @@ export default (state = initialState, action) => {
         contacts[contact.address] = contact;
         return contacts;
       }, {});
+
     return contacts;
   }
 

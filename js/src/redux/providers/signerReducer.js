@@ -93,6 +93,7 @@ export default handleActions({
       state.pending.find(p => p.id === id) || { id },
       { status: 'rejected' }
     );
+
     return {
       ...state,
       pending: removeWithId(state.pending, id),

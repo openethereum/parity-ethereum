@@ -120,6 +120,7 @@ class Records extends Component {
 
   onSaveClick = () => {
     const { name, type, value } = this.state;
+
     this.props.update(name, type, value);
   };
 

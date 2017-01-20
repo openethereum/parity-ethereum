@@ -80,6 +80,7 @@ export default class TxRow extends Component {
     const { isTest } = this.props;
 
     let esLink = null;
+
     if (address) {
       esLink = (
         <a

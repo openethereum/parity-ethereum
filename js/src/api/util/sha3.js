@@ -24,6 +24,7 @@ export function sha3 (value, options) {
 
   if (forceHex || (!options && isHex(value))) {
     const bytes = hexToBytes(value);
+
     return sha3(bytes);
   }
 

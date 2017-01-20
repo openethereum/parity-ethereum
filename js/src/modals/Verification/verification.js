@@ -117,6 +117,7 @@ class Verification extends Component {
         onClick={ onClose }
       />
     );
+
     if (error) {
       return (<div>{ cancel }</div>);
     }
@@ -137,10 +138,12 @@ class Verification extends Component {
     }
 
     let action = () => {};
+
     switch (phase) {
       case 0:
         action = () => {
           const { method } = this.state;
+
           this.onSelectMethod(method);
         };
         break;
@@ -183,9 +186,11 @@ class Verification extends Component {
     }
 
     const { method } = this.state;
+
     if (phase === 0) {
       const values = Object.values(methods);
       const value = values.findIndex((v) => v.value === method);
+
       return (
         <RadioButtons
           onChange={ this.selectMethod }
@@ -211,6 +216,7 @@ class Verification extends Component {
         const { setConsentGiven } = this.store;
 
         const fields = [];
+
         if (method === 'sms') {
           fields.push({
             key: 'number',
@@ -250,6 +256,7 @@ class Verification extends Component {
 
       case 3:
         let receiver, hint;
+
         if (method === 'sms') {
           receiver = this.store.number;
           hint = 'Enter the code you received via SMS.';

@@ -49,6 +49,7 @@ injectTapEventPlugin();
 if (process.env.NODE_ENV === 'development') {
   // Expose the React Performance Tools on the`window` object
   const Perf = require('react-addons-perf');
+
   window.Perf = Perf;
 }
 
@@ -56,15 +57,18 @@ const AUTH_HASH = '#/auth?';
 const parityUrl = process.env.PARITY_URL || window.location.host;
 
 let token = null;
+
 if (window.location.hash && window.location.hash.indexOf(AUTH_HASH) === 0) {
   token = qs.parse(window.location.hash.substr(AUTH_HASH.length)).token;
 }
 
 const api = new SecureApi(`ws://${parityUrl}`, token);
+
 patchApi(api);
 ContractInstances.create(api);
 
 const store = initStore(api, hashHistory);
+
 store.dispatch({ type: 'initAll', api });
 store.dispatch(setApi(api));
 

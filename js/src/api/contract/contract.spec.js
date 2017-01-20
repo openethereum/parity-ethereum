@@ -143,6 +143,7 @@ describe('api/contract/Contract', () => {
           type: 'event'
         }
       ]);
+
       contract.at('6789');
 
       expect(Object.keys(contract.instance)).to.deep.equal([

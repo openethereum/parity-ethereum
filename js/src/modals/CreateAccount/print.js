@@ -42,6 +42,7 @@ export const onPrint = (window, cb) => {
 
 export default (html) => {
   const iframe = document.createElement('iframe');
+
   iframe.setAttribute('sandbox', 'allow-modals allow-same-origin allow-scripts');
   iframe.setAttribute('src', '/');
   iframe.setAttribute('style', 'display: none');

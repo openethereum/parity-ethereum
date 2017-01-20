@@ -145,6 +145,7 @@ export default class DappsStore {
   @action setApps = (apps) => {
     this.sortApps(apps.filter((app) => {
       const bnid = new BigNumber(app.id);
+
       return bnid.gt(0);
     }));
 
@@ -194,6 +195,7 @@ export default class DappsStore {
         .keys(accountsInfo)
         .map((address) => {
           const account = accountsInfo[address];
+
           account.address = address;
           return account;
         });

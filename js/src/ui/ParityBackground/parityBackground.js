@@ -60,6 +60,7 @@ class ParityBackground extends Component {
     const { muiTheme } = this.context;
 
     const style = muiTheme.parity.getBackgroundStyle(gradient, _seed);
+
     this.setState({ style });
   }
 
@@ -81,6 +82,7 @@ class ParityBackground extends Component {
 
 function mapStateToProps (state) {
   const { backgroundSeed } = state.settings;
+
   return { backgroundSeed };
 }
 

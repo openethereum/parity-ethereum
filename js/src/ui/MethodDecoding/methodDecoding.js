@@ -461,6 +461,7 @@ class MethodDecoding extends Component {
     }
 
     const ascii = this.getAscii();
+
     return this.setState({
       inputType: ascii.valid ? 'raw' : 'ascii'
     });

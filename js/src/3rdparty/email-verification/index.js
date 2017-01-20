@@ -18,6 +18,7 @@ import { stringify } from 'querystring';
 
 export const isServerRunning = (isTestnet = false) => {
   const port = isTestnet ? 28443 : 18443;
+
   return fetch(`https://email-verification.parity.io:${port}/health`, {
     mode: 'cors', cache: 'no-store'
   })
@@ -31,6 +32,7 @@ export const isServerRunning = (isTestnet = false) => {
 
 export const postToServer = (query, isTestnet = false) => {
   const port = isTestnet ? 28443 : 18443;
+
   query = stringify(query);
   return fetch(`https://email-verification.parity.io:${port}/?` + query, {
     method: 'POST', mode: 'cors', cache: 'no-store'

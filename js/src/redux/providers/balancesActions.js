@@ -95,6 +95,7 @@ function setBalances (_balances, skipNotifications = false) {
 
             const redirectToAccount = () => {
               const route = `/accounts/${account.address}`;
+
               dispatch(push(route));
             };
 
@@ -159,6 +160,7 @@ export function loadTokens (options = {}) {
       .call()
       .then((numTokens) => {
         const tokenIds = range(numTokens.toNumber());
+
         dispatch(fetchTokens(tokenIds, options));
       })
       .catch((error) => {
@@ -432,6 +434,7 @@ function fetchTokensBalance (address, _tokens, api) {
         }));
 
       const balance = { tokens };
+
       return balance;
     })
     .catch((error) => {

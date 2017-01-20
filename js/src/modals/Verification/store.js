@@ -72,6 +72,7 @@ export default class VerificationStore {
 
   @action load = () => {
     const { contract, account } = this;
+
     this.step = LOADING;
 
     const isServerRunning = this.isServerRunning()
@@ -156,6 +157,7 @@ export default class VerificationStore {
     const values = this.requestValues();
 
     let chain = Promise.resolve();
+
     if (!hasRequested) {
       this.step = POSTING_REQUEST;
       chain = request.estimateGas(options, values)

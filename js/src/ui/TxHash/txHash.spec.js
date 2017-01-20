@@ -76,6 +76,7 @@ function render (props) {
     />,
     { context: { store: createRedux() } }
   );
+
   component = baseComponent.find('TxHash').shallow({ context: { api: createApi() } });
   instance = component.instance();
 

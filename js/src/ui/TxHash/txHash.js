@@ -113,6 +113,7 @@ class TxHash extends Component {
     const value = Math.min(confirmations.toNumber(), maxConfirmations);
 
     let count = confirmations.toFormat(0);
+
     if (confirmations.lte(maxConfirmations)) {
       count = `${count}/${maxConfirmations}`;
     }
