@@ -75,7 +75,7 @@ mod api;
 pub use api::{
 	EthSync, Params, SyncProvider, ManageNetwork, SyncConfig,
 	ServiceConfiguration, NetworkConfiguration, PeerInfo, AllowIP, TransactionStats,
-	LightSync, LightSyncParams,
+	LightSync, LightSyncParams, LesProtocolInfo, EthProtocolInfo,
 };
 pub use chain::{SyncStatus, SyncState};
 pub use network::{is_valid_node_url, NonReservedPeerMode, NetworkError};

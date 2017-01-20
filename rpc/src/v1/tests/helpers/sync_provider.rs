@@ -18,7 +18,7 @@
 
 use std::collections::BTreeMap;
 use util::{H256, RwLock};
-use ethsync::{SyncProvider, SyncStatus, SyncState, PeerInfo, TransactionStats};
+use ethsync::{SyncProvider, EthProtocolInfo, SyncStatus, SyncState, PeerInfo, TransactionStats};
 
 /// TestSyncProvider config.
 pub struct Config {
@@ -78,9 +78,12 @@ impl SyncProvider for TestSyncProvider {
 				capabilities: vec!["eth/62".to_owned(), "eth/63".to_owned()],
     			remote_address: "127.0.0.1:7777".to_owned(),
 				local_address: "127.0.0.1:8888".to_owned(),
-				eth_version: 62,
-				eth_difficulty: Some(40.into()),
-				eth_head: 50.into()
+				eth_info: Some(EthProtocolInfo {
+					version: 62,
+					difficulty: Some(40.into()),
+					head: 50.into(),
+				}),
+				les_info: None,
 			},
 			PeerInfo {
 				id: None,
@@ -88,9 +91,12 @@ impl SyncProvider for TestSyncProvider {
 				capabilities: vec!["eth/63".to_owned(), "eth/64".to_owned()],
     			remote_address: "Handshake".to_owned(),
 				local_address: "127.0.0.1:3333".to_owned(),
-				eth_version: 64,
-				eth_difficulty: None,
-				eth_head: 60.into()
+				eth_info: Some(EthProtocolInfo {
+					version: 64,
+					difficulty: None,
+					head: 60.into()
+				}),
+				les_info: None,
 			}
 		]
 	}

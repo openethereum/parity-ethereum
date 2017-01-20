@@ -102,7 +102,7 @@ use super::SyncConfig;
 use block_sync::{BlockDownloader, BlockRequest, BlockDownloaderImportError as DownloaderImportError, DownloadAction};
 use rand::Rng;
 use snapshot::{Snapshot, ChunkType};
-use api::{PeerInfo as PeerInfoDigest, WARP_SYNC_PROTOCOL_ID};
+use api::{EthProtocolInfo as PeerInfoDigest, WARP_SYNC_PROTOCOL_ID};
 use transactions_stats::{TransactionsStats, Stats as TransactionStats};
 
 known_heap_size!(0, PeerInfo);
@@ -431,22 +431,14 @@ impl ChainSync {
 	}
 
 	/// Returns information on peers connections
-	pub fn peers(&self, io: &SyncIo) -> Vec<PeerInfoDigest> {
-		self.peers.iter()
-			.filter_map(|(&peer_id, peer_data)|
-				io.peer_session_info(peer_id).map(|session_info|
-					PeerInfoDigest {
-						id: session_info.id.map(|id| id.hex()),
-						client_version: session_info.client_version,
-						capabilities: session_info.peer_capabilities.into_iter().map(|c| c.to_string()).collect(),
-						remote_address: session_info.remote_address,
-						local_address: session_info.local_address,
-						eth_version: peer_data.protocol_version as u32,
-						eth_difficulty: peer_data.difficulty,
-						eth_head: peer_data.latest_hash,
-				})
-			)
-			.collect()
+	pub fn peer_info(&self, peer_id: &PeerId) -> Option<PeerInfoDigest> {
+		self.peers.get(peer_id).map(|peer_data| {
+			PeerInfoDigest {
+				version: peer_data.protocol_version as u32,
+				difficulty: peer_data.difficulty,
+				head: peer_data.latest_hash,
+			}
+		})
 	}
 
 	/// Returns transactions propagation statistics
