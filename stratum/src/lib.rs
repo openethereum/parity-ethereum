@@ -174,6 +174,9 @@ impl Stratum {
 					.filter_map(|val| match val { &Value::String(ref str) => Some(str.to_owned()), _ => None })
 					.collect::<Vec<String>>()) {
 						Ok(()) => {
+							if let Some(job) = self.dispatcher.job() {
+								self.push_work_all(job);
+							}
 							to_value(true)
 						},
 						Err(submit_err) => {
