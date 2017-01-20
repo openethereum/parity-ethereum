@@ -31,7 +31,8 @@ const log = getLogger(LOG_KEYS.Balances);
 const ETH = {
   name: 'Ethereum',
   tag: 'ETH',
-  image: imagesEthereum
+  image: imagesEthereum,
+  native: true
 };
 
 function setBalances (_balances, skipNotifications = false) {
@@ -39,10 +40,9 @@ function setBalances (_balances, skipNotifications = false) {
     const state = getState();
 
     const currentTokens = Object.values(state.balances.tokens || {});
-    const currentTags = [ 'eth' ]
-      .concat(currentTokens.map((token) => token.tag))
-      .filter((tag) => tag)
-      .map((tag) => tag.toLowerCase());
+    const tokensAddresses = currentTokens
+      .map((token) => token.address)
+      .filter((address) => address);
 
     const accounts = state.personal.accounts;
     const nextBalances = _balances;
@@ -61,53 +61,59 @@ function setBalances (_balances, skipNotifications = false) {
       const prevTokens = balance.tokens.slice();
       const nextTokens = [];
 
-      currentTags
-        .forEach((tag) => {
-          const prevToken = prevTokens.find((tok) => tok.token.tag.toLowerCase() === tag);
-          const nextToken = tokens.find((tok) => tok.token.tag.toLowerCase() === tag);
+      const handleToken = (prevToken, nextToken) => {
+        // If the given token is not in the current tokens, skip
+        if (!nextToken && !prevToken) {
+          return false;
+        }
 
-          // If the given token is not in the current tokens, skip
-          if (!nextToken && !prevToken) {
-            return false;
-          }
+        // No updates
+        if (!nextToken) {
+          return nextTokens.push(prevToken);
+        }
 
-          // No updates
-          if (!nextToken) {
-            return nextTokens.push(prevToken);
-          }
+        const { token, value } = nextToken;
 
-          const { token, value } = nextToken;
-
-          // If it's a new token, push it
-          if (!prevToken) {
-            return nextTokens.push({
-              token, value
-            });
-          }
-
-          // Otherwise, update the value
-          const prevValue = prevToken.value;
-
-          // FIXME: Temporary hack to not continuously pop-up notifications until fixed
-          const FIXME_SKIP = false;
-
-          // If received a token/eth (old value < new value), notify
-          if (FIXME_SKIP && prevValue.lt(value) && accounts[address] && !skipNotifications) {
-            const account = accounts[address];
-            const txValue = value.minus(prevValue);
-
-            const redirectToAccount = () => {
-              const route = `/accounts/${account.address}`;
-              dispatch(push(route));
-            };
-
-            notifyTransaction(account, token, txValue, redirectToAccount);
-          }
-
+        // If it's a new token, push it
+        if (!prevToken) {
           return nextTokens.push({
-            ...prevToken,
-            value
+            token, value
           });
+        }
+
+        // Otherwise, update the value
+        const prevValue = prevToken.value;
+
+        // If received a token/eth (old value < new value), notify
+        if (prevValue.lt(value) && accounts[address] && !skipNotifications) {
+          const account = accounts[address];
+          const txValue = value.minus(prevValue);
+
+          const redirectToAccount = () => {
+            const route = `/accounts/${account.address}`;
+            dispatch(push(route));
+          };
+
+          notifyTransaction(account, token, txValue, redirectToAccount);
+        }
+
+        return nextTokens.push({
+          ...prevToken,
+          value
+        });
+      };
+
+      const prevEthToken = prevTokens.find((tok) => tok.token.native);
+      const nextEthToken = tokens.find((tok) => tok.token.native);
+
+      handleToken(prevEthToken, nextEthToken);
+
+      tokensAddresses
+        .forEach((address) => {
+          const prevToken = prevTokens.find((tok) => tok.token.address === address);
+          const nextToken = tokens.find((tok) => tok.token.address === address);
+
+          handleToken(prevToken, nextToken);
         });
 
       balances[address] = { txCount: txCount || new BigNumber(0), tokens: nextTokens };
@@ -179,6 +185,8 @@ export function fetchTokens (_tokenIds, options = {}) {
 
     return Promise
       .all(tokenIds.map((id) => fetchTokenInfo(tokenreg, id, api)))
+      // FIXME ; shouldn't have to filter out tokens...
+      .then((tokens) => tokens.filter((token) => token.tag && token.tag.toLowerCase() !== 'eth'))
       .then((tokens) => {
         // dispatch only the changed images
         tokens
