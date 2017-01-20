@@ -144,7 +144,7 @@ impl TestBlockChainClient {
 			genesis_hash: H256::new(),
 			extra_data: extra_data,
 			last_hash: RwLock::new(H256::new()),
-			difficulty: RwLock::new(From::from(0)),
+			difficulty: RwLock::new(spec.genesis_header().difficulty().clone()),
 			balances: RwLock::new(HashMap::new()),
 			nonces: RwLock::new(HashMap::new()),
 			storage: RwLock::new(HashMap::new()),
