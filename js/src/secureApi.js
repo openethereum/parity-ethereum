@@ -61,8 +61,8 @@ export default class SecureApi extends Api {
   }
 
   get hostname () {
-    if (window.location.hostname === 'home.ethlink.io') {
-      return 'dapps.ethlink.io';
+    if (window.location.hostname === 'home.parity') {
+      return 'dapps.parity';
     }
 
     if (!this._dappsInterface || this._dappsInterface === '0.0.0.0') {
