@@ -217,7 +217,7 @@ export default class CreateAccount extends Component {
       return;
     }
 
-    this.state.setState({ selectedAddress }, () => {
+    this.setState({ selectedAddress }, () => {
       store.setAddress(selectedAddress);
     });
   }

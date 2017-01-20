@@ -71,63 +71,84 @@ describe('modals/CreateAccount/NewAccount', () => {
   });
 
   describe('event handlers', () => {
+    describe('onChangeIdentity', () => {
+      const ADDR = '0x123_testAddr';
+
+      beforeEach(() => {
+        sinon.spy(store, 'setAddress');
+        instance.onChangeIdentity({ target: { value: ADDR } });
+      });
+
+      afterEach(() => {
+        store.setAddress.restore();
+      });
+
+      it('sets the state with the new value', () => {
+        expect(instance.state.selectedAddress).to.equal(ADDR);
+      });
+
+      it('sets the new address on the store', () => {
+        expect(store.setAddress).to.have.been.calledWith(ADDR);
+      });
+    });
+
     describe('onEditPassword', () => {
       beforeEach(() => {
-        sinon.spy(instance.store, 'setPassword');
+        sinon.spy(store, 'setPassword');
         instance.onEditPassword(null, 'test');
       });
 
       afterEach(() => {
-        instance.store.setPassword.restore();
+        store.setPassword.restore();
       });
 
       it('calls into the store', () => {
-        expect(instance.store.setPassword).to.have.been.calledWith('test');
+        expect(store.setPassword).to.have.been.calledWith('test');
       });
     });
 
     describe('onEditPasswordRepeat', () => {
       beforeEach(() => {
-        sinon.spy(instance.store, 'setPasswordRepeat');
+        sinon.spy(store, 'setPasswordRepeat');
         instance.onEditPasswordRepeat(null, 'test');
       });
 
       afterEach(() => {
-        instance.store.setPasswordRepeat.restore();
+        store.setPasswordRepeat.restore();
       });
 
       it('calls into the store', () => {
-        expect(instance.store.setPasswordRepeat).to.have.been.calledWith('test');
+        expect(store.setPasswordRepeat).to.have.been.calledWith('test');
       });
     });
 
     describe('onEditPasswordHint', () => {
       beforeEach(() => {
-        sinon.spy(instance.store, 'setPasswordHint');
+        sinon.spy(store, 'setPasswordHint');
         instance.onEditPasswordHint(null, 'test');
       });
 
       afterEach(() => {
-        instance.store.setPasswordHint.restore();
+        store.setPasswordHint.restore();
       });
 
       it('calls into the store', () => {
-        expect(instance.store.setPasswordHint).to.have.been.calledWith('test');
+        expect(store.setPasswordHint).to.have.been.calledWith('test');
       });
     });
 
     describe('onEditAccountName', () => {
       beforeEach(() => {
-        sinon.spy(instance.store, 'setName');
+        sinon.spy(store, 'setName');
         instance.onEditAccountName(null, 'test');
       });
 
       afterEach(() => {
-        instance.store.setName.restore();
+        store.setName.restore();
       });
 
       it('calls into the store', () => {
-        expect(instance.store.setName).to.have.been.calledWith('test');
+        expect(store.setName).to.have.been.calledWith('test');
       });
     });
   });
