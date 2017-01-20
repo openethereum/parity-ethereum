@@ -26,34 +26,22 @@ import ChainMiddleware from './providers/chainMiddleware';
 import RegistryMiddleware from './providers/registry/middleware';
 
 export default function (api, browserHistory, forEmbed = false) {
-  let middleware;
-  if (forEmbed) {
-    const errors = new ErrorsMiddleware();
-    const signer = new SignerMiddleware(api);
-    const settings = new SettingsMiddleware();
-    const chain = new ChainMiddleware();
-    middleware = [
-      settings.toMiddleware(),
-      signer.toMiddleware(),
-      errors.toMiddleware(),
-      chain.toMiddleware()
-    ];
-  } else {
-    const errors = new ErrorsMiddleware();
-    const signer = new SignerMiddleware(api);
-    const settings = new SettingsMiddleware();
-    const certifications = new CertificationsMiddleware();
-    const chain = new ChainMiddleware();
+  const errors = new ErrorsMiddleware();
+  const signer = new SignerMiddleware(api);
+  const settings = new SettingsMiddleware();
+  const chain = new ChainMiddleware();
+  const middleware = [
+    settings.toMiddleware(),
+    signer.toMiddleware(),
+    errors.toMiddleware(),
+    chain.toMiddleware()
+  ];
+
+  if (!forEmbed) {
+    const certifications = new CertificationsMiddleware().toMiddleware();
     const registry = new RegistryMiddleware(api);
 
-    middleware = [
-      settings.toMiddleware(),
-      signer.toMiddleware(),
-      errors.toMiddleware(),
-      certifications.toMiddleware(),
-      chain.toMiddleware(),
-      registry
-    ];
+    middleware.push(certifications, registry);
   }
 
   const status = statusMiddleware();

@@ -18,7 +18,7 @@ import { uniq } from 'lodash';
 
 import Api from './api';
 import { LOG_KEYS, getLogger } from '~/config';
-import storage from '~/util/storage';
+import store from 'store';
 
 const log = getLogger(LOG_KEYS.Signer);
 
@@ -36,14 +36,13 @@ export default class SecureApi extends Api {
   }
 
   constructor (url, nextToken, getTransport = SecureApi.getTransport) {
-    let sysuiToken = storage.getItem('sysuiToken');
-
+    const sysuiToken = store.get('sysuiToken');
     const transport = getTransport(url, sysuiToken);
     super(transport);
 
     this._url = url;
 
-    // Try tokens from localstorage, from hash and 'initial'
+    // Try tokens from localStorage, from hash and 'initial'
     this._tokens = uniq([sysuiToken, nextToken, 'initial'])
       .filter((token) => token)
       .map((token) => ({ value: token, tried: false }));
@@ -314,7 +313,7 @@ export default class SecureApi extends Api {
   }
 
   _saveToken (token) {
-    storage.setItem('sysuiToken', token);
+    store.set('sysuiToken', token);
   }
 
   /**
