@@ -24,7 +24,7 @@ Be sure to check out [our wiki][wiki-url] for more information.
 [doc-url]: https://ethcore.github.io/parity/ethcore/index.html
 [wiki-url]: https://github.com/ethcore/parity/wiki
 
-**Parity requires Rust version 1.12.0 to build**
+**Parity requires Rust version 1.13.0 to build**
 
 ----
 
@@ -47,7 +47,7 @@ of RPC APIs.
 If you run into an issue while using parity, feel free to file one in this repository
 or hop on our [gitter chat room][gitter-url] to ask a question. We are glad to help!
 
-Parity's current release is 1.4. You can download it at https://ethcore.io/parity.html or follow the instructions
+Parity's current release is 1.5. You can download it at https://ethcore.io/parity.html or follow the instructions
 below to build from source.
 
 ----

@@ -28,6 +28,7 @@ import ConfirmDialog from './ConfirmDialog';
 import Container, { Title as ContainerTitle } from './Container';
 import ContextProvider from './ContextProvider';
 import CopyToClipboard from './CopyToClipboard';
+import CurrencySymbol from './CurrencySymbol';
 import DappIcon from './DappIcon';
 import Editor from './Editor';
 import Errors from './Errors';
@@ -45,6 +46,7 @@ import muiTheme from './Theme';
 import Page from './Page';
 import ParityBackground from './ParityBackground';
 import PasswordStrength from './Form/PasswordStrength';
+import QrCode from './QrCode';
 import ShortenedHash from './ShortenedHash';
 import SignerIcon from './SignerIcon';
 import Tags from './Tags';
@@ -70,6 +72,7 @@ export {
   ContainerTitle,
   ContextProvider,
   CopyToClipboard,
+  CurrencySymbol,
   DappIcon,
   DappUrlInput,
   Editor,
@@ -96,6 +99,7 @@ export {
   Page,
   ParityBackground,
   PasswordStrength,
+  QrCode,
   RadioButtons,
   ShortenedHash,
   Select,

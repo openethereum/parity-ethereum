@@ -14,12 +14,35 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import { debounce } from 'lodash';
+import store from 'store';
 import Contracts from '~/contracts';
 import subscribeToEvents from '~/util/subscribe-to-events';
 
 import registryABI from '~/contracts/abi/registry.json';
 
 import { setReverse, startCachingReverses } from './actions';
+
+const STORE_KEY = '_parity::reverses';
+
+const read = (chain) => {
+  const reverses = store.get(`${STORE_KEY}::${chain}::data`);
+  const lastBlock = store.get(`${STORE_KEY}::${chain}::lastBlock`);
+
+  if (!reverses || !lastBlock) {
+    return null;
+  }
+  return { reverses, lastBlock };
+};
+
+const write = debounce((getChain, getReverses, getLastBlock) => {
+  const chain = getChain();
+  const reverses = getReverses();
+  const lastBlock = getLastBlock();
+
+  store.set(`${STORE_KEY}::${chain}::data`, reverses);
+  store.set(`${STORE_KEY}::${chain}::lastBlock`, lastBlock);
+}, 20000);
 
 export default (api) => (store) => {
   let contract, subscription, timeout, interval;
@@ -47,7 +70,9 @@ export default (api) => (store) => {
           .instance
           .reverse
           .call({}, [ address ])
-          .then((reverse) => store.dispatch(setReverse(address, reverse)));
+          .then((reverse) => {
+            store.dispatch(setReverse(address, reverse));
+          });
       });
 
     addressesToCheck = {};
@@ -63,15 +88,26 @@ export default (api) => (store) => {
       case 'startCachingReverses':
         const { registry } = Contracts.get();
 
+        const cached = read(store.getState().nodeStatus.netChain);
+        if (cached) {
+          Object
+            .entries(cached.reverses)
+            .forEach(([ address, reverse ]) => store.dispatch(setReverse(address, reverse)));
+        }
+
         registry.getInstance()
           .then((instance) => api.newContract(registryABI, instance.address))
           .then((_contract) => {
             contract = _contract;
 
-            subscription = subscribeToEvents(_contract, ['ReverseConfirmed', 'ReverseRemoved']);
+            subscription = subscribeToEvents(_contract, [
+              'ReverseConfirmed', 'ReverseRemoved'
+            ], {
+              from: cached ? cached.lastBlock : 0
+            });
             subscription.on('log', onLog);
 
-            timeout = setTimeout(checkReverses, 5000);
+            timeout = setTimeout(checkReverses, 10000);
             interval = setInterval(checkReverses, 20000);
           })
           .catch((err) => {
@@ -91,7 +127,18 @@ export default (api) => (store) => {
           clearTimeout(timeout);
         }
 
+        write.flush();
         break;
+
+      case 'setReverse':
+        write(
+          () => store.getState().nodeStatus.netChain,
+          () => store.getState().registry.reverse,
+          () => +store.getState().nodeStatus.blockNumber
+        );
+        next(action);
+        break;
+
       default:
         next(action);
     }

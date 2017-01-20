@@ -14,18 +14,4 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Information about portions of the state and chain which the client may serve.
-//!
-//! Currently assumes that a client will store everything past a certain point
-//! or everything. Will be extended in the future to support a definition
-//! of which portions of the ancient chain and current state trie are stored as well.
-
-/// Client pruning info. See module-level docs for more details.
-#[derive(Debug, Clone)]
-#[cfg_attr(feature = "ipc", binary)]
-pub struct PruningInfo {
-	/// The first block which everything can be served after.
-	pub earliest_chain: u64,
-	/// The first block where state requests may be served.
-	pub earliest_state: u64,
-}
+export default from './qrCode';

@@ -144,7 +144,7 @@ impl TestBlockChainClient {
 			genesis_hash: H256::new(),
 			extra_data: extra_data,
 			last_hash: RwLock::new(H256::new()),
-			difficulty: RwLock::new(From::from(0)),
+			difficulty: RwLock::new(spec.genesis_header().difficulty().clone()),
 			balances: RwLock::new(HashMap::new()),
 			nonces: RwLock::new(HashMap::new()),
 			storage: RwLock::new(HashMap::new()),
@@ -714,10 +714,10 @@ impl BlockChainClient for TestBlockChainClient {
 	fn disable(&self) { unimplemented!(); }
 
 	fn pruning_info(&self) -> PruningInfo {
+		let best_num = self.chain_info().best_block_number;
 		PruningInfo {
 			earliest_chain: 1,
-			earliest_state: 1,
-			state_history_size: *self.history.read(),
+			earliest_state: self.history.read().as_ref().map(|x| best_num - x).unwrap_or(0),
 		}
 	}
 

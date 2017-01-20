@@ -129,8 +129,10 @@ pub struct ClientConfig {
 	pub state_cache_size: usize,
 	/// EVM jump-tables cache size.
 	pub jump_table_size: usize,
-	/// State pruning history size.
+	/// Minimum state pruning history size.
 	pub history: u64,
+	/// Ideal memory usage for state pruning history.
+	pub history_mem: usize,
 	/// Check seal valididity on block import
 	pub check_seal: bool,
 }

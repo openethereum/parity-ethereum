@@ -16,7 +16,7 @@
 
 use {NetworkProtocolHandler, NetworkConfiguration, NonReservedPeerMode};
 use error::NetworkError;
-use host::{Host, NetworkContext, NetworkIoMessage, ProtocolId};
+use host::{Host, NetworkContext, NetworkIoMessage, PeerId, ProtocolId};
 use stats::NetworkStats;
 use io::*;
 use parking_lot::RwLock;
@@ -140,6 +140,11 @@ impl NetworkService {
 		}
 		*host = None;
 		Ok(())
+	}
+
+	/// Get a list of all connected peers by id.
+	pub fn connected_peers(&self) -> Vec<PeerId> {
+		self.host.read().as_ref().map(|h| h.connected_peers()).unwrap_or_else(Vec::new)
 	}
 
 	/// Try to add a reserved peer.
