@@ -45,7 +45,7 @@ import muiTheme from './Theme';
 import Page from './Page';
 import ParityBackground from './ParityBackground';
 import PasswordStrength from './Form/PasswordStrength';
-import QrCode from './qrCode';
+import QrCode from './QrCode';
 import ShortenedHash from './ShortenedHash';
 import SignerIcon from './SignerIcon';
 import Tags from './Tags';
