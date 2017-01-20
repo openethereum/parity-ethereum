@@ -33,6 +33,7 @@
 #![deny(missing_docs)]
 
 pub mod client;
+pub mod cht;
 pub mod net;
 pub mod on_demand;
 

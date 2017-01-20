@@ -316,6 +316,12 @@ impl LightProtocol {
 		}
 	}
 
+	/// Attempt to get peer status.
+	pub fn peer_status(&self, peer: &PeerId) -> Option<Status> {
+		self.peers.read().get(&peer)
+			.map(|peer| peer.lock().status.clone())
+	}
+
 	/// Check the maximum amount of requests of a specific type
 	/// which a peer would be able to serve. Returns zero if the
 	/// peer is unknown or has no buffer flow parameters.

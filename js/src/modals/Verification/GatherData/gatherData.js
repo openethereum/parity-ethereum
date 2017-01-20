@@ -115,13 +115,26 @@ export default class GatherData extends Component {
     if (!fee) {
       return (<p>Fetching the fee…</p>);
     }
+    if (fee.eq(0)) {
+      return (
+        <div className={ styles.container }>
+          <InfoIcon />
+          <p className={ styles.message }>
+            <FormattedMessage
+              id='ui.verification.gatherData.nofee'
+              defaultMessage='There is no additional fee.'
+            />
+          </p>
+        </div>
+      );
+    }
     return (
       <div className={ styles.container }>
         <InfoIcon />
         <p className={ styles.message }>
           <FormattedMessage
             id='ui.verification.gatherData.fee'
-            defaultMessage='The fee is {amount} ETH.'
+            defaultMessage='The additional fee is {amount} ETH.'
             values={ {
               amount: fromWei(fee).toFixed(3)
             } }

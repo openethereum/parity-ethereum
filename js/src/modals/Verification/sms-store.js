@@ -21,9 +21,10 @@ import SMSVerificationABI from '~/contracts/abi/sms-verification.json';
 import VerificationStore, {
   LOADING, QUERY_DATA, QUERY_CODE, POSTED_CONFIRMATION, DONE
 } from './store';
-import { isServerRunning, postToServer } from '../../3rdparty/sms-verification';
+import { isServerRunning, hasReceivedCode, postToServer } from '~/3rdparty/sms-verification';
 
-const SMS_VERIFICATION = 0; // id in the `BadgeReg.sol` contract
+// name in the `BadgeReg.sol` contract
+const SMS_VERIFICATION = 'smsverification';
 
 export default class SMSVerificationStore extends VerificationStore {
   @observable number = '';
@@ -60,6 +61,10 @@ export default class SMSVerificationStore extends VerificationStore {
 
   isServerRunning = () => {
     return isServerRunning(this.isTestnet);
+  }
+
+  checkIfReceivedCode = () => {
+    return hasReceivedCode(this.number, this.account, this.isTestnet);
   }
 
   @action setNumber = (number) => {
