@@ -88,8 +88,11 @@ function setBalances (_balances, skipNotifications = false) {
           // Otherwise, update the value
           const prevValue = prevToken.value;
 
+          // FIXME: Temporary hack to not continuously pop-up notifications until fixed
+          const FIXME_SKIP = false;
+
           // If received a token/eth (old value < new value), notify
-          if (prevValue.lt(value) && accounts[address] && !skipNotifications) {
+          if (FIXME_SKIP && prevValue.lt(value) && accounts[address] && !skipNotifications) {
             const account = accounts[address];
             const txValue = value.minus(prevValue);
 
