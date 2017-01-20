@@ -23,7 +23,6 @@
 /// Once enough votes have been gathered the proposer issues that block in the `Commit` step.
 
 mod message;
-mod transition;
 mod params;
 
 use std::sync::Weak;
@@ -46,9 +45,9 @@ use evm::Schedule;
 use state::CleanupMode;
 use io::IoService;
 use super::validator_set::{ValidatorSet, new_validator_set};
+use super::transition::TransitionHandler;
 use super::vote_collector::VoteCollector;
 use self::message::*;
-use self::transition::TransitionHandler;
 use self::params::TendermintParams;
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
@@ -127,7 +126,7 @@ impl Tendermint {
 				proposal: RwLock::new(None),
 				validators: new_validator_set(our_params.validators),
 			});
-		let handler = TransitionHandler::new(Arc::downgrade(&engine), our_params.timeouts);
+		let handler = TransitionHandler::new(Arc::downgrade(&engine) as Weak<Engine>, Box::new(our_params.timeouts));
 		engine.step_service.register_handler(Arc::new(handler))?;
 		Ok(engine)
 	}

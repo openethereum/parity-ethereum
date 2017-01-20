@@ -193,6 +193,7 @@ impl <M: Message + Default + Encodable + Debug> VoteCollector<M> {
 	}
 
 	/// Count the number of total rounds kept track of.
+	#[cfg(test)]
 	pub fn len(&self) -> usize {
 		self.votes.read().len()
 	}
