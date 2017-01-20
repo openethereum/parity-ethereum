@@ -96,7 +96,7 @@ class TokenSelect extends Component {
 
         return (
           <MenuItem
-            key={ token.tag }
+            key={ `${index}_${token.tag}` }
             value={ token.tag }
             label={ label }
           >
