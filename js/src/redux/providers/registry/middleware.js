@@ -22,7 +22,10 @@ import registryABI from '~/contracts/abi/registry.json';
 import { setReverse, startCachingReverses } from './actions';
 
 export default (api) => (store) => {
-  let contract, subscription, timeout, interval;
+  let contract;
+  let subscription;
+  let timeout;
+  let interval;
 
   let addressesToCheck = {};
 
@@ -60,6 +63,7 @@ export default (api) => (store) => {
         store.dispatch(startCachingReverses());
 
         break;
+
       case 'startCachingReverses':
         const { registry } = Contracts.get();
 

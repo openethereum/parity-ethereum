@@ -83,7 +83,9 @@ class Verification extends Component {
 
   render () {
     const store = this.store;
-    let phase = 0; let error = false; let isStepValid = true;
+    let phase = 0;
+    let error = false;
+    let isStepValid = true;
 
     if (store) {
       phase = Verification.phases[store.step];
@@ -182,7 +184,9 @@ class Verification extends Component {
 
   renderStep (phase, error) {
     if (error) {
-      return (<p>{ error }</p>);
+      return (
+        <p>{ error }</p>
+      );
     }
 
     const { method } = this.state;
@@ -214,7 +218,6 @@ class Verification extends Component {
         }
 
         const { setConsentGiven } = this.store;
-
         const fields = [];
 
         if (method === 'sms') {
@@ -255,7 +258,8 @@ class Verification extends Component {
         );
 
       case 3:
-        let receiver, hint;
+        let receiver;
+        let hint;
 
         if (method === 'sms') {
           receiver = this.store.number;
@@ -313,5 +317,5 @@ const mapStateToProps = (state) => ({
 
 export default connect(
   mapStateToProps,
-  null // mapDispatchToProps
+  null
 )(Verification);

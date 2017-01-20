@@ -22,7 +22,8 @@ import rpcData from '../data/rpc.json';
 import LocalStorageMiddleware from './localstorage';
 
 describe('views/Status/middleware/localstorage', () => {
-  let cut, state;
+  let cut;
+  let state;
 
   beforeEach('mock cut', () => {
     cut = new LocalStorageMiddleware();
