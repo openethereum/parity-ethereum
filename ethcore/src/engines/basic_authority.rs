@@ -30,6 +30,7 @@ use evm::Schedule;
 use ethjson;
 use header::Header;
 use client::Client;
+use super::signer::EngineSigner;
 use super::validator_set::{ValidatorSet, new_validator_set};
 
 /// `BasicAuthority` params.
@@ -56,8 +57,7 @@ pub struct BasicAuthority {
 	params: CommonParams,
 	gas_limit_bound_divisor: U256,
 	builtins: BTreeMap<Address, Builtin>,
-	account_provider: Mutex<Arc<AccountProvider>>,
-	password: RwLock<Option<String>>,
+	signer: EngineSigner,
 	validators: Box<ValidatorSet + Send + Sync>,
 }
 
@@ -69,8 +69,7 @@ impl BasicAuthority {
 			gas_limit_bound_divisor: our_params.gas_limit_bound_divisor,
 			builtins: builtins,
 			validators: new_validator_set(our_params.validators),
-			account_provider: Mutex::new(Arc::new(AccountProvider::transient_provider())),
-			password: RwLock::new(None),
+			signer: Default::default(),
 		}
 	}
 }
@@ -110,14 +109,12 @@ impl Engine for BasicAuthority {
 
 	/// Attempt to seal the block internally.
 	fn generate_seal(&self, block: &ExecutedBlock) -> Seal {
-		let ref ap = *self.account_provider.lock();
 		let header = block.header();
 		let author = header.author();
 		if self.validators.contains(author) {
-			let message = header.bare_hash();
 			// account should be pernamently unlocked, otherwise sealing will fail
-			if let Ok(signature) = ap.sign(*author, self.password.read().clone(), message) {
-				return Seal::Regular(vec![::rlp::encode(&(&*signature as &[u8])).to_vec()]);
+			if let Ok(signature) = self.signer.sign(header.bare_hash()) {
+				return Seal::Regular(vec![::rlp::encode(&(&H520::from(signature) as &[u8])).to_vec()]);
 			} else {
 				trace!(target: "basicauthority", "generate_seal: FAIL: accounts secret key unavailable");
 			}
@@ -171,9 +168,8 @@ impl Engine for BasicAuthority {
 		self.validators.register_call_contract(client);
 	}
 
-	fn set_signer(&self, ap: Arc<AccountProvider>, _address: Address, password: String) {
-		*self.password.write() = Some(password);
-		*self.account_provider.lock() = ap;
+	fn set_signer(&self, ap: Arc<AccountProvider>, address: Address, password: String) {
+		self.signer.set(ap, address, password);
 	}
 }
 
