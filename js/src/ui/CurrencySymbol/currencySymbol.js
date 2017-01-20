@@ -29,10 +29,10 @@ class CurrencySymbol extends Component {
   }
 
   render () {
-    const { className } = this.props;
+    const { className, netSymbol } = this.props;
 
     return (
-      <span className={ className }>{ this.props.netSymbol }</span>
+      <span className={ className }>{ netSymbol }</span>
     );
   }
 }
