@@ -13,6 +13,7 @@
   "rules": {
     "curly": ["error", "all"],
     "jsx-quotes": ["error", "prefer-single"],
+    "newline-after-var": ["error", "always"],
     "no-alert": "error",
     "no-debugger": "error",
     "no-duplicate-imports": ["error", {
