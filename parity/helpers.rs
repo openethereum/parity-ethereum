@@ -224,6 +224,7 @@ pub fn to_client_config(
 		name: String,
 		pruning: Algorithm,
 		pruning_history: u64,
+		pruning_memory: usize,
 		check_seal: bool,
 	) -> ClientConfig {
 	let mut client_config = ClientConfig::default();
@@ -247,6 +248,8 @@ pub fn to_client_config(
 	client_config.state_cache_size = cache_config.state() as usize * mb;
 	// in bytes
 	client_config.jump_table_size = cache_config.jump_tables() as usize * mb;
+	// in bytes
+	client_config.history_mem = pruning_memory * mb;
 
 	client_config.mode = mode;
 	client_config.tracing.enabled = tracing;
