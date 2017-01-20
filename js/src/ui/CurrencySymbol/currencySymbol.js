@@ -23,13 +23,16 @@ const SYMBOL_EXP = 'EXP';
 
 class CurrencySymbol extends Component {
   static propTypes = {
+    className: PropTypes.string,
     netChain: PropTypes.string.isRequired,
     netSymbol: PropTypes.string.isRequired
   }
 
   render () {
+    const { className } = this.props;
+
     return (
-      <span>{ this.props.netSymbol }</span>
+      <span className={ className }>{ this.props.netSymbol }</span>
     );
   }
 }

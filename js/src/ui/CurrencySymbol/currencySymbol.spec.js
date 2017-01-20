@@ -39,9 +39,9 @@ function createRedux (netChain = 'ropsten') {
   return store;
 }
 
-function render (netChain) {
+function render (netChain, props = {}) {
   component = shallow(
-    <CurrencySymbol />,
+    <CurrencySymbol { ...props } />,
     {
       context: {
         store: createRedux(netChain)
@@ -55,6 +55,10 @@ function render (netChain) {
 describe('ui/CurrencySymbol', () => {
   it('renders defaults', () => {
     expect(render()).to.be.ok;
+  });
+
+  it('passes the className as provided', () => {
+    expect(render('ropsten', { className: 'test' }).find('span').hasClass('test')).to.be.true;
   });
 
   describe('currencies', () => {
