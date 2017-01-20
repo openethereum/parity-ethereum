@@ -16,6 +16,7 @@
 
 import { shallow } from 'enzyme';
 import React from 'react';
+import sinon from 'sinon';
 
 import { createApi, createStore } from '../createAccount.test.js';
 
@@ -65,6 +66,68 @@ describe('modals/CreateAccount/NewAccount', () => {
 
       it('sets the initial selected value', () => {
         expect(instance.state.selectedAddress).to.equal(Object.keys(instance.state.accounts)[0]);
+      });
+    });
+  });
+
+  describe('event handlers', () => {
+    describe('onEditPassword', () => {
+      beforeEach(() => {
+        sinon.spy(instance.store, 'setPassword');
+        instance.onEditPassword(null, 'test');
+      });
+
+      afterEach(() => {
+        instance.store.setPassword.restore();
+      });
+
+      it('calls into the store', () => {
+        expect(instance.store.setPassword).to.have.been.calledWith('test');
+      });
+    });
+
+    describe('onEditPasswordRepeat', () => {
+      beforeEach(() => {
+        sinon.spy(instance.store, 'setPasswordRepeat');
+        instance.onEditPasswordRepeat(null, 'test');
+      });
+
+      afterEach(() => {
+        instance.store.setPasswordRepeat.restore();
+      });
+
+      it('calls into the store', () => {
+        expect(instance.store.setPasswordRepeat).to.have.been.calledWith('test');
+      });
+    });
+
+    describe('onEditPasswordHint', () => {
+      beforeEach(() => {
+        sinon.spy(instance.store, 'setPasswordHint');
+        instance.onEditPasswordHint(null, 'test');
+      });
+
+      afterEach(() => {
+        instance.store.setPasswordHint.restore();
+      });
+
+      it('calls into the store', () => {
+        expect(instance.store.setPasswordHint).to.have.been.calledWith('test');
+      });
+    });
+
+    describe('onEditAccountName', () => {
+      beforeEach(() => {
+        sinon.spy(instance.store, 'setName');
+        instance.onEditAccountName(null, 'test');
+      });
+
+      afterEach(() => {
+        instance.store.setName.restore();
+      });
+
+      it('calls into the store', () => {
+        expect(instance.store.setName).to.have.been.calledWith('test');
       });
     });
   });

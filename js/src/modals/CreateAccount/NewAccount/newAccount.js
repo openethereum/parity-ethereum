@@ -229,19 +229,19 @@ export default class CreateAccount extends Component {
   }
 
   onEditAccountName = (event, name) => {
-    const { store } = this.store;
+    const { store } = this.props;
 
     store.setName(name);
   }
 
   onEditPassword = (event, password) => {
-    const { store } = this.store;
+    const { store } = this.props;
 
     store.setPassword(password);
   }
 
   onEditPasswordRepeat = (event, password) => {
-    const { store } = this.store;
+    const { store } = this.props;
 
     store.setPasswordRepeat(password);
   }
