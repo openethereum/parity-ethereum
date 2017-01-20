@@ -26,6 +26,7 @@ let store;
 function createRedux (netChain = 'ropsten') {
   store = {
     dispatch: sinon.stub(),
+    subscribe: sinon.stub(),
     getState: () => {
       return {
         nodeStatus: {
@@ -46,7 +47,7 @@ function render (netChain) {
         store: createRedux(netChain)
       }
     }
-  );
+  ).find('CurrencySymbol').shallow();
 
   return component;
 }
@@ -54,5 +55,23 @@ function render (netChain) {
 describe('ui/CurrencySymbol', () => {
   it('renders defaults', () => {
     expect(render()).to.be.ok;
+  });
+
+  describe('currencies', () => {
+    it('renders ETH as default', () => {
+      expect(render().text()).equal('ETH');
+    });
+
+    it('renders ETC for classic', () => {
+      expect(render('classic').text()).equal('ETC');
+    });
+
+    it('renders EXP for expanse', () => {
+      expect(render('expanse').text()).equal('EXP');
+    });
+
+    it('renders ETH as default', () => {
+      expect(render('somethingElse').text()).equal('ETH');
+    });
   });
 });
