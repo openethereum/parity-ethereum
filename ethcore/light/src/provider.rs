@@ -226,11 +226,76 @@ impl<T: ProvingBlockChainClient + ?Sized> Provider for T {
 		self.code_by_hash(req.account_key, BlockId::Hash(req.block_hash))
 	}
 
-	fn header_proof(&self, _req: request::HeaderProof) -> Option<(encoded::Header, Vec<Bytes>)> {
-		None
+	fn header_proof(&self, req: request::HeaderProof) -> Option<(encoded::Header, Vec<Bytes>)> {
+		use util::MemoryDB;
+		use util::trie::{Trie, TrieMut, TrieDB, TrieDBMut, Recorder};
+
+		if Some(req.cht_number) != ::cht::block_to_cht_number(req.block_number) {
+			debug!(target: "les_provider", "Requested CHT number mismatch with block number.");
+			return None;
+		}
+
+		let mut memdb = MemoryDB::new();
+		let mut root = H256::default();
+		let mut needed_hdr = None;
+		{
+			let mut t = TrieDBMut::new(&mut memdb, &mut root);
+			let start_num = ::cht::start_number(req.cht_number);
+			for i in (0..::cht::SIZE).map(|x| x + start_num) {
+				match self.block_header(BlockId::Number(i)) {
+					None => return None,
+					Some(hdr) => {
+						t.insert(
+							&*::rlp::encode(&i),
+							&*::rlp::encode(&hdr.hash()),
+						).expect("fresh in-memory database is infallible; qed");
+
+						if i == req.block_number { needed_hdr = Some(hdr) }
+					}
+				}
+			}
+		}
+		let needed_hdr = needed_hdr.expect("`needed_hdr` always set in loop, number checked before; qed");
+
+		let mut recorder = Recorder::with_depth(req.from_level);
+		let t = TrieDB::new(&memdb, &root)
+			.expect("Same DB and root as just produced by TrieDBMut; qed");
+
+		if let Err(e) = t.get_with(&*::rlp::encode(&req.block_number), &mut recorder) {
+			debug!(target: "les_provider", "Error looking up number in freshly-created CHT: {}", e);
+			return None;
+		}
+
+		// TODO: cache calculated CHT if possible.
+		let proof = recorder.drain().into_iter().map(|x| x.data).collect();
+		Some((needed_hdr, proof))
 	}
 
 	fn ready_transactions(&self) -> Vec<PendingTransaction> {
 		BlockChainClient::ready_transactions(self)
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use ethcore::client::{EachBlockWith, TestBlockChainClient};
+	use super::Provider;
+
+	#[test]
+	fn cht_proof() {
+		let client = TestBlockChainClient::new();
+		client.add_blocks(2000, EachBlockWith::Nothing);
+
+		let req = ::request::HeaderProof {
+			cht_number: 0,
+			block_number: 1500,
+			from_level: 0,
+		};
+
+		assert!(client.header_proof(req.clone()).is_none());
+
+		client.add_blocks(48, EachBlockWith::Nothing);
+
+		assert!(client.header_proof(req.clone()).is_some());
 	}
 }

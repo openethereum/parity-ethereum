@@ -36,8 +36,9 @@ use io::{IoContext, IoHandler, TimerToken, IoService};
 use env_info::EnvInfo;
 use builtin::Builtin;
 use client::{Client, EngineClient};
-use super::validator_set::{ValidatorSet, new_validator_set};
 use state::CleanupMode;
+use super::signer::EngineSigner;
+use super::validator_set::{ValidatorSet, new_validator_set};
 
 /// `AuthorityRound` params.
 #[derive(Debug, PartialEq)]
@@ -78,8 +79,7 @@ pub struct AuthorityRound {
 	step: AtomicUsize,
 	proposed: AtomicBool,
 	client: RwLock<Option<Weak<EngineClient>>>,
-	account_provider: Mutex<Arc<AccountProvider>>,
-	password: RwLock<Option<String>>,
+	signer: EngineSigner,
 	validators: Box<ValidatorSet + Send + Sync>,
 }
 
@@ -117,8 +117,7 @@ impl AuthorityRound {
 				step: AtomicUsize::new(initial_step),
 				proposed: AtomicBool::new(false),
 				client: RwLock::new(None),
-				account_provider: Mutex::new(Arc::new(AccountProvider::transient_provider())),
-				password: RwLock::new(None),
+				signer: Default::default(),
 				validators: new_validator_set(our_params.validators),
 			});
 		// Do not initialize timeouts for tests.
@@ -234,11 +233,10 @@ impl Engine for AuthorityRound {
 		let header = block.header();
 		let step = self.step.load(AtomicOrdering::SeqCst);
 		if self.is_step_proposer(step, header.author()) {
-			let ap = self.account_provider.lock();
-			if let Ok(signature) = ap.sign(*header.author(), self.password.read().clone(), header.bare_hash()) {
+			if let Ok(signature) = self.signer.sign(header.bare_hash()) {
 				trace!(target: "poa", "generate_seal: Issuing a block for step {}.", step);
 				self.proposed.store(true, AtomicOrdering::SeqCst);
-				return Seal::Regular(vec![encode(&step).to_vec(), encode(&(&*signature as &[u8])).to_vec()]);
+				return Seal::Regular(vec![encode(&step).to_vec(), encode(&(&H520::from(signature) as &[u8])).to_vec()]);
 			} else {
 				warn!(target: "poa", "generate_seal: FAIL: Accounts secret key unavailable.");
 			}
@@ -330,9 +328,7 @@ impl Engine for AuthorityRound {
 	}
 
 	fn set_signer(&self, ap: Arc<AccountProvider>, address: Address, password: String) {
-		*self.account_provider.lock() = ap;	
-		*self.password.write() = Some(password);
-		debug!(target: "poa", "Setting Engine signer to {}", address);
+		self.signer.set(ap, address, password);
 	}
 }
 

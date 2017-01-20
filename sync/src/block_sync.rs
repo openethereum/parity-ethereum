@@ -103,15 +103,16 @@ pub struct BlockDownloader {
 	download_receipts: bool,
 	/// Sync up to the block with this hash.
 	target_hash: Option<H256>,
-	/// Reorganize up to this many blocks. Up to genesis if `None`,
-	max_reorg_blocks: Option<BlockNumber>,
 	/// Probing range for seeking common best block.
 	retract_step: u64,
+	/// Whether reorg should be limited.
+	limit_reorg: bool,
 }
 
 impl BlockDownloader {
-	/// Create a new instance of syncing strategy.
-	pub fn new(sync_receipts: bool, start_hash: &H256, start_number: BlockNumber, max_reorg: Option<BlockNumber>) -> BlockDownloader {
+	/// Create a new instance of syncing strategy. This won't reorganize to before the
+	/// last kept state.
+	pub fn new(sync_receipts: bool, start_hash: &H256, start_number: BlockNumber) -> Self {
 		BlockDownloader {
 			state: State::Idle,
 			highest_block: None,
@@ -124,8 +125,27 @@ impl BlockDownloader {
 			round_parents: VecDeque::new(),
 			download_receipts: sync_receipts,
 			target_hash: None,
-			max_reorg_blocks: max_reorg,
 			retract_step: 1,
+			limit_reorg: true,
+		}
+	}
+
+	/// Create a new instance of sync with unlimited reorg allowed.
+	pub fn with_unlimited_reorg(sync_receipts: bool, start_hash: &H256, start_number: BlockNumber) -> Self {
+		BlockDownloader {
+			state: State::Idle,
+			highest_block: None,
+			last_imported_block: start_number,
+			last_imported_hash: start_hash.clone(),
+			last_round_start: start_number,
+			last_round_start_hash: start_hash.clone(),
+			blocks: BlockCollection::new(sync_receipts),
+			imported_this_round: None,
+			round_parents: VecDeque::new(),
+			download_receipts: sync_receipts,
+			target_hash: None,
+			retract_step: 1,
+			limit_reorg: false,
 		}
 	}
 
@@ -268,7 +288,9 @@ impl BlockDownloader {
 					return Ok(DownloadAction::Reset);
 				} else {
 					let best = io.chain().chain_info().best_block_number;
-					if best > self.last_imported_block && (self.last_imported_block == 0 || best - self.last_imported_block > self.max_reorg_blocks.unwrap_or(u64::max_value())) {
+					let oldest_reorg = io.chain().pruning_info().earliest_state;
+					let last = self.last_imported_block;
+					if self.limit_reorg && best > last && (last == 0 || last < oldest_reorg) {
 						trace!(target: "sync", "No common block, disabling peer");
 						return Err(BlockDownloaderImportError::Invalid);
 					}
@@ -359,7 +381,8 @@ impl BlockDownloader {
 					trace!(target: "sync", "Searching common header from the last round {} ({})", self.last_imported_block, self.last_imported_hash);
 				} else {
 					let best = io.chain().chain_info().best_block_number;
-					if best > start && (start == 0 || best - start > self.max_reorg_blocks.unwrap_or(u64::max_value())) {
+					let oldest_reorg = io.chain().pruning_info().earliest_state;
+					if self.limit_reorg && best > start && start < oldest_reorg {
 						debug!(target: "sync", "Could not revert to previous ancient block, last: {} ({})", start, start_hash);
 						self.reset();
 					} else {
