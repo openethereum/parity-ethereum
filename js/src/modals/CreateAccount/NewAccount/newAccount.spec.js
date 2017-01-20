@@ -23,6 +23,7 @@ import NewAccount from './';
 
 let api;
 let component;
+let instance;
 let store;
 
 function render () {
@@ -36,14 +37,35 @@ function render () {
       context: { api }
     }
   );
+  instance = component.instance();
 
   return component;
 }
 
 describe('modals/CreateAccount/NewAccount', () => {
+  beforeEach(() => {
+    render();
+  });
+
   describe('rendering', () => {
     it('renders with defaults', () => {
-      expect(render()).to.be.ok;
+      expect(component).to.be.ok;
+    });
+  });
+
+  describe('lifecycle', () => {
+    describe('componentWillMount', () => {
+      beforeEach(() => {
+        return instance.componentWillMount();
+      });
+
+      it('creates initial accounts', () => {
+        expect(Object.keys(instance.state.accounts).length).to.equal(5);
+      });
+
+      it('sets the initial selected value', () => {
+        expect(instance.state.selectedAddress).to.equal(Object.keys(instance.state.accounts)[0]);
+      });
     });
   });
 });

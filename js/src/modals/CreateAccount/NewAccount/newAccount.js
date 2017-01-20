@@ -38,7 +38,7 @@ export default class CreateAccount extends Component {
   }
 
   componentWillMount () {
-    this.createIdentities();
+    return this.createIdentities();
   }
 
   render () {
@@ -196,12 +196,12 @@ export default class CreateAccount extends Component {
   createIdentities = () => {
     const { store } = this.props;
 
-    store
+    return store
       .createIdentities()
       .then((accounts) => {
         this.setState({
           accounts,
-          selectedAddress: accounts[0].address
+          selectedAddress: Object.keys(accounts)[0]
         });
       })
       .catch((error) => {
