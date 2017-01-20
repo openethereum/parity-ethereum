@@ -91,8 +91,8 @@ export default (api) => (store) => {
 
       case 'startCachingReverses':
         const { registry } = Contracts.get();
-
         const cached = read(store.getState().nodeStatus.netChain);
+
         if (cached) {
           Object
             .entries(cached.reverses)
