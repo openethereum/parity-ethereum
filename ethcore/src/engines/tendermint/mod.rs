@@ -44,6 +44,7 @@ use views::HeaderView;
 use evm::Schedule;
 use state::CleanupMode;
 use io::IoService;
+use super::signer::EngineSigner;
 use super::validator_set::{ValidatorSet, new_validator_set};
 use super::transition::TransitionHandler;
 use super::vote_collector::VoteCollector;
@@ -79,10 +80,6 @@ pub struct Tendermint {
 	step_service: IoService<Step>,
 	client: RwLock<Option<Weak<EngineClient>>>,
 	block_reward: U256,
-	/// Address to be used as authority.
-	authority: RwLock<Address>,
-	/// Password used for signing messages.
-	password: RwLock<Option<String>>,
 	/// Blockchain height.
 	height: AtomicUsize,
 	/// Consensus view.
@@ -92,7 +89,7 @@ pub struct Tendermint {
 	/// Vote accumulator.
 	votes: VoteCollector<ConsensusMessage>,
 	/// Used to sign messages and proposals.
-	account_provider: Mutex<Arc<AccountProvider>>,
+	signer: EngineSigner,
 	/// Message for the last PoLC.
 	lock_change: RwLock<Option<ConsensusMessage>>,
 	/// Last lock view.
@@ -114,13 +111,11 @@ impl Tendermint {
 				client: RwLock::new(None),
 				step_service: IoService::<Step>::start()?,
 				block_reward: our_params.block_reward,
-				authority: RwLock::new(Address::default()),
-				password: RwLock::new(None),
 				height: AtomicUsize::new(1),
 				view: AtomicUsize::new(0),
 				step: RwLock::new(Step::Propose),
 				votes: VoteCollector::default(),
-				account_provider: Mutex::new(Arc::new(AccountProvider::transient_provider())),
+				signer: Default::default(),
 				lock_change: RwLock::new(None),
 				last_lock: AtomicUsize::new(0),
 				proposal: RwLock::new(None),
@@ -156,18 +151,17 @@ impl Tendermint {
 	}
 
 	fn generate_message(&self, block_hash: Option<BlockHash>) -> Option<Bytes> {
-		let ref ap = *self.account_provider.lock();
 		let h = self.height.load(AtomicOrdering::SeqCst);
 		let r = self.view.load(AtomicOrdering::SeqCst);
 		let s = self.step.read();
 		let vote_info = message_info_rlp(&VoteStep::new(h, r, *s), block_hash);
-		let authority = self.authority.read();
-		match ap.sign(*authority, self.password.read().clone(), vote_info.sha3()).map(Into::into) {
+		match self.signer.sign(vote_info.sha3()).map(Into::into) {
 			Ok(signature) => {
 				let message_rlp = message_full_rlp(&signature, &vote_info);
 				let message = ConsensusMessage::new(signature, h, r, *s, block_hash);
-				self.votes.vote(message.clone(), &*authority);
-				debug!(target: "poa", "Generated {:?} as {}.", message, *authority);
+				let validator = self.signer.address();
+				self.votes.vote(message.clone(), &validator);
+				debug!(target: "poa", "Generated {:?} as {}.", message, validator);
 				self.handle_valid_message(&message);
 
 				Some(message_rlp)
@@ -238,7 +232,7 @@ impl Tendermint {
 				let height = self.height.load(AtomicOrdering::SeqCst);
 				if let Some(block_hash) = *self.proposal.read() {
 					// Generate seal and remove old votes.
-					if self.is_proposer(&*self.authority.read()).is_ok() {
+					if self.is_signer_proposer() {
 						let proposal_step = VoteStep::new(height, view, Step::Propose);
 						let precommit_step = VoteStep::new(proposal_step.height, proposal_step.view, Step::Precommit);
 						if let Some(seal) = self.votes.seal_signatures(proposal_step, precommit_step, &block_hash) {
@@ -267,11 +261,16 @@ impl Tendermint {
 		n > self.validators.count() * 2/3
 	}
 
+	/// Find the designated for the given view.
+	fn view_proposer(&self, height: Height, view: View) -> Address {
+		let proposer_nonce = height + view;
+		trace!(target: "poa", "Proposer nonce: {}", proposer_nonce);
+		self.validators.get(proposer_nonce)
+	}
+
 	/// Check if address is a proposer for given view.
 	fn is_view_proposer(&self, height: Height, view: View, address: &Address) -> Result<(), EngineError> {
-		let proposer_nonce = height + view;
-		trace!(target: "poa", "is_proposer: Proposer nonce: {}", proposer_nonce);
-		let proposer = self.validators.get(proposer_nonce);
+		let proposer = self.view_proposer(height, view);
 		if proposer == *address {
 			Ok(())
 		} else {
@@ -279,9 +278,10 @@ impl Tendermint {
 		}
 	}
 
-	/// Check if address is the current proposer.
-	fn is_proposer(&self, address: &Address) -> Result<(), EngineError> {
-		self.is_view_proposer(self.height.load(AtomicOrdering::SeqCst), self.view.load(AtomicOrdering::SeqCst), address)
+	/// Check if current signer is the current proposer.
+	fn is_signer_proposer(&self) -> bool {
+		let proposer = self.view_proposer(self.height.load(AtomicOrdering::SeqCst), self.view.load(AtomicOrdering::SeqCst));
+		self.signer.is_address(&proposer)
 	}
 
 	fn is_height(&self, message: &ConsensusMessage) -> bool {
@@ -416,11 +416,10 @@ impl Engine for Tendermint {
 
 	/// Attempt to seal generate a proposal seal.
 	fn generate_seal(&self, block: &ExecutedBlock) -> Seal {
-		let ref ap = *self.account_provider.lock();
 		let header = block.header();
 		let author = header.author();
 		// Only proposer can generate seal if None was generated.
-		if self.is_proposer(author).is_err() || self.proposal.read().is_some() {
+		if !self.is_signer_proposer() || self.proposal.read().is_some() {
 			return Seal::None;
 		}
 
@@ -428,7 +427,7 @@ impl Engine for Tendermint {
 		let view = self.view.load(AtomicOrdering::SeqCst);
 		let bh = Some(header.bare_hash());
 		let vote_info = message_info_rlp(&VoteStep::new(height, view, Step::Propose), bh.clone());
-		if let Ok(signature) = ap.sign(*author, self.password.read().clone(), vote_info.sha3()).map(H520::from) {
+		if let Ok(signature) = self.signer.sign(vote_info.sha3()).map(Into::into) {
 			// Insert Propose vote.
 			debug!(target: "poa", "Submitting proposal {} at height {} view {}.", header.bare_hash(), height, view);
 			self.votes.vote(ConsensusMessage::new(signature, height, view, Step::Propose, bh), author);
@@ -557,9 +556,7 @@ impl Engine for Tendermint {
 
 	fn set_signer(&self, ap: Arc<AccountProvider>, address: Address, password: String) {
 		{
-			*self.authority.write()	= address;
-			*self.password.write() = Some(password);
-			*self.account_provider.lock() = ap;
+			self.signer.set(ap, address, password);
 		}
 		self.to_step(Step::Propose);
 	}

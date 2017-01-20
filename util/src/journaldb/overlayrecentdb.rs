@@ -71,6 +71,7 @@ struct JournalOverlay {
 	journal: HashMap<u64, Vec<JournalEntry>>,
 	latest_era: Option<u64>,
 	earliest_era: Option<u64>,
+	cumulative_size: usize, // cumulative size of all entries.
 }
 
 #[derive(PartialEq)]
@@ -127,7 +128,8 @@ impl OverlayRecentDB {
 		journal_overlay.backing_overlay == reconstructed.backing_overlay &&
 		journal_overlay.pending_overlay == reconstructed.pending_overlay &&
 		journal_overlay.journal == reconstructed.journal &&
-		journal_overlay.latest_era == reconstructed.latest_era
+		journal_overlay.latest_era == reconstructed.latest_era &&
+		journal_overlay.cumulative_size == reconstructed.cumulative_size
 	}
 
 	fn payload(&self, key: &H256) -> Option<DBValue> {
@@ -140,6 +142,7 @@ impl OverlayRecentDB {
 		let mut count = 0;
 		let mut latest_era = None;
 		let mut earliest_era = None;
+		let mut cumulative_size = 0;
 		if let Some(val) = db.get(col, &LATEST_ERA_KEY).expect("Low-level database error.") {
 			let mut era = decode::<u64>(&val);
 			latest_era = Some(era);
@@ -161,7 +164,14 @@ impl OverlayRecentDB {
 					for r in insertions.iter() {
 						let k: H256 = r.val_at(0);
 						let v = r.at(1).data();
-						overlay.emplace(to_short_key(&k), DBValue::from_slice(v));
+
+						let short_key = to_short_key(&k);
+
+						if !overlay.contains(&short_key) {
+							cumulative_size += v.len();
+						}
+
+						overlay.emplace(short_key, DBValue::from_slice(v));
 						inserted_keys.push(k);
 						count += 1;
 					}
@@ -186,6 +196,7 @@ impl OverlayRecentDB {
 			journal: journal,
 			latest_era: latest_era,
 			earliest_era: earliest_era,
+			cumulative_size: cumulative_size,
 		}
 	}
 
@@ -207,10 +218,17 @@ impl JournalDB for OverlayRecentDB {
 	fn mem_used(&self) -> usize {
 		let mut mem = self.transaction_overlay.mem_used();
 		let overlay = self.journal_overlay.read();
+
 		mem += overlay.backing_overlay.mem_used();
 		mem += overlay.pending_overlay.heap_size_of_children();
 		mem += overlay.journal.heap_size_of_children();
+
 		mem
+	}
+
+	fn journal_size(&self) -> usize {
+		self.journal_overlay.read().cumulative_size
+
 	}
 
 	fn is_empty(&self) -> bool {
@@ -256,7 +274,13 @@ impl JournalDB for OverlayRecentDB {
 			r.begin_list(2);
 			r.append(&k);
 			r.append(&&*v);
-			journal_overlay.backing_overlay.emplace(to_short_key(&k), v);
+
+			let short_key = to_short_key(&k);
+			if !journal_overlay.backing_overlay.contains(&short_key) {
+				journal_overlay.cumulative_size += v.len();
+			}
+
+			journal_overlay.backing_overlay.emplace(short_key, v);
 		}
 		r.append(&removed_keys);
 
@@ -267,6 +291,7 @@ impl JournalDB for OverlayRecentDB {
 		k.append(&&PADDING[..]);
 		batch.put_vec(self.column, &k.drain(), r.out());
 		if journal_overlay.latest_era.map_or(true, |e| now > e) {
+			trace!(target: "journaldb", "Set latest era to {}", now);
 			batch.put_vec(self.column, &LATEST_ERA_KEY, encode(&now).to_vec());
 			journal_overlay.latest_era = Some(now);
 		}
@@ -322,7 +347,9 @@ impl JournalDB for OverlayRecentDB {
 			}
 			// update the overlay
 			for k in overlay_deletions {
-				journal_overlay.backing_overlay.remove_and_purge(&to_short_key(&k));
+				if let Some(val) = journal_overlay.backing_overlay.remove_and_purge(&to_short_key(&k)) {
+					journal_overlay.cumulative_size -= val.len();
+				}
 			}
 			// apply canon deletions
 			for k in canon_deletions {
@@ -332,6 +359,10 @@ impl JournalDB for OverlayRecentDB {
 			}
 		}
 		journal_overlay.journal.remove(&end_era);
+		if !journal_overlay.journal.is_empty() {
+			trace!(target: "journaldb", "Set earliest_era to {}", end_era + 1);
+			journal_overlay.earliest_era = Some(end_era + 1);
+		}
 
 		Ok(ops as u32)
 	}

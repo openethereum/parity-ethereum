@@ -174,13 +174,24 @@ impl PeerLike for Peer {
 	}
 
 	fn is_done(&self) -> bool {
-		self.queue.read().is_empty()
+		self.queue.read().is_empty() && match self.data {
+			PeerData::Light(_, ref client) => {
+				// should create a test light client which just imports
+				// headers directly and doesn't have a queue to drain.
+				client.import_verified();
+				client.queue_info().is_empty()
+			}
+			_ => true,
+		}
 	}
 
 	fn sync_step(&self) {
 		if let PeerData::Light(_, ref client) = self.data {
 			client.flush_queue();
-			client.import_verified();
+
+			while !client.queue_info().is_empty() {
+				client.import_verified()
+			}
 		}
 	}
 
