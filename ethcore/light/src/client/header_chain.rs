@@ -131,7 +131,7 @@ impl HeaderChain {
 		let total_difficulty = parent_td + view.difficulty();
 
 		// insert headers and candidates entries.
-		candidates.entry(number).or_insert_with(|| Entry { candidates: SmallVec::new(), canonical_hash: hash})
+		candidates.entry(number).or_insert_with(|| Entry { candidates: SmallVec::new(), canonical_hash: hash })
 			.candidates.push(Candidate {
 				hash: hash,
 				parent_hash: parent_hash,
@@ -144,17 +144,26 @@ impl HeaderChain {
 		// respective candidates vectors.
 		if self.best_block.read().total_difficulty < total_difficulty {
 			let mut canon_hash = hash;
-			for (_, entry) in candidates.iter_mut().rev().skip_while(|&(height, _)| *height > number) {
-				if entry.canonical_hash == canon_hash { break; }
+			for (&height, entry) in candidates.iter_mut().rev().skip_while(|&(height, _)| *height > number) {
+				if height != number && entry.canonical_hash == canon_hash { break; }
 
-				let canon = entry.candidates.iter().find(|x| x.hash == canon_hash)
+				trace!(target: "chain", "Setting new canonical block {} for block height {}",
+					canon_hash, height);
+
+				let canon_pos = entry.candidates.iter().position(|x| x.hash == canon_hash)
 					.expect("blocks are only inserted if parent is present; or this is the block we just added; qed");
+
+				// move the new canonical entry to the front and set the
+				// era's canonical hash.
+				entry.candidates.swap(0, canon_pos);
+				entry.canonical_hash = canon_hash;
 
 				// what about reorgs > cht::SIZE + HISTORY?
 				// resetting to the last block of a given CHT should be possible.
-				canon_hash = canon.parent_hash;
+				canon_hash = entry.candidates[0].parent_hash;
 			}
 
+			trace!(target: "chain", "New best block: ({}, {}), TD {}", number, hash, total_difficulty);
 			*self.best_block.write() = BlockDescriptor {
 				hash: hash,
 				number: number,
@@ -360,6 +369,15 @@ mod tests {
 			}
 		}
 
-		assert_eq!(chain.best_block().number, 12);
+		let (mut num, mut canon_hash) = (chain.best_block().number, chain.best_block().hash);
+		assert_eq!(num, 12);
+
+		while num > 0 {
+			let header: Header = ::rlp::decode(&chain.get_header(BlockId::Number(num)).unwrap());
+			assert_eq!(header.hash(), canon_hash);
+
+			canon_hash = *header.parent_hash();
+			num -= 1;
+		}
 	}
 }

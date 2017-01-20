@@ -254,7 +254,7 @@ class Contract extends Component {
       <Button
         key='delete'
         icon={ <ActionDelete /> }
-        label='delete contract'
+        label='forget contract'
         onClick={ this.showDeleteDialog }
       />,
       <Button
