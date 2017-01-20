@@ -37,6 +37,10 @@ class ParityBar extends Component {
   measures = null;
   moving = false;
 
+  static contextTypes = {
+    api: PropTypes.object.isRequired
+  };
+
   static propTypes = {
     dapp: PropTypes.bool,
     pending: PropTypes.array
@@ -56,10 +60,14 @@ class ParityBar extends Component {
       40,
       { leading: true, trailing: true }
     );
+  }
+
+  componentWillMount () {
+    const { api } = this.context;
 
     // Hook to the dapp loaded event to position the
     // Parity Bar accordingly
-    DappsStore.get().on('loaded', (app) => {
+    DappsStore.get(api).on('loaded', (app) => {
       this.app = app;
       this.loadPosition();
     });
@@ -403,6 +411,13 @@ class ParityBar extends Component {
       position.top = 0;
     } else {
       position.bottom = 0;
+    }
+
+    // Stick to bottom or top
+    if (position.left !== undefined) {
+      position.left = '1em';
+    } else {
+      position.right = '1em';
     }
 
     this.moving = false;

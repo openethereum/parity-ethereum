@@ -59,10 +59,6 @@ export default class DappsStore extends EventEmitter {
       instance = new DappsStore(api);
     }
 
-    if (api && !instance._api) {
-      instance._api = api;
-    }
-
     return instance;
   }
 
