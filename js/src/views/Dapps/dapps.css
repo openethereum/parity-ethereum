@@ -18,15 +18,15 @@
 section {
   margin: -0.125em;
   position: relative;
+
+  .row {
+    display: flex;
+    justify-content: center;
+  }
 }
 
 section+section {
   margin-top: -0.25em;
-}
-
-.row {
-  display: flex;
-  justify-content: center;
 }
 
 .item {
@@ -36,12 +36,19 @@ section+section {
   padding: 0.125em;
   transition: all 0.5s ease-in-out;
 
-  .tags {
+  .author, .tags {
     display: none;
   }
 
   &:hover {
     flex: 0 0 50%;
+
+    .author {
+      display: block;
+      font-size: 0.75em;
+      margin-top: 0.5em;
+      opacity: 0.5;
+    }
 
     .tags {
       display: flex;
@@ -68,5 +75,28 @@ section+section {
     &>div:first-child {
       padding-bottom: 1em;
     }
+  }
+}
+
+.summary {
+  position: relative;
+  height: 100%;
+
+  .description {
+    margin-left: 72px;
+  }
+
+  .image {
+    position: absolute;
+    top: 1.5em;
+    left: 1.5em;
+    border-radius: 50%;
+    width: 56px;
+    height: 56px;
+  }
+
+  .title {
+    color: rgb(0, 151, 167);
+    margin-bottom: 0.5em;
   }
 }
