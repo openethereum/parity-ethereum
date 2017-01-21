@@ -21,13 +21,11 @@ use io::*;
 use spec::Spec;
 use error::*;
 use client::{Client, ClientConfig, ChainNotify};
-use miner;
-use miner::{Miner, StratumOptions, StratumError};
+use miner::Miner;
 
 use snapshot::ManifestData;
 use snapshot::service::{Service as SnapshotService, ServiceParams as SnapServiceParams};
 use std::sync::atomic::AtomicBool;
-use std::sync::Weak;
 
 #[cfg(feature="ipc")]
 use nanoipc;
@@ -153,14 +151,6 @@ impl ClientService {
 	/// Set the actor to be notified on certain chain events
 	pub fn add_notify(&self, notify: Arc<ChainNotify>) {
 		self.client.add_notify(notify);
-	}
-
-	/// Start STRATUM job dispatcher and register it in the miner
-	pub fn register_stratum(cfg: &StratumOptions, miner: Arc<Miner>, client: Weak<Client>) -> Result<(), StratumError> {
-		let stratum = miner::Stratum::new(cfg, Arc::downgrade(&miner.clone()), client)?;
-		stratum.run_async();
-		miner.push_notifier(Box::new(stratum) as Box<miner::NotifyWork>);
-		Ok(())
 	}
 }
 

@@ -272,14 +272,14 @@ impl Miner {
 		};
 
 		let mut notifiers = Vec::new();
-		if !options.new_work_notify.is_empty() {}
+		if !options.new_work_notify.is_empty()
 		{
 			notifiers.push(
 				Box::new(WorkPoster::new(&options.new_work_notify)) as Box<NotifyWork>
 			);
 		}
 
-		let miner = Miner {
+		Miner {
 			transaction_queue: Arc::new(Mutex::new(txq)),
 			next_allowed_reseal: Mutex::new(Instant::now()),
 			sealing_block_last_request: Mutex::new(0),
@@ -298,9 +298,7 @@ impl Miner {
 			engine: spec.engine.clone(),
 			notifiers: RwLock::new(notifiers),
 			gas_pricer: Mutex::new(gas_pricer),
-		};
-
-		miner
+		}
 	}
 
 	/// Creates new instance of miner with accounts and with given spec.

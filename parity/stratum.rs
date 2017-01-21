@@ -48,7 +48,10 @@ pub fn main() {
 	boot::setup_cli_logger("stratum");
 
 	let service_config: ServiceConfiguration = boot::payload()
-		.unwrap_or_else(|e| panic!("Fatal: error reading boot arguments ({:?})", e));
+		.unwrap_or_else(|e| {
+			println!("Fatal: error reading boot arguments ({:?})", e);
+			std::process::exit(1)
+		});
 
 	let job_dispatcher = dependency!(
 		RemoteJobDispatcher,
@@ -63,14 +66,18 @@ pub fn main() {
 			&SocketAddr::new(
 				IpAddr::from_str(&service_config.listen_addr)
 					.unwrap_or_else(|e|
-						panic!("Fatal: invalid listen address: '{}' ({:?})", &service_config.listen_addr, e)
+						println!("Fatal: invalid listen address: '{}' ({:?})", &service_config.listen_addr, e);
+						std::process::exit(1)
 					),
 				service_config.port,
 			),
 			job_dispatcher.service().clone(),
 			service_config.secret
 		).unwrap_or_else(
-			|e| panic!("Fatal: cannot start stratum server({:?})", e)
+			|e| {
+				println!("Fatal: cannot start stratum server({:?})", e);
+				std::process::exit(1)
+			}
 		);
 
 	boot::host_service(

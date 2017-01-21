@@ -949,7 +949,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "jsonrpc-core"
 version = "5.0.0"
-source = "git+https://github.com/ethcore/jsonrpc.git#7445960602a33cdd51640d7f4c6f3acf6c0578d7"
+source = "git+https://github.com/ethcore/jsonrpc.git#5eeee0980e4d2682a831c633fa03a8af99e0d68c"
 dependencies = [
  "futures 0.1.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -962,7 +962,7 @@ dependencies = [
 [[package]]
 name = "jsonrpc-http-server"
 version = "7.0.0"
-source = "git+https://github.com/ethcore/jsonrpc.git#7445960602a33cdd51640d7f4c6f3acf6c0578d7"
+source = "git+https://github.com/ethcore/jsonrpc.git#5eeee0980e4d2682a831c633fa03a8af99e0d68c"
 dependencies = [
  "futures 0.1.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "hyper 0.10.0-a.0 (git+https://github.com/ethcore/hyper)",
@@ -975,7 +975,7 @@ dependencies = [
 [[package]]
 name = "jsonrpc-ipc-server"
 version = "1.0.0"
-source = "git+https://github.com/ethcore/jsonrpc.git#7445960602a33cdd51640d7f4c6f3acf6c0578d7"
+source = "git+https://github.com/ethcore/jsonrpc.git#5eeee0980e4d2682a831c633fa03a8af99e0d68c"
 dependencies = [
  "bytes 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "env_logger 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -991,7 +991,7 @@ dependencies = [
 [[package]]
 name = "jsonrpc-macros"
 version = "0.2.0"
-source = "git+https://github.com/ethcore/jsonrpc.git#7445960602a33cdd51640d7f4c6f3acf6c0578d7"
+source = "git+https://github.com/ethcore/jsonrpc.git#5eeee0980e4d2682a831c633fa03a8af99e0d68c"
 dependencies = [
  "futures 0.1.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "jsonrpc-core 5.0.0 (git+https://github.com/ethcore/jsonrpc.git)",
@@ -1001,7 +1001,7 @@ dependencies = [
 [[package]]
 name = "jsonrpc-tcp-server"
 version = "1.0.0"
-source = "git+https://github.com/ethcore/jsonrpc.git#7445960602a33cdd51640d7f4c6f3acf6c0578d7"
+source = "git+https://github.com/ethcore/jsonrpc.git#5eeee0980e4d2682a831c633fa03a8af99e0d68c"
 dependencies = [
  "env_logger 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "futures 0.1.6 (registry+https://github.com/rust-lang/crates.io-index)",

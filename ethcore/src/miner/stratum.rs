@@ -18,7 +18,7 @@
 
 use ethcore_stratum::{
 	JobDispatcher, PushWorkHandler,
-	Stratum as EthcoreStratum, Error as StratumServiceError,
+	Stratum as StratumService, Error as StratumServiceError,
 };
 use super::StratumOptions;
 
@@ -30,7 +30,7 @@ use util::{H256, U256, FixedHash, H64, clean_0x};
 use ethereum::ethash::Ethash;
 use ethash::SeedHashCompute;
 use util::Mutex;
-use miner::{Miner, MinerService};
+use miner::{self, Miner, MinerService};
 use client::Client;
 use block::IsBlock;
 use std::str::FromStr;
@@ -44,7 +44,7 @@ struct SubmitPayload {
 
 #[derive(Debug)]
 enum PayloadError {
-	NotEnoughArguments(usize),
+	ArgumentsAmountUnexpected(usize),
 	InvalidNonce(String),
 	InvalidPowHash(String),
 	InvalidMixHash(String),
@@ -59,7 +59,7 @@ impl fmt::Display for PayloadError {
 impl SubmitPayload {
 	fn from_args(payload: Vec<String>) -> Result<Self, PayloadError> {
 		if payload.len() != 3 {
-			return Err(PayloadError::NotEnoughArguments(payload.len()));
+			return Err(PayloadError::ArgumentsAmountUnexpected(payload.len()));
 		}
 
 		let nonce = match H64::from_str(clean_0x(&payload[0])) {
@@ -108,17 +108,14 @@ impl JobDispatcher for StratumJobDispatcher {
 	}
 
 	fn job(&self) -> Option<String> {
-		self.with_core(|client, miner| {
-			if let Some((pow_hash, difficulty, number)) = miner.map_sealing_work(&*client, |b| {
+		self.with_core(|client, miner| miner.map_sealing_work(&*client, |b| {
 				let pow_hash = b.hash();
 				let number = b.block().header().number();
 				let difficulty = b.block().header().difficulty();
 
-				(pow_hash, *difficulty, number)
-			}) {
-				Some(self.payload(pow_hash, difficulty, number))
-			} else { None }
-		})
+				self.payload(pow_hash, *difficulty, number)
+			})
+		)
 	}
 
 	fn submit(&self, payload: Vec<String>) -> Result<(), StratumServiceError> {
@@ -179,7 +176,7 @@ impl StratumJobDispatcher {
 /// Wrapper for dedicated stratum service
 pub struct Stratum {
 	dispatcher: Arc<StratumJobDispatcher>,
-	service: Arc<EthcoreStratum>,
+	service: Arc<StratumService>,
 }
 
 #[derive(Debug)]
@@ -212,10 +209,10 @@ impl super::work_notify::NotifyWork for Stratum {
 impl Stratum {
 
 	/// New stratum job dispatcher, given the miner, client and dedicated stratum service
-	pub fn new(options: &StratumOptions, miner: Weak<Miner>, client: Weak<Client>) -> Result<Stratum, Error> {
+	pub fn start(options: &StratumOptions, miner: Weak<Miner>, client: Weak<Client>) -> Result<Stratum, Error> {
 		let dispatcher = Arc::new(StratumJobDispatcher::new(miner, client));
 
-		let stratum_svc = EthcoreStratum::start(
+		let stratum_svc = StratumService::start(
 			&SocketAddr::from_str(&format!("{}:{}", options.listen_addr, options.port))?,
 			dispatcher.clone(),
 			options.secret.clone(),
@@ -227,7 +224,10 @@ impl Stratum {
 		})
 	}
 
-	/// Run stratum job dispatcher in separate thread
-	pub fn run_async(&self) {
+	/// Start STRATUM job dispatcher and register it in the miner
+	pub fn register(cfg: &StratumOptions, miner: Arc<Miner>, client: Weak<Client>) -> Result<(), Error> {
+		let stratum = miner::Stratum::start(cfg, Arc::downgrade(&miner.clone()), client)?;
+		miner.push_notifier(Box::new(stratum) as Box<miner::NotifyWork>);
+		Ok(())
 	}
 }

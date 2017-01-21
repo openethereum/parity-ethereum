@@ -43,7 +43,10 @@ pub use traits::{
 	RemoteWorkHandler, RemoteJobDispatcher,
 };
 
-use jsonrpc_tcp_server::{Server as JsonRpcServer, RequestContext, MetaExtractor, Dispatcher};
+use jsonrpc_tcp_server::{
+	Server as JsonRpcServer, RequestContext, MetaExtractor, Dispatcher,
+	PushMessageError
+};
 use jsonrpc_core::{MetaIoHandler, Params, to_value, Value, Metadata, Compatibility};
 use jsonrpc_macros::IoDelegate;
 use std::sync::Arc;
@@ -142,7 +145,7 @@ impl Stratum {
 		delegate.add_method_with_meta("mining.subscribe", StratumRpc::subscribe);
 		delegate.add_method_with_meta("mining.authorize", StratumRpc::authorize);
 		delegate.add_method_with_meta("mining.submit", StratumRpc::submit);
-		let mut handler = MetaIoHandler::<SocketMetadata>::with_compatibility(Compatibility::V1);
+		let mut handler = MetaIoHandler::<SocketMetadata>::with_compatibility(Compatibility::Both);
 		handler.extend_with(delegate);
 
 		let server = JsonRpcServer::new(addr.clone(), Arc::new(handler))
@@ -166,6 +169,14 @@ impl Stratum {
 		Ok(stratum)
 	}
 
+	fn update_peers(&self) {
+		if let Some(job) = self.dispatcher.job() {
+			if let Err(e) = self.push_work_all(job) {
+				warn!("Failed to update some of the peers: {:?}", e);
+			}
+		}
+	}
+
 	fn submit(&self, params: Params, _meta: SocketMetadata) -> RpcResult {
 		future::ok(match params {
 			Params::Array(vals) => {
@@ -174,9 +185,7 @@ impl Stratum {
 					.filter_map(|val| match val { &Value::String(ref str) => Some(str.to_owned()), _ => None })
 					.collect::<Vec<String>>()) {
 						Ok(()) => {
-							if let Some(job) = self.dispatcher.job() {
-								self.push_work_all(job);
-							}
+							self.update_peers();
 							to_value(true)
 						},
 						Err(submit_err) => {
@@ -242,20 +251,39 @@ impl Stratum {
 
 impl PushWorkHandler for Stratum {
 	fn push_work_all(&self, payload: String) -> Result<(), Error> {
-		let workers = self.workers.read();
-		let next_request_id = {
-			let mut counter = self.notify_counter.write();
-			if *counter == ::std::u32::MAX { *counter = NOTIFY_CONTER_INITIAL; }
-			else { *counter = *counter + 1 }
-			*counter
+		let hup_peers = {
+			let workers = self.workers.read();
+			let next_request_id = {
+				let mut counter = self.notify_counter.write();
+				if *counter == ::std::u32::MAX { *counter = NOTIFY_CONTER_INITIAL; }
+				else { *counter = *counter + 1 }
+				*counter
+			};
+
+			let mut hup_peers = HashSet::with_capacity(0); // most of the cases won't be needed, hence avoid allocation
+			let workers_msg = format!("{{ \"id\": {}, \"method\": \"mining.notify\", \"params\": {} }}", next_request_id, payload);
+			trace!(target: "stratum", "pushing work for {} workers (payload: '{}')", workers.len(), &workers_msg);
+			for (ref addr, _) in workers.iter() {
+				trace!(target: "stratum", "pusing work to {}", addr);
+				match self.tcp_dispatcher.push_message(addr, workers_msg.clone()) {
+					Err(PushMessageError::NoSuchPeer) => {
+						trace!(target: "stratum", "Worker no longer connected: {}", &addr);
+						hup_peers.insert(*addr.clone());
+					},
+					Err(e) => {
+						warn!(target: "stratum", "Unexpected transport error: {:?}", e);
+					},
+					Ok(_) => { },
+				}
+			}
+			hup_peers
 		};
 
-		let workers_msg = format!("{{ \"id\": {}, \"method\": \"mining.notify\", \"params\": {} }}", next_request_id, payload);
-		trace!(target: "stratum", "pushing work for {} workers (payload: '{}')", workers.len(), &workers_msg);
-		for (ref addr, _) in workers.iter() {
-			trace!(target: "stratum", "pusing work to {}", addr);
-			try!(self.tcp_dispatcher.push_message(addr, workers_msg.clone()));
+		if hup_peers.len() > 0 {
+			let mut workers = self.workers.write();
+			for hup_peer in hup_peers.into_iter() { workers.remove(&hup_peer); }
 		}
+
 		Ok(())
 	}
 
