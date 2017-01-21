@@ -111,4 +111,15 @@ describe('util/subscribe-to-events', () => {
     expect(onBar.callCount).to.be.at.least(1);
     expect(onBar.firstCall.args).to.eql([ liveLogs[0] ]);
   });
+
+  it('accepts a custom block range', async function () {
+    const { api, contract } = this;
+
+    subscribeToEvents(contract, [ 'Foo' ], { from: 123, to: 321 });
+
+    await delay(0);
+    expect(api.eth.newFilter.callCount).to.equal(1);
+    expect(api.eth.newFilter.firstCall.args[0].fromBlock).to.equal(123);
+    expect(api.eth.newFilter.firstCall.args[0].toBlock).to.equal(321);
+  });
 });

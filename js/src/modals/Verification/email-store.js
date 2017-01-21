@@ -21,7 +21,7 @@ import EmailVerificationABI from '~/contracts/abi/email-verification.json';
 import VerificationStore, {
   LOADING, QUERY_DATA, QUERY_CODE, POSTED_CONFIRMATION, DONE
 } from './store';
-import { isServerRunning, postToServer } from '../../3rdparty/email-verification';
+import { isServerRunning, hasReceivedCode, postToServer } from '~/3rdparty/email-verification';
 
 // name in the `BadgeReg.sol` contract
 const EMAIL_VERIFICATION = 'emailverification';
@@ -62,6 +62,10 @@ export default class EmailVerificationStore extends VerificationStore {
 
   isServerRunning = () => {
     return isServerRunning(this.isTestnet);
+  }
+
+  checkIfReceivedCode = () => {
+    return hasReceivedCode(this.email, this.account, this.isTestnet);
   }
 
   requestValues = () => [ sha3.text(this.email) ]

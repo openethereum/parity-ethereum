@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::collections::BTreeMap;
-use ethsync::{PeerInfo as SyncPeerInfo, TransactionStats as SyncTransactionStats};
+use ethsync::{self, PeerInfo as SyncPeerInfo, TransactionStats as SyncTransactionStats};
 use serde::{Serialize, Serializer};
 use v1::types::{U256, H512};
 
@@ -82,18 +82,51 @@ pub struct PeerNetworkInfo {
 #[derive(Default, Debug, Serialize)]
 pub struct PeerProtocolsInfo {
 	/// Ethereum protocol information
-	pub eth: Option<PeerEthereumProtocolInfo>,
+	pub eth: Option<EthProtocolInfo>,
+	/// LES protocol information.
+	pub les: Option<LesProtocolInfo>,
 }
 
 /// Peer Ethereum protocol information
 #[derive(Default, Debug, Serialize)]
-pub struct PeerEthereumProtocolInfo {
+pub struct EthProtocolInfo {
 	/// Negotiated ethereum protocol version
 	pub version: u32,
 	/// Peer total difficulty if known
 	pub difficulty: Option<U256>,
 	/// SHA3 of peer best block hash
 	pub head: String,
+}
+
+impl From<ethsync::EthProtocolInfo> for EthProtocolInfo {
+	fn from(info: ethsync::EthProtocolInfo) -> Self {
+		EthProtocolInfo {
+			version: info.version,
+			difficulty: info.difficulty.map(Into::into),
+			head: info.head.hex(),
+		}
+	}
+}
+
+/// Peer LES protocol information
+#[derive(Default, Debug, Serialize)]
+pub struct LesProtocolInfo {
+	/// Negotiated LES protocol version
+	pub version: u32,
+	/// Peer total difficulty
+	pub difficulty: U256,
+	/// SHA3 of peer best block hash
+	pub head: String,
+}
+
+impl From<ethsync::LesProtocolInfo> for LesProtocolInfo {
+	fn from(info: ethsync::LesProtocolInfo) -> Self {
+		LesProtocolInfo {
+			version: info.version,
+			difficulty: info.difficulty.into(),
+			head: info.head.hex(),
+		}
+	}
 }
 
 /// Sync status
@@ -137,11 +170,8 @@ impl From<SyncPeerInfo> for PeerInfo {
 				local_address: p.local_address,
 			},
 			protocols: PeerProtocolsInfo {
-				eth: Some(PeerEthereumProtocolInfo {
-					version: p.eth_version,
-					difficulty: p.eth_difficulty.map(|d| d.into()),
-					head: p.eth_head.hex(),
-				})
+				eth: p.eth_info.map(Into::into),
+				les: p.les_info.map(Into::into),
 			},
 		}
 	}

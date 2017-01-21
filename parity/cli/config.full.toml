@@ -95,6 +95,7 @@ notify_work = ["http://localhost:3001"]
 tracing = "auto"
 pruning = "auto"
 pruning_history = 1200
+pruning_memory = 500
 cache_size_db = 64
 cache_size_blocks = 8
 cache_size_queue = 50
