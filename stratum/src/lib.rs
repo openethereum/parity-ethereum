@@ -80,35 +80,35 @@ impl StratumRpc {
 
 #[derive(Clone)]
 pub struct SocketMetadata {
-    addr: SocketAddr,
+	addr: SocketAddr,
 }
 
 impl Default for SocketMetadata {
-    fn default() -> Self {
-        SocketMetadata { addr: "0.0.0.0:0".parse().unwrap() }
-    }
+	fn default() -> Self {
+		SocketMetadata { addr: "0.0.0.0:0".parse().unwrap() }
+	}
 }
 
 impl SocketMetadata {
-    pub fn addr(&self) -> &SocketAddr {
-        &self.addr
-    }
+	pub fn addr(&self) -> &SocketAddr {
+		&self.addr
+	}
 }
 
 impl Metadata for SocketMetadata { }
 
 impl From<SocketAddr> for SocketMetadata {
-    fn from(addr: SocketAddr) -> SocketMetadata {
-        SocketMetadata { addr: addr }
-    }
+	fn from(addr: SocketAddr) -> SocketMetadata {
+		SocketMetadata { addr: addr }
+	}
 }
 
 pub struct PeerMetaExtractor;
 
 impl MetaExtractor<SocketMetadata> for PeerMetaExtractor {
-    fn extract(&self, context: &RequestContext) -> SocketMetadata {
-        context.peer_addr.into()
-    }
+	fn extract(&self, context: &RequestContext) -> SocketMetadata {
+		context.peer_addr.into()
+	}
 }
 
 pub struct Stratum {
@@ -129,7 +129,7 @@ pub struct Stratum {
 	tcp_dispatcher: Dispatcher,
 }
 
-const NOTIFY_CONTER_INITIAL: u32 = 16;
+const NOTIFY_COUNTER_INITIAL: u32 = 16;
 
 impl Stratum {
 	pub fn start(
@@ -159,7 +159,7 @@ impl Stratum {
 			dispatcher: dispatcher,
 			workers: Arc::new(RwLock::new(HashMap::new())),
 			secret: secret,
-			notify_counter: RwLock::new(NOTIFY_CONTER_INITIAL),
+			notify_counter: RwLock::new(NOTIFY_COUNTER_INITIAL),
 		});
 		*rpc.stratum.write() = Some(stratum.clone());
 
@@ -255,7 +255,7 @@ impl PushWorkHandler for Stratum {
 			let workers = self.workers.read();
 			let next_request_id = {
 				let mut counter = self.notify_counter.write();
-				if *counter == ::std::u32::MAX { *counter = NOTIFY_CONTER_INITIAL; }
+				if *counter == ::std::u32::MAX { *counter = NOTIFY_COUNTER_INITIAL; }
 				else { *counter = *counter + 1 }
 				*counter
 			};
@@ -279,9 +279,9 @@ impl PushWorkHandler for Stratum {
 			hup_peers
 		};
 
-		if hup_peers.len() > 0 {
+		if !hup_peers.is_empty() {
 			let mut workers = self.workers.write();
-			for hup_peer in hup_peers.into_iter() { workers.remove(&hup_peer); }
+			for hup_peer in hup_peers { workers.remove(&hup_peer); }
 		}
 
 		Ok(())
@@ -358,25 +358,25 @@ mod tests {
 	}
 
 	fn dummy_request(addr: &SocketAddr, data: &str) -> Vec<u8> {
-	    let mut core = Core::new().expect("Tokio Core should be created with no errors");
-	    let mut buffer = vec![0u8; 2048];
+		let mut core = Core::new().expect("Tokio Core should be created with no errors");
+		let mut buffer = vec![0u8; 2048];
 
 		let mut data_vec = data.as_bytes().to_vec();
 		data_vec.extend(b"\n");
 
-	    let stream = TcpStream::connect(addr, &core.handle())
-	        .and_then(|stream| {
-	            io::write_all(stream, &data_vec)
-	        })
-	        .and_then(|(stream, _)| {
-	            io::read(stream, &mut buffer)
-	        })
-	        .and_then(|(_, read_buf, len)| {
-	            future::ok(read_buf[0..len].to_vec())
-	        });
-	    let result = core.run(stream).expect("Core should run with no errors");
+		let stream = TcpStream::connect(addr, &core.handle())
+			.and_then(|stream| {
+				io::write_all(stream, &data_vec)
+			})
+			.and_then(|(stream, _)| {
+				io::read(stream, &mut buffer)
+			})
+			.and_then(|(_, read_buf, len)| {
+				future::ok(read_buf[0..len].to_vec())
+			});
+			let result = core.run(stream).expect("Core should run with no errors");
 
-	    result
+			result
 	}
 
 	#[test]
@@ -481,19 +481,19 @@ mod tests {
 			.expect("There should be a timeout produced in message test");
 		let timeout2 = Timeout::new(::std::time::Duration::from_millis(100), &core.handle())
 			.expect("There should be a timeout produced in message test");
-	    let mut buffer = vec![0u8; 2048];
+		let mut buffer = vec![0u8; 2048];
 		let mut buffer2 = vec![0u8; 2048];
-	    let stream = TcpStream::connect(&addr, &core.handle())
-	        .and_then(|stream| {
-	            io::write_all(stream, &auth_request)
-	        })
-	        .and_then(|(stream, _)| {
-	            io::read(stream, &mut buffer)
-	        })
-	        .and_then(|(stream, _, _)| {
+		let stream = TcpStream::connect(&addr, &core.handle())
+			.and_then(|stream| {
+				io::write_all(stream, &auth_request)
+			})
+			.and_then(|(stream, _)| {
+				io::read(stream, &mut buffer)
+			})
+			.and_then(|(stream, _, _)| {
 				trace!(target: "stratum", "Received authorization confirmation");
 				timeout1.join(future::ok(stream))
-	        })
+			})
 			.and_then(|(_, stream)| {
 				trace!(target: "stratum", "Pusing work to peers");
 				stratum.push_work_all(r#"{ "00040008", "100500" }"#.to_owned())
@@ -502,12 +502,12 @@ mod tests {
 			})
 			.and_then(|(_, stream)| {
 				trace!(target: "stratum", "Ready to read work from server");
-	            io::read(stream, &mut buffer2)
-	        })
+				io::read(stream, &mut buffer2)
+			})
 			.and_then(|(_, read_buf, len)| {
 				trace!(target: "stratum", "Received work from server");
-	            future::ok(read_buf[0..len].to_vec())
-	        });
+				future::ok(read_buf[0..len].to_vec())
+			});
 		let response = String::from_utf8(
 			core.run(stream).expect("Core should run with no errors")
 		).expect("Response should be utf-8");

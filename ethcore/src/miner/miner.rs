@@ -271,13 +271,11 @@ impl Miner {
 			),
 		};
 
-		let mut notifiers = Vec::new();
-		if !options.new_work_notify.is_empty()
-		{
-			notifiers.push(
-				Box::new(WorkPoster::new(&options.new_work_notify)) as Box<NotifyWork>
-			);
-		}
+		let notifiers =
+			if !options.new_work_notify.is_empty() { Vec::new() }
+			else {
+				vec![Box::new(WorkPoster::new(&options.new_work_notify)) as Box<NotifyWork>]
+			};
 
 		Miner {
 			transaction_queue: Arc::new(Mutex::new(txq)),

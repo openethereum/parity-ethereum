@@ -468,11 +468,7 @@ impl Configuration {
 				port: self.args.flag_stratum_port,
 				secret: self.args.flag_stratum_secret.as_ref().map(|s| s.parse::<H256>().unwrap_or_else(|_| s.sha3())),
 			}))
-		}
-		else
-		{
-			Ok(None)
-		}
+		} else { Ok(None) }
 	}
 
 	fn miner_options(&self) -> Result<MinerOptions, String> {
