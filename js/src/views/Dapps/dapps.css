@@ -15,6 +15,9 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+$imageSize: 56px;
+$imageMargin: 72px;
+
 section {
   margin: -0.125em;
   position: relative;
@@ -36,22 +39,25 @@ section+section {
   padding: 0.125em;
   transition: all 0.5s ease-in-out;
 
-  .author, .tags {
-    display: none;
+  .author {
+    font-size: 0.75em;
+    margin-top: 0.5em;
+    opacity: 0;
+  }
+
+  .tags {
+    opacity: 0;
   }
 
   &:hover {
     flex: 0 0 50%;
 
     .author {
-      display: block;
-      font-size: 0.75em;
-      margin-top: 0.5em;
       opacity: 0.5;
     }
 
     .tags {
-      display: flex;
+      opacity: 1;
     }
   }
 }
@@ -83,20 +89,21 @@ section+section {
   height: 100%;
 
   .description {
-    margin-left: 72px;
+    margin-left: $imageMargin;
   }
 
   .image {
+    border-radius: 50%;
+    height: $imageSize;
+    left: 1.5em;
     position: absolute;
     top: 1.5em;
-    left: 1.5em;
-    border-radius: 50%;
-    width: 56px;
-    height: 56px;
+    width: $imageSize;
   }
 
   .title {
     color: rgb(0, 151, 167);
     margin-bottom: 0.5em;
+    max-height: $imageSize;
   }
 }
