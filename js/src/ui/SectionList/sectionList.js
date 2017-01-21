@@ -19,6 +19,8 @@ import React, { Component, PropTypes } from 'react';
 import { chunkArray } from '~/util/array';
 import { arrayOrObjectProptype, nodeOrStringProptype } from '~/util/proptypes';
 
+import Container from '../Container';
+
 import styles from './sectionList.css';
 
 const ITEMS_PER_ROW = 3;
@@ -79,7 +81,9 @@ export default class SectionList extends Component {
         className={ styles.item }
         key={ `item_${index}` }
       >
-        { renderItem(item, index) }
+        <Container className={ styles.container }>
+          { renderItem(item, index) }
+        </Container>
       </div>
     );
   }

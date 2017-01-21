@@ -17,7 +17,7 @@
 import React, { Component, PropTypes } from 'react';
 import { Link } from 'react-router';
 
-import { Container, ContainerTitle, Tags } from '~/ui';
+import { ContainerTitle, Tags } from '~/ui';
 
 import styles from '../dapps.css';
 
@@ -47,31 +47,29 @@ export default class Summary extends Component {
             : `/app/${app.id}`
         }
       >
-        <Container className={ styles.summary }>
-          <img
-            className={ styles.image }
-            src={
-              app.type === 'local'
-                ? `${dappsUrl}/${app.id}/${app.iconUrl}`
-                : `${dappsUrl}${app.image}`
-            }
+        <img
+          className={ styles.image }
+          src={
+            app.type === 'local'
+              ? `${dappsUrl}/${app.id}/${app.iconUrl}`
+              : `${dappsUrl}${app.image}`
+          }
+        />
+        <Tags
+          className={ styles.tags }
+          tags={ [app.type] }
+        />
+        <div className={ styles.description }>
+          <ContainerTitle
+            className={ styles.title }
+            title={ app.name }
+            byline={ app.description }
           />
-          <Tags
-            className={ styles.tags }
-            tags={ [app.type] }
-          />
-          <div className={ styles.description }>
-            <ContainerTitle
-              className={ styles.title }
-              title={ app.name }
-              byline={ app.description }
-            />
-            <div className={ styles.author }>
-              { app.author }, v{ app.version }
-            </div>
-            { this.props.children }
+          <div className={ styles.author }>
+            { app.author }, v{ app.version }
           </div>
-        </Container>
+          { this.props.children }
+        </div>
       </Link>
     );
   }

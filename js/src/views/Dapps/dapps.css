@@ -20,9 +20,28 @@ $imageMargin: 72px;
 
 .app {
   .author {
+    color: #aaa;
     font-size: 0.75em;
     margin-top: 0.5em;
     opacity: 0;
+  }
+
+  .description {
+    margin-left: $imageMargin;
+  }
+
+  .image {
+    border-radius: 50%;
+    height: $imageSize;
+    left: 1.5em;
+    position: absolute;
+    top: 1.5em;
+    width: $imageSize;
+  }
+
+  .title {
+    margin-bottom: 0.5em;
+    max-height: $imageSize;
   }
 
   .tags {
@@ -59,29 +78,5 @@ $imageMargin: 72px;
     &>div:first-child {
       padding-bottom: 1em;
     }
-  }
-}
-
-.summary {
-  position: relative;
-  height: 100%;
-
-  .description {
-    margin-left: $imageMargin;
-  }
-
-  .image {
-    border-radius: 50%;
-    height: $imageSize;
-    left: 1.5em;
-    position: absolute;
-    top: 1.5em;
-    width: $imageSize;
-  }
-
-  .title {
-    color: rgb(0, 151, 167);
-    margin-bottom: 0.5em;
-    max-height: $imageSize;
   }
 }
