@@ -25,6 +25,7 @@ import { AddDapps, DappPermissions } from '~/modals';
 import PermissionStore from '~/modals/DappPermissions/store';
 import { Actionbar, Button, Page } from '~/ui';
 import { LockedIcon, VisibleIcon } from '~/ui/Icons';
+import { chunkArray } from '~/util/array';
 
 import UrlButton from './UrlButton';
 import DappsStore from './dappsStore';
@@ -118,23 +119,31 @@ class Dapps extends Component {
           ] }
         />
         <Page>
-          <div>{ this.renderList(this.store.visibleLocal) }</div>
-          <div>{ this.renderList(this.store.visibleBuiltin) }</div>
-          <div>{ this.renderList(this.store.visibleNetwork, externalOverlay) }</div>
+          <div>{ this.renderSection(this.store.visibleLocal) }</div>
+          <div>{ this.renderSection(this.store.visibleBuiltin) }</div>
+          <div>{ this.renderSection(this.store.visibleNetwork, externalOverlay) }</div>
         </Page>
       </div>
     );
   }
 
-  renderList (items, overlay) {
+  renderSection (items, overlay) {
     if (!items || !items.length) {
       return null;
     }
 
     return (
-      <div className={ styles.list }>
+      <section>
         { overlay }
-        { items.map(this.renderApp) }
+        { chunkArray(items, 3).map(this.renderRow) }
+      </section>
+    );
+  }
+
+  renderRow = (list) => {
+    return (
+      <div className={ styles.row }>
+        { list.map(this.renderApp) }
       </div>
     );
   }
