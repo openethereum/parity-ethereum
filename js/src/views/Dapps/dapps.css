@@ -18,27 +18,7 @@
 $imageSize: 56px;
 $imageMargin: 72px;
 
-section {
-  margin: -0.125em;
-  position: relative;
-
-  .row {
-    display: flex;
-    justify-content: center;
-  }
-}
-
-section+section {
-  margin-top: -0.25em;
-}
-
-.item {
-  box-sizing: border-box;
-  cursor: pointer;
-  flex: 0 1 33%;
-  padding: 0.125em;
-  transition: all 0.5s ease-in-out;
-
+.app {
   .author {
     font-size: 0.75em;
     margin-top: 0.5em;
@@ -50,8 +30,6 @@ section+section {
   }
 
   &:hover {
-    flex: 0 0 50%;
-
     .author {
       opacity: 0.5;
     }

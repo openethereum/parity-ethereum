@@ -23,9 +23,8 @@ import { connect } from 'react-redux';
 
 import { AddDapps, DappPermissions } from '~/modals';
 import PermissionStore from '~/modals/DappPermissions/store';
-import { Actionbar, Button, Page } from '~/ui';
+import { Actionbar, Button, Page, SectionList } from '~/ui';
 import { LockedIcon, VisibleIcon } from '~/ui/Icons';
-import { chunkArray } from '~/util/array';
 
 import UrlButton from './UrlButton';
 import DappsStore from './dappsStore';
@@ -52,6 +51,7 @@ class Dapps extends Component {
 
   render () {
     let externalOverlay = null;
+
     if (this.store.externalOverlayVisible) {
       externalOverlay = (
         <div className={ styles.overlay }>
@@ -119,41 +119,27 @@ class Dapps extends Component {
           ] }
         />
         <Page>
-          <div>{ this.renderSection(this.store.visibleLocal) }</div>
-          <div>{ this.renderSection(this.store.visibleBuiltin) }</div>
-          <div>{ this.renderSection(this.store.visibleNetwork, externalOverlay) }</div>
+          <SectionList
+            items={ this.store.visibleLocal }
+            renderItem={ this.renderApp }
+          />
+          <SectionList
+            items={ this.store.visibleBuiltin }
+            renderItem={ this.renderApp }
+          />
+          <SectionList
+            items={ this.store.visibleNetwork }
+            renderItem={ this.renderApp }
+            overlay={ externalOverlay }
+          />
         </Page>
-      </div>
-    );
-  }
-
-  renderSection (items, overlay) {
-    if (!items || !items.length) {
-      return null;
-    }
-
-    return (
-      <section>
-        { overlay }
-        { chunkArray(items, 3).map(this.renderRow) }
-      </section>
-    );
-  }
-
-  renderRow = (list) => {
-    return (
-      <div className={ styles.row }>
-        { list.map(this.renderApp) }
       </div>
     );
   }
 
   renderApp = (app) => {
     return (
-      <div
-        className={ styles.item }
-        key={ app.id }
-      >
+      <div className={ styles.app }>
         <Summary app={ app } />
       </div>
     );
