@@ -31,6 +31,7 @@ section+section {
 
 .item {
   box-sizing: border-box;
+  cursor: pointer;
   flex: 0 1 33%;
   padding: 0.125em;
   transition: all 1s ease-in-out;

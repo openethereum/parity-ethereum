@@ -39,53 +39,36 @@ export default class Summary extends Component {
       return null;
     }
 
-    const image = this.renderImage(dappsUrl, app);
-    const link = this.renderLink(app);
-
     return (
-      <Container className={ styles.container }>
-        { image }
-        <Tags tags={ [app.type] } />
-        <div className={ styles.description }>
-          <ContainerTitle
-            className={ styles.title }
-            title={ link }
-            byline={ app.description }
+      <Link
+        to={
+          app.url === 'web'
+            ? '/web'
+            : `/app/${app.id}`
+        }
+      >
+        <Container className={ styles.container }>
+          <img
+            className={ styles.image }
+            src={
+              app.type === 'local'
+                ? `${dappsUrl}/${app.id}/${app.iconUrl}`
+                : `${dappsUrl}${app.image}`
+            }
           />
-          <div className={ styles.author }>
-            { app.author }, v{ app.version }
+          <Tags tags={ [app.type] } />
+          <div className={ styles.description }>
+            <ContainerTitle
+              className={ styles.title }
+              title={ app.name }
+              byline={ app.description }
+            />
+            <div className={ styles.author }>
+              { app.author }, v{ app.version }
+            </div>
+            { this.props.children }
           </div>
-          { this.props.children }
-        </div>
-      </Container>
-    );
-  }
-
-  renderImage (dappsUrl, app) {
-    if (app.type === 'local') {
-      return (
-        <img src={ `${dappsUrl}/${app.id}/${app.iconUrl}` } className={ styles.image } />
-      );
-    }
-
-    return (
-      <img src={ `${dappsUrl}${app.image}` } className={ styles.image } />
-    );
-  }
-
-  renderLink (app) {
-    // Special case for web dapp
-    if (app.url === 'web') {
-      return (
-        <Link to={ `/web` }>
-          { app.name }
-        </Link>
-      );
-    }
-
-    return (
-      <Link to={ `/app/${app.id}` }>
-        { app.name }
+        </Container>
       </Link>
     );
   }
