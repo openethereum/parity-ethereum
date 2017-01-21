@@ -22,39 +22,45 @@ import styles from './tags.css';
 
 export default class Tags extends Component {
   static propTypes = {
+    className: PropTypes.string,
     handleAddSearchToken: PropTypes.func,
     setRefs: PropTypes.func,
     tags: arrayOrObjectProptype()
   }
 
   render () {
-    return (<div className={ styles.tags }>
-      { this.renderTags() }
-    </div>);
+    const { className, tags } = this.props;
+
+    if (!tags || !tags.length) {
+      return null;
+    }
+
+    return (
+      <div className={ [styles.tags, className].join(' ') }>
+        { this.renderTags() }
+      </div>
+    );
   }
 
   renderTags () {
-    const { handleAddSearchToken, setRefs } = this.props;
-    const tags = this.props.tags || [];
-
+    const { handleAddSearchToken, setRefs, tags } = this.props;
     const tagClasses = handleAddSearchToken
       ? [ styles.tag, styles.tagClickable ]
       : [ styles.tag ];
-
     const setRef = setRefs
       ? (ref) => { setRefs(ref); }
       : () => {};
 
     return tags
       .sort()
-      .map((tag, idx) => {
+      .map((tag, index) => {
         const onClick = handleAddSearchToken
           ? () => handleAddSearchToken(tag)
           : null;
 
         return (
           <div
-            key={ idx }
+            key={ index }
             className={ tagClasses.join(' ') }
             onClick={ onClick }
             ref={ setRef }

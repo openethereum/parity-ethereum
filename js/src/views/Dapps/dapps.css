@@ -34,10 +34,18 @@ section+section {
   cursor: pointer;
   flex: 0 1 33%;
   padding: 0.125em;
-  transition: all 0.75s ease-in-out;
+  transition: all 0.5s ease-in-out;
+
+  .tags {
+    display: none;
+  }
 
   &:hover {
     flex: 0 0 50%;
+
+    .tags {
+      display: flex;
+    }
   }
 }
 

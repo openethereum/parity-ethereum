@@ -16,7 +16,7 @@
 
 import { chunkArray } from './array';
 
-describe.only('util/array', () => {
+describe('util/array', () => {
   describe('chunkArray', () => {
     it('splits array into equal chunks', () => {
       expect(chunkArray([1, 2, 3, 4], 2)).to.deep.equal([[1, 2], [3, 4]]);
