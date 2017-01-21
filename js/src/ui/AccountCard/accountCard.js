@@ -42,7 +42,7 @@ export default class AccountCard extends Component {
   render () {
     const { account } = this.props;
     const { copied } = this.state;
-    const { address, description, meta = {} } = account;
+    const { address, description, meta = {}, name } = account;
     const { tags = [] } = meta;
     const classes = [ styles.account ];
 
@@ -64,6 +64,7 @@ export default class AccountCard extends Component {
           <div className={ styles.accountName }>
             <IdentityName
               address={ address }
+              name={ name }
               unknown
             />
           </div>

@@ -21,6 +21,7 @@ import sinon from 'sinon';
 import AccountCard from './';
 
 const TEST_ADDRESS = '0x1234567890123456789012345678901234567890';
+const TEST_NAME = 'Jimmy';
 
 let component;
 let onClick;
@@ -31,7 +32,7 @@ function render (props = {}) {
     props.account = {
       address: TEST_ADDRESS,
       description: 'testDescription',
-      name: 'Jimmy',
+      name: TEST_NAME,
       meta: {}
     };
   }
@@ -89,6 +90,10 @@ describe('ui/AccountCard', () => {
 
       it('passes the address through', () => {
         expect(name.props().address).to.equal(TEST_ADDRESS);
+      });
+
+      it('passes the name through', () => {
+        expect(name.props().name).to.equal(TEST_NAME);
       });
 
       it('renders unknown (no name)', () => {
