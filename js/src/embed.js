@@ -26,28 +26,24 @@ import { AppContainer } from 'react-hot-loader';
 
 import injectTapEventPlugin from 'react-tap-event-plugin';
 
-import SecureApi from './secureApi';
+import SecureApi from '~/secureApi';
 import ContractInstances from '~/contracts';
 
-import { initStore } from './redux';
+import { initStore } from '~/redux';
 import ContextProvider from '~/ui/ContextProvider';
 import muiTheme from '~/ui/Theme';
 
 import { patchApi } from '~/util/tx';
 import { setApi } from '~/redux/providers/apiActions';
 
-import './environment';
+import '~/environment';
 
 import '../assets/fonts/Roboto/font.css';
 import '../assets/fonts/RobotoMono/font.css';
 
 injectTapEventPlugin();
 
-import ParityBar from './views/ParityBar';
-
-// Cleanup Loading
-const $container = document.querySelector('#container');
-$container.parentNode.removeChild($container);
+import ParityBar from '~/views/ParityBar';
 
 // Test transport (std transport should be provided as global object)
 class FakeTransport {
@@ -59,7 +55,9 @@ class FakeTransport {
     console.log('Calling', method, params);
     return Promise.reject('not connected');
   }
-  on () {}
+
+  on () {
+  }
 }
 
 class FrameSecureApi extends SecureApi {
@@ -92,10 +90,12 @@ class FrameSecureApi extends SecureApi {
 }
 
 const api = new FrameSecureApi(window.secureTransport || new FakeTransport());
+
 patchApi(api);
 ContractInstances.create(api);
 
 const store = initStore(api, null, true);
+
 store.dispatch({ type: 'initAll', api });
 store.dispatch(setApi(api));
 
@@ -104,13 +104,15 @@ window.secureApi = api;
 const app = (
   <ParityBar dapp externalLink={ 'http://127.0.0.1:8180' } />
 );
-
-const container = document.createElement('div');
-document.body.appendChild(container);
+const container = document.querySelector('#container');
 
 ReactDOM.render(
   <AppContainer>
-    <ContextProvider api={ api } muiTheme={ muiTheme } store={ store }>
+    <ContextProvider
+      api={ api }
+      muiTheme={ muiTheme }
+      store={ store }
+    >
       { app }
     </ContextProvider>
   </AppContainer>,

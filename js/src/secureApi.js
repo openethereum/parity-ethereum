@@ -15,10 +15,10 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import { uniq } from 'lodash';
+import store from 'store';
 
 import Api from './api';
 import { LOG_KEYS, getLogger } from '~/config';
-import store from 'store';
 
 const log = getLogger(LOG_KEYS.Signer);
 
@@ -38,10 +38,10 @@ export default class SecureApi extends Api {
   constructor (url, nextToken, getTransport = SecureApi.getTransport) {
     const sysuiToken = store.get('sysuiToken');
     const transport = getTransport(url, sysuiToken);
+
     super(transport);
 
     this._url = url;
-
     // Try tokens from localStorage, from hash and 'initial'
     this._tokens = uniq([sysuiToken, nextToken, 'initial'])
       .filter((token) => token)

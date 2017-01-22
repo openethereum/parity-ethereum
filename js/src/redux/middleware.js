@@ -46,5 +46,6 @@ export default function (api, browserHistory, forEmbed = false) {
 
   const status = statusMiddleware();
   const routeMiddleware = browserHistory ? routerMiddleware(browserHistory) : [];
+
   return middleware.concat(status, routeMiddleware, thunk);
 }

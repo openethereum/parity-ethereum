@@ -101,11 +101,12 @@ class ParityBar extends Component {
       bubbles: true,
       detail: { opened }
     });
+
     this.bar.dispatchEvent(event);
   }
 
-  onRef = (el) => {
-    this.bar = el;
+  onRef = (element) => {
+    this.bar = element;
   }
 
   render () {
@@ -187,6 +188,7 @@ class ParityBar extends Component {
         className={ styles.parityIcon }
       />
     );
+
     const parityButton = (
       <Button
         className={ styles.parityButton }
@@ -202,28 +204,11 @@ class ParityBar extends Component {
     }
 
     return (
-<<<<<<< HEAD
-      <div className={ styles.bar } ref={ this.onRef }>
-        <ParityBackground className={ styles.corner }>
-          <div className={ styles.cornercolor }>
-            { this.renderLink(parityButton) }
-            <Button
-              className={ styles.button }
-              icon={ <ActionFingerprint /> }
-              label={ this.renderSignerLabel() }
-              onClick={ this.toggleDisplay }
-            />
-          </div>
-        </ParityBackground>
-=======
-      <div className={ styles.cornercolor }>
-        <Link to='/apps'>
-          <Button
-            className={ styles.parityButton }
-            icon={ parityIcon }
-            label={ this.renderLabel('Parity') }
-          />
-        </Link>
+      <div
+        className={ styles.cornercolor }
+        ref={ this.onRef }
+      >
+        { this.renderLink(parityButton) }
         <Button
           className={ styles.button }
           icon={ <FingerprintIcon /> }
@@ -231,22 +216,32 @@ class ParityBar extends Component {
           onClick={ this.toggleDisplay }
         />
 
+        { this.renderDrag() }
+      </div>
+    );
+  }
+
+  renderDrag () {
+    if (this.props.externalLink) {
+      return;
+    }
+
+    return (
+      <div
+        className={ styles.moveIcon }
+        onMouseDown={ this.onMouseDown }
+      >
         <div
-          className={ styles.moveIcon }
-          onMouseDown={ this.onMouseDown }
-        >
-          <div
-            className={ dragButtonClasses.join(' ') }
-            ref='dragButton'
-          />
-        </div>
->>>>>>> master
+          className={ dragButtonClasses.join(' ') }
+          ref='dragButton'
+        />
       </div>
     );
   }
 
   renderLink (button) {
     const { externalLink } = this.props;
+
     if (!externalLink) {
       return (
         <Link to='/apps'>
@@ -256,7 +251,10 @@ class ParityBar extends Component {
     }
 
     return (
-      <a href={ externalLink } target='_parent'>
+      <a
+        href={ externalLink }
+        target='_parent'
+      >
         { button }
       </a>
     );

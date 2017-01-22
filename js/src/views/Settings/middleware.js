@@ -14,8 +14,9 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import defaultViews from './Views/defaults';
 import store from 'store';
+
+import defaultViews from './Views/defaults';
 
 function initBackground (store, api) {
   const backgroundSeed = loadBackground() || api.util.sha3(`${Date.now()}`);
