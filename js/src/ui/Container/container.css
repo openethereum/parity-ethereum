@@ -14,19 +14,20 @@
 /* You should have received a copy of the GNU General Public License
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
+
 .container {
-  flex: 1;
-  padding: 0em;
   background: rgba(0, 0, 0, 0.8);
+  flex: 1;
   height: 100%;
+  padding: 0em;
 }
 
 .compact,
 .padded {
   border-radius: 0 !important;
-  position: relative;
-  overflow: auto;
   background-color: transparent !important;
+  overflow: auto;
+  position: relative;
 }
 
 .compact {

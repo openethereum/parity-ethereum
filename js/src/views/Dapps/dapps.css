@@ -23,7 +23,6 @@ $imageMargin: 72px;
     color: #aaa;
     font-size: 0.75em;
     margin-top: 0.5em;
-    opacity: 0;
   }
 
   .description {
@@ -45,17 +44,6 @@ $imageMargin: 72px;
   }
 
   .tags {
-    opacity: 0;
-  }
-
-  &:hover {
-    .author {
-      opacity: 0.5;
-    }
-
-    .tags {
-      opacity: 1;
-    }
   }
 }
 

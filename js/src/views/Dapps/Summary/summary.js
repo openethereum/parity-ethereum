@@ -17,7 +17,7 @@
 import React, { Component, PropTypes } from 'react';
 import { Link } from 'react-router';
 
-import { ContainerTitle, Tags } from '~/ui';
+import { Container, ContainerTitle, Tags } from '~/ui';
 
 import styles from '../dapps.css';
 
@@ -47,29 +47,37 @@ export default class Summary extends Component {
             : `/app/${app.id}`
         }
       >
-        <img
-          className={ styles.image }
-          src={
-            app.type === 'local'
-              ? `${dappsUrl}/${app.id}/${app.iconUrl}`
-              : `${dappsUrl}${app.image}`
-          }
-        />
-        <Tags
-          className={ styles.tags }
-          tags={ [app.type] }
-        />
-        <div className={ styles.description }>
-          <ContainerTitle
-            className={ styles.title }
-            title={ app.name }
-            byline={ app.description }
+        <Container>
+          <img
+            className={ styles.image }
+            src={
+              app.type === 'local'
+                ? `${dappsUrl}/${app.id}/${app.iconUrl}`
+                : `${dappsUrl}${app.image}`
+            }
           />
-          <div className={ styles.author }>
-            { app.author }, v{ app.version }
+          <div
+            className={ styles.tags }
+            data-hover='show'
+          >
+            <Tags tags={ [app.type] } />
           </div>
-          { this.props.children }
-        </div>
+          <div className={ styles.description }>
+            <ContainerTitle
+              className={ styles.title }
+              clickable
+              title={ app.name }
+              byline={ app.description }
+            />
+            <div
+              className={ styles.author }
+              data-hover='show'
+            >
+              { app.author }, v{ app.version }
+            </div>
+            { this.props.children }
+          </div>
+        </Container>
       </Link>
     );
   }

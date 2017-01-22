@@ -24,12 +24,13 @@ export default class Title extends Component {
   static propTypes = {
     byline: nodeOrStringProptype(),
     className: PropTypes.string,
+    clickable: PropTypes.bool,
     description: nodeOrStringProptype(),
     title: nodeOrStringProptype()
   }
 
   render () {
-    const { byline, className, title } = this.props;
+    const { byline, className, clickable, title } = this.props;
 
     const byLine = typeof byline === 'string'
       ? (
@@ -41,7 +42,7 @@ export default class Title extends Component {
 
     return (
       <div className={ className }>
-        <h3 className={ styles.title }>
+        <h3 className={ [styles.title, clickable ? styles.clickable : null].join(' ') }>
           { title }
         </h3>
         <div className={ styles.byline }>
