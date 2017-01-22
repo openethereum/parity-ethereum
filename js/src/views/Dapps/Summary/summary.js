@@ -19,7 +19,7 @@ import { Link } from 'react-router';
 
 import { Container, ContainerTitle, Tags } from '~/ui';
 
-import styles from '../dapps.css';
+import styles from './summary.css';
 
 export default class Summary extends Component {
   static contextTypes = {
@@ -56,15 +56,11 @@ export default class Summary extends Component {
                 : `${dappsUrl}${app.image}`
             }
           />
-          <div
-            className={ styles.tags }
-            data-hover='show'
-          >
+          <div data-hover='show'>
             <Tags tags={ [app.type] } />
           </div>
           <div className={ styles.description }>
             <ContainerTitle
-              className={ styles.title }
               clickable
               title={ app.name }
               byline={ app.description }

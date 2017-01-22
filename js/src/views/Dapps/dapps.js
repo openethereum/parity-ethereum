@@ -139,9 +139,7 @@ class Dapps extends Component {
 
   renderApp = (app) => {
     return (
-      <div className={ styles.app }>
-        <Summary app={ app } />
-      </div>
+      <Summary app={ app } />
     );
   }
 

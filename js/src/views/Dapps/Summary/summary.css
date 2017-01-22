@@ -15,24 +15,24 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-.overlay {
-  background: rgba(0, 0, 0, 0.85);
-  bottom: 0.5em;
-  left: -0.125em;
-  padding: 1em;
+$imageSize: 56px;
+$imageMargin: 72px;
+
+.author {
+  color: #aaa;
+  font-size: 0.75em;
+  margin-top: 0.5em;
+}
+
+.description {
+  margin-left: $imageMargin;
+}
+
+.image {
+  border-radius: 50%;
+  height: $imageSize;
+  left: 1.5em;
   position: absolute;
-  right: -0.125em;
-  top: -0.25em;
-  z-index: 100;
-
-  .body {
-    line-height: 1.5em;
-    margin: 0 auto;
-    max-width: 980px;
-    text-align: left;
-
-    &>div:first-child {
-      padding-bottom: 1em;
-    }
-  }
+  top: 1.5em;
+  width: $imageSize;
 }
