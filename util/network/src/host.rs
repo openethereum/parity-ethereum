@@ -542,6 +542,20 @@ impl Host {
 		Ok(())
 	}
 
+	/// Get all connected peers.
+	pub fn connected_peers(&self) -> Vec<PeerId> {
+		let sessions = self.sessions.read();
+		let sessions = &*sessions;
+
+		let mut peers = Vec::with_capacity(sessions.count());
+		for i in (0..MAX_SESSIONS).map(|x| x + FIRST_SESSION) {
+			if sessions.get(i).is_some() {
+				peers.push(i);
+			}
+		}
+		peers
+	}
+
 	fn init_public_interface(&self, io: &IoContext<NetworkIoMessage>) -> Result<(), NetworkError> {
 		if self.info.read().public_endpoint.is_some() {
 			return Ok(());

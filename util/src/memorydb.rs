@@ -133,19 +133,22 @@ impl MemoryDB {
 	}
 
 	/// Remove an element and delete it from storage if reference count reaches zero.
-	pub fn remove_and_purge(&mut self, key: &H256) {
+	/// If the value was purged, return the old value.
+	pub fn remove_and_purge(&mut self, key: &H256) -> Option<DBValue> {
 		if key == &SHA3_NULL_RLP {
-			return;
+			return None;
 		}
 		match self.data.entry(key.clone()) {
 			Entry::Occupied(mut entry) =>
 				if entry.get().1 == 1 {
-					entry.remove();
+					Some(entry.remove().0)
 				} else {
 					entry.get_mut().1 -= 1;
+					None
 				},
 			Entry::Vacant(entry) => {
 				entry.insert((DBValue::new(), -1));
+				None
 			}
 		}
 	}
@@ -265,13 +268,14 @@ fn memorydb_remove_and_purge() {
 	assert_eq!(m.raw(&hello_key), None);
 
 	let mut m = MemoryDB::new();
-	m.remove_and_purge(&hello_key);
+	assert!(m.remove_and_purge(&hello_key).is_none());
 	assert_eq!(m.raw(&hello_key).unwrap().1, -1);
 	m.insert(hello_bytes);
 	m.insert(hello_bytes);
 	assert_eq!(m.raw(&hello_key).unwrap().1, 1);
-	m.remove_and_purge(&hello_key);
+	assert_eq!(&*m.remove_and_purge(&hello_key).unwrap(), hello_bytes);
 	assert_eq!(m.raw(&hello_key), None);
+	assert!(m.remove_and_purge(&hello_key).is_none());
 }
 
 #[test]

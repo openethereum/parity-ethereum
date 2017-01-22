@@ -22,6 +22,7 @@ mod basic_authority;
 mod authority_round;
 mod tendermint;
 mod validator_set;
+mod signer;
 
 pub use self::null_engine::NullEngine;
 pub use self::instant_seal::InstantSeal;
