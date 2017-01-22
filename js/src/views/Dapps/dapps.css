@@ -38,12 +38,10 @@ $imageMargin: 72px;
     width: $imageSize;
   }
 
-  .title {
-    margin-bottom: 0.5em;
-    max-height: $imageSize;
+  .tags {
   }
 
-  .tags {
+  .title {
   }
 }
 

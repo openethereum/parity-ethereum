@@ -16,16 +16,15 @@
 */
 
 .byline, .description {
-  overflow: hidden;
-  position: relative;
+  color: #aaa;
+  display: -webkit-box;
   line-height: 1.2em;
   max-height: 2.4em;
-
-  display: -webkit-box;
+  min-height: 2.4em;
+  overflow: hidden;
+  position: relative;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
-
-  color: #aaa;
 
   * {
     color: #aaa !important;
