@@ -37,23 +37,34 @@ function createRedux (state = {}) {
 function render (props = {}, state = {}) {
   component = shallow(
     <ParityBar { ...props } />,
-    { context: { store: createRedux(state) } }
-  ).find('ParityBar').shallow();
+    {
+      context: {
+        store: createRedux(state)
+      }
+    }
+  ).find('ParityBar').shallow({ context: { api: {} } });
   instance = component.instance();
 
   return component;
 }
 
 describe('views/ParityBar', () => {
+  beforeEach(() => {
+    render({ dapp: true });
+  });
+
   it('renders defaults', () => {
-    expect(render()).to.be.ok;
+    expect(component).to.be.ok;
+  });
+
+  it('includes the ParityBackground', () => {
+    expect(component.find('Connect(ParityBackground)')).to.have.length(1);
   });
 
   describe('renderBar', () => {
     let bar;
 
     beforeEach(() => {
-      render({ dapp: true });
       bar = shallow(instance.renderBar());
     });
 
@@ -64,10 +75,6 @@ describe('views/ParityBar', () => {
 
     it('renders when overlaying a dapp', () => {
       expect(bar.find('div')).not.to.have.length(0);
-    });
-
-    it('includes the ParityBackground', () => {
-      expect(bar.find('Connect(ParityBackground)')).to.have.length(1);
     });
 
     it('renders the Parity button', () => {
@@ -87,12 +94,7 @@ describe('views/ParityBar', () => {
     let expanded;
 
     beforeEach(() => {
-      render();
       expanded = shallow(instance.renderExpanded());
-    });
-
-    it('includes the ParityBackground', () => {
-      expect(expanded.find('Connect(ParityBackground)')).to.have.length(1);
     });
 
     it('includes the Signer', () => {
@@ -101,10 +103,6 @@ describe('views/ParityBar', () => {
   });
 
   describe('renderLabel', () => {
-    beforeEach(() => {
-      render();
-    });
-
     it('renders the label name', () => {
       expect(shallow(instance.renderLabel('testing', null)).text()).to.equal('testing');
     });
@@ -118,7 +116,6 @@ describe('views/ParityBar', () => {
     let label;
 
     beforeEach(() => {
-      render();
       label = shallow(instance.renderSignerLabel());
     });
 
@@ -138,8 +135,6 @@ describe('views/ParityBar', () => {
 
   describe('opened state', () => {
     beforeEach(() => {
-      render({ dapp: true });
-
       sinon.spy(instance, 'renderBar');
       sinon.spy(instance, 'renderExpanded');
     });

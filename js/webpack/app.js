@@ -118,6 +118,10 @@ module.exports = {
         use: [ 'file-loader?name=fonts/[name][hash:10].[ext]' ]
       },
       {
+        test: /parity-logo-white-no-text\.svg/,
+        use: [ 'url-loader' ]
+      },
+      {
         test: /\.svg(\?v=[0-9]\.[0-9]\.[0-9])?$/,
         use: [ 'file-loader?name=assets/[name].[hash:10].[ext]' ]
       }
