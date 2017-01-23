@@ -44,7 +44,7 @@ fn chunk_and_restore(amount: u64) {
 	snapshot_path.push("SNAP");
 
 	let old_db = Arc::new(Database::open(&db_cfg, orig_path.as_str()).unwrap());
-	let bc = BlockChain::new(Default::default(), &genesis, old_db.clone(), engine.clone());
+	let bc = BlockChain::new(Default::default(), &genesis, old_db.clone());
 
 	// build the blockchain.
 	let mut batch = old_db.transaction();
@@ -74,7 +74,7 @@ fn chunk_and_restore(amount: u64) {
 
 	// restore it.
 	let new_db = Arc::new(Database::open(&db_cfg, new_path.as_str()).unwrap());
-	let new_chain = BlockChain::new(Default::default(), &genesis, new_db.clone(), engine.clone());
+	let new_chain = BlockChain::new(Default::default(), &genesis, new_db.clone());
 	let mut rebuilder = BlockRebuilder::new(new_chain, new_db.clone(), &manifest).unwrap();
 	let reader = PackedReader::new(&snapshot_path).unwrap().unwrap();
 	let flag = AtomicBool::new(true);
@@ -87,7 +87,7 @@ fn chunk_and_restore(amount: u64) {
 	rebuilder.finalize(HashMap::new()).unwrap();
 
 	// and test it.
-	let new_chain = BlockChain::new(Default::default(), &genesis, new_db, engine);
+	let new_chain = BlockChain::new(Default::default(), &genesis, new_db);
 	assert_eq!(new_chain.best_block_hash(), best_hash);
 }
 
@@ -122,7 +122,7 @@ fn checks_flag() {
 	let db_cfg = DatabaseConfig::with_columns(::db::NUM_COLUMNS);
 	let db = Arc::new(Database::open(&db_cfg, path.as_str()).unwrap());
 	let engine = Arc::new(::engines::NullEngine::default());
-	let chain = BlockChain::new(Default::default(), &genesis, db.clone(), engine.clone());
+	let chain = BlockChain::new(Default::default(), &genesis, db.clone());
 
 	let manifest = ::snapshot::ManifestData {
 		state_hashes: Vec::new(),

@@ -34,6 +34,7 @@ function stubApi (blockNumber) {
     eth: {
       blockNumber: () => {
         const stub = sinon.stub().resolves(new BigNumber(blockNumber || START_BLOCK))();
+
         _calls.blockNumber.push(stub);
         return stub;
       }

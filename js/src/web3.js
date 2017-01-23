@@ -21,6 +21,7 @@ import './dev.web3.html';
 
 const http = new Web3.providers.HttpProvider('/rpc/');
 const web3 = new Web3(http);
+
 // set default account
 web3.eth.getAccounts((err, accounts) => {
   if (err || !accounts || !accounts[0]) {

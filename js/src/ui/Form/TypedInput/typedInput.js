@@ -73,6 +73,7 @@ export default class TypedInput extends Component {
       // Remove formatting commas
       const sanitizedValue = typeof value === 'string' ? value.replace(/,/g, '') : value;
       const ethValue = isEth ? fromWei(sanitizedValue) : value;
+
       this.setState({ isEth, ethValue });
     }
   }
@@ -101,6 +102,7 @@ export default class TypedInput extends Component {
       const inputs = range(length || value.length).map((_, index) => {
         const onChange = (inputValue) => {
           const newValues = [].concat(this.props.value);
+
           newValues[index] = inputValue;
           this.props.onChange(newValues);
         };
@@ -399,6 +401,7 @@ export default class TypedInput extends Component {
     // Remove formatting commas
     const sanitizedValue = typeof ethValue === 'string' ? ethValue.replace(/,/g, '') : ethValue;
     const value = isEth ? toWei(sanitizedValue) : fromWei(sanitizedValue);
+
     this.setState({ isEth: !isEth, ethValue: value }, () => {
       this.onEthValueChange(null, value);
     });

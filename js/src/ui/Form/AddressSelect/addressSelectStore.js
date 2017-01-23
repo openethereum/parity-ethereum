@@ -46,6 +46,7 @@ export default class AddressSelectStore {
           .keys(this.reverse)
           .find((addr) => {
             const name = this.reverse[addr];
+
             return startsWithQuery(addr) || (name && startsWithQuery(name));
           });
 
@@ -156,6 +157,7 @@ export default class AddressSelectStore {
 
   @action setValues (props) {
     const { accounts = {}, contracts = {}, contacts = {}, reverse = {} } = props;
+
     this.reverse = reverse;
 
     const accountsN = Object.keys(accounts).length;
@@ -295,6 +297,7 @@ export default class AddressSelectStore {
         }
 
         const tags = (meta.tags || []).join('');
+
         return tags.includes(filter);
       })
       .sort((accA, accB) => {

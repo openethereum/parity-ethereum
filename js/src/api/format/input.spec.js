@@ -105,6 +105,7 @@ describe('api/format/input', () => {
     ['address'].forEach((input) => {
       it(`formats ${input} address as address`, () => {
         const block = {};
+
         block[input] = address;
         const formatted = inFilter(block)[input];
 
@@ -116,6 +117,7 @@ describe('api/format/input', () => {
     ['fromBlock', 'toBlock'].forEach((input) => {
       it(`formats ${input} number as blockNumber`, () => {
         const block = {};
+
         block[input] = 0x123;
         const formatted = inFilter(block)[input];
 
@@ -186,6 +188,7 @@ describe('api/format/input', () => {
     ['data'].forEach((input) => {
       it(`converts ${input} to hex data`, () => {
         const block = {};
+
         block[input] = '1234';
         const formatted = inData(block[input]);
 
@@ -196,6 +199,7 @@ describe('api/format/input', () => {
     ['from', 'to'].forEach((input) => {
       it(`formats ${input} address as address`, () => {
         const block = {};
+
         block[input] = address;
         const formatted = inOptions(block)[input];
 
@@ -207,6 +211,7 @@ describe('api/format/input', () => {
     ['gas', 'gasPrice', 'value', 'minBlock', 'nonce'].forEach((input) => {
       it(`formats ${input} number as hexnumber`, () => {
         const block = {};
+
         block[input] = 0x123;
         const formatted = inOptions(block)[input];
 
@@ -250,11 +255,13 @@ describe('api/format/input', () => {
   describe('inTraceType', () => {
     it('returns array of types as is', () => {
       const types = ['vmTrace', 'trace', 'stateDiff'];
+
       expect(inTraceType(types)).to.deep.equal(types);
     });
 
     it('formats single string type into array', () => {
       const type = 'vmTrace';
+
       expect(inTraceType(type)).to.deep.equal([type]);
     });
   });

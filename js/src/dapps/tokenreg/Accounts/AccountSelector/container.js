@@ -33,6 +33,7 @@ class AccountSelectorContainer extends Component {
 
 const mapStateToProps = (state) => {
   const { accounts } = state;
+
   return { ...accounts };
 };
 

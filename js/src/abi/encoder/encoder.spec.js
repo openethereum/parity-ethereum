@@ -93,6 +93,7 @@ describe('abi/encoder/Encoder', () => {
 
     it('throws an Error on invalid tokens', () => {
       const token = new Token('address');
+
       token._type = 'noMatch';
 
       expect(() => Encoder.encodeToken(token)).to.throw(/noMatch/);

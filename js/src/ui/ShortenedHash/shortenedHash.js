@@ -27,6 +27,7 @@ export default class ShortenedHash extends Component {
     const { data } = this.props;
 
     let shortened = data.toLowerCase();
+
     if (shortened.slice(0, 2) === '0x') {
       shortened = shortened.slice(2);
     }

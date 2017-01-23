@@ -77,6 +77,7 @@ class FakeRpcServer {
 }
 
 const fakeRpc = new FakeRpcServer();
+
 fakeRpc.start();
 mockedResponses.rpc.forEach(method => fakeRpc.simpleRpc(method.name, method.response));
 

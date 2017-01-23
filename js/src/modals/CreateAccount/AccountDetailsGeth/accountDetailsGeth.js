@@ -28,6 +28,7 @@ export default class AccountDetailsGeth extends Component {
 
     const formatted = addresses.map((address, idx) => {
       const comma = !idx ? '' : ((idx === addresses.length - 1) ? ' & ' : ', ');
+
       return `${comma}${address}`;
     }).join('');
 

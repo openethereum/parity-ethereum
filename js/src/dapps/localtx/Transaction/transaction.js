@@ -168,11 +168,13 @@ export class Transaction extends BaseTransaction {
 
   renderTime (firstSeen) {
     const { blockNumber } = this.props;
+
     if (!firstSeen) {
       return 'never';
     }
 
     const timeInMinutes = blockNumber.sub(firstSeen).mul(14).div(60).toFormat(1);
+
     return `${timeInMinutes} minutes ago`;
   }
 }

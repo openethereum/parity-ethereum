@@ -27,6 +27,7 @@ export default class Event {
     this._anonymous = !!abi.anonymous;
 
     const { id, name, signature } = eventSignature(abi.name, this.inputParamTypes());
+
     this._id = id;
     this._name = name;
     this._signature = signature;

@@ -15,13 +15,17 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 export const onPrint = (window, cb) => {
-  let called = false; let query, queryFn;
+  let called = false;
+  let query;
+  let queryFn;
 
   const onPrint = () => {
     if (queryFn) {
       query.removeListener(queryFn);
     }
+
     window.removeEventListener('afterprint', onPrint, false);
+
     if (!called) {
       called = true;
       cb();
@@ -34,14 +38,17 @@ export const onPrint = (window, cb) => {
         onPrint();
       }
     };
+
     query = window.matchMedia('print');
     query.addListener(queryFn);
   }
+
   window.addEventListener('afterprint', onPrint, false);
 };
 
 export default (html) => {
   const iframe = document.createElement('iframe');
+
   iframe.setAttribute('sandbox', 'allow-modals allow-same-origin allow-scripts');
   iframe.setAttribute('src', '/');
   iframe.setAttribute('style', 'display: none');

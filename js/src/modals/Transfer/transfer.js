@@ -309,6 +309,7 @@ function mapStateToProps (initState, initProps) {
   return (state) => {
     const { gasLimit } = state.nodeStatus;
     const sendersBalances = senders ? pick(state.balances.balances, Object.keys(senders)) : null;
+
     return { gasLimit, wallet, senders, sendersBalances };
   };
 }

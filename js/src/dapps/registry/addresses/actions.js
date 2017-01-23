@@ -29,6 +29,7 @@ export const fetch = () => (dispatch) => {
           address,
           isAccount: true
         }));
+
       dispatch(set(addresses));
     })
     .catch((error) => {

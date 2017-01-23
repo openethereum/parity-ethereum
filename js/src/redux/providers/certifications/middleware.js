@@ -106,6 +106,7 @@ export default class CertificationsMiddleware {
         logs = contract.parseEventLogs(logs);
         logs.forEach((log) => {
           const certifier = certifiers.find((c) => c.address === log.address);
+
           if (!certifier) {
             throw new Error(`Could not find certifier at ${log.address}.`);
           }
@@ -121,6 +122,7 @@ export default class CertificationsMiddleware {
 
       function onBadgeRegLogs (logs) {
         const ids = logs.map((log) => log.params.id.value.toNumber());
+
         return fetchCertifiers(uniq(ids));
       }
 
@@ -216,6 +218,7 @@ export default class CertificationsMiddleware {
             break;
           case 'setVisibleAccounts':
             const _addresses = action.addresses || [];
+
             addresses = uniq(addresses.concat(_addresses));
             fetchConfirmedEvents();
             next(action);

@@ -329,6 +329,7 @@ class ExecuteContract extends Component {
   onFuncChange = (event, func) => {
     const values = (func.abi.inputs || []).map((input) => {
       const parsedType = parseAbiType(input.type);
+
       return parsedType.default;
     });
 

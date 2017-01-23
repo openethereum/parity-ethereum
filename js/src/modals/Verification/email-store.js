@@ -76,6 +76,7 @@ export default class EmailVerificationStore extends VerificationStore {
 
   requestCode = () => {
     const { email, account, isTestnet } = this;
+
     return postToServer({ email, address: account }, isTestnet);
   }
 }
