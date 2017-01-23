@@ -76,6 +76,7 @@ export const awaitPuzzle = (api, contract, account) => {
           from: block.toNumber(),
           filter: (log) => log.params.who.value === account
         });
+
         subscription.once('error', reject);
         subscription.once('log', subscription.unsubscribe);
         subscription.once('log', resolve);

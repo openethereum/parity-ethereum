@@ -95,6 +95,7 @@ export default class Status {
     });
 
     const promise = BalancesProvider.stop();
+
     promises.push(promise);
 
     return Promise.all(promises)
@@ -108,6 +109,7 @@ export default class Status {
 
   updateApiStatus () {
     const apiStatus = this.getApiStatus();
+
     log.debug('status::updateApiStatus', apiStatus);
 
     if (!isEqual(apiStatus, this._apiStatus)) {

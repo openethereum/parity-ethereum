@@ -59,6 +59,7 @@ export const subscribe = (name, from = 0, to = 'pending') =>
               parameters: e.params,
               timestamp: block.timestamp
             };
+
             dispatch(event(name, data));
           })
           .catch((err) => {

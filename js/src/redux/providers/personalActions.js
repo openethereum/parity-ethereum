@@ -59,6 +59,7 @@ export function personalAccountsInfo (accountsInfo) {
       .values(wallets)
       .map((wallet) => {
         const walletContract = new Contract(api, WalletAbi);
+
         return WalletsUtils.fetchOwners(walletContract.at(wallet.address));
       });
 

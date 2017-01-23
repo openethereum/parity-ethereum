@@ -38,6 +38,7 @@ export default class CallsToolbar extends Component {
     }
 
     const wrapStyle = { top: callEl.offsetTop - SCROLLBAR_WIDTH - containerEl.scrollTop };
+
     if (this.hasScrollbar(containerEl)) {
       wrapStyle.right = 13;
     }

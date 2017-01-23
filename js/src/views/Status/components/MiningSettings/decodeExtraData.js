@@ -21,6 +21,7 @@ export function decodeExtraData (str) {
     // Try decoding as RLP
     const decoded = rlp.decode(str);
     const v = decoded[0];
+
     decoded[0] = decoded[1];
     decoded[1] = `${v[0]}.${v[1]}.${v[2]}`;
     return decoded.join('/');

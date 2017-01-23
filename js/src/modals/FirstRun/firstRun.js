@@ -148,6 +148,7 @@ class FirstRun extends Component {
             onClick={ this.onCreate }
           />
         ];
+
         if (hasAccounts) {
           buttons.unshift(
             <Button

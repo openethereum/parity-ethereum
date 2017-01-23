@@ -263,6 +263,7 @@ export default class LoadContract extends Component {
 
   onConfirmRemoval = () => {
     const { deleteId } = this.state;
+
     this.props.onDelete(deleteId);
 
     this.setState({

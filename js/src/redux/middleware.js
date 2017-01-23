@@ -25,24 +25,27 @@ import CertificationsMiddleware from './providers/certifications/middleware';
 import ChainMiddleware from './providers/chainMiddleware';
 import RegistryMiddleware from './providers/registry/middleware';
 
-export default function (api, browserHistory) {
+export default function (api, browserHistory, forEmbed = false) {
   const errors = new ErrorsMiddleware();
   const signer = new SignerMiddleware(api);
   const settings = new SettingsMiddleware();
-  const status = statusMiddleware();
-  const certifications = new CertificationsMiddleware();
-  const routeMiddleware = routerMiddleware(browserHistory);
   const chain = new ChainMiddleware();
-  const registry = new RegistryMiddleware(api);
-
   const middleware = [
     settings.toMiddleware(),
     signer.toMiddleware(),
     errors.toMiddleware(),
-    certifications.toMiddleware(),
-    chain.toMiddleware(),
-    registry
+    chain.toMiddleware()
   ];
+
+  if (!forEmbed) {
+    const certifications = new CertificationsMiddleware().toMiddleware();
+    const registry = new RegistryMiddleware(api);
+
+    middleware.push(certifications, registry);
+  }
+
+  const status = statusMiddleware();
+  const routeMiddleware = browserHistory ? routerMiddleware(browserHistory) : [];
 
   return middleware.concat(status, routeMiddleware, thunk);
 }

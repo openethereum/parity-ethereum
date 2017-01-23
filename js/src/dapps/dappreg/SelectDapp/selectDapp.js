@@ -42,6 +42,7 @@ export default class SelectDapp extends Component {
     }
 
     let overlayImg = null;
+
     if (this.dappsStore.currentApp.imageHash) {
       overlayImg = (
         <img src={ `/api/content/${this.dappsStore.currentApp.imageHash.substr(2)}` } />

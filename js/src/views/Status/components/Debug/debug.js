@@ -139,6 +139,7 @@ export default class Debug extends Component {
 
   reverse = () => {
     const { reversed } = this.state;
+
     this.setState({ reversed: !reversed });
   }
 }
