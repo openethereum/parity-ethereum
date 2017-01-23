@@ -271,7 +271,7 @@ impl Miner {
 		};
 
 		let notifiers =
-			if !options.new_work_notify.is_empty() { Vec::new() }
+			if options.new_work_notify.is_empty() { Vec::new() }
 			else {
 				vec![Box::new(WorkPoster::new(&options.new_work_notify)) as Box<NotifyWork>]
 			};
