@@ -322,6 +322,7 @@ class ParityBar extends Component {
     }
 
     const right = page.width - x - button.offset.right;
+
     return { right: Math.max(0, right) };
   }
 
@@ -438,6 +439,7 @@ class ParityBar extends Component {
 
   onMouseMove = (event) => {
     const { pageX, pageY } = event;
+
     // this._onMouseMove({ pageX, pageY });
     this.debouncedMouseMove({ pageX, pageY });
 
@@ -452,6 +454,7 @@ class ParityBar extends Component {
 
     const { pageX, pageY } = event;
     const position = this.getPosition(pageX, pageY);
+
     this.setState({ position });
   }
 
@@ -512,11 +515,13 @@ class ParityBar extends Component {
     }
 
     const position = this.stringToPosition(app.position);
+
     this.setState({ position });
   }
 
   savePosition (position) {
     const { app, config } = this;
+
     config[app.id] = position;
 
     store.set(LS_STORE_KEY, JSON.stringify(config));

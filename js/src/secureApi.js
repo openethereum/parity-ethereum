@@ -113,6 +113,7 @@ export default class SecureApi extends Api {
 
         if (connected) {
           const token = this.secureToken;
+
           log.debug('got connected ; saving token', token);
 
           // Save the sucessful token
@@ -145,6 +146,7 @@ export default class SecureApi extends Api {
    */
   isNodeUp () {
     const url = this._url.replace(/wss?/, 'http');
+
     return fetch(url, { method: 'HEAD' })
       .then(
         (r) => r.status === 200,
@@ -159,6 +161,7 @@ export default class SecureApi extends Api {
    */
   updateToken (_token) {
     const token = this._sanitiseToken(_token);
+
     log.debug('updating token', token);
 
     // Update the tokens list: put the new one on first position
@@ -298,6 +301,7 @@ export default class SecureApi extends Api {
     }
 
     const nextToken = this._tokens[nextTokenIndex];
+
     return nextToken;
   }
 
