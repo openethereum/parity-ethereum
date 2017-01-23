@@ -185,7 +185,8 @@ describe('api/format/output', () => {
                 difficulty: '0x0f',
                 head: '0x02',
                 version: 63
-              }
+              },
+              les: null
             }
           }
         ]
