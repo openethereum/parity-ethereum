@@ -43,13 +43,26 @@ describe('views/Settings/Features', () => {
   });
 
   describe('visibility', () => {
-    it('renders null when props.visible === false', () => {
-      render({ visible: false });
-      expect(instance.render()).to.be.null;
+    let oldEnv;
+
+    beforeEach(() => {
+      oldEnv = process.env.NODE_ENV;
     });
 
-    it('renders component when props.visible === true', () => {
-      expect(instance.render()).not.to.be.null;
+    afterEach(() => {
+      process.env.NODE_ENV = oldEnv;
+    });
+
+    it('renders null when NODE_ENV === production', () => {
+      process.env.NODE_ENV = 'production';
+      render();
+      expect(component.get(0)).to.be.null;
+    });
+
+    it('renders component when NODE_ENV !== production', () => {
+      process.env.NODE_ENV = 'development';
+      render();
+      expect(component.get(0)).not.to.be.null;
     });
   });
 
@@ -62,11 +75,10 @@ describe('views/Settings/Features', () => {
 
       beforeEach(() => {
         item = instance.renderItem(key);
-        console.log(item);
       });
 
       it('renders an item', () => {
-        expect(item).to.not.be.null;
+        expect(item).not.to.be.null;
       });
 
       it('displays the correct name', () => {

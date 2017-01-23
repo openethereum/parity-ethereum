@@ -16,27 +16,17 @@
 
 import { Checkbox } from 'material-ui';
 import { List, ListItem } from 'material-ui/List';
-import React, { Component, PropTypes } from 'react';
+import React, { Component } from 'react';
 
 import defaults, { MODES } from './defaults';
 import Store from './store';
 import styles from './features.css';
 
-const isProductionMode = process.env.NODE_ENV === 'production';
-
 export default class Features extends Component {
-  static propTypes = {
-    visible: PropTypes.bool.isRequired
-  };
-
-  static defaultProps = {
-    visible: !isProductionMode
-  };
-
   store = new Store();
 
   render () {
-    if (!this.props.visible) {
+    if (process.env.NODE_ENV === 'production') {
       return null;
     }
 
