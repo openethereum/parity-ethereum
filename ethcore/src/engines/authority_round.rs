@@ -21,15 +21,13 @@ use std::sync::Weak;
 use std::time::{UNIX_EPOCH, Duration};
 use util::*;
 use ethkey::{verify_address, Signature};
-use rlp::{UntrustedRlp, Rlp, View, encode};
+use rlp::{UntrustedRlp, View, encode};
 use account_provider::AccountProvider;
 use block::*;
 use spec::CommonParams;
 use engines::{Engine, Seal, EngineError};
 use header::Header;
 use error::{Error, BlockError};
-use blockchain::extras::BlockDetails;
-use views::HeaderView;
 use evm::Schedule;
 use ethjson;
 use io::{IoContext, IoHandler, TimerToken, IoService};
@@ -208,7 +206,9 @@ impl Engine for AuthorityRound {
 	}
 
 	fn populate_from_parent(&self, header: &mut Header, parent: &Header, gas_floor_target: U256, _gas_ceil_target: U256) {
-		header.set_difficulty(parent.difficulty().clone());
+		// Chain scoring: total weight is sqrt(U256::max_value())*height - step
+		let new_difficulty = U256::from(U128::max_value()) + header_step(parent).expect("Header has been verified; qed").into() - self.step.load(AtomicOrdering::SeqCst).into();
+		header.set_difficulty(new_difficulty);
 		header.set_gas_limit({
 			let gas_limit = parent.gas_limit().clone();
 			let bound_divisor = self.gas_limit_bound_divisor;
@@ -307,19 +307,6 @@ impl Engine for AuthorityRound {
 			return Err(From::from(BlockError::InvalidGasLimit(OutOfBounds { min: Some(min_gas), max: Some(max_gas), found: header.gas_limit().clone() })));
 		}
 		Ok(())
-	}
-
-	fn is_new_best_block(&self, _best_total_difficulty: U256, best_header: HeaderView, _parent_details: &BlockDetails, new_header: &HeaderView) -> bool {
-		let new_number = new_header.number();
-		let best_number = best_header.number();
-		if new_number != best_number {
-			new_number > best_number
-		} else {
- 			// Take the oldest step at given height.
- 			let new_step: usize = Rlp::new(&new_header.seal()[0]).as_val();
-			let best_step: usize = Rlp::new(&best_header.seal()[0]).as_val();
-			new_step < best_step
-		}
 	}
 
 	fn register_client(&self, client: Weak<Client>) {
