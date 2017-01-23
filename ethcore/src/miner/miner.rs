@@ -250,14 +250,7 @@ impl Miner {
 
 	/// Creates new instance of miner Arc.
 	pub fn new(options: MinerOptions, gas_pricer: GasPricer, spec: &Spec, accounts: Option<Arc<AccountProvider>>) -> Arc<Miner> {
-		let miner = Arc::new(Miner::new_raw(options, gas_pricer, spec, accounts));
-
-		if !miner.options.new_work_notify.is_empty() {
-			let http_poster = Box::new(WorkPoster::new(&miner.options.new_work_notify));
-			miner.push_notifier(http_poster as Box<NotifyWork>);
-		};
-
-		miner
+		Arc::new(Miner::new_raw(options, gas_pricer, spec, accounts))
 	}
 
 	/// Creates new instance of miner.
