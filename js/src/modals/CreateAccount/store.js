@@ -49,7 +49,7 @@ export default class Store {
 
   constructor (api, accounts, loadGeth = true) {
     this._api = api;
-    this.accounts = accounts;
+    this.accounts = Object.assign({}, accounts);
 
     if (loadGeth) {
       this.loadAvailableGethAccounts();
