@@ -41,7 +41,7 @@ class Balance extends Component {
 
     let body = (balance.tokens || [])
       .filter((balance) => new BigNumber(balance.value).gt(0))
-      .map((balance) => {
+      .map((balance, index) => {
         const token = balance.token;
 
         let value;
@@ -76,7 +76,7 @@ class Balance extends Component {
         return (
           <div
             className={ styles.balance }
-            key={ token.tag }
+            key={ `${index}_${token.tag}` }
           >
             <img
               src={ imagesrc }
