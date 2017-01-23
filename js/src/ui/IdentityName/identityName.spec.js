@@ -47,7 +47,8 @@ function render (props) {
   return shallow(
     <IdentityName
       store={ STORE }
-      { ...props } />
+      { ...props }
+    />
   ).find('IdentityName').shallow();
 }
 

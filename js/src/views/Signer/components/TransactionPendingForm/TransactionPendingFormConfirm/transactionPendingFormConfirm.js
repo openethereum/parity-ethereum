@@ -72,6 +72,7 @@ class TransactionPendingFormConfirm extends Component {
       }
 
       const inputNode = textNode.querySelector('input');
+
       inputNode && inputNode.focus();
     }
   }
@@ -133,7 +134,8 @@ class TransactionPendingFormConfirm extends Component {
             data-effect='solid'
             data-for={ `transactionConfirmForm${this.id}` }
             data-place='bottom'
-            data-tip>
+            data-tip
+          >
             <RaisedButton
               className={ styles.confirmButton }
               disabled={ isSending || !isWalletOk }
@@ -142,7 +144,8 @@ class TransactionPendingFormConfirm extends Component {
                 <IdentityIcon
                   address={ address }
                   button
-                  className={ styles.signerIcon } />
+                  className={ styles.signerIcon }
+                />
               }
               label={
                 isSending
@@ -150,7 +153,8 @@ class TransactionPendingFormConfirm extends Component {
                   : 'Confirm Transaction'
               }
               onTouchTap={ this.onConfirm }
-              primary />
+              primary
+            />
           </div>
           { this.renderTooltip() }
         </Form>
@@ -167,7 +171,8 @@ class TransactionPendingFormConfirm extends Component {
         error={ walletError }
         label='Select Local Key'
         onChange={ this.onKeySelect }
-        type='file' />
+        type='file'
+      />
     );
   }
 

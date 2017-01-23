@@ -68,6 +68,7 @@ export default class CustomCursor extends Component {
   onClick = () => {
     const { onClick, getIndex } = this.props;
     const index = getIndex();
+
     onClick({ index });
   }
 }

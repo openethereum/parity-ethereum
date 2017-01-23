@@ -27,7 +27,8 @@ export default class SelectAccount extends Component {
     return (
       <select
         value={ this.dappsStore.currentAccount.address }
-        onChange={ this.onSelect }>
+        onChange={ this.onSelect }
+      >
         { this.renderOptions() }
       </select>
     );

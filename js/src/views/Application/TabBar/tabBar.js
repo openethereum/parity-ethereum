@@ -45,7 +45,8 @@ class Tab extends Component {
           view.id === 'signer'
             ? this.renderSignerLabel(view.id)
             : this.renderLabel(view.id)
-        }>
+        }
+      >
         { children }
       </MUITab>
     );
@@ -55,7 +56,8 @@ class Tab extends Component {
     return (
       <div className={ styles.label }>
         <FormattedMessage
-          id={ `settings.views.${id}.label` } />
+          id={ `settings.views.${id}.label` }
+        />
         { bubble }
       </div>
     );
@@ -70,7 +72,8 @@ class Tab extends Component {
         <Badge
           color='red'
           className={ styles.labelBubble }
-          value={ pendings } />
+          value={ pendings }
+        />
       );
     }
 
@@ -133,7 +136,8 @@ class TabBar extends Component {
           ? (
             <Tooltip
               className={ styles.tabbarTooltip }
-              text='navigate between the different parts and views of the application, switching between an account view, token view and distributed application view' />
+              text='navigate between the different parts and views of the application, switching between an account view, token view and distributed application view'
+            />
           )
           : null;
 
@@ -141,10 +145,12 @@ class TabBar extends Component {
           <Link
             activeClassName={ styles.tabactive }
             className={ styles.tabLink }key={ view.id }
-            to={ view.route }>
+            to={ view.route }
+          >
             <Tab
               pendings={ pending.length }
-              view={ view }>
+              view={ view }
+            >
               { body }
             </Tab>
           </Link>

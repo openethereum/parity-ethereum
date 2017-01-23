@@ -72,6 +72,7 @@ const renderEvent = (classNames, verb) => (e) => {
 
 const renderDataChanged = (e) => {
   let classNames = styles.dataChanged;
+
   if (e.state === 'pending') {
     classNames += ' ' + styles.pending;
   }
@@ -113,6 +114,7 @@ const renderReverse = (e) => {
   }
 
   const classes = [ styles.reverse ];
+
   if (e.state === 'pending') {
     classes.push(styles.pending);
   }
@@ -147,7 +149,6 @@ const eventTypes = {
 };
 
 class Events extends Component {
-
   static propTypes = {
     events: PropTypes.array.isRequired,
     pending: PropTypes.object.isRequired,

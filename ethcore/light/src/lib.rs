@@ -33,7 +33,9 @@
 #![deny(missing_docs)]
 
 pub mod client;
+pub mod cht;
 pub mod net;
+pub mod on_demand;
 
 #[cfg(not(feature = "ipc"))]
 pub mod provider;
@@ -64,6 +66,8 @@ extern crate ethcore_io as io;
 extern crate rlp;
 extern crate smallvec;
 extern crate time;
+extern crate futures;
+extern crate rand;
 
 #[cfg(feature = "ipc")]
 extern crate ethcore_ipc as ipc;

@@ -30,7 +30,8 @@ export default class IdentityIcon extends Component {
     return (
       <img
         className={ styles.icon }
-        src={ api.util.createIdentityImg(address, 3) } />
+        src={ api.util.createIdentityImg(address, 3) }
+      />
     );
   }
 }

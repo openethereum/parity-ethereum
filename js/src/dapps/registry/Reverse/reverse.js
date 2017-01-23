@@ -59,6 +59,7 @@ class Reverse extends Component {
       );
 
     let addressInput = null;
+
     if (action === 'propose') {
       addressInput = (
         <TextField

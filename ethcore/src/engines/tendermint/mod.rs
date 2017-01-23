@@ -35,18 +35,16 @@ use error::{Error, BlockError};
 use header::Header;
 use builtin::Builtin;
 use env_info::EnvInfo;
-use transaction::SignedTransaction;
 use rlp::{UntrustedRlp, View};
 use ethkey::{recover, public_to_address};
 use account_provider::AccountProvider;
 use block::*;
 use spec::CommonParams;
 use engines::{Engine, Seal, EngineError};
-use blockchain::extras::BlockDetails;
-use views::HeaderView;
 use evm::Schedule;
 use state::CleanupMode;
 use io::IoService;
+use super::signer::EngineSigner;
 use super::validator_set::{ValidatorSet, new_validator_set};
 use self::message::*;
 use self::transition::TransitionHandler;
@@ -82,10 +80,6 @@ pub struct Tendermint {
 	step_service: IoService<Step>,
 	client: RwLock<Option<Weak<EngineClient>>>,
 	block_reward: U256,
-	/// Address to be used as authority.
-	authority: RwLock<Address>,
-	/// Password used for signing messages.
-	password: RwLock<Option<String>>,
 	/// Blockchain height.
 	height: AtomicUsize,
 	/// Consensus round.
@@ -95,7 +89,7 @@ pub struct Tendermint {
 	/// Vote accumulator.
 	votes: VoteCollector,
 	/// Used to sign messages and proposals.
-	account_provider: Mutex<Option<Arc<AccountProvider>>>,
+	signer: EngineSigner,
 	/// Message for the last PoLC.
 	lock_change: RwLock<Option<ConsensusMessage>>,
 	/// Last lock round.
@@ -117,13 +111,11 @@ impl Tendermint {
 				client: RwLock::new(None),
 				step_service: IoService::<Step>::start()?,
 				block_reward: our_params.block_reward,
-				authority: RwLock::new(Address::default()),
-				password: RwLock::new(None),
 				height: AtomicUsize::new(1),
 				round: AtomicUsize::new(0),
 				step: RwLock::new(Step::Propose),
 				votes: VoteCollector::new(),
-				account_provider: Mutex::new(None),
+				signer: Default::default(),
 				lock_change: RwLock::new(None),
 				last_lock: AtomicUsize::new(0),
 				proposal: RwLock::new(None),
@@ -159,30 +151,25 @@ impl Tendermint {
 	}
 
 	fn generate_message(&self, block_hash: Option<BlockHash>) -> Option<Bytes> {
-		if let Some(ref ap) = *self.account_provider.lock() {
-			let h = self.height.load(AtomicOrdering::SeqCst);
-			let r = self.round.load(AtomicOrdering::SeqCst);
-			let s = self.step.read();
-			let vote_info = message_info_rlp(&VoteStep::new(h, r, *s), block_hash);
-			let authority = self.authority.read();
-			match ap.sign(*authority, self.password.read().clone(), vote_info.sha3()).map(Into::into) {
-				Ok(signature) => {
-					let message_rlp = message_full_rlp(&signature, &vote_info);
-					let message = ConsensusMessage::new(signature, h, r, *s, block_hash);
-					self.votes.vote(message.clone(), &*authority);
-					debug!(target: "poa", "Generated {:?} as {}.", message, *authority);
-					self.handle_valid_message(&message);
+		let h = self.height.load(AtomicOrdering::SeqCst);
+		let r = self.round.load(AtomicOrdering::SeqCst);
+		let s = self.step.read();
+		let vote_info = message_info_rlp(&VoteStep::new(h, r, *s), block_hash);
+		match self.signer.sign(vote_info.sha3()).map(Into::into) {
+			Ok(signature) => {
+				let message_rlp = message_full_rlp(&signature, &vote_info);
+				let message = ConsensusMessage::new(signature, h, r, *s, block_hash);
+				let validator = self.signer.address();
+				self.votes.vote(message.clone(), &validator);
+				debug!(target: "poa", "Generated {:?} as {}.", message, validator);
+				self.handle_valid_message(&message);
 
-					Some(message_rlp)
-				},
-				Err(e) => {
-					trace!(target: "poa", "Could not sign the message {}", e);
-					None
-				},
-			}
-		} else {
-			warn!(target: "poa", "No AccountProvider available.");
-			None
+				Some(message_rlp)
+			},
+			Err(e) => {
+				trace!(target: "poa", "Could not sign the message {}", e);
+				None
+			},
 		}
 	}
 
@@ -245,7 +232,7 @@ impl Tendermint {
 				let height = self.height.load(AtomicOrdering::SeqCst);
 				if let Some(block_hash) = *self.proposal.read() {
 					// Generate seal and remove old votes.
-					if self.is_proposer(&*self.authority.read()).is_ok() {
+					if self.is_signer_proposer() {
 						if let Some(seal) = self.votes.seal_signatures(height, round, &block_hash) {
 							trace!(target: "poa", "Collected seal: {:?}", seal);
 							let seal = vec![
@@ -272,11 +259,16 @@ impl Tendermint {
 		n > self.validators.count() * 2/3
 	}
 
+	/// Find the designated for the given round.
+	fn round_proposer(&self, height: Height, round: Round) -> Address {
+		let proposer_nonce = height + round;
+		trace!(target: "poa", "Proposer nonce: {}", proposer_nonce);
+		self.validators.get(proposer_nonce)
+	}
+
 	/// Check if address is a proposer for given round.
 	fn is_round_proposer(&self, height: Height, round: Round, address: &Address) -> Result<(), EngineError> {
-		let proposer_nonce = height + round;
-		trace!(target: "poa", "is_proposer: Proposer nonce: {}", proposer_nonce);
-		let proposer = self.validators.get(proposer_nonce);
+		let proposer = self.round_proposer(height, round);
 		if proposer == *address {
 			Ok(())
 		} else {
@@ -284,9 +276,10 @@ impl Tendermint {
 		}
 	}
 
-	/// Check if address is the current proposer.
-	fn is_proposer(&self, address: &Address) -> Result<(), EngineError> {
-		self.is_round_proposer(self.height.load(AtomicOrdering::SeqCst), self.round.load(AtomicOrdering::SeqCst), address)
+	/// Check if current signer is the current proposer.
+	fn is_signer_proposer(&self) -> bool {
+		let proposer = self.round_proposer(self.height.load(AtomicOrdering::SeqCst), self.round.load(AtomicOrdering::SeqCst));
+		self.signer.is_address(&proposer)
 	}
 
 	fn is_height(&self, message: &ConsensusMessage) -> bool {
@@ -402,7 +395,9 @@ impl Engine for Tendermint {
 	}
 
 	fn populate_from_parent(&self, header: &mut Header, parent: &Header, gas_floor_target: U256, _gas_ceil_target: U256) {
-		header.set_difficulty(parent.difficulty().clone());
+		// Chain scoring: total weight is sqrt(U256::max_value())*height - round
+		let new_difficulty = U256::from(U128::max_value()) + consensus_round(parent).expect("Header has been verified; qed").into() - self.round.load(AtomicOrdering::SeqCst).into();
+		header.set_difficulty(new_difficulty);
 		header.set_gas_limit({
 			let gas_limit = parent.gas_limit().clone();
 			let bound_divisor = self.gas_limit_bound_divisor;
@@ -421,35 +416,30 @@ impl Engine for Tendermint {
 
 	/// Attempt to seal generate a proposal seal.
 	fn generate_seal(&self, block: &ExecutedBlock) -> Seal {
-		if let Some(ref ap) = *self.account_provider.lock() {
-			let header = block.header();
-			let author = header.author();
-			// Only proposer can generate seal if None was generated.
-			if self.is_proposer(author).is_err() || self.proposal.read().is_some() {
-				return Seal::None;
-			}
+		let header = block.header();
+		let author = header.author();
+		// Only proposer can generate seal if None was generated.
+		if !self.is_signer_proposer() || self.proposal.read().is_some() {
+			return Seal::None;
+		}
 
-			let height = header.number() as Height;
-			let round = self.round.load(AtomicOrdering::SeqCst);
-			let bh = Some(header.bare_hash());
-			let vote_info = message_info_rlp(&VoteStep::new(height, round, Step::Propose), bh.clone());
-			if let Ok(signature) = ap.sign(*author, self.password.read().clone(), vote_info.sha3()).map(H520::from) {
-				// Insert Propose vote.
-				debug!(target: "poa", "Submitting proposal {} at height {} round {}.", header.bare_hash(), height, round);
-				self.votes.vote(ConsensusMessage::new(signature, height, round, Step::Propose, bh), author);
-				// Remember proposal for later seal submission.
-				*self.proposal.write() = bh;
-				Seal::Proposal(vec![
-					::rlp::encode(&round).to_vec(),
-					::rlp::encode(&signature).to_vec(),
-					::rlp::EMPTY_LIST_RLP.to_vec()
-				])
-			} else {
-				warn!(target: "poa", "generate_seal: FAIL: accounts secret key unavailable");
-				Seal::None
-			}
+		let height = header.number() as Height;
+		let round = self.round.load(AtomicOrdering::SeqCst);
+		let bh = Some(header.bare_hash());
+		let vote_info = message_info_rlp(&VoteStep::new(height, round, Step::Propose), bh.clone());
+		if let Ok(signature) = self.signer.sign(vote_info.sha3()).map(Into::into) {
+			// Insert Propose vote.
+			debug!(target: "poa", "Submitting proposal {} at height {} round {}.", header.bare_hash(), height, round);
+			self.votes.vote(ConsensusMessage::new(signature, height, round, Step::Propose, bh), author);
+			// Remember proposal for later seal submission.
+			*self.proposal.write() = bh;
+			Seal::Proposal(vec![
+				::rlp::encode(&round).to_vec(),
+				::rlp::encode(&signature).to_vec(),
+				::rlp::EMPTY_LIST_RLP.to_vec()
+			])
 		} else {
-			warn!(target: "poa", "generate_seal: FAIL: accounts not provided");
+			warn!(target: "poa", "generate_seal: FAIL: accounts secret key unavailable");
 			Seal::None
 		}
 	}
@@ -564,44 +554,15 @@ impl Engine for Tendermint {
 		Ok(())
 	}
 
-	fn verify_transaction_basic(&self, t: &SignedTransaction, _header: &Header) -> Result<(), Error> {
-		t.check_low_s()?;
-		Ok(())
-	}
-
-	fn verify_transaction(&self, t: &SignedTransaction, _header: &Header) -> Result<(), Error> {
-		t.sender().map(|_|()) // Perform EC recovery and cache sender
-	}
-
-	fn set_signer(&self, address: Address, password: String) {
-		*self.authority.write()	= address;
-		*self.password.write() = Some(password);
+	fn set_signer(&self, ap: Arc<AccountProvider>, address: Address, password: String) {
+		{
+			self.signer.set(ap, address, password);
+		}
 		self.to_step(Step::Propose);
 	}
 
 	fn stop(&self) {
 		self.step_service.stop()
-	}
-
-	fn is_new_best_block(&self, _best_total_difficulty: U256, best_header: HeaderView, _parent_details: &BlockDetails, new_header: &HeaderView) -> bool {
-		let new_number = new_header.number();
-		let best_number = best_header.number();
-		trace!(target: "poa", "new_header: {}, best_header: {}", new_number, best_number);
-		if new_number != best_number {
-			new_number > best_number
-		} else {
-			let new_seal = new_header.seal();
-			let best_seal = best_header.seal();
-			let new_signatures = new_seal.get(2).expect("Tendermint seal should have three elements.").len();
-			let best_signatures = best_seal.get(2).expect("Tendermint seal should have three elements.").len();
-			if new_signatures > best_signatures {
-				true
-			} else {
-				let new_round: Round = ::rlp::Rlp::new(&new_seal.get(0).expect("Tendermint seal should have three elements.")).as_val();
-				let best_round: Round = ::rlp::Rlp::new(&best_seal.get(0).expect("Tendermint seal should have three elements.")).as_val();
-				new_round > best_round
-			}
-		}
 	}
 
 	fn is_proposal(&self, header: &Header) -> bool {
@@ -661,10 +622,6 @@ impl Engine for Tendermint {
 		*self.client.write() = Some(client.clone());
 		self.validators.register_call_contract(client);
 	}
-
-	fn register_account_provider(&self, account_provider: Arc<AccountProvider>) {
-		*self.account_provider.lock() = Some(account_provider);
-	}
 }
 
 #[cfg(test)]
@@ -688,7 +645,6 @@ mod tests {
 	fn setup() -> (Spec, Arc<AccountProvider>) {
 		let tap = Arc::new(AccountProvider::transient_provider());
 		let spec = Spec::new_test_tendermint();
-		spec.engine.register_account_provider(tap.clone());
 		(spec, tap)
 	}
 
@@ -732,7 +688,7 @@ mod tests {
 
 	fn insert_and_register(tap: &Arc<AccountProvider>, engine: &Engine, acc: &str) -> Address {
 		let addr = insert_and_unlock(tap, acc);
-		engine.set_signer(addr.clone(), acc.into());
+		engine.set_signer(tap.clone(), addr.clone(), acc.into());
 		addr
 	}
 
@@ -894,7 +850,7 @@ mod tests {
 		let v0 = insert_and_register(&tap, engine.as_ref(), "0");
 		let v1 = insert_and_register(&tap, engine.as_ref(), "1");
 
-		let h = 0;
+		let h = 1;
 		let r = 0;
 
 		// Propose
@@ -925,16 +881,16 @@ mod tests {
 		use types::transaction::{Transaction, Action};
 		use client::BlockChainClient;
 
-		let client = generate_dummy_client_with_spec_and_data(Spec::new_test_tendermint, 0, 0, &[]);
-		let engine = client.engine();
 		let tap = Arc::new(AccountProvider::transient_provider());
-
 		// Accounts for signing votes.
 		let v0 = insert_and_unlock(&tap, "0");
 		let v1 = insert_and_unlock(&tap, "1");
+		let client = generate_dummy_client_with_spec_and_accounts(Spec::new_test_tendermint, Some(tap.clone()));
+		let engine = client.engine();
+
+		client.miner().set_engine_signer(v1.clone(), "1".into()).unwrap();
 
 		let notify = Arc::new(TestNotify::default());
-		engine.register_account_provider(tap.clone());
 		client.add_notify(notify.clone());
 		engine.register_client(Arc::downgrade(&client));
 
@@ -948,8 +904,6 @@ mod tests {
 			nonce: U256::zero(),
 		}.sign(keypair.secret(), None);
 		client.miner().import_own_transaction(client.as_ref(), transaction.into()).unwrap();
-
-		client.miner().set_engine_signer(v1.clone(), "1".into()).unwrap();
 
 		// Propose
 		let proposal = Some(client.miner().pending_block().unwrap().header.bare_hash());

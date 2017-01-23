@@ -32,11 +32,11 @@ import RpcNav from '../RpcNav';
 const rpcMethods = _.sortBy(rpcData.methods, 'name');
 
 export default class RpcCalls extends Component {
-
   state = {};
 
   componentWillReceiveProps (nextProps) {
     const { paramsValues, params } = nextProps.rpc.selectedMethod;
+
     if (paramsValues) {
       params.map((p, idx) => {
         // todo [adgo] 01.05.2016 - make sure this works
@@ -113,6 +113,7 @@ export default class RpcCalls extends Component {
     }
 
     const { returns } = this.props.rpc.selectedMethod;
+
     return (
       <div className='row'>
         { this.renderMethodList() }
@@ -127,6 +128,7 @@ export default class RpcCalls extends Component {
 
   renderMethodList () {
     const { desc } = this.props.rpc.selectedMethod;
+
     return (
       <div>
         <RpcAutoComplete
@@ -143,6 +145,7 @@ export default class RpcCalls extends Component {
 
   handleMethodChange = name => {
     const method = rpcMethods.find(m => m.name === name);
+
     this.props.actions.selectRpcMethod(method);
   }
 
@@ -152,6 +155,7 @@ export default class RpcCalls extends Component {
     }
 
     let { name, params, outputFormatter, inputFormatters } = this.props.rpc.selectedMethod;
+
     params = params.map(this.jsonParamValue);
 
     this.props.actions.fireRpc({
@@ -164,6 +168,7 @@ export default class RpcCalls extends Component {
 
   onCustomRpcFire () {
     const { method, params } = this.state.jsonEditorParsedValue;
+
     this.props.actions.fireRpc({ method, params });
   }
 
@@ -242,6 +247,7 @@ export default class RpcCalls extends Component {
       method: name,
       params: params.map(this.jsonParamValue)
     };
+
     this.setState({
       jsonEditorValue: json
     });
@@ -277,7 +283,7 @@ export default class RpcCalls extends Component {
         className={ 'dapp-block-button' }
         disabled={ this.state.jsonEditorError }
         onClick={ this.onRpcFire }
-        >
+      >
         Fire!
       </button>
     );
@@ -293,6 +299,7 @@ export default class RpcCalls extends Component {
   jsonParamValue = p => {
     if (_.isPlainObject(p)) {
       const { description, details } = p;
+
       return Object.keys(details).reduce((obj, key) => {
         obj[key] = this.paramValue(`${description}.${key}`);
         return obj;
@@ -333,5 +340,4 @@ export default class RpcCalls extends Component {
       resetRpcPrevCalls: PropTypes.func.isRequired
     }).isRequired
   }
-
 }

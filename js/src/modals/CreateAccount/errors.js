@@ -21,30 +21,35 @@ export default {
   noFile: (
     <FormattedMessage
       id='createAccount.error.noFile'
-      defaultMessage='select a valid wallet file to import' />
+      defaultMessage='select a valid wallet file to import'
+    />
   ),
 
   noKey: (
     <FormattedMessage
       id='createAccount.error.noKey'
-      defaultMessage='you need to provide the raw private key' />
+      defaultMessage='you need to provide the raw private key'
+    />
   ),
 
   noMatchPassword: (
     <FormattedMessage
       id='createAccount.error.noMatchPassword'
-      defaultMessage='the supplied passwords does not match' />
+      defaultMessage='the supplied passwords does not match'
+    />
   ),
 
   noName: (
     <FormattedMessage
       id='createAccount.error.noName'
-      defaultMessage='you need to specify a valid name for the account' />
+      defaultMessage='you need to specify a valid name for the account'
+    />
   ),
 
   invalidKey: (
     <FormattedMessage
       id='createAccount.error.invalidKey'
-      defaultMessage='the raw key needs to be hex, 64 characters in length and contain the prefix "0x"' />
+      defaultMessage='the raw key needs to be hex, 64 characters in length and contain the prefix "0x"'
+    />
   )
 };

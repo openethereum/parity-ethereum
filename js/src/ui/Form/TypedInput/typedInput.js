@@ -32,7 +32,6 @@ import { ABI_TYPES, parseAbiType } from '~/util/abi';
 import styles from './typedInput.css';
 
 export default class TypedInput extends Component {
-
   static propTypes = {
     param: PropTypes.oneOfType([
       PropTypes.object,
@@ -71,7 +70,10 @@ export default class TypedInput extends Component {
     const { isEth, value } = this.props;
 
     if (typeof isEth === 'boolean' && value) {
-      const ethValue = isEth ? fromWei(value) : value;
+      // Remove formatting commas
+      const sanitizedValue = typeof value === 'string' ? value.replace(/,/g, '') : value;
+      const ethValue = isEth ? fromWei(sanitizedValue) : value;
+
       this.setState({ isEth, ethValue });
     }
   }
@@ -100,6 +102,7 @@ export default class TypedInput extends Component {
       const inputs = range(length || value.length).map((_, index) => {
         const onChange = (inputValue) => {
           const newValues = [].concat(this.props.value);
+
           newValues[index] = inputValue;
           this.props.onChange(newValues);
         };
@@ -357,7 +360,8 @@ export default class TypedInput extends Component {
         <MenuItem
           key={ bool }
           label={ bool }
-          value={ bool }>
+          value={ bool }
+        >
           { bool }
         </MenuItem>
       );
@@ -375,7 +379,8 @@ export default class TypedInput extends Component {
           value
             ? 'true'
             : 'false'
-        }>
+        }
+      >
         { boolitems }
       </Select>
     );
@@ -393,7 +398,10 @@ export default class TypedInput extends Component {
       return this.setState({ isEth: !isEth });
     }
 
-    const value = isEth ? toWei(ethValue) : fromWei(ethValue);
+    // Remove formatting commas
+    const sanitizedValue = typeof ethValue === 'string' ? ethValue.replace(/,/g, '') : ethValue;
+    const value = isEth ? toWei(sanitizedValue) : fromWei(sanitizedValue);
+
     this.setState({ isEth: !isEth, ethValue: value }, () => {
       this.onEthValueChange(null, value);
     });
@@ -441,5 +449,4 @@ export default class TypedInput extends Component {
 
     return param;
   }
-
 }

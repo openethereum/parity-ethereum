@@ -29,7 +29,7 @@ use v1::tests::mocked::parity;
 use util::{Address, FixedHash, Uint, U256, ToPretty, Hashable};
 use ethcore::account_provider::AccountProvider;
 use ethcore::client::TestBlockChainClient;
-use ethcore::transaction::{Transaction, Action};
+use ethcore::transaction::{Transaction, Action, SignedTransaction};
 use ethstore::ethkey::{Generator, Random};
 use futures::Future;
 use serde_json;
@@ -269,6 +269,7 @@ fn should_add_sign_transaction_to_the_queue() {
 	};
 	let signature = tester.accounts.sign(address, Some("test".into()), t.hash(None)).unwrap();
 	let t = t.with_signature(signature, None);
+	let t = SignedTransaction::new(t).unwrap();
 	let signature = t.signature();
 	let rlp = rlp::encode(&t);
 
@@ -283,7 +284,7 @@ fn should_add_sign_transaction_to_the_queue() {
 		r#""minBlock":null,"# +
 		&format!("\"networkId\":{},", t.network_id().map_or("null".to_owned(), |n| format!("{}", n))) +
 		r#""nonce":"0x1","# +
-		&format!("\"publicKey\":\"0x{:?}\",", t.public_key().unwrap()) +
+		&format!("\"publicKey\":\"0x{:?}\",", t.public_key()) +
 		&format!("\"r\":\"0x{}\",", U256::from(signature.r()).to_hex()) +
 		&format!("\"raw\":\"0x{}\",", rlp.to_hex()) +
 		&format!("\"s\":\"0x{}\",", U256::from(signature.s()).to_hex()) +

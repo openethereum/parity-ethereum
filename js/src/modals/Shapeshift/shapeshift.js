@@ -34,21 +34,26 @@ import styles from './shapeshift.css';
 const STAGE_TITLES = [
   <FormattedMessage
     id='shapeshift.title.details'
-    defaultMessage='details' />,
+    defaultMessage='details'
+  />,
   <FormattedMessage
     id='shapeshift.title.deposit'
-    defaultMessage='awaiting deposit' />,
+    defaultMessage='awaiting deposit'
+  />,
   <FormattedMessage
     id='shapeshift.title.exchange'
-    defaultMessage='awaiting exchange' />,
+    defaultMessage='awaiting exchange'
+  />,
   <FormattedMessage
     id='shapeshift.title.completed'
-    defaultMessage='completed' />
+    defaultMessage='completed'
+  />
 ];
 const ERROR_TITLE = (
   <FormattedMessage
     id='shapeshift.title.error'
-    defaultMessage='exchange failed' />
+    defaultMessage='exchange failed'
+  />
 );
 
 @observer
@@ -93,7 +98,8 @@ export default class Shapeshift extends Component {
         waiting={ [
           STAGE_WAIT_DEPOSIT,
           STAGE_WAIT_EXCHANGE
-        ] }>
+        ] }
+      >
         { this.renderPage() }
       </Modal>
     );
@@ -114,9 +120,11 @@ export default class Shapeshift extends Component {
         label={
           <FormattedMessage
             id='shapeshift.button.cancel'
-            defaultMessage='Cancel' />
+            defaultMessage='Cancel'
+          />
         }
-        onClick={ this.onClose } />
+        onClick={ this.onClose }
+      />
     );
 
     if (error) {
@@ -136,14 +144,17 @@ export default class Shapeshift extends Component {
             icon={
               <IdentityIcon
                 address={ address }
-                button />
+                button
+              />
             }
             label={
               <FormattedMessage
                 id='shapeshift.button.shift'
-                defaultMessage='Shift Funds' />
+                defaultMessage='Shift Funds'
+              />
             }
-            onClick={ this.onShift } />
+            onClick={ this.onShift }
+          />
         ];
 
       case STAGE_WAIT_DEPOSIT:
@@ -161,9 +172,11 @@ export default class Shapeshift extends Component {
             label={
               <FormattedMessage
                 id='shapeshift.button.done'
-                defaultMessage='Close' />
+                defaultMessage='Close'
+              />
             }
-            onClick={ this.onClose } />
+            onClick={ this.onClose }
+          />
         ];
     }
   }

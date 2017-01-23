@@ -11,12 +11,7 @@
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
-//! Canonical hash trie definitions and helper functions.
+// You should have received a copy of the GNU General Public License
+// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-/// The size of each CHT.
-pub const SIZE: u64 = 2048;
-
-/// Convert a block number to a CHT number.
-pub fn block_to_cht_number(block_num: u64) -> u64 {
-	(block_num + 1) / SIZE
-}
+export default from './currencySymbol';

@@ -21,6 +21,7 @@ use ethcore::client::{TestBlockChainClient, BlockChainClient, Client as EthcoreC
 use ethcore::header::BlockNumber;
 use ethcore::snapshot::SnapshotService;
 use ethcore::spec::Spec;
+use ethcore::account_provider::AccountProvider;
 use ethcore::miner::Miner;
 use ethcore::db::NUM_COLUMNS;
 use sync_io::SyncIo;
@@ -49,6 +50,7 @@ pub struct TestIo<'p, C> where C: FlushingBlockChainClient, C: 'p {
 	pub sender: Option<PeerId>,
 	pub to_disconnect: HashSet<PeerId>,
 	pub packets: Vec<TestPacket>,
+	pub peers_info: HashMap<PeerId, String>,
 	overlay: RwLock<HashMap<BlockNumber, Bytes>>,
 }
 
@@ -62,6 +64,7 @@ impl<'p, C> TestIo<'p, C> where C: FlushingBlockChainClient, C: 'p {
 			to_disconnect: HashSet::new(),
 			overlay: RwLock::new(HashMap::new()),
 			packets: Vec::new(),
+			peers_info: HashMap::new(),
 		}
 	}
 }
@@ -109,6 +112,12 @@ impl<'p, C> SyncIo for TestIo<'p, C> where C: FlushingBlockChainClient, C: 'p {
 
 	fn chain(&self) -> &BlockChainClient {
 		&*self.chain
+	}
+
+	fn peer_info(&self, peer_id: PeerId) -> String {
+		self.peers_info.get(&peer_id)
+			.cloned()
+			.unwrap_or_else(|| peer_id.to_string())
 	}
 
 	fn snapshot_service(&self) -> &SnapshotService {
@@ -262,7 +271,7 @@ impl TestNet<EthPeer<TestBlockChainClient>> {
 }
 
 impl TestNet<EthPeer<EthcoreClient>> {
-	pub fn with_spec<F>(n: usize, config: SyncConfig, spec_factory: F) -> GuardedTempResult<Self>
+	pub fn with_spec_and_accounts<F>(n: usize, config: SyncConfig, spec_factory: F, accounts: Option<Arc<AccountProvider>>) -> GuardedTempResult<Self>
 		where F: Fn() -> Spec
 	{
 		let mut net = TestNet {
@@ -282,7 +291,7 @@ impl TestNet<EthPeer<EthcoreClient>> {
 				ClientConfig::default(),
 				&spec,
 				client_dir.as_path(),
-				Arc::new(Miner::with_spec(&spec)),
+				Arc::new(Miner::with_spec_and_accounts(&spec, accounts.clone())),
 				IoChannel::disconnected(),
 				&db_config
 			).unwrap();

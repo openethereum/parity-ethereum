@@ -101,6 +101,7 @@ class Wallet extends Component {
   setVisibleAccounts (props = this.props) {
     const { address, setVisibleAccounts } = props;
     const addresses = [ address ];
+
     setVisibleAccounts(addresses);
   }
 
@@ -220,7 +221,8 @@ class Wallet extends Component {
           icon={ <ContentSend /> }
           label='transfer'
           disabled={ !showTransferButton }
-          onClick={ this.onTransferClick } />
+          onClick={ this.onTransferClick }
+        />
       );
     }
 
@@ -229,7 +231,8 @@ class Wallet extends Component {
         key='delete'
         icon={ <ActionDelete /> }
         label='delete'
-        onClick={ this.showDeleteDialog } />
+        onClick={ this.showDeleteDialog }
+      />
     );
 
     buttons.push(
@@ -237,7 +240,8 @@ class Wallet extends Component {
         key='editmeta'
         icon={ <ContentCreate /> }
         label='edit'
-        onClick={ this.onEditClick } />
+        onClick={ this.onEditClick }
+      />
     );
 
     if (owned) {
@@ -246,14 +250,16 @@ class Wallet extends Component {
           key='settings'
           icon={ <SettingsIcon /> }
           label='settings'
-          onClick={ this.onSettingsClick } />
+          onClick={ this.onSettingsClick }
+        />
       );
     }
 
     return (
       <Actionbar
         title='Wallet Management'
-        buttons={ buttons } />
+        buttons={ buttons }
+      />
     );
   }
 
@@ -265,7 +271,8 @@ class Wallet extends Component {
         account={ account }
         visible={ showDeleteDialog }
         route='/accounts'
-        onClose={ this.closeDeleteDialog } />
+        onClose={ this.closeDeleteDialog }
+      />
     );
   }
 
@@ -280,7 +287,8 @@ class Wallet extends Component {
       <EditMeta
         account={ wallet }
         keys={ ['description'] }
-        onClose={ this.onEditClick } />
+        onClose={ this.onEditClick }
+      />
     );
   }
 

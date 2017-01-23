@@ -25,7 +25,6 @@ import { ERRORS, validateName } from '~/util/validation';
 import styles from './saveContract.css';
 
 export default class SaveContract extends Component {
-
   static propTypes = {
     sourcecode: PropTypes.string.isRequired,
     onClose: PropTypes.func.isRequired,
@@ -103,7 +102,7 @@ export default class SaveContract extends Component {
 
   onChangeName = (event, value) => {
     const { name, nameError } = validateName(value);
+
     this.setState({ name, nameError });
   }
-
 }

@@ -44,7 +44,7 @@ use env_info::LastHashes;
 use verification;
 use verification::{PreverifiedBlock, Verifier};
 use block::*;
-use transaction::{LocalizedTransaction, SignedTransaction, Transaction, PendingTransaction, Action};
+use transaction::{LocalizedTransaction, UnverifiedTransaction, SignedTransaction, Transaction, PendingTransaction, Action};
 use blockchain::extras::TransactionAddress;
 use types::filter::Filter;
 use types::mode::Mode as IpcMode;
@@ -192,7 +192,7 @@ impl Client {
 		}
 
 		let gb = spec.genesis_block();
-		let chain = Arc::new(BlockChain::new(config.blockchain.clone(), &gb, db.clone(), spec.engine.clone()));
+		let chain = Arc::new(BlockChain::new(config.blockchain.clone(), &gb, db.clone()));
 		let tracedb = RwLock::new(TraceDB::new(config.tracing.clone(), db.clone(), chain.clone()));
 
 		trace!("Cleanup journal: DB Earliest = {:?}, Latest = {:?}", state_db.journal_db().earliest_era(), state_db.journal_db().latest_era());
@@ -205,17 +205,6 @@ impl Client {
 		} else {
 			config.history
 		};
-
-		if let (Some(earliest), Some(latest)) = (state_db.journal_db().earliest_era(), state_db.journal_db().latest_era()) {
-			if latest > earliest && latest - earliest > history {
-				for era in earliest..(latest - history + 1) {
-					trace!("Removing era {}", era);
-					let mut batch = DBTransaction::new(&db);
-					state_db.mark_canonical(&mut batch, era, &chain.block_hash(era).expect("Old block not found in the database"))?;
-					db.write(batch).map_err(ClientError::Database)?;
-				}
-			}
-		}
 
 		if !chain.block_header(&chain.best_block_hash()).map_or(true, |h| state_db.journal_db().contains(h.state_root())) {
 			warn!("State root not found for block #{} ({})", chain.best_block_number(), chain.best_block_hash().hex());
@@ -257,6 +246,13 @@ impl Client {
 			on_mode_change: Mutex::new(None),
 			registrar: Mutex::new(None),
 		});
+
+		{
+			let state_db = client.state_db.lock().boxed_clone();
+			let chain = client.chain.read();
+			client.prune_ancient(state_db, &chain)?;
+		}
+
 		if let Some(reg_addr) = client.additional_params().get("registrar").and_then(|s| Address::from_str(s).ok()) {
 			trace!(target: "client", "Found registrar at {}", reg_addr);
 			let weak = Arc::downgrade(&client);
@@ -553,16 +549,6 @@ impl Client {
 		let mut state = block.drain();
 
 		state.journal_under(&mut batch, number, hash).expect("DB commit failed");
-
-		if number >= self.history {
-			let n = number - self.history;
-			if let Some(ancient_hash) = chain.block_hash(n) {
-				state.mark_canonical(&mut batch, n, &ancient_hash).expect("DB commit failed");
-			} else {
-				debug!(target: "client", "Missing expected hash for block {}", n);
-			}
-		}
-
 		let route = chain.insert_block(&mut batch, block_data, receipts);
 		self.tracedb.read().import(&mut batch, TraceImportRequest {
 			traces: traces.into(),
@@ -578,7 +564,47 @@ impl Client {
 		self.db.read().write_buffered(batch);
 		chain.commit();
 		self.update_last_hashes(&parent, hash);
+
+		if let Err(e) = self.prune_ancient(state, &chain) {
+			warn!("Failed to prune ancient state data: {}", e);
+		}
+
 		route
+	}
+
+	// prune ancient states until below the memory limit or only the minimum amount remain.
+	fn prune_ancient(&self, mut state_db: StateDB, chain: &BlockChain) -> Result<(), ClientError> {
+		let number = match state_db.journal_db().latest_era() {
+			Some(n) => n,
+			None => return Ok(()),
+		};
+
+		// prune all ancient eras until we're below the memory target,
+		// but have at least the minimum number of states.
+		loop {
+			let needs_pruning = state_db.journal_db().is_pruned() &&
+				state_db.journal_db().journal_size() >= self.config.history_mem;
+
+			if !needs_pruning { break }
+			match state_db.journal_db().earliest_era() {
+				Some(era) if era + self.history <= number => {
+					trace!(target: "client", "Pruning state for ancient era {}", era);
+					match chain.block_hash(era) {
+						Some(ancient_hash) => {
+							let mut batch = DBTransaction::new(&self.db.read());
+							state_db.mark_canonical(&mut batch, era, &ancient_hash)?;
+							self.db.read().write_buffered(batch);
+							state_db.journal_db().flush();
+						}
+						None =>
+							debug!(target: "client", "Missing expected hash for block {}", era),
+					}
+				}
+				_ => break, // means that every era is kept, no pruning necessary.
+			}
+		}
+
+		Ok(())
 	}
 
 	fn update_last_hashes(&self, parent: &H256, hash: &H256) {
@@ -596,7 +622,7 @@ impl Client {
 		trace!(target: "external_tx", "Importing queued");
 		let _timer = PerfTimer::new("import_queued_transactions");
 		self.queue_transactions.fetch_sub(transactions.len(), AtomicOrdering::SeqCst);
-		let txs: Vec<SignedTransaction> = transactions.iter().filter_map(|bytes| UntrustedRlp::new(bytes).as_val().ok()).collect();
+		let txs: Vec<UnverifiedTransaction> = transactions.iter().filter_map(|bytes| UntrustedRlp::new(bytes).as_val().ok()).collect();
 		let hashes: Vec<_> = txs.iter().map(|tx| tx.hash()).collect();
 		self.notify(|notify| {
 			notify.transactions_received(hashes.clone(), peer_id);
@@ -831,7 +857,7 @@ impl snapshot::DatabaseRestore for Client {
 
 		let cache_size = state_db.cache_size();
 		*state_db = StateDB::new(journaldb::new(db.clone(), self.pruning, ::db::COL_STATE), cache_size);
-		*chain = Arc::new(BlockChain::new(self.config.blockchain.clone(), &[], db.clone(), self.engine.clone()));
+		*chain = Arc::new(BlockChain::new(self.config.blockchain.clone(), &[], db.clone()));
 		*tracedb = TraceDB::new(self.config.tracing.clone(), db.clone(), chain.clone());
 		Ok(())
 	}
@@ -854,10 +880,7 @@ impl BlockChainClient for Client {
 		let mut state = self.state_at(block).ok_or(CallError::StatePruned)?;
 		let original_state = if analytics.state_diffing { Some(state.clone()) } else { None };
 
-		let sender = t.sender().map_err(|e| {
-			let message = format!("Transaction malformed: {:?}", e);
-			ExecutionError::TransactionMalformed(message)
-		})?;
+		let sender = t.sender();
 		let balance = state.balance(&sender);
 		let needed_balance = t.value + t.gas * t.gas_price;
 		if balance < needed_balance {
@@ -888,16 +911,14 @@ impl BlockChainClient for Client {
 		};
 		// that's just a copy of the state.
 		let original_state = self.state_at(block).ok_or(CallError::StatePruned)?;
-		let sender = t.sender().map_err(|e| {
-			let message = format!("Transaction malformed: {:?}", e);
-			ExecutionError::TransactionMalformed(message)
-		})?;
+		let sender = t.sender();
 		let balance = original_state.balance(&sender);
 		let options = TransactOptions { tracing: true, vm_tracing: false, check_nonce: false };
-		let mut tx = t.clone();
 
-		let mut cond = |gas| {
+		let cond = |gas| {
+			let mut tx = t.as_unsigned().clone();
 			tx.gas = gas;
+			let tx = tx.fake_sign(sender);
 
 			let mut state = original_state.clone();
 			let needed_balance = tx.value + tx.gas * tx.gas_price;
@@ -908,7 +929,7 @@ impl BlockChainClient for Client {
 
 			Executive::new(&mut state, &env_info, &*self.engine, &self.factories.vm)
 				.transact(&tx, options.clone())
-				.map(|r| r.exception.is_some())
+				.map(|r| r.exception.is_none())
 				.unwrap_or(false)
 		};
 
@@ -955,7 +976,7 @@ impl BlockChainClient for Client {
 		let header = self.block_header(BlockId::Hash(address.block_hash)).ok_or(CallError::StatePruned)?;
 		let body = self.block_body(BlockId::Hash(address.block_hash)).ok_or(CallError::StatePruned)?;
 		let mut state = self.state_at_beginning(BlockId::Hash(address.block_hash)).ok_or(CallError::StatePruned)?;
-		let txs = body.transactions();
+		let mut txs = body.transactions();
 
 		if address.index >= txs.len() {
 			return Err(CallError::TransactionNotFound);
@@ -972,16 +993,19 @@ impl BlockChainClient for Client {
 			gas_used: U256::default(),
 			gas_limit: header.gas_limit(),
 		};
-		for t in txs.iter().take(address.index) {
-			match Executive::new(&mut state, &env_info, &*self.engine, &self.factories.vm).transact(t, Default::default()) {
+		const PROOF: &'static str = "Transactions fetched from blockchain; blockchain transactions are valid; qed";
+		let rest = txs.split_off(address.index);
+		for t in txs {
+			let t = SignedTransaction::new(t).expect(PROOF);
+			match Executive::new(&mut state, &env_info, &*self.engine, &self.factories.vm).transact(&t, Default::default()) {
 				Ok(x) => { env_info.gas_used = env_info.gas_used + x.gas_used; }
 				Err(ee) => { return Err(CallError::Execution(ee)) }
 			}
 		}
-		let t = &txs[address.index];
-
+		let first = rest.into_iter().next().expect("We split off < `address.index`; Length is checked earlier; qed");
+		let t = SignedTransaction::new(first).expect(PROOF);
 		let original_state = if analytics.state_diffing { Some(state.clone()) } else { None };
-		let mut ret = Executive::new(&mut state, &env_info, &*self.engine, &self.factories.vm).transact(t, options)?;
+		let mut ret = Executive::new(&mut state, &env_info, &*self.engine, &self.factories.vm).transact(&t, options)?;
 		ret.state_diff = original_state.map(|original| state.diff_from(original));
 
 		Ok(ret)
@@ -1410,7 +1434,6 @@ impl BlockChainClient for Client {
 		PruningInfo {
 			earliest_chain: self.chain.read().first_block_number().unwrap_or(1),
 			earliest_state: self.state_db.lock().journal_db().earliest_era().unwrap_or(0),
-			state_history_size: Some(self.history),
 		}
 	}
 
@@ -1584,11 +1607,10 @@ impl Drop for Client {
 
 /// Returns `LocalizedReceipt` given `LocalizedTransaction`
 /// and a vector of receipts from given block up to transaction index.
-fn transaction_receipt(tx: LocalizedTransaction, mut receipts: Vec<Receipt>) -> LocalizedReceipt {
+fn transaction_receipt(mut tx: LocalizedTransaction, mut receipts: Vec<Receipt>) -> LocalizedReceipt {
 	assert_eq!(receipts.len(), tx.transaction_index + 1, "All previous receipts are provided.");
 
-	let sender = tx.sender()
-		.expect("LocalizedTransaction is part of the blockchain; We have only valid transactions in chain; qed");
+	let sender = tx.sender();
 	let receipt = receipts.pop().expect("Current receipt is provided; qed");
 	let prior_gas_used = match tx.transaction_index {
 		0 => 0.into(),
@@ -1688,10 +1710,11 @@ mod tests {
 		};
 		let tx1 = raw_tx.clone().sign(secret, None);
 		let transaction = LocalizedTransaction {
-			signed: tx1.clone(),
+			signed: tx1.clone().into(),
 			block_number: block_number,
 			block_hash: block_hash,
 			transaction_index: 1,
+			cached_sender: Some(tx1.sender()),
 		};
 		let logs = vec![LogEntry {
 			address: 5.into(),

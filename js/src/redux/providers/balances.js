@@ -73,6 +73,7 @@ export default class Balances {
   static get (store = {}) {
     if (!instance && store) {
       const { api } = store.getState();
+
       return Balances.instantiate(store, api);
     }
 
@@ -340,6 +341,7 @@ export default class Balances {
 
   handleTokensLogs (logs) {
     const tokenIds = logs.map((log) => log.params.id.value.toNumber());
+
     this._store.dispatch(fetchTokens(tokenIds));
   }
 }

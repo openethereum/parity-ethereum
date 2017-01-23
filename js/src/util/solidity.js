@@ -17,11 +17,11 @@
 import solc from 'solc/browser-wrapper';
 
 export default class SolidityUtils {
-
   static compile (data, compiler) {
     const { sourcecode, build, optimize, files } = data;
 
     const start = Date.now();
+
     console.log('[solidity] compiling...');
 
     const input = {
@@ -41,6 +41,7 @@ export default class SolidityUtils {
     const compiled = compiler.compile({ sources: input }, optimize ? 1 : 0, findFiles);
 
     const time = Math.round((Date.now() - start) / 100) / 10;
+
     console.log(`[solidity] done compiling in ${time}s`);
 
     compiled.version = build.longVersion;
@@ -65,6 +66,7 @@ export default class SolidityUtils {
       .then((code) => {
         // `window` for main thread, `self` for workers
         const _self = isWorker ? self : window;
+
         _self.Module = {};
 
         const solcCode = code.replace('var Module;', `var Module=${isWorker ? 'self' : 'window'}.Module;`);
@@ -81,6 +83,7 @@ export default class SolidityUtils {
         console.log(`[solidity] done evaluating ${longVersion}`);
 
         const compiler = solc(_self.Module);
+
         delete _self.Module;
 
         return compiler;

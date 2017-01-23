@@ -23,14 +23,17 @@ import { setSelectedAccount } from '../actions';
 
 class AccountSelectorContainer extends Component {
   render () {
-    return (<AccountSelector
-      { ...this.props }
-    />);
+    return (
+      <AccountSelector
+        { ...this.props }
+      />
+    );
   }
 }
 
 const mapStateToProps = (state) => {
   const { accounts } = state;
+
   return { ...accounts };
 };
 
@@ -42,4 +45,7 @@ const mapDispatchToProps = (dispatch) => {
   };
 };
 
-export default connect(mapStateToProps, mapDispatchToProps)(AccountSelectorContainer);
+export default connect(
+  mapStateToProps,
+  mapDispatchToProps
+)(AccountSelectorContainer);

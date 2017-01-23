@@ -48,7 +48,7 @@ impl<'a> BodyView<'a> {
 	}
 
 	/// Return List of transactions in given block.
-	pub fn transactions(&self) -> Vec<SignedTransaction> {
+	pub fn transactions(&self) -> Vec<UnverifiedTransaction> {
 		self.rlp.val_at(0)
 	}
 
@@ -61,7 +61,8 @@ impl<'a> BodyView<'a> {
 				signed: t,
 				block_hash: block_hash.clone(),
 				block_number: block_number,
-				transaction_index: i
+				transaction_index: i,
+				cached_sender: None,
 			}).collect()
 	}
 
@@ -81,7 +82,7 @@ impl<'a> BodyView<'a> {
 	}
 
 	/// Returns transaction at given index without deserializing unnecessary data.
-	pub fn transaction_at(&self, index: usize) -> Option<SignedTransaction> {
+	pub fn transaction_at(&self, index: usize) -> Option<UnverifiedTransaction> {
 		self.rlp.at(0).iter().nth(index).map(|rlp| rlp.as_val())
 	}
 
@@ -91,7 +92,8 @@ impl<'a> BodyView<'a> {
 			signed: t,
 			block_hash: block_hash.clone(),
 			block_number: block_number,
-			transaction_index: index
+			transaction_index: index,
+			cached_sender: None,
 		})
 	}
 

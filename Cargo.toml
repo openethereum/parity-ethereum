@@ -32,7 +32,7 @@ app_dirs = "1.1.1"
 fdlimit = "0.1"
 hyper = { version = "0.9", default-features = false }
 ctrlc = { git = "https://github.com/ethcore/rust-ctrlc.git" }
-jsonrpc-core = { git = "https://github.com/ethcore/jsonrpc.git" }
+jsonrpc-core = { git = "https://github.com/ethcore/jsonrpc.git", branch="mio" }
 ethsync = { path = "sync" }
 ethcore = { path = "ethcore" }
 ethcore-util = { path = "util" }

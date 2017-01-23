@@ -17,8 +17,9 @@
 //! Types used in the public API
 
 use std::fmt;
+use std::str::FromStr;
 use semver::{Version};
-use util::{H160};
+use util::{H160, FixedHash};
 use util::misc::raw_package_info;
 use release_track::ReleaseTrack;
 
@@ -47,7 +48,7 @@ impl VersionInfo {
 		VersionInfo {
 			track: raw.0.into(),
 			version: { let mut v = Version::parse(raw.1).expect("Environment variables are known to be valid; qed"); v.build = vec![]; v.pre = vec![]; v },
-			hash: raw.2.into(),
+			hash: H160::from_str(raw.2).unwrap_or_else(|_| H160::zero()),
 		}
 	}
 

@@ -26,7 +26,7 @@ const ServiceWorkerWebpackPlugin = require('serviceworker-webpack-plugin');
 const ScriptExtHtmlWebpackPlugin = require('script-ext-html-webpack-plugin');
 
 const Shared = require('./shared');
-const DAPPS = require('../src/dapps');
+const DAPPS = require('../src/views/Dapps/builtin.json');
 
 const FAVICON = path.resolve(__dirname, '../assets/images/parity-logo-black-no-text.png');
 
@@ -40,10 +40,11 @@ module.exports = {
 
   context: path.join(__dirname, '../src'),
   entry: Object.assign({}, Shared.dappsEntry, {
-    index: './index.js'
+    index: './index.js',
+    embed: './embed.js'
   }),
   output: {
-    publicPath: '/',
+    // publicPath: '/',
     path: path.join(__dirname, '../', DEST),
     filename: '[name].[hash:10].js'
   },
@@ -138,19 +139,23 @@ module.exports = {
   },
 
   plugins: (function () {
-    const DappsHTMLInjection = DAPPS.map((dapp) => {
+    const DappsHTMLInjection = DAPPS.filter((dapp) => !dapp.skipBuild).map((dapp) => {
       return new HtmlWebpackPlugin({
-        title: dapp.title,
-        filename: dapp.name + '.html',
+        title: dapp.name,
+        filename: dapp.url + '.html',
         template: './dapps/index.ejs',
         favicon: FAVICON,
         secure: dapp.secure,
-        chunks: [ isProd ? null : 'commons', dapp.name ]
+        chunks: [ isProd ? null : 'commons', dapp.url ]
       });
     });
 
     const plugins = Shared.getPlugins().concat(
-      new CopyWebpackPlugin([{ from: './error_pages.css', to: 'styles.css' }], {}),
+      new CopyWebpackPlugin([
+        { from: './error_pages.css', to: 'styles.css' },
+        { from: 'dapps/static' }
+      ], {}),
+
       new WebpackErrorNotificationPlugin(),
 
       new webpack.DllReferencePlugin({
@@ -166,6 +171,17 @@ module.exports = {
         chunks: [
           isProd ? null : 'commons',
           'index'
+        ]
+      }),
+
+      new HtmlWebpackPlugin({
+        title: 'Parity Bar',
+        filename: 'embed.html',
+        template: './index.ejs',
+        favicon: FAVICON,
+        chunks: [
+          isProd ? null : 'commons',
+          'embed'
         ]
       }),
 

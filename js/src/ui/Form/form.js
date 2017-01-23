@@ -36,7 +36,8 @@ export default class Form extends Component {
     return (
       <form
         autoComplete='new-password'
-        className={ classes.join(' ') }>
+        className={ classes.join(' ') }
+      >
         <div className={ styles.autofill }>
           <input type='text' name='fakeusernameremembered' />
           <input type='password' name='fakepasswordremembered' />

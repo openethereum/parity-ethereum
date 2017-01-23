@@ -30,7 +30,6 @@ import rpcData from '../../data/rpc.json';
 const rpcMethods = sortBy(rpcData.methods, 'name');
 
 export default class CallsToolbar extends Component {
-
   render () {
     const { call, callEl, containerEl } = this.props;
 
@@ -39,6 +38,7 @@ export default class CallsToolbar extends Component {
     }
 
     const wrapStyle = { top: callEl.offsetTop - SCROLLBAR_WIDTH - containerEl.scrollTop };
+
     if (this.hasScrollbar(containerEl)) {
       wrapStyle.right = 13;
     }
@@ -47,11 +47,11 @@ export default class CallsToolbar extends Component {
       <div
         className={ styles.callActionsWrap }
         style={ wrapStyle }
-        >
+      >
         <IconButton
           className={ styles.callActionsButton }
           { ...this._test('button-more') }
-          >
+        >
           <MoreHorizIcon />
         </IconButton>
         <div className={ styles.callActions } { ...this._test('button-container') }>
@@ -61,7 +61,7 @@ export default class CallsToolbar extends Component {
             tooltip='Set'
             tooltipPosition='top-left'
             { ...this._test('button-setCall') }
-            >
+          >
             <InputIcon className={ styles.callActionIcon } />
           </IconButton>
           <IconButton
@@ -70,19 +70,19 @@ export default class CallsToolbar extends Component {
             tooltip='Fire again'
             tooltipPosition='top-left'
             { ...this._test('button-makeCall') }
-            >
+          >
             <CallIcon className={ styles.callActionIcon } />
           </IconButton>
           <CopyToClipboard
             text={ JSON.stringify(call) }
             onCopy={ this.copyToClipboard }
-            >
+          >
             <IconButton
               className={ styles.callAction }
               tooltip='Copy to clipboard'
               tooltipPosition='top-left'
               { ...this._test('copyCallToClipboard') }
-              >
+            >
               <AssignmentIcon className={ styles.callActionIcon } />
             </IconButton>
           </CopyToClipboard>

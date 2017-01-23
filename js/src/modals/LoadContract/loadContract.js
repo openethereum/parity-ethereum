@@ -35,7 +35,6 @@ const SELECTED_STYLE = {
 };
 
 export default class LoadContract extends Component {
-
   static propTypes = {
     onClose: PropTypes.func.isRequired,
     onLoad: PropTypes.func.isRequired,
@@ -264,6 +263,7 @@ export default class LoadContract extends Component {
 
   onConfirmRemoval = () => {
     const { deleteId } = this.state;
+
     this.props.onDelete(deleteId);
 
     this.setState({
@@ -279,5 +279,4 @@ export default class LoadContract extends Component {
       deleteId: -1
     });
   }
-
 }

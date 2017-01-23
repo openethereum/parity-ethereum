@@ -55,6 +55,7 @@ const renderQueue = (queue) => {
 
   const grouped = queue.reduce((grouped, change) => {
     const last = grouped[grouped.length - 1];
+
     if (last && last.action === change.action) {
       last.names.push(change.name);
     } else {
@@ -77,7 +78,6 @@ const renderQueue = (queue) => {
 };
 
 class Names extends Component {
-
   static propTypes = {
     error: nullableProptype(PropTypes.object.isRequired),
     fee: PropTypes.object.isRequired,

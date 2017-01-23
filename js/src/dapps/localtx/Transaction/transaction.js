@@ -25,7 +25,6 @@ import styles from './transaction.css';
 import IdentityIcon from '../../githubhint/IdentityIcon';
 
 class BaseTransaction extends Component {
-
   shortHash (hash) {
     return `${hash.substr(0, 5)}..${hash.substr(hash.length - 3)}`;
   }
@@ -47,7 +46,7 @@ class BaseTransaction extends Component {
       <div title={ transaction.from } className={ styles.from }>
         <IdentityIcon
           address={ transaction.from }
-          />
+        />
       </div>
     );
   }
@@ -89,7 +88,6 @@ class BaseTransaction extends Component {
 }
 
 export class Transaction extends BaseTransaction {
-
   static propTypes = {
     idx: PropTypes.number.isRequired,
     transaction: PropTypes.object.isRequired,
@@ -170,17 +168,18 @@ export class Transaction extends BaseTransaction {
 
   renderTime (firstSeen) {
     const { blockNumber } = this.props;
+
     if (!firstSeen) {
       return 'never';
     }
 
     const timeInMinutes = blockNumber.sub(firstSeen).mul(14).div(60).toFormat(1);
+
     return `${timeInMinutes} minutes ago`;
   }
 }
 
 export class LocalTransaction extends BaseTransaction {
-
   static propTypes = {
     hash: PropTypes.string.isRequired,
     status: PropTypes.string.isRequired,
@@ -361,12 +360,12 @@ export class LocalTransaction extends BaseTransaction {
             type='text'
             value={ gasPrice }
             onChange={ this.setGasPrice }
-            />
+          />
           <input
             type='text'
             value={ gas }
             onChange={ this.setGas }
-            />
+          />
         </td>
         <td colSpan='2'>
           <a href='javascript:void' onClick={ this.sendTransaction }>
@@ -376,5 +375,4 @@ export class LocalTransaction extends BaseTransaction {
       </tr>
     );
   }
-
 }

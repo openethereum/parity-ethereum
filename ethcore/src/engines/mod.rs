@@ -22,6 +22,7 @@ mod basic_authority;
 mod authority_round;
 mod tendermint;
 mod validator_set;
+mod signer;
 
 pub use self::null_engine::NullEngine;
 pub use self::instant_seal::InstantSeal;
@@ -39,10 +40,7 @@ use error::Error;
 use spec::CommonParams;
 use evm::Schedule;
 use header::Header;
-use transaction::SignedTransaction;
-use ethereum::ethash;
-use blockchain::extras::BlockDetails;
-use views::HeaderView;
+use transaction::{UnverifiedTransaction, SignedTransaction};
 use client::Client;
 
 /// Voting errors.
@@ -155,9 +153,15 @@ pub trait Engine : Sync + Send {
 	/// Additional verification for transactions in blocks.
 	// TODO: Add flags for which bits of the transaction to check.
 	// TODO: consider including State in the params.
-	fn verify_transaction_basic(&self, _t: &SignedTransaction, _header: &Header) -> Result<(), Error> { Ok(()) }
+	fn verify_transaction_basic(&self, t: &UnverifiedTransaction, _header: &Header) -> Result<(), Error> {
+		t.check_low_s()?;
+		Ok(())
+	}
+
 	/// Verify a particular transaction is valid.
-	fn verify_transaction(&self, _t: &SignedTransaction, _header: &Header) -> Result<(), Error> { Ok(()) }
+	fn verify_transaction(&self, t: UnverifiedTransaction, _header: &Header) -> Result<SignedTransaction, Error> {
+		SignedTransaction::new(t)
+	}
 
 	/// The network ID that transactions should be signed with.
 	fn signing_network_id(&self, _env_info: &EnvInfo) -> Option<u64> { None }
@@ -170,7 +174,7 @@ pub trait Engine : Sync + Send {
 	}
 
 	/// Populate a header's fields based on its parent's header.
-	/// Takes gas floor and ceiling targets.
+	/// Usually implements the chain scoring rule based on weight.
 	/// The gas floor target must not be lower than the engine's minimum gas limit.
 	fn populate_from_parent(&self, header: &mut Header, parent: &Header, _gas_floor_target: U256, _gas_ceil_target: U256) {
 		header.set_difficulty(parent.difficulty().clone());
@@ -196,23 +200,15 @@ pub trait Engine : Sync + Send {
 		self.builtins().get(a).expect("attempted to execute nonexistent builtin").execute(input, output);
 	}
 
-	/// Check if new block should be chosen as the one  in chain.
-	fn is_new_best_block(&self, best_total_difficulty: U256, _best_header: HeaderView, parent_details: &BlockDetails, new_header: &HeaderView) -> bool {
-		ethash::is_new_best_block(best_total_difficulty, parent_details, new_header)
-	}
-
 	/// Find out if the block is a proposal block and should not be inserted into the DB.
 	/// Takes a header of a fully verified block.
 	fn is_proposal(&self, _verified_header: &Header) -> bool { false }
 
 	/// Register an account which signs consensus messages.
-	fn set_signer(&self, _address: Address, _password: String) {}
+	fn set_signer(&self, _account_provider: Arc<AccountProvider>, _address: Address, _password: String) {}
 
 	/// Add Client which can be used for sealing, querying the state and sending messages.
 	fn register_client(&self, _client: Weak<Client>) {}
-
-	/// Add an account provider useful for Engines that sign stuff.
-	fn register_account_provider(&self, _account_provider: Arc<AccountProvider>) {}
 
 	/// Trigger next step of the consensus engine.
 	fn step(&self) {}

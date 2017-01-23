@@ -56,7 +56,6 @@ pub struct Router<A: Authorization + 'static> {
 impl<A: Authorization + 'static> server::Handler<HttpStream> for Router<A> {
 
 	fn on_request(&mut self, req: server::Request<HttpStream>) -> Next {
-
 		// Choose proper handler depending on path / domain
 		let url = handlers::extract_url(&req);
 		let endpoint = extract_endpoint(&url);
@@ -92,8 +91,7 @@ impl<A: Authorization + 'static> server::Handler<HttpStream> for Router<A> {
 		self.handler = match (endpoint.0, endpoint.1, referer) {
 			// Handle invalid web requests that we can recover from
 			(ref path, SpecialEndpoint::None, Some((ref referer, ref referer_url)))
-				if is_get_request
-					&& referer.app_id == apps::WEB_PATH
+				if referer.app_id == apps::WEB_PATH
 					&& self.endpoints.contains_key(apps::WEB_PATH)
 					&& !is_web_endpoint(path)
 				=>
@@ -225,8 +223,26 @@ fn extract_referer_endpoint(req: &server::Request<HttpStream>) -> Option<(Endpoi
 	let url = referer.and_then(|referer| Url::parse(&referer.0).ok());
 	url.and_then(|url| {
 		let option = Some(url);
-		extract_endpoint(&option).0.map(|endpoint| (endpoint, option.expect("Just wrapped; qed")))
+		extract_url_referer_endpoint(&option).or_else(|| {
+			extract_endpoint(&option).0.map(|endpoint| (endpoint, option.expect("Just wrapped; qed")))
+		})
 	})
+}
+
+fn extract_url_referer_endpoint(url: &Option<Url>) -> Option<(EndpointPath, Url)> {
+	let query = url.as_ref().and_then(|url| url.query.as_ref());
+	match (url, query) {
+		(&Some(ref url), Some(ref query)) if query.starts_with(apps::URL_REFERER) => {
+			let referer_url = format!("http://{}:{}/{}", url.host, url.port, &query[apps::URL_REFERER.len()..]);
+			debug!(target: "dapps", "Recovering referer from query parameter: {}", referer_url);
+
+			let referer_url = Url::parse(&referer_url).ok();
+			extract_endpoint(&referer_url).0.map(|endpoint| {
+				(endpoint, referer_url.expect("Endpoint returned only when url `is_some`").clone())
+			})
+		},
+		_ => None,
+	}
 }
 
 fn extract_endpoint(url: &Option<Url>) -> (Option<EndpointPath>, SpecialEndpoint) {

@@ -91,8 +91,6 @@ usage! {
 		flag_no_download: bool = false, or |c: &Config| otry!(c.parity).no_download.clone(),
 		flag_no_consensus: bool = false, or |c: &Config| otry!(c.parity).no_consensus.clone(),
 		flag_chain: String = "homestead", or |c: &Config| otry!(c.parity).chain.clone(),
-		flag_base_path: String = dir::default_data_path(), or |c: &Config| otry!(c.parity).base_path.clone(),
-		flag_db_path: String = dir::CHAINS_PATH, or |c: &Config| otry!(c.parity).db_path.clone(),
 		flag_keys_path: String = "$BASE/keys", or |c: &Config| otry!(c.parity).keys_path.clone(),
 		flag_identity: String = "", or |c: &Config| otry!(c.parity).identity.clone(),
 
@@ -232,6 +230,8 @@ usage! {
 			or |c: &Config| otry!(c.mining).remove_solved.clone(),
 		flag_notify_work: Option<String> = None,
 			or |c: &Config| otry!(c.mining).notify_work.clone().map(|vec| Some(vec.join(","))),
+		flag_refuse_service_transactions: bool = false,
+			or |c: &Config| otry!(c.mining).refuse_service_transactions.clone(),
 
 		// -- Footprint Options
 		flag_tracing: String = "auto",
@@ -240,6 +240,8 @@ usage! {
 			or |c: &Config| otry!(c.footprint).pruning.clone(),
 		flag_pruning_history: u64 = 1200u64,
 			or |c: &Config| otry!(c.footprint).pruning_history.clone(),
+		flag_pruning_memory: usize = 150usize,
+			or |c: &Config| otry!(c.footprint).pruning_memory.clone(),
 		flag_cache_size_db: u32 = 64u32,
 			or |c: &Config| otry!(c.footprint).cache_size_db.clone(),
 		flag_cache_size_blocks: u32 = 8u32,
@@ -288,6 +290,11 @@ usage! {
 			or |c: &Config| otry!(c.misc).log_file.clone().map(Some),
 		flag_no_color: bool = false,
 			or |c: &Config| otry!(c.misc).color.map(|c| !c).clone(),
+	}
+	{
+		// Values with optional default value.
+		flag_base_path: Option<String>, display dir::default_data_path(), or |c: &Config| otry!(c.parity).base_path.clone().map(Some),
+		flag_db_path: Option<String>, display dir::CHAINS_PATH, or |c: &Config| otry!(c.parity).db_path.clone().map(Some),
 	}
 }
 
@@ -411,6 +418,7 @@ struct Mining {
 	tx_queue_ban_time: Option<u16>,
 	remove_solved: Option<bool>,
 	notify_work: Option<Vec<String>>,
+	refuse_service_transactions: Option<bool>,
 }
 
 #[derive(Default, Debug, PartialEq, RustcDecodable)]
@@ -418,6 +426,7 @@ struct Footprint {
 	tracing: Option<String>,
 	pruning: Option<String>,
 	pruning_history: Option<u64>,
+	pruning_memory: Option<usize>,
 	fast_and_loose: Option<bool>,
 	cache_size: Option<u32>,
 	cache_size_db: Option<u32>,
@@ -547,8 +556,8 @@ mod tests {
 			flag_no_download: false,
 			flag_no_consensus: false,
 			flag_chain: "xyz".into(),
-			flag_base_path: "$HOME/.parity".into(),
-			flag_db_path: "$HOME/.parity/chains".into(),
+			flag_base_path: Some("$HOME/.parity".into()),
+			flag_db_path: Some("$HOME/.parity/chains".into()),
 			flag_keys_path: "$HOME/.parity/keys".into(),
 			flag_identity: "".into(),
 
@@ -627,11 +636,13 @@ mod tests {
 			flag_tx_queue_ban_time: 180u16,
 			flag_remove_solved: false,
 			flag_notify_work: Some("http://localhost:3001".into()),
+			flag_refuse_service_transactions: false,
 
 			// -- Footprint Options
 			flag_tracing: "auto".into(),
 			flag_pruning: "auto".into(),
 			flag_pruning_history: 1200u64,
+			flag_pruning_memory: 500usize,
 			flag_cache_size_db: 64u32,
 			flag_cache_size_blocks: 8u32,
 			flag_cache_size_queue: 50u32,
@@ -804,11 +815,13 @@ mod tests {
 				extra_data: None,
 				remove_solved: None,
 				notify_work: None,
+				refuse_service_transactions: None,
 			}),
 			footprint: Some(Footprint {
 				tracing: Some("on".into()),
 				pruning: Some("fast".into()),
 				pruning_history: Some(64),
+				pruning_memory: None,
 				fast_and_loose: None,
 				cache_size: None,
 				cache_size_db: Some(128),

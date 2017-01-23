@@ -50,6 +50,7 @@ export const fetchContract = () => (dispatch) =>
   api.parity.registryAddress()
     .then((address) => {
       const contract = api.newContract(registryAbi, address);
+
       dispatch(setContract(contract));
       dispatch(fetchFee());
       dispatch(fetchOwner());
@@ -65,6 +66,7 @@ export const setFee = (fee) => ({ type: 'set fee', fee });
 
 const fetchFee = () => (dispatch, getState) => {
   const { contract } = getState();
+
   if (!contract) {
     return;
   }
@@ -83,6 +85,7 @@ export const setOwner = (owner) => ({ type: 'set owner', owner });
 
 export const fetchOwner = () => (dispatch, getState) => {
   const { contract } = getState();
+
   if (!contract) {
     return;
   }

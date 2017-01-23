@@ -68,6 +68,7 @@ class IdentityIcon extends Component {
     }
 
     let scale = 7;
+
     if (tiny) {
       scale = 2;
     } else if (button) {
@@ -95,6 +96,7 @@ class IdentityIcon extends Component {
     ].join(' ');
 
     let size = '56px';
+
     if (tiny) {
       size = '16px';
     } else if (button) {
@@ -112,7 +114,8 @@ class IdentityIcon extends Component {
             background: '#eee',
             height: size,
             width: size
-          } } />
+          } }
+        />
       );
     } else if (isNullAddress(address)) {
       return (
@@ -123,7 +126,8 @@ class IdentityIcon extends Component {
             background: '#333',
             height: size,
             width: size
-          } } />
+          } }
+        />
       );
     }
 
@@ -133,7 +137,8 @@ class IdentityIcon extends Component {
         data-address-img
         height={ size }
         width={ size }
-        src={ iconsrc } />
+        src={ iconsrc }
+      />
     );
   }
 }

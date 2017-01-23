@@ -54,7 +54,8 @@ export default class NewGeth extends Component {
           <div className={ styles.icon }>
             <IdentityIcon
               center inline
-              address={ account.address } />
+              address={ account.address }
+            />
           </div>
           <div className={ styles.detail }>
             <div className={ styles.address }>{ account.address }</div>
@@ -69,7 +70,8 @@ export default class NewGeth extends Component {
           checked={ account.checked }
           label={ label }
           data-address={ account.address }
-          onCheck={ this.onSelect } />
+          onCheck={ this.onSelect }
+        />
       );
     });
 
@@ -89,6 +91,7 @@ export default class NewGeth extends Component {
 
     const { available } = this.state;
     const account = available.find((_account) => _account.address === address);
+
     account.checked = checked;
     const selected = available.filter((_account) => _account.checked);
 

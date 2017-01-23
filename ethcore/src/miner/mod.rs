@@ -46,12 +46,14 @@ mod external;
 mod local_transactions;
 mod miner;
 mod price_info;
+mod service_transaction_checker;
 mod transaction_queue;
 mod work_notify;
 
 pub use self::external::{ExternalMiner, ExternalMinerService};
 pub use self::miner::{Miner, MinerOptions, Banning, PendingSet, GasPricer, GasPriceCalibratorOptions, GasLimit};
-pub use self::transaction_queue::{TransactionQueue, PrioritizationStrategy, AccountDetails, TransactionOrigin};
+pub use self::transaction_queue::{TransactionQueue, TransactionDetailsProvider as TransactionQueueDetailsProvider,
+	PrioritizationStrategy, AccountDetails, TransactionOrigin};
 pub use self::local_transactions::{Status as LocalTransactionStatus};
 pub use client::TransactionImportResult;
 
@@ -62,7 +64,7 @@ use block::ClosedBlock;
 use header::BlockNumber;
 use receipt::{RichReceipt, Receipt};
 use error::{Error, CallError};
-use transaction::{SignedTransaction, PendingTransaction};
+use transaction::{UnverifiedTransaction, PendingTransaction, SignedTransaction};
 
 /// Miner client API
 pub trait MinerService : Send + Sync {
@@ -114,7 +116,7 @@ pub trait MinerService : Send + Sync {
 	fn set_tx_gas_limit(&self, limit: U256);
 
 	/// Imports transactions to transaction queue.
-	fn import_external_transactions(&self, chain: &MiningBlockChainClient, transactions: Vec<SignedTransaction>) ->
+	fn import_external_transactions(&self, chain: &MiningBlockChainClient, transactions: Vec<UnverifiedTransaction>) ->
 		Vec<Result<TransactionImportResult, Error>>;
 
 	/// Imports own (node owner) transaction to queue.

@@ -15,6 +15,22 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+.outerInput {
+  display: flex;
+  flex-direction: row;
+  position: relative;
+
+  .input {
+    flex: 1;
+  }
+
+  .loader {
+    position: absolute;
+    bottom: 1rem;
+    right: 9rem;
+  }
+}
+
 .input {
   box-sizing: border-box;
   appearance: textfield;
@@ -58,13 +74,13 @@
 }
 
 .label {
-  margin: 1rem 2.5rem 0.25em;
+  margin: 1rem 0.5rem 0.25em;
   color: rgba(255, 255, 255, 0.498039);
 }
 
 .underline {
   position: relative;
-  margin: 0 9rem 0 2.5rem;
+  margin: 0 0.5rem 0 0.5rem;
 }
 
 .empty {
@@ -78,7 +94,7 @@
 
   .input {
     font-size: 1.5em;
-    padding: 0 9rem 0.5em 2.5rem;
+    padding: 0 9rem 0.5em 0.5rem;
     display: block;
 
     padding-right: 6rem;
@@ -92,7 +108,7 @@
   flex-direction: row;
   justify-content: flex-start;
 
-  margin: 2rem 2rem 0;
+  margin: 2rem 0 0;
 
   > * {
     flex: 1;
@@ -107,8 +123,11 @@
 
   .title {
     text-transform: uppercase;
-    font-size: 1.5em;
     font-color: white;
+
+    h3 {
+      margin: 0;
+    }
   }
 
   .cards {

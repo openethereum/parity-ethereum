@@ -41,14 +41,16 @@ class Balance extends Component {
 
     let body = (balance.tokens || [])
       .filter((balance) => new BigNumber(balance.value).gt(0))
-      .map((balance) => {
+      .map((balance, index) => {
         const token = balance.token;
 
         let value;
+
         if (token.format) {
           const bnf = new BigNumber(token.format);
 
           let decimals = 0;
+
           if (bnf.gte(1000)) {
             decimals = 3;
           } else if (bnf.gte(100)) {
@@ -62,20 +64,26 @@ class Balance extends Component {
           value = api.util.fromWei(balance.value).toFormat(3);
         }
 
-        let imagesrc = token.image;
-        if (!imagesrc) {
-          imagesrc = images[token.address]
-            ? `${api.dappsUrl}${images[token.address]}`
-            : unknownImage;
+        const imageurl = token.image || images[token.address];
+        let imagesrc = unknownImage;
+
+        if (imageurl) {
+          const host = /^(\/)?api/.test(imageurl)
+            ? api.dappsUrl
+            : '';
+
+          imagesrc = `${host}${imageurl}`;
         }
 
         return (
           <div
             className={ styles.balance }
-            key={ token.tag }>
+            key={ `${index}_${token.tag}` }
+          >
             <img
               src={ imagesrc }
-              alt={ token.name } />
+              alt={ token.name }
+            />
             <div className={ styles.balanceValue }>
               <span title={ value }> { value } </span>
             </div>

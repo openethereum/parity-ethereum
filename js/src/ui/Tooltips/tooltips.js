@@ -51,6 +51,7 @@ class Tooltips extends Component {
 
     if (currentId !== undefined && currentId !== -1) {
       const viewLink = '/accounts/';
+
       this.context.router.push(viewLink);
     }
   }

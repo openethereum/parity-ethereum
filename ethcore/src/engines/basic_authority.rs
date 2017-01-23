@@ -29,8 +29,8 @@ use error::{BlockError, Error};
 use evm::Schedule;
 use ethjson;
 use header::Header;
-use transaction::SignedTransaction;
 use client::Client;
+use super::signer::EngineSigner;
 use super::validator_set::{ValidatorSet, new_validator_set};
 
 /// `BasicAuthority` params.
@@ -57,8 +57,7 @@ pub struct BasicAuthority {
 	params: CommonParams,
 	gas_limit_bound_divisor: U256,
 	builtins: BTreeMap<Address, Builtin>,
-	account_provider: Mutex<Option<Arc<AccountProvider>>>,
-	password: RwLock<Option<String>>,
+	signer: EngineSigner,
 	validators: Box<ValidatorSet + Send + Sync>,
 }
 
@@ -70,8 +69,7 @@ impl BasicAuthority {
 			gas_limit_bound_divisor: our_params.gas_limit_bound_divisor,
 			builtins: builtins,
 			validators: new_validator_set(our_params.validators),
-			account_provider: Mutex::new(None),
-			password: RwLock::new(None),
+			signer: Default::default(),
 		}
 	}
 }
@@ -111,20 +109,15 @@ impl Engine for BasicAuthority {
 
 	/// Attempt to seal the block internally.
 	fn generate_seal(&self, block: &ExecutedBlock) -> Seal {
-		if let Some(ref ap) = *self.account_provider.lock() {
-			let header = block.header();
-			let author = header.author();
-			if self.validators.contains(author) {
-				let message = header.bare_hash();
-				// account should be pernamently unlocked, otherwise sealing will fail
-				if let Ok(signature) = ap.sign(*author, self.password.read().clone(), message) {
-					return Seal::Regular(vec![::rlp::encode(&(&*signature as &[u8])).to_vec()]);
-				} else {
-					trace!(target: "basicauthority", "generate_seal: FAIL: accounts secret key unavailable");
-				}
+		let header = block.header();
+		let author = header.author();
+		if self.validators.contains(author) {
+			// account should be pernamently unlocked, otherwise sealing will fail
+			if let Ok(signature) = self.signer.sign(header.bare_hash()) {
+				return Seal::Regular(vec![::rlp::encode(&(&H520::from(signature) as &[u8])).to_vec()]);
+			} else {
+				trace!(target: "basicauthority", "generate_seal: FAIL: accounts secret key unavailable");
 			}
-		} else {
-			trace!(target: "basicauthority", "generate_seal: FAIL: accounts not provided");
 		}
 		Seal::None
 	}
@@ -171,25 +164,12 @@ impl Engine for BasicAuthority {
 		Ok(())
 	}
 
-	fn verify_transaction_basic(&self, t: &SignedTransaction, _header: &Header) -> result::Result<(), Error> {
-		t.check_low_s()?;
-		Ok(())
-	}
-
-	fn verify_transaction(&self, t: &SignedTransaction, _header: &Header) -> Result<(), Error> {
-		t.sender().map(|_|()) // Perform EC recovery and cache sender
-	}
-
 	fn register_client(&self, client: Weak<Client>) {
 		self.validators.register_call_contract(client);
 	}
 
-	fn set_signer(&self, _address: Address, password: String) {
-		*self.password.write() = Some(password);
-	}
-
-	fn register_account_provider(&self, ap: Arc<AccountProvider>) {
-		*self.account_provider.lock() = Some(ap);
+	fn set_signer(&self, ap: Arc<AccountProvider>, address: Address, password: String) {
+		self.signer.set(ap, address, password);
 	}
 }
 
@@ -266,8 +246,7 @@ mod tests {
 
 		let spec = new_test_authority();
 		let engine = &*spec.engine;
-		engine.set_signer(addr, "".into());
-		engine.register_account_provider(Arc::new(tap));
+		engine.set_signer(Arc::new(tap), addr, "".into());
 		let genesis_header = spec.genesis_header();
 		let mut db_result = get_temp_state_db();
 		let db = spec.ensure_db_good(db_result.take(), &Default::default()).unwrap();

@@ -27,6 +27,7 @@ function getWorker () {
       .then(() => navigator.serviceWorker.ready)
       .then((registration) => {
         const worker = registration.active;
+
         worker.controller = registration.active;
 
         return new PromiseWorker(worker);

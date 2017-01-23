@@ -26,7 +26,8 @@ function render () {
     <AwaitingExchangeStep
       store={ {
         depositInfo: { incomingCoin: 0.01, incomingType: 'BTC' }
-      } } />
+      } }
+    />
   );
 
   return component;

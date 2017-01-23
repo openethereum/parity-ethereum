@@ -115,6 +115,7 @@ export default class TransferStore {
     this.api = api;
 
     const { account, balance, gasLimit, senders, newError, sendersBalances } = props;
+
     this.account = account;
     this.balance = balance;
     this.isWallet = account && account.wallet;
@@ -220,13 +221,27 @@ export default class TransferStore {
   }
 
   @action _attachWalletOperation = (txhash) => {
+    if (!txhash || /^(0x)?0*$/.test(txhash)) {
+      return;
+    }
+
     let ethSubscriptionId = null;
+
+    // Number of blocks left to look-up (unsub after 15 blocks if nothing)
+    let nBlocksLeft = 15;
 
     return this.api.subscribe('eth_blockNumber', () => {
       this.api.eth
         .getTransactionReceipt(txhash)
         .then((tx) => {
+          if (nBlocksLeft <= 0) {
+            this.api.unsubscribe(ethSubscriptionId);
+            ethSubscriptionId = null;
+            return;
+          }
+
           if (!tx) {
+            nBlocksLeft--;
             return;
           }
 
@@ -239,6 +254,10 @@ export default class TransferStore {
             this.operation = operations[0];
           }
 
+          this.api.unsubscribe(ethSubscriptionId);
+          ethSubscriptionId = null;
+        })
+        .catch(() => {
           this.api.unsubscribe(ethSubscriptionId);
           ethSubscriptionId = null;
         });
@@ -570,6 +589,7 @@ export default class TransferStore {
 
   send () {
     const { options, values } = this._getTransferParams();
+
     options.minBlock = new BigNumber(this.minBlock || 0).gt(0) ? this.minBlock : null;
     log.debug('@send', 'transfer value', options.value && options.value.toFormat());
 
@@ -578,6 +598,7 @@ export default class TransferStore {
 
   _estimateGas (forceToken = false) {
     const { options, values } = this._getTransferParams(true, forceToken);
+
     return this._getTransferMethod(true, forceToken).estimateGas(options, values);
   }
 
@@ -663,6 +684,7 @@ export default class TransferStore {
   _validatePositiveNumber (num) {
     try {
       const v = new BigNumber(num);
+
       if (v.lt(0)) {
         return ERRORS.invalidAmount;
       }

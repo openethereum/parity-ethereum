@@ -105,6 +105,7 @@ export function attachInstances () {
     ])
     .then(([registryAddress, netChain]) => {
       const registry = api.newContract(abis.registry, registryAddress).instance;
+
       isTest = ['morden', 'ropsten', 'testnet'].includes(netChain);
 
       console.log(`contract was found at registry=${registryAddress}`);
@@ -180,6 +181,7 @@ export function loadOwnedTokens (addresses) {
     .then((_tokens) => {
       const tokens = _tokens.reduce((tokens, token) => {
         const [address, owner, tokenreg] = token;
+
         tokens[owner] = tokens[owner] || [];
         tokens[owner].push({ address, owner, tokenreg });
         return tokens;
@@ -212,6 +214,7 @@ export function loadAllTokens () {
         .all(
           _tokens.map(([address, owner, tokenreg]) => {
             const isGlobal = tokenreg === tokenregInstance.address;
+
             tokens.push({ address, owner, tokenreg, isGlobal });
             return registries[tokenreg].fromAddress.call({}, [address]);
           })
@@ -219,6 +222,7 @@ export function loadAllTokens () {
         .then((coins) => {
           return tokens.map((token, index) => {
             const [id, tla, base, name, owner] = coins[index];
+
             token.coin = { id, tla, base, name, owner };
             return token;
           });
@@ -243,6 +247,7 @@ export function loadBalances (addresses) {
       .then((_balances) => {
         return tokens.map((token, tindex) => {
           const balances = _balances[tindex];
+
           token.balances = addresses.map((address, aindex) => {
             return { address, balance: balances[aindex] };
           });

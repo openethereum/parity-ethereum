@@ -27,7 +27,7 @@ const STEP_UPDATING = 1;
 const STEP_COMPLETED = 2;
 const STEP_ERROR = 2;
 
-const CHECK_INTERVAL = 1 * A_MINUTE;
+let instance = null;
 
 export default class Store {
   @observable available = null;
@@ -44,8 +44,6 @@ export default class Store {
 
     this.loadStorage();
     this.checkUpgrade();
-
-    setInterval(this.checkUpgrade, CHECK_INTERVAL);
   }
 
   @computed get isVisible () {
@@ -119,10 +117,10 @@ export default class Store {
 
   checkUpgrade = () => {
     if (!this._api) {
-      return;
+      return Promise.resolve(false);
     }
 
-    Promise
+    return Promise
       .all([
         this._api.parity.upgradeReady(),
         this._api.parity.consensusCapability(),
@@ -134,10 +132,22 @@ export default class Store {
         }
 
         this.setVersions(available, version, consensusCapability);
+
+        return true;
       })
       .catch((error) => {
         console.warn('checkUpgrade', error);
+
+        return false;
       });
+  }
+
+  static get (api) {
+    if (!instance) {
+      instance = new Store(api);
+    }
+
+    return instance;
   }
 }
 

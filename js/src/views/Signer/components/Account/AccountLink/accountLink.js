@@ -45,12 +45,13 @@ export default class AccountLink extends Component {
 
   render () {
     const { children, address, className } = this.props;
+
     return (
       <a
         href={ this.state.link }
         target='_blank'
         className={ `${styles.container} ${className}` }
-        >
+      >
         { children || address }
       </a>
     );

@@ -32,6 +32,7 @@ export default class Value extends Component {
     const { amount, symbol } = this.props;
 
     let value = '';
+
     if (amount) {
       value = new BigNumber(amount).toFormat(3);
     }

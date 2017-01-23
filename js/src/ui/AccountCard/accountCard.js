@@ -26,7 +26,6 @@ import { fromWei } from '~/api/util/wei';
 import styles from './accountCard.css';
 
 export default class AccountCard extends Component {
-
   static propTypes = {
     account: PropTypes.object.isRequired,
     onClick: PropTypes.func.isRequired,
@@ -158,6 +157,7 @@ export default class AccountCard extends Component {
         // @see https://developers.google.com/web/updates/2015/04/cut-and-copy-commands
         try {
           const range = document.createRange();
+
           range.selectNode(element);
           window.getSelection().addRange(range);
           document.execCommand('copy');
@@ -184,11 +184,13 @@ export default class AccountCard extends Component {
 
   onClick = () => {
     const { account, onClick } = this.props;
+
     onClick(account.address);
   }
 
   onFocus = () => {
     const { account, onFocus } = this.props;
+
     onFocus(account.index);
   }
 
