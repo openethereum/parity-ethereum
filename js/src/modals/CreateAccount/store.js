@@ -254,6 +254,7 @@ export default class Store {
 
   createAccountFromPhrase = (timestamp = Date.now()) => {
     let formattedPhrase = this.phrase;
+
     if (this.isWindowsPhrase && this.createType === 'fromPhrase') {
       formattedPhrase = this.phrase
         .split(' ') // get the words

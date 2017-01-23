@@ -173,6 +173,7 @@ describe('modals/CreateAccount/Store', () => {
 
       it('sets the key when checks pass', () => {
         const KEY = '0x1000000000000000000000000000000000000000000000000000000000000000';
+
         store.setRawKey(KEY);
         expect(store.rawKey).to.equal(KEY);
         expect(store.rawKeyError).to.be.null;
