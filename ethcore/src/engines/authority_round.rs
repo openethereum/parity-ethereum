@@ -276,8 +276,7 @@ impl Engine for AuthorityRound {
 		if header_step <= self.step.load(AtomicOrdering::SeqCst) + 1 {
 			let proposer_signature = header_signature(header)?;
 			let correct_proposer = self.step_proposer(header_step);
-			let ok_sig = verify_address(&correct_proposer, &proposer_signature, &header.bare_hash())?;
-			if ok_sig {
+			if verify_address(&correct_proposer, &proposer_signature, &header.bare_hash())? {
 				Ok(())
 			} else {
 				trace!(target: "poa", "verify_block_unordered: bad proposer for step: {}", header_step);
