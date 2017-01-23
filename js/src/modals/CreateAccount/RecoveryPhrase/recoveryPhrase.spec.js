@@ -16,12 +16,14 @@
 
 import { shallow } from 'enzyme';
 import React from 'react';
+import sinon from 'sinon';
 
 import { createStore } from '../createAccount.test.js';
 
 import RecoveryPhrase from './';
 
 let component;
+let instance;
 let store;
 
 function render () {
@@ -31,14 +33,109 @@ function render () {
       store={ store }
     />
   );
+  instance = component.instance();
 
   return component;
 }
 
 describe('modals/CreateAccount/RecoveryPhrase', () => {
-  describe('rendering', () => {
-    it('renders with defaults', () => {
-      expect(render()).to.be.ok;
+  beforeEach(() => {
+    render();
+  });
+
+  it('renders with defaults', () => {
+    expect(component).to.be.ok;
+  });
+
+  describe('event handlers', () => {
+    describe('onEditName', () => {
+      beforeEach(() => {
+        sinon.spy(store, 'setName');
+        instance.onEditName(null, 'testValue');
+      });
+
+      afterEach(() => {
+        store.setName.restore();
+      });
+
+      it('calls into the store', () => {
+        expect(store.setName).to.have.been.calledWith('testValue');
+      });
+    });
+
+    describe('onEditPhrase', () => {
+      beforeEach(() => {
+        sinon.spy(store, 'setPhrase');
+        instance.onEditPhrase(null, 'testValue');
+      });
+
+      afterEach(() => {
+        store.setPhrase.restore();
+      });
+
+      it('calls into the store', () => {
+        expect(store.setPhrase).to.have.been.calledWith('testValue');
+      });
+    });
+
+    describe('onEditPassword', () => {
+      beforeEach(() => {
+        sinon.spy(store, 'setPassword');
+        instance.onEditPassword(null, 'testValue');
+      });
+
+      afterEach(() => {
+        store.setPassword.restore();
+      });
+
+      it('calls into the store', () => {
+        expect(store.setPassword).to.have.been.calledWith('testValue');
+      });
+    });
+
+    describe('onEditPasswordRepeat', () => {
+      beforeEach(() => {
+        sinon.spy(store, 'setPasswordRepeat');
+        instance.onEditPasswordRepeat(null, 'testValue');
+      });
+
+      afterEach(() => {
+        store.setPasswordRepeat.restore();
+      });
+
+      it('calls into the store', () => {
+        expect(store.setPasswordRepeat).to.have.been.calledWith('testValue');
+      });
+    });
+
+    describe('onEditPasswordHint', () => {
+      beforeEach(() => {
+        sinon.spy(store, 'setPasswordHint');
+        instance.onEditPasswordHint(null, 'testValue');
+      });
+
+      afterEach(() => {
+        store.setPasswordHint.restore();
+      });
+
+      it('calls into the store', () => {
+        expect(store.setPasswordHint).to.have.been.calledWith('testValue');
+      });
+    });
+
+    describe('onToggleWindowsPhrase', () => {
+      beforeEach(() => {
+        sinon.spy(store, 'setWindowsPhrase');
+        instance.onToggleWindowsPhrase();
+      });
+
+      afterEach(() => {
+        store.setWindowsPhrase.restore();
+      });
+
+      it('calls into the store', () => {
+        expect(store.setWindowsPhrase).to.have.been.calledWith(true);
+      });
     });
   });
 });

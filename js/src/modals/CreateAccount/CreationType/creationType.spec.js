@@ -40,10 +40,8 @@ describe('modals/CreateAccount/CreationType', () => {
     render();
   });
 
-  describe('rendering', () => {
-    it('renders with defaults', () => {
-      expect(component).to.be.ok;
-    });
+  it('renders with defaults', () => {
+    expect(component).to.be.ok;
   });
 
   describe('events', () => {

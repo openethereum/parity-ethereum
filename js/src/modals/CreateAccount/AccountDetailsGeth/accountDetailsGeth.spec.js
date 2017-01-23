@@ -36,10 +36,8 @@ function render () {
 }
 
 describe('modals/CreateAccount/AccountDetailsGeth', () => {
-  describe('rendering', () => {
-    it('renders with defaults', () => {
-      expect(render()).to.be.ok;
-    });
+  it('renders with defaults', () => {
+    expect(render()).to.be.ok;
   });
 
   describe('utility', () => {

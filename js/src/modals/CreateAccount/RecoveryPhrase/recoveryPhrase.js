@@ -19,10 +19,11 @@ import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 import { Checkbox } from 'material-ui';
 
-import { Form, Input } from '~/ui';
+import { Form, Input, PasswordStrength } from '~/ui';
 
 import styles from '../createAccount.css';
 
+// canopy tablet worry osmosis posing relic familiar detector hyphen unshipped slashed dried
 @observer
 export default class RecoveryPhrase extends Component {
   static propTypes = {
@@ -124,6 +125,7 @@ export default class RecoveryPhrase extends Component {
             />
           </div>
         </div>
+        <PasswordStrength input={ password } />
         <Checkbox
           checked={ isWindowsPhrase }
           className={ styles.checkbox }
@@ -137,12 +139,6 @@ export default class RecoveryPhrase extends Component {
         />
       </Form>
     );
-  }
-
-  onEditPasswordHint = (event, passwordHint) => {
-    const { store } = this.props;
-
-    store.setPasswordHint(passwordHint);
   }
 
   onToggleWindowsPhrase = (event) => {
@@ -164,14 +160,20 @@ export default class RecoveryPhrase extends Component {
   }
 
   onEditPassword = (event, password) => {
-    const { store } = this.store;
+    const { store } = this.props;
 
     store.setPassword(password);
   }
 
   onEditPasswordRepeat = (event, password) => {
-    const { store } = this.store;
+    const { store } = this.props;
 
     store.setPasswordRepeat(password);
+  }
+
+  onEditPasswordHint = (event, passwordHint) => {
+    const { store } = this.props;
+
+    store.setPasswordHint(passwordHint);
   }
 }

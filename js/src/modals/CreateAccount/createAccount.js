@@ -22,7 +22,7 @@ import { bindActionCreators } from 'redux';
 
 import { createIdentityImg } from '~/api/util/identity';
 import { newError } from '~/redux/actions';
-import { Button, Modal, Warning } from '~/ui';
+import { Button, Modal } from '~/ui';
 import { CancelIcon, CheckIcon, DoneIcon, NextIcon, PrevIcon, PrintIcon } from '~/ui/Icons';
 import ParityLogo from '~/../assets/images/parity-logo-black-no-text.svg';
 
@@ -96,7 +96,6 @@ class CreateAccount extends Component {
             : STAGE_IMPORT
         }
       >
-        { this.renderWarning() }
         { this.renderPage() }
       </Modal>
     );
@@ -257,25 +256,6 @@ class CreateAccount extends Component {
           />
         ];
     }
-  }
-
-  renderWarning () {
-    const { createType, stage } = this.store;
-
-    if (stage !== STAGE_CREATE || ['fromJSON', 'fromPresale'].includes(createType)) {
-      return null;
-    }
-
-    return (
-      <Warning
-        warning={
-          <FormattedMessage
-            id='createAccount.warning.insecurePassword'
-            defaultMessage='It is recommended that a strong password be used to secure your accounts. Empty and trivial passwords are a security risk.'
-          />
-        }
-      />
-    );
   }
 
   onCreate = () => {

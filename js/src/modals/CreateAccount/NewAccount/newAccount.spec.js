@@ -48,10 +48,8 @@ describe('modals/CreateAccount/NewAccount', () => {
     render();
   });
 
-  describe('rendering', () => {
-    it('renders with defaults', () => {
-      expect(component).to.be.ok;
-    });
+  it('renders with defaults', () => {
+    expect(component).to.be.ok;
   });
 
   describe('lifecycle', () => {

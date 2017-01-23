@@ -36,9 +36,7 @@ function render () {
 }
 
 describe('modals/CreateAccount/RawKey', () => {
-  describe('rendering', () => {
-    it('renders with defaults', () => {
-      expect(render()).to.be.ok;
-    });
+  it('renders with defaults', () => {
+    expect(render()).to.be.ok;
   });
 });

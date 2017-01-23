@@ -20,7 +20,7 @@ import { FormattedMessage } from 'react-intl';
 import { IconButton } from 'material-ui';
 import { RadioButton, RadioButtonGroup } from 'material-ui/RadioButton';
 
-import { Form, Input, IdentityIcon } from '~/ui';
+import { Form, Input, IdentityIcon, PasswordStrength } from '~/ui';
 import { RefreshIcon } from '~/ui/Icons';
 
 import styles from '../createAccount.css';
@@ -120,6 +120,7 @@ export default class CreateAccount extends Component {
             />
           </div>
         </div>
+        <PasswordStrength input={ password } />
         { this.renderIdentitySelector() }
         { this.renderIdentities() }
       </Form>
