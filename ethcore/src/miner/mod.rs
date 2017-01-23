@@ -46,13 +46,16 @@ mod external;
 mod local_transactions;
 mod miner;
 mod price_info;
+mod service_transaction_checker;
 mod transaction_queue;
 mod work_notify;
 mod stratum;
 
 pub use self::external::{ExternalMiner, ExternalMinerService};
+
 pub use self::miner::{Miner, MinerOptions, Banning, PendingSet, GasPricer, GasPriceCalibratorOptions, GasLimit, StratumOptions};
-pub use self::transaction_queue::{TransactionQueue, PrioritizationStrategy, AccountDetails, TransactionOrigin};
+pub use self::transaction_queue::{TransactionQueue, TransactionDetailsProvider as TransactionQueueDetailsProvider,
+	PrioritizationStrategy, AccountDetails, TransactionOrigin};
 pub use self::local_transactions::{Status as LocalTransactionStatus};
 pub use client::TransactionImportResult;
 pub use self::work_notify::NotifyWork;

@@ -30,13 +30,6 @@ use util::{Bytes, H256};
 
 use super::response;
 
-/// amount of blocks between each scaffold entry.
-// TODO: move these into parameters for `RoundStart::new`?
-pub const ROUND_SKIP: u64 = 255;
-
-// amount of scaffold frames: these are the blank spaces in "X___X___X"
-const ROUND_FRAMES: usize = 255;
-
 // number of attempts to make to get a full scaffold for a sync round.
 const SCAFFOLD_ATTEMPTS: usize = 3;
 
@@ -59,6 +52,8 @@ pub enum AbortReason {
 	BadScaffold(Vec<PeerId>),
 	/// No incoming data.
 	NoResponses,
+	/// Sync rounds completed.
+	TargetReached,
 }
 
 // A request for headers with a known starting header hash.
@@ -96,6 +91,7 @@ pub struct Fetcher {
 	scaffold_contributors: Vec<PeerId>,
 	ready: VecDeque<Header>,
 	end: (u64, H256),
+	target: (u64, H256),
 }
 
 impl Fetcher {
@@ -103,7 +99,7 @@ impl Fetcher {
 	// with a list of peers who helped produce the chain.
 	// The headers must be valid RLP at this point and must have a consistent
 	// non-zero gap between them. Will abort the round if found wrong.
-	fn new(sparse_headers: Vec<Header>, contributors: Vec<PeerId>) -> SyncRound {
+	fn new(sparse_headers: Vec<Header>, contributors: Vec<PeerId>, target: (u64, H256)) -> SyncRound {
 		let mut requests = BinaryHeap::with_capacity(sparse_headers.len() - 1);
 
 		for pair in sparse_headers.windows(2) {
@@ -144,6 +140,7 @@ impl Fetcher {
 			scaffold_contributors: contributors,
 			ready: VecDeque::new(),
 			end: end,
+			target: target,
 		})
 	}
 
@@ -170,6 +167,8 @@ impl Fetcher {
 		if self.sparse.len() == 1 {
 			self.ready.push_back(self.sparse.pop_back().expect("sparse known to have one entry; qed"))
 		}
+
+		trace!(target: "sync", "{} headers ready to drain", self.ready.len());
 	}
 
 	fn process_response<R: ResponseContext>(mut self, ctx: &R) -> SyncRound {
@@ -178,11 +177,16 @@ impl Fetcher {
 			None => return SyncRound::Fetch(self),
 		};
 
+		trace!(target: "sync", "Received response for subchain ({} -> {})",
+			request.subchain_parent.0 + 1, request.subchain_end.0);
+
 		let headers = ctx.data();
 
 		if headers.len() == 0 {
 			trace!(target: "sync", "Punishing peer {} for empty response", ctx.responder());
 			ctx.punish_responder();
+
+			self.requests.push(request);
 			return SyncRound::Fetch(self);
 		}
 
@@ -274,32 +278,66 @@ impl Fetcher {
 
 		if self.sparse.is_empty() && self.ready.is_empty() {
 			trace!(target: "sync", "sync round complete. Starting anew from {:?}", self.end);
-			SyncRound::Start(RoundStart::new(self.end))
+			SyncRound::begin(self.end, self.target)
 		} else {
 			SyncRound::Fetch(self)
 		}
 	}
 }
 
+// Compute scaffold parameters from non-zero distance between start and target block: (skip, pivots).
+fn scaffold_params(diff: u64) -> (u64, usize) {
+	// default parameters.
+	// amount of blocks between each scaffold pivot.
+	const ROUND_SKIP: u64 = 255;
+	// amount of scaffold pivots: these are the Xs in "X___X___X"
+	const ROUND_PIVOTS: usize = 256;
+
+	let rem = diff % (ROUND_SKIP + 1);
+	if diff <= ROUND_SKIP {
+		// just request headers from the start to the target.
+		(0, rem as usize)
+	} else {
+		// the number of pivots necessary to exactly hit or overshoot the target.
+		let pivots_to_target = (diff / (ROUND_SKIP + 1)) + if rem == 0 { 0 } else { 1 };
+		let num_pivots = ::std::cmp::min(pivots_to_target, ROUND_PIVOTS as u64) as usize;
+		(ROUND_SKIP, num_pivots)
+	}
+}
+
 /// Round started: get stepped header chain.
-/// from a start block with number X we request 256 headers stepped by 256 from
-/// block X + 1.
+/// from a start block with number X we request ROUND_PIVOTS headers stepped by ROUND_SKIP from
+/// block X + 1 to a target >= X + 1.
+/// If the sync target is within ROUND_SKIP of the start, we request
+/// only those blocks. If the sync target is within (ROUND_SKIP + 1) * (ROUND_PIVOTS - 1) of
+/// the start, we reduce the number of pivots so the target is outside it.
 pub struct RoundStart {
 	start_block: (u64, H256),
+	target: (u64, H256),
 	pending_req: Option<(ReqId, HeadersRequest)>,
 	sparse_headers: Vec<Header>,
 	contributors: HashSet<PeerId>,
 	attempt: usize,
+	skip: u64,
+	pivots: usize,
 }
 
 impl RoundStart {
-	fn new(start: (u64, H256)) -> Self {
+	fn new(start: (u64, H256), target: (u64, H256)) -> Self {
+		let (skip, pivots) = scaffold_params(target.0 - start.0);
+
+		trace!(target: "sync", "Beginning sync round: {} pivots and {} skip from block {}",
+			pivots, skip, start.0);
+
 		RoundStart {
-			start_block: start.clone(),
+			start_block: start,
+			target: target,
 			pending_req: None,
 			sparse_headers: Vec::new(),
 			contributors: HashSet::new(),
 			attempt: 0,
+			skip: skip,
+			pivots: pivots,
 		}
 	}
 
@@ -309,10 +347,16 @@ impl RoundStart {
 		self.attempt += 1;
 
 		if self.attempt >= SCAFFOLD_ATTEMPTS {
-			if self.sparse_headers.len() > 1 {
-				Fetcher::new(self.sparse_headers, self.contributors.into_iter().collect())
+			return if self.sparse_headers.len() > 1 {
+				Fetcher::new(self.sparse_headers, self.contributors.into_iter().collect(), self.target)
 			} else {
-				SyncRound::Abort(AbortReason::NoResponses, self.sparse_headers.into())
+				let fetched_headers = if self.skip == 0 {
+					self.sparse_headers.into()
+				} else {
+					VecDeque::new()
+				};
+
+				SyncRound::abort(AbortReason::NoResponses, fetched_headers)
 			}
 		} else {
 			SyncRound::Start(self)
@@ -339,11 +383,18 @@ impl RoundStart {
 				self.contributors.insert(ctx.responder());
 				self.sparse_headers.extend(headers);
 
-				if self.sparse_headers.len() == ROUND_FRAMES + 1 {
-					trace!(target: "sync", "Beginning fetch of blocks between {} sparse headers",
-						self.sparse_headers.len());
-
-					return Fetcher::new(self.sparse_headers, self.contributors.into_iter().collect());
+				if self.sparse_headers.len() == self.pivots {
+					return if self.skip == 0 {
+						SyncRound::abort(AbortReason::TargetReached, self.sparse_headers.into())
+					} else {
+						trace!(target: "sync", "Beginning fetch of blocks between {} sparse headers",
+							self.sparse_headers.len());
+						Fetcher::new(
+							self.sparse_headers,
+							self.contributors.into_iter().collect(),
+							self.target
+						)
+					}
 				}
 			}
 			Err(e) => {
@@ -376,20 +427,20 @@ impl RoundStart {
 		if self.pending_req.is_none() {
 			// beginning offset + first block expected after last header we have.
 			let start = (self.start_block.0 + 1)
-				+ self.sparse_headers.len() as u64 * (ROUND_SKIP + 1);
+				+ self.sparse_headers.len() as u64 * (self.skip + 1);
 
-			let max = (ROUND_FRAMES - 1) - self.sparse_headers.len();
+			let max = self.pivots - self.sparse_headers.len();
 
 			let headers_request = HeadersRequest {
 				start: start.into(),
 				max: max,
-				skip: ROUND_SKIP,
+				skip: self.skip,
 				reverse: false,
 			};
 
 			if let Some(req_id) = dispatcher(headers_request.clone()) {
 				trace!(target: "sync", "Requesting scaffold: {} headers forward from {}, skip={}",
-					max, start, ROUND_SKIP);
+					max, start, self.skip);
 
 				self.pending_req = Some((req_id, headers_request));
 			}
@@ -411,14 +462,18 @@ pub enum SyncRound {
 
 impl SyncRound {
 	fn abort(reason: AbortReason, remaining: VecDeque<Header>) -> Self {
-		trace!(target: "sync", "Aborting sync round: {:?}. To drain: {:?}", reason, remaining);
+		trace!(target: "sync", "Aborting sync round: {:?}. To drain: {}", reason, remaining.len());
 
 		SyncRound::Abort(reason, remaining)
 	}
 
-	/// Begin sync rounds from a starting block.
-	pub fn begin(num: u64, hash: H256) -> Self {
-		SyncRound::Start(RoundStart::new((num, hash)))
+	/// Begin sync rounds from a starting block, but not to go past a given target
+	pub fn begin(start: (u64, H256), target: (u64, H256)) -> Self {
+		if target.0 <= start.0 {
+			SyncRound::abort(AbortReason::TargetReached, VecDeque::new())
+		} else {
+			SyncRound::Start(RoundStart::new(start, target))
+		}
 	}
 
 	/// Process an answer to a request. Unknown requests will be ignored.
@@ -476,5 +531,23 @@ impl fmt::Debug for SyncRound {
 			SyncRound::Abort(ref reason, ref remaining) =>
 				write!(f, "Aborted: {:?}, {} remain", reason, remaining.len()),
 		}
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use super::scaffold_params;
+
+	#[test]
+	fn scaffold_config() {
+		// within a certain distance of the head, we download
+		// sequentially.
+		assert_eq!(scaffold_params(1), (0, 1));
+		assert_eq!(scaffold_params(6), (0, 6));
+
+		// when scaffolds are useful, download enough frames to get
+		// within a close distance of the goal.
+		assert_eq!(scaffold_params(1000), (255, 4));
+		assert_eq!(scaffold_params(1024), (255, 4));
 	}
 }

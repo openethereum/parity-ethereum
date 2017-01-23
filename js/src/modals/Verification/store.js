@@ -182,11 +182,17 @@ export default class VerificationStore {
     }
 
     chain
-      .then(() => {
+      .then(() => this.checkIfReceivedCode())
+      .then((hasReceived) => {
+        if (hasReceived) {
+          return;
+        }
+
         this.step = REQUESTING_CODE;
-        return this.requestCode();
+        return this
+          .requestCode()
+          .then(() => awaitPuzzle(api, contract, account));
       })
-      .then(() => awaitPuzzle(api, contract, account))
       .then(() => {
         this.step = QUERY_CODE;
       })
