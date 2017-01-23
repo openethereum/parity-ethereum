@@ -28,6 +28,7 @@ export default class Func {
     this._outputs = Param.toParams(abi.outputs || []);
 
     const { id, name, signature } = methodSignature(abi.name, this.inputParamTypes());
+
     this._id = id;
     this._name = name;
     this._signature = signature;

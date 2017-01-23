@@ -51,6 +51,7 @@ class Dapps extends Component {
 
   render () {
     let externalOverlay = null;
+
     if (this.store.externalOverlayVisible) {
       externalOverlay = (
         <div className={ styles.overlay }>

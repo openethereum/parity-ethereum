@@ -29,6 +29,7 @@ export const fail = (action) => ({ type: `${action} error` });
 
 export const lookup = (name, key) => (dispatch, getState) => {
   const { contract } = getState();
+
   if (!contract) {
     return;
   }

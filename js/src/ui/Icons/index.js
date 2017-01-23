@@ -28,6 +28,7 @@ import EditIcon from 'material-ui/svg-icons/content/create';
 import FingerprintIcon from 'material-ui/svg-icons/action/fingerprint';
 import LinkIcon from 'material-ui/svg-icons/content/link';
 import LockedIcon from 'material-ui/svg-icons/action/lock';
+import MoveIcon from 'material-ui/svg-icons/action/open-with';
 import NextIcon from 'material-ui/svg-icons/navigation/arrow-forward';
 import PrevIcon from 'material-ui/svg-icons/navigation/arrow-back';
 import SaveIcon from 'material-ui/svg-icons/content/save';
@@ -52,6 +53,7 @@ export {
   FingerprintIcon,
   LinkIcon,
   LockedIcon,
+  MoveIcon,
   NextIcon,
   PrevIcon,
   SaveIcon,

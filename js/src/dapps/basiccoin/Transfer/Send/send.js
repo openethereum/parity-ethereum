@@ -275,6 +275,7 @@ export default class Send extends Component {
         this.setState({ sendState: 'Gas estimated, Posting transaction to the network' });
 
         const gasPassed = gas.mul(1.2);
+
         options.gas = gasPassed.toFixed(0);
         console.log(`gas estimated at ${gas.toFormat(0)}, passing ${gasPassed.toFormat(0)}`);
 

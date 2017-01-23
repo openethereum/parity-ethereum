@@ -102,6 +102,7 @@ export default class SaveContract extends Component {
 
   onChangeName = (event, value) => {
     const { name, nameError } = validateName(value);
+
     this.setState({ name, nameError });
   }
 }

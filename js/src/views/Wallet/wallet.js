@@ -101,6 +101,7 @@ class Wallet extends Component {
   setVisibleAccounts (props = this.props) {
     const { address, setVisibleAccounts } = props;
     const addresses = [ address ];
+
     setVisibleAccounts(addresses);
   }
 

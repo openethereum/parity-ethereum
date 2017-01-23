@@ -28,6 +28,7 @@ export default (state = initialState, action) => {
     const newCertifications = certifications.concat({
       id, name, icon, title
     });
+
     return { ...state, [address]: newCertifications };
   }
 
@@ -36,6 +37,7 @@ export default (state = initialState, action) => {
     const certifications = state[address] || [];
 
     const newCertifications = certifications.filter((c) => c.id !== id);
+
     return { ...state, [address]: newCertifications };
   }
 

@@ -144,7 +144,7 @@ impl TestBlockChainClient {
 			genesis_hash: H256::new(),
 			extra_data: extra_data,
 			last_hash: RwLock::new(H256::new()),
-			difficulty: RwLock::new(From::from(0)),
+			difficulty: RwLock::new(spec.genesis_header().difficulty().clone()),
 			balances: RwLock::new(HashMap::new()),
 			nonces: RwLock::new(HashMap::new()),
 			storage: RwLock::new(HashMap::new()),
@@ -308,22 +308,29 @@ impl TestBlockChainClient {
 		}
 	}
 
-	/// Inserts a transaction to miners transactions queue.
-	pub fn insert_transaction_to_queue(&self) {
+	/// Inserts a transaction with given gas price to miners transactions queue.
+	pub fn insert_transaction_with_gas_price_to_queue(&self, gas_price: U256) -> H256 {
 		let keypair = Random.generate().unwrap();
 		let tx = Transaction {
 			action: Action::Create,
 			value: U256::from(100),
 			data: "3331600055".from_hex().unwrap(),
 			gas: U256::from(100_000),
-			gas_price: U256::from(20_000_000_000u64),
+			gas_price: gas_price,
 			nonce: U256::zero()
 		};
 		let signed_tx = tx.sign(keypair.secret(), None);
-		self.set_balance(signed_tx.sender(), U256::from(10_000_000_000_000_000_000u64));
+		self.set_balance(signed_tx.sender(), 10_000_000_000_000_000_000u64.into());
+		let hash = signed_tx.hash();
 		let res = self.miner.import_external_transactions(self, vec![signed_tx.into()]);
 		let res = res.into_iter().next().unwrap().expect("Successful import");
 		assert_eq!(res, TransactionImportResult::Current);
+		hash
+	}
+
+	/// Inserts a transaction to miners transactions queue.
+	pub fn insert_transaction_to_queue(&self) -> H256 {
+		self.insert_transaction_with_gas_price_to_queue(U256::from(20_000_000_000u64))
 	}
 
 	/// Set reported history size.
@@ -714,10 +721,10 @@ impl BlockChainClient for TestBlockChainClient {
 	fn disable(&self) { unimplemented!(); }
 
 	fn pruning_info(&self) -> PruningInfo {
+		let best_num = self.chain_info().best_block_number;
 		PruningInfo {
 			earliest_chain: 1,
-			earliest_state: 1,
-			state_history_size: *self.history.read(),
+			earliest_state: self.history.read().as_ref().map(|x| best_num - x).unwrap_or(0),
 		}
 	}
 

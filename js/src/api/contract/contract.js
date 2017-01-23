@@ -258,6 +258,7 @@ export default class Contract {
     if (!func.constant) {
       func.postTransaction = (options, values = []) => {
         const _options = this._encodeOptions(func, this._addOptionsTo(options), values);
+
         return this._api.parity
           .postTransaction(_options)
           .catch((error) => {
@@ -268,6 +269,7 @@ export default class Contract {
 
       func.estimateGas = (options, values = []) => {
         const _options = this._encodeOptions(func, this._addOptionsTo(options), values);
+
         return this._api.eth
           .estimateGas(_options)
           .catch((error) => {
@@ -303,6 +305,7 @@ export default class Contract {
     }
 
     const options = this._getFilterOptions(event, _options);
+
     options.fromBlock = 0;
     options.toBlock = 'latest';
 
@@ -318,6 +321,7 @@ export default class Contract {
 
     if (eventName && !event) {
       const events = this._events.map((evt) => evt.name).join(', ');
+
       throw new Error(`${eventName} is not a valid eventName, subscribe using one of ${events} (or null to include all)`);
     }
 
@@ -344,12 +348,14 @@ export default class Contract {
 
   _createEthFilter (event = null, _options) {
     const options = this._getFilterOptions(event, _options);
+
     return this._api.eth.newFilter(options);
   }
 
   subscribe (eventName = null, options = {}, callback, autoRemove) {
     try {
       const event = this._findEvent(eventName);
+
       return this._subscribe(event, options, callback, autoRemove);
     } catch (e) {
       return Promise.reject(e);
@@ -374,6 +380,7 @@ export default class Contract {
   _subscribe (event = null, _options, callback, autoRemove = false) {
     const subscriptionId = nextSubscriptionId++;
     const { skipInitFetch } = _options;
+
     delete _options['skipInitFetch'];
 
     return this

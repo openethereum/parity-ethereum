@@ -72,6 +72,7 @@ export default class VerificationStore {
 
   @action load = () => {
     const { contract, account } = this;
+
     this.step = LOADING;
 
     const isServerRunning = this.isServerRunning()
@@ -156,6 +157,7 @@ export default class VerificationStore {
     const values = this.requestValues();
 
     let chain = Promise.resolve();
+
     if (!hasRequested) {
       this.step = POSTING_REQUEST;
       chain = request.estimateGas(options, values)
@@ -182,11 +184,17 @@ export default class VerificationStore {
     }
 
     chain
-      .then(() => {
+      .then(() => this.checkIfReceivedCode())
+      .then((hasReceived) => {
+        if (hasReceived) {
+          return;
+        }
+
         this.step = REQUESTING_CODE;
-        return this.requestCode();
+        return this
+          .requestCode()
+          .then(() => awaitPuzzle(api, contract, account));
       })
-      .then(() => awaitPuzzle(api, contract, account))
       .then(() => {
         this.step = QUERY_CODE;
       })

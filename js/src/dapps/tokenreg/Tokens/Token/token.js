@@ -381,6 +381,7 @@ export default class Token extends Component {
 
   onUnregister = () => {
     const index = this.props.index;
+
     this.props.handleUnregister(index);
   }
 

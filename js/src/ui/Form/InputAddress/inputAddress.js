@@ -59,12 +59,10 @@ class InputAddress extends Component {
     const { accountsInfo, allowCopy, className, disabled, error, focused, hint } = this.props;
     const { hideUnderline, label, onClick, onFocus, readOnly, small } = this.props;
     const { tabIndex, text, tokens, value } = this.props;
-
     const account = value && (accountsInfo[value] || tokens[value]);
-
     const icon = this.renderIcon();
-
     const classes = [ className ];
+
     classes.push(!icon ? styles.inputEmpty : styles.input);
 
     const containerClasses = [ styles.container ];

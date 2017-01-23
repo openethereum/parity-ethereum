@@ -115,6 +115,7 @@ class Contract extends Component {
   setVisibleAccounts (props = this.props) {
     const { params, setVisibleAccounts } = props;
     const addresses = [ params.address ];
+
     setVisibleAccounts(addresses);
   }
 
@@ -253,7 +254,7 @@ class Contract extends Component {
       <Button
         key='delete'
         icon={ <ActionDelete /> }
-        label='delete contract'
+        label='forget contract'
         onClick={ this.showDeleteDialog }
       />,
       <Button
@@ -335,6 +336,7 @@ class Contract extends Component {
       .then(results => {
         const values = queries.reduce((object, fn, idx) => {
           const key = fn.name;
+
           object[key] = results[idx];
           return object;
         }, {});
@@ -451,6 +453,7 @@ class Contract extends Component {
     }
 
     const contract = api.newContract(account.meta.abi, params.address);
+
     contract
       .subscribe(null, { limit: 25, fromBlock: 0, toBlock: 'pending' }, this._receiveEvents)
       .then((subscriptionId) => {
