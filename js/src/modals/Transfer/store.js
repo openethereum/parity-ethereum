@@ -115,6 +115,7 @@ export default class TransferStore {
     this.api = api;
 
     const { account, balance, gasLimit, senders, newError, sendersBalances } = props;
+
     this.account = account;
     this.balance = balance;
     this.isWallet = account && account.wallet;
@@ -588,6 +589,7 @@ export default class TransferStore {
 
   send () {
     const { options, values } = this._getTransferParams();
+
     options.minBlock = new BigNumber(this.minBlock || 0).gt(0) ? this.minBlock : null;
     log.debug('@send', 'transfer value', options.value && options.value.toFormat());
 
@@ -596,6 +598,7 @@ export default class TransferStore {
 
   _estimateGas (forceToken = false) {
     const { options, values } = this._getTransferParams(true, forceToken);
+
     return this._getTransferMethod(true, forceToken).estimateGas(options, values);
   }
 
@@ -681,6 +684,7 @@ export default class TransferStore {
   _validatePositiveNumber (num) {
     try {
       const v = new BigNumber(num);
+
       if (v.lt(0)) {
         return ERRORS.invalidAmount;
       }

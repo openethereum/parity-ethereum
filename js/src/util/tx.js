@@ -59,6 +59,7 @@ export function estimateGas (_func, _options, _values = []) {
   return getTxArgs(_func, _options, _values)
     .then((callArgs) => {
       const { func, options, values } = callArgs;
+
       return func._estimateGas(options, values);
     })
     .then((gas) => {
@@ -78,6 +79,7 @@ export function postTransaction (_func, _options, _values = []) {
   return getTxArgs(_func, _options, _values)
     .then((callArgs) => {
       const { func, options, values } = callArgs;
+
       return func._postTransaction(options, values);
     });
 }
@@ -117,6 +119,7 @@ export function waitForConfirmations (api, tx, confirmations) {
     api.pollMethod('eth_getTransactionReceipt', tx, isValidReceipt)
     .then((receipt) => {
       let subscription;
+
       api.subscribe('eth_blockNumber', (err, block) => {
         if (err) {
           reject(err);

@@ -39,12 +39,14 @@ export default class SortStore {
 
   @action handleSortChange = (event, child) => {
     const order = child.props.value;
+
     this.onChange(order);
     this.saveOrder(order);
   }
 
   @action restoreSavedOrder = () => {
     const order = this.getSavedOrder();
+
     this.onChange(order);
   }
 

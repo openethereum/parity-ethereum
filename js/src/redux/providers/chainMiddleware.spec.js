@@ -26,6 +26,7 @@ let next;
 let store;
 
 const api = createWsApi();
+
 Contracts.create(api);
 
 function createMiddleware (collection = {}) {

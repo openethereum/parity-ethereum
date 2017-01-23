@@ -278,6 +278,7 @@ export default class DappsStore extends EventEmitter {
         .sort((a, b) => a.name.localeCompare(b.name));
 
       const visibility = {};
+
       apps.forEach((app) => {
         if (!this.displayApps[app.id]) {
           visibility[app.id] = { visible: app.visible };

@@ -20,6 +20,7 @@ describe('abi/spec/event/EventParam', () => {
   describe('constructor', () => {
     it('sets the properties', () => {
       const param = new EventParam('foo', 'uint', true);
+
       expect(param.name).to.equal('foo');
       expect(param.kind.type).to.equal('uint');
       expect(param.indexed).to.be.true;

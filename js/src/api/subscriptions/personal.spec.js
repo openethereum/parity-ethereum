@@ -36,6 +36,7 @@ function stubApi (accounts, info) {
     parity: {
       allAccountsInfo: () => {
         const stub = sinon.stub().resolves(info || TEST_INFO)();
+
         _calls.allAccountsInfo.push(stub);
         return stub;
       }
@@ -43,6 +44,7 @@ function stubApi (accounts, info) {
     eth: {
       accounts: () => {
         const stub = sinon.stub().resolves(accounts || TEST_LIST)();
+
         _calls.listAccounts.push(stub);
         return stub;
       }
