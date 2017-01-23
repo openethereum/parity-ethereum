@@ -54,7 +54,7 @@ export default class Features extends Component {
 
   renderItem = (key) => {
     const feature = defaults[key];
-    const onCheck = () => feature.mode === MODES.DEVELOPMENT && this.store.toggleActive(key);
+    const onCheck = () => this.store.toggleActive(key);
 
     return (
       <ListItem
@@ -62,7 +62,6 @@ export default class Features extends Component {
         leftCheckbox={
           <Checkbox
             checked={ this.store.active[key] }
-            disabled={ feature.mode === MODES.TESTING }
             onCheck={ onCheck }
           />
         }
