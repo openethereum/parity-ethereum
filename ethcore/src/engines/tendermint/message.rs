@@ -55,7 +55,8 @@ impl VoteStep {
 	}
 }
 
-fn consensus_view(header: &Header) -> Result<View, ::rlp::DecoderError> {
+/// Header consensus view.
+pub fn consensus_view(header: &Header) -> Result<View, ::rlp::DecoderError> {
 	let view_rlp = header.seal().get(0).expect("seal passed basic verification; seal has 3 fields; qed");
 	UntrustedRlp::new(view_rlp.as_slice()).as_val()
 }

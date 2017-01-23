@@ -16,7 +16,7 @@
 
 import BigNumber from 'bignumber.js';
 
-import { outBlock, outAccountInfo, outAddress, outChainStatus, outDate, outHistogram, outNumber, outPeers, outReceipt, outSyncing, outTransaction, outTrace } from './output';
+import { outBlock, outAccountInfo, outAddress, outChainStatus, outDate, outHistogram, outNumber, outPeer, outPeers, outReceipt, outSyncing, outTransaction, outTrace } from './output';
 import { isAddress, isBigNumber, isInstanceOf } from '../../../test/types';
 
 describe('api/format/output', () => {
@@ -168,6 +168,66 @@ describe('api/format/output', () => {
     });
   });
 
+  describe('outPeer', () => {
+    it('converts all internal numbers to BigNumbers', () => {
+      expect(outPeer({
+        caps: ['par/1'],
+        id: '0x01',
+        name: 'Parity',
+        network: {
+          localAddress: '10.0.0.1',
+          remoteAddress: '10.0.0.1'
+        },
+        protocols: {
+          par: {
+            difficulty: '0x0f',
+            head: '0x02',
+            version: 63
+          }
+        }
+      })).to.deep.equal({
+        caps: ['par/1'],
+        id: '0x01',
+        name: 'Parity',
+        network: {
+          localAddress: '10.0.0.1',
+          remoteAddress: '10.0.0.1'
+        },
+        protocols: {
+          par: {
+            difficulty: new BigNumber(15),
+            head: '0x02',
+            version: 63
+          }
+        }
+      });
+    });
+
+    it('does not output null protocols', () => {
+      expect(outPeer({
+        caps: ['par/1'],
+        id: '0x01',
+        name: 'Parity',
+        network: {
+          localAddress: '10.0.0.1',
+          remoteAddress: '10.0.0.1'
+        },
+        protocols: {
+          les: null
+        }
+      })).to.deep.equal({
+        caps: ['par/1'],
+        id: '0x01',
+        name: 'Parity',
+        network: {
+          localAddress: '10.0.0.1',
+          remoteAddress: '10.0.0.1'
+        },
+        protocols: {}
+      });
+    });
+  });
+
   describe('outPeers', () => {
     it('converts all internal numbers to BigNumbers', () => {
       expect(outPeers({
@@ -188,7 +248,8 @@ describe('api/format/output', () => {
                 difficulty: '0x0f',
                 head: '0x02',
                 version: 63
-              }
+              },
+              les: null
             }
           }
         ]
