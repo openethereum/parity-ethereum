@@ -28,10 +28,12 @@ export default class CreationType extends Component {
   }
 
   render () {
+    const { createType } = this.props.store;
+
     return (
       <div className={ styles.spaced }>
         <RadioButtonGroup
-          defaultSelected='fromNew'
+          defaultSelected={ createType }
           name='creationType'
           onChange={ this.onChange }
         >

@@ -44,10 +44,31 @@ describe('modals/CreateAccount/CreationType', () => {
     expect(component).to.be.ok;
   });
 
+  describe('selector', () => {
+    const SELECT_TYPE = 'fromRaw';
+    let selector;
+
+    beforeEach(() => {
+      store.setCreateType(SELECT_TYPE);
+      selector = component.find('RadioButtonGroup');
+    });
+
+    it('renders the selector', () => {
+      expect(selector.get(0)).to.be.ok;
+    });
+
+    it('passes the store type to defaultSelected', () => {
+      expect(selector.props().defaultSelected).to.equal(SELECT_TYPE);
+    });
+  });
+
   describe('events', () => {
     describe('onChange', () => {
-      it('changes the store createType', () => {
+      beforeEach(() => {
         component.instance().onChange({ target: { value: 'testing' } });
+      });
+
+      it('changes the store createType', () => {
         expect(store.createType).to.equal('testing');
       });
     });
