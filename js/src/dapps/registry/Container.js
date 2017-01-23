@@ -56,6 +56,7 @@ export default connect(
   // react -> redux connection
   (dispatch) => {
     const bound = bindActionCreators(actions, dispatch);
+
     bound.addresses = bindActionCreators(actions.addresses, dispatch);
     bound.accounts = bindActionCreators(actions.accounts, dispatch);
     bound.lookup = bindActionCreators(actions.lookup, dispatch);

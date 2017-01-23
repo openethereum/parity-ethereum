@@ -60,6 +60,7 @@ class Snackbar extends Component {
 
 function mapStateToProps (state) {
   const { open, message, cooldown } = state.snackbar;
+
   return { open, message, cooldown };
 }
 

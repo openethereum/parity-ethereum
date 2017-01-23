@@ -22,6 +22,7 @@ export default class localStorageMiddleware {
   toMiddleware () {
     return store => next => action => {
       let delegate;
+
       switch (action.type) {
         case 'add rpcResponse': delegate = ::this.onAddRpcResponse; break;
         case 'reset rpcPrevCalls': delegate = ::this.onResetRpcCalls; break;
@@ -41,6 +42,7 @@ export default class localStorageMiddleware {
 
   onInitApp (store, next, action) {
     const prevCalls = localStore.get('rpcPrevCalls');
+
     if (!(prevCalls && prevCalls.length)) {
       return next(action);
     }
@@ -67,6 +69,7 @@ export default class localStorageMiddleware {
   // TODO [adgo] 20.04.2016 remove if/when PR is accepted: https://github.com/marcuswestin/store.js/pull/153
   unshift (key, value) {
     const newArr = [value].concat(localStore.get(key) || []);
+
     localStore.set(key, newArr);
   }
 }

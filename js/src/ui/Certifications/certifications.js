@@ -50,6 +50,7 @@ class Certifications extends Component {
 
     const classNames = `${styles.certification} ${!icon ? styles.noIcon : ''}`;
     const img = icon ? dappsUrl + hashToImageUrl(icon) : defaultIcon;
+
     return (
       <div className={ classNames } key={ name }>
         <img className={ styles.icon } src={ img } />

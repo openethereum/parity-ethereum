@@ -24,11 +24,13 @@ const initialState = {
 export default handleActions({
   setWorker (state, action) {
     const { worker } = action;
+
     return Object.assign({}, state, { worker: worker || null });
   },
 
   setError (state, action) {
     const { error } = action;
+
     return Object.assign({}, state, { error });
   }
 }, initialState);

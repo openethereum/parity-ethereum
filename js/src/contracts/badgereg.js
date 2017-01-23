@@ -67,6 +67,7 @@ export default class BadgeReg {
         return this.fetchMeta(id)
           .then(({ title, icon }) => {
             const data = { address, id, name, title, icon };
+
             this.certifiers[id] = data;
             return data;
           });
@@ -87,6 +88,7 @@ export default class BadgeReg {
         return this.fetchMeta(id)
           .then(({ title, icon }) => {
             const data = { address, id, name, title, icon };
+
             this.certifiers[id] = data;
             return data;
           });
