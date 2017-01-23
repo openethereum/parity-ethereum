@@ -16,12 +16,14 @@
 
 import { shallow } from 'enzyme';
 import React from 'react';
+import sinon from 'sinon';
 
 import { createStore } from '../createAccount.test.js';
 
 import NewGeth from './';
 
 let component;
+let instance;
 let store;
 
 function render () {
@@ -31,12 +33,34 @@ function render () {
       store={ store }
     />
   );
+  instance = component.instance();
 
   return component;
 }
 
 describe('modals/CreateAccount/NewGeth', () => {
+  beforeEach(() => {
+    render();
+  });
+
   it('renders with defaults', () => {
     expect(render()).to.be.ok;
+  });
+
+  describe('events', () => {
+    describe('onSelectAddress', () => {
+      beforeEach(() => {
+        sinon.spy(store, 'selectGethAccount');
+        instance.onSelectAddress(null, 'testAddress');
+      });
+
+      afterEach(() => {
+        store.selectGethAccount.restore();
+      });
+
+      it('calls into the store', () => {
+        expect(store.selectGethAccount).to.have.been.calledWith('testAddress');
+      });
+    });
   });
 });

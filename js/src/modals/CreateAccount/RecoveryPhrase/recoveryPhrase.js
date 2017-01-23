@@ -23,7 +23,6 @@ import { Form, Input, PasswordStrength } from '~/ui';
 
 import styles from '../createAccount.css';
 
-// canopy tablet worry osmosis posing relic familiar detector hyphen unshipped slashed dried
 @observer
 export default class RecoveryPhrase extends Component {
   static propTypes = {

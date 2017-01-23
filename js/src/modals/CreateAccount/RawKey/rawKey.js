@@ -18,7 +18,7 @@ import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 
-import { Form, Input } from '~/ui';
+import { Form, Input, PasswordStrength } from '~/ui';
 
 import styles from '../createAccount.css';
 
@@ -128,8 +128,15 @@ export default class RawKey extends Component {
             />
           </div>
         </div>
+        <PasswordStrength input={ password } />
       </Form>
     );
+  }
+
+  onEditName = (event, name) => {
+    const { store } = this.props;
+
+    store.setName(name);
   }
 
   onEditPasswordHint = (event, passwordHint) => {
@@ -138,27 +145,21 @@ export default class RawKey extends Component {
     store.setPasswordHint(passwordHint);
   }
 
-  onEditKey = (event, rawKey) => {
-    const { store } = this.props;
-
-    store.setRawKey(rawKey);
-  }
-
-  onEditName = (event, name) => {
-    const { store } = this.props;
-
-    store.steName(name);
-  }
-
   onEditPassword = (event, password) => {
-    const { store } = this.store;
+    const { store } = this.props;
 
     store.setPassword(password);
   }
 
   onEditPasswordRepeat = (event, password) => {
-    const { store } = this.store;
+    const { store } = this.props;
 
     store.setPasswordRepeat(password);
+  }
+
+  onEditKey = (event, rawKey) => {
+    const { store } = this.props;
+
+    store.setRawKey(rawKey);
   }
 }

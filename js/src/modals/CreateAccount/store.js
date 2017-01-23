@@ -112,6 +112,7 @@ export default class Store {
   }
 
   @action setCreateType = (createType) => {
+    this.clearErrors();
     this.createType = createType;
   }
 

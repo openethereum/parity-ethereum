@@ -48,7 +48,7 @@ export default class NewGeth extends Component {
     }
 
     const checkboxes = gethAccountsAvailable.map((account) => {
-      const onSelect = () => this.props.store.selectGethAccount(account.address);
+      const onSelect = (event) => this.onSelectAddress(event, account.address);
 
       const label = (
         <div className={ styles.selection }>
@@ -85,5 +85,11 @@ export default class NewGeth extends Component {
         { checkboxes }
       </div>
     );
+  }
+
+  onSelectAddress = (event, address) => {
+    const { store } = this.props;
+
+    store.selectGethAccount(address);
   }
 }

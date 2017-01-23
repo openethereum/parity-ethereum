@@ -146,12 +146,6 @@ export default class NewImport extends Component {
     ReactDOM.findDOMNode(this.refs.fileUpload).click();
   }
 
-  onEditPasswordHint = (event, passwordHint) => {
-    const { store } = this.props;
-
-    store.setPasswordHint(passwordHint);
-  }
-
   onEditName = (event, name) => {
     const { store } = this.props;
 
@@ -159,8 +153,14 @@ export default class NewImport extends Component {
   }
 
   onEditPassword = (event, password) => {
-    const { store } = this.store;
+    const { store } = this.props;
 
     store.setPassword(password);
+  }
+
+  onEditPasswordHint = (event, passwordHint) => {
+    const { store } = this.props;
+
+    store.setPasswordHint(passwordHint);
   }
 }

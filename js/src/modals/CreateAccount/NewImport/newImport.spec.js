@@ -16,12 +16,14 @@
 
 import { shallow } from 'enzyme';
 import React from 'react';
+import sinon from 'sinon';
 
 import { createStore } from '../createAccount.test.js';
 
 import NewImport from './';
 
 let component;
+let instance;
 let store;
 
 function render () {
@@ -31,12 +33,64 @@ function render () {
       store={ store }
     />
   );
+  instance = component.instance();
 
   return component;
 }
 
 describe('modals/CreateAccount/NewImport', () => {
+  beforeEach(() => {
+    render();
+  });
+
   it('renders with defaults', () => {
     expect(render()).to.be.ok;
+  });
+
+  describe('events', () => {
+    describe('onEditName', () => {
+      beforeEach(() => {
+        sinon.spy(store, 'setName');
+        instance.onEditName(null, 'testValue');
+      });
+
+      afterEach(() => {
+        store.setName.restore();
+      });
+
+      it('calls into the store', () => {
+        expect(store.setName).to.have.been.calledWith('testValue');
+      });
+    });
+
+    describe('onEditPassword', () => {
+      beforeEach(() => {
+        sinon.spy(store, 'setPassword');
+        instance.onEditPassword(null, 'testValue');
+      });
+
+      afterEach(() => {
+        store.setPassword.restore();
+      });
+
+      it('calls into the store', () => {
+        expect(store.setPassword).to.have.been.calledWith('testValue');
+      });
+    });
+
+    describe('onEditPasswordHint', () => {
+      beforeEach(() => {
+        sinon.spy(store, 'setPasswordHint');
+        instance.onEditPasswordHint(null, 'testValue');
+      });
+
+      afterEach(() => {
+        store.setPasswordHint.restore();
+      });
+
+      it('calls into the store', () => {
+        expect(store.setPasswordHint).to.have.been.calledWith('testValue');
+      });
+    });
   });
 });
