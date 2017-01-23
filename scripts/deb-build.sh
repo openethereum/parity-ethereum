@@ -25,7 +25,7 @@ echo "Homepage: https://ethcore.io" >> $control
 echo "Vcs-Git: git://github.com/ethcore/parity.git" >> $control
 echo "Vcs-Browser: https://github.com/ethcore/parity" >> $control
 echo "Architecture: $1" >> $control
-echo "Depends: libssl" >> $control
+echo "Depends: libssl1.0.0" >> $control
 echo "Description: Ethereum network client by Ethcore" >> $control
 #build .deb package
 

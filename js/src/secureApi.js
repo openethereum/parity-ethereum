@@ -15,12 +15,12 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import { uniq } from 'lodash';
+import store from 'store';
 
 import Api from './api';
 import { LOG_KEYS, getLogger } from '~/config';
 
 const log = getLogger(LOG_KEYS.Signer);
-const sysuiToken = window.localStorage.getItem('sysuiToken');
 
 export default class SecureApi extends Api {
   _isConnecting = false;
@@ -31,14 +31,18 @@ export default class SecureApi extends Api {
   _dappsPort = 8080;
   _signerPort = 8180;
 
-  constructor (url, nextToken) {
-    const transport = new Api.Transport.Ws(url, sysuiToken, false);
+  static getTransport (url, sysuiToken) {
+    return new Api.Transport.Ws(url, sysuiToken, false);
+  }
+
+  constructor (url, nextToken, getTransport = SecureApi.getTransport) {
+    const sysuiToken = store.get('sysuiToken');
+    const transport = getTransport(url, sysuiToken);
 
     super(transport);
 
     this._url = url;
-
-    // Try tokens from localstorage, from hash and 'initial'
+    // Try tokens from localStorage, from hash and 'initial'
     this._tokens = uniq([sysuiToken, nextToken, 'initial'])
       .filter((token) => token)
       .map((token) => ({ value: token, tried: false }));
@@ -109,7 +113,6 @@ export default class SecureApi extends Api {
 
         if (connected) {
           const token = this.secureToken;
-
           log.debug('got connected ; saving token', token);
 
           // Save the sucessful token
@@ -142,7 +145,6 @@ export default class SecureApi extends Api {
    */
   isNodeUp () {
     const url = this._url.replace(/wss?/, 'http');
-
     return fetch(url, { method: 'HEAD' })
       .then(
         (r) => r.status === 200,
@@ -157,7 +159,6 @@ export default class SecureApi extends Api {
    */
   updateToken (_token) {
     const token = this._sanitiseToken(_token);
-
     log.debug('updating token', token);
 
     // Update the tokens list: put the new one on first position
@@ -297,7 +298,6 @@ export default class SecureApi extends Api {
     }
 
     const nextToken = this._tokens[nextTokenIndex];
-
     return nextToken;
   }
 
@@ -313,7 +313,7 @@ export default class SecureApi extends Api {
   }
 
   _saveToken (token) {
-    window.localStorage.setItem('sysuiToken', token);
+    store.set('sysuiToken', token);
   }
 
   /**

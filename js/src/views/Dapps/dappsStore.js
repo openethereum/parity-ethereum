@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import EventEmitter from 'eventemitter3';
 import { action, computed, observable, transaction } from 'mobx';
 import store from 'store';
 
@@ -30,7 +31,7 @@ const BUILTIN_APPS_KEY = 'BUILTIN_APPS_KEY';
 
 let instance = null;
 
-export default class DappsStore {
+export default class DappsStore extends EventEmitter {
   @observable apps = [];
   @observable displayApps = {};
   @observable modalOpen = false;
@@ -44,11 +45,21 @@ export default class DappsStore {
   _registryAppsIds = null;
 
   constructor (api) {
+    super();
+
     this._api = api;
 
     this.readDisplayApps();
     this.loadExternalOverlay();
     this.subscribeToChanges();
+  }
+
+  static get (api) {
+    if (!instance) {
+      instance = new DappsStore(api);
+    }
+
+    return instance;
   }
 
   /**
@@ -68,6 +79,10 @@ export default class DappsStore {
         }
 
         return this.fetchRegistryApp(dappReg, id, true);
+      })
+      .then((app) => {
+        this.emit('loaded', app);
+        return app;
       });
   }
 
@@ -88,14 +103,6 @@ export default class DappsStore {
         this.fetchRegistryApps(dappReg).then((apps) => this.addApps(apps))
       ])
       .then(this.writeDisplayApps);
-  }
-
-  static get (api) {
-    if (!instance) {
-      instance = new DappsStore(api);
-    }
-
-    return instance;
   }
 
   subscribeToChanges () {
