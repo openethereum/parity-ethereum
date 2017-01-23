@@ -297,6 +297,7 @@ export default class GasPriceSelector extends Component {
       .toNumber();
 
     const sliderValue = (startIndex + sliderValueDec) / (prices.length - 1);
+
     this.setSliderValue(sliderValue, bnprice);
   }
 
@@ -333,6 +334,7 @@ export default class GasPriceSelector extends Component {
 
     if (priceBIdx === N + 1) {
       const price = prices[priceAIdx].round();
+
       this.props.onChange(event, price);
       return;
     }

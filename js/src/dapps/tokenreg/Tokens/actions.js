@@ -77,6 +77,7 @@ export const loadTokens = () => (dispatch, getState) => {
     .call()
     .then((count) => {
       const tokenCount = parseInt(count);
+
       dispatch(setTokenCount(tokenCount));
 
       for (let i = 0; i < tokenCount; i++) {
@@ -93,7 +94,6 @@ export const loadTokens = () => (dispatch, getState) => {
 export const loadToken = (index) => (dispatch, getState) => {
   const state = getState();
   const contractInstance = state.status.contract.instance;
-
   const userAccounts = state.accounts.list;
   const accountsInfo = state.accounts.accountsInfo;
 
@@ -104,11 +104,9 @@ export const loadToken = (index) => (dispatch, getState) => {
     .call({}, [ parseInt(index) ])
     .then((result) => {
       const tokenOwner = result[4];
-
       const isTokenOwner = userAccounts
         .filter(a => a.address === tokenOwner)
         .length > 0;
-
       const data = {
         index: parseInt(index),
         address: result[0],
@@ -156,8 +154,8 @@ export const loadToken = (index) => (dispatch, getState) => {
 export const queryTokenMeta = (index, query) => (dispatch, getState) => {
   const state = getState();
   const contractInstance = state.status.contract.instance;
-
   const startDate = Date.now();
+
   dispatch(setTokenMetaLoading(index, true));
 
   contractInstance
@@ -184,7 +182,6 @@ export const addTokenMeta = (index, key, value) => (dispatch, getState) => {
   const state = getState();
   const contractInstance = state.status.contract.instance;
   const token = state.tokens.tokens.find(t => t.index === index);
-
   const options = { from: token.owner };
   const values = [ index, key, value ];
 
@@ -203,9 +200,7 @@ export const addTokenMeta = (index, key, value) => (dispatch, getState) => {
 export const addGithubhintURL = (from, key, url) => (dispatch, getState) => {
   const state = getState();
   const contractInstance = state.status.githubhint.instance;
-
   const options = { from };
-
   const values = [ key, url ];
 
   contractInstance
@@ -223,7 +218,6 @@ export const addGithubhintURL = (from, key, url) => (dispatch, getState) => {
 export const unregisterToken = (index) => (dispatch, getState) => {
   const { contract } = getState().status;
   const { instance, owner } = contract;
-
   const values = [ index ];
   const options = {
     from: owner

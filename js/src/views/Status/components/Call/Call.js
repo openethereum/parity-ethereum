@@ -22,6 +22,7 @@ import styles from './Call.css';
 export default class Call extends Component {
   render () {
     let { callNo, name, params, response } = this.props.call;
+
     params = this.formatParams(params);
     return (
       <div

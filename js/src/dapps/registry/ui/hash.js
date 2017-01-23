@@ -38,6 +38,7 @@ class Hash extends Component {
     const { hash, isTestnet, linked } = this.props;
 
     let shortened = hash.toLowerCase().replace(leading0x, '');
+
     shortened = shortened.length > (6 + 6)
       ? shortened.substr(0, 6) + '...' + shortened.slice(-6)
       : shortened;

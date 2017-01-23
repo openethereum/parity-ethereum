@@ -55,6 +55,7 @@ export default class PasswordStrength extends Component {
 
   _updateStrength (input = '') {
     const strength = zxcvbn(input);
+
     this.setState({ strength });
   }
 

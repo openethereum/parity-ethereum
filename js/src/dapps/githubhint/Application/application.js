@@ -78,6 +78,7 @@ export default class Application extends Component {
     const { fromAddress, registerBusy, url, urlError, contentHash, contentHashError, contentHashOwner, commit, commitError, registerType, repo, repoError } = this.state;
 
     let hashClass = null;
+
     if (contentHashError) {
       hashClass = contentHashOwner !== fromAddress ? styles.hashError : styles.hashWarning;
     } else if (contentHash) {
@@ -85,6 +86,7 @@ export default class Application extends Component {
     }
 
     let valueInputs = null;
+
     if (registerType === 'content') {
       valueInputs = [
         <div className={ styles.capture } key='repo'>
@@ -275,6 +277,7 @@ export default class Application extends Component {
     // TODO: field validation
     if (!urlError) {
       const parts = url.split('/');
+
       hasContent = parts.length !== 0;
 
       if (parts[2] === 'github.com' || parts[2] === 'raw.githubusercontent.com') {
@@ -366,6 +369,7 @@ export default class Application extends Component {
 
   registerContent (contentRepo, contentCommit) {
     const { contentHash, fromAddress, instance } = this.state;
+
     contentCommit = contentCommit.substr(0, 2) === '0x' ? contentCommit : `0x${contentCommit}`;
 
     const eventId = nextEventId++;
@@ -407,6 +411,7 @@ export default class Application extends Component {
           });
 
           const gasPassed = gas.mul(1.2);
+
           options.gas = gasPassed.toFixed(0);
           console.log(`gas estimated at ${gas.toFormat(0)}, passing ${gasPassed.toFormat(0)}`);
 
@@ -456,6 +461,7 @@ export default class Application extends Component {
           });
 
           const gasPassed = gas.mul(1.2);
+
           options.gas = gasPassed.toFixed(0);
           console.log(`gas estimated at ${gas.toFormat(0)}, passing ${gasPassed.toFormat(0)}`);
 

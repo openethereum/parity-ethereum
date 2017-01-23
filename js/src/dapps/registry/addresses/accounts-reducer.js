@@ -27,6 +27,7 @@ export default (state = initialState, action) => {
         accounts[account.address] = account;
         return accounts;
       }, {});
+
     return { ...state, all: accounts };
   }
 

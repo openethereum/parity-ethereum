@@ -221,6 +221,7 @@ export default class Summary extends Component {
 
   renderCertifications () {
     const { showCertifications, account } = this.props;
+
     if (!showCertifications) {
       return null;
     }

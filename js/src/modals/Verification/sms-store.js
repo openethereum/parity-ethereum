@@ -73,6 +73,7 @@ export default class SMSVerificationStore extends VerificationStore {
 
   requestCode = () => {
     const { number, account, isTestnet } = this;
+
     return postToServer({ number, address: account }, isTestnet);
   }
 }

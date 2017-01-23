@@ -45,10 +45,12 @@ class Balance extends Component {
         const token = balance.token;
 
         let value;
+
         if (token.format) {
           const bnf = new BigNumber(token.format);
 
           let decimals = 0;
+
           if (bnf.gte(1000)) {
             decimals = 3;
           } else if (bnf.gte(100)) {

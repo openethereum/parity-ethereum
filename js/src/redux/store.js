@@ -33,9 +33,9 @@ const storeCreation = window.devToolsExtension
   ? window.devToolsExtension()(createStore)
   : createStore;
 
-export default function (api, browserHistory) {
+export default function (api, browserHistory, forEmbed = false) {
   const reducers = initReducers();
-  const middleware = initMiddleware(api, browserHistory);
+  const middleware = initMiddleware(api, browserHistory, forEmbed);
   const store = applyMiddleware(...middleware)(storeCreation)(reducers);
 
   BalancesProvider.instantiate(store, api);

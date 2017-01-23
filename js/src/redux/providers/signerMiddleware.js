@@ -90,6 +90,7 @@ export default class SignerMiddleware {
           })
           .then((result) => {
             const seed = Buffer.from(result.data);
+
             return new Signer(seed);
           })
         : Signer.fromJson(wallet, password);

@@ -22,6 +22,7 @@ describe('abi/util/sliceAs', () => {
   describe('asAddress', () => {
     it('correctly returns the last 0x40 characters', () => {
       const address = '1111111111222222222233333333334444444444';
+
       expect(asAddress(`000000000000000000000000${address}`)).to.equal(`0x${address}`);
     });
   });

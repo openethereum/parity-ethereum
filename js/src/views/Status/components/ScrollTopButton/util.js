@@ -22,6 +22,7 @@ export function scrollTo (element, to, duration) {
   let animateScroll = elapsedTime => {
     elapsedTime += increment;
     let position = easeInOut(elapsedTime, start, change, duration);
+
     element.scrollTop = position;
     if (elapsedTime < duration) {
       setTimeout(() => {

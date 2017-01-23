@@ -40,6 +40,7 @@ function parseName (name) {
   }
 
   const trimmedName = strName.slice(0, idx);
+
   return {
     strName: trimmedName,
     name: trimmedName

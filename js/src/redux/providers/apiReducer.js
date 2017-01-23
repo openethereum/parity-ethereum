@@ -21,6 +21,7 @@ const initialState = {};
 export default handleActions({
   setApi (state, action) {
     const { api } = action;
+
     return api;
   }
 }, initialState);
