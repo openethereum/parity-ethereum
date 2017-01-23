@@ -46,31 +46,33 @@ export default class Features extends Component {
           Object
             .keys(defaults)
             .filter((key) => defaults[key].mode !== MODES.PRODUCTION)
-            .map((key) => {
-              const feature = defaults[key];
-              const onCheck = () => feature.mode === MODES.DEVELOPMENT && this.store.toggleActive(key);
-
-              return (
-                <ListItem
-                  key={ `feature_${key}` }
-                  leftCheckbox={
-                    <Checkbox
-                      checked={ this.store.active[key] }
-                      disabled={ feature.mode === MODES.TESTING }
-                      onCheck={ onCheck }
-                    />
-                  }
-                  primaryText={ feature.name }
-                  secondaryText={
-                    <div className={ styles.description }>
-                      { feature.description }
-                    </div>
-                  }
-                />
-              );
-            })
+            .map(this.renderItem)
         }
       </List>
+    );
+  }
+
+  renderItem = (key) => {
+    const feature = defaults[key];
+    const onCheck = () => feature.mode === MODES.DEVELOPMENT && this.store.toggleActive(key);
+
+    return (
+      <ListItem
+        key={ `feature_${key}` }
+        leftCheckbox={
+          <Checkbox
+            checked={ this.store.active[key] }
+            disabled={ feature.mode === MODES.TESTING }
+            onCheck={ onCheck }
+          />
+        }
+        primaryText={ feature.name }
+        secondaryText={
+          <div className={ styles.description }>
+            { feature.description }
+          </div>
+        }
+      />
     );
   }
 }
