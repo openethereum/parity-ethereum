@@ -72,6 +72,7 @@ describe('views/ParityBar', () => {
 
     it('renders the Parity button', () => {
       const label = shallow(bar.find('Button').first().props().label);
+
       expect(label.find('FormattedMessage').props().id).to.equal('parityBar.label.parity');
     });
 

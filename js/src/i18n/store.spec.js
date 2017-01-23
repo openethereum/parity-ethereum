@@ -37,7 +37,9 @@ describe('i18n/Store', () => {
 
   it('loads the locale from localStorage (valid localStorage)', () => {
     const testLocale = DEFAULT_LOCALES[DEFAULT_LOCALES.length - 1];
+
     store.set(LS_STORE_KEY, testLocale);
+
     const testStore = new LocaleStore();
 
     expect(testStore.locale).to.equal(testLocale);
