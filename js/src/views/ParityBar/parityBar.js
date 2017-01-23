@@ -26,7 +26,7 @@ import { Badge, Button, ContainerTitle, ParityBackground } from '~/ui';
 import { Embedded as Signer } from '../Signer';
 import DappsStore from '~/views/Dapps/dappsStore';
 
-import imagesEthcoreBlock from '../../../assets/images/parity-logo-white-no-text.svg';
+import imagesEthcoreBlock from '!url-loader!../../../assets/images/parity-logo-white-no-text.svg';
 import styles from './parityBar.css';
 
 const LS_STORE_KEY = '_parity::parityBar';
@@ -43,6 +43,7 @@ class ParityBar extends Component {
 
   static propTypes = {
     dapp: PropTypes.bool,
+    externalLink: PropTypes.string,
     pending: PropTypes.array
   };
 
@@ -82,10 +83,30 @@ class ParityBar extends Component {
     }
 
     if (count < newCount) {
-      this.setState({ opened: true });
+      this.setOpened(true);
     } else if (newCount === 0 && count === 1) {
-      this.setState({ opened: false });
+      this.setOpened(false);
     }
+  }
+
+  setOpened (opened) {
+    this.setState({ opened });
+
+    if (!this.bar) {
+      return;
+    }
+
+    // Fire up custom even to support having parity bar iframed.
+    const event = new CustomEvent('parity.bar.visibility', {
+      bubbles: true,
+      detail: { opened }
+    });
+
+    this.bar.dispatchEvent(event);
+  }
+
+  onRef = (element) => {
+    this.bar = element;
   }
 
   render () {
@@ -168,21 +189,20 @@ class ParityBar extends Component {
       />
     );
 
-    const dragButtonClasses = [ styles.dragButton ];
-
-    if (this.state.moving) {
-      dragButtonClasses.push(styles.moving);
-    }
+    const parityButton = (
+      <Button
+        className={ styles.parityButton }
+        icon={ parityIcon }
+        label={ this.renderLabel('Parity') }
+      />
+    );
 
     return (
-      <div className={ styles.cornercolor }>
-        <Link to='/apps'>
-          <Button
-            className={ styles.parityButton }
-            icon={ parityIcon }
-            label={ this.renderLabel('Parity') }
-          />
-        </Link>
+      <div
+        className={ styles.cornercolor }
+        ref={ this.onRef }
+      >
+        { this.renderLink(parityButton) }
         <Button
           className={ styles.button }
           icon={ <FingerprintIcon /> }
@@ -190,16 +210,53 @@ class ParityBar extends Component {
           onClick={ this.toggleDisplay }
         />
 
-        <div
-          className={ styles.moveIcon }
-          onMouseDown={ this.onMouseDown }
-        >
-          <div
-            className={ dragButtonClasses.join(' ') }
-            ref='dragButton'
-          />
-        </div>
+        { this.renderDrag() }
       </div>
+    );
+  }
+
+  renderDrag () {
+    if (this.props.externalLink) {
+      return;
+    }
+
+    const dragButtonClasses = [ styles.dragButton ];
+
+    if (this.state.moving) {
+      dragButtonClasses.push(styles.moving);
+    }
+
+    return (
+      <div
+        className={ styles.moveIcon }
+        onMouseDown={ this.onMouseDown }
+      >
+        <div
+          className={ dragButtonClasses.join(' ') }
+          ref='dragButton'
+        />
+      </div>
+    );
+  }
+
+  renderLink (button) {
+    const { externalLink } = this.props;
+
+    if (!externalLink) {
+      return (
+        <Link to='/apps'>
+          { button }
+        </Link>
+      );
+    }
+
+    return (
+      <a
+        href={ externalLink }
+        target='_parent'
+      >
+        { button }
+      </a>
     );
   }
 
@@ -428,9 +485,7 @@ class ParityBar extends Component {
   toggleDisplay = () => {
     const { opened } = this.state;
 
-    this.setState({
-      opened: !opened
-    });
+    this.setOpened(!opened);
   }
 
   get config () {
