@@ -358,6 +358,7 @@ class DeployContract extends Component {
         const body = txhash
           ? <TxHash hash={ txhash } />
           : null;
+
         return (
           <BusyStep
             title={

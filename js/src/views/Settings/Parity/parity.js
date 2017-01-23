@@ -139,6 +139,7 @@ export default class Parity extends Component {
 
       const onChange = (_, index) => {
         const nextLevel = Object.values(selectValues)[index].value;
+
         LogLevel.getLogger(key).setLevel(nextLevel);
         this.loadLogLevels();
       };

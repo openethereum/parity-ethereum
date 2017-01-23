@@ -25,79 +25,96 @@ import ReactDOM from 'react-dom';
 import { AppContainer } from 'react-hot-loader';
 
 import injectTapEventPlugin from 'react-tap-event-plugin';
-import { hashHistory } from 'react-router';
-import qs from 'querystring';
 
-import SecureApi from './secureApi';
+import SecureApi from '~/secureApi';
 import ContractInstances from '~/contracts';
 
-import { initStore } from './redux';
+import { initStore } from '~/redux';
 import ContextProvider from '~/ui/ContextProvider';
 import muiTheme from '~/ui/Theme';
-import MainApplication from './main';
 
 import { patchApi } from '~/util/tx';
 import { setApi } from '~/redux/providers/apiActions';
 
-import './environment';
+import '~/environment';
 
 import '../assets/fonts/Roboto/font.css';
 import '../assets/fonts/RobotoMono/font.css';
 
 injectTapEventPlugin();
 
-if (process.env.NODE_ENV === 'development') {
-  // Expose the React Performance Tools on the`window` object
-  const Perf = require('react-addons-perf');
+import ParityBar from '~/views/ParityBar';
 
-  window.Perf = Perf;
+// Test transport (std transport should be provided as global object)
+class FakeTransport {
+  constructor () {
+    console.warn('Secure Transport not provided. Falling back to FakeTransport');
+  }
+
+  execute (method, ...params) {
+    console.log('Calling', method, params);
+    return Promise.reject('not connected');
+  }
+
+  on () {
+  }
 }
 
-const AUTH_HASH = '#/auth?';
-const parityUrl = process.env.PARITY_URL || window.location.host;
+class FrameSecureApi extends SecureApi {
+  constructor (transport) {
+    super('', null, () => {
+      return transport;
+    });
+  }
 
-let token = null;
+  connect () {
+    // Do nothing - this API does not need connecting
+    this.emit('connecting');
+    // Fire connected event with some delay.
+    setTimeout(() => {
+      this.emit('connected');
+    });
+  }
 
-if (window.location.hash && window.location.hash.indexOf(AUTH_HASH) === 0) {
-  token = qs.parse(window.location.hash.substr(AUTH_HASH.length)).token;
+  needsToken () {
+    return false;
+  }
+
+  isConnecting () {
+    return false;
+  }
+
+  isConnected () {
+    return true;
+  }
 }
 
-const api = new SecureApi(`ws://${parityUrl}`, token);
+const api = new FrameSecureApi(window.secureTransport || new FakeTransport());
 
 patchApi(api);
 ContractInstances.create(api);
 
-const store = initStore(api, hashHistory);
+const store = initStore(api, null, true);
 
 store.dispatch({ type: 'initAll', api });
 store.dispatch(setApi(api));
 
 window.secureApi = api;
 
+const app = (
+  <ParityBar dapp externalLink={ 'http://127.0.0.1:8180' } />
+);
+const container = document.querySelector('#container');
+
 ReactDOM.render(
   <AppContainer>
-    <ContextProvider api={ api } muiTheme={ muiTheme } store={ store }>
-      <MainApplication
-        routerHistory={ hashHistory }
-      />
+    <ContextProvider
+      api={ api }
+      muiTheme={ muiTheme }
+      store={ store }
+    >
+      { app }
     </ContextProvider>
   </AppContainer>,
-  document.querySelector('#container')
+  container
 );
-
-if (module.hot) {
-  module.hot.accept('./main.js', () => {
-    require('./main.js');
-
-    ReactDOM.render(
-      <AppContainer>
-        <ContextProvider api={ api } muiTheme={ muiTheme } store={ store }>
-          <MainApplication
-            routerHistory={ hashHistory }
-          />
-        </ContextProvider>
-      </AppContainer>,
-      document.querySelector('#container')
-    );
-  });
-}

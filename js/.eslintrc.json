@@ -13,6 +13,7 @@
   "rules": {
     "curly": ["error", "all"],
     "jsx-quotes": ["error", "prefer-single"],
+    "newline-after-var": ["error", "always"],
     "no-alert": "error",
     "no-debugger": "error",
     "no-duplicate-imports": ["error", {
@@ -20,6 +21,7 @@
     }],
     "object-curly-spacing": ["error", "always"],
     "object-property-newline": 0,
+    "one-var-declaration-per-line": ["error", "always"],
     "padded-blocks": ["error", {
       "blocks": "never",
       "classes": "never",

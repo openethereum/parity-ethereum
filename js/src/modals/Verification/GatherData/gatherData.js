@@ -233,6 +233,7 @@ export default class GatherData extends Component {
         field.onChange(v);
       };
       const onSubmit = field.onChange;
+
       return (
         <Input
           key={ field.key }

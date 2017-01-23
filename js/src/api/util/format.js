@@ -48,11 +48,13 @@ export function asciiToHex (string) {
 
 export function padRight (input, length) {
   const value = toHex(input).substr(2, length * 2);
+
   return '0x' + value + range(length * 2 - value.length).map(() => '0').join('');
 }
 
 export function padLeft (input, length) {
   const value = toHex(input).substr(2, length * 2);
+
   return '0x' + range(length * 2 - value.length).map(() => '0').join('') + value;
 }
 

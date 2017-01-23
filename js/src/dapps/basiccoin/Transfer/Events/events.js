@@ -37,6 +37,7 @@ export default class Events extends Component {
     loadAllTokens()
       .then((tokens) => {
         const addresses = tokens.map((token) => token.address);
+
         this.setState({ tokens });
         return subscribeEvents(addresses, this.eventCallback);
       })
@@ -144,6 +145,7 @@ export default class Events extends Component {
       .concat(pendingEvents)
       .filter((log) => !minedNew.find((event) => event.transactionHash === log.transactionHash));
     const events = [].concat(pendingNew).concat(minedNew);
+
     this.setState({ loading: false, events, minedEvents: minedNew, pendingEvents: pendingNew });
   }
 }

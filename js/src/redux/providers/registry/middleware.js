@@ -45,7 +45,10 @@ const write = debounce((getChain, getReverses, getLastBlock) => {
 }, 20000);
 
 export default (api) => (store) => {
-  let contract, subscription, timeout, interval;
+  let contract;
+  let subscription;
+  let timeout;
+  let interval;
 
   let addressesToCheck = {};
 
@@ -85,10 +88,11 @@ export default (api) => (store) => {
         store.dispatch(startCachingReverses());
 
         break;
+
       case 'startCachingReverses':
         const { registry } = Contracts.get();
-
         const cached = read(store.getState().nodeStatus.netChain);
+
         if (cached) {
           Object
             .entries(cached.reverses)

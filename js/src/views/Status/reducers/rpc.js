@@ -28,6 +28,7 @@ export const actionHandlers = {
   'add rpcResponse' (state, action) {
     const calls = [action.payload].concat(state.prevCalls);
     const maxCalls = 64;
+
     return {
       ...state,
       callNo: state.callNo + 1,

@@ -74,6 +74,7 @@ class Accounts extends Component {
   setVisibleAccounts (props = this.props) {
     const { accounts, setVisibleAccounts } = props;
     const addresses = Object.keys(accounts);
+
     setVisibleAccounts(addresses);
   }
 
@@ -269,6 +270,7 @@ class Accounts extends Component {
   onAddSearchToken = (token) => {
     const { searchTokens } = this.state;
     const newSearchTokens = uniq([].concat(searchTokens, token));
+
     this.setState({ searchTokens: newSearchTokens });
   }
 

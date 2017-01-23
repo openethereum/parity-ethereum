@@ -307,6 +307,7 @@ export default class DetailsStep extends Component {
 
       inputs.forEach((input) => {
         const param = parseAbiType(input.type);
+
         params.push(param.default);
       });
 
