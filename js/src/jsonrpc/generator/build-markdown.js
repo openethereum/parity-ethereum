@@ -34,6 +34,7 @@ function warn (log) { console.warn(chalk.yellow(`WARN:\t${log}`)); }
 function error (log) { console.error(chalk.red(`ERROR:\t${log}`)); }
 
 const type2print = new WeakMap();
+
 type2print.set(BlockNumber, 'Quantity|Tag');
 
 function printType (type) {
@@ -241,6 +242,7 @@ function buildParameters (params) {
 
   if (params.length > 0 && params.every(hasExample) && params[0].example !== DUMMY) {
     const example = getExample(params);
+
     md = `${md}\n\n\`\`\`js\nparams: ${stringifyExample(example)}\n\`\`\``;
   }
 
