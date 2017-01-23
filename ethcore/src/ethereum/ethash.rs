@@ -21,7 +21,6 @@ use builtin::Builtin;
 use env_info::EnvInfo;
 use error::{BlockError, TransactionError, Error};
 use header::Header;
-use views::HeaderView;
 use state::CleanupMode;
 use spec::CommonParams;
 use transaction::UnverifiedTransaction;
@@ -29,7 +28,6 @@ use engines::Engine;
 use evm::Schedule;
 use ethjson;
 use rlp::{self, UntrustedRlp, View};
-use blockchain::extras::BlockDetails;
 
 /// Parity tries to round block.gas_limit to multiple of this constant
 pub const PARITY_GAS_LIMIT_DETERMINANT: U256 = U256([37, 0, 0, 0]);
@@ -335,15 +333,6 @@ impl Engine for Ethash {
 
 		Ok(())
 	}
-
-	fn is_new_best_block(&self, best_total_difficulty: U256, _best_header: HeaderView, parent_details: &BlockDetails, new_header: &HeaderView) -> bool {
-		is_new_best_block(best_total_difficulty, parent_details, new_header)
-	}
-}
-
-/// Check if a new block should replace the best blockchain block.
-pub fn is_new_best_block(best_total_difficulty: U256, parent_details: &BlockDetails, new_header: &HeaderView) -> bool {
-	parent_details.total_difficulty + new_header.difficulty() > best_total_difficulty
 }
 
 // Try to round gas_limit a bit so that:
