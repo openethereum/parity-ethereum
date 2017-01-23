@@ -26,7 +26,12 @@ class ParityBackground extends Component {
     backgroundSeed: PropTypes.string,
     children: PropTypes.node,
     className: PropTypes.string,
-    onClick: PropTypes.func
+    onClick: PropTypes.func,
+    style: PropTypes.object
+  };
+
+  static defaultProps = {
+    style: {}
   };
 
   state = {
@@ -65,7 +70,11 @@ class ParityBackground extends Component {
 
   render () {
     const { children, className, onClick } = this.props;
-    const { style } = this.state;
+
+    const style = {
+      ...this.state.style,
+      ...this.props.style
+    };
 
     return (
       <div

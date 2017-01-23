@@ -491,7 +491,8 @@ impl Configuration {
 					ban_duration: Duration::from_secs(self.args.flag_tx_queue_ban_time as u64),
 				},
 				None => Banning::Disabled,
-			}
+			},
+			refuse_service_transactions: self.args.flag_refuse_service_transactions,
 		};
 
 		Ok(options)
