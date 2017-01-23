@@ -873,7 +873,6 @@ impl MinerService for Miner {
 		pending: PendingTransaction,
 	) -> Result<TransactionImportResult, Error> {
 
-		let hash = pending.transaction.hash();
 		trace!(target: "own_tx", "Importing transaction: {:?}", pending);
 
 		let imported = {
@@ -885,12 +884,10 @@ impl MinerService for Miner {
 			).pop().expect("one result returned per added transaction; one added => one result; qed");
 
 			match import {
-				Ok(ref res) => {
-					trace!(target: "own_tx", "Imported transaction to {:?} (hash: {:?})", res, hash);
+				Ok(_) => {
 					trace!(target: "own_tx", "Status: {:?}", transaction_queue.status());
 				},
 				Err(ref e) => {
-					trace!(target: "own_tx", "Failed to import transaction {:?} (hash: {:?})", e, hash);
 					trace!(target: "own_tx", "Status: {:?}", transaction_queue.status());
 					warn!(target: "own_tx", "Error importing transaction: {:?}", e);
 				},

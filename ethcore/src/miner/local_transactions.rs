@@ -70,36 +70,43 @@ impl LocalTransactionsList {
 	}
 
 	pub fn mark_pending(&mut self, hash: H256) {
+		debug!(target: "own_tx", "Imported to Current (hash {:?})", hash);
 		self.clear_old();
 		self.transactions.insert(hash, Status::Pending);
 	}
 
 	pub fn mark_future(&mut self, hash: H256) {
+		debug!(target: "own_tx", "Imported to Future (hash {:?})", hash);
 		self.transactions.insert(hash, Status::Future);
 		self.clear_old();
 	}
 
 	pub fn mark_rejected(&mut self, tx: SignedTransaction, err: TransactionError) {
+		debug!(target: "own_tx", "Transaction rejected (hash {:?}): {:?}", tx.hash(), err);
 		self.transactions.insert(tx.hash(), Status::Rejected(tx, err));
 		self.clear_old();
 	}
 
 	pub fn mark_replaced(&mut self, tx: SignedTransaction, gas_price: U256, hash: H256) {
+		debug!(target: "own_tx", "Transaction replaced (hash {:?}) by {:?} (new gas price: {:?})", tx.hash(), hash, gas_price);
 		self.transactions.insert(tx.hash(), Status::Replaced(tx, gas_price, hash));
 		self.clear_old();
 	}
 
 	pub fn mark_invalid(&mut self, tx: SignedTransaction) {
+		warn!(target: "own_tx", "Transaction marked invalid (hash {:?})", tx.hash());
 		self.transactions.insert(tx.hash(), Status::Invalid(tx));
 		self.clear_old();
 	}
 
 	pub fn mark_dropped(&mut self, tx: SignedTransaction) {
+		warn!(target: "own_tx", "Transaction dropped (hash {:?})", tx.hash());
 		self.transactions.insert(tx.hash(), Status::Dropped(tx));
 		self.clear_old();
 	}
 
 	pub fn mark_mined(&mut self, tx: SignedTransaction) {
+		info!(target: "own_tx", "Transaction mined (hash {:?})", tx.hash());
 		self.transactions.insert(tx.hash(), Status::Mined(tx));
 		self.clear_old();
 	}
