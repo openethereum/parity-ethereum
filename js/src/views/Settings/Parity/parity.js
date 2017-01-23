@@ -56,8 +56,8 @@ export default class Parity extends Component {
           </div>
           <div className={ layout.details }>
             { this.renderModes() }
-            <LanguageSelector />
             <Features />
+            <LanguageSelector />
           </div>
         </div>
         { this.renderLogsConfig() }
