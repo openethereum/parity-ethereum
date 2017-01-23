@@ -135,7 +135,6 @@ describe('views/Dapps/DappStore', () => {
 
       it('disables visibility', () => {
         store.hideApp(APPID_DAPPREG);
-        store.writeDisplayApps();
 
         expect(store.displayApps[APPID_DAPPREG].visible).to.be.false;
         expect(localStore.get(LS_KEY_DISPLAY)).to.deep.equal(
