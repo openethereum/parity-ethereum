@@ -28,7 +28,8 @@ function initBackground (store, api) {
 }
 
 function loadBackground () {
-  return store.get('backgroundSeed');
+  // Check global object to support embedding
+  return store.get('backgroundSeed') || window.backgroundSeed;
 }
 
 function saveBackground (backgroundSeed) {

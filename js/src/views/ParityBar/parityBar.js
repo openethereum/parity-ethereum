@@ -26,7 +26,7 @@ import { Badge, Button, ContainerTitle, ParityBackground } from '~/ui';
 import { Embedded as Signer } from '../Signer';
 import DappsStore from '~/views/Dapps/dappsStore';
 
-import imagesEthcoreBlock from '../../../assets/images/parity-logo-white-no-text.svg';
+import imagesEthcoreBlock from '!url-loader!../../../assets/images/parity-logo-white-no-text.svg';
 import styles from './parityBar.css';
 
 const LS_STORE_KEY = '_parity::parityBar';
@@ -197,12 +197,6 @@ class ParityBar extends Component {
       />
     );
 
-    const dragButtonClasses = [ styles.dragButton ];
-
-    if (this.state.moving) {
-      dragButtonClasses.push(styles.moving);
-    }
-
     return (
       <div
         className={ styles.cornercolor }
@@ -224,6 +218,12 @@ class ParityBar extends Component {
   renderDrag () {
     if (this.props.externalLink) {
       return;
+    }
+
+    const dragButtonClasses = [ styles.dragButton ];
+
+    if (this.state.moving) {
+      dragButtonClasses.push(styles.moving);
     }
 
     return (
