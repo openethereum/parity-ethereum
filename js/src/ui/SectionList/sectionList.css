@@ -30,26 +30,31 @@
       height: 100%;
       opacity: 0.75;
       padding: 0.25em;
-      transition: all 1.5s cubic-bezier(0.23, 1, 0.32, 1);
+      transition: all 0.75s cubic-bezier(0.23, 1, 0.32, 1);
 
-      & [data-hover="hide"] {
-        transform: scale(1, 1);
-      }
+      &:not(:hover) {
+        & [data-hover="hide"] {
+          transform: scale(1);
+        }
 
-      & [data-hover="show"] {
-        transform: scale(1, 0);
+        & [data-hover="show"] {
+          display: none;
+          transform: scale(0);
+        }
       }
 
       &:hover {
         flex: 0 0 50%;
         opacity: 1;
+        z-index: 100;
 
         & [data-hover="hide"] {
-          transform: scale(1, 0);
+          display: none;
+          transform: scale(0);
         }
 
         & [data-hover="show"] {
-          transform: scale(1, 1);
+          transform: scale(1);
         }
       }
     }
