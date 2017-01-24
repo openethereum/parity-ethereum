@@ -173,7 +173,7 @@ export default class Parity {
   }
 
   listAccounts (count, offset = null, blockNumber = 'latest') {
-    return this._transpor
+    return this._transport
       .execute('parity_listAccounts', count, inAddress(offset), inBlockNumber(blockNumber))
       .then((accounts) => (accounts || []).map(outAddress));
   }
