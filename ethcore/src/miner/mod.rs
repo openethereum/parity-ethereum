@@ -53,13 +53,13 @@ mod stratum;
 
 pub use self::external::{ExternalMiner, ExternalMinerService};
 
-pub use self::miner::{Miner, MinerOptions, Banning, PendingSet, GasPricer, GasPriceCalibratorOptions, GasLimit, StratumOptions};
+pub use self::miner::{Miner, MinerOptions, Banning, PendingSet, GasPricer, GasPriceCalibratorOptions, GasLimit};
 pub use self::transaction_queue::{TransactionQueue, TransactionDetailsProvider as TransactionQueueDetailsProvider,
 	PrioritizationStrategy, AccountDetails, TransactionOrigin};
 pub use self::local_transactions::{Status as LocalTransactionStatus};
 pub use client::TransactionImportResult;
 pub use self::work_notify::NotifyWork;
-pub use self::stratum::{Stratum, Error as StratumError};
+pub use self::stratum::{Stratum, Error as StratumError, Options as StratumOptions};
 
 use std::collections::BTreeMap;
 use util::{H256, U256, Address, Bytes};

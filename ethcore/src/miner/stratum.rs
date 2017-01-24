@@ -20,7 +20,6 @@ use ethcore_stratum::{
 	JobDispatcher, PushWorkHandler,
 	Stratum as StratumService, Error as StratumServiceError,
 };
-use super::StratumOptions;
 
 use std::sync::{Arc, Weak};
 use std::net::{SocketAddr, AddrParseError};
@@ -36,24 +35,23 @@ use block::IsBlock;
 use std::str::FromStr;
 use rlp::encode;
 
+/// Configures stratum server options.
+#[derive(Debug, PartialEq, Clone)]
+pub struct Options {
+	/// Working directory
+	pub io_path: String,
+	/// Network address
+	pub listen_addr: String,
+	/// Port
+	pub port: u16,
+	/// Secret for peers
+	pub secret: Option<H256>,
+}
+
 struct SubmitPayload {
 	nonce: H64,
 	pow_hash: H256,
 	mix_hash: H256,
-}
-
-#[derive(Debug)]
-enum PayloadError {
-	ArgumentsAmountUnexpected(usize),
-	InvalidNonce(String),
-	InvalidPowHash(String),
-	InvalidMixHash(String),
-}
-
-impl fmt::Display for PayloadError {
-	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		fmt::Debug::fmt(&self, f)
-	}
 }
 
 impl SubmitPayload {
@@ -94,12 +92,27 @@ impl SubmitPayload {
 	}
 }
 
+#[derive(Debug)]
+enum PayloadError {
+	ArgumentsAmountUnexpected(usize),
+	InvalidNonce(String),
+	InvalidPowHash(String),
+	InvalidMixHash(String),
+}
+
+impl fmt::Display for PayloadError {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		fmt::Debug::fmt(&self, f)
+	}
+}
+
 /// Job dispatcher for stratum service
 pub struct StratumJobDispatcher {
 	seed_compute: Mutex<SeedHashCompute>,
 	client: Weak<Client>,
 	miner: Weak<Miner>,
 }
+
 
 impl JobDispatcher for StratumJobDispatcher {
 	fn initial(&self) -> Option<String> {
@@ -209,11 +222,13 @@ impl super::work_notify::NotifyWork for Stratum {
 impl Stratum {
 
 	/// New stratum job dispatcher, given the miner, client and dedicated stratum service
-	pub fn start(options: &StratumOptions, miner: Weak<Miner>, client: Weak<Client>) -> Result<Stratum, Error> {
+	pub fn start(options: &Options, miner: Weak<Miner>, client: Weak<Client>) -> Result<Stratum, Error> {
+		use std::net::IpAddr;
+
 		let dispatcher = Arc::new(StratumJobDispatcher::new(miner, client));
 
 		let stratum_svc = StratumService::start(
-			&SocketAddr::from_str(&format!("{}:{}", options.listen_addr, options.port))?,
+			&SocketAddr::new(IpAddr::from_str(&options.listen_addr)?, options.port),
 			dispatcher.clone(),
 			options.secret.clone(),
 		)?;
@@ -225,7 +240,7 @@ impl Stratum {
 	}
 
 	/// Start STRATUM job dispatcher and register it in the miner
-	pub fn register(cfg: &StratumOptions, miner: Arc<Miner>, client: Weak<Client>) -> Result<(), Error> {
+	pub fn register(cfg: &Options, miner: Arc<Miner>, client: Weak<Client>) -> Result<(), Error> {
 		let stratum = miner::Stratum::start(cfg, Arc::downgrade(&miner.clone()), client)?;
 		miner.push_notifier(Box::new(stratum) as Box<miner::NotifyWork>);
 		Ok(())

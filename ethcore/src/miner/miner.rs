@@ -110,19 +110,6 @@ pub struct MinerOptions {
 	pub refuse_service_transactions: bool,
 }
 
-/// Configures stratum server options.
-#[derive(Debug, PartialEq, Clone)]
-pub struct StratumOptions {
-	/// Working directory
-	pub io_path: String,
-	/// Network address
-	pub listen_addr: String,
-	/// Port
-	pub port: u16,
-	/// Secret for peers
-	pub secret: Option<H256>,
-}
-
 impl Default for MinerOptions {
 	fn default() -> Self {
 		MinerOptions {
