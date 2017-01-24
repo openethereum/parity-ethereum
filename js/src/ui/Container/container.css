@@ -15,7 +15,7 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-$bgcolor: rgba(16, 16, 16, 1.0); /* 0.8 */
+$bgcolor: rgba(22, 22, 22, 1); /* 0.8 */
 
 .container {
   background-color: $bgcolor;
