@@ -74,7 +74,15 @@ impl From<SSError> for Error {
 }
 
 /// Dapp identifier
-pub type DappId = String;
+#[derive(Default, Clone, Eq, PartialEq, Hash, Ord, PartialOrd)]
+pub struct DappId(String);
+
+impl From<DappId> for String {
+	fn from(id: DappId) -> String { id.0 }
+}
+impl From<String> for DappId {
+	fn from(id: String) -> DappId { DappId(id) }
+}
 
 fn transient_sstore() -> EthMultiStore {
 	EthMultiStore::open(Box::new(MemoryDirectory::default())).expect("MemoryDirectory load always succeeds; qed")

@@ -17,11 +17,10 @@
 //! Dapps settings de/serialization.
 
 use std::io;
+use std::hash::Hash;
 use std::collections::HashMap;
 use serde_json;
 use hash;
-
-type DappId = String;
 
 /// Settings for specific dapp.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -32,21 +31,23 @@ pub struct DappsSettings {
 
 impl DappsSettings {
 	/// Read a hash map of DappId -> DappsSettings
-	pub fn read_dapps_settings<R, S>(reader: R) -> Result<HashMap<DappId, S>, serde_json::Error> where
+	pub fn read_dapps_settings<R, S, D>(reader: R) -> Result<HashMap<D, S>, serde_json::Error> where
 		R: io::Read,
+		D: From<String> + Hash + Eq,
 		S: From<DappsSettings> + Clone,
 	{
-		serde_json::from_reader(reader).map(|ok: HashMap<DappId, DappsSettings>|
+		serde_json::from_reader(reader).map(|ok: HashMap<String, DappsSettings>|
 			ok.into_iter().map(|(a, m)| (a.into(), m.into())).collect()
 		)
 	}
 
 	/// Write a hash map of DappId -> DappsSettings
-	pub fn write_dapps_settings<W, S>(m: &HashMap<DappId, S>, writer: &mut W) -> Result<(), serde_json::Error> where
+	pub fn write_dapps_settings<W, S, D>(m: &HashMap<D, S>, writer: &mut W) -> Result<(), serde_json::Error> where
 		W: io::Write,
+		D: Into<String> + Hash + Eq + Clone,
 		S: Into<DappsSettings> + Clone,
 	{
-		serde_json::to_writer(writer, &m.iter().map(|(a, m)| (a.clone().into(), m.clone().into())).collect::<HashMap<DappId, DappsSettings>>())
+		serde_json::to_writer(writer, &m.iter().map(|(a, m)| (a.clone().into(), m.clone().into())).collect::<HashMap<String, DappsSettings>>())
 	}
 }
 

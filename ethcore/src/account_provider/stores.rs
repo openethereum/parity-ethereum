@@ -134,7 +134,7 @@ impl From<NewDappsPolicy> for JsonNewDappsPolicy {
 	}
 }
 
-const MAX_RECENT_DAPPS: usize = 10;
+const MAX_RECENT_DAPPS: usize = 50;
 
 /// Disk-backed map from DappId to Settings. Uses JSON.
 pub struct DappsSettingsStore {
@@ -142,7 +142,7 @@ pub struct DappsSettingsStore {
 	settings: DiskMap<DappId, DappsSettings>,
 	/// New Dapps Policy
 	policy: DiskMap<String, NewDappsPolicy>,
-	/// Recently Accessed Dapps (transient)
+	/// Recently Accessed Dapps
 	recent: VecDeque<DappId>,
 }
 
@@ -353,7 +353,7 @@ mod tests {
 		let temp = RandomTempPath::create_dir();
 		let path = temp.as_str().to_owned();
 		let mut store = DappsSettingsStore::new(path.clone());
-		
+
 		// Test default policy
 		assert_eq!(store.policy(), NewDappsPolicy::AllAccounts);
 
