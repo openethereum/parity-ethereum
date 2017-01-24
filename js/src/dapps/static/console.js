@@ -17,15 +17,19 @@
 /* eslint-disable */
 // TODO: Fix linting issues
 
-if (typeof(window.parity) == 'object')
-  window.api = window.parent.secureApi;
-  window.parity.api.subscribe('eth_blockNumber', function (error, blockNumber) {
-    if (error) {
-      console.log('error', error);
-      return;
-    }
-    refreshWatches();
-  });
+if (typeof(window.parent.secureApi) == 'object')
+	window.api = window.parent.secureApi;
+else if (typeof(window.parity) == 'object')
+	window.api = window.parity.api;
+
+if (typeof(window.api) === 'object')
+	window.api.subscribe('eth_blockNumber', function (error, blockNumber) {
+	    if (error) {
+	    	console.log('error', error);
+	    	return;
+	    }
+	    refreshWatches();
+	});
 
 function escapeHtml(str) {
     var div = document.createElement('div');
@@ -297,10 +301,10 @@ document.getElementById("command").addEventListener("keyup", function(event) {
   }
 });
 
-if (typeof(window.parity) == 'object') {
+if (typeof(window.api) == 'object') {
   document.getElementById("command").focus();
-  window.web3 = web3;
-  window.parity = parity;
+  if (typeof(web3) === 'object')
+  	window.web3 = web3;
 }
 refreshWatches();
 
