@@ -19,7 +19,7 @@ import { sha3 } from '~/api/util/sha3';
 import Contract from '~/api/contract';
 import Contracts from '~/contracts';
 
-import { checkIfVerified, checkIfRequested, awaitPuzzle } from '~/contracts/verification';
+import { checkIfVerified, findLastRequested, awaitPuzzle } from '~/contracts/verification';
 import { checkIfTxFailed, waitForConfirmations } from '~/util/tx';
 
 export const LOADING = 'fetching-contract';
@@ -40,6 +40,7 @@ export default class VerificationStore {
   @observable fee = null;
   @observable isVerified = null;
   @observable hasRequested = null;
+  @observable lastRequestValues = null;
   @observable isServerRunning = null;
   @observable consentGiven = false;
   @observable requestTx = null;
@@ -99,11 +100,12 @@ export default class VerificationStore {
         this.error = 'Failed to check if verified: ' + err.message;
       });
 
-    const hasRequested = checkIfRequested(contract, account)
-      .then((txHash) => {
-        this.hasRequested = !!txHash;
-        if (txHash) {
-          this.requestTx = txHash;
+    const hasRequested = findLastRequested(contract, account)
+      .then((log) => {
+        this.hasRequested = !!log;
+        this.lastRequestValues = log.params;
+        if (log) {
+          this.requestTx = log.transactionHash;
         }
       })
       .catch((err) => {
