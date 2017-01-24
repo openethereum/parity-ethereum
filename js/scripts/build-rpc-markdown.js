@@ -18,9 +18,9 @@ import fs from 'fs';
 import path from 'path';
 import chalk from 'chalk';
 
-import { DUMMY } from '../helpers';
-import { BlockNumber } from '../types';
-import interfaces from '../';
+import { DUMMY } from '../src/jsonrpc/helpers';
+import { BlockNumber } from '../src/jsonrpc/types';
+import interfaces from '../src/jsonrpc';
 
 const ROOT_DIR = path.join(__dirname, '../docs');
 
@@ -28,14 +28,24 @@ if (!fs.existsSync(ROOT_DIR)) {
   fs.mkdirSync(ROOT_DIR);
 }
 
-// Logging helpers
-function info (log) { console.log(chalk.blue(`INFO:\t${log}`)); }
-function warn (log) { console.warn(chalk.yellow(`WARN:\t${log}`)); }
-function error (log) { console.error(chalk.red(`ERROR:\t${log}`)); }
-
 const type2print = new WeakMap();
 
 type2print.set(BlockNumber, 'Quantity|Tag');
+
+// INFO Logging helper
+function info (log) {
+  console.log(chalk.blue(`INFO:\t${log}`));
+}
+
+// WARN Logging helper
+function warn (log) {
+  console.warn(chalk.yellow(`WARN:\t${log}`));
+}
+
+// ERROR Logging helper
+function error (log) {
+  console.error(chalk.red(`ERROR:\t${log}`));
+}
 
 function printType (type) {
   return type2print.get(type) || type.name;
@@ -111,7 +121,7 @@ function removeOptionalWithoutExamples (arr) {
 
 // Grabs JSON compatible
 function getExample (obj) {
-  if (Array.isArray(obj)) {
+  if (isArray(obj)) {
     return removeOptionalWithoutExamples(obj).map(getExample);
   }
 
