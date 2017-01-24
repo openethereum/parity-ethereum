@@ -23,15 +23,16 @@ import ContentClear from 'material-ui/svg-icons/content/clear';
 import { Badge, Button, ContainerTitle, ParityBackground } from '~/ui';
 import { Embedded as Signer } from '../Signer';
 
-import imagesEthcoreBlock from '../../../assets/images/parity-logo-white-no-text.svg';
+import imagesEthcoreBlock from '!url-loader!../../../assets/images/parity-logo-white-no-text.svg';
 import styles from './parityBar.css';
 
 class ParityBar extends Component {
 
   static propTypes = {
-    pending: PropTypes.array,
-    dapp: PropTypes.bool
-  }
+    dapp: PropTypes.bool,
+    externalLink: PropTypes.string,
+    pending: PropTypes.array
+  };
 
   state = {
     opened: false
@@ -46,10 +47,30 @@ class ParityBar extends Component {
     }
 
     if (count < newCount) {
-      this.setState({ opened: true });
+      this.setOpened(true);
     } else if (newCount === 0 && count === 1) {
-      this.setState({ opened: false });
+      this.setOpened(false);
     }
+  }
+
+  setOpened (opened) {
+    this.setState({ opened });
+
+    if (!this.bar) {
+      return;
+    }
+
+    // Fire up custom even to support having parity bar iframed.
+    const event = new CustomEvent('parity.bar.visibility', {
+      bubbles: true,
+      detail: { opened }
+    });
+
+    this.bar.dispatchEvent(event);
+  }
+
+  onRef = (element) => {
+    this.bar = element;
   }
 
   render () {
@@ -73,24 +94,52 @@ class ParityBar extends Component {
         className={ styles.parityIcon } />
     );
 
+    const parityButton = (
+      <Button
+        className={ styles.parityButton }
+        icon={ parityIcon }
+        label={ this.renderLabel('Parity') }
+      />
+    );
+
     return (
-      <div className={ styles.bar }>
+      <div
+        className={ styles.bar }
+        ref={ this.onRef }
+      >
         <ParityBackground className={ styles.corner }>
           <div className={ styles.cornercolor }>
-            <Link to='/apps'>
-              <Button
-                className={ styles.parityButton }
-                icon={ parityIcon }
-                label={ this.renderLabel('Parity') } />
-            </Link>
+            { this.renderLink(parityButton) }
             <Button
               className={ styles.button }
               icon={ <ActionFingerprint /> }
               label={ this.renderSignerLabel() }
-              onClick={ this.toggleDisplay } />
+              onClick={ this.toggleDisplay }
+            />
           </div>
         </ParityBackground>
       </div>
+    );
+  }
+
+  renderLink (button) {
+    const { externalLink } = this.props;
+
+    if (!externalLink) {
+      return (
+        <Link to='/apps'>
+          { button }
+        </Link>
+      );
+    }
+
+    return (
+      <a
+        href={ externalLink }
+        target='_parent'
+      >
+        { button }
+      </a>
     );
   }
 
@@ -147,9 +196,7 @@ class ParityBar extends Component {
   toggleDisplay = () => {
     const { opened } = this.state;
 
-    this.setState({
-      opened: !opened
-    });
+    this.setOpened(!opened);
   }
 }
 

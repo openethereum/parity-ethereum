@@ -14,6 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import store from 'store';
+
 import defaultViews from './Views/defaults';
 
 function initBackground (store, api) {
@@ -26,11 +28,12 @@ function initBackground (store, api) {
 }
 
 function loadBackground () {
-  return window.localStorage.getItem('backgroundSeed');
+  // Check global object to support embedding
+  return store.get('backgroundSeed') || window.backgroundSeed;
 }
 
 function saveBackground (backgroundSeed) {
-  window.localStorage.setItem('backgroundSeed', backgroundSeed);
+  store.set('backgroundSeed', backgroundSeed);
 }
 
 function initViews (store) {
@@ -75,9 +78,9 @@ function loadViews () {
   let data;
 
   try {
-    const json = window.localStorage.getItem('views') || '{}';
+    const json = store.get('views') || {};
 
-    data = Object.assign(defaults, JSON.parse(json), fixed);
+    data = Object.assign(defaults, json, fixed);
   } catch (e) {
     data = defaults;
   }
@@ -85,16 +88,16 @@ function loadViews () {
   return data;
 }
 
-function saveViews (store) {
-  window.localStorage.setItem('views', JSON.stringify(getDefaultViews()));
+function saveViews () {
+  store.set('views', getDefaultViews());
 }
 
-function toggleViews (store, viewIds) {
+function toggleViews (viewIds) {
   viewIds.forEach((id) => {
     defaultViews[id].active = !defaultViews[id].active;
   });
 
-  saveViews(store);
+  saveViews();
 }
 
 export default class SettingsMiddleware {
@@ -107,11 +110,11 @@ export default class SettingsMiddleware {
           break;
 
         case 'toggleView':
-          toggleViews(store, [action.viewId]);
+          toggleViews([action.viewId]);
           break;
 
         case 'toggleViews':
-          toggleViews(store, action.viewIds);
+          toggleViews(action.viewIds);
           break;
 
         case 'updateBackground':
