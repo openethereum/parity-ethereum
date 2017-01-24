@@ -57,7 +57,7 @@ export default class SectionList extends Component {
     }
 
     return (
-      <div className={ styles.ovelay }>
+      <div className={ styles.overlay }>
         { overlay }
       </div>
     );
