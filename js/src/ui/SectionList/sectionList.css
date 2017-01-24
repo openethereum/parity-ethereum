@@ -34,12 +34,10 @@
 
       &:not(:hover) {
         & [data-hover="hide"] {
-          transform: scale(1);
         }
 
         & [data-hover="show"] {
           display: none;
-          transform: scale(0);
         }
       }
 
@@ -50,11 +48,9 @@
 
         & [data-hover="hide"] {
           display: none;
-          transform: scale(0);
         }
 
         & [data-hover="show"] {
-          transform: scale(1);
         }
       }
     }
