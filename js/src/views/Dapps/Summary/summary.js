@@ -27,8 +27,7 @@ export default class Summary extends Component {
   }
 
   static propTypes = {
-    app: PropTypes.object.isRequired,
-    children: PropTypes.node
+    app: PropTypes.object.isRequired
   }
 
   render () {
@@ -47,7 +46,13 @@ export default class Summary extends Component {
             : `/app/${app.id}`
         }
       >
-        <Container>
+        <Container
+          hover={
+            <div className={ styles.author }>
+              { app.author }, v{ app.version }
+            </div>
+          }
+        >
           <img
             className={ styles.image }
             src={
@@ -56,22 +61,13 @@ export default class Summary extends Component {
                 : `${dappsUrl}${app.image}`
             }
           />
-          <div data-hover='show'>
-            <Tags tags={ [app.type] } />
-          </div>
+          <Tags tags={ [app.type] } data-hover='show' />
           <div className={ styles.description }>
             <ContainerTitle
               clickable
               title={ app.name }
               byline={ app.description }
             />
-            <div
-              className={ styles.author }
-              data-hover='show'
-            >
-              { app.author }, v{ app.version }
-            </div>
-            { this.props.children }
           </div>
         </Container>
       </Link>

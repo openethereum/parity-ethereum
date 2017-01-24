@@ -28,15 +28,16 @@
       cursor: pointer;
       flex: 0 1 33.33%;
       height: 100%;
-      opacity: 0.9;
+      opacity: 0.75;
       padding: 0.25em;
-      transition: all 0.5s ease-in-out;
+      transition: all 1.5s cubic-bezier(0.23, 1, 0.32, 1);
 
       & [data-hover="hide"] {
+        transform: scale(1, 1);
       }
 
       & [data-hover="show"] {
-        display: none;
+        transform: scale(1, 0);
       }
 
       &:hover {
@@ -44,11 +45,11 @@
         opacity: 1;
 
         & [data-hover="hide"] {
-          display: none;
+          transform: scale(1, 0);
         }
 
         & [data-hover="show"] {
-          display: inherit;
+          transform: scale(1, 1);
         }
       }
     }

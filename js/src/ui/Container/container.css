@@ -15,11 +15,14 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+$bgcolor: rgba(16, 16, 16, 1.0); /* 0.8 */
+
 .container {
-  background: rgba(0, 0, 0, 0.8);
+  background-color: $bgcolor;
   flex: 1;
   height: 100%;
   padding: 0em;
+  position: relative;
 }
 
 .compact,
@@ -41,4 +44,14 @@
 .light .compact,
 .light .padded {
   background: rgba(0, 0, 0, 0.5) !important;
+}
+
+.hover {
+  background-color: $bgcolor !important;
+  left: 0;
+  margin-top: -1.5em;
+  padding: 0 1.5em 1.5em 1.5em;
+  position: absolute;
+  right: 0;
+  top: 100%;
 }

@@ -22,6 +22,7 @@ import styles from './tags.css';
 
 export default class Tags extends Component {
   static propTypes = {
+    'data-hover': PropTypes.string,
     className: PropTypes.string,
     handleAddSearchToken: PropTypes.func,
     setRefs: PropTypes.func,
@@ -36,7 +37,10 @@ export default class Tags extends Component {
     }
 
     return (
-      <div className={ [styles.tags, className].join(' ') }>
+      <div
+        className={ [styles.tags, className].join(' ') }
+        data-hover={ this.props['data-hover'] }
+      >
         { this.renderTags() }
       </div>
     );
