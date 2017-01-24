@@ -21,6 +21,9 @@ import { arrayOrObjectProptype, nodeOrStringProptype } from '~/util/proptypes';
 
 import styles from './sectionList.css';
 
+// TODO: We probably want this to be passed via props - additional work required in that case to
+// support the styling for both the hover and no-hover CSS for the pre/post sizes. Future work only
+// if/when required.
 const ITEMS_PER_ROW = 3;
 
 export default class SectionList extends Component {
@@ -74,6 +77,12 @@ export default class SectionList extends Component {
   renderItem = (item, index) => {
     const { renderItem } = this.props;
 
+    // NOTE: Any children that is to be showed or hidden (depending on hover state)
+    // should have the data-hover="show|hide" attributes. For the current implementation
+    // this does the trick, however there may be a case for adding a hover attribute
+    // to an item (mouseEnter/mouseLeave events) and then adjusting the styling with
+    // :root[hover]/:root:not[hover] for the tragetted elements. Currently it is a
+    // CSS-only solution to let the browser do all the work via selectors.
     return (
       <div
         className={ styles.item }
