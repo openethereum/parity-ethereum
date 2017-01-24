@@ -14,29 +14,46 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
+import { FormattedMessage } from 'react-intl';
 
 import styles from './accountDetailsGeth.css';
 
+@observer
 export default class AccountDetailsGeth extends Component {
   static propTypes = {
-    addresses: PropTypes.array
+    store: PropTypes.object.isRequired
   }
 
   render () {
-    const { addresses } = this.props;
-
-    const formatted = addresses.map((address, idx) => {
-      const comma = !idx ? '' : ((idx === addresses.length - 1) ? ' & ' : ', ');
-
-      return `${comma}${address}`;
-    }).join('');
+    const { gethAddresses } = this.props.store;
 
     return (
       <div>
-        <div>You have imported { addresses.length } addresses from the Geth keystore:</div>
-        <div className={ styles.address }>{ formatted }</div>
+        <div>
+          <FormattedMessage
+            id='createAccount.accountDetailsGeth.imported'
+            defaultMessage='You have imported {number} addresses from the Geth keystore:'
+            values={ {
+              number: gethAddresses.length
+            } }
+          />
+        </div>
+        <div className={ styles.address }>
+          { this.formatAddresses(gethAddresses) }
+        </div>
       </div>
     );
+  }
+
+  formatAddresses (addresses) {
+    return addresses.map((address, index) => {
+      const comma = !index
+        ? ''
+        : ((index === addresses.length - 1) ? ' & ' : ', ');
+
+      return `${comma}${address}`;
+    }).join('');
   }
 }

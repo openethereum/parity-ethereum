@@ -19,6 +19,7 @@ import ReactDOM from 'react-dom';
 import keycode from 'keycode';
 
 import IdentityIcon from '~/ui/IdentityIcon';
+import IdentityName from '~/ui/IdentityName';
 import Tags from '~/ui/Tags';
 
 import { fromWei } from '~/api/util/wei';
@@ -41,12 +42,8 @@ export default class AccountCard extends Component {
   render () {
     const { account } = this.props;
     const { copied } = this.state;
-
-    const { address, name, description, meta = {} } = account;
-
-    const displayName = (name && name.toUpperCase()) || address;
+    const { address, description, meta = {}, name } = account;
     const { tags = [] } = meta;
-
     const classes = [ styles.account ];
 
     if (copied) {
@@ -65,12 +62,16 @@ export default class AccountCard extends Component {
         <IdentityIcon address={ address } />
         <div className={ styles.accountInfo }>
           <div className={ styles.accountName }>
-            <span>{ displayName }</span>
+            <IdentityName
+              address={ address }
+              name={ name }
+              unknown
+            />
           </div>
 
           { this.renderTags(tags, address) }
           { this.renderDescription(description) }
-          { this.renderAddress(displayName, address) }
+          { this.renderAddress(address) }
           { this.renderBalance(address) }
         </div>
       </div>
@@ -89,11 +90,7 @@ export default class AccountCard extends Component {
     );
   }
 
-  renderAddress (name, address) {
-    if (name === address) {
-      return null;
-    }
-
+  renderAddress (address) {
     return (
       <div className={ styles.addressContainer }>
         <span

@@ -26,6 +26,7 @@ use types::block_import_error::BlockImportError;
 use snapshot::Error as SnapshotError;
 use engines::EngineError;
 use ethkey::Error as EthkeyError;
+use account_provider::Error as AccountsError;
 
 pub use types::executed::{ExecutionError, CallError};
 
@@ -265,6 +266,8 @@ pub enum Error {
 	Engine(EngineError),
 	/// Ethkey error.
 	Ethkey(EthkeyError),
+	/// Account Provider error.
+	AccountProvider(AccountsError),
 }
 
 impl fmt::Display for Error {
@@ -287,6 +290,7 @@ impl fmt::Display for Error {
 			Error::Snapshot(ref err) => err.fmt(f),
 			Error::Engine(ref err) => err.fmt(f),
 			Error::Ethkey(ref err) => err.fmt(f),
+			Error::AccountProvider(ref err) => err.fmt(f),
 		}
 	}
 }
@@ -393,6 +397,12 @@ impl From<EngineError> for Error {
 impl From<EthkeyError> for Error {
 	fn from(err: EthkeyError) -> Error {
 		Error::Ethkey(err)
+	}
+}
+
+impl From<AccountsError> for Error {
+	fn from(err: AccountsError) -> Error {
+		Error::AccountProvider(err)
 	}
 }
 

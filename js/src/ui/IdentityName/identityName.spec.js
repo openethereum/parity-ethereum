@@ -25,6 +25,7 @@ const ADDR_A = '0x123456789abcdef0123456789A';
 const ADDR_B = '0x123456789abcdef0123456789B';
 const ADDR_C = '0x123456789abcdef0123456789C';
 const ADDR_NULL = '0x0000000000000000000000000000000000000000';
+const NAME_JIMMY = 'Jimmy Test';
 const STORE = {
   dispatch: sinon.stub(),
   subscribe: sinon.stub(),
@@ -53,41 +54,51 @@ function render (props) {
 }
 
 describe('ui/IdentityName', () => {
-  describe('rendering', () => {
-    it('renders defaults', () => {
-      expect(render({ address: ADDR_A })).to.be.ok;
+  it('renders defaults', () => {
+    expect(render({ address: ADDR_A })).to.be.ok;
+  });
+
+  describe('account not found', () => {
+    it('renders null with empty', () => {
+      expect(
+        render({ address: ADDR_C, empty: true }).html()
+      ).to.be.null;
     });
 
-    describe('account not found', () => {
-      it('renders null with empty', () => {
-        expect(
-          render({ address: ADDR_C, empty: true }).html()
-        ).to.be.null;
-      });
+    it('renders address without empty', () => {
+      expect(
+        render({ address: ADDR_C }).text()
+      ).to.equal(ADDR_C);
+    });
 
-      it('renders address without empty', () => {
-        expect(
-          render({ address: ADDR_C }).text()
-        ).to.equal(ADDR_C);
-      });
+    it('renders short address with shorten', () => {
+      expect(
+        render({ address: ADDR_C, shorten: true }).find('ShortenedHash').props().data
+      ).to.equal(ADDR_C);
+    });
 
-      it('renders short address with shorten', () => {
-        expect(
-          render({ address: ADDR_C, shorten: true }).find('ShortenedHash').props().data
-        ).to.equal(ADDR_C);
-      });
+    it('renders unknown with flag', () => {
+      expect(
+        render({ address: ADDR_C, unknown: true }).find('FormattedMessage').props().id
+      ).to.equal('ui.identityName.unnamed');
+    });
 
-      it('renders unknown with flag', () => {
-        expect(
-          render({ address: ADDR_C, unknown: true }
-        ).find('FormattedMessage').props().id).to.equal('ui.identityName.unnamed');
-      });
+    it('renders name when not found and passed', () => {
+      expect(
+        render({ address: ADDR_C, name: NAME_JIMMY }).text()
+      ).to.equal(NAME_JIMMY.toUpperCase());
+    });
 
-      it('renders 0x000...000 as null', () => {
-        expect(
-          render({ address: ADDR_NULL }).find('FormattedMessage').props().id
-        ).to.equal('ui.identityName.null');
-      });
+    it('renders name when not found, unknown and passed', () => {
+      expect(
+        render({ address: ADDR_C, name: NAME_JIMMY, unknown: true }).text()
+      ).to.equal(NAME_JIMMY.toUpperCase());
+    });
+
+    it('renders 0x000...000 as null', () => {
+      expect(
+        render({ address: ADDR_NULL }).find('FormattedMessage').props().id
+      ).to.equal('ui.identityName.null');
     });
   });
 });
