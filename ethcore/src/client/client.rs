@@ -64,7 +64,7 @@ use trace::{TraceDB, ImportRequest as TraceImportRequest, LocalizedTrace, Databa
 use trace;
 use trace::FlatTransactionTraces;
 use evm::{Factory as EvmFactory, Schedule};
-use miner::{Miner, MinerService};
+use miner::{Miner, MinerService, TransactionImportResult};
 use snapshot::{self, io as snapshot_io};
 use factory::Factories;
 use rlp::{View, UntrustedRlp};
@@ -1453,6 +1453,21 @@ impl BlockChainClient for Client {
 			.map(|executed| {
 				executed.output
 			})
+	}
+
+	fn transact_contract(&self, address: Address, data: Bytes) -> Result<TransactionImportResult, EthcoreError> {
+		let transaction = Transaction {
+			nonce: self.latest_nonce(&self.miner.author()),
+			action: Action::Call(address),
+			gas: self.miner.gas_floor_target(),
+			gas_price: self.miner.sensible_gas_price(),
+			value: U256::zero(),
+			data: data,
+		};
+		let network_id = self.engine.signing_network_id(&self.latest_env_info());
+		let signature = self.engine.sign(transaction.hash(network_id))?;
+		let signed = SignedTransaction::new(transaction.with_signature(signature, network_id))?;
+		self.miner.import_own_transaction(self, signed.into())
 	}
 
 	fn registrar_address(&self) -> Option<Address> {
