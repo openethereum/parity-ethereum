@@ -97,7 +97,7 @@ describe('util/subscribe-to-events', () => {
     expect(api.eth.uninstallFilter.firstCall.args).to.eql([ 123 ]);
   });
 
-  it('checks for new events regularly', async function () {
+  it.skip('checks for new events regularly', async function () {
     const { api, contract } = this;
 
     api.eth.getFilterLogs = stub().resolves([]);
