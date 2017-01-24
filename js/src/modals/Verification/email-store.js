@@ -16,6 +16,7 @@
 
 import { observable, computed, action } from 'mobx';
 import { sha3 } from '~/api/util/sha3';
+import { bytesToHex } from '~/api/util/format';
 
 import EmailVerificationABI from '~/contracts/abi/email-verification.json';
 import VerificationStore, {
@@ -69,6 +70,13 @@ export default class EmailVerificationStore extends VerificationStore {
   }
 
   requestValues = () => [ sha3.text(this.email) ]
+
+  didRequestWithSameValues = (currentValues) => {
+    const lastRequest = this.lastRequestValues;
+    const hasRequested = currentValues[0] === bytesToHex(lastRequest.emailHash.value);
+
+    return Promise.resolve(hasRequested);
+  }
 
   @action setEmail = (email) => {
     this.email = email;

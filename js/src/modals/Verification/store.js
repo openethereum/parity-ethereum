@@ -151,41 +151,44 @@ export default class VerificationStore {
 
   requestValues = () => []
 
+  didRequestWithSameValues = () => Promise.resolve(false)
+
   @action sendRequest = () => {
-    const { api, account, contract, fee, hasRequested } = this;
+    const { api, account, contract, fee } = this;
 
     const request = contract.functions.find((fn) => fn.name === 'request');
     const options = { from: account, value: fee.toString() };
     const values = this.requestValues();
 
-    let chain = Promise.resolve();
+    this.didRequestWithSameValues(values)
+      .then((hasRequested) => {
+        if (hasRequested) {
+          return;
+        }
 
-    if (!hasRequested) {
-      this.step = POSTING_REQUEST;
-      chain = request.estimateGas(options, values)
-        .then((gas) => {
-          options.gas = gas.mul(1.2).toFixed(0);
-          return request.postTransaction(options, values);
-        })
-        .then((handle) => {
-          // TODO: The "request rejected" error doesn't have any property to
-          // distinguish it from other errors, so we can't give a meaningful error here.
-          return api.pollMethod('parity_checkRequest', handle);
-        })
-        .then((txHash) => {
-          this.requestTx = txHash;
-          return checkIfTxFailed(api, txHash, options.gas)
-            .then((hasFailed) => {
-              if (hasFailed) {
-                throw new Error('Transaction failed, all gas used up.');
-              }
-              this.step = POSTED_REQUEST;
-              return waitForConfirmations(api, txHash, 1);
-            });
-        });
-    }
-
-    chain
+        this.step = POSTING_REQUEST;
+        return request.estimateGas(options, values)
+          .then((gas) => {
+            options.gas = gas.mul(1.2).toFixed(0);
+            return request.postTransaction(options, values);
+          })
+          .then((handle) => {
+            // TODO: The "request rejected" error doesn't have any property to
+            // distinguish it from other errors, so we can't give a meaningful error here.
+            return api.pollMethod('parity_checkRequest', handle);
+          })
+          .then((txHash) => {
+            this.requestTx = txHash;
+            return checkIfTxFailed(api, txHash, options.gas)
+              .then((hasFailed) => {
+                if (hasFailed) {
+                  throw new Error('Transaction failed, all gas used up.');
+                }
+                this.step = POSTED_REQUEST;
+                return waitForConfirmations(api, txHash, 1);
+              });
+          });
+      })
       .then(() => this.checkIfReceivedCode())
       .then((hasReceived) => {
         if (hasReceived) {
