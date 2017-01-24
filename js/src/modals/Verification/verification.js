@@ -231,9 +231,9 @@ class Verification extends Component {
         } else if (method === 'email') {
           fields.push({
             key: 'email',
-            label: 'email address',
+            label: 'e-mail address',
             hint: 'the code will be sent to this address',
-            error: this.store.isEmailValid ? null : 'invalid email',
+            error: this.store.isEmailValid ? null : 'invalid e-mail',
             onChange: this.store.setEmail
           });
         }
@@ -244,7 +244,8 @@ class Verification extends Component {
             hasRequested={ hasRequested }
             isServerRunning={ isServerRunning }
             isVerified={ isVerified }
-            method={ method } fields={ fields }
+            method={ method }
+            fields={ fields }
             setConsentGiven={ setConsentGiven }
           />
         );
