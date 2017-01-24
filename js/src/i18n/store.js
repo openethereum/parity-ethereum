@@ -21,39 +21,32 @@ import de from 'react-intl/locale-data/de';
 import en from 'react-intl/locale-data/en';
 import store from 'store';
 
+import { DEFAULT_LOCALE, DEFAULT_LOCALES, LS_STORE_KEY } from './constants';
 import languages from './languages';
 import deMessages from './de';
 import enMessages from './en';
 
-const LS_STORE_KEY = '_parity::locale';
-
 let instance = null;
-const isProduction = process.env.NODE_ENV === 'production';
 
-const DEFAULT = 'en';
 const LANGUAGES = flatten({ languages });
 const MESSAGES = {
   de: Object.assign(flatten(deMessages), LANGUAGES),
   en: Object.assign(flatten(enMessages), LANGUAGES)
 };
-const LOCALES = isProduction
-  ? ['en']
-  : ['en', 'de'];
 
 addLocaleData([...de, ...en]);
 
 export default class Store {
-  @observable locale = DEFAULT;
-  @observable locales = LOCALES;
-  @observable messages = MESSAGES[DEFAULT];
-  @observable isDevelopment = !isProduction;
+  @observable locale = DEFAULT_LOCALE;
+  @observable locales = DEFAULT_LOCALES;
+  @observable messages = MESSAGES[DEFAULT_LOCALE];
 
   constructor () {
     const savedLocale = store.get(LS_STORE_KEY);
 
-    this.locale = (savedLocale && LOCALES.includes(savedLocale))
+    this.locale = (savedLocale && DEFAULT_LOCALES.includes(savedLocale))
       ? savedLocale
-      : DEFAULT;
+      : DEFAULT_LOCALE;
     this.messages = MESSAGES[this.locale];
   }
 
