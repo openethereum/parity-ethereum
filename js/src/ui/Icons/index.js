@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import AddIcon from 'material-ui/svg-icons/content/add';
+import AttachFileIcon from 'material-ui/svg-icons/editor/attach-file';
 import CancelIcon from 'material-ui/svg-icons/content/clear';
 import CheckIcon from 'material-ui/svg-icons/navigation/check';
 import CloseIcon from 'material-ui/svg-icons/navigation/close';
@@ -31,6 +32,8 @@ import LockedIcon from 'material-ui/svg-icons/action/lock';
 import MoveIcon from 'material-ui/svg-icons/action/open-with';
 import NextIcon from 'material-ui/svg-icons/navigation/arrow-forward';
 import PrevIcon from 'material-ui/svg-icons/navigation/arrow-back';
+import PrintIcon from 'material-ui/svg-icons/action/print';
+import RefreshIcon from 'material-ui/svg-icons/action/autorenew';
 import SaveIcon from 'material-ui/svg-icons/content/save';
 import SendIcon from 'material-ui/svg-icons/content/send';
 import SnoozeIcon from 'material-ui/svg-icons/av/snooze';
@@ -40,6 +43,7 @@ import VpnIcon from 'material-ui/svg-icons/notification/vpn-lock';
 
 export {
   AddIcon,
+  AttachFileIcon,
   CancelIcon,
   CheckIcon,
   CloseIcon,
@@ -56,6 +60,8 @@ export {
   MoveIcon,
   NextIcon,
   PrevIcon,
+  PrintIcon,
+  RefreshIcon,
   SaveIcon,
   SendIcon,
   SnoozeIcon,

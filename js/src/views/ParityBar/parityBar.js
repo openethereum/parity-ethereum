@@ -16,17 +16,18 @@
 
 import React, { Component, PropTypes } from 'react';
 import ReactDOM from 'react-dom';
+import { FormattedMessage } from 'react-intl';
 import { Link } from 'react-router';
 import { connect } from 'react-redux';
 import { throttle } from 'lodash';
 import store from 'store';
 
+import imagesEthcoreBlock from '~/../assets/images/parity-logo-white-no-text.svg';
 import { CancelIcon, FingerprintIcon } from '~/ui/Icons';
 import { Badge, Button, ContainerTitle, ParityBackground } from '~/ui';
 import { Embedded as Signer } from '../Signer';
 import DappsStore from '~/views/Dapps/dappsStore';
 
-import imagesEthcoreBlock from '!url-loader!../../../assets/images/parity-logo-white-no-text.svg';
 import styles from './parityBar.css';
 
 const LS_STORE_KEY = '_parity::parityBar';
@@ -112,10 +113,6 @@ class ParityBar extends Component {
   render () {
     const { moving, opened, position } = this.state;
 
-    const content = opened
-      ? this.renderExpanded()
-      : this.renderBar();
-
     const containerClassNames = opened
       ? [ styles.overlay ]
       : [ styles.bar ];
@@ -124,11 +121,12 @@ class ParityBar extends Component {
       containerClassNames.push(styles.moving);
     }
 
-    const parityBgClassName = opened
-      ? styles.expanded
-      : styles.corner;
-
-    const parityBgClassNames = [ parityBgClassName, styles.parityBg ];
+    const parityBgClassNames = [
+      opened
+        ? styles.expanded
+        : styles.corner,
+      styles.parityBg
+    ];
 
     if (moving) {
       parityBgClassNames.push(styles.moving);
@@ -169,7 +167,11 @@ class ParityBar extends Component {
           ref='container'
           style={ parityBgStyle }
         >
-          { content }
+          {
+            opened
+              ? this.renderExpanded()
+              : this.renderBar()
+          }
         </ParityBackground>
       </div>
     );
@@ -182,34 +184,38 @@ class ParityBar extends Component {
       return null;
     }
 
-    const parityIcon = (
-      <img
-        src={ imagesEthcoreBlock }
-        className={ styles.parityIcon }
-      />
-    );
-
-    const parityButton = (
-      <Button
-        className={ styles.parityButton }
-        icon={ parityIcon }
-        label={ this.renderLabel('Parity') }
-      />
-    );
-
     return (
       <div
         className={ styles.cornercolor }
         ref={ this.onRef }
       >
-        { this.renderLink(parityButton) }
+        {
+          this.renderLink(
+            <Button
+              className={ styles.parityButton }
+              icon={
+                <img
+                  className={ styles.parityIcon }
+                  src={ imagesEthcoreBlock }
+                />
+              }
+              label={
+                this.renderLabel(
+                  <FormattedMessage
+                    id='parityBar.label.parity'
+                    defaultMessage='Parity'
+                  />
+                )
+              }
+            />
+          )
+        }
         <Button
           className={ styles.button }
           icon={ <FingerprintIcon /> }
           label={ this.renderSignerLabel() }
           onClick={ this.toggleDisplay }
         />
-
         { this.renderDrag() }
       </div>
     );
@@ -307,7 +313,13 @@ class ParityBar extends Component {
       );
     }
 
-    return this.renderLabel('Signer', bubble);
+    return this.renderLabel(
+      <FormattedMessage
+        id='parityBar.label.signer'
+        defaultMessage='Signer'
+      />,
+      bubble
+    );
   }
 
   getHorizontal (x) {

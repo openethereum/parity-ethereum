@@ -14,63 +14,68 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
+import { FormattedMessage } from 'react-intl';
 import { Checkbox } from 'material-ui';
 
 import { IdentityIcon } from '~/ui';
 
 import styles from './newGeth.css';
 
+@observer
 export default class NewGeth extends Component {
   static contextTypes = {
     api: PropTypes.object.isRequired
   }
 
   static propTypes = {
-    accounts: PropTypes.object.isRequired,
-    onChange: PropTypes.func.isRequired
-  }
-
-  state = {
-    available: []
-  }
-
-  componentDidMount () {
-    this.loadAvailable();
+    store: PropTypes.object.isRequired
   }
 
   render () {
-    const { available } = this.state;
+    const { gethAccountsAvailable, gethAddresses } = this.props.store;
 
-    if (!available.length) {
+    if (!gethAccountsAvailable.length) {
       return (
-        <div className={ styles.list }>There are currently no importable keys available from the Geth keystore, which are not already available on your Parity instance</div>
+        <div className={ styles.list }>
+          <FormattedMessage
+            id='createAccount.newGeth.noKeys'
+            defaultMessage='There are currently no importable keys available from the Geth keystore, which are not already available on your Parity instance'
+          />
+        </div>
       );
     }
 
-    const checkboxes = available.map((account) => {
+    const checkboxes = gethAccountsAvailable.map((account) => {
+      const onSelect = (event) => this.onSelectAddress(event, account.address);
+
       const label = (
         <div className={ styles.selection }>
           <div className={ styles.icon }>
             <IdentityIcon
-              center inline
               address={ account.address }
+              center
+              inline
             />
           </div>
           <div className={ styles.detail }>
-            <div className={ styles.address }>{ account.address }</div>
-            <div className={ styles.balance }>{ account.balance } ETH</div>
+            <div className={ styles.address }>
+              { account.address }
+            </div>
+            <div className={ styles.balance }>
+              { account.balance } ETH
+            </div>
           </div>
         </div>
       );
 
       return (
         <Checkbox
+          checked={ gethAddresses.includes(account.address) }
           key={ account.address }
-          checked={ account.checked }
           label={ label }
-          data-address={ account.address }
-          onCheck={ this.onSelect }
+          onCheck={ onSelect }
         />
       );
     });
@@ -82,51 +87,9 @@ export default class NewGeth extends Component {
     );
   }
 
-  onSelect = (event, checked) => {
-    const address = event.target.getAttribute('data-address');
+  onSelectAddress = (event, address) => {
+    const { store } = this.props;
 
-    if (!address) {
-      return;
-    }
-
-    const { available } = this.state;
-    const account = available.find((_account) => _account.address === address);
-
-    account.checked = checked;
-    const selected = available.filter((_account) => _account.checked);
-
-    this.setState({
-      available
-    });
-
-    this.props.onChange(selected.length, selected.map((account) => account.address));
-  }
-
-  loadAvailable = () => {
-    const { api } = this.context;
-    const { accounts } = this.props;
-
-    api.parity
-      .listGethAccounts()
-      .then((_addresses) => {
-        const addresses = (addresses || []).filter((address) => !accounts[address]);
-
-        return Promise
-          .all(addresses.map((address) => api.eth.getBalance(address)))
-          .then((balances) => {
-            this.setState({
-              available: addresses.map((address, idx) => {
-                return {
-                  address,
-                  balance: api.util.fromWei(balances[idx]).toFormat(5),
-                  checked: false
-                };
-              })
-            });
-          });
-      })
-      .catch((error) => {
-        console.error('loadAvailable', error);
-      });
+    store.selectGethAccount(address);
   }
 }
