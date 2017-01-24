@@ -123,8 +123,10 @@ fn sync_arguments(io_path: &str, sync_cfg: SyncConfig, net_cfg: NetworkConfigura
 }
 
 #[cfg(feature="ipc")]
-pub fn stratum (hypervisor_ref: &mut Option<Hypervisor>, config: &::ethcore::miner::StratumOptions)
-{
+pub fn stratum(
+	hypervisor_ref: &mut Option<Hypervisor>,
+	config: &::ethcore::miner::StratumOptions
+) {
 	use ethcore_stratum;
 
 	let mut hypervisor = hypervisor_ref.take().expect("There should be hypervisor for ipc configuration");
@@ -141,18 +143,15 @@ pub fn stratum (hypervisor_ref: &mut Option<Hypervisor>, config: &::ethcore::min
 }
 
 #[cfg(feature="ipc")]
-pub fn sync
-	(
-		hypervisor_ref: &mut Option<Hypervisor>,
-		sync_cfg: SyncConfig,
-		net_cfg: NetworkConfiguration,
-		_client: Arc<BlockChainClient>,
-		_snapshot_service: Arc<SnapshotService>,
-		_provider: Arc<Provider>,
-		log_settings: &LogConfig,
-	)
-	-> Result<SyncModules, NetworkError>
-{
+pub fn sync(
+	hypervisor_ref: &mut Option<Hypervisor>,
+	sync_cfg: SyncConfig,
+	net_cfg: NetworkConfiguration,
+	_client: Arc<BlockChainClient>,
+	_snapshot_service: Arc<SnapshotService>,
+	_provider: Arc<Provider>,
+	log_settings: &LogConfig,
+) -> Result<SyncModules, NetworkError> {
 	let mut hypervisor = hypervisor_ref.take().expect("There should be hypervisor for ipc configuration");
 	let args = sync_arguments(&hypervisor.io_path, sync_cfg, net_cfg, log_settings);
 	hypervisor = hypervisor.module(SYNC_MODULE_ID, args);
@@ -174,18 +173,15 @@ pub fn sync
 }
 
 #[cfg(not(feature="ipc"))]
-pub fn sync
-	(
-		_hypervisor: &mut Option<Hypervisor>,
-		sync_cfg: SyncConfig,
-		net_cfg: NetworkConfiguration,
-		client: Arc<BlockChainClient>,
-		snapshot_service: Arc<SnapshotService>,
-		provider: Arc<Provider>,
-		_log_settings: &LogConfig,
-	)
-	-> Result<SyncModules, NetworkError>
-{
+pub fn sync(
+	_hypervisor: &mut Option<Hypervisor>,
+	sync_cfg: SyncConfig,
+	net_cfg: NetworkConfiguration,
+	client: Arc<BlockChainClient>,
+	snapshot_service: Arc<SnapshotService>,
+	provider: Arc<Provider>,
+	_log_settings: &LogConfig,
+) -> Result<SyncModules, NetworkError> {
 	let eth_sync = EthSync::new(Params {
 		config: sync_cfg,
 		chain: client,
