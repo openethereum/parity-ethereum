@@ -14,33 +14,38 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { Quantity, Data } from '../types';
+import { Quantity, Data, BlockNumber } from '../types';
+import { fromDecimal } from '../helpers';
 
 export default {
   generateAuthorizationToken: {
-    desc: 'Generates a new authorization token',
+    desc: 'Generates a new authorization token.',
     params: [],
     returns: {
       type: String,
-      desc: 'The new authorization token'
+      desc: 'The new authorization token.',
+      example: 'bNGY-iIPB-j7zK-RSYZ'
     }
   },
 
   generateWebProxyAccessToken: {
-    desc: 'Generates a new web proxy access token',
+    desc: 'Generates a new web proxy access token.',
     params: [],
     returns: {
       type: String,
-      desc: 'The new web proxy access token'
+      desc: 'The new web proxy access token.',
+      example: 'MOWm0tEJjwthDiTU'
     }
   },
 
   requestsToConfirm: {
-    desc: 'Returns a list of the transactions requiring authorization',
+    desc: 'Returns a list of the transactions awaiting authorization.',
     params: [],
     returns: {
+      // TODO: Types of the fields of transaction objects? Link to a transaction object in another page?
       type: Array,
-      desc: 'A list of the outstanding transactions'
+      desc: 'A list of the outstanding transactions.',
+      example: []
     }
   },
 
@@ -49,20 +54,41 @@ export default {
     params: [
       {
         type: Quantity,
-        desc: 'The request id'
+        desc: 'The request id.',
+        example: fromDecimal(1)
       },
       {
         type: Object,
-        desc: 'The request options'
+        desc: 'Modify the transaction before confirmation.',
+        details: {
+          gasPrice: {
+            type: Quantity,
+            desc: 'Modify the gas price provided by the sender in Wei.',
+            optional: true
+          },
+          gas: {
+            type: Quantity,
+            desc: 'Gas provided by the sender in Wei.',
+            optional: true
+          },
+          minBlock: {
+            type: BlockNumber,
+            desc: 'Integer block number, or the string `\'latest\'`, `\'earliest\'` or `\'pending\'`. Request will not be propagated till the given block is reached.',
+            optional: true
+          }
+        },
+        example: {}
       },
       {
         type: String,
-        desc: 'The account password'
+        desc: 'The account password',
+        example: 'hunter2'
       }
     ],
     returns: {
       type: Boolean,
-      desc: 'The status of the confirmation'
+      desc: 'The status of the confirmation',
+      example: true
     }
   },
 
@@ -71,16 +97,19 @@ export default {
     params: [
       {
         type: Quantity,
-        desc: 'The request id'
+        desc: 'Integer - The request id',
+        example: fromDecimal(1)
       },
       {
         type: Data,
-        desc: 'Signed request (transaction RLP)'
+        desc: 'Signed request (RLP encoded transaction)',
+        example: '0xd46e8dd67c5d32be8d46e8dd67c5d32be8058bb8eb970870f072445675058bb8eb970870f072445675'
       }
     ],
     returns: {
       type: Boolean,
-      desc: 'The status of the confirmation'
+      desc: 'The status of the confirmation',
+      example: true
     }
   },
 
@@ -89,12 +118,14 @@ export default {
     params: [
       {
         type: Quantity,
-        desc: 'The request id'
+        desc: 'Integer - The request id',
+        example: fromDecimal(1)
       }
     ],
     returns: {
       type: Boolean,
-      desc: 'The status of the rejection'
+      desc: 'The status of the rejection',
+      example: true
     }
   },
 
@@ -103,7 +134,8 @@ export default {
     params: [],
     returns: {
       type: Boolean,
-      desc: 'true when enabled, false when disabled'
+      desc: '`true` when enabled, `false` when disabled.',
+      example: true
     }
   }
 };
