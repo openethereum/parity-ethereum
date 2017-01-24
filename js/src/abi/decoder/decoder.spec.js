@@ -100,6 +100,7 @@ describe('abi/decoder/Decoder', () => {
 
     it('throws an error on invalid param type', () => {
       const pt = new ParamType('address');
+
       pt._type = 'noMatch';
 
       expect(() => Decoder.decodeParam(pt)).to.throw(/noMatch/);

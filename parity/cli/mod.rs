@@ -230,6 +230,8 @@ usage! {
 			or |c: &Config| otry!(c.mining).remove_solved.clone(),
 		flag_notify_work: Option<String> = None,
 			or |c: &Config| otry!(c.mining).notify_work.clone().map(|vec| Some(vec.join(","))),
+		flag_refuse_service_transactions: bool = false,
+			or |c: &Config| otry!(c.mining).refuse_service_transactions.clone(),
 
 		// -- Footprint Options
 		flag_tracing: String = "auto",
@@ -416,6 +418,7 @@ struct Mining {
 	tx_queue_ban_time: Option<u16>,
 	remove_solved: Option<bool>,
 	notify_work: Option<Vec<String>>,
+	refuse_service_transactions: Option<bool>,
 }
 
 #[derive(Default, Debug, PartialEq, RustcDecodable)]
@@ -633,6 +636,7 @@ mod tests {
 			flag_tx_queue_ban_time: 180u16,
 			flag_remove_solved: false,
 			flag_notify_work: Some("http://localhost:3001".into()),
+			flag_refuse_service_transactions: false,
 
 			// -- Footprint Options
 			flag_tracing: "auto".into(),
@@ -811,6 +815,7 @@ mod tests {
 				extra_data: None,
 				remove_solved: None,
 				notify_work: None,
+				refuse_service_transactions: None,
 			}),
 			footprint: Some(Footprint {
 				tracing: Some("on".into()),

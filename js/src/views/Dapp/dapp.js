@@ -41,6 +41,7 @@ export default class Dapp extends Component {
 
   componentWillMount () {
     const { id } = this.props.params;
+
     this.loadApp(id);
   }
 
@@ -94,6 +95,7 @@ export default class Dapp extends Component {
     }
 
     let src = null;
+
     switch (app.type) {
       case 'local':
         src = `${dappsUrl}/${app.id}/`;

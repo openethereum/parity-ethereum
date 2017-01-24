@@ -50,6 +50,7 @@ class ActionbarExport extends Component {
     const text = JSON.stringify(content, null, 4);
 
     const blob = new Blob([ text ], { type: 'application/json' });
+
     FileSaver.saveAs(blob, `${filename}.json`);
   }
 }

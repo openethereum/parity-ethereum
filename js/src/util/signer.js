@@ -36,6 +36,7 @@ export class Signer {
   static getSeed (json, password) {
     try {
       const seed = Signer.getSyncSeed(json, password);
+
       return Promise.resolve(seed);
     } catch (error) {
       return Promise.reject(error);
@@ -82,6 +83,7 @@ export class Signer {
 
     while (seed.length < 32) {
       const nullBuff = Buffer.from([0x00]);
+
       seed = Buffer.concat([nullBuff, seed]);
     }
 
@@ -94,6 +96,7 @@ export class Signer {
 
   signTransaction (transaction) {
     const tx = new Transaction(transaction);
+
     tx.sign(this.seed);
     return inHex(tx.serialize().toString('hex'));
   }

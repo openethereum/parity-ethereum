@@ -100,6 +100,7 @@ export default class Dapp extends Component {
     const hash = app[`${type}Hash`];
 
     let overlayImage = null;
+
     if (withImage && hash) {
       overlayImage = (
         <img

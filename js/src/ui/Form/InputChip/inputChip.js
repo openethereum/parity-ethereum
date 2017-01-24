@@ -139,6 +139,7 @@ export default class InputChip extends Component {
 
     if (addOnBlur) {
       const { inputValue } = this.refs.chipInput.state;
+
       this.handleTokenAdd(inputValue);
     }
 
@@ -190,6 +191,7 @@ export default class InputChip extends Component {
 
     if (splitTokens.length > 1) {
       const tokensToAdd = splitTokens.slice(0, -1);
+
       tokensToAdd.forEach(token => this.handleTokenAdd(token));
     }
 

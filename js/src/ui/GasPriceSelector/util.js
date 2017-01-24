@@ -25,6 +25,7 @@ const COLORS = {
 
 const countModifier = (count) => {
   const val = count.toNumber ? count.toNumber() : count;
+
   return Math.log10(val + 1) + 0.1;
 };
 

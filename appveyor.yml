@@ -19,10 +19,10 @@ branches:
 install:
   - git submodule update --init --recursive
   - ps: Install-Product node 6
-  - ps: Start-FileDownload "https://static.rust-lang.org/dist/rust-1.13.0-x86_64-pc-windows-msvc.exe"
+  - ps: Start-FileDownload "https://static.rust-lang.org/dist/rust-1.14.0-x86_64-pc-windows-msvc.exe"
   - ps: Start-FileDownload "https://github.com/ethcore/win-build/raw/master/SimpleFC.dll" -FileName nsis\SimpleFC.dll
   - ps: Start-FileDownload "https://github.com/ethcore/win-build/raw/master/vc_redist.x64.exe" -FileName nsis\vc_redist.x64.exe
-  - rust-1.13.0-x86_64-pc-windows-msvc.exe /VERYSILENT /NORESTART /DIR="C:\Program Files (x86)\Rust"
+  - rust-1.14.0-x86_64-pc-windows-msvc.exe /VERYSILENT /NORESTART /DIR="C:\Program Files (x86)\Rust"
   - SET PATH=%PATH%;C:\Program Files (x86)\Rust\bin;C:\Program Files (x86)\NSIS;C:\Program Files (x86)\Microsoft SDKs\Windows\v7.1A\Bin
   - rustc -V
   - cargo -V

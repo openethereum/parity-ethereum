@@ -80,6 +80,7 @@ export default handleActions({
 
   toggleStatusRefresh (state, action) {
     const { refreshStatus } = action;
+
     return Object.assign({}, state, { refreshStatus });
   }
 }, initialState);

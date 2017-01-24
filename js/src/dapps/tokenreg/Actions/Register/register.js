@@ -188,6 +188,7 @@ export default class RegisterAction extends Component {
 
   onAccountChange = () => {
     const { dialog } = this.refs;
+
     dialog.forceUpdate();
   }
 

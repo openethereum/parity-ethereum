@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import EventEmitter from 'eventemitter3';
 import { action, computed, observable, transaction } from 'mobx';
 import store from 'store';
 
@@ -30,7 +31,7 @@ const BUILTIN_APPS_KEY = 'BUILTIN_APPS_KEY';
 
 let instance = null;
 
-export default class DappsStore {
+export default class DappsStore extends EventEmitter {
   @observable apps = [];
   @observable displayApps = {};
   @observable modalOpen = false;
@@ -38,17 +39,26 @@ export default class DappsStore {
 
   _api = null;
   _subscriptions = {};
-
   _cachedApps = {};
   _manifests = {};
   _registryAppsIds = null;
 
   constructor (api) {
+    super();
+
     this._api = api;
 
     this.readDisplayApps();
     this.loadExternalOverlay();
     this.subscribeToChanges();
+  }
+
+  static get (api) {
+    if (!instance) {
+      instance = new DappsStore(api);
+    }
+
+    return instance;
   }
 
   /**
@@ -68,6 +78,10 @@ export default class DappsStore {
         }
 
         return this.fetchRegistryApp(dappReg, id, true);
+      })
+      .then((app) => {
+        this.emit('loaded', app);
+        return app;
       });
   }
 
@@ -88,14 +102,6 @@ export default class DappsStore {
         this.fetchRegistryApps(dappReg).then((apps) => this.addApps(apps))
       ])
       .then(this.writeDisplayApps);
-  }
-
-  static get (api) {
-    if (!instance) {
-      instance = new DappsStore(api);
-    }
-
-    return instance;
   }
 
   subscribeToChanges () {
@@ -239,12 +245,12 @@ export default class DappsStore {
   }
 
   @action hideApp = (id) => {
-    this.displayApps = Object.assign({}, this.displayApps, { [id]: { visible: false } });
+    this.setDisplayApps({ [id]: { visible: false } });
     this.writeDisplayApps();
   }
 
   @action showApp = (id) => {
-    this.displayApps = Object.assign({}, this.displayApps, { [id]: { visible: true } });
+    this.setDisplayApps({ [id]: { visible: true } });
     this.writeDisplayApps();
   }
 
@@ -255,6 +261,10 @@ export default class DappsStore {
   @action writeDisplayApps = () => {
     store.set(LS_KEY_DISPLAY, this.displayApps);
   }
+
+  @action setDisplayApps = (displayApps) => {
+    this.displayApps = Object.assign({}, this.displayApps, displayApps);
+  };
 
   @action addApps = (_apps = []) => {
     transaction(() => {
@@ -271,13 +281,18 @@ export default class DappsStore {
         .sort((a, b) => a.name.localeCompare(b.name));
 
       const visibility = {};
+
       apps.forEach((app) => {
         if (!this.displayApps[app.id]) {
           visibility[app.id] = { visible: app.visible };
         }
       });
 
-      this.displayApps = Object.assign({}, this.displayApps, visibility);
+      this.setDisplayApps(visibility);
     });
   }
 }
+
+export {
+  LS_KEY_DISPLAY
+};

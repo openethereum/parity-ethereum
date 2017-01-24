@@ -49,6 +49,7 @@ export const hasReceivedCode = (email, address, isTestnet = false) => {
 
 export const postToServer = (query, isTestnet = false) => {
   const port = isTestnet ? 28443 : 18443;
+
   query = stringify(query);
 
   return fetch(`https://email-verification.parity.io:${port}/?${query}`, {

@@ -256,6 +256,7 @@ class AddressSelect extends Component {
     const accounts = registryValues
       .map((registryValue, index) => {
         const account = { ...registryValue, index: `${registryValue.address}_${index}` };
+
         return this.renderAccountCard(account);
       });
 
@@ -366,6 +367,7 @@ class AddressSelect extends Component {
     // If only one value, select it
     if (values.reduce((cur, cat) => cur + cat.values.length, 0) === 1) {
       const value = values.find((cat) => cat.values.length > 0).values[0];
+
       return this.handleClick(value.address);
     }
   }
@@ -389,6 +391,7 @@ class AddressSelect extends Component {
     switch (codeName) {
       case 'enter':
         const index = this.state.focusedItem;
+
         if (!index) {
           return this.validateCustomInput();
         }
@@ -460,6 +463,7 @@ class AddressSelect extends Component {
 
       const nextValues = values[nextCat];
       const nextFocus = nextValues ? nextValues.values[0] : null;
+
       return this.focusItem(nextFocus && nextFocus.index || 1);
     }
 
@@ -477,6 +481,7 @@ class AddressSelect extends Component {
     // If down: increase index if possible
     if (direction === 'down') {
       const prevN = values[prevCategoryIndex].values.length;
+
       nextFocusIndex = Math.min(prevFocusIndex + 1, prevN - 1);
     }
 
@@ -516,6 +521,7 @@ class AddressSelect extends Component {
     }
 
     const nextFocus = values[nextCategory].values[nextFocusIndex].index;
+
     return this.focusItem(nextFocus);
   }
 

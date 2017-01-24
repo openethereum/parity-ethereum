@@ -33,6 +33,7 @@ class AccountSelectorItem extends Component {
     const account = this.props.account;
 
     const props = Object.assign({}, this.props);
+
     delete props.account;
     delete props.onSelectAccount;
 
