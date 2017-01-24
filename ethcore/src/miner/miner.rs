@@ -257,11 +257,10 @@ impl Miner {
 			),
 		};
 
-		let notifiers =
-			if options.new_work_notify.is_empty() { Vec::new() }
-			else {
-				vec![Box::new(WorkPoster::new(&options.new_work_notify)) as Box<NotifyWork>]
-			};
+		let notifiers: Vec<Box<NotifyWork>> = match options.new_work_notify.is_empty() {
+			true => Vec::new(),
+			false => vec![Box::new(WorkPoster::new(&options.new_work_notify))],
+		};
 
 		let service_transaction_action = match options.refuse_service_transactions {
 			true => ServiceTransactionAction::Refuse,
