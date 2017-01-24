@@ -19,6 +19,7 @@ use std::str;
 use std::ops::Deref;
 use std::sync::Arc;
 use env_logger::LogBuilder;
+use ethcore_rpc::Metadata;
 use jsonrpc_core::MetaIoHandler;
 use jsonrpc_core::reactor::RpcEventLoop;
 
@@ -58,7 +59,7 @@ impl Deref for ServerLoop {
 	}
 }
 
-pub fn init_server<F, B>(process: F, remote: Remote) -> (ServerLoop, Arc<FakeRegistrar>) where
+pub fn init_server<F, B>(process: F, io: MetaIoHandler<Metadata>, remote: Remote) -> (ServerLoop, Arc<FakeRegistrar>) where
 	F: FnOnce(ServerBuilder) -> ServerBuilder<B>,
 	B: Fetch,
 {
@@ -70,7 +71,7 @@ pub fn init_server<F, B>(process: F, remote: Remote) -> (ServerLoop, Arc<FakeReg
 	// TODO [ToDr] When https://github.com/ethcore/jsonrpc/issues/26 is resolved
 	// this additional EventLoop wouldn't be needed, we should be able to re-use remote.
 	let event_loop = RpcEventLoop::spawn();
-	let handler = event_loop.handler(Arc::new(MetaIoHandler::default()));
+	let handler = event_loop.handler(Arc::new(io));
 	let server = process(ServerBuilder::new(
 		&dapps_path, registrar.clone(), remote,
 	))
@@ -100,12 +101,16 @@ pub fn serve_with_auth(user: &str, pass: &str) -> ServerLoop {
 	}
 }
 
+pub fn serve_with_rpc(io: MetaIoHandler<Metadata>) -> ServerLoop {
+	init_server(|builder| builder.allowed_hosts(None), io, Remote::new_sync()).0
+}
+
 pub fn serve_hosts(hosts: Option<Vec<String>>) -> ServerLoop {
-	init_server(|builder| builder.allowed_hosts(hosts), Remote::new_sync()).0
+	init_server(|builder| builder.allowed_hosts(hosts), Default::default(), Remote::new_sync()).0
 }
 
 pub fn serve_with_registrar() -> (ServerLoop, Arc<FakeRegistrar>) {
-	init_server(|builder| builder.allowed_hosts(None), Remote::new_sync())
+	init_server(|builder| builder.allowed_hosts(None), Default::default(), Remote::new_sync())
 }
 
 pub fn serve_with_registrar_and_sync() -> (ServerLoop, Arc<FakeRegistrar>) {
@@ -113,7 +118,7 @@ pub fn serve_with_registrar_and_sync() -> (ServerLoop, Arc<FakeRegistrar>) {
 		builder
 			.sync_status(Arc::new(|| true))
 			.allowed_hosts(None)
-	}, Remote::new_sync())
+	}, Default::default(), Remote::new_sync())
 }
 
 pub fn serve_with_registrar_and_fetch() -> (ServerLoop, FakeFetch, Arc<FakeRegistrar>) {
@@ -125,7 +130,7 @@ pub fn serve_with_registrar_and_fetch_and_threads(multi_threaded: bool) -> (Serv
 	let f = fetch.clone();
 	let (server, reg) = init_server(move |builder| {
 		builder.allowed_hosts(None).fetch(f.clone())
-	}, if multi_threaded { Remote::new_thread_per_future() } else { Remote::new_sync() });
+	}, Default::default(), if multi_threaded { Remote::new_thread_per_future() } else { Remote::new_sync() });
 
 	(server, fetch, reg)
 }
@@ -138,13 +143,13 @@ pub fn serve_with_fetch(web_token: &'static str) -> (ServerLoop, FakeFetch) {
 			.allowed_hosts(None)
 			.fetch(f.clone())
 			.web_proxy_tokens(Arc::new(move |token| &token == web_token))
-	}, Remote::new_sync());
+	}, Default::default(), Remote::new_sync());
 
 	(server, fetch)
 }
 
 pub fn serve() -> ServerLoop {
-	init_server(|builder| builder.allowed_hosts(None), Remote::new_sync()).0
+	init_server(|builder| builder.allowed_hosts(None), Default::default(), Remote::new_sync()).0
 }
 
 pub fn request(server: ServerLoop, request: &str) -> http_client::Response {

@@ -58,7 +58,7 @@ struct MetadataExtractor;
 impl HttpMetaExtractor<Metadata> for MetadataExtractor {
 	fn read_metadata(&self, request: &hyper::server::Request<hyper::net::HttpStream>) -> Metadata {
 		let dapp_id = request.headers().get::<hyper::header::Referer>()
-			.and_then(|referer| hyper::Url::parse(referer).ok())
+			.and_then(|origin| hyper::Url::parse(origin).ok())
 			.and_then(|url| {
 				url.path_segments()
 					.and_then(|mut split| split.next())
