@@ -613,18 +613,23 @@ impl LightProtocol {
 		trace!(target: "les", "Peer {} disconnecting", peer);
 
 		self.pending_peers.write().remove(&peer);
-		if let Some(peer_info) = self.peers.write().remove(&peer) {
-			let peer_info = peer_info.into_inner();
-			let mut unfulfilled: Vec<_> = peer_info.pending_requests.collect_ids();
-			unfulfilled.extend(peer_info.failed_requests);
+		let unfulfilled = match self.peers.write().remove(&peer) {
+			None => return,
+			Some(peer_info) => {
+				let peer_info = peer_info.into_inner();
+				let mut unfulfilled: Vec<_> = peer_info.pending_requests.collect_ids();
+				unfulfilled.extend(peer_info.failed_requests);
 
-			for handler in &self.handlers {
-				handler.on_disconnect(&Ctx {
-					peer: peer,
-					io: io,
-					proto: self,
-				}, &unfulfilled)
+				unfulfilled
 			}
+		};
+
+		for handler in &self.handlers {
+			handler.on_disconnect(&Ctx {
+				peer: peer,
+				io: io,
+				proto: self,
+			}, &unfulfilled)
 		}
 	}
 
