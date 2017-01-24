@@ -597,7 +597,7 @@ impl Engine for Tendermint {
 				trace!(target: "poa", "Propose timeout.");
 				if self.proposal.read().is_none() {
 					// Report the proposer if no proposal was received.
-					let current_proposer = self.round_proposer(self.height.load(AtomicOrdering::SeqCst), self.round.load(AtomicOrdering::SeqCst));
+					let current_proposer = self.view_proposer(self.height.load(AtomicOrdering::SeqCst), self.view.load(AtomicOrdering::SeqCst));
 					self.validators.report_benign(&current_proposer);
 				}
 				Step::Prevote
