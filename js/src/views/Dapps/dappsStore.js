@@ -39,7 +39,6 @@ export default class DappsStore extends EventEmitter {
 
   _api = null;
   _subscriptions = {};
-
   _cachedApps = {};
   _manifests = {};
   _registryAppsIds = null;
@@ -246,12 +245,12 @@ export default class DappsStore extends EventEmitter {
   }
 
   @action hideApp = (id) => {
-    this.displayApps = Object.assign({}, this.displayApps, { [id]: { visible: false } });
+    this.setDisplayApps({ [id]: { visible: false } });
     this.writeDisplayApps();
   }
 
   @action showApp = (id) => {
-    this.displayApps = Object.assign({}, this.displayApps, { [id]: { visible: true } });
+    this.setDisplayApps({ [id]: { visible: true } });
     this.writeDisplayApps();
   }
 
@@ -262,6 +261,10 @@ export default class DappsStore extends EventEmitter {
   @action writeDisplayApps = () => {
     store.set(LS_KEY_DISPLAY, this.displayApps);
   }
+
+  @action setDisplayApps = (displayApps) => {
+    this.displayApps = Object.assign({}, this.displayApps, displayApps);
+  };
 
   @action addApps = (_apps = []) => {
     transaction(() => {
@@ -278,13 +281,18 @@ export default class DappsStore extends EventEmitter {
         .sort((a, b) => a.name.localeCompare(b.name));
 
       const visibility = {};
+
       apps.forEach((app) => {
         if (!this.displayApps[app.id]) {
           visibility[app.id] = { visible: app.visible };
         }
       });
 
-      this.displayApps = Object.assign({}, this.displayApps, visibility);
+      this.setDisplayApps(visibility);
     });
   }
 }
+
+export {
+  LS_KEY_DISPLAY
+};

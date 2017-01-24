@@ -151,11 +151,13 @@ export default class WalletSettingsStore {
 
   @action onNext = () => {
     const stepIndex = this.stepsKeys.findIndex((k) => k === this.step) + 1;
+
     this.step = this.stepsKeys[stepIndex];
   }
 
   @action onChange = (_wallet) => {
     const newWallet = Object.assign({}, this.wallet, _wallet);
+
     this.validateWallet(newWallet);
   }
 
@@ -178,6 +180,7 @@ export default class WalletSettingsStore {
   @action send = () => {
     const changes = this.changes;
     const walletInstance = this.walletInstance;
+
     this.step = 'SENDING';
 
     this.onTransactionsState('postTransaction');
@@ -193,11 +196,13 @@ export default class WalletSettingsStore {
               .pollMethod('parity_checkRequest', id)
               .then((txhash) => {
                 const index = this.requests.findIndex((r) => r.id === id);
+
                 this.requests[index].txhash = txhash;
               })
               .catch((e) => {
                 if (e.code === ERROR_CODES.REQUEST_REJECTED) {
                   const index = this.requests.findIndex((r) => r.id === id);
+
                   this.requests[index].rejected = true;
                   return false;
                 }

@@ -24,12 +24,14 @@ export default class JsonEditor extends Component {
   constructor (...args) {
     super(...args);
     let { value } = this.props;
+
     value = formatJson.plain(value);
     this.state = { value };
   }
 
   componentDidMount () {
     const mockedEvt = { target: { value: this.state.value } };
+
     this.onChange(mockedEvt);
   }
 
@@ -59,6 +61,7 @@ export default class JsonEditor extends Component {
 
   renderError () {
     const { error } = this.state;
+
     if (!error) {
       return;
     }

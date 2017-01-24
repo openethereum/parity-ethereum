@@ -98,11 +98,11 @@ export default class InputText extends Component {
 
   onChange = (event) => {
     const value = event.target.value;
+
     // So we can focus on the input after async validation
     event.persist();
 
     const { validationType, contract } = this.props;
-
     const validation = validate(value, validationType, contract);
 
     if (validation instanceof Promise) {

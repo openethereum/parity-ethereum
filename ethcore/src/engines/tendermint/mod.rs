@@ -36,13 +36,11 @@ use header::Header;
 use builtin::Builtin;
 use env_info::EnvInfo;
 use rlp::{UntrustedRlp, View};
-use ethkey::{recover, public_to_address};
+use ethkey::{recover, public_to_address, Signature};
 use account_provider::AccountProvider;
 use block::*;
 use spec::CommonParams;
 use engines::{Engine, Seal, EngineError};
-use blockchain::extras::BlockDetails;
-use views::HeaderView;
 use evm::Schedule;
 use state::CleanupMode;
 use io::IoService;
@@ -397,7 +395,9 @@ impl Engine for Tendermint {
 	}
 
 	fn populate_from_parent(&self, header: &mut Header, parent: &Header, gas_floor_target: U256, _gas_ceil_target: U256) {
-		header.set_difficulty(parent.difficulty().clone());
+		// Chain scoring: total weight is sqrt(U256::max_value())*height - round
+		let new_difficulty = U256::from(U128::max_value()) + consensus_round(parent).expect("Header has been verified; qed").into() - self.round.load(AtomicOrdering::SeqCst).into();
+		header.set_difficulty(new_difficulty);
 		header.set_gas_limit({
 			let gas_limit = parent.gas_limit().clone();
 			let bound_divisor = self.gas_limit_bound_divisor;
@@ -452,11 +452,12 @@ impl Engine for Tendermint {
 			if !self.is_authority(&sender) {
 				Err(EngineError::NotAuthorized(sender))?;
 			}
+			self.broadcast_message(rlp.as_raw().to_vec());
 			if self.votes.vote(message.clone(), &sender).is_some() {
+				self.validators.report_malicious(&sender);
 				Err(EngineError::DoubleVote(sender))?
 			}
 			trace!(target: "poa", "Handling a valid {:?} from {}.", message, sender);
-			self.broadcast_message(rlp.as_raw().to_vec());
 			self.handle_valid_message(&message);
 		}
 		Ok(())
@@ -548,6 +549,7 @@ impl Engine for Tendermint {
 		let min_gas = parent.gas_limit().clone() - parent.gas_limit().clone() / gas_limit_divisor;
 		let max_gas = parent.gas_limit().clone() + parent.gas_limit().clone() / gas_limit_divisor;
 		if header.gas_limit() <= &min_gas || header.gas_limit() >= &max_gas {
+			self.validators.report_malicious(header.author());
 			Err(BlockError::InvalidGasLimit(OutOfBounds { min: Some(min_gas), max: Some(max_gas), found: header.gas_limit().clone() }))?;
 		}
 
@@ -561,29 +563,12 @@ impl Engine for Tendermint {
 		self.to_step(Step::Propose);
 	}
 
-	fn stop(&self) {
-		self.step_service.stop()
+	fn sign(&self, hash: H256) -> Result<Signature, Error> {
+		self.signer.sign(hash).map_err(Into::into)
 	}
 
-	fn is_new_best_block(&self, _best_total_difficulty: U256, best_header: HeaderView, _parent_details: &BlockDetails, new_header: &HeaderView) -> bool {
-		let new_number = new_header.number();
-		let best_number = best_header.number();
-		trace!(target: "poa", "new_header: {}, best_header: {}", new_number, best_number);
-		if new_number != best_number {
-			new_number > best_number
-		} else {
-			let new_seal = new_header.seal();
-			let best_seal = best_header.seal();
-			let new_signatures = new_seal.get(2).expect("Tendermint seal should have three elements.").len();
-			let best_signatures = best_seal.get(2).expect("Tendermint seal should have three elements.").len();
-			if new_signatures > best_signatures {
-				true
-			} else {
-				let new_round: Round = ::rlp::Rlp::new(&new_seal.get(0).expect("Tendermint seal should have three elements.")).as_val();
-				let best_round: Round = ::rlp::Rlp::new(&best_seal.get(0).expect("Tendermint seal should have three elements.")).as_val();
-				new_round > best_round
-			}
-		}
+	fn stop(&self) {
+		self.step_service.stop()
 	}
 
 	fn is_proposal(&self, header: &Header) -> bool {
@@ -610,6 +595,11 @@ impl Engine for Tendermint {
 		let next_step = match *self.step.read() {
 			Step::Propose => {
 				trace!(target: "poa", "Propose timeout.");
+				if self.proposal.read().is_none() {
+					// Report the proposer if no proposal was received.
+					let current_proposer = self.round_proposer(self.height.load(AtomicOrdering::SeqCst), self.round.load(AtomicOrdering::SeqCst));
+					self.validators.report_benign(&current_proposer);
+				}
 				Step::Prevote
 			},
 			Step::Prevote if self.has_enough_any_votes() => {
@@ -641,7 +631,7 @@ impl Engine for Tendermint {
 
 	fn register_client(&self, client: Weak<Client>) {
 		*self.client.write() = Some(client.clone());
-		self.validators.register_call_contract(client);
+		self.validators.register_contract(client);
 	}
 }
 

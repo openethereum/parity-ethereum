@@ -120,11 +120,13 @@ export default class CreateWalletStore {
 
   @action onNext = () => {
     const stepIndex = this.stepsKeys.findIndex((k) => k === this.step) + 1;
+
     this.step = this.stepsKeys[stepIndex];
   }
 
   @action onChange = (_wallet) => {
     const newWallet = Object.assign({}, this.wallet, _wallet);
+
     this.validateWallet(newWallet);
   }
 

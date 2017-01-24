@@ -118,6 +118,7 @@ export default class Event extends Component {
 
       default:
         let value;
+
         if (api.util.isInstanceOf(param.value, BigNumber)) {
           value = param.value.toFormat(0);
         } else if (api.util.isArray(param.value)) {

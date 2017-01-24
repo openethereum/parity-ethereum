@@ -212,6 +212,7 @@ export default class Ws extends JsonRpcBase {
         }
 
         const error = new TransportError(method, result.error.code, result.error.message);
+
         reject(error);
 
         delete this._messages[result.id];

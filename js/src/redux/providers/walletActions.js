@@ -182,6 +182,7 @@ function fetchWalletsInfo (updates) {
     Promise
       .all(_updates.map((update) => {
         const contract = new Contract(api, WALLET_ABI).at(update.address);
+
         return fetchWalletInfo(contract, update, getState);
       }))
       .then((updates) => {
@@ -415,6 +416,7 @@ function fetchOperationConfirmations (contract, operation, owners = null) {
   return promise
     .then((result) => {
       const owners = result.value;
+
       return Promise
         .all(owners.map((owner) => walletInstance.hasConfirmed.call({}, [ operation, owner ])))
         .then((data) => {

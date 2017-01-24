@@ -112,6 +112,7 @@ export default class NewImport extends Component {
 
     if (el.files.length) {
       const reader = new FileReader();
+
       reader.onload = (event) => {
         this.setState({
           walletJson: event.target.result,

@@ -70,6 +70,7 @@ class Contracts extends Component {
   setVisibleAccounts (props = this.props) {
     const { contracts, setVisibleAccounts } = props;
     const addresses = Object.keys(contracts);
+
     setVisibleAccounts(addresses);
   }
 
@@ -204,6 +205,7 @@ class Contracts extends Component {
   onAddSearchToken = (token) => {
     const { searchTokens } = this.state;
     const newSearchTokens = uniq([].concat(searchTokens, token));
+
     this.setState({ searchTokens: newSearchTokens });
   }
 

@@ -49,6 +49,7 @@ export const hasReceivedCode = (number, address, isTestnet = false) => {
 
 export const postToServer = (query, isTestnet = false) => {
   const port = isTestnet ? 8443 : 443;
+
   query = stringify(query);
 
   return fetch(`https://sms-verification.parity.io:${port}/?${query}`, {
