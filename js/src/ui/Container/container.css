@@ -54,4 +54,5 @@ $bgcolor: rgba(22, 22, 22, 1); /* 0.8 */
   position: absolute;
   right: 0;
   top: 100%;
+  z-index: 100;
 }

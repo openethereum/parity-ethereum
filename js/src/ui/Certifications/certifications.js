@@ -25,6 +25,7 @@ import styles from './certifications.css';
 
 class Certifications extends Component {
   static propTypes = {
+    'data-hover': PropTypes.string,
     address: PropTypes.string.isRequired,
     certifications: PropTypes.array.isRequired,
     dappsUrl: PropTypes.string.isRequired
@@ -38,7 +39,10 @@ class Certifications extends Component {
     }
 
     return (
-      <div className={ styles.certifications }>
+      <div
+        className={ styles.certifications }
+        data-hover={ this.props['data-hover'] }
+      >
         { certifications.map(this.renderCertification) }
       </div>
     );

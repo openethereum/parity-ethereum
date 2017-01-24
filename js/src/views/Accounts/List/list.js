@@ -18,7 +18,7 @@ import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
-import { Container } from '~/ui';
+import { Container, SectionList } from '~/ui';
 import { fetchCertifiers, fetchCertifications } from '~/redux/providers/certifications/actions';
 
 import Summary from '../Summary';
@@ -40,14 +40,6 @@ class List extends Component {
     handleAddSearchToken: PropTypes.func
   };
 
-  render () {
-    return (
-      <div className={ styles.list }>
-        { this.renderAccounts() }
-      </div>
-    );
-  }
-
   componentWillMount () {
     const { accounts, fetchCertifiers, fetchCertifications } = this.props;
 
@@ -57,7 +49,7 @@ class List extends Component {
     }
   }
 
-  renderAccounts () {
+  render () {
     const { accounts, balances, empty } = this.props;
 
     if (empty) {
@@ -72,24 +64,25 @@ class List extends Component {
 
     const addresses = this.getAddresses();
 
-    return addresses.map((address, idx) => {
-      const account = accounts[address] || {};
-      const balance = balances[address] || {};
+    return (
+      <SectionList
+        items={
+          addresses.map((address, idx) => {
+            const account = accounts[address] || {};
+            const balance = balances[address] || {};
+            const owners = account.owners || null;
 
-      const owners = account.owners || null;
-
-      return (
-        <div
-          className={ styles.item }
-          key={ address }
-        >
-          { this.renderSummary(account, balance, owners) }
-        </div>
-      );
-    });
+            return {
+              account, balance, owners
+            };
+          })
+        }
+        renderItem={ this.renderSummary }
+      />
+    );
   }
 
-  renderSummary (account, balance, owners) {
+  renderSummary = ({ account, balance, owners }) => {
     const { handleAddSearchToken, link } = this.props;
 
     return (

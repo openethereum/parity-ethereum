@@ -27,28 +27,34 @@ class Balance extends Component {
   }
 
   static propTypes = {
+    'data-hover': PropTypes.string,
     balance: PropTypes.object,
-    images: PropTypes.object.isRequired
+    images: PropTypes.object.isRequired,
+    onlyEth: PropTypes.bool
   }
 
   render () {
     const { api } = this.context;
-    const { balance, images } = this.props;
+    const { balance, images, onlyEth } = this.props;
 
     if (!balance) {
       return null;
     }
 
     let body = (balance.tokens || [])
-      .filter((balance) => new BigNumber(balance.value).gt(0))
+      .filter((balance) => {
+        const isCorrectType = onlyEth
+          ? balance.token.tag === 'ETH'
+          : true;
+
+        return new BigNumber(balance.value).gt(0) && isCorrectType;
+      })
       .map((balance, index) => {
         const token = balance.token;
-
         let value;
 
         if (token.format) {
           const bnf = new BigNumber(token.format);
-
           let decimals = 0;
 
           if (bnf.gte(1000)) {
@@ -92,17 +98,12 @@ class Balance extends Component {
         );
       });
 
-    if (!body.length) {
-      body = (
-        <div className={ styles.empty }>
-          There are no balances associated with this account
-        </div>
-      );
-    }
-
     return (
-      <div className={ styles.balances }>
-        { body }
+      <div
+        className={ styles.balances }
+        data-hover={ this.props['data-hover'] }
+      >
+        { body}
       </div>
     );
   }
