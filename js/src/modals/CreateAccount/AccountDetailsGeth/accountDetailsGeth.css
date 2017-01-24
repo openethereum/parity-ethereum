@@ -14,9 +14,10 @@
 /* You should have received a copy of the GNU General Public License
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
+
 .address {
   color: #999;
-  padding-top: 1em;
   line-height: 1.618em;
   padding-left: 2em;
+  padding-top: 1em;
 }

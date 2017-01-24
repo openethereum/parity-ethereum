@@ -22,9 +22,10 @@ use verification::queue::QueueInfo as BlockQueueInfo;
 use block::{OpenBlock, SealedBlock};
 use header::{BlockNumber};
 use transaction::{LocalizedTransaction, PendingTransaction, SignedTransaction};
+use transaction_import::TransactionImportResult;
 use log_entry::LocalizedLogEntry;
 use filter::Filter;
-use error::{ImportResult, CallError};
+use error::{ImportResult, CallError, Error as EthcoreError};
 use receipt::LocalizedReceipt;
 use trace::LocalizedTrace;
 use evm::{Factory as EvmFactory, Schedule};
@@ -272,6 +273,9 @@ pub trait BlockChainClient : Sync + Send {
 
 	/// Like `call`, but with various defaults. Designed to be used for calling contracts.
 	fn call_contract(&self, address: Address, data: Bytes) -> Result<Bytes, String>;
+
+	/// Import a transaction: used for misbehaviour reporting.
+	fn transact_contract(&self, address: Address, data: Bytes) -> Result<TransactionImportResult, EthcoreError>;
 
 	/// Get the address of the registry itself.
 	fn registrar_address(&self) -> Option<Address>;

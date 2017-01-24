@@ -14,47 +14,73 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
+import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
-import ActionDone from 'material-ui/svg-icons/action/done';
-import ActionDoneAll from 'material-ui/svg-icons/action/done-all';
-import NavigationArrowForward from 'material-ui/svg-icons/navigation/arrow-forward';
-import PrintIcon from 'material-ui/svg-icons/action/print';
+import { bindActionCreators } from 'redux';
 
+import ParityLogo from '~/../assets/images/parity-logo-black-no-text.svg';
+import { createIdentityImg } from '~/api/util/identity';
+import { newError } from '~/redux/actions';
 import { Button, Modal } from '~/ui';
+import { CheckIcon, DoneIcon, NextIcon, PrintIcon } from '~/ui/Icons';
 
 import { NewAccount, AccountDetails } from '../CreateAccount';
+import print from '../CreateAccount/print';
+import recoveryPage from '../CreateAccount/recoveryPage.ejs';
+import CreateStore from '../CreateAccount/store';
 
 import Completed from './Completed';
 import TnC from './TnC';
 import Welcome from './Welcome';
 
-import { createIdentityImg } from '~/api/util/identity';
-import print from '../CreateAccount/print';
-import recoveryPage from '../CreateAccount/recovery-page.ejs';
-import ParityLogo from '../../../assets/images/parity-logo-black-no-text.svg';
+const STAGE_NAMES = [
+  <FormattedMessage
+    id='firstRun.title.welcome'
+    defaultMessage='welcome'
+  />,
+  <FormattedMessage
+    id='firstRun.title.terms'
+    defaultMessage='terms'
+  />,
+  <FormattedMessage
+    id='firstRun.title.newAccount'
+    defaultMessage='new account'
+  />,
+  <FormattedMessage
+    id='firstRun.title.recovery'
+    defaultMessage='recovery'
+  />,
+  <FormattedMessage
+    id='firstRun.title.completed'
+    defaultMessage='completed'
+  />
+];
+const BUTTON_LABEL_NEXT = (
+  <FormattedMessage
+    id='firstRun.button.next'
+    defaultMessage='Next'
+  />
+);
 
-const STAGE_NAMES = ['welcome', 'terms', 'new account', 'recovery', 'completed'];
-
+@observer
 class FirstRun extends Component {
   static contextTypes = {
-    api: PropTypes.object.isRequired,
-    store: PropTypes.object.isRequired
+    api: PropTypes.object.isRequired
   }
 
   static propTypes = {
     hasAccounts: PropTypes.bool.isRequired,
-    visible: PropTypes.bool.isRequired,
-    onClose: PropTypes.func.isRequired
+    newError: PropTypes.func.isRequired,
+    onClose: PropTypes.func.isRequired,
+    visible: PropTypes.bool.isRequired
   }
+
+  createStore = new CreateStore(this.context.api, {}, false);
 
   state = {
     stage: 0,
-    name: '',
-    address: '',
-    password: '',
-    phrase: '',
-    canCreate: false,
     hasAcceptedTnc: false
   }
 
@@ -79,7 +105,7 @@ class FirstRun extends Component {
   }
 
   renderStage () {
-    const { address, name, phrase, stage, hasAcceptedTnc } = this.state;
+    const { stage, hasAcceptedTnc } = this.state;
 
     switch (stage) {
       case 0:
@@ -96,16 +122,13 @@ class FirstRun extends Component {
       case 2:
         return (
           <NewAccount
-            onChange={ this.onChangeDetails }
+            newError={ this.props.newError }
+            store={ this.createStore }
           />
         );
       case 3:
         return (
-          <AccountDetails
-            address={ address }
-            name={ name }
-            phrase={ phrase }
-          />
+          <AccountDetails store={ this.createStore } />
         );
       case 4:
         return (
@@ -116,14 +139,16 @@ class FirstRun extends Component {
 
   renderDialogActions () {
     const { hasAccounts } = this.props;
-    const { canCreate, stage, hasAcceptedTnc } = this.state;
+    const { stage, hasAcceptedTnc } = this.state;
+    const { canCreate } = this.createStore;
 
     switch (stage) {
       case 0:
         return (
           <Button
-            icon={ <NavigationArrowForward /> }
-            label='Next'
+            icon={ <NextIcon /> }
+            key='next'
+            label={ BUTTON_LABEL_NEXT }
             onClick={ this.onNext }
           />
         );
@@ -132,8 +157,9 @@ class FirstRun extends Component {
         return (
           <Button
             disabled={ !hasAcceptedTnc }
-            icon={ <NavigationArrowForward /> }
-            label='Next'
+            icon={ <NextIcon /> }
+            key='next'
+            label={ BUTTON_LABEL_NEXT }
             onClick={ this.onNext }
           />
         );
@@ -141,10 +167,15 @@ class FirstRun extends Component {
       case 2:
         const buttons = [
           <Button
-            icon={ <ActionDone /> }
-            label='Create'
-            key='create'
             disabled={ !canCreate }
+            icon={ <CheckIcon /> }
+            key='create'
+            label={
+              <FormattedMessage
+                id='firstRun.button.create'
+                defaultMessage='Create'
+              />
+            }
             onClick={ this.onCreate }
           />
         ];
@@ -152,9 +183,14 @@ class FirstRun extends Component {
         if (hasAccounts) {
           buttons.unshift(
             <Button
-              icon={ <NavigationArrowForward /> }
-              label='Skip'
+              icon={ <NextIcon /> }
               key='skip'
+              label={
+                <FormattedMessage
+                  id='firstRun.button.skip'
+                  defaultMessage='Skip'
+                />
+              }
               onClick={ this.skipAccountCreation }
             />
           );
@@ -165,12 +201,19 @@ class FirstRun extends Component {
         return [
           <Button
             icon={ <PrintIcon /> }
-            label='Print Phrase'
+            key='print'
+            label={
+              <FormattedMessage
+                id='firstRun.button.print'
+                defaultMessage='Print Phrase'
+              />
+            }
             onClick={ this.printPhrase }
           />,
           <Button
-            icon={ <NavigationArrowForward /> }
-            label='Next'
+            icon={ <NextIcon /> }
+            key='next'
+            label={ BUTTON_LABEL_NEXT }
             onClick={ this.onNext }
           />
         ];
@@ -178,8 +221,14 @@ class FirstRun extends Component {
       case 4:
         return (
           <Button
-            icon={ <ActionDoneAll /> }
-            label='Close'
+            icon={ <DoneIcon /> }
+            key='close'
+            label={
+              <FormattedMessage
+                id='firstRun.button.close'
+                defaultMessage='Close'
+              />
+            }
             onClick={ this.onClose }
           />
         );
@@ -208,38 +257,18 @@ class FirstRun extends Component {
     });
   }
 
-  onChangeDetails = (valid, { name, address, password, phrase }) => {
-    this.setState({
-      canCreate: valid,
-      name: name,
-      address: address,
-      password: password,
-      phrase: phrase
-    });
-  }
-
   onCreate = () => {
-    const { api } = this.context;
-    const { name, phrase, password } = this.state;
+    this.createStore.setBusy(true);
 
-    this.setState({
-      canCreate: false
-    });
-
-    return api.parity
-      .newAccountFromPhrase(phrase, password)
-      .then((address) => api.parity.setAccountName(address, name))
+    return this.createStore
+      .createAccount()
       .then(() => {
         this.onNext();
+        this.createStore.setBusy(false);
       })
       .catch((error) => {
-        console.error('onCreate', error);
-
-        this.setState({
-          canCreate: true
-        });
-
-        this.newError(error);
+        this.createStore.setBusy(false);
+        this.props.newError(error);
       });
   }
 
@@ -247,22 +276,35 @@ class FirstRun extends Component {
     this.setState({ stage: this.state.stage + 2 });
   }
 
-  newError = (error) => {
-    const { store } = this.context;
-
-    store.dispatch({ type: 'newError', error });
-  }
-
   printPhrase = () => {
-    const { address, phrase, name } = this.state;
+    const { address, phrase, name } = this.createStore;
     const identity = createIdentityImg(address);
 
-    print(recoveryPage({ phrase, name, identity, address, logo: ParityLogo }));
+    print(recoveryPage({
+      address,
+      identity,
+      logo: ParityLogo,
+      name,
+      phrase
+    }));
   }
 }
 
 function mapStateToProps (state) {
-  return { hasAccounts: state.personal.hasAccounts };
+  const { hasAccounts } = state.personal;
+
+  return {
+    hasAccounts
+  };
 }
 
-export default connect(mapStateToProps, null)(FirstRun);
+function mapDispatchToProps (dispatch) {
+  return bindActionCreators({
+    newError
+  }, dispatch);
+}
+
+export default connect(
+  mapStateToProps,
+  mapDispatchToProps
+)(FirstRun);
