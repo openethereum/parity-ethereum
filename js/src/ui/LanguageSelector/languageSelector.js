@@ -14,20 +14,23 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import React, { Component } from 'react';
-import { FormattedMessage } from 'react-intl';
 import { MenuItem } from 'material-ui';
 import { observer } from 'mobx-react';
+import React, { Component } from 'react';
+import { FormattedMessage } from 'react-intl';
+
+import { LocaleStore } from '~/i18n';
+import { FeaturesStore, FEATURES } from '../Features';
 
 import Select from '../Form/Select';
-import { LocaleStore } from '../../i18n';
 
 @observer
 export default class LanguageSelector extends Component {
+  features = FeaturesStore.get();
   store = LocaleStore.get();
 
   render () {
-    if (!this.store.isDevelopment) {
+    if (!this.features.active[FEATURES.LANGUAGE]) {
       return null;
     }
 
@@ -70,6 +73,6 @@ export default class LanguageSelector extends Component {
   }
 
   onChange = (event, index, locale) => {
-    this.store.setLocale(locale);
+    this.store.setLocale(locale || event.target.value);
   }
 }

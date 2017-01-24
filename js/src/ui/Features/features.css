@@ -14,29 +14,7 @@
 /* You should have received a copy of the GNU General Public License
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
-.list {
-  input+div>div {
-    top: 13px;
-  }
-}
 
-.selection {
-  display: inline-block;
-  margin-bottom: 0.5em;
-
-  .icon {
-    display: inline-block;
-  }
-
-  .detail {
-    display: inline-block;
-
-    .address {
-      color: #aaa;
-    }
-
-    .balance {
-      font-family: 'Roboto Mono', monospace;
-    }
-  }
+.description {
+  opacity: 0.75;
 }

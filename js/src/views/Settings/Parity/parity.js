@@ -14,67 +14,28 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import { MenuItem } from 'material-ui';
+import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
-import { MenuItem } from 'material-ui';
-import LogLevel from 'loglevel';
 
-import { LOG_KEYS } from '~/config';
 import { Select, Container, LanguageSelector } from '~/ui';
+import Features, { FeaturesStore, FEATURES } from '~/ui/Features';
 
+import Store, { LOGLEVEL_OPTIONS } from './store';
 import layout from '../layout.css';
 
+@observer
 export default class Parity extends Component {
   static contextTypes = {
     api: PropTypes.object.isRequired
   };
 
-  state = {
-    loglevels: {},
-    mode: 'active',
-    selectValues: []
-  };
+  store = new Store(this.context.api);
+  features = FeaturesStore.get();
 
   componentWillMount () {
-    this.loadMode();
-    this.loadLogLevels();
-    this.setSelectValues();
-  }
-
-  loadLogLevels () {
-    if (process.env.NODE_ENV === 'production') {
-      return null;
-    }
-
-    const nextState = { ...this.state.logLevels };
-
-    Object.keys(LOG_KEYS).map((logKey) => {
-      const log = LOG_KEYS[logKey];
-
-      const logger = LogLevel.getLogger(log.key);
-      const level = logger.getLevel();
-
-      nextState[logKey] = { level, log };
-    });
-
-    this.setState({ logLevels: nextState });
-  }
-
-  setSelectValues () {
-    if (process.env.NODE_ENV === 'production') {
-      return null;
-    }
-
-    const selectValues = Object.keys(LogLevel.levels).map((levelName) => {
-      const value = LogLevel.levels[levelName];
-
-      return {
-        name: levelName,
-        value
-      };
-    });
-
-    this.setState({ selectValues });
+    return this.store.loadMode();
   }
 
   render () {
@@ -94,18 +55,30 @@ export default class Parity extends Component {
             </div>
           </div>
           <div className={ layout.details }>
-            <LanguageSelector />
             { this.renderModes() }
+            <Features />
+            <LanguageSelector />
           </div>
         </div>
-
         { this.renderLogsConfig() }
       </Container>
     );
   }
 
+  renderItem (mode, label) {
+    return (
+      <MenuItem
+        key={ mode }
+        label={ label }
+        value={ mode }
+      >
+        { label }
+      </MenuItem>
+    );
+  }
+
   renderLogsConfig () {
-    if (process.env.NODE_ENV === 'production') {
+    if (!this.features.active[FEATURES.LOGLEVELS]) {
       return null;
     }
 
@@ -127,129 +100,89 @@ export default class Parity extends Component {
   }
 
   renderLogsLevels () {
-    if (process.env.NODE_ENV === 'production') {
-      return null;
-    }
+    const { logLevels } = this.store;
 
-    const { logLevels, selectValues } = this.state;
+    return Object
+      .keys(logLevels)
+      .map((key) => {
+        const { level, log } = logLevels[key];
+        const { path, desc } = log;
 
-    return Object.keys(logLevels).map((logKey) => {
-      const { level, log } = logLevels[logKey];
-      const { key, desc } = log;
+        const onChange = (_, index) => {
+          this.store.updateLoggerLevel(path, Object.values(LOGLEVEL_OPTIONS)[index].value);
+        };
 
-      const onChange = (_, index) => {
-        const nextLevel = Object.values(selectValues)[index].value;
-
-        LogLevel.getLogger(key).setLevel(nextLevel);
-        this.loadLogLevels();
-      };
-
-      return (
-        <div key={ logKey }>
-          <p>{ desc }</p>
-          <Select
-            onChange={ onChange }
-            value={ level }
-            values={ selectValues }
-          />
-        </div>
-      );
-    });
+        return (
+          <div key={ key }>
+            <p>{ desc }</p>
+            <Select
+              onChange={ onChange }
+              value={ level }
+              values={ LOGLEVEL_OPTIONS }
+            />
+          </div>
+        );
+      });
   }
 
   renderModes () {
-    const { mode } = this.state;
-
-    const renderItem = (mode, label) => {
-      return (
-        <MenuItem
-          key={ mode }
-          value={ mode }
-          label={ label }
-        >
-          { label }
-        </MenuItem>
-      );
-    };
+    const { mode } = this.store;
 
     return (
       <Select
-        label={
-          <FormattedMessage
-            id='settings.parity.modes.label'
-            defaultMessage='mode of operation'
-          />
-        }
+        id='parityModeSelect'
         hint={
           <FormattedMessage
             id='settings.parity.modes.hint'
             defaultMessage='the syning mode for the Parity node'
           />
         }
-        value={ mode }
+        label={
+          <FormattedMessage
+            id='settings.parity.modes.label'
+            defaultMessage='mode of operation'
+          />
+        }
         onChange={ this.onChangeMode }
+        value={ mode }
       >
         {
-          renderItem('active',
+          this.renderItem('active', (
             <FormattedMessage
               id='settings.parity.modes.mode_active'
               defaultMessage='Parity continuously syncs the chain'
             />
-          )
+          ))
         }
         {
-          renderItem('passive',
+          this.renderItem('passive', (
             <FormattedMessage
               id='settings.parity.modes.mode_passive'
               defaultMessage='Parity syncs initially, then sleeps and wakes regularly to resync'
             />
-          )
+          ))
         }
         {
-          renderItem('dark',
+          this.renderItem('dark', (
             <FormattedMessage
               id='settings.parity.modes.mode_dark'
               defaultMessage='Parity syncs only when the RPC is active'
             />
-          )
+          ))
         }
         {
-          renderItem('offline',
+          this.renderItem('offline', (
             <FormattedMessage
               id='settings.parity.modes.mode_offline'
               defaultMessage="Parity doesn't sync"
             />
-          )
+          ))
         }
       </Select>
     );
   }
 
   onChangeMode = (event, index, mode) => {
-    const { api } = this.context;
-
-    api.parity
-      .setMode(mode)
-      .then((result) => {
-        if (result) {
-          this.setState({ mode });
-        }
-      })
-      .catch((error) => {
-        console.warn('onChangeMode', error);
-      });
-  }
-
-  loadMode () {
-    const { api } = this.context;
-
-    api.parity
-      .mode()
-      .then((mode) => {
-        this.setState({ mode });
-      })
-      .catch((error) => {
-        console.warn('loadMode', error);
-      });
+    this.store.changeMode(mode || event.target.value);
   }
 }
