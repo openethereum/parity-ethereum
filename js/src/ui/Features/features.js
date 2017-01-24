@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import { Checkbox } from 'material-ui';
+import { observer } from 'mobx-react';
 import { List, ListItem } from 'material-ui/List';
 import React, { Component } from 'react';
 
@@ -22,6 +23,7 @@ import defaults, { MODES } from './defaults';
 import Store from './store';
 import styles from './features.css';
 
+@observer
 export default class Features extends Component {
   store = new Store();
 
