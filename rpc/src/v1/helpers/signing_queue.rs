@@ -54,9 +54,6 @@ pub enum QueueAddError {
 	LimitReached,
 }
 
-/// Message Receiver type
-pub type QueueEventReceiver = mpsc::Receiver<QueueEvent>;
-
 // TODO [todr] to consider: timeout instead of limit?
 const QUEUE_LIMIT: usize = 50;
 
