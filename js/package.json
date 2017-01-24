@@ -1,6 +1,6 @@
 {
   "name": "parity.js",
-  "version": "0.3.10",
+  "version": "0.3.12",
   "main": "release/index.js",
   "jsnext:main": "src/index.js",
   "author": "Parity Team <admin@parity.io>",
@@ -29,8 +29,8 @@
     "build:app": "webpack --config webpack/app",
     "build:lib": "webpack --config webpack/libraries",
     "build:dll": "webpack --config webpack/vendor",
-    "build:markdown": "babel-node ./src/jsonrpc/generator/build-markdown.js",
-    "build:json": "babel-node ./src/jsonrpc/generator/build-json.js",
+    "build:markdown": "babel-node ./scripts/build-rpc-markdown.js",
+    "build:json": "babel-node ./scripts/build-rpc-json.js",
     "ci:build": "npm run ci:build:lib && npm run ci:build:dll && npm run ci:build:app",
     "ci:build:app": "NODE_ENV=production webpack --config webpack/app",
     "ci:build:lib": "NODE_ENV=production webpack --config webpack/libraries",

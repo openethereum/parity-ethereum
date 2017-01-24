@@ -275,15 +275,16 @@ impl Engine for AuthorityRound {
 		// Give one step slack if step is lagging, double vote is still not possible.
 		if header_step <= self.step.load(AtomicOrdering::SeqCst) + 1 {
 			let proposer_signature = header_signature(header)?;
-			let ok_sig = verify_address(&self.step_proposer(header_step), &proposer_signature, &header.bare_hash())?;
-			if ok_sig {
+			let correct_proposer = self.step_proposer(header_step);
+			if verify_address(&correct_proposer, &proposer_signature, &header.bare_hash())? {
 				Ok(())
 			} else {
-				trace!(target: "poa", "verify_block_unordered: invalid seal signature");
-				Err(BlockError::InvalidSeal)?
+				trace!(target: "poa", "verify_block_unordered: bad proposer for step: {}", header_step);
+				Err(EngineError::NotProposer(Mismatch { expected: correct_proposer, found: header.author().clone() }))?
 			}
 		} else {
 			trace!(target: "poa", "verify_block_unordered: block from the future");
+			self.validators.report_benign(header.author());
 			Err(BlockError::InvalidSeal)?
 		}
 	}
@@ -297,6 +298,7 @@ impl Engine for AuthorityRound {
 		// Check if parent is from a previous step.
 		if step == header_step(parent)? {
 			trace!(target: "poa", "Multiple blocks proposed for step {}.", step);
+			self.validators.report_malicious(header.author());
 			Err(EngineError::DoubleVote(header.author().clone()))?;
 		}
 
@@ -311,11 +313,15 @@ impl Engine for AuthorityRound {
 
 	fn register_client(&self, client: Weak<Client>) {
 		*self.client.write() = Some(client.clone());
-		self.validators.register_call_contract(client);
+		self.validators.register_contract(client);
 	}
 
 	fn set_signer(&self, ap: Arc<AccountProvider>, address: Address, password: String) {
 		self.signer.set(ap, address, password);
+	}
+
+	fn sign(&self, hash: H256) -> Result<Signature, Error> {
+		self.signer.sign(hash).map_err(Into::into)
 	}
 }
 
