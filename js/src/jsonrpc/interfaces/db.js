@@ -18,6 +18,7 @@ import { Data } from '../types';
 
 export default {
   getHex: {
+    nodoc: 'Not present in Rust code',
     desc: 'Returns binary data from the local database.',
     params: [
       {
@@ -37,6 +38,7 @@ export default {
   },
 
   getString: {
+    nodoc: 'Not present in Rust code',
     desc: 'Returns string from the local database.',
     params: [
       {
@@ -56,6 +58,7 @@ export default {
   },
 
   putHex: {
+    nodoc: 'Not present in Rust code',
     desc: 'Stores binary data in the local database.',
     params: [
       {
@@ -79,6 +82,7 @@ export default {
   },
 
   putString: {
+    nodoc: 'Not present in Rust code',
     desc: 'Stores a string in the local database.',
     params: [
       {

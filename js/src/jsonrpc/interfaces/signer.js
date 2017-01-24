@@ -130,6 +130,7 @@ export default {
   },
 
   signerEnabled: {
+    nodoc: 'Not present in Rust code',
     desc: 'Returns whether signer is enabled/disabled.',
     params: [],
     returns: {
