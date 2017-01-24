@@ -32,6 +32,7 @@ pub use self::tendermint::Tendermint;
 
 use std::sync::Weak;
 use util::*;
+use ethkey::Signature;
 use account_provider::AccountProvider;
 use block::ExecutedBlock;
 use builtin::Builtin;
@@ -206,6 +207,9 @@ pub trait Engine : Sync + Send {
 
 	/// Register an account which signs consensus messages.
 	fn set_signer(&self, _account_provider: Arc<AccountProvider>, _address: Address, _password: String) {}
+
+	/// Sign using the EngineSigner, to be used for consensus tx signing.
+	fn sign(&self, _hash: H256) -> Result<Signature, Error> { unimplemented!() }
 
 	/// Add Client which can be used for sealing, querying the state and sending messages.
 	fn register_client(&self, _client: Weak<Client>) {}

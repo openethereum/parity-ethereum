@@ -17,6 +17,7 @@
 /// Validator lists.
 
 mod simple_list;
+mod safe_contract;
 mod contract;
 
 use std::sync::Weak;
@@ -25,11 +26,13 @@ use ethjson::spec::ValidatorSet as ValidatorSpec;
 use client::Client;
 use self::simple_list::SimpleList;
 use self::contract::ValidatorContract;
+use self::safe_contract::ValidatorSafeContract;
 
 /// Creates a validator set from spec.
 pub fn new_validator_set(spec: ValidatorSpec) -> Box<ValidatorSet + Send + Sync> {
 	match spec {
 		ValidatorSpec::List(list) => Box::new(SimpleList::new(list.into_iter().map(Into::into).collect())),
+		ValidatorSpec::SafeContract(address) => Box::new(Arc::new(ValidatorSafeContract::new(address.into()))),
 		ValidatorSpec::Contract(address) => Box::new(Arc::new(ValidatorContract::new(address.into()))),
 	}
 }
@@ -41,6 +44,10 @@ pub trait ValidatorSet {
 	fn get(&self, nonce: usize) -> Address;
 	/// Returns the current number of validators.
 	fn count(&self) -> usize;
+	/// Notifies about malicious behaviour.
+	fn report_malicious(&self, _validator: &Address) {}
+	/// Notifies about benign misbehaviour.
+	fn report_benign(&self, _validator: &Address) {}
 	/// Allows blockchain state access.
-	fn register_call_contract(&self, _client: Weak<Client>) {}
+	fn register_contract(&self, _client: Weak<Client>) {}
 }
