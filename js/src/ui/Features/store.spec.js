@@ -46,9 +46,9 @@ describe('ui/Features/Store', () => {
         expect(store.active.testing).to.be.true;
       });
 
-      it('overrides with defaults', () => {
+      it('overrides the defaults', () => {
         store.setActiveFeatures({ '.PRODUCTION': false });
-        expect(store.active['.PRODUCTION']).to.be.true;
+        expect(store.active['.PRODUCTION']).to.be.false;
       });
     });
 

@@ -32,7 +32,7 @@ export default class Store {
   }
 
   @action setActiveFeatures = (features = {}, isProduction) => {
-    this.active = Object.assign({}, features, this.getDefaultActive(isProduction));
+    this.active = Object.assign({}, this.getDefaultActive(isProduction), features);
   }
 
   @action toggleActive = (featureKey) => {
