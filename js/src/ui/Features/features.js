@@ -25,7 +25,7 @@ import styles from './features.css';
 
 @observer
 export default class Features extends Component {
-  store = new Store();
+  store = Store.get();
 
   render () {
     if (process.env.NODE_ENV === 'production') {

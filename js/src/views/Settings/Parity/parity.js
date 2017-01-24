@@ -78,7 +78,7 @@ export default class Parity extends Component {
   }
 
   renderLogsConfig () {
-    if (!this.features.active[FEATURES.LANGUAGE]) {
+    if (!this.features.active[FEATURES.LOGLEVELS]) {
       return null;
     }
 
