@@ -340,14 +340,20 @@ impl Spec {
 	/// Accounts with secrets "0".sha3() and "1".sha3() are the validators.
 	pub fn new_test_round() -> Self { load_bundled!("authority_round") }
 
-	/// Create a new Spec with BasicAuthority which uses a contract at address 5 to determine the current validators.
-	/// Accounts with secrets "0".sha3() and "1".sha3() are initially the validators.
-	/// Second validator can be removed with "0xf94e18670000000000000000000000000000000000000000000000000000000000000001" and added back in using "0x4d238c8e00000000000000000000000082a978b3f5962a5b0957d9ee9eef472ee55b42f1".
-	pub fn new_validator_contract() -> Self { load_bundled!("validator_contract") }
-
 	/// Create a new Spec with Tendermint consensus which does internal sealing (not requiring work).
 	/// Account "0".sha3() and "1".sha3() are a authorities.
 	pub fn new_test_tendermint() -> Self { load_bundled!("tendermint") }
+
+	/// TestList.sol used in both specs: https://github.com/ethcore/contracts/pull/30/files
+	/// Accounts with secrets "0".sha3() and "1".sha3() are initially the validators.
+	/// Create a new Spec with BasicAuthority which uses a contract at address 5 to determine the current validators using `getValidators`.
+	/// Second validator can be removed with "0xbfc708a000000000000000000000000082a978b3f5962a5b0957d9ee9eef472ee55b42f1" and added back in using "0x4d238c8e00000000000000000000000082a978b3f5962a5b0957d9ee9eef472ee55b42f1".
+	pub fn new_validator_safe_contract() -> Self { load_bundled!("validator_safe_contract") }
+
+	/// The same as the `safeContract`, but allows reporting and uses AuthorityRound.
+	/// Account is marked with `reportBenign` it can be checked as disliked with "0xd8f2e0bf".
+	/// Validator can be removed with `reportMalicious`.
+	pub fn new_validator_contract() -> Self { load_bundled!("validator_contract") }
 }
 
 #[cfg(test)]
