@@ -49,6 +49,10 @@ pub struct Params {
 	/// Expected fork block hash.
 	#[serde(rename="forkCanonHash")]
 	pub fork_hash: Option<H256>,
+
+	/// See `CommonParams` docs.
+	#[serde(rename="eip98Transition")]
+	pub eip98_transition: Option<Uint>,
 }
 
 #[cfg(test)]

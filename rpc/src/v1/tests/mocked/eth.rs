@@ -969,7 +969,7 @@ fn rpc_eth_transaction_receipt() {
 			log_index: 1,
 		}],
 		log_bloom: 0.into(),
-		state_root: 0.into(),
+		state_root: Some(0.into()),
 	};
 
 	let hash = H256::from_str("b903239f8543d04b5dc1ba6579132b143087c68db1b2168786408fcbce568238").unwrap();

@@ -28,8 +28,8 @@ use log_entry::{LogEntry, LocalizedLogEntry};
 #[derive(Default, Debug, Clone)]
 #[cfg_attr(feature = "ipc", binary)]
 pub struct Receipt {
-	/// The state root after executing the transaction.
-	pub state_root: H256,
+	/// The state root after executing the transaction. Optional since EIP98
+	pub state_root: Option<H256>,
 	/// The total gas used in the block following execution of the transaction.
 	pub gas_used: U256,
 	/// The OR-wide combination of all logs' blooms for this transaction.
@@ -40,7 +40,7 @@ pub struct Receipt {
 
 impl Receipt {
 	/// Create a new receipt.
-	pub fn new(state_root: H256, gas_used: U256, logs: Vec<LogEntry>) -> Receipt {
+	pub fn new(state_root: Option<H256>, gas_used: U256, logs: Vec<LogEntry>) -> Receipt {
 		Receipt {
 			state_root: state_root,
 			gas_used: gas_used,
@@ -52,8 +52,12 @@ impl Receipt {
 
 impl Encodable for Receipt {
 	fn rlp_append(&self, s: &mut RlpStream) {
-		s.begin_list(4);
-		s.append(&self.state_root);
+		if let Some(ref root) = self.state_root {
+			s.begin_list(4);
+			s.append(root);
+		} else {
+			s.begin_list(3);
+		}
 		s.append(&self.gas_used);
 		s.append(&self.log_bloom);
 		s.append(&self.logs);
@@ -63,13 +67,21 @@ impl Encodable for Receipt {
 impl Decodable for Receipt {
 	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
 		let d = decoder.as_rlp();
-		let receipt = Receipt {
-			state_root: d.val_at(0)?,
-			gas_used: d.val_at(1)?,
-			log_bloom: d.val_at(2)?,
-			logs: d.val_at(3)?,
-		};
-		Ok(receipt)
+		if d.item_count() == 3 {
+			Ok(Receipt {
+				state_root: None,
+				gas_used: d.val_at(0)?,
+				log_bloom: d.val_at(1)?,
+				logs: d.val_at(2)?,
+			})
+		} else {
+			Ok(Receipt {
+				state_root: d.val_at(0)?,
+				gas_used: d.val_at(1)?,
+				log_bloom: d.val_at(2)?,
+				logs: d.val_at(3)?,
+			})
+		}
 	}
 }
 
@@ -98,7 +110,7 @@ pub struct RichReceipt {
 	/// Logs bloom
 	pub log_bloom: LogBloom,
 	/// State root
-	pub state_root: H256,
+	pub state_root: Option<H256>,
 }
 
 /// Receipt with additional info.
@@ -124,14 +136,29 @@ pub struct LocalizedReceipt {
 	/// Logs bloom
 	pub log_bloom: LogBloom,
 	/// State root
-	pub state_root: H256,
+	pub state_root: Option<H256>,
+}
+
+#[test]
+fn test_no_state_root() {
+	let expected = ::rustc_serialize::hex::FromHex::from_hex("f9014183040caeb9010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000400000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000008000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000000f838f794dcf421d093428b096ca501a7cd1a740855a7976fc0a00000000000000000000000000000000000000000000000000000000000000000").unwrap();
+	let r = Receipt::new(
+		None,
+		0x40cae.into(),
+		vec![LogEntry {
+			address: "dcf421d093428b096ca501a7cd1a740855a7976f".into(),
+			topics: vec![],
+			data: vec![0u8; 32]
+		}]
+	);
+	assert_eq!(&encode(&r)[..], &expected[..]);
 }
 
 #[test]
 fn test_basic() {
 	let expected = ::rustc_serialize::hex::FromHex::from_hex("f90162a02f697d671e9ae4ee24a43c4b0d7e15f1cb4ba6de1561120d43b9a4e8c4a8a6ee83040caeb9010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000400000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000008000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000000f838f794dcf421d093428b096ca501a7cd1a740855a7976fc0a00000000000000000000000000000000000000000000000000000000000000000").unwrap();
 	let r = Receipt::new(
-		"2f697d671e9ae4ee24a43c4b0d7e15f1cb4ba6de1561120d43b9a4e8c4a8a6ee".into(),
+		Some("2f697d671e9ae4ee24a43c4b0d7e15f1cb4ba6de1561120d43b9a4e8c4a8a6ee".into()),
 		0x40cae.into(),
 		vec![LogEntry {
 			address: "dcf421d093428b096ca501a7cd1a740855a7976f".into(),
