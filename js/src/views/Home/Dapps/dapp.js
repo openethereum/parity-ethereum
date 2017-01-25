@@ -18,9 +18,9 @@ import moment from 'moment';
 import React, { Component, PropTypes } from 'react';
 import { Link } from 'react-router';
 
-import { DappIcon } from '~/ui';
+import { Container, DappIcon } from '~/ui';
 
-import styles from '../home.css';
+import styles from './dapps.css';
 
 export default class Dapp extends Component {
   static propTypes = {
@@ -46,11 +46,11 @@ export default class Dapp extends Component {
     }
 
     return (
-      <tr>
-        <td className={ styles.timestamp }>
+      <Container className={ styles.dapp }>
+        <div className={ styles.timestamp }>
           { moment(timestamp).fromNow() }
-        </td>
-        <td className={ styles.entry }>
+        </div>
+        <div className={ styles.entry }>
           <Link to={ `/app/${id}` }>
             <DappIcon
               app={ dapp }
@@ -61,8 +61,8 @@ export default class Dapp extends Component {
               { dapp.name }
             </span>
           </Link>
-        </td>
-      </tr>
+        </div>
+      </Container>
     );
   }
 

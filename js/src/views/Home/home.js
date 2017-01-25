@@ -59,14 +59,14 @@ export default class Home extends Component {
           history={ this.webHistory.history }
           store={ this.webStore }
         />
-        <div className={ styles.list }>
-          <div className={ styles.item }>
+        <div className={ styles.row }>
+          <div className={ styles.column }>
             <Dapps
               history={ this.dappsHistory.history }
               store={ this.dappsStore }
             />
           </div>
-          <div className={ styles.item }>
+          <div className={ styles.column }>
             <Accounts history={ this.accountsHistory.history } />
           </div>
         </div>

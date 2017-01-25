@@ -19,7 +19,7 @@ import moment from 'moment';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 
-import { ContainerTitle, DappUrlInput, SectionList } from '~/ui';
+import { Container, ContainerTitle, DappUrlInput, SectionList } from '~/ui';
 import { LinkIcon } from '~/ui/Icons';
 import { arrayOrObjectProptype } from '~/util/proptypes';
 
@@ -89,7 +89,7 @@ export default class Urls extends Component {
     const onNavigate = () => this.onGotoUrl(history.entry);
 
     return (
-      <div
+      <Container
         className={ styles.historyItem }
         onClick={ onNavigate }
         key={ history.timestamp }
@@ -107,7 +107,7 @@ export default class Urls extends Component {
             } }
           />
         </div>
-      </div>
+      </Container>
     );
   }
 

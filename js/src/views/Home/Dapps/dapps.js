@@ -17,11 +17,11 @@
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 
-import { Container } from '~/ui';
+import { ContainerTitle, SectionList } from '~/ui';
 import { arrayOrObjectProptype } from '~/util/proptypes';
 
 import Dapp from './dapp';
-import styles from '../home.css';
+import styles from './dapps.css';
 
 export default class Dapps extends Component {
   static propTypes = {
@@ -31,23 +31,22 @@ export default class Dapps extends Component {
 
   render () {
     return (
-      <Container
-        title={
-          <FormattedMessage
-            id='home.dapps.title'
-            defaultMessage='Recent Dapps'
-          />
-        }
-      >
-        <div className={ styles.dapps }>
-          { this.renderHistory() }
-        </div>
-      </Container>
+      <div className={ styles.dapps }>
+        <ContainerTitle
+          title={
+            <FormattedMessage
+              id='home.dapps.title'
+              defaultMessage='Recent Dapps'
+            />
+          }
+        />
+        { this.renderHistory() }
+      </div>
     );
   }
 
   renderHistory () {
-    const { history, store } = this.props;
+    const { history } = this.props;
 
     if (!history.length) {
       return (
@@ -61,22 +60,23 @@ export default class Dapps extends Component {
     }
 
     return (
-      <table className={ styles.history }>
-        <tbody>
-          {
-            history.map((h) => {
-              return (
-                <Dapp
-                  id={ h.entry }
-                  key={ h.timestamp }
-                  store={ store }
-                  timestamp={ h.timestamp }
-                />
-              );
-            })
-          }
-        </tbody>
-      </table>
+      <SectionList
+        items={ history }
+        renderItem={ this.renderHistoryItem }
+      />
+    );
+  }
+
+  renderHistoryItem = (history) => {
+    const { store } = this.props;
+
+    return (
+      <Dapp
+        id={ history.entry }
+        key={ history.timestamp }
+        store={ store }
+        timestamp={ history.timestamp }
+      />
     );
   }
 }

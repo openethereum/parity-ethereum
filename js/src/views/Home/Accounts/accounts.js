@@ -19,7 +19,7 @@ import React, { Component } from 'react';
 import { FormattedMessage } from 'react-intl';
 import { Link } from 'react-router';
 
-import { Container, IdentityName, IdentityIcon } from '~/ui';
+import { Container, ContainerTitle, IdentityName, IdentityIcon, SectionList } from '~/ui';
 import { arrayOrObjectProptype } from '~/util/proptypes';
 
 import styles from '../home.css';
@@ -31,18 +31,17 @@ export default class Accounts extends Component {
 
   render () {
     return (
-      <Container
-        title={
-          <FormattedMessage
-            id='home.accounts.title'
-            defaultMessage='Recent Accounts'
-          />
-        }
-      >
-        <div className={ styles.accounts }>
-          { this.renderHistory() }
-        </div>
-      </Container>
+      <div className={ styles.accounts }>
+        <ContainerTitle
+          title={
+            <FormattedMessage
+              id='home.accounts.title'
+              defaultMessage='Recent Accounts'
+            />
+          }
+        />
+        { this.renderHistory() }
+      </div>
     );
   }
 
@@ -60,36 +59,35 @@ export default class Accounts extends Component {
       );
     }
 
-    const rows = history.map((h) => {
-      return (
-        <tr key={ h.timestamp }>
-          <td className={ styles.timestamp }>
-            { moment(h.timestamp).fromNow() }
-          </td>
-          <td className={ styles.entry }>
-            <Link to={ `/accounts/${h.entry}` }>
-              <IdentityIcon
-                address={ h.entry }
-                center
-                className={ styles.identityIcon }
-                inline
-              />
-              <IdentityName
-                address={ h.entry }
-                unknown
-              />
-            </Link>
-          </td>
-        </tr>
-      );
-    });
-
     return (
-      <table className={ styles.history }>
-        <tbody>
-          { rows }
-        </tbody>
-      </table>
+      <SectionList
+        items={ history }
+        renderItem={ this.renderHistoryItem }
+      />
+    );
+  }
+
+  renderHistoryItem = (history) => {
+    return (
+      <Container key={ history.timestamp }>
+        <div className={ styles.timestamp }>
+          { moment(history.timestamp).fromNow() }
+        </div>
+        <div className={ styles.entry }>
+          <Link to={ `/accounts/${history.entry}` }>
+            <IdentityIcon
+              address={ history.entry }
+              className={ styles.identityIcon }
+              center
+              inline
+            />
+            <IdentityName
+              address={ history.entry }
+              unknown
+            />
+          </Link>
+        </div>
+      </Container>
     );
   }
 }
