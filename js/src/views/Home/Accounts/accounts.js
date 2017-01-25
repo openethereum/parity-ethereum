@@ -22,7 +22,7 @@ import { Link } from 'react-router';
 import { Container, ContainerTitle, IdentityName, IdentityIcon, SectionList } from '~/ui';
 import { arrayOrObjectProptype } from '~/util/proptypes';
 
-import styles from '../home.css';
+import styles from './accounts.css';
 
 export default class Accounts extends Component {
   static propTypes = {
@@ -69,24 +69,37 @@ export default class Accounts extends Component {
 
   renderHistoryItem = (history) => {
     return (
-      <Container key={ history.timestamp }>
-        <div className={ styles.timestamp }>
-          { moment(history.timestamp).fromNow() }
-        </div>
-        <div className={ styles.entry }>
-          <Link to={ `/accounts/${history.entry}` }>
-            <IdentityIcon
-              address={ history.entry }
-              className={ styles.identityIcon }
-              center
-              inline
+      <Container
+        className={ styles.account }
+        key={ history.timestamp }
+        hover={
+          <div className={ styles.timestamp }>
+            <FormattedMessage
+              id='home.account.visited'
+              defaultMessage='accessed {when}'
+              values={ {
+                when: moment(history.timestamp).fromNow()
+              } }
             />
-            <IdentityName
-              address={ history.entry }
-              unknown
-            />
-          </Link>
-        </div>
+          </div>
+        }
+      >
+        <Link
+          className={ styles.link }
+          to={ `/accounts/${history.entry}` }
+        >
+          <IdentityIcon
+            address={ history.entry }
+            className={ styles.icon }
+            center
+            inline
+          />
+          <IdentityName
+            address={ history.entry }
+            className={ styles.name }
+            unknown
+          />
+        </Link>
       </Container>
     );
   }

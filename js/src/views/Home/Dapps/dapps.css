@@ -18,4 +18,26 @@
 .dapps {
   margin-top: 1.5em;
   text-align: center;
+
+  .dapp {
+    position: relative;
+    line-height: 2em;
+    vertical-align: middle;
+
+    .icon {
+      margin-bottom: -10px;
+    }
+
+    .link, .name {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .timestamp {
+      color: #aaa;
+      font-size: 0.75em;
+      padding-top: 0;
+    }
+  }
 }

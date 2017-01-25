@@ -19,7 +19,9 @@
   text-align: center;
 
   .layout {
+    box-sizing: border-box;
     margin: 1.5em auto;
+    padding: 0 1em;
     width: 50%;
 
     .historyItem {
@@ -36,20 +38,14 @@
       .url {
         display: block;
         color: rgb(0, 151, 167);
+        overflow: hidden;
         text-overflow: ellipsis;
       }
 
       .timestamp {
-        background: rgb(18, 18, 18);
         color: #aaa;
-        display: none;
         font-size: 0.75em;
-        left: 0;
-        margin-top: -0.5rem;
-        padding: 0 1rem 1rem 1rem;
-        position: absolute;
-        right: 0;
-        top: 100%;
+        padding-top: 0.5rem;
       }
 
       &:hover {
@@ -57,10 +53,6 @@
 
         .linkIcon {
           opacity: 1;
-        }
-
-        .timestamp {
-          display: block;
         }
       }
     }

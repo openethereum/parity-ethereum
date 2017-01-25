@@ -91,21 +91,23 @@ export default class Urls extends Component {
     return (
       <Container
         className={ styles.historyItem }
-        onClick={ onNavigate }
+        hover={
+          <div className={ styles.timestamp }>
+            <FormattedMessage
+              id='home.url.visited'
+              defaultMessage='visited {when}'
+              values={ {
+                when: moment(history.timestamp).fromNow()
+              } }
+            />
+          </div>
+        }
         key={ history.timestamp }
+        onClick={ onNavigate }
       >
         <LinkIcon className={ styles.linkIcon } />
         <div className={ styles.url }>
           { history.entry }
-        </div>
-        <div className={ styles.timestamp }>
-          <FormattedMessage
-            id='home.url.visited'
-            defaultMessage='visited {when}'
-            values={ {
-              when: moment(history.timestamp).fromNow()
-            } }
-          />
         </div>
       </Container>
     );

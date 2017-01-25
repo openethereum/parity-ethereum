@@ -28,6 +28,7 @@ export default class Container extends Component {
     children: PropTypes.node,
     className: PropTypes.string,
     compact: PropTypes.bool,
+    hover: PropTypes.node,
     light: PropTypes.bool,
     style: PropTypes.object,
     tabIndex: PropTypes.number,
@@ -50,7 +51,25 @@ export default class Container extends Component {
           { this.renderTitle() }
           { children }
         </Card>
+        { this.renderHover() }
       </div>
+    );
+  }
+
+  renderHover () {
+    const { hover } = this.props;
+
+    if (!hover) {
+      return null;
+    }
+
+    return (
+      <Card
+        className={ styles.hover }
+        data-hover='show'
+      >
+        { hover }
+      </Card>
     );
   }
 

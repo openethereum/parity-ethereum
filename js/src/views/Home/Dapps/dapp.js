@@ -16,6 +16,7 @@
 
 import moment from 'moment';
 import React, { Component, PropTypes } from 'react';
+import { FormattedMessage } from 'react-intl';
 import { Link } from 'react-router';
 
 import { Container, DappIcon } from '~/ui';
@@ -46,22 +47,33 @@ export default class Dapp extends Component {
     }
 
     return (
-      <Container className={ styles.dapp }>
-        <div className={ styles.timestamp }>
-          { moment(timestamp).fromNow() }
-        </div>
-        <div className={ styles.entry }>
-          <Link to={ `/app/${id}` }>
-            <DappIcon
-              app={ dapp }
-              className={ styles.dappIcon }
-              small
+      <Container
+        className={ styles.dapp }
+        hover={
+          <div className={ styles.timestamp }>
+            <FormattedMessage
+              id='home.dapp.visited'
+              defaultMessage='accessed {when}'
+              values={ {
+                when: moment(timestamp).fromNow()
+              } }
             />
-            <span>
-              { dapp.name }
-            </span>
-          </Link>
-        </div>
+          </div>
+        }
+      >
+        <Link
+          className={ styles.link }
+          to={ `/app/${id}` }
+        >
+          <DappIcon
+            app={ dapp }
+            className={ styles.icon }
+            small
+          />
+          <span className={ styles.name }>
+            { dapp.name }
+          </span>
+        </Link>
       </Container>
     );
   }

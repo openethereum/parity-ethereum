@@ -20,31 +20,13 @@
   opacity: 0.5;
 }
 
-.history {
-  line-height: 2em;
-  margin-top: 1.5em;
-  vertical-align: middle;
-
-  .entry {
-    padding: 0;
-
-    .identityIcon, .dappIcon {
-      margin-bottom: -10px;
-    }
-  }
-
-  .timestamp {
-    opacity: 0.5;
-    padding: 0 1em;
-    text-align: right;
-  }
-}
-
 .row {
   display: flex;
 
   .column {
     flex: 0 1 50%;
+    box-sizing: border-box;
+    padding: 0 1em;
     width: 50%;
   }
 }

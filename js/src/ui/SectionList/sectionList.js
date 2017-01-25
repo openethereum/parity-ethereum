@@ -69,13 +69,22 @@ export default class SectionList extends Component {
         className={ styles.row }
         key={ `row_${index}` }
       >
-        { row.map(this.renderItem) }
+        {
+          row
+            .map(this.renderItem)
+            .filter((item) => item)
+        }
       </div>
     );
   }
 
   renderItem = (item, index) => {
     const { renderItem } = this.props;
+    const itemRendered = renderItem(item, index);
+
+    if (!itemRendered) {
+      return null;
+    }
 
     // NOTE: Any children that is to be showed or hidden (depending on hover state)
     // should have the data-hover="show|hide" attributes. For the current implementation
@@ -88,7 +97,7 @@ export default class SectionList extends Component {
         className={ styles.item }
         key={ `item_${index}` }
       >
-        { renderItem(item, index) }
+        { itemRendered }
       </div>
     );
   }
