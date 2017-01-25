@@ -260,6 +260,11 @@ Sealing/Mining Options:
                                  (default: {flag_notify_work:?})
   --refuse-service-transactions  Always refuse service transactions.
                                  (default: {flag_refuse_service_transactions}).
+  --stratum                      Run Stratum server for miner push notification. (default: {flag_stratum})
+  --stratum-interface IP         Interface address for Stratum server. (default: {flag_stratum_interface})
+  --stratum-port PORT            Port for Stratum server to listen on. (default: {flag_stratum_port})
+  --stratum-secret STRING        Secret for authorizing Stratum server for peers.
+	                               (default: {flag_stratum_secret:?})
 
 Footprint Options:
   --tracing BOOL                 Indicates if full transaction tracing should be

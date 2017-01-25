@@ -26,6 +26,12 @@ use hyper::Url;
 use util::*;
 use ethereum::ethash::Ethash;
 
+/// Trait for notifying about new mining work
+pub trait NotifyWork : Send + Sync {
+	/// Fired when new mining job available
+	fn notify(&self, pow_hash: H256, difficulty: U256, number: u64);
+}
+
 pub struct WorkPoster {
 	urls: Vec<Url>,
 	client: Mutex<Client<PostHandler>>,
@@ -57,8 +63,10 @@ impl WorkPoster {
 			.build()
 			.expect("Error creating HTTP client")
 	}
+}
 
-	pub fn notify(&self, pow_hash: H256, difficulty: U256, number: u64) {
+impl NotifyWork for WorkPoster {
+	fn notify(&self, pow_hash: H256, difficulty: U256, number: u64) {
 		// TODO: move this to engine
 		let target = Ethash::difficulty_to_boundary(&difficulty);
 		let seed_hash = &self.seed_compute.lock().get_seedhash(number);
