@@ -56,6 +56,10 @@ $background: rgb(18, 18, 18);
 
 .padded {
   padding: 1.5em;
+
+  &>div {
+    display: flex;
+  }
 }
 
 .light .compact,

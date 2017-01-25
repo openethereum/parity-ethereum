@@ -26,7 +26,7 @@
   .column {
     flex: 0 1 50%;
     box-sizing: border-box;
-    padding: 0 1em;
+    padding: 0 1.5em;
     width: 50%;
   }
 }
