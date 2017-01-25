@@ -20,10 +20,6 @@
 
 .markdown {
   line-height: 1.2em;
-
-  p {
-    color: #333;
-  }
 }
 
 .item {
@@ -45,6 +41,7 @@
 
   .overlay {
     background: white;
+    color: #333;
     display: none;
     left: 0;
     position: absolute;
@@ -54,9 +51,9 @@
   }
 
   .title {
-    background: rgba(0, 0, 0, 0.85);
+    background: rgba(255, 255, 255, 0.85);
     bottom: 0;
-    color: white;
+    color: #333;
     font-size: 1.17em;
     left: 0;
     padding: 1rem 1.5rem;
@@ -70,11 +67,6 @@
 
     .overlay {
       display: block;
-    }
-
-    .title {
-      background: rgba(255, 255, 255, 0.85);
-      color: #333;
     }
   }
 }

@@ -22,6 +22,8 @@ import { SectionList } from '~/ui';
 
 import styles from './news.css';
 
+const VERSION_ID = '1';
+
 export default class News extends Component {
   componentWillMount () {
     return this.retrieveNews();
@@ -48,6 +50,15 @@ export default class News extends Component {
   }
 
   renderItem = (item) => {
+    if (!item) {
+      return null;
+    }
+
+    const inlineStyles = {
+      body: item.style ? (item.style.body || {}) : {},
+      head: item.style ? (item.style.head || {}) : {}
+    };
+
     return (
       <div className={ styles.item }>
         <div
@@ -56,10 +67,16 @@ export default class News extends Component {
             backgroundImage: `url(${item.background})`
           } }
         />
-        <div className={ styles.title }>
+        <div
+          className={ styles.title }
+          style={ inlineStyles.head }
+        >
           { item.title }
         </div>
-        <div className={ styles.overlay }>
+        <div
+          className={ styles.overlay }
+          style={ inlineStyles.body }
+        >
           <ReactMarkdown
             className={ styles.markdown }
             source={ item.markdown }
@@ -84,7 +101,7 @@ export default class News extends Component {
         }
 
         // HACK: just for testing...
-        url = 'https://raw.githubusercontent.com/jacogr/parity-news/a009264fb8b6b3f6a77027ffcab30735621e0b3b/news.json';
+        url = 'https://raw.githubusercontent.com/jacogr/parity-news/eb835f2a507f308866d8953140bc8854d756c513/news.json';
         return fetch(url).then((response) => {
           if (!response.ok) {
             console.warn('Unable to retrieve lastest Parity news');
@@ -95,7 +112,9 @@ export default class News extends Component {
         });
       })
       .then((news) => {
-        this.setState({ newsItems: news.items });
+        if (news[VERSION_ID]) {
+          this.setState({ newsItems: news[VERSION_ID].items });
+        }
       });
   }
 }

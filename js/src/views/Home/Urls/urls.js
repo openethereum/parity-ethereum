@@ -86,6 +86,10 @@ export default class Urls extends Component {
   }
 
   renderHistoryItem = (history) => {
+    if (!history || !history.entry) {
+      return null;
+    }
+
     const onNavigate = () => this.onGotoUrl(history.entry);
 
     return (

@@ -68,6 +68,10 @@ export default class Dapps extends Component {
   }
 
   renderHistoryItem = (history) => {
+    if (!history || !history.entry) {
+      return null;
+    }
+
     const { store } = this.props;
 
     return (

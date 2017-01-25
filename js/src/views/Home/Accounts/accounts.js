@@ -68,6 +68,10 @@ export default class Accounts extends Component {
   }
 
   renderHistoryItem = (history) => {
+    if (!history || !history.entry) {
+      return null;
+    }
+
     return (
       <Container
         className={ styles.account }
