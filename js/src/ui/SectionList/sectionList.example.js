@@ -16,6 +16,7 @@
 
 import React, { Component } from 'react';
 
+import PlaygroundExample from '~/playground/playgroundExample';
 import SectionList from './';
 
 const ITEM_STYLE = {
@@ -38,11 +39,13 @@ export default class SectionListExample extends Component {
   render () {
     return (
       <div>
-        <p>Simple Usage</p>
-        { this.renderSimple() }
+        <PlaygroundExample name='Simple Usage'>
+          { this.renderSimple() }
+        </PlaygroundExample>
 
-        <p>With Overlay</p>
-        { this.renderWithOverlay() }
+        <PlaygroundExample name='With Overlay'>
+          { this.renderWithOverlay() }
+        </PlaygroundExample>
       </div>
     );
   }
@@ -59,8 +62,9 @@ export default class SectionListExample extends Component {
   renderWithOverlay () {
     const { showOverlay } = this.state;
     const overlay = (
-      <div onClick={ this.hideOverlay }>
+      <div>
         <p>Overlay</p>
+        <button onClick={ this.hideOverlay }>hide</button>
       </div>
     );
 
@@ -73,11 +77,7 @@ export default class SectionListExample extends Component {
     );
   }
 
-  hideOverlay = () => {
-    this.setState({ showOverlay: false });
-  }
-
-  renderItem = (item, index) => {
+  renderItem (item, index) {
     const { desc, name } = item;
 
     return (
@@ -86,5 +86,9 @@ export default class SectionListExample extends Component {
         <h3 data-hover='show'>{ desc }</h3>
       </div>
     );
+  }
+
+  hideOverlay = () => {
+    this.setState({ showOverlay: false });
   }
 }
