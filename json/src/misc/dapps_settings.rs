@@ -16,10 +16,6 @@
 
 //! Dapps settings de/serialization.
 
-use std::io;
-use std::hash::Hash;
-use std::collections::HashMap;
-use serde_json;
 use hash;
 
 /// Settings for specific dapp.
@@ -29,27 +25,16 @@ pub struct DappsSettings {
 	pub accounts: Vec<hash::Address>,
 }
 
-impl DappsSettings {
-	/// Read a hash map of DappId -> DappsSettings
-	pub fn read_dapps_settings<R, S, D>(reader: R) -> Result<HashMap<D, S>, serde_json::Error> where
-		R: io::Read,
-		D: From<String> + Hash + Eq,
-		S: From<DappsSettings> + Clone,
-	{
-		serde_json::from_reader(reader).map(|ok: HashMap<String, DappsSettings>|
-			ok.into_iter().map(|(a, m)| (a.into(), m.into())).collect()
-		)
-	}
+impl_serialization!(String => DappsSettings);
 
-	/// Write a hash map of DappId -> DappsSettings
-	pub fn write_dapps_settings<W, S, D>(m: &HashMap<D, S>, writer: &mut W) -> Result<(), serde_json::Error> where
-		W: io::Write,
-		D: Into<String> + Hash + Eq + Clone,
-		S: Into<DappsSettings> + Clone,
-	{
-		serde_json::to_writer(writer, &m.iter().map(|(a, m)| (a.clone().into(), m.clone().into())).collect::<HashMap<String, DappsSettings>>())
-	}
+/// History for specific dapp.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct DappsHistory {
+	/// Last accessed timestamp
+	pub last_accessed: u64,
 }
+
+impl_serialization!(String => DappsHistory);
 
 /// Accounts policy for new dapps.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -60,22 +45,4 @@ pub enum NewDappsPolicy {
 	Whitelist(Vec<hash::Address>),
 }
 
-impl NewDappsPolicy {
-	/// Read a hash map of `String -> NewDappsPolicy`
-	pub fn read_new_dapps_policy<R, S>(reader: R) -> Result<HashMap<String, S>, serde_json::Error> where
-		R: io::Read,
-		S: From<NewDappsPolicy> + Clone,
-	{
-		serde_json::from_reader(reader).map(|ok: HashMap<String, NewDappsPolicy>|
-			ok.into_iter().map(|(a, m)| (a.into(), m.into())).collect()
-		)
-	}
-
-	/// Write a hash map of `String -> NewDappsPolicy`
-	pub fn write_new_dapps_policy<W, S>(m: &HashMap<String, S>, writer: &mut W) -> Result<(), serde_json::Error> where
-		W: io::Write,
-		S: Into<NewDappsPolicy> + Clone,
-	{
-		serde_json::to_writer(writer, &m.iter().map(|(a, m)| (a.clone().into(), m.clone().into())).collect::<HashMap<String, NewDappsPolicy>>())
-	}
-}
+impl_serialization!(String => NewDappsPolicy);

@@ -17,11 +17,16 @@
 //! Address Book and Dapps Settings Store
 
 use std::{fs, fmt, hash, ops};
-use std::collections::{HashMap, VecDeque};
+use std::collections::HashMap;
 use std::path::PathBuf;
 
 use ethstore::ethkey::Address;
-use ethjson::misc::{AccountMeta, DappsSettings as JsonSettings, NewDappsPolicy as JsonNewDappsPolicy};
+use ethjson::misc::{
+	AccountMeta,
+	DappsSettings as JsonSettings,
+	DappsHistory as JsonDappsHistory,
+	NewDappsPolicy as JsonNewDappsPolicy,
+};
 use account_provider::DappId;
 
 /// Disk-backed map from Address to String. Uses JSON.
@@ -35,7 +40,7 @@ impl AddressBook {
 		let mut r = AddressBook {
 			cache: DiskMap::new(path, "address_book.json".into())
 		};
-		r.cache.revert(AccountMeta::read_address_map);
+		r.cache.revert(AccountMeta::read);
 		r
 	}
 
@@ -52,7 +57,7 @@ impl AddressBook {
 	}
 
 	fn save(&self) {
-		self.cache.save(AccountMeta::write_address_map)
+		self.cache.save(AccountMeta::write)
 	}
 
 	/// Sets new name for given address.
@@ -134,6 +139,35 @@ impl From<NewDappsPolicy> for JsonNewDappsPolicy {
 	}
 }
 
+/// Transient dapps data
+#[derive(Default, Debug, Clone, Eq, PartialEq)]
+pub struct TransientDappsData {
+	/// Timestamp of last access
+	pub last_accessed: u64,
+}
+
+impl From<JsonDappsHistory> for TransientDappsData {
+	fn from(s: JsonDappsHistory) -> Self {
+		TransientDappsData {
+			last_accessed: s.last_accessed,
+		}
+	}
+}
+
+impl From<TransientDappsData> for JsonDappsHistory {
+	fn from(s: TransientDappsData) -> Self {
+		JsonDappsHistory {
+			last_accessed: s.last_accessed,
+		}
+	}
+}
+
+fn current_timestamp() -> u64 {
+	::std::time::UNIX_EPOCH.elapsed()
+		.expect("Correct time is required to be set")
+		.as_secs()
+}
+
 const MAX_RECENT_DAPPS: usize = 50;
 
 /// Disk-backed map from DappId to Settings. Uses JSON.
@@ -142,8 +176,8 @@ pub struct DappsSettingsStore {
 	settings: DiskMap<DappId, DappsSettings>,
 	/// New Dapps Policy
 	policy: DiskMap<String, NewDappsPolicy>,
-	/// Recently Accessed Dapps
-	recent: VecDeque<DappId>,
+	/// Transient Data of recently Accessed Dapps
+	history: DiskMap<DappId, TransientDappsData>,
 }
 
 impl DappsSettingsStore {
@@ -152,10 +186,11 @@ impl DappsSettingsStore {
 		let mut r = DappsSettingsStore {
 			settings: DiskMap::new(path.clone(), "dapps_accounts.json".into()),
 			policy: DiskMap::new(path.clone(), "dapps_policy.json".into()),
-			recent: VecDeque::with_capacity(MAX_RECENT_DAPPS),
+			history: DiskMap::new(path.clone(), "dapps_history.json".into()),
 		};
-		r.settings.revert(JsonSettings::read_dapps_settings);
-		r.policy.revert(JsonNewDappsPolicy::read_new_dapps_policy);
+		r.settings.revert(JsonSettings::read);
+		r.policy.revert(JsonNewDappsPolicy::read);
+		r.history.revert(JsonDappsHistory::read);
 		r
 	}
 
@@ -164,7 +199,7 @@ impl DappsSettingsStore {
 		DappsSettingsStore {
 			settings: DiskMap::transient(),
 			policy: DiskMap::transient(),
-			recent: VecDeque::with_capacity(MAX_RECENT_DAPPS),
+			history: DiskMap::transient(),
 		}
 	}
 
@@ -180,22 +215,34 @@ impl DappsSettingsStore {
 
 	/// Returns recent dapps (in order of last request)
 	pub fn recent_dapps(&self) -> Vec<DappId> {
-		self.recent.iter().cloned().collect()
+		self.history.keys().cloned().collect()
 	}
 
 	/// Marks recent dapp as used
 	pub fn mark_dapp_used(&mut self, dapp: DappId) {
-		self.recent.retain(|id| id != &dapp);
-		self.recent.push_front(dapp);
-		while self.recent.len() > MAX_RECENT_DAPPS {
-			self.recent.pop_back();
+		{
+			let mut entry = self.history.entry(dapp).or_insert_with(|| Default::default());
+			entry.last_accessed = current_timestamp();
 		}
+		// Clear extraneous entries
+		while self.history.len() > MAX_RECENT_DAPPS {
+			let min = self.history.iter()
+				.min_by_key(|&(_, ref v)| v.last_accessed)
+				.map(|(ref k, _)| k.clone())
+				.cloned();
+
+			match min {
+				Some(k) => self.history.remove(&k),
+				None => break,
+			};
+		}
+		self.history.save(JsonDappsHistory::write);
 	}
 
 	/// Sets current new dapps policy
 	pub fn set_policy(&mut self, policy: NewDappsPolicy) {
 		self.policy.insert("default".into(), policy);
-		self.policy.save(JsonNewDappsPolicy::write_new_dapps_policy);
+		self.policy.save(JsonNewDappsPolicy::write);
 	}
 
 	/// Sets accounts for specific dapp.
@@ -204,7 +251,7 @@ impl DappsSettingsStore {
 			let mut settings = self.settings.entry(id).or_insert_with(DappsSettings::default);
 			settings.accounts = accounts;
 		}
-		self.settings.save(JsonSettings::write_dapps_settings);
+		self.settings.save(JsonSettings::write);
 	}
 }
 
