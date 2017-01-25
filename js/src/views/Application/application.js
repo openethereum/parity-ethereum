@@ -57,6 +57,14 @@ class Application extends Component {
     const [root] = (window.location.hash || '').replace('#/', '').split('/');
     const isMinimized = root === 'app' || root === 'web';
 
+    if (process.env.NODE_ENV !== 'production' && root === 'playground') {
+      return (
+        <div>
+          { this.props.children }
+        </div>
+      );
+    }
+
     if (inFrame) {
       return (
         <FrameError />

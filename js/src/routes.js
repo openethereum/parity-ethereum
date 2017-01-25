@@ -78,45 +78,56 @@ const routes = [
 
   { path: '/', onEnter: redirectTo('/accounts') },
   { path: '/auth', onEnter: redirectTo('/accounts') },
-  { path: '/settings', onEnter: redirectTo('/settings/views') },
-
-  {
-    path: '/',
-    component: Application,
-    childRoutes: [
-      {
-        path: 'accounts',
-        indexRoute: { component: Accounts },
-        childRoutes: accountsRoutes
-      },
-      {
-        path: 'addresses',
-        indexRoute: { component: Addresses },
-        childRoutes: addressesRoutes
-      },
-      {
-        path: 'contracts',
-        indexRoute: { component: Contracts },
-        childRoutes: contractsRoutes
-      },
-      {
-        path: 'status',
-        indexRoute: { component: Status },
-        childRoutes: statusRoutes
-      },
-      {
-        path: 'settings',
-        component: Settings,
-        childRoutes: settingsRoutes
-      },
-
-      { path: 'apps', component: Dapps },
-      { path: 'app/:id', component: Dapp },
-      { path: 'web', component: Web },
-      { path: 'web/:url', component: Web },
-      { path: 'signer', component: Signer }
-    ]
-  }
+  { path: '/settings', onEnter: redirectTo('/settings/views') }
 ];
+
+const appRoutes = [
+  {
+    path: 'accounts',
+    indexRoute: { component: Accounts },
+    childRoutes: accountsRoutes
+  },
+  {
+    path: 'addresses',
+    indexRoute: { component: Addresses },
+    childRoutes: addressesRoutes
+  },
+  {
+    path: 'contracts',
+    indexRoute: { component: Contracts },
+    childRoutes: contractsRoutes
+  },
+  {
+    path: 'status',
+    indexRoute: { component: Status },
+    childRoutes: statusRoutes
+  },
+  {
+    path: 'settings',
+    component: Settings,
+    childRoutes: settingsRoutes
+  },
+
+  { path: 'apps', component: Dapps },
+  { path: 'app/:id', component: Dapp },
+  { path: 'web', component: Web },
+  { path: 'web/:url', component: Web },
+  { path: 'signer', component: Signer }
+];
+
+if (process.env.NODE_ENV !== 'production') {
+  const Playground = require('./playground').default;
+
+  appRoutes.push({
+    path: 'playground',
+    component: Playground
+  });
+}
+
+routes.push({
+  path: '/',
+  component: Application,
+  childRoutes: appRoutes
+});
 
 export default routes;
