@@ -96,7 +96,6 @@ export default class Accounts extends Component {
             address={ history.entry }
             className={ styles.icon }
             center
-            inline
           />
           <IdentityName
             address={ history.entry }

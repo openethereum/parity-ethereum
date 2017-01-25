@@ -68,7 +68,6 @@ export default class Dapp extends Component {
           <DappIcon
             app={ dapp }
             className={ styles.icon }
-            small
           />
           <span className={ styles.name }>
             { dapp.name }

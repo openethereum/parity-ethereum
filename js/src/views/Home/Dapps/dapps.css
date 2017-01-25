@@ -25,12 +25,16 @@
     vertical-align: middle;
 
     .icon {
-      margin-bottom: -10px;
+      margin: 0;
     }
 
     .link, .name {
+      display: block;
       overflow: hidden;
       text-overflow: ellipsis;
+    }
+
+    .name {
       white-space: nowrap;
     }
 
