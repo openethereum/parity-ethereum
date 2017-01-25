@@ -19,26 +19,32 @@
 }
 
 .item {
-  height: 400px;
+  height: 240px;
   position: relative;
 
   .background {
+    background-repeat: no-repeat;
+    background-position: 50% 50%;
+    background-size: cover;
     bottom: 0;
     left: 0;
     position: absolute;
     right: 0;
     top: 0;
-    width: 100%;
+    width: auto;
   }
 
   .overlay {
     background: white;
-    color: #333;
     left: 0;
     position: absolute;
     right: 0;
     top: 100%;
     padding: 0 1.5em 1.5em 1.5em;
+
+    * {
+      color: #333;
+    }
   }
 
   .title, .titleHover {
@@ -53,12 +59,12 @@
   }
 
   .title {
-    background: rgba(0, 0, 0, 0.75);
+    background: rgba(0, 0, 0, 0.85);
     color: white;
   }
 
   .titleHover {
-    background: rgba(255, 255, 255, 0.75);
+    background: rgba(255, 255, 255, 0.85);
     color: #333;
   }
 }

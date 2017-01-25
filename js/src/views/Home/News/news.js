@@ -48,11 +48,14 @@ export default class News extends Component {
   }
 
   renderItem = (item) => {
+    console.log(item);
     return (
       <div className={ styles.item }>
-        <img
+        <div
           className={ styles.background }
-          src={ item.background }
+          style={ {
+            backgroundImage: `url(${item.background})`
+          } }
         />
         <div
           className={ styles.title }
