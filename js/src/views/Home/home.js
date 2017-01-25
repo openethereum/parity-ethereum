@@ -55,13 +55,11 @@ export default class Home extends Component {
         }
       >
         <News />
+        <Urls
+          history={ this.webHistory.history }
+          store={ this.webStore }
+        />
         <div className={ styles.list }>
-          <div className={ styles.item }>
-            <Urls
-              history={ this.webHistory.history }
-              store={ this.webStore }
-            />
-          </div>
           <div className={ styles.item }>
             <Dapps
               history={ this.dappsHistory.history }

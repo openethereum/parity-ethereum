@@ -48,7 +48,6 @@ export default class News extends Component {
   }
 
   renderItem = (item) => {
-    console.log(item);
     return (
       <div className={ styles.item }>
         <div
@@ -57,23 +56,12 @@ export default class News extends Component {
             backgroundImage: `url(${item.background})`
           } }
         />
-        <div
-          className={ styles.title }
-          data-hover='hide'
-        >
+        <div className={ styles.title }>
           { item.title }
         </div>
-        <div
-          className={ styles.titleHover }
-          data-hover='show'
-        >
-          { item.title }
-        </div>
-        <div
-          className={ styles.overlay }
-          data-hover='show'
-        >
+        <div className={ styles.overlay }>
           <ReactMarkdown
+            className={ styles.markdown }
             source={ item.markdown }
             softBreak='br'
           />
@@ -96,7 +84,7 @@ export default class News extends Component {
         }
 
         // HACK: just for testing...
-        url = 'https://raw.githubusercontent.com/jacogr/parity-news/master/news.json';
+        url = 'https://raw.githubusercontent.com/jacogr/parity-news/a009264fb8b6b3f6a77027ffcab30735621e0b3b/news.json';
         return fetch(url).then((response) => {
           if (!response.ok) {
             console.warn('Unable to retrieve lastest Parity news');

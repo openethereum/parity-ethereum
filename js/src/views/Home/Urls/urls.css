@@ -1,0 +1,86 @@
+/* Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+/* This file is part of Parity.
+/*
+/* Parity is free software: you can redistribute it and/or modify
+/* it under the terms of the GNU General Public License as published by
+/* the Free Software Foundation, either version 3 of the License, or
+/* (at your option) any later version.
+/*
+/* Parity is distributed in the hope that it will be useful,
+/* but WITHOUT ANY WARRANTY; without even the implied warranty of
+/* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+/* GNU General Public License for more details.
+/*
+/* You should have received a copy of the GNU General Public License
+/* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
+.urls {
+  text-align: center;
+
+  .layout {
+    margin: 1.5em auto;
+    width: 50%;
+
+    .historyItem {
+      background: rgb(18, 18, 18);
+      border-radius: 0.25rem;
+      margin-top: 1em;
+      opacity: 0.85;
+      padding: 1em;
+      position: relative;
+      text-align: center;
+
+      .linkIcon {
+        opacity: 0;
+        position: absolute;
+        right: 0.5em;
+        top: 0.5em;
+      }
+
+      .url {
+        display: block;
+        color: rgb(0, 151, 167);
+        text-overflow: ellipsis;
+      }
+
+      .timestamp {
+        background: rgb(18, 18, 18);
+        border-radius: 0 0 0.25rem 0.25rem;
+        color: #aaa;
+        display: none;
+        font-size: 0.75em;
+        left: 0;
+        margin-top: -0.5rem;
+        padding: 0 1rem 1rem 1rem;
+        position: absolute;
+        right: 0;
+        top: 100%;
+      }
+
+      &:hover {
+        opacity: 1;
+
+        .linkIcon {
+          opacity: 1;
+        }
+
+        .timestamp {
+          display: block;
+        }
+      }
+    }
+
+    .input {
+      background: rgba(255, 255, 255, 0.25);
+      border: 1px solid rgba(255, 255, 255, 0.5);
+      border-radius: 0.25em;
+      box-sizing: border-box;
+      color: white;
+      display: block;
+      font-size: 1.25em;
+      padding: 0.5em;
+      width: 100%;
+    }
+  }
+}

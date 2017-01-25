@@ -19,10 +19,11 @@ import moment from 'moment';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 
-import { Container, DappUrlInput } from '~/ui';
+import { ContainerTitle, DappUrlInput, SectionList } from '~/ui';
+import { LinkIcon } from '~/ui/Icons';
 import { arrayOrObjectProptype } from '~/util/proptypes';
 
-import styles from '../home.css';
+import styles from './urls.css';
 
 @observer
 export default class Urls extends Component {
@@ -39,15 +40,16 @@ export default class Urls extends Component {
     const { nextUrl } = this.props.store;
 
     return (
-      <Container
-        title={
-          <FormattedMessage
-            id='home.url.title'
-            defaultMessage='Web URLs'
+      <div className={ styles.urls }>
+        <div className={ styles.layout }>
+          <ContainerTitle
+            title={
+              <FormattedMessage
+                id='home.url.title'
+                defaultMessage='Web URLs'
+              />
+            }
           />
-        }
-      >
-        <div className={ styles.urls }>
           <DappUrlInput
             className={ styles.input }
             onChange={ this.onChangeUrl }
@@ -57,7 +59,7 @@ export default class Urls extends Component {
           />
           { this.renderHistory() }
         </div>
-      </Container>
+      </div>
     );
   }
 
@@ -75,32 +77,37 @@ export default class Urls extends Component {
       );
     }
 
-    const rows = history.map((h) => {
-      const onNavigate = () => this.onGotoUrl(h.entry);
+    return (
+      <SectionList
+        items={ history }
+        renderItem={ this.renderHistoryItem }
+      />
+    );
+  }
 
-      return (
-        <tr key={ h.timestamp }>
-          <td className={ styles.timestamp }>
-            { moment(h.timestamp).fromNow() }
-          </td>
-          <td className={ styles.entry }>
-            <a
-              href='javascript:void(0)'
-              onClick={ onNavigate }
-            >
-              { h.entry }
-            </a>
-          </td>
-        </tr>
-      );
-    });
+  renderHistoryItem = (history) => {
+    const onNavigate = () => this.onGotoUrl(history.entry);
 
     return (
-      <table className={ styles.history }>
-        <tbody>
-          { rows }
-        </tbody>
-      </table>
+      <div
+        className={ styles.historyItem }
+        onClick={ onNavigate }
+        key={ history.timestamp }
+      >
+        <LinkIcon className={ styles.linkIcon } />
+        <div className={ styles.url }>
+          { history.entry }
+        </div>
+        <div className={ styles.timestamp }>
+          <FormattedMessage
+            id='home.url.visited'
+            defaultMessage='visited {when}'
+            values={ {
+              when: moment(history.timestamp).fromNow()
+            } }
+          />
+        </div>
+      </div>
     );
   }
 

@@ -18,8 +18,17 @@
 .news {
 }
 
+.markdown {
+  line-height: 1.2em;
+
+  p {
+    color: #333;
+  }
+}
+
 .item {
   height: 240px;
+  opacity: 0.85;
   position: relative;
 
   .background {
@@ -36,35 +45,36 @@
 
   .overlay {
     background: white;
+    display: none;
     left: 0;
     position: absolute;
     right: 0;
     top: 100%;
-    padding: 0 1.5em 1.5em 1.5em;
-
-    * {
-      color: #333;
-    }
-  }
-
-  .title, .titleHover {
-    bottom: 0;
-    font-size: 1.25em;
-    left: 0;
-    padding: 1.5rem;
-    position: absolute;
-    right: 0;
-    text-transform: uppercase;
-    z-index: 100;
+    padding: 0 1.5em 1em 1.5em;
   }
 
   .title {
     background: rgba(0, 0, 0, 0.85);
+    bottom: 0;
     color: white;
+    font-size: 1.17em;
+    left: 0;
+    padding: 1rem 1.5rem;
+    position: absolute;
+    right: 0;
+    text-transform: uppercase;
   }
 
-  .titleHover {
-    background: rgba(255, 255, 255, 0.85);
-    color: #333;
+  &:hover {
+    opacity: 1;
+
+    .overlay {
+      display: block;
+    }
+
+    .title {
+      background: rgba(255, 255, 255, 0.85);
+      color: #333;
+    }
   }
 }
