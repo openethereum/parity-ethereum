@@ -41,7 +41,7 @@ export default class PlaygroundStore {
 
       return name && cName && cName === name;
     });
-console.warn(name, hasComponent, component);
+
     if (hasComponent) {
       return;
     }

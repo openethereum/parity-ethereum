@@ -24,7 +24,7 @@ const SYMBOL_EXP = 'EXP';
 export class CurrencySymbol extends Component {
   static propTypes = {
     className: PropTypes.string,
-    netChain: PropTypes.string.isRequired,
+    netChain: PropTypes.string.isRequired
   }
 
   render () {
