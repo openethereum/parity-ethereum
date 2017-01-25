@@ -466,6 +466,20 @@ windows:
     - target/release/parity.pdb
     - nsis/InstallParity.exe
     name: "x86_64-pc-windows-msvc_parity"
+docker:
+  stage: build
+  only:
+    - tags
+  before_script:
+    - docker info
+  build_image:
+  script:
+    - cd docker/hub
+    - docker login -u $Docker_Hub_User -p $Docker_Hub_Pass
+    - docker build --tag ethcore/parity:$CI_BUILD_REF_NAME .
+    - docker push ethcore/parity:$CI_BUILD_REF_NAME
+  tags:
+    - docker
 test-darwin:
   stage: test
   only:
