@@ -47,6 +47,7 @@ import Page from './Page';
 import ParityBackground from './ParityBackground';
 import PasswordStrength from './Form/PasswordStrength';
 import QrCode from './QrCode';
+import SectionList from './SectionList';
 import ShortenedHash from './ShortenedHash';
 import SignerIcon from './SignerIcon';
 import Tags from './Tags';
@@ -102,8 +103,9 @@ export {
   PasswordStrength,
   QrCode,
   RadioButtons,
-  ShortenedHash,
   Select,
+  ShortenedHash,
+  SectionList,
   SignerIcon,
   Tags,
   Tooltip,
