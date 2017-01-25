@@ -38,16 +38,25 @@ function verifyType (obj) {
 
 // Get a list of JSON-RPC from Rust trait source code
 function parseMethodsFromRust (source) {
-  // Matching the custom `rpc` attribute
-  const attribute = /#\[rpc\(([^)]+)\)]/g;
-  const separator = /\s*,\s*/g;
-  const assign = /([\S]+)\s*=\s*"([^"]*)"/;
+  // Matching the custom `rpc` attribute with it's doc comment
+  const attributePattern = /((?:\s*\/\/\/.*$)*)\s*#\[rpc\(([^)]+)\)]/gm;
+  const commentPattern = /\s*\/\/\/\s*/g;
+  const separatorPattern = /\s*,\s*/g;
+  const assignPattern = /([\S]+)\s*=\s*"([^"]*)"/;
+  const ignorePattern = /@(deprecated|unimplemented|alias)\b/i;
 
   const methods = [];
 
-  source.toString().replace(attribute, (match, props) => {
-    props.split(separator).forEach((prop) => {
-      const [, key, value] = prop.split(assign) || [];
+  source.toString().replace(attributePattern, (match, comment, props) => {
+    comment = comment.replace(commentPattern, '\n').trim();
+
+    // Skip deprecated methods
+    if (ignorePattern.test(comment)) {
+      return match;
+    }
+
+    props.split(separatorPattern).forEach((prop) => {
+      const [, key, value] = prop.split(assignPattern) || [];
 
       if (key === 'name' && value != null) {
         methods.push(value);
@@ -64,16 +73,26 @@ function parseMethodsFromRust (source) {
 function getMethodsFromRustTraits () {
   const traitsDir = path.join(__dirname, '../../../rpc/src/v1/traits');
 
-  return fs.readdirSync(traitsDir)
-    .filter((name) => (name !== 'mod.rs' && /\.rs$/.test(name)))
-    .map((name) => fs.readFileSync(path.join(traitsDir, name)))
+  return [
+    'eth',
+    'eth_signing', // Rolled into `eth`
+    'net',
+    'parity',
+    'parity_accounts',
+    'parity_set',
+    'parity_signing', // Rolled into `parity`
+    'personal',
+    'signer',
+    'traces',
+    'web3'
+  ].map((name) => fs.readFileSync(path.join(traitsDir, `${name}.rs`)))
     .map(parseMethodsFromRust)
     .reduce((a, b) => a.concat(b));
 }
 
 const rustMethods = {};
 
-getMethodsFromRustTraits().forEach((method) => {
+getMethodsFromRustTraits().sort().forEach((method) => {
   const [group, name] = method.split('_');
 
   rustMethods[group] = rustMethods[group] || {};

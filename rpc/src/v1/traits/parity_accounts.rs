@@ -70,7 +70,8 @@ build_rpc_trait! {
 		#[rpc(name = "parity_setAccountMeta")]
 		fn set_account_meta(&self, H160, String) -> Result<bool, Error>;
 
-		/// Sets account visibility
+		/// Sets account visibility.
+		/// @unimplemented
 		#[rpc(name = "parity_setAccountVisiblity")]
 		fn set_account_visibility(&self, H160, H256, bool) -> Result<bool, Error>;
 

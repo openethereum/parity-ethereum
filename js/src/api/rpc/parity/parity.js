@@ -76,6 +76,11 @@ export default class Parity {
       .execute('parity_dappsInterface');
   }
 
+  decryptMessage (address, data) {
+    return this._transport
+      .execute('parity_decryptMessage', inAddress(address), inHex(data));
+  }
+
   defaultExtraData () {
     return this._transport
       .execute('parity_defaultExtraData');
@@ -290,6 +295,11 @@ export default class Parity {
     return this._transport
       .execute('parity_phraseToAddress', phrase)
       .then(outAddress);
+  }
+
+  postSign (address, hash) {
+    return this._transport
+      .execute('parity_postSign', inAddress(address), inHex(hash));
   }
 
   postTransaction (options) {

@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import { Quantity, Data, BlockNumber } from '../types';
-import { fromDecimal } from '../helpers';
+import { fromDecimal, DUMMY } from '../helpers';
 
 export default {
   generateAuthorizationToken: {
@@ -77,7 +77,7 @@ export default {
             optional: true
           }
         },
-        example: {}
+        example: DUMMY
       },
       {
         type: String,
@@ -104,6 +104,48 @@ export default {
         type: Data,
         desc: 'Signed request (RLP encoded transaction)',
         example: '0xd46e8dd67c5d32be8d46e8dd67c5d32be8058bb8eb970870f072445675058bb8eb970870f072445675'
+      }
+    ],
+    returns: {
+      type: Boolean,
+      desc: 'The status of the confirmation',
+      example: true
+    }
+  },
+
+  confirmRequestWithToken: {
+    desc: 'Confirm specific request with token.',
+    params: [
+      {
+        type: Quantity,
+        desc: 'The request id.',
+        example: fromDecimal(1)
+      },
+      {
+        type: Object,
+        desc: 'Modify the transaction before confirmation.',
+        details: {
+          gasPrice: {
+            type: Quantity,
+            desc: 'Modify the gas price provided by the sender in Wei.',
+            optional: true
+          },
+          gas: {
+            type: Quantity,
+            desc: 'Gas provided by the sender in Wei.',
+            optional: true
+          },
+          minBlock: {
+            type: BlockNumber,
+            desc: 'Integer block number, or the string `\'latest\'`, `\'earliest\'` or `\'pending\'`. Request will not be propagated till the given block is reached.',
+            optional: true
+          }
+        },
+        example: DUMMY
+      },
+      {
+        type: String,
+        desc: 'Token.'
       }
     ],
     returns: {

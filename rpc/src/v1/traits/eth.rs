@@ -105,7 +105,7 @@ build_rpc_trait! {
 		#[rpc(name = "eth_sendRawTransaction")]
 		fn send_raw_transaction(&self, Bytes) -> Result<H256, Error>;
 
-		/// Alias of `eth_sendRawTransaction`.
+		/// @alias of `eth_sendRawTransaction`.
 		#[rpc(name = "eth_submitTransaction")]
 		fn submit_transaction(&self, Bytes) -> Result<H256, Error>;
 
