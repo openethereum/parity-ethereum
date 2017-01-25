@@ -1,6 +1,6 @@
 Parity. Ethereum Client.
   By Wood/Paronyan/Kotewicz/Drwięga/Volf et al.
-  Copyright 2015, 2016 Ethcore (UK) Limited
+  Copyright 2015, 2016, 2017 Parity Technologies (UK) Ltd
 
 Usage:
   parity [options]
@@ -264,7 +264,7 @@ Sealing/Mining Options:
   --stratum-interface IP         Interface address for Stratum server. (default: {flag_stratum_interface})
   --stratum-port PORT            Port for Stratum server to listen on. (default: {flag_stratum_port})
   --stratum-secret STRING        Secret for authorizing Stratum server for peers.
-	                               (default: {flag_stratum_secret:?})
+                                 (default: {flag_stratum_secret:?})
 
 Footprint Options:
   --tracing BOOL                 Indicates if full transaction tracing should be
