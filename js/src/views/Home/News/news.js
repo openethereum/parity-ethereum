@@ -15,13 +15,12 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component } from 'react';
-import { FormattedMessage } from 'react-intl';
 import ReactMarkdown from 'react-markdown';
 
 import Contracts from '~/contracts';
-import { Container } from '~/ui';
+import { SectionList } from '~/ui';
 
-import styles from '../home.css';
+import styles from './news.css';
 
 export default class News extends Component {
   componentWillMount () {
@@ -35,23 +34,48 @@ export default class News extends Component {
   render () {
     const { news } = this.state;
 
-    if (!news) {
+    if (!news || !news.items || !news.items.length) {
       return null;
     }
 
     return (
-      <Container
-        title={
-          <FormattedMessage
-            id='home.news.title'
-            defaultMessage='Parity News'
-          />
-        }
-      >
-        <div className={ styles.news }>
-          <ReactMarkdown source={ news } />
+      <SectionList
+        className={ styles.news }
+        items={ news.items }
+        renderItem={ this.renderItem }
+      />
+    );
+  }
+
+  renderItem = (item) => {
+    return (
+      <div className={ styles.item }>
+        <img
+          className={ styles.background }
+          src={ item.background }
+        />
+        <div
+          className={ styles.title }
+          data-hover='hide'
+        >
+          { item.title }
         </div>
-      </Container>
+        <div
+          className={ styles.titleHover }
+          data-hover='show'
+        >
+          { item.title }
+        </div>
+        <div
+          className={ styles.overlay }
+          data-hover='show'
+        >
+          <ReactMarkdown
+            source={ item.markdown }
+            softBreak='br'
+          />
+        </div>
+      </div>
     );
   }
 
@@ -68,13 +92,15 @@ export default class News extends Component {
           return null;
         }
 
+        // HACK: just for testing...
+        url = 'https://raw.githubusercontent.com/jacogr/parity-news/master/news.json';
         return fetch(url).then((response) => {
           if (!response.ok) {
             console.warn('Unable to retrieve lastest Parity news');
             return null;
           }
 
-          return response.text();
+          return response.json();
         });
       })
       .then((news) => {

@@ -15,46 +15,50 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-@import '../_list.css';
-
-.empty {
-  margin-top: 1.5em;
-  opacity: 0.5;
+.news {
 }
 
-.history {
-  line-height: 2em;
-  margin-top: 1.5em;
-  vertical-align: middle;
+.item {
+  height: 400px;
+  position: relative;
 
-  .entry {
-    padding: 0;
-
-    .identityIcon, .dappIcon {
-      margin-bottom: -10px;
-    }
-  }
-
-  .timestamp {
-    opacity: 0.5;
-    padding: 0 1em;
-    text-align: right;
-  }
-}
-
-.accounts, .dapps, .urls {
-  margin-top: 1.5em;
-}
-
-.urls {
-  .input {
-    background: rgba(255, 255, 255, 0.1);
-    border: 1px solid rgba(255, 255, 255, 0.25);
-    border-radius: 0.25em;
-    box-sizing: border-box;
-    color: white;
-    font-size: 1.25em;
-    padding: 0.5em;
+  .background {
+    bottom: 0;
+    left: 0;
+    position: absolute;
+    right: 0;
+    top: 0;
     width: 100%;
+  }
+
+  .overlay {
+    background: white;
+    color: #333;
+    left: 0;
+    position: absolute;
+    right: 0;
+    top: 100%;
+    padding: 0 1.5em 1.5em 1.5em;
+  }
+
+  .title, .titleHover {
+    bottom: 0;
+    font-size: 1.25em;
+    left: 0;
+    padding: 1.5rem;
+    position: absolute;
+    right: 0;
+    text-transform: uppercase;
+    z-index: 100;
+  }
+
+  .title {
+    background: rgba(0, 0, 0, 0.75);
+    color: white;
+  }
+
+  .titleHover {
+    background: rgba(255, 255, 255, 0.75);
+    color: #333;
   }
 }
