@@ -44,7 +44,7 @@ function stubGlobals () {
   sinon.stub(Contracts, 'get', () => contracts);
   sinon.stub(global, 'fetch').resolves({
     ok: true,
-    text: sinon.stub().resolves('testContent')
+    json: sinon.stub().resolves({ items: 'testContent' })
   });
 }
 
@@ -79,10 +79,6 @@ describe('views/Home/News', () => {
   });
 
   it('retrives the content meta on mount', () => {
-    expect(instance.state).to.deep.equal({ news: 'testContent' });
-  });
-
-  it('renders the news as markdown', () => {
-    expect(component.find('ReactMarkdown').props().source).to.equal('testContent');
+    expect(instance.state).to.deep.equal({ newsItems: 'testContent' });
   });
 });

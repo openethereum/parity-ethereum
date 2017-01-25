@@ -45,27 +45,4 @@ describe('views/Home/Accounts', () => {
       expect(component.find('FormattedMessage').props().id).to.equal('home.accounts.none');
     });
   });
-
-  describe('with history', () => {
-    const HISTORY = [
-      { timestamp: 1, entry: 'testABC' },
-      { timestamp: 2, entry: 'testDEF' }
-    ];
-
-    beforeEach(() => {
-      render(HISTORY);
-    });
-
-    it('renders table rows', () => {
-      expect(component.find('tr').length).to.equal(HISTORY.length);
-    });
-
-    it('renders links', () => {
-      expect(component.find('Link').length).to.equal(HISTORY.length);
-    });
-
-    it('has links with account id', () => {
-      expect(component.find('Link').at(0).props().to).to.equal(`/accounts/${HISTORY[0].entry}`);
-    });
-  });
 });

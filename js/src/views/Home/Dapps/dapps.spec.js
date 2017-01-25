@@ -61,16 +61,8 @@ describe('views/Home/Dapps', () => {
       render(HISTORY);
     });
 
-    it('renders dapps', () => {
-      expect(component.find('Dapp').length).to.equal(HISTORY.length);
-    });
-
-    it('has Dapp with dapp id', () => {
-      expect(component.find('Dapp').at(0).props().id).to.equal(HISTORY[0].entry);
-    });
-
-    it('has Dapp with dapp timestamp', () => {
-      expect(component.find('Dapp').at(1).props().timestamp).to.equal(HISTORY[1].timestamp);
+    it('renders SectionList', () => {
+      expect(component.find('SectionList').length).to.equal(1);
     });
   });
 });

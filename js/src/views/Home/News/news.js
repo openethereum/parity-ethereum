@@ -95,9 +95,7 @@ export default class News extends Component {
         });
       })
       .then((news) => {
-        if (news.items) {
-          this.setState({ newsItems: news.items });
-        }
+        this.setState({ newsItems: news.items });
       });
   }
 }

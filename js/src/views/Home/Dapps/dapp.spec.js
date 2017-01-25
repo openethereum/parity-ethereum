@@ -52,8 +52,4 @@ describe('views/Home/Dapp', () => {
   it('loads the dapp on mount', () => {
     expect(store.loadApp).to.have.been.calledWith('testId');
   });
-
-  it('renders link with app id', () => {
-    expect(component.find('Link').props().to).to.equal('/app/testId');
-  });
 });
