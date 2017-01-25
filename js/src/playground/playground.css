@@ -69,11 +69,10 @@
 
   .code {
     flex: 1;
-    padding-right: 0.5em;
     overflow: auto;
     padding: 0.5em;
-    background-color: #002B36;
-    color: #93A1A1;
+    background-color: #002b36;
+    color: #93a1a1;
     font-size: 0.75em;
 
     code {
