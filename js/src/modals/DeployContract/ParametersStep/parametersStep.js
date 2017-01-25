@@ -91,7 +91,7 @@ export default class ParametersStep extends Component {
     });
 
     return (
-      <div>
+      <div className={ styles.parameters }>
         <p>
           <FormattedMessage
             id='deployContract.parameters.choose'
