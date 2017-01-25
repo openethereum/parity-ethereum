@@ -38,7 +38,7 @@ const TYPES = [
             <a href={ walletSourceURL } target='_blank'>
               <FormattedMessage
                 id='createWallet.type.multisig.link'
-                dfeaultMessage='standard multi-signature'
+                defaultMessage='standard multi-signature'
               />
             </a>
           )
