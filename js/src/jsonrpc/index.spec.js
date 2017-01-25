@@ -39,12 +39,20 @@ function verifyType (obj) {
 // Get a list of JSON-RPC from Rust trait source code
 function parseMethodsFromRust (source) {
   // Matching the custom `rpc` attribute
-  const regex = /#\[rpc\((?:(?:async|meta)\s*,\s*)*name\s*=\s*"([^"]+)"\)]/g;
+  const attribute = /#\[rpc\(([^)]+)\)]/g;
+  const separator = /\s*,\s*/g;
+  const assign = /([\S]+)\s*=\s*"([^"]*)"/;
 
   const methods = [];
 
-  source.toString().replace(regex, (match, method) => {
-    methods.push(method);
+  source.toString().replace(attribute, (match, props) => {
+    props.split(separator).forEach((prop) => {
+      const [, key, value] = prop.split(assign) || [];
+
+      if (key === 'name' && value != null) {
+        methods.push(value);
+      }
+    });
 
     return match;
   });
@@ -76,7 +84,7 @@ describe('Rust defined JSON-RPC methods', () => {
   Object.keys(rustMethods).forEach((group) => {
     describe(group, () => {
       Object.keys(rustMethods[group]).forEach((name) => {
-        describe(`${group}_${name}`, () => {
+        describe(name, () => {
           it('has a defined JS interface', () => {
             expect(interfaces[group][name]).to.exist;
           });
@@ -92,7 +100,7 @@ describe('jsonrpc/interfaces', () => {
       Object.keys(interfaces[group]).forEach((name) => {
         const method = interfaces[group][name];
 
-        describe(`${group}_${name}`, () => {
+        describe(name, () => {
           if (!method.nodoc) {
             it('is present in Rust codebase', () => {
               expect(rustMethods[group][name]).to.exist;
