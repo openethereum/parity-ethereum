@@ -77,7 +77,7 @@ export default {
             optional: true
           }
         },
-        example: DUMMY
+        example: {}
       },
       {
         type: String,
@@ -86,9 +86,9 @@ export default {
       }
     ],
     returns: {
-      type: Boolean,
-      desc: 'The status of the confirmation',
-      example: true
+      type: Object,
+      desc: 'The status of the confirmation, depending on the request type.',
+      example: {}
     }
   },
 
@@ -107,9 +107,9 @@ export default {
       }
     ],
     returns: {
-      type: Boolean,
-      desc: 'The status of the confirmation',
-      example: true
+      type: Object,
+      desc: 'The status of the confirmation, depending on the request type.',
+      example: {}
     }
   },
 
@@ -141,17 +141,31 @@ export default {
             optional: true
           }
         },
-        example: DUMMY
+        example: {}
       },
       {
         type: String,
-        desc: 'Token.'
+        desc: 'Password.',
+        example: 'hunter2'
       }
     ],
     returns: {
-      type: Boolean,
-      desc: 'The status of the confirmation',
-      example: true
+      type: Object,
+      desc: 'Status.',
+      details: {
+        result: {
+          type: Object,
+          desc: 'The status of the confirmation, depending on the request type.'
+        },
+        token: {
+          type: String,
+          desc: 'Token used to authenticate the request.'
+        }
+      },
+      example: {
+        result: DUMMY,
+        token: 'cAF2w5LE7XUZ3v3N'
+      }
     }
   },
 

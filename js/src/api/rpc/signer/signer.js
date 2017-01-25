@@ -32,9 +32,9 @@ export default class Signer {
       .execute('signer_confirmRequestRaw', inNumber16(requestId), inData(data));
   }
 
-  confirmRequestWithToken (requestId, options, token) {
+  confirmRequestWithToken (requestId, options, password) {
     return this._transport
-      .execute('signer_confirmRequestWithToken', inNumber16(requestId), inOptions(options), token);
+      .execute('signer_confirmRequestWithToken', inNumber16(requestId), inOptions(options), password);
   }
 
   generateAuthorizationToken () {

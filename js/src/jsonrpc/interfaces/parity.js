@@ -1436,7 +1436,7 @@ export default {
 
   checkRequest: {
     section: SECTION_ACCOUNTS,
-    desc: 'Returns the transactionhash of the requestId (received from parity_postTransaction) if the request was confirmed',
+    desc: 'Returns the transaction hash of the requestId (received from parity_postTransaction) if the request was confirmed',
     params: [
       {
         type: Quantity,
@@ -1454,16 +1454,19 @@ export default {
     params: [
       {
         type: Address,
-        desc: 'Account which can decrypt the message.'
+        desc: 'Account which can decrypt the message.',
+        example: '0x00a329c0648769a73afac7f9381e08fb43dbea72'
       },
       {
         type: Data,
-        desc: 'Encrypted message.'
+        desc: 'Encrypted message.',
+        example: '0x0405afee7fa2ab3e48c27b00d543389270cb7267fc191ca1311f297255a83cbe8d77a4ba135b51560700a582924fa86d2b19029fcb50d2b68d60a7df1ba81df317a19c8def117f2b9cf8c2618be0e3f146a5272fb9e5528719d2d7a1bd91fa620901cffa756305c79c093e7af30fa3c1587029421351c34a7c1e5a2b'
       }
     ],
     returns: {
       type: Data,
-      desc: 'Decrypted message.'
+      desc: 'Decrypted message.',
+      example: withComment('0x68656c6c6f20776f726c64', 'hello world')
     }
   }
 };
