@@ -17,15 +17,19 @@
 /* eslint-disable */
 // TODO: Fix linting issues
 
-if (typeof(window.parity) == 'object')
-  window.api = window.parent.secureApi;
-  window.parity.api.subscribe('eth_blockNumber', function (error, blockNumber) {
-    if (error) {
-      console.log('error', error);
-      return;
-    }
-    refreshWatches();
-  });
+if (typeof(window.parent.secureApi) == 'object')
+	window.api = window.parent.secureApi;
+else if (typeof(window.parity) == 'object')
+  window.api = window.parity.api;
+
+if (typeof(window.api) === 'object')
+	window.api.subscribe('eth_blockNumber', function (error, blockNumber) {
+	    if (error) {
+	    	console.log('error', error);
+	    	return;
+	    }
+	    refreshWatches();
+	});
 
 function escapeHtml(str) {
     var div = document.createElement('div');
@@ -56,21 +60,42 @@ function evaluate(x) {
   }
 }
 
-function displayReady(x) {
+function safeAccess(obj, prop) {
+  try {
+    return obj[prop];
+  } catch (e) {
+    return '[Error] ' + e;
+  }
+}
+
+function displayReady(x, visited = []) {
+  visited.push(x);
+  var toString = Object.prototype.toString;
   if (x === undefined)
     return '<span class="undefinedType">undefined</span>';
   if (x === null)
     return '<span class="undefinedType">null</span>';
   if (typeof(x) == "string")
     return `"<span class="${typeof(x)}Type">${escapeHtml(x)}</span>"`;
-  if (Object.prototype.toString.call(x) === '[object Array]')
-    return `[${x.map(displayReady).join(', ')}]`;
+  if (toString.call(x) === '[object Array]')
+    return `[${x.map(el => displayReady(el, visited)).join(', ')}]`;
   if (typeof(x) == "function")
     return `<span class="${typeof(x)}Type">function () { /* ... */ }</span>`;
   if (typeof(x) == "object") {
-    if (x.toString().indexOf('[object ') != 0)
-      return `<span class="${x.constructor.name}Object">${escapeHtml(x.toString())}</span>`;
-    return `<span class="objectType ${x.constructor.name}Object">${x.constructor.name} {${Object.keys(x).map(f => `<span class="fieldType">${escapeHtml(f)}</span>: ${displayReady(x[f])}`).join(', ')}}</span>`;
+    var constructor = x.constructor || Object;
+    var objToString = typeof(x.toString) == "function" ? x.toString : toString;
+    if (objToString.call(x).indexOf('[object ') != 0) {
+      return `<span class="${constructor.name}Object">${escapeHtml(objToString.call(x))}</span>`;
+    }
+
+    return `
+      <span class="objectType ${constructor.name}Object">
+        ${constructor.name} {
+          ${Object.keys(x).filter(f => visited.indexOf(safeAccess(x, f)) === -1).map(f => `
+            <span class="fieldType">${escapeHtml(f)}</span>: ${displayReady(safeAccess(x, f), visited)}
+          `).join(', ')}
+        }
+      </span>`;
   }
   return `<span class="${typeof(x)}Type">${escapeHtml(JSON.stringify(x))}</span>`;
 }
@@ -102,7 +127,7 @@ function refreshWatches() {
     let r = window.watches[n]();
     let cn = n.replace(/[^a-zA-Z0-9]/, '');
     let e = document.getElementById(`res_${cn}`);
-    if (typeof(r) == 'object' && r.constructor.name == "Promise")
+    if (typeof(r) == 'object' && r.constructor && r.constructor.name == "Promise")
       r.then(r => e.innerHTML = displayReady(r));
     else
       e.innerHTML = displayReady(r);
@@ -159,7 +184,7 @@ function exec() {
       let res;
       try {
         res = evaluate(c);
-        if (typeof(res) == 'object' && res !== null && res.constructor.name == "Promise") {
+        if (typeof(res) == 'object' && res !== null && res.constructor && res.constructor.name == "Promise") {
           let id = window.historyData.length;
           pushLine('<div class="entry result"><span class="type">&lt;</span><span class="text" id="pending' + id + '">...</span></div>');
           res.then(r => document.getElementById('pending' + id).innerHTML = displayReady(r));
@@ -297,14 +322,15 @@ document.getElementById("command").addEventListener("keyup", function(event) {
   }
 });
 
-if (typeof(window.parity) == 'object') {
-  document.getElementById("command").focus();
+document.getElementById("command").focus();
+if (typeof(web3) === 'object')
   window.web3 = web3;
-  window.parity = parity;
-}
 refreshWatches();
 
-["debug", "error", "info", "log", "warn"].forEach(n => { let old = window.console[n]; window.console[n] = x => { old(x); newLog(n, x); }; });
+["debug", "error", "info", "log", "warn"].forEach(n => {
+  let old = window.console[n].bind(window.console);
+  window.console[n] = x => { old(x); newLog(n, x); };
+});
 
 
 
@@ -318,6 +344,7 @@ refreshWatches();
 ///// Home comforts.
 
 
+if (typeof(web3) === 'object') {
 // Usage example:
 // web3.eth.traceCall({
 //     to: theChicken.address,
@@ -597,6 +624,7 @@ web3.eth.reporter = function(e, r) {
 
 	var TokenReg = web3.eth.contract([{"constant":true,"inputs":[{"name":"_id","type":"uint256"}],"name":"token","outputs":[{"name":"addr","type":"address"},{"name":"tla","type":"string"},{"name":"base","type":"uint256"},{"name":"name","type":"string"},{"name":"owner","type":"address"}],"type":"function"},{"constant":false,"inputs":[{"name":"_new","type":"address"}],"name":"setOwner","outputs":[],"type":"function"},{"constant":false,"inputs":[{"name":"_addr","type":"address"},{"name":"_tla","type":"string"},{"name":"_base","type":"uint256"},{"name":"_name","type":"string"}],"name":"register","outputs":[{"name":"","type":"bool"}],"type":"function"},{"constant":false,"inputs":[{"name":"_fee","type":"uint256"}],"name":"setFee","outputs":[],"type":"function"},{"constant":true,"inputs":[{"name":"_id","type":"uint256"},{"name":"_key","type":"bytes32"}],"name":"meta","outputs":[{"name":"","type":"bytes32"}],"type":"function"},{"constant":false,"inputs":[{"name":"_addr","type":"address"},{"name":"_tla","type":"string"},{"name":"_base","type":"uint256"},{"name":"_name","type":"string"},{"name":"_owner","type":"address"}],"name":"registerAs","outputs":[{"name":"","type":"bool"}],"type":"function"},{"constant":true,"inputs":[{"name":"_tla","type":"string"}],"name":"fromTLA","outputs":[{"name":"id","type":"uint256"},{"name":"addr","type":"address"},{"name":"base","type":"uint256"},{"name":"name","type":"string"},{"name":"owner","type":"address"}],"type":"function"},{"constant":true,"inputs":[],"name":"owner","outputs":[{"name":"","type":"address"}],"type":"function"},{"constant":false,"inputs":[],"name":"drain","outputs":[],"type":"function"},{"constant":true,"inputs":[],"name":"tokenCount","outputs":[{"name":"","type":"uint256"}],"type":"function"},{"constant":false,"inputs":[{"name":"_id","type":"uint256"}],"name":"unregister","outputs":[],"type":"function"},{"constant":true,"inputs":[{"name":"_addr","type":"address"}],"name":"fromAddress","outputs":[{"name":"id","type":"uint256"},{"name":"tla","type":"string"},{"name":"base","type":"uint256"},{"name":"name","type":"string"},{"name":"owner","type":"address"}],"type":"function"},{"constant":false,"inputs":[{"name":"_id","type":"uint256"},{"name":"_key","type":"bytes32"},{"name":"_value","type":"bytes32"}],"name":"setMeta","outputs":[],"type":"function"},{"constant":true,"inputs":[],"name":"fee","outputs":[{"name":"","type":"uint256"}],"type":"function"},{"anonymous":false,"inputs":[{"indexed":true,"name":"tla","type":"string"},{"indexed":true,"name":"id","type":"uint256"},{"indexed":false,"name":"addr","type":"address"},{"indexed":false,"name":"name","type":"string"}],"name":"Registered","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"name":"tla","type":"string"},{"indexed":true,"name":"id","type":"uint256"}],"name":"Unregistered","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"name":"id","type":"uint256"},{"indexed":true,"name":"key","type":"bytes32"},{"indexed":false,"name":"value","type":"bytes32"}],"name":"MetaChanged","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"name":"old","type":"address"},{"indexed":true,"name":"current","type":"address"}],"name":"NewOwner","type":"event"}]);
 	web3.eth.tokenReg = TokenReg.at(web3.eth.registry.lookupAddress('tokenreg', 'A'));
+}
 }
 
 /* eslint-enable */
