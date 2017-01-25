@@ -565,7 +565,6 @@ push-release:
   stage: push-release
   only:
     - tags
-    - triggers
   image: ethcore/rust:stable
   script:
     - curl --data "secret=$RELEASES_SECRET" http://update.parity.io:1337/push-release/$CI_BUILD_REF_NAME/$CI_BUILD_REF
