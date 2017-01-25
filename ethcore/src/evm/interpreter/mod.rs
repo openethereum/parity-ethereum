@@ -37,7 +37,6 @@ use bit_set::BitSet;
 
 use util::*;
 
-type CodePosition = usize;
 type ProgramCounter = usize;
 
 const ONE: U256 = U256([1, 0, 0, 0]);

@@ -14,183 +14,165 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
+import { FormattedMessage } from 'react-intl';
 import { Checkbox } from 'material-ui';
 
-import { Form, Input } from '~/ui';
+import { Form, Input, PasswordStrength } from '~/ui';
 
 import styles from '../createAccount.css';
 
-import ERRORS from '../errors';
-
+@observer
 export default class RecoveryPhrase extends Component {
   static propTypes = {
-    onChange: PropTypes.func.isRequired
-  }
-
-  state = {
-    accountName: '',
-    accountNameError: ERRORS.noName,
-    isValidPass: true,
-    isValidName: false,
-    isValidPhrase: true,
-    passwordHint: '',
-    password1: '',
-    password1Error: null,
-    password2: '',
-    password2Error: null,
-    recoveryPhrase: '',
-    recoveryPhraseError: null,
-    windowsPhrase: false
-  }
-
-  componentWillMount () {
-    this.props.onChange(false, {});
+    store: PropTypes.object.isRequired
   }
 
   render () {
-    const { accountName, accountNameError, passwordHint, password1, password1Error, password2, password2Error, recoveryPhrase, windowsPhrase } = this.state;
+    const { isWindowsPhrase, name, nameError, password, passwordRepeat, passwordRepeatError, passwordHint, phrase } = this.props.store;
 
     return (
       <Form>
         <Input
-          hint='the account recovery phrase'
-          label='account recovery phrase'
-          value={ recoveryPhrase }
+          hint={
+            <FormattedMessage
+              id='createAccount.recoveryPhrase.phrase.hint'
+              defaultMessage='the account recovery phrase'
+            />
+          }
+          label={
+            <FormattedMessage
+              id='createAccount.recoveryPhrase.phrase.label'
+              defaultMessage='account recovery phrase'
+            />
+          }
           onChange={ this.onEditPhrase }
+          value={ phrase }
         />
         <Input
-          label='account name'
-          hint='a descriptive name for the account'
-          error={ accountNameError }
-          value={ accountName }
-          onChange={ this.onEditAccountName }
+          error={ nameError }
+          hint={
+            <FormattedMessage
+              id='createAccount.recoveryPhrase.name.hint'
+              defaultMessage='a descriptive name for the account'
+            />
+          }
+          label={
+            <FormattedMessage
+              id='createAccount.recoveryPhrase.name.label'
+              defaultMessage='account name'
+            />
+          }
+          onChange={ this.onEditName }
+          value={ name }
         />
         <Input
-          label='password hint'
-          hint='(optional) a hint to help with remembering the password'
-          value={ passwordHint }
+          hint={
+            <FormattedMessage
+              id='createAccount.recoveryPhrase.hint.hint'
+              defaultMessage='(optional) a hint to help with remembering the password'
+            />
+          }
+          label={
+            <FormattedMessage
+              id='createAccount.recoveryPhrase.hint.label'
+              defaultMessage='password hint'
+            />
+          }
           onChange={ this.onEditPasswordHint }
+          value={ passwordHint }
         />
         <div className={ styles.passwords }>
           <div className={ styles.password }>
             <Input
-              label='password'
-              hint='a strong, unique password'
+              hint={
+                <FormattedMessage
+                  id='createAccount.recoveryPhrase.password.hint'
+                  defaultMessage='a strong, unique password'
+                />
+              }
+              label={
+                <FormattedMessage
+                  id='createAccount.recoveryPhrase.password.label'
+                  defaultMessage='password'
+                />
+              }
+              onChange={ this.onEditPassword }
               type='password'
-              error={ password1Error }
-              value={ password1 }
-              onChange={ this.onEditPassword1 }
+              value={ password }
             />
           </div>
           <div className={ styles.password }>
             <Input
-              label='password (repeat)'
-              hint='verify your password'
+              error={ passwordRepeatError }
+              hint={
+                <FormattedMessage
+                  id='createAccount.recoveryPhrase.password2.hint'
+                  defaultMessage='verify your password'
+                />
+              }
+              label={
+                <FormattedMessage
+                  id='createAccount.recoveryPhrase.password2.label'
+                  defaultMessage='password (repeat)'
+                />
+              }
+              onChange={ this.onEditPasswordRepeat }
               type='password'
-              error={ password2Error }
-              value={ password2 }
-              onChange={ this.onEditPassword2 }
+              value={ passwordRepeat }
             />
           </div>
         </div>
+        <PasswordStrength input={ password } />
         <Checkbox
+          checked={ isWindowsPhrase }
           className={ styles.checkbox }
-          label='Key was created with Parity <1.4.5 on Windows'
-          checked={ windowsPhrase }
+          label={
+            <FormattedMessage
+              id='createAccount.recoveryPhrase.windowsKey.label'
+              defaultMessage='Key was created with Parity <1.4.5 on Windows'
+            />
+          }
           onCheck={ this.onToggleWindowsPhrase }
         />
       </Form>
     );
   }
 
-  updateParent = () => {
-    const { accountName, isValidName, isValidPass, isValidPhrase, password1, passwordHint, recoveryPhrase, windowsPhrase } = this.state;
-    const isValid = isValidName && isValidPass && isValidPhrase;
-
-    this.props.onChange(isValid, {
-      name: accountName,
-      password: password1,
-      passwordHint,
-      phrase: recoveryPhrase,
-      windowsPhrase
-    });
-  }
-
-  onEditPasswordHint = (event, value) => {
-    this.setState({
-      passwordHint: value
-    });
-  }
-
   onToggleWindowsPhrase = (event) => {
-    this.setState({
-      windowsPhrase: !this.state.windowsPhrase
-    }, this.updateParent);
+    const { store } = this.props;
+
+    store.setWindowsPhrase(!store.isWindowsPhrase);
   }
 
-  onEditPhrase = (event) => {
-    const recoveryPhrase = event.target.value
-      .toLowerCase() // wordlists are lowercase
-      .trim() // remove whitespace at both ends
-      .replace(/\s/g, ' ') // replace any whitespace with single space
-      .replace(/ +/g, ' '); // replace multiple spaces with a single space
+  onEditPhrase = (event, phrase) => {
+    const { store } = this.props;
 
-    const phraseParts = recoveryPhrase
-      .split(' ')
-      .map((part) => part.trim())
-      .filter((part) => part.length);
-
-    this.setState({
-      recoveryPhrase: phraseParts.join(' '),
-      recoveryPhraseError: null,
-      isValidPhrase: true
-    }, this.updateParent);
+    store.setPhrase(phrase);
   }
 
-  onEditAccountName = (event) => {
-    const accountName = event.target.value;
-    let accountNameError = null;
+  onEditName = (event, name) => {
+    const { store } = this.props;
 
-    if (!accountName || !accountName.trim().length) {
-      accountNameError = ERRORS.noName;
-    }
-
-    this.setState({
-      accountName,
-      accountNameError,
-      isValidName: !accountNameError
-    }, this.updateParent);
+    store.setName(name);
   }
 
-  onEditPassword1 = (event) => {
-    const password1 = event.target.value;
-    let password2Error = null;
+  onEditPassword = (event, password) => {
+    const { store } = this.props;
 
-    if (password1 !== this.state.password2) {
-      password2Error = ERRORS.noMatchPassword;
-    }
-
-    this.setState({
-      password1,
-      password1Error: null,
-      password2Error,
-      isValidPass: !password2Error
-    }, this.updateParent);
+    store.setPassword(password);
   }
 
-  onEditPassword2 = (event) => {
-    const password2 = event.target.value;
-    let password2Error = null;
+  onEditPasswordRepeat = (event, password) => {
+    const { store } = this.props;
 
-    if (password2 !== this.state.password1) {
-      password2Error = ERRORS.noMatchPassword;
-    }
+    store.setPasswordRepeat(password);
+  }
 
-    this.setState({
-      password2,
-      password2Error,
-      isValidPass: !password2Error
-    }, this.updateParent);
+  onEditPasswordHint = (event, passwordHint) => {
+    const { store } = this.props;
+
+    store.setPasswordHint(passwordHint);
   }
 }

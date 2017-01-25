@@ -17,9 +17,10 @@
 //! Tendermint specific parameters.
 
 use ethjson;
-use super::transition::TendermintTimeouts;
 use util::{U256, Uint};
 use time::Duration;
+use super::super::transition::Timeouts;
+use super::Step;
 
 /// `Tendermint` params.
 #[derive(Debug)]
@@ -32,6 +33,41 @@ pub struct TendermintParams {
 	pub timeouts: TendermintTimeouts,
 	/// Block reward.
 	pub block_reward: U256,
+}
+
+/// Base timeout of each step in ms.
+#[derive(Debug, Clone)]
+pub struct TendermintTimeouts {
+	pub propose: Duration,
+	pub prevote: Duration,
+	pub precommit: Duration,
+	pub commit: Duration,
+}
+
+impl Default for TendermintTimeouts {
+	fn default() -> Self {
+		TendermintTimeouts {
+			propose: Duration::milliseconds(1000),
+			prevote: Duration::milliseconds(1000),
+			precommit: Duration::milliseconds(1000),
+			commit: Duration::milliseconds(1000),
+		}
+	}
+}
+
+impl Timeouts<Step> for TendermintTimeouts {
+	fn initial(&self) -> Duration {
+		self.propose
+	}
+
+	fn timeout(&self, step: &Step) -> Duration {
+		match *step {
+			Step::Propose => self.propose,
+			Step::Prevote => self.prevote,
+			Step::Precommit => self.precommit,
+			Step::Commit => self.commit,
+		}
+	}
 }
 
 fn to_duration(ms: ethjson::uint::Uint) -> Duration {

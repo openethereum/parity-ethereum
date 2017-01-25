@@ -15,29 +15,28 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 .list {
-}
-
-.list input+div>div {
-  top: 13px;
+  input+div>div {
+    top: 13px;
+  }
 }
 
 .selection {
   display: inline-block;
   margin-bottom: 0.5em;
-}
 
-.selection .icon {
-  display: inline-block;
-}
+  .icon {
+    display: inline-block;
+  }
 
-.selection .detail {
-  display: inline-block;
-}
+  .detail {
+    display: inline-block;
 
-.detail .address {
-  color: #aaa;
-}
+    .address {
+      color: #aaa;
+    }
 
-.detail .balance {
-  font-family: 'Roboto Mono', monospace;
+    .balance {
+      font-family: 'Roboto Mono', monospace;
+    }
+  }
 }
