@@ -1896,7 +1896,7 @@ mod tests {
 		let db = new_db(temp.as_str());
 		let bc = new_chain(&genesis, db.clone());
 		insert_block(&db, &bc, &b1, vec![Receipt {
-			state_root: H256::default(),
+			state_root: Some(H256::default()),
 			gas_used: 10_000.into(),
 			log_bloom: Default::default(),
 			logs: vec![
@@ -1905,7 +1905,7 @@ mod tests {
 			],
 		},
 		Receipt {
-			state_root: H256::default(),
+			state_root: Some(H256::default()),
 			gas_used: 10_000.into(),
 			log_bloom: Default::default(),
 			logs: vec![
@@ -1914,7 +1914,7 @@ mod tests {
 		}]);
 		insert_block(&db, &bc, &b2, vec![
 			Receipt {
-				state_root: H256::default(),
+				state_root: Some(H256::default()),
 				gas_used: 10_000.into(),
 				log_bloom: Default::default(),
 				logs: vec![

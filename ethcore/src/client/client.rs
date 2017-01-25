@@ -1713,7 +1713,7 @@ mod tests {
 
 		let block_number = 1;
 		let block_hash = 5.into();
-		let state_root = 99.into();
+		let state_root = Some(99.into());
 		let gas_used = 10.into();
 		let raw_tx = Transaction {
 			nonce: 0.into(),

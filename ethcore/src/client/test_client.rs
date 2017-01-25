@@ -591,7 +591,7 @@ impl BlockChainClient for TestBlockChainClient {
 		// starts with 'f' ?
 		if *hash > H256::from("f000000000000000000000000000000000000000000000000000000000000000") {
 			let receipt = BlockReceipts::new(vec![Receipt::new(
-				H256::zero(),
+				Some(H256::zero()),
 				U256::zero(),
 				vec![])]);
 			let mut rlp = RlpStream::new();

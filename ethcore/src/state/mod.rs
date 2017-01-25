@@ -519,8 +519,13 @@ impl State {
 
 		// TODO uncomment once to_pod() works correctly.
 //		trace!("Applied transaction. Diff:\n{}\n", state_diff::diff_pod(&old, &self.to_pod()));
-		self.commit()?;
-		let receipt = Receipt::new(self.root().clone(), e.cumulative_gas_used, e.logs);
+		let state_root = if env_info.number < engine.params().eip98_transition {
+			self.commit()?;
+			Some(self.root().clone())
+		} else {
+			None
+		};
+		let receipt = Receipt::new(state_root, e.cumulative_gas_used, e.logs);
 		trace!(target: "state", "Transaction receipt: {:?}", receipt);
 		Ok(ApplyOutcome{receipt: receipt, trace: e.trace})
 	}

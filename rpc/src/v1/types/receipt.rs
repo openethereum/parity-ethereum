@@ -45,7 +45,7 @@ pub struct Receipt {
 	pub logs: Vec<Log>,
 	/// State Root
 	#[serde(rename="root")]
-	pub state_root: H256,
+	pub state_root: Option<H256>,
 	/// Logs bloom
 	#[serde(rename="logsBloom")]
 	pub logs_bloom: H2048,
@@ -62,7 +62,7 @@ impl From<LocalizedReceipt> for Receipt {
 			gas_used: Some(r.gas_used.into()),
 			contract_address: r.contract_address.map(Into::into),
 			logs: r.logs.into_iter().map(Into::into).collect(),
-			state_root: r.state_root.into(),
+			state_root: r.state_root.map(Into::into),
 			logs_bloom: r.log_bloom.into(),
 		}
 	}
@@ -79,7 +79,7 @@ impl From<RichReceipt> for Receipt {
 			gas_used: Some(r.gas_used.into()),
 			contract_address: r.contract_address.map(Into::into),
 			logs: r.logs.into_iter().map(Into::into).collect(),
-			state_root: r.state_root.into(),
+			state_root: r.state_root.map(Into::into),
 			logs_bloom: r.log_bloom.into(),
 		}
 	}
@@ -96,7 +96,7 @@ impl From<EthReceipt> for Receipt {
 			gas_used: None,
 			contract_address: None,
 			logs: r.logs.into_iter().map(Into::into).collect(),
-			state_root: r.state_root.into(),
+			state_root: r.state_root.map(Into::into),
 			logs_bloom: r.log_bloom.into(),
 		}
 	}
@@ -135,7 +135,7 @@ mod tests {
 				log_type: "mined".into(),
 			}],
 			logs_bloom: 15.into(),
-			state_root: 10.into(),
+			state_root: Some(10.into()),
 		};
 
 		let serialized = serde_json::to_string(&receipt).unwrap();

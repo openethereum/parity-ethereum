@@ -29,7 +29,8 @@
 		"networkID" : "0x2",
 		"chainID": "0x3e",
 		"forkBlock": "0x1b34d8",
-		"forkCanonHash": "0xf376243aeff1f256d970714c3de9fd78fa4e63cf63e32a51fe1169e375d98145"
+		"forkCanonHash": "0xf376243aeff1f256d970714c3de9fd78fa4e63cf63e32a51fe1169e375d98145",
+		"eip98Transition": "0x7fffffffffffff"
 	},
 	"genesis": {
 		"seal": {
