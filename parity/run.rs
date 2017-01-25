@@ -23,6 +23,7 @@ use ethsync::NetworkConfiguration;
 use util::{Colour, version, RotatingLogger, Mutex, Condvar};
 use io::{MayPanic, ForwardPanic, PanicHandler};
 use ethcore_logger::{Config as LogConfig};
+use ethcore::miner::{StratumOptions, Stratum};
 use ethcore::client::{Mode, DatabaseCompactionProfile, VMType, BlockChainClient};
 use ethcore::service::ClientService;
 use ethcore::account_provider::AccountProvider;
@@ -97,6 +98,7 @@ pub struct RunCmd {
 	pub ui: bool,
 	pub name: String,
 	pub custom_bootnodes: bool,
+	pub stratum: Option<StratumOptions>,
 	pub no_periodic_snapshot: bool,
 	pub check_seal: bool,
 	pub download_old_blocks: bool,
@@ -314,6 +316,12 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 
 	// create external miner
 	let external_miner = Arc::new(ExternalMiner::default());
+
+	// start stratum
+	if let Some(ref stratum_config) = cmd.stratum {
+		Stratum::register(stratum_config, miner.clone(), Arc::downgrade(&client))
+			.map_err(|e| format!("Stratum start error: {:?}", e))?;
+	}
 
 	// create sync object
 	let (sync_provider, manage_network, chain_notify) = modules::sync(

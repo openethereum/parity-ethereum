@@ -45,10 +45,7 @@ pub mod service_urls {
 	pub const LIGHT_PROVIDER: &'static str = "parity-light-provider.ipc";
 
 	#[cfg(feature="stratum")]
-	pub const STRATUM: &'static str = "parity-stratum.ipc";
-	#[cfg(feature="stratum")]
-	pub const MINING_JOB_DISPATCHER: &'static str = "parity-mining-jobs.ipc";
-
+	pub const STRATUM_CONTROL: &'static str = "parity-stratum-control.ipc";
 
 	pub fn with_base(data_dir: &str, service_path: &str) -> String {
 		let mut path = PathBuf::from(data_dir);
@@ -126,18 +123,35 @@ fn sync_arguments(io_path: &str, sync_cfg: SyncConfig, net_cfg: NetworkConfigura
 }
 
 #[cfg(feature="ipc")]
-pub fn sync
-	(
-		hypervisor_ref: &mut Option<Hypervisor>,
-		sync_cfg: SyncConfig,
-		net_cfg: NetworkConfiguration,
-		_client: Arc<BlockChainClient>,
-		_snapshot_service: Arc<SnapshotService>,
-		_provider: Arc<Provider>,		
-		log_settings: &LogConfig,
-	)
-	-> Result<SyncModules, NetworkError>
-{
+pub fn stratum(
+	hypervisor_ref: &mut Option<Hypervisor>,
+	config: &::ethcore::miner::StratumOptions
+) {
+	use ethcore_stratum;
+
+	let mut hypervisor = hypervisor_ref.take().expect("There should be hypervisor for ipc configuration");
+	let args = BootArgs::new().stdin(
+			serialize(&ethcore_stratum::ServiceConfiguration {
+				io_path: hypervisor.io_path.to_owned(),
+				port: config.port,
+				listen_addr: config.listen_addr.to_owned(),
+				secret: config.secret,
+			}).expect("Any binary-derived struct is serializable by definition")
+		).cli(vec!["stratum".to_owned()]);
+	hypervisor = hypervisor.module(super::stratum::MODULE_ID, args);
+	*hypervisor_ref = Some(hypervisor);
+}
+
+#[cfg(feature="ipc")]
+pub fn sync(
+	hypervisor_ref: &mut Option<Hypervisor>,
+	sync_cfg: SyncConfig,
+	net_cfg: NetworkConfiguration,
+	_client: Arc<BlockChainClient>,
+	_snapshot_service: Arc<SnapshotService>,
+	_provider: Arc<Provider>,
+	log_settings: &LogConfig,
+) -> Result<SyncModules, NetworkError> {
 	let mut hypervisor = hypervisor_ref.take().expect("There should be hypervisor for ipc configuration");
 	let args = sync_arguments(&hypervisor.io_path, sync_cfg, net_cfg, log_settings);
 	hypervisor = hypervisor.module(SYNC_MODULE_ID, args);
@@ -153,29 +167,26 @@ pub fn sync
 		&service_urls::with_base(&hypervisor.io_path, service_urls::NETWORK_MANAGER)).unwrap();
 	let provider_client = generic_client::<LightProviderClient<_>>(
 		&service_urls::with_base(&hypervisor.io_path, service_urls::LIGHT_PROVIDER)).unwrap();
-		
+
 	*hypervisor_ref = Some(hypervisor);
 	Ok((sync_client, manage_client, notify_client))
 }
 
 #[cfg(not(feature="ipc"))]
-pub fn sync
-	(
-		_hypervisor: &mut Option<Hypervisor>,
-		sync_cfg: SyncConfig,
-		net_cfg: NetworkConfiguration,
-		client: Arc<BlockChainClient>,
-		snapshot_service: Arc<SnapshotService>,
-		provider: Arc<Provider>,		
-		_log_settings: &LogConfig,
-	)
-	-> Result<SyncModules, NetworkError>
-{
+pub fn sync(
+	_hypervisor: &mut Option<Hypervisor>,
+	sync_cfg: SyncConfig,
+	net_cfg: NetworkConfiguration,
+	client: Arc<BlockChainClient>,
+	snapshot_service: Arc<SnapshotService>,
+	provider: Arc<Provider>,
+	_log_settings: &LogConfig,
+) -> Result<SyncModules, NetworkError> {
 	let eth_sync = EthSync::new(Params {
-		config: sync_cfg, 
+		config: sync_cfg,
 		chain: client,
 		provider: provider,
-		snapshot_service: snapshot_service, 
+		snapshot_service: snapshot_service,
 		network_config: net_cfg,
 	})?;
 

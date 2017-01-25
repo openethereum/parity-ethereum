@@ -18,6 +18,7 @@ use std;
 use std::error::Error as StdError;
 use util::H256;
 use ipc::IpcConfig;
+use jsonrpc_tcp_server::PushMessageError;
 
 #[derive(Debug, Clone)]
 #[binary]
@@ -25,11 +26,19 @@ pub enum Error {
 	NoWork,
 	NoWorkers,
 	Io(String),
+	Tcp(String),
+	Dispatch(String),
 }
 
 impl From<std::io::Error> for Error {
 	fn from(err: std::io::Error) -> Self {
 		Error::Io(err.description().to_owned())
+	}
+}
+
+impl From<PushMessageError> for Error {
+	fn from(err: PushMessageError) -> Self {
+		Error::Tcp(format!("Push message error: {:?}", err))
 	}
 }
 
@@ -41,7 +50,9 @@ pub trait JobDispatcher: Send + Sync {
 	// json for difficulty dispatch
 	fn difficulty(&self) -> Option<String> { None }
 	// json for job update given worker_id (payload manager should split job!)
-	fn job(&self, _worker_id: String) -> Option<String> { None }
+	fn job(&self) -> Option<String> { None }
+	// miner job result
+	fn submit(&self, payload: Vec<String>) -> Result<(), Error>;
 }
 
 #[ipc(client_ident="RemoteWorkHandler")]
@@ -56,7 +67,9 @@ pub trait PushWorkHandler: Send + Sync {
 
 #[binary]
 pub struct ServiceConfiguration {
+	pub io_path: String,
 	pub listen_addr: String,
+	pub port: u16,
 	pub secret: Option<H256>,
 }
 

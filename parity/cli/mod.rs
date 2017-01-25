@@ -233,6 +233,15 @@ usage! {
 		flag_refuse_service_transactions: bool = false,
 			or |c: &Config| otry!(c.mining).refuse_service_transactions.clone(),
 
+		flag_stratum: bool = false,
+			or |c: &Config| Some(c.stratum.is_some()),
+		flag_stratum_interface: String = "local",
+			or |c: &Config| otry!(c.stratum).interface.clone(),
+		flag_stratum_port: u16 = 8008u16,
+			or |c: &Config| otry!(c.stratum).port.clone(),
+		flag_stratum_secret: Option<String> = None,
+			or |c: &Config| otry!(c.stratum).secret.clone().map(Some),
+
 		// -- Footprint Options
 		flag_tracing: String = "auto",
 			or |c: &Config| otry!(c.footprint).tracing.clone(),
@@ -313,6 +322,7 @@ struct Config {
 	snapshots: Option<Snapshots>,
 	vm: Option<VM>,
 	misc: Option<Misc>,
+	stratum: Option<Stratum>,
 }
 
 #[derive(Default, Debug, PartialEq, RustcDecodable)]
@@ -419,6 +429,13 @@ struct Mining {
 	remove_solved: Option<bool>,
 	notify_work: Option<Vec<String>>,
 	refuse_service_transactions: Option<bool>,
+}
+
+#[derive(Default, Debug, PartialEq, RustcDecodable)]
+struct Stratum {
+	interface: Option<String>,
+	port: Option<u16>,
+	secret: Option<String>,
 }
 
 #[derive(Default, Debug, PartialEq, RustcDecodable)]
@@ -638,6 +655,11 @@ mod tests {
 			flag_notify_work: Some("http://localhost:3001".into()),
 			flag_refuse_service_transactions: false,
 
+			flag_stratum: false,
+			flag_stratum_interface: "local".to_owned(),
+			flag_stratum_port: 8008u16,
+			flag_stratum_secret: None,
+
 			// -- Footprint Options
 			flag_tracing: "auto".into(),
 			flag_pruning: "auto".into(),
@@ -843,7 +865,8 @@ mod tests {
 				logging: Some("own_tx=trace".into()),
 				log_file: Some("/var/log/parity.log".into()),
 				color: Some(true),
-			})
+			}),
+			stratum: None,
 		});
 	}
 }

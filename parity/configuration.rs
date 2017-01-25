@@ -20,12 +20,12 @@ use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
 use std::cmp::max;
 use cli::{Args, ArgsError};
-use util::{Hashable, U256, Uint, Bytes, version_data, Address};
+use util::{Hashable, H256, U256, Uint, Bytes, version_data, Address};
 use util::log::Colour;
 use ethsync::{NetworkConfiguration, is_valid_node_url, AllowIP};
 use ethcore::ethstore::ethkey::Secret;
 use ethcore::client::{VMType};
-use ethcore::miner::{MinerOptions, Banning};
+use ethcore::miner::{MinerOptions, Banning, StratumOptions};
 use ethcore::verification::queue::VerifierSettings;
 
 use rpc::{IpcConfiguration, HttpConfiguration};
@@ -329,6 +329,7 @@ impl Configuration {
 				acc_conf: self.accounts_config()?,
 				gas_pricer: self.gas_pricer_config()?,
 				miner_extras: self.miner_extras()?,
+				stratum: self.stratum_options()?,
 				update_policy: update_policy,
 				mode: mode,
 				tracing: tracing,
@@ -463,6 +464,17 @@ impl Configuration {
 		};
 
 		Ok(cfg)
+	}
+
+	fn stratum_options(&self) -> Result<Option<StratumOptions>, String> {
+		if self.args.flag_stratum {
+			Ok(Some(StratumOptions {
+				io_path: self.directories().db,
+				listen_addr: self.stratum_interface(),
+				port: self.args.flag_stratum_port,
+				secret: self.args.flag_stratum_secret.as_ref().map(|s| s.parse::<H256>().unwrap_or_else(|_| s.sha3())),
+			}))
+		} else { Ok(None) }
 	}
 
 	fn miner_options(&self) -> Result<MinerOptions, String> {
@@ -827,6 +839,14 @@ impl Configuration {
 		}.into()
 	}
 
+	fn stratum_interface(&self) -> String {
+		match self.args.flag_stratum_interface.as_str() {
+			"local" => "127.0.0.1",
+			"all" => "0.0.0.0",
+			x => x,
+		}.into()
+	}
+
 	fn dapps_enabled(&self) -> bool {
 		!self.args.flag_dapps_off && !self.args.flag_no_dapps && cfg!(feature = "dapps")
 	}
@@ -1086,6 +1106,7 @@ mod tests {
 			custom_bootnodes: false,
 			fat_db: Default::default(),
 			no_periodic_snapshot: false,
+			stratum: None,
 			check_seal: true,
 			download_old_blocks: true,
 			verifier_settings: Default::default(),

@@ -102,6 +102,9 @@ extern crate ethcore_bloom_journal as bloom_journal;
 extern crate byteorder;
 extern crate transient_hashmap;
 extern crate linked_hash_map;
+extern crate lru_cache;
+extern crate ethcore_stratum;
+extern crate ethabi;
 
 #[macro_use]
 extern crate log;
@@ -113,11 +116,9 @@ extern crate lazy_static;
 extern crate heapsize;
 #[macro_use]
 extern crate ethcore_ipc as ipc;
-extern crate lru_cache;
 
 #[cfg(feature = "jit" )]
 extern crate evmjit;
-extern crate ethabi;
 
 pub extern crate ethstore;
 
