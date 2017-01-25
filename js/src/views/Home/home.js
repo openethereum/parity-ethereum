@@ -54,6 +54,7 @@ export default class Home extends Component {
           />
         }
       >
+        <News />
         <div className={ styles.list }>
           <div className={ styles.item }>
             <Urls
@@ -69,9 +70,6 @@ export default class Home extends Component {
           </div>
           <div className={ styles.item }>
             <Accounts history={ this.accountsHistory.history } />
-          </div>
-          <div className={ styles.item }>
-            <News />
           </div>
         </div>
       </Page>

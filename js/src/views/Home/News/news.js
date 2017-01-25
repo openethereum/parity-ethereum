@@ -28,20 +28,20 @@ export default class News extends Component {
   }
 
   state = {
-    news: null
+    newsItems: null
   }
 
   render () {
-    const { news } = this.state;
+    const { newsItems } = this.state;
 
-    if (!news || !news.items || !news.items.length) {
+    if (!newsItems || !newsItems.length) {
       return null;
     }
 
     return (
       <SectionList
         className={ styles.news }
-        items={ news.items }
+        items={ newsItems }
         renderItem={ this.renderItem }
       />
     );
@@ -104,7 +104,9 @@ export default class News extends Component {
         });
       })
       .then((news) => {
-        this.setState({ news });
+        if (news.items) {
+          this.setState({ newsItems: news.items });
+        }
       });
   }
 }
