@@ -18,12 +18,16 @@ import React, { Component } from 'react';
 
 import PlaygroundExample from '~/playground/playgroundExample';
 
-import { CurrencySymbol } from './currencySymbol';
+import ConnectedCurrencySymbol, { CurrencySymbol } from './currencySymbol';
 
 export default class CurrencySymbolExample extends Component {
   render () {
     return (
       <div>
+        <PlaygroundExample name='Connected Currency Symbol'>
+          <ConnectedCurrencySymbol />
+        </PlaygroundExample>
+
         <PlaygroundExample name='Simple Currency Symbol'>
           <CurrencySymbol
             netChain='testnet'
