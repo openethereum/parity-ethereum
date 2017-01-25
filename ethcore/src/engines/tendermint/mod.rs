@@ -15,17 +15,15 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 /// Tendermint BFT consensus engine with round robin proof-of-authority.
-/// At each blockchain `Height` there can be multiple `Round`s of voting.
-/// Signatures always sign `Height`, `Round`, `Step` and `BlockHash` which is a block hash without seal.
+/// At each blockchain `Height` there can be multiple `View`s of voting.
+/// Signatures always sign `Height`, `View`, `Step` and `BlockHash` which is a block hash without seal.
 /// First a block with `Seal::Proposal` is issued by the designated proposer.
-/// Next the `Round` proceeds through `Prevote` and `Precommit` `Step`s.
-/// Block is issued when there is enough `Precommit` votes collected on a particular block at the end of a `Round`.
+/// Next the `View` proceeds through `Prevote` and `Precommit` `Step`s.
+/// Block is issued when there is enough `Precommit` votes collected on a particular block at the end of a `View`.
 /// Once enough votes have been gathered the proposer issues that block in the `Commit` step.
 
 mod message;
-mod transition;
 mod params;
-mod vote_collector;
 
 use std::sync::Weak;
 use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
@@ -35,7 +33,7 @@ use error::{Error, BlockError};
 use header::Header;
 use builtin::Builtin;
 use env_info::EnvInfo;
-use rlp::{UntrustedRlp, View};
+use rlp::{UntrustedRlp, View as RlpView};
 use ethkey::{recover, public_to_address, Signature};
 use account_provider::AccountProvider;
 use block::*;
@@ -46,10 +44,10 @@ use state::CleanupMode;
 use io::IoService;
 use super::signer::EngineSigner;
 use super::validator_set::{ValidatorSet, new_validator_set};
+use super::transition::TransitionHandler;
+use super::vote_collector::VoteCollector;
 use self::message::*;
-use self::transition::TransitionHandler;
 use self::params::TendermintParams;
-use self::vote_collector::VoteCollector;
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
 pub enum Step {
@@ -69,7 +67,7 @@ impl Step {
 }
 
 pub type Height = usize;
-pub type Round = usize;
+pub type View = usize;
 pub type BlockHash = H256;
 
 /// Engine using `Tendermint` consensus algorithm, suitable for EVM chain.
@@ -82,17 +80,17 @@ pub struct Tendermint {
 	block_reward: U256,
 	/// Blockchain height.
 	height: AtomicUsize,
-	/// Consensus round.
-	round: AtomicUsize,
+	/// Consensus view.
+	view: AtomicUsize,
 	/// Consensus step.
 	step: RwLock<Step>,
 	/// Vote accumulator.
-	votes: VoteCollector,
+	votes: VoteCollector<ConsensusMessage>,
 	/// Used to sign messages and proposals.
 	signer: EngineSigner,
 	/// Message for the last PoLC.
 	lock_change: RwLock<Option<ConsensusMessage>>,
-	/// Last lock round.
+	/// Last lock view.
 	last_lock: AtomicUsize,
 	/// Bare hash of the proposed block, used for seal submission.
 	proposal: RwLock<Option<H256>>,
@@ -112,16 +110,16 @@ impl Tendermint {
 				step_service: IoService::<Step>::start()?,
 				block_reward: our_params.block_reward,
 				height: AtomicUsize::new(1),
-				round: AtomicUsize::new(0),
+				view: AtomicUsize::new(0),
 				step: RwLock::new(Step::Propose),
-				votes: VoteCollector::new(),
+				votes: VoteCollector::default(),
 				signer: Default::default(),
 				lock_change: RwLock::new(None),
 				last_lock: AtomicUsize::new(0),
 				proposal: RwLock::new(None),
 				validators: new_validator_set(our_params.validators),
 			});
-		let handler = TransitionHandler::new(Arc::downgrade(&engine), our_params.timeouts);
+		let handler = TransitionHandler::new(Arc::downgrade(&engine) as Weak<Engine>, Box::new(our_params.timeouts));
 		engine.step_service.register_handler(Arc::new(handler))?;
 		Ok(engine)
 	}
@@ -152,7 +150,7 @@ impl Tendermint {
 
 	fn generate_message(&self, block_hash: Option<BlockHash>) -> Option<Bytes> {
 		let h = self.height.load(AtomicOrdering::SeqCst);
-		let r = self.round.load(AtomicOrdering::SeqCst);
+		let r = self.view.load(AtomicOrdering::SeqCst);
 		let s = self.step.read();
 		let vote_info = message_info_rlp(&VoteStep::new(h, r, *s), block_hash);
 		match self.signer.sign(vote_info.sha3()).map(Into::into) {
@@ -181,7 +179,7 @@ impl Tendermint {
 
 	/// Broadcast all messages since last issued block to get the peers up to speed.
 	fn broadcast_old_messages(&self) {
-		for m in self.votes.get_up_to(self.height.load(AtomicOrdering::SeqCst)).into_iter() {
+		for m in self.votes.get_up_to(&VoteStep::new(self.height.load(AtomicOrdering::SeqCst), self.view.load(AtomicOrdering::SeqCst), Step::Precommit)).into_iter() {
 			self.broadcast_message(m);
 		}
 	}
@@ -191,7 +189,7 @@ impl Tendermint {
 		debug!(target: "poa", "Received a Commit, transitioning to height {}.", new_height);
 		self.last_lock.store(0, AtomicOrdering::SeqCst);
 		self.height.store(new_height, AtomicOrdering::SeqCst);
-		self.round.store(0, AtomicOrdering::SeqCst);
+		self.view.store(0, AtomicOrdering::SeqCst);
 		*self.lock_change.write() = None;
 	}
 
@@ -208,7 +206,7 @@ impl Tendermint {
 			},
 			Step::Prevote => {
 				let block_hash = match *self.lock_change.read() {
-					Some(ref m) if !self.should_unlock(m.vote_step.round) => m.block_hash,
+					Some(ref m) if !self.should_unlock(m.vote_step.view) => m.block_hash,
 					_ => self.proposal.read().clone(),
 				};
 				self.generate_and_broadcast_message(block_hash);
@@ -216,9 +214,9 @@ impl Tendermint {
 			Step::Precommit => {
 				trace!(target: "poa", "to_step: Precommit.");
 				let block_hash = match *self.lock_change.read() {
-					Some(ref m) if self.is_round(m) && m.block_hash.is_some() => {
-						trace!(target: "poa", "Setting last lock: {}", m.vote_step.round);
-						self.last_lock.store(m.vote_step.round, AtomicOrdering::SeqCst);
+					Some(ref m) if self.is_view(m) && m.block_hash.is_some() => {
+						trace!(target: "poa", "Setting last lock: {}", m.vote_step.view);
+						self.last_lock.store(m.vote_step.view, AtomicOrdering::SeqCst);
 						m.block_hash
 					},
 					_ => None,
@@ -228,15 +226,17 @@ impl Tendermint {
 			Step::Commit => {
 				trace!(target: "poa", "to_step: Commit.");
 				// Commit the block using a complete signature set.
-				let round = self.round.load(AtomicOrdering::SeqCst);
+				let view = self.view.load(AtomicOrdering::SeqCst);
 				let height = self.height.load(AtomicOrdering::SeqCst);
 				if let Some(block_hash) = *self.proposal.read() {
 					// Generate seal and remove old votes.
 					if self.is_signer_proposer() {
-						if let Some(seal) = self.votes.seal_signatures(height, round, &block_hash) {
+						let proposal_step = VoteStep::new(height, view, Step::Propose);
+						let precommit_step = VoteStep::new(proposal_step.height, proposal_step.view, Step::Precommit);
+						if let Some(seal) = self.votes.seal_signatures(proposal_step, precommit_step, &block_hash) {
 							trace!(target: "poa", "Collected seal: {:?}", seal);
 							let seal = vec![
-								::rlp::encode(&round).to_vec(),
+								::rlp::encode(&view).to_vec(),
 								::rlp::encode(&seal.proposal).to_vec(),
 								::rlp::encode(&seal.votes).to_vec()
 							];
@@ -259,16 +259,16 @@ impl Tendermint {
 		n > self.validators.count() * 2/3
 	}
 
-	/// Find the designated for the given round.
-	fn round_proposer(&self, height: Height, round: Round) -> Address {
-		let proposer_nonce = height + round;
+	/// Find the designated for the given view.
+	fn view_proposer(&self, height: Height, view: View) -> Address {
+		let proposer_nonce = height + view;
 		trace!(target: "poa", "Proposer nonce: {}", proposer_nonce);
 		self.validators.get(proposer_nonce)
 	}
 
-	/// Check if address is a proposer for given round.
-	fn is_round_proposer(&self, height: Height, round: Round, address: &Address) -> Result<(), EngineError> {
-		let proposer = self.round_proposer(height, round);
+	/// Check if address is a proposer for given view.
+	fn is_view_proposer(&self, height: Height, view: View, address: &Address) -> Result<(), EngineError> {
+		let proposer = self.view_proposer(height, view);
 		if proposer == *address {
 			Ok(())
 		} else {
@@ -278,7 +278,7 @@ impl Tendermint {
 
 	/// Check if current signer is the current proposer.
 	fn is_signer_proposer(&self) -> bool {
-		let proposer = self.round_proposer(self.height.load(AtomicOrdering::SeqCst), self.round.load(AtomicOrdering::SeqCst));
+		let proposer = self.view_proposer(self.height.load(AtomicOrdering::SeqCst), self.view.load(AtomicOrdering::SeqCst));
 		self.signer.is_address(&proposer)
 	}
 
@@ -286,29 +286,29 @@ impl Tendermint {
 		message.vote_step.is_height(self.height.load(AtomicOrdering::SeqCst)) 
 	}
 
-	fn is_round(&self, message: &ConsensusMessage) -> bool {
-		message.vote_step.is_round(self.height.load(AtomicOrdering::SeqCst), self.round.load(AtomicOrdering::SeqCst)) 
+	fn is_view(&self, message: &ConsensusMessage) -> bool {
+		message.vote_step.is_view(self.height.load(AtomicOrdering::SeqCst), self.view.load(AtomicOrdering::SeqCst)) 
 	}
 
-	fn increment_round(&self, n: Round) {
-		trace!(target: "poa", "increment_round: New round.");
-		self.round.fetch_add(n, AtomicOrdering::SeqCst);
+	fn increment_view(&self, n: View) {
+		trace!(target: "poa", "increment_view: New view.");
+		self.view.fetch_add(n, AtomicOrdering::SeqCst);
 	}
 
-	fn should_unlock(&self, lock_change_round: Round) -> bool {
-		self.last_lock.load(AtomicOrdering::SeqCst) < lock_change_round
-			&& lock_change_round < self.round.load(AtomicOrdering::SeqCst)
+	fn should_unlock(&self, lock_change_view: View) -> bool {
+		self.last_lock.load(AtomicOrdering::SeqCst) < lock_change_view
+			&& lock_change_view < self.view.load(AtomicOrdering::SeqCst)
 	}
 
 
 	fn has_enough_any_votes(&self) -> bool {
-		let step_votes = self.votes.count_step_votes(&VoteStep::new(self.height.load(AtomicOrdering::SeqCst), self.round.load(AtomicOrdering::SeqCst), *self.step.read()));
+		let step_votes = self.votes.count_round_votes(&VoteStep::new(self.height.load(AtomicOrdering::SeqCst), self.view.load(AtomicOrdering::SeqCst), *self.step.read()));
 		self.is_above_threshold(step_votes)
 	}
 
 	fn has_enough_future_step_votes(&self, vote_step: &VoteStep) -> bool {
-		if vote_step.round > self.round.load(AtomicOrdering::SeqCst) {
-			let step_votes = self.votes.count_step_votes(vote_step);
+		if vote_step.view > self.view.load(AtomicOrdering::SeqCst) {
+			let step_votes = self.votes.count_round_votes(vote_step);
 			self.is_above_threshold(step_votes)	
 		} else {
 			false
@@ -339,21 +339,21 @@ impl Tendermint {
 			let next_step = match *self.step.read() {
 				Step::Precommit if self.has_enough_aligned_votes(message) => {
 					if message.block_hash.is_none() {
-						self.increment_round(1);
+						self.increment_view(1);
 						Some(Step::Propose)
 					} else {
 						Some(Step::Commit)
 					}
 				},
 				Step::Precommit if self.has_enough_future_step_votes(&vote_step) => {
-					self.increment_round(vote_step.round - self.round.load(AtomicOrdering::SeqCst));
+					self.increment_view(vote_step.view - self.view.load(AtomicOrdering::SeqCst));
 					Some(Step::Precommit)
 				},
 				// Avoid counting twice.
 				Step::Prevote if lock_change => Some(Step::Precommit),
 				Step::Prevote if self.has_enough_aligned_votes(message) => Some(Step::Precommit),
 				Step::Prevote if self.has_enough_future_step_votes(&vote_step) => {
-					self.increment_round(vote_step.round - self.round.load(AtomicOrdering::SeqCst));
+					self.increment_view(vote_step.view - self.view.load(AtomicOrdering::SeqCst));
 					Some(Step::Prevote)
 				},
 				_ => None,
@@ -370,7 +370,7 @@ impl Tendermint {
 impl Engine for Tendermint {
 	fn name(&self) -> &str { "Tendermint" }
 	fn version(&self) -> SemanticVersion { SemanticVersion::new(1, 0, 0) }
-	/// (consensus round, proposal signature, authority signatures)
+	/// (consensus view, proposal signature, authority signatures)
 	fn seal_fields(&self) -> usize { 3 }
 
 	fn params(&self) -> &CommonParams { &self.params }
@@ -385,7 +385,7 @@ impl Engine for Tendermint {
 		map![
 			"signature".into() => message.signature.to_string(),
 			"height".into() => message.vote_step.height.to_string(),
-			"round".into() => message.vote_step.round.to_string(),
+			"view".into() => message.vote_step.view.to_string(),
 			"block_hash".into() => message.block_hash.as_ref().map(ToString::to_string).unwrap_or("".into())
 		]
 	}
@@ -395,8 +395,8 @@ impl Engine for Tendermint {
 	}
 
 	fn populate_from_parent(&self, header: &mut Header, parent: &Header, gas_floor_target: U256, _gas_ceil_target: U256) {
-		// Chain scoring: total weight is sqrt(U256::max_value())*height - round
-		let new_difficulty = U256::from(U128::max_value()) + consensus_round(parent).expect("Header has been verified; qed").into() - self.round.load(AtomicOrdering::SeqCst).into();
+		// Chain scoring: total weight is sqrt(U256::max_value())*height - view
+		let new_difficulty = U256::from(U128::max_value()) + consensus_view(parent).expect("Header has been verified; qed").into() - self.view.load(AtomicOrdering::SeqCst).into();
 		header.set_difficulty(new_difficulty);
 		header.set_gas_limit({
 			let gas_limit = parent.gas_limit().clone();
@@ -424,17 +424,17 @@ impl Engine for Tendermint {
 		}
 
 		let height = header.number() as Height;
-		let round = self.round.load(AtomicOrdering::SeqCst);
+		let view = self.view.load(AtomicOrdering::SeqCst);
 		let bh = Some(header.bare_hash());
-		let vote_info = message_info_rlp(&VoteStep::new(height, round, Step::Propose), bh.clone());
+		let vote_info = message_info_rlp(&VoteStep::new(height, view, Step::Propose), bh.clone());
 		if let Ok(signature) = self.signer.sign(vote_info.sha3()).map(Into::into) {
 			// Insert Propose vote.
-			debug!(target: "poa", "Submitting proposal {} at height {} round {}.", header.bare_hash(), height, round);
-			self.votes.vote(ConsensusMessage::new(signature, height, round, Step::Propose, bh), author);
+			debug!(target: "poa", "Submitting proposal {} at height {} view {}.", header.bare_hash(), height, view);
+			self.votes.vote(ConsensusMessage::new(signature, height, view, Step::Propose, bh), author);
 			// Remember proposal for later seal submission.
 			*self.proposal.write() = bh;
 			Seal::Proposal(vec![
-				::rlp::encode(&round).to_vec(),
+				::rlp::encode(&view).to_vec(),
 				::rlp::encode(&signature).to_vec(),
 				::rlp::EMPTY_LIST_RLP.to_vec()
 			])
@@ -535,7 +535,7 @@ impl Engine for Tendermint {
 					found: signatures_len
 				}))?;
 			}
-			self.is_round_proposer(proposal.vote_step.height, proposal.vote_step.round, &proposer)?;
+			self.is_view_proposer(proposal.vote_step.height, proposal.vote_step.view, &proposer)?;
 		}
 		Ok(())
 	}
@@ -583,7 +583,7 @@ impl Engine for Tendermint {
 		}
 		let proposer = proposal.verify().expect("block went through full verification; this Engine tries verify; qed");
 		debug!(target: "poa", "Received a new proposal {:?} from {}.", proposal.vote_step, proposer);
-		if self.is_round(&proposal) {
+		if self.is_view(&proposal) {
 			*self.proposal.write() = proposal.block_hash.clone();
 		}
 		self.votes.vote(proposal, &proposer);
@@ -597,7 +597,7 @@ impl Engine for Tendermint {
 				trace!(target: "poa", "Propose timeout.");
 				if self.proposal.read().is_none() {
 					// Report the proposer if no proposal was received.
-					let current_proposer = self.round_proposer(self.height.load(AtomicOrdering::SeqCst), self.round.load(AtomicOrdering::SeqCst));
+					let current_proposer = self.view_proposer(self.height.load(AtomicOrdering::SeqCst), self.view.load(AtomicOrdering::SeqCst));
 					self.validators.report_benign(&current_proposer);
 				}
 				Step::Prevote
@@ -613,7 +613,7 @@ impl Engine for Tendermint {
 			},
 			Step::Precommit if self.has_enough_any_votes() => {
 				trace!(target: "poa", "Precommit timeout.");
-				self.increment_round(1);
+				self.increment_view(1);
 				Step::Propose
 			},
 			Step::Precommit => {
@@ -673,19 +673,19 @@ mod tests {
 		}
 	}
 
-	fn vote<F>(engine: &Engine, signer: F, height: usize, round: usize, step: Step, block_hash: Option<H256>) -> Bytes where F: FnOnce(H256) -> Result<H520, ::account_provider::Error> {
-		let mi = message_info_rlp(&VoteStep::new(height, round, step), block_hash);
+	fn vote<F>(engine: &Engine, signer: F, height: usize, view: usize, step: Step, block_hash: Option<H256>) -> Bytes where F: FnOnce(H256) -> Result<H520, ::account_provider::Error> {
+		let mi = message_info_rlp(&VoteStep::new(height, view, step), block_hash);
 		let m = message_full_rlp(&signer(mi.sha3()).unwrap().into(), &mi);
 		engine.handle_message(&m).unwrap();
 		m
 	}
 
-	fn proposal_seal(tap: &Arc<AccountProvider>, header: &Header, round: Round) -> Vec<Bytes> {
+	fn proposal_seal(tap: &Arc<AccountProvider>, header: &Header, view: View) -> Vec<Bytes> {
 		let author = header.author();
-		let vote_info = message_info_rlp(&VoteStep::new(header.number() as Height, round, Step::Propose), Some(header.bare_hash()));
+		let vote_info = message_info_rlp(&VoteStep::new(header.number() as Height, view, Step::Propose), Some(header.bare_hash()));
 		let signature = tap.sign(*author, None, vote_info.sha3()).unwrap();
 		vec![
-			::rlp::encode(&round).to_vec(),
+			::rlp::encode(&view).to_vec(),
 			::rlp::encode(&H520::from(signature)).to_vec(),
 			::rlp::EMPTY_LIST_RLP.to_vec()
 		]
