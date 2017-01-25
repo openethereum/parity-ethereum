@@ -110,7 +110,7 @@ export default class WalletInfo extends Component {
         </p>
         <p>
           <FormattedMessage
-            id='crateWallet.info.dayLimit'
+            id='createWallet.info.dayLimit'
             defaultMessage='The daily limit is set to {dayLimit} ETH.'
             values={ {
               dayLimit: <code>{ fromWei(daylimit).toFormat() }</code>

@@ -260,7 +260,7 @@ export default class CreateWalletStore {
       case 'postTransaction':
         this.deployState = (
           <FormattedMessage
-            id='crateWallet.states.preparing'
+            id='createWallet.states.preparing'
             defaultMessage='Preparing transaction for network transmission'
           />
         );
@@ -269,7 +269,7 @@ export default class CreateWalletStore {
       case 'checkRequest':
         this.deployState = (
           <FormattedMessage
-            id='crateWallet.states.waitingConfirm'
+            id='createWallet.states.waitingConfirm'
             defaultMessage='Waiting for confirmation of the transaction in the Parity Secure Signer'
           />
         );
@@ -278,7 +278,7 @@ export default class CreateWalletStore {
       case 'getTransactionReceipt':
         this.deployState = (
           <FormattedMessage
-            id='crateWallet.states.waitingReceipt'
+            id='createWallet.states.waitingReceipt'
             defaultMessage='Waiting for the contract deployment transaction receipt'
           />
         );
@@ -289,7 +289,7 @@ export default class CreateWalletStore {
       case 'getCode':
         this.deployState = (
           <FormattedMessage
-            id='crateWallet.states.validatingCode'
+            id='createWallet.states.validatingCode'
             defaultMessage='Validating the deployed contract code'
           />
         );
@@ -298,7 +298,7 @@ export default class CreateWalletStore {
       case 'completed':
         this.deployState = (
           <FormattedMessage
-            id='crateWallet.states.completed'
+            id='createWallet.states.completed'
             defaultMessage='The contract deployment has been completed'
           />
         );
