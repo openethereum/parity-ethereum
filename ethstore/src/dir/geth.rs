@@ -17,7 +17,7 @@
 use std::env;
 use std::path::PathBuf;
 use {SafeAccount, Error};
-use super::{KeyDirectory, DiskDirectory, DirectoryType};
+use super::{KeyDirectory, RootDiskDirectory, DirectoryType};
 
 #[cfg(target_os = "macos")]
 fn geth_dir_path() -> PathBuf {
@@ -60,13 +60,13 @@ fn geth_keystore(t: DirectoryType) -> PathBuf {
 }
 
 pub struct GethDirectory {
-	dir: DiskDirectory,
+	dir: RootDiskDirectory,
 }
 
 impl GethDirectory {
 	pub fn create(t: DirectoryType) -> Result<Self, Error> {
 		let result = GethDirectory {
-			dir: DiskDirectory::create(geth_keystore(t))?,
+			dir: RootDiskDirectory::create(geth_keystore(t))?,
 		};
 
 		Ok(result)
@@ -74,7 +74,7 @@ impl GethDirectory {
 
 	pub fn open(t: DirectoryType) -> Self {
 		GethDirectory {
-			dir: DiskDirectory::at(geth_keystore(t)),
+			dir: RootDiskDirectory::at(geth_keystore(t)),
 		}
 	}
 }

@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use ethcore::ethstore::{PresaleWallet, EthStore};
-use ethcore::ethstore::dir::DiskDirectory;
+use ethcore::ethstore::dir::RootDiskDirectory;
 use ethcore::account_provider::AccountProvider;
 use helpers::{password_prompt, password_from_file};
 use params::SpecType;
@@ -35,7 +35,7 @@ pub fn execute(cmd: ImportWallet) -> Result<String, String> {
 		None => password_prompt()?,
 	};
 
-	let dir = Box::new(DiskDirectory::create(cmd.path).unwrap());
+	let dir = Box::new(RootDiskDirectory::create(cmd.path).unwrap());
 	let secret_store = Box::new(EthStore::open_with_iterations(dir, cmd.iterations).unwrap());
 	let acc_provider = AccountProvider::new(secret_store);
 	let wallet = PresaleWallet::open(cmd.wallet_path).map_err(|_| "Unable to open presale wallet.")?;

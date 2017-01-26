@@ -17,7 +17,7 @@
 use std::env;
 use std::path::PathBuf;
 use {SafeAccount, Error};
-use super::{KeyDirectory, DiskDirectory, DirectoryType};
+use super::{KeyDirectory, RootDiskDirectory, DirectoryType};
 
 fn parity_dir_path() -> PathBuf {
 	let mut home = env::home_dir().expect("Failed to get home dir");
@@ -39,13 +39,13 @@ fn parity_keystore(t: DirectoryType) -> PathBuf {
 }
 
 pub struct ParityDirectory {
-	dir: DiskDirectory,
+	dir: RootDiskDirectory,
 }
 
 impl ParityDirectory {
 	pub fn create(t: DirectoryType) -> Result<Self, Error> {
 		let result = ParityDirectory {
-			dir: DiskDirectory::create(parity_keystore(t))?,
+			dir: RootDiskDirectory::create(parity_keystore(t))?,
 		};
 
 		Ok(result)
@@ -53,7 +53,7 @@ impl ParityDirectory {
 
 	pub fn open(t: DirectoryType) -> Self {
 		ParityDirectory {
-			dir: DiskDirectory::at(parity_keystore(t)),
+			dir: RootDiskDirectory::at(parity_keystore(t)),
 		}
 	}
 }

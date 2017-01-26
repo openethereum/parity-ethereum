@@ -17,7 +17,7 @@
 use std::path::PathBuf;
 use std::{env, fs};
 use rand::{Rng, OsRng};
-use ethstore::dir::{KeyDirectory, DiskDirectory};
+use ethstore::dir::{KeyDirectory, RootDiskDirectory};
 use ethstore::{Error, SafeAccount};
 
 pub fn random_dir() -> PathBuf {
@@ -28,7 +28,7 @@ pub fn random_dir() -> PathBuf {
 }
 
 pub struct TransientDir {
-	dir: DiskDirectory,
+	dir: RootDiskDirectory,
 	path: PathBuf,
 }
 
@@ -36,7 +36,7 @@ impl TransientDir {
 	pub fn create() -> Result<Self, Error> {
 		let path = random_dir();
 		let result = TransientDir {
-			dir: DiskDirectory::create(&path)?,
+			dir: RootDiskDirectory::create(&path)?,
 			path: path,
 		};
 
@@ -46,7 +46,7 @@ impl TransientDir {
 	pub fn open() -> Self {
 		let path = random_dir();
 		TransientDir {
-			dir: DiskDirectory::at(&path),
+			dir: RootDiskDirectory::at(&path),
 			path: path,
 		}
 	}

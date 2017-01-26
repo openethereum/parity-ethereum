@@ -14,19 +14,10 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use ethkey::{KeyPair, sign, Address, Secret, Signature, Message, Public};
+use ethkey::{KeyPair, sign, Address, Signature, Message, Public};
 use {json, Error, crypto};
-use crypto::Keccak256;
-use random::Random;
-use account::{Version, Cipher, Kdf, Aes128Ctr, Pbkdf2, Prf};
-
-#[derive(Debug, PartialEq, Clone)]
-pub struct Crypto {
-	pub cipher: Cipher,
-	pub ciphertext: Vec<u8>,
-	pub kdf: Kdf,
-	pub mac: [u8; 32],
-}
+use account::Version;
+use super::crypto::Crypto;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct SafeAccount {
@@ -39,28 +30,6 @@ pub struct SafeAccount {
 	pub meta: String,
 }
 
-impl From<json::Crypto> for Crypto {
-	fn from(json: json::Crypto) -> Self {
-		Crypto {
-			cipher: json.cipher.into(),
-			ciphertext: json.ciphertext.into(),
-			kdf: json.kdf.into(),
-			mac: json.mac.into(),
-		}
-	}
-}
-
-impl Into<json::Crypto> for Crypto {
-	fn into(self) -> json::Crypto {
-		json::Crypto {
-			cipher: self.cipher.into(),
-			ciphertext: self.ciphertext.into(),
-			kdf: self.kdf.into(),
-			mac: self.mac.into(),
-		}
-	}
-}
-
 impl Into<json::KeyFile> for SafeAccount {
 	fn into(self) -> json::KeyFile {
 		json::KeyFile {
@@ -70,65 +39,6 @@ impl Into<json::KeyFile> for SafeAccount {
 			crypto: self.crypto.into(),
 			name: Some(self.name.into()),
 			meta: Some(self.meta.into()),
-		}
-	}
-}
-
-impl Crypto {
-	pub fn create(secret: &Secret, password: &str, iterations: u32) -> Self {
-		let salt: [u8; 32] = Random::random();
-		let iv: [u8; 16] = Random::random();
-
-		// two parts of derived key
-		// DK = [ DK[0..15] DK[16..31] ] = [derived_left_bits, derived_right_bits]
-		let (derived_left_bits, derived_right_bits) = crypto::derive_key_iterations(password, &salt, iterations);
-
-		let mut ciphertext = [0u8; 32];
-
-		// aes-128-ctr with initial vector of iv
-		crypto::aes::encrypt(&derived_left_bits, &iv, &**secret, &mut ciphertext);
-
-		// KECCAK(DK[16..31] ++ <ciphertext>), where DK[16..31] - derived_right_bits
-		let mac = crypto::derive_mac(&derived_right_bits, &ciphertext).keccak256();
-
-		Crypto {
-			cipher: Cipher::Aes128Ctr(Aes128Ctr {
-				iv: iv,
-			}),
-			ciphertext: ciphertext.to_vec(),
-			kdf: Kdf::Pbkdf2(Pbkdf2 {
-				dklen: crypto::KEY_LENGTH as u32,
-				salt: salt,
-				c: iterations,
-				prf: Prf::HmacSha256,
-			}),
-			mac: mac,
-		}
-	}
-
-	pub fn secret(&self, password: &str) -> Result<Secret, Error> {
-		if self.ciphertext.len() > 32 {
-			return Err(Error::InvalidSecret);
-		}
-
-		let (derived_left_bits, derived_right_bits) = match self.kdf {
-			Kdf::Pbkdf2(ref params) => crypto::derive_key_iterations(password, &params.salt, params.c),
-			Kdf::Scrypt(ref params) => crypto::derive_key_scrypt(password, &params.salt, params.n, params.p, params.r)?,
-		};
-
-		let mac = crypto::derive_mac(&derived_right_bits, &self.ciphertext).keccak256();
-
-		if mac != self.mac {
-			return Err(Error::InvalidPassword);
-		}
-
-		match self.cipher {
-			Cipher::Aes128Ctr(ref params) => {
-				let from = 32 - self.ciphertext.len();
-				let mut secret = [0; 32];
-				crypto::aes::decrypt(&derived_left_bits, &params.iv, &self.ciphertext, &mut secret[from..]);
-				Ok(Secret::from_slice(&secret)?)
-			},
 		}
 	}
 }
@@ -145,7 +55,7 @@ impl SafeAccount {
 		SafeAccount {
 			id: id,
 			version: Version::V3,
-			crypto: Crypto::create(keypair.secret(), password, iterations),
+			crypto: Crypto::with_secret(keypair.secret(), password, iterations),
 			address: keypair.address(),
 			filename: None,
 			name: name,
@@ -168,6 +78,42 @@ impl SafeAccount {
 		}
 	}
 
+	/// Create a new `SafeAccount` from the given vault `json`; if it was read from a
+	/// file, the `filename` should be `Some` name. If it is as yet anonymous, then it
+	/// can be left `None`.
+	pub fn from_vault_file(password: &str, json: json::VaultKeyFile, filename: Option<String>) -> Result<Self, Error> {
+		let meta_crypto: Crypto = json.metacrypto.into();
+		let meta_plain = meta_crypto.decrypt(password)?;
+		let meta_plain = json::VaultKeyMeta::load(&meta_plain).map_err(|e| Error::Custom(format!("{:?}", e)))?;
+
+		Ok(SafeAccount::from_file(json::KeyFile {
+			id: json.id,
+			version: json.version,
+			crypto: json.crypto,
+			address: meta_plain.address,
+			name: meta_plain.name,
+			meta: meta_plain.meta,
+		}, filename))
+	}
+
+	/// Create a new `VaultKeyFile` from the given `self`
+	pub fn into_vault_file(self, iterations: u32, password: &str) -> Result<json::VaultKeyFile, Error> {
+		let meta_plain = json::VaultKeyMeta {
+			address: self.address.into(),
+			name: Some(self.name),
+			meta: Some(self.meta),
+		};
+		let meta_plain = meta_plain.write().map_err(|e| Error::Custom(format!("{:?}", e)))?;
+		let meta_crypto = Crypto::with_plain(&meta_plain, password, iterations);
+
+		Ok(json::VaultKeyFile {
+			id: self.id.into(),
+			version: self.version.into(),
+			crypto: self.crypto.into(),
+			metacrypto: meta_crypto.into(),
+		})
+	}
+
 	pub fn sign(&self, password: &str, message: &Message) -> Result<Signature, Error> {
 		let secret = self.crypto.secret(password)?;
 		sign(&secret, message).map_err(From::from)
@@ -188,7 +134,7 @@ impl SafeAccount {
 		let result = SafeAccount {
 			id: self.id.clone(),
 			version: self.version.clone(),
-			crypto: Crypto::create(&secret, new_password, iterations),
+			crypto: Crypto::with_secret(&secret, new_password, iterations),
 			address: self.address.clone(),
 			filename: self.filename.clone(),
 			name: self.name.clone(),
@@ -205,23 +151,7 @@ impl SafeAccount {
 #[cfg(test)]
 mod tests {
 	use ethkey::{Generator, Random, verify_public, Message};
-	use super::{Crypto, SafeAccount};
-
-	#[test]
-	fn crypto_create() {
-		let keypair = Random.generate().unwrap();
-		let crypto = Crypto::create(keypair.secret(), "this is sparta", 10240);
-		let secret = crypto.secret("this is sparta").unwrap();
-		assert_eq!(keypair.secret(), &secret);
-	}
-
-	#[test]
-	#[should_panic]
-	fn crypto_invalid_password() {
-		let keypair = Random.generate().unwrap();
-		let crypto = Crypto::create(keypair.secret(), "this is sparta", 10240);
-		let _ = crypto.secret("this is sparta!").unwrap();
-	}
+	use super::SafeAccount;
 
 	#[test]
 	fn sign_and_verify_public() {
