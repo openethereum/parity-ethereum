@@ -20,7 +20,7 @@ import localStore from 'store';
 const LS_KEY = '_parity::history';
 const MAX_ENTRIES = 5;
 
-const instance = {};
+const instances = {};
 
 export default class Store {
   @observable history = [];
@@ -52,10 +52,10 @@ export default class Store {
   }
 
   static get (type) {
-    if (!instance[type]) {
-      instance[type] = new Store(type);
+    if (!instances[type]) {
+      instances[type] = new Store(type);
     }
 
-    return instance[type];
+    return instances[type];
   }
 }

@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import builtinDapps from '~/dapps/builtins.json';
 import {
   Accounts, Account, Addresses, Address, Application,
   Contract, Contracts, Dapp, Dapps, HistoryStore, Home,
@@ -120,7 +121,11 @@ const routes = [
       {
         path: 'app/:id',
         component: Dapp,
-        onEnter: ({ params }) => dappsHistory.add(params.id)
+        onEnter: ({ params }) => {
+          if (!builtinDapps[params.id] || !builtinDapps[params.id].skipHistory) {
+            dappsHistory.add(params.id);
+          }
+        }
       },
       { path: 'home', component: Home },
       { path: 'web', component: Web },
