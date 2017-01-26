@@ -18,7 +18,7 @@ import { action, computed, observable, transaction } from 'mobx';
 import localStore from 'store';
 import { parse as parseUrl } from 'url';
 
-import { encode as encodeEthlink } from '~/util/dapplink';
+import { encodePath, encodeUrl } from '~/util/dapplink';
 
 const DEFAULT_URL = 'https://mkr.market';
 const LS_LAST_ADDRESS = '_parity::webLastAddress';
@@ -42,8 +42,12 @@ export default class Store {
     this.nextUrl = this.currentUrl = this.loadLastUrl();
   }
 
+  @computed get encodedPath () {
+    return `${this._api.dappsUrl}/web/${encodePath(this.token, this.currentUrl)}?t=${this.counter}`;
+  }
+
   @computed get encodedUrl () {
-    return `http://${encodeEthlink(this.token, this.currentUrl)}:${this._api.dappsPort}?t=${this.counter}`;
+    return `http://${encodeUrl(this.token, this.currentUrl)}:${this._api.dappsPort}?t=${this.counter}`;
   }
 
   @computed get frameId () {

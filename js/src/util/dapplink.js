@@ -19,13 +19,19 @@ import base32 from 'base32.js';
 const BASE_URL = '.web.web3.site';
 const ENCODER_OPTS = { type: 'crockford' };
 
-export function encode (token, url) {
+export function encodePath (token, url) {
   const encoder = new base32.Encoder(ENCODER_OPTS);
   const chars = `${token}+${url}`
     .split('')
     .map((char) => char.charCodeAt(0));
-  const encoded = encoder
-    .write(chars).finalize() // create the encoded string
+
+  return encoder
+    .write(chars) // add the characters to encode
+    .finalize(); // create the encoded string
+}
+
+export function encodeUrl (token, url) {
+  const encoded = encodePath(token, url)
     .match(/.{1,63}/g) // split into 63-character chunks, max length is 64 for URLs parts
     .join('.'); // add '.' between URL parts
 
@@ -43,7 +49,10 @@ export function decode (encoded) {
     .split('.') // split the string on the '.' (63-char boundaries)
     .join(''); // combine without the '.'
 
-  return decoder.write(sanitized).finalize().toString();
+  return decoder
+    .write(sanitized) // add the string to decode
+    .finalize() // create the decoded buffer
+    .toString(); // create string from buffer
 }
 
 export {

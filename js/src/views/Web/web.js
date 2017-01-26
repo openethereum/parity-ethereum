@@ -66,7 +66,7 @@ export default class Web extends Component {
   }
 
   renderFrame () {
-    const { encodedUrl, frameId } = this.store;
+    const { encodedPath, frameId } = this.store;
 
     return (
       <div className={ styles.wrapper }>
@@ -82,7 +82,7 @@ export default class Web extends Component {
           onLoad={ this.iframeOnLoad }
           sandbox='allow-forms allow-same-origin allow-scripts'
           scrolling='auto'
-          src={ encodedUrl }
+          src={ encodedPath }
         />
       </div>
     );
