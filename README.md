@@ -128,4 +128,4 @@ systemd user directory (usually `~/.config/systemd/user`).
 2. To pass any argument to Parity, write a `~/.parity/parity.conf` file this way:
 `ARGS="ARG1 ARG2 ARG3"`.
 
-	Example: `ARGS="ui --geth --identity MyMachine"`.
+	Example: `ARGS="ui --identity MyMachine"`.

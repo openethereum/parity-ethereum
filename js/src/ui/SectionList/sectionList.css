@@ -1,4 +1,4 @@
-/* Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+/* Copyright 2015-2017 Parity Technologies (UK) Ltd.
 /* This file is part of Parity.
 /*
 /* Parity is free software: you can redistribute it and/or modify
@@ -19,10 +19,23 @@
   margin-bottom: 1em;
   position: relative;
 
+  .overlay {
+    background: rgba(0, 0, 0, 0.85);
+    bottom: 0;
+    left: 0;
+    padding: 1.5em;
+    position: absolute;
+    right: 0;
+    top: 0;
+    z-index: 199;
+  }
+
   .row {
     display: flex;
     justify-content: center;
 
+    /* TODO: As per JS comments, the flex-base could be adjusted in the future to allow for */
+    /* case where <> 3 columns are required should the need arrise from a UI pov. */
     .item {
       box-sizing: border-box;
       cursor: pointer;
@@ -32,6 +45,7 @@
       padding: 0.25em;
       transition: all 0.75s cubic-bezier(0.23, 1, 0.32, 1);
 
+      /* TODO: The hover and no-hover states can be improved to not "just appear" */
       &:not(:hover) {
         & [data-hover="hide"] {
         }

@@ -13,7 +13,7 @@ Ethereum keys generator.
 
 ```
 Ethereum keys generator.
-  Copyright 2016 Ethcore (UK) Limited
+  Copyright 2016, 2017 Parity Technologies (UK) Ltd
 
 Usage:
     ethkey info <secret> [options]

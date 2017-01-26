@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -24,7 +24,7 @@ include!(concat!(env!("OUT_DIR"), "/version.rs"));
 include!(concat!(env!("OUT_DIR"), "/rustc_version.rs"));
 
 #[cfg(feature = "final")]
-const THIS_TRACK: &'static str = "nightly"; 
+const THIS_TRACK: &'static str = "nightly";
 // ^^^ should be reset to "stable" or "beta" according to the release branch.
 
 #[cfg(not(feature = "final"))]

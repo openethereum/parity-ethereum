@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -49,6 +49,10 @@ pub struct Params {
 	/// Expected fork block hash.
 	#[serde(rename="forkCanonHash")]
 	pub fork_hash: Option<H256>,
+
+	/// See `CommonParams` docs.
+	#[serde(rename="eip98Transition")]
+	pub eip98_transition: Option<Uint>,
 }
 
 #[cfg(test)]
