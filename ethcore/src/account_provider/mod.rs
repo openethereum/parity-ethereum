@@ -74,7 +74,7 @@ impl From<SSError> for Error {
 }
 
 /// Dapp identifier
-#[derive(Default, Clone, Eq, PartialEq, Hash, Ord, PartialOrd)]
+#[derive(Default, Debug, Clone, Eq, PartialEq, Hash, Ord, PartialOrd)]
 pub struct DappId(String);
 
 impl From<DappId> for String {
@@ -82,6 +82,9 @@ impl From<DappId> for String {
 }
 impl From<String> for DappId {
 	fn from(id: String) -> DappId { DappId(id) }
+}
+impl<'a> From<&'a str> for DappId {
+	fn from(id: &'a str) -> DappId { DappId(id.to_owned()) }
 }
 
 fn transient_sstore() -> EthMultiStore {
@@ -413,7 +416,7 @@ impl AccountProvider {
 
 #[cfg(test)]
 mod tests {
-	use super::{AccountProvider, Unlock};
+	use super::{AccountProvider, Unlock, DappId};
 	use std::time::Instant;
 	use ethstore::ethkey::{Generator, Random};
 
@@ -474,7 +477,7 @@ mod tests {
 	fn should_set_dapps_addresses() {
 		// given
 		let ap = AccountProvider::transient_provider();
-		let app = "app1".to_owned();
+		let app = DappId("app1".into());
 		// set `AllAccounts` policy
 		ap.set_new_dapps_whitelist(None).unwrap();
 

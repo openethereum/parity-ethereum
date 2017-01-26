@@ -385,13 +385,13 @@ mod tests {
 		assert!(store.recent_dapps().is_empty(), "Initially recent dapps should be empty.");
 
 		store.mark_dapp_used("dapp1".into());
-		assert_eq!(store.recent_dapps(), vec!["dapp1".to_owned()]);
+		assert_eq!(store.recent_dapps(), vec!["dapp1".into()]);
 
 		store.mark_dapp_used("dapp2".into());
-		assert_eq!(store.recent_dapps(), vec!["dapp2".to_owned(), "dapp1".to_owned()]);
+		assert_eq!(store.recent_dapps(), vec!["dapp2".into(), "dapp1".into()]);
 
 		store.mark_dapp_used("dapp1".into());
-		assert_eq!(store.recent_dapps(), vec!["dapp1".to_owned(), "dapp2".to_owned()]);
+		assert_eq!(store.recent_dapps(), vec!["dapp1".into(), "dapp2".into()]);
 	}
 
 	#[test]
