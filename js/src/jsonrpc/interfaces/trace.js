@@ -30,7 +30,7 @@ It includes two sets of calls; the transaction trace filtering API and the ad-ho
 ## The Ad-hoc Tracing API
 
 The ad-hoc tracing API allows you to perform a number of different diagnostics on calls or transactions,
-eitherhistorical ones from the chain or hypothetical ones not yet mined. The diagnostics include:
+either historical ones from the chain or hypothetical ones not yet mined. The diagnostics include:
 
 - \`trace\` **Transaction trace**. An equivalent trace to that in the previous section.
 - \`vmTrace\` **Virtual Machine execution trace**. Provides a full trace of the VM's state throughout the execution of the transaction, including for any subcalls.
