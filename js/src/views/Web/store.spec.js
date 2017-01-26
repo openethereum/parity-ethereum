@@ -22,7 +22,6 @@ const TEST_HISTORY = ['somethingA', 'somethingB'];
 const TEST_TOKEN = 'testing-123';
 const TEST_URL1 = 'http://some.test.domain.com';
 const TEST_URL2 = 'http://something.different.com';
-const TEST_URL3 = 'https://world.wonders.xyz';
 
 let api;
 let store;
@@ -53,6 +52,21 @@ describe('views/Web/Store', () => {
   });
 
   describe('@action', () => {
+    describe('gotoUrl', () => {
+      it('uses the nextUrl when none specified', () => {
+        store.setNextUrl('https://parity.io');
+        store.gotoUrl();
+
+        expect(store.currentUrl).to.equal('https://parity.io');
+      });
+
+      it('adds https when no protocol', () => {
+        store.gotoUrl('google.com');
+
+        expect(store.currentUrl).to.equal('https://google.com');
+      });
+    });
+
     describe('restoreUrl', () => {
       it('sets the nextUrl to the currentUrl', () => {
         store.setCurrentUrl(TEST_URL1);
@@ -101,19 +115,6 @@ describe('views/Web/Store', () => {
         store.setNextUrl(TEST_URL1);
 
         expect(store.nextUrl).to.equal(TEST_URL1);
-      });
-
-      it('adds https when no protocol', () => {
-        store.setNextUrl('google.com');
-
-        expect(store.nextUrl).to.equal('https://google.com');
-      });
-
-      it('sets the currentUrl when none specified', () => {
-        store.setCurrentUrl(TEST_URL3);
-        store.setNextUrl();
-
-        expect(store.nextUrl).to.equal(TEST_URL3);
       });
     });
 
