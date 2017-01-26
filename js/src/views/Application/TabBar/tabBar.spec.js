@@ -16,15 +16,38 @@
 
 import { shallow } from 'enzyme';
 import React from 'react';
+import sinon from 'sinon';
 
 import TabBar from './';
 
 let component;
+let store;
+
+function createStore () {
+  store = {
+    dispatch: sinon.stub(),
+    subscribe: sinon.stub(),
+    getState: () => {
+      return {
+        settings: {
+          views: {
+            settings: { fixed: true }
+          }
+        }
+      };
+    }
+  };
+
+  return store;
+}
 
 function render (props = {}) {
   component = shallow(
-    <TabBar { ...props } />
-  );
+    <TabBar { ...props } />,
+    {
+      context: { store: createStore() }
+    }
+  ).find('TabBar').shallow();
 
   return component;
 }

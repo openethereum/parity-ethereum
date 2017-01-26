@@ -27,10 +27,6 @@ import Tab from './Tab';
 import styles from './tabBar.css';
 
 class TabBar extends Component {
-  static contextTypes = {
-    router: PropTypes.object.isRequired
-  };
-
   static propTypes = {
     isTest: PropTypes.bool,
     netChain: PropTypes.string,
@@ -92,7 +88,8 @@ class TabBar extends Component {
         return (
           <Link
             activeClassName={ styles.tabactive }
-            className={ styles.tabLink }key={ view.id }
+            className={ styles.tabLink }
+            key={ view.id }
             to={ view.route }
           >
             <Tab

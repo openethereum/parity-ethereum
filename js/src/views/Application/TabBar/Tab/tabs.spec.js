@@ -16,19 +16,22 @@
 
 import { shallow } from 'enzyme';
 import React from 'react';
+import sinon from 'sinon';
 
 import Tab from './';
 
 let component;
+let instance;
 
-function render () {
+function render (id = 'signer') {
   component = shallow(
     <Tab
       children={ <div>testChildren</div> }
       pending={ 5 }
-      view={ { id: 'signer' } }
+      view={ { id } }
     />
   );
+  instance = component.instance();
 
   return component;
 }
@@ -40,5 +43,36 @@ describe('views/Application/TabBar/Tab', () => {
 
   it('renders defaults', () => {
     expect(component).to.be.ok;
+  });
+
+  describe('instance methods', () => {
+    describe('renderLabel', () => {
+      it('renders the label with correct label', () => {
+        expect(
+          shallow(instance.renderLabel('test')).find('FormattedMessage').props().id
+        ).to.equal('settings.views.test.label');
+      });
+
+      it('renders the bubble when passed', () => {
+        expect(
+          shallow(instance.renderLabel('test', 'testBubble')).text()
+        ).to.equal('<FormattedMessage />testBubble');
+      });
+    });
+
+    describe('renderSignerLabel', () => {
+      beforeEach(() => {
+        sinon.stub(instance, 'renderLabel');
+      });
+
+      afterEach(() => {
+        instance.renderLabel.restore();
+      });
+
+      it('calls renderLabel with the details', () => {
+        instance.renderSignerLabel();
+        expect(instance.renderLabel).to.have.been.calledWith('signer');
+      });
+    });
   });
 });
