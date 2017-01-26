@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { BASE_URL, decode, encode } from './dapplink';
+import { BASE_URL, decode, encodePath, encodeUrl } from './dapplink';
 
 const TEST_TOKEN = 'token';
 const TEST_URL = 'https://parity.io';
@@ -37,24 +37,38 @@ describe('util/ethlink', () => {
     });
   });
 
-  describe('encode', () => {
+  describe('encodePath', () => {
     it('encodes a url/token combination', () => {
-      expect(encode(TEST_TOKEN, TEST_URL)).to.equal(TEST_RESULT);
+      expect(encodePath(TEST_TOKEN, TEST_URL)).to.equal(TEST_PREFIX);
     });
 
     it('changes when token changes', () => {
-      expect(encode('test-token-2', TEST_URL)).not.to.equal(TEST_RESULT);
+      expect(encodePath('test-token-2', TEST_URL)).not.to.equal(TEST_PREFIX);
     });
 
     it('changes when url changes', () => {
-      expect(encode(TEST_TOKEN, 'http://other.example.com')).not.to.equal(TEST_RESULT);
+      expect(encodePath(TEST_TOKEN, 'http://other.example.com')).not.to.equal(TEST_PREFIX);
+    });
+  });
+
+  describe('encodeUrl', () => {
+    it('encodes a url/token combination', () => {
+      expect(encodeUrl(TEST_TOKEN, TEST_URL)).to.equal(TEST_RESULT);
+    });
+
+    it('changes when token changes', () => {
+      expect(encodeUrl('test-token-2', TEST_URL)).not.to.equal(TEST_RESULT);
+    });
+
+    it('changes when url changes', () => {
+      expect(encodeUrl(TEST_TOKEN, 'http://other.example.com')).not.to.equal(TEST_RESULT);
     });
 
     describe('splitting', () => {
       let encoded;
 
       beforeEach(() => {
-        encoded = encode(TEST_TOKEN, TEST_URL_LONG);
+        encoded = encodeUrl(TEST_TOKEN, TEST_URL_LONG);
       });
 
       it('splits long values into boundary parts', () => {

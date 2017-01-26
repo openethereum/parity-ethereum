@@ -14,8 +14,9 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import React, { Component, PropTypes } from 'react';
 import { omitBy } from 'lodash';
+import React, { Component, PropTypes } from 'react';
+import { FormattedMessage } from 'react-intl';
 
 import { Form, TypedInput, Input, AddressSelect, InputAddress } from '~/ui';
 
@@ -46,24 +47,54 @@ export default class WalletDetails extends Component {
     return (
       <Form>
         <InputAddress
-          label='wallet address'
-          hint='the wallet contract address'
+          hint={
+            <FormattedMessage
+              id='createWallet.details.address.hint'
+              defaultMessage='the wallet contract address'
+            />
+          }
+          label={
+            <FormattedMessage
+              id='createWallet.details.address.label'
+              defaultMessage='wallet address'
+            />
+          }
           value={ wallet.address }
           error={ errors.address }
           onChange={ this.onAddressChange }
         />
 
         <Input
-          label='wallet name'
-          hint='the local name for this wallet'
-          value={ wallet.name }
           error={ errors.name }
+          hint={
+            <FormattedMessage
+              id='createWallet.details.name.hint'
+              defaultMessage='the local name for this wallet'
+            />
+          }
+          label={
+            <FormattedMessage
+              id='createWallet.details.name.label'
+              defaultMessage='wallet name'
+            />
+          }
+          value={ wallet.name }
           onChange={ this.onNameChange }
         />
 
         <Input
-          label='wallet description (optional)'
-          hint='the local description for this wallet'
+          hint={
+            <FormattedMessage
+              id='createWallet.details.description.hint'
+              defaultMessage='the local description for this wallet'
+            />
+          }
+          label={
+            <FormattedMessage
+              id='createWallet.details.description.label'
+              defaultMessage='wallet description (optional)'
+            />
+          }
           value={ wallet.description }
           onChange={ this.onDescriptionChange }
         />
@@ -80,43 +111,88 @@ export default class WalletDetails extends Component {
     return (
       <Form>
         <AddressSelect
-          label='from account (contract owner)'
-          hint='the owner account for this contract'
-          value={ wallet.account }
-          error={ errors.account }
-          onChange={ this.onAccoutChange }
           accounts={ _accounts }
+          error={ errors.account }
+          hint={
+            <FormattedMessage
+              id='createWallet.details.ownerMulti.hint'
+              defaultMessage='the owner account for this contract'
+            />
+          }
+          label={
+            <FormattedMessage
+              id='createWallet.details.ownerMulti.label'
+              defaultMessage='from account (contract owner)'
+            />
+          }
+          value={ wallet.account }
+          onChange={ this.onAccoutChange }
         />
 
         <Input
-          label='wallet name'
-          hint='the local name for this wallet'
-          value={ wallet.name }
           error={ errors.name }
+          hint={
+            <FormattedMessage
+              id='createWallet.details.nameMulti.hint'
+              defaultMessage='the local name for this wallet'
+            />
+          }
+          label={
+            <FormattedMessage
+              id='createWallet.details.nameMulti.label'
+              defaultMessage='wallet name'
+            />
+          }
+          value={ wallet.name }
           onChange={ this.onNameChange }
         />
 
         <Input
-          label='wallet description (optional)'
-          hint='the local description for this wallet'
+          hint={
+            <FormattedMessage
+              id='createWallet.details.descriptionMulti.hint'
+              defaultMessage='the local description for this wallet'
+            />
+          }
+          label={
+            <FormattedMessage
+              id='createWallet.details.descriptionMulti.label'
+              defaultMessage='wallet description (optional)'
+            />
+          }
           value={ wallet.description }
           onChange={ this.onDescriptionChange }
         />
 
         <TypedInput
-          label='other wallet owners'
-          value={ wallet.owners.slice() }
-          onChange={ this.onOwnersChange }
           accounts={ accounts }
+          label={
+            <FormattedMessage
+              id='createWallet.details.ownersMulti.label'
+              defaultMessage='other wallet owners'
+            />
+          }
+          onChange={ this.onOwnersChange }
           param='address[]'
+          value={ wallet.owners.slice() }
         />
 
         <div className={ styles.splitInput }>
           <TypedInput
-            label='required owners'
-            hint='number of required owners to accept a transaction'
-            value={ wallet.required }
             error={ errors.required }
+            hint={
+              <FormattedMessage
+                id='createWallet.details.ownersMultiReq.hint'
+                defaultMessage='number of required owners to accept a transaction'
+              />
+            }
+            label={
+              <FormattedMessage
+                id='createWallet.details.ownersMultiReq.label'
+                defaultMessage='required owners'
+              />
+            }
+            value={ wallet.required }
             onChange={ this.onRequiredChange }
             param='uint'
             min={ 1 }
@@ -124,13 +200,23 @@ export default class WalletDetails extends Component {
           />
 
           <TypedInput
-            label='wallet day limit'
-            hint='amount of ETH spendable without confirmations'
-            value={ wallet.daylimit }
             error={ errors.daylimit }
+            hint={
+              <FormattedMessage
+                id='createWallet.details.dayLimitMulti.hint'
+                defaultMessage='amount of ETH spendable without confirmations'
+              />
+            }
+            isEth
+            label={
+              <FormattedMessage
+                id='createWallet.details.dayLimitMulti.label'
+                defaultMessage='wallet day limit'
+              />
+            }
             onChange={ this.onDaylimitChange }
             param='uint'
-            isEth
+            value={ wallet.daylimit }
           />
         </div>
       </Form>

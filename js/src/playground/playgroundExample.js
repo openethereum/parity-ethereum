@@ -15,51 +15,41 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
-import { connect } from 'react-redux';
+import reactElementToJSXString from 'react-element-to-jsx-string';
 
-const SYMBOL_ETC = 'ETC';
-const SYMBOL_ETH = 'ETH';
-const SYMBOL_EXP = 'EXP';
+import styles from './playground.css';
 
-export class CurrencySymbol extends Component {
+export default class PlaygroundExample extends Component {
   static propTypes = {
-    className: PropTypes.string,
-    netChain: PropTypes.string.isRequired
-  }
+    children: PropTypes.node,
+    name: PropTypes.string
+  };
 
   render () {
-    const { className } = this.props;
+    const { children, name } = this.props;
 
     return (
-      <span className={ className }>{ this.renderSymbol() }</span>
+      <div className={ styles.exampleContainer }>
+        { this.renderName(name) }
+        <div className={ styles.example }>
+          <div className={ styles.code }>
+            <code>{ reactElementToJSXString(children) }</code>
+          </div>
+          <div className={ styles.component }>
+            { children }
+          </div>
+        </div>
+      </div>
     );
   }
 
-  renderSymbol () {
-    const { netChain } = this.props;
-
-    switch (netChain) {
-      case 'classic':
-        return SYMBOL_ETC;
-
-      case 'expanse':
-        return SYMBOL_EXP;
-
-      default:
-        return SYMBOL_ETH;
+  renderName (name) {
+    if (!name) {
+      return null;
     }
+
+    return (
+      <p>{ name }</p>
+    );
   }
 }
-
-function mapStateToProps (state) {
-  const { netChain } = state.nodeStatus;
-
-  return {
-    netChain
-  };
-}
-
-export default connect(
-  mapStateToProps,
-  null
-)(CurrencySymbol);

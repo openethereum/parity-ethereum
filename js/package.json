@@ -1,6 +1,6 @@
 {
   "name": "parity.js",
-  "version": "0.3.21",
+  "version": "0.3.22",
   "main": "release/index.js",
   "jsnext:main": "src/index.js",
   "author": "Parity Team <admin@parity.io>",
@@ -175,6 +175,7 @@
     "react-copy-to-clipboard": "4.2.3",
     "react-dom": "15.4.1",
     "react-dropzone": "3.7.3",
+    "react-element-to-jsx-string": "6.0.0",
     "react-intl": "2.1.5",
     "react-markdown": "2.4.4",
     "react-portal": "3.0.0",
