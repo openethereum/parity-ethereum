@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -375,6 +375,9 @@ impl<'x> OpenBlock<'x> {
 		let unclosed_state = s.block.state.clone();
 
 		s.engine.on_close_block(&mut s.block);
+		if let Err(e) = s.block.state.commit() {
+			warn!("Encountered error on state commit: {}", e);
+		}
 		s.block.header.set_transactions_root(ordered_trie_root(s.block.transactions.iter().map(|e| e.rlp_bytes().to_vec())));
 		let uncle_bytes = s.block.uncles.iter().fold(RlpStream::new_list(s.block.uncles.len()), |mut s, u| {s.append_raw(&u.rlp(Seal::With), 1); s} ).out();
 		s.block.header.set_uncles_hash(uncle_bytes.sha3());
@@ -396,6 +399,10 @@ impl<'x> OpenBlock<'x> {
 		let mut s = self;
 
 		s.engine.on_close_block(&mut s.block);
+
+		if let Err(e) = s.block.state.commit() {
+			warn!("Encountered error on state commit: {}", e);
+		}
 		if s.block.header.transactions_root().is_zero() || s.block.header.transactions_root() == &SHA3_NULL_RLP {
 			s.block.header.set_transactions_root(ordered_trie_root(s.block.transactions.iter().map(|e| e.rlp_bytes().to_vec())));
 		}

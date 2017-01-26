@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -53,6 +53,8 @@ pub struct CommonParams {
 	pub min_gas_limit: U256,
 	/// Fork block to check.
 	pub fork_block: Option<(BlockNumber, H256)>,
+	/// Number of first block where EIP-98 rules begin.
+	pub eip98_transition: BlockNumber,
 }
 
 impl From<ethjson::spec::Params> for CommonParams {
@@ -65,6 +67,7 @@ impl From<ethjson::spec::Params> for CommonParams {
 			subprotocol_name: p.subprotocol_name.unwrap_or_else(|| "eth".to_owned()),
 			min_gas_limit: p.min_gas_limit.into(),
 			fork_block: if let (Some(n), Some(h)) = (p.fork_block, p.fork_hash) { Some((n.into(), h.into())) } else { None },
+			eip98_transition: p.eip98_transition.map_or(0, Into::into),
 		}
 	}
 }
