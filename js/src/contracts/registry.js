@@ -113,10 +113,6 @@ export default class Registry {
       .getInstance()
       .then((instance) => {
         return instance.get.call({}, this._createGetParams(name, key));
-      })
-      .then((meta) => {
-        console.log('[lookupMeta]', `${name}.${key}: ${meta}`);
-        return meta;
       });
   }
 }
