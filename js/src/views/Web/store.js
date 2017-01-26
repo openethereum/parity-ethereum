@@ -126,7 +126,6 @@ export default class Store {
     return this._api.parity
       .listRecentDapps()
       .then((apps) => {
-        console.log(apps);
         this.setHistory(apps);
       })
       .catch((error) => {

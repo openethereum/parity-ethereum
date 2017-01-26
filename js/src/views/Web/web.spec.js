@@ -14,29 +14,43 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import AddressSelect from './AddressSelect';
-import DappUrlInput from './DappUrlInput';
-import FormWrap from './FormWrap';
-import Input from './Input';
-import InputAddress from './InputAddress';
-import InputAddressSelect from './InputAddressSelect';
-import InputChip from './InputChip';
-import InputInline from './InputInline';
-import RadioButtons from './RadioButtons';
-import Select from './Select';
-import TypedInput from './TypedInput';
+import { shallow } from 'enzyme';
+import React from 'react';
 
-export default from './form';
-export {
-  AddressSelect,
-  DappUrlInput,
-  FormWrap,
-  Input,
-  InputAddress,
-  InputAddressSelect,
-  InputChip,
-  InputInline,
-  RadioButtons,
-  Select,
-  TypedInput
-};
+import Web from './';
+
+const TEST_URL = 'https://mkr.market';
+
+let api;
+let component;
+
+function createApi () {
+  api = {};
+
+  return api;
+}
+
+function render (url = TEST_URL) {
+  component = shallow(
+    <Web params={ { url } } />,
+    {
+      context: { api: createApi() }
+    }
+  );
+
+  return component;
+}
+
+describe('Web', () => {
+  beforeEach(() => {
+    render();
+  });
+
+  it('renders defaults', () => {
+    expect(component).to.be.ok;
+  });
+
+  it('renders loading with no token', () => {
+    expect(component.find('FormattedMessage').props().id).to.equal('web.requestToken');
+  });
+});

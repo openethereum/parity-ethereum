@@ -50,11 +50,6 @@ function create () {
 describe('views/Web/Store', () => {
   beforeEach(() => {
     create();
-    sinon.spy(store.historyStore, 'add');
-  });
-
-  afterEach(() => {
-    store.historyStore.add.restore();
   });
 
   describe('@action', () => {
@@ -76,16 +71,12 @@ describe('views/Web/Store', () => {
       it('sets the url', () => {
         expect(store.currentUrl).to.equal(TEST_URL1);
       });
-
-      it('saves the url in the history', () => {
-        expect(store.historyStore.add).to.have.been.calledWith(TEST_URL1);
-      });
     });
 
     describe('setHistory', () => {
       it('sets the history', () => {
         store.setHistory(TEST_HISTORY);
-        expect(this.history.peek()).to.deep.equal(TEST_HISTORY);
+        expect(store.history.peek()).to.deep.equal(TEST_HISTORY);
       });
     });
 

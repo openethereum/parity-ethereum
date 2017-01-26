@@ -16,6 +16,7 @@
 
 import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
+import { FormattedMessage } from 'react-intl';
 
 import AddressBar from './AddressBar';
 import Store from './store';
@@ -35,8 +36,8 @@ export default class Web extends Component {
   store = Store.get(this.context.api);
 
   componentDidMount () {
-    this.store.generateToken();
     this.store.gotoUrl(this.props.params.url);
+    return this.store.generateToken();
   }
 
   componentWillReceiveProps (props) {
@@ -50,7 +51,10 @@ export default class Web extends Component {
       return (
         <div className={ styles.wrapper }>
           <h1 className={ styles.loading }>
-            Requesting access token...
+            <FormattedMessage
+              id='web.requestToken'
+              defaultMessage='Requesting access token...'
+            />
           </h1>
         </div>
       );
