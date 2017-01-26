@@ -15,6 +15,9 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+$codeBackground: #002b36;
+$codeColor: #93a1a1;
+
 .container {
   background-color: rgba(0, 0, 0, 0.5);
   position: fixed;
@@ -71,8 +74,8 @@
     flex: 1;
     overflow: auto;
     padding: 0.5em;
-    background-color: #002b36;
-    color: #93a1a1;
+    background-color: #$codeBackground;
+    color: $codeColor;
     font-size: 0.75em;
 
     code {

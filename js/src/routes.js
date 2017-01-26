@@ -115,6 +115,7 @@ const appRoutes = [
   { path: 'signer', component: Signer }
 ];
 
+// TODO : use ES6 imports when supported
 if (process.env.NODE_ENV !== 'production') {
   const Playground = require('./playground').default;
 
