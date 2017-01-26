@@ -100,24 +100,17 @@ impl<T> DiskDirectory<T> where T: KeyFileManager {
 		Ok(paths
 			.into_iter()
 			.filter_map(|path| {
-					// TODO: rust-way
-					let file = match fs::File::open(path.clone()) {
-						Ok(file) => file,
-						Err(err) => {
-							warn!("Invalid key file: {:?} ({})", path, Error::from(err));
-							return None;
-						}
-					};
-					let filename = Some(path.file_name().and_then(|n| n.to_str()).expect("Keys have valid UTF8 names only.").to_owned());
-					match self.key_manager.read(filename, file) {
-						Ok(account) => Some((path, account)),
-						Err(err) => {
-							warn!("Invalid key file: {:?} ({})", path, err);
-							None
-						}
-					}
-				}
-			)
+				let filename = Some(path.file_name().and_then(|n| n.to_str()).expect("Keys have valid UTF8 names only.").to_owned());
+				fs::File::open(path.clone())
+					.map_err(Into::into)
+					.and_then(|file| self.key_manager.read(filename, file))
+					.map_err(|err| {
+						warn!("Invalid key file: {:?} ({})", path, err);
+						err
+					})
+					.map(|account| (path, account))
+					.ok()
+			})
 			.collect()
 		)
 	}

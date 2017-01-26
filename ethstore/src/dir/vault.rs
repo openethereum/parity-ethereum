@@ -103,7 +103,7 @@ impl VaultKeyDirectory for VaultDiskDirectory {
 
 	fn name(&self) -> &str {
 		self.path()
-			.expect("VaultDiskDirectory is based on DiskDirectory; DiskDirectory always returns Some path; qed")
+			.expect("self is instance of DiskDirectory; DiskDirectory always returns path; qed")
 			.file_name()
 			.expect("last component of path is checked in make_vault_dir_path; it contains no fs-specific characters; file_name only returns None if last component is fs-specific; qed")
 			.to_str()
@@ -116,8 +116,8 @@ impl VaultKeyDirectory for VaultDiskDirectory {
 		}
 
 		let temp_vault = VaultDiskDirectory::create_temp_vault(self, new_key.clone()).map_err(SetKeyError::nonfatal_old)?;
-		let mut source_path = temp_vault.path().expect("self is instance of DiskDirectory; DiskDirectory always returns path; qed").clone();
-		let mut target_path = self.path().expect("temp_vault is instance of DiskDirectory; DiskDirectory always returns path; qed").clone();
+		let mut source_path = temp_vault.path().expect("temp_vault is instance of DiskDirectory; DiskDirectory always returns path; qed").clone();
+		let mut target_path = self.path().expect("self is instance of DiskDirectory; DiskDirectory always returns path; qed").clone();
 		// jump to next fs level
 		source_path.push("next");
 		target_path.push("next");
