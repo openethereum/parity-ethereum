@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import { FormattedMessage } from 'react-intl';
 import { Link } from 'react-router';
 
 import { Container, ContainerTitle, Tags } from '~/ui';
@@ -47,9 +48,21 @@ export default class Summary extends Component {
         }
       >
         <Container
+          className={ styles.item }
           hover={
-            <div className={ styles.author }>
-              { app.author }, v{ app.version }
+            <div>
+              <div className={ styles.author }>
+                { app.author }
+              </div>
+              <div className={ styles.version }>
+                <FormattedMessage
+                  id='dapps.version'
+                  defaultMessage='version {version}'
+                  values={ {
+                    version: app.version
+                  } }
+                />
+              </div>
             </div>
           }
         >
@@ -61,7 +74,10 @@ export default class Summary extends Component {
                 : `${dappsUrl}${app.image}`
             }
           />
-          <Tags tags={ [app.type] } data-hover='show' />
+          <Tags
+            className={ styles.tags }
+            tags={ [app.type] }
+          />
           <div className={ styles.description }>
             <ContainerTitle
               clickable

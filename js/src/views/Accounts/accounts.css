@@ -20,10 +20,24 @@
   left: 7em;
 }
 
-.owners {
-  margin-top: 1em;
-  display: flex;
-  margin-bottom: -0.5em;
+.item {
+  .owners {
+    margin-top: 1em;
+    display: flex;
+    margin-bottom: -0.5em;
+  }
+
+  &:not(:hover) {
+    .tags {
+      display: none;
+    }
+  }
+
+  &:hover {
+    .ethBalances {
+      display: none;
+    }
+  }
 }
 
 .toolbar {

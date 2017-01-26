@@ -28,13 +28,14 @@ class Balance extends Component {
 
   static propTypes = {
     balance: PropTypes.object,
+    className: PropTypes.string,
     images: PropTypes.object.isRequired,
     onlyEth: PropTypes.bool
   }
 
   render () {
     const { api } = this.context;
-    const { balance, images, onlyEth } = this.props;
+    const { balance, className, images, onlyEth } = this.props;
 
     if (!balance) {
       return null;
@@ -97,9 +98,17 @@ class Balance extends Component {
         );
       });
 
+    if (!body.length) {
+      body = (
+        <div className={ styles.empty }>
+          There are no balances associated with this account
+        </div>
+      );
+    }
+
     return (
-      <div className={ styles.balances }>
-        { body}
+      <div className={ [styles.balances, className].join(' ') }>
+        { body }
       </div>
     );
   }
