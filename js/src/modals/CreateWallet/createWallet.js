@@ -14,20 +14,17 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import React, { Component, PropTypes } from 'react';
 import { observer } from 'mobx-react';
-
-import ActionDone from 'material-ui/svg-icons/action/done';
-import ContentClear from 'material-ui/svg-icons/content/clear';
-import NavigationArrowForward from 'material-ui/svg-icons/navigation/arrow-forward';
+import React, { Component, PropTypes } from 'react';
+import { FormattedMessage } from 'react-intl';
 
 import { Button, Modal, TxHash, BusyStep } from '~/ui';
+import { CancelIcon, DoneIcon, NextIcon } from '~/ui/Icons';
 
 import WalletType from './WalletType';
 import WalletDetails from './WalletDetails';
 import WalletInfo from './WalletInfo';
 import CreateWalletStore from './createWalletStore';
-// import styles from './createWallet.css';
 
 @observer
 export default class CreateWallet extends Component {
@@ -49,12 +46,27 @@ export default class CreateWallet extends Component {
       return (
         <Modal
           visible
-          title='rejected'
+          title={
+            <FormattedMessage
+              id='createWallet.rejected.title'
+              defaultMessage='rejected'
+            />
+          }
           actions={ this.renderDialogActions() }
         >
           <BusyStep
-            title='The deployment has been rejected'
-            state='The wallet will not be created. You can safely close this window.'
+            title={
+              <FormattedMessage
+                id='createWallet.rejected.message'
+                defaultMessage='The deployment has been rejected'
+              />
+            }
+            state={
+              <FormattedMessage
+                id='createWallet.rejected.state'
+                defaultMessage='The wallet will not be created. You can safely close this window.'
+              />
+            }
           />
         </Modal>
       );
@@ -65,7 +77,7 @@ export default class CreateWallet extends Component {
         visible
         actions={ this.renderDialogActions() }
         current={ stage }
-        steps={ steps.map((s) => s.title) }
+        steps={ steps.map((step) => step.title) }
         waiting={ waiting }
       >
         { this.renderPage() }
@@ -81,10 +93,19 @@ export default class CreateWallet extends Component {
       case 'DEPLOYMENT':
         return (
           <BusyStep
-            title='The deployment is currently in progress'
+            title={
+              <FormattedMessage
+                id='createWallet.deployment.message'
+                defaultMessage='The deployment is currently in progress'
+              />
+            }
             state={ this.store.deployState }
           >
-            { this.store.txhash ? (<TxHash hash={ this.store.txhash } />) : null }
+            {
+              this.store.txhash
+                ? <TxHash hash={ this.store.txhash } />
+                : null
+              }
           </BusyStep>
         );
 
@@ -92,15 +113,13 @@ export default class CreateWallet extends Component {
         return (
           <WalletInfo
             accounts={ accounts }
-
             account={ this.store.wallet.account }
             address={ this.store.wallet.address }
+            daylimit={ this.store.wallet.daylimit }
+            deployed={ this.store.deployed }
+            name={ this.store.wallet.name }
             owners={ this.store.wallet.owners.slice() }
             required={ this.store.wallet.required }
-            daylimit={ this.store.wallet.daylimit }
-            name={ this.store.wallet.name }
-
-            deployed={ this.store.deployed }
           />
         );
 
@@ -108,10 +127,10 @@ export default class CreateWallet extends Component {
         return (
           <WalletDetails
             accounts={ accounts }
-            wallet={ this.store.wallet }
             errors={ this.store.errors }
-            walletType={ this.store.walletType }
             onChange={ this.store.onChange }
+            wallet={ this.store.wallet }
+            walletType={ this.store.walletType }
           />
         );
 
@@ -131,40 +150,65 @@ export default class CreateWallet extends Component {
 
     const cancelBtn = (
       <Button
-        icon={ <ContentClear /> }
-        label='Cancel'
+        icon={ <CancelIcon /> }
+        label={
+          <FormattedMessage
+            id='createWallet.button.cancel'
+            defaultMessage='Cancel'
+          />
+        }
         onClick={ this.onClose }
       />
     );
 
     const closeBtn = (
       <Button
-        icon={ <ContentClear /> }
-        label='Close'
+        icon={ <CancelIcon /> }
+        label={
+          <FormattedMessage
+            id='createWallet.button.close'
+            defaultMessage='Close'
+          />
+        }
         onClick={ this.onClose }
       />
     );
 
     const doneBtn = (
       <Button
-        icon={ <ActionDone /> }
-        label='Done'
+        icon={ <DoneIcon /> }
+        label={
+          <FormattedMessage
+            id='createWallet.button.done'
+            defaultMessage='Done'
+          />
+        }
         onClick={ this.onClose }
       />
     );
 
     const sendingBtn = (
       <Button
-        icon={ <ActionDone /> }
-        label='Sending...'
+        icon={ <DoneIcon /> }
+        label={
+          <FormattedMessage
+            id='createWallet.button.sending'
+            defaultMessage='Sending...'
+          />
+        }
         disabled
       />
     );
 
     const nextBtn = (
       <Button
-        icon={ <NavigationArrowForward /> }
-        label='Next'
+        icon={ <NextIcon /> }
+        label={
+          <FormattedMessage
+            id='createWallet.button.next'
+            defaultMessage='Next'
+          />
+        }
         onClick={ onNext }
       />
     );
@@ -184,9 +228,14 @@ export default class CreateWallet extends Component {
         if (this.store.walletType === 'WATCH') {
           return [ cancelBtn, (
             <Button
-              icon={ <NavigationArrowForward /> }
-              label='Add'
               disabled={ hasErrors }
+              icon={ <NextIcon /> }
+              label={
+                <FormattedMessage
+                  id='createWallet.button.add'
+                  defaultMessage='Add'
+                />
+              }
               onClick={ onAdd }
             />
           ) ];
@@ -194,9 +243,14 @@ export default class CreateWallet extends Component {
 
         return [ cancelBtn, (
           <Button
-            icon={ <NavigationArrowForward /> }
-            label='Create'
             disabled={ hasErrors }
+            icon={ <NextIcon /> }
+            label={
+              <FormattedMessage
+                id='createWallet.button.create'
+                defaultMessage='Create'
+              />
+            }
             onClick={ onCreate }
           />
         ) ];

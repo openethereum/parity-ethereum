@@ -1,7 +1,7 @@
 # [Parity](https://ethcore.io/parity.html)
 ### Fast, light, and robust Ethereum implementation
 
-[![Build Status][travis-image]][travis-url] [![build status](https://gitlab.ethcore.io/parity/parity/badges/master/build.svg)](https://gitlab.ethcore.io/parity/parity/commits/master) [![Coverage Status][coveralls-image]][coveralls-url]  [![GPLv3][license-image]][license-url]
+[![build status](https://gitlab.ethcore.io/parity/parity/badges/master/build.svg)](https://gitlab.ethcore.io/parity/parity/commits/master) [![Coverage Status][coveralls-image]][coveralls-url]  [![GPLv3][license-image]][license-url]
 
 ### Join the chat!
 

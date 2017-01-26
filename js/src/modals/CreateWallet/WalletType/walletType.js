@@ -15,11 +15,53 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import { FormattedMessage } from 'react-intl';
 
-import { RadioButtons } from '~/ui';
 import { walletSourceURL } from '~/contracts/code/wallet';
+import { RadioButtons } from '~/ui';
 
-// import styles from '../createWallet.css';
+const TYPES = [
+  {
+    label: (
+      <FormattedMessage
+        id='createWallet.type.multisig.label'
+        defaultMessage='Multi-Sig wallet'
+      />
+    ),
+    key: 'MULTISIG',
+    description: (
+      <FormattedMessage
+        id='createWallet.type.multisig.description'
+        defaultMessage='Create/Deploy a {link} Wallet'
+        values={ {
+          link: (
+            <a href={ walletSourceURL } target='_blank'>
+              <FormattedMessage
+                id='createWallet.type.multisig.link'
+                defaultMessage='standard multi-signature'
+              />
+            </a>
+          )
+        } }
+      />
+    )
+  },
+  {
+    label: (
+      <FormattedMessage
+        id='createWallet.type.watch.label'
+        defaultMessage='Watch a wallet'
+      />
+    ),
+    key: 'WATCH',
+    description: (
+      <FormattedMessage
+        id='createWallet.type.watch.description'
+        defaultMessage='Add an existing wallet to your accounts'
+      />
+    )
+  }
+];
 
 export default class WalletType extends Component {
   static propTypes = {
@@ -33,32 +75,11 @@ export default class WalletType extends Component {
     return (
       <RadioButtons
         name='contractType'
-        value={ type }
-        values={ this.getTypes() }
         onChange={ this.onTypeChange }
+        value={ type }
+        values={ TYPES }
       />
     );
-  }
-
-  getTypes () {
-    return [
-      {
-        label: 'Multi-Sig wallet', key: 'MULTISIG',
-        description: (
-          <span>
-            <span>Create/Deploy a </span>
-            <a href={ walletSourceURL } target='_blank'>
-              standard multi-signature
-            </a>
-            <span> Wallet</span>
-          </span>
-        )
-      },
-      {
-        label: 'Watch a wallet', key: 'WATCH',
-        description: 'Add an existing wallet to your accounts'
-      }
-    ];
   }
 
   onTypeChange = (type) => {

@@ -17,34 +17,31 @@
 import React, { Component, PropTypes } from 'react';
 import { Link } from 'react-router';
 
-import { Container, ContainerTitle, Tags } from '~/ui';
+import { Container, ContainerTitle, DappIcon, Tags } from '~/ui';
 
 import styles from './summary.css';
 
 export default class Summary extends Component {
-  static contextTypes = {
-    api: React.PropTypes.object
-  }
-
   static propTypes = {
     app: PropTypes.object.isRequired,
     children: PropTypes.node
   }
 
   render () {
-    const { dappsUrl } = this.context.api;
     const { app } = this.props;
 
     if (!app) {
       return null;
     }
 
-    const image = this.renderImage(dappsUrl, app);
     const link = this.renderLink(app);
 
     return (
       <Container className={ styles.container }>
-        { image }
+        <DappIcon
+          app={ app }
+          className={ styles.image }
+        />
         <Tags tags={ [app.type] } />
         <div className={ styles.description }>
           <ContainerTitle
@@ -58,18 +55,6 @@ export default class Summary extends Component {
           { this.props.children }
         </div>
       </Container>
-    );
-  }
-
-  renderImage (dappsUrl, app) {
-    if (app.type === 'local') {
-      return (
-        <img src={ `${dappsUrl}/${app.id}/${app.iconUrl}` } className={ styles.image } />
-      );
-    }
-
-    return (
-      <img src={ `${dappsUrl}${app.image}` } className={ styles.image } />
     );
   }
 

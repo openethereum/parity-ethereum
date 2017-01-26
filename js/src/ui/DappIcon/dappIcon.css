@@ -15,27 +15,17 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-.container {
-  height: 100%;
-  position: relative;
+.icon {
+  border-radius: 50%;
+  margin: 0 0.75em 0 0;
 }
 
-.image {
-  left: 1.5em;
-  position: absolute;
-  top: 1.5em;
+.normal {
+  height: 56px;
+  width: 56px;
 }
 
-.description {
-  margin-left: 72px;
-}
-
-.title {
-  mragin-bottom: 0.5em;
-}
-
-.author, .version {
-  font-size: 0.75em;
-  opacity: 0.5;
-  margin-top: 0.5em;
+.small {
+  height: 32px;
+  width: 32px;
 }
