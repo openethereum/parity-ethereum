@@ -14,16 +14,34 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { chunkArray } from './array';
+import { shallow } from 'enzyme';
+import React from 'react';
 
-describe('util/array', () => {
-  describe('chunkArray', () => {
-    it('splits array into equal chunks', () => {
-      expect(chunkArray([1, 2, 3, 4], 2)).to.deep.equal([[1, 2], [3, 4]]);
-    });
+import Playground from './playground';
 
-    it('splits array into equal chunks (non-divisible)', () => {
-      expect(chunkArray([1, 2, 3, 4], 3)).to.deep.equal([[1, 2, 3], [4]]);
-    });
+let component;
+let options;
+
+function render (props = {}) {
+  component = shallow(
+    <Playground />
+  );
+
+  options = component.find('option');
+
+  return component;
+}
+
+describe('playground', () => {
+  beforeEach(() => {
+    render();
+  });
+
+  it('renders defaults', () => {
+    expect(component).to.be.ok;
+  });
+
+  it('renders multiple options', () => {
+    expect(options.length).to.be.greaterThan(2);
   });
 });

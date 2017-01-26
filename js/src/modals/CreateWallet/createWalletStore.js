@@ -15,10 +15,12 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import { observable, computed, action, transaction } from 'mobx';
+import React from 'react';
+import { FormattedMessage } from 'react-intl';
 
 import Contract from '~/api/contract';
-import Contracts from '~/contracts';
 import { ERROR_CODES } from '~/api/transport/error';
+import Contracts from '~/contracts';
 import { wallet as walletAbi } from '~/contracts/abi';
 import { wallet as walletCode, walletLibraryRegKey, fullWalletCode } from '~/contracts/code/wallet';
 
@@ -27,10 +29,39 @@ import { toWei } from '~/api/util/wei';
 import WalletsUtils from '~/util/wallets';
 
 const STEPS = {
-  TYPE: { title: 'wallet type' },
-  DETAILS: { title: 'wallet details' },
-  DEPLOYMENT: { title: 'wallet deployment', waiting: true },
-  INFO: { title: 'wallet informaton' }
+  TYPE: {
+    title: (
+      <FormattedMessage
+        id='createWallet.steps.type'
+        defaultMessage='wallet type'
+      />
+    )
+  },
+  DETAILS: {
+    title: (
+      <FormattedMessage
+        id='createWallet.steps.details'
+        defaultMessage='wallet details'
+      />
+    )
+  },
+  DEPLOYMENT: {
+    title: (
+      <FormattedMessage
+        id='createWallet.steps.deployment'
+        defaultMessage='wallet deployment'
+      />
+    ),
+    waiting: true
+  },
+  INFO: {
+    title: (
+      <FormattedMessage
+        id='createWallet.steps.info'
+        defaultMessage='wallet informaton'
+      />
+    )
+  }
 };
 
 export default class CreateWalletStore {
@@ -227,25 +258,50 @@ export default class CreateWalletStore {
     switch (data.state) {
       case 'estimateGas':
       case 'postTransaction':
-        this.deployState = 'Preparing transaction for network transmission';
+        this.deployState = (
+          <FormattedMessage
+            id='createWallet.states.preparing'
+            defaultMessage='Preparing transaction for network transmission'
+          />
+        );
         return;
 
       case 'checkRequest':
-        this.deployState = 'Waiting for confirmation of the transaction in the Parity Secure Signer';
+        this.deployState = (
+          <FormattedMessage
+            id='createWallet.states.waitingConfirm'
+            defaultMessage='Waiting for confirmation of the transaction in the Parity Secure Signer'
+          />
+        );
         return;
 
       case 'getTransactionReceipt':
-        this.deployState = 'Waiting for the contract deployment transaction receipt';
+        this.deployState = (
+          <FormattedMessage
+            id='createWallet.states.waitingReceipt'
+            defaultMessage='Waiting for the contract deployment transaction receipt'
+          />
+        );
         this.txhash = data.txhash;
         return;
 
       case 'hasReceipt':
       case 'getCode':
-        this.deployState = 'Validating the deployed contract code';
+        this.deployState = (
+          <FormattedMessage
+            id='createWallet.states.validatingCode'
+            defaultMessage='Validating the deployed contract code'
+          />
+        );
         return;
 
       case 'completed':
-        this.deployState = 'The contract deployment has been completed';
+        this.deployState = (
+          <FormattedMessage
+            id='createWallet.states.completed'
+            defaultMessage='The contract deployment has been completed'
+          />
+        );
         return;
 
       default:

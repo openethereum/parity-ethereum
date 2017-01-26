@@ -14,16 +14,38 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { chunkArray } from './array';
+import { action, observable } from 'mobx';
 
-describe('util/array', () => {
-  describe('chunkArray', () => {
-    it('splits array into equal chunks', () => {
-      expect(chunkArray([1, 2, 3, 4], 2)).to.deep.equal([[1, 2], [3, 4]]);
+let instance = null;
+
+export default class PlaygroundStore {
+  @observable components = [];
+
+  static get () {
+    if (!instance) {
+      instance = new PlaygroundStore();
+    }
+
+    return instance;
+  }
+
+  static register (component) {
+    PlaygroundStore.get().add(component);
+  }
+
+  @action
+  add (component) {
+    const name = component.type.displayName || component.type.name;
+    const hasComponent = this.components.find((c) => {
+      const cName = c.type.displayName || c.type.name;
+
+      return name && cName && cName === name;
     });
 
-    it('splits array into equal chunks (non-divisible)', () => {
-      expect(chunkArray([1, 2, 3, 4], 3)).to.deep.equal([[1, 2, 3], [4]]);
-    });
-  });
-});
+    if (hasComponent) {
+      return;
+    }
+
+    this.components.push(component);
+  }
+}

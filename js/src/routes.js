@@ -88,52 +88,64 @@ const routes = [
 
   { path: '/', onEnter: redirectTo('/accounts') },
   { path: '/auth', onEnter: redirectTo('/accounts') },
-  { path: '/settings', onEnter: redirectTo('/settings/views') },
-
-  {
-    path: '/',
-    component: Application,
-    childRoutes: [
-      {
-        path: 'accounts',
-        indexRoute: { component: Accounts },
-        childRoutes: accountsRoutes
-      },
-      {
-        path: 'addresses',
-        indexRoute: { component: Addresses },
-        childRoutes: addressesRoutes
-      },
-      {
-        path: 'contracts',
-        indexRoute: { component: Contracts },
-        childRoutes: contractsRoutes
-      },
-      {
-        path: 'status',
-        indexRoute: { component: Status },
-        childRoutes: statusRoutes
-      },
-      {
-        path: 'settings',
-        component: Settings,
-        childRoutes: settingsRoutes
-      },
-      { path: 'apps', component: Dapps },
-      {
-        path: 'app/:id',
-        component: Dapp,
-        onEnter: ({ params }) => {
-          if (!builtinDapps[params.id] || !builtinDapps[params.id].skipHistory) {
-            dappsHistory.add(params.id);
-          }
-        }
-      },
-      { path: 'web', component: Web },
-      { path: 'web/:url', component: Web },
-      { path: 'signer', component: Signer }
-    ]
-  }
+  { path: '/settings', onEnter: redirectTo('/settings/views') }
 ];
+
+const childRoutes = [
+  {
+    path: 'accounts',
+    indexRoute: { component: Accounts },
+    childRoutes: accountsRoutes
+  },
+  {
+    path: 'addresses',
+    indexRoute: { component: Addresses },
+    childRoutes: addressesRoutes
+  },
+  {
+    path: 'contracts',
+    indexRoute: { component: Contracts },
+    childRoutes: contractsRoutes
+  },
+  {
+    path: 'status',
+    indexRoute: { component: Status },
+    childRoutes: statusRoutes
+  },
+  {
+    path: 'settings',
+    component: Settings,
+    childRoutes: settingsRoutes
+  },
+  {
+    path: 'app/:id',
+    component: Dapp,
+    onEnter: ({ params }) => {
+      if (!builtinDapps[params.id] || !builtinDapps[params.id].skipHistory) {
+        dappsHistory.add(params.id);
+      }
+    }
+  },
+  { path: 'apps', component: Dapps },
+  { path: 'web', component: Web },
+  { path: 'web/:url', component: Web },
+  { path: 'signer', component: Signer }
+];
+
+// TODO : use ES6 imports when supported
+if (process.env.NODE_ENV !== 'production') {
+  const Playground = require('./playground').default;
+
+  childRoutes.push({
+    path: 'playground',
+    component: Playground
+  });
+}
+
+routes.push({
+  path: '/',
+  component: Application,
+  childRoutes
+});
 
 export default routes;

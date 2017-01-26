@@ -14,16 +14,28 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { chunkArray } from './array';
+import React from 'react';
 
-describe('util/array', () => {
-  describe('chunkArray', () => {
-    it('splits array into equal chunks', () => {
-      expect(chunkArray([1, 2, 3, 4], 2)).to.deep.equal([[1, 2], [3, 4]]);
-    });
+import QrCode from '~/ui/QrCode/qrCode.example';
 
-    it('splits array into equal chunks (non-divisible)', () => {
-      expect(chunkArray([1, 2, 3, 4], 3)).to.deep.equal([[1, 2, 3], [4]]);
-    });
+import PlaygroundStore from './store';
+
+describe('playground/store', () => {
+  let store = PlaygroundStore.get();
+
+  it('is available', () => {
+    expect(PlaygroundStore.get()).to.be.ok;
+  });
+
+  it('adds new Components', () => {
+    PlaygroundStore.register(<QrCode />);
+    expect(store.components.length).greaterThan(0);
+  });
+
+  it('adds new Components only once', () => {
+    PlaygroundStore.register(<QrCode />);
+    PlaygroundStore.register(<QrCode />);
+
+    expect(store.components.filter((c) => /QrCode/i.test(c.type.name)).length).equal(1);
   });
 });

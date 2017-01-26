@@ -14,16 +14,29 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { chunkArray } from './array';
+import { shallow } from 'enzyme';
+import React from 'react';
+import sinon from 'sinon';
 
-describe('util/array', () => {
-  describe('chunkArray', () => {
-    it('splits array into equal chunks', () => {
-      expect(chunkArray([1, 2, 3, 4], 2)).to.deep.equal([[1, 2], [3, 4]]);
-    });
+import WalletType from './';
 
-    it('splits array into equal chunks (non-divisible)', () => {
-      expect(chunkArray([1, 2, 3, 4], 3)).to.deep.equal([[1, 2, 3], [4]]);
-    });
+let component;
+let onChange;
+
+function render (walletType = 'MULTISIG') {
+  onChange = sinon.stub();
+  component = shallow(
+    <WalletType
+      onChange={ onChange }
+      type={ walletType }
+    />
+  );
+
+  return component;
+}
+
+describe('WalletType', () => {
+  it('renders defaults', () => {
+    expect(render()).to.be.ok;
   });
 });
