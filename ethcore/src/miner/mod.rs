@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -46,14 +46,20 @@ mod external;
 mod local_transactions;
 mod miner;
 mod price_info;
+mod service_transaction_checker;
 mod transaction_queue;
 mod work_notify;
+mod stratum;
 
 pub use self::external::{ExternalMiner, ExternalMinerService};
+
 pub use self::miner::{Miner, MinerOptions, Banning, PendingSet, GasPricer, GasPriceCalibratorOptions, GasLimit};
-pub use self::transaction_queue::{TransactionQueue, PrioritizationStrategy, AccountDetails, TransactionOrigin};
+pub use self::transaction_queue::{TransactionQueue, TransactionDetailsProvider as TransactionQueueDetailsProvider,
+	PrioritizationStrategy, AccountDetails, TransactionOrigin};
 pub use self::local_transactions::{Status as LocalTransactionStatus};
 pub use client::TransactionImportResult;
+pub use self::work_notify::NotifyWork;
+pub use self::stratum::{Stratum, Error as StratumError, Options as StratumOptions};
 
 use std::collections::BTreeMap;
 use util::{H256, U256, Address, Bytes};

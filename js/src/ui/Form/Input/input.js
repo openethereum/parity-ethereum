@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -168,7 +168,8 @@ export default class Input extends Component {
           underlineStyle={ underlineStyle }
           underlineFocusStyle={ underlineFocusStyle }
           underlineShow={ !hideUnderline }
-          value={ value }>
+          value={ value }
+        >
           { children }
         </TextField>
       </div>

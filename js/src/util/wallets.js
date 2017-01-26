@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -25,7 +25,6 @@ import WalletAbi from '~/contracts/abi/wallet.json';
 const _cachedWalletLookup = {};
 
 export default class WalletsUtils {
-
   static getCallArgs (api, options, values = []) {
     const walletContract = new Contract(api, WalletAbi);
 
@@ -255,5 +254,4 @@ export default class WalletsUtils {
         return transactions;
       });
   }
-
 }

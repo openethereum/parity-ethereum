@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -47,13 +47,13 @@ export default class VerificationStore {
   @observable isCodeValid = null;
   @observable confirmationTx = null;
 
-  constructor (api, abi, certifierId, account, isTestnet) {
+  constructor (api, abi, certifierName, account, isTestnet) {
     this.api = api;
     this.account = account;
     this.isTestnet = isTestnet;
 
     this.step = LOADING;
-    Contracts.get().badgeReg.fetchCertifier(certifierId)
+    Contracts.get().badgeReg.fetchCertifierByName(certifierName)
       .then(({ address }) => {
         this.contract = new Contract(api, abi).at(address);
         this.load();
@@ -72,6 +72,7 @@ export default class VerificationStore {
 
   @action load = () => {
     const { contract, account } = this;
+
     this.step = LOADING;
 
     const isServerRunning = this.isServerRunning()
@@ -156,6 +157,7 @@ export default class VerificationStore {
     const values = this.requestValues();
 
     let chain = Promise.resolve();
+
     if (!hasRequested) {
       this.step = POSTING_REQUEST;
       chain = request.estimateGas(options, values)
@@ -182,11 +184,17 @@ export default class VerificationStore {
     }
 
     chain
-      .then(() => {
+      .then(() => this.checkIfReceivedCode())
+      .then((hasReceived) => {
+        if (hasReceived) {
+          return;
+        }
+
         this.step = REQUESTING_CODE;
-        return this.requestCode();
+        return this
+          .requestCode()
+          .then(() => awaitPuzzle(api, contract, account));
       })
-      .then(() => awaitPuzzle(api, contract, account))
       .then(() => {
         this.step = QUERY_CODE;
       })

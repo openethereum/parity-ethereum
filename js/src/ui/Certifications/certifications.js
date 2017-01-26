@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -50,6 +50,7 @@ class Certifications extends Component {
 
     const classNames = `${styles.certification} ${!icon ? styles.noIcon : ''}`;
     const img = icon ? dappsUrl + hashToImageUrl(icon) : defaultIcon;
+
     return (
       <div className={ classNames } key={ name }>
         <img className={ styles.icon } src={ img } />

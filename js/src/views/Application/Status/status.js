@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -68,7 +68,8 @@ class Status extends Component {
         <div>
           <FormattedMessage
             id='application.status.consensus.capable'
-            defaultMessage='Capable' />
+            defaultMessage='Capable'
+          />
         </div>
       );
     }
@@ -81,7 +82,8 @@ class Status extends Component {
             defaultMessage='Capable until #{blockNumber}'
             values={ {
               blockNumber: upgradeStore.consensusCapability.capableUntil
-            } } />
+            } }
+          />
         </div>
       );
     }
@@ -94,7 +96,8 @@ class Status extends Component {
             defaultMessage='Incapable since #{blockNumber}'
             values={ {
               blockNumber: upgradeStore.consensusCapability.incapableSince
-            } } />
+            } }
+          />
         </div>
       );
     }
@@ -103,7 +106,8 @@ class Status extends Component {
       <div>
         <FormattedMessage
           id='application.status.consensus.unknown'
-          defaultMessage='Unknown capability' />
+          defaultMessage='Unknown capability'
+        />
       </div>
     );
   }
@@ -119,10 +123,12 @@ class Status extends Component {
       <div>
         <a
           href='javascript:void(0)'
-          onClick={ upgradeStore.openModal }>
+          onClick={ upgradeStore.openModal }
+        >
           <FormattedMessage
             id='application.status.upgrade'
-            defaultMessage='Upgrade' />
+            defaultMessage='Upgrade'
+          />
         </a>
       </div>
     );

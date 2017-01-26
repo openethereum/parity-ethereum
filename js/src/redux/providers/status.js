@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -14,29 +14,30 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import BalancesProvider from './balances';
-import { statusBlockNumber, statusCollection, statusLogs } from './statusActions';
 import { isEqual } from 'lodash';
 
 import { LOG_KEYS, getLogger } from '~/config';
+import UpgradeStore from '~/modals/UpgradeParity/store';
+
+import BalancesProvider from './balances';
+import { statusBlockNumber, statusCollection, statusLogs } from './statusActions';
 
 const log = getLogger(LOG_KEYS.Signer);
 let instance = null;
 
 export default class Status {
+  _apiStatus = {};
+  _status = {};
+  _longStatus = {};
+  _minerSettings = {};
+  _timeoutIds = {};
+  _blockNumberSubscriptionId = null;
+  _timestamp = Date.now();
+
   constructor (store, api) {
     this._api = api;
     this._store = store;
-
-    this._apiStatus = {};
-    this._status = {};
-    this._longStatus = {};
-    this._minerSettings = {};
-
-    this._timeoutIds = {};
-    this._blockNumberSubscriptionId = null;
-
-    this._timestamp = Date.now();
+    this._upgradeStore = UpgradeStore.get(api);
 
     // On connecting, stop all subscriptions
     api.on('connecting', this.stop, this);
@@ -94,6 +95,7 @@ export default class Status {
     });
 
     const promise = BalancesProvider.stop();
+
     promises.push(promise);
 
     return Promise.all(promises)
@@ -107,6 +109,7 @@ export default class Status {
 
   updateApiStatus () {
     const apiStatus = this.getApiStatus();
+
     log.debug('status::updateApiStatus', apiStatus);
 
     if (!isEqual(apiStatus, this._apiStatus)) {
@@ -281,10 +284,11 @@ export default class Status {
         this._api.parity.netChain(),
         this._api.parity.netPort(),
         this._api.parity.rpcSettings(),
-        this._api.parity.enode()
+        this._api.parity.enode(),
+        this._upgradeStore.checkUpgrade()
       ])
       .then(([
-        netPeers, clientVersion, netVersion, defaultExtraData, netChain, netPort, rpcSettings, enode
+        netPeers, clientVersion, netVersion, defaultExtraData, netChain, netPort, rpcSettings, enode, upgradeStatus
       ]) => {
         const isTest =
           netVersion === '2' || // morden

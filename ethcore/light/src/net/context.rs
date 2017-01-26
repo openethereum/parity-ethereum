@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -77,7 +77,7 @@ impl<'a> IoContext for NetworkContext<'a> {
 	}
 }
 
-/// Basic context for a the protocol.
+/// Basic context for the protocol.
 pub trait BasicContext {
 	/// Returns the relevant's peer persistent Id (aka NodeId).
 	fn persistent_peer_id(&self, peer: PeerId) -> Option<NodeId>;

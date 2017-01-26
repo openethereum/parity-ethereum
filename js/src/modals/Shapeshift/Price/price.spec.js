@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -27,7 +27,8 @@ function render (props = {}) {
       coinSymbol='BTC'
       price={ { rate: 0.1, minimum: 0.1, limit: 0.9 } }
       error={ new Error('testing') }
-      { ...props } />
+      { ...props }
+    />
   );
 
   return component;

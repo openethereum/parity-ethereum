@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -22,6 +22,7 @@ export function scrollTo (element, to, duration) {
   let animateScroll = elapsedTime => {
     elapsedTime += increment;
     let position = easeInOut(elapsedTime, start, change, duration);
+
     element.scrollTop = position;
     if (elapsedTime < duration) {
       setTimeout(() => {

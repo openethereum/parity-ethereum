@@ -13,7 +13,7 @@ Ethereum key management.
 
 ```
 Ethereum key management.
-  Copyright 2016 Ethcore (UK) Limited
+  Copyright 2016, 2017 Parity Technologies (UK) Ltd
 
 Usage:
     ethstore insert <secret> <password> [--dir DIR]

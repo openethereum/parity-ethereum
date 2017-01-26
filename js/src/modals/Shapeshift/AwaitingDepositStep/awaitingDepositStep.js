@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -42,7 +42,8 @@ export default class AwaitingDepositStep extends Component {
             <FormattedMessage
               id='shapeshift.awaitingDepositStep.awaitingConfirmation'
               defaultMessage='Awaiting confirmation of the deposit address for your {typeSymbol} funds exchange'
-              values={ { typeSymbol } } />
+              values={ { typeSymbol } }
+            />
           </div>
         </div>
       );
@@ -57,7 +58,8 @@ export default class AwaitingDepositStep extends Component {
             values={ {
               shapeshiftLink: <a href='https://shapeshift.io' target='_blank'>ShapeShift.io</a>,
               typeSymbol
-            } } />
+            } }
+          />
         </div>
         <div className={ styles.hero }>
           { depositAddress }
@@ -70,7 +72,8 @@ export default class AwaitingDepositStep extends Component {
               values={ {
                 maximum: <Value amount={ price.limit } symbol={ coinSymbol } />,
                 minimum: <Value amount={ price.minimum } symbol={ coinSymbol } />
-              } } />
+              } }
+            />
           </div>
         </div>
       </div>

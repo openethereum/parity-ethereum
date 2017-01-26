@@ -1,4 +1,4 @@
-  // Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+  // Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -36,7 +36,6 @@ const initialState = {
 };
 
 export default class ActionbarImport extends Component {
-
   static propTypes = {
     onConfirm: PropTypes.func.isRequired,
     renderValidation: PropTypes.func,
@@ -219,5 +218,4 @@ export default class ActionbarImport extends Component {
   onCloseModal = () => {
     this.setState(initialState);
   }
-
 }

@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -59,6 +59,7 @@ export function estimateGas (_func, _options, _values = []) {
   return getTxArgs(_func, _options, _values)
     .then((callArgs) => {
       const { func, options, values } = callArgs;
+
       return func._estimateGas(options, values);
     })
     .then((gas) => {
@@ -78,6 +79,7 @@ export function postTransaction (_func, _options, _values = []) {
   return getTxArgs(_func, _options, _values)
     .then((callArgs) => {
       const { func, options, values } = callArgs;
+
       return func._postTransaction(options, values);
     });
 }
@@ -117,6 +119,7 @@ export function waitForConfirmations (api, tx, confirmations) {
     api.pollMethod('eth_getTransactionReceipt', tx, isValidReceipt)
     .then((receipt) => {
       let subscription;
+
       api.subscribe('eth_blockNumber', (err, block) => {
         if (err) {
           reject(err);

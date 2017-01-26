@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -58,7 +58,8 @@ export default class TxRow extends Component {
             <a
               className={ styles.link }
               href={ txLink(tx.hash, isTest) }
-              target='_blank'>
+              target='_blank'
+            >
               { `${tx.hash.substr(2, 6)}...${tx.hash.slice(-6)}` }
             </a>
           </div>
@@ -68,7 +69,8 @@ export default class TxRow extends Component {
           <MethodDecoding
             historic={ historic }
             address={ address }
-            transaction={ tx } />
+            transaction={ tx }
+          />
         </td>
       </tr>
     );
@@ -78,13 +80,18 @@ export default class TxRow extends Component {
     const { isTest } = this.props;
 
     let esLink = null;
+
     if (address) {
       esLink = (
         <a
           href={ addressLink(address, isTest) }
           target='_blank'
-          className={ styles.link }>
-          <IdentityName address={ address } shorten />
+          className={ styles.link }
+        >
+          <IdentityName
+            address={ address }
+            shorten
+          />
         </a>
       );
     }
@@ -95,7 +102,8 @@ export default class TxRow extends Component {
           <IdentityIcon
             center
             className={ styles.icon }
-            address={ address } />
+            address={ address }
+          />
         </div>
         <div className={ styles.center }>
           { esLink || 'DEPLOY' }

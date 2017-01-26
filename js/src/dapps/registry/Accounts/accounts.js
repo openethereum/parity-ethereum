@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -29,7 +29,6 @@ import { select } from './actions';
 import styles from './accounts.css';
 
 class Accounts extends Component {
-
   static propTypes = {
     all: PropTypes.object.isRequired,
     selected: PropTypes.object,

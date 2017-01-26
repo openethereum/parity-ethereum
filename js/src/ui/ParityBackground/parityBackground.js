@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -26,7 +26,12 @@ class ParityBackground extends Component {
     backgroundSeed: PropTypes.string,
     children: PropTypes.node,
     className: PropTypes.string,
-    onClick: PropTypes.func
+    onClick: PropTypes.func,
+    style: PropTypes.object
+  };
+
+  static defaultProps = {
+    style: {}
   };
 
   state = {
@@ -60,12 +65,17 @@ class ParityBackground extends Component {
     const { muiTheme } = this.context;
 
     const style = muiTheme.parity.getBackgroundStyle(gradient, _seed);
+
     this.setState({ style });
   }
 
   render () {
     const { children, className, onClick } = this.props;
-    const { style } = this.state;
+
+    const style = {
+      ...this.state.style,
+      ...this.props.style
+    };
 
     return (
       <div
@@ -81,6 +91,7 @@ class ParityBackground extends Component {
 
 function mapStateToProps (state) {
   const { backgroundSeed } = state.settings;
+
   return { backgroundSeed };
 }
 

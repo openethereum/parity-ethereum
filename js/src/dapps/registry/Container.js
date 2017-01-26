@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -56,6 +56,7 @@ export default connect(
   // react -> redux connection
   (dispatch) => {
     const bound = bindActionCreators(actions, dispatch);
+
     bound.addresses = bindActionCreators(actions.addresses, dispatch);
     bound.accounts = bindActionCreators(actions.accounts, dispatch);
     bound.lookup = bindActionCreators(actions.lookup, dispatch);

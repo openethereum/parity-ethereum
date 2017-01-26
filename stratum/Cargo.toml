@@ -22,6 +22,8 @@ env_logger = "0.3"
 ethcore-ipc = { path = "../ipc/rpc" }
 semver = "0.5"
 ethcore-ipc-nano = { path = "../ipc/nano" }
+futures = "0.1"
+tokio-core = "0.1"
 
 [profile.release]
 debug = true

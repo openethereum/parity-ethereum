@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -18,7 +18,7 @@
 
 use std::sync::Weak;
 use util::*;
-use ethkey::{recover, public_to_address};
+use ethkey::{recover, public_to_address, Signature};
 use account_provider::AccountProvider;
 use block::*;
 use builtin::Builtin;
@@ -30,6 +30,7 @@ use evm::Schedule;
 use ethjson;
 use header::Header;
 use client::Client;
+use super::signer::EngineSigner;
 use super::validator_set::{ValidatorSet, new_validator_set};
 
 /// `BasicAuthority` params.
@@ -56,8 +57,7 @@ pub struct BasicAuthority {
 	params: CommonParams,
 	gas_limit_bound_divisor: U256,
 	builtins: BTreeMap<Address, Builtin>,
-	account_provider: Mutex<Option<Arc<AccountProvider>>>,
-	password: RwLock<Option<String>>,
+	signer: EngineSigner,
 	validators: Box<ValidatorSet + Send + Sync>,
 }
 
@@ -69,8 +69,7 @@ impl BasicAuthority {
 			gas_limit_bound_divisor: our_params.gas_limit_bound_divisor,
 			builtins: builtins,
 			validators: new_validator_set(our_params.validators),
-			account_provider: Mutex::new(None),
-			password: RwLock::new(None),
+			signer: Default::default(),
 		}
 	}
 }
@@ -110,20 +109,15 @@ impl Engine for BasicAuthority {
 
 	/// Attempt to seal the block internally.
 	fn generate_seal(&self, block: &ExecutedBlock) -> Seal {
-		if let Some(ref ap) = *self.account_provider.lock() {
-			let header = block.header();
-			let author = header.author();
-			if self.validators.contains(author) {
-				let message = header.bare_hash();
-				// account should be pernamently unlocked, otherwise sealing will fail
-				if let Ok(signature) = ap.sign(*author, self.password.read().clone(), message) {
-					return Seal::Regular(vec![::rlp::encode(&(&*signature as &[u8])).to_vec()]);
-				} else {
-					trace!(target: "basicauthority", "generate_seal: FAIL: accounts secret key unavailable");
-				}
+		let header = block.header();
+		let author = header.author();
+		if self.validators.contains(author) {
+			// account should be pernamently unlocked, otherwise sealing will fail
+			if let Ok(signature) = self.signer.sign(header.bare_hash()) {
+				return Seal::Regular(vec![::rlp::encode(&(&H520::from(signature) as &[u8])).to_vec()]);
+			} else {
+				trace!(target: "basicauthority", "generate_seal: FAIL: accounts secret key unavailable");
 			}
-		} else {
-			trace!(target: "basicauthority", "generate_seal: FAIL: accounts not provided");
 		}
 		Seal::None
 	}
@@ -171,15 +165,15 @@ impl Engine for BasicAuthority {
 	}
 
 	fn register_client(&self, client: Weak<Client>) {
-		self.validators.register_call_contract(client);
+		self.validators.register_contract(client);
 	}
 
-	fn set_signer(&self, _address: Address, password: String) {
-		*self.password.write() = Some(password);
+	fn set_signer(&self, ap: Arc<AccountProvider>, address: Address, password: String) {
+		self.signer.set(ap, address, password);
 	}
 
-	fn register_account_provider(&self, ap: Arc<AccountProvider>) {
-		*self.account_provider.lock() = Some(ap);
+	fn sign(&self, hash: H256) -> Result<Signature, Error> {
+		self.signer.sign(hash).map_err(Into::into)
 	}
 }
 
@@ -256,8 +250,7 @@ mod tests {
 
 		let spec = new_test_authority();
 		let engine = &*spec.engine;
-		engine.set_signer(addr, "".into());
-		engine.register_account_provider(Arc::new(tap));
+		engine.set_signer(Arc::new(tap), addr, "".into());
 		let genesis_header = spec.genesis_header();
 		let mut db_result = get_temp_state_db();
 		let db = spec.ensure_db_good(db_result.take(), &Default::default()).unwrap();

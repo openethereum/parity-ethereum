@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -75,7 +75,7 @@ mod api;
 pub use api::{
 	EthSync, Params, SyncProvider, ManageNetwork, SyncConfig,
 	ServiceConfiguration, NetworkConfiguration, PeerInfo, AllowIP, TransactionStats,
-	LightSync, LightSyncParams,
+	LightSync, LightSyncParams, LesProtocolInfo, EthProtocolInfo,
 };
 pub use chain::{SyncStatus, SyncState};
 pub use network::{is_valid_node_url, NonReservedPeerMode, NetworkError};

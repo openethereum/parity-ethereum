@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -28,7 +28,8 @@ function render (props) {
   component = shallow(
     <Transactions
       address={ ADDRESS }
-      { ...props } />,
+      { ...props }
+    />,
     { context: { store: createRedux() } }
   ).find('Transactions').shallow({ context: { api: createApi() } });
   instance = component.instance();

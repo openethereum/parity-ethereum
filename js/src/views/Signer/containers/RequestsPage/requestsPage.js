@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -77,7 +77,8 @@ class RequestsPage extends Component {
       <Container title='Local Transactions'>
         <TxList
           address=''
-          hashes={ localHashes } />
+          hashes={ localHashes }
+        />
       </Container>
     );
   }

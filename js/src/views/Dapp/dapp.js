@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -41,6 +41,7 @@ export default class Dapp extends Component {
 
   componentWillMount () {
     const { id } = this.props.params;
+
     this.loadApp(id);
   }
 
@@ -94,6 +95,7 @@ export default class Dapp extends Component {
     }
 
     let src = null;
+
     switch (app.type) {
       case 'local':
         src = `${dappsUrl}/${app.id}/`;
@@ -123,7 +125,8 @@ export default class Dapp extends Component {
         name={ name }
         sandbox='allow-forms allow-popups allow-same-origin allow-scripts'
         scrolling='auto'
-        src={ src } />
+        src={ src }
+      />
     );
   }
 }

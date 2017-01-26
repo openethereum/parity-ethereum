@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -67,7 +67,8 @@ export default class AddressSelect extends Component {
       <select
         className={ styles.iconMenu }
         style={ style }
-        onChange={ this.onChange }>
+        onChange={ this.onChange }
+      >
         { addresses.map(this.renderOption) }
       </select>
     );
@@ -80,7 +81,8 @@ export default class AddressSelect extends Component {
     return (
       <option
         key={ account.address }
-        value={ account.address }>
+        value={ account.address }
+      >
         { account.name }
       </option>
     );

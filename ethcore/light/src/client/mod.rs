@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -38,8 +38,6 @@ use request;
 use self::header_chain::HeaderChain;
 
 pub use self::service::Service;
-
-pub mod cht;
 
 mod header_chain;
 mod service;

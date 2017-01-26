@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -68,7 +68,8 @@ export default class ActionbarSearch extends Component {
     return (
       <div
         className={ styles.searchcontainer }
-        key='searchAccount'>
+        key='searchAccount'
+      >
         <div className={ inputContainerClasses.join(' ') }>
           <InputChip
             addOnBlur
@@ -87,7 +88,8 @@ export default class ActionbarSearch extends Component {
           className={ styles.searchButton }
           icon={ <ActionSearch /> }
           label=''
-          onClick={ this.handleSearchClick } />
+          onClick={ this.handleSearchClick }
+        />
       </div>
     );
   }

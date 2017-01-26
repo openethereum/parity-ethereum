@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -34,7 +34,7 @@ use filter::Filter;
 use log_entry::LocalizedLogEntry;
 use receipt::{Receipt, LocalizedReceipt};
 use blockchain::extras::BlockReceipts;
-use error::{ImportResult};
+use error::{ImportResult, Error as EthcoreError};
 use evm::{Factory as EvmFactory, VMType, Schedule};
 use miner::{Miner, MinerService, TransactionImportResult};
 use spec::Spec;
@@ -144,7 +144,7 @@ impl TestBlockChainClient {
 			genesis_hash: H256::new(),
 			extra_data: extra_data,
 			last_hash: RwLock::new(H256::new()),
-			difficulty: RwLock::new(From::from(0)),
+			difficulty: RwLock::new(spec.genesis_header().difficulty().clone()),
 			balances: RwLock::new(HashMap::new()),
 			nonces: RwLock::new(HashMap::new()),
 			storage: RwLock::new(HashMap::new()),
@@ -250,7 +250,7 @@ impl TestBlockChainClient {
 						value: U256::from(100),
 						data: "3331600055".from_hex().unwrap(),
 						gas: U256::from(100_000),
-						gas_price: U256::one(),
+						gas_price: U256::from(200_000_000_000u64),
 						nonce: U256::zero()
 					};
 					let signed_tx = tx.sign(keypair.secret(), None);
@@ -308,22 +308,29 @@ impl TestBlockChainClient {
 		}
 	}
 
-	/// Inserts a transaction to miners transactions queue.
-	pub fn insert_transaction_to_queue(&self) {
+	/// Inserts a transaction with given gas price to miners transactions queue.
+	pub fn insert_transaction_with_gas_price_to_queue(&self, gas_price: U256) -> H256 {
 		let keypair = Random.generate().unwrap();
 		let tx = Transaction {
 			action: Action::Create,
 			value: U256::from(100),
 			data: "3331600055".from_hex().unwrap(),
 			gas: U256::from(100_000),
-			gas_price: U256::one(),
+			gas_price: gas_price,
 			nonce: U256::zero()
 		};
 		let signed_tx = tx.sign(keypair.secret(), None);
-		self.set_balance(signed_tx.sender(), 10_000_000.into());
+		self.set_balance(signed_tx.sender(), 10_000_000_000_000_000_000u64.into());
+		let hash = signed_tx.hash();
 		let res = self.miner.import_external_transactions(self, vec![signed_tx.into()]);
 		let res = res.into_iter().next().unwrap().expect("Successful import");
 		assert_eq!(res, TransactionImportResult::Current);
+		hash
+	}
+
+	/// Inserts a transaction to miners transactions queue.
+	pub fn insert_transaction_to_queue(&self) -> H256 {
+		self.insert_transaction_with_gas_price_to_queue(U256::from(20_000_000_000u64))
 	}
 
 	/// Set reported history size.
@@ -584,7 +591,7 @@ impl BlockChainClient for TestBlockChainClient {
 		// starts with 'f' ?
 		if *hash > H256::from("f000000000000000000000000000000000000000000000000000000000000000") {
 			let receipt = BlockReceipts::new(vec![Receipt::new(
-				H256::zero(),
+				Some(H256::zero()),
 				U256::zero(),
 				vec![])]);
 			let mut rlp = RlpStream::new();
@@ -714,14 +721,29 @@ impl BlockChainClient for TestBlockChainClient {
 	fn disable(&self) { unimplemented!(); }
 
 	fn pruning_info(&self) -> PruningInfo {
+		let best_num = self.chain_info().best_block_number;
 		PruningInfo {
 			earliest_chain: 1,
-			earliest_state: 1,
-			state_history_size: *self.history.read(),
+			earliest_state: self.history.read().as_ref().map(|x| best_num - x).unwrap_or(0),
 		}
 	}
 
 	fn call_contract(&self, _address: Address, _data: Bytes) -> Result<Bytes, String> { Ok(vec![]) }
+
+	fn transact_contract(&self, address: Address, data: Bytes) -> Result<TransactionImportResult, EthcoreError> {
+		let transaction = Transaction {
+			nonce: self.latest_nonce(&self.miner.author()),
+			action: Action::Call(address),
+			gas: self.spec.gas_limit,
+			gas_price: U256::zero(),
+			value: U256::default(),
+			data: data,
+		};
+		let network_id = Some(self.spec.params.network_id);
+		let sig = self.spec.engine.sign(transaction.hash(network_id)).unwrap();
+		let signed = SignedTransaction::new(transaction.with_signature(sig, network_id)).unwrap();
+		self.miner.import_own_transaction(self, signed.into())
+	}
 
 	fn registrar_address(&self) -> Option<Address> { None }
 

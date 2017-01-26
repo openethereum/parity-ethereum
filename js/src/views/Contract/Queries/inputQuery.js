@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -49,9 +49,7 @@ export default class InputQuery extends Component {
     const { name, className } = this.props;
 
     return (
-      <Card
-        className={ className }
-        >
+      <Card className={ className }>
         <CardTitle
           className={ styles.methodTitle }
           title={ name }
@@ -71,9 +69,7 @@ export default class InputQuery extends Component {
 
     return (
       <div>
-        <CardText
-          className={ styles.methodContent }
-        >
+        <CardText className={ styles.methodContent }>
           <div className={ styles.methodResults }>
             { this.renderResults() }
           </div>
@@ -83,7 +79,8 @@ export default class InputQuery extends Component {
           <Button
             label='Query'
             disabled={ !isValid }
-            onClick={ this.onClick } />
+            onClick={ this.onClick }
+          />
         </CardActions>
       </div>
     );

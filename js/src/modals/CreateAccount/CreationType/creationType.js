@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -14,51 +14,91 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
+import { FormattedMessage } from 'react-intl';
 import { RadioButton, RadioButtonGroup } from 'material-ui/RadioButton';
 
 import styles from '../createAccount.css';
 
+@observer
 export default class CreationType extends Component {
   static propTypes = {
-    onChange: PropTypes.func.isRequired
-  }
-
-  componentWillMount () {
-    this.props.onChange('fromNew');
+    store: PropTypes.object.isRequired
   }
 
   render () {
+    const { createType } = this.props.store;
+
     return (
       <div className={ styles.spaced }>
         <RadioButtonGroup
-          defaultSelected='fromNew'
+          defaultSelected={ createType }
           name='creationType'
-          onChange={ this.onChange }>
+          onChange={ this.onChange }
+        >
           <RadioButton
-            label='Create new account manually'
-            value='fromNew' />
+            label={
+              <FormattedMessage
+                id='createAccount.creationType.fromNew.label'
+                defaultMessage='Create new account manually'
+              />
+            }
+            value='fromNew'
+          />
           <RadioButton
-            label='Recover account from recovery phrase'
-            value='fromPhrase' />
+            label={
+              <FormattedMessage
+                id='createAccount.creationType.fromPhrase.label'
+                defaultMessage='Recover account from recovery phrase'
+              />
+            }
+            value='fromPhrase'
+          />
           <RadioButton
-            label='Import accounts from Geth keystore'
-            value='fromGeth' />
+            label={
+              <FormattedMessage
+                id='createAccount.creationType.fromGeth.label'
+                defaultMessage='Import accounts from Geth keystore'
+              />
+            }
+            value='fromGeth'
+          />
           <RadioButton
-            label='Import account from a backup JSON file'
-            value='fromJSON' />
+            label={
+              <FormattedMessage
+                id='createAccount.creationType.fromJSON.label'
+                defaultMessage='Import account from a backup JSON file'
+              />
+            }
+            value='fromJSON'
+          />
           <RadioButton
-            label='Import account from an Ethereum pre-sale wallet'
-            value='fromPresale' />
+            label={
+              <FormattedMessage
+                id='createAccount.creationType.fromPresale.label'
+                defaultMessage='Import account from an Ethereum pre-sale wallet'
+              />
+            }
+            value='fromPresale'
+          />
           <RadioButton
-            label='Import raw private key'
-            value='fromRaw' />
+            label={
+              <FormattedMessage
+                id='createAccount.creationType.fromRaw.label'
+                defaultMessage='Import raw private key'
+              />
+            }
+            value='fromRaw'
+          />
         </RadioButtonGroup>
       </div>
     );
   }
 
   onChange = (event) => {
-    this.props.onChange(event.target.value);
+    const { store } = this.props;
+
+    store.setCreateType(event.target.value);
   }
 }

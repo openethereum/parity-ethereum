@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -21,9 +21,10 @@ import SMSVerificationABI from '~/contracts/abi/sms-verification.json';
 import VerificationStore, {
   LOADING, QUERY_DATA, QUERY_CODE, POSTED_CONFIRMATION, DONE
 } from './store';
-import { isServerRunning, postToServer } from '../../3rdparty/sms-verification';
+import { isServerRunning, hasReceivedCode, postToServer } from '~/3rdparty/sms-verification';
 
-const SMS_VERIFICATION = 0; // id in the `BadgeReg.sol` contract
+// name in the `BadgeReg.sol` contract
+const SMS_VERIFICATION = 'smsverification';
 
 export default class SMSVerificationStore extends VerificationStore {
   @observable number = '';
@@ -62,12 +63,17 @@ export default class SMSVerificationStore extends VerificationStore {
     return isServerRunning(this.isTestnet);
   }
 
+  checkIfReceivedCode = () => {
+    return hasReceivedCode(this.number, this.account, this.isTestnet);
+  }
+
   @action setNumber = (number) => {
     this.number = number;
   }
 
   requestCode = () => {
     const { number, account, isTestnet } = this;
+
     return postToServer({ number, address: account }, isTestnet);
   }
 }

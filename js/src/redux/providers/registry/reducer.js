@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -24,9 +24,11 @@ export default (state = initialState, action) => {
       return state;
     }
 
-    return { ...state, reverse: {
-      ...state.reverse, [ action.address ]: action.reverse
-    } };
+    return {
+      reverse: {
+        ...state.reverse, [ action.address ]: action.reverse
+      }
+    };
   }
 
   return state;

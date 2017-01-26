@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -59,6 +59,7 @@ export function personalAccountsInfo (accountsInfo) {
       .values(wallets)
       .map((wallet) => {
         const walletContract = new Contract(api, WalletAbi);
+
         return WalletsUtils.fetchOwners(walletContract.at(wallet.address));
       });
 

@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -25,7 +25,6 @@ import ParityBackground from '~/ui/ParityBackground';
 import styles from './portal.css';
 
 export default class Portal extends Component {
-
   static propTypes = {
     onClose: PropTypes.func.isRequired,
     open: PropTypes.bool.isRequired,

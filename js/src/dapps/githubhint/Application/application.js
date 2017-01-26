@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -78,6 +78,7 @@ export default class Application extends Component {
     const { fromAddress, registerBusy, url, urlError, contentHash, contentHashError, contentHashOwner, commit, commitError, registerType, repo, repoError } = this.state;
 
     let hashClass = null;
+
     if (contentHashError) {
       hashClass = contentHashOwner !== fromAddress ? styles.hashError : styles.hashWarning;
     } else if (contentHash) {
@@ -85,6 +86,7 @@ export default class Application extends Component {
     }
 
     let valueInputs = null;
+
     if (registerType === 'content') {
       valueInputs = [
         <div className={ styles.capture } key='repo'>
@@ -94,7 +96,8 @@ export default class Application extends Component {
             disabled={ registerBusy }
             value={ repo }
             className={ repoError ? styles.error : null }
-            onChange={ this.onChangeRepo } />
+            onChange={ this.onChangeRepo }
+          />
         </div>,
         <div className={ styles.capture } key='hash'>
           <input
@@ -103,7 +106,8 @@ export default class Application extends Component {
             disabled={ registerBusy }
             value={ commit }
             className={ commitError ? styles.error : null }
-            onChange={ this.onChangeCommit } />
+            onChange={ this.onChangeCommit }
+          />
         </div>
       ];
     } else {
@@ -115,7 +119,8 @@ export default class Application extends Component {
             disabled={ registerBusy }
             value={ url }
             className={ urlError ? styles.error : null }
-            onChange={ this.onChangeUrl } />
+            onChange={ this.onChangeUrl }
+          />
         </div>
       );
     }
@@ -128,11 +133,17 @@ export default class Application extends Component {
               <Button
                 disabled={ registerBusy }
                 invert={ registerType !== 'file' }
-                onClick={ this.onClickTypeNormal }>File Link</Button>
+                onClick={ this.onClickTypeNormal }
+              >
+                File Link
+              </Button>
               <Button
                 disabled={ registerBusy }
                 invert={ registerType !== 'content' }
-                onClick={ this.onClickTypeContent }>Content Bundle</Button>
+                onClick={ this.onClickTypeContent }
+              >
+                Content Bundle
+              </Button>
             </div>
             <div className={ styles.box }>
               <div className={ styles.description }>
@@ -148,7 +159,8 @@ export default class Application extends Component {
         </div>
         <Events
           eventIds={ this.state.eventIds }
-          events={ this.state.events } />
+          events={ this.state.events }
+        />
       </div>
     );
   }
@@ -167,7 +179,8 @@ export default class Application extends Component {
         </div>
         <Button
           onClick={ this.onClickRegister }
-          disabled={ (contentHashError && contentHashOwner !== fromAddress) || urlError || repoError || commitError }>register url</Button>
+          disabled={ (contentHashError && contentHashOwner !== fromAddress) || urlError || repoError || commitError }
+        >register url</Button>
       </div>
     );
   }
@@ -264,6 +277,7 @@ export default class Application extends Component {
     // TODO: field validation
     if (!urlError) {
       const parts = url.split('/');
+
       hasContent = parts.length !== 0;
 
       if (parts[2] === 'github.com' || parts[2] === 'raw.githubusercontent.com') {
@@ -355,6 +369,7 @@ export default class Application extends Component {
 
   registerContent (contentRepo, contentCommit) {
     const { contentHash, fromAddress, instance } = this.state;
+
     contentCommit = contentCommit.substr(0, 2) === '0x' ? contentCommit : `0x${contentCommit}`;
 
     const eventId = nextEventId++;
@@ -396,6 +411,7 @@ export default class Application extends Component {
           });
 
           const gasPassed = gas.mul(1.2);
+
           options.gas = gasPassed.toFixed(0);
           console.log(`gas estimated at ${gas.toFormat(0)}, passing ${gasPassed.toFormat(0)}`);
 
@@ -445,6 +461,7 @@ export default class Application extends Component {
           });
 
           const gasPassed = gas.mul(1.2);
+
           options.gas = gasPassed.toFixed(0);
           console.log(`gas estimated at ${gas.toFormat(0)}, passing ${gasPassed.toFormat(0)}`);
 

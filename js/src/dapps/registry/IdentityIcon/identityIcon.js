@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -33,7 +33,8 @@ export default class IdentityIcon extends Component {
       <img
         className={ styles.icon + ' ' + className }
         style={ style }
-        src={ api.util.createIdentityImg(address, 3) } />
+        src={ api.util.createIdentityImg(address, 3) }
+      />
     );
   }
 }

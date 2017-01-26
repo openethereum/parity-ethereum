@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -16,7 +16,7 @@
 
 import BigNumber from 'bignumber.js';
 
-import { outBlock, outAccountInfo, outAddress, outChainStatus, outDate, outHistogram, outNumber, outPeers, outReceipt, outSyncing, outTransaction, outTrace } from './output';
+import { outBlock, outAccountInfo, outAddress, outChainStatus, outDate, outHistogram, outNumber, outPeer, outPeers, outReceipt, outSyncing, outTransaction, outTrace } from './output';
 import { isAddress, isBigNumber, isInstanceOf } from '../../../test/types';
 
 describe('api/format/output', () => {
@@ -59,6 +59,7 @@ describe('api/format/output', () => {
     ['author', 'miner'].forEach((input) => {
       it(`formats ${input} address as address`, () => {
         const block = {};
+
         block[input] = address;
         const formatted = outBlock(block)[input];
 
@@ -70,6 +71,7 @@ describe('api/format/output', () => {
     ['difficulty', 'gasLimit', 'gasUsed', 'number', 'nonce', 'totalDifficulty'].forEach((input) => {
       it(`formats ${input} number as hexnumber`, () => {
         const block = {};
+
         block[input] = 0x123;
         const formatted = outBlock(block)[input];
 
@@ -81,6 +83,7 @@ describe('api/format/output', () => {
     ['timestamp'].forEach((input) => {
       it(`formats ${input} number as Date`, () => {
         const block = {};
+
         block[input] = 0x57513668;
         const formatted = outBlock(block)[input];
 
@@ -165,6 +168,66 @@ describe('api/format/output', () => {
     });
   });
 
+  describe('outPeer', () => {
+    it('converts all internal numbers to BigNumbers', () => {
+      expect(outPeer({
+        caps: ['par/1'],
+        id: '0x01',
+        name: 'Parity',
+        network: {
+          localAddress: '10.0.0.1',
+          remoteAddress: '10.0.0.1'
+        },
+        protocols: {
+          par: {
+            difficulty: '0x0f',
+            head: '0x02',
+            version: 63
+          }
+        }
+      })).to.deep.equal({
+        caps: ['par/1'],
+        id: '0x01',
+        name: 'Parity',
+        network: {
+          localAddress: '10.0.0.1',
+          remoteAddress: '10.0.0.1'
+        },
+        protocols: {
+          par: {
+            difficulty: new BigNumber(15),
+            head: '0x02',
+            version: 63
+          }
+        }
+      });
+    });
+
+    it('does not output null protocols', () => {
+      expect(outPeer({
+        caps: ['par/1'],
+        id: '0x01',
+        name: 'Parity',
+        network: {
+          localAddress: '10.0.0.1',
+          remoteAddress: '10.0.0.1'
+        },
+        protocols: {
+          les: null
+        }
+      })).to.deep.equal({
+        caps: ['par/1'],
+        id: '0x01',
+        name: 'Parity',
+        network: {
+          localAddress: '10.0.0.1',
+          remoteAddress: '10.0.0.1'
+        },
+        protocols: {}
+      });
+    });
+  });
+
   describe('outPeers', () => {
     it('converts all internal numbers to BigNumbers', () => {
       expect(outPeers({
@@ -185,7 +248,8 @@ describe('api/format/output', () => {
                 difficulty: '0x0f',
                 head: '0x02',
                 version: 63
-              }
+              },
+              les: null
             }
           }
         ]
@@ -219,6 +283,7 @@ describe('api/format/output', () => {
     ['contractAddress'].forEach((input) => {
       it(`formats ${input} address as address`, () => {
         const block = {};
+
         block[input] = address;
         const formatted = outReceipt(block)[input];
 
@@ -230,6 +295,7 @@ describe('api/format/output', () => {
     ['blockNumber', 'cumulativeGasUsed', 'cumulativeGasUsed', 'gasUsed', 'transactionIndex'].forEach((input) => {
       it(`formats ${input} number as hexnumber`, () => {
         const block = {};
+
         block[input] = 0x123;
         const formatted = outReceipt(block)[input];
 
@@ -283,6 +349,7 @@ describe('api/format/output', () => {
     ['from', 'to'].forEach((input) => {
       it(`formats ${input} address as address`, () => {
         const block = {};
+
         block[input] = address;
         const formatted = outTransaction(block)[input];
 
@@ -294,6 +361,7 @@ describe('api/format/output', () => {
     ['blockNumber', 'gasPrice', 'gas', 'minBlock', 'nonce', 'transactionIndex', 'value'].forEach((input) => {
       it(`formats ${input} number as hexnumber`, () => {
         const block = {};
+
         block[input] = 0x123;
         const formatted = outTransaction(block)[input];
 

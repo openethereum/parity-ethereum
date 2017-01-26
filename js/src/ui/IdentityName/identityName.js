@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -24,12 +24,14 @@ import ShortenedHash from '../ShortenedHash';
 const defaultName = (
   <FormattedMessage
     id='ui.identityName.unnamed'
-    defaultMessage='UNNAMED' />
+    defaultMessage='UNNAMED'
+  />
 );
 const defaultNameNull = (
   <FormattedMessage
     id='ui.identityName.null'
-    defaultMessage='NULL' />
+    defaultMessage='NULL'
+  />
 );
 
 class IdentityName extends Component {

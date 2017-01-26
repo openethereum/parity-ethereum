@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -47,7 +47,8 @@ class UrlButton extends Component {
           label={
             <FormattedMessage
               id='dapps.button.url.label'
-              defaultMessage='URL' />
+              defaultMessage='URL'
+            />
           }
           onClick={ this.toggleInput }
         />
@@ -61,7 +62,8 @@ class UrlButton extends Component {
         hint={
           <FormattedMessage
             id='dapps.button.url.input'
-            defaultMessage='https://mkr.market' />
+            defaultMessage='https://mkr.market'
+          />
         }
         onBlur={ this.hideInput }
         onFocus={ this.showInput }
@@ -73,6 +75,7 @@ class UrlButton extends Component {
 
   toggleInput = () => {
     const { inputShown } = this.state;
+
     this.setState({
       inputShown: !inputShown
     });

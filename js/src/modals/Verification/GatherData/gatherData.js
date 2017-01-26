@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -115,13 +115,26 @@ export default class GatherData extends Component {
     if (!fee) {
       return (<p>Fetching the fee…</p>);
     }
+    if (fee.eq(0)) {
+      return (
+        <div className={ styles.container }>
+          <InfoIcon />
+          <p className={ styles.message }>
+            <FormattedMessage
+              id='ui.verification.gatherData.nofee'
+              defaultMessage='There is no additional fee.'
+            />
+          </p>
+        </div>
+      );
+    }
     return (
       <div className={ styles.container }>
         <InfoIcon />
         <p className={ styles.message }>
           <FormattedMessage
             id='ui.verification.gatherData.fee'
-            defaultMessage='The fee is {amount} ETH.'
+            defaultMessage='The additional fee is {amount} ETH.'
             values={ {
               amount: fromWei(fee).toFixed(3)
             } }
@@ -220,6 +233,7 @@ export default class GatherData extends Component {
         field.onChange(v);
       };
       const onSubmit = field.onChange;
+
       return (
         <Input
           key={ field.key }

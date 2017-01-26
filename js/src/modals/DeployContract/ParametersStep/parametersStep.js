@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -13,7 +13,7 @@
 
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -84,7 +84,8 @@ export default class ParametersStep extends Component {
             label={ label }
             onChange={ onChange }
             param={ param }
-            value={ value } />
+            value={ value }
+          />
         </div>
       );
     });
@@ -94,7 +95,8 @@ export default class ParametersStep extends Component {
         <p>
           <FormattedMessage
             id='deployContract.parameters.choose'
-            defaultMessage='Choose the contract parameters' />
+            defaultMessage='Choose the contract parameters'
+          />
         </p>
         { inputsComponents }
       </div>

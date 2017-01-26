@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -72,9 +72,11 @@ function render (props) {
   const baseComponent = shallow(
     <TxHash
       hash={ TXHASH }
-      { ...props } />,
+      { ...props }
+    />,
     { context: { store: createRedux() } }
   );
+
   component = baseComponent.find('TxHash').shallow({ context: { api: createApi() } });
   instance = component.instance();
 

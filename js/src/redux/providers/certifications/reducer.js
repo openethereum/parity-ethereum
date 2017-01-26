@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -28,6 +28,7 @@ export default (state = initialState, action) => {
     const newCertifications = certifications.concat({
       id, name, icon, title
     });
+
     return { ...state, [address]: newCertifications };
   }
 
@@ -36,6 +37,7 @@ export default (state = initialState, action) => {
     const certifications = state[address] || [];
 
     const newCertifications = certifications.filter((c) => c.id !== id);
+
     return { ...state, [address]: newCertifications };
   }
 

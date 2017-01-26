@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -106,6 +106,7 @@ function handleMessage (message) {
 function getSignerSeed (data) {
   console.log('deriving seed from service-worker');
   const { wallet, password } = data;
+
   return Signer.getSeed(wallet, password);
 }
 
@@ -138,6 +139,7 @@ function getCompiler (build) {
 
   const fetcher = (url) => {
     const request = new Request(url);
+
     return cachedFetcher(request);
   };
 

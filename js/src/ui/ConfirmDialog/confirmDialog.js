@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -28,12 +28,14 @@ import styles from './confirmDialog.css';
 const DEFAULT_NO = (
   <FormattedMessage
     id='ui.confirmDialog.no'
-    defaultMessage='no' />
+    defaultMessage='no'
+  />
 );
 const DEFAULT_YES = (
   <FormattedMessage
     id='ui.confirmDialog.yes'
-    defaultMessage='yes' />
+    defaultMessage='yes'
+  />
 );
 
 export default class ConfirmDialog extends Component {
@@ -58,7 +60,8 @@ export default class ConfirmDialog extends Component {
         className={ className }
         actions={ this.renderActions() }
         title={ title }
-        visible={ visible }>
+        visible={ visible }
+      >
         <div className={ styles.body }>
           { children }
         </div>
@@ -73,11 +76,13 @@ export default class ConfirmDialog extends Component {
       <Button
         icon={ iconDeny || <CancelIcon /> }
         label={ labelDeny || DEFAULT_NO }
-        onClick={ onDeny } />,
+        onClick={ onDeny }
+      />,
       <Button
         icon={ iconConfirm || <CheckIcon /> }
         label={ labelConfirm || DEFAULT_YES }
-        onClick={ onConfirm } />
+        onClick={ onConfirm }
+      />
     ];
   }
 }

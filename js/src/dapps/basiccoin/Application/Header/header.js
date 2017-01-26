@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -56,7 +56,8 @@ export default class Header extends Component {
         style={ { background } }
         colSpan={ position ? 1 : 2 }
         rowSpan={ position ? 1 : 2 }
-        onClick={ this.onNavigate(page.path) }>
+        onClick={ this.onNavigate(page.path) }
+      >
         <div className={ styles.title }>
           { page.title }
         </div>

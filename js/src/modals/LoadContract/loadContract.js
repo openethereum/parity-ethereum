@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -35,7 +35,6 @@ const SELECTED_STYLE = {
 };
 
 export default class LoadContract extends Component {
-
   static propTypes = {
     onClose: PropTypes.func.isRequired,
     onLoad: PropTypes.func.isRequired,
@@ -264,6 +263,7 @@ export default class LoadContract extends Component {
 
   onConfirmRemoval = () => {
     const { deleteId } = this.state;
+
     this.props.onDelete(deleteId);
 
     this.setState({
@@ -279,5 +279,4 @@ export default class LoadContract extends Component {
       deleteId: -1
     });
   }
-
 }

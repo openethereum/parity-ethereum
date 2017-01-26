@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -66,6 +66,7 @@ export default class Application extends Component {
         .filter(tx => tx.isLocal)
         .map(data => {
           const tx = data.transaction;
+
           local[tx.hash].transaction = tx;
           local[tx.hash].stats = data.stats;
         });
@@ -73,6 +74,7 @@ export default class Application extends Component {
       // Convert local transactions to array
       const localTransactions = Object.keys(local).map(hash => {
         const data = local[hash];
+
         data.txHash = hash;
         return data;
       });
@@ -124,6 +126,7 @@ export default class Application extends Component {
 
   renderQueueSummary () {
     const { transactions } = this.state;
+
     if (!transactions.length) {
       return null;
     }
@@ -146,6 +149,7 @@ export default class Application extends Component {
 
   renderQueue () {
     const { blockNumber, transactions } = this.state;
+
     if (!transactions.length) {
       return (
         <h3>The queue seems is empty.</h3>
@@ -167,7 +171,7 @@ export default class Application extends Component {
                 transaction={ tx.transaction }
                 stats={ tx.stats }
                 blockNumber={ blockNumber }
-                />
+              />
             ))
           }
         </tbody>
@@ -177,6 +181,7 @@ export default class Application extends Component {
 
   renderLocals () {
     const { localTransactions } = this.state;
+
     if (!localTransactions.length) {
       return (
         <h3>You haven't sent any transactions yet.</h3>
@@ -198,7 +203,7 @@ export default class Application extends Component {
                 status={ tx.status }
                 stats={ tx.stats }
                 details={ tx }
-                />
+              />
             ))
           }
         </tbody>

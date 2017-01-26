@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -14,20 +14,23 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import React, { Component } from 'react';
-import { FormattedMessage } from 'react-intl';
 import { MenuItem } from 'material-ui';
 import { observer } from 'mobx-react';
+import React, { Component } from 'react';
+import { FormattedMessage } from 'react-intl';
+
+import { LocaleStore } from '~/i18n';
+import { FeaturesStore, FEATURES } from '../Features';
 
 import Select from '../Form/Select';
-import { LocaleStore } from '../../i18n';
 
 @observer
 export default class LanguageSelector extends Component {
+  features = FeaturesStore.get();
   store = LocaleStore.get();
 
   render () {
-    if (!this.store.isDevelopment) {
+    if (!this.features.active[FEATURES.LANGUAGE]) {
       return null;
     }
 
@@ -36,15 +39,18 @@ export default class LanguageSelector extends Component {
         hint={
           <FormattedMessage
             id='settings.parity.languages.hint'
-            defaultMessage='the language this interface is displayed with' />
+            defaultMessage='the language this interface is displayed with'
+          />
         }
         label={
           <FormattedMessage
             id='settings.parity.languages.label'
-            defaultMessage='UI language' />
+            defaultMessage='UI language'
+          />
         }
         value={ this.store.locale }
-        onChange={ this.onChange }>
+        onChange={ this.onChange }
+      >
         { this.renderOptions() }
       </Select>
     );
@@ -58,7 +64,8 @@ export default class LanguageSelector extends Component {
         <MenuItem
           key={ locale }
           value={ locale }
-          label={ label }>
+          label={ label }
+        >
           { label }
         </MenuItem>
       );
@@ -66,6 +73,6 @@ export default class LanguageSelector extends Component {
   }
 
   onChange = (event, index, locale) => {
-    this.store.setLocale(locale);
+    this.store.setLocale(locale || event.target.value);
   }
 }

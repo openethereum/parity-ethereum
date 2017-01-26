@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -34,6 +34,7 @@ function stubApi (blockNumber) {
     eth: {
       blockNumber: () => {
         const stub = sinon.stub().resolves(new BigNumber(blockNumber || START_BLOCK))();
+
         _calls.blockNumber.push(stub);
         return stub;
       }

@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -66,6 +66,7 @@ class TokenSelect extends Component {
         const token = balance.token;
         const isEth = index === 0;
         let imagesrc = token.image;
+
         if (!imagesrc) {
           imagesrc =
             images[token.address]
@@ -79,6 +80,7 @@ class TokenSelect extends Component {
         } else {
           const format = balance.token.format || 1;
           const decimals = format === 1 ? 0 : Math.min(3, Math.floor(format / 10));
+
           value = new BigNumber(balance.value).div(format).toFormat(decimals);
         }
 
@@ -96,9 +98,10 @@ class TokenSelect extends Component {
 
         return (
           <MenuItem
-            key={ token.tag }
+            key={ `${index}_${token.tag}` }
             value={ token.tag }
-            label={ label }>
+            label={ label }
+          >
             { label }
           </MenuItem>
         );
@@ -169,14 +172,16 @@ export default class Details extends Component {
               hint='the amount to transfer to the recipient'
               value={ value }
               error={ valueError }
-              onChange={ this.onEditValue } />
+              onChange={ this.onEditValue }
+            />
           </div>
           <div>
             <Checkbox
               checked={ all }
               label='full account balance'
               onCheck={ this.onCheckAll }
-              style={ CHECK_STYLE } />
+              style={ CHECK_STYLE }
+            />
           </div>
         </div>
         <div className={ styles.columns }>
@@ -184,7 +189,8 @@ export default class Details extends Component {
             <Input
               disabled
               label='total transaction amount'
-              error={ totalError }>
+              error={ totalError }
+            >
               <div className={ styles.inputoverride }>
                 { total }<small> ETH</small>
               </div>
@@ -196,7 +202,8 @@ export default class Details extends Component {
               checked={ extras }
               label='advanced sending options'
               onCheck={ this.onCheckExtras }
-              style={ CHECK_STYLE } />
+              style={ CHECK_STYLE }
+            />
           </div>
         </div>
       </Form>
@@ -235,7 +242,8 @@ export default class Details extends Component {
           hint='the recipient address'
           error={ recipientError }
           value={ recipient }
-          onChange={ this.onEditRecipient } />
+          onChange={ this.onEditRecipient }
+        />
       </div>
     );
   }

@@ -1,4 +1,4 @@
-// Copyright 2016 Ethcore (UK) Ltd.
+// Copyright 2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -66,6 +66,7 @@ fn miner_service(spec: &Spec, accounts: Arc<AccountProvider>) -> Arc<Miner> {
 			reseal_min_period: Duration::from_secs(0),
 			work_queue_size: 50,
 			enable_resubmission: true,
+			refuse_service_transactions: false,
 		},
 		GasPricer::new_fixed(20_000_000_000u64.into()),
 		&spec,
@@ -116,7 +117,6 @@ impl EthTester {
 	fn from_spec(spec: Spec) -> Self {
 		let dir = RandomTempPath::new();
 		let account_provider = account_provider();
-		spec.engine.register_account_provider(account_provider.clone());
 		let miner_service = miner_service(&spec, account_provider.clone());
 		let snapshot_service = snapshot_service();
 
@@ -206,6 +206,16 @@ fn eth_block_number() {
 
 	let res_number = r#"{"jsonrpc":"2.0","result":"0x20","id":1}"#.to_owned();
 	assert_eq!(tester.handler.handle_request_sync(req_number).unwrap(), res_number);
+}
+
+#[test]
+fn eth_get_block() {
+	let chain = extract_chain!("BlockchainTests/bcRPC_API_Test");
+	let tester = EthTester::from_chain(&chain);
+	let req_block = r#"{"method":"eth_getBlockByNumber","params":["0x0",false],"id":1,"jsonrpc":"2.0"}"#;
+
+	let res_block = r#"{"jsonrpc":"2.0","result":{"author":"0x8888f1f195afa192cfee860698584c030f4c9db1","difficulty":"0x20000","extraData":"0x42","gasLimit":"0x2fefd8","gasUsed":"0x0","hash":"0x5a39ed1020c04d4d84539975b893a4e7c53eab6c2965db8bc3468093a31bc5ae","logsBloom":"0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000","miner":"0x8888f1f195afa192cfee860698584c030f4c9db1","mixHash":"0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421","nonce":"0x0102030405060708","number":"0x0","parentHash":"0x0000000000000000000000000000000000000000000000000000000000000000","receiptsRoot":"0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421","sealFields":["0xa056e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421","0x880102030405060708"],"sha3Uncles":"0x1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347","size":"0x1ff","stateRoot":"0x7dba07d6b448a186e9612e5f737d1c909dce473e53199901a302c00646d523c1","timestamp":"0x54c98c81","totalDifficulty":"0x20000","transactions":[],"transactionsRoot":"0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421","uncles":[]},"id":1}"#.to_owned();
+	assert_eq!(tester.handler.handle_request_sync(req_block).unwrap(), res_block);
 }
 
 // a frontier-like test with an expanded gas limit and balance on known account.

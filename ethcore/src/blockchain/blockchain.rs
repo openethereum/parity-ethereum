@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -34,7 +34,6 @@ use blockchain::update::ExtrasUpdate;
 use blockchain::{CacheSize, ImportRoute, Config};
 use db::{self, Writable, Readable, CacheUpdatePolicy};
 use cache_manager::CacheManager;
-use engines::Engine;
 use encoded;
 
 const LOG_BLOOMS_LEVELS: usize = 3;
@@ -200,9 +199,6 @@ pub struct BlockChain {
 	pending_block_hashes: RwLock<HashMap<BlockNumber, H256>>,
 	pending_block_details: RwLock<HashMap<H256, BlockDetails>>,
 	pending_transaction_addresses: RwLock<HashMap<H256, Option<TransactionAddress>>>,
-
-	// Used for block ordering.
-	engine: Arc<Engine>,
 }
 
 impl BlockProvider for BlockChain {
@@ -424,8 +420,8 @@ impl<'a> Iterator for AncestryIter<'a> {
 }
 
 impl BlockChain {
-	/// Create new instance of blockchain from given Genesis and block picking rules of Engine.
-	pub fn new(config: Config, genesis: &[u8], db: Arc<Database>, engine: Arc<Engine>) -> BlockChain {
+	/// Create new instance of blockchain from given Genesis.
+	pub fn new(config: Config, genesis: &[u8], db: Arc<Database>) -> BlockChain {
 		// 400 is the avarage size of the key
 		let cache_man = CacheManager::new(config.pref_cache_size, config.max_cache_size, 400);
 
@@ -450,7 +446,6 @@ impl BlockChain {
 			pending_block_hashes: RwLock::new(HashMap::new()),
 			pending_block_details: RwLock::new(HashMap::new()),
 			pending_transaction_addresses: RwLock::new(HashMap::new()),
-			engine: engine,
 		};
 
 		// load best block
@@ -867,7 +862,7 @@ impl BlockChain {
 		let number = header.number();
 		let parent_hash = header.parent_hash();
 		let parent_details = self.block_details(&parent_hash).unwrap_or_else(|| panic!("Invalid parent hash: {:?}", parent_hash));
-		let is_new_best = self.engine.is_new_best_block(self.best_block_total_difficulty(), self.best_block_header().view(), &parent_details, header);
+		let is_new_best = parent_details.total_difficulty + header.difficulty() > self.best_block_total_difficulty();
 
 		BlockInfo {
 			hash: hash,
@@ -1328,7 +1323,6 @@ mod tests {
 	use views::BlockView;
 	use transaction::{Transaction, Action};
 	use log_entry::{LogEntry, LocalizedLogEntry};
-	use spec::Spec;
 	use ethkey::Secret;
 
 	fn new_db(path: &str) -> Arc<Database> {
@@ -1336,7 +1330,7 @@ mod tests {
 	}
 
 	fn new_chain(genesis: &[u8], db: Arc<Database>) -> BlockChain {
-		BlockChain::new(Config::default(), genesis, db, Spec::new_null().engine)
+		BlockChain::new(Config::default(), genesis, db)
 	}
 
 	#[test]
@@ -1902,7 +1896,7 @@ mod tests {
 		let db = new_db(temp.as_str());
 		let bc = new_chain(&genesis, db.clone());
 		insert_block(&db, &bc, &b1, vec![Receipt {
-			state_root: H256::default(),
+			state_root: Some(H256::default()),
 			gas_used: 10_000.into(),
 			log_bloom: Default::default(),
 			logs: vec![
@@ -1911,7 +1905,7 @@ mod tests {
 			],
 		},
 		Receipt {
-			state_root: H256::default(),
+			state_root: Some(H256::default()),
 			gas_used: 10_000.into(),
 			log_bloom: Default::default(),
 			logs: vec![
@@ -1920,7 +1914,7 @@ mod tests {
 		}]);
 		insert_block(&db, &bc, &b2, vec![
 			Receipt {
-				state_root: H256::default(),
+				state_root: Some(H256::default()),
 				gas_used: 10_000.into(),
 				log_bloom: Default::default(),
 				logs: vec![

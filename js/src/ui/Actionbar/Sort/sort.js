@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -60,7 +60,7 @@ export default class ActionbarSort extends Component {
             label=''
             icon={ <SortIcon /> }
             onClick={ this.store.handleMenuOpen }
-            />
+          />
         }
         open={ this.store.menuOpen }
         onRequestChange={ this.store.handleMenuChange }
@@ -116,5 +116,4 @@ export default class ActionbarSort extends Component {
       />
     );
   }
-
 }

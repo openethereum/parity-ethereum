@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -19,11 +19,11 @@ import React, { Component, PropTypes } from 'react';
 import styles from './Markdown.css';
 
 export default class Marked extends Component {
-
   state = {}
 
   render () {
     let { parsed } = this.state;
+
     if (!parsed) {
       return null;
     }
@@ -54,5 +54,4 @@ export default class Marked extends Component {
     val: PropTypes.any,
     style: PropTypes.object
   }
-
 }

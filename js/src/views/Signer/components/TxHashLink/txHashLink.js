@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -33,10 +33,10 @@ export default class TxHashLink extends Component {
       <a
         className={ className }
         href={ txLink(txHash, isTest) }
-        target='_blank'>
+        target='_blank'
+      >
         { children || txHash }
       </a>
     );
   }
-
 }

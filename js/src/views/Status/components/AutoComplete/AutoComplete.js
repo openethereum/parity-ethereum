@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -18,7 +18,6 @@ import React, { Component, PropTypes } from 'react';
 import AutoComplete from 'material-ui/AutoComplete';
 
 export default class WrappedAutoComplete extends Component {
-
   render () {
     return (
       <AutoComplete { ...this.props } />
@@ -40,5 +39,4 @@ export default class WrappedAutoComplete extends Component {
   static contextTypes = {
     muiTheme: PropTypes.object.isRequired
   }
-
 }

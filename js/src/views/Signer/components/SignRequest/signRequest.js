@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -76,7 +76,8 @@ export default class SignRequest extends Component {
           <Account
             address={ address }
             balance={ balance }
-            isTest={ isTest } />
+            isTest={ isTest }
+          />
         </div>
         <div className={ styles.info } title={ hash }>
           <p>Dapp is requesting to sign arbitrary transaction using this account.</p>
@@ -101,7 +102,8 @@ export default class SignRequest extends Component {
               <TxHashLink
                 isTest={ isTest }
                 txHash={ hash }
-                className={ styles.txHash } />
+                className={ styles.txHash }
+              />
             </div>
           </div>
         );
@@ -122,7 +124,7 @@ export default class SignRequest extends Component {
         onConfirm={ this.onConfirm }
         onReject={ this.onReject }
         className={ styles.actions }
-        />
+      />
     );
   }
 

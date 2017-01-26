@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -41,14 +41,16 @@ class Balance extends Component {
 
     let body = (balance.tokens || [])
       .filter((balance) => new BigNumber(balance.value).gt(0))
-      .map((balance) => {
+      .map((balance, index) => {
         const token = balance.token;
 
         let value;
+
         if (token.format) {
           const bnf = new BigNumber(token.format);
 
           let decimals = 0;
+
           if (bnf.gte(1000)) {
             decimals = 3;
           } else if (bnf.gte(100)) {
@@ -76,10 +78,12 @@ class Balance extends Component {
         return (
           <div
             className={ styles.balance }
-            key={ token.tag }>
+            key={ `${index}_${token.tag}` }
+          >
             <img
               src={ imagesrc }
-              alt={ token.name } />
+              alt={ token.name }
+            />
             <div className={ styles.balanceValue }>
               <span title={ value }> { value } </span>
             </div>

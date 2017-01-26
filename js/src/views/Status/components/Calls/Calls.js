@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -20,7 +20,6 @@ import CallsToolbar from '../CallsToolbar';
 import styles from './Calls.css';
 
 export default class Calls extends Component {
-
   state = {
     activeCall: null,
     activeChild: null
@@ -60,7 +59,7 @@ export default class Calls extends Component {
         title='Clear RPC calls history'
         onClick={ this.clearHistory }
         className={ styles.removeIcon }
-        >
+      >
         <i className='icon-trash' />
       </a>
     );
@@ -121,5 +120,4 @@ export default class Calls extends Component {
     }).isRequired,
     reset: PropTypes.func
   }
-
 }

@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -37,6 +37,7 @@ export default class Decoder {
 
     return params.map((param) => {
       const result = Decoder.decodeParam(param, slices, offset);
+
       offset = result.newOffset;
       return result.token;
     });
@@ -121,6 +122,7 @@ export default class Decoder {
 
         for (let idx = 0; idx < length; idx++) {
           const result = Decoder.decodeParam(param.subtype, slices, newOffset);
+
           newOffset = result.newOffset;
           tokens.push(result.token);
         }
@@ -132,6 +134,7 @@ export default class Decoder {
 
         for (let idx = 0; idx < param.length; idx++) {
           const result = Decoder.decodeParam(param.subtype, slices, newOffset);
+
           newOffset = result.newOffset;
           tokens.push(result.token);
         }

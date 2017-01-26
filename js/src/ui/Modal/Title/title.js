@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -58,8 +58,7 @@ export default class Title extends Component {
 
     return (
       <div className={ styles.steps }>
-        <Stepper
-          activeStep={ current }>
+        <Stepper activeStep={ current }>
           { this.renderTimeline() }
         </Stepper>
       </div>
@@ -71,8 +70,7 @@ export default class Title extends Component {
 
     return steps.map((label, index) => {
       return (
-        <Step
-          key={ label.key || index }>
+        <Step key={ label.key || index }>
           <StepLabel>
             { label }
           </StepLabel>

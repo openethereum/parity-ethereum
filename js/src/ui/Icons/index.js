@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import AddIcon from 'material-ui/svg-icons/content/add';
+import AttachFileIcon from 'material-ui/svg-icons/editor/attach-file';
 import CancelIcon from 'material-ui/svg-icons/content/clear';
 import CheckIcon from 'material-ui/svg-icons/navigation/check';
 import CloseIcon from 'material-ui/svg-icons/navigation/close';
@@ -25,10 +26,14 @@ import DashboardIcon from 'material-ui/svg-icons/action/dashboard';
 import DeleteIcon from 'material-ui/svg-icons/action/delete';
 import DoneIcon from 'material-ui/svg-icons/action/done-all';
 import EditIcon from 'material-ui/svg-icons/content/create';
+import FingerprintIcon from 'material-ui/svg-icons/action/fingerprint';
 import LinkIcon from 'material-ui/svg-icons/content/link';
 import LockedIcon from 'material-ui/svg-icons/action/lock';
+import MoveIcon from 'material-ui/svg-icons/action/open-with';
 import NextIcon from 'material-ui/svg-icons/navigation/arrow-forward';
 import PrevIcon from 'material-ui/svg-icons/navigation/arrow-back';
+import PrintIcon from 'material-ui/svg-icons/action/print';
+import RefreshIcon from 'material-ui/svg-icons/action/autorenew';
 import SaveIcon from 'material-ui/svg-icons/content/save';
 import SendIcon from 'material-ui/svg-icons/content/send';
 import SnoozeIcon from 'material-ui/svg-icons/av/snooze';
@@ -38,6 +43,7 @@ import VpnIcon from 'material-ui/svg-icons/notification/vpn-lock';
 
 export {
   AddIcon,
+  AttachFileIcon,
   CancelIcon,
   CheckIcon,
   CloseIcon,
@@ -48,10 +54,14 @@ export {
   DeleteIcon,
   DoneIcon,
   EditIcon,
+  FingerprintIcon,
   LinkIcon,
   LockedIcon,
+  MoveIcon,
   NextIcon,
   PrevIcon,
+  PrintIcon,
+  RefreshIcon,
   SaveIcon,
   SendIcon,
   SnoozeIcon,

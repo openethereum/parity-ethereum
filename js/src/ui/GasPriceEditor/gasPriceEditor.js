@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -53,7 +53,8 @@ export default class GasPriceEditor extends Component {
           <GasPriceSelector
             histogram={ histogram }
             onChange={ this.onEditGasPrice }
-            price={ price } />
+            price={ price }
+          />
           <div className={ styles.gasPriceDesc }>
             You can choose the gas price based on the distribution of recent included transaction gas prices. The lower the gas price is, the cheaper the transaction will be. The higher the gas price is, the faster it should get mined by the network.
           </div>
@@ -66,13 +67,15 @@ export default class GasPriceEditor extends Component {
               hint='the amount of gas to use for the transaction'
               label={ gasLabel }
               onChange={ this.onEditGas }
-              value={ gas } />
+              value={ gas }
+            />
             <Input
               error={ errorPrice }
               hint='the price of gas to use for the transaction'
               label={ priceLabel }
               onChange={ this.onEditGasPrice }
-              value={ price } />
+              value={ price }
+            />
           </div>
           <div className={ styles.row }>
             <Input
@@ -80,7 +83,8 @@ export default class GasPriceEditor extends Component {
               error={ errorTotal }
               hint='the total amount of the transaction'
               label='total transaction amount'
-              value={ `${eth} ETH` } />
+              value={ `${eth} ETH` }
+            />
           </div>
           <div className={ styles.row }>
             { children }

@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -64,7 +64,7 @@ use trace::{TraceDB, ImportRequest as TraceImportRequest, LocalizedTrace, Databa
 use trace;
 use trace::FlatTransactionTraces;
 use evm::{Factory as EvmFactory, Schedule};
-use miner::{Miner, MinerService};
+use miner::{Miner, MinerService, TransactionImportResult};
 use snapshot::{self, io as snapshot_io};
 use factory::Factories;
 use rlp::{View, UntrustedRlp};
@@ -192,7 +192,7 @@ impl Client {
 		}
 
 		let gb = spec.genesis_block();
-		let chain = Arc::new(BlockChain::new(config.blockchain.clone(), &gb, db.clone(), spec.engine.clone()));
+		let chain = Arc::new(BlockChain::new(config.blockchain.clone(), &gb, db.clone()));
 		let tracedb = RwLock::new(TraceDB::new(config.tracing.clone(), db.clone(), chain.clone()));
 
 		trace!("Cleanup journal: DB Earliest = {:?}, Latest = {:?}", state_db.journal_db().earliest_era(), state_db.journal_db().latest_era());
@@ -205,17 +205,6 @@ impl Client {
 		} else {
 			config.history
 		};
-
-		if let (Some(earliest), Some(latest)) = (state_db.journal_db().earliest_era(), state_db.journal_db().latest_era()) {
-			if latest > earliest && latest - earliest > history {
-				for era in earliest..(latest - history + 1) {
-					trace!("Removing era {}", era);
-					let mut batch = DBTransaction::new(&db);
-					state_db.mark_canonical(&mut batch, era, &chain.block_hash(era).expect("Old block not found in the database"))?;
-					db.write(batch).map_err(ClientError::Database)?;
-				}
-			}
-		}
 
 		if !chain.block_header(&chain.best_block_hash()).map_or(true, |h| state_db.journal_db().contains(h.state_root())) {
 			warn!("State root not found for block #{} ({})", chain.best_block_number(), chain.best_block_hash().hex());
@@ -257,6 +246,13 @@ impl Client {
 			on_mode_change: Mutex::new(None),
 			registrar: Mutex::new(None),
 		});
+
+		{
+			let state_db = client.state_db.lock().boxed_clone();
+			let chain = client.chain.read();
+			client.prune_ancient(state_db, &chain)?;
+		}
+
 		if let Some(reg_addr) = client.additional_params().get("registrar").and_then(|s| Address::from_str(s).ok()) {
 			trace!(target: "client", "Found registrar at {}", reg_addr);
 			let weak = Arc::downgrade(&client);
@@ -553,16 +549,6 @@ impl Client {
 		let mut state = block.drain();
 
 		state.journal_under(&mut batch, number, hash).expect("DB commit failed");
-
-		if number >= self.history {
-			let n = number - self.history;
-			if let Some(ancient_hash) = chain.block_hash(n) {
-				state.mark_canonical(&mut batch, n, &ancient_hash).expect("DB commit failed");
-			} else {
-				debug!(target: "client", "Missing expected hash for block {}", n);
-			}
-		}
-
 		let route = chain.insert_block(&mut batch, block_data, receipts);
 		self.tracedb.read().import(&mut batch, TraceImportRequest {
 			traces: traces.into(),
@@ -578,7 +564,47 @@ impl Client {
 		self.db.read().write_buffered(batch);
 		chain.commit();
 		self.update_last_hashes(&parent, hash);
+
+		if let Err(e) = self.prune_ancient(state, &chain) {
+			warn!("Failed to prune ancient state data: {}", e);
+		}
+
 		route
+	}
+
+	// prune ancient states until below the memory limit or only the minimum amount remain.
+	fn prune_ancient(&self, mut state_db: StateDB, chain: &BlockChain) -> Result<(), ClientError> {
+		let number = match state_db.journal_db().latest_era() {
+			Some(n) => n,
+			None => return Ok(()),
+		};
+
+		// prune all ancient eras until we're below the memory target,
+		// but have at least the minimum number of states.
+		loop {
+			let needs_pruning = state_db.journal_db().is_pruned() &&
+				state_db.journal_db().journal_size() >= self.config.history_mem;
+
+			if !needs_pruning { break }
+			match state_db.journal_db().earliest_era() {
+				Some(era) if era + self.history <= number => {
+					trace!(target: "client", "Pruning state for ancient era {}", era);
+					match chain.block_hash(era) {
+						Some(ancient_hash) => {
+							let mut batch = DBTransaction::new(&self.db.read());
+							state_db.mark_canonical(&mut batch, era, &ancient_hash)?;
+							self.db.read().write_buffered(batch);
+							state_db.journal_db().flush();
+						}
+						None =>
+							debug!(target: "client", "Missing expected hash for block {}", era),
+					}
+				}
+				_ => break, // means that every era is kept, no pruning necessary.
+			}
+		}
+
+		Ok(())
 	}
 
 	fn update_last_hashes(&self, parent: &H256, hash: &H256) {
@@ -831,7 +857,7 @@ impl snapshot::DatabaseRestore for Client {
 
 		let cache_size = state_db.cache_size();
 		*state_db = StateDB::new(journaldb::new(db.clone(), self.pruning, ::db::COL_STATE), cache_size);
-		*chain = Arc::new(BlockChain::new(self.config.blockchain.clone(), &[], db.clone(), self.engine.clone()));
+		*chain = Arc::new(BlockChain::new(self.config.blockchain.clone(), &[], db.clone()));
 		*tracedb = TraceDB::new(self.config.tracing.clone(), db.clone(), chain.clone());
 		Ok(())
 	}
@@ -1408,7 +1434,6 @@ impl BlockChainClient for Client {
 		PruningInfo {
 			earliest_chain: self.chain.read().first_block_number().unwrap_or(1),
 			earliest_state: self.state_db.lock().journal_db().earliest_era().unwrap_or(0),
-			state_history_size: Some(self.history),
 		}
 	}
 
@@ -1428,6 +1453,21 @@ impl BlockChainClient for Client {
 			.map(|executed| {
 				executed.output
 			})
+	}
+
+	fn transact_contract(&self, address: Address, data: Bytes) -> Result<TransactionImportResult, EthcoreError> {
+		let transaction = Transaction {
+			nonce: self.latest_nonce(&self.miner.author()),
+			action: Action::Call(address),
+			gas: self.miner.gas_floor_target(),
+			gas_price: self.miner.sensible_gas_price(),
+			value: U256::zero(),
+			data: data,
+		};
+		let network_id = self.engine.signing_network_id(&self.latest_env_info());
+		let signature = self.engine.sign(transaction.hash(network_id))?;
+		let signed = SignedTransaction::new(transaction.with_signature(signature, network_id))?;
+		self.miner.import_own_transaction(self, signed.into())
 	}
 
 	fn registrar_address(&self) -> Option<Address> {
@@ -1673,7 +1713,7 @@ mod tests {
 
 		let block_number = 1;
 		let block_hash = 5.into();
-		let state_root = 99.into();
+		let state_root = Some(99.into());
 		let gas_used = 10.into();
 		let raw_tx = Transaction {
 			nonce: 0.into(),

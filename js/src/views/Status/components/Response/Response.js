@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -20,7 +20,6 @@ import { isArray, isPlainObject } from 'lodash';
 import styles from './Response.css';
 
 export default class Response extends Component {
-
   render () {
     let { response } = this.props;
     let formatted;
@@ -37,6 +36,7 @@ export default class Response extends Component {
 
   renderArray () {
     let { response } = this.props;
+
     return response.map((r, idx) => (
       <span key={ idx }>
         { idx === 0 ? '[' : ',' }
@@ -50,6 +50,7 @@ export default class Response extends Component {
   renderObject () {
     let { response } = this.props;
     const arr = JSON.stringify(response, null, 1).split('\n');
+
     return arr.map((any, idx) => (
       <span key={ idx }>
         { any }
@@ -61,5 +62,4 @@ export default class Response extends Component {
   static propTypes = {
     response: PropTypes.any.isRequired
   }
-
 }

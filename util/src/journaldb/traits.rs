@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -28,6 +28,11 @@ pub trait JournalDB: HashDB {
 
 	/// Returns heap memory size used
 	fn mem_used(&self) -> usize;
+
+	/// Returns the size of journalled state in memory.
+	/// This function has a considerable speed requirement --
+	/// it must be fast enough to call several times per block imported.
+	fn journal_size(&self) -> usize { 0 }
 
 	/// Check if this database has any commits
 	fn is_empty(&self) -> bool;

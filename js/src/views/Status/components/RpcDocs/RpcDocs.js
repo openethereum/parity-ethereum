@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -31,7 +31,6 @@ import RpcNav from '../RpcNav';
 const rpcMethods = sortBy(rpcData.methods, 'name');
 
 class RpcDocs extends Component {
-
   render () {
     return (
       <div className='dapp-flex-content'>
@@ -98,7 +97,6 @@ class RpcDocs extends Component {
   handleMethodChange = name => {
     ReactDOM.findDOMNode(this[`_method-${name}`]).scrollIntoViewIfNeeded();
   }
-
 }
 
 export default RpcDocs;

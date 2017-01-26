@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -11,12 +11,17 @@
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
-//! Canonical hash trie definitions and helper functions.
+// You should have received a copy of the GNU General Public License
+// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-/// The size of each CHT.
-pub const SIZE: u64 = 2048;
+const DEFAULT_LOCALE = 'en';
+const DEFAULT_LOCALES = process.env.NODE_ENV === 'production'
+  ? ['en']
+  : ['en', 'de'];
+const LS_STORE_KEY = '_parity::locale';
 
-/// Convert a block number to a CHT number.
-pub fn block_to_cht_number(block_num: u64) -> u64 {
-	(block_num + 1) / SIZE
-}
+export {
+  DEFAULT_LOCALE,
+  DEFAULT_LOCALES,
+  LS_STORE_KEY
+};

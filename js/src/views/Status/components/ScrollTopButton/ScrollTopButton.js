@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -24,7 +24,6 @@ import styles from './ScrollTopButton.css';
 const scrollTopThreshold = 600;
 
 export default class ScrollTopButton extends Component {
-
   state = {}
 
   componentDidMount () {
@@ -45,7 +44,8 @@ export default class ScrollTopButton extends Component {
     return (
       <IconButton
         className={ `${styles.scrollButton} ${hiddenClass}` }
-        onTouchTap={ this._scrollToTop }>
+        onTouchTap={ this._scrollToTop }
+      >
         <ArrowUpwardIcon />
       </IconButton>
     );
@@ -67,5 +67,4 @@ export default class ScrollTopButton extends Component {
       });
     }
   }
-
 }

@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -67,22 +67,24 @@ class Tooltip extends Component {
           key='skipButton'
           icon={ <ContentClear /> }
           label='Skip'
-          onTouchTap={ onCloseTooltips } />,
+          onTouchTap={ onCloseTooltips }
+        />,
         <FlatButton
           key='nextButton'
           icon={ <NavigationArrowForward /> }
           label='Next'
-          onTouchTap={ onNextTooltip } />
+          onTouchTap={ onNextTooltip }
+        />
       ] : (
         <FlatButton
           icon={ <ActionDoneAll /> }
           label='Done'
-          onTouchTap={ onCloseTooltips } />
+          onTouchTap={ onCloseTooltips }
+        />
       );
 
     return (
-      <div
-        className={ classes }>
+      <div className={ classes }>
         <div className={ styles.title }>
           { this.props.title }
         </div>

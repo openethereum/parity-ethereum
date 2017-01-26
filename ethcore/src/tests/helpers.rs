@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -19,6 +19,7 @@ use io::*;
 use client::{BlockChainClient, Client, ClientConfig};
 use util::*;
 use spec::*;
+use account_provider::AccountProvider;
 use state_db::StateDB;
 use block::{OpenBlock, Drain};
 use blockchain::{BlockChain, Config as BlockChainConfig};
@@ -140,7 +141,16 @@ pub fn generate_dummy_client_with_data(block_number: u32, txs_per_block: usize, 
 	generate_dummy_client_with_spec_and_data(Spec::new_null, block_number, txs_per_block, tx_gas_prices)
 }
 
+
 pub fn generate_dummy_client_with_spec_and_data<F>(get_test_spec: F, block_number: u32, txs_per_block: usize, tx_gas_prices: &[U256]) -> GuardedTempResult<Arc<Client>> where F: Fn()->Spec {
+	generate_dummy_client_with_spec_accounts_and_data(get_test_spec, None, block_number, txs_per_block, tx_gas_prices)
+}
+
+pub fn generate_dummy_client_with_spec_and_accounts<F>(get_test_spec: F, accounts: Option<Arc<AccountProvider>>) -> GuardedTempResult<Arc<Client>> where F: Fn()->Spec {
+	generate_dummy_client_with_spec_accounts_and_data(get_test_spec, accounts, 0, 0, &[])
+}
+
+pub fn generate_dummy_client_with_spec_accounts_and_data<F>(get_test_spec: F, accounts: Option<Arc<AccountProvider>>, block_number: u32, txs_per_block: usize, tx_gas_prices: &[U256]) -> GuardedTempResult<Arc<Client>> where F: Fn()->Spec {
 	let dir = RandomTempPath::new();
 	let test_spec = get_test_spec();
 	let db_config = DatabaseConfig::with_columns(::db::NUM_COLUMNS);
@@ -149,7 +159,7 @@ pub fn generate_dummy_client_with_spec_and_data<F>(get_test_spec: F, block_numbe
 		ClientConfig::default(),
 		&test_spec,
 		dir.as_path(),
-		Arc::new(Miner::with_spec(&test_spec)),
+		Arc::new(Miner::with_spec_and_accounts(&test_spec, accounts)),
 		IoChannel::disconnected(),
 		&db_config
 	).unwrap();
@@ -284,7 +294,7 @@ fn new_db(path: &str) -> Arc<Database> {
 pub fn generate_dummy_blockchain(block_number: u32) -> GuardedTempResult<BlockChain> {
 	let temp = RandomTempPath::new();
 	let db = new_db(temp.as_str());
-	let bc = BlockChain::new(BlockChainConfig::default(), &create_unverifiable_block(0, H256::zero()), db.clone(), Spec::new_null().engine);
+	let bc = BlockChain::new(BlockChainConfig::default(), &create_unverifiable_block(0, H256::zero()), db.clone());
 
 	let mut batch = db.transaction();
 	for block_order in 1..block_number {
@@ -302,7 +312,7 @@ pub fn generate_dummy_blockchain(block_number: u32) -> GuardedTempResult<BlockCh
 pub fn generate_dummy_blockchain_with_extra(block_number: u32) -> GuardedTempResult<BlockChain> {
 	let temp = RandomTempPath::new();
 	let db = new_db(temp.as_str());
-	let bc = BlockChain::new(BlockChainConfig::default(), &create_unverifiable_block(0, H256::zero()), db.clone(), Spec::new_null().engine);
+	let bc = BlockChain::new(BlockChainConfig::default(), &create_unverifiable_block(0, H256::zero()), db.clone());
 
 
 	let mut batch = db.transaction();
@@ -321,7 +331,7 @@ pub fn generate_dummy_blockchain_with_extra(block_number: u32) -> GuardedTempRes
 pub fn generate_dummy_empty_blockchain() -> GuardedTempResult<BlockChain> {
 	let temp = RandomTempPath::new();
 	let db = new_db(temp.as_str());
-	let bc = BlockChain::new(BlockChainConfig::default(), &create_unverifiable_block(0, H256::zero()), db.clone(), Spec::new_null().engine);
+	let bc = BlockChain::new(BlockChainConfig::default(), &create_unverifiable_block(0, H256::zero()), db.clone());
 
 	GuardedTempResult::<BlockChain> {
 		_temp: temp,

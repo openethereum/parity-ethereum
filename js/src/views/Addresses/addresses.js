@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -68,6 +68,7 @@ class Addresses extends Component {
   setVisibleAccounts (props = this.props) {
     const { contacts, setVisibleAccounts } = props;
     const addresses = Object.keys(contacts);
+
     setVisibleAccounts(addresses);
   }
 
@@ -116,7 +117,8 @@ class Addresses extends Component {
         key='sortAccounts'
         id='sortAddresses'
         order={ this.state.sortOrder }
-        onChange={ onChange } />
+        onChange={ onChange }
+      />
     );
   }
 
@@ -129,7 +131,8 @@ class Addresses extends Component {
       <ActionbarSearch
         key='searchAddress'
         tokens={ this.state.searchTokens }
-        onChange={ onChange } />
+        onChange={ onChange }
+      />
     );
   }
 
@@ -141,19 +144,18 @@ class Addresses extends Component {
         key='newAddress'
         icon={ <ContentAdd /> }
         label='new address'
-        onClick={ this.onOpenAdd } />,
-
+        onClick={ this.onOpenAdd }
+      />,
       <ActionbarExport
         key='exportAddressbook'
         content={ contacts }
-        filename='addressbook' />,
-
+        filename='addressbook'
+      />,
       <ActionbarImport
         key='importAddressbook'
         onConfirm={ this.onImport }
         renderValidation={ this.renderValidation }
       />,
-
       this.renderSearchButton(),
       this.renderSortButton()
     ];
@@ -162,7 +164,8 @@ class Addresses extends Component {
       <Actionbar
         className={ styles.toolbar }
         title='Saved Addresses'
-        buttons={ buttons } />
+        buttons={ buttons }
+      />
     );
   }
 
@@ -177,7 +180,8 @@ class Addresses extends Component {
     return (
       <AddAddress
         contacts={ contacts }
-        onClose={ this.onCloseAdd } />
+        onClose={ this.onCloseAdd }
+      />
     );
   }
 
@@ -244,6 +248,7 @@ class Addresses extends Component {
   onAddSearchToken = (token) => {
     const { searchTokens } = this.state;
     const newSearchTokens = uniq([].concat(searchTokens, token));
+
     this.setState({ searchTokens: newSearchTokens });
   }
 

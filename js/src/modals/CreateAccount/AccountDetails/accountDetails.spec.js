@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -14,12 +14,29 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-module.exports = [
-  { name: 'basiccoin', entry: 'basiccoin.js', title: 'Basic Token Deployment' },
-  { name: 'dappreg', entry: 'dappreg.js', title: 'Dapp Registry', secure: true },
-  { name: 'githubhint', entry: 'githubhint.js', title: 'GitHub Hint', secure: true },
-  { name: 'localtx', entry: 'localtx.js', title: 'Local transactions Viewer', secure: true },
-  { name: 'registry', entry: 'registry.js', title: 'Registry' },
-  { name: 'signaturereg', entry: 'signaturereg.js', title: 'Method Signature Registry' },
-  { name: 'tokenreg', entry: 'tokenreg.js', title: 'Token Registry' }
-];
+import { shallow } from 'enzyme';
+import React from 'react';
+
+import { createStore } from '../createAccount.test.js';
+
+import AccountDetails from './';
+
+let component;
+let store;
+
+function render () {
+  store = createStore();
+  component = shallow(
+    <AccountDetails
+      store={ store }
+    />
+  );
+
+  return component;
+}
+
+describe('modals/CreateAccount/AccountDetails', () => {
+  it('renders with defaults', () => {
+    expect(render()).to.be.ok;
+  });
+});

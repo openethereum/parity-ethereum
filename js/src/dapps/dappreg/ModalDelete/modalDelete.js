@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -53,7 +53,8 @@ export default class ModalDelete extends Component {
       <Modal
         buttons={ this.renderButtons() }
         error={ this.modalStore.errorDelete }
-        header={ HEADERS[this.modalStore.stepDelete] }>
+        header={ HEADERS[this.modalStore.stepDelete] }
+      >
         { this.renderStep() }
       </Modal>
     );
@@ -67,19 +68,22 @@ export default class ModalDelete extends Component {
           <Button
             key='close'
             label='Close'
-            onClick={ this.onClickClose } />
+            onClick={ this.onClickClose }
+          />
         ];
       case STEP_CONFIRM:
         return [
           <Button
             key='cancel'
             label='No, Cancel'
-            onClick={ this.onClickClose } />,
+            onClick={ this.onClickClose }
+          />,
           <Button
             key='delete'
             label='Yes, Delete'
             warning
-            onClick={ this.onClickYes } />
+            onClick={ this.onClickYes }
+          />
         ];
       default:
         return null;

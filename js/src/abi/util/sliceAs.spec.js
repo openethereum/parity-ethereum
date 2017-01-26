@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -22,6 +22,7 @@ describe('abi/util/sliceAs', () => {
   describe('asAddress', () => {
     it('correctly returns the last 0x40 characters', () => {
       const address = '1111111111222222222233333333334444444444';
+
       expect(asAddress(`000000000000000000000000${address}`)).to.equal(`0x${address}`);
     });
   });

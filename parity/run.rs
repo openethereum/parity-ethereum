@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -23,6 +23,7 @@ use ethsync::NetworkConfiguration;
 use util::{Colour, version, RotatingLogger, Mutex, Condvar};
 use io::{MayPanic, ForwardPanic, PanicHandler};
 use ethcore_logger::{Config as LogConfig};
+use ethcore::miner::{StratumOptions, Stratum};
 use ethcore::client::{Mode, DatabaseCompactionProfile, VMType, BlockChainClient};
 use ethcore::service::ClientService;
 use ethcore::account_provider::AccountProvider;
@@ -68,6 +69,7 @@ pub struct RunCmd {
 	pub spec: SpecType,
 	pub pruning: Pruning,
 	pub pruning_history: u64,
+	pub pruning_memory: usize,
 	/// Some if execution should be daemonized. Contains pid_file path.
 	pub daemon: Option<String>,
 	pub logger_config: LogConfig,
@@ -96,6 +98,7 @@ pub struct RunCmd {
 	pub ui: bool,
 	pub name: String,
 	pub custom_bootnodes: bool,
+	pub stratum: Option<StratumOptions>,
 	pub no_periodic_snapshot: bool,
 	pub check_seal: bool,
 	pub download_old_blocks: bool,
@@ -232,16 +235,16 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 	// prepare account provider
 	let account_provider = Arc::new(prepare_account_provider(&cmd.spec, &cmd.dirs, &spec.data_dir, cmd.acc_conf, &passwords)?);
 
-	// let the Engine access the accounts
-	spec.engine.register_account_provider(account_provider.clone());
-
 	// create miner
+	let initial_min_gas_price = cmd.gas_pricer.initial_min();
 	let miner = Miner::new(cmd.miner_options, cmd.gas_pricer.into(), &spec, Some(account_provider.clone()));
 	miner.set_author(cmd.miner_extras.author);
 	miner.set_gas_floor_target(cmd.miner_extras.gas_floor_target);
 	miner.set_gas_ceil_target(cmd.miner_extras.gas_ceil_target);
 	miner.set_extra_data(cmd.miner_extras.extra_data);
 	miner.set_transactions_limit(cmd.miner_extras.transactions_limit);
+	miner.set_minimal_gas_price(initial_min_gas_price);
+	miner.recalibrate_minimal_gas_price();
 	let engine_signer = cmd.miner_extras.engine_signer;
 
 	if engine_signer != Default::default() {
@@ -273,6 +276,7 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 		cmd.name,
 		algorithm,
 		cmd.pruning_history,
+		cmd.pruning_memory,
 		cmd.check_seal,
 	);
 
@@ -312,6 +316,12 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 
 	// create external miner
 	let external_miner = Arc::new(ExternalMiner::default());
+
+	// start stratum
+	if let Some(ref stratum_config) = cmd.stratum {
+		Stratum::register(stratum_config, miner.clone(), Arc::downgrade(&client))
+			.map_err(|e| format!("Stratum start error: {:?}", e))?;
+	}
 
 	// create sync object
 	let (sync_provider, manage_network, chain_notify) = modules::sync(

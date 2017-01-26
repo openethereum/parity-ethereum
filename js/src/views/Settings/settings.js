@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -51,7 +51,8 @@ export default class Settings extends Component {
           className={ styles.bar }
           title={
             <FormattedMessage id='settings.label' />
-          }>
+          }
+        >
           <Tabs className={ styles.tabs } value={ hash }>
             { this.renderTab(hash, 'views', <ImageRemoveRedEye />) }
             { this.renderTab(hash, 'background', <ImageBlurOn />) }
@@ -82,7 +83,8 @@ export default class Settings extends Component {
           </div>
         }
         onActive={ this.onActivate(section) }
-        value={ section } />
+        value={ section }
+      />
     );
   }
 

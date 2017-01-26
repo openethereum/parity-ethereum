@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -56,8 +56,7 @@ export default class TransactionPendingForm extends Component {
 
     if (this.state.isRejectOpen) {
       return (
-        <TransactionPendingFormReject
-          onReject={ onReject } />
+        <TransactionPendingFormReject onReject={ onReject } />
       );
     }
 
@@ -84,7 +83,8 @@ export default class TransactionPendingForm extends Component {
     return (
       <a
         className={ styles.rejectToggle }
-        onClick={ this.onToggleReject }>
+        onClick={ this.onToggleReject }
+      >
         { html }
       </a>
     );

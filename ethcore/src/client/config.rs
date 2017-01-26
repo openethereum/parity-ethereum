@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -129,8 +129,10 @@ pub struct ClientConfig {
 	pub state_cache_size: usize,
 	/// EVM jump-tables cache size.
 	pub jump_table_size: usize,
-	/// State pruning history size.
+	/// Minimum state pruning history size.
 	pub history: u64,
+	/// Ideal memory usage for state pruning history.
+	pub history_mem: usize,
 	/// Check seal valididity on block import
 	pub check_seal: bool,
 }

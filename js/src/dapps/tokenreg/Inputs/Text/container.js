@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -20,11 +20,12 @@ import { connect } from 'react-redux';
 import InputText from './input-text';
 
 class InputTextContainer extends Component {
-
   render () {
-    return (<InputText
-      { ...this.props }
-    />);
+    return (
+      <InputText
+        { ...this.props }
+      />
+    );
   }
 }
 

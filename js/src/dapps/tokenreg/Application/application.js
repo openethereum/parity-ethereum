@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -56,7 +56,8 @@ export default class Application extends Component {
       <div className={ styles.application }>
         <Status
           address={ contract.address }
-          fee={ contract.fee } />
+          fee={ contract.fee }
+        />
 
         <Actions />
 
@@ -73,5 +74,4 @@ export default class Application extends Component {
       muiTheme
     };
   }
-
 }

@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -79,7 +79,8 @@ class TxHash extends Component {
             : <FormattedMessage
               id='ui.txHash.posted'
               defaultMessage='The transaction has been posted to the network with a hash of {hashLink}'
-              values={ { hashLink } } />
+              values={ { hashLink } }
+              />
         }</p>
         { this.renderConfirmations() }
       </div>
@@ -101,7 +102,8 @@ class TxHash extends Component {
           <div className={ styles.progressinfo }>
             <FormattedMessage
               id='ui.txHash.waiting'
-              defaultMessage='waiting for confirmations' />
+              defaultMessage='waiting for confirmations'
+            />
           </div>
         </div>
       );
@@ -111,6 +113,7 @@ class TxHash extends Component {
     const value = Math.min(confirmations.toNumber(), maxConfirmations);
 
     let count = confirmations.toFormat(0);
+
     if (confirmations.lte(maxConfirmations)) {
       count = `${count}/${maxConfirmations}`;
     }
@@ -123,7 +126,8 @@ class TxHash extends Component {
           max={ maxConfirmations }
           value={ value }
           color='white'
-          mode='determinate' />
+          mode='determinate'
+        />
         <div className={ styles.progressinfo }>
           <abbr title={ `block #${blockNumber.toFormat(0)}` }>
             <FormattedMessage
@@ -132,7 +136,8 @@ class TxHash extends Component {
               values={ {
                 count,
                 value
-              } } />
+              } }
+            />
           </abbr>
         </div>
       </div>

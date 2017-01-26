@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -35,7 +35,8 @@ function render (props) {
     <PasswordManager
       { ...props }
       account={ ACCOUNT }
-      onClose={ onClose } />,
+      onClose={ onClose }
+    />,
     { context: { store: reduxStore } }
   ).find('PasswordManager').shallow({ context: { api: createApi() } });
   instance = component.instance();

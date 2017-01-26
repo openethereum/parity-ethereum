@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -139,6 +139,7 @@ export default class InputChip extends Component {
 
     if (addOnBlur) {
       const { inputValue } = this.refs.chipInput.state;
+
       this.handleTokenAdd(inputValue);
     }
 
@@ -190,6 +191,7 @@ export default class InputChip extends Component {
 
     if (splitTokens.length > 1) {
       const tokensToAdd = splitTokens.slice(0, -1);
+
       tokensToAdd.forEach(token => this.handleTokenAdd(token));
     }
 
@@ -203,5 +205,4 @@ export default class InputChip extends Component {
 
     onTokensChange(tokens.filter(token => token && token.length > 0));
   }
-
 }

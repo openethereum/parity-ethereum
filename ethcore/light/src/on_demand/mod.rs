@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -41,6 +41,8 @@ pub enum Error {
 	Canceled,
 	/// No suitable peers available to serve the request.
 	NoPeersAvailable,
+	/// Invalid request.
+	InvalidRequest,
 	/// Request timed out.
 	TimedOut,
 }
@@ -112,7 +114,15 @@ impl OnDemand {
 	// dispatch the request, completing the request if no peers available.
 	fn dispatch_header_by_number(&self, ctx: &BasicContext, req: request::HeaderByNumber, sender: Sender<encoded::Header>) {
 		let num = req.num;
-		let cht_num = ::client::cht::block_to_cht_number(req.num);
+		let cht_num = match ::cht::block_to_cht_number(req.num) {
+			Some(cht_num) => cht_num,
+			None => {
+				warn!(target: "on_demand", "Attempted to dispatch invalid header proof: req.num == 0");
+				sender.complete(Err(Error::InvalidRequest));
+				return;
+			}
+		};
+
 		let les_req = LesRequest::HeaderProofs(les_request::HeaderProofs {
 			requests: vec![les_request::HeaderProof {
 				cht_number: cht_num,

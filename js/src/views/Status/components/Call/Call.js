@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -20,9 +20,9 @@ import Response from '../Response';
 import styles from './Call.css';
 
 export default class Call extends Component {
-
   render () {
     let { callNo, name, params, response } = this.props.call;
+
     params = this.formatParams(params);
     return (
       <div
@@ -30,7 +30,7 @@ export default class Call extends Component {
         ref={ this.setElement }
         className={ styles.call }
         { ...this._test(`call-${callNo}`) }
-        >
+      >
         <span className={ styles.callNo } { ...this._test('callNo') }>#{ callNo }</span>
         <pre { ...this._test('name') }>{ name }({ params })</pre>
         <Response response={ response } />
@@ -65,5 +65,4 @@ export default class Call extends Component {
     call: PropTypes.object.isRequired,
     setActiveCall: PropTypes.func.isRequired
   }
-
 }

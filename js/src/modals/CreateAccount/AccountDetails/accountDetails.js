@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -14,40 +14,63 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
+import { FormattedMessage } from 'react-intl';
 
 import { Form, Input, InputAddress } from '~/ui';
 
+@observer
 export default class AccountDetails extends Component {
   static propTypes = {
-    address: PropTypes.string,
-    name: PropTypes.string,
-    phrase: PropTypes.string
+    store: PropTypes.object.isRequired
   }
 
   render () {
-    const { address, name } = this.props;
+    const { address, name } = this.props.store;
 
     return (
       <Form>
         <Input
-          readOnly
           allowCopy
-          hint='a descriptive name for the account'
-          label='account name'
-          value={ name } />
+          hint={
+            <FormattedMessage
+              id='createAccount.accountDetails.name.hint'
+              defaultMessage='a descriptive name for the account'
+            />
+          }
+          label={
+            <FormattedMessage
+              id='createAccount.accountDetails.name.label'
+              defaultMessage='account name'
+            />
+          }
+          readOnly
+          value={ name }
+        />
         <InputAddress
           disabled
-          hint='the network address for the account'
-          label='address'
-          value={ address } />
+          hint={
+            <FormattedMessage
+              id='createAccount.accountDetails.address.hint'
+              defaultMessage='the network address for the account'
+            />
+          }
+          label={
+            <FormattedMessage
+              id='createAccount.accountDetails.address.label'
+              defaultMessage='address'
+            />
+          }
+          value={ address }
+        />
         { this.renderPhrase() }
       </Form>
     );
   }
 
   renderPhrase () {
-    const { phrase } = this.props;
+    const { phrase } = this.props.store;
 
     if (!phrase) {
       return null;
@@ -55,11 +78,22 @@ export default class AccountDetails extends Component {
 
     return (
       <Input
-        readOnly
         allowCopy
-        hint='the account recovery phrase'
-        label='owner recovery phrase (keep private and secure, it allows full and unlimited access to the account)'
-        value={ phrase } />
+        hint={
+          <FormattedMessage
+            id='createAccount.accountDetails.phrase.hint'
+            defaultMessage='the account recovery phrase'
+          />
+        }
+        label={
+          <FormattedMessage
+            id='createAccount.accountDetails.phrase.label'
+            defaultMessage='owner recovery phrase (keep private and secure, it allows full and unlimited access to the account)'
+          />
+        }
+        readOnly
+        value={ phrase }
+      />
     );
   }
 }

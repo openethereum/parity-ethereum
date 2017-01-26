@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -22,7 +22,6 @@ import { Errors, ParityBackground, Tooltips } from '~/ui';
 import styles from '../application.css';
 
 export default class Container extends Component {
-
   static propTypes = {
     children: PropTypes.node.isRequired,
     onCloseFirstRun: PropTypes.func,
@@ -37,7 +36,8 @@ export default class Container extends Component {
       <ParityBackground className={ styles.container }>
         <FirstRun
           onClose={ onCloseFirstRun }
-          visible={ showFirstRun } />
+          visible={ showFirstRun }
+        />
         <Tooltips />
         <UpgradeParity store={ upgradeStore } />
         <Errors />

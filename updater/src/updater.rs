@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -273,6 +273,7 @@ impl Updater {
 					if s.fetching.is_none() {
 						info!(target: "updater", "Attempting to get parity binary {}", b);
 						s.fetching = Some(latest.track.clone());
+						drop(s);
 						let weak_self = self.weak_self.lock().clone();
 						let f = move |r: Result<PathBuf, fetch::Error>| if let Some(this) = weak_self.upgrade() { this.fetch_done(r) };
 						self.fetcher.lock().as_ref().expect("Created on `new`; qed").fetch(b, Box::new(f));

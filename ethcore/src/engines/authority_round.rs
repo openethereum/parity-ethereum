@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -21,23 +21,22 @@ use std::sync::Weak;
 use std::time::{UNIX_EPOCH, Duration};
 use util::*;
 use ethkey::{verify_address, Signature};
-use rlp::{UntrustedRlp, Rlp, View, encode};
+use rlp::{UntrustedRlp, View, encode};
 use account_provider::AccountProvider;
 use block::*;
 use spec::CommonParams;
 use engines::{Engine, Seal, EngineError};
 use header::Header;
 use error::{Error, BlockError};
-use blockchain::extras::BlockDetails;
-use views::HeaderView;
 use evm::Schedule;
 use ethjson;
 use io::{IoContext, IoHandler, TimerToken, IoService};
 use env_info::EnvInfo;
 use builtin::Builtin;
 use client::{Client, EngineClient};
-use super::validator_set::{ValidatorSet, new_validator_set};
 use state::CleanupMode;
+use super::signer::EngineSigner;
+use super::validator_set::{ValidatorSet, new_validator_set};
 
 /// `AuthorityRound` params.
 #[derive(Debug, PartialEq)]
@@ -78,8 +77,7 @@ pub struct AuthorityRound {
 	step: AtomicUsize,
 	proposed: AtomicBool,
 	client: RwLock<Option<Weak<EngineClient>>>,
-	account_provider: Mutex<Arc<AccountProvider>>,
-	password: RwLock<Option<String>>,
+	signer: EngineSigner,
 	validators: Box<ValidatorSet + Send + Sync>,
 }
 
@@ -117,8 +115,7 @@ impl AuthorityRound {
 				step: AtomicUsize::new(initial_step),
 				proposed: AtomicBool::new(false),
 				client: RwLock::new(None),
-				account_provider: Mutex::new(Arc::new(AccountProvider::transient_provider())),
-				password: RwLock::new(None),
+				signer: Default::default(),
 				validators: new_validator_set(our_params.validators),
 			});
 		// Do not initialize timeouts for tests.
@@ -209,7 +206,9 @@ impl Engine for AuthorityRound {
 	}
 
 	fn populate_from_parent(&self, header: &mut Header, parent: &Header, gas_floor_target: U256, _gas_ceil_target: U256) {
-		header.set_difficulty(parent.difficulty().clone());
+		// Chain scoring: total weight is sqrt(U256::max_value())*height - step
+		let new_difficulty = U256::from(U128::max_value()) + header_step(parent).expect("Header has been verified; qed").into() - self.step.load(AtomicOrdering::SeqCst).into();
+		header.set_difficulty(new_difficulty);
 		header.set_gas_limit({
 			let gas_limit = parent.gas_limit().clone();
 			let bound_divisor = self.gas_limit_bound_divisor;
@@ -234,11 +233,10 @@ impl Engine for AuthorityRound {
 		let header = block.header();
 		let step = self.step.load(AtomicOrdering::SeqCst);
 		if self.is_step_proposer(step, header.author()) {
-			let ref ap = *self.account_provider.lock();
-			if let Ok(signature) = ap.sign(*header.author(), self.password.read().clone(), header.bare_hash()) {
+			if let Ok(signature) = self.signer.sign(header.bare_hash()) {
 				trace!(target: "poa", "generate_seal: Issuing a block for step {}.", step);
 				self.proposed.store(true, AtomicOrdering::SeqCst);
-				return Seal::Regular(vec![encode(&step).to_vec(), encode(&(&*signature as &[u8])).to_vec()]);
+				return Seal::Regular(vec![encode(&step).to_vec(), encode(&(&H520::from(signature) as &[u8])).to_vec()]);
 			} else {
 				warn!(target: "poa", "generate_seal: FAIL: Accounts secret key unavailable.");
 			}
@@ -277,15 +275,16 @@ impl Engine for AuthorityRound {
 		// Give one step slack if step is lagging, double vote is still not possible.
 		if header_step <= self.step.load(AtomicOrdering::SeqCst) + 1 {
 			let proposer_signature = header_signature(header)?;
-			let ok_sig = verify_address(&self.step_proposer(header_step), &proposer_signature, &header.bare_hash())?;
-			if ok_sig {
+			let correct_proposer = self.step_proposer(header_step);
+			if verify_address(&correct_proposer, &proposer_signature, &header.bare_hash())? {
 				Ok(())
 			} else {
-				trace!(target: "poa", "verify_block_unordered: invalid seal signature");
-				Err(BlockError::InvalidSeal)?
+				trace!(target: "poa", "verify_block_unordered: bad proposer for step: {}", header_step);
+				Err(EngineError::NotProposer(Mismatch { expected: correct_proposer, found: header.author().clone() }))?
 			}
 		} else {
 			trace!(target: "poa", "verify_block_unordered: block from the future");
+			self.validators.report_benign(header.author());
 			Err(BlockError::InvalidSeal)?
 		}
 	}
@@ -299,6 +298,7 @@ impl Engine for AuthorityRound {
 		// Check if parent is from a previous step.
 		if step == header_step(parent)? {
 			trace!(target: "poa", "Multiple blocks proposed for step {}.", step);
+			self.validators.report_malicious(header.author());
 			Err(EngineError::DoubleVote(header.author().clone()))?;
 		}
 
@@ -311,30 +311,17 @@ impl Engine for AuthorityRound {
 		Ok(())
 	}
 
-	fn is_new_best_block(&self, _best_total_difficulty: U256, best_header: HeaderView, _parent_details: &BlockDetails, new_header: &HeaderView) -> bool {
-		let new_number = new_header.number();
-		let best_number = best_header.number();
-		if new_number != best_number {
-			new_number > best_number
-		} else {
- 			// Take the oldest step at given height.
- 			let new_step: usize = Rlp::new(&new_header.seal()[0]).as_val();
-			let best_step: usize = Rlp::new(&best_header.seal()[0]).as_val();
-			new_step < best_step
-		}
-	}
-
 	fn register_client(&self, client: Weak<Client>) {
 		*self.client.write() = Some(client.clone());
-		self.validators.register_call_contract(client);
+		self.validators.register_contract(client);
 	}
 
-	fn set_signer(&self, _address: Address, password: String) {
-		*self.password.write() = Some(password);
+	fn set_signer(&self, ap: Arc<AccountProvider>, address: Address, password: String) {
+		self.signer.set(ap, address, password);
 	}
 
-	fn register_account_provider(&self, account_provider: Arc<AccountProvider>) {
-		*self.account_provider.lock() = account_provider;
+	fn sign(&self, hash: H256) -> Result<Signature, Error> {
+		self.signer.sign(hash).map_err(Into::into)
 	}
 }
 
@@ -401,13 +388,12 @@ mod tests {
 
 	#[test]
 	fn generates_seal_and_does_not_double_propose() {
-		let tap = AccountProvider::transient_provider();
+		let tap = Arc::new(AccountProvider::transient_provider());
 		let addr1 = tap.insert_account(Secret::from_slice(&"1".sha3()).unwrap(), "1").unwrap();
 		let addr2 = tap.insert_account(Secret::from_slice(&"2".sha3()).unwrap(), "2").unwrap();
 
 		let spec = Spec::new_test_round();
 		let engine = &*spec.engine;
-		engine.register_account_provider(Arc::new(tap));
 		let genesis_header = spec.genesis_header();
 		let db1 = spec.ensure_db_good(get_temp_state_db().take(), &Default::default()).unwrap();
 		let db2 = spec.ensure_db_good(get_temp_state_db().take(), &Default::default()).unwrap();
@@ -417,14 +403,14 @@ mod tests {
 		let b2 = OpenBlock::new(engine, Default::default(), false, db2, &genesis_header, last_hashes, addr2, (3141562.into(), 31415620.into()), vec![]).unwrap();
 		let b2 = b2.close_and_lock();
 
-		engine.set_signer(addr1, "1".into());
+		engine.set_signer(tap.clone(), addr1, "1".into());
 		if let Seal::Regular(seal) = engine.generate_seal(b1.block()) {
 			assert!(b1.clone().try_seal(engine, seal).is_ok());
 			// Second proposal is forbidden.
 			assert!(engine.generate_seal(b1.block()) == Seal::None);
 		}
 
-		engine.set_signer(addr2, "2".into());
+		engine.set_signer(tap, addr2, "2".into());
 		if let Seal::Regular(seal) = engine.generate_seal(b2.block()) {
 			assert!(b2.clone().try_seal(engine, seal).is_ok());
 			// Second proposal is forbidden.

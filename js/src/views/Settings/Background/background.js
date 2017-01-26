@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -47,6 +47,7 @@ class Background extends Component {
   componentDidMount () {
     const { settings } = this.props;
     const seeds = new Array(20).fill(null);
+
     seeds[0] = settings.backgroundSeed;
 
     this.setState({
@@ -56,20 +57,24 @@ class Background extends Component {
 
   render () {
     return (
-      <Container title={
-        <FormattedMessage id='settings.background.label' />
-      }>
+      <Container
+        title={
+          <FormattedMessage id='settings.background.label' />
+        }
+      >
         <div className={ layout.layout }>
           <div className={ layout.overview }>
             <div>
               <FormattedMessage
                 id='settings.background.overview_0'
-                defaultMessage='The background pattern you can see right now is unique to your Parity installation. It will change every time you create a new Signer token. This is so that decentralized applications cannot pretend to be trustworthy.' />
+                defaultMessage='The background pattern you can see right now is unique to your Parity installation. It will change every time you create a new Signer token. This is so that decentralized applications cannot pretend to be trustworthy.'
+              />
             </div>
             <div>
               <FormattedMessage
                 id='settings.background.overview_1'
-                defaultMessage='Pick a pattern you like and memorize it. This Pattern will always be shown from now on, unless you clear your browser cache or use a new Signer token.' />
+                defaultMessage='Pick a pattern you like and memorize it. This Pattern will always be shown from now on, unless you clear your browser cache or use a new Signer token.'
+              />
             </div>
             <div>
               <Button
@@ -77,9 +82,11 @@ class Background extends Component {
                 label={
                   <FormattedMessage
                     id='settings.background.button_more'
-                    defaultMessage='generate more' />
+                    defaultMessage='generate more'
+                  />
                 }
-                onClick={ this.generateSeeds } />
+                onClick={ this.generateSeeds }
+              />
             </div>
           </div>
           <div className={ layout.details }>

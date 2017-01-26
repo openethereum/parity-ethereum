@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -49,14 +49,16 @@ class DeleteAccount extends Component {
         title='confirm removal'
         visible
         onDeny={ this.closeDeleteDialog }
-        onConfirm={ this.onDeleteConfirmed }>
+        onConfirm={ this.onDeleteConfirmed }
+      >
         <div className={ styles.hero }>
           Are you sure you want to permanently delete the following account?
         </div>
         <div className={ styles.info }>
           <IdentityIcon
             className={ styles.icon }
-            address={ account.address } />
+            address={ account.address }
+          />
           <div className={ styles.nameinfo }>
             <div className={ styles.header }>
               <IdentityName address={ account.address } unknown />
@@ -75,7 +77,8 @@ class DeleteAccount extends Component {
             hint='provide the account password to confirm the account deletion'
             type='password'
             value={ password }
-            onChange={ this.onChangePassword } />
+            onChange={ this.onChangePassword }
+          />
         </div>
       </ConfirmDialog>
     );

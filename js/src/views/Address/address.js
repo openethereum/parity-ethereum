@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -69,6 +69,7 @@ class Address extends Component {
   setVisibleAccounts (props = this.props) {
     const { params, setVisibleAccounts } = props;
     const addresses = [ params.address ];
+
     setVisibleAccounts(addresses);
   }
 
@@ -147,12 +148,14 @@ class Address extends Component {
         key='editmeta'
         icon={ <ContentCreate /> }
         label='edit'
-        onClick={ this.onEditClick } />,
+        onClick={ this.onEditClick }
+      />,
       <Button
         key='delete'
         icon={ <ActionDelete /> }
         label='delete address'
-        onClick={ this.showDeleteDialog } />
+        onClick={ this.showDeleteDialog }
+      />
     ];
 
     const addToBook = (
@@ -182,7 +185,8 @@ class Address extends Component {
     return (
       <EditMeta
         account={ contact }
-        onClose={ this.onEditClick } />
+        onClose={ this.onEditClick }
+      />
     );
   }
 

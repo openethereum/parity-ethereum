@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -69,6 +69,7 @@ const STORE = {
 
 function createApi (result = true) {
   const sha3 = sinon.stub().resolves('0x0000000000000000000000000000000000000000');
+
   sha3.text = sha3;
   return {
     parity: {

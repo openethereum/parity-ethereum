@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -62,7 +62,11 @@ export default class Event extends Component {
     return (
       <tr className={ classes }>
         <td className={ styles.timestamp }>
-          <div>{ event.state === 'pending' ? 'pending' : this.formatBlockTimestamp(block) }</div>
+          <div>{
+            event.state === 'pending'
+              ? 'pending'
+              : this.formatBlockTimestamp(block)
+          }</div>
           <div>{ this.formatNumber(transaction.blockNumber) }</div>
         </td>
         <td className={ styles.txhash }>
@@ -86,7 +90,12 @@ export default class Event extends Component {
   renderAddressName (address, withName = true) {
     return (
       <span className={ styles.eventAddress }>
-        <IdentityIcon center inline address={ address } className={ styles.eventIdentityicon } />
+        <IdentityIcon
+          address={ address }
+          className={ styles.eventIdentityicon }
+          center
+          inline
+        />
         { withName ? <IdentityName address={ address } /> : address }
       </span>
     );
@@ -103,11 +112,13 @@ export default class Event extends Component {
             text
             className={ styles.input }
             value={ param.value }
-            label={ name } />
+            label={ name }
+          />
         );
 
       default:
         let value;
+
         if (api.util.isInstanceOf(param.value, BigNumber)) {
           value = param.value.toFormat(0);
         } else if (api.util.isArray(param.value)) {

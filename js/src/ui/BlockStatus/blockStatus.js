@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -44,7 +44,8 @@ class BlockStatus extends Component {
             defaultMessage='{blockNumber} best block'
             values={ {
               blockNumber: blockNumber.toFormat()
-            } } />
+            } }
+          />
         </div>
       );
     }
@@ -57,7 +58,8 @@ class BlockStatus extends Component {
             defaultMessage='{percentage}% warp restore'
             values={ {
               percentage: syncing.warpChunksProcessed.mul(100).div(syncing.warpChunksAmount).toFormat(2)
-            } } />
+            } }
+          />
         </div>
       );
     }
@@ -74,7 +76,8 @@ class BlockStatus extends Component {
             values={ {
               currentBlock: syncing.currentBlock.toFormat(),
               highestBlock: syncing.highestBlock.toFormat()
-            } } />
+            } }
+          />
         </span>
       );
     }
@@ -89,7 +92,8 @@ class BlockStatus extends Component {
             defaultMessage=', {percentage}% historic'
             values={ {
               percentage: first.mul(100).div(last).toFormat(2)
-            } } />
+            } }
+          />
         </span>
       );
     }

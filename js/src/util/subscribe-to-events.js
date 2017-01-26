@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -25,6 +25,7 @@ const defaults = {
 
 const subscribeToEvents = (contract, events, opt = {}) => {
   const { api } = contract;
+
   opt = Object.assign({}, defaults, opt);
 
   let filter = null;
@@ -48,6 +49,7 @@ const subscribeToEvents = (contract, events, opt = {}) => {
   };
 
   const emitter = new EventEmitter();
+
   emitter.unsubscribe = unsubscribe;
 
   const fetcher = (method, filterId) => () => {
@@ -82,6 +84,7 @@ const subscribeToEvents = (contract, events, opt = {}) => {
       fetcher('getFilterLogs', filterId)(); // fetch immediately
 
       const fetchChanges = fetcher('getFilterChanges', filterId);
+
       interval = setInterval(fetchChanges, opt.interval);
 
       return filterId;
