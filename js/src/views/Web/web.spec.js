@@ -41,7 +41,7 @@ function render (url = TEST_URL) {
   return component;
 }
 
-describe('Web', () => {
+describe('views/Web', () => {
   beforeEach(() => {
     render();
   });

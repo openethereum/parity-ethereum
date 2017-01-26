@@ -41,7 +41,7 @@ function render (props = {}) {
   return component;
 }
 
-describe('AddressBar', () => {
+describe('views/Web/AddressBar', () => {
   it('renders defaults', () => {
     expect(render()).to.be.ok;
   });
