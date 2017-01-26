@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2016 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -16,11 +16,15 @@
 
 import {
   Accounts, Account, Addresses, Address, Application,
-  Contract, Contracts, Dapp, Dapps,
+  Contract, Contracts, Dapp, Dapps, HistoryStore,
   Settings, SettingsBackground, SettingsParity, SettingsProxy,
   SettingsViews, Signer, Status,
   Wallet, Web, WriteContract
 } from '~/views';
+import builtinDapps from '~/views/Dapps/builtin.json';
+
+const accountsHistory = HistoryStore.get('accounts');
+const dappsHistory = HistoryStore.get('dapps');
 
 function handleDeprecatedRoute (nextState, replace) {
   const { address } = nextState.params;
@@ -46,7 +50,13 @@ function redirectTo (path) {
 }
 
 const accountsRoutes = [
-  { path: ':address', component: Account },
+  {
+    path: ':address',
+    component: Account,
+    onEnter: ({ params }) => {
+      accountsHistory.add(params.address);
+    }
+  },
   { path: '/wallet/:address', component: Wallet }
 ];
 
@@ -76,8 +86,8 @@ const routes = [
   { path: '/address/:address', onEnter: handleDeprecatedRoute },
   { path: '/contract/:address', onEnter: handleDeprecatedRoute },
 
-  { path: '/', onEnter: redirectTo('/accounts') },
-  { path: '/auth', onEnter: redirectTo('/accounts') },
+  { path: '/', onEnter: redirectTo('/home') },
+  { path: '/auth', onEnter: redirectTo('/home') },
   { path: '/settings', onEnter: redirectTo('/settings/views') },
 
   {
@@ -109,9 +119,16 @@ const routes = [
         component: Settings,
         childRoutes: settingsRoutes
       },
-
       { path: 'apps', component: Dapps },
-      { path: 'app/:id', component: Dapp },
+      {
+        path: 'app/:id',
+        component: Dapp,
+        onEnter: ({ params }) => {
+          if (!builtinDapps[params.id] || !builtinDapps[params.id].skipHistory) {
+            dappsHistory.add(params.id);
+          }
+        }
+      },
       { path: 'web', component: Web },
       { path: 'web/:url', component: Web },
       { path: 'signer', component: Signer }
