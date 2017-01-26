@@ -21,43 +21,41 @@ const SYMBOL_ETC = 'ETC';
 const SYMBOL_ETH = 'ETH';
 const SYMBOL_EXP = 'EXP';
 
-class CurrencySymbol extends Component {
+export class CurrencySymbol extends Component {
   static propTypes = {
     className: PropTypes.string,
-    netChain: PropTypes.string.isRequired,
-    netSymbol: PropTypes.string.isRequired
+    netChain: PropTypes.string.isRequired
   }
 
   render () {
-    const { className, netSymbol } = this.props;
+    const { className } = this.props;
 
     return (
-      <span className={ className }>{ netSymbol }</span>
+      <span className={ className }>{ this.renderSymbol() }</span>
     );
+  }
+
+  renderSymbol () {
+    const { netChain } = this.props;
+
+    switch (netChain) {
+      case 'classic':
+        return SYMBOL_ETC;
+
+      case 'expanse':
+        return SYMBOL_EXP;
+
+      default:
+        return SYMBOL_ETH;
+    }
   }
 }
 
 function mapStateToProps (state) {
   const { netChain } = state.nodeStatus;
-  let netSymbol;
-
-  switch (netChain) {
-    case 'classic':
-      netSymbol = SYMBOL_ETC;
-      break;
-
-    case 'expanse':
-      netSymbol = SYMBOL_EXP;
-      break;
-
-    default:
-      netSymbol = SYMBOL_ETH;
-      break;
-  }
 
   return {
-    netChain,
-    netSymbol
+    netChain
   };
 }
 
