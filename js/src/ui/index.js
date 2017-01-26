@@ -29,6 +29,7 @@ import Container, { Title as ContainerTitle } from './Container';
 import ContextProvider from './ContextProvider';
 import CopyToClipboard from './CopyToClipboard';
 import CurrencySymbol from './CurrencySymbol';
+import DappIcon from './DappIcon';
 import Editor from './Editor';
 import Errors from './Errors';
 import Form, { AddressSelect, FormWrap, TypedInput, Input, InputAddress, InputAddressSelect, InputChip, InputInline, Select, RadioButtons } from './Form';
@@ -73,6 +74,7 @@ export {
   ContextProvider,
   CopyToClipboard,
   CurrencySymbol,
+  DappIcon,
   Editor,
   Errors,
   Form,
