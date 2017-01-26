@@ -16,11 +16,15 @@
 
 import {
   Accounts, Account, Addresses, Address, Application,
-  Contract, Contracts, Dapp, Dapps,
+  Contract, Contracts, Dapp, Dapps, HistoryStore,
   Settings, SettingsBackground, SettingsParity, SettingsProxy,
   SettingsViews, Signer, Status,
   Wallet, Web, WriteContract
 } from '~/views';
+import builtinDapps from '~/views/Dapps/builtin.json';
+
+const accountsHistory = HistoryStore.get('accounts');
+const dappsHistory = HistoryStore.get('dapps');
 
 function handleDeprecatedRoute (nextState, replace) {
   const { address } = nextState.params;
@@ -46,7 +50,13 @@ function redirectTo (path) {
 }
 
 const accountsRoutes = [
-  { path: ':address', component: Account },
+  {
+    path: ':address',
+    component: Account,
+    onEnter: ({ params }) => {
+      accountsHistory.add(params.address);
+    }
+  },
   { path: '/wallet/:address', component: Wallet }
 ];
 
@@ -81,7 +91,7 @@ const routes = [
   { path: '/settings', onEnter: redirectTo('/settings/views') }
 ];
 
-const appRoutes = [
+const childRoutes = [
   {
     path: 'accounts',
     indexRoute: { component: Accounts },
@@ -107,9 +117,16 @@ const appRoutes = [
     component: Settings,
     childRoutes: settingsRoutes
   },
-
+  {
+    path: 'app/:id',
+    component: Dapp,
+    onEnter: ({ params }) => {
+      if (!builtinDapps[params.id] || !builtinDapps[params.id].skipHistory) {
+        dappsHistory.add(params.id);
+      }
+    }
+  },
   { path: 'apps', component: Dapps },
-  { path: 'app/:id', component: Dapp },
   { path: 'web', component: Web },
   { path: 'web/:url', component: Web },
   { path: 'signer', component: Signer }
@@ -119,7 +136,7 @@ const appRoutes = [
 if (process.env.NODE_ENV !== 'production') {
   const Playground = require('./playground').default;
 
-  appRoutes.push({
+  childRoutes.push({
     path: 'playground',
     component: Playground
   });
@@ -128,7 +145,7 @@ if (process.env.NODE_ENV !== 'production') {
 routes.push({
   path: '/',
   component: Application,
-  childRoutes: appRoutes
+  childRoutes
 });
 
 export default routes;

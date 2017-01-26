@@ -21,15 +21,16 @@ import Addresses from './Addresses';
 import Application from './Application';
 import Contract from './Contract';
 import Contracts from './Contracts';
-import WriteContract from './WriteContract';
 import Dapp from './Dapp';
-import Web from './Web';
 import Dapps from './Dapps';
+import HistoryStore from './historyStore';
 import ParityBar from './ParityBar';
 import Settings, { SettingsBackground, SettingsParity, SettingsProxy, SettingsViews } from './Settings';
 import Signer from './Signer';
 import Status from './Status';
 import Wallet from './Wallet';
+import Web from './Web';
+import WriteContract from './WriteContract';
 
 export {
   Account,
@@ -39,9 +40,9 @@ export {
   Application,
   Contract,
   Contracts,
-  WriteContract,
   Dapp,
   Dapps,
+  HistoryStore,
   ParityBar,
   Settings,
   SettingsBackground,
@@ -51,5 +52,6 @@ export {
   Signer,
   Status,
   Wallet,
-  Web
+  Web,
+  WriteContract
 };
