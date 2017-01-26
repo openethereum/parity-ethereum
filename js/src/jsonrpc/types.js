@@ -25,3 +25,37 @@ export class Hash {}
 export class Integer {}
 
 export class Quantity {}
+
+export class CallRequest {}
+
+CallRequest.details = {
+  from: {
+    type: Address,
+    desc: '20 Bytes - The address the transaction is send from.',
+    optional: true
+  },
+  to: {
+    type: Address,
+    desc: '20 Bytes  - The address the transaction is directed to.'
+  },
+  gas: {
+    type: Quantity,
+    desc: 'Integer of the gas provided for the transaction execution. eth_call consumes zero gas, but this parameter may be needed by some executions.',
+    optional: true
+  },
+  gasPrice: {
+    type: Quantity,
+    desc: 'Integer of the gasPrice used for each paid gas.',
+    optional: true
+  },
+  value: {
+    type: Quantity,
+    desc: 'Integer of the value sent with this transaction.',
+    optional: true
+  },
+  data: {
+    type: Data,
+    desc: '4 byte hash of the method signature followed by encoded parameters. For details see [Ethereum Contract ABI](https://github.com/ethereum/wiki/wiki/Ethereum-Contract-ABI).',
+    optional: true
+  }
+};

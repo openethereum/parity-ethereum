@@ -17,22 +17,16 @@
 import fs from 'fs';
 import path from 'path';
 import interfaces from './';
-import { Address, BlockNumber, Data, Hash, Integer, Quantity } from './types';
+import { Address, BlockNumber, Data, Hash, Integer, Quantity, CallRequest } from './types';
+
+const allowedTypes = [
+  Array, Boolean, Object, String, Address, BlockNumber, Data,
+  Hash, Integer, Quantity, CallRequest
+];
 
 function verifyType (obj) {
   if (typeof obj !== 'string') {
-    expect(obj).to.satisfy(() => {
-      return obj.type === Array ||
-        obj.type === Boolean ||
-        obj.type === Object ||
-        obj.type === String ||
-        obj.type === Address ||
-        obj.type === BlockNumber ||
-        obj.type === Data ||
-        obj.type === Hash ||
-        obj.type === Integer ||
-        obj.type === Quantity;
-    });
+    expect(obj).to.satisfy(() => allowedTypes.indexOf(obj.type) >= 0);
   }
 }
 

@@ -35,7 +35,7 @@ export class Dummy {
   }
 
   static fixJSON (json) {
-    return json.replace(/"##([^#])##"/g, '$1');
+    return json.replace(/"##([^#]+)##"/g, '$1');
   }
 
   static isDummy (obj) {

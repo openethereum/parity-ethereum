@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { Address, BlockNumber, Data, Hash, Quantity } from '../types';
+import { Address, BlockNumber, Data, Hash, Quantity, CallRequest } from '../types';
 import { withPreamble, fromDecimal, withComment, Dummy } from '../helpers';
 
 export default withPreamble(`
@@ -64,40 +64,9 @@ The following options are possible for the \`defaultBlock\` parameter:
     desc: 'Executes a new message call immediately without creating a transaction on the block chain.',
     params: [
       {
-        type: Object,
+        type: CallRequest,
         desc: 'The transaction call object.',
         format: 'inputCallFormatter',
-        details: {
-          from: {
-            type: Address,
-            desc: '20 Bytes - The address the transaction is send from.',
-            optional: true
-          },
-          to: {
-            type: Address,
-            desc: '20 Bytes  - The address the transaction is directed to.'
-          },
-          gas: {
-            type: Quantity,
-            desc: 'Integer of the gas provided for the transaction execution. eth_call consumes zero gas, but this parameter may be needed by some executions.',
-            optional: true
-          },
-          gasPrice: {
-            type: Quantity,
-            desc: 'Integer of the gasPrice used for each paid gas.',
-            optional: true
-          },
-          value: {
-            type: Quantity,
-            desc: 'Integer of the value sent with this transaction.',
-            optional: true
-          },
-          data: {
-            type: Data,
-            desc: '4 byte hash of the method signature followed by encoded parameters. For details see [Ethereum Contract ABI](https://github.com/ethereum/wiki/wiki/Ethereum-Contract-ABI).',
-            optional: true
-          }
-        },
         example: {
           from: '0x407d73d8a49eeb85d32cf465507dd71d507100c1',
           to: '0xa94f5374fce5edbc8e2a8697c15331677e6ebf0b',
@@ -180,8 +149,8 @@ The following options are possible for the \`defaultBlock\` parameter:
     desc: 'Makes a call or transaction, which won\'t be added to the blockchain and returns the used gas, which can be used for estimating the used gas.',
     params: [
       {
-        type: Object,
-        desc: 'See [eth_call](#eth_call) parameters, expect that all properties are optional.',
+        type: CallRequest,
+        desc: 'Same as [eth_call](#eth_call) parameters, except that all properties are optional.',
         format: 'inputCallFormatter',
         example: new Dummy('{ ... }')
       },
@@ -479,7 +448,7 @@ The following options are possible for the \`defaultBlock\` parameter:
           data: '0x0000000000000000000000000000000000000000000000000000000000000000',
           topics: ['0x59ebeb90bc63057b6515673c3ecf9438e5058bca0f92585014eced636878c9a5']
         },
-        new Dummy('{ ... }')
+        new Dummy('...')
       ]
     }
   },
