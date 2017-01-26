@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -45,7 +45,7 @@ use util::hash::Address;
 const USAGE: &'static str = r#"
 Parity rpctest client.
   By Wood/Paronyan/Kotewicz/Drwięga/Volf.
-  Copyright 2015, 2016 Ethcore (UK) Limited
+  Copyright 2015, 2016, 2017 Parity Technologies (UK) Ltd
 
 Usage:
   rpctest --json <test-file> --name <test-name> [options]
