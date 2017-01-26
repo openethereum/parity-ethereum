@@ -29,6 +29,7 @@ import Container, { Title as ContainerTitle } from './Container';
 import ContextProvider from './ContextProvider';
 import CopyToClipboard from './CopyToClipboard';
 import CurrencySymbol from './CurrencySymbol';
+import DappIcon from './DappIcon';
 import Editor from './Editor';
 import Errors from './Errors';
 import Features, { FEATURES, FeaturesStore } from './Features';
@@ -74,6 +75,7 @@ export {
   ContextProvider,
   CopyToClipboard,
   CurrencySymbol,
+  DappIcon,
   Editor,
   Errors,
   FEATURES,
