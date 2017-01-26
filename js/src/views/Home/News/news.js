@@ -118,3 +118,7 @@ export default class News extends Component {
       });
   }
 }
+
+export {
+  VERSION_ID
+};

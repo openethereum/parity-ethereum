@@ -37,8 +37,15 @@ describe('ui/Container', () => {
   });
 
   describe('sections', () => {
-    it('renders the Card', () => {
+    it('renders the default Card', () => {
       expect(render().find('Card')).to.have.length(1);
+    });
+
+    it('renders Hover Card when available', () => {
+      const cards = render({ hover: <div>testingHover</div> }).find('Card');
+
+      expect(cards).to.have.length(2);
+      expect(cards.get(1).props.children.props.children).to.equal('testingHover');
     });
 
     it('renders the Title', () => {

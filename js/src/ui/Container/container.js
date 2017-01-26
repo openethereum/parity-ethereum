@@ -46,8 +46,18 @@ export default class Container extends Component {
     }
 
     return (
-      <div className={ classes } style={ style } { ...props }>
-        <Card className={ compact ? styles.compact : styles.padded }>
+      <div
+        className={ classes }
+        style={ style }
+        { ...props }
+      >
+        <Card
+          className={
+            compact
+              ? styles.compact
+              : styles.padded
+          }
+        >
           { this.renderTitle() }
           { children }
         </Card>
@@ -64,10 +74,7 @@ export default class Container extends Component {
     }
 
     return (
-      <Card
-        className={ styles.hover }
-        data-hover='show'
-      >
+      <Card className={ styles.hover }>
         { hover }
       </Card>
     );

@@ -20,7 +20,7 @@ import sinon from 'sinon';
 
 import Contracts from '~/contracts';
 
-import News from './';
+import News, { VERSION_ID } from './news';
 
 let component;
 let contracts;
@@ -44,7 +44,11 @@ function stubGlobals () {
   sinon.stub(Contracts, 'get', () => contracts);
   sinon.stub(global, 'fetch').resolves({
     ok: true,
-    json: sinon.stub().resolves({ items: 'testContent' })
+    json: sinon.stub().resolves({
+      [VERSION_ID]: {
+        items: 'testContent'
+      }
+    })
   });
 }
 
