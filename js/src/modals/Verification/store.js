@@ -103,8 +103,8 @@ export default class VerificationStore {
     const hasRequested = findLastRequested(contract, account)
       .then((log) => {
         this.hasRequested = !!log;
-        this.lastRequestValues = log.params;
         if (log) {
+          this.lastRequestValues = log.params;
           this.requestTx = log.transactionHash;
         }
       })

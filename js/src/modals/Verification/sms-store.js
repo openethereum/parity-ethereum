@@ -67,7 +67,7 @@ export default class SMSVerificationStore extends VerificationStore {
     return hasReceivedCode(this.number, this.account, this.isTestnet);
   }
 
-  shallRequestAgain = () => Promise.resolve(false)
+  shallRequestAgain = () => Promise.resolve(true)
 
   @action setNumber = (number) => {
     this.number = number;
