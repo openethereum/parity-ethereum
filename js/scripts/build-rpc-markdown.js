@@ -18,7 +18,7 @@ import fs from 'fs';
 import path from 'path';
 import chalk from 'chalk';
 
-import { DUMMY } from '../src/jsonrpc/helpers';
+import { Dummy } from '../src/jsonrpc/helpers';
 import { BlockNumber } from '../src/jsonrpc/types';
 import interfaces from '../src/jsonrpc';
 
@@ -83,11 +83,7 @@ const rpcReqTemplate = {
   jsonrpc: '2.0'
 };
 
-// Checks if the value passed in is a DUMMY object placeholder for `{ ... }``
-function isDummy (val) {
-  return val === DUMMY;
-}
-
+const { isDummy } = Dummy;
 const { isArray } = Array;
 
 // Checks if the value passed is a plain old JS object
@@ -143,8 +139,8 @@ function getExample (obj) {
 function stringifyExample (example, dent = '') {
   const indent = `${dent}  `;
 
-  if (example === DUMMY) {
-    return '{ ... }';
+  if (isDummy(example)) {
+    return example.toString();
   }
 
   if (isArray(example)) {
@@ -153,7 +149,7 @@ function stringifyExample (example, dent = '') {
     // If all elements are dummies, print out a single line.
     // Also covers empty arrays.
     if (example.every(isDummy)) {
-      const dummies = example.map(_ => '{ ... }');
+      const dummies = example.map(d => d.toString());
 
       return `[${dummies.join(', ')}]`;
     }
@@ -193,7 +189,7 @@ function stringifyExample (example, dent = '') {
     return `{\n${indent}${elements.join(`\n${indent}`)}\n${dent}}`;
   }
 
-  return JSON.stringify(example); // .replace(/"\$DUMMY\$"/g, '{ ... }');
+  return JSON.stringify(example);
 }
 
 function buildExample (name, method) {
@@ -217,7 +213,7 @@ function buildExample (name, method) {
 
   if (hasReqExample) {
     const params = getExample(method.params);
-    const req = JSON.stringify(Object.assign({}, rpcReqTemplate, { method: name, params })).replace(/"\$DUMMY\$"/g, '{ ... }');
+    const req = Dummy.stringifyJSON(Object.assign({}, rpcReqTemplate, { method: name, params }));
 
     examples.push(`Request\n\`\`\`bash\ncurl --data '${req}' -H "Content-Type: application/json" -X POST localhost:8545\n\`\`\``);
   } else {
@@ -250,7 +246,7 @@ function buildParameters (params) {
 
   let md = `0. ${params.map(formatType).join('\n0. ')}`;
 
-  if (params.length > 0 && params.every(hasExample) && params[0].example !== DUMMY) {
+  if (params.length > 0 && params.every(hasExample) && !isDummy(params[0].example)) {
     const example = getExample(params);
 
     md = `${md}\n\n\`\`\`js\nparams: ${stringifyExample(example)}\n\`\`\``;
@@ -292,7 +288,19 @@ Object.keys(interfaces).sort().forEach((group) => {
   const tocMain = [];
   const tocSections = {};
 
-  Object.keys(spec).sort().forEach((iname) => {
+  // Comparator that will sort by sections first, names second
+  function methodComparator (a, b) {
+    const sectionA = spec[a].section || '';
+    const sectionB = spec[b].section || '';
+
+    if (sectionA === sectionB) {
+      return a.localeCompare(b);
+    }
+
+    return sectionA.localeCompare(sectionB);
+  }
+
+  Object.keys(spec).sort(methodComparator).forEach((iname) => {
     const method = spec[iname];
     const name = `${group.replace(/_.*$/, '')}_${iname}`;
 

@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import { Address, Data, Hash, Quantity, BlockNumber } from '../types';
-import { fromDecimal, withComment, DUMMY } from '../helpers';
+import { fromDecimal, withComment, Dummy } from '../helpers';
 
 const SECTION_MINING = 'Block Authoring (aka "mining")';
 const SECTION_DEV = 'Development';
@@ -335,7 +335,7 @@ export default {
             transactionIndex: null
           }
         },
-        '0x...': DUMMY
+        '0x...': new Dummy('{ ... }')
       }
     }
   },
@@ -403,7 +403,7 @@ export default {
         active: 0,
         connected: 25,
         max: 25,
-        peers: [DUMMY, DUMMY, DUMMY, DUMMY]
+        peers: [new Dummy('{ ... }, { ... }, { ... }, ...')]
       }
     }
   },
@@ -478,8 +478,8 @@ export default {
           v: '0x26',
           value: '0x0'
         },
-        DUMMY,
-        DUMMY
+        new Dummy('{ ... }'),
+        new Dummy('{ ... }')
       ]
     }
   },
@@ -772,8 +772,7 @@ export default {
           s: '0x6bf770ab08119e67dc29817e1412a0e3086f43da308c314db1b3bca9fb6d32bd',
           minBlock: null
         },
-        DUMMY,
-        DUMMY
+        new Dummy('{ ... }, { ... }, ...')
       ]
     }
   },

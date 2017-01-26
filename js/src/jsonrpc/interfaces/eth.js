@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import { Address, BlockNumber, Data, Hash, Quantity } from '../types';
-import { withPreamble, fromDecimal, withComment, DUMMY } from '../helpers';
+import { withPreamble, fromDecimal, withComment, Dummy } from '../helpers';
 
 export default withPreamble(`
 
@@ -183,7 +183,7 @@ The following options are possible for the \`defaultBlock\` parameter:
         type: Object,
         desc: 'See [eth_call](#eth_call) parameters, expect that all properties are optional.',
         format: 'inputCallFormatter',
-        example: DUMMY // will be replaced with { ... } by the generator
+        example: new Dummy('{ ... }')
       },
       {
         type: BlockNumber,
@@ -368,7 +368,7 @@ The following options are possible for the \`defaultBlock\` parameter:
         minGasPrice: fromDecimal(653145),
         gasUsed: fromDecimal(653145),
         timestamp: fromDecimal(1424182926),
-        transactions: [DUMMY, DUMMY], // will be replaced with [{ ... }, { ... }] by the generator
+        transactions: [new Dummy('{ ... }, { ... }, ...')],
         uncles: ['0x1606e5...', '0xd5145a9...']
       }
     }
@@ -479,7 +479,7 @@ The following options are possible for the \`defaultBlock\` parameter:
           data: '0x0000000000000000000000000000000000000000000000000000000000000000',
           topics: ['0x59ebeb90bc63057b6515673c3ecf9438e5058bca0f92585014eced636878c9a5']
         },
-        DUMMY // will be replaced with { ... } by the generator
+        new Dummy('{ ... }')
       ]
     }
   },
@@ -762,10 +762,7 @@ The following options are possible for the \`defaultBlock\` parameter:
         cumulativeGasUsed: fromDecimal(13244),
         gasUsed: fromDecimal(1244),
         contractAddress: withComment('0xb60e8dd61c5d32be8058bb8eb970870f07233155', 'or null, if none was created'),
-        logs: withComment(
-          [DUMMY, DUMMY], // will be replaced with [{ ... }, { ... }] by the generator
-          'logs as returned by eth_getFilterLogs, etc.'
-        )
+        logs: withComment([new Dummy('{ ... }, { ... }, ...]')], 'logs as returned by eth_getFilterLogs, etc.')
       }
     }
   },
@@ -1125,7 +1122,7 @@ The following options are possible for the \`defaultBlock\` parameter:
         type: Object,
         desc: 'see [eth_sendTransaction](#eth_sendTransaction).',
         format: 'inputCallFormatter',
-        example: DUMMY // will be replaced with { ... } by the generator
+        example: new Dummy('{ ... }')
       }
     ],
     returns: {

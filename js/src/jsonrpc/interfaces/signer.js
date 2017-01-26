@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import { Quantity, Data, BlockNumber } from '../types';
-import { fromDecimal, DUMMY } from '../helpers';
+import { fromDecimal, Dummy } from '../helpers';
 
 export default {
   generateAuthorizationToken: {
@@ -45,7 +45,7 @@ export default {
       // TODO: Types of the fields of transaction objects? Link to a transaction object in another page?
       type: Array,
       desc: 'A list of the outstanding transactions.',
-      example: []
+      example: new Dummy('[ ... ]')
     }
   },
 
@@ -163,7 +163,7 @@ export default {
         }
       },
       example: {
-        result: DUMMY,
+        result: new Dummy('{ ... }'),
         token: 'cAF2w5LE7XUZ3v3N'
       }
     }
