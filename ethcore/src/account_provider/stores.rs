@@ -346,7 +346,8 @@ impl<K: hash::Hash + Eq, V> DiskMap<K, V> {
 
 #[cfg(test)]
 mod tests {
-	use super::{AddressBook, DappsSettingsStore, DappsSettings, NewDappsPolicy, DappId};
+	use super::{AddressBook, DappsSettingsStore, DappsSettings, NewDappsPolicy};
+	use account_provider::DappId;
 	use std::collections::HashMap;
 	use ethjson::misc::AccountMeta;
 	use devtools::RandomTempPath;
