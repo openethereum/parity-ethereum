@@ -16,14 +16,22 @@
 
 import { shallow } from 'enzyme';
 import React from 'react';
+import sinon from 'sinon';
 
 import Home from './';
 
+const TEST_APP_HISTORY = [];
+
 let api;
 let component;
+let instance;
 
 function createApi () {
-  api = {};
+  api = {
+    parity: {
+      listRecentDapps: sinon.stub().resolves(TEST_APP_HISTORY)
+    }
+  };
 
   return api;
 }
@@ -37,6 +45,7 @@ function render () {
       }
     }
   );
+  instance = component.instance();
 
   return component;
 }
@@ -48,6 +57,22 @@ describe('views/Home', () => {
 
   it('renders defaults', () => {
     expect(component).to.be.ok;
+  });
+
+  describe('instance', () => {
+    beforeEach(() => {
+      sinon.spy(instance.webStore, 'loadHistory');
+    });
+
+    afterEach(() => {
+      instance.webStore.loadHistory.restore();
+    });
+
+    it('loads web history on mount', () => {
+      return instance.componentWillMount().then(() => {
+        expect(instance.webStore.loadHistory).to.have.bee.called;
+      });
+    });
   });
 
   describe('components', () => {

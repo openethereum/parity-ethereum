@@ -101,10 +101,9 @@ export default class News extends Component {
         }
 
         // HACK: just for testing...
-        url = 'https://raw.githubusercontent.com/jacogr/parity-news/eb835f2a507f308866d8953140bc8854d756c513/news.json';
+        url = 'https://raw.githubusercontent.com/jacogr/parity-news/61c4b2317fc69ad21c937f3ae9df997aac8c79a9/news.json';
         return fetch(url).then((response) => {
           if (!response.ok) {
-            console.warn('Unable to retrieve lastest Parity news');
             return null;
           }
 
@@ -112,7 +111,7 @@ export default class News extends Component {
         });
       })
       .then((news) => {
-        if (news[VERSION_ID]) {
+        if (news && news[VERSION_ID]) {
           this.setState({ newsItems: news[VERSION_ID].items });
         }
       });

@@ -21,7 +21,6 @@ import { FormattedMessage } from 'react-intl';
 
 import { Container, ContainerTitle, DappUrlInput, SectionList } from '~/ui';
 import { LinkIcon } from '~/ui/Icons';
-import { arrayOrObjectProptype } from '~/util/proptypes';
 
 import styles from './urls.css';
 
@@ -32,7 +31,6 @@ export default class Urls extends Component {
   };
 
   static propTypes = {
-    history: arrayOrObjectProptype().isRequired,
     store: PropTypes.object.isRequired
   }
 
@@ -64,7 +62,7 @@ export default class Urls extends Component {
   }
 
   renderHistory () {
-    const { history } = this.props;
+    const { history } = this.props.store;
 
     if (!history.length) {
       return (

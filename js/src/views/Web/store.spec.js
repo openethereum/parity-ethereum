@@ -18,6 +18,7 @@ import sinon from 'sinon';
 
 import Store from './store';
 
+const TEST_HISTORY = ['somethingA', 'somethingB'];
 const TEST_TOKEN = 'testing-123';
 const TEST_URL1 = 'http://some.test.domain.com';
 const TEST_URL2 = 'http://something.different.com';
@@ -29,6 +30,9 @@ let store;
 function createApi () {
   api = {
     dappsPort: 8080,
+    parity: {
+      listRecentDapps: sinon.stub().resolves(TEST_HISTORY)
+    },
     signer: {
       generateWebProxyAccessToken: sinon.stub().resolves(TEST_TOKEN)
     }
@@ -75,6 +79,13 @@ describe('views/Web/Store', () => {
 
       it('saves the url in the history', () => {
         expect(store.historyStore.add).to.have.been.calledWith(TEST_URL1);
+      });
+    });
+
+    describe('setHistory', () => {
+      it('sets the history', () => {
+        store.setHistory(TEST_HISTORY);
+        expect(this.history.peek()).to.deep.equal(TEST_HISTORY);
       });
     });
 
@@ -161,12 +172,26 @@ describe('views/Web/Store', () => {
         return store.generateToken();
       });
 
-      it('calls parity_generateWebProxyAccessToken', () => {
+      it('calls signer_generateWebProxyAccessToken', () => {
         expect(api.signer.generateWebProxyAccessToken).to.have.been.calledOnce;
       });
 
       it('sets the token as retrieved', () => {
         expect(store.token).to.equal(TEST_TOKEN);
+      });
+    });
+
+    describe('loadHistory', () => {
+      beforeEach(() => {
+        return store.loadHistory();
+      });
+
+      it('calls parity_listRecentDapps', () => {
+        expect(api.parity.listRecentDapps).to.have.been.calledOnce;
+      });
+
+      it('sets the history as retrieved', () => {
+        expect(store.history.peek()).to.deep.equal(TEST_HISTORY);
       });
     });
   });

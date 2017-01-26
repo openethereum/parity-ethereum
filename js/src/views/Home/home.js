@@ -41,7 +41,10 @@ export default class Home extends Component {
 
   accountsHistory = HistoryStore.get('accounts');
   dappsHistory = HistoryStore.get('dapps');
-  webHistory = HistoryStore.get('web');
+
+  componentWillMount () {
+    return this.webStore.loadHistory();
+  }
 
   render () {
     return (
@@ -56,7 +59,6 @@ export default class Home extends Component {
       >
         <News />
         <Urls
-          history={ this.webHistory.history }
           store={ this.webStore }
         />
         <div className={ styles.row }>
