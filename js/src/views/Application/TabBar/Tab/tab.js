@@ -22,11 +22,13 @@ import { Badge } from '~/ui';
 
 import styles from '../tabBar.css';
 
+const SIGNER_ID = 'signer';
+
 export default class Tab extends Component {
   static propTypes = {
     children: PropTypes.node,
     pendings: PropTypes.number,
-    view: PropTypes.object
+    view: PropTypes.object.isRequired
   };
 
   render () {
@@ -36,8 +38,8 @@ export default class Tab extends Component {
       <MUITab
         icon={ view.icon }
         label={
-          view.id === 'signer'
-            ? this.renderSignerLabel(view.id)
+          view.id === SIGNER_ID
+            ? this.renderSignerLabel()
             : this.renderLabel(view.id)
         }
       >
@@ -57,7 +59,7 @@ export default class Tab extends Component {
     );
   }
 
-  renderSignerLabel (id) {
+  renderSignerLabel () {
     const { pendings } = this.props;
     let bubble;
 
@@ -71,6 +73,6 @@ export default class Tab extends Component {
       );
     }
 
-    return this.renderLabel(id, bubble);
+    return this.renderLabel(SIGNER_ID, bubble);
   }
 }
