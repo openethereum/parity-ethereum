@@ -24,17 +24,18 @@ describe('playground/store', () => {
   let store = PlaygroundStore.get();
 
   it('is available', () => {
-    expect(store).to.be.ok;
+    expect(PlaygroundStore.get()).to.be.ok;
   });
 
   it('adds new Components', () => {
     PlaygroundStore.register(<QrCode />);
-    expect(store.components.length).equal(1);
+    expect(store.components.length).greaterThan(0);
   });
 
   it('adds new Components only once', () => {
     PlaygroundStore.register(<QrCode />);
     PlaygroundStore.register(<QrCode />);
-    expect(store.components.length).equal(1);
+
+    expect(store.components.filter((c) => /QrCode/i.test(c.type.name)).length).equal(1);
   });
 });
