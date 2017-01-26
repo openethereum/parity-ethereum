@@ -71,11 +71,11 @@ export default class EmailVerificationStore extends VerificationStore {
 
   requestValues = () => [ sha3.text(this.email) ]
 
-  didRequestWithSameValues = (currentValues) => {
+  shallRequestAgain = (currentValues) => {
     const lastRequest = this.lastRequestValues;
-    const hasRequested = currentValues[0] === bytesToHex(lastRequest.emailHash.value);
+    const requestAgain = currentValues[0] !== bytesToHex(lastRequest.emailHash.value);
 
-    return Promise.resolve(hasRequested);
+    return Promise.resolve(requestAgain);
   }
 
   @action setEmail = (email) => {

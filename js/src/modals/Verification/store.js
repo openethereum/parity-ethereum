@@ -151,7 +151,7 @@ export default class VerificationStore {
 
   requestValues = () => []
 
-  didRequestWithSameValues = () => Promise.resolve(false)
+  shallRequestAgain = () => Promise.resolve(true)
 
   @action sendRequest = () => {
     const { api, account, contract, fee } = this;
@@ -160,9 +160,9 @@ export default class VerificationStore {
     const options = { from: account, value: fee.toString() };
     const values = this.requestValues();
 
-    this.didRequestWithSameValues(values)
-      .then((hasRequested) => {
-        if (hasRequested) {
+    this.shallRequestAgain(values)
+      .then((requestAgain) => {
+        if (!requestAgain) {
           return;
         }
 
