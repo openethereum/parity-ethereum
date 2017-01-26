@@ -192,7 +192,7 @@ impl AccountProvider {
 	}
 
 	/// Gets a list of dapps recently requesting accounts.
-	pub fn recent_dapps(&self) -> Result<Vec<DappId>, Error> {
+	pub fn recent_dapps(&self) -> Result<HashMap<DappId, u64>, Error> {
 		Ok(self.dapps_settings.read().recent_dapps())
 	}
 

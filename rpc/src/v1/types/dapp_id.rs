@@ -19,7 +19,7 @@
 use ethcore::account_provider::DappId as EthDappId;
 
 /// Dapplication Internal Id
-#[derive(Debug, Default, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Eq, PartialEq, Hash, Ord, PartialOrd, Serialize, Deserialize)]
 pub struct DappId(pub String);
 
 impl Into<String> for DappId {

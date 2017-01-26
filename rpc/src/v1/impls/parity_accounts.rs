@@ -196,12 +196,12 @@ impl<C: 'static> ParityAccounts for ParityAccountsClient<C> where C: MiningBlock
 			.map(|accounts| accounts.map(into_vec))
 	}
 
-	fn recent_dapps(&self) -> Result<Vec<DappId>, Error> {
+	fn recent_dapps(&self) -> Result<BTreeMap<DappId, u64>, Error> {
 		let store = take_weak!(self.accounts);
 
 		store.recent_dapps()
 			.map_err(|e| errors::account("Couldn't get recent dapps.", e))
-			.map(into_vec)
+			.map(|map| map.into_iter().map(|(k, v)| (k.into(), v)).collect())
 	}
 
 	fn import_geth_accounts(&self, addresses: Vec<RpcH160>) -> Result<Vec<RpcH160>, Error> {

@@ -17,6 +17,7 @@
 //! Address Book and Dapps Settings Store
 
 use std::{fs, fmt, hash, ops};
+use std::sync::atomic::{self, AtomicUsize};
 use std::collections::HashMap;
 use std::path::PathBuf;
 
@@ -162,10 +163,25 @@ impl From<TransientDappsData> for JsonDappsHistory {
 	}
 }
 
-fn current_timestamp() -> u64 {
-	::std::time::UNIX_EPOCH.elapsed()
-		.expect("Correct time is required to be set")
-		.as_secs()
+enum TimeProvider {
+	Clock,
+	Incremenetal(AtomicUsize)
+}
+
+impl TimeProvider {
+	fn get(&self) -> u64 {
+		match *self {
+			TimeProvider::Clock => {
+				::std::time::UNIX_EPOCH.elapsed()
+					.expect("Correct time is required to be set")
+					.as_secs()
+
+			},
+			TimeProvider::Incremenetal(ref time) => {
+				time.fetch_add(1, atomic::Ordering::SeqCst) as u64
+			},
+		}
+	}
 }
 
 const MAX_RECENT_DAPPS: usize = 50;
@@ -178,6 +194,8 @@ pub struct DappsSettingsStore {
 	policy: DiskMap<String, NewDappsPolicy>,
 	/// Transient Data of recently Accessed Dapps
 	history: DiskMap<DappId, TransientDappsData>,
+	/// Time
+	time: TimeProvider,
 }
 
 impl DappsSettingsStore {
@@ -187,6 +205,7 @@ impl DappsSettingsStore {
 			settings: DiskMap::new(path.clone(), "dapps_accounts.json".into()),
 			policy: DiskMap::new(path.clone(), "dapps_policy.json".into()),
 			history: DiskMap::new(path.clone(), "dapps_history.json".into()),
+			time: TimeProvider::Clock,
 		};
 		r.settings.revert(JsonSettings::read);
 		r.policy.revert(JsonNewDappsPolicy::read);
@@ -200,6 +219,7 @@ impl DappsSettingsStore {
 			settings: DiskMap::transient(),
 			policy: DiskMap::transient(),
 			history: DiskMap::transient(),
+			time: TimeProvider::Incremenetal(AtomicUsize::new(1)),
 		}
 	}
 
@@ -213,16 +233,16 @@ impl DappsSettingsStore {
 		self.policy.get("default").cloned().unwrap_or(NewDappsPolicy::AllAccounts)
 	}
 
-	/// Returns recent dapps (in order of last request)
-	pub fn recent_dapps(&self) -> Vec<DappId> {
-		self.history.keys().cloned().collect()
+	/// Returns recent dapps with last accessed timestamp
+	pub fn recent_dapps(&self) -> HashMap<DappId, u64> {
+		self.history.iter().map(|(k, v)| (k.clone(), v.last_accessed)).collect()
 	}
 
 	/// Marks recent dapp as used
 	pub fn mark_dapp_used(&mut self, dapp: DappId) {
 		{
 			let mut entry = self.history.entry(dapp).or_insert_with(|| Default::default());
-			entry.last_accessed = current_timestamp();
+			entry.last_accessed = self.time.get();
 		}
 		// Clear extraneous entries
 		while self.history.len() > MAX_RECENT_DAPPS {
@@ -326,7 +346,7 @@ impl<K: hash::Hash + Eq, V> DiskMap<K, V> {
 
 #[cfg(test)]
 mod tests {
-	use super::{AddressBook, DappsSettingsStore, DappsSettings, NewDappsPolicy};
+	use super::{AddressBook, DappsSettingsStore, DappsSettings, NewDappsPolicy, DappId};
 	use std::collections::HashMap;
 	use ethjson::misc::AccountMeta;
 	use devtools::RandomTempPath;
@@ -380,18 +400,22 @@ mod tests {
 	}
 
 	#[test]
-	fn should_maintain_a_list_of_recent_dapps() {
+	fn should_maintain_a_map_of_recent_dapps() {
 		let mut store = DappsSettingsStore::transient();
 		assert!(store.recent_dapps().is_empty(), "Initially recent dapps should be empty.");
 
-		store.mark_dapp_used("dapp1".into());
-		assert_eq!(store.recent_dapps(), vec!["dapp1".into()]);
+		let dapp1: DappId = "dapp1".into();
+		let dapp2: DappId = "dapp2".into();
+		store.mark_dapp_used(dapp1.clone());
+		let recent = store.recent_dapps();
+		assert_eq!(recent.len(), 1);
+		assert_eq!(recent.get(&dapp1), Some(&0));
 
-		store.mark_dapp_used("dapp2".into());
-		assert_eq!(store.recent_dapps(), vec!["dapp2".into(), "dapp1".into()]);
-
-		store.mark_dapp_used("dapp1".into());
-		assert_eq!(store.recent_dapps(), vec!["dapp1".into(), "dapp2".into()]);
+		store.mark_dapp_used(dapp2.clone());
+		let recent = store.recent_dapps();
+		assert_eq!(recent.len(), 2);
+		assert_eq!(recent.get(&dapp1), Some(&0));
+		assert_eq!(recent.get(&dapp2), Some(&1));
 	}
 
 	#[test]

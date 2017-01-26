@@ -26,6 +26,7 @@ const IGNORED_FILES: &'static [&'static str] = &[
 	"thumbs.db",
 	"address_book.json",
 	"dapps_policy.json",
+	"dapps_accounts.json",
 	"dapps_history.json",
 ];
 
