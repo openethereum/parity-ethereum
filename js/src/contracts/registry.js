@@ -115,17 +115,4 @@ export default class Registry {
         return instance.get.call({}, this._createGetParams(name, key));
       });
   }
-
-  lookupMeta (_name, key) {
-    const name = _name.toLowerCase();
-    const sha3 = this._api.util.sha3.text(name);
-
-    return this.getInstance().then((instance) => {
-      return instance.get.call({}, [sha3, key]);
-    })
-    .then((meta) => {
-      console.log('[lookupMeta]', `(${sha3}) ${name}.${key}: ${meta}`);
-      return meta;
-    });
-  }
 }
