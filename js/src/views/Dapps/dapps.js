@@ -23,7 +23,7 @@ import { connect } from 'react-redux';
 
 import { AddDapps, DappPermissions } from '~/modals';
 import PermissionStore from '~/modals/DappPermissions/store';
-import { Actionbar, Button, Page } from '~/ui';
+import { Actionbar, Button, Page, SectionList } from '~/ui';
 import { LockedIcon, VisibleIcon } from '~/ui/Icons';
 
 import UrlButton from './UrlButton';
@@ -119,35 +119,27 @@ class Dapps extends Component {
           ] }
         />
         <Page>
-          <div>{ this.renderList(this.store.visibleLocal) }</div>
-          <div>{ this.renderList(this.store.visibleBuiltin) }</div>
-          <div>{ this.renderList(this.store.visibleNetwork, externalOverlay) }</div>
+          <SectionList
+            items={ this.store.visibleLocal }
+            renderItem={ this.renderApp }
+          />
+          <SectionList
+            items={ this.store.visibleBuiltin }
+            renderItem={ this.renderApp }
+          />
+          <SectionList
+            items={ this.store.visibleNetwork }
+            renderItem={ this.renderApp }
+            overlay={ externalOverlay }
+          />
         </Page>
-      </div>
-    );
-  }
-
-  renderList (items, overlay) {
-    if (!items || !items.length) {
-      return null;
-    }
-
-    return (
-      <div className={ styles.list }>
-        { overlay }
-        { items.map(this.renderApp) }
       </div>
     );
   }
 
   renderApp = (app) => {
     return (
-      <div
-        className={ styles.item }
-        key={ app.id }
-      >
-        <Summary app={ app } />
-      </div>
+      <Summary app={ app } />
     );
   }
 

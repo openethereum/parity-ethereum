@@ -15,30 +15,32 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-.container {
-  position: relative;
-  height: 100%;
-}
+$imageSize: 56px;
+$imageMargin: 72px;
 
-.image {
-  position: absolute;
-  top: 1.5em;
-  left: 1.5em;
-  border-radius: 50%;
-  width: 56px;
-  height: 56px;
-}
-
-.description {
-  margin-left: 72px;
-}
-
-.title {
-  mragin-bottom: 0.5em;
+.item {
+  &:not(:hover) {
+    .tags {
+      display: none;
+    }
+  }
 }
 
 .author, .version {
+  color: #aaa;
   font-size: 0.75em;
-  opacity: 0.5;
-  margin-top: 0.5em;
+  margin: 0.5em 0 0 $imageMargin;
+}
+
+.description {
+  margin-left: $imageMargin;
+}
+
+.image {
+  border-radius: 50%;
+  height: $imageSize;
+  left: 1.5em;
+  position: absolute;
+  top: 1.5em;
+  width: $imageSize;
 }

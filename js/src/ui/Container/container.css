@@ -14,19 +14,23 @@
 /* You should have received a copy of the GNU General Public License
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
+
+$bgcolor: rgba(22, 22, 22, 1); /* 0.8 */
+
 .container {
+  background-color: $bgcolor;
   flex: 1;
-  padding: 0em;
-  background: rgba(0, 0, 0, 0.8);
   height: 100%;
+  padding: 0em;
+  position: relative;
 }
 
 .compact,
 .padded {
   border-radius: 0 !important;
-  position: relative;
-  overflow: auto;
   background-color: transparent !important;
+  overflow: auto;
+  position: relative;
 }
 
 .compact {
@@ -40,4 +44,15 @@
 .light .compact,
 .light .padded {
   background: rgba(0, 0, 0, 0.5) !important;
+}
+
+.hover {
+  background-color: $bgcolor !important;
+  left: 0;
+  margin-top: -1.5em;
+  padding: 0 1.5em 1.5em 1.5em;
+  position: absolute;
+  right: 0;
+  top: 100%;
+  z-index: 100;
 }

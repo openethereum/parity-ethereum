@@ -28,27 +28,33 @@ class Balance extends Component {
 
   static propTypes = {
     balance: PropTypes.object,
-    images: PropTypes.object.isRequired
+    className: PropTypes.string,
+    images: PropTypes.object.isRequired,
+    onlyEth: PropTypes.bool
   }
 
   render () {
     const { api } = this.context;
-    const { balance, images } = this.props;
+    const { balance, className, images, onlyEth } = this.props;
 
     if (!balance) {
       return null;
     }
 
     let body = (balance.tokens || [])
-      .filter((balance) => new BigNumber(balance.value).gt(0))
+      .filter((balance) => {
+        const isCorrectType = onlyEth
+          ? balance.token.tag === 'ETH'
+          : true;
+
+        return new BigNumber(balance.value).gt(0) && isCorrectType;
+      })
       .map((balance, index) => {
         const token = balance.token;
-
         let value;
 
         if (token.format) {
           const bnf = new BigNumber(token.format);
-
           let decimals = 0;
 
           if (bnf.gte(1000)) {
@@ -101,7 +107,7 @@ class Balance extends Component {
     }
 
     return (
-      <div className={ styles.balances }>
+      <div className={ [styles.balances, className].join(' ') }>
         { body }
       </div>
     );

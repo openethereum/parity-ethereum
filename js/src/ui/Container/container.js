@@ -28,6 +28,7 @@ export default class Container extends Component {
     children: PropTypes.node,
     className: PropTypes.string,
     compact: PropTypes.bool,
+    hover: PropTypes.node,
     light: PropTypes.bool,
     style: PropTypes.object,
     tabIndex: PropTypes.number,
@@ -35,9 +36,7 @@ export default class Container extends Component {
   }
 
   render () {
-    const { children, className, compact, light, style, tabIndex } = this.props;
-    const classes = `${styles.container} ${light ? styles.light : ''} ${className}`;
-
+    const { className, light, style, tabIndex } = this.props;
     const props = {};
 
     if (Number.isInteger(tabIndex)) {
@@ -45,12 +44,56 @@ export default class Container extends Component {
     }
 
     return (
-      <div className={ classes } style={ style } { ...props }>
-        <Card className={ compact ? styles.compact : styles.padded }>
-          { this.renderTitle() }
-          { children }
-        </Card>
+      <div
+        className={
+          [
+            styles.container,
+            light
+              ? styles.light
+              : null,
+            className
+          ].join(' ')
+        }
+        style={ style }
+        { ...props }
+      >
+        { this.renderBody() }
+        { this.renderBodyHover() }
       </div>
+    );
+  }
+
+  renderBody () {
+    const { children, compact } = this.props;
+
+    return (
+      <Card
+        className={
+          compact
+            ? styles.compact
+            : styles.padded
+        }
+      >
+        { this.renderTitle() }
+        { children }
+      </Card>
+    );
+  }
+
+  renderBodyHover () {
+    const { hover } = this.props;
+
+    if (!hover) {
+      return null;
+    }
+
+    return (
+      <Card
+        className={ styles.hover }
+        data-hover='show'
+      >
+        { hover }
+      </Card>
     );
   }
 

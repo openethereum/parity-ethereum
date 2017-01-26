@@ -99,35 +99,41 @@ export default class Summary extends Component {
 
     const { address } = account;
 
-    const addressComponent = (
-      <Input
-        readOnly
-        hideUnderline
-        value={ address }
-        allowCopy={ address }
-      />
-    );
-
-    const description = this.getDescription(account.meta);
-
     return (
-      <Container>
-        <Tags tags={ tags } handleAddSearchToken={ handleAddSearchToken } />
+      <Container
+        className={ styles.item }
+        hover={
+          <div>
+            { this.renderOwners() }
+            { this.renderBalance(false) }
+            { this.renderCertifications() }
+          </div>
+        }
+      >
+        <Tags
+          className={ styles.tags }
+          handleAddSearchToken={ handleAddSearchToken }
+          tags={ tags }
+        />
         <div className={ styles.heading }>
           <IdentityIcon
             address={ address }
           />
           <ContainerTitle
-            byline={ addressComponent }
+            byline={
+              <Input
+                readOnly
+                hideUnderline
+                value={ address }
+                allowCopy={ address }
+              />
+            }
             className={ styles.main }
-            description={ description }
+            description={ this.getDescription(account.meta) }
             title={ this.renderLink() }
           />
         </div>
-
-        { this.renderOwners() }
-        { this.renderBalance() }
-        { this.renderCertifications() }
+        { this.renderBalance(true) }
       </Container>
     );
   }
@@ -170,7 +176,10 @@ export default class Summary extends Component {
                 data-for={ `owner_${owner.address}` }
                 data-effect='solid'
               >
-                <IdentityIcon address={ owner.address } button />
+                <IdentityIcon
+                  address={ owner.address }
+                  button
+                />
               </div>
               <ReactTooltip id={ `owner_${owner.address}` }>
                 <strong>{ owner.name } </strong><small> (owner)</small>
@@ -193,7 +202,11 @@ export default class Summary extends Component {
     const viewLink = `/${baseLink}/${address}`;
 
     const content = (
-      <IdentityName address={ address } name={ name } unknown />
+      <IdentityName
+        address={ address }
+        name={ name }
+        unknown
+      />
     );
 
     if (noLink) {
@@ -207,7 +220,7 @@ export default class Summary extends Component {
     );
   }
 
-  renderBalance () {
+  renderBalance (onlyEth) {
     const { balance } = this.props;
 
     if (!balance) {
@@ -215,7 +228,15 @@ export default class Summary extends Component {
     }
 
     return (
-      <Balance balance={ balance } />
+      <Balance
+        balance={ balance }
+        className={
+          onlyEth
+            ? styles.allBalances
+            : styles.ethBalances
+        }
+        onlyEth={ onlyEth }
+      />
     );
   }
 
@@ -227,7 +248,10 @@ export default class Summary extends Component {
     }
 
     return (
-      <Certifications address={ account.address } />
+      <Certifications
+        className={ styles.certifications }
+        address={ account.address }
+      />
     );
   }
 }

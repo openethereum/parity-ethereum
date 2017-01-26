@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import { FormattedMessage } from 'react-intl';
 import { Link } from 'react-router';
 
 import { Container, ContainerTitle, Tags } from '~/ui';
@@ -27,8 +28,7 @@ export default class Summary extends Component {
   }
 
   static propTypes = {
-    app: PropTypes.object.isRequired,
-    children: PropTypes.node
+    app: PropTypes.object.isRequired
   }
 
   render () {
@@ -39,53 +39,53 @@ export default class Summary extends Component {
       return null;
     }
 
-    const image = this.renderImage(dappsUrl, app);
-    const link = this.renderLink(app);
-
     return (
-      <Container className={ styles.container }>
-        { image }
-        <Tags tags={ [app.type] } />
-        <div className={ styles.description }>
-          <ContainerTitle
-            className={ styles.title }
-            title={ link }
-            byline={ app.description }
+      <Link
+        to={
+          app.url === 'web'
+            ? '/web'
+            : `/app/${app.id}`
+        }
+      >
+        <Container
+          className={ styles.item }
+          hover={
+            <div>
+              <div className={ styles.author }>
+                { app.author }
+              </div>
+              <div className={ styles.version }>
+                <FormattedMessage
+                  id='dapps.version'
+                  defaultMessage='version {version}'
+                  values={ {
+                    version: app.version
+                  } }
+                />
+              </div>
+            </div>
+          }
+        >
+          <img
+            className={ styles.image }
+            src={
+              app.type === 'local'
+                ? `${dappsUrl}/${app.id}/${app.iconUrl}`
+                : `${dappsUrl}${app.image}`
+            }
           />
-          <div className={ styles.author }>
-            { app.author }, v{ app.version }
+          <Tags
+            className={ styles.tags }
+            tags={ [app.type] }
+          />
+          <div className={ styles.description }>
+            <ContainerTitle
+              clickable
+              title={ app.name }
+              byline={ app.description }
+            />
           </div>
-          { this.props.children }
-        </div>
-      </Container>
-    );
-  }
-
-  renderImage (dappsUrl, app) {
-    if (app.type === 'local') {
-      return (
-        <img src={ `${dappsUrl}/${app.id}/${app.iconUrl}` } className={ styles.image } />
-      );
-    }
-
-    return (
-      <img src={ `${dappsUrl}${app.image}` } className={ styles.image } />
-    );
-  }
-
-  renderLink (app) {
-    // Special case for web dapp
-    if (app.url === 'web') {
-      return (
-        <Link to={ `/web` }>
-          { app.name }
-        </Link>
-      );
-    }
-
-    return (
-      <Link to={ `/app/${app.id}` }>
-        { app.name }
+        </Container>
       </Link>
     );
   }
