@@ -78,4 +78,22 @@ describe('ui/CurrencySymbol', () => {
       expect(render('somethingElse').text()).equal('ETH');
     });
   });
+
+  describe('renderSymbol', () => {
+    it('render defaults', () => {
+      expect(render().instance().renderSymbol()).to.be.ok;
+    });
+
+    it('render ETH as default', () => {
+      expect(render().instance().renderSymbol()).equal('ETH');
+    });
+
+    it('render ETC', () => {
+      expect(render('classic').instance().renderSymbol()).equal('ETC');
+    });
+
+    it('render EXP', () => {
+      expect(render('expanse').instance().renderSymbol()).equal('EXP');
+    });
+  });
 });
