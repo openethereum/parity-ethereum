@@ -27,7 +27,6 @@ class Balance extends Component {
   }
 
   static propTypes = {
-    'data-hover': PropTypes.string,
     balance: PropTypes.object,
     images: PropTypes.object.isRequired,
     onlyEth: PropTypes.bool
@@ -99,10 +98,7 @@ class Balance extends Component {
       });
 
     return (
-      <div
-        className={ styles.balances }
-        data-hover={ this.props['data-hover'] }
-      >
+      <div className={ styles.balances }>
         { body}
       </div>
     );
