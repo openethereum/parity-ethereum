@@ -410,13 +410,13 @@ mod tests {
 		store.mark_dapp_used(dapp1.clone());
 		let recent = store.recent_dapps();
 		assert_eq!(recent.len(), 1);
-		assert_eq!(recent.get(&dapp1), Some(&0));
+		assert_eq!(recent.get(&dapp1), Some(&1));
 
 		store.mark_dapp_used(dapp2.clone());
 		let recent = store.recent_dapps();
 		assert_eq!(recent.len(), 2);
-		assert_eq!(recent.get(&dapp1), Some(&0));
-		assert_eq!(recent.get(&dapp2), Some(&1));
+		assert_eq!(recent.get(&dapp1), Some(&1));
+		assert_eq!(recent.get(&dapp2), Some(&2));
 	}
 
 	#[test]
