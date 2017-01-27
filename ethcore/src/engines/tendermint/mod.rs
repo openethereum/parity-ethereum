@@ -673,7 +673,7 @@ mod tests {
 		}
 	}
 
-	fn vote<F>(engine: &Engine, signer: F, height: usize, view: usize, step: Step, block_hash: Option<H256>) -> Bytes where F: FnOnce(H256) -> Result<H520, ::account_provider::Error> {
+	fn vote<F>(engine: &Engine, signer: F, height: usize, view: usize, step: Step, block_hash: Option<H256>) -> Bytes where F: FnOnce(H256) -> Result<H520, ::account_provider::SignError> {
 		let mi = message_info_rlp(&VoteStep::new(height, view, step), block_hash);
 		let m = message_full_rlp(&signer(mi.sha3()).unwrap().into(), &mi);
 		engine.handle_message(&m).unwrap();
