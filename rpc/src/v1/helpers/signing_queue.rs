@@ -342,6 +342,7 @@ mod test {
 	fn request() -> ConfirmationPayload {
 		ConfirmationPayload::SendTransaction(FilledTransactionRequest {
 			from: Address::from(1),
+			used_default_from: false,
 			to: Some(Address::from(2)),
 			gas_price: 0.into(),
 			gas: 10_000.into(),
