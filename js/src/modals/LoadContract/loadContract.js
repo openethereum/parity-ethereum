@@ -14,22 +14,23 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import React, { Component, PropTypes } from 'react';
-
-import ContentClear from 'material-ui/svg-icons/content/clear';
-import CheckIcon from 'material-ui/svg-icons/navigation/check';
-import DeleteIcon from 'material-ui/svg-icons/action/delete';
-
-import { List, ListItem, makeSelectable } from 'material-ui/List';
 import { Subheader, IconButton, Tabs, Tab } from 'material-ui';
+import { List, ListItem, makeSelectable } from 'material-ui/List';
 import moment from 'moment';
+import React, { Component, PropTypes } from 'react';
+import { FormattedMessage } from 'react-intl';
 
 import { Button, Modal, Editor } from '~/ui';
+import { CancelIcon, CheckIcon, DeleteIcon } from '~/ui/Icons';
 
 import styles from './loadContract.css';
 
 const SelectableList = makeSelectable(List);
 
+const REMOVAL_STYLE = {
+  backgroundColor: 'none',
+  cursor: 'default'
+};
 const SELECTED_STYLE = {
   backgroundColor: 'rgba(255, 255, 255, 0.1)'
 };
@@ -52,14 +53,24 @@ export default class LoadContract extends Component {
   render () {
     const { deleteRequest } = this.state;
 
-    const title = deleteRequest
-      ? 'confirm removal'
-      : 'view contracts';
-
     return (
       <Modal
-        title={ title }
         actions={ this.renderDialogActions() }
+        title={
+          deleteRequest
+            ? (
+              <FormattedMessage
+                id='loadContract.title.remove'
+                defaultMessage='confirm removal'
+              />
+            )
+            : (
+              <FormattedMessage
+                id='loadContract.title.view'
+                defaultMessage='view contracts'
+              />
+            )
+        }
         visible
       >
         { this.renderBody() }
@@ -73,17 +84,25 @@ export default class LoadContract extends Component {
     }
 
     const { contracts, snippets } = this.props;
-
     const contractsTab = Object.keys(contracts).length === 0
       ? null
       : (
-        <Tab label='Local' >
+        <Tab
+          label={
+            <FormattedMessage
+              id='loadContract.tab.local'
+              defaultMessage='Local'
+            />
+          }
+        >
           { this.renderEditor() }
-
-          <SelectableList
-            onChange={ this.onClickContract }
-          >
-            <Subheader>Saved Contracts</Subheader>
+          <SelectableList onChange={ this.onClickContract }>
+            <Subheader>
+              <FormattedMessage
+                id='loadContract.header.saved'
+                defaultMessage='Saved Contracts'
+              />
+            </Subheader>
             { this.renderContracts(contracts) }
           </SelectableList>
         </Tab>
@@ -93,14 +112,22 @@ export default class LoadContract extends Component {
       <div className={ styles.loadContainer }>
         <Tabs onChange={ this.handleChangeTab }>
           { contractsTab }
-
-          <Tab label='Snippets' >
+          <Tab
+            label={
+              <FormattedMessage
+                id='loadContract.tab.snippets'
+                defaultMessage='Snippets'
+              />
+            }
+          >
             { this.renderEditor() }
-
-            <SelectableList
-              onChange={ this.onClickContract }
-            >
-              <Subheader>Contract Snippets</Subheader>
+            <SelectableList onChange={ this.onClickContract }>
+              <Subheader>
+                <FormattedMessage
+                  id='loadContract.header.snippets'
+                  defaultMessage='Contract Snippets'
+                />
+              </Subheader>
               { this.renderContracts(snippets, false) }
             </SelectableList>
           </Tab>
@@ -116,13 +143,23 @@ export default class LoadContract extends Component {
     return (
       <div className={ styles.confirmRemoval }>
         <p>
-          Are you sure you want to remove the following
-          contract from your saved contracts?
+          <FormattedMessage
+            id='loadContract.removal.confirm'
+            defaultMessage='Are you sure you want to remove the following contract from your saved contracts?'
+          />
         </p>
         <ListItem
           primaryText={ name }
-          secondaryText={ `Saved ${moment(timestamp).fromNow()}` }
-          style={ { backgroundColor: 'none', cursor: 'default' } }
+          secondaryText={
+            <FormattedMessage
+              id='loadContract.removal.savedAt'
+              defaultMessage='Saved {when}'
+              values={ {
+                when: moment(timestamp).fromNow()
+              } }
+            />
+          }
+          style={ REMOVAL_STYLE }
         />
 
         <div className={ styles.editor }>
@@ -152,9 +189,9 @@ export default class LoadContract extends Component {
       <div className={ styles.editor }>
         <p>{ name }</p>
         <Editor
-          value={ sourcecode }
-          maxLines={ 20 }
           readOnly
+          maxLines={ 20 }
+          value={ sourcecode }
         />
       </div>
     );
@@ -169,23 +206,36 @@ export default class LoadContract extends Component {
         const { id, name, timestamp, description } = contract;
         const onDelete = () => this.onDeleteRequest(id);
 
-        const secondaryText = description || `Saved ${moment(timestamp).fromNow()}`;
-        const remove = removable
-          ? (
-            <IconButton onTouchTap={ onDelete }>
-              <DeleteIcon />
-            </IconButton>
-          )
-          : null;
-
         return (
           <ListItem
-            value={ id }
             key={ id }
             primaryText={ name }
-            secondaryText={ secondaryText }
-            style={ selected === id ? SELECTED_STYLE : null }
-            rightIconButton={ remove }
+            rightIconButton={
+              removable
+                ? (
+                  <IconButton onTouchTap={ onDelete }>
+                    <DeleteIcon />
+                  </IconButton>
+                )
+                : null
+            }
+            secondaryText={
+              description || (
+                <FormattedMessage
+                  id='loadContract.contract.savedAt'
+                  defaultMessage='Saved {when}'
+                  values={ {
+                    when: moment(timestamp).fromNow()
+                  } }
+                />
+              )
+            }
+            style={
+              selected === id
+                ? SELECTED_STYLE
+                : null
+            }
+            value={ id }
           />
         );
       });
@@ -197,46 +247,61 @@ export default class LoadContract extends Component {
     if (deleteRequest) {
       return [
         <Button
-          icon={ <ContentClear /> }
-          label='No'
+          icon={ <CancelIcon /> }
           key='No'
+          label={
+            <FormattedMessage
+              id='loadContract.button.no'
+              defaultMessage='No'
+            />
+          }
           onClick={ this.onRejectRemoval }
         />,
         <Button
           icon={ <DeleteIcon /> }
-          label='Yes'
           key='Yes'
+          label={
+            <FormattedMessage
+              id='loadContract.button.yes'
+              defaultMessage='Yes'
+            />
+          }
           onClick={ this.onConfirmRemoval }
         />
       ];
     }
 
-    const cancelBtn = (
+    return [
       <Button
-        icon={ <ContentClear /> }
-        label='Cancel'
+        icon={ <CancelIcon /> }
+        label={
+          <FormattedMessage
+            id='loadContract.button.cancel'
+            defaultMessage='Cancel'
+          />
+        }
         onClick={ this.onClose }
-      />
-    );
-
-    const loadBtn = (
+      />,
       <Button
-        icon={ <CheckIcon /> }
-        label='Load'
-        onClick={ this.onLoad }
         disabled={ this.state.selected === -1 }
+        icon={ <CheckIcon /> }
+        label={
+          <FormattedMessage
+            id='loadContract.button.load'
+            defaultMessage='Load'
+          />
+        }
+        onClick={ this.onLoad }
       />
-    );
-
-    return [ cancelBtn, loadBtn ];
+    ];
   }
 
   handleChangeTab = () => {
     this.setState({ selected: -1 });
   }
 
-  onClickContract = (_, value) => {
-    this.setState({ selected: value });
+  onClickContract = (event, selected) => {
+    this.setState({ selected });
   }
 
   onClose = () => {
