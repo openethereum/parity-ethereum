@@ -11,9 +11,9 @@ ethcore-ipc-codegen = { path = "../ipc/codegen" }
 
 [dependencies]
 log = "0.3"
-jsonrpc-core = { git = "https://github.com/ethcore/jsonrpc.git", branch="mio" }
-jsonrpc-macros = { git = "https://github.com/ethcore/jsonrpc.git", branch="mio" }
-jsonrpc-tcp-server = { git = "https://github.com/ethcore/jsonrpc.git", branch="mio" }
+jsonrpc-core = { git = "https://github.com/ethcore/jsonrpc.git" }
+jsonrpc-macros = { git = "https://github.com/ethcore/jsonrpc.git" }
+jsonrpc-tcp-server = { git = "https://github.com/ethcore/jsonrpc.git" }
 mio = { git = "https://github.com/ethcore/mio", branch = "v0.5.x" }
 ethcore-util = { path = "../util" }
 ethcore-devtools = { path = "../devtools" }
@@ -22,6 +22,8 @@ env_logger = "0.3"
 ethcore-ipc = { path = "../ipc/rpc" }
 semver = "0.5"
 ethcore-ipc-nano = { path = "../ipc/nano" }
+futures = "0.1"
+tokio-core = "0.1"
 
 [profile.release]
 debug = true

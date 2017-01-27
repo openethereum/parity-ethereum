@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -79,7 +79,9 @@ export function outChainStatus (status) {
     Object.keys(status).forEach((key) => {
       switch (key) {
         case 'blockGap':
-          status[key] = status[key].map(outNumber);
+          status[key] = status[key]
+            ? status[key].map(outNumber)
+            : status[key];
           break;
       }
     });

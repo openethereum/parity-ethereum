@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -22,6 +22,7 @@ import CloseIcon from 'material-ui/svg-icons/navigation/close';
 import CompareIcon from 'material-ui/svg-icons/action/compare-arrows';
 import ComputerIcon from 'material-ui/svg-icons/hardware/desktop-mac';
 import ContractIcon from 'material-ui/svg-icons/action/code';
+import CopyIcon from 'material-ui/svg-icons/content/content-copy';
 import DashboardIcon from 'material-ui/svg-icons/action/dashboard';
 import DeleteIcon from 'material-ui/svg-icons/action/delete';
 import DoneIcon from 'material-ui/svg-icons/action/done-all';
@@ -50,6 +51,7 @@ export {
   CompareIcon,
   ComputerIcon,
   ContractIcon,
+  CopyIcon,
   DashboardIcon,
   DeleteIcon,
   DoneIcon,

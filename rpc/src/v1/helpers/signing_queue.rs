@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -53,9 +53,6 @@ pub enum QueueError {
 pub enum QueueAddError {
 	LimitReached,
 }
-
-/// Message Receiver type
-pub type QueueEventReceiver = mpsc::Receiver<QueueEvent>;
 
 // TODO [todr] to consider: timeout instead of limit?
 const QUEUE_LIMIT: usize = 50;

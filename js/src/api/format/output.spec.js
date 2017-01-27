@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -134,6 +134,14 @@ describe('api/format/output', () => {
       expect(outChainStatus(status)).to.deep.equal({
         blockGap: [new BigNumber(0x1234), new BigNumber(0x5678)]
       });
+    });
+
+    it('handles null blockGap values', () => {
+      const status = {
+        blockGap: null
+      };
+
+      expect(outChainStatus(status)).to.deep.equal(status);
     });
   });
 

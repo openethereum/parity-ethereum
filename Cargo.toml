@@ -32,7 +32,7 @@ app_dirs = "1.1.1"
 fdlimit = "0.1"
 hyper = { version = "0.9", default-features = false }
 ctrlc = { git = "https://github.com/ethcore/rust-ctrlc.git" }
-jsonrpc-core = { git = "https://github.com/ethcore/jsonrpc.git", branch="mio" }
+jsonrpc-core = { git = "https://github.com/ethcore/jsonrpc.git" }
 ethsync = { path = "sync" }
 ethcore = { path = "ethcore" }
 ethcore-util = { path = "util" }
@@ -79,7 +79,6 @@ jit = ["ethcore/jit"]
 dev = ["clippy", "ethcore/dev", "ethcore-util/dev", "ethsync/dev", "ethcore-rpc/dev", "ethcore-dapps/dev", "ethcore-signer/dev"]
 json-tests = ["ethcore/json-tests"]
 test-heavy = ["ethcore/test-heavy"]
-stratum = ["ipc"]
 ethkey-cli = ["ethcore/ethkey-cli"]
 ethstore-cli = ["ethcore/ethstore-cli"]
 evm-debug = ["ethcore/evm-debug"]
