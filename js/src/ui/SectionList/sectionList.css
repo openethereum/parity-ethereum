@@ -57,8 +57,8 @@
       }
 
       &:hover {
-        flex: 0 0 40%;
-        max-width: 40%;
+        flex: 0 0 42.5%;
+        max-width: 42.5%;
         opacity: 1;
         z-index: 100;
 
