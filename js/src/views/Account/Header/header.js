@@ -51,12 +51,15 @@ export default class Header extends Component {
     return (
       <div className={ className }>
         <Container>
-          <IdentityIcon address={ address } />
           <QrCode
-            className={ styles.floatright }
+            className={ styles.qrcode }
             value={ address }
           />
-          <div className={ styles.floatleft }>
+          <IdentityIcon
+            address={ address }
+            className={ styles.identityIcon }
+          />
+          <div className={ styles.info }>
             { this.renderName() }
             <div className={ [ hideName ? styles.bigaddress : '', styles.addressline ].join(' ') }>
               <CopyToClipboard data={ address } />
@@ -67,16 +70,16 @@ export default class Header extends Component {
               { meta.description }
             </div>
             { this.renderTxCount() }
+            <div className={ styles.balances }>
+              <Balance
+                account={ account }
+                balance={ balance }
+              />
+              <Certifications address={ address } />
+            </div>
           </div>
           <div className={ styles.tags }>
             <Tags tags={ meta.tags } />
-          </div>
-          <div className={ styles.balances }>
-            <Balance
-              account={ account }
-              balance={ balance }
-            />
-            <Certifications address={ address } />
           </div>
           { children }
         </Container>
@@ -95,6 +98,7 @@ export default class Header extends Component {
 
     return (
       <ContainerTitle
+        className={ styles.title }
         title={
           <IdentityName
             address={ address }
