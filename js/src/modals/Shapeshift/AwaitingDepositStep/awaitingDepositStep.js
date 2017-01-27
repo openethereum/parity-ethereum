@@ -18,6 +18,8 @@ import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 
+import { CopyToClipboard, QrCode } from '~/ui';
+
 import Value from '../Value';
 import styles from '../shapeshift.css';
 
@@ -61,9 +63,7 @@ export default class AwaitingDepositStep extends Component {
             } }
           />
         </div>
-        <div className={ styles.hero }>
-          { depositAddress }
-        </div>
+        { this.renderAddress(depositAddress) }
         <div className={ styles.price }>
           <div>
             <FormattedMessage
@@ -75,6 +75,21 @@ export default class AwaitingDepositStep extends Component {
               } }
             />
           </div>
+        </div>
+      </div>
+    );
+  }
+
+  renderAddress (depositAddress) {
+    return (
+      <div className={ styles.addressInfo }>
+        <QrCode
+          className={ styles.qrcode }
+          value={ depositAddress }
+        />
+        <div className={ styles.address }>
+          <CopyToClipboard data={ depositAddress } />
+          <span>{ depositAddress }</span>
         </div>
       </div>
     );
