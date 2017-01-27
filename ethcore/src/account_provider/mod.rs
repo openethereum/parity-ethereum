@@ -49,29 +49,32 @@ struct AccountData {
 	password: String,
 }
 
-/// `AccountProvider` errors.
+/// Signing error
 #[derive(Debug)]
-pub enum Error {
-	/// Returned when account is not unlocked.
+pub enum SignError {
+	/// Account is not unlocked
 	NotUnlocked,
-	/// Returned when signing fails.
-	SStore(SSError),
+	/// Low-level error from store
+	SStore(SSError)
 }
 
-impl fmt::Display for Error {
+impl fmt::Display for SignError {
 	fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
 		match *self {
-			Error::NotUnlocked => write!(f, "Account is locked"),
-			Error::SStore(ref e) => write!(f, "{}", e),
+			SignError::NotUnlocked => write!(f, "Account is locked"),
+			SignError::SStore(ref e) => write!(f, "{}", e),
 		}
 	}
 }
 
-impl From<SSError> for Error {
+impl From<SSError> for SignError {
 	fn from(e: SSError) -> Self {
-		Error::SStore(e)
+		SignError::SStore(e)
 	}
 }
+
+/// `AccountProvider` errors.
+pub type Error = SSError;
 
 /// Dapp identifier
 pub type DappId = String;
@@ -206,6 +209,14 @@ impl AccountProvider {
 		}
 	}
 
+	/// Returns default account for particular dapp falling back to other allowed accounts if necessary.
+	pub fn default_address(&self, dapp: DappId) -> Result<Address, Error> {
+		self.dapps_addresses(dapp)?
+			.get(0)
+			.cloned()
+			.ok_or(SSError::InvalidAccount)
+	}
+
 	/// Sets addresses visile for dapp.
 	pub fn set_dapps_addresses(&self, dapp: DappId, addresses: Vec<Address>) -> Result<(), Error> {
 		self.dapps_settings.write().set_accounts(dapp, addresses);
@@ -276,7 +287,7 @@ impl AccountProvider {
 
 	/// Changes the password of `account` from `password` to `new_password`. Fails if incorrect `password` given.
 	pub fn change_password(&self, account: &Address, password: String, new_password: String) -> Result<(), Error> {
-		self.sstore.change_password(account, &password, &new_password).map_err(Error::SStore)
+		self.sstore.change_password(account, &password, &new_password)
 	}
 
 	/// Helper method used for unlocking accounts.
@@ -302,16 +313,16 @@ impl AccountProvider {
 		Ok(())
 	}
 
-	fn password(&self, account: &Address) -> Result<String, Error> {
+	fn password(&self, account: &Address) -> Result<String, SignError> {
 		let mut unlocked = self.unlocked.write();
-		let data = unlocked.get(account).ok_or(Error::NotUnlocked)?.clone();
+		let data = unlocked.get(account).ok_or(SignError::NotUnlocked)?.clone();
 		if let Unlock::Temp = data.unlock {
 			unlocked.remove(account).expect("data exists: so key must exist: qed");
 		}
 		if let Unlock::Timed(ref end) = data.unlock {
 			if Instant::now() > *end {
 				unlocked.remove(account).expect("data exists: so key must exist: qed");
-				return Err(Error::NotUnlocked);
+				return Err(SignError::NotUnlocked);
 			}
 		}
 		Ok(data.password.clone())
@@ -339,13 +350,13 @@ impl AccountProvider {
 	}
 
 	/// Signs the message. If password is not provided the account must be unlocked.
-	pub fn sign(&self, account: Address, password: Option<String>, message: Message) -> Result<Signature, Error> {
+	pub fn sign(&self, account: Address, password: Option<String>, message: Message) -> Result<Signature, SignError> {
 		let password = password.map(Ok).unwrap_or_else(|| self.password(&account))?;
 		Ok(self.sstore.sign(&account, &password, &message)?)
 	}
 
 	/// Signs given message with supplied token. Returns a token to use in next signing within this session.
-	pub fn sign_with_token(&self, account: Address, token: AccountToken, message: Message) -> Result<(Signature, AccountToken), Error> {
+	pub fn sign_with_token(&self, account: Address, token: AccountToken, message: Message) -> Result<(Signature, AccountToken), SignError> {
 		let is_std_password = self.sstore.test_password(&account, &token)?;
 
 		let new_token = random_string(16);
@@ -366,7 +377,7 @@ impl AccountProvider {
 
 	/// Decrypts a message with given token. Returns a token to use in next operation for this account.
 	pub fn decrypt_with_token(&self, account: Address, token: AccountToken, shared_mac: &[u8], message: &[u8])
-		-> Result<(Vec<u8>, AccountToken), Error>
+		-> Result<(Vec<u8>, AccountToken), SignError>
 	{
 		let is_std_password = self.sstore.test_password(&account, &token)?;
 
@@ -387,7 +398,7 @@ impl AccountProvider {
 	}
 
 	/// Decrypts a message. If password is not provided the account must be unlocked.
-	pub fn decrypt(&self, account: Address, password: Option<String>, shared_mac: &[u8], message: &[u8]) -> Result<Vec<u8>, Error> {
+	pub fn decrypt(&self, account: Address, password: Option<String>, shared_mac: &[u8], message: &[u8]) -> Result<Vec<u8>, SignError> {
 		let password = password.map(Ok).unwrap_or_else(|| self.password(&account))?;
 		Ok(self.sstore.decrypt(&account, &password, shared_mac, message)?)
 	}

@@ -26,7 +26,7 @@ use types::block_import_error::BlockImportError;
 use snapshot::Error as SnapshotError;
 use engines::EngineError;
 use ethkey::Error as EthkeyError;
-use account_provider::Error as AccountsError;
+use account_provider::SignError as AccountsError;
 
 pub use types::executed::{ExecutionError, CallError};
 

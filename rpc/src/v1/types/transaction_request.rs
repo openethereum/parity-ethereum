@@ -27,7 +27,7 @@ use std::fmt;
 #[serde(deny_unknown_fields)]
 pub struct TransactionRequest {
 	/// Sender
-	pub from: H160,
+	pub from: Option<H160>,
 	/// Recipient
 	pub to: Option<H160>,
 	/// Gas Price
@@ -86,7 +86,7 @@ impl fmt::Display for TransactionRequest {
 impl From<helpers::TransactionRequest> for TransactionRequest {
 	fn from(r: helpers::TransactionRequest) -> Self {
 		TransactionRequest {
-			from: r.from.into(),
+			from: r.from.map(Into::into),
 			to: r.to.map(Into::into),
 			gas_price: r.gas_price.map(Into::into),
 			gas: r.gas.map(Into::into),
@@ -101,7 +101,7 @@ impl From<helpers::TransactionRequest> for TransactionRequest {
 impl From<helpers::FilledTransactionRequest> for TransactionRequest {
 	fn from(r: helpers::FilledTransactionRequest) -> Self {
 		TransactionRequest {
-			from: r.from.into(),
+			from: Some(r.from.into()),
 			to: r.to.map(Into::into),
 			gas_price: Some(r.gas_price.into()),
 			gas: Some(r.gas.into()),
@@ -116,7 +116,7 @@ impl From<helpers::FilledTransactionRequest> for TransactionRequest {
 impl Into<helpers::TransactionRequest> for TransactionRequest {
 	fn into(self) -> helpers::TransactionRequest {
 		helpers::TransactionRequest {
-			from: self.from.into(),
+			from: self.from.map(Into::into),
 			to: self.to.map(Into::into),
 			gas_price: self.gas_price.map(Into::into),
 			gas: self.gas.map(Into::into),

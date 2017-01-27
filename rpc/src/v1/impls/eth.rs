@@ -45,15 +45,15 @@ use ethsync::{SyncProvider};
 use jsonrpc_core::Error;
 use jsonrpc_macros::Trailing;
 
+use v1::helpers::{CallRequest as CRequest, errors, limit_logs};
+use v1::helpers::dispatch::{dispatch_transaction, default_gas_price};
+use v1::helpers::block_import::is_major_importing;
 use v1::traits::Eth;
 use v1::types::{
 	RichBlock, Block, BlockTransactions, BlockNumber, Bytes, SyncStatus, SyncInfo,
 	Transaction, CallRequest, Index, Filter, Log, Receipt, Work,
 	H64 as RpcH64, H256 as RpcH256, H160 as RpcH160, U256 as RpcU256,
 };
-use v1::helpers::{CallRequest as CRequest, errors, limit_logs};
-use v1::helpers::dispatch::{dispatch_transaction, default_gas_price};
-use v1::helpers::block_import::is_major_importing;
 use v1::metadata::Metadata;
 
 const EXTRA_INFO_PROOF: &'static str = "Object exists in in blockchain (fetched earlier), extra_info is always available if object exists; qed";
@@ -218,6 +218,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> EthClient<C, SN, S, M, EM> where
 			data: request.data.map_or_else(Vec::new, |d| d.to_vec())
 		}.fake_sign(from))
 	}
+
 }
 
 pub fn pending_logs<M>(miner: &M, best_block: EthBlockNumber, filter: &EthcoreFilter) -> Vec<Log> where M: MinerService {
@@ -354,7 +355,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 			let accounts = store
 				.note_dapp_used(dapp.clone().into())
 				.and_then(|_| store.dapps_addresses(dapp.into()))
-				.map_err(|e| errors::internal("Could not fetch accounts.", e))?;
+				.map_err(|e| errors::accounts("Could not fetch accounts.", e))?;
 			Ok(accounts.into_iter().map(Into::into).collect())
 		};
 

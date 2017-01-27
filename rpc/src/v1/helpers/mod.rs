@@ -29,7 +29,11 @@ mod network_settings;
 
 pub use self::poll_manager::PollManager;
 pub use self::poll_filter::{PollFilter, limit_logs};
-pub use self::requests::{TransactionRequest, FilledTransactionRequest, ConfirmationRequest, ConfirmationPayload, CallRequest};
-pub use self::signing_queue::{ConfirmationsQueue, ConfirmationPromise, ConfirmationResult, SigningQueue, QueueEvent};
+pub use self::requests::{
+	TransactionRequest, FilledTransactionRequest, ConfirmationRequest, ConfirmationPayload, CallRequest,
+};
+pub use self::signing_queue::{
+	ConfirmationsQueue, ConfirmationPromise, ConfirmationResult, SigningQueue, QueueEvent, DefaultAccount,
+};
 pub use self::signer::SignerService;
 pub use self::network_settings::NetworkSettings;

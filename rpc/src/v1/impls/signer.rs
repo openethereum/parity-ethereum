@@ -25,10 +25,10 @@ use ethcore::transaction::{SignedTransaction, PendingTransaction};
 use ethcore::miner::MinerService;
 
 use jsonrpc_core::Error;
-use v1::traits::Signer;
-use v1::types::{TransactionModification, ConfirmationRequest, ConfirmationResponse, ConfirmationResponseWithToken, U256, Bytes};
 use v1::helpers::{errors, SignerService, SigningQueue, ConfirmationPayload};
 use v1::helpers::dispatch::{self, dispatch_transaction, WithToken};
+use v1::traits::Signer;
+use v1::types::{TransactionModification, ConfirmationRequest, ConfirmationResponse, ConfirmationResponseWithToken, U256, Bytes};
 
 /// Transactions confirmation (personal) rpc implementation.
 pub struct SignerClient<C, M> where C: MiningBlockChainClient, M: MinerService {
