@@ -28,7 +28,7 @@ impl SignerRpc {
 	{
 		self.rpc.request("signer_confirmRequest", vec![
 			to_value(&format!("{:#x}", id)),
-			to_value(&TransactionModification { gas_price: new_gas_price, gas: new_gas, min_block: new_min_block }),
+			to_value(&TransactionModification { sender: None, gas_price: new_gas_price, gas: new_gas, min_block: new_min_block }),
 			to_value(&pwd),
 		])
 	}
