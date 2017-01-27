@@ -16,7 +16,7 @@
 
 import { isAddress as isAddressValid, toChecksumAddress } from '../../abi/util/address';
 import { decodeCallData, decodeMethodInput, methodToAbi } from './decode';
-import { encodeMethodCall } from './encode';
+import { encodeMethodCall, encodeMethodCallAbi } from './encode';
 import { bytesToHex, hexToAscii, asciiToHex } from './format';
 import { fromWei, toWei } from './wei';
 import { sha3 } from './sha3';
@@ -37,6 +37,7 @@ export default {
   decodeCallData,
   decodeMethodInput,
   encodeMethodCall,
+  encodeMethodCallAbi,
   methodToAbi,
   fromWei,
   toChecksumAddress,

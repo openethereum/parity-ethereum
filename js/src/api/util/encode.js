@@ -17,16 +17,14 @@
 import Abi from '~/abi';
 import Func from '~/abi/spec/function';
 
-export function encodeMethodCall (methodAbi, options = {}, values = []) {
+export function encodeMethodCallAbi (methodAbi, values = []) {
   const func = new Func(methodAbi);
   const tokens = Abi.encodeTokens(func.inputParamTypes(), values);
   const call = func.encodeCall(tokens);
 
-  let data = options.data || '';
+  return `0x${call}`;
+}
 
-  if (data.substr(0, 2) === '0x') {
-    data = data.substr(2);
-  }
-
-  return `0x${data}${call}`;
+export function encodeMethodCall (methodName, inputs, values = []) {
+  return encodeMethodCallAbi({ name: methodName, type: 'function', inputs }, values);
 }

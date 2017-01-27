@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { encodeMethodCall } from './encode';
+import { encodeMethodCallAbi, encodeMethodCall } from './encode';
 
 const ABI = {
   type: 'function',
@@ -32,9 +32,15 @@ const RESULT = [
 ].join('');
 
 describe('api/util/encode', () => {
+  describe('encodeMethodCallAbi', () => {
+    it('encodes calls with the correct result', () => {
+      expect(encodeMethodCallAbi(ABI, [0x123, true])).to.equal(`0x${RESULT}`);
+    });
+  });
+
   describe('encodeMethodCall', () => {
     it('encodes calls with the correct result', () => {
-      expect(encodeMethodCall(ABI, {}, [0x123, true])).to.equal(`0x${RESULT}`);
+      expect(encodeMethodCall('valid', ABI.inputs, [0x123, true])).to.equal(`0x${RESULT}`);
     });
   });
 });
