@@ -38,7 +38,7 @@ function render () {
   return component;
 }
 
-describe.only('modals/Shapeshift/AwaitingDepositStep', () => {
+describe('modals/Shapeshift/AwaitingDepositStep', () => {
   it('renders defaults', () => {
     expect(render()).to.be.ok;
   });
