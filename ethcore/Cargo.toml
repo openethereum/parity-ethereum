@@ -39,6 +39,7 @@ ethstore = { path = "../ethstore" }
 ethkey = { path = "../ethkey" }
 ethcore-ipc-nano = { path = "../ipc/nano" }
 rlp = { path = "../util/rlp" }
+ethcore-stratum = { path = "../stratum" }
 lru-cache = "0.1.0"
 ethcore-bloom-journal = { path = "../util/bloom" }
 ethabi = "0.2.2"

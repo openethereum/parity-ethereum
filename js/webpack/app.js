@@ -1,5 +1,5 @@
 
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -118,7 +118,12 @@ module.exports = {
         use: [ 'file-loader?name=fonts/[name][hash:10].[ext]' ]
       },
       {
+        test: /parity-logo-white-no-text\.svg/,
+        use: [ 'url-loader' ]
+      },
+      {
         test: /\.svg(\?v=[0-9]\.[0-9]\.[0-9])?$/,
+        exclude: [ /parity-logo-white-no-text\.svg/ ],
         use: [ 'file-loader?name=assets/[name].[hash:10].[ext]' ]
       }
     ],

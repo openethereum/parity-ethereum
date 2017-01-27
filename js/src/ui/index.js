@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -29,8 +29,10 @@ import Container, { Title as ContainerTitle } from './Container';
 import ContextProvider from './ContextProvider';
 import CopyToClipboard from './CopyToClipboard';
 import CurrencySymbol from './CurrencySymbol';
+import DappIcon from './DappIcon';
 import Editor from './Editor';
 import Errors from './Errors';
+import Features, { FEATURES, FeaturesStore } from './Features';
 import Form, { AddressSelect, FormWrap, TypedInput, Input, InputAddress, InputAddressSelect, InputChip, InputInline, Select, RadioButtons } from './Form';
 import GasPriceEditor from './GasPriceEditor';
 import GasPriceSelector from './GasPriceSelector';
@@ -46,6 +48,7 @@ import Page from './Page';
 import ParityBackground from './ParityBackground';
 import PasswordStrength from './Form/PasswordStrength';
 import QrCode from './QrCode';
+import SectionList from './SectionList';
 import ShortenedHash from './ShortenedHash';
 import SignerIcon from './SignerIcon';
 import Tags from './Tags';
@@ -72,8 +75,12 @@ export {
   ContextProvider,
   CopyToClipboard,
   CurrencySymbol,
+  DappIcon,
   Editor,
   Errors,
+  FEATURES,
+  Features,
+  FeaturesStore,
   Form,
   FormWrap,
   GasPriceEditor,
@@ -98,8 +105,9 @@ export {
   PasswordStrength,
   QrCode,
   RadioButtons,
-  ShortenedHash,
   Select,
+  ShortenedHash,
+  SectionList,
   SignerIcon,
   Tags,
   Tooltip,

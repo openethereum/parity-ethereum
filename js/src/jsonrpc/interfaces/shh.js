@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -41,7 +41,7 @@ export default {
             optional: true
           },
           topics: {
-            type: Array, desc: 'Array of `DATA` topics, for the receiver to identify messages'
+            type: Array, desc: 'Array of `Data` topics, for the receiver to identify messages'
           },
           payload: {
             type: Data, desc: 'The payload of the message'
@@ -117,7 +117,7 @@ export default {
             optional: true
           },
           topics: {
-            type: Array, desc: 'Array of `DATA` topics which the incoming message\'s topics should match.  You can use the following combinations'
+            type: Array, desc: 'Array of `Data` topics which the incoming message\'s topics should match.  You can use the following combinations'
           }
         }
       }

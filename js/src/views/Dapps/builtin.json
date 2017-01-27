@@ -72,7 +72,8 @@
     "author": "Parity Team <admin@ethcore.io>",
     "version": "1.0.0",
     "visible": true,
-    "skipBuild": true
+    "skipBuild": true,
+    "skipHistory": true
   },
   {
     "id": "0xa635a9326814bded464190eddf0bdb90ce92d40ea2359cf553ea80e3c5a4076c",

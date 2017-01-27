@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -268,7 +268,7 @@ mod tests {
 	#[test]
 	fn check_receipts() {
 		let receipts = (0..5).map(|_| Receipt {
-			state_root: H256::random(),
+			state_root: Some(H256::random()),
 			gas_used: 21_000u64.into(),
 			log_bloom: Default::default(),
 			logs: Vec::new(),

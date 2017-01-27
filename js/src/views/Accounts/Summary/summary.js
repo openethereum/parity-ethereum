@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -23,7 +23,7 @@ import { FormattedMessage } from 'react-intl';
 
 import { Balance, Container, ContainerTitle, IdentityIcon, IdentityName, Tags, Input } from '~/ui';
 import Certifications from '~/ui/Certifications';
-import { nullableProptype } from '~/util/proptypes';
+import { arrayOrObjectProptype, nullableProptype } from '~/util/proptypes';
 
 import styles from '../accounts.css';
 
@@ -40,7 +40,7 @@ export default class Summary extends Component {
     noLink: PropTypes.bool,
     showCertifications: PropTypes.bool,
     handleAddSearchToken: PropTypes.func,
-    owners: nullableProptype(PropTypes.array)
+    owners: nullableProptype(arrayOrObjectProptype())
   };
 
   static defaultProps = {
