@@ -83,10 +83,15 @@ export default class AwaitingDepositStep extends Component {
   renderAddress (depositAddress) {
     return (
       <div className={ styles.addressInfo }>
-        <QrCode
-          className={ styles.qrcode }
-          value={ depositAddress }
-        />
+        <a
+          href={ `bitcoin:${depositAddress}` }
+          target='_blank'
+        >
+          <QrCode
+            className={ styles.qrcode }
+            value={ depositAddress }
+          />
+        </a>
         <div className={ styles.address }>
           <CopyToClipboard data={ depositAddress } />
           <span>{ depositAddress }</span>
