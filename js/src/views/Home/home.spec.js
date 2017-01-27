@@ -59,18 +59,19 @@ describe('views/Home', () => {
     expect(component).to.be.ok;
   });
 
-  describe('instance', () => {
-    beforeEach(() => {
-      sinon.spy(instance.webStore, 'loadHistory');
-    });
+  describe('lifecycle', () => {
+    describe('componentWillMount', () => {
+      beforeEach(() => {
+        sinon.stub(instance.webStore, 'loadHistory');
+        return instance.componentWillMount();
+      });
 
-    afterEach(() => {
-      instance.webStore.loadHistory.restore();
-    });
+      afterEach(() => {
+        instance.webStore.loadHistory.restore();
+      });
 
-    it('loads web history on mount', () => {
-      return instance.componentWillMount().then(() => {
-        expect(instance.webStore.loadHistory).to.have.bee.called;
+      it('calls into webStore loadHistory', () => {
+        expect(instance.webStore.loadHistory).to.have.been.called;
       });
     });
   });

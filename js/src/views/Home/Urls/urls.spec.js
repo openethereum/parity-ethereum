@@ -23,7 +23,6 @@ import Urls from './';
 const NEXT_URL = 'http://somewhere.next';
 
 let component;
-let history;
 let instance;
 let router;
 let store;
@@ -36,14 +35,9 @@ function createRouter () {
   return router;
 }
 
-function createHistory () {
-  history = {};
-
-  return history;
-}
-
 function createStore () {
   store = {
+    history: [],
     gotoUrl: sinon.stub(),
     restoreUrl: sinon.stub(),
     setNextUrl: sinon.stub(),
@@ -56,7 +50,6 @@ function createStore () {
 function render () {
   component = shallow(
     <Urls
-      history={ createHistory() }
       store={ createStore() }
     />,
     {
