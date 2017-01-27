@@ -161,12 +161,14 @@ impl<'a> evmjit::Ext for ExtAdapter<'a> {
 		}
 	}
 
-	fn create(&mut self,
-			  io_gas: *mut u64,
-			  value: *const evmjit::I256,
-			  init_beg: *const u8,
-			  init_size: u64,
-			  address: *mut evmjit::H256) {
+	fn create(
+		&mut self,
+		io_gas: *mut u64,
+		value: *const evmjit::I256,
+		init_beg: *const u8,
+		init_size: u64,
+		address: *mut evmjit::H256
+	) {
 
 		let gas = unsafe { U256::from(*io_gas) };
 		let value = unsafe { U256::from_jit(&*value) };
@@ -189,19 +191,21 @@ impl<'a> evmjit::Ext for ExtAdapter<'a> {
 		}
 	}
 
-	fn call(&mut self,
-				io_gas: *mut u64,
-				call_gas: u64,
-				sender_address: *const evmjit::H256,
-				receive_address: *const evmjit::H256,
-				code_address: *const evmjit::H256,
-				transfer_value: *const evmjit::I256,
-				// We are ignoring apparent value - it's handled in externalities.
-				_apparent_value: *const evmjit::I256,
-				in_beg: *const u8,
-				in_size: u64,
-				out_beg: *mut u8,
-				out_size: u64) -> bool {
+	fn call(
+		&mut self,
+		io_gas: *mut u64,
+		call_gas: u64,
+		sender_address: *const evmjit::H256,
+		receive_address: *const evmjit::H256,
+		code_address: *const evmjit::H256,
+		transfer_value: *const evmjit::I256,
+		// We are ignoring apparent value - it's handled in externalities.
+		_apparent_value: *const evmjit::I256,
+		in_beg: *const u8,
+		in_size: u64,
+		out_beg: *mut u8,
+		out_size: u64
+	) -> bool {
 
 		let mut gas = unsafe { U256::from(*io_gas) };
 		let mut call_gas = U256::from(call_gas);
@@ -251,15 +255,15 @@ impl<'a> evmjit::Ext for ExtAdapter<'a> {
 		};
 
 		match self.ext.call(
-					  &call_gas,
-					  &sender_address,
-					  &receive_address,
-					  value,
-					  unsafe { slice::from_raw_parts(in_beg, in_size as usize) },
-					  &code_address,
-					  unsafe { slice::from_raw_parts_mut(out_beg, out_size as usize) },
-					  call_type,
-					  ) {
+			&call_gas,
+			&sender_address,
+			&receive_address,
+			value,
+			unsafe { slice::from_raw_parts(in_beg, in_size as usize) },
+			&code_address,
+			unsafe { slice::from_raw_parts_mut(out_beg, out_size as usize) },
+			call_type,
+		) {
 			evm::MessageCallResult::Success(gas_left) => unsafe {
 				*io_gas = (gas + gas_left).low_u64();
 				true
@@ -271,13 +275,15 @@ impl<'a> evmjit::Ext for ExtAdapter<'a> {
 		}
 	}
 
-	fn log(&mut self,
-		   beg: *const u8,
-		   size: u64,
-		   topic1: *const evmjit::H256,
-		   topic2: *const evmjit::H256,
-		   topic3: *const evmjit::H256,
-		   topic4: *const evmjit::H256) {
+	fn log(
+		&mut self,
+		beg: *const u8,
+		size: u64,
+		topic1: *const evmjit::H256,
+		topic2: *const evmjit::H256,
+		topic3: *const evmjit::H256,
+		topic4: *const evmjit::H256
+	) {
 
 		unsafe {
 			let mut topics = vec![];
