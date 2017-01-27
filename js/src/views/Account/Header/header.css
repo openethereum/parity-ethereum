@@ -14,6 +14,7 @@
 /* You should have received a copy of the GNU General Public License
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
+
 .balances, .tags {
   clear: both;
 }
@@ -22,9 +23,17 @@
   margin-left: 0.5em;
 }
 
+.floatleft, .floatright {
+  margin-bottom: 0.5em;
+}
+
 .floatleft {
   float: left;
-  margin-bottom: 0.5em;
+}
+
+.floatright {
+  float: right;
+  margin-top: 1.5em;
 }
 
 .addressline,

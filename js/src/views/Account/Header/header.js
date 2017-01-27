@@ -17,9 +17,7 @@
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 
-import { Balance, Container, ContainerTitle, IdentityIcon, IdentityName, Tags } from '~/ui';
-import CopyToClipboard from '~/ui/CopyToClipboard';
-import Certifications from '~/ui/Certifications';
+import { Balance, Certifications, Container, CopyToClipboard, ContainerTitle, IdentityIcon, IdentityName, QrCode, Tags } from '~/ui';
 
 import styles from './header.css';
 
@@ -54,6 +52,10 @@ export default class Header extends Component {
       <div className={ className }>
         <Container>
           <IdentityIcon address={ address } />
+          <QrCode
+            className={ styles.floatright }
+            value={ address }
+          />
           <div className={ styles.floatleft }>
             { this.renderName() }
             <div className={ [ hideName ? styles.bigaddress : '', styles.addressline ].join(' ') }>
