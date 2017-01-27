@@ -28,41 +28,7 @@ import { validateUint, validateAddress, validateName } from '~/util/validation';
 import { toWei } from '~/api/util/wei';
 import WalletsUtils from '~/util/wallets';
 
-const STEPS = {
-  TYPE: {
-    title: (
-      <FormattedMessage
-        id='createWallet.steps.type'
-        defaultMessage='wallet type'
-      />
-    )
-  },
-  DETAILS: {
-    title: (
-      <FormattedMessage
-        id='createWallet.steps.details'
-        defaultMessage='wallet details'
-      />
-    )
-  },
-  DEPLOYMENT: {
-    title: (
-      <FormattedMessage
-        id='createWallet.steps.deployment'
-        defaultMessage='wallet deployment'
-      />
-    ),
-    waiting: true
-  },
-  INFO: {
-    title: (
-      <FormattedMessage
-        id='createWallet.steps.info'
-        defaultMessage='wallet informaton'
-      />
-    )
-  }
-};
+import { STEPS_HARDWARE, STEPS_MULTISIG, STEPS_WATCH } from './steps';
 
 export default class CreateWalletStore {
   @observable step = null;
@@ -95,6 +61,14 @@ export default class CreateWalletStore {
     name: null
   };
 
+  constructor (api, accounts) {
+    this.api = api;
+
+    this.step = this.stepsKeys[0];
+    this.wallet.account = Object.values(accounts)[0].address;
+    this.validateWallet(this.wallet);
+  }
+
   @computed get stage () {
     return this.stepsKeys.findIndex((k) => k === this.step);
   }
@@ -116,32 +90,43 @@ export default class CreateWalletStore {
   }
 
   @computed get steps () {
+    let steps;
+
+    switch (this.walletType) {
+      case 'HARDWARE_LEDGER':
+        steps = STEPS_HARDWARE;
+        break;
+
+      case 'MULTISIG':
+        steps = STEPS_MULTISIG;
+        break;
+
+      default:
+      case 'WATCH':
+        steps = STEPS_WATCH;
+        break;
+    }
+
     return Object
-      .keys(STEPS)
+      .keys(steps)
       .map((key) => {
         return {
-          ...STEPS[key],
+          ...steps[key],
           key
         };
-      })
-      .filter((step) => {
-        return (this.walletType !== 'WATCH' || step.key !== 'DEPLOYMENT');
       });
   }
 
   @computed get waiting () {
-    this.steps
-      .map((s, idx) => ({ idx, waiting: s.waiting }))
-      .filter((s) => s.waiting)
-      .map((s) => s.idx);
-  }
-
-  constructor (api, accounts) {
-    this.api = api;
-
-    this.step = this.stepsKeys[0];
-    this.wallet.account = Object.values(accounts)[0].address;
-    this.validateWallet(this.wallet);
+    return this.steps
+      .map((step, index) => {
+        return {
+          index,
+          waiting: step.waiting
+        };
+      })
+      .filter((step) => step.waiting)
+      .map((step) => step.index);
   }
 
   @action onTypeChange = (type) => {
@@ -150,7 +135,7 @@ export default class CreateWalletStore {
   }
 
   @action onNext = () => {
-    const stepIndex = this.stepsKeys.findIndex((k) => k === this.step) + 1;
+    const stepIndex = this.stepsKeys.findIndex((key) => key === this.step) + 1;
 
     this.step = this.stepsKeys[stepIndex];
   }
