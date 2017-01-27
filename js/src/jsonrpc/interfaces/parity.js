@@ -862,16 +862,19 @@ export default {
     params: [
       {
         type: String,
-        desc: 'JSON'
+        desc: 'Wallet JSON encoded to a string.',
+        example: '{"id": "9c62e86b-3cf9...", ...}'
       },
       {
         type: String,
-        desc: 'Password'
+        desc: 'Password.',
+        example: 'hunter2'
       }
     ],
     returns: {
       type: Address,
-      desc: 'The created address'
+      desc: 'The created address',
+      example: '0x407d73d8a49eeb85d32cf465507dd71d507100c1'
     }
   },
 
