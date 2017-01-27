@@ -19,6 +19,14 @@ import { createHttpApi } from '../../../../test/e2e/ethapi';
 describe('ethapi.parity', () => {
   const ethapi = createHttpApi();
 
+  describe('chainStatus', () => {
+    it('returns and translates the status', () => {
+      return ethapi.parity.chainStatus().then((value) => {
+        expect(value).to.be.ok;
+      });
+    });
+  });
+
   describe('gasFloorTarget', () => {
     it('returns and translates the target', () => {
       return ethapi.parity.gasFloorTarget().then((value) => {
