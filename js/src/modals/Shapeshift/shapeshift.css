@@ -14,7 +14,26 @@
 /* You should have received a copy of the GNU General Public License
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
+
 .body {
+}
+
+.addressInfo {
+  text-align: center;
+
+  .address {
+    background: rgba(255, 255, 255, 0.1);
+    margin: 0.75em 0;
+    padding: 1em;
+
+    span {
+      margin-left: 0.75em;
+    }
+  }
+
+  .qrcode {
+    margin: 0.75em 0;
+  }
 }
 
 .shapeshift {
