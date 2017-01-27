@@ -68,37 +68,93 @@ describe('views/Account/Header', () => {
     });
 
     describe('sections', () => {
-      it('renders the Balance', () => {
-        render({ balance: { balance: 'testing' } });
-        const balance = component.find('Connect(Balance)');
+      describe('Balance', () => {
+        let balance;
 
-        expect(balance).to.have.length(1);
-        expect(balance.props().account).to.deep.equal(ACCOUNT);
-        expect(balance.props().balance).to.deep.equal({ balance: 'testing' });
+        beforeEach(() => {
+          render({ balance: { balance: 'testing' } });
+          balance = component.find('Connect(Balance)');
+        });
+
+        it('renders', () => {
+          expect(balance).to.have.length(1);
+        });
+
+        it('passes the account', () => {
+          expect(balance.props().account).to.deep.equal(ACCOUNT);
+        });
+
+        it('passes the balance', () => {
+
+        });
       });
 
-      it('renders the Certifications', () => {
-        render();
-        const certs = component.find('Connect(Certifications)');
+      describe('Certifications', () => {
+        let certs;
 
-        expect(certs).to.have.length(1);
-        expect(certs.props().address).to.deep.equal(ACCOUNT.address);
+        beforeEach(() => {
+          render();
+          certs = component.find('Connect(Certifications)');
+        });
+
+        it('renders', () => {
+          expect(certs).to.have.length(1);
+        });
+
+        it('passes the address', () => {
+          expect(certs.props().address).to.deep.equal(ACCOUNT.address);
+        });
       });
 
-      it('renders the IdentityIcon', () => {
-        render();
-        const icon = component.find('Connect(IdentityIcon)');
+      describe('IdentityIcon', () => {
+        let icon;
 
-        expect(icon).to.have.length(1);
-        expect(icon.props().address).to.equal(ACCOUNT.address);
+        beforeEach(() => {
+          render();
+          icon = component.find('Connect(IdentityIcon)');
+        });
+
+        it('renders', () => {
+          expect(icon).to.have.length(1);
+        });
+
+        it('passes the address', () => {
+          expect(icon.props().address).to.deep.equal(ACCOUNT.address);
+        });
       });
 
-      it('renders the Tags', () => {
-        render();
-        const tags = component.find('Tags');
+      describe('QrCode', () => {
+        let qr;
 
-        expect(tags).to.have.length(1);
-        expect(tags.props().tags).to.deep.equal(ACCOUNT.meta.tags);
+        beforeEach(() => {
+          render();
+          qr = component.find('QrCode');
+        });
+
+        it('renders', () => {
+          expect(qr).to.have.length(1);
+        });
+
+        it('passes the address', () => {
+          expect(qr.props().value).to.deep.equal(ACCOUNT.address);
+        });
+      });
+
+      describe('Tags', () => {
+        let tags;
+
+        beforeEach(() => {
+          render();
+          tags = component.find('Tags');
+        });
+
+        it('renders', () => {
+          expect(tags).to.have.length(1);
+        });
+
+        it('passes the tags', () => {
+          expect(tags.props().tags).to.deep.equal(ACCOUNT.meta.tags);
+        });
       });
     });
   });

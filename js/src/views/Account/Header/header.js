@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -17,9 +17,7 @@
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 
-import { Balance, Container, ContainerTitle, IdentityIcon, IdentityName, Tags } from '~/ui';
-import CopyToClipboard from '~/ui/CopyToClipboard';
-import Certifications from '~/ui/Certifications';
+import { Balance, Certifications, Container, CopyToClipboard, ContainerTitle, IdentityIcon, IdentityName, QrCode, Tags } from '~/ui';
 
 import styles from './header.css';
 
@@ -53,8 +51,15 @@ export default class Header extends Component {
     return (
       <div className={ className }>
         <Container>
-          <IdentityIcon address={ address } />
-          <div className={ styles.floatleft }>
+          <QrCode
+            className={ styles.qrcode }
+            value={ address }
+          />
+          <IdentityIcon
+            address={ address }
+            className={ styles.identityIcon }
+          />
+          <div className={ styles.info }>
             { this.renderName() }
             <div className={ [ hideName ? styles.bigaddress : '', styles.addressline ].join(' ') }>
               <CopyToClipboard data={ address } />
@@ -65,15 +70,16 @@ export default class Header extends Component {
               { meta.description }
             </div>
             { this.renderTxCount() }
+            <div className={ styles.balances }>
+              <Balance
+                account={ account }
+                balance={ balance }
+              />
+              <Certifications address={ address } />
+            </div>
           </div>
           <div className={ styles.tags }>
             <Tags tags={ meta.tags } />
-          </div>
-          <div className={ styles.balances }>
-            <Balance
-              account={ account }
-              balance={ balance } />
-            <Certifications address={ address } />
           </div>
           { children }
         </Container>
@@ -92,11 +98,14 @@ export default class Header extends Component {
 
     return (
       <ContainerTitle
+        className={ styles.title }
         title={
           <IdentityName
             address={ address }
-            unknown />
-        } />
+            unknown
+          />
+        }
+      />
     );
   }
 
@@ -120,7 +129,8 @@ export default class Header extends Component {
           defaultMessage='{count} outgoing transactions'
           values={ {
             count: txCount.toFormat()
-          } } />
+          } }
+        />
       </div>
     );
   }
@@ -139,7 +149,8 @@ export default class Header extends Component {
           defaultMessage='uuid: {uuid}'
           values={ {
             uuid
-          } } />
+          } }
+        />
       </div>
     );
   }
