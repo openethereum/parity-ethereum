@@ -1399,52 +1399,63 @@ export default {
    */
   postSign: {
     section: SECTION_ACCOUNTS,
-    desc: 'Posts sign request asynchronously.',
+    desc: 'Request an arbitrary transaction to be signed by an account.',
     params: [
       {
         type: Address,
-        desc: 'Address.'
+        desc: 'Account address.',
+        example: '0xb60e8dd61c5d32be8058bb8eb970870f07233155'
       },
       {
         type: Hash,
-        desc: 'Hash.'
+        desc: 'Transaction hash.',
+        example: '0x8cda01991ae267a539135736132f1f987e76868ce0269b7537d3aab37b7b185e'
       }
     ],
     returns: {
       type: Quantity,
-      desc: 'Confirmation ID or ConfirmationResponse.'
+      desc: 'The id of the request to the signer. If the account was already unlocked, returns `Hash` of the transaction instead.',
+      example: '0x1'
     }
   },
 
   postTransaction: {
     section: SECTION_ACCOUNTS,
-    desc: 'Posts a transaction to the Signer.',
+    desc: 'Posts a transaction to the signer without waiting for the signer response.',
     params: [
       {
         type: TransactionRequest,
-        desc: 'see [eth_sendTransaction](#eth_sendTransaction)',
-        format: 'inputCallFormatter'
+        desc: 'see [`eth_sendTransaction`](JSONRPC-eth-module#eth_sendtransaction).',
+        format: 'inputCallFormatter',
+        example: {
+          from: '0xb60e8dd61c5d32be8058bb8eb970870f07233155',
+          to: '0xd46e8dd67c5d32be8058bb8eb970870f072445675',
+          value: fromDecimal(2441406250)
+        }
       }
     ],
     returns: {
       type: Quantity,
-      desc: 'The id of the actual transaction',
-      format: 'utils.toDecimal'
+      desc: 'The id of the request to the signer. If the account was already unlocked, returns `Hash` of the transaction instead.',
+      format: 'utils.toDecimal',
+      example: '0x1'
     }
   },
 
   checkRequest: {
     section: SECTION_ACCOUNTS,
-    desc: 'Returns the transaction hash of the requestId (received from `parity_postTransaction`) if the request was confirmed.',
+    desc: 'Get the the transaction hash of the request previously posted to [`parity_postTransaction`](#parity_posttransaction) or [`parity_postSign`](#parity_postsign). Will return a JSON-RPC error if the request was rejected.',
     params: [
       {
         type: Quantity,
-        desc: 'The requestId to check for'
+        desc: 'The id of the request sent to the signer.',
+        example: '0x1'
       }
     ],
     returns: {
       type: Hash,
-      desc: '32 Bytes - the transaction hash, or the zero hash if the transaction is not yet available'
+      desc: '32 Bytes - the transaction hash or `null` if the request hasn\'t been signed yet.',
+      example: '0xde8dfd9642f7eeef12402f2a560dbf40921b4f0bda01fb84709b9d71f6c181be'
     }
   },
 
