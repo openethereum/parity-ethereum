@@ -17,7 +17,7 @@
 import Abi from '~/abi';
 import Func from '~/abi/spec/function';
 
-export function encodeMethodCallAbi (methodAbi, values = []) {
+export function encodeMethodCallAbi (methodAbi = {}, values = []) {
   const func = new Func(methodAbi);
   const tokens = Abi.encodeTokens(func.inputParamTypes(), values);
   const call = func.encodeCall(tokens);
@@ -25,6 +25,12 @@ export function encodeMethodCallAbi (methodAbi, values = []) {
   return `0x${call}`;
 }
 
-export function encodeMethodCall (methodName, inputs, values = []) {
-  return encodeMethodCallAbi({ name: methodName, type: 'function', inputs }, values);
+export function encodeMethodCall (methodName, inputTypes = [], values = []) {
+  return encodeMethodCallAbi({
+    name: methodName,
+    type: 'function',
+    inputs: inputTypes.map((type) => {
+      return { type };
+    })
+  }, values);
 }

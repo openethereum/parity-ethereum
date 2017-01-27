@@ -30,6 +30,13 @@ const RESULT = [
   '0000000000000000000000000000000000000000000000000000000000000123',
   '0000000000000000000000000000000000000000000000000000000000000001'
 ].join('');
+const VARIABLE = [
+  '5a6fbce0',
+  'c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470',
+  '0000000000000000000000000000000000000000000000000000000000000040',
+  '000000000000000000000000000000000000000000000000000000000000000f',
+  '687474703a2f2f666f6f2e6261722f0000000000000000000000000000000000'
+].join('');
 
 describe('api/util/encode', () => {
   describe('encodeMethodCallAbi', () => {
@@ -40,7 +47,11 @@ describe('api/util/encode', () => {
 
   describe('encodeMethodCall', () => {
     it('encodes calls with the correct result', () => {
-      expect(encodeMethodCall('valid', ABI.inputs, [0x123, true])).to.equal(`0x${RESULT}`);
+      expect(encodeMethodCall('valid', ['uint256', 'bool'], [0x123, true])).to.equal(`0x${RESULT}`);
+    });
+
+    it('encodes variable values', () => {
+      expect(encodeMethodCall('hintUrl', ['bytes32', 'string'], ['0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470', 'http://foo.bar/'])).to.equal(`0x${VARIABLE}`);
     });
   });
 });
