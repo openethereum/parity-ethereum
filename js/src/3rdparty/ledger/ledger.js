@@ -70,7 +70,7 @@ export default class Ledger {
 
   static create (ledger) {
     if (!ledger) {
-      ledger = new LedgerEth(Ledger3(SCRAMBLE_KEY));
+      ledger = new LedgerEth(new Ledger3(SCRAMBLE_KEY));
     }
 
     return new Ledger(ledger);

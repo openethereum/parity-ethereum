@@ -16,10 +16,23 @@
 
 import CreateWalletStore from './CreateWalletStore';
 
+const ACCOUNTS = {
+  '0x0123456789012345678901234567890123456789': {
+    address: '0x0123456789012345678901234567890123456789'
+  }
+};
+
+let api;
 let store;
 
+function createApi () {
+  api = {};
+
+  return api;
+}
+
 function create () {
-  store = new CreateWalletStore();
+  store = new CreateWalletStore(createApi(), ACCOUNTS);
 
   return store;
 }
@@ -43,12 +56,12 @@ describe('modals/CreateWallet/Store', () => {
     describe('steps', () => {
       it('returns non-deployment steps', () => {
         store.onTypeChange('WATCH');
-        expect(store.waiting).to.have.length(3);
+        expect(store.steps).to.have.length(3);
       });
 
       it('returns deployment steps', () => {
         store.onTypeChange('MULTISIG');
-        expect(store.waiting).to.have.length(4);
+        expect(store.steps).to.have.length(4);
       });
     });
 
