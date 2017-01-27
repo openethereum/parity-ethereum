@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { Address, BlockNumber, Data, Hash, Quantity, CallRequest } from '../types';
+import { Address, BlockNumber, Data, Hash, Quantity, CallRequest, TransactionRequest } from '../types';
 import { withPreamble, fromDecimal, withComment, Dummy } from '../helpers';
 
 export default withPreamble(`
@@ -1006,45 +1006,9 @@ The following options are possible for the \`defaultBlock\` parameter:
     desc: 'Creates new message call transaction or a contract creation, if the data field contains code.',
     params: [
       {
-        type: Object,
+        type: TransactionRequest,
         desc: 'The transaction object.',
         format: 'inputTransactionFormatter',
-        details: {
-          from: {
-            type: Address,
-            desc: '20 Bytes - The address the transaction is send from.'
-          },
-          to: {
-            type: Address,
-            desc: '20 Bytes - (optional when creating new contract) The address the transaction is directed to.'
-          },
-          gas: {
-            type: Quantity,
-            desc: 'Integer of the gas provided for the transaction execution. It will return unused gas.',
-            optional: true,
-            default: 90000
-          },
-          gasPrice: {
-            type: Quantity,
-            desc: 'Integer of the gasPrice used for each paid gas.',
-            optional: true,
-            default: 'To-Be-Determined'
-          },
-          value: {
-            type: Quantity,
-            desc: 'Integer of the value sent with this transaction.',
-            optional: true
-          },
-          data: {
-            type: Data,
-            desc: 'The compiled code of a contract OR the hash of the invoked method signature and encoded parameters. For details see [Ethereum Contract ABI](https://github.com/ethereum/wiki/wiki/Ethereum-Contract-ABI)'
-          },
-          nonce: {
-            type: Quantity,
-            desc: 'Integer of a nonce. This allows to overwrite your own pending transactions that use the same nonce.',
-            optional: true
-          }
-        },
         example: {
           from: '0xb60e8dd61c5d32be8058bb8eb970870f07233155',
           to: '0xd46e8dd67c5d32be8058bb8eb970870f072445675',
@@ -1088,8 +1052,8 @@ The following options are possible for the \`defaultBlock\` parameter:
     desc: 'Signs transactions without dispatching it to the network. It can be later submitted using [eth_sendRawTransaction](#eth_sendrawtransaction).',
     params: [
       {
-        type: Object,
-        desc: 'see [eth_sendTransaction](#eth_sendTransaction).',
+        type: TransactionRequest,
+        desc: 'Transaction object, see [eth_sendTransaction](#eth_sendTransaction).',
         format: 'inputCallFormatter',
         example: new Dummy('{ ... }')
       }

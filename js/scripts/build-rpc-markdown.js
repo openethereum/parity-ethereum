@@ -19,7 +19,6 @@ import path from 'path';
 import chalk from 'chalk';
 
 import { Dummy } from '../src/jsonrpc/helpers';
-import { BlockNumber, CallRequest } from '../src/jsonrpc/types';
 import interfaces from '../src/jsonrpc';
 
 const ROOT_DIR = path.join(__dirname, '../docs');
@@ -27,11 +26,6 @@ const ROOT_DIR = path.join(__dirname, '../docs');
 if (!fs.existsSync(ROOT_DIR)) {
   fs.mkdirSync(ROOT_DIR);
 }
-
-const type2print = new WeakMap();
-
-type2print.set(CallRequest, 'Object');
-type2print.set(BlockNumber, 'Quantity|Tag');
 
 // INFO Logging helper
 function info (log) {
@@ -49,14 +43,14 @@ function error (log) {
 }
 
 function printType (type) {
-  return type2print.get(type) || type.name;
+  return type.print || `\`${type.name}\``;
 }
 
 function formatDescription (obj, prefix = '', indent = '') {
   const optional = obj.optional ? '(optional) ' : '';
   const defaults = obj.default ? `(default: \`${obj.default}\`) ` : '';
 
-  return `${indent}${prefix}\`${printType(obj.type)}\` - ${optional}${defaults}${obj.desc}`;
+  return `${indent}${prefix}${printType(obj.type)} - ${optional}${defaults}${obj.desc}`;
 }
 
 function formatType (obj) {

@@ -17,12 +17,13 @@
 import fs from 'fs';
 import path from 'path';
 import interfaces from './';
-import { Address, BlockNumber, Data, Hash, Integer, Quantity, CallRequest } from './types';
+import * as customTypes from './types';
 
-const allowedTypes = [
-  Array, Boolean, Object, String, Address, BlockNumber, Data,
-  Hash, Integer, Quantity, CallRequest
-];
+const allowedTypes = [Array, Boolean, Object, String];
+
+Object.keys(customTypes).map((key) => {
+  allowedTypes.push(customTypes[key]);
+});
 
 function verifyType (obj) {
   if (typeof obj !== 'string') {

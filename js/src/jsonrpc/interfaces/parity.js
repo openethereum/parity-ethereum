@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { Address, Data, Hash, Quantity, BlockNumber } from '../types';
+import { Address, Data, Hash, Quantity, BlockNumber, TransactionRequest } from '../types';
 import { fromDecimal, withComment, Dummy } from '../helpers';
 
 const SECTION_MINING = 'Block Authoring (aka "mining")';
@@ -1421,7 +1421,7 @@ export default {
     desc: 'Posts a transaction to the Signer.',
     params: [
       {
-        type: Object,
+        type: TransactionRequest,
         desc: 'see [eth_sendTransaction](#eth_sendTransaction)',
         format: 'inputCallFormatter'
       }
@@ -1435,7 +1435,7 @@ export default {
 
   checkRequest: {
     section: SECTION_ACCOUNTS,
-    desc: 'Returns the transaction hash of the requestId (received from parity_postTransaction) if the request was confirmed',
+    desc: 'Returns the transaction hash of the requestId (received from `parity_postTransaction`) if the request was confirmed.',
     params: [
       {
         type: Quantity,
