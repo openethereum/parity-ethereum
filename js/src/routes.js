@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -16,11 +16,15 @@
 
 import {
   Accounts, Account, Addresses, Address, Application,
-  Contract, Contracts, Dapp, Dapps,
+  Contract, Contracts, Dapp, Dapps, HistoryStore,
   Settings, SettingsBackground, SettingsParity, SettingsProxy,
   SettingsViews, Signer, Status,
   Wallet, Web, WriteContract
 } from '~/views';
+import builtinDapps from '~/views/Dapps/builtin.json';
+
+const accountsHistory = HistoryStore.get('accounts');
+const dappsHistory = HistoryStore.get('dapps');
 
 function handleDeprecatedRoute (nextState, replace) {
   const { address } = nextState.params;
@@ -46,7 +50,13 @@ function redirectTo (path) {
 }
 
 const accountsRoutes = [
-  { path: ':address', component: Account },
+  {
+    path: ':address',
+    component: Account,
+    onEnter: ({ params }) => {
+      accountsHistory.add(params.address);
+    }
+  },
   { path: '/wallet/:address', component: Wallet }
 ];
 
@@ -78,45 +88,64 @@ const routes = [
 
   { path: '/', onEnter: redirectTo('/accounts') },
   { path: '/auth', onEnter: redirectTo('/accounts') },
-  { path: '/settings', onEnter: redirectTo('/settings/views') },
-
-  {
-    path: '/',
-    component: Application,
-    childRoutes: [
-      {
-        path: 'accounts',
-        indexRoute: { component: Accounts },
-        childRoutes: accountsRoutes
-      },
-      {
-        path: 'addresses',
-        indexRoute: { component: Addresses },
-        childRoutes: addressesRoutes
-      },
-      {
-        path: 'contracts',
-        indexRoute: { component: Contracts },
-        childRoutes: contractsRoutes
-      },
-      {
-        path: 'status',
-        indexRoute: { component: Status },
-        childRoutes: statusRoutes
-      },
-      {
-        path: 'settings',
-        component: Settings,
-        childRoutes: settingsRoutes
-      },
-
-      { path: 'apps', component: Dapps },
-      { path: 'app/:id', component: Dapp },
-      { path: 'web', component: Web },
-      { path: 'web/:url', component: Web },
-      { path: 'signer', component: Signer }
-    ]
-  }
+  { path: '/settings', onEnter: redirectTo('/settings/views') }
 ];
+
+const childRoutes = [
+  {
+    path: 'accounts',
+    indexRoute: { component: Accounts },
+    childRoutes: accountsRoutes
+  },
+  {
+    path: 'addresses',
+    indexRoute: { component: Addresses },
+    childRoutes: addressesRoutes
+  },
+  {
+    path: 'contracts',
+    indexRoute: { component: Contracts },
+    childRoutes: contractsRoutes
+  },
+  {
+    path: 'status',
+    indexRoute: { component: Status },
+    childRoutes: statusRoutes
+  },
+  {
+    path: 'settings',
+    component: Settings,
+    childRoutes: settingsRoutes
+  },
+  {
+    path: 'app/:id',
+    component: Dapp,
+    onEnter: ({ params }) => {
+      if (!builtinDapps[params.id] || !builtinDapps[params.id].skipHistory) {
+        dappsHistory.add(params.id);
+      }
+    }
+  },
+  { path: 'apps', component: Dapps },
+  { path: 'web', component: Web },
+  { path: 'web/:url', component: Web },
+  { path: 'signer', component: Signer }
+];
+
+// TODO : use ES6 imports when supported
+if (process.env.NODE_ENV !== 'production') {
+  const Playground = require('./playground').default;
+
+  childRoutes.push({
+    path: 'playground',
+    component: Playground
+  });
+}
+
+routes.push({
+  path: '/',
+  component: Application,
+  childRoutes
+});
 
 export default routes;

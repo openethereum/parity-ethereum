@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -18,6 +18,7 @@ export default class GithubHint {
   constructor (api, registry) {
     this._api = api;
     this._registry = registry;
+    this._instance = null;
 
     this.getInstance();
   }
@@ -27,6 +28,19 @@ export default class GithubHint {
   }
 
   getInstance () {
-    return this.getContract().instance;
+    if (this._instance) {
+      return Promise.resolve(this._instance);
+    }
+
+    return this.getContract().then((contract) => {
+      this._instance = contract.instance;
+      return this._instance;
+    });
+  }
+
+  getEntry (entryId) {
+    return this.getInstance().then((instance) => {
+      return instance.entries.call({}, [entryId]);
+    });
   }
 }

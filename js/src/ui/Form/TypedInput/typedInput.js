@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -28,6 +28,7 @@ import Input from '~/ui/Form/Input';
 import InputAddressSelect from '~/ui/Form/InputAddressSelect';
 import Select from '~/ui/Form/Select';
 import { ABI_TYPES, parseAbiType } from '~/util/abi';
+import { nodeOrStringProptype } from '~/util/proptypes';
 
 import styles from './typedInput.css';
 
@@ -42,9 +43,9 @@ export default class TypedInput extends Component {
     allowCopy: PropTypes.bool,
     className: PropTypes.string,
     error: PropTypes.any,
-    hint: PropTypes.string,
+    hint: nodeOrStringProptype(),
     isEth: PropTypes.bool,
-    label: PropTypes.string,
+    label: nodeOrStringProptype(),
     max: PropTypes.number,
     min: PropTypes.number,
     onChange: PropTypes.func,

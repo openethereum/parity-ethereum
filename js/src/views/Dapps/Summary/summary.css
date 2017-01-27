@@ -1,4 +1,4 @@
-/* Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+/* Copyright 2015-2017 Parity Technologies (UK) Ltd.
 /* This file is part of Parity.
 /*
 /* Parity is free software: you can redistribute it and/or modify
@@ -16,17 +16,14 @@
 */
 
 .container {
-  position: relative;
   height: 100%;
+  position: relative;
 }
 
 .image {
+  left: 1.5em;
   position: absolute;
   top: 1.5em;
-  left: 1.5em;
-  border-radius: 50%;
-  width: 56px;
-  height: 56px;
 }
 
 .description {
