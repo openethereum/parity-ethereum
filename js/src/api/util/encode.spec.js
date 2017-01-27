@@ -14,32 +14,27 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { isAddress as isAddressValid, toChecksumAddress } from '../../abi/util/address';
-import { decodeCallData, decodeMethodInput, methodToAbi } from './decode';
 import { encodeMethodCall } from './encode';
-import { bytesToHex, hexToAscii, asciiToHex } from './format';
-import { fromWei, toWei } from './wei';
-import { sha3 } from './sha3';
-import { isArray, isFunction, isHex, isInstanceOf, isString } from './types';
-import { createIdentityImg } from './identity';
 
-export default {
-  isAddressValid,
-  isArray,
-  isFunction,
-  isHex,
-  isInstanceOf,
-  isString,
-  bytesToHex,
-  hexToAscii,
-  asciiToHex,
-  createIdentityImg,
-  decodeCallData,
-  decodeMethodInput,
-  encodeMethodCall,
-  methodToAbi,
-  fromWei,
-  toChecksumAddress,
-  toWei,
-  sha3
+const ABI = {
+  type: 'function',
+  name: 'valid',
+  inputs: [
+    { type: 'uint256' },
+    { type: 'bool' }
+  ]
 };
+
+const RESULT = [
+  '0xf87fa141',
+  '0000000000000000000000000000000000000000000000000000000000000123',
+  '0000000000000000000000000000000000000000000000000000000000000001'
+].join('');
+
+describe('util/encode', () => {
+  describe('encodeMethodCall', () => {
+    it('encodes calls with the correct result', () => {
+      expect(encodeMethodCall(ABI, {}, [0x123, true])).to.equal(RESULT);
+    });
+  });
+});
