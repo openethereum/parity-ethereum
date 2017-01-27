@@ -26,15 +26,15 @@ const ABI = {
 };
 
 const RESULT = [
-  '0xf87fa141',
+  'f87fa141',
   '0000000000000000000000000000000000000000000000000000000000000123',
   '0000000000000000000000000000000000000000000000000000000000000001'
 ].join('');
 
-describe('util/encode', () => {
+describe('api/util/encode', () => {
   describe('encodeMethodCall', () => {
     it('encodes calls with the correct result', () => {
-      expect(encodeMethodCall(ABI, {}, [0x123, true])).to.equal(RESULT);
+      expect(encodeMethodCall(ABI, {}, [0x123, true])).to.equal(`0x${RESULT}`);
     });
   });
 });
