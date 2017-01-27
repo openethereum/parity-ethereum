@@ -38,7 +38,7 @@ function render () {
   return component;
 }
 
-describe('modals/Shapeshift/AwaitingDepositStep', () => {
+describe.only('modals/Shapeshift/AwaitingDepositStep', () => {
   it('renders defaults', () => {
     expect(render()).to.be.ok;
   });
@@ -94,6 +94,17 @@ describe('modals/Shapeshift/AwaitingDepositStep', () => {
 
         it('passed the address', () => {
           expect(qr.props().value).to.equal(TEST_ADDRESS);
+        });
+
+        describe('protocol link', () => {
+          it('does not render a protocol link (unlinked type)', () => {
+            expect(address.find('a')).to.have.length(0);
+          });
+
+          it('renders protocol link for BTC', () => {
+            address = shallow(instance.renderAddress(TEST_ADDRESS, 'BTC'));
+            expect(address.find('a').props().href).to.equal(`bitcoin:${TEST_ADDRESS}`);
+          });
         });
       });
     });

@@ -63,7 +63,7 @@ export default class AwaitingDepositStep extends Component {
             } }
           />
         </div>
-        { this.renderAddress(depositAddress) }
+        { this.renderAddress(depositAddress, coinSymbol) }
         <div className={ styles.price }>
           <div>
             <FormattedMessage
@@ -80,18 +80,36 @@ export default class AwaitingDepositStep extends Component {
     );
   }
 
-  renderAddress (depositAddress) {
+  renderAddress (depositAddress, coinSymbol) {
+    const qrcode = (
+      <QrCode
+        className={ styles.qrcode }
+        value={ depositAddress }
+      />
+    );
+    let protocolLink = null;
+
+    // TODO: Expand for other coins where protocols are available
+    switch (coinSymbol) {
+      case 'BTC':
+        protocolLink = `bitcoin:${depositAddress}`;
+        break;
+    }
+
     return (
       <div className={ styles.addressInfo }>
-        <a
-          href={ `bitcoin:${depositAddress}` }
-          target='_blank'
-        >
-          <QrCode
-            className={ styles.qrcode }
-            value={ depositAddress }
-          />
-        </a>
+        {
+          protocolLink
+            ? (
+              <a
+                href={ protocolLink }
+                target='_blank'
+              >
+                { qrcode }
+              </a>
+            )
+            : qrcode
+        }
         <div className={ styles.address }>
           <CopyToClipboard data={ depositAddress } />
           <span>{ depositAddress }</span>
