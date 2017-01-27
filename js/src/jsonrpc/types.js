@@ -70,12 +70,12 @@ export class TransactionRequest {
   static details = {
     from: {
       type: Address,
-      desc: '20 Bytes - The address the transaction is send from.',
-      optional: true
+      desc: '20 Bytes - The address the transaction is send from.'
     },
     to: {
       type: Address,
-      desc: '20 Bytes - The address the transaction is directed to.'
+      desc: '20 Bytes - The address the transaction is directed to.',
+      optional: true
     },
     gas: {
       type: Quantity,
