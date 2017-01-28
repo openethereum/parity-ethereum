@@ -19,18 +19,18 @@ $modalMargin: 1.5em;
 $modalBackZ: 2500;
 
 /* This should be the default case, the Portal used as a stand-alone modal */
-$parentBottom: 15vh;
-$parentLeft: $modalMargin;
-$parentRight: $modalMargin;
-$parentTop: 0;
-$parentZ: 3500;
+$modalBottom: 15vh;
+$modalLeft: $modalMargin;
+$modalRight: $modalMargin;
+$modalTop: 0;
+$modalZ: 3500;
 
 /* This is the case where popped-up over another modal, Portal or otherwise */
-$childBottom: $modalMargin;
-$childLeft: $modalMargin;
-$childRight: $modalMargin;
-$childTop: 20vh;
-$childZ: 3600;
+$popoverBottom: $modalMargin;
+$popoverLeft: $modalMargin;
+$popoverRight: $modalMargin;
+$popoverTop: 20vh;
+$popoverZ: 3600;
 
 .backOverlay {
   background-color: rgba(255, 255, 255, 0.25);
@@ -67,7 +67,7 @@ $childZ: 3600;
   box-sizing: border-box;
   display: flex;
   opacity: 0;
-  padding: 1em;
+  padding: 1.5em;
   position: fixed;
   transform-origin: 100% 0;
   transition-duration: 0.25s;
@@ -79,29 +79,29 @@ $childZ: 3600;
     min-width: 0;
   }
 
-  &.childOverlay {
-    left: $childLeft;
-    top: $childTop;
-    height: calc(100vh - $childTop - $childBottom);
-    width: calc(100vw - $childLeft - $childRight);
+  &.modal {
+    bottom: $modalBottom;
+    left: $modalLeft;
+    right: $modalRight;
+    top: $modalTop;
   }
 
-  &.parentOverlay {
-    bottom: $parentBottom;
-    left: $parentLeft;
-    right: $parentRight;
-    top: $parentTop;
+  &.popover {
+    left: $popoverLeft;
+    top: $popoverTop;
+    height: calc(100vh - $popoverTop - $popoverBottom);
+    width: calc(100vw - $popoverLeft - $popoverRight);
   }
 
   &.expanded {
     opacity: 1;
 
-    &.childOverlay {
-      z-index: $childZ;
+    &.popover {
+      z-index: $popoverZ;
     }
 
-    &.parentOverlay {
-      z-index: $parentZ;
+    &.modal {
+      z-index: $modalZ;
     }
   }
 }

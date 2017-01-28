@@ -60,8 +60,8 @@ export default class Portal extends Component {
     const classes = [
       styles.overlay,
       isChildModal
-        ? styles.childOverlay
-        : styles.parentOverlay,
+        ? styles.popover
+        : styles.modal,
       className
     ];
 
