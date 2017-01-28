@@ -22,11 +22,16 @@ use random::Random;
 use smallvec::SmallVec;
 use account::{Cipher, Kdf, Aes128Ctr, Pbkdf2, Prf};
 
+/// Encrypted data
 #[derive(Debug, PartialEq, Clone)]
 pub struct Crypto {
+	/// Encryption parameters
 	pub cipher: Cipher,
+	/// Encrypted data buffer
 	pub ciphertext: Vec<u8>,
+	/// Key derivation function parameters
 	pub kdf: Kdf,
+	/// Message authentication code
 	pub mac: [u8; 32],
 }
 

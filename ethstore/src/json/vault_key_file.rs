@@ -20,18 +20,27 @@ use serde::de::{Visitor, MapVisitor};
 use serde_json;
 use super::{Uuid, Version, Crypto, H160};
 
+/// Key file as stored in vaults
 #[derive(Debug, PartialEq, Serialize)]
 pub struct VaultKeyFile {
+	/// Key id
 	pub id: Uuid,
+	/// Key version
 	pub version: Version,
+	/// Encrypted secret
 	pub crypto: Crypto,
+	/// Encrypted serialized `VaultKeyMeta`
 	pub metacrypto: Crypto,
 }
 
+/// Data, stored in `VaultKeyFile::metacrypto`
 #[derive(Debug, PartialEq, Serialize)]
 pub struct VaultKeyMeta {
+	/// Key address
 	pub address: H160,
+	/// Key name
 	pub name: Option<String>,
+	/// Key metadata
 	pub meta: Option<String>,
 }
 

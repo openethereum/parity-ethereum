@@ -23,13 +23,16 @@ use super::disk::{DiskDirectory, KeyFileManager};
 
 const VAULT_FILE_NAME: &'static str = "vault.json";
 
+/// Vault directory implementation
 pub type VaultDiskDirectory = DiskDirectory<VaultKeyFileManager>;
 
+/// Vault key file manager
 pub struct VaultKeyFileManager {
 	key: VaultKey,
 }
 
 impl VaultDiskDirectory {
+	/// Create new vault directory with given key
 	pub fn create<P>(root: P, name: &str, key: VaultKey) -> Result<Self, Error> where P: AsRef<Path> {
 		// check that vault directory does not exists
 		let vault_dir_path = make_vault_dir_path(root, name, true)?;
@@ -47,6 +50,7 @@ impl VaultDiskDirectory {
 		Ok(DiskDirectory::new(vault_dir_path, VaultKeyFileManager::new(key)))
 	}
 
+	/// Open existing vault directory with given key
 	pub fn at<P>(root: P, name: &str, key: VaultKey) -> Result<Self, Error> where P: AsRef<Path> {
 		// check that vault directory exists
 		let vault_dir_path = make_vault_dir_path(root, name, true)?;
@@ -115,7 +119,7 @@ impl VaultKeyDirectory for VaultDiskDirectory {
 			return Err(SetKeyError::NonFatalOld(Error::InvalidPassword));
 		}
 
-		let temp_vault = VaultDiskDirectory::create_temp_vault(self, new_key.clone()).map_err(SetKeyError::nonfatal_old)?;
+		let temp_vault = VaultDiskDirectory::create_temp_vault(self, new_key.clone()).map_err(|err| SetKeyError::NonFatalOld(err))?;
 		let mut source_path = temp_vault.path().expect("temp_vault is instance of DiskDirectory; DiskDirectory always returns path; qed").clone();
 		let mut target_path = self.path().expect("self is instance of DiskDirectory; DiskDirectory always returns path; qed").clone();
 		// jump to next fs level
@@ -143,7 +147,7 @@ impl VaultKeyDirectory for VaultDiskDirectory {
 		target_path.set_file_name(VAULT_FILE_NAME);
 		fs::rename(source_path, target_path).map_err(|err| SetKeyError::Fatal(err.into()))?;
 
-		temp_vault.delete().map_err(SetKeyError::nonfatal_new)
+		temp_vault.delete().map_err(|err| SetKeyError::NonFatalNew(err))
 	}
 }
 

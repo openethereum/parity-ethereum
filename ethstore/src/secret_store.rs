@@ -19,15 +19,21 @@ use ethkey::{Address, Message, Signature, Secret, Public};
 use Error;
 use json::Uuid;
 
+/// Key directory reference
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum SecretVaultRef {
+	/// Reference to key in root directory
 	Root,
+	/// Referenc to key in specific vault
 	Vault(String),
 }
 
+/// Stored account reference
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct StoreAccountRef {
+	/// Vault reference
 	pub vault: SecretVaultRef,
+	/// Account address
 	pub address: Address,
 }
 
@@ -41,9 +47,13 @@ pub trait SimpleSecretStore: Send + Sync {
 
 	fn accounts(&self) -> Result<Vec<StoreAccountRef>, Error>;
 
+	/// Create new vault with given password
 	fn create_vault(&self, name: &str, password: &str) -> Result<(), Error>;
+	/// Open vault with given password
 	fn open_vault(&self, name: &str, password: &str) -> Result<(), Error>;
+	/// Close vault
 	fn close_vault(&self, name: &str) -> Result<(), Error>;
+	/// Change vault password
 	fn change_vault_password(&self, name: &str, password: &str, new_password: &str) -> Result<(), Error>;
 }
 
@@ -69,14 +79,17 @@ pub trait SecretStore: SimpleSecretStore {
 }
 
 impl StoreAccountRef {
+	/// Create reference to root account with given address
 	pub fn root(address: Address) -> Self {
 		StoreAccountRef::new(SecretVaultRef::Root, address)
 	}
 
+	/// Create reference to vault account with given address
 	pub fn vault(vault_name: &str, address: Address) -> Self {
 		StoreAccountRef::new(SecretVaultRef::Vault(vault_name.to_owned()), address)
 	}
 
+	/// Create new account reference
 	pub fn new(vault_ref: SecretVaultRef, address: Address) -> Self {
 		StoreAccountRef {
 			vault: vault_ref,

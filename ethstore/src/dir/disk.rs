@@ -43,18 +43,24 @@ fn restrict_permissions_to_owner(_file_path: &Path) -> Result<(), i32> {
 	Ok(())
 }
 
+/// Root keys directory implementation
 pub type RootDiskDirectory = DiskDirectory<DiskKeyFileManager>;
 
+/// Disk directory key file manager
 pub trait KeyFileManager: Send + Sync {
+	/// Read `SafeAccount` from given key file stream
 	fn read<T>(&self, filename: Option<String>, reader: T) -> Result<SafeAccount, Error> where T: io::Read;
+	/// Write `SafeAccount` to given key file stream
 	fn write<T>(&self, account: SafeAccount, writer: &mut T) -> Result<(), Error> where T: io::Write;
 }
 
+/// Disk-based keys directory implementation
 pub struct DiskDirectory<T> where T: KeyFileManager {
 	path: PathBuf,
 	key_manager: T,
 }
 
+/// Keys file manager for root keys directory
 pub struct DiskKeyFileManager;
 
 impl RootDiskDirectory {
@@ -64,7 +70,7 @@ impl RootDiskDirectory {
 	}
 
 	pub fn at<P>(path: P) -> Self where P: AsRef<Path> {
-		DiskDirectory::new(path, DiskKeyFileManager::new())
+		DiskDirectory::new(path, DiskKeyFileManager)
 	}
 }
 
@@ -205,12 +211,6 @@ impl<T> VaultKeyDirectoryProvider for DiskDirectory<T> where T: KeyFileManager {
 	fn open(&self, name: &str, key: VaultKey) -> Result<Box<VaultKeyDirectory>, Error> {
 		let vault_dir = VaultDiskDirectory::at(&self.path, name, key)?;
 		Ok(Box::new(vault_dir))
-	}
-}
-
-impl DiskKeyFileManager {
-	pub fn new() -> Self {
-		DiskKeyFileManager {}
 	}
 }
 

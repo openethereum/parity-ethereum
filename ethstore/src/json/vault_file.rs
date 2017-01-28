@@ -20,8 +20,10 @@ use serde::de::{Visitor, MapVisitor};
 use serde_json;
 use super::Crypto;
 
+/// Vault meta file
 #[derive(Debug, PartialEq, Serialize)]
 pub struct VaultFile {
+	/// Vault password, encrypted with vault password
 	pub crypto: Crypto,
 }
 

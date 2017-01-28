@@ -24,8 +24,8 @@ use std::fmt;
 use std::collections::HashMap;
 use std::time::{Instant, Duration};
 use util::RwLock;
-use ethstore::{SimpleSecretStore, SecretStore, Error as SSError, EthStore, EthMultiStore
-	, random_string, SecretVaultRef, StoreAccountRef};
+use ethstore::{SimpleSecretStore, SecretStore, Error as SSError, EthStore, EthMultiStore,
+	random_string, SecretVaultRef, StoreAccountRef};
 use ethstore::dir::MemoryDirectory;
 use ethstore::ethkey::{Address, Message, Public, Secret, Random, Generator};
 use ethjson::misc::AccountMeta;
