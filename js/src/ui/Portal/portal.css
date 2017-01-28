@@ -15,6 +15,10 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+/* FIXME: These are only applicable when we are actually opening the
+/* account selector. In normal mode it should appear where we actually
+/* have the normal modals.
+*/
 $left: 1.5em;
 $right: $left;
 $bottom: $left;
