@@ -14,10 +14,10 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import fs from 'fs';
+import path from 'path';
 import interfaces from './';
 import { Address, BlockNumber, Data, Hash, Integer, Quantity } from './types';
-
-const flatlist = {};
 
 function verifyType (obj) {
   if (typeof obj !== 'string') {
@@ -36,15 +36,69 @@ function verifyType (obj) {
   }
 }
 
+// Get a list of JSON-RPC from Rust trait source code
+function parseMethodsFromRust (source) {
+  // Matching the custom `rpc` attribute
+  const regex = /#\[rpc\((?:(?:async|meta)\s*,\s*)*name\s*=\s*"([^"]+)"\)]/g;
+
+  const methods = [];
+
+  source.toString().replace(regex, (match, method) => {
+    methods.push(method);
+
+    return match;
+  });
+
+  return methods;
+}
+
+// Get a list of all JSON-RPC methods from all defined traits
+function getMethodsFromRustTraits () {
+  const traitsDir = path.join(__dirname, '../../../rpc/src/v1/traits');
+
+  return fs.readdirSync(traitsDir)
+    .filter((name) => (name !== 'mod.rs' && /\.rs$/.test(name)))
+    .map((name) => fs.readFileSync(path.join(traitsDir, name)))
+    .map(parseMethodsFromRust)
+    .reduce((a, b) => a.concat(b));
+}
+
+const rustMethods = {};
+
+getMethodsFromRustTraits().forEach((method) => {
+  const [group, name] = method.split('_');
+
+  rustMethods[group] = rustMethods[group] || {};
+  rustMethods[group][name] = true;
+});
+
+describe('Rust defined JSON-RPC methods', () => {
+  Object.keys(rustMethods).forEach((group) => {
+    describe(group, () => {
+      Object.keys(rustMethods[group]).forEach((name) => {
+        describe(`${group}_${name}`, () => {
+          it('has a defined JS interface', () => {
+            expect(interfaces[group][name]).to.exist;
+          });
+        });
+      });
+    });
+  });
+});
+
 describe('jsonrpc/interfaces', () => {
   Object.keys(interfaces).forEach((group) => {
     describe(group, () => {
       Object.keys(interfaces[group]).forEach((name) => {
         const method = interfaces[group][name];
 
-        flatlist[`${group}_${name}`] = true;
+        describe(`${group}_${name}`, () => {
+          if (!method.nodoc) {
+            it('is present in Rust codebase', () => {
+              expect(rustMethods[group][name]).to.exist;
+            });
+          }
 
-        describe(name, () => {
           it('has the correct interface', () => {
             expect(method.desc).to.be.a('string');
             expect(method.params).to.be.an('array');
