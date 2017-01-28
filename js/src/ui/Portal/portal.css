@@ -15,33 +15,40 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-/* FIXME: These are only applicable when we are actually opening the
-/* account selector. In normal mode it should appear where we actually
-/* have the normal modals.
-*/
-$left: 1.5em;
-$right: $left;
-$bottom: $left;
-$top: 20vh;
+$modalMargin: 1.5em;
+$modalBackZ: 2500;
+
+/* This should be the default case, the Portal used as a stand-alone modal */
+$parentBottom: 15vh;
+$parentLeft: $modalMargin;
+$parentRight: $modalMargin;
+$parentTop: 0;
+$parentZ: 3500;
+
+/* This is the case where popped-up over another modal, Portal or otherwise */
+$childBottom: $modalMargin;
+$childLeft: $modalMargin;
+$childRight: $modalMargin;
+$childTop: 20vh;
+$childZ: 3600;
 
 .backOverlay {
+  background-color: rgba(255, 255, 255, 0.25);
+  opacity: 0;
   position: fixed;
   top: 0;
   right: 0;
   bottom: 0;
   left: 0;
-  background-color: rgba(255, 255, 255, 0.25);
-  z-index: -10;
-  opacity: 0;
-
   transform-origin: 100% 0;
-  transition-property: opacity, z-index;
   transition-duration: 0.25s;
+  transition-property: opacity, z-index;
   transition-timing-function: ease-out;
+  z-index: -10;
 
   &.expanded {
     opacity: 1;
-    z-index: 2500;
+    z-index: $modalBackZ;
   }
 }
 
@@ -56,45 +63,58 @@ $top: 20vh;
 }
 
 .overlay {
-  display: flex;
-  position: fixed;
-  top: $top;
-  left: $left;
-  width: calc(100vw - $left - $right);
-  height: calc(100vh - $top - $bottom);
-
-  transform-origin: 100% 0;
-  transition-property: opacity, z-index;
-  transition-duration: 0.25s;
-  transition-timing-function: ease-out;
-
   background-color: rgba(0, 0, 0, 1);
-  opacity: 0;
-  z-index: -10;
-
-  padding: 1em;
   box-sizing: border-box;
+  display: flex;
+  opacity: 0;
+  padding: 1em;
+  position: fixed;
+  transform-origin: 100% 0;
+  transition-duration: 0.25s;
+  transition-property: opacity, z-index;
+  transition-timing-function: ease-out;
+  z-index: -10;
 
   * {
     min-width: 0;
   }
 
+  &.childOverlay {
+    left: $childLeft;
+    top: $childTop;
+    height: calc(100vh - $childTop - $childBottom);
+    width: calc(100vw - $childLeft - $childRight);
+  }
+
+  &.parentOverlay {
+    bottom: $parentBottom;
+    left: $parentLeft;
+    right: $parentRight;
+    top: $parentTop;
+  }
+
   &.expanded {
     opacity: 1;
-    z-index: 3500;
+
+    &.childOverlay {
+      z-index: $childZ;
+    }
+
+    &.parentOverlay {
+      z-index: $parentZ;
+    }
   }
 }
 
 .closeIcon {
-  position: absolute;
-  top: 0.5rem;
-  right: 1rem;
   font-size: 4em;
-  z-index: 100;
-
-  transition-property: opacity;
+  position: absolute;
+  right: 1rem;
+  top: 0.5rem;
   transition-duration: 0.25s;
+  transition-property: opacity;
   transition-timing-function: ease-out;
+  z-index: 100;
 
   &, * {
     height: 48px !important;
