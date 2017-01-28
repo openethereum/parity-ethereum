@@ -23,21 +23,25 @@ const ACCOUNTS = {
   '456': { address: '456', name: '456', meta: { description: '456' } },
   '789': { address: '789', name: '789', meta: { description: '789' } }
 };
-const WHITELIST = ['123', '456'];
+const WHITELIST = ['456', '789'];
+
+let api;
+let store;
+
+function create () {
+  api = {
+    parity: {
+      getNewDappsWhitelist: sinon.stub().resolves(WHITELIST),
+      setNewDappsWhitelist: sinon.stub().resolves(true)
+    }
+  };
+
+  store = new Store(api);
+}
 
 describe('modals/DappPermissions/store', () => {
-  let api;
-  let store;
-
   beforeEach(() => {
-    api = {
-      parity: {
-        getNewDappsWhitelist: sinon.stub().resolves(WHITELIST),
-        setNewDappsWhitelist: sinon.stub().resolves(true)
-      }
-    };
-
-    store = new Store(api);
+    create();
   });
 
   describe('constructor', () => {
@@ -51,49 +55,71 @@ describe('modals/DappPermissions/store', () => {
   });
 
   describe('@actions', () => {
-    describe('openModal', () => {
-      beforeEach(() => {
-        store.openModal(ACCOUNTS);
-      });
+    beforeEach(() => {
+      store.openModal(ACCOUNTS);
+    });
 
+    describe('openModal', () => {
       it('sets the modalOpen status', () => {
         expect(store.modalOpen).to.be.true;
       });
 
       it('sets accounts with checked interfaces', () => {
         expect(store.accounts.peek()).to.deep.equal([
-          { address: '123', name: '123', description: '123', checked: true },
-          { address: '456', name: '456', description: '456', checked: true },
-          { address: '789', name: '789', description: '789', checked: false }
+          { address: '123', name: '123', description: '123', default: false, checked: false },
+          { address: '456', name: '456', description: '456', default: true, checked: true },
+          { address: '789', name: '789', description: '789', default: false, checked: true }
         ]);
       });
     });
 
     describe('closeModal', () => {
       beforeEach(() => {
-        store.openModal(ACCOUNTS);
-        store.selectAccount('789');
+        store.setDefaultAccount('789');
         store.closeModal();
       });
 
       it('calls setNewDappsWhitelist', () => {
         expect(api.parity.setNewDappsWhitelist).to.have.been.calledOnce;
       });
+
+      it('has the default account in first position', () => {
+        expect(api.parity.setNewDappsWhitelist).to.have.been.calledWith(['789', '456']);
+      });
     });
 
     describe('selectAccount', () => {
       beforeEach(() => {
-        store.openModal(ACCOUNTS);
         store.selectAccount('123');
         store.selectAccount('789');
       });
 
       it('unselects previous selected accounts', () => {
-        expect(store.accounts.find((account) => account.address === '123').checked).to.be.false;
+        expect(store.accounts.find((account) => account.address === '123').checked).to.be.true;
       });
 
       it('selects previous unselected accounts', () => {
-        expect(store.accounts.find((account) => account.address === '789').checked).to.be.true;
+        expect(store.accounts.find((account) => account.address === '789').checked).to.be.false;
+      });
+
+      it('sets a new default when default was unselected', () => {
+        store.selectAccount('456');
+        expect(store.accounts.find((account) => account.address === '456').default).to.be.false;
+        expect(store.accounts.find((account) => account.address === '123').default).to.be.true;
+      });
+    });
+
+    describe('setDefaultAccount', () => {
+      beforeEach(() => {
+        store.setDefaultAccount('789');
+      });
+
+      it('unselects previous default', () => {
+        expect(store.accounts.find((account) => account.address === '456').default).to.be.false;
+      });
+
+      it('selects new default', () => {
+        expect(store.accounts.find((account) => account.address === '789').default).to.be.true;
       });
     });
   });

@@ -77,8 +77,7 @@ export default class DappPermissions extends Component {
         store.selectAccount(account.address);
       };
 
-      // TODO: Once new modal & account selection is in, this should be updated
-      // to conform to the new (as of this code WIP) look & feel for selection.
+      // TODO: Udate to conform to the new look & feel for selection.
       // For now in the current/old style, not as pretty but consistent.
       return (
         <ListItem
