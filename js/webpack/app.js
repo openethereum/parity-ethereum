@@ -1,5 +1,5 @@
 
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -40,7 +40,8 @@ module.exports = {
 
   context: path.join(__dirname, '../src'),
   entry: Object.assign({}, Shared.dappsEntry, {
-    index: './index.js'
+    index: './index.js',
+    embed: './embed.js'
   }),
   output: {
     // publicPath: '/',
@@ -117,7 +118,12 @@ module.exports = {
         use: [ 'file-loader?name=fonts/[name][hash:10].[ext]' ]
       },
       {
+        test: /parity-logo-white-no-text\.svg/,
+        use: [ 'url-loader' ]
+      },
+      {
         test: /\.svg(\?v=[0-9]\.[0-9]\.[0-9])?$/,
+        exclude: [ /parity-logo-white-no-text\.svg/ ],
         use: [ 'file-loader?name=assets/[name].[hash:10].[ext]' ]
       }
     ],
@@ -170,6 +176,17 @@ module.exports = {
         chunks: [
           isProd ? null : 'commons',
           'index'
+        ]
+      }),
+
+      new HtmlWebpackPlugin({
+        title: 'Parity Bar',
+        filename: 'embed.html',
+        template: './index.ejs',
+        favicon: FAVICON,
+        chunks: [
+          isProd ? null : 'commons',
+          'embed'
         ]
       }),
 

@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -100,6 +100,7 @@ describe('abi/decoder/Decoder', () => {
 
     it('throws an error on invalid param type', () => {
       const pt = new ParamType('address');
+
       pt._type = 'noMatch';
 
       expect(() => Decoder.decodeParam(pt)).to.throw(/noMatch/);

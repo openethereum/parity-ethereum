@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -402,6 +402,7 @@ export default class WriteContractStore {
     this.sourcecode = value;
 
     const localStore = store.get(WRITE_CONTRACT_STORE_KEY) || {};
+
     store.set(WRITE_CONTRACT_STORE_KEY, {
       ...localStore,
       current: value
@@ -453,6 +454,7 @@ export default class WriteContractStore {
 
   @action reloadContracts = (id, sourcecode) => {
     const localStore = store.get(WRITE_CONTRACT_STORE_KEY) || {};
+
     this.savedContracts = localStore.saved || {};
 
     const cId = id !== undefined ? id : localStore.currentId;
@@ -475,6 +477,7 @@ export default class WriteContractStore {
 
   @action handleLoadContract = (contract) => {
     const { sourcecode, id } = contract;
+
     this.reloadContracts(id, sourcecode);
   }
 

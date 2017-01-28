@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -53,6 +53,7 @@ function _getFee (gas, gasPrice) {
 
 function _calcFeeInEth (totalValue, value) {
   let fee = new BigNumber(totalValue).sub(new BigNumber(value));
+
   return fee.times(WEI_TO_ETH_MULTIPLIER).toFormat(7);
 }
 
@@ -105,6 +106,7 @@ function _getTotalValueDisplayWei (totalValue) {
 
 function _getEthmFromWeiDisplay (weiHexString) {
   const value = new BigNumber(weiHexString);
+
   return value.times(WEI_TO_ETH_MULTIPLIER).times(1e7).toFixed(5);
 }
 

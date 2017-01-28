@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -168,11 +168,13 @@ export class Transaction extends BaseTransaction {
 
   renderTime (firstSeen) {
     const { blockNumber } = this.props;
+
     if (!firstSeen) {
       return 'never';
     }
 
     const timeInMinutes = blockNumber.sub(firstSeen).mul(14).div(60).toFormat(1);
+
     return `${timeInMinutes} minutes ago`;
   }
 }

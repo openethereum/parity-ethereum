@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -26,6 +26,7 @@ const initialState = {
 export default handleActions({
   setBalances (state, action) {
     const { balances } = action;
+
     return Object.assign({}, state, { balances });
   },
 
@@ -57,6 +58,7 @@ export default handleActions({
       }
 
       const tokens = [].concat(balances[address].tokens);
+
       tokens[tokenIndex].token = {
         ...tokens[tokenIndex].token,
         image
@@ -73,11 +75,13 @@ export default handleActions({
 
   setTokenReg (state, action) {
     const { tokenreg } = action;
+
     return Object.assign({}, state, { tokenreg });
   },
 
   setTokensFilter (state, action) {
     const { tokensFilter } = action;
+
     return Object.assign({}, state, { tokensFilter });
   }
 }, initialState);

@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -24,6 +24,7 @@ import Signer from './signer';
 const events = {
   'logging': { module: 'logging' },
   'eth_blockNumber': { module: 'eth' },
+  'parity_accountsInfo': { module: 'personal' },
   'parity_allAccountsInfo': { module: 'personal' },
   'eth_accounts': { module: 'personal' },
   'signer_requestsToConfirm': { module: 'signer' }

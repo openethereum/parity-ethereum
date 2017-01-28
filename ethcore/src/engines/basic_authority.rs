@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -18,7 +18,7 @@
 
 use std::sync::Weak;
 use util::*;
-use ethkey::{recover, public_to_address};
+use ethkey::{recover, public_to_address, Signature};
 use account_provider::AccountProvider;
 use block::*;
 use builtin::Builtin;
@@ -165,11 +165,15 @@ impl Engine for BasicAuthority {
 	}
 
 	fn register_client(&self, client: Weak<Client>) {
-		self.validators.register_call_contract(client);
+		self.validators.register_contract(client);
 	}
 
 	fn set_signer(&self, ap: Arc<AccountProvider>, address: Address, password: String) {
 		self.signer.set(ap, address, password);
+	}
+
+	fn sign(&self, hash: H256) -> Result<Signature, Error> {
+		self.signer.sign(hash).map_err(Into::into)
 	}
 }
 

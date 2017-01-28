@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -47,6 +47,7 @@ class Background extends Component {
   componentDidMount () {
     const { settings } = this.props;
     const seeds = new Array(20).fill(null);
+
     seeds[0] = settings.backgroundSeed;
 
     this.setState({

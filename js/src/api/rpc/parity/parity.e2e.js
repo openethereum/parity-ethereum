@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -18,6 +18,14 @@ import { createHttpApi } from '../../../../test/e2e/ethapi';
 
 describe('ethapi.parity', () => {
   const ethapi = createHttpApi();
+
+  describe('chainStatus', () => {
+    it('returns and translates the status', () => {
+      return ethapi.parity.chainStatus().then((value) => {
+        expect(value).to.be.ok;
+      });
+    });
+  });
 
   describe('gasFloorTarget', () => {
     it('returns and translates the target', () => {

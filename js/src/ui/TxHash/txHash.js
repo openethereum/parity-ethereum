@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -113,6 +113,7 @@ class TxHash extends Component {
     const value = Math.min(confirmations.toNumber(), maxConfirmations);
 
     let count = confirmations.toFormat(0);
+
     if (confirmations.lte(maxConfirmations)) {
       count = `${count}/${maxConfirmations}`;
     }

@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import { Quantity } from '../types';
+import { fromDecimal } from '../helpers';
 
 export default {
   listening: {
@@ -22,7 +23,8 @@ export default {
     params: [],
     returns: {
       type: Boolean,
-      desc: '`true` when listening, otherwise `false`.'
+      desc: '`true` when listening, otherwise `false`.',
+      example: true
     }
   },
 
@@ -32,7 +34,8 @@ export default {
     returns: {
       type: Quantity,
       desc: 'Integer of the number of connected peers',
-      format: 'utils.toDecimal'
+      format: 'utils.toDecimal',
+      example: fromDecimal(2)
     }
   },
 
@@ -41,7 +44,8 @@ export default {
     params: [],
     returns: {
       type: String,
-      desc: 'The current network protocol version'
+      desc: 'The current network protocol version',
+      example: '8995'
     }
   }
 };

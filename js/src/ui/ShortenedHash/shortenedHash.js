@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -27,6 +27,7 @@ export default class ShortenedHash extends Component {
     const { data } = this.props;
 
     let shortened = data.toLowerCase();
+
     if (shortened.slice(0, 2) === '0x') {
       shortened = shortened.slice(2);
     }

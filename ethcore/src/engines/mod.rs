@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -16,6 +16,8 @@
 
 //! Consensus engine specification and basic implementations.
 
+mod transition;
+mod vote_collector;
 mod null_engine;
 mod instant_seal;
 mod basic_authority;
@@ -32,6 +34,7 @@ pub use self::tendermint::Tendermint;
 
 use std::sync::Weak;
 use util::*;
+use ethkey::Signature;
 use account_provider::AccountProvider;
 use block::ExecutedBlock;
 use builtin::Builtin;
@@ -41,9 +44,6 @@ use spec::CommonParams;
 use evm::Schedule;
 use header::Header;
 use transaction::{UnverifiedTransaction, SignedTransaction};
-use ethereum::ethash;
-use blockchain::extras::BlockDetails;
-use views::HeaderView;
 use client::Client;
 
 /// Voting errors.
@@ -177,7 +177,7 @@ pub trait Engine : Sync + Send {
 	}
 
 	/// Populate a header's fields based on its parent's header.
-	/// Takes gas floor and ceiling targets.
+	/// Usually implements the chain scoring rule based on weight.
 	/// The gas floor target must not be lower than the engine's minimum gas limit.
 	fn populate_from_parent(&self, header: &mut Header, parent: &Header, _gas_floor_target: U256, _gas_ceil_target: U256) {
 		header.set_difficulty(parent.difficulty().clone());
@@ -203,17 +203,15 @@ pub trait Engine : Sync + Send {
 		self.builtins().get(a).expect("attempted to execute nonexistent builtin").execute(input, output);
 	}
 
-	/// Check if new block should be chosen as the one  in chain.
-	fn is_new_best_block(&self, best_total_difficulty: U256, _best_header: HeaderView, parent_details: &BlockDetails, new_header: &HeaderView) -> bool {
-		ethash::is_new_best_block(best_total_difficulty, parent_details, new_header)
-	}
-
 	/// Find out if the block is a proposal block and should not be inserted into the DB.
 	/// Takes a header of a fully verified block.
 	fn is_proposal(&self, _verified_header: &Header) -> bool { false }
 
 	/// Register an account which signs consensus messages.
 	fn set_signer(&self, _account_provider: Arc<AccountProvider>, _address: Address, _password: String) {}
+
+	/// Sign using the EngineSigner, to be used for consensus tx signing.
+	fn sign(&self, _hash: H256) -> Result<Signature, Error> { unimplemented!() }
 
 	/// Add Client which can be used for sealing, querying the state and sending messages.
 	fn register_client(&self, _client: Weak<Client>) {}

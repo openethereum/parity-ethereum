@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -50,6 +50,7 @@ class List extends Component {
 
   componentWillMount () {
     const { accounts, fetchCertifiers, fetchCertifications } = this.props;
+
     fetchCertifiers();
     for (let address in accounts) {
       fetchCertifications(address);
@@ -105,6 +106,7 @@ class List extends Component {
 
   getAddresses () {
     const filteredAddresses = this.getFilteredAddresses();
+
     return this.sortAddresses(filteredAddresses);
   }
 
@@ -257,6 +259,7 @@ class List extends Component {
 
 function mapStateToProps (state) {
   const { certifications } = state;
+
   return { certifications };
 }
 

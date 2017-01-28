@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -22,6 +22,7 @@ import styles from './Call.css';
 export default class Call extends Component {
   render () {
     let { callNo, name, params, response } = this.props.call;
+
     params = this.formatParams(params);
     return (
       <div

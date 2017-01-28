@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -98,11 +98,11 @@ export default class InputText extends Component {
 
   onChange = (event) => {
     const value = event.target.value;
+
     // So we can focus on the input after async validation
     event.persist();
 
     const { validationType, contract } = this.props;
-
     const validation = validate(value, validationType, contract);
 
     if (validation instanceof Promise) {

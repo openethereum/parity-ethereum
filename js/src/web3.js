@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -21,6 +21,7 @@ import './dev.web3.html';
 
 const http = new Web3.providers.HttpProvider('/rpc/');
 const web3 = new Web3(http);
+
 // set default account
 web3.eth.getAccounts((err, accounts) => {
   if (err || !accounts || !accounts[0]) {

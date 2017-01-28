@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -85,6 +85,7 @@ export default class Web extends Component {
 
     const { dappsUrl } = this.context.api;
     const { url } = this.state;
+
     if (!url || !token) {
       return null;
     }
@@ -135,6 +136,7 @@ export default class Web extends Component {
     // Insert timestamp
     // This is a hack to prevent caching.
     const parsed = parseUrl(displayedUrl);
+
     parsed.query = parseQuery(parsed.query);
     parsed.query.t = Date.now().toString();
     delete parsed.search;

@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -91,6 +91,7 @@ function setBalances (_balances, skipNotifications = false) {
 
           const redirectToAccount = () => {
             const route = `/accounts/${account.address}`;
+
             dispatch(push(route));
           };
 
@@ -168,6 +169,7 @@ export function loadTokens (options = {}) {
       .call()
       .then((numTokens) => {
         const tokenIds = range(numTokens.toNumber());
+
         dispatch(fetchTokens(tokenIds, options));
       })
       .catch((error) => {
@@ -443,6 +445,7 @@ function fetchTokensBalance (address, _tokens, api) {
         }));
 
       const balance = { tokens };
+
       return balance;
     })
     .catch((error) => {

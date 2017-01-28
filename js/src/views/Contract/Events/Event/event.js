@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -118,6 +118,7 @@ export default class Event extends Component {
 
       default:
         let value;
+
         if (api.util.isInstanceOf(param.value, BigNumber)) {
           value = param.value.toFormat(0);
         } else if (api.util.isArray(param.value)) {

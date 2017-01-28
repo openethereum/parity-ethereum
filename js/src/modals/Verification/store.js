@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -72,6 +72,7 @@ export default class VerificationStore {
 
   @action load = () => {
     const { contract, account } = this;
+
     this.step = LOADING;
 
     const isServerRunning = this.isServerRunning()
@@ -156,6 +157,7 @@ export default class VerificationStore {
     const values = this.requestValues();
 
     let chain = Promise.resolve();
+
     if (!hasRequested) {
       this.step = POSTING_REQUEST;
       chain = request.estimateGas(options, values)

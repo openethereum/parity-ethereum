@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -24,6 +24,7 @@ describe('api/util/sha3', () => {
 
     it('constructs a correct sha3 encoded as hex', () => {
       const key = '000000000000000000000000391694e7e0b0cce554cb130d723a9d27458f9298' + '0000000000000000000000000000000000000000000000000000000000000001';
+
       expect(sha3(key, { encoding: 'hex' })).to.equal('0x6661e9d6d8b923d5bbaab1b96e1dd51ff6ea2a93520fdc9eb75d059238b8c5e9');
       expect(sha3(`0x${key}`, { encoding: 'hex' })).to.equal('0x6661e9d6d8b923d5bbaab1b96e1dd51ff6ea2a93520fdc9eb75d059238b8c5e9');
     });

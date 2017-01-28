@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -102,6 +102,7 @@ export default class SaveContract extends Component {
 
   onChangeName = (event, value) => {
     const { name, nameError } = validateName(value);
+
     this.setState({ name, nameError });
   }
 }

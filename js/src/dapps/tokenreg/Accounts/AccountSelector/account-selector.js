@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -33,6 +33,7 @@ class AccountSelectorItem extends Component {
     const account = this.props.account;
 
     const props = Object.assign({}, this.props);
+
     delete props.account;
     delete props.onSelectAccount;
 

@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -70,6 +70,7 @@ export function subscribeToChanges (api, dappReg, callback) {
 
                   // Return uniq IDs which changed meta-data
                   const ids = uniq(events.map((event) => bytesToHex(event.params.id.value)));
+
                   callback(ids);
                 });
             }
@@ -129,6 +130,7 @@ export function fetchRegistryAppIds () {
     .count()
     .then((count) => {
       const promises = range(0, count.toNumber()).map((index) => dappReg.at(index));
+
       return Promise.all(promises);
     })
     .then((appsInfo) => {
@@ -177,6 +179,7 @@ export function fetchRegistryApp (api, dappReg, appId) {
     .then((app) => {
       // Keep dapps that has a Manifest File and an Id
       const dapp = (app.manifestHash || !app.id) ? null : app;
+
       return dapp;
     })
     .catch((error) => {

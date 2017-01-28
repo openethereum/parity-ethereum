@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -145,6 +145,7 @@ export default class DappsStore {
   @action setApps = (apps) => {
     this.sortApps(apps.filter((app) => {
       const bnid = new BigNumber(app.id);
+
       return bnid.gt(0);
     }));
 
@@ -194,6 +195,7 @@ export default class DappsStore {
         .keys(accountsInfo)
         .map((address) => {
           const account = accountsInfo[address];
+
           account.address = address;
           return account;
         });

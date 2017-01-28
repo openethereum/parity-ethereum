@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -56,6 +56,14 @@ class Application extends Component {
   render () {
     const [root] = (window.location.hash || '').replace('#/', '').split('/');
     const isMinimized = root === 'app' || root === 'web';
+
+    if (process.env.NODE_ENV !== 'production' && root === 'playground') {
+      return (
+        <div>
+          { this.props.children }
+        </div>
+      );
+    }
 
     if (inFrame) {
       return (

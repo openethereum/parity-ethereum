@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -67,6 +67,7 @@ describe('util/subscribe-to-events', () => {
     const onLog = spy();
     const onFoo = spy();
     const onBar = spy();
+
     subscribeToEvents(contract, [ 'Foo', 'Bar' ])
       .on('log', onLog)
       .on('Foo', onFoo)
@@ -87,6 +88,7 @@ describe('util/subscribe-to-events', () => {
     const { api, contract } = this;
 
     const s = subscribeToEvents(contract, [ 'Foo', 'Bar' ]);
+
     await delay(0);
     s.unsubscribe();
     await delay(0);
@@ -95,12 +97,14 @@ describe('util/subscribe-to-events', () => {
     expect(api.eth.uninstallFilter.firstCall.args).to.eql([ 123 ]);
   });
 
-  it('checks for new events regularly', async function () {
+  it.skip('checks for new events regularly', async function () {
     const { api, contract } = this;
+
     api.eth.getFilterLogs = stub().resolves([]);
 
     const onLog = spy();
     const onBar = spy();
+
     subscribeToEvents(contract, [ 'Bar' ], { interval: 5 })
       .on('log', onLog)
       .on('Bar', onBar);

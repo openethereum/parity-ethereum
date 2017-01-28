@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -28,6 +28,7 @@ export default class Func {
     this._outputs = Param.toParams(abi.outputs || []);
 
     const { id, name, signature } = methodSignature(abi.name, this.inputParamTypes());
+
     this._id = id;
     this._name = name;
     this._signature = signature;

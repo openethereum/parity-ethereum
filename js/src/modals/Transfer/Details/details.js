@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -66,6 +66,7 @@ class TokenSelect extends Component {
         const token = balance.token;
         const isEth = index === 0;
         let imagesrc = token.image;
+
         if (!imagesrc) {
           imagesrc =
             images[token.address]
@@ -79,6 +80,7 @@ class TokenSelect extends Component {
         } else {
           const format = balance.token.format || 1;
           const decimals = format === 1 ? 0 : Math.min(3, Math.floor(format / 10));
+
           value = new BigNumber(balance.value).div(format).toFormat(decimals);
         }
 

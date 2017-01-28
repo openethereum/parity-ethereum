@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -72,6 +72,7 @@ export default class Account extends Component {
 
   renderBalance () {
     const { balanceDisplay } = this.state;
+
     return (
       <span> <strong>{ balanceDisplay }</strong> <small>ETH</small></span>
     );
@@ -108,12 +109,14 @@ export default class Account extends Component {
   tinyAddress () {
     const { address } = this.props;
     const len = address.length;
+
     return address.slice(2, 4) + '..' + address.slice(len - 2);
   }
 
   shortAddress () {
     const { address } = this.props;
     const len = address.length;
+
     return address.slice(2, 8) + '..' + address.slice(len - 7);
   }
 }

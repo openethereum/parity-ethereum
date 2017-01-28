@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -37,7 +37,7 @@ use ethcore::action_params::ActionParams;
 
 const USAGE: &'static str = r#"
 EVM implementation for Parity.
-  Copyright 2016 Ethcore (UK) Limited
+  Copyright 2016, 2017 Parity Technologies (UK) Ltd
 
 Usage:
     evmbin stats [options]

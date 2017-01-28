@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -90,6 +90,7 @@ export default class SignerMiddleware {
           })
           .then((result) => {
             const seed = Buffer.from(result.data);
+
             return new Signer(seed);
           })
         : Signer.fromJson(wallet, password);

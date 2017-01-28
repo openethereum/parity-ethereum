@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -34,7 +34,7 @@ use filter::Filter;
 use log_entry::LocalizedLogEntry;
 use receipt::{Receipt, LocalizedReceipt};
 use blockchain::extras::BlockReceipts;
-use error::{ImportResult};
+use error::{ImportResult, Error as EthcoreError};
 use evm::{Factory as EvmFactory, VMType, Schedule};
 use miner::{Miner, MinerService, TransactionImportResult};
 use spec::Spec;
@@ -591,7 +591,7 @@ impl BlockChainClient for TestBlockChainClient {
 		// starts with 'f' ?
 		if *hash > H256::from("f000000000000000000000000000000000000000000000000000000000000000") {
 			let receipt = BlockReceipts::new(vec![Receipt::new(
-				H256::zero(),
+				Some(H256::zero()),
 				U256::zero(),
 				vec![])]);
 			let mut rlp = RlpStream::new();
@@ -729,6 +729,21 @@ impl BlockChainClient for TestBlockChainClient {
 	}
 
 	fn call_contract(&self, _address: Address, _data: Bytes) -> Result<Bytes, String> { Ok(vec![]) }
+
+	fn transact_contract(&self, address: Address, data: Bytes) -> Result<TransactionImportResult, EthcoreError> {
+		let transaction = Transaction {
+			nonce: self.latest_nonce(&self.miner.author()),
+			action: Action::Call(address),
+			gas: self.spec.gas_limit,
+			gas_price: U256::zero(),
+			value: U256::default(),
+			data: data,
+		};
+		let network_id = Some(self.spec.params.network_id);
+		let sig = self.spec.engine.sign(transaction.hash(network_id)).unwrap();
+		let signed = SignedTransaction::new(transaction.with_signature(sig, network_id)).unwrap();
+		self.miner.import_own_transaction(self, signed.into())
+	}
 
 	fn registrar_address(&self) -> Option<Address> { None }
 

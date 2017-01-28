@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -38,6 +38,7 @@ class Hash extends Component {
     const { hash, isTestnet, linked } = this.props;
 
     let shortened = hash.toLowerCase().replace(leading0x, '');
+
     shortened = shortened.length > (6 + 6)
       ? shortened.substr(0, 6) + '...' + shortened.slice(-6)
       : shortened;

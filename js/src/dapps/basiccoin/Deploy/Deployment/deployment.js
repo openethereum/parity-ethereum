@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -293,6 +293,7 @@ export default class Deployment extends Component {
         this.setState({ deployState: 'Gas estimated, Posting transaction to the network' });
 
         const gasPassed = gas.mul(1.2);
+
         options.gas = gasPassed.toFixed(0);
         console.log(`gas estimated at ${gas.toFormat(0)}, passing ${gasPassed.toFormat(0)}`);
 

@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -309,6 +309,7 @@ function mapStateToProps (initState, initProps) {
   return (state) => {
     const { gasLimit } = state.nodeStatus;
     const sendersBalances = senders ? pick(state.balances.balances, Object.keys(senders)) : null;
+
     return { gasLimit, wallet, senders, sendersBalances };
   };
 }

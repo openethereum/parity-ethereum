@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -67,6 +67,7 @@ export default class BadgeReg {
         return this.fetchMeta(id)
           .then(({ title, icon }) => {
             const data = { address, id, name, title, icon };
+
             this.certifiers[id] = data;
             return data;
           });
@@ -87,6 +88,7 @@ export default class BadgeReg {
         return this.fetchMeta(id)
           .then(({ title, icon }) => {
             const data = { address, id, name, title, icon };
+
             this.certifiers[id] = data;
             return data;
           });

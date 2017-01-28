@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -95,6 +95,7 @@ export default class Status {
     });
 
     const promise = BalancesProvider.stop();
+
     promises.push(promise);
 
     return Promise.all(promises)
@@ -108,6 +109,7 @@ export default class Status {
 
   updateApiStatus () {
     const apiStatus = this.getApiStatus();
+
     log.debug('status::updateApiStatus', apiStatus);
 
     if (!isEqual(apiStatus, this._apiStatus)) {

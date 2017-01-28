@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -45,7 +45,10 @@ const write = debounce((getChain, getReverses, getLastBlock) => {
 }, 20000);
 
 export default (api) => (store) => {
-  let contract, subscription, timeout, interval;
+  let contract;
+  let subscription;
+  let timeout;
+  let interval;
 
   let addressesToCheck = {};
 
@@ -85,10 +88,11 @@ export default (api) => (store) => {
         store.dispatch(startCachingReverses());
 
         break;
+
       case 'startCachingReverses':
         const { registry } = Contracts.get();
-
         const cached = read(store.getState().nodeStatus.netChain);
+
         if (cached) {
           Object
             .entries(cached.reverses)
