@@ -28,7 +28,6 @@ export default class Portal extends Component {
   static propTypes = {
     onClose: PropTypes.func.isRequired,
     open: PropTypes.bool.isRequired,
-
     children: PropTypes.node,
     className: PropTypes.string,
     onKeyDown: PropTypes.func
@@ -56,7 +55,6 @@ export default class Portal extends Component {
   render () {
     const { expanded } = this.state;
     const { children, className } = this.props;
-
     const classes = [ styles.overlay, className ];
     const backClasses = [ styles.backOverlay ];
 
@@ -66,15 +64,20 @@ export default class Portal extends Component {
     }
 
     return (
-      <ReactPortal isOpened onClose={ this.handleClose }>
-        <div className={ backClasses.join(' ') } onClick={ this.handleClose }>
+      <ReactPortal
+        isOpened
+        onClose={ this.handleClose }
+      >
+        <div
+          className={ backClasses.join(' ') }
+          onClick={ this.handleClose }
+        >
           <div
             className={ classes.join(' ') }
             onClick={ this.stopEvent }
             onKeyDown={ this.handleKeyDown }
           >
             <ParityBackground className={ styles.parityBackground } />
-
             { this.renderCloseIcon() }
             { children }
           </div>
@@ -91,7 +94,10 @@ export default class Portal extends Component {
     }
 
     return (
-      <div className={ styles.closeIcon } onClick={ this.handleClose }>
+      <div
+        className={ styles.closeIcon }
+        onClick={ this.handleClose }
+      >
         <CloseIcon />
       </div>
     );
