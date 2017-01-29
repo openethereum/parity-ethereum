@@ -80,8 +80,8 @@ export default class SignRequest extends Component {
           />
         </div>
         <div className={ styles.info } title={ hash }>
-          <p>Dapp is requesting to sign arbitrary transaction using this account.</p>
-          <p><strong>Confirm the transaction only if you trust the app.</strong></p>
+          <p>Dapp is requesting to sign arbitrary data using this account.</p>
+          <p><strong>Confirm the request only if you trust the app.</strong></p>
         </div>
       </div>
     );
