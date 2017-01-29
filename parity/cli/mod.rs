@@ -184,6 +184,7 @@ usage! {
 			or |c: &Config| otry!(c.dapps).user.clone().map(Some),
 		flag_dapps_pass: Option<String> = None,
 			or |c: &Config| otry!(c.dapps).pass.clone().map(Some),
+		flag_dapps_apis_all: bool = false, or |_| None,
 
 		// -- Sealing/Mining Options
 		flag_author: Option<String> = None,
