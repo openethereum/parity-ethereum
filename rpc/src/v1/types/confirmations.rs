@@ -19,6 +19,7 @@
 use std::fmt;
 use serde::{Serialize, Serializer};
 use util::log::Colour;
+use util::bytes::ToPretty;
 
 use v1::types::{U256, TransactionRequest, RichRawTransaction, H160, H256, H520, Bytes, BlockNumber};
 use v1::helpers;
@@ -64,14 +65,14 @@ pub struct SignRequest {
 	/// Address
 	pub address: H160,
 	/// Hash to sign
-	pub hash: H256,
+	pub data: Bytes,
 }
 
-impl From<(H160, H256)> for SignRequest {
-	fn from(tuple: (H160, H256)) -> Self {
+impl From<(H160, Bytes)> for SignRequest {
+	fn from(tuple: (H160, Bytes)) -> Self {
 		SignRequest {
 			address: tuple.0,
-			hash: tuple.1,
+			data: tuple.1,
 		}
 	}
 }
@@ -80,8 +81,8 @@ impl fmt::Display for SignRequest {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		write!(
 			f,
-			"sign 0x{:?} with {}",
-			self.hash,
+			"sign 0x{} with {}",
+			self.data.0.pretty(),
 			Colour::White.bold().paint(format!("0x{:?}", self.address)),
 		)
 	}
@@ -172,9 +173,9 @@ impl From<helpers::ConfirmationPayload> for ConfirmationPayload {
 		match c {
 			helpers::ConfirmationPayload::SendTransaction(t) => ConfirmationPayload::SendTransaction(t.into()),
 			helpers::ConfirmationPayload::SignTransaction(t) => ConfirmationPayload::SignTransaction(t.into()),
-			helpers::ConfirmationPayload::Signature(address, hash) => ConfirmationPayload::Signature(SignRequest {
+			helpers::ConfirmationPayload::Signature(address, data) => ConfirmationPayload::Signature(SignRequest {
 				address: address.into(),
-				hash: hash.into(),
+				data: data.into(),
 			}),
 			helpers::ConfirmationPayload::Decrypt(address, msg) => ConfirmationPayload::Decrypt(DecryptRequest {
 				address: address.into(),
