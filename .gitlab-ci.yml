@@ -382,6 +382,9 @@ darwin:
     - rm -rf parity.md5
     - md5sum target/release/parity > parity.md5
     - export SHA3=$(target/release/parity tools hash target/release/parity)
+    - cd mac
+    - xcodebuild -configuration Release
+    - cd ..
     - packagesbuild -v mac/Parity.pkgproj
     - export VER=$(grep -m 1 version Cargo.toml | awk '{print $3}' | tr -d '"' | tr -d "\n")
     - mv target/release/Parity\ Ethereum.pkg "parity-"$VER"-osx-installer-EXPERIMENTAL.pkg"
