@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
@@ -46,22 +47,33 @@ class DeleteAccount extends Component {
     return (
       <ConfirmDialog
         className={ styles.body }
-        title='confirm removal'
-        visible
-        onDeny={ this.closeDeleteDialog }
         onConfirm={ this.onDeleteConfirmed }
+        onDeny={ this.closeDeleteDialog }
+        title={
+          <FormattedMessage
+            id='deleteAccount.title'
+            defaultMessage='confirm removal'
+          />
+        }
+        visible
       >
         <div className={ styles.hero }>
-          Are you sure you want to permanently delete the following account?
+          <FormattedMessage
+            id='deleteAccount.question'
+            defaultMessage='Are you sure you want to permanently delete the following account?'
+          />
         </div>
         <div className={ styles.info }>
           <IdentityIcon
-            className={ styles.icon }
             address={ account.address }
+            className={ styles.icon }
           />
           <div className={ styles.nameinfo }>
             <div className={ styles.header }>
-              <IdentityName address={ account.address } unknown />
+              <IdentityName
+                address={ account.address }
+                unknown
+              />
             </div>
             <div className={ styles.address }>
               { account.address }
@@ -73,11 +85,21 @@ class DeleteAccount extends Component {
         </div>
         <div className={ styles.password }>
           <Input
-            label='account password'
-            hint='provide the account password to confirm the account deletion'
+            hint={
+              <FormattedMessage
+                id='deleteAccount.password.hint'
+                defaultMessage='provide the account password to confirm the account deletion'
+              />
+            }
+            label={
+              <FormattedMessage
+                id='deleteAccount.password.label'
+                defaultMessage='account password'
+              />
+            }
+            onChange={ this.onChangePassword }
             type='password'
             value={ password }
-            onChange={ this.onChangePassword }
           />
         </div>
       </ConfirmDialog>
@@ -93,7 +115,7 @@ class DeleteAccount extends Component {
     const { account, newError } = this.props;
     const { password } = this.state;
 
-    api.parity
+    return api.parity
       .killAccount(account.address, password)
       .then((result) => {
         if (result === true) {
@@ -114,15 +136,11 @@ class DeleteAccount extends Component {
   }
 }
 
-function mapStateToProps (state) {
-  return {};
-}
-
 function mapDispatchToProps (dispatch) {
   return bindActionCreators({ newError }, dispatch);
 }
 
 export default connect(
-  mapStateToProps,
+  null,
   mapDispatchToProps
 )(DeleteAccount);

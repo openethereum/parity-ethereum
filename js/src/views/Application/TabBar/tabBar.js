@@ -15,77 +15,18 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
-import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 import { Link } from 'react-router';
 import { Toolbar, ToolbarGroup } from 'material-ui/Toolbar';
-import { Tab as MUITab } from 'material-ui/Tabs';
 import { isEqual } from 'lodash';
 
-import { Badge, Tooltip } from '~/ui';
-
 import imagesEthcoreBlock from '~/../assets/images/parity-logo-white-no-text.svg';
+import { Tooltip } from '~/ui';
 
+import Tab from './Tab';
 import styles from './tabBar.css';
 
-class Tab extends Component {
-  static propTypes = {
-    children: PropTypes.node,
-    pendings: PropTypes.number,
-    view: PropTypes.object
-  };
-
-  render () {
-    const { view, children } = this.props;
-
-    return (
-      <MUITab
-        icon={ view.icon }
-        label={
-          view.id === 'signer'
-            ? this.renderSignerLabel(view.id)
-            : this.renderLabel(view.id)
-        }
-      >
-        { children }
-      </MUITab>
-    );
-  }
-
-  renderLabel (id, bubble) {
-    return (
-      <div className={ styles.label }>
-        <FormattedMessage
-          id={ `settings.views.${id}.label` }
-        />
-        { bubble }
-      </div>
-    );
-  }
-
-  renderSignerLabel (id) {
-    const { pendings } = this.props;
-    let bubble;
-
-    if (pendings) {
-      bubble = (
-        <Badge
-          color='red'
-          className={ styles.labelBubble }
-          value={ pendings }
-        />
-      );
-    }
-
-    return this.renderLabel(id, bubble);
-  }
-}
-
 class TabBar extends Component {
-  static contextTypes = {
-    router: PropTypes.object.isRequired
-  };
-
   static propTypes = {
     isTest: PropTypes.bool,
     netChain: PropTypes.string,
@@ -111,7 +52,10 @@ class TabBar extends Component {
     return (
       <ToolbarGroup>
         <div className={ styles.logo }>
-          <img src={ imagesEthcoreBlock } height={ 28 } />
+          <img
+            height={ 28 }
+            src={ imagesEthcoreBlock }
+          />
         </div>
       </ToolbarGroup>
     );
@@ -144,7 +88,8 @@ class TabBar extends Component {
         return (
           <Link
             activeClassName={ styles.tabactive }
-            className={ styles.tabLink }key={ view.id }
+            className={ styles.tabLink }
+            key={ view.id }
             to={ view.route }
           >
             <Tab
@@ -199,5 +144,6 @@ function mapStateToProps (initState) {
 }
 
 export default connect(
-  mapStateToProps
+  mapStateToProps,
+  null
 )(TabBar);
