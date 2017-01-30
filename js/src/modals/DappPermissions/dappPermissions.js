@@ -64,6 +64,10 @@ export default class DappPermissions extends Component {
   renderAccount = (account) => {
     const { store } = this.props;
 
+    const onClick = () => {
+      store.selectAccount(account.address);
+    };
+
     return (
       <AccountCard
         account={ account }
@@ -72,6 +76,7 @@ export default class DappPermissions extends Component {
             ? styles.selected
             : styles.unselected
         }
+        onClick={ onClick }
       />
     );
 
