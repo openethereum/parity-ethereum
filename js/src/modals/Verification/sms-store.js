@@ -43,7 +43,7 @@ export default class SMSVerificationStore extends VerificationStore {
 
     switch (this.step) {
       case LOADING:
-        return this.contract && this.fee && this.isVerified !== null && this.accountHasRequested !== null;
+        return this.contract && this.fee && this.accountIsVerified !== null && this.accountHasRequested !== null;
       case QUERY_DATA:
         return this.isNumberValid && this.consentGiven;
       case QUERY_CODE:

@@ -38,7 +38,7 @@ export default class VerificationStore {
 
   @observable contract = null;
   @observable fee = null;
-  @observable isVerified = null;
+  @observable accountIsVerified = null;
   @observable accountHasRequested = null;
   @observable lastRequestValues = null;
   @observable isServerRunning = null;
@@ -92,9 +92,9 @@ export default class VerificationStore {
         this.error = 'Failed to fetch the fee: ' + err.message;
       });
 
-    const isVerified = checkIfVerified(contract, account)
-      .then((isVerified) => {
-        this.isVerified = isVerified;
+    const accountIsVerified = checkIfVerified(contract, account)
+      .then((accountIsVerified) => {
+        this.accountIsVerified = accountIsVerified;
       })
       .catch((err) => {
         this.error = 'Failed to check if verified: ' + err.message;
@@ -113,7 +113,7 @@ export default class VerificationStore {
       });
 
     Promise
-      .all([ isServerRunning, fee, isVerified, accountHasRequested ])
+      .all([ isServerRunning, fee, accountIsVerified, accountHasRequested ])
       .then(() => {
         this.step = QUERY_DATA;
       });
