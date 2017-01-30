@@ -40,6 +40,7 @@ export default class VerificationStore {
   @observable fee = null;
   @observable accountIsVerified = null;
   @observable accountHasRequested = null;
+  @observable isAbleToRequest = null;
   @observable lastRequestValues = null;
   @observable isServerRunning = null;
   @observable consentGiven = false;
@@ -68,6 +69,14 @@ export default class VerificationStore {
       if (this.error) {
         console.error('verification: ' + this.error);
       }
+    });
+
+    autorun(() => {
+      if (this.step !== QUERY_DATA) {
+        return;
+      }
+
+      this.checkIfAbleToRequest();
     });
   }
 

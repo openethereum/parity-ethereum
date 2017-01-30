@@ -67,6 +67,12 @@ export default class SMSVerificationStore extends VerificationStore {
     return hasReceivedCode(this.number, this.account, this.isTestnet);
   }
 
+  // SMS verification events don't contain the phone number, so we will have to
+  // send a new request every single time. See below.
+  @action checkIfAbleToRequest = () => {
+    this.isAbleToRequest = true;
+  }
+
   // SMS verification `request` & `confirm` transactions and events don't contain the
   // phone number, so we will have to send a new request every single time. This may
   // cost the user more money, but given that it fails otherwise, it seems like a
