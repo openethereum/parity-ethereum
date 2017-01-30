@@ -410,6 +410,6 @@ mod util_tests {
 
 		// then
 		assert_eq!(none, Vec::<String>::new());
-		assert_eq!(some, vec!["http://home.web3.site".to_owned(), "http://127.0.0.1:18180".into()]);
+		assert_eq!(some, vec!["http://parity.web3.site".to_owned(), "http://127.0.0.1:18180".into()]);
 	}
 }
