@@ -45,8 +45,6 @@ class Balance extends Component {
     const { api } = this.context;
     const { balance, className, images, showZeroValues, showOnlyEth } = this.props;
 
-    console.log(balance);
-
     if (!balance || !balance.tokens) {
       return null;
     }
