@@ -175,6 +175,7 @@
     "react-dom": "15.4.1",
     "react-dropzone": "3.7.3",
     "react-element-to-jsx-string": "6.0.0",
+    "react-event-listener": "0.4.1",
     "react-intl": "2.1.5",
     "react-portal": "3.0.0",
     "react-redux": "4.4.6",
