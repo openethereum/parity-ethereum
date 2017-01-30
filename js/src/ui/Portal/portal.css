@@ -65,7 +65,7 @@ $popoverZ: 3600;
 .overlay {
   background-color: rgba(0, 0, 0, 1);
   box-sizing: border-box;
-  display: block;
+  display: flex;
   opacity: 0;
   padding: 1.5em;
   position: fixed;
