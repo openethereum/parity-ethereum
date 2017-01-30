@@ -40,7 +40,7 @@ build_rpc_trait! {
 		fn unlock_account(&self, H160, String, Option<U128>) -> Result<bool, Error>;
 
 		/// Sends transaction and signs it in single call. The account is not unlocked in such case.
-		#[rpc(name = "personal_sendTransaction")]
+		#[rpc(meta, name = "personal_sendTransaction")]
 		fn send_transaction(&self, Self::Metadata, TransactionRequest, String) -> BoxFuture<H256, Error>;
 	}
 }
