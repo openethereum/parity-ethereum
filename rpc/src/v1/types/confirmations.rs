@@ -188,6 +188,8 @@ impl From<helpers::ConfirmationPayload> for ConfirmationPayload {
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct TransactionModification {
+	/// Modified transaction sender
+	pub sender: Option<H160>,
 	/// Modified gas price
 	#[serde(rename="gasPrice")]
 	pub gas_price: Option<U256>,
@@ -329,6 +331,7 @@ mod tests {
 	fn should_deserialize_modification() {
 		// given
 		let s1 = r#"{
+			"sender": "0x000000000000000000000000000000000000000a",
 			"gasPrice":"0xba43b7400",
 			"minBlock":"0x42"
 		}"#;
@@ -342,16 +345,19 @@ mod tests {
 
 		// then
 		assert_eq!(res1, TransactionModification {
+			sender: Some(10.into()),
 			gas_price: Some(U256::from_str("0ba43b7400").unwrap()),
 			gas: None,
 			min_block: Some(Some(BlockNumber::Num(0x42))),
 		});
 		assert_eq!(res2, TransactionModification {
+			sender: None,
 			gas_price: None,
 			gas: Some(U256::from_str("1233").unwrap()),
 			min_block: None,
 		});
 		assert_eq!(res3, TransactionModification {
+			sender: None,
 			gas_price: None,
 			gas: None,
 			min_block: None,

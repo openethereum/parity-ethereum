@@ -18,6 +18,7 @@
 use std::sync::{Arc, Weak};
 use std::str::FromStr;
 use std::collections::{BTreeMap, HashSet};
+use futures::{self, Future, BoxFuture};
 
 use util::{RotatingLogger, Address};
 use util::misc::version_data;
@@ -34,6 +35,7 @@ use updater::{Service as UpdateService};
 
 use jsonrpc_core::Error;
 use jsonrpc_macros::Trailing;
+use v1::metadata::Metadata;
 use v1::traits::Parity;
 use v1::types::{
 	Bytes, U256, H160, H256, H512,
@@ -113,6 +115,8 @@ impl<C, M, S: ?Sized, U> Parity for ParityClient<C, M, S, U> where
 	S: SyncProvider + 'static,
 	U: UpdateService + 'static,
 {
+	type Metadata = Metadata;
+
 	fn accounts_info(&self, dapp: Trailing<DappId>) -> Result<BTreeMap<String, BTreeMap<String, String>>, Error> {
 		self.active()?;
 
@@ -140,6 +144,22 @@ impl<C, M, S: ?Sized, U> Parity for ParityClient<C, M, S, U> where
 			})
 			.collect()
 		)
+	}
+
+	fn default_account(&self, meta: Self::Metadata) -> BoxFuture<H160, Error> {
+		let dapp_id = meta.dapp_id.unwrap_or_default();
+		let default_account = move || {
+			self.active()?;
+
+			Ok(take_weak!(self.accounts)
+				.dapps_addresses(dapp_id.into())
+				.ok()
+				.and_then(|accounts| accounts.get(0).cloned())
+				.map(|acc| acc.into())
+				.unwrap_or_default())
+		};
+
+		futures::done(default_account()).boxed()
 	}
 
 	fn transactions_limit(&self) -> Result<usize, Error> {
