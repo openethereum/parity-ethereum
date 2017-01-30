@@ -102,7 +102,7 @@ impl<C: 'static, M: 'static> Personal for PersonalClient<C, M> where C: MiningBl
 		}
 	}
 
-	fn sign_and_send_transaction(&self, request: TransactionRequest, password: String) -> Result<RpcH256, Error> {
+	fn send_transaction(&self, request: TransactionRequest, password: String) -> Result<RpcH256, Error> {
 		self.active()?;
 		let client = take_weak!(self.client);
 		let miner = take_weak!(self.miner);
