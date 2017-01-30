@@ -20,7 +20,7 @@ import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 
-import { IdentityIcon, Portal, SectionList } from '~/ui';
+import { AccountCard, IdentityIcon, Portal, SectionList } from '~/ui';
 
 import styles from './dappPermissions.css';
 
@@ -56,6 +56,12 @@ export default class DappPermissions extends Component {
 
   renderAccount = (account) => {
     const { store } = this.props;
+
+    return (
+      <AccountCard
+        account={ account }
+      />
+    );
 
     const onCheck = () => {
       store.selectAccount(account.address);

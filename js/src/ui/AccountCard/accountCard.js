@@ -28,9 +28,8 @@ import styles from './accountCard.css';
 export default class AccountCard extends Component {
   static propTypes = {
     account: PropTypes.object.isRequired,
-    onClick: PropTypes.func.isRequired,
-    onFocus: PropTypes.func.isRequired,
-
+    onClick: PropTypes.func,
+    onFocus: PropTypes.func,
     balance: PropTypes.object
   };
 
@@ -151,13 +150,13 @@ export default class AccountCard extends Component {
   onClick = () => {
     const { account, onClick } = this.props;
 
-    onClick(account.address);
+    onClick && onClick(account.address);
   }
 
   onFocus = () => {
     const { account, onFocus } = this.props;
 
-    onFocus(account.index);
+    onFocus && onFocus(account.index);
   }
 
   preventEvent = (e) => {
