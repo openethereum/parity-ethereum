@@ -298,9 +298,9 @@ impl AccountProvider {
 		Ok(())
 	}
 
-	/// Changes the password of `address` from `password` to `new_password`. Fails if incorrect `password` given.
-	pub fn change_password(&self, address: &Address, password: String, new_password: String) -> Result<(), Error> {
-		self.sstore.change_password(&StoreAccountRef::root(address.clone()), &password, &new_password)
+	/// Changes the password of `account` from `password` to `new_password`. Fails if incorrect `password` given.
+	pub fn change_password(&self, account: &Address, password: String, new_password: String) -> Result<(), Error> {
+		self.sstore.change_password(&StoreAccountRef::root(account.clone()), &password, &new_password)
 	}
 
 	/// Helper method used for unlocking accounts.

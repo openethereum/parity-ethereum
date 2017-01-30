@@ -226,6 +226,7 @@ fn should_alter_the_sender_and_nonce() {
 	let recipient = Address::from_str("d46e8dd67c5d32be8058bb8eb970870f07244567").unwrap();
 	tester.signer.add_request(ConfirmationPayload::SendTransaction(FilledTransactionRequest {
 		from: 0.into(),
+		used_default_from: false,
 		to: Some(recipient),
 		gas_price: U256::from(10_000),
 		gas: U256::from(10_000_000),

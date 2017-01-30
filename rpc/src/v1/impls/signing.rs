@@ -130,7 +130,7 @@ impl<C: 'static, M: 'static> ParitySigning for SigningQueueClient<C, M> where
 {
 	type Metadata = Metadata;
 
-	fn post_sign(&self, address: RpcH160, data: RpcH256) -> Result<RpcEither<RpcU256, RpcConfirmationResponse>, Error> {
+	fn post_sign(&self, address: RpcH160, data: RpcBytes) -> Result<RpcEither<RpcU256, RpcConfirmationResponse>, Error> {
 		self.active()?;
 		self.dispatch(RpcConfirmationPayload::Signature((address.clone(), data).into()), DefaultAccount::Provided(address.into()))
 			.map(|result| match result {
