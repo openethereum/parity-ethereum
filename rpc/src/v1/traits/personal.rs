@@ -36,7 +36,7 @@ build_rpc_trait! {
 		fn unlock_account(&self, H160, String, Option<U128>) -> Result<bool, Error>;
 
 		/// Sends transaction and signs it in single call. The account is not unlocked in such case.
-		#[rpc(name = "personal_signAndSendTransaction")]
-		fn sign_and_send_transaction(&self, TransactionRequest, String) -> Result<H256, Error>;
+		#[rpc(name = "personal_sendTransaction")]
+		fn send_transaction(&self, TransactionRequest, String) -> Result<H256, Error>;
 	}
 }
