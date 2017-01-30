@@ -86,14 +86,10 @@
   .accountName {
     font-weight: 700 !important;
   }
-
 }
 
 .balance {
-  .tag {
-    margin-left: 0.5em;
-    font-size: 0.85em;
-  }
+  margin-top: 0;
 }
 
 @keyframes copied {
