@@ -19,18 +19,18 @@ import { observer } from 'mobx-react';
 
 import Account from '../Account';
 import TransactionPendingForm from '../TransactionPendingForm';
-import TxHashLink from '../TxHashLink';
 
 import styles from './signRequest.css';
 
-function isAscii(data) {
-    for (var i = 2; i < data.length; i += 2) {
-        let n = parseInt(data.substr(i, 2), 16);
-        if (n < 32 || n >= 128) {
-            return false;
-        }
+function isAscii (data) {
+  for (var i = 2; i < data.length; i += 2) {
+    let n = parseInt(data.substr(i, 2), 16);
+    
+    if (n < 32 || n >= 128) {
+      return false;
     }
-    return true;
+  }
+  return true;
 }
 
 @observer
@@ -76,16 +76,16 @@ export default class SignRequest extends Component {
     );
   }
 
-  renderAsciiDetails(ascii) {
+  renderAsciiDetails (ascii) {
     return (<div className={ styles.signData }>
       <p>{ascii}</p>
     </div>);
   }
 
-  renderBinaryDetails(data) {
-      return (<div className={ styles.signData }>
-        <p>(Unknown binary data)</p>
-      </div>);
+  renderBinaryDetails (data) {
+    return (<div className={ styles.signData }>
+      <p>(Unknown binary data)</p>
+    </div>);
   }
 
   renderDetails () {
@@ -109,9 +109,9 @@ export default class SignRequest extends Component {
         <div className={ styles.info } title={ api.util.sha3(data) }>
           <p>A request to sign data using your account:</p>
           {
-            isAscii(data) ?
-              this.renderAsciiDetails(api.util.hexToAscii(data)) :
-              this.renderBinaryDetails(data)
+            isAscii(data)
+              ? this.renderAsciiDetails(api.util.hexToAscii(data))
+              : this.renderBinaryDetails(data)
           }
           <p><strong>WARNING: This consequences of doing this may be grave. Confirm the request only if you are sure.</strong></p>
         </div>
