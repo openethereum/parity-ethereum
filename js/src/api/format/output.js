@@ -79,7 +79,9 @@ export function outChainStatus (status) {
     Object.keys(status).forEach((key) => {
       switch (key) {
         case 'blockGap':
-          status[key] = status[key].map(outNumber);
+          status[key] = status[key]
+            ? status[key].map(outNumber)
+            : status[key];
           break;
       }
     });

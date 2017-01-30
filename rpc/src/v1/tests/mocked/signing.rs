@@ -20,6 +20,7 @@ use rlp;
 
 use jsonrpc_core::{IoHandler, Success};
 use v1::impls::SigningQueueClient;
+use v1::metadata::Metadata;
 use v1::traits::{EthSigning, ParitySigning, Parity};
 use v1::helpers::{SignerService, SigningQueue};
 use v1::metadata::Metadata;

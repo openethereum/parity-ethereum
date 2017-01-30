@@ -173,7 +173,7 @@ fn rpc_parity_recent_dapps() {
 
 	// then
 	let request = r#"{"jsonrpc": "2.0", "method": "parity_listRecentDapps","params":[], "id": 1}"#;
-	let response = r#"{"jsonrpc":"2.0","result":["dapp1"],"id":1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":{"dapp1":1},"id":1}"#;
 	assert_eq!(tester.io.handle_request_sync(request), Some(response.to_owned()));
 }
 

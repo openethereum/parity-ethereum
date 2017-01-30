@@ -22,7 +22,13 @@ use {json, SafeAccount, Error};
 use json::Uuid;
 use super::KeyDirectory;
 
-const IGNORED_FILES: &'static [&'static str] = &["thumbs.db", "address_book.json", "dapps_policy.json"];
+const IGNORED_FILES: &'static [&'static str] = &[
+	"thumbs.db",
+	"address_book.json",
+	"dapps_policy.json",
+	"dapps_accounts.json",
+	"dapps_history.json",
+];
 
 #[cfg(not(windows))]
 fn restrict_permissions_to_owner(file_path: &Path) -> Result<(), i32>  {
