@@ -20,7 +20,7 @@ import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 
-import { AccountCard, IdentityIcon, Portal, SectionList } from '~/ui';
+import { AccountCard, ContainerTitle, IdentityIcon, Portal, SectionList } from '~/ui';
 
 import styles from './dappPermissions.css';
 
@@ -39,17 +39,24 @@ export default class DappPermissions extends Component {
 
     return (
       <Portal
+        className={ styles.modal }
         onClose={ store.closeModal }
         open={ store.modalOpen }
       >
-        <FormattedMessage
-          id='dapps.permissions.label'
-          defaultMessage='visible dapp accounts'
+        <ContainerTitle
+          title={
+            <FormattedMessage
+              id='dapps.permissions.label'
+              defaultMessage='visible dapp accounts'
+            />
+          }
         />
-        <SectionList
-          items={ store.accounts }
-          renderItem={ this.renderAccount }
-        />
+        <div className={ styles.container }>
+          <SectionList
+            items={ store.accounts }
+            renderItem={ this.renderAccount }
+          />
+        </div>
       </Portal>
     );
   }
@@ -60,46 +67,51 @@ export default class DappPermissions extends Component {
     return (
       <AccountCard
         account={ account }
-      />
-    );
-
-    const onCheck = () => {
-      store.selectAccount(account.address);
-    };
-
-    // TODO: Udate to conform to the new look & feel for selection.
-    // For now in the current/old style, not as pretty but consistent.
-    return (
-      <ListItem
         className={
           account.checked
             ? styles.selected
             : styles.unselected
         }
-        key={ account.address }
-        leftCheckbox={
-          <Checkbox
-            checked={ account.checked }
-            onCheck={ onCheck }
-          />
-        }
-        primaryText={
-          <div className={ styles.item }>
-            <IdentityIcon address={ account.address } />
-            <div className={ styles.info }>
-              <h3 className={ styles.name }>
-                { account.name }
-              </h3>
-              <div className={ styles.address }>
-                { account.address }
-              </div>
-              <div className={ styles.description }>
-                { account.description }
-              </div>
-            </div>
-          </div>
-        }
       />
     );
+
+    // const onCheck = () => {
+    //   store.selectAccount(account.address);
+    // };
+    //
+    // // TODO: Udate to conform to the new look & feel for selection.
+    // // For now in the current/old style, not as pretty but consistent.
+    // return (
+    //   <ListItem
+    //     className={
+    //       account.checked
+    //         ? styles.selected
+    //         : styles.unselected
+    //     }
+    //     key={ account.address }
+    //     leftCheckbox={
+    //       <Checkbox
+    //         checked={ account.checked }
+    //         onCheck={ onCheck }
+    //       />
+    //     }
+    //     primaryText={
+    //       <div className={ styles.item }>
+    //         <IdentityIcon address={ account.address } />
+    //         <div className={ styles.info }>
+    //           <h3 className={ styles.name }>
+    //             { account.name }
+    //           </h3>
+    //           <div className={ styles.address }>
+    //             { account.address }
+    //           </div>
+    //           <div className={ styles.description }>
+    //             { account.description }
+    //           </div>
+    //         </div>
+    //       </div>
+    //     }
+    //   />
+    // );
   }
 }
