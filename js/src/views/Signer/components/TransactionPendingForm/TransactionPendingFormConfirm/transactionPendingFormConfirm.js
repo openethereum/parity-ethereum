@@ -147,7 +147,7 @@ class TransactionPendingFormConfirm extends Component {
               label={
                 isSending
                   ? 'Confirming...'
-                  : 'Confirm Transaction'
+                  : 'Confirm Request'
               }
               onTouchTap={ this.onConfirm }
               primary />
@@ -251,7 +251,7 @@ function mapStateToProps (_, initProps) {
 
   return (state) => {
     const { accounts } = state.personal;
-    let gotAddress = Object.keys(accounts).find(a => a.toLowerCase() === address.toLowerCase());
+    const gotAddress = Object.keys(accounts).find(a => a.toLowerCase() === address.toLowerCase());
     const account = gotAddress ? accounts[gotAddress] : {};
 
     return { account };
