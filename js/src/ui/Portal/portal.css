@@ -15,29 +15,40 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-$left: 1.5em;
-$right: $left;
-$bottom: $left;
-$top: 20vh;
+$modalMargin: 1.5em;
+$modalBackZ: 2500;
+
+/* This should be the default case, the Portal used as a stand-alone modal */
+$modalBottom: 15vh;
+$modalLeft: $modalMargin;
+$modalRight: $modalMargin;
+$modalTop: 0;
+$modalZ: 3500;
+
+/* This is the case where popped-up over another modal, Portal or otherwise */
+$popoverBottom: $modalMargin;
+$popoverLeft: $modalMargin;
+$popoverRight: $modalMargin;
+$popoverTop: 20vh;
+$popoverZ: 3600;
 
 .backOverlay {
+  background-color: rgba(255, 255, 255, 0.25);
+  opacity: 0;
   position: fixed;
   top: 0;
   right: 0;
   bottom: 0;
   left: 0;
-  background-color: rgba(255, 255, 255, 0.25);
-  z-index: -10;
-  opacity: 0;
-
   transform-origin: 100% 0;
-  transition-property: opacity, z-index;
   transition-duration: 0.25s;
+  transition-property: opacity, z-index;
   transition-timing-function: ease-out;
+  z-index: -10;
 
   &.expanded {
     opacity: 1;
-    z-index: 2500;
+    z-index: $modalBackZ;
   }
 }
 
@@ -52,45 +63,58 @@ $top: 20vh;
 }
 
 .overlay {
-  display: flex;
-  position: fixed;
-  top: $top;
-  left: $left;
-  width: calc(100vw - $left - $right);
-  height: calc(100vh - $top - $bottom);
-
-  transform-origin: 100% 0;
-  transition-property: opacity, z-index;
-  transition-duration: 0.25s;
-  transition-timing-function: ease-out;
-
   background-color: rgba(0, 0, 0, 1);
-  opacity: 0;
-  z-index: -10;
-
-  padding: 1em;
   box-sizing: border-box;
+  display: flex;
+  opacity: 0;
+  padding: 1.5em;
+  position: fixed;
+  transform-origin: 100% 0;
+  transition-duration: 0.25s;
+  transition-property: opacity, z-index;
+  transition-timing-function: ease-out;
+  z-index: -10;
 
   * {
     min-width: 0;
   }
 
+  &.modal {
+    bottom: $modalBottom;
+    left: $modalLeft;
+    right: $modalRight;
+    top: $modalTop;
+  }
+
+  &.popover {
+    left: $popoverLeft;
+    top: $popoverTop;
+    height: calc(100vh - $popoverTop - $popoverBottom);
+    width: calc(100vw - $popoverLeft - $popoverRight);
+  }
+
   &.expanded {
     opacity: 1;
-    z-index: 3500;
+
+    &.popover {
+      z-index: $popoverZ;
+    }
+
+    &.modal {
+      z-index: $modalZ;
+    }
   }
 }
 
 .closeIcon {
-  position: absolute;
-  top: 0.5rem;
-  right: 1rem;
   font-size: 4em;
-  z-index: 100;
-
-  transition-property: opacity;
+  position: absolute;
+  right: 1rem;
+  top: 0.5rem;
   transition-duration: 0.25s;
+  transition-property: opacity;
   transition-timing-function: ease-out;
+  z-index: 100;
 
   &, * {
     height: 48px !important;

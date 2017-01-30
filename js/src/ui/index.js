@@ -46,6 +46,7 @@ import muiTheme from './Theme';
 import Page from './Page';
 import ParityBackground from './ParityBackground';
 import PasswordStrength from './Form/PasswordStrength';
+import Portal from './Portal';
 import QrCode from './QrCode';
 import SectionList from './SectionList';
 import ShortenedHash from './ShortenedHash';
@@ -99,6 +100,7 @@ export {
   Page,
   ParityBackground,
   PasswordStrength,
+  Portal,
   QrCode,
   RadioButtons,
   Select,
