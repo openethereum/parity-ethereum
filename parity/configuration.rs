@@ -534,6 +534,7 @@ impl Configuration {
 			} else {
 				vec![]
 			},
+			all_apis: self.args.flag_dapps_apis_all,
 		}
 	}
 

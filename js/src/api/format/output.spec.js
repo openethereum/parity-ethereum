@@ -135,6 +135,14 @@ describe('api/format/output', () => {
         blockGap: [new BigNumber(0x1234), new BigNumber(0x5678)]
       });
     });
+
+    it('handles null blockGap values', () => {
+      const status = {
+        blockGap: null
+      };
+
+      expect(outChainStatus(status)).to.deep.equal(status);
+    });
   });
 
   describe('outDate', () => {

@@ -829,7 +829,7 @@
       "outputFormatter": null
     },
     {
-      "name": "personal_signAndSendTransaction",
+      "name": "personal_sendTransaction",
       "desc": "Sends and signs a transaction given account passphrase. Does not require the account to be unlocked nor unlocks the account for future transactions. ",
       "params": [
         {

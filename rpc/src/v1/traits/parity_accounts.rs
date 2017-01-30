@@ -92,9 +92,10 @@ build_rpc_trait! {
 		#[rpc(name = "parity_getNewDappsWhitelist")]
 		fn new_dapps_whitelist(&self) -> Result<Option<Vec<H160>>, Error>;
 
-		/// Sets accounts exposed for particular dapp.
+		/// Returns identified dapps that recently used RPC
+		/// Includes last usage timestamp.
 		#[rpc(name = "parity_listRecentDapps")]
-		fn recent_dapps(&self) -> Result<Vec<DappId>, Error>;
+		fn recent_dapps(&self) -> Result<BTreeMap<DappId, u64>, Error>;
 
 		/// Imports a number of Geth accounts, with the list provided as the argument.
 		#[rpc(name = "parity_importGethAccounts")]

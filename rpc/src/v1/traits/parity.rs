@@ -20,6 +20,7 @@ use std::collections::BTreeMap;
 
 use jsonrpc_core::Error;
 use jsonrpc_macros::Trailing;
+use futures::BoxFuture;
 
 use v1::types::{
 	H160, H256, H512, U256, Bytes,
@@ -32,9 +33,15 @@ use v1::types::{
 build_rpc_trait! {
 	/// Parity-specific rpc interface.
 	pub trait Parity {
+		type Metadata;
+
 		/// Returns accounts information.
 		#[rpc(name = "parity_accountsInfo")]
 		fn accounts_info(&self, Trailing<DappId>) -> Result<BTreeMap<String, BTreeMap<String, String>>, Error>;
+
+		/// Returns default account for dapp.
+		#[rpc(meta, name = "parity_defaultAccount")]
+		fn default_account(&self, Self::Metadata) -> BoxFuture<H160, Error>;
 
 		/// Returns current transactions limit.
 		#[rpc(name = "parity_transactionsLimit")]

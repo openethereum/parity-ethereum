@@ -14,17 +14,30 @@
 /* You should have received a copy of the GNU General Public License
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
-.balances, .tags {
-  clear: both;
-}
 
 .editicon {
   margin-left: 0.5em;
 }
 
-.floatleft {
+.info {
+  margin: 0 156px 0 0;
+}
+
+.identityIcon {
   float: left;
-  margin-bottom: 0.5em;
+  margin-right: -100%;
+}
+
+.qrcode {
+  float: right;
+  margin-top: 1.5em;
+}
+
+.addressline,
+.infoline,
+.uuidline,
+.title {
+  margin-left: 72px;
 }
 
 .addressline,
@@ -49,4 +62,8 @@
 .address {
   display: inline-block;
   margin-left: .5em;
+}
+
+.tags {
+  clear: both;
 }

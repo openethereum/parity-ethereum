@@ -184,6 +184,7 @@ usage! {
 			or |c: &Config| otry!(c.dapps).user.clone().map(Some),
 		flag_dapps_pass: Option<String> = None,
 			or |c: &Config| otry!(c.dapps).pass.clone().map(Some),
+		flag_dapps_apis_all: bool = false, or |_| None,
 
 		// -- Sealing/Mining Options
 		flag_author: Option<String> = None,
@@ -629,6 +630,7 @@ mod tests {
 			flag_dapps_path: "$HOME/.parity/dapps".into(),
 			flag_dapps_user: Some("test_user".into()),
 			flag_dapps_pass: Some("test_pass".into()),
+			flag_dapps_apis_all: false,
 
 			// -- Sealing/Mining Options
 			flag_author: Some("0xdeadbeefcafe0000000000000000000000000001".into()),
