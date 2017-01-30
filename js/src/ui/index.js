@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import AccountCard from './AccountCard';
 import Actionbar from './Actionbar';
 import ActionbarExport from './Actionbar/Export';
 import ActionbarImport from './Actionbar/Import';
@@ -59,6 +60,7 @@ import TxList from './TxList';
 import Warning from './Warning';
 
 export {
+  AccountCard,
   Actionbar,
   ActionbarExport,
   ActionbarImport,

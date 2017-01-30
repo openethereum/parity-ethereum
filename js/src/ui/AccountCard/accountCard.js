@@ -18,11 +18,10 @@ import React, { Component, PropTypes } from 'react';
 import ReactDOM from 'react-dom';
 import keycode from 'keycode';
 
+import Balance from '~/ui/Balance';
 import IdentityIcon from '~/ui/IdentityIcon';
 import IdentityName from '~/ui/IdentityName';
 import Tags from '~/ui/Tags';
-
-import { fromWei } from '~/api/util/wei';
 
 import styles from './accountCard.css';
 
@@ -40,7 +39,7 @@ export default class AccountCard extends Component {
   };
 
   render () {
-    const { account } = this.props;
+    const { account, balance } = this.props;
     const { copied } = this.state;
     const { address, description, meta = {}, name } = account;
     const { tags = [] } = meta;
@@ -68,11 +67,15 @@ export default class AccountCard extends Component {
               unknown
             />
           </div>
-
-          { this.renderTags(tags, address) }
+          <Tags tags={ tags } />
           { this.renderDescription(description) }
           { this.renderAddress(address) }
-          { this.renderBalance(address) }
+          <Balance
+            balance={ balance }
+            className={ styles.balance }
+            showOnlyEth
+            showZeroValues
+          />
         </div>
       </div>
     );
@@ -101,40 +104,6 @@ export default class AccountCard extends Component {
         >
           { address }
         </span>
-      </div>
-    );
-  }
-
-  renderTags (tags = [], address) {
-    if (tags.length === 0) {
-      return null;
-    }
-
-    return (
-      <Tags tags={ tags } />
-    );
-  }
-
-  renderBalance (address) {
-    const { balance = {} } = this.props;
-
-    if (!balance.tokens) {
-      return null;
-    }
-
-    const ethToken = balance.tokens
-      .find((tok) => tok.token && (tok.token.tag || '').toLowerCase() === 'eth');
-
-    if (!ethToken) {
-      return null;
-    }
-
-    const value = fromWei(ethToken.value).toFormat(3);
-
-    return (
-      <div className={ styles.balance }>
-        <span>{ value }</span>
-        <span className={ styles.tag }>ETH</span>
       </div>
     );
   }
