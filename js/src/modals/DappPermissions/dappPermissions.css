@@ -36,6 +36,10 @@
 
 .selected, .unselected {
   margin-bottom: 0.25em;
+
+  &:focus {
+    outline: none;
+  }
 }
 
 .unselected {
@@ -46,11 +50,7 @@
   background: rgba(255, 255, 255, 0.15) !important;
 
   &.default {
-    background: rgba(255, 255, 200, 0.25) !important;
-  }
-
-  &:focus {
-    outline: none;
+    background: rgba(255, 255, 255, 0.35) !important;
   }
 }
 
@@ -63,7 +63,7 @@
 
 .legend {
   opacity: 0.75;
-  margin-top: 0.75em;
+  margin-top: 1em;
 
   span {
     line-height: 24px;
