@@ -85,3 +85,11 @@ export function methodToAbi (method) {
 
   return { type: 'function', name, inputs };
 }
+
+export function abiDecode (inputTypes, data) {
+  return decodeMethodInput({
+    inputs: inputTypes.map((type) => {
+      return { type };
+    })
+  }, data);
+}

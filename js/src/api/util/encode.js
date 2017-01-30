@@ -14,14 +14,27 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-mod cipher;
-mod crypto;
-mod kdf;
-mod safe_account;
-mod version;
+import Abi from '~/abi';
+import Func from '~/abi/spec/function';
 
-pub use self::cipher::{Cipher, Aes128Ctr};
-pub use self::crypto::Crypto;
-pub use self::kdf::{Kdf, Pbkdf2, Scrypt, Prf};
-pub use self::safe_account::SafeAccount;
-pub use self::version::Version;
+export function encodeMethodCallAbi (methodAbi = {}, values = []) {
+  const func = new Func(methodAbi);
+  const tokens = Abi.encodeTokens(func.inputParamTypes(), values);
+  const call = func.encodeCall(tokens);
+
+  return `0x${call}`;
+}
+
+export function abiEncode (methodName, inputTypes, data) {
+  const result = encodeMethodCallAbi({
+    name: methodName || '',
+    type: 'function',
+    inputs: inputTypes.map((type) => {
+      return { type };
+    })
+  }, data);
+
+  return methodName === null
+    ? `0x${result.substr(10)}`
+    : result;
+}

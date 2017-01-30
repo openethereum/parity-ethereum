@@ -115,7 +115,7 @@ impl<C, M> Personal for PersonalClient<C, M> where
 		}
 	}
 
-	fn sign_and_send_transaction(&self, meta: Metadata, request: TransactionRequest, password: String) -> BoxFuture<RpcH256, Error> {
+	fn send_transaction(&self, meta: Metadata, request: TransactionRequest, password: String) -> BoxFuture<RpcH256, Error> {
 		let sign_and_send = move || {
 			self.active()?;
 			let client = take_weak!(self.client);

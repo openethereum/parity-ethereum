@@ -14,14 +14,34 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-mod cipher;
-mod crypto;
-mod kdf;
-mod safe_account;
-mod version;
+import { shallow } from 'enzyme';
+import React from 'react';
+import sinon from 'sinon';
 
-pub use self::cipher::{Cipher, Aes128Ctr};
-pub use self::crypto::Crypto;
-pub use self::kdf::{Kdf, Pbkdf2, Scrypt, Prf};
-pub use self::safe_account::SafeAccount;
-pub use self::version::Version;
+import Portal from './';
+
+let component;
+let onClose;
+
+function render (props = {}) {
+  onClose = sinon.stub();
+  component = shallow(
+    <Portal
+      onClose={ onClose }
+      open
+      { ...props }
+    />
+  );
+
+  return component;
+}
+
+describe('ui/Portal', () => {
+  beforeEach(() => {
+    render();
+  });
+
+  it('renders defaults', () => {
+    expect(component).to.be.ok;
+  });
+});

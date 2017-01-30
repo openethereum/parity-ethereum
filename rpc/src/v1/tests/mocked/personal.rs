@@ -96,7 +96,7 @@ fn sign_and_send_transaction_with_invalid_password() {
 	let address = tester.accounts.new_account("password123").unwrap();
 	let request = r#"{
 		"jsonrpc": "2.0",
-		"method": "personal_signAndSendTransaction",
+		"method": "personal_sendTransaction",
 		"params": [{
 			"from": ""#.to_owned() + format!("0x{:?}", address).as_ref() + r#"",
 			"to": "0xd46e8dd67c5d32be8058bb8eb970870f07244567",
@@ -119,7 +119,7 @@ fn sign_and_send_transaction() {
 
 	let request = r#"{
 		"jsonrpc": "2.0",
-		"method": "personal_signAndSendTransaction",
+		"method": "personal_sendTransaction",
 		"params": [{
 			"from": ""#.to_owned() + format!("0x{:?}", address).as_ref() + r#"",
 			"to": "0xd46e8dd67c5d32be8058bb8eb970870f07244567",

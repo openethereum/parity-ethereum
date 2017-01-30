@@ -18,7 +18,7 @@
 
 use std::sync::{Arc, Weak};
 use transient_hashmap::TransientHashMap;
-use util::{U256, Mutex, Hashable};
+use util::{U256, Mutex};
 
 use ethcore::account_provider::AccountProvider;
 use ethcore::miner::MinerService;
@@ -130,9 +130,9 @@ impl<C: 'static, M: 'static> ParitySigning for SigningQueueClient<C, M> where
 {
 	type Metadata = Metadata;
 
-	fn post_sign(&self, address: RpcH160, hash: RpcH256) -> Result<RpcEither<RpcU256, RpcConfirmationResponse>, Error> {
+	fn post_sign(&self, address: RpcH160, data: RpcH256) -> Result<RpcEither<RpcU256, RpcConfirmationResponse>, Error> {
 		self.active()?;
-		self.dispatch(RpcConfirmationPayload::Signature((address.clone(), hash).into()), DefaultAccount::Provided(address.into()))
+		self.dispatch(RpcConfirmationPayload::Signature((address.clone(), data).into()), DefaultAccount::Provided(address.into()))
 			.map(|result| match result {
 				DispatchResult::Value(v) => RpcEither::Or(v),
 				DispatchResult::Promise(promise) => {
@@ -200,9 +200,8 @@ impl<C: 'static, M: 'static> EthSigning for SigningQueueClient<C, M> where
 	type Metadata = Metadata;
 
 	fn sign(&self, address: RpcH160, data: RpcBytes) -> BoxFuture<RpcH520, Error> {
-		let hash = data.0.sha3().into();
 		let res = self.active()
-			.and_then(|_| self.dispatch(RpcConfirmationPayload::Signature((address.clone(), hash).into()), address.into()));
+			.and_then(|_| self.dispatch(RpcConfirmationPayload::Signature((address.clone(), data).into()), address.into()));
 
 		let (ready, p) = futures::oneshot();
 		self.handle_dispatch(res, |response| {

@@ -19,6 +19,7 @@
 use std::fmt;
 use serde::{Serialize, Serializer};
 use util::log::Colour;
+use util::bytes::ToPretty;
 
 use v1::types::{U256, TransactionRequest, RichRawTransaction, H160, H256, H520, Bytes, BlockNumber};
 use v1::helpers;
@@ -64,14 +65,14 @@ pub struct SignRequest {
 	/// Address
 	pub address: H160,
 	/// Hash to sign
-	pub hash: H256,
+	pub data: Bytes,
 }
 
-impl From<(H160, H256)> for SignRequest {
-	fn from(tuple: (H160, H256)) -> Self {
+impl From<(H160, Bytes)> for SignRequest {
+	fn from(tuple: (H160, Bytes)) -> Self {
 		SignRequest {
 			address: tuple.0,
-			hash: tuple.1,
+			data: tuple.1,
 		}
 	}
 }
@@ -80,8 +81,8 @@ impl fmt::Display for SignRequest {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		write!(
 			f,
-			"sign 0x{:?} with {}",
-			self.hash,
+			"sign 0x{} with {}",
+			self.data.0.pretty(),
 			Colour::White.bold().paint(format!("0x{:?}", self.address)),
 		)
 	}
@@ -172,9 +173,9 @@ impl From<helpers::ConfirmationPayload> for ConfirmationPayload {
 		match c {
 			helpers::ConfirmationPayload::SendTransaction(t) => ConfirmationPayload::SendTransaction(t.into()),
 			helpers::ConfirmationPayload::SignTransaction(t) => ConfirmationPayload::SignTransaction(t.into()),
-			helpers::ConfirmationPayload::Signature(address, hash) => ConfirmationPayload::Signature(SignRequest {
+			helpers::ConfirmationPayload::Signature(address, data) => ConfirmationPayload::Signature(SignRequest {
 				address: address.into(),
-				hash: hash.into(),
+				data: data.into(),
 			}),
 			helpers::ConfirmationPayload::Decrypt(address, msg) => ConfirmationPayload::Decrypt(DecryptRequest {
 				address: address.into(),
@@ -248,12 +249,12 @@ mod tests {
 		// given
 		let request = helpers::ConfirmationRequest {
 			id: 15.into(),
-			payload: helpers::ConfirmationPayload::Signature(1.into(), 5.into()),
+			payload: helpers::ConfirmationPayload::Signature(1.into(), vec![5].into()),
 		};
 
 		// when
 		let res = serde_json::to_string(&ConfirmationRequest::from(request));
-		let expected = r#"{"id":"0xf","payload":{"sign":{"address":"0x0000000000000000000000000000000000000001","hash":"0x0000000000000000000000000000000000000000000000000000000000000005"}}}"#;
+		let expected = r#"{"id":"0xf","payload":{"sign":{"address":"0x0000000000000000000000000000000000000001","data":"0x05"}}}"#;
 
 		// then
 		assert_eq!(res.unwrap(), expected.to_owned());
