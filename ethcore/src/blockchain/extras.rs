@@ -242,3 +242,21 @@ impl HeapSizeOf for BlockReceipts {
 		self.receipts.heap_size_of_children()
 	}
 }
+
+#[cfg(test)]
+mod tests {
+	use rlp::*;
+	use super::BlockReceipts;
+
+	#[test]
+	fn encode_block_receipts() {
+		let br = BlockReceipts::new(Vec::new());
+
+		let mut s = RlpStream::new_list(2);
+		s.append(&br);
+		assert!(!s.is_finished(), "List shouldn't finished yet");
+		s.append(&br);
+		assert!(s.is_finished(), "List should be finished now");
+		s.out();
+	}
+}

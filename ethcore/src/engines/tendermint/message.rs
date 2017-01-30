@@ -216,6 +216,18 @@ mod tests {
 	use super::*;
 
 	#[test]
+	fn encode_step() {
+		let step = Step::Precommit;
+
+		let mut s = RlpStream::new_list(2);
+		s.append(&step);
+		assert!(!s.is_finished(), "List shouldn't finished yet");
+		s.append(&step);
+		assert!(s.is_finished(), "List should be finished now");
+		s.out();
+	}
+
+	#[test]
 	fn encode_decode() {
 		let message = ConsensusMessage {
 			signature: H520::default(),

@@ -98,3 +98,21 @@ impl Decodable for Error {
 		}
 	}
 }
+
+#[cfg(test)]
+mod tests {
+	use rlp::*;
+	use super::Error;
+
+	#[test]
+	fn encode_error() {
+		let err = Error::BadJumpDestination;
+
+		let mut s = RlpStream::new_list(2);
+		s.append(&err);
+		assert!(!s.is_finished(), "List shouldn't finished yet");
+		s.append(&err);
+		assert!(s.is_finished(), "List should be finished now");
+		s.out();
+	}
+}
