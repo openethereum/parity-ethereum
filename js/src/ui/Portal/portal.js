@@ -34,41 +34,22 @@ export default class Portal extends Component {
     onKeyDown: PropTypes.func
   };
 
-  state = {
-    expanded: false
-  }
-
-  componentWillReceiveProps (nextProps) {
-    if (this.props.open !== nextProps.open) {
-      const opening = nextProps.open;
-      const closing = !opening;
-
-      if (opening) {
-        return this.setState({ expanded: true });
-      }
-
-      if (closing) {
-        return this.setState({ expanded: false });
-      }
-    }
-  }
-
   render () {
-    const { children, className, isChildModal } = this.props;
-    const { expanded } = this.state;
-    const backClasses = [ styles.backOverlay ];
+    const { children, className, isChildModal, open } = this.props;
+
+    if (!open) {
+      return null;
+    }
+
+    const backClasses = [ styles.backOverlay, styles.expanded ];
     const classes = [
       styles.overlay,
       isChildModal
         ? styles.popover
         : styles.modal,
+      styles.expanded,
       className
     ];
-
-    if (expanded) {
-      classes.push(styles.expanded);
-      backClasses.push(styles.expanded);
-    }
 
     return (
       <ReactPortal
@@ -85,28 +66,16 @@ export default class Portal extends Component {
             onKeyDown={ this.handleKeyDown }
           >
             <ParityBackground className={ styles.parityBackground } />
-            { this.renderCloseIcon() }
+            <div
+              className={ styles.closeIcon }
+              onClick={ this.handleClose }
+            >
+              <CloseIcon />
+            </div>
             { children }
           </div>
         </div>
       </ReactPortal>
-    );
-  }
-
-  renderCloseIcon () {
-    const { expanded } = this.state;
-
-    if (!expanded) {
-      return null;
-    }
-
-    return (
-      <div
-        className={ styles.closeIcon }
-        onClick={ this.handleClose }
-      >
-        <CloseIcon />
-      </div>
     );
   }
 
