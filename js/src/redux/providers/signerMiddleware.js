@@ -52,7 +52,7 @@ export default class SignerMiddleware {
   }
 
   onConfirmStart = (store, action) => {
-    const { gas, gasPrice, id, password, payload, wallet } = action.payload;
+    const { gas = 0, gasPrice = 0, id, password, payload, wallet } = action.payload;
 
     const handlePromise = (promise) => {
       promise
@@ -120,7 +120,7 @@ export default class SignerMiddleware {
         });
     }
 
-    handlePromise(this._api.signer.confirmRequest(id, { gas, gasPrice }, password));
+    handlePromise(this._api.signer.confirmRequest(id, {}, password.password));
   }
 
   onRejectStart = (store, action) => {
