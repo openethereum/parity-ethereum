@@ -299,8 +299,8 @@ impl AccountProvider {
 	}
 
 	/// Changes the password of `address` from `password` to `new_password`. Fails if incorrect `password` given.
-	pub fn change_password(&self, address: &Address, password: String, new_password: String) -> Result<(), SignError> {
-		self.sstore.change_password(&StoreAccountRef::root(address.clone()), &password, &new_password).map_err(Error::SStore)
+	pub fn change_password(&self, address: &Address, password: String, new_password: String) -> Result<(), Error> {
+		self.sstore.change_password(&StoreAccountRef::root(address.clone()), &password, &new_password)
 	}
 
 	/// Helper method used for unlocking accounts.
