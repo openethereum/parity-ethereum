@@ -35,7 +35,7 @@ export default class GatherData extends Component {
   static propTypes = {
     fee: React.PropTypes.instanceOf(BigNumber),
     fields: PropTypes.array.isRequired,
-    hasRequested: nullableProptype(PropTypes.bool.isRequired),
+    accountHasRequested: nullableProptype(PropTypes.bool.isRequired),
     isServerRunning: nullableProptype(PropTypes.bool.isRequired),
     isVerified: nullableProptype(PropTypes.bool.isRequired),
     method: PropTypes.string.isRequired,
@@ -183,33 +183,33 @@ export default class GatherData extends Component {
   }
 
   renderRequested () {
-    const { isVerified, hasRequested } = this.props;
+    const { isVerified, accountHasRequested } = this.props;
 
     // If the account is verified, don't show that it has requested verification.
     if (isVerified) {
       return null;
     }
 
-    if (hasRequested) {
+    if (accountHasRequested) {
       return (
         <div className={ styles.container }>
           <InfoIcon />
           <p className={ styles.message }>
             <FormattedMessage
-              id='ui.verification.gatherData.hasRequested.true'
-              defaultMessage='You already requested verification.'
+              id='ui.verification.gatherData.accountHasRequested.true'
+              defaultMessage='You already requested verification from this account.'
             />
           </p>
         </div>
       );
-    } else if (hasRequested === false) {
+    } else if (accountHasRequested === false) {
       return (
         <div className={ styles.container }>
           <SuccessIcon />
           <p className={ styles.message }>
             <FormattedMessage
-              id='ui.verification.gatherData.hasRequested.false'
-              defaultMessage='You did not request verification yet.'
+              id='ui.verification.gatherData.accountHasRequested.false'
+              defaultMessage='You did not request verification from this account yet.'
             />
           </p>
         </div>
@@ -218,7 +218,7 @@ export default class GatherData extends Component {
     return (
       <p className={ styles.message }>
         <FormattedMessage
-          id='ui.verification.gatherData.hasRequested.pending'
+          id='ui.verification.gatherData.accountHasRequested.pending'
           defaultMessage='Checking if you requested verification…'
         />
       </p>

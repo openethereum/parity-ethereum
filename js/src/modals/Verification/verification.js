@@ -206,7 +206,7 @@ class Verification extends Component {
 
     const {
       step,
-      isServerRunning, fee, isVerified, hasRequested,
+      isServerRunning, fee, isVerified, accountHasRequested,
       requestTx, isCodeValid, confirmationTx,
       setCode
     } = this.store;
@@ -241,7 +241,7 @@ class Verification extends Component {
         return (
           <GatherData
             fee={ fee }
-            hasRequested={ hasRequested }
+            accountHasRequested={ accountHasRequested }
             isServerRunning={ isServerRunning }
             isVerified={ isVerified }
             method={ method }

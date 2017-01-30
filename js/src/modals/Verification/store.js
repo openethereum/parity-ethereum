@@ -39,7 +39,7 @@ export default class VerificationStore {
   @observable contract = null;
   @observable fee = null;
   @observable isVerified = null;
-  @observable hasRequested = null;
+  @observable accountHasRequested = null;
   @observable lastRequestValues = null;
   @observable isServerRunning = null;
   @observable consentGiven = false;
@@ -100,9 +100,9 @@ export default class VerificationStore {
         this.error = 'Failed to check if verified: ' + err.message;
       });
 
-    const hasRequested = findLastRequested(contract, account)
+    const accountHasRequested = findLastRequested(contract, account)
       .then((log) => {
-        this.hasRequested = !!log;
+        this.accountHasRequested = !!log;
         if (log) {
           this.lastRequestValues = log.params;
           this.requestTx = log.transactionHash;
@@ -113,7 +113,7 @@ export default class VerificationStore {
       });
 
     Promise
-      .all([ isServerRunning, fee, isVerified, hasRequested ])
+      .all([ isServerRunning, fee, isVerified, accountHasRequested ])
       .then(() => {
         this.step = QUERY_DATA;
       });

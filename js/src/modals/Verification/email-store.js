@@ -45,7 +45,7 @@ export default class EmailVerificationStore extends VerificationStore {
 
     switch (this.step) {
       case LOADING:
-        return this.contract && this.fee && this.isVerified !== null && this.hasRequested !== null;
+        return this.contract && this.fee && this.isVerified !== null && this.accountHasRequested !== null;
       case QUERY_DATA:
         return this.isEmailValid && this.consentGiven;
       case QUERY_CODE:
@@ -69,15 +69,19 @@ export default class EmailVerificationStore extends VerificationStore {
     return hasReceivedCode(this.email, this.account, this.isTestnet);
   }
 
+  // Determine the values relevant for checking if the last request contains
+  // the same data as the current one.
   requestValues = () => [ sha3.text(this.email) ]
 
   shallRequestAgain = (currentValues) => {
-    const { hasRequested } = this;
+    const { accountHasRequested } = this;
     const lastRequest = this.lastRequestValues;
 
-    if (!hasRequested) {
+    if (!accountHasRequested) {
       return Promise.resolve(true);
     }
+    // If the last email verification `request` for the selected address contains
+    // the same email as the current one, don't send another request to save ETH.
     const isDifferent = currentValues[0] !== bytesToHex(lastRequest.emailHash.value);
 
     return Promise.resolve(isDifferent);
