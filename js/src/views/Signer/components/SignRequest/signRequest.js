@@ -19,16 +19,30 @@ import { observer } from 'mobx-react';
 
 import Account from '../Account';
 import TransactionPendingForm from '../TransactionPendingForm';
-import TxHashLink from '../TxHashLink';
 
 import styles from './signRequest.css';
 
+function isAscii (data) {
+  for (var i = 2; i < data.length; i += 2) {
+    let n = parseInt(data.substr(i, 2), 16);
+
+    if (n < 32 || n >= 128) {
+      return false;
+    }
+  }
+  return true;
+}
+
 @observer
 export default class SignRequest extends Component {
+  static contextTypes = {
+    api: PropTypes.object
+  };
+
   static propTypes = {
     id: PropTypes.object.isRequired,
     address: PropTypes.string.isRequired,
-    hash: PropTypes.string.isRequired,
+    data: PropTypes.string.isRequired,
     isFinished: PropTypes.bool.isRequired,
     isTest: PropTypes.bool.isRequired,
     store: PropTypes.object.isRequired,
@@ -62,8 +76,23 @@ export default class SignRequest extends Component {
     );
   }
 
+  renderAsciiDetails (ascii) {
+    return (
+      <div className={ styles.signData }>
+        <p>{ascii}</p>
+      </div>
+    );
+  }
+
+  renderBinaryDetails (data) {
+    return (<div className={ styles.signData }>
+      <p>(Unknown binary data)</p>
+    </div>);
+  }
+
   renderDetails () {
-    const { address, hash, isTest, store } = this.props;
+    const { api } = this.context;
+    const { address, isTest, store, data } = this.props;
     const balance = store.balances[address];
 
     if (!balance) {
@@ -79,9 +108,14 @@ export default class SignRequest extends Component {
             isTest={ isTest }
           />
         </div>
-        <div className={ styles.info } title={ hash }>
-          <p>Dapp is requesting to sign arbitrary transaction using this account.</p>
-          <p><strong>Confirm the transaction only if you trust the app.</strong></p>
+        <div className={ styles.info } title={ api.util.sha3(data) }>
+          <p>A request to sign data using your account:</p>
+          {
+            isAscii(data)
+              ? this.renderAsciiDetails(api.util.hexToAscii(data))
+              : this.renderBinaryDetails(data)
+          }
+          <p><strong>WARNING: This consequences of doing this may be grave. Confirm the request only if you are sure.</strong></p>
         </div>
       </div>
     );
@@ -92,19 +126,9 @@ export default class SignRequest extends Component {
 
     if (isFinished) {
       if (status === 'confirmed') {
-        const { hash, isTest } = this.props;
-
         return (
           <div className={ styles.actions }>
             <span className={ styles.isConfirmed }>Confirmed</span>
-            <div>
-              Transaction hash:
-              <TxHashLink
-                isTest={ isTest }
-                txHash={ hash }
-                className={ styles.txHash }
-              />
-            </div>
           </div>
         );
       }

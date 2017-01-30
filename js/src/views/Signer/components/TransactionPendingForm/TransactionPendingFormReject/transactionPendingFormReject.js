@@ -32,14 +32,14 @@ export default class TransactionPendingFormReject extends Component {
     return (
       <div>
         <div className={ styles.rejectText }>
-          Are you sure you want to reject transaction? <br />
+          Are you sure you want to reject request? <br />
           <strong>This cannot be undone</strong>
         </div>
         <RaisedButton
           onTouchTap={ onReject }
           className={ styles.rejectButton }
           fullWidth
-          label={ 'Reject Transaction' }
+          label={ 'Reject Request' }
         />
       </div>
     );
