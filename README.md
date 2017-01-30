@@ -24,7 +24,7 @@ Be sure to check out [our wiki][wiki-url] for more information.
 [doc-url]: https://ethcore.github.io/parity/ethcore/index.html
 [wiki-url]: https://github.com/ethcore/parity/wiki
 
-**Parity requires Rust version 1.13.0 to build**
+**Parity requires Rust version 1.14.0 to build**
 
 ----
 
