@@ -15,8 +15,8 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import { isAddress as isAddressValid, toChecksumAddress } from '../../abi/util/address';
-import { decodeCallData, decodeMethodInput, methodToAbi } from './decode';
-import { encodeMethodCall, encodeMethodCallAbi } from './encode';
+import { abiDecode, decodeCallData, decodeMethodInput, methodToAbi } from './decode';
+import { abiEncode, encodeMethodCallAbi } from './encode';
 import { bytesToHex, hexToAscii, asciiToHex } from './format';
 import { fromWei, toWei } from './wei';
 import { sha3 } from './sha3';
@@ -24,6 +24,8 @@ import { isArray, isFunction, isHex, isInstanceOf, isString } from './types';
 import { createIdentityImg } from './identity';
 
 export default {
+  abiDecode,
+  abiEncode,
   isAddressValid,
   isArray,
   isFunction,
@@ -36,7 +38,6 @@ export default {
   createIdentityImg,
   decodeCallData,
   decodeMethodInput,
-  encodeMethodCall,
   encodeMethodCallAbi,
   methodToAbi,
   fromWei,

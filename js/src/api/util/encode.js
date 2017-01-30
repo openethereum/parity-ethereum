@@ -25,12 +25,16 @@ export function encodeMethodCallAbi (methodAbi = {}, values = []) {
   return `0x${call}`;
 }
 
-export function encodeMethodCall (methodName, inputTypes = [], values = []) {
-  return encodeMethodCallAbi({
-    name: methodName,
+export function abiEncode (methodName, inputTypes, data) {
+  const result = encodeMethodCallAbi({
+    name: methodName || '',
     type: 'function',
     inputs: inputTypes.map((type) => {
       return { type };
     })
-  }, values);
+  }, data);
+
+  return methodName === null
+    ? `0x${result.substr(10)}`
+    : result;
 }

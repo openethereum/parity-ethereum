@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { encodeMethodCallAbi, encodeMethodCall } from './encode';
+import { abiEncode, encodeMethodCallAbi } from './encode';
 
 const ABI = {
   type: 'function',
@@ -45,13 +45,19 @@ describe('api/util/encode', () => {
     });
   });
 
-  describe('encodeMethodCall', () => {
+  describe('abiEncode', () => {
     it('encodes calls with the correct result', () => {
-      expect(encodeMethodCall('valid', ['uint256', 'bool'], [0x123, true])).to.equal(`0x${RESULT}`);
+      expect(abiEncode('valid', ['uint256', 'bool'], [0x123, true])).to.equal(`0x${RESULT}`);
     });
 
     it('encodes variable values', () => {
-      expect(encodeMethodCall('hintUrl', ['bytes32', 'string'], ['0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470', 'http://foo.bar/'])).to.equal(`0x${VARIABLE}`);
+      expect(abiEncode('hintUrl', ['bytes32', 'string'], ['0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470', 'http://foo.bar/'])).to.equal(`0x${VARIABLE}`);
+    });
+
+    it('encodes only the data with null name', () => {
+      expect(
+        abiEncode(null, ['uint256', 'bool'], [0x123, true])
+      ).to.equal(`0x${RESULT.substr(8)}`);
     });
   });
 });
