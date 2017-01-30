@@ -22,5 +22,6 @@ mod api;
 mod authorization;
 mod fetch;
 mod redirection;
+mod rpc;
 mod validation;
 
