@@ -28,10 +28,10 @@ import styles from './accountCard.css';
 export default class AccountCard extends Component {
   static propTypes = {
     account: PropTypes.object.isRequired,
-    onClick: PropTypes.func.isRequired,
-    onFocus: PropTypes.func.isRequired,
-
-    balance: PropTypes.object
+    balance: PropTypes.object,
+    className: PropTypes.string,
+    onClick: PropTypes.func,
+    onFocus: PropTypes.func
   };
 
   state = {
@@ -39,11 +39,11 @@ export default class AccountCard extends Component {
   };
 
   render () {
-    const { account, balance } = this.props;
+    const { account, balance, className } = this.props;
     const { copied } = this.state;
     const { address, description, meta = {}, name } = account;
     const { tags = [] } = meta;
-    const classes = [ styles.account ];
+    const classes = [ styles.account, className ];
 
     if (copied) {
       classes.push(styles.copied);
@@ -151,13 +151,13 @@ export default class AccountCard extends Component {
   onClick = () => {
     const { account, onClick } = this.props;
 
-    onClick(account.address);
+    onClick && onClick(account.address);
   }
 
   onFocus = () => {
     const { account, onFocus } = this.props;
 
-    onFocus(account.index);
+    onFocus && onFocus(account.index);
   }
 
   preventEvent = (e) => {
