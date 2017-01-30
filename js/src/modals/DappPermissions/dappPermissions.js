@@ -14,13 +14,12 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { Checkbox } from 'material-ui';
-import { ListItem } from 'material-ui/List';
 import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 
-import { AccountCard, ContainerTitle, IdentityIcon, Portal, SectionList } from '~/ui';
+import { AccountCard, ContainerTitle, Portal, SectionList } from '~/ui';
+import { CheckIcon, StarIcon, StarOutlineIcon } from '~/ui/Icons';
 
 import styles from './dappPermissions.css';
 
@@ -54,7 +53,18 @@ export default class DappPermissions extends Component {
         <div className={ styles.container }>
           <SectionList
             items={ store.accounts }
+            noStretch
             renderItem={ this.renderAccount }
+          />
+        </div>
+        <div className={ styles.legend }>
+          <FormattedMessage
+            id='dapps.permissions.description'
+            defaultMessage='{activeIcon} account is available to application, {defaultIcon} account is the default account'
+            values={ {
+              activeIcon: <CheckIcon />,
+              defaultIcon: <StarIcon />
+            } }
           />
         </div>
       </Portal>
@@ -64,20 +74,44 @@ export default class DappPermissions extends Component {
   renderAccount = (account) => {
     const { store } = this.props;
 
-    const onClick = () => {
+    const onMakeDefault = () => {
+      store.setDefaultAccount(account.address);
+    };
+
+    const onSelect = () => {
       store.selectAccount(account.address);
     };
 
+    let className;
+
+    if (account.checked) {
+      className = account.default
+        ? `${styles.selected} ${styles.default}`
+        : styles.selected;
+    } else {
+      className = styles.unselected;
+    }
+
     return (
-      <AccountCard
-        account={ account }
-        className={
-          account.checked
-            ? styles.selected
-            : styles.unselected
-        }
-        onClick={ onClick }
-      />
+      <div className={ styles.item }>
+        <AccountCard
+          account={ account }
+          className={ className }
+          onClick={ onSelect }
+        />
+        <div className={ styles.overlay }>
+          {
+            account.checked && account.default
+              ? <StarIcon />
+              : <StarOutlineIcon className={ styles.iconDisabled } onClick={ onMakeDefault } />
+          }
+          {
+            account.checked
+              ? <CheckIcon onClick={ onSelect } />
+              : <CheckIcon className={ styles.iconDisabled } onClick={ onSelect } />
+          }
+        </div>
+      </div>
     );
 
     // const onCheck = () => {

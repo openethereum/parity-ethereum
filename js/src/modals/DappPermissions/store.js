@@ -86,6 +86,7 @@ export default class Store {
   @action setDefaultAccount = (address) => {
     this.accounts = this.accounts.map((account) => {
       if (account.address === address) {
+        account.checked = true;
         account.default = true;
       } else if (account.default) {
         account.default = false;

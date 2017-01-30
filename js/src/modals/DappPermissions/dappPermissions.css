@@ -25,22 +25,12 @@
 }
 
 .item {
-  .info {
-    display: inline-block;
+  position: relative;
 
-    .address {
-      opacity: 0.75;
-    }
-
-    .description {
-      margin-top: 0.5em;
-      opacity: 0.75;
-    }
-
-    .name {
-      margin: 0.5em 0;
-      text-transform: uppercase;
-    }
+  .overlay {
+    position: absolute;
+    right: 0.5em;
+    top: 0.5em;
   }
 }
 
@@ -48,8 +38,16 @@
   margin-bottom: 0.25em;
 }
 
+.unselected {
+  background: rgba(0, 0, 0, 0.4) !important;
+}
+
 .selected {
   background: rgba(255, 255, 255, 0.15) !important;
+
+  &.default {
+    background: rgba(255, 255, 200, 0.25) !important;
+  }
 
   &:focus {
     outline: none;
@@ -57,4 +55,18 @@
 }
 
 .unselected {
+}
+
+.iconDisabled {
+  opacity: 0.15;
+}
+
+.legend {
+  opacity: 0.75;
+  margin-top: 0.75em;
+
+  span {
+    line-height: 24px;
+    vertical-align: top;
+  }
 }
