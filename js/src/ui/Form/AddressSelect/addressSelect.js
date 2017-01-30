@@ -176,6 +176,7 @@ class AddressSelect extends Component {
     return (
       <Portal
         className={ styles.inputContainer }
+        isChildModal
         onClose={ this.handleClose }
         onKeyDown={ this.handleKeyDown }
         open={ expanded }
