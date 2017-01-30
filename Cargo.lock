@@ -711,6 +711,7 @@ name = "ethstore"
 version = "0.1.0"
 dependencies = [
  "docopt 0.6.80 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethcore-util 1.6.0",
  "ethcrypto 0.1.0",
  "ethkey 0.2.0",
  "itertools 0.4.13 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -724,6 +725,7 @@ dependencies = [
  "serde 0.8.19 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_codegen 0.8.19 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_json 0.8.4 (registry+https://github.com/rust-lang/crates.io-index)",
+ "smallvec 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "time 0.1.35 (registry+https://github.com/rust-lang/crates.io-index)",
  "tiny-keccak 1.0.5 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -1506,7 +1508,7 @@ dependencies = [
 [[package]]
 name = "parity-ui-precompiled"
 version = "1.4.0"
-source = "git+https://github.com/ethcore/js-precompiled.git#58343d464b812b8e5154c9fb8d5bc690fb9de719"
+source = "git+https://github.com/ethcore/js-precompiled.git#cc8a6d3901202f7acad55cbfe26f53cb3f0645de"
 dependencies = [
  "parity-dapps-glue 1.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]

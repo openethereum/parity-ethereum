@@ -16,15 +16,15 @@
 
 use std::path::PathBuf;
 use std::sync::Arc;
-use io::PanicHandler;
-use rpc_apis;
+
+use dir::default_data_path;
 use ethcore::client::Client;
 use ethsync::SyncProvider;
-use helpers::replace_home;
-use dir::default_data_path;
-use jsonrpc_core::reactor::Remote;
-use rpc_apis::SignerService;
 use hash_fetch::fetch::Client as FetchClient;
+use helpers::replace_home;
+use io::PanicHandler;
+use jsonrpc_core::reactor::Remote;
+use rpc_apis::{self, SignerService};
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Configuration {
@@ -36,6 +36,7 @@ pub struct Configuration {
 	pub pass: Option<String>,
 	pub dapps_path: PathBuf,
 	pub extra_dapps: Vec<PathBuf>,
+	pub all_apis: bool,
 }
 
 impl Default for Configuration {
@@ -50,6 +51,7 @@ impl Default for Configuration {
 			pass: None,
 			dapps_path: replace_home(&data_dir, "$BASE/dapps").into(),
 			extra_dapps: vec![],
+			all_apis: false,
 		}
 	}
 }
@@ -89,7 +91,8 @@ pub fn new(configuration: Configuration, deps: Dependencies) -> Result<Option<We
 		configuration.extra_dapps,
 		&addr,
 		configuration.hosts,
-		auth
+		auth,
+		configuration.all_apis,
 	)?))
 }
 
@@ -110,6 +113,7 @@ mod server {
 		_url: &SocketAddr,
 		_allowed_hosts: Option<Vec<String>>,
 		_auth: Option<(String, String)>,
+		_all_apis: bool,
 	) -> Result<WebappServer, String> {
 		Err("Your Parity version has been compiled without WebApps support.".into())
 	}
@@ -124,14 +128,14 @@ mod server {
 	use std::io;
 	use util::{Bytes, Address, U256};
 
+	use ansi_term::Colour;
 	use ethcore::transaction::{Transaction, Action};
 	use ethcore::client::{Client, BlockChainClient, BlockId};
-
-	use rpc_apis;
 	use ethcore_rpc::is_major_importing;
 	use hash_fetch::urlhint::ContractClient;
 	use jsonrpc_core::reactor::RpcHandler;
 	use parity_reactor;
+	use rpc_apis;
 
 	pub use ethcore_dapps::Server as WebappServer;
 
@@ -142,6 +146,7 @@ mod server {
 		url: &SocketAddr,
 		allowed_hosts: Option<Vec<String>>,
 		auth: Option<(String, String)>,
+		all_apis: bool,
 	) -> Result<WebappServer, String> {
 		use ethcore_dapps as dapps;
 
@@ -162,7 +167,14 @@ mod server {
 			.signer_address(deps.signer.address())
 			.allowed_hosts(allowed_hosts);
 
-		let apis = rpc_apis::setup_rpc(Default::default(), deps.apis.clone(), rpc_apis::ApiSet::UnsafeContext);
+		let api_set = if all_apis {
+			warn!("{}", Colour::Red.bold().paint("*** INSECURE *** Running Dapps with all APIs exposed."));
+			info!("If you do not intend this, exit now.");
+			rpc_apis::ApiSet::SafeContext
+		} else {
+			rpc_apis::ApiSet::UnsafeContext
+		};
+		let apis = rpc_apis::setup_rpc(Default::default(), deps.apis.clone(), api_set);
 		let handler = RpcHandler::new(Arc::new(apis), deps.remote);
 		let start_result = match auth {
 			None => {

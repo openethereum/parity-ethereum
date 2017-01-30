@@ -76,6 +76,11 @@ impl<C: 'static, M: 'static> SignerClient<C, M> where C: MiningBlockChainClient,
 			let mut payload = confirmation.payload.clone();
 			// Modify payload
 			if let ConfirmationPayload::SendTransaction(ref mut request) = payload {
+				if let Some(sender) = modification.sender.clone() {
+					request.from = sender.into();
+					// Altering sender should always reset the nonce.
+					request.nonce = None;
+				}
 				if let Some(gas_price) = modification.gas_price {
 					request.gas_price = gas_price.into();
 				}
