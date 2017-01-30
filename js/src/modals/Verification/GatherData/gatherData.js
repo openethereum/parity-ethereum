@@ -31,12 +31,15 @@ import emailTermsOfService from '~/3rdparty/email-verification/terms-of-service'
 import { howSMSVerificationWorks, howEmailVerificationWorks } from '../how-it-works';
 import styles from './gatherData.css';
 
+const boolOfError = PropTypes.oneOfType([ PropTypes.bool, PropTypes.instanceOf(Error) ]);
+
 export default class GatherData extends Component {
   static propTypes = {
     fee: React.PropTypes.instanceOf(BigNumber),
     fields: PropTypes.array.isRequired,
     accountHasRequested: nullableProptype(PropTypes.bool.isRequired),
     isServerRunning: nullableProptype(PropTypes.bool.isRequired),
+    isAbleToRequest: nullableProptype(boolOfError),
     accountIsVerified: nullableProptype(PropTypes.bool.isRequired),
     method: PropTypes.string.isRequired,
     setConsentGiven: PropTypes.func.isRequired
@@ -55,6 +58,7 @@ export default class GatherData extends Component {
         { this.renderCertified() }
         { this.renderRequested() }
         { this.renderFields() }
+        { this.renderIfAbleToRequest() }
         <Checkbox
           className={ styles.spacing }
           label={
@@ -236,6 +240,7 @@ export default class GatherData extends Component {
 
       return (
         <Input
+          className={ styles.field }
           key={ field.key }
           label={ field.label }
           hint={ field.hint }
@@ -248,6 +253,36 @@ export default class GatherData extends Component {
     });
 
     return (<div>{rendered}</div>);
+  }
+
+  renderIfAbleToRequest () {
+    const { accountIsVerified, isAbleToRequest } = this.props;
+
+    // If the account is verified, don't show a warning.
+    // If the client is able to send the request, don't show a warning
+    if (accountIsVerified || isAbleToRequest === true) {
+      return null;
+    }
+
+    if (isAbleToRequest === null) {
+      return (
+        <p className={ styles.message }>
+          <FormattedMessage
+            id='ui.verification.gatherData.isAbleToRequest.pending'
+            defaultMessage='Validating your input…'
+          />
+        </p>
+      );
+    } else if (isAbleToRequest) {
+      return (
+        <div className={ styles.container }>
+          <ErrorIcon />
+          <p className={ styles.message }>
+            { isAbleToRequest.message }
+          </p>
+        </div>
+      );
+    }
   }
 
   consentOnChange = (_, consentGiven) => {

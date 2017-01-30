@@ -206,7 +206,7 @@ class Verification extends Component {
 
     const {
       step,
-      isServerRunning, fee, accountIsVerified, accountHasRequested,
+      isServerRunning, isAbleToRequest, fee, accountIsVerified, accountHasRequested,
       requestTx, isCodeValid, confirmationTx,
       setCode
     } = this.store;
@@ -243,6 +243,7 @@ class Verification extends Component {
             fee={ fee }
             accountHasRequested={ accountHasRequested }
             isServerRunning={ isServerRunning }
+            isAbleToRequest={ isAbleToRequest }
             accountIsVerified={ accountIsVerified }
             method={ method }
             fields={ fields }
