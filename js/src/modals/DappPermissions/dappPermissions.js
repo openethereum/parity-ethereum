@@ -20,8 +20,7 @@ import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 
-import { Button, IdentityIcon, Modal } from '~/ui';
-import { DoneIcon } from '~/ui/Icons';
+import { IdentityIcon, Portal } from '~/ui';
 
 import styles from './dappPermissions.css';
 
@@ -39,33 +38,18 @@ export default class DappPermissions extends Component {
     }
 
     return (
-      <Modal
-        actions={ [
-          <Button
-            icon={ <DoneIcon /> }
-            key='done'
-            label={
-              <FormattedMessage
-                id='dapps.permissions.button.done'
-                defaultMessage='Done'
-              />
-            }
-            onClick={ store.closeModal }
-          />
-        ] }
-        compact
-        title={
-          <FormattedMessage
-            id='dapps.permissions.label'
-            defaultMessage='visible dapp accounts'
-          />
-        }
-        visible
+      <Portal
+        onClose={ store.closeModal }
+        open
       >
+        <FormattedMessage
+          id='dapps.permissions.label'
+          defaultMessage='visible dapp accounts'
+        />
         <List>
           { this.renderListItems() }
         </List>
-      </Modal>
+      </Portal>
     );
   }
 
