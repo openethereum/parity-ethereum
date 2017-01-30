@@ -327,7 +327,12 @@ fn rpc_eth_author() {
 		"id": 1
 	}"#;
 
+	// No accounts - returns zero
 	assert_eq!(tester.io.handle_request_sync(req), Some(make_res(Address::zero())));
+
+	// Account set - return first account
+	let addr = tester.accounts_provider.new_account("123").unwrap();
+	assert_eq!(tester.io.handle_request_sync(req), Some(make_res(addr)));
 
 	for i in 0..20 {
 		let addr = tester.accounts_provider.new_account(&format!("{}", i)).unwrap();

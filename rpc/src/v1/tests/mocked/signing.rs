@@ -20,6 +20,7 @@ use rlp;
 
 use jsonrpc_core::{IoHandler, Success};
 use v1::impls::SigningQueueClient;
+use v1::metadata::Metadata;
 use v1::traits::{EthSigning, ParitySigning, Parity};
 use v1::helpers::{SignerService, SigningQueue};
 use v1::types::ConfirmationResponse;
@@ -39,7 +40,7 @@ struct SigningTester {
 	pub client: Arc<TestBlockChainClient>,
 	pub miner: Arc<TestMinerService>,
 	pub accounts: Arc<AccountProvider>,
-	pub io: IoHandler,
+	pub io: IoHandler<Metadata>,
 }
 
 impl Default for SigningTester {
