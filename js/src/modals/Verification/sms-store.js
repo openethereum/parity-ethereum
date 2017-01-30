@@ -71,7 +71,7 @@ export default class SMSVerificationStore extends VerificationStore {
   // phone number, so we will have to send a new request every single time. This may
   // cost the user more money, but given that it fails otherwise, it seems like a
   // reasonable tradeoff.
-  shallRequestAgain = () => Promise.resolve(true)
+  shallSkipRequest = () => Promise.resolve(false)
 
   @action setNumber = (number) => {
     this.number = number;

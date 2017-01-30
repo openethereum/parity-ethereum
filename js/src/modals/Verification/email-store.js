@@ -73,18 +73,18 @@ export default class EmailVerificationStore extends VerificationStore {
   // the same data as the current one.
   requestValues = () => [ sha3.text(this.email) ]
 
-  shallRequestAgain = (currentValues) => {
+  shallSkipRequest = (currentValues) => {
     const { accountHasRequested } = this;
     const lastRequest = this.lastRequestValues;
 
     if (!accountHasRequested) {
-      return Promise.resolve(true);
+      return Promise.resolve(false);
     }
     // If the last email verification `request` for the selected address contains
     // the same email as the current one, don't send another request to save ETH.
-    const isDifferent = currentValues[0] !== bytesToHex(lastRequest.emailHash.value);
+    const skip = currentValues[0] === bytesToHex(lastRequest.emailHash.value);
 
-    return Promise.resolve(isDifferent);
+    return Promise.resolve(skip);
   }
 
   @action setEmail = (email) => {

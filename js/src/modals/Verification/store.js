@@ -151,8 +151,6 @@ export default class VerificationStore {
 
   requestValues = () => []
 
-  shallRequestAgain = () => Promise.resolve(true)
-
   @action sendRequest = () => {
     const { api, account, contract, fee } = this;
 
@@ -160,9 +158,9 @@ export default class VerificationStore {
     const options = { from: account, value: fee.toString() };
     const values = this.requestValues();
 
-    this.shallRequestAgain(values)
-      .then((requestAgain) => {
-        if (!requestAgain) {
+    this.shallSkipRequest(values)
+      .then((skipRequest) => {
+        if (skipRequest) {
           return;
         }
 
