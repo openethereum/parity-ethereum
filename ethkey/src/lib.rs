@@ -21,6 +21,7 @@ extern crate tiny_keccak;
 extern crate secp256k1;
 extern crate rustc_serialize;
 extern crate ethcore_bigint as bigint;
+extern crate crypto as rcrypto;
 
 mod brain;
 mod error;
@@ -30,6 +31,7 @@ mod prefix;
 mod random;
 mod signature;
 mod secret;
+mod extended;
 
 lazy_static! {
 	pub static ref SECP256K1: secp256k1::Secp256k1 = secp256k1::Secp256k1::new();
