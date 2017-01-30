@@ -57,12 +57,19 @@ impl Endpoint for RpcEndpoint {
 struct MetadataExtractor;
 impl HttpMetaExtractor<Metadata> for MetadataExtractor {
 	fn read_metadata(&self, request: &hyper::server::Request<hyper::net::HttpStream>) -> Metadata {
-		let dapp_id = request.headers().get::<hyper::header::Referer>()
-			.and_then(|referer| hyper::Url::parse(referer).ok())
-			.and_then(|url| {
-				url.path_segments()
-					.and_then(|mut split| split.next())
-					.map(|app_id| app_id.to_owned())
+		let dapp_id = request.headers().get::<hyper::header::Origin>()
+			.map(|origin| format!("{}://{}", origin.scheme, origin.host))
+			.or_else(|| {
+				// fallback to custom header, but only if origin is null
+				request.headers().get_raw("origin")
+					.and_then(|raw| raw.one())
+					.and_then(|raw| if raw == "null".as_bytes() {
+						request.headers().get_raw("x-parity-origin")
+							.and_then(|raw| raw.one())
+							.map(|raw| String::from_utf8_lossy(raw).into_owned())
+					} else {
+						None
+					})
 			});
 		Metadata {
 			dapp_id: dapp_id,

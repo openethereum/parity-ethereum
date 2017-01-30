@@ -34,9 +34,9 @@ export default class Personal {
       .then(outAddress);
   }
 
-  signAndSendTransaction (options, password) {
+  sendTransaction (options, password) {
     return this._transport
-      .execute('personal_signAndSendTransaction', inOptions(options), password);
+      .execute('personal_sendTransaction', inOptions(options), password);
   }
 
   unlockAccount (account, password, duration = 1) {

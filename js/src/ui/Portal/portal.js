@@ -28,9 +28,9 @@ export default class Portal extends Component {
   static propTypes = {
     onClose: PropTypes.func.isRequired,
     open: PropTypes.bool.isRequired,
-
     children: PropTypes.node,
     className: PropTypes.string,
+    isChildModal: PropTypes.bool,
     onKeyDown: PropTypes.func
   };
 
@@ -54,11 +54,16 @@ export default class Portal extends Component {
   }
 
   render () {
+    const { children, className, isChildModal } = this.props;
     const { expanded } = this.state;
-    const { children, className } = this.props;
-
-    const classes = [ styles.overlay, className ];
     const backClasses = [ styles.backOverlay ];
+    const classes = [
+      styles.overlay,
+      isChildModal
+        ? styles.popover
+        : styles.modal,
+      className
+    ];
 
     if (expanded) {
       classes.push(styles.expanded);
@@ -66,15 +71,20 @@ export default class Portal extends Component {
     }
 
     return (
-      <ReactPortal isOpened onClose={ this.handleClose }>
-        <div className={ backClasses.join(' ') } onClick={ this.handleClose }>
+      <ReactPortal
+        isOpened
+        onClose={ this.handleClose }
+      >
+        <div
+          className={ backClasses.join(' ') }
+          onClick={ this.handleClose }
+        >
           <div
             className={ classes.join(' ') }
             onClick={ this.stopEvent }
             onKeyDown={ this.handleKeyDown }
           >
             <ParityBackground className={ styles.parityBackground } />
-
             { this.renderCloseIcon() }
             { children }
           </div>
@@ -91,7 +101,10 @@ export default class Portal extends Component {
     }
 
     return (
-      <div className={ styles.closeIcon } onClick={ this.handleClose }>
+      <div
+        className={ styles.closeIcon }
+        onClick={ this.handleClose }
+      >
         <CloseIcon />
       </div>
     );
@@ -107,6 +120,7 @@ export default class Portal extends Component {
   }
 
   handleKeyDown = (event) => {
+    const { onKeyDown } = this.props;
     const codeName = keycode(event);
 
     switch (codeName) {
@@ -116,12 +130,16 @@ export default class Portal extends Component {
 
       default:
         event.persist();
-        return this.props.onKeyDown(event);
+        return onKeyDown
+          ? onKeyDown(event)
+          : false;
     }
   }
 
   handleDOMAction = (ref, method) => {
-    const refItem = typeof ref === 'string' ? this.refs[ref] : ref;
+    const refItem = typeof ref === 'string'
+      ? this.refs[ref]
+      : ref;
     const element = ReactDOM.findDOMNode(refItem);
 
     if (!element || typeof element[method] !== 'function') {

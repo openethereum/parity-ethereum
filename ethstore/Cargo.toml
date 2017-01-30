@@ -21,6 +21,8 @@ lazy_static = "0.2"
 itertools = "0.4"
 parking_lot = "0.3"
 ethcrypto = { path = "../ethcrypto" }
+ethcore-util = { path = "../util" }
+smallvec = "0.3.1"
 
 [build-dependencies]
 serde_codegen = { version = "0.8", optional = true }

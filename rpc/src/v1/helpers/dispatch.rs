@@ -19,6 +19,7 @@ use std::ops::Deref;
 use rlp;
 use util::{Address, H256, U256, Uint, Bytes};
 use util::bytes::ToPretty;
+use util::sha3::Hashable;
 
 use ethkey::Signature;
 use ethcore::miner::MinerService;
@@ -108,8 +109,8 @@ pub fn execute<C, M>(client: &C, miner: &M, accounts: &AccountProvider, payload:
 					.map(ConfirmationResponse::SignTransaction)
 				)
 		},
-		ConfirmationPayload::Signature(address, hash) => {
-			signature(accounts, address, hash, pass)
+		ConfirmationPayload::Signature(address, data) => {
+			signature(accounts, address, data.sha3(), pass)
 				.map(|result| result
 					.map(RpcH520::from)
 					.map(ConfirmationResponse::Signature)
@@ -243,8 +244,8 @@ pub fn from_rpc<C, M>(payload: RpcConfirmationPayload, client: &C, miner: &M) ->
 		RpcConfirmationPayload::Decrypt(RpcDecryptRequest { address, msg }) => {
 			ConfirmationPayload::Decrypt(address.into(), msg.into())
 		},
-		RpcConfirmationPayload::Signature(RpcSignRequest { address, hash }) => {
-			ConfirmationPayload::Signature(address.into(), hash.into())
+		RpcConfirmationPayload::Signature(RpcSignRequest { address, data }) => {
+			ConfirmationPayload::Signature(address.into(), data.into())
 		},
 	}
 }

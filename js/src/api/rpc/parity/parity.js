@@ -297,6 +297,11 @@ export default class Parity {
       .execute('parity_postTransaction', inOptions(options));
   }
 
+  postSign (from, message) {
+    return this._transport
+      .execute('parity_postSign', from, message);
+  }
+
   registryAddress () {
     return this._transport
       .execute('parity_registryAddress')

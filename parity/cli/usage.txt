@@ -171,6 +171,9 @@ API and Console Options:
                                  conjunction with --dapps-user. (default: {flag_dapps_pass:?})
   --dapps-path PATH              Specify directory where dapps should be installed.
                                  (default: {flag_dapps_path})
+  --dapps-apis-all               Expose all possible RPC APIs on Dapps port.
+                                 WARNING: INSECURE. Used only for development.
+                                 (default: {flag_dapps_apis_all})
 
 Sealing/Mining Options:
   --author ADDRESS               Specify the block author (aka "coinbase") address

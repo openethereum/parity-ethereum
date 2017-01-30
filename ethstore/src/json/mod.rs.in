@@ -7,6 +7,8 @@ mod id;
 mod kdf;
 mod key_file;
 mod presale;
+mod vault_file;
+mod vault_key_file;
 mod version;
 
 pub use self::bytes::Bytes;
@@ -18,5 +20,7 @@ pub use self::id::Uuid;
 pub use self::kdf::{Kdf, KdfSer, Prf, Pbkdf2, Scrypt, KdfSerParams};
 pub use self::key_file::KeyFile;
 pub use self::presale::{PresaleWallet, Encseed};
+pub use self::vault_file::VaultFile;
+pub use self::vault_key_file::{VaultKeyFile, VaultKeyMeta};
 pub use self::version::Version;
 

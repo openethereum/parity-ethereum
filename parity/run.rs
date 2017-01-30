@@ -506,11 +506,11 @@ fn daemonize(_pid_file: String) -> Result<(), String> {
 
 fn prepare_account_provider(spec: &SpecType, dirs: &Directories, data_dir: &str, cfg: AccountsConfig, passwords: &[String]) -> Result<AccountProvider, String> {
 	use ethcore::ethstore::EthStore;
-	use ethcore::ethstore::dir::DiskDirectory;
+	use ethcore::ethstore::dir::RootDiskDirectory;
 
 	let path = dirs.keys_path(data_dir);
 	upgrade_key_location(&dirs.legacy_keys_path(cfg.testnet), &path);
-	let dir = Box::new(DiskDirectory::create(&path).map_err(|e| format!("Could not open keys directory: {}", e))?);
+	let dir = Box::new(RootDiskDirectory::create(&path).map_err(|e| format!("Could not open keys directory: {}", e))?);
 	let account_provider = AccountProvider::new(Box::new(
 		EthStore::open_with_iterations(dir, cfg.iterations).map_err(|e| format!("Could not open keys directory: {}", e))?
 	));
