@@ -32,6 +32,7 @@ extern crate parking_lot;
 // reexport it nicely
 extern crate ethkey as _ethkey;
 extern crate ethcrypto as crypto;
+extern crate ethcore_util as util;
 
 #[macro_use]
 extern crate log;

@@ -17,6 +17,7 @@
 use std::{fs, io};
 use std::path::{PathBuf, Path};
 use {json, SafeAccount, Error};
+use util::sha3::Hashable;
 use super::super::account::Crypto;
 use super::{KeyDirectory, VaultKeyDirectory, VaultKey, SetKeyError};
 use super::disk::{DiskDirectory, KeyFileManager};
@@ -207,8 +208,9 @@ fn check_vault_name(name: &str) -> bool {
 
 /// Vault can be empty, but still must be pluggable => we store vault password in separate file
 fn create_vault_file<P>(vault_dir_path: P, key: &VaultKey) -> Result<(), Error> where P: AsRef<Path> {
-	let password_bytes = key.password.as_bytes().to_vec();
-	let crypto = Crypto::with_plain(&password_bytes, &key.password, key.iterations);
+	let password_hash = key.password.sha3();
+	//let password_bytes = key.password.as_bytes().to_vec();
+	let crypto = Crypto::with_plain(&password_hash, &key.password, key.iterations);
 
 	let mut vault_file_path: PathBuf = vault_dir_path.as_ref().into();
 	vault_file_path.push(VAULT_FILE_NAME);
@@ -232,7 +234,8 @@ fn check_vault_file<P>(vault_dir_path: P, key: &VaultKey) -> Result<(), Error> w
 	let vault_file_crypto: Crypto = vault_file_contents.crypto.into();
 
 	let password_bytes = vault_file_crypto.decrypt(&key.password)?;
-	if key.password.as_bytes().to_vec() != password_bytes {
+	let password_hash = key.password.sha3();
+	if &*password_hash != password_bytes.as_slice() {
 		return Err(Error::InvalidPassword);
 	}
 
@@ -304,7 +307,7 @@ mod test {
 	fn check_vault_file_succeeds() {
 		// given
 		let key = VaultKey::new("password", 1024);
-		let vault_file_contents = r#"{"crypto":{"cipher":"aes-128-ctr","cipherparams":{"iv":"0155e3690be19fbfbecabcd440aa284b"},"ciphertext":"4d6938a1f49b7782","kdf":"pbkdf2","kdfparams":{"c":1024,"dklen":32,"prf":"hmac-sha256","salt":"b6a9338a7ccd39288a86dba73bfecd9101b4f3db9c9830e7c76afdbd4f6872e5"},"mac":"16381463ea11c6eb2239a9f339c2e780516d29d234ce30ac5f166f9080b5a262"}}"#;
+		let vault_file_contents = r#"{"crypto":{"cipher":"aes-128-ctr","cipherparams":{"iv":"758696c8dc6378ab9b25bb42790da2f5"},"ciphertext":"54eb50683717d41caaeb12ea969f2c159daada5907383f26f327606a37dc7168","kdf":"pbkdf2","kdfparams":{"c":1024,"dklen":32,"prf":"hmac-sha256","salt":"3c320fa566a1a7963ac8df68a19548d27c8f40bf92ef87c84594dcd5bbc402b6"},"mac":"9e5c2314c2a0781962db85611417c614bd6756666b6b1e93840f5b6ed895f003"}}"#;
 		let mut dir = env::temp_dir();
 		dir.push("check_vault_file_succeeds");
 		fs::create_dir_all(&dir).unwrap();
