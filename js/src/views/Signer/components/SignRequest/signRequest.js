@@ -25,7 +25,7 @@ import styles from './signRequest.css';
 function isAscii (data) {
   for (var i = 2; i < data.length; i += 2) {
     let n = parseInt(data.substr(i, 2), 16);
-    
+
     if (n < 32 || n >= 128) {
       return false;
     }
