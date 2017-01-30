@@ -29,5 +29,5 @@ pub mod types;
 
 pub use self::traits::{Web3, Eth, EthFilter, EthSigning, Net, Parity, ParityAccounts, ParitySet, ParitySigning, Signer, Personal, Traces, Rpc};
 pub use self::impls::*;
-pub use self::helpers::{SigningQueue, SignerService, ConfirmationsQueue, NetworkSettings, block_import};
+pub use self::helpers::{SigningQueue, SignerService, ConfirmationsQueue, NetworkSettings, block_import, informant};
 pub use self::metadata::{Metadata, Origin};

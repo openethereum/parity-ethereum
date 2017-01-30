@@ -40,6 +40,7 @@ extern crate time;
 extern crate rlp;
 extern crate fetch;
 extern crate futures;
+extern crate order_stat;
 extern crate parity_updater as updater;
 extern crate parity_reactor;
 
