@@ -247,12 +247,12 @@ mod tests {
 		// given
 		let request = helpers::ConfirmationRequest {
 			id: 15.into(),
-			payload: helpers::ConfirmationPayload::Signature(1.into(), 5.into()),
+			payload: helpers::ConfirmationPayload::Signature(1.into(), vec![5].into()),
 		};
 
 		// when
 		let res = serde_json::to_string(&ConfirmationRequest::from(request));
-		let expected = r#"{"id":"0xf","payload":{"sign":{"address":"0x0000000000000000000000000000000000000001","hash":"0x0000000000000000000000000000000000000000000000000000000000000005"}}}"#;
+		let expected = r#"{"id":"0xf","payload":{"sign":{"address":"0x0000000000000000000000000000000000000001","data":"0x05"}}}"#;
 
 		// then
 		assert_eq!(res.unwrap(), expected.to_owned());
