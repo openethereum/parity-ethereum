@@ -27,8 +27,18 @@
   min-height: $pendingHeight;
 }
 
+.signData {
+    border: 0.25em solid red;
+    padding: 0.5em;
+    margin-left: -2em;
+}
+
+.signData > p {
+    color: white;
+}
+
 .signDetails {
-  flex: 1;
+  flex: 10;
 }
 
 .address, .info {
