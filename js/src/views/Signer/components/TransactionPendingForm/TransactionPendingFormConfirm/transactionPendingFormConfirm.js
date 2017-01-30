@@ -150,7 +150,7 @@ class TransactionPendingFormConfirm extends Component {
               label={
                 isSending
                   ? 'Confirming...'
-                  : 'Confirm Transaction'
+                  : 'Confirm Request'
               }
               onTouchTap={ this.onConfirm }
               primary

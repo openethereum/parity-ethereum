@@ -31,6 +31,8 @@
     border: 0.25em solid red;
     padding: 0.5em;
     margin-left: -2em;
+    overflow: auto;
+    max-height: 6em;
 }
 
 .signData > p {

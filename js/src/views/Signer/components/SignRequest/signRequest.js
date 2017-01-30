@@ -77,9 +77,11 @@ export default class SignRequest extends Component {
   }
 
   renderAsciiDetails (ascii) {
-    return (<div className={ styles.signData }>
-      <p>{ascii}</p>
-    </div>);
+    return (
+      <div className={ styles.signData }>
+        <p>{ascii}</p>
+      </div>
+    );
   }
 
   renderBinaryDetails (data) {
