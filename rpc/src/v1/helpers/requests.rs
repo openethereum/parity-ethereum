@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use util::{Address, U256, Bytes, H256};
+use util::{Address, U256, Bytes};
 
 /// Transaction request coming from RPC
 #[derive(Debug, Clone, Default, Eq, PartialEq, Hash)]
@@ -109,7 +109,7 @@ pub enum ConfirmationPayload {
 	/// Sign Transaction
 	SignTransaction(FilledTransactionRequest),
 	/// Sign request
-	Signature(Address, H256),
+	Signature(Address, Bytes),
 	/// Decrypt request
 	Decrypt(Address, Bytes),
 }

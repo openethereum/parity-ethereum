@@ -17,7 +17,6 @@
 //! Unsafe Signing RPC implementation.
 
 use std::sync::{Arc, Weak};
-use util::Hashable;
 
 use ethcore::account_provider::AccountProvider;
 use ethcore::miner::MinerService;
@@ -86,8 +85,7 @@ impl<C: 'static, M: 'static> EthSigning for SigningUnsafeClient<C, M> where
 	M: MinerService,
 {
 	fn sign(&self, address: RpcH160, data: RpcBytes) -> BoxFuture<RpcH520, Error> {
-		let hash = data.0.sha3().into();
-		let result = match self.handle(RpcConfirmationPayload::Signature((address, hash).into())) {
+		let result = match self.handle(RpcConfirmationPayload::Signature((address, data).into())) {
 			Ok(RpcConfirmationResponse::Signature(signature)) => Ok(signature),
 			Err(e) => Err(e),
 			e => Err(errors::internal("Unexpected result", e)),
@@ -131,7 +129,7 @@ impl<C: 'static, M: 'static> ParitySigning for SigningUnsafeClient<C, M> where
 		futures::done(result).boxed()
 	}
 
-	fn post_sign(&self, _: RpcH160, _: RpcH256) -> Result<RpcEither<RpcU256, RpcConfirmationResponse>, Error> {
+	fn post_sign(&self, _: RpcH160, _: RpcBytes) -> Result<RpcEither<RpcU256, RpcConfirmationResponse>, Error> {
 		// We don't support this in non-signer mode.
 		Err(errors::signer_disabled())
 	}
