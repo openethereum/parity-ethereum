@@ -233,7 +233,7 @@ impl Decodable for BlockReceipts {
 
 impl Encodable for BlockReceipts {
 	fn rlp_append(&self, s: &mut RlpStream) {
-		s.append(&self.receipts);
+		Encodable::rlp_append(&self.receipts, s);
 	}
 }
 

@@ -46,7 +46,7 @@ impl Encodable for CallType {
 			CallType::CallCode => 2,
 			CallType::DelegateCall => 3,
 		};
-		s.append(&v);
+		Encodable::rlp_append(&v, s);
 	}
 }
 

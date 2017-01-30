@@ -103,7 +103,7 @@ impl FlatTransactionTraces {
 
 impl Encodable for FlatTransactionTraces {
 	fn rlp_append(&self, s: &mut RlpStream) {
-		s.append(&self.0);
+		Encodable::rlp_append(&self.0, s);
 	}
 }
 
@@ -144,7 +144,7 @@ impl FlatBlockTraces {
 
 impl Encodable for FlatBlockTraces {
 	fn rlp_append(&self, s: &mut RlpStream) {
-		s.append(&self.0);
+		Encodable::rlp_append(&self.0, s);
 	}
 }
 
