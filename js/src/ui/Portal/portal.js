@@ -120,6 +120,7 @@ export default class Portal extends Component {
   }
 
   handleKeyDown = (event) => {
+    const { onKeyDown } = this.props;
     const codeName = keycode(event);
 
     switch (codeName) {
@@ -129,7 +130,9 @@ export default class Portal extends Component {
 
       default:
         event.persist();
-        return this.props.onKeyDown(event);
+        return onKeyDown
+          ? onKeyDown(event)
+          : false;
     }
   }
 
