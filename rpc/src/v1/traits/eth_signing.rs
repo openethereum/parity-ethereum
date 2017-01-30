@@ -24,6 +24,8 @@ use v1::types::{Bytes, H160, H256, H520, TransactionRequest, RichRawTransaction}
 build_rpc_trait! {
 	/// Signing methods implementation relying on unlocked accounts.
 	pub trait EthSigning {
+		type Metadata;
+
 		/// Signs the hash of data with given address signature.
 		#[rpc(async, name = "eth_sign")]
 		fn sign(&self, H160, Bytes) -> BoxFuture<H520, Error>;
@@ -31,13 +33,13 @@ build_rpc_trait! {
 		/// Sends transaction; will block waiting for signer to return the
 		/// transaction hash.
 		/// If Signer is disable it will require the account to be unlocked.
-		#[rpc(async, name = "eth_sendTransaction")]
-		fn send_transaction(&self, TransactionRequest) -> BoxFuture<H256, Error>;
+		#[rpc(meta, name = "eth_sendTransaction")]
+		fn send_transaction(&self, Self::Metadata, TransactionRequest) -> BoxFuture<H256, Error>;
 
 		/// Signs transactions without dispatching it to the network.
 		/// Returns signed transaction RLP representation and the transaction itself.
 		/// It can be later submitted using `eth_sendRawTransaction/eth_submitTransaction`.
-		#[rpc(async, name = "eth_signTransaction")]
-		fn sign_transaction(&self, TransactionRequest) -> BoxFuture<RichRawTransaction, Error>;
+		#[rpc(meta, name = "eth_signTransaction")]
+		fn sign_transaction(&self, Self::Metadata, TransactionRequest) -> BoxFuture<RichRawTransaction, Error>;
 	}
 }

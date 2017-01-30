@@ -19,14 +19,14 @@ use std::str::FromStr;
 use jsonrpc_core::IoHandler;
 use util::{U256, Uint, Address};
 use ethcore::account_provider::AccountProvider;
-use v1::{PersonalClient, Personal};
+use v1::{PersonalClient, Personal, Metadata};
 use v1::tests::helpers::TestMinerService;
 use ethcore::client::TestBlockChainClient;
 use ethcore::transaction::{Action, Transaction};
 
 struct PersonalTester {
 	accounts: Arc<AccountProvider>,
-	io: IoHandler,
+	io: IoHandler<Metadata>,
 	miner: Arc<TestMinerService>,
 	// these unused fields are necessary to keep the data alive
 	// as the handler has only weak pointers.

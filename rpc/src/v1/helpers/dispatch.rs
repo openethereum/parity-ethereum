@@ -210,11 +210,12 @@ pub fn sign_and_dispatch<C, M>(client: &C, miner: &M, accounts: &AccountProvider
 	})
 }
 
-pub fn fill_optional_fields<C, M>(request: TransactionRequest, client: &C, miner: &M) -> FilledTransactionRequest
+pub fn fill_optional_fields<C, M>(request: TransactionRequest, default_sender: Address, client: &C, miner: &M) -> FilledTransactionRequest
 	where C: MiningBlockChainClient, M: MinerService
 {
 	FilledTransactionRequest {
-		from: request.from,
+		from: request.from.unwrap_or(default_sender),
+		used_default_from: request.from.is_none(),
 		to: request.to,
 		nonce: request.nonce,
 		gas_price: request.gas_price.unwrap_or_else(|| default_gas_price(client, miner)),
@@ -231,15 +232,15 @@ pub fn default_gas_price<C, M>(client: &C, miner: &M) -> U256
 	client.gas_price_median(100).unwrap_or_else(|| miner.sensible_gas_price())
 }
 
-pub fn from_rpc<C, M>(payload: RpcConfirmationPayload, client: &C, miner: &M) -> ConfirmationPayload
+pub fn from_rpc<C, M>(payload: RpcConfirmationPayload, default_account: Address, client: &C, miner: &M) -> ConfirmationPayload
 	where C: MiningBlockChainClient, M: MinerService {
 
 	match payload {
 		RpcConfirmationPayload::SendTransaction(request) => {
-			ConfirmationPayload::SendTransaction(fill_optional_fields(request.into(), client, miner))
+			ConfirmationPayload::SendTransaction(fill_optional_fields(request.into(), default_account, client, miner))
 		},
 		RpcConfirmationPayload::SignTransaction(request) => {
-			ConfirmationPayload::SignTransaction(fill_optional_fields(request.into(), client, miner))
+			ConfirmationPayload::SignTransaction(fill_optional_fields(request.into(), default_account, client, miner))
 		},
 		RpcConfirmationPayload::Decrypt(RpcDecryptRequest { address, msg }) => {
 			ConfirmationPayload::Decrypt(address.into(), msg.into())
