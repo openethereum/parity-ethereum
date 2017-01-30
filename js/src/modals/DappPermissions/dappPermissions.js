@@ -113,44 +113,5 @@ export default class DappPermissions extends Component {
         </div>
       </div>
     );
-
-    // const onCheck = () => {
-    //   store.selectAccount(account.address);
-    // };
-    //
-    // // TODO: Udate to conform to the new look & feel for selection.
-    // // For now in the current/old style, not as pretty but consistent.
-    // return (
-    //   <ListItem
-    //     className={
-    //       account.checked
-    //         ? styles.selected
-    //         : styles.unselected
-    //     }
-    //     key={ account.address }
-    //     leftCheckbox={
-    //       <Checkbox
-    //         checked={ account.checked }
-    //         onCheck={ onCheck }
-    //       />
-    //     }
-    //     primaryText={
-    //       <div className={ styles.item }>
-    //         <IdentityIcon address={ account.address } />
-    //         <div className={ styles.info }>
-    //           <h3 className={ styles.name }>
-    //             { account.name }
-    //           </h3>
-    //           <div className={ styles.address }>
-    //             { account.address }
-    //           </div>
-    //           <div className={ styles.description }>
-    //             { account.description }
-    //           </div>
-    //         </div>
-    //       </div>
-    //     }
-    //   />
-    // );
   }
 }
