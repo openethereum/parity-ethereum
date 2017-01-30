@@ -40,7 +40,7 @@ build_rpc_trait! {
 
 		/// Returns block author.
 		#[rpc(name = "eth_coinbase")]
-		fn author(&self) -> Result<H160, Error>;
+		fn author(&self, Trailing<DappId>) -> Result<H160, Error>;
 
 		/// Returns true if client is actively mining new blocks.
 		#[rpc(name = "eth_mining")]
