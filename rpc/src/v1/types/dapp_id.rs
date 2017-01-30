@@ -16,8 +16,10 @@
 
 //! Dapp Id type
 
+use ethcore::account_provider::DappId as EthDappId;
+
 /// Dapplication Internal Id
-#[derive(Debug, Default, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Eq, PartialEq, Hash, Ord, PartialOrd, Serialize, Deserialize)]
 pub struct DappId(pub String);
 
 impl Into<String> for DappId {
@@ -29,6 +31,18 @@ impl Into<String> for DappId {
 impl From<String> for DappId {
 	fn from(s: String) -> Self {
 		DappId(s)
+	}
+}
+
+impl From<EthDappId> for DappId {
+	fn from(id: EthDappId) -> Self {
+		DappId(id.into())
+	}
+}
+
+impl Into<EthDappId> for DappId {
+	fn into(self) -> EthDappId {
+		Into::<String>::into(self).into()
 	}
 }
 

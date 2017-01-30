@@ -23,7 +23,14 @@ use json::Uuid;
 use super::{KeyDirectory, VaultKeyDirectory, VaultKeyDirectoryProvider, VaultKey};
 use super::vault::VaultDiskDirectory;
 
-const IGNORED_FILES: &'static [&'static str] = &["thumbs.db", "address_book.json", "dapps_policy.json", "vault.json"];
+const IGNORED_FILES: &'static [&'static str] = &[
+	"thumbs.db",
+	"address_book.json",
+	"dapps_policy.json",
+	"dapps_accounts.json",
+	"dapps_history.json",
+	"vault.json",
+];
 
 #[cfg(not(windows))]
 fn restrict_permissions_to_owner(file_path: &Path) -> Result<(), i32>  {
