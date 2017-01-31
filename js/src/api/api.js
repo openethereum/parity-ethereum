@@ -131,6 +131,8 @@ export default class Api extends EventEmitter {
     });
   }
 
+  static util = util
+
   static Transport = {
     Http: Http,
     Ws: Ws
