@@ -185,5 +185,25 @@ build_rpc_trait! {
 		/// Get the current chain status.
 		#[rpc(name = "parity_chainStatus")]
 		fn chain_status(&self) -> Result<ChainStatus, Error>;
+
+		/// Create new vault.
+		#[rpc(name = "parity_newVault")]
+		fn create_vault(&self, String, String) -> Result<bool, Error>;
+
+		/// Open existing vault.
+		#[rpc(name = "parity_openVault")]
+		fn open_vault(&self, String, String) -> Result<bool, Error>;
+
+		/// Close previously opened vault.
+		#[rpc(name = "parity_closeVault")]
+		fn close_vault(&self, String) -> Result<bool, Error>;
+
+		/// Change vault password.
+		#[rpc(name = "parity_changeVaultPassword")]
+		fn change_vault_password(&self, String, String, String) -> Result<bool, Error>;
+
+		/// Change vault of the given address.
+		#[rpc(name = "parity_changeVault")]
+		fn change_vault(&self, H160, String, String, String) -> Result<bool, Error>;
 	}
 }

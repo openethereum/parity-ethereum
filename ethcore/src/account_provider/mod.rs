@@ -433,6 +433,43 @@ impl AccountProvider {
 			.map(|a| a.into_iter().map(|a| a.address).collect())
 			.map_err(Into::into)
 	}
+
+	/// Create new vault.
+	pub fn create_vault(&self, name: &str, password: &str) -> Result<(), Error> {
+		self.sstore.create_vault(name, password)
+			.map_err(Into::into)
+	}
+
+	/// Open existing vault.
+	pub fn open_vault(&self, name: &str, password: &str) -> Result<(), Error> {
+		self.sstore.open_vault(name, password)
+			.map_err(Into::into)
+	}
+
+	/// Close previously opened vault.
+	pub fn close_vault(&self, name: &str) -> Result<(), Error> {
+		self.sstore.close_vault(name)
+			.map_err(Into::into)
+	}
+
+	/// Change vault password.
+	pub fn change_vault_password(&self, name: &str, old_password: &str, new_password: &str) -> Result<(), Error> {
+		self.sstore.change_vault_password(name, old_password, new_password)
+			.map_err(Into::into)
+	}
+
+	/// Change vault of the given address.
+	pub fn change_vault(&self, address: Address, new_vault: &str, old_password: &str, new_password: &str) -> Result<(), Error> {
+		let new_vault_ref = if new_vault.is_empty() { SecretVaultRef::Root } else { SecretVaultRef::Vault(new_vault.to_owned()) };
+		let old_account_ref = self.sstore.accounts()?
+			.into_iter()
+			.filter(|a| a.address == address && a.vault != new_vault_ref)
+			.filter(|a| self.sstore.test_password(a, old_password).unwrap_or(false))
+			.nth(0)
+			.ok_or(SSError::InvalidAccount)?;
+		self.sstore.move_account(self.sstore.as_simple_secret_store(), new_vault_ref, &old_account_ref, old_password, new_password)
+			.map_err(Into::into)
+	}
 }
 
 #[cfg(test)]

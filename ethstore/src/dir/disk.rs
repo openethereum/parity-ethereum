@@ -193,7 +193,7 @@ impl<T> KeyDirectory for DiskDirectory<T> where T: KeyFileManager {
 		// and find entry with given address
 		let to_remove = self.files()?
 			.into_iter()
-			.find(|&(_, ref acc)| acc == account);
+			.find(|&(_, ref acc)| acc.id == account.id && acc.address == account.address);
 
 		// remove it
 		match to_remove {

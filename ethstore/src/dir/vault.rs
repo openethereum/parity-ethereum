@@ -29,6 +29,7 @@ pub type VaultDiskDirectory = DiskDirectory<VaultKeyFileManager>;
 
 /// Vault key file manager
 pub struct VaultKeyFileManager {
+	name: String,
 	key: VaultKey,
 }
 
@@ -48,7 +49,7 @@ impl VaultDiskDirectory {
 			return Err(err);
 		}
 
-		Ok(DiskDirectory::new(vault_dir_path, VaultKeyFileManager::new(key)))
+		Ok(DiskDirectory::new(vault_dir_path, VaultKeyFileManager::new(name, key)))
 	}
 
 	/// Open existing vault directory with given key
@@ -62,7 +63,7 @@ impl VaultDiskDirectory {
 		// check that passed key matches vault file
 		check_vault_file(&vault_dir_path, &key)?;
 
-		Ok(DiskDirectory::new(vault_dir_path, VaultKeyFileManager::new(key)))
+		Ok(DiskDirectory::new(vault_dir_path, VaultKeyFileManager::new(name, key)))
 	}
 
 	fn create_temp_vault(&self, key: VaultKey) -> Result<VaultDiskDirectory, Error> {
@@ -107,12 +108,7 @@ impl VaultKeyDirectory for VaultDiskDirectory {
 	}
 
 	fn name(&self) -> &str {
-		self.path()
-			.expect("self is instance of DiskDirectory; DiskDirectory always returns path; qed")
-			.file_name()
-			.expect("last component of path is checked in make_vault_dir_path; it contains no fs-specific characters; file_name only returns None if last component is fs-specific; qed")
-			.to_str()
-			.expect("last component of path is checked in make_vault_dir_path; it contains only valid unicode characters; to_str fails when file_name is not valid unicode; qed")
+		&self.key_manager().name
 	}
 
 	fn set_key(&self, key: VaultKey, new_key: VaultKey) -> Result<(), SetKeyError> {
@@ -153,8 +149,9 @@ impl VaultKeyDirectory for VaultDiskDirectory {
 }
 
 impl VaultKeyFileManager {
-	pub fn new(key: VaultKey) -> Self {
+	pub fn new(name: &str, key: VaultKey) -> Self {
 		VaultKeyFileManager {
+			name: name.into(),
 			key: key,
 		}
 	}
@@ -163,20 +160,26 @@ impl VaultKeyFileManager {
 impl KeyFileManager for VaultKeyFileManager {
 	fn read<T>(&self, filename: Option<String>, reader: T) -> Result<SafeAccount, Error> where T: io::Read {
 		let vault_file = json::VaultKeyFile::load(reader).map_err(|e| Error::Custom(format!("{:?}", e)))?;
-		let safe_account = SafeAccount::from_vault_file(&self.key.password, vault_file, filename.clone())?;
+		let mut safe_account = SafeAccount::from_vault_file(&self.key.password, vault_file, filename.clone())?;
 		if !safe_account.check_password(&self.key.password) {
 			warn!("Invalid vault key file: {:?}", filename);
 			return Err(Error::InvalidPassword);
 		}
 
+		safe_account.meta = json::insert_vault_name_to_json_meta(&safe_account.meta, &self.name)
+			.map_err(|err| Error::Custom(format!("{:?}", err)))?;
+
 		Ok(safe_account)
 	}
 
-	fn write<T>(&self, account: SafeAccount, writer: &mut T) -> Result<(), Error> where T: io::Write {
+	fn write<T>(&self, mut account: SafeAccount, writer: &mut T) -> Result<(), Error> where T: io::Write {
 		// all accounts share the same password
 		if !account.check_password(&self.key.password) {
 			return Err(Error::InvalidPassword);
 		}
+
+		account.meta = json::remove_vault_name_from_json_meta(&account.meta)
+			.map_err(|err| Error::Custom(format!("{:?}", err)))?;
 
 		let vault_file: json::VaultKeyFile = account.into_vault_file(self.key.iterations, &self.key.password)?;
 		vault_file.write(writer).map_err(|e| Error::Custom(format!("{:?}", e)))

@@ -187,6 +187,10 @@ impl SecretStore for EthStore {
 		imported_addresses
 			.map(|a| a.into_iter().map(|a| StoreAccountRef::root(a)).collect())
 	}
+
+	fn as_simple_secret_store(&self) -> &SimpleSecretStore {
+		self
+	}
 }
 
 /// Similar to `EthStore` but may store many accounts (with different passwords) for the same `Address`
@@ -684,6 +688,11 @@ mod tests {
 		assert!(accounts.iter().any(|a| a == &StoreAccountRef::root(account1.address.clone())));
 		assert!(accounts.iter().any(|a| a == &StoreAccountRef::vault(name2, account2.address.clone())));
 		assert!(accounts.iter().any(|a| a == &StoreAccountRef::vault(name2, account3.address.clone())));
+
+		// and then
+		assert_eq!(store.meta(&StoreAccountRef::root(account1.address)).unwrap(), r#"{}"#);
+		assert_eq!(store.meta(&StoreAccountRef::vault("vault2", account2.address)).unwrap(), r#"{"vault":"vault2"}"#);
+		assert_eq!(store.meta(&StoreAccountRef::vault("vault2", account3.address)).unwrap(), r#"{"vault":"vault2"}"#);
 	}
 
 	#[test]

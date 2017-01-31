@@ -21,7 +21,10 @@ use ethsync::ManageNetwork;
 use ethcore::account_provider::AccountProvider;
 use ethcore::client::{TestBlockChainClient};
 use ethcore::miner::LocalTransactionStatus;
+use ethstore::EthStore;
+use ethstore::dir::RootDiskDirectory;
 use ethstore::ethkey::{Generator, Random};
+use devtools::RandomTempPath;
 
 use jsonrpc_core::IoHandler;
 use v1::{Parity, ParityClient};
@@ -46,7 +49,7 @@ pub struct Dependencies {
 }
 
 impl Dependencies {
-	pub fn new() -> Self {
+	fn with_account_provider(account_provider: AccountProvider) -> Self {
 		Dependencies {
 			miner: Arc::new(TestMinerService::default()),
 			client: Arc::new(TestBlockChainClient::default()),
@@ -65,10 +68,21 @@ impl Dependencies {
 				rpc_port: 8545,
 			}),
 			network: Arc::new(TestManageNetwork),
-			accounts: Arc::new(AccountProvider::transient_provider()),
+			accounts: Arc::new(account_provider),
 			dapps_interface: Some("127.0.0.1".into()),
 			dapps_port: Some(18080),
 		}
+	}
+
+	pub fn new() -> Self {
+		Dependencies::with_account_provider(AccountProvider::transient_provider())
+	}
+
+	pub fn with_vaults_support(temp_path: &str) -> Self {
+		let root_keys_dir = RootDiskDirectory::create(temp_path).unwrap();
+		let secret_store = EthStore::open(Box::new(root_keys_dir)).unwrap();
+		let account_provider = AccountProvider::new(Box::new(secret_store));
+		Dependencies::with_account_provider(account_provider)
 	}
 
 	pub fn client(&self, signer: Option<Arc<SignerService>>) -> TestParityClient {
@@ -483,4 +497,76 @@ fn rpc_parity_chain_status() {
 	let response = r#"{"jsonrpc":"2.0","result":{"blockGap":["0x6","0xd05"]},"id":1}"#;
 
 	assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
+}
+
+#[test]
+fn rpc_parity_new_vault() {
+	let temp_path = RandomTempPath::new();
+	let deps = Dependencies::with_vaults_support(temp_path.as_str());
+	let io = deps.default_client();
+
+	let request = r#"{"jsonrpc": "2.0", "method": "parity_newVault", "params":["vault1", "password1"], "id": 1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":true,"id":1}"#;
+
+	assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
+	assert!(deps.accounts.close_vault("vault1").is_ok());
+	assert!(deps.accounts.open_vault("vault1", "password1").is_ok());
+}
+
+#[test]
+fn rpc_parity_open_vault() {
+	let temp_path = RandomTempPath::new();
+	let deps = Dependencies::with_vaults_support(temp_path.as_str());
+	let io = deps.default_client();
+
+	assert!(deps.accounts.create_vault("vault1", "password1").is_ok());
+	assert!(deps.accounts.close_vault("vault1").is_ok());
+
+	let request = r#"{"jsonrpc": "2.0", "method": "parity_openVault", "params":["vault1", "password1"], "id": 1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":true,"id":1}"#;
+
+	assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
+}
+
+#[test]
+fn rpc_parity_close_vault() {
+	let temp_path = RandomTempPath::new();
+	let deps = Dependencies::with_vaults_support(temp_path.as_str());
+	let io = deps.default_client();
+
+	assert!(deps.accounts.create_vault("vault1", "password1").is_ok());
+
+	let request = r#"{"jsonrpc": "2.0", "method": "parity_closeVault", "params":["vault1"], "id": 1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":true,"id":1}"#;
+
+	assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
+}
+
+#[test]
+fn rpc_parity_change_vault_password() {
+	let temp_path = RandomTempPath::new();
+	let deps = Dependencies::with_vaults_support(temp_path.as_str());
+	let io = deps.default_client();
+
+	assert!(deps.accounts.create_vault("vault1", "password1").is_ok());
+
+	let request = r#"{"jsonrpc": "2.0", "method": "parity_changeVaultPassword", "params":["vault1", "password1", "password2"], "id": 1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":true,"id":1}"#;
+
+	assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
+}
+
+#[test]
+fn rpc_parity_change_vault() {
+	let temp_path = RandomTempPath::new();
+	let deps = Dependencies::with_vaults_support(temp_path.as_str());
+	let io = deps.default_client();
+
+	let (address, _) = deps.accounts.new_account_and_public("root_password").unwrap();
+	assert!(deps.accounts.create_vault("vault1", "password1").is_ok());
+
+	let request = format!(r#"{{"jsonrpc": "2.0", "method": "parity_changeVault", "params":["0x{}", "vault1", "root_password", "password1"], "id": 1}}"#, address.hex());
+	let response = r#"{"jsonrpc":"2.0","result":true,"id":1}"#;
+
+	assert_eq!(io.handle_request_sync(&request), Some(response.to_owned()));
 }

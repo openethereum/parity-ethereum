@@ -76,6 +76,9 @@ pub trait SecretStore: SimpleSecretStore {
 	fn local_path(&self) -> String;
 	fn list_geth_accounts(&self, testnet: bool) -> Vec<Address>;
 	fn import_geth_accounts(&self, vault: SecretVaultRef, desired: Vec<Address>, testnet: bool) -> Result<Vec<StoreAccountRef>, Error>;
+
+	// Upcast to `SimpleSecretStore`
+	fn as_simple_secret_store(&self) -> &SimpleSecretStore;
 }
 
 impl StoreAccountRef {
