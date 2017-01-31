@@ -231,4 +231,14 @@ mod tests {
 		assert_eq!(stats.requests_rate(), 2);
 		assert_eq!(stats.approximated_roundtrip(), 125);
 	}
+
+	#[test]
+	fn should_be_sync_and_send() {
+		let stats = RpcStats::default();
+		is_sync(stats);
+	}
+
+	fn is_sync<F: Send + Sync>(x: F) {
+		drop(x)
+	}
 }

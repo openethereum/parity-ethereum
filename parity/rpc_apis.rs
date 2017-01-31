@@ -14,22 +14,24 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::cmp::PartialEq;
 use std::collections::BTreeMap;
 use std::collections::HashSet;
-use std::cmp::PartialEq;
 use std::str::FromStr;
 use std::sync::Arc;
-use util::RotatingLogger;
-use jsonrpc_core::{MetaIoHandler};
-use ethcore::miner::{Miner, ExternalMiner};
-use ethcore::client::Client;
-use ethcore::account_provider::AccountProvider;
-use ethcore::snapshot::SnapshotService;
-use ethsync::{ManageNetwork, SyncProvider};
-use ethcore_rpc::{Metadata, NetworkSettings};
+
 pub use ethcore_rpc::SignerService;
-use updater::Updater;
+
+use ethcore::account_provider::AccountProvider;
+use ethcore::client::Client;
+use ethcore::miner::{Miner, ExternalMiner};
+use ethcore::snapshot::SnapshotService;
+use ethcore_rpc::{Metadata, NetworkSettings};
+use ethsync::{ManageNetwork, SyncProvider};
 use hash_fetch::fetch::Client as FetchClient;
+use jsonrpc_core::{MetaIoHandler};
+use updater::Updater;
+use util::RotatingLogger;
 
 #[derive(Debug, PartialEq, Clone, Eq, Hash)]
 pub enum Api {

@@ -23,6 +23,7 @@ use std::sync::Arc;
 use std::str::FromStr;
 use jsonrpc_core::{Metadata};
 use jsonrpc_core::reactor::RpcHandler;
+use rpc::RpcStats;
 use util::{H256, version};
 
 #[cfg(feature = "parity-ui")]
@@ -137,6 +138,13 @@ pub struct Session<M: Metadata> {
 	authcodes_path: PathBuf,
 	handler: RpcHandler<M>,
 	file_handler: Arc<ui::Handler>,
+	stats: Option<Arc<RpcStats>>,
+}
+
+impl<M: Metadata> Drop for Session<M> {
+	fn drop(&mut self) {
+		self.stats.as_ref().map(|stats| stats.close_session());
+	}
 }
 
 impl<M: Metadata> ws::Handler for Session<M> {
@@ -231,16 +239,24 @@ pub struct Factory<M: Metadata> {
 	self_origin: String,
 	authcodes_path: PathBuf,
 	file_handler: Arc<ui::Handler>,
+	stats: Option<Arc<RpcStats>>,
 }
 
 impl<M: Metadata> Factory<M> {
-	pub fn new(handler: RpcHandler<M>, self_origin: String, authcodes_path: PathBuf, skip_origin_validation: bool) -> Self {
+	pub fn new(
+		handler: RpcHandler<M>,
+		self_origin: String,
+		authcodes_path: PathBuf,
+		skip_origin_validation: bool,
+		stats: Option<Arc<RpcStats>>,
+	) -> Self {
 		Factory {
 			handler: handler,
 			skip_origin_validation: skip_origin_validation,
 			self_origin: self_origin,
 			authcodes_path: authcodes_path,
 			file_handler: Arc::new(ui::Handler::default()),
+			stats: stats,
 		}
 	}
 }
@@ -249,6 +265,8 @@ impl<M: Metadata> ws::Factory for Factory<M> {
 	type Handler = Session<M>;
 
 	fn connection_made(&mut self, sender: ws::Sender) -> Self::Handler {
+		self.stats.as_ref().map(|stats| stats.open_session());
+
 		Session {
 			out: sender,
 			handler: self.handler.clone(),
@@ -256,6 +274,7 @@ impl<M: Metadata> ws::Factory for Factory<M> {
 			self_origin: self.self_origin.clone(),
 			authcodes_path: self.authcodes_path.clone(),
 			file_handler: self.file_handler.clone(),
+			stats: self.stats.clone(),
 		}
 	}
 }

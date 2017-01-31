@@ -19,6 +19,7 @@ use std::sync::Arc;
 
 use dir::default_data_path;
 use ethcore::client::Client;
+use ethcore_rpc::RpcStats;
 use ethsync::SyncProvider;
 use hash_fetch::fetch::Client as FetchClient;
 use helpers::replace_home;
@@ -64,6 +65,7 @@ pub struct Dependencies {
 	pub remote: Remote,
 	pub fetch: FetchClient,
 	pub signer: Arc<SignerService>,
+	pub stats: Arc<RpcStats>,
 }
 
 pub fn new(configuration: Configuration, deps: Dependencies) -> Result<Option<WebappServer>, String> {

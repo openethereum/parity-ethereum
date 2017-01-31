@@ -21,7 +21,7 @@ use std::io;
 use io::PanicHandler;
 
 use dir::default_data_path;
-use ethcore_rpc::{self as rpc, RpcServerError, IpcServerError, Metadata};
+use ethcore_rpc::{self as rpc, RpcServerError, IpcServerError, Metadata, RpcStats};
 use helpers::parity_ipc_path;
 use jsonrpc_core::MetaIoHandler;
 use jsonrpc_core::reactor::{RpcHandler, Remote};
@@ -85,6 +85,7 @@ pub struct Dependencies {
 	pub panic_handler: Arc<PanicHandler>,
 	pub apis: Arc<rpc_apis::Dependencies>,
 	pub remote: Remote,
+	pub stats: Arc<RpcStats>,
 }
 
 pub fn new_http(conf: HttpConfiguration, deps: &Dependencies) -> Result<Option<HttpServer>, String> {
