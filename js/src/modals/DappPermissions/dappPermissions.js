@@ -14,14 +14,12 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { Checkbox } from 'material-ui';
-import { List, ListItem } from 'material-ui/List';
 import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 
-import { Button, IdentityIcon, Modal } from '~/ui';
-import { DoneIcon } from '~/ui/Icons';
+import { AccountCard, ContainerTitle, Portal, SectionList } from '~/ui';
+import { CheckIcon, StarIcon, StarOutlineIcon } from '~/ui/Icons';
 
 import styles from './dappPermissions.css';
 
@@ -39,79 +37,81 @@ export default class DappPermissions extends Component {
     }
 
     return (
-      <Modal
-        actions={ [
-          <Button
-            icon={ <DoneIcon /> }
-            key='done'
-            label={
-              <FormattedMessage
-                id='dapps.permissions.button.done'
-                defaultMessage='Done'
-              />
-            }
-            onClick={ store.closeModal }
-          />
-        ] }
-        compact
-        title={
-          <FormattedMessage
-            id='dapps.permissions.label'
-            defaultMessage='visible dapp accounts'
-          />
-        }
-        visible
+      <Portal
+        className={ styles.modal }
+        onClose={ store.closeModal }
+        open
       >
-        <List>
-          { this.renderListItems() }
-        </List>
-      </Modal>
+        <ContainerTitle
+          title={
+            <FormattedMessage
+              id='dapps.permissions.label'
+              defaultMessage='visible dapp accounts'
+            />
+          }
+        />
+        <div className={ styles.container }>
+          <SectionList
+            items={ store.accounts }
+            noStretch
+            renderItem={ this.renderAccount }
+          />
+        </div>
+        <div className={ styles.legend }>
+          <FormattedMessage
+            id='dapps.permissions.description'
+            defaultMessage='{activeIcon} account is available to application, {defaultIcon} account is the default account'
+            values={ {
+              activeIcon: <CheckIcon />,
+              defaultIcon: <StarIcon />
+            } }
+          />
+        </div>
+      </Portal>
     );
   }
 
-  renderListItems () {
+  renderAccount = (account) => {
     const { store } = this.props;
 
-    return store.accounts.map((account) => {
-      const onCheck = () => {
-        store.selectAccount(account.address);
-      };
+    const onMakeDefault = () => {
+      store.setDefaultAccount(account.address);
+    };
 
-      // TODO: Once new modal & account selection is in, this should be updated
-      // to conform to the new (as of this code WIP) look & feel for selection.
-      // For now in the current/old style, not as pretty but consistent.
-      return (
-        <ListItem
-          className={
-            account.checked
-              ? styles.selected
-              : styles.unselected
-          }
-          key={ account.address }
-          leftCheckbox={
-            <Checkbox
-              checked={ account.checked }
-              onCheck={ onCheck }
-            />
-          }
-          primaryText={
-            <div className={ styles.item }>
-              <IdentityIcon address={ account.address } />
-              <div className={ styles.info }>
-                <h3 className={ styles.name }>
-                  { account.name }
-                </h3>
-                <div className={ styles.address }>
-                  { account.address }
-                </div>
-                <div className={ styles.description }>
-                  { account.description }
-                </div>
-              </div>
-            </div>
-          }
+    const onSelect = () => {
+      store.selectAccount(account.address);
+    };
+
+    let className;
+
+    if (account.checked) {
+      className = account.default
+        ? `${styles.selected} ${styles.default}`
+        : styles.selected;
+    } else {
+      className = styles.unselected;
+    }
+
+    return (
+      <div className={ styles.item }>
+        <AccountCard
+          account={ account }
+          className={ className }
+          onClick={ onSelect }
         />
-      );
-    });
+        <div className={ styles.overlay }>
+          {
+            account.checked && account.default
+              ? <StarIcon />
+              : <StarOutlineIcon className={ styles.iconDisabled } onClick={ onMakeDefault } />
+          }
+          {
+            account.checked
+              ? <CheckIcon onClick={ onSelect } />
+              : <CheckIcon className={ styles.iconDisabled } onClick={ onSelect } />
+          }
+        </div>
+      </div>
+    );
   }
 }

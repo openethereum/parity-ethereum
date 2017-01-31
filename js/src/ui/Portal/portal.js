@@ -35,40 +35,11 @@ export default class Portal extends Component {
     onKeyDown: PropTypes.func
   };
 
-  state = {
-    expanded: false
-  }
-
-  componentWillReceiveProps (nextProps) {
-    if (this.props.open !== nextProps.open) {
-      const opening = nextProps.open;
-      const closing = !opening;
-
-      if (opening) {
-        return this.setState({ expanded: true });
-      }
-
-      if (closing) {
-        return this.setState({ expanded: false });
-      }
-    }
-  }
-
   render () {
-    const { children, className, isChildModal } = this.props;
-    const { expanded } = this.state;
-    const backClasses = [ styles.backOverlay ];
-    const classes = [
-      styles.overlay,
-      isChildModal
-        ? styles.popover
-        : styles.modal,
-      className
-    ];
+    const { children, className, isChildModal, open } = this.props;
 
-    if (expanded) {
-      classes.push(styles.expanded);
-      backClasses.push(styles.expanded);
+    if (!open) {
+      return null;
     }
 
     return (
@@ -77,53 +48,37 @@ export default class Portal extends Component {
         onClose={ this.handleClose }
       >
         <div
-          className={ backClasses.join(' ') }
+          className={ styles.backOverlay }
           onClick={ this.handleClose }
         >
           <div
-            className={ classes.join(' ') }
+            className={
+              [
+                styles.overlay,
+                isChildModal
+                  ? styles.popover
+                  : styles.modal,
+                className
+              ].join(' ')
+            }
             onClick={ this.stopEvent }
             onKeyDown={ this.handleKeyDown }
           >
+            <EventListener
+              target='window'
+              onKeyUp={ this.handleKeyUp }
+            />
             <ParityBackground className={ styles.parityBackground } />
-            { this.renderBindings() }
-            { this.renderCloseIcon() }
+            <div
+              className={ styles.closeIcon }
+              onClick={ this.handleClose }
+            >
+              <CloseIcon />
+            </div>
             { children }
           </div>
         </div>
       </ReactPortal>
-    );
-  }
-
-  renderBindings () {
-    const { expanded } = this.state;
-
-    if (!expanded) {
-      return null;
-    }
-
-    return (
-      <EventListener
-        target='window'
-        onKeyUp={ this.handleKeyUp }
-      />
-    );
-  }
-
-  renderCloseIcon () {
-    const { expanded } = this.state;
-
-    if (!expanded) {
-      return null;
-    }
-
-    return (
-      <div
-        className={ styles.closeIcon }
-        onClick={ this.handleClose }
-      >
-        <CloseIcon />
-      </div>
     );
   }
 
