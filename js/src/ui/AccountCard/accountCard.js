@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -18,21 +18,20 @@ import React, { Component, PropTypes } from 'react';
 import ReactDOM from 'react-dom';
 import keycode from 'keycode';
 
+import Balance from '~/ui/Balance';
 import IdentityIcon from '~/ui/IdentityIcon';
+import IdentityName from '~/ui/IdentityName';
 import Tags from '~/ui/Tags';
-
-import { fromWei } from '~/api/util/wei';
 
 import styles from './accountCard.css';
 
 export default class AccountCard extends Component {
-
   static propTypes = {
     account: PropTypes.object.isRequired,
-    onClick: PropTypes.func.isRequired,
-    onFocus: PropTypes.func.isRequired,
-
-    balance: PropTypes.object
+    balance: PropTypes.object,
+    className: PropTypes.string,
+    onClick: PropTypes.func,
+    onFocus: PropTypes.func
   };
 
   state = {
@@ -40,15 +39,11 @@ export default class AccountCard extends Component {
   };
 
   render () {
-    const { account } = this.props;
+    const { account, balance, className } = this.props;
     const { copied } = this.state;
-
-    const { address, name, description, meta = {} } = account;
-
-    const displayName = (name && name.toUpperCase()) || address;
+    const { address, description, meta = {}, name } = account;
     const { tags = [] } = meta;
-
-    const classes = [ styles.account ];
+    const classes = [ styles.account, className ];
 
     if (copied) {
       classes.push(styles.copied);
@@ -63,17 +58,28 @@ export default class AccountCard extends Component {
         onFocus={ this.onFocus }
         onKeyDown={ this.handleKeyDown }
       >
-        <IdentityIcon address={ address } />
-        <div className={ styles.accountInfo }>
-          <div className={ styles.accountName }>
-            <span>{ displayName }</span>
+        <div className={ styles.infoContainer }>
+          <IdentityIcon address={ address } />
+          <div className={ styles.accountInfo }>
+            <div className={ styles.accountName }>
+              <IdentityName
+                address={ address }
+                name={ name }
+                unknown
+              />
+            </div>
+            { this.renderDescription(description) }
+            { this.renderAddress(address) }
           </div>
-
-          { this.renderTags(tags, address) }
-          { this.renderDescription(description) }
-          { this.renderAddress(displayName, address) }
-          { this.renderBalance(address) }
         </div>
+
+        <Tags tags={ tags } />
+        <Balance
+          balance={ balance }
+          className={ styles.balance }
+          showOnlyEth
+          showZeroValues
+        />
       </div>
     );
   }
@@ -90,11 +96,7 @@ export default class AccountCard extends Component {
     );
   }
 
-  renderAddress (name, address) {
-    if (name === address) {
-      return null;
-    }
-
+  renderAddress (address) {
     return (
       <div className={ styles.addressContainer }>
         <span
@@ -105,40 +107,6 @@ export default class AccountCard extends Component {
         >
           { address }
         </span>
-      </div>
-    );
-  }
-
-  renderTags (tags = [], address) {
-    if (tags.length === 0) {
-      return null;
-    }
-
-    return (
-      <Tags tags={ tags } />
-    );
-  }
-
-  renderBalance (address) {
-    const { balance = {} } = this.props;
-
-    if (!balance.tokens) {
-      return null;
-    }
-
-    const ethToken = balance.tokens
-      .find((tok) => tok.token && (tok.token.tag || '').toLowerCase() === 'eth');
-
-    if (!ethToken) {
-      return null;
-    }
-
-    const value = fromWei(ethToken.value).toFormat(3);
-
-    return (
-      <div className={ styles.balance }>
-        <span>{ value }</span>
-        <span className={ styles.tag }>ETH</span>
       </div>
     );
   }
@@ -158,6 +126,7 @@ export default class AccountCard extends Component {
         // @see https://developers.google.com/web/updates/2015/04/cut-and-copy-commands
         try {
           const range = document.createRange();
+
           range.selectNode(element);
           window.getSelection().addRange(range);
           document.execCommand('copy');
@@ -184,12 +153,14 @@ export default class AccountCard extends Component {
 
   onClick = () => {
     const { account, onClick } = this.props;
-    onClick(account.address);
+
+    onClick && onClick(account.address);
   }
 
   onFocus = () => {
     const { account, onFocus } = this.props;
-    onFocus(account.index);
+
+    onFocus && onFocus(account.index);
   }
 
   preventEvent = (e) => {
