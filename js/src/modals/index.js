@@ -19,7 +19,7 @@ import AddContract from './AddContract';
 import CreateAccount from './CreateAccount';
 import CreateWallet from './CreateWallet';
 import DappPermissions from './DappPermissions';
-import DappsVisible from './DappsVisible';
+import DappsVisible from './AddDapps';
 import DeleteAccount from './DeleteAccount';
 import DeployContract from './DeployContract';
 import EditMeta from './EditMeta';

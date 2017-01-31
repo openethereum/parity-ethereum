@@ -24,7 +24,7 @@ import { CheckIcon } from '~/ui/Icons';
 import styles from './dappsVisible.css';
 
 @observer
-export default class DappsVisible extends Component {
+export default class AddDapps extends Component {
   static propTypes = {
     store: PropTypes.object.isRequired
   };
