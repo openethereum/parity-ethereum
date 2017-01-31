@@ -53,7 +53,7 @@ export default class DappsVisible extends Component {
         <div className={ styles.container }>
           <div className={ styles.warning } />
           {
-            this.renderList(store.sortedLocal,
+            this.renderList(store.sortedLocal, store.displayApps,
               <FormattedMessage
                 id='dapps.add.local.label'
                 defaultMessage='Applications locally available'
@@ -65,7 +65,7 @@ export default class DappsVisible extends Component {
             )
           }
           {
-            this.renderList(store.sortedBuiltin,
+            this.renderList(store.sortedBuiltin, store.displayApps,
               <FormattedMessage
                 id='dapps.add.builtin.label'
                 defaultMessage='Applications bundled with Parity'
@@ -77,7 +77,7 @@ export default class DappsVisible extends Component {
             )
           }
           {
-            this.renderList(store.sortedNetwork,
+            this.renderList(store.sortedNetwork, store.displayApps,
               <FormattedMessage
                 id='dapps.add.network.label'
                 defaultMessage='Applications on the global network'
@@ -93,7 +93,7 @@ export default class DappsVisible extends Component {
     );
   }
 
-  renderList (items, header, byline) {
+  renderList (items, visibleItems, header, byline) {
     if (!items || !items.length) {
       return null;
     }
@@ -115,27 +115,23 @@ export default class DappsVisible extends Component {
 
   renderApp = (app) => {
     const { store } = this.props;
-    const isHidden = !store.displayApps[app.id].visible;
+    const isVisible = store.displayApps[app.id].visible;
 
     const onClick = () => {
-      console.log('onClick', isHidden, app.id);
-
-      if (store.displayApps[app.id].visible) {
-        store.showApp(app.id);
-      } else {
+      if (isVisible) {
         store.hideApp(app.id);
+      } else {
+        store.showApp(app.id);
       }
-
-      console.log(store.displayApps);
     };
 
     return (
       <DappCard
         app={ app }
         className={
-          store.displayApps[app.id].visible
-            ? styles.unselected
-            : styles.selected
+          isVisible
+            ? styles.selected
+            : styles.unselected
         }
         key={ app.id }
         onClick={ onClick }
