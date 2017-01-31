@@ -17,6 +17,7 @@
 import fs from 'fs';
 import path from 'path';
 import chalk from 'chalk';
+import { isPlainObject } from 'lodash';
 
 import { Dummy } from '../src/jsonrpc/helpers';
 import interfaces from '../src/jsonrpc';
@@ -83,11 +84,6 @@ const rpcReqTemplate = {
 const { isDummy } = Dummy;
 const { isArray } = Array;
 
-// Checks if the value passed is a plain old JS object
-function isObject (val) {
-  return val != null && val.constructor === Object;
-}
-
 // Checks if a field definition has an example,
 // or describes an object with fields that recursively have examples of their own,
 // or is optional.
@@ -152,7 +148,7 @@ function stringifyExample (example, dent = '') {
     }
 
     // For arrays containing just one object or string, don't unwind the array to multiline
-    if (last === 0 && (isObject(example[0]) || typeof example[0] === 'string')) {
+    if (last === 0 && (isPlainObject(example[0]) || typeof example[0] === 'string')) {
       return `[${stringifyExample(example[0], dent)}]`;
     }
 
@@ -166,7 +162,7 @@ function stringifyExample (example, dent = '') {
     return `[\n${indent}${elements.join(`\n${indent}`)}\n${dent}]`;
   }
 
-  if (isObject(example)) {
+  if (isPlainObject(example)) {
     const keys = Object.keys(example);
     const last = keys.length - 1;
 
@@ -290,11 +286,7 @@ Object.keys(interfaces).sort().forEach((group) => {
     const sectionA = spec[a].section || '';
     const sectionB = spec[b].section || '';
 
-    if (sectionA === sectionB) {
-      return a.localeCompare(b);
-    }
-
-    return sectionA.localeCompare(sectionB);
+    return sectionA.localeCompare(sectionB) || a.localeCompare(b);
   }
 
   Object.keys(spec).sort(methodComparator).forEach((iname) => {

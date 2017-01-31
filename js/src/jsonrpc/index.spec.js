@@ -19,15 +19,11 @@ import path from 'path';
 import interfaces from './';
 import * as customTypes from './types';
 
-const allowedTypes = [Array, Boolean, Object, String];
-
-Object.keys(customTypes).map((key) => {
-  allowedTypes.push(customTypes[key]);
-});
+const allowedTypes = [Array, Boolean, Object, String].concat(Object.values(customTypes));
 
 function verifyType (obj) {
   if (typeof obj !== 'string') {
-    expect(obj).to.satisfy(() => allowedTypes.indexOf(obj.type) >= 0);
+    expect(obj).to.satisfy(() => allowedTypes.includes(obj.type));
   }
 }
 
@@ -38,7 +34,7 @@ function parseMethodsFromRust (source) {
   const commentPattern = /\s*\/\/\/\s*/g;
   const separatorPattern = /\s*,\s*/g;
   const assignPattern = /([\S]+)\s*=\s*"([^"]*)"/;
-  const ignorePattern = /@(deprecated|unimplemented|alias)\b/i;
+  const ignorePattern = /@(ignore|deprecated|unimplemented|alias)\b/i;
 
   const methods = [];
 
@@ -68,21 +64,11 @@ function parseMethodsFromRust (source) {
 function getMethodsFromRustTraits () {
   const traitsDir = path.join(__dirname, '../../../rpc/src/v1/traits');
 
-  return [
-    'eth',
-    'eth_signing', // Rolled into `eth`
-    'net',
-    'parity',
-    'parity_accounts',
-    'parity_set',
-    'parity_signing', // Rolled into `parity`
-    'personal',
-    'signer',
-    'traces',
-    'web3'
-  ].map((name) => fs.readFileSync(path.join(traitsDir, `${name}.rs`)))
-    .map(parseMethodsFromRust)
-    .reduce((a, b) => a.concat(b));
+  return fs.readdirSync(traitsDir)
+            .filter((name) => name !== 'mod.rs' && /\.rs$/.test(name))
+            .map((name) => fs.readFileSync(path.join(traitsDir, name)))
+            .map(parseMethodsFromRust)
+            .reduce((a, b) => a.concat(b));
 }
 
 const rustMethods = {};
@@ -90,25 +76,30 @@ const rustMethods = {};
 getMethodsFromRustTraits().sort().forEach((method) => {
   const [group, name] = method.split('_');
 
+  // Skip methods with malformed names
+  if (group == null || name == null) {
+    return;
+  }
+
   rustMethods[group] = rustMethods[group] || {};
   rustMethods[group][name] = true;
 });
 
-describe('Rust defined JSON-RPC methods', () => {
-  Object.keys(rustMethods).forEach((group) => {
-    describe(group, () => {
-      Object.keys(rustMethods[group]).forEach((name) => {
-        describe(name, () => {
-          it('has a defined JS interface', () => {
-            expect(interfaces[group][name]).to.exist;
+describe('jsonrpc/interfaces', () => {
+  describe('Rust trait methods', () => {
+    Object.keys(rustMethods).forEach((group) => {
+      describe(group, () => {
+        Object.keys(rustMethods[group]).forEach((name) => {
+          describe(name, () => {
+            it('has a defined JS interface', () => {
+              expect(interfaces[group][name]).to.exist;
+            });
           });
         });
       });
     });
   });
-});
 
-describe('jsonrpc/interfaces', () => {
   Object.keys(interfaces).forEach((group) => {
     describe(group, () => {
       Object.keys(interfaces[group]).forEach((name) => {
