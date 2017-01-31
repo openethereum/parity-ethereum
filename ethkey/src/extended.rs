@@ -17,7 +17,9 @@
 //! Extended keys
 
 use secret::Secret;
+use Public;
 use bigint::hash::{H256, FixedHash};
+pub use self::derivation::Error as DerivationError;
 
 struct ExtendedSecret {
 	secret: Secret,
@@ -25,6 +27,7 @@ struct ExtendedSecret {
 }
 
 impl ExtendedSecret {
+	/// New extended key from given secret and chain code
 	pub fn new(secret: Secret, chain_code: H256) -> ExtendedSecret {
 		ExtendedSecret {
 			secret: secret,
@@ -32,14 +35,13 @@ impl ExtendedSecret {
 		}
 	}
 
+	/// New extended key from given secret with the random chain code
 	pub fn new_random(secret: Secret) -> ExtendedSecret {
 		ExtendedSecret::new(secret, H256::random())
 	}
 
+	/// Derive new private key
 	pub fn derive(&self, index: u32) -> ExtendedSecret {
-		// derive new extended key (the chain code is preserved)
-		// based on this one
-
 		let (derived_key, next_chain_code) = derivation::private(*self.secret, self.chain_code, index);
 
 		let derived_secret = Secret::from_slice(&*derived_key)
@@ -48,8 +50,28 @@ impl ExtendedSecret {
 		ExtendedSecret::new(derived_secret, next_chain_code)
 	}
 
+	/// Private key component of the extended key
 	pub fn secret(&self) -> &Secret {
 		&self.secret
+	}
+}
+
+struct ExtendedPublic {
+	public: Public,
+	chain_code: H256,
+}
+
+impl ExtendedPublic {
+	/// New extended public key from known parent and chain code
+	pub fn new(public: Public, chain_code: H256) -> Self {
+		ExtendedPublic { public: public, chain_code: chain_code }
+	}
+
+	/// Derive new public key
+	/// Operation is defined only for index belongs [0..2^31)
+	pub fn derive(self, index: u32) -> Result<Self, DerivationError> {
+		let (derived_key, next_chain_code) = derivation::public(self.public, self.chain_code, index)?;
+		Ok(ExtendedPublic::new(derived_key, next_chain_code))
 	}
 }
 
@@ -61,12 +83,18 @@ mod derivation {
 	use rcrypto::hmac::Hmac;
 	use rcrypto::mac::Mac;
 	use rcrypto::sha2::Sha512;
-	use bigint::hash::{H256, FixedHash};
+	use bigint::hash::{H512, H256, FixedHash};
 	use bigint::prelude::{U256, U512, Uint};
 	use byteorder::{BigEndian, ByteOrder};
 	use secp256k1;
 	use secp256k1::key::{SecretKey, PublicKey};
 	use SECP256K1;
+
+	pub enum Error {
+		InvalidHardenedUse,
+		InvalidPoint,
+		MissingIndex,
+	}
 
 	// Deterministic derivation of the key using elliptic curve.
 	// Derivation can be either hardened or not.
@@ -132,7 +160,7 @@ mod derivation {
 
 	fn private_add(k1: U256, k2: U256) -> U256 {
 		let sum = U512::from(k1) + U512::from(k2);
-		modulo(sum, modn_space())
+		modulo(sum, curve_n())
 	}
 
 	// todo: surely can be optimized
@@ -144,8 +172,53 @@ mod derivation {
 
 	// returns n (for mod(n)) for the secp256k1 elliptic curve
 	// todo: maybe lazy static
-	fn modn_space() -> U256 {
+	fn curve_n() -> U256 {
 		H256::from_slice(&secp256k1::constants::CURVE_ORDER).into()
+	}
+
+	pub fn public(public_key: H512, chain_code: H256, index: u32) -> Result<(H512, H256), Error> {
+		if index >= (2 << 30) {
+			// public derivation is only defined on 'soft' index space [0..2^31)
+			return Err(Error::InvalidHardenedUse)
+		}
+
+		let mut public_sec_raw = [0u8; 65];
+		public_sec_raw[0] = 4;
+		public_sec_raw[1..65].copy_from_slice(&*public_key);
+		let public_sec = PublicKey::from_slice(&SECP256K1, &public_sec_raw).map_err(|_| Error::InvalidPoint)?;
+		let public_serialized = public_sec.serialize_vec(&SECP256K1, true);
+
+		let mut data = [0u8; 37];
+		// curve point (compressed public key) --  index
+		//             0.33                    --  33..37
+		data[0..33].copy_from_slice(&public_serialized);
+		BigEndian::write_u32(&mut data[33..37], index);
+
+		// HMAC512SHA produces [derived private(256); new chain code(256)]
+		let mut hmac = Hmac::new(Sha512::new(), &*chain_code);
+		let mut i_512 = [0u8; 64];
+		hmac.input(&data[..]);
+		hmac.raw_result(&mut i_512);
+
+		let new_private = H256::from(&i_512[0..32]);
+		let new_chain_code = H256::from(&i_512[32..64]);
+
+		// Generated private key can (extremely rarely) be out of secp256k1 key field
+		if curve_n() <= new_private.clone().into() { return Err(Error::MissingIndex); }
+		let new_private_sec = SecretKey::from_slice(&SECP256K1, &*new_private)
+			.expect("Private key belongs to the field [0..CURVE_ORDER) (checked above); So initializing can never fail; qed");
+		let mut new_public = PublicKey::from_secret_key(&SECP256K1, &new_private_sec)
+			.expect("Valid private key produces valid public key");
+
+		// Adding two points on the elliptic curves (combining two public keys)
+		new_public.add_assign(&SECP256K1, &public_sec);
+
+		let serialized = new_public.serialize_vec(&SECP256K1, false);
+
+		Ok((
+			H512::from(&serialized[1..65]),
+			new_chain_code,
+		))
 	}
 }
 
