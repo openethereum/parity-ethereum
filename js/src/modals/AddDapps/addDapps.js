@@ -21,7 +21,7 @@ import { FormattedMessage } from 'react-intl';
 import { ContainerTitle, DappCard, Portal, SectionList } from '~/ui';
 import { CheckIcon } from '~/ui/Icons';
 
-import styles from './dappsVisible.css';
+import styles from './addDapps.css';
 
 @observer
 export default class AddDapps extends Component {
