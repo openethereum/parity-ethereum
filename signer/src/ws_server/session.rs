@@ -164,21 +164,6 @@ impl<M: Metadata> ws::Handler for Session<M> {
 						Some(&format!("Use: http://{}", self.self_origin)),
 				));
 			}
-
-			// redirect when accessing 127.0.0.1
-			match host.map(|h| String::from_utf8_lossy(h).into_owned()) {
-				Some(ref host) if host.starts_with("127.0.0.1") => {
-					let mut response = ws::Response::ok_raw(vec![]);
-					response.set_status(302);
-					response.set_reason("Found");
-					response.headers_mut().push((
-						"Location".into(),
-						format!("http://{}:{}", HOME_DOMAIN, self.self_port).as_bytes().to_vec()
-					));
-					return Ok(response);
-				},
-				_ => {},
-			}
 		}
 
 		// PROXY requests when running behind home.parity

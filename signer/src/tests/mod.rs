@@ -140,7 +140,7 @@ mod testing {
 	}
 
 	#[test]
-	fn should_redirect_to_parity_host() {
+	fn should_not_redirect_to_parity_host() {
 		// given
 		let (server, port, _) = serve();
 
@@ -156,10 +156,7 @@ mod testing {
 		);
 
 		// then
-		assert_eq!(response.status, "HTTP/1.1 302 Found".to_owned());
-		assert!(response.headers.iter().find(
-			|header| *header == &format!("Location: http://parity.web3.site:{}", port)
-		).is_some());
+		assert_eq!(response.status, "HTTP/1.1 200 OK".to_owned());
 	}
 
 	#[test]
