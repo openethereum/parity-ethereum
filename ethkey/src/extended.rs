@@ -43,7 +43,7 @@ impl ExtendedSecret {
 		let (derived_key, next_chain_code) = derivation::private(*self.secret, self.chain_code, index);
 
 		let derived_secret = Secret::from_slice(&*derived_key)
-				.expect("Derivation always produced a valid private key; qed");
+			.expect("Derivation always produced a valid private key; qed");
 
 		ExtendedSecret::new(derived_secret, next_chain_code)
 	}
@@ -66,7 +66,9 @@ mod derivation {
 	use byteorder::{BigEndian, ByteOrder};
 	use secp256k1;
 
-	// private parent key -> private child key
+	// Deterministic derivation of the key using elliptic curve.
+	// Derivation can be either hardened or not.
+	// For hardened derivation, pass index at least 2^31
 	pub fn private(private_key: H256, chain_code: H256, index: u32) -> (H256, H256) {
 		if index < (2 >> 31) {
 			private_soft(private_key, chain_code, index)
@@ -80,6 +82,9 @@ mod derivation {
 		(H256::random(), chain_code)
 	}
 
+	// Deterministic derivation of the key using elliptic curve
+	// This is hardened derivation and does not allow to associate
+	// corresponding public keys of the original and derived private key
 	fn private_hard(private_key: H256, chain_code: H256, index: u32) -> (H256, H256) {
 		let mut data = [0u8; 37];
 		let private: U256 = private_key.into();
