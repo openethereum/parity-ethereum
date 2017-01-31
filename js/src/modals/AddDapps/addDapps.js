@@ -20,7 +20,7 @@ import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 
-import { Modal, Button } from '~/ui';
+import { Button, ContainerTitle, Portal } from '~/ui';
 import { DoneIcon } from '~/ui/Icons';
 
 import styles from './addDapps.css';
@@ -39,29 +39,18 @@ export default class AddDapps extends Component {
     }
 
     return (
-      <Modal
-        actions={ [
-          <Button
-            icon={ <DoneIcon /> }
-            key='done'
-            label={
-              <FormattedMessage
-                id='dapps.add.button.done'
-                defaultMessage='Done'
-              />
-            }
-            onClick={ store.closeModal }
-          />
-        ] }
-        compact
-        title={
-          <FormattedMessage
-            id='dapps.add.label'
-            defaultMessage='visible applications'
-          />
-        }
-        visible
+      <Portal
+        onClose={ store.closeModal }
+        open
       >
+        <ContainerTitle
+          title={
+            <FormattedMessage
+              id='dapps.add.label'
+              defaultMessage='visible applications'
+            />
+          }
+        />
         <div className={ styles.warning } />
         {
           this.renderList(store.sortedLocal,
@@ -99,7 +88,7 @@ export default class AddDapps extends Component {
             />
           )
         }
-      </Modal>
+      </Portal>
     );
   }
 
