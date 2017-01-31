@@ -52,7 +52,7 @@ export default class SignerMiddleware {
   }
 
   onConfirmStart = (store, action) => {
-    const { gas, gasPrice, id, password, payload, wallet } = action.payload;
+    const { gas = 0, gasPrice = 0, id, password, payload, wallet } = action.payload;
 
     const handlePromise = (promise) => {
       promise

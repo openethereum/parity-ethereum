@@ -126,8 +126,9 @@ export default class SignRequest extends Component {
     );
   }
 
-  onConfirm = password => {
+  onConfirm = (data) => {
     const { id } = this.props;
+    const { password } = data;
 
     this.props.onConfirm({ id, password });
   }
