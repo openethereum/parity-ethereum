@@ -21,7 +21,7 @@
 
 .container {
   margin-top: 1.5em;
-  overflow-y: scroll;
+  overflow-y: auto;
 }
 
 .description {

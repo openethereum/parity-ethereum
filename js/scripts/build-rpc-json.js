@@ -16,10 +16,13 @@
 
 import fs from 'fs';
 import path from 'path';
+import yargs from 'yargs';
 
 import interfaces from '../src/jsonrpc';
 
-const INDEX_JSON = path.join(__dirname, '../release/index.json');
+const argv = yargs.default('output', 'release').argv;
+
+const INDEX_JSON = path.join(__dirname, `../${argv.output}/index.json`);
 const methods = [];
 
 function formatDescription (obj) {

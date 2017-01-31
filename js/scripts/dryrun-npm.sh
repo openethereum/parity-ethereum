@@ -2,11 +2,16 @@
 set -e
 
 # variables
-PACKAGES=( "parity" "etherscan" "shapeshift" )
+PACKAGES=( "parity" "etherscan" "shapeshift" "jsonrpc" )
 
 # change into the build directory
 BASEDIR=`dirname $0`
 cd $BASEDIR/..
+
+# build jsonrpc
+echo "*** Building JSONRPC .json"
+mkdir -p .npmjs/jsonrpc
+npm run ci:build:jsonrpc
 
 # build all packages
 echo "*** Building packages for npmjs"
@@ -19,8 +24,6 @@ do
   DIRECTORY=.npmjs/$PACKAGE
 
   cd $DIRECTORY
-  echo "*** Executing $PACKAGE tests from $DIRECTORY"
-  npm test
 
   echo "*** Publishing $PACKAGE from $DIRECTORY"
   echo "npm publish --access public || true"
