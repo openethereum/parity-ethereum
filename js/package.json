@@ -36,6 +36,7 @@
     "ci:build:lib": "NODE_ENV=production webpack --config webpack/libraries",
     "ci:build:dll": "NODE_ENV=production webpack --config webpack/vendor",
     "ci:build:npm": "NODE_ENV=production webpack --config webpack/npm",
+    "ci:build:jsonrpc": "babel-node ./scripts/build-rpc-json.js --output .npmjs/jsonrpc",
     "start": "npm install && npm run build:lib && npm run build:dll && npm run start:app",
     "start:app": "node webpack/dev.server",
     "clean": "rm -rf ./.build ./.coverage ./.happypack ./.npmjs ./build",
@@ -48,7 +49,7 @@
     "test": "NODE_ENV=test mocha --compilers ejs:ejsify 'src/**/*.spec.js'",
     "test:coverage": "NODE_ENV=test istanbul cover _mocha -- --compilers ejs:ejsify 'src/**/*.spec.js'",
     "test:e2e": "NODE_ENV=test mocha 'src/**/*.e2e.js'",
-    "test:npm": "(cd .npmjs && npm i) && node test/npmParity && (rm -rf .npmjs/node_modules)",
+    "test:npm": "(cd .npmjs && npm i) && node test/npmParity && node test/npmJsonRpc && (rm -rf .npmjs/node_modules)",
     "prepush": "npm run lint:cached"
   },
   "devDependencies": {
@@ -135,7 +136,8 @@
     "webpack-dev-middleware": "1.9.0",
     "webpack-error-notification": "0.1.6",
     "webpack-hot-middleware": "2.14.0",
-    "websocket": "1.0.24"
+    "websocket": "1.0.24",
+    "yargs": "6.6.0"
   },
   "dependencies": {
     "bignumber.js": "3.0.1",
