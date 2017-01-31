@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import EventListener from 'react-event-listener';
 import React, { Component, PropTypes } from 'react';
 import ReactDOM from 'react-dom';
 import ReactPortal from 'react-portal';
@@ -85,11 +86,27 @@ export default class Portal extends Component {
             onKeyDown={ this.handleKeyDown }
           >
             <ParityBackground className={ styles.parityBackground } />
+            { this.renderBindings() }
             { this.renderCloseIcon() }
             { children }
           </div>
         </div>
       </ReactPortal>
+    );
+  }
+
+  renderBindings () {
+    const { expanded } = this.state;
+
+    if (!expanded) {
+      return null;
+    }
+
+    return (
+      <EventListener
+        target='window'
+        onKeyUp={ this.handleKeyUp }
+      />
     );
   }
 
@@ -121,18 +138,20 @@ export default class Portal extends Component {
 
   handleKeyDown = (event) => {
     const { onKeyDown } = this.props;
+
+    event.persist();
+    return onKeyDown
+      ? onKeyDown(event)
+      : false;
+  }
+
+  handleKeyUp = (event) => {
     const codeName = keycode(event);
 
     switch (codeName) {
       case 'esc':
         event.preventDefault();
         return this.handleClose();
-
-      default:
-        event.persist();
-        return onKeyDown
-          ? onKeyDown(event)
-          : false;
     }
   }
 
