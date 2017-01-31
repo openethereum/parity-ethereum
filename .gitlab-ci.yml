@@ -567,6 +567,7 @@ js-release:
     - master
     - beta
     - stable
+    - tags
   image: ethcore/rust:stable
   before_script:
     - export JS_FILES_MODIFIED=$(git --no-pager diff --name-only $CI_BUILD_REF^ $CI_BUILD_REF | grep ^js/ | wc -l)
