@@ -17,15 +17,15 @@
 import { shallow } from 'enzyme';
 import React from 'react';
 
-import AddDapps from './';
+import DappsVisible from './';
 
 function renderShallow (store = {}) {
   return shallow(
-    <AddDapps store={ store } />
+    <DappsVisible store={ store } />
   );
 }
 
-describe('modals/AddDapps', () => {
+describe('modals/DappsVisible', () => {
   describe('rendering', () => {
     it('renders defaults', () => {
       expect(renderShallow()).to.be.ok;

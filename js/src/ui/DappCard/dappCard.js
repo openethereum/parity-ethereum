@@ -29,15 +29,17 @@ export default class DappCard extends Component {
     children: PropTypes.node,
     className: PropTypes.string,
     onClick: PropTypes.func,
-    showLink: PropTypes.bool
+    showLink: PropTypes.bool,
+    showTags: PropTypes.bool
   };
 
   static defaultProps = {
-    withLink: false
+    showLink: false,
+    showTags: false
   };
 
   render () {
-    const { app, children, className, onClick, showLink } = this.props;
+    const { app, children, className, onClick, showLink, showTags } = this.props;
 
     if (!app) {
       return null;
@@ -54,7 +56,13 @@ export default class DappCard extends Component {
           app={ app }
           className={ styles.image }
         />
-        <Tags tags={ [app.type] } />
+        <Tags
+          tags={
+            showTags
+              ? [app.type]
+              : null
+          }
+        />
         <div className={ styles.description }>
           <ContainerTitle
             className={ styles.title }
