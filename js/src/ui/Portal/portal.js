@@ -42,27 +42,25 @@ export default class Portal extends Component {
       return null;
     }
 
-    const backClasses = [ styles.backOverlay ];
-    const classes = [
-      styles.overlay,
-      isChildModal
-        ? styles.popover
-        : styles.modal,
-      className
-    ];
-
     return (
       <ReactPortal
         isOpened
         onClose={ this.handleClose }
-        onOpen={ this.onOpen }
       >
         <div
-          className={ backClasses.join(' ') }
+          className={ styles.backOverlay }
           onClick={ this.handleClose }
         >
           <div
-            className={ classes.join(' ') }
+            className={
+              [
+                styles.overlay,
+                isChildModal
+                  ? styles.popover
+                  : styles.modal,
+                className
+              ].join(' ')
+            }
             onClick={ this.stopEvent }
             onKeyDown={ this.handleKeyDown }
           >

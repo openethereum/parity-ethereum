@@ -33,7 +33,7 @@ $popoverTop: 20vh;
 $popoverZ: 3600;
 
 .backOverlay {
-  background-color: rgba(255, 255, 255, 0.25);
+  background-color: rgba(255, 255, 255, 0.35);
   position: fixed;
   top: 0;
   right: 0;
