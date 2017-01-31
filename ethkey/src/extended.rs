@@ -65,12 +65,14 @@ mod derivation {
 	use bigint::prelude::{U256, U512, Uint};
 	use byteorder::{BigEndian, ByteOrder};
 	use secp256k1;
+	use secp256k1::key::{SecretKey, PublicKey};
+	use SECP256K1;
 
 	// Deterministic derivation of the key using elliptic curve.
 	// Derivation can be either hardened or not.
 	// For hardened derivation, pass index at least 2^31
 	pub fn private(private_key: H256, chain_code: H256, index: u32) -> (H256, H256) {
-		if index < (2 >> 31) {
+		if index < (2 << 30) {
 			private_soft(private_key, chain_code, index)
 		}
 		else {
@@ -78,20 +80,8 @@ mod derivation {
 		}
 	}
 
-	fn private_soft(_private_key: H256, chain_code: H256, _index: u32) -> (H256, H256) {
-		(H256::random(), chain_code)
-	}
-
-	// Deterministic derivation of the key using elliptic curve
-	// This is hardened derivation and does not allow to associate
-	// corresponding public keys of the original and derived private keys
-	fn private_hard(private_key: H256, chain_code: H256, index: u32) -> (H256, H256) {
-		let mut data = [0u8; 37];
+	fn hmac_pair(data: [u8; 37], private_key: H256, chain_code: H256) -> (H256, H256) {
 		let private: U256 = private_key.into();
-		// 0x00 (padding) -- chain_code --  index
-		//  0             --    1..33   -- 33..37
-		private.to_big_endian(&mut data[1..33]);
-		BigEndian::write_u32(&mut data[33..37], index);
 
 		// produces 512-bit derived hmac (I)
 		let mut hmac = Hmac::new(Sha512::new(), &*chain_code);
@@ -108,6 +98,38 @@ mod derivation {
 		(child_key, next_chain_code)
 	}
 
+	fn private_soft(private_key: H256, chain_code: H256, index: u32) -> (H256, H256) {
+		let mut data = [0u8; 37];
+
+		let sec_private = SecretKey::from_slice(&SECP256K1, &*private_key)
+			.expect("Caller should provide valid private key");
+		let sec_public = PublicKey::from_secret_key(&SECP256K1, &sec_private)
+			.expect("Caller should provide valid private key");
+		let public_serialized = sec_public.serialize_vec(&SECP256K1, true);
+
+		// curve point (compressed public key) --  index
+		//             0.33                    --  33..37
+		data[0..33].copy_from_slice(&public_serialized);
+		BigEndian::write_u32(&mut data[33..37], index);
+
+		hmac_pair(data, private_key, chain_code)
+	}
+
+	// Deterministic derivation of the key using elliptic curve
+	// This is hardened derivation and does not allow to associate
+	// corresponding public keys of the original and derived private keys
+	fn private_hard(private_key: H256, chain_code: H256, index: u32) -> (H256, H256) {
+		let mut data = [0u8; 37];
+		let private: U256 = private_key.into();
+
+		// 0x00 (padding) -- private_key --  index
+		//  0             --    1..33    -- 33..37
+		private.to_big_endian(&mut data[1..33]);
+		BigEndian::write_u32(&mut data[33..37], index);
+
+		hmac_pair(data, private_key, chain_code)
+	}
+
 	fn private_add(k1: U256, k2: U256) -> U256 {
 		let sum = U512::from(k1) + U512::from(k2);
 		modulo(sum, modn_space())
@@ -120,7 +142,7 @@ mod derivation {
 		md.into()
 	}
 
-	// returns p (for mod(p)) for the secp256k1 elliptic curve
+	// returns n (for mod(n)) for the secp256k1 elliptic curve
 	// todo: maybe lazy static
 	fn modn_space() -> U256 {
 		H256::from_slice(&secp256k1::constants::CURVE_ORDER).into()
@@ -139,8 +161,14 @@ mod tests {
 		let secret = Secret::from_str("a100df7a048e50ed308ea696dc600215098141cb391e9527329df289f9383f65").unwrap();
 		let extended_secret = ExtendedSecret::new(secret.clone(), 0u64.into());
 
+		// hardened
 		assert_eq!(&**extended_secret.secret(), &*secret);
-		assert_eq!(&**extended_secret.derive(0).secret(), &"196d2f31973452e74fb68ba167a5e74cc08bce18491648e543b150deb2217e34".into());
-		assert_eq!(&**extended_secret.derive(1).secret(), &"725e9414e64f6ae679c7ce71a29a3a92ec0fafaafd6aa14794bf1a19e34bcafc".into());
+		assert_eq!(&**extended_secret.derive(2147483648).secret(), &"0927453daed47839608e414a3738dfad10aed17c459bbd9ab53f89b026c834b6".into());
+		assert_eq!(&**extended_secret.derive(2147483649).secret(), &"44238b6a29c6dcbe9b401364141ba11e2198c289a5fed243a1c11af35c19dc0f".into());
+
+		// normal
+		assert_eq!(&**extended_secret.derive(0).secret(), &"bf6a74e3f7b36fc4c96a1e12f31abc817f9f5904f5a8fc27713163d1f0b713f6".into());
+		assert_eq!(&**extended_secret.derive(1).secret(), &"bd4fca9eb1f9c201e9448c1eecd66e302d68d4d313ce895b8c134f512205c1bc".into());
+		assert_eq!(&**extended_secret.derive(2).secret(), &"86932b542d6cab4d9c65490c7ef502d89ecc0e2a5f4852157649e3251e2a3268".into());
 	}
 }
