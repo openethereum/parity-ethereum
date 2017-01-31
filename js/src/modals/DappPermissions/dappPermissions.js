@@ -40,7 +40,7 @@ export default class DappPermissions extends Component {
       <Portal
         className={ styles.modal }
         onClose={ store.closeModal }
-        open={ store.modalOpen }
+        open
       >
         <ContainerTitle
           title={

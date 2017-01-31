@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import ReactCSSTransitionGroup from 'react-addons-css-transition-group';
 import ReactDOM from 'react-dom';
 import ReactPortal from 'react-portal';
 import keycode from 'keycode';
@@ -35,7 +36,27 @@ export default class Portal extends Component {
   };
 
   render () {
+    return (
+      <ReactCSSTransitionGroup
+        transitionName='portal'
+        transitionAppear
+        transitionAppearTimeout={ 250 }
+        transitionEnter
+        transitionEnterTimeout={ 250 }
+        transitionLeave={ false }
+      >
+        { this.renderPortal() }
+      </ReactCSSTransitionGroup>
+    );
+  }
+
+  renderPortal () {
     const { children, className, isChildModal, open } = this.props;
+
+    if (!open) {
+      return null;
+    }
+
     const backClasses = [ styles.backOverlay ];
     const classes = [
       styles.overlay,
@@ -47,21 +68,28 @@ export default class Portal extends Component {
 
     return (
       <ReactPortal
-        isOpened={ open }
+        isOpened
+        key='portal'
         onClose={ this.handleClose }
       >
         <div
           className={ backClasses.join(' ') }
+          key='overlay'
           onClick={ this.handleClose }
         >
           <div
             className={ classes.join(' ') }
+            key='contents'
             onClick={ this.stopEvent }
             onKeyDown={ this.handleKeyDown }
           >
-            <ParityBackground className={ styles.parityBackground } />
+            <ParityBackground
+              className={ styles.parityBackground }
+              key='background'
+            />
             <div
               className={ styles.closeIcon }
+              key='close'
               onClick={ this.handleClose }
             >
               <CloseIcon />

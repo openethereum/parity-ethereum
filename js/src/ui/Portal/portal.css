@@ -32,24 +32,27 @@ $popoverRight: $modalMargin;
 $popoverTop: 20vh;
 $popoverZ: 3600;
 
+.portal-appear,
+.portal-enter {
+  opacity: 0.01;
+  transform: scale(0.1);
+  transition: all 0.25s ease-in-out;
+}
+
+.portal-appear.portal-appear-active,
+.portal-enter.portal-enter-active {
+  transform: scale(1.0);
+  opacity: 1;
+}
+
 .backOverlay {
   background-color: rgba(255, 255, 255, 0.25);
-  opacity: 0;
   position: fixed;
   top: 0;
   right: 0;
   bottom: 0;
   left: 0;
-  transform-origin: 100% 0;
-  transition-duration: 0.25s;
-  transition-property: opacity, z-index;
-  transition-timing-function: ease-out;
-  z-index: -10;
-
-  &.expanded {
-    opacity: 1;
-    z-index: $modalBackZ;
-  }
+  z-index: $modalBackZ;
 }
 
 .parityBackground {
@@ -59,7 +62,6 @@ $popoverZ: 3600;
   left: 0;
   right: 0;
   opacity: 0.25;
-  z-index: -1;
 }
 
 .overlay {
@@ -68,10 +70,6 @@ $popoverZ: 3600;
   display: flex;
   padding: 1.5em;
   position: fixed;
-  transform-origin: 100% 0;
-  transition-duration: 0.25s;
-  transition-property: opacity, z-index;
-  transition-timing-function: ease-out;
 
   * {
     min-width: 0;
@@ -99,9 +97,6 @@ $popoverZ: 3600;
   position: absolute;
   right: 1rem;
   top: 0.5rem;
-  transition-duration: 0.25s;
-  transition-property: opacity;
-  transition-timing-function: ease-out;
   z-index: 100;
 
   &, * {
