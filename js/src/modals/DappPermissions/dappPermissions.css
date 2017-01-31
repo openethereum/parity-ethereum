@@ -21,10 +21,12 @@
 
 .container {
   margin-top: 1.5em;
-  overflow-y: scroll;
+  overflow-y: auto;
 }
 
 .item {
+  display: flex;
+  flex: 1;
   position: relative;
 
   .overlay {
