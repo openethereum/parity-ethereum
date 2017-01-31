@@ -19,6 +19,7 @@
 #![warn(missing_docs)]
 #![cfg_attr(feature="nightly", plugin(clippy))]
 
+extern crate base32;
 extern crate hyper;
 extern crate time;
 extern crate url as url_lib;
@@ -91,11 +92,11 @@ impl<F> SyncStatus for F where F: Fn() -> bool + Send + Sync {
 /// Validates Web Proxy tokens
 pub trait WebProxyTokens: Send + Sync {
 	/// Should return true if token is a valid web proxy access token.
-	fn is_web_proxy_token_valid(&self, token: &String) -> bool;
+	fn is_web_proxy_token_valid(&self, token: &str) -> bool;
 }
 
 impl<F> WebProxyTokens for F where F: Fn(String) -> bool + Send + Sync {
-	fn is_web_proxy_token_valid(&self, token: &String) -> bool { self(token.to_owned()) }
+	fn is_web_proxy_token_valid(&self, token: &str) -> bool { self(token.to_owned()) }
 }
 
 /// Webapps HTTP+RPC server build.
@@ -409,6 +410,6 @@ mod util_tests {
 
 		// then
 		assert_eq!(none, Vec::<String>::new());
-		assert_eq!(some, vec!["http://home.parity".to_owned(), "http://127.0.0.1:18180".into()]);
+		assert_eq!(some, vec!["http://parity.web3.site".to_owned(), "http://127.0.0.1:18180".into()]);
 	}
 }

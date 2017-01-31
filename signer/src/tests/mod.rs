@@ -126,8 +126,8 @@ mod testing {
 		// when
 		let response = request(server,
 			"\
-				GET http://home.parity/ HTTP/1.1\r\n\
-				Host: home.parity\r\n\
+				GET http://parity.web3.site/ HTTP/1.1\r\n\
+				Host: parity.web3.site\r\n\
 				Connection: close\r\n\
 				\r\n\
 				{}
@@ -137,6 +137,26 @@ mod testing {
 		// then
 		assert_eq!(response.status, "HTTP/1.1 200 OK".to_owned());
 		http_client::assert_security_headers_present(&response.headers, None);
+	}
+
+	#[test]
+	fn should_not_redirect_to_parity_host() {
+		// given
+		let (server, port, _) = serve();
+
+		// when
+		let response = request(server,
+			&format!("\
+				GET / HTTP/1.1\r\n\
+				Host: 127.0.0.1:{}\r\n\
+				Connection: close\r\n\
+				\r\n\
+				{{}}
+			", port)
+		);
+
+		// then
+		assert_eq!(response.status, "HTTP/1.1 200 OK".to_owned());
 	}
 
 	#[test]
@@ -168,8 +188,8 @@ mod testing {
 		// when
 		let response = request(server,
 			"\
-				CONNECT home.parity:8080 HTTP/1.1\r\n\
-				Host: home.parity\r\n\
+				CONNECT parity.web3.site:8080 HTTP/1.1\r\n\
+				Host: parity.web3.site\r\n\
 				Connection: close\r\n\
 				\r\n\
 				{}
