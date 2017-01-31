@@ -170,7 +170,6 @@
     "qs": "6.3.0",
     "react": "15.4.1",
     "react-ace": "4.1.0",
-    "react-addons-css-transition-group": "15.4.1",
     "react-copy-to-clipboard": "4.2.3",
     "react-dom": "15.4.1",
     "react-dropzone": "3.7.3",
