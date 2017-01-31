@@ -35,6 +35,9 @@ import PrevIcon from 'material-ui/svg-icons/navigation/arrow-back';
 import SaveIcon from 'material-ui/svg-icons/content/save';
 import SendIcon from 'material-ui/svg-icons/content/send';
 import SnoozeIcon from 'material-ui/svg-icons/av/snooze';
+import StarCircleIcon from 'material-ui/svg-icons/action/stars';
+import StarIcon from 'material-ui/svg-icons/toggle/star';
+import StarOutlineIcon from 'material-ui/svg-icons/toggle/star-border';
 import VerifyIcon from 'material-ui/svg-icons/action/verified-user';
 import VisibleIcon from 'material-ui/svg-icons/image/remove-red-eye';
 import VpnIcon from 'material-ui/svg-icons/notification/vpn-lock';
@@ -61,6 +64,9 @@ export {
   SaveIcon,
   SendIcon,
   SnoozeIcon,
+  StarIcon,
+  StarCircleIcon,
+  StarOutlineIcon,
   VerifyIcon,
   VisibleIcon,
   VpnIcon

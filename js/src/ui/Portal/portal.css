@@ -33,23 +33,13 @@ $popoverTop: 20vh;
 $popoverZ: 3600;
 
 .backOverlay {
-  background-color: rgba(255, 255, 255, 0.25);
-  opacity: 0;
+  background-color: rgba(255, 255, 255, 0.35);
   position: fixed;
   top: 0;
   right: 0;
   bottom: 0;
   left: 0;
-  transform-origin: 100% 0;
-  transition-duration: 0.25s;
-  transition-property: opacity, z-index;
-  transition-timing-function: ease-out;
-  z-index: -10;
-
-  &.expanded {
-    opacity: 1;
-    z-index: $modalBackZ;
-  }
+  z-index: $modalBackZ;
 }
 
 .parityBackground {
@@ -59,21 +49,14 @@ $popoverZ: 3600;
   left: 0;
   right: 0;
   opacity: 0.25;
-  z-index: -1;
 }
 
 .overlay {
   background-color: rgba(0, 0, 0, 1);
   box-sizing: border-box;
   display: flex;
-  opacity: 0;
   padding: 1.5em;
   position: fixed;
-  transform-origin: 100% 0;
-  transition-duration: 0.25s;
-  transition-property: opacity, z-index;
-  transition-timing-function: ease-out;
-  z-index: -10;
 
   * {
     min-width: 0;
@@ -84,6 +67,7 @@ $popoverZ: 3600;
     left: $modalLeft;
     right: $modalRight;
     top: $modalTop;
+    z-index: $modalZ;
   }
 
   &.popover {
@@ -91,18 +75,7 @@ $popoverZ: 3600;
     top: $popoverTop;
     height: calc(100vh - $popoverTop - $popoverBottom);
     width: calc(100vw - $popoverLeft - $popoverRight);
-  }
-
-  &.expanded {
-    opacity: 1;
-
-    &.popover {
-      z-index: $popoverZ;
-    }
-
-    &.modal {
-      z-index: $modalZ;
-    }
+    z-index: $popoverZ;
   }
 }
 
@@ -111,9 +84,6 @@ $popoverZ: 3600;
   position: absolute;
   right: 1rem;
   top: 0.5rem;
-  transition-duration: 0.25s;
-  transition-property: opacity;
-  transition-timing-function: ease-out;
   z-index: 100;
 
   &, * {
