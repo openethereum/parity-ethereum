@@ -120,7 +120,7 @@ export default class SignerMiddleware {
         });
     }
 
-    handlePromise(this._api.signer.confirmRequest(id, {gas, gasPrice}, password.password));
+    handlePromise(this._api.signer.confirmRequest(id, { gas, gasPrice }, password.password));
   }
 
   onRejectStart = (store, action) => {
