@@ -76,6 +76,12 @@ export default class Parity {
       .execute('parity_dappsInterface');
   }
 
+  defaultAccount () {
+    return this._transport
+      .execute('parity_defaultAccount')
+      .then(outAddress);
+  }
+
   defaultExtraData () {
     return this._transport
       .execute('parity_defaultExtraData');

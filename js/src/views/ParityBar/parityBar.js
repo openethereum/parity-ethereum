@@ -14,25 +14,28 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import { throttle } from 'lodash';
+import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
 import ReactDOM from 'react-dom';
 import { FormattedMessage } from 'react-intl';
 import { Link } from 'react-router';
 import { connect } from 'react-redux';
-import { throttle } from 'lodash';
 import store from 'store';
 
 import imagesEthcoreBlock from '~/../assets/images/parity-logo-white-no-text.svg';
+import { Badge, Button, ContainerTitle, IdentityIcon, ParityBackground } from '~/ui';
 import { CancelIcon, FingerprintIcon } from '~/ui/Icons';
-import { Badge, Button, ContainerTitle, ParityBackground } from '~/ui';
-import { Embedded as Signer } from '../Signer';
 import DappsStore from '~/views/Dapps/dappsStore';
+import { Embedded as Signer } from '~/views/Signer';
 
+import AccountStore from './accountStore';
 import styles from './parityBar.css';
 
 const LS_STORE_KEY = '_parity::parityBar';
 const DEFAULT_POSITION = { right: '1em', bottom: 0 };
 
+@observer
 class ParityBar extends Component {
   app = null;
   measures = null;
@@ -43,6 +46,7 @@ class ParityBar extends Component {
   };
 
   static propTypes = {
+    accounts: PropTypes.object.isRequired,
     dapp: PropTypes.bool,
     externalLink: PropTypes.string,
     pending: PropTypes.array
@@ -66,6 +70,9 @@ class ParityBar extends Component {
 
   componentWillMount () {
     const { api } = this.context;
+    const { accounts } = this.props;
+
+    this.accountStore = new AccountStore(api, accounts);
 
     // Hook to the dapp loaded event to position the
     // Parity Bar accordingly
@@ -189,6 +196,17 @@ class ParityBar extends Component {
       <div
         className={ styles.cornercolor }
       >
+        <Button
+          className={ styles.button }
+          icon={
+            <IdentityIcon
+              address={ this.accountStore.defaultAccount }
+              button
+              center
+              inline
+            />
+          }
+        />
         {
           this.renderLink(
             <Button
@@ -558,9 +576,11 @@ class ParityBar extends Component {
 }
 
 function mapStateToProps (state) {
+  const { accounts } = state.personal;
   const { pending } = state.signer;
 
   return {
+    accounts,
     pending
   };
 }
