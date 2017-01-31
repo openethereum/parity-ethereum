@@ -58,25 +58,28 @@ export default class AccountCard extends Component {
         onFocus={ this.onFocus }
         onKeyDown={ this.handleKeyDown }
       >
-        <IdentityIcon address={ address } />
-        <div className={ styles.accountInfo }>
-          <div className={ styles.accountName }>
-            <IdentityName
-              address={ address }
-              name={ name }
-              unknown
-            />
+        <div className={ styles.infoContainer }>
+          <IdentityIcon address={ address } />
+          <div className={ styles.accountInfo }>
+            <div className={ styles.accountName }>
+              <IdentityName
+                address={ address }
+                name={ name }
+                unknown
+              />
+            </div>
+            { this.renderDescription(description) }
+            { this.renderAddress(address) }
           </div>
-          <Tags tags={ tags } />
-          { this.renderDescription(description) }
-          { this.renderAddress(address) }
-          <Balance
-            balance={ balance }
-            className={ styles.balance }
-            showOnlyEth
-            showZeroValues
-          />
         </div>
+
+        <Tags tags={ tags } />
+        <Balance
+          balance={ balance }
+          className={ styles.balance }
+          showOnlyEth
+          showZeroValues
+        />
       </div>
     );
   }
