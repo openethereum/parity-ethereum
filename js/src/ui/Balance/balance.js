@@ -16,31 +16,46 @@
 
 import BigNumber from 'bignumber.js';
 import React, { Component, PropTypes } from 'react';
+import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 
-import unknownImage from '../../../assets/images/contracts/unknown-64x64.png';
+import unknownImage from '~/../assets/images/contracts/unknown-64x64.png';
+
 import styles from './balance.css';
 
 class Balance extends Component {
   static contextTypes = {
     api: PropTypes.object
-  }
+  };
 
   static propTypes = {
     balance: PropTypes.object,
-    images: PropTypes.object.isRequired
-  }
+    className: PropTypes.string,
+    images: PropTypes.object.isRequired,
+    showOnlyEth: PropTypes.bool,
+    showZeroValues: PropTypes.bool
+  };
+
+  static defaultProps = {
+    showOnlyEth: false,
+    showZeroValues: false
+  };
 
   render () {
     const { api } = this.context;
-    const { balance, images } = this.props;
+    const { balance, className, images, showZeroValues, showOnlyEth } = this.props;
 
-    if (!balance) {
+    if (!balance || !balance.tokens) {
       return null;
     }
 
-    let body = (balance.tokens || [])
-      .filter((balance) => new BigNumber(balance.value).gt(0))
+    let body = balance.tokens
+      .filter((balance) => {
+        const hasBalance = showZeroValues || new BigNumber(balance.value).gt(0);
+        const isValidToken = !showOnlyEth || (balance.token.tag || '').toLowerCase() === 'eth';
+
+        return hasBalance && isValidToken;
+      })
       .map((balance, index) => {
         const token = balance.token;
 
@@ -95,13 +110,16 @@ class Balance extends Component {
     if (!body.length) {
       body = (
         <div className={ styles.empty }>
-          There are no balances associated with this account
+          <FormattedMessage
+            id='ui.balance.none'
+            defaultMessage='There are no balances associated with this account'
+          />
         </div>
       );
     }
 
     return (
-      <div className={ styles.balances }>
+      <div className={ [styles.balances, className].join(' ') }>
         { body }
       </div>
     );
