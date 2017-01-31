@@ -24,9 +24,9 @@ use ethcore::account_provider::AccountProvider;
 use ethcore::client::MiningBlockChainClient;
 
 use jsonrpc_core::Error;
+use v1::helpers::errors;
 use v1::traits::ParityAccounts;
 use v1::types::{H160 as RpcH160, H256 as RpcH256, DappId};
-use v1::helpers::errors;
 
 /// Account management (personal) rpc implementation.
 pub struct ParityAccountsClient<C> where C: MiningBlockChainClient {

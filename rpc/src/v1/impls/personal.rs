@@ -22,21 +22,29 @@ use ethcore::client::MiningBlockChainClient;
 use ethcore::miner::MinerService;
 use util::{Address, U128, Uint};
 
+use futures::{self, Future, BoxFuture};
 use jsonrpc_core::Error;
-use v1::traits::Personal;
-use v1::types::{H160 as RpcH160, H256 as RpcH256, U128 as RpcU128, TransactionRequest};
 use v1::helpers::errors;
 use v1::helpers::dispatch::{self, sign_and_dispatch};
+use v1::traits::Personal;
+use v1::types::{H160 as RpcH160, H256 as RpcH256, U128 as RpcU128, TransactionRequest};
+use v1::metadata::Metadata;
 
 /// Account management (personal) rpc implementation.
-pub struct PersonalClient<C, M> where C: MiningBlockChainClient, M: MinerService {
+pub struct PersonalClient<C, M> where
+	C: MiningBlockChainClient,
+	M: MinerService,
+{
 	accounts: Weak<AccountProvider>,
 	client: Weak<C>,
 	miner: Weak<M>,
 	allow_perm_unlock: bool,
 }
 
-impl<C, M> PersonalClient<C, M> where C: MiningBlockChainClient, M: MinerService {
+impl<C, M> PersonalClient<C, M> where
+	C: MiningBlockChainClient,
+	M: MinerService,
+{
 	/// Creates new PersonalClient
 	pub fn new(store: &Arc<AccountProvider>, client: &Arc<C>, miner: &Arc<M>, allow_perm_unlock: bool) -> Self {
 		PersonalClient {
@@ -54,7 +62,12 @@ impl<C, M> PersonalClient<C, M> where C: MiningBlockChainClient, M: MinerService
 	}
 }
 
-impl<C: 'static, M: 'static> Personal for PersonalClient<C, M> where C: MiningBlockChainClient, M: MinerService {
+impl<C, M> Personal for PersonalClient<C, M> where
+	C: MiningBlockChainClient + 'static,
+	M: MinerService + 'static,
+{
+	type Metadata = Metadata;
+
 	fn accounts(&self) -> Result<Vec<RpcH160>, Error> {
 		self.active()?;
 
@@ -102,19 +115,30 @@ impl<C: 'static, M: 'static> Personal for PersonalClient<C, M> where C: MiningBl
 		}
 	}
 
-	fn send_transaction(&self, request: TransactionRequest, password: String) -> Result<RpcH256, Error> {
-		self.active()?;
-		let client = take_weak!(self.client);
-		let miner = take_weak!(self.miner);
-		let accounts = take_weak!(self.accounts);
+	fn send_transaction(&self, meta: Metadata, request: TransactionRequest, password: String) -> BoxFuture<RpcH256, Error> {
+		let sign_and_send = move || {
+			self.active()?;
+			let client = take_weak!(self.client);
+			let miner = take_weak!(self.miner);
+			let accounts = take_weak!(self.accounts);
 
-		let request = dispatch::fill_optional_fields(request.into(), &*client, &*miner);
-		sign_and_dispatch(
-			&*client,
-			&*miner,
-			&*accounts,
-			request,
-			dispatch::SignWith::Password(password)
-		).map(|v| v.into_value().into())
+			let default_account = match request.from {
+				Some(ref account) => account.clone().into(),
+				None => accounts
+					.default_address(meta.dapp_id.unwrap_or_default().into())
+					.map_err(|e| errors::account("Cannot find default account.", e))?,
+			};
+
+			let request = dispatch::fill_optional_fields(request.into(), default_account, &*client, &*miner);
+			sign_and_dispatch(
+				&*client,
+				&*miner,
+				&*accounts,
+				request,
+				dispatch::SignWith::Password(password)
+			).map(|v| v.into_value().into())
+		};
+
+		futures::done(sign_and_send()).boxed()
 	}
 }

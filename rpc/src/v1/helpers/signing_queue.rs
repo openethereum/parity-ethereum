@@ -19,12 +19,35 @@ use std::cell::RefCell;
 use std::sync::{mpsc, Arc};
 use std::collections::BTreeMap;
 use jsonrpc_core;
-use util::{Mutex, RwLock, U256};
+use util::{Mutex, RwLock, U256, Address};
+use ethcore::account_provider::DappId;
 use v1::helpers::{ConfirmationRequest, ConfirmationPayload};
-use v1::types::ConfirmationResponse;
+use v1::metadata::Metadata;
+use v1::types::{ConfirmationResponse, H160 as RpcH160};
 
 /// Result that can be returned from JSON RPC.
 pub type RpcResult = Result<ConfirmationResponse, jsonrpc_core::Error>;
+
+
+/// Type of default account
+pub enum DefaultAccount {
+	/// Default account is known
+	Provided(Address),
+	/// Should use default account for dapp
+	ForDapp(DappId),
+}
+
+impl From<Metadata> for DefaultAccount {
+	fn from(meta: Metadata) -> Self {
+		DefaultAccount::ForDapp(meta.dapp_id.unwrap_or_default().into())
+	}
+}
+
+impl From<RpcH160> for DefaultAccount {
+	fn from(address: RpcH160) -> Self {
+		DefaultAccount::Provided(address.into())
+	}
+}
 
 /// Possible events happening in the queue that can be listened to.
 #[derive(Debug, PartialEq)]
@@ -319,6 +342,7 @@ mod test {
 	fn request() -> ConfirmationPayload {
 		ConfirmationPayload::SendTransaction(FilledTransactionRequest {
 			from: Address::from(1),
+			used_default_from: false,
 			to: Some(Address::from(2)),
 			gas_price: 0.into(),
 			gas: 10_000.into(),

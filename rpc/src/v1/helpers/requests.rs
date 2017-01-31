@@ -20,7 +20,7 @@ use util::{Address, U256, Bytes};
 #[derive(Debug, Clone, Default, Eq, PartialEq, Hash)]
 pub struct TransactionRequest {
 	/// Sender
-	pub from: Address,
+	pub from: Option<Address>,
 	/// Recipient
 	pub to: Option<Address>,
 	/// Gas Price
@@ -42,6 +42,8 @@ pub struct TransactionRequest {
 pub struct FilledTransactionRequest {
 	/// Sender
 	pub from: Address,
+	/// Indicates if the sender was filled by default value.
+	pub used_default_from: bool,
 	/// Recipient
 	pub to: Option<Address>,
 	/// Gas Price
@@ -61,7 +63,7 @@ pub struct FilledTransactionRequest {
 impl From<FilledTransactionRequest> for TransactionRequest {
 	fn from(r: FilledTransactionRequest) -> Self {
 		TransactionRequest {
-			from: r.from,
+			from: Some(r.from),
 			to: r.to,
 			gas_price: Some(r.gas_price),
 			gas: Some(r.gas),

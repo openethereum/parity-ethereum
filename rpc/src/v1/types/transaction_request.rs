@@ -27,7 +27,7 @@ use std::fmt;
 #[serde(deny_unknown_fields)]
 pub struct TransactionRequest {
 	/// Sender
-	pub from: H160,
+	pub from: Option<H160>,
 	/// Recipient
 	pub to: Option<H160>,
 	/// Gas Price
@@ -86,7 +86,7 @@ impl fmt::Display for TransactionRequest {
 impl From<helpers::TransactionRequest> for TransactionRequest {
 	fn from(r: helpers::TransactionRequest) -> Self {
 		TransactionRequest {
-			from: r.from.into(),
+			from: r.from.map(Into::into),
 			to: r.to.map(Into::into),
 			gas_price: r.gas_price.map(Into::into),
 			gas: r.gas.map(Into::into),
@@ -101,7 +101,7 @@ impl From<helpers::TransactionRequest> for TransactionRequest {
 impl From<helpers::FilledTransactionRequest> for TransactionRequest {
 	fn from(r: helpers::FilledTransactionRequest) -> Self {
 		TransactionRequest {
-			from: r.from.into(),
+			from: Some(r.from.into()),
 			to: r.to.map(Into::into),
 			gas_price: Some(r.gas_price.into()),
 			gas: Some(r.gas.into()),
@@ -116,7 +116,7 @@ impl From<helpers::FilledTransactionRequest> for TransactionRequest {
 impl Into<helpers::TransactionRequest> for TransactionRequest {
 	fn into(self) -> helpers::TransactionRequest {
 		helpers::TransactionRequest {
-			from: self.from.into(),
+			from: self.from.map(Into::into),
 			to: self.to.map(Into::into),
 			gas_price: self.gas_price.map(Into::into),
 			gas: self.gas.map(Into::into),
@@ -152,7 +152,7 @@ mod tests {
 		let deserialized: TransactionRequest = serde_json::from_str(s).unwrap();
 
 		assert_eq!(deserialized, TransactionRequest {
-			from: H160::from(1),
+			from: Some(H160::from(1)),
 			to: Some(H160::from(2)),
 			gas_price: Some(U256::from(1)),
 			gas: Some(U256::from(2)),
@@ -176,7 +176,7 @@ mod tests {
 		let deserialized: TransactionRequest = serde_json::from_str(s).unwrap();
 
 		assert_eq!(deserialized, TransactionRequest {
-			from: H160::from_str("b60e8dd61c5d32be8058bb8eb970870f07233155").unwrap(),
+			from: Some(H160::from_str("b60e8dd61c5d32be8058bb8eb970870f07233155").unwrap()),
 			to: Some(H160::from_str("d46e8dd67c5d32be8058bb8eb970870f07244567").unwrap()),
 			gas_price: Some(U256::from_str("9184e72a000").unwrap()),
 			gas: Some(U256::from_str("76c0").unwrap()),
@@ -193,7 +193,7 @@ mod tests {
 		let deserialized: TransactionRequest = serde_json::from_str(s).unwrap();
 
 		assert_eq!(deserialized, TransactionRequest {
-			from: H160::from(1).into(),
+			from: Some(H160::from(1).into()),
 			to: None,
 			gas_price: None,
 			gas: None,
@@ -217,7 +217,7 @@ mod tests {
 		let deserialized: TransactionRequest = serde_json::from_str(s).unwrap();
 
 		assert_eq!(deserialized, TransactionRequest {
-			from: H160::from_str("b5f7502a2807cb23615c7456055e1d65b2508625").unwrap(),
+			from: Some(H160::from_str("b5f7502a2807cb23615c7456055e1d65b2508625").unwrap()),
 			to: Some(H160::from_str("895d32f2db7d01ebb50053f9e48aacf26584fe40").unwrap()),
 			gas_price: Some(U256::from_str("0ba43b7400").unwrap()),
 			gas: Some(U256::from_str("2fd618").unwrap()),

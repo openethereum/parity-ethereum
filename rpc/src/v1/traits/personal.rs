@@ -17,11 +17,15 @@
 //! Personal rpc interface.
 use jsonrpc_core::Error;
 
+use futures::BoxFuture;
+
 use v1::types::{U128, H160, H256, TransactionRequest};
 
 build_rpc_trait! {
 	/// Personal rpc interface. Safe (read-only) functions.
 	pub trait Personal {
+		type Metadata;
+
 		/// Lists all stored accounts
 		#[rpc(name = "personal_listAccounts")]
 		fn accounts(&self) -> Result<Vec<H160>, Error>;
@@ -36,7 +40,7 @@ build_rpc_trait! {
 		fn unlock_account(&self, H160, String, Option<U128>) -> Result<bool, Error>;
 
 		/// Sends transaction and signs it in single call. The account is not unlocked in such case.
-		#[rpc(name = "personal_sendTransaction")]
-		fn send_transaction(&self, TransactionRequest, String) -> Result<H256, Error>;
+		#[rpc(meta, name = "personal_sendTransaction")]
+		fn send_transaction(&self, Self::Metadata, TransactionRequest, String) -> BoxFuture<H256, Error>;
 	}
 }

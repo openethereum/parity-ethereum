@@ -267,6 +267,7 @@ mod tests {
 			id: 15.into(),
 			payload: helpers::ConfirmationPayload::SendTransaction(helpers::FilledTransactionRequest {
 				from: 0.into(),
+				used_default_from: false,
 				to: None,
 				gas: 15_000.into(),
 				gas_price: 10_000.into(),
@@ -292,6 +293,7 @@ mod tests {
 			id: 15.into(),
 			payload: helpers::ConfirmationPayload::SignTransaction(helpers::FilledTransactionRequest {
 				from: 0.into(),
+				used_default_from: false,
 				to: None,
 				gas: 15_000.into(),
 				gas_price: 10_000.into(),
