@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -18,31 +18,48 @@ import sinon from 'sinon';
 
 import Personal from './personal';
 
+const TEST_DEFAULT = '0xfa64203C044691aA57251aF95f4b48d85eC00Dd5';
 const TEST_INFO = {
-  '0xfa64203C044691aA57251aF95f4b48d85eC00Dd5': {
+  [TEST_DEFAULT]: {
     name: 'test'
   }
 };
-const TEST_LIST = ['0xfa64203C044691aA57251aF95f4b48d85eC00Dd5'];
+const TEST_LIST = [TEST_DEFAULT];
 
 function stubApi (accounts, info) {
   const _calls = {
+    accountsInfo: [],
     allAccountsInfo: [],
-    listAccounts: []
+    listAccounts: [],
+    defaultAccount: []
   };
 
   return {
     _calls,
     parity: {
+      accountsInfo: () => {
+        const stub = sinon.stub().resolves(info || TEST_INFO)();
+
+        _calls.accountsInfo.push(stub);
+        return stub;
+      },
       allAccountsInfo: () => {
         const stub = sinon.stub().resolves(info || TEST_INFO)();
+
         _calls.allAccountsInfo.push(stub);
+        return stub;
+      },
+      defaultAccount: () => {
+        const stub = sinon.stub().resolves(Object.keys(info || TEST_INFO)[0])();
+
+        _calls.defaultAccount.push(stub);
         return stub;
       }
     },
     eth: {
       accounts: () => {
         const stub = sinon.stub().resolves(accounts || TEST_LIST)();
+
         _calls.listAccounts.push(stub);
         return stub;
       }
@@ -85,6 +102,10 @@ describe('api/subscriptions/personal', () => {
         expect(personal.isStarted).to.be.true;
       });
 
+      it('calls parity_accountsInfo', () => {
+        expect(api._calls.accountsInfo.length).to.be.ok;
+      });
+
       it('calls parity_allAccountsInfo', () => {
         expect(api._calls.allAccountsInfo.length).to.be.ok;
       });
@@ -94,8 +115,10 @@ describe('api/subscriptions/personal', () => {
       });
 
       it('updates subscribers', () => {
-        expect(cb.firstCall).to.have.been.calledWith('eth_accounts', null, TEST_LIST);
-        expect(cb.secondCall).to.have.been.calledWith('parity_allAccountsInfo', null, TEST_INFO);
+        expect(cb).to.have.been.calledWith('parity_defaultAccount', null, TEST_DEFAULT);
+        expect(cb).to.have.been.calledWith('eth_accounts', null, TEST_LIST);
+        expect(cb).to.have.been.calledWith('parity_accountsInfo', null, TEST_INFO);
+        expect(cb).to.have.been.calledWith('parity_allAccountsInfo', null, TEST_INFO);
       });
     });
 
@@ -110,7 +133,15 @@ describe('api/subscriptions/personal', () => {
         expect(personal.isStarted).to.be.true;
       });
 
+      it('calls parity_defaultAccount', () => {
+        expect(api._calls.defaultAccount.length).to.be.ok;
+      });
+
       it('calls personal_accountsInfo', () => {
+        expect(api._calls.accountsInfo.length).to.be.ok;
+      });
+
+      it('calls personal_allAccountsInfo', () => {
         expect(api._calls.allAccountsInfo.length).to.be.ok;
       });
 
