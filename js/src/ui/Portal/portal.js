@@ -20,6 +20,8 @@ import ReactDOM from 'react-dom';
 import ReactPortal from 'react-portal';
 import keycode from 'keycode';
 
+import { nodeOrStringProptype } from '~/util/proptypes';
+import { Title as ContainerTitle } from '~/ui/Container';
 import { CloseIcon } from '~/ui/Icons';
 import ParityBackground from '~/ui/ParityBackground';
 
@@ -29,10 +31,12 @@ export default class Portal extends Component {
   static propTypes = {
     onClose: PropTypes.func.isRequired,
     open: PropTypes.bool.isRequired,
+    buttons: PropTypes.array,
     children: PropTypes.node,
     className: PropTypes.string,
     isChildModal: PropTypes.bool,
-    onKeyDown: PropTypes.func
+    onKeyDown: PropTypes.func,
+    title: nodeOrStringProptype()
   };
 
   render () {
@@ -69,16 +73,45 @@ export default class Portal extends Component {
               onKeyUp={ this.handleKeyUp }
             />
             <ParityBackground className={ styles.parityBackground } />
-            <div
+            <CloseIcon
               className={ styles.closeIcon }
               onClick={ this.handleClose }
-            >
-              <CloseIcon />
-            </div>
+            />
+            { this.renderTitle() }
             { children }
+            { this.renderButtons() }
           </div>
         </div>
       </ReactPortal>
+    );
+  }
+
+  renderButtons () {
+    const { buttons } = this.props;
+
+    if (!buttons) {
+      return null;
+    }
+
+    return (
+      <div className={ styles.buttonRow }>
+        { buttons }
+      </div>
+    );
+  }
+
+  renderTitle () {
+    const { title } = this.props;
+
+    if (!title) {
+      return null;
+    }
+
+    return (
+      <ContainerTitle
+        className={ styles.titleRow }
+        title={ title }
+      />
     );
   }
 
@@ -95,6 +128,7 @@ export default class Portal extends Component {
     const { onKeyDown } = this.props;
 
     event.persist();
+
     return onKeyDown
       ? onKeyDown(event)
       : false;
@@ -111,10 +145,11 @@ export default class Portal extends Component {
   }
 
   handleDOMAction = (ref, method) => {
-    const refItem = typeof ref === 'string'
-      ? this.refs[ref]
-      : ref;
-    const element = ReactDOM.findDOMNode(refItem);
+    const element = ReactDOM.findDOMNode(
+      typeof ref === 'string'
+        ? this.refs[ref]
+        : ref
+    );
 
     if (!element || typeof element[method] !== 'function') {
       console.warn('could not find', ref, 'or method', method);

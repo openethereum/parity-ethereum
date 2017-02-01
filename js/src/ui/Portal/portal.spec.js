@@ -44,4 +44,27 @@ describe('ui/Portal', () => {
   it('renders defaults', () => {
     expect(component).to.be.ok;
   });
+
+  describe('title rendering', () => {
+    const TITLE = 'some test title';
+    let preTitle;
+    let title;
+
+    beforeEach(() => {
+      preTitle = component.find('ContainerTitle');
+      title = render({ title: TITLE }).find('ContainerTitle');
+    });
+
+    it('renders no title with none specified', () => {
+      expect(preTitle).to.have.length(0);
+    });
+
+    it('renders the specified title', () => {
+      expect(title).to.have.length(1);
+    });
+
+    it('renders the passed title', () => {
+      expect(title.props().title).to.equal(TITLE);
+    });
+  });
 });

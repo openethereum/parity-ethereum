@@ -16,6 +16,7 @@
 */
 
 $modalMargin: 1.5em;
+$modalPadding: 1.5em;
 $modalBackZ: 2500;
 
 /* This should be the default case, the Portal used as a stand-alone modal */
@@ -55,7 +56,8 @@ $popoverZ: 3600;
   background-color: rgba(0, 0, 0, 1);
   box-sizing: border-box;
   display: flex;
-  padding: 1.5em;
+  flex-direction: column;
+  padding: $modalPadding;
   position: fixed;
 
   * {
@@ -77,22 +79,34 @@ $popoverZ: 3600;
     width: calc(100vw - $popoverLeft - $popoverRight);
     z-index: $popoverZ;
   }
-}
 
-.closeIcon {
-  font-size: 4em;
-  position: absolute;
-  right: 1rem;
-  top: 0.5rem;
-  z-index: 100;
-
-  &, * {
-    height: 48px !important;
-    width: 48px !important;
+  .buttonRow {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    justify-content: flex-end;
+    margin: $modalPadding -$modalPadding -$modalPadding -$modalPadding;
   }
 
-  &:hover {
-    cursor: pointer;
-    opacity: 0.5;
+  .closeIcon {
+    font-size: 4em;
+    position: absolute;
+    right: 1rem;
+    top: 0.5rem;
+    z-index: 100;
+
+    &, * {
+      height: 48px !important;
+      width: 48px !important;
+    }
+
+    &:hover {
+      cursor: pointer;
+      opacity: 0.5;
+    }
+  }
+
+  .titleRow {
+    margin-bottom: $modalPadding;
   }
 }

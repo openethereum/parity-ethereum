@@ -18,7 +18,7 @@ import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 
-import { AccountCard, ContainerTitle, Portal, SectionList } from '~/ui';
+import { AccountCard, Portal, SectionList } from '~/ui';
 import { CheckIcon, StarIcon, StarOutlineIcon } from '~/ui/Icons';
 
 import styles from './dappPermissions.css';
@@ -38,18 +38,15 @@ export default class DappPermissions extends Component {
 
     return (
       <Portal
-        className={ styles.modal }
         onClose={ store.closeModal }
         open
+        title={
+          <FormattedMessage
+            id='dapps.permissions.label'
+            defaultMessage='visible dapp accounts'
+          />
+        }
       >
-        <ContainerTitle
-          title={
-            <FormattedMessage
-              id='dapps.permissions.label'
-              defaultMessage='visible dapp accounts'
-            />
-          }
-        />
         <div className={ styles.container }>
           <SectionList
             items={ store.accounts }

@@ -15,12 +15,7 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-.modal {
-  flex-direction: column;
-}
-
 .container {
-  margin-top: 1.5em;
   overflow-y: auto;
 }
 
