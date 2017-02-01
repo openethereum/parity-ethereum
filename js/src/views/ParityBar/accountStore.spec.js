@@ -18,45 +18,87 @@ import sinon from 'sinon';
 
 import AccountStore from './accountStore';
 
-const DEFAULT_ACCOUNT = '0x2345678901';
-const ACCOUNTS = {
-  '0x1234567890': { uuid: 123 },
-  [DEFAULT_ACCOUNT]: { uuid: 234 },
-  '0x3456789012': {}
-};
+import { ACCOUNT_DEFAULT, ACCOUNT_FIRST, ACCOUNT_NEW, createApi } from './parityBar.test.js';
 
 let api;
-let stubSubscribe;
 let store;
 
-function createApi () {
-  stubSubscribe = sinon.stub.resolves(1);
-
-  api = {
-    subscribe: (params, callback) => {
-      callback(null, DEFAULT_ACCOUNT);
-
-      return stubSubscribe(params, callback);
-    },
-    parity: {
-      defaultAccount: sinon.stub().resolves(DEFAULT_ACCOUNT),
-      allAccountsInfo: sinon.stub().resolves(ACCOUNTS),
-      getNewDappsWhitelist: sinon.stub().resolves(null),
-      setNewDappsWhitelist: sinon.stub().resolves(true)
-    }
-  };
-
-  return api;
-}
-
 function create () {
-  store = new AccountStore(createApi());
+  api = createApi();
+  store = new AccountStore(api);
 
   return store;
 }
 
-describe('views/ParityBar', () => {
+describe('views/ParityBar/AccountStore', () => {
   beforeEach(() => {
     create();
+  });
+
+  describe('constructor', () => {
+    it('subscribes to defaultAccount', () => {
+      expect(api.subscribe).to.have.been.calledWith('parity_defaultAccount');
+    });
+  });
+
+  describe('@action', () => {
+    describe('setAccounts', () => {
+      it('sets the accounts', () => {
+        store.setAccounts('testing');
+        expect(store.accounts).to.equal('testing');
+      });
+    });
+
+    describe('setDefaultAccount', () => {
+      it('sets the default account', () => {
+        store.setDefaultAccount('testing');
+        expect(store.defaultAccount).to.equal('testing');
+      });
+    });
+
+    describe('setLoading', () => {
+      it('sets the loading status', () => {
+        store.setLoading('testing');
+        expect(store.isLoading).to.equal('testing');
+      });
+    });
+  });
+
+  describe('operations', () => {
+    describe('loadAccounts', () => {
+      beforeEach(() => {
+        sinon.spy(store, 'setAccounts');
+
+        return store.loadAccounts();
+      });
+
+      afterEach(() => {
+        store.setAccounts.restore();
+      });
+
+      it('calls into parity_getNewDappsWhitelist', () => {
+        expect(api.parity.getNewDappsWhitelist).to.have.been.called;
+      });
+
+      it('calls into parity_allAccountsInfo', () => {
+        expect(api.parity.allAccountsInfo).to.have.been.called;
+      });
+
+      it('sets the accounts', () => {
+        expect(store.setAccounts).to.have.been.called;
+      });
+    });
+
+    describe('makeDefaultAccount', () => {
+      beforeEach(() => {
+        return store.makeDefaultAccount(ACCOUNT_NEW);
+      });
+
+      it('calls into parity_setNewDappsWhitelist (with ordering)', () => {
+        expect(api.parity.setNewDappsWhitelist).to.have.been.calledWith([
+          ACCOUNT_NEW, ACCOUNT_FIRST, ACCOUNT_DEFAULT
+        ]);
+      });
+    });
   });
 });
