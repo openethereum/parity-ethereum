@@ -18,17 +18,19 @@ import sinon from 'sinon';
 
 import Personal from './personal';
 
+const TEST_DEFAULT = '0xfa64203C044691aA57251aF95f4b48d85eC00Dd5';
 const TEST_INFO = {
-  '0xfa64203C044691aA57251aF95f4b48d85eC00Dd5': {
+  [TEST_DEFAULT]: {
     name: 'test'
   }
 };
-const TEST_LIST = ['0xfa64203C044691aA57251aF95f4b48d85eC00Dd5'];
+const TEST_LIST = [TEST_DEFAULT];
 
 function stubApi (accounts, info) {
   const _calls = {
     allAccountsInfo: [],
-    listAccounts: []
+    listAccounts: [],
+    defaultAccount: []
   };
 
   return {
@@ -37,6 +39,12 @@ function stubApi (accounts, info) {
       allAccountsInfo: () => {
         const stub = sinon.stub().resolves(info || TEST_INFO)();
         _calls.allAccountsInfo.push(stub);
+        return stub;
+      },
+      defaultAccount: () => {
+        const stub = sinon.stub().resolves(Object.keys(info || TEST_INFO)[0])();
+
+        _calls.defaultAccount.push(stub);
         return stub;
       }
     },
@@ -94,8 +102,15 @@ describe('api/subscriptions/personal', () => {
       });
 
       it('updates subscribers', () => {
+<<<<<<< HEAD
         expect(cb.firstCall).to.have.been.calledWith('eth_accounts', null, TEST_LIST);
         expect(cb.secondCall).to.have.been.calledWith('parity_allAccountsInfo', null, TEST_INFO);
+=======
+        expect(cb).to.have.been.calledWith('parity_defaultAccount', null, TEST_DEFAULT);
+        expect(cb).to.have.been.calledWith('eth_accounts', null, TEST_LIST);
+        expect(cb).to.have.been.calledWith('parity_accountsInfo', null, TEST_INFO);
+        expect(cb).to.have.been.calledWith('parity_allAccountsInfo', null, TEST_INFO);
+>>>>>>> 04fb2af... Add parity_defaultAccount RPC (with subscription) (#4383)
       });
     });
 
@@ -108,6 +123,10 @@ describe('api/subscriptions/personal', () => {
 
       it('sets the started status', () => {
         expect(personal.isStarted).to.be.true;
+      });
+
+      it('calls parity_defaultAccount', () => {
+        expect(api._calls.defaultAccount.length).to.be.ok;
       });
 
       it('calls personal_accountsInfo', () => {
