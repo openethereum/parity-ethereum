@@ -21,23 +21,31 @@ use Public;
 use bigint::hash::{H256, FixedHash};
 pub use self::derivation::Error as DerivationError;
 
-struct ExtendedSecret {
+/// Extended secret key, allows deterministic derivation of subsequent keys.
+pub struct ExtendedSecret {
 	secret: Secret,
 	chain_code: H256,
 }
 
 impl ExtendedSecret {
-	/// New extended key from given secret and chain code
-	pub fn new(secret: Secret, chain_code: H256) -> ExtendedSecret {
+	/// New extended key from given secret and chain code.
+	pub fn with_code(secret: Secret, chain_code: H256) -> ExtendedSecret {
 		ExtendedSecret {
 			secret: secret,
 			chain_code: chain_code,
 		}
 	}
 
-	/// New extended key from given secret with the random chain code
+	/// New extended key from given secret with the random chain code.
 	pub fn new_random(secret: Secret) -> ExtendedSecret {
-		ExtendedSecret::new(secret, H256::random())
+		ExtendedSecret::with_code(secret, H256::random())
+	}
+
+	/// New extended key from given secret.
+	/// Chain code will be derived from this secret (in a deterministic way).
+	pub fn new(secret: Secret) -> ExtendedSecret {
+		let chain_code = derivation::chain_code(*secret);
+		ExtendedSecret::with_code(secret, chain_code)
 	}
 
 	/// Derive new private key
@@ -47,16 +55,17 @@ impl ExtendedSecret {
 		let derived_secret = Secret::from_slice(&*derived_key)
 			.expect("Derivation always produced a valid private key; qed");
 
-		ExtendedSecret::new(derived_secret, next_chain_code)
+		ExtendedSecret::with_code(derived_secret, next_chain_code)
 	}
 
-	/// Private key component of the extended key
+	/// Private key component of the extended key.
 	pub fn secret(&self) -> &Secret {
 		&self.secret
 	}
 }
 
-struct ExtendedPublic {
+/// Extended public key, allows deterministic derivation of subsequent keys.
+pub struct ExtendedPublic {
 	public: Public,
 	chain_code: H256,
 }
@@ -67,11 +76,25 @@ impl ExtendedPublic {
 		ExtendedPublic { public: public, chain_code: chain_code }
 	}
 
+	/// Create new extended public key from known secret
+	pub fn from_secret(secret: &ExtendedSecret) -> Result<Self, DerivationError> {
+		Ok(
+			ExtendedPublic::new(
+				derivation::point(**secret.secret())?,
+				secret.chain_code.clone(),
+			)
+		)
+	}
+
 	/// Derive new public key
 	/// Operation is defined only for index belongs [0..2^31)
 	pub fn derive(self, index: u32) -> Result<Self, DerivationError> {
 		let (derived_key, next_chain_code) = derivation::public(self.public, self.chain_code, index)?;
 		Ok(ExtendedPublic::new(derived_key, next_chain_code))
+	}
+
+	pub fn public(&self) -> &Public {
+		&self.public
 	}
 }
 
@@ -89,7 +112,9 @@ mod derivation {
 	use secp256k1;
 	use secp256k1::key::{SecretKey, PublicKey};
 	use SECP256K1;
+	use keccak;
 
+	#[derive(Debug)]
 	pub enum Error {
 		InvalidHardenedUse,
 		InvalidPoint,
@@ -211,7 +236,8 @@ mod derivation {
 			.expect("Valid private key produces valid public key");
 
 		// Adding two points on the elliptic curves (combining two public keys)
-		new_public.add_assign(&SECP256K1, &public_sec);
+		new_public.add_assign(&SECP256K1, &public_sec)
+			.expect("Addition of two valid points produce valid point");
 
 		let serialized = new_public.serialize_vec(&SECP256K1, false);
 
@@ -220,19 +246,39 @@ mod derivation {
 			new_chain_code,
 		))
 	}
+
+	fn sha3(slc: &[u8]) -> H256 {
+		keccak::Keccak256::keccak256(slc).into()
+	}
+
+	pub fn chain_code(secret: H256) -> H256 {
+		// 10,000 rounds of sha3
+		let mut running_sha3 = sha3(&*secret);
+		for _ in 0..99999 { running_sha3 = sha3(&*running_sha3); }
+		running_sha3
+	}
+
+	pub fn point(secret: H256) -> Result<H512, Error> {
+		let sec = SecretKey::from_slice(&SECP256K1, &*secret)
+			.map_err(|_| Error::InvalidPoint)?;
+		let public_sec = PublicKey::from_secret_key(&SECP256K1, &sec)
+			.map_err(|_| Error::InvalidPoint)?;
+		let serialized = public_sec.serialize_vec(&SECP256K1, false);
+		Ok(H512::from(&serialized[1..65]))
+	}
 }
 
 #[cfg(test)]
 mod tests {
 
-	use super::ExtendedSecret;
+	use super::{ExtendedSecret, ExtendedPublic};
 	use secret::Secret;
 	use std::str::FromStr;
 
 	#[test]
 	fn smoky() {
 		let secret = Secret::from_str("a100df7a048e50ed308ea696dc600215098141cb391e9527329df289f9383f65").unwrap();
-		let extended_secret = ExtendedSecret::new(secret.clone(), 0u64.into());
+		let extended_secret = ExtendedSecret::with_code(secret.clone(), 0u64.into());
 
 		// hardened
 		assert_eq!(&**extended_secret.secret(), &*secret);
@@ -243,5 +289,23 @@ mod tests {
 		assert_eq!(&**extended_secret.derive(0).secret(), &"bf6a74e3f7b36fc4c96a1e12f31abc817f9f5904f5a8fc27713163d1f0b713f6".into());
 		assert_eq!(&**extended_secret.derive(1).secret(), &"bd4fca9eb1f9c201e9448c1eecd66e302d68d4d313ce895b8c134f512205c1bc".into());
 		assert_eq!(&**extended_secret.derive(2).secret(), &"86932b542d6cab4d9c65490c7ef502d89ecc0e2a5f4852157649e3251e2a3268".into());
+
+		let extended_public = ExtendedPublic::from_secret(&extended_secret).expect("Extended public should be created");
+		let derived_public = extended_public.derive(0).expect("First derivation of public should succeed");
+		assert_eq!(&*derived_public.public(), &"f7b3244c96688f92372bfd4def26dc4151529747bab9f188a4ad34e141d47bd66522ff048bc6f19a0a4429b04318b1a8796c000265b4fa200dae5f6dda92dd94".into());
+	}
+
+	#[test]
+	fn match_() {
+		let secret = Secret::from_str("a100df7a048e50ed308ea696dc600215098141cb391e9527329df289f9383f65").unwrap();
+		let extended_secret = ExtendedSecret::with_code(secret.clone(), 0u64.into());
+		let extended_public = ExtendedPublic::from_secret(&extended_secret).expect("Extended public should be created");
+
+		let derived_secret0 = extended_secret.derive(0);
+		let derived_public0 = extended_public.derive(0).expect("First derivation of public should succeed");
+
+		let public_from_secret0 = ExtendedPublic::from_secret(&derived_secret0).expect("Extended public should be created");
+
+		assert_eq!(public_from_secret0.public(), derived_public0.public());
 	}
 }

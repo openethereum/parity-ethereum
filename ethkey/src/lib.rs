@@ -51,6 +51,7 @@ pub use self::prefix::Prefix;
 pub use self::random::Random;
 pub use self::signature::{sign, verify_public, verify_address, recover, Signature};
 pub use self::secret::Secret;
+pub use self::extended::{ExtendedPublic, ExtendedSecret};
 
 use bigint::hash::{H160, H256, H512};
 
