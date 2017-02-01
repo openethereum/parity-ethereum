@@ -46,7 +46,7 @@ export default {
     }
   },
 
-  signAndSendTransaction: {
+  sendTransaction: {
     desc: 'Sends transaction and signs it in a single call. The account does not need to be unlocked to make this call, and will not be left unlocked after.',
     params: [
       {

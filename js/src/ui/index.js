@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import AccountCard from './AccountCard';
 import Actionbar from './Actionbar';
 import ActionbarExport from './Actionbar/Export';
 import ActionbarImport from './Actionbar/Import';
@@ -47,6 +48,7 @@ import muiTheme from './Theme';
 import Page from './Page';
 import ParityBackground from './ParityBackground';
 import PasswordStrength from './Form/PasswordStrength';
+import Portal from './Portal';
 import QrCode from './QrCode';
 import SectionList from './SectionList';
 import ShortenedHash from './ShortenedHash';
@@ -58,6 +60,7 @@ import TxList from './TxList';
 import Warning from './Warning';
 
 export {
+  AccountCard,
   Actionbar,
   ActionbarExport,
   ActionbarImport,
@@ -103,6 +106,7 @@ export {
   Page,
   ParityBackground,
   PasswordStrength,
+  Portal,
   QrCode,
   RadioButtons,
   Select,

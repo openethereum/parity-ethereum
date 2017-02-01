@@ -14,26 +14,34 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-#[macro_use]
-pub mod errors;
+import { shallow } from 'enzyme';
+import React from 'react';
+import sinon from 'sinon';
 
-pub mod dispatch;
-pub mod block_import;
+import Portal from './';
 
-mod poll_manager;
-mod poll_filter;
-mod requests;
-mod signer;
-mod signing_queue;
-mod network_settings;
+let component;
+let onClose;
 
-pub use self::poll_manager::PollManager;
-pub use self::poll_filter::{PollFilter, limit_logs};
-pub use self::requests::{
-	TransactionRequest, FilledTransactionRequest, ConfirmationRequest, ConfirmationPayload, CallRequest,
-};
-pub use self::signing_queue::{
-	ConfirmationsQueue, ConfirmationPromise, ConfirmationResult, SigningQueue, QueueEvent, DefaultAccount,
-};
-pub use self::signer::SignerService;
-pub use self::network_settings::NetworkSettings;
+function render (props = {}) {
+  onClose = sinon.stub();
+  component = shallow(
+    <Portal
+      onClose={ onClose }
+      open
+      { ...props }
+    />
+  );
+
+  return component;
+}
+
+describe('ui/Portal', () => {
+  beforeEach(() => {
+    render();
+  });
+
+  it('renders defaults', () => {
+    expect(component).to.be.ok;
+  });
+});

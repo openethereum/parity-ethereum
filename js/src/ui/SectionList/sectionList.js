@@ -31,8 +31,13 @@ export default class SectionList extends Component {
     className: PropTypes.string,
     items: arrayOrObjectProptype().isRequired,
     renderItem: PropTypes.func.isRequired,
+    noStretch: PropTypes.bool,
     overlay: nodeOrStringProptype()
-  }
+  };
+
+  static defaultProps = {
+    noStretch: false
+  };
 
   render () {
     const { className, items } = this.props;
@@ -75,7 +80,7 @@ export default class SectionList extends Component {
   }
 
   renderItem = (item, index) => {
-    const { renderItem } = this.props;
+    const { noStretch, renderItem } = this.props;
 
     // NOTE: Any children that is to be showed or hidden (depending on hover state)
     // should have the data-hover="show|hide" attributes. For the current implementation
@@ -85,7 +90,10 @@ export default class SectionList extends Component {
     // CSS-only solution to let the browser do all the work via selectors.
     return (
       <div
-        className={ styles.item }
+        className={ [
+          styles.item,
+          styles[`stretch-${noStretch ? 'off' : 'on'}`]
+        ].join(' ') }
         key={ `item_${index}` }
       >
         { renderItem(item, index) }

@@ -14,26 +14,27 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-#[macro_use]
-pub mod errors;
+import Abi from '~/abi';
+import Func from '~/abi/spec/function';
 
-pub mod dispatch;
-pub mod block_import;
+export function encodeMethodCallAbi (methodAbi = {}, values = []) {
+  const func = new Func(methodAbi);
+  const tokens = Abi.encodeTokens(func.inputParamTypes(), values);
+  const call = func.encodeCall(tokens);
 
-mod poll_manager;
-mod poll_filter;
-mod requests;
-mod signer;
-mod signing_queue;
-mod network_settings;
+  return `0x${call}`;
+}
 
-pub use self::poll_manager::PollManager;
-pub use self::poll_filter::{PollFilter, limit_logs};
-pub use self::requests::{
-	TransactionRequest, FilledTransactionRequest, ConfirmationRequest, ConfirmationPayload, CallRequest,
-};
-pub use self::signing_queue::{
-	ConfirmationsQueue, ConfirmationPromise, ConfirmationResult, SigningQueue, QueueEvent, DefaultAccount,
-};
-pub use self::signer::SignerService;
-pub use self::network_settings::NetworkSettings;
+export function abiEncode (methodName, inputTypes, data) {
+  const result = encodeMethodCallAbi({
+    name: methodName || '',
+    type: 'function',
+    inputs: inputTypes.map((type) => {
+      return { type };
+    })
+  }, data);
+
+  return methodName === null
+    ? `0x${result.substr(10)}`
+    : result;
+}
