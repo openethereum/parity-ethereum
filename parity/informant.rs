@@ -64,7 +64,7 @@ pub trait MillisecondDuration {
 
 impl MillisecondDuration for Duration {
 	fn as_milliseconds(&self) -> u64 {
-		self.as_secs() * 1000 + self.subsec_nanos() as u64 / 1000000
+		self.as_secs() * 1000 + self.subsec_nanos() as u64 / 1_000_000
 	}
 }
 
@@ -136,7 +136,7 @@ impl Informant {
 			false => t,
 		};
 
-		info!(target: "import", "{}   {}   {}   {}",
+		info!(target: "import", "{}  {}  {}  {}",
 			match importing {
 				true => match snapshot_sync {
 					false => format!("Syncing {} {}   {}   {}+{} Qed",
@@ -183,10 +183,10 @@ impl Informant {
 			),
 			match rpc_stats {
 				Some(ref rpc_stats) => format!(
-					"RPC: {} conn, {} req/s, {} ms",
-					rpc_stats.sessions(),
-					rpc_stats.requests_rate(),
-					rpc_stats.approximated_roundtrip()
+					"RPC: {} conn, {} req/s, {} µs",
+					paint(Blue.bold(), format!("{:2}", rpc_stats.sessions())),
+					paint(Blue.bold(), format!("{:3}", rpc_stats.requests_rate())),
+					paint(Blue.bold(), format!("{:3}", rpc_stats.approximated_roundtrip())),
 				),
 				_ => String::new(),
 			},

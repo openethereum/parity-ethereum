@@ -17,12 +17,12 @@
 use std::sync::{Arc, Mutex};
 use hyper;
 
-use ethcore_rpc::{Metadata, Origin};
+use ethcore_rpc::{Metadata, Middleware, Origin};
 use jsonrpc_core::reactor::RpcHandler;
 use jsonrpc_http_server::{Rpc, ServerHandler, PanicHandler, AccessControlAllowOrigin, HttpMetaExtractor};
 use endpoint::{Endpoint, EndpointPath, Handler};
 
-pub fn rpc(handler: RpcHandler<Metadata>, panic_handler: Arc<Mutex<Option<Box<Fn() -> () + Send>>>>) -> Box<Endpoint> {
+pub fn rpc(handler: RpcHandler<Metadata, Middleware>, panic_handler: Arc<Mutex<Option<Box<Fn() -> () + Send>>>>) -> Box<Endpoint> {
 	Box::new(RpcEndpoint {
 		handler: handler,
 		meta_extractor: Arc::new(MetadataExtractor),
@@ -34,7 +34,7 @@ pub fn rpc(handler: RpcHandler<Metadata>, panic_handler: Arc<Mutex<Option<Box<Fn
 }
 
 struct RpcEndpoint {
-	handler: RpcHandler<Metadata>,
+	handler: RpcHandler<Metadata, Middleware>,
 	meta_extractor: Arc<HttpMetaExtractor<Metadata>>,
 	panic_handler: Arc<Mutex<Option<Box<Fn() -> () + Send>>>>,
 	cors_domain: Option<Vec<AccessControlAllowOrigin>>,

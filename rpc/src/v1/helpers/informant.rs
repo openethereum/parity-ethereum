@@ -17,16 +17,19 @@
 //! RPC Requests Statistics
 
 use std::fmt;
+use std::sync::Arc;
 use std::sync::atomic::{self, AtomicUsize};
-use std::time::Instant;
+use std::time;
+use futures::Future;
+use jsonrpc_core as rpc;
 use order_stat;
 use util::RwLock;
 
-const RATE_SECONDS: usize = 15;
-const STATS_SAMPLES: usize = 120;
+const RATE_SECONDS: usize = 10;
+const STATS_SAMPLES: usize = 60;
 
 struct RateCalculator {
-	era: Instant,
+	era: time::Instant,
 	samples: [u16; RATE_SECONDS],
 }
 
@@ -39,7 +42,7 @@ impl fmt::Debug for RateCalculator {
 impl Default for RateCalculator {
 	fn default() -> Self {
 		RateCalculator {
-			era: Instant::now(),
+			era: time::Instant::now(),
 			samples: [0; RATE_SECONDS],
 		}
 	}
@@ -52,7 +55,7 @@ impl RateCalculator {
 
 	pub fn tick(&mut self) -> u16 {
 		if self.elapsed() >= RATE_SECONDS as u64 {
-			self.era = Instant::now();
+			self.era = time::Instant::now();
 			self.samples[0] = 0;
 		}
 
@@ -150,9 +153,9 @@ impl RpcStats {
 		self.requests.write().tick()
 	}
 
-	/// Add roundtrip time (milliseconds)
-	pub fn add_roundtrip(&self, seconds: u32) {
-		self.roundtrips.write().add(seconds)
+	/// Add roundtrip time (microseconds)
+	pub fn add_roundtrip(&self, microseconds: u32) {
+		self.roundtrips.write().add(microseconds)
 	}
 
 	/// Returns number of open sessions
@@ -165,10 +168,42 @@ impl RpcStats {
 		self.requests.read().rate()
 	}
 
-	/// Returns approximated roundtrip in seconds
+	/// Returns approximated roundtrip in microseconds
 	pub fn approximated_roundtrip(&self) -> u32 {
 		self.roundtrips.read().approximated_median()
 	}
+}
+
+/// Stats-counting RPC middleware
+pub struct Middleware {
+	stats: Arc<RpcStats>,
+}
+
+impl Middleware {
+	/// Create new Middleware with given stats counter.
+	pub fn new(stats: Arc<RpcStats>) -> Self {
+		Middleware {
+			stats: stats,
+		}
+	}
+}
+
+impl<M: rpc::Metadata> rpc::Middleware<M> for Middleware {
+	fn on_request<F>(&self, request: rpc::Request, meta: M, process: F) -> rpc::FutureResponse where
+		F: FnOnce(rpc::Request, M) -> rpc::FutureResponse,
+	{
+		self.stats.count_request();
+		let stats = self.stats.clone();
+		let start = time::Instant::now();
+		process(request, meta).map(move |res| {
+			stats.add_roundtrip(as_micro(start.elapsed()));
+			res
+		}).boxed()
+	}
+}
+
+fn as_micro(dur: time::Duration) -> u32 {
+	(dur.as_secs() * 1_000_000) as u32 + dur.subsec_nanos() / 1_000
 }
 
 

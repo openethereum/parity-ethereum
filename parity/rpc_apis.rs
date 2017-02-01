@@ -29,7 +29,7 @@ use ethcore::snapshot::SnapshotService;
 use ethcore_rpc::{Metadata, NetworkSettings};
 use ethsync::{ManageNetwork, SyncProvider};
 use hash_fetch::fetch::Client as FetchClient;
-use jsonrpc_core::{MetaIoHandler};
+use jsonrpc_core::{MetaIoHandler, Middleware};
 use updater::Updater;
 use util::RotatingLogger;
 
@@ -184,7 +184,7 @@ macro_rules! add_signing_methods {
 	}
 }
 
-pub fn setup_rpc(mut handler: MetaIoHandler<Metadata>, deps: Arc<Dependencies>, apis: ApiSet) -> MetaIoHandler<Metadata> {
+pub fn setup_rpc<M: Middleware<Metadata>>(mut handler: MetaIoHandler<Metadata, M>, deps: Arc<Dependencies>, apis: ApiSet) -> MetaIoHandler<Metadata, M> {
 	use ethcore_rpc::v1::*;
 
 	// it's turned into vector, cause ont of the cases requires &[]

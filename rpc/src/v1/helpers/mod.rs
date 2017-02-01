@@ -28,7 +28,7 @@ mod requests;
 mod signer;
 mod signing_queue;
 
-pub use self::informant::RpcStats;
+pub use self::informant::{RpcStats, Middleware};
 pub use self::network_settings::NetworkSettings;
 pub use self::poll_manager::PollManager;
 pub use self::poll_filter::{PollFilter, limit_logs};

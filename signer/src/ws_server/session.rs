@@ -21,7 +21,7 @@ use authcode_store::AuthCodes;
 use std::path::{PathBuf, Path};
 use std::sync::Arc;
 use std::str::FromStr;
-use jsonrpc_core::{Metadata};
+use jsonrpc_core::{Metadata, Middleware};
 use jsonrpc_core::reactor::RpcHandler;
 use rpc::RpcStats;
 use util::{H256, version};
@@ -131,23 +131,23 @@ fn add_headers(mut response: ws::Response, mime: &str) -> ws::Response {
 	response
 }
 
-pub struct Session<M: Metadata> {
+pub struct Session<M: Metadata, S: Middleware<M>> {
 	out: ws::Sender,
 	skip_origin_validation: bool,
 	self_origin: String,
 	authcodes_path: PathBuf,
-	handler: RpcHandler<M>,
+	handler: RpcHandler<M, S>,
 	file_handler: Arc<ui::Handler>,
 	stats: Option<Arc<RpcStats>>,
 }
 
-impl<M: Metadata> Drop for Session<M> {
+impl<M: Metadata, S: Middleware<M>> Drop for Session<M, S> {
 	fn drop(&mut self) {
 		self.stats.as_ref().map(|stats| stats.close_session());
 	}
 }
 
-impl<M: Metadata> ws::Handler for Session<M> {
+impl<M: Metadata, S: Middleware<M>> ws::Handler for Session<M, S> {
 	#[cfg_attr(feature="dev", allow(collapsible_if))]
 	fn on_request(&mut self, req: &ws::Request) -> ws::Result<(ws::Response)> {
 		trace!(target: "signer", "Handling request: {:?}", req);
@@ -233,8 +233,8 @@ impl<M: Metadata> ws::Handler for Session<M> {
 	}
 }
 
-pub struct Factory<M: Metadata> {
-	handler: RpcHandler<M>,
+pub struct Factory<M: Metadata, S: Middleware<M>> {
+	handler: RpcHandler<M, S>,
 	skip_origin_validation: bool,
 	self_origin: String,
 	authcodes_path: PathBuf,
@@ -242,9 +242,9 @@ pub struct Factory<M: Metadata> {
 	stats: Option<Arc<RpcStats>>,
 }
 
-impl<M: Metadata> Factory<M> {
+impl<M: Metadata, S: Middleware<M>> Factory<M, S> {
 	pub fn new(
-		handler: RpcHandler<M>,
+		handler: RpcHandler<M, S>,
 		self_origin: String,
 		authcodes_path: PathBuf,
 		skip_origin_validation: bool,
@@ -261,8 +261,8 @@ impl<M: Metadata> Factory<M> {
 	}
 }
 
-impl<M: Metadata> ws::Factory for Factory<M> {
-	type Handler = Session<M>;
+impl<M: Metadata, S: Middleware<M>> ws::Factory for Factory<M, S> {
+	type Handler = Session<M, S>;
 
 	fn connection_made(&mut self, sender: ws::Sender) -> Self::Handler {
 		self.stats.as_ref().map(|stats| stats.open_session());

@@ -26,7 +26,7 @@ use std::thread;
 use std;
 
 use io::{PanicHandler, OnPanicListener, MayPanic};
-use jsonrpc_core::Metadata;
+use jsonrpc_core::{Metadata, Middleware};
 use jsonrpc_core::reactor::RpcHandler;
 use rpc::{ConfirmationsQueue, RpcStats};
 
@@ -84,7 +84,7 @@ impl ServerBuilder {
 
 	/// Starts a new `WebSocket` server in separate thread.
 	/// Returns a `Server` handle which closes the server when droped.
-	pub fn start<M: Metadata>(self, addr: SocketAddr, handler: RpcHandler<M>) -> Result<Server, ServerError> {
+	pub fn start<M: Metadata, S: Middleware<M>>(self, addr: SocketAddr, handler: RpcHandler<M, S>) -> Result<Server, ServerError> {
 		Server::start(
 			addr,
 			handler,
@@ -113,9 +113,9 @@ impl Server {
 
 	/// Starts a new `WebSocket` server in separate thread.
 	/// Returns a `Server` handle which closes the server when droped.
-	fn start<M: Metadata>(
+	fn start<M: Metadata, S: Middleware<M>>(
 		addr: SocketAddr,
-		handler: RpcHandler<M>,
+		handler: RpcHandler<M, S>,
 		queue: Arc<ConfirmationsQueue>,
 		authcodes_path: PathBuf,
 		skip_origin_validation: bool,
