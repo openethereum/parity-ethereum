@@ -30,10 +30,19 @@ export default class Personal {
     this._started = true;
 
     return Promise.all([
+      this._defaultAccount(),
       this._listAccounts(),
       this._accountsInfo(),
       this._loggingSubscribe()
     ]);
+  }
+
+  _defaultAccount = () => {
+    return this._api.parity
+      .defaultAccount()
+      .then((defaultAccount) => {
+        this._updateSubscriptions('parity_defaultAccount', null, defaultAccount);
+      });
   }
 
   _listAccounts = () => {
@@ -76,6 +85,11 @@ export default class Personal {
         case 'parity_setAccountName':
         case 'parity_setAccountMeta':
           this._accountsInfo();
+          return;
+
+        case 'parity_setDappsAddresses':
+        case 'parity_setNewDappsWhitelist':
+          this._defaultAccount();
           return;
       }
     });
