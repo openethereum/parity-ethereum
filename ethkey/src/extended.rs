@@ -298,7 +298,7 @@ mod tests {
 	#[test]
 	fn match_() {
 		let secret = Secret::from_str("a100df7a048e50ed308ea696dc600215098141cb391e9527329df289f9383f65").unwrap();
-		let extended_secret = ExtendedSecret::with_code(secret.clone(), 0u64.into());
+		let extended_secret = ExtendedSecret::new(secret.clone());
 		let extended_public = ExtendedPublic::from_secret(&extended_secret).expect("Extended public should be created");
 
 		let derived_secret0 = extended_secret.derive(0);
