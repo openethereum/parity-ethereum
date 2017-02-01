@@ -20,10 +20,10 @@ $modalPadding: 1.5em;
 $modalBackZ: 2500;
 
 /* This should be the default case, the Portal used as a stand-alone modal */
-$modalBottom: 15vh;
+$modalBottom: $modalMargin;
 $modalLeft: $modalMargin;
 $modalRight: $modalMargin;
-$modalTop: 0;
+$modalTop: $modalMargin;
 $modalZ: 3500;
 
 /* This is the case where popped-up over another modal, Portal or otherwise */
