@@ -183,6 +183,17 @@ export default {
     }
   },
 
+  defaultAccount: {
+    section: SECTION_ACCOUNTS,
+    desc: 'Returns the defaultAccount that is to be used with transactions',
+    params: [],
+    returns: {
+      type: Address,
+      desc: 'The account address',
+      example: '0x63Cf90D3f0410092FC0fca41846f596223979195'
+    }
+  },
+
   defaultExtraData: {
     section: SECTION_MINING,
     desc: 'Returns the default extra data',

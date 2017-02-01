@@ -39,8 +39,10 @@ function createApi () {
       return stubSubscribe(params, callback);
     },
     parity: {
+      defaultAccount: sinon.stub().resolves(DEFAULT_ACCOUNT),
       allAccountsInfo: sinon.stub().resolves(ACCOUNTS),
-      getNewDappsWhitelist: sinon.stub().resolves(null)
+      getNewDappsWhitelist: sinon.stub().resolves(null),
+      setNewDappsWhitelist: sinon.stub().resolves(true)
     }
   };
 
