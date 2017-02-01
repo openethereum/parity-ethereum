@@ -17,7 +17,7 @@
 import React, { Component } from 'react';
 
 import { api } from '../parity';
-import { attachInterface, subscribeDefault, unsubscribeDefault } from '../services';
+import { attachInterface, subscribeDefaultAddress, unsubscribeDefaultAddress } from '../services';
 import Button from '../Button';
 import Events from '../Events';
 import Loading from '../Loading';
@@ -55,22 +55,21 @@ export default class Application extends Component {
     return Promise
       .all([
         attachInterface(),
-        subscribeDefault((error, defaultAddress) => {
+        subscribeDefaultAddress((error, defaultAddress) => {
           if (!error) {
             this.setState({ defaultAddress });
           }
         })
       ])
-      .then(([state, subscriptionId]) => {
+      .then(([state]) => {
         this.setState(Object.assign({}, state, {
-          loading: false,
-          subscriptionId
+          loading: false
         }));
       });
   }
 
   componentWillUnmount () {
-    return unsubscribeDefault(this.state.subscriptionId);
+    return subscribeDefaultAddress();
   }
 
   render () {

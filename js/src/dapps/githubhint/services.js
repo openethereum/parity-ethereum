@@ -17,6 +17,8 @@
 import * as abis from '~/contracts/abi';
 import { api } from './parity';
 
+let defaultSubscriptionId;
+
 export function attachInterface () {
   return api.parity
     .registryAddress()
@@ -43,10 +45,16 @@ export function attachInterface () {
     });
 }
 
-export function subscribeDefault (callback) {
-  return api.subscribe('parity_defaultAccount', callback);
+export function subscribeDefaultAddress (callback) {
+  return api
+    .subscribe('parity_defaultAccount', callback)
+    .then((subscriptionId) => {
+      defaultSubscriptionId = subscriptionId;
+
+      return defaultSubscriptionId;
+    });
 }
 
-export function unsubscribeDefault (subscriptionId) {
-  return api.unsubscribe(subscriptionId);
+export function unsubscribeDefaultAddress () {
+  return api.unsubscribe(defaultSubscriptionId);
 }
