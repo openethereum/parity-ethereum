@@ -69,7 +69,7 @@ export default class Application extends Component {
   }
 
   componentWillUnmount () {
-    return subscribeDefaultAddress();
+    return unsubscribeDefaultAddress();
   }
 
   render () {
