@@ -30,6 +30,7 @@ const ERRORS = {
 export default class Deployment extends Component {
   static contextTypes = {
     accounts: PropTypes.object.isRequired,
+    defaultAddress: PropTypes.string.isRequired,
     router: PropTypes.object.isRequired,
     managerInstance: PropTypes.object.isRequired,
     registryInstance: PropTypes.object.isRequired,

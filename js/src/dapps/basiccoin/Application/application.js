@@ -27,6 +27,7 @@ import styles from './application.css';
 export default class Application extends Component {
   static childContextTypes = {
     accounts: PropTypes.object,
+    defaultAddress: PropTypes.string,
     managerInstance: PropTypes.object,
     registryInstance: PropTypes.object,
     tokenregInstance: PropTypes.object
