@@ -124,7 +124,12 @@ export default class GasPriceEditor {
   @action loadDefaults () {
     Promise
       .all([
-        this._api.parity.gasPriceHistogram(),
+        // NOTE fetching histogram may fail if there is not enough data.
+        // We fallback to empty histogram.
+        this._api.parity.gasPriceHistogram().catch(() => ({
+          bucket_bounds: [],
+          counts: []
+        })),
         this._api.eth.gasPrice()
       ])
       .then(([histogram, _price]) => {
