@@ -336,9 +336,8 @@ impl SimpleSecretStore for EthMultiStore {
 	fn account_ref(&self, address: &Address) -> Result<StoreAccountRef, Error> {
 		self.reload_accounts()?;
 		self.cache.read().keys()
-			.filter(|r| &r.address == address)
+			.find(|r| &r.address == address)
 			.cloned()
-			.nth(0)
 			.ok_or(Error::InvalidAccount)
 	}
 

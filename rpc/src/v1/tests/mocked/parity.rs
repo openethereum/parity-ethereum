@@ -21,13 +21,10 @@ use ethsync::ManageNetwork;
 use ethcore::account_provider::AccountProvider;
 use ethcore::client::{TestBlockChainClient};
 use ethcore::miner::LocalTransactionStatus;
-use ethstore::EthStore;
-use ethstore::dir::RootDiskDirectory;
 use ethstore::ethkey::{Generator, Random};
-use devtools::RandomTempPath;
 
 use jsonrpc_core::IoHandler;
-use v1::{Parity, ParityClient, ParityAccounts, ParityAccountsClient};
+use v1::{Parity, ParityClient};
 use v1::metadata::Metadata;
 use v1::helpers::{SignerService, NetworkSettings};
 use v1::tests::helpers::{TestSyncProvider, Config, TestMinerService, TestUpdater};
@@ -49,7 +46,7 @@ pub struct Dependencies {
 }
 
 impl Dependencies {
-	fn with_account_provider(account_provider: AccountProvider) -> Self {
+	pub fn new() -> Self {
 		Dependencies {
 			miner: Arc::new(TestMinerService::default()),
 			client: Arc::new(TestBlockChainClient::default()),
@@ -68,21 +65,10 @@ impl Dependencies {
 				rpc_port: 8545,
 			}),
 			network: Arc::new(TestManageNetwork),
-			accounts: Arc::new(account_provider),
+			accounts: Arc::new(AccountProvider::transient_provider()),
 			dapps_interface: Some("127.0.0.1".into()),
 			dapps_port: Some(18080),
 		}
-	}
-
-	pub fn new() -> Self {
-		Dependencies::with_account_provider(AccountProvider::transient_provider())
-	}
-
-	pub fn with_vaults_support(temp_path: &str) -> Self {
-		let root_keys_dir = RootDiskDirectory::create(temp_path).unwrap();
-		let secret_store = EthStore::open(Box::new(root_keys_dir)).unwrap();
-		let account_provider = AccountProvider::new(Box::new(secret_store));
-		Dependencies::with_account_provider(account_provider)
 	}
 
 	pub fn client(&self, signer: Option<Arc<SignerService>>) -> TestParityClient {
@@ -110,13 +96,6 @@ impl Dependencies {
 	fn with_signer(&self, signer: SignerService) -> IoHandler<Metadata> {
 		let mut io = IoHandler::default();
 		io.extend_with(self.client(Some(Arc::new(signer))).to_delegate());
-		io
-	}
-
-	fn with_accounts(&self) -> IoHandler<Metadata> {
-		let parity_accounts = ParityAccountsClient::new(&self.accounts, &self.client);
-		let mut io = IoHandler::default();
-		io.extend_with(parity_accounts.to_delegate());
 		io
 	}
 }
@@ -502,95 +481,6 @@ fn rpc_parity_chain_status() {
 
 	let request = r#"{"jsonrpc": "2.0", "method": "parity_chainStatus", "params":[], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":{"blockGap":["0x6","0xd05"]},"id":1}"#;
-
-	assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
-}
-
-#[test]
-fn rpc_parity_new_vault() {
-	let temp_path = RandomTempPath::new();
-	let deps = Dependencies::with_vaults_support(temp_path.as_str());
-	let io = deps.default_client();
-
-	let request = r#"{"jsonrpc": "2.0", "method": "parity_newVault", "params":["vault1", "password1"], "id": 1}"#;
-	let response = r#"{"jsonrpc":"2.0","result":true,"id":1}"#;
-
-	assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
-	assert!(deps.accounts.close_vault("vault1").is_ok());
-	assert!(deps.accounts.open_vault("vault1", "password1").is_ok());
-}
-
-#[test]
-fn rpc_parity_open_vault() {
-	let temp_path = RandomTempPath::new();
-	let deps = Dependencies::with_vaults_support(temp_path.as_str());
-	let io = deps.default_client();
-
-	assert!(deps.accounts.create_vault("vault1", "password1").is_ok());
-	assert!(deps.accounts.close_vault("vault1").is_ok());
-
-	let request = r#"{"jsonrpc": "2.0", "method": "parity_openVault", "params":["vault1", "password1"], "id": 1}"#;
-	let response = r#"{"jsonrpc":"2.0","result":true,"id":1}"#;
-
-	assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
-}
-
-#[test]
-fn rpc_parity_close_vault() {
-	let temp_path = RandomTempPath::new();
-	let deps = Dependencies::with_vaults_support(temp_path.as_str());
-	let io = deps.default_client();
-
-	assert!(deps.accounts.create_vault("vault1", "password1").is_ok());
-
-	let request = r#"{"jsonrpc": "2.0", "method": "parity_closeVault", "params":["vault1"], "id": 1}"#;
-	let response = r#"{"jsonrpc":"2.0","result":true,"id":1}"#;
-
-	assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
-}
-
-#[test]
-fn rpc_parity_change_vault_password() {
-	let temp_path = RandomTempPath::new();
-	let deps = Dependencies::with_vaults_support(temp_path.as_str());
-	let io = deps.default_client();
-
-	assert!(deps.accounts.create_vault("vault1", "password1").is_ok());
-
-	let request = r#"{"jsonrpc": "2.0", "method": "parity_changeVaultPassword", "params":["vault1", "password2"], "id": 1}"#;
-	let response = r#"{"jsonrpc":"2.0","result":true,"id":1}"#;
-
-	assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
-}
-
-#[test]
-fn rpc_parity_change_vault() {
-	let temp_path = RandomTempPath::new();
-	let deps = Dependencies::with_vaults_support(temp_path.as_str());
-	let io = deps.default_client();
-
-	let (address, _) = deps.accounts.new_account_and_public("root_password").unwrap();
-	assert!(deps.accounts.create_vault("vault1", "password1").is_ok());
-
-	let request = format!(r#"{{"jsonrpc": "2.0", "method": "parity_changeVault", "params":["0x{}", "vault1"], "id": 1}}"#, address.hex());
-	let response = r#"{"jsonrpc":"2.0","result":true,"id":1}"#;
-
-	assert_eq!(io.handle_request_sync(&request), Some(response.to_owned()));
-}
-
-#[test]
-fn rpc_parity_vault_adds_vault_field_to_acount_meta() {
-	let temp_path = RandomTempPath::new();
-	let deps = Dependencies::with_vaults_support(temp_path.as_str());
-	let io = deps.with_accounts();
-
-	let (address1, _) = deps.accounts.new_account_and_public("root_password1").unwrap();
-	let uuid1 = deps.accounts.account_meta(address1.clone()).unwrap().uuid.unwrap();
-	assert!(deps.accounts.create_vault("vault1", "password1").is_ok());
-	assert!(deps.accounts.change_vault(address1, "vault1").is_ok());
-
-	let request = r#"{"jsonrpc": "2.0", "method": "parity_allAccountsInfo", "params":[], "id": 1}"#;
-	let response = format!(r#"{{"jsonrpc":"2.0","result":{{"0x{}":{{"meta":"{{\"vault\":\"vault1\"}}","name":"","uuid":"{}"}}}},"id":1}}"#, address1.hex(), uuid1);
 
 	assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
 }

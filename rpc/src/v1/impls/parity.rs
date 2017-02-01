@@ -429,44 +429,4 @@ impl<C, M, S: ?Sized, U> Parity for ParityClient<C, M, S, U> where
 			block_gap: gap.map(|(x, y)| (x.into(), y.into())),
 		})
 	}
-
-	fn create_vault(&self, name: String, password: String) -> Result<bool, Error> {
-		self.active()?;
-		take_weak!(self.accounts)
-			.create_vault(&name, &password)
-			.map_err(|e| errors::account("Could not create vault.", e))
-			.map(|_| true)
-	}
-
-	fn open_vault(&self, name: String, password: String) -> Result<bool, Error> {
-		self.active()?;
-		take_weak!(self.accounts)
-			.open_vault(&name, &password)
-			.map_err(|e| errors::account("Could not open vault.", e))
-			.map(|_| true)
-	}
-
-	fn close_vault(&self, name: String) -> Result<bool, Error> {
-		self.active()?;
-		take_weak!(self.accounts)
-			.close_vault(&name)
-			.map_err(|e| errors::account("Could not close vault.", e))
-			.map(|_| true)
-	}
-
-	fn change_vault_password(&self, name: String, new_password: String) -> Result<bool, Error> {
-		self.active()?;
-		take_weak!(self.accounts)
-			.change_vault_password(&name, &new_password)
-			.map_err(|e| errors::account("Could not change vault password.", e))
-			.map(|_| true)
-	}
-
-	fn change_vault(&self, address: H160, new_vault: String) -> Result<bool, Error> {
-		self.active()?;
-		take_weak!(self.accounts)
-			.change_vault(address.into(), &new_vault)
-			.map_err(|e| errors::account("Could not change vault.", e))
-			.map(|_| true)
-	}
 }
