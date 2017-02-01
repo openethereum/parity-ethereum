@@ -13,8 +13,6 @@ parity.js [![Join the chat at https://gitter.im/ethcore/parity.js](https://badge
 
 Be sure to check out [our wiki][wiki-url] for more information.
 
-[travis-image]: https://travis-ci.org/ethcore/parity.svg?branch=master
-[travis-url]: https://travis-ci.org/ethcore/parity
 [coveralls-image]: https://coveralls.io/repos/github/ethcore/parity/badge.svg?branch=master
 [coveralls-url]: https://coveralls.io/github/ethcore/parity?branch=master
 [gitter-image]: https://badges.gitter.im/Join%20Chat.svg
