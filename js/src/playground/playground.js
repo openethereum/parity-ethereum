@@ -20,6 +20,7 @@ import React, { Component } from 'react';
 import CurrencySymbol from '~/ui/CurrencySymbol/currencySymbol.example';
 import QrCode from '~/ui/QrCode/qrCode.example';
 import SectionList from '~/ui/SectionList/sectionList.example';
+import Portal from '~/ui/Portal/portal.example';
 
 import PlaygroundStore from './store';
 import styles from './playground.css';
@@ -27,6 +28,7 @@ import styles from './playground.css';
 PlaygroundStore.register(<CurrencySymbol />);
 PlaygroundStore.register(<QrCode />);
 PlaygroundStore.register(<SectionList />);
+PlaygroundStore.register(<Portal />);
 
 @observer
 export default class Playground extends Component {

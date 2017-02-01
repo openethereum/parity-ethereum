@@ -45,15 +45,15 @@ use ethsync::{SyncProvider};
 use jsonrpc_core::Error;
 use jsonrpc_macros::Trailing;
 
+use v1::helpers::{CallRequest as CRequest, errors, limit_logs};
+use v1::helpers::dispatch::{dispatch_transaction, default_gas_price};
+use v1::helpers::block_import::is_major_importing;
 use v1::traits::Eth;
 use v1::types::{
 	RichBlock, Block, BlockTransactions, BlockNumber, Bytes, SyncStatus, SyncInfo,
 	Transaction, CallRequest, Index, Filter, Log, Receipt, Work,
 	H64 as RpcH64, H256 as RpcH256, H160 as RpcH160, U256 as RpcU256,
 };
-use v1::helpers::{CallRequest as CRequest, errors, limit_logs};
-use v1::helpers::dispatch::{dispatch_transaction, default_gas_price};
-use v1::helpers::block_import::is_major_importing;
 use v1::metadata::Metadata;
 
 const EXTRA_INFO_PROOF: &'static str = "Object exists in in blockchain (fetched earlier), extra_info is always available if object exists; qed";

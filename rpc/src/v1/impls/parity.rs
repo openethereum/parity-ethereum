@@ -35,6 +35,8 @@ use updater::{Service as UpdateService};
 
 use jsonrpc_core::Error;
 use jsonrpc_macros::Trailing;
+use v1::helpers::{errors, SigningQueue, SignerService, NetworkSettings};
+use v1::helpers::dispatch::DEFAULT_MAC;
 use v1::metadata::Metadata;
 use v1::traits::Parity;
 use v1::types::{
@@ -44,8 +46,6 @@ use v1::types::{
 	BlockNumber, ConsensusCapability, VersionInfo,
 	OperationsInfo, DappId, ChainStatus,
 };
-use v1::helpers::{errors, SigningQueue, SignerService, NetworkSettings};
-use v1::helpers::dispatch::DEFAULT_MAC;
 
 /// Parity implementation.
 pub struct ParityClient<C, M, S: ?Sized, U> where

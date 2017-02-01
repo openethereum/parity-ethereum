@@ -26,13 +26,14 @@ use rlp::encode;
 use serde_json;
 use jsonrpc_core::IoHandler;
 use v1::{SignerClient, Signer};
+use v1::metadata::Metadata;
 use v1::tests::helpers::TestMinerService;
 use v1::helpers::{SigningQueue, SignerService, FilledTransactionRequest, ConfirmationPayload};
 
 struct SignerTester {
 	signer: Arc<SignerService>,
 	accounts: Arc<AccountProvider>,
-	io: IoHandler,
+	io: IoHandler<Metadata>,
 	miner: Arc<TestMinerService>,
 	// these unused fields are necessary to keep the data alive
 	// as the handler has only weak pointers.
@@ -77,6 +78,7 @@ fn should_return_list_of_items_to_confirm() {
 	let tester = signer_tester();
 	tester.signer.add_request(ConfirmationPayload::SendTransaction(FilledTransactionRequest {
 		from: Address::from(1),
+		used_default_from: false,
 		to: Some(Address::from_str("d46e8dd67c5d32be8058bb8eb970870f07244567").unwrap()),
 		gas_price: U256::from(10_000),
 		gas: U256::from(10_000_000),
@@ -85,14 +87,14 @@ fn should_return_list_of_items_to_confirm() {
 		nonce: None,
 		min_block: None,
 	})).unwrap();
-	tester.signer.add_request(ConfirmationPayload::Signature(1.into(), 5.into())).unwrap();
+	tester.signer.add_request(ConfirmationPayload::Signature(1.into(), vec![5].into())).unwrap();
 
 	// when
 	let request = r#"{"jsonrpc":"2.0","method":"signer_requestsToConfirm","params":[],"id":1}"#;
 	let response = concat!(
 		r#"{"jsonrpc":"2.0","result":["#,
 		r#"{"id":"0x1","payload":{"sendTransaction":{"data":"0x","from":"0x0000000000000000000000000000000000000001","gas":"0x989680","gasPrice":"0x2710","minBlock":null,"nonce":null,"to":"0xd46e8dd67c5d32be8058bb8eb970870f07244567","value":"0x1"}}},"#,
-		r#"{"id":"0x2","payload":{"sign":{"address":"0x0000000000000000000000000000000000000001","hash":"0x0000000000000000000000000000000000000000000000000000000000000005"}}}"#,
+		r#"{"id":"0x2","payload":{"sign":{"address":"0x0000000000000000000000000000000000000001","data":"0x05"}}}"#,
 		r#"],"id":1}"#
 	);
 
@@ -107,6 +109,7 @@ fn should_reject_transaction_from_queue_without_dispatching() {
 	let tester = signer_tester();
 	tester.signer.add_request(ConfirmationPayload::SendTransaction(FilledTransactionRequest {
 		from: Address::from(1),
+		used_default_from: false,
 		to: Some(Address::from_str("d46e8dd67c5d32be8058bb8eb970870f07244567").unwrap()),
 		gas_price: U256::from(10_000),
 		gas: U256::from(10_000_000),
@@ -133,6 +136,7 @@ fn should_not_remove_transaction_if_password_is_invalid() {
 	let tester = signer_tester();
 	tester.signer.add_request(ConfirmationPayload::SendTransaction(FilledTransactionRequest {
 		from: Address::from(1),
+		used_default_from: false,
 		to: Some(Address::from_str("d46e8dd67c5d32be8058bb8eb970870f07244567").unwrap()),
 		gas_price: U256::from(10_000),
 		gas: U256::from(10_000_000),
@@ -156,7 +160,7 @@ fn should_not_remove_transaction_if_password_is_invalid() {
 fn should_not_remove_sign_if_password_is_invalid() {
 	// given
 	let tester = signer_tester();
-	tester.signer.add_request(ConfirmationPayload::Signature(0.into(), 5.into())).unwrap();
+	tester.signer.add_request(ConfirmationPayload::Signature(0.into(), vec![5].into())).unwrap();
 	assert_eq!(tester.signer.requests().len(), 1);
 
 	// when
@@ -176,6 +180,7 @@ fn should_confirm_transaction_and_dispatch() {
 	let recipient = Address::from_str("d46e8dd67c5d32be8058bb8eb970870f07244567").unwrap();
 	tester.signer.add_request(ConfirmationPayload::SendTransaction(FilledTransactionRequest {
 		from: address,
+		used_default_from: false,
 		to: Some(recipient),
 		gas_price: U256::from(10_000),
 		gas: U256::from(10_000_000),
@@ -221,6 +226,7 @@ fn should_alter_the_sender_and_nonce() {
 	let recipient = Address::from_str("d46e8dd67c5d32be8058bb8eb970870f07244567").unwrap();
 	tester.signer.add_request(ConfirmationPayload::SendTransaction(FilledTransactionRequest {
 		from: 0.into(),
+		used_default_from: false,
 		to: Some(recipient),
 		gas_price: U256::from(10_000),
 		gas: U256::from(10_000_000),
@@ -270,6 +276,7 @@ fn should_confirm_transaction_with_token() {
 	let recipient = Address::from_str("d46e8dd67c5d32be8058bb8eb970870f07244567").unwrap();
 	tester.signer.add_request(ConfirmationPayload::SendTransaction(FilledTransactionRequest {
 		from: address,
+		used_default_from: false,
 		to: Some(recipient),
 		gas_price: U256::from(10_000),
 		gas: U256::from(10_000_000),
@@ -318,6 +325,7 @@ fn should_confirm_transaction_with_rlp() {
 	let recipient = Address::from_str("d46e8dd67c5d32be8058bb8eb970870f07244567").unwrap();
 	tester.signer.add_request(ConfirmationPayload::SendTransaction(FilledTransactionRequest {
 		from: address,
+		used_default_from: false,
 		to: Some(recipient),
 		gas_price: U256::from(10_000),
 		gas: U256::from(10_000_000),
@@ -365,6 +373,7 @@ fn should_return_error_when_sender_does_not_match() {
 	let recipient = Address::from_str("d46e8dd67c5d32be8058bb8eb970870f07244567").unwrap();
 	tester.signer.add_request(ConfirmationPayload::SendTransaction(FilledTransactionRequest {
 		from: Address::default(),
+		used_default_from: false,
 		to: Some(recipient),
 		gas_price: U256::from(10_000),
 		gas: U256::from(10_000_000),

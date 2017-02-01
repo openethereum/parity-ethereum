@@ -14,27 +14,16 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-#[macro_use]
-pub mod errors;
+try {
+  var JsonRpc = require('../.npmjs/jsonRpc/library.js');
 
-pub mod block_import;
-pub mod dispatch;
-pub mod informant;
+  if (typeof JsonRpc !== 'object') {
+    throw new Error('JsonRpc');
+  }
 
-mod network_settings;
-mod poll_manager;
-mod poll_filter;
-mod requests;
-mod signer;
-mod signing_queue;
-
-pub use self::network_settings::NetworkSettings;
-pub use self::poll_manager::PollManager;
-pub use self::poll_filter::{PollFilter, limit_logs};
-pub use self::requests::{
-	TransactionRequest, FilledTransactionRequest, ConfirmationRequest, ConfirmationPayload, CallRequest,
-};
-pub use self::signing_queue::{
-	ConfirmationsQueue, ConfirmationPromise, ConfirmationResult, SigningQueue, QueueEvent, DefaultAccount,
-};
-pub use self::signer::SignerService;
+  console.log(JsonRpc);
+  process.exit(0);
+} catch (e) {
+  console.error('An error occured:', e.toString().split('\n')[0]);
+  process.exit(1);
+}

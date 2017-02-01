@@ -161,6 +161,7 @@ class ParityBar extends Component {
         onMouseLeave={ this.onMouseLeave }
         onMouseMove={ this.onMouseMove }
         onMouseUp={ this.onMouseUp }
+        ref={ this.onRef }
       >
         <ParityBackground
           className={ parityBgClassNames.join(' ') }
@@ -187,7 +188,6 @@ class ParityBar extends Component {
     return (
       <div
         className={ styles.cornercolor }
-        ref={ this.onRef }
       >
         {
           this.renderLink(

@@ -14,8 +14,38 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-// Placeholders for objects with undefined fields, will show up in docs as `{ ... }`
-export const DUMMY = '$DUMMY$';
+// A dummy placeholder object that will stringify literally to anything
+// in the example source.
+//
+//   {                                          {
+//     foo: new Dummy('{ ... }')   ------->       "foo": { ... }
+//   }                                          {
+//
+export class Dummy {
+  constructor (value) {
+    this.value = value;
+  }
+
+  toString () {
+    return this.value;
+  }
+
+  toJSON () {
+    return `##${this.value}##`;
+  }
+
+  static fixJSON (json) {
+    return json.replace(/"##([^#]+)##"/g, '$1');
+  }
+
+  static isDummy (obj) {
+    return obj instanceof Dummy;
+  }
+
+  static stringifyJSON (any) {
+    return Dummy.fixJSON(JSON.stringify(any));
+  }
+}
 
 // Enrich the API spec by additional markdown-formatted preamble
 export function withPreamble (preamble, spec) {

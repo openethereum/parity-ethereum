@@ -15,33 +15,60 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+.modal {
+  flex-direction: column;
+}
+
+.container {
+  margin-top: 1.5em;
+  overflow-y: auto;
+}
+
 .item {
-  .info {
-    display: inline-block;
+  display: flex;
+  flex: 1;
+  position: relative;
 
-    .address {
-      opacity: 0.75;
-    }
-
-    .description {
-      margin-top: 0.5em;
-      opacity: 0.75;
-    }
-
-    .name {
-      margin: 0.5em 0;
-      text-transform: uppercase;
-    }
+  .overlay {
+    position: absolute;
+    right: 0.5em;
+    top: 0.5em;
   }
 }
 
 .selected, .unselected {
   margin-bottom: 0.25em;
-}
 
-.selected {
-  background: rgba(255, 255, 255, 0.15);
+  &:focus {
+    outline: none;
+  }
 }
 
 .unselected {
+  background: rgba(0, 0, 0, 0.4) !important;
+}
+
+.selected {
+  background: rgba(255, 255, 255, 0.15) !important;
+
+  &.default {
+    background: rgba(255, 255, 255, 0.35) !important;
+  }
+}
+
+.unselected {
+}
+
+.iconDisabled {
+  opacity: 0.15;
+}
+
+.legend {
+  opacity: 0.75;
+  margin-top: 1em;
+
+  span {
+    line-height: 24px;
+    vertical-align: top;
+  }
 }

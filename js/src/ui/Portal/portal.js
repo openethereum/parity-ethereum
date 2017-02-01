@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import EventListener from 'react-event-listener';
 import React, { Component, PropTypes } from 'react';
 import ReactDOM from 'react-dom';
 import ReactPortal from 'react-portal';
@@ -28,72 +29,56 @@ export default class Portal extends Component {
   static propTypes = {
     onClose: PropTypes.func.isRequired,
     open: PropTypes.bool.isRequired,
-
     children: PropTypes.node,
     className: PropTypes.string,
+    isChildModal: PropTypes.bool,
     onKeyDown: PropTypes.func
   };
 
-  state = {
-    expanded: false
-  }
-
-  componentWillReceiveProps (nextProps) {
-    if (this.props.open !== nextProps.open) {
-      const opening = nextProps.open;
-      const closing = !opening;
-
-      if (opening) {
-        return this.setState({ expanded: true });
-      }
-
-      if (closing) {
-        return this.setState({ expanded: false });
-      }
-    }
-  }
-
   render () {
-    const { expanded } = this.state;
-    const { children, className } = this.props;
+    const { children, className, isChildModal, open } = this.props;
 
-    const classes = [ styles.overlay, className ];
-    const backClasses = [ styles.backOverlay ];
-
-    if (expanded) {
-      classes.push(styles.expanded);
-      backClasses.push(styles.expanded);
-    }
-
-    return (
-      <ReactPortal isOpened onClose={ this.handleClose }>
-        <div className={ backClasses.join(' ') } onClick={ this.handleClose }>
-          <div
-            className={ classes.join(' ') }
-            onClick={ this.stopEvent }
-            onKeyDown={ this.handleKeyDown }
-          >
-            <ParityBackground className={ styles.parityBackground } />
-
-            { this.renderCloseIcon() }
-            { children }
-          </div>
-        </div>
-      </ReactPortal>
-    );
-  }
-
-  renderCloseIcon () {
-    const { expanded } = this.state;
-
-    if (!expanded) {
+    if (!open) {
       return null;
     }
 
     return (
-      <div className={ styles.closeIcon } onClick={ this.handleClose }>
-        <CloseIcon />
-      </div>
+      <ReactPortal
+        isOpened
+        onClose={ this.handleClose }
+      >
+        <div
+          className={ styles.backOverlay }
+          onClick={ this.handleClose }
+        >
+          <div
+            className={
+              [
+                styles.overlay,
+                isChildModal
+                  ? styles.popover
+                  : styles.modal,
+                className
+              ].join(' ')
+            }
+            onClick={ this.stopEvent }
+            onKeyDown={ this.handleKeyDown }
+          >
+            <EventListener
+              target='window'
+              onKeyUp={ this.handleKeyUp }
+            />
+            <ParityBackground className={ styles.parityBackground } />
+            <div
+              className={ styles.closeIcon }
+              onClick={ this.handleClose }
+            >
+              <CloseIcon />
+            </div>
+            { children }
+          </div>
+        </div>
+      </ReactPortal>
     );
   }
 
@@ -107,21 +92,28 @@ export default class Portal extends Component {
   }
 
   handleKeyDown = (event) => {
+    const { onKeyDown } = this.props;
+
+    event.persist();
+    return onKeyDown
+      ? onKeyDown(event)
+      : false;
+  }
+
+  handleKeyUp = (event) => {
     const codeName = keycode(event);
 
     switch (codeName) {
       case 'esc':
         event.preventDefault();
         return this.handleClose();
-
-      default:
-        event.persist();
-        return this.props.onKeyDown(event);
     }
   }
 
   handleDOMAction = (ref, method) => {
-    const refItem = typeof ref === 'string' ? this.refs[ref] : ref;
+    const refItem = typeof ref === 'string'
+      ? this.refs[ref]
+      : ref;
     const element = ReactDOM.findDOMNode(refItem);
 
     if (!element || typeof element[method] !== 'function') {

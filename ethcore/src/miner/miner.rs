@@ -18,7 +18,7 @@ use std::time::{Instant, Duration};
 
 use util::*;
 use util::using_queue::{UsingQueue, GetAction};
-use account_provider::{AccountProvider, Error as AccountError};
+use account_provider::{AccountProvider, SignError as AccountError};
 use state::{State, CleanupMode};
 use client::{MiningBlockChainClient, Executive, Executed, EnvInfo, TransactOptions, BlockId, CallAnalytics, TransactionId};
 use client::TransactionImportResult;

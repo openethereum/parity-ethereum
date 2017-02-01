@@ -18,6 +18,7 @@ import { Data, Quantity } from '../types';
 
 export default {
   version: {
+    nodoc: 'Not present in Rust code',
     desc: 'Returns the current whisper protocol version.',
     params: [],
     returns: {
@@ -27,6 +28,7 @@ export default {
   },
 
   post: {
+    nodoc: 'Not present in Rust code',
     desc: 'Sends a whisper message.',
     params: [
       {
@@ -62,6 +64,7 @@ export default {
   },
 
   newIdentity: {
+    nodoc: 'Not present in Rust code',
     desc: 'Creates new whisper identity in the client.',
     params: [],
     returns: {
@@ -71,6 +74,7 @@ export default {
   },
 
   hasIdentity: {
+    nodoc: 'Not present in Rust code',
     desc: 'Checks if the client hold the private keys for a given identity.',
     params: [
       {
@@ -85,6 +89,7 @@ export default {
   },
 
   newGroup: {
+    nodoc: 'Not present in Rust code',
     desc: '(?)',
     params: [],
     returns: {
@@ -93,6 +98,7 @@ export default {
   },
 
   addToGroup: {
+    nodoc: 'Not present in Rust code',
     desc: '(?)',
     params: [
       {
@@ -107,6 +113,7 @@ export default {
   },
 
   newFilter: {
+    nodoc: 'Not present in Rust code',
     desc: 'Creates filter to notify, when client receives whisper message matching the filter options.',
     params: [
       {
@@ -129,6 +136,7 @@ export default {
   },
 
   uninstallFilter: {
+    nodoc: 'Not present in Rust code',
     desc: 'Uninstalls a filter with given id. Should always be called when watch is no longer needed.\nAdditonally Filters timeout when they aren\'t requested with [shh_getFilterChanges](#shh_getfilterchanges) for a period of time.',
     params: [
       {
@@ -143,6 +151,7 @@ export default {
   },
 
   getFilterChanges: {
+    nodoc: 'Not present in Rust code',
     desc: 'Polling method for whisper filters. Returns new messages since the last call of this method.\n**Note** calling the [shh_getMessages](#shh_getmessages) method, will reset the buffer for this method, so that you won\'t receive duplicate messages.',
     params: [
       {
@@ -157,6 +166,7 @@ export default {
   },
 
   getMessages: {
+    nodoc: 'Not present in Rust code',
     desc: 'Get all messages matching a filter. Unlike `shh_getFilterChanges` this returns all messages.',
     params: [
       {
