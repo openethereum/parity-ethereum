@@ -48,6 +48,11 @@
   }
 }
 
+.container {
+  display: flex;
+  flex-direction: column;
+}
+
 .overlay {
   position: fixed;
   top: 0;

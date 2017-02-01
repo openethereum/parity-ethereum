@@ -288,7 +288,7 @@ class ParityBar extends Component {
     const { displayType } = this.state;
 
     return (
-      <div>
+      <div className={ styles.container }>
         <div className={ styles.header }>
           <div className={ styles.title }>
             <ContainerTitle
@@ -348,7 +348,10 @@ class ParityBar extends Component {
     };
 
     return (
-      <div className={ styles.account }>
+      <div
+        className={ styles.account }
+        onClick={ onMakeDefault }
+      >
         <AccountCard
           account={ account }
           className={
@@ -356,7 +359,6 @@ class ParityBar extends Component {
               ? styles.selected
               : styles.unselected
           }
-          onClick={ onMakeDefault }
         />
       </div>
     );
