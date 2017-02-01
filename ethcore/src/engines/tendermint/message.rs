@@ -193,7 +193,6 @@ impl Encodable for ConsensusMessage {
 }
 
 pub fn message_info_rlp(vote_step: &VoteStep, block_hash: Option<BlockHash>) -> Bytes {
-	// TODO: figure out whats wrong with nested list encoding
 	let mut s = RlpStream::new_list(4);
 	s.append(&vote_step.height).append(&vote_step.view).append(&vote_step.step).append(&block_hash.unwrap_or_else(H256::zero));
 	s.out()
