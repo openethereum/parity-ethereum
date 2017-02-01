@@ -266,7 +266,7 @@ impl AccountProvider {
 
 	/// Returns each account along with name and meta.
 	pub fn account_meta(&self, address: Address) -> Result<AccountMeta, Error> {
-		let account = StoreAccountRef::root(address);
+		let account = self.sstore.account_ref(&address)?;
 		Ok(AccountMeta {
 			name: self.sstore.name(&account)?,
 			meta: self.sstore.meta(&account)?,
@@ -276,38 +276,38 @@ impl AccountProvider {
 
 	/// Returns each account along with name and meta.
 	pub fn set_account_name(&self, address: Address, name: String) -> Result<(), Error> {
-		self.sstore.set_name(&StoreAccountRef::root(address), name)?;
+		self.sstore.set_name(&self.sstore.account_ref(&address)?, name)?;
 		Ok(())
 	}
 
 	/// Returns each account along with name and meta.
 	pub fn set_account_meta(&self, address: Address, meta: String) -> Result<(), Error> {
-		self.sstore.set_meta(&StoreAccountRef::root(address), meta)?;
+		self.sstore.set_meta(&self.sstore.account_ref(&address)?, meta)?;
 		Ok(())
 	}
 
 	/// Returns `true` if the password for `account` is `password`. `false` if not.
 	pub fn test_password(&self, address: &Address, password: &str) -> Result<bool, Error> {
-		self.sstore.test_password(&StoreAccountRef::root(address.clone()), password)
+		self.sstore.test_password(&self.sstore.account_ref(&address)?, password)
 			.map_err(Into::into)
 	}
 
 	/// Permanently removes an account.
 	pub fn kill_account(&self, address: &Address, password: &str) -> Result<(), Error> {
-		self.sstore.remove_account(&StoreAccountRef::root(address.clone()), &password)?;
+		self.sstore.remove_account(&self.sstore.account_ref(&address)?, &password)?;
 		Ok(())
 	}
 
 	/// Changes the password of `account` from `password` to `new_password`. Fails if incorrect `password` given.
-	pub fn change_password(&self, account: &Address, password: String, new_password: String) -> Result<(), Error> {
-		self.sstore.change_password(&StoreAccountRef::root(account.clone()), &password, &new_password)
+	pub fn change_password(&self, address: &Address, password: String, new_password: String) -> Result<(), Error> {
+		self.sstore.change_password(&self.sstore.account_ref(address)?, &password, &new_password)
 	}
 
 	/// Helper method used for unlocking accounts.
 	fn unlock_account(&self, address: Address, password: String, unlock: Unlock) -> Result<(), Error> {
 		// verify password by signing dump message
 		// result may be discarded
-		let account = StoreAccountRef::root(address);
+		let account = self.sstore.account_ref(&address)?;
 		let _ = self.sstore.sign(&account, &password, &Default::default())?;
 
 		// check if account is already unlocked pernamently, if it is, do nothing
@@ -360,20 +360,21 @@ impl AccountProvider {
 	/// Checks if given account is unlocked
 	pub fn is_unlocked(&self, address: Address) -> bool {
 		let unlocked = self.unlocked.read();
-		let account = StoreAccountRef::root(address);
-		unlocked.get(&account).is_some()
+		self.sstore.account_ref(&address)
+			.map(|r| unlocked.get(&r).is_some())
+			.unwrap_or(false)
 	}
 
 	/// Signs the message. If password is not provided the account must be unlocked.
 	pub fn sign(&self, address: Address, password: Option<String>, message: Message) -> Result<Signature, SignError> {
-		let account = StoreAccountRef::root(address);
+		let account = self.sstore.account_ref(&address)?;
 		let password = password.map(Ok).unwrap_or_else(|| self.password(&account))?;
 		Ok(self.sstore.sign(&account, &password, &message)?)
 	}
 
 	/// Signs given message with supplied token. Returns a token to use in next signing within this session.
 	pub fn sign_with_token(&self, address: Address, token: AccountToken, message: Message) -> Result<(Signature, AccountToken), SignError> {
-		let account = StoreAccountRef::root(address);
+		let account = self.sstore.account_ref(&address)?;
 		let is_std_password = self.sstore.test_password(&account, &token)?;
 
 		let new_token = random_string(16);
@@ -396,7 +397,7 @@ impl AccountProvider {
 	pub fn decrypt_with_token(&self, address: Address, token: AccountToken, shared_mac: &[u8], message: &[u8])
 		-> Result<(Vec<u8>, AccountToken), SignError>
 	{
-		let account = StoreAccountRef::root(address);
+		let account = self.sstore.account_ref(&address)?;
 		let is_std_password = self.sstore.test_password(&account, &token)?;
 
 		let new_token = random_string(16);
@@ -417,7 +418,7 @@ impl AccountProvider {
 
 	/// Decrypts a message. If password is not provided the account must be unlocked.
 	pub fn decrypt(&self, address: Address, password: Option<String>, shared_mac: &[u8], message: &[u8]) -> Result<Vec<u8>, SignError> {
-		let account = StoreAccountRef::root(address);
+		let account = self.sstore.account_ref(&address)?;
 		let password = password.map(Ok).unwrap_or_else(|| self.password(&account))?;
 		Ok(self.sstore.decrypt(&account, &password, shared_mac, message)?)
 	}
@@ -453,22 +454,18 @@ impl AccountProvider {
 	}
 
 	/// Change vault password.
-	pub fn change_vault_password(&self, name: &str, old_password: &str, new_password: &str) -> Result<(), Error> {
-		self.sstore.change_vault_password(name, old_password, new_password)
+	pub fn change_vault_password(&self, name: &str, new_password: &str) -> Result<(), Error> {
+		self.sstore.change_vault_password(name, new_password)
 			.map_err(Into::into)
 	}
 
 	/// Change vault of the given address.
-	pub fn change_vault(&self, address: Address, new_vault: &str, old_password: &str, new_password: &str) -> Result<(), Error> {
+	pub fn change_vault(&self, address: Address, new_vault: &str) -> Result<(), Error> {
 		let new_vault_ref = if new_vault.is_empty() { SecretVaultRef::Root } else { SecretVaultRef::Vault(new_vault.to_owned()) };
-		let old_account_ref = self.sstore.accounts()?
-			.into_iter()
-			.filter(|a| a.address == address && a.vault != new_vault_ref)
-			.filter(|a| self.sstore.test_password(a, old_password).unwrap_or(false))
-			.nth(0)
-			.ok_or(SSError::InvalidAccount)?;
-		self.sstore.move_account(self.sstore.as_simple_secret_store(), new_vault_ref, &old_account_ref, old_password, new_password)
+		let old_account_ref = self.sstore.account_ref(&address)?;
+		self.sstore.change_account_vault(new_vault_ref, old_account_ref)
 			.map_err(Into::into)
+			.map(|_| ())
 	}
 }
 

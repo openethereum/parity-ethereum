@@ -32,9 +32,9 @@ pub struct VaultKeyFile {
 	pub id: Uuid,
 	/// Key version
 	pub version: Version,
-	/// Encrypted secret
+	/// Secret, encrypted with account password
 	pub crypto: Crypto,
-	/// Encrypted serialized `VaultKeyMeta`
+	/// Serialized `VaultKeyMeta`, encrypted with vault password
 	pub metacrypto: Crypto,
 }
 

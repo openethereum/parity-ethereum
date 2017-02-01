@@ -454,18 +454,18 @@ impl<C, M, S: ?Sized, U> Parity for ParityClient<C, M, S, U> where
 			.map(|_| true)
 	}
 
-	fn change_vault_password(&self, name: String, old_password: String, new_password: String) -> Result<bool, Error> {
+	fn change_vault_password(&self, name: String, new_password: String) -> Result<bool, Error> {
 		self.active()?;
 		take_weak!(self.accounts)
-			.change_vault_password(&name, &old_password, &new_password)
+			.change_vault_password(&name, &new_password)
 			.map_err(|e| errors::account("Could not change vault password.", e))
 			.map(|_| true)
 	}
 
-	fn change_vault(&self, address: H160, new_vault: String, old_password: String, new_password: String) -> Result<bool, Error> {
+	fn change_vault(&self, address: H160, new_vault: String) -> Result<bool, Error> {
 		self.active()?;
 		take_weak!(self.accounts)
-			.change_vault(address.into(), &new_vault, &old_password, &new_password)
+			.change_vault(address.into(), &new_vault)
 			.map_err(|e| errors::account("Could not change vault.", e))
 			.map(|_| true)
 	}
