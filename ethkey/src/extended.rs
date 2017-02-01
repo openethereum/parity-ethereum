@@ -162,7 +162,7 @@ mod derivation {
 		MissingIndex,
 	}
 
-	// Deterministic derivation of the key using elliptic curve.
+	// Deterministic derivation of the key using secp256k1 elliptic curve.
 	// Derivation can be either hardened or not.
 	// For hardened derivation, pass index at least 2^31
 	pub fn private(private_key: H256, chain_code: H256, index: u32) -> (H256, H256) {
@@ -209,7 +209,7 @@ mod derivation {
 		hmac_pair(data, private_key, chain_code)
 	}
 
-	// Deterministic derivation of the key using elliptic curve
+	// Deterministic derivation of the key using secp256k1 elliptic curve
 	// This is hardened derivation and does not allow to associate
 	// corresponding public keys of the original and derived private keys
 	fn private_hard(private_key: H256, chain_code: H256, index: u32) -> (H256, H256) {
