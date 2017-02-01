@@ -21,7 +21,8 @@ use std::io;
 use io::PanicHandler;
 
 use dir::default_data_path;
-use ethcore_rpc::{self as rpc, RpcServerError, IpcServerError, Metadata, RpcStats, Middleware};
+use ethcore_rpc::{self as rpc, RpcServerError, IpcServerError, Metadata};
+use ethcore_rpc::informant::{RpcStats, Middleware};
 use helpers::parity_ipc_path;
 use jsonrpc_core::MetaIoHandler;
 use jsonrpc_core::reactor::{RpcHandler, Remote};
@@ -99,8 +100,7 @@ pub fn new_http(conf: HttpConfiguration, deps: &Dependencies) -> Result<Option<H
 }
 
 fn setup_apis(apis: ApiSet, deps: &Dependencies) -> MetaIoHandler<Metadata, Middleware> {
-	let io = MetaIoHandler::with_middleware(Middleware::new(deps.stats.clone()));
-	rpc_apis::setup_rpc(io, deps.apis.clone(), apis)
+	rpc_apis::setup_rpc(deps.stats.clone(), deps.apis.clone(), apis)
 }
 
 pub fn setup_http_rpc_server(

@@ -23,7 +23,7 @@ use std::sync::Arc;
 use std::str::FromStr;
 use jsonrpc_core::{Metadata, Middleware};
 use jsonrpc_core::reactor::RpcHandler;
-use rpc::RpcStats;
+use rpc::informant::RpcStats;
 use util::{H256, version};
 
 #[cfg(feature = "parity-ui")]

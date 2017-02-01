@@ -174,38 +174,60 @@ impl RpcStats {
 	}
 }
 
-/// Stats-counting RPC middleware
-pub struct Middleware {
-	stats: Arc<RpcStats>,
+/// Notifies about RPC activity.
+pub trait ActivityNotifier: Send + Sync + 'static {
+	/// Activity on RPC interface
+	fn active(&self);
 }
 
-impl Middleware {
-	/// Create new Middleware with given stats counter.
-	pub fn new(stats: Arc<RpcStats>) -> Self {
+/// Stats-counting RPC middleware
+pub struct Middleware<T: ActivityNotifier = ClientNotifier> {
+	stats: Arc<RpcStats>,
+	notifier: T,
+}
+
+impl<T: ActivityNotifier> Middleware<T> {
+	/// Create new Middleware with stats counter and activity notifier.
+	pub fn new(stats: Arc<RpcStats>, notifier: T) -> Self {
 		Middleware {
 			stats: stats,
+			notifier: notifier,
 		}
+	}
+
+	fn as_micro(dur: time::Duration) -> u32 {
+		(dur.as_secs() * 1_000_000) as u32 + dur.subsec_nanos() / 1_000
 	}
 }
 
-impl<M: rpc::Metadata> rpc::Middleware<M> for Middleware {
+impl<M: rpc::Metadata, T: ActivityNotifier> rpc::Middleware<M> for Middleware<T> {
 	fn on_request<F>(&self, request: rpc::Request, meta: M, process: F) -> rpc::FutureResponse where
 		F: FnOnce(rpc::Request, M) -> rpc::FutureResponse,
 	{
-		self.stats.count_request();
-		let stats = self.stats.clone();
 		let start = time::Instant::now();
-		process(request, meta).map(move |res| {
-			stats.add_roundtrip(as_micro(start.elapsed()));
+		let response = process(request, meta);
+
+		self.notifier.active();
+		let stats = self.stats.clone();
+		stats.count_request();
+		response.map(move |res| {
+			stats.add_roundtrip(Self::as_micro(start.elapsed()));
 			res
 		}).boxed()
 	}
 }
 
-fn as_micro(dur: time::Duration) -> u32 {
-	(dur.as_secs() * 1_000_000) as u32 + dur.subsec_nanos() / 1_000
+/// Client Notifier
+pub struct ClientNotifier {
+	/// Client
+	pub client: Arc<::ethcore::client::Client>,
 }
 
+impl ActivityNotifier for ClientNotifier {
+	fn active(&self) {
+		self.client.keep_alive()
+	}
+}
 
 #[cfg(test)]
 mod tests {

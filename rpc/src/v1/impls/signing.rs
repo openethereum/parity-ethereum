@@ -72,12 +72,6 @@ impl<C, M> SigningQueueClient<C, M> where
 		}
 	}
 
-	fn active(&self) -> Result<(), Error> {
-		// TODO: only call every 30s at most.
-		take_weak!(self.client).keep_alive();
-		Ok(())
-	}
-
 	fn handle_dispatch<OnResponse>(&self, res: Result<DispatchResult, Error>, on_response: OnResponse)
 		where OnResponse: FnOnce(Result<RpcConfirmationResponse, Error>) + Send + 'static
 	{
@@ -123,7 +117,6 @@ impl<C: 'static, M: 'static> ParitySigning for SigningQueueClient<C, M> where
 	M: MinerService,
 {
 	fn post_sign(&self, address: RpcH160, hash: RpcH256) -> Result<RpcEither<RpcU256, RpcConfirmationResponse>, Error> {
-		self.active()?;
 		self.dispatch(RpcConfirmationPayload::Signature((address, hash).into()))
 			.map(|result| match result {
 				DispatchResult::Value(v) => RpcEither::Or(v),
@@ -136,7 +129,6 @@ impl<C: 'static, M: 'static> ParitySigning for SigningQueueClient<C, M> where
 	}
 
 	fn post_transaction(&self, request: RpcTransactionRequest) -> Result<RpcEither<RpcU256, RpcConfirmationResponse>, Error> {
-		self.active()?;
 		self.dispatch(RpcConfirmationPayload::SendTransaction(request))
 			.map(|result| match result {
 				DispatchResult::Value(v) => RpcEither::Or(v),
@@ -149,7 +141,6 @@ impl<C: 'static, M: 'static> ParitySigning for SigningQueueClient<C, M> where
 	}
 
 	fn check_request(&self, id: RpcU256) -> Result<Option<RpcConfirmationResponse>, Error> {
-		self.active()?;
 		let mut pending = self.pending.lock();
 		let id: U256 = id.into();
 		let res = match pending.get(&id) {
@@ -165,8 +156,7 @@ impl<C: 'static, M: 'static> ParitySigning for SigningQueueClient<C, M> where
 	}
 
 	fn decrypt_message(&self, address: RpcH160, data: RpcBytes) -> BoxFuture<RpcBytes, Error> {
-		let res = self.active()
-			.and_then(|_| self.dispatch(RpcConfirmationPayload::Decrypt((address, data).into())));
+		let res = self.dispatch(RpcConfirmationPayload::Decrypt((address, data).into()));
 
 		let (ready, p) = futures::oneshot();
 		// TODO [todr] typed handle_dispatch
@@ -188,7 +178,7 @@ impl<C: 'static, M: 'static> EthSigning for SigningQueueClient<C, M> where
 {
 	fn sign(&self, address: RpcH160, data: RpcBytes) -> BoxFuture<RpcH520, Error> {
 		let hash = data.0.sha3().into();
-		let res = self.active().and_then(|_| self.dispatch(RpcConfirmationPayload::Signature((address, hash).into())));
+		let res = self.dispatch(RpcConfirmationPayload::Signature((address, hash).into()));
 
 		let (ready, p) = futures::oneshot();
 		self.handle_dispatch(res, |response| {
@@ -203,7 +193,7 @@ impl<C: 'static, M: 'static> EthSigning for SigningQueueClient<C, M> where
 	}
 
 	fn send_transaction(&self, request: RpcTransactionRequest) -> BoxFuture<RpcH256, Error> {
-		let res = self.active().and_then(|_| self.dispatch(RpcConfirmationPayload::SendTransaction(request)));
+		let res = self.dispatch(RpcConfirmationPayload::SendTransaction(request));
 
 		let (ready, p) = futures::oneshot();
 		self.handle_dispatch(res, |response| {
@@ -218,7 +208,7 @@ impl<C: 'static, M: 'static> EthSigning for SigningQueueClient<C, M> where
 	}
 
 	fn sign_transaction(&self, request: RpcTransactionRequest) -> BoxFuture<RpcRichRawTransaction, Error> {
-		let res = self.active().and_then(|_| self.dispatch(RpcConfirmationPayload::SignTransaction(request)));
+		let res = self.dispatch(RpcConfirmationPayload::SignTransaction(request));
 
 		let (ready, p) = futures::oneshot();
 		self.handle_dispatch(res, |response| {

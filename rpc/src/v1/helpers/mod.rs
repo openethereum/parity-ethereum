@@ -19,8 +19,8 @@ pub mod errors;
 
 pub mod block_import;
 pub mod dispatch;
+pub mod informant;
 
-mod informant;
 mod network_settings;
 mod poll_manager;
 mod poll_filter;
@@ -28,7 +28,6 @@ mod requests;
 mod signer;
 mod signing_queue;
 
-pub use self::informant::{RpcStats, Middleware};
 pub use self::network_settings::NetworkSettings;
 pub use self::poll_manager::PollManager;
 pub use self::poll_filter::{PollFilter, limit_logs};

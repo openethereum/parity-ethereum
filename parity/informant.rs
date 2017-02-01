@@ -30,7 +30,8 @@ use ethcore::service::ClientIoMessage;
 use ethcore::snapshot::service::Service as SnapshotService;
 use ethcore::snapshot::{RestorationStatus, SnapshotService as SS};
 use number_prefix::{binary_prefix, Standalone, Prefixed};
-use ethcore_rpc::{is_major_importing, RpcStats};
+use ethcore_rpc::{is_major_importing};
+use ethcore_rpc::informant::RpcStats;
 use rlp::View;
 
 pub struct Informant {
@@ -139,7 +140,7 @@ impl Informant {
 		info!(target: "import", "{}  {}  {}  {}",
 			match importing {
 				true => match snapshot_sync {
-					false => format!("Syncing {} {}   {}   {}+{} Qed",
+					false => format!("Syncing {} {}  {}  {}+{} Qed",
 						paint(White.bold(), format!("{:>8}", format!("#{}", chain_info.best_block_number))),
 						paint(White.bold(), format!("{}", chain_info.best_block_hash)),
 						{
@@ -185,7 +186,7 @@ impl Informant {
 				Some(ref rpc_stats) => format!(
 					"RPC: {} conn, {} req/s, {} µs",
 					paint(Blue.bold(), format!("{:2}", rpc_stats.sessions())),
-					paint(Blue.bold(), format!("{:3}", rpc_stats.requests_rate())),
+					paint(Blue.bold(), format!("{:2}", rpc_stats.requests_rate())),
 					paint(Blue.bold(), format!("{:3}", rpc_stats.approximated_roundtrip())),
 				),
 				_ => String::new(),

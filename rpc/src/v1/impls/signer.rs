@@ -55,17 +55,9 @@ impl<C: 'static, M: 'static> SignerClient<C, M> where C: MiningBlockChainClient,
 		}
 	}
 
-	fn active(&self) -> Result<(), Error> {
-		// TODO: only call every 30s at most.
-		take_weak!(self.client).keep_alive();
-		Ok(())
-	}
-
 	fn confirm_internal<F>(&self, id: U256, modification: TransactionModification, f: F) -> Result<WithToken<ConfirmationResponse>, Error> where
 		F: FnOnce(&C, &M, &AccountProvider, ConfirmationPayload) -> Result<WithToken<ConfirmationResponse>, Error>,
 	{
-		self.active()?;
-
 		let id = id.into();
 		let accounts = take_weak!(self.accounts);
 		let signer = take_weak!(self.signer);
@@ -104,7 +96,6 @@ impl<C: 'static, M: 'static> SignerClient<C, M> where C: MiningBlockChainClient,
 impl<C: 'static, M: 'static> Signer for SignerClient<C, M> where C: MiningBlockChainClient, M: MinerService {
 
 	fn requests_to_confirm(&self) -> Result<Vec<ConfirmationRequest>, Error> {
-		self.active()?;
 		let signer = take_weak!(self.signer);
 
 		Ok(signer.requests()
@@ -135,8 +126,6 @@ impl<C: 'static, M: 'static> Signer for SignerClient<C, M> where C: MiningBlockC
 	}
 
 	fn confirm_request_raw(&self, id: U256, bytes: Bytes) -> Result<ConfirmationResponse, Error> {
-		self.active()?;
-
 		let id = id.into();
 		let signer = take_weak!(self.signer);
 		let client = take_weak!(self.client);
@@ -187,7 +176,6 @@ impl<C: 'static, M: 'static> Signer for SignerClient<C, M> where C: MiningBlockC
 	}
 
 	fn reject_request(&self, id: U256) -> Result<bool, Error> {
-		self.active()?;
 		let signer = take_weak!(self.signer);
 
 		let res = signer.request_rejected(id.into());
@@ -195,7 +183,6 @@ impl<C: 'static, M: 'static> Signer for SignerClient<C, M> where C: MiningBlockC
 	}
 
 	fn generate_token(&self) -> Result<String, Error> {
-		self.active()?;
 		let signer = take_weak!(self.signer);
 
 		signer.generate_token()
@@ -203,7 +190,6 @@ impl<C: 'static, M: 'static> Signer for SignerClient<C, M> where C: MiningBlockC
 	}
 
 	fn generate_web_proxy_token(&self) -> Result<String, Error> {
-		try!(self.active());
 		let signer = take_weak!(self.signer);
 
 		Ok(signer.generate_web_proxy_access_token())

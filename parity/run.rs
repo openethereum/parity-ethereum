@@ -18,7 +18,7 @@ use std::sync::Arc;
 use std::net::{TcpListener};
 use ctrlc::CtrlC;
 use fdlimit::raise_fd_limit;
-use ethcore_rpc::{NetworkSettings, RpcStats, is_major_importing};
+use ethcore_rpc::{NetworkSettings, informant, is_major_importing};
 use ethsync::NetworkConfiguration;
 use util::{Colour, version, RotatingLogger, Mutex, Condvar};
 use io::{MayPanic, ForwardPanic, PanicHandler};
@@ -358,7 +358,7 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 	service.add_notify(updater.clone());
 
 	// set up dependencies for rpc servers
-	let rpc_stats = Arc::new(RpcStats::default());
+	let rpc_stats = Arc::new(informant::RpcStats::default());
 	let signer_path = cmd.signer_conf.signer_path.clone();
 	let deps_for_rpc_apis = Arc::new(rpc_apis::Dependencies {
 		signer_service: Arc::new(rpc_apis::SignerService::new(move || {

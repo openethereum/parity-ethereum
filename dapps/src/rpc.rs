@@ -17,12 +17,16 @@
 use std::sync::{Arc, Mutex};
 use hyper;
 
-use ethcore_rpc::{Metadata, Middleware, Origin};
+use ethcore_rpc::{Metadata, Origin};
+use jsonrpc_core::Middleware;
 use jsonrpc_core::reactor::RpcHandler;
 use jsonrpc_http_server::{Rpc, ServerHandler, PanicHandler, AccessControlAllowOrigin, HttpMetaExtractor};
 use endpoint::{Endpoint, EndpointPath, Handler};
 
-pub fn rpc(handler: RpcHandler<Metadata, Middleware>, panic_handler: Arc<Mutex<Option<Box<Fn() -> () + Send>>>>) -> Box<Endpoint> {
+pub fn rpc<T: Middleware<Metadata>>(
+	handler: RpcHandler<Metadata, T>,
+	panic_handler: Arc<Mutex<Option<Box<Fn() -> () + Send>>>>,
+) -> Box<Endpoint> {
 	Box::new(RpcEndpoint {
 		handler: handler,
 		meta_extractor: Arc::new(MetadataExtractor),
@@ -33,15 +37,15 @@ pub fn rpc(handler: RpcHandler<Metadata, Middleware>, panic_handler: Arc<Mutex<O
 	})
 }
 
-struct RpcEndpoint {
-	handler: RpcHandler<Metadata, Middleware>,
+struct RpcEndpoint<T: Middleware<Metadata>> {
+	handler: RpcHandler<Metadata, T>,
 	meta_extractor: Arc<HttpMetaExtractor<Metadata>>,
 	panic_handler: Arc<Mutex<Option<Box<Fn() -> () + Send>>>>,
 	cors_domain: Option<Vec<AccessControlAllowOrigin>>,
 	allowed_hosts: Option<Vec<String>>,
 }
 
-impl Endpoint for RpcEndpoint {
+impl<T: Middleware<Metadata>> Endpoint for RpcEndpoint<T> {
 	fn to_async_handler(&self, _path: EndpointPath, control: hyper::Control) -> Box<Handler> {
 		let panic_handler = PanicHandler { handler: self.panic_handler.clone() };
 		Box::new(ServerHandler::new(

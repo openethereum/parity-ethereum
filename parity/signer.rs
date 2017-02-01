@@ -22,11 +22,10 @@ pub use ethcore_signer::Server as SignerServer;
 
 use ansi_term::Colour;
 use dir::default_data_path;
-use ethcore_rpc::{RpcStats, Middleware};
+use ethcore_rpc::informant::RpcStats;
 use ethcore_signer as signer;
 use helpers::replace_home;
 use io::{ForwardPanic, PanicHandler};
-use jsonrpc_core::MetaIoHandler;
 use jsonrpc_core::reactor::{RpcHandler, Remote};
 use rpc_apis;
 use util::path::restrict_permissions_owner;
@@ -132,8 +131,7 @@ fn do_start(conf: Configuration, deps: Dependencies) -> Result<SignerServer, Str
 		}
 		let server = server.skip_origin_validation(conf.skip_origin_validation);
 		let server = server.stats(deps.rpc_stats.clone());
-		let io = MetaIoHandler::with_middleware(Middleware::new(deps.rpc_stats));
-		let apis = rpc_apis::setup_rpc(io, deps.apis, rpc_apis::ApiSet::SafeContext);
+		let apis = rpc_apis::setup_rpc(deps.rpc_stats, deps.apis, rpc_apis::ApiSet::SafeContext);
 		let handler = RpcHandler::new(Arc::new(apis), deps.remote);
 		server.start(addr, handler)
 	};

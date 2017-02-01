@@ -69,9 +69,10 @@ use std::sync::{Arc, Mutex};
 use std::net::SocketAddr;
 use std::collections::HashMap;
 
-use ethcore_rpc::{Metadata, Middleware};
+use ethcore_rpc::{Metadata};
 use fetch::{Fetch, Client as FetchClient};
 use hash_fetch::urlhint::ContractClient;
+use jsonrpc_core::Middleware;
 use jsonrpc_core::reactor::RpcHandler;
 use router::auth::{Authorization, NoAuth, HttpBasicAuth};
 use parity_reactor::Remote;
@@ -178,7 +179,7 @@ impl<T: Fetch> ServerBuilder<T> {
 
 	/// Asynchronously start server with no authentication,
 	/// returns result with `Server` handle on success or an error.
-	pub fn start_unsecured_http(self, addr: &SocketAddr, handler: RpcHandler<Metadata, Middleware>) -> Result<Server, ServerError> {
+	pub fn start_unsecured_http<S: Middleware<Metadata>>(self, addr: &SocketAddr, handler: RpcHandler<Metadata, S>) -> Result<Server, ServerError> {
 		let fetch = self.fetch_client()?;
 		Server::start_http(
 			addr,
@@ -198,7 +199,7 @@ impl<T: Fetch> ServerBuilder<T> {
 
 	/// Asynchronously start server with `HTTP Basic Authentication`,
 	/// return result with `Server` handle on success or an error.
-	pub fn start_basic_auth_http(self, addr: &SocketAddr, username: &str, password: &str, handler: RpcHandler<Metadata, Middleware>) -> Result<Server, ServerError> {
+	pub fn start_basic_auth_http<S: Middleware<Metadata>>(self, addr: &SocketAddr, username: &str, password: &str, handler: RpcHandler<Metadata, S>) -> Result<Server, ServerError> {
 		let fetch = self.fetch_client()?;
 		Server::start_http(
 			addr,
@@ -257,11 +258,11 @@ impl Server {
 		}
 	}
 
-	fn start_http<A: Authorization + 'static, F: Fetch>(
+	fn start_http<A: Authorization + 'static, F: Fetch, T: Middleware<Metadata>>(
 		addr: &SocketAddr,
 		hosts: Option<Vec<String>>,
 		authorization: A,
-		handler: RpcHandler<Metadata, Middleware>,
+		handler: RpcHandler<Metadata, T>,
 		dapps_path: PathBuf,
 		extra_dapps: Vec<PathBuf>,
 		signer_address: Option<(String, u16)>,

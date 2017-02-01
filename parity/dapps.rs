@@ -19,7 +19,7 @@ use std::sync::Arc;
 
 use dir::default_data_path;
 use ethcore::client::Client;
-use ethcore_rpc::RpcStats;
+use ethcore_rpc::informant::RpcStats;
 use ethsync::SyncProvider;
 use hash_fetch::fetch::Client as FetchClient;
 use helpers::replace_home;
@@ -133,9 +133,8 @@ mod server {
 	use ansi_term::Colour;
 	use ethcore::transaction::{Transaction, Action};
 	use ethcore::client::{Client, BlockChainClient, BlockId};
-	use ethcore_rpc::{is_major_importing, Middleware};
+	use ethcore_rpc::is_major_importing;
 	use hash_fetch::urlhint::ContractClient;
-	use jsonrpc_core::MetaIoHandler;
 	use jsonrpc_core::reactor::RpcHandler;
 	use parity_reactor;
 	use rpc_apis;
@@ -177,8 +176,7 @@ mod server {
 		} else {
 			rpc_apis::ApiSet::UnsafeContext
 		};
-		let io = MetaIoHandler::with_middleware(Middleware::new(deps.stats));
-		let apis = rpc_apis::setup_rpc(io, deps.apis.clone(), api_set);
+		let apis = rpc_apis::setup_rpc(deps.stats, deps.apis.clone(), api_set);
 		let handler = RpcHandler::new(Arc::new(apis), deps.remote);
 		let start_result = match auth {
 			None => {

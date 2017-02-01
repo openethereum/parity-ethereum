@@ -28,7 +28,8 @@ use std;
 use io::{PanicHandler, OnPanicListener, MayPanic};
 use jsonrpc_core::{Metadata, Middleware};
 use jsonrpc_core::reactor::RpcHandler;
-use rpc::{ConfirmationsQueue, RpcStats};
+use rpc::{ConfirmationsQueue};
+use rpc::informant::RpcStats;
 
 mod session;
 

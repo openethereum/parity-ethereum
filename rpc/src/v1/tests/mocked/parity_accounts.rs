@@ -17,7 +17,6 @@
 use std::sync::Arc;
 
 use ethcore::account_provider::AccountProvider;
-use ethcore::client::TestBlockChainClient;
 
 use jsonrpc_core::IoHandler;
 use v1::{ParityAccounts, ParityAccountsClient};
@@ -25,14 +24,6 @@ use v1::{ParityAccounts, ParityAccountsClient};
 struct ParityAccountsTester {
 	accounts: Arc<AccountProvider>,
 	io: IoHandler,
-	// these unused fields are necessary to keep the data alive
-	// as the handler has only weak pointers.
-	_client: Arc<TestBlockChainClient>,
-}
-
-fn blockchain_client() -> Arc<TestBlockChainClient> {
-	let client = TestBlockChainClient::new();
-	Arc::new(client)
 }
 
 fn accounts_provider() -> Arc<AccountProvider> {
@@ -41,8 +32,7 @@ fn accounts_provider() -> Arc<AccountProvider> {
 
 fn setup() -> ParityAccountsTester {
 	let accounts = accounts_provider();
-	let client = blockchain_client();
-	let parity_accounts = ParityAccountsClient::new(&accounts, &client);
+	let parity_accounts = ParityAccountsClient::new(&accounts);
 
 	let mut io = IoHandler::default();
 	io.extend_with(parity_accounts.to_delegate());
@@ -50,7 +40,6 @@ fn setup() -> ParityAccountsTester {
 	let tester = ParityAccountsTester {
 		accounts: accounts,
 		io: io,
-		_client: client,
 	};
 
 	tester
