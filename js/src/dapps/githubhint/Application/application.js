@@ -55,9 +55,9 @@ export default class Application extends Component {
     return Promise
       .all([
         attachInterface(),
-        subscribeDefault((error, defaultAccount) => {
+        subscribeDefault((error, defaultAddress) => {
           if (!error) {
-            this.setState({ defaultAccount });
+            this.setState({ defaultAddress });
           }
         })
       ])
@@ -384,7 +384,7 @@ export default class Application extends Component {
 
     const eventId = nextEventId++;
     const values = [contentHash, contentRepo, contentCommit];
-    const options = {};
+    const options = { from: defaultAddress };
 
     this.setState({
       eventIds: [eventId].concat(this.state.eventIds),
@@ -435,7 +435,7 @@ export default class Application extends Component {
 
     const eventId = nextEventId++;
     const values = [contentHash, contentUrl];
-    const options = {};
+    const options = { from: defaultAddress };
 
     this.setState({
       eventIds: [eventId].concat(this.state.eventIds),
