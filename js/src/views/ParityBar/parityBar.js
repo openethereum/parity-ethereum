@@ -14,25 +14,30 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import { throttle } from 'lodash';
+import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
 import ReactDOM from 'react-dom';
 import { FormattedMessage } from 'react-intl';
 import { Link } from 'react-router';
 import { connect } from 'react-redux';
-import { throttle } from 'lodash';
 import store from 'store';
 
 import imagesEthcoreBlock from '~/../assets/images/parity-logo-white-no-text.svg';
+import { AccountCard, Badge, Button, ContainerTitle, IdentityIcon, ParityBackground, SectionList } from '~/ui';
 import { CancelIcon, FingerprintIcon } from '~/ui/Icons';
-import { Badge, Button, ContainerTitle, ParityBackground } from '~/ui';
-import { Embedded as Signer } from '../Signer';
 import DappsStore from '~/views/Dapps/dappsStore';
+import { Embedded as Signer } from '~/views/Signer';
 
+import AccountStore from './accountStore';
 import styles from './parityBar.css';
 
 const LS_STORE_KEY = '_parity::parityBar';
 const DEFAULT_POSITION = { right: '1em', bottom: 0 };
+const DISPLAY_ACCOUNTS = 'accounts';
+const DISPLAY_SIGNER = 'signer';
 
+@observer
 class ParityBar extends Component {
   app = null;
   measures = null;
@@ -49,6 +54,7 @@ class ParityBar extends Component {
   };
 
   state = {
+    displayType: DISPLAY_SIGNER,
     moving: false,
     opened: false,
     position: DEFAULT_POSITION
@@ -67,6 +73,8 @@ class ParityBar extends Component {
   componentWillMount () {
     const { api } = this.context;
 
+    this.accountStore = new AccountStore(api);
+
     // Hook to the dapp loaded event to position the
     // Parity Bar accordingly
     DappsStore.get(api).on('loaded', (app) => {
@@ -84,14 +92,14 @@ class ParityBar extends Component {
     }
 
     if (count < newCount) {
-      this.setOpened(true);
+      this.setOpened(true, DISPLAY_SIGNER);
     } else if (newCount === 0 && count === 1) {
       this.setOpened(false);
     }
   }
 
-  setOpened (opened) {
-    this.setState({ opened });
+  setOpened (opened, displayType = DISPLAY_SIGNER) {
+    this.setState({ displayType, opened });
 
     if (!this.bar) {
       return;
@@ -186,9 +194,19 @@ class ParityBar extends Component {
     }
 
     return (
-      <div
-        className={ styles.cornercolor }
-      >
+      <div className={ styles.cornercolor }>
+        <Button
+          className={ styles.iconButton }
+          icon={
+            <IdentityIcon
+              address={ this.accountStore.defaultAccount }
+              button
+              center
+              inline
+            />
+          }
+          onClick={ this.toggleAccountsDisplay }
+        />
         {
           this.renderLink(
             <Button
@@ -214,7 +232,7 @@ class ParityBar extends Component {
           className={ styles.button }
           icon={ <FingerprintIcon /> }
           label={ this.renderSignerLabel() }
-          onClick={ this.toggleDisplay }
+          onClick={ this.toggleSignerDisplay }
         />
         { this.renderDrag() }
       </div>
@@ -267,23 +285,81 @@ class ParityBar extends Component {
   }
 
   renderExpanded () {
+    const { displayType } = this.state;
+
     return (
-      <div>
+      <div className={ styles.container }>
         <div className={ styles.header }>
           <div className={ styles.title }>
-            <ContainerTitle title='Parity Signer: Pending' />
+            <ContainerTitle
+              title={
+                displayType === DISPLAY_ACCOUNTS
+                  ? (
+                    <FormattedMessage
+                      id='parityBar.title.accounts'
+                      defaultMessage='Default Account'
+                    />
+                  )
+                  : (
+                    <FormattedMessage
+                      id='parityBar.title.signer'
+                      defaultMessage='Parity Signer: Pending'
+                    />
+                  )
+              }
+            />
           </div>
           <div className={ styles.actions }>
             <Button
               icon={ <CancelIcon /> }
-              label='Close'
-              onClick={ this.toggleDisplay }
+              label={
+                <FormattedMessage
+                  id='parityBar.button.close'
+                  defaultMessage='Close'
+                />
+              }
+              onClick={ this.toggleSignerDisplay }
             />
           </div>
         </div>
         <div className={ styles.content }>
-          <Signer />
+          {
+            displayType === DISPLAY_ACCOUNTS
+              ? (
+                <SectionList
+                  items={ this.accountStore.accounts }
+                  noStretch
+                  renderItem={ this.renderAccount }
+                />
+              )
+              : (
+                <Signer />
+              )
+          }
         </div>
+      </div>
+    );
+  }
+
+  renderAccount = (account) => {
+    const onMakeDefault = () => {
+      this.toggleAccountsDisplay();
+      this.accountStore.makeDefaultAccount(account.address);
+    };
+
+    return (
+      <div
+        className={ styles.account }
+        onClick={ onMakeDefault }
+      >
+        <AccountCard
+          account={ account }
+          className={
+            account.default
+              ? styles.selected
+              : styles.unselected
+          }
+        />
       </div>
     );
   }
@@ -497,10 +573,20 @@ class ParityBar extends Component {
     this.savePosition(position);
   }
 
-  toggleDisplay = () => {
+  toggleAccountsDisplay = () => {
     const { opened } = this.state;
 
-    this.setOpened(!opened);
+    this.setOpened(!opened, DISPLAY_ACCOUNTS);
+
+    if (!opened) {
+      this.accountStore.loadAccounts();
+    }
+  }
+
+  toggleSignerDisplay = () => {
+    const { opened } = this.state;
+
+    this.setOpened(!opened, DISPLAY_SIGNER);
   }
 
   get config () {
@@ -542,13 +628,22 @@ class ParityBar extends Component {
   stringToPosition (value) {
     switch (value) {
       case 'top-left':
-        return { top: 0, left: '1em' };
+        return {
+          left: '1em',
+          top: 0
+        };
 
       case 'top-right':
-        return { top: 0, right: '1em' };
+        return {
+          right: '1em',
+          top: 0
+        };
 
       case 'bottom-left':
-        return { bottom: 0, left: '1em' };
+        return {
+          bottom: 0,
+          left: '1em'
+        };
 
       case 'bottom-right':
       default:
