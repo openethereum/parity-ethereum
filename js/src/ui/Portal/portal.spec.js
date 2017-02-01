@@ -47,12 +47,13 @@ describe('ui/Portal', () => {
 
   describe('title rendering', () => {
     const TITLE = 'some test title';
+
     let preTitle;
     let title;
 
     beforeEach(() => {
-      preTitle = component.find('ContainerTitle');
-      title = render({ title: TITLE }).find('ContainerTitle');
+      preTitle = component.find('Title');
+      title = render({ title: TITLE }).find('Title');
     });
 
     it('renders no title with none specified', () => {
