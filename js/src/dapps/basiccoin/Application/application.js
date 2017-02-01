@@ -17,7 +17,7 @@
 import React, { Component, PropTypes } from 'react';
 
 import { api } from '../parity';
-import { attachInstances } from '../services';
+import { attachInstances, subscribeDefaultAddress, unsubscribeDefaultAddress } from '../services';
 
 import Header from './Header';
 import Loading from './Loading';
@@ -38,6 +38,7 @@ export default class Application extends Component {
 
   state = {
     accounts: null,
+    defaultAddress: null,
     loading: true,
     managerInstance: null,
     registryInstance: null,
@@ -45,7 +46,11 @@ export default class Application extends Component {
   }
 
   componentDidMount () {
-    this.attachInstance();
+    return this.attachInstance();
+  }
+
+  componentWillUnmount () {
+    return unsubscribeDefaultAddress();
   }
 
   render () {
@@ -69,10 +74,11 @@ export default class Application extends Component {
   }
 
   getChildContext () {
-    const { accounts, managerInstance, registryInstance, tokenregInstance } = this.state;
+    const { accounts, defaultAddress, managerInstance, registryInstance, tokenregInstance } = this.state;
 
     return {
       accounts,
+      defaultAddress,
       managerInstance,
       registryInstance,
       tokenregInstance
@@ -80,12 +86,17 @@ export default class Application extends Component {
   }
 
   attachInstance () {
-    Promise
+    return Promise
       .all([
+        api.parity.accountsInfo(),
         attachInstances(),
-        api.parity.accountsInfo()
+        subscribeDefaultAddress((error, defaultAddress) => {
+          if (!error) {
+            this.setState({ defaultAddress });
+          }
+        })
       ])
-      .then(([{ managerInstance, registryInstance, tokenregInstance }, accountsInfo]) => {
+      .then(([accountsInfo, { managerInstance, registryInstance, tokenregInstance }]) => {
         accountsInfo = accountsInfo || {};
         this.setState({
           loading: false,
