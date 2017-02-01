@@ -42,7 +42,7 @@ impl ExtendedSecret {
 	}
 
 	/// New extended key from given secret.
-	/// Chain code will be derived from this secret (in a deterministic way).
+	/// Chain code will be derived from the secret itself (in a deterministic way).
 	pub fn new(secret: Secret) -> ExtendedSecret {
 		let chain_code = derivation::chain_code(*secret);
 		ExtendedSecret::with_code(secret, chain_code)
@@ -88,13 +88,54 @@ impl ExtendedPublic {
 
 	/// Derive new public key
 	/// Operation is defined only for index belongs [0..2^31)
-	pub fn derive(self, index: u32) -> Result<Self, DerivationError> {
+	pub fn derive(&self, index: u32) -> Result<Self, DerivationError> {
 		let (derived_key, next_chain_code) = derivation::public(self.public, self.chain_code, index)?;
 		Ok(ExtendedPublic::new(derived_key, next_chain_code))
 	}
 
 	pub fn public(&self) -> &Public {
 		&self.public
+	}
+}
+
+pub struct ExtendedKeyPair {
+	secret: ExtendedSecret,
+	public: ExtendedPublic,
+}
+
+impl ExtendedKeyPair {
+	pub fn new(secret: Secret) -> Self {
+		let extended_secret = ExtendedSecret::new(secret);
+		let extended_public = ExtendedPublic::from_secret(&extended_secret)
+			.expect("Valid `Secret` always produces valid public; qed");
+		ExtendedKeyPair {
+			secret: extended_secret,
+			public: extended_public,
+		}
+	}
+
+	pub fn with_code(secret: Secret, public: Public, chain_code: H256) -> Self {
+		ExtendedKeyPair {
+			secret: ExtendedSecret::with_code(secret, chain_code.clone()),
+			public: ExtendedPublic::new(public, chain_code),
+		}
+	}
+
+	pub fn secret(&self) -> &ExtendedSecret {
+		&self.secret
+	}
+
+	pub fn public(&self) -> &ExtendedPublic {
+		&self.public
+	}
+
+	pub fn derive(&self, index: u32) -> Result<Self, DerivationError> {
+		let derived = self.secret.derive(index);
+
+		Ok(ExtendedKeyPair {
+			public: ExtendedPublic::from_secret(&derived)?,
+			secret: derived,
+		})
 	}
 }
 
@@ -271,7 +312,7 @@ mod derivation {
 #[cfg(test)]
 mod tests {
 
-	use super::{ExtendedSecret, ExtendedPublic};
+	use super::{ExtendedSecret, ExtendedPublic, ExtendedKeyPair};
 	use secret::Secret;
 	use std::str::FromStr;
 
@@ -293,6 +334,9 @@ mod tests {
 		let extended_public = ExtendedPublic::from_secret(&extended_secret).expect("Extended public should be created");
 		let derived_public = extended_public.derive(0).expect("First derivation of public should succeed");
 		assert_eq!(&*derived_public.public(), &"f7b3244c96688f92372bfd4def26dc4151529747bab9f188a4ad34e141d47bd66522ff048bc6f19a0a4429b04318b1a8796c000265b4fa200dae5f6dda92dd94".into());
+
+		let keypair = ExtendedKeyPair::new(Secret::from_str("a100df7a048e50ed308ea696dc600215098141cb391e9527329df289f9383f65").unwrap());
+		assert_eq!(&**keypair.derive(2147483648).expect("Derivation of keypair should succeed").secret().secret(), &"8fc2ed98e64167284e4be7b0efc716658c1826ed05670a89901ed6fdc3bf03f8".into());
 	}
 
 	#[test]
