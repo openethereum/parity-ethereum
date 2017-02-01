@@ -14,14 +14,17 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { Address, Data, Hash, Quantity, BlockNumber } from '../types';
-import { fromDecimal, withComment, DUMMY } from '../helpers';
+import { Address, Data, Hash, Quantity, BlockNumber, TransactionRequest } from '../types';
+import { fromDecimal, withComment, Dummy } from '../helpers';
 
 const SECTION_MINING = 'Block Authoring (aka "mining")';
 const SECTION_DEV = 'Development';
 const SECTION_NODE = 'Node Settings';
 const SECTION_NET = 'Network Information';
 const SECTION_ACCOUNTS = 'Accounts (read-only) and Signatures';
+
+const SUBDOC_SET = 'set';
+const SUBDOC_ACCOUNTS = 'accounts';
 
 const transactionDetails = {
   hash: {
@@ -332,7 +335,7 @@ export default {
             transactionIndex: null
           }
         },
-        '0x...': DUMMY
+        '0x...': new Dummy('{ ... }')
       }
     }
   },
@@ -400,7 +403,7 @@ export default {
         active: 0,
         connected: 25,
         max: 25,
-        peers: [DUMMY, DUMMY, DUMMY, DUMMY]
+        peers: [new Dummy('{ ... }, { ... }, { ... }, ...')]
       }
     }
   },
@@ -475,8 +478,8 @@ export default {
           v: '0x26',
           value: '0x0'
         },
-        DUMMY,
-        DUMMY
+        new Dummy('{ ... }'),
+        new Dummy('{ ... }')
       ]
     }
   },
@@ -769,8 +772,7 @@ export default {
           s: '0x6bf770ab08119e67dc29817e1412a0e3086f43da308c314db1b3bca9fb6d32bd',
           minBlock: null
         },
-        DUMMY,
-        DUMMY
+        new Dummy('{ ... }, { ... }, ...')
       ]
     }
   },
@@ -780,7 +782,7 @@ export default {
    * ================================
    */
   allAccountsInfo: {
-    subdoc: 'accounts',
+    subdoc: SUBDOC_ACCOUNTS,
     desc: 'returns a map of accounts as an object.',
     params: [],
     returns: {
@@ -811,7 +813,7 @@ export default {
   },
 
   newAccountFromPhrase: {
-    subdoc: 'accounts',
+    subdoc: SUBDOC_ACCOUNTS,
     desc: 'Creates a new account from a recovery phrase.',
     params: [
       {
@@ -833,7 +835,7 @@ export default {
   },
 
   newAccountFromSecret: {
-    subdoc: 'accounts',
+    subdoc: SUBDOC_ACCOUNTS,
     desc: 'Creates a new account from a private ethstore secret key.',
     params: [
       {
@@ -855,26 +857,29 @@ export default {
   },
 
   newAccountFromWallet: {
-    subdoc: 'accounts',
+    subdoc: SUBDOC_ACCOUNTS,
     desc: 'Creates a new account from a JSON import',
     params: [
       {
         type: String,
-        desc: 'JSON'
+        desc: 'Wallet JSON encoded to a string.',
+        example: '{"id": "9c62e86b-3cf9...", ...}'
       },
       {
         type: String,
-        desc: 'Password'
+        desc: 'Password.',
+        example: 'hunter2'
       }
     ],
     returns: {
       type: Address,
-      desc: 'The created address'
+      desc: 'The created address',
+      example: '0x407d73d8a49eeb85d32cf465507dd71d507100c1'
     }
   },
 
   setAccountName: {
-    subdoc: 'accounts',
+    subdoc: SUBDOC_ACCOUNTS,
     desc: 'Sets a name for the account',
     params: [
       {
@@ -896,7 +901,7 @@ export default {
   },
 
   setAccountMeta: {
-    subdoc: 'accounts',
+    subdoc: SUBDOC_ACCOUNTS,
     desc: 'Sets metadata for the account',
     params: [
       {
@@ -918,7 +923,7 @@ export default {
   },
 
   testPassword: {
-    subdoc: 'accounts',
+    subdoc: SUBDOC_ACCOUNTS,
     desc: 'Checks if a given password can unlock a given account, without actually unlocking it.',
     params: [
       {
@@ -940,7 +945,7 @@ export default {
   },
 
   changePassword: {
-    subdoc: 'accounts',
+    subdoc: SUBDOC_ACCOUNTS,
     desc: 'Change the password for a given account.',
     params: [
       {
@@ -967,7 +972,7 @@ export default {
   },
 
   killAccount: {
-    subdoc: 'accounts',
+    subdoc: SUBDOC_ACCOUNTS,
     desc: 'Deletes an account.',
     params: [
       {
@@ -989,7 +994,7 @@ export default {
   },
 
   removeAddress: {
-    subdoc: 'accounts',
+    subdoc: SUBDOC_ACCOUNTS,
     desc: 'Removes an address from the addressbook.',
     params: [
       {
@@ -1006,7 +1011,7 @@ export default {
   },
 
   setDappsAddresses: {
-    subdoc: 'accounts',
+    subdoc: SUBDOC_ACCOUNTS,
     desc: 'Sets the available addresses for a dapp.',
     params: [
       {
@@ -1028,7 +1033,7 @@ export default {
   },
 
   getDappsAddresses: {
-    subdoc: 'accounts',
+    subdoc: SUBDOC_ACCOUNTS,
     desc: 'Returns the list of accounts available to a specific dapp.',
     params: [
       {
@@ -1045,7 +1050,7 @@ export default {
   },
 
   setNewDappsWhitelist: {
-    subdoc: 'accounts',
+    subdoc: SUBDOC_ACCOUNTS,
     desc: 'Sets the list of accounts available to new dapps.',
     params: [
       {
@@ -1062,7 +1067,7 @@ export default {
   },
 
   getNewDappsWhitelist: {
-    subdoc: 'accounts',
+    subdoc: SUBDOC_ACCOUNTS,
     desc: 'Returns the list of accounts available to a new dapps.',
     params: [],
     returns: {
@@ -1073,7 +1078,7 @@ export default {
   },
 
   listRecentDapps: {
-    subdoc: 'accounts',
+    subdoc: SUBDOC_ACCOUNTS,
     desc: 'Returns a list of the most recent active dapps.',
     params: [],
     returns: {
@@ -1084,7 +1089,7 @@ export default {
   },
 
   importGethAccounts: {
-    subdoc: 'accounts',
+    subdoc: SUBDOC_ACCOUNTS,
     desc: 'Imports a list of accounts from Geth.',
     params: [
       {
@@ -1099,7 +1104,7 @@ export default {
   },
 
   listGethAccounts: {
-    subdoc: 'accounts',
+    subdoc: SUBDOC_ACCOUNTS,
     desc: 'Returns a list of the accounts available from Geth.',
     params: [],
     returns: {
@@ -1113,7 +1118,7 @@ export default {
    * ===========================
    */
   setMinGasPrice: {
-    subdoc: 'set',
+    subdoc: SUBDOC_SET,
     desc: 'Changes minimal gas price for transaction to be accepted to the queue.',
     params: [
       {
@@ -1131,7 +1136,7 @@ export default {
   },
 
   setGasFloorTarget: {
-    subdoc: 'set',
+    subdoc: SUBDOC_SET,
     desc: 'Sets a new gas floor target for mined blocks..',
     params: [
       {
@@ -1149,7 +1154,7 @@ export default {
   },
 
   setGasCeilTarget: {
-    subdoc: 'set',
+    subdoc: SUBDOC_SET,
     desc: 'Sets new gas ceiling target for mined blocks.',
     params: [
       {
@@ -1167,7 +1172,7 @@ export default {
   },
 
   setExtraData: {
-    subdoc: 'set',
+    subdoc: SUBDOC_SET,
     desc: 'Changes extra data for newly mined blocks',
     params: [
       {
@@ -1185,7 +1190,7 @@ export default {
   },
 
   setAuthor: {
-    subdoc: 'set',
+    subdoc: SUBDOC_SET,
     desc: 'Changes author (coinbase) for mined blocks.',
     params: [
       {
@@ -1203,7 +1208,7 @@ export default {
   },
 
   setMaxTransactionGas: {
-    subdoc: 'set',
+    subdoc: SUBDOC_SET,
     desc: 'Sets the maximum amount of gas a single transaction may consume.',
     params: [
       {
@@ -1221,7 +1226,7 @@ export default {
   },
 
   setTransactionsLimit: {
-    subdoc: 'set',
+    subdoc: SUBDOC_SET,
     desc: 'Changes limit for transactions in queue.',
     params: [
       {
@@ -1239,7 +1244,7 @@ export default {
   },
 
   addReservedPeer: {
-    subdoc: 'set',
+    subdoc: SUBDOC_SET,
     desc: 'Add a reserved peer.',
     params: [
       {
@@ -1256,7 +1261,7 @@ export default {
   },
 
   removeReservedPeer: {
-    subdoc: 'set',
+    subdoc: SUBDOC_SET,
     desc: 'Remove a reserved peer.',
     params: [
       {
@@ -1273,7 +1278,7 @@ export default {
   },
 
   dropNonReservedPeers: {
-    subdoc: 'set',
+    subdoc: SUBDOC_SET,
     desc: 'Set Parity to drop all non-reserved peers. To restore default behavior call [parity_acceptNonReservedPeers](#parity_acceptnonreservedpeers).',
     params: [],
     returns: {
@@ -1284,7 +1289,7 @@ export default {
   },
 
   acceptNonReservedPeers: {
-    subdoc: 'set',
+    subdoc: SUBDOC_SET,
     desc: 'Set Parity to accept non-reserved peers (default behavior).',
     params: [],
     returns: {
@@ -1295,7 +1300,7 @@ export default {
   },
 
   hashContent: {
-    subdoc: 'set',
+    subdoc: SUBDOC_SET,
     desc: 'Creates a hash of a file at a given URL.',
     params: [
       {
@@ -1312,7 +1317,7 @@ export default {
   },
 
   setMode: {
-    subdoc: 'set',
+    subdoc: SUBDOC_SET,
     desc: 'Changes the operating mode of Parity.',
     params: [
       {
@@ -1329,7 +1334,7 @@ export default {
   },
 
   setEngineSigner: {
-    subdoc: 'set',
+    subdoc: SUBDOC_SET,
     desc: 'Sets an authority account for signing consensus messages. For more information check the [[Proof of Authority Chains]] page.',
     params: [
       {
@@ -1351,7 +1356,7 @@ export default {
   },
 
   upgradeReady: {
-    subdoc: 'set',
+    subdoc: SUBDOC_SET,
     desc: 'Returns a ReleaseInfo object describing the release which is available for upgrade or `null` if none is available.',
     params: [],
     returns: {
@@ -1381,13 +1386,100 @@ export default {
   },
 
   executeUpgrade: {
-    subdoc: 'set',
+    subdoc: SUBDOC_SET,
     desc: 'Attempts to upgrade Parity to the version specified in [parity_upgradeReady](#parity_upgradeready).',
     params: [],
     returns: {
       type: Boolean,
       desc: 'returns `true` if the upgrade to the new release was successfully executed, `false` if not.',
       example: true
+    }
+  },
+
+  /*
+   * `parity_signing` trait methods (rolled into `parity` module)
+   * ============================================================
+   */
+  postSign: {
+    section: SECTION_ACCOUNTS,
+    desc: 'Request an arbitrary transaction to be signed by an account.',
+    params: [
+      {
+        type: Address,
+        desc: 'Account address.',
+        example: '0xb60e8dd61c5d32be8058bb8eb970870f07233155'
+      },
+      {
+        type: Hash,
+        desc: 'Transaction hash.',
+        example: '0x8cda01991ae267a539135736132f1f987e76868ce0269b7537d3aab37b7b185e'
+      }
+    ],
+    returns: {
+      type: Quantity,
+      desc: 'The id of the request to the signer. If the account was already unlocked, returns `Hash` of the transaction instead.',
+      example: '0x1'
+    }
+  },
+
+  postTransaction: {
+    section: SECTION_ACCOUNTS,
+    desc: 'Posts a transaction to the signer without waiting for the signer response.',
+    params: [
+      {
+        type: TransactionRequest,
+        desc: 'see [`eth_sendTransaction`](JSONRPC-eth-module#eth_sendtransaction).',
+        format: 'inputCallFormatter',
+        example: {
+          from: '0xb60e8dd61c5d32be8058bb8eb970870f07233155',
+          to: '0xd46e8dd67c5d32be8058bb8eb970870f072445675',
+          value: fromDecimal(2441406250)
+        }
+      }
+    ],
+    returns: {
+      type: Quantity,
+      desc: 'The id of the request to the signer. If the account was already unlocked, returns `Hash` of the transaction instead.',
+      format: 'utils.toDecimal',
+      example: '0x1'
+    }
+  },
+
+  checkRequest: {
+    section: SECTION_ACCOUNTS,
+    desc: 'Get the the transaction hash of the request previously posted to [`parity_postTransaction`](#parity_posttransaction) or [`parity_postSign`](#parity_postsign). Will return a JSON-RPC error if the request was rejected.',
+    params: [
+      {
+        type: Quantity,
+        desc: 'The id of the request sent to the signer.',
+        example: '0x1'
+      }
+    ],
+    returns: {
+      type: Hash,
+      desc: '32 Bytes - the transaction hash or `null` if the request hasn\'t been signed yet.',
+      example: '0xde8dfd9642f7eeef12402f2a560dbf40921b4f0bda01fb84709b9d71f6c181be'
+    }
+  },
+
+  decryptMessage: {
+    desc: 'Decrypt a message encrypted with a ECIES public key.',
+    params: [
+      {
+        type: Address,
+        desc: 'Account which can decrypt the message.',
+        example: '0x00a329c0648769a73afac7f9381e08fb43dbea72'
+      },
+      {
+        type: Data,
+        desc: 'Encrypted message.',
+        example: '0x0405afee7fa2ab3e48c27b00d543389270cb7267fc191ca1311f297255a83cbe8d77a4ba135b51560700a582924fa86d2b19029fcb50d2b68d60a7df1ba81df317a19c8def117f2b9cf8c2618be0e3f146a5272fb9e5528719d2d7a1bd91fa620901cffa756305c79c093e7af30fa3c1587029421351c34a7c1e5a2b'
+      }
+    ],
+    returns: {
+      type: Data,
+      desc: 'Decrypted message.',
+      example: withComment('0x68656c6c6f20776f726c64', 'hello world')
     }
   }
 };
