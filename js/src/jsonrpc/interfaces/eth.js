@@ -14,8 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { Address, BlockNumber, Data, Hash, Quantity } from '../types';
-import { withPreamble, fromDecimal, withComment, DUMMY } from '../helpers';
+import { Address, BlockNumber, Data, Hash, Quantity, CallRequest, TransactionRequest } from '../types';
+import { withPreamble, fromDecimal, withComment, Dummy } from '../helpers';
 
 export default withPreamble(`
 
@@ -64,40 +64,9 @@ The following options are possible for the \`defaultBlock\` parameter:
     desc: 'Executes a new message call immediately without creating a transaction on the block chain.',
     params: [
       {
-        type: Object,
+        type: CallRequest,
         desc: 'The transaction call object.',
         format: 'inputCallFormatter',
-        details: {
-          from: {
-            type: Address,
-            desc: '20 Bytes - The address the transaction is send from.',
-            optional: true
-          },
-          to: {
-            type: Address,
-            desc: '20 Bytes  - The address the transaction is directed to.'
-          },
-          gas: {
-            type: Quantity,
-            desc: 'Integer of the gas provided for the transaction execution. eth_call consumes zero gas, but this parameter may be needed by some executions.',
-            optional: true
-          },
-          gasPrice: {
-            type: Quantity,
-            desc: 'Integer of the gasPrice used for each paid gas.',
-            optional: true
-          },
-          value: {
-            type: Quantity,
-            desc: 'Integer of the value sent with this transaction.',
-            optional: true
-          },
-          data: {
-            type: Data,
-            desc: '4 byte hash of the method signature followed by encoded parameters. For details see [Ethereum Contract ABI](https://github.com/ethereum/wiki/wiki/Ethereum-Contract-ABI).',
-            optional: true
-          }
-        },
         example: {
           from: '0x407d73d8a49eeb85d32cf465507dd71d507100c1',
           to: '0xa94f5374fce5edbc8e2a8697c15331677e6ebf0b',
@@ -180,10 +149,10 @@ The following options are possible for the \`defaultBlock\` parameter:
     desc: 'Makes a call or transaction, which won\'t be added to the blockchain and returns the used gas, which can be used for estimating the used gas.',
     params: [
       {
-        type: Object,
-        desc: 'See [eth_call](#eth_call) parameters, expect that all properties are optional.',
+        type: CallRequest,
+        desc: 'Same as [eth_call](#eth_call) parameters, except that all properties are optional.',
         format: 'inputCallFormatter',
-        example: DUMMY // will be replaced with { ... } by the generator
+        example: new Dummy('{ ... }')
       },
       {
         type: BlockNumber,
@@ -368,7 +337,7 @@ The following options are possible for the \`defaultBlock\` parameter:
         minGasPrice: fromDecimal(653145),
         gasUsed: fromDecimal(653145),
         timestamp: fromDecimal(1424182926),
-        transactions: [DUMMY, DUMMY], // will be replaced with [{ ... }, { ... }] by the generator
+        transactions: [new Dummy('{ ... }, { ... }, ...')],
         uncles: ['0x1606e5...', '0xd5145a9...']
       }
     }
@@ -479,7 +448,7 @@ The following options are possible for the \`defaultBlock\` parameter:
           data: '0x0000000000000000000000000000000000000000000000000000000000000000',
           topics: ['0x59ebeb90bc63057b6515673c3ecf9438e5058bca0f92585014eced636878c9a5']
         },
-        DUMMY // will be replaced with { ... } by the generator
+        new Dummy('...')
       ]
     }
   },
@@ -762,10 +731,7 @@ The following options are possible for the \`defaultBlock\` parameter:
         cumulativeGasUsed: fromDecimal(13244),
         gasUsed: fromDecimal(1244),
         contractAddress: withComment('0xb60e8dd61c5d32be8058bb8eb970870f07233155', 'or null, if none was created'),
-        logs: withComment(
-          [DUMMY, DUMMY], // will be replaced with [{ ... }, { ... }] by the generator
-          'logs as returned by eth_getFilterLogs, etc.'
-        )
+        logs: withComment([new Dummy('{ ... }, { ... }, ...]')], 'logs as returned by eth_getFilterLogs, etc.')
       }
     }
   },
@@ -1040,45 +1006,9 @@ The following options are possible for the \`defaultBlock\` parameter:
     desc: 'Creates new message call transaction or a contract creation, if the data field contains code.',
     params: [
       {
-        type: Object,
+        type: TransactionRequest,
         desc: 'The transaction object.',
         format: 'inputTransactionFormatter',
-        details: {
-          from: {
-            type: Address,
-            desc: '20 Bytes - The address the transaction is send from.'
-          },
-          to: {
-            type: Address,
-            desc: '20 Bytes - (optional when creating new contract) The address the transaction is directed to.'
-          },
-          gas: {
-            type: Quantity,
-            desc: 'Integer of the gas provided for the transaction execution. It will return unused gas.',
-            optional: true,
-            default: 90000
-          },
-          gasPrice: {
-            type: Quantity,
-            desc: 'Integer of the gasPrice used for each paid gas.',
-            optional: true,
-            default: 'To-Be-Determined'
-          },
-          value: {
-            type: Quantity,
-            desc: 'Integer of the value sent with this transaction.',
-            optional: true
-          },
-          data: {
-            type: Data,
-            desc: 'The compiled code of a contract OR the hash of the invoked method signature and encoded parameters. For details see [Ethereum Contract ABI](https://github.com/ethereum/wiki/wiki/Ethereum-Contract-ABI)'
-          },
-          nonce: {
-            type: Quantity,
-            desc: 'Integer of a nonce. This allows to overwrite your own pending transactions that use the same nonce.',
-            optional: true
-          }
-        },
         example: {
           from: '0xb60e8dd61c5d32be8058bb8eb970870f07233155',
           to: '0xd46e8dd67c5d32be8058bb8eb970870f072445675',
@@ -1122,10 +1052,10 @@ The following options are possible for the \`defaultBlock\` parameter:
     desc: 'Signs transactions without dispatching it to the network. It can be later submitted using [eth_sendRawTransaction](#eth_sendrawtransaction).',
     params: [
       {
-        type: Object,
-        desc: 'see [eth_sendTransaction](#eth_sendTransaction).',
+        type: TransactionRequest,
+        desc: 'Transaction object, see [eth_sendTransaction](#eth_sendTransaction).',
         format: 'inputCallFormatter',
-        example: DUMMY // will be replaced with { ... } by the generator
+        example: new Dummy('{ ... }')
       }
     ],
     returns: {

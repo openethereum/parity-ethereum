@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { Address, Data, Quantity } from '../types';
+import { Address, Data, Quantity, TransactionRequest } from '../types';
 
 export default {
   listAccounts: {
@@ -50,44 +50,8 @@ export default {
     desc: 'Sends transaction and signs it in a single call. The account does not need to be unlocked to make this call, and will not be left unlocked after.',
     params: [
       {
-        type: Object,
+        type: TransactionRequest,
         desc: 'The transaction object',
-        details: {
-          from: {
-            type: Address,
-            desc: '20 Bytes - The address of the account to unlock and send the transaction from.'
-          },
-          to: {
-            type: Address,
-            desc: '20 Bytes - (optional when creating new contract) The address the transaction is directed to.'
-          },
-          gas: {
-            type: Quantity,
-            desc: 'Integer of the gas provided for the transaction execution. It will return unused gas.',
-            optional: true,
-            default: 90000
-          },
-          gasPrice: {
-            type: Quantity,
-            desc: 'Integer of the gasPrice used for each paid gas.',
-            optional: true,
-            default: 'To-Be-Determined'
-          },
-          value: {
-            type: Quantity,
-            desc: 'Integer of the value send with this transaction.',
-            optional: true
-          },
-          data: {
-            type: Data,
-            desc: 'The compiled code of a contract OR the hash of the invoked method signature and encoded parameters. For details see [Ethereum Contract ABI](https://github.com/ethereum/wiki/wiki/Ethereum-Contract-ABI).'
-          },
-          nonce: {
-            type: Quantity,
-            desc: 'Integer of a nonce. This allows to overwrite your own pending transactions that use the same nonce.',
-            optional: true
-          }
-        },
         example: {
           from: '0x407d73d8a49eeb85d32cf465507dd71d507100c1',
           to: '0xa94f5374fce5edbc8e2a8697c15331677e6ebf0b',
