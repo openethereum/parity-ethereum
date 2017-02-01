@@ -15,6 +15,44 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+.account {
+  display: flex;
+  flex: 1;
+  position: relative;
+
+  .accountOverlay {
+    position: absolute;
+    right: 0.5em;
+    top: 0.5em;
+  }
+
+  .iconDisabled {
+    opacity: 0.15;
+  }
+
+  .selected,
+  .unselected {
+    margin: 0.125em 0;
+
+    &:focus {
+      outline: none;
+    }
+  }
+
+  .unselected {
+    background: rgba(0, 0, 0, 0.4) !important;
+  }
+
+  .selected {
+    background: rgba(255, 255, 255, 0.35) !important;
+  }
+}
+
+.container {
+  display: flex;
+  flex-direction: column;
+}
+
 .overlay {
   position: fixed;
   top: 0;
@@ -26,7 +64,8 @@
   user-select: none;
 }
 
-.bar, .expanded {
+.bar,
+.expanded {
   position: fixed;
   font-size: 16px;
   font-family: 'Roboto', sans-serif;
@@ -110,7 +149,9 @@
   margin-left: 1em;
 }
 
-.button, .parityButton {
+.button,
+.iconButton,
+.parityButton {
   overflow: visible !important;
 }
 
@@ -121,6 +162,14 @@
 
 .button svg {
   fill: white !important;
+}
+
+.iconButton {
+  min-width: 2em !important;
+
+  img {
+    margin: 6px 0.5em 0 0.5em;
+  }
 }
 
 .label {
@@ -151,7 +200,8 @@
   }
 }
 
-.header, .corner {
+.header,
+.corner {
   button {
     color: white !important;
   }
@@ -180,7 +230,8 @@
   }
 }
 
-.parityIcon, .signerIcon {
+.parityIcon,
+.signerIcon {
   width: 24px;
   height: 24px;
   vertical-align: middle;

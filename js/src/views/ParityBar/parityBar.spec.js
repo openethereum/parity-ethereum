@@ -20,6 +20,9 @@ import sinon from 'sinon';
 
 import ParityBar from './';
 
+import { createApi } from './parityBar.test.js';
+
+let api;
 let component;
 let instance;
 let store;
@@ -35,6 +38,7 @@ function createRedux (state = {}) {
 }
 
 function render (props = {}, state = {}) {
+  api = createApi();
   component = shallow(
     <ParityBar { ...props } />,
     {
@@ -42,7 +46,7 @@ function render (props = {}, state = {}) {
         store: createRedux(state)
       }
     }
-  ).find('ParityBar').shallow({ context: { api: {} } });
+  ).find('ParityBar').shallow({ context: { api } });
   instance = component.instance();
 
   return component;
@@ -77,8 +81,14 @@ describe('views/ParityBar', () => {
       expect(bar.find('div')).not.to.have.length(0);
     });
 
+    it('renders the Account selector button', () => {
+      const icon = bar.find('Button').first().props().icon;
+
+      expect(icon.type.displayName).to.equal('Connect(IdentityIcon)');
+    });
+
     it('renders the Parity button', () => {
-      const label = shallow(bar.find('Button').first().props().label);
+      const label = shallow(bar.find('Button').at(1).props().label);
 
       expect(label.find('FormattedMessage').props().id).to.equal('parityBar.label.parity');
     });
