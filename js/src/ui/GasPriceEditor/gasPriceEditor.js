@@ -18,7 +18,7 @@ import BigNumber from 'bignumber.js';
 import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
 
-import { Input, InputDate, InputTime } from '../Form';
+import { Input } from '../Form';
 import GasPriceSelector from '../GasPriceSelector';
 import Store from './store';
 
@@ -41,7 +41,7 @@ export default class GasPriceEditor extends Component {
   render () {
     const { api } = this.context;
     const { children, store } = this.props;
-    const { errorGas, errorPrice, errorTotal, estimated, gas, histogram, minBlock, minDate, minTime, price, priceDefault, totalValue } = store;
+    const { errorGas, errorPrice, errorTotal, estimated, gas, histogram, price, priceDefault, totalValue } = store;
 
     const eth = api.util.fromWei(totalValue).toFormat();
     const gasLabel = `gas (estimated: ${new BigNumber(estimated).toFormat()})`;
@@ -50,8 +50,7 @@ export default class GasPriceEditor extends Component {
     return (
       <div className={ styles.container }>
         <div className={ styles.minContainer }>
-          <div className={ styles.input }>
-          </div>
+          <div className={ styles.input } />
         </div>
 
         <div className={ styles.graphContainer }>
