@@ -91,7 +91,7 @@ export default class TransactionMainDetails extends Component {
       <div className={ styles.editButtonRow }>
         <Button
           icon={ <MapsLocalGasStation /> }
-          label='Edit block/gas/gasPrice'
+          label='Edit conditions/gas/gasPrice'
           onClick={ this.toggleGasEditor }
         />
       </div>

@@ -20,7 +20,15 @@ import { action, computed, observable, transaction } from 'mobx';
 import { ERRORS, validatePositiveNumber } from '~/util/validation';
 import { DEFAULT_GAS, DEFAULT_GASPRICE, MAX_GAS_ESTIMATION } from '~/util/constants';
 
+const CONDITIONS = {
+  NONE: 'none',
+  BLOCK: 'blockNumber',
+  TIME: 'timestamp'
+};
+
 export default class GasPriceEditor {
+  @observable condition = null;
+  @observable conditionType = CONDITIONS.NONE;
   @observable errorEstimated = null;
   @observable errorGas = null;
   @observable errorPrice = null;
@@ -30,21 +38,26 @@ export default class GasPriceEditor {
   @observable gasLimit;
   @observable histogram = null;
   @observable isEditing = false;
-  @observable minBlock = '0';
-  @observable minDate = null;
-  @observable minTime = 0;
   @observable price;
   @observable priceDefault;
   @observable weiValue = '0';
 
-  constructor (api, { gas, gasLimit, gasPrice, minBlock, minTimestamp }) {
+  constructor (api, { gas, gasLimit, gasPrice, condition = null }) {
     this._api = api;
 
     this.gas = gas;
     this.gasLimit = gasLimit;
-    this.minBlock = minBlock;
-    this.minTimestamp = minTimestamp;
     this.price = gasPrice;
+
+    if (condition && condition.block) {
+      this.condition = condition;
+      this.conditionType = CONDITIONS.BLOCK;
+    } else if (condition && condition.timestamp) {
+      this.condition = condition;
+      this.conditionType = CONDITIONS.TIME;
+    } else {
+      this.condition = CONDITIONS.NONE;
+    }
 
     if (api) {
       this.loadDefaults();
@@ -57,6 +70,35 @@ export default class GasPriceEditor {
     } catch (error) {
       return new BigNumber(0);
     }
+  }
+
+  @action setConditionType = (conditionType = CONDITIONS.NONE) => {
+    transaction(() => {
+      this.conditionType = conditionType;
+
+      switch (conditionType) {
+        case CONDITIONS.BLOCK:
+          this.condition = { block: 0 };
+          break;
+
+        case CONDITIONS.TIME:
+          this.condition = { timestamp: Date.now() };
+          break;
+
+        case CONDITIONS.NONE:
+        default:
+          this.condition = null;
+          break;
+      }
+    });
+  }
+
+  @action setConditionBlockNumber = (block) => {
+    this.condition = { block };
+  }
+
+  @action setConditionTime = (timestamp) => {
+    this.condition = { timestamp };
   }
 
   @action setEditing = (isEditing) => {
@@ -119,18 +161,6 @@ export default class GasPriceEditor {
     this.histogram = gasHistogram;
   }
 
-  @action setMinBlock = (minBlock) => {
-    this.minBlock = minBlock;
-  }
-
-  @action setMinDate = (minDate) => {
-    this.minDate = minDate;
-  }
-
-  @action setMinTime = (minTime) => {
-    this.minTime = minTime;
-  }
-
   @action setPrice = (price) => {
     transaction(() => {
       this.errorPrice = validatePositiveNumber(price).numberError;
@@ -171,20 +201,15 @@ export default class GasPriceEditor {
       return transaction;
     }
 
-    const bnMinBlock = new BigNumber(this.minBlock);
     const override = {
       gas: new BigNumber(this.gas || DEFAULT_GAS),
       gasPrice: new BigNumber(this.price || DEFAULT_GASPRICE)
     };
 
-    if (bnMinBlock.gt(0)) {
-      override.minBlock = this.minBlock;
-    }
-
-    if (this.minDate) {
-      override.minTime = this.minTimestamp;
-    }
-
     return Object.assign({}, transaction, override);
   }
 }
+
+export {
+  CONDITIONS
+};

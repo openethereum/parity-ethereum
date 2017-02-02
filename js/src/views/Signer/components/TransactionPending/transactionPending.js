@@ -45,11 +45,11 @@ export default class TransactionPending extends Component {
     onReject: PropTypes.func.isRequired,
     store: PropTypes.object.isRequired,
     transaction: PropTypes.shape({
+      condition: PropTypes.object,
       data: PropTypes.string,
       from: PropTypes.string.isRequired,
       gas: PropTypes.object.isRequired,
       gasPrice: PropTypes.object.isRequired,
-      minBlock: PropTypes.object,
       to: PropTypes.string,
       value: PropTypes.object.isRequired
     }).isRequired
@@ -60,12 +60,10 @@ export default class TransactionPending extends Component {
   };
 
   gasStore = new GasPriceEditor.Store(this.context.api, {
+    condition: this.props.transaction.condition,
     gas: this.props.transaction.gas.toFixed(),
     gasLimit: this.props.gasLimit,
-    gasPrice: this.props.transaction.gasPrice.toFixed(),
-    minBlock: this.props.transaction.minBlock
-      ? this.props.transaction.minBlock.toFixed()
-      : '0'
+    gasPrice: this.props.transaction.gasPrice.toFixed()
   });
 
   componentWillMount () {
@@ -124,10 +122,7 @@ export default class TransactionPending extends Component {
 
     return (
       <div className={ `${styles.container} ${className}` }>
-        <GasPriceEditor
-          showBlockEdit
-          store={ this.gasStore }
-        >
+        <GasPriceEditor store={ this.gasStore }>
           <Button
             label='view transaction'
             onClick={ this.toggleGasEditor }

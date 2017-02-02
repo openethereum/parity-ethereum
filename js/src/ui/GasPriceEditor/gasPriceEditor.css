@@ -20,13 +20,28 @@
   flex-direction: column;
 }
 
-.minContainer {
+.conditionContainer {
   display: flex;
   flex-direction: row;
   flex-wrap: nowrap;
 
   .input {
     flex: 0 1 50%;
+  }
+}
+
+.conditionRadio {
+  display: flex;
+  flex-direction: row;
+  margin-bottom: 1em;
+
+  &>div {
+    width: auto !important;
+
+    label {
+      padding-right: 1.5em;
+      white-space: nowrap;
+    }
   }
 }
 

@@ -17,12 +17,43 @@
 import BigNumber from 'bignumber.js';
 import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
+import { FormattedMessage } from 'react-intl';
 
-import { Input } from '../Form';
+import { Input, RadioButtons } from '../Form';
 import GasPriceSelector from '../GasPriceSelector';
-import Store from './store';
 
+import Store, { CONDITIONS } from './store';
 import styles from './gasPriceEditor.css';
+
+const CONDITION_VALUES = [
+  {
+    label: (
+      <FormattedMessage
+        id='txEditor.condition.none'
+        defaultMessage='No conditions'
+      />
+    ),
+    key: CONDITIONS.NONE
+  },
+  {
+    label: (
+      <FormattedMessage
+        id='txEditor.condition.blocknumber'
+        defaultMessage='Send after BlockNumber'
+      />
+    ),
+    key: CONDITIONS.BLOCK
+  },
+  {
+    label: (
+      <FormattedMessage
+        id='txEditor.condition.timestamp'
+        defaultMessage='Send after Date & Time'
+      />
+    ),
+    key: CONDITIONS.TIME
+  }
+];
 
 @observer
 export default class GasPriceEditor extends Component {
@@ -41,7 +72,7 @@ export default class GasPriceEditor extends Component {
   render () {
     const { api } = this.context;
     const { children, store } = this.props;
-    const { errorGas, errorPrice, errorTotal, estimated, gas, histogram, price, priceDefault, totalValue } = store;
+    const { conditionType, errorGas, errorPrice, errorTotal, estimated, gas, histogram, price, priceDefault, totalValue } = store;
 
     const eth = api.util.fromWei(totalValue).toFormat();
     const gasLabel = `gas (estimated: ${new BigNumber(estimated).toFormat()})`;
@@ -49,9 +80,13 @@ export default class GasPriceEditor extends Component {
 
     return (
       <div className={ styles.container }>
-        <div className={ styles.minContainer }>
-          <div className={ styles.input } />
-        </div>
+        <RadioButtons
+          className={ styles.conditionRadio }
+          onChange={ this.onChangeConditionType }
+          value={ conditionType }
+          values={ CONDITION_VALUES }
+        />
+        { this.renderConditions() }
 
         <div className={ styles.graphContainer }>
           <div className={ styles.graphColumn }>
@@ -61,7 +96,10 @@ export default class GasPriceEditor extends Component {
               price={ price }
             />
             <div className={ styles.gasPriceDesc }>
-              You can choose the gas price based on the distribution of recent included transaction gas prices. The lower the gas price is, the cheaper the transaction will be. The higher the gas price is, the faster it should get mined by the network.
+              <FormattedMessage
+                id='txEditor.gas.info'
+                defaultMessage='You can choose the gas price based on the distribution of recent included transaction gas prices. The lower the gas price is, the cheaper the transaction will be. The higher the gas price is, the faster it should get mined by the network.'
+              />
             </div>
           </div>
 
@@ -100,6 +138,20 @@ export default class GasPriceEditor extends Component {
     );
   }
 
+  renderConditions () {
+    const { conditionType } = this.props.store;
+
+    if (conditionType === CONDITIONS.NONE) {
+      return null;
+    }
+
+    return (
+      <div className={ styles.minContainer }>
+        <div className={ styles.input } />
+      </div>
+    );
+  }
+
   onEditGas = (event, gas) => {
     const { store, onChange } = this.props;
 
@@ -112,5 +164,9 @@ export default class GasPriceEditor extends Component {
 
     store.setPrice(price);
     onChange && onChange('gasPrice', price);
+  }
+
+  onChangeConditionType = (conditionType) => {
+    this.props.store.setConditionType(conditionType);
   }
 }
