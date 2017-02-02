@@ -26,6 +26,7 @@ const events = {
   'eth_blockNumber': { module: 'eth' },
   'parity_accountsInfo': { module: 'personal' },
   'parity_allAccountsInfo': { module: 'personal' },
+  'parity_defaultAccount': { module: 'personal' },
   'eth_accounts': { module: 'personal' },
   'signer_requestsToConfirm': { module: 'signer' }
 };

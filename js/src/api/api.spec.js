@@ -16,6 +16,7 @@
 
 import { TEST_HTTP_URL, endpointTest } from '../../test/mockRpc';
 
+import util from './util';
 import Api from './api';
 
 import ethereumRpc from '../jsonrpc/';
@@ -43,5 +44,9 @@ describe('api/Api', () => {
         });
       });
     });
+  });
+
+  it('exposes util as static property', () => {
+    expect(Api.util).to.equal(util);
   });
 });

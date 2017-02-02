@@ -22,6 +22,7 @@ import CloseIcon from 'material-ui/svg-icons/navigation/close';
 import CompareIcon from 'material-ui/svg-icons/action/compare-arrows';
 import ComputerIcon from 'material-ui/svg-icons/hardware/desktop-mac';
 import ContractIcon from 'material-ui/svg-icons/action/code';
+import CopyIcon from 'material-ui/svg-icons/content/content-copy';
 import DashboardIcon from 'material-ui/svg-icons/action/dashboard';
 import DeleteIcon from 'material-ui/svg-icons/action/delete';
 import DoneIcon from 'material-ui/svg-icons/action/done-all';
@@ -37,6 +38,9 @@ import RefreshIcon from 'material-ui/svg-icons/action/autorenew';
 import SaveIcon from 'material-ui/svg-icons/content/save';
 import SendIcon from 'material-ui/svg-icons/content/send';
 import SnoozeIcon from 'material-ui/svg-icons/av/snooze';
+import StarCircleIcon from 'material-ui/svg-icons/action/stars';
+import StarIcon from 'material-ui/svg-icons/toggle/star';
+import StarOutlineIcon from 'material-ui/svg-icons/toggle/star-border';
 import VerifyIcon from 'material-ui/svg-icons/action/verified-user';
 import VisibleIcon from 'material-ui/svg-icons/image/remove-red-eye';
 import VpnIcon from 'material-ui/svg-icons/notification/vpn-lock';
@@ -50,6 +54,7 @@ export {
   CompareIcon,
   ComputerIcon,
   ContractIcon,
+  CopyIcon,
   DashboardIcon,
   DeleteIcon,
   DoneIcon,
@@ -65,6 +70,9 @@ export {
   SaveIcon,
   SendIcon,
   SnoozeIcon,
+  StarIcon,
+  StarCircleIcon,
+  StarOutlineIcon,
   VerifyIcon,
   VisibleIcon,
   VpnIcon

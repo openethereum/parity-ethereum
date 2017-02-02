@@ -25,7 +25,7 @@ use ethcore::header::BlockNumber;
 use ethcore::transaction::{UnverifiedTransaction, SignedTransaction, PendingTransaction};
 use ethcore::receipt::{Receipt, RichReceipt};
 use ethcore::miner::{MinerService, MinerStatus, TransactionImportResult, LocalTransactionStatus};
-use ethcore::account_provider::Error as AccountError;
+use ethcore::account_provider::SignError as AccountError;
 
 /// Test miner service.
 pub struct TestMinerService {

@@ -16,7 +16,8 @@
 
 use std::path::PathBuf;
 use ethcore::ethstore::{EthStore, SecretStore, import_accounts, read_geth_accounts};
-use ethcore::ethstore::dir::DiskDirectory;
+use ethcore::ethstore::dir::RootDiskDirectory;
+use ethcore::ethstore::SecretVaultRef;
 use ethcore::account_provider::AccountProvider;
 use helpers::{password_prompt, password_from_file};
 use params::SpecType;
@@ -69,14 +70,14 @@ pub fn execute(cmd: AccountCmd) -> Result<String, String> {
 	}
 }
 
-fn keys_dir(path: String, spec: SpecType) -> Result<DiskDirectory, String> {
+fn keys_dir(path: String, spec: SpecType) -> Result<RootDiskDirectory, String> {
 	let spec = spec.spec()?;
 	let mut path = PathBuf::from(&path);
 	path.push(spec.data_dir);
-	DiskDirectory::create(path).map_err(|e| format!("Could not open keys directory: {}", e))
+	RootDiskDirectory::create(path).map_err(|e| format!("Could not open keys directory: {}", e))
 }
 
-fn secret_store(dir: Box<DiskDirectory>, iterations: Option<u32>) -> Result<EthStore, String> {
+fn secret_store(dir: Box<RootDiskDirectory>, iterations: Option<u32>) -> Result<EthStore, String> {
 	match iterations {
 		Some(i) => EthStore::open_with_iterations(dir, i),
 		_ => EthStore::open(dir) 
@@ -113,7 +114,7 @@ fn import(i: ImportAccounts) -> Result<String, String> {
 	let to = keys_dir(i.to, i.spec)?;
 	let mut imported = 0;
 	for path in &i.from {
-		let from = DiskDirectory::at(path);
+		let from = RootDiskDirectory::at(path);
 		imported += import_accounts(&from, &to).map_err(|_| "Importing accounts failed.")?.len();
 	}
 	Ok(format!("{} account(s) imported", imported))
@@ -126,7 +127,7 @@ fn import_geth(i: ImportFromGethAccounts) -> Result<String, String> {
 	let dir = Box::new(keys_dir(i.to, i.spec)?);
 	let secret_store = Box::new(secret_store(dir, None)?);
 	let geth_accounts = read_geth_accounts(i.testnet);
-	match secret_store.import_geth_accounts(geth_accounts, i.testnet) {
+	match secret_store.import_geth_accounts(SecretVaultRef::Root, geth_accounts, i.testnet) {
 		Ok(v) => Ok(format!("Successfully imported {} account(s) from geth.", v.len())),
 		Err(Error::Io(ref io_err)) if io_err.kind() == ErrorKind::NotFound => Err("Failed to find geth keys folder.".into()),
 		Err(err) => Err(format!("Import geth accounts failed. {}", err))

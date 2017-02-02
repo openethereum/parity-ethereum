@@ -34,7 +34,7 @@ export default class QrCode extends Component {
 
   static defaultProps = {
     margin: 2,
-    size: 5
+    size: 4
   };
 
   state = {

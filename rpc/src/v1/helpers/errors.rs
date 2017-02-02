@@ -23,7 +23,7 @@ macro_rules! rpc_unimplemented {
 use std::fmt;
 use rlp::DecoderError;
 use ethcore::error::{Error as EthcoreError, CallError, TransactionError};
-use ethcore::account_provider::{Error as AccountError};
+use ethcore::account_provider::{SignError as AccountError};
 use jsonrpc_core::{Error, ErrorCode, Value};
 
 mod codes {

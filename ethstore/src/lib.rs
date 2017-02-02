@@ -19,6 +19,7 @@
 
 extern crate libc;
 extern crate itertools;
+extern crate smallvec;
 extern crate rand;
 extern crate time;
 extern crate serde;
@@ -31,6 +32,7 @@ extern crate parking_lot;
 // reexport it nicely
 extern crate ethkey as _ethkey;
 extern crate ethcrypto as crypto;
+extern crate ethcore_util as util;
 
 #[macro_use]
 extern crate log;
@@ -51,10 +53,10 @@ mod presale;
 mod random;
 mod secret_store;
 
-pub use self::account::SafeAccount;
+pub use self::account::{SafeAccount};
 pub use self::error::Error;
 pub use self::ethstore::{EthStore, EthMultiStore};
 pub use self::import::{import_accounts, read_geth_accounts};
 pub use self::presale::PresaleWallet;
-pub use self::secret_store::{SimpleSecretStore, SecretStore};
+pub use self::secret_store::{SecretVaultRef, StoreAccountRef, SimpleSecretStore, SecretStore};
 pub use self::random::{random_phrase, random_string};

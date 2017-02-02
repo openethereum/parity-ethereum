@@ -18,6 +18,8 @@ import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 
+import { CopyToClipboard, QrCode } from '~/ui';
+
 import Value from '../Value';
 import styles from '../shapeshift.css';
 
@@ -61,9 +63,7 @@ export default class AwaitingDepositStep extends Component {
             } }
           />
         </div>
-        <div className={ styles.hero }>
-          { depositAddress }
-        </div>
+        { this.renderAddress(depositAddress, coinSymbol) }
         <div className={ styles.price }>
           <div>
             <FormattedMessage
@@ -75,6 +75,44 @@ export default class AwaitingDepositStep extends Component {
               } }
             />
           </div>
+        </div>
+      </div>
+    );
+  }
+
+  renderAddress (depositAddress, coinSymbol) {
+    const qrcode = (
+      <QrCode
+        className={ styles.qrcode }
+        value={ depositAddress }
+      />
+    );
+    let protocolLink = null;
+
+    // TODO: Expand for other coins where protocols are available
+    switch (coinSymbol) {
+      case 'BTC':
+        protocolLink = `bitcoin:${depositAddress}`;
+        break;
+    }
+
+    return (
+      <div className={ styles.addressInfo }>
+        {
+          protocolLink
+            ? (
+              <a
+                href={ protocolLink }
+                target='_blank'
+              >
+                { qrcode }
+              </a>
+            )
+            : qrcode
+        }
+        <div className={ styles.address }>
+          <CopyToClipboard data={ depositAddress } />
+          <span>{ depositAddress }</span>
         </div>
       </div>
     );

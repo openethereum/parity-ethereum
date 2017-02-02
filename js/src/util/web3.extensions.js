@@ -21,8 +21,8 @@ export default function web3extensions (web3) {
     property: 'personal',
     methods: [
       new Method({
-        name: 'signAndSendTransaction',
-        call: 'personal_signAndSendTransaction',
+        name: 'sendTransaction',
+        call: 'personal_sendTransaction',
         params: 2,
         inputFormatter: [formatters.inputTransactionFormatter, null]
       }),

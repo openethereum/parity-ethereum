@@ -89,16 +89,30 @@ export default class Registry {
       .then((contract) => contract.instance);
   }
 
-  lookupAddress (_name) {
+  _createGetParams (_name, key) {
     const name = _name.toLowerCase();
     const sha3 = this._api.util.sha3.text(name);
 
-    return this.getInstance().then((instance) => {
-      return instance.getAddress.call({}, [sha3, 'A']);
-    })
-    .then((address) => {
-      console.log('[lookupAddress]', `(${sha3}) ${name}: ${address}`);
-      return address;
-    });
+    return [sha3, key];
+  }
+
+  lookupAddress (name) {
+    return this
+      .getInstance()
+      .then((instance) => {
+        return instance.getAddress.call({}, this._createGetParams(name, 'A'));
+      })
+      .then((address) => {
+        console.log('[lookupAddress]', `${name}: ${address}`);
+        return address;
+      });
+  }
+
+  lookupMeta (name, key) {
+    return this
+      .getInstance()
+      .then((instance) => {
+        return instance.get.call({}, this._createGetParams(name, key));
+      });
   }
 }

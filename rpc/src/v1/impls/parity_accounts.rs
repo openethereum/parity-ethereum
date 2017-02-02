@@ -24,9 +24,9 @@ use ethcore::account_provider::AccountProvider;
 use ethcore::client::MiningBlockChainClient;
 
 use jsonrpc_core::Error;
+use v1::helpers::errors;
 use v1::traits::ParityAccounts;
 use v1::types::{H160 as RpcH160, H256 as RpcH256, DappId};
-use v1::helpers::errors;
 
 /// Account management (personal) rpc implementation.
 pub struct ParityAccountsClient<C> where C: MiningBlockChainClient {
@@ -196,12 +196,12 @@ impl<C: 'static> ParityAccounts for ParityAccountsClient<C> where C: MiningBlock
 			.map(|accounts| accounts.map(into_vec))
 	}
 
-	fn recent_dapps(&self) -> Result<Vec<DappId>, Error> {
+	fn recent_dapps(&self) -> Result<BTreeMap<DappId, u64>, Error> {
 		let store = take_weak!(self.accounts);
 
 		store.recent_dapps()
 			.map_err(|e| errors::account("Couldn't get recent dapps.", e))
-			.map(into_vec)
+			.map(|map| map.into_iter().map(|(k, v)| (k.into(), v)).collect())
 	}
 
 	fn import_geth_accounts(&self, addresses: Vec<RpcH160>) -> Result<Vec<RpcH160>, Error> {

@@ -19,14 +19,14 @@ use std::str::FromStr;
 use jsonrpc_core::IoHandler;
 use util::{U256, Uint, Address};
 use ethcore::account_provider::AccountProvider;
-use v1::{PersonalClient, Personal};
+use v1::{PersonalClient, Personal, Metadata};
 use v1::tests::helpers::TestMinerService;
 use ethcore::client::TestBlockChainClient;
 use ethcore::transaction::{Action, Transaction};
 
 struct PersonalTester {
 	accounts: Arc<AccountProvider>,
-	io: IoHandler,
+	io: IoHandler<Metadata>,
 	miner: Arc<TestMinerService>,
 	// these unused fields are necessary to keep the data alive
 	// as the handler has only weak pointers.
@@ -96,7 +96,7 @@ fn sign_and_send_transaction_with_invalid_password() {
 	let address = tester.accounts.new_account("password123").unwrap();
 	let request = r#"{
 		"jsonrpc": "2.0",
-		"method": "personal_signAndSendTransaction",
+		"method": "personal_sendTransaction",
 		"params": [{
 			"from": ""#.to_owned() + format!("0x{:?}", address).as_ref() + r#"",
 			"to": "0xd46e8dd67c5d32be8058bb8eb970870f07244567",
@@ -119,7 +119,7 @@ fn sign_and_send_transaction() {
 
 	let request = r#"{
 		"jsonrpc": "2.0",
-		"method": "personal_signAndSendTransaction",
+		"method": "personal_sendTransaction",
 		"params": [{
 			"from": ""#.to_owned() + format!("0x{:?}", address).as_ref() + r#"",
 			"to": "0xd46e8dd67c5d32be8058bb8eb970870f07244567",

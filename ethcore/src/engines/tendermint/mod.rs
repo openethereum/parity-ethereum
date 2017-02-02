@@ -283,11 +283,11 @@ impl Tendermint {
 	}
 
 	fn is_height(&self, message: &ConsensusMessage) -> bool {
-		message.vote_step.is_height(self.height.load(AtomicOrdering::SeqCst)) 
+		message.vote_step.is_height(self.height.load(AtomicOrdering::SeqCst))
 	}
 
 	fn is_view(&self, message: &ConsensusMessage) -> bool {
-		message.vote_step.is_view(self.height.load(AtomicOrdering::SeqCst), self.view.load(AtomicOrdering::SeqCst)) 
+		message.vote_step.is_view(self.height.load(AtomicOrdering::SeqCst), self.view.load(AtomicOrdering::SeqCst))
 	}
 
 	fn increment_view(&self, n: View) {
@@ -309,7 +309,7 @@ impl Tendermint {
 	fn has_enough_future_step_votes(&self, vote_step: &VoteStep) -> bool {
 		if vote_step.view > self.view.load(AtomicOrdering::SeqCst) {
 			let step_votes = self.votes.count_round_votes(vote_step);
-			self.is_above_threshold(step_votes)	
+			self.is_above_threshold(step_votes)
 		} else {
 			false
 		}
@@ -673,7 +673,7 @@ mod tests {
 		}
 	}
 
-	fn vote<F>(engine: &Engine, signer: F, height: usize, view: usize, step: Step, block_hash: Option<H256>) -> Bytes where F: FnOnce(H256) -> Result<H520, ::account_provider::Error> {
+	fn vote<F>(engine: &Engine, signer: F, height: usize, view: usize, step: Step, block_hash: Option<H256>) -> Bytes where F: FnOnce(H256) -> Result<H520, ::account_provider::SignError> {
 		let mi = message_info_rlp(&VoteStep::new(height, view, step), block_hash);
 		let m = message_full_rlp(&signer(mi.sha3()).unwrap().into(), &mi);
 		engine.handle_message(&m).unwrap();
