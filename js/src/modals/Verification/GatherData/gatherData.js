@@ -31,19 +31,22 @@ import emailTermsOfService from '~/3rdparty/email-verification/terms-of-service'
 import { howSMSVerificationWorks, howEmailVerificationWorks } from '../how-it-works';
 import styles from './gatherData.css';
 
+const boolOfError = PropTypes.oneOfType([ PropTypes.bool, PropTypes.instanceOf(Error) ]);
+
 export default class GatherData extends Component {
   static propTypes = {
     fee: React.PropTypes.instanceOf(BigNumber),
     fields: PropTypes.array.isRequired,
-    hasRequested: nullableProptype(PropTypes.bool.isRequired),
+    accountHasRequested: nullableProptype(PropTypes.bool.isRequired),
     isServerRunning: nullableProptype(PropTypes.bool.isRequired),
-    isVerified: nullableProptype(PropTypes.bool.isRequired),
+    isAbleToRequest: nullableProptype(boolOfError.isRequired),
+    accountIsVerified: nullableProptype(PropTypes.bool.isRequired),
     method: PropTypes.string.isRequired,
     setConsentGiven: PropTypes.func.isRequired
   }
 
   render () {
-    const { method, isVerified } = this.props;
+    const { method, accountIsVerified } = this.props;
     const termsOfService = method === 'email' ? emailTermsOfService : smsTermsOfService;
     const howItWorks = method === 'email' ? howEmailVerificationWorks : howSMSVerificationWorks;
 
@@ -55,6 +58,7 @@ export default class GatherData extends Component {
         { this.renderCertified() }
         { this.renderRequested() }
         { this.renderFields() }
+        { this.renderIfAbleToRequest() }
         <Checkbox
           className={ styles.spacing }
           label={
@@ -63,7 +67,7 @@ export default class GatherData extends Component {
               defaultMessage='I agree to the terms and conditions below.'
             />
           }
-          disabled={ isVerified }
+          disabled={ accountIsVerified }
           onCheck={ this.consentOnChange }
         />
         <div className={ styles.terms }>{ termsOfService }</div>
@@ -145,27 +149,27 @@ export default class GatherData extends Component {
   }
 
   renderCertified () {
-    const { isVerified } = this.props;
+    const { accountIsVerified } = this.props;
 
-    if (isVerified) {
+    if (accountIsVerified) {
       return (
         <div className={ styles.container }>
           <ErrorIcon />
           <p className={ styles.message }>
             <FormattedMessage
-              id='ui.verification.gatherData.isVerified.true'
+              id='ui.verification.gatherData.accountIsVerified.true'
               defaultMessage='Your account is already verified.'
             />
           </p>
         </div>
       );
-    } else if (isVerified === false) {
+    } else if (accountIsVerified === false) {
       return (
         <div className={ styles.container }>
           <SuccessIcon />
           <p className={ styles.message }>
             <FormattedMessage
-              id='ui.verification.gatherData.isVerified.false'
+              id='ui.verification.gatherData.accountIsVerified.false'
               defaultMessage='Your account is not verified yet.'
             />
           </p>
@@ -175,7 +179,7 @@ export default class GatherData extends Component {
     return (
       <p className={ styles.message }>
         <FormattedMessage
-          id='ui.verification.gatherData.isVerified.pending'
+          id='ui.verification.gatherData.accountIsVerified.pending'
           defaultMessage='Checking if your account is verified…'
         />
       </p>
@@ -183,33 +187,33 @@ export default class GatherData extends Component {
   }
 
   renderRequested () {
-    const { isVerified, hasRequested } = this.props;
+    const { accountIsVerified, accountHasRequested } = this.props;
 
     // If the account is verified, don't show that it has requested verification.
-    if (isVerified) {
+    if (accountIsVerified) {
       return null;
     }
 
-    if (hasRequested) {
+    if (accountHasRequested) {
       return (
         <div className={ styles.container }>
           <InfoIcon />
           <p className={ styles.message }>
             <FormattedMessage
-              id='ui.verification.gatherData.hasRequested.true'
-              defaultMessage='You already requested verification.'
+              id='ui.verification.gatherData.accountHasRequested.true'
+              defaultMessage='You already requested verification from this account.'
             />
           </p>
         </div>
       );
-    } else if (hasRequested === false) {
+    } else if (accountHasRequested === false) {
       return (
         <div className={ styles.container }>
           <SuccessIcon />
           <p className={ styles.message }>
             <FormattedMessage
-              id='ui.verification.gatherData.hasRequested.false'
-              defaultMessage='You did not request verification yet.'
+              id='ui.verification.gatherData.accountHasRequested.false'
+              defaultMessage='You did not request verification from this account yet.'
             />
           </p>
         </div>
@@ -218,7 +222,7 @@ export default class GatherData extends Component {
     return (
       <p className={ styles.message }>
         <FormattedMessage
-          id='ui.verification.gatherData.hasRequested.pending'
+          id='ui.verification.gatherData.accountHasRequested.pending'
           defaultMessage='Checking if you requested verification…'
         />
       </p>
@@ -226,7 +230,7 @@ export default class GatherData extends Component {
   }
 
   renderFields () {
-    const { isVerified, fields } = this.props;
+    const { accountIsVerified, fields } = this.props;
 
     const rendered = fields.map((field) => {
       const onChange = (_, v) => {
@@ -236,11 +240,12 @@ export default class GatherData extends Component {
 
       return (
         <Input
+          className={ styles.field }
           key={ field.key }
           label={ field.label }
           hint={ field.hint }
           error={ field.error }
-          disabled={ isVerified }
+          disabled={ accountIsVerified }
           onChange={ onChange }
           onSubmit={ onSubmit }
         />
@@ -248,6 +253,36 @@ export default class GatherData extends Component {
     });
 
     return (<div>{rendered}</div>);
+  }
+
+  renderIfAbleToRequest () {
+    const { accountIsVerified, isAbleToRequest } = this.props;
+
+    // If the account is verified, don't show a warning.
+    // If the client is able to send the request, don't show a warning
+    if (accountIsVerified || isAbleToRequest === true) {
+      return null;
+    }
+
+    if (isAbleToRequest === null) {
+      return (
+        <p className={ styles.message }>
+          <FormattedMessage
+            id='ui.verification.gatherData.isAbleToRequest.pending'
+            defaultMessage='Validating your input…'
+          />
+        </p>
+      );
+    } else if (isAbleToRequest) {
+      return (
+        <div className={ styles.container }>
+          <ErrorIcon />
+          <p className={ styles.message }>
+            { isAbleToRequest.message }
+          </p>
+        </div>
+      );
+    }
   }
 
   consentOnChange = (_, consentGiven) => {
