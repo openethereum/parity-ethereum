@@ -30,7 +30,6 @@ const ERRORS = {
 export default class Deployment extends Component {
   static contextTypes = {
     accounts: PropTypes.object.isRequired,
-    defaultAddress: PropTypes.string.isRequired,
     router: PropTypes.object.isRequired,
     managerInstance: PropTypes.object.isRequired,
     registryInstance: PropTypes.object.isRequired,
@@ -241,7 +240,7 @@ export default class Deployment extends Component {
   }
 
   onDeploy = () => {
-    const { defaultAddress, managerInstance, registryInstance, tokenregInstance } = this.context;
+    const { managerInstance, registryInstance, tokenregInstance } = this.context;
     const { base, deployBusy, globalReg, globalFee, name, nameError, tla, tlaError, totalSupply, totalSupplyError } = this.state;
     const hasError = !!(nameError || tlaError || totalSupplyError);
 
@@ -252,14 +251,18 @@ export default class Deployment extends Component {
     const tokenreg = (globalReg ? tokenregInstance : registryInstance).address;
     const values = [base.mul(totalSupply), tla, name, tokenreg];
     const options = {
-      from: defaultAddress,
       value: globalReg ? globalFee : 0
     };
 
     this.setState({ deployBusy: true, deployState: 'Estimating gas for the transaction' });
 
-    managerInstance
-      .deploy.estimateGas(options, values)
+    return api.parity
+      .defaultAccount()
+      .then((defaultAddress) => {
+        options.from = defaultAddress;
+
+        return managerInstance.deploy.estimateGas(options, values);
+      })
       .then((gas) => {
         this.setState({ deployState: 'Gas estimated, Posting transaction to the network' });
 

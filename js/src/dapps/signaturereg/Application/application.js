@@ -17,7 +17,7 @@
 import BigNumber from 'bignumber.js';
 import React, { Component } from 'react';
 
-import { attachInterface, attachBlockNumber, subscribeDefaultAddress, unsubscribeDefaultAddress } from '../services';
+import { attachInterface, attachBlockNumber } from '../services';
 import Button from '../Button';
 import Events from '../Events';
 import Header from '../Header';
@@ -44,20 +44,13 @@ export default class Application extends Component {
       .then((state) => {
         this.setState(Object.assign({}, state, { loading: false }));
 
-        return Promise.all([
-          attachBlockNumber(state.instance, (state) => {
-            this.setState(state);
-          }),
-          subscribeDefaultAddress()
-        ]);
+        return attachBlockNumber(state.instance, (state) => {
+          this.setState(state);
+        });
       })
       .catch((error) => {
         console.error('componentDidMount', error);
       });
-  }
-
-  componentWillUnmount () {
-    return unsubscribeDefaultAddress();
   }
 
   render () {

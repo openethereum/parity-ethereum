@@ -19,9 +19,6 @@ import { api } from './parity';
 
 const sortEvents = (a, b) => b.blockNumber.cmp(a.blockNumber) || b.logIndex.cmp(a.logIndex);
 
-let defaultAddress;
-let defaultSubscriptionId;
-
 const logToEvent = (log) => {
   const key = api.util.sha3(JSON.stringify(log));
   const { blockNumber, logIndex, transactionHash, transactionIndex, params, type } = log;
@@ -40,24 +37,6 @@ const logToEvent = (log) => {
     key
   };
 };
-
-export function subscribeDefaultAddress () {
-  return api
-    .subscribe('parity_defaultAccount', (error, _defaultAddress) => {
-      if (!error) {
-        defaultAddress = _defaultAddress;
-      }
-    })
-    .then((subscriptionId) => {
-      defaultSubscriptionId = subscriptionId;
-
-      return defaultSubscriptionId;
-    });
-}
-
-export function unsubscribeDefaultAddress () {
-  return api.ubsubscribe(defaultSubscriptionId);
-}
 
 export function attachInterface (callback) {
   return api.parity
@@ -183,16 +162,17 @@ export function getBlock (blockNumber) {
 }
 
 export function callRegister (instance, id, options = {}) {
-  options.from = defaultAddress;
-
   return instance.register.call(options, [id]);
 }
 
 export function postRegister (instance, id, options = {}) {
-  options.from = defaultAddress;
+  return api.parity
+    .defaultAccount()
+    .then((defaultAddress) => {
+      options.from = defaultAddress;
 
-  return instance.register
-    .estimateGas(options, [id])
+      return instance.register.estimateGas(options, [id]);
+    })
     .then((gas) => {
       options.gas = gas.mul(1.2).toFixed(0);
       console.log('postRegister', `gas estimated at ${gas.toFormat(0)}, setting to ${gas.mul(1.2).toFormat(0)}`);
