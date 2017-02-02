@@ -43,7 +43,7 @@ export default class SMSVerificationStore extends VerificationStore {
 
     switch (this.step) {
       case LOADING:
-        return this.contract && this.fee && this.isVerified !== null && this.hasRequested !== null;
+        return this.contract && this.fee && this.accountIsVerified !== null && this.accountHasRequested !== null;
       case QUERY_DATA:
         return this.isNumberValid && this.consentGiven;
       case QUERY_CODE:
@@ -66,6 +66,18 @@ export default class SMSVerificationStore extends VerificationStore {
   checkIfReceivedCode = () => {
     return hasReceivedCode(this.number, this.account, this.isTestnet);
   }
+
+  // SMS verification events don't contain the phone number, so we will have to
+  // send a new request every single time. See below.
+  @action setIfAbleToRequest = () => {
+    this.isAbleToRequest = true;
+  }
+
+  // SMS verification `request` & `confirm` transactions and events don't contain the
+  // phone number, so we will have to send a new request every single time. This may
+  // cost the user more money, but given that it fails otherwise, it seems like a
+  // reasonable tradeoff.
+  shallSkipRequest = () => Promise.resolve(false)
 
   @action setNumber = (number) => {
     this.number = number;
