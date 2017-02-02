@@ -22,7 +22,8 @@ use rustc_serialize::hex::{FromHex, ToHex};
 use time::get_time;
 use rlp;
 
-use util::{Uint, U256, Address, H256, FixedHash, Mutex, Hashable};
+use util::{Uint, U256, Address, H256, FixedHash, Mutex};
+use ethkey::Secret;
 use ethcore::account_provider::AccountProvider;
 use ethcore::client::{TestBlockChainClient, EachBlockWith, Executed, TransactionId};
 use ethcore::log_entry::{LocalizedLogEntry, LogEntry};
@@ -296,10 +297,9 @@ fn rpc_eth_submit_hashrate() {
 fn rpc_eth_sign() {
 	let tester = EthTester::default();
 
-	let account = tester.accounts_provider.new_account("abcd").unwrap();
+	let account = tester.accounts_provider.insert_account(Secret::from_slice(&[69u8; 32]).unwrap(), "abcd").unwrap();
 	tester.accounts_provider.unlock_account_permanently(account, "abcd".into()).unwrap();
-	let message = "0cc175b9c0f1b6a831c399e26977266192eb5ffee6ae2fec3ad71c777531578f".from_hex().unwrap();
-	let signed = tester.accounts_provider.sign(account, None, message.sha3()).unwrap();
+	let _message = "0cc175b9c0f1b6a831c399e26977266192eb5ffee6ae2fec3ad71c777531578f".from_hex().unwrap();
 
 	let req = r#"{
 		"jsonrpc": "2.0",
@@ -310,9 +310,9 @@ fn rpc_eth_sign() {
 		],
 		"id": 1
 	}"#;
-	let res = r#"{"jsonrpc":"2.0","result":""#.to_owned() + &format!("0x{}", signed) + r#"","id":1}"#;
+	let res = r#"{"jsonrpc":"2.0","result":"0x1b5100b2be0aafd86271c8f49891262920bfbfeaeccb2ef1d0b2053aefc3ddb399483eb3c902ecf4add3156461a61f59e924a65eb5e6cdbab0a158d45db5f87cdf","id":1}"#;
 
-	assert_eq!(tester.io.handle_request_sync(&req), Some(res));
+	assert_eq!(tester.io.handle_request_sync(&req), Some(res.into()));
 }
 
 #[test]

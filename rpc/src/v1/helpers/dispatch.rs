@@ -114,9 +114,10 @@ pub fn execute<C, M>(client: &C, miner: &M, accounts: &AccountProvider, payload:
 				.map(|result| result
 					.map(|rsv| {
 						let mut vrs = [0u8; 65];
-						vrs[0] = rsv[64];
-						vrs[1..33].copy_from_slice(&rsv.0[0..32]);
-						vrs[33..65].copy_from_slice(&rsv.0[32..64]);
+						let rsv = rsv.as_ref();
+						vrs[0] = rsv[64] + 27;
+						vrs[1..33].copy_from_slice(&rsv[0..32]);
+						vrs[33..65].copy_from_slice(&rsv[32..64]);
 						H520(vrs)
 					})
 					.map(RpcH520::from)
