@@ -321,10 +321,41 @@ mod derivation {
 
 #[cfg(test)]
 mod tests {
-
 	use super::{ExtendedSecret, ExtendedPublic, ExtendedKeyPair};
 	use secret::Secret;
 	use std::str::FromStr;
+	use bigint::hash::{H128, H256, FixedHash};
+
+	fn seed_to_pair(seed: &[u8]) -> (H256, H256) {
+		use rcrypto::hmac::Hmac;
+		use rcrypto::mac::Mac;
+		use rcrypto::sha2::Sha512;
+
+		let mut hmac = Hmac::new(Sha512::new(), b"Bitcoin seed");
+		let mut i_512 = [0u8; 64];
+		hmac.input(seed);
+		hmac.raw_result(&mut i_512);
+
+		let master_key = H256::from_slice(&i_512[0..32]);
+		let chain_code = H256::from_slice(&i_512[32..64]);
+
+		(master_key, chain_code)
+	}
+
+	fn master_chain_basic() -> (H256, H256) {
+		let seed = H128::from_str("000102030405060708090a0b0c0d0e0f")
+			.expect("Seed should be valid H128")
+			.to_vec();
+
+		seed_to_pair(&*seed)
+	}
+
+	fn test_extended<F>(f: F, test_private: H256) where F: Fn(ExtendedSecret) -> ExtendedSecret {
+		let (private_seed, chain_code) = master_chain_basic();
+		let extended_secret = ExtendedSecret::with_code(Secret::from_slice(&*private_seed).unwrap(), chain_code);
+		let derived = f(extended_secret);
+		assert_eq!(**derived.secret(), test_private);
+	}
 
 	#[test]
 	fn smoky() {
@@ -364,5 +395,43 @@ mod tests {
 		let public_from_secret0 = ExtendedPublic::from_secret(&derived_secret0).expect("Extended public should be created");
 
 		assert_eq!(public_from_secret0.public(), derived_public0.public());
+	}
+
+	#[test]
+	fn test_seeds() {
+		let seed = H128::from_str("000102030405060708090a0b0c0d0e0f")
+			.expect("Seed should be valid H128")
+			.to_vec();
+
+		/// private key from bitcoin test vector
+		/// xprv9wTYmMFdV23N2TdNG573QoEsfRrWKQgWeibmLntzniatZvR9BmLnvSxqu53Kw1UmYPxLgboyZQaXwTCg8MSY3H2EU4pWcQDnRnrVA1xe8fs
+		let test_private = H256::from_str("e8f32e723decf4051aefac8e2c93c9c5b214313817cdb01a1494b917c8436b35")
+			.expect("Private should be decoded ok");
+
+		let (private_seed, _) = seed_to_pair(&*seed);
+
+		assert_eq!(private_seed, test_private);
+	}
+
+	#[test]
+	fn test_vector_1() {
+		/// xprv9uHRZZhk6KAJC1avXpDAp4MDc3sQKNxDiPvvkX8Br5ngLNv1TxvUxt4cV1rGL5hj6KCesnDYUhd7oWgT11eZG7XnxHrnYeSvkzY7d2bhkJ7
+		/// H(0)
+		test_extended(
+			|secret| secret.derive(2147483648),
+			H256::from_str("edb2e14f9ee77d26dd93b4ecede8d16ed408ce149b6cd80b0715a2d911a0afea")
+				.expect("Private should be decoded ok")
+		);
+	}
+
+	#[test]
+	fn test_vector_2() {
+		/// xprv9wTYmMFdV23N2TdNG573QoEsfRrWKQgWeibmLntzniatZvR9BmLnvSxqu53Kw1UmYPxLgboyZQaXwTCg8MSY3H2EU4pWcQDnRnrVA1xe8fs
+		/// H(0)/1
+		test_extended(
+			|secret| secret.derive(2147483648).derive(1),
+			H256::from_str("3c6cb8d0f6a264c91ea8b5030fadaa8e538b020f0a387421a12de9319dc93368")
+				.expect("Private should be decoded ok")
+		);
 	}
 }
