@@ -87,6 +87,14 @@ $popoverZ: 3600;
     flex-wrap: nowrap;
     justify-content: flex-end;
     margin: $modalPadding 0 0 0;
+
+    button:not([disabled]) {
+      color: white !important;
+
+      svg {
+        fill: white !important;
+      }
+    }
   }
 
   .closeIcon {
