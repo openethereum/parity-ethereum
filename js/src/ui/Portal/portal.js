@@ -40,6 +40,20 @@ export default class Portal extends Component {
     title: nodeOrStringProptype()
   };
 
+  componentDidMount () {
+    this.setBodyOverflow(this.props.open);
+  }
+
+  componentWillReceiveProps (nextProps) {
+    if (nextProps.open !== this.props.open) {
+      this.setBodyOverflow(nextProps.open);
+    }
+  }
+
+  componentWillUnmount () {
+    this.setBodyOverflow(false);
+  }
+
   render () {
     const { children, className, isChildModal, open } = this.props;
 
@@ -174,5 +188,11 @@ export default class Portal extends Component {
     }
 
     return element[method]();
+  }
+
+  setBodyOverflow (open) {
+    document.body.style.overflow = open
+      ? 'hidden'
+      : null;
   }
 }
