@@ -114,8 +114,8 @@ impl AccountProvider {
 	pub fn new(sstore: Box<SecretStore>) -> Self {
 		AccountProvider {
 			unlocked: RwLock::new(HashMap::new()),
-			address_book: RwLock::new(AddressBook::new(sstore.local_path().into())),
-			dapps_settings: RwLock::new(DappsSettingsStore::new(sstore.local_path().into())),
+			address_book: RwLock::new(AddressBook::new(&sstore.local_path(), stores::ADDRESS_BOOK)),
+			dapps_settings: RwLock::new(DappsSettingsStore::new(&sstore.local_path())),
 			sstore: sstore,
 			transient_sstore: transient_sstore(),
 		}
