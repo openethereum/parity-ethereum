@@ -23,6 +23,7 @@ import { Button, Modal } from '~/ui';
 import { CancelIcon, CheckIcon } from '~/ui/Icons';
 import AddressBar from './AddressBar';
 
+import { showShowWarning, hideWarning } from './extension-warning';
 import styles from './web.css';
 
 const LS_LAST_ADDRESS = '_parity::webLastAddress';
@@ -60,7 +61,7 @@ export default class Web extends Component {
 
     this.setUrl(params.url);
 
-    if (!(Symbol.for('parity.extension') in window)) {
+    if (showShowWarning()) {
       this.setState({
         extensionWarningShown: true
       });
@@ -157,6 +158,7 @@ export default class Web extends Component {
   }
 
   hideExtensionWarning = () => {
+    hideWarning();
     this.setState({
       extensionWarningShown: false
     });
