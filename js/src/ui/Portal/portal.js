@@ -191,8 +191,10 @@ export default class Portal extends Component {
   }
 
   setBodyOverflow (open) {
-    document.body.style.overflow = open
-      ? 'hidden'
-      : null;
+    if (!this.props.isChildModal) {
+      document.body.style.overflow = open
+        ? 'hidden'
+        : null;
+    }
   }
 }
