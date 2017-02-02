@@ -853,7 +853,6 @@ mod tests {
 
 	#[test]
 	fn relays_messages() {
-		::env_logger::init().unwrap();
 		let (spec, tap) = setup();
 		let engine = spec.engine.clone();
 
