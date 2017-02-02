@@ -76,7 +76,7 @@ export default class VerificationStore {
         return;
       }
 
-      this.checkIfAbleToRequest();
+      this.setIfAbleToRequest();
     });
   }
 
@@ -180,8 +180,8 @@ export default class VerificationStore {
             return request.postTransaction(options, values);
           })
           .then((handle) => {
-            // TODO: The "request rejected" error doesn't have any property to
-            // distinguish it from other errors, so we can't give a meaningful error here.
+            // The "request rejected" error doesn't have any property to distinguish
+            // it from other errors, so we can't give a meaningful error here.
             return api.pollMethod('parity_checkRequest', handle);
           })
           .then((txHash) => {

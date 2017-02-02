@@ -69,7 +69,7 @@ export default class SMSVerificationStore extends VerificationStore {
 
   // SMS verification events don't contain the phone number, so we will have to
   // send a new request every single time. See below.
-  @action checkIfAbleToRequest = () => {
+  @action setIfAbleToRequest = () => {
     this.isAbleToRequest = true;
   }
 

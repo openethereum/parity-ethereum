@@ -27,7 +27,9 @@ export const findLastRequested = (contract, account) => {
   return new Promise((resolve, reject) => {
     contract
       .subscribe('Requested', {
-        fromBlock: 0, toBlock: 'pending', limit: 1,
+        fromBlock: 0,
+        toBlock: 'pending',
+        limit: 1,
         topics: [account]
       }, (err, logs) => {
         if (err) {

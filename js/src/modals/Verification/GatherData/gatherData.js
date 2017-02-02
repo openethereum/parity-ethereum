@@ -39,7 +39,7 @@ export default class GatherData extends Component {
     fields: PropTypes.array.isRequired,
     accountHasRequested: nullableProptype(PropTypes.bool.isRequired),
     isServerRunning: nullableProptype(PropTypes.bool.isRequired),
-    isAbleToRequest: nullableProptype(boolOfError),
+    isAbleToRequest: nullableProptype(boolOfError.isRequired),
     accountIsVerified: nullableProptype(PropTypes.bool.isRequired),
     method: PropTypes.string.isRequired,
     setConsentGiven: PropTypes.func.isRequired

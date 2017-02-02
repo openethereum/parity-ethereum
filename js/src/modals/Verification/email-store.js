@@ -23,6 +23,7 @@ import VerificationStore, {
   LOADING, QUERY_DATA, QUERY_CODE, POSTED_CONFIRMATION, DONE
 } from './store';
 import { isServerRunning, hasReceivedCode, postToServer } from '~/3rdparty/email-verification';
+
 const ZERO20 = '0x0000000000000000000000000000000000000000';
 
 // name in the `BadgeReg.sol` contract
@@ -72,7 +73,7 @@ export default class EmailVerificationStore extends VerificationStore {
 
   // If the email has already been used for verification of another account,
   // we prevent the user from wasting ETH to request another verification.
-  @action checkIfAbleToRequest = () => {
+  @action setIfAbleToRequest = () => {
     const { isEmailValid } = this;
 
     if (!isEmailValid) {
