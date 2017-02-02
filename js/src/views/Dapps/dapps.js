@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -21,14 +21,13 @@ import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 
-import { AddDapps, DappPermissions } from '~/modals';
+import { DappPermissions, DappsVisible } from '~/modals';
 import PermissionStore from '~/modals/DappPermissions/store';
-import { Actionbar, Button, Page } from '~/ui';
+import { Actionbar, Button, DappCard, Page } from '~/ui';
 import { LockedIcon, VisibleIcon } from '~/ui/Icons';
 
 import UrlButton from './UrlButton';
 import DappsStore from './dappsStore';
-import Summary from './Summary';
 
 import styles from './dapps.css';
 
@@ -51,6 +50,7 @@ class Dapps extends Component {
 
   render () {
     let externalOverlay = null;
+
     if (this.store.externalOverlayVisible) {
       externalOverlay = (
         <div className={ styles.overlay }>
@@ -58,7 +58,8 @@ class Dapps extends Component {
             <div>
               <FormattedMessage
                 id='dapps.external.warning'
-                defaultMessage='Applications made available on the network by 3rd-party authors are not affiliated with Parity nor are they published by Parity. Each remain under the control of their respective authors. Please ensure that you understand the goals for each before interacting.' />
+                defaultMessage='Applications made available on the network by 3rd-party authors are not affiliated with Parity nor are they published by Parity. Each remain under the control of their respective authors. Please ensure that you understand the goals for each before interacting.'
+              />
             </div>
             <div>
               <Checkbox
@@ -66,10 +67,12 @@ class Dapps extends Component {
                 label={
                   <FormattedMessage
                     id='dapps.external.accept'
-                    defaultMessage='I understand that these applications are not affiliated with Parity' />
+                    defaultMessage='I understand that these applications are not affiliated with Parity'
+                  />
                 }
                 checked={ false }
-                onCheck={ this.onClickAcceptExternal } />
+                onCheck={ this.onClickAcceptExternal }
+              />
             </div>
           </div>
         </div>
@@ -78,14 +81,15 @@ class Dapps extends Component {
 
     return (
       <div>
-        <AddDapps store={ this.store } />
         <DappPermissions store={ this.permissionStore } />
+        <DappsVisible store={ this.store } />
         <Actionbar
           className={ styles.toolbar }
           title={
             <FormattedMessage
               id='dapps.label'
-              defaultMessage='Decentralized Applications' />
+              defaultMessage='Decentralized Applications'
+            />
           }
           buttons={ [
             <UrlButton key='url' />,
@@ -95,7 +99,8 @@ class Dapps extends Component {
               label={
                 <FormattedMessage
                   id='dapps.button.edit'
-                  defaultMessage='edit' />
+                  defaultMessage='edit'
+                />
               }
               onClick={ this.store.openModal }
             />,
@@ -105,9 +110,11 @@ class Dapps extends Component {
               label={
                 <FormattedMessage
                   id='dapps.button.permissions'
-                  defaultMessage='permissions' />
+                  defaultMessage='permissions'
+                />
               }
-              onClick={ this.openPermissionsModal } />
+              onClick={ this.openPermissionsModal }
+            />
           ] }
         />
         <Page>
@@ -136,8 +143,13 @@ class Dapps extends Component {
     return (
       <div
         className={ styles.item }
-        key={ app.id }>
-        <Summary app={ app } />
+        key={ app.id }
+      >
+        <DappCard
+          app={ app }
+          showLink
+          showTags
+        />
       </div>
     );
   }
