@@ -17,7 +17,7 @@
 
 .title {
   .steps {
-    margin-bottom: -1em;
+    margin: -0.5em 0 -1em 0;
   }
 
   .waiting {

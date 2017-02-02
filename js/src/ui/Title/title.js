@@ -40,6 +40,10 @@ export default class Title extends Component {
   render () {
     const { activeStep, className, steps, title } = this.props;
 
+    if (!title && !steps) {
+      return null;
+    }
+
     return (
       <div
         className={

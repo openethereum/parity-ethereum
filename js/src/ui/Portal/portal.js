@@ -21,9 +21,9 @@ import ReactPortal from 'react-portal';
 import keycode from 'keycode';
 
 import { nodeOrStringProptype } from '~/util/proptypes';
-import { Title as ContainerTitle } from '~/ui/Container';
 import { CloseIcon } from '~/ui/Icons';
 import ParityBackground from '~/ui/ParityBackground';
+import Title from '~/ui/Title';
 
 import styles from './portal.css';
 
@@ -31,12 +31,16 @@ export default class Portal extends Component {
   static propTypes = {
     onClose: PropTypes.func.isRequired,
     open: PropTypes.bool.isRequired,
+    activeStep: PropTypes.number,
+    busy: PropTypes.bool,
+    busySteps: PropTypes.array,
     buttons: PropTypes.array,
     children: PropTypes.node,
     className: PropTypes.string,
     hideClose: PropTypes.bool,
     isChildModal: PropTypes.bool,
     onKeyDown: PropTypes.func,
+    steps: PropTypes.array,
     title: nodeOrStringProptype()
   };
 
@@ -55,7 +59,7 @@ export default class Portal extends Component {
   }
 
   render () {
-    const { children, className, isChildModal, open } = this.props;
+    const { activeStep, busy, busySteps, children, className, isChildModal, open, steps, title } = this.props;
 
     if (!open) {
       return null;
@@ -89,7 +93,14 @@ export default class Portal extends Component {
             />
             <ParityBackground className={ styles.parityBackground } />
             { this.renderClose() }
-            { this.renderTitle() }
+            <Title
+              activeStep={ activeStep }
+              busy={ busy }
+              busySteps={ busySteps }
+              className={ styles.titleRow }
+              steps={ steps }
+              title={ title }
+            />
             { children }
             { this.renderButtons() }
           </div>
@@ -123,21 +134,6 @@ export default class Portal extends Component {
       <CloseIcon
         className={ styles.closeIcon }
         onClick={ this.handleClose }
-      />
-    );
-  }
-
-  renderTitle () {
-    const { title } = this.props;
-
-    if (!title) {
-      return null;
-    }
-
-    return (
-      <ContainerTitle
-        className={ styles.titleRow }
-        title={ title }
       />
     );
   }
