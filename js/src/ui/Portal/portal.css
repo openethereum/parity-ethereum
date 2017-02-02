@@ -82,11 +82,15 @@ $popoverZ: 3600;
   }
 
   .buttonRow {
+    bottom: 0;
     display: flex;
     flex-direction: row;
     flex-wrap: nowrap;
     justify-content: flex-end;
-    margin: $modalPadding 0 0 0;
+    left: 0;
+    padding: $modalPadding $modalPadding 0 $modalPadding;
+    position: absolute;
+    right: 0;
 
     button:not([disabled]) {
       color: white !important;

@@ -93,6 +93,7 @@ export default class Portal extends Component {
             />
             <ParityBackground className={ styles.parityBackground } />
             { this.renderClose() }
+            { this.renderButtons() }
             <Title
               activeStep={ activeStep }
               busy={ busy }
@@ -102,7 +103,6 @@ export default class Portal extends Component {
               title={ title }
             />
             { children }
-            { this.renderButtons() }
           </div>
         </div>
       </ReactPortal>
