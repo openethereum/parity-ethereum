@@ -57,6 +57,7 @@ $popoverZ: 3600;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
+  justify-content: space-between;
   padding: $modalPadding;
   position: fixed;
 
@@ -85,7 +86,7 @@ $popoverZ: 3600;
     flex-direction: row;
     flex-wrap: nowrap;
     justify-content: flex-end;
-    margin: $modalPadding -$modalPadding -$modalPadding -$modalPadding;
+    margin: $modalPadding 0 0 0;
   }
 
   .closeIcon {

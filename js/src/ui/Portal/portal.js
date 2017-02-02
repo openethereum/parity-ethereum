@@ -34,6 +34,7 @@ export default class Portal extends Component {
     buttons: PropTypes.array,
     children: PropTypes.node,
     className: PropTypes.string,
+    hideClose: PropTypes.bool,
     isChildModal: PropTypes.bool,
     onKeyDown: PropTypes.func,
     title: nodeOrStringProptype()
@@ -73,10 +74,7 @@ export default class Portal extends Component {
               onKeyUp={ this.handleKeyUp }
             />
             <ParityBackground className={ styles.parityBackground } />
-            <CloseIcon
-              className={ styles.closeIcon }
-              onClick={ this.handleClose }
-            />
+            { this.renderClose() }
             { this.renderTitle() }
             { children }
             { this.renderButtons() }
@@ -97,6 +95,21 @@ export default class Portal extends Component {
       <div className={ styles.buttonRow }>
         { buttons }
       </div>
+    );
+  }
+
+  renderClose () {
+    const { hideClose } = this.props;
+
+    if (hideClose) {
+      return null;
+    }
+
+    return (
+      <CloseIcon
+        className={ styles.closeIcon }
+        onClick={ this.handleClose }
+      />
     );
   }
 
@@ -121,7 +134,11 @@ export default class Portal extends Component {
   }
 
   handleClose = () => {
-    this.props.onClose();
+    const { hideClose, onClose } = this.props;
+
+    if (!hideClose) {
+      onClose();
+    }
   }
 
   handleKeyDown = (event) => {
