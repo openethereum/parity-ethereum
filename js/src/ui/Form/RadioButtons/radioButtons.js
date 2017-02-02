@@ -22,6 +22,7 @@ import styles from './radioButtons.css';
 
 export default class RadioButtons extends Component {
   static propTypes = {
+    className: PropTypes.string,
     name: PropTypes.string,
     onChange: PropTypes.func.isRequired,
     value: PropTypes.any,
@@ -34,10 +35,10 @@ export default class RadioButtons extends Component {
   };
 
   render () {
-    const { value, values } = this.props;
+    const { className, value, values } = this.props;
 
     const index = Number.isNaN(parseInt(value))
-      ? values.findIndex((val) => val.key === value)
+      ? values.findIndex((_value) => _value.key === value)
       : parseInt(value);
     const selectedValue = typeof value !== 'object'
       ? values[index]
@@ -46,6 +47,7 @@ export default class RadioButtons extends Component {
 
     return (
       <RadioButtonGroup
+        className={ className }
         name={ name }
         onChange={ this.onChange }
         valueSelected={ key }
@@ -67,10 +69,10 @@ export default class RadioButtons extends Component {
 
       return (
         <RadioButton
-          className={ styles.spaced }
+          className={ styles.button }
           key={ index }
           label={
-            <div className={ styles.typeContainer }>
+            <div className={ styles.label }>
               <span>{ label }</span>
               {
                 description
@@ -97,7 +99,7 @@ export default class RadioButtons extends Component {
 
   onChange = (event, index) => {
     const { onChange, values } = this.props;
-    const value = values[index] || values.find((v) => v.key === index);
+    const value = values[index] || values.find((value) => value.key === index);
 
     onChange(value, index);
   }

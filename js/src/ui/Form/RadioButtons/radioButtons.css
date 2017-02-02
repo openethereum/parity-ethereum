@@ -15,11 +15,11 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-.spaced {
+.button {
   margin: 0.25em 0;
 }
 
-.typeContainer {
+.label {
   display: flex;
   flex-direction: column;
 
