@@ -23,11 +23,10 @@ import { Button, Modal } from '~/ui';
 import { CancelIcon, CheckIcon } from '~/ui/Icons';
 import AddressBar from './AddressBar';
 
-import { showShowWarning, hideWarning } from './extension-warning';
+import { EXTENSION_PAGE, shouldShowWarning, installExtension, hideWarning } from './extension-warning';
 import styles from './web.css';
 
 const LS_LAST_ADDRESS = '_parity::webLastAddress';
-const EXTENSION_PAGE = 'https://chrome.google.com/webstore/detail/parity-ethereum-integrati/fgodinogimdopkigkcoelpfkbnpngalc';
 
 const hasProtocol = /^https?:\/\//;
 
@@ -61,7 +60,7 @@ export default class Web extends Component {
 
     this.setUrl(params.url);
 
-    if (showShowWarning()) {
+    if (shouldShowWarning()) {
       this.setState({
         extensionWarningShown: true
       });
@@ -165,7 +164,12 @@ export default class Web extends Component {
   }
 
   openExtensionPage = () => {
-    window.open(EXTENSION_PAGE, '_blank');
+    installExtension()
+      .then(hideWarning)
+      .catch((err) => {
+        console.error(err);
+        window.open(EXTENSION_PAGE, '_blank');
+      });
   }
 
   onUrlChange = (url) => {

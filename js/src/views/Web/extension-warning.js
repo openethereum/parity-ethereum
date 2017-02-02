@@ -19,7 +19,9 @@ import store from 'store';
 
 const LAST_HIDDEN = '_parity::extensionWarning::lastHidden';
 
-export const showShowWarning = () => {
+export const EXTENSION_PAGE = 'https://chrome.google.com/webstore/detail/fgodinogimdopkigkcoelpfkbnpngalc';
+
+export const shouldShowWarning = () => {
   const hasExtension = Symbol.for('parity.extension') in window;
 
   if (hasExtension) {
@@ -36,6 +38,22 @@ export const showShowWarning = () => {
   const lastHidden = store.get(LAST_HIDDEN) || 0;
 
   return (Date.now() - lastHidden) >= 24 * 60 * 60 * 1000;
+};
+
+export const installExtension = () => {
+  return new Promise((resolve, reject) => {
+    const link = document.createElement('link');
+
+    link.setAttribute('rel', 'chrome-webstore-item');
+    link.setAttribute('href', EXTENSION_PAGE);
+    document.querySelector('head').appendChild(link);
+
+    if (chrome && chrome.webstore && chrome.webstore.install) { // eslint-disable-line
+      chrome.webstore.install(EXTENSION_PAGE, resolve, reject); // eslint-disable-line
+    } else {
+      reject(new Error('Direct installation failed.'));
+    }
+  });
 };
 
 export const hideWarning = () => {
