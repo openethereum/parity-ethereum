@@ -674,6 +674,16 @@ impl LightSync {
 			subprotocol_name: params.subprotocol_name,
 		})
 	}
+
+	/// Execute a closure with a protocol context.
+	pub fn with_context<F, T>(&self, f: F) -> Option<T>
+		where F: FnOnce(&::light::net::BasicContext) -> T
+	{
+		self.network.with_context_eval(
+			self.subprotocol_name,
+			move |ctx| self.proto.with_context(ctx, f),
+		)
+	}
 }
 
 impl ManageNetwork for LightSync {
