@@ -30,11 +30,6 @@ use ethjson::misc::{
 };
 use account_provider::DappId;
 
-/// Address book filename
-pub const ADDRESS_BOOK: &'static str = "address_book.json";
-/// External accounts filename
-pub const EXTERNAL_ACCOUNTS: &'static str = "external_accounts.json";
-
 /// Disk-backed map from Address to String. Uses JSON.
 pub struct AddressBook {
 	cache: DiskMap<Address, AccountMeta>,
@@ -42,9 +37,9 @@ pub struct AddressBook {
 
 impl AddressBook {
 	/// Creates new address book at given directory.
-	pub fn new(path: &Path, filename: &str) -> Self {
+	pub fn new(path: &Path) -> Self {
 		let mut r = AddressBook {
-			cache: DiskMap::new(path, filename)
+			cache: DiskMap::new(path, "address_book.json")
 		};
 		r.cache.revert(AccountMeta::read);
 		r
@@ -350,7 +345,7 @@ impl<K: hash::Hash + Eq, V> DiskMap<K, V> {
 
 #[cfg(test)]
 mod tests {
-	use super::{AddressBook, DappsSettingsStore, DappsSettings, NewDappsPolicy, ADDRESS_BOOK};
+	use super::{AddressBook, DappsSettingsStore, DappsSettings, NewDappsPolicy};
 	use account_provider::DappId;
 	use std::collections::HashMap;
 	use ethjson::misc::AccountMeta;
@@ -359,24 +354,24 @@ mod tests {
 	#[test]
 	fn should_save_and_reload_address_book() {
 		let path = RandomTempPath::create_dir();
-		let mut b = AddressBook::new(&path, ADDRESS_BOOK);
+		let mut b = AddressBook::new(&path);
 		b.set_name(1.into(), "One".to_owned());
 		b.set_meta(1.into(), "{1:1}".to_owned());
-		let b = AddressBook::new(&path, ADDRESS_BOOK);
+		let b = AddressBook::new(&path);
 		assert_eq!(b.get(), hash_map![1.into() => AccountMeta{name: "One".to_owned(), meta: "{1:1}".to_owned(), uuid: None}]);
 	}
 
 	#[test]
 	fn should_remove_address() {
 		let path = RandomTempPath::create_dir();
-		let mut b = AddressBook::new(&path, ADDRESS_BOOK);
+		let mut b = AddressBook::new(&path);
 
 		b.set_name(1.into(), "One".to_owned());
 		b.set_name(2.into(), "Two".to_owned());
 		b.set_name(3.into(), "Three".to_owned());
 		b.remove(2.into());
 
-		let b = AddressBook::new(&path, ADDRESS_BOOK);
+		let b = AddressBook::new(&path);
 		assert_eq!(b.get(), hash_map![
 			1.into() => AccountMeta{name: "One".to_owned(), meta: "{}".to_owned(), uuid: None},
 			3.into() => AccountMeta{name: "Three".to_owned(), meta: "{}".to_owned(), uuid: None}

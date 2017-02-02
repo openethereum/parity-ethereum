@@ -51,22 +51,27 @@ impl<C> ParityAccountsClient<C> where C: MiningBlockChainClient {
 }
 
 impl<C: 'static> ParityAccounts for ParityAccountsClient<C> where C: MiningBlockChainClient {
-	fn all_accounts_info(&self) -> Result<BTreeMap<String, BTreeMap<String, String>>, Error> {
+	fn all_accounts_info(&self) -> Result<BTreeMap<RpcH160, BTreeMap<String, String>>, Error> {
 		self.active()?;
 		let store = take_weak!(self.accounts);
 		let info = store.accounts_info().map_err(|e| errors::account("Could not fetch account info.", e))?;
 		let other = store.addresses_info().expect("addresses_info always returns Ok; qed");
 
-		Ok(info.into_iter().chain(other.into_iter()).map(|(a, v)| {
-			let mut m = map![
-				"name".to_owned() => v.name,
-				"meta".to_owned() => v.meta
-			];
-			if let &Some(ref uuid) = &v.uuid {
-				m.insert("uuid".to_owned(), format!("{}", uuid));
-			}
-			(format!("0x{}", a.hex()), m)
-		}).collect())
+		Ok(info
+		   .into_iter()
+		   .chain(other.into_iter())
+		   .map(|(address, v)| {
+			   let mut m = map![
+				   "name".to_owned() => v.name,
+				   "meta".to_owned() => v.meta
+			   ];
+			   if let &Some(ref uuid) = &v.uuid {
+				   m.insert("uuid".to_owned(), format!("{}", uuid));
+			   }
+			   (address.into(), m)
+		   })
+		   .collect()
+		)
 	}
 
 	fn new_account_from_phrase(&self, phrase: String, pass: String) -> Result<RpcH160, Error> {
