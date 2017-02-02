@@ -56,7 +56,9 @@ fn set_timeout<S: Sync + Send + Clone>(io: &IoContext<S>, timeout: Duration) {
 
 impl <S> IoHandler<S> for TransitionHandler<S> where S: Sync + Send + Clone + 'static {
 	fn initialize(&self, io: &IoContext<S>) {
-		set_timeout(io, self.timeouts.initial());
+		let initial = self.timeouts.initial();
+		trace!(target: "engine", "Setting the initial timeout to {}.", initial);
+		set_timeout(io, initial);
 	}
 
 	/// Call step after timeout.
