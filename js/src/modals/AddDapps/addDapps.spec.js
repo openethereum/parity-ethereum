@@ -33,13 +33,13 @@ describe('modals/AddDapps', () => {
 
     it('does not render the modal with modalOpen = false', () => {
       expect(
-        renderShallow({ modalOpen: false }).find('Connect(Modal)')
+        renderShallow({ modalOpen: false }).find('Portal')
       ).to.have.length(0);
     });
 
     it('does render the modal with modalOpen = true', () => {
       expect(
-        renderShallow({ modalOpen: true }).find('Connect(Modal)')
+        renderShallow({ modalOpen: true }).find('Portal')
       ).to.have.length(1);
     });
   });
