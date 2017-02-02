@@ -30,15 +30,20 @@ export default class GasPriceEditor {
   @observable gasLimit;
   @observable histogram = null;
   @observable isEditing = false;
+  @observable minBlock = '0';
+  @observable minDate = null;
+  @observable minTime = 0;
   @observable price;
   @observable priceDefault;
   @observable weiValue = '0';
 
-  constructor (api, { gas, gasLimit, gasPrice }) {
+  constructor (api, { gas, gasLimit, gasPrice, minBlock, minTimestamp }) {
     this._api = api;
 
     this.gas = gas;
     this.gasLimit = gasLimit;
+    this.minBlock = minBlock;
+    this.minTimestamp = minTimestamp;
     this.price = gasPrice;
 
     if (api) {
@@ -114,6 +119,18 @@ export default class GasPriceEditor {
     this.histogram = gasHistogram;
   }
 
+  @action setMinBlock = (minBlock) => {
+    this.minBlock = minBlock;
+  }
+
+  @action setMinDate = (minDate) => {
+    this.minDate = minDate;
+  }
+
+  @action setMinTime = (minTime) => {
+    this.minTime = minTime;
+  }
+
   @action setPrice = (price) => {
     transaction(() => {
       this.errorPrice = validatePositiveNumber(price).numberError;
@@ -154,9 +171,20 @@ export default class GasPriceEditor {
       return transaction;
     }
 
-    return Object.assign({}, transaction, {
+    const bnMinBlock = new BigNumber(this.minBlock);
+    const override = {
       gas: new BigNumber(this.gas || DEFAULT_GAS),
       gasPrice: new BigNumber(this.price || DEFAULT_GASPRICE)
-    });
+    };
+
+    if (bnMinBlock.gt(0)) {
+      override.minBlock = this.minBlock;
+    }
+
+    if (this.minDate) {
+      override.minTime = this.minTimestamp;
+    }
+
+    return Object.assign({}, transaction, override);
   }
 }

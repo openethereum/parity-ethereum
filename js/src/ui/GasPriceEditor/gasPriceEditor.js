@@ -18,7 +18,7 @@ import BigNumber from 'bignumber.js';
 import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
 
-import Input from '../Form/Input';
+import { Input, InputDate, InputTime } from '../Form';
 import GasPriceSelector from '../GasPriceSelector';
 import Store from './store';
 
@@ -41,7 +41,7 @@ export default class GasPriceEditor extends Component {
   render () {
     const { api } = this.context;
     const { children, store } = this.props;
-    const { errorGas, errorPrice, errorTotal, estimated, gas, histogram, price, priceDefault, totalValue } = store;
+    const { errorGas, errorPrice, errorTotal, estimated, gas, histogram, minBlock, minDate, minTime, price, priceDefault, totalValue } = store;
 
     const eth = api.util.fromWei(totalValue).toFormat();
     const gasLabel = `gas (estimated: ${new BigNumber(estimated).toFormat()})`;
@@ -49,45 +49,52 @@ export default class GasPriceEditor extends Component {
 
     return (
       <div className={ styles.container }>
-        <div className={ styles.graphColumn }>
-          <GasPriceSelector
-            histogram={ histogram }
-            onChange={ this.onEditGasPrice }
-            price={ price }
-          />
-          <div className={ styles.gasPriceDesc }>
-            You can choose the gas price based on the distribution of recent included transaction gas prices. The lower the gas price is, the cheaper the transaction will be. The higher the gas price is, the faster it should get mined by the network.
+        <div className={ styles.minContainer }>
+          <div className={ styles.input }>
           </div>
         </div>
 
-        <div className={ styles.editColumn }>
-          <div className={ styles.row }>
-            <Input
-              error={ errorGas }
-              hint='the amount of gas to use for the transaction'
-              label={ gasLabel }
-              onChange={ this.onEditGas }
-              value={ gas }
-            />
-            <Input
-              error={ errorPrice }
-              hint='the price of gas to use for the transaction'
-              label={ priceLabel }
+        <div className={ styles.graphContainer }>
+          <div className={ styles.graphColumn }>
+            <GasPriceSelector
+              histogram={ histogram }
               onChange={ this.onEditGasPrice }
-              value={ price }
+              price={ price }
             />
+            <div className={ styles.gasPriceDesc }>
+              You can choose the gas price based on the distribution of recent included transaction gas prices. The lower the gas price is, the cheaper the transaction will be. The higher the gas price is, the faster it should get mined by the network.
+            </div>
           </div>
-          <div className={ styles.row }>
-            <Input
-              disabled
-              error={ errorTotal }
-              hint='the total amount of the transaction'
-              label='total transaction amount'
-              value={ `${eth} ETH` }
-            />
-          </div>
-          <div className={ styles.row }>
-            { children }
+
+          <div className={ styles.editColumn }>
+            <div className={ styles.row }>
+              <Input
+                error={ errorGas }
+                hint='the amount of gas to use for the transaction'
+                label={ gasLabel }
+                onChange={ this.onEditGas }
+                value={ gas }
+              />
+              <Input
+                error={ errorPrice }
+                hint='the price of gas to use for the transaction'
+                label={ priceLabel }
+                onChange={ this.onEditGasPrice }
+                value={ price }
+              />
+            </div>
+            <div className={ styles.row }>
+              <Input
+                disabled
+                error={ errorTotal }
+                hint='the total amount of the transaction'
+                label='total transaction amount'
+                value={ `${eth} ETH` }
+              />
+            </div>
+            <div className={ styles.row }>
+              { children }
+            </div>
           </div>
         </div>
       </div>

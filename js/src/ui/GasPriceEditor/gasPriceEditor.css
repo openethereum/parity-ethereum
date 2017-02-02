@@ -17,6 +17,21 @@
 
 .container {
   display: flex;
+  flex-direction: column;
+}
+
+.minContainer {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+
+  .input {
+    flex: 0 1 50%;
+  }
+}
+
+.graphContainer {
+  display: flex;
   flex-wrap: wrap;
   position: relative;
 }
