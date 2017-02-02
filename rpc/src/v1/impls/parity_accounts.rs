@@ -55,7 +55,7 @@ impl<C: 'static> ParityAccounts for ParityAccountsClient<C> where C: MiningBlock
 		self.active()?;
 		let store = take_weak!(self.accounts);
 		let info = store.accounts_info().map_err(|e| errors::account("Could not fetch account info.", e))?;
-		let other = store.addresses_info().expect("addresses_info always returns Ok; qed");
+		let other = store.addresses_info();
 
 		Ok(info
 		   .into_iter()
@@ -137,8 +137,7 @@ impl<C: 'static> ParityAccounts for ParityAccountsClient<C> where C: MiningBlock
 		let store = take_weak!(self.accounts);
 		let addr: Address = addr.into();
 
-		store.remove_address(addr)
-			.expect("remove_address always returns Ok; qed");
+		store.remove_address(addr);
 		Ok(true)
 	}
 
@@ -148,8 +147,7 @@ impl<C: 'static> ParityAccounts for ParityAccountsClient<C> where C: MiningBlock
 		let addr: Address = addr.into();
 
 		store.set_account_name(addr.clone(), name.clone())
-			.or_else(|_| store.set_address_name(addr, name))
-			.expect("set_address_name always returns Ok; qed");
+			.unwrap_or_else(|_| store.set_address_name(addr, name));
 		Ok(true)
 	}
 
@@ -159,8 +157,7 @@ impl<C: 'static> ParityAccounts for ParityAccountsClient<C> where C: MiningBlock
 		let addr: Address = addr.into();
 
 		store.set_account_meta(addr.clone(), meta.clone())
-			.or_else(|_| store.set_address_meta(addr, meta))
-			.expect("set_address_meta always returns Ok; qed");
+			.unwrap_or_else(|_| store.set_address_meta(addr, meta));
 		Ok(true)
 	}
 
