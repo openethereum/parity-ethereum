@@ -43,7 +43,7 @@ pub const WARP_SYNC_PROTOCOL_ID: ProtocolId = *b"par";
 /// Ethereum sync protocol
 pub const ETH_PROTOCOL: ProtocolId = *b"eth";
 /// Ethereum light protocol
-pub const LES_PROTOCOL: ProtocolId = *b"les";
+pub const LIGHT_PROTOCOL: ProtocolId = *b"plp";
 
 /// Sync configuration
 #[derive(Debug, Clone, Copy)]
@@ -56,7 +56,7 @@ pub struct SyncConfig {
 	pub network_id: u64,
 	/// Main "eth" subprotocol name.
 	pub subprotocol_name: [u8; 3],
-	/// Light "les" subprotocol name.
+	/// Light subprotocol name.
 	pub light_subprotocol_name: [u8; 3],
 	/// Fork block to check
 	pub fork_block: Option<(BlockNumber, H256)>,
@@ -73,7 +73,7 @@ impl Default for SyncConfig {
 			download_old_blocks: true,
 			network_id: 1,
 			subprotocol_name: ETH_PROTOCOL,
-			light_subprotocol_name: LES_PROTOCOL,
+			light_subprotocol_name: LIGHT_PROTOCOL,
 			fork_block: None,
 			warp_sync: false,
 			serve_light: false,
