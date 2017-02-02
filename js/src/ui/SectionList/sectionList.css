@@ -16,7 +16,7 @@
 */
 
 .section {
-  margin-bottom: 1em;
+  overflow-x: hidden;
   position: relative;
 
   .overlay {
@@ -33,6 +33,7 @@
   .row {
     display: flex;
     justify-content: center;
+    overflow-x: hidden;
 
     /* TODO: As per JS comments, the flex-base could be adjusted in the future to allow for */
     /* case where <> 3 columns are required should the need arrise from a UI pov. */
@@ -42,6 +43,7 @@
       display: flex;
       flex: 0 1 33.33%;
       opacity: 0.75;
+      overflow-x: hidden;
       padding: 0.25em;
       transition: all 0.75s cubic-bezier(0.23, 1, 0.32, 1);
 
@@ -75,4 +77,8 @@
       }
     }
   }
+}
+
+.section+.section {
+  margin-top: 1em;
 }
