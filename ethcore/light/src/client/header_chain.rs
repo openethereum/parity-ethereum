@@ -32,9 +32,10 @@ use cht;
 
 use ethcore::block_status::BlockStatus;
 use ethcore::error::BlockError;
+use ethcore::encoded;
+use ethcore::header::Header;
 use ethcore::ids::BlockId;
-use ethcore::views::HeaderView;
-use util::{Bytes, H256, U256, HeapSizeOf, Mutex, RwLock};
+use util::{H256, U256, HeapSizeOf, Mutex, RwLock};
 
 use smallvec::SmallVec;
 
@@ -77,9 +78,9 @@ impl HeapSizeOf for Entry {
 
 /// Header chain. See module docs for more details.
 pub struct HeaderChain {
-	genesis_header: Bytes, // special-case the genesis.
+	genesis_header: encoded::Header, // special-case the genesis.
 	candidates: RwLock<BTreeMap<u64, Entry>>,
-	headers: RwLock<HashMap<H256, Bytes>>,
+	headers: RwLock<HashMap<H256, encoded::Header>>,
 	best_block: RwLock<BlockDescriptor>,
 	cht_roots: Mutex<Vec<H256>>,
 }
@@ -87,10 +88,12 @@ pub struct HeaderChain {
 impl HeaderChain {
 	/// Create a new header chain given this genesis block.
 	pub fn new(genesis: &[u8]) -> Self {
+		use ethcore::views::HeaderView;
+
 		let g_view = HeaderView::new(genesis);
 
 		HeaderChain {
-			genesis_header: genesis.to_owned(),
+			genesis_header: encoded::Header::new(genesis.to_owned()),
 			best_block: RwLock::new(BlockDescriptor {
 				hash: g_view.hash(),
 				number: 0,
@@ -104,14 +107,11 @@ impl HeaderChain {
 
 	/// Insert a pre-verified header.
 	///
-	/// This blindly trusts that the data given to it is
-	/// a) valid RLP encoding of a header and
-	/// b) has sensible data contained within it.
-	pub fn insert(&self, header: Bytes) -> Result<(), BlockError> {
-		let view = HeaderView::new(&header);
-		let hash = view.hash();
-		let number = view.number();
-		let parent_hash = view.parent_hash();
+	/// This blindly trusts that the data given to it is sensible.
+	pub fn insert(&self, header: Header) -> Result<(), BlockError> {
+		let hash = header.hash();
+		let number = header.number();
+		let parent_hash = *header.parent_hash();
 
 		// hold candidates the whole time to guard import order.
 		let mut candidates = self.candidates.write();
@@ -119,8 +119,7 @@ impl HeaderChain {
 		// find parent details.
 		let parent_td =
 			if number == 1 {
-				let g_view = HeaderView::new(&self.genesis_header);
-				g_view.difficulty()
+				self.genesis_header.difficulty()
 			} else {
 				candidates.get(&(number - 1))
 					.and_then(|entry| entry.candidates.iter().find(|c| c.hash == parent_hash))
@@ -128,7 +127,7 @@ impl HeaderChain {
 					.ok_or_else(|| BlockError::UnknownParent(parent_hash))?
 			};
 
-		let total_difficulty = parent_td + view.difficulty();
+		let total_difficulty = parent_td + *header.difficulty();
 
 		// insert headers and candidates entries.
 		candidates.entry(number).or_insert_with(|| Entry { candidates: SmallVec::new(), canonical_hash: hash })
@@ -138,7 +137,8 @@ impl HeaderChain {
 				total_difficulty: total_difficulty,
 		});
 
-		self.headers.write().insert(hash, header.clone());
+		let raw = ::rlp::encode(&header).to_vec();
+		self.headers.write().insert(hash, encoded::Header::new(raw));
 
 		// reorganize ancestors so canonical entries are first in their
 		// respective candidates vectors.
@@ -203,19 +203,19 @@ impl HeaderChain {
 
 	/// Get a block header. In the case of query by number, only canonical blocks
 	/// will be returned.
-	pub fn get_header(&self, id: BlockId) -> Option<Bytes> {
+	pub fn get_header(&self, id: BlockId) -> Option<encoded::Header> {
 		match id {
 			BlockId::Earliest | BlockId::Number(0) => Some(self.genesis_header.clone()),
-			BlockId::Hash(hash) => self.headers.read().get(&hash).map(|x| x.to_vec()),
+			BlockId::Hash(hash) => self.headers.read().get(&hash).cloned(),
 			BlockId::Number(num) => {
 				if self.best_block.read().number < num { return None }
 
 				self.candidates.read().get(&num).map(|entry| entry.canonical_hash)
-					.and_then(|hash| self.headers.read().get(&hash).map(|x| x.to_vec()))
+					.and_then(|hash| self.headers.read().get(&hash).cloned())
 			}
 			BlockId::Latest | BlockId::Pending => {
 				let hash = self.best_block.read().hash;
-				self.headers.read().get(&hash).map(|x| x.to_vec())
+				self.headers.read().get(&hash).cloned()
 			}
 		}
 	}
@@ -296,10 +296,10 @@ mod tests {
 			header.set_number(i);
 			header.set_timestamp(rolling_timestamp);
 			header.set_difficulty(*genesis_header.difficulty() * i.into());
-
-			chain.insert(::rlp::encode(&header).to_vec()).unwrap();
-
 			parent_hash = header.hash();
+
+			chain.insert(header).unwrap();
+
 			rolling_timestamp += 10;
 		}
 
@@ -324,10 +324,10 @@ mod tests {
 			header.set_number(i);
 			header.set_timestamp(rolling_timestamp);
 			header.set_difficulty(*genesis_header.difficulty() * i.into());
-
-			chain.insert(::rlp::encode(&header).to_vec()).unwrap();
-
 			parent_hash = header.hash();
+
+			chain.insert(header).unwrap();
+
 			rolling_timestamp += 10;
 		}
 
@@ -340,10 +340,10 @@ mod tests {
 				header.set_number(i);
 				header.set_timestamp(rolling_timestamp);
 				header.set_difficulty(*genesis_header.difficulty() * i.into());
-
-				chain.insert(::rlp::encode(&header).to_vec()).unwrap();
-
 				parent_hash = header.hash();
+
+				chain.insert(header).unwrap();
+
 				rolling_timestamp += 10;
 			}
 		}
@@ -361,10 +361,10 @@ mod tests {
 				header.set_number(i);
 				header.set_timestamp(rolling_timestamp);
 				header.set_difficulty(*genesis_header.difficulty() * (i * i).into());
-
-				chain.insert(::rlp::encode(&header).to_vec()).unwrap();
-
 				parent_hash = header.hash();
+
+				chain.insert(header).unwrap();
+
 				rolling_timestamp += 11;
 			}
 		}
@@ -373,10 +373,10 @@ mod tests {
 		assert_eq!(num, 12);
 
 		while num > 0 {
-			let header: Header = ::rlp::decode(&chain.get_header(BlockId::Number(num)).unwrap());
+			let header = chain.get_header(BlockId::Number(num)).unwrap();
 			assert_eq!(header.hash(), canon_hash);
 
-			canon_hash = *header.parent_hash();
+			canon_hash = header.parent_hash();
 			num -= 1;
 		}
 	}

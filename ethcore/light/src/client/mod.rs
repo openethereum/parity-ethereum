@@ -148,7 +148,7 @@ impl Client {
 	}
 
 	/// Get a block header by Id.
-	pub fn get_header(&self, id: BlockId) -> Option<Bytes> {
+	pub fn get_header(&self, id: BlockId) -> Option<encoded::Header> {
 		self.chain.get_header(id)
 	}
 
@@ -173,7 +173,7 @@ impl Client {
 		for verified_header in self.queue.drain(MAX) {
 			let (num, hash) = (verified_header.number(), verified_header.hash());
 
-			match self.chain.insert(::rlp::encode(&verified_header).to_vec()) {
+			match self.chain.insert(verified_header) {
 				Ok(()) => {
 					good.push(hash);
 					self.report.write().blocks_imported += 1;
@@ -245,7 +245,7 @@ impl Provider for Client {
 	}
 
 	fn block_header(&self, id: BlockId) -> Option<encoded::Header> {
-		self.chain.get_header(id).map(encoded::Header::new)
+		self.chain.get_header(id)
 	}
 
 	fn block_body(&self, _id: BlockId) -> Option<encoded::Body> {
