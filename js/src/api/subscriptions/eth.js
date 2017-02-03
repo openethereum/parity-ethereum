@@ -23,6 +23,7 @@ export default class Eth {
     this._started = false;
 
     this._lastBlock = new BigNumber(-1);
+    this._pollTimerId = null;
   }
 
   get isStarted () {
@@ -37,7 +38,7 @@ export default class Eth {
 
   _blockNumber = () => {
     const nextTimeout = (timeout = 1000) => {
-      setTimeout(() => {
+      this._pollTimerId = setTimeout(() => {
         this._blockNumber();
       }, timeout);
     };
@@ -57,6 +58,6 @@ export default class Eth {
 
         nextTimeout();
       })
-      .catch(nextTimeout);
+      .catch(() => nextTimeout());
   }
 }
