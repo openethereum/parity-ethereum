@@ -277,7 +277,7 @@ struct VerifiedTransaction {
 	origin: TransactionOrigin,
 	/// Insertion time
 	insertion_time: QueuingInstant,
-	/// Delay until specifid block.
+	/// Delay until specified condition is met.
 	condition: Option<Condition>,
 }
 

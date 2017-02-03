@@ -196,8 +196,7 @@ pub struct TransactionModification {
 	pub gas_price: Option<U256>,
 	/// Modified gas
 	pub gas: Option<U256>,
-	/// Modified min block
-	#[serde(rename="condition")]
+	/// Modified transaction condition.
 	pub condition: Option<Option<TransactionCondition>>,
 }
 
