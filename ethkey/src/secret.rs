@@ -55,6 +55,12 @@ impl FromStr for Secret {
 	}
 }
 
+impl From<&'static str> for Secret {
+	fn from(s: &'static str) -> Self {
+		s.parse().expect(&format!("invalid string literal for {}: '{}'", stringify!(Self), s))
+	}
+}
+
 impl From<key::SecretKey> for Secret {
 	fn from(key: key::SecretKey) -> Self {
 		Self::from_slice_unchecked(&key[0..32])
