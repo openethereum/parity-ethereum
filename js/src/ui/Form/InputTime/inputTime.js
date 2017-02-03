@@ -21,6 +21,9 @@ import Label from '../Label';
 
 import styles from './inputTime.css';
 
+// NOTE: Has to be larger than Signer overlay Z, aligns with ../InputDate
+const DIALOG_STYLE = { zIndex: 10010 };
+
 export default class InputTime extends Component {
   static propTypes = {
     className: PropTypes.string,
@@ -39,6 +42,7 @@ export default class InputTime extends Component {
         <TimePicker
           autoOk
           className={ styles.input }
+          dialogStyle={ DIALOG_STYLE }
           format='24hr'
           hintText={ hint }
           onChange={ onChange }

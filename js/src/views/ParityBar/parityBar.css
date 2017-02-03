@@ -15,12 +15,8 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-/* NOTE: These are <1500, i.e. the values used by MUI Modal (backdrop 1500, content 2000).
-/* This is set this way so inline pop-ups (Date/Time pickers) appear above the actual
-/* content when they are toggled (Could be re-evaluated in the Portal world)
-*/
-$overlayZ: 1400;
-$modalZ: 1401;
+$overlayZ: 10000;
+$modalZ: 10001;
 
 .account {
   display: flex;
