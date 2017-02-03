@@ -62,6 +62,9 @@ export default class GasPriceEditor {
 
     if (api) {
       this.loadDefaults();
+      api.eth.blockNumber().then((blockNumber) => {
+        this.blockNumber = blockNumber.toNumber();
+      });
     }
   }
 
@@ -80,7 +83,7 @@ export default class GasPriceEditor {
 
       switch (conditionType) {
         case CONDITIONS.BLOCK:
-          this.condition = Object.assign({}, this.condition, { block: 1 });
+          this.condition = Object.assign({}, this.condition, { block: this.blockNumber || 1 });
           break;
 
         case CONDITIONS.TIME:
