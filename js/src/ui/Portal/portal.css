@@ -82,15 +82,11 @@ $popoverZ: 3600;
   }
 
   .buttonRow {
-    bottom: 0;
     display: flex;
     flex-direction: row;
     flex-wrap: nowrap;
     justify-content: flex-end;
-    left: 0;
-    padding: $modalPadding $modalPadding 0 $modalPadding;
-    position: absolute;
-    right: 0;
+    padding: $modalPadding 0 0 0;
 
     button:not([disabled]) {
       color: white !important;
@@ -99,6 +95,10 @@ $popoverZ: 3600;
         fill: white !important;
       }
     }
+  }
+
+  .childContainer {
+    flex: 1;
   }
 
   .closeIcon {

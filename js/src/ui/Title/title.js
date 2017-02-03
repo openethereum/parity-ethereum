@@ -53,7 +53,7 @@ export default class Title extends Component {
         <ContainerTitle
           title={
             steps
-              ? steps[activeStep]
+              ? steps[activeStep || 0]
               : title
           }
         />
