@@ -19,8 +19,11 @@ import store from 'store';
 import { parse as parseUrl, format as formatUrl } from 'url';
 import { parse as parseQuery } from 'querystring';
 
+import { Button, Modal } from '~/ui';
+import { CancelIcon, CheckIcon } from '~/ui/Icons';
 import AddressBar from './AddressBar';
 
+import { EXTENSION_PAGE, shouldShowWarning, installExtension, hideWarning } from './extension-warning';
 import styles from './web.css';
 
 const LS_LAST_ADDRESS = '_parity::webLastAddress';
@@ -40,7 +43,8 @@ export default class Web extends Component {
     displayedUrl: null,
     isLoading: true,
     token: null,
-    url: null
+    url: null,
+    extensionWarningShown: false
   };
 
   componentDidMount () {
@@ -55,6 +59,12 @@ export default class Web extends Component {
       });
 
     this.setUrl(params.url);
+
+    if (shouldShowWarning()) {
+      this.setState({
+        extensionWarningShown: true
+      });
+    }
   }
 
   componentWillReceiveProps (props) {
@@ -84,7 +94,7 @@ export default class Web extends Component {
     }
 
     const { dappsUrl } = this.context.api;
-    const { url } = this.state;
+    const { url, extensionWarningShown } = this.state;
 
     if (!url || !token) {
       return null;
@@ -96,6 +106,7 @@ export default class Web extends Component {
 
     return (
       <div className={ styles.wrapper }>
+        { extensionWarningShown ? this.renderExtensionWarning() : null }
         <AddressBar
           className={ styles.url }
           isLoading={ isLoading }
@@ -114,6 +125,51 @@ export default class Web extends Component {
         />
       </div>
     );
+  }
+
+  renderExtensionWarning () {
+    const cancel = (
+      <Button
+        icon={ <CancelIcon /> }
+        key='close'
+        label='No Thanks'
+        onClick={ this.hideExtensionWarning }
+      />
+    );
+    const install = (
+      <Button
+        icon={ <CheckIcon /> }
+        key='install'
+        label='Install'
+        onClick={ this.openExtensionPage }
+      />
+    );
+
+    return (
+      <Modal
+        actions={ [ cancel, install ] }
+        title='Install the Parity Extension'
+        visible
+      >
+        <p>Parity now has a Chrome extension. We strongly recommend to install it.</p>
+      </Modal>
+    );
+  }
+
+  hideExtensionWarning = () => {
+    hideWarning();
+    this.setState({
+      extensionWarningShown: false
+    });
+  }
+
+  openExtensionPage = () => {
+    installExtension()
+      .then(hideWarning)
+      .catch((err) => {
+        console.error(err);
+        window.open(EXTENSION_PAGE, '_blank');
+      });
   }
 
   onUrlChange = (url) => {
