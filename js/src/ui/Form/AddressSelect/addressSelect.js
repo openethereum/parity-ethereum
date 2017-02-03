@@ -180,34 +180,38 @@ class AddressSelect extends Component {
         onClose={ this.handleClose }
         onKeyDown={ this.handleKeyDown }
         open={ expanded }
+        title={
+          <div className={ styles.title }>
+            <label className={ styles.label } htmlFor={ id }>
+              { label }
+            </label>
+            <div className={ styles.outerInput }>
+              <input
+                id={ id }
+                className={ styles.input }
+                placeholder={ ilHint }
+                onBlur={ this.handleInputBlur }
+                onFocus={ this.handleInputFocus }
+                onChange={ this.handleChange }
+                ref={ this.setInputRef }
+              />
+              { this.renderLoader() }
+            </div>
+
+            <div className={ styles.underline }>
+              <TextFieldUnderline
+                focus={ inputFocused }
+                focusStyle={ BOTTOM_BORDER_STYLE }
+                muiTheme={ muiTheme }
+                style={ BOTTOM_BORDER_STYLE }
+              />
+            </div>
+
+            { this.renderCurrentInput() }
+            { this.renderRegistryValues() }
+          </div>
+        }
       >
-        <label className={ styles.label } htmlFor={ id }>
-          { label }
-        </label>
-        <div className={ styles.outerInput }>
-          <input
-            id={ id }
-            className={ styles.input }
-            placeholder={ ilHint }
-            onBlur={ this.handleInputBlur }
-            onFocus={ this.handleInputFocus }
-            onChange={ this.handleChange }
-            ref={ this.setInputRef }
-          />
-          { this.renderLoader() }
-        </div>
-
-        <div className={ styles.underline }>
-          <TextFieldUnderline
-            focus={ inputFocused }
-            focusStyle={ BOTTOM_BORDER_STYLE }
-            muiTheme={ muiTheme }
-            style={ BOTTOM_BORDER_STYLE }
-          />
-        </div>
-
-        { this.renderCurrentInput() }
-        { this.renderRegistryValues() }
         { this.renderAccounts() }
       </Portal>
     );

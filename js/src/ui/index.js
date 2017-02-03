@@ -54,6 +54,7 @@ import SectionList from './SectionList';
 import ShortenedHash from './ShortenedHash';
 import SignerIcon from './SignerIcon';
 import Tags from './Tags';
+import Title from './Title';
 import Tooltips, { Tooltip } from './Tooltips';
 import TxHash from './TxHash';
 import TxList from './TxList';
@@ -115,6 +116,7 @@ export {
   SectionList,
   SignerIcon,
   Tags,
+  Title,
   Tooltip,
   Tooltips,
   TxHash,

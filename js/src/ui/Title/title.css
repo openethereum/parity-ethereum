@@ -1,4 +1,4 @@
-/* Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+/* Copyright 2015-2017 Parity Technologies (UK) Ltd.
 /* This file is part of Parity.
 /*
 /* Parity is free software: you can redistribute it and/or modify
@@ -15,41 +15,12 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-.actions {
-  background: rgba(0, 0, 0, 0.25) !important;
-
-  button:not([disabled]) {
-    color: white !important;
-
-    svg {
-      fill: white !important;
-    }
-  }
-}
-
-.body {
-  padding: 0 !important;
-}
-
-.dialog {
-}
-
-.content {
-  transform: translate(0px, 0px) !important;
-  transition: none !important;
-
-  &>div {
-    background: rgba(0, 0, 0, 0.5) !important;
-    transition: none !important;
-  }
-}
-
 .title {
-  background: rgba(0, 0, 0, 0.25) !important;
-  padding: 1em;
-}
+  .steps {
+    margin: -0.5em 0 -1em 0;
+  }
 
-.overlay {
-  background: rgba(255, 255, 255, 0.5) !important;
-  transition: none !important;
+  .waiting {
+    margin: 1em -1em -1em -1em;
+  }
 }

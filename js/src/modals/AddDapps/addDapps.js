@@ -18,7 +18,7 @@ import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 
-import { ContainerTitle, DappCard, Portal, SectionList } from '~/ui';
+import { DappCard, Portal, SectionList } from '~/ui';
 import { CheckIcon } from '~/ui/Icons';
 
 import styles from './addDapps.css';
@@ -41,15 +41,13 @@ export default class AddDapps extends Component {
         className={ styles.modal }
         onClose={ store.closeModal }
         open
+        title={
+          <FormattedMessage
+            id='dapps.add.label'
+            defaultMessage='visible applications'
+          />
+        }
       >
-        <ContainerTitle
-          title={
-            <FormattedMessage
-              id='dapps.add.label'
-              defaultMessage='visible applications'
-            />
-          }
-        />
         <div className={ styles.container }>
           <div className={ styles.warning } />
           {
