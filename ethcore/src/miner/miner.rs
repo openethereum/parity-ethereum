@@ -25,7 +25,7 @@ use client::TransactionImportResult;
 use executive::contract_address;
 use block::{ClosedBlock, IsBlock, Block};
 use error::*;
-use transaction::{Action, UnverifiedTransaction, PendingTransaction, SignedTransaction};
+use transaction::{Action, UnverifiedTransaction, PendingTransaction, SignedTransaction, Condition as TransactionCondition};
 use receipt::{Receipt, RichReceipt};
 use spec::Spec;
 use engines::{Engine, Seal};
@@ -597,7 +597,7 @@ impl Miner {
 		client: &MiningBlockChainClient,
 		transactions: Vec<UnverifiedTransaction>,
 		default_origin: TransactionOrigin,
-		min_block: Option<BlockNumber>,
+		condition: Option<TransactionCondition>,
 		transaction_queue: &mut BanningTransactionQueue,
 	) -> Vec<Result<TransactionImportResult, Error>> {
 		let accounts = self.accounts.as_ref()
@@ -635,7 +635,7 @@ impl Miner {
 						let details_provider = TransactionDetailsProvider::new(client, &self.service_transaction_action);
 						match origin {
 							TransactionOrigin::Local | TransactionOrigin::RetractedBlock => {
-								transaction_queue.add(transaction, origin, insertion_time, min_block, &details_provider)
+								transaction_queue.add(transaction, origin, insertion_time, condition.clone(), &details_provider)
 							},
 							TransactionOrigin::External => {
 								transaction_queue.add_with_banlist(transaction, insertion_time, &details_provider)
@@ -892,7 +892,7 @@ impl MinerService for Miner {
 			let mut transaction_queue = self.transaction_queue.lock();
 			// We need to re-validate transactions
 			let import = self.add_transactions_to_queue(
-				chain, vec![pending.transaction.into()], TransactionOrigin::Local, pending.min_block, &mut transaction_queue
+				chain, vec![pending.transaction.into()], TransactionOrigin::Local, pending.condition, &mut transaction_queue
 			).pop().expect("one result returned per added transaction; one added => one result; qed");
 
 			match import {

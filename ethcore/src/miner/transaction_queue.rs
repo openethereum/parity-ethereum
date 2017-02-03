@@ -104,6 +104,7 @@ use std::ops::Deref;
 use std::cmp::Ordering;
 use std::cmp;
 use std::collections::{HashSet, HashMap, BTreeSet, BTreeMap};
+use time;
 use linked_hash_map::LinkedHashMap;
 use util::{Address, H256, Uint, U256};
 use util::table::Table;
@@ -277,16 +278,16 @@ struct VerifiedTransaction {
 	/// Insertion time
 	insertion_time: QueuingInstant,
 	/// Delay until specifid block.
-	min_block: Option<BlockNumber>,
+	condition: Option<Condition>,
 }
 
 impl VerifiedTransaction {
-	fn new(transaction: SignedTransaction, origin: TransactionOrigin, time: QueuingInstant, min_block: Option<BlockNumber>) -> Self {
+	fn new(transaction: SignedTransaction, origin: TransactionOrigin, time: QueuingInstant, condition: Option<Condition>) -> Self {
 		VerifiedTransaction {
 			transaction: transaction,
 			origin: origin,
 			insertion_time: time,
-			min_block: min_block,
+			condition: condition,
 		}
 	}
 
@@ -666,14 +667,14 @@ impl TransactionQueue {
 		tx: SignedTransaction,
 		origin: TransactionOrigin,
 		time: QueuingInstant,
-		min_block: Option<BlockNumber>,
+		condition: Option<Condition>,
 		details_provider: &TransactionDetailsProvider,
 	) -> Result<TransactionImportResult, Error> {
 		if origin == TransactionOrigin::Local {
 			let hash = tx.hash();
 			let cloned_tx = tx.clone();
 
-			let result = self.add_internal(tx, origin, time, min_block, details_provider);
+			let result = self.add_internal(tx, origin, time, condition, details_provider);
 			match result {
 				Ok(TransactionImportResult::Current) => {
 					self.local_transactions.mark_pending(hash);
@@ -694,7 +695,7 @@ impl TransactionQueue {
 			}
 			result
 		} else {
-			self.add_internal(tx, origin, time, min_block, details_provider)
+			self.add_internal(tx, origin, time, condition, details_provider)
 		}
 	}
 
@@ -704,7 +705,7 @@ impl TransactionQueue {
 		tx: SignedTransaction,
 		origin: TransactionOrigin,
 		time: QueuingInstant,
-		min_block: Option<BlockNumber>,
+		condition: Option<Condition>,
 		details_provider: &TransactionDetailsProvider,
 	) -> Result<TransactionImportResult, Error> {
 		if origin != TransactionOrigin::Local && tx.gas_price < self.minimal_gas_price {
@@ -815,7 +816,7 @@ impl TransactionQueue {
 		}
 		tx.check_low_s()?;
 		// No invalid transactions beyond this point.
-		let vtx = VerifiedTransaction::new(tx, origin, time, min_block);
+		let vtx = VerifiedTransaction::new(tx, origin, time, condition);
 		let r = self.import_tx(vtx, client_account.nonce).map_err(Error::Transaction);
 		assert_eq!(self.future.by_priority.len() + self.current.by_priority.len(), self.by_hash.len());
 		r
@@ -1082,7 +1083,12 @@ impl TransactionQueue {
 			if delayed.contains(&sender) {
 				continue;
 			}
-			if tx.min_block.unwrap_or(0) > best_block {
+			let delay = match tx.condition {
+				Some(Condition::Number(n)) => n > best_block,
+				Some(Condition::Timestamp(t)) => t > time::get_time().sec as u64,
+				None => false,
+			};
+			if delay {
 				delayed.insert(sender);
 				continue;
 			}
@@ -1100,7 +1106,7 @@ impl TransactionQueue {
 	/// Return all ready transactions.
 	pub fn pending_transactions(&self, best_block: BlockNumber) -> Vec<PendingTransaction> {
 		let mut r = Vec::new();
-		self.filter_pending_transaction(best_block, |tx| r.push(PendingTransaction::new(tx.transaction.clone(), tx.min_block)));
+		self.filter_pending_transaction(best_block, |tx| r.push(PendingTransaction::new(tx.transaction.clone(), tx.condition.clone())));
 		r
 	}
 
@@ -1109,7 +1115,7 @@ impl TransactionQueue {
 		self.future.by_priority
 			.iter()
 			.map(|t| self.by_hash.get(&t.hash).expect("All transactions in `current` and `future` are always included in `by_hash`"))
-			.map(|t| PendingTransaction { transaction: t.transaction.clone(), min_block: t.min_block })
+			.map(|t| PendingTransaction { transaction: t.transaction.clone(), condition: t.condition.clone() })
 			.collect()
 	}
 
@@ -1382,7 +1388,7 @@ pub mod test {
 	use super::{TransactionSet, TransactionOrder, VerifiedTransaction};
 	use miner::local_transactions::LocalTransactionsList;
 	use client::TransactionImportResult;
-	use transaction::{SignedTransaction, Transaction, Action};
+	use transaction::{SignedTransaction, Transaction, Action, Condition};
 
 	pub struct DummyTransactionDetailsProvider {
 		account_details: AccountDetails,
@@ -2178,7 +2184,7 @@ pub mod test {
 		let (tx, tx2) = new_tx_pair_default(1.into(), 0.into());
 
 		// when
-		let res1 = txq.add(tx.clone(), TransactionOrigin::External, 0, Some(1), &default_tx_provider()).unwrap();
+		let res1 = txq.add(tx.clone(), TransactionOrigin::External, 0, Some(Condition::Number(1)), &default_tx_provider()).unwrap();
 		let res2 = txq.add(tx2.clone(), TransactionOrigin::External, 0, None, &default_tx_provider()).unwrap();
 
 		// then
