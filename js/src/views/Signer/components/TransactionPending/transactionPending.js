@@ -135,15 +135,21 @@ export default class TransactionPending extends Component {
   onConfirm = (data) => {
     const { id, transaction } = this.props;
     const { password, wallet } = data;
-    const { gas, gasPrice } = this.gasStore.overrideTransaction(transaction);
+    const { condition, gas, gasPrice } = this.gasStore.overrideTransaction(transaction);
 
-    this.props.onConfirm({
+    const options = {
       gas,
       gasPrice,
       id,
       password,
       wallet
-    });
+    };
+
+    if (condition && (condition.block || condition.time)) {
+      options.condition = condition;
+    }
+
+    this.props.onConfirm(options);
   }
 
   onReject = () => {
