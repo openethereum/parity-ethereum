@@ -80,7 +80,7 @@ export default class GasPriceEditor {
 
       switch (conditionType) {
         case CONDITIONS.BLOCK:
-          this.condition = Object.assign({}, this.condition, { block: 0 });
+          this.condition = Object.assign({}, this.condition, { block: 1 });
           break;
 
         case CONDITIONS.TIME:
