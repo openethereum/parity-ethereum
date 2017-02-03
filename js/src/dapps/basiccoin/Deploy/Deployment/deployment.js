@@ -17,7 +17,6 @@
 import React, { Component, PropTypes } from 'react';
 
 import { api } from '../../parity';
-import AddressSelect from '../../AddressSelect';
 import Container from '../../Container';
 import styles from './deployment.css';
 
@@ -122,36 +121,13 @@ export default class Deployment extends Component {
   }
 
   renderForm () {
-    const { accounts } = this.context;
     const { baseText, name, nameError, tla, tlaError, totalSupply, totalSupplyError } = this.state;
     const hasError = !!(nameError || tlaError || totalSupplyError);
     const error = `${styles.input} ${styles.error}`;
-    const addresses = Object.keys(accounts);
-
-    // <div className={ styles.input }>
-    //   <label>global registration</label>
-    //   <select onChange={ this.onChangeRegistrar }>
-    //     <option value='no'>No, only for me</option>
-    //     <option value='yes'>Yes, for everybody</option>
-    //   </select>
-    //   <div className={ styles.hint }>
-    //     register on network (fee: { globalFeeText }ETH)
-    //   </div>
-    // </div>
 
     return (
       <Container>
         <div className={ styles.form }>
-          <div className={ styles.input }>
-            <label>deployment account</label>
-            <AddressSelect
-              addresses={ addresses }
-              onChange={ this.onChangeFrom }
-            />
-            <div className={ styles.hint }>
-              the owner account to deploy from
-            </div>
-          </div>
           <div className={ nameError ? error : styles.input }>
             <label>token name</label>
             <input
@@ -204,12 +180,6 @@ export default class Deployment extends Component {
         </div>
       </Container>
     );
-  }
-
-  onChangeFrom = (event) => {
-    const fromAddress = event.target.value;
-
-    this.setState({ fromAddress });
   }
 
   onChangeName = (event) => {
@@ -271,7 +241,7 @@ export default class Deployment extends Component {
 
   onDeploy = () => {
     const { managerInstance, registryInstance, tokenregInstance } = this.context;
-    const { base, deployBusy, fromAddress, globalReg, globalFee, name, nameError, tla, tlaError, totalSupply, totalSupplyError } = this.state;
+    const { base, deployBusy, globalReg, globalFee, name, nameError, tla, tlaError, totalSupply, totalSupplyError } = this.state;
     const hasError = !!(nameError || tlaError || totalSupplyError);
 
     if (hasError || deployBusy) {
@@ -281,14 +251,18 @@ export default class Deployment extends Component {
     const tokenreg = (globalReg ? tokenregInstance : registryInstance).address;
     const values = [base.mul(totalSupply), tla, name, tokenreg];
     const options = {
-      from: fromAddress,
       value: globalReg ? globalFee : 0
     };
 
     this.setState({ deployBusy: true, deployState: 'Estimating gas for the transaction' });
 
-    managerInstance
-      .deploy.estimateGas(options, values)
+    return api.parity
+      .defaultAccount()
+      .then((defaultAddress) => {
+        options.from = defaultAddress;
+
+        return managerInstance.deploy.estimateGas(options, values);
+      })
       .then((gas) => {
         this.setState({ deployState: 'Gas estimated, Posting transaction to the network' });
 

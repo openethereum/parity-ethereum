@@ -30,6 +30,7 @@ import Container, { Title as ContainerTitle } from './Container';
 import ContextProvider from './ContextProvider';
 import CopyToClipboard from './CopyToClipboard';
 import CurrencySymbol from './CurrencySymbol';
+import DappCard from './DappCard';
 import DappIcon from './DappIcon';
 import Editor from './Editor';
 import Errors from './Errors';
@@ -79,6 +80,7 @@ export {
   CopyToClipboard,
   CurrencySymbol,
   DappIcon,
+  DappCard,
   Editor,
   Errors,
   FEATURES,

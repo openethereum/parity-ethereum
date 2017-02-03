@@ -214,6 +214,7 @@ impl HeaderChain {
 	pub fn get_header(&self, id: BlockId) -> Option<Bytes> {
 		match id {
 			BlockId::Earliest | BlockId::Number(0) => Some(self.genesis_header.clone()),
+			BlockId::Latest if self.headers.read().is_empty() => Some(self.genesis_header.clone()),
 			BlockId::Hash(hash) => self.headers.read().get(&hash).map(|x| x.to_vec()),
 			BlockId::Number(num) => {
 				if self.best_block.read().number < num { return None }

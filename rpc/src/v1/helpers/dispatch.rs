@@ -192,7 +192,7 @@ pub fn sign_and_dispatch<C, M>(client: &C, miner: &M, accounts: &AccountProvider
 {
 
 	let network_id = client.signing_network_id();
-	let min_block = filled.min_block.clone();
+	let condition = filled.condition.clone();
 	let signed_transaction = sign_no_dispatch(client, miner, accounts, filled, password)?;
 
 	let (signed_transaction, token) = match signed_transaction {
@@ -201,7 +201,7 @@ pub fn sign_and_dispatch<C, M>(client: &C, miner: &M, accounts: &AccountProvider
 	};
 
 	trace!(target: "miner", "send_transaction: dispatching tx: {} for network ID {:?}", rlp::encode(&signed_transaction).to_vec().pretty(), network_id);
-	let pending_transaction = PendingTransaction::new(signed_transaction, min_block);
+	let pending_transaction = PendingTransaction::new(signed_transaction, condition.map(Into::into));
 	dispatch_transaction(&*client, &*miner, pending_transaction).map(|hash| {
 		match token {
 			Some(ref token) => WithToken::Yes(hash, token.clone()),
@@ -222,7 +222,7 @@ pub fn fill_optional_fields<C, M>(request: TransactionRequest, default_sender: A
 		gas: request.gas.unwrap_or_else(|| miner.sensible_gas_limit()),
 		value: request.value.unwrap_or_else(|| 0.into()),
 		data: request.data.unwrap_or_else(Vec::new),
-		min_block: request.min_block,
+		condition: request.condition,
 	}
 }
 

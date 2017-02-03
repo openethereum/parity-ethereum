@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::hash::{Hash, Hasher};
+use std::path::PathBuf;
 use ethkey::{Address, Message, Signature, Secret, Public};
 use Error;
 use json::Uuid;
@@ -73,7 +74,7 @@ pub trait SecretStore: SimpleSecretStore {
 	fn set_name(&self, account: &StoreAccountRef, name: String) -> Result<(), Error>;
 	fn set_meta(&self, account: &StoreAccountRef, meta: String) -> Result<(), Error>;
 
-	fn local_path(&self) -> String;
+	fn local_path(&self) -> PathBuf;
 	fn list_geth_accounts(&self, testnet: bool) -> Vec<Address>;
 	fn import_geth_accounts(&self, vault: SecretVaultRef, desired: Vec<Address>, testnet: bool) -> Result<Vec<StoreAccountRef>, Error>;
 }
