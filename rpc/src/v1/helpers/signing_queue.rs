@@ -349,7 +349,7 @@ mod test {
 			value: 10_000_000.into(),
 			data: vec![],
 			nonce: None,
-			min_block: None,
+			condition: None,
 		})
 	}
 

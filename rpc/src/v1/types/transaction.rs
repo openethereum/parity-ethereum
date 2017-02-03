@@ -19,7 +19,7 @@ use ethcore::miner;
 use ethcore::contract_address;
 use ethcore::transaction::{LocalizedTransaction, Action, PendingTransaction, SignedTransaction};
 use v1::helpers::errors;
-use v1::types::{Bytes, H160, H256, U256, H512, BlockNumber};
+use v1::types::{Bytes, H160, H256, U256, H512, TransactionCondition};
 
 /// Transaction
 #[derive(Debug, Default, Clone, PartialEq, Serialize)]
@@ -70,8 +70,7 @@ pub struct Transaction {
 	/// The S field of the signature.
 	pub s: U256,
 	/// Transaction activates at specified block.
-	#[serde(rename="minBlock")]
-	pub min_block: Option<BlockNumber>,
+	pub condition: Option<TransactionCondition>,
 }
 
 /// Local Transaction Status
@@ -190,7 +189,7 @@ impl From<LocalizedTransaction> for Transaction {
 			v: t.original_v().into(),
 			r: signature.r().into(),
 			s: signature.s().into(),
-			min_block: None,
+			condition: None,
 		}
 	}
 }
@@ -224,7 +223,7 @@ impl From<SignedTransaction> for Transaction {
 			v: t.original_v().into(),
 			r: signature.r().into(),
 			s: signature.s().into(),
-			min_block: None,
+			condition: None,
 		}
 	}
 }
@@ -232,7 +231,7 @@ impl From<SignedTransaction> for Transaction {
 impl From<PendingTransaction> for Transaction {
 	fn from(t: PendingTransaction) -> Transaction {
 		let mut r = Transaction::from(t.transaction);
-		r.min_block = t.min_block.map(|b| BlockNumber::Num(b));
+		r.condition = t.condition.map(|b| b.into());
 		r
 	}
 }
@@ -261,7 +260,7 @@ mod tests {
 	fn test_transaction_serialize() {
 		let t = Transaction::default();
 		let serialized = serde_json::to_string(&t).unwrap();
-		assert_eq!(serialized, r#"{"hash":"0x0000000000000000000000000000000000000000000000000000000000000000","nonce":"0x0","blockHash":null,"blockNumber":null,"transactionIndex":null,"from":"0x0000000000000000000000000000000000000000","to":null,"value":"0x0","gasPrice":"0x0","gas":"0x0","input":"0x","creates":null,"raw":"0x","publicKey":null,"networkId":null,"standardV":"0x0","v":"0x0","r":"0x0","s":"0x0","minBlock":null}"#);
+		assert_eq!(serialized, r#"{"hash":"0x0000000000000000000000000000000000000000000000000000000000000000","nonce":"0x0","blockHash":null,"blockNumber":null,"transactionIndex":null,"from":"0x0000000000000000000000000000000000000000","to":null,"value":"0x0","gasPrice":"0x0","gas":"0x0","input":"0x","creates":null,"raw":"0x","publicKey":null,"networkId":null,"standardV":"0x0","v":"0x0","r":"0x0","s":"0x0","condition":null}"#);
 	}
 
 	#[test]

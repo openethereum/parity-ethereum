@@ -485,6 +485,7 @@ impl BlockChain {
 			let best_block_number = bc.block_number(&best_block_hash).unwrap();
 			let best_block_total_difficulty = bc.block_details(&best_block_hash).unwrap().total_difficulty;
 			let best_block_rlp = bc.block(&best_block_hash).unwrap().into_inner();
+			let best_block_timestamp = BlockView::new(&best_block_rlp).header().timestamp();
 
 			let raw_first = bc.db.get(db::COL_EXTRA, b"first").unwrap().map(|v| v.to_vec());
 			let mut best_ancient = bc.db.get(db::COL_EXTRA, b"ancient").unwrap().map(|h| H256::from_slice(&h));
@@ -533,6 +534,7 @@ impl BlockChain {
 				number: best_block_number,
 				total_difficulty: best_block_total_difficulty,
 				hash: best_block_hash,
+				timestamp: best_block_timestamp,
 				block: best_block_rlp,
 			};
 
@@ -585,6 +587,7 @@ impl BlockChain {
 					number: extras.number - 1,
 					total_difficulty: best_block_total_difficulty,
 					hash: hash,
+					timestamp: BlockView::new(&best_block_rlp).header().timestamp(),
 					block: best_block_rlp,
 				};
 				// update parent extras
@@ -738,6 +741,7 @@ impl BlockChain {
 				blocks_blooms: self.prepare_block_blooms_update(bytes, &info),
 				transactions_addresses: self.prepare_transaction_addresses_update(bytes, &info),
 				info: info,
+				timestamp: header.timestamp(),
 				block: bytes
 			}, is_best);
 
@@ -786,6 +790,7 @@ impl BlockChain {
 				blocks_blooms: self.prepare_block_blooms_update(bytes, &info),
 				transactions_addresses: self.prepare_transaction_addresses_update(bytes, &info),
 				info: info,
+				timestamp: header.timestamp(),
 				block: bytes,
 			}, is_best);
 			true
@@ -850,6 +855,7 @@ impl BlockChain {
 			blocks_blooms: self.prepare_block_blooms_update(bytes, &info),
 			transactions_addresses: self.prepare_transaction_addresses_update(bytes, &info),
 			info: info.clone(),
+			timestamp: header.timestamp(),
 			block: bytes,
 		}, true);
 
@@ -921,6 +927,7 @@ impl BlockChain {
 						hash: update.info.hash,
 						number: update.info.number,
 						total_difficulty: update.info.total_difficulty,
+						timestamp: update.timestamp,
 						block: update.block.to_vec(),
 					});
 				},
@@ -1206,6 +1213,11 @@ impl BlockChain {
 		self.best_block.read().number
 	}
 
+	/// Get best block timestamp.
+	pub fn best_block_timestamp(&self) -> u64 {
+		self.best_block.read().timestamp
+	}
+
 	/// Get best block total difficulty.
 	pub fn best_block_total_difficulty(&self) -> U256 {
 		self.best_block.read().total_difficulty
@@ -1293,6 +1305,7 @@ impl BlockChain {
 			genesis_hash: self.genesis_hash(),
 			best_block_hash: best_block.hash.clone(),
 			best_block_number: best_block.number,
+			best_block_timestamp: best_block.timestamp,
 			first_block_hash: self.first_block(),
 			first_block_number: From::from(self.first_block_number()),
 			ancient_block_hash: best_ancient_block.as_ref().map(|b| b.hash.clone()),
