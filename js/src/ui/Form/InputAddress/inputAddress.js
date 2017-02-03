@@ -22,6 +22,7 @@ import { nodeOrStringProptype } from '~/util/proptypes';
 import { isNullAddress } from '~/util/validation';
 
 import IdentityIcon from '../../IdentityIcon';
+import IdentityName from '../../IdentityName';
 import Input from '../Input';
 
 import styles from './inputAddress.css';
@@ -96,7 +97,7 @@ class InputAddress extends Component {
           tabIndex={ tabIndex }
           value={
             text && account
-              ? account.name
+              ? (account.name || (value ? 'UNNAMED' : value))
               : (nullName || value)
           }
           { ...props }
