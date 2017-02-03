@@ -16,7 +16,7 @@
 
 //! `TransactionRequest` type
 
-use v1::types::{Bytes, H160, U256, BlockNumber};
+use v1::types::{Bytes, H160, U256, TransactionCondition};
 use v1::helpers;
 use util::log::Colour;
 
@@ -41,9 +41,8 @@ pub struct TransactionRequest {
 	pub data: Option<Bytes>,
 	/// Transaction's nonce
 	pub nonce: Option<U256>,
-	/// Delay until this block if specified.
-	#[serde(rename="minBlock")]
-	pub min_block: Option<BlockNumber>,
+	/// Delay until this block condition.
+	pub condition: Option<TransactionCondition>,
 }
 
 pub fn format_ether(i: U256) -> String {
@@ -93,7 +92,7 @@ impl From<helpers::TransactionRequest> for TransactionRequest {
 			value: r.value.map(Into::into),
 			data: r.data.map(Into::into),
 			nonce: r.nonce.map(Into::into),
-			min_block: r.min_block.map(|b| BlockNumber::Num(b)),
+			condition: r.condition.map(Into::into),
 		}
 	}
 }
@@ -108,7 +107,7 @@ impl From<helpers::FilledTransactionRequest> for TransactionRequest {
 			value: Some(r.value.into()),
 			data: Some(r.data.into()),
 			nonce: r.nonce.map(Into::into),
-			min_block: r.min_block.map(|b| BlockNumber::Num(b)),
+			condition: r.condition.map(Into::into),
 		}
 	}
 }
@@ -123,7 +122,7 @@ impl Into<helpers::TransactionRequest> for TransactionRequest {
 			value: self.value.map(Into::into),
 			data: self.data.map(Into::into),
 			nonce: self.nonce.map(Into::into),
-			min_block: self.min_block.and_then(|b| b.to_min_block_num()),
+			condition: self.condition.map(Into::into),
 		}
 	}
 }
@@ -134,7 +133,7 @@ mod tests {
 	use std::str::FromStr;
 	use rustc_serialize::hex::FromHex;
 	use serde_json;
-	use v1::types::{U256, H160, BlockNumber};
+	use v1::types::{U256, H160, TransactionCondition};
 	use super::*;
 
 	#[test]
@@ -147,7 +146,7 @@ mod tests {
 			"value":"0x3",
 			"data":"0x123456",
 			"nonce":"0x4",
-			"minBlock":"0x13"
+			"condition": { "block": 19 }
 		}"#;
 		let deserialized: TransactionRequest = serde_json::from_str(s).unwrap();
 
@@ -159,7 +158,7 @@ mod tests {
 			value: Some(U256::from(3)),
 			data: Some(vec![0x12, 0x34, 0x56].into()),
 			nonce: Some(U256::from(4)),
-			min_block: Some(BlockNumber::Num(0x13)),
+			condition: Some(TransactionCondition::Number(0x13)),
 		});
 	}
 
@@ -183,7 +182,7 @@ mod tests {
 			value: Some(U256::from_str("9184e72a").unwrap()),
 			data: Some("d46e8dd67c5d32be8d46e8dd67c5d32be8058bb8eb970870f072445675058bb8eb970870f072445675".from_hex().unwrap().into()),
 			nonce: None,
-			min_block: None,
+			condition: None,
 		});
 	}
 
@@ -200,7 +199,7 @@ mod tests {
 			value: None,
 			data: None,
 			nonce: None,
-			min_block: None,
+			condition: None,
 		});
 	}
 
@@ -224,7 +223,7 @@ mod tests {
 			value: None,
 			data: Some(vec![0x85, 0x95, 0xba, 0xb1].into()),
 			nonce: None,
-			min_block: None,
+			condition: None,
 		});
 	}
 

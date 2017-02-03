@@ -24,6 +24,8 @@ pub struct BestBlock {
 	pub hash: H256,
 	/// Best block number.
 	pub number: BlockNumber,
+	/// Best block timestamp.
+	pub timestamp: u64,
 	/// Best block total difficulty.
 	pub total_difficulty: U256,
 	/// Best block uncompressed bytes
