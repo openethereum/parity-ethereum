@@ -19,7 +19,7 @@ import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 
-import { Input, RadioButtons } from '../Form';
+import { Input, InputDate, InputTime, RadioButtons } from '../Form';
 import GasPriceSelector from '../GasPriceSelector';
 
 import Store, { CONDITIONS } from './store';
@@ -82,6 +82,12 @@ export default class GasPriceEditor extends Component {
       <div className={ styles.container }>
         <RadioButtons
           className={ styles.conditionRadio }
+          label={
+            <FormattedMessage
+              id='txEditor.condition.label'
+              defaultMessage='Condition where transaction activates'
+            />
+          }
           onChange={ this.onChangeConditionType }
           value={ conditionType }
           values={ CONDITION_VALUES }
@@ -139,15 +145,74 @@ export default class GasPriceEditor extends Component {
   }
 
   renderConditions () {
-    const { conditionType } = this.props.store;
+    const { conditionType, condition } = this.props.store;
 
     if (conditionType === CONDITIONS.NONE) {
       return null;
     }
 
+    if (conditionType === CONDITIONS.BLOCK) {
+      return (
+        <div className={ styles.conditionContainer }>
+          <div className={ styles.input }>
+            <Input
+              hint={
+                <FormattedMessage
+                  id='txEditor.condition.block.hint'
+                  defaultMessage='The minimum block to send from'
+                />
+              }
+              label={
+                <FormattedMessage
+                  id='txEditor.condition.block.label'
+                  defaultMessage='Transaction send block'
+                />
+              }
+              value={ condition.block }
+            />
+          </div>
+        </div>
+      );
+    }
+
     return (
-      <div className={ styles.minContainer }>
-        <div className={ styles.input } />
+      <div className={ styles.conditionContainer }>
+        <div className={ styles.input }>
+          <InputDate
+            hint={
+              <FormattedMessage
+                id='txEditor.condition.date.hint'
+                defaultMessage='The minimum date to send from'
+              />
+            }
+            label={
+              <FormattedMessage
+                id='txEditor.condition.date.label'
+                defaultMessage='Transaction send date'
+              />
+            }
+            onChange={ this.onChangeConditionDate }
+            value={ condition.timestamp }
+          />
+        </div>
+        <div className={ styles.input }>
+          <InputTime
+            hint={
+              <FormattedMessage
+                id='txEditor.condition.time.hint'
+                defaultMessage='The minimum time to send from'
+              />
+            }
+            label={
+              <FormattedMessage
+                id='txEditor.condition.time.label'
+                defaultMessage='Transaction send time'
+              />
+            }
+            onChange={ this.onChangeConditionTime }
+            value={ condition.timestamp }
+          />
+        </div>
       </div>
     );
   }
@@ -167,6 +232,16 @@ export default class GasPriceEditor extends Component {
   }
 
   onChangeConditionType = (conditionType) => {
-    this.props.store.setConditionType(conditionType);
+    this.props.store.setConditionType(conditionType.key);
+  }
+
+  onChangeConditionDate = (event, timestamp) => {
+    console.log('changeDate', timestamp);
+    this.props.store.setConditionTime(timestamp);
+  }
+
+  onChangeConditionTime = (event, timestamp) => {
+    console.log('changeTime', timestamp);
+    this.props.store.setConditionTime(timestamp);
   }
 }

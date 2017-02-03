@@ -14,18 +14,36 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import React, { Component } from 'react';
+import { DatePicker } from 'material-ui';
+import React, { Component, PropTypes } from 'react';
+
+import Label from '../Label';
+
+import styles from './inputDate.css';
 
 export default class InputDate extends Component {
   static propTypes = {
-  }
-
-  state = {
-  }
+    className: PropTypes.string,
+    hint: PropTypes.node,
+    label: PropTypes.node,
+    onChange: PropTypes.func,
+    value: PropTypes.object.isRequired
+  };
 
   render () {
+    const { className, hint, label, onChange, value } = this.props;
+
     return (
-      <div>hello</div>
+      <div className={ [styles.container, className].join(' ') }>
+        <Label label={ label } />
+        <DatePicker
+          autoOk
+          className={ styles.input }
+          hintText={ hint }
+          onChange={ onChange }
+          value={ value }
+        />
+      </div>
     );
   }
 }

@@ -82,7 +82,7 @@ export default class GasPriceEditor {
           break;
 
         case CONDITIONS.TIME:
-          this.condition = { timestamp: Date.now() };
+          this.condition = { timestamp: new Date() };
           break;
 
         case CONDITIONS.NONE:

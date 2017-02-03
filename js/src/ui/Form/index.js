@@ -16,7 +16,6 @@
 
 import AddressSelect from './AddressSelect';
 import FormWrap from './FormWrap';
-import TypedInput from './TypedInput';
 import Input from './Input';
 import InputAddress from './InputAddress';
 import InputAddressSelect from './InputAddressSelect';
@@ -24,14 +23,15 @@ import InputChip from './InputChip';
 import InputDate from './InputDate';
 import InputInline from './InputInline';
 import InputTime from './InputTime';
-import Select from './Select';
+import Label from './Label';
 import RadioButtons from './RadioButtons';
+import Select from './Select';
+import TypedInput from './TypedInput';
 
 export default from './form';
 export {
   AddressSelect,
   FormWrap,
-  TypedInput,
   Input,
   InputAddress,
   InputAddressSelect,
@@ -39,6 +39,8 @@ export {
   InputDate,
   InputInline,
   InputTime,
+  Label,
+  RadioButtons,
   Select,
-  RadioButtons
+  TypedInput
 };

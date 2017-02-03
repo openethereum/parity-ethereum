@@ -14,37 +14,27 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { TimePicker } from 'material-ui';
 import React, { Component, PropTypes } from 'react';
 
-import Label from '../Label';
+import styles from './label.css';
 
-import styles from './inputTime.css';
-
-export default class InputTime extends Component {
+export default class Label extends Component {
   static propTypes = {
     className: PropTypes.string,
-    hint: PropTypes.node,
-    label: PropTypes.node,
-    onChange: PropTypes.func,
-    value: PropTypes.object.isRequired
+    label: PropTypes.node
   }
 
   render () {
-    const { className, hint, label, onChange, value } = this.props;
+    const { className, label } = this.props;
+
+    if (!label) {
+      return null;
+    }
 
     return (
-      <div className={ [styles.container, className].join(' ') }>
-        <Label label={ label } />
-        <TimePicker
-          autoOk
-          className={ styles.input }
-          format='24hr'
-          hintText={ hint }
-          onChange={ onChange }
-          value={ value }
-        />
-      </div>
+      <label className={ [styles.label, className].join(' ') }>
+        { label }
+      </label>
     );
   }
 }

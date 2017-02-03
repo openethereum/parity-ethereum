@@ -18,11 +18,14 @@ import { RadioButton, RadioButtonGroup } from 'material-ui/RadioButton';
 import React, { Component, PropTypes } from 'react';
 
 import { arrayOrObjectProptype } from '~/util/proptypes';
+
+import Label from '../Label';
 import styles from './radioButtons.css';
 
 export default class RadioButtons extends Component {
   static propTypes = {
     className: PropTypes.string,
+    label: PropTypes.node,
     name: PropTypes.string,
     onChange: PropTypes.func.isRequired,
     value: PropTypes.any,
@@ -35,7 +38,7 @@ export default class RadioButtons extends Component {
   };
 
   render () {
-    const { className, value, values } = this.props;
+    const { className, label, value, values } = this.props;
 
     const index = Number.isNaN(parseInt(value))
       ? values.findIndex((_value) => _value.key === value)
@@ -46,14 +49,19 @@ export default class RadioButtons extends Component {
     const key = this.getKey(selectedValue, index);
 
     return (
-      <RadioButtonGroup
-        className={ className }
-        name={ name }
-        onChange={ this.onChange }
-        valueSelected={ key }
-      >
-        { this.renderContent() }
-      </RadioButtonGroup>
+      <div className={ [styles.container, className].join(' ') }>
+        <Label
+          className={ styles.label }
+          label={ label }
+        />
+        <RadioButtonGroup
+          name={ name }
+          onChange={ this.onChange }
+          valueSelected={ key }
+        >
+          { this.renderContent() }
+        </RadioButtonGroup>
+      </div>
     );
   }
 
@@ -69,14 +77,14 @@ export default class RadioButtons extends Component {
 
       return (
         <RadioButton
-          className={ styles.button }
+          className={ styles.radioButton }
           key={ index }
           label={
-            <div className={ styles.label }>
+            <div className={ styles.radioLabel }>
               <span>{ label }</span>
               {
                 description
-                ? <span className={ styles.desc }>{ description }</span>
+                ? <span className={ styles.description }>{ description }</span>
                 : null
               }
             </div>
