@@ -365,6 +365,8 @@ fn rpc_eth_accounts() {
 	let tester = EthTester::default();
 	let address = tester.accounts_provider.new_account("").unwrap();
 	tester.accounts_provider.set_new_dapps_whitelist(None).unwrap();
+	tester.accounts_provider.set_address_name(1.into(), "1".into());
+	tester.accounts_provider.set_address_name(10.into(), "10".into());
 
 	// with current policy it should return the account
 	let request = r#"{"jsonrpc": "2.0", "method": "eth_accounts", "params": [], "id": 1}"#;

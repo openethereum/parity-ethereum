@@ -16,6 +16,7 @@
 
 use std::collections::{BTreeMap, HashMap};
 use std::mem;
+use std::path::PathBuf;
 use parking_lot::{Mutex, RwLock};
 
 use crypto::KEY_ITERATIONS;
@@ -164,8 +165,8 @@ impl SecretStore for EthStore {
 		self.store.update(account_ref, old, safe_account)
 	}
 
-	fn local_path(&self) -> String {
-		self.store.dir.path().map(|p| p.to_string_lossy().into_owned()).unwrap_or_else(|| String::new())
+	fn local_path(&self) -> PathBuf {
+		self.store.dir.path().cloned().unwrap_or_else(PathBuf::new)
 	}
 
 	fn list_geth_accounts(&self, testnet: bool) -> Vec<Address> {
