@@ -112,7 +112,8 @@ $modalZ: 10001;
   border-radius: 4px 4px 0 0;
   display: flex;
   flex-direction: column;
-  max-height: 50vh;
+  min-height: 30vh;
+  max-height: 80vh;
   max-width: calc(100vw - 1em);
 
   .content {
