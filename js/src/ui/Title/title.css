@@ -15,54 +15,12 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-.container {
-  overflow-y: auto;
-}
-
-.item {
-  display: flex;
-  flex: 1;
-  position: relative;
-
-  .overlay {
-    position: absolute;
-    right: 0.5em;
-    top: 0.5em;
+.title {
+  .steps {
+    margin: -0.5em 0 -1em 0;
   }
-}
 
-.selected, .unselected {
-  margin-bottom: 0.25em;
-
-  &:focus {
-    outline: none;
-  }
-}
-
-.unselected {
-  background: rgba(0, 0, 0, 0.4) !important;
-}
-
-.selected {
-  background: rgba(255, 255, 255, 0.15) !important;
-
-  &.default {
-    background: rgba(255, 255, 255, 0.35) !important;
-  }
-}
-
-.unselected {
-}
-
-.iconDisabled {
-  opacity: 0.15;
-}
-
-.legend {
-  opacity: 0.75;
-
-  span {
-    line-height: 24px;
-    vertical-align: top;
+  .waiting {
+    margin: 1em -1em -1em -1em;
   }
 }

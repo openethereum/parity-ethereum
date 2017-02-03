@@ -20,8 +20,10 @@ import ReactDOM from 'react-dom';
 import ReactPortal from 'react-portal';
 import keycode from 'keycode';
 
+import { nodeOrStringProptype } from '~/util/proptypes';
 import { CloseIcon } from '~/ui/Icons';
 import ParityBackground from '~/ui/ParityBackground';
+import Title from '~/ui/Title';
 
 import styles from './portal.css';
 
@@ -29,14 +31,35 @@ export default class Portal extends Component {
   static propTypes = {
     onClose: PropTypes.func.isRequired,
     open: PropTypes.bool.isRequired,
+    activeStep: PropTypes.number,
+    busy: PropTypes.bool,
+    busySteps: PropTypes.array,
+    buttons: PropTypes.array,
     children: PropTypes.node,
     className: PropTypes.string,
+    hideClose: PropTypes.bool,
     isChildModal: PropTypes.bool,
-    onKeyDown: PropTypes.func
+    onKeyDown: PropTypes.func,
+    steps: PropTypes.array,
+    title: nodeOrStringProptype()
   };
 
+  componentDidMount () {
+    this.setBodyOverflow(this.props.open);
+  }
+
+  componentWillReceiveProps (nextProps) {
+    if (nextProps.open !== this.props.open) {
+      this.setBodyOverflow(nextProps.open);
+    }
+  }
+
+  componentWillUnmount () {
+    this.setBodyOverflow(false);
+  }
+
   render () {
-    const { children, className, isChildModal, open } = this.props;
+    const { activeStep, busy, busySteps, children, className, isChildModal, open, steps, title } = this.props;
 
     if (!open) {
       return null;
@@ -69,16 +92,51 @@ export default class Portal extends Component {
               onKeyUp={ this.handleKeyUp }
             />
             <ParityBackground className={ styles.parityBackground } />
-            <div
-              className={ styles.closeIcon }
-              onClick={ this.handleClose }
-            >
-              <CloseIcon />
+            { this.renderClose() }
+            <Title
+              activeStep={ activeStep }
+              busy={ busy }
+              busySteps={ busySteps }
+              className={ styles.titleRow }
+              steps={ steps }
+              title={ title }
+            />
+            <div className={ styles.childContainer }>
+              { children }
             </div>
-            { children }
+            { this.renderButtons() }
           </div>
         </div>
       </ReactPortal>
+    );
+  }
+
+  renderButtons () {
+    const { buttons } = this.props;
+
+    if (!buttons) {
+      return null;
+    }
+
+    return (
+      <div className={ styles.buttonRow }>
+        { buttons }
+      </div>
+    );
+  }
+
+  renderClose () {
+    const { hideClose } = this.props;
+
+    if (hideClose) {
+      return null;
+    }
+
+    return (
+      <CloseIcon
+        className={ styles.closeIcon }
+        onClick={ this.handleClose }
+      />
     );
   }
 
@@ -88,13 +146,18 @@ export default class Portal extends Component {
   }
 
   handleClose = () => {
-    this.props.onClose();
+    const { hideClose, onClose } = this.props;
+
+    if (!hideClose) {
+      onClose();
+    }
   }
 
   handleKeyDown = (event) => {
     const { onKeyDown } = this.props;
 
     event.persist();
+
     return onKeyDown
       ? onKeyDown(event)
       : false;
@@ -111,10 +174,11 @@ export default class Portal extends Component {
   }
 
   handleDOMAction = (ref, method) => {
-    const refItem = typeof ref === 'string'
-      ? this.refs[ref]
-      : ref;
-    const element = ReactDOM.findDOMNode(refItem);
+    const element = ReactDOM.findDOMNode(
+      typeof ref === 'string'
+        ? this.refs[ref]
+        : ref
+    );
 
     if (!element || typeof element[method] !== 'function') {
       console.warn('could not find', ref, 'or method', method);
@@ -122,5 +186,13 @@ export default class Portal extends Component {
     }
 
     return element[method]();
+  }
+
+  setBodyOverflow (open) {
+    if (!this.props.isChildModal) {
+      document.body.style.overflow = open
+        ? 'hidden'
+        : null;
+    }
   }
 }
