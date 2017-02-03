@@ -226,7 +226,7 @@ export function outTransactionCondition (condition) {
     if (condition.block) {
       condition.block = outNumber(condition.block);
     } else if (condition.time) {
-      condition.time = new Date(outNumber(condition.time).toNumber());
+      condition.time = outDate(condition.time);
     }
   }
 

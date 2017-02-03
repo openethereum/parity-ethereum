@@ -132,7 +132,7 @@ export function inOptionsCondition (condition) {
     if (condition.block) {
       condition.block = condition.block ? inNumber16(condition.block) : null;
     } else if (condition.time) {
-      condition.time = (new Date(condition.time)).getTime();
+      condition.time = inNumber16(Math.floor(condition.time.getTime() / 1000));
     }
   }
 
