@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import AccountCard from './AccountCard';
 import Actionbar from './Actionbar';
 import ActionbarExport from './Actionbar/Export';
 import ActionbarImport from './Actionbar/Import';
@@ -28,6 +29,9 @@ import ConfirmDialog from './ConfirmDialog';
 import Container, { Title as ContainerTitle } from './Container';
 import ContextProvider from './ContextProvider';
 import CopyToClipboard from './CopyToClipboard';
+import CurrencySymbol from './CurrencySymbol';
+import DappCard from './DappCard';
+import DappIcon from './DappIcon';
 import Editor from './Editor';
 import Errors from './Errors';
 import Form, { AddressSelect, FormWrap, TypedInput, Input, InputAddress, InputAddressSelect, InputChip, InputInline, Select, RadioButtons } from './Form';
@@ -44,6 +48,9 @@ import muiTheme from './Theme';
 import Page from './Page';
 import ParityBackground from './ParityBackground';
 import PasswordStrength from './Form/PasswordStrength';
+import Portal from './Portal';
+import QrCode from './QrCode';
+import SectionList from './SectionList';
 import ShortenedHash from './ShortenedHash';
 import SignerIcon from './SignerIcon';
 import Tags from './Tags';
@@ -53,6 +60,7 @@ import TxList from './TxList';
 import Warning from './Warning';
 
 export {
+  AccountCard,
   Actionbar,
   ActionbarExport,
   ActionbarImport,
@@ -69,6 +77,9 @@ export {
   ContainerTitle,
   ContextProvider,
   CopyToClipboard,
+  CurrencySymbol,
+  DappIcon,
+  DappCard,
   Editor,
   Errors,
   Form,
@@ -93,9 +104,12 @@ export {
   Page,
   ParityBackground,
   PasswordStrength,
+  Portal,
+  QrCode,
   RadioButtons,
-  ShortenedHash,
   Select,
+  ShortenedHash,
+  SectionList,
   SignerIcon,
   Tags,
   Tooltip,

@@ -29,12 +29,17 @@ export default class Store {
 
   @action closeModal = () => {
     transaction(() => {
-      const accounts = this.accounts
-        .filter((account) => account.checked)
-        .map((account) => account.address);
+      let addresses = null;
+      const checkedAccounts = this.accounts.filter((account) => account.checked);
+
+      if (checkedAccounts.length) {
+        addresses = checkedAccounts.filter((account) => account.default)
+          .concat(checkedAccounts.filter((account) => !account.default))
+          .map((account) => account.address);
+      }
 
       this.modalOpen = false;
-      this.updateWhitelist(accounts.length === this.accounts.length ? null : accounts);
+      this.updateWhitelist(addresses);
     });
   }
 
@@ -42,12 +47,15 @@ export default class Store {
     transaction(() => {
       this.accounts = Object
         .values(accounts)
-        .map((account) => {
+        .map((account, index) => {
           return {
             address: account.address,
             checked: this.whitelist
               ? this.whitelist.includes(account.address)
               : true,
+            default: this.whitelist
+              ? this.whitelist[0] === account.address
+              : index === 0,
             description: account.meta.description,
             name: account.name
           };
@@ -57,9 +65,31 @@ export default class Store {
   }
 
   @action selectAccount = (address) => {
+    transaction(() => {
+      this.accounts = this.accounts.map((account) => {
+        if (account.address === address) {
+          account.checked = !account.checked;
+          account.default = false;
+        }
+
+        return account;
+      });
+
+      this.setDefaultAccount((
+        this.accounts.find((account) => account.default) ||
+        this.accounts.find((account) => account.checked) ||
+        {}
+      ).address);
+    });
+  }
+
+  @action setDefaultAccount = (address) => {
     this.accounts = this.accounts.map((account) => {
       if (account.address === address) {
-        account.checked = !account.checked;
+        account.checked = true;
+        account.default = true;
+      } else if (account.default) {
+        account.default = false;
       }
 
       return account;

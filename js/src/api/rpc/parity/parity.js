@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { inAddress, inAddresses, inData, inHex, inNumber16, inOptions } from '../../format/input';
+import { inAddress, inAddresses, inData, inHex, inNumber16, inOptions, inBlockNumber } from '../../format/input';
 import { outAccountInfo, outAddress, outAddresses, outChainStatus, outHistogram, outNumber, outPeers, outTransaction } from '../../format/output';
 
 export default class Parity {
@@ -76,6 +76,17 @@ export default class Parity {
       .execute('parity_dappsInterface');
   }
 
+  decryptMessage (address, data) {
+    return this._transport
+      .execute('parity_decryptMessage', inAddress(address), inHex(data));
+  }
+
+  defaultAccount () {
+    return this._transport
+      .execute('parity_defaultAccount')
+      .then(outAddress);
+  }
+
   defaultExtraData () {
     return this._transport
       .execute('parity_defaultExtraData');
@@ -101,6 +112,11 @@ export default class Parity {
       .execute('parity_enode');
   }
 
+  encryptMessage (pubkey, data) {
+    return this._transport
+      .execute('parity_encryptMessage', inHex(pubkey), inHex(data));
+  }
+
   executeUpgrade () {
     return this._transport
       .execute('parity_executeUpgrade');
@@ -109,6 +125,17 @@ export default class Parity {
   extraData () {
     return this._transport
       .execute('parity_extraData');
+  }
+
+  futureTransactions () {
+    return this._transport
+      .execute('parity_futureTransactions');
+  }
+
+  gasCeilTarget () {
+    return this._transport
+      .execute('parity_gasCeilTarget')
+      .then(outNumber);
   }
 
   gasFloorTarget () {
@@ -156,9 +183,20 @@ export default class Parity {
       .execute('parity_killAccount', inAddress(account), password);
   }
 
+  listAccounts (count, offset = null, blockNumber = 'latest') {
+    return this._transport
+      .execute('parity_listAccounts', count, inAddress(offset), inBlockNumber(blockNumber))
+      .then((accounts) => (accounts || []).map(outAddress));
+  }
+
   listRecentDapps () {
     return this._transport
       .execute('parity_listRecentDapps');
+  }
+
+  listStorageKeys (address, count, hash = null, blockNumber = 'latest') {
+    return this._transport
+      .execute('parity_listStorageKeys', inAddress(address), count, inHex(hash), inBlockNumber(blockNumber));
   }
 
   removeAddress (address) {
@@ -265,6 +303,11 @@ export default class Parity {
       .then(outAddress);
   }
 
+  postSign (address, hash) {
+    return this._transport
+      .execute('parity_postSign', inAddress(address), inHex(hash));
+  }
+
   postTransaction (options) {
     return this._transport
       .execute('parity_postTransaction', inOptions(options));
@@ -311,14 +354,29 @@ export default class Parity {
       .execute('parity_setDappsAddresses', dappId, inAddresses(addresses));
   }
 
+  setEngineSigner (address, password) {
+    return this._transport
+      .execute('parity_setEngineSigner', inAddress(address), password);
+  }
+
   setExtraData (data) {
     return this._transport
       .execute('parity_setExtraData', inData(data));
   }
 
+  setGasCeilTarget (quantity) {
+    return this._transport
+      .execute('parity_setGasCeilTarget', inNumber16(quantity));
+  }
+
   setGasFloorTarget (quantity) {
     return this._transport
       .execute('parity_setGasFloorTarget', inNumber16(quantity));
+  }
+
+  setMaxTransactionGas (quantity) {
+    return this._transport
+      .execute('parity_setMaxTransactionGas', inNumber16(quantity));
   }
 
   setMinGasPrice (quantity) {
