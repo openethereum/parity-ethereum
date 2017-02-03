@@ -24,8 +24,8 @@ import browser from 'useragent.js/lib/browser';
 const A_DAY = 24 * 60 * 60 * 1000;
 const NEXT_DISPLAY = '_parity::extensionWarning::nextDisplay';
 
-// 'https://chrome.google.com/webstore/detail/fgodinogimdopkigkcoelpfkbnpngalc';
-const EXTENSION_PAGE = 'https://chrome.google.com/webstore/detail/parity-ethereum-integrati/fgodinogimdopkigkcoelpfkbnpngalc';
+// 'https://chrome.google.com/webstore/detail/parity-ethereum-integrati/himekenlppkgeaoeddcliojfddemadig';
+const EXTENSION_PAGE = 'https://chrome.google.com/webstore/detail/himekenlppkgeaoeddcliojfddemadig';
 
 export default class Store {
   @observable isInstalling = false;
