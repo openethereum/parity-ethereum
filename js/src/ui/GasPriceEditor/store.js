@@ -50,15 +50,14 @@ export default class GasPriceEditor {
     this.gasLimit = gasLimit;
     this.price = gasPrice;
 
-    if (condition && condition.block) {
-      this.condition = { block: condition.block.toFixed(0) };
-      this.conditionType = CONDITIONS.BLOCK;
-    } else if (condition && condition.time) {
-      this.condition = { time: condition.time };
-      this.conditionType = CONDITIONS.TIME;
-    } else {
-      this.condition = {};
-      this.conditionType = CONDITIONS.NONE;
+    if (condition) {
+      if (condition.block) {
+        this.condition = { block: condition.block.toFixed(0) };
+        this.conditionType = CONDITIONS.BLOCK;
+      } else if (condition.time) {
+        this.condition = { time: condition.time };
+        this.conditionType = CONDITIONS.TIME;
+      }
     }
 
     if (api) {
@@ -90,7 +89,7 @@ export default class GasPriceEditor {
 
         case CONDITIONS.NONE:
         default:
-          this.condition = null;
+          this.condition = {};
           break;
       }
     });

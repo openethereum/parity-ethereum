@@ -21,6 +21,7 @@ import { DEFAULT_GAS, DEFAULT_GASPRICE, MAX_GAS_ESTIMATION } from '~/util/consta
 import { ERRORS } from '~/util/validation';
 
 import GasPriceEditor from './gasPriceEditor';
+import { CONDITIONS } from './store';
 
 const { Store } = GasPriceEditor;
 
@@ -90,6 +91,67 @@ describe('ui/GasPriceEditor/store', () => {
   describe('setters', () => {
     beforeEach(() => {
       store = new Store(null, { gasLimit: GASLIMIT });
+    });
+
+    describe('setConditionType', () => {
+      it('sets the actual type', () => {
+        store.setConditionType('testingType');
+        expect(store.conditionType).to.equal('testing');
+      });
+
+      it('clears any block error on changing type', () => {
+        store.setConditionBlockNumber(-1);
+        expect(store.conditionBlockError).not.to.be.null;
+        store.setConditionType(CONDITIONS.BLOCK);
+        expect(store.conditionBlockError).to.be.null;
+      });
+
+      it('sets condition.block when type === CONDITIONS.BLOCK', () => {
+        store.setConditionType(CONDITIONS.BLOCK);
+        expect(store.condition).to.deep.equal({ block: 0 });
+      });
+
+      it('clears condition when type === CONDITIONS.NONE', () => {
+        store.setConditionType(CONDITIONS.BLOCK);
+        store.setConditionType(CONDITIONS.NONE);
+        expect(store.condition).to.deep.equal({});
+      });
+
+      it('sets condition.time when type === CONDITIONS.TIME', () => {
+        store.setConditionType(CONDITIONS.TIME);
+        expect(store.condition.time).to.be.ok;
+      });
+    });
+
+    describe('setConditionBlockNumber', () => {
+      beforeEach(() => {
+        store.setConditionBlockNumber('testingBlock');
+      });
+
+      it('sets the blockNumber', () => {
+        expect(store.condition.block).to.equal('testingBlock');
+      });
+
+      it('sets the error on invalid numbers', () => {
+        expect(store.conditionBlockError).not.to.be.null;
+      });
+
+      it('sets the error on negative numbers', () => {
+        store.setConditionBlockNumber(-1);
+        expect(store.conditionBlockError).not.to.be.null;
+      });
+
+      it('clears the error on positive numbers', () => {
+        store.setConditionBlockNumber(1000);
+        expect(store.conditionBlockError).to.be.null;
+      });
+    });
+
+    describe('setConditionDateTime', () => {
+      it('sets the datatime', () => {
+        store.setConditionDateTime('testingDateTime');
+        expect(store.condition.time).to.equal('testingDateTime');
+      });
     });
 
     describe('setEditing', () => {
