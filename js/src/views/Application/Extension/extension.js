@@ -29,9 +29,9 @@ export default class Extension extends Component {
   store = new Store();
 
   render () {
-    const { shouldShowWarning } = this.store;
+    const { showWarning } = this.store;
 
-    if (!shouldShowWarning) {
+    if (!showWarning) {
       return null;
     }
 
@@ -44,7 +44,7 @@ export default class Extension extends Component {
         <p>
           <FormattedMessage
             id='extension.intro'
-            defaultMessage='Parity now has an extension available for Chrome that allows the viewing of Ethereum identities and the safe browsing of Ethereum-enabled distributed applications. It is hightly recommended that you install this extension to further enhance your Parity experience.'
+            defaultMessage='Parity now has an extension available for Chrome that allows for the safe browsing of Ethereum-enabled distributed applications. It is hightly recommended that you install this extension to further enhance your Parity experience.'
           />
         </p>
         <p className={ styles.buttonrow }>
@@ -65,7 +65,7 @@ export default class Extension extends Component {
   }
 
   onClose = () => {
-    this.store.hideWarning();
+    this.store.snoozeWarning();
   }
 
   onInstallClick = () => {

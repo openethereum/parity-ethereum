@@ -21,42 +21,42 @@ import { action, computed, observable } from 'mobx';
 import store from 'store';
 import browser from 'useragent.js/lib/browser';
 
-const A_MINUTE = 60 * 1000;
-const A_DAY = 24 * 60 * A_MINUTE;
-const TEN_MINUTES = 10 * A_MINUTE;
+const A_DAY = 24 * 60 * 60 * 1000;
 const NEXT_DISPLAY = '_parity::extensionWarning::nextDisplay';
 
 // 'https://chrome.google.com/webstore/detail/fgodinogimdopkigkcoelpfkbnpngalc';
 const EXTENSION_PAGE = 'https://chrome.google.com/webstore/detail/parity-ethereum-integrati/fgodinogimdopkigkcoelpfkbnpngalc';
 
 export default class Store {
-  @observable shouldInstall = false;
+  @observable isInstalling = false;
   @observable nextDisplay = 0;
+  @observable shouldInstall = false;
 
   constructor () {
     this.nextDisplay = store.get(NEXT_DISPLAY) || 0;
     this.testInstall();
   }
 
-  @computed get shouldShowWarning () {
-    return this.shouldInstall && (Date.now() > this.nextDisplay);
+  @computed get showWarning () {
+    return !this.isInstalling && this.shouldInstall && (Date.now() > this.nextDisplay);
   }
 
-  @action hideWarning = (sleep = A_DAY) => {
+  @action setInstalling = (isInstalling) => {
+    this.isInstalling = isInstalling;
+  }
+
+  @action snoozeWarning = (sleep = A_DAY) => {
     this.nextDisplay = Date.now() + sleep;
     store.set(NEXT_DISPLAY, this.nextDisplay);
   }
 
   @action testInstall = () => {
     this.shouldInstall = this.readStatus();
-    console.log('testInstall', this.shouldInstall);
   }
 
   readStatus = () => {
     const hasExtension = Symbol.for('parity.extension') in window;
     const ua = browser.analyze(navigator.userAgent || '');
-
-    console.log('readStatus', hasExtension, ua);
 
     if (hasExtension) {
       return false;
@@ -66,6 +66,8 @@ export default class Store {
   }
 
   installExtension = () => {
+    this.setInstalling(true);
+
     return new Promise((resolve, reject) => {
       const link = document.createElement('link');
 
@@ -82,11 +84,6 @@ export default class Store {
     .catch((error) => {
       console.warn('Unable to perform direct install', error);
       window.open(EXTENSION_PAGE, '_blank');
-
-      this.hideWarning(TEN_MINUTES + A_MINUTE);
-      setTimeout(() => {
-        this.testInstall();
-      }, TEN_MINUTES);
     });
   }
 }
