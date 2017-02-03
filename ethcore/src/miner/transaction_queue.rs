@@ -276,18 +276,18 @@ struct VerifiedTransaction {
 	origin: TransactionOrigin,
 	/// Insertion time
 	insertion_time: QueuingInstant,
-	/// Delay until specifid block.
-	min_block: Option<BlockNumber>,
+	/// Delay until specified condition is met.
+	condition: Option<Condition>,
 }
 
 impl VerifiedTransaction {
-	fn new(transaction: SignedTransaction, origin: TransactionOrigin, time: QueuingInstant, min_block: Option<BlockNumber>) -> Result<Self, Error> {
+	fn new(transaction: SignedTransaction, origin: TransactionOrigin, time: QueuingInstant, condition: Option<Condition>) -> Result<Self, Error> {
 		transaction.sender()?;
 		Ok(VerifiedTransaction {
 			transaction: transaction,
 			origin: origin,
 			insertion_time: time,
-			min_block: min_block,
+			condition: condition,
 		})
 	}
 
@@ -667,14 +667,14 @@ impl TransactionQueue {
 		tx: SignedTransaction,
 		origin: TransactionOrigin,
 		time: QueuingInstant,
-		min_block: Option<BlockNumber>,
+		condition: Option<Condition>,
 		details_provider: &TransactionDetailsProvider,
 	) -> Result<TransactionImportResult, Error> {
 		if origin == TransactionOrigin::Local {
 			let hash = tx.hash();
 			let cloned_tx = tx.clone();
 
-			let result = self.add_internal(tx, origin, time, min_block, details_provider);
+			let result = self.add_internal(tx, origin, time, condition, details_provider);
 			match result {
 				Ok(TransactionImportResult::Current) => {
 					self.local_transactions.mark_pending(hash);
@@ -695,7 +695,7 @@ impl TransactionQueue {
 			}
 			result
 		} else {
-			self.add_internal(tx, origin, time, min_block, details_provider)
+			self.add_internal(tx, origin, time, condition, details_provider)
 		}
 	}
 
@@ -705,7 +705,7 @@ impl TransactionQueue {
 		tx: SignedTransaction,
 		origin: TransactionOrigin,
 		time: QueuingInstant,
-		min_block: Option<BlockNumber>,
+		condition: Option<Condition>,
 		details_provider: &TransactionDetailsProvider,
 	) -> Result<TransactionImportResult, Error> {
 		if origin != TransactionOrigin::Local && tx.gas_price < self.minimal_gas_price {
@@ -804,7 +804,7 @@ impl TransactionQueue {
 
 		let client_account = details_provider.fetch_account(&tx.sender()?);
 		let cost = tx.value + tx.gas_price * tx.gas;
-		let vtx = VerifiedTransaction::new(tx, origin, time, min_block)?;
+		let vtx = VerifiedTransaction::new(tx, origin, time, condition)?;
 		if client_account.balance < cost {
 			trace!(target: "txqueue",
 				"Dropping transaction without sufficient balance: {:?} ({} < {})",
@@ -818,7 +818,6 @@ impl TransactionQueue {
 				balance: client_account.balance
 			}));
 		}
-
 		let r = self.import_tx(vtx, client_account.nonce).map_err(Error::Transaction);
 		assert_eq!(self.future.by_priority.len() + self.current.by_priority.len(), self.by_hash.len());
 		r
@@ -1071,11 +1070,11 @@ impl TransactionQueue {
 
 	/// Returns top transactions from the queue ordered by priority.
 	pub fn top_transactions(&self) -> Vec<SignedTransaction> {
-		self.top_transactions_at(BlockNumber::max_value())
+		self.top_transactions_at(BlockNumber::max_value(), u64::max_value())
 
 	}
 
-	fn filter_pending_transaction<F>(&self, best_block: BlockNumber, mut f: F)
+	fn filter_pending_transaction<F>(&self, best_block: BlockNumber, best_timestamp: u64, mut f: F)
 		where F: FnMut(&VerifiedTransaction) {
 
 		let mut delayed = HashSet::new();
@@ -1085,7 +1084,12 @@ impl TransactionQueue {
 			if delayed.contains(&sender) {
 				continue;
 			}
-			if tx.min_block.unwrap_or(0) > best_block {
+			let delay = match tx.condition {
+				Some(Condition::Number(n)) => n > best_block,
+				Some(Condition::Timestamp(t)) => t > best_timestamp,
+				None => false,
+			};
+			if delay {
 				delayed.insert(sender);
 				continue;
 			}
@@ -1094,16 +1098,16 @@ impl TransactionQueue {
 	}
 
 	/// Returns top transactions from the queue ordered by priority.
-	pub fn top_transactions_at(&self, best_block: BlockNumber) -> Vec<SignedTransaction> {
+	pub fn top_transactions_at(&self, best_block: BlockNumber, best_timestamp: u64) -> Vec<SignedTransaction> {
 		let mut r = Vec::new();
-		self.filter_pending_transaction(best_block, |tx| r.push(tx.transaction.clone()));
+		self.filter_pending_transaction(best_block, best_timestamp, |tx| r.push(tx.transaction.clone()));
 		r
 	}
 
 	/// Return all ready transactions.
-	pub fn pending_transactions(&self, best_block: BlockNumber) -> Vec<PendingTransaction> {
+	pub fn pending_transactions(&self, best_block: BlockNumber, best_timestamp: u64) -> Vec<PendingTransaction> {
 		let mut r = Vec::new();
-		self.filter_pending_transaction(best_block, |tx| r.push(PendingTransaction::new(tx.transaction.clone(), tx.min_block)));
+		self.filter_pending_transaction(best_block, best_timestamp, |tx| r.push(PendingTransaction::new(tx.transaction.clone(), tx.condition.clone())));
 		r
 	}
 
@@ -1112,7 +1116,7 @@ impl TransactionQueue {
 		self.future.by_priority
 			.iter()
 			.map(|t| self.by_hash.get(&t.hash).expect("All transactions in `current` and `future` are always included in `by_hash`"))
-			.map(|t| PendingTransaction { transaction: t.transaction.clone(), min_block: t.min_block })
+			.map(|t| PendingTransaction { transaction: t.transaction.clone(), condition: t.condition.clone() })
 			.collect()
 	}
 
@@ -1385,7 +1389,7 @@ pub mod test {
 	use super::{TransactionSet, TransactionOrder, VerifiedTransaction};
 	use miner::local_transactions::LocalTransactionsList;
 	use client::TransactionImportResult;
-	use transaction::{SignedTransaction, Transaction, Action};
+	use transaction::{SignedTransaction, Transaction, Action, Condition};
 
 	pub struct DummyTransactionDetailsProvider {
 		account_details: AccountDetails,
@@ -2204,15 +2208,15 @@ pub mod test {
 		let (tx, tx2) = new_tx_pair_default(1.into(), 0.into());
 
 		// when
-		let res1 = txq.add(tx.clone(), TransactionOrigin::External, 0, Some(1), &default_tx_provider()).unwrap();
+		let res1 = txq.add(tx.clone(), TransactionOrigin::External, 0, Some(Condition::Number(1)), &default_tx_provider()).unwrap();
 		let res2 = txq.add(tx2.clone(), TransactionOrigin::External, 0, None, &default_tx_provider()).unwrap();
 
 		// then
 		assert_eq!(res1, TransactionImportResult::Current);
 		assert_eq!(res2, TransactionImportResult::Current);
-		let top = txq.top_transactions_at(0);
+		let top = txq.top_transactions_at(0, 0);
 		assert_eq!(top.len(), 0);
-		let top = txq.top_transactions_at(1);
+		let top = txq.top_transactions_at(1, 0);
 		assert_eq!(top.len(), 2);
 	}
 

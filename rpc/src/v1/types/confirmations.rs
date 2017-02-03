@@ -20,7 +20,7 @@ use std::fmt;
 use serde::{Serialize, Serializer};
 use util::log::Colour;
 
-use v1::types::{U256, TransactionRequest, RichRawTransaction, H160, H256, H520, Bytes, BlockNumber};
+use v1::types::{U256, TransactionRequest, RichRawTransaction, H160, H256, H520, Bytes, TransactionCondition};
 use v1::helpers;
 
 /// Confirmation waiting in a queue
@@ -193,9 +193,8 @@ pub struct TransactionModification {
 	pub gas_price: Option<U256>,
 	/// Modified gas
 	pub gas: Option<U256>,
-	/// Modified min block
-	#[serde(rename="minBlock")]
-	pub min_block: Option<Option<BlockNumber>>,
+	/// Modified transaction condition.
+	pub condition: Option<Option<TransactionCondition>>,
 }
 
 /// Represents two possible return values.
@@ -237,7 +236,7 @@ impl<A, B> Serialize for Either<A, B>  where
 mod tests {
 	use std::str::FromStr;
 	use serde_json;
-	use v1::types::{U256, H256, BlockNumber};
+	use v1::types::{U256, H256, TransactionCondition};
 	use v1::helpers;
 	use super::*;
 
@@ -270,13 +269,13 @@ mod tests {
 				value: 100_000.into(),
 				data: vec![1, 2, 3],
 				nonce: Some(1.into()),
-				min_block: None,
+				condition: None,
 			}),
 		};
 
 		// when
 		let res = serde_json::to_string(&ConfirmationRequest::from(request));
-		let expected = r#"{"id":"0xf","payload":{"sendTransaction":{"from":"0x0000000000000000000000000000000000000000","to":null,"gasPrice":"0x2710","gas":"0x3a98","value":"0x186a0","data":"0x010203","nonce":"0x1","minBlock":null}}}"#;
+		let expected = r#"{"id":"0xf","payload":{"sendTransaction":{"from":"0x0000000000000000000000000000000000000000","to":null,"gasPrice":"0x2710","gas":"0x3a98","value":"0x186a0","data":"0x010203","nonce":"0x1","condition":null}}}"#;
 
 		// then
 		assert_eq!(res.unwrap(), expected.to_owned());
@@ -295,13 +294,13 @@ mod tests {
 				value: 100_000.into(),
 				data: vec![1, 2, 3],
 				nonce: Some(1.into()),
-				min_block: None,
+				condition: None,
 			}),
 		};
 
 		// when
 		let res = serde_json::to_string(&ConfirmationRequest::from(request));
-		let expected = r#"{"id":"0xf","payload":{"signTransaction":{"from":"0x0000000000000000000000000000000000000000","to":null,"gasPrice":"0x2710","gas":"0x3a98","value":"0x186a0","data":"0x010203","nonce":"0x1","minBlock":null}}}"#;
+		let expected = r#"{"id":"0xf","payload":{"signTransaction":{"from":"0x0000000000000000000000000000000000000000","to":null,"gasPrice":"0x2710","gas":"0x3a98","value":"0x186a0","data":"0x010203","nonce":"0x1","condition":null}}}"#;
 
 		// then
 		assert_eq!(res.unwrap(), expected.to_owned());
@@ -330,7 +329,7 @@ mod tests {
 		// given
 		let s1 = r#"{
 			"gasPrice":"0xba43b7400",
-			"minBlock":"0x42"
+			"condition": { "block": 66 }
 		}"#;
 		let s2 = r#"{"gas": "0x1233"}"#;
 		let s3 = r#"{}"#;
@@ -344,17 +343,17 @@ mod tests {
 		assert_eq!(res1, TransactionModification {
 			gas_price: Some(U256::from_str("0ba43b7400").unwrap()),
 			gas: None,
-			min_block: Some(Some(BlockNumber::Num(0x42))),
+			condition: Some(Some(TransactionCondition::Number(0x42))),
 		});
 		assert_eq!(res2, TransactionModification {
 			gas_price: None,
 			gas: Some(U256::from_str("1233").unwrap()),
-			min_block: None,
+			condition: None,
 		});
 		assert_eq!(res3, TransactionModification {
 			gas_price: None,
 			gas: None,
-			min_block: None,
+			condition: None,
 		});
 	}
 
