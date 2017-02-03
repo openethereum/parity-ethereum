@@ -33,6 +33,7 @@ extern crate ethcrypto as crypto;
 extern crate ethstore;
 extern crate ethsync;
 extern crate ethash;
+extern crate ethcore_light as light;
 extern crate transient_hashmap;
 extern crate jsonrpc_ipc_server as ipc;
 extern crate ethcore_ipc;
