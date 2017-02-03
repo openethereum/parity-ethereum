@@ -108,7 +108,7 @@ describe('ui/GasPriceEditor/store', () => {
 
       it('sets condition.block when type === CONDITIONS.BLOCK', () => {
         store.setConditionType(CONDITIONS.BLOCK);
-        expect(store.condition).to.deep.equal({ block: 0 });
+        expect(store.condition).to.deep.equal({ block: 1 });
       });
 
       it('clears condition when type === CONDITIONS.NONE', () => {
