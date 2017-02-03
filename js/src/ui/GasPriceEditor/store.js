@@ -98,7 +98,7 @@ export default class GasPriceEditor {
 
   @action setConditionBlockNumber = (block) => {
     transaction(() => {
-      this.conditionBlockError = validatePositiveNumber(block).valueError;
+      this.conditionBlockError = validatePositiveNumber(block).numberError;
       this.condition = Object.assign({}, this.condition, { block });
     });
   }
