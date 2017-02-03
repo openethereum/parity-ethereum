@@ -45,7 +45,7 @@ export default class Application extends Component {
   }
 
   componentDidMount () {
-    this.attachInstance();
+    return this.attachInstance();
   }
 
   render () {
@@ -80,12 +80,12 @@ export default class Application extends Component {
   }
 
   attachInstance () {
-    Promise
+    return Promise
       .all([
-        attachInstances(),
-        api.parity.accountsInfo()
+        api.parity.accountsInfo(),
+        attachInstances()
       ])
-      .then(([{ managerInstance, registryInstance, tokenregInstance }, accountsInfo]) => {
+      .then(([accountsInfo, { managerInstance, registryInstance, tokenregInstance }]) => {
         accountsInfo = accountsInfo || {};
         this.setState({
           loading: false,

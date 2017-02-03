@@ -19,18 +19,14 @@ import React, { Component, PropTypes } from 'react';
 import { api } from '../parity';
 import { callRegister, postRegister } from '../services';
 import Button from '../Button';
-import IdentityIcon from '../IdentityIcon';
 
 import styles from './import.css';
 
 export default class Import extends Component {
   static propTypes = {
-    accounts: PropTypes.object.isRequired,
-    fromAddress: PropTypes.string.isRequired,
     instance: PropTypes.object.isRequired,
     visible: PropTypes.bool.isRequired,
-    onClose: PropTypes.func.isRequired,
-    onSetFromAddress: PropTypes.func.isRequired
+    onClose: PropTypes.func.isRequired
   }
 
   state = {
@@ -83,21 +79,12 @@ export default class Import extends Component {
   }
 
   renderRegister () {
-    const { accounts, fromAddress } = this.props;
-
-    const account = accounts[fromAddress];
     const count = this.countFunctions();
     let buttons = null;
 
     if (count) {
       buttons = (
         <div className={ styles.buttonrow }>
-          <div className={ styles.addressSelect }>
-            <Button invert onClick={ this.onSelectFromAddress }>
-              <IdentityIcon address={ account.address } />
-              <div>{ account.name || account.address }</div>
-            </Button>
-          </div>
           <Button onClick={ this.onRegister }>
             register functions
           </Button>
@@ -197,15 +184,15 @@ export default class Import extends Component {
   }
 
   onRegister = () => {
-    const { instance, fromAddress, onClose } = this.props;
+    const { instance, onClose } = this.props;
     const { functions, fnstate } = this.state;
 
-    Promise
+    return Promise
       .all(
         functions
           .filter((fn) => !fn.constant)
           .filter((fn) => fnstate[fn.signature] === 'fntodo')
-          .map((fn) => postRegister(instance, fn.id, { from: fromAddress }))
+          .map((fn) => postRegister(instance, fn.id, {}))
       )
       .then(() => {
         onClose();
@@ -213,24 +200,5 @@ export default class Import extends Component {
       .catch((error) => {
         console.error('onRegister', error);
       });
-  }
-
-  onSelectFromAddress = () => {
-    const { accounts, fromAddress, onSetFromAddress } = this.props;
-    const addresses = Object.keys(accounts);
-    let index = 0;
-
-    addresses.forEach((address, _index) => {
-      if (address === fromAddress) {
-        index = _index;
-      }
-    });
-
-    index++;
-    if (index >= addresses.length) {
-      index = 0;
-    }
-
-    onSetFromAddress(addresses[index]);
   }
 }

@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -17,10 +17,9 @@
 import React, { Component } from 'react';
 
 import { api } from '../parity';
-import { attachInterface } from '../services';
+import { attachInterface, subscribeDefaultAddress, unsubscribeDefaultAddress } from '../services';
 import Button from '../Button';
 import Events from '../Events';
-import IdentityIcon from '../IdentityIcon';
 import Loading from '../Loading';
 
 import styles from './application.css';
@@ -32,7 +31,7 @@ let nextEventId = 0;
 
 export default class Application extends Component {
   state = {
-    fromAddress: null,
+    defaultAddress: null,
     loading: true,
     url: '',
     urlError: null,
@@ -47,17 +46,30 @@ export default class Application extends Component {
     registerType: 'file',
     repo: '',
     repoError: null,
+    subscriptionId: null,
     events: {},
     eventIds: []
   }
 
   componentDidMount () {
-    attachInterface()
-      .then((state) => {
-        this.setState(state, () => {
-          this.setState({ loading: false });
-        });
+    return Promise
+      .all([
+        attachInterface(),
+        subscribeDefaultAddress((error, defaultAddress) => {
+          if (!error) {
+            this.setState({ defaultAddress });
+          }
+        })
+      ])
+      .then(([state]) => {
+        this.setState(Object.assign({}, state, {
+          loading: false
+        }));
       });
+  }
+
+  componentWillUnmount () {
+    return unsubscribeDefaultAddress();
   }
 
   render () {
@@ -75,16 +87,20 @@ export default class Application extends Component {
   }
 
   renderPage () {
-    const { fromAddress, registerBusy, url, urlError, contentHash, contentHashError, contentHashOwner, commit, commitError, registerType, repo, repoError } = this.state;
+    const { defaultAddress, registerBusy, url, urlError, contentHash, contentHashError, contentHashOwner, commit, commitError, registerType, repo, repoError } = this.state;
 
     let hashClass = null;
+
     if (contentHashError) {
-      hashClass = contentHashOwner !== fromAddress ? styles.hashError : styles.hashWarning;
+      hashClass = contentHashOwner !== defaultAddress
+        ? styles.hashError
+        : styles.hashWarning;
     } else if (contentHash) {
       hashClass = styles.hashOk;
     }
 
     let valueInputs = null;
+
     if (registerType === 'content') {
       valueInputs = [
         <div className={ styles.capture } key='repo'>
@@ -94,7 +110,8 @@ export default class Application extends Component {
             disabled={ registerBusy }
             value={ repo }
             className={ repoError ? styles.error : null }
-            onChange={ this.onChangeRepo } />
+            onChange={ this.onChangeRepo }
+          />
         </div>,
         <div className={ styles.capture } key='hash'>
           <input
@@ -103,7 +120,8 @@ export default class Application extends Component {
             disabled={ registerBusy }
             value={ commit }
             className={ commitError ? styles.error : null }
-            onChange={ this.onChangeCommit } />
+            onChange={ this.onChangeCommit }
+          />
         </div>
       ];
     } else {
@@ -115,7 +133,8 @@ export default class Application extends Component {
             disabled={ registerBusy }
             value={ url }
             className={ urlError ? styles.error : null }
-            onChange={ this.onChangeUrl } />
+            onChange={ this.onChangeUrl }
+          />
         </div>
       );
     }
@@ -128,11 +147,17 @@ export default class Application extends Component {
               <Button
                 disabled={ registerBusy }
                 invert={ registerType !== 'file' }
-                onClick={ this.onClickTypeNormal }>File Link</Button>
+                onClick={ this.onClickTypeNormal }
+              >
+                File Link
+              </Button>
               <Button
                 disabled={ registerBusy }
                 invert={ registerType !== 'content' }
-                onClick={ this.onClickTypeContent }>Content Bundle</Button>
+                onClick={ this.onClickTypeContent }
+              >
+                Content Bundle
+              </Button>
             </div>
             <div className={ styles.box }>
               <div className={ styles.description }>
@@ -148,26 +173,21 @@ export default class Application extends Component {
         </div>
         <Events
           eventIds={ this.state.eventIds }
-          events={ this.state.events } />
+          events={ this.state.events }
+        />
       </div>
     );
   }
 
   renderButtons () {
-    const { accounts, fromAddress, urlError, repoError, commitError, contentHashError, contentHashOwner } = this.state;
-    const account = accounts[fromAddress];
+    const { defaultAddress, urlError, repoError, commitError, contentHashError, contentHashOwner } = this.state;
 
     return (
       <div className={ styles.buttons }>
-        <div className={ styles.addressSelect }>
-          <Button invert onClick={ this.onSelectFromAddress }>
-            <IdentityIcon address={ account.address } />
-            <div>{ account.name || account.address }</div>
-          </Button>
-        </div>
         <Button
           onClick={ this.onClickRegister }
-          disabled={ (contentHashError && contentHashOwner !== fromAddress) || urlError || repoError || commitError }>register url</Button>
+          disabled={ (contentHashError && contentHashOwner !== defaultAddress) || urlError || repoError || commitError }
+        >register url</Button>
       </div>
     );
   }
@@ -264,6 +284,7 @@ export default class Application extends Component {
     // TODO: field validation
     if (!urlError) {
       const parts = url.split('/');
+
       hasContent = parts.length !== 0;
 
       if (parts[2] === 'github.com' || parts[2] === 'raw.githubusercontent.com') {
@@ -280,11 +301,11 @@ export default class Application extends Component {
   }
 
   onClickRegister = () => {
-    const { commit, commitError, contentHashError, contentHashOwner, fromAddress, url, urlError, registerType, repo, repoError } = this.state;
+    const { defaultAddress, commit, commitError, contentHashError, contentHashOwner, url, urlError, registerType, repo, repoError } = this.state;
 
     // TODO: No errors are currently set, validation to be expanded and added for each
     // field (query is fast to pick up the issues, so not burning atm)
-    if ((contentHashError && contentHashOwner !== fromAddress) || repoError || urlError || commitError) {
+    if ((contentHashError && contentHashOwner !== defaultAddress) || repoError || urlError || commitError) {
       return;
     }
 
@@ -354,12 +375,15 @@ export default class Application extends Component {
   }
 
   registerContent (contentRepo, contentCommit) {
-    const { contentHash, fromAddress, instance } = this.state;
-    contentCommit = contentCommit.substr(0, 2) === '0x' ? contentCommit : `0x${contentCommit}`;
+    const { defaultAddress, contentHash, instance } = this.state;
+
+    contentCommit = contentCommit.substr(0, 2) === '0x'
+      ? contentCommit
+      : `0x${contentCommit}`;
 
     const eventId = nextEventId++;
     const values = [contentHash, contentRepo, contentCommit];
-    const options = { from: fromAddress };
+    const options = { from: defaultAddress };
 
     this.setState({
       eventIds: [eventId].concat(this.state.eventIds),
@@ -368,7 +392,7 @@ export default class Application extends Component {
           contentHash,
           contentRepo,
           contentCommit,
-          fromAddress,
+          defaultAddress,
           registerBusy: true,
           registerState: 'Estimating gas for the transaction',
           timestamp: new Date()
@@ -396,6 +420,7 @@ export default class Application extends Component {
           });
 
           const gasPassed = gas.mul(1.2);
+
           options.gas = gasPassed.toFixed(0);
           console.log(`gas estimated at ${gas.toFormat(0)}, passing ${gasPassed.toFormat(0)}`);
 
@@ -405,11 +430,11 @@ export default class Application extends Component {
   }
 
   registerUrl (contentUrl) {
-    const { contentHash, fromAddress, instance } = this.state;
+    const { contentHash, defaultAddress, instance } = this.state;
 
     const eventId = nextEventId++;
     const values = [contentHash, contentUrl];
-    const options = { from: fromAddress };
+    const options = { from: defaultAddress };
 
     this.setState({
       eventIds: [eventId].concat(this.state.eventIds),
@@ -417,7 +442,7 @@ export default class Application extends Component {
         [eventId]: {
           contentHash,
           contentUrl,
-          fromAddress,
+          defaultAddress,
           registerBusy: true,
           registerState: 'Estimating gas for the transaction',
           timestamp: new Date()
@@ -445,31 +470,13 @@ export default class Application extends Component {
           });
 
           const gasPassed = gas.mul(1.2);
+
           options.gas = gasPassed.toFixed(0);
           console.log(`gas estimated at ${gas.toFormat(0)}, passing ${gasPassed.toFormat(0)}`);
 
           return instance.hintURL.postTransaction(options, values);
         })
     );
-  }
-
-  onSelectFromAddress = () => {
-    const { accounts, fromAddress } = this.state;
-    const addresses = Object.keys(accounts);
-    let index = 0;
-
-    addresses.forEach((address, _index) => {
-      if (address === fromAddress) {
-        index = _index;
-      }
-    });
-
-    index++;
-    if (index >= addresses.length) {
-      index = 0;
-    }
-
-    this.setState({ fromAddress: addresses[index] });
   }
 
   lookupHash (url) {

@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -55,9 +55,19 @@ export default class Personal {
 
   _accountsInfo = () => {
     return this._api.parity
-      .allAccountsInfo()
+      .accountsInfo()
       .then((info) => {
-        this._updateSubscriptions('parity_allAccountsInfo', null, info);
+        this._updateSubscriptions('parity_accountsInfo', null, info);
+
+        return this._api.parity
+          .allAccountsInfo()
+          .catch(() => {
+            // NOTE: This fails on non-secure APIs, swallow error
+            return {};
+          })
+          .then((allInfo) => {
+            this._updateSubscriptions('parity_allAccountsInfo', null, allInfo);
+          });
       });
   }
 
