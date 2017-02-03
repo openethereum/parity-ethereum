@@ -118,13 +118,13 @@ impl <M: Message + Default + Encodable + Debug> VoteCollector<M> {
 			.get(&message.round())
 			.map_or(false, |c| {
 				let is_known = c.messages.contains(message);
-				if is_known { trace!(target: "poa", "Known message: {:?}.", message); }
+				if is_known { trace!(target: "engine", "Known message: {:?}.", message); }
 				is_known
 			})
 		|| {
 			let guard = self.votes.read();
 			let is_old = guard.keys().next().map_or(true, |oldest| message.round() <= oldest);
-			if is_old { trace!(target: "poa", "Old message {:?}.", message); }
+			if is_old { trace!(target: "engine", "Old message {:?}.", message); }
 			is_old
 		}
 	}
