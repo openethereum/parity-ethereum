@@ -16,6 +16,7 @@
 
 import React, { Component } from 'react';
 
+import { Button } from '~/ui';
 import PlaygroundExample from '~/playground/playgroundExample';
 
 import Modal from '../Modal';
@@ -74,6 +75,29 @@ export default class PortalExample extends Component {
               onClose={ this.handleClose }
             >
               <p>This is the second portal</p>
+            </Portal>
+          </div>
+        </PlaygroundExample>
+
+        <PlaygroundExample name='Portal with Buttons'>
+          <div>
+            <button onClick={ this.handleOpen(4) }>Open</button>
+            <Portal
+              activeStep={ 0 }
+              buttons={ [
+                <Button
+                  key='close'
+                  label='close'
+                  onClick={ this.handleClose }
+                />
+              ] }
+              isChildModal
+              open={ open[4] || false }
+              onClose={ this.handleClose }
+              steps={ [ 'step 1', 'step 2' ] }
+              title='Portal with button'
+            >
+              <p>This is the fourth portal</p>
             </Portal>
           </div>
         </PlaygroundExample>
