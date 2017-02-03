@@ -105,15 +105,10 @@ describe('api/subscriptions/personal', () => {
       });
 
       it('updates subscribers', () => {
-<<<<<<< HEAD
-        expect(cb.firstCall).to.have.been.calledWith('eth_accounts', null, TEST_LIST);
-        expect(cb.secondCall).to.have.been.calledWith('parity_allAccountsInfo', null, TEST_INFO);
-=======
         expect(cb).to.have.been.calledWith('parity_defaultAccount', null, TEST_DEFAULT);
         expect(cb).to.have.been.calledWith('eth_accounts', null, TEST_LIST);
         expect(cb).to.have.been.calledWith('parity_accountsInfo', null, TEST_INFO);
         expect(cb).to.have.been.calledWith('parity_allAccountsInfo', null, TEST_INFO);
->>>>>>> 04fb2af... Add parity_defaultAccount RPC (with subscription) (#4383)
       });
     });
 
