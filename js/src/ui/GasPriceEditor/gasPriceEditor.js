@@ -115,14 +115,18 @@ export default class GasPriceEditor extends Component {
                 error={ errorGas }
                 hint='the amount of gas to use for the transaction'
                 label={ gasLabel }
+                min={ 1 }
                 onChange={ this.onEditGas }
+                type='number'
                 value={ gas }
               />
               <Input
                 error={ errorPrice }
                 hint='the price of gas to use for the transaction'
                 label={ priceLabel }
+                min={ 1 }
                 onChange={ this.onEditGasPrice }
+                type='number'
                 value={ price }
               />
             </div>
@@ -169,7 +173,9 @@ export default class GasPriceEditor extends Component {
                   defaultMessage='Transaction send block'
                 />
               }
+              min={ 1 }
               onChange={ this.onChangeConditionBlock }
+              type='number'
               value={ condition.block }
             />
           </div>
