@@ -44,11 +44,13 @@ export default class Personal {
   // doesn't work. Since the defaultAccount is critical to operation, we poll in exactly
   // same way we do in ../eth (ala same as eth_blockNumber) and update. This should be moved
   // to pub-sub as it becomes available
-  _defaultAccount = () => {
+  _defaultAccount = (timerDisabled = false) => {
     const nextTimeout = (timeout = 1000) => {
-      this._pollTimerId = setTimeout(() => {
-        this._defaultAccount();
-      }, timeout);
+      if (!timerDisabled) {
+        this._pollTimerId = setTimeout(() => {
+          this._defaultAccount();
+        }, timeout);
+      }
     };
 
     if (!this._api.transport.isConnected) {
@@ -109,6 +111,11 @@ export default class Personal {
         case 'parity_setAccountName':
         case 'parity_setAccountMeta':
           this._accountsInfo();
+          return;
+
+        case 'parity_setDappsAddresses':
+        case 'parity_setNewDappsWhitelist':
+          this._defaultAccount(true);
           return;
       }
     });
