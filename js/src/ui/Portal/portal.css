@@ -99,6 +99,8 @@ $popoverZ: 3600;
 
   .childContainer {
     flex: 1;
+    overflow-x: hidden;
+    overflow-y: auto;
   }
 
   .closeIcon {
