@@ -145,7 +145,10 @@ class ParityBar extends Component {
 
   renderExpanded () {
     return (
-      <div className={ styles.overlay }>
+      <div
+        className={ styles.overlay }
+        ref={ this.onRef }
+      >
         <ParityBackground className={ styles.expanded }>
           <div className={ styles.header }>
             <div className={ styles.title }>
