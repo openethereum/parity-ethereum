@@ -14,7 +14,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import BigNumber from 'bignumber.js';
 import { pick } from 'lodash';
 import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
@@ -100,8 +99,6 @@ class ExecuteContract extends Component {
     fromAddressError: null,
     func: null,
     funcError: null,
-    minBlock: '0',
-    minBlockError: null,
     rejected: false,
     sending: false,
     step: STEP_DETAILS,
@@ -167,8 +164,8 @@ class ExecuteContract extends Component {
 
   renderDialogActions () {
     const { onClose, fromAddress } = this.props;
-    const { advancedOptions, sending, step, fromAddressError, minBlockError, valuesError } = this.state;
-    const hasError = fromAddressError || minBlockError || valuesError.find((error) => error);
+    const { advancedOptions, sending, step, fromAddressError, valuesError } = this.state;
+    const hasError = fromAddressError || valuesError.find((error) => error);
 
     const cancelBtn = (
       <Button
@@ -258,7 +255,7 @@ class ExecuteContract extends Component {
 
   renderStep () {
     const { onFromAddressChange } = this.props;
-    const { advancedOptions, step, busyState, minBlock, minBlockError, txhash, rejected } = this.state;
+    const { advancedOptions, step, busyState, txhash, rejected } = this.state;
 
     if (rejected) {
       return (
@@ -305,12 +302,7 @@ class ExecuteContract extends Component {
       );
     } else if (advancedOptions && (step === STEP_BUSY_OR_ADVANCED)) {
       return (
-        <AdvancedStep
-          gasStore={ this.gasStore }
-          minBlock={ minBlock }
-          minBlockError={ minBlockError }
-          onMinBlockChange={ this.onMinBlockChange }
-        />
+        <AdvancedStep gasStore={ this.gasStore } />
       );
     }
 
@@ -337,15 +329,6 @@ class ExecuteContract extends Component {
       func,
       values
     }, this.estimateGas);
-  }
-
-  onMinBlockChange = (minBlock) => {
-    const minBlockError = validateUint(minBlock).valueError;
-
-    this.setState({
-      minBlock,
-      minBlockError
-    });
   }
 
   onValueChange = (event, index, _value) => {
@@ -409,17 +392,14 @@ class ExecuteContract extends Component {
   postTransaction = () => {
     const { api, store } = this.context;
     const { fromAddress } = this.props;
-    const { advancedOptions, amount, func, minBlock, values } = this.state;
+    const { advancedOptions, amount, func, values } = this.state;
     const steps = advancedOptions ? STAGES_ADVANCED : STAGES_BASIC;
     const finalstep = steps.length - 1;
 
-    const options = {
-      gas: this.gasStore.gas,
-      gasPrice: this.gasStore.price,
+    const options = this.gasStore.overrideTransaction({
       from: fromAddress,
-      minBlock: new BigNumber(minBlock || 0).gt(0) ? minBlock : null,
       value: api.util.toWei(amount || 0)
-    };
+    });
 
     this.setState({ sending: true, step: advancedOptions ? STEP_BUSY : STEP_BUSY_OR_ADVANCED });
 

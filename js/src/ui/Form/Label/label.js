@@ -16,22 +16,25 @@
 
 import React, { Component, PropTypes } from 'react';
 
-import { GasPriceEditor } from '~/ui';
+import styles from './label.css';
 
-import styles from '../executeContract.css';
-
-export default class AdvancedStep extends Component {
+export default class Label extends Component {
   static propTypes = {
-    gasStore: PropTypes.object.isRequired
-  };
+    className: PropTypes.string,
+    label: PropTypes.node
+  }
 
   render () {
-    const { gasStore } = this.props;
+    const { className, label } = this.props;
+
+    if (!label) {
+      return null;
+    }
 
     return (
-      <div className={ styles.gaseditor }>
-        <GasPriceEditor store={ gasStore } />
-      </div>
+      <label className={ [styles.label, className].join(' ') }>
+        { label }
+      </label>
     );
   }
 }

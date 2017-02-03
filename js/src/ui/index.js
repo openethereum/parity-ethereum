@@ -35,7 +35,7 @@ import DappIcon from './DappIcon';
 import Editor from './Editor';
 import Errors from './Errors';
 import Features, { FEATURES, FeaturesStore } from './Features';
-import Form, { AddressSelect, FormWrap, TypedInput, Input, InputAddress, InputAddressSelect, InputChip, InputInline, Select, RadioButtons } from './Form';
+import Form, { AddressSelect, FormWrap, Input, InputAddress, InputAddressSelect, InputChip, InputDate, InputInline, InputTime, Label, RadioButtons, Select, TypedInput } from './Form';
 import GasPriceEditor from './GasPriceEditor';
 import GasPriceSelector from './GasPriceSelector';
 import Icons from './Icons';
@@ -95,9 +95,12 @@ export {
   InputAddress,
   InputAddressSelect,
   InputChip,
+  InputDate,
   InputInline,
+  InputTime,
   IdentityIcon,
   IdentityName,
+  Label,
   LanguageSelector,
   Loading,
   MethodDecoding,

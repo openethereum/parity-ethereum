@@ -73,14 +73,14 @@ export default class TransactionMainDetails extends Component {
                 : transaction
             }
           />
-          { this.renderEditGas() }
+          { this.renderEditTx() }
         </div>
         { children }
       </div>
     );
   }
 
-  renderEditGas () {
+  renderEditTx () {
     const { gasStore } = this.props;
 
     if (!gasStore) {
@@ -91,7 +91,7 @@ export default class TransactionMainDetails extends Component {
       <div className={ styles.editButtonRow }>
         <Button
           icon={ <MapsLocalGasStation /> }
-          label='Edit gas/gasPrice'
+          label='Edit conditions/gas/gasPrice'
           onClick={ this.toggleGasEditor }
         />
       </div>
