@@ -38,6 +38,18 @@ export default class DappPermissions extends Component {
 
     return (
       <Portal
+        buttons={
+          <div className={ styles.legend }>
+            <FormattedMessage
+              id='dapps.permissions.description'
+              defaultMessage='{activeIcon} account is available to application, {defaultIcon} account is the default account'
+              values={ {
+                activeIcon: <CheckIcon />,
+                defaultIcon: <StarIcon />
+              } }
+            />
+          </div>
+        }
         onClose={ store.closeModal }
         open
         title={
@@ -52,16 +64,6 @@ export default class DappPermissions extends Component {
             items={ store.accounts }
             noStretch
             renderItem={ this.renderAccount }
-          />
-        </div>
-        <div className={ styles.legend }>
-          <FormattedMessage
-            id='dapps.permissions.description'
-            defaultMessage='{activeIcon} account is available to application, {defaultIcon} account is the default account'
-            values={ {
-              activeIcon: <CheckIcon />,
-              defaultIcon: <StarIcon />
-            } }
           />
         </div>
       </Portal>
