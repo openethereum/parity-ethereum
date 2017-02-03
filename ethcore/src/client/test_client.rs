@@ -669,12 +669,14 @@ impl BlockChainClient for TestBlockChainClient {
 	}
 
 	fn chain_info(&self) -> BlockChainInfo {
+		let number = self.blocks.read().len() as BlockNumber - 1;
 		BlockChainInfo {
 			total_difficulty: *self.difficulty.read(),
 			pending_total_difficulty: *self.difficulty.read(),
 			genesis_hash: self.genesis_hash.clone(),
 			best_block_hash: self.last_hash.read().clone(),
-			best_block_number: self.blocks.read().len() as BlockNumber - 1,
+			best_block_number: number,
+			best_block_timestamp: number,
 			first_block_hash: self.first_block.read().as_ref().map(|x| x.0),
 			first_block_number: self.first_block.read().as_ref().map(|x| x.1),
 			ancient_block_hash: self.ancient_block.read().as_ref().map(|x| x.0),
@@ -709,7 +711,8 @@ impl BlockChainClient for TestBlockChainClient {
 	}
 
 	fn ready_transactions(&self) -> Vec<PendingTransaction> {
-		self.miner.ready_transactions(self.chain_info().best_block_number)
+		let info = self.chain_info();
+		self.miner.ready_transactions(info.best_block_number, info.best_block_timestamp)
 	}
 
 	fn signing_network_id(&self) -> Option<u64> { None }

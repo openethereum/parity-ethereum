@@ -21,6 +21,7 @@ use ethcore::block_status::BlockStatus;
 use ethcore::client::ClientReport;
 use ethcore::ids::BlockId;
 use ethcore::header::Header;
+use ethcore::views::HeaderView;
 use ethcore::verification::queue::{self, HeaderQueue};
 use ethcore::transaction::{PendingTransaction, Condition as TransactionCondition};
 use ethcore::blockchain_info::BlockChainInfo;
@@ -140,6 +141,7 @@ impl Client {
 			genesis_hash: genesis_hash,
 			best_block_hash: best_block.hash,
 			best_block_number: best_block.number,
+			best_block_timestamp: HeaderView::new(&self.chain.get_header(BlockId::Latest).expect("Latest hash is always in the chain")).timestamp(),
 			ancient_block_hash: if first_block.is_some() { Some(genesis_hash) } else { None },
 			ancient_block_number: if first_block.is_some() { Some(0) } else { None },
 			first_block_hash: first_block.as_ref().map(|first| first.hash),

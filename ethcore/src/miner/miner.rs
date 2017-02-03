@@ -325,7 +325,7 @@ impl Miner {
 		let _timer = PerfTimer::new("prepare_block");
 		let chain_info = chain.chain_info();
 		let (transactions, mut open_block, original_work_hash) = {
-			let transactions = {self.transaction_queue.lock().top_transactions_at(chain_info.best_block_number)};
+			let transactions = {self.transaction_queue.lock().top_transactions_at(chain_info.best_block_number, chain_info.best_block_timestamp)};
 			let mut sealing_work = self.sealing_work.lock();
 			let last_work_hash = sealing_work.queue.peek_last_ref().map(|pb| pb.block().fields().header.hash());
 			let best_hash = chain_info.best_block_hash;
@@ -927,7 +927,7 @@ impl MinerService for Miner {
 
 	fn pending_transactions(&self) -> Vec<PendingTransaction> {
 		let queue = self.transaction_queue.lock();
-		queue.pending_transactions(BlockNumber::max_value())
+		queue.pending_transactions(BlockNumber::max_value(), u64::max_value())
 	}
 
 	fn local_transactions(&self) -> BTreeMap<H256, LocalTransactionStatus> {
@@ -942,14 +942,14 @@ impl MinerService for Miner {
 		self.transaction_queue.lock().future_transactions()
 	}
 
-	fn ready_transactions(&self, best_block: BlockNumber) -> Vec<PendingTransaction> {
+	fn ready_transactions(&self, best_block: BlockNumber, best_block_timestamp: u64) -> Vec<PendingTransaction> {
 		let queue = self.transaction_queue.lock();
 		match self.options.pending_set {
-			PendingSet::AlwaysQueue => queue.pending_transactions(best_block),
+			PendingSet::AlwaysQueue => queue.pending_transactions(best_block, best_block_timestamp),
 			PendingSet::SealingOrElseQueue => {
 				self.from_pending_block(
 					best_block,
-					|| queue.pending_transactions(best_block),
+					|| queue.pending_transactions(best_block, best_block_timestamp),
 					|sealing| sealing.transactions().iter().map(|t| t.clone().into()).collect()
 				)
 			},
@@ -1325,7 +1325,7 @@ mod tests {
 		// then
 		assert_eq!(res.unwrap(), TransactionImportResult::Current);
 		assert_eq!(miner.pending_transactions().len(), 1);
-		assert_eq!(miner.ready_transactions(best_block).len(), 1);
+		assert_eq!(miner.ready_transactions(best_block, 0).len(), 1);
 		assert_eq!(miner.pending_transactions_hashes(best_block).len(), 1);
 		assert_eq!(miner.pending_receipts(best_block).len(), 1);
 		// This method will let us know if pending block was created (before calling that method)
@@ -1345,7 +1345,7 @@ mod tests {
 		// then
 		assert_eq!(res.unwrap(), TransactionImportResult::Current);
 		assert_eq!(miner.pending_transactions().len(), 1);
-		assert_eq!(miner.ready_transactions(best_block).len(), 0);
+		assert_eq!(miner.ready_transactions(best_block, 0).len(), 0);
 		assert_eq!(miner.pending_transactions_hashes(best_block).len(), 0);
 		assert_eq!(miner.pending_receipts(best_block).len(), 0);
 	}
@@ -1364,7 +1364,7 @@ mod tests {
 		assert_eq!(res.unwrap(), TransactionImportResult::Current);
 		assert_eq!(miner.pending_transactions().len(), 1);
 		assert_eq!(miner.pending_transactions_hashes(best_block).len(), 0);
-		assert_eq!(miner.ready_transactions(best_block).len(), 0);
+		assert_eq!(miner.ready_transactions(best_block, 0).len(), 0);
 		assert_eq!(miner.pending_receipts(best_block).len(), 0);
 		// This method will let us know if pending block was created (before calling that method)
 		assert!(miner.prepare_work_sealing(&client));
