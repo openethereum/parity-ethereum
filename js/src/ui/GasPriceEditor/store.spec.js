@@ -96,7 +96,7 @@ describe('ui/GasPriceEditor/store', () => {
     describe('setConditionType', () => {
       it('sets the actual type', () => {
         store.setConditionType('testingType');
-        expect(store.conditionType).to.equal('testing');
+        expect(store.conditionType).to.equal('testingType');
       });
 
       it('clears any block error on changing type', () => {
