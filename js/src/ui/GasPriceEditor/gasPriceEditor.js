@@ -47,7 +47,7 @@ const CONDITION_VALUES = [
   {
     label: (
       <FormattedMessage
-        id='txEditor.condition.timestamp'
+        id='txEditor.condition.datetime'
         defaultMessage='Send after Date & Time'
       />
     ),
@@ -193,8 +193,8 @@ export default class GasPriceEditor extends Component {
                 defaultMessage='Transaction send date'
               />
             }
-            onChange={ this.onChangeConditionDate }
-            value={ condition.timestamp }
+            onChange={ this.onChangeConditionDateTime }
+            value={ condition.time }
           />
         </div>
         <div className={ styles.input }>
@@ -211,8 +211,8 @@ export default class GasPriceEditor extends Component {
                 defaultMessage='Transaction send time'
               />
             }
-            onChange={ this.onChangeConditionTime }
-            value={ condition.timestamp }
+            onChange={ this.onChangeConditionDateTime }
+            value={ condition.time }
           />
         </div>
       </div>
@@ -241,11 +241,7 @@ export default class GasPriceEditor extends Component {
     this.props.store.setConditionBlockNumber(blockNumber);
   }
 
-  onChangeConditionDate = (event, timestamp) => {
-    this.props.store.setConditionTime(timestamp);
-  }
-
-  onChangeConditionTime = (event, timestamp) => {
-    this.props.store.setConditionTime(timestamp);
+  onChangeConditionDateTime = (event, datetime) => {
+    this.props.store.setConditionDateTime(datetime);
   }
 }

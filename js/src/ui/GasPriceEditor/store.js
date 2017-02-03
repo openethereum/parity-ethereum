@@ -54,7 +54,7 @@ export default class GasPriceEditor {
       this.condition = { block: condition.block.toFixed(0) };
       this.conditionType = CONDITIONS.BLOCK;
     } else if (condition && condition.time) {
-      this.condition = { timestamp: condition.time };
+      this.condition = { time: condition.time };
       this.conditionType = CONDITIONS.TIME;
     } else {
       this.condition = {};
@@ -85,7 +85,7 @@ export default class GasPriceEditor {
           break;
 
         case CONDITIONS.TIME:
-          this.condition = Object.assign({}, this.condition, { timestamp: new Date() });
+          this.condition = Object.assign({}, this.condition, { time: new Date() });
           break;
 
         case CONDITIONS.NONE:
@@ -103,8 +103,8 @@ export default class GasPriceEditor {
     });
   }
 
-  @action setConditionTime = (timestamp) => {
-    this.condition = Object.assign({}, this.condition, { timestamp });
+  @action setConditionDateTime = (time) => {
+    this.condition = Object.assign({}, this.condition, { time });
   }
 
   @action setEditing = (isEditing) => {
@@ -221,7 +221,7 @@ export default class GasPriceEditor {
         break;
 
       case CONDITIONS.TIME:
-        result.condition = { time: this.condition.timestamp };
+        result.condition = { time: this.condition.time };
         break;
 
       case CONDITIONS.NONE:

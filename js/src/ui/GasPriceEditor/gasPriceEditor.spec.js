@@ -28,6 +28,7 @@ const api = {
 };
 
 const store = {
+  conditionType: 'none',
   estimated: '123',
   histogram: {},
   priceDefault: '456',
