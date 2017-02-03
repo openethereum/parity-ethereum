@@ -130,9 +130,9 @@ export function inNumber16 (number) {
 export function inOptionsCondition (condition) {
   if (condition) {
     if (condition.block) {
-      condition.block = condition.block ? inNumber16(condition.block) : null;
+      condition.block = condition.block ? inNumber10(condition.block) : null;
     } else if (condition.time) {
-      condition.time = inNumber16(Math.floor(condition.time.getTime() / 1000));
+      condition.time = inNumber10(Math.floor(condition.time.getTime() / 1000));
     }
   }
 
