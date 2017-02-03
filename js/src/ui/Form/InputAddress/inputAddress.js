@@ -22,7 +22,6 @@ import { nodeOrStringProptype } from '~/util/proptypes';
 import { isNullAddress } from '~/util/validation';
 
 import IdentityIcon from '../../IdentityIcon';
-import IdentityName from '../../IdentityName';
 import Input from '../Input';
 
 import styles from './inputAddress.css';
@@ -79,6 +78,9 @@ class InputAddress extends Component {
       props.focused = focused;
     }
 
+    // FIXME: The is not advisable, fixes the display issue, however the name should come from
+    // a common component.
+    //    account.name || (value ? 'UNNAMED' : value)
     return (
       <div className={ containerClasses.join(' ') }>
         <Input
