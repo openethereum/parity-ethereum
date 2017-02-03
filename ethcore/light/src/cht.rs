@@ -34,7 +34,7 @@ macro_rules! val {
 	($hash: expr, $td: expr) => {{
 		let mut stream = RlpStream::new_list(2);
 		stream.append(&$hash).append(&$td);
-		stream.out()
+		stream.drain()
 	}}
 }
 
@@ -114,6 +114,26 @@ pub fn build<F>(cht_num: u64, mut fetcher: F) ->  Option<CHT<MemoryDB>>
 		root: root,
 		number: cht_num,
 	})
+}
+
+/// Compute a CHT root from an iterator of (hash, td) pairs. Fails if shorter than
+/// SIZE items. The items are assumed to proceed sequentially from `start_number(cht_num)`.
+/// Discards the trie's nodes.
+pub fn compute_root<I>(cht_num: u64, iterable: I) -> Option<H256>
+	where I: IntoIterator<Item=(H256, U256)>
+{
+	let mut v = Vec::with_capacity(SIZE as usize);
+	let start_num = start_number(cht_num) as usize;
+
+	for (i, (h, td)) in iterable.into_iter().take(SIZE as usize).enumerate() {
+		v.push((key!(i + start_num).to_vec(), val!(h, td).to_vec()))
+	}
+
+	if v.len() == SIZE as usize {
+		Some(::util::triehash::trie_root(v))
+	} else {
+		None
+	}
 }
 
 /// Convert a block number to a CHT number.
