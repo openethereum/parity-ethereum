@@ -52,9 +52,9 @@ impl Decodable for Action {
 	}
 }
 
+/// Transaction activation condition.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "ipc", binary)]
-/// Transaction activation condition.
 pub enum Condition {
 	/// Valid at this block number or later.
 	Number(BlockNumber),

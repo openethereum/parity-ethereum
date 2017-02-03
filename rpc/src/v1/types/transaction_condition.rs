@@ -16,7 +16,7 @@
 
 use ethcore;
 
-/// Represents rpc api block number param.
+/// Represents condition on minimum block number or block timestamp.
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub enum TransactionCondition {
 	/// Valid at this minimum block number.

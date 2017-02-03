@@ -42,7 +42,6 @@ pub struct TransactionRequest {
 	/// Transaction's nonce
 	pub nonce: Option<U256>,
 	/// Delay until this block condition.
-	#[serde(rename="condition")]
 	pub condition: Option<TransactionCondition>,
 }
 
