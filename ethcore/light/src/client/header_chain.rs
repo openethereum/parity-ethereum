@@ -214,7 +214,15 @@ impl HeaderChain {
 					.and_then(|hash| self.headers.read().get(&hash).cloned())
 			}
 			BlockId::Latest | BlockId::Pending => {
-				let hash = self.best_block.read().hash;
+				let hash = {
+					let best = self.best_block.read();
+					if best.number == 0 {
+						return Some(self.genesis_header.clone())
+					}
+
+					best.hash
+				};
+
 				self.headers.read().get(&hash).cloned()
 			}
 		}
@@ -379,5 +387,17 @@ mod tests {
 			canon_hash = header.parent_hash();
 			num -= 1;
 		}
+	}
+
+	#[test]
+	fn earliest_is_latest() {
+		let spec = Spec::new_test();
+		let genesis_header = spec.genesis_header();
+
+		let chain = HeaderChain::new(&::rlp::encode(&genesis_header));
+
+		assert!(chain.get_header(BlockId::Earliest).is_some());
+		assert!(chain.get_header(BlockId::Latest).is_some());
+		assert!(chain.get_header(BlockId::Pending).is_some());
 	}
 }
