@@ -49,6 +49,7 @@ mod codes {
 	pub const COMPILATION_ERROR: i64 = -32050;
 	pub const ENCRYPTION_ERROR: i64 = -32055;
 	pub const FETCH_ERROR: i64 = -32060;
+	pub const ON_DEMAND_ERROR: i64 = -32065;
 }
 
 pub fn unimplemented(details: Option<String>) -> Error {
@@ -306,5 +307,13 @@ pub fn unknown_block() -> Error {
 		code: ErrorCode::ServerError(codes::UNSUPPORTED_REQUEST),
 		message: "Unknown block number".into(),
 		data: None,
+	}
+}
+
+pub fn from_on_demand_error(error: ::light::on_demand::Error) -> Error {
+	Error {
+		code: ErrorCode::ServerError(codes::ON_DEMAND_ERROR),
+		message: "Failed to fetch on-demand data".into(),
+		data: Some(Value::String(format!("{:?}", error)))
 	}
 }

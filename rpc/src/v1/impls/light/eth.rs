@@ -26,12 +26,12 @@ use light::cht;
 use light::on_demand::{request, OnDemand};
 use light::net::LightProtocol;
 
-use ethcore::account_provider::AccountProvider;
+use ethcore::account_provider::{AccountProvider, DappId};
 use ethcore::encoded;
 use ethcore::ids::BlockId;
 use ethsync::LightSync;
 
-use futures::{future, BoxFuture};
+use futures::{future, Future, BoxFuture};
 
 use v1::helpers::{CallRequest as CRequest, errors, limit_logs};
 use v1::helpers::dispatch::{dispatch_transaction, default_gas_price};
@@ -50,6 +50,11 @@ pub struct EthClient {
 	client: Arc<LightClient>,
 	on_demand: Arc<OnDemand>,
 	accounts: Arc<AccountProvider>,
+}
+
+// helper for a specific kind of internal error.
+fn err_no_context() -> Error {
+	errors::internal("network service detached", "")
 }
 
 impl EthClient {
@@ -77,7 +82,7 @@ impl EthClient {
 
 		let maybe_future = match id {
 			BlockId::Number(n) => {
-				let cht_root = cht::block_to_cht_number(n).and_then(|cn| self.client.cht_root(cn));
+				let cht_root = cht::block_to_cht_number(n).and_then(|cn| self.client.cht_root(cn as usize));
 				match cht_root {
 					None => return future::err(errors::unknown_block()).boxed(),
 					Some(root) => {
@@ -86,19 +91,19 @@ impl EthClient {
 							cht_root: root,
 						};
 
-						self.sync.with_context(|ctx| self.on_demand.header_by_number(req))
+						self.sync.with_context(|ctx| self.on_demand.header_by_number(ctx, req))
 					}
 				}
 			}
 			BlockId::Hash(h) => {
-				self.sync.with_context(|ctx| self.on_demand.header_by_hash(request::HeaderByHash(h)))
+				self.sync.with_context(|ctx| self.on_demand.header_by_hash(ctx, request::HeaderByHash(h)))
 			}
 			_ => None, // latest, earliest, and pending will have all already returned.
 		};
 
 		match maybe_future {
-			Some(recv) => recv.boxed(),
-			None => future::err(errors::internal("network service detached", "")).boxed()
+			Some(recv) => recv.map_err(errors::from_on_demand_error).boxed(),
+			None => future::err(err_no_context()).boxed()
 		}
 	}
 }
@@ -115,7 +120,7 @@ impl Eth for EthClient {
 	}
 
 	fn author(&self, _meta: Self::Metadata) -> BoxFuture<RpcH160, Error> {
-		future::ok(Default::default())
+		future::ok(Default::default()).boxed()
 	}
 
 	fn is_mining(&self) -> Result<bool, Error> {
@@ -131,12 +136,13 @@ impl Eth for EthClient {
 	}
 
 	fn accounts(&self, meta: Metadata) -> BoxFuture<Vec<RpcH160>, Error> {
-		let dapp = meta.dapp_id.unwrap_or_default();
+		let dapp: DappId = meta.dapp_id.unwrap_or_default().into();
 
 		let accounts = self.accounts
 			.note_dapp_used(dapp.clone())
 			.and_then(|_| self.accounts.dapps_addresses(dapp))
-			.map_err(|e| errors::internal("Could not fetch accounts.", e));
+			.map_err(|e| errors::internal("Could not fetch accounts.", e))
+			.map(|accs| accs.into_iter().map(Into::<RpcH160>::into).collect());
 
 		future::done(accounts).boxed()
 	}
@@ -151,11 +157,121 @@ impl Eth for EthClient {
 		let sync = self.sync.clone();
 		let on_demand = self.on_demand.clone();
 
-		self.header(num.0.into()).then(move |header| {
+		self.header(num.0.into()).and_then(move |header| {
 			sync.with_context(|ctx| on_demand.account(ctx, request::Account {
 				header: header,
 				address: address,
 			}))
-		})
+				.map(|x| x.map_err(errors::from_on_demand_error).boxed())
+				.unwrap_or_else(|| future::err(err_no_context()).boxed())
+		}).map(|acc| acc.balance.into()).boxed()
+	}
+
+	fn storage_at(&self, address: RpcH160, key: RpcU256, num: Trailing<BlockNumber>) -> BoxFuture<RpcH256, Error> {
+		future::err(errors::unimplemented(None)).boxed()
+	}
+
+	fn block_by_hash(&self, hash: RpcH256, include_txs: bool) -> BoxFuture<Option<RichBlock>, Error> {
+		future::err(errors::unimplemented(None)).boxed()
+	}
+
+	fn block_by_number(&self, num: BlockNumber, include_txs: bool) -> BoxFuture<Option<RichBlock>, Error> {
+		future::err(errors::unimplemented(None)).boxed()
+	}
+
+	fn transaction_count(&self, address: RpcH160, num: Trailing<BlockNumber>) -> BoxFuture<RpcU256, Error> {
+		future::err(errors::unimplemented(None)).boxed()
+	}
+
+	fn block_transaction_count_by_hash(&self, hash: RpcH256) -> BoxFuture<Option<RpcU256>, Error> {
+		future::err(errors::unimplemented(None)).boxed()
+	}
+
+	fn block_transaction_count_by_number(&self, num: BlockNumber) -> BoxFuture<Option<RpcU256>, Error> {
+		future::err(errors::unimplemented(None)).boxed()
+	}
+
+	fn block_uncles_count_by_hash(&self, hash: RpcH256) -> BoxFuture<Option<RpcU256>, Error> {
+		future::err(errors::unimplemented(None)).boxed()
+	}
+
+	fn block_uncles_count_by_number(&self, num: BlockNumber) -> BoxFuture<Option<RpcU256>, Error> {
+		future::err(errors::unimplemented(None)).boxed()
+	}
+
+	fn code_at(&self, address: RpcH160, num: Trailing<BlockNumber>) -> BoxFuture<Bytes, Error> {
+		future::err(errors::unimplemented(None)).boxed()
+	}
+
+	fn send_raw_transaction(&self, raw: Bytes) -> Result<RpcH256, Error> {
+		Err(errors::unimplemented(None))
+	}
+
+	fn submit_transaction(&self, raw: Bytes) -> Result<RpcH256, Error> {
+		Err(errors::unimplemented(None))
+	}
+
+	fn call(&self, req: CallRequest, num: Trailing<BlockNumber>) -> Result<Bytes, Error> {
+		Err(errors::unimplemented(None))
+	}
+
+	fn estimate_gas(&self, req: CallRequest, num: Trailing<BlockNumber>) -> Result<RpcU256, Error> {
+		Err(errors::unimplemented(None))
+	}
+
+	fn transaction_by_hash(&self, hash: RpcH256) -> Result<Option<Transaction>, Error> {
+		Err(errors::unimplemented(None))
+	}
+
+	fn transaction_by_block_hash_and_index(&self, hash: RpcH256, idx: Index) -> Result<Option<Transaction>, Error> {
+		Err(errors::unimplemented(None))
+	}
+
+	fn transaction_by_block_number_and_index(&self, num: BlockNumber, idx: Index) -> Result<Option<Transaction>, Error> {
+		Err(errors::unimplemented(None))
+	}
+
+	fn transaction_receipt(&self, hash: RpcH256) -> Result<Option<Receipt>, Error> {
+		Err(errors::unimplemented(None))
+	}
+
+	fn uncle_by_block_hash_and_index(&self, hash: RpcH256, idx: Index) -> Result<Option<RichBlock>, Error> {
+		Err(errors::unimplemented(None))
+	}
+
+	fn uncle_by_block_number_and_index(&self, num: BlockNumber, idx: Index) -> Result<Option<RichBlock>, Error> {
+		Err(errors::unimplemented(None))
+	}
+
+	fn compilers(&self) -> Result<Vec<String>, Error> {
+		Err(errors::unimplemented(None))
+	}
+
+	fn compile_lll(&self, _code: String) -> Result<Bytes, Error> {
+		Err(errors::unimplemented(None))
+	}
+
+	fn compile_solidity(&self, _code: String) -> Result<Bytes, Error> {
+		Err(errors::unimplemented(None))
+	}
+
+	fn compile_serpent(&self, _code: String) -> Result<Bytes, Error> {
+		Err(errors::unimplemented(None))
+	}
+
+	fn logs(&self, _filter: Filter) -> Result<Vec<Log>, Error> {
+		Err(errors::unimplemented(None))
+	}
+
+	fn work(&self, _timeout: Trailing<u64>) -> Result<Work, Error> {
+		Err(errors::unimplemented(None))
+	}
+
+	fn submit_work(&self, _nonce: RpcH64, _pow_hash: RpcH256, _mix_hash: RpcH256) -> Result<bool, Error> {
+		Err(errors::unimplemented(None))
+	}
+
+	fn submit_hashrate(&self, _rate: RpcU256, _id: RpcH256) -> Result<bool, Error> {
+		Err(errors::unimplemented(None))
 	}
 }
