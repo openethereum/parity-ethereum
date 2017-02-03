@@ -29,15 +29,14 @@ export default class Container extends Component {
     className: PropTypes.string,
     compact: PropTypes.bool,
     light: PropTypes.bool,
+    onClick: PropTypes.func,
     style: PropTypes.object,
     tabIndex: PropTypes.number,
     title: nodeOrStringProptype()
   }
 
   render () {
-    const { children, className, compact, light, style, tabIndex } = this.props;
-    const classes = `${styles.container} ${light ? styles.light : ''} ${className}`;
-
+    const { children, className, compact, light, onClick, style, tabIndex } = this.props;
     const props = {};
 
     if (Number.isInteger(tabIndex)) {
@@ -45,8 +44,27 @@ export default class Container extends Component {
     }
 
     return (
-      <div className={ classes } style={ style } { ...props }>
-        <Card className={ compact ? styles.compact : styles.padded }>
+      <div
+        className={
+          [
+            styles.container,
+            light
+              ? styles.light
+              : '',
+            className
+          ].join(' ')
+        }
+        style={ style }
+        { ...props }
+      >
+        <Card
+          className={
+            compact
+              ? styles.compact
+              : styles.padded
+          }
+          onClick={ onClick }
+        >
           { this.renderTitle() }
           { children }
         </Card>

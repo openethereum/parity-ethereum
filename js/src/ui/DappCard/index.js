@@ -14,20 +14,4 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! A service to fetch any HTTP / HTTPS content.
-
-#[macro_use]
-extern crate log;
-
-extern crate futures;
-extern crate futures_cpupool;
-extern crate parking_lot;
-extern crate reqwest;
-
-pub extern crate mime;
-pub mod client;
-
-pub use self::reqwest::StatusCode;
-pub use self::mime::Mime;
-pub use self::client::{Client, Fetch, Error, Response, Abort};
-
+export default from './dappCard';

@@ -1443,7 +1443,7 @@ export default {
         format: 'inputCallFormatter',
         example: {
           from: '0xb60e8dd61c5d32be8058bb8eb970870f07233155',
-          to: '0xd46e8dd67c5d32be8058bb8eb970870f072445675',
+          to: '0xd46e8dd67c5d32be8058bb8eb970870f07244567',
           value: fromDecimal(2441406250)
         }
       }
