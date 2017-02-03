@@ -65,7 +65,7 @@ export default class Personal {
 
         nextTimeout();
       })
-      .catch(nextTimeout);
+      .catch(() => nextTimeout());
   }
 
   _listAccounts = () => {

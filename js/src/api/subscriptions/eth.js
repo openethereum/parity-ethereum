@@ -57,6 +57,6 @@ export default class Eth {
 
         nextTimeout();
       })
-      .catch(nextTimeout);
+      .catch(() => nextTimeout());
   }
 }
