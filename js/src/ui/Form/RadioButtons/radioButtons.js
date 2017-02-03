@@ -18,10 +18,14 @@ import { RadioButton, RadioButtonGroup } from 'material-ui/RadioButton';
 import React, { Component, PropTypes } from 'react';
 
 import { arrayOrObjectProptype } from '~/util/proptypes';
+
+import Label from '../Label';
 import styles from './radioButtons.css';
 
 export default class RadioButtons extends Component {
   static propTypes = {
+    className: PropTypes.string,
+    label: PropTypes.node,
     name: PropTypes.string,
     onChange: PropTypes.func.isRequired,
     value: PropTypes.any,
@@ -34,10 +38,10 @@ export default class RadioButtons extends Component {
   };
 
   render () {
-    const { value, values } = this.props;
+    const { className, label, value, values } = this.props;
 
     const index = Number.isNaN(parseInt(value))
-      ? values.findIndex((val) => val.key === value)
+      ? values.findIndex((_value) => _value.key === value)
       : parseInt(value);
     const selectedValue = typeof value !== 'object'
       ? values[index]
@@ -45,13 +49,19 @@ export default class RadioButtons extends Component {
     const key = this.getKey(selectedValue, index);
 
     return (
-      <RadioButtonGroup
-        name={ name }
-        onChange={ this.onChange }
-        valueSelected={ key }
-      >
-        { this.renderContent() }
-      </RadioButtonGroup>
+      <div className={ [styles.container, className].join(' ') }>
+        <Label
+          className={ styles.label }
+          label={ label }
+        />
+        <RadioButtonGroup
+          name={ name }
+          onChange={ this.onChange }
+          valueSelected={ key }
+        >
+          { this.renderContent() }
+        </RadioButtonGroup>
+      </div>
     );
   }
 
@@ -67,14 +77,14 @@ export default class RadioButtons extends Component {
 
       return (
         <RadioButton
-          className={ styles.spaced }
+          className={ styles.radioButton }
           key={ index }
           label={
-            <div className={ styles.typeContainer }>
+            <div className={ styles.radioLabel }>
               <span>{ label }</span>
               {
                 description
-                ? <span className={ styles.desc }>{ description }</span>
+                ? <span className={ styles.description }>{ description }</span>
                 : null
               }
             </div>
@@ -97,7 +107,7 @@ export default class RadioButtons extends Component {
 
   onChange = (event, index) => {
     const { onChange, values } = this.props;
-    const value = values[index] || values.find((v) => v.key === index);
+    const value = values[index] || values.find((value) => value.key === index);
 
     onChange(value, index);
   }

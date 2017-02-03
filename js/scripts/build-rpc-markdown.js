@@ -16,11 +16,12 @@
 
 import fs from 'fs';
 import path from 'path';
-import chalk from 'chalk';
 import { isPlainObject } from 'lodash';
 
+import { info, warn, error } from './helpers/log';
 import { Dummy } from '../src/jsonrpc/helpers';
 import interfaces from '../src/jsonrpc';
+import rustMethods from './helpers/parsed-rpc-traits';
 
 const ROOT_DIR = path.join(__dirname, '../docs');
 
@@ -28,20 +29,13 @@ if (!fs.existsSync(ROOT_DIR)) {
   fs.mkdirSync(ROOT_DIR);
 }
 
-// INFO Logging helper
-function info (log) {
-  console.log(chalk.blue(`INFO:\t${log}`));
-}
-
-// WARN Logging helper
-function warn (log) {
-  console.warn(chalk.yellow(`WARN:\t${log}`));
-}
-
-// ERROR Logging helper
-function error (log) {
-  console.error(chalk.red(`ERROR:\t${log}`));
-}
+Object.keys(rustMethods).forEach((group) => {
+  Object.keys(rustMethods[group]).forEach((method) => {
+    if (interfaces[group] == null || interfaces[group][method] == null) {
+      error(`${group}_${method} is defined in Rust traits, but not in js/src/jsonrpc/interfaces`);
+    }
+  });
+});
 
 function printType (type) {
   return type.print || `\`${type.name}\``;
@@ -291,12 +285,17 @@ Object.keys(interfaces).sort().forEach((group) => {
 
   Object.keys(spec).sort(methodComparator).forEach((iname) => {
     const method = spec[iname];
-    const name = `${group.replace(/_.*$/, '')}_${iname}`;
+    const groupName = group.replace(/_.*$/, '');
+    const name = `${groupName}_${iname}`;
 
     if (method.nodoc || method.deprecated) {
       info(`Skipping ${name}: ${method.nodoc || 'Deprecated'}`);
 
       return;
+    }
+
+    if (rustMethods[groupName] == null || rustMethods[groupName][iname] == null) {
+      error(`${name} is defined in js/src/jsonrpc/interfaces, but not in Rust traits`);
     }
 
     const desc = method.desc;

@@ -14,9 +14,10 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import { CircularProgress } from 'material-ui';
+import moment from 'moment';
 import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
-import CircularProgress from 'material-ui/CircularProgress';
 
 import { TypedInput, InputAddress } from '../Form';
 import MethodDecodingStore from './methodDecodingStore';
@@ -128,15 +129,25 @@ class MethodDecoding extends Component {
 
   renderMinBlock () {
     const { historic, transaction } = this.props;
-    const { minBlock } = transaction;
+    const { condition } = transaction;
 
-    if (!minBlock || minBlock.eq(0)) {
+    if (!condition) {
       return null;
     }
 
-    return (
-      <span>, { historic ? 'Submitted' : 'Submission' } at block <span className={ styles.highlight }>#{ minBlock.toFormat(0) }</span></span>
-    );
+    if (condition.block && condition.block.gt(0)) {
+      return (
+        <span>, { historic ? 'Submitted' : 'Submission' } at block <span className={ styles.highlight }>#{ condition.block.toFormat(0) }</span></span>
+      );
+    }
+
+    if (condition.time) {
+      return (
+        <span>, { historic ? 'Submitted' : 'Submission' } at <span className={ styles.highlight }>{ moment(condition.time).format('LLLL') }</span></span>
+      );
+    }
+
+    return null;
   }
 
   renderAction () {

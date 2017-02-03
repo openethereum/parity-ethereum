@@ -82,6 +82,7 @@ export const ownerLookup = (name) => (dispatch, getState) => {
     return;
   }
 
+  name = name.toLowerCase();
   dispatch(ownerLookupStart(name));
 
   return getOwner(contract, name)

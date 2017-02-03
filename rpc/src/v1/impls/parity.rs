@@ -130,7 +130,7 @@ impl<C, M, S: ?Sized, U> Parity for ParityClient<C, M, S, U> where
 			.into_iter().collect::<HashSet<_>>();
 
 		let info = store.accounts_info().map_err(|e| errors::account("Could not fetch account info.", e))?;
-		let other = store.addresses_info().expect("addresses_info always returns Ok; qed");
+		let other = store.addresses_info();
 
 		Ok(info
 			.into_iter()
