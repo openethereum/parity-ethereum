@@ -27,6 +27,7 @@ use light::on_demand::{request, OnDemand};
 use light::net::LightProtocol;
 
 use ethcore::account_provider::{AccountProvider, DappId};
+use ethcore::basic_account::BasicAccount;
 use ethcore::encoded;
 use ethcore::ids::BlockId;
 use ethsync::LightSync;
@@ -43,6 +44,8 @@ use v1::types::{
 	H64 as RpcH64, H256 as RpcH256, H160 as RpcH160, U256 as RpcU256,
 };
 use v1::metadata::Metadata;
+
+use util::Address;
 
 /// Light client `ETH` RPC.
 pub struct EthClient {
@@ -106,6 +109,20 @@ impl EthClient {
 			None => future::err(err_no_context()).boxed()
 		}
 	}
+
+	// helper for getting account info.
+	fn account(&self, address: Address, id: BlockId) -> BoxFuture<BasicAccount, Error> {
+		let (sync, on_demand) = (self.sync.clone(), self.on_demand.clone());
+
+		self.header(id).and_then(move |header| {
+			sync.with_context(|ctx| on_demand.account(ctx, request::Account {
+				header: header,
+				address: address,
+			}))
+				.map(|x| x.map_err(errors::from_on_demand_error).boxed())
+				.unwrap_or_else(|| future::err(err_no_context()).boxed())
+		}).boxed()
+	}
 }
 
 impl Eth for EthClient {
@@ -152,19 +169,7 @@ impl Eth for EthClient {
 	}
 
 	fn balance(&self, address: RpcH160, num: Trailing<BlockNumber>) -> BoxFuture<RpcU256, Error> {
-		let address = address.into();
-
-		let sync = self.sync.clone();
-		let on_demand = self.on_demand.clone();
-
-		self.header(num.0.into()).and_then(move |header| {
-			sync.with_context(|ctx| on_demand.account(ctx, request::Account {
-				header: header,
-				address: address,
-			}))
-				.map(|x| x.map_err(errors::from_on_demand_error).boxed())
-				.unwrap_or_else(|| future::err(err_no_context()).boxed())
-		}).map(|acc| acc.balance.into()).boxed()
+		self.account(address.into(), num.0.into()).map(|acc| acc.balance.into()).boxed()
 	}
 
 	fn storage_at(&self, address: RpcH160, key: RpcU256, num: Trailing<BlockNumber>) -> BoxFuture<RpcH256, Error> {
@@ -180,7 +185,7 @@ impl Eth for EthClient {
 	}
 
 	fn transaction_count(&self, address: RpcH160, num: Trailing<BlockNumber>) -> BoxFuture<RpcU256, Error> {
-		future::err(errors::unimplemented(None)).boxed()
+		self.account(address.into(), num.0.into()).map(|acc| acc.nonce.into()).boxed()
 	}
 
 	fn block_transaction_count_by_hash(&self, hash: RpcH256) -> BoxFuture<Option<RpcU256>, Error> {
