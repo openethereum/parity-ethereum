@@ -16,6 +16,9 @@
 
 import { Address, Data, Hash, Quantity } from '../types';
 
+// DUMMY for beta
+const SECTION_ACCOUNTS = null;
+
 export default {
   acceptNonReservedPeers: {
     desc: '?',
