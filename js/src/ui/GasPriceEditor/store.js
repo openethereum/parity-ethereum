@@ -27,6 +27,7 @@ const CONDITIONS = {
 };
 
 export default class GasPriceEditor {
+  @observable blockNumber = 0;
   @observable condition = {};
   @observable conditionBlockError = null;
   @observable conditionType = CONDITIONS.NONE;
@@ -62,9 +63,6 @@ export default class GasPriceEditor {
 
     if (api) {
       this.loadDefaults();
-      api.eth.blockNumber().then((blockNumber) => {
-        this.blockNumber = blockNumber.toNumber();
-      });
     }
   }
 
@@ -185,9 +183,10 @@ export default class GasPriceEditor {
           bucket_bounds: [],
           counts: []
         })),
-        this._api.eth.gasPrice()
+        this._api.eth.gasPrice(),
+        this._api.eth.blockNumber()
       ])
-      .then(([histogram, _price]) => {
+      .then(([histogram, _price, blockNumber]) => {
         transaction(() => {
           const price = _price.toFixed(0);
 
@@ -197,6 +196,7 @@ export default class GasPriceEditor {
           this.setHistogram(histogram);
 
           this.priceDefault = price;
+          this.blockNumber = blockNumber.toNumber();
         });
       })
       .catch((error) => {

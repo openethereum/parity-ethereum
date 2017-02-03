@@ -32,17 +32,29 @@ const HISTOGRAM = {
   counts: [3, 4]
 };
 
-const api = {
-  eth: {
-    gasPrice: sinon.stub().resolves(GASPRICE)
-  },
-  parity: {
-    gasPriceHistogram: sinon.stub().resolves(HISTOGRAM)
-  }
-};
+let api;
 
-describe('ui/GasPriceEditor/store', () => {
+// TODO: share with gasPriceEditor.spec.js
+function createApi () {
+  api = {
+    eth: {
+      blockNumber: sinon.stub().resolves(new BigNumber(2)),
+      gasPrice: sinon.stub().resolves(GASPRICE)
+    },
+    parity: {
+      gasPriceHistogram: sinon.stub().resolves(HISTOGRAM)
+    }
+  };
+
+  return api;
+}
+
+describe('ui/GasPriceEditor/Store', () => {
   let store = null;
+
+  beforeEach(() => {
+    createApi();
+  });
 
   it('is available via GasPriceEditor.Store', () => {
     expect(new Store(null, {})).to.be.ok;
@@ -66,6 +78,7 @@ describe('ui/GasPriceEditor/store', () => {
   describe('constructor (defaults) when histogram not available', () => {
     const api = {
       eth: {
+        blockNumber: sinon.stub().resolves(new BigNumber(2)),
         gasPrice: sinon.stub().resolves(GASPRICE)
       },
       parity: {
@@ -108,7 +121,7 @@ describe('ui/GasPriceEditor/store', () => {
 
       it('sets condition.block when type === CONDITIONS.BLOCK', () => {
         store.setConditionType(CONDITIONS.BLOCK);
-        expect(store.condition).to.deep.equal({ block: 1 });
+        expect(store.condition.block).to.be.ok;
       });
 
       it('clears condition when type === CONDITIONS.NONE', () => {
