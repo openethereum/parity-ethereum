@@ -19,7 +19,7 @@
 use std::{fs, fmt, hash, ops};
 use std::sync::atomic::{self, AtomicUsize};
 use std::collections::HashMap;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use ethstore::ethkey::Address;
 use ethjson::misc::{
@@ -37,9 +37,9 @@ pub struct AddressBook {
 
 impl AddressBook {
 	/// Creates new address book at given directory.
-	pub fn new(path: String) -> Self {
+	pub fn new(path: &Path) -> Self {
 		let mut r = AddressBook {
-			cache: DiskMap::new(path, "address_book.json".into())
+			cache: DiskMap::new(path, "address_book.json")
 		};
 		r.cache.revert(AccountMeta::read);
 		r
@@ -200,11 +200,11 @@ pub struct DappsSettingsStore {
 
 impl DappsSettingsStore {
 	/// Creates new store at given directory path.
-	pub fn new(path: String) -> Self {
+	pub fn new(path: &Path) -> Self {
 		let mut r = DappsSettingsStore {
-			settings: DiskMap::new(path.clone(), "dapps_accounts.json".into()),
-			policy: DiskMap::new(path.clone(), "dapps_policy.json".into()),
-			history: DiskMap::new(path.clone(), "dapps_history.json".into()),
+			settings: DiskMap::new(path, "dapps_accounts.json".into()),
+			policy: DiskMap::new(path, "dapps_policy.json".into()),
+			history: DiskMap::new(path, "dapps_history.json".into()),
 			time: TimeProvider::Clock,
 		};
 		r.settings.revert(JsonSettings::read);
@@ -297,9 +297,8 @@ impl<K: hash::Hash + Eq, V> ops::DerefMut for DiskMap<K, V> {
 }
 
 impl<K: hash::Hash + Eq, V> DiskMap<K, V> {
-	pub fn new(path: String, file_name: String) -> Self {
-		trace!(target: "diskmap", "new({})", path);
-		let mut path: PathBuf = path.into();
+	pub fn new(path: &Path, file_name: &str) -> Self {
+		let mut path = path.to_owned();
 		path.push(file_name);
 		trace!(target: "diskmap", "path={:?}", path);
 		DiskMap {
@@ -310,7 +309,7 @@ impl<K: hash::Hash + Eq, V> DiskMap<K, V> {
 	}
 
 	pub fn transient() -> Self {
-		let mut map = DiskMap::new(Default::default(), "diskmap.json".into());
+		let mut map = DiskMap::new(&PathBuf::new(), "diskmap.json".into());
 		map.transient = true;
 		map
 	}
@@ -354,27 +353,25 @@ mod tests {
 
 	#[test]
 	fn should_save_and_reload_address_book() {
-		let temp = RandomTempPath::create_dir();
-		let path = temp.as_str().to_owned();
-		let mut b = AddressBook::new(path.clone());
+		let path = RandomTempPath::create_dir();
+		let mut b = AddressBook::new(&path);
 		b.set_name(1.into(), "One".to_owned());
 		b.set_meta(1.into(), "{1:1}".to_owned());
-		let b = AddressBook::new(path);
+		let b = AddressBook::new(&path);
 		assert_eq!(b.get(), hash_map![1.into() => AccountMeta{name: "One".to_owned(), meta: "{1:1}".to_owned(), uuid: None}]);
 	}
 
 	#[test]
 	fn should_remove_address() {
-		let temp = RandomTempPath::create_dir();
-		let path = temp.as_str().to_owned();
-		let mut b = AddressBook::new(path.clone());
+		let path = RandomTempPath::create_dir();
+		let mut b = AddressBook::new(&path);
 
 		b.set_name(1.into(), "One".to_owned());
 		b.set_name(2.into(), "Two".to_owned());
 		b.set_name(3.into(), "Three".to_owned());
 		b.remove(2.into());
 
-		let b = AddressBook::new(path);
+		let b = AddressBook::new(&path);
 		assert_eq!(b.get(), hash_map![
 			1.into() => AccountMeta{name: "One".to_owned(), meta: "{}".to_owned(), uuid: None},
 			3.into() => AccountMeta{name: "Three".to_owned(), meta: "{}".to_owned(), uuid: None}
@@ -384,15 +381,14 @@ mod tests {
 	#[test]
 	fn should_save_and_reload_dapps_settings() {
 		// given
-		let temp = RandomTempPath::create_dir();
-		let path = temp.as_str().to_owned();
-		let mut b = DappsSettingsStore::new(path.clone());
+		let path = RandomTempPath::create_dir();
+		let mut b = DappsSettingsStore::new(&path);
 
 		// when
 		b.set_accounts("dappOne".into(), vec![1.into(), 2.into()]);
 
 		// then
-		let b = DappsSettingsStore::new(path);
+		let b = DappsSettingsStore::new(&path);
 		assert_eq!(b.settings(), hash_map![
 			"dappOne".into() => DappsSettings {
 				accounts: vec![1.into(), 2.into()],
@@ -422,9 +418,8 @@ mod tests {
 	#[test]
 	fn should_store_dapps_policy() {
 		// given
-		let temp = RandomTempPath::create_dir();
-		let path = temp.as_str().to_owned();
-		let mut store = DappsSettingsStore::new(path.clone());
+		let path = RandomTempPath::create_dir();
+		let mut store = DappsSettingsStore::new(&path);
 
 		// Test default policy
 		assert_eq!(store.policy(), NewDappsPolicy::AllAccounts);
@@ -433,7 +428,7 @@ mod tests {
 		store.set_policy(NewDappsPolicy::Whitelist(vec![1.into(), 2.into()]));
 
 		// then
-		let store = DappsSettingsStore::new(path);
+		let store = DappsSettingsStore::new(&path);
 		assert_eq!(store.policy.clone(), hash_map![
 			"default".into() => NewDappsPolicy::Whitelist(vec![1.into(), 2.into()])
 		]);

@@ -120,10 +120,11 @@ fn should_be_able_to_set_meta() {
 fn rpc_parity_set_and_get_dapps_accounts() {
 	// given
 	let tester = setup();
+	tester.accounts.set_address_name(10.into(), "10".into());
 	assert_eq!(tester.accounts.dapps_addresses("app1".into()).unwrap(), vec![]);
 
 	// when
-	let request = r#"{"jsonrpc": "2.0", "method": "parity_setDappsAddresses","params":["app1",["0x000000000000000000000000000000000000000a"]], "id": 1}"#;
+	let request = r#"{"jsonrpc": "2.0", "method": "parity_setDappsAddresses","params":["app1",["0x000000000000000000000000000000000000000a","0x0000000000000000000000000000000000000001"]], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":true,"id":1}"#;
 	assert_eq!(tester.io.handle_request_sync(request), Some(response.to_owned()));
 

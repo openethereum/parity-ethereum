@@ -25,7 +25,7 @@ build_rpc_trait! {
 	pub trait ParityAccounts {
 		/// Returns accounts information.
 		#[rpc(name = "parity_allAccountsInfo")]
-		fn all_accounts_info(&self) -> Result<BTreeMap<String, BTreeMap<String, String>>, Error>;
+		fn all_accounts_info(&self) -> Result<BTreeMap<H160, BTreeMap<String, String>>, Error>;
 
 		/// Creates new account from the given phrase using standard brainwallet mechanism.
 		/// Second parameter is password for the new account.
