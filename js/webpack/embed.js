@@ -19,36 +19,7 @@ const WebpackStats = require('webpack/lib/Stats');
 const path = require('path');
 const fs = require('fs');
 
-const HtmlWebpackPlugin = require('html-webpack-plugin');
-const CopyWebpackPlugin = require('copy-webpack-plugin');
-
-const config = require('./app');
-
-const FAVICON = path.resolve(__dirname, '../assets/images/parity-logo-black-no-text.png');
-
-const ENV = process.env.NODE_ENV || 'development';
-const isProd = ENV === 'production';
-
-// Replace the entries by the embed JS entry
-const WebpackConfig = Object.assign({}, config, {
-  entry: {
-    embed: './embed.js'
-  }
-});
-
-WebpackConfig.plugins = WebpackConfig.plugins
-  .concat(
-    new HtmlWebpackPlugin({
-      title: 'Parity Bar',
-      filename: 'embed.html',
-      template: './index.ejs',
-      favicon: FAVICON,
-      chunks: [
-        isProd ? null : 'commons',
-        'embed'
-      ]
-    })
-  );
+const WebpackConfig = require('./app');
 
 const compiler = webpack(WebpackConfig);
 

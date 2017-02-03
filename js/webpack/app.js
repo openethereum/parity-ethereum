@@ -37,14 +37,20 @@ const EMBED = process.env.EMBED;
 const isProd = ENV === 'production';
 const isEmbed = EMBED === '1' || EMBED === 'true';
 
+const entry = isEmbed
+  ? {
+    embed: './embed.js'
+  }
+  : Object.assign({}, Shared.dappsEntry, {
+    index: './index.js'
+  });
+
 module.exports = {
   cache: !isProd,
   devtool: isProd ? '#hidden-source-map' : '#source-map',
 
   context: path.join(__dirname, '../src'),
-  entry: Object.assign({}, Shared.dappsEntry, {
-    index: './index.js'
-  }),
+  entry: entry,
   output: {
     // publicPath: '/',
     path: path.join(__dirname, '../', DEST),
@@ -194,6 +200,21 @@ module.exports = {
           { from: './error_pages.css', to: 'styles.css' },
           { from: 'dapps/static' }
         ], {})
+      );
+    }
+
+    if (isEmbed) {
+      plugins.push(
+        new HtmlWebpackPlugin({
+          title: 'Parity Bar',
+          filename: 'embed.html',
+          template: './index.ejs',
+          favicon: FAVICON,
+          chunks: [
+            isProd ? null : 'commons',
+            'embed'
+          ]
+        })
       );
     }
 
