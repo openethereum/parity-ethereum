@@ -1,6 +1,6 @@
 [root]
 name = "parity"
-version = "1.5.0"
+version = "1.5.1"
 dependencies = [
  "ansi_term 0.7.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "app_dirs 1.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -23,7 +23,7 @@ dependencies = [
  "ethcore-rpc 1.5.0",
  "ethcore-signer 1.5.0",
  "ethcore-stratum 1.5.0",
- "ethcore-util 1.5.0",
+ "ethcore-util 1.5.1",
  "ethsync 1.5.0",
  "fdlimit 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "hyper 0.9.14 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -362,7 +362,7 @@ dependencies = [
  "ethcore-ipc 1.5.0",
  "ethcore-ipc-codegen 1.5.0",
  "ethcore-ipc-nano 1.5.0",
- "ethcore-util 1.5.0",
+ "ethcore-util 1.5.1",
  "ethjson 0.1.0",
  "ethkey 0.2.0",
  "ethstore 0.1.0",
@@ -410,7 +410,7 @@ dependencies = [
  "env_logger 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethcore-devtools 1.5.0",
  "ethcore-rpc 1.5.0",
- "ethcore-util 1.5.0",
+ "ethcore-util 1.5.1",
  "fetch 0.1.0",
  "futures 0.1.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "hyper 0.10.0-a.0 (git+https://github.com/ethcore/hyper)",
@@ -458,7 +458,7 @@ name = "ethcore-ipc"
 version = "1.5.0"
 dependencies = [
  "ethcore-devtools 1.5.0",
- "ethcore-util 1.5.0",
+ "ethcore-util 1.5.1",
  "nanomsg 0.5.1 (git+https://github.com/ethcore/nanomsg.rs.git)",
  "semver 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -505,7 +505,7 @@ dependencies = [
  "ethcore-ipc 1.5.0",
  "ethcore-ipc-codegen 1.5.0",
  "ethcore-ipc-nano 1.5.0",
- "ethcore-util 1.5.0",
+ "ethcore-util 1.5.1",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "nanomsg 0.5.1 (git+https://github.com/ethcore/nanomsg.rs.git)",
  "semver 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -520,7 +520,7 @@ dependencies = [
  "ethcore-ipc 1.5.0",
  "ethcore-ipc-codegen 1.5.0",
  "ethcore-network 1.5.0",
- "ethcore-util 1.5.0",
+ "ethcore-util 1.5.1",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "rlp 0.1.0",
  "smallvec 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -532,7 +532,7 @@ name = "ethcore-logger"
 version = "1.5.0"
 dependencies = [
  "env_logger 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)",
- "ethcore-util 1.5.0",
+ "ethcore-util 1.5.1",
  "isatty 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "lazy_static 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -548,7 +548,7 @@ dependencies = [
  "bytes 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethcore-devtools 1.5.0",
  "ethcore-io 1.5.0",
- "ethcore-util 1.5.0",
+ "ethcore-util 1.5.1",
  "ethcrypto 0.1.0",
  "ethkey 0.2.0",
  "igd 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -575,7 +575,7 @@ dependencies = [
  "ethcore-devtools 1.5.0",
  "ethcore-io 1.5.0",
  "ethcore-ipc 1.5.0",
- "ethcore-util 1.5.0",
+ "ethcore-util 1.5.1",
  "ethcrypto 0.1.0",
  "ethjson 0.1.0",
  "ethkey 0.2.0",
@@ -610,7 +610,7 @@ dependencies = [
  "ethcore-devtools 1.5.0",
  "ethcore-io 1.5.0",
  "ethcore-rpc 1.5.0",
- "ethcore-util 1.5.0",
+ "ethcore-util 1.5.1",
  "jsonrpc-core 4.0.0 (git+https://github.com/ethcore/jsonrpc.git?branch=mio-old)",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "parity-dapps-glue 1.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -629,7 +629,7 @@ dependencies = [
  "ethcore-ipc 1.5.0",
  "ethcore-ipc-codegen 1.5.0",
  "ethcore-ipc-nano 1.5.0",
- "ethcore-util 1.5.0",
+ "ethcore-util 1.5.1",
  "jsonrpc-core 4.0.0 (git+https://github.com/ethcore/jsonrpc.git?branch=mio-old)",
  "jsonrpc-tcp-server 0.1.0 (git+https://github.com/ethcore/jsonrpc.git?branch=mio-old)",
  "lazy_static 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -640,7 +640,7 @@ dependencies = [
 
 [[package]]
 name = "ethcore-util"
-version = "1.5.0"
+version = "1.5.1"
 dependencies = [
  "ansi_term 0.7.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "arrayvec 0.3.16 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -689,7 +689,7 @@ dependencies = [
 name = "ethjson"
 version = "0.1.0"
 dependencies = [
- "ethcore-util 1.5.0",
+ "ethcore-util 1.5.1",
  "rustc-serialize 0.3.19 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde 0.8.19 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_codegen 0.8.4 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -745,7 +745,7 @@ dependencies = [
  "ethcore-ipc-nano 1.5.0",
  "ethcore-light 1.5.0",
  "ethcore-network 1.5.0",
- "ethcore-util 1.5.0",
+ "ethcore-util 1.5.1",
  "ethkey 0.2.0",
  "heapsize 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -924,7 +924,7 @@ version = "1.5.0"
 dependencies = [
  "ethcore-ipc 1.5.0",
  "ethcore-ipc-codegen 1.5.0",
- "ethcore-util 1.5.0",
+ "ethcore-util 1.5.1",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "semver 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -1444,7 +1444,7 @@ name = "parity-hash-fetch"
 version = "1.5.0"
 dependencies = [
  "ethabi 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "ethcore-util 1.5.0",
+ "ethcore-util 1.5.1",
  "fetch 0.1.0",
  "futures 0.1.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1469,7 +1469,7 @@ version = "1.4.0"
 dependencies = [
  "ethcore-rpc 1.5.0",
  "ethcore-signer 1.5.0",
- "ethcore-util 1.5.0",
+ "ethcore-util 1.5.1",
  "futures 0.1.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "jsonrpc-core 4.0.0 (git+https://github.com/ethcore/jsonrpc.git?branch=mio-old)",
  "lazy_static 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1515,7 +1515,7 @@ dependencies = [
  "ethcore 1.5.0",
  "ethcore-ipc 1.5.0",
  "ethcore-ipc-codegen 1.5.0",
- "ethcore-util 1.5.0",
+ "ethcore-util 1.5.1",
  "ethsync 1.5.0",
  "ipc-common-types 1.5.0",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1795,7 +1795,7 @@ version = "1.4.0"
 dependencies = [
  "ethcore-bigint 0.1.2",
  "ethcore-rpc 1.5.0",
- "ethcore-util 1.5.0",
+ "ethcore-util 1.5.1",
  "futures 0.1.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "parity-rpc-client 1.4.0",
  "rpassword 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
