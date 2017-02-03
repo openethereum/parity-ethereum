@@ -37,59 +37,6 @@ export default class AddDapps extends Component {
     }
 
     return (
-<<<<<<< HEAD
-      <Modal
-        actions={ [
-          <Button
-            icon={ <DoneIcon /> }
-            key='done'
-            label={
-              <FormattedMessage
-                id='dapps.add.button.done'
-                defaultMessage='Done' />
-            }
-            onClick={ store.closeModal } />
-        ] }
-        compact
-        title={
-          <FormattedMessage
-            id='dapps.add.label'
-            defaultMessage='visible applications' />
-        }
-        visible>
-        <div className={ styles.warning } />
-        {
-          this.renderList(store.sortedLocal,
-            <FormattedMessage
-              id='dapps.add.local.label'
-              defaultMessage='Applications locally available' />,
-            <FormattedMessage
-              id='dapps.add.local.desc'
-              defaultMessage='All applications installed locally on the machine by the user for access by the Parity client.' />
-          )
-        }
-        {
-          this.renderList(store.sortedBuiltin,
-            <FormattedMessage
-              id='dapps.add.builtin.label'
-              defaultMessage='Applications bundled with Parity' />,
-            <FormattedMessage
-              id='dapps.add.builtin.desc'
-              defaultMessage='Experimental applications developed by the Parity team to show off dapp capabilities, integration, experimental features and to control certain network-wide client behaviour.' />
-          )
-        }
-        {
-          this.renderList(store.sortedNetwork,
-            <FormattedMessage
-              id='dapps.add.network.label'
-              defaultMessage='Applications on the global network' />,
-            <FormattedMessage
-              id='dapps.add.network.desc'
-              defaultMessage='These applications are not affiliated with Parity nor are they published by Parity. Each remain under the control of their respective authors. Please ensure that you understand the goals for each application before interacting.' />
-          )
-        }
-      </Modal>
-=======
       <Portal
         className={ styles.modal }
         onClose={ store.closeModal }
@@ -143,7 +90,6 @@ export default class AddDapps extends Component {
           }
         </div>
       </Portal>
->>>>>>> 535ebb1... Available Dapp selection alignment with Permissions (Portal) (#4374)
     );
   }
 
