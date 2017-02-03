@@ -145,7 +145,7 @@ export default class GasPriceEditor extends Component {
   }
 
   renderConditions () {
-    const { conditionType, condition } = this.props.store;
+    const { conditionType, condition, conditionBlockError } = this.props.store;
 
     if (conditionType === CONDITIONS.NONE) {
       return null;
@@ -156,6 +156,7 @@ export default class GasPriceEditor extends Component {
         <div className={ styles.conditionContainer }>
           <div className={ styles.input }>
             <Input
+              error={ conditionBlockError }
               hint={
                 <FormattedMessage
                   id='txEditor.condition.block.hint'
@@ -168,6 +169,7 @@ export default class GasPriceEditor extends Component {
                   defaultMessage='Transaction send block'
                 />
               }
+              onChange={ this.onChangeConditionBlock }
               value={ condition.block }
             />
           </div>
@@ -235,13 +237,15 @@ export default class GasPriceEditor extends Component {
     this.props.store.setConditionType(conditionType.key);
   }
 
+  onChangeConditionBlock = (event, blockNumber) => {
+    this.props.store.setConditionBlockNumber(blockNumber);
+  }
+
   onChangeConditionDate = (event, timestamp) => {
-    console.log('changeDate', timestamp);
     this.props.store.setConditionTime(timestamp);
   }
 
   onChangeConditionTime = (event, timestamp) => {
-    console.log('changeTime', timestamp);
     this.props.store.setConditionTime(timestamp);
   }
 }

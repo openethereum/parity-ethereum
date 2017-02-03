@@ -27,7 +27,8 @@ const CONDITIONS = {
 };
 
 export default class GasPriceEditor {
-  @observable condition = null;
+  @observable condition = {};
+  @observable conditionBlockError = null;
   @observable conditionType = CONDITIONS.NONE;
   @observable errorEstimated = null;
   @observable errorGas = null;
@@ -50,13 +51,14 @@ export default class GasPriceEditor {
     this.price = gasPrice;
 
     if (condition && condition.block) {
-      this.condition = condition;
+      this.condition = { block: condition.block.toFixed(0) };
       this.conditionType = CONDITIONS.BLOCK;
-    } else if (condition && condition.timestamp) {
-      this.condition = condition;
+    } else if (condition && condition.time) {
+      this.condition = { timestamp: condition.time };
       this.conditionType = CONDITIONS.TIME;
     } else {
-      this.condition = CONDITIONS.NONE;
+      this.condition = {};
+      this.conditionType = CONDITIONS.NONE;
     }
 
     if (api) {
@@ -74,15 +76,16 @@ export default class GasPriceEditor {
 
   @action setConditionType = (conditionType = CONDITIONS.NONE) => {
     transaction(() => {
+      this.conditionBlockError = null;
       this.conditionType = conditionType;
 
       switch (conditionType) {
         case CONDITIONS.BLOCK:
-          this.condition = { block: 0 };
+          this.condition = Object.assign({}, this.condition, { block: 0 });
           break;
 
         case CONDITIONS.TIME:
-          this.condition = { timestamp: new Date() };
+          this.condition = Object.assign({}, this.condition, { timestamp: new Date() });
           break;
 
         case CONDITIONS.NONE:
@@ -94,11 +97,14 @@ export default class GasPriceEditor {
   }
 
   @action setConditionBlockNumber = (block) => {
-    this.condition = { block };
+    transaction(() => {
+      this.conditionBlockError = validatePositiveNumber(block).valueError;
+      this.condition = Object.assign({}, this.condition, { block });
+    });
   }
 
   @action setConditionTime = (timestamp) => {
-    this.condition = { timestamp };
+    this.condition = Object.assign({}, this.condition, { timestamp });
   }
 
   @action setEditing = (isEditing) => {
@@ -197,16 +203,34 @@ export default class GasPriceEditor {
   }
 
   overrideTransaction = (transaction) => {
-    if (this.errorGas || this.errorPrice) {
+    if (this.errorGas || this.errorPrice || this.conditionBlockError) {
       return transaction;
     }
 
     const override = {
+      condition: this.condition,
       gas: new BigNumber(this.gas || DEFAULT_GAS),
       gasPrice: new BigNumber(this.price || DEFAULT_GASPRICE)
     };
 
-    return Object.assign({}, transaction, override);
+    const result = Object.assign({}, transaction, override);
+
+    switch (this.conditionType) {
+      case CONDITIONS.BLOCK:
+        result.condition = { block: new BigNumber(this.condition.block || 0) };
+        break;
+
+      case CONDITIONS.TIME:
+        result.condition = { time: this.condition.timestamp };
+        break;
+
+      case CONDITIONS.NONE:
+      default:
+        delete result.condition;
+        break;
+    }
+
+    return result;
   }
 }
 
