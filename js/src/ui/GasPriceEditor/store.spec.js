@@ -62,6 +62,31 @@ describe('ui/GasPriceEditor/store', () => {
     });
   });
 
+  describe('constructor (defaults) when histogram not available', () => {
+    const api = {
+      eth: {
+        gasPrice: sinon.stub().resolves(GASPRICE)
+      },
+      parity: {
+        gasPriceHistogram: sinon.stub().rejects('Data not available')
+      }
+    };
+
+    beforeEach(() => {
+      store = new Store(api, { gasLimit: GASLIMIT });
+    });
+
+    it('retrieves the histogram and gasPrice', done => {
+      expect(api.eth.gasPrice).to.have.been.called;
+      expect(api.parity.gasPriceHistogram).to.have.been.called;
+
+      setImmediate(() => {
+        expect(store.histogram).not.to.be.null;
+        done();
+      });
+    });
+  });
+
   describe('setters', () => {
     beforeEach(() => {
       store = new Store(null, { gasLimit: GASLIMIT });

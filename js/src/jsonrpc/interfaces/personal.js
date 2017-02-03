@@ -40,8 +40,8 @@ export default {
     }
   },
 
-  signAndSendTransaction: {
-    desc: 'Sends and signs a transaction given account passphrase. Does not require the account to be unlocked nor unlocks the account for future transactions. ',
+  sendTransaction: {
+    desc: 'Sends transaction and signs it in a single call. The account does not need to be unlocked to make this call, and will not be left unlocked after.',
     params: [
       {
         type: Object,

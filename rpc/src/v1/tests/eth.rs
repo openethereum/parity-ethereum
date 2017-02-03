@@ -66,6 +66,7 @@ fn miner_service(spec: &Spec, accounts: Arc<AccountProvider>) -> Arc<Miner> {
 			reseal_min_period: Duration::from_secs(0),
 			work_queue_size: 50,
 			enable_resubmission: true,
+			refuse_service_transactions: false,
 		},
 		GasPricer::new_fixed(20_000_000_000u64.into()),
 		&spec,
