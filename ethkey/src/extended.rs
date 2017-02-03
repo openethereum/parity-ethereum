@@ -131,6 +131,14 @@ impl ExtendedKeyPair {
 		}
 	}
 
+	pub fn with_seed(seed: &[u8]) -> Result<ExtendedKeyPair, DerivationError> {
+		let (master_key, chain_code) = derivation::seed_pair(seed);
+		Ok(ExtendedKeyPair::with_secret(
+			Secret::from_slice(&*master_key).map_err(|_| DerivationError::InvalidSeed)?,
+			chain_code,
+		))
+	}
+
 	pub fn secret(&self) -> &ExtendedSecret {
 		&self.secret
 	}
@@ -170,6 +178,7 @@ mod derivation {
 		InvalidHardenedUse,
 		InvalidPoint,
 		MissingIndex,
+		InvalidSeed,
 	}
 
 	// Deterministic derivation of the key using secp256k1 elliptic curve.
@@ -317,20 +326,8 @@ mod derivation {
 		let serialized = public_sec.serialize_vec(&SECP256K1, false);
 		Ok(H512::from(&serialized[1..65]))
 	}
-}
 
-#[cfg(test)]
-mod tests {
-	use super::{ExtendedSecret, ExtendedPublic, ExtendedKeyPair};
-	use secret::Secret;
-	use std::str::FromStr;
-	use bigint::hash::{H128, H256, FixedHash};
-
-	fn seed_to_pair(seed: &[u8]) -> (H256, H256) {
-		use rcrypto::hmac::Hmac;
-		use rcrypto::mac::Mac;
-		use rcrypto::sha2::Sha512;
-
+	pub fn seed_pair(seed: &[u8]) -> (H256, H256) {
 		let mut hmac = Hmac::new(Sha512::new(), b"Bitcoin seed");
 		let mut i_512 = [0u8; 64];
 		hmac.input(seed);
@@ -341,13 +338,22 @@ mod tests {
 
 		(master_key, chain_code)
 	}
+}
+
+#[cfg(test)]
+mod tests {
+	use super::{ExtendedSecret, ExtendedPublic, ExtendedKeyPair};
+	use secret::Secret;
+	use std::str::FromStr;
+	use bigint::hash::{H128, H256};
+	use super::derivation;
 
 	fn master_chain_basic() -> (H256, H256) {
 		let seed = H128::from_str("000102030405060708090a0b0c0d0e0f")
 			.expect("Seed should be valid H128")
 			.to_vec();
 
-		seed_to_pair(&*seed)
+		derivation::seed_pair(&*seed)
 	}
 
 	fn test_extended<F>(f: F, test_private: H256) where F: Fn(ExtendedSecret) -> ExtendedSecret {
@@ -408,7 +414,7 @@ mod tests {
 		let test_private = H256::from_str("e8f32e723decf4051aefac8e2c93c9c5b214313817cdb01a1494b917c8436b35")
 			.expect("Private should be decoded ok");
 
-		let (private_seed, _) = seed_to_pair(&*seed);
+		let (private_seed, _) = derivation::seed_pair(&*seed);
 
 		assert_eq!(private_seed, test_private);
 	}
