@@ -15,6 +15,9 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+$overlayZ: 10000;
+$modalZ: 10001;
+
 .account {
   display: flex;
   flex: 1;
@@ -61,7 +64,7 @@
   bottom: 0;
   left: 0;
   background: rgba(255, 255, 255, 0.5);
-  z-index: 10000;
+  z-index: $overlayZ;
   user-select: none;
 }
 
@@ -70,7 +73,7 @@
   position: fixed;
   font-size: 16px;
   font-family: 'Roboto', sans-serif;
-  z-index: 10001;
+  z-index: $modalZ;
   user-select: none;
 }
 
@@ -109,7 +112,8 @@
   border-radius: 4px 4px 0 0;
   display: flex;
   flex-direction: column;
-  max-height: 50vh;
+  min-height: 30vh;
+  max-height: 80vh;
   max-width: calc(100vw - 1em);
 
   .content {

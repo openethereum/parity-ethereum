@@ -21,6 +21,7 @@ import { DEFAULT_GAS, DEFAULT_GASPRICE, MAX_GAS_ESTIMATION } from '~/util/consta
 import { ERRORS } from '~/util/validation';
 
 import GasPriceEditor from './gasPriceEditor';
+import { CONDITIONS } from './store';
 
 const { Store } = GasPriceEditor;
 
@@ -31,17 +32,29 @@ const HISTOGRAM = {
   counts: [3, 4]
 };
 
-const api = {
-  eth: {
-    gasPrice: sinon.stub().resolves(GASPRICE)
-  },
-  parity: {
-    gasPriceHistogram: sinon.stub().resolves(HISTOGRAM)
-  }
-};
+let api;
 
-describe('ui/GasPriceEditor/store', () => {
+// TODO: share with gasPriceEditor.spec.js
+function createApi () {
+  api = {
+    eth: {
+      blockNumber: sinon.stub().resolves(new BigNumber(2)),
+      gasPrice: sinon.stub().resolves(GASPRICE)
+    },
+    parity: {
+      gasPriceHistogram: sinon.stub().resolves(HISTOGRAM)
+    }
+  };
+
+  return api;
+}
+
+describe('ui/GasPriceEditor/Store', () => {
   let store = null;
+
+  beforeEach(() => {
+    createApi();
+  });
 
   it('is available via GasPriceEditor.Store', () => {
     expect(new Store(null, {})).to.be.ok;
@@ -65,6 +78,7 @@ describe('ui/GasPriceEditor/store', () => {
   describe('constructor (defaults) when histogram not available', () => {
     const api = {
       eth: {
+        blockNumber: sinon.stub().resolves(new BigNumber(2)),
         gasPrice: sinon.stub().resolves(GASPRICE)
       },
       parity: {
@@ -90,6 +104,67 @@ describe('ui/GasPriceEditor/store', () => {
   describe('setters', () => {
     beforeEach(() => {
       store = new Store(null, { gasLimit: GASLIMIT });
+    });
+
+    describe('setConditionType', () => {
+      it('sets the actual type', () => {
+        store.setConditionType('testingType');
+        expect(store.conditionType).to.equal('testingType');
+      });
+
+      it('clears any block error on changing type', () => {
+        store.setConditionBlockNumber(-1);
+        expect(store.conditionBlockError).not.to.be.null;
+        store.setConditionType(CONDITIONS.BLOCK);
+        expect(store.conditionBlockError).to.be.null;
+      });
+
+      it('sets condition.block when type === CONDITIONS.BLOCK', () => {
+        store.setConditionType(CONDITIONS.BLOCK);
+        expect(store.condition.block).to.be.ok;
+      });
+
+      it('clears condition when type === CONDITIONS.NONE', () => {
+        store.setConditionType(CONDITIONS.BLOCK);
+        store.setConditionType(CONDITIONS.NONE);
+        expect(store.condition).to.deep.equal({});
+      });
+
+      it('sets condition.time when type === CONDITIONS.TIME', () => {
+        store.setConditionType(CONDITIONS.TIME);
+        expect(store.condition.time).to.be.ok;
+      });
+    });
+
+    describe('setConditionBlockNumber', () => {
+      beforeEach(() => {
+        store.setConditionBlockNumber('testingBlock');
+      });
+
+      it('sets the blockNumber', () => {
+        expect(store.condition.block).to.equal('testingBlock');
+      });
+
+      it('sets the error on invalid numbers', () => {
+        expect(store.conditionBlockError).not.to.be.null;
+      });
+
+      it('sets the error on negative numbers', () => {
+        store.setConditionBlockNumber(-1);
+        expect(store.conditionBlockError).not.to.be.null;
+      });
+
+      it('clears the error on positive numbers', () => {
+        store.setConditionBlockNumber(1000);
+        expect(store.conditionBlockError).to.be.null;
+      });
+    });
+
+    describe('setConditionDateTime', () => {
+      it('sets the datatime', () => {
+        store.setConditionDateTime('testingDateTime');
+        expect(store.condition.time).to.equal('testingDateTime');
+      });
     });
 
     describe('setEditing', () => {

@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -27,37 +27,22 @@ export default class Extras extends Component {
     dataError: PropTypes.string,
     gasStore: PropTypes.object.isRequired,
     isEth: PropTypes.bool,
-    minBlock: PropTypes.string,
-    minBlockError: PropTypes.string,
     onChange: PropTypes.func.isRequired,
     total: PropTypes.string,
     totalError: PropTypes.string
   }
 
   render () {
-    const { gasStore, minBlock, minBlockError, onChange } = this.props;
+    const { gasStore, onChange } = this.props;
 
     return (
       <Form>
         { this.renderData() }
-        <Input
-          error={ minBlockError }
-          hint={
-            <FormattedMessage
-              id='transferModal.minBlock.hint'
-              defaultMessage='Only post the transaction after this block' />
-          }
-          label={
-            <FormattedMessage
-              id='transferModal.minBlock.label'
-              defaultMessage='BlockNumber to send from' />
-          }
-          value={ minBlock }
-          onChange={ this.onEditMinBlock } />
         <div className={ styles.gaseditor }>
           <GasPriceEditor
             store={ gasStore }
-            onChange={ onChange } />
+            onChange={ onChange }
+          />
         </div>
       </Form>
     );
@@ -76,23 +61,22 @@ export default class Extras extends Component {
         hint={
           <FormattedMessage
             id='transfer.advanced.data.hint'
-            defaultMessage='the data to pass through with the transaction' />
+            defaultMessage='the data to pass through with the transaction'
+          />
         }
         label={
           <FormattedMessage
             id='transfer.advanced.data.label'
-            defaultMessage='transaction data' />
+            defaultMessage='transaction data'
+          />
         }
         onChange={ this.onEditData }
-        value={ data } />
+        value={ data }
+      />
     );
   }
 
   onEditData = (event) => {
     this.props.onChange('data', event.target.value);
-  }
-
-  onEditMinBlock = (event) => {
-    this.props.onChange('minBlock', event.target.value);
   }
 }

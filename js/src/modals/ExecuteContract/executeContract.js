@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -14,7 +14,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import BigNumber from 'bignumber.js';
 import { pick } from 'lodash';
 import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
@@ -41,27 +40,32 @@ const TITLES = {
   transfer: (
     <FormattedMessage
       id='executeContract.steps.transfer'
-      defaultMessage='function details' />
+      defaultMessage='function details'
+    />
   ),
   sending: (
     <FormattedMessage
       id='executeContract.steps.sending'
-      defaultMessage='sending' />
+      defaultMessage='sending'
+    />
   ),
   complete: (
     <FormattedMessage
       id='executeContract.steps.complete'
-      defaultMessage='complete' />
+      defaultMessage='complete'
+    />
   ),
   advanced: (
     <FormattedMessage
       id='executeContract.steps.advanced'
-      defaultMessage='advanced options' />
+      defaultMessage='advanced options'
+    />
   ),
   rejected: (
     <FormattedMessage
       id='executeContract.steps.rejected'
-      defaultMessage='rejected' />
+      defaultMessage='rejected'
+    />
   )
 };
 const STAGES_BASIC = [TITLES.transfer, TITLES.sending, TITLES.complete];
@@ -95,8 +99,6 @@ class ExecuteContract extends Component {
     fromAddressError: null,
     func: null,
     funcError: null,
-    minBlock: '0',
-    minBlockError: null,
     rejected: false,
     sending: false,
     step: STEP_DETAILS,
@@ -139,7 +141,8 @@ class ExecuteContract extends Component {
           advancedOptions
             ? [STEP_BUSY]
             : [STEP_BUSY_OR_ADVANCED]
-        }>
+        }
+      >
         { this.renderExceptionWarning() }
         { this.renderStep() }
       </Modal>
@@ -161,8 +164,8 @@ class ExecuteContract extends Component {
 
   renderDialogActions () {
     const { onClose, fromAddress } = this.props;
-    const { advancedOptions, sending, step, fromAddressError, minBlockError, valuesError } = this.state;
-    const hasError = fromAddressError || minBlockError || valuesError.find((error) => error);
+    const { advancedOptions, sending, step, fromAddressError, valuesError } = this.state;
+    const hasError = fromAddressError || valuesError.find((error) => error);
 
     const cancelBtn = (
       <Button
@@ -170,10 +173,12 @@ class ExecuteContract extends Component {
         label={
           <FormattedMessage
             id='executeContract.button.cancel'
-            defaultMessage='cancel' />
+            defaultMessage='cancel'
+          />
         }
         icon={ <CancelIcon /> }
-        onClick={ onClose } />
+        onClick={ onClose }
+      />
     );
     const postBtn = (
       <Button
@@ -181,11 +186,13 @@ class ExecuteContract extends Component {
         label={
           <FormattedMessage
             id='executeContract.button.post'
-            defaultMessage='post transaction' />
+            defaultMessage='post transaction'
+          />
         }
         disabled={ !!(sending || hasError) }
         icon={ <IdentityIcon address={ fromAddress } button /> }
-        onClick={ this.postTransaction } />
+        onClick={ this.postTransaction }
+      />
     );
     const nextBtn = (
       <Button
@@ -193,10 +200,12 @@ class ExecuteContract extends Component {
         label={
           <FormattedMessage
             id='executeContract.button.next'
-            defaultMessage='next' />
+            defaultMessage='next'
+          />
         }
         icon={ <NextIcon /> }
-        onClick={ this.onNextClick } />
+        onClick={ this.onNextClick }
+      />
     );
     const prevBtn = (
       <Button
@@ -204,10 +213,12 @@ class ExecuteContract extends Component {
         label={
           <FormattedMessage
             id='executeContract.button.prev'
-            defaultMessage='prev' />
+            defaultMessage='prev'
+          />
         }
         icon={ <PrevIcon /> }
-        onClick={ this.onPrevClick } />
+        onClick={ this.onPrevClick }
+      />
     );
 
     if (step === STEP_DETAILS) {
@@ -233,16 +244,18 @@ class ExecuteContract extends Component {
         label={
           <FormattedMessage
             id='executeContract.button.done'
-            defaultMessage='done' />
+            defaultMessage='done'
+          />
         }
         icon={ <DoneIcon /> }
-        onClick={ onClose } />
+        onClick={ onClose }
+      />
     ];
   }
 
   renderStep () {
     const { onFromAddressChange } = this.props;
-    const { advancedOptions, step, busyState, minBlock, minBlockError, txhash, rejected } = this.state;
+    const { advancedOptions, step, busyState, txhash, rejected } = this.state;
 
     if (rejected) {
       return (
@@ -250,13 +263,16 @@ class ExecuteContract extends Component {
           title={
             <FormattedMessage
               id='executeContract.rejected.title'
-              defaultMessage='The execution has been rejected' />
+              defaultMessage='The execution has been rejected'
+            />
           }
           state={
             <FormattedMessage
               id='executeContract.rejected.state'
-              defaultMessage='You can safely close this window, the function execution will not occur.' />
-          } />
+              defaultMessage='You can safely close this window, the function execution will not occur.'
+            />
+          }
+        />
       );
     }
 
@@ -269,7 +285,8 @@ class ExecuteContract extends Component {
           onFromAddressChange={ onFromAddressChange }
           onFuncChange={ this.onFuncChange }
           onAdvancedClick={ this.onAdvancedClick }
-          onValueChange={ this.onValueChange } />
+          onValueChange={ this.onValueChange }
+        />
       );
     } else if (step === (advancedOptions ? STEP_BUSY : STEP_BUSY_OR_ADVANCED)) {
       return (
@@ -277,17 +294,15 @@ class ExecuteContract extends Component {
           title={
             <FormattedMessage
               id='executeContract.busy.title'
-              defaultMessage='The function execution is in progress' />
+              defaultMessage='The function execution is in progress'
+            />
           }
-          state={ busyState } />
+          state={ busyState }
+        />
       );
     } else if (advancedOptions && (step === STEP_BUSY_OR_ADVANCED)) {
       return (
-        <AdvancedStep
-          gasStore={ this.gasStore }
-          minBlock={ minBlock }
-          minBlockError={ minBlockError }
-          onMinBlockChange={ this.onMinBlockChange } />
+        <AdvancedStep gasStore={ this.gasStore } />
       );
     }
 
@@ -306,6 +321,7 @@ class ExecuteContract extends Component {
   onFuncChange = (event, func) => {
     const values = (func.abi.inputs || []).map((input) => {
       const parsedType = parseAbiType(input.type);
+
       return parsedType.default;
     });
 
@@ -313,15 +329,6 @@ class ExecuteContract extends Component {
       func,
       values
     }, this.estimateGas);
-  }
-
-  onMinBlockChange = (minBlock) => {
-    const minBlockError = validateUint(minBlock).valueError;
-
-    this.setState({
-      minBlock,
-      minBlockError
-    });
   }
 
   onValueChange = (event, index, _value) => {
@@ -385,17 +392,14 @@ class ExecuteContract extends Component {
   postTransaction = () => {
     const { api, store } = this.context;
     const { fromAddress } = this.props;
-    const { advancedOptions, amount, func, minBlock, values } = this.state;
+    const { advancedOptions, amount, func, values } = this.state;
     const steps = advancedOptions ? STAGES_ADVANCED : STAGES_BASIC;
     const finalstep = steps.length - 1;
 
-    const options = {
-      gas: this.gasStore.gas,
-      gasPrice: this.gasStore.price,
+    const options = this.gasStore.overrideTransaction({
       from: fromAddress,
-      minBlock: new BigNumber(minBlock || 0).gt(0) ? minBlock : null,
       value: api.util.toWei(amount || 0)
-    };
+    });
 
     this.setState({ sending: true, step: advancedOptions ? STEP_BUSY : STEP_BUSY_OR_ADVANCED });
 
@@ -406,7 +410,8 @@ class ExecuteContract extends Component {
           busyState: (
             <FormattedMessage
               id='executeContract.busy.waitAuth'
-              defaultMessage='Waiting for authorization in the Parity Signer' />
+              defaultMessage='Waiting for authorization in the Parity Signer'
+            />
           )
         });
 
@@ -429,7 +434,8 @@ class ExecuteContract extends Component {
           busyState: (
             <FormattedMessage
               id='executeContract.busy.posted'
-              defaultMessage='Your transaction has been posted to the network' />
+              defaultMessage='Your transaction has been posted to the network'
+            />
           )
         });
       })
