@@ -22,6 +22,7 @@ export default class Personal {
     this._started = false;
 
     this._lastDefaultAccount = '0x0';
+    this._pollTimerId = null;
   }
 
   get isStarted () {
@@ -45,7 +46,7 @@ export default class Personal {
   // to pub-sub as it becomes available
   _defaultAccount = () => {
     const nextTimeout = (timeout = 1000) => {
-      setTimeout(() => {
+      this._pollTimerId = setTimeout(() => {
         this._defaultAccount();
       }, timeout);
     };
