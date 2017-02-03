@@ -32,7 +32,10 @@ const FAVICON = path.resolve(__dirname, '../assets/images/parity-logo-black-no-t
 
 const DEST = process.env.BUILD_DEST || '.build';
 const ENV = process.env.NODE_ENV || 'development';
+const EMBED = process.env.EMBED;
+
 const isProd = ENV === 'production';
+const isEmbed = EMBED === '1' || EMBED === 'true';
 
 module.exports = {
   cache: !isProd,
@@ -40,8 +43,7 @@ module.exports = {
 
   context: path.join(__dirname, '../src'),
   entry: Object.assign({}, Shared.dappsEntry, {
-    index: './index.js',
-    embed: './embed.js'
+    index: './index.js'
   }),
   output: {
     // publicPath: '/',
@@ -156,51 +158,44 @@ module.exports = {
     });
 
     const plugins = Shared.getPlugins().concat(
-      new CopyWebpackPlugin([
-        { from: './error_pages.css', to: 'styles.css' },
-        { from: 'dapps/static' }
-      ], {}),
-
-      new WebpackErrorNotificationPlugin(),
-
-      new webpack.DllReferencePlugin({
-        context: '.',
-        manifest: require(`../${DEST}/vendor-manifest.json`)
-      }),
-
-      new HtmlWebpackPlugin({
-        title: 'Parity',
-        filename: 'index.html',
-        template: './index.ejs',
-        favicon: FAVICON,
-        chunks: [
-          isProd ? null : 'commons',
-          'index'
-        ]
-      }),
-
-      new HtmlWebpackPlugin({
-        title: 'Parity Bar',
-        filename: 'embed.html',
-        template: './index.ejs',
-        favicon: FAVICON,
-        chunks: [
-          isProd ? null : 'commons',
-          'embed'
-        ]
-      }),
-
-      new ScriptExtHtmlWebpackPlugin({
-        sync: [ 'commons', 'vendor.js' ],
-        defaultAttribute: 'defer'
-      }),
-
-      new ServiceWorkerWebpackPlugin({
-        entry: path.join(__dirname, '../src/serviceWorker.js')
-      }),
-
-      DappsHTMLInjection
+      new WebpackErrorNotificationPlugin()
     );
+
+    if (!isEmbed) {
+      plugins.push(
+        DappsHTMLInjection,
+
+        new ServiceWorkerWebpackPlugin({
+          entry: path.join(__dirname, '../src/serviceWorker.js')
+        }),
+
+        new webpack.DllReferencePlugin({
+          context: '.',
+          manifest: require(`../${DEST}/vendor-manifest.json`)
+        }),
+
+        new HtmlWebpackPlugin({
+          title: 'Parity',
+          filename: 'index.html',
+          template: './index.ejs',
+          favicon: FAVICON,
+          chunks: [
+            isProd ? null : 'commons',
+            'index'
+          ]
+        }),
+
+        new ScriptExtHtmlWebpackPlugin({
+          sync: [ 'commons', 'vendor.js' ],
+          defaultAttribute: 'defer'
+        }),
+
+        new CopyWebpackPlugin([
+          { from: './error_pages.css', to: 'styles.css' },
+          { from: 'dapps/static' }
+        ], {})
+      );
+    }
 
     if (!isProd) {
       const DEST_I18N = path.join(__dirname, '..', DEST, 'i18n');
