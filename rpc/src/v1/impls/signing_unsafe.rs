@@ -62,14 +62,7 @@ impl<C, M> SigningUnsafeClient<C, M> where
 		}
 	}
 
-	fn active(&self) -> Result<(), Error> {
-		// TODO: only call every 30s at most.
-		take_weak!(self.client).keep_alive();
-		Ok(())
-	}
-
 	fn handle(&self, payload: RpcConfirmationPayload, account: DefaultAccount) -> Result<RpcConfirmationResponse, Error> {
-		self.active()?;
 		let client = take_weak!(self.client);
 		let miner = take_weak!(self.miner);
 		let accounts = take_weak!(self.accounts);

@@ -23,7 +23,7 @@ use tests::helpers::{serve_with_rpc, request};
 #[test]
 fn should_serve_rpc() {
 	// given
-	let mut io = MetaIoHandler::new();
+	let mut io = MetaIoHandler::default();
 	io.add_method("rpc_test", |_| {
 		Ok(Value::String("Hello World!".into()))
 	});
@@ -53,7 +53,7 @@ fn should_serve_rpc() {
 #[test]
 fn should_extract_metadata() {
 	// given
-	let mut io = MetaIoHandler::new();
+	let mut io = MetaIoHandler::default();
 	io.add_method_with_meta("rpc_test", |_params, meta: Metadata| {
 		assert_eq!(meta.dapp_id, Some("https://parity.io/".to_owned()));
 		assert_eq!(meta.origin, Origin::Dapps);
@@ -87,7 +87,7 @@ fn should_extract_metadata() {
 #[test]
 fn should_extract_metadata_from_custom_header() {
 	// given
-	let mut io = MetaIoHandler::new();
+	let mut io = MetaIoHandler::default();
 	io.add_method_with_meta("rpc_test", |_params, meta: Metadata| {
 		assert_eq!(meta.dapp_id, Some("https://parity.io/".to_owned()));
 		assert_eq!(meta.origin, Origin::Dapps);

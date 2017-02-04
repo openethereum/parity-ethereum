@@ -97,9 +97,7 @@ impl<A: Authorization + 'static> server::Handler<HttpStream> for Router<A> {
 				=>
 			{
 				trace!(target: "dapps", "Redirecting to correct web request: {:?}", referer_url);
-				// TODO [ToDr] Some nice util for this!
-				let using_domain = if referer.using_dapps_domains { 0 } else { 1 };
-				let len = cmp::min(referer_url.path.len(), using_domain + 3); // token + protocol + hostname
+				let len = cmp::min(referer_url.path.len(), 2); // /web/<encoded>/
 				let base = referer_url.path[..len].join("/");
 				let requested = url.map(|u| u.path.join("/")).unwrap_or_default();
 				Redirection::boxed(&format!("/{}/{}", base, requested))
@@ -262,20 +260,27 @@ fn extract_endpoint(url: &Option<Url>) -> (Option<EndpointPath>, SpecialEndpoint
 	match *url {
 		Some(ref url) => match url.host {
 			Host::Domain(ref domain) if domain.ends_with(DAPPS_DOMAIN) => {
-				let len = domain.len() - DAPPS_DOMAIN.len();
-				let id = domain[0..len].to_owned();
+				let id = &domain[0..(domain.len() - DAPPS_DOMAIN.len())];
+				let (id, params) = if let Some(split) = id.rfind('.') {
+					let (params, id) = id.split_at(split);
+					(id[1..].to_owned(), [params.to_owned()].into_iter().chain(&url.path).cloned().collect())
+				} else {
+					(id.to_owned(), url.path.clone())
+				};
 
 				(Some(EndpointPath {
 					app_id: id,
+					app_params: params,
 					host: domain.clone(),
 					port: url.port,
 					using_dapps_domains: true,
 				}), special_endpoint(url))
 			},
 			_ if url.path.len() > 1 => {
-				let id = url.path[0].clone();
+				let id = url.path[0].to_owned();
 				(Some(EndpointPath {
-					app_id: id.clone(),
+					app_id: id,
+					app_params: url.path[1..].to_vec(),
 					host: format!("{}", url.host),
 					port: url.port,
 					using_dapps_domains: false,
@@ -296,6 +301,7 @@ fn should_extract_endpoint() {
 		extract_endpoint(&Url::parse("http://localhost:8080/status/index.html").ok()),
 		(Some(EndpointPath {
 			app_id: "status".to_owned(),
+			app_params: vec!["index.html".to_owned()],
 			host: "localhost".to_owned(),
 			port: 8080,
 			using_dapps_domains: false,
@@ -307,6 +313,7 @@ fn should_extract_endpoint() {
 		extract_endpoint(&Url::parse("http://localhost:8080/rpc/").ok()),
 		(Some(EndpointPath {
 			app_id: "rpc".to_owned(),
+			app_params: vec!["".to_owned()],
 			host: "localhost".to_owned(),
 			port: 8080,
 			using_dapps_domains: false,
@@ -314,10 +321,11 @@ fn should_extract_endpoint() {
 	);
 
 	assert_eq!(
-		extract_endpoint(&Url::parse("http://my.status.parity/parity-utils/inject.js").ok()),
+		extract_endpoint(&Url::parse("http://my.status.web3.site/parity-utils/inject.js").ok()),
 		(Some(EndpointPath {
-			app_id: "my.status".to_owned(),
-			host: "my.status.parity".to_owned(),
+			app_id: "status".to_owned(),
+			app_params: vec!["my".to_owned(), "parity-utils".into(), "inject.js".into()],
+			host: "my.status.web3.site".to_owned(),
 			port: 80,
 			using_dapps_domains: true,
 		}), SpecialEndpoint::Utils)
@@ -325,10 +333,11 @@ fn should_extract_endpoint() {
 
 	// By Subdomain
 	assert_eq!(
-		extract_endpoint(&Url::parse("http://my.status.parity/test.html").ok()),
+		extract_endpoint(&Url::parse("http://status.web3.site/test.html").ok()),
 		(Some(EndpointPath {
-			app_id: "my.status".to_owned(),
-			host: "my.status.parity".to_owned(),
+			app_id: "status".to_owned(),
+			app_params: vec!["test.html".to_owned()],
+			host: "status.web3.site".to_owned(),
 			port: 80,
 			using_dapps_domains: true,
 		}), SpecialEndpoint::None)
@@ -336,10 +345,11 @@ fn should_extract_endpoint() {
 
 	// RPC by subdomain
 	assert_eq!(
-		extract_endpoint(&Url::parse("http://my.status.parity/rpc/").ok()),
+		extract_endpoint(&Url::parse("http://my.status.web3.site/rpc/").ok()),
 		(Some(EndpointPath {
-			app_id: "my.status".to_owned(),
-			host: "my.status.parity".to_owned(),
+			app_id: "status".to_owned(),
+			app_params: vec!["my".to_owned(), "rpc".into(), "".into()],
+			host: "my.status.web3.site".to_owned(),
 			port: 80,
 			using_dapps_domains: true,
 		}), SpecialEndpoint::Rpc)
@@ -347,10 +357,11 @@ fn should_extract_endpoint() {
 
 	// API by subdomain
 	assert_eq!(
-		extract_endpoint(&Url::parse("http://my.status.parity/api/").ok()),
+		extract_endpoint(&Url::parse("http://my.status.web3.site/api/").ok()),
 		(Some(EndpointPath {
-			app_id: "my.status".to_owned(),
-			host: "my.status.parity".to_owned(),
+			app_id: "status".to_owned(),
+			app_params: vec!["my".to_owned(), "api".into(), "".into()],
+			host: "my.status.web3.site".to_owned(),
 			port: 80,
 			using_dapps_domains: true,
 		}), SpecialEndpoint::Api)

@@ -26,6 +26,7 @@ import ParityBar from '../ParityBar';
 import Snackbar from './Snackbar';
 import Container from './Container';
 import DappContainer from './DappContainer';
+import Extension from './Extension';
 import FrameError from './FrameError';
 import Status from './Status';
 import Store from './store';
@@ -106,6 +107,7 @@ class Application extends Component {
             ? <Status upgradeStore={ this.upgradeStore } />
             : null
         }
+        <Extension />
         <Snackbar />
       </Container>
     );

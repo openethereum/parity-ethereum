@@ -35,7 +35,7 @@ import DappIcon from './DappIcon';
 import Editor from './Editor';
 import Errors from './Errors';
 import Features, { FEATURES, FeaturesStore } from './Features';
-import Form, { AddressSelect, FormWrap, TypedInput, Input, InputAddress, InputAddressSelect, InputChip, InputInline, Select, RadioButtons } from './Form';
+import Form, { AddressSelect, DappUrlInput, FormWrap, Input, InputAddress, InputAddressSelect, InputChip, InputDate, InputInline, InputTime, Label, RadioButtons, Select, TypedInput } from './Form';
 import GasPriceEditor from './GasPriceEditor';
 import GasPriceSelector from './GasPriceSelector';
 import Icons from './Icons';
@@ -55,6 +55,7 @@ import SectionList from './SectionList';
 import ShortenedHash from './ShortenedHash';
 import SignerIcon from './SignerIcon';
 import Tags from './Tags';
+import Title from './Title';
 import Tooltips, { Tooltip } from './Tooltips';
 import TxHash from './TxHash';
 import TxList from './TxList';
@@ -79,8 +80,9 @@ export {
   ContextProvider,
   CopyToClipboard,
   CurrencySymbol,
-  DappIcon,
   DappCard,
+  DappIcon,
+  DappUrlInput,
   Editor,
   Errors,
   FEATURES,
@@ -95,9 +97,12 @@ export {
   InputAddress,
   InputAddressSelect,
   InputChip,
+  InputDate,
   InputInline,
+  InputTime,
   IdentityIcon,
   IdentityName,
+  Label,
   LanguageSelector,
   Loading,
   MethodDecoding,
@@ -116,6 +121,7 @@ export {
   SectionList,
   SignerIcon,
   Tags,
+  Title,
   Tooltip,
   Tooltips,
   TxHash,

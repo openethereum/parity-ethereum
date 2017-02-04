@@ -221,6 +221,18 @@ export function outSyncing (syncing) {
   return syncing;
 }
 
+export function outTransactionCondition (condition) {
+  if (condition) {
+    if (condition.block) {
+      condition.block = outNumber(condition.block);
+    } else if (condition.time) {
+      condition.time = outDate(condition.time);
+    }
+  }
+
+  return condition;
+}
+
 export function outTransaction (tx) {
   if (tx) {
     Object.keys(tx).forEach((key) => {
@@ -234,8 +246,14 @@ export function outTransaction (tx) {
           tx[key] = outNumber(tx[key]);
           break;
 
+        case 'condition':
+          tx[key] = outTransactionCondition(tx[key]);
+          break;
+
         case 'minBlock':
-          tx[key] = tx[key] ? outNumber(tx[key]) : null;
+          tx[key] = tx[key]
+            ? outNumber(tx[key])
+            : null;
           break;
 
         case 'creates':
