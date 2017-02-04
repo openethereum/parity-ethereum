@@ -23,7 +23,7 @@
 use ethcore::ids::BlockId;
 use util::{Bytes, H256, U256, HashDB, MemoryDB};
 use util::trie::{self, TrieMut, TrieDBMut, Trie, TrieDB, Recorder};
-use rlp::{Stream, RlpStream};
+use rlp::{Stream, RlpStream, UntrustedRlp, View};
 
 // encode a key.
 macro_rules! key {
@@ -133,6 +133,30 @@ pub fn compute_root<I>(cht_num: u64, iterable: I) -> Option<H256>
 		Some(::util::triehash::trie_root(v))
 	} else {
 		None
+	}
+}
+
+/// Check a proof for a CHT.
+/// Given a set of a trie nodes, a number to query, and a trie root,
+/// verify the given trie branch and extract the canonical hash and total difficulty.
+// TODO: better support for partially-checked queries.
+pub fn check_proof(proof: &[Bytes], num: u64, root: H256) -> Option<(H256, U256)> {
+	let mut db = MemoryDB::new();
+
+	for node in proof { db.insert(&node[..]); }
+	let res = match TrieDB::new(&db, &root) {
+		Err(_) => return None,
+		Ok(trie) => trie.get_with(&key!(num), |val: &[u8]| {
+			let rlp = UntrustedRlp::new(val);
+			rlp.val_at::<H256>(0)
+				.and_then(|h| rlp.val_at::<U256>(1).map(|td| (h, td)))
+				.ok()
+		})
+	};
+
+	match res {
+		Ok(Some(Some((hash, td)))) => Some((hash, td)),
+		_ => None,
 	}
 }
 
