@@ -24,23 +24,24 @@ use std::thread;
 use std::time::{Instant, Duration};
 use std::sync::{Arc, Weak};
 use time::get_time;
-use ethsync::{SyncProvider};
-use ethcore::miner::{MinerService, ExternalMinerService};
 use jsonrpc_core::*;
 use jsonrpc_macros::Trailing;
-use util::{H256, Address, FixedHash, U256, H64, Uint};
-use util::sha3::*;
+use util::{H160, H256, Address, FixedHash, U256, H64, Uint};
+use util::sha3::Hashable;
 use util::{FromHex, Mutex};
 use rlp::{self, UntrustedRlp, View};
-use ethcore::account_provider::AccountProvider;
-use ethcore::client::{MiningBlockChainClient, BlockId, TransactionId, UncleId};
-use ethcore::header::{Header as BlockHeader, BlockNumber as EthBlockNumber};
+
+use ethcore::account_provider::{AccountProvider, DappId as EthDappId};
 use ethcore::block::IsBlock;
+use ethcore::client::{MiningBlockChainClient, BlockId, TransactionId, UncleId};
 use ethcore::ethereum::Ethash;
+use ethcore::header::{Header as BlockHeader, BlockNumber as EthBlockNumber};
 use ethcore::transaction::{Transaction as EthTransaction, SignedTransaction, PendingTransaction, Action};
 use ethcore::log_entry::LogEntry;
+use ethcore::miner::{MinerService, ExternalMinerService};
 use ethcore::filter::Filter as EthcoreFilter;
 use ethcore::snapshot::SnapshotService;
+use ethsync::{SyncProvider};
 use self::ethash::SeedHashCompute;
 use v1::traits::Eth;
 use v1::types::{
@@ -214,6 +215,14 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> EthClient<C, SN, S, M, EM> where
 			data: request.data.map_or_else(Vec::new, |d| d.to_vec())
 		}.fake_sign(from))
 	}
+
+	fn dapp_accounts(&self, dapp: EthDappId) -> Result<Vec<H160>, Error> {
+		let store = take_weak!(self.accounts);
+		store
+			.note_dapp_used(dapp.clone())
+			.and_then(|_| store.dapps_addresses(dapp))
+			.map_err(|e| errors::internal("Could not fetch accounts.", e))
+	}
 }
 
 pub fn pending_logs<M>(miner: &M, best_block: EthBlockNumber, filter: &EthcoreFilter) -> Vec<Log> where M: MinerService {
@@ -313,10 +322,19 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 		}
 	}
 
-	fn author(&self) -> Result<RpcH160, Error> {
+	fn author(&self, id: Trailing<DappId>) -> Result<RpcH160, Error> {
 		self.active()?;
 
-		Ok(RpcH160::from(take_weak!(self.miner).author()))
+		let dapp = id.0;
+		let mut miner = take_weak!(self.miner).author();
+		if miner == 0.into() {
+			let accounts = self.dapp_accounts(dapp.into())?;
+			if let Some(address) = accounts.get(0) {
+				miner = *address;
+			}
+		}
+
+		Ok(RpcH160::from(miner))
 	}
 
 	fn is_mining(&self) -> Result<bool, Error> {
@@ -342,13 +360,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 		self.active()?;
 
 		let dapp = id.0;
-
-		let store = take_weak!(self.accounts);
-		let accounts = store
-			.note_dapp_used(dapp.clone().into())
-			.and_then(|_| store.dapps_addresses(dapp.into()))
-			.map_err(|e| errors::internal("Could not fetch accounts.", e))?;
-
+		let accounts = self.dapp_accounts(dapp.into())?;
 		Ok(accounts.into_iter().map(Into::into).collect())
 	}
 

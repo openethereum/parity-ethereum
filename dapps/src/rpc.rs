@@ -60,7 +60,12 @@ impl RpcMiddleware {
 	fn new(handler: Arc<IoHandler>) -> Self {
 		RpcMiddleware {
 			handler: handler,
-			methods: vec!["eth_accounts".into(), "parity_accountsInfo".into()],
+			methods: vec![
+				"eth_accounts".into(),
+				"eth_coinbase".into(),
+				"parity_accountsInfo".into(),
+				"parity_defaultAccount".into(),
+			],
 		}
 	}
 

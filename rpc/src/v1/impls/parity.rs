@@ -142,6 +142,18 @@ impl<C, M, S: ?Sized, U> Parity for ParityClient<C, M, S, U> where
 		)
 	}
 
+	fn default_account(&self, id: Trailing<DappId>) -> Result<H160, Error> {
+		self.active()?;
+		let dapp_id = id.0;
+
+		Ok(take_weak!(self.accounts)
+			.dapps_addresses(dapp_id.into())
+			.ok()
+			.and_then(|accounts| accounts.get(0).cloned())
+			.map(|acc| acc.into())
+			.unwrap_or_default())
+	}
+
 	fn transactions_limit(&self) -> Result<usize, Error> {
 		self.active()?;
 

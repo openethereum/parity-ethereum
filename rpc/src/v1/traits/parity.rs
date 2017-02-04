@@ -36,6 +36,10 @@ build_rpc_trait! {
 		#[rpc(name = "parity_accountsInfo")]
 		fn accounts_info(&self, Trailing<DappId>) -> Result<BTreeMap<String, BTreeMap<String, String>>, Error>;
 
+		/// Returns default account for dapp.
+		#[rpc(name = "parity_defaultAccount")]
+		fn default_account(&self, Trailing<DappId>) -> Result<H160, Error>;
+
 		/// Returns current transactions limit.
 		#[rpc(name = "parity_transactionsLimit")]
 		fn transactions_limit(&self) -> Result<usize, Error>;

@@ -87,13 +87,13 @@ impl Dependencies {
 	}
 
 	fn default_client(&self) -> IoHandler {
-		let io = IoHandler::new();
+		let io = IoHandler::default();
 		io.add_delegate(self.client(None).to_delegate());
 		io
 	}
 
 	fn with_signer(&self, signer: SignerService) -> IoHandler {
-		let io = IoHandler::new();
+		let io = IoHandler::default();
 		io.add_delegate(self.client(Some(Arc::new(signer))).to_delegate());
 		io
 	}
@@ -120,6 +120,29 @@ fn rpc_parity_accounts_info() {
 	deps.accounts.set_new_dapps_whitelist(Some(vec![1.into()])).unwrap();
 	let request = r#"{"jsonrpc": "2.0", "method": "parity_accountsInfo", "params": [], "id": 1}"#;
 	let response = format!("{{\"jsonrpc\":\"2.0\",\"result\":{{}},\"id\":1}}");
+	assert_eq!(io.handle_request_sync(request), Some(response));
+}
+
+#[test]
+fn rpc_parity_default_account() {
+	let deps = Dependencies::new();
+	let io = deps.default_client();
+
+
+	// Check empty
+	let address = Address::default();
+	let request = r#"{"jsonrpc": "2.0", "method": "parity_defaultAccount", "params": [], "id": 1}"#;
+	let response = format!("{{\"jsonrpc\":\"2.0\",\"result\":\"0x{}\",\"id\":1}}", address.hex());
+	assert_eq!(io.handle_request_sync(request), Some(response));
+
+	// With account
+	deps.accounts.new_account("").unwrap();
+	let accounts = deps.accounts.accounts().unwrap();
+	assert_eq!(accounts.len(), 1);
+	let address = accounts[0];
+
+	let request = r#"{"jsonrpc": "2.0", "method": "parity_defaultAccount", "params": [], "id": 1}"#;
+	let response = format!("{{\"jsonrpc\":\"2.0\",\"result\":\"0x{}\",\"id\":1}}", address.hex());
 	assert_eq!(io.handle_request_sync(request), Some(response));
 }
 
