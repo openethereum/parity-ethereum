@@ -14,13 +14,16 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import EventListener from 'react-event-listener';
 import React, { Component, PropTypes } from 'react';
 import ReactDOM from 'react-dom';
 import ReactPortal from 'react-portal';
 import keycode from 'keycode';
 
+import { nodeOrStringProptype } from '~/util/proptypes';
 import { CloseIcon } from '~/ui/Icons';
 import ParityBackground from '~/ui/ParityBackground';
+import Title from '~/ui/Title';
 
 import styles from './portal.css';
 
@@ -29,72 +32,112 @@ export default class Portal extends Component {
   static propTypes = {
     onClose: PropTypes.func.isRequired,
     open: PropTypes.bool.isRequired,
-
+    activeStep: PropTypes.number,
+    busy: PropTypes.bool,
+    busySteps: PropTypes.array,
+    buttons: PropTypes.array,
     children: PropTypes.node,
     className: PropTypes.string,
-    onKeyDown: PropTypes.func
+    hideClose: PropTypes.bool,
+    isChildModal: PropTypes.bool,
+    onKeyDown: PropTypes.func,
+    steps: PropTypes.array,
+    title: nodeOrStringProptype()
   };
 
-  state = {
-    expanded: false
+  componentDidMount () {
+    this.setBodyOverflow(this.props.open);
   }
 
   componentWillReceiveProps (nextProps) {
-    if (this.props.open !== nextProps.open) {
-      const opening = nextProps.open;
-      const closing = !opening;
-
-      if (opening) {
-        return this.setState({ expanded: true });
-      }
-
-      if (closing) {
-        return this.setState({ expanded: false });
-      }
+    if (nextProps.open !== this.props.open) {
+      this.setBodyOverflow(nextProps.open);
     }
   }
 
+  componentWillUnmount () {
+    this.setBodyOverflow(false);
+  }
+
   render () {
-    const { expanded } = this.state;
-    const { children, className } = this.props;
+    const { activeStep, busy, busySteps, children, className, isChildModal, open, steps, title } = this.props;
 
-    const classes = [ styles.overlay, className ];
-    const backClasses = [ styles.backOverlay ];
-
-    if (expanded) {
-      classes.push(styles.expanded);
-      backClasses.push(styles.expanded);
+    if (!open) {
+      return null;
     }
 
     return (
-      <ReactPortal isOpened onClose={ this.handleClose }>
-        <div className={ backClasses.join(' ') } onClick={ this.handleClose }>
+      <ReactPortal
+        isOpened
+        onClose={ this.handleClose }
+      >
+        <div
+          className={ styles.backOverlay }
+          onClick={ this.handleClose }
+        >
           <div
-            className={ classes.join(' ') }
+            className={
+              [
+                styles.overlay,
+                isChildModal
+                  ? styles.popover
+                  : styles.modal,
+                className
+              ].join(' ')
+            }
             onClick={ this.stopEvent }
             onKeyDown={ this.handleKeyDown }
           >
+            <EventListener
+              target='window'
+              onKeyUp={ this.handleKeyUp }
+            />
             <ParityBackground className={ styles.parityBackground } />
-
-            { this.renderCloseIcon() }
-            { children }
+            { this.renderClose() }
+            <Title
+              activeStep={ activeStep }
+              busy={ busy }
+              busySteps={ busySteps }
+              className={ styles.titleRow }
+              steps={ steps }
+              title={ title }
+            />
+            <div className={ styles.childContainer }>
+              { children }
+            </div>
+            { this.renderButtons() }
           </div>
         </div>
       </ReactPortal>
     );
   }
 
-  renderCloseIcon () {
-    const { expanded } = this.state;
+  renderButtons () {
+    const { buttons } = this.props;
 
-    if (!expanded) {
+    if (!buttons) {
       return null;
     }
 
     return (
-      <div className={ styles.closeIcon } onClick={ this.handleClose }>
-        <CloseIcon />
+      <div className={ styles.buttonRow }>
+        { buttons }
       </div>
+    );
+  }
+
+  renderClose () {
+    const { hideClose } = this.props;
+
+    if (hideClose) {
+      return null;
+    }
+
+    return (
+      <CloseIcon
+        className={ styles.closeIcon }
+        onClick={ this.handleClose }
+      />
     );
   }
 
@@ -104,26 +147,39 @@ export default class Portal extends Component {
   }
 
   handleClose = () => {
-    this.props.onClose();
+    const { hideClose, onClose } = this.props;
+
+    if (!hideClose) {
+      onClose();
+    }
   }
 
   handleKeyDown = (event) => {
+    const { onKeyDown } = this.props;
+
+    event.persist();
+
+    return onKeyDown
+      ? onKeyDown(event)
+      : false;
+  }
+
+  handleKeyUp = (event) => {
     const codeName = keycode(event);
 
     switch (codeName) {
       case 'esc':
         event.preventDefault();
         return this.handleClose();
-
-      default:
-        event.persist();
-        return this.props.onKeyDown(event);
     }
   }
 
   handleDOMAction = (ref, method) => {
-    const refItem = typeof ref === 'string' ? this.refs[ref] : ref;
-    const element = ReactDOM.findDOMNode(refItem);
+    const element = ReactDOM.findDOMNode(
+      typeof ref === 'string'
+        ? this.refs[ref]
+        : ref
+    );
 
     if (!element || typeof element[method] !== 'function') {
       console.warn('could not find', ref, 'or method', method);
@@ -131,5 +187,13 @@ export default class Portal extends Component {
     }
 
     return element[method]();
+  }
+
+  setBodyOverflow (open) {
+    if (!this.props.isChildModal) {
+      document.body.style.overflow = open
+        ? 'hidden'
+        : null;
+    }
   }
 }

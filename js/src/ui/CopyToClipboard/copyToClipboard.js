@@ -14,20 +14,20 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import { IconButton } from 'material-ui';
 import React, { Component, PropTypes } from 'react';
+import Clipboard from 'react-copy-to-clipboard';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
-import { IconButton } from 'material-ui';
-import Clipboard from 'react-copy-to-clipboard';
-import CopyIcon from 'material-ui/svg-icons/content/content-copy';
-import Theme from '../Theme';
-
 import { showSnackbar } from '~/redux/providers/snackbarActions';
 
-const { textColor, disabledTextColor } = Theme.flatButton;
+import { CopyIcon } from '../Icons';
+import Theme from '../Theme';
 
 import styles from './copyToClipboard.css';
+
+const { textColor, disabledTextColor } = Theme.flatButton;
 
 class CopyToClipboard extends Component {
   static propTypes = {

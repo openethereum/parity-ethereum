@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -52,9 +52,6 @@ export default class TransferStore {
   @observable data = '';
   @observable dataError = null;
 
-  @observable minBlock = '0';
-  @observable minBlockError = null;
-
   @observable recipient = '';
   @observable recipientError = ERRORS.requireRecipient;
 
@@ -78,6 +75,30 @@ export default class TransferStore {
 
   gasStore = null;
 
+  constructor (api, props) {
+    this.api = api;
+
+    const { account, balance, gasLimit, senders, newError, sendersBalances } = props;
+
+    this.account = account;
+    this.balance = balance;
+    this.isWallet = account && account.wallet;
+    this.newError = newError;
+
+    this.gasStore = new GasPriceStore(api, { gasLimit });
+
+    if (this.isWallet) {
+      this.wallet = props.wallet;
+      this.walletContract = new Contract(this.api, walletAbi);
+    }
+
+    if (senders) {
+      this.senders = senders;
+      this.sendersBalances = sendersBalances;
+      this.senderError = ERRORS.requireSender;
+    }
+  }
+
   @computed get steps () {
     const steps = [].concat(this.extras ? STAGES_EXTRA : STAGES_BASIC);
 
@@ -90,7 +111,7 @@ export default class TransferStore {
 
   @computed get isValid () {
     const detailsValid = !this.recipientError && !this.valueError && !this.totalError && !this.senderError;
-    const extrasValid = !this.gasStore.errorGas && !this.gasStore.errorPrice && !this.minBlockError && !this.totalError;
+    const extrasValid = !this.gasStore.errorGas && !this.gasStore.errorPrice && !this.gasStore.conditionBlockError && !this.totalError;
     const verifyValid = !this.passwordError;
 
     switch (this.stage) {
@@ -109,29 +130,6 @@ export default class TransferStore {
 
   get token () {
     return this.balance.tokens.find((balance) => balance.token.tag === this.tag).token;
-  }
-
-  constructor (api, props) {
-    this.api = api;
-
-    const { account, balance, gasLimit, senders, newError, sendersBalances } = props;
-    this.account = account;
-    this.balance = balance;
-    this.isWallet = account && account.wallet;
-    this.newError = newError;
-
-    this.gasStore = new GasPriceStore(api, { gasLimit });
-
-    if (this.isWallet) {
-      this.wallet = props.wallet;
-      this.walletContract = new Contract(this.api, walletAbi);
-    }
-
-    if (senders) {
-      this.senders = senders;
-      this.sendersBalances = sendersBalances;
-      this.senderError = ERRORS.requireSender;
-    }
   }
 
   @action onNext = () => {
@@ -162,9 +160,6 @@ export default class TransferStore {
 
       case 'gasPrice':
         return this._onUpdateGasPrice(value);
-
-      case 'minBlock':
-        return this._onUpdateMinBlock(value);
 
       case 'recipient':
         return this._onUpdateRecipient(value);
@@ -281,14 +276,6 @@ export default class TransferStore {
 
   @action _onUpdateGas = (gas) => {
     this.recalculate();
-  }
-
-  @action _onUpdateMinBlock = (minBlock) => {
-    console.log('minBlock', minBlock);
-    transaction(() => {
-      this.minBlock = minBlock;
-      this.minBlockError = this._validatePositiveNumber(minBlock);
-    });
   }
 
   @action _onUpdateGasPrice = (gasPrice) => {
@@ -588,7 +575,7 @@ export default class TransferStore {
 
   send () {
     const { options, values } = this._getTransferParams();
-    options.minBlock = new BigNumber(this.minBlock || 0).gt(0) ? this.minBlock : null;
+
     log.debug('@send', 'transfer value', options.value && options.value.toFormat());
 
     return this._getTransferMethod().postTransaction(options, values);
@@ -596,6 +583,7 @@ export default class TransferStore {
 
   _estimateGas (forceToken = false) {
     const { options, values } = this._getTransferParams(true, forceToken);
+
     return this._getTransferMethod(true, forceToken).estimateGas(options, values);
   }
 
@@ -636,15 +624,12 @@ export default class TransferStore {
     const to = (isEth && !isWallet) ? this.recipient
       : (this.isWallet ? this.wallet.address : this.token.address);
 
-    const options = {
+    const options = this.gasStore.overrideTransaction({
       from: this.sender || this.account.address,
       to
-    };
+    });
 
-    if (!gas) {
-      options.gas = this.gasStore.gas;
-      options.gasPrice = this.gasStore.price;
-    } else {
+    if (gas) {
       options.gas = MAX_GAS_ESTIMATION;
     }
 
@@ -681,6 +666,7 @@ export default class TransferStore {
   _validatePositiveNumber (num) {
     try {
       const v = new BigNumber(num);
+
       if (v.lt(0)) {
         return ERRORS.invalidAmount;
       }

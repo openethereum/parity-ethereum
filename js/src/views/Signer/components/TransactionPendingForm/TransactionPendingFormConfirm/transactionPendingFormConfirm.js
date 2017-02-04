@@ -251,7 +251,8 @@ function mapStateToProps (_, initProps) {
 
   return (state) => {
     const { accounts } = state.personal;
-    const account = accounts[address] || {};
+    let gotAddress = Object.keys(accounts).find(a => a.toLowerCase() === address.toLowerCase());
+    const account = gotAddress ? accounts[gotAddress] : {};
 
     return { account };
   };

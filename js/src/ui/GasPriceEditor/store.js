@@ -20,7 +20,17 @@ import { action, computed, observable, transaction } from 'mobx';
 import { ERRORS, validatePositiveNumber } from '~/util/validation';
 import { DEFAULT_GAS, DEFAULT_GASPRICE, MAX_GAS_ESTIMATION } from '~/util/constants';
 
+const CONDITIONS = {
+  NONE: 'none',
+  BLOCK: 'blockNumber',
+  TIME: 'timestamp'
+};
+
 export default class GasPriceEditor {
+  @observable blockNumber = 0;
+  @observable condition = {};
+  @observable conditionBlockError = null;
+  @observable conditionType = CONDITIONS.NONE;
   @observable errorEstimated = null;
   @observable errorGas = null;
   @observable errorPrice = null;
@@ -34,12 +44,22 @@ export default class GasPriceEditor {
   @observable priceDefault;
   @observable weiValue = '0';
 
-  constructor (api, { gas, gasLimit, gasPrice }) {
+  constructor (api, { gas, gasLimit, gasPrice, condition = null }) {
     this._api = api;
 
     this.gas = gas;
     this.gasLimit = gasLimit;
     this.price = gasPrice;
+
+    if (condition) {
+      if (condition.block) {
+        this.condition = { block: condition.block.toFixed(0) };
+        this.conditionType = CONDITIONS.BLOCK;
+      } else if (condition.time) {
+        this.condition = { time: condition.time };
+        this.conditionType = CONDITIONS.TIME;
+      }
+    }
 
     if (api) {
       this.loadDefaults();
@@ -52,6 +72,39 @@ export default class GasPriceEditor {
     } catch (error) {
       return new BigNumber(0);
     }
+  }
+
+  @action setConditionType = (conditionType = CONDITIONS.NONE) => {
+    transaction(() => {
+      this.conditionBlockError = null;
+      this.conditionType = conditionType;
+
+      switch (conditionType) {
+        case CONDITIONS.BLOCK:
+          this.condition = Object.assign({}, this.condition, { block: this.blockNumber || 1 });
+          break;
+
+        case CONDITIONS.TIME:
+          this.condition = Object.assign({}, this.condition, { time: new Date() });
+          break;
+
+        case CONDITIONS.NONE:
+        default:
+          this.condition = {};
+          break;
+      }
+    });
+  }
+
+  @action setConditionBlockNumber = (block) => {
+    transaction(() => {
+      this.conditionBlockError = validatePositiveNumber(block).numberError;
+      this.condition = Object.assign({}, this.condition, { block });
+    });
+  }
+
+  @action setConditionDateTime = (time) => {
+    this.condition = Object.assign({}, this.condition, { time });
   }
 
   @action setEditing = (isEditing) => {
@@ -130,9 +183,10 @@ export default class GasPriceEditor {
           bucket_bounds: [],
           counts: []
         })),
-        this._api.eth.gasPrice()
+        this._api.eth.gasPrice(),
+        this._api.eth.blockNumber()
       ])
-      .then(([histogram, _price]) => {
+      .then(([histogram, _price, blockNumber]) => {
         transaction(() => {
           const price = _price.toFixed(0);
 
@@ -142,6 +196,7 @@ export default class GasPriceEditor {
           this.setHistogram(histogram);
 
           this.priceDefault = price;
+          this.blockNumber = blockNumber.toNumber();
         });
       })
       .catch((error) => {
@@ -150,13 +205,37 @@ export default class GasPriceEditor {
   }
 
   overrideTransaction = (transaction) => {
-    if (this.errorGas || this.errorPrice) {
+    if (this.errorGas || this.errorPrice || this.conditionBlockError) {
       return transaction;
     }
 
-    return Object.assign({}, transaction, {
+    const override = {
+      condition: this.condition,
       gas: new BigNumber(this.gas || DEFAULT_GAS),
       gasPrice: new BigNumber(this.price || DEFAULT_GASPRICE)
-    });
+    };
+
+    const result = Object.assign({}, transaction, override);
+
+    switch (this.conditionType) {
+      case CONDITIONS.BLOCK:
+        result.condition = { block: new BigNumber(this.condition.block || 0) };
+        break;
+
+      case CONDITIONS.TIME:
+        result.condition = { time: this.condition.time };
+        break;
+
+      case CONDITIONS.NONE:
+      default:
+        delete result.condition;
+        break;
+    }
+
+    return result;
   }
 }
+
+export {
+  CONDITIONS
+};

@@ -17,74 +17,80 @@
 import React, { Component, PropTypes } from 'react';
 import { Link } from 'react-router';
 
-import { Container, ContainerTitle, Tags } from '~/ui';
+import Container, { Title as ContainerTitle } from '~/ui/Container';
+import DappIcon from '~/ui/DappIcon';
+import Tags from '~/ui/Tags';
 
-import styles from './summary.css';
+import styles from './dappCard.css';
 
-export default class Summary extends Component {
-  static contextTypes = {
-    api: React.PropTypes.object
-  }
-
+export default class DappCard extends Component {
   static propTypes = {
     app: PropTypes.object.isRequired,
-    children: PropTypes.node
-  }
+    children: PropTypes.node,
+    className: PropTypes.string,
+    onClick: PropTypes.func,
+    showLink: PropTypes.bool,
+    showTags: PropTypes.bool
+  };
+
+  static defaultProps = {
+    showLink: false,
+    showTags: false
+  };
 
   render () {
-    const { dappsUrl } = this.context.api;
-    const { app } = this.props;
+    const { app, children, className, onClick, showLink, showTags } = this.props;
 
     if (!app) {
       return null;
     }
 
-    const image = this.renderImage(dappsUrl, app);
-    const link = this.renderLink(app);
-
     return (
-      <Container className={ styles.container }>
-        { image }
-        <Tags tags={ [app.type] } />
+      <Container
+        className={
+          [styles.container, className].join(' ')
+        }
+        onClick={ onClick }
+      >
+        <DappIcon
+          app={ app }
+          className={ styles.image }
+        />
+        <Tags
+          tags={
+            showTags
+              ? [app.type]
+              : null
+          }
+        />
         <div className={ styles.description }>
           <ContainerTitle
             className={ styles.title }
-            title={ link }
+            title={
+              showLink
+                ? this.renderLink(app)
+                : app.name
+            }
             byline={ app.description }
           />
           <div className={ styles.author }>
             { app.author }, v{ app.version }
           </div>
-          { this.props.children }
+          { children }
         </div>
       </Container>
     );
   }
 
-  renderImage (dappsUrl, app) {
-    if (app.type === 'local') {
-      return (
-        <img src={ `${dappsUrl}/${app.id}/${app.iconUrl}` } className={ styles.image } />
-      );
-    }
-
-    return (
-      <img src={ `${dappsUrl}${app.image}` } className={ styles.image } />
-    );
-  }
-
   renderLink (app) {
-    // Special case for web dapp
-    if (app.url === 'web') {
-      return (
-        <Link to={ `/web` }>
-          { app.name }
-        </Link>
-      );
-    }
-
     return (
-      <Link to={ `/app/${app.id}` }>
+      <Link
+        to={
+          app.url === 'web'
+            ? '/web'
+            : `/app/${app.id}`
+        }
+      >
         { app.name }
       </Link>
     );

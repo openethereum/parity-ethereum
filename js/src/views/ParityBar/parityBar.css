@@ -15,13 +15,46 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-.bar, .expanded {
-  position: fixed;
-  bottom: 0;
-  right: 0;
-  font-size: 16px;
-  font-family: 'Roboto', sans-serif;
-  z-index: 10001;
+$overlayZ: 10000;
+$modalZ: 10001;
+
+.account {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+
+  .accountOverlay {
+    position: absolute;
+    right: 0.5em;
+    top: 0.5em;
+  }
+
+  .iconDisabled {
+    opacity: 0.15;
+  }
+
+  .selected,
+  .unselected {
+    margin: 0.125em 0;
+
+    &:focus {
+      outline: none;
+    }
+  }
+
+  .unselected {
+    background: rgba(0, 0, 0, 0.4) !important;
+  }
+
+  .selected {
+    background: rgba(255, 255, 255, 0.35) !important;
+  }
+}
+
+.container {
+  display: flex;
+  flex-direction: column;
 }
 
 .overlay {
@@ -31,7 +64,17 @@
   bottom: 0;
   left: 0;
   background: rgba(255, 255, 255, 0.5);
-  z-index: 10000;
+  z-index: $overlayZ;
+  user-select: none;
+}
+
+.bar,
+.expanded {
+  position: fixed;
+  font-size: 16px;
+  font-family: 'Roboto', sans-serif;
+  z-index: $modalZ;
+  user-select: none;
 }
 
 .bar {
@@ -39,35 +82,58 @@
   display: flex;
   flex-wrap: wrap;
   width: 100%;
+  top: 0;
+  left: 0;
+
+  &.moving {
+    bottom: 0;
+    right: 0;
+
+    &:hover {
+      cursor: move;
+    }
+  }
+}
+
+.parityBg {
+  position: fixed;
+
+  transition-property: left, top, right, bottom;
+  transition-duration: 0.25s;
+  transition-timing-function: ease;
+
+  &.moving {
+    transition-duration: 0.05s;
+    transition-timing-function: ease-in-out;
+  }
 }
 
 .expanded {
-  right: 1em;
   border-radius: 4px 4px 0 0;
   display: flex;
   flex-direction: column;
-  max-height: 50vh;
-}
+  min-height: 30vh;
+  max-height: 80vh;
+  max-width: calc(100vw - 1em);
 
-.expanded .content {
-  flex: 1;
-  overflow-y: auto;
-  overflow-x: hidden;
-  display: flex;
-  background: rgba(0, 0, 0, 0.8);
-  min-height: 16em;
+  .content {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    display: flex;
+    background: rgba(0, 0, 0, 0.8);
+  }
 }
 
 .corner {
-  position: absolute;
-  bottom: 0;
-  right: 1em;
   border-radius: 4px 4px 0 0;
 }
 
 .cornercolor {
   background: rgba(0, 0, 0, 0.5);
   padding: 0.5em 1em;
+  display: flex;
+  align-items: center;
 }
 
 .link {
@@ -76,19 +142,21 @@
   outline: none !important;
   color: white !important;
   display: inline-block;
-}
 
-.link img, .link svg {
-  height: 24px !important;
-  width: 24px !important;
-  margin: 2px 0.5em 0 0;
+  img, svg {
+    height: 24px !important;
+    width: 24px !important;
+    margin: 2px 0.5em 0 0;
+  }
 }
 
 .link+.link {
   margin-left: 1em;
 }
 
-.button, .parityButton {
+.button,
+.iconButton,
+.parityButton {
   overflow: visible !important;
 }
 
@@ -99,6 +167,14 @@
 
 .button svg {
   fill: white !important;
+}
+
+.iconButton {
+  min-width: 2em !important;
+
+  img {
+    margin: 6px 0.5em 0 0.5em;
+  }
 }
 
 .label {
@@ -123,20 +199,21 @@
   padding: 0.5em 1em;
   background: rgba(0, 0, 0, 0.25);
   margin-bottom: 0;
+
+  &:after {
+    clear: both;
+  }
 }
 
-.header:after {
-  clear: both;
-}
+.header,
+.corner {
+  button {
+    color: white !important;
+  }
 
-.header button,
-.corner button {
-  color: white !important;
-}
-
-.header svg,
-.coner svg {
-  fill: white !important;
+  svg {
+    fill: white !important;
+  }
 }
 
 .body {
@@ -150,17 +227,49 @@
 .actions {
   float: right;
   margin-top: -2px;
+
+  div {
+    margin-left: 1em;
+    display: inline-block;
+    cursor: pointer;
+  }
 }
 
-.actions div {
-  margin-left: 1em;
-  display: inline-block;
-  cursor: pointer;
-}
-
-.parityIcon, .signerIcon {
+.parityIcon,
+.signerIcon {
   width: 24px;
   height: 24px;
   vertical-align: middle;
   margin-left: 12px;
+}
+
+.moveIcon {
+  display: flex;
+  align-items: center;
+
+  &:hover {
+    cursor: move;
+  }
+}
+
+.dragButton {
+  width: 1em;
+  height: 1em;
+  margin-left: 0.5em;
+
+  background-color: white;
+  opacity: 0.25;
+  border-radius: 50%;
+
+  transition-property: opacity;
+  transition-duration: 0.1s;
+  transition-timing-function: ease-in-out;
+
+  &:hover {
+    opacity: 0.5;
+  }
+
+  &.moving {
+    opacity: 0.75;
+  }
 }

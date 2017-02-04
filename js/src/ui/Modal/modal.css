@@ -47,20 +47,6 @@
 .title {
   background: rgba(0, 0, 0, 0.25) !important;
   padding: 1em;
-  margin-bottom: 0;
-
-  h3 {
-    margin: 0;
-    text-transform: uppercase;
-  }
-
-  .steps {
-    margin-bottom: -1em;
-  }
-}
-
-.waiting {
-  margin: 1em -1em -1em -1em;
 }
 
 .overlay {

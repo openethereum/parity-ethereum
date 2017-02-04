@@ -21,26 +21,64 @@ import sinon from 'sinon';
 
 import GasPriceEditor from './';
 
-const api = {
-  util: {
-    fromWei: (value) => new BigNumber(value)
-  }
-};
+let api;
+let component;
+let store;
 
-const store = {
-  estimated: '123',
-  histogram: {},
-  priceDefault: '456',
-  totalValue: '789',
-  setGas: sinon.stub(),
-  setPrice: sinon.stub()
-};
+function createApi () {
+  api = {
+    eth: {
+      blockNumber: sinon.stub().resolves(new BigNumber(3))
+    },
+    util: {
+      fromWei: (value) => new BigNumber(value)
+    }
+  };
+
+  return api;
+}
+
+function createStore () {
+  createApi();
+
+  store = {
+    _api: api,
+    conditionType: 'none',
+    estimated: '123',
+    histogram: {},
+    priceDefault: '456',
+    totalValue: '789',
+    setGas: sinon.stub(),
+    setPrice: sinon.stub()
+  };
+
+  return store;
+}
+
+function render (props = {}) {
+  createStore();
+
+  component = shallow(
+    <GasPriceEditor
+      store={ store }
+      { ...props }
+    />,
+    {
+      context: {
+        api
+      }
+    }
+  );
+
+  return component;
+}
 
 describe('ui/GasPriceEditor', () => {
+  beforeEach(() => {
+    render();
+  });
+
   it('renders', () => {
-    expect(shallow(
-      <GasPriceEditor store={ store } />,
-      { context: { api } }
-    )).to.be.ok;
+    expect(component).to.be.ok;
   });
 });

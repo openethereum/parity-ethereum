@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -30,7 +30,6 @@ export default class Application extends Component {
   state = {
     accounts: {},
     address: null,
-    fromAddress: null,
     accountsInfo: {},
     blockNumber: new BigNumber(0),
     contract: null,
@@ -41,11 +40,9 @@ export default class Application extends Component {
   }
 
   componentDidMount () {
-    attachInterface()
+    return attachInterface()
       .then((state) => {
-        this.setState(state, () => {
-          this.setState({ loading: false });
-        });
+        this.setState(Object.assign({}, state, { loading: false }));
 
         return attachBlockNumber(state.instance, (state) => {
           this.setState(state);
@@ -80,22 +77,21 @@ export default class Application extends Component {
     return (
       <Header
         blockNumber={ blockNumber }
-        totalSignatures={ totalSignatures } />
+        totalSignatures={ totalSignatures }
+      />
     );
   }
 
   renderImport () {
-    const { accounts, fromAddress, instance, showImport } = this.state;
+    const { instance, showImport } = this.state;
 
     if (showImport) {
       return (
         <Import
-          accounts={ accounts }
-          fromAddress={ fromAddress }
           instance={ instance }
           visible={ showImport }
           onClose={ this.toggleImport }
-          onSetFromAddress={ this.setFromAddress } />
+        />
       );
     }
 
@@ -112,19 +108,14 @@ export default class Application extends Component {
     return (
       <Events
         accountsInfo={ accountsInfo }
-        contract={ contract } />
+        contract={ contract }
+      />
     );
   }
 
   toggleImport = () => {
     this.setState({
       showImport: !this.state.showImport
-    });
-  }
-
-  setFromAddress = (fromAddress) => {
-    this.setState({
-      fromAddress
     });
   }
 }

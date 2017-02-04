@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -59,7 +59,8 @@ export default class TransactionMainDetails extends Component {
             <Account
               address={ from }
               balance={ fromBalance }
-              isTest={ isTest } />
+              isTest={ isTest }
+            />
           </div>
         </div>
         <div className={ styles.method }>
@@ -70,15 +71,16 @@ export default class TransactionMainDetails extends Component {
               gasStore
                 ? gasStore.overrideTransaction(transaction)
                 : transaction
-            } />
-          { this.renderEditGas() }
+            }
+          />
+          { this.renderEditTx() }
         </div>
         { children }
       </div>
     );
   }
 
-  renderEditGas () {
+  renderEditTx () {
     const { gasStore } = this.props;
 
     if (!gasStore) {
@@ -89,8 +91,9 @@ export default class TransactionMainDetails extends Component {
       <div className={ styles.editButtonRow }>
         <Button
           icon={ <MapsLocalGasStation /> }
-          label='Edit gas/gasPrice'
-          onClick={ this.toggleGasEditor } />
+          label='Edit conditions/gas/gasPrice'
+          onClick={ this.toggleGasEditor }
+        />
       </div>
     );
   }
@@ -107,7 +110,8 @@ export default class TransactionMainDetails extends Component {
           data-effect='solid'
           data-for={ labelId }
           data-place='bottom'
-          data-tip>
+          data-tip
+        >
           { totalValueDisplay } <small>ETH</small>
         </div>
         <ReactTooltip id={ labelId }>
@@ -128,7 +132,8 @@ export default class TransactionMainDetails extends Component {
         <div
           data-effect='solid'
           data-for={ labelId }
-          data-tip>
+          data-tip
+        >
           <strong>{ valueDisplay } </strong>
           <small>ETH</small>
         </div>

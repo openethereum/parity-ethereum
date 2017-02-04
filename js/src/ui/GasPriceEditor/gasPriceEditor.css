@@ -17,6 +17,46 @@
 
 .container {
   display: flex;
+  flex-direction: column;
+}
+
+.conditionContainer {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  margin-bottom: 1.5em;
+
+  .input {
+    flex: 0 1 50%;
+  }
+}
+
+.conditionRadio {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 1em;
+
+  &>label {
+    margin-bottom: 0.5em;
+  }
+
+  &>div {
+    display: flex;
+    flex-direction: row;
+
+    &>div {
+      width: auto !important;
+
+      label {
+        padding-right: 1.5em;
+        white-space: nowrap;
+      }
+    }
+  }
+}
+
+.graphContainer {
+  display: flex;
   flex-wrap: wrap;
   position: relative;
 }

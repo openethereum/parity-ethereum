@@ -16,6 +16,9 @@
 
 import { Address, Data, Hash, Quantity } from '../types';
 
+// DUMMY for beta
+const SECTION_ACCOUNTS = null;
+
 export default {
   acceptNonReservedPeers: {
     desc: '?',
@@ -132,6 +135,17 @@ export default {
     returns: {
       type: String,
       desc: 'The interface'
+    }
+  },
+
+  defaultAccount: {
+    section: SECTION_ACCOUNTS,
+    desc: 'Returns the defaultAccount that is to be used with transactions',
+    params: [],
+    returns: {
+      type: Address,
+      desc: 'The account address',
+      example: '0x63Cf90D3f0410092FC0fca41846f596223979195'
     }
   },
 

@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -20,6 +20,9 @@ export default class Personal {
     this._api = api;
     this._updateSubscriptions = updateSubscriptions;
     this._started = false;
+
+    this._lastDefaultAccount = '0x0';
+    this._pollTimerId = null;
   }
 
   get isStarted () {
@@ -30,10 +33,42 @@ export default class Personal {
     this._started = true;
 
     return Promise.all([
+      this._defaultAccount(),
       this._listAccounts(),
       this._accountsInfo(),
       this._loggingSubscribe()
     ]);
+  }
+
+  // FIXME: Because of the different API instances, the "wait for valid changes" approach
+  // doesn't work. Since the defaultAccount is critical to operation, we poll in exactly
+  // same way we do in ../eth (ala same as eth_blockNumber) and update. This should be moved
+  // to pub-sub as it becomes available
+  _defaultAccount = (timerDisabled = false) => {
+    const nextTimeout = (timeout = 1000) => {
+      if (!timerDisabled) {
+        this._pollTimerId = setTimeout(() => {
+          this._defaultAccount();
+        }, timeout);
+      }
+    };
+
+    if (!this._api.transport.isConnected) {
+      nextTimeout(500);
+      return;
+    }
+
+    return this._api.parity
+      .defaultAccount()
+      .then((defaultAccount) => {
+        if (this._lastDefaultAccount !== defaultAccount) {
+          this._lastDefaultAccount = defaultAccount;
+          this._updateSubscriptions('parity_defaultAccount', null, defaultAccount);
+        }
+
+        nextTimeout();
+      })
+      .catch(() => nextTimeout());
   }
 
   _listAccounts = () => {
@@ -46,9 +81,19 @@ export default class Personal {
 
   _accountsInfo = () => {
     return this._api.parity
-      .allAccountsInfo()
+      .accountsInfo()
       .then((info) => {
-        this._updateSubscriptions('parity_allAccountsInfo', null, info);
+        this._updateSubscriptions('parity_accountsInfo', null, info);
+
+        return this._api.parity
+          .allAccountsInfo()
+          .catch(() => {
+            // NOTE: This fails on non-secure APIs, swallow error
+            return {};
+          })
+          .then((allInfo) => {
+            this._updateSubscriptions('parity_allAccountsInfo', null, allInfo);
+          });
       });
   }
 
@@ -72,6 +117,11 @@ export default class Personal {
         case 'parity_setAccountName':
         case 'parity_setAccountMeta':
           this._accountsInfo();
+          return;
+
+        case 'parity_setDappsAddresses':
+        case 'parity_setNewDappsWhitelist':
+          this._defaultAccount(true);
           return;
       }
     });

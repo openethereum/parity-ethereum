@@ -17,48 +17,44 @@
 import * as abis from '~/contracts/abi';
 import { api } from './parity';
 
+let defaultSubscriptionId;
+
 export function attachInterface () {
   return api.parity
     .registryAddress()
     .then((registryAddress) => {
       console.log(`the registry was found at ${registryAddress}`);
 
-      const registry = api.newContract(abis.registry, registryAddress).instance;
-
-      return Promise
-        .all([
-          registry.getAddress.call({}, [api.util.sha3('githubhint'), 'A']),
-          api.parity.accountsInfo()
-        ]);
+      return api
+        .newContract(abis.registry, registryAddress).instance
+        .getAddress.call({}, [api.util.sha3('githubhint'), 'A']);
     })
-    .then(([address, accountsInfo]) => {
+    .then((address) => {
       console.log(`githubhint was found at ${address}`);
 
       const contract = api.newContract(abis.githubhint, address);
-      const accounts = Object
-        .keys(accountsInfo)
-        .reduce((obj, address) => {
-          const account = accountsInfo[address];
-
-          return Object.assign(obj, {
-            [address]: {
-              address,
-              name: account.name
-            }
-          });
-        }, {});
-      const fromAddress = Object.keys(accounts)[0];
 
       return {
-        accounts,
         address,
-        accountsInfo,
         contract,
-        instance: contract.instance,
-        fromAddress
+        instance: contract.instance
       };
     })
     .catch((error) => {
       console.error('attachInterface', error);
     });
+}
+
+export function subscribeDefaultAddress (callback) {
+  return api
+    .subscribe('parity_defaultAccount', callback)
+    .then((subscriptionId) => {
+      defaultSubscriptionId = subscriptionId;
+
+      return defaultSubscriptionId;
+    });
+}
+
+export function unsubscribeDefaultAddress () {
+  return api.unsubscribe(defaultSubscriptionId);
 }
