@@ -127,6 +127,18 @@ export function inNumber16 (number) {
   return inHex(bn.toString(16));
 }
 
+export function inOptionsCondition (condition) {
+  if (condition) {
+    if (condition.block) {
+      condition.block = condition.block ? inNumber10(condition.block) : null;
+    } else if (condition.time) {
+      condition.time = inNumber10(Math.floor(condition.time.getTime() / 1000));
+    }
+  }
+
+  return condition;
+}
+
 export function inOptions (options) {
   if (options) {
     Object.keys(options).forEach((key) => {
@@ -134,6 +146,10 @@ export function inOptions (options) {
         case 'from':
         case 'to':
           options[key] = inAddress(options[key]);
+          break;
+
+        case 'condition':
+          options[key] = inOptionsCondition(options[key]);
           break;
 
         case 'gas':

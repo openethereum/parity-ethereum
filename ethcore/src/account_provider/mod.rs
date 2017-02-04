@@ -21,7 +21,7 @@ mod stores;
 use self::stores::{AddressBook, DappsSettingsStore, NewDappsPolicy};
 
 use std::fmt;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::time::{Instant, Duration};
 use util::RwLock;
 use ethstore::{SimpleSecretStore, SecretStore, Error as SSError, EthStore, EthMultiStore,
@@ -114,8 +114,8 @@ impl AccountProvider {
 	pub fn new(sstore: Box<SecretStore>) -> Self {
 		AccountProvider {
 			unlocked: RwLock::new(HashMap::new()),
-			address_book: RwLock::new(AddressBook::new(sstore.local_path().into())),
-			dapps_settings: RwLock::new(DappsSettingsStore::new(sstore.local_path().into())),
+			address_book: RwLock::new(AddressBook::new(&sstore.local_path())),
+			dapps_settings: RwLock::new(DappsSettingsStore::new(&sstore.local_path())),
 			sstore: sstore,
 			transient_sstore: transient_sstore(),
 		}
@@ -216,7 +216,7 @@ impl AccountProvider {
 			Some(accounts) => Ok(accounts),
 			None => match dapps.policy() {
 				NewDappsPolicy::AllAccounts => self.accounts(),
-				NewDappsPolicy::Whitelist(accounts) => Ok(accounts),
+				NewDappsPolicy::Whitelist(accounts) => self.filter_addresses(accounts),
 			}
 		}
 	}
@@ -231,28 +231,42 @@ impl AccountProvider {
 
 	/// Sets addresses visile for dapp.
 	pub fn set_dapps_addresses(&self, dapp: DappId, addresses: Vec<Address>) -> Result<(), Error> {
+		let addresses = self.filter_addresses(addresses)?;
 		self.dapps_settings.write().set_accounts(dapp, addresses);
 		Ok(())
 	}
 
-	/// Returns each address along with metadata.
-	pub fn addresses_info(&self) -> Result<HashMap<Address, AccountMeta>, Error> {
-		Ok(self.address_book.read().get())
+	/// Removes addresses that are neither accounts nor in address book.
+	fn filter_addresses(&self, addresses: Vec<Address>) -> Result<Vec<Address>, Error> {
+		let valid = self.addresses_info().into_iter()
+			.map(|(address, _)| address)
+			.chain(self.accounts()?)
+			.collect::<HashSet<_>>();
+
+		Ok(addresses.into_iter()
+			.filter(|a| valid.contains(&a))
+			.collect()
+		)
 	}
 
 	/// Returns each address along with metadata.
-	pub fn set_address_name(&self, account: Address, name: String) -> Result<(), Error> {
-		Ok(self.address_book.write().set_name(account, name))
+	pub fn addresses_info(&self) -> HashMap<Address, AccountMeta> {
+		self.address_book.read().get()
 	}
 
 	/// Returns each address along with metadata.
-	pub fn set_address_meta(&self, account: Address, meta: String) -> Result<(), Error> {
-		Ok(self.address_book.write().set_meta(account, meta))
+	pub fn set_address_name(&self, account: Address, name: String) {
+		self.address_book.write().set_name(account, name)
+	}
+
+	/// Returns each address along with metadata.
+	pub fn set_address_meta(&self, account: Address, meta: String) {
+		self.address_book.write().set_meta(account, meta)
 	}
 
 	/// Removes and address from the addressbook
-	pub fn remove_address(&self, addr: Address) -> Result<(), Error> {
-		Ok(self.address_book.write().remove(addr))
+	pub fn remove_address(&self, addr: Address) {
+		self.address_book.write().remove(addr)
 	}
 
 	/// Returns each account along with name and meta.
@@ -502,9 +516,12 @@ mod tests {
 		let app = DappId("app1".into());
 		// set `AllAccounts` policy
 		ap.set_new_dapps_whitelist(None).unwrap();
+		// add accounts to address book
+		ap.set_address_name(1.into(), "1".into());
+		ap.set_address_name(2.into(), "2".into());
 
 		// when
-		ap.set_dapps_addresses(app.clone(), vec![1.into(), 2.into()]).unwrap();
+		ap.set_dapps_addresses(app.clone(), vec![1.into(), 2.into(), 3.into()]).unwrap();
 
 		// then
 		assert_eq!(ap.dapps_addresses(app.clone()).unwrap(), vec![1.into(), 2.into()]);
@@ -515,6 +532,7 @@ mod tests {
 		// given
 		let ap = AccountProvider::transient_provider();
 		let address = ap.new_account("test").unwrap();
+		ap.set_address_name(1.into(), "1".into());
 
 		// When returning nothing
 		ap.set_new_dapps_whitelist(Some(vec![])).unwrap();
@@ -523,6 +541,10 @@ mod tests {
 		// change to all
 		ap.set_new_dapps_whitelist(None).unwrap();
 		assert_eq!(ap.dapps_addresses("app1".into()).unwrap(), vec![address]);
+
+		// change to non-existent account
+		ap.set_new_dapps_whitelist(Some(vec![2.into()])).unwrap();
+		assert_eq!(ap.dapps_addresses("app1".into()).unwrap(), vec![]);
 
 		// change to a whitelist
 		ap.set_new_dapps_whitelist(Some(vec![1.into()])).unwrap();

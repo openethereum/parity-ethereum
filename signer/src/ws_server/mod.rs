@@ -109,8 +109,9 @@ impl Server {
 
 		// Create WebSocket
 		let origin = format!("{}", addr);
+		let port = addr.port();
 		let ws = ws::Builder::new().with_settings(config).build(
-			session::Factory::new(handler, origin, authcodes_path, skip_origin_validation)
+			session::Factory::new(handler, origin, port, authcodes_path, skip_origin_validation)
 		)?;
 
 		let panic_handler = PanicHandler::new_in_arc();

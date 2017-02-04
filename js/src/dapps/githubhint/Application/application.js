@@ -17,10 +17,9 @@
 import React, { Component } from 'react';
 
 import { api } from '../parity';
-import { attachInterface } from '../services';
+import { attachInterface, subscribeDefaultAddress, unsubscribeDefaultAddress } from '../services';
 import Button from '../Button';
 import Events from '../Events';
-import IdentityIcon from '../IdentityIcon';
 import Loading from '../Loading';
 
 import styles from './application.css';
@@ -32,7 +31,7 @@ let nextEventId = 0;
 
 export default class Application extends Component {
   state = {
-    fromAddress: null,
+    defaultAddress: null,
     loading: true,
     url: '',
     urlError: null,
@@ -47,17 +46,30 @@ export default class Application extends Component {
     registerType: 'file',
     repo: '',
     repoError: null,
+    subscriptionId: null,
     events: {},
     eventIds: []
   }
 
   componentDidMount () {
-    attachInterface()
-      .then((state) => {
-        this.setState(state, () => {
-          this.setState({ loading: false });
-        });
+    return Promise
+      .all([
+        attachInterface(),
+        subscribeDefaultAddress((error, defaultAddress) => {
+          if (!error) {
+            this.setState({ defaultAddress });
+          }
+        })
+      ])
+      .then(([state]) => {
+        this.setState(Object.assign({}, state, {
+          loading: false
+        }));
       });
+  }
+
+  componentWillUnmount () {
+    return unsubscribeDefaultAddress();
   }
 
   render () {
@@ -75,12 +87,14 @@ export default class Application extends Component {
   }
 
   renderPage () {
-    const { fromAddress, registerBusy, url, urlError, contentHash, contentHashError, contentHashOwner, commit, commitError, registerType, repo, repoError } = this.state;
+    const { defaultAddress, registerBusy, url, urlError, contentHash, contentHashError, contentHashOwner, commit, commitError, registerType, repo, repoError } = this.state;
 
     let hashClass = null;
 
     if (contentHashError) {
-      hashClass = contentHashOwner !== fromAddress ? styles.hashError : styles.hashWarning;
+      hashClass = contentHashOwner !== defaultAddress
+        ? styles.hashError
+        : styles.hashWarning;
     } else if (contentHash) {
       hashClass = styles.hashOk;
     }
@@ -166,20 +180,13 @@ export default class Application extends Component {
   }
 
   renderButtons () {
-    const { accounts, fromAddress, urlError, repoError, commitError, contentHashError, contentHashOwner } = this.state;
-    const account = accounts[fromAddress];
+    const { defaultAddress, urlError, repoError, commitError, contentHashError, contentHashOwner } = this.state;
 
     return (
       <div className={ styles.buttons }>
-        <div className={ styles.addressSelect }>
-          <Button invert onClick={ this.onSelectFromAddress }>
-            <IdentityIcon address={ account.address } />
-            <div>{ account.name || account.address }</div>
-          </Button>
-        </div>
         <Button
           onClick={ this.onClickRegister }
-          disabled={ (contentHashError && contentHashOwner !== fromAddress) || urlError || repoError || commitError }
+          disabled={ (contentHashError && contentHashOwner !== defaultAddress) || urlError || repoError || commitError }
         >register url</Button>
       </div>
     );
@@ -294,11 +301,11 @@ export default class Application extends Component {
   }
 
   onClickRegister = () => {
-    const { commit, commitError, contentHashError, contentHashOwner, fromAddress, url, urlError, registerType, repo, repoError } = this.state;
+    const { defaultAddress, commit, commitError, contentHashError, contentHashOwner, url, urlError, registerType, repo, repoError } = this.state;
 
     // TODO: No errors are currently set, validation to be expanded and added for each
     // field (query is fast to pick up the issues, so not burning atm)
-    if ((contentHashError && contentHashOwner !== fromAddress) || repoError || urlError || commitError) {
+    if ((contentHashError && contentHashOwner !== defaultAddress) || repoError || urlError || commitError) {
       return;
     }
 
@@ -368,13 +375,15 @@ export default class Application extends Component {
   }
 
   registerContent (contentRepo, contentCommit) {
-    const { contentHash, fromAddress, instance } = this.state;
+    const { defaultAddress, contentHash, instance } = this.state;
 
-    contentCommit = contentCommit.substr(0, 2) === '0x' ? contentCommit : `0x${contentCommit}`;
+    contentCommit = contentCommit.substr(0, 2) === '0x'
+      ? contentCommit
+      : `0x${contentCommit}`;
 
     const eventId = nextEventId++;
     const values = [contentHash, contentRepo, contentCommit];
-    const options = { from: fromAddress };
+    const options = { from: defaultAddress };
 
     this.setState({
       eventIds: [eventId].concat(this.state.eventIds),
@@ -383,7 +392,7 @@ export default class Application extends Component {
           contentHash,
           contentRepo,
           contentCommit,
-          fromAddress,
+          defaultAddress,
           registerBusy: true,
           registerState: 'Estimating gas for the transaction',
           timestamp: new Date()
@@ -421,11 +430,11 @@ export default class Application extends Component {
   }
 
   registerUrl (contentUrl) {
-    const { contentHash, fromAddress, instance } = this.state;
+    const { contentHash, defaultAddress, instance } = this.state;
 
     const eventId = nextEventId++;
     const values = [contentHash, contentUrl];
-    const options = { from: fromAddress };
+    const options = { from: defaultAddress };
 
     this.setState({
       eventIds: [eventId].concat(this.state.eventIds),
@@ -433,7 +442,7 @@ export default class Application extends Component {
         [eventId]: {
           contentHash,
           contentUrl,
-          fromAddress,
+          defaultAddress,
           registerBusy: true,
           registerState: 'Estimating gas for the transaction',
           timestamp: new Date()
@@ -468,25 +477,6 @@ export default class Application extends Component {
           return instance.hintURL.postTransaction(options, values);
         })
     );
-  }
-
-  onSelectFromAddress = () => {
-    const { accounts, fromAddress } = this.state;
-    const addresses = Object.keys(accounts);
-    let index = 0;
-
-    addresses.forEach((address, _index) => {
-      if (address === fromAddress) {
-        index = _index;
-      }
-    });
-
-    index++;
-    if (index >= addresses.length) {
-      index = 0;
-    }
-
-    this.setState({ fromAddress: addresses[index] });
   }
 
   lookupHash (url) {

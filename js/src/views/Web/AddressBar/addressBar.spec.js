@@ -14,4 +14,35 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-export default from './summary';
+import { shallow } from 'enzyme';
+import React from 'react';
+
+import AddressBar from './';
+
+let component;
+let store;
+
+function createStore () {
+  store = {
+    nextUrl: 'https://parity.io'
+  };
+
+  return store;
+}
+
+function render (props = {}) {
+  component = shallow(
+    <AddressBar
+      className='testClass'
+      store={ createStore() }
+    />
+  );
+
+  return component;
+}
+
+describe('views/Web/AddressBar', () => {
+  it('renders defaults', () => {
+    expect(render()).to.be.ok;
+  });
+});

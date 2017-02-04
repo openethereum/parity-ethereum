@@ -52,6 +52,16 @@ impl Decodable for Action {
 	}
 }
 
+/// Transaction activation condition.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "ipc", binary)]
+pub enum Condition {
+	/// Valid at this block number or later.
+	Number(BlockNumber),
+	/// Valid at this unix time or later.
+	Timestamp(u64),
+}
+
 /// A set of information describing an externally-originating message call
 /// or contract creation operation.
 #[derive(Default, Debug, Clone, PartialEq, Eq)]
@@ -448,16 +458,16 @@ impl Deref for LocalizedTransaction {
 pub struct PendingTransaction {
 	/// Signed transaction data.
 	pub transaction: SignedTransaction,
-	/// To be activated at this block. `None` for immediately.
-	pub min_block: Option<BlockNumber>,
+	/// To be activated at this condition. `None` for immediately.
+	pub condition: Option<Condition>,
 }
 
 impl PendingTransaction {
 	/// Create a new pending transaction from signed transaction.
-	pub fn new(signed: SignedTransaction, min_block: Option<BlockNumber>) -> Self {
+	pub fn new(signed: SignedTransaction, condition: Option<Condition>) -> Self {
 		PendingTransaction {
 			transaction: signed,
-			min_block: min_block,
+			condition: condition,
 		}
 	}
 }
@@ -466,7 +476,7 @@ impl From<SignedTransaction> for PendingTransaction {
 	fn from(t: SignedTransaction) -> Self {
 		PendingTransaction {
 			transaction: t,
-			min_block: None,
+			condition: None,
 		}
 	}
 }

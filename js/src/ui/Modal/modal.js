@@ -22,7 +22,7 @@ import { connect } from 'react-redux';
 import { nodeOrStringProptype } from '~/util/proptypes';
 
 import Container from '../Container';
-import Title from './Title';
+import Title from '../Title';
 
 const ACTIONS_STYLE = { borderStyle: 'none' };
 const TITLE_STYLE = { borderStyle: 'none' };
@@ -63,11 +63,12 @@ class Modal extends Component {
     const contentStyle = muiTheme.parity.getBackgroundStyle(null, settings.backgroundSeed);
     const header = (
       <Title
+        activeStep={ current }
         busy={ busy }
-        current={ current }
+        busySteps={ waiting }
+        className={ styles.title }
         steps={ steps }
         title={ title }
-        waiting={ waiting }
       />
     );
     const classes = `${styles.dialog} ${className}`;

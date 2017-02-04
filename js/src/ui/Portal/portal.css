@@ -16,13 +16,14 @@
 */
 
 $modalMargin: 1.5em;
+$modalPadding: 1.5em;
 $modalBackZ: 2500;
 
 /* This should be the default case, the Portal used as a stand-alone modal */
-$modalBottom: 15vh;
+$modalBottom: $modalMargin;
 $modalLeft: $modalMargin;
 $modalRight: $modalMargin;
-$modalTop: 0;
+$modalTop: $modalMargin;
 $modalZ: 3500;
 
 /* This is the case where popped-up over another modal, Portal or otherwise */
@@ -55,7 +56,9 @@ $popoverZ: 3600;
   background-color: rgba(0, 0, 0, 1);
   box-sizing: border-box;
   display: flex;
-  padding: 1.5em;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: $modalPadding;
   position: fixed;
 
   * {
@@ -77,22 +80,48 @@ $popoverZ: 3600;
     width: calc(100vw - $popoverLeft - $popoverRight);
     z-index: $popoverZ;
   }
-}
 
-.closeIcon {
-  font-size: 4em;
-  position: absolute;
-  right: 1rem;
-  top: 0.5rem;
-  z-index: 100;
+  .buttonRow {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    justify-content: flex-end;
+    padding: $modalPadding 0 0 0;
 
-  &, * {
-    height: 48px !important;
-    width: 48px !important;
+    button:not([disabled]) {
+      color: white !important;
+
+      svg {
+        fill: white !important;
+      }
+    }
   }
 
-  &:hover {
-    cursor: pointer;
-    opacity: 0.5;
+  .childContainer {
+    flex: 1;
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+
+  .closeIcon {
+    font-size: 4em;
+    position: absolute;
+    right: 1rem;
+    top: 0.5rem;
+    z-index: 100;
+
+    &, * {
+      height: 48px !important;
+      width: 48px !important;
+    }
+
+    &:hover {
+      cursor: pointer;
+      opacity: 0.5;
+    }
+  }
+
+  .titleRow {
+    margin-bottom: $modalPadding;
   }
 }

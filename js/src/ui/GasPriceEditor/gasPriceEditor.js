@@ -17,12 +17,43 @@
 import BigNumber from 'bignumber.js';
 import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
+import { FormattedMessage } from 'react-intl';
 
-import Input from '../Form/Input';
+import { Input, InputDate, InputTime, RadioButtons } from '../Form';
 import GasPriceSelector from '../GasPriceSelector';
-import Store from './store';
 
+import Store, { CONDITIONS } from './store';
 import styles from './gasPriceEditor.css';
+
+const CONDITION_VALUES = [
+  {
+    label: (
+      <FormattedMessage
+        id='txEditor.condition.none'
+        defaultMessage='No conditions'
+      />
+    ),
+    key: CONDITIONS.NONE
+  },
+  {
+    label: (
+      <FormattedMessage
+        id='txEditor.condition.blocknumber'
+        defaultMessage='Send after BlockNumber'
+      />
+    ),
+    key: CONDITIONS.BLOCK
+  },
+  {
+    label: (
+      <FormattedMessage
+        id='txEditor.condition.datetime'
+        defaultMessage='Send after Date & Time'
+      />
+    ),
+    key: CONDITIONS.TIME
+  }
+];
 
 @observer
 export default class GasPriceEditor extends Component {
@@ -41,7 +72,7 @@ export default class GasPriceEditor extends Component {
   render () {
     const { api } = this.context;
     const { children, store } = this.props;
-    const { errorGas, errorPrice, errorTotal, estimated, gas, histogram, price, priceDefault, totalValue } = store;
+    const { conditionType, errorGas, errorPrice, errorTotal, estimated, gas, histogram, price, priceDefault, totalValue } = store;
 
     const eth = api.util.fromWei(totalValue).toFormat();
     const gasLabel = `gas (estimated: ${new BigNumber(estimated).toFormat()})`;
@@ -49,46 +80,146 @@ export default class GasPriceEditor extends Component {
 
     return (
       <div className={ styles.container }>
-        <div className={ styles.graphColumn }>
-          <GasPriceSelector
-            histogram={ histogram }
-            onChange={ this.onEditGasPrice }
-            price={ price }
-          />
-          <div className={ styles.gasPriceDesc }>
-            You can choose the gas price based on the distribution of recent included transaction gas prices. The lower the gas price is, the cheaper the transaction will be. The higher the gas price is, the faster it should get mined by the network.
+        <RadioButtons
+          className={ styles.conditionRadio }
+          label={
+            <FormattedMessage
+              id='txEditor.condition.label'
+              defaultMessage='Condition where transaction activates'
+            />
+          }
+          onChange={ this.onChangeConditionType }
+          value={ conditionType }
+          values={ CONDITION_VALUES }
+        />
+        { this.renderConditions() }
+
+        <div className={ styles.graphContainer }>
+          <div className={ styles.graphColumn }>
+            <GasPriceSelector
+              histogram={ histogram }
+              onChange={ this.onEditGasPrice }
+              price={ price }
+            />
+            <div className={ styles.gasPriceDesc }>
+              <FormattedMessage
+                id='txEditor.gas.info'
+                defaultMessage='You can choose the gas price based on the distribution of recent included transaction gas prices. The lower the gas price is, the cheaper the transaction will be. The higher the gas price is, the faster it should get mined by the network.'
+              />
+            </div>
+          </div>
+
+          <div className={ styles.editColumn }>
+            <div className={ styles.row }>
+              <Input
+                error={ errorGas }
+                hint='the amount of gas to use for the transaction'
+                label={ gasLabel }
+                min={ 1 }
+                onChange={ this.onEditGas }
+                type='number'
+                value={ gas }
+              />
+              <Input
+                error={ errorPrice }
+                hint='the price of gas to use for the transaction'
+                label={ priceLabel }
+                min={ 1 }
+                onChange={ this.onEditGasPrice }
+                type='number'
+                value={ price }
+              />
+            </div>
+            <div className={ styles.row }>
+              <Input
+                disabled
+                error={ errorTotal }
+                hint='the total amount of the transaction'
+                label='total transaction amount'
+                value={ `${eth} ETH` }
+              />
+            </div>
+            <div className={ styles.row }>
+              { children }
+            </div>
           </div>
         </div>
+      </div>
+    );
+  }
 
-        <div className={ styles.editColumn }>
-          <div className={ styles.row }>
+  renderConditions () {
+    const { conditionType, condition, conditionBlockError } = this.props.store;
+
+    if (conditionType === CONDITIONS.NONE) {
+      return null;
+    }
+
+    if (conditionType === CONDITIONS.BLOCK) {
+      return (
+        <div className={ styles.conditionContainer }>
+          <div className={ styles.input }>
             <Input
-              error={ errorGas }
-              hint='the amount of gas to use for the transaction'
-              label={ gasLabel }
-              onChange={ this.onEditGas }
-              value={ gas }
-            />
-            <Input
-              error={ errorPrice }
-              hint='the price of gas to use for the transaction'
-              label={ priceLabel }
-              onChange={ this.onEditGasPrice }
-              value={ price }
+              error={ conditionBlockError }
+              hint={
+                <FormattedMessage
+                  id='txEditor.condition.block.hint'
+                  defaultMessage='The minimum block to send from'
+                />
+              }
+              label={
+                <FormattedMessage
+                  id='txEditor.condition.block.label'
+                  defaultMessage='Transaction send block'
+                />
+              }
+              min={ 1 }
+              onChange={ this.onChangeConditionBlock }
+              type='number'
+              value={ condition.block }
             />
           </div>
-          <div className={ styles.row }>
-            <Input
-              disabled
-              error={ errorTotal }
-              hint='the total amount of the transaction'
-              label='total transaction amount'
-              value={ `${eth} ETH` }
-            />
-          </div>
-          <div className={ styles.row }>
-            { children }
-          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className={ styles.conditionContainer }>
+        <div className={ styles.input }>
+          <InputDate
+            hint={
+              <FormattedMessage
+                id='txEditor.condition.date.hint'
+                defaultMessage='The minimum date to send from'
+              />
+            }
+            label={
+              <FormattedMessage
+                id='txEditor.condition.date.label'
+                defaultMessage='Transaction send date'
+              />
+            }
+            onChange={ this.onChangeConditionDateTime }
+            value={ condition.time }
+          />
+        </div>
+        <div className={ styles.input }>
+          <InputTime
+            hint={
+              <FormattedMessage
+                id='txEditor.condition.time.hint'
+                defaultMessage='The minimum time to send from'
+              />
+            }
+            label={
+              <FormattedMessage
+                id='txEditor.condition.time.label'
+                defaultMessage='Transaction send time'
+              />
+            }
+            onChange={ this.onChangeConditionDateTime }
+            value={ condition.time }
+          />
         </div>
       </div>
     );
@@ -106,5 +237,17 @@ export default class GasPriceEditor extends Component {
 
     store.setPrice(price);
     onChange && onChange('gasPrice', price);
+  }
+
+  onChangeConditionType = (conditionType) => {
+    this.props.store.setConditionType(conditionType.key);
+  }
+
+  onChangeConditionBlock = (event, blockNumber) => {
+    this.props.store.setConditionBlockNumber(blockNumber);
+  }
+
+  onChangeConditionDateTime = (event, datetime) => {
+    this.props.store.setConditionDateTime(datetime);
   }
 }

@@ -1406,7 +1406,11 @@ impl BlockChainClient for Client {
 	}
 
 	fn ready_transactions(&self) -> Vec<PendingTransaction> {
-		self.miner.ready_transactions(self.chain.read().best_block_number())
+		let (number, timestamp) = {
+			let chain = self.chain.read();
+			(chain.best_block_number(), chain.best_block_timestamp())
+		};
+		self.miner.ready_transactions(number, timestamp)
 	}
 
 	fn queue_consensus_message(&self, message: Bytes) {
