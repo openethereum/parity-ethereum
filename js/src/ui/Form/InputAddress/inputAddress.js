@@ -78,6 +78,9 @@ class InputAddress extends Component {
       props.focused = focused;
     }
 
+    // FIXME: The is not advisable, fixes the display issue, however the name should come from
+    // a common component.
+    //    account.name || (value ? 'UNNAMED' : value)
     return (
       <div className={ containerClasses.join(' ') }>
         <Input
@@ -96,7 +99,7 @@ class InputAddress extends Component {
           tabIndex={ tabIndex }
           value={
             text && account
-              ? account.name
+              ? (account.name || (value ? 'UNNAMED' : value))
               : (nullName || value)
           }
           { ...props }
