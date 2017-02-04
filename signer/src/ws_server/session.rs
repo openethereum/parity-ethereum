@@ -65,22 +65,16 @@ mod ui {
 	}
 }
 
-const HOME_DOMAIN: &'static str = "home.parity";
+const HOME_DOMAIN: &'static str = "parity.web3.site";
 
 fn origin_is_allowed(self_origin: &str, header: Option<&[u8]>) -> bool {
-	match header {
-		None => false,
-		Some(h) => {
-			let v = String::from_utf8(h.to_owned()).ok();
-			match v {
-				Some(ref origin) if origin.starts_with("chrome-extension://") => true,
-				Some(ref origin) if origin.starts_with(self_origin) => true,
-				Some(ref origin) if origin.starts_with(&format!("http://{}", self_origin)) => true,
-				Some(ref origin) if origin.starts_with(HOME_DOMAIN) => true,
-				Some(ref origin) if origin.starts_with(&format!("http://{}", HOME_DOMAIN)) => true,
-				_ => false
-			}
-		}
+	match header.map(|h| String::from_utf8_lossy(h).into_owned()) {
+		Some(ref origin) if origin.starts_with("chrome-extension://") => true,
+		Some(ref origin) if origin.starts_with(self_origin) => true,
+		Some(ref origin) if origin.starts_with(&format!("http://{}", self_origin)) => true,
+		Some(ref origin) if origin.starts_with(HOME_DOMAIN) => true,
+		Some(ref origin) if origin.starts_with(&format!("http://{}", HOME_DOMAIN)) => true,
+		_ => false,
 	}
 }
 
@@ -135,6 +129,7 @@ pub struct Session<M: Metadata, S: Middleware<M>> {
 	out: ws::Sender,
 	skip_origin_validation: bool,
 	self_origin: String,
+	self_port: u16,
 	authcodes_path: PathBuf,
 	handler: RpcHandler<M, S>,
 	file_handler: Arc<ui::Handler>,
@@ -154,7 +149,8 @@ impl<M: Metadata, S: Middleware<M>> ws::Handler for Session<M, S> {
 
 		// TODO [ToDr] ws server is not handling proxied requests correctly:
 		// Trim domain name from resource part:
-		let resource = req.resource().trim_left_matches(&format!("http://{}", HOME_DOMAIN));
+		let resource = req.resource().trim_left_matches(&format!("http://{}:{}", HOME_DOMAIN, self.self_port));
+		let resource = resource.trim_left_matches(&format!("http://{}", HOME_DOMAIN));
 
 		// Styles file is allowed for error pages to display nicely.
 		let is_styles_file = resource == "/styles.css";
@@ -237,6 +233,7 @@ pub struct Factory<M: Metadata, S: Middleware<M>> {
 	handler: RpcHandler<M, S>,
 	skip_origin_validation: bool,
 	self_origin: String,
+	self_port: u16,
 	authcodes_path: PathBuf,
 	file_handler: Arc<ui::Handler>,
 	stats: Option<Arc<RpcStats>>,
@@ -246,6 +243,7 @@ impl<M: Metadata, S: Middleware<M>> Factory<M, S> {
 	pub fn new(
 		handler: RpcHandler<M, S>,
 		self_origin: String,
+    self_port: u16,
 		authcodes_path: PathBuf,
 		skip_origin_validation: bool,
 		stats: Option<Arc<RpcStats>>,
@@ -254,6 +252,7 @@ impl<M: Metadata, S: Middleware<M>> Factory<M, S> {
 			handler: handler,
 			skip_origin_validation: skip_origin_validation,
 			self_origin: self_origin,
+			self_port: self_port,
 			authcodes_path: authcodes_path,
 			file_handler: Arc::new(ui::Handler::default()),
 			stats: stats,
@@ -272,6 +271,7 @@ impl<M: Metadata, S: Middleware<M>> ws::Factory for Factory<M, S> {
 			handler: self.handler.clone(),
 			skip_origin_validation: self.skip_origin_validation,
 			self_origin: self.self_origin.clone(),
+			self_port: self.self_port,
 			authcodes_path: self.authcodes_path.clone(),
 			file_handler: self.file_handler.clone(),
 			stats: self.stats.clone(),
