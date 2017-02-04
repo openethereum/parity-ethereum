@@ -262,6 +262,18 @@ impl Client {
 		Ok(client)
 	}
 
+	/// Wakes up client if it's a sleep.
+	pub fn keep_alive(&self) {
+		let should_wake = match *self.mode.lock() {
+			Mode::Dark(..) | Mode::Passive(..) => true,
+			_ => false,
+		};
+		if should_wake {
+			self.wake_up();
+			(*self.sleep_state.lock()).last_activity = Some(Instant::now());
+		}
+	}
+
 	/// Adds an actor to be notified on certain events
 	pub fn add_notify(&self, target: Arc<ChainNotify>) {
 		self.notify.write().push(Arc::downgrade(&target));
@@ -1009,17 +1021,6 @@ impl BlockChainClient for Client {
 		ret.state_diff = original_state.map(|original| state.diff_from(original));
 
 		Ok(ret)
-	}
-
-	fn keep_alive(&self) {
-		let should_wake = match *self.mode.lock() {
-			Mode::Dark(..) | Mode::Passive(..) => true,
-			_ => false,
-		};
-		if should_wake {
-			self.wake_up();
-			(*self.sleep_state.lock()).last_activity = Some(Instant::now());
-		}
 	}
 
 	fn mode(&self) -> IpcMode {

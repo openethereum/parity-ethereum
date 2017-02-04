@@ -22,6 +22,7 @@ use io::PanicHandler;
 
 use dir::default_data_path;
 use ethcore_rpc::{self as rpc, RpcServerError, IpcServerError, Metadata};
+use ethcore_rpc::informant::{RpcStats, Middleware};
 use helpers::parity_ipc_path;
 use jsonrpc_core::MetaIoHandler;
 use jsonrpc_core::reactor::{RpcHandler, Remote};
@@ -85,6 +86,7 @@ pub struct Dependencies {
 	pub panic_handler: Arc<PanicHandler>,
 	pub apis: Arc<rpc_apis::Dependencies>,
 	pub remote: Remote,
+	pub stats: Arc<RpcStats>,
 }
 
 pub fn new_http(conf: HttpConfiguration, deps: &Dependencies) -> Result<Option<HttpServer>, String> {
@@ -97,8 +99,8 @@ pub fn new_http(conf: HttpConfiguration, deps: &Dependencies) -> Result<Option<H
 	Ok(Some(setup_http_rpc_server(deps, &addr, conf.cors, conf.hosts, conf.apis)?))
 }
 
-fn setup_apis(apis: ApiSet, deps: &Dependencies) -> MetaIoHandler<Metadata> {
-	rpc_apis::setup_rpc(MetaIoHandler::default(), deps.apis.clone(), apis)
+fn setup_apis(apis: ApiSet, deps: &Dependencies) -> MetaIoHandler<Metadata, Middleware> {
+	rpc_apis::setup_rpc(deps.stats.clone(), deps.apis.clone(), apis)
 }
 
 pub fn setup_http_rpc_server(
@@ -122,12 +124,12 @@ pub fn setup_http_rpc_server(
 	}
 }
 
-pub fn new_ipc(conf: IpcConfiguration, deps: &Dependencies) -> Result<Option<IpcServer<Metadata>>, String> {
+pub fn new_ipc(conf: IpcConfiguration, deps: &Dependencies) -> Result<Option<IpcServer<Metadata, Middleware>>, String> {
 	if !conf.enabled { return Ok(None); }
 	Ok(Some(setup_ipc_rpc_server(deps, &conf.socket_addr, conf.apis)?))
 }
 
-pub fn setup_ipc_rpc_server(dependencies: &Dependencies, addr: &str, apis: ApiSet) -> Result<IpcServer<Metadata>, String> {
+pub fn setup_ipc_rpc_server(dependencies: &Dependencies, addr: &str, apis: ApiSet) -> Result<IpcServer<Metadata, Middleware>, String> {
 	let apis = setup_apis(apis, dependencies);
 	let handler = RpcHandler::new(Arc::new(apis), dependencies.remote.clone());
 	match rpc::start_ipc(addr, handler) {

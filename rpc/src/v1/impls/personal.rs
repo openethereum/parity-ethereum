@@ -54,12 +54,6 @@ impl<C, M> PersonalClient<C, M> where
 			allow_perm_unlock: allow_perm_unlock,
 		}
 	}
-
-	fn active(&self) -> Result<(), Error> {
-		// TODO: only call every 30s at most.
-		take_weak!(self.client).keep_alive();
-		Ok(())
-	}
 }
 
 impl<C, M> Personal for PersonalClient<C, M> where
@@ -69,15 +63,12 @@ impl<C, M> Personal for PersonalClient<C, M> where
 	type Metadata = Metadata;
 
 	fn accounts(&self) -> Result<Vec<RpcH160>, Error> {
-		self.active()?;
-
 		let store = take_weak!(self.accounts);
 		let accounts = store.accounts().map_err(|e| errors::account("Could not fetch accounts.", e))?;
 		Ok(accounts.into_iter().map(Into::into).collect::<Vec<RpcH160>>())
 	}
 
 	fn new_account(&self, pass: String) -> Result<RpcH160, Error> {
-		self.active()?;
 		let store = take_weak!(self.accounts);
 
 		store.new_account(&pass)
@@ -86,7 +77,6 @@ impl<C, M> Personal for PersonalClient<C, M> where
 	}
 
 	fn unlock_account(&self, account: RpcH160, account_pass: String, duration: Option<RpcU128>) -> Result<bool, Error> {
-		self.active()?;
 		let account: Address = account.into();
 		let store = take_weak!(self.accounts);
 		let duration = match duration {
@@ -117,7 +107,6 @@ impl<C, M> Personal for PersonalClient<C, M> where
 
 	fn send_transaction(&self, meta: Metadata, request: TransactionRequest, password: String) -> BoxFuture<RpcH256, Error> {
 		let sign_and_send = move || {
-			self.active()?;
 			let client = take_weak!(self.client);
 			let miner = take_weak!(self.miner);
 			let accounts = take_weak!(self.accounts);

@@ -14,22 +14,25 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::cmp::PartialEq;
 use std::collections::BTreeMap;
 use std::collections::HashSet;
-use std::cmp::PartialEq;
 use std::str::FromStr;
 use std::sync::Arc;
-use util::RotatingLogger;
-use jsonrpc_core::{MetaIoHandler};
-use ethcore::miner::{Miner, ExternalMiner};
-use ethcore::client::Client;
-use ethcore::account_provider::AccountProvider;
-use ethcore::snapshot::SnapshotService;
-use ethsync::{ManageNetwork, SyncProvider};
-use ethcore_rpc::{Metadata, NetworkSettings};
+
 pub use ethcore_rpc::SignerService;
-use updater::Updater;
+
+use ethcore::account_provider::AccountProvider;
+use ethcore::client::Client;
+use ethcore::miner::{Miner, ExternalMiner};
+use ethcore::snapshot::SnapshotService;
+use ethcore_rpc::{Metadata, NetworkSettings};
+use ethcore_rpc::informant::{Middleware, RpcStats, ClientNotifier};
+use ethsync::{ManageNetwork, SyncProvider};
 use hash_fetch::fetch::Client as FetchClient;
+use jsonrpc_core::{MetaIoHandler};
+use updater::Updater;
+use util::RotatingLogger;
 
 #[derive(Debug, PartialEq, Clone, Eq, Hash)]
 pub enum Api {
@@ -182,8 +185,12 @@ macro_rules! add_signing_methods {
 	}
 }
 
-pub fn setup_rpc(mut handler: MetaIoHandler<Metadata>, deps: Arc<Dependencies>, apis: ApiSet) -> MetaIoHandler<Metadata> {
+pub fn setup_rpc(stats: Arc<RpcStats>, deps: Arc<Dependencies>, apis: ApiSet) -> MetaIoHandler<Metadata, Middleware> {
 	use ethcore_rpc::v1::*;
+
+	let mut handler = MetaIoHandler::with_middleware(Middleware::new(stats, ClientNotifier {
+		client: deps.client.clone(),
+	}));
 
 	// it's turned into vector, cause ont of the cases requires &[]
 	let apis = apis.list_apis().into_iter().collect::<Vec<_>>();
@@ -244,7 +251,7 @@ pub fn setup_rpc(mut handler: MetaIoHandler<Metadata>, deps: Arc<Dependencies>, 
 				add_signing_methods!(ParitySigning, handler, deps);
 			},
 			Api::ParityAccounts => {
-				handler.extend_with(ParityAccountsClient::new(&deps.secret_store, &deps.client).to_delegate());
+				handler.extend_with(ParityAccountsClient::new(&deps.secret_store).to_delegate());
 			},
 			Api::ParitySet => {
 				handler.extend_with(ParitySetClient::new(

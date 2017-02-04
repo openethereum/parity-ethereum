@@ -17,17 +17,19 @@
 //! `WebSockets` server.
 
 use ws;
-use std;
-use std::thread;
-use std::path::PathBuf;
 use std::default::Default;
-use std::ops::Drop;
-use std::sync::Arc;
 use std::net::SocketAddr;
+use std::ops::Drop;
+use std::path::PathBuf;
+use std::sync::Arc;
+use std::thread;
+use std;
+
 use io::{PanicHandler, OnPanicListener, MayPanic};
-use jsonrpc_core::Metadata;
+use jsonrpc_core::{Metadata, Middleware};
 use jsonrpc_core::reactor::RpcHandler;
-use rpc::ConfirmationsQueue;
+use rpc::{ConfirmationsQueue};
+use rpc::informant::RpcStats;
 
 mod session;
 
@@ -54,6 +56,7 @@ pub struct ServerBuilder {
 	queue: Arc<ConfirmationsQueue>,
 	authcodes_path: PathBuf,
 	skip_origin_validation: bool,
+	stats: Option<Arc<RpcStats>>,
 }
 
 impl ServerBuilder {
@@ -63,6 +66,7 @@ impl ServerBuilder {
 			queue: queue,
 			authcodes_path: authcodes_path,
 			skip_origin_validation: false,
+			stats: None,
 		}
 	}
 
@@ -73,10 +77,23 @@ impl ServerBuilder {
 		self
 	}
 
+	/// Configure statistic collection
+	pub fn stats(mut self, stats: Arc<RpcStats>) -> Self {
+		self.stats = Some(stats);
+		self
+	}
+
 	/// Starts a new `WebSocket` server in separate thread.
 	/// Returns a `Server` handle which closes the server when droped.
-	pub fn start<M: Metadata>(self, addr: SocketAddr, handler: RpcHandler<M>) -> Result<Server, ServerError> {
-		Server::start(addr, handler, self.queue, self.authcodes_path, self.skip_origin_validation)
+	pub fn start<M: Metadata, S: Middleware<M>>(self, addr: SocketAddr, handler: RpcHandler<M, S>) -> Result<Server, ServerError> {
+		Server::start(
+			addr,
+			handler,
+			self.queue,
+			self.authcodes_path,
+			self.skip_origin_validation,
+			self.stats,
+		)
 	}
 }
 
@@ -97,7 +114,14 @@ impl Server {
 
 	/// Starts a new `WebSocket` server in separate thread.
 	/// Returns a `Server` handle which closes the server when droped.
-	fn start<M: Metadata>(addr: SocketAddr, handler: RpcHandler<M>, queue: Arc<ConfirmationsQueue>, authcodes_path: PathBuf, skip_origin_validation: bool) -> Result<Server, ServerError> {
+	fn start<M: Metadata, S: Middleware<M>>(
+		addr: SocketAddr,
+		handler: RpcHandler<M, S>,
+		queue: Arc<ConfirmationsQueue>,
+		authcodes_path: PathBuf,
+		skip_origin_validation: bool,
+		stats: Option<Arc<RpcStats>>,
+	) -> Result<Server, ServerError> {
 		let config = {
 			let mut config = ws::Settings::default();
 			// accept only handshakes beginning with GET
@@ -111,7 +135,7 @@ impl Server {
 		let origin = format!("{}", addr);
 		let port = addr.port();
 		let ws = ws::Builder::new().with_settings(config).build(
-			session::Factory::new(handler, origin, port, authcodes_path, skip_origin_validation)
+			session::Factory::new(handler, origin, port, authcodes_path, skip_origin_validation, stats)
 		)?;
 
 		let panic_handler = PanicHandler::new_in_arc();
