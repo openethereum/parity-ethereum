@@ -24,7 +24,6 @@ use jsonrpc_macros::Trailing;
 use light::client::Client as LightClient;
 use light::cht;
 use light::on_demand::{request, OnDemand};
-use light::net::LightProtocol;
 
 use ethcore::account_provider::{AccountProvider, DappId};
 use ethcore::basic_account::BasicAccount;
@@ -94,18 +93,28 @@ impl EthClient {
 							cht_root: root,
 						};
 
-						self.sync.with_context(|ctx| self.on_demand.header_by_number(ctx, req))
+						self.sync.with_context(|ctx|
+							self.on_demand.header_by_number(ctx, req)
+								.map(|(h, _)| h)
+								.map_err(errors::from_on_demand_error)
+								.boxed()
+						)
 					}
 				}
 			}
 			BlockId::Hash(h) => {
-				self.sync.with_context(|ctx| self.on_demand.header_by_hash(ctx, request::HeaderByHash(h)))
+				self.sync.with_context(|ctx|
+					self.on_demand.header_by_hash(ctx, request::HeaderByHash(h))
+						.map_err(errors::from_on_demand_error)
+						.boxed()
+				)
 			}
 			_ => None, // latest, earliest, and pending will have all already returned.
 		};
 
+		// todo: cache returned values (header, TD)
 		match maybe_future {
-			Some(recv) => recv.map_err(errors::from_on_demand_error).boxed(),
+			Some(recv) => recv,
 			None => future::err(err_no_context()).boxed()
 		}
 	}
