@@ -2,7 +2,7 @@ FROM ubuntu:14.04
 WORKDIR /build
 # install tools and dependencies
 RUN apt-get update && \
-        apt-get install --force-yes --no-install-recommends \
+        apt-get install -y --force-yes --no-install-recommends \
         # make
         build-essential \
         # add-apt-repository
