@@ -87,8 +87,8 @@ impl<C: 'static, M: 'static> SignerClient<C, M> where C: MiningBlockChainClient,
 				if let Some(gas) = modification.gas {
 					request.gas = gas.into();
 				}
-				if let Some(ref min_block) = modification.min_block {
-					request.min_block = min_block.as_ref().and_then(|b| b.to_min_block_num());
+				if let Some(ref condition) = modification.condition {
+					request.condition = condition.clone().map(Into::into);
 				}
 			}
 			let result = f(&*client, &*miner, &*accounts, payload);
@@ -160,7 +160,7 @@ impl<C: 'static, M: 'static> Signer for SignerClient<C, M> where C: MiningBlockC
 
 					// Dispatch if everything is ok
 					if sender_matches && data_matches && value_matches && nonce_matches {
-						let pending_transaction = PendingTransaction::new(signed_transaction, request.min_block);
+						let pending_transaction = PendingTransaction::new(signed_transaction, request.condition.map(Into::into));
 						dispatch_transaction(&*client, &*miner, pending_transaction)
 							.map(Into::into)
 							.map(ConfirmationResponse::SendTransaction)

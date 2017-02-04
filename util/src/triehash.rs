@@ -77,7 +77,9 @@ pub fn ordered_trie_root<I>(input: I) -> H256
 /// 	assert_eq!(trie_root(v), H256::from_str(root).unwrap());
 /// }
 /// ```
-pub fn trie_root(input: Vec<(Vec<u8>, Vec<u8>)>) -> H256 {
+pub fn trie_root<I>(input: I) -> H256
+	where I: IntoIterator<Item=(Vec<u8>, Vec<u8>)>
+{
 	let gen_input = input
 		// first put elements into btree to sort them and to remove duplicates
 		.into_iter()

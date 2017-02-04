@@ -21,8 +21,9 @@ use ethcore::block_status::BlockStatus;
 use ethcore::client::ClientReport;
 use ethcore::ids::BlockId;
 use ethcore::header::Header;
+use ethcore::views::HeaderView;
 use ethcore::verification::queue::{self, HeaderQueue};
-use ethcore::transaction::PendingTransaction;
+use ethcore::transaction::{PendingTransaction, Condition as TransactionCondition};
 use ethcore::blockchain_info::BlockChainInfo;
 use ethcore::spec::Spec;
 use ethcore::service::ClientIoMessage;
@@ -34,6 +35,7 @@ use util::{Bytes, Mutex, RwLock};
 
 use provider::Provider;
 use request;
+use time;
 
 use self::header_chain::HeaderChain;
 
@@ -110,7 +112,11 @@ impl Client {
 		let best_num = self.chain.best_block().number;
 		self.tx_pool.lock()
 			.values()
-			.filter(|t| t.min_block.as_ref().map_or(true, |x| x <= &best_num))
+			.filter(|t| match t.condition {
+				Some(TransactionCondition::Number(ref x)) => x <= &best_num,
+				Some(TransactionCondition::Timestamp(ref x)) => *x <= time::get_time().sec as u64,
+				None => true,
+			})
 			.cloned()
 			.collect()
 	}
@@ -135,6 +141,7 @@ impl Client {
 			genesis_hash: genesis_hash,
 			best_block_hash: best_block.hash,
 			best_block_number: best_block.number,
+			best_block_timestamp: HeaderView::new(&self.chain.get_header(BlockId::Latest).expect("Latest hash is always in the chain")).timestamp(),
 			ancient_block_hash: if first_block.is_some() { Some(genesis_hash) } else { None },
 			ancient_block_number: if first_block.is_some() { Some(0) } else { None },
 			first_block_hash: first_block.as_ref().map(|first| first.hash),

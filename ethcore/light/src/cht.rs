@@ -12,9 +12,129 @@
 // GNU General Public License for more details.
 
 //! Canonical hash trie definitions and helper functions.
+//!
+//! Each CHT is a trie mapping block numbers to canonical hashes and total difficulty.
+//! One is generated for every `SIZE` blocks, allowing us to discard those blocks in
+//! favor the the trie root. When the "ancient" blocks need to be accessed, we simply
+//! request an inclusion proof of a specific block number against the trie with the
+//! root has. A correct proof implies that the claimed block is identical to the one
+//! we discarded.
+
+use ethcore::ids::BlockId;
+use util::{Bytes, H256, U256, HashDB, MemoryDB};
+use util::trie::{self, TrieMut, TrieDBMut, Trie, TrieDB, Recorder};
+use rlp::{Stream, RlpStream};
+
+// encode a key.
+macro_rules! key {
+	($num: expr) => { ::rlp::encode(&$num) }
+}
+
+macro_rules! val {
+	($hash: expr, $td: expr) => {{
+		let mut stream = RlpStream::new_list(2);
+		stream.append(&$hash).append(&$td);
+		stream.drain()
+	}}
+}
 
 /// The size of each CHT.
 pub const SIZE: u64 = 2048;
+
+/// A canonical hash trie. This is generic over any database it can query.
+/// See module docs for more details.
+#[derive(Debug, Clone)]
+pub struct CHT<DB: HashDB> {
+	db: DB,
+	root: H256, // the root of this CHT.
+	number: u64,
+}
+
+impl<DB: HashDB> CHT<DB> {
+	/// Query the root of the CHT.
+	pub fn root(&self) -> H256 { self.root }
+
+	/// Query the number of the CHT.
+	pub fn number(&self) -> u64 { self.number }
+
+	/// Generate an inclusion proof for the entry at a specific block.
+	/// Nodes before level `from_level` will be omitted.
+	/// Returns an error on an incomplete trie, and `Ok(None)` on an unprovable request.
+	pub fn prove(&self, num: u64, from_level: u32) -> trie::Result<Option<Vec<Bytes>>> {
+		if block_to_cht_number(num) != Some(self.number) { return Ok(None) }
+
+		let mut recorder = Recorder::with_depth(from_level);
+		let t = TrieDB::new(&self.db, &self.root)?;
+		t.get_with(&key!(num), &mut recorder)?;
+
+		Ok(Some(recorder.drain().into_iter().map(|x| x.data).collect()))
+	}
+}
+
+/// Block information necessary to build a CHT.
+pub struct BlockInfo {
+	/// The block's hash.
+	pub hash: H256,
+	/// The block's parent's hash.
+	pub parent_hash: H256,
+	/// The block's total difficulty.
+	pub total_difficulty: U256,
+}
+
+/// Build an in-memory CHT from a closure which provides necessary information
+/// about blocks. If the fetcher ever fails to provide the info, the CHT
+/// will not be generated.
+pub fn build<F>(cht_num: u64, mut fetcher: F) ->  Option<CHT<MemoryDB>>
+	where F: FnMut(BlockId) -> Option<BlockInfo>
+{
+	let mut db = MemoryDB::new();
+
+	// start from the last block by number and work backwards.
+	let last_num = start_number(cht_num + 1) - 1;
+	let mut id = BlockId::Number(last_num);
+
+	let mut root = H256::default();
+
+	{
+		let mut t = TrieDBMut::new(&mut db, &mut root);
+		for blk_num in (0..SIZE).map(|n| last_num - n) {
+			let info = match fetcher(id) {
+				Some(info) => info,
+				None => return None,
+			};
+
+			id = BlockId::Hash(info.parent_hash);
+			t.insert(&key!(blk_num), &val!(info.hash, info.total_difficulty))
+				.expect("fresh in-memory database is infallible; qed");
+		}
+	}
+
+	Some(CHT {
+		db: db,
+		root: root,
+		number: cht_num,
+	})
+}
+
+/// Compute a CHT root from an iterator of (hash, td) pairs. Fails if shorter than
+/// SIZE items. The items are assumed to proceed sequentially from `start_number(cht_num)`.
+/// Discards the trie's nodes.
+pub fn compute_root<I>(cht_num: u64, iterable: I) -> Option<H256>
+	where I: IntoIterator<Item=(H256, U256)>
+{
+	let mut v = Vec::with_capacity(SIZE as usize);
+	let start_num = start_number(cht_num) as usize;
+
+	for (i, (h, td)) in iterable.into_iter().take(SIZE as usize).enumerate() {
+		v.push((key!(i + start_num).to_vec(), val!(h, td).to_vec()))
+	}
+
+	if v.len() == SIZE as usize {
+		Some(::util::triehash::trie_root(v))
+	} else {
+		None
+	}
+}
 
 /// Convert a block number to a CHT number.
 /// Returns `None` for `block_num` == 0, `Some` otherwise.
@@ -37,6 +157,12 @@ pub fn start_number(cht_num: u64) -> u64 {
 
 #[cfg(test)]
 mod tests {
+	#[test]
+	fn size_is_lt_usize() {
+		// to ensure safe casting on the target platform.
+		assert!(::cht::SIZE < usize::max_value() as u64)
+	}
+
 	#[test]
 	fn block_to_cht_number() {
 		assert!(::cht::block_to_cht_number(0).is_none());

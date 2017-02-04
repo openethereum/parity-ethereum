@@ -16,12 +16,15 @@
 
 import { observable, computed, action } from 'mobx';
 import { sha3 } from '~/api/util/sha3';
+import { bytesToHex } from '~/api/util/format';
 
 import EmailVerificationABI from '~/contracts/abi/email-verification.json';
 import VerificationStore, {
   LOADING, QUERY_DATA, QUERY_CODE, POSTED_CONFIRMATION, DONE
 } from './store';
 import { isServerRunning, hasReceivedCode, postToServer } from '~/3rdparty/email-verification';
+
+const ZERO20 = '0x0000000000000000000000000000000000000000';
 
 // name in the `BadgeReg.sol` contract
 const EMAIL_VERIFICATION = 'emailverification';
@@ -44,9 +47,9 @@ export default class EmailVerificationStore extends VerificationStore {
 
     switch (this.step) {
       case LOADING:
-        return this.contract && this.fee && this.isVerified !== null && this.hasRequested !== null;
+        return this.contract && this.fee && this.accountIsVerified !== null && this.accountHasRequested !== null;
       case QUERY_DATA:
-        return this.isEmailValid && this.consentGiven;
+        return this.isEmailValid && this.consentGiven && this.isAbleToRequest === true;
       case QUERY_CODE:
         return this.requestTx && this.isCodeValid === true;
       case POSTED_CONFIRMATION:
@@ -68,7 +71,52 @@ export default class EmailVerificationStore extends VerificationStore {
     return hasReceivedCode(this.email, this.account, this.isTestnet);
   }
 
+  // If the email has already been used for verification of another account,
+  // we prevent the user from wasting ETH to request another verification.
+  @action setIfAbleToRequest = () => {
+    const { isEmailValid } = this;
+
+    if (!isEmailValid) {
+      this.isAbleToRequest = true;
+      return;
+    }
+
+    const { contract, email } = this;
+    const emailHash = sha3.text(email);
+
+    this.isAbleToRequest = null;
+    contract
+      .instance.reverse
+      .call({}, [ emailHash ])
+      .then((address) => {
+        if (address === ZERO20) {
+          this.isAbleToRequest = true;
+        } else {
+          this.isAbleToRequest = new Error('Another account has been verified using this e-mail.');
+        }
+      })
+      .catch((err) => {
+        this.error = 'Failed to check if able to send request: ' + err.message;
+      });
+  }
+
+  // Determine the values relevant for checking if the last request contains
+  // the same data as the current one.
   requestValues = () => [ sha3.text(this.email) ]
+
+  shallSkipRequest = (currentValues) => {
+    const { accountHasRequested } = this;
+    const lastRequest = this.lastRequestValues;
+
+    if (!accountHasRequested) {
+      return Promise.resolve(false);
+    }
+    // If the last email verification `request` for the selected address contains
+    // the same email as the current one, don't send another request to save ETH.
+    const skip = currentValues[0] === bytesToHex(lastRequest.emailHash.value);
+
+    return Promise.resolve(skip);
+  }
 
   @action setEmail = (email) => {
     this.email = email;

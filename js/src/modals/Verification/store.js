@@ -19,7 +19,7 @@ import { sha3 } from '~/api/util/sha3';
 import Contract from '~/api/contract';
 import Contracts from '~/contracts';
 
-import { checkIfVerified, checkIfRequested, awaitPuzzle } from '~/contracts/verification';
+import { checkIfVerified, findLastRequested, awaitPuzzle } from '~/contracts/verification';
 import { checkIfTxFailed, waitForConfirmations } from '~/util/tx';
 
 export const LOADING = 'fetching-contract';
@@ -38,8 +38,10 @@ export default class VerificationStore {
 
   @observable contract = null;
   @observable fee = null;
-  @observable isVerified = null;
-  @observable hasRequested = null;
+  @observable accountIsVerified = null;
+  @observable accountHasRequested = null;
+  @observable isAbleToRequest = null;
+  @observable lastRequestValues = null;
   @observable isServerRunning = null;
   @observable consentGiven = false;
   @observable requestTx = null;
@@ -68,6 +70,14 @@ export default class VerificationStore {
         console.error('verification: ' + this.error);
       }
     });
+
+    autorun(() => {
+      if (this.step !== QUERY_DATA) {
+        return;
+      }
+
+      this.setIfAbleToRequest();
+    });
   }
 
   @action load = () => {
@@ -91,19 +101,20 @@ export default class VerificationStore {
         this.error = 'Failed to fetch the fee: ' + err.message;
       });
 
-    const isVerified = checkIfVerified(contract, account)
-      .then((isVerified) => {
-        this.isVerified = isVerified;
+    const accountIsVerified = checkIfVerified(contract, account)
+      .then((accountIsVerified) => {
+        this.accountIsVerified = accountIsVerified;
       })
       .catch((err) => {
         this.error = 'Failed to check if verified: ' + err.message;
       });
 
-    const hasRequested = checkIfRequested(contract, account)
-      .then((txHash) => {
-        this.hasRequested = !!txHash;
-        if (txHash) {
-          this.requestTx = txHash;
+    const accountHasRequested = findLastRequested(contract, account)
+      .then((log) => {
+        this.accountHasRequested = !!log;
+        if (log) {
+          this.lastRequestValues = log.params;
+          this.requestTx = log.transactionHash;
         }
       })
       .catch((err) => {
@@ -111,7 +122,7 @@ export default class VerificationStore {
       });
 
     Promise
-      .all([ isServerRunning, fee, isVerified, hasRequested ])
+      .all([ isServerRunning, fee, accountIsVerified, accountHasRequested ])
       .then(() => {
         this.step = QUERY_DATA;
       });
@@ -150,40 +161,41 @@ export default class VerificationStore {
   requestValues = () => []
 
   @action sendRequest = () => {
-    const { api, account, contract, fee, hasRequested } = this;
+    const { api, account, contract, fee } = this;
 
     const request = contract.functions.find((fn) => fn.name === 'request');
     const options = { from: account, value: fee.toString() };
     const values = this.requestValues();
 
-    let chain = Promise.resolve();
+    this.shallSkipRequest(values)
+      .then((skipRequest) => {
+        if (skipRequest) {
+          return;
+        }
 
-    if (!hasRequested) {
-      this.step = POSTING_REQUEST;
-      chain = request.estimateGas(options, values)
-        .then((gas) => {
-          options.gas = gas.mul(1.2).toFixed(0);
-          return request.postTransaction(options, values);
-        })
-        .then((handle) => {
-          // TODO: The "request rejected" error doesn't have any property to
-          // distinguish it from other errors, so we can't give a meaningful error here.
-          return api.pollMethod('parity_checkRequest', handle);
-        })
-        .then((txHash) => {
-          this.requestTx = txHash;
-          return checkIfTxFailed(api, txHash, options.gas)
-            .then((hasFailed) => {
-              if (hasFailed) {
-                throw new Error('Transaction failed, all gas used up.');
-              }
-              this.step = POSTED_REQUEST;
-              return waitForConfirmations(api, txHash, 1);
-            });
-        });
-    }
-
-    chain
+        this.step = POSTING_REQUEST;
+        return request.estimateGas(options, values)
+          .then((gas) => {
+            options.gas = gas.mul(1.2).toFixed(0);
+            return request.postTransaction(options, values);
+          })
+          .then((handle) => {
+            // The "request rejected" error doesn't have any property to distinguish
+            // it from other errors, so we can't give a meaningful error here.
+            return api.pollMethod('parity_checkRequest', handle);
+          })
+          .then((txHash) => {
+            this.requestTx = txHash;
+            return checkIfTxFailed(api, txHash, options.gas)
+              .then((hasFailed) => {
+                if (hasFailed) {
+                  throw new Error('Transaction failed, all gas used up.');
+                }
+                this.step = POSTED_REQUEST;
+                return waitForConfirmations(api, txHash, 1);
+              });
+          });
+      })
       .then(() => this.checkIfReceivedCode())
       .then((hasReceived) => {
         if (hasReceived) {

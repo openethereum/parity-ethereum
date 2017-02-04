@@ -25,6 +25,8 @@ let registryInstance;
 
 const registries = {};
 const subscriptions = {};
+
+let defaultSubscriptionId;
 let nextSubscriptionId = 1000;
 let isTest = false;
 
@@ -63,6 +65,20 @@ export function unsubscribeEvents (subscriptionId) {
     });
 
   delete subscriptions[subscriptionId];
+}
+
+export function subscribeDefaultAddress (callback) {
+  return api
+    .subscribe('parity_defaultAccount', callback)
+    .then((subscriptionId) => {
+      defaultSubscriptionId = subscriptionId;
+
+      return defaultSubscriptionId;
+    });
+}
+
+export function unsubscribeDefaultAddress () {
+  return api.unsubscribe(defaultSubscriptionId);
 }
 
 function pollEvents () {

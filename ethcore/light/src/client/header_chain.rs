@@ -173,26 +173,34 @@ impl HeaderChain {
 			// produce next CHT root if it's time.
 			let earliest_era = *candidates.keys().next().expect("at least one era just created; qed");
 			if earliest_era + HISTORY + cht::SIZE <= number {
-				let mut values = Vec::with_capacity(cht::SIZE as usize);
-				{
-					let mut headers = self.headers.write();
-					for i in (0..cht::SIZE).map(|x| x + earliest_era) {
+				let cht_num = cht::block_to_cht_number(earliest_era)
+					.expect("fails only for number == 0; genesis never imported; qed");
+				debug_assert_eq!(cht_num as usize, self.cht_roots.lock().len());
+
+				let mut headers = self.headers.write();
+
+				let cht_root = {
+					let mut i = earliest_era;
+
+					// iterable function which removes the candidates as it goes
+					// along. this will only be called until the CHT is complete.
+					let iter = || {
 						let era_entry = candidates.remove(&i)
 							.expect("all eras are sequential with no gaps; qed");
+						i += 1;
 
 						for ancient in &era_entry.candidates {
 							headers.remove(&ancient.hash);
 						}
 
-						values.push((
-							::rlp::encode(&i).to_vec(),
-							::rlp::encode(&era_entry.canonical_hash).to_vec(),
-						));
-					}
-				}
+						let canon = &era_entry.candidates[0];
+						(canon.hash, canon.total_difficulty)
+					};
+					cht::compute_root(cht_num, ::itertools::repeat_call(iter))
+						.expect("fails only when too few items; this is checked; qed")
+				};
 
-				let cht_root = ::util::triehash::trie_root(values);
-				debug!(target: "chain", "Produced CHT {} root: {:?}", (earliest_era - 1) % cht::SIZE, cht_root);
+				debug!(target: "chain", "Produced CHT {} root: {:?}", cht_num, cht_root);
 
 				self.cht_roots.lock().push(cht_root);
 			}

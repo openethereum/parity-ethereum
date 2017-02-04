@@ -14,14 +14,12 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { Checkbox } from 'material-ui';
-import { List, ListItem } from 'material-ui/List';
 import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 
-import { Modal, Button } from '~/ui';
-import { DoneIcon } from '~/ui/Icons';
+import { ContainerTitle, DappCard, Portal, SectionList } from '~/ui';
+import { CheckIcon } from '~/ui/Icons';
 
 import styles from './addDapps.css';
 
@@ -39,71 +37,63 @@ export default class AddDapps extends Component {
     }
 
     return (
-      <Modal
-        actions={ [
-          <Button
-            icon={ <DoneIcon /> }
-            key='done'
-            label={
-              <FormattedMessage
-                id='dapps.add.button.done'
-                defaultMessage='Done'
-              />
-            }
-            onClick={ store.closeModal }
-          />
-        ] }
-        compact
-        title={
-          <FormattedMessage
-            id='dapps.add.label'
-            defaultMessage='visible applications'
-          />
-        }
-        visible
+      <Portal
+        className={ styles.modal }
+        onClose={ store.closeModal }
+        open
       >
-        <div className={ styles.warning } />
-        {
-          this.renderList(store.sortedLocal,
+        <ContainerTitle
+          title={
             <FormattedMessage
-              id='dapps.add.local.label'
-              defaultMessage='Applications locally available'
-            />,
-            <FormattedMessage
-              id='dapps.add.local.desc'
-              defaultMessage='All applications installed locally on the machine by the user for access by the Parity client.'
+              id='dapps.add.label'
+              defaultMessage='visible applications'
             />
-          )
-        }
-        {
-          this.renderList(store.sortedBuiltin,
-            <FormattedMessage
-              id='dapps.add.builtin.label'
-              defaultMessage='Applications bundled with Parity'
-            />,
-            <FormattedMessage
-              id='dapps.add.builtin.desc'
-              defaultMessage='Experimental applications developed by the Parity team to show off dapp capabilities, integration, experimental features and to control certain network-wide client behaviour.'
-            />
-          )
-        }
-        {
-          this.renderList(store.sortedNetwork,
-            <FormattedMessage
-              id='dapps.add.network.label'
-              defaultMessage='Applications on the global network'
-            />,
-            <FormattedMessage
-              id='dapps.add.network.desc'
-              defaultMessage='These applications are not affiliated with Parity nor are they published by Parity. Each remain under the control of their respective authors. Please ensure that you understand the goals for each application before interacting.'
-            />
-          )
-        }
-      </Modal>
+          }
+        />
+        <div className={ styles.container }>
+          <div className={ styles.warning } />
+          {
+            this.renderList(store.sortedLocal, store.displayApps,
+              <FormattedMessage
+                id='dapps.add.local.label'
+                defaultMessage='Applications locally available'
+              />,
+              <FormattedMessage
+                id='dapps.add.local.desc'
+                defaultMessage='All applications installed locally on the machine by the user for access by the Parity client.'
+              />
+            )
+          }
+          {
+            this.renderList(store.sortedBuiltin, store.displayApps,
+              <FormattedMessage
+                id='dapps.add.builtin.label'
+                defaultMessage='Applications bundled with Parity'
+              />,
+              <FormattedMessage
+                id='dapps.add.builtin.desc'
+                defaultMessage='Experimental applications developed by the Parity team to show off dapp capabilities, integration, experimental features and to control certain network-wide client behaviour.'
+              />
+            )
+          }
+          {
+            this.renderList(store.sortedNetwork, store.displayApps,
+              <FormattedMessage
+                id='dapps.add.network.label'
+                defaultMessage='Applications on the global network'
+              />,
+              <FormattedMessage
+                id='dapps.add.network.desc'
+                defaultMessage='These applications are not affiliated with Parity nor are they published by Parity. Each remain under the control of their respective authors. Please ensure that you understand the goals for each application before interacting.'
+              />
+            )
+          }
+        </div>
+      </Portal>
     );
   }
 
-  renderList (items, header, byline) {
+  renderList (items, visibleItems, header, byline) {
     if (!items || !items.length) {
       return null;
     }
@@ -114,41 +104,40 @@ export default class AddDapps extends Component {
           <div className={ styles.header }>{ header }</div>
           <div className={ styles.byline }>{ byline }</div>
         </div>
-        <List>
-          { items.map(this.renderApp) }
-        </List>
+        <SectionList
+          items={ items }
+          noStretch
+          renderItem={ this.renderApp }
+        />
       </div>
     );
   }
 
   renderApp = (app) => {
     const { store } = this.props;
-    const isHidden = !store.displayApps[app.id].visible;
+    const isVisible = store.displayApps[app.id].visible;
 
-    const onCheck = () => {
-      if (isHidden) {
-        store.showApp(app.id);
-      } else {
+    const onClick = () => {
+      if (isVisible) {
         store.hideApp(app.id);
+      } else {
+        store.showApp(app.id);
       }
     };
 
     return (
-      <ListItem
+      <DappCard
+        app={ app }
+        className={
+          isVisible
+            ? styles.selected
+            : styles.unselected
+        }
         key={ app.id }
-        leftCheckbox={
-          <Checkbox
-            checked={ !isHidden }
-            onCheck={ onCheck }
-          />
-        }
-        primaryText={ app.name }
-        secondaryText={
-          <div className={ styles.description }>
-            { app.description }
-          </div>
-        }
-      />
+        onClick={ onClick }
+      >
+        <CheckIcon className={ styles.selectIcon } />
+      </DappCard>
     );
   }
 }

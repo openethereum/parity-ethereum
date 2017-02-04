@@ -159,7 +159,7 @@ impl IoHandler<()> for TransitionHandler {
 	fn initialize(&self, io: &IoContext<()>) {
 		if let Some(engine) = self.engine.upgrade() {
 			io.register_timer_once(ENGINE_TIMEOUT_TOKEN, engine.remaining_step_duration().as_millis())
-				.unwrap_or_else(|e| warn!(target: "poa", "Failed to start consensus step timer: {}.", e))
+				.unwrap_or_else(|e| warn!(target: "engine", "Failed to start consensus step timer: {}.", e))
 		}
 	}
 
@@ -168,7 +168,7 @@ impl IoHandler<()> for TransitionHandler {
 			if let Some(engine) = self.engine.upgrade() {
 				engine.step();
 				io.register_timer_once(ENGINE_TIMEOUT_TOKEN, engine.remaining_step_duration().as_millis())
-					.unwrap_or_else(|e| warn!(target: "poa", "Failed to restart consensus step timer: {}.", e))
+					.unwrap_or_else(|e| warn!(target: "engine", "Failed to restart consensus step timer: {}.", e))
 			}
 		}
 	}
@@ -234,14 +234,14 @@ impl Engine for AuthorityRound {
 		let step = self.step.load(AtomicOrdering::SeqCst);
 		if self.is_step_proposer(step, header.author()) {
 			if let Ok(signature) = self.signer.sign(header.bare_hash()) {
-				trace!(target: "poa", "generate_seal: Issuing a block for step {}.", step);
+				trace!(target: "engine", "generate_seal: Issuing a block for step {}.", step);
 				self.proposed.store(true, AtomicOrdering::SeqCst);
 				return Seal::Regular(vec![encode(&step).to_vec(), encode(&(&H520::from(signature) as &[u8])).to_vec()]);
 			} else {
-				warn!(target: "poa", "generate_seal: FAIL: Accounts secret key unavailable.");
+				warn!(target: "engine", "generate_seal: FAIL: Accounts secret key unavailable.");
 			}
 		} else {
-			trace!(target: "poa", "generate_seal: Not a proposer for step {}.", step);
+			trace!(target: "engine", "generate_seal: Not a proposer for step {}.", step);
 		}
 		Seal::None
 	}
@@ -260,7 +260,7 @@ impl Engine for AuthorityRound {
 	/// Check the number of seal fields.
 	fn verify_block_basic(&self, header: &Header, _block: Option<&[u8]>) -> Result<(), Error> {
 		if header.seal().len() != self.seal_fields() {
-			trace!(target: "poa", "verify_block_basic: wrong number of seal fields");
+			trace!(target: "engine", "verify_block_basic: wrong number of seal fields");
 			Err(From::from(BlockError::InvalidSealArity(
 				Mismatch { expected: self.seal_fields(), found: header.seal().len() }
 			)))
@@ -279,11 +279,11 @@ impl Engine for AuthorityRound {
 			if verify_address(&correct_proposer, &proposer_signature, &header.bare_hash())? {
 				Ok(())
 			} else {
-				trace!(target: "poa", "verify_block_unordered: bad proposer for step: {}", header_step);
+				trace!(target: "engine", "verify_block_unordered: bad proposer for step: {}", header_step);
 				Err(EngineError::NotProposer(Mismatch { expected: correct_proposer, found: header.author().clone() }))?
 			}
 		} else {
-			trace!(target: "poa", "verify_block_unordered: block from the future");
+			trace!(target: "engine", "verify_block_unordered: block from the future");
 			self.validators.report_benign(header.author());
 			Err(BlockError::InvalidSeal)?
 		}
@@ -297,7 +297,7 @@ impl Engine for AuthorityRound {
 		let step = header_step(header)?;
 		// Check if parent is from a previous step.
 		if step == header_step(parent)? {
-			trace!(target: "poa", "Multiple blocks proposed for step {}.", step);
+			trace!(target: "engine", "Multiple blocks proposed for step {}.", step);
 			self.validators.report_malicious(header.author());
 			Err(EngineError::DoubleVote(header.author().clone()))?;
 		}

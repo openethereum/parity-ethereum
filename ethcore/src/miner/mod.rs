@@ -154,7 +154,7 @@ pub trait MinerService : Send + Sync {
 	fn pending_transactions(&self) -> Vec<PendingTransaction>;
 
 	/// Get a list of all transactions that can go into the given block.
-	fn ready_transactions(&self, best_block: BlockNumber) -> Vec<PendingTransaction>;
+	fn ready_transactions(&self, best_block: BlockNumber, best_block_timestamp: u64) -> Vec<PendingTransaction>;
 
 	/// Get a list of all future transactions.
 	fn future_transactions(&self) -> Vec<PendingTransaction>;

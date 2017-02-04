@@ -30,7 +30,6 @@ export default class Application extends Component {
   state = {
     accounts: {},
     address: null,
-    fromAddress: null,
     accountsInfo: {},
     blockNumber: new BigNumber(0),
     contract: null,
@@ -41,11 +40,9 @@ export default class Application extends Component {
   }
 
   componentDidMount () {
-    attachInterface()
+    return attachInterface()
       .then((state) => {
-        this.setState(state, () => {
-          this.setState({ loading: false });
-        });
+        this.setState(Object.assign({}, state, { loading: false }));
 
         return attachBlockNumber(state.instance, (state) => {
           this.setState(state);
@@ -86,17 +83,14 @@ export default class Application extends Component {
   }
 
   renderImport () {
-    const { accounts, fromAddress, instance, showImport } = this.state;
+    const { instance, showImport } = this.state;
 
     if (showImport) {
       return (
         <Import
-          accounts={ accounts }
-          fromAddress={ fromAddress }
           instance={ instance }
           visible={ showImport }
           onClose={ this.toggleImport }
-          onSetFromAddress={ this.setFromAddress }
         />
       );
     }
@@ -122,12 +116,6 @@ export default class Application extends Component {
   toggleImport = () => {
     this.setState({
       showImport: !this.state.showImport
-    });
-  }
-
-  setFromAddress = (fromAddress) => {
-    this.setState({
-      fromAddress
     });
   }
 }
