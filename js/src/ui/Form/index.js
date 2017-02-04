@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import AddressSelect from './AddressSelect';
+import DappUrlInput from './DappUrlInput';
 import FormWrap from './FormWrap';
 import Input from './Input';
 import InputAddress from './InputAddress';
@@ -31,6 +32,7 @@ import TypedInput from './TypedInput';
 export default from './form';
 export {
   AddressSelect,
+  DappUrlInput,
   FormWrap,
   Input,
   InputAddress,

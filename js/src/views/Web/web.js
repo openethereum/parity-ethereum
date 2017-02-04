@@ -14,19 +14,16 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
-import store from 'store';
-import { parse as parseUrl, format as formatUrl } from 'url';
-import { parse as parseQuery } from 'querystring';
+import { FormattedMessage } from 'react-intl';
 
 import AddressBar from './AddressBar';
+import Store from './store';
 
 import styles from './web.css';
 
-const LS_LAST_ADDRESS = '_parity::webLastAddress';
-
-const hasProtocol = /^https?:\/\//;
-
+@observer
 export default class Web extends Component {
   static contextTypes = {
     api: PropTypes.object.isRequired
@@ -36,120 +33,62 @@ export default class Web extends Component {
     params: PropTypes.object.isRequired
   }
 
-  state = {
-    displayedUrl: null,
-    isLoading: true,
-    token: null,
-    url: null
-  };
+  store = Store.get(this.context.api);
 
   componentDidMount () {
-    const { api } = this.context;
-    const { params } = this.props;
-
-    api
-      .signer
-      .generateWebProxyAccessToken()
-      .then((token) => {
-        this.setState({ token });
-      });
-
-    this.setUrl(params.url);
+    this.store.gotoUrl(this.props.params.url);
+    return this.store.generateToken();
   }
 
   componentWillReceiveProps (props) {
-    this.setUrl(props.params.url);
+    this.store.gotoUrl(props.params.url);
   }
 
-  setUrl = (url) => {
-    url = url || store.get(LS_LAST_ADDRESS) || 'https://mkr.market';
-    if (!hasProtocol.test(url)) {
-      url = `https://${url}`;
-    }
-
-    this.setState({ url, displayedUrl: url });
-  };
-
   render () {
-    const { displayedUrl, isLoading, token } = this.state;
+    const { currentUrl, token } = this.store;
 
     if (!token) {
       return (
         <div className={ styles.wrapper }>
           <h1 className={ styles.loading }>
-            Requesting access token...
+            <FormattedMessage
+              id='web.requestToken'
+              defaultMessage='Requesting access token...'
+            />
           </h1>
         </div>
       );
     }
 
-    const { dappsUrl } = this.context.api;
-    const { url } = this.state;
+    return currentUrl
+      ? this.renderFrame()
+      : null;
+  }
 
-    if (!url || !token) {
-      return null;
-    }
-
-    const parsed = parseUrl(url);
-    const { protocol, host, path } = parsed;
-    const address = `${dappsUrl}/web/${token}/${protocol.slice(0, -1)}/${host}${path}`;
+  renderFrame () {
+    const { encodedPath, frameId } = this.store;
 
     return (
       <div className={ styles.wrapper }>
         <AddressBar
           className={ styles.url }
-          isLoading={ isLoading }
-          onChange={ this.onUrlChange }
-          onRefresh={ this.onRefresh }
-          url={ displayedUrl }
+          store={ this.store }
         />
         <iframe
           className={ styles.frame }
           frameBorder={ 0 }
-          name={ name }
+          id={ frameId }
+          name={ frameId }
           onLoad={ this.iframeOnLoad }
           sandbox='allow-forms allow-same-origin allow-scripts'
           scrolling='auto'
-          src={ address }
+          src={ encodedPath }
         />
       </div>
     );
   }
 
-  onUrlChange = (url) => {
-    if (!hasProtocol.test(url)) {
-      url = `https://${url}`;
-    }
-
-    store.set(LS_LAST_ADDRESS, url);
-
-    this.setState({
-      isLoading: true,
-      displayedUrl: url,
-      url: url
-    });
-  };
-
-  onRefresh = () => {
-    const { displayedUrl } = this.state;
-
-    // Insert timestamp
-    // This is a hack to prevent caching.
-    const parsed = parseUrl(displayedUrl);
-
-    parsed.query = parseQuery(parsed.query);
-    parsed.query.t = Date.now().toString();
-    delete parsed.search;
-
-    this.setState({
-      isLoading: true,
-      url: formatUrl(parsed)
-    });
-  };
-
   iframeOnLoad = () => {
-    this.setState({
-      isLoading: false
-    });
+    this.store.setLoading(false);
   };
 }

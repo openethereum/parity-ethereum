@@ -107,6 +107,11 @@ dependencies = [
 ]
 
 [[package]]
+name = "base32"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[[package]]
 name = "bigint"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -409,6 +414,7 @@ dependencies = [
 name = "ethcore-dapps"
 version = "1.6.0"
 dependencies = [
+ "base32 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "clippy 0.0.103 (registry+https://github.com/rust-lang/crates.io-index)",
  "env_logger 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethcore-devtools 1.6.0",
@@ -2463,6 +2469,7 @@ dependencies = [
 "checksum app_dirs 1.1.1 (registry+https://github.com/rust-lang/crates.io-index)" = "b7d1c0d48a81bbb13043847f957971f4d87c81542d80ece5e84ba3cba4058fd4"
 "checksum arrayvec 0.3.16 (registry+https://github.com/rust-lang/crates.io-index)" = "16e3bdb2f54b3ace0285975d59a97cf8ed3855294b2b6bc651fcf22a9c352975"
 "checksum aster 0.17.0 (registry+https://github.com/rust-lang/crates.io-index)" = "07d344974f0a155f091948aa389fb1b912d3a58414fbdb9c8d446d193ee3496a"
+"checksum base32 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)" = "1b9605ba46d61df0410d8ac686b0007add8172eba90e8e909c347856fe794d8c"
 "checksum bigint 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)" = "2311bcd71b281e142a095311c22509f0d6bcd87b3000d7dbaa810929b9d6f6ae"
 "checksum bit-set 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)" = "d9bf6104718e80d7b26a68fdbacff3481cfc05df670821affc7e9cbc1884400c"
 "checksum bit-vec 0.4.3 (registry+https://github.com/rust-lang/crates.io-index)" = "5b97c2c8e8bbb4251754f559df8af22fb264853c7d009084a576cdf12565089d"

@@ -252,6 +252,7 @@ fn should_extract_path_with_appid() {
 		prefix: None,
 		path: EndpointPath {
 			app_id: "app".to_owned(),
+			app_params: vec![],
 			host: "".to_owned(),
 			port: 8080,
 			using_dapps_domains: true,

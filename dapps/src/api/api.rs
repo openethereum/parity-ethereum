@@ -123,6 +123,7 @@ impl server::Handler<net::HttpStream> for RestApiRouter {
 			return Next::write();
 		}
 
+		// TODO [ToDr] Consider using `path.app_params` instead
 		let url = extract_url(&request);
 		if url.is_none() {
 			// Just return 404 if we can't parse URL
