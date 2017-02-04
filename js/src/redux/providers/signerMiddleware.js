@@ -57,8 +57,6 @@ export default class SignerMiddleware {
     const handlePromise = (promise) => {
       promise
         .then((txHash) => {
-          console.log('confirmRequest', id, txHash);
-
           if (!txHash) {
             store.dispatch(actions.errorConfirmRequest({ id, err: 'Unable to confirm.' }));
             return;
