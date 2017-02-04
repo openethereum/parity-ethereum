@@ -21,7 +21,6 @@ use ethcore::block_status::BlockStatus;
 use ethcore::client::ClientReport;
 use ethcore::ids::BlockId;
 use ethcore::header::Header;
-use ethcore::views::HeaderView;
 use ethcore::verification::queue::{self, HeaderQueue};
 use ethcore::transaction::{PendingTransaction, Condition as TransactionCondition};
 use ethcore::blockchain_info::BlockChainInfo;
@@ -35,7 +34,6 @@ use util::{Bytes, Mutex, RwLock};
 
 use provider::Provider;
 use request;
-use time;
 
 use self::header_chain::HeaderChain;
 
@@ -109,12 +107,12 @@ impl Client {
 
 	/// Fetch a vector of all pending transactions.
 	pub fn ready_transactions(&self) -> Vec<PendingTransaction> {
-		let best_num = self.chain.best_block().number;
+		let best = self.chain.best_header();
 		self.tx_pool.lock()
 			.values()
 			.filter(|t| match t.condition {
-				Some(TransactionCondition::Number(ref x)) => x <= &best_num,
-				Some(TransactionCondition::Timestamp(ref x)) => *x <= time::get_time().sec as u64,
+				Some(TransactionCondition::Number(x)) => x <= best.number(),
+				Some(TransactionCondition::Timestamp(x)) => x <= best.timestamp(),
 				None => true,
 			})
 			.cloned()
@@ -131,17 +129,19 @@ impl Client {
 
 	/// Get the chain info.
 	pub fn chain_info(&self) -> BlockChainInfo {
-		let best_block = self.chain.best_block();
+		let best_hdr = self.chain.best_header();
+		let best_td = self.chain.best_block().total_difficulty;
+
 		let first_block = self.chain.first_block();
 		let genesis_hash = self.chain.genesis_hash();
 
 		BlockChainInfo {
-			total_difficulty: best_block.total_difficulty,
-			pending_total_difficulty: best_block.total_difficulty + self.queue.total_difficulty(),
+			total_difficulty: best_td,
+			pending_total_difficulty: best_td + self.queue.total_difficulty(),
 			genesis_hash: genesis_hash,
-			best_block_hash: best_block.hash,
-			best_block_number: best_block.number,
-			best_block_timestamp: HeaderView::new(&self.chain.get_header(BlockId::Latest).expect("Latest hash is always in the chain")).timestamp(),
+			best_block_hash: best_hdr.hash(),
+			best_block_number: best_hdr.number(),
+			best_block_timestamp: best_hdr.timestamp(),
 			ancient_block_hash: if first_block.is_some() { Some(genesis_hash) } else { None },
 			ancient_block_number: if first_block.is_some() { Some(0) } else { None },
 			first_block_hash: first_block.as_ref().map(|first| first.hash),

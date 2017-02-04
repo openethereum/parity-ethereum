@@ -236,6 +236,11 @@ impl HeaderChain {
 		}
 	}
 
+	/// Get the best block's header.
+	pub fn best_header(&self) -> encoded::Header {
+		self.get_header(BlockId::Latest).expect("Header for best block always stored; qed")
+	}
+
 	/// Get the nth CHT root, if it's been computed.
 	///
 	/// CHT root 0 is from block `1..2048`.
