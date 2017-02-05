@@ -21,9 +21,13 @@ use Public;
 use bigint::hash::{H256, FixedHash};
 pub use self::derivation::Error as DerivationError;
 
+/// Represents label that can be stored as a part of key derivation
 pub trait Label {
+	/// Length of the data that label occupies
 	fn len() -> usize;
 
+	/// Store label data to the key derivation sequence
+	/// Must not use more than `len()` bytes from slice
 	fn store(&self, target: &mut [u8]);
 }
 
@@ -37,8 +41,11 @@ impl Label for u32 {
 	}
 }
 
+/// Key derivation over generic label `T`
 pub enum Derivation<T: Label> {
+	/// Soft key derivation (allow proof of parent)
 	Soft(T),
+	/// Hard key derivation (does not allow proof of parent)
 	Hard(T),
 }
 
@@ -266,7 +273,7 @@ mod derivation {
 		// curve point (compressed public key) --  index
 		//             0.33                    --  33..37
 		data[0..33].copy_from_slice(&public_serialized);
-		index.store(&mut data[33..37]);
+		index.store(&mut data[33..]);
 
 		hmac_pair(&data, private_key, chain_code)
 	}
@@ -320,7 +327,7 @@ mod derivation {
 		// curve point (compressed public key) --  index
 		//             0.33                    --  33..37
 		data[0..33].copy_from_slice(&public_serialized);
-		index.store(&mut data[33..37]);
+		index.store(&mut data[33..(33 + T::len())]);
 
 		// HMAC512SHA produces [derived private(256); new chain code(256)]
 		let mut hmac = Hmac::new(Sha512::new(), &*chain_code);
