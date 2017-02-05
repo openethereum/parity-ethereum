@@ -230,7 +230,7 @@ mod derivation {
 
 	// Deterministic derivation of the key using secp256k1 elliptic curve.
 	// Derivation can be either hardened or not.
-	// For hardened derivation, pass index at least 2^31
+	// For hardened derivation, pass u32 index at least 2^31 or custom Derivation::Hard(T) enum
 	//
 	// Can panic if passed `private_key` is not a valid secp256k1 private key
 	// (outside of (0..curve_n()]) field
@@ -271,7 +271,7 @@ mod derivation {
 		let public_serialized = sec_public.serialize_vec(&SECP256K1, true);
 
 		// curve point (compressed public key) --  index
-		//             0.33                    --  33..37
+		//             0.33                    --  33..end
 		data[0..33].copy_from_slice(&public_serialized);
 		index.store(&mut data[33..]);
 
@@ -286,7 +286,7 @@ mod derivation {
 		let private: U256 = private_key.into();
 
 		// 0x00 (padding) -- private_key --  index
-		//  0             --    1..33    -- 33..37
+		//  0             --    1..33    -- 33..end
 		private.to_big_endian(&mut data[1..33]);
 		index.store(&mut data[33..(33 + T::len())]);
 
@@ -325,7 +325,7 @@ mod derivation {
 
 		let mut data = vec![0u8; 33 + T::len()];
 		// curve point (compressed public key) --  index
-		//             0.33                    --  33..37
+		//             0.33                    --  33..end
 		data[0..33].copy_from_slice(&public_serialized);
 		index.store(&mut data[33..(33 + T::len())]);
 
