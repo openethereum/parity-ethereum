@@ -28,6 +28,7 @@ extern crate rustc_serialize;
 extern crate crypto as rcrypto;
 extern crate tiny_keccak;
 extern crate parking_lot;
+extern crate ethcore_devtools as devtools;
 
 // reexport it nicely
 extern crate ethkey as _ethkey;

@@ -730,6 +730,7 @@ name = "ethstore"
 version = "0.1.0"
 dependencies = [
  "docopt 0.6.80 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethcore-devtools 1.6.0",
  "ethcore-util 1.6.0",
  "ethcrypto 0.1.0",
  "ethkey 0.2.0",

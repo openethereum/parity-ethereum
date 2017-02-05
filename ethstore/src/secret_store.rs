@@ -47,6 +47,9 @@ pub trait SimpleSecretStore: Send + Sync {
 	fn decrypt(&self, account: &StoreAccountRef, password: &str, shared_mac: &[u8], message: &[u8]) -> Result<Vec<u8>, Error>;
 
 	fn accounts(&self) -> Result<Vec<StoreAccountRef>, Error>;
+	/// Get reference to some account with given address.
+	/// This method could be removed if we will guarantee that there is max(1) account for given address.
+	fn account_ref(&self, address: &Address) -> Result<StoreAccountRef, Error>;
 
 	/// Create new vault with given password
 	fn create_vault(&self, name: &str, password: &str) -> Result<(), Error>;
@@ -54,15 +57,20 @@ pub trait SimpleSecretStore: Send + Sync {
 	fn open_vault(&self, name: &str, password: &str) -> Result<(), Error>;
 	/// Close vault
 	fn close_vault(&self, name: &str) -> Result<(), Error>;
+	/// List all vaults
+	fn list_vaults(&self) -> Result<Vec<String>, Error>;
+	/// List all currently opened vaults
+	fn list_opened_vaults(&self) -> Result<Vec<String>, Error>;
 	/// Change vault password
-	fn change_vault_password(&self, name: &str, password: &str, new_password: &str) -> Result<(), Error>;
+	fn change_vault_password(&self, name: &str, new_password: &str) -> Result<(), Error>;
+	/// Cnage account' vault
+	fn change_account_vault(&self, vault: SecretVaultRef, account: StoreAccountRef) -> Result<StoreAccountRef, Error>;
 }
 
 pub trait SecretStore: SimpleSecretStore {
 	fn import_presale(&self, vault: SecretVaultRef, json: &[u8], password: &str) -> Result<StoreAccountRef, Error>;
 	fn import_wallet(&self, vault: SecretVaultRef, json: &[u8], password: &str) -> Result<StoreAccountRef, Error>;
 	fn copy_account(&self, new_store: &SimpleSecretStore, new_vault: SecretVaultRef, account: &StoreAccountRef, password: &str, new_password: &str) -> Result<(), Error>;
-	fn move_account(&self, new_store: &SimpleSecretStore, new_vault: SecretVaultRef, account: &StoreAccountRef, password: &str, new_password: &str) -> Result<(), Error>;
 	fn test_password(&self, account: &StoreAccountRef, password: &str) -> Result<bool, Error>;
 
 	fn public(&self, account: &StoreAccountRef, password: &str) -> Result<Public, Error>;
