@@ -32,13 +32,14 @@ mod parity;
 mod parity_accounts;
 mod parity_set;
 mod personal;
-mod light;
 mod signer;
 mod signing;
 mod signing_unsafe;
 mod rpc;
 mod traces;
 mod web3;
+
+pub mod light;
 
 pub use self::web3::Web3Client;
 pub use self::eth::{EthClient, EthClientOptions};
