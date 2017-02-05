@@ -61,6 +61,23 @@ describe('ui/AccountCard', () => {
   });
 
   describe('components', () => {
+    describe('Balance', () => {
+      let balance;
+
+      beforeEach(() => {
+        balance = component.find('Connect(Balance)');
+      });
+
+      it('renders the balance', () => {
+        expect(balance.length).to.equal(1);
+      });
+
+      it('sets showOnlyEth & showZeroValues', () => {
+        expect(balance.props().showOnlyEth).to.be.true;
+        expect(balance.props().showZeroValues).to.be.true;
+      });
+    });
+
     describe('IdentityIcon', () => {
       let icon;
 
@@ -98,6 +115,18 @@ describe('ui/AccountCard', () => {
 
       it('renders unknown (no name)', () => {
         expect(name.props().unknown).to.be.true;
+      });
+    });
+
+    describe('Tags', () => {
+      let tags;
+
+      beforeEach(() => {
+        tags = component.find('Tags');
+      });
+
+      it('renders the tags', () => {
+        expect(tags.length).to.equal(1);
       });
     });
   });

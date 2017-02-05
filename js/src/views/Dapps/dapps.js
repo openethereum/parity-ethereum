@@ -21,14 +21,13 @@ import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 
-import { AddDapps, DappPermissions } from '~/modals';
+import { DappPermissions, DappsVisible } from '~/modals';
 import PermissionStore from '~/modals/DappPermissions/store';
-import { Actionbar, Button, Page } from '~/ui';
+import { Actionbar, Button, DappCard, Page } from '~/ui';
 import { LockedIcon, VisibleIcon } from '~/ui/Icons';
 
 import UrlButton from './UrlButton';
 import DappsStore from './dappsStore';
-import Summary from './Summary';
 
 import styles from './dapps.css';
 
@@ -82,8 +81,8 @@ class Dapps extends Component {
 
     return (
       <div>
-        <AddDapps store={ this.store } />
         <DappPermissions store={ this.permissionStore } />
+        <DappsVisible store={ this.store } />
         <Actionbar
           className={ styles.toolbar }
           title={
@@ -146,7 +145,11 @@ class Dapps extends Component {
         className={ styles.item }
         key={ app.id }
       >
-        <Summary app={ app } />
+        <DappCard
+          app={ app }
+          showLink
+          showTags
+        />
       </div>
     );
   }

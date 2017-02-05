@@ -30,7 +30,8 @@ use ethcore::service::ClientIoMessage;
 use ethcore::snapshot::service::Service as SnapshotService;
 use ethcore::snapshot::{RestorationStatus, SnapshotService as SS};
 use number_prefix::{binary_prefix, Standalone, Prefixed};
-use ethcore_rpc::is_major_importing;
+use ethcore_rpc::{is_major_importing};
+use ethcore_rpc::informant::RpcStats;
 use rlp::View;
 
 pub struct Informant {
@@ -41,6 +42,7 @@ pub struct Informant {
 	snapshot: Option<Arc<SnapshotService>>,
 	sync: Option<Arc<SyncProvider>>,
 	net: Option<Arc<ManageNetwork>>,
+	rpc_stats: Option<Arc<RpcStats>>,
 	last_import: Mutex<Instant>,
 	skipped: AtomicUsize,
 	skipped_txs: AtomicUsize,
@@ -63,13 +65,20 @@ pub trait MillisecondDuration {
 
 impl MillisecondDuration for Duration {
 	fn as_milliseconds(&self) -> u64 {
-		self.as_secs() * 1000 + self.subsec_nanos() as u64 / 1000000
+		self.as_secs() * 1000 + self.subsec_nanos() as u64 / 1_000_000
 	}
 }
 
 impl Informant {
 	/// Make a new instance potentially `with_color` output.
-	pub fn new(client: Arc<Client>, sync: Option<Arc<SyncProvider>>, net: Option<Arc<ManageNetwork>>, snapshot: Option<Arc<SnapshotService>>, with_color: bool) -> Self {
+	pub fn new(
+		client: Arc<Client>,
+		sync: Option<Arc<SyncProvider>>,
+		net: Option<Arc<ManageNetwork>>,
+		snapshot: Option<Arc<SnapshotService>>,
+		rpc_stats: Option<Arc<RpcStats>>,
+		with_color: bool,
+	) -> Self {
 		Informant {
 			report: RwLock::new(None),
 			last_tick: RwLock::new(Instant::now()),
@@ -78,6 +87,7 @@ impl Informant {
 			snapshot: snapshot,
 			sync: sync,
 			net: net,
+			rpc_stats: rpc_stats,
 			last_import: Mutex::new(Instant::now()),
 			skipped: AtomicUsize::new(0),
 			skipped_txs: AtomicUsize::new(0),
@@ -102,6 +112,7 @@ impl Informant {
 		let cache_info = self.client.blockchain_cache_info();
 		let network_config = self.net.as_ref().map(|n| n.network_config());
 		let sync_status = self.sync.as_ref().map(|s| s.status());
+		let rpc_stats = self.rpc_stats.as_ref();
 
 		let importing = is_major_importing(sync_status.map(|s| s.state), self.client.queue_info());
 		let (snapshot_sync, snapshot_current, snapshot_total) = self.snapshot.as_ref().map_or((false, 0, 0), |s|
@@ -126,10 +137,10 @@ impl Informant {
 			false => t,
 		};
 
-		info!(target: "import", "{}   {}   {}",
+		info!(target: "import", "{}  {}  {}  {}",
 			match importing {
 				true => match snapshot_sync {
-					false => format!("Syncing {} {}   {}   {}+{} Qed",
+					false => format!("Syncing {} {}  {}  {}+{} Qed",
 						paint(White.bold(), format!("{:>8}", format!("#{}", chain_info.best_block_number))),
 						paint(White.bold(), format!("{}", chain_info.best_block_hash)),
 						{
@@ -170,7 +181,16 @@ impl Informant {
 					Some(ref sync_info) => format!(" {} sync", paint(Blue.bold(), format!("{:>8}", format_bytes(sync_info.mem_used)))),
 					_ => String::new(),
 				}
-			)
+			),
+			match rpc_stats {
+				Some(ref rpc_stats) => format!(
+					"RPC: {} conn, {} req/s, {} µs",
+					paint(Blue.bold(), format!("{:2}", rpc_stats.sessions())),
+					paint(Blue.bold(), format!("{:2}", rpc_stats.requests_rate())),
+					paint(Blue.bold(), format!("{:3}", rpc_stats.approximated_roundtrip())),
+				),
+				_ => String::new(),
+			},
 		);
 
 		*write_report = Some(report);

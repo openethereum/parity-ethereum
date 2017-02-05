@@ -18,7 +18,7 @@ use std::sync::Arc;
 use std::net::{TcpListener};
 use ctrlc::CtrlC;
 use fdlimit::raise_fd_limit;
-use ethcore_rpc::{NetworkSettings, is_major_importing};
+use ethcore_rpc::{NetworkSettings, informant, is_major_importing};
 use ethsync::NetworkConfiguration;
 use util::{Colour, version, RotatingLogger, Mutex, Condvar};
 use io::{MayPanic, ForwardPanic, PanicHandler};
@@ -358,6 +358,7 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 	service.add_notify(updater.clone());
 
 	// set up dependencies for rpc servers
+	let rpc_stats = Arc::new(informant::RpcStats::default());
 	let signer_path = cmd.signer_conf.signer_path.clone();
 	let deps_for_rpc_apis = Arc::new(rpc_apis::Dependencies {
 		signer_service: Arc::new(rpc_apis::SignerService::new(move || {
@@ -390,6 +391,7 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 		panic_handler: panic_handler.clone(),
 		apis: deps_for_rpc_apis.clone(),
 		remote: event_loop.raw_remote(),
+		stats: rpc_stats.clone(),
 	};
 
 	// start rpc servers
@@ -405,6 +407,7 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 		remote: event_loop.raw_remote(),
 		fetch: fetch.clone(),
 		signer: deps_for_rpc_apis.signer_service.clone(),
+		stats: rpc_stats.clone(),
 	};
 	let dapps_server = dapps::new(cmd.dapps_conf.clone(), dapps_deps)?;
 
@@ -413,6 +416,7 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 		panic_handler: panic_handler.clone(),
 		apis: deps_for_rpc_apis.clone(),
 		remote: event_loop.raw_remote(),
+		rpc_stats: rpc_stats.clone(),
 	};
 	let signer_server = signer::start(cmd.signer_conf.clone(), signer_deps)?;
 
@@ -422,7 +426,8 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 		Some(sync_provider.clone()),
 		Some(manage_network.clone()),
 		Some(snapshot_service.clone()),
-		cmd.logger_config.color
+		Some(rpc_stats.clone()),
+		cmd.logger_config.color,
 	));
 	service.add_notify(informant.clone());
 	service.register_io_handler(informant.clone()).map_err(|_| "Unable to register informant handler".to_owned())?;
@@ -506,11 +511,11 @@ fn daemonize(_pid_file: String) -> Result<(), String> {
 
 fn prepare_account_provider(spec: &SpecType, dirs: &Directories, data_dir: &str, cfg: AccountsConfig, passwords: &[String]) -> Result<AccountProvider, String> {
 	use ethcore::ethstore::EthStore;
-	use ethcore::ethstore::dir::DiskDirectory;
+	use ethcore::ethstore::dir::RootDiskDirectory;
 
 	let path = dirs.keys_path(data_dir);
 	upgrade_key_location(&dirs.legacy_keys_path(cfg.testnet), &path);
-	let dir = Box::new(DiskDirectory::create(&path).map_err(|e| format!("Could not open keys directory: {}", e))?);
+	let dir = Box::new(RootDiskDirectory::create(&path).map_err(|e| format!("Could not open keys directory: {}", e))?);
 	let account_provider = AccountProvider::new(Box::new(
 		EthStore::open_with_iterations(dir, cfg.iterations).map_err(|e| format!("Could not open keys directory: {}", e))?
 	));

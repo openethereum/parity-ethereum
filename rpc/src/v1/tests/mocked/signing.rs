@@ -20,13 +20,15 @@ use rlp;
 
 use jsonrpc_core::{IoHandler, Success};
 use v1::impls::SigningQueueClient;
+use v1::metadata::Metadata;
 use v1::traits::{EthSigning, ParitySigning, Parity};
 use v1::helpers::{SignerService, SigningQueue};
 use v1::types::ConfirmationResponse;
 use v1::tests::helpers::TestMinerService;
 use v1::tests::mocked::parity;
 
-use util::{Address, FixedHash, Uint, U256, ToPretty, Hashable};
+use util::{Address, FixedHash, Uint, U256, ToPretty};
+use ethkey::Secret;
 use ethcore::account_provider::AccountProvider;
 use ethcore::client::TestBlockChainClient;
 use ethcore::transaction::{Transaction, Action, SignedTransaction};
@@ -39,7 +41,7 @@ struct SigningTester {
 	pub client: Arc<TestBlockChainClient>,
 	pub miner: Arc<TestMinerService>,
 	pub accounts: Arc<AccountProvider>,
-	pub io: IoHandler,
+	pub io: IoHandler<Metadata>,
 }
 
 impl Default for SigningTester {
@@ -185,10 +187,8 @@ fn should_sign_if_account_is_unlocked() {
 	// given
 	let tester = eth_signing();
 	let data = vec![5u8];
-	let acc = tester.accounts.new_account("test").unwrap();
+	let acc = tester.accounts.insert_account(Secret::from_slice(&[69u8; 32]).unwrap(), "test").unwrap();
 	tester.accounts.unlock_account_permanently(acc, "test".into()).unwrap();
-
-	let signature = tester.accounts.sign(acc, None, data.sha3()).unwrap();
 
 	// when
 	let request = r#"{
@@ -200,7 +200,7 @@ fn should_sign_if_account_is_unlocked() {
 		],
 		"id": 1
 	}"#;
-	let response = r#"{"jsonrpc":"2.0","result":""#.to_owned() + format!("0x{}", signature).as_ref() + r#"","id":1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":"0x1bb3062482b0687e9c97c7609ea60c1649959dbb334f71b3d5cacd496e0848ba8137bc765756627722389c6c39bc77700ccdc8916916a0eb03bcf5191d4f74dc65","id":1}"#;
 	assert_eq!(tester.io.handle_request_sync(&request), Some(response.to_owned()));
 	assert_eq!(tester.signer.requests().len(), 0);
 }
@@ -276,12 +276,11 @@ fn should_add_sign_transaction_to_the_queue() {
 	let response = r#"{"jsonrpc":"2.0","result":{"#.to_owned() +
 		r#""raw":"0x"# + &rlp.to_hex() + r#"","# +
 		r#""tx":{"# +
-		r#""blockHash":null,"blockNumber":null,"creates":null,"# +
+		r#""blockHash":null,"blockNumber":null,"condition":null,"creates":null,"# +
 		&format!("\"from\":\"0x{:?}\",", &address) +
 		r#""gas":"0x76c0","gasPrice":"0x9184e72a000","# +
 		&format!("\"hash\":\"0x{:?}\",", t.hash()) +
 		r#""input":"0x","# +
-		r#""minBlock":null,"# +
 		&format!("\"networkId\":{},", t.network_id().map_or("null".to_owned(), |n| format!("{}", n))) +
 		r#""nonce":"0x1","# +
 		&format!("\"publicKey\":\"0x{:?}\",", t.public_key()) +

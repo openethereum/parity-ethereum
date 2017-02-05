@@ -207,7 +207,7 @@ class Transfer extends Component {
       return null;
     }
 
-    const { isEth, data, dataError, minBlock, minBlockError, total, totalError } = this.store;
+    const { isEth, data, dataError, total, totalError } = this.store;
 
     return (
       <Extras
@@ -215,8 +215,6 @@ class Transfer extends Component {
         dataError={ dataError }
         gasStore={ this.store.gasStore }
         isEth={ isEth }
-        minBlock={ minBlock }
-        minBlockError={ minBlockError }
         onChange={ this.store.onUpdateDetails }
         total={ total }
         totalError={ totalError }

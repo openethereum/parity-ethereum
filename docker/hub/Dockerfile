@@ -2,7 +2,7 @@ FROM ubuntu:14.04
 WORKDIR /build
 # install tools and dependencies
 RUN apt-get update && \
-        apt-get install --force-yes --no-install-recommends \
+        apt-get install -y --force-yes --no-install-recommends \
         # make
         build-essential \
         # add-apt-repository
@@ -56,7 +56,7 @@ g++ -v
 RUN git clone https://github.com/ethcore/parity && \
         cd parity && \
         git pull && \
-        cargo build --release --features final --verbose && \
+        cargo build --release --features final && \
         ls /build/parity/target/release/parity &&       \
         strip /build/parity/target/release/parity
 

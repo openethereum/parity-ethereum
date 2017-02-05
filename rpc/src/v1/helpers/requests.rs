@@ -14,13 +14,14 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use util::{Address, U256, Bytes, H256};
+use util::{Address, U256, Bytes};
+use v1::types::TransactionCondition;
 
 /// Transaction request coming from RPC
 #[derive(Debug, Clone, Default, Eq, PartialEq, Hash)]
 pub struct TransactionRequest {
 	/// Sender
-	pub from: Address,
+	pub from: Option<Address>,
 	/// Recipient
 	pub to: Option<Address>,
 	/// Gas Price
@@ -33,8 +34,8 @@ pub struct TransactionRequest {
 	pub data: Option<Bytes>,
 	/// Transaction's nonce
 	pub nonce: Option<U256>,
-	/// Delay until this block if specified.
-	pub min_block: Option<u64>,
+	/// Delay until this condition is met.
+	pub condition: Option<TransactionCondition>,
 }
 
 /// Transaction request coming from RPC with default values filled in.
@@ -42,6 +43,8 @@ pub struct TransactionRequest {
 pub struct FilledTransactionRequest {
 	/// Sender
 	pub from: Address,
+	/// Indicates if the sender was filled by default value.
+	pub used_default_from: bool,
 	/// Recipient
 	pub to: Option<Address>,
 	/// Gas Price
@@ -54,21 +57,21 @@ pub struct FilledTransactionRequest {
 	pub data: Bytes,
 	/// Transaction's nonce
 	pub nonce: Option<U256>,
-	/// Delay until this block if specified.
-	pub min_block: Option<u64>,
+	/// Delay until this condition is met.
+	pub condition: Option<TransactionCondition>,
 }
 
 impl From<FilledTransactionRequest> for TransactionRequest {
 	fn from(r: FilledTransactionRequest) -> Self {
 		TransactionRequest {
-			from: r.from,
+			from: Some(r.from),
 			to: r.to,
 			gas_price: Some(r.gas_price),
 			gas: Some(r.gas),
 			value: Some(r.value),
 			data: Some(r.data),
 			nonce: r.nonce,
-			min_block: r.min_block,
+			condition: r.condition,
 		}
 	}
 }
@@ -109,7 +112,7 @@ pub enum ConfirmationPayload {
 	/// Sign Transaction
 	SignTransaction(FilledTransactionRequest),
 	/// Sign request
-	Signature(Address, H256),
+	Signature(Address, Bytes),
 	/// Decrypt request
 	Decrypt(Address, Bytes),
 }

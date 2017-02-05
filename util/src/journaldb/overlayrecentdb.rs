@@ -296,6 +296,11 @@ impl JournalDB for OverlayRecentDB {
 			journal_overlay.latest_era = Some(now);
 		}
 
+		if journal_overlay.earliest_era.map_or(true, |e| e > now) {
+			trace!(target: "journaldb", "Set earliest era to {}", now);
+			journal_overlay.earliest_era = Some(now);
+		}
+
 		journal_overlay.journal.entry(now).or_insert_with(Vec::new).push(JournalEntry { id: id.clone(), insertions: inserted_keys, deletions: removed_keys });
 		Ok(ops as u32)
 	}
@@ -359,6 +364,7 @@ impl JournalDB for OverlayRecentDB {
 			}
 		}
 		journal_overlay.journal.remove(&end_era);
+
 		if !journal_overlay.journal.is_empty() {
 			trace!(target: "journaldb", "Set earliest_era to {}", end_era + 1);
 			journal_overlay.earliest_era = Some(end_era + 1);
@@ -987,5 +993,48 @@ mod tests {
 		jdb.inject_batch().unwrap();
 
 		assert!(jdb.get(&key).is_none());
+	}
+
+	#[test]
+	fn earliest_era() {
+		let temp = ::devtools::RandomTempPath::new();
+
+		// empty DB
+		let mut jdb = new_db(temp.as_path().as_path());
+		assert!(jdb.earliest_era().is_none());
+
+		// single journalled era.
+		let _key = jdb.insert(b"hello!");
+		let mut batch = jdb.backing().transaction();
+		jdb.journal_under(&mut batch, 0, &b"0".sha3()).unwrap();
+		jdb.backing().write_buffered(batch);
+
+		assert_eq!(jdb.earliest_era(), Some(0));
+
+		// second journalled era.
+		let mut batch = jdb.backing().transaction();
+		jdb.journal_under(&mut batch, 1, &b"1".sha3()).unwrap();
+		jdb.backing().write_buffered(batch);
+
+		assert_eq!(jdb.earliest_era(), Some(0));
+
+		// single journalled era.
+		let mut batch = jdb.backing().transaction();
+		jdb.mark_canonical(&mut batch, 0, &b"0".sha3()).unwrap();
+		jdb.backing().write_buffered(batch);
+
+		assert_eq!(jdb.earliest_era(), Some(1));
+
+		// no journalled eras.
+		let mut batch = jdb.backing().transaction();
+		jdb.mark_canonical(&mut batch, 1, &b"1".sha3()).unwrap();
+		jdb.backing().write_buffered(batch);
+
+		assert_eq!(jdb.earliest_era(), Some(1));
+
+		// reconstructed: no journal entries.
+		drop(jdb);
+		let jdb = new_db(temp.as_path().as_path());
+		assert_eq!(jdb.earliest_era(), None);
 	}
 }

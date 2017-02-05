@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 import { observer } from 'mobx-react';
 import { observable } from 'mobx';
@@ -206,7 +207,7 @@ class Verification extends Component {
 
     const {
       step,
-      isServerRunning, fee, isVerified, hasRequested,
+      isServerRunning, isAbleToRequest, fee, accountIsVerified, accountHasRequested,
       requestTx, isCodeValid, confirmationTx,
       setCode
     } = this.store;
@@ -223,17 +224,37 @@ class Verification extends Component {
         if (method === 'sms') {
           fields.push({
             key: 'number',
-            label: 'phone number in international format',
-            hint: 'the SMS will be sent to this number',
+            label: (
+              <FormattedMessage
+                id='ui.verification.gatherData.phoneNumber.label'
+                defaultMessage='phone number in international format'
+              />
+            ),
+            hint: (
+              <FormattedMessage
+                id='ui.verification.gatherData.phoneNumber.hint'
+                defaultMessage='the SMS will be sent to this number'
+              />
+            ),
             error: this.store.isNumberValid ? null : 'invalid number',
             onChange: this.store.setNumber
           });
         } else if (method === 'email') {
           fields.push({
             key: 'email',
-            label: 'email address',
-            hint: 'the code will be sent to this address',
-            error: this.store.isEmailValid ? null : 'invalid email',
+            label: (
+              <FormattedMessage
+                id='ui.verification.gatherData.email.label'
+                defaultMessage='e-mail address'
+              />
+            ),
+            hint: (
+              <FormattedMessage
+                id='ui.verification.gatherData.email.hint'
+                defaultMessage='the code will be sent to this address'
+              />
+            ),
+            error: this.store.isEmailValid ? null : 'invalid e-mail',
             onChange: this.store.setEmail
           });
         }
@@ -241,10 +262,12 @@ class Verification extends Component {
         return (
           <GatherData
             fee={ fee }
-            hasRequested={ hasRequested }
+            accountHasRequested={ accountHasRequested }
             isServerRunning={ isServerRunning }
-            isVerified={ isVerified }
-            method={ method } fields={ fields }
+            isAbleToRequest={ isAbleToRequest }
+            accountIsVerified={ accountIsVerified }
+            method={ method }
+            fields={ fields }
             setConsentGiven={ setConsentGiven }
           />
         );

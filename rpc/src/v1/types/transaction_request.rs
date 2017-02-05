@@ -16,7 +16,7 @@
 
 //! `TransactionRequest` type
 
-use v1::types::{Bytes, H160, U256, BlockNumber};
+use v1::types::{Bytes, H160, U256, TransactionCondition};
 use v1::helpers;
 use util::log::Colour;
 
@@ -27,7 +27,7 @@ use std::fmt;
 #[serde(deny_unknown_fields)]
 pub struct TransactionRequest {
 	/// Sender
-	pub from: H160,
+	pub from: Option<H160>,
 	/// Recipient
 	pub to: Option<H160>,
 	/// Gas Price
@@ -41,9 +41,8 @@ pub struct TransactionRequest {
 	pub data: Option<Bytes>,
 	/// Transaction's nonce
 	pub nonce: Option<U256>,
-	/// Delay until this block if specified.
-	#[serde(rename="minBlock")]
-	pub min_block: Option<BlockNumber>,
+	/// Delay until this block condition.
+	pub condition: Option<TransactionCondition>,
 }
 
 pub fn format_ether(i: U256) -> String {
@@ -86,14 +85,14 @@ impl fmt::Display for TransactionRequest {
 impl From<helpers::TransactionRequest> for TransactionRequest {
 	fn from(r: helpers::TransactionRequest) -> Self {
 		TransactionRequest {
-			from: r.from.into(),
+			from: r.from.map(Into::into),
 			to: r.to.map(Into::into),
 			gas_price: r.gas_price.map(Into::into),
 			gas: r.gas.map(Into::into),
 			value: r.value.map(Into::into),
 			data: r.data.map(Into::into),
 			nonce: r.nonce.map(Into::into),
-			min_block: r.min_block.map(|b| BlockNumber::Num(b)),
+			condition: r.condition.map(Into::into),
 		}
 	}
 }
@@ -101,14 +100,14 @@ impl From<helpers::TransactionRequest> for TransactionRequest {
 impl From<helpers::FilledTransactionRequest> for TransactionRequest {
 	fn from(r: helpers::FilledTransactionRequest) -> Self {
 		TransactionRequest {
-			from: r.from.into(),
+			from: Some(r.from.into()),
 			to: r.to.map(Into::into),
 			gas_price: Some(r.gas_price.into()),
 			gas: Some(r.gas.into()),
 			value: Some(r.value.into()),
 			data: Some(r.data.into()),
 			nonce: r.nonce.map(Into::into),
-			min_block: r.min_block.map(|b| BlockNumber::Num(b)),
+			condition: r.condition.map(Into::into),
 		}
 	}
 }
@@ -116,14 +115,14 @@ impl From<helpers::FilledTransactionRequest> for TransactionRequest {
 impl Into<helpers::TransactionRequest> for TransactionRequest {
 	fn into(self) -> helpers::TransactionRequest {
 		helpers::TransactionRequest {
-			from: self.from.into(),
+			from: self.from.map(Into::into),
 			to: self.to.map(Into::into),
 			gas_price: self.gas_price.map(Into::into),
 			gas: self.gas.map(Into::into),
 			value: self.value.map(Into::into),
 			data: self.data.map(Into::into),
 			nonce: self.nonce.map(Into::into),
-			min_block: self.min_block.and_then(|b| b.to_min_block_num()),
+			condition: self.condition.map(Into::into),
 		}
 	}
 }
@@ -134,7 +133,7 @@ mod tests {
 	use std::str::FromStr;
 	use rustc_serialize::hex::FromHex;
 	use serde_json;
-	use v1::types::{U256, H160, BlockNumber};
+	use v1::types::{U256, H160, TransactionCondition};
 	use super::*;
 
 	#[test]
@@ -147,19 +146,19 @@ mod tests {
 			"value":"0x3",
 			"data":"0x123456",
 			"nonce":"0x4",
-			"minBlock":"0x13"
+			"condition": { "block": 19 }
 		}"#;
 		let deserialized: TransactionRequest = serde_json::from_str(s).unwrap();
 
 		assert_eq!(deserialized, TransactionRequest {
-			from: H160::from(1),
+			from: Some(H160::from(1)),
 			to: Some(H160::from(2)),
 			gas_price: Some(U256::from(1)),
 			gas: Some(U256::from(2)),
 			value: Some(U256::from(3)),
 			data: Some(vec![0x12, 0x34, 0x56].into()),
 			nonce: Some(U256::from(4)),
-			min_block: Some(BlockNumber::Num(0x13)),
+			condition: Some(TransactionCondition::Number(0x13)),
 		});
 	}
 
@@ -176,14 +175,14 @@ mod tests {
 		let deserialized: TransactionRequest = serde_json::from_str(s).unwrap();
 
 		assert_eq!(deserialized, TransactionRequest {
-			from: H160::from_str("b60e8dd61c5d32be8058bb8eb970870f07233155").unwrap(),
+			from: Some(H160::from_str("b60e8dd61c5d32be8058bb8eb970870f07233155").unwrap()),
 			to: Some(H160::from_str("d46e8dd67c5d32be8058bb8eb970870f07244567").unwrap()),
 			gas_price: Some(U256::from_str("9184e72a000").unwrap()),
 			gas: Some(U256::from_str("76c0").unwrap()),
 			value: Some(U256::from_str("9184e72a").unwrap()),
 			data: Some("d46e8dd67c5d32be8d46e8dd67c5d32be8058bb8eb970870f072445675058bb8eb970870f072445675".from_hex().unwrap().into()),
 			nonce: None,
-			min_block: None,
+			condition: None,
 		});
 	}
 
@@ -193,14 +192,14 @@ mod tests {
 		let deserialized: TransactionRequest = serde_json::from_str(s).unwrap();
 
 		assert_eq!(deserialized, TransactionRequest {
-			from: H160::from(1).into(),
+			from: Some(H160::from(1).into()),
 			to: None,
 			gas_price: None,
 			gas: None,
 			value: None,
 			data: None,
 			nonce: None,
-			min_block: None,
+			condition: None,
 		});
 	}
 
@@ -217,14 +216,14 @@ mod tests {
 		let deserialized: TransactionRequest = serde_json::from_str(s).unwrap();
 
 		assert_eq!(deserialized, TransactionRequest {
-			from: H160::from_str("b5f7502a2807cb23615c7456055e1d65b2508625").unwrap(),
+			from: Some(H160::from_str("b5f7502a2807cb23615c7456055e1d65b2508625").unwrap()),
 			to: Some(H160::from_str("895d32f2db7d01ebb50053f9e48aacf26584fe40").unwrap()),
 			gas_price: Some(U256::from_str("0ba43b7400").unwrap()),
 			gas: Some(U256::from_str("2fd618").unwrap()),
 			value: None,
 			data: Some(vec![0x85, 0x95, 0xba, 0xb1].into()),
 			nonce: None,
-			min_block: None,
+			condition: None,
 		});
 	}
 

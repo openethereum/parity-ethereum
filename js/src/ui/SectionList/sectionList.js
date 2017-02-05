@@ -31,8 +31,13 @@ export default class SectionList extends Component {
     className: PropTypes.string,
     items: arrayOrObjectProptype().isRequired,
     renderItem: PropTypes.func.isRequired,
+    noStretch: PropTypes.bool,
     overlay: nodeOrStringProptype()
-  }
+  };
+
+  static defaultProps = {
+    noStretch: false
+  };
 
   render () {
     const { className, items } = this.props;
@@ -79,22 +84,21 @@ export default class SectionList extends Component {
   }
 
   renderItem = (item, index) => {
-    const { renderItem } = this.props;
+    const { noStretch, renderItem } = this.props;
     const itemRendered = renderItem(item, index);
 
     if (!itemRendered) {
       return null;
     }
 
-    // NOTE: Any children that is to be showed or hidden (depending on hover state)
-    // should have the data-hover="show|hide" attributes. For the current implementation
-    // this does the trick, however there may be a case for adding a hover attribute
-    // to an item (mouseEnter/mouseLeave events) and then adjusting the styling with
-    // :root[hover]/:root:not[hover] for the tragetted elements. Currently it is a
-    // CSS-only solution to let the browser do all the work via selectors.
     return (
       <div
-        className={ styles.item }
+        className={ [
+          styles.item,
+          noStretch
+            ? styles.stretchOff
+            : styles.stretchOn
+        ].join(' ') }
         key={ `item_${index}` }
       >
         { itemRendered }

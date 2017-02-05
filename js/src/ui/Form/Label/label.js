@@ -14,4 +14,27 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-export default from './summary';
+import React, { Component, PropTypes } from 'react';
+
+import styles from './label.css';
+
+export default class Label extends Component {
+  static propTypes = {
+    className: PropTypes.string,
+    label: PropTypes.node
+  }
+
+  render () {
+    const { className, label } = this.props;
+
+    if (!label) {
+      return null;
+    }
+
+    return (
+      <label className={ [styles.label, className].join(' ') }>
+        { label }
+      </label>
+    );
+  }
+}

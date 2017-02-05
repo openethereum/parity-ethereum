@@ -16,7 +16,7 @@
 */
 
 .section {
-  margin-bottom: 1.5em;
+  overflow-x: hidden;
   position: relative;
 
   .overlay {
@@ -33,14 +33,17 @@
   .row {
     display: flex;
     justify-content: center;
+    overflow-x: hidden;
 
     /* TODO: As per JS comments, the flex-base could be adjusted in the future to allow for */
     /* case where <> 3 columns are required should the need arrise from a UI pov. */
     .item {
       box-sizing: border-box;
+      cursor: pointer;
+      display: flex;
       flex: 0 1 33.33%;
-      height: 100%;
       opacity: 0.75;
+      overflow-x: hidden;
       padding: 0.25em;
       transition: all 0.75s cubic-bezier(0.23, 1, 0.32, 1);
 
@@ -57,8 +60,6 @@
       }
 
       &:hover {
-        flex: 0 0 42.5%;
-        max-width: 42.5%;
         opacity: 1;
         z-index: 100;
 
@@ -69,6 +70,18 @@
         & [data-hover="show"] {
         }
       }
+
+      &.stretchOn:hover {
+        flex: 0 0 42.5%;
+        max-width: 42.5%;
+      }
+
+      &.stretchOff:hover {
+      }
     }
   }
+}
+
+.section+.section {
+  margin-top: 1em;
 }

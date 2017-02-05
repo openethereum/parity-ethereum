@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import { Quantity, Data, BlockNumber } from '../types';
-import { fromDecimal } from '../helpers';
+import { fromDecimal, Dummy } from '../helpers';
 
 export default {
   generateAuthorizationToken: {
@@ -45,7 +45,7 @@ export default {
       // TODO: Types of the fields of transaction objects? Link to a transaction object in another page?
       type: Array,
       desc: 'A list of the outstanding transactions.',
-      example: []
+      example: new Dummy('[ ... ]')
     }
   },
 
@@ -86,9 +86,9 @@ export default {
       }
     ],
     returns: {
-      type: Boolean,
-      desc: 'The status of the confirmation',
-      example: true
+      type: Object,
+      desc: 'The status of the confirmation, depending on the request type.',
+      example: {}
     }
   },
 
@@ -107,9 +107,65 @@ export default {
       }
     ],
     returns: {
-      type: Boolean,
-      desc: 'The status of the confirmation',
-      example: true
+      type: Object,
+      desc: 'The status of the confirmation, depending on the request type.',
+      example: {}
+    }
+  },
+
+  confirmRequestWithToken: {
+    desc: 'Confirm specific request with token.',
+    params: [
+      {
+        type: Quantity,
+        desc: 'The request id.',
+        example: fromDecimal(1)
+      },
+      {
+        type: Object,
+        desc: 'Modify the transaction before confirmation.',
+        details: {
+          gasPrice: {
+            type: Quantity,
+            desc: 'Modify the gas price provided by the sender in Wei.',
+            optional: true
+          },
+          gas: {
+            type: Quantity,
+            desc: 'Gas provided by the sender in Wei.',
+            optional: true
+          },
+          minBlock: {
+            type: BlockNumber,
+            desc: 'Integer block number, or the string `\'latest\'`, `\'earliest\'` or `\'pending\'`. Request will not be propagated till the given block is reached.',
+            optional: true
+          }
+        },
+        example: {}
+      },
+      {
+        type: String,
+        desc: 'Password.',
+        example: 'hunter2'
+      }
+    ],
+    returns: {
+      type: Object,
+      desc: 'Status.',
+      details: {
+        result: {
+          type: Object,
+          desc: 'The status of the confirmation, depending on the request type.'
+        },
+        token: {
+          type: String,
+          desc: 'Token used to authenticate the request.'
+        }
+      },
+      example: {
+        result: new Dummy('{ ... }'),
+        token: 'cAF2w5LE7XUZ3v3N'
+      }
     }
   },
 
@@ -130,6 +186,7 @@ export default {
   },
 
   signerEnabled: {
+    nodoc: 'Not present in Rust code',
     desc: 'Returns whether signer is enabled/disabled.',
     params: [],
     returns: {

@@ -18,20 +18,22 @@
 use jsonrpc_core::Error;
 use futures::BoxFuture;
 
-use v1::types::{U256, H160, H256, Bytes, ConfirmationResponse, TransactionRequest, Either};
+use v1::types::{U256, H160, Bytes, ConfirmationResponse, TransactionRequest, Either};
 
 build_rpc_trait! {
 	/// Signing methods implementation.
 	pub trait ParitySigning {
+		type Metadata;
+
 		/// Posts sign request asynchronously.
 		/// Will return a confirmation ID for later use with check_transaction.
 		#[rpc(name = "parity_postSign")]
-		fn post_sign(&self, H160, H256) -> Result<Either<U256, ConfirmationResponse>, Error>;
+		fn post_sign(&self, H160, Bytes) -> Result<Either<U256, ConfirmationResponse>, Error>;
 
 		/// Posts transaction asynchronously.
 		/// Will return a transaction ID for later use with check_transaction.
-		#[rpc(name = "parity_postTransaction")]
-		fn post_transaction(&self, TransactionRequest) -> Result<Either<U256, ConfirmationResponse>, Error>;
+		#[rpc(meta, name = "parity_postTransaction")]
+		fn post_transaction(&self, Self::Metadata, TransactionRequest) -> BoxFuture<Either<U256, ConfirmationResponse>, Error>;
 
 		/// Checks the progress of a previously posted request (transaction/sign).
 		/// Should be given a valid send_transaction ID.

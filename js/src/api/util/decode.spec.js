@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import BigNumber from 'bignumber.js';
-import { decodeCallData, decodeMethodInput, methodToAbi } from './decode';
+import { abiDecode, decodeCallData, decodeMethodInput, methodToAbi } from './decode';
 
 describe('api/util/decode', () => {
   const METH = '0x70a08231';
@@ -49,12 +49,16 @@ describe('api/util/decode', () => {
     });
 
     it('correctly decodes valid inputs', () => {
-      expect(decodeMethodInput({
-        type: 'function',
-        inputs: [
-          { type: 'uint' }
-        ]
-      }, DATA)).to.deep.equal([ new BigNumber('0x5a5eff38da95b0d58b6c616f2699168b480953c9') ]);
+      expect(
+        decodeMethodInput({
+          type: 'function',
+          inputs: [
+            { type: 'uint' }
+          ]
+        }, DATA)
+      ).to.deep.equal(
+        [ new BigNumber('0x5a5eff38da95b0d58b6c616f2699168b480953c9') ]
+      );
     });
   });
 
@@ -88,6 +92,14 @@ describe('api/util/decode', () => {
           { type: 'bool' }
         ]
       });
+    });
+  });
+
+  describe('abiDecode', () => {
+    it('correctly decodes valid inputs', () => {
+      expect(abiDecode(['uint'], DATA)).to.deep.equal(
+        [ new BigNumber('0x5a5eff38da95b0d58b6c616f2699168b480953c9') ]
+      );
     });
   });
 });

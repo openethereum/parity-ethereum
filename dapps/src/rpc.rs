@@ -18,11 +18,15 @@ use std::sync::{Arc, Mutex};
 use hyper;
 
 use ethcore_rpc::{Metadata, Origin};
+use jsonrpc_core::Middleware;
 use jsonrpc_core::reactor::RpcHandler;
 use jsonrpc_http_server::{Rpc, ServerHandler, PanicHandler, AccessControlAllowOrigin, HttpMetaExtractor};
 use endpoint::{Endpoint, EndpointPath, Handler};
 
-pub fn rpc(handler: RpcHandler<Metadata>, panic_handler: Arc<Mutex<Option<Box<Fn() -> () + Send>>>>) -> Box<Endpoint> {
+pub fn rpc<T: Middleware<Metadata>>(
+	handler: RpcHandler<Metadata, T>,
+	panic_handler: Arc<Mutex<Option<Box<Fn() -> () + Send>>>>,
+) -> Box<Endpoint> {
 	Box::new(RpcEndpoint {
 		handler: handler,
 		meta_extractor: Arc::new(MetadataExtractor),
@@ -33,15 +37,15 @@ pub fn rpc(handler: RpcHandler<Metadata>, panic_handler: Arc<Mutex<Option<Box<Fn
 	})
 }
 
-struct RpcEndpoint {
-	handler: RpcHandler<Metadata>,
+struct RpcEndpoint<T: Middleware<Metadata>> {
+	handler: RpcHandler<Metadata, T>,
 	meta_extractor: Arc<HttpMetaExtractor<Metadata>>,
 	panic_handler: Arc<Mutex<Option<Box<Fn() -> () + Send>>>>,
 	cors_domain: Option<Vec<AccessControlAllowOrigin>>,
 	allowed_hosts: Option<Vec<String>>,
 }
 
-impl Endpoint for RpcEndpoint {
+impl<T: Middleware<Metadata>> Endpoint for RpcEndpoint<T> {
 	fn to_async_handler(&self, _path: EndpointPath, control: hyper::Control) -> Box<Handler> {
 		let panic_handler = PanicHandler { handler: self.panic_handler.clone() };
 		Box::new(ServerHandler::new(
@@ -57,12 +61,19 @@ impl Endpoint for RpcEndpoint {
 struct MetadataExtractor;
 impl HttpMetaExtractor<Metadata> for MetadataExtractor {
 	fn read_metadata(&self, request: &hyper::server::Request<hyper::net::HttpStream>) -> Metadata {
-		let dapp_id = request.headers().get::<hyper::header::Referer>()
-			.and_then(|referer| hyper::Url::parse(referer).ok())
-			.and_then(|url| {
-				url.path_segments()
-					.and_then(|mut split| split.next())
-					.map(|app_id| app_id.to_owned())
+		let dapp_id = request.headers().get::<hyper::header::Origin>()
+			.map(|origin| format!("{}://{}", origin.scheme, origin.host))
+			.or_else(|| {
+				// fallback to custom header, but only if origin is null
+				request.headers().get_raw("origin")
+					.and_then(|raw| raw.one())
+					.and_then(|raw| if raw == "null".as_bytes() {
+						request.headers().get_raw("x-parity-origin")
+							.and_then(|raw| raw.one())
+							.map(|raw| String::from_utf8_lossy(raw).into_owned())
+					} else {
+						None
+					})
 			});
 		Metadata {
 			dapp_id: dapp_id,

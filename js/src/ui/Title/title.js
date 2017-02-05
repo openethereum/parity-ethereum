@@ -14,35 +14,49 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import React, { Component, PropTypes } from 'react';
 import { LinearProgress } from 'material-ui';
 import { Step, Stepper, StepLabel } from 'material-ui/Stepper';
+import React, { Component, PropTypes } from 'react';
 
+// TODO: It would make sense (going forward) to replace all uses of
+// ContainerTitle with this component. In that case the styles for the
+// h3 (title) can be pulled from there. (As it stands the duplication
+// between the 2 has been removed, but as a short-term DRY only)
+import { Title as ContainerTitle } from '~/ui/Container';
 import { nodeOrStringProptype } from '~/util/proptypes';
 
-import styles from '../modal.css';
+import styles from './title.css';
 
 export default class Title extends Component {
   static propTypes = {
+    activeStep: PropTypes.number,
     busy: PropTypes.bool,
-    current: PropTypes.number,
+    busySteps: PropTypes.array,
+    className: PropTypes.string,
     steps: PropTypes.array,
-    waiting: PropTypes.array,
     title: nodeOrStringProptype()
   }
 
   render () {
-    const { current, steps, title } = this.props;
+    const { activeStep, className, steps, title } = this.props;
+
+    if (!title && !steps) {
+      return null;
+    }
 
     return (
-      <div className={ styles.title }>
-        <h3>
-          {
+      <div
+        className={
+          [styles.title, className].join(' ')
+        }
+      >
+        <ContainerTitle
+          title={
             steps
-              ? steps[current]
+              ? steps[activeStep || 0]
               : title
           }
-        </h3>
+        />
         { this.renderSteps() }
         { this.renderWaiting() }
       </div>
@@ -50,7 +64,7 @@ export default class Title extends Component {
   }
 
   renderSteps () {
-    const { current, steps } = this.props;
+    const { activeStep, steps } = this.props;
 
     if (!steps) {
       return;
@@ -58,7 +72,7 @@ export default class Title extends Component {
 
     return (
       <div className={ styles.steps }>
-        <Stepper activeStep={ current }>
+        <Stepper activeStep={ activeStep }>
           { this.renderTimeline() }
         </Stepper>
       </div>
@@ -80,8 +94,8 @@ export default class Title extends Component {
   }
 
   renderWaiting () {
-    const { current, busy, waiting } = this.props;
-    const isWaiting = busy || (waiting || []).includes(current);
+    const { activeStep, busy, busySteps } = this.props;
+    const isWaiting = busy || (busySteps || []).includes(activeStep);
 
     if (!isWaiting) {
       return null;

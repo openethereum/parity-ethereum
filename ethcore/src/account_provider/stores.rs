@@ -17,11 +17,17 @@
 //! Address Book and Dapps Settings Store
 
 use std::{fs, fmt, hash, ops};
-use std::collections::{HashMap, VecDeque};
-use std::path::PathBuf;
+use std::sync::atomic::{self, AtomicUsize};
+use std::collections::HashMap;
+use std::path::{Path, PathBuf};
 
 use ethstore::ethkey::Address;
-use ethjson::misc::{AccountMeta, DappsSettings as JsonSettings, NewDappsPolicy as JsonNewDappsPolicy};
+use ethjson::misc::{
+	AccountMeta,
+	DappsSettings as JsonSettings,
+	DappsHistory as JsonDappsHistory,
+	NewDappsPolicy as JsonNewDappsPolicy,
+};
 use account_provider::DappId;
 
 /// Disk-backed map from Address to String. Uses JSON.
@@ -31,11 +37,11 @@ pub struct AddressBook {
 
 impl AddressBook {
 	/// Creates new address book at given directory.
-	pub fn new(path: String) -> Self {
+	pub fn new(path: &Path) -> Self {
 		let mut r = AddressBook {
-			cache: DiskMap::new(path, "address_book.json".into())
+			cache: DiskMap::new(path, "address_book.json")
 		};
-		r.cache.revert(AccountMeta::read_address_map);
+		r.cache.revert(AccountMeta::read);
 		r
 	}
 
@@ -52,7 +58,7 @@ impl AddressBook {
 	}
 
 	fn save(&self) {
-		self.cache.save(AccountMeta::write_address_map)
+		self.cache.save(AccountMeta::write)
 	}
 
 	/// Sets new name for given address.
@@ -134,7 +140,51 @@ impl From<NewDappsPolicy> for JsonNewDappsPolicy {
 	}
 }
 
-const MAX_RECENT_DAPPS: usize = 10;
+/// Transient dapps data
+#[derive(Default, Debug, Clone, Eq, PartialEq)]
+pub struct TransientDappsData {
+	/// Timestamp of last access
+	pub last_accessed: u64,
+}
+
+impl From<JsonDappsHistory> for TransientDappsData {
+	fn from(s: JsonDappsHistory) -> Self {
+		TransientDappsData {
+			last_accessed: s.last_accessed,
+		}
+	}
+}
+
+impl From<TransientDappsData> for JsonDappsHistory {
+	fn from(s: TransientDappsData) -> Self {
+		JsonDappsHistory {
+			last_accessed: s.last_accessed,
+		}
+	}
+}
+
+enum TimeProvider {
+	Clock,
+	Incremenetal(AtomicUsize)
+}
+
+impl TimeProvider {
+	fn get(&self) -> u64 {
+		match *self {
+			TimeProvider::Clock => {
+				::std::time::UNIX_EPOCH.elapsed()
+					.expect("Correct time is required to be set")
+					.as_secs()
+
+			},
+			TimeProvider::Incremenetal(ref time) => {
+				time.fetch_add(1, atomic::Ordering::SeqCst) as u64
+			},
+		}
+	}
+}
+
+const MAX_RECENT_DAPPS: usize = 50;
 
 /// Disk-backed map from DappId to Settings. Uses JSON.
 pub struct DappsSettingsStore {
@@ -142,20 +192,24 @@ pub struct DappsSettingsStore {
 	settings: DiskMap<DappId, DappsSettings>,
 	/// New Dapps Policy
 	policy: DiskMap<String, NewDappsPolicy>,
-	/// Recently Accessed Dapps (transient)
-	recent: VecDeque<DappId>,
+	/// Transient Data of recently Accessed Dapps
+	history: DiskMap<DappId, TransientDappsData>,
+	/// Time
+	time: TimeProvider,
 }
 
 impl DappsSettingsStore {
 	/// Creates new store at given directory path.
-	pub fn new(path: String) -> Self {
+	pub fn new(path: &Path) -> Self {
 		let mut r = DappsSettingsStore {
-			settings: DiskMap::new(path.clone(), "dapps_accounts.json".into()),
-			policy: DiskMap::new(path.clone(), "dapps_policy.json".into()),
-			recent: VecDeque::with_capacity(MAX_RECENT_DAPPS),
+			settings: DiskMap::new(path, "dapps_accounts.json".into()),
+			policy: DiskMap::new(path, "dapps_policy.json".into()),
+			history: DiskMap::new(path, "dapps_history.json".into()),
+			time: TimeProvider::Clock,
 		};
-		r.settings.revert(JsonSettings::read_dapps_settings);
-		r.policy.revert(JsonNewDappsPolicy::read_new_dapps_policy);
+		r.settings.revert(JsonSettings::read);
+		r.policy.revert(JsonNewDappsPolicy::read);
+		r.history.revert(JsonDappsHistory::read);
 		r
 	}
 
@@ -164,7 +218,8 @@ impl DappsSettingsStore {
 		DappsSettingsStore {
 			settings: DiskMap::transient(),
 			policy: DiskMap::transient(),
-			recent: VecDeque::with_capacity(MAX_RECENT_DAPPS),
+			history: DiskMap::transient(),
+			time: TimeProvider::Incremenetal(AtomicUsize::new(1)),
 		}
 	}
 
@@ -178,24 +233,36 @@ impl DappsSettingsStore {
 		self.policy.get("default").cloned().unwrap_or(NewDappsPolicy::AllAccounts)
 	}
 
-	/// Returns recent dapps (in order of last request)
-	pub fn recent_dapps(&self) -> Vec<DappId> {
-		self.recent.iter().cloned().collect()
+	/// Returns recent dapps with last accessed timestamp
+	pub fn recent_dapps(&self) -> HashMap<DappId, u64> {
+		self.history.iter().map(|(k, v)| (k.clone(), v.last_accessed)).collect()
 	}
 
 	/// Marks recent dapp as used
 	pub fn mark_dapp_used(&mut self, dapp: DappId) {
-		self.recent.retain(|id| id != &dapp);
-		self.recent.push_front(dapp);
-		while self.recent.len() > MAX_RECENT_DAPPS {
-			self.recent.pop_back();
+		{
+			let mut entry = self.history.entry(dapp).or_insert_with(|| Default::default());
+			entry.last_accessed = self.time.get();
 		}
+		// Clear extraneous entries
+		while self.history.len() > MAX_RECENT_DAPPS {
+			let min = self.history.iter()
+				.min_by_key(|&(_, ref v)| v.last_accessed)
+				.map(|(ref k, _)| k.clone())
+				.cloned();
+
+			match min {
+				Some(k) => self.history.remove(&k),
+				None => break,
+			};
+		}
+		self.history.save(JsonDappsHistory::write);
 	}
 
 	/// Sets current new dapps policy
 	pub fn set_policy(&mut self, policy: NewDappsPolicy) {
 		self.policy.insert("default".into(), policy);
-		self.policy.save(JsonNewDappsPolicy::write_new_dapps_policy);
+		self.policy.save(JsonNewDappsPolicy::write);
 	}
 
 	/// Sets accounts for specific dapp.
@@ -204,7 +271,7 @@ impl DappsSettingsStore {
 			let mut settings = self.settings.entry(id).or_insert_with(DappsSettings::default);
 			settings.accounts = accounts;
 		}
-		self.settings.save(JsonSettings::write_dapps_settings);
+		self.settings.save(JsonSettings::write);
 	}
 }
 
@@ -230,9 +297,8 @@ impl<K: hash::Hash + Eq, V> ops::DerefMut for DiskMap<K, V> {
 }
 
 impl<K: hash::Hash + Eq, V> DiskMap<K, V> {
-	pub fn new(path: String, file_name: String) -> Self {
-		trace!(target: "diskmap", "new({})", path);
-		let mut path: PathBuf = path.into();
+	pub fn new(path: &Path, file_name: &str) -> Self {
+		let mut path = path.to_owned();
 		path.push(file_name);
 		trace!(target: "diskmap", "path={:?}", path);
 		DiskMap {
@@ -243,7 +309,7 @@ impl<K: hash::Hash + Eq, V> DiskMap<K, V> {
 	}
 
 	pub fn transient() -> Self {
-		let mut map = DiskMap::new(Default::default(), "diskmap.json".into());
+		let mut map = DiskMap::new(&PathBuf::new(), "diskmap.json".into());
 		map.transient = true;
 		map
 	}
@@ -280,33 +346,32 @@ impl<K: hash::Hash + Eq, V> DiskMap<K, V> {
 #[cfg(test)]
 mod tests {
 	use super::{AddressBook, DappsSettingsStore, DappsSettings, NewDappsPolicy};
+	use account_provider::DappId;
 	use std::collections::HashMap;
 	use ethjson::misc::AccountMeta;
 	use devtools::RandomTempPath;
 
 	#[test]
 	fn should_save_and_reload_address_book() {
-		let temp = RandomTempPath::create_dir();
-		let path = temp.as_str().to_owned();
-		let mut b = AddressBook::new(path.clone());
+		let path = RandomTempPath::create_dir();
+		let mut b = AddressBook::new(&path);
 		b.set_name(1.into(), "One".to_owned());
 		b.set_meta(1.into(), "{1:1}".to_owned());
-		let b = AddressBook::new(path);
+		let b = AddressBook::new(&path);
 		assert_eq!(b.get(), hash_map![1.into() => AccountMeta{name: "One".to_owned(), meta: "{1:1}".to_owned(), uuid: None}]);
 	}
 
 	#[test]
 	fn should_remove_address() {
-		let temp = RandomTempPath::create_dir();
-		let path = temp.as_str().to_owned();
-		let mut b = AddressBook::new(path.clone());
+		let path = RandomTempPath::create_dir();
+		let mut b = AddressBook::new(&path);
 
 		b.set_name(1.into(), "One".to_owned());
 		b.set_name(2.into(), "Two".to_owned());
 		b.set_name(3.into(), "Three".to_owned());
 		b.remove(2.into());
 
-		let b = AddressBook::new(path);
+		let b = AddressBook::new(&path);
 		assert_eq!(b.get(), hash_map![
 			1.into() => AccountMeta{name: "One".to_owned(), meta: "{}".to_owned(), uuid: None},
 			3.into() => AccountMeta{name: "Three".to_owned(), meta: "{}".to_owned(), uuid: None}
@@ -316,15 +381,14 @@ mod tests {
 	#[test]
 	fn should_save_and_reload_dapps_settings() {
 		// given
-		let temp = RandomTempPath::create_dir();
-		let path = temp.as_str().to_owned();
-		let mut b = DappsSettingsStore::new(path.clone());
+		let path = RandomTempPath::create_dir();
+		let mut b = DappsSettingsStore::new(&path);
 
 		// when
 		b.set_accounts("dappOne".into(), vec![1.into(), 2.into()]);
 
 		// then
-		let b = DappsSettingsStore::new(path);
+		let b = DappsSettingsStore::new(&path);
 		assert_eq!(b.settings(), hash_map![
 			"dappOne".into() => DappsSettings {
 				accounts: vec![1.into(), 2.into()],
@@ -333,27 +397,30 @@ mod tests {
 	}
 
 	#[test]
-	fn should_maintain_a_list_of_recent_dapps() {
+	fn should_maintain_a_map_of_recent_dapps() {
 		let mut store = DappsSettingsStore::transient();
 		assert!(store.recent_dapps().is_empty(), "Initially recent dapps should be empty.");
 
-		store.mark_dapp_used("dapp1".into());
-		assert_eq!(store.recent_dapps(), vec!["dapp1".to_owned()]);
+		let dapp1: DappId = "dapp1".into();
+		let dapp2: DappId = "dapp2".into();
+		store.mark_dapp_used(dapp1.clone());
+		let recent = store.recent_dapps();
+		assert_eq!(recent.len(), 1);
+		assert_eq!(recent.get(&dapp1), Some(&1));
 
-		store.mark_dapp_used("dapp2".into());
-		assert_eq!(store.recent_dapps(), vec!["dapp2".to_owned(), "dapp1".to_owned()]);
-
-		store.mark_dapp_used("dapp1".into());
-		assert_eq!(store.recent_dapps(), vec!["dapp1".to_owned(), "dapp2".to_owned()]);
+		store.mark_dapp_used(dapp2.clone());
+		let recent = store.recent_dapps();
+		assert_eq!(recent.len(), 2);
+		assert_eq!(recent.get(&dapp1), Some(&1));
+		assert_eq!(recent.get(&dapp2), Some(&2));
 	}
 
 	#[test]
 	fn should_store_dapps_policy() {
 		// given
-		let temp = RandomTempPath::create_dir();
-		let path = temp.as_str().to_owned();
-		let mut store = DappsSettingsStore::new(path.clone());
-		
+		let path = RandomTempPath::create_dir();
+		let mut store = DappsSettingsStore::new(&path);
+
 		// Test default policy
 		assert_eq!(store.policy(), NewDappsPolicy::AllAccounts);
 
@@ -361,7 +428,7 @@ mod tests {
 		store.set_policy(NewDappsPolicy::Whitelist(vec![1.into(), 2.into()]));
 
 		// then
-		let store = DappsSettingsStore::new(path);
+		let store = DappsSettingsStore::new(&path);
 		assert_eq!(store.policy.clone(), hash_map![
 			"default".into() => NewDappsPolicy::Whitelist(vec![1.into(), 2.into()])
 		]);

@@ -17,7 +17,6 @@
 use std::sync::Arc;
 
 use ethcore::account_provider::AccountProvider;
-use ethcore::client::TestBlockChainClient;
 
 use jsonrpc_core::IoHandler;
 use v1::{ParityAccounts, ParityAccountsClient};
@@ -25,14 +24,6 @@ use v1::{ParityAccounts, ParityAccountsClient};
 struct ParityAccountsTester {
 	accounts: Arc<AccountProvider>,
 	io: IoHandler,
-	// these unused fields are necessary to keep the data alive
-	// as the handler has only weak pointers.
-	_client: Arc<TestBlockChainClient>,
-}
-
-fn blockchain_client() -> Arc<TestBlockChainClient> {
-	let client = TestBlockChainClient::new();
-	Arc::new(client)
 }
 
 fn accounts_provider() -> Arc<AccountProvider> {
@@ -41,8 +32,7 @@ fn accounts_provider() -> Arc<AccountProvider> {
 
 fn setup() -> ParityAccountsTester {
 	let accounts = accounts_provider();
-	let client = blockchain_client();
-	let parity_accounts = ParityAccountsClient::new(&accounts, &client);
+	let parity_accounts = ParityAccountsClient::new(&accounts);
 
 	let mut io = IoHandler::default();
 	io.extend_with(parity_accounts.to_delegate());
@@ -50,7 +40,6 @@ fn setup() -> ParityAccountsTester {
 	let tester = ParityAccountsTester {
 		accounts: accounts,
 		io: io,
-		_client: client,
 	};
 
 	tester
@@ -120,10 +109,11 @@ fn should_be_able_to_set_meta() {
 fn rpc_parity_set_and_get_dapps_accounts() {
 	// given
 	let tester = setup();
+	tester.accounts.set_address_name(10.into(), "10".into());
 	assert_eq!(tester.accounts.dapps_addresses("app1".into()).unwrap(), vec![]);
 
 	// when
-	let request = r#"{"jsonrpc": "2.0", "method": "parity_setDappsAddresses","params":["app1",["0x000000000000000000000000000000000000000a"]], "id": 1}"#;
+	let request = r#"{"jsonrpc": "2.0", "method": "parity_setDappsAddresses","params":["app1",["0x000000000000000000000000000000000000000a","0x0000000000000000000000000000000000000001"]], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":true,"id":1}"#;
 	assert_eq!(tester.io.handle_request_sync(request), Some(response.to_owned()));
 
@@ -173,7 +163,7 @@ fn rpc_parity_recent_dapps() {
 
 	// then
 	let request = r#"{"jsonrpc": "2.0", "method": "parity_listRecentDapps","params":[], "id": 1}"#;
-	let response = r#"{"jsonrpc":"2.0","result":["dapp1"],"id":1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":{"dapp1":1},"id":1}"#;
 	assert_eq!(tester.io.handle_request_sync(request), Some(response.to_owned()));
 }
 

@@ -21,56 +21,50 @@ use util::{Address};
 
 use ethkey::{Brain, Generator, Secret};
 use ethcore::account_provider::AccountProvider;
-use ethcore::client::MiningBlockChainClient;
 
 use jsonrpc_core::Error;
+use v1::helpers::errors;
 use v1::traits::ParityAccounts;
 use v1::types::{H160 as RpcH160, H256 as RpcH256, DappId};
-use v1::helpers::errors;
 
 /// Account management (personal) rpc implementation.
-pub struct ParityAccountsClient<C> where C: MiningBlockChainClient {
+pub struct ParityAccountsClient {
 	accounts: Weak<AccountProvider>,
-	client: Weak<C>,
 }
 
-impl<C> ParityAccountsClient<C> where C: MiningBlockChainClient {
+impl ParityAccountsClient {
 	/// Creates new PersonalClient
-	pub fn new(store: &Arc<AccountProvider>, client: &Arc<C>) -> Self {
+	pub fn new(store: &Arc<AccountProvider>) -> Self {
 		ParityAccountsClient {
 			accounts: Arc::downgrade(store),
-			client: Arc::downgrade(client),
 		}
-	}
-
-	fn active(&self) -> Result<(), Error> {
-		// TODO: only call every 30s at most.
-		take_weak!(self.client).keep_alive();
-		Ok(())
 	}
 }
 
-impl<C: 'static> ParityAccounts for ParityAccountsClient<C> where C: MiningBlockChainClient {
-	fn all_accounts_info(&self) -> Result<BTreeMap<String, BTreeMap<String, String>>, Error> {
-		self.active()?;
+impl ParityAccounts for ParityAccountsClient {
+	fn all_accounts_info(&self) -> Result<BTreeMap<RpcH160, BTreeMap<String, String>>, Error> {
 		let store = take_weak!(self.accounts);
 		let info = store.accounts_info().map_err(|e| errors::account("Could not fetch account info.", e))?;
-		let other = store.addresses_info().expect("addresses_info always returns Ok; qed");
+		let other = store.addresses_info();
 
-		Ok(info.into_iter().chain(other.into_iter()).map(|(a, v)| {
-			let mut m = map![
-				"name".to_owned() => v.name,
-				"meta".to_owned() => v.meta
-			];
-			if let &Some(ref uuid) = &v.uuid {
-				m.insert("uuid".to_owned(), format!("{}", uuid));
-			}
-			(format!("0x{}", a.hex()), m)
-		}).collect())
+		Ok(info
+		   .into_iter()
+		   .chain(other.into_iter())
+		   .map(|(address, v)| {
+			   let mut m = map![
+				   "name".to_owned() => v.name,
+				   "meta".to_owned() => v.meta
+			   ];
+			   if let &Some(ref uuid) = &v.uuid {
+				   m.insert("uuid".to_owned(), format!("{}", uuid));
+			   }
+			   (address.into(), m)
+		   })
+		   .collect()
+		)
 	}
 
 	fn new_account_from_phrase(&self, phrase: String, pass: String) -> Result<RpcH160, Error> {
-		self.active()?;
 		let store = take_weak!(self.accounts);
 
 		let brain = Brain::new(phrase).generate().unwrap();
@@ -80,7 +74,6 @@ impl<C: 'static> ParityAccounts for ParityAccountsClient<C> where C: MiningBlock
 	}
 
 	fn new_account_from_wallet(&self, json: String, pass: String) -> Result<RpcH160, Error> {
-		self.active()?;
 		let store = take_weak!(self.accounts);
 
 		store.import_presale(json.as_bytes(), &pass)
@@ -90,7 +83,6 @@ impl<C: 'static> ParityAccounts for ParityAccountsClient<C> where C: MiningBlock
 	}
 
 	fn new_account_from_secret(&self, secret: RpcH256, pass: String) -> Result<RpcH160, Error> {
-		self.active()?;
 		let store = take_weak!(self.accounts);
 
 		let secret = Secret::from_slice(&secret.0)
@@ -101,7 +93,6 @@ impl<C: 'static> ParityAccounts for ParityAccountsClient<C> where C: MiningBlock
 	}
 
 	fn test_password(&self, account: RpcH160, password: String) -> Result<bool, Error> {
-		self.active()?;
 		let account: Address = account.into();
 
 		take_weak!(self.accounts)
@@ -110,7 +101,6 @@ impl<C: 'static> ParityAccounts for ParityAccountsClient<C> where C: MiningBlock
 	}
 
 	fn change_password(&self, account: RpcH160, password: String, new_password: String) -> Result<bool, Error> {
-		self.active()?;
 		let account: Address = account.into();
 		take_weak!(self.accounts)
 			.change_password(&account, password, new_password)
@@ -119,7 +109,6 @@ impl<C: 'static> ParityAccounts for ParityAccountsClient<C> where C: MiningBlock
 	}
 
 	fn kill_account(&self, account: RpcH160, password: String) -> Result<bool, Error> {
-		self.active()?;
 		let account: Address = account.into();
 		take_weak!(self.accounts)
 			.kill_account(&account, &password)
@@ -128,34 +117,28 @@ impl<C: 'static> ParityAccounts for ParityAccountsClient<C> where C: MiningBlock
 	}
 
 	fn remove_address(&self, addr: RpcH160) -> Result<bool, Error> {
-		self.active()?;
 		let store = take_weak!(self.accounts);
 		let addr: Address = addr.into();
 
-		store.remove_address(addr)
-			.expect("remove_address always returns Ok; qed");
+		store.remove_address(addr);
 		Ok(true)
 	}
 
 	fn set_account_name(&self, addr: RpcH160, name: String) -> Result<bool, Error> {
-		self.active()?;
 		let store = take_weak!(self.accounts);
 		let addr: Address = addr.into();
 
 		store.set_account_name(addr.clone(), name.clone())
-			.or_else(|_| store.set_address_name(addr, name))
-			.expect("set_address_name always returns Ok; qed");
+			.unwrap_or_else(|_| store.set_address_name(addr, name));
 		Ok(true)
 	}
 
 	fn set_account_meta(&self, addr: RpcH160, meta: String) -> Result<bool, Error> {
-		self.active()?;
 		let store = take_weak!(self.accounts);
 		let addr: Address = addr.into();
 
 		store.set_account_meta(addr.clone(), meta.clone())
-			.or_else(|_| store.set_address_meta(addr, meta))
-			.expect("set_address_meta always returns Ok; qed");
+			.unwrap_or_else(|_| store.set_address_meta(addr, meta));
 		Ok(true)
 	}
 
@@ -196,12 +179,12 @@ impl<C: 'static> ParityAccounts for ParityAccountsClient<C> where C: MiningBlock
 			.map(|accounts| accounts.map(into_vec))
 	}
 
-	fn recent_dapps(&self) -> Result<Vec<DappId>, Error> {
+	fn recent_dapps(&self) -> Result<BTreeMap<DappId, u64>, Error> {
 		let store = take_weak!(self.accounts);
 
 		store.recent_dapps()
 			.map_err(|e| errors::account("Couldn't get recent dapps.", e))
-			.map(into_vec)
+			.map(|map| map.into_iter().map(|(k, v)| (k.into(), v)).collect())
 	}
 
 	fn import_geth_accounts(&self, addresses: Vec<RpcH160>) -> Result<Vec<RpcH160>, Error> {
@@ -214,7 +197,6 @@ impl<C: 'static> ParityAccounts for ParityAccountsClient<C> where C: MiningBlock
 	}
 
 	fn geth_accounts(&self) -> Result<Vec<RpcH160>, Error> {
-		self.active()?;
 		let store = take_weak!(self.accounts);
 
 		Ok(into_vec(store.list_geth_accounts(false)))

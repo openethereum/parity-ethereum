@@ -21,8 +21,9 @@ use authcode_store::AuthCodes;
 use std::path::{PathBuf, Path};
 use std::sync::Arc;
 use std::str::FromStr;
-use jsonrpc_core::{Metadata};
+use jsonrpc_core::{Metadata, Middleware};
 use jsonrpc_core::reactor::RpcHandler;
+use rpc::informant::RpcStats;
 use util::{H256, version};
 
 #[cfg(feature = "parity-ui")]
@@ -64,22 +65,16 @@ mod ui {
 	}
 }
 
-const HOME_DOMAIN: &'static str = "home.parity";
+const HOME_DOMAIN: &'static str = "parity.web3.site";
 
 fn origin_is_allowed(self_origin: &str, header: Option<&[u8]>) -> bool {
-	match header {
-		None => false,
-		Some(h) => {
-			let v = String::from_utf8(h.to_owned()).ok();
-			match v {
-				Some(ref origin) if origin.starts_with("chrome-extension://") => true,
-				Some(ref origin) if origin.starts_with(self_origin) => true,
-				Some(ref origin) if origin.starts_with(&format!("http://{}", self_origin)) => true,
-				Some(ref origin) if origin.starts_with(HOME_DOMAIN) => true,
-				Some(ref origin) if origin.starts_with(&format!("http://{}", HOME_DOMAIN)) => true,
-				_ => false
-			}
-		}
+	match header.map(|h| String::from_utf8_lossy(h).into_owned()) {
+		Some(ref origin) if origin.starts_with("chrome-extension://") => true,
+		Some(ref origin) if origin.starts_with(self_origin) => true,
+		Some(ref origin) if origin.starts_with(&format!("http://{}", self_origin)) => true,
+		Some(ref origin) if origin.starts_with(HOME_DOMAIN) => true,
+		Some(ref origin) if origin.starts_with(&format!("http://{}", HOME_DOMAIN)) => true,
+		_ => false,
 	}
 }
 
@@ -130,23 +125,32 @@ fn add_headers(mut response: ws::Response, mime: &str) -> ws::Response {
 	response
 }
 
-pub struct Session<M: Metadata> {
+pub struct Session<M: Metadata, S: Middleware<M>> {
 	out: ws::Sender,
 	skip_origin_validation: bool,
 	self_origin: String,
+	self_port: u16,
 	authcodes_path: PathBuf,
-	handler: RpcHandler<M>,
+	handler: RpcHandler<M, S>,
 	file_handler: Arc<ui::Handler>,
+	stats: Option<Arc<RpcStats>>,
 }
 
-impl<M: Metadata> ws::Handler for Session<M> {
+impl<M: Metadata, S: Middleware<M>> Drop for Session<M, S> {
+	fn drop(&mut self) {
+		self.stats.as_ref().map(|stats| stats.close_session());
+	}
+}
+
+impl<M: Metadata, S: Middleware<M>> ws::Handler for Session<M, S> {
 	#[cfg_attr(feature="dev", allow(collapsible_if))]
 	fn on_request(&mut self, req: &ws::Request) -> ws::Result<(ws::Response)> {
 		trace!(target: "signer", "Handling request: {:?}", req);
 
 		// TODO [ToDr] ws server is not handling proxied requests correctly:
 		// Trim domain name from resource part:
-		let resource = req.resource().trim_left_matches(&format!("http://{}", HOME_DOMAIN));
+		let resource = req.resource().trim_left_matches(&format!("http://{}:{}", HOME_DOMAIN, self.self_port));
+		let resource = resource.trim_left_matches(&format!("http://{}", HOME_DOMAIN));
 
 		// Styles file is allowed for error pages to display nicely.
 		let is_styles_file = resource == "/styles.css";
@@ -225,37 +229,52 @@ impl<M: Metadata> ws::Handler for Session<M> {
 	}
 }
 
-pub struct Factory<M: Metadata> {
-	handler: RpcHandler<M>,
+pub struct Factory<M: Metadata, S: Middleware<M>> {
+	handler: RpcHandler<M, S>,
 	skip_origin_validation: bool,
 	self_origin: String,
+	self_port: u16,
 	authcodes_path: PathBuf,
 	file_handler: Arc<ui::Handler>,
+	stats: Option<Arc<RpcStats>>,
 }
 
-impl<M: Metadata> Factory<M> {
-	pub fn new(handler: RpcHandler<M>, self_origin: String, authcodes_path: PathBuf, skip_origin_validation: bool) -> Self {
+impl<M: Metadata, S: Middleware<M>> Factory<M, S> {
+	pub fn new(
+		handler: RpcHandler<M, S>,
+		self_origin: String,
+    self_port: u16,
+		authcodes_path: PathBuf,
+		skip_origin_validation: bool,
+		stats: Option<Arc<RpcStats>>,
+	) -> Self {
 		Factory {
 			handler: handler,
 			skip_origin_validation: skip_origin_validation,
 			self_origin: self_origin,
+			self_port: self_port,
 			authcodes_path: authcodes_path,
 			file_handler: Arc::new(ui::Handler::default()),
+			stats: stats,
 		}
 	}
 }
 
-impl<M: Metadata> ws::Factory for Factory<M> {
-	type Handler = Session<M>;
+impl<M: Metadata, S: Middleware<M>> ws::Factory for Factory<M, S> {
+	type Handler = Session<M, S>;
 
 	fn connection_made(&mut self, sender: ws::Sender) -> Self::Handler {
+		self.stats.as_ref().map(|stats| stats.open_session());
+
 		Session {
 			out: sender,
 			handler: self.handler.clone(),
 			skip_origin_validation: self.skip_origin_validation,
 			self_origin: self.self_origin.clone(),
+			self_port: self.self_port,
 			authcodes_path: self.authcodes_path.clone(),
 			file_handler: self.file_handler.clone(),
+			stats: self.stats.clone(),
 		}
 	}
 }

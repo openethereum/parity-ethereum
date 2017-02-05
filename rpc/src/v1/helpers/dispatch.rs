@@ -17,8 +17,9 @@
 use std::fmt::Debug;
 use std::ops::Deref;
 use rlp;
-use util::{Address, H256, U256, Uint, Bytes};
+use util::{Address, H520, H256, U256, Uint, Bytes};
 use util::bytes::ToPretty;
+use util::sha3::Hashable;
 
 use ethkey::Signature;
 use ethcore::miner::MinerService;
@@ -108,9 +109,17 @@ pub fn execute<C, M>(client: &C, miner: &M, accounts: &AccountProvider, payload:
 					.map(ConfirmationResponse::SignTransaction)
 				)
 		},
-		ConfirmationPayload::Signature(address, hash) => {
-			signature(accounts, address, hash, pass)
+		ConfirmationPayload::Signature(address, data) => {
+			signature(accounts, address, data.sha3(), pass)
 				.map(|result| result
+					.map(|rsv| {
+						let mut vrs = [0u8; 65];
+						let rsv = rsv.as_ref();
+						vrs[0] = rsv[64] + 27;
+						vrs[1..33].copy_from_slice(&rsv[0..32]);
+						vrs[33..65].copy_from_slice(&rsv[32..64]);
+						H520(vrs)
+					})
 					.map(RpcH520::from)
 					.map(ConfirmationResponse::Signature)
 				)
@@ -191,7 +200,7 @@ pub fn sign_and_dispatch<C, M>(client: &C, miner: &M, accounts: &AccountProvider
 {
 
 	let network_id = client.signing_network_id();
-	let min_block = filled.min_block.clone();
+	let condition = filled.condition.clone();
 	let signed_transaction = sign_no_dispatch(client, miner, accounts, filled, password)?;
 
 	let (signed_transaction, token) = match signed_transaction {
@@ -200,7 +209,7 @@ pub fn sign_and_dispatch<C, M>(client: &C, miner: &M, accounts: &AccountProvider
 	};
 
 	trace!(target: "miner", "send_transaction: dispatching tx: {} for network ID {:?}", rlp::encode(&signed_transaction).to_vec().pretty(), network_id);
-	let pending_transaction = PendingTransaction::new(signed_transaction, min_block);
+	let pending_transaction = PendingTransaction::new(signed_transaction, condition.map(Into::into));
 	dispatch_transaction(&*client, &*miner, pending_transaction).map(|hash| {
 		match token {
 			Some(ref token) => WithToken::Yes(hash, token.clone()),
@@ -209,18 +218,19 @@ pub fn sign_and_dispatch<C, M>(client: &C, miner: &M, accounts: &AccountProvider
 	})
 }
 
-pub fn fill_optional_fields<C, M>(request: TransactionRequest, client: &C, miner: &M) -> FilledTransactionRequest
+pub fn fill_optional_fields<C, M>(request: TransactionRequest, default_sender: Address, client: &C, miner: &M) -> FilledTransactionRequest
 	where C: MiningBlockChainClient, M: MinerService
 {
 	FilledTransactionRequest {
-		from: request.from,
+		from: request.from.unwrap_or(default_sender),
+		used_default_from: request.from.is_none(),
 		to: request.to,
 		nonce: request.nonce,
 		gas_price: request.gas_price.unwrap_or_else(|| default_gas_price(client, miner)),
 		gas: request.gas.unwrap_or_else(|| miner.sensible_gas_limit()),
 		value: request.value.unwrap_or_else(|| 0.into()),
 		data: request.data.unwrap_or_else(Vec::new),
-		min_block: request.min_block,
+		condition: request.condition,
 	}
 }
 
@@ -230,21 +240,21 @@ pub fn default_gas_price<C, M>(client: &C, miner: &M) -> U256
 	client.gas_price_median(100).unwrap_or_else(|| miner.sensible_gas_price())
 }
 
-pub fn from_rpc<C, M>(payload: RpcConfirmationPayload, client: &C, miner: &M) -> ConfirmationPayload
+pub fn from_rpc<C, M>(payload: RpcConfirmationPayload, default_account: Address, client: &C, miner: &M) -> ConfirmationPayload
 	where C: MiningBlockChainClient, M: MinerService {
 
 	match payload {
 		RpcConfirmationPayload::SendTransaction(request) => {
-			ConfirmationPayload::SendTransaction(fill_optional_fields(request.into(), client, miner))
+			ConfirmationPayload::SendTransaction(fill_optional_fields(request.into(), default_account, client, miner))
 		},
 		RpcConfirmationPayload::SignTransaction(request) => {
-			ConfirmationPayload::SignTransaction(fill_optional_fields(request.into(), client, miner))
+			ConfirmationPayload::SignTransaction(fill_optional_fields(request.into(), default_account, client, miner))
 		},
 		RpcConfirmationPayload::Decrypt(RpcDecryptRequest { address, msg }) => {
 			ConfirmationPayload::Decrypt(address.into(), msg.into())
 		},
-		RpcConfirmationPayload::Signature(RpcSignRequest { address, hash }) => {
-			ConfirmationPayload::Signature(address.into(), hash.into())
+		RpcConfirmationPayload::Signature(RpcSignRequest { address, data }) => {
+			ConfirmationPayload::Signature(address.into(), data.into())
 		},
 	}
 }

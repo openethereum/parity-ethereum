@@ -18,6 +18,7 @@
 use std::sync::{Arc, Weak};
 use std::str::FromStr;
 use std::collections::{BTreeMap, HashSet};
+use futures::{self, Future, BoxFuture};
 
 use util::{RotatingLogger, Address};
 use util::misc::version_data;
@@ -34,6 +35,9 @@ use updater::{Service as UpdateService};
 
 use jsonrpc_core::Error;
 use jsonrpc_macros::Trailing;
+use v1::helpers::{errors, SigningQueue, SignerService, NetworkSettings};
+use v1::helpers::dispatch::DEFAULT_MAC;
+use v1::metadata::Metadata;
 use v1::traits::Parity;
 use v1::types::{
 	Bytes, U256, H160, H256, H512,
@@ -42,8 +46,6 @@ use v1::types::{
 	BlockNumber, ConsensusCapability, VersionInfo,
 	OperationsInfo, DappId, ChainStatus,
 };
-use v1::helpers::{errors, SigningQueue, SignerService, NetworkSettings};
-use v1::helpers::dispatch::DEFAULT_MAC;
 
 /// Parity implementation.
 pub struct ParityClient<C, M, S: ?Sized, U> where
@@ -99,12 +101,6 @@ impl<C, M, S: ?Sized, U> ParityClient<C, M, S, U> where
 			dapps_port: dapps_port,
 		}
 	}
-
-	fn active(&self) -> Result<(), Error> {
-		// TODO: only call every 30s at most.
-		take_weak!(self.client).keep_alive();
-		Ok(())
-	}
 }
 
 impl<C, M, S: ?Sized, U> Parity for ParityClient<C, M, S, U> where
@@ -113,9 +109,9 @@ impl<C, M, S: ?Sized, U> Parity for ParityClient<C, M, S, U> where
 	S: SyncProvider + 'static,
 	U: UpdateService + 'static,
 {
-	fn accounts_info(&self, dapp: Trailing<DappId>) -> Result<BTreeMap<String, BTreeMap<String, String>>, Error> {
-		self.active()?;
+	type Metadata = Metadata;
 
+	fn accounts_info(&self, dapp: Trailing<DappId>) -> Result<BTreeMap<String, BTreeMap<String, String>>, Error> {
 		let dapp = dapp.0;
 
 		let store = take_weak!(self.accounts);
@@ -126,7 +122,7 @@ impl<C, M, S: ?Sized, U> Parity for ParityClient<C, M, S, U> where
 			.into_iter().collect::<HashSet<_>>();
 
 		let info = store.accounts_info().map_err(|e| errors::account("Could not fetch account info.", e))?;
-		let other = store.addresses_info().expect("addresses_info always returns Ok; qed");
+		let other = store.addresses_info();
 
 		Ok(info
 			.into_iter()
@@ -142,58 +138,54 @@ impl<C, M, S: ?Sized, U> Parity for ParityClient<C, M, S, U> where
 		)
 	}
 
-	fn transactions_limit(&self) -> Result<usize, Error> {
-		self.active()?;
+	fn default_account(&self, meta: Self::Metadata) -> BoxFuture<H160, Error> {
+		let dapp_id = meta.dapp_id.unwrap_or_default();
+		let default_account = move || {
+			Ok(take_weak!(self.accounts)
+				.dapps_addresses(dapp_id.into())
+				.ok()
+				.and_then(|accounts| accounts.get(0).cloned())
+				.map(|acc| acc.into())
+				.unwrap_or_default())
+		};
 
+		futures::done(default_account()).boxed()
+	}
+
+	fn transactions_limit(&self) -> Result<usize, Error> {
 		Ok(take_weak!(self.miner).transactions_limit())
 	}
 
 	fn min_gas_price(&self) -> Result<U256, Error> {
-		self.active()?;
-
 		Ok(U256::from(take_weak!(self.miner).minimal_gas_price()))
 	}
 
 	fn extra_data(&self) -> Result<Bytes, Error> {
-		self.active()?;
-
 		Ok(Bytes::new(take_weak!(self.miner).extra_data()))
 	}
 
 	fn gas_floor_target(&self) -> Result<U256, Error> {
-		self.active()?;
-
 		Ok(U256::from(take_weak!(self.miner).gas_floor_target()))
 	}
 
 	fn gas_ceil_target(&self) -> Result<U256, Error> {
-		self.active()?;
-
 		Ok(U256::from(take_weak!(self.miner).gas_ceil_target()))
 	}
 
 	fn dev_logs(&self) -> Result<Vec<String>, Error> {
-		self.active()?;
-
 		let logs = self.logger.logs();
 		Ok(logs.as_slice().to_owned())
 	}
 
 	fn dev_logs_levels(&self) -> Result<String, Error> {
-		self.active()?;
-
 		Ok(self.logger.levels().to_owned())
 	}
 
 	fn net_chain(&self) -> Result<String, Error> {
-		self.active()?;
-
 		Ok(self.settings.chain.clone())
 	}
 
 	fn net_peers(&self) -> Result<Peers, Error> {
-		self.active()?;
-
 		let sync = take_weak!(self.sync);
 		let sync_status = sync.status();
 		let net_config = take_weak!(self.net).network_config();
@@ -208,20 +200,14 @@ impl<C, M, S: ?Sized, U> Parity for ParityClient<C, M, S, U> where
 	}
 
 	fn net_port(&self) -> Result<u16, Error> {
-		self.active()?;
-
 		Ok(self.settings.network_port)
 	}
 
 	fn node_name(&self) -> Result<String, Error> {
-		self.active()?;
-
 		Ok(self.settings.name.clone())
 	}
 
 	fn registry_address(&self) -> Result<Option<H160>, Error> {
-		self.active()?;
-
 		Ok(
 			take_weak!(self.client)
 				.additional_params()
@@ -232,7 +218,6 @@ impl<C, M, S: ?Sized, U> Parity for ParityClient<C, M, S, U> where
 	}
 
 	fn rpc_settings(&self) -> Result<RpcSettings, Error> {
-		self.active()?;
 		Ok(RpcSettings {
 			enabled: self.settings.rpc_enabled,
 			interface: self.settings.rpc_interface.clone(),
@@ -241,19 +226,14 @@ impl<C, M, S: ?Sized, U> Parity for ParityClient<C, M, S, U> where
 	}
 
 	fn default_extra_data(&self) -> Result<Bytes, Error> {
-		self.active()?;
-
 		Ok(Bytes::new(version_data()))
 	}
 
 	fn gas_price_histogram(&self) -> Result<Histogram, Error> {
-		self.active()?;
 		take_weak!(self.client).gas_price_histogram(100, 10).ok_or_else(errors::not_enough_data).map(Into::into)
 	}
 
 	fn unsigned_transactions_count(&self) -> Result<usize, Error> {
-		self.active()?;
-
 		match self.signer {
 			None => Err(errors::signer_disabled()),
 			Some(ref signer) => Ok(signer.len()),
@@ -261,56 +241,40 @@ impl<C, M, S: ?Sized, U> Parity for ParityClient<C, M, S, U> where
 	}
 
 	fn generate_secret_phrase(&self) -> Result<String, Error> {
-		self.active()?;
-
 		Ok(random_phrase(12))
 	}
 
 	fn phrase_to_address(&self, phrase: String) -> Result<H160, Error> {
-		self.active()?;
-
 		Ok(Brain::new(phrase).generate().unwrap().address().into())
 	}
 
 	fn list_accounts(&self, count: u64, after: Option<H160>, block_number: Trailing<BlockNumber>) -> Result<Option<Vec<H160>>, Error> {
-		self.active()?;
-
 		Ok(take_weak!(self.client)
 			.list_accounts(block_number.0.into(), after.map(Into::into).as_ref(), count)
 			.map(|a| a.into_iter().map(Into::into).collect()))
 	}
 
 	fn list_storage_keys(&self, address: H160, count: u64, after: Option<H256>, block_number: Trailing<BlockNumber>) -> Result<Option<Vec<H256>>, Error> {
-		self.active()?;
-
 		Ok(take_weak!(self.client)
 			.list_storage(block_number.0.into(), &address.into(), after.map(Into::into).as_ref(), count)
 			.map(|a| a.into_iter().map(Into::into).collect()))
 	}
 
 	fn encrypt_message(&self, key: H512, phrase: Bytes) -> Result<Bytes, Error> {
-		self.active()?;
-
 		ecies::encrypt(&key.into(), &DEFAULT_MAC, &phrase.0)
 			.map_err(errors::encryption_error)
 			.map(Into::into)
 	}
 
 	fn pending_transactions(&self) -> Result<Vec<Transaction>, Error> {
-		self.active()?;
-
 		Ok(take_weak!(self.miner).pending_transactions().into_iter().map(Into::into).collect::<Vec<_>>())
 	}
 
 	fn future_transactions(&self) -> Result<Vec<Transaction>, Error> {
-		self.active()?;
-
 		Ok(take_weak!(self.miner).future_transactions().into_iter().map(Into::into).collect::<Vec<_>>())
 	}
 
 	fn pending_transactions_stats(&self) -> Result<BTreeMap<H256, TransactionStats>, Error> {
-		self.active()?;
-
 		let stats = take_weak!(self.sync).transactions_stats();
 		Ok(stats.into_iter()
 		   .map(|(hash, stats)| (hash.into(), stats.into()))
@@ -319,8 +283,6 @@ impl<C, M, S: ?Sized, U> Parity for ParityClient<C, M, S, U> where
 	}
 
 	fn local_transactions(&self) -> Result<BTreeMap<H256, LocalTransactionStatus>, Error> {
-		self.active()?;
-
 		let transactions = take_weak!(self.miner).local_transactions();
 		Ok(transactions
 		   .into_iter()
@@ -330,8 +292,6 @@ impl<C, M, S: ?Sized, U> Parity for ParityClient<C, M, S, U> where
 	}
 
 	fn signer_port(&self) -> Result<u16, Error> {
-		self.active()?;
-
 		self.signer
 			.clone()
 			.and_then(|signer| signer.address())
@@ -340,21 +300,16 @@ impl<C, M, S: ?Sized, U> Parity for ParityClient<C, M, S, U> where
 	}
 
 	fn dapps_port(&self) -> Result<u16, Error> {
-		self.active()?;
-
 		self.dapps_port
 			.ok_or_else(|| errors::dapps_disabled())
 	}
 
 	fn dapps_interface(&self) -> Result<String, Error> {
-		self.active()?;
-
 		self.dapps_interface.clone()
 			.ok_or_else(|| errors::dapps_disabled())
 	}
 
 	fn next_nonce(&self, address: H160) -> Result<U256, Error> {
-		self.active()?;
 		let address: Address = address.into();
 		let miner = take_weak!(self.miner);
 		let client = take_weak!(self.client);
@@ -380,26 +335,21 @@ impl<C, M, S: ?Sized, U> Parity for ParityClient<C, M, S, U> where
 	}
 
 	fn consensus_capability(&self) -> Result<ConsensusCapability, Error> {
-		self.active()?;
 		let updater = take_weak!(self.updater);
 		Ok(updater.capability().into())
 	}
 
 	fn version_info(&self) -> Result<VersionInfo, Error> {
-		self.active()?;
 		let updater = take_weak!(self.updater);
 		Ok(updater.version_info().into())
 	}
 
 	fn releases_info(&self) -> Result<Option<OperationsInfo>, Error> {
-		self.active()?;
 		let updater = take_weak!(self.updater);
 		Ok(updater.info().map(Into::into))
 	}
 
 	fn chain_status(&self) -> Result<ChainStatus, Error> {
-		self.active()?;
-
 		let chain_info = take_weak!(self.client).chain_info();
 
 		let gap = chain_info.ancient_block_number.map(|x| U256::from(x + 1))

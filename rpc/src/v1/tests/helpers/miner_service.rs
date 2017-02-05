@@ -25,7 +25,7 @@ use ethcore::header::BlockNumber;
 use ethcore::transaction::{UnverifiedTransaction, SignedTransaction, PendingTransaction};
 use ethcore::receipt::{Receipt, RichReceipt};
 use ethcore::miner::{MinerService, MinerStatus, TransactionImportResult, LocalTransactionStatus};
-use ethcore::account_provider::Error as AccountError;
+use ethcore::account_provider::SignError as AccountError;
 
 /// Test miner service.
 pub struct TestMinerService {
@@ -212,7 +212,7 @@ impl MinerService for TestMinerService {
 		self.local_transactions.lock().iter().map(|(hash, stats)| (*hash, stats.clone())).collect()
 	}
 
-	fn ready_transactions(&self, _best_block: BlockNumber) -> Vec<PendingTransaction> {
+	fn ready_transactions(&self, _best_block: BlockNumber, _best_timestamp: u64) -> Vec<PendingTransaction> {
 		self.pending_transactions.lock().values().cloned().map(Into::into).collect()
 	}
 

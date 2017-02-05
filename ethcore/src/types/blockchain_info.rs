@@ -34,6 +34,8 @@ pub struct BlockChainInfo {
 	pub best_block_hash: H256,
 	/// Best blockchain block number.
 	pub best_block_number: BlockNumber,
+	/// Best blockchain block timestamp.
+	pub best_block_timestamp: u64,
 	/// Best ancient block hash.
 	pub ancient_block_hash: Option<H256>,
 	/// Best ancient block number.

@@ -25,10 +25,10 @@ use ethcore::transaction::{SignedTransaction, PendingTransaction};
 use ethcore::miner::MinerService;
 
 use jsonrpc_core::Error;
-use v1::traits::Signer;
-use v1::types::{TransactionModification, ConfirmationRequest, ConfirmationResponse, ConfirmationResponseWithToken, U256, Bytes};
 use v1::helpers::{errors, SignerService, SigningQueue, ConfirmationPayload};
 use v1::helpers::dispatch::{self, dispatch_transaction, WithToken};
+use v1::traits::Signer;
+use v1::types::{TransactionModification, ConfirmationRequest, ConfirmationResponse, ConfirmationResponseWithToken, U256, Bytes};
 
 /// Transactions confirmation (personal) rpc implementation.
 pub struct SignerClient<C, M> where C: MiningBlockChainClient, M: MinerService {
@@ -55,17 +55,9 @@ impl<C: 'static, M: 'static> SignerClient<C, M> where C: MiningBlockChainClient,
 		}
 	}
 
-	fn active(&self) -> Result<(), Error> {
-		// TODO: only call every 30s at most.
-		take_weak!(self.client).keep_alive();
-		Ok(())
-	}
-
 	fn confirm_internal<F>(&self, id: U256, modification: TransactionModification, f: F) -> Result<WithToken<ConfirmationResponse>, Error> where
 		F: FnOnce(&C, &M, &AccountProvider, ConfirmationPayload) -> Result<WithToken<ConfirmationResponse>, Error>,
 	{
-		self.active()?;
-
 		let id = id.into();
 		let accounts = take_weak!(self.accounts);
 		let signer = take_weak!(self.signer);
@@ -76,14 +68,19 @@ impl<C: 'static, M: 'static> SignerClient<C, M> where C: MiningBlockChainClient,
 			let mut payload = confirmation.payload.clone();
 			// Modify payload
 			if let ConfirmationPayload::SendTransaction(ref mut request) = payload {
+				if let Some(sender) = modification.sender.clone() {
+					request.from = sender.into();
+					// Altering sender should always reset the nonce.
+					request.nonce = None;
+				}
 				if let Some(gas_price) = modification.gas_price {
 					request.gas_price = gas_price.into();
 				}
 				if let Some(gas) = modification.gas {
 					request.gas = gas.into();
 				}
-				if let Some(ref min_block) = modification.min_block {
-					request.min_block = min_block.as_ref().and_then(|b| b.to_min_block_num());
+				if let Some(ref condition) = modification.condition {
+					request.condition = condition.clone().map(Into::into);
 				}
 			}
 			let result = f(&*client, &*miner, &*accounts, payload);
@@ -99,7 +96,6 @@ impl<C: 'static, M: 'static> SignerClient<C, M> where C: MiningBlockChainClient,
 impl<C: 'static, M: 'static> Signer for SignerClient<C, M> where C: MiningBlockChainClient, M: MinerService {
 
 	fn requests_to_confirm(&self) -> Result<Vec<ConfirmationRequest>, Error> {
-		self.active()?;
 		let signer = take_weak!(self.signer);
 
 		Ok(signer.requests()
@@ -130,8 +126,6 @@ impl<C: 'static, M: 'static> Signer for SignerClient<C, M> where C: MiningBlockC
 	}
 
 	fn confirm_request_raw(&self, id: U256, bytes: Bytes) -> Result<ConfirmationResponse, Error> {
-		self.active()?;
-
 		let id = id.into();
 		let signer = take_weak!(self.signer);
 		let client = take_weak!(self.client);
@@ -155,7 +149,7 @@ impl<C: 'static, M: 'static> Signer for SignerClient<C, M> where C: MiningBlockC
 
 					// Dispatch if everything is ok
 					if sender_matches && data_matches && value_matches && nonce_matches {
-						let pending_transaction = PendingTransaction::new(signed_transaction, request.min_block);
+						let pending_transaction = PendingTransaction::new(signed_transaction, request.condition.map(Into::into));
 						dispatch_transaction(&*client, &*miner, pending_transaction)
 							.map(Into::into)
 							.map(ConfirmationResponse::SendTransaction)
@@ -182,7 +176,6 @@ impl<C: 'static, M: 'static> Signer for SignerClient<C, M> where C: MiningBlockC
 	}
 
 	fn reject_request(&self, id: U256) -> Result<bool, Error> {
-		self.active()?;
 		let signer = take_weak!(self.signer);
 
 		let res = signer.request_rejected(id.into());
@@ -190,7 +183,6 @@ impl<C: 'static, M: 'static> Signer for SignerClient<C, M> where C: MiningBlockC
 	}
 
 	fn generate_token(&self) -> Result<String, Error> {
-		self.active()?;
 		let signer = take_weak!(self.signer);
 
 		signer.generate_token()
@@ -198,7 +190,6 @@ impl<C: 'static, M: 'static> Signer for SignerClient<C, M> where C: MiningBlockC
 	}
 
 	fn generate_web_proxy_token(&self) -> Result<String, Error> {
-		try!(self.active());
 		let signer = take_weak!(self.signer);
 
 		Ok(signer.generate_web_proxy_access_token())

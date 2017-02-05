@@ -21,21 +21,79 @@ mod disk;
 mod geth;
 mod memory;
 mod parity;
+mod vault;
 
 pub enum DirectoryType {
 	Testnet,
 	Main,
 }
 
-pub trait KeyDirectory: Send + Sync {
-	fn load(&self) -> Result<Vec<SafeAccount>, Error>;
-	fn insert(&self, account: SafeAccount) -> Result<SafeAccount, Error>;
-	fn update(&self, account: SafeAccount) -> Result<SafeAccount, Error>;
-	fn remove(&self, account: &SafeAccount) -> Result<(), Error>;
-	fn path(&self) -> Option<&PathBuf> { None }
+/// `VaultKeyDirectory::set_key` error
+#[derive(Debug)]
+pub enum SetKeyError {
+	/// Error is fatal and directory is probably in inconsistent state
+	Fatal(Error),
+	/// Error is non fatal, directory is reverted to pre-operation state
+	NonFatalOld(Error),
+	/// Error is non fatal, directory is consistent with new key
+	NonFatalNew(Error),
 }
 
-pub use self::disk::DiskDirectory;
+/// Vault key
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct VaultKey {
+	/// Vault password
+	pub password: String,
+	/// Number of iterations to produce a derived key from password
+	pub iterations: u32,
+}
+
+/// Keys directory
+pub trait KeyDirectory: Send + Sync {
+	/// Read keys from directory
+	fn load(&self) -> Result<Vec<SafeAccount>, Error>;
+	/// Insert new key to directory
+	fn insert(&self, account: SafeAccount) -> Result<SafeAccount, Error>;
+	//// Update key in directory
+	fn update(&self, account: SafeAccount) -> Result<SafeAccount, Error>;
+	/// Remove key from directory
+	fn remove(&self, account: &SafeAccount) -> Result<(), Error>;
+	/// Get directory filesystem path, if available
+	fn path(&self) -> Option<&PathBuf> { None }
+	/// Return vault provider, if available
+	fn as_vault_provider(&self) -> Option<&VaultKeyDirectoryProvider> { None }
+}
+
+/// Vaults provider
+pub trait VaultKeyDirectoryProvider {
+	/// Create new vault with given key
+	fn create(&self, name: &str, key: VaultKey) -> Result<Box<VaultKeyDirectory>, Error>;
+	/// Open existing vault with given key
+	fn open(&self, name: &str, key: VaultKey) -> Result<Box<VaultKeyDirectory>, Error>;
+}
+
+/// Vault directory
+pub trait VaultKeyDirectory: KeyDirectory {
+	/// Cast to `KeyDirectory`
+	fn as_key_directory(&self) -> &KeyDirectory;
+	/// Vault name
+	fn name(&self) -> &str;
+	/// Set new key for vault
+	fn set_key(&self, old_key: VaultKey, key: VaultKey) -> Result<(), SetKeyError>;
+}
+
+pub use self::disk::RootDiskDirectory;
 pub use self::geth::GethDirectory;
 pub use self::memory::MemoryDirectory;
 pub use self::parity::ParityDirectory;
+pub use self::vault::VaultDiskDirectory;
+
+impl VaultKey {
+	/// Create new vault key
+	pub fn new(password: &str, iterations: u32) -> Self {
+		VaultKey {
+			password: password.to_owned(),
+			iterations: iterations,
+		}
+	}
+}

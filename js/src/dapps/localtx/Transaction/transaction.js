@@ -22,7 +22,7 @@ import { api } from '../parity';
 
 import styles from './transaction.css';
 
-import IdentityIcon from '../../githubhint/IdentityIcon';
+import IdentityIcon from '../IdentityIcon';
 
 class BaseTransaction extends Component {
   shortHash (hash) {
