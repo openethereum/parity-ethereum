@@ -440,7 +440,7 @@ mod tests {
 	}
 
 	#[test]
-	fn test_h256_derivation() {
+	fn h256_soft_match() {
 		let secret = Secret::from_str("a100df7a048e50ed308ea696dc600215098141cb391e9527329df289f9383f65").unwrap();
 		let derivation_secret = H256::from_str("51eaf04f9dbbc1417dc97e789edd0c37ecda88bac490434e367ea81b71b7b015").unwrap();
 
@@ -453,6 +453,15 @@ mod tests {
 		let public_from_secret0 = ExtendedPublic::from_secret(&derived_secret0).expect("Extended public should be created");
 
 		assert_eq!(public_from_secret0.public(), derived_public0.public());
+	}
+
+	#[test]
+	fn h256_hard() {
+		let secret = Secret::from_str("a100df7a048e50ed308ea696dc600215098141cb391e9527329df289f9383f65").unwrap();
+		let derivation_secret = H256::from_str("51eaf04f9dbbc1417dc97e789edd0c37ecda88bac490434e367ea81b71b7b015").unwrap();
+		let extended_secret = ExtendedSecret::with_code(secret.clone(), 1u64.into());
+
+		assert_eq!(&**extended_secret.derive(Derivation::Hard(derivation_secret)).secret(), &"f55e8679e9cae8fa5ce7f50658a31cdfa401e379a790c4305797411c3d2cbb08".into());
 	}
 
 	#[test]
