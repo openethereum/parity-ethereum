@@ -21,6 +21,8 @@ extern crate tiny_keccak;
 extern crate secp256k1;
 extern crate rustc_serialize;
 extern crate ethcore_bigint as bigint;
+extern crate crypto as rcrypto;
+extern crate byteorder;
 
 mod brain;
 mod error;
@@ -30,6 +32,7 @@ mod prefix;
 mod random;
 mod signature;
 mod secret;
+mod extended;
 
 lazy_static! {
 	pub static ref SECP256K1: secp256k1::Secp256k1 = secp256k1::Secp256k1::new();
@@ -48,6 +51,7 @@ pub use self::prefix::Prefix;
 pub use self::random::Random;
 pub use self::signature::{sign, verify_public, verify_address, recover, Signature};
 pub use self::secret::Secret;
+pub use self::extended::{ExtendedPublic, ExtendedSecret, ExtendedKeyPair, DerivationError};
 
 use bigint::hash::{H160, H256, H512};
 

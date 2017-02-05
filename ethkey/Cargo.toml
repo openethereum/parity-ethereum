@@ -11,6 +11,8 @@ eth-secp256k1 = { git = "https://github.com/ethcore/rust-secp256k1" }
 rustc-serialize = "0.3"
 docopt = { version = "0.6", optional = true }
 ethcore-bigint = { path = "../util/bigint" }
+rust-crypto = "0.2"
+byteorder = "1.0"
 
 [features]
 default = []

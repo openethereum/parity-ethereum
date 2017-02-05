@@ -162,7 +162,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "byteorder"
-version = "0.5.3"
+version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
@@ -319,8 +319,8 @@ dependencies = [
 
 [[package]]
 name = "eth-secp256k1"
-version = "0.5.4"
-source = "git+https://github.com/ethcore/rust-secp256k1#a9a0b1be1f39560ca86e8fc8e55e205a753ff25c"
+version = "0.5.6"
+source = "git+https://github.com/ethcore/rust-secp256k1#edab95f5569e4fb97579dc8947be96e7ac789c16"
 dependencies = [
  "arrayvec 0.3.16 (registry+https://github.com/rust-lang/crates.io-index)",
  "gcc 0.3.35 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -358,7 +358,7 @@ version = "1.6.0"
 dependencies = [
  "bit-set 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "bloomchain 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "byteorder 0.5.3 (registry+https://github.com/rust-lang/crates.io-index)",
+ "byteorder 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "clippy 0.0.103 (registry+https://github.com/rust-lang/crates.io-index)",
  "crossbeam 0.2.10 (registry+https://github.com/rust-lang/crates.io-index)",
  "env_logger 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -661,7 +661,7 @@ dependencies = [
  "clippy 0.0.103 (registry+https://github.com/rust-lang/crates.io-index)",
  "elastic-array 0.6.0 (git+https://github.com/ethcore/elastic-array)",
  "env_logger 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)",
- "eth-secp256k1 0.5.4 (git+https://github.com/ethcore/rust-secp256k1)",
+ "eth-secp256k1 0.5.6 (git+https://github.com/ethcore/rust-secp256k1)",
  "ethcore-bigint 0.1.2",
  "ethcore-bloom-journal 0.1.0",
  "ethcore-devtools 1.6.0",
@@ -692,7 +692,7 @@ dependencies = [
 name = "ethcrypto"
 version = "0.1.0"
 dependencies = [
- "eth-secp256k1 0.5.4 (git+https://github.com/ethcore/rust-secp256k1)",
+ "eth-secp256k1 0.5.6 (git+https://github.com/ethcore/rust-secp256k1)",
  "ethcore-bigint 0.1.2",
  "ethkey 0.2.0",
  "rust-crypto 0.2.36 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -714,11 +714,13 @@ dependencies = [
 name = "ethkey"
 version = "0.2.0"
 dependencies = [
+ "byteorder 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "docopt 0.6.80 (registry+https://github.com/rust-lang/crates.io-index)",
- "eth-secp256k1 0.5.4 (git+https://github.com/ethcore/rust-secp256k1)",
+ "eth-secp256k1 0.5.6 (git+https://github.com/ethcore/rust-secp256k1)",
  "ethcore-bigint 0.1.2",
  "lazy_static 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "rand 0.3.14 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rust-crypto 0.2.36 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc-serialize 0.3.19 (registry+https://github.com/rust-lang/crates.io-index)",
  "tiny-keccak 1.0.5 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -2481,7 +2483,7 @@ dependencies = [
 "checksum bitflags 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)" = "aad18937a628ec6abcd26d1489012cc0e18c21798210f491af69ded9b881106d"
 "checksum blastfig 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)" = "09640e0509d97d5cdff03a9f5daf087a8e04c735c3b113a75139634a19cfc7b2"
 "checksum bloomchain 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "3f421095d2a76fc24cd3fb3f912b90df06be7689912b1bdb423caefae59c258d"
-"checksum byteorder 0.5.3 (registry+https://github.com/rust-lang/crates.io-index)" = "0fc10e8cc6b2580fda3f36eb6dc5316657f812a3df879a44a66fc9f0fdbc4855"
+"checksum byteorder 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)" = "c40977b0ee6b9885c9013cd41d9feffdd22deb3bb4dc3a71d901cc7a77de18c8"
 "checksum bytes 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)" = "c129aff112dcc562970abb69e2508b40850dd24c274761bb50fb8a0067ba6c27"
 "checksum bytes 0.4.0-dev (git+https://github.com/carllerche/bytes)" = "<none>"
 "checksum cfg-if 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "de1e760d7b6535af4241fca8bd8adf68e2e7edacc6b29f5d399050c5e48cf88c"
@@ -2501,7 +2503,7 @@ dependencies = [
 "checksum dtoa 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)" = "5edd69c67b2f8e0911629b7e6b8a34cb3956613cd7c6e6414966dee349c2db4f"
 "checksum elastic-array 0.6.0 (git+https://github.com/ethcore/elastic-array)" = "<none>"
 "checksum env_logger 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)" = "aba65b63ffcc17ffacd6cf5aa843da7c5a25e3bd4bbe0b7def8b214e411250e5"
-"checksum eth-secp256k1 0.5.4 (git+https://github.com/ethcore/rust-secp256k1)" = "<none>"
+"checksum eth-secp256k1 0.5.6 (git+https://github.com/ethcore/rust-secp256k1)" = "<none>"
 "checksum ethabi 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)" = "f7b0c53453517f620847be51943db329276ae52f2e210cfc659e81182864be2f"
 "checksum fdlimit 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)" = "b1ee15a7050e5580b3712877157068ea713b245b080ff302ae2ca973cfcd9baa"
 "checksum flate2 0.2.14 (registry+https://github.com/rust-lang/crates.io-index)" = "3eeb481e957304178d2e782f2da1257f1434dfecbae883bafb61ada2a9fea3bb"
