@@ -56,6 +56,10 @@ pub trait SimpleSecretStore: Send + Sync {
 	fn open_vault(&self, name: &str, password: &str) -> Result<(), Error>;
 	/// Close vault
 	fn close_vault(&self, name: &str) -> Result<(), Error>;
+	/// List all vaults
+	fn list_vaults(&self) -> Result<Vec<String>, Error>;
+	/// List all currently opened vaults
+	fn list_opened_vaults(&self) -> Result<Vec<String>, Error>;
 	/// Change vault password
 	fn change_vault_password(&self, name: &str, new_password: &str) -> Result<(), Error>;
 	/// Cnage account' vault

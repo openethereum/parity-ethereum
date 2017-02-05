@@ -117,6 +117,14 @@ build_rpc_trait! {
 		#[rpc(name = "parity_closeVault")]
 		fn close_vault(&self, String) -> Result<bool, Error>;
 
+		/// List all vaults.
+		#[rpc(name = "parity_listVaults")]
+		fn list_vaults(&self) -> Result<Vec<String>, Error>;
+
+		/// List all currently opened vaults.
+		#[rpc(name = "parity_listOpenedVaults")]
+		fn list_opened_vaults(&self) -> Result<Vec<String>, Error>;
+
 		/// Change vault password.
 		#[rpc(name = "parity_changeVaultPassword")]
 		fn change_vault_password(&self, String, String) -> Result<bool, Error>;

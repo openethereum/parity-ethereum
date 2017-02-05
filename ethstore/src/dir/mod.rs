@@ -70,6 +70,8 @@ pub trait VaultKeyDirectoryProvider {
 	fn create(&self, name: &str, key: VaultKey) -> Result<Box<VaultKeyDirectory>, Error>;
 	/// Open existing vault with given key
 	fn open(&self, name: &str, key: VaultKey) -> Result<Box<VaultKeyDirectory>, Error>;
+	/// List all vaults
+	fn list_vaults(&self) -> Result<Vec<String>, Error>;
 }
 
 /// Vault directory

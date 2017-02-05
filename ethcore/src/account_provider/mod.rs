@@ -453,6 +453,18 @@ impl AccountProvider {
 			.map_err(Into::into)
 	}
 
+	/// List all vaults
+	pub fn list_vaults(&self) -> Result<Vec<String>, Error> {
+		self.sstore.list_vaults()
+			.map_err(Into::into)
+	}
+
+	/// List all currently opened vaults
+	pub fn list_opened_vaults(&self) -> Result<Vec<String>, Error> {
+		self.sstore.list_opened_vaults()
+			.map_err(Into::into)
+	}
+
 	/// Change vault password.
 	pub fn change_vault_password(&self, name: &str, new_password: &str) -> Result<(), Error> {
 		self.sstore.change_vault_password(name, new_password)

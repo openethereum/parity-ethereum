@@ -91,6 +91,14 @@ impl SimpleSecretStore for EthStore {
 		self.store.close_vault(name)
 	}
 
+	fn list_vaults(&self) -> Result<Vec<String>, Error> {
+		self.store.list_vaults()
+	}
+
+	fn list_opened_vaults(&self) -> Result<Vec<String>, Error> {
+		self.store.list_opened_vaults()
+	}
+
 	fn change_vault_password(&self, name: &str, new_password: &str) -> Result<(), Error> {
 		self.store.change_vault_password(name, new_password)
 	}
@@ -438,6 +446,15 @@ impl SimpleSecretStore for EthMultiStore {
 			self.reload_accounts()?;
 		}
 		Ok(())
+	}
+
+	fn list_vaults(&self) -> Result<Vec<String>, Error> {
+		let vault_provider = self.dir.as_vault_provider().ok_or(Error::VaultsAreNotSupported)?;
+		vault_provider.list_vaults()
+	}
+
+	fn list_opened_vaults(&self) -> Result<Vec<String>, Error> {
+		Ok(self.vaults.lock().keys().cloned().collect())
 	}
 
 	fn change_vault_password(&self, name: &str, new_password: &str) -> Result<(), Error> {
@@ -798,5 +815,27 @@ mod tests {
 		let new_secret_password = "new_sec_password";
 		store.change_password(&account_ref, secret_password, new_secret_password).unwrap();
 		assert_eq!(store.accounts().unwrap().len(), 1);
+	}
+
+	#[test]
+	fn should_list_opened_vaults() {
+		// given
+		let mut dir = RootDiskDirectoryGuard::new();
+		let store = EthStore::open(dir.key_dir.take().unwrap()).unwrap();
+		let name1 = "vault1"; let password1 = "password1";
+		let name2 = "vault2"; let password2 = "password2";
+		let name3 = "vault3"; let password3 = "password3";
+
+		// when
+		store.create_vault(name1, password1).unwrap();
+		store.create_vault(name2, password2).unwrap();
+		store.create_vault(name3, password3).unwrap();
+		store.close_vault(name2).unwrap();
+
+		// then
+		let opened_vaults = store.list_opened_vaults().unwrap();
+		assert_eq!(opened_vaults.len(), 2);
+		assert!(opened_vaults.iter().any(|v| &*v == name1));
+		assert!(opened_vaults.iter().any(|v| &*v == name3));
 	}
 }

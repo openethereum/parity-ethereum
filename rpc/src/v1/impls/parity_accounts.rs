@@ -244,6 +244,20 @@ impl<C: 'static> ParityAccounts for ParityAccountsClient<C> where C: MiningBlock
 			.map(|_| true)
 	}
 
+	fn list_vaults(&self) -> Result<Vec<String>, Error> {
+		self.active()?;
+		take_weak!(self.accounts)
+			.list_vaults()
+			.map_err(|e| errors::account("Could not list vaults.", e))
+	}
+
+	fn list_opened_vaults(&self) -> Result<Vec<String>, Error> {
+		self.active()?;
+		take_weak!(self.accounts)
+			.list_opened_vaults()
+			.map_err(|e| errors::account("Could not list vaults.", e))
+	}
+
 	fn change_vault_password(&self, name: String, new_password: String) -> Result<bool, Error> {
 		self.active()?;
 		take_weak!(self.accounts)

@@ -326,3 +326,39 @@ fn rpc_parity_vault_adds_vault_field_to_acount_meta() {
 
 	assert_eq!(tester.io.handle_request_sync(request), Some(response.to_owned()));
 }
+
+#[test]
+fn rpc_parity_list_vaults() {
+	let temp_path = RandomTempPath::new();
+	let tester = setup_with_vaults_support(temp_path.as_str());
+
+	assert!(tester.accounts.create_vault("vault1", "password1").is_ok());
+	assert!(tester.accounts.create_vault("vault2", "password2").is_ok());
+
+	let request = r#"{"jsonrpc": "2.0", "method": "parity_listVaults", "params":[], "id": 1}"#;
+	let response1 = r#"{"jsonrpc":"2.0","result":["vault1","vault2"],"id":1}"#;
+	let response2 = r#"{"jsonrpc":"2.0","result":["vault2","vault1"],"id":1}"#;
+
+	let actual_response = tester.io.handle_request_sync(request);
+	assert!(actual_response == Some(response1.to_owned())
+		|| actual_response == Some(response2.to_owned()));
+}
+
+#[test]
+fn rpc_parity_list_opened_vaults() {
+	let temp_path = RandomTempPath::new();
+	let tester = setup_with_vaults_support(temp_path.as_str());
+
+	assert!(tester.accounts.create_vault("vault1", "password1").is_ok());
+	assert!(tester.accounts.create_vault("vault2", "password2").is_ok());
+	assert!(tester.accounts.create_vault("vault3", "password3").is_ok());
+	assert!(tester.accounts.close_vault("vault2").is_ok());
+
+	let request = r#"{"jsonrpc": "2.0", "method": "parity_listOpenedVaults", "params":[], "id": 1}"#;
+	let response1 = r#"{"jsonrpc":"2.0","result":["vault1","vault3"],"id":1}"#;
+	let response2 = r#"{"jsonrpc":"2.0","result":["vault3","vault1"],"id":1}"#;
+
+	let actual_response = tester.io.handle_request_sync(request);
+	assert!(actual_response == Some(response1.to_owned())
+		|| actual_response == Some(response2.to_owned()));
+}

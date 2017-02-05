@@ -22,7 +22,8 @@ use super::super::account::Crypto;
 use super::{KeyDirectory, VaultKeyDirectory, VaultKey, SetKeyError};
 use super::disk::{DiskDirectory, KeyFileManager};
 
-const VAULT_FILE_NAME: &'static str = "vault.json";
+/// Name of vault metadata file
+pub const VAULT_FILE_NAME: &'static str = "vault.json";
 
 /// Vault directory implementation
 pub type VaultDiskDirectory = DiskDirectory<VaultKeyFileManager>;
