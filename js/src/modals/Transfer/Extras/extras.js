@@ -27,36 +27,17 @@ export default class Extras extends Component {
     dataError: PropTypes.string,
     gasStore: PropTypes.object.isRequired,
     isEth: PropTypes.bool,
-    minBlock: PropTypes.string,
-    minBlockError: PropTypes.string,
     onChange: PropTypes.func.isRequired,
     total: PropTypes.string,
     totalError: PropTypes.string
   }
 
   render () {
-    const { gasStore, minBlock, minBlockError, onChange } = this.props;
+    const { gasStore, onChange } = this.props;
 
     return (
       <Form>
         { this.renderData() }
-        <Input
-          error={ minBlockError }
-          hint={
-            <FormattedMessage
-              id='transferModal.minBlock.hint'
-              defaultMessage='Only post the transaction after this block'
-            />
-          }
-          label={
-            <FormattedMessage
-              id='transferModal.minBlock.label'
-              defaultMessage='BlockNumber to send from'
-            />
-          }
-          value={ minBlock }
-          onChange={ this.onEditMinBlock }
-        />
         <div className={ styles.gaseditor }>
           <GasPriceEditor
             store={ gasStore }
@@ -97,9 +78,5 @@ export default class Extras extends Component {
 
   onEditData = (event) => {
     this.props.onChange('data', event.target.value);
-  }
-
-  onEditMinBlock = (event) => {
-    this.props.onChange('minBlock', event.target.value);
   }
 }

@@ -16,13 +16,14 @@
 
 //! Fetching
 
-use std::{io, fmt};
+use std::{io, fmt, time};
 use std::sync::Arc;
 use std::sync::atomic::{self, AtomicBool};
 
 use futures::{self, BoxFuture, Future};
 use futures_cpupool::{CpuPool, CpuFuture};
 use mime::{self, Mime};
+use parking_lot::RwLock;
 use reqwest;
 
 #[derive(Default, Debug, Clone)]
@@ -73,23 +74,51 @@ pub trait Fetch: Clone + Send + Sync + 'static {
 	fn close(self) where Self: Sized {}
 }
 
-#[derive(Clone)]
+const CLIENT_TIMEOUT_SECONDS: u64 = 5;
+
 pub struct Client {
-	client: Arc<reqwest::Client>,
+	client: RwLock<(time::Instant, Arc<reqwest::Client>)>,
 	pool: CpuPool,
 	limit: Option<usize>,
 }
 
+impl Clone for Client {
+	fn clone(&self) -> Self {
+		let (ref time, ref client) = *self.client.read();
+		Client {
+			client: RwLock::new((time.clone(), client.clone())),
+			pool: self.pool.clone(),
+			limit: self.limit.clone(),
+		}
+	}
+}
+
 impl Client {
-	fn with_limit(limit: Option<usize>) -> Result<Self, Error> {
+	fn new_client() -> Result<Arc<reqwest::Client>, Error> {
 		let mut client = reqwest::Client::new()?;
 		client.redirect(reqwest::RedirectPolicy::limited(5));
+		Ok(Arc::new(client))
+	}
 
+	fn with_limit(limit: Option<usize>) -> Result<Self, Error> {
 		Ok(Client {
-			client: Arc::new(client),
+			client: RwLock::new((time::Instant::now(), Self::new_client()?)),
 			pool: CpuPool::new(4),
 			limit: limit,
 		})
+	}
+
+	fn client(&self) -> Result<Arc<reqwest::Client>, Error> {
+		{
+			let (ref time, ref client) = *self.client.read();
+			if time.elapsed() < time::Duration::from_secs(CLIENT_TIMEOUT_SECONDS) {
+				return Ok(client.clone());
+			}
+		}
+
+		let client = Self::new_client()?;
+		*self.client.write() = (time::Instant::now(), client.clone());
+		Ok(client)
 	}
 }
 
@@ -112,12 +141,19 @@ impl Fetch for Client {
 	fn fetch_with_abort(&self, url: &str, abort: Abort) -> Self::Result {
 		debug!(target: "fetch", "Fetching from: {:?}", url);
 
-		self.pool.spawn(FetchTask {
-			url: url.into(),
-			client: self.client.clone(),
-			limit: self.limit,
-			abort: abort,
-		})
+		match self.client() {
+			Ok(client) => {
+				self.pool.spawn(FetchTask {
+					url: url.into(),
+					client: client,
+					limit: self.limit,
+					abort: abort,
+				})
+			},
+			Err(err) => {
+				self.pool.spawn(futures::future::err(err))
+			},
+		}
 	}
 }
 

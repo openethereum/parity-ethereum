@@ -23,7 +23,7 @@ use ethcore::client::MiningBlockChainClient;
 use ethcore::mode::Mode;
 use ethsync::ManageNetwork;
 use fetch::{self, Fetch};
-use futures::{self, BoxFuture, Future};
+use futures::{BoxFuture, Future};
 use util::sha3;
 use updater::{Service as UpdateService};
 
@@ -62,12 +62,6 @@ impl<C, M, U, F> ParitySetClient<C, M, U, F> where
 			fetch: fetch,
 		}
 	}
-
-	fn active(&self) -> Result<(), Error> {
-		// TODO: only call every 30s at most.
-		take_weak!(self.client).keep_alive();
-		Ok(())
-	}
 }
 
 impl<C, M, U, F> ParitySet for ParitySetClient<C, M, U, F> where
@@ -78,63 +72,46 @@ impl<C, M, U, F> ParitySet for ParitySetClient<C, M, U, F> where
 {
 
 	fn set_min_gas_price(&self, gas_price: U256) -> Result<bool, Error> {
-		self.active()?;
-
 		take_weak!(self.miner).set_minimal_gas_price(gas_price.into());
 		Ok(true)
 	}
 
 	fn set_gas_floor_target(&self, target: U256) -> Result<bool, Error> {
-		self.active()?;
-
 		take_weak!(self.miner).set_gas_floor_target(target.into());
 		Ok(true)
 	}
 
 	fn set_gas_ceil_target(&self, target: U256) -> Result<bool, Error> {
-		self.active()?;
-
 		take_weak!(self.miner).set_gas_ceil_target(target.into());
 		Ok(true)
 	}
 
 	fn set_extra_data(&self, extra_data: Bytes) -> Result<bool, Error> {
-		self.active()?;
-
 		take_weak!(self.miner).set_extra_data(extra_data.into_vec());
 		Ok(true)
 	}
 
 	fn set_author(&self, author: H160) -> Result<bool, Error> {
-		self.active()?;
-
 		take_weak!(self.miner).set_author(author.into());
 		Ok(true)
 	}
 
 	fn set_engine_signer(&self, address: H160, password: String) -> Result<bool, Error> {
-		self.active()?;
 		take_weak!(self.miner).set_engine_signer(address.into(), password).map_err(Into::into).map_err(errors::from_password_error)?;
 		Ok(true)
 	}
 
 	fn set_transactions_limit(&self, limit: usize) -> Result<bool, Error> {
-		self.active()?;
-
 		take_weak!(self.miner).set_transactions_limit(limit);
 		Ok(true)
 	}
 
 	fn set_tx_gas_limit(&self, limit: U256) -> Result<bool, Error> {
-		self.active()?;
-
 		take_weak!(self.miner).set_tx_gas_limit(limit.into());
 		Ok(true)
 	}
 
 	fn add_reserved_peer(&self, peer: String) -> Result<bool, Error> {
-		self.active()?;
-
 		match take_weak!(self.net).add_reserved_peer(peer) {
 			Ok(()) => Ok(true),
 			Err(e) => Err(errors::invalid_params("Peer address", e)),
@@ -142,8 +119,6 @@ impl<C, M, U, F> ParitySet for ParitySetClient<C, M, U, F> where
 	}
 
 	fn remove_reserved_peer(&self, peer: String) -> Result<bool, Error> {
-		self.active()?;
-
 		match take_weak!(self.net).remove_reserved_peer(peer) {
 			Ok(()) => Ok(true),
 			Err(e) => Err(errors::invalid_params("Peer address", e)),
@@ -151,15 +126,11 @@ impl<C, M, U, F> ParitySet for ParitySetClient<C, M, U, F> where
 	}
 
 	fn drop_non_reserved_peers(&self) -> Result<bool, Error> {
-		self.active()?;
-
 		take_weak!(self.net).deny_unreserved_peers();
 		Ok(true)
 	}
 
 	fn accept_non_reserved_peers(&self) -> Result<bool, Error> {
-		self.active()?;
-
 		take_weak!(self.net).accept_unreserved_peers();
 		Ok(true)
 	}
@@ -186,10 +157,6 @@ impl<C, M, U, F> ParitySet for ParitySetClient<C, M, U, F> where
 	}
 
 	fn hash_content(&self, url: String) -> BoxFuture<H256, Error> {
-		if let Err(e) = self.active() {
-			return futures::failed(e).boxed();
-		}
-
 		self.fetch.process(self.fetch.fetch(&url).then(move |result| {
 			result
 				.map_err(errors::from_fetch_error)
@@ -201,13 +168,11 @@ impl<C, M, U, F> ParitySet for ParitySetClient<C, M, U, F> where
 	}
 
 	fn upgrade_ready(&self) -> Result<Option<ReleaseInfo>, Error> {
-		self.active()?;
 		let updater = take_weak!(self.updater);
 		Ok(updater.upgrade_ready().map(Into::into))
 	}
 
 	fn execute_upgrade(&self) -> Result<bool, Error> {
-		self.active()?;
 		let updater = take_weak!(self.updater);
 		Ok(updater.execute_upgrade())
 	}

@@ -50,19 +50,12 @@ impl<C, M> EthFilterClient<C, M> where
 			polls: Mutex::new(PollManager::new()),
 		}
 	}
-
-	fn active(&self) -> Result<(), Error> {
-		// TODO: only call every 30s at most.
-		take_weak!(self.client).keep_alive();
-		Ok(())
-	}
 }
 
 impl<C, M> EthFilter for EthFilterClient<C, M>
 	where C: BlockChainClient + 'static, M: MinerService + 'static
 {
 	fn new_filter(&self, filter: Filter) -> Result<RpcU256, Error> {
-		self.active()?;
 		let mut polls = self.polls.lock();
 		let block_number = take_weak!(self.client).chain_info().best_block_number;
 		let id = polls.create_poll(PollFilter::Logs(block_number, Default::default(), filter));
@@ -70,16 +63,12 @@ impl<C, M> EthFilter for EthFilterClient<C, M>
 	}
 
 	fn new_block_filter(&self) -> Result<RpcU256, Error> {
-		self.active()?;
-
 		let mut polls = self.polls.lock();
 		let id = polls.create_poll(PollFilter::Block(take_weak!(self.client).chain_info().best_block_number));
 		Ok(id.into())
 	}
 
 	fn new_pending_transaction_filter(&self) -> Result<RpcU256, Error> {
-		self.active()?;
-
 		let mut polls = self.polls.lock();
 		let best_block = take_weak!(self.client).chain_info().best_block_number;
 		let pending_transactions = take_weak!(self.miner).pending_transactions_hashes(best_block);
@@ -88,7 +77,6 @@ impl<C, M> EthFilter for EthFilterClient<C, M>
 	}
 
 	fn filter_changes(&self, index: Index) -> Result<FilterChanges, Error> {
-		self.active()?;
 		let client = take_weak!(self.client);
 		let mut polls = self.polls.lock();
 		match polls.poll_mut(&index.value()) {
@@ -180,8 +168,6 @@ impl<C, M> EthFilter for EthFilterClient<C, M>
 	}
 
 	fn filter_logs(&self, index: Index) -> Result<Vec<Log>, Error> {
-		self.active()?;
-
 		let mut polls = self.polls.lock();
 		match polls.poll(&index.value()) {
 			Some(&PollFilter::Logs(ref _block_number, ref _previous_log, ref filter)) => {
@@ -207,8 +193,6 @@ impl<C, M> EthFilter for EthFilterClient<C, M>
 	}
 
 	fn uninstall_filter(&self, index: Index) -> Result<bool, Error> {
-		self.active()?;
-
 		self.polls.lock().remove_poll(&index.value());
 		Ok(true)
 	}

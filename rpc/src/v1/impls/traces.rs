@@ -66,17 +66,10 @@ impl<C, M> TracesClient<C, M> where C: BlockChainClient, M: MinerService {
 			data: request.data.map_or_else(Vec::new, |d| d.to_vec())
 		}.fake_sign(from))
 	}
-
-	fn active(&self) -> Result<(), Error> {
-		// TODO: only call every 30s at most.
-		take_weak!(self.client).keep_alive();
-		Ok(())
-	}
 }
 
 impl<C, M> Traces for TracesClient<C, M> where C: BlockChainClient + 'static, M: MinerService + 'static {
 	fn filter(&self, filter: TraceFilter) -> Result<Vec<LocalizedTrace>, Error> {
-		self.active()?;
 		let client = take_weak!(self.client);
 		let traces = client.filter_traces(filter.into());
 		let traces = traces.map_or_else(Vec::new, |traces| traces.into_iter().map(LocalizedTrace::from).collect());
@@ -84,7 +77,6 @@ impl<C, M> Traces for TracesClient<C, M> where C: BlockChainClient + 'static, M:
 	}
 
 	fn block_traces(&self, block_number: BlockNumber) -> Result<Vec<LocalizedTrace>, Error> {
-		self.active()?;
 		let client = take_weak!(self.client);
 		let traces = client.block_traces(block_number.into());
 		let traces = traces.map_or_else(Vec::new, |traces| traces.into_iter().map(LocalizedTrace::from).collect());
@@ -92,7 +84,6 @@ impl<C, M> Traces for TracesClient<C, M> where C: BlockChainClient + 'static, M:
 	}
 
 	fn transaction_traces(&self, transaction_hash: H256) -> Result<Vec<LocalizedTrace>, Error> {
-		self.active()?;
 		let client = take_weak!(self.client);
 		let traces = client.transaction_traces(TransactionId::Hash(transaction_hash.into()));
 		let traces = traces.map_or_else(Vec::new, |traces| traces.into_iter().map(LocalizedTrace::from).collect());
@@ -100,7 +91,6 @@ impl<C, M> Traces for TracesClient<C, M> where C: BlockChainClient + 'static, M:
 	}
 
 	fn trace(&self, transaction_hash: H256, address: Vec<Index>) -> Result<Option<LocalizedTrace>, Error> {
-		self.active()?;
 		let client = take_weak!(self.client);
 		let id = TraceId {
 			transaction: TransactionId::Hash(transaction_hash.into()),
@@ -113,7 +103,6 @@ impl<C, M> Traces for TracesClient<C, M> where C: BlockChainClient + 'static, M:
 	}
 
 	fn call(&self, request: CallRequest, flags: Vec<String>, block: Trailing<BlockNumber>) -> Result<Option<TraceResults>, Error> {
-		self.active()?;
 		let block = block.0;
 
 		let request = CallRequest::into(request);
@@ -125,7 +114,6 @@ impl<C, M> Traces for TracesClient<C, M> where C: BlockChainClient + 'static, M:
 	}
 
 	fn raw_transaction(&self, raw_transaction: Bytes, flags: Vec<String>, block: Trailing<BlockNumber>) -> Result<Option<TraceResults>, Error> {
-		self.active()?;
 		let block = block.0;
 
 		UntrustedRlp::new(&raw_transaction.into_vec()).as_val()
@@ -140,8 +128,6 @@ impl<C, M> Traces for TracesClient<C, M> where C: BlockChainClient + 'static, M:
 	}
 
 	fn replay_transaction(&self, transaction_hash: H256, flags: Vec<String>) -> Result<Option<TraceResults>, Error> {
-		self.active()?;
-
 		Ok(match take_weak!(self.client).replay(TransactionId::Hash(transaction_hash.into()), to_call_analytics(flags)) {
 			Ok(e) => Some(TraceResults::from(e)),
 			_ => None,

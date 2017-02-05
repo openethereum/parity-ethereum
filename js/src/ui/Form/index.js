@@ -15,26 +15,34 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import AddressSelect from './AddressSelect';
+import DappUrlInput from './DappUrlInput';
 import FormWrap from './FormWrap';
-import TypedInput from './TypedInput';
 import Input from './Input';
 import InputAddress from './InputAddress';
 import InputAddressSelect from './InputAddressSelect';
 import InputChip from './InputChip';
+import InputDate from './InputDate';
 import InputInline from './InputInline';
-import Select from './Select';
+import InputTime from './InputTime';
+import Label from './Label';
 import RadioButtons from './RadioButtons';
+import Select from './Select';
+import TypedInput from './TypedInput';
 
 export default from './form';
 export {
   AddressSelect,
+  DappUrlInput,
   FormWrap,
-  TypedInput,
   Input,
   InputAddress,
   InputAddressSelect,
   InputChip,
+  InputDate,
   InputInline,
+  InputTime,
+  Label,
+  RadioButtons,
   Select,
-  RadioButtons
+  TypedInput
 };

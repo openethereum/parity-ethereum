@@ -17,16 +17,18 @@
 #[macro_use]
 pub mod errors;
 
-pub mod dispatch;
 pub mod block_import;
+pub mod dispatch;
+pub mod informant;
 
+mod network_settings;
 mod poll_manager;
 mod poll_filter;
 mod requests;
 mod signer;
 mod signing_queue;
-mod network_settings;
 
+pub use self::network_settings::NetworkSettings;
 pub use self::poll_manager::PollManager;
 pub use self::poll_filter::{PollFilter, limit_logs};
 pub use self::requests::{
@@ -36,4 +38,3 @@ pub use self::signing_queue::{
 	ConfirmationsQueue, ConfirmationPromise, ConfirmationResult, SigningQueue, QueueEvent, DefaultAccount,
 };
 pub use self::signer::SignerService;
-pub use self::network_settings::NetworkSettings;

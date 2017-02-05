@@ -29,25 +29,37 @@ export default class Title extends Component {
   }
 
   render () {
-    const { byline, className, title } = this.props;
-
-    const byLine = typeof byline === 'string'
-      ? (
-        <span title={ byline }>
-          { byline }
-        </span>
-      )
-      : byline;
+    const { className, title } = this.props;
 
     return (
       <div className={ className }>
         <h3 className={ styles.title }>
           { title }
         </h3>
-        <div className={ styles.byline }>
-          { byLine }
-        </div>
+        { this.renderByline() }
         { this.renderDescription() }
+      </div>
+    );
+  }
+
+  renderByline () {
+    const { byline } = this.props;
+
+    if (!byline) {
+      return null;
+    }
+
+    return (
+      <div className={ styles.byline }>
+        {
+          typeof byline === 'string'
+            ? (
+              <span title={ byline }>
+                { byline }
+              </span>
+            )
+            : byline
+        }
       </div>
     );
   }
@@ -59,17 +71,17 @@ export default class Title extends Component {
       return null;
     }
 
-    const desc = typeof description === 'string'
-      ? (
-        <span title={ description }>
-          { description }
-        </span>
-      )
-      : description;
-
     return (
       <div className={ styles.description }>
-        { desc }
+        {
+          typeof description === 'string'
+            ? (
+              <span title={ description }>
+                { description }
+              </span>
+            )
+            : description
+        }
       </div>
     );
   }

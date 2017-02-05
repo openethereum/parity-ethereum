@@ -73,6 +73,12 @@
   }
 }
 
+.title {
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
 .label {
   margin: 1rem 0.5rem 0.25em;
   color: rgba(255, 255, 255, 0.498039);
@@ -102,13 +108,10 @@
 }
 
 .categories {
-  flex: 1;
-
   display: flex;
+  flex: 1;
   flex-direction: row;
   justify-content: flex-start;
-
-  margin: 2rem 0 0;
 
   > * {
     flex: 1;

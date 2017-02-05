@@ -14,101 +14,62 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
-import Refresh from 'material-ui/svg-icons/navigation/refresh';
-import Close from 'material-ui/svg-icons/navigation/close';
 import Subdirectory from 'material-ui/svg-icons/navigation/subdirectory-arrow-left';
 
-import { Button } from '~/ui';
+import { Button, DappUrlInput } from '~/ui';
+import { CloseIcon, RefreshIcon } from '~/ui/Icons';
 
-const KEY_ESC = 27;
-const KEY_ENTER = 13;
-
+@observer
 export default class AddressBar extends Component {
   static propTypes = {
     className: PropTypes.string,
-    isLoading: PropTypes.bool.isRequired,
-    onChange: PropTypes.func.isRequired,
-    onRefresh: PropTypes.func.isRequired,
-    url: PropTypes.string.isRequired
+    store: PropTypes.object.isRequired
   };
-
-  state = {
-    currentUrl: this.props.url
-  };
-
-  componentWillReceiveProps (nextProps) {
-    if (this.props.url === nextProps.url) {
-      return;
-    }
-
-    this.setState({
-      currentUrl: nextProps.url
-    });
-  }
-
-  isPristine () {
-    return this.state.currentUrl === this.props.url;
-  }
 
   render () {
-    const { isLoading } = this.props;
-    const { currentUrl } = this.state;
-    const isPristine = this.isPristine();
+    const { isLoading, isPristine, nextUrl } = this.props.store;
 
     return (
       <div className={ this.props.className }>
         <Button
           disabled={ isLoading }
+          onClick={ this.onRefreshUrl }
           icon={
             isLoading
-              ? <Close />
-              : <Refresh />
+              ? <CloseIcon />
+              : <RefreshIcon />
           }
-          onClick={ this.onGo }
         />
-        <input
-          onChange={ this.onUpdateUrl }
-          onKeyDown={ this.onKey }
-          type='text'
-          value={ currentUrl }
+        <DappUrlInput
+          onChange={ this.onChangeUrl }
+          onGoto={ this.onGotoUrl }
+          onRestore={ this.onRestoreUrl }
+          url={ nextUrl }
         />
         <Button
           disabled={ isPristine }
+          onClick={ this.onGotoUrl }
           icon={ <Subdirectory /> }
-          onClick={ this.onGo }
         />
       </div>
     );
   }
 
-  onUpdateUrl = (ev) => {
-    this.setState({
-      currentUrl: ev.target.value
-    });
-  };
+  onRefreshUrl = () => {
+    this.props.store.reload();
+  }
 
-  onKey = (ev) => {
-    const key = ev.which;
+  onChangeUrl = (url) => {
+    this.props.store.setNextUrl(url);
+  }
 
-    if (key === KEY_ESC) {
-      this.setState({
-        currentUrl: this.props.url
-      });
-      return;
-    }
+  onGotoUrl = () => {
+    this.props.store.gotoUrl();
+  }
 
-    if (key === KEY_ENTER) {
-      this.onGo();
-      return;
-    }
-  };
-
-  onGo = () => {
-    if (this.isPristine()) {
-      this.props.onRefresh();
-    } else {
-      this.props.onChange(this.state.currentUrl);
-    }
-  };
+  onRestoreUrl = () => {
+    this.props.store.restoreUrl();
+  }
 }

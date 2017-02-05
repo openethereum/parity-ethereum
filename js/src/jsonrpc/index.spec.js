@@ -15,24 +15,13 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import interfaces from './';
-import { Address, BlockNumber, Data, Hash, Integer, Quantity } from './types';
+import * as customTypes from './types';
 
-const flatlist = {};
+const allowedTypes = [Array, Boolean, Object, String].concat(Object.values(customTypes));
 
 function verifyType (obj) {
   if (typeof obj !== 'string') {
-    expect(obj).to.satisfy(() => {
-      return obj.type === Array ||
-        obj.type === Boolean ||
-        obj.type === Object ||
-        obj.type === String ||
-        obj.type === Address ||
-        obj.type === BlockNumber ||
-        obj.type === Data ||
-        obj.type === Hash ||
-        obj.type === Integer ||
-        obj.type === Quantity;
-    });
+    expect(obj).to.satisfy(() => allowedTypes.includes(obj.type));
   }
 }
 
@@ -41,8 +30,6 @@ describe('jsonrpc/interfaces', () => {
     describe(group, () => {
       Object.keys(interfaces[group]).forEach((name) => {
         const method = interfaces[group][name];
-
-        flatlist[`${group}_${name}`] = true;
 
         describe(name, () => {
           it('has the correct interface', () => {

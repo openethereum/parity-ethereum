@@ -25,7 +25,7 @@ build_rpc_trait! {
 	pub trait ParityAccounts {
 		/// Returns accounts information.
 		#[rpc(name = "parity_allAccountsInfo")]
-		fn all_accounts_info(&self) -> Result<BTreeMap<String, BTreeMap<String, String>>, Error>;
+		fn all_accounts_info(&self) -> Result<BTreeMap<H160, BTreeMap<String, String>>, Error>;
 
 		/// Creates new account from the given phrase using standard brainwallet mechanism.
 		/// Second parameter is password for the new account.
@@ -70,7 +70,8 @@ build_rpc_trait! {
 		#[rpc(name = "parity_setAccountMeta")]
 		fn set_account_meta(&self, H160, String) -> Result<bool, Error>;
 
-		/// Sets account visibility
+		/// Sets account visibility.
+		/// @unimplemented
 		#[rpc(name = "parity_setAccountVisiblity")]
 		fn set_account_visibility(&self, H160, H256, bool) -> Result<bool, Error>;
 

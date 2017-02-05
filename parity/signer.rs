@@ -15,17 +15,20 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::io;
-use std::sync::Arc;
 use std::path::PathBuf;
-use ansi_term::Colour;
-use io::{ForwardPanic, PanicHandler};
-use util::path::restrict_permissions_owner;
-use rpc_apis;
-use ethcore_signer as signer;
-use dir::default_data_path;
-use helpers::replace_home;
-use jsonrpc_core::reactor::{RpcHandler, Remote};
+use std::sync::Arc;
+
 pub use ethcore_signer::Server as SignerServer;
+
+use ansi_term::Colour;
+use dir::default_data_path;
+use ethcore_rpc::informant::RpcStats;
+use ethcore_signer as signer;
+use helpers::replace_home;
+use io::{ForwardPanic, PanicHandler};
+use jsonrpc_core::reactor::{RpcHandler, Remote};
+use rpc_apis;
+use util::path::restrict_permissions_owner;
 
 const CODES_FILENAME: &'static str = "authcodes";
 
@@ -55,6 +58,7 @@ pub struct Dependencies {
 	pub panic_handler: Arc<PanicHandler>,
 	pub apis: Arc<rpc_apis::Dependencies>,
 	pub remote: Remote,
+	pub rpc_stats: Arc<RpcStats>,
 }
 
 pub struct NewToken {
@@ -126,7 +130,8 @@ fn do_start(conf: Configuration, deps: Dependencies) -> Result<SignerServer, Str
 			info!("If you do not intend this, exit now.");
 		}
 		let server = server.skip_origin_validation(conf.skip_origin_validation);
-		let apis = rpc_apis::setup_rpc(Default::default(), deps.apis, rpc_apis::ApiSet::SafeContext);
+		let server = server.stats(deps.rpc_stats.clone());
+		let apis = rpc_apis::setup_rpc(deps.rpc_stats, deps.apis, rpc_apis::ApiSet::SafeContext);
 		let handler = RpcHandler::new(Arc::new(apis), deps.remote);
 		server.start(addr, handler)
 	};

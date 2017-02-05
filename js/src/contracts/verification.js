@@ -20,23 +20,23 @@ export const checkIfVerified = (contract, account) => {
   return contract.instance.certified.call({}, [account]);
 };
 
-export const checkIfRequested = (contract, account) => {
+export const findLastRequested = (contract, account) => {
   let subId = null;
   let resolved = false;
 
   return new Promise((resolve, reject) => {
     contract
       .subscribe('Requested', {
-        fromBlock: 0, toBlock: 'pending'
+        fromBlock: 0,
+        toBlock: 'pending',
+        limit: 1,
+        topics: [account]
       }, (err, logs) => {
         if (err) {
           return reject(err);
         }
-        const e = logs.find((l) => {
-          return l.type === 'mined' && l.params.who && l.params.who.value === account;
-        });
 
-        resolve(e ? e.transactionHash : false);
+        resolve(logs[0] || null);
         resolved = true;
 
         if (subId) {

@@ -19,6 +19,7 @@
 #![warn(missing_docs)]
 #![cfg_attr(feature="nightly", plugin(clippy))]
 
+extern crate base32;
 extern crate hyper;
 extern crate time;
 extern crate url as url_lib;
@@ -69,9 +70,10 @@ use std::sync::{Arc, Mutex};
 use std::net::SocketAddr;
 use std::collections::HashMap;
 
-use ethcore_rpc::Metadata;
+use ethcore_rpc::{Metadata};
 use fetch::{Fetch, Client as FetchClient};
 use hash_fetch::urlhint::ContractClient;
+use jsonrpc_core::Middleware;
 use jsonrpc_core::reactor::RpcHandler;
 use router::auth::{Authorization, NoAuth, HttpBasicAuth};
 use parity_reactor::Remote;
@@ -91,11 +93,11 @@ impl<F> SyncStatus for F where F: Fn() -> bool + Send + Sync {
 /// Validates Web Proxy tokens
 pub trait WebProxyTokens: Send + Sync {
 	/// Should return true if token is a valid web proxy access token.
-	fn is_web_proxy_token_valid(&self, token: &String) -> bool;
+	fn is_web_proxy_token_valid(&self, token: &str) -> bool;
 }
 
 impl<F> WebProxyTokens for F where F: Fn(String) -> bool + Send + Sync {
-	fn is_web_proxy_token_valid(&self, token: &String) -> bool { self(token.to_owned()) }
+	fn is_web_proxy_token_valid(&self, token: &str) -> bool { self(token.to_owned()) }
 }
 
 /// Webapps HTTP+RPC server build.
@@ -178,7 +180,7 @@ impl<T: Fetch> ServerBuilder<T> {
 
 	/// Asynchronously start server with no authentication,
 	/// returns result with `Server` handle on success or an error.
-	pub fn start_unsecured_http(self, addr: &SocketAddr, handler: RpcHandler<Metadata>) -> Result<Server, ServerError> {
+	pub fn start_unsecured_http<S: Middleware<Metadata>>(self, addr: &SocketAddr, handler: RpcHandler<Metadata, S>) -> Result<Server, ServerError> {
 		let fetch = self.fetch_client()?;
 		Server::start_http(
 			addr,
@@ -198,7 +200,7 @@ impl<T: Fetch> ServerBuilder<T> {
 
 	/// Asynchronously start server with `HTTP Basic Authentication`,
 	/// return result with `Server` handle on success or an error.
-	pub fn start_basic_auth_http(self, addr: &SocketAddr, username: &str, password: &str, handler: RpcHandler<Metadata>) -> Result<Server, ServerError> {
+	pub fn start_basic_auth_http<S: Middleware<Metadata>>(self, addr: &SocketAddr, username: &str, password: &str, handler: RpcHandler<Metadata, S>) -> Result<Server, ServerError> {
 		let fetch = self.fetch_client()?;
 		Server::start_http(
 			addr,
@@ -257,11 +259,11 @@ impl Server {
 		}
 	}
 
-	fn start_http<A: Authorization + 'static, F: Fetch>(
+	fn start_http<A: Authorization + 'static, F: Fetch, T: Middleware<Metadata>>(
 		addr: &SocketAddr,
 		hosts: Option<Vec<String>>,
 		authorization: A,
-		handler: RpcHandler<Metadata>,
+		handler: RpcHandler<Metadata, T>,
 		dapps_path: PathBuf,
 		extra_dapps: Vec<PathBuf>,
 		signer_address: Option<(String, u16)>,
@@ -409,6 +411,6 @@ mod util_tests {
 
 		// then
 		assert_eq!(none, Vec::<String>::new());
-		assert_eq!(some, vec!["http://home.parity".to_owned(), "http://127.0.0.1:18180".into()]);
+		assert_eq!(some, vec!["http://parity.web3.site".to_owned(), "http://127.0.0.1:18180".into()]);
 	}
 }

@@ -16,11 +16,12 @@
 
 import fs from 'fs';
 import path from 'path';
-import chalk from 'chalk';
+import { isPlainObject } from 'lodash';
 
-import { DUMMY } from '../src/jsonrpc/helpers';
-import { BlockNumber } from '../src/jsonrpc/types';
+import { info, warn, error } from './helpers/log';
+import { Dummy } from '../src/jsonrpc/helpers';
 import interfaces from '../src/jsonrpc';
+import rustMethods from './helpers/parsed-rpc-traits';
 
 const ROOT_DIR = path.join(__dirname, '../docs');
 
@@ -28,44 +29,35 @@ if (!fs.existsSync(ROOT_DIR)) {
   fs.mkdirSync(ROOT_DIR);
 }
 
-const type2print = new WeakMap();
-
-type2print.set(BlockNumber, 'Quantity|Tag');
-
-// INFO Logging helper
-function info (log) {
-  console.log(chalk.blue(`INFO:\t${log}`));
-}
-
-// WARN Logging helper
-function warn (log) {
-  console.warn(chalk.yellow(`WARN:\t${log}`));
-}
-
-// ERROR Logging helper
-function error (log) {
-  console.error(chalk.red(`ERROR:\t${log}`));
-}
+Object.keys(rustMethods).forEach((group) => {
+  Object.keys(rustMethods[group]).forEach((method) => {
+    if (interfaces[group] == null || interfaces[group][method] == null) {
+      error(`${group}_${method} is defined in Rust traits, but not in js/src/jsonrpc/interfaces`);
+    }
+  });
+});
 
 function printType (type) {
-  return type2print.get(type) || type.name;
+  return type.print || `\`${type.name}\``;
 }
 
 function formatDescription (obj, prefix = '', indent = '') {
   const optional = obj.optional ? '(optional) ' : '';
   const defaults = obj.default ? `(default: \`${obj.default}\`) ` : '';
 
-  return `${indent}${prefix}\`${printType(obj.type)}\` - ${optional}${defaults}${obj.desc}`;
+  return `${indent}${prefix}${printType(obj.type)} - ${optional}${defaults}${obj.desc}`;
 }
 
 function formatType (obj) {
-  if (obj == null) {
+  if (obj == null || obj.type == null) {
     return obj;
   }
 
-  if (obj.type === Object && obj.details) {
-    const sub = Object.keys(obj.details).map((key) => {
-      return formatDescription(obj.details[key], `\`${key}\`: `, '    - ');
+  const details = obj.details || obj.type.details;
+
+  if (details) {
+    const sub = Object.keys(details).map((key) => {
+      return formatDescription(details[key], `\`${key}\`: `, '    - ');
     }).join('\n');
 
     return `${formatDescription(obj)}\n${sub}`;
@@ -83,17 +75,8 @@ const rpcReqTemplate = {
   jsonrpc: '2.0'
 };
 
-// Checks if the value passed in is a DUMMY object placeholder for `{ ... }``
-function isDummy (val) {
-  return val === DUMMY;
-}
-
+const { isDummy } = Dummy;
 const { isArray } = Array;
-
-// Checks if the value passed is a plain old JS object
-function isObject (val) {
-  return val != null && val.constructor === Object;
-}
 
 // Checks if a field definition has an example,
 // or describes an object with fields that recursively have examples of their own,
@@ -143,8 +126,8 @@ function getExample (obj) {
 function stringifyExample (example, dent = '') {
   const indent = `${dent}  `;
 
-  if (example === DUMMY) {
-    return '{ ... }';
+  if (isDummy(example)) {
+    return example.toString();
   }
 
   if (isArray(example)) {
@@ -153,13 +136,13 @@ function stringifyExample (example, dent = '') {
     // If all elements are dummies, print out a single line.
     // Also covers empty arrays.
     if (example.every(isDummy)) {
-      const dummies = example.map(_ => '{ ... }');
+      const dummies = example.map(d => d.toString());
 
       return `[${dummies.join(', ')}]`;
     }
 
     // For arrays containing just one object or string, don't unwind the array to multiline
-    if (last === 0 && (isObject(example[0]) || typeof example[0] === 'string')) {
+    if (last === 0 && (isPlainObject(example[0]) || typeof example[0] === 'string')) {
       return `[${stringifyExample(example[0], dent)}]`;
     }
 
@@ -173,7 +156,7 @@ function stringifyExample (example, dent = '') {
     return `[\n${indent}${elements.join(`\n${indent}`)}\n${dent}]`;
   }
 
-  if (isObject(example)) {
+  if (isPlainObject(example)) {
     const keys = Object.keys(example);
     const last = keys.length - 1;
 
@@ -193,7 +176,7 @@ function stringifyExample (example, dent = '') {
     return `{\n${indent}${elements.join(`\n${indent}`)}\n${dent}}`;
   }
 
-  return JSON.stringify(example); // .replace(/"\$DUMMY\$"/g, '{ ... }');
+  return JSON.stringify(example);
 }
 
 function buildExample (name, method) {
@@ -217,7 +200,7 @@ function buildExample (name, method) {
 
   if (hasReqExample) {
     const params = getExample(method.params);
-    const req = JSON.stringify(Object.assign({}, rpcReqTemplate, { method: name, params })).replace(/"\$DUMMY\$"/g, '{ ... }');
+    const req = Dummy.stringifyJSON(Object.assign({}, rpcReqTemplate, { method: name, params }));
 
     examples.push(`Request\n\`\`\`bash\ncurl --data '${req}' -H "Content-Type: application/json" -X POST localhost:8545\n\`\`\``);
   } else {
@@ -250,7 +233,7 @@ function buildParameters (params) {
 
   let md = `0. ${params.map(formatType).join('\n0. ')}`;
 
-  if (params.length > 0 && params.every(hasExample) && params[0].example !== DUMMY) {
+  if (params.length > 0 && params.every(hasExample) && !isDummy(params[0].example)) {
     const example = getExample(params);
 
     md = `${md}\n\n\`\`\`js\nparams: ${stringifyExample(example)}\n\`\`\``;
@@ -292,14 +275,27 @@ Object.keys(interfaces).sort().forEach((group) => {
   const tocMain = [];
   const tocSections = {};
 
-  Object.keys(spec).sort().forEach((iname) => {
+  // Comparator that will sort by sections first, names second
+  function methodComparator (a, b) {
+    const sectionA = spec[a].section || '';
+    const sectionB = spec[b].section || '';
+
+    return sectionA.localeCompare(sectionB) || a.localeCompare(b);
+  }
+
+  Object.keys(spec).sort(methodComparator).forEach((iname) => {
     const method = spec[iname];
-    const name = `${group.replace(/_.*$/, '')}_${iname}`;
+    const groupName = group.replace(/_.*$/, '');
+    const name = `${groupName}_${iname}`;
 
     if (method.nodoc || method.deprecated) {
       info(`Skipping ${name}: ${method.nodoc || 'Deprecated'}`);
 
       return;
+    }
+
+    if (rustMethods[groupName] == null || rustMethods[groupName][iname] == null) {
+      error(`${name} is defined in js/src/jsonrpc/interfaces, but not in Rust traits`);
     }
 
     const desc = method.desc;
