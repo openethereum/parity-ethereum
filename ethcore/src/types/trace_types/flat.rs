@@ -103,7 +103,7 @@ impl FlatTransactionTraces {
 
 impl Encodable for FlatTransactionTraces {
 	fn rlp_append(&self, s: &mut RlpStream) {
-		s.append(&self.0);
+		Encodable::rlp_append(&self.0, s);
 	}
 }
 
@@ -144,7 +144,7 @@ impl FlatBlockTraces {
 
 impl Encodable for FlatBlockTraces {
 	fn rlp_append(&self, s: &mut RlpStream) {
-		s.append(&self.0);
+		Encodable::rlp_append(&self.0, s);
 	}
 }
 
@@ -162,9 +162,34 @@ impl Into<Vec<FlatTransactionTraces>> for FlatBlockTraces {
 
 #[cfg(test)]
 mod tests {
+	use rlp::*;
 	use super::{FlatBlockTraces, FlatTransactionTraces, FlatTrace};
 	use trace::trace::{Action, Res, CallResult, Call, Suicide};
 	use types::executed::CallType;
+
+	#[test]
+	fn encode_flat_transaction_traces() {
+		let ftt = FlatTransactionTraces::from(Vec::new());
+
+		let mut s = RlpStream::new_list(2);
+		s.append(&ftt);
+		assert!(!s.is_finished(), "List shouldn't finished yet");
+		s.append(&ftt);
+		assert!(s.is_finished(), "List should be finished now");
+		s.out();
+	}
+
+	#[test]
+	fn encode_flat_block_traces() {
+		let fbt = FlatBlockTraces::from(Vec::new());
+
+		let mut s = RlpStream::new_list(2);
+		s.append(&fbt);
+		assert!(!s.is_finished(), "List shouldn't finished yet");
+		s.append(&fbt);
+		assert!(s.is_finished(), "List should be finished now");
+		s.out();
+	}
 
 	#[test]
 	fn test_trace_serialization() {

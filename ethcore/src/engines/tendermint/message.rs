@@ -20,7 +20,7 @@ use util::*;
 use super::{Height, View, BlockHash, Step};
 use error::Error;
 use header::Header;
-use rlp::{Rlp, UntrustedRlp, RlpStream, Stream, Encodable, Decodable, Decoder, DecoderError, View as RlpView};
+use rlp::{Rlp, UntrustedRlp, RlpStream, Stream, RlpEncodable, Encodable, Decodable, Decoder, DecoderError, View as RlpView};
 use ethkey::{recover, public_to_address};
 use super::super::vote_collector::Message;
 
@@ -162,7 +162,7 @@ impl Decodable for Step {
 
 impl Encodable for Step {
 	fn rlp_append(&self, s: &mut RlpStream) {
-		s.append(&self.number());
+		RlpEncodable::rlp_append(&self.number(), s);
 	}
 }
 
@@ -193,8 +193,7 @@ impl Encodable for ConsensusMessage {
 }
 
 pub fn message_info_rlp(vote_step: &VoteStep, block_hash: Option<BlockHash>) -> Bytes {
-	// TODO: figure out whats wrong with nested list encoding
-	let mut s = RlpStream::new_list(5);
+	let mut s = RlpStream::new_list(4);
 	s.append(&vote_step.height).append(&vote_step.view).append(&vote_step.step).append(&block_hash.unwrap_or_else(H256::zero));
 	s.out()
 }
@@ -216,9 +215,21 @@ mod tests {
 	use super::*;
 
 	#[test]
+	fn encode_step() {
+		let step = Step::Precommit;
+
+		let mut s = RlpStream::new_list(2);
+		s.append(&step);
+		assert!(!s.is_finished(), "List shouldn't finished yet");
+		s.append(&step);
+		assert!(s.is_finished(), "List should be finished now");
+		s.out();
+	}
+
+	#[test]
 	fn encode_decode() {
 		let message = ConsensusMessage {
-			signature: H520::default(),	
+			signature: H520::default(),
 			vote_step: VoteStep {
 				height: 10,
 				view: 123,
@@ -231,7 +242,7 @@ mod tests {
 		assert_eq!(message, rlp.as_val());
 
 		let message = ConsensusMessage {
-			signature: H520::default(),	
+			signature: H520::default(),
 			vote_step: VoteStep {
 				height: 1314,
 				view: 0,
