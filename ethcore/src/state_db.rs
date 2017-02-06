@@ -27,10 +27,11 @@ use bloom_journal::{Bloom, BloomJournal};
 use db::COL_ACCOUNT_BLOOM;
 use byteorder::{LittleEndian, ByteOrder};
 
-pub const ACCOUNT_BLOOM_SPACE: usize = 1048576;
-pub const DEFAULT_ACCOUNT_PRESET: usize = 1000000;
+pub const ACCOUNT_BLOOM_SPACE: usize = 4 * 1048576;
+pub const DEFAULT_ACCOUNT_PRESET: usize = 100 * 1000000;
 
 pub const ACCOUNT_BLOOM_HASHCOUNT_KEY: &'static [u8] = b"account_hash_count";
+pub const ACCOUNT_BLOOM_SPACE_KEY: &'static [u8] = b"account_space";
 
 const STATE_CACHE_BLOCKS: usize = 12;
 

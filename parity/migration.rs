@@ -220,6 +220,12 @@ fn exists(path: &Path) -> bool {
 	fs::metadata(path).is_ok()
 }
 
+// in-place upgrades that do nothing when called repeatedly
+fn run_inplace_upgrades(path: &Path) -> Result<(), Error> {
+	try!(migrations::upgrade_account_bloom(path));
+	Ok(())
+}
+
 /// Migrates the database.
 pub fn migrate(path: &Path, pruning: Algorithm, compaction_profile: CompactionProfile) -> Result<(), Error> {
 	// read version file.
@@ -233,6 +239,9 @@ pub fn migrate(path: &Path, pruning: Algorithm, compaction_profile: CompactionPr
 
 	// We are in the latest version, yay!
 	if version == CURRENT_VERSION {
+		// run any inplace migrations for the up-to-date database
+		try!(run_inplace_upgrades(consolidated_database_path(path).as_path()));
+
 		return Ok(())
 	}
 
@@ -270,7 +279,12 @@ pub fn migrate(path: &Path, pruning: Algorithm, compaction_profile: CompactionPr
 	}
 
 	// update version file.
-	update_version(path)
+	try!(update_version(path));
+
+	// run any inplace migrations for the fully upgraded database
+	try!(run_inplace_upgrades(consolidated_database_path(path).as_path()));
+
+	Ok(())
 }
 
 /// Old migrations utilities
