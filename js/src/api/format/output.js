@@ -129,12 +129,31 @@ export function outNumber (number) {
   return new BigNumber(number || 0);
 }
 
+export function outPeer (peer) {
+  const protocols = Object.keys(peer.protocols)
+    .reduce((obj, key) => {
+      if (peer.protocols[key]) {
+        obj[key] = {
+          ...peer.protocols[key],
+          difficulty: outNumber(peer.protocols[key].difficulty)
+        };
+      }
+
+      return obj;
+    }, {});
+
+  return {
+    ...peer,
+    protocols
+  };
+}
+
 export function outPeers (peers) {
   return {
     active: outNumber(peers.active),
     connected: outNumber(peers.connected),
     max: outNumber(peers.max),
-    peers: peers.peers.map(p => { Object.keys(p.protocols).forEach(k => { p.protocols[k].difficulty = outNumber(p.protocols[k].difficulty); }); return p; })
+    peers: peers.peers.map((peer) => outPeer(peer))
   };
 }
 
