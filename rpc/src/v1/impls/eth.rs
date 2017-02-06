@@ -144,7 +144,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> EthClient<C, SN, S, M, EM> where
 						logs_bloom: view.log_bloom().into(),
 						timestamp: view.timestamp().into(),
 						difficulty: view.difficulty().into(),
-						total_difficulty: total_difficulty.into(),
+						total_difficulty: Some(total_difficulty.into()),
 						seal_fields: view.seal().into_iter().map(Into::into).collect(),
 						uncles: block.uncle_hashes().into_iter().map(Into::into).collect(),
 						transactions: match include_txs {
@@ -194,7 +194,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> EthClient<C, SN, S, M, EM> where
 				logs_bloom: uncle.log_bloom().clone().into(),
 				timestamp: uncle.timestamp().into(),
 				difficulty: uncle.difficulty().clone().into(),
-				total_difficulty: (uncle.difficulty().clone() + parent_difficulty).into(),
+				total_difficulty: Some((uncle.difficulty().clone() + parent_difficulty).into()),
 				receipts_root: uncle.receipts_root().clone().into(),
 				extra_data: uncle.extra_data().clone().into(),
 				seal_fields: uncle.seal().into_iter().cloned().map(Into::into).collect(),

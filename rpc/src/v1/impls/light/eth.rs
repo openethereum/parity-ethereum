@@ -181,7 +181,7 @@ impl Eth for EthClient {
 		self.account(address.into(), num.0.into()).map(|acc| acc.balance.into()).boxed()
 	}
 
-	fn storage_at(&self, address: RpcH160, key: RpcU256, num: Trailing<BlockNumber>) -> BoxFuture<RpcH256, Error> {
+	fn storage_at(&self, _address: RpcH160, _key: RpcU256, _num: Trailing<BlockNumber>) -> BoxFuture<RpcH256, Error> {
 		future::err(errors::unimplemented(None)).boxed()
 	}
 

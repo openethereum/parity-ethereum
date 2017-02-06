@@ -83,7 +83,7 @@ pub struct Block {
 	pub difficulty: U256,
 	/// Total difficulty
 	#[serde(rename="totalDifficulty")]
-	pub total_difficulty: U256,
+	pub total_difficulty: Option<U256>,
 	/// Seal fields
 	#[serde(rename="sealFields")]
 	pub seal_fields: Vec<Bytes>,
