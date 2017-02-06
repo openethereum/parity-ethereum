@@ -21,6 +21,7 @@ import { FormattedMessage } from 'react-intl';
 import { Page } from '~/ui';
 
 import DappsStore from '../Dapps/dappsStore';
+import ExtensionStore from '../Application/Extension/store';
 import HistoryStore from '../historyStore';
 import WebStore from '../Web/store';
 
@@ -37,6 +38,7 @@ export default class Home extends Component {
   };
 
   dappsStore = DappsStore.get(this.context.api);
+  extensionStore = ExtensionStore.get();
   webStore = WebStore.get(this.context.api);
 
   accountsHistory = HistoryStore.get('accounts');
@@ -59,6 +61,7 @@ export default class Home extends Component {
       >
         <News />
         <Urls
+          extensionStore={ this.extensionStore }
           store={ this.webStore }
         />
         <div className={ styles.row }>

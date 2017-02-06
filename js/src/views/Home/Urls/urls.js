@@ -31,6 +31,7 @@ export default class Urls extends Component {
   };
 
   static propTypes = {
+    extensionStore: PropTypes.object.isRequired,
     store: PropTypes.object.isRequired
   }
 
@@ -121,9 +122,15 @@ export default class Urls extends Component {
 
   onGotoUrl = (url) => {
     const { router } = this.context;
+    const { extensionStore } = this.props;
 
     this.props.store.gotoUrl(url);
-    router.push('/web');
+
+    if (extensionStore.hasExtension) {
+      window.open(url, '_blank');
+    } else {
+      router.push('/web');
+    }
   }
 
   onRestoreUrl = () => {
