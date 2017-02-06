@@ -242,7 +242,7 @@ fn execute_import(cmd: ImportBlockchain) -> Result<(), String> {
 		}
 	};
 
-	let informant = Arc::new(Informant::new(client.clone(), None, None, None, cmd.with_color));
+	let informant = Arc::new(Informant::new(client.clone(), None, None, None, None, cmd.with_color));
 	service.register_io_handler(informant).map_err(|_| "Unable to register informant handler".to_owned())?;
 
 	let do_import = |bytes| {

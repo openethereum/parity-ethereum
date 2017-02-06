@@ -15,45 +15,22 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
-import { FormattedMessage } from 'react-intl';
 
-import { Input, GasPriceEditor } from '~/ui';
+import { GasPriceEditor } from '~/ui';
 
 import styles from '../executeContract.css';
 
 export default class AdvancedStep extends Component {
   static propTypes = {
-    gasStore: PropTypes.object.isRequired,
-    minBlock: PropTypes.string,
-    minBlockError: PropTypes.string,
-    onMinBlockChange: PropTypes.func
+    gasStore: PropTypes.object.isRequired
   };
 
   render () {
-    const { gasStore, minBlock, minBlockError, onMinBlockChange } = this.props;
+    const { gasStore } = this.props;
 
     return (
-      <div>
-        <Input
-          error={ minBlockError }
-          hint={
-            <FormattedMessage
-              id='executeContract.advanced.minBlock.hint'
-              defaultMessage='Only post the transaction after this block'
-            />
-          }
-          label={
-            <FormattedMessage
-              id='executeContract.advanced.minBlock.label'
-              defaultMessage='BlockNumber to send from'
-            />
-          }
-          value={ minBlock }
-          onSubmit={ onMinBlockChange }
-        />
-        <div className={ styles.gaseditor }>
-          <GasPriceEditor store={ gasStore } />
-        </div>
+      <div className={ styles.gaseditor }>
+        <GasPriceEditor store={ gasStore } />
       </div>
     );
   }

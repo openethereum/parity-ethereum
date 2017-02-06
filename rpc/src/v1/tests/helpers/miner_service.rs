@@ -212,7 +212,7 @@ impl MinerService for TestMinerService {
 		self.local_transactions.lock().iter().map(|(hash, stats)| (*hash, stats.clone())).collect()
 	}
 
-	fn ready_transactions(&self, _best_block: BlockNumber) -> Vec<PendingTransaction> {
+	fn ready_transactions(&self, _best_block: BlockNumber, _best_timestamp: u64) -> Vec<PendingTransaction> {
 		self.pending_transactions.lock().values().cloned().map(Into::into).collect()
 	}
 

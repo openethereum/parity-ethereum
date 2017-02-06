@@ -46,7 +46,7 @@ impl Encodable for CallType {
 			CallType::CallCode => 2,
 			CallType::DelegateCall => 3,
 		};
-		s.append(&v);
+		Encodable::rlp_append(&v, s);
 	}
 }
 
@@ -212,12 +212,28 @@ impl fmt::Display for CallError {
 /// Transaction execution result.
 pub type ExecutionResult = Result<Executed, ExecutionError>;
 
-#[test]
-fn should_encode_and_decode_call_type() {
-	use rlp;
+#[cfg(test)]
+mod tests {
+	use rlp::*;
+	use super::CallType;
 
-	let original = CallType::Call;
-	let encoded = rlp::encode(&original);
-	let decoded = rlp::decode(&encoded);
-	assert_eq!(original, decoded);
+	#[test]
+	fn encode_call_type() {
+		let ct = CallType::Call;
+
+		let mut s = RlpStream::new_list(2);
+		s.append(&ct);
+		assert!(!s.is_finished(), "List shouldn't finished yet");
+		s.append(&ct);
+		assert!(s.is_finished(), "List should be finished now");
+		s.out();
+	}
+
+	#[test]
+	fn should_encode_and_decode_call_type() {
+		let original = CallType::Call;
+		let encoded = encode(&original);
+		let decoded = decode(&encoded);
+		assert_eq!(original, decoded);
+	}
 }

@@ -36,6 +36,9 @@ function stubApi (accounts, info) {
 
   return {
     _calls,
+    transport: {
+      isConnected: true
+    },
     parity: {
       accountsInfo: () => {
         const stub = sinon.stub().resolves(info || TEST_INFO)();

@@ -27,6 +27,7 @@ mod log;
 mod sync;
 mod transaction;
 mod transaction_request;
+mod transaction_condition;
 mod receipt;
 mod rpc_settings;
 mod trace;
@@ -55,6 +56,7 @@ pub use self::sync::{
 };
 pub use self::transaction::{Transaction, RichRawTransaction, LocalTransactionStatus};
 pub use self::transaction_request::TransactionRequest;
+pub use self::transaction_condition::TransactionCondition;
 pub use self::receipt::Receipt;
 pub use self::rpc_settings::RpcSettings;
 pub use self::trace::{LocalizedTrace, TraceResults};

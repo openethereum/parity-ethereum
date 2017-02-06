@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use util::{Address, U256, Bytes};
+use v1::types::TransactionCondition;
 
 /// Transaction request coming from RPC
 #[derive(Debug, Clone, Default, Eq, PartialEq, Hash)]
@@ -33,8 +34,8 @@ pub struct TransactionRequest {
 	pub data: Option<Bytes>,
 	/// Transaction's nonce
 	pub nonce: Option<U256>,
-	/// Delay until this block if specified.
-	pub min_block: Option<u64>,
+	/// Delay until this condition is met.
+	pub condition: Option<TransactionCondition>,
 }
 
 /// Transaction request coming from RPC with default values filled in.
@@ -56,8 +57,8 @@ pub struct FilledTransactionRequest {
 	pub data: Bytes,
 	/// Transaction's nonce
 	pub nonce: Option<U256>,
-	/// Delay until this block if specified.
-	pub min_block: Option<u64>,
+	/// Delay until this condition is met.
+	pub condition: Option<TransactionCondition>,
 }
 
 impl From<FilledTransactionRequest> for TransactionRequest {
@@ -70,7 +71,7 @@ impl From<FilledTransactionRequest> for TransactionRequest {
 			value: Some(r.value),
 			data: Some(r.data),
 			nonce: r.nonce,
-			min_block: r.min_block,
+			condition: r.condition,
 		}
 	}
 }

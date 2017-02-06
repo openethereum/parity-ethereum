@@ -262,6 +262,18 @@ impl Client {
 		Ok(client)
 	}
 
+	/// Wakes up client if it's a sleep.
+	pub fn keep_alive(&self) {
+		let should_wake = match *self.mode.lock() {
+			Mode::Dark(..) | Mode::Passive(..) => true,
+			_ => false,
+		};
+		if should_wake {
+			self.wake_up();
+			(*self.sleep_state.lock()).last_activity = Some(Instant::now());
+		}
+	}
+
 	/// Adds an actor to be notified on certain events
 	pub fn add_notify(&self, target: Arc<ChainNotify>) {
 		self.notify.write().push(Arc::downgrade(&target));
@@ -1011,17 +1023,6 @@ impl BlockChainClient for Client {
 		Ok(ret)
 	}
 
-	fn keep_alive(&self) {
-		let should_wake = match *self.mode.lock() {
-			Mode::Dark(..) | Mode::Passive(..) => true,
-			_ => false,
-		};
-		if should_wake {
-			self.wake_up();
-			(*self.sleep_state.lock()).last_activity = Some(Instant::now());
-		}
-	}
-
 	fn mode(&self) -> IpcMode {
 		let r = self.mode.lock().clone().into();
 		trace!(target: "mode", "Asked for mode = {:?}. returning {:?}", &*self.mode.lock(), r);
@@ -1406,7 +1407,11 @@ impl BlockChainClient for Client {
 	}
 
 	fn ready_transactions(&self) -> Vec<PendingTransaction> {
-		self.miner.ready_transactions(self.chain.read().best_block_number())
+		let (number, timestamp) = {
+			let chain = self.chain.read();
+			(chain.best_block_number(), chain.best_block_timestamp())
+		};
+		self.miner.ready_transactions(number, timestamp)
 	}
 
 	fn queue_consensus_message(&self, message: Bytes) {

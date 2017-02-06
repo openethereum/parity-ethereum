@@ -105,5 +105,33 @@ build_rpc_trait! {
 		/// Returns the accounts available for importing from Geth.
 		#[rpc(name = "parity_listGethAccounts")]
 		fn geth_accounts(&self) -> Result<Vec<H160>, Error>;
+
+		/// Create new vault.
+		#[rpc(name = "parity_newVault")]
+		fn create_vault(&self, String, String) -> Result<bool, Error>;
+
+		/// Open existing vault.
+		#[rpc(name = "parity_openVault")]
+		fn open_vault(&self, String, String) -> Result<bool, Error>;
+
+		/// Close previously opened vault.
+		#[rpc(name = "parity_closeVault")]
+		fn close_vault(&self, String) -> Result<bool, Error>;
+
+		/// List all vaults.
+		#[rpc(name = "parity_listVaults")]
+		fn list_vaults(&self) -> Result<Vec<String>, Error>;
+
+		/// List all currently opened vaults.
+		#[rpc(name = "parity_listOpenedVaults")]
+		fn list_opened_vaults(&self) -> Result<Vec<String>, Error>;
+
+		/// Change vault password.
+		#[rpc(name = "parity_changeVaultPassword")]
+		fn change_vault_password(&self, String, String) -> Result<bool, Error>;
+
+		/// Change vault of the given address.
+		#[rpc(name = "parity_changeVault")]
+		fn change_vault(&self, H160, String) -> Result<bool, Error>;
 	}
 }

@@ -52,13 +52,11 @@ export default class SignerMiddleware {
   }
 
   onConfirmStart = (store, action) => {
-    const { gas = 0, gasPrice = 0, id, password, payload, wallet } = action.payload;
+    const { condition, gas = 0, gasPrice = 0, id, password, payload, wallet } = action.payload;
 
     const handlePromise = (promise) => {
       promise
         .then((txHash) => {
-          console.log('confirmRequest', id, txHash);
-
           if (!txHash) {
             store.dispatch(actions.errorConfirmRequest({ id, err: 'Unable to confirm.' }));
             return;
@@ -120,7 +118,7 @@ export default class SignerMiddleware {
         });
     }
 
-    handlePromise(this._api.signer.confirmRequest(id, { gas, gasPrice }, password));
+    handlePromise(this._api.signer.confirmRequest(id, { gas, gasPrice, condition }, password));
   }
 
   onRejectStart = (store, action) => {

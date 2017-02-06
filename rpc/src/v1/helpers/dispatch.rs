@@ -17,7 +17,7 @@
 use std::fmt::Debug;
 use std::ops::Deref;
 use rlp;
-use util::{Address, H256, U256, Uint, Bytes};
+use util::{Address, H520, H256, U256, Uint, Bytes};
 use util::bytes::ToPretty;
 use util::sha3::Hashable;
 
@@ -112,6 +112,14 @@ pub fn execute<C, M>(client: &C, miner: &M, accounts: &AccountProvider, payload:
 		ConfirmationPayload::Signature(address, data) => {
 			signature(accounts, address, data.sha3(), pass)
 				.map(|result| result
+					.map(|rsv| {
+						let mut vrs = [0u8; 65];
+						let rsv = rsv.as_ref();
+						vrs[0] = rsv[64] + 27;
+						vrs[1..33].copy_from_slice(&rsv[0..32]);
+						vrs[33..65].copy_from_slice(&rsv[32..64]);
+						H520(vrs)
+					})
 					.map(RpcH520::from)
 					.map(ConfirmationResponse::Signature)
 				)
@@ -192,7 +200,7 @@ pub fn sign_and_dispatch<C, M>(client: &C, miner: &M, accounts: &AccountProvider
 {
 
 	let network_id = client.signing_network_id();
-	let min_block = filled.min_block.clone();
+	let condition = filled.condition.clone();
 	let signed_transaction = sign_no_dispatch(client, miner, accounts, filled, password)?;
 
 	let (signed_transaction, token) = match signed_transaction {
@@ -201,7 +209,7 @@ pub fn sign_and_dispatch<C, M>(client: &C, miner: &M, accounts: &AccountProvider
 	};
 
 	trace!(target: "miner", "send_transaction: dispatching tx: {} for network ID {:?}", rlp::encode(&signed_transaction).to_vec().pretty(), network_id);
-	let pending_transaction = PendingTransaction::new(signed_transaction, min_block);
+	let pending_transaction = PendingTransaction::new(signed_transaction, condition.map(Into::into));
 	dispatch_transaction(&*client, &*miner, pending_transaction).map(|hash| {
 		match token {
 			Some(ref token) => WithToken::Yes(hash, token.clone()),
@@ -222,7 +230,7 @@ pub fn fill_optional_fields<C, M>(request: TransactionRequest, default_sender: A
 		gas: request.gas.unwrap_or_else(|| miner.sensible_gas_limit()),
 		value: request.value.unwrap_or_else(|| 0.into()),
 		data: request.data.unwrap_or_else(Vec::new),
-		min_block: request.min_block,
+		condition: request.condition,
 	}
 }
 
