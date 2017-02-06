@@ -26,6 +26,7 @@
   height: 240px;
   opacity: 0.85;
   position: relative;
+  width: 100%;
 
   .background {
     background-repeat: no-repeat;
