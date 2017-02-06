@@ -15,10 +15,11 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import 'babel-polyfill';
-import 'whatwg-fetch';
 
 import es6Promise from 'es6-promise';
 es6Promise.polyfill();
+
+import 'isomorphic-fetch';
 
 import Api from './api';
 
