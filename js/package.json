@@ -25,14 +25,14 @@
     "Promise"
   ],
   "scripts": {
-    "build": "npm run build:lib && npm run build:dll && npm run build:app && build:embed",
+    "build": "npm run build:lib && npm run build:dll && npm run build:app && npm run build:embed",
     "build:app": "webpack --config webpack/app",
     "build:lib": "webpack --config webpack/libraries",
     "build:dll": "webpack --config webpack/vendor",
     "build:markdown": "babel-node ./scripts/build-rpc-markdown.js",
     "build:json": "babel-node ./scripts/build-rpc-json.js",
     "build:embed": "EMBED=1 node webpack/embed",
-    "ci:build": "npm run ci:build:lib && npm run ci:build:dll && npm run ci:build:app && ci:build:embed",
+    "ci:build": "npm run ci:build:lib && npm run ci:build:dll && npm run ci:build:app && npm run ci:build:embed",
     "ci:build:app": "NODE_ENV=production webpack --config webpack/app",
     "ci:build:lib": "NODE_ENV=production webpack --config webpack/libraries",
     "ci:build:dll": "NODE_ENV=production webpack --config webpack/vendor",
