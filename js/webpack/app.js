@@ -96,13 +96,13 @@ module.exports = {
         test: /\.css$/,
         include: [ /src/ ],
         // exclude: [ /src\/dapps/ ],
-        loader: isProd ? ExtractTextPlugin.extract([
+        loader: (isProd && !isEmbed) ? ExtractTextPlugin.extract([
           // 'style-loader',
           'css-loader?modules&sourceMap&importLoaders=1&localIdentName=[name]__[local]___[hash:base64:5]',
           'postcss-loader'
         ]) : undefined,
         // use: [ 'happypack/loader?id=css' ]
-        use: isProd ? undefined : [
+        use: (isProd && !isEmbed) ? undefined : [
           'style-loader',
           'css-loader?modules&sourceMap&importLoaders=1&localIdentName=[name]__[local]___[hash:base64:5]',
           'postcss-loader'
@@ -160,22 +160,17 @@ module.exports = {
       });
     });
 
-    const plugins = Shared.getPlugins().concat(
-      new WebpackErrorNotificationPlugin()
+    let plugins = Shared.getPlugins().concat(
+      new WebpackErrorNotificationPlugin(),
+
+      new ServiceWorkerWebpackPlugin({
+        entry: path.join(__dirname, '../src/serviceWorker.js')
+      })
     );
 
     if (!isEmbed) {
-      plugins.concat(
-        DappsHTMLInjection,
-
-        new ServiceWorkerWebpackPlugin({
-          entry: path.join(__dirname, '../src/serviceWorker.js')
-        }),
-
-        new webpack.DllReferencePlugin({
-          context: '.',
-          manifest: require(`../${DEST}/vendor-manifest.json`)
-        }),
+      plugins = [].concat(
+        plugins,
 
         new HtmlWebpackPlugin({
           title: 'Parity',
@@ -186,6 +181,13 @@ module.exports = {
             isProd ? null : 'commons',
             'index'
           ]
+        }),
+
+        DappsHTMLInjection,
+
+        new webpack.DllReferencePlugin({
+          context: '.',
+          manifest: require(`../${DEST}/vendor-manifest.json`)
         }),
 
         new ScriptExtHtmlWebpackPlugin({
