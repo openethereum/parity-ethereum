@@ -161,11 +161,7 @@ module.exports = {
     });
 
     let plugins = Shared.getPlugins().concat(
-      new WebpackErrorNotificationPlugin(),
-
-      new ServiceWorkerWebpackPlugin({
-        entry: path.join(__dirname, '../src/serviceWorker.js')
-      })
+      new WebpackErrorNotificationPlugin()
     );
 
     if (!isEmbed) {
@@ -181,6 +177,10 @@ module.exports = {
             isProd ? null : 'commons',
             'index'
           ]
+        }),
+
+        new ServiceWorkerWebpackPlugin({
+          entry: path.join(__dirname, '../src/serviceWorker.js')
         }),
 
         DappsHTMLInjection,
