@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import AddIcon from 'material-ui/svg-icons/content/add';
+import AddCircleIcon from 'material-ui/svg-icons/content/add-circle';
 import AttachFileIcon from 'material-ui/svg-icons/editor/attach-file';
 import CancelIcon from 'material-ui/svg-icons/content/clear';
 import CheckIcon from 'material-ui/svg-icons/navigation/check';
@@ -28,6 +29,7 @@ import DeleteIcon from 'material-ui/svg-icons/action/delete';
 import DoneIcon from 'material-ui/svg-icons/action/done-all';
 import EditIcon from 'material-ui/svg-icons/content/create';
 import FingerprintIcon from 'material-ui/svg-icons/action/fingerprint';
+import KeyIcon from 'material-ui/svg-icons/communication/vpn-key';
 import LinkIcon from 'material-ui/svg-icons/content/link';
 import LockedIcon from 'material-ui/svg-icons/action/lock';
 import MoveIcon from 'material-ui/svg-icons/action/open-with';
@@ -47,6 +49,7 @@ import VpnIcon from 'material-ui/svg-icons/notification/vpn-lock';
 
 export {
   AddIcon,
+  AddCircleIcon,
   AttachFileIcon,
   CancelIcon,
   CheckIcon,
@@ -60,6 +63,7 @@ export {
   DoneIcon,
   EditIcon,
   FingerprintIcon,
+  KeyIcon,
   LinkIcon,
   LockedIcon,
   MoveIcon,

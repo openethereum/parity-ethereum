@@ -26,12 +26,13 @@ import EditMeta from './EditMeta';
 import ExecuteContract from './ExecuteContract';
 import FirstRun from './FirstRun';
 import LoadContract from './LoadContract';
+import PasswordManager from './PasswordManager';
 import SaveContract from './SaveContract';
 import Shapeshift from './Shapeshift';
-import Verification from './Verification';
 import Transfer from './Transfer';
-import PasswordManager from './PasswordManager';
 import UpgradeParity from './UpgradeParity';
+import Vaults from './Vaults';
+import Verification from './Verification';
 import WalletSettings from './WalletSettings';
 
 export {
@@ -47,11 +48,12 @@ export {
   ExecuteContract,
   FirstRun,
   LoadContract,
+  PasswordManager,
   SaveContract,
   Shapeshift,
-  Verification,
   Transfer,
-  PasswordManager,
   UpgradeParity,
+  Vaults,
+  Verification,
   WalletSettings
 };

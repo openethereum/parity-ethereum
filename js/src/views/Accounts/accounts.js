@@ -14,15 +14,16 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import { uniq, isEqual, pickBy, omitBy } from 'lodash';
 import React, { Component, PropTypes } from 'react';
+import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
-import ContentAdd from 'material-ui/svg-icons/content/add';
-import { uniq, isEqual, pickBy, omitBy } from 'lodash';
 
 import List from './List';
-import { CreateAccount, CreateWallet } from '~/modals';
+import { CreateAccount, CreateWallet, Vaults } from '~/modals';
 import { Actionbar, ActionbarExport, ActionbarSearch, ActionbarSort, Button, Page, Tooltip } from '~/ui';
+import { AddIcon, KeyIcon } from '~/ui/Icons';
 import { setVisibleAccounts } from '~/redux/providers/personalActions';
 
 import styles from './accounts.css';
@@ -36,9 +37,10 @@ class Accounts extends Component {
     setVisibleAccounts: PropTypes.func.isRequired,
     accounts: PropTypes.object.isRequired,
     hasAccounts: PropTypes.bool.isRequired,
-
     balances: PropTypes.object
   }
+
+  vaultsStore = Vaults.Store.get(this.context.api);
 
   state = {
     addressBook: false,
@@ -51,6 +53,7 @@ class Accounts extends Component {
   }
 
   componentWillMount () {
+    // FIXME: Messy, figure out what it fixes and do it elegantly
     window.setTimeout(() => {
       this.setState({ show: true });
     }, 100);
@@ -81,6 +84,8 @@ class Accounts extends Component {
   render () {
     return (
       <div>
+        <Vaults />
+
         { this.renderNewDialog() }
         { this.renderNewWalletDialog() }
         { this.renderActionbar() }
@@ -200,15 +205,36 @@ class Accounts extends Component {
     const buttons = [
       <Button
         key='newAccount'
-        icon={ <ContentAdd /> }
-        label='new account'
+        icon={ <AddIcon /> }
+        label={
+          <FormattedMessage
+            id='accounts.button.newAccount'
+            defaultMessage='new account'
+          />
+        }
         onClick={ this.onNewAccountClick }
       />,
       <Button
         key='newWallet'
-        icon={ <ContentAdd /> }
-        label='new wallet'
+        icon={ <AddIcon /> }
+        label={
+          <FormattedMessage
+            id='accounts.button.newWallet'
+            defaultMessage='new wallet'
+          />
+        }
         onClick={ this.onNewWalletClick }
+      />,
+      <Button
+        key='vaults'
+        icon={ <KeyIcon /> }
+        label={
+          <FormattedMessage
+            id='accounts.button.vaults'
+            defaultMessage='vaults'
+          />
+        }
+        onClick={ this.onVaultsClick }
       />,
       <ActionbarExport
         key='exportAccounts'
@@ -222,7 +248,12 @@ class Accounts extends Component {
     return (
       <Actionbar
         className={ styles.toolbar }
-        title='Accounts Overview'
+        title={
+          <FormattedMessage
+            id='accounts.title'
+            defaultMessage='Accounts Overview'
+          />
+        }
         buttons={ buttons }
       >
         <Tooltip
@@ -295,6 +326,10 @@ class Accounts extends Component {
   }
 
   onNewAccountUpdate = () => {
+  }
+
+  onVaultsClick = () => {
+    this.vaultsStore.openModal();
   }
 }
 
