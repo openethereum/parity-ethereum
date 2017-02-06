@@ -8,7 +8,8 @@
     "transform-decorators-legacy",
     "transform-class-properties",
     "transform-object-rest-spread",
-    "lodash"
+    "lodash",
+    "recharts"
   ],
   "retainLines": true,
   "env": {

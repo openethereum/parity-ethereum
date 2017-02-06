@@ -14,27 +14,15 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import AddressSelect from './AddressSelect';
-import FormWrap from './FormWrap';
-import TypedInput from './TypedInput';
-import Input from './Input';
-import InputAddress from './InputAddress';
-import InputAddressSelect from './InputAddressSelect';
-import InputChip from './InputChip';
-import InputInline from './InputInline';
-import Select from './Select';
-import RadioButtons from './RadioButtons';
+export AddressSelect from './AddressSelect';
+export FormWrap from './FormWrap';
+export TypedInput from './TypedInput';
+export Input from './Input';
+export InputAddress from './InputAddress';
+export InputAddressSelect from './InputAddressSelect';
+export InputChip from './InputChip';
+export InputInline from './InputInline';
+export Select from './Select';
+export RadioButtons from './RadioButtons';
 
 export default from './form';
-export {
-  AddressSelect,
-  FormWrap,
-  TypedInput,
-  Input,
-  InputAddress,
-  InputAddressSelect,
-  InputChip,
-  InputInline,
-  Select,
-  RadioButtons
-};

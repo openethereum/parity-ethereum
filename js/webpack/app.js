@@ -63,17 +63,12 @@ module.exports = {
         test: /\.js$/,
         exclude: /(node_modules)/,
         // use: [ 'happypack/loader?id=js' ]
-        use: isProd ? ['babel-loader'] : [
-          {
-            loader: 'babel-loader?cacheDirectory=true',
-            options: Shared.getBabelrc()
-          }
-        ]
+        use: isProd ? 'babel-loader' : 'babel-loader?cacheDirectory=true'
       },
       {
         test: /\.js$/,
-        include: /node_modules\/material-ui-chip-input/,
-        use: [ 'babel-loader' ]
+        include: /node_modules\/(material-chip-input|ethereumjs-tx)/,
+        use: 'babel-loader'
       },
       {
         test: /\.json$/,
