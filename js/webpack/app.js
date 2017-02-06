@@ -165,7 +165,7 @@ module.exports = {
     );
 
     if (!isEmbed) {
-      plugins.push(
+      plugins.concat(
         DappsHTMLInjection,
 
         new ServiceWorkerWebpackPlugin({
