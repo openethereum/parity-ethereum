@@ -84,11 +84,11 @@ export default class Urls extends Component {
   }
 
   renderHistoryItem = (history) => {
-    if (!history || !history.entry) {
+    if (!history || !history.url) {
       return null;
     }
 
-    const onNavigate = () => this.onGotoUrl(history.entry);
+    const onNavigate = () => this.onGotoUrl(history.url);
 
     return (
       <Container
@@ -109,7 +109,7 @@ export default class Urls extends Component {
       >
         <LinkIcon className={ styles.linkIcon } />
         <div className={ styles.url }>
-          { history.entry }
+          { history.hostname }
         </div>
       </Container>
     );

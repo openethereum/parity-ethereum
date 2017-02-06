@@ -24,9 +24,16 @@
     padding: 0 1em;
     width: 50%;
 
+    .empty {
+      margin-top: 0.5em;
+      opacity: 0.75;
+    }
+
     .historyItem {
+      height: auto;
       margin-top: 1em;
       position: relative;
+      width: 100%;
 
       .linkIcon {
         opacity: 0;
