@@ -20,6 +20,7 @@ import ReactMarkdown from 'react-markdown';
 import Contracts from '~/contracts';
 import { SectionList } from '~/ui';
 
+import { createRenderers } from './renderers';
 import styles from './news.css';
 
 const VERSION_ID = '1';
@@ -56,7 +57,8 @@ export default class News extends Component {
 
     const inlineStyles = {
       body: item.style ? (item.style.body || {}) : {},
-      head: item.style ? (item.style.head || {}) : {}
+      head: item.style ? (item.style.head || {}) : {},
+      tags: item.style ? (item.style.tags || {}) : {}
     };
 
     return (
@@ -79,6 +81,7 @@ export default class News extends Component {
         >
           <ReactMarkdown
             className={ styles.markdown }
+            renderers={ createRenderers(inlineStyles.tags) }
             source={ item.markdown }
             softBreak='br'
           />
@@ -100,8 +103,8 @@ export default class News extends Component {
           return null;
         }
 
-        // HACK: just for testing...
-        url = 'https://raw.githubusercontent.com/jacogr/parity-news/61c4b2317fc69ad21c937f3ae9df997aac8c79a9/news.json';
+        // FIXME: just for testing, not owner of paritynews
+        url = 'https://raw.githubusercontent.com/jacogr/parity-news/cab9e2814d84e0c8b3215406d38242bebbe531ea/news.json';
         return fetch(url).then((response) => {
           if (!response.ok) {
             return null;
