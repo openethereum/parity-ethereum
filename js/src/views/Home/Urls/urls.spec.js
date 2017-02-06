@@ -50,6 +50,7 @@ function createStore () {
 function render () {
   component = shallow(
     <Urls
+      extensionStore={ { hasExtension: false } }
       store={ createStore() }
     />,
     {
