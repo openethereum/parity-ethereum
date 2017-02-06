@@ -21,6 +21,8 @@ import { action, computed, observable } from 'mobx';
 import store from 'store';
 import browser from 'useragent.js/lib/browser';
 
+import { DOMAIN } from '~/util/constants';
+
 const A_DAY = 24 * 60 * 60 * 1000;
 const NEXT_DISPLAY = '_parity::extensionWarning::nextDisplay';
 
@@ -68,7 +70,7 @@ export default class Store {
   installExtension = () => {
     this.setInstalling(true);
 
-    if (window.location.hostname === 'home.web3.site') {
+    if (window.location.hostname.toString().endsWith(DOMAIN)) {
       return this.inlineInstall()
         .catch((error) => {
           console.warn('Unable to perform direct install', error);
