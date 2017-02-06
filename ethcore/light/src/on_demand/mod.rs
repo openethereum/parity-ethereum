@@ -27,9 +27,11 @@ use ethcore::receipt::Receipt;
 use futures::{Async, Poll, Future};
 use futures::sync::oneshot;
 use network::PeerId;
+use rlp::{RlpStream, Stream};
+use util::{Bytes, RwLock, U256};
+use util::sha3::{SHA3_NULL_RLP, SHA3_EMPTY_LIST_RLP};
 
 use net::{Handler, Status, Capabilities, Announcement, EventContext, BasicContext, ReqId};
-use util::{Bytes, RwLock, U256};
 use types::les_request::{self as les_request, Request as LesRequest};
 
 pub mod request;
@@ -209,7 +211,18 @@ impl OnDemand {
 	/// -- this just doesn't obscure the network query.
 	pub fn block(&self, ctx: &BasicContext, req: request::Body) -> Response<encoded::Block> {
 		let (sender, receiver) = oneshot::channel();
-		self.dispatch_block(ctx, req, sender);
+
+		// fast path for empty body.
+		if req.header.transactions_root() == SHA3_NULL_RLP && req.header.uncles_hash() == SHA3_EMPTY_LIST_RLP {
+			let mut stream = RlpStream::new_list(3);
+			stream.append_raw(&req.header.into_inner(), 1);
+			stream.begin_list(0);
+			stream.begin_list(0);
+
+			sender.complete(Ok(encoded::Block::new(stream.out())))
+		} else {
+			self.dispatch_block(ctx, req, sender);
+		}
 		Response(receiver)
 	}
 
@@ -246,7 +259,14 @@ impl OnDemand {
 	/// provide the block hash to fetch receipts for, and for verification of the receipts root.
 	pub fn block_receipts(&self, ctx: &BasicContext, req: request::BlockReceipts) -> Response<Vec<Receipt>> {
 		let (sender, receiver) = oneshot::channel();
-		self.dispatch_block_receipts(ctx, req, sender);
+
+		// fast path for empty receipts.
+		if req.0.receipts_root() == SHA3_NULL_RLP {
+			sender.complete(Ok(Vec::new()))
+		} else {
+			self.dispatch_block_receipts(ctx, req, sender);
+		}
+
 		Response(receiver)
 	}
 

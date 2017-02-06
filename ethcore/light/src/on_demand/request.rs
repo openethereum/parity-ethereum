@@ -106,6 +106,15 @@ pub struct Body {
 }
 
 impl Body {
+	/// Create a request for a block body from a given header.
+	pub fn new(header: encoded::Header) -> Self {
+		let hash = header.hash();
+		Body {
+			header: header,
+			hash: hash,
+		}
+	}
+
 	/// Check a response for this block body.
 	pub fn check_response(&self, body: &[u8]) -> Result<encoded::Block, Error> {
 		let body_view = UntrustedRlp::new(&body);
