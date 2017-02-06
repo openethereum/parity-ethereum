@@ -55,9 +55,24 @@ export default class Parity {
       .execute('parity_changePassword', inAddress(account), password, newPassword);
   }
 
+  changeVault (account, vaultName) {
+    return this._transport
+      .execute('parity_changeVault', account, vaultName);
+  }
+
+  changeVaultPassword (vaultName, password) {
+    return this._transport
+      .execute('parity_changeVaultPassword', vaultName, password);
+  }
+
   checkRequest (requestId) {
     return this._transport
       .execute('parity_checkRequest', inNumber16(requestId));
+  }
+
+  closeVault (vaultName) {
+    return this._transport
+      .execute('parity_closeVault', vaultName);
   }
 
   consensusCapability () {
@@ -189,6 +204,16 @@ export default class Parity {
       .then((accounts) => (accounts || []).map(outAddress));
   }
 
+  listOpenedVaults () {
+    return this._transport
+      .execute('parity_listOpenedVaults');
+  }
+
+  listVaults () {
+    return this._transport
+      .execute('parity_listVaults');
+  }
+
   listRecentDapps () {
     return this._transport
       .execute('parity_listRecentDapps');
@@ -275,6 +300,11 @@ export default class Parity {
       .then(outAddress);
   }
 
+  newVault (vaultName, password) {
+    return this._transport
+      .execute('parity_newVault', vaultName, password);
+  }
+
   nextNonce (account) {
     return this._transport
       .execute('parity_nextNonce', inAddress(account))
@@ -284,6 +314,11 @@ export default class Parity {
   nodeName () {
     return this._transport
       .execute('parity_nodeName');
+  }
+
+  openVault (vaultName, password) {
+    return this._transport
+      .execute('parity_openVault', vaultName, password);
   }
 
   pendingTransactions () {
