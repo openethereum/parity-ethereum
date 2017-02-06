@@ -25,7 +25,8 @@
     },
     "test": {
       "plugins": [
-        ["babel-plugin-webpack-alias", { "config": "webpack/test.js" }]
+        "transform-runtime",
+        [ "babel-plugin-webpack-alias", { "config": "webpack/test.js" } ]
       ]
     }
   }

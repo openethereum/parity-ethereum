@@ -15,9 +15,9 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 if (!process.env.EMBED) {
-  const worker = require('./worker');
+  const setupWorker = require('./worker').setupWorker;
 
-  module.exports = { setupWorker: worker.setupWorker };
+  module.exports = { setupWorker };
 } else {
   module.exports = { setupWorker: () => {} };
 }

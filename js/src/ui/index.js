@@ -15,11 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 export AccountCard from './AccountCard';
-export Actionbar from './Actionbar';
-export ActionbarExport from './Actionbar/Export';
-export ActionbarImport from './Actionbar/Import';
-export ActionbarSearch from './Actionbar/Search';
-export ActionbarSort from './Actionbar/Sort';
+export Actionbar, { Export as ActionbarExport, Import as ActionbarImport, Search as ActionbarSearch, Sort as ActionbarSort } from './Actionbar';
 export Badge from './Badge';
 export Balance from './Balance';
 export BlockStatus from './BlockStatus';
