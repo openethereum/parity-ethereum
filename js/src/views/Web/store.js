@@ -128,6 +128,8 @@ export default class Store {
     return this._api.parity
       .listRecentDapps()
       .then((apps) => {
+        // FIXME: debug information only, remove
+        console.log('loadHistory', apps);
         this.setHistory(apps);
       })
       .catch((error) => {
