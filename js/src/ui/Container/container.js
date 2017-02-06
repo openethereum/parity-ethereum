@@ -82,7 +82,7 @@ export default class Container extends Component {
     }
 
     return (
-      <Card className={ styles.hover }>
+      <Card className={ styles.hoverOverlay }>
         { hover }
       </Card>
     );

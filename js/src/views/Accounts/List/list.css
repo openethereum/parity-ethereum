@@ -19,14 +19,11 @@
   display: flex;
   flex-wrap: wrap;
 
-  /* TODO: opacity to be removed when SectionList used to render it */
   .item {
     box-sizing: border-box;
     flex: 0 1 50%;
-    opacity: 0.85;
     padding-bottom: 0.25em;
     position: relative;
-    transition: all 0.75s cubic-bezier(0.23, 1, 0.32, 1);
     width: 50%;
 
     &:nth-child(odd) {
@@ -35,10 +32,6 @@
 
     &:nth-child(even) {
       padding-left: 0.125em;
-    }
-
-    &:hover {
-      opacity: 1;
     }
   }
 }
