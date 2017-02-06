@@ -29,7 +29,7 @@ use futures::sync::oneshot;
 use network::PeerId;
 
 use net::{Handler, Status, Capabilities, Announcement, EventContext, BasicContext, ReqId};
-use util::{Bytes, RwLock};
+use util::{Bytes, RwLock, U256};
 use types::les_request::{self as les_request, Request as LesRequest};
 
 pub mod request;
@@ -79,7 +79,7 @@ struct Peer {
 
 // Attempted request info and sender to put received value.
 enum Pending {
-	HeaderByNumber(request::HeaderByNumber, Sender<encoded::Header>), // num + CHT root
+	HeaderByNumber(request::HeaderByNumber, Sender<(encoded::Header, U256)>), // num + CHT root
 	HeaderByHash(request::HeaderByHash, Sender<encoded::Header>),
 	Block(request::Body, Sender<encoded::Block>),
 	BlockReceipts(request::BlockReceipts, Sender<Vec<Receipt>>),
@@ -105,14 +105,15 @@ impl Default for OnDemand {
 
 impl OnDemand {
 	/// Request a header by block number and CHT root hash.
-	pub fn header_by_number(&self, ctx: &BasicContext, req: request::HeaderByNumber) -> Response<encoded::Header> {
+	/// Returns the header and the total difficulty.
+	pub fn header_by_number(&self, ctx: &BasicContext, req: request::HeaderByNumber) -> Response<(encoded::Header, U256)> {
 		let (sender, receiver) = oneshot::channel();
 		self.dispatch_header_by_number(ctx, req, sender);
 		Response(receiver)
 	}
 
 	// dispatch the request, completing the request if no peers available.
-	fn dispatch_header_by_number(&self, ctx: &BasicContext, req: request::HeaderByNumber, sender: Sender<encoded::Header>) {
+	fn dispatch_header_by_number(&self, ctx: &BasicContext, req: request::HeaderByNumber, sender: Sender<(encoded::Header, U256)>) {
 		let num = req.num;
 		let cht_num = match ::cht::block_to_cht_number(req.num) {
 			Some(cht_num) => cht_num,

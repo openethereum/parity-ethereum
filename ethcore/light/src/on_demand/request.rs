@@ -21,7 +21,7 @@ use ethcore::encoded;
 use ethcore::receipt::Receipt;
 
 use rlp::{RlpStream, Stream, UntrustedRlp, View};
-use util::{Address, Bytes, HashDB, H256};
+use util::{Address, Bytes, HashDB, H256, U256};
 use util::memorydb::MemoryDB;
 use util::sha3::Hashable;
 use util::trie::{Trie, TrieDB, TrieError};
@@ -66,24 +66,16 @@ pub struct HeaderByNumber {
 
 impl HeaderByNumber {
 	/// Check a response with a header and cht proof.
-	pub fn check_response(&self, header: &[u8], proof: &[Bytes]) -> Result<encoded::Header, Error> {
-		use util::trie::{Trie, TrieDB};
-
-		// check the proof
-		let mut db = MemoryDB::new();
-
-		for node in proof { db.insert(&node[..]); }
-		let key = ::rlp::encode(&self.num);
-
-		let expected_hash: H256 = match TrieDB::new(&db, &self.cht_root).and_then(|t| t.get(&*key))? {
-			Some(val) => ::rlp::decode(&val),
-			None => return Err(Error::BadProof)
+	pub fn check_response(&self, header: &[u8], proof: &[Bytes]) -> Result<(encoded::Header, U256), Error> {
+		let (expected_hash, td) = match ::cht::check_proof(proof, self.num, self.cht_root) {
+			Some((expected_hash, td)) => (expected_hash, td),
+			None => return Err(Error::BadProof),
 		};
 
 		// and compare the hash to the found header.
 		let found_hash = header.sha3();
 		match expected_hash == found_hash {
-			true => Ok(encoded::Header::new(header.to_vec())),
+			true => Ok((encoded::Header::new(header.to_vec()), td)),
 			false => Err(Error::WrongHash(expected_hash, found_hash)),
 		}
 	}
@@ -191,51 +183,44 @@ impl Account {
 mod tests {
 	use super::*;
 	use util::{MemoryDB, Address, H256, FixedHash};
-	use util::trie::{Trie, TrieMut, TrieDB, SecTrieDB, TrieDBMut, SecTrieDBMut};
+	use util::trie::{Trie, TrieMut, SecTrieDB, SecTrieDBMut};
 	use util::trie::recorder::Recorder;
 
+	use ethcore::client::{BlockChainClient, TestBlockChainClient, EachBlockWith};
 	use ethcore::header::Header;
 	use ethcore::encoded;
 	use ethcore::receipt::Receipt;
 
 	#[test]
 	fn check_header_by_number() {
-		let mut root = H256::default();
-		let mut db = MemoryDB::new();
-		let mut header = Header::new();
-		header.set_number(10_000);
-		header.set_extra_data(b"test_header".to_vec());
+		use ::cht;
 
-		{
-			let mut trie = TrieDBMut::new(&mut db, &mut root);
-			for i in (0..2048u64).map(|x| x + 8192) {
-				let hash = if i == 10_000 {
-					header.hash()
-				} else {
-					H256::random()
-				};
-				trie.insert(&*::rlp::encode(&i), &*::rlp::encode(&hash)).unwrap();
-			}
-		}
+		let test_client = TestBlockChainClient::new();
+		test_client.add_blocks(10500, EachBlockWith::Nothing);
 
-		let proof = {
-			let trie = TrieDB::new(&db, &root).unwrap();
-			let key = ::rlp::encode(&10_000u64);
-			let mut recorder = Recorder::new();
+		let cht = {
+			let fetcher = |id| {
+				let hdr = test_client.block_header(id).unwrap();
+				let td = test_client.block_total_difficulty(id).unwrap();
+				Some(cht::BlockInfo {
+					hash: hdr.hash(),
+					parent_hash: hdr.parent_hash(),
+					total_difficulty: td,
+				})
+			};
 
-			trie.get_with(&*key, &mut recorder).unwrap().unwrap();
-
-			recorder.drain().into_iter().map(|r| r.data).collect::<Vec<_>>()
+			cht::build(cht::block_to_cht_number(10_000).unwrap(), fetcher).unwrap()
 		};
 
+		let proof = cht.prove(10_000, 0).unwrap().unwrap();
 		let req = HeaderByNumber {
 			num: 10_000,
-			cht_root: root,
+			cht_root: cht.root(),
 		};
 
-		let raw_header = ::rlp::encode(&header);
+		let raw_header = test_client.block_header(::ethcore::ids::BlockId::Number(10_000)).unwrap();
 
-		assert!(req.check_response(&*raw_header, &proof[..]).is_ok());
+		assert!(req.check_response(&raw_header.into_inner(), &proof[..]).is_ok());
 	}
 
 	#[test]
