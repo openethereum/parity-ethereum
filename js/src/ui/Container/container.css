@@ -48,10 +48,11 @@ $backgroundOverlay: rgba(18, 18, 18, 1);
 
 .compact,
 .padded {
+  background-color: transparent !important;
   border-radius: 0 !important;
+  height: 100%;
   position: relative;
   overflow: auto;
-  background-color: transparent !important;
 }
 
 .compact {
