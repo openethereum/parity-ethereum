@@ -49,7 +49,7 @@
     "test": "NODE_ENV=test mocha --compilers ejs:ejsify 'src/**/*.spec.js'",
     "test:coverage": "NODE_ENV=test istanbul cover _mocha -- --compilers ejs:ejsify 'src/**/*.spec.js'",
     "test:e2e": "NODE_ENV=test mocha 'src/**/*.e2e.js'",
-    "test:npm": "(cd .npmjs && npm i) && node test/npmParity && node test/npmJsonRpc && (rm -rf .npmjs/node_modules)",
+    "test:npm": "node test/npmParity && node test/npmJsonRpc",
     "prepush": "npm run lint:cached"
   },
   "devDependencies": {

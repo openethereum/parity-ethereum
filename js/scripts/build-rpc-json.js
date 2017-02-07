@@ -60,4 +60,4 @@ Object.keys(interfaces).sort().forEach((group) => {
   });
 });
 
-process.stdout.end(JSON.stringify({ methods: methods }, null, 2));
+process.stdout.write(JSON.stringify({ methods: methods }, null, 2));

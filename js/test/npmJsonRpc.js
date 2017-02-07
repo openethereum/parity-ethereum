@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 try {
-  var JsonRpc = require('../.npmjs/jsonRpc/library.js');
+  const JsonRpc = require('../npm/jsonrpc');
 
   if (typeof JsonRpc !== 'object') {
     throw new Error('JsonRpc');
