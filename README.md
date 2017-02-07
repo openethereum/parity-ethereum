@@ -61,7 +61,7 @@ We recommend installing Rust through [rustup](https://www.rustup.rs/). If you do
 	$ curl https://sh.rustup.rs -sSf | sh
 	```
 	
-	Parity also requires `gcc`, `g++`, `libssl-dev`/`openssl` and `pkg-config` packages to be installed.
+	Parity also requires `gcc`, `g++`, `libssl-dev`/`openssl`, `libudev-dev` and `pkg-config` packages to be installed.
 - OSX:
 	```bash
 	$ curl https://sh.rustup.rs -sSf | sh
