@@ -21,6 +21,8 @@ import { action, computed, observable } from 'mobx';
 import store from 'store';
 import browser from 'useragent.js/lib/browser';
 
+import { DOMAIN } from '~/util/constants';
+
 const A_DAY = 24 * 60 * 60 * 1000;
 const NEXT_DISPLAY = '_parity::extensionWarning::nextDisplay';
 
@@ -68,6 +70,19 @@ export default class Store {
   installExtension = () => {
     this.setInstalling(true);
 
+    if (window.location.hostname.toString().endsWith(DOMAIN)) {
+      return this.inlineInstall()
+        .catch((error) => {
+          console.warn('Unable to perform direct install', error);
+          window.open(EXTENSION_PAGE, '_blank');
+        });
+    }
+
+    window.open(EXTENSION_PAGE, '_blank');
+    return Promise.resolve(true);
+  }
+
+  inlineInstall = () => {
     return new Promise((resolve, reject) => {
       const link = document.createElement('link');
 
@@ -80,10 +95,6 @@ export default class Store {
       } else {
         reject(new Error('Direct installation failed.'));
       }
-    })
-    .catch((error) => {
-      console.warn('Unable to perform direct install', error);
-      window.open(EXTENSION_PAGE, '_blank');
     });
   }
 }

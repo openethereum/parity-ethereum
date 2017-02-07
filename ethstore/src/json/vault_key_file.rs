@@ -18,7 +18,12 @@ use std::io::{Read, Write};
 use serde::{Deserialize, Deserializer, Error};
 use serde::de::{Visitor, MapVisitor};
 use serde_json;
+use serde_json::value::Value;
+use serde_json::error;
 use super::{Uuid, Version, Crypto, H160};
+
+/// Meta key name for vault field
+const VAULT_NAME_META_KEY: &'static str = "vault";
 
 /// Key file as stored in vaults
 #[derive(Debug, PartialEq, Serialize)]
@@ -27,9 +32,9 @@ pub struct VaultKeyFile {
 	pub id: Uuid,
 	/// Key version
 	pub version: Version,
-	/// Encrypted secret
+	/// Secret, encrypted with account password
 	pub crypto: Crypto,
-	/// Encrypted serialized `VaultKeyMeta`
+	/// Serialized `VaultKeyMeta`, encrypted with vault password
 	pub metacrypto: Crypto,
 }
 
@@ -42,6 +47,38 @@ pub struct VaultKeyMeta {
 	pub name: Option<String>,
 	/// Key metadata
 	pub meta: Option<String>,
+}
+
+/// Insert vault name to the JSON meta field
+pub fn insert_vault_name_to_json_meta(meta: &str, vault_name: &str) -> Result<String, error::Error> {
+	let mut meta = if meta.is_empty() {
+		Value::Object(serde_json::Map::new())
+	} else {
+		serde_json::from_str(meta)?
+	};
+
+	if let Some(meta_obj) = meta.as_object_mut() {
+		meta_obj.insert(VAULT_NAME_META_KEY.to_owned(), Value::String(vault_name.to_owned()));
+		serde_json::to_string(meta_obj)
+	} else {
+		Err(error::Error::custom("Meta is expected to be a serialized JSON object"))
+	}
+}
+
+/// Remove vault name from the JSON meta field
+pub fn remove_vault_name_from_json_meta(meta: &str) -> Result<String, error::Error> {
+	let mut meta = if meta.is_empty() {
+		Value::Object(serde_json::Map::new())
+	} else {
+		serde_json::from_str(meta)?
+	};
+
+	if let Some(meta_obj) = meta.as_object_mut() {
+		meta_obj.remove(VAULT_NAME_META_KEY);
+		serde_json::to_string(meta_obj)
+	} else {
+		Err(error::Error::custom("Meta is expected to be a serialized JSON object"))
+	}
 }
 
 enum VaultKeyFileField {
@@ -244,7 +281,8 @@ impl VaultKeyMeta {
 #[cfg(test)]
 mod test {
 	use serde_json;
-	use json::{VaultKeyFile, Version, Crypto, Cipher, Aes128Ctr, Kdf, Pbkdf2, Prf};
+	use json::{VaultKeyFile, Version, Crypto, Cipher, Aes128Ctr, Kdf, Pbkdf2, Prf,
+		insert_vault_name_to_json_meta, remove_vault_name_from_json_meta};
 
 	#[test]
 	fn to_and_from_json() {
@@ -283,5 +321,29 @@ mod test {
 		let deserialized = serde_json::from_str(&serialized).unwrap();
 
 		assert_eq!(file, deserialized);
+	}
+
+	#[test]
+	fn vault_name_inserted_to_json_meta() {
+		assert_eq!(insert_vault_name_to_json_meta(r#""#, "MyVault").unwrap(), r#"{"vault":"MyVault"}"#);
+		assert_eq!(insert_vault_name_to_json_meta(r#"{"tags":["kalabala"]}"#, "MyVault").unwrap(), r#"{"tags":["kalabala"],"vault":"MyVault"}"#);
+	}
+
+	#[test]
+	fn vault_name_not_inserted_to_json_meta() {
+		assert!(insert_vault_name_to_json_meta(r#"///3533"#, "MyVault").is_err());
+		assert!(insert_vault_name_to_json_meta(r#""string""#, "MyVault").is_err());
+	}
+
+	#[test]
+	fn vault_name_removed_from_json_meta() {
+		assert_eq!(remove_vault_name_from_json_meta(r#"{"vault":"MyVault"}"#).unwrap(), r#"{}"#);
+		assert_eq!(remove_vault_name_from_json_meta(r#"{"tags":["kalabala"],"vault":"MyVault"}"#).unwrap(), r#"{"tags":["kalabala"]}"#);
+	}
+
+	#[test]
+	fn vault_name_not_removed_from_json_meta() {
+		assert!(remove_vault_name_from_json_meta(r#"///3533"#).is_err());
+		assert!(remove_vault_name_from_json_meta(r#""string""#).is_err());
 	}
 }

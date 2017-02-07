@@ -16,7 +16,9 @@
 
 import base32 from 'base32.js';
 
-const BASE_URL = '.web.web3.site';
+import { DOMAIN } from './constants';
+
+const BASE_URL = `.web${DOMAIN}`;
 const ENCODER_OPTS = { type: 'crockford' };
 
 export function encodePath (token, url) {

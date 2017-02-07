@@ -17,7 +17,7 @@
 //! Trace errors.
 
 use std::fmt;
-use rlp::{Encodable, RlpStream, Decodable, Decoder, DecoderError, Stream, View};
+use rlp::{RlpEncodable, Encodable, RlpStream, Decodable, Decoder, DecoderError, View};
 use evm::Error as EvmError;
 
 /// Trace evm errors.
@@ -79,7 +79,7 @@ impl Encodable for Error {
 			OutOfStack => 4,
 			Internal => 5,
 		};
-		s.append(&value);
+		RlpEncodable::rlp_append(&value, s);
 	}
 }
 
@@ -96,5 +96,23 @@ impl Decodable for Error {
 			5 => Ok(Internal),
 			_ => Err(DecoderError::Custom("Invalid error type")),
 		}
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use rlp::*;
+	use super::Error;
+
+	#[test]
+	fn encode_error() {
+		let err = Error::BadJumpDestination;
+
+		let mut s = RlpStream::new_list(2);
+		s.append(&err);
+		assert!(!s.is_finished(), "List shouldn't finished yet");
+		s.append(&err);
+		assert!(s.is_finished(), "List should be finished now");
+		s.out();
 	}
 }
