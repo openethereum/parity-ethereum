@@ -32,6 +32,7 @@ export default class Create extends Component {
 
   render () {
     const { createName, createNameError, createPassword, createPasswordHint, createPasswordRepeat, createPasswordRepeatError, isOpenAdd } = this.props.store;
+    const hasError = createNameError || createPasswordRepeatError;
 
     if (!isOpenAdd) {
       return null;
@@ -41,6 +42,7 @@ export default class Create extends Component {
       <Portal
         buttons={
           <Button
+            disabled={ hasError }
             icon={ <CheckIcon /> }
             label={
               <FormattedMessage
@@ -143,23 +145,30 @@ export default class Create extends Component {
   }
 
   onEditName = (name) => {
-
+    this.props.store.setCreateName(name);
   }
 
   onEditPassword = (password) => {
-
+    this.props.store.setCreatePassword(password);
   }
 
   onEditPasswordHint = (hint) => {
-
+    this.props.store.setCreatePasswordHint(hint);
   }
 
   onEditPasswordRepeat = (password) => {
-
+    this.props.store.setCreatePasswordRepeat(password);
   }
 
   onClickCreate = () => {
+    const { createNameError, createPasswordRepeatError } = this.props.store;
 
+    if (createNameError || createPasswordRepeatError) {
+      return;
+    }
+
+    this.props.store.createVault();
+    this.props.store.closeAdd();
   }
 
   onClose = () => {

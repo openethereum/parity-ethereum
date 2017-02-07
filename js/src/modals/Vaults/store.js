@@ -50,7 +50,6 @@ export default class Store {
       this.createPassword = '';
       this.createPasswordHint = '';
       this.createPasswordRepeat = '';
-      this.createPasswordRepeatError = null;
     });
   }
 
@@ -67,6 +66,18 @@ export default class Store {
       this.createName = name;
       this.createNameError = nameError;
     });
+  }
+
+  @action setCreatePassword = (password) => {
+    this.createPassword = password;
+  }
+
+  @action setCreatePasswordHint = (hint) => {
+    this.createPasswordHint = hint;
+  }
+
+  @action setCreatePasswordRepeat = (password) => {
+    this.createPasswordRepeat = password;
   }
 
   @action setListAll = (listAll) => {
@@ -118,6 +129,21 @@ export default class Store {
       })
       .catch((error) => {
         console.warn('loadVaults', error);
+      });
+  }
+
+  createVault () {
+    if (this.createNameError || this.createPasswordRepeatError) {
+      return Promise.reject();
+    }
+
+    return this._api.parity
+      .createVault(this.createName, this.createPassword)
+      .then(() => {
+        return this.loadVaults();
+      })
+      .catch((error) => {
+        console.warn('createVault', error);
       });
   }
 
