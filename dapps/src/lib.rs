@@ -253,7 +253,12 @@ impl Server {
 		match signer_address {
 			Some(signer_address) => vec![
 				format!("http://{}{}", HOME_PAGE, DAPPS_DOMAIN),
-				format!("http://{}", address(signer_address)),
+				format!("http://{}{}:{}", HOME_PAGE, DAPPS_DOMAIN, signer_address.1),
+				format!("http://{}", address(&signer_address)),
+				format!("https://{}{}", HOME_PAGE, DAPPS_DOMAIN),
+				format!("https://{}{}:{}", HOME_PAGE, DAPPS_DOMAIN, signer_address.1),
+				format!("https://{}", address(&signer_address)),
+
 			],
 			None => vec![],
 		}
@@ -377,7 +382,7 @@ fn random_filename() -> String {
 	rng.gen_ascii_chars().take(12).collect()
 }
 
-fn address(address: (String, u16)) -> String {
+fn address(address: &(String, u16)) -> String {
 	format!("{}:{}", address.0, address.1)
 }
 
@@ -411,6 +416,14 @@ mod util_tests {
 
 		// then
 		assert_eq!(none, Vec::<String>::new());
-		assert_eq!(some, vec!["http://parity.web3.site".to_owned(), "http://127.0.0.1:18180".into()]);
+		assert_eq!(some, vec![
+			"http://parity.web3.site".to_owned(),
+			"http://parity.web3.site:18180".into(),
+			"http://127.0.0.1:18180".into(),
+			"https://parity.web3.site".into(),
+			"https://parity.web3.site:18180".into(),
+			"https://127.0.0.1:18180".into()
+
+		]);
 	}
 }
