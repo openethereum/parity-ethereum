@@ -23,13 +23,15 @@ use jsonrpc_macros::Trailing;
 
 use light::client::Client as LightClient;
 use light::cht;
-use light::on_demand::{request, OnDemand};
+use light::on_demand::{request, OnDemand, Error as OnDemandError};
 
 use ethcore::account_provider::{AccountProvider, DappId};
 use ethcore::basic_account::BasicAccount;
 use ethcore::encoded;
 use ethcore::ids::BlockId;
 use ethsync::LightSync;
+use util::sha3::{SHA3_NULL_RLP, SHA3_EMPTY_LIST_RLP};
+use util::U256;
 
 use futures::{future, Future, BoxFuture};
 
@@ -77,16 +79,16 @@ impl EthClient {
 	}
 
 	/// Get a block header from the on demand service or client, or error.
-	fn header(&self, id: BlockId) -> BoxFuture<encoded::Header, Error> {
+	fn header(&self, id: BlockId) -> BoxFuture<Option<encoded::Header>, Error> {
 		if let Some(h) = self.client.get_header(id) {
-			return future::ok(h).boxed()
+			return future::ok(Some(h)).boxed()
 		}
 
 		let maybe_future = match id {
 			BlockId::Number(n) => {
 				let cht_root = cht::block_to_cht_number(n).and_then(|cn| self.client.cht_root(cn as usize));
 				match cht_root {
-					None => return future::err(errors::unknown_block()).boxed(),
+					None => return future::ok(None).boxed(),
 					Some(root) => {
 						let req = request::HeaderByNumber {
 							num: n,
@@ -95,7 +97,7 @@ impl EthClient {
 
 						self.sync.with_context(|ctx|
 							self.on_demand.header_by_number(ctx, req)
-								.map(|(h, _)| h)
+								.map(|(h, _)| Some(h))
 								.map_err(errors::from_on_demand_error)
 								.boxed()
 						)
@@ -105,7 +107,11 @@ impl EthClient {
 			BlockId::Hash(h) => {
 				self.sync.with_context(|ctx|
 					self.on_demand.header_by_hash(ctx, request::HeaderByHash(h))
-						.map_err(errors::from_on_demand_error)
+						.then(|res| future::done(match res {
+							Ok(h) => Ok(Some(h)),
+							Err(OnDemandError::TimedOut) => Ok(None),
+							Err(e) => Err(errors::from_on_demand_error(e)),
+						}))
 						.boxed()
 				)
 			}
@@ -119,15 +125,20 @@ impl EthClient {
 		}
 	}
 
-	// helper for getting account info.
-	fn account(&self, address: Address, id: BlockId) -> BoxFuture<BasicAccount, Error> {
+	// helper for getting account info at a given block.
+	fn account(&self, address: Address, id: BlockId) -> BoxFuture<Option<BasicAccount>, Error> {
 		let (sync, on_demand) = (self.sync.clone(), self.on_demand.clone());
 
 		self.header(id).and_then(move |header| {
+			let header = match header {
+				None => return future::ok(None).boxed(),
+				Some(hdr) => hdr,
+			};
+
 			sync.with_context(|ctx| on_demand.account(ctx, request::Account {
 				header: header,
 				address: address,
-			}))
+			}).map(Some))
 				.map(|x| x.map_err(errors::from_on_demand_error).boxed())
 				.unwrap_or_else(|| future::err(err_no_context()).boxed())
 		}).boxed()
@@ -178,7 +189,8 @@ impl Eth for EthClient {
 	}
 
 	fn balance(&self, address: RpcH160, num: Trailing<BlockNumber>) -> BoxFuture<RpcU256, Error> {
-		self.account(address.into(), num.0.into()).map(|acc| acc.balance.into()).boxed()
+		self.account(address.into(), num.0.into())
+			.map(|acc| acc.map_or(0.into(), |a| a.balance).into()).boxed()
 	}
 
 	fn storage_at(&self, _address: RpcH160, _key: RpcU256, _num: Trailing<BlockNumber>) -> BoxFuture<RpcH256, Error> {
@@ -194,23 +206,88 @@ impl Eth for EthClient {
 	}
 
 	fn transaction_count(&self, address: RpcH160, num: Trailing<BlockNumber>) -> BoxFuture<RpcU256, Error> {
-		self.account(address.into(), num.0.into()).map(|acc| acc.nonce.into()).boxed()
+		self.account(address.into(), num.0.into())
+			.map(|acc| acc.map_or(0.into(), |a| a.nonce).into()).boxed()
 	}
 
 	fn block_transaction_count_by_hash(&self, hash: RpcH256) -> BoxFuture<Option<RpcU256>, Error> {
-		future::err(errors::unimplemented(None)).boxed()
+		let (sync, on_demand) = (self.sync.clone(), self.on_demand.clone());
+
+		self.header(BlockId::Hash(hash.into())).and_then(move |hdr| {
+			let hdr = match hdr {
+				None => return future::ok(None).boxed(),
+				Some(hdr) => hdr,
+			};
+
+			if hdr.transactions_root() == SHA3_NULL_RLP {
+				future::ok(Some(U256::from(0).into())).boxed()
+			} else {
+				sync.with_context(|ctx| on_demand.block(ctx, request::Body::new(hdr)))
+					.map(|x| x.map(|b| Some(U256::from(b.transactions_count()).into())))
+					.map(|x| x.map_err(errors::from_on_demand_error).boxed())
+					.unwrap_or_else(|| future::err(err_no_context()).boxed())
+			}
+		}).boxed()
 	}
 
 	fn block_transaction_count_by_number(&self, num: BlockNumber) -> BoxFuture<Option<RpcU256>, Error> {
-		future::err(errors::unimplemented(None)).boxed()
+		let (sync, on_demand) = (self.sync.clone(), self.on_demand.clone());
+
+		self.header(num.into()).and_then(move |hdr| {
+			let hdr = match hdr {
+				None => return future::ok(None).boxed(),
+				Some(hdr) => hdr,
+			};
+
+			if hdr.transactions_root() == SHA3_NULL_RLP {
+				future::ok(Some(U256::from(0).into())).boxed()
+			} else {
+				sync.with_context(|ctx| on_demand.block(ctx, request::Body::new(hdr)))
+					.map(|x| x.map(|b| Some(U256::from(b.transactions_count()).into())))
+					.map(|x| x.map_err(errors::from_on_demand_error).boxed())
+					.unwrap_or_else(|| future::err(err_no_context()).boxed())
+			}
+		}).boxed()
 	}
 
 	fn block_uncles_count_by_hash(&self, hash: RpcH256) -> BoxFuture<Option<RpcU256>, Error> {
-		future::err(errors::unimplemented(None)).boxed()
+		let (sync, on_demand) = (self.sync.clone(), self.on_demand.clone());
+
+		self.header(BlockId::Hash(hash.into())).and_then(move |hdr| {
+			let hdr = match hdr {
+				None => return future::ok(None).boxed(),
+				Some(hdr) => hdr,
+			};
+
+			if hdr.uncles_hash() == SHA3_EMPTY_LIST_RLP {
+				future::ok(Some(U256::from(0).into())).boxed()
+			} else {
+				sync.with_context(|ctx| on_demand.block(ctx, request::Body::new(hdr)))
+					.map(|x| x.map(|b| Some(U256::from(b.uncles_count()).into())))
+					.map(|x| x.map_err(errors::from_on_demand_error).boxed())
+					.unwrap_or_else(|| future::err(err_no_context()).boxed())
+			}
+		}).boxed()
 	}
 
 	fn block_uncles_count_by_number(&self, num: BlockNumber) -> BoxFuture<Option<RpcU256>, Error> {
-		future::err(errors::unimplemented(None)).boxed()
+		let (sync, on_demand) = (self.sync.clone(), self.on_demand.clone());
+
+		self.header(num.into()).and_then(move |hdr| {
+			let hdr = match hdr {
+				None => return future::ok(None).boxed(),
+				Some(hdr) => hdr,
+			};
+
+			if hdr.uncles_hash() == SHA3_EMPTY_LIST_RLP {
+				future::ok(Some(U256::from(0).into())).boxed()
+			} else {
+				sync.with_context(|ctx| on_demand.block(ctx, request::Body::new(hdr)))
+					.map(|x| x.map(|b| Some(U256::from(b.uncles_count()).into())))
+					.map(|x| x.map_err(errors::from_on_demand_error).boxed())
+					.unwrap_or_else(|| future::err(err_no_context()).boxed())
+			}
+		}).boxed()
 	}
 
 	fn code_at(&self, address: RpcH160, num: Trailing<BlockNumber>) -> BoxFuture<Bytes, Error> {
