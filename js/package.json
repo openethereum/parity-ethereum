@@ -36,7 +36,7 @@
     "ci:build:lib": "NODE_ENV=production webpack --config webpack/libraries",
     "ci:build:dll": "NODE_ENV=production webpack --config webpack/vendor",
     "ci:build:npm": "NODE_ENV=production webpack --config webpack/npm",
-    "ci:build:jsonrpc": "babel-node ./scripts/build-rpc-json.js --output .npmjs/jsonrpc",
+    "ci:build:jsonrpc": "babel-node ./scripts/build-rpc-json.js > npm/jsonrpc/index.json",
     "start": "npm install && npm run build:lib && npm run build:dll && npm run start:app",
     "start:app": "node webpack/dev.server",
     "clean": "rm -rf ./.build ./.coverage ./.happypack ./.npmjs ./build",
@@ -136,8 +136,7 @@
     "webpack-dev-middleware": "1.9.0",
     "webpack-error-notification": "0.1.6",
     "webpack-hot-middleware": "2.14.0",
-    "websocket": "1.0.24",
-    "yargs": "6.6.0"
+    "websocket": "1.0.24"
   },
   "dependencies": {
     "base32.js": "0.1.0",

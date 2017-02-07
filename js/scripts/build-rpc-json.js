@@ -14,15 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import fs from 'fs';
-import path from 'path';
-import yargs from 'yargs';
-
 import interfaces from '../src/jsonrpc';
 
-const argv = yargs.default('output', 'release').argv;
-
-const INDEX_JSON = path.join(__dirname, `../${argv.output}/index.json`);
 const methods = [];
 
 function formatDescription (obj) {
@@ -67,4 +60,4 @@ Object.keys(interfaces).sort().forEach((group) => {
   });
 });
 
-fs.writeFileSync(INDEX_JSON, JSON.stringify({ methods: methods }, null, 2), 'utf8');
+process.stdout.end(JSON.stringify({ methods: methods }, null, 2));

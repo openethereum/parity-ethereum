@@ -11,3 +11,4 @@ docs
 
 npm/*/src
 npm/*/dist
+npm/jsonrpc/index.json
