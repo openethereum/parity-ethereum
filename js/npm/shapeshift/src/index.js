@@ -29,6 +29,6 @@ if (isNode) {
   global.fetch = require('node-fetch');
 }
 
-import ShapeShift from './3rdparty/shapeshift';
+import ShapeShift from './shapeshift';
 
 module.exports = ShapeShift;
