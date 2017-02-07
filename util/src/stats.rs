@@ -33,6 +33,7 @@ impl Histogram {
 		if corpus.len() < 1 { return None; }
 		let corpus_end = corpus.last().expect("there is at least 1 element; qed").clone();
 		let corpus_start = corpus.first().expect("there is at least 1 element; qed").clone();
+		trace!(target: "stats", "Computing histogram from {} to {} with {} buckets.", corpus_start, corpus_end, bucket_number);
 		// Bucket needs to be at least 1 wide.
 		let bucket_size = {
 			// Round up to get the entire corpus included.
