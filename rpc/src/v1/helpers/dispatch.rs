@@ -109,8 +109,12 @@ pub fn execute<C, M>(client: &C, miner: &M, accounts: &AccountProvider, payload:
 					.map(ConfirmationResponse::SignTransaction)
 				)
 		},
-		ConfirmationPayload::Signature(address, data) => {
-			signature(accounts, address, data.sha3(), pass)
+		ConfirmationPayload::Signature(address, mut data) => {
+			let mut message_data =
+				format!("\x19Ethereum Signed Message:\n{}", data.len())
+				.into_bytes();
+			message_data.append(&mut data);
+			signature(accounts, address, message_data.sha3(), pass)
 				.map(|result| result
 					.map(|rsv| {
 						let mut vrs = [0u8; 65];
