@@ -31,8 +31,10 @@
   }
 }
 
-.selected, .unselected {
+.selected,
+.unselected {
   margin-bottom: 0.25em;
+  width: 100%;
 
   &:focus {
     outline: none;
