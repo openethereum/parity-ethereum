@@ -32,7 +32,7 @@ export default class Create extends Component {
 
   render () {
     const { createName, createNameError, createPassword, createPasswordHint, createPasswordRepeat, createPasswordRepeatError, isOpenAdd } = this.props.store;
-    const hasError = createNameError || createPasswordRepeatError;
+    const hasError = !!createNameError || !!createPasswordRepeatError;
 
     if (!isOpenAdd) {
       return null;
@@ -144,19 +144,19 @@ export default class Create extends Component {
     );
   }
 
-  onEditName = (name) => {
+  onEditName = (event, name) => {
     this.props.store.setCreateName(name);
   }
 
-  onEditPassword = (password) => {
+  onEditPassword = (event, password) => {
     this.props.store.setCreatePassword(password);
   }
 
-  onEditPasswordHint = (hint) => {
+  onEditPasswordHint = (event, hint) => {
     this.props.store.setCreatePasswordHint(hint);
   }
 
-  onEditPasswordRepeat = (password) => {
+  onEditPasswordRepeat = (event, password) => {
     this.props.store.setCreatePasswordRepeat(password);
   }
 

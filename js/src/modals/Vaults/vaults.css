@@ -16,62 +16,39 @@
 */
 
 $background: rgba(18, 18, 18, 1);
-$iconAddSize: 56px;
+$iconSize: 56px;
+$linkColor: rgb(0, 151, 167);
 
-.body {
-  display: flex;
-  flex-direction: row;
+.container {
+  text-align: center;
 
-  .list {
-    box-sizing: border-box;
-    display: flex;
-    flex: 0 1 50%;
-    flex-direction: row;
-    flex-wrap: wrap;
-    padding: 0 0.5em;
+  .iconAdd {
+    fill: $linkColor !important;
+    height: $iconSize !important;
+    width: $iconSize !important;
+  }
 
-    .item {
-      box-sizing: border-box;
-      flex: 0 1 50%;
-      text-align: center;
-      opacity: 0.85;
-      padding: 0.25em;
-      width: 100%;
+  .iconMove {
+    position: absolute;
+    right: 1em;
+    top: 1em;
+  }
 
-      &:hover {
-        opacity: 1;
-      }
+  .identityIcon {
+    border-radius: 0.5em;
+    margin: 0;
 
-      .content,
-      .empty {
-        padding: 1.5em;
-      }
-
-      .content {
-        background: $background;
-        cursor: pointer;
-        position: relative;
-
-        .iconAdd {
-          height: $iconAddSize !important;
-          width: $iconAddSize !important;
-        }
-
-        .iconMove {
-          position: absolute;
-          right: 1em;
-          top: 1em;
-        }
-
-        .name {
-          line-height: $iconAddSize;
-        }
-      }
-
-      .empty {
-        line-height: $iconAddSize;
-        opacity: 0.5;
-      }
+    &.locked {
+      filter: grayscale(100%);
+      opacity: 0.5;
     }
+  }
+
+  .name {
+    line-height: 3em;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-transform: uppercase;
+    white-space: nowrap;
   }
 }

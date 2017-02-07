@@ -30,8 +30,8 @@ export default class Store {
   @observable createPasswordRepeat = '';
   @observable isOpen = false;
   @observable isOpenAdd = false;
-  @observable listAll = [];
-  @observable listOpened = [];
+  @observable vaults = [];
+  @observable vaultNames = [];
 
   constructor (api) {
     this._api = api;
@@ -58,7 +58,7 @@ export default class Store {
 
     if (!name || !name.trim().length) {
       nameError = ERRORS.noName;
-    } else if (this.listAll.includes(name)) {
+    } else if (this.vaultNames.includes(name)) {
       nameError = ERRORS.duplicateName;
     }
 
@@ -80,20 +80,26 @@ export default class Store {
     this.createPasswordRepeat = password;
   }
 
-  @action setListAll = (listAll) => {
-    this.listAll = listAll;
-  }
-
-  @action setListOpened = (listOpened) => {
-    this.listOpened = listOpened;
-  }
-
   @action setOpen = (isOpen) => {
     this.isOpen = isOpen;
   }
 
   @action setOpenAdd = (isOpenAdd) => {
     this.isOpenAdd = isOpenAdd;
+  }
+
+  @action setVaults = (allVaults, openedVaults) => {
+    console.log(allVaults, openedVaults);
+
+    transaction(() => {
+      this.vaultNames = allVaults;
+      this.vaults = allVaults.map((name) => {
+        return {
+          name,
+          isOpen: openedVaults.includes(name)
+        };
+      });
+    });
   }
 
   closeAdd () {
@@ -115,20 +121,26 @@ export default class Store {
     return this.loadVaults();
   }
 
-  loadVaults () {
+  loadVaults = () => {
     return Promise
       .all([
         this._api.parity.listVaults(),
         this._api.parity.listOpenedVaults()
       ])
       .then(([allVaults, openedVaults]) => {
-        transaction(() => {
-          this.setListAll(allVaults);
-          this.setListOpened(openedVaults);
-        });
+        this.setVaults(allVaults, openedVaults);
       })
       .catch((error) => {
         console.warn('loadVaults', error);
+      });
+  }
+
+  closeVault (name) {
+    return this._api.parity
+      .closeVault(name)
+      .then(this.loadVaults)
+      .catch((error) => {
+        console.warn('closeVault', error);
       });
   }
 
@@ -138,10 +150,8 @@ export default class Store {
     }
 
     return this._api.parity
-      .createVault(this.createName, this.createPassword)
-      .then(() => {
-        return this.loadVaults();
-      })
+      .newVault(this.createName, this.createPassword)
+      .then(this.loadVaults)
       .catch((error) => {
         console.warn('createVault', error);
       });

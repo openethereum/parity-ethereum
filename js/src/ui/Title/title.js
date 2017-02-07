@@ -33,12 +33,13 @@ export default class Title extends Component {
     busy: PropTypes.bool,
     busySteps: PropTypes.array,
     className: PropTypes.string,
+    isSubTitle: PropTypes.bool,
     steps: PropTypes.array,
     title: nodeOrStringProptype()
   }
 
   render () {
-    const { activeStep, className, steps, title } = this.props;
+    const { activeStep, className, isSubTitle, steps, title } = this.props;
 
     if (!title && !steps) {
       return null;
@@ -47,7 +48,12 @@ export default class Title extends Component {
     return (
       <div
         className={
-          [styles.title, className].join(' ')
+          [
+            isSubTitle
+              ? styles.subtitle
+              : styles.title,
+            className
+          ].join(' ')
         }
       >
         <ContainerTitle

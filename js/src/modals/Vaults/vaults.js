@@ -14,13 +14,12 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { snakeCase } from 'lodash';
 import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 
-import { Portal } from '~/ui';
-import { AddCircleIcon, LockedIcon, NextIcon } from '~/ui/Icons';
+import { Container, IdentityIcon, Portal, SectionList } from '~/ui';
+import { AddCircleIcon, LockedIcon, UnlockedIcon } from '~/ui/Icons';
 
 import Create from './Create';
 import Store from './store';
@@ -37,7 +36,7 @@ export default class Vaults extends Component {
   store = Store.get(this.context.api);
 
   render () {
-    const { isOpen, listAll, listOpened } = this.store;
+    const { isOpen, vaults } = this.store;
 
     if (!isOpen) {
       return null;
@@ -54,88 +53,66 @@ export default class Vaults extends Component {
           />
         }
       >
-        <div className={ styles.body }>
-          <Create store={ this.store } />
-          {
-            this.renderList(listAll, true, (
-              <FormattedMessage
-                id='vaults.listAll.empty'
-                defaultMessage='No vaults have been created'
-              />
-            ))
-          }
-          {
-            this.renderList(listOpened, false, (
-              <FormattedMessage
-                id='vaults.listOpened.empty'
-                defaultMessage='No vaults have been opened'
-              />
-            ))
-          }
-        </div>
+        <Create store={ this.store } />
+        <SectionList
+          items={ [{ isAddButton: true }].concat(vaults.peek()) }
+          renderItem={ this.renderItem }
+        />
       </Portal>
     );
   }
 
-  renderList (list, allList, emptyMessage) {
-    return (
-      <div className={ styles.list }>
-        {
-          allList
-            ? (
-              <div className={ styles.item }>
-                <div
-                  className={ styles.content }
-                  onClick={ this.onOpenAdd }
-                >
-                  <AddCircleIcon className={ styles.iconAdd } />
-                </div>
-              </div>
-            )
-            : null
-        }
-        { this.renderListItems(list, allList, emptyMessage) }
-      </div>
-    );
-  }
-
-  renderListItems (list, allList, emptyMessage) {
-    if (!list || !list.length) {
+  renderItem = (item) => {
+    if (item.isAddButton) {
       return (
-        <div className={ styles.item }>
-          <div className={ styles.empty }>
-            { emptyMessage }
+        <Container
+          className={ styles.container }
+          onClick={ this.onOpenAdd }
+        >
+          <AddCircleIcon className={ styles.iconAdd } />
+          <div className={ styles.name }>
+            <FormattedMessage
+              id='vaults.button.add'
+              defaultMessage='add vault'
+            />
           </div>
-        </div>
+        </Container>
       );
     }
 
-    return list.map((name, index) => {
-      const onClick = () => {
-        return allList
-          ? this.onOpenVault(name)
-          : this.onCloseVault(name);
-      };
+    const onClick = () => {
+      return item.isOpen
+        ? this.onCloseVault(item.name)
+        : this.onOpenVault(item.name);
+    };
 
-      return (
-        <div
-          className={ styles.item }
-          key={ `${snakeCase(name)}_${index}` }
-          onClick={ onClick }
-        >
-          <div className={ styles.content }>
-            <div className={ styles.name }>
-              { name }
-            </div>
-            {
-              allList
-                ? <NextIcon className={ styles.iconMove } />
-                : <LockedIcon className={ styles.iconMove } />
-            }
-          </div>
+    return (
+      <Container
+        className={ styles.container }
+        onClick={ onClick }
+      >
+        <IdentityIcon
+          address={ item.name }
+          center
+          className={
+            [
+              styles.identityIcon,
+              item.isOpen
+                ? styles.inlocked
+                : styles.locked
+            ].join(' ')
+          }
+        />
+        <div className={ styles.name }>
+          { item.name }
         </div>
-      );
-    });
+        {
+          item.isOpen
+            ? <UnlockedIcon className={ styles.iconMove } />
+            : <LockedIcon className={ styles.iconMove } />
+        }
+      </Container>
+    );
   }
 
   onClose = () => {
@@ -144,6 +121,7 @@ export default class Vaults extends Component {
 
   onCloseVault = (name) => {
     console.log(`closing vault ${name}`);
+    return this.store.closeVault(name);
   }
 
   onOpenAdd = () => {
