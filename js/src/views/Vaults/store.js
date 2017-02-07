@@ -28,9 +28,13 @@ export default class Store {
   @observable createPassword = '';
   @observable createPasswordHint = '';
   @observable createPasswordRepeat = '';
+  @observable isModalCloseOpen = false;
   @observable isModalCreateOpen = false;
+  @observable isModalOpenOpen = false;
   @observable vaults = [];
   @observable vaultNames = [];
+  @observable vaultName = null;
+  @observable vaultPassword = null;
 
   constructor (api) {
     this._api = api;
@@ -79,8 +83,16 @@ export default class Store {
     this.createPasswordRepeat = password;
   }
 
+  @action setModalCloseOpen = (isOpen) => {
+    this.isModalCloseOpen = isOpen;
+  }
+
   @action setModalCreateOpen = (isOpen) => {
     this.isModalCreateOpen = isOpen;
+  }
+
+  @action setModalOpenOpen = (isOpen) => {
+    this.isModalOpenOpen = isOpen;
   }
 
   @action setVaults = (allVaults, openedVaults) => {
@@ -95,13 +107,45 @@ export default class Store {
     });
   }
 
+  @action setVaultName = (name) => {
+    this.vaultName = name;
+  }
+
+  @action setVaultPassword = (password) => {
+    this.vaultPassword = password;
+  }
+
+  closeCloseModal () {
+    this.setModalCloseOpen(false);
+  }
+
   closeCreateModal () {
     this.setModalCreateOpen(false);
   }
 
+  closeOpenModal () {
+    this.setModalOpenOpen(false);
+  }
+
+  openCloseModal (name) {
+    transaction(() => {
+      this.setVaultName(name);
+      this.setModalCloseOpen(true);
+    });
+  }
+
   openCreateModal () {
-    this.clearCreateFields();
-    this.setModalCreateOpen(true);
+    transaction(() => {
+      this.clearCreateFields();
+      this.setModalCreateOpen(true);
+    });
+  }
+
+  openOpenModal (name) {
+    transaction(() => {
+      this.setVaultName(name);
+      this.setModalOpenOpen(true);
+    });
   }
 
   loadVaults = () => {
@@ -118,9 +162,9 @@ export default class Store {
       });
   }
 
-  closeVault (name) {
+  closeVault () {
     return this._api.parity
-      .closeVault(name)
+      .closeVault(this.vaultName)
       .then(this.loadVaults)
       .catch((error) => {
         console.warn('closeVault', error);
@@ -137,6 +181,15 @@ export default class Store {
       .then(this.loadVaults)
       .catch((error) => {
         console.warn('createVault', error);
+      });
+  }
+
+  openVault () {
+    return this._api.parity
+      .Vault(this.vaultName, this.vaultPassword)
+      .then(this.loadVaults)
+      .catch((error) => {
+        console.warn('openVault', error);
       });
   }
 

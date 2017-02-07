@@ -22,7 +22,7 @@ import { Link } from 'react-router';
 import { bindActionCreators } from 'redux';
 
 import List from './List';
-import { CreateAccount, CreateWallet, Vaults } from '~/modals';
+import { CreateAccount, CreateWallet } from '~/modals';
 import { Actionbar, ActionbarExport, ActionbarSearch, ActionbarSort, Button, Page, Tooltip } from '~/ui';
 import { AddIcon, KeyIcon } from '~/ui/Icons';
 import { setVisibleAccounts } from '~/redux/providers/personalActions';
@@ -83,8 +83,6 @@ class Accounts extends Component {
   render () {
     return (
       <div>
-        <Vaults />
-
         { this.renderNewDialog() }
         { this.renderNewWalletDialog() }
         { this.renderActionbar() }

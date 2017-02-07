@@ -18,8 +18,8 @@ import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 
-import VaultCreate from '~/modals';
-import { Container, IdentityIcon, Page, SectionList } from '~/ui';
+import { VaultCreate } from '~/modals';
+import { ConfirmDialog, Container, IdentityIcon, Page, SectionList } from '~/ui';
 import { AddCircleIcon, LockedIcon, UnlockedIcon } from '~/ui/Icons';
 
 import Store from './store';
@@ -52,6 +52,10 @@ export default class Vaults extends Component {
         }
       >
         <VaultCreate store={ this.store } />
+
+        { this.renderConfirmClose() }
+        { this.renderConfirmOpen() }
+
         <SectionList
           items={ [{ isAddButton: true }].concat(vaults.peek()) }
           renderItem={ this.renderItem }
@@ -65,7 +69,7 @@ export default class Vaults extends Component {
       return (
         <Container
           className={ styles.container }
-          onClick={ this.onOpenCreateModal }
+          onClick={ this.onOpenCreate }
         >
           <AddCircleIcon className={ styles.iconAdd } />
           <div className={ styles.name }>
@@ -113,16 +117,63 @@ export default class Vaults extends Component {
     );
   }
 
-  onCloseVault = (name) => {
-    console.log(`closing vault ${name}`);
-    return this.store.closeVault(name);
+  renderConfirmClose () {
+    return (
+      <ConfirmDialog
+        onConfirm={ this.executeCloseVault }
+        onDeny={ this.onDenyCloseVault }
+        open={ this.store.isModalCloseOpen }
+        title={
+          <FormattedMessage
+            id='vaults.closeConfirm.title'
+            defaultMessage='Vault Close'
+          />
+        }
+      />
+    );
   }
 
-  onOpenCreateModal = () => {
+  renderConfirmOpen () {
+    return (
+      <ConfirmDialog
+        onConfirm={ this.executeOpenVault }
+        onDeny={ this.onDenyOpenVault }
+        open={ this.store.isModalOpenOpen }
+        title={
+          <FormattedMessage
+            id='vaults.openConfirm.title'
+            defaultMessage='Vault Open'
+          />
+        }
+      />
+    );
+  }
+
+  exceuteCloseVault = () => {
+    return this.store.closeVault();
+  }
+
+  exceuteOpenVault = () => {
+    return this.store.openVault();
+  }
+
+  onDenyCloseVault = () => {
+    this.store.closeCloseModal();
+  }
+
+  onDenyOpenVault = () => {
+    this.store.closeOpenModal();
+  }
+
+  onCloseVault = (name) => {
+    this.store.openCloseModal(name);
+  }
+
+  onOpenCreate = () => {
     this.store.openCreateModal();
   }
 
   onOpenVault = (name) => {
-    console.log(`opening vault ${name}`);
+    this.store.openOpenModal(name);
   }
 }

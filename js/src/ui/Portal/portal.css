@@ -72,6 +72,15 @@ $popoverZ: 3600;
     right: $modalRight;
     top: $modalTop;
     z-index: $modalZ;
+
+    &.small {
+      bottom: auto;
+      left: auto;
+      margin: 0px auto;
+      max-width: 768px;
+      right: auto;
+      width: 75%;
+    }
   }
 
   &.popover {
