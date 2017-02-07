@@ -16,7 +16,7 @@
 
 //! Trace database.
 use std::ops::Deref;
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 use std::sync::Arc;
 use bloomchain::{Number, Config as BloomConfig};
 use bloomchain::group::{BloomGroupDatabase, BloomGroupChain, GroupPosition, BloomGroup};
@@ -305,7 +305,7 @@ impl<T> TraceDatabase for TraceDB<T> where T: DatabaseExtras {
 	}
 
 	fn trace(&self, block_number: BlockNumber, tx_position: usize, trace_position: Vec<usize>) -> Option<LocalizedTrace> {
-		let trace_position_deq = trace_position.into_iter().collect();
+		let trace_position_deq = trace_position.into_iter().collect::<VecDeque<usize>>();
 		self.extras.block_hash(block_number)
 			.and_then(|block_hash| self.transactions_traces(&block_hash)
 				.and_then(|traces| traces.into_iter().nth(tx_position))
