@@ -33,7 +33,21 @@ $linkColor: rgb(0, 151, 167);
     right: 1em;
     top: 1em;
   }
+}
 
+.inputbox {
+  margin-top: 1.5em;
+}
+
+.name {
+  line-height: 3em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.namebox {
   .identityIcon {
     border-radius: 0.5em;
     margin: 0;
@@ -43,12 +57,8 @@ $linkColor: rgb(0, 151, 167);
       opacity: 0.5;
     }
   }
+}
 
-  .name {
-    line-height: 3em;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    text-transform: uppercase;
-    white-space: nowrap;
-  }
+.textbox {
+  margin-bottom: 1.5em;
 }

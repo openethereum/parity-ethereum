@@ -50,7 +50,6 @@ $popoverZ: 3600;
   left: 0;
   right: 0;
   opacity: 0.25;
-  z-index: -1;
 }
 
 .overlay {
@@ -67,19 +66,27 @@ $popoverZ: 3600;
   }
 
   &.modal {
-    bottom: $modalBottom;
-    left: $modalLeft;
-    right: $modalRight;
-    top: $modalTop;
-    z-index: $modalZ;
+    &:not(.small) {
+      bottom: $modalBottom;
+      left: $modalLeft;
+      right: $modalRight;
+      top: $modalTop;
+      z-index: $modalZ;
+
+      .parityBackground {
+        z-index: -1;
+      }
+    }
 
     &.small {
-      bottom: auto;
-      left: auto;
-      margin: 0px auto;
+      margin: 1.5em auto;
       max-width: 768px;
-      right: auto;
+      position: relative;
       width: 75%;
+
+      .parityBackground {
+        z-index: 0;
+      }
     }
   }
 

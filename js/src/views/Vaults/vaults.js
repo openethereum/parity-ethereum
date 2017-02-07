@@ -19,9 +19,12 @@ import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 
 import { VaultCreate } from '~/modals';
-import { ConfirmDialog, Container, IdentityIcon, Page, SectionList } from '~/ui';
+import { Container, Page, SectionList } from '~/ui';
 import { AddCircleIcon, LockedIcon, UnlockedIcon } from '~/ui/Icons';
 
+import ConfirmClose from './ConfirmClose';
+import ConfirmOpen from './ConfirmOpen';
+import NameLayout from './NameLayout';
 import Store from './store';
 import styles from './vaults.css';
 
@@ -51,11 +54,9 @@ export default class Vaults extends Component {
           />
         }
       >
+        <ConfirmClose store={ this.store } />
+        <ConfirmOpen store={ this.store } />
         <VaultCreate store={ this.store } />
-
-        { this.renderConfirmClose() }
-        { this.renderConfirmOpen() }
-
         <SectionList
           items={ [{ isAddButton: true }].concat(vaults.peek()) }
           renderItem={ this.renderItem }
@@ -93,21 +94,7 @@ export default class Vaults extends Component {
         className={ styles.container }
         onClick={ onClick }
       >
-        <IdentityIcon
-          address={ item.name }
-          center
-          className={
-            [
-              styles.identityIcon,
-              item.isOpen
-                ? styles.inlocked
-                : styles.locked
-            ].join(' ')
-          }
-        />
-        <div className={ styles.name }>
-          { item.name }
-        </div>
+        <NameLayout { ...item } />
         {
           item.isOpen
             ? <UnlockedIcon className={ styles.iconMove } />
@@ -115,54 +102,6 @@ export default class Vaults extends Component {
         }
       </Container>
     );
-  }
-
-  renderConfirmClose () {
-    return (
-      <ConfirmDialog
-        onConfirm={ this.executeCloseVault }
-        onDeny={ this.onDenyCloseVault }
-        open={ this.store.isModalCloseOpen }
-        title={
-          <FormattedMessage
-            id='vaults.closeConfirm.title'
-            defaultMessage='Vault Close'
-          />
-        }
-      />
-    );
-  }
-
-  renderConfirmOpen () {
-    return (
-      <ConfirmDialog
-        onConfirm={ this.executeOpenVault }
-        onDeny={ this.onDenyOpenVault }
-        open={ this.store.isModalOpenOpen }
-        title={
-          <FormattedMessage
-            id='vaults.openConfirm.title'
-            defaultMessage='Vault Open'
-          />
-        }
-      />
-    );
-  }
-
-  exceuteCloseVault = () => {
-    return this.store.closeVault();
-  }
-
-  exceuteOpenVault = () => {
-    return this.store.openVault();
-  }
-
-  onDenyCloseVault = () => {
-    this.store.closeCloseModal();
-  }
-
-  onDenyOpenVault = () => {
-    this.store.closeOpenModal();
   }
 
   onCloseVault = (name) => {
