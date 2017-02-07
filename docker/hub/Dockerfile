@@ -19,6 +19,7 @@ RUN apt-get update && \
         file \
         openssl \
         libssl-dev \
+	libudev-dev \
         pkg-config \
         dpkg-dev \
         # evmjit dependencies
