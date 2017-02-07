@@ -14,11 +14,20 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { action, observable, transaction } from 'mobx';
+import { action, computed, observable, transaction } from 'mobx';
+
+// TODO: We need to move this to a generic location, it should most probably be
+// merged with the other valitation errors. Import here better than duplication.
+import ERRORS from '../CreateAccount/errors';
 
 let instance;
 
 export default class Store {
+  @observable createName = '';
+  @observable createNameError = ERRORS.noName;
+  @observable createPassword = '';
+  @observable createPasswordHint = '';
+  @observable createPasswordRepeat = '';
   @observable isOpen = false;
   @observable isOpenAdd = false;
   @observable listAll = [];
@@ -26,6 +35,38 @@ export default class Store {
 
   constructor (api) {
     this._api = api;
+  }
+
+  @computed get createPasswordRepeatError () {
+    return this.createPassword === this.createPasswordRepeat
+      ? null
+      : ERRORS.noMatchPassword;
+  }
+
+  @action clearCreateFields = () => {
+    transaction(() => {
+      this.createName = '';
+      this.createNameError = ERRORS.noName;
+      this.createPassword = '';
+      this.createPasswordHint = '';
+      this.createPasswordRepeat = '';
+      this.createPasswordRepeatError = null;
+    });
+  }
+
+  @action setCreateName = (name) => {
+    let nameError = null;
+
+    if (!name || !name.trim().length) {
+      nameError = ERRORS.noName;
+    } else if (this.listAll.includes(name)) {
+      nameError = ERRORS.duplicateName;
+    }
+
+    transaction(() => {
+      this.createName = name;
+      this.createNameError = nameError;
+    });
   }
 
   @action setListAll = (listAll) => {
@@ -53,6 +94,7 @@ export default class Store {
   }
 
   openAdd () {
+    this.clearCreateFields();
     this.setOpenAdd(true);
   }
 

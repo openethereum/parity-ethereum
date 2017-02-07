@@ -20,9 +20,9 @@ import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 
 import { Portal } from '~/ui';
-import { AddCircleIcon } from '~/ui/Icons';
+import { AddCircleIcon, LockedIcon, NextIcon } from '~/ui/Icons';
 
-import VaultAdd from './VaultAdd';
+import Create from './Create';
 import Store from './store';
 import styles from './vaults.css';
 
@@ -54,47 +54,39 @@ export default class Vaults extends Component {
           />
         }
       >
-        <div className={ styles.layout }>
-          <VaultAdd store={ this.store } />
+        <div className={ styles.body }>
+          <Create store={ this.store } />
           {
-            this.renderList(
-              listAll,
-              (
-                <FormattedMessage
-                  id='vaults.listAll.empty'
-                  defaultMessage='No vaults have been created'
-                />
-              ),
-              true
-            )
+            this.renderList(listAll, true, (
+              <FormattedMessage
+                id='vaults.listAll.empty'
+                defaultMessage='No vaults have been created'
+              />
+            ))
           }
           {
-            this.renderList(
-              listOpened,
-              (
-                <FormattedMessage
-                  id='vaults.listOpened.empty'
-                  defaultMessage='No vaults have been opened'
-                />
-              ),
-              false
-            )
+            this.renderList(listOpened, false, (
+              <FormattedMessage
+                id='vaults.listOpened.empty'
+                defaultMessage='No vaults have been opened'
+              />
+            ))
           }
         </div>
       </Portal>
     );
   }
 
-  renderList (list, emptyMessage, withAdd = false) {
+  renderList (list, allList, emptyMessage) {
     return (
       <div className={ styles.list }>
         {
-          withAdd
+          allList
             ? (
               <div className={ styles.item }>
                 <div
                   className={ styles.content }
-                  onClick={ this.onAddVault }
+                  onClick={ this.onOpenAdd }
                 >
                   <AddCircleIcon className={ styles.iconAdd } />
                 </div>
@@ -102,12 +94,12 @@ export default class Vaults extends Component {
             )
             : null
         }
-        { this.renderListItems(list, emptyMessage) }
+        { this.renderListItems(list, allList, emptyMessage) }
       </div>
     );
   }
 
-  renderListItems (list, emptyMessage) {
+  renderListItems (list, allList, emptyMessage) {
     if (!list || !list.length) {
       return (
         <div className={ styles.item }>
@@ -119,27 +111,46 @@ export default class Vaults extends Component {
     }
 
     return list.map((name, index) => {
+      const onClick = () => {
+        return allList
+          ? this.onOpenVault(name)
+          : this.onCloseVault(name);
+      };
+
       return (
         <div
           className={ styles.item }
           key={ `${snakeCase(name)}_${index}` }
+          onClick={ onClick }
         >
           <div className={ styles.content }>
             <div className={ styles.name }>
               { name }
             </div>
+            {
+              allList
+                ? <NextIcon className={ styles.iconMove } />
+                : <LockedIcon className={ styles.iconMove } />
+            }
           </div>
         </div>
       );
     });
   }
 
-  onAddVault = () => {
-    console.log('opening!');
+  onClose = () => {
+    this.store.closeModal();
+  }
+
+  onCloseVault = (name) => {
+    console.log(`closing vault ${name}`);
+  }
+
+  onOpenAdd = () => {
     this.store.openAdd();
   }
 
-  onClose = () => {
-    this.store.closeModal();
+  onOpenVault = (name) => {
+    console.log(`opening vault ${name}`);
   }
 }

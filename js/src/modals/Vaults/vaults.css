@@ -18,7 +18,7 @@
 $background: rgba(18, 18, 18, 1);
 $iconAddSize: 56px;
 
-.layout {
+.body {
   display: flex;
   flex-direction: row;
 
@@ -30,38 +30,41 @@ $iconAddSize: 56px;
     flex-wrap: wrap;
     padding: 0 0.5em;
 
-    &.reverse {
-      flex-direction: row-reverse;
-    }
-
     .item {
       box-sizing: border-box;
       flex: 0 1 50%;
       text-align: center;
+      opacity: 0.85;
       padding: 0.25em;
+      width: 100%;
+
+      &:hover {
+        opacity: 1;
+      }
 
       .content,
       .empty {
-        box-sizing: content-box;
         padding: 1.5em;
       }
 
       .content {
         background: $background;
         cursor: pointer;
-        opacity: 0.85;
+        position: relative;
 
         .iconAdd {
           height: $iconAddSize !important;
           width: $iconAddSize !important;
         }
 
-        .name {
-          line-height: $iconAddSize;
+        .iconMove {
+          position: absolute;
+          right: 1em;
+          top: 1em;
         }
 
-        &:hover {
-          opacity: 1;
+        .name {
+          line-height: $iconAddSize;
         }
       }
 
