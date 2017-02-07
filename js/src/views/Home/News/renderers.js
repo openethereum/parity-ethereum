@@ -23,12 +23,11 @@ export function createRenderers (tagStyles = {}) {
       switch (tag) {
         case 'a':
         case 'link':
-          renderers['link'] = (markdownProps) => {
-            return createElement(
-              'a',
-              Object.assign({}, markdownProps, { style: tagStyles[tag] }),
-              markdownProps.children
-            );
+          renderers['link'] = (mdProps) => {
+            const { children, href, title } = mdProps;
+            const style = tagStyles[tag];
+
+            return createElement('a', { href, title, style }, children);
           };
           break;
       }
