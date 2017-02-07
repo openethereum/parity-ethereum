@@ -18,6 +18,7 @@ import { uniq, isEqual, pickBy, omitBy } from 'lodash';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
+import { Link } from 'react-router';
 import { bindActionCreators } from 'redux';
 
 import List from './List';
@@ -225,17 +226,21 @@ class Accounts extends Component {
         }
         onClick={ this.onNewWalletClick }
       />,
-      <Button
+      <Link
+        to='/vaults'
         key='vaults'
-        icon={ <KeyIcon /> }
-        label={
-          <FormattedMessage
-            id='accounts.button.vaults'
-            defaultMessage='vaults'
-          />
-        }
-        onClick={ this.onVaultsClick }
-      />,
+      >
+        <Button
+          icon={ <KeyIcon /> }
+          label={
+            <FormattedMessage
+              id='accounts.button.vaults'
+              defaultMessage='vaults'
+            />
+          }
+          onClick={ this.onVaultsClick }
+        />
+      </Link>,
       <ActionbarExport
         key='exportAccounts'
         content={ accounts }

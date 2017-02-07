@@ -14,8 +14,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import sinon from 'sinon';
-
 import Vaults from './';
 
 import { createApi, TEST_VAULTS_ALL, TEST_VAULTS_OPEN } from './vaults.test.js';
@@ -54,13 +52,6 @@ describe('modals/Vaults/Store', () => {
       });
     });
 
-    describe('setOpen', () => {
-      it('sets the isOpen state', () => {
-        store.setOpen('testing');
-        expect(store.isOpen).to.equal('testing');
-      });
-    });
-
     describe('setOpenAdd', () => {
       it('sets the isOpenAdd state', () => {
         store.setOpenAdd('testing');
@@ -81,17 +72,6 @@ describe('modals/Vaults/Store', () => {
       });
     });
 
-    describe('closeModal', () => {
-      beforeEach(() => {
-        store.setOpen(true);
-        store.closeModal();
-      });
-
-      it('sets the opened state to false', () => {
-        expect(store.isOpen).to.be.false;
-      });
-    });
-
     describe('openAdd', () => {
       beforeEach(() => {
         store.openAdd();
@@ -99,25 +79,6 @@ describe('modals/Vaults/Store', () => {
 
       it('sets the opened state to true', () => {
         expect(store.isOpenAdd).to.be.true;
-      });
-    });
-
-    describe('openModal', () => {
-      beforeEach(() => {
-        sinon.stub(store, 'loadVaults');
-        store.openModal();
-      });
-
-      afterEach(() => {
-        store.loadVaults.restore();
-      });
-
-      it('sets the opened state to true', () => {
-        expect(store.isOpen).to.be.true;
-      });
-
-      it('calls into loadVaults', () => {
-        expect(store.loadVaults).to.have.been.called;
       });
     });
 

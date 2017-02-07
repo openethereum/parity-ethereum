@@ -28,7 +28,6 @@ export default class Store {
   @observable createPassword = '';
   @observable createPasswordHint = '';
   @observable createPasswordRepeat = '';
-  @observable isOpen = false;
   @observable isOpenAdd = false;
   @observable vaults = [];
   @observable vaultNames = [];
@@ -80,10 +79,6 @@ export default class Store {
     this.createPasswordRepeat = password;
   }
 
-  @action setOpen = (isOpen) => {
-    this.isOpen = isOpen;
-  }
-
   @action setOpenAdd = (isOpenAdd) => {
     this.isOpenAdd = isOpenAdd;
   }
@@ -106,19 +101,9 @@ export default class Store {
     this.setOpenAdd(false);
   }
 
-  closeModal () {
-    this.setOpen(false);
-  }
-
   openAdd () {
     this.clearCreateFields();
     this.setOpenAdd(true);
-  }
-
-  openModal () {
-    this.setOpen(true);
-
-    return this.loadVaults();
   }
 
   loadVaults = () => {

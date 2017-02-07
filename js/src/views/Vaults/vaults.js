@@ -18,7 +18,7 @@ import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 
-import { Container, IdentityIcon, Portal, SectionList } from '~/ui';
+import { Container, IdentityIcon, Page, SectionList } from '~/ui';
 import { AddCircleIcon, LockedIcon, UnlockedIcon } from '~/ui/Icons';
 
 import Create from './Create';
@@ -35,17 +35,15 @@ export default class Vaults extends Component {
 
   store = Store.get(this.context.api);
 
-  render () {
-    const { isOpen, vaults } = this.store;
+  componentWillMount () {
+    return this.store.loadVaults();
+  }
 
-    if (!isOpen) {
-      return null;
-    }
+  render () {
+    const { vaults } = this.store;
 
     return (
-      <Portal
-        onClose={ this.onClose }
-        open
+      <Page
         title={
           <FormattedMessage
             id='vaults.title'
@@ -58,7 +56,7 @@ export default class Vaults extends Component {
           items={ [{ isAddButton: true }].concat(vaults.peek()) }
           renderItem={ this.renderItem }
         />
-      </Portal>
+      </Page>
     );
   }
 

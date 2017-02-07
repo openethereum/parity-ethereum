@@ -28,6 +28,7 @@ import ParityBar from './ParityBar';
 import Settings, { SettingsBackground, SettingsParity, SettingsProxy, SettingsViews } from './Settings';
 import Signer from './Signer';
 import Status from './Status';
+import Vaults from './Vaults';
 import Wallet from './Wallet';
 import Web from './Web';
 import WriteContract from './WriteContract';
@@ -51,6 +52,7 @@ export {
   SettingsViews,
   Signer,
   Status,
+  Vaults,
   Wallet,
   Web,
   WriteContract
