@@ -180,7 +180,7 @@ export default class GasPriceEditor {
         // NOTE fetching histogram may fail if there is not enough data.
         // We fallback to empty histogram.
         this._api.parity.gasPriceHistogram().catch(() => ({
-          bucket_bounds: [],
+          bucketBounds: [],
           counts: []
         })),
         this._api.eth.gasPrice(),
