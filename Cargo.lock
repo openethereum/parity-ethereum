@@ -1533,7 +1533,7 @@ name = "parity-ui"
 version = "1.5.0"
 dependencies = [
  "parity-ui-dev 1.4.0",
- "parity-ui-precompiled 1.4.0 (git+https://github.com/ethcore/js-precompiled.git)",
+ "parity-ui-precompiled 1.4.0 (git+https://github.com/ethcore/js-precompiled.git?branch=beta)",
  "rustc_version 0.1.7 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -1547,7 +1547,7 @@ dependencies = [
 [[package]]
 name = "parity-ui-precompiled"
 version = "1.4.0"
-source = "git+https://github.com/ethcore/js-precompiled.git#a590186c6acf75e31b7cff259721793960ded4e1"
+source = "git+https://github.com/ethcore/js-precompiled.git?branch=beta#46942acf631743e844a4d8d051067c8e40534731"
 dependencies = [
  "parity-dapps-glue 1.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -2534,7 +2534,7 @@ dependencies = [
 "checksum openssl-sys 0.9.3 (registry+https://github.com/rust-lang/crates.io-index)" = "d2845e841700e7b04282ceaa115407ea84e0db918ae689ad9ceb6f06fa6046bd"
 "checksum owning_ref 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)" = "8d91377085359426407a287ab16884a0111ba473aa6844ff01d4ec20ce3d75e7"
 "checksum parity-dapps-glue 1.4.0 (registry+https://github.com/rust-lang/crates.io-index)" = "98378dec0a185da2b7180308752f0bad73aaa949c3e0a3b0528d0e067945f7ab"
-"checksum parity-ui-precompiled 1.4.0 (git+https://github.com/ethcore/js-precompiled.git)" = "<none>"
+"checksum parity-ui-precompiled 1.4.0 (git+https://github.com/ethcore/js-precompiled.git?branch=beta)" = "<none>"
 "checksum parking_lot 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)" = "e1435e7a2a00dfebededd6c6bdbd54008001e94b4a2aadd6aef0dc4c56317621"
 "checksum parking_lot_core 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)" = "fb1b97670a2ffadce7c397fb80a3d687c4f3060140b885621ef1653d0e5d5068"
 "checksum phf 0.7.14 (registry+https://github.com/rust-lang/crates.io-index)" = "447d9d45f2e0b4a9b532e808365abf18fc211be6ca217202fcd45236ef12f026"
