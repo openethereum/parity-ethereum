@@ -50,6 +50,7 @@ $popoverZ: 3600;
   left: 0;
   right: 0;
   opacity: 0.25;
+  z-index: -1;
 }
 
 .overlay {
