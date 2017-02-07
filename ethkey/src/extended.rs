@@ -64,7 +64,7 @@ impl Label for H256 {
 	fn len() -> usize { 32 }
 
 	fn store(&self, target: &mut [u8]) {
-		self.copy_to(&mut target[0..4]);
+		self.copy_to(&mut target[0..32]);
 	}
 }
 
@@ -461,7 +461,7 @@ mod tests {
 		let derivation_secret = H256::from_str("51eaf04f9dbbc1417dc97e789edd0c37ecda88bac490434e367ea81b71b7b015").unwrap();
 		let extended_secret = ExtendedSecret::with_code(secret.clone(), 1u64.into());
 
-		assert_eq!(&**extended_secret.derive(Derivation::Hard(derivation_secret)).secret(), &"f55e8679e9cae8fa5ce7f50658a31cdfa401e379a790c4305797411c3d2cbb08".into());
+		assert_eq!(&**extended_secret.derive(Derivation::Hard(derivation_secret)).secret(), &"2bc2d696fb744d77ff813b4a1ef0ad64e1e5188b622c54ba917acc5ebc7c5486".into());
 	}
 
 	#[test]
