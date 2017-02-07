@@ -103,8 +103,6 @@ export default class News extends Component {
           return null;
         }
 
-        // FIXME: just for testing, not owner of paritynews
-        url = 'https://raw.githubusercontent.com/jacogr/parity-news/6831146129550edba5e432d31518f7e0be1d7253/news.json';
         return fetch(url).then((response) => {
           if (!response.ok) {
             return null;
