@@ -1,36 +1,30 @@
 #!/bin/bash
 set -e
 
-# variables
-PACKAGES=( "parity" "etherscan" "shapeshift" "jsonrpc" )
-
 # change into the build directory
 BASEDIR=`dirname $0`
 cd $BASEDIR/..
 
-# build jsonrpc
-echo "*** Building JSONRPC .json"
-mkdir -p .npmjs/jsonrpc
-npm run ci:build:jsonrpc
-
 # build all packages
-echo "*** Building packages for npmjs"
 echo "$NPM_TOKEN" >> ~/.npmrc
 
-for PACKAGE in ${PACKAGES[@]}
-do
-  echo "*** Building $PACKAGE"
-  LIBRARY=$PACKAGE npm run ci:build:npm
-  DIRECTORY=.npmjs/$PACKAGE
+echo "*** Building jsonrpc for NPM"
+npm run ci:build:jsonrpc
+cp -r src/jsonrpc npm/jsonrpc/src
+env LIBRARY=jsonrpc npm run ci:build:npm
 
-  cd $DIRECTORY
+echo "*** Building parity.js for NPM"
+cp -r src/abi npm/parity/src/abi
+cp -r src/api npm/parity/src/api
+env LIBRARY=parity npm run ci:build:npm
 
-  echo "*** Publishing $PACKAGE from $DIRECTORY"
-  echo "npm publish --access public || true"
-  cd ../..
+echo "*** Building etherscan for NPM"
+cp -r src/3rdparty/etherscan npm/etherscan/src
+env LIBRARY=etherscan npm run ci:build:npm
 
-done
-cd ..
+echo "*** Building shapeshift for NPM"
+cp -r src/3rdparty/shapeshift npm/shapeshift/src
+env LIBRARY=shapeshift npm run ci:build:npm
 
 # exit with exit code
 exit 0

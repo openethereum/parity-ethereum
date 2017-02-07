@@ -3,7 +3,6 @@ set -e
 
 # variables
 UTCDATE=`date -u "+%Y%m%d-%H%M%S"`
-PACKAGES=( "parity" "etherscan" "shapeshift" "jsonrpc" )
 BRANCH=$CI_BUILD_REF_NAME
 GIT_JS_PRECOMPILED="https://${GITHUB_JS_PRECOMPILED}:@github.com/ethcore/js-precompiled.git"
 GIT_PARITY="https://${GITHUB_JS_PRECOMPILED}:@github.com/ethcore/parity.git"
@@ -63,26 +62,48 @@ if [ "$BRANCH" == "master" ]; then
   echo "*** Bumping package.json patch version"
   npm --no-git-tag-version version
   npm version patch
+  VERSION=$(node -e 'require("./package.json").version')
+  echo "version is now $VERSION"
 
-  echo "*** Building packages for npmjs"
   echo "$NPM_TOKEN" >> ~/.npmrc
 
-  # build jsonrpc
-  echo "*** Building JSONRPC .json"
-  mkdir -p .npmjs/jsonrpc
+  echo "*** Building jsonrpc for NPM"
   npm run ci:build:jsonrpc
+  cp -r src/jsonrpc npm/jsonrpc/src
+  env LIBRARY=jsonrpc npm run ci:build:npm
 
-  for PACKAGE in ${PACKAGES[@]}
-  do
-    echo "*** Building $PACKAGE"
-    LIBRARY=$PACKAGE npm run ci:build:npm
-    DIRECTORY=.npmjs/$PACKAGE
+  pushd .; cd npm/jsonrpc
+  npm version $VERSION
+  npm publish --access public || true
+  popd
 
-    echo "*** Publishing $PACKAGE from $DIRECTORY"
-    cd $DIRECTORY
-    npm publish --access public || true
-    cd ../..
-  done
+  echo "*** Building parity.js for NPM"
+  cp -r src/abi npm/parity/src/abi
+  cp -r src/api npm/parity/src/api
+  env LIBRARY=parity npm run ci:build:npm
+
+  pushd .; cd npm/parity
+  npm version $VERSION
+  npm publish --access public || true
+  popd
+
+  echo "*** Building etherscan for NPM"
+  cp -r src/3rdparty/etherscan npm/etherscan/src
+  env LIBRARY=etherscan npm run ci:build:npm
+
+  pushd .; cd npm/etherscan
+  npm version $VERSION
+  npm publish --access public || true
+  popd
+
+  echo "*** Building shapeshift for NPM"
+  cp -r src/3rdparty/shapeshift npm/shapeshift/src
+  env LIBRARY=shapeshift npm run ci:build:npm
+
+  pushd .; cd npm/shapeshift
+  npm version $VERSION
+  npm publish --access public || true
+  popd
 
   cd ..
 fi
