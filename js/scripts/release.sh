@@ -73,6 +73,7 @@ if [ "$BRANCH" == "master" ]; then
   env LIBRARY=jsonrpc npm run ci:build:npm
 
   pushd .; cd npm/jsonrpc
+  npm test
   npm version $VERSION
   npm publish --access public || true
   popd
@@ -83,6 +84,7 @@ if [ "$BRANCH" == "master" ]; then
   env LIBRARY=parity npm run ci:build:npm
 
   pushd .; cd npm/parity
+  npm test
   npm version $VERSION
   npm publish --access public || true
   popd
@@ -92,6 +94,7 @@ if [ "$BRANCH" == "master" ]; then
   env LIBRARY=etherscan npm run ci:build:npm
 
   pushd .; cd npm/etherscan
+  npm test
   npm version $VERSION
   npm publish --access public || true
   popd
@@ -101,6 +104,7 @@ if [ "$BRANCH" == "master" ]; then
   env LIBRARY=shapeshift npm run ci:build:npm
 
   pushd .; cd npm/shapeshift
+  npm test
   npm version $VERSION
   npm publish --access public || true
   popd
