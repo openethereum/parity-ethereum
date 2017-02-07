@@ -309,11 +309,3 @@ pub fn unknown_block() -> Error {
 		data: None,
 	}
 }
-
-pub fn from_on_demand_error(error: ::light::on_demand::Error) -> Error {
-	Error {
-		code: ErrorCode::ServerError(codes::ON_DEMAND_ERROR),
-		message: "Failed to fetch on-demand data".into(),
-		data: Some(Value::String(format!("{:?}", error)))
-	}
-}

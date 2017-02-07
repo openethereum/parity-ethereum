@@ -23,7 +23,7 @@ use jsonrpc_macros::Trailing;
 
 use light::client::Client as LightClient;
 use light::cht;
-use light::on_demand::{request, OnDemand, Error as OnDemandError};
+use light::on_demand::{request, OnDemand};
 
 use ethcore::account_provider::{AccountProvider, DappId};
 use ethcore::basic_account::BasicAccount;
@@ -34,6 +34,7 @@ use util::sha3::{SHA3_NULL_RLP, SHA3_EMPTY_LIST_RLP};
 use util::U256;
 
 use futures::{future, Future, BoxFuture};
+use futures::sync::oneshot;
 
 use v1::helpers::{CallRequest as CRequest, errors, limit_logs};
 use v1::helpers::dispatch::{dispatch_transaction, default_gas_price};
@@ -56,9 +57,14 @@ pub struct EthClient {
 	accounts: Arc<AccountProvider>,
 }
 
-// helper for a specific kind of internal error.
+// helper for internal error: no network context.
 fn err_no_context() -> Error {
 	errors::internal("network service detached", "")
+}
+
+// helper for internal error: on demand sender cancelled.
+fn err_premature_cancel(_cancel: oneshot::Canceled) -> Error {
+	errors::internal("on-demand sender prematurely cancelled", "")
 }
 
 impl EthClient {
@@ -90,15 +96,13 @@ impl EthClient {
 				match cht_root {
 					None => return future::ok(None).boxed(),
 					Some(root) => {
-						let req = request::HeaderByNumber {
-							num: n,
-							cht_root: root,
-						};
+						let req = request::HeaderByNumber::new(n, root)
+							.expect("only fails for 0; client always stores genesis; client already queried; qed");
 
 						self.sync.with_context(|ctx|
 							self.on_demand.header_by_number(ctx, req)
 								.map(|(h, _)| Some(h))
-								.map_err(errors::from_on_demand_error)
+								.map_err(err_premature_cancel)
 								.boxed()
 						)
 					}
@@ -109,8 +113,7 @@ impl EthClient {
 					self.on_demand.header_by_hash(ctx, request::HeaderByHash(h))
 						.then(|res| future::done(match res {
 							Ok(h) => Ok(Some(h)),
-							Err(OnDemandError::TimedOut) => Ok(None),
-							Err(e) => Err(errors::from_on_demand_error(e)),
+							Err(e) => Err(err_premature_cancel(e)),
 						}))
 						.boxed()
 				)
@@ -139,7 +142,7 @@ impl EthClient {
 				header: header,
 				address: address,
 			}).map(Some))
-				.map(|x| x.map_err(errors::from_on_demand_error).boxed())
+				.map(|x| x.map_err(err_premature_cancel).boxed())
 				.unwrap_or_else(|| future::err(err_no_context()).boxed())
 		}).boxed()
 	}
@@ -224,7 +227,7 @@ impl Eth for EthClient {
 			} else {
 				sync.with_context(|ctx| on_demand.block(ctx, request::Body::new(hdr)))
 					.map(|x| x.map(|b| Some(U256::from(b.transactions_count()).into())))
-					.map(|x| x.map_err(errors::from_on_demand_error).boxed())
+					.map(|x| x.map_err(err_premature_cancel).boxed())
 					.unwrap_or_else(|| future::err(err_no_context()).boxed())
 			}
 		}).boxed()
@@ -244,7 +247,7 @@ impl Eth for EthClient {
 			} else {
 				sync.with_context(|ctx| on_demand.block(ctx, request::Body::new(hdr)))
 					.map(|x| x.map(|b| Some(U256::from(b.transactions_count()).into())))
-					.map(|x| x.map_err(errors::from_on_demand_error).boxed())
+					.map(|x| x.map_err(err_premature_cancel).boxed())
 					.unwrap_or_else(|| future::err(err_no_context()).boxed())
 			}
 		}).boxed()
@@ -264,7 +267,7 @@ impl Eth for EthClient {
 			} else {
 				sync.with_context(|ctx| on_demand.block(ctx, request::Body::new(hdr)))
 					.map(|x| x.map(|b| Some(U256::from(b.uncles_count()).into())))
-					.map(|x| x.map_err(errors::from_on_demand_error).boxed())
+					.map(|x| x.map_err(err_premature_cancel).boxed())
 					.unwrap_or_else(|| future::err(err_no_context()).boxed())
 			}
 		}).boxed()
@@ -284,7 +287,7 @@ impl Eth for EthClient {
 			} else {
 				sync.with_context(|ctx| on_demand.block(ctx, request::Body::new(hdr)))
 					.map(|x| x.map(|b| Some(U256::from(b.uncles_count()).into())))
-					.map(|x| x.map_err(errors::from_on_demand_error).boxed())
+					.map(|x| x.map_err(err_premature_cancel).boxed())
 					.unwrap_or_else(|| future::err(err_no_context()).boxed())
 			}
 		}).boxed()
