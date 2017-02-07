@@ -21,6 +21,7 @@
     "Parity"
   ],
   "scripts": {
+    "test": "node test/smoke.spec.js"
   },
   "devDependencies": {
   },

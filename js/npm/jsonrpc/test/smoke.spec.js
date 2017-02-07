@@ -17,10 +17,9 @@
 const assert = require('assert');
 
 assert.doesNotThrow(() => {
-  const parity = require('..');
-}, Error, 'requiring @parity/parity fails');
+  require('..');
+}, Error, 'requiring @parity/jsonrpc fails');
 
-const parity = require('..');
-assert.ok(parity);
-assert.ok(parity.Api);
-assert.ok(parity.Abi);
+assert.doesNotThrow(() => {
+  require('../index.json');
+}, Error, 'requiring @parity/jsonrpc/index.json fails');

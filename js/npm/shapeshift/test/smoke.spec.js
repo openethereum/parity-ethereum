@@ -17,10 +17,5 @@
 const assert = require('assert');
 
 assert.doesNotThrow(() => {
-  const parity = require('..');
-}, Error, 'requiring @parity/parity fails');
-
-const parity = require('..');
-assert.ok(parity);
-assert.ok(parity.Api);
-assert.ok(parity.Abi);
+  const shapeshift = require('..');
+}, Error, 'requiring @parity/shapeshift fails');
