@@ -3,6 +3,7 @@
   "description": "The Parity Promise-based library for interfacing with ShapeShift over HTTP",
   "version": "0.0.0",
   "main": "dist/index.js",
+  "jsnext:main": "src/index.js",
   "author": "Parity Team <admin@parity.io>",
   "maintainers": [
     "Jaco Greeff"
