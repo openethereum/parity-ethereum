@@ -16,7 +16,6 @@
 
 import { shallow } from 'enzyme';
 import React from 'react';
-import sinon from 'sinon';
 
 import { createApi } from './vaults.test.js';
 
@@ -24,7 +23,6 @@ import Vaults from './';
 
 let api;
 let component;
-let instance;
 
 function render (props = {}) {
   api = createApi();
@@ -35,7 +33,6 @@ function render (props = {}) {
       context: { api }
     }
   );
-  instance = component.instance();
 
   return component;
 }
@@ -47,48 +44,5 @@ describe('modals/Vaults', () => {
 
   it('renders defaults', () => {
     expect(component).to.be.ok;
-  });
-
-  describe('Portal opened state', () => {
-    let portal;
-
-    beforeEach(() => {
-      instance.store.setOpen(true);
-      portal = component.find('Portal');
-    });
-
-    it('renders null when not opened', () => {
-      instance.store.setOpen(false);
-      expect(component.get(0)).to.be.null;
-    });
-
-    it('renders Portal when opened', () => {
-      expect(portal).not.to.be.null;
-    });
-
-    it('contains onClose from instance', () => {
-      expect(portal.props().onClose).to.equal(instance.onClose);
-    });
-
-    it('contains the correct title', () => {
-      expect(portal.props().title.props.id).to.equal('vaults.title');
-    });
-  });
-
-  describe('instance methods', () => {
-    describe('onClose', () => {
-      beforeEach(() => {
-        sinon.spy(instance.store, 'closeModal');
-      });
-
-      afterEach(() => {
-        instance.store.closeModal.restore();
-      });
-
-      it('calls into store.closeModal', () => {
-        instance.onClose();
-        expect(instance.store.closeModal).to.have.been.called;
-      });
-    });
   });
 });

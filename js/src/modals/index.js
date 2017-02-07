@@ -31,6 +31,7 @@ import SaveContract from './SaveContract';
 import Shapeshift from './Shapeshift';
 import Transfer from './Transfer';
 import UpgradeParity from './UpgradeParity';
+import VaultCreate from './VaultCreate';
 import Verification from './Verification';
 import WalletSettings from './WalletSettings';
 
@@ -52,6 +53,7 @@ export {
   Shapeshift,
   Transfer,
   UpgradeParity,
+  VaultCreate,
   Verification,
   WalletSettings
 };

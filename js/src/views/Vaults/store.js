@@ -18,7 +18,7 @@ import { action, computed, observable, transaction } from 'mobx';
 
 // TODO: We need to move this to a generic location, it should most probably be
 // merged with the other valitation errors. Import here better than duplication.
-import ERRORS from '../CreateAccount/errors';
+import ERRORS from '~/modals/CreateAccount/errors';
 
 let instance;
 
@@ -28,7 +28,7 @@ export default class Store {
   @observable createPassword = '';
   @observable createPasswordHint = '';
   @observable createPasswordRepeat = '';
-  @observable isOpenAdd = false;
+  @observable isModalCreateOpen = false;
   @observable vaults = [];
   @observable vaultNames = [];
 
@@ -79,13 +79,11 @@ export default class Store {
     this.createPasswordRepeat = password;
   }
 
-  @action setOpenAdd = (isOpenAdd) => {
-    this.isOpenAdd = isOpenAdd;
+  @action setModalCreateOpen = (isOpen) => {
+    this.isModalCreateOpen = isOpen;
   }
 
   @action setVaults = (allVaults, openedVaults) => {
-    console.log(allVaults, openedVaults);
-
     transaction(() => {
       this.vaultNames = allVaults;
       this.vaults = allVaults.map((name) => {
@@ -97,13 +95,13 @@ export default class Store {
     });
   }
 
-  closeAdd () {
-    this.setOpenAdd(false);
+  closeCreateModal () {
+    this.setModalCreateOpen(false);
   }
 
-  openAdd () {
+  openCreateModal () {
     this.clearCreateFields();
-    this.setOpenAdd(true);
+    this.setModalCreateOpen(true);
   }
 
   loadVaults = () => {

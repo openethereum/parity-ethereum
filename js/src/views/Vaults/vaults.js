@@ -18,10 +18,10 @@ import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 
+import VaultCreate from '~/modals';
 import { Container, IdentityIcon, Page, SectionList } from '~/ui';
 import { AddCircleIcon, LockedIcon, UnlockedIcon } from '~/ui/Icons';
 
-import Create from './Create';
 import Store from './store';
 import styles from './vaults.css';
 
@@ -51,7 +51,7 @@ export default class Vaults extends Component {
           />
         }
       >
-        <Create store={ this.store } />
+        <VaultCreate store={ this.store } />
         <SectionList
           items={ [{ isAddButton: true }].concat(vaults.peek()) }
           renderItem={ this.renderItem }
@@ -65,7 +65,7 @@ export default class Vaults extends Component {
       return (
         <Container
           className={ styles.container }
-          onClick={ this.onOpenAdd }
+          onClick={ this.onOpenCreateModal }
         >
           <AddCircleIcon className={ styles.iconAdd } />
           <div className={ styles.name }>
@@ -113,17 +113,13 @@ export default class Vaults extends Component {
     );
   }
 
-  onClose = () => {
-    this.store.closeModal();
-  }
-
   onCloseVault = (name) => {
     console.log(`closing vault ${name}`);
     return this.store.closeVault(name);
   }
 
-  onOpenAdd = () => {
-    this.store.openAdd();
+  onOpenCreateModal = () => {
+    this.store.openCreateModal();
   }
 
   onOpenVault = (name) => {

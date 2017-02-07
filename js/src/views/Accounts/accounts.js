@@ -41,8 +41,6 @@ class Accounts extends Component {
     balances: PropTypes.object
   }
 
-  vaultsStore = Vaults.Store.get(this.context.api);
-
   state = {
     addressBook: false,
     newDialog: false,
@@ -331,10 +329,6 @@ class Accounts extends Component {
   }
 
   onNewAccountUpdate = () => {
-  }
-
-  onVaultsClick = () => {
-    this.vaultsStore.openModal();
   }
 }
 

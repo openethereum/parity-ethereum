@@ -22,19 +22,19 @@ import { Button, Input, Portal } from '~/ui';
 import PasswordStrength from '~/ui/Form/PasswordStrength';
 import { CheckIcon } from '~/ui/Icons';
 
-import styles from './create.css';
+import styles from './vaultCreate.css';
 
 @observer
-export default class Create extends Component {
+export default class VaultCreate extends Component {
   static propTypes = {
     store: PropTypes.object.isRequired
   }
 
   render () {
-    const { createName, createNameError, createPassword, createPasswordHint, createPasswordRepeat, createPasswordRepeatError, isOpenAdd } = this.props.store;
+    const { createName, createNameError, createPassword, createPasswordHint, createPasswordRepeat, createPasswordRepeatError, isModalCreateOpen } = this.props.store;
     const hasError = !!createNameError || !!createPasswordRepeatError;
 
-    if (!isOpenAdd) {
+    if (!isModalCreateOpen) {
       return null;
     }
 
@@ -53,7 +53,6 @@ export default class Create extends Component {
             onClick={ this.onClickCreate }
           />
         }
-        isChildModal
         onClose={ this.onClose }
         open
         title={
@@ -172,6 +171,6 @@ export default class Create extends Component {
   }
 
   onClose = () => {
-    this.props.store.closeAdd();
+    this.props.store.closeCreateModal();
   }
 }

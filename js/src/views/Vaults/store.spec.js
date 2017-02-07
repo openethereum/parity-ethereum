@@ -34,24 +34,6 @@ describe('modals/Vaults/Store', () => {
   });
 
   describe('@action', () => {
-    describe('setListAll', () => {
-      it('sets the list of all available', () => {
-        const LIST = ['testing'];
-
-        store.setListAll(LIST);
-        expect(store.listAll.peek()).to.deep.equal(LIST);
-      });
-    });
-
-    describe('setListOpened', () => {
-      it('sets the list of all opened', () => {
-        const LIST = ['testing'];
-
-        store.setListOpened(LIST);
-        expect(store.listOpened.peek()).to.deep.equal(LIST);
-      });
-    });
-
     describe('setOpenAdd', () => {
       it('sets the isOpenAdd state', () => {
         store.setOpenAdd('testing');
@@ -61,24 +43,24 @@ describe('modals/Vaults/Store', () => {
   });
 
   describe('operations', () => {
-    describe('closeAdd', () => {
+    describe('closeCreateModal', () => {
       beforeEach(() => {
-        store.setOpenAdd(true);
-        store.closeAdd();
+        store.setModalCreateOpen(true);
+        store.closeCreateModal();
       });
 
       it('sets the opened state to false', () => {
-        expect(store.isOpenAdd).to.be.false;
+        expect(store.isModalCreateOpen).to.be.false;
       });
     });
 
-    describe('openAdd', () => {
+    describe('openCreateModal', () => {
       beforeEach(() => {
-        store.openAdd();
+        store.openCreateModal();
       });
 
       it('sets the opened state to true', () => {
-        expect(store.isOpenAdd).to.be.true;
+        expect(store.isModalCreateOpen).to.be.true;
       });
     });
 
@@ -92,7 +74,7 @@ describe('modals/Vaults/Store', () => {
       });
 
       it('sets the available vaults', () => {
-        expect(store.listAll.peek()).to.deep.equal(TEST_VAULTS_ALL);
+        expect(store.vaultNames.peek()).to.deep.equal(TEST_VAULTS_ALL);
       });
 
       it('calls parity_listOpenedVaults', () => {
