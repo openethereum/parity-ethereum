@@ -60,9 +60,27 @@ describe('modals/Vaults/Store', () => {
         expect(store.isOpen).to.equal('testing');
       });
     });
+
+    describe('setOpenAdd', () => {
+      it('sets the isOpenAdd state', () => {
+        store.setOpenAdd('testing');
+        expect(store.isOpenAdd).to.equal('testing');
+      });
+    });
   });
 
   describe('operations', () => {
+    describe('closeAdd', () => {
+      beforeEach(() => {
+        store.setOpenAdd(true);
+        store.closeAdd();
+      });
+
+      it('sets the opened state to false', () => {
+        expect(store.isOpenAdd).to.be.false;
+      });
+    });
+
     describe('closeModal', () => {
       beforeEach(() => {
         store.setOpen(true);
@@ -71,6 +89,16 @@ describe('modals/Vaults/Store', () => {
 
       it('sets the opened state to false', () => {
         expect(store.isOpen).to.be.false;
+      });
+    });
+
+    describe('openAdd', () => {
+      beforeEach(() => {
+        store.openAdd();
+      });
+
+      it('sets the opened state to true', () => {
+        expect(store.isOpenAdd).to.be.true;
       });
     });
 

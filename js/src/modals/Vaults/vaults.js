@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import { snakeCase } from 'lodash';
 import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
@@ -21,6 +22,7 @@ import { FormattedMessage } from 'react-intl';
 import { Portal } from '~/ui';
 import { AddCircleIcon } from '~/ui/Icons';
 
+import VaultAdd from './VaultAdd';
 import Store from './store';
 import styles from './vaults.css';
 
@@ -35,7 +37,9 @@ export default class Vaults extends Component {
   store = Store.get(this.context.api);
 
   render () {
-    if (!this.store.isOpen) {
+    const { isOpen, listAll, listOpened } = this.store;
+
+    if (!isOpen) {
       return null;
     }
 
@@ -51,69 +55,88 @@ export default class Vaults extends Component {
         }
       >
         <div className={ styles.layout }>
-          { this.renderAvailableList() }
-          { this.renderOpenedList() }
+          <VaultAdd store={ this.store } />
+          {
+            this.renderList(
+              listAll,
+              (
+                <FormattedMessage
+                  id='vaults.listAll.empty'
+                  defaultMessage='No vaults have been created'
+                />
+              ),
+              true
+            )
+          }
+          {
+            this.renderList(
+              listOpened,
+              (
+                <FormattedMessage
+                  id='vaults.listOpened.empty'
+                  defaultMessage='No vaults have been opened'
+                />
+              ),
+              false
+            )
+          }
         </div>
       </Portal>
     );
   }
 
-  renderAvailableList () {
-    const { listAll } = this.store;
-    let items;
-
-    if (!listAll || !listAll.length) {
-      items = (
-        <div className={ [styles.item, styles.empty].join(' ') }>
-          <FormattedMessage
-            id='vaults.listAll.empty'
-            defaultMessage='No vaults have been created'
-          />
-        </div>
-      );
-    } else {
-      items = listAll;
-    }
-
+  renderList (list, emptyMessage, withAdd = false) {
     return (
       <div className={ styles.list }>
-        <div className={ styles.item }>
-          <AddCircleIcon />
-        </div>
-        { items }
+        {
+          withAdd
+            ? (
+              <div className={ styles.item }>
+                <div
+                  className={ styles.content }
+                  onClick={ this.onAddVault }
+                >
+                  <AddCircleIcon className={ styles.iconAdd } />
+                </div>
+              </div>
+            )
+            : null
+        }
+        { this.renderListItems(list, emptyMessage) }
       </div>
     );
   }
 
-  renderOpenedList () {
-    const { listOpened } = this.store;
-    let items;
-
-    if (!listOpened || !listOpened.length) {
-      items = (
+  renderListItems (list, emptyMessage) {
+    if (!list || !list.length) {
+      return (
         <div className={ styles.item }>
           <div className={ styles.empty }>
-            <FormattedMessage
-              id='vaults.listOpened.empty'
-              defaultMessage='No vaults have been opened'
-            />
+            { emptyMessage }
           </div>
         </div>
       );
-    } else {
-      items = listOpened;
     }
 
-    return (
-      <div className={ [styles.list, styles.reverse].join(' ') }>
-        <div className={ styles.item }>
+    return list.map((name, index) => {
+      return (
+        <div
+          className={ styles.item }
+          key={ `${snakeCase(name)}_${index}` }
+        >
           <div className={ styles.content }>
-            <AddCircleIcon />
+            <div className={ styles.name }>
+              { name }
+            </div>
           </div>
         </div>
-        { items }
-      </div>
-    );
+      );
+    });
+  }
+
+  onAddVault = () => {
+    console.log('opening!');
+    this.store.openAdd();
   }
 
   onClose = () => {

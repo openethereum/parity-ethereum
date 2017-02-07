@@ -20,6 +20,7 @@ let instance;
 
 export default class Store {
   @observable isOpen = false;
+  @observable isOpenAdd = false;
   @observable listAll = [];
   @observable listOpened = [];
 
@@ -39,8 +40,20 @@ export default class Store {
     this.isOpen = isOpen;
   }
 
+  @action setOpenAdd = (isOpenAdd) => {
+    this.isOpenAdd = isOpenAdd;
+  }
+
+  closeAdd () {
+    this.setOpenAdd(false);
+  }
+
   closeModal () {
     this.setOpen(false);
+  }
+
+  openAdd () {
+    this.setOpenAdd(true);
   }
 
   openModal () {
