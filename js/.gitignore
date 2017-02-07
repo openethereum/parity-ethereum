@@ -8,3 +8,6 @@ docs
 .happypack
 .npmjs
 .eslintcache
+
+npm/*/src
+npm/*/dist
