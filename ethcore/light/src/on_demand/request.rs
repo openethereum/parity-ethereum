@@ -37,7 +37,7 @@ pub enum Error {
 	BadProof,
 	/// Wrong header number.
 	WrongNumber(u64, u64),
-	/// Wrong header hash.
+	/// Wrong hash.
 	WrongHash(H256, H256),
 	/// Wrong trie root.
 	WrongTrieRoot(H256, H256),
@@ -188,6 +188,28 @@ impl Account {
 	}
 }
 
+/// Request for account code.
+pub struct Code {
+	/// Block hash, number pair.
+	pub block_id: (H256, u64),
+	/// Address requested.
+	pub address: Address,
+	/// Account's code hash.
+	pub code_hash: H256,
+}
+
+impl Code {
+	/// Check a response with code against the code hash.
+	pub fn check_response(&self, code: &[u8]) -> Result<(), Error> {
+		let found_hash = code.sha3();
+		if found_hash == self.code_hash {
+			Ok(())
+		} else {
+			Err(Error::WrongHash(self.code_hash, found_hash))
+		}
+	}
+}
+
 #[cfg(test)]
 mod tests {
 	use super::*;
@@ -327,5 +349,18 @@ mod tests {
 		};
 
 		assert!(req.check_response(&proof[..]).is_ok());
+	}
+
+	#[test]
+	fn check_code() {
+		let code = vec![1u8; 256];
+		let req = Code {
+			block_id: (Default::default(), 2),
+			address: Default::default(),
+			code_hash: ::util::Hashable::sha3(&code),
+		};
+
+		assert!(req.check_response(&code).is_ok());
+		assert!(req.check_response(&[]).is_err());
 	}
 }

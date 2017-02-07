@@ -86,6 +86,7 @@ enum Pending {
 	Block(request::Body, Sender<encoded::Block>),
 	BlockReceipts(request::BlockReceipts, Sender<Vec<Receipt>>),
 	Account(request::Account, Sender<BasicAccount>),
+	Code(request::Code, Sender<Bytes>),
 }
 
 /// On demand request service. See module docs for more details.
@@ -340,6 +341,52 @@ impl OnDemand {
 		trace!(target: "on_demand", "No suitable peer for request");
 		sender.complete(Err(Error::NoPeersAvailable));
 	}
+
+	/// Request code by address, known code hash, and block header.
+	pub fn code(&self, ctx: &BasicContext, req: request::Code) -> Response<Bytes> {
+		let (sender, receiver) = oneshot::channel();
+
+		// fast path for no code.
+		if req.code_hash == ::util::sha3::SHA3_EMPTY {
+			sender.complete(Ok(Vec::new()))
+		} else {
+			self.dispatch_code(ctx, req, sender);
+		}
+
+		Response(receiver)
+	}
+
+	fn dispatch_code(&self, ctx: &BasicContext, req: request::Code, sender: Sender<Bytes>) {
+		let num = req.block_id.1;
+		let les_req = LesRequest::Codes(les_request::ContractCodes {
+			code_requests: vec![les_request::ContractCode {
+				block_hash: req.block_id.0,
+				account_key: ::util::Hashable::sha3(&req.address),
+			}]
+		});
+
+		// we're looking for a peer with serveStateSince(num)
+		for (id, peer) in self.peers.read().iter() {
+			if peer.capabilities.serve_state_since.as_ref().map_or(false, |x| *x >= num) {
+				match ctx.request_from(*id, les_req.clone()) {
+					Ok(req_id) => {
+						trace!(target: "on_demand", "Assigning request to peer {}", id);
+						self.pending_requests.write().insert(
+							req_id,
+							Pending::Code(req, sender)
+						);
+						return
+					}
+					Err(e) =>
+						trace!(target: "on_demand", "Failed to make request of peer {}: {:?}", id, e),
+				}
+			}
+		}
+
+		// TODO: retrying.
+		trace!(target: "on_demand", "No suitable peer for request");
+		sender.complete(Err(Error::NoPeersAvailable));
+	}
 }
 
 impl Handler for OnDemand {
@@ -365,6 +412,8 @@ impl Handler for OnDemand {
 						=> self.dispatch_block_receipts(ctx, req, sender),
 					Pending::Account(req, sender)
 						=> self.dispatch_account(ctx, req, sender),
+					Pending::Code(req, sender)
+						=> self.dispatch_code(ctx, req, sender),
 				}
 			}
 		}
@@ -515,6 +564,34 @@ impl Handler for OnDemand {
 				self.dispatch_account(ctx.as_basic(), req, sender);
 			}
 			_ => panic!("Only account request fetches state proof; qed"),
+		}
+	}
+
+	fn on_code(&self, ctx: &EventContext, req_id: ReqId, codes: &[Bytes]) {
+		let peer = ctx.peer();
+		let req = match self.pending_requests.write().remove(&req_id) {
+			Some(req) => req,
+			None => return,
+		};
+
+		match req {
+			Pending::Code(req, sender) => {
+				if let Some(code) = codes.get(0) {
+					match req.check_response(code.as_slice()) {
+						Ok(()) => {
+							sender.complete(Ok(code.clone()));
+							return
+						}
+						Err(e) => {
+							warn!("Error handling response for code request: {:?}", e);
+							ctx.disable_peer(peer);
+						}
+					}
+
+					self.dispatch_code(ctx.as_basic(), req, sender);
+				}
+			}
+			_ => panic!("Only code request fetches code; qed"),
 		}
 	}
 }
