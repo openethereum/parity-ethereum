@@ -43,8 +43,6 @@ pub enum Error {
 	Canceled,
 	/// No suitable peers available to serve the request.
 	NoPeersAvailable,
-	/// Invalid request.
-	InvalidRequest,
 	/// Request timed out.
 	TimedOut,
 }
@@ -95,6 +93,7 @@ enum Pending {
 pub struct OnDemand {
 	peers: RwLock<HashMap<PeerId, Peer>>,
 	pending_requests: RwLock<HashMap<ReqId, Pending>>,
+	orphaned_requests: RwLock<Vec<Pending>>,
 }
 
 impl Default for OnDemand {
@@ -102,6 +101,7 @@ impl Default for OnDemand {
 		OnDemand {
 			peers: RwLock::new(HashMap::new()),
 			pending_requests: RwLock::new(HashMap::new()),
+			orphaned_requests: RwLock::new(Vec::new()),
 		}
 	}
 }
@@ -117,20 +117,13 @@ impl OnDemand {
 
 	// dispatch the request, completing the request if no peers available.
 	fn dispatch_header_by_number(&self, ctx: &BasicContext, req: request::HeaderByNumber, sender: Sender<(encoded::Header, U256)>) {
-		let num = req.num;
-		let cht_num = match ::cht::block_to_cht_number(req.num) {
-			Some(cht_num) => cht_num,
-			None => {
-				warn!(target: "on_demand", "Attempted to dispatch invalid header proof: req.num == 0");
-				sender.complete(Err(Error::InvalidRequest));
-				return;
-			}
-		};
+		let num = req.num();
+		let cht_num = req.cht_num();
 
 		let les_req = LesRequest::HeaderProofs(les_request::HeaderProofs {
 			requests: vec![les_request::HeaderProof {
 				cht_number: cht_num,
-				block_number: req.num,
+				block_number: num,
 				from_level: 0,
 			}],
 		});

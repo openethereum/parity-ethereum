@@ -59,12 +59,33 @@ impl From<Box<TrieError>> for Error {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct HeaderByNumber {
 	/// The header's number.
-	pub num: u64,
+	num: u64,
+	/// The cht number for the given block number.
+	cht_num: u64,
 	/// The root of the CHT containing this header.
-	pub cht_root: H256,
+	cht_root: H256,
 }
 
 impl HeaderByNumber {
+	/// Construct a new header-by-number request. Fails if the given number is 0.
+	/// Provide the expected CHT root to compare against.
+	pub fn new(num: u64, cht_root: H256) -> Option<Self> {
+		::cht::block_to_cht_number(num).map(|cht_num| HeaderByNumber {
+			num: num,
+			cht_num: cht_num,
+			cht_root: cht_root,
+		})
+	}
+
+	/// Access the requested block number.
+	pub fn num(&self) -> u64 { self.num }
+
+	/// Access the CHT number.
+	pub fn cht_num(&self) -> u64 { self.cht_num }
+
+	/// Access the expected CHT root.
+	pub fn cht_root(&self) -> H256 { self.cht_root }
+
 	/// Check a response with a header and cht proof.
 	pub fn check_response(&self, header: &[u8], proof: &[Bytes]) -> Result<(encoded::Header, U256), Error> {
 		let (expected_hash, td) = match ::cht::check_proof(proof, self.num, self.cht_root) {
@@ -223,6 +244,11 @@ mod tests {
 	use ethcore::receipt::Receipt;
 
 	#[test]
+	fn no_invalid_header_by_number() {
+		assert!(HeaderByNumber::new(0, Default::default()).is_none())
+	}
+
+	#[test]
 	fn check_header_by_number() {
 		use ::cht;
 
@@ -244,10 +270,7 @@ mod tests {
 		};
 
 		let proof = cht.prove(10_000, 0).unwrap().unwrap();
-		let req = HeaderByNumber {
-			num: 10_000,
-			cht_root: cht.root(),
-		};
+		let req = HeaderByNumber::new(10_000, cht.root()).unwrap();
 
 		let raw_header = test_client.block_header(::ethcore::ids::BlockId::Number(10_000)).unwrap();
 
