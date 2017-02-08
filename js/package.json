@@ -39,7 +39,7 @@
     "ci:build:jsonrpc": "babel-node ./scripts/build-rpc-json.js > npm/jsonrpc/index.json",
     "start": "npm install && npm run build:lib && npm run build:dll && npm run start:app",
     "start:app": "node webpack/dev.server",
-    "clean": "rm -rf ./.build ./.coverage ./.happypack ./npm/*/src/*/** ./npm/*/dist/*/** ./build",
+    "clean": "rm -rf ./.build ./.coverage ./.happypack ./npm/*/src/** ./npm/*/dist/** ./build",
     "coveralls": "npm run testCoverage && coveralls < coverage/lcov.info",
     "lint": "npm run lint:css && npm run lint:js",
     "lint:cached": "npm run lint:css && npm run lint:js:cached",
