@@ -57,7 +57,7 @@ git remote set-url origin $GIT_PARITY
 git reset --hard origin/$BRANCH 2>$GITLOG
 
 if [ "$BRANCH" == "master" ]; then
-  cd js
+  pushd .; cd js
 
   echo "*** Bumping package.json patch version"
   npm --no-git-tag-version version
@@ -67,49 +67,29 @@ if [ "$BRANCH" == "master" ]; then
 
   echo "$NPM_TOKEN" >> ~/.npmrc
 
-  echo "*** Building jsonrpc for NPM"
-  npm run ci:build:jsonrpc
-  cp -r src/jsonrpc npm/jsonrpc/src
-  env LIBRARY=jsonrpc npm run ci:build:npm
+  bash ./prepare-npm-libraries.sh
 
   pushd .; cd npm/jsonrpc
-  npm test
   npm version $VERSION
   npm publish --access public || true
   popd
-
-  echo "*** Building parity.js for NPM"
-  cp -r src/abi npm/parity/src/abi
-  cp -r src/api npm/parity/src/api
-  env LIBRARY=parity npm run ci:build:npm
 
   pushd .; cd npm/parity
-  npm test
   npm version $VERSION
   npm publish --access public || true
   popd
-
-  echo "*** Building etherscan for NPM"
-  cp -r src/3rdparty/etherscan npm/etherscan/src
-  env LIBRARY=etherscan npm run ci:build:npm
 
   pushd .; cd npm/etherscan
-  npm test
   npm version $VERSION
   npm publish --access public || true
   popd
-
-  echo "*** Building shapeshift for NPM"
-  cp -r src/3rdparty/shapeshift npm/shapeshift/src
-  env LIBRARY=shapeshift npm run ci:build:npm
 
   pushd .; cd npm/shapeshift
-  npm test
   npm version $VERSION
   npm publish --access public || true
   popd
 
-  cd ..
+  popd
 fi
 
 echo "*** Updating cargo parity-ui-precompiled#$PRECOMPILED_HASH"
