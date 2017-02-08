@@ -313,7 +313,7 @@ fn rpc_eth_sign() {
 		],
 		"id": 1
 	}"#;
-	let res = r#"{"jsonrpc":"2.0","result":"0x1b5100b2be0aafd86271c8f49891262920bfbfeaeccb2ef1d0b2053aefc3ddb399483eb3c902ecf4add3156461a61f59e924a65eb5e6cdbab0a158d45db5f87cdf","id":1}"#;
+	let res = r#"{"jsonrpc":"2.0","result":"0x1ba2870db1d0c26ef93c7b72d2a0830fa6b841e0593f7186bc6c7cc317af8cf3a42fda03bd589a49949aa05db83300cdb553116274518dbe9d90c65d0213f4af49","id":1}"#;
 
 	assert_eq!(tester.io.handle_request_sync(&req), Some(res.into()));
 }

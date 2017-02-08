@@ -249,8 +249,12 @@ pub fn execute<D: Dispatcher + 'static>(
 					.map(ConfirmationResponse::SignTransaction)
 				).boxed()
 		},
-		ConfirmationPayload::Signature(address, data) => {
-			let res = signature(accounts, address, data.sha3(), pass)
+		ConfirmationPayload::Signature(address, mut data) => {
+			let mut message_data =
+				format!("\x19Ethereum Signed Message:\n{}", data.len())
+				.into_bytes();
+			message_data.append(&mut data);
+			let res = signature(accounts, address, message_data.sha3(), pass)
 				.map(|result| result
 					.map(|rsv| {
 						let mut vrs = [0u8; 65];

@@ -212,7 +212,7 @@ fn should_sign_if_account_is_unlocked() {
 		],
 		"id": 1
 	}"#;
-	let response = r#"{"jsonrpc":"2.0","result":"0x1bb3062482b0687e9c97c7609ea60c1649959dbb334f71b3d5cacd496e0848ba8137bc765756627722389c6c39bc77700ccdc8916916a0eb03bcf5191d4f74dc65","id":1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":"0x1bdb53b32e56cf3e9735377b7664d6de5a03e125b1bf8ec55715d253668b4238503b4ac931fe6af90add73e72a585e952665376b2b9afc5b6b239b7df74c734e12","id":1}"#;
 	assert_eq!(tester.io.handle_request_sync(&request), Some(response.to_owned()));
 	assert_eq!(tester.signer.requests().len(), 0);
 }
