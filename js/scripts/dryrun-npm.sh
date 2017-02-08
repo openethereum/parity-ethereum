@@ -22,7 +22,7 @@ cp -r src/abi npm/parity/src/abi
 cp -r src/api npm/parity/src/api
 env LIBRARY=parity npm run ci:build:npm
 
-pushd .; cd npm/jsonrpc
+pushd .; cd npm/parity
 npm test
 popd
 
@@ -30,7 +30,7 @@ echo "*** Building etherscan for NPM"
 cp -r src/3rdparty/etherscan npm/etherscan/src
 env LIBRARY=etherscan npm run ci:build:npm
 
-pushd .; cd npm/jsonrpc
+pushd .; cd npm/etherscan
 npm test
 popd
 
@@ -38,7 +38,7 @@ echo "*** Building shapeshift for NPM"
 cp -r src/3rdparty/shapeshift npm/shapeshift/src
 env LIBRARY=shapeshift npm run ci:build:npm
 
-pushd .; cd npm/jsonrpc
+pushd .; cd npm/shapeshift
 npm test
 popd
 
