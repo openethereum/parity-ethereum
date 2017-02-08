@@ -16,6 +16,9 @@
 
 //! Eth RPC interface for the light client.
 
+// TODO: remove when complete.
+#![allow(unused_imports, unused_variables)]
+
 use std::sync::Arc;
 
 use jsonrpc_core::Error;

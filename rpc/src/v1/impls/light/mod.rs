@@ -16,4 +16,6 @@
 
 //! RPC implementations for the light client.
 
-mod eth;
+pub mod eth;
+
+pub use self::eth::EthClient;
