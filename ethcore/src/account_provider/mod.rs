@@ -493,6 +493,18 @@ impl AccountProvider {
 			.map_err(Into::into)
 			.map(|_| ())
 	}
+
+	/// Get vault metadata string.
+	pub fn get_vault_meta(&self, name: &str) -> Result<String, Error> {
+		self.sstore.get_vault_meta(name)
+			.map_err(Into::into)
+	}
+
+	/// Set vault metadata string.
+	pub fn set_vault_meta(&self, name: &str, meta: &str) -> Result<(), Error> {
+		self.sstore.set_vault_meta(name, meta)
+			.map_err(Into::into)
+	}
 }
 
 #[cfg(test)]

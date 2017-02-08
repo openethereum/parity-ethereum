@@ -84,6 +84,10 @@ pub trait VaultKeyDirectory: KeyDirectory {
 	fn key(&self) -> VaultKey;
 	/// Set new key for vault
 	fn set_key(&self, key: VaultKey) -> Result<(), SetKeyError>;
+	/// Get vault meta
+	fn meta(&self) -> String;
+	/// Set vault meta
+	fn set_meta(&self, meta: &str) -> Result<(), Error>;
 }
 
 pub use self::disk::RootDiskDirectory;
