@@ -27,7 +27,7 @@ use jsonrpc_core::Error;
 use v1::helpers::{
 	errors,
 	DefaultAccount,
-	SigningQueue, ConfirmationPromise, ConfirmationResult, ConfirmationPayload, SignerService
+	SigningQueue, ConfirmationPromise, ConfirmationResult, SignerService
 };
 use v1::helpers::dispatch::{self, Dispatcher};
 use v1::metadata::Metadata;
