@@ -23,14 +23,24 @@ import styles from '../vaults.css';
 export default class NameLayout extends Component {
   static propTypes = {
     isOpen: PropTypes.bool.isRequired,
-    name: PropTypes.string.isRequired
+    name: PropTypes.string.isRequired,
+    withBorder: PropTypes.bool
   };
 
   render () {
-    const { isOpen, name } = this.props;
+    const { isOpen, name, withBorder } = this.props;
 
     return (
-      <div className={ styles.namebox }>
+      <div
+        className={
+          [
+            styles.namebox,
+            withBorder
+              ? styles.border
+              : null
+          ].join(' ')
+        }
+      >
         <IdentityIcon
           address={ name }
           center

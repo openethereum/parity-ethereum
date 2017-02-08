@@ -17,20 +17,24 @@
 import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
+import { connect } from 'react-redux';
+import { bindActionCreators } from 'redux';
 
+import { newError } from '~/redux/actions';
 import { ConfirmDialog, Input } from '~/ui';
 
 import NameLayout from '../NameLayout';
 import styles from '../vaults.css';
 
 @observer
-export default class ConfirmOpen extends Component {
+class ConfirmOpen extends Component {
   static propTypes = {
-    store: PropTypes.object.isRequired
+    newError: PropTypes.func.isRequired,
+    vaultStore: PropTypes.object.isRequired
   }
 
   render () {
-    const { isBusyOpen, isModalOpenOpen, vaultName, vaultPassword } = this.props.store;
+    const { isBusyOpen, isModalOpenOpen, vaultName, vaultPassword } = this.props.vaultStore;
 
     if (!isModalOpenOpen) {
       return null;
@@ -58,41 +62,56 @@ export default class ConfirmOpen extends Component {
         <NameLayout
           isOpen
           name={ vaultName }
+          withBorder
         />
-        <div className={ styles.inputbox }>
-          <Input
-            hint={
-              <FormattedMessage
-                id='vaults.confirmOpen.password.hint'
-                defaultMessage='the password specified when creating the vault'
-              />
-            }
-            label={
-              <FormattedMessage
-                id='vaults.confirmOpen.password.label'
-                defaultMessage='vault unlock password'
-              />
-            }
-            onChange={ this.onEditPassword }
-            type='password'
-            value={ vaultPassword }
-          />
-        </div>
+        <Input
+          hint={
+            <FormattedMessage
+              id='vaults.confirmOpen.password.hint'
+              defaultMessage='the password specified when creating the vault'
+            />
+          }
+          label={
+            <FormattedMessage
+              id='vaults.confirmOpen.password.label'
+              defaultMessage='vault password'
+            />
+          }
+          onChange={ this.onEditPassword }
+          type='password'
+          value={ vaultPassword }
+        />
+        <br />
       </ConfirmDialog>
     );
   }
 
   onEditPassword = (event, password) => {
-    this.props.store.setVaultPassword(password);
+    this.props.vaultStore.setVaultPassword(password);
   }
 
   onClose = () => {
-    this.props.store.closeOpenModal();
+    this.props.vaultStore.closeOpenModal();
   }
 
   onExecute = () => {
-    return this.props.store
+    return this.props.vaultStore
       .openVault()
-      .then(this.onClose);
+      .then(this.onClose)
+      .catch((error) => {
+        this.props.newError(error);
+        this.onClose();
+      });
   }
 }
+
+function mapDispatchToProps (dispatch) {
+  return bindActionCreators({
+    newError
+  }, dispatch);
+}
+
+export default connect(
+  null,
+  mapDispatchToProps
+)(ConfirmOpen);

@@ -17,10 +17,11 @@
 import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
+import { connect } from 'react-redux';
 
-import { VaultCreate } from '~/modals';
-import { Button, Container, Page, SectionList } from '~/ui';
-import { AddIcon, LockedIcon, UnlockedIcon } from '~/ui/Icons';
+import { VaultAccounts, VaultCreate } from '~/modals';
+import { Button, Container, IdentityIcon, Page, SectionList } from '~/ui';
+import { AccountsIcon, AddIcon, LockedIcon, UnlockedIcon } from '~/ui/Icons';
 
 import ConfirmClose from './ConfirmClose';
 import ConfirmOpen from './ConfirmOpen';
@@ -29,27 +30,32 @@ import Store from './store';
 import styles from './vaults.css';
 
 @observer
-export default class Vaults extends Component {
+class Vaults extends Component {
   static contextTypes = {
     api: PropTypes.object.isRequired
   };
 
+  static propTypes = {
+    accounts: PropTypes.object.isRequired
+  };
+
   static Store = Store;
 
-  store = Store.get(this.context.api);
+  vaultStore = Store.get(this.context.api);
 
   componentWillMount () {
-    return this.store.loadVaults();
+    return this.vaultStore.loadVaults();
   }
 
   render () {
-    const { vaults } = this.store;
+    const { vaults } = this.vaultStore;
 
     return (
       <Page
         buttons={ [
           <Button
             icon={ <AddIcon /> }
+            key='create'
             label={
               <FormattedMessage
                 id='vaults.button.add'
@@ -66,70 +72,142 @@ export default class Vaults extends Component {
           />
         }
       >
-        <ConfirmClose store={ this.store } />
-        <ConfirmOpen store={ this.store } />
-        <VaultCreate store={ this.store } />
+        <ConfirmClose vaultStore={ this.vaultStore } />
+        <ConfirmOpen vaultStore={ this.vaultStore } />
+        <VaultAccounts vaultStore={ this.vaultStore } />
+        <VaultCreate vaultStore={ this.vaultStore } />
         <SectionList
           items={ vaults }
-          renderItem={ this.renderItem }
+          renderItem={ this.renderVault }
         />
       </Page>
     );
   }
 
-  renderItem = (item) => {
-    const onClickOpen = () => this.onOpenVault(item.name);
-    const onClickClose = () => this.onCloseVault(item.name);
+  renderVault = (vault) => {
+    const onClickAccounts = () => {
+      this.onOpenAccounts(vault.name);
+      return false;
+    };
+    const onClickOpen = () => {
+      vault.isOpen
+        ? this.onCloseVault(vault.name)
+        : this.onOpenVault(vault.name);
+      return false;
+    };
 
     return (
       <Container
         className={ styles.container }
-        hover={
-          <div className={ styles.buttonRow }>
-            {
-              item.isOpen
-                ? (
-                  <Button
-                    icon={ <LockedIcon /> }
-                    label={
-                      <FormattedMessage
-                        id='vaults.item.button.close'
-                        defaultMessage='close vault'
-                      />
-                    }
-                    onClick={ onClickClose }
-                  />
-                )
-                : (
-                  <Button
-                    icon={ <UnlockedIcon /> }
-                    label={
-                      <FormattedMessage
-                        id='vaults.item.button.open'
-                        defaultMessage='open vault'
-                      />
-                    }
-                    onClick={ onClickOpen }
-                  />
-                )
-            }
-          </div>
-        }
+        hover={ this.renderVaultAccounts(vault) }
       >
-        <NameLayout { ...item } />
+        <NameLayout { ...vault } />
+        {
+          vault.isOpen
+            ? <UnlockedIcon className={ styles.statusIcon } />
+            : <LockedIcon className={ styles.statusIcon } />
+        }
+        <div className={ styles.buttonRow }>
+          <Button
+            icon={ <AccountsIcon /> }
+            label={
+              <FormattedMessage
+                id='vaults.button.accounts'
+                defaultMessage='accounts'
+              />
+            }
+            onClick={ onClickAccounts }
+          />
+          {
+            vault.isOpen
+              ? (
+                <Button
+                  icon={ <LockedIcon /> }
+                  label={
+                    <FormattedMessage
+                      id='vaults.button.close'
+                      defaultMessage='close vault'
+                    />
+                  }
+                  onClick={ onClickOpen }
+                />
+              )
+              : (
+                <Button
+                  icon={ <UnlockedIcon /> }
+                  label={
+                    <FormattedMessage
+                      id='vaults.button.open'
+                      defaultMessage='open vault'
+                    />
+                  }
+                  onClick={ onClickOpen }
+                />
+              )
+          }
+        </div>
       </Container>
     );
   }
 
+  renderVaultAccounts = (vault) => {
+    const { accounts } = this.props;
+    const vaultAccounts = Object
+      .keys(accounts)
+      .filter((address) => accounts[address].uuid && accounts[address].vault === vault.name);
+
+    if (!vaultAccounts.length) {
+      return (
+        <div className={ styles.empty }>
+          <FormattedMessage
+            id='vaults.accounts.empty'
+            defaultMessage='There are no accounts in this vault'
+          />
+        </div>
+      );
+    }
+
+    return (
+      <div className={ styles.accounts }>
+        {
+          vaultAccounts.map((address) => {
+            return (
+              <IdentityIcon
+                address={ address }
+                className={ styles.account }
+                key={ address }
+              />
+            );
+          })
+        }
+      </div>
+    );
+  }
+
   onCloseVault = (name) => {
-    this.store.openCloseModal(name);
+    this.vaultStore.openCloseModal(name);
+  }
+
+  onOpenAccounts = (name) => {
+    this.vaultStore.openAccountsModal(name);
   }
 
   onOpenCreate = () => {
-    this.store.openCreateModal();
+    this.vaultStore.openCreateModal();
   }
 
   onOpenVault = (name) => {
-    this.store.openOpenModal(name);
+    this.vaultStore.openOpenModal(name);
   }
 }
+
+function mapStateToProps (state) {
+  const { accounts } = state.personal;
+
+  return { accounts };
+}
+
+export default connect(
+  mapStateToProps,
+  null
+)(Vaults);

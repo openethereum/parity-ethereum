@@ -15,27 +15,49 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-/* TODO: Surely this color adjustment is something that we do elsewhere, e.g. toolbar */
-.buttonRow {
-  padding-top: 1em;
-  text-align: right;
+.accounts {
+  display: flex;
+  justify-content: center;
+  margin-top: 1.5em;
 
-  button {
-    color: white !important;
-  }
-
-  svg {
-    fill: white !important;
+  .account {
   }
 }
 
 .container {
-  cursor: default;
   text-align: center;
+
+  .statusIcon {
+    opacity: 0.75;
+    position: absolute;
+    right: 1em;
+    top: 1em;
+  }
+
+  .buttonRow {
+    display: none;
+    position: absolute;
+    right: 1em;
+    text-align: right;
+    top: 1em;
+    z-index: 1;
+  }
+
+  &:hover {
+    .buttonRow {
+      display: block;
+    }
+
+    .statusIcon {
+      display: none !important;
+    }
+  }
 }
 
-.inputbox {
+.empty {
   margin-top: 1.5em;
+  opacity: 0.5;
+  text-align: center;
 }
 
 .name {
@@ -47,13 +69,20 @@
 }
 
 .namebox {
+  padding-top: 0.75em;
+
   .identityIcon {
     margin: 0;
 
     &.locked {
       filter: grayscale(100%);
-      opacity: 0.5;
+      opacity: 0.33;
     }
+  }
+
+  &.border {
+    background: rgba(0, 0, 0, 0.25);
+    padding: 1em;
   }
 }
 

@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+export AccountsIcon from 'material-ui/svg-icons/action/account-balance-wallet';
 export AddIcon from 'material-ui/svg-icons/content/add';
 export AttachFileIcon from 'material-ui/svg-icons/editor/attach-file';
 export CancelIcon from 'material-ui/svg-icons/content/clear';

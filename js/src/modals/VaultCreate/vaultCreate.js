@@ -17,7 +17,10 @@
 import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
+import { connect } from 'react-redux';
+import { bindActionCreators } from 'redux';
 
+import { newError } from '~/redux/actions';
 import { Button, Input, Portal } from '~/ui';
 import PasswordStrength from '~/ui/Form/PasswordStrength';
 import { CheckIcon } from '~/ui/Icons';
@@ -25,13 +28,14 @@ import { CheckIcon } from '~/ui/Icons';
 import styles from './vaultCreate.css';
 
 @observer
-export default class VaultCreate extends Component {
+class VaultCreate extends Component {
   static propTypes = {
-    store: PropTypes.object.isRequired
+    newError: PropTypes.func.isRequired,
+    vaultStore: PropTypes.object.isRequired
   }
 
   render () {
-    const { createName, createNameError, createPassword, createPasswordHint, createPasswordRepeat, createPasswordRepeatError, isBusyCreate, isModalCreateOpen } = this.props.store;
+    const { createName, createNameError, createPassword, createPasswordHint, createPasswordRepeat, createPasswordRepeatError, isBusyCreate, isModalCreateOpen } = this.props.vaultStore;
     const hasError = !!createNameError || !!createPasswordRepeatError;
 
     if (!isModalCreateOpen) {
@@ -144,34 +148,49 @@ export default class VaultCreate extends Component {
   }
 
   onEditName = (event, name) => {
-    this.props.store.setCreateName(name);
+    this.props.vaultStore.setCreateName(name);
   }
 
   onEditPassword = (event, password) => {
-    this.props.store.setCreatePassword(password);
+    this.props.vaultStore.setCreatePassword(password);
   }
 
   onEditPasswordHint = (event, hint) => {
-    this.props.store.setCreatePasswordHint(hint);
+    this.props.vaultStore.setCreatePasswordHint(hint);
   }
 
   onEditPasswordRepeat = (event, password) => {
-    this.props.store.setCreatePasswordRepeat(password);
+    this.props.vaultStore.setCreatePasswordRepeat(password);
   }
 
   onClickCreate = () => {
-    const { createNameError, createPasswordRepeatError } = this.props.store;
+    const { createNameError, createPasswordRepeatError } = this.props.vaultStore;
 
     if (createNameError || createPasswordRepeatError) {
       return;
     }
 
-    return this.props.store
+    return this.props.vaultStore
       .createVault()
-      .then(this.onClose);
+      .then(this.onClose)
+      .catch((error) => {
+        this.props.newError(error);
+        this.onClose();
+      });
   }
 
   onClose = () => {
-    this.props.store.closeCreateModal();
+    this.props.vaultStore.closeCreateModal();
   }
 }
+
+function mapDispatchToProps (dispatch) {
+  return bindActionCreators({
+    newError
+  }, dispatch);
+}
+
+export default connect(
+  null,
+  mapDispatchToProps
+)(VaultCreate);

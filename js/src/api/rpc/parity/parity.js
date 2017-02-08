@@ -57,7 +57,7 @@ export default class Parity {
 
   changeVault (account, vaultName) {
     return this._transport
-      .execute('parity_changeVault', account, vaultName);
+      .execute('parity_changeVault', inAddress(account), vaultName);
   }
 
   changeVaultPassword (vaultName, password) {

@@ -21,66 +21,69 @@ import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
 import { newError } from '~/redux/actions';
-import { ConfirmDialog } from '~/ui';
-
-import NameLayout from '../NameLayout';
-import styles from '../vaults.css';
+import { Portal, SectionList } from '~/ui';
 
 @observer
-class ConfirmClose extends Component {
+class VaultAccounts extends Component {
   static propTypes = {
+    accounts: PropTypes.object.isRequired,
     newError: PropTypes.func.isRequired,
     vaultStore: PropTypes.object.isRequired
   }
 
   render () {
-    const { isBusyClose, isModalCloseOpen, vaultName } = this.props.vaultStore;
+    const { accounts } = this.props;
+    const { isModalAccountsOpen } = this.props.vaultStore;
 
-    if (!isModalCloseOpen) {
+    if (!isModalAccountsOpen) {
       return null;
     }
 
+    const vaultAccounts = Object
+      .keys(accounts)
+      .filter((address) => accounts[address].uuid)
+      .map((address) => accounts[address]);
+
     return (
-      <ConfirmDialog
-        disabledConfim={ isBusyClose }
-        onConfirm={ this.onExecute }
-        onDeny={ this.onClose }
+      <Portal
+        onClose={ this.onClose }
         open
         title={
           <FormattedMessage
-            id='vaults.confirmClose.title'
-            defaultMessage='Close Vault'
+            id='vaults.accounts.title'
+            defaultMessage='Manage Vault Accounts'
           />
         }
       >
-        <div className={ styles.textbox }>
-          <FormattedMessage
-            id='vaults.confirmClose.info'
-            defaultMessage="You are about to close a vault. Any accounts associated with the vault won't be visible after this operation concludes. To view the associated accounts, open the vault again."
-          />
-        </div>
-        <NameLayout
-          isOpen
-          name={ vaultName }
-          withBorder
+        <SectionList
+          items={ vaultAccounts }
+          renderItem={ this.renderAccount }
         />
-      </ConfirmDialog>
+      </Portal>
     );
   }
 
-  onExecute = () => {
-    return this.props.vaultStore
-      .closeVault()
-      .then(this.onClose)
-      .catch((error) => {
-        this.props.newError(error);
-        this.onClose();
-      });
+  renderAccount = (account) => {
+    // const { vaultName } = this.props.vaultStore;
+
+    return (
+      <div>{ account.address }</div>
+    );
   }
 
   onClose = () => {
-    this.props.vaultStore.closeCloseModal();
+    this.props.vaultStore.closeAccountsModal();
   }
+
+  onExecute = () => {
+    this.onClose();
+  }
+}
+
+function mapStateToProps (state) {
+  const { accounts } = state.personal;
+
+  return { accounts };
 }
 
 function mapDispatchToProps (dispatch) {
@@ -90,6 +93,6 @@ function mapDispatchToProps (dispatch) {
 }
 
 export default connect(
-  null,
+  mapStateToProps,
   mapDispatchToProps
-)(ConfirmClose);
+)(VaultAccounts);

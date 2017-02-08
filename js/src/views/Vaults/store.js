@@ -28,10 +28,12 @@ export default class Store {
   @observable createPassword = '';
   @observable createPasswordHint = '';
   @observable createPasswordRepeat = '';
+  @observable isBusyAccounts = false;
   @observable isBusyClose = false;
   @observable isBusyCreate = false;
   @observable isBusyLoad = false;
   @observable isBusyOpen = false;
+  @observable isModalAccountsOpen = false;
   @observable isModalCloseOpen = false;
   @observable isModalCreateOpen = false;
   @observable isModalOpenOpen = false;
@@ -58,6 +60,10 @@ export default class Store {
       this.createPasswordHint = '';
       this.createPasswordRepeat = '';
     });
+  }
+
+  @action setBusyAccounts = (isBusy) => {
+    this.isBusyAccounts = isBusy;
   }
 
   @action setBusyClose = (isBusy) => {
@@ -107,6 +113,10 @@ export default class Store {
     this.createPasswordRepeat = password;
   }
 
+  @action setModalAccountsOpen = (isOpen) => {
+    this.isModalAccountsOpen = isOpen;
+  }
+
   @action setModalCloseOpen = (isOpen) => {
     this.isModalCloseOpen = isOpen;
   }
@@ -142,6 +152,10 @@ export default class Store {
     this.vaultPassword = password;
   }
 
+  closeAccountsModal () {
+    this.setModalAccountsOpen(false);
+  }
+
   closeCloseModal () {
     this.setModalCloseOpen(false);
   }
@@ -152,6 +166,13 @@ export default class Store {
 
   closeOpenModal () {
     this.setModalOpenOpen(false);
+  }
+
+  openAccountsModal (name) {
+    transaction(() => {
+      this.setVaultName(name);
+      this.setModalAccountsOpen(true);
+    });
   }
 
   openCloseModal (name) {
@@ -188,8 +209,9 @@ export default class Store {
         this.setVaults(allVaults, openedVaults);
       })
       .catch((error) => {
-        console.warn('loadVaults', error);
+        console.error('loadVaults', error);
         this.setBusyLoad(false);
+        throw error;
       });
   }
 
@@ -203,8 +225,9 @@ export default class Store {
         return this.loadVaults();
       })
       .catch((error) => {
-        console.warn('closeVault', error);
+        console.error('closeVault', error);
         this.setBusyClose(false);
+        throw error;
       });
   }
 
@@ -222,8 +245,9 @@ export default class Store {
         return this.loadVaults();
       })
       .catch((error) => {
-        console.warn('createVault', error);
+        console.error('createVault', error);
         this.setBusyCreate(false);
+        throw error;
       });
   }
 
@@ -237,8 +261,25 @@ export default class Store {
         return this.loadVaults();
       })
       .catch((error) => {
-        console.warn('openVault', error);
+        console.error('openVault', error);
         this.setBusyOpen(false);
+        throw error;
+      });
+  }
+
+  moveAccounts (accounts) {
+    this.setBusyAccounts(true);
+
+    return Promise
+      .all(accounts.map((address) => this._api.parity.changeVault(address, this.vaultName)))
+      .then(() => {
+        this.setBusyAccounts(false);
+        return this.loadVaults();
+      })
+      .catch((error) => {
+        console.error('moveAccounts', error);
+        this.setBusyAccounts(false);
+        throw error;
       });
   }
 
