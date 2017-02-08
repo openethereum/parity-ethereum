@@ -18,7 +18,7 @@ import BigNumber from 'bignumber.js';
 
 const PAGE_SIZE = 25;
 
-import util from '../../api/util';
+import { toChecksumAddress } from './util';
 import { call } from './call';
 
 function _call (method, params, test) {
@@ -56,10 +56,10 @@ function transactions (address, page, test = false) {
     return transactions.map((tx) => {
       return {
         blockNumber: new BigNumber(tx.blockNumber || 0),
-        from: util.toChecksumAddress(tx.from),
+        from: toChecksumAddress(tx.from),
         hash: tx.hash,
         timeStamp: tx.timeStamp,
-        to: util.toChecksumAddress(tx.to),
+        to: toChecksumAddress(tx.to),
         value: tx.value
       };
     });
