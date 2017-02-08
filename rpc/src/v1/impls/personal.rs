@@ -18,13 +18,11 @@
 use std::sync::{Arc, Weak};
 
 use ethcore::account_provider::AccountProvider;
-use ethcore::client::MiningBlockChainClient;
-use ethcore::miner::MinerService;
 use ethcore::transaction::PendingTransaction;
 
 use util::{Address, U128, Uint, ToPretty};
 
-use futures::{self, future, Future, BoxFuture};
+use futures::{future, Future, BoxFuture};
 use jsonrpc_core::Error;
 use v1::helpers::errors;
 use v1::helpers::dispatch::{Dispatcher, SignWith};

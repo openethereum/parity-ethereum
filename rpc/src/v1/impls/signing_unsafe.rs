@@ -19,10 +19,8 @@
 use std::sync::{Arc, Weak};
 
 use ethcore::account_provider::AccountProvider;
-use ethcore::miner::MinerService;
-use ethcore::client::MiningBlockChainClient;
 
-use futures::{self, future, BoxFuture, Future};
+use futures::{future, BoxFuture, Future};
 use jsonrpc_core::Error;
 use v1::helpers::{errors, DefaultAccount};
 use v1::helpers::dispatch::{self, Dispatcher};

@@ -49,7 +49,6 @@ mod codes {
 	pub const COMPILATION_ERROR: i64 = -32050;
 	pub const ENCRYPTION_ERROR: i64 = -32055;
 	pub const FETCH_ERROR: i64 = -32060;
-	pub const ON_DEMAND_ERROR: i64 = -32065;
 }
 
 pub fn unimplemented(details: Option<String>) -> Error {

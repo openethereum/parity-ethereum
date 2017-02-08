@@ -19,9 +19,7 @@ use std::ops::Deref;
 use std::sync::Weak;
 
 use futures::{future, Future, BoxFuture};
-use rlp;
 use util::{Address, H520, H256, U256, Uint, Bytes};
-use util::bytes::ToPretty;
 use util::sha3::Hashable;
 
 use ethkey::Signature;

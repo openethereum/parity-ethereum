@@ -21,8 +21,6 @@ use transient_hashmap::TransientHashMap;
 use util::{U256, Mutex};
 
 use ethcore::account_provider::AccountProvider;
-use ethcore::miner::MinerService;
-use ethcore::client::MiningBlockChainClient;
 
 use futures::{self, future, BoxFuture, Future};
 use jsonrpc_core::Error;

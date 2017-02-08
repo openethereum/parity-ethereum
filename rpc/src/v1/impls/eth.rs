@@ -38,7 +38,7 @@ use ethcore::filter::Filter as EthcoreFilter;
 use ethcore::header::{Header as BlockHeader, BlockNumber as EthBlockNumber};
 use ethcore::log_entry::LogEntry;
 use ethcore::miner::{MinerService, ExternalMinerService};
-use ethcore::transaction::{Transaction as EthTransaction, SignedTransaction, PendingTransaction, Action};
+use ethcore::transaction::{Transaction as EthTransaction, SignedTransaction, Action};
 use ethcore::snapshot::SnapshotService;
 use ethsync::{SyncProvider};
 

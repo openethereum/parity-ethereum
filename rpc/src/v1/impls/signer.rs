@@ -20,10 +20,8 @@ use std::sync::{Arc, Weak};
 
 use rlp::{UntrustedRlp, View};
 use ethcore::account_provider::AccountProvider;
-use ethcore::client::MiningBlockChainClient;
 use ethcore::transaction::{SignedTransaction, PendingTransaction};
-use ethcore::miner::MinerService;
-use futures::{self, future, BoxFuture, Future, IntoFuture};
+use futures::{future, BoxFuture, Future, IntoFuture};
 
 use jsonrpc_core::Error;
 use v1::helpers::{errors, SignerService, SigningQueue, ConfirmationPayload};
