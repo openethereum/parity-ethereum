@@ -36,8 +36,15 @@ macro_rules! impl_hash {
 		}
 
 		impl fmt::Debug for $name {
-			fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+			fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 				write!(f, "{}", self.0.to_hex())
+			}
+		}
+
+		impl fmt::Display for $name {
+			fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+				let hex = self.0.to_hex();
+				write!(f, "{}..{}", &hex[0..2], &hex[$size-2..$size])
 			}
 		}
 

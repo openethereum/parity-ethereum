@@ -39,6 +39,7 @@ extern crate semver;
 extern crate ethcore_io as io;
 extern crate ethcore_ipc as ipc;
 extern crate ethcore_ipc_nano as nanoipc;
+extern crate ethcore_util as util;
 extern crate serde;
 extern crate serde_json;
 extern crate jsonrpc_core;
@@ -58,23 +59,17 @@ extern crate isatty;
 extern crate toml;
 extern crate app_dirs;
 extern crate parity_reactor;
+extern crate hyper;
+extern crate rpc_cli;
 
 #[macro_use]
-extern crate ethcore_util as util;
-#[macro_use]
 extern crate log as rlog;
-#[macro_use]
-extern crate hyper; // for price_info.rs
-#[macro_use]
-extern crate lazy_static;
 
 #[cfg(feature="stratum")]
 extern crate ethcore_stratum;
 
 #[cfg(feature = "dapps")]
 extern crate ethcore_dapps;
-
-extern crate rpc_cli;
 
 macro_rules! dependency {
 	($dep_ty:ident, $url:expr) => {
@@ -211,7 +206,7 @@ fn latest_exe_path() -> Option<PathBuf> {
 fn global_cleanup() {
 	extern "system" { pub fn WSACleanup() -> i32; }
 	// We need to cleanup all sockets before spawning another Parity process. This makes shure everything is cleaned up.
-	// The loop is required because of internal refernce counter for winsock dll. We don't know how many crates we use do 
+	// The loop is required because of internal refernce counter for winsock dll. We don't know how many crates we use do
 	// initialize it. There's at least 2 now.
 	for _ in 0.. 10 {
 		unsafe { WSACleanup(); }

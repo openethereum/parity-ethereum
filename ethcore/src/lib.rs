@@ -105,6 +105,7 @@ extern crate linked_hash_map;
 extern crate lru_cache;
 extern crate ethcore_stratum;
 extern crate ethabi;
+extern crate heapsize;
 
 #[macro_use]
 extern crate log;
@@ -112,8 +113,6 @@ extern crate log;
 extern crate ethcore_util as util;
 #[macro_use]
 extern crate lazy_static;
-#[macro_use]
-extern crate heapsize;
 #[macro_use]
 extern crate ethcore_ipc as ipc;
 

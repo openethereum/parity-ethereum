@@ -114,7 +114,7 @@ impl<C, M> Personal for PersonalClient<C, M> where
 			let default_account = match request.from {
 				Some(ref account) => account.clone().into(),
 				None => accounts
-					.default_address(meta.dapp_id.unwrap_or_default().into())
+					.default_address(meta.dapp_id().into())
 					.map_err(|e| errors::account("Cannot find default account.", e))?,
 			};
 

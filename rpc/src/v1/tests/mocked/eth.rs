@@ -36,6 +36,7 @@ use jsonrpc_core::IoHandler;
 use v1::{Eth, EthClient, EthClientOptions, EthFilter, EthFilterClient, EthSigning, SigningUnsafeClient};
 use v1::tests::helpers::{TestSyncProvider, Config, TestMinerService, TestSnapshotService};
 use v1::metadata::Metadata;
+use v1::types::Origin;
 
 fn blockchain_client() -> Arc<TestBlockChainClient> {
 	let client = TestBlockChainClient::new();
@@ -384,7 +385,7 @@ fn rpc_eth_accounts() {
 	let request = r#"{"jsonrpc": "2.0", "method": "eth_accounts", "params": [], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":["0x000000000000000000000000000000000000000a"],"id":1}"#;
 	let mut meta = Metadata::default();
-	meta.dapp_id = Some("app1".into());
+	meta.origin = Origin::Dapps("app1".into());
 	assert_eq!((*tester.io).handle_request_sync(request, meta), Some(response.to_owned()));
 }
 

@@ -107,11 +107,9 @@ extern crate rlp;
 extern crate regex;
 extern crate lru_cache;
 
-#[macro_use]
 extern crate heapsize;
 #[macro_use]
 extern crate lazy_static;
-#[macro_use]
 extern crate itertools;
 #[macro_use]
 extern crate log as rlog;

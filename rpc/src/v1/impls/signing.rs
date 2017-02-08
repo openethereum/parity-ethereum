@@ -39,7 +39,8 @@ use v1::types::{
 	RichRawTransaction as RpcRichRawTransaction,
 	TransactionRequest as RpcTransactionRequest,
 	ConfirmationPayload as RpcConfirmationPayload,
-	ConfirmationResponse as RpcConfirmationResponse
+	ConfirmationResponse as RpcConfirmationResponse,
+	Origin,
 };
 
 const MAX_PENDING_DURATION: u64 = 60 * 60;
@@ -88,7 +89,7 @@ impl<C, M> SigningQueueClient<C, M> where
 		}
 	}
 
-	fn add_to_queue(&self, payload: ConfirmationPayload) -> Result<DispatchResult, Error> {
+	fn add_to_queue(&self, payload: ConfirmationPayload, origin: Origin) -> Result<DispatchResult, Error> {
 		let client = take_weak!(self.client);
 		let miner = take_weak!(self.miner);
 		let accounts = take_weak!(self.accounts);
@@ -100,12 +101,12 @@ impl<C, M> SigningQueueClient<C, M> where
 				.map(DispatchResult::Value);
 		}
 
-		take_weak!(self.signer).add_request(payload)
+		take_weak!(self.signer).add_request(payload, origin)
 			.map(DispatchResult::Promise)
 			.map_err(|_| errors::request_rejected_limit())
 	}
 
-	fn dispatch(&self, payload: RpcConfirmationPayload, default_account: DefaultAccount) -> Result<DispatchResult, Error> {
+	fn dispatch(&self, payload: RpcConfirmationPayload, default_account: DefaultAccount, origin: Origin) -> Result<DispatchResult, Error> {
 		let client = take_weak!(self.client);
 		let miner = take_weak!(self.miner);
 
@@ -114,7 +115,7 @@ impl<C, M> SigningQueueClient<C, M> where
 			DefaultAccount::ForDapp(dapp) => take_weak!(self.accounts).default_address(dapp).ok().unwrap_or_default(),
 		};
 		let payload = dispatch::from_rpc(payload, default_account, &*client, &*miner);
-		self.add_to_queue(payload)
+		self.add_to_queue(payload, origin)
 	}
 }
 
@@ -124,8 +125,12 @@ impl<C: 'static, M: 'static> ParitySigning for SigningQueueClient<C, M> where
 {
 	type Metadata = Metadata;
 
-	fn post_sign(&self, address: RpcH160, data: RpcBytes) -> Result<RpcEither<RpcU256, RpcConfirmationResponse>, Error> {
-		self.dispatch(RpcConfirmationPayload::Signature((address.clone(), data).into()), DefaultAccount::Provided(address.into()))
+	fn post_sign(&self, meta: Metadata, address: RpcH160, data: RpcBytes) -> BoxFuture<RpcEither<RpcU256, RpcConfirmationResponse>, Error> {
+		let res = self.dispatch(
+			RpcConfirmationPayload::Signature((address.clone(), data).into()),
+			DefaultAccount::Provided(address.into()),
+			meta.origin,
+		)
 			.map(|result| match result {
 				DispatchResult::Value(v) => RpcEither::Or(v),
 				DispatchResult::Promise(promise) => {
@@ -133,12 +138,13 @@ impl<C: 'static, M: 'static> ParitySigning for SigningQueueClient<C, M> where
 					self.pending.lock().insert(id, promise);
 					RpcEither::Either(id.into())
 				},
-			})
+			});
+		futures::done(res).boxed()
 	}
 
 	fn post_transaction(&self, meta: Metadata, request: RpcTransactionRequest) -> BoxFuture<RpcEither<RpcU256, RpcConfirmationResponse>, Error> {
 		let post_transaction = move || {
-			self.dispatch(RpcConfirmationPayload::SendTransaction(request), meta.into())
+			self.dispatch(RpcConfirmationPayload::SendTransaction(request), meta.dapp_id().into(), meta.origin)
 				.map(|result| match result {
 					DispatchResult::Value(v) => RpcEither::Or(v),
 					DispatchResult::Promise(promise) => {
@@ -166,8 +172,12 @@ impl<C: 'static, M: 'static> ParitySigning for SigningQueueClient<C, M> where
 		res
 	}
 
-	fn decrypt_message(&self, address: RpcH160, data: RpcBytes) -> BoxFuture<RpcBytes, Error> {
-		let res = self.dispatch(RpcConfirmationPayload::Decrypt((address.clone(), data).into()), address.into());
+	fn decrypt_message(&self, meta: Metadata, address: RpcH160, data: RpcBytes) -> BoxFuture<RpcBytes, Error> {
+		let res = self.dispatch(
+			RpcConfirmationPayload::Decrypt((address.clone(), data).into()),
+			address.into(),
+			meta.origin,
+		);
 
 		let (ready, p) = futures::oneshot();
 		// TODO [todr] typed handle_dispatch
@@ -189,8 +199,12 @@ impl<C: 'static, M: 'static> EthSigning for SigningQueueClient<C, M> where
 {
 	type Metadata = Metadata;
 
-	fn sign(&self, address: RpcH160, data: RpcBytes) -> BoxFuture<RpcH520, Error> {
-		let res = self.dispatch(RpcConfirmationPayload::Signature((address.clone(), data).into()), address.into());
+	fn sign(&self, meta: Metadata, address: RpcH160, data: RpcBytes) -> BoxFuture<RpcH520, Error> {
+		let res = self.dispatch(
+			RpcConfirmationPayload::Signature((address.clone(), data).into()),
+			address.into(),
+			meta.origin,
+		);
 
 		let (ready, p) = futures::oneshot();
 		self.handle_dispatch(res, |response| {
@@ -205,7 +219,11 @@ impl<C: 'static, M: 'static> EthSigning for SigningQueueClient<C, M> where
 	}
 
 	fn send_transaction(&self, meta: Metadata, request: RpcTransactionRequest) -> BoxFuture<RpcH256, Error> {
-		let res = self.dispatch(RpcConfirmationPayload::SendTransaction(request), meta.into());
+		let res = self.dispatch(
+			RpcConfirmationPayload::SendTransaction(request),
+			meta.dapp_id().into(),
+			meta.origin,
+		);
 
 		let (ready, p) = futures::oneshot();
 		self.handle_dispatch(res, |response| {
@@ -220,7 +238,11 @@ impl<C: 'static, M: 'static> EthSigning for SigningQueueClient<C, M> where
 	}
 
 	fn sign_transaction(&self, meta: Metadata, request: RpcTransactionRequest) -> BoxFuture<RpcRichRawTransaction, Error> {
-		let res = self.dispatch(RpcConfirmationPayload::SignTransaction(request), meta.into());
+		let res = self.dispatch(
+			RpcConfirmationPayload::SignTransaction(request),
+			meta.dapp_id().into(),
+			meta.origin,
+		);
 
 		let (ready, p) = futures::oneshot();
 		self.handle_dispatch(res, |response| {

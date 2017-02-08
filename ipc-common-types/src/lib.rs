@@ -16,7 +16,6 @@
 
 //! Updater for Parity executables
 
-#[macro_use] extern crate log;
 extern crate semver;
 extern crate ethcore_util as util;
 extern crate ethcore_ipc as ipc;

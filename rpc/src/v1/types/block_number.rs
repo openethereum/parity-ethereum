@@ -20,6 +20,7 @@ use ethcore::client::BlockId;
 
 /// Represents rpc api block number param.
 #[derive(Debug, PartialEq, Clone, Hash, Eq)]
+#[serde(deny_unknown_fields)]
 pub enum BlockNumber {
 	/// Number
 	Num(u64),
