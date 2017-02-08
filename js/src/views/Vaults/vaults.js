@@ -78,23 +78,45 @@ export default class Vaults extends Component {
   }
 
   renderItem = (item) => {
-    const onClick = () => {
-      return item.isOpen
-        ? this.onCloseVault(item.name)
-        : this.onOpenVault(item.name);
-    };
+    const onClickOpen = () => this.onOpenVault(item.name);
+    const onClickClose = () => this.onCloseVault(item.name);
 
     return (
       <Container
         className={ styles.container }
-        onClick={ onClick }
+        hover={
+          <div className={ styles.buttonRow }>
+            {
+              item.isOpen
+                ? (
+                  <Button
+                    icon={ <LockedIcon /> }
+                    label={
+                      <FormattedMessage
+                        id='vaults.item.button.close'
+                        defaultMessage='close vault'
+                      />
+                    }
+                    onClick={ onClickClose }
+                  />
+                )
+                : (
+                  <Button
+                    icon={ <UnlockedIcon /> }
+                    label={
+                      <FormattedMessage
+                        id='vaults.item.button.open'
+                        defaultMessage='open vault'
+                      />
+                    }
+                    onClick={ onClickOpen }
+                  />
+                )
+            }
+          </div>
+        }
       >
         <NameLayout { ...item } />
-        {
-          item.isOpen
-            ? <UnlockedIcon className={ styles.iconLock } />
-            : <LockedIcon className={ styles.iconLock } />
-        }
       </Container>
     );
   }

@@ -15,14 +15,23 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-.container {
-  text-align: center;
+/* TODO: Surely this color adjustment is something that we do elsewhere, e.g. toolbar */
+.buttonRow {
+  padding-top: 1em;
+  text-align: right;
 
-  .iconLock {
-    position: absolute;
-    right: 1em;
-    top: 1em;
+  button {
+    color: white !important;
   }
+
+  svg {
+    fill: white !important;
+  }
+}
+
+.container {
+  cursor: default;
+  text-align: center;
 }
 
 .inputbox {

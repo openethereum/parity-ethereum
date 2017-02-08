@@ -81,8 +81,12 @@ export default class Store {
 
     if (!name || !name.trim().length) {
       nameError = ERRORS.noName;
-    } else if (this.vaultNames.includes(name)) {
-      nameError = ERRORS.duplicateName;
+    } else {
+      const lowerName = name.toLowerCase();
+
+      if (this.vaultNames.includes(lowerName)) {
+        nameError = ERRORS.duplicateName;
+      }
     }
 
     transaction(() => {
@@ -120,7 +124,7 @@ export default class Store {
 
   @action setVaults = (allVaults, openedVaults) => {
     transaction(() => {
-      this.vaultNames = allVaults;
+      this.vaultNames = allVaults.map((name) => name.toLowerCase());
       this.vaults = allVaults.map((name) => {
         return {
           name,
