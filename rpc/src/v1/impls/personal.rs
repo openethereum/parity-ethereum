@@ -20,46 +20,37 @@ use std::sync::{Arc, Weak};
 use ethcore::account_provider::AccountProvider;
 use ethcore::client::MiningBlockChainClient;
 use ethcore::miner::MinerService;
-use util::{Address, U128, Uint};
+use ethcore::transaction::PendingTransaction;
 
-use futures::{self, Future, BoxFuture};
+use util::{Address, U128, Uint, ToPretty};
+
+use futures::{self, future, Future, BoxFuture};
 use jsonrpc_core::Error;
 use v1::helpers::errors;
-use v1::helpers::dispatch::{self, sign_and_dispatch};
+use v1::helpers::dispatch::{Dispatcher, SignWith};
 use v1::traits::Personal;
 use v1::types::{H160 as RpcH160, H256 as RpcH256, U128 as RpcU128, TransactionRequest};
 use v1::metadata::Metadata;
 
 /// Account management (personal) rpc implementation.
-pub struct PersonalClient<C, M> where
-	C: MiningBlockChainClient,
-	M: MinerService,
-{
+pub struct PersonalClient<D: Dispatcher> {
 	accounts: Weak<AccountProvider>,
-	client: Weak<C>,
-	miner: Weak<M>,
+	dispatcher: D,
 	allow_perm_unlock: bool,
 }
 
-impl<C, M> PersonalClient<C, M> where
-	C: MiningBlockChainClient,
-	M: MinerService,
-{
+impl<D: Dispatcher> PersonalClient<D> {
 	/// Creates new PersonalClient
-	pub fn new(store: &Arc<AccountProvider>, client: &Arc<C>, miner: &Arc<M>, allow_perm_unlock: bool) -> Self {
+	pub fn new(store: &Arc<AccountProvider>, dispatcher: D, allow_perm_unlock: bool) -> Self {
 		PersonalClient {
 			accounts: Arc::downgrade(store),
-			client: Arc::downgrade(client),
-			miner: Arc::downgrade(miner),
+			dispatcher: dispatcher,
 			allow_perm_unlock: allow_perm_unlock,
 		}
 	}
 }
 
-impl<C, M> Personal for PersonalClient<C, M> where
-	C: MiningBlockChainClient + 'static,
-	M: MinerService + 'static,
-{
+impl<D: Dispatcher + 'static> Personal for PersonalClient<D> {
 	type Metadata = Metadata;
 
 	fn accounts(&self) -> Result<Vec<RpcH160>, Error> {
@@ -106,28 +97,41 @@ impl<C, M> Personal for PersonalClient<C, M> where
 	}
 
 	fn send_transaction(&self, meta: Metadata, request: TransactionRequest, password: String) -> BoxFuture<RpcH256, Error> {
-		let sign_and_send = move || {
-			let client = take_weak!(self.client);
-			let miner = take_weak!(self.miner);
+		let setup = || {
+			let dispatcher = self.dispatcher.clone();
 			let accounts = take_weak!(self.accounts);
 
-			let default_account = match request.from {
-				Some(ref account) => account.clone().into(),
-				None => accounts
-					.default_address(meta.dapp_id.unwrap_or_default().into())
-					.map_err(|e| errors::account("Cannot find default account.", e))?,
-			};
-
-			let request = dispatch::fill_optional_fields(request.into(), default_account, &*client, &*miner);
-			sign_and_dispatch(
-				&*client,
-				&*miner,
-				&*accounts,
-				request,
-				dispatch::SignWith::Password(password)
-			).map(|v| v.into_value().into())
+			Ok((accounts, dispatcher))
 		};
 
-		futures::done(sign_and_send()).boxed()
+		future::done(setup())
+			.and_then(move |(accounts, dispatcher)| {
+				let default = match request.from.as_ref() {
+					Some(account) => Ok(account.clone().into()),
+					None => accounts
+						.default_address(meta.dapp_id.unwrap_or_default().into())
+						.map_err(|e| errors::account("Cannot find default account.", e)),
+				};
+
+				let dis = dispatcher.clone();
+				future::done(default)
+					.and_then(move |default| dis.fill_optional_fields(request.into(), default))
+					.map(move |tx| (tx, accounts, dispatcher))
+			})
+			.and_then(move |(filled, accounts, dispatcher)| {
+				let condition = filled.condition.clone().map(Into::into);
+				dispatcher.sign(&accounts, filled, SignWith::Password(password))
+					.map(|tx| tx.into_value())
+					.map(move |tx| PendingTransaction::new(tx, condition))
+					.map(move |tx| (tx, dispatcher))
+			})
+			.and_then(move |(pending_tx, dispatcher)| {
+				let network_id = pending_tx.network_id();
+				trace!(target: "miner", "send_transaction: dispatching tx: {} for network ID {:?}",
+					::rlp::encode(&*pending_tx).to_vec().pretty(), network_id);
+
+				dispatcher.dispatch_transaction(pending_tx).map(Into::into)
+			})
+			.boxed()
 	}
 }

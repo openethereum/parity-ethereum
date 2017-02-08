@@ -18,6 +18,15 @@
 //!
 //! Compliant with ethereum rpc.
 
+macro_rules! take_weak {
+	($weak: expr) => {
+		match $weak.upgrade() {
+			Some(arc) => arc,
+			None => return Err(Error::internal_error())
+		}
+	}
+}
+
 #[macro_use]
 mod helpers;
 mod impls;

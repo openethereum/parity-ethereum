@@ -472,6 +472,12 @@ impl PendingTransaction {
 	}
 }
 
+impl Deref for PendingTransaction {
+	type Target = SignedTransaction;
+
+	fn deref(&self) -> &SignedTransaction { &self.transaction }
+}
+
 impl From<SignedTransaction> for PendingTransaction {
 	fn from(t: SignedTransaction) -> Self {
 		PendingTransaction {

@@ -22,9 +22,10 @@ use ethcore::account_provider::AccountProvider;
 use ethcore::miner::MinerService;
 use ethcore::client::MiningBlockChainClient;
 
-use futures::{self, BoxFuture, Future};
+use futures::{self, future, BoxFuture, Future};
 use jsonrpc_core::Error;
-use v1::helpers::{errors, dispatch, DefaultAccount};
+use v1::helpers::{errors, DefaultAccount};
+use v1::helpers::dispatch::{self, Dispatcher};
 use v1::metadata::Metadata;
 use v1::traits::{EthSigning, ParitySigning};
 use v1::types::{
@@ -38,106 +39,100 @@ use v1::types::{
 };
 
 /// Implementation of functions that require signing when no trusted signer is used.
-pub struct SigningUnsafeClient<C, M> where
-	C: MiningBlockChainClient,
-	M: MinerService,
-{
+pub struct SigningUnsafeClient<D> {
 	accounts: Weak<AccountProvider>,
-	client: Weak<C>,
-	miner: Weak<M>,
+	dispatcher: D,
 }
 
-impl<C, M> SigningUnsafeClient<C, M> where
-	C: MiningBlockChainClient,
-	M: MinerService,
-{
-
+impl<D: Dispatcher> SigningUnsafeClient<D> {
 	/// Creates new SigningUnsafeClient.
-	pub fn new(client: &Arc<C>, accounts: &Arc<AccountProvider>, miner: &Arc<M>)
-		-> Self {
+	pub fn new(accounts: &Arc<AccountProvider>, dispatcher: D) -> Self {
 		SigningUnsafeClient {
-			client: Arc::downgrade(client),
-			miner: Arc::downgrade(miner),
 			accounts: Arc::downgrade(accounts),
+			dispatcher: dispatcher,
 		}
 	}
 
-	fn handle(&self, payload: RpcConfirmationPayload, account: DefaultAccount) -> Result<RpcConfirmationResponse, Error> {
-		let client = take_weak!(self.client);
-		let miner = take_weak!(self.miner);
-		let accounts = take_weak!(self.accounts);
+	fn handle(&self, payload: RpcConfirmationPayload, account: DefaultAccount) -> BoxFuture<RpcConfirmationResponse, Error> {
+		let setup = move || {
+			let accounts = take_weak!(self.accounts);
+			let default_account = match account {
+				DefaultAccount::Provided(acc) => acc,
+				DefaultAccount::ForDapp(dapp) => accounts.default_address(dapp).ok().unwrap_or_default(),
+			};
 
-		let default_account = match account {
-			DefaultAccount::Provided(acc) => acc,
-			DefaultAccount::ForDapp(dapp) => accounts.default_address(dapp).ok().unwrap_or_default(),
+			(accounts, default_account)
 		};
-		let payload = dispatch::from_rpc(payload, default_account, &*client, &*miner);
-		dispatch::execute(&*client, &*miner, &*accounts, payload, dispatch::SignWith::Nothing)
-			.map(|v| v.into_value())
+
+		let dis = self.dispatcher.clone();
+		future::done(setup())
+			.and_then(move |(accounts, default)| {
+				dispatch::from_rpc(payload, default, &dis)
+					.and_then(|payload| {
+						dispatch::execute(&dis, &accounts, payload, dispatch::SignWith::Nothing)
+					})
+					.map(|v| v.into_value())
+			})
+			.boxed()
 	}
 }
 
-impl<C: 'static, M: 'static> EthSigning for SigningUnsafeClient<C, M> where
-	C: MiningBlockChainClient,
-	M: MinerService,
+impl<D: Dispatcher + 'static> EthSigning for SigningUnsafeClient<D>
 {
 	type Metadata = Metadata;
 
 	fn sign(&self, address: RpcH160, data: RpcBytes) -> BoxFuture<RpcH520, Error> {
-		let result = match self.handle(RpcConfirmationPayload::Signature((address.clone(), data).into()), address.into()) {
-			Ok(RpcConfirmationResponse::Signature(signature)) => Ok(signature),
-			Err(e) => Err(e),
-			e => Err(errors::internal("Unexpected result", e)),
-		};
-
-		futures::done(result).boxed()
+		self.handle(RpcConfirmationPayload::Signature((address.clone(), data).into()), address.into())
+			.then(|res| match res {
+				Ok(RpcConfirmationResponse::Signature(signature)) => Ok(signature),
+				Err(e) => Err(e),
+				e => Err(errors::internal("Unexpected result", e)),
+			})
+			.boxed()
 	}
 
 	fn send_transaction(&self, meta: Metadata, request: RpcTransactionRequest) -> BoxFuture<RpcH256, Error> {
-		let result = match self.handle(RpcConfirmationPayload::SendTransaction(request), meta.into()) {
-			Ok(RpcConfirmationResponse::SendTransaction(hash)) => Ok(hash),
-			Err(e) => Err(e),
-			e => Err(errors::internal("Unexpected result", e)),
-		};
-
-		futures::done(result).boxed()
+		self.handle(RpcConfirmationPayload::SendTransaction(request), meta.into())
+			.then(|res| match res {
+				Ok(RpcConfirmationResponse::SendTransaction(hash)) => Ok(hash),
+				Err(e) => Err(e),
+				e => Err(errors::internal("Unexpected result", e)),
+			})
+			.boxed()
 	}
 
 	fn sign_transaction(&self, meta: Metadata, request: RpcTransactionRequest) -> BoxFuture<RpcRichRawTransaction, Error> {
-		let result = match self.handle(RpcConfirmationPayload::SignTransaction(request), meta.into()) {
-			Ok(RpcConfirmationResponse::SignTransaction(tx)) => Ok(tx),
-			Err(e) => Err(e),
-			e => Err(errors::internal("Unexpected result", e)),
-		};
-
-		futures::done(result).boxed()
+		self.handle(RpcConfirmationPayload::SignTransaction(request), meta.into())
+			.then(|res| match res {
+				Ok(RpcConfirmationResponse::SignTransaction(tx)) => Ok(tx),
+				Err(e) => Err(e),
+				e => Err(errors::internal("Unexpected result", e)),
+			})
+			.boxed()
 	}
 }
 
-impl<C: 'static, M: 'static> ParitySigning for SigningUnsafeClient<C, M> where
-	C: MiningBlockChainClient,
-	M: MinerService,
-{
+impl<D: Dispatcher + 'static> ParitySigning for SigningUnsafeClient<D> {
 	type Metadata = Metadata;
 
 	fn decrypt_message(&self, address: RpcH160, data: RpcBytes) -> BoxFuture<RpcBytes, Error> {
-		let result = match self.handle(RpcConfirmationPayload::Decrypt((address.clone(), data).into()), address.into()) {
-			Ok(RpcConfirmationResponse::Decrypt(data)) => Ok(data),
-			Err(e) => Err(e),
-			e => Err(errors::internal("Unexpected result", e)),
-		};
-
-		futures::done(result).boxed()
+		self.handle(RpcConfirmationPayload::Decrypt((address.clone(), data).into()), address.into())
+			.then(|res| match res {
+				Ok(RpcConfirmationResponse::Decrypt(data)) => Ok(data),
+				Err(e) => Err(e),
+				e => Err(errors::internal("Unexpected result", e)),
+			})
+			.boxed()
 	}
 
-	fn post_sign(&self, _: RpcH160, _: RpcBytes) -> Result<RpcEither<RpcU256, RpcConfirmationResponse>, Error> {
+	fn post_sign(&self, _: RpcH160, _: RpcBytes) -> BoxFuture<RpcEither<RpcU256, RpcConfirmationResponse>, Error> {
 		// We don't support this in non-signer mode.
-		Err(errors::signer_disabled())
+		future::err(errors::signer_disabled()).boxed()
 	}
 
 	fn post_transaction(&self, _: Metadata, _: RpcTransactionRequest) -> BoxFuture<RpcEither<RpcU256, RpcConfirmationResponse>, Error> {
 		// We don't support this in non-signer mode.
-		futures::done(Err(errors::signer_disabled())).boxed()
+		future::err((errors::signer_disabled())).boxed()
 	}
 
 	fn check_request(&self, _: RpcU256) -> Result<Option<RpcConfirmationResponse>, Error> {

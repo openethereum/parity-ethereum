@@ -16,15 +16,6 @@
 
 //! Ethereum rpc interface implementation.
 
-macro_rules! take_weak {
-	($weak: expr) => {
-		match $weak.upgrade() {
-			Some(arc) => arc,
-			None => return Err(Error::internal_error())
-		}
-	}
-}
-
 mod eth;
 mod eth_filter;
 mod net;
