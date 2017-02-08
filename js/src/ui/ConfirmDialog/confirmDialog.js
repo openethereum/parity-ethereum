@@ -44,6 +44,7 @@ export default class ConfirmDialog extends Component {
     className: PropTypes.string,
     disabledConfirm: PropTypes.bool,
     disabledDeny: PropTypes.bool,
+    busy: PropTypes.bool,
     iconConfirm: PropTypes.node,
     iconDeny: PropTypes.node,
     labelConfirm: PropTypes.string,
@@ -56,7 +57,7 @@ export default class ConfirmDialog extends Component {
   }
 
   render () {
-    const { children, className, disabledConfirm, disabledDeny, iconConfirm, iconDeny, labelConfirm, labelDeny, onConfirm, onDeny, open, title, visible } = this.props;
+    const { busy, children, className, disabledConfirm, disabledDeny, iconConfirm, iconDeny, labelConfirm, labelDeny, onConfirm, onDeny, open, title, visible } = this.props;
 
     if (!visible && !open) {
       return null;
@@ -80,6 +81,7 @@ export default class ConfirmDialog extends Component {
             onClick={ onConfirm }
           />
         ] }
+        busy={ busy }
         className={ className }
         isSmallModal
         onClose={ onDeny }

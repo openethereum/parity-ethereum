@@ -15,17 +15,34 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-.title,
-.subtitle {
-  .steps {
-    margin: -0.5em 0 -1em 0;
-  }
+/* TODO: These overlap with DappPermissions now, make DRY */
+/* (selection component or just styles?) */
+.iconDisabled {
+  opacity: 0.15;
+}
 
-  .waiting {
-    margin: 1em -1.5em -1.5em -1em;
+.item {
+  display: flex;
+  flex: 1;
+  position: relative;
+
+  .overlay {
+    position: absolute;
+    right: 0.5em;
+    top: 0.5em;
   }
 }
 
-.subtitle {
-  opacity: 0.75;
+.selected,
+.unselected {
+  margin-bottom: 0.25em;
+  width: 100%;
+
+  &:focus {
+    outline: none;
+  }
+}
+
+.selected {
+  background: rgba(255, 255, 255, 0.15) !important;
 }

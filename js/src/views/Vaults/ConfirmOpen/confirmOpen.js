@@ -42,7 +42,8 @@ class ConfirmOpen extends Component {
 
     return (
       <ConfirmDialog
-        disabledConfim={ isBusyOpen }
+        busy={ isBusyOpen }
+        disabledConfirm={ isBusyOpen }
         onConfirm={ this.onExecute }
         onDeny={ this.onClose }
         open

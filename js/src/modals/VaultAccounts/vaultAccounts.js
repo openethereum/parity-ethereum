@@ -21,7 +21,10 @@ import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
 import { newError } from '~/redux/actions';
-import { Portal, SectionList } from '~/ui';
+import { AccountCard, Button, Portal, SectionList } from '~/ui';
+import { CancelIcon, CheckIcon } from '~/ui/Icons';
+
+import styles from './vaultAccounts.css';
 
 @observer
 class VaultAccounts extends Component {
@@ -33,7 +36,7 @@ class VaultAccounts extends Component {
 
   render () {
     const { accounts } = this.props;
-    const { isModalAccountsOpen } = this.props.vaultStore;
+    const { isBusyAccounts, isModalAccountsOpen, selectedAccounts } = this.props.vaultStore;
 
     if (!isModalAccountsOpen) {
       return null;
@@ -46,6 +49,32 @@ class VaultAccounts extends Component {
 
     return (
       <Portal
+        buttons={ [
+          <Button
+            icon={ <CancelIcon /> }
+            key='cancel'
+            label={
+              <FormattedMessage
+                id='vaults.accounts.button.cancel'
+                defaultMessage='Cancel'
+              />
+            }
+            onClick={ this.onClose }
+          />,
+          <Button
+            disabled={ isBusyAccounts }
+            icon={ <CheckIcon /> }
+            key='execute'
+            label={
+              <FormattedMessage
+                id='vaults.accounts.button.execute'
+                defaultMessage='Set'
+              />
+            }
+            onClick={ this.onExecute }
+          />
+        ] }
+        busy={ isBusyAccounts }
         onClose={ this.onClose }
         open
         title={
@@ -57,17 +86,44 @@ class VaultAccounts extends Component {
       >
         <SectionList
           items={ vaultAccounts }
+          noStretch
           renderItem={ this.renderAccount }
+          selectedAccounts={ selectedAccounts }
         />
       </Portal>
     );
   }
 
   renderAccount = (account) => {
-    // const { vaultName } = this.props.vaultStore;
+    const { vaultName, selectedAccounts } = this.props.vaultStore;
+    const isInVault = account.meta.vault === vaultName;
+    const isSelected = isInVault
+      ? !selectedAccounts[account.address]
+      : selectedAccounts[account.address];
+
+    const onSelect = () => {
+      this.props.vaultStore.toggleSelectedAccount(account.address);
+    };
 
     return (
-      <div>{ account.address }</div>
+      <div className={ styles.item }>
+        <AccountCard
+          account={ account }
+          className={
+            isSelected
+              ? styles.selected
+              : styles.unselected
+          }
+          onClick={ onSelect }
+        />
+        <div className={ styles.overlay }>
+          {
+            isSelected
+              ? <CheckIcon onClick={ onSelect } />
+              : <CheckIcon className={ styles.iconDisabled } onClick={ onSelect } />
+          }
+        </div>
+      </div>
     );
   }
 
@@ -76,7 +132,28 @@ class VaultAccounts extends Component {
   }
 
   onExecute = () => {
-    this.onClose();
+    const { accounts } = this.props;
+    const { vaultName, selectedAccounts } = this.props.vaultStore;
+
+    const vaultAccounts = Object
+      .keys(accounts)
+      .filter((address) => accounts[address].uuid)
+      .map((address) => accounts[address]);
+
+    return Promise
+      .all([
+        this.props.vaultStore.moveAccounts(vaultName, vaultAccounts.filter((account) => {
+          return account.meta.vault !== vaultName && selectedAccounts[account.address];
+        }).map((account) => account.address)),
+        this.props.vaultStore.moveAccounts(null, vaultAccounts.filter((account) => {
+          return account.meta.vault === vaultName && selectedAccounts[account.address];
+        }).map((account) => account.address))
+      ])
+      .then(this.onClose)
+      .catch((error) => {
+        this.props.newError(error);
+        this.onClose();
+      });
   }
 }
 

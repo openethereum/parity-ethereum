@@ -99,7 +99,11 @@ class Vaults extends Component {
     return (
       <Container
         className={ styles.container }
-        hover={ this.renderVaultAccounts(vault) }
+        hover={
+          vault.isOpen
+            ? this.renderVaultAccounts(vault)
+            : null
+        }
       >
         <NameLayout { ...vault } />
         {
@@ -107,20 +111,20 @@ class Vaults extends Component {
             ? <UnlockedIcon className={ styles.statusIcon } />
             : <LockedIcon className={ styles.statusIcon } />
         }
-        <div className={ styles.buttonRow }>
-          <Button
-            icon={ <AccountsIcon /> }
-            label={
-              <FormattedMessage
-                id='vaults.button.accounts'
-                defaultMessage='accounts'
-              />
-            }
-            onClick={ onClickAccounts }
-          />
-          {
-            vault.isOpen
-              ? (
+        {
+          vault.isOpen
+            ? (
+              <div className={ styles.buttonRow }>
+                <Button
+                  icon={ <AccountsIcon /> }
+                  label={
+                    <FormattedMessage
+                      id='vaults.button.accounts'
+                      defaultMessage='accounts'
+                    />
+                  }
+                  onClick={ onClickAccounts }
+                />
                 <Button
                   icon={ <LockedIcon /> }
                   label={
@@ -131,8 +135,10 @@ class Vaults extends Component {
                   }
                   onClick={ onClickOpen }
                 />
-              )
-              : (
+              </div>
+            )
+            : (
+              <div className={ styles.buttonRow }>
                 <Button
                   icon={ <UnlockedIcon /> }
                   label={
@@ -143,9 +149,9 @@ class Vaults extends Component {
                   }
                   onClick={ onClickOpen }
                 />
-              )
-          }
-        </div>
+              </div>
+            )
+        }
       </Container>
     );
   }
@@ -154,7 +160,7 @@ class Vaults extends Component {
     const { accounts } = this.props;
     const vaultAccounts = Object
       .keys(accounts)
-      .filter((address) => accounts[address].uuid && accounts[address].vault === vault.name);
+      .filter((address) => accounts[address].uuid && accounts[address].meta.vault === vault.name);
 
     if (!vaultAccounts.length) {
       return (

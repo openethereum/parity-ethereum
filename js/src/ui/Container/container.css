@@ -30,7 +30,6 @@ $transitionAll: all 0.75s cubic-bezier(0.23, 1, 0.32, 1);
 
   .hoverOverlay {
     background: $background;
-    display: none;
     left: 0;
     margin-top: -1.5em;
     padding: 0 1.5em 1.5em 1.5em;
@@ -38,6 +37,8 @@ $transitionAll: all 0.75s cubic-bezier(0.23, 1, 0.32, 1);
     right: 0;
     top: 100%;
     transition: $transitionAll;
+    transform: scale(0);
+    transform-origin: top center;
     z-index: 100;
   }
 
@@ -46,7 +47,7 @@ $transitionAll: all 0.75s cubic-bezier(0.23, 1, 0.32, 1);
 
     .hoverOverlay {
       background: $backgroundHover;
-      display: block;
+      transform: scale(1);
     }
   }
 }

@@ -37,6 +37,7 @@ export default class Store {
   @observable isModalCloseOpen = false;
   @observable isModalCreateOpen = false;
   @observable isModalOpenOpen = false;
+  @observable selectedAccounts = {};
   @observable vaults = [];
   @observable vaultNames = [];
   @observable vaultName = '';
@@ -132,6 +133,10 @@ export default class Store {
     });
   }
 
+  @action setSelectedAccounts = (selectedAccounts) => {
+    this.selectedAccounts = selectedAccounts;
+  }
+
   @action setVaults = (allVaults, openedVaults) => {
     transaction(() => {
       this.vaultNames = allVaults.map((name) => name.toLowerCase());
@@ -150,6 +155,12 @@ export default class Store {
 
   @action setVaultPassword = (password) => {
     this.vaultPassword = password;
+  }
+
+  @action toggleSelectedAccount = (address) => {
+    this.setSelectedAccounts(Object.assign({}, this.selectedAccounts, {
+      [address]: !this.selectedAccounts[address] })
+    );
   }
 
   closeAccountsModal () {
@@ -171,6 +182,7 @@ export default class Store {
   openAccountsModal (name) {
     transaction(() => {
       this.setVaultName(name);
+      this.setSelectedAccounts({});
       this.setModalAccountsOpen(true);
     });
   }
@@ -209,9 +221,8 @@ export default class Store {
         this.setVaults(allVaults, openedVaults);
       })
       .catch((error) => {
-        console.error('loadVaults', error);
+        console.warn('loadVaults', error);
         this.setBusyLoad(false);
-        throw error;
       });
   }
 
@@ -220,9 +231,9 @@ export default class Store {
 
     return this._api.parity
       .closeVault(this.vaultName)
+      .then(this.loadVaults)
       .then(() => {
         this.setBusyClose(false);
-        return this.loadVaults();
       })
       .catch((error) => {
         console.error('closeVault', error);
@@ -240,9 +251,9 @@ export default class Store {
 
     return this._api.parity
       .newVault(this.createName, this.createPassword)
+      .then(this.loadVaults)
       .then(() => {
         this.setBusyCreate(false);
-        return this.loadVaults();
       })
       .catch((error) => {
         console.error('createVault', error);
@@ -256,9 +267,9 @@ export default class Store {
 
     return this._api.parity
       .openVault(this.vaultName, this.vaultPassword)
+      .then(this.loadVaults)
       .then(() => {
         this.setBusyOpen(false);
-        return this.loadVaults();
       })
       .catch((error) => {
         console.error('openVault', error);
@@ -267,14 +278,14 @@ export default class Store {
       });
   }
 
-  moveAccounts (accounts) {
+  moveAccounts (vaultName, accounts) {
     this.setBusyAccounts(true);
 
     return Promise
-      .all(accounts.map((address) => this._api.parity.changeVault(address, this.vaultName)))
+      .all(accounts.map((address) => this._api.parity.changeVault(address, vaultName || '')))
+      .then(this.loadVaults)
       .then(() => {
         this.setBusyAccounts(false);
-        return this.loadVaults();
       })
       .catch((error) => {
         console.error('moveAccounts', error);
