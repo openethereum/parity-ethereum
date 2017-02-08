@@ -40,7 +40,7 @@ export default class RequestOrigin extends Component {
 
     return (
       <div className={ styles.container }>
-        Request Origin: { this.renderOrigin(origin) }
+        Requested by { this.renderOrigin(origin) }
       </div>
     );
   }
@@ -55,7 +55,7 @@ export default class RequestOrigin extends Component {
     if ('dapp' in origin) {
       return (
         <span>
-          Dapp at <span className={ styles.url }>
+          dapp at <span className={ styles.url }>
             { origin.dapp || 'unknown URL' }
           </span>
         </span>
@@ -97,7 +97,7 @@ export default class RequestOrigin extends Component {
   renderSigner (session) {
     if (session.substr(2) === this.context.api.transport.sessionHash) {
       return (
-        <span title={ session }>Current Tab</span>
+        <span title={ session }>current tab</span>
       );
     }
 

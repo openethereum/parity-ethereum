@@ -34,39 +34,39 @@ describe('views/Signer/components/RequestOrigin', () => {
     expect(shallow(
       <RequestOrigin origin={ 'unknown' } />,
       context
-    ).text()).to.equal('Request Origin: unknown');
+    ).text()).to.equal('Requested by unknown');
   });
 
   it('renders dapps', () => {
     expect(shallow(
       <RequestOrigin origin={ { dapp: 'http://parity.io' } } />,
       context
-    ).text()).to.equal('Request Origin: Dapp at http://parity.io');
+    ).text()).to.equal('Requested by dapp at http://parity.io');
   });
 
   it('renders rpc', () => {
     expect(shallow(
       <RequestOrigin origin={ { rpc: '' } } />,
       context
-    ).text()).to.equal('Request Origin: RPC (unidentified)');
+    ).text()).to.equal('Requested by RPC (unidentified)');
   });
 
   it('renders ipc', () => {
     expect(shallow(
       <RequestOrigin origin={ { ipc: '0x1234' } } />,
       context
-    ).text()).to.equal('Request Origin: IPC session<Connect(IdentityIcon) />');
+    ).text()).to.equal('Requested by IPC session<Connect(IdentityIcon) />');
   });
 
   it('renders signer', () => {
     expect(shallow(
       <RequestOrigin origin={ { signer: '0x12345' } } />,
       context
-    ).text()).to.equal('Request Origin: UI session<Connect(IdentityIcon) />');
+    ).text()).to.equal('Requested by UI session<Connect(IdentityIcon) />');
 
     expect(shallow(
       <RequestOrigin origin={ { signer: '0x1234' } } />,
       context
-    ).text()).to.equal('Request Origin: Current Tab');
+    ).text()).to.equal('Requested by current tab');
   });
 });
