@@ -351,3 +351,27 @@ fn rpc_parity_list_opened_vaults() {
 	assert!(actual_response == Some(response1.to_owned())
 		|| actual_response == Some(response2.to_owned()));
 }
+
+#[test]
+fn rpc_parity_get_set_vault_meta() {
+	let temp_path = RandomTempPath::new();
+	let tester = setup_with_vaults_support(temp_path.as_str());
+
+	assert!(tester.accounts.create_vault("vault1", "password1").is_ok());
+	assert!(tester.accounts.set_vault_meta("vault1", "vault1_meta").is_ok());
+
+	let request = r#"{"jsonrpc": "2.0", "method": "parity_getVaultMeta", "params":["vault1"], "id": 1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":"vault1_meta","id":1}"#;
+
+	assert_eq!(tester.io.handle_request_sync(request), Some(response.to_owned()));
+
+	let request = r#"{"jsonrpc": "2.0", "method": "parity_setVaultMeta", "params":["vault1", "updated_vault1_meta"], "id": 1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":true,"id":1}"#;
+
+	assert_eq!(tester.io.handle_request_sync(request), Some(response.to_owned()));
+
+	let request = r#"{"jsonrpc": "2.0", "method": "parity_getVaultMeta", "params":["vault1"], "id": 1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":"updated_vault1_meta","id":1}"#;
+
+	assert_eq!(tester.io.handle_request_sync(request), Some(response.to_owned()));
+}

@@ -16,6 +16,7 @@
 
 use std::{fs, io};
 use std::path::{PathBuf, Path};
+use parking_lot::Mutex;
 use {json, SafeAccount, Error};
 use util::sha3::Hashable;
 use super::super::account::Crypto;
@@ -24,6 +25,8 @@ use super::disk::{DiskDirectory, KeyFileManager};
 
 /// Name of vault metadata file
 pub const VAULT_FILE_NAME: &'static str = "vault.json";
+/// Name of temporary vault metadata file
+pub const VAULT_TEMP_FILE_NAME: &'static str = "vault_temp.json";
 
 /// Vault directory implementation
 pub type VaultDiskDirectory = DiskDirectory<VaultKeyFileManager>;
@@ -32,6 +35,7 @@ pub type VaultDiskDirectory = DiskDirectory<VaultKeyFileManager>;
 pub struct VaultKeyFileManager {
 	name: String,
 	key: VaultKey,
+	meta: Mutex<String>,
 }
 
 impl VaultDiskDirectory {
@@ -44,13 +48,14 @@ impl VaultDiskDirectory {
 		}
 
 		// create vault && vault file
+		let vault_meta = "{}";
 		fs::create_dir_all(&vault_dir_path)?;
-		if let Err(err) = create_vault_file(&vault_dir_path, &key) {
+		if let Err(err) = create_vault_file(&vault_dir_path, &key, vault_meta) {
 			let _ = fs::remove_dir_all(&vault_dir_path); // can't do anything with this
 			return Err(err);
 		}
 
-		Ok(DiskDirectory::new(vault_dir_path, VaultKeyFileManager::new(name, key)))
+		Ok(DiskDirectory::new(vault_dir_path, VaultKeyFileManager::new(name, key, vault_meta)))
 	}
 
 	/// Open existing vault directory with given key
@@ -62,9 +67,9 @@ impl VaultDiskDirectory {
 		}
 
 		// check that passed key matches vault file
-		check_vault_file(&vault_dir_path, &key)?;
+		let meta = read_vault_file(&vault_dir_path, &key)?;
 
-		Ok(DiskDirectory::new(vault_dir_path, VaultKeyFileManager::new(name, key)))
+		Ok(DiskDirectory::new(vault_dir_path, VaultKeyFileManager::new(name, key, &meta)))
 	}
 
 	fn create_temp_vault(&self, key: VaultKey) -> Result<VaultDiskDirectory, Error> {
@@ -145,13 +150,26 @@ impl VaultKeyDirectory for VaultDiskDirectory {
 
 		temp_vault.delete().map_err(|err| SetKeyError::NonFatalNew(err))
 	}
+
+	fn meta(&self) -> String {
+		self.key_manager().meta.lock().clone()
+	}
+
+	fn set_meta(&self, meta: &str) -> Result<(), Error> {
+		let key_manager = self.key_manager();
+		let vault_path = self.path().expect("self is instance of DiskDirectory; DiskDirectory always returns path; qed");
+		create_vault_file(vault_path, &key_manager.key, meta)?;
+		*key_manager.meta.lock() = meta.to_owned();
+		Ok(())
+	}
 }
 
 impl VaultKeyFileManager {
-	pub fn new(name: &str, key: VaultKey) -> Self {
+	pub fn new(name: &str, key: VaultKey, meta: &str) -> Self {
 		VaultKeyFileManager {
 			name: name.into(),
 			key: key,
+			meta: Mutex::new(meta.to_owned()),
 		}
 	}
 }
@@ -199,29 +217,37 @@ fn check_vault_name(name: &str) -> bool {
 }
 
 /// Vault can be empty, but still must be pluggable => we store vault password in separate file
-fn create_vault_file<P>(vault_dir_path: P, key: &VaultKey) -> Result<(), Error> where P: AsRef<Path> {
+fn create_vault_file<P>(vault_dir_path: P, key: &VaultKey, meta: &str) -> Result<(), Error> where P: AsRef<Path> {
 	let password_hash = key.password.sha3();
 	let crypto = Crypto::with_plain(&password_hash, &key.password, key.iterations);
 
 	let mut vault_file_path: PathBuf = vault_dir_path.as_ref().into();
 	vault_file_path.push(VAULT_FILE_NAME);
+	let mut temp_vault_file_path: PathBuf = vault_dir_path.as_ref().into();
+	temp_vault_file_path.push(VAULT_TEMP_FILE_NAME);
 
-	let mut vault_file = fs::File::create(vault_file_path)?;
+	// this method is used to rewrite existing vault file
+	// => write to temporary file first, then rename temporary file to vault file
+	let mut vault_file = fs::File::create(&temp_vault_file_path)?;
 	let vault_file_contents = json::VaultFile {
 		crypto: crypto.into(),
+		meta: Some(meta.to_owned()),
 	};
 	vault_file_contents.write(&mut vault_file).map_err(|e| Error::Custom(format!("{:?}", e)))?;
+	drop(vault_file);
+	fs::rename(&temp_vault_file_path, &vault_file_path)?;
 
 	Ok(())
 }
 
-/// When vault is opened => we must check that password matches
-fn check_vault_file<P>(vault_dir_path: P, key: &VaultKey) -> Result<(), Error> where P: AsRef<Path> {
+/// When vault is opened => we must check that password matches && read metadata
+fn read_vault_file<P>(vault_dir_path: P, key: &VaultKey) -> Result<String, Error> where P: AsRef<Path> {
 	let mut vault_file_path: PathBuf = vault_dir_path.as_ref().into();
 	vault_file_path.push(VAULT_FILE_NAME);
 
 	let vault_file = fs::File::open(vault_file_path)?;
 	let vault_file_contents = json::VaultFile::load(vault_file).map_err(|e| Error::Custom(format!("{:?}", e)))?;
+	let vault_file_meta = vault_file_contents.meta.unwrap_or("{}".to_owned());
 	let vault_file_crypto: Crypto = vault_file_contents.crypto.into();
 
 	let password_bytes = vault_file_crypto.decrypt(&key.password)?;
@@ -230,7 +256,7 @@ fn check_vault_file<P>(vault_dir_path: P, key: &VaultKey) -> Result<(), Error> w
 		return Err(Error::InvalidPassword);
 	}
 
-	Ok(())
+	Ok(vault_file_meta)
 }
 
 #[cfg(test)]
@@ -238,8 +264,8 @@ mod test {
 	use std::fs;
 	use std::io::Write;
 	use std::path::PathBuf;
-	use dir::VaultKey;
-	use super::{VAULT_FILE_NAME, check_vault_name, make_vault_dir_path, create_vault_file, check_vault_file, VaultDiskDirectory};
+	use dir::{VaultKey, VaultKeyDirectory};
+	use super::{VAULT_FILE_NAME, check_vault_name, make_vault_dir_path, create_vault_file, read_vault_file, VaultDiskDirectory};
 	use devtools::RandomTempPath;
 
 	#[test]
@@ -283,7 +309,7 @@ mod test {
 		fs::create_dir_all(&vault_dir).unwrap();
 
 		// when
-		let result = create_vault_file(&vault_dir, &key);
+		let result = create_vault_file(&vault_dir, &key, "{}");
 
 		// then
 		assert!(result.is_ok());
@@ -293,7 +319,7 @@ mod test {
 	}
 
 	#[test]
-	fn check_vault_file_succeeds() {
+	fn read_vault_file_succeeds() {
 		// given
 		let temp_path = RandomTempPath::create_dir();
 		let key = VaultKey::new("password", 1024);
@@ -307,14 +333,14 @@ mod test {
 		}
 
 		// when
-		let result = check_vault_file(&dir, &key);
+		let result = read_vault_file(&dir, &key);
 
 		// then
 		assert!(result.is_ok());
 	}
 
 	#[test]
-	fn check_vault_file_fails() {
+	fn read_vault_file_fails() {
 		// given
 		let temp_path = RandomTempPath::create_dir();
 		let key = VaultKey::new("password1", 1024);
@@ -323,7 +349,7 @@ mod test {
 		vault_file_path.push(VAULT_FILE_NAME);
 
 		// when
-		let result = check_vault_file(&dir, &key);
+		let result = read_vault_file(&dir, &key);
 
 		// then
 		assert!(result.is_err());
@@ -336,7 +362,7 @@ mod test {
 		}
 
 		// when
-		let result = check_vault_file(&dir, &key);
+		let result = read_vault_file(&dir, &key);
 
 		// then
 		assert!(result.is_err());
@@ -391,5 +417,23 @@ mod test {
 
 		// then
 		assert!(vault.is_err());
+	}
+
+	#[test]
+	fn vault_directory_can_preserve_meta() {
+		// given
+		let temp_path = RandomTempPath::new();
+		let key = VaultKey::new("password", 1024);
+		let dir: PathBuf = temp_path.as_path().into();
+		let vault = VaultDiskDirectory::create(&dir, "vault", key.clone()).unwrap();
+
+		// then
+		assert_eq!(vault.meta(), "{}".to_owned());
+		assert!(vault.set_meta("Hello, world!!!").is_ok());
+		assert_eq!(vault.meta(), "Hello, world!!!".to_owned());
+
+		// and when
+		let vault = VaultDiskDirectory::at(&dir, "vault", key.clone()).unwrap();
+		assert_eq!(vault.meta(), "Hello, world!!!".to_owned());
 	}
 }

@@ -25,10 +25,13 @@ use super::Crypto;
 pub struct VaultFile {
 	/// Vault password, encrypted with vault password
 	pub crypto: Crypto,
+	/// Vault metadata string
+	pub meta: Option<String>,
 }
 
 enum VaultFileField {
 	Crypto,
+	Meta,
 }
 
 impl Deserialize for VaultFileField {
@@ -49,6 +52,7 @@ impl Visitor for VaultFileFieldVisitor {
 	{
 		match value {
 			"crypto" => Ok(VaultFileField::Crypto),
+			"meta" => Ok(VaultFileField::Meta),
 			_ => Err(Error::custom(format!("Unknown field: '{}'", value))),
 		}
 	}
@@ -58,7 +62,7 @@ impl Deserialize for VaultFile {
 	fn deserialize<D>(deserializer: &mut D) -> Result<VaultFile, D::Error>
 		where D: Deserializer
 	{
-		static FIELDS: &'static [&'static str] = &["crypto"];
+		static FIELDS: &'static [&'static str] = &["crypto", "meta"];
 		deserializer.deserialize_struct("VaultFile", FIELDS, VaultFileVisitor)
 	}
 }
@@ -72,11 +76,13 @@ impl Visitor for VaultFileVisitor {
 		where V: MapVisitor
 	{
 		let mut crypto = None;
+		let mut meta = None;
 
 		loop {
 			match visitor.visit_key()? {
-				Some(VaultFileField::Crypto) => { crypto = Some(visitor.visit_value()?); }
-				None => { break; }
+				Some(VaultFileField::Crypto) => { crypto = Some(visitor.visit_value()?); },
+				Some(VaultFileField::Meta) => { meta = Some(visitor.visit_value()?); }
+				None => { break; },
 			}
 		}
 
@@ -89,6 +95,7 @@ impl Visitor for VaultFileVisitor {
 
 		let result = VaultFile {
 			crypto: crypto,
+			meta: meta,
 		};
 
 		Ok(result)
@@ -125,7 +132,8 @@ mod test {
 					salt: "b6a9338a7ccd39288a86dba73bfecd9101b4f3db9c9830e7c76afdbd4f6872e5".into(),
 				}),
 				mac: "16381463ea11c6eb2239a9f339c2e780516d29d234ce30ac5f166f9080b5a262".into(),
-			}
+			},
+			meta: Some("{}".into()),
 		};
 
 		let serialized = serde_json::to_string(&file).unwrap();
