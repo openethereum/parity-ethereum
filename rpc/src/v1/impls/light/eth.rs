@@ -88,7 +88,7 @@ impl EthClient {
 
 	/// Get a block header from the on demand service or client, or error.
 	fn header(&self, id: BlockId) -> BoxFuture<Option<encoded::Header>, Error> {
-		if let Some(h) = self.client.get_header(id) {
+		if let Some(h) = self.client.block_header(id) {
 			return future::ok(Some(h)).boxed()
 		}
 
