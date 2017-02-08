@@ -44,7 +44,7 @@ pub struct SigningUnsafeClient<D> {
 	dispatcher: D,
 }
 
-impl<D: Dispatcher> SigningUnsafeClient<D> {
+impl<D: Dispatcher + 'static> SigningUnsafeClient<D> {
 	/// Creates new SigningUnsafeClient.
 	pub fn new(accounts: &Arc<AccountProvider>, dispatcher: D) -> Self {
 		SigningUnsafeClient {
@@ -56,20 +56,21 @@ impl<D: Dispatcher> SigningUnsafeClient<D> {
 	fn handle(&self, payload: RpcConfirmationPayload, account: DefaultAccount) -> BoxFuture<RpcConfirmationResponse, Error> {
 		let setup = move || {
 			let accounts = take_weak!(self.accounts);
-			let default_account = match account {
+			let default_account = account;
+			let default_account = match default_account {
 				DefaultAccount::Provided(acc) => acc,
 				DefaultAccount::ForDapp(dapp) => accounts.default_address(dapp).ok().unwrap_or_default(),
 			};
 
-			(accounts, default_account)
+			Ok((accounts, default_account))
 		};
 
 		let dis = self.dispatcher.clone();
 		future::done(setup())
 			.and_then(move |(accounts, default)| {
 				dispatch::from_rpc(payload, default, &dis)
-					.and_then(|payload| {
-						dispatch::execute(&dis, &accounts, payload, dispatch::SignWith::Nothing)
+					.and_then(move |payload| {
+						dispatch::execute(dis, &accounts, payload, dispatch::SignWith::Nothing)
 					})
 					.map(|v| v.into_value())
 			})

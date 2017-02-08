@@ -94,12 +94,13 @@ impl<C: MiningBlockChainClient, M: MinerService> Dispatcher for FullDispatcher<C
 	{
 		let inner = move || {
 			let (client, miner) = (take_weak!(self.client), take_weak!(self.miner));
+			let request = request;
 			Ok(FilledTransactionRequest {
 				from: request.from.unwrap_or(default_sender),
 				used_default_from: request.from.is_none(),
 				to: request.to,
 				nonce: request.nonce,
-				gas_price: request.gas_price.unwrap_or_else(|| default_gas_price(client, miner)),
+				gas_price: request.gas_price.unwrap_or_else(|| default_gas_price(&*client, &*miner)),
 				gas: request.gas.unwrap_or_else(|| miner.sensible_gas_limit()),
 				value: request.value.unwrap_or_else(|| 0.into()),
 				data: request.data.unwrap_or_else(Vec::new),
@@ -147,7 +148,7 @@ impl<C: MiningBlockChainClient, M: MinerService> Dispatcher for FullDispatcher<C
 	fn dispatch_transaction(&self, signed_transaction: PendingTransaction) -> Result<H256, Error> {
 		let hash = signed_transaction.transaction.hash();
 
-		take_weak!(self.miner).import_own_transaction(take_weak!(self.client), signed_transaction)
+		take_weak!(self.miner).import_own_transaction(&*take_weak!(self.client), signed_transaction)
 			.map_err(errors::from_transaction_error)
 			.map(|_| hash)
 		}
@@ -223,7 +224,7 @@ impl<T: Debug> From<(T, Option<AccountToken>)> for WithToken<T> {
 	}
 }
 
-pub fn execute<D: Dispatcher>(
+pub fn execute<D: Dispatcher + 'static>(
 	dispatcher: D,
 	accounts: &AccountProvider,
 	payload: ConfirmationPayload,
@@ -231,7 +232,7 @@ pub fn execute<D: Dispatcher>(
 ) -> BoxFuture<WithToken<ConfirmationResponse>, Error> {
 	match payload {
 		ConfirmationPayload::SendTransaction(request) => {
-			let condition = request.condition.clone();
+			let condition = request.condition.clone().map(Into::into);
 			dispatcher.sign(accounts, request, pass)
 				.map(move |v| v.map(move |tx| PendingTransaction::new(tx, condition)))
 				.map(WithToken::into_tuple)

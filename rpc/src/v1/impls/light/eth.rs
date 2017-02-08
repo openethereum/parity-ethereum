@@ -37,7 +37,6 @@ use futures::{future, Future, BoxFuture};
 use futures::sync::oneshot;
 
 use v1::helpers::{CallRequest as CRequest, errors, limit_logs};
-use v1::helpers::dispatch::{dispatch_transaction, default_gas_price};
 use v1::helpers::block_import::is_major_importing;
 use v1::traits::Eth;
 use v1::types::{

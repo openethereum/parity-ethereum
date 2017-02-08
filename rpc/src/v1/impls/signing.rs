@@ -72,7 +72,7 @@ fn handle_dispatch<OnResponse>(res: Result<DispatchResult, Error>, on_response: 
 	}
 }
 
-impl<D: Dispatcher> SigningQueueClient<D> {
+impl<D: Dispatcher + 'static> SigningQueueClient<D> {
 	/// Creates a new signing queue client given shared signing queue.
 	pub fn new(signer: &Arc<SignerService>, dispatcher: D, accounts: &Arc<AccountProvider>) -> Self {
 		SigningQueueClient {
@@ -84,30 +84,34 @@ impl<D: Dispatcher> SigningQueueClient<D> {
 	}
 
 	fn dispatch(&self, payload: RpcConfirmationPayload, default_account: DefaultAccount) -> BoxFuture<DispatchResult, Error> {
-		let setup = || {
+		let setup = move || {
 			let accounts = take_weak!(self.accounts);
+			let default_account = default_account;
 			let default_account = match default_account {
 				DefaultAccount::Provided(acc) => acc,
 				DefaultAccount::ForDapp(dapp) => accounts.default_address(dapp).ok().unwrap_or_default(),
 			};
 
-			(self.dispatcher.clone(), accounts, default_account)
+			Ok((self.dispatcher.clone(), accounts, default_account))
 		};
 
 		let weak_signer = self.signer.clone();
-		future::done(setup)
+		future::done(setup())
 			.and_then(move |(dispatcher, accounts, default_account)| {
 				dispatch::from_rpc(payload, default_account, &dispatcher)
 					.and_then(move |payload| {
 						let sender = payload.sender();
 						if accounts.is_unlocked(sender) {
 							dispatch::execute(dispatcher, &accounts, payload, dispatch::SignWith::Nothing)
+								.map(|v| v.into_value())
+								.map(DispatchResult::Value)
 								.boxed()
 						} else {
-							future::lazy(move || take_weak!(weak_signer).add_request(payload))
-								.map(DispatchResult::Promise)
-								.map_err(|_| errors::request_rejected_limit())
-								.boxed()
+							future::lazy(move ||
+								take_weak!(weak_signer).add_request(payload)
+									.map(DispatchResult::Promise)
+									.map_err(|_| errors::request_rejected_limit())
+							).boxed()
 						}
 					})
 			})
@@ -129,6 +133,7 @@ impl<D: Dispatcher + 'static> ParitySigning for SigningQueueClient<D> {
 					RpcEither::Either(id.into())
 				},
 			})
+			.boxed()
 	}
 
 	fn post_transaction(&self, meta: Metadata, request: RpcTransactionRequest) -> BoxFuture<RpcEither<RpcU256, RpcConfirmationResponse>, Error> {
@@ -142,6 +147,7 @@ impl<D: Dispatcher + 'static> ParitySigning for SigningQueueClient<D> {
 					RpcEither::Either(id.into())
 				},
 			})
+			.boxed()
 	}
 
 	fn check_request(&self, id: RpcU256) -> Result<Option<RpcConfirmationResponse>, Error> {

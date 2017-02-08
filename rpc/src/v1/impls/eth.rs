@@ -46,7 +46,7 @@ use jsonrpc_core::Error;
 use jsonrpc_macros::Trailing;
 
 use v1::helpers::{CallRequest as CRequest, errors, limit_logs};
-use v1::helpers::dispatch::{dispatch_transaction, default_gas_price};
+use v1::helpers::dispatch::{Dispatcher, FullDispatcher, default_gas_price};
 use v1::helpers::block_import::is_major_importing;
 use v1::traits::Eth;
 use v1::types::{
@@ -634,7 +634,8 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 			.map_err(errors::from_rlp_error)
 			.and_then(|tx| SignedTransaction::new(tx).map_err(errors::from_transaction_error))
 			.and_then(|signed_transaction| {
-				dispatch_transaction(&*take_weak!(self.client), &*take_weak!(self.miner), PendingTransaction::new(signed_transaction, None))
+				FullDispatcher::new(self.client.clone(), self.miner.clone())
+					.dispatch_transaction(signed_transaction.into())
 			})
 			.map(Into::into)
 	}
