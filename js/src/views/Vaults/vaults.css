@@ -18,10 +18,11 @@
 .accounts {
   display: flex;
   justify-content: center;
+  flex-wrap: wrap;
   margin-top: 1.5em;
 
   .account {
-    margin: 0 0.5em;
+    margin: 0.5em;
   }
 }
 

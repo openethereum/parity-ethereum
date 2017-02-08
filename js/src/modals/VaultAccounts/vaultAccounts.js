@@ -51,6 +51,7 @@ class VaultAccounts extends Component {
       <Portal
         buttons={ [
           <Button
+            disabled={ isBusyAccounts }
             icon={ <CancelIcon /> }
             key='cancel'
             label={
@@ -149,11 +150,8 @@ class VaultAccounts extends Component {
           return account.meta.vault === vaultName && selectedAccounts[account.address];
         }).map((account) => account.address))
       ])
-      .then(this.onClose)
-      .catch((error) => {
-        this.props.newError(error);
-        this.onClose();
-      });
+      .catch(this.props.newError)
+      .then(this.onClose);
   }
 }
 

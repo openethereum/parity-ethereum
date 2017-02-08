@@ -44,6 +44,7 @@ class ConfirmOpen extends Component {
       <ConfirmDialog
         busy={ isBusyOpen }
         disabledConfirm={ isBusyOpen }
+        disabledDeny={ isBusyOpen }
         onConfirm={ this.onExecute }
         onDeny={ this.onClose }
         open
@@ -98,11 +99,8 @@ class ConfirmOpen extends Component {
   onExecute = () => {
     return this.props.vaultStore
       .openVault()
-      .then(this.onClose)
-      .catch((error) => {
-        this.props.newError(error);
-        this.onClose();
-      });
+      .catch(this.props.newError)
+      .then(this.onClose);
   }
 }
 

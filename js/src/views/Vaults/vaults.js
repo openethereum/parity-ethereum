@@ -180,6 +180,7 @@ class Vaults extends Component {
             return (
               <IdentityIcon
                 address={ address }
+                center
                 className={ styles.account }
                 key={ address }
               />

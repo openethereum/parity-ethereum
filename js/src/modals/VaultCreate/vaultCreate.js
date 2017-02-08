@@ -23,7 +23,7 @@ import { bindActionCreators } from 'redux';
 import { newError } from '~/redux/actions';
 import { Button, Input, Portal } from '~/ui';
 import PasswordStrength from '~/ui/Form/PasswordStrength';
-import { CheckIcon } from '~/ui/Icons';
+import { CheckIcon, CloseIcon } from '~/ui/Icons';
 
 import styles from './vaultCreate.css';
 
@@ -44,10 +44,23 @@ class VaultCreate extends Component {
 
     return (
       <Portal
-        buttons={
+        buttons={ [
+          <Button
+            disabled={ isBusyCreate }
+            icon={ <CloseIcon /> }
+            key='close'
+            label={
+              <FormattedMessage
+                id='vaults.create.button.close'
+                defaultMessage='close'
+              />
+            }
+            onClick={ this.onClose }
+          />,
           <Button
             disabled={ hasError || isBusyCreate }
             icon={ <CheckIcon /> }
+            key='create'
             label={
               <FormattedMessage
                 id='vaults.create.button.create'
@@ -56,7 +69,7 @@ class VaultCreate extends Component {
             }
             onClick={ this.onClickCreate }
           />
-        }
+        ] }
         onClose={ this.onClose }
         open
         title={
@@ -172,11 +185,8 @@ class VaultCreate extends Component {
 
     return this.props.vaultStore
       .createVault()
-      .then(this.onClose)
-      .catch((error) => {
-        this.props.newError(error);
-        this.onClose();
-      });
+      .catch(this.props.newError)
+      .then(this.onClose);
   }
 
   onClose = () => {
