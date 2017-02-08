@@ -14,20 +14,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-// require('babel-polyfill/dist/polyfill.js');
-require('es6-promise').polyfill();
-
-const isNode = typeof global !== 'undefined' && typeof global !== 'undefined';
-const isBrowser = typeof self !== 'undefined' && typeof self.window !== 'undefined';
-
-if (isBrowser) {
-  require('whatwg-fetch');
-}
-
-if (isNode) {
-  global.fetch = require('node-fetch');
-}
-
 const Abi = require('./dist/abi');
 const Api = require('./dist/api');
 
