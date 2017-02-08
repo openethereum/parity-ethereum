@@ -50,6 +50,7 @@ $popoverZ: 3600;
   left: 0;
   right: 0;
   opacity: 0.25;
+  z-index: 0;
 }
 
 .overlay {
@@ -72,10 +73,6 @@ $popoverZ: 3600;
       right: $modalRight;
       top: $modalTop;
       z-index: $modalZ;
-
-      .parityBackground {
-        z-index: -1;
-      }
     }
 
     &.small {
@@ -83,10 +80,6 @@ $popoverZ: 3600;
       max-width: 768px;
       position: relative;
       width: 75%;
-
-      .parityBackground {
-        z-index: 0;
-      }
     }
   }
 
@@ -116,8 +109,11 @@ $popoverZ: 3600;
 
   .childContainer {
     flex: 1;
+    margin: 0 -$modalPadding;
     overflow-x: hidden;
     overflow-y: auto;
+    padding: 0 $modalPadding;
+    z-index: 1;
   }
 
   .closeIcon {

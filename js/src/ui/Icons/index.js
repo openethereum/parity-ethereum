@@ -15,7 +15,6 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 export AddIcon from 'material-ui/svg-icons/content/add';
-export AddCircleIcon from 'material-ui/svg-icons/content/add-circle';
 export AttachFileIcon from 'material-ui/svg-icons/editor/attach-file';
 export CancelIcon from 'material-ui/svg-icons/content/clear';
 export CheckIcon from 'material-ui/svg-icons/navigation/check';

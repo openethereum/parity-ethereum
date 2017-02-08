@@ -45,7 +45,7 @@ export default class ConfirmOpen extends Component {
         title={
           <FormattedMessage
             id='vaults.confirmOpen.title'
-            defaultMessage='Vault Open'
+            defaultMessage='Open Vault'
           />
         }
       >

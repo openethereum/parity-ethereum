@@ -19,8 +19,8 @@ import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 
 import { VaultCreate } from '~/modals';
-import { Container, Page, SectionList } from '~/ui';
-import { AddCircleIcon, LockedIcon, UnlockedIcon } from '~/ui/Icons';
+import { Button, Container, Page, SectionList } from '~/ui';
+import { AddIcon, LockedIcon, UnlockedIcon } from '~/ui/Icons';
 
 import ConfirmClose from './ConfirmClose';
 import ConfirmOpen from './ConfirmOpen';
@@ -47,6 +47,18 @@ export default class Vaults extends Component {
 
     return (
       <Page
+        buttons={ [
+          <Button
+            icon={ <AddIcon /> }
+            label={
+              <FormattedMessage
+                id='vaults.button.add'
+                defaultMessage='create vault'
+              />
+            }
+            onClick={ this.onOpenCreate }
+          />
+        ] }
         title={
           <FormattedMessage
             id='vaults.title'
@@ -58,7 +70,7 @@ export default class Vaults extends Component {
         <ConfirmOpen store={ this.store } />
         <VaultCreate store={ this.store } />
         <SectionList
-          items={ [{ isAddButton: true }].concat(vaults.peek()) }
+          items={ vaults }
           renderItem={ this.renderItem }
         />
       </Page>
@@ -66,23 +78,6 @@ export default class Vaults extends Component {
   }
 
   renderItem = (item) => {
-    if (item.isAddButton) {
-      return (
-        <Container
-          className={ styles.container }
-          onClick={ this.onOpenCreate }
-        >
-          <AddCircleIcon className={ styles.iconAdd } />
-          <div className={ styles.name }>
-            <FormattedMessage
-              id='vaults.button.add'
-              defaultMessage='add vault'
-            />
-          </div>
-        </Container>
-      );
-    }
-
     const onClick = () => {
       return item.isOpen
         ? this.onCloseVault(item.name)

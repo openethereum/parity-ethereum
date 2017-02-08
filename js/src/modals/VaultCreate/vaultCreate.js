@@ -31,7 +31,7 @@ export default class VaultCreate extends Component {
   }
 
   render () {
-    const { createName, createNameError, createPassword, createPasswordHint, createPasswordRepeat, createPasswordRepeatError, isModalCreateOpen } = this.props.store;
+    const { createName, createNameError, createPassword, createPasswordHint, createPasswordRepeat, createPasswordRepeatError, isBusyCreate, isModalCreateOpen } = this.props.store;
     const hasError = !!createNameError || !!createPasswordRepeatError;
 
     if (!isModalCreateOpen) {
@@ -42,7 +42,7 @@ export default class VaultCreate extends Component {
       <Portal
         buttons={
           <Button
-            disabled={ hasError }
+            disabled={ hasError || isBusyCreate }
             icon={ <CheckIcon /> }
             label={
               <FormattedMessage
@@ -166,8 +166,9 @@ export default class VaultCreate extends Component {
       return;
     }
 
-    this.props.store.createVault();
-    this.props.store.closeAdd();
+    return this.props.store
+      .createVault()
+      .then(this.onClose);
   }
 
   onClose = () => {

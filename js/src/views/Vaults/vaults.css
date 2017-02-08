@@ -17,16 +17,9 @@
 
 $background: rgba(18, 18, 18, 1);
 $iconSize: 56px;
-$linkColor: rgb(0, 151, 167);
 
 .container {
   text-align: center;
-
-  .iconAdd {
-    fill: $linkColor !important;
-    height: $iconSize !important;
-    width: $iconSize !important;
-  }
 
   .iconMove {
     position: absolute;
@@ -49,7 +42,6 @@ $linkColor: rgb(0, 151, 167);
 
 .namebox {
   .identityIcon {
-    border-radius: 0.5em;
     margin: 0;
 
     &.locked {
@@ -60,5 +52,6 @@ $linkColor: rgb(0, 151, 167);
 }
 
 .textbox {
+  line-height: 1.5em;
   margin-bottom: 1.5em;
 }

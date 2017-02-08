@@ -30,8 +30,10 @@ import styles from './title.css';
 export default class Title extends Component {
   static propTypes = {
     activeStep: PropTypes.number,
+    description: nodeOrStringProptype(),
     busy: PropTypes.bool,
     busySteps: PropTypes.array,
+    byline: nodeOrStringProptype(),
     className: PropTypes.string,
     isSubTitle: PropTypes.bool,
     steps: PropTypes.array,
@@ -39,7 +41,7 @@ export default class Title extends Component {
   }
 
   render () {
-    const { activeStep, className, isSubTitle, steps, title } = this.props;
+    const { activeStep, byline, className, description, isSubTitle, steps, title } = this.props;
 
     if (!title && !steps) {
       return null;
@@ -57,6 +59,8 @@ export default class Title extends Component {
         }
       >
         <ContainerTitle
+          byline={ byline }
+          description={ description }
           title={
             steps
               ? steps[activeStep || 0]

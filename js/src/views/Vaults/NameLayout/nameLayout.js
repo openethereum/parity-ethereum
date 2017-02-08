@@ -42,7 +42,7 @@ export default class NameLayout extends Component {
                 : styles.locked
             ].join(' ')
           }
-        />,
+        />
         <div className={ styles.name }>
           { name }
         </div>
