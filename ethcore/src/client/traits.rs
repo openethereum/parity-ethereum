@@ -220,6 +220,7 @@ pub trait BlockChainClient : Sync + Send {
 				let block = self.block(BlockId::Hash(h)).expect("h is either the best_block_hash or an ancestor; qed");
 				let header = block.header_view();
 				if header.number() == 0 {
+					corpus.sort();
 					return corpus;
 				}
 				block.transaction_views().iter().foreach(|t| corpus.push(t.gas_price()));

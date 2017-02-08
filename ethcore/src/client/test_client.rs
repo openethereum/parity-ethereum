@@ -552,7 +552,7 @@ impl BlockChainClient for TestBlockChainClient {
 				let mut adding = false;
 
 				let mut blocks = Vec::new();
-				for (_, hash) in numbers_read.iter().sort_by(|tuple1, tuple2| tuple1.0.cmp(tuple2.0)) {
+				for (_, hash) in numbers_read.iter().sorted_by(|tuple1, tuple2| tuple1.0.cmp(tuple2.0)) {
 					if hash == to {
 						if adding {
 							blocks.push(hash.clone());

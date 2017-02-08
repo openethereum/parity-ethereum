@@ -34,7 +34,11 @@ export default class Portal extends Component {
     activeStep: PropTypes.number,
     busy: PropTypes.bool,
     busySteps: PropTypes.array,
-    buttons: PropTypes.array,
+    buttons: PropTypes.oneOfType([
+      PropTypes.array,
+      PropTypes.node,
+      PropTypes.object
+    ]),
     children: PropTypes.node,
     className: PropTypes.string,
     hideClose: PropTypes.bool,

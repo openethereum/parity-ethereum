@@ -23,6 +23,8 @@ use ethcore::transaction::PendingTransaction;
 use ethcore::ids::BlockId;
 use ethcore::encoded;
 
+use cht::{self, BlockInfo};
+
 use util::{Bytes, H256};
 
 use request;
@@ -227,48 +229,54 @@ impl<T: ProvingBlockChainClient + ?Sized> Provider for T {
 	}
 
 	fn header_proof(&self, req: request::HeaderProof) -> Option<(encoded::Header, Vec<Bytes>)> {
-		use util::MemoryDB;
-		use util::trie::{Trie, TrieMut, TrieDB, TrieDBMut, Recorder};
-
-		if Some(req.cht_number) != ::cht::block_to_cht_number(req.block_number) {
+		if Some(req.cht_number) != cht::block_to_cht_number(req.block_number) {
 			debug!(target: "les_provider", "Requested CHT number mismatch with block number.");
 			return None;
 		}
 
-		let mut memdb = MemoryDB::new();
-		let mut root = H256::default();
 		let mut needed_hdr = None;
-		{
-			let mut t = TrieDBMut::new(&mut memdb, &mut root);
-			let start_num = ::cht::start_number(req.cht_number);
-			for i in (0..::cht::SIZE).map(|x| x + start_num) {
-				match self.block_header(BlockId::Number(i)) {
-					None => return None,
-					Some(hdr) => {
-						t.insert(
-							&*::rlp::encode(&i),
-							&*::rlp::encode(&hdr.hash()),
-						).expect("fresh in-memory database is infallible; qed");
 
-						if i == req.block_number { needed_hdr = Some(hdr) }
+		// build the CHT, caching the requested header as we pass through it.
+		let cht = {
+			let block_info = |id| {
+				let hdr = self.block_header(id);
+				let td = self.block_total_difficulty(id);
+
+				match (hdr, td) {
+					(Some(hdr), Some(td)) => {
+						let info = BlockInfo {
+							hash: hdr.hash(),
+							parent_hash: hdr.parent_hash(),
+							total_difficulty: td,
+						};
+
+						if hdr.number() == req.block_number {
+							needed_hdr = Some(hdr);
+						}
+
+						Some(info)
 					}
+					_ => None,
 				}
+			};
+
+			match cht::build(req.cht_number, block_info) {
+				Some(cht) => cht,
+				None => return None, // incomplete CHT.
 			}
-		}
+		};
+
 		let needed_hdr = needed_hdr.expect("`needed_hdr` always set in loop, number checked before; qed");
 
-		let mut recorder = Recorder::with_depth(req.from_level);
-		let t = TrieDB::new(&memdb, &root)
-			.expect("Same DB and root as just produced by TrieDBMut; qed");
-
-		if let Err(e) = t.get_with(&*::rlp::encode(&req.block_number), &mut recorder) {
-			debug!(target: "les_provider", "Error looking up number in freshly-created CHT: {}", e);
-			return None;
+		// prove our result.
+		match cht.prove(req.block_number, req.from_level) {
+			Ok(Some(proof)) => Some((needed_hdr, proof)),
+			Ok(None) => None,
+			Err(e) => {
+				debug!(target: "les_provider", "Error looking up number in freshly-created CHT: {}", e);
+				None
+			}
 		}
-
-		// TODO: cache calculated CHT if possible.
-		let proof = recorder.drain().into_iter().map(|x| x.data).collect();
-		Some((needed_hdr, proof))
 	}
 
 	fn ready_transactions(&self) -> Vec<PendingTransaction> {
