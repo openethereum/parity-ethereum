@@ -14,7 +14,19 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-const Abi = require('./dist/abi');
-const Api = require('./dist/api');
+import 'babel-polyfill';
+import 'whatwg-fetch';
 
-module.exports = { Api, Abi };
+import es6Promise from 'es6-promise';
+es6Promise.polyfill();
+
+import Api from './api';
+
+import './dev.parity.html';
+
+const api = new Api(new Api.Transport.Http('/rpc/'));
+
+window.parity = {
+  Api,
+  api
+};

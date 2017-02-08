@@ -15,7 +15,9 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 try {
-  const { Api, Abi } = require('../npm/parity').Api;
+  require('isomorphic-fetch');
+
+  const { Api, Abi } = require('../npm/parity');
 
   if (typeof Api !== 'function') {
     throw new Error('No Api');

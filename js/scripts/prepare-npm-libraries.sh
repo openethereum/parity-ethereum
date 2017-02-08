@@ -20,6 +20,7 @@ popd
 
 echo "*** Building parity.js for NPM"
 mkdir -p npm/parity/src
+cp src/parity.js npm/parity/src/index.js
 cp -R src/abi npm/parity/src
 cp -R src/api npm/parity/src
 env LIBRARY=parity npm run ci:build:npm
