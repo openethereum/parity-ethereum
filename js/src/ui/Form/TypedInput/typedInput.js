@@ -215,8 +215,8 @@ export default class TypedInput extends Component {
   renderEth () {
     const { ethValue, isEth } = this.state;
 
-    const value = ethValue && typeof ethValue.toNumber === 'function'
-      ? ethValue.toNumber()
+    const value = ethValue && typeof ethValue.toFixed === 'function'
+      ? ethValue.toFixed() // we need a string representation, could be >15 digits
       : ethValue;
 
     const input = isEth
@@ -255,7 +255,7 @@ export default class TypedInput extends Component {
 
     return readOnly
       ? bnValue.toFormat()
-      : bnValue.toNumber();
+      : bnValue.toFixed(); // we need a string representation, could be >15 digits
   }
 
   renderInteger (value = this.props.value, onChange = this.onChange) {
