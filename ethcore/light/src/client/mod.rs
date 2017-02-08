@@ -155,8 +155,8 @@ impl Client {
 	}
 
 	/// Get a block header by Id.
-	pub fn get_header(&self, id: BlockId) -> Option<encoded::Header> {
-		self.chain.get_header(id)
+	pub fn block_header(&self, id: BlockId) -> Option<encoded::Header> {
+		self.chain.block_header(id)
 	}
 
 	/// Flush the header queue.
@@ -252,7 +252,7 @@ impl Provider for Client {
 	}
 
 	fn block_header(&self, id: BlockId) -> Option<encoded::Header> {
-		self.chain.get_header(id)
+		Client::block_header(self, id)
 	}
 
 	fn block_body(&self, _id: BlockId) -> Option<encoded::Body> {

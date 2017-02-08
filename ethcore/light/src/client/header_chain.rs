@@ -211,7 +211,7 @@ impl HeaderChain {
 
 	/// Get a block header. In the case of query by number, only canonical blocks
 	/// will be returned.
-	pub fn get_header(&self, id: BlockId) -> Option<encoded::Header> {
+	pub fn block_header(&self, id: BlockId) -> Option<encoded::Header> {
 		match id {
 			BlockId::Earliest | BlockId::Number(0) => Some(self.genesis_header.clone()),
 			BlockId::Hash(hash) => self.headers.read().get(&hash).cloned(),
@@ -238,7 +238,7 @@ impl HeaderChain {
 
 	/// Get the best block's header.
 	pub fn best_header(&self) -> encoded::Header {
-		self.get_header(BlockId::Latest).expect("Header for best block always stored; qed")
+		self.block_header(BlockId::Latest).expect("Header for best block always stored; qed")
 	}
 
 	/// Get the nth CHT root, if it's been computed.
@@ -324,8 +324,8 @@ mod tests {
 			rolling_timestamp += 10;
 		}
 
-		assert!(chain.get_header(BlockId::Number(10)).is_none());
-		assert!(chain.get_header(BlockId::Number(9000)).is_some());
+		assert!(chain.block_header(BlockId::Number(10)).is_none());
+		assert!(chain.block_header(BlockId::Number(9000)).is_some());
 		assert!(chain.cht_root(2).is_some());
 		assert!(chain.cht_root(3).is_none());
 	}
@@ -394,7 +394,7 @@ mod tests {
 		assert_eq!(num, 12);
 
 		while num > 0 {
-			let header = chain.get_header(BlockId::Number(num)).unwrap();
+			let header = chain.block_header(BlockId::Number(num)).unwrap();
 			assert_eq!(header.hash(), canon_hash);
 
 			canon_hash = header.parent_hash();
@@ -409,8 +409,8 @@ mod tests {
 
 		let chain = HeaderChain::new(&::rlp::encode(&genesis_header));
 
-		assert!(chain.get_header(BlockId::Earliest).is_some());
-		assert!(chain.get_header(BlockId::Latest).is_some());
-		assert!(chain.get_header(BlockId::Pending).is_some());
+		assert!(chain.block_header(BlockId::Earliest).is_some());
+		assert!(chain.block_header(BlockId::Latest).is_some());
+		assert!(chain.block_header(BlockId::Pending).is_some());
 	}
 }
