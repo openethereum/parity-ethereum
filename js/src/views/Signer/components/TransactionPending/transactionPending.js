@@ -43,6 +43,7 @@ export default class TransactionPending extends Component {
     nonce: PropTypes.number,
     onConfirm: PropTypes.func.isRequired,
     onReject: PropTypes.func.isRequired,
+    origin: PropTypes.any,
     store: PropTypes.object.isRequired,
     transaction: PropTypes.shape({
       condition: PropTypes.object,
@@ -56,7 +57,8 @@ export default class TransactionPending extends Component {
   };
 
   static defaultProps = {
-    focus: false
+    focus: false,
+    origin: 'unknown'
   };
 
   gasStore = new GasPriceEditor.Store(this.context.api, {
@@ -87,7 +89,7 @@ export default class TransactionPending extends Component {
   }
 
   renderTransaction () {
-    const { className, focus, id, isSending, isTest, store, transaction } = this.props;
+    const { className, focus, id, isSending, isTest, store, transaction, origin } = this.props;
     const { totalValue } = this.state;
     const { from, value } = transaction;
 
@@ -102,6 +104,7 @@ export default class TransactionPending extends Component {
           gasStore={ this.gasStore }
           id={ id }
           isTest={ isTest }
+          origin={ origin }
           totalValue={ totalValue }
           transaction={ transaction }
           value={ value }

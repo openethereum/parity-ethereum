@@ -80,7 +80,7 @@ class Embedded extends Component {
 
   renderPending = (data, index) => {
     const { actions, gasLimit, isTest } = this.props;
-    const { date, id, isSending, payload } = data;
+    const { date, id, isSending, payload, origin } = data;
 
     return (
       <RequestPending
@@ -94,6 +94,7 @@ class Embedded extends Component {
         key={ id }
         onConfirm={ actions.startConfirmRequest }
         onReject={ actions.startRejectRequest }
+        origin={ origin }
         payload={ payload }
         store={ this.store }
       />

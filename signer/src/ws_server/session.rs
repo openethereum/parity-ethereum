@@ -130,9 +130,6 @@ fn add_headers(mut response: ws::Response, mime: &str) -> ws::Response {
 	response
 }
 
-<<<<<<< Updated upstream
-pub struct Session<M: Metadata, S: Middleware<M>> {
-=======
 /// Metadata extractor from session data.
 pub trait MetaExtractor<M: Metadata>: Send + Clone + 'static {
 	/// Extract metadata for given session
@@ -141,9 +138,8 @@ pub trait MetaExtractor<M: Metadata>: Send + Clone + 'static {
 	}
 }
 
-pub struct Session<M: Metadata, T> {
+pub struct Session<M: Metadata, S: Middleware<M>, T> {
 	session_id: H256,
->>>>>>> Stashed changes
 	out: ws::Sender,
 	skip_origin_validation: bool,
 	self_origin: String,
@@ -151,24 +147,17 @@ pub struct Session<M: Metadata, T> {
 	authcodes_path: PathBuf,
 	handler: RpcHandler<M, S>,
 	file_handler: Arc<ui::Handler>,
-<<<<<<< Updated upstream
 	stats: Option<Arc<RpcStats>>,
+	meta_extractor: T,
 }
 
-impl<M: Metadata, S: Middleware<M>> Drop for Session<M, S> {
+impl<M: Metadata, S: Middleware<M>, T> Drop for Session<M, S, T> {
 	fn drop(&mut self) {
 		self.stats.as_ref().map(|stats| stats.close_session());
 	}
 }
 
-impl<M: Metadata, S: Middleware<M>> ws::Handler for Session<M, S> {
-=======
-	meta_extractor: T,
-}
-
-impl<M: Metadata, T: MetaExtractor<M>> ws::Handler for Session<M, T> {
->>>>>>> Stashed changes
-	#[cfg_attr(feature="dev", allow(collapsible_if))]
+impl<M: Metadata, S: Middleware<M>, T: MetaExtractor<M>> ws::Handler for Session<M, S, T> {
 	fn on_request(&mut self, req: &ws::Request) -> ws::Result<(ws::Response)> {
 		trace!(target: "signer", "Handling request: {:?}", req);
 
@@ -260,13 +249,8 @@ impl<M: Metadata, T: MetaExtractor<M>> ws::Handler for Session<M, T> {
 	}
 }
 
-<<<<<<< Updated upstream
-pub struct Factory<M: Metadata, S: Middleware<M>> {
+pub struct Factory<M: Metadata, S: Middleware<M>, T> {
 	handler: RpcHandler<M, S>,
-=======
-pub struct Factory<M: Metadata, T> {
-	handler: RpcHandler<M>,
->>>>>>> Stashed changes
 	skip_origin_validation: bool,
 	self_origin: String,
 	self_port: u16,
@@ -276,24 +260,15 @@ pub struct Factory<M: Metadata, T> {
 	stats: Option<Arc<RpcStats>>,
 }
 
-<<<<<<< Updated upstream
-impl<M: Metadata, S: Middleware<M>> Factory<M, S> {
+impl<M: Metadata, S: Middleware<M>, T> Factory<M, S, T> {
 	pub fn new(
 		handler: RpcHandler<M, S>,
 		self_origin: String,
-    self_port: u16,
+		self_port: u16,
 		authcodes_path: PathBuf,
 		skip_origin_validation: bool,
 		stats: Option<Arc<RpcStats>>,
-=======
-impl<M: Metadata, T> Factory<M, T> {
-	pub fn new(
-		handler: RpcHandler<M>,
-		self_origin: String,
-		authcodes_path: PathBuf,
-		skip_origin_validation: bool,
 		meta_extractor: T,
->>>>>>> Stashed changes
 	) -> Self {
 		Factory {
 			handler: handler,
@@ -308,13 +283,8 @@ impl<M: Metadata, T> Factory<M, T> {
 	}
 }
 
-<<<<<<< Updated upstream
-impl<M: Metadata, S: Middleware<M>> ws::Factory for Factory<M, S> {
-	type Handler = Session<M, S>;
-=======
-impl<M: Metadata, T: MetaExtractor<M>> ws::Factory for Factory<M, T> {
-	type Handler = Session<M, T>;
->>>>>>> Stashed changes
+impl<M: Metadata, S: Middleware<M>, T: MetaExtractor<M>> ws::Factory for Factory<M, S, T> {
+	type Handler = Session<M, S, T>;
 
 	fn connection_made(&mut self, sender: ws::Sender) -> Self::Handler {
 		self.stats.as_ref().map(|stats| stats.open_session());

@@ -104,7 +104,15 @@ impl ServerBuilder {
 		handler: RpcHandler<M, S>,
 		meta_extractor: T,
 	) -> Result<Server, ServerError> {
-		Server::start(addr, handler, self.queue, self.authcodes_path, self.skip_origin_validation, meta_extractor)
+		Server::start(
+			addr,
+			handler,
+			self.queue,
+			self.authcodes_path,
+			self.skip_origin_validation,
+			self.stats,
+			meta_extractor,
+		)
 	}
 
 }
@@ -126,23 +134,14 @@ impl Server {
 
 	/// Starts a new `WebSocket` server in separate thread.
 	/// Returns a `Server` handle which closes the server when droped.
-<<<<<<< Updated upstream
-	fn start<M: Metadata, S: Middleware<M>>(
+	fn start<M: Metadata, S: Middleware<M>, T: session::MetaExtractor<M>>(
 		addr: SocketAddr,
 		handler: RpcHandler<M, S>,
 		queue: Arc<ConfirmationsQueue>,
 		authcodes_path: PathBuf,
 		skip_origin_validation: bool,
 		stats: Option<Arc<RpcStats>>,
-=======
-	fn start<M: Metadata, T: session::MetaExtractor<M>>(
-		addr: SocketAddr,
-		handler: RpcHandler<M>,
-		queue: Arc<ConfirmationsQueue>,
-		authcodes_path: PathBuf,
-		skip_origin_validation: bool,
 		meta_extractor: T,
->>>>>>> Stashed changes
 	) -> Result<Server, ServerError> {
 		let config = {
 			let mut config = ws::Settings::default();
@@ -157,11 +156,7 @@ impl Server {
 		let origin = format!("{}", addr);
 		let port = addr.port();
 		let ws = ws::Builder::new().with_settings(config).build(
-<<<<<<< Updated upstream
-			session::Factory::new(handler, origin, port, authcodes_path, skip_origin_validation, stats)
-=======
-			session::Factory::new(handler, origin, authcodes_path, skip_origin_validation, meta_extractor)
->>>>>>> Stashed changes
+			session::Factory::new(handler, origin, port, authcodes_path, skip_origin_validation, stats, meta_extractor)
 		)?;
 
 		let panic_handler = PanicHandler::new_in_arc();
