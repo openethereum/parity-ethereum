@@ -92,8 +92,8 @@ export default class Vaults extends Component {
         <NameLayout { ...item } />
         {
           item.isOpen
-            ? <UnlockedIcon className={ styles.iconMove } />
-            : <LockedIcon className={ styles.iconMove } />
+            ? <UnlockedIcon className={ styles.iconLock } />
+            : <LockedIcon className={ styles.iconLock } />
         }
       </Container>
     );
