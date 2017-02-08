@@ -39,6 +39,10 @@ build_rpc_trait! {
 		#[rpc(name = "parity_accountsInfo")]
 		fn accounts_info(&self, Trailing<DappId>) -> Result<BTreeMap<String, BTreeMap<String, String>>, Error>;
 
+		/// Returns hardware accounts information.
+		#[rpc(name = "parity_hardwareAccountsInfo")]
+		fn hardware_accounts_info(&self) -> Result<BTreeMap<String, BTreeMap<String, String>>, Error>;
+
 		/// Returns default account for dapp.
 		#[rpc(meta, name = "parity_defaultAccount")]
 		fn default_account(&self, Self::Metadata) -> BoxFuture<H160, Error>;

@@ -138,6 +138,22 @@ impl<C, M, S: ?Sized, U> Parity for ParityClient<C, M, S, U> where
 		)
 	}
 
+	fn hardware_accounts_info(&self) -> Result<BTreeMap<String, BTreeMap<String, String>>, Error> {
+		let store = take_weak!(self.accounts);
+		let info = store.hardware_accounts_info().map_err(|e| errors::account("Could not fetch account info.", e))?;
+		Ok(info
+			.into_iter()
+			.map(|(a, v)| {
+				let m = map![
+					"name".to_owned() => v.name,
+					"manufacturer".to_owned() => v.meta
+				];
+				(format!("0x{}", a.hex()), m)
+			})
+			.collect()
+		)
+	}
+
 	fn default_account(&self, meta: Self::Metadata) -> BoxFuture<H160, Error> {
 		let dapp_id = meta.dapp_id.unwrap_or_default();
 		let default_account = move || {
