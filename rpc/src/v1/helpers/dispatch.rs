@@ -14,6 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+//! Utilities and helpers for transaction dispatch.
+
 use std::fmt::Debug;
 use std::ops::Deref;
 use std::sync::Weak;
@@ -152,20 +154,29 @@ impl<C: MiningBlockChainClient, M: MinerService> Dispatcher for FullDispatcher<C
 		}
 }
 
+/// default MAC to use.
 pub const DEFAULT_MAC: [u8; 2] = [0, 0];
 
-type AccountToken = String;
+/// Single-use account token.
+pub type AccountToken = String;
 
+/// Values used to unlock accounts for signing.
 #[derive(Debug, Clone, PartialEq)]
 pub enum SignWith {
+	/// Nothing -- implies the account is already unlocked.
 	Nothing,
+	/// Unlock with password.
 	Password(String),
+	/// Unlock with single-use token.
 	Token(AccountToken),
 }
 
+/// A value, potentially accompanied by a signing token.
 #[derive(Debug)]
 pub enum WithToken<T: Debug> {
+	/// No token.
 	No(T),
+	/// With token.
 	Yes(T, AccountToken),
 }
 
@@ -181,6 +192,7 @@ impl<T: Debug> Deref for WithToken<T> {
 }
 
 impl<T: Debug> WithToken<T> {
+	/// Map the value with the given closure, preserving the token.
 	pub fn map<S, F>(self, f: F) -> WithToken<S> where
 		S: Debug,
 		F: FnOnce(T) -> S,
@@ -191,6 +203,7 @@ impl<T: Debug> WithToken<T> {
 		}
 	}
 
+	/// Convert into inner value, ignoring possible token.
 	pub fn into_value(self) -> T {
 		match self {
 			WithToken::No(v) => v,
@@ -222,6 +235,7 @@ impl<T: Debug> From<(T, Option<AccountToken>)> for WithToken<T> {
 	}
 }
 
+/// Execute a confirmation payload.
 pub fn execute<D: Dispatcher + 'static>(
 	dispatcher: D,
 	accounts: &AccountProvider,
