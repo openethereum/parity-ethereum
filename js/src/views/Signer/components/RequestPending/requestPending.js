@@ -61,7 +61,7 @@ export default class RequestPending extends Component {
           address={ sign.address }
           className={ className }
           focus={ focus }
-          hash={ sign.hash }
+          data={ sign.data }
           id={ id }
           isFinished={ false }
           isSending={ isSending }
