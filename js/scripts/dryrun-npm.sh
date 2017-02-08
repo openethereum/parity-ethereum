@@ -10,7 +10,7 @@ echo "$NPM_TOKEN" >> ~/.npmrc
 
 echo "*** Building jsonrpc for NPM"
 npm run ci:build:jsonrpc
-cp -r src/jsonrpc npm/jsonrpc/src
+cp -R src/jsonrpc/* npm/jsonrpc/src
 env LIBRARY=jsonrpc npm run ci:build:npm
 
 pushd .; cd npm/jsonrpc
@@ -18,8 +18,8 @@ npm test
 popd
 
 echo "*** Building parity.js for NPM"
-cp -r src/abi npm/parity/src/abi
-cp -r src/api npm/parity/src/api
+cp -R src/abi npm/parity/src
+cp -R src/api npm/parity/src
 env LIBRARY=parity npm run ci:build:npm
 
 pushd .; cd npm/parity
@@ -27,7 +27,7 @@ npm test
 popd
 
 echo "*** Building etherscan for NPM"
-cp -r src/3rdparty/etherscan npm/etherscan/src
+cp -R src/3rdparty/etherscan/* npm/etherscan/src
 env LIBRARY=etherscan npm run ci:build:npm
 
 pushd .; cd npm/etherscan
@@ -35,7 +35,7 @@ npm test
 popd
 
 echo "*** Building shapeshift for NPM"
-cp -r src/3rdparty/shapeshift npm/shapeshift/src
+cp -R src/3rdparty/shapeshift/* npm/shapeshift/src
 env LIBRARY=shapeshift npm run ci:build:npm
 
 pushd .; cd npm/shapeshift
