@@ -17,8 +17,9 @@
 //! Lenient hash json deserialization for test json files.
 
 use std::str::FromStr;
-use serde::{Deserialize, Deserializer, Serialize, Serializer, Error};
-use serde::de::Visitor;
+use std::fmt;
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use serde::de::{Error, Visitor};
 use rustc_serialize::hex::ToHex;
 use util::hash::{H64 as Hash64, H160 as Hash160, H256 as Hash256, H520 as Hash520, H2048 as Hash2048};
 
@@ -42,7 +43,7 @@ macro_rules! impl_hash {
 		}
 
 		impl Deserialize for $name {
-			fn deserialize<D>(deserializer: &mut D) -> Result<Self, D::Error>
+			fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
 				where D: Deserializer {
 
 				struct HashVisitor;
@@ -50,7 +51,11 @@ macro_rules! impl_hash {
 				impl Visitor for HashVisitor {
 					type Value = $name;
 
-					fn visit_str<E>(&mut self, value: &str) -> Result<Self::Value, E> where E: Error {
+					fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+						write!(formatter, "a 0x-prefixed hex-encoded hash")
+					}
+
+					fn visit_str<E>(self, value: &str) -> Result<Self::Value, E> where E: Error {
 						let value = match value.len() {
 							0 => $inner::from(0),
 							2 if value == "0x" => $inner::from(0),
@@ -65,7 +70,7 @@ macro_rules! impl_hash {
 						Ok($name(value))
 					}
 
-					fn visit_string<E>(&mut self, value: String) -> Result<Self::Value, E> where E: Error {
+					fn visit_string<E>(self, value: String) -> Result<Self::Value, E> where E: Error {
 						self.visit_str(value.as_ref())
 					}
 				}
@@ -75,7 +80,7 @@ macro_rules! impl_hash {
 		}
 
 		impl Serialize for $name {
-			fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Error> where S: Serializer {
+			fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: Serializer {
 				let mut hex = "0x".to_owned();
 				hex.push_str(&self.0.to_hex());
 				serializer.serialize_str(&hex)
