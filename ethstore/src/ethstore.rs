@@ -501,10 +501,17 @@ impl SimpleSecretStore for EthMultiStore {
 	}
 
 	fn get_vault_meta(&self, name: &str) -> Result<String, Error> {
+		// vault meta contains password hint
+		// => allow reading meta even if vault is not yet opened
 		self.vaults.lock()
 			.get(name)
+			.and_then(|v| Some(v.meta()))
 			.ok_or(Error::VaultNotFound)
-			.and_then(|v| Ok(v.meta()))
+			.or_else(|_| {
+				let vault_provider = self.dir.as_vault_provider().ok_or(Error::VaultsAreNotSupported)?;
+				vault_provider.vault_meta(name)
+			})
+			
 	}
 
 	fn set_vault_meta(&self, name: &str, meta: &str) -> Result<(), Error> {
@@ -860,5 +867,35 @@ mod tests {
 		assert_eq!(opened_vaults.len(), 2);
 		assert!(opened_vaults.iter().any(|v| &*v == name1));
 		assert!(opened_vaults.iter().any(|v| &*v == name3));
+	}
+
+	#[test]
+	fn should_manage_vaults_meta() {
+		// given
+		let mut dir = RootDiskDirectoryGuard::new();
+		let store = EthStore::open(dir.key_dir.take().unwrap()).unwrap();
+		let name1 = "vault1"; let password1 = "password1";
+
+		// when
+		store.create_vault(name1, password1).unwrap();
+
+		// then
+		assert_eq!(store.get_vault_meta(name1).unwrap(), "{}".to_owned());
+		assert!(store.set_vault_meta(name1, "Hello, world!!!").is_ok());
+		assert_eq!(store.get_vault_meta(name1).unwrap(), "Hello, world!!!".to_owned());
+
+		// and when
+		store.close_vault(name1).unwrap();
+		store.open_vault(name1, password1).unwrap();
+
+		// then
+		assert_eq!(store.get_vault_meta(name1).unwrap(), "Hello, world!!!".to_owned());
+
+		// and when
+		store.close_vault(name1).unwrap();
+
+		// then
+		assert_eq!(store.get_vault_meta(name1).unwrap(), "Hello, world!!!".to_owned());
+		assert!(store.get_vault_meta("vault2").is_err());
 	}
 }

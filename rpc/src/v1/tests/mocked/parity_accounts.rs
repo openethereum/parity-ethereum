@@ -314,6 +314,14 @@ fn rpc_parity_vault_adds_vault_field_to_acount_meta() {
 	let response = format!(r#"{{"jsonrpc":"2.0","result":{{"0x{}":{{"meta":"{{\"vault\":\"vault1\"}}","name":"","uuid":"{}"}}}},"id":1}}"#, address1.hex(), uuid1);
 
 	assert_eq!(tester.io.handle_request_sync(request), Some(response.to_owned()));
+
+	// and then
+	assert!(tester.accounts.change_vault(address1, "").is_ok());
+
+	let request = r#"{"jsonrpc": "2.0", "method": "parity_allAccountsInfo", "params":[], "id": 1}"#;
+	let response = format!(r#"{{"jsonrpc":"2.0","result":{{"0x{}":{{"meta":"{{}}","name":"","uuid":"{}"}}}},"id":1}}"#, address1.hex(), uuid1);
+
+	assert_eq!(tester.io.handle_request_sync(request), Some(response.to_owned()));
 }
 
 #[test]
