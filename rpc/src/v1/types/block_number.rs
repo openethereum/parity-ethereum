@@ -14,8 +14,9 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use serde::{Deserialize, Deserializer, Error, Serialize, Serializer};
-use serde::de::Visitor;
+use std::fmt;
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use serde::de::{Error, Visitor};
 use ethcore::client::BlockId;
 
 /// Represents rpc api block number param.
@@ -38,8 +39,7 @@ impl Default for BlockNumber {
 }
 
 impl Deserialize for BlockNumber {
-	fn deserialize<D>(deserializer: &mut D) -> Result<BlockNumber, D::Error>
-	where D: Deserializer {
+	fn deserialize<D>(deserializer: D) -> Result<BlockNumber, D::Error> where D: Deserializer {
 		deserializer.deserialize(BlockNumberVisitor)
 	}
 }
@@ -55,7 +55,7 @@ impl BlockNumber {
 }
 
 impl Serialize for BlockNumber {
-	fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Error> where S: Serializer {
+	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: Serializer {
 		match *self {
 			BlockNumber::Num(ref x) => serializer.serialize_str(&format!("0x{:x}", x)),
 			BlockNumber::Latest => serializer.serialize_str("latest"),
@@ -70,7 +70,11 @@ struct BlockNumberVisitor;
 impl Visitor for BlockNumberVisitor {
 	type Value = BlockNumber;
 
-	fn visit_str<E>(&mut self, value: &str) -> Result<Self::Value, E> where E: Error {
+	fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+		write!(formatter, "a block number or 'latest', 'earliest' or 'pending'")
+	}
+
+	fn visit_str<E>(self, value: &str) -> Result<Self::Value, E> where E: Error {
 		match value {
 			"latest" => Ok(BlockNumber::Latest),
 			"earliest" => Ok(BlockNumber::Earliest),
@@ -80,7 +84,7 @@ impl Visitor for BlockNumberVisitor {
 		}
 	}
 
-	fn visit_string<E>(&mut self, value: String) -> Result<Self::Value, E> where E: Error {
+	fn visit_string<E>(self, value: String) -> Result<Self::Value, E> where E: Error {
 		self.visit_str(value.as_ref())
 	}
 }
