@@ -1,9 +1,10 @@
-use serde::{Deserialize, Deserializer, Error as SerdeError};
-use serde::de::Visitor;
+use std::fmt;
+use serde::{Deserialize, Deserializer};
+use serde::de::{Error as SerdeError, Visitor};
 use super::{ParamType, Reader};
 
 impl Deserialize for ParamType {
-	fn deserialize<D>(deserializer: &mut D) -> Result<Self, D::Error> where D: Deserializer {
+	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error> where D: Deserializer {
 		deserializer.deserialize(ParamTypeVisitor)
 	}
 }
@@ -13,11 +14,15 @@ struct ParamTypeVisitor;
 impl Visitor for ParamTypeVisitor {
 	type Value = ParamType;
 
-	fn visit_str<E>(&mut self, value: &str) -> Result<Self::Value, E> where E: SerdeError {
+	fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+		write!(formatter, "a correct name of abi-encodable parameter type")
+	}
+
+	fn visit_str<E>(self, value: &str) -> Result<Self::Value, E> where E: SerdeError {
 		Reader::read(value).map_err(|e| SerdeError::custom(format!("{:?}", e).as_str()))
 	}
 
-	fn visit_string<E>(&mut self, value: String) -> Result<Self::Value, E> where E: SerdeError {
+	fn visit_string<E>(self, value: String) -> Result<Self::Value, E> where E: SerdeError {
 		self.visit_str(value.as_str())
 	}
 }

@@ -1,8 +1,22 @@
 //! Contract interface specification.
 
-#[cfg(feature = "serde_macros")]
-include!("mod.rs.in");
+mod constructor;
+mod error;
+mod event;
+mod event_param;
+mod function;
+mod interface;
+mod operation;
+mod param;
+pub mod param_type;
 
-#[cfg(not(feature = "serde_macros"))]
-include!(concat!(env!("OUT_DIR"), "/mod.rs"));
+pub use self::constructor::Constructor;
+pub use self::error::Error;
+pub use self::event::Event;
+pub use self::event_param::EventParam;
+pub use self::function::Function;
+pub use self::interface::Interface;
+pub use self::operation::Operation;
+pub use self::param::Param;
+pub use self::param_type::ParamType;
 
