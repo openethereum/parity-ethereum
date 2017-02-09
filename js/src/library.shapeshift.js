@@ -31,4 +31,4 @@ if (isNode) {
 
 import ShapeShift from './3rdparty/shapeshift';
 
-module.exports = ShapeShift;
+export default ShapeShift;

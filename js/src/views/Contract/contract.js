@@ -30,7 +30,8 @@ import { newError } from '~/redux/actions';
 import { setVisibleAccounts } from '~/redux/providers/personalActions';
 
 import { EditMeta, ExecuteContract } from '~/modals';
-import { Actionbar, Button, Page, Modal, Editor } from '~/ui';
+import { Actionbar, Button, Page, Modal } from '~/ui';
+import Editor from '~/ui/Editor';
 
 import Header from '../Account/Header';
 import Delete from '../Address/Delete';
