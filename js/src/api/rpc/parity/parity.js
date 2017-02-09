@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import { inAddress, inAddresses, inData, inHex, inNumber16, inOptions, inBlockNumber } from '../../format/input';
-import { outAccountInfo, outAddress, outAddresses, outChainStatus, outHistogram, outNumber, outPeers, outTransaction } from '../../format/output';
+import { outAccountInfo, outAddress, outAddresses, outChainStatus, outHistogram, outNumber, outPeers, outTransaction, outVaultMeta } from '../../format/output';
 
 export default class Parity {
   constructor (transport) {
@@ -55,9 +55,24 @@ export default class Parity {
       .execute('parity_changePassword', inAddress(account), password, newPassword);
   }
 
+  changeVault (account, vaultName) {
+    return this._transport
+      .execute('parity_changeVault', inAddress(account), vaultName);
+  }
+
+  changeVaultPassword (vaultName, password) {
+    return this._transport
+      .execute('parity_changeVaultPassword', vaultName, password);
+  }
+
   checkRequest (requestId) {
     return this._transport
       .execute('parity_checkRequest', inNumber16(requestId));
+  }
+
+  closeVault (vaultName) {
+    return this._transport
+      .execute('parity_closeVault', vaultName);
   }
 
   consensusCapability () {
@@ -167,6 +182,12 @@ export default class Parity {
       .then((addresses) => addresses ? addresses.map(outAddress) : null);
   }
 
+  getVaultMeta (vaultName) {
+    return this._transport
+      .execute('parity_getVaultMeta', vaultName)
+      .then(outVaultMeta);
+  }
+
   hashContent (url) {
     return this._transport
       .execute('parity_hashContent', url);
@@ -187,6 +208,16 @@ export default class Parity {
     return this._transport
       .execute('parity_listAccounts', count, inAddress(offset), inBlockNumber(blockNumber))
       .then((accounts) => (accounts || []).map(outAddress));
+  }
+
+  listOpenedVaults () {
+    return this._transport
+      .execute('parity_listOpenedVaults');
+  }
+
+  listVaults () {
+    return this._transport
+      .execute('parity_listVaults');
   }
 
   listRecentDapps () {
@@ -275,6 +306,11 @@ export default class Parity {
       .then(outAddress);
   }
 
+  newVault (vaultName, password) {
+    return this._transport
+      .execute('parity_newVault', vaultName, password);
+  }
+
   nextNonce (account) {
     return this._transport
       .execute('parity_nextNonce', inAddress(account))
@@ -284,6 +320,11 @@ export default class Parity {
   nodeName () {
     return this._transport
       .execute('parity_nodeName');
+  }
+
+  openVault (vaultName, password) {
+    return this._transport
+      .execute('parity_openVault', vaultName, password);
   }
 
   pendingTransactions () {
@@ -397,6 +438,11 @@ export default class Parity {
   setTransactionsLimit (quantity) {
     return this._transport
       .execute('parity_setTransactionsLimit', inNumber16(quantity));
+  }
+
+  setVaultMeta (vaultName, meta) {
+    return this._transport
+      .execute('parity_setVaultMeta', vaultName, JSON.stringify(meta));
   }
 
   signerPort () {

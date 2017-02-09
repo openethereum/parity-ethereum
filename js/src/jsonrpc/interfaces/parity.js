@@ -17,11 +17,12 @@
 import { Address, Data, Hash, Quantity, BlockNumber, TransactionRequest } from '../types';
 import { fromDecimal, withComment, Dummy } from '../helpers';
 
-const SECTION_MINING = 'Block Authoring (aka "mining")';
-const SECTION_DEV = 'Development';
-const SECTION_NODE = 'Node Settings';
-const SECTION_NET = 'Network Information';
 const SECTION_ACCOUNTS = 'Accounts (read-only) and Signatures';
+const SECTION_DEV = 'Development';
+const SECTION_MINING = 'Block Authoring (aka "mining")';
+const SECTION_NET = 'Network Information';
+const SECTION_NODE = 'Node Settings';
+const SECTION_VAULT = 'Account Vaults';
 
 const SUBDOC_SET = 'set';
 const SUBDOC_ACCOUNTS = 'accounts';
@@ -148,6 +149,67 @@ export default {
           optional: true
         }
       }
+    }
+  },
+
+  changeVault: {
+    section: SECTION_VAULT,
+    desc: 'Changes the current valut for the account',
+    params: [
+      {
+        type: Address,
+        desc: 'Account address',
+        example: '0x63Cf90D3f0410092FC0fca41846f596223979195'
+      },
+      {
+        type: String,
+        desc: 'Vault name',
+        example: 'StrongVault'
+      }
+    ],
+    returns: {
+      type: Boolean,
+      desc: 'True on success',
+      example: true
+    }
+  },
+
+  changeVaultPassword: {
+    section: SECTION_VAULT,
+    desc: 'Changes the password for any given vault',
+    params: [
+      {
+        type: String,
+        desc: 'Vault name',
+        example: 'StrongVault'
+      },
+      {
+        type: String,
+        desc: 'New Password',
+        example: 'p@55w0rd'
+      }
+    ],
+    returns: {
+      type: Boolean,
+      desc: 'True on success',
+      example: true
+    }
+  },
+
+  closeVault: {
+    section: SECTION_VAULT,
+    desc: 'Closes a vault with the given name',
+    params: [
+      {
+        type: String,
+        desc: 'Vault name',
+        example: 'StrongVault'
+      }
+    ],
+    returns: {
+      type: Boolean,
+      desc: 'True on success',
+      example: true
     }
   },
 
@@ -314,6 +376,43 @@ export default {
     }
   },
 
+  getVaultMeta: {
+    section: SECTION_VAULT,
+    desc: 'Returns the metadata for a specific vault',
+    params: [
+      {
+        type: String,
+        desc: 'Vault name',
+        example: 'StrongVault'
+      }
+    ],
+    returns: {
+      type: String,
+      desc: 'The associated JSON metadata for this vault',
+      example: '{"passwordHint":"something"}'
+    }
+  },
+
+  listOpenedVaults: {
+    desc: 'Returns a list of all opened vaults',
+    params: [],
+    returns: {
+      type: Array,
+      desc: 'Names of all opened vaults',
+      example: "['Personal']"
+    }
+  },
+
+  listVaults: {
+    desc: 'Returns a list of all available vaults',
+    params: [],
+    returns: {
+      type: Array,
+      desc: 'Names of all available vaults',
+      example: "['Personal','Work']"
+    }
+  },
+
   localTransactions: {
     desc: 'Returns an object of current and past local transactions.',
     params: [],
@@ -430,6 +529,28 @@ export default {
     }
   },
 
+  newVault: {
+    section: SECTION_VAULT,
+    desc: 'Creates a new vault with the given name & password',
+    params: [
+      {
+        type: String,
+        desc: 'Vault name',
+        example: 'StrongVault'
+      },
+      {
+        type: String,
+        desc: 'Password',
+        example: 'p@55w0rd'
+      }
+    ],
+    returns: {
+      type: Boolean,
+      desc: 'True on success',
+      example: true
+    }
+  },
+
   nextNonce: {
     section: SECTION_NET,
     desc: 'Returns next available nonce for transaction from given account. Includes pending block and transaction queue.',
@@ -455,6 +576,28 @@ export default {
       type: String,
       desc: 'Node name.',
       example: 'Doge'
+    }
+  },
+
+  openVault: {
+    section: SECTION_VAULT,
+    desc: 'Opens a vault with the given name & password',
+    params: [
+      {
+        type: String,
+        desc: 'Vault name',
+        example: 'StrongVault'
+      },
+      {
+        type: String,
+        desc: 'Password',
+        example: 'p@55w0rd'
+      }
+    ],
+    returns: {
+      type: Boolean,
+      desc: 'True on success',
+      example: true
     }
   },
 
@@ -591,6 +734,28 @@ export default {
         interface: 'local',
         port: 8545
       }
+    }
+  },
+
+  setVaultMeta: {
+    section: SECTION_VAULT,
+    desc: 'Sets the metadata for a specific vault',
+    params: [
+      {
+        type: String,
+        desc: 'Vault name',
+        example: 'StrongVault'
+      },
+      {
+        type: String,
+        desc: 'The metadata as a JSON string',
+        example: '{"passwordHint":"something"}'
+      }
+    ],
+    returns: {
+      type: Boolean,
+      desc: 'The boolean call result, true on success',
+      example: true
     }
   },
 
