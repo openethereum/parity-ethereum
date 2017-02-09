@@ -44,6 +44,7 @@ class Transfer extends Component {
   static propTypes = {
     newError: PropTypes.func.isRequired,
     gasLimit: PropTypes.object.isRequired,
+    images: PropTypes.object.isRequired,
 
     senders: nullableProptype(PropTypes.object),
     sendersBalances: nullableProptype(PropTypes.object),
@@ -173,7 +174,7 @@ class Transfer extends Component {
   }
 
   renderDetailsPage () {
-    const { account, balance, senders } = this.props;
+    const { account, balance, images, senders } = this.props;
     const { recipient, recipientError, sender, senderError, sendersBalances } = this.store;
     const { valueAll, extras, tag, total, totalError, value, valueError } = this.store;
 
@@ -183,6 +184,7 @@ class Transfer extends Component {
         all={ valueAll }
         balance={ balance }
         extras={ extras }
+        images={ images }
         onChange={ this.store.onUpdateDetails }
         recipient={ recipient }
         recipientError={ recipientError }

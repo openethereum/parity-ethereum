@@ -37,6 +37,7 @@ class Account extends Component {
   static propTypes = {
     fetchCertifiers: PropTypes.func.isRequired,
     fetchCertifications: PropTypes.func.isRequired,
+    images: PropTypes.object.isRequired,
     setVisibleAccounts: PropTypes.func.isRequired,
 
     accounts: PropTypes.object,
@@ -256,13 +257,14 @@ class Account extends Component {
       return null;
     }
 
-    const { balances } = this.props;
+    const { balances, images } = this.props;
 
     return (
       <Transfer
         account={ account }
         balance={ balance }
         balances={ balances }
+        images={ images }
         onClose={ this.store.toggleTransferDialog }
       />
     );
@@ -287,10 +289,12 @@ class Account extends Component {
 function mapStateToProps (state) {
   const { accounts } = state.personal;
   const { balances } = state.balances;
+  const { images } = state;
 
   return {
     accounts,
-    balances
+    balances,
+    images
   };
 }
 

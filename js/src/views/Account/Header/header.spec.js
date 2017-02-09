@@ -73,7 +73,7 @@ describe('views/Account/Header', () => {
 
         beforeEach(() => {
           render({ balance: { balance: 'testing' } });
-          balance = component.find('Balance');
+          balance = component.find('Connect(Balance)');
         });
 
         it('renders', () => {
