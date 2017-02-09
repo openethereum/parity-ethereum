@@ -401,10 +401,11 @@ impl AccountProvider {
 		Ok(self.sstore.sign(&account, &password, &message)?)
 	}
 
-	pub fn sign_derived(&self, address: Address, password: Option<String>, derivation: Derivation, message: Message)
+	/// Signs message using the derived secret. If password is not provided the account must be unlocked.
+	pub fn sign_derived(&self, address: &Address, password: Option<String>, derivation: Derivation, message: Message)
 		-> Result<Signature, SignError>
 	{
-		let account = self.sstore.account_ref(&address)?;
+		let account = self.sstore.account_ref(address)?;
 		let password = password.map(Ok).unwrap_or_else(|| self.password(&account))?;
 		Ok(self.sstore.sign_derived(&account, &password, derivation, &message)?)
 	}
@@ -535,7 +536,8 @@ mod tests {
 	use super::{AccountProvider, Unlock, DappId};
 	use std::time::Instant;
 	use ethstore::ethkey::{Generator, Random};
-	use ethstore::StoreAccountRef;
+	use ethstore::{StoreAccountRef, Derivation};
+	use util::H256;
 
 	#[test]
 	fn unlock_account_temp() {
@@ -546,6 +548,75 @@ mod tests {
 		assert!(ap.unlock_account_temporarily(kp.address(), "test".into()).is_ok());
 		assert!(ap.sign(kp.address(), None, Default::default()).is_ok());
 		assert!(ap.sign(kp.address(), None, Default::default()).is_err());
+	}
+
+	#[test]
+	fn derived_account_nosave() {
+		let kp = Random.generate().unwrap();
+		let ap = AccountProvider::transient_provider();
+		assert!(ap.insert_account(kp.secret().clone(), "base").is_ok());
+		assert!(ap.unlock_account_permanently(kp.address(), "base".into()).is_ok());
+
+		let derived_addr = ap.derive_account(
+			&kp.address(),
+			None,
+			Derivation::SoftHash(H256::from(999)),
+			false,
+		).expect("Derivation should not fail");
+
+		assert!(ap.unlock_account_permanently(derived_addr, "base".into()).is_err(),
+			"There should be an error because account is not supposed to be saved");
+	}
+
+	#[test]
+	fn derived_account_save() {
+		let kp = Random.generate().unwrap();
+		let ap = AccountProvider::transient_provider();
+		assert!(ap.insert_account(kp.secret().clone(), "base").is_ok());
+		assert!(ap.unlock_account_permanently(kp.address(), "base".into()).is_ok());
+
+		let derived_addr = ap.derive_account(
+			&kp.address(),
+			None,
+			Derivation::SoftHash(H256::from(999)),
+			true,
+		).expect("Derivation should not fail");
+
+		assert!(ap.unlock_account_permanently(derived_addr, "base_wrong".into()).is_err(),
+			"There should be an error because password is invalid");
+
+		assert!(ap.unlock_account_permanently(derived_addr, "base".into()).is_ok(),
+			"Should be ok because account is saved and password is valid");
+	}
+
+	#[test]
+	fn derived_account_sign() {
+		let kp = Random.generate().unwrap();
+		let ap = AccountProvider::transient_provider();
+		assert!(ap.insert_account(kp.secret().clone(), "base").is_ok());
+		assert!(ap.unlock_account_permanently(kp.address(), "base".into()).is_ok());
+
+		let derived_addr = ap.derive_account(
+			&kp.address(),
+			None,
+			Derivation::SoftHash(H256::from(1999)),
+			true,
+		).expect("Derivation should not fail");
+		ap.unlock_account_permanently(derived_addr, "base".into())
+			.expect("Should be ok because account is saved and password is valid");
+
+		let msg = Default::default();
+		let signed_msg1 = ap.sign(derived_addr, None, msg)
+			.expect("Signing with existing unlocked account should not fail");
+		let signed_msg2 = ap.sign_derived(
+			&kp.address(),
+			None,
+			Derivation::SoftHash(H256::from(1999)),
+			msg,
+		).expect("Derived signing with existing unlocked account should not fail");
+
+		assert_eq!(signed_msg1, signed_msg2,
+			"Signed messages should match");
 	}
 
 	#[test]
