@@ -18,10 +18,13 @@
 
 use std::fmt::Debug;
 use std::ops::Deref;
-use std::sync::Weak;
+use std::sync::{Arc, Weak};
 
 use futures::{future, Future, BoxFuture};
-use util::{Address, H520, H256, U256, Uint, Bytes};
+use light::client::LightChainClient;
+use light::on_demand::{request, OnDemand};
+use light::TransactionQueue as LightTransactionQueue;
+use util::{Address, H520, H256, U256, Uint, Bytes, RwLock};
 use util::sha3::Hashable;
 
 use ethkey::Signature;
@@ -151,7 +154,36 @@ impl<C: MiningBlockChainClient, M: MinerService> Dispatcher for FullDispatcher<C
 		take_weak!(self.miner).import_own_transaction(&*take_weak!(self.client), signed_transaction)
 			.map_err(errors::from_transaction_error)
 			.map(|_| hash)
+	}
+}
+
+/// Dispatcher for light clients -- fetches default gas price, next nonce, etc. from network.
+/// Light client `ETH` RPC.
+#[derive(Clone)]
+pub struct LightDispatcher {
+	sync: Arc<LightSync>,
+	client: Arc<LightChainClient>,
+	on_demand: Arc<OnDemand>,
+	transaction_queue: Arc<RwLock<LightTransactionQueue>>,
+}
+
+impl LightDispatcher {
+	/// Create a new `LightDispatcher` from its requisite parts.
+	///
+	/// For correct operation, the OnDemand service is assumed to be registered as a network handler,
+	pub fn new(
+		sync: Arc<LightSync>,
+		client: Arc<LightChainClient>,
+		on_demand: Arc<OnDemand>,
+		transaction_queue: Arc<RwLock<LightTransactionQueue>>,
+	) -> Self {
+		LightDispatcher {
+			sync: sync,
+			client: client,
+			on_demand: on_demand,
+			transaction_queue,
 		}
+	}
 }
 
 /// default MAC to use.
