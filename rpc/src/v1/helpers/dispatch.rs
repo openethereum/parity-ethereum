@@ -151,7 +151,7 @@ impl<C: MiningBlockChainClient, M: MinerService> Dispatcher for FullDispatcher<C
 		take_weak!(self.miner).import_own_transaction(&*take_weak!(self.client), signed_transaction)
 			.map_err(errors::from_transaction_error)
 			.map(|_| hash)
-		}
+	}
 }
 
 /// default MAC to use.

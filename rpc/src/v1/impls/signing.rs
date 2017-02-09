@@ -173,7 +173,7 @@ impl<D: Dispatcher + 'static> ParitySigning for SigningQueueClient<D> {
 			});
 
 			// and wait for that to resolve.
-			p.then(|result| futures::done(result.expect("Ready is never dropped nor canceled."))).boxed()
+			p.then(|result| futures::done(result.expect("Ready is never dropped nor canceled.")))
 		}).boxed()
 	}
 }
@@ -195,7 +195,7 @@ impl<D: Dispatcher + 'static> EthSigning for SigningQueueClient<D> {
 				}
 			});
 
-			p.then(|result| futures::done(result.expect("Ready is never dropped nor canceled."))).boxed()
+			p.then(|result| futures::done(result.expect("Ready is never dropped nor canceled.")))
 		}).boxed()
 	}
 
@@ -213,7 +213,7 @@ impl<D: Dispatcher + 'static> EthSigning for SigningQueueClient<D> {
 				}
 			});
 
-			p.then(|result| futures::done(result.expect("Ready is never dropped nor canceled."))).boxed()
+			p.then(|result| futures::done(result.expect("Ready is never dropped nor canceled.")))
 		}).boxed()
 	}
 
@@ -231,7 +231,7 @@ impl<D: Dispatcher + 'static> EthSigning for SigningQueueClient<D> {
 				}
 			});
 
-			p.then(|result| futures::done(result.expect("Ready is never dropped nor canceled."))).boxed()
+			p.then(|result| futures::done(result.expect("Ready is never dropped nor canceled.")))
 		}).boxed()
 	}
 }
