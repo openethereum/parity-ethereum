@@ -246,7 +246,7 @@ impl Dispatcher for LightDispatcher {
 
 		nonce_future
 			.map_err(|_| errors::no_light_peers())
-			.and_then(move |acc| with_nonce(filled, acc.nonce + U256::one()))
+			.and_then(move |acc| with_nonce(filled, acc.nonce))
 			.boxed()
 	}
 
