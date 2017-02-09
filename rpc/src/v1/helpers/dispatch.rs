@@ -92,57 +92,50 @@ impl<C: MiningBlockChainClient, M: MinerService> Dispatcher for FullDispatcher<C
 	fn fill_optional_fields(&self, request: TransactionRequest, default_sender: Address)
 		-> BoxFuture<FilledTransactionRequest, Error>
 	{
-		let inner = move || {
-			let (client, miner) = (take_weak!(self.client), take_weak!(self.miner));
-			let request = request;
-			Ok(FilledTransactionRequest {
-				from: request.from.unwrap_or(default_sender),
-				used_default_from: request.from.is_none(),
-				to: request.to,
-				nonce: request.nonce,
-				gas_price: request.gas_price.unwrap_or_else(|| default_gas_price(&*client, &*miner)),
-				gas: request.gas.unwrap_or_else(|| miner.sensible_gas_limit()),
-				value: request.value.unwrap_or_else(|| 0.into()),
-				data: request.data.unwrap_or_else(Vec::new),
-				condition: request.condition,
-			})
-		};
-		future::done(inner()).boxed()
+		let (client, miner) = (take_weakf!(self.client), take_weakf!(self.miner));
+		let request = request;
+		future::ok(FilledTransactionRequest {
+			from: request.from.unwrap_or(default_sender),
+			used_default_from: request.from.is_none(),
+			to: request.to,
+			nonce: request.nonce,
+			gas_price: request.gas_price.unwrap_or_else(|| default_gas_price(&*client, &*miner)),
+			gas: request.gas.unwrap_or_else(|| miner.sensible_gas_limit()),
+			value: request.value.unwrap_or_else(|| 0.into()),
+			data: request.data.unwrap_or_else(Vec::new),
+			condition: request.condition,
+		}).boxed()
 	}
 
 	fn sign(&self, accounts: &AccountProvider, filled: FilledTransactionRequest, password: SignWith)
 		-> BoxFuture<WithToken<SignedTransaction>, Error>
 	{
-		let inner = move || {
-			let (client, miner) = (take_weak!(self.client), take_weak!(self.miner));
-			let network_id = client.signing_network_id();
-			let address = filled.from;
-			let signed_transaction = {
-				let t = Transaction {
-					nonce: filled.nonce
-						.or_else(|| miner
-							.last_nonce(&filled.from)
-							.map(|nonce| nonce + U256::one()))
-						.unwrap_or_else(|| client.latest_nonce(&filled.from)),
+		let (client, miner) = (take_weakf!(self.client), take_weakf!(self.miner));
+		let network_id = client.signing_network_id();
+		let address = filled.from;
+		future::ok({
+			let t = Transaction {
+				nonce: filled.nonce
+					.or_else(|| miner
+						.last_nonce(&filled.from)
+						.map(|nonce| nonce + U256::one()))
+					.unwrap_or_else(|| client.latest_nonce(&filled.from)),
 
-					action: filled.to.map_or(Action::Create, Action::Call),
-					gas: filled.gas,
-					gas_price: filled.gas_price,
-					value: filled.value,
-					data: filled.data,
-				};
-
-				let hash = t.hash(network_id);
-				let signature = signature(accounts, address, hash, password)?;
-				signature.map(|sig| {
-					SignedTransaction::new(t.with_signature(sig, network_id))
-						.expect("Transaction was signed by AccountsProvider; it never produces invalid signatures; qed")
-				})
+				action: filled.to.map_or(Action::Create, Action::Call),
+				gas: filled.gas,
+				gas_price: filled.gas_price,
+				value: filled.value,
+				data: filled.data,
 			};
-			Ok(signed_transaction)
-		};
 
-		future::done(inner()).boxed()
+			let hash = t.hash(network_id);
+			let signature = try_bf!(signature(accounts, address, hash, password));
+
+			signature.map(|sig| {
+				SignedTransaction::new(t.with_signature(sig, network_id))
+					.expect("Transaction was signed by AccountsProvider; it never produces invalid signatures; qed")
+			})
+		}).boxed()
 	}
 
 	fn dispatch_transaction(&self, signed_transaction: PendingTransaction) -> Result<H256, Error> {

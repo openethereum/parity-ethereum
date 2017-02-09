@@ -38,6 +38,17 @@ macro_rules! take_weakf {
 	}
 }
 
+// short for "try_boxfuture"
+// unwrap a result, returning a BoxFuture<_, Err> on failure.
+macro_rules! try_bf {
+	($res: expr) => {
+		match $res {
+			Ok(val) => val,
+			Err(e) => return ::futures::future::err(e.into()).boxed(),
+		}
+	}
+}
+
 #[macro_use]
 mod helpers;
 mod impls;
