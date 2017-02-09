@@ -248,6 +248,19 @@ impl ParityAccounts for ParityAccountsClient {
 			.map_err(|e| errors::account("Could not change vault.", e))
 			.map(|_| true)
 	}
+
+	fn get_vault_meta(&self, name: String) -> Result<String, Error> {
+		take_weak!(self.accounts)
+			.get_vault_meta(&name)
+			.map_err(|e| errors::account("Could not get vault metadata.", e))
+	}
+
+	fn set_vault_meta(&self, name: String, meta: String) -> Result<bool, Error> {
+		take_weak!(self.accounts)
+			.set_vault_meta(&name, &meta)
+			.map_err(|e| errors::account("Could not update vault metadata.", e))
+			.map(|_| true)
+	}
 }
 
 fn into_vec<A, B>(a: Vec<A>) -> Vec<B> where

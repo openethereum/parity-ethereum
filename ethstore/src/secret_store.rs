@@ -65,6 +65,10 @@ pub trait SimpleSecretStore: Send + Sync {
 	fn change_vault_password(&self, name: &str, new_password: &str) -> Result<(), Error>;
 	/// Cnage account' vault
 	fn change_account_vault(&self, vault: SecretVaultRef, account: StoreAccountRef) -> Result<StoreAccountRef, Error>;
+	/// Get vault metadata string.
+	fn get_vault_meta(&self, name: &str) -> Result<String, Error>;
+	/// Set vault metadata string.
+	fn set_vault_meta(&self, name: &str, meta: &str) -> Result<(), Error>;
 }
 
 pub trait SecretStore: SimpleSecretStore {

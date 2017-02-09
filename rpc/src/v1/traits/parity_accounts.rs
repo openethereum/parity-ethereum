@@ -133,5 +133,13 @@ build_rpc_trait! {
 		/// Change vault of the given address.
 		#[rpc(name = "parity_changeVault")]
 		fn change_vault(&self, H160, String) -> Result<bool, Error>;
+
+		/// Get vault metadata string.
+		#[rpc(name = "parity_getVaultMeta")]
+		fn get_vault_meta(&self, String) -> Result<String, Error>;
+
+		/// Set vault metadata string.
+		#[rpc(name = "parity_setVaultMeta")]
+		fn set_vault_meta(&self, String, String) -> Result<bool, Error>;
 	}
 }
