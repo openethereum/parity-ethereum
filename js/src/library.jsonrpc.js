@@ -16,4 +16,4 @@
 
 import JsonRpc from './jsonrpc';
 
-module.exports = JsonRpc;
+export default JsonRpc;
