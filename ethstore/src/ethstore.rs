@@ -564,7 +564,7 @@ impl SimpleSecretStore for EthMultiStore {
 				let vault_provider = self.dir.as_vault_provider().ok_or(Error::VaultsAreNotSupported)?;
 				vault_provider.vault_meta(name)
 			})
-			
+
 	}
 
 	fn set_vault_meta(&self, name: &str, meta: &str) -> Result<(), Error> {
@@ -579,10 +579,11 @@ impl SimpleSecretStore for EthMultiStore {
 mod tests {
 
 	use dir::{KeyDirectory, MemoryDirectory, RootDiskDirectory};
-	use ethkey::{Random, Generator, KeyPair};
-	use secret_store::{SimpleSecretStore, SecretStore, SecretVaultRef, StoreAccountRef};
+	use ethkey::{self, Random, Generator, KeyPair};
+	use secret_store::{SimpleSecretStore, SecretStore, SecretVaultRef, StoreAccountRef, Derivation};
 	use super::{EthStore, EthMultiStore};
 	use devtools::RandomTempPath;
+	use util::H256;
 
 	fn keypair() -> KeyPair {
 		Random.generate().unwrap()
@@ -950,5 +951,28 @@ mod tests {
 		// then
 		assert_eq!(store.get_vault_meta(name1).unwrap(), "Hello, world!!!".to_owned());
 		assert!(store.get_vault_meta("vault2").is_err());
+	}
+
+	#[test]
+	fn should_store_derived_keys() {
+		// given we have one account in the store
+		let store = store();
+		let keypair = keypair();
+		let address = store.insert_account(SecretVaultRef::Root, keypair.secret().clone(), "test").unwrap();
+
+		// when we deriving from that account
+		let derived = store.insert_derived(
+			SecretVaultRef::Root,
+			&address.address,
+			"test",
+			Derivation::Hash(ethkey::Derivation::Soft(H256::from(0)))
+		).unwrap();
+
+		// there should be 2 accounts in the store
+		let accounts = store.accounts().unwrap();
+		assert_eq!(accounts.len(), 2);
+
+		// and we can sign with the derived contract
+		assert!(store.sign(&derived, "test", &Default::default()).is_ok(), "Second password should work for second store.");
 	}
 }

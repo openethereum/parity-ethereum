@@ -39,15 +39,6 @@ pub struct StoreAccountRef {
 	pub address: Address,
 }
 
-
-/// Derivation scheme for keys
-pub enum Derivation {
-	/// Hierarchical derivation
-	Hierarchical(Vec<ethkey::Derivation<u32>>),
-	/// Hash derivation
-	Hash(ethkey::Derivation<H256>),
-}
-
 pub trait SimpleSecretStore: Send + Sync {
 	fn insert_account(&self, vault: SecretVaultRef, secret: Secret, password: &str) -> Result<StoreAccountRef, Error>;
 	fn insert_derived(&self, vault: SecretVaultRef, address: &Address, password: &str, derivation: Derivation) -> Result<StoreAccountRef, Error>;
@@ -127,4 +118,12 @@ impl Hash for StoreAccountRef {
 	fn hash<H: Hasher>(&self, state: &mut H) {
 		self.address.hash(state);
 	}
+}
+
+/// Derivation scheme for keys
+pub enum Derivation {
+	/// Hierarchical derivation
+	Hierarchical(Vec<ethkey::Derivation<u32>>),
+	/// Hash derivation
+	Hash(ethkey::Derivation<H256>),
 }
