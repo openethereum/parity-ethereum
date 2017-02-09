@@ -30,6 +30,7 @@ use ethstore::dir::MemoryDirectory;
 use ethstore::ethkey::{Address, Message, Public, Secret, Random, Generator};
 use ethjson::misc::AccountMeta;
 pub use ethstore::ethkey::Signature;
+pub use ethstore::Derivation;
 
 /// Type of unlock.
 #[derive(Clone)]
@@ -151,6 +152,20 @@ impl AccountProvider {
 	pub fn insert_account(&self, secret: Secret, password: &str) -> Result<Address, Error> {
 		let account = self.sstore.insert_account(SecretVaultRef::Root, secret, password)?;
 		Ok(account.address)
+	}
+
+	/// Generates new derived account based on the existing one
+	/// If password is not provided, account must be unlocked
+	/// New account will be created with the same password (if save: true)
+	pub fn derive_account(&self, address: &Address, password: Option<String>, derivation: Derivation, save: bool)
+		-> Result<Address, SignError>
+	{
+		let account = self.sstore.account_ref(&address)?;
+		let password = password.map(Ok).unwrap_or_else(|| self.password(&account))?;
+		Ok(
+			if save { self.sstore.insert_derived(SecretVaultRef::Root, &account, &password, derivation)?.address }
+			else { self.sstore.generate_derived(&account, &password, derivation)? }
+		)
 	}
 
 	/// Import a new presale wallet.
@@ -384,6 +399,14 @@ impl AccountProvider {
 		let account = self.sstore.account_ref(&address)?;
 		let password = password.map(Ok).unwrap_or_else(|| self.password(&account))?;
 		Ok(self.sstore.sign(&account, &password, &message)?)
+	}
+
+	pub fn sign_derived(&self, address: Address, password: Option<String>, derivation: Derivation, message: Message)
+		-> Result<Signature, SignError>
+	{
+		let account = self.sstore.account_ref(&address)?;
+		let password = password.map(Ok).unwrap_or_else(|| self.password(&account))?;
+		Ok(self.sstore.sign_derived(&account, &password, derivation, &message)?)
 	}
 
 	/// Signs given message with supplied token. Returns a token to use in next signing within this session.
