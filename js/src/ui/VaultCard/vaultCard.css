@@ -36,7 +36,7 @@
   }
 
   .buttons {
-    margin: -1em -1em 0 0;
+    margin: -1em -1em 0.75em -1em;
     text-align: right;
 
     button.status {
