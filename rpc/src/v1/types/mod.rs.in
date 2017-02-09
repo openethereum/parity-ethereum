@@ -36,6 +36,7 @@ mod uint;
 mod work;
 mod histogram;
 mod consensus_status;
+mod derivation;
 
 pub use self::bytes::Bytes;
 pub use self::block::{RichBlock, Block, BlockTransactions};
@@ -65,3 +66,4 @@ pub use self::uint::{U128, U256};
 pub use self::work::Work;
 pub use self::histogram::Histogram;
 pub use self::consensus_status::*;
+pub use self::derivation::{DerivateHash, DerivateHierarchical};
