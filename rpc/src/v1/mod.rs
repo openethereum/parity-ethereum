@@ -22,7 +22,16 @@ macro_rules! take_weak {
 	($weak: expr) => {
 		match $weak.upgrade() {
 			Some(arc) => arc,
-			None => return Err(Error::internal_error())
+			None => return Err(Error::internal_error()),
+		}
+	}
+}
+
+macro_rules! take_weakf {
+	($weak: expr) => {
+		match $weak.upgrade() {
+			Some(arc) => arc,
+			None => return ::futures::future::err(Error::internal_error()),
 		}
 	}
 }
