@@ -21,7 +21,7 @@ use parking_lot::{Mutex, RwLock};
 
 use crypto::KEY_ITERATIONS;
 use random::Random;
-use ethkey::{Signature, Address, Message, Secret, Public, KeyPair, ExtendedSecret};
+use ethkey::{self, Signature, Address, Message, Secret, Public, KeyPair, ExtendedKeyPair};
 use dir::{KeyDirectory, VaultKeyDirectory, VaultKey, SetKeyError};
 use account::SafeAccount;
 use presale::PresaleWallet;
@@ -351,15 +351,15 @@ impl EthMultiStore {
 		return Ok(());
 	}
 
-	fn generate(&self, secret: Secret, derivation: Derivation) -> ExtendedSecret {
-		let mut extended = ExtendedSecret::new(secret);
+	fn generate(&self, secret: Secret, derivation: Derivation) -> Result<ExtendedKeyPair, Error> {
+		let mut extended = ExtendedKeyPair::new(secret);
 		match derivation {
 			Derivation::Hierarchical(path) => {
-				for index in path { extended = extended.derive(index); }
+				for index in path { extended = extended.derive(index)?; }
 			},
-			Derivation::Hash(h256) => { extended = extended.derive(h256); }
+			Derivation::Hash(h256) => { extended = extended.derive(h256)?; }
 		}
-		extended
+		Ok(extended)
 	}
 }
 
@@ -381,8 +381,8 @@ impl SimpleSecretStore for EthMultiStore {
 			if !account.check_password(password) {
 				continue;
 			}
-			let extended = self.generate(account.crypto.secret(password)?, derivation);
-			return self.insert_account(vault, extended.secret().clone(), password);
+			let extended = self.generate(account.crypto.secret(password)?, derivation)?;
+			return self.insert_account(vault, extended.secret().secret().clone(), password);
 		}
 		Err(Error::InvalidPassword)
 	}
@@ -397,8 +397,8 @@ impl SimpleSecretStore for EthMultiStore {
 			if !account.check_password(password) {
 				continue;
 			}
-			let _ = self.generate(account.crypto.secret(password)?, derivation);
-			return Ok(address.clone());
+			let extended = self.generate(account.crypto.secret(password)?, derivation)?;
+			return Ok(ethkey::public_to_address(extended.public().public()));
 		}
 		Err(Error::InvalidPassword)
 	}
