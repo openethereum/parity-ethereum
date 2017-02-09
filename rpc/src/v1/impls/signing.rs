@@ -82,36 +82,29 @@ impl<D: Dispatcher + 'static> SigningQueueClient<D> {
 	}
 
 	fn dispatch(&self, payload: RpcConfirmationPayload, default_account: DefaultAccount) -> BoxFuture<DispatchResult, Error> {
-		let setup = move || {
-			let accounts = take_weak!(self.accounts);
-			let default_account = default_account;
-			let default_account = match default_account {
-				DefaultAccount::Provided(acc) => acc,
-				DefaultAccount::ForDapp(dapp) => accounts.default_address(dapp).ok().unwrap_or_default(),
-			};
-
-			Ok((self.dispatcher.clone(), accounts, default_account))
+		let accounts = take_weakf!(self.accounts);
+		let default_account = match default_account {
+			DefaultAccount::Provided(acc) => acc,
+			DefaultAccount::ForDapp(dapp) => accounts.default_address(dapp).ok().unwrap_or_default(),
 		};
 
-		let weak_signer = self.signer.clone();
-		future::done(setup())
-			.and_then(move |(dispatcher, accounts, default_account)| {
-				dispatch::from_rpc(payload, default_account, &dispatcher)
-					.and_then(move |payload| {
-						let sender = payload.sender();
-						if accounts.is_unlocked(sender) {
-							dispatch::execute(dispatcher, &accounts, payload, dispatch::SignWith::Nothing)
-								.map(|v| v.into_value())
-								.map(DispatchResult::Value)
-								.boxed()
-						} else {
-							future::lazy(move ||
-								take_weak!(weak_signer).add_request(payload)
-									.map(DispatchResult::Promise)
-									.map_err(|_| errors::request_rejected_limit())
-							).boxed()
-						}
-					})
+		let dispatcher = self.dispatcher.clone();
+		let signer = take_weakf!(self.signer);
+		dispatch::from_rpc(payload, default_account, &dispatcher)
+			.and_then(move |payload| {
+				let sender = payload.sender();
+				if accounts.is_unlocked(sender) {
+					dispatch::execute(dispatcher, &accounts, payload, dispatch::SignWith::Nothing)
+						.map(|v| v.into_value())
+						.map(DispatchResult::Value)
+						.boxed()
+				} else {
+					future::done(
+						signer.add_request(payload)
+							.map(DispatchResult::Promise)
+							.map_err(|_| errors::request_rejected_limit())
+					).boxed()
+				}
 			})
 			.boxed()
 	}

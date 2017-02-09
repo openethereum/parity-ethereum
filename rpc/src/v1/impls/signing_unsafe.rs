@@ -52,26 +52,18 @@ impl<D: Dispatcher + 'static> SigningUnsafeClient<D> {
 	}
 
 	fn handle(&self, payload: RpcConfirmationPayload, account: DefaultAccount) -> BoxFuture<RpcConfirmationResponse, Error> {
-		let setup = move || {
-			let accounts = take_weak!(self.accounts);
-			let default_account = account;
-			let default_account = match default_account {
-				DefaultAccount::Provided(acc) => acc,
-				DefaultAccount::ForDapp(dapp) => accounts.default_address(dapp).ok().unwrap_or_default(),
-			};
-
-			Ok((accounts, default_account))
+		let accounts = take_weakf!(self.accounts);
+		let default = match account {
+			DefaultAccount::Provided(acc) => acc,
+			DefaultAccount::ForDapp(dapp) => accounts.default_address(dapp).ok().unwrap_or_default(),
 		};
 
 		let dis = self.dispatcher.clone();
-		future::done(setup())
-			.and_then(move |(accounts, default)| {
-				dispatch::from_rpc(payload, default, &dis)
-					.and_then(move |payload| {
-						dispatch::execute(dis, &accounts, payload, dispatch::SignWith::Nothing)
-					})
-					.map(|v| v.into_value())
+		dispatch::from_rpc(payload, default, &dis)
+			.and_then(move |payload| {
+				dispatch::execute(dis, &accounts, payload, dispatch::SignWith::Nothing)
 			})
+			.map(|v| v.into_value())
 			.boxed()
 	}
 }
