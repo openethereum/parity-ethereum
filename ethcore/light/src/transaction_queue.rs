@@ -76,8 +76,8 @@ impl AccountTransactions {
 	}
 
 	fn next_nonce(&self) -> U256 {
-		self.current.last().map(|last| last.nonce)
-			.unwrap_or_else(|| *self.cur_nonce.value()) + 1.into()
+		self.current.last().map(|last| last.nonce + 1.into())
+			.unwrap_or_else(|| *self.cur_nonce.value())
 	}
 
 	// attempt to move transactions from the future queue into the current queue.
@@ -191,8 +191,8 @@ impl TransactionQueue {
 		self.by_account.values().flat_map(|acct_txs| {
 			acct_txs.current.iter().take_while(|tx| match tx.condition {
 				None => true,
-				Some(Condition::Number(blk_num)) => blk_num >= best_block_number,
-				Some(Condition::Timestamp(time)) => time >= best_block_timestamp,
+				Some(Condition::Number(blk_num)) => blk_num <= best_block_number,
+				Some(Condition::Timestamp(time)) => time <= best_block_timestamp,
 			}).cloned()
 		}).collect()
 	}
@@ -251,5 +251,139 @@ impl TransactionQueue {
 
 #[cfg(test)]
 mod tests {
+	use super::TransactionQueue;
+	use util::Address;
+	use ethcore::transaction::{Transaction, PendingTransaction, Condition};
 
+	#[test]
+	fn queued_senders() {
+		let sender = Address::default();
+		let mut txq = TransactionQueue::default();
+		let tx = Transaction::default().fake_sign(sender);
+
+		txq.insert(tx.into());
+
+		assert_eq!(txq.queued_senders(), vec![sender]);
+
+		txq.cull(sender, 1.into());
+
+		assert_eq!(txq.queued_senders(), vec![]);
+		assert!(txq.by_hash.is_empty());
+	}
+
+	#[test]
+	fn next_nonce() {
+		let sender = Address::default();
+		let mut txq = TransactionQueue::default();
+
+		for i in (0..5).chain(10..15) {
+			let mut tx = Transaction::default();
+			tx.nonce = i.into();
+
+			let tx = tx.fake_sign(sender);
+
+			txq.insert(tx.into());
+		}
+
+		// current: 0..5, future: 10..15
+		assert_eq!(txq.ready_transactions(0, 0).len(), 5);
+		assert_eq!(txq.next_nonce(&sender).unwrap(), 5.into());
+
+		txq.cull(sender, 8.into());
+
+		// current: empty, future: 10..15
+		assert_eq!(txq.ready_transactions(0, 0).len(), 0);
+		assert_eq!(txq.next_nonce(&sender).unwrap(), 8.into());
+
+		txq.cull(sender, 10.into());
+
+		// current: 10..15, future: empty
+		assert_eq!(txq.ready_transactions(0, 0).len(), 5);
+		assert_eq!(txq.next_nonce(&sender).unwrap(), 15.into());
+	}
+
+	#[test]
+	fn current_to_future() {
+		let sender = Address::default();
+		let mut txq = TransactionQueue::default();
+
+		for i in 5..10 {
+			let mut tx = Transaction::default();
+			tx.nonce = i.into();
+
+			let tx = tx.fake_sign(sender);
+
+			txq.insert(tx.into());
+		}
+
+		assert_eq!(txq.ready_transactions(0, 0).len(), 5);
+		assert_eq!(txq.next_nonce(&sender).unwrap(), 10.into());
+
+		for i in 0..3 {
+			let mut tx = Transaction::default();
+			tx.nonce = i.into();
+
+			let tx = tx.fake_sign(sender);
+
+			txq.insert(tx.into());
+		}
+
+		assert_eq!(txq.ready_transactions(0, 0).len(), 3);
+		assert_eq!(txq.next_nonce(&sender).unwrap(), 3.into());
+
+		for i in 3..5 {
+			let mut tx = Transaction::default();
+			tx.nonce = i.into();
+
+			let tx = tx.fake_sign(sender);
+
+			txq.insert(tx.into());
+		}
+
+		assert_eq!(txq.ready_transactions(0, 0).len(), 10);
+		assert_eq!(txq.next_nonce(&sender).unwrap(), 10.into());
+	}
+
+	#[test]
+	fn conditional() {
+		let mut txq = TransactionQueue::default();
+		let sender = Address::default();
+
+		for i in 0..5 {
+			let mut tx = Transaction::default();
+			tx.nonce = i.into();
+			let tx = tx.fake_sign(sender);
+
+			txq.insert(match i {
+				3 => PendingTransaction::new(tx, Some(Condition::Number(100))),
+				4 => PendingTransaction::new(tx, Some(Condition::Timestamp(1234))),
+				_ => tx.into(),
+			});
+		}
+
+		assert_eq!(txq.ready_transactions(0, 0).len(), 3);
+		assert_eq!(txq.ready_transactions(0, 1234).len(), 3);
+		assert_eq!(txq.ready_transactions(100, 0).len(), 4);
+		assert_eq!(txq.ready_transactions(100, 1234).len(), 5);
+	}
+
+	#[test]
+	fn cull_from_future() {
+		let sender = Address::default();
+		let mut txq = TransactionQueue::default();
+
+		for i in (0..1).chain(3..10) {
+			let mut tx = Transaction::default();
+			tx.nonce = i.into();
+
+			let tx = tx.fake_sign(sender);
+
+			txq.insert(tx.into());
+		}
+
+		txq.cull(sender, 6.into());
+
+		assert_eq!(txq.ready_transactions(0, 0).len(), 4);
+		assert_eq!(txq.next_nonce(&sender).unwrap(), 10.into());
+	}
 }
