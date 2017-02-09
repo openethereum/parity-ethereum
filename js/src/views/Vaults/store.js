@@ -302,11 +302,14 @@ export default class Store {
       });
   }
 
-  moveAccounts (vaultName, accounts) {
+  moveAccounts (vaultName, inAccounts, outAccounts) {
     this.setBusyAccounts(true);
 
     return Promise
-      .all(accounts.map((address) => this._api.parity.changeVault(address, vaultName || '')))
+      .all([
+        inAccounts.map((address) => this._api.parity.changeVault(address, vaultName)),
+        outAccounts.map((address) => this._api.parity.changeVault(address, ''))
+      ])
       .then(this.loadVaults)
       .then(() => {
         this.setBusyAccounts(false);

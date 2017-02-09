@@ -493,7 +493,7 @@ describe('modals/Vaults/Store', () => {
       beforeEach(() => {
         sinon.spy(store, 'setBusyAccounts');
 
-        return store.moveAccounts('testVault', ['A', 'B']);
+        return store.moveAccounts('testVault', ['A', 'B'], ['C']);
       });
 
       afterEach(() => {
@@ -508,6 +508,7 @@ describe('modals/Vaults/Store', () => {
       it('calls into parity_changeVault', () => {
         expect(api.parity.changeVault).to.have.been.calledWith('A', 'testVault');
         expect(api.parity.changeVault).to.have.been.calledWith('B', 'testVault');
+        expect(api.parity.changeVault).to.have.been.calledWith('C', '');
       });
     });
   });

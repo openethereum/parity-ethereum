@@ -78,7 +78,7 @@ function createVaultStore () {
   vaultStore = {
     isBusyAccounts: false,
     isModalAccountsOpen: true,
-    selectedAccounts: [ACCOUNT_B, ACCOUNT_C],
+    selectedAccounts: { [ACCOUNT_B]: true, [ACCOUNT_C]: true },
     vaultName: VAULTNAME,
     closeAccountsModal: sinon.stub(),
     moveAccounts: sinon.stub().resolves(true),
@@ -153,8 +153,7 @@ describe('modals/VaultAccounts', () => {
       });
 
       it('calls into moveAccounts', () => {
-        expect(vaultStore.moveAccounts).to.have.been.calledWith(VAULTNAME, [ACCOUNT_B]);
-        expect(vaultStore.moveAccounts).to.have.been.calledWith(null, [ACCOUNT_C]);
+        expect(vaultStore.moveAccounts).to.have.been.calledWith(VAULTNAME, [ACCOUNT_B], [ACCOUNT_C]);
       });
 
       it('closes modal', () => {
