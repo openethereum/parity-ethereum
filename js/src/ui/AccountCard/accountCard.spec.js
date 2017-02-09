@@ -65,7 +65,7 @@ describe('ui/AccountCard', () => {
       let balance;
 
       beforeEach(() => {
-        balance = component.find('Connect(Balance)');
+        balance = component.find('Balance');
       });
 
       it('renders the balance', () => {
