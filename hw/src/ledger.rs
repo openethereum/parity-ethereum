@@ -68,7 +68,7 @@ pub enum Error {
 impl fmt::Display for Error {
 	fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
 		match *self {
-			Error::Protocol(ref s) => write!(f, "Ledget protocol error: {}", s),
+			Error::Protocol(ref s) => write!(f, "Ledger protocol error: {}", s),
 			Error::Usb(ref e) => write!(f, "USB communication error: {}", e),
 			Error::KeyNotFound => write!(f, "Key not found"),
 			Error::UserCancel => write!(f, "Operation has been cancelled"),
@@ -162,7 +162,7 @@ impl Manager {
 		}
 
 		let (major, minor, patch) = (ver[1], ver[2], ver[3]);
-		if major <= 1 && minor == 0 && patch < 3 {
+		if major < 1 || (major == 1 && minor == 0 && patch < 3) {
 			return Err(Error::Protocol("App version 1.0.3 is required."));
 		}
 
@@ -173,7 +173,7 @@ impl Manager {
 			KeyPath::EthereumClassic => etc_path,
 		};
 		let key_and_address = Self::send_apdu(handle, commands::GET_ETH_PUBLIC_ADDRESS, 0, 0, derivation_path)?;
-		if key_and_address.len() != 107 { // 1 + 65 PK + 1 + 20 Addr
+		if key_and_address.len() != 107 { // 1 + 65 PK + 1 + 40 Addr (ascii-hex)
 			return Err(Error::Protocol("Key packet size mismatch"));
 		}
 		let address_string = ::std::str::from_utf8(&key_and_address[67..107])

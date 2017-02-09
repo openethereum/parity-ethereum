@@ -321,7 +321,7 @@ impl AccountProvider {
 
 	/// Returns each account along with name and meta.
 	pub fn accounts_info(&self) -> Result<HashMap<Address, AccountMeta>, Error> {
-		let r: HashMap<Address, AccountMeta> = self.sstore.accounts()?
+		let r = self.sstore.accounts()?
 			.into_iter()
 			.map(|a| (a.address.clone(), self.account_meta(a.address).ok().unwrap_or_default()))
 			.collect();
@@ -330,7 +330,7 @@ impl AccountProvider {
 
 	/// Returns each hardware account along with name and meta.
 	pub fn hardware_accounts_info(&self) -> Result<HashMap<Address, AccountMeta>, Error> {
-		let r: HashMap<Address, AccountMeta> = self.hardware_accounts()?
+		let r = self.hardware_accounts()?
 			.into_iter()
 			.map(|address| (address.clone(), self.account_meta(address).ok().unwrap_or_default()))
 			.collect();
