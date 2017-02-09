@@ -61,7 +61,7 @@ impl<D: Dispatcher + 'static> SigningUnsafeClient<D> {
 		let dis = self.dispatcher.clone();
 		dispatch::from_rpc(payload, default, &dis)
 			.and_then(move |payload| {
-				dispatch::execute(dis, &accounts, payload, dispatch::SignWith::Nothing)
+				dispatch::execute(dis, accounts, payload, dispatch::SignWith::Nothing)
 			})
 			.map(|v| v.into_value())
 			.boxed()

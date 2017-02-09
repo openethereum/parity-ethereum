@@ -29,6 +29,7 @@ use util::sha3::Hashable;
 
 use ethkey::Signature;
 use ethsync::LightSync;
+use ethcore::ids::BlockId;
 use ethcore::miner::MinerService;
 use ethcore::client::MiningBlockChainClient;
 use ethcore::transaction::{Action, SignedTransaction, PendingTransaction, Transaction};
@@ -58,7 +59,7 @@ pub trait Dispatcher: Send + Sync + Clone {
 		-> BoxFuture<FilledTransactionRequest, Error>;
 
 	/// Sign the given transaction request without dispatching, fetching appropriate nonce.
-	fn sign(&self, accounts: &AccountProvider, filled: FilledTransactionRequest, password: SignWith)
+	fn sign(&self, accounts: Arc<AccountProvider>, filled: FilledTransactionRequest, password: SignWith)
 		-> BoxFuture<WithToken<SignedTransaction>, Error>;
 
 	/// "Dispatch" a local transaction.
@@ -111,7 +112,7 @@ impl<C: MiningBlockChainClient, M: MinerService> Dispatcher for FullDispatcher<C
 		}).boxed()
 	}
 
-	fn sign(&self, accounts: &AccountProvider, filled: FilledTransactionRequest, password: SignWith)
+	fn sign(&self, accounts: Arc<AccountProvider>, filled: FilledTransactionRequest, password: SignWith)
 		-> BoxFuture<WithToken<SignedTransaction>, Error>
 	{
 		let (client, miner) = (take_weakf!(self.client), take_weakf!(self.miner));
@@ -133,7 +134,7 @@ impl<C: MiningBlockChainClient, M: MinerService> Dispatcher for FullDispatcher<C
 			};
 
 			let hash = t.hash(network_id);
-			let signature = try_bf!(signature(accounts, address, hash, password));
+			let signature = try_bf!(signature(&accounts, address, hash, password));
 
 			signature.map(|sig| {
 				SignedTransaction::new(t.with_signature(sig, network_id))
@@ -177,6 +178,85 @@ impl LightDispatcher {
 			on_demand: on_demand,
 			transaction_queue: transaction_queue,
 		}
+	}
+}
+
+impl Dispatcher for LightDispatcher {
+	fn fill_optional_fields(&self, request: TransactionRequest, default_sender: Address)
+		-> BoxFuture<FilledTransactionRequest, Error>
+	{
+		let request = request;
+		let gas_limit = self.client.block_header(BlockId::Latest)
+			.expect("Best block header always kept; qed").gas_limit();
+
+		future::ok(FilledTransactionRequest {
+			from: request.from.unwrap_or(default_sender),
+			used_default_from: request.from.is_none(),
+			to: request.to,
+			nonce: request.nonce,
+			gas_price: request.gas_price.unwrap_or_else(|| 21_000_000.into()), // TODO: fetch corpus from network.
+			gas: request.gas.unwrap_or_else(|| gas_limit / 3.into()),
+			value: request.value.unwrap_or_else(|| 0.into()),
+			data: request.data.unwrap_or_else(Vec::new),
+			condition: request.condition,
+		}).boxed()
+	}
+
+	fn sign(&self, accounts: Arc<AccountProvider>, filled: FilledTransactionRequest, password: SignWith)
+		-> BoxFuture<WithToken<SignedTransaction>, Error>
+	{
+		let network_id = None; // TODO: fetch from client.
+		let address = filled.from;
+		let best_header = self.client.block_header(BlockId::Latest)
+			.expect("Best block header always kept; qed");
+
+		let with_nonce = move |filled: FilledTransactionRequest, nonce| {
+			let t = Transaction {
+				nonce: nonce,
+				action: filled.to.map_or(Action::Create, Action::Call),
+				gas: filled.gas,
+				gas_price: filled.gas_price,
+				value: filled.value,
+				data: filled.data,
+			};
+			let hash = t.hash(network_id);
+			let signature = signature(&accounts, address, hash, password)?;
+
+			Ok(signature.map(|sig| {
+				SignedTransaction::new(t.with_signature(sig, network_id))
+					.expect("Transaction was signed by AccountsProvider; it never produces invalid signatures; qed")
+			}))
+		};
+
+		// fast path where we don't go to network; nonce provided or can be gotten from queue.
+		let maybe_nonce = filled.nonce.or_else(|| self.transaction_queue.read().next_nonce(&address));
+		if let Some(nonce) = maybe_nonce {
+			return future::done(with_nonce(filled, nonce)).boxed()
+		}
+
+		let nonce_future = self.sync.with_context(|ctx| self.on_demand.account(ctx, request::Account {
+			header: best_header,
+			address: address,
+		}));
+
+		let nonce_future = match nonce_future {
+			Some(x) => x,
+			None => return future::err(errors::no_light_peers()).boxed()
+		};
+
+		nonce_future
+			.map_err(|_| errors::no_light_peers())
+			.and_then(move |acc| with_nonce(filled, acc.nonce + U256::one()))
+			.boxed()
+	}
+
+	fn dispatch_transaction(&self, signed_transaction: PendingTransaction) -> Result<H256, Error> {
+		let hash = signed_transaction.transaction.hash();
+
+		self.transaction_queue.write().import(signed_transaction)
+			.map_err(Into::into)
+			.map_err(errors::from_transaction_error)
+			.map(|_| hash)
 	}
 }
 
@@ -264,7 +344,7 @@ impl<T: Debug> From<(T, Option<AccountToken>)> for WithToken<T> {
 /// Execute a confirmation payload.
 pub fn execute<D: Dispatcher + 'static>(
 	dispatcher: D,
-	accounts: &AccountProvider,
+	accounts: Arc<AccountProvider>,
 	payload: ConfirmationPayload,
 	pass: SignWith
 ) -> BoxFuture<WithToken<ConfirmationResponse>, Error> {
@@ -294,7 +374,7 @@ pub fn execute<D: Dispatcher + 'static>(
 				format!("\x19Ethereum Signed Message:\n{}", data.len())
 				.into_bytes();
 			message_data.append(&mut data);
-			let res = signature(accounts, address, message_data.sha3(), pass)
+			let res = signature(&accounts, address, message_data.sha3(), pass)
 				.map(|result| result
 					.map(|rsv| {
 						let mut vrs = [0u8; 65];
@@ -310,7 +390,7 @@ pub fn execute<D: Dispatcher + 'static>(
 			future::done(res).boxed()
 		},
 		ConfirmationPayload::Decrypt(address, data) => {
-			let res = decrypt(accounts, address, data, pass)
+			let res = decrypt(&accounts, address, data, pass)
 				.map(|result| result
 					.map(RpcBytes)
 					.map(ConfirmationResponse::Decrypt)
