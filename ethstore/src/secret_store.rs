@@ -41,11 +41,12 @@ pub struct StoreAccountRef {
 
 pub trait SimpleSecretStore: Send + Sync {
 	fn insert_account(&self, vault: SecretVaultRef, secret: Secret, password: &str) -> Result<StoreAccountRef, Error>;
-	fn insert_derived(&self, vault: SecretVaultRef, address: &Address, password: &str, derivation: Derivation) -> Result<StoreAccountRef, Error>;
+	fn insert_derived(&self, vault: SecretVaultRef, account_ref: &StoreAccountRef, password: &str, derivation: Derivation) -> Result<StoreAccountRef, Error>;
 	fn change_password(&self, account: &StoreAccountRef, old_password: &str, new_password: &str) -> Result<(), Error>;
 	fn remove_account(&self, account: &StoreAccountRef, password: &str) -> Result<(), Error>;
-	fn generate_derived(&self, address: &Address, password: &str, derivation: Derivation) -> Result<Address, Error>;
+	fn generate_derived(&self, account_ref: &StoreAccountRef, password: &str, derivation: Derivation) -> Result<Address, Error>;
 	fn sign(&self, account: &StoreAccountRef, password: &str, message: &Message) -> Result<Signature, Error>;
+	fn sign_derived(&self, account_ref: &StoreAccountRef, password: &str, derivation: Derivation, message: &Message) -> Result<Signature, Error>;
 	fn decrypt(&self, account: &StoreAccountRef, password: &str, shared_mac: &[u8], message: &[u8]) -> Result<Vec<u8>, Error>;
 
 	fn accounts(&self) -> Result<Vec<StoreAccountRef>, Error>;

@@ -54,14 +54,14 @@ impl SimpleSecretStore for EthStore {
 		self.store.insert_account(vault, secret, password)
 	}
 
-	fn insert_derived(&self, vault: SecretVaultRef, address: &Address, password: &str, derivation: Derivation)
+	fn insert_derived(&self, vault: SecretVaultRef, account_ref: &StoreAccountRef, password: &str, derivation: Derivation)
 		-> Result<StoreAccountRef, Error>
 	{
-		self.store.insert_derived(vault, address, password, derivation)
+		self.store.insert_derived(vault, account_ref, password, derivation)
 	}
 
-	fn generate_derived(&self, address: &Address, password: &str, derivation: Derivation) -> Result<Address, Error> {
-		self.store.generate_derived(address, password, derivation)
+	fn generate_derived(&self, account_ref: &StoreAccountRef, password: &str, derivation: Derivation) -> Result<Address, Error> {
+		self.store.generate_derived(account_ref, password, derivation)
 	}
 
 	fn account_ref(&self, address: &Address) -> Result<StoreAccountRef, Error> {
@@ -81,8 +81,13 @@ impl SimpleSecretStore for EthStore {
 	}
 
 	fn sign(&self, account: &StoreAccountRef, password: &str, message: &Message) -> Result<Signature, Error> {
-		let account = self.get(account)?;
-		account.sign(password, message)
+		self.get(account)?.sign(password, message)
+	}
+
+	fn sign_derived(&self, account_ref: &StoreAccountRef, password: &str, derivation: Derivation, message: &Message)
+		-> Result<Signature, Error>
+	{
+		self.store.sign_derived(account_ref, password, derivation, message)
 	}
 
 	fn decrypt(&self, account: &StoreAccountRef, password: &str, shared_mac: &[u8], message: &[u8]) -> Result<Vec<u8>, Error> {
@@ -377,11 +382,10 @@ impl SimpleSecretStore for EthMultiStore {
 		self.import(vault, account)
 	}
 
-	fn insert_derived(&self, vault: SecretVaultRef, address: &Address, password: &str, derivation: Derivation)
+	fn insert_derived(&self, vault: SecretVaultRef, account_ref: &StoreAccountRef, password: &str, derivation: Derivation)
 		-> Result<StoreAccountRef, Error>
 	{
-		let accounts = self.get(&self.account_ref(address)?)?;
-
+		let accounts = self.get(account_ref)?;
 		for account in accounts {
 			// Skip if password is invalid
 			if !account.check_password(password) {
@@ -393,20 +397,37 @@ impl SimpleSecretStore for EthMultiStore {
 		Err(Error::InvalidPassword)
 	}
 
-	fn generate_derived(&self, address: &Address, password: &str, derivation: Derivation)
+	fn generate_derived(&self, account_ref: &StoreAccountRef, password: &str, derivation: Derivation)
 	    -> Result<Address, Error>
 	{
-		let accounts = self.get(&self.account_ref(address)?)?;
-
+		let accounts = self.get(&account_ref)?;
 		for account in accounts {
 			// Skip if password is invalid
 			if !account.check_password(password) {
 				continue;
 			}
 			let extended = self.generate(account.crypto.secret(password)?, derivation)?;
+
 			return Ok(ethkey::public_to_address(extended.public().public()));
 		}
 		Err(Error::InvalidPassword)
+	}
+
+	fn sign_derived(&self, account_ref: &StoreAccountRef, password: &str, derivation: Derivation, message: &Message)
+		-> Result<Signature, Error>
+	{
+		let accounts = self.get(&account_ref)?;
+		for account in accounts {
+			// Skip if password is invalid
+			if !account.check_password(password) {
+				continue;
+			}
+			let extended = self.generate(account.crypto.secret(password)?, derivation)?;
+			let secret = extended.secret().secret();
+			return Ok(ethkey::sign(&secret, message)?)
+		}
+		Err(Error::InvalidPassword)
+
 	}
 
 	fn account_ref(&self, address: &Address) -> Result<StoreAccountRef, Error> {
@@ -969,7 +990,7 @@ mod tests {
 		// when we deriving from that account
 		let derived = store.insert_derived(
 			SecretVaultRef::Root,
-			&address.address,
+			&address,
 			"test",
 			Derivation::HardHash(H256::from(0)),
 		).unwrap();
