@@ -16,9 +16,12 @@
 
 //! Light client implementation. Stores data from light sync
 
+use std::sync::Arc;
+
 use ethcore::block_import_error::BlockImportError;
 use ethcore::block_status::BlockStatus;
 use ethcore::client::ClientReport;
+use ethcore::engines::Engine;
 use ethcore::ids::BlockId;
 use ethcore::header::Header;
 use ethcore::verification::queue::{self, HeaderQueue};
@@ -91,6 +94,7 @@ impl<T: LightChainClient> AsLightClient for T {
 /// Light client implementation.
 pub struct Client {
 	queue: HeaderQueue,
+	engine: Arc<Engine>,
 	chain: HeaderChain,
 	report: RwLock<ClientReport>,
 	import_lock: Mutex<()>,
@@ -101,6 +105,7 @@ impl Client {
 	pub fn new(config: Config, spec: &Spec, io_channel: IoChannel<ClientIoMessage>) -> Self {
 		Client {
 			queue: HeaderQueue::new(config.queue, spec.engine.clone(), io_channel, true),
+			engine: spec.engine.clone(),
 			chain: HeaderChain::new(&::rlp::encode(&spec.genesis_header())),
 			report: RwLock::new(ClientReport::default()),
 			import_lock: Mutex::new(()),
@@ -199,6 +204,11 @@ impl Client {
 		use util::HeapSizeOf;
 
 		self.chain.heap_size_of_children()
+	}
+
+	/// Get a handle to the verification engine.
+	pub fn engine(&self) -> &Engine {
+		&*self.engine
 	}
 }
 

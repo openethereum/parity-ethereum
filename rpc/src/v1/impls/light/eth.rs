@@ -305,11 +305,18 @@ impl Eth for EthClient {
 	}
 
 	fn send_raw_transaction(&self, raw: Bytes) -> Result<RpcH256, Error> {
+		let best_header = self.client.block_header(BlockId::Latest)
+			.expect("best block header always stored; qed").decode();
+
 		UntrustedRlp::new(&raw.into_vec()).as_val()
 			.map_err(errors::from_rlp_error)
-			.and_then(|tx| SignedTransaction::new(tx).map_err(errors::from_transaction_error))
-			.and_then(|signed| {
+			.and_then(|tx| {
+				self.client.engine().verify_transaction_basic(&tx, &best_header)
+					.map_err(errors::from_transaction_error)?;
+
+				let signed = SignedTransaction::new(tx).map_err(errors::from_transaction_error)?;
 				let hash = signed.hash();
+
 				self.transaction_queue.write().import(signed.into())
 					.map(|_| hash)
 					.map_err(Into::into)
