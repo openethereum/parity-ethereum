@@ -8,7 +8,10 @@ cd $BASEDIR/..
 # build all packages
 echo "$NPM_TOKEN" >> ~/.npmrc
 
-echo "*** Building jsonrpc for NPM"
+printf "\n\n"
+printf "\n***************************************"
+printf "\n***** Building jsonrpc for NPM ********"
+printf "\n***************************************\n\n"
 npm run ci:build:jsonrpc
 mkdir -p npm/jsonrpc/src
 cp -R src/jsonrpc/* npm/jsonrpc/src
@@ -18,7 +21,10 @@ pushd .; cd npm/jsonrpc
 npm test
 popd
 
-echo "*** Building parity.js for NPM"
+printf "\n\n"
+printf "\n***************************************"
+printf "\n***** Building parity.js for NPM ******"
+printf "\n***************************************\n\n"
 mkdir -p npm/parity/src
 cp src/parity.js npm/parity/src/index.js
 cp -R src/abi npm/parity/src
@@ -29,16 +35,22 @@ pushd .; cd npm/parity
 npm test
 popd
 
-echo "*** Building etherscan for NPM"
+printf "\n\n"
+printf "\n***************************************"
+printf "\n***** Building etherscan for NPM ******"
+printf "\n***************************************\n\n"
 mkdir -p npm/etherscan/src
-cp -R src/3rdparty/etherscan/* npm/etherscan/src
+cp -LR src/3rdparty/etherscan/* npm/etherscan/src
 env LIBRARY=etherscan npm run ci:build:npm
 
 pushd .; cd npm/etherscan
 npm test
 popd
 
-echo "*** Building shapeshift for NPM"
+printf "\n\n"
+printf "\n***************************************"
+printf "\n***** Building shapeshift for NPM *****"
+printf "\n***************************************\n\n"
 mkdir -p npm/shapeshift/src
 cp -R src/3rdparty/shapeshift/* npm/shapeshift/src
 env LIBRARY=shapeshift npm run ci:build:npm
