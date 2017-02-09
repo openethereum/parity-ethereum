@@ -16,7 +16,7 @@ use error::Error;
 
 pub const ETHABI: &'static str = r#"
 Ethereum ABI coder.
-  Copyright 2016 Ethcore (UK) Limited
+  Copyright 2016-2017 Parity Technologies (UK) Limited
 
 Usage:
     ethabi encode function <abi-path> <function-name> [-p <param>]... [-l | --lenient]

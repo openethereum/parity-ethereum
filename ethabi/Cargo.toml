@@ -2,7 +2,6 @@
 name = "ethabi"
 version = "0.2.3"
 authors = ["debris <marek.kotewicz@gmail.com>"]
-build = "build.rs"
 homepage = "https://github.com/ethcore/ethabi"
 license = "MIT"
 keywords = ["ethereum", "eth", "abi", "solidity", "cli"]
@@ -10,22 +9,18 @@ description = "Easy to use conversion of ethereum contract calls to bytecode."
 
 [dependencies]
 rustc-serialize = "0.3"
-serde = "0.8"
-serde_json = "0.8"
+serde = "0.9"
+serde_json = "0.9"
+serde_derive = "0.9"
 tiny-keccak = "1.0"
-serde_macros = { version = "0.8.0", optional = true }
 clippy = { version = "0.0.63", optional = true }
 docopt = { version = "0.6", optional = true }
 
-[build-dependencies]
-serde_codegen = { version = "0.8.0", optional = true }
-
 [features]
-default = ["serde_codegen", "cli"]
-nightly = ["serde_macros"]
 cli = ["docopt"]
 
 [[bin]]
 name = "ethabi"
+path = "src/bin/main.rs"
 doc = false
 

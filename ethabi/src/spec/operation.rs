@@ -1,6 +1,7 @@
 //! Operation type.
 
-use serde::{Deserialize, Deserializer, Error as SerdeError};
+use serde::{Deserialize, Deserializer};
+use serde::de::{Error as SerdeError};
 use serde_json::Value;
 use serde_json::value::from_value;
 use super::{Function, Event, Constructor};
@@ -19,9 +20,8 @@ pub enum Operation {
 }
 
 impl Deserialize for Operation {
-	fn deserialize<D>(deserializer: &mut D) -> Result<Self, D::Error>
-		where D: Deserializer {
-		let v: Value = try!(Value::deserialize(deserializer));
+	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error> where D: Deserializer {
+		let v: Value = try!(Deserialize::deserialize(deserializer));
 		let cloned = v.clone();
 		let map = try!(cloned.as_object().ok_or_else(|| SerdeError::custom("Invalid operation")));
 		let s = try!(map.get("type").and_then(Value::as_str).ok_or_else(|| SerdeError::custom("Invalid operation type")));

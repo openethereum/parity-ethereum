@@ -1,13 +1,16 @@
 //! Ethereum ABI encoding decoding library.
 
 #![warn(missing_docs)]
-#![cfg_attr(feature="nightly", feature(custom_derive, custom_attribute, plugin))]
-#![cfg_attr(feature="nightly", plugin(serde_macros, clippy))]
+#![cfg_attr(feature="nightly", feature(plugin))]
+#![cfg_attr(feature="nightly", plugin(clippy))]
 
 extern crate rustc_serialize;
 extern crate serde;
 extern crate serde_json;
 extern crate tiny_keccak;
+
+#[macro_use]
+extern crate serde_derive;
 
 pub mod spec;
 pub mod token;
