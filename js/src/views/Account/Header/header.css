@@ -59,9 +59,15 @@
   display: inline-block;
 }
 
+.addressline {
+  display: flex;
+}
+
 .address {
   display: inline-block;
-  margin-left: .5em;
+  margin-left: 0.5em;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .tags {
