@@ -95,35 +95,30 @@ impl<D: Dispatcher + 'static> Personal for PersonalClient<D> {
 	}
 
 	fn send_transaction(&self, meta: Metadata, request: TransactionRequest, password: String) -> BoxFuture<RpcH256, Error> {
-		let setup = || {
-			let dispatcher = self.dispatcher.clone();
-			let accounts = take_weak!(self.accounts);
+		let dispatcher = self.dispatcher.clone();
+		let accounts = take_weakf!(self.accounts);
 
-			Ok((accounts, dispatcher))
+		let default = match request.from.as_ref() {
+			Some(account) => Ok(account.clone().into()),
+			None => accounts
+				.default_address(meta.dapp_id.unwrap_or_default().into())
+				.map_err(|e| errors::account("Cannot find default account.", e)),
 		};
 
-		future::done(setup())
-			.and_then(move |(accounts, dispatcher)| {
-				let default = match request.from.as_ref() {
-					Some(account) => Ok(account.clone().into()),
-					None => accounts
-						.default_address(meta.dapp_id.unwrap_or_default().into())
-						.map_err(|e| errors::account("Cannot find default account.", e)),
-				};
+		let default = match default {
+			Ok(default) => default,
+			Err(e) => return future::err(e).boxed(),
+		};
 
-				let dis = dispatcher.clone();
-				future::done(default)
-					.and_then(move |default| dis.fill_optional_fields(request.into(), default))
-					.map(move |tx| (tx, accounts, dispatcher))
-			})
-			.and_then(move |(filled, accounts, dispatcher)| {
+		dispatcher.fill_optional_fields(request.into(), default)
+			.and_then(move |filled| {
 				let condition = filled.condition.clone().map(Into::into);
 				dispatcher.sign(&accounts, filled, SignWith::Password(password))
 					.map(|tx| tx.into_value())
 					.map(move |tx| PendingTransaction::new(tx, condition))
 					.map(move |tx| (tx, dispatcher))
 			})
-			.and_then(move |(pending_tx, dispatcher)| {
+			.and_then(|(pending_tx, dispatcher)| {
 				let network_id = pending_tx.network_id();
 				trace!(target: "miner", "send_transaction: dispatching tx: {} for network ID {:?}",
 					::rlp::encode(&*pending_tx).to_vec().pretty(), network_id);

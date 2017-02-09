@@ -359,133 +359,108 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 	fn balance(&self, address: RpcH160, num: Trailing<BlockNumber>) -> BoxFuture<RpcU256, Error> {
 		let address = address.into();
 
-		let inner = || {
-			match num.0.clone() {
-				BlockNumber::Pending => Ok(take_weak!(self.miner).balance(&*take_weak!(self.client), &address).into()),
-				id => {
-					let client = take_weak!(self.client);
+		let res = match num.0.clone() {
+			BlockNumber::Pending => Ok(take_weakf!(self.miner).balance(&*take_weakf!(self.client), &address).into()),
+			id => {
+				let client = take_weakf!(self.client);
 
-					check_known(&*client, id.clone())?;
-					match client.balance(&address, id.into()) {
-						Some(balance) => Ok(balance.into()),
-						None => Err(errors::state_pruned()),
-					}
+				try_bf!(check_known(&*client, id.clone()));
+				match client.balance(&address, id.into()) {
+					Some(balance) => Ok(balance.into()),
+					None => Err(errors::state_pruned()),
 				}
 			}
 		};
 
-		future::done(inner()).boxed()
+		future::done(res).boxed()
 	}
 
 	fn storage_at(&self, address: RpcH160, pos: RpcU256, num: Trailing<BlockNumber>) -> BoxFuture<RpcH256, Error> {
 		let address: Address = RpcH160::into(address);
 		let position: U256 = RpcU256::into(pos);
 
-		let inner = || {
-			match num.0.clone() {
-				BlockNumber::Pending => Ok(take_weak!(self.miner).storage_at(&*take_weak!(self.client), &address, &H256::from(position)).into()),
-				id => {
-					let client = take_weak!(self.client);
+		let res = match num.0.clone() {
+			BlockNumber::Pending => Ok(take_weakf!(self.miner).storage_at(&*take_weakf!(self.client), &address, &H256::from(position)).into()),
+			id => {
+				let client = take_weakf!(self.client);
 
-					check_known(&*client, id.clone())?;
-					match client.storage_at(&address, &H256::from(position), id.into()) {
-						Some(s) => Ok(s.into()),
-						None => Err(errors::state_pruned()),
-					}
+				try_bf!(check_known(&*client, id.clone()));
+				match client.storage_at(&address, &H256::from(position), id.into()) {
+					Some(s) => Ok(s.into()),
+					None => Err(errors::state_pruned()),
 				}
 			}
 		};
 
-		future::done(inner()).boxed()
+		future::done(res).boxed()
 	}
 
 	fn transaction_count(&self, address: RpcH160, num: Trailing<BlockNumber>) -> BoxFuture<RpcU256, Error> {
 		let address: Address = RpcH160::into(address);
-		let inner = move || {
-			match num.0.clone() {
-				BlockNumber::Pending => Ok(take_weak!(self.miner).nonce(&*take_weak!(self.client), &address).into()),
-				id => {
-					let client = take_weak!(self.client);
+		let res = match num.0.clone() {
+			BlockNumber::Pending => Ok(take_weakf!(self.miner).nonce(&*take_weakf!(self.client), &address).into()),
+			id => {
+				let client = take_weakf!(self.client);
 
-					check_known(&*client, id.clone())?;
-					match client.nonce(&address, id.into()) {
-						Some(nonce) => Ok(nonce.into()),
-						None => Err(errors::state_pruned()),
-					}
+				try_bf!(check_known(&*client, id.clone()));
+				match client.nonce(&address, id.into()) {
+					Some(nonce) => Ok(nonce.into()),
+					None => Err(errors::state_pruned()),
 				}
 			}
 		};
 
-		future::done(inner()).boxed()
+		future::done(res).boxed()
 	}
 
 	fn block_transaction_count_by_hash(&self, hash: RpcH256) -> BoxFuture<Option<RpcU256>, Error> {
-		let inner = || {
-			Ok(take_weak!(self.client).block(BlockId::Hash(hash.into()))
-				.map(|block| block.transactions_count().into()))
-		};
-
-		future::done(inner()).boxed()
+		future::ok(take_weakf!(self.client).block(BlockId::Hash(hash.into()))
+			.map(|block| block.transactions_count().into())).boxed()
 	}
 
 	fn block_transaction_count_by_number(&self, num: BlockNumber) -> BoxFuture<Option<RpcU256>, Error> {
-		let inner = || {
-			match num {
-				BlockNumber::Pending => Ok(Some(
-					take_weak!(self.miner).status().transactions_in_pending_block.into()
-				)),
-				_ => Ok(
-					take_weak!(self.client).block(num.into())
-						.map(|block| block.transactions_count().into())
-					)
-			}
-		};
-
-		future::done(inner()).boxed()
+		future::ok(match num {
+			BlockNumber::Pending => Some(
+				take_weakf!(self.miner).status().transactions_in_pending_block.into()
+			),
+			_ =>
+				take_weakf!(self.client).block(num.into())
+					.map(|block| block.transactions_count().into())
+		}).boxed()
 	}
 
 	fn block_uncles_count_by_hash(&self, hash: RpcH256) -> BoxFuture<Option<RpcU256>, Error> {
-		let inner = || {
-			Ok(take_weak!(self.client).block(BlockId::Hash(hash.into()))
+			future::ok(take_weakf!(self.client).block(BlockId::Hash(hash.into()))
 				.map(|block| block.uncles_count().into()))
-		};
-
-		future::done(inner()).boxed()
+				.boxed()
 	}
 
 	fn block_uncles_count_by_number(&self, num: BlockNumber) -> BoxFuture<Option<RpcU256>, Error> {
-		let inner = || {
-			match num {
-				BlockNumber::Pending => Ok(Some(0.into())),
-				_ => Ok(
-					take_weak!(self.client).block(num.into())
-						.map(|block| block.uncles_count().into())
-				),
-			}
-		};
-
-		future::done(inner()).boxed()
+		future::ok(match num {
+			BlockNumber::Pending => Some(0.into()),
+			_ => take_weakf!(self.client).block(num.into())
+					.map(|block| block.uncles_count().into()
+			),
+		}).boxed()
 	}
 
 	fn code_at(&self, address: RpcH160, num: Trailing<BlockNumber>) -> BoxFuture<Bytes, Error> {
 		let address: Address = RpcH160::into(address);
 
-		let inner = || {
-			match num.0.clone() {
-				BlockNumber::Pending => Ok(take_weak!(self.miner).code(&*take_weak!(self.client), &address).map_or_else(Bytes::default, Bytes::new)),
-				id => {
-					let client = take_weak!(self.client);
+		let res = match num.0.clone() {
+			BlockNumber::Pending => Ok(take_weakf!(self.miner).code(&*take_weakf!(self.client), &address).map_or_else(Bytes::default, Bytes::new)),
+			id => {
+				let client = take_weakf!(self.client);
 
-					check_known(&*client, id.clone())?;
-					match client.code(&address, id.into()) {
-						Some(code) => Ok(code.map_or_else(Bytes::default, Bytes::new)),
-						None => Err(errors::state_pruned()),
-					}
+				try_bf!(check_known(&*client, id.clone()));
+				match client.code(&address, id.into()) {
+					Some(code) => Ok(code.map_or_else(Bytes::default, Bytes::new)),
+					None => Err(errors::state_pruned()),
 				}
 			}
 		};
 
-		future::done(inner()).boxed()
+		future::done(res).boxed()
 	}
 
 	fn block_by_hash(&self, hash: RpcH256, include_txs: bool) -> BoxFuture<Option<RichBlock>, Error> {

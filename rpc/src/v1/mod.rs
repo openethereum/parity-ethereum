@@ -18,11 +18,33 @@
 //!
 //! Compliant with ethereum rpc.
 
+// Upgrade a weak pointer, returning an error on failure.
 macro_rules! take_weak {
 	($weak: expr) => {
 		match $weak.upgrade() {
 			Some(arc) => arc,
-			None => return Err(Error::internal_error())
+			None => return Err(Error::internal_error()),
+		}
+	}
+}
+
+// Upgrade a weak pointer, returning an error leaf-future on failure.
+macro_rules! take_weakf {
+	($weak: expr) => {
+		match $weak.upgrade() {
+			Some(arc) => arc,
+			None => return ::futures::future::err(Error::internal_error()).boxed(),
+		}
+	}
+}
+
+// short for "try_boxfuture"
+// unwrap a result, returning a BoxFuture<_, Err> on failure.
+macro_rules! try_bf {
+	($res: expr) => {
+		match $res {
+			Ok(val) => val,
+			Err(e) => return ::futures::future::err(e.into()).boxed(),
 		}
 	}
 }
