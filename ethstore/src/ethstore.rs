@@ -21,12 +21,12 @@ use parking_lot::{Mutex, RwLock};
 
 use crypto::KEY_ITERATIONS;
 use random::Random;
-use ethkey::{Signature, Address, Message, Secret, Public, KeyPair};
+use ethkey::{Signature, Address, Message, Secret, Public, KeyPair, ExtendedSecret};
 use dir::{KeyDirectory, VaultKeyDirectory, VaultKey, SetKeyError};
 use account::SafeAccount;
 use presale::PresaleWallet;
 use json::{self, Uuid};
-use {import, Error, SimpleSecretStore, SecretStore, SecretVaultRef, StoreAccountRef};
+use {import, Error, SimpleSecretStore, SecretStore, SecretVaultRef, StoreAccountRef, Derivation};
 
 pub struct EthStore {
 	store: EthMultiStore,
@@ -52,6 +52,16 @@ impl EthStore {
 impl SimpleSecretStore for EthStore {
 	fn insert_account(&self, vault: SecretVaultRef, secret: Secret, password: &str) -> Result<StoreAccountRef, Error> {
 		self.store.insert_account(vault, secret, password)
+	}
+
+	fn insert_derived(&self, vault: SecretVaultRef, address: &Address, password: &str, derivation: Derivation)
+		-> Result<StoreAccountRef, Error>
+	{
+		self.store.insert_derived(vault, address, password, derivation)
+	}
+
+	fn generate_derived(&self, address: &Address, password: &str, derivation: Derivation) -> Result<Address, Error> {
+		self.store.generate_derived(address, password, derivation)
 	}
 
 	fn account_ref(&self, address: &Address) -> Result<StoreAccountRef, Error> {
@@ -340,6 +350,17 @@ impl EthMultiStore {
 
 		return Ok(());
 	}
+
+	fn generate(&self, secret: Secret, derivation: Derivation) -> ExtendedSecret {
+		let mut extended = ExtendedSecret::new(secret);
+		match derivation {
+			Derivation::Hierarchical(path) => {
+				for index in path { extended = extended.derive(index); }
+			},
+			Derivation::Hash(h256) => { extended = extended.derive(h256); }
+		}
+		extended
+	}
 }
 
 impl SimpleSecretStore for EthMultiStore {
@@ -348,6 +369,38 @@ impl SimpleSecretStore for EthMultiStore {
 		let id: [u8; 16] = Random::random();
 		let account = SafeAccount::create(&keypair, id, password, self.iterations, "".to_owned(), "{}".to_owned());
 		self.import(vault, account)
+	}
+
+	fn insert_derived(&self, vault: SecretVaultRef, address: &Address, password: &str, derivation: Derivation)
+		-> Result<StoreAccountRef, Error>
+	{
+		let accounts = self.get(&self.account_ref(address)?)?;
+
+		for account in accounts {
+			// Skip if password is invalid
+			if !account.check_password(password) {
+				continue;
+			}
+			let extended = self.generate(account.crypto.secret(password)?, derivation);
+			return self.insert_account(vault, extended.secret().clone(), password);
+		}
+		Err(Error::InvalidPassword)
+	}
+
+	fn generate_derived(&self, address: &Address, password: &str, derivation: Derivation)
+	    -> Result<Address, Error>
+	{
+		let accounts = self.get(&self.account_ref(address)?)?;
+
+		for account in accounts {
+			// Skip if password is invalid
+			if !account.check_password(password) {
+				continue;
+			}
+			let _ = self.generate(account.crypto.secret(password)?, derivation);
+			return Ok(address.clone());
+		}
+		Err(Error::InvalidPassword)
 	}
 
 	fn account_ref(&self, address: &Address) -> Result<StoreAccountRef, Error> {

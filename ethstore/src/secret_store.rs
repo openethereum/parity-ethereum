@@ -16,9 +16,10 @@
 
 use std::hash::{Hash, Hasher};
 use std::path::PathBuf;
-use ethkey::{Address, Message, Signature, Secret, Public};
+use ethkey::{self, Address, Message, Signature, Secret, Public};
 use Error;
 use json::Uuid;
+use util::H256;
 
 /// Key directory reference
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
@@ -38,8 +39,19 @@ pub struct StoreAccountRef {
 	pub address: Address,
 }
 
+
+/// Derivation scheme for keys
+pub enum Derivation {
+	/// Hierarchical derivation
+	Hierarchical(Vec<ethkey::Derivation<u32>>),
+	/// Hash derivation
+	Hash(ethkey::Derivation<H256>),
+}
+
 pub trait SimpleSecretStore: Send + Sync {
 	fn insert_account(&self, vault: SecretVaultRef, secret: Secret, password: &str) -> Result<StoreAccountRef, Error>;
+	fn insert_derived(&self, vault: SecretVaultRef, address: &Address, password: &str, derivation: Derivation) -> Result<StoreAccountRef, Error>;
+	fn generate_derived(&self, address: &Address, password: &str, derivation: Derivation) -> Result<Address, Error>;
 	fn change_password(&self, account: &StoreAccountRef, old_password: &str, new_password: &str) -> Result<(), Error>;
 	fn remove_account(&self, account: &StoreAccountRef, password: &str) -> Result<(), Error>;
 
