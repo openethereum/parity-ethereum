@@ -355,9 +355,15 @@ impl EthMultiStore {
 		let mut extended = ExtendedKeyPair::new(secret);
 		match derivation {
 			Derivation::Hierarchical(path) => {
-				for index in path { extended = extended.derive(index)?; }
+				for path_item in path {
+					extended = extended.derive(
+						if path_item.soft { ethkey::Derivation::Soft(path_item.index) }
+						else { ethkey::Derivation::Hard(path_item.index) }
+					)?;
+				}
 			},
-			Derivation::Hash(h256) => { extended = extended.derive(h256)?; }
+			Derivation::SoftHash(h256) => { extended = extended.derive(ethkey::Derivation::Soft(h256))?; }
+			Derivation::HardHash(h256) => { extended = extended.derive(ethkey::Derivation::Hard(h256))?; }
 		}
 		Ok(extended)
 	}
@@ -579,7 +585,7 @@ impl SimpleSecretStore for EthMultiStore {
 mod tests {
 
 	use dir::{KeyDirectory, MemoryDirectory, RootDiskDirectory};
-	use ethkey::{self, Random, Generator, KeyPair};
+	use ethkey::{Random, Generator, KeyPair};
 	use secret_store::{SimpleSecretStore, SecretStore, SecretVaultRef, StoreAccountRef, Derivation};
 	use super::{EthStore, EthMultiStore};
 	use devtools::RandomTempPath;
@@ -965,7 +971,7 @@ mod tests {
 			SecretVaultRef::Root,
 			&address.address,
 			"test",
-			Derivation::Hash(ethkey::Derivation::Soft(H256::from(0)))
+			Derivation::HardHash(H256::from(0)),
 		).unwrap();
 
 		// there should be 2 accounts in the store
