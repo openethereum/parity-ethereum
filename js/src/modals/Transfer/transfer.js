@@ -102,7 +102,7 @@ class Transfer extends Component {
       const warning = (
         <FormattedMessage
           id='transfer.warning.wallet_spent_limit'
-          defaultMessage='The wallet limit has been reached for the day. This transaction will need to be confirmed by other owners.'
+          defaultMessage='This transaction value is above the remaining daily limit. It will need to be confirmed by other owners.'
         />
       );
 
