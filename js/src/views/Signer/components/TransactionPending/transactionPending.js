@@ -89,14 +89,16 @@ export default class TransactionPending extends Component {
   renderTransaction () {
     const { className, focus, id, isSending, isTest, store, transaction } = this.props;
     const { totalValue } = this.state;
+    const { balances, externalLink } = store;
     const { from, value } = transaction;
 
-    const fromBalance = store.balances[from];
+    const fromBalance = balances[from];
 
     return (
       <div className={ `${styles.container} ${className}` }>
         <TransactionMainDetails
           className={ styles.transactionDetails }
+          externalLink={ externalLink }
           from={ from }
           fromBalance={ fromBalance }
           gasStore={ this.gasStore }
