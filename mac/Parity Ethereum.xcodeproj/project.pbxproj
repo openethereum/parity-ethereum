@@ -37,7 +37,7 @@
 		0ACF9AC61E30FAB600D5C935 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.xib; name = Base; path = Base.lproj/MainMenu.xib; sourceTree = "<group>"; };
 		0ACF9AC81E30FAB600D5C935 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		0AE564F01E3CE42C00BD01F7 /* GetBSDProcessList.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = GetBSDProcessList.swift; sourceTree = "<group>"; };
-		0AED4D9F1E3E22F800BF87C0 /* ethstore */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.executable"; name = ethstore; path = ../target/release/deps/ethstore; sourceTree = "<group>"; };
+		0AED4D9F1E3E22F800BF87C0 /* ethstore */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.executable"; name = ethstore; path = ../target/release/ethstore; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
