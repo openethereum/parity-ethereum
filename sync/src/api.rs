@@ -34,7 +34,7 @@ use ipc::{BinaryConvertable, BinaryConvertError, IpcConfig};
 use std::str::FromStr;
 use parking_lot::RwLock;
 use chain::{ETH_PACKET_COUNT, SNAPSHOT_SYNC_PACKET_COUNT};
-use light::client::LightChainClient;
+use light::client::AsLightClient;
 use light::Provider;
 use light::net::{self as light_net, LightProtocol, Params as LightParams, Capabilities, Handler as LightHandler, EventContext};
 
@@ -642,7 +642,7 @@ pub struct LightSync {
 impl LightSync {
 	/// Create a new light sync service.
 	pub fn new<L>(params: LightSyncParams<L>) -> Result<Self, NetworkError>
-		where L: LightChainClient + Provider + 'static
+		where L: AsLightClient + Provider + Sync + Send + 'static
 	{
 		use light_sync::LightSync as SyncHandler;
 

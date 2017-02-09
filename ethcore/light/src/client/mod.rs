@@ -22,18 +22,14 @@ use ethcore::client::ClientReport;
 use ethcore::ids::BlockId;
 use ethcore::header::Header;
 use ethcore::verification::queue::{self, HeaderQueue};
-use ethcore::transaction::{PendingTransaction, Condition as TransactionCondition};
 use ethcore::blockchain_info::BlockChainInfo;
 use ethcore::spec::Spec;
 use ethcore::service::ClientIoMessage;
 use ethcore::encoded;
 use io::IoChannel;
 
-use util::hash::{H256, H256FastMap};
+use util::hash::H256;
 use util::{Bytes, Mutex, RwLock};
-
-use provider::Provider;
-use request;
 
 use self::header_chain::HeaderChain;
 
@@ -58,6 +54,9 @@ pub trait LightChainClient: Send + Sync {
 	/// parent queued prior.
 	fn queue_header(&self, header: Header) -> Result<H256, BlockImportError>;
 
+	/// Attempt to get block header by block id.
+	fn block_header(&self, id: BlockId) -> Option<encoded::Header>;
+
 	/// Query whether a block is known.
 	fn is_known(&self, hash: &H256) -> bool;
 
@@ -74,11 +73,25 @@ pub trait LightChainClient: Send + Sync {
 	fn cht_root(&self, i: usize) -> Option<H256>;
 }
 
+/// Something which can be treated as a `LightChainClient`.
+pub trait AsLightClient {
+	/// The kind of light client this can be treated as.
+	type Client: LightChainClient;
+
+	/// Access the underlying light client.
+	fn as_light_client(&self) -> &Self::Client;
+}
+
+impl<T: LightChainClient> AsLightClient for T {
+	type Client = Self;
+
+	fn as_light_client(&self) -> &Self { self }
+}
+
 /// Light client implementation.
 pub struct Client {
 	queue: HeaderQueue,
 	chain: HeaderChain,
-	tx_pool: Mutex<H256FastMap<PendingTransaction>>,
 	report: RwLock<ClientReport>,
 	import_lock: Mutex<()>,
 }
@@ -89,7 +102,6 @@ impl Client {
 		Client {
 			queue: HeaderQueue::new(config.queue, spec.engine.clone(), io_channel, true),
 			chain: HeaderChain::new(&::rlp::encode(&spec.genesis_header())),
-			tx_pool: Mutex::new(Default::default()),
 			report: RwLock::new(ClientReport::default()),
 			import_lock: Mutex::new(()),
 		}
@@ -98,25 +110,6 @@ impl Client {
 	/// Import a header to the queue for additional verification.
 	pub fn import_header(&self, header: Header) -> Result<H256, BlockImportError> {
 		self.queue.import(header).map_err(Into::into)
-	}
-
-	/// Import a local transaction.
-	pub fn import_own_transaction(&self, tx: PendingTransaction) {
-		self.tx_pool.lock().insert(tx.transaction.hash(), tx);
-	}
-
-	/// Fetch a vector of all pending transactions.
-	pub fn ready_transactions(&self) -> Vec<PendingTransaction> {
-		let best = self.chain.best_header();
-		self.tx_pool.lock()
-			.values()
-			.filter(|t| match t.condition {
-				Some(TransactionCondition::Number(x)) => x <= best.number(),
-				Some(TransactionCondition::Timestamp(x)) => x <= best.timestamp(),
-				None => true,
-			})
-			.cloned()
-			.collect()
 	}
 
 	/// Inquire about the status of a given header.
@@ -216,6 +209,10 @@ impl LightChainClient for Client {
 		self.import_header(header)
 	}
 
+	fn block_header(&self, id: BlockId) -> Option<encoded::Header> {
+		Client::block_header(self, id)
+	}
+
 	fn is_known(&self, hash: &H256) -> bool {
 		self.status(hash) == BlockStatus::InChain
 	}
@@ -237,8 +234,8 @@ impl LightChainClient for Client {
 	}
 }
 
-// dummy implementation -- may draw from canonical cache further on.
-impl Provider for Client {
+// dummy implementation, should be removed when a `TestClient` is added.
+impl ::provider::Provider for Client {
 	fn chain_info(&self) -> BlockChainInfo {
 		Client::chain_info(self)
 	}
@@ -263,19 +260,19 @@ impl Provider for Client {
 		None
 	}
 
-	fn state_proof(&self, _req: request::StateProof) -> Vec<Bytes> {
+	fn state_proof(&self, _req: ::request::StateProof) -> Vec<Bytes> {
 		Vec::new()
 	}
 
-	fn contract_code(&self, _req: request::ContractCode) -> Bytes {
+	fn contract_code(&self, _req: ::request::ContractCode) -> Bytes {
 		Vec::new()
 	}
 
-	fn header_proof(&self, _req: request::HeaderProof) -> Option<(encoded::Header, Vec<Bytes>)> {
+	fn header_proof(&self, _req: ::request::HeaderProof) -> Option<(encoded::Header, Vec<Bytes>)> {
 		None
 	}
 
-	fn ready_transactions(&self) -> Vec<PendingTransaction> {
+	fn ready_transactions(&self) -> Vec<::ethcore::transaction::PendingTransaction> {
 		Vec::new()
 	}
 }

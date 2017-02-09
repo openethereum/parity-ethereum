@@ -36,7 +36,7 @@ use std::collections::HashMap;
 use std::mem;
 use std::sync::Arc;
 
-use light::client::LightChainClient;
+use light::client::{AsLightClient, LightChainClient};
 use light::net::{
 	Announcement, Handler, BasicContext, EventContext,
 	Capabilities, ReqId, Status,
@@ -106,8 +106,9 @@ impl AncestorSearch {
 	}
 
 	fn process_response<L>(self, ctx: &ResponseContext, client: &L) -> AncestorSearch
-		where L: LightChainClient
+		where L: AsLightClient
 	{
+		let client = client.as_light_client();
 		let first_num = client.chain_info().first_block_number.unwrap_or(0);
 		match self {
 			AncestorSearch::Awaiting(id, start, req) => {
@@ -203,7 +204,7 @@ impl<'a> ResponseContext for ResponseCtx<'a> {
 }
 
 /// Light client synchronization manager. See module docs for more details.
-pub struct LightSync<L: LightChainClient> {
+pub struct LightSync<L: AsLightClient> {
 	best_seen: Mutex<Option<ChainInfo>>, // best seen block on the network.
 	peers: RwLock<HashMap<PeerId, Mutex<Peer>>>, // peers which are relevant to synchronization.
 	client: Arc<L>,
@@ -211,7 +212,7 @@ pub struct LightSync<L: LightChainClient> {
 	state: Mutex<SyncState>,
 }
 
-impl<L: LightChainClient> Handler for LightSync<L> {
+impl<L: AsLightClient + Send + Sync> Handler for LightSync<L> {
 	fn on_connect(&self, ctx: &EventContext, status: &Status, capabilities: &Capabilities) {
 		if !capabilities.serve_headers {
 			trace!(target: "sync", "Disconnecting irrelevant peer: {}", ctx.peer());
@@ -344,7 +345,7 @@ impl<L: LightChainClient> Handler for LightSync<L> {
 }
 
 // private helpers
-impl<L: LightChainClient> LightSync<L> {
+impl<L: AsLightClient> LightSync<L> {
 	// Begins a search for the common ancestor and our best block.
 	// does not lock state, instead has a mutable reference to it passed.
 	fn begin_search(&self, state: &mut SyncState) {
@@ -354,8 +355,8 @@ impl<L: LightChainClient> LightSync<L> {
 			return;
 		}
 
-		self.client.flush_queue();
-		let chain_info = self.client.chain_info();
+		self.client.as_light_client().flush_queue();
+		let chain_info = self.client.as_light_client().chain_info();
 
 		trace!(target: "sync", "Beginning search for common ancestor from {:?}",
 			(chain_info.best_block_number, chain_info.best_block_hash));
@@ -366,8 +367,10 @@ impl<L: LightChainClient> LightSync<L> {
 	fn maintain_sync(&self, ctx: &BasicContext) {
 		const DRAIN_AMOUNT: usize = 128;
 
+		let client = self.client.as_light_client();
+		let chain_info = client.chain_info();
+
 		let mut state = self.state.lock();
-		let chain_info = self.client.chain_info();
 		debug!(target: "sync", "Maintaining sync ({:?})", &*state);
 
 		// drain any pending blocks into the queue.
@@ -376,7 +379,7 @@ impl<L: LightChainClient> LightSync<L> {
 
 			'a:
 			loop {
-				if self.client.queue_info().is_full() { break }
+				if client.queue_info().is_full() { break }
 
 				*state = match mem::replace(&mut *state, SyncState::Idle) {
 					SyncState::Rounds(round)
@@ -388,7 +391,7 @@ impl<L: LightChainClient> LightSync<L> {
 				trace!(target: "sync", "Drained {} headers to import", sink.len());
 
 				for header in sink.drain(..) {
-					if let Err(e) = self.client.queue_header(header) {
+					if let Err(e) = client.queue_header(header) {
 						debug!(target: "sync", "Found bad header ({:?}). Reset to search state.", e);
 
 						self.begin_search(&mut state);
@@ -492,7 +495,7 @@ impl<L: LightChainClient> LightSync<L> {
 }
 
 // public API
-impl<L: LightChainClient> LightSync<L> {
+impl<L: AsLightClient> LightSync<L> {
 	/// Create a new instance of `LightSync`.
 	///
 	/// This won't do anything until registered as a handler
