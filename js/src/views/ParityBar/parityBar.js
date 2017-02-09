@@ -285,6 +285,7 @@ class ParityBar extends Component {
   }
 
   renderExpanded () {
+    const { externalLink } = this.props;
     const { displayType } = this.state;
 
     return (
@@ -333,7 +334,7 @@ class ParityBar extends Component {
                 />
               )
               : (
-                <Signer />
+                <Signer externalLink={ externalLink } />
               )
           }
         </div>

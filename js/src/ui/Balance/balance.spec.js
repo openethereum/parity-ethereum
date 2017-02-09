@@ -16,7 +16,6 @@
 
 import { shallow } from 'enzyme';
 import React from 'react';
-import sinon from 'sinon';
 
 import apiutil from '~/api/util';
 
@@ -32,7 +31,6 @@ const BALANCE = {
 
 let api;
 let component;
-let store;
 
 function createApi () {
   api = {
@@ -43,24 +41,12 @@ function createApi () {
   return api;
 }
 
-function createStore () {
-  store = {
-    dispatch: sinon.stub(),
-    subscribe: sinon.stub(),
-    getState: () => {
-      return {
-        images: {}
-      };
-    }
-  };
-
-  return store;
-}
-
 function render (props = {}) {
   if (!props.balance) {
     props.balance = BALANCE;
   }
+
+  const api = createApi();
 
   component = shallow(
     <Balance
@@ -68,11 +54,9 @@ function render (props = {}) {
       { ...props }
     />,
     {
-      context: {
-        store: createStore()
-      }
+      context: { api }
     }
-  ).find('Balance').shallow({ context: { api: createApi() } });
+  );
 
   return component;
 }
@@ -91,18 +75,18 @@ describe('ui/Balance', () => {
   });
 
   it('renders all the non-zero balances', () => {
-    expect(component.find('img')).to.have.length(2);
+    expect(component.find('Connect(TokenImage)')).to.have.length(2);
   });
 
   describe('render specifiers', () => {
     it('renders only the single token with showOnlyEth', () => {
       render({ showOnlyEth: true });
-      expect(component.find('img')).to.have.length(1);
+      expect(component.find('Connect(TokenImage)')).to.have.length(1);
     });
 
     it('renders all the tokens with showZeroValues', () => {
       render({ showZeroValues: true });
-      expect(component.find('img')).to.have.length(3);
+      expect(component.find('Connect(TokenImage)')).to.have.length(3);
     });
 
     it('shows ETH with zero value with showOnlyEth & showZeroValues', () => {
@@ -116,7 +100,7 @@ describe('ui/Balance', () => {
           ]
         }
       });
-      expect(component.find('img')).to.have.length(1);
+      expect(component.find('Connect(TokenImage)')).to.have.length(1);
     });
   });
 });

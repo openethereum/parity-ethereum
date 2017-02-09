@@ -105,22 +105,22 @@ export default class InputText extends Component {
     const { validationType, contract } = this.props;
     const validation = validate(value, validationType, contract);
 
-    if (validation instanceof Promise) {
+    const loadingTimeout = setTimeout(() => {
       this.setState({ disabled: true, loading: true });
+    }, 50);
 
-      return validation
-        .then(validation => {
-          this.setValidation({
-            ...validation,
-            disabled: false,
-            loading: false
-          });
+    return Promise.resolve(validation)
+      .then((validation) => {
+        clearTimeout(loadingTimeout);
 
-          event.target.focus();
+        this.setValidation({
+          ...validation,
+          disabled: false,
+          loading: false
         });
-    }
 
-    this.setValidation(validation);
+        event.target.focus();
+      });
   }
 
   onKeyDown = (event) => {
