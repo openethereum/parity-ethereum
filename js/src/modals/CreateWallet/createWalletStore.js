@@ -198,6 +198,9 @@ export default class CreateWalletStore {
       .get()
       .registry
       .lookupAddress(walletLibraryRegKey)
+      .catch(() => {
+        return null; // exception when registry is not available
+      })
       .then((address) => {
         const walletLibraryAddress = (address || '').replace(/^0x/, '').toLowerCase();
         const code = walletLibraryAddress.length && !/^0+$/.test(walletLibraryAddress)

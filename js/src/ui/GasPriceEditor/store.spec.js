@@ -96,6 +96,7 @@ describe('ui/GasPriceEditor/Store', () => {
 
       setImmediate(() => {
         expect(store.histogram).not.to.be.null;
+        expect(store.histogram.bucketBounds).not.to.be.null;
         done();
       });
     });

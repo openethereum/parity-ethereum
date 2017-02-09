@@ -15,11 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 export AccountCard from './AccountCard';
-export Actionbar from './Actionbar';
-export ActionbarExport from './Actionbar/Export';
-export ActionbarImport from './Actionbar/Import';
-export ActionbarSearch from './Actionbar/Search';
-export ActionbarSort from './Actionbar/Sort';
+export Actionbar, { Export as ActionbarExport, Import as ActionbarImport, Search as ActionbarSearch, Sort as ActionbarSort } from './Actionbar';
 export Badge from './Badge';
 export Balance from './Balance';
 export BlockStatus from './BlockStatus';
@@ -32,7 +28,6 @@ export CopyToClipboard from './CopyToClipboard';
 export CurrencySymbol from './CurrencySymbol';
 export DappCard from './DappCard';
 export DappIcon from './DappIcon';
-export Editor from './Editor';
 export Errors from './Errors';
 export Features, { FEATURES, FeaturesStore } from './Features';
 export Form, { AddressSelect, DappUrlInput, FormWrap, Input, InputAddress, InputAddressSelect, InputChip, InputDate, InputInline, InputTime, Label, RadioButtons, Select, TypedInput } from './Form';
@@ -48,7 +43,6 @@ export Modal, { Busy as BusyStep, Completed as CompletedStep } from './Modal';
 export muiTheme from './Theme';
 export Page from './Page';
 export ParityBackground from './ParityBackground';
-export PasswordStrength from './Form/PasswordStrength';
 export Portal from './Portal';
 export QrCode from './QrCode';
 export SectionList from './SectionList';

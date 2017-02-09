@@ -138,7 +138,7 @@ impl<A: Authorization + 'static> server::Handler<HttpStream> for Router<A> {
 			},
 			// Redirect any other GET request to signer.
 			_ if is_get_request => {
-				if let Some(signer_address) = self.signer_address.clone() {
+				if let Some(ref signer_address) = self.signer_address {
 					trace!(target: "dapps", "Redirecting to signer interface.");
 					Redirection::boxed(&format!("http://{}", address(signer_address)))
 				} else {

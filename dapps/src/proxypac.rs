@@ -35,7 +35,8 @@ impl ProxyPac {
 
 impl Endpoint for ProxyPac {
 	fn to_handler(&self, path: EndpointPath) -> Box<Handler> {
-		let signer = self.signer_address.clone()
+		let signer = self.signer_address
+			.as_ref()
 			.map(address)
 			.unwrap_or_else(|| format!("{}:{}", path.host, path.port));
 
