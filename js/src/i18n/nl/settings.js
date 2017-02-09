@@ -15,7 +15,49 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 export default {
-  de: 'Deutsch',
-  en: 'English',
-  nl: 'Nederlands'
+  label: 'Instellingen',
+
+  background: {
+    label: 'Achtergrond'
+  },
+
+  parity: {
+    label: 'Parity'
+  },
+
+  proxy: {
+    label: 'Proxy'
+  },
+
+  views: {
+    label: 'Weergaven',
+
+    accounts: {
+      label: 'Accounts'
+    },
+
+    addresses: {
+      label: 'Adresboek'
+    },
+
+    apps: {
+      label: 'Applicaties'
+    },
+
+    contracts: {
+      label: 'Contracten'
+    },
+
+    status: {
+      label: 'Status'
+    },
+
+    signer: {
+      label: 'Signer'
+    },
+
+    settings: {
+      label: 'Instellingen'
+    }
+  }
 };

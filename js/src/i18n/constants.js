@@ -17,7 +17,7 @@
 const DEFAULT_LOCALE = 'en';
 const DEFAULT_LOCALES = process.env.NODE_ENV === 'production'
   ? ['en']
-  : ['en', 'de'];
+  : ['en', 'de', 'nl'];
 const LS_STORE_KEY = '_parity::locale';
 
 export {

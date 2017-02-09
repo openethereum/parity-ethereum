@@ -21,6 +21,53 @@ use Public;
 use bigint::hash::{H256, FixedHash};
 pub use self::derivation::Error as DerivationError;
 
+/// Represents label that can be stored as a part of key derivation
+pub trait Label {
+	/// Length of the data that label occupies
+	fn len() -> usize;
+
+	/// Store label data to the key derivation sequence
+	/// Must not use more than `len()` bytes from slice
+	fn store(&self, target: &mut [u8]);
+}
+
+impl Label for u32 {
+	fn len() -> usize { 4 }
+
+	fn store(&self, target: &mut [u8]) {
+		use byteorder::{BigEndian, ByteOrder};
+
+		BigEndian::write_u32(&mut target[0..4], *self);
+	}
+}
+
+/// Key derivation over generic label `T`
+pub enum Derivation<T: Label> {
+	/// Soft key derivation (allow proof of parent)
+	Soft(T),
+	/// Hard key derivation (does not allow proof of parent)
+	Hard(T),
+}
+
+impl From<u32> for Derivation<u32> {
+	fn from(index: u32) -> Self {
+		if index < (2 << 30) {
+			Derivation::Soft(index)
+		}
+		else {
+			Derivation::Hard(index)
+		}
+	}
+}
+
+impl Label for H256 {
+	fn len() -> usize { 32 }
+
+	fn store(&self, target: &mut [u8]) {
+		self.copy_to(&mut target[0..32]);
+	}
+}
+
 /// Extended secret key, allows deterministic derivation of subsequent keys.
 pub struct ExtendedSecret {
 	secret: Secret,
@@ -49,7 +96,7 @@ impl ExtendedSecret {
 	}
 
 	/// Derive new private key
-	pub fn derive(&self, index: u32) -> ExtendedSecret {
+	pub fn derive<T>(&self, index: Derivation<T>) -> ExtendedSecret where T: Label {
 		let (derived_key, next_chain_code) = derivation::private(*self.secret, self.chain_code, index);
 
 		let derived_secret = Secret::from_slice(&*derived_key)
@@ -88,7 +135,7 @@ impl ExtendedPublic {
 
 	/// Derive new public key
 	/// Operation is defined only for index belongs [0..2^31)
-	pub fn derive(&self, index: u32) -> Result<Self, DerivationError> {
+	pub fn derive<T>(&self, index: Derivation<T>) -> Result<Self, DerivationError> where T: Label {
 		let (derived_key, next_chain_code) = derivation::public(self.public, self.chain_code, index)?;
 		Ok(ExtendedPublic::new(derived_key, next_chain_code))
 	}
@@ -147,7 +194,7 @@ impl ExtendedKeyPair {
 		&self.public
 	}
 
-	pub fn derive(&self, index: u32) -> Result<Self, DerivationError> {
+	pub fn derive<T>(&self, index: Derivation<T>) -> Result<Self, DerivationError> where T: Label {
 		let derived = self.secret.derive(index);
 
 		Ok(ExtendedKeyPair {
@@ -167,11 +214,11 @@ mod derivation {
 	use rcrypto::sha2::Sha512;
 	use bigint::hash::{H512, H256, FixedHash};
 	use bigint::prelude::{U256, U512, Uint};
-	use byteorder::{BigEndian, ByteOrder};
 	use secp256k1;
 	use secp256k1::key::{SecretKey, PublicKey};
 	use SECP256K1;
 	use keccak;
+	use super::{Label, Derivation};
 
 	#[derive(Debug)]
 	pub enum Error {
@@ -183,20 +230,18 @@ mod derivation {
 
 	// Deterministic derivation of the key using secp256k1 elliptic curve.
 	// Derivation can be either hardened or not.
-	// For hardened derivation, pass index at least 2^31
+	// For hardened derivation, pass u32 index at least 2^31 or custom Derivation::Hard(T) enum
 	//
 	// Can panic if passed `private_key` is not a valid secp256k1 private key
 	// (outside of (0..curve_n()]) field
-	pub fn private(private_key: H256, chain_code: H256, index: u32) -> (H256, H256) {
-		if index < (2 << 30) {
-			private_soft(private_key, chain_code, index)
-		}
-		else {
-			private_hard(private_key, chain_code, index)
+	pub fn private<T>(private_key: H256, chain_code: H256, index: Derivation<T>) -> (H256, H256) where T: Label {
+		match index {
+			Derivation::Soft(index) => private_soft(private_key, chain_code, index),
+			Derivation::Hard(index) => private_hard(private_key, chain_code, index),
 		}
 	}
 
-	fn hmac_pair(data: [u8; 37], private_key: H256, chain_code: H256) -> (H256, H256) {
+	fn hmac_pair(data: &[u8], private_key: H256, chain_code: H256) -> (H256, H256) {
 		let private: U256 = private_key.into();
 
 		// produces 512-bit derived hmac (I)
@@ -216,8 +261,8 @@ mod derivation {
 
 	// Can panic if passed `private_key` is not a valid secp256k1 private key
 	// (outside of (0..curve_n()]) field
-	fn private_soft(private_key: H256, chain_code: H256, index: u32) -> (H256, H256) {
-		let mut data = [0u8; 37];
+	fn private_soft<T>(private_key: H256, chain_code: H256, index: T) -> (H256, H256) where T: Label {
+		let mut data = vec![0u8; 33 + T::len()];
 
 		let sec_private = SecretKey::from_slice(&SECP256K1, &*private_key)
 			.expect("Caller should provide valid private key");
@@ -226,26 +271,26 @@ mod derivation {
 		let public_serialized = sec_public.serialize_vec(&SECP256K1, true);
 
 		// curve point (compressed public key) --  index
-		//             0.33                    --  33..37
+		//             0.33                    --  33..end
 		data[0..33].copy_from_slice(&public_serialized);
-		BigEndian::write_u32(&mut data[33..37], index);
+		index.store(&mut data[33..]);
 
-		hmac_pair(data, private_key, chain_code)
+		hmac_pair(&data, private_key, chain_code)
 	}
 
 	// Deterministic derivation of the key using secp256k1 elliptic curve
 	// This is hardened derivation and does not allow to associate
 	// corresponding public keys of the original and derived private keys
-	fn private_hard(private_key: H256, chain_code: H256, index: u32) -> (H256, H256) {
-		let mut data = [0u8; 37];
+	fn private_hard<T>(private_key: H256, chain_code: H256, index: T) -> (H256, H256) where T: Label {
+		let mut data: Vec<u8> = vec![0u8; 33 + T::len()];
 		let private: U256 = private_key.into();
 
 		// 0x00 (padding) -- private_key --  index
-		//  0             --    1..33    -- 33..37
+		//  0             --    1..33    -- 33..end
 		private.to_big_endian(&mut data[1..33]);
-		BigEndian::write_u32(&mut data[33..37], index);
+		index.store(&mut data[33..(33 + T::len())]);
 
-		hmac_pair(data, private_key, chain_code)
+		hmac_pair(&data, private_key, chain_code)
 	}
 
 	fn private_add(k1: U256, k2: U256) -> U256 {
@@ -266,11 +311,11 @@ mod derivation {
 		H256::from_slice(&secp256k1::constants::CURVE_ORDER).into()
 	}
 
-	pub fn public(public_key: H512, chain_code: H256, index: u32) -> Result<(H512, H256), Error> {
-		if index >= (2 << 30) {
-			// public derivation is only defined on 'soft' index space [0..2^31)
-			return Err(Error::InvalidHardenedUse)
-		}
+	pub fn public<T>(public_key: H512, chain_code: H256, derivation: Derivation<T>) -> Result<(H512, H256), Error> where T: Label {
+		let index = match derivation {
+			Derivation::Soft(index) => index,
+			Derivation::Hard(_) => { return Err(Error::InvalidHardenedUse); }
+		};
 
 		let mut public_sec_raw = [0u8; 65];
 		public_sec_raw[0] = 4;
@@ -278,11 +323,11 @@ mod derivation {
 		let public_sec = PublicKey::from_slice(&SECP256K1, &public_sec_raw).map_err(|_| Error::InvalidPoint)?;
 		let public_serialized = public_sec.serialize_vec(&SECP256K1, true);
 
-		let mut data = [0u8; 37];
+		let mut data = vec![0u8; 33 + T::len()];
 		// curve point (compressed public key) --  index
-		//             0.33                    --  33..37
+		//             0.33                    --  33..end
 		data[0..33].copy_from_slice(&public_serialized);
-		BigEndian::write_u32(&mut data[33..37], index);
+		index.store(&mut data[33..(33 + T::len())]);
 
 		// HMAC512SHA produces [derived private(256); new chain code(256)]
 		let mut hmac = Hmac::new(Sha512::new(), &*chain_code);
@@ -351,7 +396,7 @@ mod tests {
 	use secret::Secret;
 	use std::str::FromStr;
 	use bigint::hash::{H128, H256};
-	use super::derivation;
+	use super::{derivation, Derivation};
 
 	fn master_chain_basic() -> (H256, H256) {
 		let seed = H128::from_str("000102030405060708090a0b0c0d0e0f")
@@ -375,23 +420,48 @@ mod tests {
 
 		// hardened
 		assert_eq!(&**extended_secret.secret(), &*secret);
-		assert_eq!(&**extended_secret.derive(2147483648).secret(), &"0927453daed47839608e414a3738dfad10aed17c459bbd9ab53f89b026c834b6".into());
-		assert_eq!(&**extended_secret.derive(2147483649).secret(), &"44238b6a29c6dcbe9b401364141ba11e2198c289a5fed243a1c11af35c19dc0f".into());
+		assert_eq!(&**extended_secret.derive(2147483648.into()).secret(), &"0927453daed47839608e414a3738dfad10aed17c459bbd9ab53f89b026c834b6".into());
+		assert_eq!(&**extended_secret.derive(2147483649.into()).secret(), &"44238b6a29c6dcbe9b401364141ba11e2198c289a5fed243a1c11af35c19dc0f".into());
 
 		// normal
-		assert_eq!(&**extended_secret.derive(0).secret(), &"bf6a74e3f7b36fc4c96a1e12f31abc817f9f5904f5a8fc27713163d1f0b713f6".into());
-		assert_eq!(&**extended_secret.derive(1).secret(), &"bd4fca9eb1f9c201e9448c1eecd66e302d68d4d313ce895b8c134f512205c1bc".into());
-		assert_eq!(&**extended_secret.derive(2).secret(), &"86932b542d6cab4d9c65490c7ef502d89ecc0e2a5f4852157649e3251e2a3268".into());
+		assert_eq!(&**extended_secret.derive(0.into()).secret(), &"bf6a74e3f7b36fc4c96a1e12f31abc817f9f5904f5a8fc27713163d1f0b713f6".into());
+		assert_eq!(&**extended_secret.derive(1.into()).secret(), &"bd4fca9eb1f9c201e9448c1eecd66e302d68d4d313ce895b8c134f512205c1bc".into());
+		assert_eq!(&**extended_secret.derive(2.into()).secret(), &"86932b542d6cab4d9c65490c7ef502d89ecc0e2a5f4852157649e3251e2a3268".into());
 
 		let extended_public = ExtendedPublic::from_secret(&extended_secret).expect("Extended public should be created");
-		let derived_public = extended_public.derive(0).expect("First derivation of public should succeed");
+		let derived_public = extended_public.derive(0.into()).expect("First derivation of public should succeed");
 		assert_eq!(&*derived_public.public(), &"f7b3244c96688f92372bfd4def26dc4151529747bab9f188a4ad34e141d47bd66522ff048bc6f19a0a4429b04318b1a8796c000265b4fa200dae5f6dda92dd94".into());
 
 		let keypair = ExtendedKeyPair::with_secret(
 			Secret::from_str("a100df7a048e50ed308ea696dc600215098141cb391e9527329df289f9383f65").unwrap(),
 			064.into(),
 		);
-		assert_eq!(&**keypair.derive(2147483648).expect("Derivation of keypair should succeed").secret().secret(), &"edef54414c03196557cf73774bc97a645c9a1df2164ed34f0c2a78d1375a930c".into());
+		assert_eq!(&**keypair.derive(2147483648u32.into()).expect("Derivation of keypair should succeed").secret().secret(), &"edef54414c03196557cf73774bc97a645c9a1df2164ed34f0c2a78d1375a930c".into());
+	}
+
+	#[test]
+	fn h256_soft_match() {
+		let secret = Secret::from_str("a100df7a048e50ed308ea696dc600215098141cb391e9527329df289f9383f65").unwrap();
+		let derivation_secret = H256::from_str("51eaf04f9dbbc1417dc97e789edd0c37ecda88bac490434e367ea81b71b7b015").unwrap();
+
+		let extended_secret = ExtendedSecret::with_code(secret.clone(), 0u64.into());
+		let extended_public = ExtendedPublic::from_secret(&extended_secret).expect("Extended public should be created");
+
+		let derived_secret0 = extended_secret.derive(Derivation::Soft(derivation_secret));
+		let derived_public0 = extended_public.derive(Derivation::Soft(derivation_secret)).expect("First derivation of public should succeed");
+
+		let public_from_secret0 = ExtendedPublic::from_secret(&derived_secret0).expect("Extended public should be created");
+
+		assert_eq!(public_from_secret0.public(), derived_public0.public());
+	}
+
+	#[test]
+	fn h256_hard() {
+		let secret = Secret::from_str("a100df7a048e50ed308ea696dc600215098141cb391e9527329df289f9383f65").unwrap();
+		let derivation_secret = H256::from_str("51eaf04f9dbbc1417dc97e789edd0c37ecda88bac490434e367ea81b71b7b015").unwrap();
+		let extended_secret = ExtendedSecret::with_code(secret.clone(), 1u64.into());
+
+		assert_eq!(&**extended_secret.derive(Derivation::Hard(derivation_secret)).secret(), &"2bc2d696fb744d77ff813b4a1ef0ad64e1e5188b622c54ba917acc5ebc7c5486".into());
 	}
 
 	#[test]
@@ -400,8 +470,8 @@ mod tests {
 		let extended_secret = ExtendedSecret::with_code(secret.clone(), 1.into());
 		let extended_public = ExtendedPublic::from_secret(&extended_secret).expect("Extended public should be created");
 
-		let derived_secret0 = extended_secret.derive(0);
-		let derived_public0 = extended_public.derive(0).expect("First derivation of public should succeed");
+		let derived_secret0 = extended_secret.derive(0.into());
+		let derived_public0 = extended_public.derive(0.into()).expect("First derivation of public should succeed");
 
 		let public_from_secret0 = ExtendedPublic::from_secret(&derived_secret0).expect("Extended public should be created");
 
@@ -429,7 +499,7 @@ mod tests {
 		/// xprv9uHRZZhk6KAJC1avXpDAp4MDc3sQKNxDiPvvkX8Br5ngLNv1TxvUxt4cV1rGL5hj6KCesnDYUhd7oWgT11eZG7XnxHrnYeSvkzY7d2bhkJ7
 		/// H(0)
 		test_extended(
-			|secret| secret.derive(2147483648),
+			|secret| secret.derive(2147483648.into()),
 			H256::from_str("edb2e14f9ee77d26dd93b4ecede8d16ed408ce149b6cd80b0715a2d911a0afea")
 				.expect("Private should be decoded ok")
 		);
@@ -440,7 +510,7 @@ mod tests {
 		/// xprv9wTYmMFdV23N2TdNG573QoEsfRrWKQgWeibmLntzniatZvR9BmLnvSxqu53Kw1UmYPxLgboyZQaXwTCg8MSY3H2EU4pWcQDnRnrVA1xe8fs
 		/// H(0)/1
 		test_extended(
-			|secret| secret.derive(2147483648).derive(1),
+			|secret| secret.derive(2147483648.into()).derive(1.into()),
 			H256::from_str("3c6cb8d0f6a264c91ea8b5030fadaa8e538b020f0a387421a12de9319dc93368")
 				.expect("Private should be decoded ok")
 		);
