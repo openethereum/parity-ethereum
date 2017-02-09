@@ -23,6 +23,7 @@ const ACCOUNT_D = '0x8901234567890123456789012345678901234567';
 
 const TEST_VAULTS_ALL = ['vault1', 'vault2', 'vault3'];
 const TEST_VAULTS_OPEN = ['vault2'];
+const TEST_VAULTS_META = { something: 'test' };
 
 const TEST_ACCOUNTS = {
   [ACCOUNT_A]: {
@@ -59,8 +60,10 @@ export function createApi () {
       listVaults: sinon.stub().resolves(TEST_VAULTS_ALL),
       changeVault: sinon.stub().resolves(true),
       closeVault: sinon.stub().resolves(true),
+      getVaultMeta: sinon.stub().resolves(TEST_VAULTS_META),
       newVault: sinon.stub().resolves(true),
-      openVault: sinon.stub().resolves(true)
+      openVault: sinon.stub().resolves(true),
+      setVaultMeta: sinon.stub().resolves(true)
     }
   };
 }
@@ -79,24 +82,9 @@ export function createReduxStore () {
   };
 }
 
-export function createVaultStore () {
-  return {
-    isBusyClose: false,
-    isBusyOpen: false,
-    isModalCloseOpen: true,
-    isModalOpenOpen: true,
-    vaultName: 'testVault',
-    vaultPassword: 'testPassword',
-    closeCloseModal: sinon.stub(),
-    closeOpenModal: sinon.stub(),
-    closeVault: sinon.stub().resolves(true),
-    openVault: sinon.stub().resolves(true),
-    setVaultPassword: sinon.stub()
-  };
-}
-
 export {
   TEST_ACCOUNTS,
   TEST_VAULTS_ALL,
+  TEST_VAULTS_META,
   TEST_VAULTS_OPEN
 };

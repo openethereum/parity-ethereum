@@ -18,35 +18,55 @@ import { shallow } from 'enzyme';
 import React from 'react';
 import sinon from 'sinon';
 
-import { createReduxStore, createVaultStore } from '../vaults.test.js';
-
-import ConfirmClose from './';
+import VaultOpen from './';
 
 let component;
 let instance;
 let reduxStore;
 let vaultStore;
 
-function render () {
-  reduxStore = createReduxStore();
-  vaultStore = createVaultStore();
+function createReduxStore () {
+  reduxStore = {
+    dispatch: sinon.stub(),
+    subscribe: sinon.stub(),
+    getState: () => {
+      return {};
+    }
+  };
 
+  return reduxStore;
+}
+
+function createVaultStore () {
+  vaultStore = {
+    isBusyOpen: false,
+    isModalOpenOpen: true,
+    vaultName: 'testVault',
+    vaultPassword: 'testPassword',
+    vaults: [{ name: 'testVault' }],
+    closeOpenModal: sinon.stub(),
+    openVault: sinon.stub().resolves(true),
+    setVaultPassword: sinon.stub()
+  };
+
+  return vaultStore;
+}
+
+function render () {
   component = shallow(
-    <ConfirmClose
-      vaultStore={ vaultStore }
-    />,
+    <VaultOpen vaultStore={ createVaultStore() } />,
     {
       context: {
-        store: reduxStore
+        store: createReduxStore()
       }
     }
-  ).find('ConfirmClose').shallow();
+  ).find('VaultOpen').shallow();
   instance = component.instance();
 
   return component;
 }
 
-describe('views/Vaults/ConfirmClose', () => {
+describe('modals/VaultOpen', () => {
   beforeEach(() => {
     render();
   });
@@ -90,8 +110,8 @@ describe('views/Vaults/ConfirmClose', () => {
         expect(instance.onClose).to.have.been.called;
       });
 
-      it('calls into vaultStore.closeVault', () => {
-        expect(vaultStore.closeVault).to.have.been.called;
+      it('calls into vaultStore.openVault', () => {
+        expect(vaultStore.openVault).to.have.been.called;
       });
     });
 
@@ -100,8 +120,18 @@ describe('views/Vaults/ConfirmClose', () => {
         instance.onClose();
       });
 
-      it('calls into closeCloseModal', () => {
-        expect(vaultStore.closeCloseModal).to.have.been.called;
+      it('calls into closeOpenModal', () => {
+        expect(vaultStore.closeOpenModal).to.have.been.called;
+      });
+    });
+
+    describe('onEditPassword', () => {
+      beforeEach(() => {
+        instance.onEditPassword(null, 'someVaultPassword');
+      });
+
+      it('calls into vaultStire.setVaultPassword', () => {
+        expect(vaultStore.setVaultPassword).to.have.been.calledWith('someVaultPassword');
       });
     });
   });

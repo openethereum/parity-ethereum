@@ -59,6 +59,7 @@ import Title from './Title';
 import Tooltips, { Tooltip } from './Tooltips';
 import TxHash from './TxHash';
 import TxList from './TxList';
+import VaultCard from './VaultCard';
 import Warning from './Warning';
 
 export {
@@ -127,5 +128,6 @@ export {
   TxHash,
   TxList,
   TypedInput,
+  VaultCard,
   Warning
 };

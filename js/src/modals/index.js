@@ -14,48 +14,26 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import AddAddress from './AddAddress';
-import AddContract from './AddContract';
-import CreateAccount from './CreateAccount';
-import CreateWallet from './CreateWallet';
-import DappPermissions from './DappPermissions';
-import DappsVisible from './AddDapps';
-import DeleteAccount from './DeleteAccount';
-import DeployContract from './DeployContract';
-import EditMeta from './EditMeta';
-import ExecuteContract from './ExecuteContract';
-import FirstRun from './FirstRun';
-import LoadContract from './LoadContract';
-import PasswordManager from './PasswordManager';
-import SaveContract from './SaveContract';
-import Shapeshift from './Shapeshift';
-import Transfer from './Transfer';
-import UpgradeParity from './UpgradeParity';
-import VaultAccounts from './VaultAccounts';
-import VaultCreate from './VaultCreate';
-import Verification from './Verification';
-import WalletSettings from './WalletSettings';
-
-export {
-  AddAddress,
-  AddContract,
-  CreateAccount,
-  CreateWallet,
-  DappPermissions,
-  DappsVisible,
-  DeleteAccount,
-  DeployContract,
-  EditMeta,
-  ExecuteContract,
-  FirstRun,
-  LoadContract,
-  PasswordManager,
-  SaveContract,
-  Shapeshift,
-  Transfer,
-  UpgradeParity,
-  VaultAccounts,
-  VaultCreate,
-  Verification,
-  WalletSettings
-};
+export AddAddress from './AddAddress';
+export AddContract from './AddContract';
+export CreateAccount from './CreateAccount';
+export CreateWallet from './CreateWallet';
+export DappPermissions from './DappPermissions';
+export DappsVisible from './AddDapps';
+export DeleteAccount from './DeleteAccount';
+export DeployContract from './DeployContract';
+export EditMeta from './EditMeta';
+export ExecuteContract from './ExecuteContract';
+export FirstRun from './FirstRun';
+export LoadContract from './LoadContract';
+export PasswordManager from './PasswordManager';
+export SaveContract from './SaveContract';
+export Shapeshift from './Shapeshift';
+export Transfer from './Transfer';
+export UpgradeParity from './UpgradeParity';
+export VaultAccounts from './VaultAccounts';
+export VaultClose from './VaultClose';
+export VaultCreate from './VaultCreate';
+export VaultOpen from './VaultOpen';
+export Verification from './Verification';
+export WalletSettings from './WalletSettings';

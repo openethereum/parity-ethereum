@@ -16,25 +16,26 @@
 
 import React, { Component, PropTypes } from 'react';
 
-import { IdentityIcon } from '~/ui';
+import Title from '~/ui/Title'
+import IdentityIcon from '~/ui/IdentityIcon';
 
-import styles from '../vaults.css';
+import styles from './layout.css';
 
-export default class NameLayout extends Component {
+export default class Layout extends Component {
   static propTypes = {
-    isOpen: PropTypes.bool.isRequired,
-    name: PropTypes.string.isRequired,
+    vault: PropTypes.object.isRequired,
     withBorder: PropTypes.bool
   };
 
   render () {
-    const { isOpen, name, withBorder } = this.props;
+    const { vault, withBorder } = this.props;
+    const { isOpen, meta, name } = vault;
 
     return (
       <div
         className={
           [
-            styles.namebox,
+            styles.layout,
             withBorder
               ? styles.border
               : null
@@ -53,8 +54,11 @@ export default class NameLayout extends Component {
             ].join(' ')
           }
         />
-        <div className={ styles.name }>
-          { name }
+        <div className={ styles.info }>
+          <Title
+            byline={ meta.description }
+            title={ name }
+          />
         </div>
       </div>
     );

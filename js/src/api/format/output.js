@@ -17,6 +17,7 @@
 import BigNumber from 'bignumber.js';
 
 import { toChecksumAddress } from '../../abi/util/address';
+import { isString } from '../util/types';
 
 export function outAccountInfo (infos) {
   return Object
@@ -343,4 +344,18 @@ export function outTraceReplay (trace) {
   }
 
   return trace;
+}
+
+export function outVaultMeta (meta) {
+  if (isString(meta)) {
+    try {
+      const obj = JSON.parse(meta);
+
+      return obj;
+    } catch (error) {
+      return {};
+    }
+  }
+
+  return meta || {};
 }

@@ -21,20 +21,20 @@ import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
 import { newError } from '~/redux/actions';
-import { ConfirmDialog, Input } from '~/ui';
+import { ConfirmDialog, Input, VaultCard } from '~/ui';
 
-import NameLayout from '../NameLayout';
-import styles from '../vaults.css';
+import styles from '../VaultClose/vaultClose.css';
 
 @observer
-class ConfirmOpen extends Component {
+class VaultOpen extends Component {
   static propTypes = {
     newError: PropTypes.func.isRequired,
     vaultStore: PropTypes.object.isRequired
   }
 
   render () {
-    const { isBusyOpen, isModalOpenOpen, vaultName, vaultPassword } = this.props.vaultStore;
+    const { isBusyOpen, isModalOpenOpen, vaultName, vaultPassword, vaults } = this.props.vaultStore;
+    const vault = vaults.find((vault) => vault.name === vaultName);
 
     if (!isModalOpenOpen) {
       return null;
@@ -61,10 +61,9 @@ class ConfirmOpen extends Component {
             defaultMessage='You are about to open a vault. After confirming your password, all accounts associated with this vault will be visible. Closing the vault will remove the accounts from view until the vault is opened again.'
           />
         </div>
-        <NameLayout
-          isOpen
-          name={ vaultName }
+        <VaultCard.Layout
           withBorder
+          vault={ vault }
         />
         <Input
           hint={
@@ -113,4 +112,4 @@ function mapDispatchToProps (dispatch) {
 export default connect(
   null,
   mapDispatchToProps
-)(ConfirmOpen);
+)(VaultOpen);

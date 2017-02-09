@@ -19,7 +19,7 @@ import sinon from 'sinon';
 import Vaults from './';
 
 import ERRORS from '~/modals/CreateAccount/errors';
-import { createApi, TEST_VAULTS_ALL, TEST_VAULTS_OPEN } from './vaults.test.js';
+import { createApi, TEST_VAULTS_ALL, TEST_VAULTS_META, TEST_VAULTS_OPEN } from './vaults.test.js';
 
 let api;
 let store;
@@ -39,6 +39,7 @@ describe('modals/Vaults/Store', () => {
   describe('@action', () => {
     describe('clearCreateFields', () => {
       beforeEach(() => {
+        store.setCreateDescription('testing desc');
         store.setCreateName('testing 123');
         store.setCreatePassword('blah');
         store.setCreatePasswordRepeat('bleh');
@@ -48,6 +49,7 @@ describe('modals/Vaults/Store', () => {
       });
 
       it('resets create fields', () => {
+        expect(store.createDescription).to.equal('');
         expect(store.createName).to.equal('');
         expect(store.createNameError).not.to.be.null;
         expect(store.createPassword).to.equal('');
@@ -96,6 +98,14 @@ describe('modals/Vaults/Store', () => {
       });
     });
 
+    describe('setCreateDescription', () => {
+      it('sets the description', () => {
+        store.setCreateDescription('test');
+
+        expect(store.createDescription).to.equal('test');
+      });
+    });
+
     describe('setCreateName', () => {
       it('sets the name as passed', () => {
         store.setCreateName('testing');
@@ -110,7 +120,7 @@ describe('modals/Vaults/Store', () => {
       });
 
       it('sets error duplicateName when duplicated', () => {
-        store.setVaults(['testDupe'], []);
+        store.setVaults(['testDupe'], [], ['testing']);
         store.setCreateName('testDUPE');
 
         expect(store.createNameError).to.equal(ERRORS.duplicateName);
@@ -190,7 +200,7 @@ describe('modals/Vaults/Store', () => {
 
     describe('setVaults', () => {
       beforeEach(() => {
-        store.setVaults(['TEST', 'some'], ['TEST']);
+        store.setVaults(['TEST', 'some'], ['TEST'], ['metaTest', 'metaSome']);
       });
 
       it('stores the available vault names (lookup)', () => {
@@ -199,8 +209,8 @@ describe('modals/Vaults/Store', () => {
 
       it('sets all vaults with correct flags', () => {
         expect(store.vaults.peek()).to.deep.equal([
-          { name: 'TEST', isOpen: true },
-          { name: 'some', isOpen: false }
+          { name: 'TEST', meta: 'metaTest', isOpen: true },
+          { name: 'some', meta: 'metaSome', isOpen: false }
         ]);
       });
     });
@@ -393,7 +403,9 @@ describe('modals/Vaults/Store', () => {
       });
 
       it('sets the vaults', () => {
-        expect(store.setVaults).to.have.been.calledWith(TEST_VAULTS_ALL, TEST_VAULTS_OPEN);
+        expect(store.setVaults).to.have.been.calledWith(TEST_VAULTS_ALL, TEST_VAULTS_OPEN, [
+          TEST_VAULTS_META, TEST_VAULTS_META, TEST_VAULTS_META
+        ]);
       });
     });
 
@@ -424,6 +436,7 @@ describe('modals/Vaults/Store', () => {
       beforeEach(() => {
         sinon.spy(store, 'setBusyCreate');
 
+        store.setCreateDescription('testDescription');
         store.setCreateName('testCreateName');
         store.setCreatePassword('testCreatePassword');
         store.setCreatePasswordRepeat('testCreatePassword');
@@ -443,6 +456,13 @@ describe('modals/Vaults/Store', () => {
 
       it('calls into parity_newVault', () => {
         expect(api.parity.newVault).to.have.been.calledWith('testCreateName', 'testCreatePassword');
+      });
+
+      it('calls into parity_setVaultMeta', () => {
+        expect(api.parity.setVaultMeta).to.have.been.calledWith('testCreateName', {
+          description: 'testDescription',
+          passwordHint: 'testCreateHint'
+        });
       });
     });
 

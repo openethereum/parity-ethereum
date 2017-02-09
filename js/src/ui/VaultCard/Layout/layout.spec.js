@@ -17,7 +17,7 @@
 import { shallow } from 'enzyme';
 import React from 'react';
 
-import NameLayout from './';
+import Layout from './';
 
 const NAME = 'testName';
 
@@ -25,16 +25,22 @@ let component;
 
 function render () {
   component = shallow(
-    <NameLayout
-      isOpen
-      name={ NAME }
+    <Layout
+      vault={ {
+        isOpen: true,
+        meta: {
+          description: 'some description',
+          passwordHint: 'some hint'
+        },
+        name: NAME
+      } }
     />
   );
 
   return component;
 }
 
-describe('views/Vaults/NameLayout', () => {
+describe('ui/VaultCard/Layout', () => {
   beforeEach(() => {
     render();
   });

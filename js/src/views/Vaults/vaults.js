@@ -19,15 +19,11 @@ import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 
-import { VaultAccounts, VaultCreate } from '~/modals';
-import { Button, Container, IdentityIcon, Page, SectionList } from '~/ui';
+import { VaultAccounts, VaultClose, VaultCreate, VaultOpen } from '~/modals';
+import { Button, Page, SectionList, VaultCard } from '~/ui';
 import { AccountsIcon, AddIcon, LockedIcon, UnlockedIcon } from '~/ui/Icons';
 
-import ConfirmClose from './ConfirmClose';
-import ConfirmOpen from './ConfirmOpen';
-import NameLayout from './NameLayout';
 import Store from './store';
-import styles from './vaults.css';
 
 @observer
 class Vaults extends Component {
@@ -72,8 +68,8 @@ class Vaults extends Component {
           />
         }
       >
-        <ConfirmClose vaultStore={ this.vaultStore } />
-        <ConfirmOpen vaultStore={ this.vaultStore } />
+        <VaultClose vaultStore={ this.vaultStore } />
+        <VaultOpen vaultStore={ this.vaultStore } />
         <VaultAccounts vaultStore={ this.vaultStore } />
         <VaultCreate vaultStore={ this.vaultStore } />
         <SectionList
@@ -85,109 +81,68 @@ class Vaults extends Component {
   }
 
   renderVault = (vault) => {
-    const onClickAccounts = () => {
-      this.onOpenAccounts(vault.name);
-      return false;
-    };
-    const onClickOpen = () => {
-      vault.isOpen
-        ? this.onCloseVault(vault.name)
-        : this.onOpenVault(vault.name);
-      return false;
-    };
-
-    return (
-      <Container
-        className={ styles.container }
-        hover={
-          vault.isOpen
-            ? this.renderVaultAccounts(vault)
-            : null
-        }
-      >
-        <NameLayout { ...vault } />
-        {
-          vault.isOpen
-            ? <UnlockedIcon className={ styles.statusIcon } />
-            : <LockedIcon className={ styles.statusIcon } />
-        }
-        {
-          vault.isOpen
-            ? (
-              <div className={ styles.buttonRow }>
-                <Button
-                  icon={ <AccountsIcon /> }
-                  label={
-                    <FormattedMessage
-                      id='vaults.button.accounts'
-                      defaultMessage='accounts'
-                    />
-                  }
-                  onClick={ onClickAccounts }
-                />
-                <Button
-                  icon={ <LockedIcon /> }
-                  label={
-                    <FormattedMessage
-                      id='vaults.button.close'
-                      defaultMessage='close vault'
-                    />
-                  }
-                  onClick={ onClickOpen }
-                />
-              </div>
-            )
-            : (
-              <div className={ styles.buttonRow }>
-                <Button
-                  icon={ <UnlockedIcon /> }
-                  label={
-                    <FormattedMessage
-                      id='vaults.button.open'
-                      defaultMessage='open vault'
-                    />
-                  }
-                  onClick={ onClickOpen }
-                />
-              </div>
-            )
-        }
-      </Container>
-    );
-  }
-
-  renderVaultAccounts = (vault) => {
     const { accounts } = this.props;
+    const { isOpen, name } = vault;
     const vaultAccounts = Object
       .keys(accounts)
       .filter((address) => accounts[address].uuid && accounts[address].meta.vault === vault.name);
 
-    if (!vaultAccounts.length) {
-      return (
-        <div className={ styles.empty }>
-          <FormattedMessage
-            id='vaults.accounts.empty'
-            defaultMessage='There are no accounts in this vault'
-          />
-        </div>
-      );
-    }
+    const onClickAccounts = () => {
+      this.onOpenAccounts(name);
+      return false;
+    };
+    const onClickOpen = () => {
+      isOpen
+        ? this.onCloseVault(name)
+        : this.onOpenVault(name);
+      return false;
+    };
 
     return (
-      <div className={ styles.accounts }>
-        {
-          vaultAccounts.map((address) => {
-            return (
-              <IdentityIcon
-                address={ address }
-                center
-                className={ styles.account }
-                key={ address }
+      <VaultCard
+        accounts={ vaultAccounts }
+        buttons={
+          isOpen
+            ? [
+              <Button
+                icon={ <AccountsIcon /> }
+                key='accounts'
+                label={
+                  <FormattedMessage
+                    id='vaults.button.accounts'
+                    defaultMessage='accounts'
+                  />
+                }
+                onClick={ onClickAccounts }
+              />,
+              <Button
+                icon={ <LockedIcon /> }
+                key='close'
+                label={
+                  <FormattedMessage
+                    id='vaults.button.close'
+                    defaultMessage='close vault'
+                  />
+                }
+                onClick={ onClickOpen }
               />
-            );
-          })
+            ]
+            : [
+              <Button
+                icon={ <UnlockedIcon /> }
+                key='open'
+                label={
+                  <FormattedMessage
+                    id='vaults.button.open'
+                    defaultMessage='open vault'
+                  />
+                }
+                onClick={ onClickOpen }
+              />
+            ]
         }
-      </div>
+        vault={ vault }
+      />
     );
   }
 

@@ -39,12 +39,14 @@ function createVaultStore () {
   vaultStore = {
     isBusyCreate: false,
     isModalCreateOpen: true,
+    createDescription: 'initialDesc',
     createName: 'initialName',
     createPassword: 'initialPassword',
     createPasswordRepeat: 'initialPassword',
     createPasswordHint: 'initialHint',
     closeCreateModal: sinon.stub(),
     createVault: sinon.stub().resolves(true),
+    setCreateDescription: sinon.stub(),
     setCreateName: sinon.stub(),
     setCreatePassword: sinon.stub(),
     setCreatePasswordHint: sinon.stub(),
@@ -56,9 +58,7 @@ function createVaultStore () {
 
 function render () {
   component = shallow(
-    <VaultCreate
-      vaultStore={ createVaultStore() }
-    />,
+    <VaultCreate vaultStore={ createVaultStore() } />,
     {
       context: {
         store: createReduxStore()
@@ -106,6 +106,16 @@ describe('modals/VaultCreate', () => {
 
       it('closes modal', () => {
         expect(instance.onClose).to.have.been.called;
+      });
+    });
+
+    describe('onEditDescription', () => {
+      beforeEach(() => {
+        instance.onEditDescription(null, 'testDescription');
+      });
+
+      it('calls setCreateDescription', () => {
+        expect(vaultStore.setCreateDescription).to.have.been.calledWith('testDescription');
       });
     });
 

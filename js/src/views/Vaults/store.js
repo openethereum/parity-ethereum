@@ -23,6 +23,7 @@ import ERRORS from '~/modals/CreateAccount/errors';
 let instance;
 
 export default class Store {
+  @observable createDescription = '';
   @observable createName = '';
   @observable createNameError = ERRORS.noName;
   @observable createPassword = '';
@@ -55,6 +56,7 @@ export default class Store {
 
   @action clearCreateFields = () => {
     transaction(() => {
+      this.createDescription = '';
       this.createName = '';
       this.createNameError = ERRORS.noName;
       this.createPassword = '';
@@ -81,6 +83,10 @@ export default class Store {
 
   @action setBusyOpen = (isBusy) => {
     this.isBusyOpen = isBusy;
+  }
+
+  @action setCreateDescription = (description) => {
+    this.createDescription = description;
   }
 
   @action setCreateName = (name) => {
@@ -137,11 +143,12 @@ export default class Store {
     this.selectedAccounts = selectedAccounts;
   }
 
-  @action setVaults = (allVaults, openedVaults) => {
+  @action setVaults = (allVaults, openedVaults, metaData) => {
     transaction(() => {
       this.vaultNames = allVaults.map((name) => name.toLowerCase());
-      this.vaults = allVaults.map((name) => {
+      this.vaults = allVaults.map((name, index) => {
         return {
+          meta: metaData[index] || {},
           name,
           isOpen: openedVaults.includes(name)
         };
@@ -217,8 +224,19 @@ export default class Store {
         this._api.parity.listOpenedVaults()
       ])
       .then(([allVaults, openedVaults]) => {
-        this.setBusyLoad(false);
-        this.setVaults(allVaults, openedVaults);
+        return Promise
+          .all(allVaults.map((name) => {
+            return this._api.parity
+              .getVaultMeta(name)
+              .catch(() => {
+                // NOTE: getVaultMeta throws when no metadata has been creted yet
+                return {};
+              });
+          }))
+          .then((metaData) => {
+            this.setBusyLoad(false);
+            this.setVaults(allVaults, openedVaults, metaData);
+          });
       })
       .catch((error) => {
         console.warn('loadVaults', error);
@@ -251,6 +269,12 @@ export default class Store {
 
     return this._api.parity
       .newVault(this.createName, this.createPassword)
+      .then(() => {
+        return this._api.parity.setVaultMeta(this.createName, {
+          description: this.createDescription,
+          passwordHint: this.createPasswordHint
+        });
+      })
       .then(this.loadVaults)
       .then(() => {
         this.setBusyCreate(false);

@@ -35,7 +35,7 @@ class VaultCreate extends Component {
   }
 
   render () {
-    const { createName, createNameError, createPassword, createPasswordHint, createPasswordRepeat, createPasswordRepeatError, isBusyCreate, isModalCreateOpen } = this.props.vaultStore;
+    const { createDescription, createName, createNameError, createPassword, createPasswordHint, createPasswordRepeat, createPasswordRepeatError, isBusyCreate, isModalCreateOpen } = this.props.vaultStore;
     const hasError = !!createNameError || !!createPasswordRepeatError;
 
     if (!isModalCreateOpen) {
@@ -85,7 +85,7 @@ class VaultCreate extends Component {
             hint={
               <FormattedMessage
                 id='vaults.create.name.hint'
-                defaultMessage='a descriptive name for the vault'
+                defaultMessage='a name for the vault'
               />
             }
             label={
@@ -96,6 +96,22 @@ class VaultCreate extends Component {
             }
             onChange={ this.onEditName }
             value={ createName }
+          />
+          <Input
+            hint={
+              <FormattedMessage
+                id='vaults.create.description.hint'
+                defaultMessage='an extended description for the vault'
+              />
+            }
+            label={
+              <FormattedMessage
+                id='vaults.create.descriptions.label'
+                defaultMessage='(optional) description'
+              />
+            }
+            onChange={ this.onEditDescription }
+            value={ createDescription }
           />
           <Input
             hint={
@@ -158,6 +174,10 @@ class VaultCreate extends Component {
         </div>
       </Portal>
     );
+  }
+
+  onEditDescription = (event, description) => {
+    this.props.vaultStore.setCreateDescription(description);
   }
 
   onEditName = (event, name) => {

@@ -90,9 +90,7 @@ function createVaultStore () {
 
 function render () {
   component = shallow(
-    <VaultAccounts
-      vaultStore={ createVaultStore() }
-    />,
+    <VaultAccounts vaultStore={ createVaultStore() } />,
     {
       context: {
         store: createReduxStore()
