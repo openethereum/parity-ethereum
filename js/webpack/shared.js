@@ -26,6 +26,7 @@ const rucksack = require('rucksack-css');
 const CircularDependencyPlugin = require('circular-dependency-plugin');
 const ProgressBarPlugin = require('progress-bar-webpack-plugin');
 
+const EMBED = process.env.EMBED;
 const ENV = process.env.NODE_ENV || 'development';
 const isProd = ENV === 'production';
 
@@ -113,6 +114,7 @@ function getPlugins (_isProd = isProd) {
 
     new webpack.DefinePlugin({
       'process.env': {
+        EMBED: JSON.stringify(EMBED),
         NODE_ENV: JSON.stringify(ENV),
         RPC_ADDRESS: JSON.stringify(process.env.RPC_ADDRESS),
         PARITY_URL: JSON.stringify(process.env.PARITY_URL),

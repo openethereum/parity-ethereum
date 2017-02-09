@@ -422,7 +422,7 @@ windows:
     - set LIB=C:\vs2015\VC\lib;C:\Program Files (x86)\Windows Kits\10\Lib\10.0.10240.0\ucrt\x64
     - set RUST_BACKTRACE=1
     - set RUSTFLAGS=%RUSTFLAGS%
-    - rustup default stable-x86_64-pc-windows-msvc
+    - rustup default 1.14.0-x86_64-pc-windows-msvc
     - cargo build --features final --release #%CARGOFLAGS%
     - signtool sign /f %keyfile% /p %certpass% target\release\parity.exe
     - target\release\parity.exe tools hash target\release\parity.exe > parity.sha3

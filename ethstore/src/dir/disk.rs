@@ -158,7 +158,7 @@ impl<T> DiskDirectory<T> where T: KeyFileManager {
 		Ok(account)
 	}
 
-	/// Get key file manager
+	/// Get key file manager referece
 	pub fn key_manager(&self) -> &T {
 		&self.key_manager
 	}

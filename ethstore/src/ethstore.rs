@@ -107,6 +107,14 @@ impl SimpleSecretStore for EthStore {
 	fn change_account_vault(&self, vault: SecretVaultRef, account: StoreAccountRef) -> Result<StoreAccountRef, Error> {
 		self.store.change_account_vault(vault, account)
 	}
+
+	fn get_vault_meta(&self, name: &str) -> Result<String, Error> {
+		self.store.get_vault_meta(name)
+	}
+
+	fn set_vault_meta(&self, name: &str, meta: &str) -> Result<(), Error> {
+		self.store.set_vault_meta(name, meta)
+	}
 }
 
 impl SecretStore for EthStore {
@@ -490,6 +498,20 @@ impl SimpleSecretStore for EthMultiStore {
 		self.remove_safe_account(&account_ref, &account)?;
 		self.reload_accounts()?;
 		Ok(new_account_ref)
+	}
+
+	fn get_vault_meta(&self, name: &str) -> Result<String, Error> {
+		self.vaults.lock()
+			.get(name)
+			.ok_or(Error::VaultNotFound)
+			.and_then(|v| Ok(v.meta()))
+	}
+
+	fn set_vault_meta(&self, name: &str, meta: &str) -> Result<(), Error> {
+		self.vaults.lock()
+			.get(name)
+			.ok_or(Error::VaultNotFound)
+			.and_then(|v| v.set_meta(meta))
 	}
 }
 

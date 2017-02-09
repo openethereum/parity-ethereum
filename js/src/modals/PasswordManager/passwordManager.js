@@ -23,7 +23,8 @@ import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
 import { newError, openSnackbar } from '~/redux/actions';
-import { Button, Modal, IdentityName, IdentityIcon, PasswordStrength } from '~/ui';
+import { Button, Modal, IdentityName, IdentityIcon } from '~/ui';
+import PasswordStrength from '~/ui/Form/PasswordStrength';
 import Form, { Input } from '~/ui/Form';
 import { CancelIcon, CheckIcon, SendIcon } from '~/ui/Icons';
 
