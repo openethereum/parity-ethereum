@@ -19,6 +19,8 @@ docopt = { version = "0.6", optional = true }
 [features]
 cli = ["docopt"]
 
+[lib]
+
 [[bin]]
 name = "ethabi"
 path = "src/bin/main.rs"
