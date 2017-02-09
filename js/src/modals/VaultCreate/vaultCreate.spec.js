@@ -16,15 +16,56 @@
 
 import { shallow } from 'enzyme';
 import React from 'react';
+import sinon from 'sinon';
 
 import VaultCreate from './';
 
 let component;
+let instance;
+let reduxStore;
+let vaultStore;
 
-function render (props = {}) {
+function createReduxStore () {
+  reduxStore = {
+    dispatch: sinon.stub(),
+    subscribe: sinon.stub(),
+    getState: sinon.stub()
+  };
+
+  return reduxStore;
+}
+
+function createVaultStore () {
+  vaultStore = {
+    isBusyCreate: false,
+    isModalCreateOpen: true,
+    createName: 'initialName',
+    createPassword: 'initialPassword',
+    createPasswordRepeat: 'initialPassword',
+    createPasswordHint: 'initialHint',
+    closeCreateModal: sinon.stub(),
+    createVault: sinon.stub().resolves(true),
+    setCreateName: sinon.stub(),
+    setCreatePassword: sinon.stub(),
+    setCreatePasswordHint: sinon.stub(),
+    setCreatePasswordRepeat: sinon.stub()
+  };
+
+  return vaultStore;
+}
+
+function render () {
   component = shallow(
-    <VaultCreate { ...props } />
-  );
+    <VaultCreate
+      vaultStore={ createVaultStore() }
+    />,
+    {
+      context: {
+        store: createReduxStore()
+      }
+    }
+  ).find('VaultCreate').shallow();
+  instance = component.instance();
 
   return component;
 }
@@ -36,5 +77,76 @@ describe('modals/VaultCreate', () => {
 
   it('renders defaults', () => {
     expect(component).to.be.ok;
+  });
+
+  describe('event handlers', () => {
+    describe('onClose', () => {
+      beforeEach(() => {
+        instance.onClose();
+      });
+
+      it('calls into closeCreateModal', () => {
+        expect(vaultStore.closeCreateModal).to.have.been.called;
+      });
+    });
+
+    describe('onCreate', () => {
+      beforeEach(() => {
+        sinon.spy(instance, 'onClose');
+        return instance.onCreate();
+      });
+
+      afterEach(() => {
+        instance.onClose.restore();
+      });
+
+      it('calls into createVault', () => {
+        expect(vaultStore.createVault).to.have.been.called;
+      });
+
+      it('closes modal', () => {
+        expect(instance.onClose).to.have.been.called;
+      });
+    });
+
+    describe('onEditName', () => {
+      beforeEach(() => {
+        instance.onEditName(null, 'testName');
+      });
+
+      it('calls setCreateName', () => {
+        expect(vaultStore.setCreateName).to.have.been.calledWith('testName');
+      });
+    });
+
+    describe('onEditPassword', () => {
+      beforeEach(() => {
+        instance.onEditPassword(null, 'testPassword');
+      });
+
+      it('calls setCreatePassword', () => {
+        expect(vaultStore.setCreatePassword).to.have.been.calledWith('testPassword');
+      });
+    });
+
+    describe('onEditPasswordHint', () => {
+      beforeEach(() => {
+        instance.onEditPasswordHint(null, 'testPasswordHint');
+      });
+
+      it('calls setCreatePasswordHint', () => {
+        expect(vaultStore.setCreatePasswordHint).to.have.been.calledWith('testPasswordHint');
+      });
+    });
+
+    describe('onEditPasswordRepeat', () => {
+      beforeEach(() => {
+        instance.onEditPasswordRepeat(null, 'testPassword');
+      });
+
+      it('calls setCreatePasswordRepeat', () => {
+        expect(vaultStore.setCreatePasswordRepeat).to.have.been.calledWith('testPassword');
+      });
+    });
   });
 });

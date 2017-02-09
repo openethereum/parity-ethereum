@@ -67,7 +67,7 @@ class VaultCreate extends Component {
                 defaultMessage='create vault'
               />
             }
-            onClick={ this.onClickCreate }
+            onClick={ this.onCreate }
           />
         ] }
         onClose={ this.onClose }
@@ -176,7 +176,7 @@ class VaultCreate extends Component {
     this.props.vaultStore.setCreatePasswordRepeat(password);
   }
 
-  onClickCreate = () => {
+  onCreate = () => {
     const { createNameError, createPasswordRepeatError } = this.props.vaultStore;
 
     if (createNameError || createPasswordRepeatError) {

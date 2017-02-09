@@ -16,19 +16,87 @@
 
 import sinon from 'sinon';
 
+const ACCOUNT_A = '0x1234567890123456789012345678901234567890';
+const ACCOUNT_B = '0x0123456789012345678901234567890123456789';
+const ACCOUNT_C = '0x9012345678901234567890123456789012345678';
+const ACCOUNT_D = '0x8901234567890123456789012345678901234567';
+
 const TEST_VAULTS_ALL = ['vault1', 'vault2', 'vault3'];
 const TEST_VAULTS_OPEN = ['vault2'];
+
+const TEST_ACCOUNTS = {
+  [ACCOUNT_A]: {
+    address: ACCOUNT_A,
+    uuid: null
+  },
+  [ACCOUNT_B]: {
+    address: ACCOUNT_B,
+    uuid: ACCOUNT_B,
+    meta: {
+      vault: 'somethingElse'
+    }
+  },
+  [ACCOUNT_C]: {
+    address: ACCOUNT_C,
+    uuid: ACCOUNT_C,
+    meta: {
+      vault: 'test'
+    }
+  },
+  [ACCOUNT_D]: {
+    address: ACCOUNT_D,
+    uuid: ACCOUNT_D,
+    meta: {
+      vault: 'test'
+    }
+  }
+};
 
 export function createApi () {
   return {
     parity: {
       listOpenedVaults: sinon.stub().resolves(TEST_VAULTS_OPEN),
-      listVaults: sinon.stub().resolves(TEST_VAULTS_ALL)
+      listVaults: sinon.stub().resolves(TEST_VAULTS_ALL),
+      changeVault: sinon.stub().resolves(true),
+      closeVault: sinon.stub().resolves(true),
+      newVault: sinon.stub().resolves(true),
+      openVault: sinon.stub().resolves(true)
     }
   };
 }
 
+export function createReduxStore () {
+  return {
+    dispatch: sinon.stub(),
+    subscribe: sinon.stub(),
+    getState: () => {
+      return {
+        personal: {
+          accounts: TEST_ACCOUNTS
+        }
+      };
+    }
+  };
+}
+
+export function createVaultStore () {
+  return {
+    isBusyClose: false,
+    isBusyOpen: false,
+    isModalCloseOpen: true,
+    isModalOpenOpen: true,
+    vaultName: 'testVault',
+    vaultPassword: 'testPassword',
+    closeCloseModal: sinon.stub(),
+    closeOpenModal: sinon.stub(),
+    closeVault: sinon.stub().resolves(true),
+    openVault: sinon.stub().resolves(true),
+    setVaultPassword: sinon.stub()
+  };
+}
+
 export {
+  TEST_ACCOUNTS,
   TEST_VAULTS_ALL,
   TEST_VAULTS_OPEN
 };

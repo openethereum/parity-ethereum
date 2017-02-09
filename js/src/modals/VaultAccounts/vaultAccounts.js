@@ -138,17 +138,23 @@ class VaultAccounts extends Component {
 
     const vaultAccounts = Object
       .keys(accounts)
-      .filter((address) => accounts[address].uuid)
+      .filter((address) => accounts[address].uuid && selectedAccounts.includes(address))
       .map((address) => accounts[address]);
 
     return Promise
       .all([
-        this.props.vaultStore.moveAccounts(vaultName, vaultAccounts.filter((account) => {
-          return account.meta.vault !== vaultName && selectedAccounts[account.address];
-        }).map((account) => account.address)),
-        this.props.vaultStore.moveAccounts(null, vaultAccounts.filter((account) => {
-          return account.meta.vault === vaultName && selectedAccounts[account.address];
-        }).map((account) => account.address))
+        this.props.vaultStore.moveAccounts(
+          vaultName,
+          vaultAccounts
+            .filter((account) => account.meta.vault !== vaultName)
+            .map((account) => account.address)
+        ),
+        this.props.vaultStore.moveAccounts(
+          null,
+          vaultAccounts
+            .filter((account) => account.meta.vault === vaultName)
+            .map((account) => account.address)
+        )
       ])
       .catch(this.props.newError)
       .then(this.onClose);

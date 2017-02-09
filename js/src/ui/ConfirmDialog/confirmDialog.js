@@ -59,6 +59,8 @@ export default class ConfirmDialog extends Component {
   render () {
     const { busy, children, className, disabledConfirm, disabledDeny, iconConfirm, iconDeny, labelConfirm, labelDeny, onConfirm, onDeny, open, title, visible } = this.props;
 
+    // TODO: visible is for compatibility with existing, open aligns with Portal.
+    // (Cleanup once all uses of ConfirmDialog has been migrated)
     if (!visible && !open) {
       return null;
     }
