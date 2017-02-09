@@ -21,10 +21,11 @@ $imageHeight: 56px;
   display: flex;
   min-height: $imageHeight;
   overflow: hidden;
+  text-align: left;
 
   &.border {
     background: rgba(0, 0, 0, 0.25);
-    padding: 1em;
+    padding: 1.5em;
   }
 
   .identityIcon {
