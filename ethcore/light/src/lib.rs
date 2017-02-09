@@ -55,6 +55,7 @@ pub mod remote {
 mod types;
 
 pub use self::provider::Provider;
+pub use self::transaction_queue::TransactionQueue;
 pub use types::les_request as request;
 
 #[macro_use]

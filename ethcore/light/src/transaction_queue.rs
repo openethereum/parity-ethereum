@@ -26,7 +26,9 @@
 use std::collections::{BTreeMap, HashMap};
 use std::collections::hash_map::Entry;
 
+use ethcore::error::TransactionError;
 use ethcore::transaction::{Condition, PendingTransaction, SignedTransaction};
+use ethcore::transaction_import::TransactionImportResult;
 use util::{Address, U256, H256, H256FastMap};
 
 // Knowledge of an account's current nonce.
@@ -103,25 +105,29 @@ pub struct TransactionQueue {
 }
 
 impl TransactionQueue {
-	/// Insert a pending transaction to be queued.
-	pub fn insert(&mut self, tx: PendingTransaction) {
+	/// Import a pending transaction to be queued.
+	pub fn import(&mut self, tx: PendingTransaction) -> Result<TransactionImportResult, TransactionError>  {
 		let sender = tx.sender();
 		let hash = tx.hash();
 		let nonce = tx.nonce;
 
-	    match self.by_account.entry(sender) {
+	    let res = match self.by_account.entry(sender) {
 			Entry::Vacant(entry) => {
 				entry.insert(AccountTransactions {
 					cur_nonce: CurrentNonce::Assumed(nonce),
 					current: vec![tx.clone()],
 					future: BTreeMap::new(),
 				});
+
+				TransactionImportResult::Current
 			}
 			Entry::Occupied(mut entry) => {
 				let acct_txs = entry.get_mut();
 				if &nonce < acct_txs.cur_nonce.value() {
 					// don't accept txs from before known current nonce.
-					if acct_txs.cur_nonce.is_known() { return }
+					if acct_txs.cur_nonce.is_known() {
+						return Err(TransactionError::Old)
+					}
 
 					// lower our assumption until corrected later.
 					acct_txs.cur_nonce = CurrentNonce::Assumed(nonce);
@@ -133,6 +139,8 @@ impl TransactionQueue {
 							sender, nonce);
 
 						acct_txs.current[idx] = tx.clone();
+
+						TransactionImportResult::Current
 					}
 					Err(idx) => {
 						let cur_len = acct_txs.current.len();
@@ -153,23 +161,30 @@ impl TransactionQueue {
 								let future_nonce = future.nonce;
 								acct_txs.future.insert(future_nonce, future);
 							}
+
+							TransactionImportResult::Current
 						} else if idx == cur_len && acct_txs.current.last().map_or(false, |f| f.nonce + 1.into() != nonce) {
 							trace!(target: "txqueue", "Queued future transaction for {}, nonce={}", sender, nonce);
 							let future_nonce = nonce;
 							acct_txs.future.insert(future_nonce, tx.clone());
+
+							TransactionImportResult::Future
 						} else {
 							trace!(target: "txqueue", "Queued current transaction for {}, nonce={}", sender, nonce);
 
 							// insert, then check if we've filled any gaps.
 							acct_txs.current.insert(idx, tx.clone());
 							acct_txs.adjust_future();
+
+							TransactionImportResult::Current
 						}
 					}
 				}
 			}
-		}
+		};
 
 		self.by_hash.insert(hash, tx);
+		Ok(res)
 	}
 
 	/// Get pending transaction by hash.
@@ -261,7 +276,7 @@ mod tests {
 		let mut txq = TransactionQueue::default();
 		let tx = Transaction::default().fake_sign(sender);
 
-		txq.insert(tx.into());
+		txq.import(tx.into()).unwrap();
 
 		assert_eq!(txq.queued_senders(), vec![sender]);
 
@@ -282,7 +297,7 @@ mod tests {
 
 			let tx = tx.fake_sign(sender);
 
-			txq.insert(tx.into());
+			txq.import(tx.into()).unwrap();
 		}
 
 		// current: 0..5, future: 10..15
@@ -313,7 +328,7 @@ mod tests {
 
 			let tx = tx.fake_sign(sender);
 
-			txq.insert(tx.into());
+			txq.import(tx.into()).unwrap();
 		}
 
 		assert_eq!(txq.ready_transactions(0, 0).len(), 5);
@@ -325,7 +340,7 @@ mod tests {
 
 			let tx = tx.fake_sign(sender);
 
-			txq.insert(tx.into());
+			txq.import(tx.into()).unwrap();
 		}
 
 		assert_eq!(txq.ready_transactions(0, 0).len(), 3);
@@ -337,7 +352,7 @@ mod tests {
 
 			let tx = tx.fake_sign(sender);
 
-			txq.insert(tx.into());
+			txq.import(tx.into()).unwrap();
 		}
 
 		assert_eq!(txq.ready_transactions(0, 0).len(), 10);
@@ -354,11 +369,11 @@ mod tests {
 			tx.nonce = i.into();
 			let tx = tx.fake_sign(sender);
 
-			txq.insert(match i {
+			txq.import(match i {
 				3 => PendingTransaction::new(tx, Some(Condition::Number(100))),
 				4 => PendingTransaction::new(tx, Some(Condition::Timestamp(1234))),
 				_ => tx.into(),
-			});
+			}).unwrap();
 		}
 
 		assert_eq!(txq.ready_transactions(0, 0).len(), 3);
@@ -378,12 +393,29 @@ mod tests {
 
 			let tx = tx.fake_sign(sender);
 
-			txq.insert(tx.into());
+			txq.import(tx.into()).unwrap();
 		}
 
 		txq.cull(sender, 6.into());
 
 		assert_eq!(txq.ready_transactions(0, 0).len(), 4);
 		assert_eq!(txq.next_nonce(&sender).unwrap(), 10.into());
+	}
+
+	#[test]
+	fn import_old() {
+		let sender = Address::default();
+		let mut txq = TransactionQueue::default();
+
+		let mut tx_a = Transaction::default();
+		tx_a.nonce = 3.into();
+
+		let mut tx_b = Transaction::default();
+		tx_b.nonce = 2.into();
+
+		txq.import(tx_a.fake_sign(sender).into()).unwrap();
+		txq.cull(sender, 3.into());
+
+		assert!(txq.import(tx_b.fake_sign(sender).into()).is_err())
 	}
 }
