@@ -81,7 +81,7 @@ impl Visitor for VaultFileVisitor {
 		loop {
 			match visitor.visit_key()? {
 				Some(VaultFileField::Crypto) => { crypto = Some(visitor.visit_value()?); },
-				Some(VaultFileField::Meta) => { meta = Some(visitor.visit_value()?); }
+				Some(VaultFileField::Meta) => { meta = visitor.visit_value().ok(); }, // meta is optional
 				None => { break; },
 			}
 		}
@@ -134,6 +134,31 @@ mod test {
 				mac: "16381463ea11c6eb2239a9f339c2e780516d29d234ce30ac5f166f9080b5a262".into(),
 			},
 			meta: Some("{}".into()),
+		};
+
+		let serialized = serde_json::to_string(&file).unwrap();
+		let deserialized = serde_json::from_str(&serialized).unwrap();
+
+		assert_eq!(file, deserialized);
+	}
+
+	#[test]
+	fn to_and_from_json_no_meta() {
+		let file = VaultFile {
+			crypto: Crypto {
+				cipher: Cipher::Aes128Ctr(Aes128Ctr {
+					iv: "0155e3690be19fbfbecabcd440aa284b".into(),
+				}),
+				ciphertext: "4d6938a1f49b7782".into(),
+				kdf: Kdf::Pbkdf2(Pbkdf2 {
+					c: 1024,
+					dklen: 32,
+					prf: Prf::HmacSha256,
+					salt: "b6a9338a7ccd39288a86dba73bfecd9101b4f3db9c9830e7c76afdbd4f6872e5".into(),
+				}),
+				mac: "16381463ea11c6eb2239a9f339c2e780516d29d234ce30ac5f166f9080b5a262".into(),
+			},
+			meta: None,
 		};
 
 		let serialized = serde_json::to_string(&file).unwrap();
