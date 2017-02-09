@@ -182,6 +182,11 @@ export default class Parity {
       .then((addresses) => addresses ? addresses.map(outAddress) : null);
   }
 
+  getVaultMeta (vaultName) {
+    return this._transport
+      .execute('parity_getVaultMeta', vaultName);
+  }
+
   hashContent (url) {
     return this._transport
       .execute('parity_hashContent', url);
@@ -432,6 +437,11 @@ export default class Parity {
   setTransactionsLimit (quantity) {
     return this._transport
       .execute('parity_setTransactionsLimit', inNumber16(quantity));
+  }
+
+  setVaultMeta (vaultName, meta) {
+    return this._transport
+      .execute('parity_setVaultMeta', vaultName, JSON.stringify(meta));
   }
 
   signerPort () {

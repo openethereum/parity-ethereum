@@ -376,6 +376,23 @@ export default {
     }
   },
 
+  getVaultMeta: {
+    section: SECTION_VAULT,
+    desc: 'Returns the metadata for a specific vault',
+    params: [
+      {
+        type: String,
+        desc: 'Vault name',
+        example: 'StrongVault'
+      }
+    ],
+    returns: {
+      type: String,
+      desc: 'The associated JSON metadata for this vault',
+      example: '{"passwordHint":"something"}'
+    }
+  },
+
   listOpenedVaults: {
     desc: 'Returns a list of all opened vaults',
     params: [],
@@ -717,6 +734,28 @@ export default {
         interface: 'local',
         port: 8545
       }
+    }
+  },
+
+  setVaultMeta: {
+    section: SECTION_VAULT,
+    desc: 'Sets the metadata for a specific vault',
+    params: [
+      {
+        type: String,
+        desc: 'Vault name',
+        example: 'StrongVault'
+      },
+      {
+        type: String,
+        desc: 'The metadata as a JSON string',
+        example: '{"passwordHint":"something"}'
+      }
+    ],
+    returns: {
+      type: Boolean,
+      desc: 'The boolean call result, true on success',
+      example: true
     }
   },
 
