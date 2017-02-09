@@ -200,6 +200,21 @@ class Accounts extends Component {
     const { accounts } = this.props;
 
     const buttons = [
+      <Link
+        to='/vaults'
+        key='vaults'
+      >
+        <Button
+          icon={ <KeyIcon /> }
+          label={
+            <FormattedMessage
+              id='accounts.button.vaults'
+              defaultMessage='vaults'
+            />
+          }
+          onClick={ this.onVaultsClick }
+        />
+      </Link>,
       <Button
         key='newAccount'
         icon={ <AddIcon /> }
@@ -222,21 +237,6 @@ class Accounts extends Component {
         }
         onClick={ this.onNewWalletClick }
       />,
-      <Link
-        to='/vaults'
-        key='vaults'
-      >
-        <Button
-          icon={ <KeyIcon /> }
-          label={
-            <FormattedMessage
-              id='accounts.button.vaults'
-              defaultMessage='vaults'
-            />
-          }
-          onClick={ this.onVaultsClick }
-        />
-      </Link>,
       <ActionbarExport
         key='exportAccounts'
         content={ accounts }

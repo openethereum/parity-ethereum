@@ -34,26 +34,14 @@
     display: flex;
     justify-content: center;
 
-    &:not(:hover) {
-      .item {
-        flex: 0 1 33.33%;
-        max-width: 33.33%;
-      }
-    }
-
-    &:hover {
-      .item {
-        flex: 0 1 29%;
-        max-width: 29%;
-      }
-    }
-
     /* TODO: As per JS comments, the flex-base could be adjusted in the future to allow for */
     /* case where <> 3 columns are required should the need arrise from a UI pov. */
     .item {
       box-sizing: border-box;
       cursor: pointer;
       display: flex;
+      flex: 0 1 33.33%;
+      max-width: 33.33%;
       opacity: 0.85;
       padding: 0.25em;
       transition: all 0.75s cubic-bezier(0.23, 1, 0.32, 1);
@@ -62,10 +50,19 @@
         opacity: 1;
         z-index: 100;
       }
+    }
 
-      &.stretchOn:hover {
-        flex: 0 0 42%;
-        max-width: 42%;
+    &:hover {
+      .item {
+        &.stretchOn {
+          flex: 0 1 29%;
+          max-width: 29%;
+
+          &:hover {
+            flex: 0 0 42%;
+            max-width: 42%;
+          }
+        }
       }
     }
   }
