@@ -55,13 +55,11 @@ export default class Store {
 
   @action clearVaultFields = () => {
     transaction(() => {
-      this.vault = null;
-      this.vaultDescription = '';
-      this.vaultName = '';
-      this.vaultNameError = ERRORS.noName;
-      this.vaultPassword = '';
-      this.vaultPasswordHint = '';
-      this.vaultPasswordRepeat = '';
+      this.setVaultName('');
+      this.setVaultDescription('');
+      this.setVaultPassword('');
+      this.setVaultPasswordHint('');
+      this.setVaultPasswordRepeat('');
     });
   }
 
@@ -218,17 +216,12 @@ export default class Store {
       ])
       .then(([allVaults, openedVaults]) => {
         return Promise
-          .all(allVaults.map((name) => {
-            return this._api.parity
-              .getVaultMeta(name)
-              .catch(() => {
-                // NOTE: getVaultMeta throws when no metadata has been creted yet
-                return {};
-              });
-          }))
+          .all(allVaults.map((name) => this._api.parity.getVaultMeta(name)))
           .then((metaData) => {
-            this.setBusyLoad(false);
-            this.setVaults(allVaults, openedVaults, metaData);
+            transaction(() => {
+              this.setBusyLoad(false);
+              this.setVaults(allVaults, openedVaults, metaData);
+            });
           });
       })
       .catch((error) => {
