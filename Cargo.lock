@@ -16,6 +16,7 @@ dependencies = [
  "ethcore-ipc 1.6.0",
  "ethcore-ipc-hypervisor 1.2.0",
  "ethcore-ipc-nano 1.6.0",
+ "ethcore-ipc-tests 0.1.0",
  "ethcore-light 1.6.0",
  "ethcore-logger 1.6.0",
  "ethcore-rpc 1.6.0",
@@ -508,6 +509,20 @@ dependencies = [
  "lazy_static 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "nanomsg 0.5.1 (git+https://github.com/ethcore/nanomsg.rs.git)",
+]
+
+[[package]]
+name = "ethcore-ipc-tests"
+version = "0.1.0"
+dependencies = [
+ "ethcore-devtools 1.6.0",
+ "ethcore-ipc 1.6.0",
+ "ethcore-ipc-codegen 1.6.0",
+ "ethcore-ipc-nano 1.6.0",
+ "ethcore-util 1.6.0",
+ "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
+ "nanomsg 0.5.1 (git+https://github.com/ethcore/nanomsg.rs.git)",
+ "semver 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]

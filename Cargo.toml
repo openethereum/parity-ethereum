@@ -49,6 +49,9 @@ parity-reactor = { path = "util/reactor" }
 ethcore-dapps = { path = "dapps", optional = true }
 clippy = { version = "0.0.103", optional = true}
 
+[dev-dependencies]
+ethcore-ipc-tests = { path = "ipc/tests" }
+
 [target.'cfg(windows)'.dependencies]
 winapi = "0.2"
 
