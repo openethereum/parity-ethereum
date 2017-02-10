@@ -4,12 +4,6 @@ name = "parity"
 version = "1.6.0"
 license = "GPL-3.0"
 authors = ["Parity Technologies <admin@parity.io>"]
-build = "build.rs"
-
-[build-dependencies]
-rustc_version = "0.1"
-ethcore-ipc-codegen = { path = "ipc/codegen" }
-ethcore-ipc-tests = { path = "ipc/tests" }
 
 [dependencies]
 log = "0.3"
