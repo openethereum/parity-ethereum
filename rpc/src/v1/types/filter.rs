@@ -16,7 +16,6 @@
 
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde::de::Error;
-use serde::de::value::ValueDeserializer;
 use serde_json::{Value, from_value};
 use ethcore::filter::Filter as EthFilter;
 use ethcore::client::BlockId;
