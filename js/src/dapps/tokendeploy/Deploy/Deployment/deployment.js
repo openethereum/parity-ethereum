@@ -20,11 +20,14 @@ import { api } from '../../parity';
 import Container from '../../Container';
 import styles from './deployment.css';
 
+const DECIMALS = 6;
+const BASE = Math.pow(10, DECIMALS);
+
 const ERRORS = {
   name: 'specify a valid name >2 & <32 characters',
   tla: 'specify a valid TLA, 3 characters in length',
   usedtla: 'the TLA used is not available for registration',
-  supply: 'supply needs to be valid >999 & <1 trillion'
+  supply: `supply needs to be > 1 & <1 trillion, with no more than ${DECIMALS} decimals`
 };
 
 export default class Deployment extends Component {
@@ -161,8 +164,9 @@ export default class Deployment extends Component {
             <label>token supply</label>
             <input
               type='number'
-              min='1000'
-              max='999999999999'
+              step={ 1 }
+              min={ 1 }
+              max='999999999999999'
               name='totalSupply'
               value={ totalSupply }
               onChange={ this.onChangeSupply }
@@ -202,12 +206,14 @@ export default class Deployment extends Component {
   }
 
   onChangeSupply = (event) => {
-    const totalSupply = parseInt(event.target.value, 10);
-    const totalSupplyError = isFinite(totalSupply) && totalSupply > 999
+    const { value } = event.target;
+    const floatValue = parseFloat(value, 10);
+    const convertedTotalSupply = floatValue * BASE;
+    const totalSupplyError = Number.isInteger(convertedTotalSupply) && floatValue >= 1
       ? null
       : ERRORS.supply;
 
-    this.setState({ totalSupply, totalSupplyError });
+    this.setState({ totalSupply: value, totalSupplyError });
   }
 
   onChangeTla = (event) => {
