@@ -29,40 +29,40 @@ pub enum DerivationType {
 
 /// Derivation request by hash
 #[derive(Deserialize)]
-pub struct DerivateHash {
+pub struct DeriveHash {
 	hash: H256,
 	#[serde(rename="type")]
 	d_type: DerivationType,
 }
 
-/// Node properites in hierarchical derivation request
+/// Node propertoes in hierarchical derivation request
 #[derive(Deserialize)]
-pub struct DerivateHierarchicalItem {
+pub struct DeriveHierarchicalItem {
 	index: u64,
 	#[serde(rename="type")]
 	d_type: DerivationType,
 }
 
 /// Hierarchical (index sequence) request
-pub type DerivateHierarchical = Vec<DerivateHierarchicalItem>;
+pub type DeriveHierarchical = Vec<DeriveHierarchicalItem>;
 
 /// Generic derivate request
-pub enum Derivate {
+pub enum Derive {
 	/// Hierarchical (index sequence) request
-	Hierarchical(DerivateHierarchical),
+	Hierarchical(DeriveHierarchical),
 	/// Hash request
-	Hash(DerivateHash),
+	Hash(DeriveHash),
 }
 
-impl From<DerivateHierarchical> for Derivate {
-	fn from(d: DerivateHierarchical) -> Self {
-		Derivate::Hierarchical(d)
+impl From<DeriveHierarchical> for Derive {
+	fn from(d: DeriveHierarchical) -> Self {
+		Derive::Hierarchical(d)
 	}
 }
 
-impl From<DerivateHash> for Derivate {
-	fn from(d: DerivateHash) -> Self {
-		Derivate::Hash(d)
+impl From<DeriveHash> for Derive {
+	fn from(d: DeriveHash) -> Self {
+		Derive::Hash(d)
 	}
 }
 
@@ -72,11 +72,11 @@ pub enum ConvertError {
 	IndexOverlfow(u64),
 }
 
-impl Derivate {
+impl Derive {
 	/// Convert to account provider struct dealing with possible overflows
 	pub fn to_derivation(self) -> Result<ethstore::Derivation, ConvertError> {
 		Ok(match self {
-			Derivate::Hierarchical(drv) => {
+			Derive::Hierarchical(drv) => {
 				ethstore::Derivation::Hierarchical({
 					let mut members = Vec::<ethstore::IndexDerivation>::new();
 					for h in drv {
@@ -89,7 +89,7 @@ impl Derivate {
 					members
 			   })
 			},
-			Derivate::Hash(drv) => {
+			Derive::Hash(drv) => {
 				match drv.d_type {
 					DerivationType::Soft => ethstore::Derivation::SoftHash(drv.hash.into()),
 					DerivationType::Hard => ethstore::Derivation::HardHash(drv.hash.into()),
