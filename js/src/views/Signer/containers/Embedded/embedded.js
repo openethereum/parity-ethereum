@@ -37,7 +37,7 @@ class Embedded extends Component {
       startConfirmRequest: PropTypes.func.isRequired,
       startRejectRequest: PropTypes.func.isRequired
     }).isRequired,
-    externalLink: PropTypes.string.isRequired,
+    externalLink: PropTypes.string,
     gasLimit: PropTypes.object.isRequired,
     isTest: PropTypes.bool.isRequired,
     signer: PropTypes.shape({

@@ -16,7 +16,7 @@
 
 use std::fmt::Debug;
 use std::ops::Deref;
-use rlp;
+use rlp::{self, Stream};
 use util::{Address, H520, H256, U256, Uint, Bytes};
 use util::bytes::ToPretty;
 use util::sha3::Hashable;
@@ -190,11 +190,26 @@ pub fn sign_no_dispatch<C, M>(client: &C, miner: &M, accounts: &AccountProvider,
 		};
 
 		let hash = t.hash(network_id);
-		let signature = signature(accounts, address, hash, password)?;
-		signature.map(|sig| {
-			SignedTransaction::new(t.with_signature(sig, network_id))
-				.expect("Transaction was signed by AccountsProvider; it never produces invalid signatures; qed")
-		})
+		if accounts.is_hardware_address(address) {
+			let mut stream = rlp::RlpStream::new();
+			t.rlp_append_unsigned_transaction(&mut stream, network_id);
+			let signature = accounts.sign_with_hardware(address, &stream.as_raw())
+				.map_err(|e| {
+					debug!(target: "miner", "Error signing transaction with hardware wallet: {}", e);
+					errors::account("Error signing transaction with hardware wallet", e)
+				})?;
+			WithToken::No(SignedTransaction::new(t.with_signature(signature, network_id))
+				.map_err(|e| {
+				  debug!(target: "miner", "Hardware wallet has produced invalid signature: {}", e);
+				  errors::account("Invalid signature generated", e)
+				})?)
+		} else {
+			let signature = signature(accounts, address, hash, password)?;
+			signature.map(|sig| {
+				SignedTransaction::new(t.with_signature(sig, network_id))
+					.expect("Transaction was signed by AccountsProvider; it never produces invalid signatures; qed")
+			})
+		}
 	};
 	Ok(signed_transaction)
 }

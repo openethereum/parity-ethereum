@@ -259,7 +259,7 @@ export class LocalTransaction extends BaseTransaction {
       to: transaction.to,
       nonce: transaction.nonce,
       value: transaction.value,
-      data: transaction.data,
+      data: transaction.input,
       gasPrice, gas
     };
 
