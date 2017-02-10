@@ -18,14 +18,14 @@ import solc from 'solc/browser-wrapper';
 
 export default class SolidityUtils {
   static compile (data, compiler) {
-    const { sourcecode, build, optimize, files } = data;
+    const { sourcecode, build, optimize, files, name = '' } = data;
 
     const start = Date.now();
 
     console.log('[solidity] compiling...');
 
     const input = {
-      '': sourcecode
+      [ name ]: sourcecode
     };
 
     const findFiles = (path) => {
