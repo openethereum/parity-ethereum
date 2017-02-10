@@ -19,22 +19,25 @@ import { action, observable, transaction } from 'mobx';
 import { addLocaleData } from 'react-intl';
 import de from 'react-intl/locale-data/de';
 import en from 'react-intl/locale-data/en';
+import nl from 'react-intl/locale-data/nl';
 import store from 'store';
 
 import { DEFAULT_LOCALE, DEFAULT_LOCALES, LS_STORE_KEY } from './constants';
 import languages from './languages';
 import deMessages from './de';
 import enMessages from './en';
+import nlMessages from './nl';
 
 let instance = null;
 
 const LANGUAGES = flatten({ languages });
 const MESSAGES = {
   de: Object.assign(flatten(deMessages), LANGUAGES),
-  en: Object.assign(flatten(enMessages), LANGUAGES)
+  en: Object.assign(flatten(enMessages), LANGUAGES),
+  nl: Object.assign(flatten(nlMessages), LANGUAGES)
 };
 
-addLocaleData([...de, ...en]);
+addLocaleData([...de, ...en, ...nl]);
 
 export default class Store {
   @observable locale = DEFAULT_LOCALE;
