@@ -84,19 +84,29 @@ export default class Store {
   }
 
   @action setModalAccountsOpen = (isOpen) => {
-    this.isModalAccountsOpen = isOpen;
+    transaction(() => {
+      this.setBusyAccounts(false);
+      this.isModalAccountsOpen = isOpen;
+    });
   }
 
   @action setModalCreateOpen = (isOpen) => {
-    this.isModalCreateOpen = isOpen;
+    transaction(() => {
+      this.setBusyCreate(false);
+      this.isModalCreateOpen = isOpen;
+    });
   }
 
   @action setModalLockOpen = (isOpen) => {
-    this.isModalLockOpen = isOpen;
+    transaction(() => {
+      this.setBusyLock(false);
+      this.isModalLockOpen = isOpen;
+    });
   }
 
   @action setModalUnlockOpen = (isOpen) => {
     transaction(() => {
+      this.setBusyUnlock(false);
       this.setVaultPassword('');
       this.isModalUnlockOpen = isOpen;
     });
@@ -297,12 +307,8 @@ export default class Store {
         outAccounts.map((address) => this._api.parity.changeVault(address, ''))
       ])
       .then(this.loadVaults)
-      .then(() => {
-        this.setBusyAccounts(false);
-      })
       .catch((error) => {
         console.error('moveAccounts', error);
-        this.setBusyAccounts(false);
         throw error;
       });
   }

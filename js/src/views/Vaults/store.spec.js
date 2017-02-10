@@ -502,9 +502,8 @@ describe('modals/Vaults/Store', () => {
         store.setBusyAccounts.restore();
       });
 
-      it('sets and resets the busy flag', () => {
+      it('sets the busy flag', () => {
         expect(store.setBusyAccounts).to.have.been.calledWith(true);
-        expect(store.isBusyAccounts).to.be.false;
       });
 
       it('calls into parity_changeVault', () => {

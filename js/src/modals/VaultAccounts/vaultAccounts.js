@@ -21,6 +21,7 @@ import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
 import { newError } from '~/redux/actions';
+import { personalAccountsInfo } from '~/redux/providers/personalActions';
 import { AccountCard, Button, Portal, SectionList } from '~/ui';
 import { CancelIcon, CheckIcon } from '~/ui/Icons';
 
@@ -28,11 +29,16 @@ import styles from './vaultAccounts.css';
 
 @observer
 class VaultAccounts extends Component {
+  static contextTypes = {
+    api: PropTypes.object.isRequired
+  };
+
   static propTypes = {
     accounts: PropTypes.object.isRequired,
     newError: PropTypes.func.isRequired,
+    personalAccountsInfo: PropTypes.func.isRequired,
     vaultStore: PropTypes.object.isRequired
-  }
+  };
 
   render () {
     const { accounts } = this.props;
@@ -136,7 +142,8 @@ class VaultAccounts extends Component {
   }
 
   onExecute = () => {
-    const { accounts } = this.props;
+    const { api } = this.context;
+    const { accounts, personalAccountsInfo, vaultStore } = this.props;
     const { vaultName, selectedAccounts } = this.props.vaultStore;
 
     const vaultAccounts = Object
@@ -144,7 +151,7 @@ class VaultAccounts extends Component {
       .filter((address) => accounts[address].uuid && selectedAccounts[address])
       .map((address) => accounts[address]);
 
-    return this.props.vaultStore
+    return vaultStore
       .moveAccounts(
         vaultName,
         vaultAccounts
@@ -155,6 +162,16 @@ class VaultAccounts extends Component {
           .map((account) => account.address)
       )
       .catch(this.props.newError)
+      .then(() => {
+        // TODO: We manually call parity_allAccountsInfo after all the promises
+        // have been resolved. If bulk moves do become available in the future,
+        // subscriptions can transparently take care of this instead of calling
+        // and manually dispatching an update. (Using subscriptions currently
+        // means allAccountsInfo is called after each and every move call)
+        return api.parity
+          .allAccountsInfo()
+          .then(personalAccountsInfo);
+      })
       .then(this.onClose);
   }
 }
@@ -167,7 +184,8 @@ function mapStateToProps (state) {
 
 function mapDispatchToProps (dispatch) {
   return bindActionCreators({
-    newError
+    newError,
+    personalAccountsInfo
   }, dispatch);
 }
 

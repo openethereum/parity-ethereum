@@ -53,10 +53,21 @@ const ACCOUNTS = {
   }
 };
 
+let api;
 let component;
 let instance;
 let reduxStore;
 let vaultStore;
+
+function createApi () {
+  api = {
+    parity: {
+      allAccountsInfo: sinon.stub().resolves({})
+    }
+  };
+
+  return api;
+}
 
 function createReduxStore () {
   reduxStore = {
@@ -96,7 +107,11 @@ function render () {
         store: createReduxStore()
       }
     }
-  ).find('VaultAccounts').shallow();
+  ).find('VaultAccounts').shallow({
+    context: {
+      api: createApi()
+    }
+  });
   instance = component.instance();
 
   return component;
