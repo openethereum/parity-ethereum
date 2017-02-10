@@ -14,16 +14,20 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use super::hash::{H256, H160};
+use super::hash::H256;
 use serde::{Deserialize, Deserializer, Error};
 use serde::de::Visitor;
 use ethstore;
 
+/// Type of derivation
 pub enum DerivationType {
+	/// Soft - allow proof of parent
 	Soft,
+	/// Hard - does not allow proof of parent
 	Hard,
 }
 
+/// Derivation request by hash
 #[derive(Deserialize)]
 pub struct DerivateHash {
 	hash: H256,
@@ -31,6 +35,7 @@ pub struct DerivateHash {
 	d_type: DerivationType,
 }
 
+/// Node properites in hierarchical derivation request
 #[derive(Deserialize)]
 pub struct DerivateHierarchicalItem {
 	index: u64,
@@ -38,10 +43,14 @@ pub struct DerivateHierarchicalItem {
 	d_type: DerivationType,
 }
 
+/// Hierarchical (index sequence) request
 pub type DerivateHierarchical = Vec<DerivateHierarchicalItem>;
 
+/// Generic derivate request
 pub enum Derivate {
+	/// Hierarchical (index sequence) request
 	Hierarchical(DerivateHierarchical),
+	/// Hash request
 	Hash(DerivateHash),
 }
 
@@ -64,6 +73,7 @@ pub enum ConvertError {
 }
 
 impl Derivate {
+	/// Convert to account provider struct dealing with possible overflows
 	pub fn to_derivation(self) -> Result<ethstore::Derivation, ConvertError> {
 		Ok(match self {
 			Derivate::Hierarchical(drv) => {
