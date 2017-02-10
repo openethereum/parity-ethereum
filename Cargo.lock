@@ -1150,7 +1150,7 @@ dependencies = [
 [[package]]
 name = "libusb-sys"
 version = "0.2.3"
-source = "git+https://github.com/ethcore/libusb-sys#3c56a34bd040b0e60758824d839d9b700cfad2e0"
+source = "git+https://github.com/ethcore/libusb-sys#c10b1180646c9dc3f23a9b6bb825abcd3b7487ce"
 dependencies = [
  "gcc 0.3.35 (registry+https://github.com/rust-lang/crates.io-index)",
  "libc 0.2.16 (registry+https://github.com/rust-lang/crates.io-index)",
