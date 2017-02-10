@@ -39,7 +39,7 @@ impl<T> Visitor for MaybeEmptyVisitor<T> where T: Deserialize {
 	type Value = MaybeEmpty<T>;
 
 	fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-		write!(formatter, "an empty string or encoding of {}", stringify!(T))
+		write!(formatter, "an empty string or string-encoded type")
 	}
 
 	fn visit_str<E>(self, value: &str) -> Result<Self::Value, E> where E: Error {

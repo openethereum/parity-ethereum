@@ -96,7 +96,7 @@ macro_rules! impl_hash {
 
 		impl From<&'static str> for $name {
 			fn from(s: &'static str) -> Self {
-				s.parse().expect(&format!("invalid string literal for {}: '{}'", stringify!(Self), s))
+				s.parse().expect(&format!("invalid string literal for {}: '{}'", stringify!($name), s))
 			}
 		}
 
