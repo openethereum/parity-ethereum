@@ -134,10 +134,21 @@ class WalletSettings extends Component {
         return (
           <Form>
             <p>
-              In order to edit this contract's settings, at
-              least { this.store.initialWallet.require.toNumber() } owners have to
-              send the very same modifications. You can paste a stringified version
-              of the modifications here.
+              <FormattedMessage
+                id='ui.walletSettings.edit.message'
+                defaultMessage={
+                  `In order to edit this contract's settings, at
+                  least { owners, number } { owners, plural,
+                    one { owner }
+                    other { owners }
+                  } have to
+                  send the very same modifications. You can paste a stringified version
+                  of the modifications here.`
+                }
+                values={ {
+                  owners: this.store.initialWallet.require.toNumber()
+                } }
+              />
             </p>
 
             <Input
