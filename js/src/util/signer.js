@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import scrypt from 'scryptsy';
-import * as Transaction from 'ethereumjs-tx';
+import Transaction from 'ethereumjs-tx';
 import { pbkdf2Sync } from 'crypto';
 import { createDecipheriv } from 'browserify-aes';
 

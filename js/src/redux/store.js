@@ -20,7 +20,7 @@ import initMiddleware from './middleware';
 import initReducers from './reducers';
 
 import { load as loadWallet } from './providers/walletActions';
-import { setupWorker } from './providers/worker';
+import { setupWorker } from './providers/workerWrapper';
 
 import {
   Balances as BalancesProvider,

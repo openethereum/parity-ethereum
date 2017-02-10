@@ -78,6 +78,7 @@ Account Options:
   --keys-iterations NUM          Specify the number of iterations to use when
                                  deriving key from the password (bigger is more
                                  secure) (default: {flag_keys_iterations}).
+  --no-hardware-wallets          Disables hardware wallet support. (default: {flag_no_hardware_wallets})
 
 UI Options:
   --force-ui                     Enable Trusted UI WebSocket endpoint,

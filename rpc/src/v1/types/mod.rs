@@ -17,6 +17,7 @@
 
 //! RPC types
 
+mod account_info;
 mod bytes;
 mod block;
 mod block_number;
@@ -68,3 +69,4 @@ pub use self::uint::{U128, U256};
 pub use self::work::Work;
 pub use self::histogram::Histogram;
 pub use self::consensus_status::*;
+pub use self::account_info::{AccountInfo, HwAccountInfo};

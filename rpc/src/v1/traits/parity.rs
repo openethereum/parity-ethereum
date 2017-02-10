@@ -28,6 +28,7 @@ use v1::types::{
 	TransactionStats, LocalTransactionStatus,
 	BlockNumber, ConsensusCapability, VersionInfo,
 	OperationsInfo, DappId, ChainStatus,
+	AccountInfo, HwAccountInfo,
 };
 
 build_rpc_trait! {
@@ -37,7 +38,11 @@ build_rpc_trait! {
 
 		/// Returns accounts information.
 		#[rpc(name = "parity_accountsInfo")]
-		fn accounts_info(&self, Trailing<DappId>) -> Result<BTreeMap<String, BTreeMap<String, String>>, Error>;
+		fn accounts_info(&self, Trailing<DappId>) -> Result<BTreeMap<H160, AccountInfo>, Error>;
+
+		/// Returns hardware accounts information.
+		#[rpc(name = "parity_hardwareAccountsInfo")]
+		fn hardware_accounts_info(&self) -> Result<BTreeMap<H160, HwAccountInfo>, Error>;
 
 		/// Returns default account for dapp.
 		#[rpc(meta, name = "parity_defaultAccount")]

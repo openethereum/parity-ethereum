@@ -28,7 +28,8 @@ import ListIcon from 'material-ui/svg-icons/action/view-list';
 import SettingsIcon from 'material-ui/svg-icons/action/settings';
 import SendIcon from 'material-ui/svg-icons/content/send';
 
-import { Actionbar, ActionbarExport, ActionbarImport, Button, Editor, Page, Select, Input } from '~/ui';
+import { Actionbar, ActionbarExport, ActionbarImport, Button, Page, Select, Input } from '~/ui';
+import Editor from '~/ui/Editor';
 import { DeployContract, SaveContract, LoadContract } from '~/modals';
 
 import WriteContractStore from './writeContractStore';

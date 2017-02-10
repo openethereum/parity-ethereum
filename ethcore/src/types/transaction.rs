@@ -154,7 +154,7 @@ impl Transaction {
 	pub fn hash(&self, network_id: Option<u64>) -> H256 {
 		let mut stream = RlpStream::new();
 		self.rlp_append_unsigned_transaction(&mut stream, network_id);
-		stream.out().sha3()
+		stream.as_raw().sha3()
 	}
 
 	/// Signs the transaction as coming from `sender`.
