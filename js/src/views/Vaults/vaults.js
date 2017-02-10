@@ -19,7 +19,7 @@ import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 
-import { VaultAccounts, VaultClose, VaultCreate, VaultOpen } from '~/modals';
+import { VaultAccounts, VaultCreate, VaultLock, VaultUnlock } from '~/modals';
 import { Button, Page, SectionList, VaultCard } from '~/ui';
 import { AccountsIcon, AddIcon, LockedIcon, UnlockedIcon } from '~/ui/Icons';
 
@@ -68,10 +68,10 @@ class Vaults extends Component {
           />
         }
       >
-        <VaultClose vaultStore={ this.vaultStore } />
-        <VaultOpen vaultStore={ this.vaultStore } />
         <VaultAccounts vaultStore={ this.vaultStore } />
         <VaultCreate vaultStore={ this.vaultStore } />
+        <VaultLock vaultStore={ this.vaultStore } />
+        <VaultUnlock vaultStore={ this.vaultStore } />
         <SectionList
           items={ vaults }
           renderItem={ this.renderVault }

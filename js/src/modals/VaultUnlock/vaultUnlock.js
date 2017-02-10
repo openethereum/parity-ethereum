@@ -21,63 +21,84 @@ import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
 import { newError } from '~/redux/actions';
-import { ConfirmDialog, VaultCard } from '~/ui';
+import { ConfirmDialog, Input, VaultCard } from '~/ui';
 
-import styles from './vaultClose.css';
+import styles from '../VaultLock/vaultLock.css';
 
 @observer
-class VaultClose extends Component {
+class VaultUnlock extends Component {
   static propTypes = {
     newError: PropTypes.func.isRequired,
     vaultStore: PropTypes.object.isRequired
   }
 
   render () {
-    const { isBusyLock, isModalLockOpen, vaultName, vaults } = this.props.vaultStore;
-    const vault = vaults.find((vault) => vault.name === vaultName);
+    const { isBusyUnlock, isModalUnlockOpen, vault, vaultPassword } = this.props.vaultStore;
 
-    if (!isModalLockOpen) {
+    if (!isModalUnlockOpen) {
       return null;
     }
 
     return (
       <ConfirmDialog
-        busy={ isBusyLock }
-        disabledConfirm={ isBusyLock }
-        disabledDeny={ isBusyLock }
+        busy={ isBusyUnlock }
+        disabledConfirm={ isBusyUnlock }
+        disabledDeny={ isBusyUnlock }
         onConfirm={ this.onExecute }
         onDeny={ this.onClose }
         open
         title={
           <FormattedMessage
-            id='vaults.confirmClose.title'
-            defaultMessage='Close Vault'
+            id='vaults.confirmOpen.title'
+            defaultMessage='Open Vault'
           />
         }
       >
         <div className={ styles.textbox }>
           <FormattedMessage
-            id='vaults.confirmClose.info'
-            defaultMessage="You are about to close a vault. Any accounts associated with the vault won't be visible after this operation concludes. To view the associated accounts, open the vault again."
+            id='vaults.confirmOpen.info'
+            defaultMessage='You are about to open a vault. After confirming your password, all accounts associated with this vault will be visible. Closing the vault will remove the accounts from view until the vault is opened again.'
           />
         </div>
         <VaultCard.Layout
           withBorder
           vault={ vault }
         />
+        <Input
+          hint={
+            <FormattedMessage
+              id='vaults.confirmOpen.password.hint'
+              defaultMessage='the password specified when creating the vault'
+            />
+          }
+          label={
+            <FormattedMessage
+              id='vaults.confirmOpen.password.label'
+              defaultMessage='vault password'
+            />
+          }
+          onChange={ this.onEditPassword }
+          type='password'
+          value={ vaultPassword }
+        />
+        <br />
       </ConfirmDialog>
     );
   }
 
-  onExecute = () => {
-    return this.props.vaultStore
-      .closeVault()
-      .catch(this.props.newError)
-      .then(this.onClose);
+  onEditPassword = (event, password) => {
+    this.props.vaultStore.setVaultPassword(password);
   }
 
   onClose = () => {
-    this.props.vaultStore.closeLockModal();
+    this.props.vaultStore.closeUnlockModal();
+  }
+
+  onExecute = () => {
+    return this.props.vaultStore
+      .openVault()
+      .catch(this.props.newError)
+      .then(this.onClose);
   }
 }
 
@@ -90,4 +111,4 @@ function mapDispatchToProps (dispatch) {
 export default connect(
   null,
   mapDispatchToProps
-)(VaultClose);
+)(VaultUnlock);

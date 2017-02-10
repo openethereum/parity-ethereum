@@ -33,6 +33,7 @@ export default class Store {
   @observable isModalLockOpen = false;
   @observable isModalUnlockOpen = false;
   @observable selectedAccounts = {};
+  @observable vault = null;
   @observable vaults = [];
   @observable vaultNames = [];
   @observable vaultName = '';
@@ -54,6 +55,7 @@ export default class Store {
 
   @action clearVaultFields = () => {
     transaction(() => {
+      this.vault = null;
       this.vaultDescription = '';
       this.vaultName = '';
       this.vaultNameError = ERRORS.noName;
@@ -137,6 +139,7 @@ export default class Store {
     }
 
     transaction(() => {
+      this.vault = this.vaults.find((vault) => vault.name === name);
       this.vaultName = name;
       this.vaultNameError = nameError;
     });

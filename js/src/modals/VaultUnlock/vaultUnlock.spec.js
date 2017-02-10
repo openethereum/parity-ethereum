@@ -18,7 +18,7 @@ import { shallow } from 'enzyme';
 import React from 'react';
 import sinon from 'sinon';
 
-import VaultOpen from './';
+import VaultUnlock from './';
 
 let component;
 let instance;
@@ -54,19 +54,19 @@ function createVaultStore () {
 
 function render () {
   component = shallow(
-    <VaultOpen vaultStore={ createVaultStore() } />,
+    <VaultUnlock vaultStore={ createVaultStore() } />,
     {
       context: {
         store: createReduxStore()
       }
     }
-  ).find('VaultOpen').shallow();
+  ).find('VaultUnlock').shallow();
   instance = component.instance();
 
   return component;
 }
 
-describe('modals/VaultOpen', () => {
+describe('modals/VaultUnlock', () => {
   beforeEach(() => {
     render();
   });

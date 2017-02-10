@@ -177,6 +177,24 @@ describe('modals/Vaults/Store', () => {
         expect(store.vaultName).to.equal('testing');
       });
 
+      it('sets the vault when found', () => {
+        store.setVaults(['testing'], [], ['meta']);
+        store.setVaultName('testing');
+
+        expect(store.vault).to.deep.equal({
+          isOpen: false,
+          meta: 'meta',
+          name: 'testing'
+        });
+      });
+
+      it('clears the vault when not found', () => {
+        store.setVaults(['testing'], [], ['meta']);
+        store.setVaultName('testing2');
+
+        expect(store.vault).not.to.be.ok;
+      });
+
       it('sets error noName error when empty', () => {
         store.setVaultName(null);
 
