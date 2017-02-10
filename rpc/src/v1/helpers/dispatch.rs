@@ -24,6 +24,7 @@ use futures::{future, Future, BoxFuture};
 use light::client::LightChainClient;
 use light::on_demand::{request, OnDemand};
 use light::TransactionQueue as LightTransactionQueue;
+use rlp::{self, Stream};
 use util::{Address, H520, H256, U256, Uint, Bytes, RwLock};
 use util::sha3::Hashable;
 
@@ -118,7 +119,7 @@ impl<C: MiningBlockChainClient, M: MinerService> Dispatcher for FullDispatcher<C
 		let (client, miner) = (take_weakf!(self.client), take_weakf!(self.miner));
 		let network_id = client.signing_network_id();
 		let address = filled.from;
-		future::ok({
+		future::done({
 			let t = Transaction {
 				nonce: filled.nonce
 					.or_else(|| miner
@@ -133,13 +134,16 @@ impl<C: MiningBlockChainClient, M: MinerService> Dispatcher for FullDispatcher<C
 				data: filled.data,
 			};
 
-			let hash = t.hash(network_id);
-			let signature = try_bf!(signature(&accounts, address, hash, password));
-
-			signature.map(|sig| {
-				SignedTransaction::new(t.with_signature(sig, network_id))
-					.expect("Transaction was signed by AccountsProvider; it never produces invalid signatures; qed")
-			})
+			if accounts.is_hardware_address(address) {
+				hardware_signature(&*accounts, address, t, network_id).map(WithToken::No)
+			} else {
+				let hash = t.hash(network_id);
+				let signature = try_bf!(signature(&*accounts, address, hash, password));
+				Ok(signature.map(|sig| {
+					SignedTransaction::new(t.with_signature(sig, network_id))
+						.expect("Transaction was signed by AccountsProvider; it never produces invalid signatures; qed")
+				}))
+			}
 		}).boxed()
 	}
 
@@ -219,8 +223,13 @@ impl Dispatcher for LightDispatcher {
 				value: filled.value,
 				data: filled.data,
 			};
+
+			if accounts.is_hardware_address(address) {
+				return hardware_signature(&*accounts, address, t, network_id).map(WithToken::No)
+			}
+
 			let hash = t.hash(network_id);
-			let signature = signature(&accounts, address, hash, password)?;
+			let signature = signature(&*accounts, address, hash, password)?;
 
 			Ok(signature.map(|sig| {
 				SignedTransaction::new(t.with_signature(sig, network_id))
@@ -411,6 +420,27 @@ fn signature(accounts: &AccountProvider, address: Address, hash: H256, password:
 	})
 }
 
+// obtain a hardware signature from the given account.
+fn hardware_signature(accounts: &AccountProvider, address: Address, t: Transaction, network_id: Option<u64>)
+	-> Result<SignedTransaction, Error>
+{
+	debug_assert!(accounts.is_hardware_address(address));
+
+	let mut stream = rlp::RlpStream::new();
+	t.rlp_append_unsigned_transaction(&mut stream, network_id);
+	let signature = accounts.sign_with_hardware(address, &stream.as_raw())
+		.map_err(|e| {
+			debug!(target: "miner", "Error signing transaction with hardware wallet: {}", e);
+			errors::account("Error signing transaction with hardware wallet", e)
+		})?;
+
+	SignedTransaction::new(t.with_signature(signature, network_id))
+		.map_err(|e| {
+		  debug!(target: "miner", "Hardware wallet has produced invalid signature: {}", e);
+		  errors::account("Invalid signature generated", e)
+		})
+}
+
 fn decrypt(accounts: &AccountProvider, address: Address, msg: Bytes, password: SignWith) -> Result<WithToken<Bytes>, Error> {
 	match password.clone() {
 		SignWith::Nothing => accounts.decrypt(address, None, &DEFAULT_MAC, &msg).map(WithToken::No),
@@ -422,7 +452,7 @@ fn decrypt(accounts: &AccountProvider, address: Address, msg: Bytes, password: S
 	})
 }
 
-/// Extract default gas price from a client and miner.
+/// Extract the default gas price from a client and miner.
 pub fn default_gas_price<C, M>(client: &C, miner: &M) -> U256
 	where C: MiningBlockChainClient, M: MinerService
 {

@@ -4,11 +4,11 @@
     "stage-0", "react"
   ],
   "plugins": [
-    "transform-runtime",
     "transform-decorators-legacy",
     "transform-class-properties",
     "transform-object-rest-spread",
-    "lodash"
+    "lodash",
+    "recharts"
   ],
   "retainLines": true,
   "env": {
@@ -25,7 +25,8 @@
     },
     "test": {
       "plugins": [
-        ["babel-plugin-webpack-alias", { "config": "webpack/test.js" }]
+        "transform-runtime",
+        [ "babel-plugin-webpack-alias", { "config": "webpack/test.js" } ]
       ]
     }
   }

@@ -31,4 +31,4 @@ if (isNode) {
 
 import Etherscan from './3rdparty/etherscan';
 
-module.exports = Etherscan;
+export default Etherscan;

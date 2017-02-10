@@ -101,6 +101,9 @@ usage! {
 			or |c: &Config| otry!(c.account).password.clone(),
 		flag_keys_iterations: u32 = 10240u32,
 			or |c: &Config| otry!(c.account).keys_iterations.clone(),
+		flag_no_hardware_wallets: bool = false,
+			or |c: &Config| otry!(c.account).disable_hardware.clone(),
+
 
 		flag_force_ui: bool = false,
 			or |c: &Config| otry!(c.ui).force.clone(),
@@ -347,6 +350,7 @@ struct Account {
 	unlock: Option<Vec<String>>,
 	password: Option<Vec<String>>,
 	keys_iterations: Option<u32>,
+	disable_hardware: Option<bool>,
 }
 
 #[derive(Default, Debug, PartialEq, RustcDecodable)]
@@ -583,6 +587,7 @@ mod tests {
 			flag_unlock: Some("0xdeadbeefcafe0000000000000000000000000000".into()),
 			flag_password: vec!["~/.safe/password.file".into()],
 			flag_keys_iterations: 10240u32,
+			flag_no_hardware_wallets: false,
 
 			flag_force_ui: false,
 			flag_no_ui: false,
@@ -769,6 +774,7 @@ mod tests {
 				unlock: Some(vec!["0x1".into(), "0x2".into(), "0x3".into()]),
 				password: Some(vec!["passwdfile path".into()]),
 				keys_iterations: None,
+				disable_hardware: None,
 			}),
 			ui: Some(Ui {
 				force: None,

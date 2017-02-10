@@ -72,6 +72,8 @@ pub trait VaultKeyDirectoryProvider {
 	fn open(&self, name: &str, key: VaultKey) -> Result<Box<VaultKeyDirectory>, Error>;
 	/// List all vaults
 	fn list_vaults(&self) -> Result<Vec<String>, Error>;
+	/// Get vault meta
+	fn vault_meta(&self, name: &str) -> Result<String, Error>;
 }
 
 /// Vault directory

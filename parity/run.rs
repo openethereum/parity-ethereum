@@ -26,7 +26,7 @@ use ethcore_logger::{Config as LogConfig};
 use ethcore::miner::{StratumOptions, Stratum};
 use ethcore::client::{Mode, DatabaseCompactionProfile, VMType, BlockChainClient};
 use ethcore::service::ClientService;
-use ethcore::account_provider::AccountProvider;
+use ethcore::account_provider::{AccountProvider, AccountProviderSettings};
 use ethcore::miner::{Miner, MinerService, ExternalMiner, MinerOptions};
 use ethcore::snapshot;
 use ethcore::verification::queue::VerifierSettings;
@@ -516,9 +516,13 @@ fn prepare_account_provider(spec: &SpecType, dirs: &Directories, data_dir: &str,
 	let path = dirs.keys_path(data_dir);
 	upgrade_key_location(&dirs.legacy_keys_path(cfg.testnet), &path);
 	let dir = Box::new(RootDiskDirectory::create(&path).map_err(|e| format!("Could not open keys directory: {}", e))?);
-	let account_provider = AccountProvider::new(Box::new(
-		EthStore::open_with_iterations(dir, cfg.iterations).map_err(|e| format!("Could not open keys directory: {}", e))?
-	));
+	let account_settings = AccountProviderSettings {
+		enable_hardware_wallets: cfg.enable_hardware_wallets,
+		hardware_wallet_classic_key: spec == &SpecType::Classic,
+	};
+	let account_provider = AccountProvider::new(
+		Box::new(EthStore::open_with_iterations(dir, cfg.iterations).map_err(|e| format!("Could not open keys directory: {}", e))?),
+		account_settings);
 
 	for a in cfg.unlocked_accounts {
 		// Check if the account exists

@@ -19,7 +19,8 @@ import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 import { Checkbox } from 'material-ui';
 
-import { Form, Input, PasswordStrength } from '~/ui';
+import { Form, Input } from '~/ui';
+import PasswordStrength from '~/ui/Form/PasswordStrength';
 
 import styles from '../createAccount.css';
 
