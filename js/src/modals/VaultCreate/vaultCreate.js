@@ -44,6 +44,7 @@ class VaultCreate extends Component {
 
     return (
       <Portal
+        busy={ isBusyCreate }
         buttons={ [
           <Button
             disabled={ isBusyCreate }
@@ -51,7 +52,7 @@ class VaultCreate extends Component {
             key='close'
             label={
               <FormattedMessage
-                id='vaults.vault.button.close'
+                id='vaults.create.button.close'
                 defaultMessage='close'
               />
             }
@@ -63,8 +64,8 @@ class VaultCreate extends Component {
             key='vault'
             label={
               <FormattedMessage
-                id='vaults.vault.button.vault'
-                defaultMessage='vault vault'
+                id='vaults.create.button.vault'
+                defaultMessage='create vault'
               />
             }
             onClick={ this.onCreate }
@@ -74,7 +75,7 @@ class VaultCreate extends Component {
         open
         title={
           <FormattedMessage
-            id='vaults.vault.title'
+            id='vaults.create.title'
             defaultMessage='Create a new vault'
           />
         }
@@ -84,13 +85,13 @@ class VaultCreate extends Component {
             error={ vaultNameError }
             hint={
               <FormattedMessage
-                id='vaults.vault.name.hint'
+                id='vaults.create.name.hint'
                 defaultMessage='a name for the vault'
               />
             }
             label={
               <FormattedMessage
-                id='vaults.vault.name.label'
+                id='vaults.create.name.label'
                 defaultMessage='vault name'
               />
             }
@@ -100,13 +101,13 @@ class VaultCreate extends Component {
           <Input
             hint={
               <FormattedMessage
-                id='vaults.vault.description.hint'
+                id='vaults.create.description.hint'
                 defaultMessage='an extended description for the vault'
               />
             }
             label={
               <FormattedMessage
-                id='vaults.vault.descriptions.label'
+                id='vaults.create.descriptions.label'
                 defaultMessage='(optional) description'
               />
             }
@@ -116,13 +117,13 @@ class VaultCreate extends Component {
           <Input
             hint={
               <FormattedMessage
-                id='vaults.vault.hint.hint'
+                id='vaults.create.hint.hint'
                 defaultMessage='(optional) a hint to help with remembering the password'
               />
             }
             label={
               <FormattedMessage
-                id='vaults.vault.hint.label'
+                id='vaults.create.hint.label'
                 defaultMessage='password hint'
               />
             }
@@ -134,13 +135,13 @@ class VaultCreate extends Component {
               <Input
                 hint={
                   <FormattedMessage
-                    id='vaults.vault.password.hint'
+                    id='vaults.create.password.hint'
                     defaultMessage='a strong, unique password'
                   />
                 }
                 label={
                   <FormattedMessage
-                    id='vaults.vault.password.label'
+                    id='vaults.create.password.label'
                     defaultMessage='password'
                   />
                 }
@@ -154,13 +155,13 @@ class VaultCreate extends Component {
                 error={ vaultPasswordRepeatError }
                 hint={
                   <FormattedMessage
-                    id='vaults.vault.password2.hint'
+                    id='vaults.create.password2.hint'
                     defaultMessage='verify your password'
                   />
                 }
                 label={
                   <FormattedMessage
-                    id='vaults.vault.password2.label'
+                    id='vaults.create.password2.label'
                     defaultMessage='password (repeat)'
                   />
                 }
