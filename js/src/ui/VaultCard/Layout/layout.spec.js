@@ -19,6 +19,7 @@ import React from 'react';
 
 import Layout from './';
 
+const DESCRIPTION = 'some description';
 const NAME = 'testName';
 
 let component;
@@ -29,7 +30,7 @@ function render () {
       vault={ {
         isOpen: true,
         meta: {
-          description: 'some description',
+          description: DESCRIPTION,
           passwordHint: 'some hint'
         },
         name: NAME
@@ -57,8 +58,32 @@ describe('ui/VaultCard/Layout', () => {
         icon = component.find('Connect(IdentityIcon)');
       });
 
-      it('renders with the name as key', () => {
+      it('renders', () => {
+        expect(icon.get(0)).to.be.ok;
+      });
+
+      it('passes the name as address key', () => {
         expect(icon.props().address).to.equal(NAME);
+      });
+    });
+
+    describe('Title', () => {
+      let title;
+
+      beforeEach(() => {
+        title = component.find('Title');
+      });
+
+      it('renders', () => {
+        expect(title.get(0)).to.be.ok;
+      });
+
+      it('passes the name as title', () => {
+        expect(title.props().title).to.equal(NAME);
+      });
+
+      it('passes the description as byline', () => {
+        expect(title.props().byline).to.equal(DESCRIPTION);
       });
     });
   });

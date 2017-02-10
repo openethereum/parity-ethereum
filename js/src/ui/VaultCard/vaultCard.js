@@ -68,7 +68,7 @@ export default class VaultCard extends Component {
   renderAccounts () {
     const { accounts } = this.props;
 
-    if (!accounts.length) {
+    if (!accounts || !accounts.length) {
       return (
         <div className={ styles.empty }>
           <FormattedMessage
