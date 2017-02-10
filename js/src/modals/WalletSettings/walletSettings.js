@@ -54,7 +54,7 @@ class WalletSettings extends Component {
           visible
           title={
             <FormattedMessage
-              id='ui.walletSettings.rejected.title'
+              id='walletSettings.rejected.title'
               defaultMessage='rejected'
             />
           }
@@ -63,13 +63,13 @@ class WalletSettings extends Component {
           <BusyStep
             title={
               <FormattedMessage
-                id='ui.walletSettings.rejected.busyStep.title'
+                id='walletSettings.rejected.busyStep.title'
                 defaultMessage='The modifications have been rejected'
               />
             }
             state={
               <FormattedMessage
-                id='ui.walletSettings.rejected.busyStep.state'
+                id='walletSettings.rejected.busyStep.state'
                 defaultMessage='The wallet settings will not be modified. You can safely close this window.'
               />
             }
@@ -135,7 +135,7 @@ class WalletSettings extends Component {
           <Form>
             <p>
               <FormattedMessage
-                id='ui.walletSettings.edit.message'
+                id='walletSettings.edit.message'
                 defaultMessage={
                   `In order to edit this contract's settings, at
                   least { owners, number } { owners, plural,
@@ -155,7 +155,7 @@ class WalletSettings extends Component {
               hint='[ ... ]'
               label={
                 <FormattedMessage
-                  id='ui.walletSettings.modifications.fromString.label'
+                  id='walletSettings.modifications.fromString.label'
                   defaultMessage='modifications'
                 />
               }
@@ -165,13 +165,13 @@ class WalletSettings extends Component {
             <AddressSelect
               label={
                 <FormattedMessage
-                  id='ui.walletSettings.modifications.sender.label'
+                  id='walletSettings.modifications.sender.label'
                   defaultMessage='from account (wallet owner)'
                 />
               }
               hint={
                 <FormattedMessage
-                  id='ui.walletSettings.modifications.sender.hint'
+                  id='walletSettings.modifications.sender.hint'
                   defaultMessage='send modifications as this owner'
                 />
               }
@@ -191,7 +191,7 @@ class WalletSettings extends Component {
                     <TypedInput
                       label={
                         <FormattedMessage
-                          id='ui.walletSettings.modifications.owners.label'
+                          id='walletSettings.modifications.owners.label'
                           defaultMessage='other wallet owners'
                         />
                       }
@@ -205,13 +205,13 @@ class WalletSettings extends Component {
                       <TypedInput
                         label={
                           <FormattedMessage
-                            id='ui.walletSettings.modifications.required.label'
+                            id='walletSettings.modifications.required.label'
                             defaultMessage='required owners'
                           />
                         }
                         hint={
                           <FormattedMessage
-                            id='ui.walletSettings.modifications.required.hint'
+                            id='walletSettings.modifications.required.hint'
                             defaultMessage='number of required owners to accept a transaction'
                           />
                         }
@@ -226,13 +226,13 @@ class WalletSettings extends Component {
                       <TypedInput
                         label={
                           <FormattedMessage
-                            id='ui.walletSettings.modifications.daylimit.label'
+                            id='walletSettings.modifications.daylimit.label'
                             defaultMessage='wallet day limit'
                           />
                         }
                         hint={
                           <FormattedMessage
-                            id='ui.walletSettings.modifications.daylimit.hint'
+                            id='walletSettings.modifications.daylimit.hint'
                             defaultMessage='amount of ETH spendable without confirmations'
                           />
                         }
@@ -256,7 +256,7 @@ class WalletSettings extends Component {
       return (
         <p>
           <FormattedMessage
-            id='ui.walletSettings.changes.none'
+            id='walletSettings.changes.none'
             defaultMessage='No modifications have been made to the Wallet settings.'
           />
         </p>
@@ -273,7 +273,7 @@ class WalletSettings extends Component {
       <div>
         <p className={ styles.modifications }>
           <FormattedMessage
-            id='ui.walletSettings.changes.modificationString'
+            id='walletSettings.changes.modificationString'
             defaultMessage={
               `For your modifications to be taken into account,
               other owners have to send the same modifications. They can paste
@@ -290,7 +290,7 @@ class WalletSettings extends Component {
 
         <p>
           <FormattedMessage
-            id='ui.walletSettings.changes.overview'
+            id='walletSettings.changes.overview'
             defaultMessage={
               `You are about to make the following modifications`
             }
