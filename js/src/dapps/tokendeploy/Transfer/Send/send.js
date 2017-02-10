@@ -127,7 +127,7 @@ export default class Send extends Component {
       return (
         <Container>
           <div className={ styles.statusHeader }>
-            There are tokens to transfer
+            There are no tokens to transfer
           </div>
         </Container>
       );
