@@ -19,7 +19,21 @@ import path from 'path';
 
 import i18nstrings from '../.build/i18n/i18n/en.json';
 
-const FILE_HEADER = '// Copyright 2015-2017 Parity Technologies (UK) Ltd.\n// This file is part of Parity.\n\n// Parity is free software: you can redistribute it and/or modify\n// it under the terms of the GNU General Public License as published by\n// the Free Software Foundation, either version 3 of the License, or\n// (at your option) any later version.\n\n// Parity is distributed in the hope that it will be useful,\n// but WITHOUT ANY WARRANTY; without even the implied warranty of\n// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the\n// GNU General Public License for more details.\n\n// You should have received a copy of the GNU General Public License\n// along with Parity.  If not, see <http://www.gnu.org/licenses/>.\n\n';
+const FILE_HEADER = `// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// This file is part of Parity.
+
+// Parity is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// Parity is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with Parity.  If not, see <http://www.gnu.org/licenses/>.\n\n`;
 const SECTION_HEADER = 'export default ';
 const SECTION_FOOTER = ';\n';
 const INDENT = '  ';
