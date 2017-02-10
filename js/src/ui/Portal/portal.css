@@ -76,6 +76,10 @@ $popoverZ: 3600;
       z-index: $modalZ;
     }
 
+    /* TODO: Small Portals don't adjust their overall height like we have with the
+    /* rest, so really tiny screens and large small Portals (it shouldn't be be done,
+    /* but may well be) will scretch to non-visible areas.
+    */
     &.small {
       margin: 1.5em auto;
       max-width: 768px;
