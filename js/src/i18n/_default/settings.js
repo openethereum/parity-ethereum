@@ -41,6 +41,7 @@ export default {
     details_1: `To learn how to configure the proxy, instructions are provided for {windowsLink}, {macOSLink} or {ubuntuLink}.`,
     details_macos: `macOS`,
     details_ubuntu: `Ubuntu`,
+    details_windows: `Windows`,
     overview_0: `The proxy setup allows you to access Parity and all associated decentralized applications via memorable addresses.`
   },
   views: {

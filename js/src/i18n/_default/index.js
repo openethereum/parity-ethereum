@@ -28,7 +28,6 @@ export dapp from './dapp';
 export dapps from './dapps';
 export deleteAccount from './deleteAccount';
 export deployContract from './deployContract';
-export details_windows from './details_windows';
 export editMeta from './editMeta';
 export executeContract from './executeContract';
 export extension from './extension';
