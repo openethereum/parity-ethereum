@@ -37,24 +37,24 @@ describe('modals/Vaults/Store', () => {
   });
 
   describe('@action', () => {
-    describe('clearCreateFields', () => {
+    describe('clearVaultFields', () => {
       beforeEach(() => {
-        store.setCreateDescription('testing desc');
-        store.setCreateName('testing 123');
-        store.setCreatePassword('blah');
-        store.setCreatePasswordRepeat('bleh');
-        store.setCreatePasswordHint('hint');
+        store.setVaultDescription('testing desc');
+        store.setVaultName('testing 123');
+        store.setVaultPassword('blah');
+        store.setVaultPasswordRepeat('bleh');
+        store.setVaultPasswordHint('hint');
 
-        store.clearCreateFields();
+        store.clearVaultFields();
       });
 
       it('resets create fields', () => {
-        expect(store.createDescription).to.equal('');
-        expect(store.createName).to.equal('');
-        expect(store.createNameError).not.to.be.null;
-        expect(store.createPassword).to.equal('');
-        expect(store.createPasswordRepeat).to.equal('');
-        expect(store.createPasswordHint).to.equal('');
+        expect(store.vaultDescription).to.equal('');
+        expect(store.vaultName).to.equal('');
+        expect(store.vaultNameError).not.to.be.null;
+        expect(store.vaultPassword).to.equal('');
+        expect(store.vaultPasswordRepeat).to.equal('');
+        expect(store.vaultPasswordHint).to.equal('');
       });
     });
 
@@ -63,14 +63,6 @@ describe('modals/Vaults/Store', () => {
         store.setBusyAccounts('busy');
 
         expect(store.isBusyAccounts).to.equal('busy');
-      });
-    });
-
-    describe('setBusyClose', () => {
-      it('sets the flag', () => {
-        store.setBusyClose('busy');
-
-        expect(store.isBusyClose).to.equal('busy');
       });
     });
 
@@ -90,64 +82,19 @@ describe('modals/Vaults/Store', () => {
       });
     });
 
-    describe('setBusyOpen', () => {
+    describe('setBusyLock', () => {
       it('sets the flag', () => {
-        store.setBusyOpen('busy');
+        store.setBusyLock('busy');
 
-        expect(store.isBusyOpen).to.equal('busy');
+        expect(store.isBusyLock).to.equal('busy');
       });
     });
 
-    describe('setCreateDescription', () => {
-      it('sets the description', () => {
-        store.setCreateDescription('test');
+    describe('setBusyUnlock', () => {
+      it('sets the flag', () => {
+        store.setBusyUnlock('busy');
 
-        expect(store.createDescription).to.equal('test');
-      });
-    });
-
-    describe('setCreateName', () => {
-      it('sets the name as passed', () => {
-        store.setCreateName('testing');
-
-        expect(store.createName).to.equal('testing');
-      });
-
-      it('sets error noName error when empty', () => {
-        store.setCreateName(null);
-
-        expect(store.createNameError).to.equal(ERRORS.noName);
-      });
-
-      it('sets error duplicateName when duplicated', () => {
-        store.setVaults(['testDupe'], [], ['testing']);
-        store.setCreateName('testDUPE');
-
-        expect(store.createNameError).to.equal(ERRORS.duplicateName);
-      });
-    });
-
-    describe('setCreatePassword', () => {
-      it('sets the password', () => {
-        store.setCreatePassword('testPassword');
-
-        expect(store.createPassword).to.equal('testPassword');
-      });
-    });
-
-    describe('setCreatePasswordRepeat', () => {
-      it('sets the password', () => {
-        store.setCreatePasswordRepeat('testPassword');
-
-        expect(store.createPasswordRepeat).to.equal('testPassword');
-      });
-    });
-
-    describe('setCreatePasswordHint', () => {
-      it('sets the password hint', () => {
-        store.setCreatePasswordHint('test hint');
-
-        expect(store.createPasswordHint).to.equal('test hint');
+        expect(store.isBusyUnlock).to.equal('busy');
       });
     });
 
@@ -159,14 +106,6 @@ describe('modals/Vaults/Store', () => {
       });
     });
 
-    describe('setModalCloseOpen', () => {
-      it('sets the flag', () => {
-        store.setModalCloseOpen('opened');
-
-        expect(store.isModalCloseOpen).to.equal('opened');
-      });
-    });
-
     describe('setModalCreateOpen', () => {
       it('sets the flag', () => {
         store.setModalCreateOpen('opened');
@@ -175,14 +114,22 @@ describe('modals/Vaults/Store', () => {
       });
     });
 
-    describe('setModalOpenOpen', () => {
+    describe('setModalLockOpen', () => {
+      it('sets the flag', () => {
+        store.setModalLockOpen('opened');
+
+        expect(store.isModalLockOpen).to.equal('opened');
+      });
+    });
+
+    describe('setModalUnlockOpen', () => {
       beforeEach(() => {
         store.setVaultPassword('testing');
-        store.setModalOpenOpen('opened');
+        store.setModalUnlockOpen('opened');
       });
 
       it('sets the flag', () => {
-        expect(store.isModalOpenOpen).to.equal('opened');
+        expect(store.isModalUnlockOpen).to.equal('opened');
       });
 
       it('rests the password to empty', () => {
@@ -215,19 +162,56 @@ describe('modals/Vaults/Store', () => {
       });
     });
 
-    describe('setVaultName', () => {
-      it('sets the vault name', () => {
-        store.setVaultName('testName');
+    describe('setVaultDescription', () => {
+      it('sets the description', () => {
+        store.setVaultDescription('test');
 
-        expect(store.vaultName).to.equal('testName');
+        expect(store.vaultDescription).to.equal('test');
+      });
+    });
+
+    describe('setVaultName', () => {
+      it('sets the name as passed', () => {
+        store.setVaultName('testing');
+
+        expect(store.vaultName).to.equal('testing');
+      });
+
+      it('sets error noName error when empty', () => {
+        store.setVaultName(null);
+
+        expect(store.vaultNameError).to.equal(ERRORS.noName);
+      });
+
+      it('sets error duplicateName when duplicated', () => {
+        store.setVaults(['testDupe'], [], ['testing']);
+        store.setVaultName('testDUPE');
+
+        expect(store.vaultNameError).to.equal(ERRORS.duplicateName);
       });
     });
 
     describe('setVaultPassword', () => {
-      it('sets the vault password', () => {
+      it('sets the password', () => {
         store.setVaultPassword('testPassword');
 
         expect(store.vaultPassword).to.equal('testPassword');
+      });
+    });
+
+    describe('setVaultPasswordRepeat', () => {
+      it('sets the password', () => {
+        store.setVaultPasswordRepeat('testPassword');
+
+        expect(store.vaultPasswordRepeat).to.equal('testPassword');
+      });
+    });
+
+    describe('setVaultPasswordHint', () => {
+      it('sets the password hint', () => {
+        store.setVaultPasswordHint('test hint');
+
+        expect(store.vaultPasswordHint).to.equal('test hint');
       });
     });
 
@@ -250,17 +234,17 @@ describe('modals/Vaults/Store', () => {
   describe('@computed', () => {
     describe('createPasswordRepeatError', () => {
       beforeEach(() => {
-        store.setCreatePassword('blah');
-        store.setCreatePasswordRepeat('bleh');
+        store.setVaultPassword('blah');
+        store.setVaultPasswordRepeat('bleh');
       });
 
       it('has error when passwords do not match', () => {
-        expect(store.createPasswordRepeatError).not.to.be.null;
+        expect(store.vaultPasswordRepeatError).not.to.be.null;
       });
 
       it('has no error when passwords match', () => {
-        store.setCreatePasswordRepeat('blah');
-        expect(store.createPasswordRepeatError).to.be.null;
+        store.setVaultPasswordRepeat('blah');
+        expect(store.vaultPasswordRepeatError).to.be.null;
       });
     });
   });
@@ -277,17 +261,6 @@ describe('modals/Vaults/Store', () => {
       });
     });
 
-    describe('closeCloseModal', () => {
-      beforeEach(() => {
-        store.setModalCloseOpen(true);
-        store.closeCloseModal();
-      });
-
-      it('sets the opened state to false', () => {
-        expect(store.isModalCloseOpen).to.be.false;
-      });
-    });
-
     describe('closeCreateModal', () => {
       beforeEach(() => {
         store.setModalCreateOpen(true);
@@ -299,14 +272,25 @@ describe('modals/Vaults/Store', () => {
       });
     });
 
-    describe('closeOpenModal', () => {
+    describe('closeLockModal', () => {
       beforeEach(() => {
-        store.setModalOpenOpen(true);
-        store.closeOpenModal();
+        store.setModalLockOpen(true);
+        store.closeLockModal();
       });
 
       it('sets the opened state to false', () => {
-        expect(store.isModalOpenOpen).to.be.false;
+        expect(store.isModalLockOpen).to.be.false;
+      });
+    });
+
+    describe('closeUnlockModal', () => {
+      beforeEach(() => {
+        store.setModalUnlockOpen(true);
+        store.closeUnlockModal();
+      });
+
+      it('sets the opened state to false', () => {
+        expect(store.isModalUnlockOpen).to.be.false;
       });
     });
 
@@ -329,28 +313,14 @@ describe('modals/Vaults/Store', () => {
       });
     });
 
-    describe('openCloseModal', () => {
-      beforeEach(() => {
-        store.openCloseModal('testing');
-      });
-
-      it('sets the opened state to true', () => {
-        expect(store.isModalCloseOpen).to.be.true;
-      });
-
-      it('stores the name', () => {
-        expect(store.vaultName).to.equal('testing');
-      });
-    });
-
     describe('openCreateModal', () => {
       beforeEach(() => {
-        sinon.spy(store, 'clearCreateFields');
+        sinon.spy(store, 'clearVaultFields');
         store.openCreateModal();
       });
 
       afterEach(() => {
-        store.clearCreateFields.restore();
+        store.clearVaultFields.restore();
       });
 
       it('sets the opened state to true', () => {
@@ -358,17 +328,31 @@ describe('modals/Vaults/Store', () => {
       });
 
       it('clears the create fields', () => {
-        expect(store.clearCreateFields).to.have.been.called;
+        expect(store.clearVaultFields).to.have.been.called;
       });
     });
 
-    describe('openOpenModal', () => {
+    describe('openLockModal', () => {
       beforeEach(() => {
-        store.openOpenModal('testing');
+        store.openLockModal('testing');
       });
 
       it('sets the opened state to true', () => {
-        expect(store.isModalOpenOpen).to.be.true;
+        expect(store.isModalLockOpen).to.be.true;
+      });
+
+      it('stores the name', () => {
+        expect(store.vaultName).to.equal('testing');
+      });
+    });
+
+    describe('openUnlockModal', () => {
+      beforeEach(() => {
+        store.openUnlockModal('testing');
+      });
+
+      it('sets the opened state to true', () => {
+        expect(store.isModalUnlockOpen).to.be.true;
       });
 
       it('stores the name', () => {
@@ -411,7 +395,7 @@ describe('modals/Vaults/Store', () => {
 
     describe('closeVault', () => {
       beforeEach(() => {
-        sinon.spy(store, 'setBusyClose');
+        sinon.spy(store, 'setBusyLock');
 
         store.setVaultName('testVault');
 
@@ -419,12 +403,12 @@ describe('modals/Vaults/Store', () => {
       });
 
       afterEach(() => {
-        store.setBusyClose.restore();
+        store.setBusyLock.restore();
       });
 
       it('sets and resets the busy flag', () => {
-        expect(store.setBusyClose).to.have.been.calledWith(true);
-        expect(store.isBusyClose).to.be.false;
+        expect(store.setBusyLock).to.have.been.calledWith(true);
+        expect(store.isBusyLock).to.be.false;
       });
 
       it('calls into parity_closeVault', () => {
@@ -436,11 +420,11 @@ describe('modals/Vaults/Store', () => {
       beforeEach(() => {
         sinon.spy(store, 'setBusyCreate');
 
-        store.setCreateDescription('testDescription');
-        store.setCreateName('testCreateName');
-        store.setCreatePassword('testCreatePassword');
-        store.setCreatePasswordRepeat('testCreatePassword');
-        store.setCreatePasswordHint('testCreateHint');
+        store.setVaultDescription('testDescription');
+        store.setVaultName('testCreateName');
+        store.setVaultPassword('testCreatePassword');
+        store.setVaultPasswordRepeat('testCreatePassword');
+        store.setVaultPasswordHint('testCreateHint');
 
         return store.createVault();
       });
@@ -468,7 +452,7 @@ describe('modals/Vaults/Store', () => {
 
     describe('openVault', () => {
       beforeEach(() => {
-        sinon.spy(store, 'setBusyOpen');
+        sinon.spy(store, 'setBusyUnlock');
 
         store.setVaultName('testVault');
 
@@ -476,12 +460,12 @@ describe('modals/Vaults/Store', () => {
       });
 
       afterEach(() => {
-        store.setBusyOpen.restore();
+        store.setBusyUnlock.restore();
       });
 
       it('sets and resets the busy flag', () => {
-        expect(store.setBusyOpen).to.have.been.calledWith(true);
-        expect(store.isBusyOpen).to.be.false;
+        expect(store.setBusyUnlock).to.have.been.calledWith(true);
+        expect(store.isBusyUnlock).to.be.false;
       });
 
       it('calls into parity_openVault', () => {

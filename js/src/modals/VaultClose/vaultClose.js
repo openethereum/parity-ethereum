@@ -33,18 +33,18 @@ class VaultClose extends Component {
   }
 
   render () {
-    const { isBusyClose, isModalCloseOpen, vaultName, vaults } = this.props.vaultStore;
+    const { isBusyLock, isModalLockOpen, vaultName, vaults } = this.props.vaultStore;
     const vault = vaults.find((vault) => vault.name === vaultName);
 
-    if (!isModalCloseOpen) {
+    if (!isModalLockOpen) {
       return null;
     }
 
     return (
       <ConfirmDialog
-        busy={ isBusyClose }
-        disabledConfirm={ isBusyClose }
-        disabledDeny={ isBusyClose }
+        busy={ isBusyLock }
+        disabledConfirm={ isBusyLock }
+        disabledDeny={ isBusyLock }
         onConfirm={ this.onExecute }
         onDeny={ this.onClose }
         open
@@ -77,7 +77,7 @@ class VaultClose extends Component {
   }
 
   onClose = () => {
-    this.props.vaultStore.closeCloseModal();
+    this.props.vaultStore.closeLockModal();
   }
 }
 

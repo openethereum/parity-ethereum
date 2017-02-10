@@ -35,8 +35,8 @@ class VaultCreate extends Component {
   }
 
   render () {
-    const { createDescription, createName, createNameError, createPassword, createPasswordHint, createPasswordRepeat, createPasswordRepeatError, isBusyCreate, isModalCreateOpen } = this.props.vaultStore;
-    const hasError = !!createNameError || !!createPasswordRepeatError;
+    const { isBusyCreate, isModalCreateOpen, vaultDescription, vaultName, vaultNameError, vaultPassword, vaultPasswordHint, vaultPasswordRepeat, vaultPasswordRepeatError } = this.props.vaultStore;
+    const hasError = !!vaultNameError || !!vaultPasswordRepeatError;
 
     if (!isModalCreateOpen) {
       return null;
@@ -51,7 +51,7 @@ class VaultCreate extends Component {
             key='close'
             label={
               <FormattedMessage
-                id='vaults.create.button.close'
+                id='vaults.vault.button.close'
                 defaultMessage='close'
               />
             }
@@ -60,11 +60,11 @@ class VaultCreate extends Component {
           <Button
             disabled={ hasError || isBusyCreate }
             icon={ <CheckIcon /> }
-            key='create'
+            key='vault'
             label={
               <FormattedMessage
-                id='vaults.create.button.create'
-                defaultMessage='create vault'
+                id='vaults.vault.button.vault'
+                defaultMessage='vault vault'
               />
             }
             onClick={ this.onCreate }
@@ -74,132 +74,132 @@ class VaultCreate extends Component {
         open
         title={
           <FormattedMessage
-            id='vaults.create.title'
+            id='vaults.vault.title'
             defaultMessage='Create a new vault'
           />
         }
       >
         <div className={ styles.body }>
           <Input
-            error={ createNameError }
+            error={ vaultNameError }
             hint={
               <FormattedMessage
-                id='vaults.create.name.hint'
+                id='vaults.vault.name.hint'
                 defaultMessage='a name for the vault'
               />
             }
             label={
               <FormattedMessage
-                id='vaults.create.name.label'
+                id='vaults.vault.name.label'
                 defaultMessage='vault name'
               />
             }
             onChange={ this.onEditName }
-            value={ createName }
+            value={ vaultName }
           />
           <Input
             hint={
               <FormattedMessage
-                id='vaults.create.description.hint'
+                id='vaults.vault.description.hint'
                 defaultMessage='an extended description for the vault'
               />
             }
             label={
               <FormattedMessage
-                id='vaults.create.descriptions.label'
+                id='vaults.vault.descriptions.label'
                 defaultMessage='(optional) description'
               />
             }
             onChange={ this.onEditDescription }
-            value={ createDescription }
+            value={ vaultDescription }
           />
           <Input
             hint={
               <FormattedMessage
-                id='vaults.create.hint.hint'
+                id='vaults.vault.hint.hint'
                 defaultMessage='(optional) a hint to help with remembering the password'
               />
             }
             label={
               <FormattedMessage
-                id='vaults.create.hint.label'
+                id='vaults.vault.hint.label'
                 defaultMessage='password hint'
               />
             }
             onChange={ this.onEditPasswordHint }
-            value={ createPasswordHint }
+            value={ vaultPasswordHint }
           />
           <div className={ styles.passwords }>
             <div className={ styles.password }>
               <Input
                 hint={
                   <FormattedMessage
-                    id='vaults.create.password.hint'
+                    id='vaults.vault.password.hint'
                     defaultMessage='a strong, unique password'
                   />
                 }
                 label={
                   <FormattedMessage
-                    id='vaults.create.password.label'
+                    id='vaults.vault.password.label'
                     defaultMessage='password'
                   />
                 }
                 onChange={ this.onEditPassword }
                 type='password'
-                value={ createPassword }
+                value={ vaultPassword }
               />
             </div>
             <div className={ styles.password }>
               <Input
-                error={ createPasswordRepeatError }
+                error={ vaultPasswordRepeatError }
                 hint={
                   <FormattedMessage
-                    id='vaults.create.password2.hint'
+                    id='vaults.vault.password2.hint'
                     defaultMessage='verify your password'
                   />
                 }
                 label={
                   <FormattedMessage
-                    id='vaults.create.password2.label'
+                    id='vaults.vault.password2.label'
                     defaultMessage='password (repeat)'
                   />
                 }
                 onChange={ this.onEditPasswordRepeat }
                 type='password'
-                value={ createPasswordRepeat }
+                value={ vaultPasswordRepeat }
               />
             </div>
           </div>
-          <PasswordStrength input={ createPassword } />
+          <PasswordStrength input={ vaultPassword } />
         </div>
       </Portal>
     );
   }
 
   onEditDescription = (event, description) => {
-    this.props.vaultStore.setCreateDescription(description);
+    this.props.vaultStore.setVaultDescription(description);
   }
 
   onEditName = (event, name) => {
-    this.props.vaultStore.setCreateName(name);
+    this.props.vaultStore.setVaultName(name);
   }
 
   onEditPassword = (event, password) => {
-    this.props.vaultStore.setCreatePassword(password);
+    this.props.vaultStore.setVaultPassword(password);
   }
 
   onEditPasswordHint = (event, hint) => {
-    this.props.vaultStore.setCreatePasswordHint(hint);
+    this.props.vaultStore.setVaultPasswordHint(hint);
   }
 
   onEditPasswordRepeat = (event, password) => {
-    this.props.vaultStore.setCreatePasswordRepeat(password);
+    this.props.vaultStore.setVaultPasswordRepeat(password);
   }
 
   onCreate = () => {
-    const { createNameError, createPasswordRepeatError } = this.props.vaultStore;
+    const { vaultNameError, vaultPasswordRepeatError } = this.props.vaultStore;
 
-    if (createNameError || createPasswordRepeatError) {
+    if (vaultNameError || vaultPasswordRepeatError) {
       return;
     }
 

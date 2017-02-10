@@ -25,7 +25,7 @@ let instance;
 let reduxStore;
 let vaultStore;
 
-function createReduxStore () {
+function vaultReduxStore () {
   reduxStore = {
     dispatch: sinon.stub(),
     subscribe: sinon.stub(),
@@ -35,22 +35,22 @@ function createReduxStore () {
   return reduxStore;
 }
 
-function createVaultStore () {
+function vaultVaultStore () {
   vaultStore = {
     isBusyCreate: false,
     isModalCreateOpen: true,
-    createDescription: 'initialDesc',
-    createName: 'initialName',
-    createPassword: 'initialPassword',
-    createPasswordRepeat: 'initialPassword',
-    createPasswordHint: 'initialHint',
+    vaultDescription: 'initialDesc',
+    vaultName: 'initialName',
+    vaultPassword: 'initialPassword',
+    vaultPasswordRepeat: 'initialPassword',
+    vaultPasswordHint: 'initialHint',
     closeCreateModal: sinon.stub(),
     createVault: sinon.stub().resolves(true),
-    setCreateDescription: sinon.stub(),
-    setCreateName: sinon.stub(),
-    setCreatePassword: sinon.stub(),
-    setCreatePasswordHint: sinon.stub(),
-    setCreatePasswordRepeat: sinon.stub()
+    setVaultDescription: sinon.stub(),
+    setVaultName: sinon.stub(),
+    setVaultPassword: sinon.stub(),
+    setVaultPasswordHint: sinon.stub(),
+    setVaultPasswordRepeat: sinon.stub()
   };
 
   return vaultStore;
@@ -58,10 +58,10 @@ function createVaultStore () {
 
 function render () {
   component = shallow(
-    <VaultCreate vaultStore={ createVaultStore() } />,
+    <VaultCreate vaultStore={ vaultVaultStore() } />,
     {
       context: {
-        store: createReduxStore()
+        store: vaultReduxStore()
       }
     }
   ).find('VaultCreate').shallow();
@@ -114,8 +114,8 @@ describe('modals/VaultCreate', () => {
         instance.onEditDescription(null, 'testDescription');
       });
 
-      it('calls setCreateDescription', () => {
-        expect(vaultStore.setCreateDescription).to.have.been.calledWith('testDescription');
+      it('calls setVaultDescription', () => {
+        expect(vaultStore.setVaultDescription).to.have.been.calledWith('testDescription');
       });
     });
 
@@ -124,8 +124,8 @@ describe('modals/VaultCreate', () => {
         instance.onEditName(null, 'testName');
       });
 
-      it('calls setCreateName', () => {
-        expect(vaultStore.setCreateName).to.have.been.calledWith('testName');
+      it('calls setVaultName', () => {
+        expect(vaultStore.setVaultName).to.have.been.calledWith('testName');
       });
     });
 
@@ -134,8 +134,8 @@ describe('modals/VaultCreate', () => {
         instance.onEditPassword(null, 'testPassword');
       });
 
-      it('calls setCreatePassword', () => {
-        expect(vaultStore.setCreatePassword).to.have.been.calledWith('testPassword');
+      it('calls setVaultPassword', () => {
+        expect(vaultStore.setVaultPassword).to.have.been.calledWith('testPassword');
       });
     });
 
@@ -144,8 +144,8 @@ describe('modals/VaultCreate', () => {
         instance.onEditPasswordHint(null, 'testPasswordHint');
       });
 
-      it('calls setCreatePasswordHint', () => {
-        expect(vaultStore.setCreatePasswordHint).to.have.been.calledWith('testPasswordHint');
+      it('calls setVaultPasswordHint', () => {
+        expect(vaultStore.setVaultPasswordHint).to.have.been.calledWith('testPasswordHint');
       });
     });
 
@@ -154,8 +154,8 @@ describe('modals/VaultCreate', () => {
         instance.onEditPasswordRepeat(null, 'testPassword');
       });
 
-      it('calls setCreatePasswordRepeat', () => {
-        expect(vaultStore.setCreatePasswordRepeat).to.have.been.calledWith('testPassword');
+      it('calls setVaultPasswordRepeat', () => {
+        expect(vaultStore.setVaultPasswordRepeat).to.have.been.calledWith('testPassword');
       });
     });
   });

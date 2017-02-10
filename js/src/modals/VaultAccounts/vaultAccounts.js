@@ -95,6 +95,9 @@ class VaultAccounts extends Component {
     );
   }
 
+  // TODO: There are a lot of similarities between the dapp permissions selector
+  // (although that has defaults) and this one. A genrerix multi-select component
+  // would be applicable going forward. (Originals passed in, new selections back)
   renderAccount = (account) => {
     const { vaultName, selectedAccounts } = this.props.vaultStore;
     const isInVault = account.meta.vault === vaultName;

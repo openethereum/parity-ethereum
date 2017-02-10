@@ -70,22 +70,6 @@ describe('modals/Vaults', () => {
   });
 
   describe('event methods', () => {
-    describe('onCloseVault', () => {
-      beforeEach(() => {
-        sinon.spy(instance.vaultStore, 'openCloseModal');
-
-        instance.onCloseVault('testing');
-      });
-
-      afterEach(() => {
-        instance.vaultStore.openCloseModal.restore();
-      });
-
-      it('calls into vaultStore.openCloseModal', () => {
-        expect(instance.vaultStore.openCloseModal).to.have.been.calledWith('testing');
-      });
-    });
-
     describe('onOpenAccounts', () => {
       beforeEach(() => {
         sinon.spy(instance.vaultStore, 'openAccountsModal');
@@ -118,19 +102,35 @@ describe('modals/Vaults', () => {
       });
     });
 
-    describe('onOpenVault', () => {
+    describe('onOpenLockVault', () => {
       beforeEach(() => {
-        sinon.spy(instance.vaultStore, 'openOpenModal');
+        sinon.spy(instance.vaultStore, 'openLockModal');
 
-        instance.onOpenVault('testing');
+        instance.onOpenLockVault('testing');
       });
 
       afterEach(() => {
-        instance.vaultStore.openOpenModal.restore();
+        instance.vaultStore.openLockModal.restore();
       });
 
-      it('calls into vaultStore.openOpenModal', () => {
-        expect(instance.vaultStore.openOpenModal).to.have.been.calledWith('testing');
+      it('calls into vaultStore.openLockModal', () => {
+        expect(instance.vaultStore.openLockModal).to.have.been.calledWith('testing');
+      });
+    });
+
+    describe('onOpenUnlockVault', () => {
+      beforeEach(() => {
+        sinon.spy(instance.vaultStore, 'openUnlockModal');
+
+        instance.onOpenUnlockVault('testing');
+      });
+
+      afterEach(() => {
+        instance.vaultStore.openUnlockModal.restore();
+      });
+
+      it('calls into vaultStore.openUnlockModal', () => {
+        expect(instance.vaultStore.openUnlockModal).to.have.been.calledWith('testing');
       });
     });
   });

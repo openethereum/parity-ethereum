@@ -39,12 +39,12 @@ function createReduxStore () {
 
 function createVaultStore () {
   vaultStore = {
-    isBusyOpen: false,
-    isModalOpenOpen: true,
+    isBusyUnlock: false,
+    isModalUnlockOpen: true,
     vaultName: 'testVault',
     vaultPassword: 'testPassword',
     vaults: [{ name: 'testVault' }],
-    closeOpenModal: sinon.stub(),
+    closeUnlockModal: sinon.stub(),
     openVault: sinon.stub().resolves(true),
     setVaultPassword: sinon.stub()
   };
@@ -120,8 +120,8 @@ describe('modals/VaultOpen', () => {
         instance.onClose();
       });
 
-      it('calls into closeOpenModal', () => {
-        expect(vaultStore.closeOpenModal).to.have.been.called;
+      it('calls into closeUnlockModal', () => {
+        expect(vaultStore.closeUnlockModal).to.have.been.called;
       });
     });
 
@@ -130,7 +130,7 @@ describe('modals/VaultOpen', () => {
         instance.onEditPassword(null, 'someVaultPassword');
       });
 
-      it('calls into vaultStire.setVaultPassword', () => {
+      it('calls into vaultStore.setVaultPassword', () => {
         expect(vaultStore.setVaultPassword).to.have.been.calledWith('someVaultPassword');
       });
     });

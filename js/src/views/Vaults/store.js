@@ -23,54 +23,48 @@ import ERRORS from '~/modals/CreateAccount/errors';
 let instance;
 
 export default class Store {
-  @observable createDescription = '';
-  @observable createName = '';
-  @observable createNameError = ERRORS.noName;
-  @observable createPassword = '';
-  @observable createPasswordHint = '';
-  @observable createPasswordRepeat = '';
   @observable isBusyAccounts = false;
-  @observable isBusyClose = false;
   @observable isBusyCreate = false;
   @observable isBusyLoad = false;
-  @observable isBusyOpen = false;
+  @observable isBusyLock = false;
+  @observable isBusyUnlock = false;
   @observable isModalAccountsOpen = false;
-  @observable isModalCloseOpen = false;
   @observable isModalCreateOpen = false;
-  @observable isModalOpenOpen = false;
+  @observable isModalLockOpen = false;
+  @observable isModalUnlockOpen = false;
   @observable selectedAccounts = {};
   @observable vaults = [];
   @observable vaultNames = [];
   @observable vaultName = '';
+  @observable vaultNameError = ERRORS.noName;
+  @observable vaultDescription = '';
   @observable vaultPassword = '';
+  @observable vaultPasswordHint = '';
+  @observable vaultPasswordRepeat = '';
 
   constructor (api) {
     this._api = api;
   }
 
-  @computed get createPasswordRepeatError () {
-    return this.createPassword === this.createPasswordRepeat
+  @computed get vaultPasswordRepeatError () {
+    return this.vaultPassword === this.vaultPasswordRepeat
       ? null
       : ERRORS.noMatchPassword;
   }
 
-  @action clearCreateFields = () => {
+  @action clearVaultFields = () => {
     transaction(() => {
-      this.createDescription = '';
-      this.createName = '';
-      this.createNameError = ERRORS.noName;
-      this.createPassword = '';
-      this.createPasswordHint = '';
-      this.createPasswordRepeat = '';
+      this.vaultDescription = '';
+      this.vaultName = '';
+      this.vaultNameError = ERRORS.noName;
+      this.vaultPassword = '';
+      this.vaultPasswordHint = '';
+      this.vaultPasswordRepeat = '';
     });
   }
 
   @action setBusyAccounts = (isBusy) => {
     this.isBusyAccounts = isBusy;
-  }
-
-  @action setBusyClose = (isBusy) => {
-    this.isBusyClose = isBusy;
   }
 
   @action setBusyCreate = (isBusy) => {
@@ -81,61 +75,30 @@ export default class Store {
     this.isBusyLoad = isBusy;
   }
 
-  @action setBusyOpen = (isBusy) => {
-    this.isBusyOpen = isBusy;
+  @action setBusyLock = (isBusy) => {
+    this.isBusyLock = isBusy;
   }
 
-  @action setCreateDescription = (description) => {
-    this.createDescription = description;
-  }
-
-  @action setCreateName = (name) => {
-    let nameError = null;
-
-    if (!name || !name.trim().length) {
-      nameError = ERRORS.noName;
-    } else {
-      const lowerName = name.toLowerCase();
-
-      if (this.vaultNames.includes(lowerName)) {
-        nameError = ERRORS.duplicateName;
-      }
-    }
-
-    transaction(() => {
-      this.createName = name;
-      this.createNameError = nameError;
-    });
-  }
-
-  @action setCreatePassword = (password) => {
-    this.createPassword = password;
-  }
-
-  @action setCreatePasswordHint = (hint) => {
-    this.createPasswordHint = hint;
-  }
-
-  @action setCreatePasswordRepeat = (password) => {
-    this.createPasswordRepeat = password;
+  @action setBusyUnlock = (isBusy) => {
+    this.isBusyUnlock = isBusy;
   }
 
   @action setModalAccountsOpen = (isOpen) => {
     this.isModalAccountsOpen = isOpen;
   }
 
-  @action setModalCloseOpen = (isOpen) => {
-    this.isModalCloseOpen = isOpen;
-  }
-
   @action setModalCreateOpen = (isOpen) => {
     this.isModalCreateOpen = isOpen;
   }
 
-  @action setModalOpenOpen = (isOpen) => {
+  @action setModalLockOpen = (isOpen) => {
+    this.isModalLockOpen = isOpen;
+  }
+
+  @action setModalUnlockOpen = (isOpen) => {
     transaction(() => {
       this.setVaultPassword('');
-      this.isModalOpenOpen = isOpen;
+      this.isModalUnlockOpen = isOpen;
     });
   }
 
@@ -156,12 +119,39 @@ export default class Store {
     });
   }
 
+  @action setVaultDescription = (description) => {
+    this.vaultDescription = description;
+  }
+
   @action setVaultName = (name) => {
-    this.vaultName = name;
+    let nameError = null;
+
+    if (!name || !name.trim().length) {
+      nameError = ERRORS.noName;
+    } else {
+      const lowerName = name.toLowerCase();
+
+      if (this.vaultNames.includes(lowerName)) {
+        nameError = ERRORS.duplicateName;
+      }
+    }
+
+    transaction(() => {
+      this.vaultName = name;
+      this.vaultNameError = nameError;
+    });
   }
 
   @action setVaultPassword = (password) => {
     this.vaultPassword = password;
+  }
+
+  @action setVaultPasswordHint = (hint) => {
+    this.vaultPasswordHint = hint;
+  }
+
+  @action setVaultPasswordRepeat = (password) => {
+    this.vaultPasswordRepeat = password;
   }
 
   @action toggleSelectedAccount = (address) => {
@@ -174,16 +164,16 @@ export default class Store {
     this.setModalAccountsOpen(false);
   }
 
-  closeCloseModal () {
-    this.setModalCloseOpen(false);
-  }
-
   closeCreateModal () {
     this.setModalCreateOpen(false);
   }
 
-  closeOpenModal () {
-    this.setModalOpenOpen(false);
+  closeLockModal () {
+    this.setModalLockOpen(false);
+  }
+
+  closeUnlockModal () {
+    this.setModalUnlockOpen(false);
   }
 
   openAccountsModal (name) {
@@ -194,24 +184,24 @@ export default class Store {
     });
   }
 
-  openCloseModal (name) {
-    transaction(() => {
-      this.setVaultName(name);
-      this.setModalCloseOpen(true);
-    });
-  }
-
   openCreateModal () {
     transaction(() => {
-      this.clearCreateFields();
+      this.clearVaultFields();
       this.setModalCreateOpen(true);
     });
   }
 
-  openOpenModal (name) {
+  openLockModal (name) {
     transaction(() => {
       this.setVaultName(name);
-      this.setModalOpenOpen(true);
+      this.setModalLockOpen(true);
+    });
+  }
+
+  openUnlockModal (name) {
+    transaction(() => {
+      this.setVaultName(name);
+      this.setModalUnlockOpen(true);
     });
   }
 
@@ -245,34 +235,34 @@ export default class Store {
   }
 
   closeVault () {
-    this.setBusyClose(true);
+    this.setBusyLock(true);
 
     return this._api.parity
       .closeVault(this.vaultName)
       .then(this.loadVaults)
       .then(() => {
-        this.setBusyClose(false);
+        this.setBusyLock(false);
       })
       .catch((error) => {
         console.error('closeVault', error);
-        this.setBusyClose(false);
+        this.setBusyLock(false);
         throw error;
       });
   }
 
   createVault () {
-    if (this.createNameError || this.createPasswordRepeatError) {
+    if (this.vaultNameError || this.vaultPasswordRepeatError) {
       return Promise.reject();
     }
 
     this.setBusyCreate(true);
 
     return this._api.parity
-      .newVault(this.createName, this.createPassword)
+      .newVault(this.vaultName, this.vaultPassword)
       .then(() => {
-        return this._api.parity.setVaultMeta(this.createName, {
-          description: this.createDescription,
-          passwordHint: this.createPasswordHint
+        return this._api.parity.setVaultMeta(this.vaultName, {
+          description: this.vaultDescription,
+          passwordHint: this.vaultPasswordHint
         });
       })
       .then(this.loadVaults)
@@ -287,17 +277,17 @@ export default class Store {
   }
 
   openVault () {
-    this.setBusyOpen(true);
+    this.setBusyUnlock(true);
 
     return this._api.parity
       .openVault(this.vaultName, this.vaultPassword)
       .then(this.loadVaults)
       .then(() => {
-        this.setBusyOpen(false);
+        this.setBusyUnlock(false);
       })
       .catch((error) => {
         console.error('openVault', error);
-        this.setBusyOpen(false);
+        this.setBusyUnlock(false);
         throw error;
       });
   }

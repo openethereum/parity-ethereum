@@ -39,11 +39,11 @@ function createReduxStore () {
 
 function createVaultStore () {
   vaultStore = {
-    isBusyClose: false,
-    isModalCloseOpen: true,
+    isBusyLock: false,
+    isModalLockOpen: true,
     vaultName: 'testVault',
     vaults: [{ name: 'testVault' }],
-    closeCloseModal: sinon.stub(),
+    closeLockModal: sinon.stub(),
     closeVault: sinon.stub().resolves(true)
   };
 
@@ -118,8 +118,8 @@ describe('modals/VaultClose', () => {
         instance.onClose();
       });
 
-      it('calls into closeCloseModal', () => {
-        expect(vaultStore.closeCloseModal).to.have.been.called;
+      it('calls into closeLockModal', () => {
+        expect(vaultStore.closeLockModal).to.have.been.called;
       });
     });
   });

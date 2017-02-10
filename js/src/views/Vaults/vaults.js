@@ -93,8 +93,8 @@ class Vaults extends Component {
     };
     const onClickOpen = () => {
       isOpen
-        ? this.onCloseVault(name)
-        : this.onOpenVault(name);
+        ? this.onOpenLockVault(name)
+        : this.onOpenUnlockVault(name);
       return false;
     };
 
@@ -146,10 +146,6 @@ class Vaults extends Component {
     );
   }
 
-  onCloseVault = (name) => {
-    this.vaultStore.openCloseModal(name);
-  }
-
   onOpenAccounts = (name) => {
     this.vaultStore.openAccountsModal(name);
   }
@@ -158,8 +154,12 @@ class Vaults extends Component {
     this.vaultStore.openCreateModal();
   }
 
-  onOpenVault = (name) => {
-    this.vaultStore.openOpenModal(name);
+  onOpenLockVault = (name) => {
+    this.vaultStore.openLockModal(name);
+  }
+
+  onOpenUnlockVault = (name) => {
+    this.vaultStore.openUnlockModal(name);
   }
 }
 
