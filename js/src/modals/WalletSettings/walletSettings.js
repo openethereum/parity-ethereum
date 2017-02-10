@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 import { observer } from 'mobx-react';
 import { pick } from 'lodash';
@@ -51,12 +52,27 @@ class WalletSettings extends Component {
       return (
         <Modal
           visible
-          title='rejected'
+          title={
+            <FormattedMessage
+              id='ui.walletSettings.rejected.title'
+              defaultMessage='rejected'
+            />
+          }
           actions={ this.renderDialogActions() }
         >
           <BusyStep
-            title='The modifications have been rejected'
-            state='The wallet settings will not be modified. You can safely close this window.'
+            title={
+              <FormattedMessage
+                id='ui.walletSettings.rejected.busyStep.title'
+                defaultMessage='The modifications have been rejected'
+              />
+            }
+            state={
+              <FormattedMessage
+                id='ui.walletSettings.rejected.busyStep.state'
+                defaultMessage='The wallet settings will not be modified. You can safely close this window.'
+              />
+            }
           />
         </Modal>
       );
@@ -126,13 +142,28 @@ class WalletSettings extends Component {
 
             <Input
               hint='[ ... ]'
-              label='modifications'
+              label={
+                <FormattedMessage
+                  id='ui.walletSettings.modifications.fromString.label'
+                  defaultMessage='modifications'
+                />
+              }
               onChange={ this.store.onModificationsStringChange }
             />
 
             <AddressSelect
-              label='from account (wallet owner)'
-              hint='send modifications as this owner'
+              label={
+                <FormattedMessage
+                  id='ui.walletSettings.modifications.sender.label'
+                  defaultMessage='from account (wallet owner)'
+                />
+              }
+              hint={
+                <FormattedMessage
+                  id='ui.walletSettings.modifications.sender.hint'
+                  defaultMessage='send modifications as this owner'
+                />
+              }
               value={ wallet.sender }
               error={ errors.sender }
               onChange={ this.store.onSenderChange }
@@ -147,7 +178,12 @@ class WalletSettings extends Component {
                 : (
                   <div>
                     <TypedInput
-                      label='other wallet owners'
+                      label={
+                        <FormattedMessage
+                          id='ui.walletSettings.modifications.owners.label'
+                          defaultMessage='other wallet owners'
+                        />
+                      }
                       value={ wallet.owners.slice() }
                       onChange={ this.store.onOwnersChange }
                       accounts={ accountsInfo }
@@ -156,8 +192,18 @@ class WalletSettings extends Component {
 
                     <div className={ styles.splitInput }>
                       <TypedInput
-                        label='required owners'
-                        hint='number of required owners to accept a transaction'
+                        label={
+                          <FormattedMessage
+                            id='ui.walletSettings.modifications.required.label'
+                            defaultMessage='required owners'
+                          />
+                        }
+                        hint={
+                          <FormattedMessage
+                            id='ui.walletSettings.modifications.required.hint'
+                            defaultMessage='number of required owners to accept a transaction'
+                          />
+                        }
                         error={ errors.require }
                         min={ 1 }
                         onChange={ this.store.onRequireChange }
@@ -167,8 +213,18 @@ class WalletSettings extends Component {
                       />
 
                       <TypedInput
-                        label='wallet day limit'
-                        hint='amount of ETH spendable without confirmations'
+                        label={
+                          <FormattedMessage
+                            id='ui.walletSettings.modifications.daylimit.label'
+                            defaultMessage='wallet day limit'
+                          />
+                        }
+                        hint={
+                          <FormattedMessage
+                            id='ui.walletSettings.modifications.daylimit.hint'
+                            defaultMessage='amount of ETH spendable without confirmations'
+                          />
+                        }
                         value={ wallet.dailylimit }
                         error={ errors.dailylimit }
                         onChange={ this.store.onDailylimitChange }
@@ -187,7 +243,12 @@ class WalletSettings extends Component {
   renderChanges (changes) {
     if (changes.length === 0) {
       return (
-        <p>No modifications have been made to the Wallet settings.</p>
+        <p>
+          <FormattedMessage
+            id='ui.walletSettings.changes.none'
+            defaultMessage='No modifications have been made to the Wallet settings.'
+          />
+        </p>
       );
     }
 
@@ -200,9 +261,14 @@ class WalletSettings extends Component {
     return (
       <div>
         <p className={ styles.modifications }>
-          For your modifications to be taken into account, other owners
-          have to send the same modifications. They can paste
-          this string to make it easier:
+          <FormattedMessage
+            id='ui.walletSettings.changes.modificationString'
+            defaultMessage={
+              `For your modifications to be taken into account,
+              other owners have to send the same modifications. They can paste
+              this string to make it easier:`
+            }
+          />
         </p>
         <Input
           allowCopy
@@ -211,7 +277,14 @@ class WalletSettings extends Component {
           value={ this.store.changesToString() }
         />
 
-        <p>You are about to make the following modifications</p>
+        <p>
+          <FormattedMessage
+            id='ui.walletSettings.changes.overview'
+            defaultMessage={
+              `You are about to make the following modifications`
+            }
+          />
+        </p>
         { modifications }
       </div>
     );
