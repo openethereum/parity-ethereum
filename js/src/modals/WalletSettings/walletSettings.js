@@ -23,7 +23,7 @@ import ActionDone from 'material-ui/svg-icons/action/done';
 import ContentClear from 'material-ui/svg-icons/content/clear';
 import NavigationArrowForward from 'material-ui/svg-icons/navigation/arrow-forward';
 
-import { Button, Modal, TxHash, BusyStep, Form, TypedInput, InputAddress, AddressSelect } from '~/ui';
+import { Button, Modal, TxHash, BusyStep, Form, TypedInput, Input, InputAddress, AddressSelect } from '~/ui';
 import { fromWei } from '~/api/util/wei';
 
 import WalletSettingsStore from './walletSettingsStore.js';
@@ -112,7 +112,7 @@ class WalletSettings extends Component {
 
       default:
       case 'EDIT':
-        const { wallet, errors } = this.store;
+        const { errors, fromString, wallet } = this.store;
         const { accountsInfo, senders } = this.props;
 
         return (
@@ -120,9 +120,15 @@ class WalletSettings extends Component {
             <p>
               In order to edit this contract's settings, at
               least { this.store.initialWallet.require.toNumber() } owners have to
-              send the very same modifications.
-              Otherwise, no modification will be taken into account...
+              send the very same modifications. You can paste a stringified version
+              of the modifications here.
             </p>
+
+            <Input
+              hint='[ ... ]'
+              label='modifications'
+              onChange={ this.store.onModificationsStringChange }
+            />
 
             <AddressSelect
               label='from account (wallet owner)'
@@ -133,36 +139,46 @@ class WalletSettings extends Component {
               accounts={ senders }
             />
 
-            <TypedInput
-              label='other wallet owners'
-              value={ wallet.owners.slice() }
-              onChange={ this.store.onOwnersChange }
-              accounts={ accountsInfo }
-              param='address[]'
-            />
+            <br />
 
-            <div className={ styles.splitInput }>
-              <TypedInput
-                label='required owners'
-                hint='number of required owners to accept a transaction'
-                error={ errors.require }
-                min={ 1 }
-                onChange={ this.store.onRequireChange }
-                max={ wallet.owners.length }
-                param='uint'
-                value={ wallet.require }
-              />
+            {
+              fromString
+                ? null
+                : (
+                  <div>
+                    <TypedInput
+                      label='other wallet owners'
+                      value={ wallet.owners.slice() }
+                      onChange={ this.store.onOwnersChange }
+                      accounts={ accountsInfo }
+                      param='address[]'
+                    />
 
-              <TypedInput
-                label='wallet day limit'
-                hint='amount of ETH spendable without confirmations'
-                value={ wallet.dailylimit }
-                error={ errors.dailylimit }
-                onChange={ this.store.onDailylimitChange }
-                param='uint'
-                isEth
-              />
-            </div>
+                    <div className={ styles.splitInput }>
+                      <TypedInput
+                        label='required owners'
+                        hint='number of required owners to accept a transaction'
+                        error={ errors.require }
+                        min={ 1 }
+                        onChange={ this.store.onRequireChange }
+                        max={ wallet.owners.length }
+                        param='uint'
+                        value={ wallet.require }
+                      />
+
+                      <TypedInput
+                        label='wallet day limit'
+                        hint='amount of ETH spendable without confirmations'
+                        value={ wallet.dailylimit }
+                        error={ errors.dailylimit }
+                        onChange={ this.store.onDailylimitChange }
+                        param='uint'
+                        isEth
+                      />
+                    </div>
+                  </div>
+                )
+            }
           </Form>
         );
     }
@@ -183,6 +199,18 @@ class WalletSettings extends Component {
 
     return (
       <div>
+        <p className={ styles.modifications }>
+          For your modifications to be taken into account, other owners
+          have to send the same modifications. They can paste
+          this string to make it easier:
+        </p>
+        <Input
+          allowCopy
+          label='modifications'
+          readOnly
+          value={ this.store.changesToString() }
+        />
+
         <p>You are about to make the following modifications</p>
         { modifications }
       </div>
