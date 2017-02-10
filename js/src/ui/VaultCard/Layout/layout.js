@@ -48,7 +48,7 @@ export default class Layout extends Component {
           className={
             [
               styles.identityIcon,
-              isOpen
+              isOpen || withBorder
                 ? styles.unlocked
                 : styles.locked
             ].join(' ')
