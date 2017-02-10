@@ -42,7 +42,7 @@ function render (props = {}) {
   return component;
 }
 
-describe.only('modals/Vaults', () => {
+describe('modals/Vaults', () => {
   beforeEach(() => {
     render();
   });
