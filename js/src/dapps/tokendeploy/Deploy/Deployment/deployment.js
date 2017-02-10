@@ -34,9 +34,9 @@ export default class Deployment extends Component {
     managerInstance: PropTypes.object.isRequired,
     registryInstance: PropTypes.object.isRequired,
     tokenregInstance: PropTypes.object.isRequired
-  }
+  };
 
-  state = {
+  static initState = {
     base: null,
     deployBusy: false,
     deployDone: false,
@@ -54,7 +54,9 @@ export default class Deployment extends Component {
     totalSupplyError: null,
     signerRequestId: null,
     txHash: null
-  }
+  };
+
+  state = Deployment.initState
 
   componentDidMount () {
     const { managerInstance, tokenregInstance } = this.context;
@@ -72,6 +74,10 @@ export default class Deployment extends Component {
           globalFeeText: api.util.fromWei(globalFee).toFormat(3)
         });
       });
+  }
+
+  reset () {
+    this.setState(Deployment.initState, () => this.componentDidMount());
   }
 
   render () {
@@ -102,7 +108,7 @@ export default class Deployment extends Component {
             Your deployment has encountered an error
           </div>
           <div className={ styles.statusError }>
-            { deployError }
+            { deployError.message }
           </div>
         </Container>
       );
@@ -293,8 +299,12 @@ export default class Deployment extends Component {
         this.setState({ txReceipt, deployDone: true, deployState: 'Network confirmed, Received transaction receipt' });
       })
       .catch((error) => {
+        if (error.type === 'REQUEST_REJECTED') {
+          return this.reset();
+        }
+
         console.error('onDeploy', error);
-        this.setState({ deployError: error.message });
+        this.setState({ deployError: error });
       });
   }
 }

@@ -23,6 +23,8 @@
   border: none;
   margin: 0 auto;
   border-collapse: collapse;
+  display: flex;
+  overflow: auto;
 }
 
 .eventList tr:nth-child(even) {
