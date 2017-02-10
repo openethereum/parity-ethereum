@@ -177,7 +177,7 @@ impl NetworkService {
 	}
 
 	/// Executes action in the network context
-	pub fn with_context<F>(&self, protocol: ProtocolId, action: F) where F: Fn(&NetworkContext) {
+	pub fn with_context<F>(&self, protocol: ProtocolId, action: F) where F: FnOnce(&NetworkContext) {
 		let io = IoContext::new(self.io_service.channel(), 0);
 		let host = self.host.read();
 		if let Some(ref host) = host.as_ref() {
@@ -186,7 +186,7 @@ impl NetworkService {
 	}
 
 	/// Evaluates function in the network context
-	pub fn with_context_eval<F, T>(&self, protocol: ProtocolId, action: F) -> Option<T> where F: Fn(&NetworkContext) -> T {
+	pub fn with_context_eval<F, T>(&self, protocol: ProtocolId, action: F) -> Option<T> where F: FnOnce(&NetworkContext) -> T {
 		let io = IoContext::new(self.io_service.channel(), 0);
 		let host = self.host.read();
 		host.as_ref().map(|ref host| host.with_context_eval(protocol, &io, action))

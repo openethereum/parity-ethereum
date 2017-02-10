@@ -601,6 +601,7 @@ dependencies = [
  "ethcore-devtools 1.6.0",
  "ethcore-io 1.6.0",
  "ethcore-ipc 1.6.0",
+ "ethcore-light 1.6.0",
  "ethcore-util 1.6.0",
  "ethcrypto 0.1.0",
  "ethjson 0.1.0",
