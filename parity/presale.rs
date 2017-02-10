@@ -16,7 +16,7 @@
 
 use ethcore::ethstore::{PresaleWallet, EthStore};
 use ethcore::ethstore::dir::RootDiskDirectory;
-use ethcore::account_provider::AccountProvider;
+use ethcore::account_provider::{AccountProvider, AccountProviderSettings};
 use helpers::{password_prompt, password_from_file};
 use params::SpecType;
 
@@ -37,7 +37,7 @@ pub fn execute(cmd: ImportWallet) -> Result<String, String> {
 
 	let dir = Box::new(RootDiskDirectory::create(cmd.path).unwrap());
 	let secret_store = Box::new(EthStore::open_with_iterations(dir, cmd.iterations).unwrap());
-	let acc_provider = AccountProvider::new(secret_store);
+	let acc_provider = AccountProvider::new(secret_store, AccountProviderSettings::default());
 	let wallet = PresaleWallet::open(cmd.wallet_path).map_err(|_| "Unable to open presale wallet.")?;
 	let kp = wallet.decrypt(&password).map_err(|_| "Invalid password.")?;
 	let address = acc_provider.insert_account(kp.secret().clone(), &password).unwrap();

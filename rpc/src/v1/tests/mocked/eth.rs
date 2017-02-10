@@ -34,6 +34,7 @@ use ethsync::SyncState;
 
 use jsonrpc_core::IoHandler;
 use v1::{Eth, EthClient, EthClientOptions, EthFilter, EthFilterClient, EthSigning, SigningUnsafeClient};
+use v1::helpers::dispatch::FullDispatcher;
 use v1::tests::helpers::{TestSyncProvider, Config, TestMinerService, TestSnapshotService};
 use v1::metadata::Metadata;
 
@@ -88,7 +89,9 @@ impl EthTester {
 		let external_miner = Arc::new(ExternalMiner::new(hashrates.clone()));
 		let eth = EthClient::new(&client, &snapshot, &sync, &ap, &miner, &external_miner, options).to_delegate();
 		let filter = EthFilterClient::new(&client, &miner).to_delegate();
-		let sign = SigningUnsafeClient::new(&client, &ap, &miner).to_delegate();
+
+		let dispatcher = FullDispatcher::new(Arc::downgrade(&client), Arc::downgrade(&miner));
+		let sign = SigningUnsafeClient::new(&ap, dispatcher).to_delegate();
 		let mut io: IoHandler<Metadata> = IoHandler::default();
 		io.extend_with(eth);
 		io.extend_with(sign);

@@ -29,6 +29,7 @@ use v1::{SignerClient, Signer};
 use v1::metadata::Metadata;
 use v1::tests::helpers::TestMinerService;
 use v1::helpers::{SigningQueue, SignerService, FilledTransactionRequest, ConfirmationPayload};
+use v1::helpers::dispatch::FullDispatcher;
 
 struct SignerTester {
 	signer: Arc<SignerService>,
@@ -59,8 +60,9 @@ fn signer_tester() -> SignerTester {
 	let client = blockchain_client();
 	let miner = miner_service();
 
+	let dispatcher = FullDispatcher::new(Arc::downgrade(&client), Arc::downgrade(&miner));
 	let mut io = IoHandler::default();
-	io.extend_with(SignerClient::new(&accounts, &client, &miner, &signer).to_delegate());
+	io.extend_with(SignerClient::new(&accounts, dispatcher, &signer).to_delegate());
 
 	SignerTester {
 		signer: signer,

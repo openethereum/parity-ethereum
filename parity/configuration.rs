@@ -461,6 +461,7 @@ impl Configuration {
 			testnet: self.args.flag_testnet,
 			password_files: self.args.flag_password.clone(),
 			unlocked_accounts: to_addresses(&self.args.flag_unlock)?,
+			enable_hardware_wallets: !self.args.flag_no_hardware_wallets,
 		};
 
 		Ok(cfg)

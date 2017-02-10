@@ -259,10 +259,15 @@ export default class WriteContractStore {
   }
 
   compile = (data) => {
+    const { name = '' } = this.selectedContract;
+
     if (this.useWorker) {
       return this.worker.postMessage({
         action: 'compile',
-        data
+        data: {
+          ...data,
+          name
+        }
       });
     }
 
@@ -271,7 +276,10 @@ export default class WriteContractStore {
         this
           .getCompiler(data.build)
           .then((compiler) => {
-            return SolidityUtils.compile(data, compiler);
+            return SolidityUtils.compile({
+              ...data,
+              name
+            }, compiler);
           })
           .then(resolve)
           .catch(reject);

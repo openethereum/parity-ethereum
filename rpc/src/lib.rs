@@ -33,6 +33,7 @@ extern crate ethcrypto as crypto;
 extern crate ethstore;
 extern crate ethsync;
 extern crate ethash;
+extern crate ethcore_light as light;
 extern crate transient_hashmap;
 extern crate jsonrpc_ipc_server as ipc;
 extern crate ethcore_ipc;
@@ -64,7 +65,7 @@ use jsonrpc_core::reactor::RpcHandler;
 pub use ipc::{Server as IpcServer, Error as IpcServerError};
 pub use jsonrpc_http_server::{ServerBuilder, Server, RpcServerError};
 pub mod v1;
-pub use v1::{SigningQueue, SignerService, ConfirmationsQueue, NetworkSettings, Metadata, Origin, informant};
+pub use v1::{SigningQueue, SignerService, ConfirmationsQueue, NetworkSettings, Metadata, Origin, informant, dispatch};
 pub use v1::block_import::is_major_importing;
 
 /// Start http server asynchronously and returns result with `Server` handle on success or an error.

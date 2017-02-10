@@ -62,44 +62,44 @@ build_rpc_trait! {
 		fn block_number(&self) -> Result<U256, Error>;
 
 		/// Returns balance of the given account.
-		#[rpc(name = "eth_getBalance")]
-		fn balance(&self, H160, Trailing<BlockNumber>) -> Result<U256, Error>;
+		#[rpc(async, name = "eth_getBalance")]
+		fn balance(&self, H160, Trailing<BlockNumber>) -> BoxFuture<U256, Error>;
 
 		/// Returns content of the storage at given address.
-		#[rpc(name = "eth_getStorageAt")]
-		fn storage_at(&self, H160, U256, Trailing<BlockNumber>) -> Result<H256, Error>;
+		#[rpc(async, name = "eth_getStorageAt")]
+		fn storage_at(&self, H160, U256, Trailing<BlockNumber>) -> BoxFuture<H256, Error>;
 
 		/// Returns block with given hash.
-		#[rpc(name = "eth_getBlockByHash")]
-		fn block_by_hash(&self, H256, bool) -> Result<Option<RichBlock>, Error>;
+		#[rpc(async, name = "eth_getBlockByHash")]
+		fn block_by_hash(&self, H256, bool) -> BoxFuture<Option<RichBlock>, Error>;
 
 		/// Returns block with given number.
-		#[rpc(name = "eth_getBlockByNumber")]
-		fn block_by_number(&self, BlockNumber, bool) -> Result<Option<RichBlock>, Error>;
+		#[rpc(async, name = "eth_getBlockByNumber")]
+		fn block_by_number(&self, BlockNumber, bool) -> BoxFuture<Option<RichBlock>, Error>;
 
 		/// Returns the number of transactions sent from given address at given time (block number).
-		#[rpc(name = "eth_getTransactionCount")]
-		fn transaction_count(&self, H160, Trailing<BlockNumber>) -> Result<U256, Error>;
+		#[rpc(async, name = "eth_getTransactionCount")]
+		fn transaction_count(&self, H160, Trailing<BlockNumber>) -> BoxFuture<U256, Error>;
 
 		/// Returns the number of transactions in a block with given hash.
-		#[rpc(name = "eth_getBlockTransactionCountByHash")]
-		fn block_transaction_count_by_hash(&self, H256) -> Result<Option<U256>, Error>;
+		#[rpc(async, name = "eth_getBlockTransactionCountByHash")]
+		fn block_transaction_count_by_hash(&self, H256) -> BoxFuture<Option<U256>, Error>;
 
 		/// Returns the number of transactions in a block with given block number.
-		#[rpc(name = "eth_getBlockTransactionCountByNumber")]
-		fn block_transaction_count_by_number(&self, BlockNumber) -> Result<Option<U256>, Error>;
+		#[rpc(async, name = "eth_getBlockTransactionCountByNumber")]
+		fn block_transaction_count_by_number(&self, BlockNumber) -> BoxFuture<Option<U256>, Error>;
 
 		/// Returns the number of uncles in a block with given hash.
-		#[rpc(name = "eth_getUncleCountByBlockHash")]
-		fn block_uncles_count_by_hash(&self, H256) -> Result<Option<U256>, Error>;
+		#[rpc(async, name = "eth_getUncleCountByBlockHash")]
+		fn block_uncles_count_by_hash(&self, H256) -> BoxFuture<Option<U256>, Error>;
 
 		/// Returns the number of uncles in a block with given block number.
-		#[rpc(name = "eth_getUncleCountByBlockNumber")]
-		fn block_uncles_count_by_number(&self, BlockNumber) -> Result<Option<U256>, Error>;
+		#[rpc(async, name = "eth_getUncleCountByBlockNumber")]
+		fn block_uncles_count_by_number(&self, BlockNumber) -> BoxFuture<Option<U256>, Error>;
 
 		/// Returns the code at given address at given time (block number).
-		#[rpc(name = "eth_getCode")]
-		fn code_at(&self, H160, Trailing<BlockNumber>) -> Result<Bytes, Error>;
+		#[rpc(async, name = "eth_getCode")]
+		fn code_at(&self, H160, Trailing<BlockNumber>) -> BoxFuture<Bytes, Error>;
 
 		/// Sends signed transaction, returning its hash.
 		#[rpc(name = "eth_sendRawTransaction")]
