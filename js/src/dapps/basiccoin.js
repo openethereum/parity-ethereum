@@ -21,10 +21,10 @@ import { Redirect, Router, Route, hashHistory } from 'react-router';
 import injectTapEventPlugin from 'react-tap-event-plugin';
 injectTapEventPlugin();
 
-import Deploy from './basiccoin/Deploy';
-import Application from './basiccoin/Application';
-import Overview from './basiccoin/Overview';
-import Transfer from './basiccoin/Transfer';
+import Deploy from './tokendeploy/Deploy';
+import Application from './tokendeploy/Application';
+import Overview from './tokendeploy/Overview';
+import Transfer from './tokendeploy/Transfer';
 
 import '../../assets/fonts/Roboto/font.css';
 import '../../assets/fonts/RobotoMono/font.css';
