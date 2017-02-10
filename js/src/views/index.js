@@ -14,44 +14,20 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import Account from './Account';
-import Accounts from './Accounts';
-import Address from './Address';
-import Addresses from './Addresses';
-import Application from './Application';
-import Contract from './Contract';
-import Contracts from './Contracts';
-import Dapp from './Dapp';
-import Dapps from './Dapps';
-import HistoryStore from './historyStore';
-import ParityBar from './ParityBar';
-import Settings, { SettingsBackground, SettingsParity, SettingsProxy, SettingsViews } from './Settings';
-import Signer from './Signer';
-import Status from './Status';
-import Wallet from './Wallet';
-import Web from './Web';
-import WriteContract from './WriteContract';
-
-export {
-  Account,
-  Accounts,
-  Address,
-  Addresses,
-  Application,
-  Contract,
-  Contracts,
-  Dapp,
-  Dapps,
-  HistoryStore,
-  ParityBar,
-  Settings,
-  SettingsBackground,
-  SettingsParity,
-  SettingsProxy,
-  SettingsViews,
-  Signer,
-  Status,
-  Wallet,
-  Web,
-  WriteContract
-};
+export Account from './Account';
+export Accounts from './Accounts';
+export Address from './Address';
+export Addresses from './Addresses';
+export Application from './Application';
+export Contract from './Contract';
+export Contracts from './Contracts';
+export Dapp from './Dapp';
+export Dapps from './Dapps';
+export HistoryStore from './historyStore';
+export ParityBar from './ParityBar';
+export Settings, { SettingsBackground, SettingsParity, SettingsProxy, SettingsViews } from './Settings';
+export Signer from './Signer';
+export Status from './Status';
+export Wallet from './Wallet';
+export Web from './Web';
+export WriteContract from './WriteContract';

@@ -124,6 +124,14 @@ dependencies = [
 
 [[package]]
 name = "bit-set"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "bit-vec 0.4.3 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "bit-set"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
@@ -381,6 +389,7 @@ dependencies = [
  "ethkey 0.2.0",
  "ethstore 0.1.0",
  "evmjit 1.6.0",
+ "hardware-wallet 1.6.0",
  "heapsize 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "hyper 0.10.0-a.0 (git+https://github.com/ethcore/hyper)",
  "lazy_static 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -864,11 +873,32 @@ version = "0.1.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
+name = "hardware-wallet"
+version = "1.6.0"
+dependencies = [
+ "ethcore-bigint 0.1.2",
+ "ethkey 0.2.0",
+ "hidapi 0.3.1 (git+https://github.com/ethcore/hidapi-rs)",
+ "libusb 0.3.0 (git+https://github.com/ethcore/libusb-rs)",
+ "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
+ "parking_lot 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
 name = "heapsize"
 version = "0.3.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "kernel32-sys 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "hidapi"
+version = "0.3.1"
+source = "git+https://github.com/ethcore/hidapi-rs#9a127c1dca7e327e4fdd428406a76c9f5ef48563"
+dependencies = [
+ "gcc 0.3.35 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc 0.2.16 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -1107,6 +1137,25 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 name = "libc"
 version = "0.2.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[[package]]
+name = "libusb"
+version = "0.3.0"
+source = "git+https://github.com/ethcore/libusb-rs#32bacf61abd981d5cbd4a8fecca5a2dc0b762a96"
+dependencies = [
+ "bit-set 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc 0.2.16 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libusb-sys 0.2.3 (git+https://github.com/ethcore/libusb-sys)",
+]
+
+[[package]]
+name = "libusb-sys"
+version = "0.2.3"
+source = "git+https://github.com/ethcore/libusb-sys#3c56a34bd040b0e60758824d839d9b700cfad2e0"
+dependencies = [
+ "gcc 0.3.35 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc 0.2.16 (registry+https://github.com/rust-lang/crates.io-index)",
+]
 
 [[package]]
 name = "linked-hash-map"
@@ -1575,7 +1624,7 @@ dependencies = [
 [[package]]
 name = "parity-ui-precompiled"
 version = "1.4.0"
-source = "git+https://github.com/ethcore/js-precompiled.git#cb0dd77b70c552bb68288a94c7d5d37ecdd611c8"
+source = "git+https://github.com/ethcore/js-precompiled.git#8d3275d4b227ea47558d6d8c423cc23b6bb504f3"
 dependencies = [
  "parity-dapps-glue 1.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -2487,6 +2536,7 @@ dependencies = [
 "checksum aster 0.17.0 (registry+https://github.com/rust-lang/crates.io-index)" = "07d344974f0a155f091948aa389fb1b912d3a58414fbdb9c8d446d193ee3496a"
 "checksum base32 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)" = "1b9605ba46d61df0410d8ac686b0007add8172eba90e8e909c347856fe794d8c"
 "checksum bigint 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)" = "2311bcd71b281e142a095311c22509f0d6bcd87b3000d7dbaa810929b9d6f6ae"
+"checksum bit-set 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)" = "e6e1e6fb1c9e3d6fcdec57216a74eaa03e41f52a22f13a16438251d8e88b89da"
 "checksum bit-set 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)" = "d9bf6104718e80d7b26a68fdbacff3481cfc05df670821affc7e9cbc1884400c"
 "checksum bit-vec 0.4.3 (registry+https://github.com/rust-lang/crates.io-index)" = "5b97c2c8e8bbb4251754f559df8af22fb264853c7d009084a576cdf12565089d"
 "checksum bitflags 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)" = "8dead7461c1127cf637931a1e50934eb6eee8bff2f74433ac7909e9afcee04a3"
@@ -2526,6 +2576,7 @@ dependencies = [
 "checksum glob 0.2.11 (registry+https://github.com/rust-lang/crates.io-index)" = "8be18de09a56b60ed0edf84bc9df007e30040691af7acd1c41874faac5895bfb"
 "checksum hamming 0.1.3 (registry+https://github.com/rust-lang/crates.io-index)" = "65043da274378d68241eb9a8f8f8aa54e349136f7b8e12f63e3ef44043cc30e1"
 "checksum heapsize 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)" = "abb306abb8d398e053cfb1b3e7b72c2f580be048b85745c52652954f8ad1439c"
+"checksum hidapi 0.3.1 (git+https://github.com/ethcore/hidapi-rs)" = "<none>"
 "checksum hpack 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)" = "3d2da7d3a34cf6406d9d700111b8eafafe9a251de41ae71d8052748259343b58"
 "checksum httparse 1.1.2 (registry+https://github.com/rust-lang/crates.io-index)" = "46534074dbb80b070d60a5cb8ecadd8963a00a438ae1a95268850a7ef73b67ae"
 "checksum hyper 0.10.0-a.0 (git+https://github.com/ethcore/hyper)" = "<none>"
@@ -2548,6 +2599,8 @@ dependencies = [
 "checksum lazy_static 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)" = "49247ec2a285bb3dcb23cbd9c35193c025e7251bfce77c1d5da97e6362dffe7f"
 "checksum lazycell 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)" = "ce12306c4739d86ee97c23139f3a34ddf0387bbf181bc7929d287025a8c3ef6b"
 "checksum libc 0.2.16 (registry+https://github.com/rust-lang/crates.io-index)" = "408014cace30ee0f767b1c4517980646a573ec61a57957aeeabcac8ac0a02e8d"
+"checksum libusb 0.3.0 (git+https://github.com/ethcore/libusb-rs)" = "<none>"
+"checksum libusb-sys 0.2.3 (git+https://github.com/ethcore/libusb-sys)" = "<none>"
 "checksum linked-hash-map 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)" = "bda158e0dabeb97ee8a401f4d17e479d6b891a14de0bba79d5cc2d4d325b5e48"
 "checksum linked-hash-map 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)" = "6d262045c5b87c0861b3f004610afd0e2c851e2908d08b6c870cbb9d5f494ecd"
 "checksum log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)" = "ab83497bf8bf4ed2a74259c1c802351fcd67a65baa86394b6ba73c36f4838054"

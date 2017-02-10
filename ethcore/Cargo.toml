@@ -42,6 +42,7 @@ rlp = { path = "../util/rlp" }
 ethcore-stratum = { path = "../stratum" }
 lru-cache = "0.1.0"
 ethcore-bloom-journal = { path = "../util/bloom" }
+hardware-wallet = { path = "../hw" }
 ethabi = "0.2.2"
 
 [dependencies.hyper]

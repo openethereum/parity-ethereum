@@ -65,6 +65,11 @@
 
   .link {
     vertical-align: top;
+
+    &.currentLink {
+      color: white;
+      cursor: text;
+    }
   }
 
   .right {

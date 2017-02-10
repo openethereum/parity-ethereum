@@ -17,13 +17,12 @@
 import BigNumber from 'bignumber.js';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
-import { connect } from 'react-redux';
 
-import unknownImage from '~/../assets/images/contracts/unknown-64x64.png';
+import TokenImage from '~/ui/TokenImage';
 
 import styles from './balance.css';
 
-class Balance extends Component {
+export default class Balance extends Component {
   static contextTypes = {
     api: PropTypes.object
   };
@@ -31,7 +30,6 @@ class Balance extends Component {
   static propTypes = {
     balance: PropTypes.object,
     className: PropTypes.string,
-    images: PropTypes.object.isRequired,
     showOnlyEth: PropTypes.bool,
     showZeroValues: PropTypes.bool
   };
@@ -43,7 +41,7 @@ class Balance extends Component {
 
   render () {
     const { api } = this.context;
-    const { balance, className, images, showZeroValues, showOnlyEth } = this.props;
+    const { balance, className, showZeroValues, showOnlyEth } = this.props;
 
     if (!balance || !balance.tokens) {
       return null;
@@ -79,26 +77,12 @@ class Balance extends Component {
           value = api.util.fromWei(balance.value).toFormat(3);
         }
 
-        const imageurl = token.image || images[token.address];
-        let imagesrc = unknownImage;
-
-        if (imageurl) {
-          const host = /^(\/)?api/.test(imageurl)
-            ? api.dappsUrl
-            : '';
-
-          imagesrc = `${host}${imageurl}`;
-        }
-
         return (
           <div
             className={ styles.balance }
             key={ `${index}_${token.tag}` }
           >
-            <img
-              src={ imagesrc }
-              alt={ token.name }
-            />
+            <TokenImage token={ token } />
             <div className={ styles.balanceValue }>
               <span title={ value }> { value } </span>
             </div>
@@ -125,14 +109,3 @@ class Balance extends Component {
     );
   }
 }
-
-function mapStateToProps (state) {
-  const { images } = state;
-
-  return { images };
-}
-
-export default connect(
-  mapStateToProps,
-  null
-)(Balance);

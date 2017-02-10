@@ -17,13 +17,16 @@
 import { isEqual } from 'lodash';
 import { action, observable } from 'mobx';
 
-export default class Store {
+export default class SignerStore {
   @observable balances = {};
   @observable localHashes = [];
 
-  constructor (api, withLocalTransactions = false) {
+  externalLink = '';
+
+  constructor (api, withLocalTransactions = false, externalLink = '') {
     this._api = api;
     this._timeoutId = 0;
+    this.externalLink = externalLink;
 
     if (withLocalTransactions) {
       this.fetchLocalTransactions();

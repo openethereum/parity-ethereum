@@ -45,6 +45,7 @@ use v1::types::{
 	TransactionStats, LocalTransactionStatus,
 	BlockNumber, ConsensusCapability, VersionInfo,
 	OperationsInfo, DappId, ChainStatus,
+	AccountInfo, HwAccountInfo
 };
 
 /// Parity implementation.
@@ -111,7 +112,7 @@ impl<C, M, S: ?Sized, U> Parity for ParityClient<C, M, S, U> where
 {
 	type Metadata = Metadata;
 
-	fn accounts_info(&self, dapp: Trailing<DappId>) -> Result<BTreeMap<String, BTreeMap<String, String>>, Error> {
+	fn accounts_info(&self, dapp: Trailing<DappId>) -> Result<BTreeMap<H160, AccountInfo>, Error> {
 		let dapp = dapp.0;
 
 		let store = take_weak!(self.accounts);
@@ -128,12 +129,17 @@ impl<C, M, S: ?Sized, U> Parity for ParityClient<C, M, S, U> where
 			.into_iter()
 			.chain(other.into_iter())
 			.filter(|&(ref a, _)| dapp_accounts.contains(a))
-			.map(|(a, v)| {
-				let m = map![
-					"name".to_owned() => v.name
-				];
-				(format!("0x{}", a.hex()), m)
-			})
+			.map(|(a, v)| (H160::from(a), AccountInfo { name: v.name }))
+			.collect()
+		)
+	}
+
+	fn hardware_accounts_info(&self) -> Result<BTreeMap<H160, HwAccountInfo>, Error> {
+		let store = take_weak!(self.accounts);
+		let info = store.hardware_accounts_info().map_err(|e| errors::account("Could not fetch account info.", e))?;
+		Ok(info
+			.into_iter()
+			.map(|(a, v)| (H160::from(a), HwAccountInfo { name: v.name, manufacturer: v.meta }))
 			.collect()
 		)
 	}

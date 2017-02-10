@@ -15,16 +15,19 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import { connect } from 'react-redux';
+import { Link } from 'react-router';
 
-import { addressLink } from '~/3rdparty/etherscan/links';
 import styles from './accountLink.css';
 
-export default class AccountLink extends Component {
+class AccountLink extends Component {
   static propTypes = {
-    isTest: PropTypes.bool.isRequired,
+    accountAddresses: PropTypes.array.isRequired,
     address: PropTypes.string.isRequired,
     className: PropTypes.string,
-    children: PropTypes.node
+    children: PropTypes.node,
+    externalLink: PropTypes.string.isRequired,
+    isTest: PropTypes.bool.isRequired
   }
 
   state = {
@@ -32,36 +35,72 @@ export default class AccountLink extends Component {
   };
 
   componentWillMount () {
-    const { address, isTest } = this.props;
+    const { address, externalLink, isTest } = this.props;
 
-    this.updateLink(address, isTest);
+    this.updateLink(address, externalLink, isTest);
   }
 
   componentWillReceiveProps (nextProps) {
-    const { address, isTest } = nextProps;
+    const { address, externalLink, isTest } = nextProps;
 
-    this.updateLink(address, isTest);
+    this.updateLink(address, externalLink, isTest);
   }
 
   render () {
-    const { children, address, className } = this.props;
+    const { children, address, className, externalLink } = this.props;
+
+    if (externalLink) {
+      return (
+        <a
+          href={ this.state.link }
+          target='_blank'
+          className={ `${styles.container} ${className}` }
+        >
+          { children || address }
+        </a>
+      );
+    }
 
     return (
-      <a
-        href={ this.state.link }
-        target='_blank'
+      <Link
         className={ `${styles.container} ${className}` }
+        to={ this.state.link }
       >
         { children || address }
-      </a>
+      </Link>
     );
   }
 
-  updateLink (address, isTest) {
-    const link = addressLink(address, isTest);
+  updateLink (address, externalLink, isTest) {
+    const { accountAddresses } = this.props;
+    const isAccount = accountAddresses.includes(address);
+
+    let link = isAccount
+      ? `/accounts/${address}`
+      : `/addresses/${address}`;
+
+    if (externalLink) {
+      const path = externalLink.replace(/\/+$/, '');
+
+      link = `${path}/#${link}`;
+    }
 
     this.setState({
       link
     });
   }
 }
+
+function mapStateToProps (initState) {
+  const { accounts } = initState.personal;
+  const accountAddresses = Object.keys(accounts);
+
+  return () => {
+    return { accountAddresses };
+  };
+}
+
+export default connect(
+  mapStateToProps,
+  null
+)(AccountLink);

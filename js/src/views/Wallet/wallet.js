@@ -66,7 +66,6 @@ class Wallet extends Component {
   static propTypes = {
     address: PropTypes.string.isRequired,
     balance: nullableProptype(PropTypes.object.isRequired),
-    images: PropTypes.object.isRequired,
     isTest: PropTypes.bool.isRequired,
     owned: PropTypes.bool.isRequired,
     setVisibleAccounts: PropTypes.func.isRequired,
@@ -315,13 +314,12 @@ class Wallet extends Component {
       return null;
     }
 
-    const { walletAccount, balance, images } = this.props;
+    const { walletAccount, balance } = this.props;
 
     return (
       <Transfer
         account={ walletAccount }
         balance={ balance }
-        images={ images }
         onClose={ this.onTransferClose }
       />
     );
@@ -365,7 +363,6 @@ function mapStateToProps (_, initProps) {
     const { isTest } = state.nodeStatus;
     const { accountsInfo = {}, accounts = {} } = state.personal;
     const { balances } = state.balances;
-    const { images } = state;
     const walletAccount = accounts[address] || accountsInfo[address] || null;
 
     if (walletAccount) {
@@ -379,7 +376,6 @@ function mapStateToProps (_, initProps) {
     return {
       address,
       balance,
-      images,
       isTest,
       owned,
       wallet,

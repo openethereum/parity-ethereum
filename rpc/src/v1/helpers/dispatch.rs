@@ -21,6 +21,7 @@ use std::ops::Deref;
 use std::sync::Weak;
 
 use futures::{future, Future, BoxFuture};
+use rlp::{self, Stream};
 use util::{Address, H520, H256, U256, Uint, Bytes};
 use util::sha3::Hashable;
 
@@ -129,12 +130,31 @@ impl<C: MiningBlockChainClient, M: MinerService> Dispatcher for FullDispatcher<C
 			};
 
 			let hash = t.hash(network_id);
-			let signature = try_bf!(signature(accounts, address, hash, password));
-
-			signature.map(|sig| {
-				SignedTransaction::new(t.with_signature(sig, network_id))
-					.expect("Transaction was signed by AccountsProvider; it never produces invalid signatures; qed")
-			})
+			if accounts.is_hardware_address(address) {
+				let mut stream = rlp::RlpStream::new();
+				t.rlp_append_unsigned_transaction(&mut stream, network_id);
+				let signature = try_bf!(
+					accounts.sign_with_hardware(address, &stream.as_raw())
+						.map_err(|e| {
+							debug!(target: "miner", "Error signing transaction with hardware wallet: {}", e);
+							errors::account("Error signing transaction with hardware wallet", e)
+						})
+				);
+				let signed = try_bf!(
+					SignedTransaction::new(t.with_signature(signature, network_id))
+						.map_err(|e| {
+						  debug!(target: "miner", "Hardware wallet has produced invalid signature: {}", e);
+						  errors::account("Invalid signature generated", e)
+						})
+				);
+				WithToken::No(signed)
+			} else {
+				let signature = try_bf!(signature(accounts, address, hash, password));
+				signature.map(|sig| {
+					SignedTransaction::new(t.with_signature(sig, network_id))
+						.expect("Transaction was signed by AccountsProvider; it never produces invalid signatures; qed")
+				})
+			}
 		}).boxed()
 	}
 
@@ -309,7 +329,7 @@ fn decrypt(accounts: &AccountProvider, address: Address, msg: Bytes, password: S
 	})
 }
 
-/// Extract default gas price from a client and miner.
+/// Extract the default gas price from a client and miner.
 pub fn default_gas_price<C, M>(client: &C, miner: &M) -> U256
 	where C: MiningBlockChainClient, M: MinerService
 {

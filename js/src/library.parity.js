@@ -32,4 +32,4 @@ if (isNode) {
 import Abi from './abi';
 import Api from './api';
 
-module.exports = { Api, Abi };
+export { Api, Abi };

@@ -25,13 +25,28 @@ import TxRow from './txRow';
 
 const api = new Api({ execute: sinon.stub() });
 
+const STORE = {
+  dispatch: sinon.stub(),
+  subscribe: sinon.stub(),
+  getState: () => {
+    return {
+      personal: {
+        accounts: {
+          '0x123': {}
+        }
+      }
+    };
+  }
+};
+
 function render (props) {
   return shallow(
     <TxRow
+      store={ STORE }
       { ...props }
     />,
     { context: { api } }
-  );
+  ).find('TxRow').shallow({ context: { api } });
 }
 
 describe('ui/TxList/TxRow', () => {
@@ -47,6 +62,38 @@ describe('ui/TxList/TxRow', () => {
       };
 
       expect(render({ address: '0x123', block, isTest: true, tx })).to.be.ok;
+    });
+
+    it('renders an account link', () => {
+      const block = {
+        timestamp: new Date()
+      };
+      const tx = {
+        blockNumber: new BigNumber(123),
+        hash: '0x123456789abcdef0123456789abcdef0123456789abcdef',
+        to: '0x123',
+        value: new BigNumber(1)
+      };
+
+      const element = render({ address: '0x123', block, isTest: true, tx });
+
+      expect(element.find('Link').prop('to')).to.equal('/accounts/0x123');
+    });
+
+    it('renders an address link', () => {
+      const block = {
+        timestamp: new Date()
+      };
+      const tx = {
+        blockNumber: new BigNumber(123),
+        hash: '0x123456789abcdef0123456789abcdef0123456789abcdef',
+        to: '0x456',
+        value: new BigNumber(1)
+      };
+
+      const element = render({ address: '0x123', block, isTest: true, tx });
+
+      expect(element.find('Link').prop('to')).to.equal('/addresses/0x456');
     });
   });
 });
