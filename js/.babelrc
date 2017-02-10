@@ -8,7 +8,8 @@
     "transform-class-properties",
     "transform-object-rest-spread",
     "lodash",
-    "recharts"
+    "recharts",
+    [ "react-intl", { "messagesDir": "./.build/i18n/" } ]
   ],
   "retainLines": true,
   "env": {
@@ -20,7 +21,6 @@
     "development": {
       "plugins": [
         "react-hot-loader/babel",
-        ["react-intl", { "messagesDir": "./.build/i18n/" }]
       ]
     },
     "test": {
