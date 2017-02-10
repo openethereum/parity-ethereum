@@ -139,11 +139,12 @@ export function load (api) {
       if (!filterSubId) {
         return;
       }
-
+console.warn('new block');
       api.eth
         .getFilterChanges(filterSubId)
         .then((logs) => contract.parseEventLogs(logs))
         .then((logs) => {
+console.warn('new logs', logs);
           parseLogs(logs)(dispatch, getState);
         })
         .catch((error) => {

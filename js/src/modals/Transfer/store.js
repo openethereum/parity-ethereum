@@ -340,10 +340,10 @@ export default class TransferStore {
     if (this.isWallet && !valueError) {
       const { last, limit, spent } = this.wallet.dailylimit;
       const remains = fromWei(limit.minus(spent));
-      const date = last.mul(24 * 3600 * 1000);
-      const isResetable = (Date.now() - date) < 24 * 3600 * 100;
+      const today = Math.round(Date.now() / (24 * 3600 * 1000));
+      const isResetable = last.lt(today);
 
-      if (!isResetable && remains.lt(value)) {
+      if ((!isResetable && remains.lt(value)) || fromWei(limit).lt(value)) {
         // already spent too much today
         this.walletWarning = WALLET_WARNING_SPENT_TODAY_LIMIT;
       } else if (this.walletWarning) {
