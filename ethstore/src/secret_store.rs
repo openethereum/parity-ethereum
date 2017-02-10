@@ -120,8 +120,11 @@ impl Hash for StoreAccountRef {
 	}
 }
 
+/// Node in hierarchical derivation.
 pub struct IndexDerivation {
+	/// Node is soft (allows proof of parent from parent node).
 	pub soft: bool,
+	/// Index sequence of the node.
 	pub index: u32,
 }
 
@@ -129,7 +132,8 @@ pub struct IndexDerivation {
 pub enum Derivation {
 	/// Hierarchical derivation
 	Hierarchical(Vec<IndexDerivation>),
-	/// Hash derivation
+	/// Hash derivation, soft.
 	SoftHash(H256),
+	/// Hash derivation, hard.
 	HardHash(H256),
 }
