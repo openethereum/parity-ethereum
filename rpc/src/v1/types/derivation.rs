@@ -60,7 +60,7 @@ impl From<DerivateHash> for Derivate {
 /// Error converting request data
 #[derive(Debug)]
 pub enum ConvertError {
-	IndexToBig(u64),
+	IndexOverlfow(u64),
 }
 
 impl Derivate {
@@ -70,7 +70,7 @@ impl Derivate {
 				ethstore::Derivation::Hierarchical({
 					let mut members = Vec::<ethstore::IndexDerivation>::new();
 					for h in drv {
-						if h.index > ::std::u32::MAX as u64 { return Err(ConvertError::IndexToBig(h.index)); }
+						if h.index > ::std::u32::MAX as u64 { return Err(ConvertError::IndexOverlfow(h.index)); }
 						members.push(match h.d_type {
 							DerivationType::Soft => ethstore::IndexDerivation { soft: true, index: h.index as u32 },
 							DerivationType::Hard => ethstore::IndexDerivation { soft: false, index: h.index as u32 },

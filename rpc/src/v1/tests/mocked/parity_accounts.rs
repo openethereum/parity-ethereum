@@ -393,3 +393,43 @@ fn rpc_parity_get_set_vault_meta() {
 
 	assert_eq!(tester.io.handle_request_sync(request), Some(response.to_owned()));
 }
+
+// name: parity_deriveAddressHash
+// example: {"jsonrpc": "2.0", "method": "parity_deriveAddressHash", "params": ["0xc171033d5cbff7175f29dfd3a63dda3d6f8f385e", "password1", { "type": "soft", "hash": "0x0c0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0c0c" }, true ], "id": 3}
+#[test]
+fn derive_key_hash() {
+	let tester = setup();
+	let hash = tester.accounts
+		.insert_account(
+			"0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a".parse().unwrap(),
+			"password1")
+		.expect("account should be inserted ok");
+
+	assert_eq!(hash, "c171033d5cbff7175f29dfd3a63dda3d6f8f385e".parse().unwrap());
+
+	// derive by hash
+	let request = r#"{"jsonrpc": "2.0", "method": "parity_deriveAddressHash", "params": ["0xc171033d5cbff7175f29dfd3a63dda3d6f8f385e", "password1", { "type": "soft", "hash": "0x0c0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0c0c" }, true ], "id": 3}"#;
+	let response = r#"{"jsonrpc":"2.0","result":"0xf28c28fcddf4a9b8f474237278d3647f9c0d1b3c","id":3}"#;
+	let res = tester.io.handle_request_sync(&request);
+	assert_eq!(res, Some(response.into()));
+}
+
+// name: parity_deriveAddressIndex
+// example: {"jsonrpc": "2.0", "method": "parity_deriveAddressIndex", "params": ["0xc171033d5cbff7175f29dfd3a63dda3d6f8f385e", "password1", [{ "type": "soft", "index": 0 }, { "type": "soft", "index": 1 }], false ], "id": 3}
+#[test]
+fn derive_key_index() {
+	let tester = setup();
+	let hash = tester.accounts
+		.insert_account(
+			"0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a".parse().unwrap(),
+			"password1")
+		.expect("account should be inserted ok");
+
+	assert_eq!(hash, "c171033d5cbff7175f29dfd3a63dda3d6f8f385e".parse().unwrap());
+
+	// derive by hash
+	let request = r#"{"jsonrpc": "2.0", "method": "parity_deriveAddressIndex", "params": ["0xc171033d5cbff7175f29dfd3a63dda3d6f8f385e", "password1", [{ "type": "soft", "index": 0 }, { "type": "soft", "index": 1 }], false ], "id": 3}"#;
+	let response = r#"{"jsonrpc":"2.0","result":"0xcc548e0bb2efe792a920ae0fbf583b13919f274f","id":3}"#;
+	let res = tester.io.handle_request_sync(&request);
+	assert_eq!(res, Some(response.into()));
+}
