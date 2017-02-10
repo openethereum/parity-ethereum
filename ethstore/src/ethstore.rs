@@ -392,7 +392,7 @@ impl SimpleSecretStore for EthMultiStore {
 				continue;
 			}
 			let extended = self.generate(account.crypto.secret(password)?, derivation)?;
-			return self.insert_account(vault, extended.secret().secret().clone(), password);
+			return self.insert_account(vault, extended.secret().as_raw().clone(), password);
 		}
 		Err(Error::InvalidPassword)
 	}
@@ -423,7 +423,7 @@ impl SimpleSecretStore for EthMultiStore {
 				continue;
 			}
 			let extended = self.generate(account.crypto.secret(password)?, derivation)?;
-			let secret = extended.secret().secret();
+			let secret = extended.secret().as_raw();
 			return Ok(ethkey::sign(&secret, message)?)
 		}
 		Err(Error::InvalidPassword)
