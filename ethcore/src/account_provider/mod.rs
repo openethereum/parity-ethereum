@@ -30,7 +30,7 @@ use ethstore::dir::MemoryDirectory;
 use ethstore::ethkey::{Address, Message, Public, Secret, Random, Generator};
 use ethjson::misc::AccountMeta;
 pub use ethstore::ethkey::Signature;
-pub use ethstore::Derivation;
+pub use ethstore::{Derivation, IndexDerivation};
 
 /// Type of unlock.
 #[derive(Clone)]

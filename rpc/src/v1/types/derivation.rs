@@ -17,6 +17,7 @@
 use super::hash::{H256, H160};
 use serde::{Deserialize, Deserializer, Error};
 use serde::de::Visitor;
+use ethstore;
 
 pub enum DerivationType {
 	Soft,
@@ -38,6 +39,55 @@ pub struct DerivateHierarchicalItem {
 }
 
 pub type DerivateHierarchical = Vec<DerivateHierarchicalItem>;
+
+pub enum Derivate {
+	Hierarchical(DerivateHierarchical),
+	Hash(DerivateHash),
+}
+
+impl From<DerivateHierarchical> for Derivate {
+	fn from(d: DerivateHierarchical) -> Self {
+		Derivate::Hierarchical(d)
+	}
+}
+
+impl From<DerivateHash> for Derivate {
+	fn from(d: DerivateHash) -> Self {
+		Derivate::Hash(d)
+	}
+}
+
+/// Error converting request data
+#[derive(Debug)]
+pub enum ConvertError {
+	IndexToBig(u64),
+}
+
+impl Derivate {
+	pub fn to_derivation(self) -> Result<ethstore::Derivation, ConvertError> {
+		Ok(match self {
+			Derivate::Hierarchical(drv) => {
+				ethstore::Derivation::Hierarchical({
+					let mut members = Vec::<ethstore::IndexDerivation>::new();
+					for h in drv {
+						if h.index > ::std::u32::MAX as u64 { return Err(ConvertError::IndexToBig(h.index)); }
+						members.push(match h.d_type {
+							DerivationType::Soft => ethstore::IndexDerivation { soft: true, index: h.index as u32 },
+							DerivationType::Hard => ethstore::IndexDerivation { soft: false, index: h.index as u32 },
+						});
+					}
+					members
+			   })
+			},
+			Derivate::Hash(drv) => {
+				match drv.d_type {
+					DerivationType::Soft => ethstore::Derivation::SoftHash(drv.hash.into()),
+					DerivationType::Hard => ethstore::Derivation::HardHash(drv.hash.into()),
+				}
+			},
+		})
+	}
+}
 
 impl Deserialize for DerivationType {
 	fn deserialize<D>(deserializer: &mut D) -> Result<DerivationType, D::Error>
