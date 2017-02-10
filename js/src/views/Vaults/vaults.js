@@ -20,10 +20,11 @@ import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 
 import { VaultAccounts, VaultCreate, VaultLock, VaultUnlock } from '~/modals';
-import { Button, Page, SectionList, VaultCard } from '~/ui';
+import { Button, Container, Page, SectionList, VaultCard } from '~/ui';
 import { AccountsIcon, AddIcon, LockedIcon, UnlockedIcon } from '~/ui/Icons';
 
 import Store from './store';
+import styles from './vaults.css';
 
 @observer
 class Vaults extends Component {
@@ -44,8 +45,6 @@ class Vaults extends Component {
   }
 
   render () {
-    const { vaults } = this.vaultStore;
-
     return (
       <Page
         buttons={ [
@@ -72,11 +71,30 @@ class Vaults extends Component {
         <VaultCreate vaultStore={ this.vaultStore } />
         <VaultLock vaultStore={ this.vaultStore } />
         <VaultUnlock vaultStore={ this.vaultStore } />
-        <SectionList
-          items={ vaults }
-          renderItem={ this.renderVault }
-        />
+        { this.renderList() }
       </Page>
+    );
+  }
+
+  renderList () {
+    const { vaults } = this.vaultStore;
+
+    if (!vaults || !vaults.length) {
+      return (
+        <Container className={ styles.empty }>
+          <FormattedMessage
+            id='vaults.empty'
+            defaultMessage='There are currently no vaults to display.'
+          />
+        </Container>
+      );
+    }
+
+    return (
+      <SectionList
+        items={ vaults }
+        renderItem={ this.renderVault }
+      />
     );
   }
 

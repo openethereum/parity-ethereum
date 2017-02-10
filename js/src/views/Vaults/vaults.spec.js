@@ -42,7 +42,7 @@ function render (props = {}) {
   return component;
 }
 
-describe('modals/Vaults', () => {
+describe.only('modals/Vaults', () => {
   beforeEach(() => {
     render();
   });
@@ -65,6 +65,54 @@ describe('modals/Vaults', () => {
 
       it('calls into vaultStore.loadVaults', () => {
         expect(instance.vaultStore.loadVaults).to.have.been.called;
+      });
+    });
+
+    describe('renderList', () => {
+      it('renders empty when no vaults', () => {
+        instance.vaultStore.setVaults([], [], []);
+
+        expect(
+          shallow(instance.renderList()).find('FormattedMessage').props().id
+        ).to.equal('vaults.empty');
+      });
+
+      describe('SectionList', () => {
+        let list;
+
+        beforeEach(() => {
+          instance.vaultStore.setVaults(['testing'], [], ['meta']);
+          list = instance.renderList();
+        });
+
+        it('renders', () => {
+          expect(list).to.ok;
+        });
+
+        it('passes the vaults', () => {
+          expect(list.props.items.peek()).to.deep.equal(instance.vaultStore.vaults.peek());
+        });
+
+        it('renders via renderItem', () => {
+          expect(list.props.renderItem).to.deep.equal(instance.renderVault);
+        });
+      });
+    });
+
+    describe('renderVault', () => {
+      const VAULT = { name: 'testing', isOpen: true, meta: 'meta' };
+      let card;
+
+      beforeEach(() => {
+        card = instance.renderVault(VAULT);
+      });
+
+      it('renders', () => {
+        expect(card).to.be.ok;
+      });
+
+      it('passes the vault', () => {
+        expect(card.props.vault).to.deep.equal(VAULT);
       });
     });
   });
