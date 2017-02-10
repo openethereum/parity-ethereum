@@ -20,6 +20,10 @@ import sinon from 'sinon';
 
 import VaultLock from './';
 
+const VAULT = {
+  name: 'testVault'
+};
+
 let component;
 let instance;
 let reduxStore;
@@ -41,8 +45,9 @@ function createVaultStore () {
   vaultStore = {
     isBusyLock: false,
     isModalLockOpen: true,
-    vaultName: 'testVault',
-    vaults: [{ name: 'testVault' }],
+    vault: VAULT,
+    vaultName: VAULT.name,
+    vaults: [VAULT],
     closeLockModal: sinon.stub(),
     closeVault: sinon.stub().resolves(true)
   };

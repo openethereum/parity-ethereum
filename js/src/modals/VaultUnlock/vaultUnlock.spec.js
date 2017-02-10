@@ -20,6 +20,13 @@ import sinon from 'sinon';
 
 import VaultUnlock from './';
 
+const VAULT = {
+  name: 'testVault',
+  meta: {
+    passwordHint: 'some hint'
+  }
+};
+
 let component;
 let instance;
 let reduxStore;
@@ -41,9 +48,10 @@ function createVaultStore () {
   vaultStore = {
     isBusyUnlock: false,
     isModalUnlockOpen: true,
-    vaultName: 'testVault',
+    vault: VAULT,
+    vaultName: VAULT.name,
     vaultPassword: 'testPassword',
-    vaults: [{ name: 'testVault' }],
+    vaults: [VAULT],
     closeUnlockModal: sinon.stub(),
     openVault: sinon.stub().resolves(true),
     setVaultPassword: sinon.stub()
