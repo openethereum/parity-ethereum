@@ -41,7 +41,7 @@ rlp = { path = "../util/rlp" }
 ethcore-stratum = { path = "../stratum" }
 lru-cache = "0.1.0"
 ethcore-bloom-journal = { path = "../util/bloom" }
-ethabi = "0.2.2"
+ethabi = "1.0.0"
 
 [dependencies.hyper]
 git = "https://github.com/ethcore/hyper"
