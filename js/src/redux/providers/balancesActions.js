@@ -90,7 +90,11 @@ function setBalances (_balances, skipNotifications = false) {
           const txValue = value.minus(prevValue);
 
           const redirectToAccount = () => {
-            const route = `/accounts/${account.address}`;
+            const basePath = account.wallet
+              ? 'wallet'
+              : 'accounts';
+
+            const route = `/${basePath}/${account.address}`;
 
             dispatch(push(route));
           };
