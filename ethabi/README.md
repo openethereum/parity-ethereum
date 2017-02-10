@@ -34,7 +34,7 @@ This library encodes function calls and decodes their output.
 
 ```
 Ethereum ABI coder.
-  Copyright 2016 Ethcore (UK) Limited
+  Copyright 2016-2017 Parity Technologies (UK) Limited
 
 Usage:
     ethabi encode function <abi-path> <function-name> [-p <param>]... [-l | --lenient]
@@ -164,7 +164,7 @@ ethabi decode log ./examples/event.json Event -l 0000000000000000000000000000000
 -  [ethabi-js](https://github.com/jacogr/ethabi-js) - javascript port of this library created by [@jacogr](https://github.com/jacogr)
 
 # Ethcore toolchain
-*this project is a part of the ethcore toolchain*
+*this project is a part of the parity toolchain*
 
 - [**ethkey**](https://github.com/ethcore/ethkey) - Ethereum keys generator and signer.
 - [**ethstore**](https://github.com/ethcore/ethstore) - Ethereum key management.
