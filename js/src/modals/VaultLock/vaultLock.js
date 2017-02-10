@@ -23,7 +23,7 @@ import { bindActionCreators } from 'redux';
 import { newError } from '~/redux/actions';
 import { ConfirmDialog, VaultCard } from '~/ui';
 
-import styles from './vaultLock.css';
+import styles from '../VaultUnlock/vaultUnlock.css';
 
 @observer
 class VaultLock extends Component {

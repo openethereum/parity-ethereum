@@ -23,7 +23,7 @@ import { bindActionCreators } from 'redux';
 import { newError } from '~/redux/actions';
 import { ConfirmDialog, Input, VaultCard } from '~/ui';
 
-import styles from '../VaultLock/vaultLock.css';
+import styles from './vaultUnlock.css';
 
 @observer
 class VaultUnlock extends Component {
@@ -81,6 +81,9 @@ class VaultUnlock extends Component {
           type='password'
           value={ vaultPassword }
         />
+        <div className={ styles.passwordHint }>
+          { vault.meta.passwordHint }
+        </div>
         <br />
       </ConfirmDialog>
     );
