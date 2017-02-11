@@ -20,7 +20,8 @@ import moment from 'moment';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 
-import { Button, Modal, Editor } from '~/ui';
+import { Button, Modal } from '~/ui';
+import Editor from '~/ui/Editor';
 import { CancelIcon, CheckIcon, DeleteIcon } from '~/ui/Icons';
 
 import styles from './loadContract.css';

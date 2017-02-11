@@ -16,13 +16,16 @@
 
 use std::sync::Arc;
 use std::str::FromStr;
-use jsonrpc_core::IoHandler;
-use util::{U256, Uint, Address};
+
 use ethcore::account_provider::AccountProvider;
-use v1::{PersonalClient, Personal, Metadata};
-use v1::tests::helpers::TestMinerService;
 use ethcore::client::TestBlockChainClient;
 use ethcore::transaction::{Action, Transaction};
+use jsonrpc_core::IoHandler;
+use util::{U256, Uint, Address};
+
+use v1::{PersonalClient, Personal, Metadata};
+use v1::helpers::dispatch::FullDispatcher;
+use v1::tests::helpers::TestMinerService;
 
 struct PersonalTester {
 	accounts: Arc<AccountProvider>,
@@ -50,7 +53,9 @@ fn setup() -> PersonalTester {
 	let accounts = accounts_provider();
 	let client = blockchain_client();
 	let miner = miner_service();
-	let personal = PersonalClient::new(&accounts, &client, &miner, false);
+
+	let dispatcher = FullDispatcher::new(Arc::downgrade(&client), Arc::downgrade(&miner));
+	let personal = PersonalClient::new(&accounts, dispatcher, false);
 
 	let mut io = IoHandler::default();
 	io.extend_with(personal.to_delegate());

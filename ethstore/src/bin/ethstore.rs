@@ -22,8 +22,9 @@ use std::{env, process, fs};
 use std::io::Read;
 use docopt::Docopt;
 use ethstore::ethkey::Address;
-use ethstore::dir::{KeyDirectory, ParityDirectory, DiskDirectory, GethDirectory, DirectoryType};
-use ethstore::{EthStore, SecretStore, import_accounts, Error, PresaleWallet};
+use ethstore::dir::{KeyDirectory, ParityDirectory, RootDiskDirectory, GethDirectory, DirectoryType};
+use ethstore::{EthStore, SimpleSecretStore, SecretStore, import_accounts, Error, PresaleWallet,
+	SecretVaultRef, StoreAccountRef};
 
 pub const USAGE: &'static str = r#"
 Ethereum key management.
@@ -97,7 +98,7 @@ fn key_dir(location: &str) -> Result<Box<KeyDirectory>, Error> {
 		"parity-test" => Box::new(ParityDirectory::create(DirectoryType::Testnet)?),
 		"geth" => Box::new(GethDirectory::create(DirectoryType::Main)?),
 		"geth-test" => Box::new(GethDirectory::create(DirectoryType::Testnet)?),
-		path => Box::new(DiskDirectory::create(path)?),
+		path => Box::new(RootDiskDirectory::create(path)?),
 	};
 
 	Ok(dir)
@@ -130,16 +131,17 @@ fn execute<S, I>(command: I) -> Result<String, Error> where I: IntoIterator<Item
 	return if args.cmd_insert {
 		let secret = args.arg_secret.parse().map_err(|_| Error::InvalidSecret)?;
 		let password = load_password(&args.arg_password)?;
-		let address = store.insert_account(secret, &password)?;
+		let address = store.insert_account(SecretVaultRef::Root, secret, &password)?;
 		Ok(format!("0x{:?}", address))
 	} else if args.cmd_change_pwd {
 		let address = args.arg_address.parse().map_err(|_| Error::InvalidAccount)?;
 		let old_pwd = load_password(&args.arg_old_pwd)?;
 		let new_pwd = load_password(&args.arg_new_pwd)?;
-		let ok = store.change_password(&address, &old_pwd, &new_pwd).is_ok();
+		let ok = store.change_password(&StoreAccountRef::root(address), &old_pwd, &new_pwd).is_ok();
 		Ok(format!("{}", ok))
 	} else if args.cmd_list {
 		let accounts = store.accounts()?;
+		let accounts: Vec<_> = accounts.into_iter().map(|a| a.address).collect();
 		Ok(format_accounts(&accounts))
 	} else if args.cmd_import {
 		let src = key_dir(&args.flag_src)?;
@@ -150,23 +152,23 @@ fn execute<S, I>(command: I) -> Result<String, Error> where I: IntoIterator<Item
 		let wallet = PresaleWallet::open(&args.arg_path)?;
 		let password = load_password(&args.arg_password)?;
 		let kp = wallet.decrypt(&password)?;
-		let address = store.insert_account(kp.secret().clone(), &password)?;
+		let address = store.insert_account(SecretVaultRef::Root, kp.secret().clone(), &password)?;
 		Ok(format!("0x{:?}", address))
 	} else if args.cmd_remove {
 		let address = args.arg_address.parse().map_err(|_| Error::InvalidAccount)?;
 		let password = load_password(&args.arg_password)?;
-		let ok = store.remove_account(&address, &password).is_ok();
+		let ok = store.remove_account(&StoreAccountRef::root(address), &password).is_ok();
 		Ok(format!("{}", ok))
 	} else if args.cmd_sign {
 		let address = args.arg_address.parse().map_err(|_| Error::InvalidAccount)?;
 		let message = args.arg_message.parse().map_err(|_| Error::InvalidMessage)?;
 		let password = load_password(&args.arg_password)?;
-		let signature = store.sign(&address, &password, &message)?;
+		let signature = store.sign(&StoreAccountRef::root(address), &password, &message)?;
 		Ok(format!("0x{:?}", signature))
 	} else if args.cmd_public {
 		let address = args.arg_address.parse().map_err(|_| Error::InvalidAccount)?;
 		let password = load_password(&args.arg_password)?;
-		let public = store.public(&address, &password)?;
+		let public = store.public(&StoreAccountRef::root(address), &password)?;
 		Ok(format!("0x{:?}", public))
 	} else {
 		Ok(format!("{}", USAGE))

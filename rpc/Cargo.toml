@@ -33,6 +33,7 @@ ethash = { path = "../ethash" }
 ethsync = { path = "../sync" }
 ethjson = { path = "../json" }
 ethcore-devtools = { path = "../devtools" }
+ethcore-light = { path = "../ethcore/light" }
 parity-updater = { path = "../updater" }
 rlp = { path = "../util/rlp" }
 fetch = { path = "../util/fetch" }

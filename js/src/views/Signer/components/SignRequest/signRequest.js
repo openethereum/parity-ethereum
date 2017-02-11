@@ -96,7 +96,9 @@ export default class SignRequest extends Component {
   renderDetails () {
     const { api } = this.context;
     const { address, isTest, store, data, origin } = this.props;
-    const balance = store.balances[address];
+    const { balances, externalLink } = store;
+
+    const balance = balances[address];
 
     if (!balance) {
       return <div />;
@@ -108,6 +110,7 @@ export default class SignRequest extends Component {
           <Account
             address={ address }
             balance={ balance }
+            externalLink={ externalLink }
             isTest={ isTest }
           />
           <RequestOrigin origin={ origin } />

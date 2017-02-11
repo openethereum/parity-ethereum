@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+mod account_info;
 mod block;
 mod block_number;
 mod bytes;
@@ -37,6 +38,7 @@ mod transaction_condition;
 mod uint;
 mod work;
 
+pub use self::account_info::{AccountInfo, HwAccountInfo};
 pub use self::bytes::Bytes;
 pub use self::block::{RichBlock, Block, BlockTransactions};
 pub use self::block_number::BlockNumber;
@@ -65,3 +67,4 @@ pub use self::transaction_request::TransactionRequest;
 pub use self::transaction_condition::TransactionCondition;
 pub use self::uint::{U128, U256};
 pub use self::work::Work;
+

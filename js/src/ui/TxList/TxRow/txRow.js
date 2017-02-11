@@ -16,8 +16,10 @@
 
 import moment from 'moment';
 import React, { Component, PropTypes } from 'react';
+import { connect } from 'react-redux';
+import { Link } from 'react-router';
 
-import { txLink, addressLink } from '~/3rdparty/etherscan/links';
+import { txLink } from '~/3rdparty/etherscan/links';
 
 import IdentityIcon from '../../IdentityIcon';
 import IdentityName from '../../IdentityName';
@@ -25,19 +27,20 @@ import MethodDecoding from '../../MethodDecoding';
 
 import styles from '../txList.css';
 
-export default class TxRow extends Component {
+class TxRow extends Component {
   static contextTypes = {
     api: PropTypes.object.isRequired
   };
 
   static propTypes = {
-    tx: PropTypes.object.isRequired,
+    accountAddresses: PropTypes.array.isRequired,
     address: PropTypes.string.isRequired,
     isTest: PropTypes.bool.isRequired,
+    tx: PropTypes.object.isRequired,
 
     block: PropTypes.object,
-    historic: PropTypes.bool,
-    className: PropTypes.string
+    className: PropTypes.string,
+    historic: PropTypes.bool
   };
 
   static defaultProps = {
@@ -77,22 +80,20 @@ export default class TxRow extends Component {
   }
 
   renderAddress (address) {
-    const { isTest } = this.props;
-
     let esLink = null;
 
     if (address) {
       esLink = (
-        <a
-          href={ addressLink(address, isTest) }
-          target='_blank'
+        <Link
+          activeClassName={ styles.currentLink }
           className={ styles.link }
+          to={ this.addressLink(address) }
         >
           <IdentityName
             address={ address }
             shorten
           />
-        </a>
+        </Link>
       );
     }
 
@@ -138,4 +139,30 @@ export default class TxRow extends Component {
       </td>
     );
   }
+
+  addressLink (address) {
+    const { accountAddresses } = this.props;
+    const isAccount = accountAddresses.includes(address);
+
+    if (isAccount) {
+      return `/accounts/${address}`;
+    }
+
+    return `/addresses/${address}`;
+  }
 }
+
+function mapStateToProps (initState) {
+  const { accounts } = initState.personal;
+  const accountAddresses = Object.keys(accounts);
+
+  return () => {
+    return { accountAddresses };
+  };
+}
+
+export default connect(
+  mapStateToProps,
+  null
+)(TxRow);
+

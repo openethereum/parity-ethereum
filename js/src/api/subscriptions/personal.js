@@ -104,11 +104,14 @@ export default class Personal {
       }
 
       switch (data.method) {
+        case 'parity_closeVault':
+        case 'parity_openVault':
         case 'parity_killAccount':
         case 'parity_importGethAccounts':
-        case 'personal_newAccount':
         case 'parity_newAccountFromPhrase':
         case 'parity_newAccountFromWallet':
+        case 'personal_newAccount':
+          this._defaultAccount(true);
           this._listAccounts();
           this._accountsInfo();
           return;
@@ -116,6 +119,7 @@ export default class Personal {
         case 'parity_removeAddress':
         case 'parity_setAccountName':
         case 'parity_setAccountMeta':
+        case 'parity_changeVault':
           this._accountsInfo();
           return;
 

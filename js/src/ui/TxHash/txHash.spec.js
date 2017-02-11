@@ -33,10 +33,17 @@ function createApi () {
   blockNumber = new BigNumber(100);
   api = {
     eth: {
+      getTransactionByHash: (hash) => {
+        return Promise.resolve({
+          blockNumber: new BigNumber(100),
+          gas: new BigNumber(42000)
+        });
+      },
       getTransactionReceipt: (hash) => {
         return Promise.resolve({
           blockNumber: new BigNumber(100),
-          hash
+          transactionHash: hash,
+          gasUsed: new BigNumber(42000)
         });
       }
     },
@@ -128,6 +135,14 @@ describe('ui/TxHash', () => {
 
       it('renders confirmation text', () => {
         expect(child.find('FormattedMessage').props().id).to.equal('ui.txHash.confirmations');
+      });
+
+      it('renders with warnings', () => {
+        expect(component.find('Warning')).to.have.length.gte(1);
+      });
+
+      it('renders with oog warning', () => {
+        expect(component.find('Warning').shallow().find('FormattedMessage').prop('id')).to.match(/oog/);
       });
     });
   });

@@ -20,6 +20,7 @@ import { uniq } from 'lodash';
 
 import { wallet as walletAbi } from '~/contracts/abi';
 import { bytesToHex } from '~/api/util/format';
+import { fromWei } from '~/api/util/wei';
 import Contract from '~/api/contract';
 import ERRORS from './errors';
 import { ERROR_CODES } from '~/api/transport/error';
@@ -38,6 +39,8 @@ const TITLES = {
 };
 const STAGES_BASIC = [TITLES.transfer, TITLES.sending, TITLES.complete];
 const STAGES_EXTRA = [TITLES.transfer, TITLES.extras, TITLES.sending, TITLES.complete];
+
+export const WALLET_WARNING_SPENT_TODAY_LIMIT = 'WALLET_WARNING_SPENT_TODAY_LIMIT';
 
 export default class TransferStore {
   @observable stage = 0;
@@ -64,6 +67,8 @@ export default class TransferStore {
 
   @observable value = '0.0';
   @observable valueError = null;
+
+  @observable walletWarning = null;
 
   account = null;
   balance = null;
@@ -330,6 +335,21 @@ export default class TransferStore {
 
     if (!valueError) {
       valueError = this._validateDecimals(value);
+    }
+
+    if (this.isWallet && !valueError) {
+      const { last, limit, spent } = this.wallet.dailylimit;
+      const remains = fromWei(limit.minus(spent));
+      const today = Math.round(Date.now() / (24 * 3600 * 1000));
+      const isResetable = last.lt(today);
+
+      if ((!isResetable && remains.lt(value)) || fromWei(limit).lt(value)) {
+        // already spent too much today
+        this.walletWarning = WALLET_WARNING_SPENT_TODAY_LIMIT;
+      } else if (this.walletWarning) {
+        // all ok
+        this.walletWarning = null;
+      }
     }
 
     transaction(() => {

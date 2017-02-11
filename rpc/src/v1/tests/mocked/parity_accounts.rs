@@ -16,7 +16,7 @@
 
 use std::sync::Arc;
 
-use ethcore::account_provider::AccountProvider;
+use ethcore::account_provider::{AccountProvider, AccountProviderSettings};
 use ethstore::EthStore;
 use ethstore::dir::RootDiskDirectory;
 use devtools::RandomTempPath;
@@ -36,7 +36,7 @@ fn accounts_provider() -> Arc<AccountProvider> {
 fn accounts_provider_with_vaults_support(temp_path: &str) -> Arc<AccountProvider> {
 	let root_keys_dir = RootDiskDirectory::create(temp_path).unwrap();
 	let secret_store = EthStore::open(Box::new(root_keys_dir)).unwrap();
-	Arc::new(AccountProvider::new(Box::new(secret_store)))
+	Arc::new(AccountProvider::new(Box::new(secret_store), AccountProviderSettings::default()))
 }
 
 fn setup_with_accounts_provider(accounts_provider: Arc<AccountProvider>) -> ParityAccountsTester {
@@ -314,6 +314,14 @@ fn rpc_parity_vault_adds_vault_field_to_acount_meta() {
 	let response = format!(r#"{{"jsonrpc":"2.0","result":{{"0x{}":{{"meta":"{{\"vault\":\"vault1\"}}","name":"","uuid":"{}"}}}},"id":1}}"#, address1.hex(), uuid1);
 
 	assert_eq!(tester.io.handle_request_sync(request), Some(response.to_owned()));
+
+	// and then
+	assert!(tester.accounts.change_vault(address1, "").is_ok());
+
+	let request = r#"{"jsonrpc": "2.0", "method": "parity_allAccountsInfo", "params":[], "id": 1}"#;
+	let response = format!(r#"{{"jsonrpc":"2.0","result":{{"0x{}":{{"meta":"{{}}","name":"","uuid":"{}"}}}},"id":1}}"#, address1.hex(), uuid1);
+
+	assert_eq!(tester.io.handle_request_sync(request), Some(response.to_owned()));
 }
 
 #[test]
@@ -358,6 +366,14 @@ fn rpc_parity_get_set_vault_meta() {
 	let tester = setup_with_vaults_support(temp_path.as_str());
 
 	assert!(tester.accounts.create_vault("vault1", "password1").is_ok());
+
+	// when no meta set
+	let request = r#"{"jsonrpc": "2.0", "method": "parity_getVaultMeta", "params":["vault1"], "id": 1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":"{}","id":1}"#;
+
+	assert_eq!(tester.io.handle_request_sync(request), Some(response.to_owned()));
+
+	// when meta set
 	assert!(tester.accounts.set_vault_meta("vault1", "vault1_meta").is_ok());
 
 	let request = r#"{"jsonrpc": "2.0", "method": "parity_getVaultMeta", "params":["vault1"], "id": 1}"#;
@@ -365,11 +381,13 @@ fn rpc_parity_get_set_vault_meta() {
 
 	assert_eq!(tester.io.handle_request_sync(request), Some(response.to_owned()));
 
+	// change meta
 	let request = r#"{"jsonrpc": "2.0", "method": "parity_setVaultMeta", "params":["vault1", "updated_vault1_meta"], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":true,"id":1}"#;
 
 	assert_eq!(tester.io.handle_request_sync(request), Some(response.to_owned()));
 
+	// query changed meta
 	let request = r#"{"jsonrpc": "2.0", "method": "parity_getVaultMeta", "params":["vault1"], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":"updated_vault1_meta","id":1}"#;
 

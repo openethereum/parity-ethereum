@@ -18,7 +18,8 @@ import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 
-import { Form, Input, PasswordStrength } from '~/ui';
+import { Form, Input } from '~/ui';
+import PasswordStrength from '~/ui/Form/PasswordStrength';
 
 import styles from '../createAccount.css';
 

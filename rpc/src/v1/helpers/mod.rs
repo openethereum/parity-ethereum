@@ -28,6 +28,7 @@ mod requests;
 mod signer;
 mod signing_queue;
 
+pub use self::dispatch::{Dispatcher, FullDispatcher};
 pub use self::network_settings::NetworkSettings;
 pub use self::poll_manager::PollManager;
 pub use self::poll_filter::{PollFilter, limit_logs};

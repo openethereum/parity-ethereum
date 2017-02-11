@@ -14,35 +14,19 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import AddressSelect from './AddressSelect';
-import DappUrlInput from './DappUrlInput';
-import FormWrap from './FormWrap';
-import Input from './Input';
-import InputAddress from './InputAddress';
-import InputAddressSelect from './InputAddressSelect';
-import InputChip from './InputChip';
-import InputDate from './InputDate';
-import InputInline from './InputInline';
-import InputTime from './InputTime';
-import Label from './Label';
-import RadioButtons from './RadioButtons';
-import Select from './Select';
-import TypedInput from './TypedInput';
+export AddressSelect from './AddressSelect';
+export DappUrlInput from './DappUrlInput';
+export FormWrap from './FormWrap';
+export Input from './Input';
+export InputAddress from './InputAddress';
+export InputAddressSelect from './InputAddressSelect';
+export InputChip from './InputChip';
+export InputDate from './InputDate';
+export InputInline from './InputInline';
+export InputTime from './InputTime';
+export Label from './Label';
+export RadioButtons from './RadioButtons';
+export Select from './Select';
+export TypedInput from './TypedInput';
 
 export default from './form';
-export {
-  AddressSelect,
-  DappUrlInput,
-  FormWrap,
-  Input,
-  InputAddress,
-  InputAddressSelect,
-  InputChip,
-  InputDate,
-  InputInline,
-  InputTime,
-  Label,
-  RadioButtons,
-  Select,
-  TypedInput
-};
