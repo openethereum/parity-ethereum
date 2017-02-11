@@ -59,7 +59,10 @@ export default class SignRequest extends Component {
 
   static defaultProps = {
     focus: false,
-    origin: 'unknown'
+    origin: {
+      type: 'unknown',
+      details: ''
+    }
   };
 
   componentWillMount () {

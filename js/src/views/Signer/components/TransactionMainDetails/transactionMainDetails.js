@@ -42,7 +42,10 @@ export default class TransactionMainDetails extends Component {
   };
 
   static defaultProps = {
-    origin: 'unknown'
+    origin: {
+      type: 'unknown',
+      details: ''
+    }
   };
 
   componentWillMount () {

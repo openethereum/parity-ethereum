@@ -58,7 +58,10 @@ export default class TransactionPending extends Component {
 
   static defaultProps = {
     focus: false,
-    origin: 'unknown'
+    origin: {
+      type: 'unknown',
+      details: ''
+    }
   };
 
   gasStore = new GasPriceEditor.Store(this.context.api, {

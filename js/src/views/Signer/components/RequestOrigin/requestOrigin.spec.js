@@ -32,41 +32,41 @@ const context = {
 describe('views/Signer/components/RequestOrigin', () => {
   it('renders unknown', () => {
     expect(shallow(
-      <RequestOrigin origin={ 'unknown' } />,
+      <RequestOrigin origin={ { type: 'unknown', details: '' } } />,
       context
-    ).text()).to.equal('Requested by unknown');
+    ).text()).to.equal('Requested via unknown interface');
   });
 
   it('renders dapps', () => {
     expect(shallow(
-      <RequestOrigin origin={ { dapp: 'http://parity.io' } } />,
+      <RequestOrigin origin={ { type: 'dapp', details: 'http://parity.io' } } />,
       context
-    ).text()).to.equal('Requested by dapp at http://parity.io');
+    ).text()).to.equal('Requested by a dapp at http://parity.io');
   });
 
   it('renders rpc', () => {
     expect(shallow(
-      <RequestOrigin origin={ { rpc: '' } } />,
+      <RequestOrigin origin={ { type: 'rpc', details: '' } } />,
       context
-    ).text()).to.equal('Requested by RPC (unidentified)');
+    ).text()).to.equal('Requested via RPC (unidentified)');
   });
 
   it('renders ipc', () => {
     expect(shallow(
-      <RequestOrigin origin={ { ipc: '0x1234' } } />,
+      <RequestOrigin origin={ { type: 'ipc', details: '0x1234' } } />,
       context
-    ).text()).to.equal('Requested by IPC session<Connect(IdentityIcon) />');
+    ).text()).to.equal('Requested via IPC session<Connect(IdentityIcon) />');
   });
 
   it('renders signer', () => {
     expect(shallow(
-      <RequestOrigin origin={ { signer: '0x12345' } } />,
+      <RequestOrigin origin={ { type: 'signer', details: '0x12345' } } />,
       context
-    ).text()).to.equal('Requested by UI session<Connect(IdentityIcon) />');
+    ).text()).to.equal('Requested via UI session<Connect(IdentityIcon) />');
 
     expect(shallow(
-      <RequestOrigin origin={ { signer: '0x1234' } } />,
+      <RequestOrigin origin={ { type: 'signer', details: '0x1234' } } />,
       context
-    ).text()).to.equal('Requested by current tab');
+    ).text()).to.equal('Requested via current tab');
   });
 });

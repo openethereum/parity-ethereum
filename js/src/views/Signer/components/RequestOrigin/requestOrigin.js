@@ -26,13 +26,10 @@ export default class RequestOrigin extends Component {
   };
 
   static propTypes = {
-    origin: PropTypes.oneOfType([
-      PropTypes.oneOf(['unknown']),
-      PropTypes.shape({ dapp: PropTypes.string.isRequired }),
-      PropTypes.shape({ rpc: PropTypes.string.isRequired }),
-      PropTypes.shape({ ipc: PropTypes.string.isRequired }),
-      PropTypes.shape({ signer: PropTypes.string.isRequired })
-    ]).isRequired
+    origin: PropTypes.shape({
+      type: PropTypes.oneOf(['unknown', 'dapp', 'rpc', 'ipc', 'signer']),
+      details: PropTypes.string.isRequired
+    }).isRequired
   };
 
   render () {
@@ -40,48 +37,48 @@ export default class RequestOrigin extends Component {
 
     return (
       <div className={ styles.container }>
-        Requested by { this.renderOrigin(origin) }
+        Requested { this.renderOrigin(origin) }
       </div>
     );
   }
 
   renderOrigin (origin) {
-    if (origin === 'unknown') {
+    if (origin.type === 'unknown') {
       return (
-        <span className={ styles.unknown }>unknown</span>
+        <span className={ styles.unknown }>via unknown interface</span>
       );
     }
 
-    if ('dapp' in origin) {
+    if (origin.type === 'dapp') {
       return (
         <span>
-          dapp at <span className={ styles.url }>
-            { origin.dapp || 'unknown URL' }
+          by a dapp at <span className={ styles.url }>
+            { origin.details || 'unknown URL' }
           </span>
         </span>
       );
     }
 
-    if ('rpc' in origin) {
+    if (origin.type === 'rpc') {
       return (
         <span>
-          RPC <span className={ styles.url }>
-            ({ origin.rpc || 'unidentified' })
+          via RPC <span className={ styles.url }>
+            ({ origin.details || 'unidentified' })
           </span>
         </span>
       );
     }
 
-    if ('ipc' in origin) {
+    if (origin.type === 'ipc') {
       return (
         <span>
-          IPC session
+          via IPC session
           <span
             className={ styles.hash }
-            title={ origin.ipc }
+            title={ origin.details }
           >
             <IdentityIcon
-              address={ origin.ipc }
+              address={ origin.details }
               tiny
             />
           </span>
@@ -89,24 +86,24 @@ export default class RequestOrigin extends Component {
       );
     }
 
-    if ('signer' in origin) {
-      return this.renderSigner(origin.signer);
+    if (origin.type === 'signer') {
+      return this.renderSigner(origin.details);
     }
   }
 
   renderSigner (session) {
     if (session.substr(2) === this.context.api.transport.sessionHash) {
       return (
-        <span title={ session }>current tab</span>
+        <span title={ session }>via current tab</span>
       );
     }
 
     return (
       <span>
-        UI session
+        via UI session
         <span
           className={ styles.hash }
-          title={ session }
+          title={ `UI Session id: ${session}` }
         >
           <IdentityIcon
             address={ session }

@@ -30,10 +30,7 @@ export default class RequestPending extends Component {
     isTest: PropTypes.bool.isRequired,
     onConfirm: PropTypes.func.isRequired,
     onReject: PropTypes.func.isRequired,
-    origin: PropTypes.oneOfType([
-      PropTypes.string,
-      PropTypes.object
-    ]).isRequired,
+    origin: PropTypes.object.isRequired,
     payload: PropTypes.oneOfType([
       PropTypes.shape({ sendTransaction: PropTypes.object.isRequired }),
       PropTypes.shape({ sign: PropTypes.object.isRequired }),
