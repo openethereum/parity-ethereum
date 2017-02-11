@@ -83,7 +83,7 @@ pub struct Block {
 	pub difficulty: U256,
 	/// Total difficulty
 	#[serde(rename="totalDifficulty")]
-	pub total_difficulty: U256,
+	pub total_difficulty: Option<U256>,
 	/// Seal fields
 	#[serde(rename="sealFields")]
 	pub seal_fields: Vec<Bytes>,
@@ -164,7 +164,7 @@ mod tests {
 			logs_bloom: H2048::default(),
 			timestamp: U256::default(),
 			difficulty: U256::default(),
-			total_difficulty: U256::default(),
+			total_difficulty: Some(U256::default()),
 			seal_fields: vec![Bytes::default(), Bytes::default()],
 			uncles: vec![],
 			transactions: BlockTransactions::Hashes(vec![].into()),
