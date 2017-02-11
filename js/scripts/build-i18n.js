@@ -17,8 +17,6 @@
 import fs from 'fs';
 import path from 'path';
 
-import i18nstrings from '../.build/i18n/i18n/en.json';
-
 const FILE_HEADER = `// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
@@ -37,12 +35,18 @@ const FILE_HEADER = `// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 const SECTION_HEADER = 'export default ';
 const SECTION_FOOTER = ';\n';
 const INDENT = '  ';
-const I18NPATH = path.join(__dirname, '../src/i18n/_default');
+const DESTPATH = path.join(__dirname, '../src/i18n/_default');
+const SRCPATH = path.join(__dirname, '../.build/i18n/i18n/en.json');
 
-// FIXME: Expanding it this way is probably not quite optimal, some would say hacky.
-// However JSON.stringify (the sane solution) let us end up with both the keys
-// and values with "'s which is not intended. We want keys without and values with `
-// (Better idea welcome, at this point not critical since we control inputs)
+// main entry point
+(function main () {
+  const { sections, sectionNames } = createSectionMap();
+
+  sectionNames.forEach((name) => outputSection(name, sections[name]));
+  outputIndex(sectionNames);
+})();
+
+// export a section as a flatenned string (non-JSON, rather JS export)
 function createExportString (section, indent) {
   if (Object.prototype.toString.call(section) === '[object String]') {
     return `\`${section}\``;
@@ -51,49 +55,66 @@ function createExportString (section, indent) {
   const keys = Object
     .keys(section)
     .sort()
-    .map((key) => {
-      return `${indent}${key}: ${createExportString(section[key], indent + INDENT)}`;
-    })
+    .map((key) => `${indent}${key}: ${createExportString(section[key], indent + INDENT)}`)
     .join(',\n');
 
   return `{\n${keys}\n${indent.substr(2)}}`;
 }
 
-const sections = {};
-
 // create an object map of the actual inputs
-Object.keys(i18nstrings).forEach((fullKey) => {
-  const defaultMessage = i18nstrings[fullKey].defaultMessage;
-  const keys = fullKey.split('.');
-  let outputs = sections;
+function createSectionMap () {
+  console.log(`Reading strings from ${SRCPATH}`);
 
-  keys.forEach((key, index) => {
-    if (index === keys.length - 1) {
-      outputs[key] = defaultMessage;
-    } else {
-      if (!outputs[key]) {
-        outputs[key] = {};
-      }
+  const i18nstrings = require(SRCPATH);
+  const sections = Object
+    .keys(i18nstrings)
+    .reduce((sections, fullKey) => {
+      const defaultMessage = i18nstrings[fullKey].defaultMessage;
+      const keys = fullKey.split('.');
+      let outputs = sections;
 
-      outputs = outputs[key];
-    }
-  });
-});
+      keys.forEach((key, index) => {
+        if (index === keys.length - 1) {
+          outputs[key] = defaultMessage;
+        } else {
+          if (!outputs[key]) {
+            outputs[key] = {};
+          }
+
+          outputs = outputs[key];
+        }
+      });
+
+      return sections;
+    }, {});
+  const sectionNames = Object.keys(sections).sort();
+
+  console.log(`Found ${sectionNames.length} sections`);
+
+  return {
+    sections,
+    sectionNames
+  };
+}
 
 // create the index.js file
-const sectionKeys = Object.keys(sections).sort();
-const exports = sectionKeys
-  .map((key) => {
-    return `export ${key} from './${key}';`;
-  })
-  .join('\n');
+function outputIndex (sectionNames) {
+  console.log(`Writing index.js to ${DESTPATH}`);
 
-fs.writeFileSync(path.join(I18NPATH, 'index.js'), `${FILE_HEADER}${exports}\n`, 'utf8');
+  const dest = path.join(DESTPATH, 'index.js');
+  const exports = sectionNames
+    .map((name) => `export ${name} from './${name}';`)
+    .join('\n');
+
+  fs.writeFileSync(dest, `${FILE_HEADER}${exports}\n`, 'utf8');
+}
 
 // create the individual section files
-sectionKeys.forEach((key) => {
-  // const sectionText = JSON.stringify(sections[key], null, 2);
-  const sectionText = createExportString(sections[key], INDENT);
+function outputSection (name, section) {
+  console.log(`Writing ${name}.js to ${DESTPATH}`);
 
-  fs.writeFileSync(path.join(I18NPATH, `${key}.js`), `${FILE_HEADER}${SECTION_HEADER}${sectionText}${SECTION_FOOTER}`, 'utf8');
-});
+  const dest = path.join(DESTPATH, `${name}.js`);
+  const sectionText = createExportString(section, INDENT);
+
+  fs.writeFileSync(dest, `${FILE_HEADER}${SECTION_HEADER}${sectionText}${SECTION_FOOTER}`, 'utf8');
+}
