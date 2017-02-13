@@ -156,9 +156,9 @@ fn format_vaults(vaults: &[String]) -> String {
 }
 
 fn load_password(path: &str) -> Result<String, Error> {
-	let mut file = fs::File::open(path)?;
+	let mut file = fs::File::open(path).map_err(|e| Error::Custom(format!("Error opening password file {}: {}", path, e)))?;
 	let mut password = String::new();
-	file.read_to_string(&mut password)?;
+	file.read_to_string(&mut password).map_err(|e| Error::Custom(format!("Error reading password file {}: {}", path, e)))?;
 	// drop EOF
 	let _ = password.pop();
 	Ok(password)
