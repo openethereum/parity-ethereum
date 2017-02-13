@@ -101,7 +101,7 @@ macro_rules! impl_hash {
 		}
 
 		impl serde::Serialize for $name {
-			fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Error>
+			fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
 			where S: serde::Serializer {
 				let mut hex = "0x".to_owned();
 				hex.push_str(&self.0.to_hex());
@@ -110,16 +110,20 @@ macro_rules! impl_hash {
 		}
 
 		impl serde::Deserialize for $name {
-			fn deserialize<D>(deserializer: &mut D) -> Result<$name, D::Error> where D: serde::Deserializer {
+			fn deserialize<D>(deserializer: D) -> Result<$name, D::Error> where D: serde::Deserializer {
 				struct HashVisitor;
 
 				impl serde::de::Visitor for HashVisitor {
 					type Value = $name;
 
-					fn visit_str<E>(&mut self, value: &str) -> Result<Self::Value, E> where E: serde::Error {
+					fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+						write!(formatter, "a 0x-prefixed, padded, hex-encoded hash of type {}", stringify!($name))
+					}
+
+					fn visit_str<E>(self, value: &str) -> Result<Self::Value, E> where E: serde::de::Error {
 
 						if value.len() != 2 + $size * 2 {
-							return Err(serde::Error::custom("Invalid length."));
+							return Err(E::custom("Invalid length."));
 						}
 
 						match value[2..].from_hex() {
@@ -128,11 +132,11 @@ macro_rules! impl_hash {
 								result.copy_from_slice(v);
 								Ok($name(result))
 							},
-							_ => Err(serde::Error::custom("Invalid hex value."))
+							_ => Err(E::custom("Invalid hex value."))
 						}
 					}
 
-					fn visit_string<E>(&mut self, value: String) -> Result<Self::Value, E> where E: serde::Error {
+					fn visit_string<E>(self, value: String) -> Result<Self::Value, E> where E: serde::de::Error {
 						self.visit_str(value.as_ref())
 					}
 				}

@@ -16,9 +16,10 @@
 
 //! Lenient uint json deserialization for test json files.
 
+use std::fmt;
 use std::str::FromStr;
-use serde::{Deserialize, Deserializer, Error};
-use serde::de::Visitor;
+use serde::{Deserialize, Deserializer};
+use serde::de::{Error, Visitor};
 use util::{U256, Uint as U};
 
 /// Lenient uint json deserialization for test json files.
@@ -50,7 +51,7 @@ impl Into<u8> for Uint {
 }
 
 impl Deserialize for Uint {
-	fn deserialize<D>(deserializer: &mut D) -> Result<Self, D::Error>
+	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
 		where D: Deserializer {
 		deserializer.deserialize(UintVisitor)
 	}
@@ -61,11 +62,15 @@ struct UintVisitor;
 impl Visitor for UintVisitor {
 	type Value = Uint;
 
-	fn visit_u64<E>(&mut self, value: u64) -> Result<Self::Value, E> where E: Error {
+	fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+		write!(formatter, "a hex encoded uint")
+	}
+
+	fn visit_u64<E>(self, value: u64) -> Result<Self::Value, E> where E: Error {
 		Ok(Uint(U256::from(value)))
 	}
 
-	fn visit_str<E>(&mut self, value: &str) -> Result<Self::Value, E> where E: Error {
+	fn visit_str<E>(self, value: &str) -> Result<Self::Value, E> where E: Error {
 		let value = match value.len() {
 			0 => U256::from(0),
 			2 if value.starts_with("0x") => U256::from(0),
@@ -80,7 +85,7 @@ impl Visitor for UintVisitor {
 		Ok(Uint(value))
 	}
 
-	fn visit_string<E>(&mut self, value: String) -> Result<Self::Value, E> where E: Error {
+	fn visit_string<E>(self, value: String) -> Result<Self::Value, E> where E: Error {
 		self.visit_str(value.as_ref())
 	}
 }

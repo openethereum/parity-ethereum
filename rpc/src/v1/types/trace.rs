@@ -16,6 +16,7 @@
 
 use std::collections::BTreeMap;
 use serde::{Serialize, Serializer};
+use serde::ser::SerializeStruct;
 use ethcore::trace::{FlatTrace, LocalizedTrace as EthLocalizedTrace, trace, TraceError};
 use ethcore::trace as et;
 use ethcore::state_diff;
@@ -200,7 +201,7 @@ impl From<account_diff::AccountDiff> for AccountDiff {
 pub struct StateDiff(BTreeMap<H160, AccountDiff>);
 
 impl Serialize for StateDiff {
-	fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Error>
+	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
 	where S: Serializer {
 		Serialize::serialize(&self.0, serializer)
 	}
@@ -428,41 +429,41 @@ pub struct LocalizedTrace {
 }
 
 impl Serialize for LocalizedTrace {
-	fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Error>
+	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
 		where S: Serializer
 	{
-		let mut state = serializer.serialize_struct("LocalizedTrace", 9)?;
+		let mut struc = serializer.serialize_struct("LocalizedTrace", 9)?;
 		match self.action {
 			Action::Call(ref call) => {
-				serializer.serialize_struct_elt(&mut state, "type", "call")?;
-				serializer.serialize_struct_elt(&mut state, "action", call)?;
+				struc.serialize_field("type", "call")?;
+				struc.serialize_field("action", call)?;
 			},
 			Action::Create(ref create) => {
-				serializer.serialize_struct_elt(&mut state, "type", "create")?;
-				serializer.serialize_struct_elt(&mut state, "action", create)?;
+				struc.serialize_field("type", "create")?;
+				struc.serialize_field("action", create)?;
 			},
 			Action::Suicide(ref suicide) => {
-				serializer.serialize_struct_elt(&mut state, "type", "suicide")?;
-				serializer.serialize_struct_elt(&mut state, "action", suicide)?;
+				struc.serialize_field("type", "suicide")?;
+				struc.serialize_field("action", suicide)?;
 			},
 		}
 
 		match self.result {
-			Res::Call(ref call) => serializer.serialize_struct_elt(&mut state, "result", call)?,
-			Res::Create(ref create) => serializer.serialize_struct_elt(&mut state, "result", create)?,
-			Res::FailedCall(ref error) => serializer.serialize_struct_elt(&mut state, "error", error.to_string())?,
-			Res::FailedCreate(ref error) => serializer.serialize_struct_elt(&mut state, "error", error.to_string())?,
-			Res::None => serializer.serialize_struct_elt(&mut state, "result", None as Option<u8>)?,
+			Res::Call(ref call) => struc.serialize_field("result", call)?,
+			Res::Create(ref create) => struc.serialize_field("result", create)?,
+			Res::FailedCall(ref error) => struc.serialize_field("error", &error.to_string())?,
+			Res::FailedCreate(ref error) => struc.serialize_field("error", &error.to_string())?,
+			Res::None => struc.serialize_field("result", &None as &Option<u8>)?,
 		}
 
-		serializer.serialize_struct_elt(&mut state, "traceAddress", &self.trace_address)?;
-		serializer.serialize_struct_elt(&mut state, "subtraces", &self.subtraces)?;
-		serializer.serialize_struct_elt(&mut state, "transactionPosition", &self.transaction_position)?;
-		serializer.serialize_struct_elt(&mut state, "transactionHash", &self.transaction_hash)?;
-		serializer.serialize_struct_elt(&mut state, "blockNumber", &self.block_number)?;
-		serializer.serialize_struct_elt(&mut state, "blockHash", &self.block_hash)?;
+		struc.serialize_field("traceAddress", &self.trace_address)?;
+		struc.serialize_field("subtraces", &self.subtraces)?;
+		struc.serialize_field("transactionPosition", &self.transaction_position)?;
+		struc.serialize_field("transactionHash", &self.transaction_hash)?;
+		struc.serialize_field("blockNumber", &self.block_number)?;
+		struc.serialize_field("blockHash", &self.block_hash)?;
 
-		serializer.serialize_struct_end(state)
+		struc.end()
 	}
 }
 
@@ -495,37 +496,37 @@ pub struct Trace {
 }
 
 impl Serialize for Trace {
-	fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Error>
+	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
 		where S: Serializer
 	{
-		let mut state = serializer.serialize_struct("Trace", 4)?;
+		let mut struc = serializer.serialize_struct("Trace", 4)?;
 		match self.action {
 			Action::Call(ref call) => {
-				serializer.serialize_struct_elt(&mut state, "type", "call")?;
-				serializer.serialize_struct_elt(&mut state, "action", call)?;
+				struc.serialize_field("type", "call")?;
+				struc.serialize_field("action", call)?;
 			},
 			Action::Create(ref create) => {
-				serializer.serialize_struct_elt(&mut state, "type", "create")?;
-				serializer.serialize_struct_elt(&mut state, "action", create)?;
+				struc.serialize_field("type", "create")?;
+				struc.serialize_field("action", create)?;
 			},
 			Action::Suicide(ref suicide) => {
-				serializer.serialize_struct_elt(&mut state, "type", "suicide")?;
-				serializer.serialize_struct_elt(&mut state, "action", suicide)?;
+				struc.serialize_field("type", "suicide")?;
+				struc.serialize_field("action", suicide)?;
 			},
 		}
 
 		match self.result {
-			Res::Call(ref call) => serializer.serialize_struct_elt(&mut state, "result", call)?,
-			Res::Create(ref create) => serializer.serialize_struct_elt(&mut state, "result", create)?,
-			Res::FailedCall(ref error) => serializer.serialize_struct_elt(&mut state, "error", error.to_string())?,
-			Res::FailedCreate(ref error) => serializer.serialize_struct_elt(&mut state, "error", error.to_string())?,
-			Res::None => serializer.serialize_struct_elt(&mut state, "result", None as Option<u8>)?,
+			Res::Call(ref call) => struc.serialize_field("result", call)?,
+			Res::Create(ref create) => struc.serialize_field("result", create)?,
+			Res::FailedCall(ref error) => struc.serialize_field("error", &error.to_string())?,
+			Res::FailedCreate(ref error) => struc.serialize_field("error", &error.to_string())?,
+			Res::None => struc.serialize_field("result", &None as &Option<u8>)?,
 		}
 
-		serializer.serialize_struct_elt(&mut state, "traceAddress", &self.trace_address)?;
-		serializer.serialize_struct_elt(&mut state, "subtraces", &self.subtraces)?;
+		struc.serialize_field("traceAddress", &self.trace_address)?;
+		struc.serialize_field("subtraces", &self.subtraces)?;
 
-		serializer.serialize_struct_end(state)
+		struc.end()
 	}
 }
 

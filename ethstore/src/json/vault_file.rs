@@ -15,91 +15,16 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::io::{Read, Write};
-use serde::{Deserialize, Deserializer, Error};
-use serde::de::{Visitor, MapVisitor};
 use serde_json;
 use super::Crypto;
 
 /// Vault meta file
-#[derive(Debug, PartialEq, Serialize)]
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub struct VaultFile {
 	/// Vault password, encrypted with vault password
 	pub crypto: Crypto,
 	/// Vault metadata string
 	pub meta: Option<String>,
-}
-
-enum VaultFileField {
-	Crypto,
-	Meta,
-}
-
-impl Deserialize for VaultFileField {
-	fn deserialize<D>(deserializer: &mut D) -> Result<VaultFileField, D::Error>
-		where D: Deserializer
-	{
-		deserializer.deserialize(VaultFileFieldVisitor)
-	}
-}
-
-struct VaultFileFieldVisitor;
-
-impl Visitor for VaultFileFieldVisitor {
-	type Value = VaultFileField;
-
-	fn visit_str<E>(&mut self, value: &str) -> Result<Self::Value, E>
-		where E: Error
-	{
-		match value {
-			"crypto" => Ok(VaultFileField::Crypto),
-			"meta" => Ok(VaultFileField::Meta),
-			_ => Err(Error::custom(format!("Unknown field: '{}'", value))),
-		}
-	}
-}
-
-impl Deserialize for VaultFile {
-	fn deserialize<D>(deserializer: &mut D) -> Result<VaultFile, D::Error>
-		where D: Deserializer
-	{
-		static FIELDS: &'static [&'static str] = &["crypto", "meta"];
-		deserializer.deserialize_struct("VaultFile", FIELDS, VaultFileVisitor)
-	}
-}
-
-struct VaultFileVisitor;
-
-impl Visitor for VaultFileVisitor {
-	type Value = VaultFile;
-
-	fn visit_map<V>(&mut self, mut visitor: V) -> Result<Self::Value, V::Error>
-		where V: MapVisitor
-	{
-		let mut crypto = None;
-		let mut meta = None;
-
-		loop {
-			match visitor.visit_key()? {
-				Some(VaultFileField::Crypto) => { crypto = Some(visitor.visit_value()?); },
-				Some(VaultFileField::Meta) => { meta = visitor.visit_value().ok(); }, // meta is optional
-				None => { break; },
-			}
-		}
-
-		let crypto = match crypto {
-			Some(crypto) => crypto,
-			None => visitor.missing_field("crypto")?,
-		};
-
-		visitor.end()?;
-
-		let result = VaultFile {
-			crypto: crypto,
-			meta: meta,
-		};
-
-		Ok(result)
-	}
 }
 
 impl VaultFile {
