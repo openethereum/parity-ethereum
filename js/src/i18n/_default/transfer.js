@@ -20,5 +20,8 @@ export default {
       hint: `the data to pass through with the transaction`,
       label: `transaction data`
     }
+  },
+  warning: {
+    wallet_spent_limit: `This transaction value is above the remaining daily limit. It will need to be confirmed by other owners.`
   }
 };

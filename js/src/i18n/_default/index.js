@@ -41,4 +41,5 @@ export transfer from './transfer';
 export txEditor from './txEditor';
 export ui from './ui';
 export upgradeParity from './upgradeParity';
+export walletSettings from './walletSettings';
 export web from './web';

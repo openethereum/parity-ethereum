@@ -37,6 +37,7 @@ export default {
   },
   txHash: {
     confirmations: `{count} {value, plural, one {confirmation} other {confirmations}}`,
+    oog: `The transaction might have gone out of gas. Try again with more gas.`,
     posted: `The transaction has been posted to the network with a hash of {hashLink}`,
     waiting: `waiting for confirmations`
   },
