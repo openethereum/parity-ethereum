@@ -24,7 +24,7 @@ $backgroundOverlay: rgba(18, 18, 18, 1);
   height: 100%;
   padding: 0em;
   transition: all 0.75s cubic-bezier(0.23, 1, 0.32, 1);
-   width: 100%;
+  width: 100%;
 
   .hoverOverlay {
     background: $backgroundOverlay;
