@@ -15,8 +15,9 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import moment from 'moment';
-import React, { Component } from 'react';
+import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
+import { connect } from 'react-redux';
 import { Link } from 'react-router';
 
 import { Container, ContainerTitle, IdentityName, IdentityIcon, SectionList } from '~/ui';
@@ -24,8 +25,9 @@ import { arrayOrObjectProptype } from '~/util/proptypes';
 
 import styles from './accounts.css';
 
-export default class Accounts extends Component {
+class Accounts extends Component {
   static propTypes = {
+    accountsInfo: PropTypes.object.isRequired,
     history: arrayOrObjectProptype().isRequired
   }
 
@@ -68,8 +70,19 @@ export default class Accounts extends Component {
   }
 
   renderHistoryItem = (history) => {
+    const { accountsInfo } = this.props;
+
     if (!history || !history.entry) {
       return null;
+    }
+
+    const account = accountsInfo[history.entry] || { meta: {} };
+    let linkType = 'addresses';
+
+    if (account.uuid) {
+      linkType = 'accounts';
+    } else if (account.meta.wallet) {
+      linkType = 'wallet';
     }
 
     return (
@@ -90,7 +103,7 @@ export default class Accounts extends Component {
       >
         <Link
           className={ styles.link }
-          to={ `/${history.type === 'wallet' ? 'wallet' : 'accounts'}/${history.entry}` }
+          to={ `/${linkType}/${history.entry}` }
         >
           <IdentityIcon
             address={ history.entry }
@@ -107,3 +120,16 @@ export default class Accounts extends Component {
     );
   }
 }
+
+function mapStateToProps (state) {
+  const { accountsInfo } = state.personal;
+
+  return {
+    accountsInfo
+  };
+}
+
+export default connect(
+  mapStateToProps,
+  null
+)(Accounts);
