@@ -27,9 +27,9 @@ import styles from './accounts.css';
 
 class Accounts extends Component {
   static propTypes = {
-    accountsInfo: PropTypes.object.isRequired,
+    accountsInfo: PropTypes.object,
     history: arrayOrObjectProptype().isRequired
-  }
+  };
 
   render () {
     return (
@@ -48,7 +48,11 @@ class Accounts extends Component {
   }
 
   renderHistory () {
-    const { history } = this.props;
+    const { accountsInfo, history } = this.props;
+
+    if (!accountsInfo || !Object.keys(accountsInfo).length) {
+      return null;
+    }
 
     if (!history.length) {
       return (
