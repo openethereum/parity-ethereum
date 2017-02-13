@@ -55,11 +55,7 @@ export default class News extends Component {
       return null;
     }
 
-    const inlineStyles = {
-      body: item.style ? (item.style.body || {}) : {},
-      head: item.style ? (item.style.head || {}) : {},
-      tags: item.style ? (item.style.tags || {}) : {}
-    };
+    const inlineStyles = item.style || {};
 
     return (
       <div className={ styles.item }>
