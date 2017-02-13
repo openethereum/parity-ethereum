@@ -15,6 +15,14 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+.accounts {
+  margin-top: 1.5em;
+}
+
+.body {
+  padding-bottom: 3em;
+}
+
 .empty {
   margin-top: 1.5em;
   opacity: 0.5;
@@ -24,13 +32,9 @@
   display: flex;
 
   .column {
-    flex: 0 1 50%;
     box-sizing: border-box;
+    flex: 0 1 50%;
     padding: 0 1.5em;
     width: 50%;
   }
-}
-
-.accounts {
-  margin-top: 1.5em;
 }
