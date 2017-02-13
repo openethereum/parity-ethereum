@@ -130,7 +130,7 @@ pub enum ConfirmationResponse {
 }
 
 impl Serialize for ConfirmationResponse {
-	fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Error>
+	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
 		where S: Serializer
 	{
 		match *self {
@@ -225,7 +225,7 @@ impl<A, B> Serialize for Either<A, B>  where
 	A: Serialize + fmt::Debug + Clone,
 	B: Serialize + fmt::Debug + Clone,
 {
-	fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Error>
+	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
 		where S: Serializer
 	{
 		match *self {

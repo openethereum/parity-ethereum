@@ -4,7 +4,6 @@ name = "ethcore-rpc"
 version = "1.6.0"
 license = "GPL-3.0"
 authors = ["Parity Technologies <admin@parity.io>"]
-build = "build.rs"
 
 [lib]
 
@@ -12,8 +11,9 @@ build = "build.rs"
 futures = "0.1"
 log = "0.3"
 semver = "0.5"
-serde = "0.8"
-serde_json = "0.8"
+serde = "0.9"
+serde_json = "0.9"
+serde_derive = "0.9"
 rustc-serialize = "0.3"
 time = "0.1"
 transient-hashmap = "0.1"
@@ -38,13 +38,7 @@ parity-updater = { path = "../updater" }
 rlp = { path = "../util/rlp" }
 fetch = { path = "../util/fetch" }
 parity-reactor = { path = "../util/reactor" }
-serde_macros = { version = "0.8", optional = true }
 clippy = { version = "0.0.103", optional = true}
 
-[build-dependencies]
-serde_codegen = { version = "0.8", optional = true }
-
 [features]
-default = ["serde_codegen"]
-nightly = ["serde_macros"]
 dev = ["clippy", "ethcore/dev", "ethcore-util/dev", "ethsync/dev"]

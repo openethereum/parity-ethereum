@@ -22,59 +22,52 @@
 #![cfg_attr(feature="dev", allow(useless_format))]
 #![cfg_attr(feature="dev", allow(match_bool))]
 
-extern crate docopt;
-extern crate num_cpus;
-extern crate rustc_serialize;
-extern crate ethcore_devtools as devtools;
-extern crate ethcore;
-extern crate ethsync;
-extern crate env_logger;
-extern crate ethcore_logger;
+extern crate ansi_term;
+extern crate app_dirs;
 extern crate ctrlc;
+extern crate docopt;
+extern crate env_logger;
 extern crate fdlimit;
-extern crate time;
+extern crate hyper; // for price_info.rs
+extern crate isatty;
+extern crate jsonrpc_core;
+extern crate num_cpus;
 extern crate number_prefix;
+extern crate regex;
+extern crate rlp;
 extern crate rpassword;
+extern crate rustc_serialize;
 extern crate semver;
-extern crate ethcore_io as io;
-extern crate ethcore_ipc as ipc;
-extern crate ethcore_ipc_nano as nanoipc;
 extern crate serde;
 extern crate serde_json;
-extern crate jsonrpc_core;
-extern crate rlp;
-extern crate ethcore_light as light;
-extern crate parity_hash_fetch as hash_fetch;
-
-extern crate ethcore_ipc_hypervisor as hypervisor;
-extern crate ethcore_rpc;
-
-extern crate ethcore_signer;
-extern crate parity_updater as updater;
-extern crate ansi_term;
-
-extern crate regex;
-extern crate isatty;
+extern crate time;
 extern crate toml;
-extern crate app_dirs;
-extern crate parity_reactor;
 
-#[macro_use]
+extern crate ethcore;
+extern crate ethcore_devtools as devtools;
+extern crate ethcore_io as io;
+extern crate ethcore_ipc as ipc;
+extern crate ethcore_ipc_hypervisor as hypervisor;
+extern crate ethcore_ipc_nano as nanoipc;
+extern crate ethcore_light as light;
+extern crate ethcore_logger;
+extern crate ethcore_rpc;
+extern crate ethcore_signer;
 extern crate ethcore_util as util;
-#[macro_use]
-extern crate log as rlog;
-#[macro_use]
-extern crate hyper; // for price_info.rs
-#[macro_use]
-extern crate lazy_static;
+extern crate ethsync;
+extern crate parity_hash_fetch as hash_fetch;
+extern crate parity_reactor;
+extern crate parity_updater as updater;
+extern crate rpc_cli;
 
 #[cfg(feature="stratum")]
 extern crate ethcore_stratum;
-
 #[cfg(feature = "dapps")]
 extern crate ethcore_dapps;
 
-extern crate rpc_cli;
+
+#[macro_use]
+extern crate log as rlog;
 
 macro_rules! dependency {
 	($dep_ty:ident, $url:expr) => {
@@ -88,32 +81,33 @@ macro_rules! dependency {
 	}
 }
 
-mod cache;
-mod upgrade;
-mod rpc;
-mod dapps;
-mod informant;
-mod cli;
-mod configuration;
-mod migration;
-mod signer;
-mod rpc_apis;
-mod url;
-mod helpers;
-mod params;
-mod deprecated;
-mod dir;
-mod modules;
 mod account;
 mod blockchain;
+mod cache;
+mod cli;
+mod configuration;
+mod dapps;
+mod deprecated;
+mod dir;
+mod helpers;
+mod informant;
+mod migration;
+mod modules;
+mod params;
 mod presale;
-mod snapshot;
+mod rpc;
+mod rpc_apis;
 mod run;
-#[cfg(feature="ipc")]
-mod sync;
+mod signer;
+mod snapshot;
+mod upgrade;
+mod url;
+mod user_defaults;
+
 #[cfg(feature="ipc")]
 mod boot;
-mod user_defaults;
+#[cfg(feature="ipc")]
+mod sync;
 
 #[cfg(feature="stratum")]
 mod stratum;
@@ -211,7 +205,7 @@ fn latest_exe_path() -> Option<PathBuf> {
 fn global_cleanup() {
 	extern "system" { pub fn WSACleanup() -> i32; }
 	// We need to cleanup all sockets before spawning another Parity process. This makes shure everything is cleaned up.
-	// The loop is required because of internal refernce counter for winsock dll. We don't know how many crates we use do 
+	// The loop is required because of internal refernce counter for winsock dll. We don't know how many crates we use do
 	// initialize it. There's at least 2 now.
 	for _ in 0.. 10 {
 		unsafe { WSACleanup(); }
