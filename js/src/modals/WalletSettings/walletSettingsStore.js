@@ -30,10 +30,11 @@ const STEPS = {
 export default class WalletSettingsStore {
   accounts = {};
 
-  @observable step = null;
-  @observable requests = [];
   @observable deployState = '';
   @observable done = false;
+  @observable fromString = false;
+  @observable requests = [];
+  @observable step = null;
 
   @observable wallet = {
     owners: null,
@@ -77,6 +78,51 @@ export default class WalletSettingsStore {
       .map((s, idx) => ({ idx, waiting: s.waiting }))
       .filter((s) => s.waiting)
       .map((s) => s.idx);
+  }
+
+  @action
+  changesFromString (json) {
+    try {
+      const data = JSON.parse(json);
+      const changes = data.map((datum) => {
+        const [ type, valueStr ] = datum.split(';');
+
+        let value = valueStr;
+
+        // Only addresses start with `0x`, the others
+        // are BigNumbers
+        if (!/^0x/.test(valueStr)) {
+          value = new BigNumber(valueStr, 16);
+        }
+
+        return { type, value };
+      });
+
+      this.changes = changes;
+    } catch (error) {
+      if (!(error instanceof SyntaxError)) {
+        console.error('changes from string', error);
+      }
+
+      this.changes = [];
+    }
+  }
+
+  changesToString () {
+    const changes = this.changes.map((change) => {
+      const { type, value } = change;
+
+      const valueStr = (value && typeof value.plus === 'function')
+        ? value.toString(16)
+        : value;
+
+      return [
+        type,
+        valueStr
+      ].join(';');
+    });
+
+    return JSON.stringify(changes);
   }
 
   get changes () {
@@ -127,6 +173,36 @@ export default class WalletSettingsStore {
     return changes;
   }
 
+  set changes (changes) {
+    transaction(() => {
+      this.wallet.dailylimit = this.initialWallet.dailylimit;
+      this.wallet.require = this.initialWallet.require;
+      this.wallet.owners = this.initialWallet.owners.slice();
+
+      changes.forEach((change) => {
+        const { type, value } = change;
+
+        switch (type) {
+          case 'dailylimit':
+            this.wallet.dailylimit = value;
+            break;
+
+          case 'require':
+            this.wallet.require = value;
+            break;
+
+          case 'remove_owner':
+            this.wallet.owners = this.wallet.owners.filter((owner) => owner !== value);
+            break;
+
+          case 'add_owner':
+            this.wallet.owners.push(value);
+            break;
+        }
+      });
+    });
+  }
+
   constructor (api, wallet) {
     this.api = api;
     this.step = this.stepsKeys[0];
@@ -175,6 +251,16 @@ export default class WalletSettingsStore {
 
   @action onDailylimitChange = (dailylimit) => {
     this.onChange({ dailylimit });
+  }
+
+  @action onModificationsStringChange = (event, value) => {
+    this.changesFromString(value);
+
+    if (this.changes && this.changes.length > 0) {
+      this.fromString = true;
+    } else {
+      this.fromString = false;
+    }
   }
 
   @action send = () => {

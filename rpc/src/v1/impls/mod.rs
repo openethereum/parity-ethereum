@@ -16,15 +16,6 @@
 
 //! Ethereum rpc interface implementation.
 
-macro_rules! take_weak {
-	($weak: expr) => {
-		match $weak.upgrade() {
-			Some(arc) => arc,
-			None => return Err(Error::internal_error())
-		}
-	}
-}
-
 mod eth;
 mod eth_filter;
 mod net;
@@ -38,6 +29,8 @@ mod signing_unsafe;
 mod rpc;
 mod traces;
 mod web3;
+
+pub mod light;
 
 pub use self::web3::Web3Client;
 pub use self::eth::{EthClient, EthClientOptions};

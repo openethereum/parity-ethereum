@@ -16,6 +16,7 @@
 
 //! Parity Signer-related rpc interface.
 use jsonrpc_core::Error;
+use futures::BoxFuture;
 
 use v1::types::{U256, Bytes, TransactionModification, ConfirmationRequest, ConfirmationResponse, ConfirmationResponseWithToken};
 
@@ -28,12 +29,12 @@ build_rpc_trait! {
 		fn requests_to_confirm(&self) -> Result<Vec<ConfirmationRequest>, Error>;
 
 		/// Confirm specific request.
-		#[rpc(name = "signer_confirmRequest")]
-		fn confirm_request(&self, U256, TransactionModification, String) -> Result<ConfirmationResponse, Error>;
+		#[rpc(async, name = "signer_confirmRequest")]
+		fn confirm_request(&self, U256, TransactionModification, String) -> BoxFuture<ConfirmationResponse, Error>;
 
 		/// Confirm specific request with token.
-		#[rpc(name = "signer_confirmRequestWithToken")]
-		fn confirm_request_with_token(&self, U256, TransactionModification, String) -> Result<ConfirmationResponseWithToken, Error>;
+		#[rpc(async, name = "signer_confirmRequestWithToken")]
+		fn confirm_request_with_token(&self, U256, TransactionModification, String) -> BoxFuture<ConfirmationResponseWithToken, Error>;
 
 		/// Confirm specific request with already signed data.
 		#[rpc(name = "signer_confirmRequestRaw")]

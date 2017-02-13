@@ -33,6 +33,7 @@ use util::{U256, H256, Uint, Address, Hashable};
 
 use jsonrpc_core::IoHandler;
 use v1::impls::{EthClient, SigningUnsafeClient};
+use v1::helpers::dispatch::FullDispatcher;
 use v1::metadata::Metadata;
 use v1::tests::helpers::{TestSnapshotService, TestSyncProvider, Config};
 use v1::traits::eth::Eth;
@@ -141,10 +142,11 @@ impl EthTester {
 			&external_miner,
 			Default::default(),
 		);
+
+		let dispatcher = FullDispatcher::new(Arc::downgrade(&client), Arc::downgrade(&miner_service));
 		let eth_sign = SigningUnsafeClient::new(
-			&client,
 			&account_provider,
-			&miner_service
+			dispatcher,
 		);
 
 		let mut handler = IoHandler::default();

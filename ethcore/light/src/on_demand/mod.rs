@@ -25,51 +25,16 @@ use ethcore::encoded;
 use ethcore::receipt::Receipt;
 
 use futures::{Async, Poll, Future};
-use futures::sync::oneshot;
+use futures::sync::oneshot::{self, Sender, Receiver};
 use network::PeerId;
+use rlp::{RlpStream, Stream};
+use util::{Bytes, RwLock, U256};
+use util::sha3::{SHA3_NULL_RLP, SHA3_EMPTY_LIST_RLP};
 
 use net::{Handler, Status, Capabilities, Announcement, EventContext, BasicContext, ReqId};
-use util::{Bytes, RwLock, U256};
 use types::les_request::{self as les_request, Request as LesRequest};
 
 pub mod request;
-
-/// Errors which can occur while trying to fulfill a request.
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub enum Error {
-	/// Request was canceled.
-	Canceled,
-	/// No suitable peers available to serve the request.
-	NoPeersAvailable,
-	/// Invalid request.
-	InvalidRequest,
-	/// Request timed out.
-	TimedOut,
-}
-
-impl From<oneshot::Canceled> for Error {
-	fn from(_: oneshot::Canceled) -> Self {
-		Error::Canceled
-	}
-}
-
-/// Future which awaits a response to an on-demand request.
-pub struct Response<T>(oneshot::Receiver<Result<T, Error>>);
-
-impl<T> Future for Response<T> {
-	type Item = T;
-	type Error = Error;
-
-	fn poll(&mut self) -> Poll<T, Error> {
-		match self.0.poll().map_err(Into::into) {
-			Ok(Async::Ready(val)) => val.map(Async::Ready),
-			Ok(Async::NotReady) => Ok(Async::NotReady),
-			Err(e) => Err(e),
-		}
-	}
-}
-
-type Sender<T> = oneshot::Sender<Result<T, Error>>;
 
 // relevant peer info.
 struct Peer {
@@ -84,6 +49,7 @@ enum Pending {
 	Block(request::Body, Sender<encoded::Block>),
 	BlockReceipts(request::BlockReceipts, Sender<Vec<Receipt>>),
 	Account(request::Account, Sender<BasicAccount>),
+	Code(request::Code, Sender<Bytes>),
 }
 
 /// On demand request service. See module docs for more details.
@@ -92,6 +58,7 @@ enum Pending {
 pub struct OnDemand {
 	peers: RwLock<HashMap<PeerId, Peer>>,
 	pending_requests: RwLock<HashMap<ReqId, Pending>>,
+	orphaned_requests: RwLock<Vec<Pending>>,
 }
 
 impl Default for OnDemand {
@@ -99,6 +66,7 @@ impl Default for OnDemand {
 		OnDemand {
 			peers: RwLock::new(HashMap::new()),
 			pending_requests: RwLock::new(HashMap::new()),
+			orphaned_requests: RwLock::new(Vec::new()),
 		}
 	}
 }
@@ -106,31 +74,26 @@ impl Default for OnDemand {
 impl OnDemand {
 	/// Request a header by block number and CHT root hash.
 	/// Returns the header and the total difficulty.
-	pub fn header_by_number(&self, ctx: &BasicContext, req: request::HeaderByNumber) -> Response<(encoded::Header, U256)> {
+	pub fn header_by_number(&self, ctx: &BasicContext, req: request::HeaderByNumber) -> Receiver<(encoded::Header, U256)> {
 		let (sender, receiver) = oneshot::channel();
 		self.dispatch_header_by_number(ctx, req, sender);
-		Response(receiver)
+		receiver
 	}
 
 	// dispatch the request, completing the request if no peers available.
 	fn dispatch_header_by_number(&self, ctx: &BasicContext, req: request::HeaderByNumber, sender: Sender<(encoded::Header, U256)>) {
-		let num = req.num;
-		let cht_num = match ::cht::block_to_cht_number(req.num) {
-			Some(cht_num) => cht_num,
-			None => {
-				warn!(target: "on_demand", "Attempted to dispatch invalid header proof: req.num == 0");
-				sender.complete(Err(Error::InvalidRequest));
-				return;
-			}
-		};
+		let num = req.num();
+		let cht_num = req.cht_num();
 
 		let les_req = LesRequest::HeaderProofs(les_request::HeaderProofs {
 			requests: vec![les_request::HeaderProof {
 				cht_number: cht_num,
-				block_number: req.num,
+				block_number: num,
 				from_level: 0,
 			}],
 		});
+
+		let pending = Pending::HeaderByNumber(req, sender);
 
 		// we're looking for a peer with serveHeaders who's far enough along in the
 		// chain.
@@ -141,7 +104,7 @@ impl OnDemand {
 						trace!(target: "on_demand", "Assigning request to peer {}", id);
 						self.pending_requests.write().insert(
 							req_id,
-							Pending::HeaderByNumber(req, sender)
+							pending,
 						);
 						return
 					},
@@ -151,18 +114,17 @@ impl OnDemand {
 			}
 		}
 
-		// TODO: retrying
 		trace!(target: "on_demand", "No suitable peer for request");
-		sender.complete(Err(Error::NoPeersAvailable));
+		self.orphaned_requests.write().push(pending)
 	}
 
 	/// Request a header by hash. This is less accurate than by-number because we don't know
 	/// where in the chain this header lies, and therefore can't find a peer who is supposed to have
 	/// it as easily.
-	pub fn header_by_hash(&self, ctx: &BasicContext, req: request::HeaderByHash) -> Response<encoded::Header> {
+	pub fn header_by_hash(&self, ctx: &BasicContext, req: request::HeaderByHash) -> Receiver<encoded::Header> {
 		let (sender, receiver) = oneshot::channel();
 		self.dispatch_header_by_hash(ctx, req, sender);
-		Response(receiver)
+		receiver
 	}
 
 	fn dispatch_header_by_hash(&self, ctx: &BasicContext, req: request::HeaderByHash, sender: Sender<encoded::Header>) {
@@ -181,8 +143,9 @@ impl OnDemand {
 			.collect::<Vec<_>>();
 
 		let mut rng = ::rand::thread_rng();
-
 		::rand::Rng::shuffle(&mut rng, &mut potential_peers);
+
+		let pending = Pending::HeaderByHash(req, sender);
 
 		for id in potential_peers {
 			match ctx.request_from(id, les_req.clone()) {
@@ -190,7 +153,7 @@ impl OnDemand {
 					trace!(target: "on_demand", "Assigning request to peer {}", id);
 					self.pending_requests.write().insert(
 						req_id,
-						Pending::HeaderByHash(req, sender),
+						pending,
 					);
 					return
 				}
@@ -199,18 +162,28 @@ impl OnDemand {
 			}
 		}
 
-		// TODO: retrying
 		trace!(target: "on_demand", "No suitable peer for request");
-		sender.complete(Err(Error::NoPeersAvailable));
+		self.orphaned_requests.write().push(pending)
 	}
 
 	/// Request a block, given its header. Block bodies are requestable by hash only,
 	/// and the header is required anyway to verify and complete the block body
 	/// -- this just doesn't obscure the network query.
-	pub fn block(&self, ctx: &BasicContext, req: request::Body) -> Response<encoded::Block> {
+	pub fn block(&self, ctx: &BasicContext, req: request::Body) -> Receiver<encoded::Block> {
 		let (sender, receiver) = oneshot::channel();
-		self.dispatch_block(ctx, req, sender);
-		Response(receiver)
+
+		// fast path for empty body.
+		if req.header.transactions_root() == SHA3_NULL_RLP && req.header.uncles_hash() == SHA3_EMPTY_LIST_RLP {
+			let mut stream = RlpStream::new_list(3);
+			stream.append_raw(&req.header.into_inner(), 1);
+			stream.begin_list(0);
+			stream.begin_list(0);
+
+			sender.complete(encoded::Block::new(stream.out()))
+		} else {
+			self.dispatch_block(ctx, req, sender);
+		}
+		receiver
 	}
 
 	fn dispatch_block(&self, ctx: &BasicContext, req: request::Body, sender: Sender<encoded::Block>) {
@@ -218,6 +191,7 @@ impl OnDemand {
 		let les_req = LesRequest::Bodies(les_request::Bodies {
 			block_hashes: vec![req.hash],
 		});
+		let pending = Pending::Block(req, sender);
 
 		// we're looking for a peer with serveChainSince(num)
 		for (id, peer) in self.peers.read().iter() {
@@ -227,7 +201,7 @@ impl OnDemand {
 						trace!(target: "on_demand", "Assigning request to peer {}", id);
 						self.pending_requests.write().insert(
 							req_id,
-							Pending::Block(req, sender)
+							pending,
 						);
 						return
 					}
@@ -237,17 +211,23 @@ impl OnDemand {
 			}
 		}
 
-		// TODO: retrying
 		trace!(target: "on_demand", "No suitable peer for request");
-		sender.complete(Err(Error::NoPeersAvailable));
+		self.orphaned_requests.write().push(pending)
 	}
 
 	/// Request the receipts for a block. The header serves two purposes:
 	/// provide the block hash to fetch receipts for, and for verification of the receipts root.
-	pub fn block_receipts(&self, ctx: &BasicContext, req: request::BlockReceipts) -> Response<Vec<Receipt>> {
+	pub fn block_receipts(&self, ctx: &BasicContext, req: request::BlockReceipts) -> Receiver<Vec<Receipt>> {
 		let (sender, receiver) = oneshot::channel();
-		self.dispatch_block_receipts(ctx, req, sender);
-		Response(receiver)
+
+		// fast path for empty receipts.
+		if req.0.receipts_root() == SHA3_NULL_RLP {
+			sender.complete(Vec::new())
+		} else {
+			self.dispatch_block_receipts(ctx, req, sender);
+		}
+
+		receiver
 	}
 
 	fn dispatch_block_receipts(&self, ctx: &BasicContext, req: request::BlockReceipts, sender: Sender<Vec<Receipt>>) {
@@ -255,6 +235,7 @@ impl OnDemand {
 		let les_req = LesRequest::Receipts(les_request::Receipts {
 			block_hashes: vec![req.0.hash()],
 		});
+		let pending = Pending::BlockReceipts(req, sender);
 
 		// we're looking for a peer with serveChainSince(num)
 		for (id, peer) in self.peers.read().iter() {
@@ -264,7 +245,7 @@ impl OnDemand {
 						trace!(target: "on_demand", "Assigning request to peer {}", id);
 						self.pending_requests.write().insert(
 							req_id,
-							Pending::BlockReceipts(req, sender)
+							pending,
 						);
 						return
 					}
@@ -274,17 +255,16 @@ impl OnDemand {
 			}
 		}
 
-		// TODO: retrying
 		trace!(target: "on_demand", "No suitable peer for request");
-		sender.complete(Err(Error::NoPeersAvailable));
+		self.orphaned_requests.write().push(pending)
 	}
 
 	/// Request an account by address and block header -- which gives a hash to query and a state root
 	/// to verify against.
-	pub fn account(&self, ctx: &BasicContext, req: request::Account) -> Response<BasicAccount> {
+	pub fn account(&self, ctx: &BasicContext, req: request::Account) -> Receiver<BasicAccount> {
 		let (sender, receiver) = oneshot::channel();
 		self.dispatch_account(ctx, req, sender);
-		Response(receiver)
+		receiver
 	}
 
 	fn dispatch_account(&self, ctx: &BasicContext, req: request::Account, sender: Sender<BasicAccount>) {
@@ -297,6 +277,7 @@ impl OnDemand {
 				from_level: 0,
 			}],
 		});
+		let pending = Pending::Account(req, sender);
 
 		// we're looking for a peer with serveStateSince(num)
 		for (id, peer) in self.peers.read().iter() {
@@ -306,7 +287,7 @@ impl OnDemand {
 						trace!(target: "on_demand", "Assigning request to peer {}", id);
 						self.pending_requests.write().insert(
 							req_id,
-							Pending::Account(req, sender)
+							pending,
 						);
 						return
 					}
@@ -316,38 +297,125 @@ impl OnDemand {
 			}
 		}
 
-		// TODO: retrying
 		trace!(target: "on_demand", "No suitable peer for request");
-		sender.complete(Err(Error::NoPeersAvailable));
+		self.orphaned_requests.write().push(pending)
+	}
+
+	/// Request code by address, known code hash, and block header.
+	pub fn code(&self, ctx: &BasicContext, req: request::Code) -> Receiver<Bytes> {
+		let (sender, receiver) = oneshot::channel();
+
+		// fast path for no code.
+		if req.code_hash == ::util::sha3::SHA3_EMPTY {
+			sender.complete(Vec::new())
+		} else {
+			self.dispatch_code(ctx, req, sender);
+		}
+
+		receiver
+	}
+
+	fn dispatch_code(&self, ctx: &BasicContext, req: request::Code, sender: Sender<Bytes>) {
+		let num = req.block_id.1;
+		let les_req = LesRequest::Codes(les_request::ContractCodes {
+			code_requests: vec![les_request::ContractCode {
+				block_hash: req.block_id.0,
+				account_key: ::util::Hashable::sha3(&req.address),
+			}]
+		});
+		let pending = Pending::Code(req, sender);
+
+		// we're looking for a peer with serveStateSince(num)
+		for (id, peer) in self.peers.read().iter() {
+			if peer.capabilities.serve_state_since.as_ref().map_or(false, |x| *x >= num) {
+				match ctx.request_from(*id, les_req.clone()) {
+					Ok(req_id) => {
+						trace!(target: "on_demand", "Assigning request to peer {}", id);
+						self.pending_requests.write().insert(
+							req_id,
+							pending
+						);
+						return
+					}
+					Err(e) =>
+						trace!(target: "on_demand", "Failed to make request of peer {}: {:?}", id, e),
+				}
+			}
+		}
+
+		trace!(target: "on_demand", "No suitable peer for request");
+		self.orphaned_requests.write().push(pending)
+	}
+
+	// dispatch orphaned requests, and discard those for which the corresponding
+	// receiver has been dropped.
+	fn dispatch_orphaned(&self, ctx: &BasicContext) {
+		// wrapper future for calling `poll_cancel` on our `Senders` to preserve
+		// the invariant that it's always within a task.
+		struct CheckHangup<'a, T: 'a>(&'a mut Sender<T>);
+
+		impl<'a, T: 'a> Future for CheckHangup<'a, T> {
+			type Item = bool;
+			type Error = ();
+
+			fn poll(&mut self) -> Poll<bool, ()> {
+				Ok(Async::Ready(match self.0.poll_cancel() {
+					Ok(Async::NotReady) => false, // hasn't hung up.
+					_ => true, // has hung up.
+				}))
+			}
+		}
+
+		// check whether a sender's hung up (using `wait` to preserve the task invariant)
+		// returns true if has hung up, false otherwise.
+		fn check_hangup<T>(send: &mut Sender<T>) -> bool {
+			CheckHangup(send).wait().expect("CheckHangup always returns ok; qed")
+		}
+
+		if self.orphaned_requests.read().is_empty() { return }
+
+		let to_dispatch = ::std::mem::replace(&mut *self.orphaned_requests.write(), Vec::new());
+
+		for orphaned in to_dispatch {
+			match orphaned {
+				Pending::HeaderByNumber(req, mut sender) =>
+					if !check_hangup(&mut sender) { self.dispatch_header_by_number(ctx, req, sender) },
+				Pending::HeaderByHash(req, mut sender) =>
+					if !check_hangup(&mut sender) {	self.dispatch_header_by_hash(ctx, req, sender) },
+				Pending::Block(req, mut sender) =>
+					if !check_hangup(&mut sender) { self.dispatch_block(ctx, req, sender) },
+				Pending::BlockReceipts(req, mut sender) =>
+					if !check_hangup(&mut sender) { self.dispatch_block_receipts(ctx, req, sender) },
+				Pending::Account(req, mut sender) =>
+					if !check_hangup(&mut sender) { self.dispatch_account(ctx, req, sender) },
+				Pending::Code(req, mut sender) =>
+					if !check_hangup(&mut sender) { self.dispatch_code(ctx, req, sender) },
+			}
+		}
 	}
 }
 
 impl Handler for OnDemand {
 	fn on_connect(&self, ctx: &EventContext, status: &Status, capabilities: &Capabilities) {
 		self.peers.write().insert(ctx.peer(), Peer { status: status.clone(), capabilities: capabilities.clone() });
+		self.dispatch_orphaned(ctx.as_basic());
 	}
 
 	fn on_disconnect(&self, ctx: &EventContext, unfulfilled: &[ReqId]) {
 		self.peers.write().remove(&ctx.peer());
 		let ctx = ctx.as_basic();
 
-		for unfulfilled in unfulfilled {
-			if let Some(pending) = self.pending_requests.write().remove(unfulfilled) {
-				trace!(target: "on_demand", "Attempting to reassign dropped request");
-				match pending {
-					Pending::HeaderByNumber(req, sender)
-						=> self.dispatch_header_by_number(ctx, req, sender),
-					Pending::HeaderByHash(req, sender)
-						=> self.dispatch_header_by_hash(ctx, req, sender),
-					Pending::Block(req, sender)
-						=> self.dispatch_block(ctx, req, sender),
-					Pending::BlockReceipts(req, sender)
-						=> self.dispatch_block_receipts(ctx, req, sender),
-					Pending::Account(req, sender)
-						=> self.dispatch_account(ctx, req, sender),
+		{
+			let mut orphaned = self.orphaned_requests.write();
+			for unfulfilled in unfulfilled {
+				if let Some(pending) = self.pending_requests.write().remove(unfulfilled) {
+					trace!(target: "on_demand", "Attempting to reassign dropped request");
+					orphaned.push(pending);
 				}
 			}
 		}
+
+		self.dispatch_orphaned(ctx);
 	}
 
 	fn on_announcement(&self, ctx: &EventContext, announcement: &Announcement) {
@@ -356,6 +424,8 @@ impl Handler for OnDemand {
 			peer.status.update_from(&announcement);
 			peer.capabilities.update_from(&announcement);
 		}
+
+		self.dispatch_orphaned(ctx.as_basic());
 	}
 
 	fn on_header_proofs(&self, ctx: &EventContext, req_id: ReqId, proofs: &[(Bytes, Vec<Bytes>)]) {
@@ -370,7 +440,7 @@ impl Handler for OnDemand {
 				if let Some(&(ref header, ref proof)) = proofs.get(0) {
 					match req.check_response(header, proof) {
 						Ok(header) => {
-							sender.complete(Ok(header));
+							sender.complete(header);
 							return
 						}
 						Err(e) => {
@@ -398,7 +468,7 @@ impl Handler for OnDemand {
 				if let Some(ref header) = headers.get(0) {
 					match req.check_response(header) {
 						Ok(header) => {
-							sender.complete(Ok(header));
+							sender.complete(header);
 							return
 						}
 						Err(e) => {
@@ -426,7 +496,7 @@ impl Handler for OnDemand {
 				if let Some(ref block) = bodies.get(0) {
 					match req.check_response(block) {
 						Ok(block) => {
-							sender.complete(Ok(block));
+							sender.complete(block);
 							return
 						}
 						Err(e) => {
@@ -454,7 +524,7 @@ impl Handler for OnDemand {
 				if let Some(ref receipts) = receipts.get(0) {
 					match req.check_response(receipts) {
 						Ok(receipts) => {
-							sender.complete(Ok(receipts));
+							sender.complete(receipts);
 							return
 						}
 						Err(e) => {
@@ -482,7 +552,7 @@ impl Handler for OnDemand {
 				if let Some(ref proof) = proofs.get(0) {
 					match req.check_response(proof) {
 						Ok(proof) => {
-							sender.complete(Ok(proof));
+							sender.complete(proof);
 							return
 						}
 						Err(e) => {
@@ -497,6 +567,38 @@ impl Handler for OnDemand {
 			_ => panic!("Only account request fetches state proof; qed"),
 		}
 	}
+
+	fn on_code(&self, ctx: &EventContext, req_id: ReqId, codes: &[Bytes]) {
+		let peer = ctx.peer();
+		let req = match self.pending_requests.write().remove(&req_id) {
+			Some(req) => req,
+			None => return,
+		};
+
+		match req {
+			Pending::Code(req, sender) => {
+				if let Some(code) = codes.get(0) {
+					match req.check_response(code.as_slice()) {
+						Ok(()) => {
+							sender.complete(code.clone());
+							return
+						}
+						Err(e) => {
+							warn!("Error handling response for code request: {:?}", e);
+							ctx.disable_peer(peer);
+						}
+					}
+
+					self.dispatch_code(ctx.as_basic(), req, sender);
+				}
+			}
+			_ => panic!("Only code request fetches code; qed"),
+		}
+	}
+
+	fn tick(&self, ctx: &BasicContext) {
+		self.dispatch_orphaned(ctx)
+	}
 }
 
 #[cfg(test)]
@@ -505,7 +607,6 @@ mod tests {
 	use net::{Announcement, BasicContext, ReqId, Error as LesError};
 	use request::{Request as LesRequest, Kind as LesRequestKind};
 	use network::{PeerId, NodeId};
-	use futures::Future;
 	use util::H256;
 
 	struct FakeContext;
@@ -522,10 +623,14 @@ mod tests {
 	}
 
 	#[test]
-	fn no_peers() {
+	fn detects_hangup() {
 		let on_demand = OnDemand::default();
 		let result = on_demand.header_by_hash(&FakeContext, request::HeaderByHash(H256::default()));
 
-		assert_eq!(result.wait().unwrap_err(), Error::NoPeersAvailable);
+		assert!(on_demand.orphaned_requests.read().len() == 1);
+		drop(result);
+
+		on_demand.dispatch_orphaned(&FakeContext);
+		assert!(on_demand.orphaned_requests.read().is_empty());
 	}
 }

@@ -26,17 +26,19 @@
 }
 
 .form .input {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
   margin-bottom: 1.5em;
 }
 
 .form .input * {
   display: inline-block;
   margin: 0 0.5em;
-  padding: 0.5em;
   font-size: 1em;
 }
 
-.form label {
+.form .input label {
   width: 25em;
   opacity: 0.8;
   text-align: right;
@@ -47,8 +49,8 @@
   opacity: 0.5;
 }
 
-.form input,
-.form select {
+.form .input input,
+.form .input select {
   width: 18em;
   color: #444;
   background: rgba(255, 255, 255, 0.75);
@@ -58,6 +60,7 @@
   -moz-appearance: none;
   -webkit-appearance: none;
   appearance: none;
+  padding: 0.5em;
 }
 
 .form select {

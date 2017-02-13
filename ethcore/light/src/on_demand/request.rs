@@ -37,7 +37,7 @@ pub enum Error {
 	BadProof,
 	/// Wrong header number.
 	WrongNumber(u64, u64),
-	/// Wrong header hash.
+	/// Wrong hash.
 	WrongHash(H256, H256),
 	/// Wrong trie root.
 	WrongTrieRoot(H256, H256),
@@ -59,12 +59,33 @@ impl From<Box<TrieError>> for Error {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct HeaderByNumber {
 	/// The header's number.
-	pub num: u64,
+	num: u64,
+	/// The cht number for the given block number.
+	cht_num: u64,
 	/// The root of the CHT containing this header.
-	pub cht_root: H256,
+	cht_root: H256,
 }
 
 impl HeaderByNumber {
+	/// Construct a new header-by-number request. Fails if the given number is 0.
+	/// Provide the expected CHT root to compare against.
+	pub fn new(num: u64, cht_root: H256) -> Option<Self> {
+		::cht::block_to_cht_number(num).map(|cht_num| HeaderByNumber {
+			num: num,
+			cht_num: cht_num,
+			cht_root: cht_root,
+		})
+	}
+
+	/// Access the requested block number.
+	pub fn num(&self) -> u64 { self.num }
+
+	/// Access the CHT number.
+	pub fn cht_num(&self) -> u64 { self.cht_num }
+
+	/// Access the expected CHT root.
+	pub fn cht_root(&self) -> H256 { self.cht_root }
+
 	/// Check a response with a header and cht proof.
 	pub fn check_response(&self, header: &[u8], proof: &[Bytes]) -> Result<(encoded::Header, U256), Error> {
 		let (expected_hash, td) = match ::cht::check_proof(proof, self.num, self.cht_root) {
@@ -106,6 +127,15 @@ pub struct Body {
 }
 
 impl Body {
+	/// Create a request for a block body from a given header.
+	pub fn new(header: encoded::Header) -> Self {
+		let hash = header.hash();
+		Body {
+			header: header,
+			hash: hash,
+		}
+	}
+
 	/// Check a response for this block body.
 	pub fn check_response(&self, body: &[u8]) -> Result<encoded::Block, Error> {
 		let body_view = UntrustedRlp::new(&body);
@@ -179,6 +209,28 @@ impl Account {
 	}
 }
 
+/// Request for account code.
+pub struct Code {
+	/// Block hash, number pair.
+	pub block_id: (H256, u64),
+	/// Address requested.
+	pub address: Address,
+	/// Account's code hash.
+	pub code_hash: H256,
+}
+
+impl Code {
+	/// Check a response with code against the code hash.
+	pub fn check_response(&self, code: &[u8]) -> Result<(), Error> {
+		let found_hash = code.sha3();
+		if found_hash == self.code_hash {
+			Ok(())
+		} else {
+			Err(Error::WrongHash(self.code_hash, found_hash))
+		}
+	}
+}
+
 #[cfg(test)]
 mod tests {
 	use super::*;
@@ -190,6 +242,11 @@ mod tests {
 	use ethcore::header::Header;
 	use ethcore::encoded;
 	use ethcore::receipt::Receipt;
+
+	#[test]
+	fn no_invalid_header_by_number() {
+		assert!(HeaderByNumber::new(0, Default::default()).is_none())
+	}
 
 	#[test]
 	fn check_header_by_number() {
@@ -213,10 +270,7 @@ mod tests {
 		};
 
 		let proof = cht.prove(10_000, 0).unwrap().unwrap();
-		let req = HeaderByNumber {
-			num: 10_000,
-			cht_root: cht.root(),
-		};
+		let req = HeaderByNumber::new(10_000, cht.root()).unwrap();
 
 		let raw_header = test_client.block_header(::ethcore::ids::BlockId::Number(10_000)).unwrap();
 
@@ -318,5 +372,18 @@ mod tests {
 		};
 
 		assert!(req.check_response(&proof[..]).is_ok());
+	}
+
+	#[test]
+	fn check_code() {
+		let code = vec![1u8; 256];
+		let req = Code {
+			block_id: (Default::default(), 2),
+			address: Default::default(),
+			code_hash: ::util::Hashable::sha3(&code),
+		};
+
+		assert!(req.check_response(&code).is_ok());
+		assert!(req.check_response(&[]).is_err());
 	}
 }
