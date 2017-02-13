@@ -48,7 +48,7 @@ const SRCPATH = path.join(__dirname, '../.build/i18n/i18n/en.json');
 
 // export a section as a flatenned string (non-JSON, rather JS export)
 function createExportString (section, indent) {
-  if (Object.prototype.toString.call(section) === '[object String]') {
+  if (typeof section === 'string') {
     return `\`${section}\``;
   }
 
