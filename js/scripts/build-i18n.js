@@ -14,8 +14,9 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import fs from 'fs';
-import path from 'path';
+const fs = require('fs');
+const _ = require('lodash');
+const path = require('path');
 
 const FILE_HEADER = `// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
@@ -36,6 +37,7 @@ const SECTION_HEADER = 'export default ';
 const SECTION_FOOTER = ';\n';
 const INDENT = '  ';
 const DESTPATH = path.join(__dirname, '../src/i18n/_default');
+const ENPATH = path.join(__dirname, '../src/i18n/en');
 const SRCPATH = path.join(__dirname, '../.build/i18n/i18n/en.json');
 
 // main entry point
@@ -46,8 +48,17 @@ const SRCPATH = path.join(__dirname, '../.build/i18n/i18n/en.json');
   outputIndex(sectionNames);
 })();
 
+// helper to merge in section into defaults
+function deepMerge (object, source) {
+  return _.mergeWith(object, source, (objValue, srcValue) => {
+    if (_.isObject(objValue) && srcValue) {
+      return deepMerge(objValue, srcValue);
+    }
+  });
+}
+
 // export a section as a flatenned string (non-JSON, rather JS export)
-function createExportString (section, indent) {
+function createExportString (section, indent = INDENT) {
   if (typeof section === 'string') {
     return `\`${section}\``;
   }
@@ -97,12 +108,29 @@ function createSectionMap () {
   };
 }
 
+// load the available deafults (non-exported strings) for a section
+function readDefaults (sectionName) {
+  let defaults = {};
+
+  try {
+    defaults = require(path.join(ENPATH, `${sectionName}.js`)).default;
+  } catch (error) {
+    defaults = {};
+  }
+
+  return defaults;
+}
+
 // create the index.js file
 function outputIndex (sectionNames) {
   console.log(`Writing index.js to ${DESTPATH}`);
 
+  const defaults = readDefaults('index');
   const dest = path.join(DESTPATH, 'index.js');
-  const exports = sectionNames
+  const exports = Object
+    .keys(defaults)
+    .concat(sectionNames)
+    .sort()
     .map((name) => `export ${name} from './${name}';`)
     .join('\n');
 
@@ -110,10 +138,12 @@ function outputIndex (sectionNames) {
 }
 
 // create the individual section files
-function outputSection (name, section) {
-  console.log(`Writing ${name}.js to ${DESTPATH}`);
+function outputSection (sectionName, _section) {
+  console.log(`Writing ${sectionName}.js to ${DESTPATH}`);
 
-  const dest = path.join(DESTPATH, `${name}.js`);
+  const defaults = readDefaults(sectionName);
+  const section = deepMerge(defaults, _section);
+  const dest = path.join(DESTPATH, `${sectionName}.js`);
   const sectionText = createExportString(section, INDENT);
 
   fs.writeFileSync(dest, `${FILE_HEADER}${SECTION_HEADER}${sectionText}${SECTION_FOOTER}`, 'utf8');
