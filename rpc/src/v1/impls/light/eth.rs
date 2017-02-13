@@ -305,8 +305,7 @@ impl Eth for EthClient {
 	}
 
 	fn send_raw_transaction(&self, raw: Bytes) -> Result<RpcH256, Error> {
-		let best_header = self.client.block_header(BlockId::Latest)
-			.expect("best block header always stored; qed").decode();
+		let best_header = self.client.best_block_header().decode();
 
 		UntrustedRlp::new(&raw.into_vec()).as_val()
 			.map_err(errors::from_rlp_error)

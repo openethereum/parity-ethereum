@@ -31,8 +31,7 @@ use ethcore::service::ClientIoMessage;
 use ethcore::encoded;
 use io::IoChannel;
 
-use util::hash::H256;
-use util::{Bytes, Mutex, RwLock};
+use util::{Bytes, H256, Mutex, RwLock};
 
 use self::header_chain::HeaderChain;
 
@@ -59,6 +58,9 @@ pub trait LightChainClient: Send + Sync {
 
 	/// Attempt to get block header by block id.
 	fn block_header(&self, id: BlockId) -> Option<encoded::Header>;
+
+	/// Get the best block header.
+	fn best_block_header(&self) -> encoded::Header;
 
 	/// Query whether a block is known.
 	fn is_known(&self, hash: &H256) -> bool;
@@ -157,6 +159,11 @@ impl Client {
 		self.chain.block_header(id)
 	}
 
+	/// Get the best block header.
+	pub fn best_block_header(&self) -> encoded::Header {
+		self.chain.best_header()
+	}
+
 	/// Flush the header queue.
 	pub fn flush_queue(&self) {
 		self.queue.flush()
@@ -221,6 +228,10 @@ impl LightChainClient for Client {
 
 	fn block_header(&self, id: BlockId) -> Option<encoded::Header> {
 		Client::block_header(self, id)
+	}
+
+	fn best_block_header(&self) -> encoded::Header {
+		Client::best_block_header(self)
 	}
 
 	fn is_known(&self, hash: &H256) -> bool {

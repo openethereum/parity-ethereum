@@ -30,7 +30,6 @@ use util::sha3::Hashable;
 
 use ethkey::Signature;
 use ethsync::LightSync;
-use ethcore::ids::BlockId;
 use ethcore::miner::MinerService;
 use ethcore::client::MiningBlockChainClient;
 use ethcore::transaction::{Action, SignedTransaction, PendingTransaction, Transaction};
@@ -190,8 +189,7 @@ impl Dispatcher for LightDispatcher {
 		-> BoxFuture<FilledTransactionRequest, Error>
 	{
 		let request = request;
-		let gas_limit = self.client.block_header(BlockId::Latest)
-			.expect("Best block header always kept; qed").gas_limit();
+		let gas_limit = self.client.best_block_header().gas_limit();
 
 		future::ok(FilledTransactionRequest {
 			from: request.from.unwrap_or(default_sender),
@@ -211,8 +209,7 @@ impl Dispatcher for LightDispatcher {
 	{
 		let network_id = None; // TODO: fetch from client.
 		let address = filled.from;
-		let best_header = self.client.block_header(BlockId::Latest)
-			.expect("Best block header always kept; qed");
+		let best_header = self.client.best_block_header();
 
 		let with_nonce = move |filled: FilledTransactionRequest, nonce| {
 			let t = Transaction {
