@@ -127,9 +127,7 @@ function outputIndex (sectionNames) {
 
   const defaults = readDefaults('index');
   const dest = path.join(DESTPATH, 'index.js');
-  const exports = Object
-    .keys(defaults)
-    .concat(sectionNames)
+  const exports = _.uniq(Object.keys(defaults).concat(sectionNames))
     .sort()
     .map((name) => `export ${name} from './${name}';`)
     .join('\n');
