@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { isAddress as isAddressValid, toChecksumAddress } from '../../abi/util/address';
+import { isAddress as isAddressValid, toChecksumAddress } from './address';
 import { abiDecode, decodeCallData, decodeMethodInput, methodToAbi } from './decode';
 import { abiEncode, encodeMethodCallAbi } from './encode';
 import { bytesToHex, hexToAscii, asciiToHex } from './format';
