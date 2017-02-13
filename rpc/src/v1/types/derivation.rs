@@ -14,10 +14,13 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use super::hash::H256;
-use serde::{Deserialize, Deserializer, Error};
-use serde::de::Visitor;
+use std::fmt;
+use serde::{Deserialize, Deserializer};
+use serde::de::{Error, Visitor};
+
 use ethstore;
+
+use super::hash::H256;
 
 /// Type of derivation
 pub enum DerivationType {
@@ -100,8 +103,7 @@ impl Derive {
 }
 
 impl Deserialize for DerivationType {
-	fn deserialize<D>(deserializer: &mut D) -> Result<DerivationType, D::Error>
-	where D: Deserializer {
+	fn deserialize<D>(deserializer: D) -> Result<DerivationType, D::Error> where D: Deserializer {
 		deserializer.deserialize(DerivationTypeVisitor)
 	}
 }
@@ -111,7 +113,11 @@ struct DerivationTypeVisitor;
 impl Visitor for DerivationTypeVisitor {
 	type Value = DerivationType;
 
-	fn visit_str<E>(&mut self, value: &str) -> Result<Self::Value, E> where E: Error {
+	fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+		write!(formatter, "'hard' or 'soft'")
+	}
+
+	fn visit_str<E>(self, value: &str) -> Result<Self::Value, E> where E: Error {
 		match value {
 			"soft" => Ok(DerivationType::Soft),
 			"hard" => Ok(DerivationType::Hard),
@@ -119,7 +125,7 @@ impl Visitor for DerivationTypeVisitor {
 		}
 	}
 
-	fn visit_string<E>(&mut self, value: String) -> Result<Self::Value, E> where E: Error {
+	fn visit_string<E>(self, value: String) -> Result<Self::Value, E> where E: Error {
 		self.visit_str(value.as_ref())
 	}
 }
