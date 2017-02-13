@@ -16,17 +16,40 @@
 
 import { shallow } from 'enzyme';
 import React from 'react';
+import sinon from 'sinon';
 
 import Accounts from './';
 
 let component;
+let store;
+
+function createRedux () {
+  store = {
+    dispatch: sinon.stub(),
+    subscribe: sinon.stub(),
+    getState: () => {
+      return {
+        personal: {
+          accountsInfo: { '0x123': {} }
+        }
+      };
+    }
+  };
+
+  return store;
+}
 
 function render (history = []) {
   component = shallow(
     <Accounts
       history={ history }
-    />
-  );
+    />,
+    {
+      context: {
+        store: createRedux()
+      }
+    }
+  ).find('Accounts').shallow();
 
   return component;
 }
