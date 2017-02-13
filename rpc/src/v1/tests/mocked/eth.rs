@@ -874,7 +874,7 @@ fn rpc_eth_send_transaction_with_bad_to() {
 		"id": 1
 	}"#;
 
-	let response = r#"{"jsonrpc":"2.0","error":{"code":-32602,"message":"Invalid params","data":null},"id":1}"#;
+	let response = r#"{"jsonrpc":"2.0","error":{"code":-32602,"message":"Invalid length.","data":null},"id":1}"#;
 
 	assert_eq!(tester.io.handle_request_sync(&request), Some(response.into()));
 }
