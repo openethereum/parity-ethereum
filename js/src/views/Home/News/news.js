@@ -17,25 +17,23 @@
 import React, { Component } from 'react';
 import ReactMarkdown from 'react-markdown';
 
-import Contracts from '~/contracts';
 import { SectionList } from '~/ui';
 
 import { createRenderers } from './renderers';
+import Store from './store';
 import styles from './news.css';
 
 const VERSION_ID = '1';
 
 export default class News extends Component {
-  componentWillMount () {
-    return this.retrieveNews();
-  }
+  store = Store.get();
 
-  state = {
-    newsItems: null
+  componentWillMount () {
+    return this.store.retrieveNews(VERSION_ID);
   }
 
   render () {
-    const { newsItems } = this.state;
+    const { newsItems } = this.store;
 
     if (!newsItems || !newsItems.length) {
       return null;
@@ -84,34 +82,6 @@ export default class News extends Component {
         </div>
       </div>
     );
-  }
-
-  retrieveNews () {
-    const contracts = Contracts.get();
-
-    return contracts.registry
-      .lookupMeta('paritynews', 'CONTENT')
-      .then((contentId) => {
-        return contracts.githubHint.getEntry(contentId);
-      })
-      .then(([url, owner, commit]) => {
-        if (!url) {
-          return null;
-        }
-
-        return fetch(url).then((response) => {
-          if (!response.ok) {
-            return null;
-          }
-
-          return response.json();
-        });
-      })
-      .then((news) => {
-        if (news && news[VERSION_ID]) {
-          this.setState({ newsItems: news[VERSION_ID].items });
-        }
-      });
   }
 }
 

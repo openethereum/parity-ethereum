@@ -14,41 +14,44 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { shallow } from 'enzyme';
-import React from 'react';
-
-import News from './news';
+import { VERSION_ID } from './news';
 import { restoreGlobals, stubGlobals } from './news.test.js';
+import Store from './store';
 
-let component;
-let instance;
+let store;
 
-function render () {
-  component = shallow(
-    <News />
-  );
-  instance = component.instance();
+function create () {
+  store = new Store();
 
-  return component;
+  return store;
 }
 
-describe('views/Home/News', () => {
+describe('views/Home/News/Store', () => {
   beforeEach(() => {
     stubGlobals();
-    render();
-
-    return instance.componentWillMount();
+    create();
   });
 
   afterEach(() => {
     restoreGlobals();
   });
 
-  it('renders defaults', () => {
-    expect(component).to.be.ok;
+  describe('@action', () => {
+    describe('setNewsItems', () => {
+      it('sets the items', () => {
+        store.setNewsItems('testing');
+        expect(store.newsItems).to.equal('testing');
+      });
+    });
   });
 
-  it('retrieves the content meta on mount', () => {
-    expect(instance.store.newsItems).to.equal('testContent');
+  describe('operations', () => {
+    describe('retrieveNews', () => {
+      it('retrieves the items', () => {
+        return store.retrieveNews(VERSION_ID).then(() => {
+          expect(store.newsItems).to.equal('testContent');
+        });
+      });
+    });
   });
 });
