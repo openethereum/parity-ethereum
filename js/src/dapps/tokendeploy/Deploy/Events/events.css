@@ -25,6 +25,12 @@
   border-collapse: collapse;
   display: flex;
   overflow: auto;
+
+  > * {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+  }
 }
 
 .eventList tr:nth-child(even) {
