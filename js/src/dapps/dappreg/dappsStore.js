@@ -354,7 +354,7 @@ export default class DappsStore {
           ])
           .then(([contentUrl, imageUrl, manifestUrl]) => {
             return this
-              ._loadManifest(app.id, manifestHash)
+              ._loadManifest(app.id, manifestHash, manifestUrl)
               .then((manifest) => {
                 this.setAppInfo(app, {
                   manifest,

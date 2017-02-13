@@ -15,8 +15,10 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+@import '../_colors.css';
+
 .button {
-  background: #44e;
+  background: $blue;
   border: none;
   border-radius: 0.25em;
   color: #fff;

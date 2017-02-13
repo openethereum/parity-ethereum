@@ -15,6 +15,8 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+@import '../_colors.css';
+
 .modal {
   .body {
     bottom: 0;
@@ -57,7 +59,7 @@
       }
 
       .header {
-        background: #44e;
+        background: $blue;
         color: #fff;
         opacity: 0.85;
         padding: 1em;
