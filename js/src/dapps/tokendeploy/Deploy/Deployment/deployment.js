@@ -20,11 +20,14 @@ import { api } from '../../parity';
 import Container from '../../Container';
 import styles from './deployment.css';
 
+const DECIMALS = 6;
+const BASE = Math.pow(10, DECIMALS);
+
 const ERRORS = {
   name: 'specify a valid name >2 & <32 characters',
   tla: 'specify a valid TLA, 3 characters in length',
   usedtla: 'the TLA used is not available for registration',
-  supply: 'supply needs to be valid >999 & <1 trillion'
+  supply: `supply needs to be > 1 & <1 trillion, with no more than ${DECIMALS} decimals`
 };
 
 export default class Deployment extends Component {
@@ -34,9 +37,9 @@ export default class Deployment extends Component {
     managerInstance: PropTypes.object.isRequired,
     registryInstance: PropTypes.object.isRequired,
     tokenregInstance: PropTypes.object.isRequired
-  }
+  };
 
-  state = {
+  static initState = {
     base: null,
     deployBusy: false,
     deployDone: false,
@@ -54,7 +57,9 @@ export default class Deployment extends Component {
     totalSupplyError: null,
     signerRequestId: null,
     txHash: null
-  }
+  };
+
+  state = Deployment.initState
 
   componentDidMount () {
     const { managerInstance, tokenregInstance } = this.context;
@@ -72,6 +77,10 @@ export default class Deployment extends Component {
           globalFeeText: api.util.fromWei(globalFee).toFormat(3)
         });
       });
+  }
+
+  reset () {
+    this.setState(Deployment.initState, () => this.componentDidMount());
   }
 
   render () {
@@ -102,7 +111,7 @@ export default class Deployment extends Component {
             Your deployment has encountered an error
           </div>
           <div className={ styles.statusError }>
-            { deployError }
+            { deployError.message }
           </div>
         </Container>
       );
@@ -155,8 +164,9 @@ export default class Deployment extends Component {
             <label>token supply</label>
             <input
               type='number'
-              min='1000'
-              max='999999999999'
+              step={ 1 }
+              min={ 1 }
+              max='999999999999999'
               name='totalSupply'
               value={ totalSupply }
               onChange={ this.onChangeSupply }
@@ -196,12 +206,14 @@ export default class Deployment extends Component {
   }
 
   onChangeSupply = (event) => {
-    const totalSupply = parseInt(event.target.value, 10);
-    const totalSupplyError = isFinite(totalSupply) && totalSupply > 999
+    const { value } = event.target;
+    const floatValue = parseFloat(value, 10);
+    const convertedTotalSupply = floatValue * BASE;
+    const totalSupplyError = Number.isInteger(convertedTotalSupply) && floatValue >= 1
       ? null
       : ERRORS.supply;
 
-    this.setState({ totalSupply, totalSupplyError });
+    this.setState({ totalSupply: value, totalSupplyError });
   }
 
   onChangeTla = (event) => {
@@ -293,8 +305,12 @@ export default class Deployment extends Component {
         this.setState({ txReceipt, deployDone: true, deployState: 'Network confirmed, Received transaction receipt' });
       })
       .catch((error) => {
+        if (error.type === 'REQUEST_REJECTED') {
+          return this.reset();
+        }
+
         console.error('onDeploy', error);
-        this.setState({ deployError: error.message });
+        this.setState({ deployError: error });
       });
   }
 }

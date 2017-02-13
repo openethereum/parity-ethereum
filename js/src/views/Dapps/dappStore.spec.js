@@ -22,10 +22,10 @@ import Contracts from '~/contracts';
 
 import Store, { LS_KEY_DISPLAY } from './dappsStore';
 
-const APPID_BASICCOIN = '0xf9f2d620c2e08f83e45555247146c62185e4ab7cf82a4b9002a265a0d020348f';
 const APPID_DAPPREG = '0x7bbc4f1a27628781b96213e781a1b8eec6982c1db8fac739af6e4c5a55862c03';
 const APPID_GHH = '0x058740ee9a5a3fb9f1cfa10752baec87e09cc45cd7027fd54708271aca300c75';
 const APPID_LOCALTX = '0xae74ad174b95cdbd01c88ac5b73a296d33e9088fc2a200e76bcedf3a94a7815d';
+const APPID_TOKENDEPLOY = '0xf9f2d620c2e08f83e45555247146c62185e4ab7cf82a4b9002a265a0d020348f';
 const FETCH_OK = {
   ok: true,
   status: 200
@@ -91,7 +91,7 @@ describe('views/Dapps/DappStore', () => {
 
   describe('@action', () => {
     const defaultViews = {
-      [APPID_BASICCOIN]: { visible: false },
+      [APPID_TOKENDEPLOY]: { visible: false },
       [APPID_DAPPREG]: { visible: true }
     };
 
@@ -106,10 +106,10 @@ describe('views/Dapps/DappStore', () => {
       });
 
       it('overrides single keys, keeping existing', () => {
-        store.setDisplayApps({ [APPID_BASICCOIN]: { visible: true } });
+        store.setDisplayApps({ [APPID_TOKENDEPLOY]: { visible: true } });
 
         expect(store.displayApps).to.deep.equal(
-          Object.assign({}, defaultViews, { [APPID_BASICCOIN]: { visible: true } })
+          Object.assign({}, defaultViews, { [APPID_TOKENDEPLOY]: { visible: true } })
         );
       });
 
@@ -143,19 +143,19 @@ describe('views/Dapps/DappStore', () => {
       });
 
       it('enables visibility', () => {
-        store.showApp(APPID_BASICCOIN);
+        store.showApp(APPID_TOKENDEPLOY);
 
-        expect(store.displayApps[APPID_BASICCOIN].visible).to.be.true;
+        expect(store.displayApps[APPID_TOKENDEPLOY].visible).to.be.true;
         expect(localStore.get(LS_KEY_DISPLAY)).to.deep.equal(
-          Object.assign({}, defaultViews, { [APPID_BASICCOIN]: { visible: true } })
+          Object.assign({}, defaultViews, { [APPID_TOKENDEPLOY]: { visible: true } })
         );
       });
 
       it('keeps visibility state', () => {
-        store.hideApp(APPID_BASICCOIN);
+        store.hideApp(APPID_TOKENDEPLOY);
         store.showApp(APPID_DAPPREG);
 
-        expect(store.displayApps[APPID_BASICCOIN].visible).to.be.false;
+        expect(store.displayApps[APPID_TOKENDEPLOY].visible).to.be.false;
         expect(store.displayApps[APPID_DAPPREG].visible).to.be.true;
         expect(localStore.get(LS_KEY_DISPLAY)).to.deep.equal(defaultViews);
       });
@@ -177,11 +177,11 @@ describe('views/Dapps/DappStore', () => {
       });
 
       it('saves visibility to storage', () => {
-        store.setDisplayApps({ [APPID_BASICCOIN]: { visible: true } });
+        store.setDisplayApps({ [APPID_TOKENDEPLOY]: { visible: true } });
         store.writeDisplayApps();
 
         expect(localStore.get(LS_KEY_DISPLAY)).to.deep.equal(
-          Object.assign({}, defaultViews, { [APPID_BASICCOIN]: { visible: true } })
+          Object.assign({}, defaultViews, { [APPID_TOKENDEPLOY]: { visible: true } })
         );
       });
     });
@@ -190,7 +190,7 @@ describe('views/Dapps/DappStore', () => {
   describe('saved views', () => {
     beforeEach(() => {
       localStore.set(LS_KEY_DISPLAY, {
-        [APPID_BASICCOIN]: { visible: false },
+        [APPID_TOKENDEPLOY]: { visible: false },
         [APPID_DAPPREG]: { visible: true }
       });
 
@@ -202,7 +202,7 @@ describe('views/Dapps/DappStore', () => {
     });
 
     it('disables based on saved keys', () => {
-      expect(store.displayApps[APPID_BASICCOIN].visible).to.be.false;
+      expect(store.displayApps[APPID_TOKENDEPLOY].visible).to.be.false;
     });
 
     it('enables based on saved keys', () => {

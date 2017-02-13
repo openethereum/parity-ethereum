@@ -121,8 +121,21 @@ export default class Send extends Component {
   }
 
   renderForm () {
+    const { tokens } = this.state;
+
+    if (!tokens || tokens.length === 0) {
+      return (
+        <Container>
+          <div className={ styles.statusHeader }>
+            There are no tokens to transfer
+          </div>
+        </Container>
+      );
+    }
+
     const { accounts } = this.context;
     const { availableBalances, fromAddress, amount, amountError, toKnown, toAddress } = this.state;
+
     const fromBalance = availableBalances.find((balance) => balance.address === fromAddress);
     const fromAddresses = availableBalances.map((balance) => balance.address);
     const toAddresses = Object.keys(accounts);
@@ -323,7 +336,10 @@ export default class Send extends Component {
         });
 
         this.setState({ tokens, loading: false });
-        this.onSelectToken({ target: { value: tokens[0].address } });
+
+        if (tokens.length > 0) {
+          this.onSelectToken({ target: { value: tokens[0].address } });
+        }
       });
   }
 }
