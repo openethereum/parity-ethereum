@@ -40,6 +40,7 @@ export default class InputQuery extends Component {
   };
 
   state = {
+    error: null,
     isValid: true,
     results: [],
     values: {}
@@ -54,8 +55,23 @@ export default class InputQuery extends Component {
           className={ styles.methodTitle }
           title={ name }
         />
+        { this.renderError() }
         { this.renderContent() }
       </Card>
+    );
+  }
+
+  renderError () {
+    const { error } = this.state;
+
+    if (!error) {
+      return null;
+    }
+
+    return (
+      <p className={ styles.error }>
+        { error.message }
+      </p>
     );
   }
 
@@ -65,7 +81,7 @@ export default class InputQuery extends Component {
     const { isValid } = this.state;
 
     const inputsFields = inputs
-      .map(input => this.renderInput(input));
+      .map((input, index) => this.renderInput(input, index));
 
     return (
       <div>
@@ -119,7 +135,7 @@ export default class InputQuery extends Component {
         );
 
         return (
-          <div key={ index }>
+          <div key={ `${out.name}_${out.type}_${index}` }>
             <div className={ styles.queryResultName }>
               { out.name }
             </div>
@@ -129,7 +145,7 @@ export default class InputQuery extends Component {
       });
   }
 
-  renderInput (input) {
+  renderInput (input, index) {
     const { values } = this.state;
     const { name, type } = input;
     const label = `${name ? `${name}: ` : ''}${type}`;
@@ -140,41 +156,42 @@ export default class InputQuery extends Component {
       this.setState({
         values: {
           ...values,
-          [ name ]: value
+          [ index ]: value
         }
       });
     };
 
     return (
-      <div key={ name }>
+      <div key={ `${name}_${type}_${index}` }>
         <TypedInput
           hint={ type }
           label={ label }
           isEth={ false }
           onChange={ onChange }
           param={ type }
-          value={ values[name] }
+          value={ values[index] }
         />
       </div>
     );
   }
 
-  renderValue (value) {
+  renderValue (token) {
+    const { api } = this.context;
+    const { type, value } = token;
+
     if (value === null || value === undefined) {
       return 'no data';
     }
 
-    const { api } = this.context;
-
-    if (api.util.isInstanceOf(value, BigNumber)) {
-      return value.toFormat(0);
+    if (type === 'array' || type === 'fixedArray') {
+      return value.map((tok) => this.renderValue(tok));
     }
 
-    if (api.util.isArray(value)) {
+    if (Array.isArray(value)) {
       return api.util.bytesToHex(value);
     }
 
-    return value.toString();
+    return value;
   }
 
   onClick = () => {
@@ -186,23 +203,29 @@ export default class InputQuery extends Component {
       results: []
     });
 
-    const inputValues = inputs.map(input => values[input.name]);
+    const inputValues = inputs.map((input, index) => values[index] || '');
 
     contract
       .instance[signature]
-      .call({}, inputValues)
+      .call({ rawTokens: true }, inputValues)
       .then(results => {
         if (outputs.length === 1) {
           results = [ results ];
         }
 
         this.setState({
+          error: null,
           isLoading: false,
           results
         });
       })
-      .catch(e => {
-        console.error(`sending ${name} with params`, inputValues, e);
+      .catch((error) => {
+        console.error(`sending ${name} with params`, inputValues, error.message);
+
+        this.setState({
+          isLoading: false,
+          error
+        });
       });
   };
 }

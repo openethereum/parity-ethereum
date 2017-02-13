@@ -206,12 +206,11 @@ class AddressSelect extends Component {
                 style={ BOTTOM_BORDER_STYLE }
               />
             </div>
-
-            { this.renderCurrentInput() }
-            { this.renderRegistryValues() }
           </div>
         }
       >
+        { this.renderCurrentInput() }
+        { this.renderRegistryValues() }
         { this.renderAccounts() }
       </Portal>
     );
@@ -245,8 +244,8 @@ class AddressSelect extends Component {
     }
 
     return (
-      <div>
-        { this.renderAccountCard({ address }) }
+      <div className={ styles.container }>
+        { this.renderAccountCard({ address, index: 'currentInput_0' }) }
       </div>
     );
   }
@@ -266,7 +265,7 @@ class AddressSelect extends Component {
       });
 
     return (
-      <div>
+      <div className={ styles.container }>
         { accounts }
       </div>
     );
@@ -361,7 +360,7 @@ class AddressSelect extends Component {
 
   validateCustomInput = () => {
     const { allowInput } = this.props;
-    const { inputValue } = this.store;
+    const { inputValue } = this.state;
     const { values } = this.store;
 
     // If input is HEX and allowInput === true, send it
@@ -587,7 +586,13 @@ class AddressSelect extends Component {
       this.handleDOMAction('inputAddress', 'focus');
     }
 
-    this.setState({ expanded: false });
+    this.store.resetRegistryValues();
+
+    this.setState({
+      expanded: false,
+      focusedItem: null,
+      inputValue: ''
+    });
   }
 
   handleInputBlur = () => {

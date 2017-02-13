@@ -125,7 +125,7 @@ export default class TypedInput extends Component {
       return (
         <div className={ styles.inputs }>
           <label>{ label }</label>
-          { fixedLength ? null : this.renderLength() }
+          { fixedLength || readOnly ? null : this.renderLength() }
           { inputs }
         </div>
       );
