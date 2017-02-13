@@ -48,16 +48,8 @@ const SRCPATH = path.join(__dirname, '../.build/i18n/i18n/en.json');
   outputIndex(sectionNames);
 })();
 
-// helper to merge in section into defaults
-function deepMerge (object, source) {
-  return _.mergeWith(object, source, (objValue, srcValue) => {
-    if (_.isObject(objValue) && srcValue) {
-      return deepMerge(objValue, srcValue);
-    }
-  });
-}
-
 // export a section as a flatenned string (non-JSON, rather JS export)
+// FIXME: Would love a module for this as opposed to recursively doing it
 function createExportString (section, indent = INDENT) {
   if (typeof section === 'string') {
     return `\`${section}\``;
@@ -136,13 +128,12 @@ function outputIndex (sectionNames) {
 }
 
 // create the individual section files
-function outputSection (sectionName, _section) {
+function outputSection (sectionName, section) {
   console.log(`Writing ${sectionName}.js to ${DESTPATH}`);
 
   const defaults = readDefaults(sectionName);
-  const section = deepMerge(defaults, _section);
   const dest = path.join(DESTPATH, `${sectionName}.js`);
-  const sectionText = createExportString(section, INDENT);
+  const sectionText = createExportString(_.defaultsDeep(section, defaults), INDENT);
 
   fs.writeFileSync(dest, `${FILE_HEADER}${SECTION_HEADER}${sectionText}${SECTION_FOOTER}`, 'utf8');
 }
