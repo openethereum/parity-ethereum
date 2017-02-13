@@ -40,6 +40,7 @@ mod uint;
 mod work;
 mod histogram;
 mod consensus_status;
+mod derivation;
 
 pub use self::bytes::Bytes;
 pub use self::block::{RichBlock, Block, BlockTransactions};
