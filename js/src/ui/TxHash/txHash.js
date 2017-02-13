@@ -21,8 +21,9 @@ import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 
 import { txLink } from '~/3rdparty/etherscan/links';
-import ShortenedHash from '../ShortenedHash';
+import Warning from '~/ui/Warning';
 
+import ShortenedHash from '../ShortenedHash';
 import styles from './txHash.css';
 
 class TxHash extends Component {
@@ -43,8 +44,42 @@ class TxHash extends Component {
 
   state = {
     blockNumber: new BigNumber(0),
+    gas: {},
     subscriptionId: null,
     transaction: null
+  }
+
+  componentWillMount () {
+    this.fetchTransactionGas();
+  }
+
+  componentWillReceiveProps (nextProps) {
+    const prevHash = this.props.hash;
+    const nextHash = nextProps.hash;
+
+    if (prevHash !== nextHash) {
+      this.fetchTransactionGas(nextProps);
+    }
+  }
+
+  /**
+   * Get the gas send for the current transaction
+   * and save the value in the state
+   */
+  fetchTransactionGas (props = this.props) {
+    const { hash } = props;
+
+    if (!hash) {
+      return;
+    }
+
+    this.context.api.eth
+      .getTransactionByHash(hash)
+      .then((transaction = {}) => {
+        const { gas = new BigNumber(0) } = transaction;
+
+        this.setState({ gas: { hash, value: gas } });
+      });
   }
 
   componentDidMount () {
@@ -73,6 +108,7 @@ class TxHash extends Component {
 
     return (
       <div>
+        { this.renderWarning() }
         <p>{
           summary
             ? hashLink
@@ -84,6 +120,32 @@ class TxHash extends Component {
         }</p>
         { this.renderConfirmations() }
       </div>
+    );
+  }
+
+  renderWarning () {
+    const { gas, transaction } = this.state;
+
+    if (!(transaction && transaction.blockNumber && transaction.blockNumber.gt(0))) {
+      return null;
+    }
+
+    const { gasUsed = new BigNumber(0) } = transaction;
+    const isOog = transaction.transactionHash === gas.hash && gasUsed.gte(gas.value);
+
+    if (!isOog) {
+      return null;
+    }
+
+    return (
+      <Warning
+        warning={
+          <FormattedMessage
+            id='ui.txHash.oog'
+            defaultMessage='The transaction might have gone out of gas. Try again with more gas.'
+          />
+        }
+      />
     );
   }
 

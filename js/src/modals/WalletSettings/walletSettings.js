@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 import { observer } from 'mobx-react';
 import { pick } from 'lodash';
@@ -23,7 +24,7 @@ import ActionDone from 'material-ui/svg-icons/action/done';
 import ContentClear from 'material-ui/svg-icons/content/clear';
 import NavigationArrowForward from 'material-ui/svg-icons/navigation/arrow-forward';
 
-import { Button, Modal, TxHash, BusyStep, Form, TypedInput, InputAddress, AddressSelect } from '~/ui';
+import { Button, Modal, TxHash, BusyStep, Form, TypedInput, Input, InputAddress, AddressSelect } from '~/ui';
 import { fromWei } from '~/api/util/wei';
 
 import WalletSettingsStore from './walletSettingsStore.js';
@@ -51,12 +52,27 @@ class WalletSettings extends Component {
       return (
         <Modal
           visible
-          title='rejected'
+          title={
+            <FormattedMessage
+              id='walletSettings.rejected.title'
+              defaultMessage='rejected'
+            />
+          }
           actions={ this.renderDialogActions() }
         >
           <BusyStep
-            title='The modifications have been rejected'
-            state='The wallet settings will not be modified. You can safely close this window.'
+            title={
+              <FormattedMessage
+                id='walletSettings.rejected.busyStep.title'
+                defaultMessage='The modifications have been rejected'
+              />
+            }
+            state={
+              <FormattedMessage
+                id='walletSettings.rejected.busyStep.state'
+                defaultMessage='The wallet settings will not be modified. You can safely close this window.'
+              />
+            }
           />
         </Modal>
       );
@@ -112,57 +128,124 @@ class WalletSettings extends Component {
 
       default:
       case 'EDIT':
-        const { wallet, errors } = this.store;
+        const { errors, fromString, wallet } = this.store;
         const { accountsInfo, senders } = this.props;
 
         return (
           <Form>
             <p>
-              In order to edit this contract's settings, at
-              least { this.store.initialWallet.require.toNumber() } owners have to
-              send the very same modifications.
-              Otherwise, no modification will be taken into account...
+              <FormattedMessage
+                id='walletSettings.edit.message'
+                defaultMessage={
+                  `In order to edit this contract's settings, at
+                  least { owners, number } { owners, plural,
+                    one { owner }
+                    other { owners }
+                  } have to
+                  send the very same modifications. You can paste a stringified version
+                  of the modifications here.`
+                }
+                values={ {
+                  owners: this.store.initialWallet.require.toNumber()
+                } }
+              />
             </p>
 
+            <Input
+              hint='[ ... ]'
+              label={
+                <FormattedMessage
+                  id='walletSettings.modifications.fromString.label'
+                  defaultMessage='modifications'
+                />
+              }
+              onChange={ this.store.onModificationsStringChange }
+            />
+
             <AddressSelect
-              label='from account (wallet owner)'
-              hint='send modifications as this owner'
+              label={
+                <FormattedMessage
+                  id='walletSettings.modifications.sender.label'
+                  defaultMessage='from account (wallet owner)'
+                />
+              }
+              hint={
+                <FormattedMessage
+                  id='walletSettings.modifications.sender.hint'
+                  defaultMessage='send modifications as this owner'
+                />
+              }
               value={ wallet.sender }
               error={ errors.sender }
               onChange={ this.store.onSenderChange }
               accounts={ senders }
             />
 
-            <TypedInput
-              label='other wallet owners'
-              value={ wallet.owners.slice() }
-              onChange={ this.store.onOwnersChange }
-              accounts={ accountsInfo }
-              param='address[]'
-            />
+            <br />
 
-            <div className={ styles.splitInput }>
-              <TypedInput
-                label='required owners'
-                hint='number of required owners to accept a transaction'
-                error={ errors.require }
-                min={ 1 }
-                onChange={ this.store.onRequireChange }
-                max={ wallet.owners.length }
-                param='uint'
-                value={ wallet.require }
-              />
+            {
+              fromString
+                ? null
+                : (
+                  <div>
+                    <TypedInput
+                      label={
+                        <FormattedMessage
+                          id='walletSettings.modifications.owners.label'
+                          defaultMessage='other wallet owners'
+                        />
+                      }
+                      value={ wallet.owners.slice() }
+                      onChange={ this.store.onOwnersChange }
+                      accounts={ accountsInfo }
+                      param='address[]'
+                    />
 
-              <TypedInput
-                label='wallet day limit'
-                hint='amount of ETH spendable without confirmations'
-                value={ wallet.dailylimit }
-                error={ errors.dailylimit }
-                onChange={ this.store.onDailylimitChange }
-                param='uint'
-                isEth
-              />
-            </div>
+                    <div className={ styles.splitInput }>
+                      <TypedInput
+                        label={
+                          <FormattedMessage
+                            id='walletSettings.modifications.required.label'
+                            defaultMessage='required owners'
+                          />
+                        }
+                        hint={
+                          <FormattedMessage
+                            id='walletSettings.modifications.required.hint'
+                            defaultMessage='number of required owners to accept a transaction'
+                          />
+                        }
+                        error={ errors.require }
+                        min={ 1 }
+                        onChange={ this.store.onRequireChange }
+                        max={ wallet.owners.length }
+                        param='uint'
+                        value={ wallet.require }
+                      />
+
+                      <TypedInput
+                        label={
+                          <FormattedMessage
+                            id='walletSettings.modifications.daylimit.label'
+                            defaultMessage='wallet day limit'
+                          />
+                        }
+                        hint={
+                          <FormattedMessage
+                            id='walletSettings.modifications.daylimit.hint'
+                            defaultMessage='amount of ETH spendable without confirmations'
+                          />
+                        }
+                        value={ wallet.dailylimit }
+                        error={ errors.dailylimit }
+                        onChange={ this.store.onDailylimitChange }
+                        param='uint'
+                        isEth
+                      />
+                    </div>
+                  </div>
+                )
+            }
           </Form>
         );
     }
@@ -171,7 +254,12 @@ class WalletSettings extends Component {
   renderChanges (changes) {
     if (changes.length === 0) {
       return (
-        <p>No modifications have been made to the Wallet settings.</p>
+        <p>
+          <FormattedMessage
+            id='walletSettings.changes.none'
+            defaultMessage='No modifications have been made to the Wallet settings.'
+          />
+        </p>
       );
     }
 
@@ -183,7 +271,31 @@ class WalletSettings extends Component {
 
     return (
       <div>
-        <p>You are about to make the following modifications</p>
+        <p className={ styles.modifications }>
+          <FormattedMessage
+            id='walletSettings.changes.modificationString'
+            defaultMessage={
+              `For your modifications to be taken into account,
+              other owners have to send the same modifications. They can paste
+              this string to make it easier:`
+            }
+          />
+        </p>
+        <Input
+          allowCopy
+          label='modifications'
+          readOnly
+          value={ this.store.changesToString() }
+        />
+
+        <p>
+          <FormattedMessage
+            id='walletSettings.changes.overview'
+            defaultMessage={
+              `You are about to make the following modifications`
+            }
+          />
+        </p>
         { modifications }
       </div>
     );

@@ -28,13 +28,17 @@ use header::{BlockNumber, Header as FullHeader};
 use transaction::UnverifiedTransaction;
 use views;
 
-use util::{Address, Hashable, H256, H2048, U256};
+use util::{Address, Hashable, H256, H2048, U256, HeapSizeOf};
 use rlp::{Rlp, View};
 
 /// Owning header view.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "ipc", binary)]
 pub struct Header(Vec<u8>);
+
+impl HeapSizeOf for Header {
+	fn heap_size_of_children(&self) -> usize { self.0.heap_size_of_children() }
+}
 
 impl Header {
 	/// Create a new owning header view.
@@ -116,6 +120,10 @@ impl Hashable for Header {
 #[cfg_attr(feature = "ipc", binary)]
 pub struct Body(Vec<u8>);
 
+impl HeapSizeOf for Body {
+	fn heap_size_of_children(&self) -> usize { self.0.heap_size_of_children() }
+}
+
 impl Body {
 	/// Create a new owning block body view. The raw bytes passed in must be an rlp-encoded block
 	/// body.
@@ -171,6 +179,10 @@ impl Body {
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "ipc", binary)]
 pub struct Block(Vec<u8>);
+
+impl HeapSizeOf for Block {
+	fn heap_size_of_children(&self) -> usize { self.0.heap_size_of_children() }
+}
 
 impl Block {
 	/// Create a new owning block view. The raw bytes passed in must be an rlp-encoded block.
