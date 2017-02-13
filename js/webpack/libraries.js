@@ -30,7 +30,7 @@ module.exports = {
     // library
     'inject': ['./inject.js'],
     'web3': ['./web3.js'],
-    'parity': ['./library.parity.js']
+    'parity': ['./parity.js']
   },
   output: {
     path: path.join(__dirname, '../', DEST),
