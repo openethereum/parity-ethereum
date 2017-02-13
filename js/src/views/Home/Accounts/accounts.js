@@ -90,7 +90,7 @@ export default class Accounts extends Component {
       >
         <Link
           className={ styles.link }
-          to={ `/accounts/${history.entry}` }
+          to={ `/${history.type === 'wallet' ? 'wallet' : 'accounts'}/${history.entry}` }
         >
           <IdentityIcon
             address={ history.entry }

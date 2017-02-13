@@ -54,10 +54,16 @@ const accountsRoutes = [
     path: ':address',
     component: Account,
     onEnter: ({ params }) => {
-      accountsHistory.add(params.address);
+      accountsHistory.add(params.address, 'account');
     }
   },
-  { path: '/wallet/:address', component: Wallet }
+  {
+    path: '/wallet/:address',
+    component: Wallet,
+    onEnter: ({ params }) => {
+      accountsHistory.add(params.address, 'wallet');
+    }
+  }
 ];
 
 const addressesRoutes = [
