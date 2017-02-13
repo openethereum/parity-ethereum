@@ -45,7 +45,7 @@ export default class Urls extends Component {
             title={
               <FormattedMessage
                 id='home.url.title'
-                defaultMessage='Web Applications via URL'
+                defaultMessage='Web Applications'
               />
             }
           />
