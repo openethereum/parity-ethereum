@@ -78,7 +78,7 @@ describe('views/Home', () => {
 
   describe('components', () => {
     it('renders Accounts', () => {
-      expect(component.find('Accounts').length).to.equal(1);
+      expect(component.find('Connect(Accounts)').length).to.equal(1);
     });
 
     it('renders Dapps', () => {

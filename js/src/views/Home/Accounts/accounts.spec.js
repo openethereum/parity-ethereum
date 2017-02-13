@@ -58,4 +58,14 @@ describe('views/Home/Accounts', () => {
   it('renders defaults', () => {
     expect(render()).to.be.ok;
   });
+
+  describe('no history', () => {
+    beforeEach(() => {
+      render();
+    });
+
+    it('renders empty message', () => {
+      expect(component.find('FormattedMessage').props().id).to.equal('home.accounts.none');
+    });
+  });
 });
