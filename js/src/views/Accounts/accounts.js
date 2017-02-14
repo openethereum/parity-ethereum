@@ -84,10 +84,9 @@ class Accounts extends Component {
 
   setVisibleAccounts (props = this.props) {
     const { accounts, setVisibleAccounts } = props;
-    const { wallets } = this.hwstore;
     const addresses = Object
       .keys(accounts)
-      .concat((wallets || []).map((wallet) => wallet.address));
+      .concat((this.hwstore.wallets || []).map((wallet) => wallet.address));
 
     setVisibleAccounts(addresses);
   }
