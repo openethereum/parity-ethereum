@@ -438,7 +438,6 @@ dependencies = [
  "base32 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "clippy 0.0.103 (registry+https://github.com/rust-lang/crates.io-index)",
  "env_logger 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)",
- "ethcore 1.6.0",
  "ethcore-devtools 1.6.0",
  "ethcore-rpc 1.6.0",
  "ethcore-util 1.6.0",
