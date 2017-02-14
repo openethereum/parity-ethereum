@@ -17,13 +17,16 @@
 import React, { Component, PropTypes } from 'react';
 import LinearProgress from 'material-ui/LinearProgress';
 import { Card, CardActions, CardTitle, CardText } from 'material-ui/Card';
+import { connect } from 'react-redux';
+import { bindActionCreators } from 'redux';
 
+import { newError } from '~/redux/actions';
 import { Button, TypedInput } from '~/ui';
 import { arrayOrObjectProptype } from '~/util/proptypes';
 
 import styles from './queries.css';
 
-export default class InputQuery extends Component {
+class InputQuery extends Component {
   static contextTypes = {
     api: PropTypes.object
   };
@@ -34,12 +37,12 @@ export default class InputQuery extends Component {
     inputs: arrayOrObjectProptype().isRequired,
     outputs: arrayOrObjectProptype().isRequired,
     name: PropTypes.string.isRequired,
+    newError: PropTypes.func.isRequired,
     signature: PropTypes.string.isRequired,
     className: PropTypes.string
   };
 
   state = {
-    error: null,
     isValid: true,
     results: [],
     values: {}
@@ -54,23 +57,8 @@ export default class InputQuery extends Component {
           className={ styles.methodTitle }
           title={ name }
         />
-        { this.renderError() }
         { this.renderContent() }
       </Card>
-    );
-  }
-
-  renderError () {
-    const { error } = this.state;
-
-    if (!error) {
-      return null;
-    }
-
-    return (
-      <p className={ styles.error }>
-        { error.message }
-      </p>
     );
   }
 
@@ -213,7 +201,6 @@ export default class InputQuery extends Component {
         }
 
         this.setState({
-          error: null,
           isLoading: false,
           results
         });
@@ -221,10 +208,21 @@ export default class InputQuery extends Component {
       .catch((error) => {
         console.error(`sending ${name} with params`, inputValues, error.message);
 
+        this.props.newError(error);
         this.setState({
-          isLoading: false,
-          error
+          isLoading: false
         });
       });
   };
 }
+
+function mapDispatchToProps (dispatch) {
+  return bindActionCreators({
+    newError
+  }, dispatch);
+}
+
+export default connect(
+  null,
+  mapDispatchToProps
+)(InputQuery);

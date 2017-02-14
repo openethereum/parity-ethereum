@@ -77,12 +77,3 @@
   max-width: 100%;
   box-sizing: border-box;
 }
-
-.error {
-  background-color: rgba(231, 76, 60,1.0);
-  border-radius: 5px;
-  color: white;
-  font-size: 0.85em;
-  margin: 0 1em;
-  padding: 0.75em;
-}
