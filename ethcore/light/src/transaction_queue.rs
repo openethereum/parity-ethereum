@@ -234,8 +234,14 @@ impl TransactionQueue {
 					Some(Condition::Timestamp(time)) => time <= best_block_timestamp,
 				}).map(|info| info.hash)
 			})
-			.filter_map(|hash| self.by_hash.get(&hash))
-			.cloned()
+			.filter_map(|hash| match self.by_hash.get(&hash) {
+				Some(tx) => Some(tx.clone()),
+				None => {
+					warn!(target: "txqueue", "Inconsistency detected between `by_hash` and `by_account`: {} not stored.",
+						hash);
+					None
+				}
+			})
 			.collect()
 	}
 
