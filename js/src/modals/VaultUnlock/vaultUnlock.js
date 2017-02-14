@@ -78,6 +78,7 @@ class VaultUnlock extends Component {
             />
           }
           onChange={ this.onEditPassword }
+          onSubmit={ this.onExecute }
           type='password'
           value={ vaultPassword }
         />
