@@ -63,13 +63,30 @@ impl CurrentNonce {
 	}
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct TransactionInfo {
+	hash: H256,
+	nonce: U256,
+	condition: Option<Condition>,
+}
+
+impl<'a> From<&'a PendingTransaction> for TransactionInfo {
+	fn from(tx: &'a PendingTransaction) -> Self {
+		TransactionInfo {
+			hash: tx.hash(),
+			nonce: tx.nonce.clone(),
+			condition: tx.condition.clone(),
+		}
+	}
+}
+
 // transactions associated with a specific account.
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct AccountTransactions {
 	// believed current nonce (gotten from initial given TX or `cull` calls).
 	cur_nonce: CurrentNonce,
-	current: Vec<PendingTransaction>, // ordered "current" transactions (cur_nonce onwards)
-	future: BTreeMap<U256, PendingTransaction>, // "future" transactions.
+	current: Vec<TransactionInfo>, // ordered "current" transactions (cur_nonce onwards)
+	future: BTreeMap<U256, TransactionInfo>, // "future" transactions.
 }
 
 impl AccountTransactions {
@@ -110,6 +127,7 @@ impl TransactionQueue {
 		let sender = tx.sender();
 		let hash = tx.hash();
 		let nonce = tx.nonce;
+		let tx_info = TransactionInfo::from(&tx);
 
 		if self.by_hash.contains_key(&hash) { return Err(TransactionError::AlreadyImported) }
 
@@ -117,7 +135,7 @@ impl TransactionQueue {
 			Entry::Vacant(entry) => {
 				entry.insert(AccountTransactions {
 					cur_nonce: CurrentNonce::Assumed(nonce),
-					current: vec![tx.clone()],
+					current: vec![tx_info],
 					future: BTreeMap::new(),
 				});
 
@@ -140,8 +158,8 @@ impl TransactionQueue {
 						trace!(target: "txqueue", "Replacing existing transaction from {} with nonce {}",
 							sender, nonce);
 
-						let old = ::std::mem::replace(&mut acct_txs.current[idx], tx.clone());
-						self.by_hash.remove(&old.hash());
+						let old = ::std::mem::replace(&mut acct_txs.current[idx], tx_info);
+						self.by_hash.remove(&old.hash);
 
 						TransactionImportResult::Current
 					}
@@ -155,7 +173,7 @@ impl TransactionQueue {
 						assert!(idx == 0 || idx == cur_len);
 
 						if idx == 0 && acct_txs.current.first().map_or(false, |f| f.nonce != incr_nonce) {
-							let old_cur = ::std::mem::replace(&mut acct_txs.current, vec![tx.clone()]);
+							let old_cur = ::std::mem::replace(&mut acct_txs.current, vec![tx_info]);
 
 							trace!(target: "txqueue", "Moving {} transactions with nonce > {} to future",
 								old_cur.len(), incr_nonce);
@@ -169,14 +187,14 @@ impl TransactionQueue {
 						} else if idx == cur_len && acct_txs.current.last().map_or(false, |f| f.nonce + 1.into() != nonce) {
 							trace!(target: "txqueue", "Queued future transaction for {}, nonce={}", sender, nonce);
 							let future_nonce = nonce;
-							acct_txs.future.insert(future_nonce, tx.clone());
+							acct_txs.future.insert(future_nonce, tx_info);
 
 							TransactionImportResult::Future
 						} else {
 							trace!(target: "txqueue", "Queued current transaction for {}, nonce={}", sender, nonce);
 
 							// insert, then check if we've filled any gaps.
-							acct_txs.current.insert(idx, tx.clone());
+							acct_txs.current.insert(idx, tx_info);
 							acct_txs.adjust_future();
 
 							TransactionImportResult::Current
@@ -206,13 +224,17 @@ impl TransactionQueue {
 	/// `best_block_number` and `best_block_timestamp` are used to filter out conditionally
 	/// propagated transactions.
 	pub fn ready_transactions(&self, best_block_number: u64, best_block_timestamp: u64) -> Vec<PendingTransaction> {
-		self.by_account.values().flat_map(|acct_txs| {
-			acct_txs.current.iter().take_while(|tx| match tx.condition {
-				None => true,
-				Some(Condition::Number(blk_num)) => blk_num <= best_block_number,
-				Some(Condition::Timestamp(time)) => time <= best_block_timestamp,
-			}).cloned()
-		}).collect()
+		self.by_account.values()
+			.flat_map(|acct_txs| {
+				acct_txs.current.iter().take_while(|tx| match tx.condition {
+					None => true,
+					Some(Condition::Number(blk_num)) => blk_num <= best_block_number,
+					Some(Condition::Timestamp(time)) => time <= best_block_timestamp,
+				}).map(|info| info.hash)
+			})
+			.filter_map(|hash| self.by_hash.get(&hash))
+			.cloned()
+			.collect()
 	}
 
 	/// Addresses for which we store transactions.
@@ -234,7 +256,7 @@ impl TransactionQueue {
 				for old in old_future {
 					let hash = acct_txs.future.remove(&old)
 						.expect("key extracted from keys iterator; known to exist; qed")
-						.hash();
+						.hash;
 					removed_hashes.push(hash);
 				}
 
@@ -242,9 +264,9 @@ impl TransactionQueue {
 				let valid_pos = acct_txs.current.iter().position(|tx| tx.nonce >= cur_nonce);
 				match valid_pos {
 					None =>
-						removed_hashes.extend(acct_txs.current.drain(..).map(|tx| tx.hash())),
+						removed_hashes.extend(acct_txs.current.drain(..).map(|tx| tx.hash)),
 					Some(valid) =>
-						removed_hashes.extend(acct_txs.current.drain(..valid).map(|tx| tx.hash())),
+						removed_hashes.extend(acct_txs.current.drain(..valid).map(|tx| tx.hash)),
 				}
 
 				// now try and move stuff out of future into current.
