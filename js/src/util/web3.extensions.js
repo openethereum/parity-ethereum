@@ -14,54 +14,35 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import parity from '~/jsonrpc/interfaces/parity';
+import signer from '~/jsonrpc/interfaces/signer';
+import trace from '~/jsonrpc/interfaces/trace';
+
 export default function web3extensions (web3) {
-  const { Method, formatters } = web3._extend;
+  const { Method } = web3._extend;
+
+  // TODO [ToDr] Consider output/input formatters.
+  const methods = (object, name) => {
+    return Object.keys(object).map(method => {
+      return new Method({
+        name: method,
+        call: `${name}_{method}`,
+        params: object[method].params.length
+      });
+    });
+  };
 
   return [{
-    property: 'personal',
-    methods: [
-      new Method({
-        name: 'sendTransaction',
-        call: 'personal_sendTransaction',
-        params: 2,
-        inputFormatter: [formatters.inputTransactionFormatter, null]
-      }),
-      new Method({
-        name: 'signerEnabled',
-        call: 'personal_signerEnabled',
-        params: 0,
-        inputFormatter: []
-      })
-    ],
+    property: 'parity',
+    methods: methods(parity, 'parity'),
     properties: []
   }, {
-    property: 'ethcore',
-    methods: [
-      new Method({
-        name: 'getNetPeers',
-        call: 'ethcore_netPeers',
-        params: 0,
-        outputFormatter: x => x
-      }),
-      new Method({
-        name: 'getNetChain',
-        call: 'ethcore_netChain',
-        params: 0,
-        outputFormatter: x => x
-      }),
-      new Method({
-        name: 'gasPriceStatistics',
-        call: 'ethcore_gasPriceStatistics',
-        params: 0,
-        outputFormatter: a => a.map(web3.toBigNumber)
-      }),
-      new Method({
-        name: 'unsignedTransactionsCount',
-        call: 'ethcore_unsignedTransactionsCount',
-        params: 0,
-        inputFormatter: []
-      })
-    ],
+    property: 'signer',
+    methods: methods(signer, 'signer'),
+    properties: []
+  }, {
+    property: 'trace',
+    methods: methods(trace, 'trace'),
     properties: []
   }];
 }

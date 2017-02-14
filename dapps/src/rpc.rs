@@ -21,11 +21,15 @@ use jsonrpc_core::{IoHandler, ResponseHandler, Request, Response};
 use jsonrpc_http_server::{ServerHandler, PanicHandler, AccessControlAllowOrigin, RpcHandler};
 use endpoint::{Endpoint, EndpointPath, Handler};
 
-pub fn rpc(handler: Arc<IoHandler>, panic_handler: Arc<Mutex<Option<Box<Fn() -> () + Send>>>>) -> Box<Endpoint> {
+pub fn rpc(
+	handler: Arc<IoHandler>,
+	cors_domains: Vec<String>,
+	panic_handler: Arc<Mutex<Option<Box<Fn() -> () + Send>>>>,
+) -> Box<Endpoint> {
 	Box::new(RpcEndpoint {
 		handler: Arc::new(RpcMiddleware::new(handler)),
 		panic_handler: panic_handler,
-		cors_domain: None,
+		cors_domain: Some(cors_domains.into_iter().map(AccessControlAllowOrigin::Value).collect()),
 		// NOTE [ToDr] We don't need to do any hosts validation here. It's already done in router.
 		allowed_hosts: None,
 	})
