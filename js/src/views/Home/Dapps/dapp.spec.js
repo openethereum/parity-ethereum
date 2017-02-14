@@ -14,21 +14,42 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-export Account from './Account';
-export Accounts from './Accounts';
-export Address from './Address';
-export Addresses from './Addresses';
-export Application from './Application';
-export Contract from './Contract';
-export Contracts from './Contracts';
-export Dapp from './Dapp';
-export Dapps from './Dapps';
-export HistoryStore from './historyStore';
-export Home from './Home';
-export ParityBar from './ParityBar';
-export Settings, { SettingsBackground, SettingsParity, SettingsProxy, SettingsViews } from './Settings';
-export Signer from './Signer';
-export Status from './Status';
-export Wallet from './Wallet';
-export Web from './Web';
-export WriteContract from './WriteContract';
+import { shallow } from 'enzyme';
+import React from 'react';
+
+import Dapp from './dapp';
+
+import { createStore } from './dapps.test.js';
+
+let component;
+let instance;
+let store;
+
+function render () {
+  store = createStore();
+  component = shallow(
+    <Dapp
+      id='testId'
+      store={ store }
+      timestamp={ Date.now() }
+    />
+  );
+  instance = component.instance();
+
+  return component;
+}
+
+describe('views/Home/Dapp', () => {
+  beforeEach(() => {
+    render();
+    return instance.componentWillMount();
+  });
+
+  it('renders defaults', () => {
+    expect(component).to.be.ok;
+  });
+
+  it('loads the dapp on mount', () => {
+    expect(store.loadApp).to.have.been.calledWith('testId');
+  });
+});

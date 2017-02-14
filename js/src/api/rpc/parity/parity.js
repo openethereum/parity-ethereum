@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import { inAddress, inAddresses, inData, inHex, inNumber16, inOptions, inBlockNumber } from '../../format/input';
-import { outAccountInfo, outAddress, outAddresses, outChainStatus, outHistogram, outNumber, outPeers, outTransaction, outVaultMeta } from '../../format/output';
+import { outAccountInfo, outAddress, outAddresses, outChainStatus, outHistogram, outNumber, outPeers, outRecentDapps, outTransaction, outVaultMeta } from '../../format/output';
 
 export default class Parity {
   constructor (transport) {
@@ -222,7 +222,8 @@ export default class Parity {
 
   listRecentDapps () {
     return this._transport
-      .execute('parity_listRecentDapps');
+      .execute('parity_listRecentDapps')
+      .then(outRecentDapps);
   }
 
   listStorageKeys (address, count, hash = null, blockNumber = 'latest') {

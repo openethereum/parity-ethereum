@@ -15,56 +15,59 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-$background: rgba(18, 18, 18, 0.85);
-$backgroundOverlay: rgba(18, 18, 18, 1);
+.news {
+}
 
-.container {
-  background: $background;
-  flex: 1;
-  height: 100%;
-  padding: 0em;
-  transition: all 0.75s cubic-bezier(0.23, 1, 0.32, 1);
+.markdown {
+  line-height: 1.2em;
+}
+
+.item {
+  height: 240px;
+  opacity: 0.85;
+  position: relative;
   width: 100%;
 
-  .hoverOverlay {
-    background: $backgroundOverlay;
+  .background {
+    background-repeat: no-repeat;
+    background-position: 50% 50%;
+    background-size: cover;
+    bottom: 0;
+    left: 0;
+    position: absolute;
+    right: 0;
+    top: 0;
+    width: auto;
+  }
+
+  .overlay {
+    background: white;
+    color: #333;
     display: none;
     left: 0;
-    margin-top: -1.5em;
-    padding: 0 1.5em 1.5em 1.5em;
     position: absolute;
     right: 0;
     top: 100%;
-    z-index: 100;
+    padding: 0 1.5em 1em 1.5em;
+  }
+
+  .title {
+    background: rgba(255, 255, 255, 0.85);
+    bottom: 0;
+    color: #333;
+    font-size: 1.17em;
+    left: 0;
+    padding: 1rem 1.5rem;
+    position: absolute;
+    right: 0;
+    text-transform: uppercase;
   }
 
   &:hover {
-    background: $backgroundOverlay;
+    opacity: 1;
 
-    .hoverOverlay {
+    .overlay {
       display: block;
     }
   }
-}
-
-.compact,
-.padded {
-  background-color: transparent !important;
-  border-radius: 0 !important;
-  height: 100%;
-  position: relative;
-  overflow: auto;
-}
-
-.compact {
-  padding: 0 1.5em;
-}
-
-.padded {
-  padding: 1.5em;
-}
-
-.light .compact,
-.light .padded {
-  background: rgba(0, 0, 0, 0.5) !important;
 }

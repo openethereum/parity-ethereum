@@ -15,32 +15,26 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-.list {
-  display: flex;
-  flex-wrap: wrap;
+.accounts {
+  margin-top: 1.5em;
+}
 
-  .item {
-    box-sizing: border-box;
-    flex: 0 1 50%;
-    padding-bottom: 0.25em;
-    position: relative;
-    width: 50%;
-
-    &:nth-child(odd) {
-      padding-right: 0.125em;
-    }
-
-    &:nth-child(even) {
-      padding-left: 0.125em;
-    }
-  }
+.body {
+  padding-bottom: 3em;
 }
 
 .empty {
-  display: block;
-  width: 100%;
+  margin-top: 1.5em;
+  opacity: 0.5;
+}
 
-  div {
-    color: #aaa;
+.row {
+  display: flex;
+
+  .column {
+    box-sizing: border-box;
+    flex: 0 1 50%;
+    padding: 0 1.5em;
+    width: 50%;
   }
 }
