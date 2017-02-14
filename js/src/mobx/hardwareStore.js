@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { action, observable } from 'mobx';
+import { action, observable, transaction } from 'mobx';
 
 import Ledger from '~/3rdparty/ledger';
 
@@ -46,9 +46,15 @@ export default class HardwareStore {
       .scan()
       .then((wallet) => {
         console.log('HardwareStore::scanLedger', wallet);
+
+        return [
+          wallet
+        ];
       })
       .catch((error) => {
         console.warn('HardwareStore::scanLedger', error);
+
+        return [];
       });
   }
 
@@ -57,9 +63,19 @@ export default class HardwareStore {
       .hardwareAccountsInfo()
       .then((accountsInfo) => {
         console.log('HardwareStore::scanParity', accountsInfo);
+
+        return Object
+          .keys(accountsInfo)
+          .map((address) => {
+            accountsInfo[address] = address;
+
+            return accountsInfo[address];
+          });
       })
       .catch((error) => {
         console.warn('HardwareStore::scanParity', error);
+
+        return [];
       });
   }
 
@@ -75,8 +91,15 @@ export default class HardwareStore {
         this.scanLedger(),
         this.scanParity()
       ])
-      .then(() => {
-        this.setScanning(false);
+      .then(([ledgerAccounts, hwAccounts]) => {
+        transaction(() => {
+          this.setWallets(
+            []
+              .concat(ledgerAccounts)
+              .concat(hwAccounts)
+          );
+          this.setScanning(false);
+        });
       });
   }
 

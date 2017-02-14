@@ -137,6 +137,7 @@ describe('mobx/HardwareStore', () => {
     describe('scan', () => {
       beforeEach(() => {
         sinon.spy(store, 'setScanning');
+        sinon.spy(store, 'setWallets');
         sinon.spy(store, 'scanLedger');
         sinon.spy(store, 'scanParity');
 
@@ -145,6 +146,7 @@ describe('mobx/HardwareStore', () => {
 
       afterEach(() => {
         store.setScanning.restore();
+        store.setWallets.restore();
         store.scanLedger.restore();
         store.scanParity.restore();
       });
@@ -160,6 +162,10 @@ describe('mobx/HardwareStore', () => {
       it('sets and resets the scanning state', () => {
         expect(store.setScanning).to.have.been.calledWith(true);
         expect(store.setScanning).to.have.been.calledWith(false);
+      });
+
+      it('sets the wallets', () => {
+        expect(store.setWallets).to.have.been.called;
       });
     });
 
