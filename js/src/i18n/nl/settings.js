@@ -15,49 +15,75 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 export default {
-  label: 'Instellingen',
-
   background: {
-    label: 'Achtergrond'
+    button_more: `generate more`,
+    overview_0: `The background pattern you can see right now is unique to your Parity installation. It will change every time you create a new Signer token. This is so that decentralized applications cannot pretend to be trustworthy.`,
+    overview_1: `Pick a pattern you like and memorize it. This Pattern will always be shown from now on, unless you clear your browser cache or use a new Signer token.`,
+    label: `background`
   },
-
   parity: {
-    label: 'Parity'
+    languages: {
+      hint: `the language this interface is displayed with`,
+      label: `UI language`
+    },
+    loglevels: `Choose the different logs level.`,
+    modes: {
+      hint: `the syning mode for the Parity node`,
+      label: `mode of operation`,
+      mode_active: `Parity continuously syncs the chain`,
+      mode_dark: `Parity syncs only when the RPC is active`,
+      mode_offline: `Parity doesn't sync`,
+      mode_passive: `Parity syncs initially, then sleeps and wakes regularly to resync`
+    },
+    overview_0: `Control the Parity node settings and mode of operation via this interface.`,
+    label: `parity`
   },
-
   proxy: {
-    label: 'Proxy'
+    details_0: `Instead of accessing Parity via the IP address and port, you will be able to access it via the .parity subdomain, by visiting {homeProxy}. To setup subdomain-based routing, you need to add the relevant proxy entries to your browser,`,
+    details_1: `To learn how to configure the proxy, instructions are provided for {windowsLink}, {macOSLink} or {ubuntuLink}.`,
+    details_macos: `macOS`,
+    details_ubuntu: `Ubuntu`,
+    details_windows: `Windows`,
+    overview_0: `The proxy setup allows you to access Parity and all associated decentralized applications via memorable addresses.`,
+    label: `proxy`
   },
-
   views: {
-    label: 'Weergaven',
-
     accounts: {
-      label: 'Accounts'
+      description: `A list of all the accounts associated to and imported into this Parity instance. Send transactions, receive incoming values, manage your balances and fund your accounts.`,
+      label: `Accounts`
     },
-
     addresses: {
-      label: 'Adresboek'
+      description: `A list of all contacts and address book entries that is managed by this Parity instance. Watch accounts and have the details available at the click of a button when transacting.`,
+      label: `Addressbook`
     },
-
     apps: {
-      label: 'Applicaties'
+      description: `Distributed applications that interact with the underlying network. Add applications, manage you application portfolio and interact with application from around the network.`,
+      label: `Applications`
     },
-
     contracts: {
-      label: 'Contracten'
+      description: `Watch and interact with specific contracts that have been deployed on the network. This is a more technically-focused environment, specifically for advanced users that understand the inner working of certain contracts.`,
+      label: `Contracts`
     },
-
-    status: {
-      label: 'Status'
-    },
-
-    signer: {
-      label: 'Signer'
-    },
-
+    overview_0: `Manage the available application views, using only the parts of the application that is applicable to you.`,
+    overview_1: `Are you an end-user? The defaults are setups for both beginner and advanced users alike.`,
+    overview_2: `Are you a developer? Add some features to manage contracts are interact with application deployments.`,
+    overview_3: `Are you a miner or run a large-scale node? Add the features to give you all the information needed to watch the node operation.`,
     settings: {
-      label: 'Instellingen'
+      description: `This view. Allows you to customize the application in term of options, operation and look and feel.`,
+      label: `Settings`
+    },
+    signer: {
+      description: `The secure transaction management area of the application where you can approve any outgoing transactions made from the application as well as those placed into the queue by distributed applications.`,
+      label: `Signer`
+    },
+    status: {
+      description: `See how the Parity node is performing in terms of connections to the network, logs from the actual running instance and details of mining (if enabled and configured).`,
+      label: `Status`
+    },
+    label: `views`,
+    home: {
+      label: `Home`
     }
-  }
+  },
+  label: `settings`
 };
