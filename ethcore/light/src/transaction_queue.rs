@@ -111,6 +111,8 @@ impl TransactionQueue {
 		let hash = tx.hash();
 		let nonce = tx.nonce;
 
+		if self.by_hash.contains_key(&hash) { return Err(TransactionError::AlreadyImported) }
+
 	    let res = match self.by_account.entry(sender) {
 			Entry::Vacant(entry) => {
 				entry.insert(AccountTransactions {
@@ -138,7 +140,8 @@ impl TransactionQueue {
 						trace!(target: "txqueue", "Replacing existing transaction from {} with nonce {}",
 							sender, nonce);
 
-						acct_txs.current[idx] = tx.clone();
+						let old = ::std::mem::replace(&mut acct_txs.current[idx], tx.clone());
+						self.by_hash.remove(&old.hash());
 
 						TransactionImportResult::Current
 					}
@@ -149,7 +152,7 @@ impl TransactionQueue {
 						// current is sorted with one tx per nonce,
 						// so if a tx with given nonce wasn't found that means it is either
 						// earlier in nonce than all other "current" transactions or later.
-						debug_assert!(idx == 0 || idx == cur_len);
+						assert!(idx == 0 || idx == cur_len);
 
 						if idx == 0 && acct_txs.current.first().map_or(false, |f| f.nonce != incr_nonce) {
 							let old_cur = ::std::mem::replace(&mut acct_txs.current, vec![tx.clone()]);
@@ -417,5 +420,25 @@ mod tests {
 		txq.cull(sender, 3.into());
 
 		assert!(txq.import(tx_b.fake_sign(sender).into()).is_err())
+	}
+
+	#[test]
+	fn replace_is_removed() {
+		let sender = Address::default();
+		let mut txq = TransactionQueue::default();
+
+		let tx_b: PendingTransaction = Transaction::default().fake_sign(sender).into();
+		let tx_a: PendingTransaction = {
+			let mut tx_a = Transaction::default();
+			tx_a.gas_price = tx_b.gas_price + 1.into();
+			tx_a.fake_sign(sender).into()
+		};
+
+		let hash = tx_a.hash();
+
+		txq.import(tx_a).unwrap();
+		txq.import(tx_b).unwrap();
+
+		assert!(txq.transaction(&hash).is_none());
 	}
 }
