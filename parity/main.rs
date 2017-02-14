@@ -56,6 +56,7 @@ extern crate ethcore_signer;
 extern crate ethcore_util as util;
 extern crate ethsync;
 extern crate parity_hash_fetch as hash_fetch;
+extern crate parity_ipfs as ipfs;
 extern crate parity_reactor;
 extern crate parity_updater as updater;
 extern crate rpc_cli;

@@ -1,0 +1,86 @@
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// This file is part of Parity.
+
+// Parity is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// Parity is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+
+use {multihash, cid, hyper};
+use handler::Out;
+
+pub type Result<T> = ::std::result::Result<T, Error>;
+
+/// IPFS server error
+#[derive(Debug)]
+pub enum ServerError {
+	/// Wrapped `std::io::Error`
+	IoError(::std::io::Error),
+	/// Other `hyper` error
+	Other(hyper::error::Error),
+}
+
+pub enum Error {
+	CidParsingFailed,
+	UnsupportedHash,
+	UnsupportedCid,
+	BlockNotFound,
+	TransactionNotFound,
+	StateRootNotFound,
+}
+
+impl From<Error> for Out {
+	fn from(err: Error) -> Out {
+		use self::Error::*;
+
+		match err {
+			UnsupportedHash => Out::Bad("Hash must be Keccak-256"),
+			UnsupportedCid => Out::Bad("CID codec not supported"),
+			CidParsingFailed => Out::Bad("CID parsing failed"),
+			BlockNotFound => Out::NotFound("Block not found"),
+			TransactionNotFound => Out::NotFound("Transaction not found"),
+			StateRootNotFound => Out::NotFound("State root not found"),
+		}
+	}
+}
+
+impl From<cid::Error> for Error {
+	fn from(_: cid::Error) -> Error {
+		Error::CidParsingFailed
+	}
+}
+
+impl From<multihash::Error> for Error {
+	fn from(_: multihash::Error) -> Error {
+		Error::CidParsingFailed
+	}
+}
+
+impl From<::std::io::Error> for ServerError {
+	fn from(err: ::std::io::Error) -> ServerError {
+		ServerError::IoError(err)
+	}
+}
+
+impl From<hyper::error::Error> for ServerError {
+	fn from(err: hyper::error::Error) -> ServerError {
+		ServerError::Other(err)
+	}
+}
+
+impl From<ServerError> for String {
+	fn from(err: ServerError) -> String {
+		match err {
+			ServerError::IoError(err) => err.to_string(),
+			ServerError::Other(err) => err.to_string(),
+		}
+	}
+}
