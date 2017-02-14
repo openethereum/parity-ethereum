@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import { observe } from 'mobx';
+import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
@@ -30,6 +31,7 @@ import { setVisibleAccounts } from '~/redux/providers/personalActions';
 import List from './List';
 import styles from './accounts.css';
 
+@observer
 class Accounts extends Component {
   static contextTypes = {
     api: PropTypes.object
@@ -64,7 +66,7 @@ class Accounts extends Component {
     this.setVisibleAccounts();
 
     this.setState({
-      _observeCancel: observe(this.hwstore.wallets, this.onHardwareChange, true)
+      _observeCancel: observe(this.hwstore, 'wallets', this.onHardwareChange, true)
     });
   }
 

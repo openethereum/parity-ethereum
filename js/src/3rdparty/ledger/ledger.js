@@ -48,6 +48,11 @@ export default class Ledger {
           return;
         }
 
+        if (response.errorCode) {
+          reject(new Error('Unable to connect to Ledger'));
+          return;
+        }
+
         response.address = apiutil.toChecksumAddress(response.address);
 
         resolve(response);
