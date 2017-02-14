@@ -18,16 +18,7 @@ import 'babel-polyfill/dist/polyfill.js';
 import es6Promise from 'es6-promise';
 es6Promise.polyfill();
 
-const isNode = typeof global !== 'undefined' && typeof global !== 'undefined';
-const isBrowser = typeof self !== 'undefined' && typeof self.window !== 'undefined';
-
-if (isBrowser) {
-  require('whatwg-fetch');
-}
-
-if (isNode) {
-  global.fetch = require('node-fetch');
-}
+require('isomorphic-fetch');
 
 import Etherscan from './3rdparty/etherscan';
 

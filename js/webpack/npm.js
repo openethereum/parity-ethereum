@@ -48,7 +48,7 @@ module.exports = {
     umdNamedDefine: true
   },
   externals: {
-    'node-fetch': 'node-fetch',
+    'isomorphic-fetch': 'isomorphic-fetch',
     'vertx': 'vertx'
   },
   module: {
