@@ -394,7 +394,7 @@ web3._extend({
 	methods: [
 		new web3._extend.Method({
 			name: 'setMode',
-			call: 'ethcore_setMode',
+			call: 'parity_setMode',
 			params: 1,
 		})
 	]
@@ -405,7 +405,7 @@ web3._extend({
 	methods: [
 		new web3._extend.Method({
 			name: 'mode',
-			call: 'ethcore_mode',
+			call: 'parity_mode',
 			params: 0,
 		})
 	]
@@ -428,7 +428,7 @@ web3._extend({
 	methods: [
 		new web3._extend.Method({
 			name: 'gasPriceStatistics',
-			call: 'ethcore_gasPriceStatistics',
+			call: 'parity_gasPriceStatistics',
 			params: 0,
 			outputFormatter: function(a) { return a.map(web3.toBigNumber); }
 		})
@@ -440,7 +440,7 @@ web3._extend({
 	methods: [
 		new web3._extend.Method({
 			name: 'registryAddress',
-			call: 'ethcore_registryAddress',
+			call: 'parity_registryAddress',
 			params: 0
 		})
 	]
@@ -514,7 +514,7 @@ web3._extend({
 	methods: [
 		new web3._extend.Method({
 			name: 'encryptMessage',
-			call: 'ethcore_encryptMessage',
+			call: 'parity_encryptMessage',
 			params: 2
 		})
 	]
@@ -536,7 +536,7 @@ web3._extend({
 	methods: [
 		new web3._extend.Method({
 			name: 'listAccounts',
-			call: 'ethcore_listAccounts',
+			call: 'parity_listAccounts',
 			params: 0
 		})
 	]
