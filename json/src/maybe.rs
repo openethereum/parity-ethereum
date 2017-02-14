@@ -1,11 +1,11 @@
 
 //! Deserializer of empty string values into optionals.
 
+use std::fmt;
 use std::marker::PhantomData;
-use serde::{Deserialize, Deserializer, Error};
-use serde::de::Visitor;
-use serde_json::Value;
-use serde_json::value;
+use serde::{Deserialize, Deserializer};
+use serde::de::{Error, Visitor};
+use serde::de::value::ValueDeserializer;
 
 /// Deserializer of empty string values into optionals.
 #[derive(Debug, PartialEq)]
@@ -17,7 +17,7 @@ pub enum MaybeEmpty<T> {
 }
 
 impl<T> Deserialize for MaybeEmpty<T> where T: Deserialize {
-	fn deserialize<D>(deserializer: &mut D) -> Result<Self, D::Error>
+	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
 		where D: Deserializer {
 		deserializer.deserialize(MaybeEmptyVisitor::new())
 	}
@@ -38,16 +38,19 @@ impl<T> MaybeEmptyVisitor<T> {
 impl<T> Visitor for MaybeEmptyVisitor<T> where T: Deserialize {
 	type Value = MaybeEmpty<T>;
 
-	fn visit_str<E>(&mut self, value: &str) -> Result<Self::Value, E> where E: Error {
+	fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+		write!(formatter, "an empty string or string-encoded type")
+	}
+
+	fn visit_str<E>(self, value: &str) -> Result<Self::Value, E> where E: Error {
 		self.visit_string(value.to_owned())
 	}
 
-	fn visit_string<E>(&mut self, value: String) -> Result<Self::Value, E> where E: Error {
+	fn visit_string<E>(self, value: String) -> Result<Self::Value, E> where E: Error {
 		match value.is_empty() {
 			true => Ok(MaybeEmpty::None),
 			false => {
-				let value = Value::String(value);
-				T::deserialize(&mut value::Deserializer::new(value)).map(MaybeEmpty::Some).map_err(|_| Error::custom("failed"))
+				T::deserialize(value.into_deserializer()).map(MaybeEmpty::Some)
 			}
 		}
 	}

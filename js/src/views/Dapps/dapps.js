@@ -26,7 +26,6 @@ import PermissionStore from '~/modals/DappPermissions/store';
 import { Actionbar, Button, DappCard, Page } from '~/ui';
 import { LockedIcon, VisibleIcon } from '~/ui/Icons';
 
-import UrlButton from './UrlButton';
 import DappsStore from './dappsStore';
 
 import styles from './dapps.css';
@@ -92,7 +91,6 @@ class Dapps extends Component {
             />
           }
           buttons={ [
-            <UrlButton key='url' />,
             <Button
               icon={ <VisibleIcon /> }
               key='edit'

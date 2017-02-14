@@ -4,12 +4,6 @@ name = "parity"
 version = "1.6.0"
 license = "GPL-3.0"
 authors = ["Parity Technologies <admin@parity.io>"]
-build = "build.rs"
-
-[build-dependencies]
-rustc_version = "0.1"
-ethcore-ipc-codegen = { path = "ipc/codegen" }
-ethcore-ipc-tests = { path = "ipc/tests" }
 
 [dependencies]
 log = "0.3"
@@ -26,8 +20,8 @@ lazy_static = "0.2"
 regex = "0.1"
 isatty = "0.1"
 toml = "0.2"
-serde = "0.8"
-serde_json = "0.8"
+serde = "0.9"
+serde_json = "0.9"
 app_dirs = "1.1.1"
 fdlimit = "0.1"
 hyper = { version = "0.9", default-features = false }
@@ -54,6 +48,9 @@ parity-updater = { path = "updater" }
 parity-reactor = { path = "util/reactor" }
 ethcore-dapps = { path = "dapps", optional = true }
 clippy = { version = "0.0.103", optional = true}
+
+[dev-dependencies]
+ethcore-ipc-tests = { path = "ipc/tests" }
 
 [target.'cfg(windows)'.dependencies]
 winapi = "0.2"

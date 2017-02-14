@@ -15,8 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::io::{Read, Write};
-use serde::{Deserialize, Deserializer, Error};
-use serde::de::{Visitor, MapVisitor};
+use serde::de::Error;
 use serde_json;
 use serde_json::value::Value;
 use serde_json::error;
@@ -26,7 +25,7 @@ use super::{Uuid, Version, Crypto, H160};
 const VAULT_NAME_META_KEY: &'static str = "vault";
 
 /// Key file as stored in vaults
-#[derive(Debug, PartialEq, Serialize)]
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub struct VaultKeyFile {
 	/// Key id
 	pub id: Uuid,
@@ -39,7 +38,7 @@ pub struct VaultKeyFile {
 }
 
 /// Data, stored in `VaultKeyFile::metacrypto`
-#[derive(Debug, PartialEq, Serialize)]
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub struct VaultKeyMeta {
 	/// Key address
 	pub address: H160,
@@ -78,182 +77,6 @@ pub fn remove_vault_name_from_json_meta(meta: &str) -> Result<String, error::Err
 		serde_json::to_string(meta_obj)
 	} else {
 		Err(error::Error::custom("Meta is expected to be a serialized JSON object"))
-	}
-}
-
-enum VaultKeyFileField {
-	Id,
-	Version,
-	Crypto,
-	MetaCrypto,
-}
-
-enum VaultKeyMetaField {
-	Address,
-	Name,
-	Meta,
-}
-
-impl Deserialize for VaultKeyFileField {
-	fn deserialize<D>(deserializer: &mut D) -> Result<VaultKeyFileField, D::Error>
-		where D: Deserializer
-	{
-		deserializer.deserialize(VaultKeyFileFieldVisitor)
-	}
-}
-
-struct VaultKeyFileFieldVisitor;
-
-impl Visitor for VaultKeyFileFieldVisitor {
-	type Value = VaultKeyFileField;
-
-	fn visit_str<E>(&mut self, value: &str) -> Result<Self::Value, E>
-		where E: Error
-	{
-		match value {
-			"id" => Ok(VaultKeyFileField::Id),
-			"version" => Ok(VaultKeyFileField::Version),
-			"crypto" => Ok(VaultKeyFileField::Crypto),
-			"metacrypto" => Ok(VaultKeyFileField::MetaCrypto),
-			_ => Err(Error::custom(format!("Unknown field: '{}'", value))),
-		}
-	}
-}
-
-impl Deserialize for VaultKeyFile {
-	fn deserialize<D>(deserializer: &mut D) -> Result<VaultKeyFile, D::Error>
-		where D: Deserializer
-	{
-		static FIELDS: &'static [&'static str] = &["id", "version", "crypto", "metacrypto"];
-		deserializer.deserialize_struct("VaultKeyFile", FIELDS, VaultKeyFileVisitor)
-	}
-}
-
-struct VaultKeyFileVisitor;
-
-impl Visitor for VaultKeyFileVisitor {
-	type Value = VaultKeyFile;
-
-	fn visit_map<V>(&mut self, mut visitor: V) -> Result<Self::Value, V::Error>
-		where V: MapVisitor
-	{
-		let mut id = None;
-		let mut version = None;
-		let mut crypto = None;
-		let mut metacrypto = None;
-
-		loop {
-			match visitor.visit_key()? {
-				Some(VaultKeyFileField::Id) => { id = Some(visitor.visit_value()?); }
-				Some(VaultKeyFileField::Version) => { version = Some(visitor.visit_value()?); }
-				Some(VaultKeyFileField::Crypto) => { crypto = Some(visitor.visit_value()?); }
-				Some(VaultKeyFileField::MetaCrypto) => { metacrypto = Some(visitor.visit_value()?); }
-				None => { break; }
-			}
-		}
-
-		let id = match id {
-			Some(id) => id,
-			None => visitor.missing_field("id")?,
-		};
-
-		let version = match version {
-			Some(version) => version,
-			None => visitor.missing_field("version")?,
-		};
-
-		let crypto = match crypto {
-			Some(crypto) => crypto,
-			None => visitor.missing_field("crypto")?,
-		};
-
-		let metacrypto = match metacrypto {
-			Some(metacrypto) => metacrypto,
-			None => visitor.missing_field("metacrypto")?,
-		};
-
-		visitor.end()?;
-
-		let result = VaultKeyFile {
-			id: id,
-			version: version,
-			crypto: crypto,
-			metacrypto: metacrypto,
-		};
-
-		Ok(result)
-	}
-}
-
-impl Deserialize for VaultKeyMetaField {
-	fn deserialize<D>(deserializer: &mut D) -> Result<VaultKeyMetaField, D::Error>
-		where D: Deserializer
-	{
-		deserializer.deserialize(VaultKeyMetaFieldVisitor)
-	}
-}
-
-struct VaultKeyMetaFieldVisitor;
-
-impl Visitor for VaultKeyMetaFieldVisitor {
-	type Value = VaultKeyMetaField;
-
-	fn visit_str<E>(&mut self, value: &str) -> Result<Self::Value, E>
-		where E: Error
-	{
-		match value {
-			"address" => Ok(VaultKeyMetaField::Address),
-			"name" => Ok(VaultKeyMetaField::Name),
-			"meta" => Ok(VaultKeyMetaField::Meta),
-			_ => Err(Error::custom(format!("Unknown field: '{}'", value))),
-		}
-	}
-}
-
-impl Deserialize for VaultKeyMeta {
-	fn deserialize<D>(deserializer: &mut D) -> Result<VaultKeyMeta, D::Error>
-		where D: Deserializer
-	{
-		static FIELDS: &'static [&'static str] = &["address", "name", "meta"];
-		deserializer.deserialize_struct("VaultKeyMeta", FIELDS, VaultKeyMetaVisitor)
-	}
-}
-
-struct VaultKeyMetaVisitor;
-
-impl Visitor for VaultKeyMetaVisitor {
-	type Value = VaultKeyMeta;
-
-	fn visit_map<V>(&mut self, mut visitor: V) -> Result<Self::Value, V::Error>
-		where V: MapVisitor
-	{
-		let mut address = None;
-		let mut name = None;
-		let mut meta = None;
-
-		loop {
-			match visitor.visit_key()? {
-				Some(VaultKeyMetaField::Address) => { address = Some(visitor.visit_value()?); }
-				Some(VaultKeyMetaField::Name) => { name = Some(visitor.visit_value()?); }
-				Some(VaultKeyMetaField::Meta) => { meta = Some(visitor.visit_value()?); }
-				None => { break; }
-			}
-		}
-
-		let address = match address {
-			Some(address) => address,
-			None => visitor.missing_field("address")?,
-		};
-
-		visitor.end()?;
-
-		let result = VaultKeyMeta {
-			address: address,
-			name: name,
-			meta: meta,
-		};
-
-		Ok(result)
 	}
 }
 

@@ -26,7 +26,7 @@ import styles from './extension.css';
 
 @observer
 export default class Extension extends Component {
-  store = new Store();
+  store = Store.get();
 
   render () {
     const { showWarning } = this.store;

@@ -16,8 +16,8 @@
 
 //! Ethcore rpc.
 #![warn(missing_docs)]
-#![cfg_attr(feature="nightly", feature(custom_derive, custom_attribute, plugin))]
-#![cfg_attr(feature="nightly", plugin(serde_macros, clippy))]
+#![cfg_attr(feature="nightly", feature(plugin))]
+#![cfg_attr(feature="nightly", plugin(clippy))]
 
 extern crate semver;
 extern crate rustc_serialize;
@@ -51,6 +51,8 @@ extern crate log;
 extern crate ethcore_util as util;
 #[macro_use]
 extern crate jsonrpc_macros;
+#[macro_use]
+extern crate serde_derive;
 
 #[cfg(test)]
 extern crate ethjson;
