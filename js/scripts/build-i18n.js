@@ -17,6 +17,7 @@
 const fs = require('fs');
 const _ = require('lodash');
 const path = require('path');
+const toSource = require('to-source');
 
 const FILE_HEADER = `// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
@@ -47,22 +48,6 @@ const SRCPATH = path.join(__dirname, '../.build/i18n/i18n/en.json');
   sectionNames.forEach((name) => outputSection(name, sections[name]));
   outputIndex(sectionNames);
 })();
-
-// export a section as a flatenned string (non-JSON, rather JS export)
-// FIXME: Would love a module for this as opposed to recursively doing it
-function createExportString (section, indent = INDENT) {
-  if (typeof section === 'string') {
-    return `\`${section}\``;
-  }
-
-  const keys = Object
-    .keys(section)
-    .sort()
-    .map((key) => `${indent}${key}: ${createExportString(section[key], indent + INDENT)}`)
-    .join(',\n');
-
-  return `{\n${keys}\n${indent.substr(2)}}`;
-}
 
 // create an object map of the actual inputs
 function createSectionMap () {
@@ -127,13 +112,25 @@ function outputIndex (sectionNames) {
   fs.writeFileSync(dest, `${FILE_HEADER}${exports}\n`, 'utf8');
 }
 
+// export a section as a flatenned JS export string
+function createJSSection (section) {
+  const source = toSource(section, {
+    enclose: true,
+    quoteChar: '`',
+    tabChar: INDENT,
+    tabDepth: 0
+  });
+
+  return `${SECTION_HEADER}${source}${SECTION_FOOTER}`;
+}
+
 // create the individual section files
 function outputSection (sectionName, section) {
   console.log(`Writing ${sectionName}.js to ${DESTPATH}`);
 
   const defaults = readDefaults(sectionName);
   const dest = path.join(DESTPATH, `${sectionName}.js`);
-  const sectionText = createExportString(_.defaultsDeep(section, defaults), INDENT);
+  const sectionText = createJSSection(_.defaultsDeep(section, defaults));
 
-  fs.writeFileSync(dest, `${FILE_HEADER}${SECTION_HEADER}${sectionText}${SECTION_FOOTER}`, 'utf8');
+  fs.writeFileSync(dest, `${FILE_HEADER}${sectionText}`, 'utf8');
 }
