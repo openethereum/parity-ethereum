@@ -86,6 +86,31 @@ describe('mobx/HardwareStore', () => {
   });
 
   describe('operations', () => {
+    describe('createEntry', () => {
+      beforeEach(() => {
+        return store.createEntry({
+          address: 'testAddr',
+          description: 'testDesc',
+          name: 'testName',
+          type: 'testType'
+        });
+      });
+
+      it('calls into parity_setAccountName', () => {
+        expect(api.parity.setAccountName).to.have.been.calledWith('testAddr', 'testName');
+      });
+
+      it('calls into parity_setAccountMeta', () => {
+        expect(api.parity.setAccountMeta).to.have.been.calledWith('testAddr', sinon.match({
+          description: 'testDesc',
+          hardware: {
+            type: 'testType'
+          },
+          name: 'testName'
+        }));
+      });
+    });
+
     describe('scanLedger', () => {
       beforeEach(() => {
         return store.scanLedger();

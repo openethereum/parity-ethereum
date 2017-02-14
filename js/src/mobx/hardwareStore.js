@@ -64,18 +64,19 @@ export default class HardwareStore {
       });
   }
 
-  createEntry (address, name, description, type) {
+  createEntry (entry) {
     return Promise
       .all([
-        this._api.setAccountName(address, name),
-        this._api.setAccountMeta(address, {
+        this._api.parity.setAccountName(entry.address, entry.name),
+        this._api.parity.setAccountMeta(entry.address, {
           deleted: false,
-          description,
-          hardware: { type },
-          name,
+          description: entry.description,
+          hardware: {
+            type: entry.type
+          },
+          name: entry.name,
           tags: ['hardware'],
-          timestamp: Date.now(),
-          wallet: true
+          timestamp: Date.now()
         })
       ])
       .catch((error) => {
