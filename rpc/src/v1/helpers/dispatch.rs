@@ -130,6 +130,7 @@ impl<C: MiningBlockChainClient, M: MinerService> Dispatcher for FullDispatcher<C
 			};
 
 			let hash = t.hash(network_id);
+			println!("Checking hw wallet");
 			if accounts.is_hardware_address(address) {
 				let mut stream = rlp::RlpStream::new();
 				t.rlp_append_unsigned_transaction(&mut stream, network_id);
@@ -149,6 +150,7 @@ impl<C: MiningBlockChainClient, M: MinerService> Dispatcher for FullDispatcher<C
 				);
 				WithToken::No(signed)
 			} else {
+				println!("Signing");
 				let signature = try_bf!(signature(accounts, address, hash, password));
 				signature.map(|sig| {
 					SignedTransaction::new(t.with_signature(sig, network_id))

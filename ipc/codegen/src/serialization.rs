@@ -431,7 +431,7 @@ fn fields_sequence(
 	variant_ident: &ast::Ident,
 ) -> ast::Expr {
 	use syntax::parse::token;
-	use syntax::ast::TokenTree::Token;
+	use syntax::ast::TokenTree::{TtToken as Token};
 
 	let named_members = fields.iter().any(|f| f.ident.is_some());
 
@@ -569,7 +569,7 @@ fn named_fields_sequence(
 	fields: &[ast::StructField],
 ) -> ast::Stmt {
 	use syntax::parse::token;
-	use syntax::ast::TokenTree::Token;
+	use syntax::ast::TokenTree::{TtToken as Token};
 
 	::quasi::parse_stmt_panic(&mut ::syntax::parse::new_parser_from_tts(
 		ext_cx.parse_sess(),

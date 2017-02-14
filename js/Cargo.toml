@@ -11,8 +11,10 @@ default = ["with-syntex"]
 with-syntex = ["parity-dapps-glue/with-syntex"]
 
 [build-dependencies]
-parity-dapps-glue = "1.4"
+# parity-dapps-glue = "1.4"
+parity-dapps-glue = { path = "../dapps/js-glue" }
 
 [dependencies]
-parity-dapps-glue = "1.4"
+# parity-dapps-glue = "1.4"
+parity-dapps-glue = { path = "../dapps/js-glue" }
 
