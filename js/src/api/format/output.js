@@ -203,6 +203,13 @@ export function outSignerRequest (request) {
           request[key].signTransaction = outTransaction(request[key].signTransaction);
           request[key].sendTransaction = outTransaction(request[key].sendTransaction);
           break;
+
+        case 'origin':
+          const type = Object.keys(request[key])[0];
+          const details = request[key][type];
+
+          request[key] = { type, details };
+          break;
       }
     });
   }

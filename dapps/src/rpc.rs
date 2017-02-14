@@ -77,8 +77,7 @@ impl HttpMetaExtractor<Metadata> for MetadataExtractor {
 					})
 			});
 		Metadata {
-			dapp_id: dapp_id,
-			origin: Origin::Dapps,
+			origin: Origin::Dapps(dapp_id.map(Into::into).unwrap_or_default()),
 		}
 	}
 }

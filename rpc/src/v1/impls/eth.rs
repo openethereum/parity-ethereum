@@ -311,7 +311,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 	}
 
 	fn author(&self, meta: Metadata) -> BoxFuture<RpcH160, Error> {
-		let dapp = meta.dapp_id.unwrap_or_default();
+		let dapp = meta.dapp_id();
 
 		let author = move || {
 			let mut miner = take_weak!(self.miner).author();
@@ -342,7 +342,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 	}
 
 	fn accounts(&self, meta: Metadata) -> BoxFuture<Vec<RpcH160>, Error> {
-		let dapp = meta.dapp_id.unwrap_or_default();
+		let dapp = meta.dapp_id();
 
 		let accounts = move || {
 			let accounts = self.dapp_accounts(dapp.into())?;

@@ -18,6 +18,7 @@ use ethcore;
 
 /// Represents condition on minimum block number or block timestamp.
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub enum TransactionCondition {
 	/// Valid at this minimum block number.
 	#[serde(rename="block")]
