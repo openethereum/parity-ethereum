@@ -223,6 +223,8 @@ impl TransactionQueue {
 	/// Get all transactions ready to be propagated.
 	/// `best_block_number` and `best_block_timestamp` are used to filter out conditionally
 	/// propagated transactions.
+	///
+	/// Returned transactions are batched by sender, in order of ascending nonce.
 	pub fn ready_transactions(&self, best_block_number: u64, best_block_timestamp: u64) -> Vec<PendingTransaction> {
 		self.by_account.values()
 			.flat_map(|acct_txs| {
