@@ -18,7 +18,9 @@ import sinon from 'sinon';
 
 import HardwareStore, { HW_SCAN_INTERVAL } from './hardwareStore';
 
+const ADDRESS = '0x1234567890123456789012345678901234567890';
 const WALLET = {
+  address: ADDRESS,
   name: 'testing'
 };
 
@@ -30,6 +32,7 @@ let store;
 function createApi () {
   api = {
     parity: {
+      hardwareAccountsInfo: sinon.stub().resolves({ ADDRESS: WALLET }),
       setAccountMeta: sinon.stub().resolves(true),
       setAccountName: sinon.stub().resolves(true)
     }
@@ -116,12 +119,18 @@ describe('mobx/HardwareStore', () => {
         return store.scanLedger();
       });
 
-      it('calls scan on the ledger', () => {
+      it('calls scan on the Ledger APIs', () => {
         expect(ledger.scan).to.have.been.called;
       });
+    });
 
-      it('sets the wallet', () => {
-        expect(store.wallet.name).to.equal(WALLET.name);
+    describe('scanParity', () => {
+      beforeEach(() => {
+        return store.scanParity();
+      });
+
+      it('calls parity_hardwareAccountsInfo', () => {
+        expect(api.parity.hardwareAccountsInfo).to.have.been.called;
       });
     });
 
@@ -129,6 +138,7 @@ describe('mobx/HardwareStore', () => {
       beforeEach(() => {
         sinon.spy(store, 'setScanning');
         sinon.spy(store, 'scanLedger');
+        sinon.spy(store, 'scanParity');
 
         return store.scan();
       });
@@ -136,10 +146,15 @@ describe('mobx/HardwareStore', () => {
       afterEach(() => {
         store.setScanning.restore();
         store.scanLedger.restore();
+        store.scanParity.restore();
       });
 
       it('calls scanLedger', () => {
         expect(store.scanLedger).to.have.been.called;
+      });
+
+      it('calls scanParity', () => {
+        expect(store.scanParity).to.have.been.called;
       });
 
       it('sets and resets the scanning state', () => {

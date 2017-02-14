@@ -46,19 +46,31 @@ export default class HardwareStore {
       .scan()
       .then((wallet) => {
         console.log('HardwareStore::scanLedger', wallet);
-
-        this.setWallet(wallet);
       })
       .catch((error) => {
         console.warn('HardwareStore::scanLedger', error);
       });
   }
 
+  scanParity () {
+    return this._api.parity
+      .hardwareAccountsInfo()
+      .then((accountsInfo) => {
+        console.log('HardwareStore::scanParity', accountsInfo);
+      })
+      .catch((error) => {
+        console.warn('HardwareStore::scanParity', error);
+      });
+  }
+
   scan () {
     this.setScanning(true);
 
-    return this
-      .scanLedger()
+    return Promise
+      .all([
+        this.scanLedger(),
+        this.scanParity()
+      ])
       .then(() => {
         this.setScanning(false);
       });
