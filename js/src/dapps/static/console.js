@@ -21,10 +21,10 @@ if (typeof (window.parent.secureApi) === 'object') {
 
   if (typeof (window.Web3) === 'function') {
     Promise.all([
-      api.parity.dappsInterface(),
-      api.parity.dappsPort()
+      window.api.parity.dappsInterface(),
+      window.api.parity.dappsPort()
     ]).then(res => {
-      window.web3 = new Web3(new Web3.providers.HttpProvider(`http://${res.join(':')}/rpc/`));
+      window.web3 = new window.Web3(new window.Web3.providers.HttpProvider(`http://${res.join(':')}/rpc/`));
     });
   }
 } else if (typeof (window.parity) === 'object') {

@@ -19,7 +19,7 @@ import signer from '~/jsonrpc/interfaces/signer';
 import trace from '~/jsonrpc/interfaces/trace';
 
 export default function web3extensions (web3) {
-  const { Method, formatters } = web3._extend;
+  const { Method } = web3._extend;
 
   // TODO [ToDr] Consider output/input formatters.
   const methods = (object, name) => {
