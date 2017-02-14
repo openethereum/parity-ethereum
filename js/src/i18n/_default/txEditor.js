@@ -16,18 +16,18 @@
 
 export default {
   condition: {
-    none: `No conditions`,
-    blocknumber: `Send after BlockNumber`,
-    datetime: `Send after Date & Time`,
-    label: `Condition where transaction activates`,
     block: {
       hint: `The minimum block to send from`,
       label: `Transaction send block`
     },
+    blocknumber: `Send after BlockNumber`,
     date: {
       hint: `The minimum date to send from`,
       label: `Transaction send date`
     },
+    datetime: `Send after Date & Time`,
+    label: `Condition where transaction activates`,
+    none: `No conditions`,
     time: {
       hint: `The minimum time to send from`,
       label: `Transaction send time`

@@ -15,7 +15,33 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 export default {
-  title: `Password Manager`,
+  button: {
+    cancel: `Cancel`,
+    change: `Change`,
+    test: `Test`,
+    wait: `Wait...`
+  },
+  currentPassword: {
+    hint: `your current password for this account`,
+    label: `current password`
+  },
+  newPassword: {
+    hint: `the new password for this account`,
+    label: `new password`
+  },
+  passwordHint: {
+    hint: `hint for the new password`,
+    label: `(optional) new password hint`
+  },
+  repeatPassword: {
+    error: `the supplied passwords do not match`,
+    hint: `repeat the new password for this account`,
+    label: `repeat new password`
+  },
+  success: `Your password has been successfully changed`,
+  tabChange: {
+    label: `Change Password`
+  },
   tabTest: {
     label: `Test Password`
   },
@@ -23,31 +49,5 @@ export default {
     hint: `your account password`,
     label: `password`
   },
-  tabChange: {
-    label: `Change Password`
-  },
-  currentPassword: {
-    hint: `your current password for this account`,
-    label: `current password`
-  },
-  passwordHint: {
-    hint: `hint for the new password`,
-    label: `(optional) new password hint`
-  },
-  newPassword: {
-    hint: `the new password for this account`,
-    label: `new password`
-  },
-  repeatPassword: {
-    error: `the supplied passwords do not match`,
-    hint: `repeat the new password for this account`,
-    label: `repeat new password`
-  },
-  button: {
-    cancel: `Cancel`,
-    wait: `Wait...`,
-    test: `Test`,
-    change: `Change`
-  },
-  success: `Your password has been successfully changed`
+  title: `Password Manager`
 };

@@ -15,6 +15,6 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 export default {
-  intro: `Parity now has an extension available for Chrome that allows safe browsing of Ethereum-enabled distributed applications. It is highly recommended that you install this extension to further enhance your Parity experience.`,
-  install: `Install the extension now`
+  install: `Install the extension now`,
+  intro: `Parity now has an extension available for Chrome that allows safe browsing of Ethereum-enabled distributed applications. It is highly recommended that you install this extension to further enhance your Parity experience.`
 };

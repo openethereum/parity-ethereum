@@ -15,44 +15,44 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 export default {
+  busy: {
+    posted: `Your transaction has been posted to the network`,
+    title: `The function execution is in progress`,
+    waitAuth: `Waiting for authorization in the Parity Signer`
+  },
+  button: {
+    cancel: `cancel`,
+    done: `done`,
+    next: `next`,
+    post: `post transaction`,
+    prev: `prev`
+  },
   details: {
     address: {
-      label: `the account to transact with`,
-      hint: `from account`
+      hint: `from account`,
+      label: `the account to transact with`
+    },
+    advancedCheck: {
+      label: `advanced sending options`
     },
     amount: {
       hint: `the amount to send to with the transaction`,
       label: `transaction value (in ETH)`
-    },
-    advancedCheck: {
-      label: `advanced sending options`
     },
     function: {
       hint: `the function to call on the contract`,
       label: `function to execute`
     }
   },
-  steps: {
-    transfer: `function details`,
-    sending: `sending`,
-    complete: `complete`,
-    advanced: `advanced options`,
-    rejected: `rejected`
-  },
-  button: {
-    cancel: `cancel`,
-    post: `post transaction`,
-    next: `next`,
-    prev: `prev`,
-    done: `done`
-  },
   rejected: {
-    title: `The execution has been rejected`,
-    state: `You can safely close this window, the function execution will not occur.`
+    state: `You can safely close this window, the function execution will not occur.`,
+    title: `The execution has been rejected`
   },
-  busy: {
-    title: `The function execution is in progress`,
-    waitAuth: `Waiting for authorization in the Parity Signer`,
-    posted: `Your transaction has been posted to the network`
+  steps: {
+    advanced: `advanced options`,
+    complete: `complete`,
+    rejected: `rejected`,
+    sending: `sending`,
+    transfer: `function details`
   }
 };

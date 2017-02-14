@@ -15,57 +15,27 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 export default {
-  title: {
-    details: `contract details`,
-    parameters: `contract parameters`,
-    deployment: `deployment`,
-    completed: `completed`,
-    failed: `deployment failed`,
-    rejected: `rejected`
+  busy: {
+    title: `The deployment is currently in progress`
   },
   button: {
     cancel: `Cancel`,
     close: `Close`,
+    create: `Create`,
     done: `Done`,
-    next: `Next`,
-    create: `Create`
-  },
-  rejected: {
-    title: `The deployment has been rejected`,
-    description: `You can safely close this window, the contract deployment will not occur.`
-  },
-  busy: {
-    title: `The deployment is currently in progress`
+    next: `Next`
   },
   completed: {
     description: `Your contract has been deployed at`
   },
-  owner: {
-    noneSelected: `a valid account as the contract owner needs to be selected`
-  },
-  state: {
-    preparing: `Preparing transaction for network transmission`,
-    waitSigner: `Waiting for confirmation of the transaction in the Parity Secure Signer`,
-    waitReceipt: `Waiting for the contract deployment transaction receipt`,
-    validatingCode: `Validating the deployed contract code`,
-    completed: `The contract deployment has been completed`
-  },
   details: {
-    address: {
-      hint: `the owner account for this contract`,
-      label: `from account (contract owner)`
-    },
-    name: {
-      hint: `a name for the deployed contract`,
-      label: `contract name`
-    },
-    description: {
-      hint: `a description for the contract`,
-      label: `contract description (optional)`
-    },
     abi: {
       hint: `the abi of the contract to deploy or solc combined-output`,
       label: `abi / solc combined-output`
+    },
+    address: {
+      hint: `the owner account for this contract`,
+      label: `from account (contract owner)`
     },
     code: {
       hint: `the compiled code of the contract to deploy`,
@@ -73,9 +43,39 @@ export default {
     },
     contract: {
       label: `select a contract`
+    },
+    description: {
+      hint: `a description for the contract`,
+      label: `contract description (optional)`
+    },
+    name: {
+      hint: `a name for the deployed contract`,
+      label: `contract name`
     }
+  },
+  owner: {
+    noneSelected: `a valid account as the contract owner needs to be selected`
   },
   parameters: {
     choose: `Choose the contract parameters`
+  },
+  rejected: {
+    description: `You can safely close this window, the contract deployment will not occur.`,
+    title: `The deployment has been rejected`
+  },
+  state: {
+    completed: `The contract deployment has been completed`,
+    preparing: `Preparing transaction for network transmission`,
+    validatingCode: `Validating the deployed contract code`,
+    waitReceipt: `Waiting for the contract deployment transaction receipt`,
+    waitSigner: `Waiting for confirmation of the transaction in the Parity Secure Signer`
+  },
+  title: {
+    completed: `completed`,
+    deployment: `deployment`,
+    details: `contract details`,
+    failed: `deployment failed`,
+    parameters: `contract parameters`,
+    rejected: `rejected`
   }
 };

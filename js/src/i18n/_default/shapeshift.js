@@ -21,8 +21,13 @@ export default {
     minimumMaximum: `{minimum} minimum, {maximum} maximum`
   },
   awaitingExchangeStep: {
-    receivedInfo: `{shapeshiftLink} has received a deposit of -`,
-    awaitingCompletion: `Awaiting the completion of the funds exchange and transfer of funds to your Parity account.`
+    awaitingCompletion: `Awaiting the completion of the funds exchange and transfer of funds to your Parity account.`,
+    receivedInfo: `{shapeshiftLink} has received a deposit of -`
+  },
+  button: {
+    cancel: `Cancel`,
+    done: `Close`,
+    shift: `Shift Funds`
   },
   completedStep: {
     completed: `{shapeshiftLink} has completed the funds exchange.`,
@@ -31,36 +36,31 @@ export default {
   errorStep: {
     info: `The funds shifting via {shapeshiftLink} failed with a fatal error on the exchange. The error message received from the exchange is as follow:`
   },
-  warning: {
-    noPrice: `No price match was found for the selected type`
-  },
   optionsStep: {
     noPairs: `There are currently no exchange pairs/coins available to fund with.`,
-    typeSelect: {
-      hint: `the type of crypto conversion to do`,
-      label: `fund account from`
-    },
     returnAddr: {
       hint: `the return address for send failures`,
       label: `(optional) {coinSymbol} return address`
     },
     terms: {
       label: `I understand that ShapeShift.io is a 3rd-party service and by using the service any transfer of information and/or funds is completely out of the control of Parity`
+    },
+    typeSelect: {
+      hint: `the type of crypto conversion to do`,
+      label: `fund account from`
     }
   },
   price: {
     minMax: `({minimum} minimum, {maximum} maximum)`
   },
   title: {
-    details: `details`,
-    deposit: `awaiting deposit`,
-    exchange: `awaiting exchange`,
     completed: `completed`,
-    error: `exchange failed`
+    deposit: `awaiting deposit`,
+    details: `details`,
+    error: `exchange failed`,
+    exchange: `awaiting exchange`
   },
-  button: {
-    cancel: `Cancel`,
-    shift: `Shift Funds`,
-    done: `Close`
+  warning: {
+    noPrice: `No price match was found for the selected type`
   }
 };

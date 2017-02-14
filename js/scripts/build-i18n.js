@@ -49,33 +49,51 @@ const SRCPATH = path.join(__dirname, '../.build/i18n/i18n/en.json');
   outputIndex(sectionNames);
 })();
 
+// sort an object based on its keys
+function sortObject (object) {
+  return Object
+    .keys(object)
+    .sort()
+    .reduce((sorted, key) => {
+      if (typeof object[key] === 'object') {
+        sorted[key] = sortObject(object[key]);
+      } else {
+        sorted[key] = object[key];
+      }
+
+      return sorted;
+    }, {});
+}
+
 // create an object map of the actual inputs
 function createSectionMap () {
   console.log(`Reading strings from ${SRCPATH}`);
 
   const i18nstrings = require(SRCPATH);
-  const sections = Object
-    .keys(i18nstrings)
-    .reduce((sections, fullKey) => {
-      const defaultMessage = i18nstrings[fullKey].defaultMessage;
-      const keys = fullKey.split('.');
-      let outputs = sections;
+  const sections = sortObject(
+    Object
+      .keys(i18nstrings)
+      .reduce((sections, fullKey) => {
+        const defaultMessage = i18nstrings[fullKey].defaultMessage;
+        const keys = fullKey.split('.');
+        let outputs = sections;
 
-      keys.forEach((key, index) => {
-        if (index === keys.length - 1) {
-          outputs[key] = defaultMessage;
-        } else {
-          if (!outputs[key]) {
-            outputs[key] = {};
+        keys.forEach((key, index) => {
+          if (index === keys.length - 1) {
+            outputs[key] = defaultMessage;
+          } else {
+            if (!outputs[key]) {
+              outputs[key] = {};
+            }
+
+            outputs = outputs[key];
           }
+        });
 
-          outputs = outputs[key];
-        }
-      });
-
-      return sections;
-    }, {});
-  const sectionNames = Object.keys(sections).sort();
+        return sections;
+      }, {})
+  );
+  const sectionNames = Object.keys(sections);
 
   console.log(`Found ${sectionNames.length} sections`);
 

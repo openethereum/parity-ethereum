@@ -15,18 +15,18 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 export default {
+  button: {
+    close: `Close`,
+    create: `Create`,
+    next: `Next`,
+    print: `Print Phrase`,
+    skip: `Skip`
+  },
   title: {
-    welcome: `welcome`,
-    terms: `terms`,
+    completed: `completed`,
     newAccount: `new account`,
     recovery: `recovery`,
-    completed: `completed`
-  },
-  button: {
-    next: `Next`,
-    create: `Create`,
-    skip: `Skip`,
-    print: `Print Phrase`,
-    close: `Close`
+    terms: `terms`,
+    welcome: `welcome`
   }
 };

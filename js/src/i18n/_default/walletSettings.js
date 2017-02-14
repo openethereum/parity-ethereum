@@ -15,12 +15,12 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 export default {
-  rejected: {
-    title: `rejected`,
-    busyStep: {
-      title: `The modifications have been rejected`,
-      state: `The wallet settings will not be modified. You can safely close this window.`
-    }
+  changes: {
+    modificationString: `For your modifications to be taken into account,
+              other owners have to send the same modifications. They can paste
+              this string to make it easier:`,
+    none: `No modifications have been made to the Wallet settings.`,
+    overview: `You are about to make the following modifications`
   },
   edit: {
     message: `In order to edit this contract's settings, at
@@ -29,30 +29,30 @@ export default {
                   of the modifications here.`
   },
   modifications: {
+    daylimit: {
+      hint: `amount of ETH spendable without confirmations`,
+      label: `wallet day limit`
+    },
     fromString: {
       label: `modifications`
-    },
-    sender: {
-      label: `from account (wallet owner)`,
-      hint: `send modifications as this owner`
     },
     owners: {
       label: `other wallet owners`
     },
     required: {
-      label: `required owners`,
-      hint: `number of required owners to accept a transaction`
+      hint: `number of required owners to accept a transaction`,
+      label: `required owners`
     },
-    daylimit: {
-      label: `wallet day limit`,
-      hint: `amount of ETH spendable without confirmations`
+    sender: {
+      hint: `send modifications as this owner`,
+      label: `from account (wallet owner)`
     }
   },
-  changes: {
-    none: `No modifications have been made to the Wallet settings.`,
-    modificationString: `For your modifications to be taken into account,
-              other owners have to send the same modifications. They can paste
-              this string to make it easier:`,
-    overview: `You are about to make the following modifications`
+  rejected: {
+    busyStep: {
+      state: `The wallet settings will not be modified. You can safely close this window.`,
+      title: `The modifications have been rejected`
+    },
+    title: `rejected`
   }
 };

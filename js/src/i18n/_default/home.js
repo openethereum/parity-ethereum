@@ -15,24 +15,24 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 export default {
-  accounts: {
-    title: `Recent Accounts`,
-    none: `No recent accounts history available`
-  },
   account: {
     visited: `accessed {when}`
+  },
+  accounts: {
+    none: `No recent accounts history available`,
+    title: `Recent Accounts`
   },
   dapp: {
     visited: `accessed {when}`
   },
   dapps: {
-    title: `Recent Dapps`,
-    none: `No recent Applications history available`
+    none: `No recent Applications history available`,
+    title: `Recent Dapps`
   },
   title: `Parity Home`,
   url: {
-    title: `Web Applications`,
     none: `No recent URL history available`,
+    title: `Web Applications`,
     visited: `visited {when}`
   }
 };
