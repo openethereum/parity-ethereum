@@ -37,7 +37,7 @@ export default class AccountStore {
   @action setDefaultAccount = (defaultAccount) => {
     transaction(() => {
       this.accounts = this.accounts.map((account) => {
-        account.default = account.address === this.defaultAccount;
+        account.default = account.address === defaultAccount;
 
         return account;
       });
