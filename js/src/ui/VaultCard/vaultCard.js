@@ -16,6 +16,7 @@
 
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
+import { Link } from 'react-router';
 
 import Button from '~/ui/Button';
 import Container from '~/ui/Container';
@@ -84,12 +85,14 @@ export default class VaultCard extends Component {
         {
           accounts.map((address) => {
             return (
-              <IdentityIcon
-                address={ address }
-                center
-                className={ styles.account }
-                key={ address }
-              />
+              <Link to={ `/accounts/${address}` }>
+                <IdentityIcon
+                  address={ address }
+                  center
+                  className={ styles.account }
+                  key={ address }
+                />
+              </Link>
             );
           })
         }
