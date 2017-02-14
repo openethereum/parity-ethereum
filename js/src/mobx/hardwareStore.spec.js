@@ -86,28 +86,40 @@ describe('mobx/HardwareStore', () => {
   });
 
   describe('operations', () => {
-    describe('scan', () => {
+    describe('scanLedger', () => {
       beforeEach(() => {
-        sinon.spy(store, 'setScanning');
-
-        return store.scan();
-      });
-
-      afterEach(() => {
-        store.setScanning.restore();
+        return store.scanLedger();
       });
 
       it('calls scan on the ledger', () => {
         expect(ledger.scan).to.have.been.called;
       });
 
+      it('sets the wallet', () => {
+        expect(store.wallet.name).to.equal(WALLET.name);
+      });
+    });
+
+    describe('scan', () => {
+      beforeEach(() => {
+        sinon.spy(store, 'setScanning');
+        sinon.spy(store, 'scanLedger');
+
+        return store.scan();
+      });
+
+      afterEach(() => {
+        store.setScanning.restore();
+        store.scanLedger.restore();
+      });
+
+      it('calls scanLedger', () => {
+        expect(store.scanLedger).to.have.been.called;
+      });
+
       it('sets and resets the scanning state', () => {
         expect(store.setScanning).to.have.been.calledWith(true);
         expect(store.setScanning).to.have.been.calledWith(false);
-      });
-
-      it('sets the wallet', () => {
-        expect(store.wallet.name).to.equal(WALLET.name);
       });
     });
 

@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { action, observable, transaction } from 'mobx';
+import { action, observable } from 'mobx';
 
 import Ledger from '~/3rdparty/ledger';
 
@@ -41,22 +41,25 @@ export default class HardwareStore {
     this.wallet = wallet;
   }
 
-  scan () {
-    this.setScanning(true);
-
+  scanLedger () {
     return this._ledger
       .scan()
       .then((wallet) => {
-        console.log('HardwareStore::scan', wallet);
+        console.log('HardwareStore::scanLedger', wallet);
 
-        transaction(() => {
-          this.setWallet(wallet);
-          this.setScanning(false);
-        });
+        this.setWallet(wallet);
       })
       .catch((error) => {
-        console.warn('HardwareStore::scan', error);
+        console.warn('HardwareStore::scanLedger', error);
+      });
+  }
 
+  scan () {
+    this.setScanning(true);
+
+    return this
+      .scanLedger()
+      .then(() => {
         this.setScanning(false);
       });
   }
