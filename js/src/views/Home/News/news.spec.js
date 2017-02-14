@@ -14,12 +14,41 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-extern crate rustc_version;
+import { shallow } from 'enzyme';
+import React from 'react';
 
-use rustc_version::{version_meta, Channel};
+import News from './news';
+import { restoreGlobals, stubGlobals } from './news.test.js';
 
-fn main() {
-	if let Channel::Nightly = version_meta().channel {
-		println!("cargo:rustc-cfg=nightly");
-	}
+let component;
+let instance;
+
+function render () {
+  component = shallow(
+    <News />
+  );
+  instance = component.instance();
+
+  return component;
 }
+
+describe('views/Home/News', () => {
+  beforeEach(() => {
+    stubGlobals();
+    render();
+
+    return instance.componentWillMount();
+  });
+
+  afterEach(() => {
+    restoreGlobals();
+  });
+
+  it('renders defaults', () => {
+    expect(component).to.be.ok;
+  });
+
+  it('retrieves the content meta on mount', () => {
+    expect(instance.store.newsItems).to.equal('testContent');
+  });
+});

@@ -14,19 +14,4 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-extern crate rustc_serialize;
-extern crate serde;
-extern crate serde_json;
-extern crate ethcore_util as util;
-
-pub mod hash;
-pub mod uint;
-pub mod bytes;
-pub mod blockchain;
-pub mod spec;
-pub mod trie;
-pub mod vm;
-pub mod maybe;
-pub mod state;
-pub mod transaction;
-pub mod misc;
+export default from './home';

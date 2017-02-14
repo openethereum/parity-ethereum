@@ -48,6 +48,10 @@ export default {
       label: 'Contracts'
     },
 
+    home: {
+      label: 'Home'
+    },
+
     status: {
       label: 'Status'
     },

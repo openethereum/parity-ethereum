@@ -16,9 +16,10 @@
 
 //! Serializable wrapper around vector of bytes
 
+use std::fmt;
 use rustc_serialize::hex::ToHex;
-use serde::{Serialize, Serializer, Deserialize, Deserializer, Error};
-use serde::de::Visitor;
+use serde::{Serialize, Serializer, Deserialize, Deserializer};
+use serde::de::{Error, Visitor};
 use util::common::FromHex;
 
 /// Wrapper structure around vector of bytes.
@@ -49,7 +50,7 @@ impl Into<Vec<u8>> for Bytes {
 }
 
 impl Serialize for Bytes {
-	fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Error>
+	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
 	where S: Serializer {
 		let mut serialized = "0x".to_owned();
 		serialized.push_str(self.0.to_hex().as_ref());
@@ -58,7 +59,7 @@ impl Serialize for Bytes {
 }
 
 impl Deserialize for Bytes {
-	fn deserialize<D>(deserializer: &mut D) -> Result<Bytes, D::Error>
+	fn deserialize<D>(deserializer: D) -> Result<Bytes, D::Error>
 	where D: Deserializer {
 		deserializer.deserialize(BytesVisitor)
 	}
@@ -69,7 +70,11 @@ struct BytesVisitor;
 impl Visitor for BytesVisitor {
 	type Value = Bytes;
 
-	fn visit_str<E>(&mut self, value: &str) -> Result<Self::Value, E> where E: Error {
+	fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+		write!(formatter, "a 0x-prefixed, hex-encoded vector of bytes")
+	}
+
+	fn visit_str<E>(self, value: &str) -> Result<Self::Value, E> where E: Error {
 		if value.is_empty() {
 			warn!(
 				target: "deprecated",
@@ -83,7 +88,7 @@ impl Visitor for BytesVisitor {
 		}
 	}
 
-	fn visit_string<E>(&mut self, value: String) -> Result<Self::Value, E> where E: Error {
+	fn visit_string<E>(self, value: String) -> Result<Self::Value, E> where E: Error {
 		self.visit_str(value.as_ref())
 	}
 }

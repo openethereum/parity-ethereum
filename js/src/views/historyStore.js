@@ -30,10 +30,11 @@ export default class Store {
     this.load();
   }
 
-  @action add = (entry) => {
+  @action add = (entry, type) => {
     this.history = [{
+      entry,
       timestamp: Date.now(),
-      entry
+      type
     }].concat(this.history.filter((h) => h.entry !== entry)).slice(0, MAX_ENTRIES);
     this.save();
   }

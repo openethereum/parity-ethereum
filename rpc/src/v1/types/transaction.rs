@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use serde::{Serialize, Serializer};
+use serde::ser::SerializeStruct;
 use ethcore::miner;
 use ethcore::contract_address;
 use ethcore::transaction::{LocalizedTransaction, Action, PendingTransaction, SignedTransaction};
@@ -93,7 +94,7 @@ pub enum LocalTransactionStatus {
 }
 
 impl Serialize for LocalTransactionStatus {
-	fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Error>
+	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
 		where S: Serializer
 	{
 		use self::LocalTransactionStatus::*;
@@ -108,35 +109,36 @@ impl Serialize for LocalTransactionStatus {
 		let status = "status";
 		let transaction = "transaction";
 
-		let mut state = serializer.serialize_struct("LocalTransactionStatus", elems)?;
+		let mut struc = serializer.serialize_struct("LocalTransactionStatus", elems)?;
 		match *self {
-			Pending => serializer.serialize_struct_elt(&mut state, status, "pending")?,
-			Future => serializer.serialize_struct_elt(&mut state, status, "future")?,
+			Pending => struc.serialize_field(status, "pending")?,
+			Future => struc.serialize_field(status, "future")?,
 			Mined(ref tx) => {
-				serializer.serialize_struct_elt(&mut state, status, "mined")?;
-				serializer.serialize_struct_elt(&mut state, transaction, tx)?;
+				struc.serialize_field(status, "mined")?;
+				struc.serialize_field(transaction, tx)?;
 			},
 			Dropped(ref tx) => {
-				serializer.serialize_struct_elt(&mut state, status, "dropped")?;
-				serializer.serialize_struct_elt(&mut state, transaction, tx)?;
+				struc.serialize_field(status, "dropped")?;
+				struc.serialize_field(transaction, tx)?;
 			},
 			Invalid(ref tx) => {
-				serializer.serialize_struct_elt(&mut state, status, "invalid")?;
-				serializer.serialize_struct_elt(&mut state, transaction, tx)?;
+				struc.serialize_field(status, "invalid")?;
+				struc.serialize_field(transaction, tx)?;
 			},
 			Rejected(ref tx, ref reason) => {
-				serializer.serialize_struct_elt(&mut state, status, "rejected")?;
-				serializer.serialize_struct_elt(&mut state, transaction, tx)?;
-				serializer.serialize_struct_elt(&mut state, "error", reason)?;
+				struc.serialize_field(status, "rejected")?;
+				struc.serialize_field(transaction, tx)?;
+				struc.serialize_field("error", reason)?;
 			},
 			Replaced(ref tx, ref gas_price, ref hash) => {
-				serializer.serialize_struct_elt(&mut state, status, "replaced")?;
-				serializer.serialize_struct_elt(&mut state, transaction, tx)?;
-				serializer.serialize_struct_elt(&mut state, "hash", hash)?;
-				serializer.serialize_struct_elt(&mut state, "gasPrice", gas_price)?;
+				struc.serialize_field(status, "replaced")?;
+				struc.serialize_field(transaction, tx)?;
+				struc.serialize_field("hash", hash)?;
+				struc.serialize_field("gasPrice", gas_price)?;
 			},
 		}
-		serializer.serialize_struct_end(state)
+
+		struc.end()
 	}
 }
 

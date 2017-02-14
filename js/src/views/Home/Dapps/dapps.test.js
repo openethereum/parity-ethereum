@@ -14,28 +14,14 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-#[cfg(not(feature = "serde_macros"))]
-mod inner {
-    extern crate serde_codegen;
+import sinon from 'sinon';
 
-    use std::env;
-    use std::path::Path;
-
-    pub fn main() {
-        let out_dir = env::var_os("OUT_DIR").unwrap();
-
-        let src = Path::new("./src/api/types.rs.in");
-        let dst = Path::new(&out_dir).join("types.rs");
-
-        serde_codegen::expand(&src, &dst).unwrap();
-    }
+function createStore () {
+  return {
+    loadApp: sinon.stub().resolves({ name: 'testName' })
+  };
 }
 
-#[cfg(feature = "serde_macros")]
-mod inner {
-    pub fn main() {}
-}
-
-fn main() {
-    inner::main();
-}
+export {
+  createStore
+};

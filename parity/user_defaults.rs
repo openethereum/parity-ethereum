@@ -14,13 +14,14 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::fmt;
 use std::fs::File;
 use std::io::Write;
 use std::path::Path;
 use std::collections::BTreeMap;
 use std::time::Duration;
-use serde::{Serialize, Serializer, Error, Deserialize, Deserializer};
-use serde::de::{Visitor, MapVisitor};
+use serde::{Serialize, Serializer, Deserialize, Deserializer};
+use serde::de::{Error, Visitor, MapVisitor};
 use serde::de::impls::BTreeMapVisitor;
 use serde_json::Value;
 use serde_json::de::from_reader;
@@ -37,7 +38,7 @@ pub struct UserDefaults {
 }
 
 impl Serialize for UserDefaults {
-	fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Error>
+	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
 	where S: Serializer {
 		let mut map: BTreeMap<String, Value> = BTreeMap::new();
 		map.insert("pruning".into(), Value::String(self.pruning.as_str().into()));
@@ -46,12 +47,12 @@ impl Serialize for UserDefaults {
 		let mode_str = match self.mode {
 			Mode::Off => "offline",
 			Mode::Dark(timeout) => {
-				map.insert("mode.timeout".into(), Value::U64(timeout.as_secs()));
+				map.insert("mode.timeout".into(), Value::Number(timeout.as_secs().into()));
 				"dark"
 			},
 			Mode::Passive(timeout, alarm) => {
-				map.insert("mode.timeout".into(), Value::U64(timeout.as_secs()));
-				map.insert("mode.alarm".into(), Value::U64(alarm.as_secs()));
+				map.insert("mode.timeout".into(), Value::Number(timeout.as_secs().into()));
+				map.insert("mode.alarm".into(), Value::Number(alarm.as_secs().into()));
 				"passive"
 			},
 			Mode::Active => "active",
@@ -65,7 +66,7 @@ impl Serialize for UserDefaults {
 struct UserDefaultsVisitor;
 
 impl Deserialize for UserDefaults {
-	fn deserialize<D>(deserializer: &mut D) -> Result<Self, D::Error>
+	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
 	where D: Deserializer {
 		deserializer.deserialize(UserDefaultsVisitor)
 	}
@@ -74,8 +75,11 @@ impl Deserialize for UserDefaults {
 impl Visitor for UserDefaultsVisitor {
 	type Value = UserDefaults;
 
-	fn visit_map<V>(&mut self, visitor: V) -> Result<Self::Value, V::Error>
-	where V: MapVisitor {
+	fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+		write!(formatter, "a valid UserDefaults object")
+	}
+
+	fn visit_map<V>(self, visitor: V) -> Result<Self::Value, V::Error> where V: MapVisitor {
 		let mut map: BTreeMap<String, Value> = BTreeMapVisitor::new().visit_map(visitor)?;
 		let pruning: Value = map.remove("pruning").ok_or_else(|| Error::custom("missing pruning"))?;
 		let pruning = pruning.as_str().ok_or_else(|| Error::custom("invalid pruning value"))?;
