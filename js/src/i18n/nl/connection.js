@@ -15,12 +15,12 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 export default {
-  connectingAPI: `Connecting to the Parity Secure API.`,
-  connectingNode: `Connecting to the Parity Node. If this informational message persists, please ensure that your Parity node is running and reachable on the network.`,
-  invalidToken: `invalid signer token`,
-  noConnection: `Unable to make a connection to the Parity Secure API. To update your secure token or to generate a new one, run {newToken} and supply the token below`,
+  connectingAPI: `Verbinden met de Parity Secure API.`,
+  connectingNode: `Verbinden met de Parity Node. Conroleer of je Parity node actief en op het netwerk bereikbaar is, als dit bericht op je scherm blijft staan.`,
+  invalidToken: `ongeldig signer token`,
+  noConnection: `Kan geen verbinding maken met de Parity Secure API. Voer {newToken} uit en voer het token hieronder in om het secure token te updaten of een nieuwe te genereren.`,
   token: {
-    hint: `a generated token from Parity`,
+    hint: `een Parity gegenereerd token`,
     label: `secure token`
   }
 };

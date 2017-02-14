@@ -16,6 +16,6 @@
 
 export default {
   summary: {
-    minedBlock: `Mined at block #{blockNumber}`
+    minedBlock: `Opgenomen in blok #{blockNumber}`
   }
 };

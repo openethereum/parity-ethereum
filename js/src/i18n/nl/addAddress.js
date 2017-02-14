@@ -16,22 +16,22 @@
 
 export default {
   button: {
-    add: `Save Address`,
-    close: `Cancel`
+    add: `Adres Opslaan`,
+    close: `Annuleer`
   },
   input: {
     address: {
-      hint: `the network address for the entry`,
-      label: `network address`
+      hint: `het netwerk adress van het item`,
+      label: `Netwerk Adres`
     },
     description: {
-      hint: `an expanded description for the entry`,
-      label: `(optional) address description`
+      hint: `een uitgebereide beschrijving van het item`,
+      label: `(optioneel) adres beschrijving`
     },
     name: {
-      hint: `a descriptive name for the entry`,
-      label: `address name`
+      hint: `een beschrijvende naam van het item`,
+      label: `Adres Naam`
     }
   },
-  label: `add saved address`
+  label: `voeg opgeslagen adres toe`
 };

@@ -16,9 +16,9 @@
 
 export default {
   password: {
-    hint: `provide the account password to confirm the account deletion`,
-    label: `account password`
+    hint: `Voer ter bevestiging het wachtwoord in om je account te verwijderen`,
+    label: `account wachtwoord`
   },
-  question: `Are you sure you want to permanently delete the following account?`,
-  title: `confirm removal`
+  question: `Weet je zeker dat je het volgende account permanent wilt verwijderen?`,
+  title: `bevestig verwijderen`
 };

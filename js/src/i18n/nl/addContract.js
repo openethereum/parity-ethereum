@@ -16,45 +16,45 @@
 
 export default {
   abi: {
-    hint: `the abi for the contract`,
+    hint: `de abi van het contract`,
     label: `contract abi`
   },
   abiType: {
     custom: {
-      description: `Contract created from custom ABI`,
+      description: `Contract aangemaakt met een custom ABI`,
       label: `Custom Contract`
     },
     multisigWallet: {
       description: `Ethereum Multisig contract {link}`,
       label: `Multisig Wallet`,
-      link: `see contract code`
+      link: `zie contract code`
     },
     token: {
-      description: `A standard {erc20} token`,
+      description: `Een standaard {erc20} token`,
       erc20: `ERC 20`,
       label: `Token`
     }
   },
   address: {
-    hint: `the network address for the contract`,
-    label: `network address`
+    hint: `het netwerk adres van het contract`,
+    label: `netwerk adres`
   },
   button: {
-    add: `Add Contract`,
-    cancel: `Cancel`,
-    next: `Next`,
-    prev: `Back`
+    add: `Voeg Contract toe`,
+    cancel: `Annuleer`,
+    next: `Volgende`,
+    prev: `Terug`
   },
   description: {
-    hint: `an expanded description for the entry`,
-    label: `(optional) contract description`
+    hint: `een uitgebreide omschrijving van het contract`,
+    label: `(optioneel) contract beschrijving`
   },
   name: {
-    hint: `a descriptive name for the contract`,
-    label: `contract name`
+    hint: `een beschrijvende naam van het contract`,
+    label: `contract naam`
   },
   title: {
-    details: `enter contract details`,
-    type: `choose a contract type`
+    details: `voer contract details in`,
+    type: `kies een contract type`
   }
 };

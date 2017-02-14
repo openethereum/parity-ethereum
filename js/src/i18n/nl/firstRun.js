@@ -16,17 +16,17 @@
 
 export default {
   button: {
-    close: `Close`,
-    create: `Create`,
-    next: `Next`,
-    print: `Print Phrase`,
-    skip: `Skip`
+    close: `Sluiten`,
+    create: `creëer`,
+    next: `volgende`,
+    print: `Print Woorden`,
+    skip: `Overslaan`
   },
   title: {
-    completed: `completed`,
-    newAccount: `new account`,
-    recovery: `recovery`,
-    terms: `terms`,
-    welcome: `welcome`
+    completed: `voltooid`,
+    newAccount: `nieuw account`,
+    recovery: `herstelzin`,
+    terms: `voorwaarden`,
+    welcome: `welkom`
   }
 };

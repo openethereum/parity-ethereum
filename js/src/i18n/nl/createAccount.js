@@ -17,48 +17,48 @@
 export default {
   accountDetails: {
     address: {
-      hint: `the network address for the account`,
-      label: `address`
+      hint: `Het netwerk adres van het account`,
+      label: `adres`
     },
     name: {
-      hint: `a descriptive name for the account`,
-      label: `account name`
+      hint: `Een beschrijvende naam van het account`,
+      label: `account naam`
     },
     phrase: {
-      hint: `the account recovery phrase`,
-      label: `owner recovery phrase (keep private and secure, it allows full and unlimited access to the account)`
+      hint: `De account herstel zin`,
+      label: `Eigenaar's herstel zin (houd deze woorden veilig en prive want hiermee kun je volledige, ongelimiteerde toegang tot het account verkrijgen).`
     }
   },
   accountDetailsGeth: {
-    imported: `You have imported {number} addresses from the Geth keystore:`
+    imported: `Je hebt {number} adressen geïmporteerd uit de Geth keystore:`
   },
   button: {
-    back: `Back`,
-    cancel: `Cancel`,
-    close: `Close`,
-    create: `Create`,
-    import: `Import`,
-    next: `Next`,
-    print: `Print Phrase`
+    back: `Terug`,
+    cancel: `Annuleer`,
+    close: `Sluit`,
+    create: `Aanmaken`,
+    import: `Importeer`,
+    next: `Volgende`,
+    print: `Print herstel zin`
   },
   creationType: {
     fromGeth: {
-      label: `Import accounts from Geth keystore`
+      label: `Importeer accounts uit Geth keystore`
     },
     fromJSON: {
-      label: `Import account from a backup JSON file`
+      label: `Importeer account uit een opgeslagen JSON file`
     },
     fromNew: {
-      label: `Create new account manually`
+      label: `Handmatig account aanmaken`
     },
     fromPhrase: {
-      label: `Recover account from recovery phrase`
+      label: `Herstel account met een herstel zin`
     },
     fromPresale: {
-      label: `Import account from an Ethereum pre-sale wallet`
+      label: `Importeer account van een Ethereum voor-verkoop (pre-sale) wallet`
     },
     fromRaw: {
-      label: `Import raw private key`
+      label: `Importeer een kale prive sleutel (raw private key)`
     }
   },
   error: {
@@ -155,9 +155,9 @@ export default {
     }
   },
   title: {
-    accountInfo: `account information`,
-    createAccount: `create account`,
-    createType: `creation type`,
-    importWallet: `import wallet`
+    accountInfo: `account informatie`,
+    createAccount: `account aanmaken`,
+    createType: `manier van aanmaken`,
+    importWallet: `importeer wallet`
   }
 };

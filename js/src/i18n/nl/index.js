@@ -14,33 +14,62 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-export account from './account';
-export accounts from './accounts';
-export addAddress from './addAddress';
-export addContract from './addContract';
-export addressSelect from './addressSelect';
-export application from './application';
-export connection from './connection';
-export contract from './contract';
-export createAccount from './createAccount';
-export createWallet from './createWallet';
-export dapp from './dapp';
-export dapps from './dapps';
-export deleteAccount from './deleteAccount';
-export deployContract from './deployContract';
-export editMeta from './editMeta';
-export executeContract from './executeContract';
-export extension from './extension';
-export firstRun from './firstRun';
-export home from './home';
-export loadContract from './loadContract';
-export parityBar from './parityBar';
-export passwordChange from './passwordChange';
-export settings from './settings';
-export shapeshift from './shapeshift';
-export transfer from './transfer';
-export txEditor from './txEditor';
-export ui from './ui';
-export upgradeParity from './upgradeParity';
-export walletSettings from './walletSettings';
-export web from './web';
+import account from './account';
+import accounts from './accounts';
+import addAddress from './addAddress';
+import addContract from './addContract';
+import addressSelect from './addressSelect';
+import application from './application';
+import connection from './connection';
+import contract from './contract';
+import createAccount from './createAccount';
+import createWallet from './createWallet';
+import dapp from './dapp';
+import dapps from './dapps';
+import deleteAccount from './deleteAccount';
+import deployContract from './deployContract';
+import editMeta from './editMeta';
+import executeContract from './executeContract';
+import extension from './extension';
+import firstRun from './firstRun';
+import loadContract from './loadContract';
+import parityBar from './parityBar';
+import passwordChange from './passwordChange';
+import settings from './settings';
+import shapeshift from './shapeshift';
+import transfer from './transfer';
+import txEditor from './txEditor';
+import ui from './ui';
+import upgradeParity from './upgradeParity';
+import web from './web';
+
+export default {
+  account,
+  accounts,
+  addAddress,
+  addContract,
+  addressSelect,
+  application,
+  connection,
+  contract,
+  createAccount,
+  createWallet,
+  dapp,
+  dapps,
+  deleteAccount,
+  deployContract,
+  editMeta,
+  executeContract,
+  extension,
+  firstRun,
+  loadContract,
+  parityBar,
+  passwordChange,
+  settings,
+  shapeshift,
+  transfer,
+  txEditor,
+  ui,
+  upgradeParity,
+  web
+};

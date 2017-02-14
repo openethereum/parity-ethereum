@@ -15,5 +15,5 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 export default {
-  minedBlock: `Mined at block #{blockNumber}`
+  minedBlock: `Opgenomen in blok #{blockNumber}`
 };

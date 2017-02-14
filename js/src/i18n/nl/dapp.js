@@ -15,6 +15,6 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 export default {
-  loading: `Loading`,
-  unavailable: `The dapp cannot be reached`
+  loading: `Bezig met laden`,
+  unavailable: `De dapp is niet bereikbaar`
 };
