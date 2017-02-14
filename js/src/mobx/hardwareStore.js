@@ -66,7 +66,7 @@ export default class HardwareStore {
   scan () {
     this.setScanning(true);
 
-    // NOTE: Depending on how the harware is configured and how the local env setup
+    // NOTE: Depending on how the hardware is configured and how the local env setup
     // is done, different results will be retrieved via Parity vs. the browser APIs
     // (latter is Chrome-only, needs the browser app enabled on a Ledger, former is
     // not intended as a network call, i.e. hw wallet is with the user)
@@ -107,9 +107,9 @@ export default class HardwareStore {
     }, HW_SCAN_INTERVAL);
   }
 
-  static get () {
+  static get (api) {
     if (!instance) {
-      instance = new HardwareStore();
+      instance = new HardwareStore(api);
     }
 
     return instance;
