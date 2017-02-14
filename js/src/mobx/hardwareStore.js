@@ -66,6 +66,10 @@ export default class HardwareStore {
   scan () {
     this.setScanning(true);
 
+    // NOTE: Depending on how the harware is configured and how the local env setup
+    // is done, different results will be retrieved via Parity vs. the browser APIs
+    // (latter is Chrome-only, needs the browser app enabled on a Ledger, former is
+    // not intended as a network call, i.e. hw wallet is with the user)
     return Promise
       .all([
         this.scanLedger(),
