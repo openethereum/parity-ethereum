@@ -43,6 +43,12 @@
   color: white !important;
 }
 
+.logoIcon {
+  height: 24px;
+  margin-bottom: 5px;
+  opacity: 0.5;
+}
+
 .info {
   color: #aaa;
   padding-left: 4.75em;

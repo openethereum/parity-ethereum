@@ -13,7 +13,6 @@ extern crate rand;
 extern crate tempdir;
 extern crate jsonrpc_core;
 
-
 #[macro_use]
 extern crate log;
 

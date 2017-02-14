@@ -388,7 +388,7 @@ fn should_decrypt_message_if_account_is_unlocked() {
 	let encrypted: Success = serde_json::from_str(&tester.io.handle_request_sync(&request).unwrap()).unwrap();
 
 	// then call decrypt
-	let request = format!("{}{:?}{}{:?}{}",
+	let request = format!("{}{:?}{}{}{}",
 		r#"{"jsonrpc": "2.0", "method": "parity_decryptMessage", "params":["0x"#,
 		address,
 		r#"","#,

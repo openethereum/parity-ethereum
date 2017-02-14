@@ -14,66 +14,33 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import AddIcon from 'material-ui/svg-icons/content/add';
-import AttachFileIcon from 'material-ui/svg-icons/editor/attach-file';
-import CancelIcon from 'material-ui/svg-icons/content/clear';
-import CheckIcon from 'material-ui/svg-icons/navigation/check';
-import CloseIcon from 'material-ui/svg-icons/navigation/close';
-import CompareIcon from 'material-ui/svg-icons/action/compare-arrows';
-import ComputerIcon from 'material-ui/svg-icons/hardware/desktop-mac';
-import ContractIcon from 'material-ui/svg-icons/action/code';
-import CopyIcon from 'material-ui/svg-icons/content/content-copy';
-import DashboardIcon from 'material-ui/svg-icons/action/dashboard';
-import DeleteIcon from 'material-ui/svg-icons/action/delete';
-import DoneIcon from 'material-ui/svg-icons/action/done-all';
-import EditIcon from 'material-ui/svg-icons/content/create';
-import FingerprintIcon from 'material-ui/svg-icons/action/fingerprint';
-import LinkIcon from 'material-ui/svg-icons/content/link';
-import LockedIcon from 'material-ui/svg-icons/action/lock';
-import MoveIcon from 'material-ui/svg-icons/action/open-with';
-import NextIcon from 'material-ui/svg-icons/navigation/arrow-forward';
-import PrevIcon from 'material-ui/svg-icons/navigation/arrow-back';
-import PrintIcon from 'material-ui/svg-icons/action/print';
-import RefreshIcon from 'material-ui/svg-icons/action/autorenew';
-import SaveIcon from 'material-ui/svg-icons/content/save';
-import SendIcon from 'material-ui/svg-icons/content/send';
-import SnoozeIcon from 'material-ui/svg-icons/av/snooze';
-import StarCircleIcon from 'material-ui/svg-icons/action/stars';
-import StarIcon from 'material-ui/svg-icons/toggle/star';
-import StarOutlineIcon from 'material-ui/svg-icons/toggle/star-border';
-import VerifyIcon from 'material-ui/svg-icons/action/verified-user';
-import VisibleIcon from 'material-ui/svg-icons/image/remove-red-eye';
-import VpnIcon from 'material-ui/svg-icons/notification/vpn-lock';
-
-export {
-  AddIcon,
-  AttachFileIcon,
-  CancelIcon,
-  CheckIcon,
-  CloseIcon,
-  CompareIcon,
-  ComputerIcon,
-  ContractIcon,
-  CopyIcon,
-  DashboardIcon,
-  DeleteIcon,
-  DoneIcon,
-  EditIcon,
-  FingerprintIcon,
-  LinkIcon,
-  LockedIcon,
-  MoveIcon,
-  NextIcon,
-  PrevIcon,
-  PrintIcon,
-  RefreshIcon,
-  SaveIcon,
-  SendIcon,
-  SnoozeIcon,
-  StarIcon,
-  StarCircleIcon,
-  StarOutlineIcon,
-  VerifyIcon,
-  VisibleIcon,
-  VpnIcon
-};
+export AddIcon from 'material-ui/svg-icons/content/add';
+export AttachFileIcon from 'material-ui/svg-icons/editor/attach-file';
+export CancelIcon from 'material-ui/svg-icons/content/clear';
+export CheckIcon from 'material-ui/svg-icons/navigation/check';
+export CloseIcon from 'material-ui/svg-icons/navigation/close';
+export CompareIcon from 'material-ui/svg-icons/action/compare-arrows';
+export ComputerIcon from 'material-ui/svg-icons/hardware/desktop-mac';
+export ContractIcon from 'material-ui/svg-icons/action/code';
+export CopyIcon from 'material-ui/svg-icons/content/content-copy';
+export DashboardIcon from 'material-ui/svg-icons/action/dashboard';
+export DeleteIcon from 'material-ui/svg-icons/action/delete';
+export DoneIcon from 'material-ui/svg-icons/action/done-all';
+export EditIcon from 'material-ui/svg-icons/content/create';
+export FingerprintIcon from 'material-ui/svg-icons/action/fingerprint';
+export LinkIcon from 'material-ui/svg-icons/content/link';
+export LockedIcon from 'material-ui/svg-icons/action/lock';
+export MoveIcon from 'material-ui/svg-icons/action/open-with';
+export NextIcon from 'material-ui/svg-icons/navigation/arrow-forward';
+export PrevIcon from 'material-ui/svg-icons/navigation/arrow-back';
+export PrintIcon from 'material-ui/svg-icons/action/print';
+export RefreshIcon from 'material-ui/svg-icons/action/autorenew';
+export SaveIcon from 'material-ui/svg-icons/content/save';
+export SendIcon from 'material-ui/svg-icons/content/send';
+export SnoozeIcon from 'material-ui/svg-icons/av/snooze';
+export StarCircleIcon from 'material-ui/svg-icons/action/stars';
+export StarIcon from 'material-ui/svg-icons/toggle/star';
+export StarOutlineIcon from 'material-ui/svg-icons/toggle/star-border';
+export VerifyIcon from 'material-ui/svg-icons/action/verified-user';
+export VisibleIcon from 'material-ui/svg-icons/image/remove-red-eye';
+export VpnIcon from 'material-ui/svg-icons/notification/vpn-lock';

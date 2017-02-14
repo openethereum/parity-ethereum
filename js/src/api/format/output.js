@@ -181,6 +181,16 @@ export function outReceipt (receipt) {
   return receipt;
 }
 
+export function outRecentDapps (recentDapps) {
+  if (recentDapps) {
+    Object.keys(recentDapps).forEach((url) => {
+      recentDapps[url] = outDate(recentDapps[url]);
+    });
+  }
+
+  return recentDapps;
+}
+
 export function outSignerRequest (request) {
   if (request) {
     Object.keys(request).forEach((key) => {

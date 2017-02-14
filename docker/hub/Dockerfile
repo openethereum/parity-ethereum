@@ -24,7 +24,8 @@ RUN apt-get update && \
         dpkg-dev \
         # evmjit dependencies
         zlib1g-dev \
-        libedit-dev
+        libedit-dev \
+	libudev-dev
 
 # cmake and llvm ppas. then update ppas
 RUN add-apt-repository -y "ppa:george-edison55/cmake-3.x" && \

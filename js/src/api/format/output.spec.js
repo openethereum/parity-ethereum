@@ -16,7 +16,7 @@
 
 import BigNumber from 'bignumber.js';
 
-import { outBlock, outAccountInfo, outAddress, outChainStatus, outDate, outHistogram, outNumber, outPeer, outPeers, outReceipt, outSyncing, outTransaction, outTrace, outVaultMeta } from './output';
+import { outBlock, outAccountInfo, outAddress, outChainStatus, outDate, outHistogram, outNumber, outPeer, outPeers, outReceipt, outRecentDapps, outSyncing, outTransaction, outTrace, outVaultMeta } from './output';
 import { isAddress, isBigNumber, isInstanceOf } from '../../../test/types';
 
 describe('api/format/output', () => {
@@ -333,6 +333,14 @@ describe('api/format/output', () => {
         gasUsed: new BigNumber('0x102'),
         transactionIndex: new BigNumber('0x103'),
         extraData: 'someExtraStuffInHere'
+      });
+    });
+  });
+
+  describe('outRecentDapps', () => {
+    it('formats the URLs with timestamps', () => {
+      expect(outRecentDapps({ testing: 0x57513668 })).to.deep.equal({
+        testing: new Date('2016-06-03T07:48:56.000Z')
       });
     });
   });

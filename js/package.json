@@ -1,6 +1,6 @@
 {
   "name": "parity.js",
-  "version": "0.3.80",
+  "version": "0.3.82",
   "main": "release/index.js",
   "jsnext:main": "src/index.js",
   "author": "Parity Team <admin@parity.io>",
@@ -183,6 +183,7 @@
     "react-element-to-jsx-string": "6.0.0",
     "react-event-listener": "0.4.1",
     "react-intl": "2.1.5",
+    "react-markdown": "2.4.4",
     "react-portal": "3.0.0",
     "react-redux": "4.4.6",
     "react-router": "3.0.0",

@@ -8,12 +8,10 @@ version = "1.4.0"
 
 [dependencies]
 futures = "0.1"
-lazy_static = "0.2.1"
 log = "0.3.6"
-matches = "0.1.2"
 rand = "0.3.14"
-serde = "0.8"
-serde_json = "0.8"
+serde = "0.9"
+serde_json = "0.9"
 tempdir = "0.3.5"
 url = "1.2.0"
 jsonrpc-core = { git = "https://github.com/ethcore/jsonrpc.git" }
