@@ -16,20 +16,20 @@
 
 export default {
   button: {
-    delete: `delete account`,
+    transfer: `transfer`,
+    shapeshift: `shapeshift`,
+    verify: `verify`,
     edit: `edit`,
     password: `password`,
-    shapeshift: `shapeshift`,
-    transfer: `transfer`,
-    verify: `verify`
+    delete: `delete account`
   },
+  title: `Account Management`,
   header: {
     outgoingTransactions: `{count} outgoing transactions`,
     uuid: `uuid: {uuid}`
   },
-  title: `Account Management`,
   transactions: {
-    poweredBy: `Transaction list powered by {etherscan}`,
-    title: `transactions`
+    title: `transactions`,
+    poweredBy: `Transaction list powered by {etherscan}`
   }
 };

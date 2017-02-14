@@ -15,23 +15,23 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 export default {
+  label: `add saved address`,
   button: {
-    add: `Save Address`,
-    close: `Cancel`
+    close: `Cancel`,
+    add: `Save Address`
   },
   input: {
     address: {
       hint: `the network address for the entry`,
       label: `network address`
     },
-    description: {
-      hint: `an expanded description for the entry`,
-      label: `(optional) address description`
-    },
     name: {
       hint: `a descriptive name for the entry`,
       label: `address name`
+    },
+    description: {
+      hint: `an expanded description for the entry`,
+      label: `(optional) address description`
     }
-  },
-  label: `add saved address`
+  }
 };

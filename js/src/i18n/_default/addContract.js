@@ -15,46 +15,46 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 export default {
-  abi: {
-    hint: `the abi for the contract`,
-    label: `contract abi`
+  title: {
+    type: `choose a contract type`,
+    details: `enter contract details`
   },
-  abiType: {
-    custom: {
-      description: `Contract created from custom ABI`,
-      label: `Custom Contract`
-    },
-    multisigWallet: {
-      description: `Ethereum Multisig contract {link}`,
-      label: `Multisig Wallet`,
-      link: `see contract code`
-    },
-    token: {
-      description: `A standard {erc20} token`,
-      erc20: `ERC 20`,
-      label: `Token`
-    }
+  button: {
+    cancel: `Cancel`,
+    next: `Next`,
+    prev: `Back`,
+    add: `Add Contract`
   },
   address: {
     hint: `the network address for the contract`,
     label: `network address`
   },
-  button: {
-    add: `Add Contract`,
-    cancel: `Cancel`,
-    next: `Next`,
-    prev: `Back`
+  name: {
+    hint: `a descriptive name for the contract`,
+    label: `contract name`
   },
   description: {
     hint: `an expanded description for the entry`,
     label: `(optional) contract description`
   },
-  name: {
-    hint: `a descriptive name for the contract`,
-    label: `contract name`
+  abi: {
+    hint: `the abi for the contract`,
+    label: `contract abi`
   },
-  title: {
-    details: `enter contract details`,
-    type: `choose a contract type`
+  abiType: {
+    token: {
+      description: `A standard {erc20} token`,
+      erc20: `ERC 20`,
+      label: `Token`
+    },
+    multisigWallet: {
+      description: `Ethereum Multisig contract {link}`,
+      link: `see contract code`,
+      label: `Multisig Wallet`
+    },
+    custom: {
+      description: `Contract created from custom ABI`,
+      label: `Custom Contract`
+    }
   }
 };

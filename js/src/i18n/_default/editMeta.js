@@ -15,20 +15,20 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 export default {
-  description: {
-    hint: `description for this address`,
-    label: `address description`
-  },
+  title: `edit metadata`,
   name: {
     label: `name`
   },
-  passwordHint: {
-    hint: `a hint to allow password recovery`,
-    label: `(optional) password hint`
+  description: {
+    hint: `description for this address`,
+    label: `address description`
   },
   tags: {
     hint: `press <Enter> to add a tag`,
     label: `(optional) tags`
   },
-  title: `edit metadata`
+  passwordHint: {
+    hint: `a hint to allow password recovery`,
+    label: `(optional) password hint`
+  }
 };

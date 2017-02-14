@@ -15,12 +15,12 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 export default {
-  fromEmail: `Verified using email {email}`,
+  noAccount: `No account matches this query...`,
   fromRegistry: `{name} (from registry)`,
+  fromEmail: `Verified using email {email}`,
   labels: {
     accounts: `accounts`,
     contacts: `contacts`,
     contracts: `contracts`
-  },
-  noAccount: `No account matches this query...`
+  }
 };

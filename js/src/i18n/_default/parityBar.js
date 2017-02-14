@@ -15,9 +15,6 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 export default {
-  button: {
-    close: `Close`
-  },
   label: {
     parity: `Parity`,
     signer: `Signer`
@@ -25,5 +22,8 @@ export default {
   title: {
     accounts: `Default Account`,
     signer: `Parity Signer: Pending`
+  },
+  button: {
+    close: `Close`
   }
 };

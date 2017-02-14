@@ -15,12 +15,24 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 export default {
-  noConnection: `Unable to make a connection to the Parity Secure API. To update your secure token or to generate a new one, run {newToken} and supply the token below`,
-  invalidToken: `invalid signer token`,
-  token: {
-    hint: `a generated token from Parity`,
-    label: `secure token`
+  accounts: {
+    title: `Recent Accounts`,
+    none: `No recent accounts history available`
   },
-  connectingAPI: `Connecting to the Parity Secure API.`,
-  connectingNode: `Connecting to the Parity Node. If this informational message persists, please ensure that your Parity node is running and reachable on the network.`
+  account: {
+    visited: `accessed {when}`
+  },
+  dapp: {
+    visited: `accessed {when}`
+  },
+  dapps: {
+    title: `Recent Dapps`,
+    none: `No recent Applications history available`
+  },
+  title: `Parity Home`,
+  url: {
+    title: `Web Applications`,
+    none: `No recent URL history available`,
+    visited: `visited {when}`
+  }
 };

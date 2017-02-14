@@ -15,14 +15,13 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 export default {
-  button: {
-    cancel: `Cancel`,
-    load: `Load`,
-    no: `No`,
-    yes: `Yes`
+  title: {
+    remove: `confirm removal`,
+    view: `view contracts`
   },
-  contract: {
-    savedAt: `Saved {when}`
+  tab: {
+    local: `Local`,
+    snippets: `Snippets`
   },
   header: {
     saved: `Saved Contracts`,
@@ -32,12 +31,13 @@ export default {
     confirm: `Are you sure you want to remove the following contract from your saved contracts?`,
     savedAt: `Saved {when}`
   },
-  tab: {
-    local: `Local`,
-    snippets: `Snippets`
+  contract: {
+    savedAt: `Saved {when}`
   },
-  title: {
-    remove: `confirm removal`,
-    view: `view contracts`
+  button: {
+    no: `No`,
+    yes: `Yes`,
+    cancel: `Cancel`,
+    load: `Load`
   }
 };

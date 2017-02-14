@@ -32,6 +32,7 @@ export editMeta from './editMeta';
 export executeContract from './executeContract';
 export extension from './extension';
 export firstRun from './firstRun';
+export home from './home';
 export loadContract from './loadContract';
 export parityBar from './parityBar';
 export passwordChange from './passwordChange';

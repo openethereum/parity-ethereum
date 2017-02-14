@@ -16,35 +16,31 @@
 
 export default {
   add: {
-    builtin: {
-      desc: `Experimental applications developed by the Parity team to show off dapp capabilities, integration, experimental features and to control certain network-wide client behaviour.`,
-      label: `Applications bundled with Parity`
-    },
     label: `visible applications`,
     local: {
-      desc: `All applications installed locally on the machine by the user for access by the Parity client.`,
-      label: `Applications locally available`
+      label: `Applications locally available`,
+      desc: `All applications installed locally on the machine by the user for access by the Parity client.`
+    },
+    builtin: {
+      label: `Applications bundled with Parity`,
+      desc: `Experimental applications developed by the Parity team to show off dapp capabilities, integration, experimental features and to control certain network-wide client behaviour.`
     },
     network: {
-      desc: `These applications are not affiliated with Parity nor are they published by Parity. Each remain under the control of their respective authors. Please ensure that you understand the goals for each application before interacting.`,
-      label: `Applications on the global network`
+      label: `Applications on the global network`,
+      desc: `These applications are not affiliated with Parity nor are they published by Parity. Each remain under the control of their respective authors. Please ensure that you understand the goals for each application before interacting.`
     }
   },
-  button: {
-    edit: `edit`,
-    permissions: `permissions`,
-    url: {
-      input: `https://mkr.market`,
-      label: `URL`
-    }
-  },
-  external: {
-    accept: `I understand that these applications are not affiliated with Parity`,
-    warning: `Applications made available on the network by 3rd-party authors are not affiliated with Parity nor are they published by Parity. Each remain under the control of their respective authors. Please ensure that you understand the goals for each before interacting.`
-  },
-  label: `Decentralized Applications`,
   permissions: {
     description: `{activeIcon} account is available to application, {defaultIcon} account is the default account`,
     label: `visible dapp accounts`
+  },
+  external: {
+    warning: `Applications made available on the network by 3rd-party authors are not affiliated with Parity nor are they published by Parity. Each remain under the control of their respective authors. Please ensure that you understand the goals for each before interacting.`,
+    accept: `I understand that these applications are not affiliated with Parity`
+  },
+  label: `Decentralized Applications`,
+  button: {
+    edit: `edit`,
+    permissions: `permissions`
   }
 };

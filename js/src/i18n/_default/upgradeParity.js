@@ -15,28 +15,28 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 export default {
-  busy: `Your upgrade to Parity {newversion} is currently in progress`,
+  step: {
+    info: `upgrade available`,
+    updating: `upgrading parity`,
+    error: `error`,
+    completed: `upgrade completed`
+  },
   button: {
     close: `close`,
     done: `done`,
     upgrade: `upgrade now`
   },
+  info: {
+    upgrade: `A new version of Parity, version {newversion} is available as an upgrade from your current version {currentversion}`
+  },
+  busy: `Your upgrade to Parity {newversion} is currently in progress`,
+  failed: `Your upgrade to Parity {newversion} has failed with an error.`,
   completed: `Your upgrade to Parity {newversion} has been successfully completed.`,
   consensus: {
     capable: `Your current Parity version is capable of handling the network requirements.`,
     capableUntil: `Your current Parity version is capable of handling the network requirements until block {blockNumber}`,
     incapableSince: `Your current Parity version is incapable of handling the network requirements since block {blockNumber}`,
     unknown: `Your current Parity version is capable of handling the network requirements.`
-  },
-  failed: `Your upgrade to Parity {newversion} has failed with an error.`,
-  info: {
-    upgrade: `A new version of Parity, version {newversion} is available as an upgrade from your current version {currentversion}`
-  },
-  step: {
-    completed: `upgrade completed`,
-    error: `error`,
-    info: `upgrade available`,
-    updating: `upgrading parity`
   },
   version: {
     unknown: `unknown`

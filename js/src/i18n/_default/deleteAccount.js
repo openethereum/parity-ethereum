@@ -15,10 +15,10 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 export default {
+  title: `confirm removal`,
+  question: `Are you sure you want to permanently delete the following account?`,
   password: {
     hint: `provide the account password to confirm the account deletion`,
     label: `account password`
-  },
-  question: `Are you sure you want to permanently delete the following account?`,
-  title: `confirm removal`
+  }
 };

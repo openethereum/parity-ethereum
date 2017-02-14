@@ -16,13 +16,13 @@
 
 export default {
   accountDetails: {
-    address: {
-      hint: `the network address for the account`,
-      label: `address`
-    },
     name: {
       hint: `a descriptive name for the account`,
       label: `account name`
+    },
+    address: {
+      hint: `the network address for the account`,
+      label: `address`
     },
     phrase: {
       hint: `the account recovery phrase`,
@@ -32,27 +32,33 @@ export default {
   accountDetailsGeth: {
     imported: `You have imported {number} addresses from the Geth keystore:`
   },
+  title: {
+    createType: `creation type`,
+    createAccount: `create account`,
+    accountInfo: `account information`,
+    importWallet: `import wallet`
+  },
   button: {
-    back: `Back`,
     cancel: `Cancel`,
-    close: `Close`,
+    next: `Next`,
+    back: `Back`,
     create: `Create`,
     import: `Import`,
-    next: `Next`,
-    print: `Print Phrase`
+    print: `Print Phrase`,
+    close: `Close`
   },
   creationType: {
-    fromGeth: {
-      label: `Import accounts from Geth keystore`
-    },
-    fromJSON: {
-      label: `Import account from a backup JSON file`
-    },
     fromNew: {
       label: `Create new account manually`
     },
     fromPhrase: {
       label: `Recover account from recovery phrase`
+    },
+    fromGeth: {
+      label: `Import accounts from Geth keystore`
+    },
+    fromJSON: {
+      label: `Import account from a backup JSON file`
     },
     fromPresale: {
       label: `Import account from an Ethereum pre-sale wallet`
@@ -62,20 +68,20 @@ export default {
     }
   },
   error: {
-    invalidKey: `the raw key needs to be hex, 64 characters in length and contain the prefix "0x"`,
     noFile: `select a valid wallet file to import`,
     noKey: `you need to provide the raw private key`,
     noMatchPassword: `the supplied passwords does not match`,
-    noName: `you need to specify a valid name for the account`
+    noName: `you need to specify a valid name for the account`,
+    invalidKey: `the raw key needs to be hex, 64 characters in length and contain the prefix "0x"`
   },
   newAccount: {
-    hint: {
-      hint: `(optional) a hint to help with remembering the password`,
-      label: `password hint`
-    },
     name: {
       hint: `a descriptive name for the account`,
       label: `account name`
+    },
+    hint: {
+      hint: `(optional) a hint to help with remembering the password`,
+      label: `password hint`
     },
     password: {
       hint: `a strong, unique password`,
@@ -90,53 +96,35 @@ export default {
     noKeys: `There are currently no importable keys available from the Geth keystore, which are not already available on your Parity instance`
   },
   newImport: {
-    file: {
-      hint: `the wallet file for import`,
-      label: `wallet file`
+    name: {
+      hint: `a descriptive name for the account`,
+      label: `account name`
     },
     hint: {
       hint: `(optional) a hint to help with remembering the password`,
       label: `password hint`
-    },
-    name: {
-      hint: `a descriptive name for the account`,
-      label: `account name`
     },
     password: {
       hint: `the password to unlock the wallet`,
       label: `password`
+    },
+    file: {
+      hint: `the wallet file for import`,
+      label: `wallet file`
     }
   },
   rawKey: {
-    hint: {
-      hint: `(optional) a hint to help with remembering the password`,
-      label: `password hint`
-    },
-    name: {
-      hint: `a descriptive name for the account`,
-      label: `account name`
-    },
-    password: {
-      hint: `a strong, unique password`,
-      label: `password`
-    },
-    password2: {
-      hint: `verify your password`,
-      label: `password (repeat)`
-    },
     private: {
       hint: `the raw hex encoded private key`,
       label: `private key`
-    }
-  },
-  recoveryPhrase: {
-    hint: {
-      hint: `(optional) a hint to help with remembering the password`,
-      label: `password hint`
     },
     name: {
       hint: `a descriptive name for the account`,
       label: `account name`
+    },
+    hint: {
+      hint: `(optional) a hint to help with remembering the password`,
+      label: `password hint`
     },
     password: {
       hint: `a strong, unique password`,
@@ -145,19 +133,31 @@ export default {
     password2: {
       hint: `verify your password`,
       label: `password (repeat)`
-    },
+    }
+  },
+  recoveryPhrase: {
     phrase: {
       hint: `the account recovery phrase`,
       label: `account recovery phrase`
     },
+    name: {
+      hint: `a descriptive name for the account`,
+      label: `account name`
+    },
+    hint: {
+      hint: `(optional) a hint to help with remembering the password`,
+      label: `password hint`
+    },
+    password: {
+      hint: `a strong, unique password`,
+      label: `password`
+    },
+    password2: {
+      hint: `verify your password`,
+      label: `password (repeat)`
+    },
     windowsKey: {
       label: `Key was created with Parity <1.4.5 on Windows`
     }
-  },
-  title: {
-    accountInfo: `account information`,
-    createAccount: `create account`,
-    createType: `creation type`,
-    importWallet: `import wallet`
   }
 };
