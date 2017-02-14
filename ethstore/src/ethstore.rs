@@ -271,7 +271,9 @@ impl SimpleSecretStore for EthMultiStore {
 			// Remove from cache
 			let mut cache = self.cache.write();
 			let is_empty = {
-				let mut accounts = cache.get_mut(address).expect("Entry exists, because it was returned by `get`; qed");
+				let mut accounts = cache.get_mut(address)
+					.ok_or(Error::InvalidAccount)?;
+
 				if let Some(position) = accounts.iter().position(|acc| acc == &account) {
 					accounts.remove(position);
 				}
