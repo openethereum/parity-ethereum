@@ -23,7 +23,7 @@ let instance = null;
 
 export default class HardwareStore {
   @observable isScanning = false;
-  @observable wallet = null;
+  @observable wallets = null;
 
   constructor (api) {
     this._api = api;
@@ -37,8 +37,8 @@ export default class HardwareStore {
     this.isScanning = isScanning;
   }
 
-  @action setWallet = (wallet) => {
-    this.wallet = wallet;
+  @action setWallets = (wallets) => {
+    this.wallets = wallets;
   }
 
   scanLedger () {

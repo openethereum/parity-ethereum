@@ -80,10 +80,10 @@ describe('mobx/HardwareStore', () => {
       });
     });
 
-    describe('setWallet', () => {
-      it('sets the wallet', () => {
-        store.setWallet('testWallet');
-        expect(store.wallet).to.equal('testWallet');
+    describe('setWallets', () => {
+      it('sets the wallets', () => {
+        store.setWallets('testWallet');
+        expect(store.wallets).to.equal('testWallet');
       });
     });
   });

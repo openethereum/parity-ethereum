@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import { observe } from 'mobx';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
@@ -45,6 +46,7 @@ class Accounts extends Component {
   hwstore = HardwareStore.get(this.context.api);
 
   state = {
+    _observeCancel: null,
     addressBook: false,
     newDialog: false,
     newWalletDialog: false,
@@ -60,6 +62,10 @@ class Accounts extends Component {
     }, 100);
 
     this.setVisibleAccounts();
+
+    this.setState({
+      _observeCancel: observe(this.hwstore.wallets, this.onHardwareChange, true)
+    });
   }
 
   componentWillReceiveProps (nextProps) {
@@ -73,11 +79,15 @@ class Accounts extends Component {
 
   componentWillUnmount () {
     this.props.setVisibleAccounts([]);
+    this.state._observeCancel();
   }
 
   setVisibleAccounts (props = this.props) {
     const { accounts, setVisibleAccounts } = props;
-    const addresses = Object.keys(accounts);
+    const { wallets } = this.hwstore;
+    const addresses = Object
+      .keys(accounts)
+      .concat((wallets || []).map((wallet) => wallet.address));
 
     setVisibleAccounts(addresses);
   }
@@ -309,6 +319,10 @@ class Accounts extends Component {
   }
 
   onNewAccountUpdate = () => {
+  }
+
+  onHardwareChange = () => {
+    this.setVisibleAccounts();
   }
 }
 

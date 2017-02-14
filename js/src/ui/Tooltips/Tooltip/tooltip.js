@@ -127,7 +127,10 @@ class Tooltip extends Component {
 function mapStateToProps (state) {
   const { currentId, maxId } = state.tooltip;
 
-  return { currentId, maxId };
+  return {
+    currentId,
+    maxId
+  };
 }
 
 function mapDispatchToProps (dispatch) {
