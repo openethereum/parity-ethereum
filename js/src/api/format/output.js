@@ -128,6 +128,18 @@ export function outLog (log) {
   return log;
 }
 
+export function outHwAccountInfo (infos) {
+  return Object
+    .keys(infos)
+    .reduce((ret, _address) => {
+      const address = outAddress(_address);
+
+      ret[address] = infos[_address];
+
+      return ret;
+    }, {});
+}
+
 export function outNumber (number) {
   return new BigNumber(number || 0);
 }
