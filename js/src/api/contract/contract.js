@@ -241,13 +241,32 @@ export default class Contract {
   _bindFunction = (func) => {
     func.contract = this;
 
-    func.call = (options, values = []) => {
-      const callParams = this._encodeOptions(func, this._addOptionsTo(options), values);
+    func.call = (_options = {}, values = []) => {
+      const rawTokens = !!_options.rawTokens;
+      const options = {
+        ..._options
+      };
+
+      delete options.rawTokens;
+
+      let callParams;
+
+      try {
+        callParams = this._encodeOptions(func, this._addOptionsTo(options), values);
+      } catch (error) {
+        return Promise.reject(error);
+      }
 
       return this._api.eth
         .call(callParams)
         .then((encoded) => func.decodeOutput(encoded))
-        .then((tokens) => tokens.map((token) => token.value))
+        .then((tokens) => {
+          if (rawTokens) {
+            return tokens;
+          }
+
+          return tokens.map((token) => token.value);
+        })
         .then((returns) => returns.length === 1 ? returns[0] : returns)
         .catch((error) => {
           console.warn(`${func.name}.call`, values, error);
@@ -257,7 +276,13 @@ export default class Contract {
 
     if (!func.constant) {
       func.postTransaction = (options, values = []) => {
-        const _options = this._encodeOptions(func, this._addOptionsTo(options), values);
+        let _options;
+
+        try {
+          _options = this._encodeOptions(func, this._addOptionsTo(options), values);
+        } catch (error) {
+          return Promise.reject(error);
+        }
 
         return this._api.parity
           .postTransaction(_options)

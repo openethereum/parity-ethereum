@@ -14,9 +14,10 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::fmt;
 use std::io::{Read, Write};
-use serde::{Deserialize, Deserializer, Error};
-use serde::de::{Visitor, MapVisitor};
+use serde::{Deserialize, Deserializer};
+use serde::de::{Error, Visitor, MapVisitor};
 use serde_json;
 use super::{Uuid, Version, Crypto, H160};
 
@@ -40,7 +41,7 @@ enum KeyFileField {
 }
 
 impl Deserialize for KeyFileField {
-	fn deserialize<D>(deserializer: &mut D) -> Result<KeyFileField, D::Error>
+	fn deserialize<D>(deserializer: D) -> Result<KeyFileField, D::Error>
 		where D: Deserializer
 	{
 		deserializer.deserialize(KeyFileFieldVisitor)
@@ -52,7 +53,11 @@ struct KeyFileFieldVisitor;
 impl Visitor for KeyFileFieldVisitor {
 	type Value = KeyFileField;
 
-	fn visit_str<E>(&mut self, value: &str) -> Result<Self::Value, E>
+	fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+		write!(formatter, "a valid key file field")
+	}
+
+	fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
 		where E: Error
 	{
 		match value {
@@ -69,7 +74,7 @@ impl Visitor for KeyFileFieldVisitor {
 }
 
 impl Deserialize for KeyFile {
-	fn deserialize<D>(deserializer: &mut D) -> Result<KeyFile, D::Error>
+	fn deserialize<D>(deserializer: D) -> Result<KeyFile, D::Error>
 		where D: Deserializer
 	{
 		static FIELDS: &'static [&'static str] = &["id", "version", "crypto", "Crypto", "address"];
@@ -77,12 +82,27 @@ impl Deserialize for KeyFile {
 	}
 }
 
-struct KeyFileVisitor;
 
+fn none_if_empty<T>(v: Option<serde_json::Value>) -> Option<T> where
+	T: Deserialize,
+{
+	v.and_then(|v| if v.is_null() {
+		None
+	} else {
+		serde_json::from_value(v).ok()
+	})
+
+}
+
+struct KeyFileVisitor;
 impl Visitor for KeyFileVisitor {
 	type Value = KeyFile;
 
-	fn visit_map<V>(&mut self, mut visitor: V) -> Result<Self::Value, V::Error>
+	fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+		write!(formatter, "a valid key object")
+	}
+
+	fn visit_map<V>(self, mut visitor: V) -> Result<Self::Value, V::Error>
 		where V: MapVisitor
 	{
 		let mut id = None;
@@ -98,33 +118,31 @@ impl Visitor for KeyFileVisitor {
 				Some(KeyFileField::Version) => { version = Some(visitor.visit_value()?); }
 				Some(KeyFileField::Crypto) => { crypto = Some(visitor.visit_value()?); }
 				Some(KeyFileField::Address) => { address = Some(visitor.visit_value()?); }
-				Some(KeyFileField::Name) => { name = visitor.visit_value().ok(); }	// ignore anyhing that is not a string to be permissive.
-				Some(KeyFileField::Meta) => { meta = visitor.visit_value().ok(); }	// ignore anyhing that is not a string to be permissive.
+				Some(KeyFileField::Name) => { name = none_if_empty(visitor.visit_value().ok()) }
+				Some(KeyFileField::Meta) => { meta = none_if_empty(visitor.visit_value().ok()) }
 				None => { break; }
 			}
 		}
 
 		let id = match id {
 			Some(id) => id,
-			None => visitor.missing_field("id")?,
+			None => return Err(V::Error::missing_field("id")),
 		};
 
 		let version = match version {
 			Some(version) => version,
-			None => visitor.missing_field("version")?,
+			None => return Err(V::Error::missing_field("version")),
 		};
 
 		let crypto = match crypto {
 			Some(crypto) => crypto,
-			None => visitor.missing_field("crypto")?,
+			None => return Err(V::Error::missing_field("crypto")),
 		};
 
 		let address = match address {
 			Some(address) => address,
-			None => visitor.missing_field("address")?,
+			None => return Err(V::Error::missing_field("address")),
 		};
-
-		visitor.end()?;
 
 		let result = KeyFile {
 			id: id,

@@ -16,7 +16,7 @@
 
 import BigNumber from 'bignumber.js';
 
-import { outBlock, outAccountInfo, outAddress, outChainStatus, outDate, outHistogram, outNumber, outPeer, outPeers, outReceipt, outSyncing, outTransaction, outTrace } from './output';
+import { outBlock, outAccountInfo, outAddress, outChainStatus, outDate, outHistogram, outNumber, outPeer, outPeers, outReceipt, outRecentDapps, outSyncing, outTransaction, outTrace, outVaultMeta } from './output';
 import { isAddress, isBigNumber, isInstanceOf } from '../../../test/types';
 
 describe('api/format/output', () => {
@@ -337,6 +337,14 @@ describe('api/format/output', () => {
     });
   });
 
+  describe('outRecentDapps', () => {
+    it('formats the URLs with timestamps', () => {
+      expect(outRecentDapps({ testing: 0x57513668 })).to.deep.equal({
+        testing: new Date('2016-06-03T07:48:56.000Z')
+      });
+    });
+  });
+
   describe('outSyncing', () => {
     ['currentBlock', 'highestBlock', 'startingBlock', 'warpChunksAmount', 'warpChunksProcessed'].forEach((input) => {
       it(`formats ${input} numbers as a number`, () => {
@@ -453,6 +461,24 @@ describe('api/format/output', () => {
       expect(formatted.blockNumber.toNumber()).to.equal(13);
       expect(isBigNumber(formatted.transactionPosition)).to.be.true;
       expect(formatted.transactionPosition.toNumber()).to.equal(11);
+    });
+  });
+
+  describe('outVaultMeta', () => {
+    it('returns an exmpt object on null', () => {
+      expect(outVaultMeta(null)).to.deep.equal({});
+    });
+
+    it('returns the original value if not string', () => {
+      expect(outVaultMeta({ test: 123 })).to.deep.equal({ test: 123 });
+    });
+
+    it('returns an object from JSON string', () => {
+      expect(outVaultMeta('{"test":123}')).to.deep.equal({ test: 123 });
+    });
+
+    it('returns an empty object on invalid JSON', () => {
+      expect(outVaultMeta('{"test"}')).to.deep.equal({});
     });
   });
 });

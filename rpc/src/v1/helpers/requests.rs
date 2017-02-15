@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use util::{Address, U256, Bytes};
-use v1::types::TransactionCondition;
+use v1::types::{Origin, TransactionCondition};
 
 /// Transaction request coming from RPC
 #[derive(Debug, Clone, Default, Eq, PartialEq, Hash)]
@@ -102,6 +102,8 @@ pub struct ConfirmationRequest {
 	pub id: U256,
 	/// Payload to confirm
 	pub payload: ConfirmationPayload,
+	/// Request origin
+	pub origin: Origin,
 }
 
 /// Payload to confirm in Trusted Signer

@@ -25,13 +25,14 @@ use endpoint::{Endpoint, EndpointPath, Handler};
 
 pub fn rpc<T: Middleware<Metadata>>(
 	handler: RpcHandler<Metadata, T>,
+	cors_domains: Vec<String>,
 	panic_handler: Arc<Mutex<Option<Box<Fn() -> () + Send>>>>,
 ) -> Box<Endpoint> {
 	Box::new(RpcEndpoint {
 		handler: handler,
 		meta_extractor: Arc::new(MetadataExtractor),
 		panic_handler: panic_handler,
-		cors_domain: None,
+		cors_domain: Some(cors_domains.into_iter().map(AccessControlAllowOrigin::Value).collect()),
 		// NOTE [ToDr] We don't need to do any hosts validation here. It's already done in router.
 		allowed_hosts: None,
 	})
@@ -76,8 +77,7 @@ impl HttpMetaExtractor<Metadata> for MetadataExtractor {
 					})
 			});
 		Metadata {
-			dapp_id: dapp_id,
-			origin: Origin::Dapps,
+			origin: Origin::Dapps(dapp_id.map(Into::into).unwrap_or_default()),
 		}
 	}
 }

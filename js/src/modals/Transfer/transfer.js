@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 import { observer } from 'mobx-react';
@@ -28,7 +29,7 @@ import { nullableProptype } from '~/util/proptypes';
 import Details from './Details';
 import Extras from './Extras';
 
-import TransferStore from './store';
+import TransferStore, { WALLET_WARNING_SPENT_TODAY_LIMIT } from './store';
 import styles from './transfer.css';
 
 const STEP_DETAILS = 0;
@@ -44,7 +45,6 @@ class Transfer extends Component {
   static propTypes = {
     newError: PropTypes.func.isRequired,
     gasLimit: PropTypes.object.isRequired,
-    images: PropTypes.object.isRequired,
 
     senders: nullableProptype(PropTypes.object),
     sendersBalances: nullableProptype(PropTypes.object),
@@ -72,6 +72,7 @@ class Transfer extends Component {
         visible
       >
         { this.renderExceptionWarning() }
+        { this.renderWalletWarning() }
         { this.renderPage() }
       </Modal>
     );
@@ -88,6 +89,29 @@ class Transfer extends Component {
     return (
       <Warning warning={ errorEstimated } />
     );
+  }
+
+  renderWalletWarning () {
+    const { walletWarning } = this.store;
+
+    if (!walletWarning) {
+      return null;
+    }
+
+    if (walletWarning === WALLET_WARNING_SPENT_TODAY_LIMIT) {
+      const warning = (
+        <FormattedMessage
+          id='transfer.warning.wallet_spent_limit'
+          defaultMessage='This transaction value is above the remaining daily limit. It will need to be confirmed by other owners.'
+        />
+      );
+
+      return (
+        <Warning warning={ warning } />
+      );
+    }
+
+    return null;
   }
 
   renderAccount () {
@@ -174,7 +198,7 @@ class Transfer extends Component {
   }
 
   renderDetailsPage () {
-    const { account, balance, images, senders } = this.props;
+    const { account, balance, senders } = this.props;
     const { recipient, recipientError, sender, senderError, sendersBalances } = this.store;
     const { valueAll, extras, tag, total, totalError, value, valueError } = this.store;
 
@@ -184,7 +208,6 @@ class Transfer extends Component {
         all={ valueAll }
         balance={ balance }
         extras={ extras }
-        images={ images }
         onChange={ this.store.onUpdateDetails }
         recipient={ recipient }
         recipientError={ recipientError }

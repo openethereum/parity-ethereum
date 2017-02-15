@@ -25,10 +25,11 @@ use rlp::encode;
 
 use serde_json;
 use jsonrpc_core::IoHandler;
-use v1::{SignerClient, Signer};
+use v1::{SignerClient, Signer, Origin};
 use v1::metadata::Metadata;
 use v1::tests::helpers::TestMinerService;
 use v1::helpers::{SigningQueue, SignerService, FilledTransactionRequest, ConfirmationPayload};
+use v1::helpers::dispatch::FullDispatcher;
 
 struct SignerTester {
 	signer: Arc<SignerService>,
@@ -59,8 +60,9 @@ fn signer_tester() -> SignerTester {
 	let client = blockchain_client();
 	let miner = miner_service();
 
+	let dispatcher = FullDispatcher::new(Arc::downgrade(&client), Arc::downgrade(&miner));
 	let mut io = IoHandler::default();
-	io.extend_with(SignerClient::new(&accounts, &client, &miner, &signer).to_delegate());
+	io.extend_with(SignerClient::new(&accounts, dispatcher, &signer).to_delegate());
 
 	SignerTester {
 		signer: signer,
@@ -86,15 +88,15 @@ fn should_return_list_of_items_to_confirm() {
 		data: vec![],
 		nonce: None,
 		condition: None,
-	})).unwrap();
-	tester.signer.add_request(ConfirmationPayload::Signature(1.into(), vec![5].into())).unwrap();
+	}), Origin::Dapps("http://parity.io".into())).unwrap();
+	tester.signer.add_request(ConfirmationPayload::Signature(1.into(), vec![5].into()), Origin::Unknown).unwrap();
 
 	// when
 	let request = r#"{"jsonrpc":"2.0","method":"signer_requestsToConfirm","params":[],"id":1}"#;
 	let response = concat!(
 		r#"{"jsonrpc":"2.0","result":["#,
-		r#"{"id":"0x1","payload":{"sendTransaction":{"condition":null,"data":"0x","from":"0x0000000000000000000000000000000000000001","gas":"0x989680","gasPrice":"0x2710","nonce":null,"to":"0xd46e8dd67c5d32be8058bb8eb970870f07244567","value":"0x1"}}},"#,
-		r#"{"id":"0x2","payload":{"sign":{"address":"0x0000000000000000000000000000000000000001","data":"0x05"}}}"#,
+		r#"{"id":"0x1","origin":{"dapp":"http://parity.io"},"payload":{"sendTransaction":{"condition":null,"data":"0x","from":"0x0000000000000000000000000000000000000001","gas":"0x989680","gasPrice":"0x2710","nonce":null,"to":"0xd46e8dd67c5d32be8058bb8eb970870f07244567","value":"0x1"}}},"#,
+		r#"{"id":"0x2","origin":"unknown","payload":{"sign":{"address":"0x0000000000000000000000000000000000000001","data":"0x05"}}}"#,
 		r#"],"id":1}"#
 	);
 
@@ -117,7 +119,7 @@ fn should_reject_transaction_from_queue_without_dispatching() {
 		data: vec![],
 		nonce: None,
 		condition: None,
-	})).unwrap();
+	}), Origin::Unknown).unwrap();
 	assert_eq!(tester.signer.requests().len(), 1);
 
 	// when
@@ -144,7 +146,7 @@ fn should_not_remove_transaction_if_password_is_invalid() {
 		data: vec![],
 		nonce: None,
 		condition: None,
-	})).unwrap();
+	}), Origin::Unknown).unwrap();
 	assert_eq!(tester.signer.requests().len(), 1);
 
 	// when
@@ -160,7 +162,7 @@ fn should_not_remove_transaction_if_password_is_invalid() {
 fn should_not_remove_sign_if_password_is_invalid() {
 	// given
 	let tester = signer_tester();
-	tester.signer.add_request(ConfirmationPayload::Signature(0.into(), vec![5].into())).unwrap();
+	tester.signer.add_request(ConfirmationPayload::Signature(0.into(), vec![5].into()), Origin::Unknown).unwrap();
 	assert_eq!(tester.signer.requests().len(), 1);
 
 	// when
@@ -188,7 +190,7 @@ fn should_confirm_transaction_and_dispatch() {
 		data: vec![],
 		nonce: None,
 		condition: None,
-	})).unwrap();
+	}), Origin::Unknown).unwrap();
 
 	let t = Transaction {
 		nonce: U256::zero(),
@@ -234,7 +236,7 @@ fn should_alter_the_sender_and_nonce() {
 		data: vec![],
 		nonce: Some(10.into()),
 		condition: None,
-	})).unwrap();
+	}), Origin::Unknown).unwrap();
 
 	let t = Transaction {
 		nonce: U256::zero(),
@@ -284,7 +286,7 @@ fn should_confirm_transaction_with_token() {
 		data: vec![],
 		nonce: None,
 		condition: None,
-	})).unwrap();
+	}), Origin::Unknown).unwrap();
 
 	let t = Transaction {
 		nonce: U256::zero(),
@@ -333,7 +335,7 @@ fn should_confirm_transaction_with_rlp() {
 		data: vec![],
 		nonce: None,
 		condition: None,
-	})).unwrap();
+	}), Origin::Unknown).unwrap();
 
 	let t = Transaction {
 		nonce: U256::zero(),
@@ -381,7 +383,7 @@ fn should_return_error_when_sender_does_not_match() {
 		data: vec![],
 		nonce: None,
 		condition: None,
-	})).unwrap();
+	}), Origin::Unknown).unwrap();
 
 	let t = Transaction {
 		nonce: U256::zero(),

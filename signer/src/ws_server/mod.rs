@@ -33,6 +33,8 @@ use rpc::informant::RpcStats;
 
 mod session;
 
+pub use self::session::MetaExtractor;
+
 /// Signer startup error
 #[derive(Debug)]
 pub enum ServerError {
@@ -50,6 +52,11 @@ impl From<ws::Error> for ServerError {
 		}
 	}
 }
+
+/// Dummy metadata extractor
+#[derive(Clone)]
+pub struct NoopExtractor;
+impl<M: Metadata> session::MetaExtractor<M> for NoopExtractor {}
 
 /// Builder for `WebSockets` server
 pub struct ServerBuilder {
@@ -86,6 +93,17 @@ impl ServerBuilder {
 	/// Starts a new `WebSocket` server in separate thread.
 	/// Returns a `Server` handle which closes the server when droped.
 	pub fn start<M: Metadata, S: Middleware<M>>(self, addr: SocketAddr, handler: RpcHandler<M, S>) -> Result<Server, ServerError> {
+		self.start_with_extractor(addr, handler, NoopExtractor)
+	}
+
+	/// Starts a new `WebSocket` server in separate thread.
+	/// Returns a `Server` handle which closes the server when droped.
+	pub fn start_with_extractor<M: Metadata, S: Middleware<M>, T: session::MetaExtractor<M>>(
+		self,
+		addr: SocketAddr,
+		handler: RpcHandler<M, S>,
+		meta_extractor: T,
+	) -> Result<Server, ServerError> {
 		Server::start(
 			addr,
 			handler,
@@ -93,8 +111,10 @@ impl ServerBuilder {
 			self.authcodes_path,
 			self.skip_origin_validation,
 			self.stats,
+			meta_extractor,
 		)
 	}
+
 }
 
 /// `WebSockets` server implementation.
@@ -114,13 +134,14 @@ impl Server {
 
 	/// Starts a new `WebSocket` server in separate thread.
 	/// Returns a `Server` handle which closes the server when droped.
-	fn start<M: Metadata, S: Middleware<M>>(
+	fn start<M: Metadata, S: Middleware<M>, T: session::MetaExtractor<M>>(
 		addr: SocketAddr,
 		handler: RpcHandler<M, S>,
 		queue: Arc<ConfirmationsQueue>,
 		authcodes_path: PathBuf,
 		skip_origin_validation: bool,
 		stats: Option<Arc<RpcStats>>,
+		meta_extractor: T,
 	) -> Result<Server, ServerError> {
 		let config = {
 			let mut config = ws::Settings::default();
@@ -135,7 +156,7 @@ impl Server {
 		let origin = format!("{}", addr);
 		let port = addr.port();
 		let ws = ws::Builder::new().with_settings(config).build(
-			session::Factory::new(handler, origin, port, authcodes_path, skip_origin_validation, stats)
+			session::Factory::new(handler, origin, port, authcodes_path, skip_origin_validation, stats, meta_extractor)
 		)?;
 
 		let panic_handler = PanicHandler::new_in_arc();

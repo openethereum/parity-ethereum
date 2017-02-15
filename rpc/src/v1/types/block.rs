@@ -17,6 +17,7 @@
 use std::ops::Deref;
 use std::collections::BTreeMap;
 use serde::{Serialize, Serializer};
+use serde::ser::Error;
 use v1::types::{Bytes, Transaction, H160, H256, H2048, U256};
 
 /// Block Transactions
@@ -29,7 +30,7 @@ pub enum BlockTransactions {
 }
 
 impl Serialize for BlockTransactions {
-	fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Error>
+	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
 	where S: Serializer {
 		match *self {
 			BlockTransactions::Hashes(ref hashes) => hashes.serialize(serializer),
@@ -83,7 +84,7 @@ pub struct Block {
 	pub difficulty: U256,
 	/// Total difficulty
 	#[serde(rename="totalDifficulty")]
-	pub total_difficulty: U256,
+	pub total_difficulty: Option<U256>,
 	/// Seal fields
 	#[serde(rename="sealFields")]
 	pub seal_fields: Vec<Bytes>,
@@ -102,7 +103,7 @@ pub struct RichBlock {
 	pub block: Block,
 	/// Engine-specific fields with additional description.
 	/// Should be included directly to serialized block object.
-	#[serde(skip_serializing)]
+	// TODO [ToDr] #[serde(skip_serializing)]
 	pub extra_info: BTreeMap<String, String>,
 }
 
@@ -114,17 +115,18 @@ impl Deref for RichBlock {
 }
 
 impl Serialize for RichBlock {
-	fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Error> where S: Serializer {
+	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: Serializer {
 		use serde_json::{to_value, Value};
 
 		let serialized = (to_value(&self.block), to_value(&self.extra_info));
-		if let (Value::Object(mut block), Value::Object(extras)) = serialized {
+		if let (Ok(Value::Object(mut block)), Ok(Value::Object(extras))) = serialized {
 			// join two objects
 			block.extend(extras);
 			// and serialize
-			block.serialize(serializer)?;
+			block.serialize(serializer)
+		} else {
+			Err(S::Error::custom("Unserializable structures."))
 		}
-		Ok(())
 	}
 }
 
@@ -164,7 +166,7 @@ mod tests {
 			logs_bloom: H2048::default(),
 			timestamp: U256::default(),
 			difficulty: U256::default(),
-			total_difficulty: U256::default(),
+			total_difficulty: Some(U256::default()),
 			seal_fields: vec![Bytes::default(), Bytes::default()],
 			uncles: vec![],
 			transactions: BlockTransactions::Hashes(vec![].into()),

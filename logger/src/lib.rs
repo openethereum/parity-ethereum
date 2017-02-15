@@ -17,7 +17,6 @@
 //! Logger for parity executables
 
 extern crate ethcore_util as util;
-#[macro_use]
 extern crate log as rlog;
 extern crate isatty;
 extern crate regex;

@@ -28,7 +28,7 @@ fn basic_sync() {
 
 	net.sync();
 
-	assert!(net.peer(0).light_chain().get_header(BlockId::Number(6000)).is_some());
+	assert!(net.peer(0).light_chain().block_header(BlockId::Number(6000)).is_some());
 }
 
 #[test]
@@ -49,15 +49,15 @@ fn fork_post_cht() {
 		let _  = light_chain.import_header(header);
 		light_chain.flush_queue();
 		light_chain.import_verified();
-		assert!(light_chain.get_header(id).is_some());
+		assert!(light_chain.block_header(id).is_some());
 	}
 
 	net.sync();
 
 	for id in (0..CHAIN_LENGTH).map(|x| x + 1).map(BlockId::Number) {
 		assert_eq!(
-			net.peer(0).light_chain().get_header(id),
-			net.peer(2).chain().block_header(id).map(|h| h.into_inner())
+			net.peer(0).light_chain().block_header(id).unwrap(),
+			net.peer(2).chain().block_header(id).unwrap()
 		);
 	}
 }

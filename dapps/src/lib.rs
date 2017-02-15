@@ -15,8 +15,8 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Ethcore Webapplications for Parity
-//!
 #![warn(missing_docs)]
+#![cfg_attr(feature="nightly", feature(plugin))]
 #![cfg_attr(feature="nightly", plugin(clippy))]
 
 extern crate base32;
@@ -45,6 +45,8 @@ extern crate parity_reactor;
 extern crate log;
 #[macro_use]
 extern crate mime;
+#[macro_use]
+extern crate serde_derive;
 
 #[cfg(test)]
 extern crate ethcore_devtools as devtools;
@@ -299,7 +301,7 @@ impl Server {
 
 		let special = Arc::new({
 			let mut special = HashMap::new();
-			special.insert(router::SpecialEndpoint::Rpc, rpc::rpc(handler, panic_handler.clone()));
+			special.insert(router::SpecialEndpoint::Rpc, rpc::rpc(handler, cors_domains.clone(), panic_handler.clone()));
 			special.insert(router::SpecialEndpoint::Utils, apps::utils());
 			special.insert(
 				router::SpecialEndpoint::Api,

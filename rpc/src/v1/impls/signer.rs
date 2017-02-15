@@ -20,49 +20,53 @@ use std::sync::{Arc, Weak};
 
 use rlp::{UntrustedRlp, View};
 use ethcore::account_provider::AccountProvider;
-use ethcore::client::MiningBlockChainClient;
 use ethcore::transaction::{SignedTransaction, PendingTransaction};
-use ethcore::miner::MinerService;
+use futures::{future, BoxFuture, Future, IntoFuture};
 
 use jsonrpc_core::Error;
 use v1::helpers::{errors, SignerService, SigningQueue, ConfirmationPayload};
-use v1::helpers::dispatch::{self, dispatch_transaction, WithToken};
+use v1::helpers::dispatch::{self, Dispatcher, WithToken};
 use v1::traits::Signer;
 use v1::types::{TransactionModification, ConfirmationRequest, ConfirmationResponse, ConfirmationResponseWithToken, U256, Bytes};
 
 /// Transactions confirmation (personal) rpc implementation.
-pub struct SignerClient<C, M> where C: MiningBlockChainClient, M: MinerService {
+pub struct SignerClient<D: Dispatcher> {
 	signer: Weak<SignerService>,
 	accounts: Weak<AccountProvider>,
-	client: Weak<C>,
-	miner: Weak<M>,
+	dispatcher: D
 }
 
-impl<C: 'static, M: 'static> SignerClient<C, M> where C: MiningBlockChainClient, M: MinerService {
+impl<D: Dispatcher + 'static> SignerClient<D> {
 
 	/// Create new instance of signer client.
 	pub fn new(
 		store: &Arc<AccountProvider>,
-		client: &Arc<C>,
-		miner: &Arc<M>,
+		dispatcher: D,
 		signer: &Arc<SignerService>,
 	) -> Self {
 		SignerClient {
 			signer: Arc::downgrade(signer),
 			accounts: Arc::downgrade(store),
-			client: Arc::downgrade(client),
-			miner: Arc::downgrade(miner),
+			dispatcher: dispatcher,
 		}
 	}
 
-	fn confirm_internal<F>(&self, id: U256, modification: TransactionModification, f: F) -> Result<WithToken<ConfirmationResponse>, Error> where
-		F: FnOnce(&C, &M, &AccountProvider, ConfirmationPayload) -> Result<WithToken<ConfirmationResponse>, Error>,
+	fn confirm_internal<F, T>(&self, id: U256, modification: TransactionModification, f: F) -> BoxFuture<WithToken<ConfirmationResponse>, Error> where
+		F: FnOnce(D, &AccountProvider, ConfirmationPayload) -> T,
+		T: IntoFuture<Item=WithToken<ConfirmationResponse>, Error=Error>,
+		T::Future: Send + 'static
 	{
 		let id = id.into();
-		let accounts = take_weak!(self.accounts);
-		let signer = take_weak!(self.signer);
-		let client = take_weak!(self.client);
-		let miner = take_weak!(self.miner);
+		let dispatcher = self.dispatcher.clone();
+
+		let setup = || {
+			Ok((take_weak!(self.accounts), take_weak!(self.signer)))
+		};
+
+		let (accounts, signer) = match setup() {
+			Ok(x) => x,
+			Err(e) => return future::err(e).boxed(),
+		};
 
 		signer.peek(&id).map(|confirmation| {
 			let mut payload = confirmation.payload.clone();
@@ -83,17 +87,21 @@ impl<C: 'static, M: 'static> SignerClient<C, M> where C: MiningBlockChainClient,
 					request.condition = condition.clone().map(Into::into);
 				}
 			}
-			let result = f(&*client, &*miner, &*accounts, payload);
-			// Execute
-			if let Ok(ref response) = result {
-				signer.request_confirmed(id, Ok((*response).clone()));
-			}
-			result
-		}).unwrap_or_else(|| Err(errors::invalid_params("Unknown RequestID", id)))
+			let fut = f(dispatcher, &*accounts, payload);
+			fut.into_future().then(move |result| {
+				// Execute
+				if let Ok(ref response) = result {
+					signer.request_confirmed(id, Ok((*response).clone()));
+				}
+
+				result
+			}).boxed()
+		})
+		.unwrap_or_else(|| future::err(errors::invalid_params("Unknown RequestID", id)).boxed())
 	}
 }
 
-impl<C: 'static, M: 'static> Signer for SignerClient<C, M> where C: MiningBlockChainClient, M: MinerService {
+impl<D: Dispatcher + 'static> Signer for SignerClient<D> {
 
 	fn requests_to_confirm(&self) -> Result<Vec<ConfirmationRequest>, Error> {
 		let signer = take_weak!(self.signer);
@@ -107,29 +115,31 @@ impl<C: 'static, M: 'static> Signer for SignerClient<C, M> where C: MiningBlockC
 
 	// TODO [ToDr] TransactionModification is redundant for some calls
 	// might be better to replace it in future
-	fn confirm_request(&self, id: U256, modification: TransactionModification, pass: String) -> Result<ConfirmationResponse, Error> {
-		self.confirm_internal(id, modification, move |client, miner, accounts, payload| {
-			dispatch::execute(client, miner, accounts, payload, dispatch::SignWith::Password(pass))
-		}).map(|v| v.into_value())
+	fn confirm_request(&self, id: U256, modification: TransactionModification, pass: String)
+		-> BoxFuture<ConfirmationResponse, Error>
+	{
+		self.confirm_internal(id, modification, move |dis, accounts, payload| {
+			dispatch::execute(dis, accounts, payload, dispatch::SignWith::Password(pass))
+		}).map(|v| v.into_value()).boxed()
 	}
 
-	fn confirm_request_with_token(&self, id: U256, modification: TransactionModification, token: String) -> Result<ConfirmationResponseWithToken, Error> {
-		self.confirm_internal(id, modification, move |client, miner, accounts, payload| {
-			dispatch::execute(client, miner, accounts, payload, dispatch::SignWith::Token(token))
+	fn confirm_request_with_token(&self, id: U256, modification: TransactionModification, token: String)
+		-> BoxFuture<ConfirmationResponseWithToken, Error>
+	{
+		self.confirm_internal(id, modification, move |dis, accounts, payload| {
+			dispatch::execute(dis, accounts, payload, dispatch::SignWith::Token(token))
 		}).and_then(|v| match v {
 			WithToken::No(_) => Err(errors::internal("Unexpected response without token.", "")),
 			WithToken::Yes(response, token) => Ok(ConfirmationResponseWithToken {
 				result: response,
 				token: token,
 			}),
-		})
+		}).boxed()
 	}
 
 	fn confirm_request_raw(&self, id: U256, bytes: Bytes) -> Result<ConfirmationResponse, Error> {
 		let id = id.into();
 		let signer = take_weak!(self.signer);
-		let client = take_weak!(self.client);
-		let miner = take_weak!(self.miner);
 
 		signer.peek(&id).map(|confirmation| {
 			let result = match confirmation.payload {
@@ -150,7 +160,7 @@ impl<C: 'static, M: 'static> Signer for SignerClient<C, M> where C: MiningBlockC
 					// Dispatch if everything is ok
 					if sender_matches && data_matches && value_matches && nonce_matches {
 						let pending_transaction = PendingTransaction::new(signed_transaction, request.condition.map(Into::into));
-						dispatch_transaction(&*client, &*miner, pending_transaction)
+						self.dispatcher.dispatch_transaction(pending_transaction)
 							.map(Into::into)
 							.map(ConfirmationResponse::SendTransaction)
 					} else {

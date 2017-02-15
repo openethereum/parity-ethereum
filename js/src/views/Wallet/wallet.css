@@ -55,6 +55,7 @@
   .header {
     flex: 1;
     margin-right: 0.25em;
+    overflow: hidden;
   }
 
   .details {

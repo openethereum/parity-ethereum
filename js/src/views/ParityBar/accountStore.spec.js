@@ -89,6 +89,16 @@ describe('views/ParityBar/AccountStore', () => {
       });
     });
 
+    describe('loadDefaultAccount', () => {
+      beforeEach(() => {
+        return store.loadDefaultAccount();
+      });
+
+      it('load and set the default account', () => {
+        expect(store.defaultAccount).to.equal(ACCOUNT_DEFAULT);
+      });
+    });
+
     describe('makeDefaultAccount', () => {
       beforeEach(() => {
         return store.makeDefaultAccount(ACCOUNT_NEW);

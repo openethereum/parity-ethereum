@@ -24,6 +24,7 @@ export Contracts from './Contracts';
 export Dapp from './Dapp';
 export Dapps from './Dapps';
 export HistoryStore from './historyStore';
+export Home from './Home';
 export ParityBar from './ParityBar';
 export Settings, { SettingsBackground, SettingsParity, SettingsProxy, SettingsViews } from './Settings';
 export Signer from './Signer';

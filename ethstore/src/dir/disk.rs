@@ -234,6 +234,10 @@ impl<T> VaultKeyDirectoryProvider for DiskDirectory<T> where T: KeyFileManager {
 			})
 			.collect())
 	}
+
+	fn vault_meta(&self, name: &str) -> Result<String, Error> {
+		VaultDiskDirectory::meta_at(&self.path, name)
+	}
 }
 
 impl KeyFileManager for DiskKeyFileManager {
@@ -242,7 +246,12 @@ impl KeyFileManager for DiskKeyFileManager {
 		Ok(SafeAccount::from_file(key_file, filename))
 	}
 
-	fn write<T>(&self, account: SafeAccount, writer: &mut T) -> Result<(), Error> where T: io::Write {
+	fn write<T>(&self, mut account: SafeAccount, writer: &mut T) -> Result<(), Error> where T: io::Write {
+		// when account is moved back to root directory from vault
+		// => remove vault field from meta
+		account.meta = json::remove_vault_name_from_json_meta(&account.meta)
+			.map_err(|err| Error::Custom(format!("{:?}", err)))?;
+
 		let key_file: json::KeyFile = account.into();
 		key_file.write(writer).map_err(|e| Error::Custom(format!("{:?}", e)))
 	}

@@ -25,7 +25,7 @@ use header::BlockNumber;
 use log_entry::{LogEntry, LocalizedLogEntry};
 
 /// Information describing execution of a transaction.
-#[derive(Default, Debug, Clone)]
+#[derive(Default, Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "ipc", binary)]
 pub struct Receipt {
 	/// The state root after executing the transaction. Optional since EIP98
@@ -76,7 +76,7 @@ impl Decodable for Receipt {
 			})
 		} else {
 			Ok(Receipt {
-				state_root: d.val_at(0)?,
+				state_root: Some(d.val_at(0)?),
 				gas_used: d.val_at(1)?,
 				log_bloom: d.val_at(2)?,
 				logs: d.val_at(3)?,
@@ -166,5 +166,8 @@ fn test_basic() {
 			data: vec![0u8; 32]
 		}]
 	);
-	assert_eq!(&encode(&r)[..], &expected[..]);
+	let encoded = encode(&r);
+	assert_eq!(&encoded[..], &expected[..]);
+	let decoded: Receipt = decode(&encoded);
+	assert_eq!(decoded, r);
 }
