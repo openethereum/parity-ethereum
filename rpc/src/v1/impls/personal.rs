@@ -117,4 +117,9 @@ impl<C: 'static, M: 'static> Personal for PersonalClient<C, M> where C: MiningBl
 			dispatch::SignWith::Password(password)
 		).map(|v| v.into_value().into())
 	}
+
+	fn sign_and_send_transaction(&self, request: TransactionRequest, password: String) -> Result<RpcH256, Error> {
+		warn!("Using deprecated personal_signAndSendTransaction, use personal_sendTransaction instead.");
+		self.send_transaction(meta, request, password)
+	}
 }
