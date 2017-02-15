@@ -118,15 +118,24 @@ fn sign_and_send_transaction_with_invalid_password() {
 }
 
 #[test]
+fn send_transaction() {
+	sign_and_send_test("personal_sendTransaction");
+}
+
+#[test]
 fn sign_and_send_transaction() {
+	sign_and_send_test("personal_signAndSendTransaction");
+}
+
+fn sign_and_send_test(method: &str) {
 	let tester = setup();
 	let address = tester.accounts.new_account("password123").unwrap();
 
 	let request = r#"{
 		"jsonrpc": "2.0",
-		"method": "personal_sendTransaction",
+		"method": ""#.to_owned() + method + r#"",
 		"params": [{
-			"from": ""#.to_owned() + format!("0x{:?}", address).as_ref() + r#"",
+			"from": ""# + format!("0x{:?}", address).as_ref() + r#"",
 			"to": "0xd46e8dd67c5d32be8058bb8eb970870f07244567",
 			"gas": "0x76c0",
 			"gasPrice": "0x9184e72a000",
