@@ -162,11 +162,16 @@ describe('ui/GasPriceEditor/Store', () => {
     });
 
     describe('setConditionDateTime', () => {
-      it('sets the datetime', () => {
-        const testTime = new Date('1973-06-11 07:52');
+      const zeroTime = new Date('1973-06-11 07:52:00.000').getTime();
 
-        store.setConditionDateTime(testTime);
-        expect(store.condition.time.getTime()).to.equal(testTime.getTime());
+      it('sets the datetime', () => {
+        store.setConditionDateTime(new Date('1973-06-11 07:52:00.000'));
+        expect(store.condition.time.getTime()).to.equal(zeroTime);
+      });
+
+      it('zeros both seconds and miliseconds', () => {
+        store.setConditionDateTime(new Date('1973-06-11 07:52:12.345'));
+        expect(store.condition.time.getTime()).to.equal(zeroTime);
       });
     });
 
