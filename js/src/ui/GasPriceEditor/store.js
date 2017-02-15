@@ -103,7 +103,9 @@ export default class GasPriceEditor {
     });
   }
 
-  @action setConditionDateTime = (time) => {
+  @action setConditionDateTime = (_time) => {
+    const time = new Date(_time);
+
     time.setMilliseconds(0); // ignored by/not passed to Parity
     time.setSeconds(0); // current time selector doesn't allow seconds
 
