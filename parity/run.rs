@@ -421,7 +421,6 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 	};
 	let signer_server = signer::start(cmd.signer_conf.clone(), signer_deps)?;
 
-
 	// the ipfs server
 	let ipfs_server = ipfs::start_server(client.clone())?;
 

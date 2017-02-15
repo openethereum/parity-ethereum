@@ -28,6 +28,7 @@ pub enum ServerError {
 	Other(hyper::error::Error),
 }
 
+#[derive(Debug, PartialEq)]
 pub enum Error {
 	CidParsingFailed,
 	UnsupportedHash,
@@ -37,6 +38,8 @@ pub enum Error {
 	StateRootNotFound,
 }
 
+/// Convert Error into Out, handy when switching from Rust's Result-based
+/// error handling to Hyper's request handling.
 impl From<Error> for Out {
 	fn from(err: Error) -> Out {
 		use self::Error::*;
@@ -52,18 +55,21 @@ impl From<Error> for Out {
 	}
 }
 
+/// Convert Content ID errors.
 impl From<cid::Error> for Error {
 	fn from(_: cid::Error) -> Error {
 		Error::CidParsingFailed
 	}
 }
 
+/// Convert multihash errors (multihash being part of CID).
 impl From<multihash::Error> for Error {
 	fn from(_: multihash::Error) -> Error {
 		Error::CidParsingFailed
 	}
 }
 
+/// Handle IO errors (ports taken when starting the server).
 impl From<::std::io::Error> for ServerError {
 	fn from(err: ::std::io::Error) -> ServerError {
 		ServerError::IoError(err)

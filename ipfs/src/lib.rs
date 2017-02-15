@@ -34,6 +34,7 @@ use hyper::header::{ContentLength, ContentType};
 use hyper::{Next, Encoder, Decoder, Method, RequestUri, StatusCode};
 use ethcore::client::BlockChainClient;
 
+/// Implement Hyper's HTTP handler
 impl Handler<HttpStream> for IpfsHandler {
 	fn on_request(&mut self, req: Request<HttpStream>) -> Next {
 		if *req.method() != Method::Get {
@@ -109,15 +110,16 @@ impl Handler<HttpStream> for IpfsHandler {
 pub fn start_server(client: Arc<BlockChainClient>) -> Result<Listening, ServerError> {
 	let addr = "0.0.0.0:5001".parse().expect("can't fail on static input; qed");
 
-	hyper::Server::http(&addr)?
-		.handle(move |_| IpfsHandler::new(client.clone()))
-		.map(|(listening, srv)| {
+	Ok(
+		hyper::Server::http(&addr)?
+			.handle(move |_| IpfsHandler::new(client.clone()))
+			.map(|(listening, srv)| {
 
-			::std::thread::spawn(move || {
-				srv.run();
-			});
+				::std::thread::spawn(move || {
+					srv.run();
+				});
 
-			listening
-		})
-		.map_err(Into::into)
+				listening
+			})?
+	)
 }
