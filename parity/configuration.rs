@@ -1098,7 +1098,7 @@ mod tests {
 	fn test_run_cmd() {
 		let args = vec!["parity"];
 		let conf = parse(&args);
-		assert_eq!(conf.into_command().unwrap().cmd, Cmd::Run(RunCmd {
+		let mut expected = RunCmd {
 			cache_config: Default::default(),
 			dirs: Default::default(),
 			spec: Default::default(),
@@ -1127,6 +1127,7 @@ mod tests {
 			net_settings: Default::default(),
 			dapps_conf: Default::default(),
 			signer_conf: Default::default(),
+			sstore_conf: Default::default(),
 			ui: false,
 			dapp: None,
 			name: "".into(),
@@ -1137,7 +1138,9 @@ mod tests {
 			check_seal: true,
 			download_old_blocks: true,
 			verifier_settings: Default::default(),
-		}));
+		};
+		expected.sstore_conf.enabled = cfg!(feature = "sstore");
+		assert_eq!(conf.into_command().unwrap().cmd, Cmd::Run(expected));
 	}
 
 	#[test]

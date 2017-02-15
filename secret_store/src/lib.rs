@@ -18,6 +18,7 @@
 extern crate log;
 extern crate hyper;
 extern crate parking_lot;
+extern crate url;
 
 extern crate ethcore_devtools as devtools;
 extern crate ethcore_util as util;

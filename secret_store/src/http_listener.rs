@@ -16,12 +16,15 @@
 
 use std::str::FromStr;
 use std::sync::Arc;
+use hyper::header;
 use hyper::uri::RequestUri;
 use hyper::method::Method as HttpMethod;
 use hyper::status::StatusCode as HttpStatusCode;
 use hyper::server::{Server as HttpServer, Request as HttpRequest, Response as HttpResponse, Handler as HttpHandler,
 	Listening as HttpListening};
+use url::percent_encoding::percent_decode;
 
+use util::ToPretty;
 use super::traits::{Error, ServiceConfiguration};
 use super::key_server::KeyServer;
 use super::{RequestSignature, DocumentAddress, DocumentEncryptedKey};
@@ -96,6 +99,8 @@ impl<T> HttpHandler for KeyServerHttpHandler<T> where T: KeyServer + 'static {
 						});
 					match document_key {
 						Ok(document_key) => {
+							let document_key = document_key.to_hex().into_bytes();
+							res.headers_mut().set(header::ContentType::plaintext());
 							if let Err(err) = res.send(&document_key) {
 								// nothing to do, but log error
 								warn!(target: "sstore", "GetDocumentKey request {} response has failed with: {}", req.uri, err);
@@ -122,6 +127,11 @@ impl<T> HttpHandler for KeyServerHttpHandler<T> where T: KeyServer + 'static {
 }
 
 fn parse_request(uri_path: &str) -> Request {
+	let uri_path = match percent_decode(uri_path.as_bytes()).decode_utf8() {
+		Ok(path) => path,
+		Err(_) => return Request::Invalid,
+	};
+
 	let path: Vec<String> = uri_path.trim_left_matches('/').split('/').map(Into::into).collect();
 	if path.len() != 2 || path[0].is_empty() || path[1].is_empty() {
 		return Request::Invalid;
@@ -144,6 +154,9 @@ mod tests {
 	#[test]
 	fn parse_request_successful() {
 		assert_eq!(parse_request("/0000000000000000000000000000000000000000000000000000000000000001/a199fb39e11eefb61c78a4074a53c0d4424600a3e74aad4fb9d93a26c30d067e1d4d29936de0c73f19827394a1dd049480a0d581aee7ae7546968da7d3d1c2fd01"),
+			Request::GetDocumentKey("0000000000000000000000000000000000000000000000000000000000000001".into(),
+				RequestSignature::from_str("a199fb39e11eefb61c78a4074a53c0d4424600a3e74aad4fb9d93a26c30d067e1d4d29936de0c73f19827394a1dd049480a0d581aee7ae7546968da7d3d1c2fd01").unwrap()));
+		assert_eq!(parse_request("/%30000000000000000000000000000000000000000000000000000000000000001/a199fb39e11eefb61c78a4074a53c0d4424600a3e74aad4fb9d93a26c30d067e1d4d29936de0c73f19827394a1dd049480a0d581aee7ae7546968da7d3d1c2fd01"),
 			Request::GetDocumentKey("0000000000000000000000000000000000000000000000000000000000000001".into(),
 				RequestSignature::from_str("a199fb39e11eefb61c78a4074a53c0d4424600a3e74aad4fb9d93a26c30d067e1d4d29936de0c73f19827394a1dd049480a0d581aee7ae7546968da7d3d1c2fd01").unwrap()));
 	}

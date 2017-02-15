@@ -72,7 +72,7 @@ impl Default for Configuration {
 		let data_dir = default_data_path();
 		Configuration {
 			enabled: true,
-			interface: "0.0.0.0".to_owned(),
+			interface: "127.0.0.1".to_owned(),
 			port: 8082,
 			data_path: replace_home(&data_dir, "$BASE/sstore"),
 		}

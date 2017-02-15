@@ -501,7 +501,8 @@ struct Misc {
 mod tests {
 	use super::{
 		Args, ArgsError,
-		Config, Operating, Account, Ui, Network, Rpc, Ipc, Dapps, Mining, Footprint, Snapshots, VM, Misc
+		Config, Operating, Account, Ui, Network, Rpc, Ipc, Dapps, Mining, Footprint,
+		Snapshots, VM, Misc, SecretStore,
 	};
 	use toml;
 
@@ -655,6 +656,11 @@ mod tests {
 			flag_dapps_user: Some("test_user".into()),
 			flag_dapps_pass: Some("test_pass".into()),
 			flag_dapps_apis_all: false,
+
+			flag_no_sstore: false,
+			flag_sstore_port: 8082u16,
+			flag_sstore_interface: "local".into(),
+			flag_sstore_path: "$HOME/.parity/sstore".into(),
 
 			// -- Sealing/Mining Options
 			flag_author: Some("0xdeadbeefcafe0000000000000000000000000001".into()),
@@ -840,6 +846,12 @@ mod tests {
 				hosts: None,
 				user: Some("username".into()),
 				pass: Some("password".into())
+			}),
+			sstore: Some(SecretStore {
+				disable: None,
+				port: Some(8082),
+				interface: None,
+				path: None,
 			}),
 			mining: Some(Mining {
 				author: Some("0xdeadbeefcafe0000000000000000000000000001".into()),
