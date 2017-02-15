@@ -60,33 +60,37 @@ macro_rules! impl_uint {
 		}
 
 		impl serde::Serialize for $name {
-			fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Error> where S: serde::Serializer {
+			fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: serde::Serializer {
 				serializer.serialize_str(&format!("0x{}", self.0.to_hex()))
 			}
 		}
 
 		impl serde::Deserialize for $name {
-			fn deserialize<D>(deserializer: &mut D) -> Result<$name, D::Error>
+			fn deserialize<D>(deserializer: D) -> Result<$name, D::Error>
 			where D: serde::Deserializer {
 				struct UintVisitor;
 
 				impl serde::de::Visitor for UintVisitor {
 					type Value = $name;
 
-					fn visit_str<E>(&mut self, value: &str) -> Result<Self::Value, E> where E: serde::Error {
+					fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+						write!(formatter, "a 0x-prefixed, hex-encoded number of type {}", stringify!($name))
+					}
+
+					fn visit_str<E>(self, value: &str) -> Result<Self::Value, E> where E: serde::de::Error {
 						// 0x + len
 						if value.len() > 2 + $size * 16 || value.len() < 2 {
-							return Err(serde::Error::custom("Invalid length."));
+							return Err(E::custom("Invalid length."));
 						}
 
 						if &value[0..2] != "0x" {
-							return Err(serde::Error::custom("Use hex encoded numbers with 0x prefix."))
+							return Err(E::custom("Use hex encoded numbers with 0x prefix."))
 						}
 
-						$other::from_str(&value[2..]).map($name).map_err(|_| serde::Error::custom("Invalid hex value."))
+						$other::from_str(&value[2..]).map($name).map_err(|_| E::custom("Invalid hex value."))
 					}
 
-					fn visit_string<E>(&mut self, value: String) -> Result<Self::Value, E> where E: serde::Error {
+					fn visit_string<E>(self, value: String) -> Result<Self::Value, E> where E: serde::de::Error {
 						self.visit_str(&value)
 					}
 				}

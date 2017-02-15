@@ -14,32 +14,33 @@
 /* You should have received a copy of the GNU General Public License
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
+
 .list {
   display: flex;
   flex-wrap: wrap;
-}
 
-.item {
-  flex: 0 1 50%;
-  width: 50%;
-  position: relative;
-  padding-bottom: 0.25em;
-  box-sizing: border-box;
-}
+  .item {
+    box-sizing: border-box;
+    flex: 0 1 50%;
+    padding-bottom: 0.25em;
+    position: relative;
+    width: 50%;
 
-.item:nth-child(odd) {
-  padding-right: 0.125em;
-}
+    &:nth-child(odd) {
+      padding-right: 0.125em;
+    }
 
-.item:nth-child(even) {
-  padding-left: 0.125em;
+    &:nth-child(even) {
+      padding-left: 0.125em;
+    }
+  }
 }
 
 .empty {
-  width: 100%;
   display: block;
-}
+  width: 100%;
 
-.empty div {
-  color: #aaa;
+  div {
+    color: #aaa;
+  }
 }

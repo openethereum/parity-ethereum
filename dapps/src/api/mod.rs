@@ -16,9 +16,6 @@
 
 //! REST API
 
-#![cfg_attr(feature="nightly", feature(custom_derive, custom_attribute, plugin))]
-#![cfg_attr(feature="nightly", plugin(serde_macros, clippy))]
-
 mod api;
 mod response;
 mod types;

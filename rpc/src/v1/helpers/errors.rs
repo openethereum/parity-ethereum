@@ -49,6 +49,7 @@ mod codes {
 	pub const COMPILATION_ERROR: i64 = -32050;
 	pub const ENCRYPTION_ERROR: i64 = -32055;
 	pub const FETCH_ERROR: i64 = -32060;
+	pub const NO_LIGHT_PEERS: i64 = -32065;
 }
 
 pub fn unimplemented(details: Option<String>) -> Error {
@@ -305,6 +306,14 @@ pub fn unknown_block() -> Error {
 	Error {
 		code: ErrorCode::ServerError(codes::UNSUPPORTED_REQUEST),
 		message: "Unknown block number".into(),
+		data: None,
+	}
+}
+
+pub fn no_light_peers() -> Error {
+	Error {
+		code: ErrorCode::ServerError(codes::NO_LIGHT_PEERS),
+		message: "No light peers who can serve data".into(),
 		data: None,
 	}
 }

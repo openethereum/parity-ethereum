@@ -1,5 +1,22 @@
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// This file is part of Parity.
+
+// Parity is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// Parity is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+
 use std::{ops, str};
-use serde::{Deserialize, Deserializer, Error, Serialize, Serializer};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use serde::de::Error;
 use rustc_serialize::hex::{ToHex, FromHex, FromHexError};
 
 #[derive(Debug, PartialEq)]
@@ -14,7 +31,7 @@ impl ops::Deref for Bytes {
 }
 
 impl Deserialize for Bytes {
-	fn deserialize<D>(deserializer: &mut D) -> Result<Self, D::Error>
+	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
 		where D: Deserializer
 	{
 		let s = String::deserialize(deserializer)?;
@@ -24,7 +41,7 @@ impl Deserialize for Bytes {
 }
 
 impl Serialize for Bytes {
-	fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Error>
+	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
 	where S: Serializer {
 		serializer.serialize_str(&self.0.to_hex())
 	}

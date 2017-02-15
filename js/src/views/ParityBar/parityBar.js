@@ -343,15 +343,22 @@ class ParityBar extends Component {
   }
 
   renderAccount = (account) => {
-    const onMakeDefault = () => {
+    const makeDefaultAccount = () => {
+      return this.accountStore
+        .makeDefaultAccount(account.address)
+        .then(() => this.accountStore.loadAccounts());
+    };
+
+    const onDoubleClick = () => {
       this.toggleAccountsDisplay();
-      this.accountStore.makeDefaultAccount(account.address);
+      makeDefaultAccount();
     };
 
     return (
       <div
         className={ styles.account }
-        onClick={ onMakeDefault }
+        onClick={ makeDefaultAccount }
+        onDoubleClick={ onDoubleClick }
       >
         <AccountCard
           account={ account }
@@ -578,10 +585,6 @@ class ParityBar extends Component {
     const { opened } = this.state;
 
     this.setOpened(!opened, DISPLAY_ACCOUNTS);
-
-    if (!opened) {
-      this.accountStore.loadAccounts();
-    }
   }
 
   toggleSignerDisplay = () => {

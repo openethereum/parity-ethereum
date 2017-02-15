@@ -2,16 +2,15 @@
 name = "ethstore"
 version = "0.1.0"
 authors = ["Parity Technologies <admin@parity.io>"]
-build = "build.rs"
 
 [dependencies]
 log = "0.3"
 libc = "0.2.11"
 rand = "0.3.14"
 ethkey = { path = "../ethkey" }
-serde = "0.8"
-serde_json = "0.8"
-serde_macros = { version = "0.8", optional = true }
+serde = "0.9"
+serde_json = "0.9"
+serde_derive = "0.9"
 rustc-serialize = "0.3"
 rust-crypto = "0.2.36"
 tiny-keccak = "1.0"
@@ -25,14 +24,12 @@ ethcore-util = { path = "../util" }
 smallvec = "0.3.1"
 ethcore-devtools = { path = "../devtools" }
 
-[build-dependencies]
-serde_codegen = { version = "0.8", optional = true }
-
 [features]
-default = ["serde_codegen"]
-nightly = ["serde_macros"]
 cli = ["docopt"]
+
+[lib]
 
 [[bin]]
 name = "ethstore"
+path = "src/bin/main.rs"
 doc = false

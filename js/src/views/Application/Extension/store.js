@@ -29,7 +29,10 @@ const NEXT_DISPLAY = '_parity::extensionWarning::nextDisplay';
 // 'https://chrome.google.com/webstore/detail/parity-ethereum-integrati/himekenlppkgeaoeddcliojfddemadig';
 const EXTENSION_PAGE = 'https://chrome.google.com/webstore/detail/himekenlppkgeaoeddcliojfddemadig';
 
+let instance;
+
 export default class Store {
+  @observable hasExtension = false;
   @observable isInstalling = false;
   @observable nextDisplay = 0;
   @observable shouldInstall = false;
@@ -41,6 +44,10 @@ export default class Store {
 
   @computed get showWarning () {
     return !this.isInstalling && this.shouldInstall && (Date.now() > this.nextDisplay);
+  }
+
+  @action setExtensionActive = () => {
+    this.hasExtension = true;
   }
 
   @action setInstalling = (isInstalling) => {
@@ -61,6 +68,7 @@ export default class Store {
     const ua = browser.analyze(navigator.userAgent || '');
 
     if (hasExtension) {
+      this.setExtensionActive();
       return false;
     }
 
@@ -96,5 +104,13 @@ export default class Store {
         reject(new Error('Direct installation failed.'));
       }
     });
+  }
+
+  static get () {
+    if (!instance) {
+      instance = new Store();
+    }
+
+    return instance;
   }
 }

@@ -198,7 +198,7 @@ impl Stratum {
 				trace!(target: "stratum", "Invalid submit work format {:?}", params);
 				to_value(false)
 			}
-		}).boxed()
+		}.expect("Only true/false is returned and it's always serializable; qed")).boxed()
 	}
 
 	fn subscribe(&self, _params: Params, meta: SocketMetadata) -> RpcResult {
@@ -210,14 +210,14 @@ impl Stratum {
 
 		future::ok(match self.dispatcher.initial() {
 			Some(initial) => match jsonrpc_core::Value::from_str(&initial) {
-				Ok(val) => val,
+				Ok(val) => Ok(val),
 				Err(e) => {
 					warn!(target: "stratum", "Invalid payload: '{}' ({:?})", &initial, e);
 					to_value(&[0u8; 0])
 				},
 			},
 			None => to_value(&[0u8; 0]),
-		}).boxed()
+		}.expect("Empty slices are serializable; qed")).boxed()
 	}
 
 	fn authorize(&self, params: Params, meta: SocketMetadata) -> RpcResult {
@@ -231,7 +231,7 @@ impl Stratum {
 			trace!(target: "stratum", "New worker #{} registered", worker_id);
 			self.workers.write().insert(meta.addr().clone(), worker_id);
 			to_value(true)
-		})).boxed()
+		}).map(|v| v.expect("Only true/false is returned and it's always serializable; qed"))).boxed()
 	}
 
 	pub fn subscribers(&self) -> RwLockReadGuard<Vec<SocketAddr>> {

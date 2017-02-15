@@ -29,7 +29,6 @@ extern crate quasi;
 extern crate syntex;
 
 #[cfg(feature = "with-syntex")]
-#[macro_use]
 extern crate syntex_syntax as syntax;
 
 #[cfg(not(feature = "with-syntex"))]

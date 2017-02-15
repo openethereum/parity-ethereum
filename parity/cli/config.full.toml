@@ -95,7 +95,7 @@ refuse_service_transactions = false
 [footprint]
 tracing = "auto"
 pruning = "auto"
-pruning_history = 1200
+pruning_history = 64
 pruning_memory = 500
 cache_size_db = 64
 cache_size_blocks = 8

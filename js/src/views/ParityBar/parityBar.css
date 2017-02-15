@@ -19,20 +19,7 @@ $overlayZ: 10000;
 $modalZ: 10001;
 
 .account {
-  display: flex;
-  flex: 1;
-  overflow: hidden;
-  position: relative;
-
-  .accountOverlay {
-    position: absolute;
-    right: 0.5em;
-    top: 0.5em;
-  }
-
-  .iconDisabled {
-    opacity: 0.15;
-  }
+  width: 100%;
 
   .selected,
   .unselected {

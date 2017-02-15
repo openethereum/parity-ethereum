@@ -21,6 +21,10 @@ export const LOG_KEYS = {
     key: 'balances',
     desc: 'Balances fetching'
   },
+  CertificationsMiddleware: {
+    key: 'certifications.middleware',
+    desc: 'Certifications Middleware'
+  },
   TransferModalStore: {
     key: 'modalsTransferStore',
     desc: 'Transfer modal MobX store'

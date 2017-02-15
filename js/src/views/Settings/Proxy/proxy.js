@@ -65,7 +65,7 @@ export default class Proxy extends Component {
                   id='settings.proxy.details_1'
                   defaultMessage='To learn how to configure the proxy, instructions are provided for {windowsLink}, {macOSLink} or {ubuntuLink}.'
                   values={ {
-                    windowsLink: <a href='https://blogs.msdn.microsoft.com/ieinternals/2013/10/11/understanding-web-proxy-configuration/' target='_blank'><FormattedMessage id='details_windows' defaultMessage='Windows' /></a>,
+                    windowsLink: <a href='https://blogs.msdn.microsoft.com/ieinternals/2013/10/11/understanding-web-proxy-configuration/' target='_blank'><FormattedMessage id='settings.proxy.details_windows' defaultMessage='Windows' /></a>,
                     macOSLink: <a href='https://support.apple.com/kb/PH18553?locale=en_US' target='_blank'><FormattedMessage id='settings.proxy.details_macos' defaultMessage='macOS' /></a>,
                     ubuntuLink: <a href='http://xmodulo.com/how-to-set-up-proxy-auto-config-on-ubuntu-desktop.html' target='_blank'><FormattedMessage id='settings.proxy.details_ubuntu' defaultMessage='Ubuntu' /></a>
                   } }

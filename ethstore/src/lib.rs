@@ -14,9 +14,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-#![cfg_attr(feature="nightly", feature(custom_derive, plugin))]
-#![cfg_attr(feature="nightly", plugin(serde_macros))]
-
 extern crate libc;
 extern crate itertools;
 extern crate smallvec;
@@ -37,9 +34,10 @@ extern crate ethcore_util as util;
 
 #[macro_use]
 extern crate log;
-
 #[macro_use]
 extern crate lazy_static;
+#[macro_use]
+extern crate serde_derive;
 
 pub mod dir;
 pub mod ethkey;
@@ -59,5 +57,8 @@ pub use self::error::Error;
 pub use self::ethstore::{EthStore, EthMultiStore};
 pub use self::import::{import_accounts, read_geth_accounts};
 pub use self::presale::PresaleWallet;
-pub use self::secret_store::{SecretVaultRef, StoreAccountRef, SimpleSecretStore, SecretStore};
+pub use self::secret_store::{
+	SecretVaultRef, StoreAccountRef, SimpleSecretStore, SecretStore,
+	Derivation, IndexDerivation,
+};
 pub use self::random::{random_phrase, random_string};

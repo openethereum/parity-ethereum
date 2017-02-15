@@ -18,7 +18,13 @@ import sinon from 'sinon';
 
 import Store from './store';
 
-const TEST_HISTORY = ['somethingA', 'somethingB'];
+const TEST_HISTORY_URLA = 'http://testingA';
+const TEST_HISTORY_URLB = 'http://testingB';
+const TEST_HISTORY = {
+  '': new Date(678),
+  [TEST_HISTORY_URLA]: new Date(123),
+  [TEST_HISTORY_URLB]: new Date(456)
+};
 const TEST_TOKEN = 'testing-123';
 const TEST_URL1 = 'http://some.test.domain.com';
 const TEST_URL2 = 'http://something.different.com';
@@ -89,9 +95,28 @@ describe('views/Web/Store', () => {
     });
 
     describe('setHistory', () => {
-      it('sets the history', () => {
+      let history;
+
+      beforeEach(() => {
         store.setHistory(TEST_HISTORY);
-        expect(store.history.peek()).to.deep.equal(TEST_HISTORY);
+        history = store.history.peek();
+      });
+
+      it('sets the history', () => {
+        expect(history.length).to.equal(2);
+      });
+
+      it('adds hostname to entries', () => {
+        expect(history[1].hostname).to.be.ok;
+      });
+
+      it('removes hostname http prefixes', () => {
+        expect(history[1].hostname.indexOf('http')).to.equal(-1);
+      });
+
+      it('sorts the entries according to recently accessed', () => {
+        expect(history[0].url).to.equal(TEST_HISTORY_URLB);
+        expect(history[1].url).to.equal(TEST_HISTORY_URLA);
       });
     });
 
@@ -195,7 +220,7 @@ describe('views/Web/Store', () => {
       });
 
       it('sets the history as retrieved', () => {
-        expect(store.history.peek()).to.deep.equal(TEST_HISTORY);
+        expect(store.history.peek().length).not.to.equal(0);
       });
     });
   });

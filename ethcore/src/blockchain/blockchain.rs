@@ -1336,6 +1336,7 @@ mod tests {
 	use transaction::{Transaction, Action};
 	use log_entry::{LogEntry, LocalizedLogEntry};
 	use ethkey::Secret;
+	use header::BlockNumber;
 
 	fn new_db() -> Arc<KeyValueDB> {
 		Arc::new(::util::kvdb::in_memory(::db::NUM_COLUMNS.unwrap_or(0)))
@@ -2007,14 +2008,14 @@ mod tests {
 
 		let blocks_b1 = bc.blocks_with_bloom(&bloom_b1, 0, 5);
 		let blocks_b2 = bc.blocks_with_bloom(&bloom_b2, 0, 5);
-		assert_eq!(blocks_b1, vec![]);
-		assert_eq!(blocks_b2, vec![]);
+		assert_eq!(blocks_b1, Vec::<BlockNumber>::new());
+		assert_eq!(blocks_b2, Vec::<BlockNumber>::new());
 
 		insert_block(&db, &bc, &b1, vec![]);
 		let blocks_b1 = bc.blocks_with_bloom(&bloom_b1, 0, 5);
 		let blocks_b2 = bc.blocks_with_bloom(&bloom_b2, 0, 5);
 		assert_eq!(blocks_b1, vec![1]);
-		assert_eq!(blocks_b2, vec![]);
+		assert_eq!(blocks_b2, Vec::<BlockNumber>::new());
 
 		insert_block(&db, &bc, &b2, vec![]);
 		let blocks_b1 = bc.blocks_with_bloom(&bloom_b1, 0, 5);
@@ -2029,15 +2030,15 @@ mod tests {
 		let blocks_ba = bc.blocks_with_bloom(&bloom_ba, 0, 5);
 		assert_eq!(blocks_b1, vec![1]);
 		assert_eq!(blocks_b2, vec![2]);
-		assert_eq!(blocks_ba, vec![]);
+		assert_eq!(blocks_ba, Vec::<BlockNumber>::new());
 
 		// fork has happend
 		insert_block(&db, &bc, &b2a, vec![]);
 		let blocks_b1 = bc.blocks_with_bloom(&bloom_b1, 0, 5);
 		let blocks_b2 = bc.blocks_with_bloom(&bloom_b2, 0, 5);
 		let blocks_ba = bc.blocks_with_bloom(&bloom_ba, 0, 5);
-		assert_eq!(blocks_b1, vec![]);
-		assert_eq!(blocks_b2, vec![]);
+		assert_eq!(blocks_b1, Vec::<BlockNumber>::new());
+		assert_eq!(blocks_b2, Vec::<BlockNumber>::new());
 		assert_eq!(blocks_ba, vec![1, 2]);
 
 		// fork back
