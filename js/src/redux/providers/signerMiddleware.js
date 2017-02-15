@@ -53,11 +53,9 @@ export default class SignerMiddleware {
     };
   }
 
-  onConfirmStart = (store, action) => {
-    const { condition, gas = 0, gasPrice = 0, id, password, payload, wallet } = action.payload;
-
-    const handlePromise = (promise) => {
-      promise
+  _createConfirmPromiseHandler (store, id) {
+    return (promise) => {
+      return promise
         .then((txHash) => {
           if (!txHash) {
             store.dispatch(actions.errorConfirmRequest({ id, err: 'Unable to confirm.' }));
@@ -71,63 +69,81 @@ export default class SignerMiddleware {
           store.dispatch(actions.errorConfirmRequest({ id, err: error.message }));
         });
     };
+  }
 
-    // Sign request in-browser
+  // TODO: Perform actual signing
+  confirmHardwareTransaction (store, id, transaction, hardwareAccount) {
+    return Promise.resolve(true);
+  }
+
+  confirmWalletTransaction (store, id, transaction, wallet, password) {
+    const handlePromise = this._createConfirmPromiseHandler(store, id);
+    const noncePromise = transaction.nonce.isZero()
+      ? this._api.parity.nextNonce(transaction.from)
+      : Promise.resolve(transaction.nonce);
+
+    const { worker } = store.getState().worker;
+
+    const signerPromise = worker && worker._worker.state === 'activated'
+      ? worker
+        .postMessage({
+          action: 'getSignerSeed',
+          data: { wallet, password }
+        })
+        .then((result) => {
+          const seed = Buffer.from(result.data);
+
+          return new Signer(seed);
+        })
+      : Signer.fromJson(wallet, password);
+
+    // NOTE: Derving the key takes significant amount of time,
+    // make sure to display some kind of "in-progress" state.
+    return Promise
+      .all([ signerPromise, noncePromise ])
+      .then(([ signer, nonce ]) => {
+        const txData = {
+          to: inHex(transaction.to),
+          nonce: inHex(transaction.nonce.isZero() ? nonce : transaction.nonce),
+          gasPrice: inHex(transaction.gasPrice),
+          gasLimit: inHex(transaction.gas),
+          value: inHex(transaction.value),
+          data: inHex(transaction.data)
+        };
+
+        return signer.signTransaction(txData);
+      })
+      .then((rawTx) => {
+        return handlePromise(this._api.signer.confirmRequestRaw(id, rawTx));
+      })
+      .catch((error) => {
+        console.error(error.message);
+        store.dispatch(actions.errorConfirmRequest({ id, err: error.message }));
+      });
+  }
+
+  onConfirmStart = (store, action) => {
+    const { condition, gas = 0, gasPrice = 0, id, password, payload, wallet } = action.payload;
+    const handlePromise = this._createConfirmPromiseHandler(store, id);
     const transaction = payload.sendTransaction || payload.signTransaction;
 
-    // TODO: hardware signing, e.g. via signLedger
-    if (wallet && transaction) {
-      const noncePromise = transaction.nonce.isZero()
-        ? this._api.parity.nextNonce(transaction.from)
-        : Promise.resolve(transaction.nonce);
+    if (transaction) {
+      const hardwareAccount = this._hwstore.wallets[transaction.from];
 
-      const { worker } = store.getState().worker;
-
-      const signerPromise = worker && worker._worker.state === 'activated'
-        ? worker
-          .postMessage({
-            action: 'getSignerSeed',
-            data: { wallet, password }
-          })
-          .then((result) => {
-            const seed = Buffer.from(result.data);
-
-            return new Signer(seed);
-          })
-        : Signer.fromJson(wallet, password);
-
-      // NOTE: Derving the key takes significant amount of time,
-      // make sure to display some kind of "in-progress" state.
-      return Promise
-        .all([ signerPromise, noncePromise ])
-        .then(([ signer, nonce ]) => {
-          const txData = {
-            to: inHex(transaction.to),
-            nonce: inHex(transaction.nonce.isZero() ? nonce : transaction.nonce),
-            gasPrice: inHex(transaction.gasPrice),
-            gasLimit: inHex(transaction.gas),
-            value: inHex(transaction.value),
-            data: inHex(transaction.data)
-          };
-
-          return signer.signTransaction(txData);
-        })
-        .then((rawTx) => {
-          return handlePromise(this._api.signer.confirmRequestRaw(id, rawTx));
-        })
-        .catch((error) => {
-          console.error(error.message);
-          store.dispatch(actions.errorConfirmRequest({ id, err: error.message }));
-        });
+      if (wallet) {
+        return this.confirmWalletTransaction(store, id, transaction, wallet, password);
+      } else if (hardwareAccount && hardwareAccount.via !== 'parity') {
+        return this.confirmHardwareTransaction(store, id, transaction, hardwareAccount);
+      }
     }
 
-    handlePromise(this._api.signer.confirmRequest(id, { gas, gasPrice, condition }, password));
+    return handlePromise(this._api.signer.confirmRequest(id, { gas, gasPrice, condition }, password));
   }
 
   onRejectStart = (store, action) => {
     const id = action.payload;
 
-    this._api.signer
+    return this._api.signer
       .rejectRequest(id)
       .then(() => {
         store.dispatch(actions.successRejectRequest({ id }));
