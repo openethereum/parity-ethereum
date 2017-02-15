@@ -45,6 +45,7 @@ pub struct Directories {
 	pub keys: String,
 	pub signer: String,
 	pub dapps: String,
+	pub sstore: String,
 }
 
 impl Default for Directories {
@@ -57,12 +58,13 @@ impl Default for Directories {
 			keys: replace_home(&data_dir, "$BASE/keys"),
 			signer: replace_home(&data_dir, "$BASE/signer"),
 			dapps: replace_home(&data_dir, "$BASE/dapps"),
+			sstore: replace_home(&data_dir, "$BASE/sstore"),
 		}
 	}
 }
 
 impl Directories {
-	pub fn create_dirs(&self, dapps_enabled: bool, signer_enabled: bool) -> Result<(), String> {
+	pub fn create_dirs(&self, dapps_enabled: bool, signer_enabled: bool, sstore_enabled: bool) -> Result<(), String> {
 		fs::create_dir_all(&self.base).map_err(|e| e.to_string())?;
 		fs::create_dir_all(&self.db).map_err(|e| e.to_string())?;
 		fs::create_dir_all(&self.keys).map_err(|e| e.to_string())?;
@@ -71,6 +73,9 @@ impl Directories {
 		}
 		if dapps_enabled {
 			fs::create_dir_all(&self.dapps).map_err(|e| e.to_string())?;
+		}
+		if sstore_enabled {
+			fs::create_dir_all(&self.sstore).map_err(|e| e.to_string())?;
 		}
 		Ok(())
 	}
@@ -241,6 +246,7 @@ mod tests {
 			keys: replace_home(&data_dir, "$BASE/keys"),
 			signer: replace_home(&data_dir, "$BASE/signer"),
 			dapps: replace_home(&data_dir, "$BASE/dapps"),
+			sstore: replace_home(&data_dir, "$BASE/sstore"),
 		};
 		assert_eq!(expected, Directories::default());
 	}

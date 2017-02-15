@@ -48,6 +48,7 @@ use cache::CacheConfig;
 use user_defaults::UserDefaults;
 use dapps;
 use signer;
+use sstore;
 use modules;
 use rpc_apis;
 use rpc;
@@ -94,6 +95,7 @@ pub struct RunCmd {
 	pub net_settings: NetworkSettings,
 	pub dapps_conf: dapps::Configuration,
 	pub signer_conf: signer::Configuration,
+	pub sstore_conf: sstore::Configuration,
 	pub dapp: Option<String>,
 	pub ui: bool,
 	pub name: String,
@@ -188,7 +190,7 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 	execute_upgrades(&cmd.dirs.base, &db_dirs, algorithm, cmd.compaction.compaction_profile(db_dirs.db_root_path().as_path()))?;
 
 	// create dirs used by parity
-	cmd.dirs.create_dirs(cmd.dapps_conf.enabled, cmd.signer_conf.enabled)?;
+	cmd.dirs.create_dirs(cmd.dapps_conf.enabled, cmd.signer_conf.enabled, cmd.sstore_conf.enabled)?;
 
 	// run in daemon mode
 	if let Some(pid_file) = cmd.daemon {
@@ -420,6 +422,10 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 	};
 	let signer_server = signer::start(cmd.signer_conf.clone(), signer_deps)?;
 
+	// secret store key server
+	let sstore_deps = sstore::Dependencies { };
+	let sstore_key_server = sstore::start(cmd.sstore_conf.clone(), sstore_deps);
+
 	// the informant
 	let informant = Arc::new(Informant::new(
 		service.client(),
@@ -476,7 +482,7 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 	let restart = wait_for_exit(panic_handler, Some(updater), can_restart);
 
 	// drop this stuff as soon as exit detected.
-	drop((http_server, ipc_server, dapps_server, signer_server, event_loop));
+	drop((http_server, ipc_server, dapps_server, signer_server, sstore_key_server, event_loop));
 
 	info!("Finishing work, please wait...");
 

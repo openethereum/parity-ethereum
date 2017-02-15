@@ -38,6 +38,7 @@ use ethcore_logger::Config as LogConfig;
 use dir::{self, Directories, default_hypervisor_path, default_local_path, default_data_path};
 use dapps::Configuration as DappsConfiguration;
 use signer::{Configuration as SignerConfiguration};
+use sstore::Configuration as SecretStoreConfiguration;
 use updater::{UpdatePolicy, UpdateFilter, ReleaseTrack};
 use run::RunCmd;
 use blockchain::{BlockchainCmd, ImportBlockchain, ExportBlockchain, KillBlockchain, ExportState, DataFormat};
@@ -119,6 +120,7 @@ impl Configuration {
 		let ui_address = self.ui_port().map(|port| (self.ui_interface(), port));
 		let dapps_conf = self.dapps_config();
 		let signer_conf = self.signer_config();
+		let sstore_conf = self.sstore_config();
 		let format = self.format()?;
 
 		let cmd = if self.args.flag_version {
@@ -343,6 +345,7 @@ impl Configuration {
 				net_settings: self.network_settings(),
 				dapps_conf: dapps_conf,
 				signer_conf: signer_conf,
+				sstore_conf: sstore_conf,
 				dapp: self.dapp_to_open()?,
 				ui: self.args.cmd_ui,
 				name: self.args.flag_identity,
@@ -536,6 +539,15 @@ impl Configuration {
 				vec![]
 			},
 			all_apis: self.args.flag_dapps_apis_all,
+		}
+	}
+
+	fn sstore_config(&self) -> SecretStoreConfiguration {
+		SecretStoreConfiguration {
+			enabled: self.sstore_enabled(),
+			interface: self.sstore_interface(),
+			port: self.args.flag_sstore_port,
+			data_path: self.directories().sstore,
 		}
 	}
 
@@ -777,6 +789,7 @@ impl Configuration {
 		let db_path = replace_home_for_db(&data_path, &local_path, &base_db_path);
 		let keys_path = replace_home(&data_path, &self.args.flag_keys_path);
 		let dapps_path = replace_home(&data_path, &self.args.flag_dapps_path);
+		let sstore_path = replace_home(&data_path, &self.args.flag_sstore_path);
 		let ui_path = replace_home(&data_path, &self.args.flag_ui_path);
 
 		if self.args.flag_geth  && !cfg!(windows) {
@@ -800,6 +813,7 @@ impl Configuration {
 			db: db_path,
 			dapps: dapps_path,
 			signer: ui_path,
+			sstore: sstore_path,
 		}
 	}
 
@@ -841,6 +855,13 @@ impl Configuration {
 		}.into()
 	}
 
+	fn sstore_interface(&self) -> String {
+		match self.args.flag_sstore_interface.as_str() {
+			"local" => "127.0.0.1",
+			x => x,
+		}.into()
+	}
+
 	fn stratum_interface(&self) -> String {
 		match self.args.flag_stratum_interface.as_str() {
 			"local" => "127.0.0.1",
@@ -851,6 +872,10 @@ impl Configuration {
 
 	fn dapps_enabled(&self) -> bool {
 		!self.args.flag_dapps_off && !self.args.flag_no_dapps && cfg!(feature = "dapps")
+	}
+
+	fn sstore_enabled(&self) -> bool {
+		!self.args.flag_no_sstore && cfg!(feature = "sstore")
 	}
 
 	fn ui_enabled(&self) -> bool {

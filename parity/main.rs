@@ -62,6 +62,10 @@ extern crate rpc_cli;
 
 #[cfg(feature="stratum")]
 extern crate ethcore_stratum;
+
+#[cfg(feature="sstore")]
+extern crate ethcore_secstore;
+
 #[cfg(feature = "dapps")]
 extern crate ethcore_dapps;
 
@@ -100,6 +104,7 @@ mod rpc_apis;
 mod run;
 mod signer;
 mod snapshot;
+mod sstore;
 mod upgrade;
 mod url;
 mod user_defaults;

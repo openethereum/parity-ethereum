@@ -176,6 +176,16 @@ API and Console Options:
                                  WARNING: INSECURE. Used only for development.
                                  (default: {flag_dapps_apis_all})
 
+Secret Store Options:
+  --no-sstore                    Disable Secret Store functionality. (default: {flag_no_sstore})
+  --sstore-port PORT             Specify the port portion for Secret Store Key Server
+                                 (default: {flag_sstore_port}).
+  --sstore-interface IP          Specify the hostname portion for Secret Store Key Server, IP
+                                 should be an interface's IP address, or local
+                                 (default: {flag_sstore_interface}).
+  --sstore-path PATH             Specify directory where secret store should save its data.
+                                 (default: {flag_sstore_path})
+
 Sealing/Mining Options:
   --author ADDRESS               Specify the block author (aka "coinbase") address
                                  for sending block rewards from sealed blocks.

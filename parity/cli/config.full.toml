@@ -67,6 +67,12 @@ path = "$HOME/.parity/dapps"
 user = "test_user"
 pass = "test_pass"
 
+[sstore]
+disable = false
+port = 8082
+interface = "local"
+path = "$HOME/.parity/sstore"
+
 [mining]
 author = "0xdeadbeefcafe0000000000000000000000000001"
 engine_signer = "0xdeadbeefcafe0000000000000000000000000001"

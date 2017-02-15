@@ -189,6 +189,16 @@ usage! {
 			or |c: &Config| otry!(c.dapps).pass.clone().map(Some),
 		flag_dapps_apis_all: bool = false, or |_| None,
 
+		// Secret Store
+		flag_no_sstore: bool = false,
+			or |c: &Config| otry!(c.sstore).disable.clone(),
+		flag_sstore_port: u16 = 8082u16,
+			or |c: &Config| otry!(c.sstore).port.clone(),
+		flag_sstore_interface: String = "local",
+			or |c: &Config| otry!(c.sstore).interface.clone(),
+		flag_sstore_path: String = "$BASE/sstore",
+			or |c: &Config| otry!(c.sstore).path.clone(),
+
 		// -- Sealing/Mining Options
 		flag_author: Option<String> = None,
 			or |c: &Config| otry!(c.mining).author.clone().map(Some),
@@ -321,6 +331,7 @@ struct Config {
 	rpc: Option<Rpc>,
 	ipc: Option<Ipc>,
 	dapps: Option<Dapps>,
+	sstore: Option<SecretStore>,
 	mining: Option<Mining>,
 	footprint: Option<Footprint>,
 	snapshots: Option<Snapshots>,
@@ -407,6 +418,14 @@ struct Dapps {
 	path: Option<String>,
 	user: Option<String>,
 	pass: Option<String>,
+}
+
+#[derive(Default, Debug, PartialEq, RustcDecodable)]
+struct SecretStore {
+	disable: Option<bool>,
+	port: Option<u16>,
+	interface: Option<String>,
+	path: Option<String>,
 }
 
 #[derive(Default, Debug, PartialEq, RustcDecodable)]

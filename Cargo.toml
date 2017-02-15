@@ -48,6 +48,7 @@ parity-updater = { path = "updater" }
 parity-reactor = { path = "util/reactor" }
 ethcore-dapps = { path = "dapps", optional = true }
 clippy = { version = "0.0.103", optional = true}
+ethcore-secstore = { path = "secret_store", optional = true }
 
 [dev-dependencies]
 ethcore-ipc-tests = { path = "ipc/tests" }
@@ -82,6 +83,7 @@ evm-debug = ["ethcore/evm-debug"]
 evm-debug-tests = ["ethcore/evm-debug-tests"]
 slow-blocks = ["ethcore/slow-blocks"]
 final = ["ethcore-util/final"]
+sstore = ["ethcore-secstore"]
 
 [[bin]]
 path = "parity/main.rs"
