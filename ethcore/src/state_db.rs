@@ -477,7 +477,7 @@ mod tests {
 		let h2b = H256::random();
 		let h3a = H256::random();
 		let h3b = H256::random();
-		let mut batch = DBTransaction::new(state_db.journal_db().backing());
+		let mut batch = DBTransaction::new();
 
 		// blocks  [ 3a(c) 2a(c) 2b 1b 1a(c) 0 ]
 	    // balance [ 5     5     4  3  2     2 ]

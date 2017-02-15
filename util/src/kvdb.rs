@@ -59,9 +59,14 @@ enum DBOp {
 
 impl DBTransaction {
 	/// Create new transaction.
-	pub fn new(_db: &Database) -> DBTransaction {
+	pub fn new() -> DBTransaction {
+		DBTransaction::with_capacity(256)
+	}
+
+	/// Create new transaction with capacity.
+	pub fn with_capacity(cap: usize) -> DBTransaction {
 		DBTransaction {
-			ops: Vec::with_capacity(256),
+			ops: Vec::with_capacity(cap)
 		}
 	}
 
@@ -393,9 +398,9 @@ impl Database {
 		})
 	}
 
-	/// Creates new transaction for this database.
+	/// Helper to create new transaction for this database.
 	pub fn transaction(&self) -> DBTransaction {
-		DBTransaction::new(self)
+		DBTransaction::new()
 	}
 
 

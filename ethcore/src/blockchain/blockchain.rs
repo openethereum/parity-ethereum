@@ -467,7 +467,7 @@ impl BlockChain {
 					children: vec![]
 				};
 
-				let mut batch = DBTransaction::new(&db);
+				let mut batch = DBTransaction::new();
 				batch.put(db::COL_HEADERS, &hash, block.header_rlp().as_raw());
 				batch.put(db::COL_BODIES, &hash, &Self::block_to_body(genesis));
 

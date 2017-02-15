@@ -650,7 +650,6 @@ mod tests {
 	use spec::Spec;
 	use engines::{Engine, EngineError, Seal};
 	use super::*;
-	use super::message::*;
 
 	/// Accounts inserted with "0" and "1" are validators. First proposer is "0".
 	fn setup() -> (Spec, Arc<AccountProvider>) {

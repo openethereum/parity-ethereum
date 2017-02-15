@@ -1,0 +1,9 @@
+[package]
+name = "parity-local-node-data"
+description = "Manages persistent local node data."
+version = "0.1.0"
+authors = ["Parity Technologies <admin@parity.io>"]
+
+[dependencies]
+ethcore-util = { path = "../util" }
+ethcore = { path = "../ethcore" }

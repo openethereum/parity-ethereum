@@ -127,7 +127,7 @@ impl<T> BloomGroupDatabase for TraceDB<T> where T: DatabaseExtras {
 impl<T> TraceDB<T> where T: DatabaseExtras {
 	/// Creates new instance of `TraceDB`.
 	pub fn new(config: Config, tracesdb: Arc<Database>, extras: Arc<T>) -> Self {
-		let mut batch = DBTransaction::new(&tracesdb);
+		let mut batch = DBTransaction::new();
 		let genesis = extras.block_hash(0)
 			.expect("Genesis block is always inserted upon extras db creation qed");
 		batch.write(db::COL_TRACE, &genesis, &FlatBlockTraces::default());
@@ -574,7 +574,7 @@ mod tests {
 
 		// import block 0
 		let request = create_noncanon_import_request(0, block_0.clone());
-		let mut batch = DBTransaction::new(&db);
+		let mut batch = DBTransaction::new();
 		tracedb.import(&mut batch, request);
 		db.write(batch).unwrap();
 
@@ -605,7 +605,7 @@ mod tests {
 
 		// import block 1
 		let request = create_simple_import_request(1, block_1.clone());
-		let mut batch = DBTransaction::new(&db);
+		let mut batch = DBTransaction::new();
 		tracedb.import(&mut batch, request);
 		db.write(batch).unwrap();
 
@@ -621,7 +621,7 @@ mod tests {
 
 		// import block 2
 		let request = create_simple_import_request(2, block_2.clone());
-		let mut batch = DBTransaction::new(&db);
+		let mut batch = DBTransaction::new();
 		tracedb.import(&mut batch, request);
 		db.write(batch).unwrap();
 
@@ -684,7 +684,7 @@ mod tests {
 
 			// import block 1
 			let request = create_simple_import_request(1, block_0.clone());
-			let mut batch = DBTransaction::new(&db);
+			let mut batch = DBTransaction::new();
 			tracedb.import(&mut batch, request);
 			db.write(batch).unwrap();
 		}

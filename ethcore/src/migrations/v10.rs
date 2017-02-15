@@ -70,7 +70,7 @@ pub fn generate_bloom(source: Arc<Database>, dest: &mut Database) -> Result<(), 
 
 	trace!(target: "migration", "Generated {} bloom updates", bloom_journal.entries.len());
 
-	let mut batch = DBTransaction::new(dest);
+	let mut batch = DBTransaction::new();
 	StateDB::commit_bloom(&mut batch, bloom_journal).map_err(|_| Error::Custom("Failed to commit bloom".to_owned()))?;
 	dest.write(batch)?;
 

@@ -74,7 +74,7 @@ impl Batch {
 	pub fn commit(&mut self, dest: &mut Database) -> Result<(), Error> {
 		if self.inner.is_empty() { return Ok(()) }
 
-		let mut transaction = DBTransaction::new(dest);
+		let mut transaction = DBTransaction::new();
 
 		for keypair in &self.inner {
 			transaction.put(self.column, &keypair.0, &keypair.1);
