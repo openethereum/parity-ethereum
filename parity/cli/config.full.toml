@@ -67,6 +67,10 @@ path = "$HOME/.parity/dapps"
 user = "test_user"
 pass = "test_pass"
 
+[ipfs]
+disable = true
+port = 5001
+
 [mining]
 author = "0xdeadbeefcafe0000000000000000000000000001"
 engine_signer = "0xdeadbeefcafe0000000000000000000000000001"

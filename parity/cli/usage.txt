@@ -175,6 +175,9 @@ API and Console Options:
   --dapps-apis-all               Expose all possible RPC APIs on Dapps port.
                                  WARNING: INSECURE. Used only for development.
                                  (default: {flag_dapps_apis_all})
+  --no-ipfs                      Disable IPFS-compatible HTTP API. (default: {flag_ipfs_off})
+  --ipfs-port PORT               Configure on which port the IPFS HTTP API should listen.
+                                 (default: {flag_ipfs_port})
 
 Sealing/Mining Options:
   --author ADDRESS               Specify the block author (aka "coinbase") address

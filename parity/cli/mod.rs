@@ -189,6 +189,12 @@ usage! {
 			or |c: &Config| otry!(c.dapps).pass.clone().map(Some),
 		flag_dapps_apis_all: bool = false, or |_| None,
 
+		// IPFS
+		flag_ipfs_off: bool = true,
+			or |c: &Config| otry!(c.ipfs).disable.clone(),
+		flag_ipfs_port: u16 = 5001u16,
+			or |c: &Config| otry!(c.ipfs).port.clone(),
+
 		// -- Sealing/Mining Options
 		flag_author: Option<String> = None,
 			or |c: &Config| otry!(c.mining).author.clone().map(Some),
@@ -321,6 +327,7 @@ struct Config {
 	rpc: Option<Rpc>,
 	ipc: Option<Ipc>,
 	dapps: Option<Dapps>,
+	ipfs: Option<Ipfs>,
 	mining: Option<Mining>,
 	footprint: Option<Footprint>,
 	snapshots: Option<Snapshots>,
@@ -410,6 +417,12 @@ struct Dapps {
 }
 
 #[derive(Default, Debug, PartialEq, RustcDecodable)]
+struct Ipfs {
+	disable: Option<bool>,
+	port: Option<u16>,
+}
+
+#[derive(Default, Debug, PartialEq, RustcDecodable)]
 struct Mining {
 	author: Option<String>,
 	engine_signer: Option<String>,
@@ -482,7 +495,7 @@ struct Misc {
 mod tests {
 	use super::{
 		Args, ArgsError,
-		Config, Operating, Account, Ui, Network, Rpc, Ipc, Dapps, Mining, Footprint, Snapshots, VM, Misc
+		Config, Operating, Account, Ui, Network, Rpc, Ipc, Dapps, Ipfs, Mining, Footprint, Snapshots, VM, Misc
 	};
 	use toml;
 
@@ -636,6 +649,10 @@ mod tests {
 			flag_dapps_user: Some("test_user".into()),
 			flag_dapps_pass: Some("test_pass".into()),
 			flag_dapps_apis_all: false,
+
+			// IPFS
+			flag_ipfs_off: true,
+			flag_ipfs_port: 5001u16,
 
 			// -- Sealing/Mining Options
 			flag_author: Some("0xdeadbeefcafe0000000000000000000000000001".into()),
@@ -821,6 +838,10 @@ mod tests {
 				hosts: None,
 				user: Some("username".into()),
 				pass: Some("password".into())
+			}),
+			ipfs: Some(Ipfs {
+				disable: Some(true),
+				port: Some(5001)
 			}),
 			mining: Some(Mining {
 				author: Some("0xdeadbeefcafe0000000000000000000000000001".into()),
