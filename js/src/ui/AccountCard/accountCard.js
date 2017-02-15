@@ -82,13 +82,21 @@ export default class AccountCard extends Component {
           />
         </div>
 
-        <div className={ styles.tagsContainer }>
-          <Tags
-            floating={ false }
-            horizontal
-            tags={ tags }
-          />
-        </div>
+        {
+          tags && tags.length > 0
+          ? (
+            <div className={ styles.tagsContainer }>
+              <div className={ styles.tags }>
+                <Tags
+                  floating={ false }
+                  horizontal
+                  tags={ tags }
+                />
+              </div>
+            </div>
+          ) : null
+        }
+
       </div>
     );
   }

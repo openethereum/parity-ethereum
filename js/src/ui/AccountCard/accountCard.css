@@ -56,10 +56,24 @@
 }
 
 .tagsContainer {
-  background-color: rgba(200, 200, 200, 0.15);
-  border-left: 1px dashed #444;
   flex: 0 1 auto;
+  position: relative;
+  width: 5.25em;
+}
+
+.tags {
+  background-color: rgba(40, 40, 40, 0.15);
+  border-left: 1px dashed #444;
   padding: 0.25em;
+  position: absolute;
+  right: 0;
+  transition: all 0.2s ease-out;
+  width: 2.5em;
+
+  &:hover {
+    background-color: rgba(40, 40, 40, 0.95);
+    width: auto;
+  }
 }
 
 .infoContainer {
