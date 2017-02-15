@@ -44,13 +44,6 @@ export default class RequestPending extends Component {
     isSending: false
   };
 
-  onConfirm = data => {
-    const { onConfirm, payload } = this.props;
-
-    data.payload = payload;
-    onConfirm(data);
-  };
-
   render () {
     const { className, date, focus, gasLimit, id, isSending, isTest, onReject, payload, store, origin } = this.props;
 
@@ -99,4 +92,11 @@ export default class RequestPending extends Component {
     console.error('RequestPending: Unknown payload', payload);
     return null;
   }
+
+  onConfirm = (data) => {
+    const { onConfirm, payload } = this.props;
+
+    data.payload = payload;
+    onConfirm(data);
+  };
 }

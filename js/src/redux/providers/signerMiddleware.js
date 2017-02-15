@@ -17,11 +17,13 @@
 import * as actions from './signerActions';
 
 import { inHex } from '~/api/format/input';
-import { Signer } from '../../util/signer';
+import HardwareStore from '~/mobx/hardwareStore';
+import { Signer } from '~/util/signer';
 
 export default class SignerMiddleware {
   constructor (api) {
     this._api = api;
+    this._hwstore = HardwareStore.get(api);
   }
 
   toMiddleware () {
@@ -73,6 +75,7 @@ export default class SignerMiddleware {
     // Sign request in-browser
     const transaction = payload.sendTransaction || payload.signTransaction;
 
+    // TODO: hardware signing, e.g. via signLedger
     if (wallet && transaction) {
       const noncePromise = transaction.nonce.isZero()
         ? this._api.parity.nextNonce(transaction.from)
