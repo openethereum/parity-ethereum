@@ -379,6 +379,7 @@ darwin:
       export PLATFORM=x86_64-apple-darwin
       cargo build -j 8 --features final --release #$CARGOFLAGS
       cargo build -j 8 --features final --release -p ethstore #$CARGOFLAGS
+      cargo build -j 8 --features final --release -p evmbin #$CARGOFLAGS
       rm -rf parity.md5
       md5sum target/release/parity > parity.md5
       export SHA3=$(target/release/parity tools hash target/release/parity)
@@ -504,7 +505,7 @@ test-windows:
     - git submodule update --init --recursive
   script:
     - set RUST_BACKTRACE=1
-    - echo cargo test --features json-tests -p rlp -p ethash -p ethcore -p ethcore-bigint -p ethcore-dapps -p ethcore-rpc -p ethcore-signer -p ethcore-util -p ethcore-network -p ethcore-io -p ethkey -p ethstore -p ethsync -p ethcore-ipc -p ethcore-ipc-tests -p ethcore-ipc-nano -p parity %CARGOFLAGS% --verbose --release
+    - echo cargo test --features json-tests -p rlp -p ethash -p ethcore -p ethcore-bigint -p ethcore-dapps -p ethcore-rpc -p ethcore-signer -p ethcore-util -p ethcore-network -p ethcore-io -p ethkey -p ethstore -p evmbin -p ethsync -p ethcore-ipc -p ethcore-ipc-tests -p ethcore-ipc-nano -p parity %CARGOFLAGS% --verbose --release
   tags:
     - rust-windows
   allow_failure: true

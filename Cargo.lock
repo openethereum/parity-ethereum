@@ -24,6 +24,7 @@ dependencies = [
  "ethcore-stratum 1.6.0",
  "ethcore-util 1.6.0",
  "ethsync 1.6.0",
+ "evmbin 0.1.0",
  "fdlimit 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "hyper 0.10.0-a.0 (git+https://github.com/ethcore/hyper)",
  "isatty 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -779,6 +780,16 @@ dependencies = [
  "rlp 0.1.0",
  "semver 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "time 0.1.35 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "evmbin"
+version = "0.1.0"
+dependencies = [
+ "docopt 0.6.80 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethcore 1.6.0",
+ "ethcore-util 1.6.0",
+ "rustc-serialize 0.3.19 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
