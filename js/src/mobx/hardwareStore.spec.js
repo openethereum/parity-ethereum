@@ -89,13 +89,12 @@ describe('mobx/HardwareStore', () => {
   });
 
   describe('operations', () => {
-    describe('createEntry', () => {
+    describe('createAccountInfo', () => {
       beforeEach(() => {
-        return store.createEntry({
+        return store.createAccountInfo({
           address: 'testAddr',
-          description: 'testDesc',
-          name: 'testName',
-          type: 'testType'
+          manufacturer: 'testMfg',
+          name: 'testName'
         });
       });
 
@@ -105,11 +104,10 @@ describe('mobx/HardwareStore', () => {
 
       it('calls into parity_setAccountMeta', () => {
         expect(api.parity.setAccountMeta).to.have.been.calledWith('testAddr', sinon.match({
-          description: 'testDesc',
+          description: 'testMfg testName',
           hardware: {
-            type: 'testType'
-          },
-          name: 'testName'
+            manufacturer: 'testMfg'
+          }
         }));
       });
     });

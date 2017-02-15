@@ -38,11 +38,12 @@ class Accounts extends Component {
   }
 
   static propTypes = {
-    setVisibleAccounts: PropTypes.func.isRequired,
     accounts: PropTypes.object.isRequired,
+    accountsInfo: PropTypes.object.isRequired,
+    balances: PropTypes.object,
+    hardware: PropTypes.object.isRequired,
     hasAccounts: PropTypes.bool.isRequired,
-
-    balances: PropTypes.object
+    setVisibleAccounts: PropTypes.func.isRequired
   }
 
   hwstore = HardwareStore.get(this.context.api);
@@ -323,16 +324,27 @@ class Accounts extends Component {
   }
 
   onHardwareChange = () => {
+    const { accountsInfo } = this.props;
+    const { wallets } = this.hwstore;
+
+    wallets
+      .filter((wallet) => !accountsInfo[wallet.address])
+      .forEach((wallet) => {
+        // this.hwstore.createEntry(wallet);
+      });
+
     this.setVisibleAccounts();
   }
 }
 
 function mapStateToProps (state) {
-  const { accounts, hasAccounts } = state.personal;
+  const { accounts, accountsInfo, hardware, hasAccounts } = state.personal;
   const { balances } = state.balances;
 
   return {
     accounts,
+    accountsInfo,
+    hardware,
     hasAccounts,
     balances
   };

@@ -23,7 +23,7 @@ let instance = null;
 
 export default class HardwareStore {
   @observable isScanning = false;
-  @observable wallets = null;
+  @observable wallets = [];
 
   constructor (api) {
     this._api = api;
@@ -47,9 +47,10 @@ export default class HardwareStore {
       .then((wallet) => {
         console.log('HardwareStore::scanLedger', wallet);
 
-        return [
-          wallet
-        ];
+        return [];
+        // return [
+        //   wallet
+        // ];
       })
       .catch((error) => {
         console.warn('HardwareStore::scanLedger', error);
@@ -61,16 +62,17 @@ export default class HardwareStore {
   scanParity () {
     return this._api.parity
       .hardwareAccountsInfo()
-      .then((accountsInfo) => {
-        console.log('HardwareStore::scanParity', accountsInfo);
+      .then((hwInfo) => {
+        console.log('HardwareStore::scanParity', hwInfo);
 
-        return Object
-          .keys(accountsInfo)
-          .map((address) => {
-            accountsInfo[address] = address;
-
-            return accountsInfo[address];
-          });
+        return [];
+        // return Object
+        //   .keys(hwInfo)
+        //   .map((address) => {
+        //     hwInfo[address] = address;
+        //
+        //     return hwInfo[address];
+        //   });
       })
       .catch((error) => {
         console.warn('HardwareStore::scanParity', error);
@@ -103,17 +105,17 @@ export default class HardwareStore {
       });
   }
 
-  createEntry (entry) {
+  createAccountInfo (entry) {
+    const { address, manufacturer, name } = entry;
+
     return Promise
       .all([
-        this._api.parity.setAccountName(entry.address, entry.name),
-        this._api.parity.setAccountMeta(entry.address, {
-          deleted: false,
-          description: entry.description,
+        this._api.parity.setAccountName(address, name),
+        this._api.parity.setAccountMeta(address, {
+          description: `${manufacturer} ${name}`,
           hardware: {
-            type: entry.type
+            manufacturer
           },
-          name: entry.name,
           tags: ['hardware'],
           timestamp: Date.now()
         })
